@@ -29,6 +29,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "loadouts": {"status": "complete"},
             "starmapObjects": {"status": "complete"},
             "contracts": {"status": "complete"},
+            "mineableElements": {"status": "complete"},
+            "refiningProcesses": {"status": "complete"},
             "shops": {"status": "complete"}
         },
         "manufacturers": [{
@@ -191,6 +193,31 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "position": [12_850_000_000.0, 1250.5, -3.0]
         }],
         "contracts": contracts(),
+        "mineableElements": [{
+            "guid": "a3000000-0000-4000-8000-000000000001",
+            "className": "agricium_ore",
+            "recordPath": "libs/foundry/records/mining/mineableelements/agricium_ore",
+            "resourceTypeGuid": "b1000000-0000-4000-8000-000000000001",
+            "instability": 350.0,
+            "resistance": 0.5,
+            "optimalWindowMidpoint": 0.5,
+            "optimalWindowMidpointRandomness": 0.15,
+            "optimalWindowThinness": 2.0,
+            "explosionMultiplier": 4.0,
+            "clusterFactor": 0.2
+        }],
+        "refiningProcesses": [{
+            "guid": "a4000000-0000-4000-8000-000000000001",
+            "className": "processingtype-fastcareful",
+            "recordPath": "libs/foundry/records/refiningprocess/processingtype-fastcareful",
+            "processName": {
+                "key": "@refinery_ui_ProcessingType_FastCareful",
+                "en": null,
+                "de": null
+            },
+            "refiningSpeed": "Fast",
+            "refiningQuality": "Careful"
+        }],
         "shops": [{
             "key": "4a269932-183e-362d-aacc-188e7debbea9,4ce1f681-b479-5269-0536-3d7f02fdccaf,41000000-0000-4000-8000-000000000001,42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
             "entityGuid": "42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",

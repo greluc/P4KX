@@ -184,8 +184,7 @@ fn assemble<R>(
     options: &CatalogOptions<'_>,
     emit: impl FnOnce(&Catalog<'_>) -> Result<R, CatalogError>,
 ) -> Result<(Parts, R), CatalogError> {
-    let cancelled = || options.cancel.is_some_and(CancelToken::is_cancelled);
-    if cancelled() {
+    if options.cancel.is_some_and(CancelToken::is_cancelled) {
         return Err(CatalogError::Cancelled);
     }
     let forge = entry.open().map_err(CatalogError::DataForge)?;
@@ -205,7 +204,6 @@ fn assemble<R>(
     add_contracts(&forge, &texts, options, &mut collected)?;
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
     let kinds = collected.summary(options.filter.is_none());
-    let (item_classes, playability) = (collected.item_classes, collected.playability);
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
@@ -226,6 +224,8 @@ fn assemble<R>(
         loadouts: collected.loadouts,
         starmap_objects: collected.starmap_objects,
         contracts: collected.contracts,
+        mineable_elements: collected.mineable_elements,
+        refining_processes: collected.refining_processes,
         shops: collected.shops,
     };
     let output = emit(&catalog)?;
@@ -234,13 +234,13 @@ fn assemble<R>(
             kinds,
             texts: texts.summary(),
             notes: texts.notes().to_vec(),
-            item_classes,
+            item_classes: collected.item_classes,
             paints: paint_summary,
             loadouts: loadout_summary,
             starmap: starmap_summary,
             starmap_report: Box::new(report),
             shops: Box::new(shop_summary),
-            playability,
+            playability: collected.playability,
             variants,
             failures: collected.failures,
             warnings: collected.warnings,

@@ -4,7 +4,7 @@ expression: "exported(&[\"--lang\", \"en\"])?"
 ---
 == libs/foundry/records/vehicles/cart.xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Vehicle xmlns:p4kx="https://github.com/greluc/p4k-extractor/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" name="@vehicle_Cart" p4kx:text-name="Cart &amp; &quot;Co&quot;" description="@vehicle_CartDesc" p4kx:text-description="Rolls.&#10;Slowly." unset="@LOC_PLACEHOLDER">
+<Vehicle xmlns:p4kx="https://github.com/greluc/p4kx/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" name="@vehicle_Cart" p4kx:text-name="Cart &amp; &quot;Co&quot;" description="@vehicle_CartDesc" p4kx:text-description="Rolls.&#10;Slowly." unset="@LOC_PLACEHOLDER">
   <labels>
     <p4kx:value value="@vehicle_Cart" text="Cart &amp; &quot;Co&quot;"/>
     <p4kx:value value="@vehicle_Unknown" missing="true"/>
@@ -12,6 +12,6 @@ expression: "exported(&[\"--lang\", \"en\"])?"
 </Vehicle>
 == libs/foundry/records/vehicles/truck.xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Vehicle xmlns:p4kx="https://github.com/greluc/p4k-extractor/record-xml" guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/vehicles/truck" name="@vehicle_Truck" p4kx:text-name="Truck" description="@vehicle_TruckDesc" p4kx:text-description="Hauls." unset="">
+<Vehicle xmlns:p4kx="https://github.com/greluc/p4kx/record-xml" guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/vehicles/truck" name="@vehicle_Truck" p4kx:text-name="Truck" description="@vehicle_TruckDesc" p4kx:text-description="Hauls." unset="">
   <labels/>
 </Vehicle>

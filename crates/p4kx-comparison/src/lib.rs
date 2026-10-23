@@ -1,4 +1,4 @@
-//! Comparison service of P4K-Extractor: the Entries added, removed and changed and the Records
+//! Comparison service of P4KX: the Entries added, removed and changed and the Records
 //! added, removed, moved and changed between two Archives, as a queryable result and as a JSON
 //! report with a generated schema, the line diff of one Entry pair, and the schema drift between
 //! two DataForges.

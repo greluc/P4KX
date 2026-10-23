@@ -1,4 +1,4 @@
-//! Export service of P4K-Extractor: the Record export and the Basetool catalog (ADR-0002).
+//! Export service of P4KX: the Record export and the Basetool catalog (ADR-0002).
 //!
 //! [`write_record_export`] writes a selection of Records in a [`RecordForm`]: one Record XML or
 //! Record JSON file per Record under its record path (ADR-0008), or one NDJSON file with one
@@ -57,6 +57,7 @@ mod contract;
 mod contract_crafting;
 mod contract_entities;
 mod contract_loadout;
+mod contract_mining;
 mod contract_missions;
 mod contract_recipe;
 mod contract_rewards;
@@ -82,6 +83,7 @@ mod loadout;
 mod loadout_port;
 mod localization_table;
 mod manufacturer;
+mod mining;
 mod mission_index;
 mod mission_layers;
 mod mission_places;

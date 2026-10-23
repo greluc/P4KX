@@ -1,4 +1,4 @@
-//! Extraction service of P4K-Extractor and the Archive, `CryXml`, DataForge, localisation,
+//! Extraction service of P4KX and the Archive, `CryXml`, DataForge, localisation,
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
 mod animation_load;

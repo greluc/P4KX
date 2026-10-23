@@ -12,7 +12,7 @@ const AUDIO_OFFSET: usize = 0x14;
 const BLOCK_SIZES_OFFSET: usize = 0x28;
 const UNMODIFIED_PACKET_SIGNALS: [u32; 4] = [0x4A, 0x4B, 0x69, 0x70];
 const BLOCK_SIZE_BITS: std::ops::RangeInclusive<u8> = 6..=13;
-const VENDOR: &[u8] = b"P4K-Extractor, rebuilt from Wwise Vorbis";
+const VENDOR: &[u8] = b"P4KX, rebuilt from Wwise Vorbis";
 
 /// The fields of a Wwise Vorbis header that rebuilding the stream needs.
 #[derive(Debug, Clone, PartialEq, Eq)]

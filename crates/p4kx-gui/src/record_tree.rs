@@ -60,7 +60,7 @@ impl<'a> RecordNode<'a> {
 /// Why DataForge could not be loaded.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataForgeFailure {
-    /// The header names a version this P4K-Extractor does not read.
+    /// The header names a version this P4KX does not read.
     Unsupported {
         /// The version in the header.
         version: u32,

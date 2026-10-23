@@ -1,6 +1,6 @@
 [package]
 name = "p4kx-comparison"
-description = "Comparison service of P4K-Extractor: what changed between two Archives."
+description = "Comparison service of P4KX: what changed between two Archives."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -55,7 +55,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          $name = "P4K-Extractor-$env:VERSION-x86_64"
+          $name = "P4KX-$env:VERSION-x86_64"
           $folder = "target\package\$name"
           New-Item -ItemType Directory -Force $folder | Out-Null
           Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, target\release\p4kx-mcp.exe, LICENSE-MIT, LICENSE-APACHE, THIRD-PARTY-NOTICES, CHANGELOG.md $folder
@@ -70,16 +70,19 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           MSI_VERSION: ${{ steps.version.outputs.msi_version }}
         run: |
-          .github\scripts\build-msi.ps1 -Wix $env:WIX_EXE -Version $env:MSI_VERSION -Output "target\package\P4K-Extractor-$env:VERSION-x86_64.msi"
+          .github\scripts\build-msi.ps1 -Wix $env:WIX_EXE -Version $env:MSI_VERSION -Output "target\package\P4KX-$env:VERSION-x86_64.msi"
       - name: Install, upgrade and uninstall
         env:
           VERSION: ${{ steps.version.outputs.version }}
           NEXT_MSI_VERSION: ${{ steps.version.outputs.next_msi_version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          New-Item -ItemType Directory -Force target\wix-check | Out-Null
+          New-Item -ItemType Directory -Force target\wix-check, target\wix-previous | Out-Null
+          gh release download v0.2.0 --repo greluc/P4KX --pattern "*.msi" --dir target\wix-previous
+          $previous = (Get-ChildItem target\wix-previous -Filter *.msi | Select-Object -First 1).FullName
           .github\scripts\build-msi.ps1 -Wix $env:WIX_EXE -Version $env:NEXT_MSI_VERSION -Output target\wix-check\next.msi
           $upgradeCode = ([xml](Get-Content crates\p4kx-gui\wix\main.wxs)).Wix.Package.UpgradeCode
-          .github\scripts\check-msi.ps1 -Msi "target\package\P4K-Extractor-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $env:NEXT_MSI_VERSION -UpgradeCode $upgradeCode
+          .github\scripts\check-msi.ps1 -Msi "target\package\P4KX-$env:VERSION-x86_64.msi" -NextMsi target\wix-check\next.msi -NextVersion $env:NEXT_MSI_VERSION -UpgradeCode $upgradeCode -PreviousMsi $previous
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -115,5 +118,5 @@ jobs:
           prerelease=()
           case "$VERSION" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --title "P4K-Extractor $VERSION" --notes-file release/release-notes.md "${prerelease[@]}" \
+            --title "P4KX $VERSION" --notes-file release/release-notes.md "${prerelease[@]}" \
             release/*.zip release/*.msi

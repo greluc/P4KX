@@ -10,6 +10,7 @@ pub(crate) use crate::contract_crafting::{
 };
 pub(crate) use crate::contract_entities::{Item, Paint, Ship};
 pub(crate) use crate::contract_loadout::Loadout;
+pub(crate) use crate::contract_mining::{MineableElement, RefiningProcess};
 pub(crate) use crate::contract_missions::ContractEntry;
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
@@ -27,7 +28,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
-#[schemars(title = "P4K-Extractor Basetool catalog")]
+#[schemars(title = "P4KX Basetool catalog")]
 pub(crate) struct Catalog<'a> {
     /// The version of the catalog shape; an import rejects a version it does not know.
     #[schemars(extend("const" = 1))]
@@ -70,6 +71,10 @@ pub(crate) struct Catalog<'a> {
     /// The contracts and sub contracts with resolved titles, mission types and the reputation they
     /// grant on success, ordered by the GUID of the contract and then of the sub contract.
     pub(crate) contracts: Vec<ContractEntry<'a>>,
+    /// The mineable elements, ordered by GUID. Several may link to one `ResourceType`.
+    pub(crate) mineable_elements: Vec<MineableElement<'a>>,
+    /// The refining processes, ordered by GUID.
+    pub(crate) refining_processes: Vec<RefiningProcess<'a>>,
     /// The shops of the shop registry with kind, brand and place, ordered by `key`.
     pub(crate) shops: Vec<Shop>,
 }
@@ -87,7 +92,7 @@ pub(crate) struct Source<'a> {
     pub(crate) archive_size: u64,
     /// The modification time of the Archive file, UTC in RFC 3339 form, `null` when unknown.
     pub(crate) archive_modified: Option<String>,
-    /// The version of P4K-Extractor that wrote the catalog.
+    /// The version of P4KX that wrote the catalog.
     pub(crate) tool_version: &'static str,
     /// When the catalog was written, UTC in RFC 3339 form.
     pub(crate) exported_at: String,
@@ -146,6 +151,10 @@ pub(crate) struct Completeness<'a> {
     pub(crate) starmap_objects: KindCompleteness<'a>,
     /// The completeness of `contracts`.
     pub(crate) contracts: KindCompleteness<'a>,
+    /// The completeness of `mineableElements`.
+    pub(crate) mineable_elements: KindCompleteness<'a>,
+    /// The completeness of `refiningProcesses`.
+    pub(crate) refining_processes: KindCompleteness<'a>,
     /// The completeness of `shops`.
     pub(crate) shops: KindCompleteness<'a>,
 }
@@ -169,6 +178,8 @@ impl<'a> Completeness<'a> {
             loadouts: completeness,
             starmap_objects: completeness,
             contracts: completeness,
+            mineable_elements: completeness,
+            refining_processes: completeness,
             shops: completeness,
         }
     }

@@ -1,4 +1,4 @@
-//! Assembly service of P4K-Extractor: resolves the Loadout tree of an Entity and reads the CHF
+//! Assembly service of P4KX: resolves the Loadout tree of an Entity and reads the CHF
 //! files of Characters.
 //!
 //! [`Entities`] finds an Entity by record path, GUID or class name. [`LoadoutResolver`] resolves

@@ -442,6 +442,6 @@
     "enums",
     "unreadable"
   ],
-  "title": "P4K-Extractor schema drift report",
+  "title": "P4KX schema drift report",
   "type": "object"
 }

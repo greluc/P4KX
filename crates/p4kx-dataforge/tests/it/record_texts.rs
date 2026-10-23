@@ -106,7 +106,7 @@ fn xml_annotates_attributes_elements_and_array_values() -> TestResult {
         xml,
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-            "<Item xmlns:p4kx=\"https://github.com/greluc/p4k-extractor/record-xml\" ",
+            "<Item xmlns:p4kx=\"https://github.com/greluc/p4kx/record-xml\" ",
             "guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/sample\" ",
             "name=\"@item_Name\" p4kx:text-name=\"Crate &amp; &quot;Co&quot;\" ",
             "gone=\"@item_Gone\" p4kx:missing-gone=\"true\" ",

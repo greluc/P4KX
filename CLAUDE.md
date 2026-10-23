@@ -5,7 +5,7 @@ the build, architecture, or the rules below change.
 
 ## What this is
 
-**P4K-Extractor** — a Rust desktop tool with a native Rust GUI that opens, browses and extracts the
+**P4KX** — a Rust desktop tool with a native Rust GUI that opens, browses and extracts the
 `Data.p4k` archive of Star Citizen. It reimplements:
 
 - the functionality of [dolkensp/unp4k](https://github.com/dolkensp/unp4k) (reading the p4k
@@ -139,7 +139,7 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ### Issue tracker
 
-Issues live in GitHub Issues of `greluc/p4k-extractor`, accessed with the `gh` CLI. See
+Issues live in GitHub Issues of `greluc/P4KX`, accessed with the `gh` CLI. See
 `docs/agents/issue-tracker.md`.
 
 ### Domain docs

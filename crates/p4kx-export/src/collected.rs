@@ -5,8 +5,8 @@ use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
-    DismantleProcess, GameplayProperty, Item, Loadout, Manufacturer, Paint, QualityDistribution,
-    ResourceGroup, Ship, Shop, StarmapObject,
+    DismantleProcess, GameplayProperty, Item, Loadout, Manufacturer, MineableElement, Paint,
+    QualityDistribution, RefiningProcess, ResourceGroup, Ship, Shop, StarmapObject,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -14,6 +14,7 @@ use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::loadout::carries_ports;
 use crate::manufacturer::manufacturer;
+use crate::mining::{mineable_element, refining_process};
 use crate::paint_port::VehicleFacts;
 use crate::playability::PlayabilitySummary;
 use crate::playability_rules::Evidence;
@@ -40,6 +41,10 @@ pub(crate) enum Picked<'f> {
     BlueprintCategory(BlueprintCategory<'f>),
     /// A starmap object.
     Starmap(StarmapObject<'f>),
+    /// A mineable element.
+    Mineable(MineableElement<'f>),
+    /// A refining process.
+    Refining(RefiningProcess<'f>),
     /// A development leftover of the kind.
     Skipped(Kind),
     /// A Record that could not be read.
@@ -74,6 +79,8 @@ impl<'f> Picked<'f> {
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
             Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
+            Kind::MineableElements => Self::Mineable(mineable_element(tree)),
+            Kind::RefiningProcesses => Self::Refining(refining_process(tree, texts)),
             Kind::Blueprints
             | Kind::GameplayProperties
             | Kind::QualityDistributions
@@ -107,6 +114,8 @@ pub(crate) struct Collected<'f> {
     pub(crate) contracts: Vec<ContractEntry<'f>>,
     pub(crate) port_items: Vec<CatalogGuid>,
     pub(crate) starmap_objects: Vec<StarmapObject<'f>>,
+    pub(crate) mineable_elements: Vec<MineableElement<'f>>,
+    pub(crate) refining_processes: Vec<RefiningProcess<'f>>,
     pub(crate) shops: Vec<Shop>,
     pub(crate) vehicles: Vec<VehicleFacts<'f>>,
     pub(crate) item_classes: ItemClassSummary,
@@ -119,6 +128,10 @@ pub(crate) struct Collected<'f> {
 impl<'f> Collected<'f> {
     /// Sorts `picked` into the kinds and orders every kind by the text of the GUID; `crafting`
     /// fills the kinds [`read_crafting`](crate::read_crafting) reads.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one initialiser per kind of the catalog"
+    )]
     pub(crate) fn new(picked: Vec<Picked<'f>>, crafting: CraftingKinds<'f>) -> Self {
         let skipped = Self::crafting_skipped(&crafting);
         let mut collected = Self {
@@ -139,6 +152,8 @@ impl<'f> Collected<'f> {
             contracts: Vec::new(),
             port_items: Vec::new(),
             starmap_objects: Vec::new(),
+            mineable_elements: Vec::new(),
+            refining_processes: Vec::new(),
             shops: Vec::new(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
@@ -167,6 +182,8 @@ impl<'f> Collected<'f> {
                 Picked::ResourceGroup(entity) => collected.resource_groups.push(entity),
                 Picked::BlueprintCategory(entity) => collected.blueprint_categories.push(entity),
                 Picked::Starmap(entity) => collected.starmap_objects.push(entity),
+                Picked::Mineable(entity) => collected.mineable_elements.push(entity),
+                Picked::Refining(entity) => collected.refining_processes.push(entity),
                 Picked::Skipped(kind) => {
                     if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
                         *skipped = skipped.saturating_add(1);
@@ -231,6 +248,10 @@ impl<'f> Collected<'f> {
             .sort_by_cached_key(|entity| entity.guid.text());
         self.starmap_objects
             .sort_by_cached_key(|entity| entity.guid.text());
+        self.mineable_elements
+            .sort_by_cached_key(|entity| entity.guid.text());
+        self.refining_processes
+            .sort_by_cached_key(|entity| entity.guid.text());
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -255,6 +276,8 @@ impl<'f> Collected<'f> {
                     Kind::Loadouts => self.loadouts.len(),
                     Kind::StarmapObjects => self.starmap_objects.len(),
                     Kind::Contracts => self.contracts.len(),
+                    Kind::MineableElements => self.mineable_elements.len(),
+                    Kind::RefiningProcesses => self.refining_processes.len(),
                     Kind::Shops => self.shops.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),

@@ -1,4 +1,4 @@
-//! Shared building blocks of the P4K-Extractor format crates: a bounds-checked little-endian
+//! Shared building blocks of the P4KX format crates: a bounds-checked little-endian
 //! reader over byte slices, the parse error it reports, path matching with the rules of a Filter,
 //! and the Archive key type and IV.
 

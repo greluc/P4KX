@@ -57,7 +57,7 @@ pub struct ReferenceError {
 }
 
 impl ReferenceList<'static> {
-    /// Returns the list built into P4K-Extractor.
+    /// Returns the list built into P4KX.
     ///
     /// # Errors
     ///

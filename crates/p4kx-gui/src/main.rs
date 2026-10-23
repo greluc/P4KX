@@ -1,4 +1,4 @@
-//! `p4kx-gui`, the P4K-Extractor window.
+//! `p4kx-gui`, the P4KX window.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 

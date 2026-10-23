@@ -33,8 +33,9 @@ a Basetool conversion is its own decision.
 Only the `MineableElement` Record holds `elementInstability` (with resistance and the optimal
 window), so it belongs to a mineable element, not to the commodity. 27 of the 46 elements link to
 a `ResourceType` that has a `refinedVersion`. Several elements may share a `ResourceType`, which
-makes a flat commodity field ambiguous; this stays out of the catalog until a rule picks one
-(follow-up). One `ResourceType` carries `properties/ResourceTypeVolatility` (1 Record,
+makes a flat commodity field ambiguous, so the catalog carries no such field. The kind
+`mineableElements` exports every element with its `resourceTypeGuid` and the Basetool applies its
+own rule (ADR-0065, #460). One `ResourceType` carries `properties/ResourceTypeVolatility` (1 Record,
 with a `healthDecayPerSecond`), a decay of cargo, not the instability of a rock. The mining laser
 `laserInstability` modifiers (names matching `*nstab*`) are item stats, not commodity data.
 
@@ -56,5 +57,5 @@ number near it is a `refiningQualityUnitMultiplier` on one Record. Refinery yiel
 ## Follow-up
 
 - Catalog fields added with this spike: `densityGramsPerCubicCentimetre`, `refinedSubtypeGuid`.
-- Open: a `refiningProcesses` kind (9 Records) and an instability field need a rule for the
-  `MineableElement` to commodity relation; a new issue tracks them.
+- Catalog kinds added by #460: `mineableElements` (instability and the other plain numbers per
+  element, no pick per commodity, ADR-0065) and `refiningProcesses` (the 9 Records).

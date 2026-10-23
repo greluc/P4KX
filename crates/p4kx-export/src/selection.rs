@@ -53,6 +53,10 @@ pub enum Kind {
     /// Contracts: every contract and every sub contract of the `ContractGenerator` Records under
     /// `contracts/contractgenerator`, one entry each.
     Contracts,
+    /// Mineable elements: `MineableElement` Records under `mining/mineableelements`.
+    MineableElements,
+    /// Refining processes: `RefiningProcess` Records under `refiningprocess`.
+    RefiningProcesses,
     /// Shops: the `ShopBackup` entries of the shop registry `LayerBackups.xml`, with kind and brand
     /// from the shop containers. Derived from Archive files, so no record-path rule of its own.
     Shops,
@@ -60,7 +64,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 18] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -76,6 +80,8 @@ impl Kind {
         Self::Loadouts,
         Self::StarmapObjects,
         Self::Contracts,
+        Self::MineableElements,
+        Self::RefiningProcesses,
         Self::Shops,
     ];
 
@@ -98,6 +104,8 @@ impl Kind {
             Self::Loadouts => "loadouts",
             Self::StarmapObjects => "starmapObjects",
             Self::Contracts => "contracts",
+            Self::MineableElements => "mineableElements",
+            Self::RefiningProcesses => "refiningProcesses",
             Self::Shops => "shops",
         }
     }
@@ -122,7 +130,7 @@ impl Kind {
     /// and of [`Kind::Items`] and reports the rule of the items. [`Kind::Shops`] reads Archive
     /// files, not Records, and reports an empty rule.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "one arm per kind of the catalog")]
+    #[expect(clippy::too_many_lines, reason = "a table with one entry per kind")]
     pub const fn rule(self) -> KindRule {
         match self {
             Self::Manufacturers => KindRule {
@@ -183,6 +191,14 @@ impl Kind {
                 prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
                 type_name: "ContractGenerator",
             },
+            Self::MineableElements => KindRule {
+                prefixes: &["libs/foundry/records/mining/mineableelements/"],
+                type_name: "MineableElement",
+            },
+            Self::RefiningProcesses => KindRule {
+                prefixes: &["libs/foundry/records/refiningprocess/"],
+                type_name: "RefiningProcess",
+            },
             Self::Shops => KindRule {
                 prefixes: &[],
                 type_name: "",
@@ -218,7 +234,9 @@ impl Kind {
             Self::Loadouts => 12,
             Self::StarmapObjects => 13,
             Self::Contracts => 14,
-            Self::Shops => 15,
+            Self::MineableElements => 15,
+            Self::RefiningProcesses => 16,
+            Self::Shops => 17,
         }
     }
 

@@ -8,23 +8,27 @@ use p4kx_dataforge::{
 use rayon::prelude::*;
 
 use crate::coverage::{
-    ComponentCoverage, ReferenceItem, ReferenceKind, SampleExport, TypeCoverage,
+    ComponentCoverage, ObjectCoverage, ReferenceItem, ReferenceKind, SampleExport, TypeCoverage,
 };
+use crate::coverage_objects::{self, STAR_MAP_OBJECT, TypeSlots};
 
 const ENTITY_TYPE: &str = "EntityClassDefinition";
 const COMPONENTS: &str = "Components";
+const TEMPLATE: &str = "template";
 
 #[derive(Debug, Clone, Copy, Default)]
-struct Tally {
-    records: u64,
+pub(crate) struct Tally {
+    pub(crate) records: u64,
+    pub(crate) templates: u64,
     unreadable: u64,
     errors: u64,
-    sample: Option<u32>,
+    pub(crate) sample: Option<u32>,
 }
 
 impl Tally {
     fn merge(&mut self, other: Self) {
         self.records += other.records;
+        self.templates += other.templates;
         self.unreadable += other.unreadable;
         self.errors += other.errors;
         self.sample = match (self.sample, other.sample) {
@@ -44,12 +48,15 @@ struct ComponentTally {
 struct Context<'a> {
     types: HashMap<&'a str, usize>,
     components: HashMap<&'a str, usize>,
+    objects: HashMap<&'a str, usize>,
     parents: HashMap<&'a str, &'a str>,
 }
 
 struct Pass<'f> {
     tallies: Vec<Tally>,
     components: Vec<ComponentTally>,
+    objects: Vec<Tally>,
+    type_slots: TypeSlots,
     entities: u64,
     unreadable_entities: u64,
     builder: TreeBuilder<'f>,
@@ -58,10 +65,12 @@ struct Pass<'f> {
 }
 
 impl Pass<'_> {
-    fn new(types: usize, components: usize) -> Self {
+    fn new(types: usize, components: usize, objects: usize) -> Self {
         Self {
             tallies: vec![Tally::default(); types],
             components: vec![ComponentTally::default(); components],
+            objects: vec![Tally::default(); objects],
+            type_slots: TypeSlots::new(),
             entities: 0,
             unreadable_entities: 0,
             builder: TreeBuilder::new(),
@@ -72,6 +81,9 @@ impl Pass<'_> {
 
     fn merge(mut self, other: Self) -> Self {
         for (tally, other) in self.tallies.iter_mut().zip(other.tallies) {
+            tally.merge(other);
+        }
+        for (tally, other) in self.objects.iter_mut().zip(other.objects) {
             tally.merge(other);
         }
         for (tally, other) in self.components.iter_mut().zip(other.components) {
@@ -88,6 +100,7 @@ impl Pass<'_> {
 pub(crate) struct ForgeCoverage {
     pub(crate) types: Vec<TypeCoverage>,
     pub(crate) components: Vec<ComponentCoverage>,
+    pub(crate) objects: Vec<ObjectCoverage>,
     pub(crate) unreadable_entities: u64,
 }
 
@@ -102,16 +115,23 @@ pub(crate) fn check(forge: &DataForge<'_>, items: &[ReferenceItem<'_>]) -> Forge
         matches!(kind, ReferenceKind::Record | ReferenceKind::Candidate)
     });
     let components = of_kind(items, |kind| kind == ReferenceKind::Component);
+    let objects = of_kind(items, |kind| kind == ReferenceKind::StarMapType);
     let context = Context {
         types: first_slots(&types),
         components: first_slots(&components),
+        objects: first_slots(&objects),
         parents: forge
             .structs()
             .filter_map(|found| Some((found.name().ok()?, found.parent()?.name().ok()?)))
             .collect(),
     };
-    let pass = scan(forge, &context, types.len(), components.len());
+    let pass = scan(
+        forge,
+        &context,
+        [types.len(), components.len(), objects.len()],
+    );
     ForgeCoverage {
+        objects: coverage_objects::coverage(forge, &objects, &context.objects, &pass.objects),
         types: types
             .iter()
             .map(|item| {
@@ -133,17 +153,26 @@ pub(crate) fn check(forge: &DataForge<'_>, items: &[ReferenceItem<'_>]) -> Forge
                     .and_then(|first| pass.components.get(*first))
                     .copied()
                     .unwrap_or_default();
-                ComponentCoverage {
-                    area: item.area.to_owned(),
-                    name: item.name.to_owned(),
-                    defined: defined.contains(item.name),
-                    entities: tally.entities,
-                    instances: tally.instances,
-                    reachable: reachable(forge, item.name),
-                }
+                component_coverage(forge, item, &defined, &tally)
             })
             .collect(),
         unreadable_entities: pass.unreadable_entities,
+    }
+}
+
+fn component_coverage(
+    forge: &DataForge<'_>,
+    item: &ReferenceItem<'_>,
+    defined: &HashSet<&str>,
+    tally: &ComponentTally,
+) -> ComponentCoverage {
+    ComponentCoverage {
+        area: item.area.to_owned(),
+        name: item.name.to_owned(),
+        defined: defined.contains(item.name),
+        entities: tally.entities,
+        instances: tally.instances,
+        reachable: reachable(forge, item.name),
     }
 }
 
@@ -169,20 +198,19 @@ fn first_slots<'a>(items: &[ReferenceItem<'a>]) -> HashMap<&'a str, usize> {
 fn scan<'f>(
     forge: &'f DataForge<'f>,
     context: &Context<'_>,
-    types: usize,
-    components: usize,
+    [types, components, objects]: [usize; 3],
 ) -> Pass<'f> {
     let count = u32::try_from(forge.record_count()).unwrap_or(u32::MAX);
     (0..count)
         .into_par_iter()
         .fold(
-            || Pass::new(types, components),
+            || Pass::new(types, components, objects),
             |mut pass, index| {
                 visit(forge, context, index, &mut pass);
                 pass
             },
         )
-        .reduce(|| Pass::new(types, components), Pass::merge)
+        .reduce(|| Pass::new(types, components, objects), Pass::merge)
 }
 
 fn visit<'f>(forge: &'f DataForge<'f>, context: &Context<'_>, index: u32, pass: &mut Pass<'f>) {
@@ -191,6 +219,7 @@ fn visit<'f>(forge: &'f DataForge<'f>, context: &Context<'_>, index: u32, pass: 
     };
     pass.matched.clear();
     let mut entity = false;
+    let mut star_map = false;
     let mut cyclic = false;
     let mut current = record.struct_type().ok();
     let mut steps = 0;
@@ -202,6 +231,7 @@ fn visit<'f>(forge: &'f DataForge<'f>, context: &Context<'_>, index: u32, pass: 
         steps += 1;
         if let Ok(name) = found.name() {
             entity |= name == ENTITY_TYPE;
+            star_map |= name == STAR_MAP_OBJECT;
             if let Some(slot) = context.types.get(name) {
                 pass.matched.push(*slot);
             }
@@ -211,7 +241,8 @@ fn visit<'f>(forge: &'f DataForge<'f>, context: &Context<'_>, index: u32, pass: 
     pass.matched.sort_unstable();
     pass.matched.dedup();
     let entity = entity && !context.components.is_empty();
-    if pass.matched.is_empty() && !entity {
+    let star_map = star_map && !context.objects.is_empty();
+    if pass.matched.is_empty() && !entity && !star_map {
         return;
     }
     if entity {
@@ -222,23 +253,48 @@ fn visit<'f>(forge: &'f DataForge<'f>, context: &Context<'_>, index: u32, pass: 
     } else {
         pass.builder.build(&record).ok()
     };
+    tally_types(index, read.as_ref(), pass);
+    if entity {
+        match &read {
+            Some(tree) => count_components(context, tree, pass),
+            None => pass.unreadable_entities += 1,
+        }
+    }
+    if star_map
+        && let Some(tree) = &read
+        && let Some(slot) = pass
+            .type_slots
+            .slot(forge, &context.objects, &mut pass.builder, tree)
+        && let Some(tally) = pass.objects.get_mut(slot)
+    {
+        tally.records += 1;
+        if is_template(tree.record_path()) {
+            tally.templates += 1;
+        } else {
+            tally.sample = Some(tally.sample.map_or(index, |first| first.min(index)));
+        }
+    }
+}
+
+fn is_template(record_path: &str) -> bool {
+    record_path
+        .as_bytes()
+        .windows(TEMPLATE.len())
+        .any(|window| window.eq_ignore_ascii_case(TEMPLATE.as_bytes()))
+}
+
+fn tally_types(index: u32, read: Option<&RecordTree<'_>>, pass: &mut Pass<'_>) {
     for slot in &pass.matched {
         let Some(tally) = pass.tallies.get_mut(*slot) else {
             continue;
         };
         tally.records += 1;
-        match &read {
+        match read {
             Some(tree) => {
                 tally.errors += tree.error_count() as u64;
                 tally.sample = Some(tally.sample.map_or(index, |first| first.min(index)));
             }
             None => tally.unreadable += 1,
-        }
-    }
-    if entity {
-        match &read {
-            Some(tree) => count_components(context, tree, pass),
-            None => pass.unreadable_entities += 1,
         }
     }
 }
@@ -294,7 +350,7 @@ fn type_coverage(
     }
 }
 
-fn sample(forge: &DataForge<'_>, index: u32) -> SampleExport {
+pub(crate) fn sample(forge: &DataForge<'_>, index: u32) -> SampleExport {
     let Some(record) = forge.record(index) else {
         return failed(String::new(), "the Record is gone".to_owned());
     };

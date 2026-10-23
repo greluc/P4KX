@@ -2,7 +2,7 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{CoverageReport, DataForgeEntry, ReferenceList};
+use p4kx_extraction::{CoverageReport, DataForgeEntry, ReferenceList, SampleExport};
 
 use crate::cli::CoverageArgs;
 use crate::cli_coverage::CoverageFormat;
@@ -37,47 +37,23 @@ pub(crate) fn run(args: &CoverageArgs, as_json: bool) -> Result<ExitCode> {
     }))
 }
 
+fn sample_note(sample: &SampleExport) -> String {
+    sample.error.as_ref().map_or_else(
+        || {
+            format!(
+                "sample {} B XML, {} B JSON",
+                sample.xml_bytes, sample.json_bytes
+            )
+        },
+        |error| format!("sample failed: {error}"),
+    )
+}
+
 fn table(report: &CoverageReport) -> io::Result<()> {
     let mut out = BufWriter::new(io::stdout().lock());
-    writeln!(out, "Record types")?;
-    for found in &report.types {
-        let note = match (&found.sample, found.defined) {
-            (_, false) => "not defined".to_owned(),
-            (None, true) => "no Records".to_owned(),
-            (Some(sample), true) => sample.error.as_ref().map_or_else(
-                || {
-                    format!(
-                        "sample {} B XML, {} B JSON",
-                        sample.xml_bytes, sample.json_bytes
-                    )
-                },
-                |error| format!("sample failed: {error}"),
-            ),
-        };
-        let candidate = if found.candidate { " (candidate)" } else { "" };
-        writeln!(
-            out,
-            "  {:<12} {:<34} {:>8} Records, {} unreadable, {} error values; {note}{candidate}",
-            found.area, found.name, found.records, found.unreadable_records, found.error_values,
-        )?;
-    }
-    writeln!(
-        out,
-        "Components of EntityClassDefinition ({} Records unreadable)",
-        report.unreadable_entities
-    )?;
-    for found in &report.components {
-        let state = match (found.defined, found.reachable) {
-            (false, _) => "not defined",
-            (true, false) => "not reachable by a Query",
-            (true, true) => "reachable",
-        };
-        writeln!(
-            out,
-            "  {:<12} {:<44} {:>8} entities, {:>8} instances; {state}",
-            found.area, found.name, found.entities, found.instances,
-        )?;
-    }
+    types(&mut out, report)?;
+    components(&mut out, report)?;
+    objects(&mut out, report)?;
     writeln!(out, "Entry folders")?;
     for found in &report.entries {
         writeln!(
@@ -95,4 +71,59 @@ fn table(report: &CoverageReport) -> io::Result<()> {
         }
     }
     out.flush()
+}
+
+fn types(out: &mut impl Write, report: &CoverageReport) -> io::Result<()> {
+    writeln!(out, "Record types")?;
+    for found in &report.types {
+        let note = match (&found.sample, found.defined) {
+            (_, false) => "not defined".to_owned(),
+            (None, true) => "no Records".to_owned(),
+            (Some(sample), true) => sample_note(sample),
+        };
+        let candidate = if found.candidate { " (candidate)" } else { "" };
+        writeln!(
+            out,
+            "  {:<12} {:<34} {:>8} Records, {} unreadable, {} error values; {note}{candidate}",
+            found.area, found.name, found.records, found.unreadable_records, found.error_values,
+        )?;
+    }
+    Ok(())
+}
+
+fn components(out: &mut impl Write, report: &CoverageReport) -> io::Result<()> {
+    writeln!(
+        out,
+        "Components of EntityClassDefinition ({} Records unreadable)",
+        report.unreadable_entities
+    )?;
+    for found in &report.components {
+        let state = match (found.defined, found.reachable) {
+            (false, _) => "not defined",
+            (true, false) => "not reachable by a Query",
+            (true, true) => "reachable",
+        };
+        writeln!(
+            out,
+            "  {:<12} {:<44} {:>8} entities, {:>8} instances; {state}",
+            found.area, found.name, found.entities, found.instances,
+        )?;
+    }
+    Ok(())
+}
+
+fn objects(out: &mut impl Write, report: &CoverageReport) -> io::Result<()> {
+    writeln!(out, "StarMapObject Records by StarMapObjectType")?;
+    for found in &report.objects {
+        let note = found
+            .sample
+            .as_ref()
+            .map_or_else(|| "no Records".to_owned(), sample_note);
+        writeln!(
+            out,
+            "  {:<12} {:<34} {:>8} Records, {} templates; {note}",
+            found.area, found.type_name, found.records, found.templates,
+        )?;
+    }
+    Ok(())
 }

@@ -17,11 +17,47 @@ reputation record Loop
 items component WeaponParams
 items component MissileParams
 items component MissingParams
+starmap starmap-type SolarSystem
+starmap starmap-type Nowhere
 vehicles entries Data/Vehicles/
 ";
 
 fn weapon() -> TestValue {
     TestValue::Struct(TestInstance::new("WeaponParams"))
+}
+
+fn star_map(builder: DataForgeBuilder) -> DataForgeBuilder {
+    let object = |guid: u128, kind: &str, name: &str, target: u128| {
+        TestRecord::new(
+            guid,
+            kind,
+            format!("{kind}.{name}"),
+            format!("libs/starmap/{name}.xml"),
+        )
+        .value("type", TestValue::Reference(target))
+    };
+    let kind = |guid: u128, name: &str| {
+        TestRecord::new(
+            guid,
+            "StarMapObjectType",
+            format!("StarMapObjectType.{name}"),
+            format!("libs/starmap/type/{name}.xml"),
+        )
+        .value("name", TestValue::text(name))
+    };
+    builder
+        .structure(TestStruct::new("StarMapObjectType").field("name", TestType::String))
+        .structure(TestStruct::new("StarMapObject").field(
+            "type",
+            TestType::ReferenceTo("StarMapObjectType".to_owned()),
+        ))
+        .structure(TestStruct::new("DerivedStarMapObject").parent("StarMapObject"))
+        .record(kind(20, "SolarSystem"))
+        .record(kind(21, "Planet"))
+        .record(object(19, "StarMapObject", "SolarSystem_Template", 20))
+        .record(object(22, "StarMapObject", "stanton", 20))
+        .record(object(23, "DerivedStarMapObject", "pyro", 20))
+        .record(object(24, "StarMapObject", "hurston", 21))
 }
 
 fn database() -> Vec<u8> {
@@ -33,7 +69,7 @@ fn database() -> Vec<u8> {
             path,
         )
     };
-    DataForgeBuilder::new()
+    star_map(DataForgeBuilder::new())
         .structure(TestStruct::new("Params"))
         .structure(TestStruct::new("WeaponParams").parent("Params"))
         .structure(TestStruct::new("MissileParams").parent("Params"))
@@ -172,6 +208,30 @@ fn components_are_counted_in_the_entities_and_reached_by_a_query() -> TestResult
 }
 
 #[test]
+fn starmap_objects_are_counted_by_the_name_of_their_type() -> TestResult {
+    let report = report()?;
+
+    let [system, nowhere] = report.objects.as_slice() else {
+        return Err(format!("two starmap types: {:?}", report.objects).into());
+    };
+    assert_eq!(system.type_name, "SolarSystem");
+    assert_eq!(
+        (system.records, system.templates),
+        (3, 1),
+        "the derived struct and the template count, the Planet does not"
+    );
+    let sample = system.sample.as_ref().ok_or("a sample")?;
+    assert_eq!(
+        sample.record_path, "libs/starmap/stanton",
+        "never the template"
+    );
+    assert!(sample.error.is_none());
+    assert_eq!((nowhere.records, nowhere.sample.is_none()), (0, true));
+    assert!(!report.is_complete());
+    Ok(())
+}
+
+#[test]
 fn entries_of_a_folder_are_converted_from_cryxml() -> TestResult {
     let report = report()?;
 
@@ -199,6 +259,7 @@ fn the_built_in_list_is_valid_and_names_every_kind() -> TestResult {
         ReferenceKind::Candidate,
         ReferenceKind::Component,
         ReferenceKind::Entries,
+        ReferenceKind::StarMapType,
     ] {
         assert!(
             list.items().iter().any(|item| item.kind == kind),
@@ -210,7 +271,7 @@ fn the_built_in_list_is_valid_and_names_every_kind() -> TestResult {
             .iter()
             .filter(|item| item.kind == ReferenceKind::Record)
             .count(),
-        37
+        36
     );
     assert_eq!(
         list.items()

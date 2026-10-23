@@ -179,7 +179,7 @@ fn the_stat_blocks_accept_additions_and_new_closed_values_but_stay_required() ->
             "fireActions": [{
                 "kind": "SWeaponActionFireNewParams", "name": null, "fireRate": 600.0,
                 "pellets": 1, "ammoCost": 1, "heatPerShot": null, "chargeTime": null,
-                "overchargeTime": null, "cooldownTime": null, "damagePerSecond": null,
+                "overchargeTime": null, "cooldownTime": null, "damagePerSecond": null, "spread": null,
                 "extra": true
             }],
             "ammoCapacity": null,

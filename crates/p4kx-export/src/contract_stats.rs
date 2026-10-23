@@ -10,8 +10,9 @@ use crate::contract_stats_gear::{
 ///
 /// Every block is `null` for an item that does not have it; the item has `stats` only when it
 /// has at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,
-/// `armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number is what the Archive states, in the unit the game
-/// stores it; a value that is not a finite number is `null`.
+/// `armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number
+/// is what the Archive states, in the unit the game stores it; a value that is not a finite
+/// number is `null`.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -134,6 +135,25 @@ pub(crate) struct FireAction<'a> {
     pub(crate) cooldown_time: Option<f32>,
     /// `damagePerSecond`, the damage a beam does each second; `null` for a mode without one.
     pub(crate) damage_per_second: Option<Damage>,
+    /// `launchParams.spreadParams`; `null` for a mode without one.
+    pub(crate) spread: Option<Spread>,
+}
+
+/// The spread of a fire mode, as stored in `SSpreadParams`.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct Spread {
+    /// `min`.
+    pub(crate) min: Option<f32>,
+    /// `max`.
+    pub(crate) max: Option<f32>,
+    /// `firstAttack`.
+    pub(crate) first_attack: Option<f32>,
+    /// `attack`.
+    pub(crate) attack: Option<f32>,
+    /// `decay`.
+    pub(crate) decay: Option<f32>,
 }
 
 /// The ammunition of a weapon.

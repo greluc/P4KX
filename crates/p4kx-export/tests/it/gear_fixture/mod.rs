@@ -21,6 +21,8 @@ pub(crate) const TRACTOR: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0005;
 pub(crate) const SALVAGE_MODIFIER: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0006;
 pub(crate) const BEAM: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0007;
 pub(crate) const PLAIN_MODIFIER: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0008;
+pub(crate) const WRAPPED_TRACTOR: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0009;
+pub(crate) const PARALLEL: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000a;
 const RESISTANCE: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0001;
 const MISSING: u128 = 0x2000_0000_0000_4000_8000_0000_0000_00ff;
 
@@ -185,6 +187,53 @@ fn tractor() -> TestValue {
     )
 }
 
+fn wrapped_tractor() -> TestValue {
+    instance(
+        "SCItemWeaponComponentParams",
+        vec![(
+            "fireActions".to_owned(),
+            TestValue::Array(vec![
+                instance("SWeaponActionFireBeamParams", Vec::new()),
+                instance(
+                    "SWeaponActionWrapParams",
+                    vec![(
+                        "weaponAction".to_owned(),
+                        singles_of(
+                            "SWeaponActionFireTractorBeamParams",
+                            &[("maxForce", 42.0), ("maxDistance", 7.0)],
+                        ),
+                    )],
+                ),
+            ]),
+        )],
+    )
+}
+
+fn parallel() -> TestValue {
+    let beam = || {
+        instance(
+            "SWeaponActionFireBeamParams",
+            vec![(
+                "damagePerSecond".to_owned(),
+                singles_of("DamageInfo", &[("DamageEnergy", 10.0)]),
+            )],
+        )
+    };
+    instance(
+        "SCItemWeaponComponentParams",
+        vec![(
+            "fireActions".to_owned(),
+            TestValue::Array(vec![instance(
+                "SWeaponActionParallelParams",
+                vec![(
+                    "weaponActions".to_owned(),
+                    TestValue::Array(vec![beam(), beam()]),
+                )],
+            )]),
+        )],
+    )
+}
+
 fn beam() -> TestValue {
     instance(
         "SCItemWeaponComponentParams",
@@ -263,6 +312,13 @@ fn records() -> Vec<TestRecord> {
         entity(RADAR, "radar", "Radar", vec![radar()]),
         entity(TRACTOR, "tractor", "TractorBeam", vec![tractor()]),
         entity(BEAM, "beam", "WeaponGun", vec![beam()]),
+        entity(PARALLEL, "parallel", "WeaponGun", vec![parallel()]),
+        entity(
+            WRAPPED_TRACTOR,
+            "wrapped_tractor",
+            "TractorBeam",
+            vec![wrapped_tractor()],
+        ),
         entity(
             SALVAGE_MODIFIER,
             "salvage_modifier",

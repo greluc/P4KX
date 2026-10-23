@@ -2,10 +2,11 @@ use p4kx_extraction::{DataForge, RecordTree, StructValue, TreeBuilder, Value};
 
 use super::parts::damage;
 use super::walk::owner_of;
-use crate::contract_stats::{AmmoStats, FireAction, WeaponStats};
+use crate::contract_stats::{AmmoStats, FireAction, Spread, WeaponStats};
 use crate::record_fields::{component, elements, integer, number, reference, structure, text};
 
 const SEQUENCE_ENTRIES: &str = "sequenceEntries";
+const PARALLEL_ACTIONS: &str = "weaponActions";
 const AMMO_PARAMS: &str = "AmmoParams";
 const ENTITY: &str = "EntityClassDefinition";
 
@@ -16,6 +17,14 @@ fn collect<'f>(action: &StructValue<'f>, actions: &mut Vec<FireAction<'f>>) {
                 && let Some(inner) = structure(Some(entry), "weaponAction")
             {
                 collect(inner, actions);
+            }
+        }
+        return;
+    }
+    if action.field(PARALLEL_ACTIONS).is_some() {
+        for entry in elements(Some(action), PARALLEL_ACTIONS) {
+            if let Value::Struct(entry) = entry {
+                collect(entry, actions);
             }
         }
         return;
@@ -36,7 +45,20 @@ fn collect<'f>(action: &StructValue<'f>, actions: &mut Vec<FireAction<'f>>) {
         cooldown_time: value("cooldownTime"),
         damage_per_second: damage(structure(Some(action), "damagePerSecond"))
             .or_else(|| damage(structure(inner, "damagePerSecond"))),
+        spread: spread(launch).or_else(|| spread(Some(action))),
     });
+}
+
+fn spread(launch: Option<&StructValue<'_>>) -> Option<Spread> {
+    let spread = structure(launch, "spreadParams")?;
+    let value = |name| number(Some(spread), name);
+    Some(Spread {
+        min: value("min"),
+        max: value("max"),
+        first_attack: value("firstAttack"),
+        attack: value("attack"),
+        decay: value("decay"),
+    })
 }
 
 fn ammo(tree: &RecordTree<'_>) -> AmmoStats {

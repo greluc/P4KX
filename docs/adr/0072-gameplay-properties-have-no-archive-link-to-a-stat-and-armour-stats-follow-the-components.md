@@ -40,12 +40,21 @@ the catalog states the property-to-stat link and how armour and clothing stats a
   `EntityComponentAttachableModifierParams`) are blocks with the same rules as the six of
   ADR-0065. The power of a mining laser is the `damagePerSecond` of its beam fire mode, added to
   every fire mode (`null` for a mode without one).
-- **Properties without a stat field.** Recoil kick, handling and smoothness, reload speed and
-  spread have no single field: recoil is the weapon's procedural recoil configuration and the
-  `recoil` of its fire modes, Records of curves per stance. Turning them into three numbers is a
-  model of the game. They are listed as none, with the reason, in the document; so are the two
+- **Spread.** The spread is kept inline (`launchParams.spreadParams`, or `spreadParams` of a
+  beam) and every fire mode carries it as `spread`, raw.
+- **Properties without a stat field.** Recoil kick, handling and smoothness and the reload speed
+  have no single field: recoil is the weapon's procedural recoil configuration and the `recoil`
+  of its fire modes, Records of curves per stance. Turning them into three numbers is a model of
+  the game. They are listed as none, with the reason, in the document; so are the two
   properties of crafting stations. A later issue may add a typed recoil block.
-- **Additive in version 1.** The five blocks and `damagePerSecond` are new fields; every field is
+- **Items without the source component.** Some produced items hold no field for a property their
+  blueprint modifies (backpacks and one shoe for the damage mitigation and the temperatures, fuel
+  nozzles for the health, beam-only personal weapons for the fire rate). The block stays `null`;
+  the catalog invents no default. A real-Archive test checks every modifier of every blueprint
+  against its produced item and lists these cases.
+- **Damage mitigation covers all types.** The property is one factor and the Archive does not
+  say which damage types it scales; `armor.damageResistance` gives all six `multiplier`s.
+- **Additive in version 1.** The five blocks, `damagePerSecond` and `spread` are new fields; every field is
   required in the schema as before, and a consumer that ignores unknown fields is unaffected
   (ADR-0054).
 

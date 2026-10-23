@@ -6,7 +6,8 @@ use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
 use gear_fixture::{
-    ARMOR, ARMOR_DANGLING, BEAM, CLOTHING, PLAIN_MODIFIER, RADAR, SALVAGE_MODIFIER, TRACTOR,
+    ARMOR, ARMOR_DANGLING, BEAM, CLOTHING, PARALLEL, PLAIN_MODIFIER, RADAR, SALVAGE_MODIFIER,
+    TRACTOR, WRAPPED_TRACTOR,
 };
 use p4kx_export::{CatalogOptions, build_catalog};
 use p4kx_extraction::Archive;
@@ -160,5 +161,33 @@ fn a_beam_states_its_damage_per_second() -> TestResult {
     assert_eq!(action["kind"], "SWeaponActionFireBeamParams");
     assert_eq!(action["damagePerSecond"]["energy"], 2340.0);
     assert_eq!(action["damagePerSecond"]["physical"], 0.0);
+    Ok(())
+}
+
+#[test]
+fn a_tractor_action_inside_a_wrapper_next_to_another_action_is_found() -> TestResult {
+    let stats = stats(&catalog()?, WRAPPED_TRACTOR)?;
+    assert_eq!(stats["tractorBeam"]["maxForce"], 42.0);
+    assert_eq!(stats["tractorBeam"]["maxDistance"], 7.0);
+    assert_eq!(
+        stats["tractorBeam"]["maxVolume"], 0.0,
+        "an unset single is stored as 0"
+    );
+    assert_eq!(
+        stats["weapon"]["fireActions"].as_array().map(Vec::len),
+        Some(2),
+        "the beam and the wrapper"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_actions_of_a_parallel_mode_are_listed_one_by_one() -> TestResult {
+    let stats = stats(&catalog()?, PARALLEL)?;
+    let actions = stats["weapon"]["fireActions"]
+        .as_array()
+        .ok_or("the fire actions")?;
+    assert_eq!(actions.len(), 2);
+    assert_eq!(actions[0]["damagePerSecond"]["energy"], 10.0);
     Ok(())
 }

@@ -51,7 +51,12 @@ fn weapons() -> Vec<TestStruct> {
             .field("weaponAction", pointer("SWeaponActionParams")),
         TestStruct::new("SProjectileLauncher")
             .field("pellets", TestType::Int32)
-            .field("ammoCost", TestType::Int32),
+            .field("ammoCost", TestType::Int32)
+            .field("spreadParams", class("SSpreadParams")),
+        singles(
+            "SSpreadParams",
+            &["min", "max", "firstAttack", "attack", "decay"],
+        ),
         component("SAmmoContainerComponentParams")
             .field("ammoParamsRecord", TestType::Reference)
             .field("maxAmmoCount", TestType::Int32),

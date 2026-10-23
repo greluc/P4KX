@@ -83,6 +83,12 @@ fn weapons() -> Vec<TestStruct> {
             ],
         )
         .parent("SWeaponActionParams"),
+        TestStruct::new("SWeaponActionWrapParams")
+            .parent("SWeaponActionParams")
+            .field("weaponAction", pointer("SWeaponActionParams")),
+        TestStruct::new("SWeaponActionParallelParams")
+            .parent("SWeaponActionParams")
+            .array("weaponActions", pointer("SWeaponActionParams")),
         TestStruct::new("SWeaponActionFireBeamParams")
             .parent("SWeaponActionParams")
             .field("damagePerSecond", class("DamageInfo")),

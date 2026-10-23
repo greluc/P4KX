@@ -9,6 +9,19 @@ fn launch(pellets: i32, cost: i32) -> TestValue {
         vec![
             ("pellets".to_owned(), TestValue::Int32(pellets)),
             ("ammoCost".to_owned(), TestValue::Int32(cost)),
+            (
+                "spreadParams".to_owned(),
+                instance(
+                    "SSpreadParams",
+                    vec![
+                        single("min", 0.18),
+                        single("max", 5.0),
+                        single("firstAttack", 1.35),
+                        single("attack", 1.25),
+                        single("decay", 6.5),
+                    ],
+                ),
+            ),
         ],
     )
 }

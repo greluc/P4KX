@@ -90,9 +90,21 @@ chain. How an inventory file is assigned to a `ShopBackup` therefore stays open:
 second hierarchy for the same shops or a different set of shops. The follow-up must settle it with
 the converted registry and all 120 inventories.
 
-Settled in #462 (ADR-0069): no rule assigns an inventory to a shop. Of 87 inventories with a
-`ShopID`, 4 equal a registry `ID`; the last element matches the `SCShop` of some shop for 39, often
-a shop of another place; 31 have no `ShopID`. The registry `DefaultValue`s (360 distinct) are no DataForge Record GUIDs.
+Settled in #462 (ADR-0069): the `ShopID` of an inventory assigns it to no shop. Of 87 inventories
+with a `ShopID`, 4 equal a registry `ID`; the last element matches the `SCShop` of some shop for 39,
+often a shop of another place; 31 have no `ShopID` (they use a top-level `Inventory` list instead
+of `Collection.Inventory`). The registry `DefaultValue`s (360 distinct) are no DataForge Record
+GUIDs.
+
+Settled in #468 (ADR-0071): the link sits on the shop side. The `.soc` of a shop container holds
+the `SCShop` component with `offlineInventoryJSON` (or `offlineInventoryXMLName`), the path of the
+inventory file, right behind the CryGUID that `entitycomponentshop.xml` names. 68 shop components
+of the containers name one of 40 files; through their `entityGuid` 331 of the 1,184 registry shops
+get an item list from 28 files (28 shops are ambiguous because containers of one module name
+different files). 91 of the 119 files are named by no container below `PU\Shops` or the
+`shopcomm`/`shopfood` folders; the prefabs under `Data\Prefabs\shops` name 8 of them with
+`offlineInventoryXML` attributes, and the registry shops of the cities and stations lie in
+containers the catalog does not open.
 
 ## Terminals
 

@@ -2,12 +2,13 @@ use std::path::Path;
 
 use p4kx_export::{
     CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, KindSummary, LoadoutSummary, PaintSummary,
-    Playability, PlayabilityCounts, SCHEMA_VERSION, ShopSummary, SizeWarning, StarmapSummary,
-    UPLOAD_LIMIT, VariantCounts,
+    Playability, PlayabilityCounts, SCHEMA_VERSION, SizeWarning, StarmapSummary, UPLOAD_LIMIT,
+    VariantCounts,
 };
 use p4kx_extraction::Archive;
 use serde::Serialize;
 
+use crate::catalog_json_shops::ShopsJson;
 use crate::json;
 
 #[derive(Serialize)]
@@ -34,87 +35,6 @@ pub(super) struct SummaryJson<'a> {
     variants: VariantsJson,
     texts: Vec<TextJson>,
     unresolved: usize,
-}
-
-#[derive(Serialize)]
-struct ShopsJson<'a> {
-    shops: usize,
-    registry_entries: usize,
-    registry_missing: bool,
-    registry_unreadable: bool,
-    malformed: usize,
-    duplicate: usize,
-    containers_listed: usize,
-    containers_unreadable: usize,
-    containers_with_shop: usize,
-    other_containers_scanned: usize,
-    other_containers_unreadable: usize,
-    other_containers_with_shop: usize,
-    prefabs_listed: usize,
-    prefabs_unreadable: usize,
-    prefab_entities: usize,
-    with_kind: usize,
-    mixed_kind: usize,
-    without_container: usize,
-    with_items: usize,
-    inventory_ambiguous: usize,
-    inventory_missing: usize,
-    inventory_unreadable: usize,
-    inventory_unscanned: usize,
-    inventory_placeholder: usize,
-    soc_components: usize,
-    inventories_unreadable: usize,
-    inventories_missing: usize,
-    inventories_named: usize,
-    inventories_in_archive: usize,
-    item_ids_dropped: usize,
-    commodity_exchanges: usize,
-    linked: usize,
-    unlinked: usize,
-    ambiguous_link: usize,
-    unlinked_locations: &'a [String],
-}
-
-impl<'a> From<&'a ShopSummary> for ShopsJson<'a> {
-    fn from(summary: &'a ShopSummary) -> Self {
-        Self {
-            shops: summary.shops,
-            registry_entries: summary.registry_entries,
-            registry_missing: summary.registry_missing,
-            registry_unreadable: summary.registry_unreadable,
-            malformed: summary.malformed,
-            duplicate: summary.duplicate,
-            containers_listed: summary.containers_listed,
-            containers_unreadable: summary.containers_unreadable,
-            containers_with_shop: summary.containers_with_shop,
-            other_containers_scanned: summary.other_containers_scanned,
-            other_containers_unreadable: summary.other_containers_unreadable,
-            other_containers_with_shop: summary.other_containers_with_shop,
-            prefabs_listed: summary.prefabs_listed,
-            prefabs_unreadable: summary.prefabs_unreadable,
-            prefab_entities: summary.prefab_entities,
-            with_kind: summary.with_kind,
-            mixed_kind: summary.mixed_kind,
-            without_container: summary.without_container,
-            with_items: summary.with_items,
-            inventory_ambiguous: summary.inventory_ambiguous,
-            inventory_missing: summary.inventory_missing,
-            inventory_unreadable: summary.inventory_unreadable,
-            inventory_unscanned: summary.inventory_unscanned,
-            inventory_placeholder: summary.inventory_placeholder,
-            soc_components: summary.soc_components,
-            inventories_unreadable: summary.inventories_unreadable,
-            inventories_missing: summary.inventories_missing,
-            inventories_named: summary.inventories_named,
-            inventories_in_archive: summary.inventories_in_archive,
-            item_ids_dropped: summary.item_ids_dropped,
-            commodity_exchanges: summary.commodity_exchanges,
-            linked: summary.linked,
-            unlinked: summary.unlinked,
-            ambiguous_link: summary.ambiguous_link,
-            unlinked_locations: &summary.unlinked_locations,
-        }
-    }
 }
 
 impl From<PaintSummary> for PaintsJson {

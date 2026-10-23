@@ -3,7 +3,7 @@ use std::io::Read;
 use std::path::Path;
 
 use p4kx_extraction::cryxml::{self, Xml};
-use p4kx_extraction::{Archive, Entry};
+use p4kx_extraction::{Archive, CancelToken, Entry};
 use rayon::prelude::*;
 
 use crate::shop_soc::inventory_stem;
@@ -26,7 +26,7 @@ impl Prefabs {
     /// Reads every prefab library below `Data\Prefabs\Shops`. A shop Entity of a prefab has an
     /// `Id` that is its `CryGUID` with the bytes reordered, which the containers that instance
     /// the prefab carry in their `entitycomponentshop.xml`.
-    pub(crate) fn read(archive: &Archive) -> Self {
+    pub(crate) fn read(archive: &Archive, cancel: Option<&CancelToken>) -> Self {
         let listed: Vec<&Entry> = archive
             .entries()
             .iter()
@@ -40,7 +40,12 @@ impl Prefabs {
             .collect();
         let read: Vec<Option<Vec<(String, String)>>> = listed
             .par_iter()
-            .map(|entry| named(archive, entry))
+            .map(|entry| {
+                if cancel.is_some_and(CancelToken::is_cancelled) {
+                    return None;
+                }
+                named(archive, entry)
+            })
             .collect();
         let mut prefabs = Self {
             listed: listed.len(),
@@ -92,16 +97,17 @@ fn pairs<'d, N: Node<'d>>(root: N) -> Vec<(String, String)> {
         if node.name().eq_ignore_ascii_case("Object")
             && attribute(node, "Type") == Some("Entity")
             && let Some(entity) = attribute(node, "Id").and_then(crypt_guid)
-            && let Some(stem) = shop_stem(node)
         {
-            found.push((entity, stem));
+            for stem in shop_stems(node) {
+                found.push((entity.clone(), stem));
+            }
         }
         pending.extend(node.children());
     }
     found
 }
 
-fn shop_stem<'d, N: Node<'d>>(object: N) -> Option<String> {
+fn shop_stems<'d, N: Node<'d>>(object: N) -> Vec<String> {
     object
         .children()
         .filter(|child| child.name().eq_ignore_ascii_case("PropertiesDataCore"))
@@ -112,7 +118,8 @@ fn shop_stem<'d, N: Node<'d>>(object: N) -> Option<String> {
             name.get(..PROPERTY.len())
                 .is_some_and(|head| head.eq_ignore_ascii_case(PROPERTY))
         })
-        .find_map(|(_, value)| inventory_stem(value))
+        .filter_map(|(_, value)| inventory_stem(value))
+        .collect()
 }
 
 /// Returns the lower-case `CryGUID` of the editor `Id` `{AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE}`:

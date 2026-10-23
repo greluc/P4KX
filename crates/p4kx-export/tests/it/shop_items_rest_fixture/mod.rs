@@ -20,6 +20,7 @@ const CLASS: &str = "2845a83c-9c04-450f-99ce-43b8b7da6bec";
 const CLOTHING_NAME: &str = "SCShop_Clothing_City";
 const LOOSE_NAME: &str = "SCShop_Loose_City";
 const FOOD_ID: &str = "{00004000-0000-4A00-F100-000000000080}";
+const MIXED_ID: &str = "{00004000-0000-4A00-E100-000000000080}";
 
 fn strings(parts: &[&str]) -> Vec<u8> {
     let mut bytes = b"CrChF\0".to_vec();
@@ -100,16 +101,30 @@ fn exchange() -> Vec<u8> {
 }
 
 fn prefab() -> Vec<u8> {
-    let component = TestElement::new("EntityComponentShop").attribute(
+    let object = |id: &str, component: TestElement| {
+        TestElement::new("Object")
+            .attribute("Type", "Entity")
+            .attribute("Id", id)
+            .child(TestElement::new("PropertiesDataCore").child(component))
+    };
+    let food = TestElement::new("EntityComponentShop").attribute(
         "offlineInventoryXMLName",
         "Scripts/ShopInventories/Inv_Noodle.xml",
     );
-    let object = TestElement::new("Object")
-        .attribute("Type", "Entity")
-        .attribute("Id", FOOD_ID)
-        .child(TestElement::new("PropertiesDataCore").child(component));
+    let mixed = TestElement::new("EntityComponentShop")
+        .attribute(
+            "offlineInventoryJSON",
+            "Scripts/ShopInventories/Inv_Noodle.json",
+        )
+        .attribute(
+            "offlineInventoryXMLName",
+            "Scripts/ShopInventories/Inv_Loose_City.xml",
+        );
+    let objects = TestElement::new("Objects")
+        .child(object(FOOD_ID, food))
+        .child(object(MIXED_ID, mixed));
     TestElement::new("PrefabsLibrary")
-        .child(TestElement::new("Prefab").child(TestElement::new("Objects").child(object)))
+        .child(TestElement::new("Prefab").child(objects))
         .to_xml()
         .into_bytes()
 }

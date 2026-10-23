@@ -14,7 +14,6 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const KINDS_WITH_ITEMS: [&str; 5] = ["items", "ships", "commodities", "paints", "loadouts"];
 const PLACEHOLDERS: [&str; 2] = ["temp_outpost_shopinventory", "inv_cryastro_dummy"];
-const SAMPLE_NAMES: usize = 3;
 
 fn guids_of(catalog: &Value) -> HashSet<&str> {
     KINDS_WITH_ITEMS
@@ -59,10 +58,31 @@ fn shops_get_item_lists_from_the_inventories_their_containers_name() -> TestResu
         summary.inventories_named
     );
     for (name, entities) in &by_inventory {
-        let distinct: BTreeSet<&str> = entities.iter().copied().collect();
-        let sample: Vec<&str> = distinct.into_iter().take(SAMPLE_NAMES).collect();
-        println!("   {name}: {} shops, e.g. {sample:?}", entities.len());
+        println!("   {name}: {} shops", entities.len());
     }
+    let mut pairs: Vec<(&str, &str, &str)> = with
+        .iter()
+        .map(|shop| {
+            (
+                shop["entityName"].as_str().unwrap_or_default(),
+                shop["location"].as_str().unwrap_or_default(),
+                shop["inventory"].as_str().unwrap_or_default(),
+            )
+        })
+        .collect();
+    pairs.sort_unstable();
+    pairs.dedup();
+    println!("== shop (location) -> file, {} distinct pairs", pairs.len());
+    for (name, location, file) in &pairs {
+        println!("   {name} ({location}) -> {file}");
+    }
+    println!(
+        "== soc paths without an Entity {}; prefab Entities {} of which ambiguous {}; shops listed by a prefab alone {}",
+        summary.soc_paths_unattributed,
+        summary.prefab_entities,
+        summary.prefab_ambiguous,
+        summary.prefab_only_shops
+    );
     println!(
         "== not exported: {} shops name a placeholder, {} are ambiguous, {} unscanned, {} name a file that is missing, {} an unreadable one",
         summary.inventory_placeholder,
@@ -141,7 +161,7 @@ fn shops_get_item_lists_from_the_inventories_their_containers_name() -> TestResu
     }
     assert!(summary.with_items > 0, "{summary:?}");
     assert_eq!(summary.with_items, with.len());
-    assert!(summary.with_items >= 300, "{summary:?}");
+    assert!(summary.with_items >= 250, "{summary:?}");
     assert!(summary.inventory_placeholder > 0, "{summary:?}");
     assert!(summary.inventory_unscanned < 144, "{summary:?}");
     assert_eq!(summary.other_containers_unreadable, 0, "{summary:?}");

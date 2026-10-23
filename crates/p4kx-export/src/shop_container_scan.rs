@@ -22,19 +22,21 @@ pub(crate) type Shops = Vec<(String, Component)>;
 
 /// Returns the `CryGUID`s `entitycomponentshop.xml` of the container `socpak` names, lower case,
 /// each with what the `.soc` files of the container say of its component; `None` when the
-/// container or its `entitycomponentshop.xml` cannot be read. A `.soc` that cannot be read only
+/// container or its `entitycomponentshop.xml` cannot be read, and how many inventory paths of its
+/// `.soc` files no Entity could be told for. A `.soc` that cannot be read only
 /// leaves the component `NotFound`: kind and brand do not depend on it.
-pub(crate) fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Shops> {
+pub(crate) fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<(Shops, usize)> {
     let container = archive.open_container(socpak).ok()?;
     let Some(metadata) = container.entries().iter().find(|inner| {
         let name = key(inner.path());
         name.ends_with(SHOP_METADATA) || name == SHOP_METADATA.trim_start_matches('\\')
     }) else {
-        return Some(Vec::new());
+        return Some((Vec::new(), 0));
     };
     let guids = entities(&read_limited(&container, metadata, MAX_METADATA_LEN)?)?;
     let anchors = Anchors::new(&guids, object_names(&container).unwrap_or_default());
     let mut found: HashMap<String, Vec<Component>> = HashMap::new();
+    let mut rejected = 0;
     for inner in container.entries().iter().filter(|inner| {
         Path::new(inner.path())
             .extension()
@@ -43,7 +45,9 @@ pub(crate) fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Shops> 
         let Some(bytes) = read_limited(&container, inner, MAX_SOC_LEN) else {
             continue;
         };
-        for component in shop_soc::components(&bytes, &anchors) {
+        let scan = shop_soc::components(&bytes, &anchors);
+        rejected += scan.rejected;
+        for component in scan.components {
             found.entry(component.entity).or_default().push(
                 component
                     .inventory
@@ -51,17 +55,16 @@ pub(crate) fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Shops> 
             );
         }
     }
-    Some(
-        guids
-            .into_iter()
-            .map(|guid| {
-                let state = found
-                    .get(&guid)
-                    .map_or(Component::NotFound, |states| combined(states));
-                (guid, state)
-            })
-            .collect(),
-    )
+    let shops = guids
+        .into_iter()
+        .map(|guid| {
+            let state = found
+                .get(&guid)
+                .map_or(Component::NotFound, |states| combined(states));
+            (guid, state)
+        })
+        .collect();
+    Some((shops, rejected))
 }
 
 fn combined(states: &[Component]) -> Component {

@@ -26,7 +26,7 @@ pub(crate) struct Class {
 /// What the containers say of one `SCShop` Entity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Found<'a> {
-    /// No container names the Entity.
+    /// No shop-folder container names the Entity; kind and brand are unknown.
     Nowhere,
     /// Every container that names it has this kind and brand.
     One(&'a Class),
@@ -66,6 +66,8 @@ pub(crate) enum Component {
 struct Named {
     classes: Vec<Class>,
     inventories: Vec<Component>,
+    placed: bool,
+    prefab: bool,
 }
 
 /// Combines what several containers or `.soc` files say of one Entity.
@@ -92,8 +94,9 @@ pub(crate) fn verdict(states: &[Component]) -> Inventory<'_> {
     }
 }
 
-/// The `SCShop` Entities of the shop containers with the kind and brand of their path and the
-/// inventory file their parameters name.
+/// The `SCShop` Entities of every container below `PU` and `EA`, with the kind and brand of the
+/// shop-folder containers among them and the inventory file their components and the shop prefabs
+/// name.
 #[derive(Debug, Default)]
 pub(crate) struct Containers {
     by_entity: HashMap<String, Named>,
@@ -101,6 +104,7 @@ pub(crate) struct Containers {
     pub(crate) unreadable: usize,
     pub(crate) with_shop: usize,
     pub(crate) components: usize,
+    pub(crate) rejected: usize,
     pub(crate) other_scanned: usize,
     pub(crate) other_unreadable: usize,
     pub(crate) other_with_shop: usize,
@@ -114,19 +118,8 @@ impl Containers {
         archive: &Archive,
         cancel: Option<&CancelToken>,
     ) -> Result<Self, CatalogError> {
-        let listed: Vec<(&Entry, Option<Class>)> = archive
-            .entries()
-            .iter()
-            .filter_map(|entry| {
-                let path = key(entry.path());
-                let class = classify(&path);
-                (class.is_some()
-                    || (path.ends_with(".socpak")
-                        && SCANNED.iter().any(|folder| path.starts_with(folder))))
-                .then_some((entry, class))
-            })
-            .collect();
-        let read: Vec<Option<Shops>> = listed
+        let listed = listed(archive);
+        let read: Vec<Option<(Shops, usize)>> = listed
             .par_iter()
             .map(|(entry, _)| {
                 if cancel.is_some_and(CancelToken::is_cancelled) {
@@ -145,7 +138,7 @@ impl Containers {
             } else {
                 containers.other_scanned += 1;
             }
-            let Some(entities) = entities else {
+            let Some((entities, rejected)) = entities else {
                 if class.is_some() {
                     containers.unreadable += 1;
                 } else {
@@ -153,6 +146,7 @@ impl Containers {
                 }
                 continue;
             };
+            containers.rejected += rejected;
             if !entities.is_empty() {
                 if class.is_some() {
                     containers.with_shop += 1;
@@ -163,6 +157,7 @@ impl Containers {
             for (entity, inventory) in entities {
                 containers.components += usize::from(inventory != Component::NotFound);
                 let named = containers.by_entity.entry(entity).or_default();
+                named.placed = true;
                 if let Some(class) = &class
                     && !named.classes.contains(class)
                 {
@@ -180,6 +175,7 @@ impl Containers {
     pub(crate) fn add_prefabs(&mut self, prefabs: &Prefabs) {
         for (entity, stems) in &prefabs.by_entity {
             let named = self.by_entity.entry(entity.clone()).or_default();
+            named.prefab = true;
             for stem in stems {
                 let state = Component::File(stem.clone());
                 if !named.inventories.contains(&state) {
@@ -187,6 +183,13 @@ impl Containers {
                 }
             }
         }
+    }
+
+    /// Returns whether a prefab names the Entity and no container holds it.
+    pub(crate) fn only_prefab(&self, entity: &str) -> bool {
+        self.by_entity
+            .get(&entity.to_ascii_lowercase())
+            .is_some_and(|named| named.prefab && !named.placed)
     }
 
     /// Returns what the containers say of the Entity with the `CryGUID` `entity`, ignoring case.
@@ -221,6 +224,21 @@ impl Containers {
             })
             .collect()
     }
+}
+
+fn listed(archive: &Archive) -> Vec<(&Entry, Option<Class>)> {
+    archive
+        .entries()
+        .iter()
+        .filter_map(|entry| {
+            let path = key(entry.path());
+            let class = classify(&path);
+            (class.is_some()
+                || (path.ends_with(".socpak")
+                    && SCANNED.iter().any(|folder| path.starts_with(folder))))
+            .then_some((entry, class))
+        })
+        .collect()
 }
 
 /// Returns the kind and brand of the socpak with the normalised path `path`, `None` when it is no

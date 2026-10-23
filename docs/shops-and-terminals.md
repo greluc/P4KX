@@ -96,15 +96,19 @@ often a shop of another place; 31 have no `ShopID` (they use a top-level `Invent
 of `Collection.Inventory`). The registry `DefaultValue`s (360 distinct) are no DataForge Record
 GUIDs.
 
-Settled in #468 (ADR-0071): the link sits on the shop side. The `.soc` of a shop container holds
-the `SCShop` component with `offlineInventoryJSON` (or `offlineInventoryXMLName`), the path of the
-inventory file, right behind the CryGUID that `entitycomponentshop.xml` names. 68 shop components
-of the containers name one of 40 files; through their `entityGuid` 331 of the 1,184 registry shops
-get an item list from 28 files (28 shops are ambiguous because containers of one module name
-different files). 91 of the 119 files are named by no container below `PU\Shops` or the
-`shopcomm`/`shopfood` folders; the prefabs under `Data\Prefabs\shops` name 8 of them with
-`offlineInventoryXML` attributes, and the registry shops of the cities and stations lie in
-containers the catalog does not open.
+Settled in #468 (ADR-0071) and #481 (ADR-0073): the link sits on the shop side. The `.soc` of a
+container holds the `SCShop` component with `offlineInventoryJSON` (or `offlineInventoryXMLName`),
+the path of the inventory file. The `.soc` stores each string once, so only the first component of
+a file carries the component name and often the GUID text before it is the class GUID shared by
+all `SCShop`; the path is tied to the Entity whose `CryGUID` (`entitycomponentshop.xml`) or object
+name (`<container>_editor.xml`) is the closest anchor before it, with only known structure strings
+and one position in between. 345 `.soc` files hold the component; 335 containers have an
+`entitycomponentshop.xml`, 171 of them outside the shop folders, which the catalog now reads too.
+The prefabs under `Data\Prefabs\shops` name 8 files with `offlineInventory*` attributes; the
+`Id` of their Entity is the container `CryGUID` with the bytes reordered (6 of the 8 are in a
+container). Through `entityGuid` 294 of the 1,184 registry shops get an item list from 33 files;
+43 are ambiguous, 64 unscanned, 399 name a designer placeholder (`temp_outpost_shopinventory`,
+`inv_cryastro_dummy`) and get none. 62 of the 119 files are named by nothing in the Archive.
 
 ## Terminals
 

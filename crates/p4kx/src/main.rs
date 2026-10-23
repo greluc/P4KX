@@ -4,6 +4,7 @@ mod audio;
 mod bnk;
 mod catalog;
 mod catalog_json;
+mod catalog_json_shops;
 mod channels;
 mod chf;
 mod chunks;

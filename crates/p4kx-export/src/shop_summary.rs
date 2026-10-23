@@ -40,6 +40,10 @@ pub struct ShopSummary {
     pub prefabs_unreadable: usize,
     /// The Entities of the prefabs that name an inventory file.
     pub prefab_entities: usize,
+    /// Those whose prefabs and containers do not name the same file.
+    pub prefab_ambiguous: usize,
+    /// The shops with an item list that only a prefab names.
+    pub prefab_only_shops: usize,
     /// The shops whose Entity exactly one kind and brand of container names.
     pub with_kind: usize,
     /// The shops whose Entity containers of different kind or brand name; kind and brand are `null`.
@@ -62,6 +66,9 @@ pub struct ShopSummary {
     pub inventory_unscanned: usize,
     /// The (container, Entity) pairs whose component was found in a `.soc`.
     pub soc_components: usize,
+    /// The inventory paths in `.soc` files that no Entity could be tied to; those components stay
+    /// unknown.
+    pub soc_paths_unattributed: usize,
     /// The distinct inventory files that cannot be read.
     pub inventories_unreadable: usize,
     /// The distinct named inventory files the Archive lacks.
@@ -90,6 +97,7 @@ impl ShopSummary {
         self.prefabs_listed = prefabs.listed;
         self.prefabs_unreadable = prefabs.unreadable;
         self.prefab_entities = prefabs.by_entity.len();
+        self.soc_paths_unattributed = containers.rejected;
         self.containers_listed = containers.listed;
         self.containers_unreadable = containers.unreadable;
         self.containers_with_shop = containers.with_shop;

@@ -2,7 +2,7 @@
 //! container file or in a prefab, through the public API.
 
 use crate::shop_items_rest_fixture::{self, ITEM_A, ITEM_B};
-use crate::shops_fixture::{CLOTHING, EXCHANGE, FOOD, LOOSE};
+use crate::shops_fixture::{CLOTHING, EXCHANGE, FOOD, LOOSE, MIXED};
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
@@ -47,11 +47,20 @@ fn components_in_any_container_and_prefabs_give_lists_and_placeholders_none() ->
     assert!(exchange["itemGuids"].is_null());
     assert_eq!(exchange["kind"], "commex", "kind does not depend on it");
 
+    let mixed = shop(&catalog, MIXED)?;
+    assert!(
+        mixed["inventory"].is_null(),
+        "a prefab that names two files"
+    );
+    assert!(mixed["itemGuids"].is_null());
+
     let summary = built.summary().shops();
     assert_eq!(summary.with_items, 4, "{summary:?}");
     assert_eq!(summary.inventory_placeholder, 1, "{summary:?}");
     assert_eq!(summary.other_containers_with_shop, 1, "{summary:?}");
-    assert_eq!(summary.prefab_entities, 1, "{summary:?}");
+    assert_eq!(summary.prefab_entities, 2, "{summary:?}");
+    assert_eq!(summary.prefab_ambiguous, 1, "{summary:?}");
+    assert_eq!(summary.prefab_only_shops, 1, "{summary:?}");
     assert_eq!(summary.inventory_unscanned, 0, "{summary:?}");
     let text = serde_json::to_string(&catalog["shops"])?;
     assert!(!text.contains("BuyPrice"));

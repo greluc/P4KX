@@ -565,10 +565,10 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "shops": {"shops": 1184, "registry_entries": 1184, "registry_missing": false, "registry_unreadable": false, "malformed": 0,
  "duplicate": 0, "containers_listed": 317, "containers_unreadable": 0, "containers_with_shop": 164,
  "other_containers_scanned": 8224, "other_containers_unreadable": 0, "other_containers_with_shop": 171,
- "prefabs_listed": 30, "prefabs_unreadable": 0, "prefab_entities": 8,
- "with_kind": 590, "mixed_kind": 60, "without_container": 534, "with_items": 310, "inventory_ambiguous": 28,
- "inventory_placeholder": 400, "inventory_missing": 0, "inventory_unreadable": 1, "inventory_unscanned": 53,
- "soc_components": 341, "inventories_unreadable": 1, "inventories_missing": 0, "inventories_named": 59,
+ "prefabs_listed": 30, "prefabs_unreadable": 0, "prefab_entities": 8, "prefab_ambiguous": 1, "prefab_only_shops": 0,
+ "with_kind": 590, "mixed_kind": 60, "without_container": 534, "with_items": 294, "inventory_ambiguous": 43,
+ "inventory_placeholder": 399, "inventory_missing": 0, "inventory_unreadable": 1, "inventory_unscanned": 64,
+ "soc_components": 320, "soc_paths_unattributed": 12, "inventories_unreadable": 1, "inventories_missing": 0, "inventories_named": 57,
  "inventories_in_archive": 119, "item_ids_dropped": 0, "commodity_exchanges": 16,
  "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
@@ -629,7 +629,8 @@ the Archive lacks (`inventory_missing`) or that cannot be read (`inventory_unrea
 containers have no readable shop component at all (`inventory_unscanned`) or name a designer
 placeholder (`inventory_placeholder`), the containers outside the shop folders and the prefabs read
 (`other_containers_scanned`, `other_containers_unreadable`, `other_containers_with_shop`,
-`prefabs_listed`, `prefabs_unreadable`, `prefab_entities`), the distinct files named and present
+`prefabs_listed`, `prefabs_unreadable`, `prefab_entities`, `prefab_ambiguous`, `prefab_only_shops`),
+the inventory paths no Entity could be told for (`soc_paths_unattributed`), the distinct files named and present
 (`inventories_named`, `inventories_in_archive`), the found components
 (`soc_components`), the distinct files that cannot be read or are missing (`inventories_unreadable`,
 `inventories_missing`) and the `ID` values dropped for being no GUID (`item_ids_dropped`), the

@@ -1188,7 +1188,7 @@ Entity (`EntityComponentShop`, `SShopComponentParams`) with the parameter `offli
 once, so a later component of a file repeats neither the component name nor, often, the GUID of its
 Entity; the catalog ties a path to the Entity whose `CryGUID` (`entitycomponentshop.xml`) or object
 name (`<container>_editor.xml`) is the closest anchor before it, with only known structure strings
-in between, and leaves everything else unknown (ADR-0073). It reads the `.soc` of every socpak below
+in between (at most one position, and a GUID only right behind `SCShop`), and leaves everything else unknown (ADR-0073). It reads the `.soc` of every socpak below
 `PU` and `EA`; kind and brand still come from the shop folders only. The `offlineInventory*`
 attributes of the shop prefabs below `Data\Prefabs\Shops` name the Entity through its editor `Id`,
 which is the container `CryGUID` with the bytes reordered; a prefab is one more place. A shop gets an
@@ -1213,9 +1213,9 @@ differs from a component that names no file), `inventory_missing` and `inventory
 (shops), `soc_components` (found components), `inventories_named` and `inventories_in_archive`,
 `inventories_missing`, `inventories_unreadable` (files), `item_ids_dropped`, and the containers
 (`other_containers_*`) and prefabs (`prefabs_*`, `prefab_entities`) read besides the shop folders.
-On LIVE (Build 4.10.197) 310 of the 1,184 shops get an item list (Stanton 290, Pyro 20) from 33
-distinct files; 400 shops name a placeholder, 28 have ambiguous places, 53 are unscanned and one
-names an empty file. 59 of the 119 inventory files are named by a container or prefab; the other 60
+On LIVE (Build 4.10.197) 294 of the 1,184 shops get an item list (Stanton 275, Pyro 19) from 33
+distinct files; 399 shops name a placeholder, 43 have ambiguous places, 64 are unscanned and one
+names an empty file. 57 of the 119 inventory files are named by a container or prefab; the other 62
 (event sales, `mining_*`, most landing-service, city and station shop files) are named by nothing
 in the Archive and by no Record, and the `ShopID` they carry is a stale design-time value, so those
 shops have no item list. 2,395 of the 2,422 item GUIDs of the exported files (distinct per file) are

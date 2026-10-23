@@ -3,6 +3,7 @@
 
 mod lookups;
 mod records;
+mod referenced;
 mod structures;
 
 use std::error::Error;
@@ -57,9 +58,9 @@ pub(crate) const OBJ_STAR: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const OBJ_STATION: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0000;
 
 fn database() -> DataForgeBuilder {
-    records::generator(lookups::places(lookups::reputation(records::referenced(
-        structures::structures(DataForgeBuilder::new().version(8)),
-    ))))
+    records::generator(lookups::places(lookups::reputation(
+        referenced::referenced(structures::structures(DataForgeBuilder::new().version(8))),
+    )))
 }
 
 fn english() -> TestEntry {

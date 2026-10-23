@@ -262,7 +262,16 @@ fn a_zst_file_name_writes_the_catalog_as_a_zstd_frame() -> TestResult {
     let frame = fs::read(&packed)?;
     let mut decoded = Vec::new();
     zstd::Decoder::new(frame.as_slice())?.read_to_end(&mut decoded)?;
-    assert!(decoded == fs::read(&plain)?, "byte-identical JSON");
+    let without_time = |bytes: &[u8]| -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        let mut json: serde_json::Value = serde_json::from_slice(bytes)?;
+        let source = json["source"].as_object_mut().ok_or("no source")?;
+        source.remove("exportedAt").ok_or("no export time")?;
+        Ok(json)
+    };
+    assert!(
+        without_time(&decoded)? == without_time(&fs::read(&plain)?)?,
+        "the same catalog apart from the export time"
+    );
     assert_eq!(
         outcome.summary().compressed_size(),
         Some(u64::try_from(frame.len())?),

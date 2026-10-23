@@ -7,6 +7,14 @@ use serde::Deserialize;
 use crate::shop_registry::is_guid;
 use crate::starmap_index::key;
 
+/// The inventory files that are designer placeholders: the same few commodities for bars,
+/// refineries and showrooms alike, or items no Record has. A shop that names one has no list.
+pub(crate) const PLACEHOLDERS: [&str; 2] = ["temp_outpost_shopinventory", "inv_cryastro_dummy"];
+
+pub(crate) fn is_placeholder(stem: &str) -> bool {
+    PLACEHOLDERS.contains(&stem)
+}
+
 const FOLDER: &str = "data\\scripts\\shopinventories\\";
 const MAX_INVENTORY_LEN: u64 = 16 << 20;
 
@@ -77,6 +85,11 @@ impl<'a> Inventories<'a> {
             })
             .collect();
         Self { archive, by_stem }
+    }
+
+    /// Returns how many inventory files the Archive holds.
+    pub(crate) fn count(&self) -> usize {
+        self.by_stem.len()
     }
 
     /// Reads the item GUIDs of the inventory file with the lower-case stem `stem`. Prices, stock

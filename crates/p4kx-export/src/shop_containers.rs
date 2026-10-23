@@ -1,22 +1,20 @@
 use std::collections::{BTreeSet, HashMap};
-use std::io::Read;
-use std::path::Path;
 
-use p4kx_extraction::cryxml::{self, Xml};
 use p4kx_extraction::{Archive, CancelToken, Entry};
 use rayon::prelude::*;
 
 use crate::CatalogError;
-use crate::shop_soc;
+use crate::shop_container_scan::{Shops, shop_entities};
+use crate::shop_prefabs::Prefabs;
 use crate::starmap_index::key;
-use crate::starmap_xml::{Node, attribute};
 
 const SHOPS: &str = "data\\objectcontainers\\pu\\shops\\";
 const LOC: &str = "data\\objectcontainers\\pu\\loc\\";
 const LOC_KINDS: [&str; 2] = ["shopcomm", "shopfood"];
-const SHOP_METADATA: &str = "\\metadata\\entitycomponentshop.xml";
-const MAX_METADATA_LEN: u64 = 1 << 20;
-const MAX_SOC_LEN: u64 = 64 << 20;
+const SCANNED: [&str; 2] = [
+    "data\\objectcontainers\\pu\\",
+    "data\\objectcontainers\\ea\\",
+];
 
 /// The kind and the brand of a shop container, from its path.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,8 +62,6 @@ pub(crate) enum Component {
     Conflict,
 }
 
-type Shops = Vec<(String, Component)>;
-
 #[derive(Debug, Default)]
 struct Named {
     classes: Vec<Class>,
@@ -105,19 +101,30 @@ pub(crate) struct Containers {
     pub(crate) unreadable: usize,
     pub(crate) with_shop: usize,
     pub(crate) components: usize,
+    pub(crate) other_scanned: usize,
+    pub(crate) other_unreadable: usize,
+    pub(crate) other_with_shop: usize,
 }
 
 impl Containers {
     /// Opens every socpak below `PU\Shops` and the `shopcomm` and `shopfood` folders below
-    /// `PU\loc` and reads the `CryGUID`s of its `entitycomponentshop.xml`.
+    /// `PU\loc`, which give kind and brand, and every other socpak below `PU` and `EA`, and reads
+    /// the `CryGUID`s of its `entitycomponentshop.xml` and the shop components of its `.soc`.
     pub(crate) fn read(
         archive: &Archive,
         cancel: Option<&CancelToken>,
     ) -> Result<Self, CatalogError> {
-        let listed: Vec<(&Entry, Class)> = archive
+        let listed: Vec<(&Entry, Option<Class>)> = archive
             .entries()
             .iter()
-            .filter_map(|entry| classify(&key(entry.path())).map(|class| (entry, class)))
+            .filter_map(|entry| {
+                let path = key(entry.path());
+                let class = classify(&path);
+                (class.is_some()
+                    || (path.ends_with(".socpak")
+                        && SCANNED.iter().any(|folder| path.starts_with(folder))))
+                .then_some((entry, class))
+            })
             .collect();
         let read: Vec<Option<Shops>> = listed
             .par_iter()
@@ -131,22 +138,34 @@ impl Containers {
         if cancel.is_some_and(CancelToken::is_cancelled) {
             return Err(CatalogError::Cancelled);
         }
-        let mut containers = Self {
-            listed: listed.len(),
-            ..Self::default()
-        };
+        let mut containers = Self::default();
         for ((_, class), entities) in listed.into_iter().zip(read) {
+            if class.is_some() {
+                containers.listed += 1;
+            } else {
+                containers.other_scanned += 1;
+            }
             let Some(entities) = entities else {
-                containers.unreadable += 1;
+                if class.is_some() {
+                    containers.unreadable += 1;
+                } else {
+                    containers.other_unreadable += 1;
+                }
                 continue;
             };
             if !entities.is_empty() {
-                containers.with_shop += 1;
+                if class.is_some() {
+                    containers.with_shop += 1;
+                } else {
+                    containers.other_with_shop += 1;
+                }
             }
             for (entity, inventory) in entities {
                 containers.components += usize::from(inventory != Component::NotFound);
                 let named = containers.by_entity.entry(entity).or_default();
-                if !named.classes.contains(&class) {
+                if let Some(class) = &class
+                    && !named.classes.contains(class)
+                {
                     named.classes.push(class.clone());
                 }
                 if !named.inventories.contains(&inventory) {
@@ -155,6 +174,19 @@ impl Containers {
             }
         }
         Ok(containers)
+    }
+
+    /// Adds the inventory files the shop prefabs name as one more place per Entity.
+    pub(crate) fn add_prefabs(&mut self, prefabs: &Prefabs) {
+        for (entity, stems) in &prefabs.by_entity {
+            let named = self.by_entity.entry(entity.clone()).or_default();
+            for stem in stems {
+                let state = Component::File(stem.clone());
+                if !named.inventories.contains(&state) {
+                    named.inventories.push(state);
+                }
+            }
+        }
     }
 
     /// Returns what the containers say of the Entity with the `CryGUID` `entity`, ignoring case.
@@ -218,93 +250,6 @@ pub(crate) fn classify(path: &str) -> Option<Class> {
         kind: kind.to_owned(),
         brand: None,
     })
-}
-
-/// Returns the `CryGUID`s `entitycomponentshop.xml` of the container `socpak` names, lower case,
-/// each with what the `.soc` files of the container say of its component; `None` when the
-/// container or its `entitycomponentshop.xml` cannot be read. A `.soc` that cannot be read only
-/// leaves the component `NotFound`: kind and brand do not depend on it.
-fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Shops> {
-    let container = archive.open_container(socpak).ok()?;
-    let Some(metadata) = container.entries().iter().find(|inner| {
-        let name = key(inner.path());
-        name.ends_with(SHOP_METADATA) || name == SHOP_METADATA.trim_start_matches('\\')
-    }) else {
-        return Some(Vec::new());
-    };
-    let guids = entities(&read_limited(&container, metadata, MAX_METADATA_LEN)?)?;
-    let mut found: HashMap<String, Vec<Component>> = HashMap::new();
-    for inner in container.entries().iter().filter(|inner| {
-        Path::new(inner.path())
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("soc"))
-    }) {
-        let Some(bytes) = read_limited(&container, inner, MAX_SOC_LEN) else {
-            continue;
-        };
-        for component in shop_soc::components(&bytes) {
-            found.entry(component.entity).or_default().push(
-                component
-                    .inventory
-                    .map_or(Component::NoFile, Component::File),
-            );
-        }
-    }
-    Some(
-        guids
-            .into_iter()
-            .map(|guid| {
-                let state = found
-                    .get(&guid)
-                    .map_or(Component::NotFound, |states| combined(states));
-                (guid, state)
-            })
-            .collect(),
-    )
-}
-
-fn combined(states: &[Component]) -> Component {
-    match verdict(states) {
-        Inventory::None => Component::NoFile,
-        Inventory::One(stem) => Component::File(stem.to_owned()),
-        Inventory::Ambiguous => Component::Conflict,
-        Inventory::Unknown => Component::NotFound,
-    }
-}
-
-fn read_limited(container: &Archive, entry: &Entry, limit: u64) -> Option<Vec<u8>> {
-    if entry.uncompressed_size() > limit {
-        return None;
-    }
-    let mut bytes = Vec::new();
-    container
-        .open_entry(entry)
-        .ok()?
-        .take(limit)
-        .read_to_end(&mut bytes)
-        .ok()?;
-    Some(bytes)
-}
-
-fn entities(bytes: &[u8]) -> Option<Vec<String>> {
-    match cryxml::read(bytes).ok()? {
-        Xml::CryXml(document) => Some(guids(document.root())),
-        Xml::Text(text) => {
-            let text = std::str::from_utf8(text)
-                .ok()?
-                .trim_start_matches('\u{feff}');
-            let document = roxmltree::Document::parse(text).ok()?;
-            Some(guids(document.root_element()))
-        }
-    }
-}
-
-fn guids<'d, N: Node<'d>>(root: N) -> Vec<String> {
-    root.children()
-        .filter(|child| child.name().eq_ignore_ascii_case("Entity"))
-        .filter_map(|entity| attribute(entity, "CryGUID"))
-        .map(str::to_ascii_lowercase)
-        .collect()
 }
 
 #[cfg(test)]

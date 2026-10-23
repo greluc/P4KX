@@ -7,8 +7,9 @@ use crate::collected::Collected;
 use crate::contract::{Shop, StarmapObject};
 use crate::crafting_warning::CraftingWarning;
 use crate::shop_containers::{Containers, Found, Inventory};
-use crate::shop_inventories::{Inventories, ItemList};
+use crate::shop_inventories::{Inventories, ItemList, is_placeholder};
 use crate::shop_links::Links;
+use crate::shop_prefabs::Prefabs;
 use crate::shop_registry::{self, RegistryShop, clean, is_guid};
 use crate::shop_summary::ShopSummary;
 use crate::{CatalogError, CatalogOptions};
@@ -113,19 +114,22 @@ pub(crate) fn shops(
     if cancel.is_some_and(CancelToken::is_cancelled) {
         return Err(CatalogError::Cancelled);
     }
-    let containers = Containers::read(archive, cancel)?;
-    summary.containers_listed = containers.listed;
-    summary.containers_unreadable = containers.unreadable;
-    summary.containers_with_shop = containers.with_shop;
+    let mut containers = Containers::read(archive, cancel)?;
+    let prefabs = Prefabs::read(archive);
+    containers.add_prefabs(&prefabs);
+    summary.count_sources(&containers, &prefabs);
     summary.registry_entries = registry.len();
     let links = Links::new(starmap);
     let inventories = Inventories::new(archive);
     let lists: Lists<'_> = containers
         .inventory_stems()
         .into_iter()
+        .filter(|stem| !is_placeholder(stem))
         .map(|stem| (stem, inventories.items(stem)))
         .collect();
     summary.soc_components = containers.components;
+    summary.inventories_named = containers.inventory_stems().len();
+    summary.inventories_in_archive = inventories.count();
     summary.inventories_unreadable = lists
         .values()
         .filter(|list| **list == ItemList::Unreadable)
@@ -189,6 +193,9 @@ fn list(
         match (containers.inventory(&shop.entity_guid), &shop.item_guids) {
             (_, Some(_)) => summary.with_items += 1,
             (Inventory::Ambiguous, None) => summary.inventory_ambiguous += 1,
+            (Inventory::One(stem), None) if is_placeholder(stem) => {
+                summary.inventory_placeholder += 1;
+            }
             (Inventory::One(stem), None) => match lists.get(stem) {
                 Some(ItemList::Unreadable) => summary.inventory_unreadable += 1,
                 _ => summary.inventory_missing += 1,

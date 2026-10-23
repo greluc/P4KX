@@ -20,8 +20,9 @@ use crate::playability::PlayabilitySummary;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, resource_group};
 use crate::ship::ship;
+use crate::ship_base::ShipRead;
 use crate::texts::Texts;
-use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary, ShipBase};
+use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary};
 
 /// A Record a kind selected: its entity, or a development leftover of the kind.
 ///
@@ -64,7 +65,7 @@ impl<'f> Picked<'f> {
         resource_type: Option<&RecordTree<'f>>,
         groups: &Groups,
         evidence: &Evidence,
-        ship_base: Option<&ShipBase>,
+        ship_base: Option<&ShipRead>,
     ) -> Option<Self> {
         Some(match kind {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),

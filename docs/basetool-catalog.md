@@ -616,7 +616,8 @@ player ship is grouped with it.
 
 **Ships** share a group when all of these are equal:
 
-- `vehicleDefinition` (`VehicleComponentParams.vehicleDefinition`);
+- `vehicleDefinition` (`VehicleComponentParams.vehicleDefinition`), compared as a path without
+  regard to case, to `/` or `\`, and to a leading separator;
 - the vehicle implementation after the Modification the ship selects (ADR-0050), compared as a
   whole: the digest covers every element of the patched `Vehicle` tree (parts, item ports and
   their children such as `Pitch` or `Yaw`, the other children of `Vehicle` such as
@@ -650,7 +651,8 @@ ungrouped, because equality cannot be shown.
   and `openLootingInteraction` of `SCItemInventoryContainerComponentParams`. Localisation keys
   (names, descriptions, display names) are never compared. On LIVE the clothing and armour
   colour variants differ in exactly these: name, tags, material path, palette and the per-item
-  interaction Records.
+  interaction Records. A Reference counts by the GUID of its target and, for a weak pointer, by
+  the location of the instance inside that Record.
 
 An item with no compared component besides `SAttachableComponentParams`, without an `AttachDef`
 type, or whose data holds a value the reader could not read, is ungrouped. Names, descriptions,
@@ -666,8 +668,8 @@ build). Fitment differences may or may not split a group. A consumer that wants 
 sees or fits combines `variantOf` with `playability`.
 
 **Base.** The member with `playability` `player`, then the member with the smallest `className`
-(compared byte-wise), then the smallest `guid`. A group holds at least two members;
-`p4kx catalog` prints `variants` and `groups` per kind and `--json` lists them.
+(compared byte-wise), then the smallest `guid`. A group holds at least two members with different
+`guid`s, so a repeated `guid` in a malformed Archive makes no group; `p4kx catalog` prints `variants` and `groups` per kind and `--json` lists them.
 
 Size: one `variantOf` per ship and item, 4 bytes (`null`) or 38 bytes (a GUID) uncompressed; the
 GUIDs repeat and compress well.

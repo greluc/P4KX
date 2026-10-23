@@ -3,6 +3,14 @@ use serde::{Serialize, Serializer};
 
 use crate::digest::Digest;
 
+/// The base data of a ship with the digest of its vehicle implementation, which the variant
+/// groups compare and the exported base data does not carry.
+#[derive(Debug)]
+pub(crate) struct ShipRead {
+    pub(crate) base: ShipBase,
+    pub(crate) implementation: Option<Digest>,
+}
+
 fn guid<S: Serializer>(value: &Guid, serializer: S) -> Result<S::Ok, S::Error> {
     serializer.collect_str(value)
 }
@@ -242,8 +250,6 @@ pub struct ShipBase {
     pub record_path: String,
     /// The vehicle implementation file, `null` when the ship names none or it cannot be read.
     pub implementation: Option<Implementation>,
-    #[serde(skip)]
-    pub(crate) implementation_digest: Option<Digest>,
     /// Spaceship or ground vehicle, `null` when the record path and the vehicle implementation
     /// disagree or the path names neither folder.
     pub vehicle_kind: Option<VehicleKind>,

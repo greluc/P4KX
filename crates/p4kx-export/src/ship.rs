@@ -1,12 +1,13 @@
 use p4kx_extraction::{RecordTree, StructValue, Value};
 
-use crate::ShipBase;
 use crate::contract::Ship;
 use crate::guid_text::CatalogGuid;
-use crate::paint_port::{PaintPort, ShipKey, VehicleFacts};
+use crate::paint_port::{PaintPort, VehicleFacts};
 use crate::playability_rules::{self, Evidence};
 use crate::record_fields::{class_name, component, elements, integer, locale_key, reference, text};
+use crate::ship_base::ShipRead;
 use crate::texts::Texts;
+use crate::variants::ShipKey;
 
 const PAINTS: &str = "Paints";
 
@@ -35,25 +36,16 @@ fn takes_paints(port: &StructValue<'_>) -> bool {
     })
 }
 
-/// Returns the key the ships of one variant group share: the vehicle definition and the digest of
-/// the vehicle implementation after the Modification. `None` for a ship without a definition or
-/// whose vehicle implementation was not read.
-fn variant_key<'f>(definition: Option<&'f str>, base: &ShipBase) -> Option<ShipKey<'f>> {
-    Some(ShipKey {
-        definition: definition?,
-        implementation: base.implementation_digest?,
-    })
-}
-
 /// Returns the ship the Record tree `tree` describes, its texts resolved by `texts` and its
-/// playability decided by `evidence` and its mass, hull, cargo, size and kind taken from `base`,
-/// with the vehicle facts its paints are derived from.
+/// playability decided by `evidence` and its mass, hull, cargo, size and kind taken from `read`,
+/// with the vehicle facts its paints and variant group are derived from.
 pub(crate) fn ship<'f>(
     tree: &RecordTree<'f>,
     texts: &Texts<'f>,
     evidence: &Evidence,
-    base: &ShipBase,
+    read: &ShipRead,
 ) -> (Ship<'f>, VehicleFacts<'f>) {
+    let base = &read.base;
     let vehicle = component(tree, "VehicleComponentParams");
     let guid = CatalogGuid(tree.guid());
     let ship = Ship {
@@ -83,7 +75,10 @@ pub(crate) fn ship<'f>(
         definition: ship.vehicle_definition,
         modification: text(vehicle, "modification"),
         paint_ports: paint_ports(tree),
-        variant_key: variant_key(ship.vehicle_definition, base),
+        variant_key: ship
+            .vehicle_definition
+            .zip(read.implementation)
+            .map(|(definition, implementation)| ShipKey::new(definition, implementation)),
     };
     (ship, facts)
 }

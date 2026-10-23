@@ -16,6 +16,8 @@ pub enum ReferenceKind {
     Component,
     /// A folder of the Archive whose Entries are converted from CryXml.
     Entries,
+    /// A `StarMapObjectType` name; the `StarMapObject` Records of that type are counted.
+    StarMapType,
 }
 
 impl FromStr for ReferenceKind {
@@ -27,6 +29,7 @@ impl FromStr for ReferenceKind {
             "candidate" => Ok(Self::Candidate),
             "component" => Ok(Self::Component),
             "entries" => Ok(Self::Entries),
+            "starmap-type" => Ok(Self::StarMapType),
             _ => Err(()),
         }
     }
@@ -151,6 +154,22 @@ pub struct ComponentCoverage {
     pub reachable: bool,
 }
 
+/// The coverage of the `StarMapObject` Records of one `StarMapObjectType`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ObjectCoverage {
+    /// The topic area.
+    pub area: String,
+    /// The `StarMapObjectType` name, e.g. `SolarSystem`.
+    pub type_name: String,
+    /// The `StarMapObject` Records, derived types included, whose type has that name.
+    pub records: u64,
+    /// Of `records`, those whose record path contains `template`, in any case.
+    pub templates: u64,
+    /// The export of the first such Record that is no template, or why it failed; `None` without
+    /// one.
+    pub sample: Option<SampleExport>,
+}
+
 /// The coverage of one Entry folder.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EntryCoverage {
@@ -175,6 +194,8 @@ pub struct CoverageReport {
     pub types: Vec<TypeCoverage>,
     /// The components, in list order.
     pub components: Vec<ComponentCoverage>,
+    /// The `StarMapObject` Records per listed `StarMapObjectType` name, in list order.
+    pub objects: Vec<ObjectCoverage>,
     /// The Entry folders, in list order.
     pub entries: Vec<EntryCoverage>,
     /// The `EntityClassDefinition` Records that cannot be built, when components are listed.
@@ -200,6 +221,13 @@ impl CoverageReport {
                 .components
                 .iter()
                 .all(|found| found.instances > 0 && found.reachable)
+            && self.objects.iter().all(|found| {
+                found.records > 0
+                    && found
+                        .sample
+                        .as_ref()
+                        .is_some_and(|sample| sample.error.is_none())
+            })
             && self
                 .entries
                 .iter()

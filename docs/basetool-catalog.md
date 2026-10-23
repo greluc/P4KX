@@ -616,7 +616,8 @@ player ship is grouped with it.
 
 **Ships** share a group when all of these are equal:
 
-- `vehicleDefinition` (`VehicleComponentParams.vehicleDefinition`);
+- `vehicleDefinition` (`VehicleComponentParams.vehicleDefinition`), compared as a path without
+  regard to case, to `/` or `\`, and to a leading separator;
 - the vehicle implementation after the Modification the ship selects (ADR-0050), compared as a
   whole: the digest covers every element of the patched `Vehicle` tree (parts, item ports and
   their children such as `Pitch` or `Yaw`, the other children of `Vehicle` such as
@@ -650,7 +651,8 @@ ungrouped, because equality cannot be shown.
   and `openLootingInteraction` of `SCItemInventoryContainerComponentParams`. Localisation keys
   (names, descriptions, display names) are never compared. On LIVE the clothing and armour
   colour variants differ in exactly these: name, tags, material path, palette and the per-item
-  interaction Records.
+  interaction Records. A Reference counts by the GUID of its target and, for a weak pointer, by
+  the location of the instance inside that Record.
 
 An item with no compared component besides `SAttachableComponentParams`, without an `AttachDef`
 type, or whose data holds a value the reader could not read, is ungrouped. Names, descriptions,
@@ -666,8 +668,8 @@ build). Fitment differences may or may not split a group. A consumer that wants 
 sees or fits combines `variantOf` with `playability`.
 
 **Base.** The member with `playability` `player`, then the member with the smallest `className`
-(compared byte-wise), then the smallest `guid`. A group holds at least two members;
-`p4kx catalog` prints `variants` and `groups` per kind and `--json` lists them.
+(compared byte-wise), then the smallest `guid`. A group holds at least two members with different
+`guid`s, so a repeated `guid` in a malformed Archive makes no group; `p4kx catalog` prints `variants` and `groups` per kind and `--json` lists them.
 
 Size: one `variantOf` per ship and item, 4 bytes (`null`) or 38 bytes (a GUID) uncompressed; the
 GUIDs repeat and compress well.
@@ -820,7 +822,15 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
 contract and contract) or `contractParams` (handler); a sub contract that has no `paramOverrides`
-is read for the same fields directly.
+is read for the same fields directly. The `ContractTemplate` Records are found by their type, not
+by their folder: on LIVE two sit outside `contracts/contracttemplates`.
+
+On LIVE (2026-10-23, 109 `ContractGenerator` Records, 281 handlers, 2,988 contracts, 2,190 sub
+contracts) the layout this reading assumes holds: `contractResults` exists on the contract only,
+never on a sub contract or a handler; `factionReputation` (and `reputationScope`) exists on the
+handler only, on 215 of the 281; the `contractParams` of a handler and the `paramOverrides` of a
+contract have the same nine fields; a sub contract has no `debugName`. No handler `debugName` is a
+development leftover, so only the contract and the Record are checked for that.
 
 **Title.** The `Title` string parameter of the layers, else the first display string of the
 template's `contractDisplayInfo`. A `~mission(Token)` or `~mission(Token|Variant)` in it is
@@ -829,7 +839,10 @@ replaced, in each language, by what the first layer (sub contract, contract, han
 
 - a string-hash property: the text of the first option's `textId`;
 - an organisation property: the first organisation's `stringVariants` entry, with a variant the one
-  whose tag's `tagName` equals it, without a variant the first;
+  whose tag's `tagName` equals it, without a variant the only entry of an organisation that has
+  exactly one (on LIVE 31 of 69 organisations), else none, so the token stays unresolved: the first
+  of several entries is tied to a tag (`_from`, `_title_001`, `_desc_001`) and is not the plain
+  name of the organisation;
 - a location, AI name or ship spawn property, which the game picks when the mission starts:
   `[LOCATION]`, `[TARGET]` or `[SHIP]`;
 - anything else, a token no layer states and a text the language lacks: the token in upper case in
@@ -855,9 +868,13 @@ template's `contractDisplayInfo`, else of the broker entry; `missionType` is the
 `reputationGains` entry per `contractResultReputationAmounts` element, in stored order: the
 faction and scope Records with their Record names (the last part of the record path) and the
 `reputationAmount` of the reward Record. A result that does not fire on success is not listed. An
-amount can be negative: on LIVE the 48 negative amounts all belong to the `CFP_OOS`, `HH_OOS` and
-their `_Intro` handlers, whose success results deduct standing, and they are listed as stored. The catalog does not add the amounts up (ADR-0065): a faction
-scope and an affinity scope are separate entries. All sub contracts of a contract list the
+amount can be negative: on LIVE the 48 negative amounts (of 2,809 success amounts) all belong to
+the `CFP_OOS`, `CFP_OOS_Intro`, `HH_OOS` and `HH_OOS_Intro` handlers, twelve contracts each. In
+every one the success result names the rival faction (a `CFP_` handler deducts
+`factionreputation_unlawful_headhunters`, a `HH_` handler `factionreputation_lawful_citizensforprosperity`)
+with the reward `repuationrewardamount_negative_bigdrop` (-190500); they are listed as stored, next
+to the handler's own faction in `faction`. The catalog does not add the amounts up (ADR-0065): a
+faction scope and an affinity scope are separate entries. All sub contracts of a contract list the
 contract's results.
 
 **Contractor.** The `Contractor` string parameter of the first layer (sub contract, contract,
@@ -875,13 +892,26 @@ at most **5** places (`MAX_PICKUP_PLACES`). Each place has the `starmapObjectGui
 and the `place` name (game text). The places come from the starmap objects of the same build: a
 Filter that leaves them out leaves `pickupPlaces` empty.
 
-**Known gaps (LIVE, 2026-10-22, 5,175 entries).** 27 entries have no title and 4 no mission type
-(templates that state none). A title keeps a `[TOKEN]` where no property of the layers states the
-token: 22 entries (racing, one HeadHunters hijack contract, a few Rough and Ready and Ruto
-contracts), and the run-time tokens such as `[CARGOGRADETOKEN]` and `[REPUTATIONRANK]` (411
-entries each), `[CLAIMNUMBER]`, `[TARGETNAME]`, `[RACETYPE]` and `[ITEM]` stay as placeholders.
-642 entries have no pickup place because neither their prerequisites nor their broker entry name
-one.
+**Known gaps (LIVE, 2026-10-23, 5,175 entries before the template fix).** None of them is stated
+elsewhere in the Archive:
+
+- 27 entries have no title: 23 name a title key that has no text in the language, and four name no
+  title at all (two `FoxwellEnforcement_MWTEST` contracts whose template Record does not exist, and
+  two whose template holds only `@LOC_UNINITIALIZED`).
+- 4 entries had no mission type: the two contracts that named a template outside the template
+  folder now have one; the other two (`FoxwellEnforcement_MWTEST`) name a template Record that does
+  not exist and a type nowhere else.
+- 22 titles keep a token in upper case brackets: `[RACETYPE]` (14) and `[ITEM]` (2) are
+  `MissionPropertyValue_MissionItem` properties (a `MissionItem` Record, e.g. the race type, or
+  an empty list the game fills in); the catalog does not read `MissionItem` Records;
+  `[CONTRACTOR]` (6) is an organisation property whose list of organisations is empty (chosen at
+  start) or whose organisation has several string variants and the title names none. The tokens
+  `[CARGOGRADETOKEN]` and `[REPUTATIONRANK]` (411 entries each), `[CLAIMNUMBER]` and `[TARGETNAME]`
+  are run-time tokens the game fills in.
+- 642 entries have no pickup place: 206 have no location prerequisite and no broker entry, 175
+  name only a star, 87 only a broker entry located at a star, 83 a broker entry without a
+  location, 85 only a `ContractPrerequisite_LocationProperty` (a variable the game fills in) and
+  6 a locality that lists no object of the starmap.
 
 Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
 descriptions.

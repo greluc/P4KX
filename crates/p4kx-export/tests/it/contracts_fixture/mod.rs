@@ -3,6 +3,7 @@
 
 mod lookups;
 mod records;
+mod referenced;
 mod structures;
 
 use std::error::Error;
@@ -17,6 +18,15 @@ pub(crate) const CONTRACT_C: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const CONTRACT_DEV: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0004;
 pub(crate) const CONTRACT_D: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0005;
 pub(crate) const CONTRACT_E: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0006;
+pub(crate) const GENERATOR_COPY: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0002;
+pub(crate) const GENERATOR_DEV: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0003;
+pub(crate) const CONTRACT_F: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0007;
+pub(crate) const CONTRACT_G: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0008;
+pub(crate) const CONTRACT_H: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0009;
+pub(crate) const CONTRACT_I: u128 = 0x2000_0000_0000_4000_8000_0000_0000_000a;
+pub(crate) const SOLO_ORGANIZATION: u128 = 0x8000_0000_0000_4000_8000_0000_0000_0002;
+pub(crate) const STRAY_TEMPLATE: u128 = 0x4000_0000_0000_4000_8000_0000_0000_0003;
+pub(crate) const MISSING_TEMPLATE: u128 = 0x4000_0000_0000_4000_8000_0000_0000_0099;
 pub(crate) const BROKER: u128 = 0xd000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SUB_ONE: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SUB_TWO: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0002;
@@ -48,9 +58,9 @@ pub(crate) const OBJ_STAR: u128 = 0xc000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const OBJ_STATION: u128 = 0xc100_0000_0000_4000_8000_0000_0000_0000;
 
 fn database() -> DataForgeBuilder {
-    records::generator(lookups::places(lookups::reputation(records::referenced(
-        structures::structures(DataForgeBuilder::new().version(8)),
-    ))))
+    records::generator(lookups::places(lookups::reputation(
+        referenced::referenced(structures::structures(DataForgeBuilder::new().version(8))),
+    )))
 }
 
 fn english() -> TestEntry {
@@ -65,6 +75,11 @@ fn english() -> TestEntry {
             .text("title_template", "Plain Delivery   ")
             .text("title_handler", "Handler Title")
             .text("title_nested", "Pre ~mission(Wrap)")
+            .text(
+                "title_novariant",
+                "By ~mission(Several) and ~mission(Solo)",
+            )
+            .text("org_solo", "Solo Corp")
             .text("wrap_text", "Wrapped ~mission(Location)")
             .text("contractor_acme", "Acme Agency")
             .text("title_broker", "Broker Haul")

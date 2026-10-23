@@ -40,6 +40,14 @@ asks whether that belongs in the Basetool catalog or in a command of its own.
 - A contract without a template takes title, type and location from its `MissionBrokerEntry`.
 - Token expansion has a budget (depth 3, 64 replacements, about 4 KiB per title and language): a
   replacement that holds its own token cannot grow a title without bound.
+- An organisation token without a variant takes the organisation's only string variant; an
+  organisation with several states no choice, because its first entry is tied to a tag (`_from`,
+  `_title_001`, `_desc_001`) and is not the plain name. The token stays unresolved (checked against
+  LIVE records, #472).
+- `ContractTemplate` Records are found by their type, not by their folder (two on LIVE lie outside
+  `contracts/contracttemplates`).
+- A negative reputation amount is listed as stored: on LIVE all 48 are the success result of the
+  `CFP_OOS` and `HH_OOS` handlers (and `_Intro`), deducting standing with the rival faction.
 - The layer and property layout is read as the reference tools read it (`paramOverrides`,
   `contractParams`, `propertyOverrides`, `contractDisplayInfo`); a Build that moves a field leaves
   that part `null` or a placeholder, never a failed Record.

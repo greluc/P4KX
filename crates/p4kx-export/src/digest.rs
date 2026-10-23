@@ -50,7 +50,7 @@ impl Hasher for Wide {
 }
 
 /// Feeds `value` into `state`: scalars by their bytes, structs by type name, field count and
-/// fields, arrays by length and elements, References by the GUID they link to. Localisation keys
+/// fields, arrays by length and elements, References by the GUID they link to and the location of the instance. Localisation keys
 /// and the fields `skip` names are left out.
 ///
 /// Returns `false` when the value holds an error or a kind this function does not know, so that
@@ -80,7 +80,12 @@ pub(crate) fn hash_value<H: Hasher>(
         Value::Enum(v) => (6_u8, v).hash(state),
         Value::Guid(v) => (7_u8, v).hash(state),
         Value::Locale(_) => 8_u8.hash(state),
-        Value::Reference(reference) => (11_u8, reference.guid()).hash(state),
+        Value::Reference(reference) => {
+            (11_u8, reference.guid(), reference.location().is_some()).hash(state);
+            if let Some(location) = reference.location() {
+                location.as_str().hash(state);
+            }
+        }
         Value::Null => 13_u8.hash(state),
         Value::Struct(inner) => {
             let fields: Vec<_> = inner
@@ -112,6 +117,11 @@ pub(crate) fn hash_value<H: Hasher>(
 
 #[cfg(test)]
 mod tests {
+    use p4kx_extraction::{DataForge, TreeBuilder};
+    use p4kx_testkit::{
+        DataForgeBuilder, TestInstance, TestRecord, TestStruct, TestType, TestValue,
+    };
+
     use super::*;
 
     fn digest_of(value: &Value<'_>) -> (Digest, bool) {
@@ -130,6 +140,46 @@ mod tests {
         assert_ne!(null, error);
         assert!(null_complete);
         assert!(!error_complete);
+    }
+
+    #[test]
+    fn weak_pointers_into_one_record_differ_by_the_location_of_their_instance()
+    -> Result<(), Box<dyn std::error::Error>> {
+        const GUID: u128 = 0xcbee_34fd_6441_4000_b99f_924f_7f26_e19f;
+        let bytes = DataForgeBuilder::new()
+            .structure(TestStruct::new("Node").field("name", TestType::String))
+            .structure(
+                TestStruct::new("Scene")
+                    .field("first", TestType::WeakPointer("Node".to_owned()))
+                    .field("second", TestType::WeakPointer("Node".to_owned()))
+                    .field("again", TestType::WeakPointer("Node".to_owned()))
+                    .array("nodes", TestType::StrongPointer("Node".to_owned())),
+            )
+            .instance("a", TestInstance::new("Node"))
+            .instance("b", TestInstance::new("Node"))
+            .record(
+                TestRecord::new(GUID, "Scene", "Scene.One", "scenes/one.xml")
+                    .value("first", TestValue::pointer("a"))
+                    .value("second", TestValue::pointer("b"))
+                    .value("again", TestValue::pointer("a"))
+                    .value(
+                        "nodes",
+                        TestValue::Array(vec![TestValue::pointer("a"), TestValue::pointer("b")]),
+                    ),
+            )
+            .build();
+        let forge = DataForge::open(&bytes)?;
+        let record = forge
+            .record_by_guid("cbee34fd-6441-4000-b99f-924f7f26e19f".parse()?)
+            .ok_or("record")?;
+        let tree = TreeBuilder::new().build(&record)?;
+        let digest_of_field = |name: &str| -> Result<Digest, String> {
+            let value = tree.field(name).ok_or("field")?;
+            Ok(digest_of(value).0)
+        };
+        assert_eq!(digest_of_field("first")?, digest_of_field("again")?);
+        assert_ne!(digest_of_field("first")?, digest_of_field("second")?);
+        Ok(())
     }
 
     #[test]

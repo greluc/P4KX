@@ -23,6 +23,7 @@ use crate::build::source;
 use crate::guid_text::CatalogGuid;
 use crate::{CatalogFailure, CatalogProgress};
 
+pub(crate) use model::ShipRead;
 pub use model::{
     Cargo, CargoGrid, Hull, HullThreshold, Implementation, LoadoutPort, Mass, MassBasis, ShipBase,
     Source, SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,

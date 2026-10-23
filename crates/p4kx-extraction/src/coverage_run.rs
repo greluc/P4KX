@@ -18,6 +18,7 @@ impl CoverageReport {
         Self {
             types: found.types,
             components: found.components,
+            objects: found.objects,
             entries: coverage_entries::check(archive, list.items()),
             unreadable_entities: found.unreadable_entities,
         }

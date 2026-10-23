@@ -13,6 +13,7 @@ mod convert;
 mod coverage;
 mod coverage_entries;
 mod coverage_forge;
+mod coverage_objects;
 mod coverage_run;
 mod dataforge;
 mod dataforge_convert;
@@ -82,8 +83,8 @@ pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, W
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
 pub use conversion_error::ConversionError;
 pub use coverage::{
-    ComponentCoverage, CoverageReport, EntryCoverage, ReferenceError, ReferenceItem, ReferenceKind,
-    ReferenceList, SampleExport, TypeCoverage,
+    ComponentCoverage, CoverageReport, EntryCoverage, ObjectCoverage, ReferenceError,
+    ReferenceItem, ReferenceKind, ReferenceList, SampleExport, TypeCoverage,
 };
 pub use dataforge::{DATAFORGE_ENTRIES, DataForgeEntry, DataForgeLoadError, MAX_DATAFORGE_SIZE};
 pub use entry_content::{

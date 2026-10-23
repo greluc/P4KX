@@ -2,28 +2,62 @@ use std::collections::HashMap;
 use std::hash::Hash;
 
 use crate::collected::Collected;
+use crate::digest::Digest;
 use crate::guid_text::CatalogGuid;
 use crate::item_variant::ItemKey;
-use crate::paint_port::ShipKey;
 use crate::{Playability, VariantCounts, VariantSummary};
+
+/// What the ships of one variant group share (`docs/basetool-catalog.md`): the vehicle
+/// definition path, compared without regard to case and separator, and the digest of the vehicle
+/// implementation after the Modification.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct ShipKey {
+    definition: Box<str>,
+    implementation: Digest,
+}
+
+impl ShipKey {
+    /// Returns the key of a ship with the vehicle definition `definition` and the implementation
+    /// digest `implementation`.
+    pub(crate) fn new(definition: &str, implementation: Digest) -> Self {
+        Self {
+            definition: normalised(definition),
+            implementation,
+        }
+    }
+}
+
+fn normalised(path: &str) -> Box<str> {
+    path.trim_start_matches(['/', '\\'])
+        .chars()
+        .map(|c| {
+            if c == '\\' {
+                '/'
+            } else {
+                c.to_ascii_lowercase()
+            }
+        })
+        .collect::<String>()
+        .into_boxed_str()
+}
 
 impl Collected<'_> {
     /// Sets `variant_of` of the ships and the items that belong to a variant group and returns the
     /// counts.
     pub(crate) fn group_variants(&mut self) -> VariantSummary {
-        let keys: HashMap<CatalogGuid, &ShipKey<'_>> = self
+        let keys: HashMap<CatalogGuid, &ShipKey> = self
             .vehicles
             .iter()
             .filter_map(|vehicle| Some((vehicle.ship, vehicle.variant_key.as_ref()?)))
             .collect();
-        let candidates: Vec<Candidate<'_, ShipKey<'_>>> = self
+        let candidates: Vec<Candidate<'_, &ShipKey>> = self
             .ships
             .iter()
             .map(|ship| Candidate {
                 guid: ship.guid,
                 class_name: ship.class_name,
                 playability: ship.playability,
-                key: keys.get(&ship.guid).map(|key| **key),
+                key: keys.get(&ship.guid).copied(),
             })
             .collect();
         let (bases, counts) = group(&candidates);
@@ -89,17 +123,21 @@ pub(crate) fn group<K: Hash + Eq>(
                 )
             });
         let Some(base) = base else { continue };
-        counts.groups = counts.groups.saturating_add(1);
+        let mut variants = 0_usize;
         for index in members {
             let Some(candidate) = candidates.get(*index) else {
                 continue;
             };
-            if candidate.guid != base.guid {
-                counts.variants = counts.variants.saturating_add(1);
-                if let Some(slot) = bases.get_mut(*index) {
-                    *slot = Some(base.guid);
-                }
+            if candidate.guid != base.guid
+                && let Some(slot) = bases.get_mut(*index)
+            {
+                *slot = Some(base.guid);
+                variants = variants.saturating_add(1);
             }
+        }
+        if variants > 0 {
+            counts.groups = counts.groups.saturating_add(1);
+            counts.variants = counts.variants.saturating_add(variants);
         }
     }
     (bases, counts)
@@ -152,6 +190,50 @@ mod tests {
             CatalogGuid(Guid::from_stored([9; 16]))
         };
         assert_eq!(bases.iter().flatten().next(), Some(&expected));
+    }
+
+    #[test]
+    fn a_duplicate_of_the_base_guid_is_no_variant_and_makes_no_group() {
+        let (bases, counts) = group(&[candidate("A", None), candidate("A", None)]);
+        assert_eq!(bases, vec![None, None]);
+        assert_eq!(counts, VariantCounts::default());
+    }
+
+    #[test]
+    fn a_duplicate_of_the_base_guid_beside_a_real_variant_counts_only_the_variant() {
+        let mut other = candidate("B", None);
+        other.guid = CatalogGuid(Guid::from_stored([1; 16]));
+        let base_guid = CatalogGuid(Guid::default());
+        let (bases, counts) = group(&[candidate("A", None), candidate("A", None), other]);
+        assert_eq!(bases, vec![None, None, Some(base_guid)]);
+        assert_eq!(
+            counts,
+            VariantCounts {
+                groups: 1,
+                variants: 1
+            }
+        );
+    }
+
+    #[test]
+    fn ship_keys_ignore_case_separator_and_a_leading_separator() {
+        let digest = Digest::from_bytes([3; 16]);
+        let key = ShipKey::new("Scripts/Entities/Vehicles/Alpha.xml", digest);
+        assert_eq!(
+            key,
+            ShipKey::new("\\scripts\\entities\\VEHICLES\\alpha.XML", digest)
+        );
+        assert_ne!(
+            key,
+            ShipKey::new("scripts/entities/vehicles/beta.xml", digest)
+        );
+        assert_ne!(
+            key,
+            ShipKey::new(
+                "scripts/entities/vehicles/alpha.xml",
+                Digest::from_bytes([4; 16])
+            )
+        );
     }
 
     #[test]

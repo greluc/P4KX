@@ -78,8 +78,12 @@ fn json_lists_every_type_component_and_folder_with_counts() -> TestResult {
     let document: Value = serde_json::from_str(&coverage(&["--json"], 1)?)?;
 
     assert_eq!(document["complete"], false);
-    assert_eq!(document["types"].as_array().map(Vec::len), Some(39));
+    assert_eq!(document["types"].as_array().map(Vec::len), Some(38));
     assert_eq!(document["components"].as_array().map(Vec::len), Some(20));
+    let system = find(&document["starmap_types"], "SolarSystem")?;
+    assert_eq!(system["area"], "starmap");
+    assert_eq!(system["records"], 0);
+    assert_eq!(system["sample"], Value::Null);
     let faction = find(&document["types"], "Faction")?;
     assert_eq!(faction["records"], 1);
     assert_eq!(faction["defined"], true);
@@ -111,6 +115,7 @@ fn the_table_has_a_section_per_kind() -> TestResult {
     for heading in [
         "Record types",
         "Components of EntityClassDefinition",
+        "StarMapObject Records by StarMapObjectType",
         "Entry folders",
     ] {
         assert!(table.contains(heading), "{heading}: {table}");

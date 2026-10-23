@@ -1,4 +1,7 @@
-//! A synthetic Archive of ships that share vehicle definitions, Modifications and armour.
+//! A synthetic Archive of ships that share vehicle definitions, Modifications and armour, and of
+//! items that differ in one thing each.
+
+mod items;
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
@@ -29,33 +32,9 @@ fn builder() -> DataForgeBuilder {
             .field("modification", TestType::String)
             .field("vehicleName", TestType::Locale),
         component("SCItemVehicleArmorParams").field("damageMultiplier", TestType::Single),
-        TestStruct::new("SCItemLocalization").field("Name", TestType::Locale),
-        component("SAttachableComponentParams")
-            .field("AttachDef", TestType::Class("SItemDefinition".to_owned())),
-        TestStruct::new("SItemDefinition")
-            .field("Type", TestType::Enum("EItemType".to_owned()))
-            .field("Size", TestType::Int32)
-            .field("Grade", TestType::Int32)
-            .field("Tags", TestType::String)
-            .field(
-                "Localization",
-                TestType::Class("SCItemLocalization".to_owned()),
-            ),
-        component("SEntityPhysicsControllerParams")
-            .field("PhysType", TestType::Class("SEntityPhysicsType".to_owned())),
-        TestStruct::new("SEntityPhysicsType").field("Mass", TestType::Single),
-        component("SEntityComponentCarryableParams").field("carryInteraction", TestType::String),
-        component("SGeometryResourceParams").field(
-            "Geometry",
-            TestType::Class("SGeometryNodeParams".to_owned()),
-        ),
-        TestStruct::new("SGeometryNodeParams")
-            .field("Geometry", TestType::Class("SPathRef".to_owned()))
-            .field("Material", TestType::Class("SPathRef".to_owned()))
-            .field("Palette", TestType::String),
-        TestStruct::new("SPathRef").field("path", TestType::String),
     ]
     .into_iter()
+    .chain(items::structs())
     .fold(
         DataForgeBuilder::new()
             .version(8)
@@ -66,142 +45,6 @@ fn builder() -> DataForgeBuilder {
 
 const fn guid(index: u128) -> u128 {
     0x2000_0000_0000_4000_8000_0000_0000_0000 + index
-}
-
-struct Item {
-    class: &'static str,
-    mass: Option<f32>,
-    grade: i32,
-    tags: &'static str,
-    model: Option<(&'static str, &'static str)>,
-}
-
-const fn prop(class: &'static str, model: &'static str, material: &'static str) -> Item {
-    Item {
-        class,
-        mass: None,
-        grade: 1,
-        tags: "red",
-        model: Some((model, material)),
-    }
-}
-
-const ITEMS: [Item; 10] = [
-    prop("PROP_Chair_Red", "chair.cgf", "red.mtl"),
-    prop("PROP_Chair_Blue", "chair.cgf", "blue.mtl"),
-    prop("PROP_Table", "table.cgf", "red.mtl"),
-    prop("PROP_Bench", "bench.cgf", "red.mtl"),
-    Item {
-        class: "POWR_Alpha",
-        mass: Some(10.0),
-        grade: 1,
-        tags: "red",
-        model: None,
-    },
-    Item {
-        class: "POWR_Alpha_Blue",
-        mass: Some(10.0),
-        grade: 1,
-        tags: "blue",
-        model: None,
-    },
-    Item {
-        class: "POWR_Heavy",
-        mass: Some(11.0),
-        grade: 1,
-        tags: "red",
-        model: None,
-    },
-    Item {
-        class: "POWR_Grade2",
-        mass: Some(10.0),
-        grade: 2,
-        tags: "red",
-        model: None,
-    },
-    Item {
-        class: "POWR_Bare_One",
-        mass: None,
-        grade: 1,
-        tags: "red",
-        model: None,
-    },
-    Item {
-        class: "POWR_Bare_Two",
-        mass: None,
-        grade: 1,
-        tags: "blue",
-        model: None,
-    },
-];
-
-fn geometry(model: &str, material: &str) -> TestValue {
-    let path = |value: &str| {
-        TestValue::Struct(TestInstance::new("SPathRef").value("path", TestValue::text(value)))
-    };
-    TestValue::Struct(
-        TestInstance::new("SGeometryResourceParams").value(
-            "Geometry",
-            TestValue::Struct(
-                TestInstance::new("SGeometryNodeParams")
-                    .value("Geometry", path(model))
-                    .value("Material", path(material))
-                    .value("Palette", TestValue::text(material)),
-            ),
-        ),
-    )
-}
-
-fn item_record(index: usize, item: &Item) -> TestRecord {
-    let attach = TestValue::Struct(
-        TestInstance::new("SAttachableComponentParams").value(
-            "AttachDef",
-            TestValue::Struct(
-                TestInstance::new("SItemDefinition")
-                    .value("Type", TestValue::text("PowerPlant"))
-                    .value("Size", TestValue::Int32(1))
-                    .value("Grade", TestValue::Int32(item.grade))
-                    .value("Tags", TestValue::text(item.tags))
-                    .value(
-                        "Localization",
-                        TestValue::Struct(
-                            TestInstance::new("SCItemLocalization")
-                                .value("Name", TestValue::text(format!("@item_Name{index}"))),
-                        ),
-                    ),
-            ),
-        ),
-    );
-    let mut components = vec![
-        attach,
-        TestValue::Struct(
-            TestInstance::new("SEntityComponentCarryableParams")
-                .value("carryInteraction", TestValue::text(item.tags)),
-        ),
-    ];
-    if let Some((model, material)) = item.model {
-        components.push(geometry(model, material));
-    }
-    if let Some(mass) = item.mass {
-        components.push(TestValue::Struct(
-            TestInstance::new("SEntityPhysicsControllerParams").value(
-                "PhysType",
-                TestValue::Struct(
-                    TestInstance::new("SEntityPhysicsType").value("Mass", TestValue::Single(mass)),
-                ),
-            ),
-        ));
-    }
-    TestRecord::new(
-        guid(0x100 + index as u128),
-        "EntityClassDefinition",
-        format!("EntityClassDefinition.{}", item.class),
-        format!(
-            "libs/foundry/records/entities/scitem/ships/powerplant/{}.xml",
-            item.class
-        ),
-    )
-    .value("Components", TestValue::Array(components))
 }
 
 struct Ship {
@@ -225,11 +68,19 @@ const fn ship(
     }
 }
 
-const SHIPS: [Ship; 14] = [
+const SHIPS: [Ship; 17] = [
     ship("ACAS_Alpha", ALPHA_XML, "", None),
+    ship(
+        "ACAS_Alpha_Case",
+        "Scripts\\Entities\\Vehicles\\Implementations\\Xml\\ACAS_Alpha.xml",
+        "",
+        None,
+    ),
     ship("ACAS_Alpha_Skin", ALPHA_XML, "Skin", None),
     ship("ACAS_Aim", ALPHA_XML, "Aim", None),
+    ship("ACAS_Aim_Edition", ALPHA_XML, "Aim", None),
     ship("ACAS_Move", ALPHA_XML, "Move", None),
+    ship("ACAS_Move_Edition", ALPHA_XML, "Move", None),
     ship("ACAS_Alpha_Edition", ALPHA_XML, "", None),
     ship("ACAS_Alpha_Zulu", ALPHA_XML, "", None),
     ship("ACAS_Beta", ALPHA_XML, "Beta", None),
@@ -349,12 +200,7 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .fold(builder(), |database, (index, ship)| {
             database.record(record(index, ship))
         });
-    let database = ITEMS
-        .iter()
-        .enumerate()
-        .fold(database, |database, (index, item)| {
-            database.record(item_record(index, item))
-        });
+    let database = items::records().fold(database, DataForgeBuilder::record);
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database.build()).encrypted())
         .entry(TestEntry::zstd(

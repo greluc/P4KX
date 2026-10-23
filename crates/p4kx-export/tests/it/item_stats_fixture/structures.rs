@@ -50,6 +50,7 @@ fn weapons() -> Vec<TestStruct> {
             .field("cooldownTime", TestType::Single)
             .field("weaponAction", pointer("SWeaponActionParams")),
         TestStruct::new("SProjectileLauncher")
+            .field("pelletCount", TestType::Int32)
             .field("pellets", TestType::Int32)
             .field("ammoCost", TestType::Int32)
             .field("spreadParams", class("SSpreadParams")),

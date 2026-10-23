@@ -186,3 +186,28 @@ fn every_gameplay_property_is_traced_to_a_stat_field_or_listed_as_none() -> Test
     report(&format!("{} properties traced", properties.len()));
     Ok(())
 }
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn fire_modes_state_their_pellets() -> TestResult {
+    let catalog = catalog()?;
+    let items = catalog["items"].as_array().ok_or("the items")?;
+    let mut modes = 0_usize;
+    let mut with_pellets = 0_usize;
+    for item in items {
+        let Some(actions) = item["stats"]["weapon"]["fireActions"].as_array() else {
+            continue;
+        };
+        for action in actions {
+            modes += 1;
+            if action["pellets"].as_i64().is_some_and(|count| count > 0) {
+                with_pellets += 1;
+            }
+        }
+    }
+    report(&format!(
+        "fire modes: {modes}, with pellets: {with_pellets}"
+    ));
+    assert!(with_pellets > 0, "a fire mode with pellets");
+    Ok(())
+}

@@ -1198,7 +1198,7 @@
           ]
         },
         "pellets": {
-          "description": "`launchParams.pellets`, the projectiles of one shot.",
+          "description": "`launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of\none shot.",
           "format": "int64",
           "type": [
             "integer",

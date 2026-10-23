@@ -121,7 +121,8 @@ pub(crate) struct FireAction<'a> {
     /// `overchargeTime`, `cooldownTime`, `name` and `launchParams` are read from the fire mode and,
     /// where it has none of its own, from its `weaponAction`.
     pub(crate) fire_rate: Option<f32>,
-    /// `launchParams.pellets`, the projectiles of one shot.
+    /// `launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of
+    /// one shot.
     pub(crate) pellets: Option<i64>,
     /// `launchParams.ammoCost`, the rounds one shot uses.
     pub(crate) ammo_cost: Option<i64>,

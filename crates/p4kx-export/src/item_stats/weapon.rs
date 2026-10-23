@@ -37,7 +37,7 @@ fn collect<'f>(action: &StructValue<'f>, actions: &mut Vec<FireAction<'f>>) {
         kind: action.type_name(),
         name: text(Some(action), "name").or_else(|| text(inner, "name")),
         fire_rate: value("fireRate"),
-        pellets: integer(launch, "pellets"),
+        pellets: integer(launch, "pelletCount").or_else(|| integer(launch, "pellets")),
         ammo_cost: integer(launch, "ammoCost"),
         heat_per_shot: value("heatPerShot"),
         charge_time: value("chargeTime"),

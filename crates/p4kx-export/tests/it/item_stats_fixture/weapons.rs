@@ -7,7 +7,8 @@ fn launch(pellets: i32, cost: i32) -> TestValue {
     instance(
         "SProjectileLauncher",
         vec![
-            ("pellets".to_owned(), TestValue::Int32(pellets)),
+            ("pelletCount".to_owned(), TestValue::Int32(pellets)),
+            ("pellets".to_owned(), TestValue::Int32(9)),
             ("ammoCost".to_owned(), TestValue::Int32(cost)),
             (
                 "spreadParams".to_owned(),

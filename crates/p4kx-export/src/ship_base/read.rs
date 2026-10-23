@@ -6,7 +6,7 @@ use p4kx_extraction::{DataForge, Record, RecordTree, TreeBuilder};
 
 use super::cargo::{CargoReader, rounded};
 use super::model::{
-    Hull, HullThreshold, Implementation, LoadoutPort, Mass, MassBasis, ShipBase, Source,
+    Hull, HullThreshold, Implementation, LoadoutPort, Mass, MassBasis, ShipBase, ShipRead, Source,
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
 };
 use crate::CatalogFailure;
@@ -74,6 +74,15 @@ impl<'f> ShipReader<'f> {
         record: &Record<'f>,
         tree: &RecordTree<'f>,
     ) -> Result<ShipBase, CatalogFailure> {
+        self.read_with_digest(record, tree).map(|read| read.base)
+    }
+
+    /// As [`read_tree`](Self::read_tree), with the digest of the vehicle implementation.
+    pub(crate) fn read_with_digest(
+        &mut self,
+        record: &Record<'f>,
+        tree: &RecordTree<'f>,
+    ) -> Result<ShipRead, CatalogFailure> {
         let node = self
             .resolver
             .resolve(record)
@@ -88,14 +97,14 @@ impl<'f> ShipReader<'f> {
                 .map(ToString::to_string),
         );
         let entries = node.loadout();
-        Ok(ShipBase {
+        let digest = vehicle
+            .filter(|v| v.issues().is_empty())
+            .map(structure_digest);
+        let base = ShipBase {
             guid: record.guid(),
             class_name: class_name(tree).to_owned(),
             record_path: tree.record_path().to_owned(),
             implementation: vehicle.map(implementation),
-            implementation_digest: vehicle
-                .filter(|v| v.issues().is_empty())
-                .map(structure_digest),
             vehicle_kind: vehicle_kind(tree.record_path(), vehicle),
             size: size(tree),
             mass: mass(tree, vehicle, totals.as_ref()),
@@ -108,6 +117,10 @@ impl<'f> ShipReader<'f> {
             },
             loadout: loadout(&entries),
             issues,
+        };
+        Ok(ShipRead {
+            base,
+            implementation: digest,
         })
     }
 }

@@ -12,7 +12,7 @@ use crate::contract::Blueprint;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
-use crate::ship_base::{ShipBase, ShipReader};
+use crate::ship_base::{ShipRead, ShipReader};
 use crate::starmap::starmap_object;
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
@@ -33,10 +33,10 @@ struct ShipPool<'f> {
 }
 
 impl<'f> ShipPool<'f> {
-    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipBase, CatalogFailure> {
+    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipRead, CatalogFailure> {
         let taken = self.idle.lock().ok().and_then(|mut idle| idle.pop());
         let mut reader = taken.unwrap_or_else(|| ShipReader::new(self.forge, self.files));
-        let result = reader.read_tree(record, tree);
+        let result = reader.read_with_digest(record, tree);
         if let Ok(mut idle) = self.idle.lock() {
             idle.push(reader);
         }

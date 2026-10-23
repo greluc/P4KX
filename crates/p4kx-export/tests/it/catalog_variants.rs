@@ -65,6 +65,32 @@ fn items_that_differ_only_in_tags_and_name_are_variants() -> TestResult {
 }
 
 #[test]
+fn every_left_out_component_and_field_alone_keeps_items_in_one_group() -> TestResult {
+    let (_, catalog) = build()?;
+    for stem in [
+        "POWR_Tags",
+        "POWR_Carry",
+        "POWR_Interact",
+        "POWR_State",
+        "POWR_Usable",
+        "POWR_Open",
+        "POWR_Loot",
+        "PROP_Material",
+        "PROP_Materials",
+        "PROP_Palette",
+    ] {
+        let base = format!("{stem}_A");
+        assert_eq!(base_of(&catalog, "items", &base)?, None, "{base}");
+        assert_eq!(
+            base_of(&catalog, "items", &format!("{stem}_B"))?.as_deref(),
+            Some(base.as_str()),
+            "{stem}_B"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn items_that_differ_in_a_component_or_the_grade_are_not_variants() -> TestResult {
     let (_, catalog) = build()?;
     for class in ["POWR_Heavy", "POWR_Grade2"] {
@@ -82,8 +108,8 @@ fn items_without_a_component_besides_the_cosmetic_ones_are_ungrouped() -> TestRe
     assert_eq!(
         built.summary().variants().items,
         VariantCounts {
-            groups: 2,
-            variants: 2
+            groups: 12,
+            variants: 12
         }
     );
     Ok(())
@@ -119,6 +145,7 @@ fn ships_with_the_same_definition_and_implementation_are_variants_of_the_smalles
         ("ACAS_Alpha_Zulu", Some("ACAS_Alpha")),
         ("ACAS_Alpha_Plated", Some("ACAS_Alpha")),
         ("ACAS_Alpha_Skin", Some("ACAS_Alpha")),
+        ("ACAS_Alpha_Case", Some("ACAS_Alpha")),
     ] {
         assert_eq!(base_class(&catalog, class)?.as_deref(), base, "{class}");
     }
@@ -140,8 +167,13 @@ fn a_modification_that_changes_the_implementation_starts_a_group_of_its_own() ->
 #[test]
 fn an_elem_override_of_a_nested_element_or_a_vehicle_child_splits_the_group() -> TestResult {
     let (_, catalog) = build()?;
-    for class in ["ACAS_Aim", "ACAS_Move"] {
-        assert_eq!(base_class(&catalog, class)?, None, "{class}");
+    for (class, base) in [
+        ("ACAS_Aim", None),
+        ("ACAS_Aim_Edition", Some("ACAS_Aim")),
+        ("ACAS_Move", None),
+        ("ACAS_Move_Edition", Some("ACAS_Move")),
+    ] {
+        assert_eq!(base_class(&catalog, class)?.as_deref(), base, "{class}");
     }
     Ok(())
 }
@@ -168,7 +200,7 @@ fn a_ship_without_a_readable_implementation_is_ungrouped() -> TestResult {
 fn every_ship_carries_the_field_and_it_is_a_guid_or_null() -> TestResult {
     let (_, catalog) = build()?;
     let ships = catalog["ships"].as_array().ok_or("ships")?;
-    assert_eq!(ships.len(), 14);
+    assert_eq!(ships.len(), 17);
     for ship in ships {
         let value = ship.get("variantOf").ok_or("variantOf missing")?;
         assert!(
@@ -186,8 +218,8 @@ fn the_summary_counts_groups_and_variants() -> TestResult {
     assert_eq!(
         built.summary().variants().ships,
         VariantCounts {
-            groups: 2,
-            variants: 5
+            groups: 4,
+            variants: 8
         }
     );
     Ok(())

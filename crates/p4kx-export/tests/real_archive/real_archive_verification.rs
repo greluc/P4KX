@@ -126,13 +126,14 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         let own = match kind {
             Kind::Paints => "itemGuid",
             Kind::Loadouts => "entityGuid",
+            Kind::Shops => "key",
             _ => "guid",
         };
         let guids: Vec<&str> = entities.iter().filter_map(|e| e[own].as_str()).collect();
-        assert_eq!(guids.len(), entities.len(), "{kind} all have a GUID");
+        assert_eq!(guids.len(), entities.len(), "{kind} all have a {own}");
         assert!(
             guids.is_sorted_by(|a, b| a < b),
-            "{kind} strictly ordered by GUID, none twice"
+            "{kind} strictly ordered by {own}, none twice"
         );
     }
     check_unique_guids(&catalog)?;
@@ -160,7 +161,8 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
 }
 
 /// Checks that no GUID occurs twice; a paint carries no GUID of its own, only the `itemGuid` of
-/// its item. A contract and its sub contracts share the `guid`, so the identity of a contract is
+/// its item, and a shop is identified by its `key` (its `entityGuid` is shared by the placements
+/// of one shop module). A contract and its sub contracts share the `guid`, so the identity of a contract is
 /// the pair of `guid` and `subContractGuid`, which is unique and strictly ordered within the kind.
 fn check_unique_guids(catalog: &Value) -> TestResult {
     let mut seen = HashSet::new();

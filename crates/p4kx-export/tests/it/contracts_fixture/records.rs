@@ -3,9 +3,10 @@ use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 use super::lookups::{legacy, mission_type, plain_record};
 use super::{
     AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
-    CONTRACT_E, DATABASE, DELIVERY, ESCORT, FACTION, FACTION_SCOPE, GENERATOR, LOC_A, LOC_B, LOSS,
-    OBJ_PLANET, ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO,
-    TAG_OTHER, TAG_TITLE, TEMPLATE,
+    CONTRACT_E, CONTRACT_F, CONTRACT_G, DATABASE, DELIVERY, ESCORT, FACTION, FACTION_SCOPE,
+    GENERATOR, GENERATOR_COPY, GENERATOR_DEV, LOC_A, LOC_B, LOSS, MISSING_TEMPLATE, OBJ_PLANET,
+    ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO, TAG_OTHER,
+    TAG_TITLE, TEMPLATE,
 };
 
 const TAG_PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
@@ -273,19 +274,79 @@ fn delivery_handler() -> TestValue {
     )
 }
 
-pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
-    builder.record(
-        TestRecord::new(
-            GENERATOR,
-            "ContractGenerator",
-            "ContractGenerator.Delivery",
-            "libs/foundry/records/contracts/contractgenerator/delivery.xml",
-        )
-        .value(
-            "generators",
-            TestValue::Array(vec![delivery_handler(), bounty_handler()]),
-        ),
+fn copy_handler() -> TestValue {
+    let again = contract(
+        CONTRACT_A,
+        "Deliver_A_Again",
+        TEMPLATE,
+        overrides(Some("@title_handler"), None, Vec::new()),
     )
+    .value(
+        "subContracts",
+        TestValue::Array(vec![sub(
+            SUB_ONE,
+            overrides(None, None, Vec::new()),
+            Vec::new(),
+        )]),
+    );
+    let dangling = contract(
+        CONTRACT_G,
+        "Deliver_G",
+        MISSING_TEMPLATE,
+        overrides(Some("@title_handler"), None, Vec::new()),
+    );
+    handler(
+        "Copy_Career",
+        overrides(None, None, Vec::new()),
+        vec![TestValue::Struct(again), TestValue::Struct(dangling)],
+        Vec::new(),
+        0,
+    )
+}
+
+fn event_handler() -> TestValue {
+    let event = contract(
+        CONTRACT_F,
+        "Event_F",
+        TEMPLATE,
+        overrides(Some("@title_a"), None, Vec::new()),
+    );
+    handler(
+        "Event_Career",
+        overrides(None, None, Vec::new()),
+        vec![TestValue::Struct(event)],
+        Vec::new(),
+        0,
+    )
+}
+
+fn generator_record(guid: u128, name: &str, handlers: Vec<TestValue>) -> TestRecord {
+    TestRecord::new(
+        guid,
+        "ContractGenerator",
+        format!("ContractGenerator.{name}"),
+        format!("libs/foundry/records/contracts/contractgenerator/{name}.xml"),
+    )
+    .value("generators", TestValue::Array(handlers))
+}
+
+pub(super) fn generator(builder: DataForgeBuilder) -> DataForgeBuilder {
+    builder
+        .record(generator_record(
+            GENERATOR,
+            "delivery",
+            vec![delivery_handler(), bounty_handler()],
+        ))
+        .record(generator_record(
+            GENERATOR_COPY,
+            "delivery_copy",
+            vec![copy_handler()],
+        ))
+        .record(generator_record(
+            GENERATOR_DEV,
+            "dev_events",
+            vec![event_handler()],
+        ))
 }
 
 fn template(

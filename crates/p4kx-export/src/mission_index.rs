@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use p4kx_extraction::{
-    DataForge, Guid, Record, StructValue, TagTree, TreeBuilder, Value, is_placeholder_key,
+    CancelToken, DataForge, Guid, Record, StructValue, TagTree, TreeBuilder, Value,
+    is_placeholder_key,
 };
 use rayon::prelude::*;
 
+use crate::CatalogError;
 use crate::blueprint::as_struct;
 use crate::mission_layers::{Property, items, key, one, properties};
 use crate::record_fields::{integer, reference};
@@ -70,15 +72,25 @@ pub(crate) struct MissionIndex<'f> {
 impl<'f> MissionIndex<'f> {
     /// Reads the Records of `forge` a contract refers to; a Record that cannot be read is left
     /// out, so what refers to it resolves to nothing.
-    pub(crate) fn read(forge: &'f DataForge<'f>) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CatalogError::Cancelled`] once `cancel` is cancelled.
+    pub(crate) fn read(
+        forge: &'f DataForge<'f>,
+        cancel: Option<&CancelToken>,
+    ) -> Result<Self, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let pieces: Vec<Piece<'f>> = records
             .par_iter()
             .map_init(TreeBuilder::new, |trees, record| {
-                piece(trees, record).ok().flatten()
+                if cancel.is_some_and(CancelToken::is_cancelled) {
+                    return Err(CatalogError::Cancelled);
+                }
+                Ok(piece(trees, record).ok().flatten())
             })
-            .flatten()
-            .collect();
+            .filter_map(Result::transpose)
+            .collect::<Result<_, _>>()?;
         let mut index = Self {
             templates: HashMap::new(),
             types: HashMap::new(),
@@ -114,7 +126,7 @@ impl<'f> MissionIndex<'f> {
                 }
             }
         }
-        index
+        Ok(index)
     }
 
     pub(crate) fn template(&self, guid: Guid) -> Option<&Template<'f>> {

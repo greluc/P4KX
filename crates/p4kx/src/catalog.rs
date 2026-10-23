@@ -229,7 +229,7 @@ fn print_paints(out: &mut impl Write, paints: PaintSummary) -> io::Result<()> {
 fn print_shops(out: &mut impl Write, shops: &ShopSummary) -> io::Result<()> {
     writeln!(
         out,
-        "shops: {} of {} registry entries, {} malformed, {} repeated, {} with a kind, {} linked to a starmap object, {} not, {} commodity exchanges, {} containers unreadable, {} with an item list ({} ambiguous, {} missing, {} unreadable), registry {}",
+        "shops: {} of {} registry entries, {} malformed, {} repeated, {} with a kind, {} linked to a starmap object, {} not, {} commodity exchanges, {} containers unreadable, {} with an item list ({} ambiguous, {} unscanned, {} files missing, {} files unreadable), registry {}",
         shops.shops,
         shops.registry_entries,
         shops.malformed,
@@ -241,8 +241,9 @@ fn print_shops(out: &mut impl Write, shops: &ShopSummary) -> io::Result<()> {
         shops.containers_unreadable,
         shops.with_items,
         shops.inventory_ambiguous,
-        shops.inventory_missing,
-        shops.inventory_unreadable,
+        shops.inventory_unscanned,
+        shops.inventories_missing,
+        shops.inventories_unreadable,
         if shops.registry_unreadable {
             "unreadable"
         } else if shops.registry_missing {

@@ -13,8 +13,9 @@ const MAX_INVENTORY_LEN: u64 = 16 << 20;
 /// What reading the inventory file of a shop gave.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ItemList {
-    /// The item GUIDs of the file, lower case, ordered and without repeats.
-    Items(Vec<String>),
+    /// The item GUIDs of the file, lower case, ordered and without repeats (possibly none), and
+    /// how many `ID` values were no GUID and left out.
+    Items { guids: Vec<String>, dropped: usize },
     /// The Archive holds no such file.
     Missing,
     /// The file is too large, cannot be opened or is no inventory JSON.
@@ -60,7 +61,16 @@ impl<'a> Inventories<'a> {
             .entries()
             .iter()
             .filter_map(|entry| {
-                let path = key(entry.path());
+                let raw = entry.path();
+                let is_json = raw
+                    .len()
+                    .checked_sub(".json".len())
+                    .and_then(|start| raw.get(start..))
+                    .is_some_and(|tail| tail.eq_ignore_ascii_case(".json"));
+                if !is_json {
+                    return None;
+                }
+                let path = key(raw);
                 let file = path.strip_prefix(FOLDER)?;
                 let stem = file.strip_suffix(".json")?;
                 (!stem.is_empty() && !stem.contains('\\')).then(|| (stem.to_owned(), entry))
@@ -92,11 +102,14 @@ impl<'a> Inventories<'a> {
         if read.is_err() {
             return ItemList::Unreadable;
         }
-        parse(&bytes).map_or(ItemList::Unreadable, ItemList::Items)
+        parse(&bytes).map_or(ItemList::Unreadable, |(guids, dropped)| ItemList::Items {
+            guids,
+            dropped,
+        })
     }
 }
 
-fn parse(bytes: &[u8]) -> Option<Vec<String>> {
+fn parse(bytes: &[u8]) -> Option<(Vec<String>, usize)> {
     let file: File = serde_json::from_slice(bytes).ok()?;
     let elements = match (file.collection, file.inventory) {
         (Some(collection), _) => collection.inventory,
@@ -104,14 +117,17 @@ fn parse(bytes: &[u8]) -> Option<Vec<String>> {
         (None, None) => return None,
     };
     let mut items = BTreeSet::new();
+    let mut dropped = 0;
     for element in elements {
         for id in element.id.ids {
             if is_guid(&id) {
                 items.insert(id.to_ascii_lowercase());
+            } else {
+                dropped += 1;
             }
         }
     }
-    Some(items.into_iter().collect())
+    Some((items.into_iter().collect(), dropped))
 }
 
 #[cfg(test)]
@@ -123,13 +139,18 @@ mod tests {
         let json = br#"{"ShopID":"x","Collection":{"Inventory":[
             {"ID":{"ID":["D195EB47-24B8-45C0-A4D0-1771D60DC1A8"]},"BuyPrice":1.5,"RentalOfferings":[]},
             {"ID":{"ID":["70a98c94-9252-4fd3-a673-5a584339e273"]},"BuyPrice":2.0},
-            {"ID":{"ID":["d195eb47-24b8-45c0-a4d0-1771d60dc1a8"]}}]}}"#;
+            {"ID":{"ID":["d195eb47-24b8-45c0-a4d0-1771d60dc1a8"]}},
+            {"ID":{"ID":["not a guid"]}}]}}"#;
         assert_eq!(
             parse(json),
-            Some(vec![
-                "70a98c94-9252-4fd3-a673-5a584339e273".to_owned(),
-                "d195eb47-24b8-45c0-a4d0-1771d60dc1a8".to_owned(),
-            ])
+            Some((
+                vec![
+                    "70a98c94-9252-4fd3-a673-5a584339e273".to_owned(),
+                    "d195eb47-24b8-45c0-a4d0-1771d60dc1a8".to_owned(),
+                ],
+                1
+            )),
+            "one value that is no GUID is counted as dropped"
         );
     }
 
@@ -137,11 +158,11 @@ mod tests {
     fn an_empty_inventory_is_an_empty_list_and_other_json_is_unreadable() {
         assert_eq!(
             parse(br#"{"Collection":{"Inventory":[]}}"#),
-            Some(Vec::new())
+            Some((Vec::new(), 0))
         );
         assert_eq!(
             parse(br#"{"Inventory":[{"ID":{"ID":["70a98c94-9252-4fd3-a673-5a584339e273"]}}]}"#),
-            Some(vec!["70a98c94-9252-4fd3-a673-5a584339e273".to_owned()]),
+            Some((vec!["70a98c94-9252-4fd3-a673-5a584339e273".to_owned()], 0)),
             "the shape without a Collection"
         );
         assert_eq!(parse(br#"{"Other":1}"#), None);

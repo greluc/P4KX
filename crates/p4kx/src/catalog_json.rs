@@ -54,6 +54,11 @@ struct ShopsJson<'a> {
     inventory_ambiguous: usize,
     inventory_missing: usize,
     inventory_unreadable: usize,
+    inventory_unscanned: usize,
+    soc_components: usize,
+    inventories_unreadable: usize,
+    inventories_missing: usize,
+    item_ids_dropped: usize,
     commodity_exchanges: usize,
     linked: usize,
     unlinked: usize,
@@ -80,6 +85,11 @@ impl<'a> From<&'a ShopSummary> for ShopsJson<'a> {
             inventory_ambiguous: summary.inventory_ambiguous,
             inventory_missing: summary.inventory_missing,
             inventory_unreadable: summary.inventory_unreadable,
+            inventory_unscanned: summary.inventory_unscanned,
+            soc_components: summary.soc_components,
+            inventories_unreadable: summary.inventories_unreadable,
+            inventories_missing: summary.inventories_missing,
+            item_ids_dropped: summary.item_ids_dropped,
             commodity_exchanges: summary.commodity_exchanges,
             linked: summary.linked,
             unlinked: summary.unlinked,
@@ -176,6 +186,8 @@ enum WarningJson {
     MissingShopRegistry,
     UnreadableShopContainers { count: usize },
     UnreadableShopInventories { count: usize },
+    MissingShopInventories { count: usize },
+    NoShopComponents,
     Other { message: String },
 }
 
@@ -201,6 +213,10 @@ impl From<&CraftingWarning> for WarningJson {
             CraftingWarning::UnreadableShopInventories(count) => {
                 Self::UnreadableShopInventories { count }
             }
+            CraftingWarning::MissingShopInventories(count) => {
+                Self::MissingShopInventories { count }
+            }
+            CraftingWarning::NoShopComponents => Self::NoShopComponents,
             ref other => Self::Other {
                 message: other.to_string(),
             },

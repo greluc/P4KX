@@ -39,8 +39,17 @@ pub struct ShopSummary {
     pub inventory_missing: usize,
     /// The shops whose named inventory file cannot be read.
     pub inventory_unreadable: usize,
+    /// The shops none of whose containers has the component in a readable `.soc`, so nothing is
+    /// known of their inventory; not the same as a component that names no file.
+    pub inventory_unscanned: usize,
+    /// The (container, Entity) pairs whose component was found in a `.soc`.
+    pub soc_components: usize,
     /// The distinct inventory files that cannot be read.
     pub inventories_unreadable: usize,
+    /// The distinct named inventory files the Archive lacks.
+    pub inventories_missing: usize,
+    /// The `ID` values of the distinct inventory files that were no GUID and left out.
+    pub item_ids_dropped: usize,
     /// The commodity exchanges and commodity terminals.
     pub commodity_exchanges: usize,
     /// The shops linked to a starmap object by their location container.

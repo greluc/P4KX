@@ -565,7 +565,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "shops": {"shops": 1184, "registry_entries": 1184, "registry_missing": false, "registry_unreadable": false, "malformed": 0,
  "duplicate": 0, "containers_listed": 317, "containers_unreadable": 0, "containers_with_shop": 164,
  "with_kind": 590, "mixed_kind": 60, "without_container": 534, "with_items": 331, "inventory_ambiguous": 28,
- "inventory_missing": 0, "inventory_unreadable": 0, "commodity_exchanges": 16,
+ "inventory_missing": 0, "inventory_unreadable": 0, "inventory_unscanned": 144, "soc_components": 128,
+ "inventories_unreadable": 0, "inventories_missing": 0, "item_ids_dropped": 0, "commodity_exchanges": 16,
  "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
@@ -597,7 +598,9 @@ with a `kind`: `reward_sources_truncated` (the reference index is truncated),
 limits that left starmap objects without a position), `unreadable_shop_registry` (the shop registry exists but
 cannot be read, so `shops` is empty), `missing_shop_registry` (starmap objects but no registry at the known path)
 `unreadable_shop_containers` with a `count` (shop containers that cannot be read) and
-`unreadable_shop_inventories` with a `count` (inventory files that cannot be read); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
+`unreadable_shop_inventories` with a `count` (inventory files that cannot be read),
+`missing_shop_inventories` with a `count` (distinct inventory files that containers name and the Archive lacks) and
+`no_shop_components` (shop containers name shops but no `.soc` holds a shop component); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
 Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit
@@ -619,7 +622,10 @@ are also the warning `unplaced_starmap_containers` with their `count`. `shops` c
 the shops whose Entity exactly one container kind names (`with_kind`), several differing ones
 (`mixed_kind`) or none (`without_container`), the shops with an item list (`with_items`) and those
 without one because their containers name differing inventory files (`inventory_ambiguous`) or a file
-the Archive lacks (`inventory_missing`) or that cannot be read (`inventory_unreadable`), the
+the Archive lacks (`inventory_missing`) or that cannot be read (`inventory_unreadable`), those whose
+containers have no readable shop component at all (`inventory_unscanned`), the found components
+(`soc_components`), the distinct files that cannot be read or are missing (`inventories_unreadable`,
+`inventories_missing`) and the `ID` values dropped for being no GUID (`item_ids_dropped`), the
 commodity exchanges, the shops linked to a
 starmap object (`linked`) and not (`unlinked`, `ambiguous_link` of them because several objects
 carry the name) and the distinct location names without a link, up to 200; the numbers in the

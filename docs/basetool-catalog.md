@@ -1080,7 +1080,10 @@ agree in length everywhere). The chains have 4 to 9 elements.
 (`unreadable_shop_registry`), when the Archive holds starmap objects but no registry at the known
 path (`missing_shop_registry`, the registry may have moved in the Build) and when shop containers
 cannot be read (`unreadable_shop_containers` with a `count`; their shops may lack kind and brand)
-or inventory files cannot be read (`unreadable_shop_inventories` with a `count`).
+or inventory files cannot be read (`unreadable_shop_inventories` with a `count` of files), when
+inventory files that containers name are not in the Archive (`missing_shop_inventories` with a
+`count` of distinct files; a Build may have moved or renamed them) and when shop containers name
+shops but no `.soc` holds a shop component (`no_shop_components`; the layout may have changed).
 `ShopSummary::registry_missing` and `registry_unreadable` carry the same facts. With a Filter no
 shop is read and none of these warnings is raised.
 
@@ -1110,18 +1113,23 @@ Entity (`EntityComponentShop`, `SShopComponentParams`) with the parameter `offli
 `offlineInventoryXMLName`, whose value is a path of an inventory file. The catalog reads it for
 every container it already opens for kind and brand. A shop gets an item list when every container
 that names its `entityGuid` names the same file (compared by lower-case stem; `.xml` and `.json`
-name the same file) and the Archive holds it.
+name the same file) and the Archive holds it. Several `.soc` files of one container follow the
+same rule. A `.soc` that cannot be read leaves only the inventory of its container unknown; kind
+and brand do not depend on it.
 
 | Field | Source |
 |-------|--------|
 | `inventory` | The lower-case stem of that file, e.g. `inv_admin_newbabbage`; `null` when no container names a file, the containers disagree (or only some name one) or the file is missing or unreadable |
-| `itemGuids` | The `ID.ID` GUIDs of the elements of the file (`Collection.Inventory`, or `Inventory` in the shape without `Collection`), lower case, ordered, without repeats; `null` exactly when `inventory` is. `BuyPrice`, `SellPrice`, `CurrentInventory`, `MaxInventory` and `RentalOfferings` are never read or exported |
+| `itemGuids` | The `ID.ID` GUIDs of the elements of the file (`Collection.Inventory`, or `Inventory` in the shape without `Collection`), lower case, ordered, without repeats, and possibly `[]` for a file without items; an `ID` value that is no GUID is left out and counted in `item_ids_dropped`; `null` exactly when `inventory` is. `BuyPrice`, `SellPrice`, `CurrentInventory`, `MaxInventory` and `RentalOfferings` are never read or exported |
 
-`ShopSummary` counts `with_items`, `inventory_ambiguous`, `inventory_missing` and
-`inventory_unreadable` (shops) and `inventories_unreadable` (files); an unreadable file also raises
-the warning `unreadable_shop_inventories` with a `count`. On LIVE (Build 4.10.197) 331 of the 1,184
-shops get an item list (Stanton 208, Pyro 123) from 28 distinct files; 28 shops have ambiguous
-containers. 2,192 of the 2,219 item GUIDs of those files (distinct per file) are the `guid` of an
+`ShopSummary` counts `with_items`, `inventory_ambiguous`, `inventory_unscanned` (no container has
+the component in a readable `.soc`: nothing is known, which differs from a component that names no
+file), `inventory_missing` and `inventory_unreadable` (shops), `soc_components` (found components),
+`inventories_missing`, `inventories_unreadable` (files) and `item_ids_dropped`. On LIVE (Build
+4.10.197) 331 of the 1,184 shops get an item list (Stanton 208, Pyro 123) from 28 distinct files;
+28 shops have ambiguous containers, 144 are unscanned (128 components were found; for the others
+the `.soc` holds no component or one with a different CryGUID than `entitycomponentshop.xml`) and
+no named file is missing or unreadable. 2,192 of the 2,219 item GUIDs of those files (distinct per file) are the `guid` of an
 entry of `items`, `ships`, `commodities`, `paints` or `loadouts`. 173 of the shops share
 `temp_outpost_shopinventory`, a placeholder list that the designers set on the rest-stop bars. The
 other 91 files of the 119 are named by no container the catalog opens (event sales, city and

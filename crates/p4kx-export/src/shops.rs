@@ -66,6 +66,16 @@ pub(crate) fn add_shops(
                 summary.inventories_unreadable,
             ));
     }
+    if summary.inventories_missing > 0 {
+        collected
+            .warnings
+            .push(CraftingWarning::MissingShopInventories(
+                summary.inventories_missing,
+            ));
+    }
+    if summary.containers_with_shop > 0 && summary.soc_components == 0 {
+        collected.warnings.push(CraftingWarning::NoShopComponents);
+    }
     collected.shops = built.shops;
     Ok(summary)
 }
@@ -115,10 +125,22 @@ pub(crate) fn shops(
         .into_iter()
         .map(|stem| (stem, inventories.items(stem)))
         .collect();
+    summary.soc_components = containers.components;
     summary.inventories_unreadable = lists
         .values()
         .filter(|list| **list == ItemList::Unreadable)
         .count();
+    summary.inventories_missing = lists
+        .values()
+        .filter(|list| **list == ItemList::Missing)
+        .count();
+    summary.item_ids_dropped = lists
+        .values()
+        .map(|list| match list {
+            ItemList::Items { dropped, .. } => *dropped,
+            ItemList::Missing | ItemList::Unreadable => 0,
+        })
+        .sum();
     let shops = list(&registry, &containers, &links, &lists, &mut summary);
     Ok(Built { shops, summary })
 }
@@ -171,6 +193,7 @@ fn list(
                 Some(ItemList::Unreadable) => summary.inventory_unreadable += 1,
                 _ => summary.inventory_missing += 1,
             },
+            (Inventory::Unknown, None) => summary.inventory_unscanned += 1,
             (Inventory::None, None) => {}
         }
         summary.commodity_exchanges += usize::from(shop.commodity_exchange);
@@ -221,10 +244,10 @@ fn shop(
         || (lower.starts_with(PLATINUMBAY_PREFIX) && lower.ends_with(COMMODITY_SUFFIX));
     let (inventory, item_guids) = match containers.inventory(&entity_guid) {
         Inventory::One(stem) => match lists.get(stem) {
-            Some(ItemList::Items(items)) => (Some(stem.to_owned()), Some(items.clone())),
+            Some(ItemList::Items { guids, .. }) => (Some(stem.to_owned()), Some(guids.clone())),
             _ => (None, None),
         },
-        Inventory::None | Inventory::Ambiguous => (None, None),
+        Inventory::None | Inventory::Ambiguous | Inventory::Unknown => (None, None),
     };
     let non_empty = |text: &str| (!text.trim().is_empty()).then(|| text.trim().to_owned());
     let platform = raw.platform.to_ascii_lowercase();

@@ -103,6 +103,9 @@ fn shops_get_item_lists_from_the_inventories_their_containers_name() -> TestResu
     assert!(summary.with_items > 0, "{summary:?}");
     assert_eq!(summary.with_items, with.len());
     assert_eq!(summary.inventory_unreadable, 0, "{summary:?}");
+    assert_eq!(summary.inventory_missing, 0, "{summary:?}");
+    assert_eq!(summary.inventories_missing, 0, "{summary:?}");
+    assert!(summary.soc_components > 0, "{summary:?}");
     assert!(resolved * 10 >= total * 9, "{resolved} of {total} resolve");
     Ok(())
 }

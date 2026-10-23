@@ -1,9 +1,15 @@
 use crate::shop_registry::is_guid;
 
-const MARK: &[u8] = b"\0EntityComponentShop\0SShopComponentParams\0";
+const MARK: &[u8] = b"\0EntityComponentShop\0";
+const PARAMS: &[u8] = b"SShopComponentParams\0";
 const GUID_LEN: usize = 36;
 const WINDOW: usize = 512;
-const ENDS: [&[u8]; 3] = [b"ShopRackGUIDs", b"ShopKioskGUIDs", b"LandingAreaNodeGUIDs"];
+const ENDS: [&[u8]; 4] = [
+    b"ShopRackGUIDs",
+    b"ShopKioskGUIDs",
+    b"LandingAreaNodeGUIDs",
+    MARK,
+];
 const PROPERTY: &[u8] = b"offlineInventory";
 const MAX_PATH_LEN: usize = 256;
 
@@ -16,9 +22,10 @@ pub(crate) struct ShopComponent {
 }
 
 /// Returns the shop components of the container file `bytes`, in file order. The `CryGUID` of the
-/// Entity stands right before the component name; the parameters follow it as name and value
-/// strings up to the rack, kiosk or landing area lists. `inventory` is the lower-case file stem of
-/// the `offlineInventory*` value, `None` when the parameters name no `.json` or `.xml` file.
+/// Entity stands right before the component name; the parameters, when the component has any,
+/// follow `SShopComponentParams` as name and value strings up to the rack, kiosk or landing area
+/// lists or the next component. `inventory` is the lower-case file stem of the first
+/// `offlineInventory*` value that names a `.json` or `.xml` file, `None` when there is none.
 pub(crate) fn components(bytes: &[u8]) -> Vec<ShopComponent> {
     let mut found = Vec::new();
     let mut from = 0;
@@ -35,22 +42,34 @@ pub(crate) fn components(bytes: &[u8]) -> Vec<ShopComponent> {
         };
         let rest = bytes.get(from..).unwrap_or_default();
         let window = rest.get(..WINDOW.min(rest.len())).unwrap_or_default();
-        let end = ENDS
-            .iter()
-            .filter_map(|end| find(window, end))
-            .min()
-            .unwrap_or(window.len());
+        let inventory = window.strip_prefix(PARAMS).and_then(|parameters| {
+            let end = ENDS
+                .iter()
+                .filter_map(|end| find(parameters, end))
+                .min()
+                .unwrap_or(parameters.len());
+            inventory_stem(parameters.get(..end)?)
+        });
         found.push(ShopComponent {
             entity: entity.to_ascii_lowercase(),
-            inventory: window.get(..end).and_then(inventory_stem),
+            inventory,
         });
     }
     found
 }
 
 fn inventory_stem(window: &[u8]) -> Option<String> {
-    let at = find(window, PROPERTY)?;
-    let rest = window.get(at + PROPERTY.len()..)?;
+    let mut from = 0;
+    while let Some(relative) = window.get(from..).and_then(|rest| find(rest, PROPERTY)) {
+        from += relative + PROPERTY.len();
+        if let Some(stem) = window.get(from..).and_then(value_stem) {
+            return Some(stem);
+        }
+    }
+    None
+}
+
+fn value_stem(rest: &[u8]) -> Option<String> {
     let name_end = rest.iter().position(|&byte| byte == 0)?;
     if !rest.get(..name_end)?.iter().all(u8::is_ascii_alphabetic) {
         return None;
@@ -82,20 +101,23 @@ mod tests {
     use super::components;
 
     const ENTITY: &str = "4dce4077-9730-ac77-5074-916b3b2700b7";
+    const OTHER: &str = "4a000000-0000-4000-8000-0000000000aa";
 
-    fn component(entity: &str, parameters: &[&str], end: &str) -> Vec<u8> {
-        let mut bytes = b"junk\0SCShop\0".to_vec();
-        for part in [
-            entity,
-            "EntityComponentShop",
-            "SShopComponentParams",
-            &parameters.join("\0"),
-            end,
-            "tail",
-        ] {
+    fn push(bytes: &mut Vec<u8>, parts: &[&str]) {
+        for part in parts {
             bytes.extend_from_slice(part.as_bytes());
             bytes.push(0);
         }
+    }
+
+    fn component(entity: &str, parameters: &[&str], end: &str) -> Vec<u8> {
+        let mut bytes = b"junk\0SCShop\0".to_vec();
+        push(
+            &mut bytes,
+            &[entity, "EntityComponentShop", "SShopComponentParams"],
+        );
+        push(&mut bytes, parameters);
+        push(&mut bytes, &[end, "tail"]);
         bytes
     }
 
@@ -135,10 +157,62 @@ mod tests {
     }
 
     #[test]
+    fn an_empty_json_value_does_not_hide_the_xml_name_behind_it() {
+        let bytes = component(
+            ENTITY,
+            &[
+                "offlineInventoryJSON",
+                "offlineInventoryXMLName",
+                "Scripts/ShopInventories/Inv_Late.xml",
+            ],
+            "ShopRackGUIDs",
+        );
+        assert_eq!(components(&bytes)[0].inventory.as_deref(), Some("inv_late"));
+    }
+
+    #[test]
     fn a_value_behind_the_end_marker_is_not_the_components() {
         let mut bytes = component(ENTITY, &["shopInventoryType", "ITEM"], "ShopRackGUIDs");
         bytes.extend_from_slice(b"offlineInventoryJSON\0Data/inv_other.json\0");
         assert_eq!(components(&bytes)[0].inventory, None);
+    }
+
+    #[test]
+    fn a_value_of_the_next_adjacent_component_is_not_the_previous_ones() {
+        let mut bytes = b"junk\0".to_vec();
+        push(
+            &mut bytes,
+            &[
+                ENTITY,
+                "EntityComponentShop",
+                "SShopComponentParams",
+                "shopInventoryType",
+                "ITEM",
+                OTHER,
+                "EntityComponentShop",
+                "SShopComponentParams",
+                "offlineInventoryJSON",
+                "Data/inv_second.json",
+            ],
+        );
+        let found = components(&bytes);
+        assert_eq!(found.len(), 2);
+        assert_eq!(found[0].inventory, None);
+        assert_eq!(found[1].entity, OTHER);
+        assert_eq!(found[1].inventory.as_deref(), Some("inv_second"));
+    }
+
+    #[test]
+    fn a_component_without_parameters_is_found_and_names_no_inventory() {
+        let mut bytes = b"junk\0".to_vec();
+        push(
+            &mut bytes,
+            &[ENTITY, "EntityComponentShop", "offlineInventoryJSON"],
+        );
+        push(&mut bytes, &["Data/inv_not_params.json"]);
+        let found = components(&bytes);
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].inventory, None);
     }
 
     #[test]

@@ -26,13 +26,22 @@ ADR-0069 left the item list out because no rule assigned an inventory file to a 
   `BuyPrice`, `SellPrice`, `CurrentInventory`, `MaxInventory` or `RentalOfferings`. The kind
   changes additively (ADR-0054, `schemaVersion` stays 1).
 - **Reading.** The `.soc` is read together with the metadata of the container the catalog already
-  opens for kind and brand; a container that cannot be read is already counted. The component is
-  found by its fixed name sequence and a parameter window that ends at the rack, kiosk or landing
-  area list, so a value is taken only inside the component of its own CryGUID and only when it ends
-  in `.json` or `.xml`; the file is then checked in the Archive.
-- **Not silent.** `ShopSummary` counts `with_items`, `inventory_ambiguous`, `inventory_missing`,
-  `inventory_unreadable` and `inventories_unreadable`; unreadable files raise the warning
-  `unreadable_shop_inventories`.
+  opens for kind and brand; a container that cannot be read is already counted. A `.soc` that
+  cannot be read only leaves the inventory of its container unknown, kind and brand stay. The
+  component is found by its fixed name sequence and a parameter window that ends at the rack,
+  kiosk or landing area list or at the next component, so a value is taken only inside the
+  component of its own CryGUID, the first `offlineInventory*` value that ends in `.json` or `.xml`
+  wins; the file is then checked in the Archive. Several `.soc` files of one container follow the
+  same all-must-agree rule as several containers.
+- **Not silent.** What the scan finds is told apart from what it does not: a component that names
+  no file is not a component that was not found. `ShopSummary` counts `with_items`,
+  `inventory_ambiguous`, `inventory_unscanned` (no readable component for the shop),
+  `inventory_missing`, `inventory_unreadable`, `soc_components`, `inventories_missing`,
+  `inventories_unreadable` and `item_ids_dropped`. Warnings: `unreadable_shop_inventories` and
+  `missing_shop_inventories` (each with a `count` of files; a Build that moves or renames the
+  files must not turn every list into `null` with exit code 0) and `no_shop_components` (shop
+  containers name shops, yet no `.soc` holds a component). `itemGuids` may be `[]` for a file
+  without items.
 
 ## Evidence
 

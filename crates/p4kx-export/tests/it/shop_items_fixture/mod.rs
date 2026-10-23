@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_testkit::{TestContainer, TestElement, TestEntry};
 
-use crate::shops_fixture::{CLOTHING, EXCHANGE, FOOD, MIXED, REGISTRY, registry};
+use crate::shops_fixture::{CLOTHING, EXCHANGE, FOOD, LOOSE, MIXED, REGISTRY, registry};
 use crate::starmap_fixture;
 
 const SHOPS: &str = "Data\\ObjectContainers\\PU\\Shops\\";
@@ -78,7 +78,14 @@ struct Named {
     path: &'static str,
 }
 
-const NAMED: [Named; 5] = [
+const NAMED: [Named; 6] = [
+    Named {
+        folder: "service\\none\\",
+        stem: "loose_a",
+        entity: LOOSE,
+        property: "offlineInventoryXMLName",
+        path: "Scripts/ShopInventories/Inv_Loose.xml",
+    },
     Named {
         folder: "commex\\tdd\\",
         stem: "tdd_test",
@@ -139,6 +146,10 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
             inventory(&[&ITEM_A.to_ascii_uppercase(), ITEM_B, ITEM_A]),
         ),
         ("Inv_Noodle", b"not json".to_vec()),
+        (
+            "Inv_Loose",
+            format!(r#"{{"Inventory":[{{"ID":{{"ID":["{ITEM_A}"]}}}}]}}"#).into_bytes(),
+        ),
         ("Inv_One", inventory(&[ITEM_A])),
         ("Inv_Two", inventory(&[ITEM_B])),
     ];
@@ -149,5 +160,31 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         ));
     }
     builder.write_to(&path)?;
+    Ok(path)
+}
+
+/// Writes an Archive whose shop container has a `.soc` without any shop component.
+pub(crate) fn write_archive_without_components(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let path = dir.join("Data.p4k");
+    let metadata = TestElement::new("EntityComponentShop")
+        .child(TestElement::new("Entity").attribute("CryGUID", EXCHANGE))
+        .to_xml();
+    let container = TestContainer::new()
+        .entry(TestEntry::stored(
+            "tdd_test\\metadata\\entitycomponentshop.xml",
+            metadata,
+        ))
+        .entry(TestEntry::stored(
+            "tdd_test.soc",
+            b"CrChF\0nothing".to_vec(),
+        ))
+        .build();
+    starmap_fixture::builder()
+        .entry(TestEntry::stored(REGISTRY, registry()))
+        .entry(TestEntry::stored(
+            format!("{SHOPS}commex\\tdd\\tdd_test.socpak"),
+            container,
+        ))
+        .write_to(&path)?;
     Ok(path)
 }

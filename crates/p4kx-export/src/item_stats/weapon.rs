@@ -34,6 +34,8 @@ fn collect<'f>(action: &StructValue<'f>, actions: &mut Vec<FireAction<'f>>) {
         charge_time: value("chargeTime"),
         overcharge_time: value("overchargeTime"),
         cooldown_time: value("cooldownTime"),
+        damage_per_second: damage(structure(Some(action), "damagePerSecond"))
+            .or_else(|| damage(structure(inner, "damagePerSecond"))),
     });
 }
 
@@ -55,7 +57,7 @@ const CONTAINER: &str = "SAmmoContainerComponentParams";
 
 /// Returns the tree of the Record `reference` links to when it has the struct `type_name` and can
 /// be built.
-fn linked<'f>(
+pub(super) fn linked<'f>(
     reference: Option<crate::guid_text::CatalogGuid>,
     type_name: &str,
     forge: &'f DataForge<'f>,

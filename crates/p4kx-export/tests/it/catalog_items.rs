@@ -160,6 +160,11 @@ fn an_item_carries_its_definition_mass_display_type_and_class() -> TestResult {
                 "powerPlant": {"powerOutput": null, "unit": null},
                 "cooler": null,
                 "missile": null,
+                "armor": null,
+                "clothing": null,
+                "radar": null,
+                "tractorBeam": null,
+                "weaponModifier": null,
                 "health": null,
                 "resourceStates": []
             },

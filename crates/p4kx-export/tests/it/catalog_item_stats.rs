@@ -59,7 +59,8 @@ fn a_weapon_carries_its_fire_modes_and_ammunition_as_stored() -> TestResult {
                 "heatPerShot": 0.5,
                 "chargeTime": null,
                 "overchargeTime": null,
-                "cooldownTime": null
+                "cooldownTime": null,
+                "damagePerSecond": null
             },
             {
                 "kind": "SWeaponActionFireChargedParams",
@@ -70,7 +71,8 @@ fn a_weapon_carries_its_fire_modes_and_ammunition_as_stored() -> TestResult {
                 "heatPerShot": 0.5,
                 "chargeTime": 1.5,
                 "overchargeTime": 3.0,
-                "cooldownTime": 0.25
+                "cooldownTime": 0.25,
+                "damagePerSecond": null
             }
         ])
     );

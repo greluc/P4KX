@@ -68,6 +68,35 @@
       ],
       "type": "object"
     },
+    "ArmorStats": {
+      "description": "The suit armour of an item, raw facts of `SCItemSuitArmorParams` (ADR-0072).",
+      "properties": {
+        "damageResistance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DamageResistance"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `damageResistance` of the `DamageResistanceMacro` Record that `damageResistance` links\nto; `null` without a readable one."
+        },
+        "integrityMilestoneToBreak": {
+          "description": "`integrityMilestoneToBreak`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "damageResistance",
+        "integrityMilestoneToBreak"
+      ],
+      "type": "object"
+    },
     "Blueprint": {
       "description": "A crafting blueprint: a `CraftingBlueprintRecord` Record under `crafting/blueprints/crafting`.",
       "properties": {
@@ -333,6 +362,59 @@
         "changeNumber",
         "publicPatch",
         "version"
+      ],
+      "type": "object"
+    },
+    "ClothingStats": {
+      "description": "The worn properties of an item, raw facts of `SCItemClothingParams`.",
+      "properties": {
+        "gForceResistance": {
+          "description": "`Flight.gForceResistance`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "radiationCapacity": {
+          "description": "`RadiationResistance.MaximumRadiationCapacity`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "radiationDissipationRate": {
+          "description": "`RadiationResistance.RadiationDissipationRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "temperatureResistanceMax": {
+          "description": "`TemperatureResistance.MaxResistance`, in degrees Celsius.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "temperatureResistanceMin": {
+          "description": "`TemperatureResistance.MinResistance`, in degrees Celsius.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "gForceResistance",
+        "radiationCapacity",
+        "radiationDissipationRate",
+        "temperatureResistanceMax",
+        "temperatureResistanceMin"
       ],
       "type": "object"
     },
@@ -913,6 +995,94 @@
       ],
       "type": "object"
     },
+    "DamageResistance": {
+      "description": "The resistances of a `DamageResistanceMacro`, one entry per damage type.",
+      "properties": {
+        "biochemical": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResistanceEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`BiochemicalResistance`."
+        },
+        "distortion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResistanceEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`DistortionResistance`."
+        },
+        "energy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResistanceEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`EnergyResistance`."
+        },
+        "ignoreMeleeDamage": {
+          "description": "`IgnoreMeleeDamage`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "physical": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResistanceEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`PhysicalResistance`."
+        },
+        "stun": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResistanceEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`StunResistance`."
+        },
+        "thermal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ResistanceEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`ThermalResistance`."
+        }
+      },
+      "required": [
+        "biochemical",
+        "distortion",
+        "energy",
+        "ignoreMeleeDamage",
+        "physical",
+        "stun",
+        "thermal"
+      ],
+      "type": "object"
+    },
     "DismantleProcess": {
       "description": "A generic dismantle process: a `CraftingBlueprintRecord` under `crafting/blueprints/dismantle`\nwhose process is a `GenericCraftingProcess_Dismantle`.",
       "properties": {
@@ -981,6 +1151,17 @@
             "null"
           ]
         },
+        "damagePerSecond": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Damage"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`damagePerSecond`, the damage a beam does each second; `null` for a mode without one."
+        },
         "fireRate": {
           "description": "`fireRate`, in rounds per minute. `fireRate`, `heatPerShot`, `chargeTime`,\n`overchargeTime`, `cooldownTime`, `name` and `launchParams` are read from the fire mode and,\nwhere it has none of its own, from its `weaponAction`.",
           "format": "float",
@@ -1017,24 +1198,37 @@
           ]
         },
         "pellets": {
-          "description": "`launchParams.pellets`, the projectiles of one shot.",
+          "description": "`launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of\none shot.",
           "format": "int64",
           "type": [
             "integer",
             "null"
           ]
+        },
+        "spread": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Spread"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`launchParams.spreadParams`; `null` for a mode without one."
         }
       },
       "required": [
         "ammoCost",
         "chargeTime",
         "cooldownTime",
+        "damagePerSecond",
         "fireRate",
         "heatPerShot",
         "kind",
         "name",
         "overchargeTime",
-        "pellets"
+        "pellets",
+        "spread"
       ],
       "type": "object"
     },
@@ -1291,8 +1485,30 @@
       "type": "object"
     },
     "ItemStats": {
-      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one of the six blocks `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`\nand `missile`. No value is derived: a number is what the Archive states, in the unit the game\nstores it; a value that is not a finite number is `null`.",
+      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number\nis what the Archive states, in the unit the game stores it; a value that is not a finite\nnumber is `null`.",
       "properties": {
+        "armor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArmorStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The suit armour block, from `SCItemSuitArmorParams`."
+        },
+        "clothing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ClothingStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The worn properties block, from `SCItemClothingParams`."
+        },
         "cooler": {
           "anyOf": [
             {
@@ -1345,6 +1561,17 @@
           ],
           "description": "The quantum drive block, from `SCItemQuantumDriveParams`."
         },
+        "radar": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RadarStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The radar block, from `SCItemRadarComponentParams`."
+        },
         "resourceStates": {
           "description": "The states of `ItemResourceComponentParams` in stored order: signatures and resource flows.",
           "items": {
@@ -1363,6 +1590,17 @@
           ],
           "description": "The shield generator block, from `SCItemShieldGeneratorParams`."
         },
+        "tractorBeam": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TractorBeamStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The tractor beam block, from the `SWeaponActionFireTractorBeamParams` of the weapon."
+        },
         "weapon": {
           "anyOf": [
             {
@@ -1373,17 +1611,33 @@
             }
           ],
           "description": "The weapon block, from `SCItemWeaponComponentParams`."
+        },
+        "weaponModifier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WeaponModifierStats"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The tractor and salvage multipliers of an attachment, from\n`EntityComponentAttachableModifierParams`."
         }
       },
       "required": [
+        "armor",
+        "clothing",
         "cooler",
         "health",
         "missile",
         "powerPlant",
         "quantumDrive",
+        "radar",
         "resourceStates",
         "shield",
-        "weapon"
+        "tractorBeam",
+        "weapon",
+        "weaponModifier"
       ],
       "type": "object"
     },
@@ -2208,6 +2462,50 @@
       ],
       "type": "object"
     },
+    "RadarStats": {
+      "description": "A radar, raw facts of `SCItemRadarComponentParams`.",
+      "properties": {
+        "aimAssistDistanceMax": {
+          "description": "`aimAssist.distanceMaxAssignment`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "aimAssistDistanceMin": {
+          "description": "`aimAssist.distanceMinAssignment`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "aimAssistOutsideRangeBuffer": {
+          "description": "`aimAssist.outsideRangeBufferDistance`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pingCooldownTime": {
+          "description": "`pingProperties.cooldownTime`, in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "aimAssistDistanceMax",
+        "aimAssistDistanceMin",
+        "aimAssistOutsideRangeBuffer",
+        "pingCooldownTime"
+      ],
+      "type": "object"
+    },
     "RefiningProcess": {
       "description": "A refining process: a `RefiningProcess` Record under `refiningprocess`, one method of a\nrefinery. The DataForge holds no yields.",
       "properties": {
@@ -2307,6 +2605,50 @@
         "factionReputationName",
         "scopeGuid",
         "scopeName"
+      ],
+      "type": "object"
+    },
+    "ResistanceEntry": {
+      "description": "The resistance to one damage type, as stored: the multiplier is the factor damage is scaled\nby, not a mitigation.",
+      "properties": {
+        "damageCap": {
+          "description": "`DamageCap`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "damageCapLimit": {
+          "description": "`DamageCapLimit`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "multiplier": {
+          "description": "`Multiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "threshold": {
+          "description": "`Threshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "damageCap",
+        "damageCapLimit",
+        "multiplier",
+        "threshold"
       ],
       "type": "object"
     },
@@ -2485,6 +2827,41 @@
         "contractName",
         "recordGuid",
         "recordPath"
+      ],
+      "type": "object"
+    },
+    "SalvageModifier": {
+      "description": "An `SSalvageModifier`.",
+      "properties": {
+        "extractionEfficiency": {
+          "description": "`extractionEfficiency`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "radiusMultiplier": {
+          "description": "`radiusMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "salvageSpeedMultiplier": {
+          "description": "`salvageSpeedMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "extractionEfficiency",
+        "radiusMultiplier",
+        "salvageSpeedMultiplier"
       ],
       "type": "object"
     },
@@ -2892,6 +3269,59 @@
       ],
       "type": "object"
     },
+    "Spread": {
+      "description": "The spread of a fire mode, as stored in `SSpreadParams`.",
+      "properties": {
+        "attack": {
+          "description": "`attack`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "decay": {
+          "description": "`decay`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "firstAttack": {
+          "description": "`firstAttack`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "max": {
+          "description": "`max`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "`min`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "attack",
+        "decay",
+        "firstAttack",
+        "max",
+        "min"
+      ],
+      "type": "object"
+    },
     "StarmapObject": {
       "description": "A starmap object: a `StarMapObject` Record under `starmap/pu`, a star system, planet, moon,\nstation, jump point or other place, with its world position when a system container places it.",
       "properties": {
@@ -3003,6 +3433,121 @@
       ],
       "type": "object"
     },
+    "TractorBeamStats": {
+      "description": "A tractor beam, from its `SWeaponActionFireTractorBeamParams`.",
+      "properties": {
+        "fullStrengthDistance": {
+          "description": "`fullStrengthDistance`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxAngle": {
+          "description": "`maxAngle`, in degrees.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxDistance": {
+          "description": "`maxDistance`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxForce": {
+          "description": "`maxForce`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxVolume": {
+          "description": "`maxVolume`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minDistance": {
+          "description": "`minDistance`, in metres.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minForce": {
+          "description": "`minForce`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "fullStrengthDistance",
+        "maxAngle",
+        "maxDistance",
+        "maxForce",
+        "maxVolume",
+        "minDistance",
+        "minForce"
+      ],
+      "type": "object"
+    },
+    "TractorModifier": {
+      "description": "An `STractorModifier`.",
+      "properties": {
+        "forceMultiplier": {
+          "description": "`forceMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fullStrengthDistMultiplier": {
+          "description": "`fullStrengthDistMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxDistMultiplier": {
+          "description": "`maxDistMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxVolumeMultiplier": {
+          "description": "`maxVolumeMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "forceMultiplier",
+        "fullStrengthDistMultiplier",
+        "maxDistMultiplier",
+        "maxVolumeMultiplier"
+      ],
+      "type": "object"
+    },
     "ValueRange": {
       "description": "One linear range of a modifier: the value at the quality `startQuality` and at `endQuality`.",
       "properties": {
@@ -3049,6 +3594,38 @@
         "endQuality",
         "kind",
         "startQuality"
+      ],
+      "type": "object"
+    },
+    "WeaponModifierStats": {
+      "description": "The tractor and salvage multipliers an attachment applies, from the `weaponStats` of its\n`EntityComponentAttachableModifierParams`.",
+      "properties": {
+        "salvage": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SalvageModifier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `salvageModifier`; `null` without one."
+        },
+        "tractor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TractorModifier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `tractorModifier`; `null` without one."
+        }
+      },
+      "required": [
+        "salvage",
+        "tractor"
       ],
       "type": "object"
     },

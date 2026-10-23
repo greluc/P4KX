@@ -2,10 +2,11 @@ use p4kx_extraction::{DataForge, RecordTree, StructValue, TreeBuilder, Value};
 
 use super::parts::damage;
 use super::walk::owner_of;
-use crate::contract_stats::{AmmoStats, FireAction, WeaponStats};
+use crate::contract_stats::{AmmoStats, FireAction, Spread, WeaponStats};
 use crate::record_fields::{component, elements, integer, number, reference, structure, text};
 
 const SEQUENCE_ENTRIES: &str = "sequenceEntries";
+const PARALLEL_ACTIONS: &str = "weaponActions";
 const AMMO_PARAMS: &str = "AmmoParams";
 const ENTITY: &str = "EntityClassDefinition";
 
@@ -20,6 +21,14 @@ fn collect<'f>(action: &StructValue<'f>, actions: &mut Vec<FireAction<'f>>) {
         }
         return;
     }
+    if action.field(PARALLEL_ACTIONS).is_some() {
+        for entry in elements(Some(action), PARALLEL_ACTIONS) {
+            if let Value::Struct(entry) = entry {
+                collect(entry, actions);
+            }
+        }
+        return;
+    }
     let inner = structure(Some(action), "weaponAction");
     let launch =
         structure(Some(action), "launchParams").or_else(|| structure(inner, "launchParams"));
@@ -28,13 +37,28 @@ fn collect<'f>(action: &StructValue<'f>, actions: &mut Vec<FireAction<'f>>) {
         kind: action.type_name(),
         name: text(Some(action), "name").or_else(|| text(inner, "name")),
         fire_rate: value("fireRate"),
-        pellets: integer(launch, "pellets"),
+        pellets: integer(launch, "pelletCount").or_else(|| integer(launch, "pellets")),
         ammo_cost: integer(launch, "ammoCost"),
         heat_per_shot: value("heatPerShot"),
         charge_time: value("chargeTime"),
         overcharge_time: value("overchargeTime"),
         cooldown_time: value("cooldownTime"),
+        damage_per_second: damage(structure(Some(action), "damagePerSecond"))
+            .or_else(|| damage(structure(inner, "damagePerSecond"))),
+        spread: spread(launch).or_else(|| spread(Some(action))),
     });
+}
+
+fn spread(launch: Option<&StructValue<'_>>) -> Option<Spread> {
+    let spread = structure(launch, "spreadParams")?;
+    let value = |name| number(Some(spread), name);
+    Some(Spread {
+        min: value("min"),
+        max: value("max"),
+        first_attack: value("firstAttack"),
+        attack: value("attack"),
+        decay: value("decay"),
+    })
 }
 
 fn ammo(tree: &RecordTree<'_>) -> AmmoStats {
@@ -55,7 +79,7 @@ const CONTAINER: &str = "SAmmoContainerComponentParams";
 
 /// Returns the tree of the Record `reference` links to when it has the struct `type_name` and can
 /// be built.
-fn linked<'f>(
+pub(super) fn linked<'f>(
     reference: Option<crate::guid_text::CatalogGuid>,
     type_name: &str,
     forge: &'f DataForge<'f>,

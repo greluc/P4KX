@@ -9,6 +9,8 @@ mod real_archive_contracts;
 mod real_archive_crafting;
 mod real_archive_crafting_catalog;
 mod real_archive_crafting_details;
+mod real_archive_gear_stats;
+mod real_archive_gear_trace;
 mod real_archive_grade;
 mod real_archive_item_stats;
 mod real_archive_items;

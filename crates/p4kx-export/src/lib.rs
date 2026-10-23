@@ -64,6 +64,7 @@ mod contract_rewards;
 mod contract_shops;
 mod contract_starmap;
 mod contract_stats;
+mod contract_stats_gear;
 mod crafting;
 mod crafting_records;
 mod crafting_sources;

@@ -2,13 +2,17 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::every_field_required;
+use crate::contract_stats_gear::{
+    ArmorStats, ClothingStats, RadarStats, TractorBeamStats, WeaponModifierStats,
+};
 
-/// The typed stat blocks of an item, raw facts of the Archive (ADR-0065).
+/// The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).
 ///
 /// Every block is `null` for an item that does not have it; the item has `stats` only when it
-/// has at least one of the six blocks `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`
-/// and `missile`. No value is derived: a number is what the Archive states, in the unit the game
-/// stores it; a value that is not a finite number is `null`.
+/// has at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,
+/// `armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number
+/// is what the Archive states, in the unit the game stores it; a value that is not a finite
+/// number is `null`.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -25,6 +29,17 @@ pub(crate) struct ItemStats<'a> {
     pub(crate) cooler: Option<CoolerStats<'a>>,
     /// The missile block, from `SCItemMissileParams`.
     pub(crate) missile: Option<MissileStats<'a>>,
+    /// The suit armour block, from `SCItemSuitArmorParams`.
+    pub(crate) armor: Option<ArmorStats>,
+    /// The worn properties block, from `SCItemClothingParams`.
+    pub(crate) clothing: Option<ClothingStats>,
+    /// The radar block, from `SCItemRadarComponentParams`.
+    pub(crate) radar: Option<RadarStats>,
+    /// The tractor beam block, from the `SWeaponActionFireTractorBeamParams` of the weapon.
+    pub(crate) tractor_beam: Option<TractorBeamStats>,
+    /// The tractor and salvage multipliers of an attachment, from
+    /// `EntityComponentAttachableModifierParams`.
+    pub(crate) weapon_modifier: Option<WeaponModifierStats>,
     /// The hit points, from `SHealthComponentParams.Health`.
     pub(crate) health: Option<f32>,
     /// The states of `ItemResourceComponentParams` in stored order: signatures and resource flows.
@@ -106,7 +121,8 @@ pub(crate) struct FireAction<'a> {
     /// `overchargeTime`, `cooldownTime`, `name` and `launchParams` are read from the fire mode and,
     /// where it has none of its own, from its `weaponAction`.
     pub(crate) fire_rate: Option<f32>,
-    /// `launchParams.pellets`, the projectiles of one shot.
+    /// `launchParams.pelletCount` (`pellets` where a Record states that instead), the projectiles of
+    /// one shot.
     pub(crate) pellets: Option<i64>,
     /// `launchParams.ammoCost`, the rounds one shot uses.
     pub(crate) ammo_cost: Option<i64>,
@@ -118,6 +134,27 @@ pub(crate) struct FireAction<'a> {
     pub(crate) overcharge_time: Option<f32>,
     /// `cooldownTime`, in seconds.
     pub(crate) cooldown_time: Option<f32>,
+    /// `damagePerSecond`, the damage a beam does each second; `null` for a mode without one.
+    pub(crate) damage_per_second: Option<Damage>,
+    /// `launchParams.spreadParams`; `null` for a mode without one.
+    pub(crate) spread: Option<Spread>,
+}
+
+/// The spread of a fire mode, as stored in `SSpreadParams`.
+#[derive(Debug, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct Spread {
+    /// `min`.
+    pub(crate) min: Option<f32>,
+    /// `max`.
+    pub(crate) max: Option<f32>,
+    /// `firstAttack`.
+    pub(crate) first_attack: Option<f32>,
+    /// `attack`.
+    pub(crate) attack: Option<f32>,
+    /// `decay`.
+    pub(crate) decay: Option<f32>,
 }
 
 /// The ammunition of a weapon.

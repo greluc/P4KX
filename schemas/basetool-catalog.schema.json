@@ -69,7 +69,7 @@
       "type": "object"
     },
     "ArmorStats": {
-      "description": "The suit armour of an item, raw facts of `SCItemSuitArmorParams` (ADR-0071).",
+      "description": "The suit armour of an item, raw facts of `SCItemSuitArmorParams` (ADR-0072).",
       "properties": {
         "damageResistance": {
           "anyOf": [
@@ -1473,7 +1473,7 @@
       "type": "object"
     },
     "ItemStats": {
-      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0071).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number is what the Archive states, in the unit the game\nstores it; a value that is not a finite number is `null`.",
+      "description": "The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).\n\nEvery block is `null` for an item that does not have it; the item has `stats` only when it\nhas at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,\n`armor`, `clothing`, `radar`, `tractorBeam` or `weaponModifier`. No value is derived: a number is what the Archive states, in the unit the game\nstores it; a value that is not a finite number is `null`.",
       "properties": {
         "armor": {
           "anyOf": [

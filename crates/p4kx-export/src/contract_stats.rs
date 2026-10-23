@@ -6,7 +6,7 @@ use crate::contract_stats_gear::{
     ArmorStats, ClothingStats, RadarStats, TractorBeamStats, WeaponModifierStats,
 };
 
-/// The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0071).
+/// The typed stat blocks of an item, raw facts of the Archive (ADR-0065, ADR-0072).
 ///
 /// Every block is `null` for an item that does not have it; the item has `stats` only when it
 /// has at least one block: `weapon`, `shield`, `quantumDrive`, `powerPlant`, `cooler`, `missile`,

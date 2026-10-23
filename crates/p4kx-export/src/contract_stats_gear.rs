@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::contract::every_field_required;
 
-/// The suit armour of an item, raw facts of `SCItemSuitArmorParams` (ADR-0071).
+/// The suit armour of an item, raw facts of `SCItemSuitArmorParams` (ADR-0072).
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]

@@ -42,6 +42,8 @@ const C: &str = "20000000-0000-4000-8000-000000000003";
 const D: &str = "20000000-0000-4000-8000-000000000005";
 const E: &str = "20000000-0000-4000-8000-000000000006";
 const G: &str = "20000000-0000-4000-8000-000000000008";
+const H: &str = "20000000-0000-4000-8000-000000000009";
+const I: &str = "20000000-0000-4000-8000-00000000000a";
 const SUB_ONE: &str = "30000000-0000-4000-8000-000000000001";
 const SUB_TWO: &str = "30000000-0000-4000-8000-000000000002";
 
@@ -69,14 +71,16 @@ fn a_contract_and_each_sub_contract_is_an_entry_ordered_by_guid() -> TestResult 
             (C, None),
             (D, None),
             (E, None),
-            (G, None)
+            (G, None),
+            (H, None),
+            (I, None)
         ],
         "the contract, then its sub contracts; the leftover and the contract without an id are out"
     );
     let kind = built.summary().kind(Kind::Contracts);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((8, 7, true)),
+        Some((10, 7, true)),
         "counts: two duplicates and a contract in a leftover Record are skipped as well"
     );
     Ok(())
@@ -118,6 +122,30 @@ fn a_template_reference_that_resolves_to_nothing_leaves_the_template_data_out() 
     );
     assert_eq!(dangling["missionTypeGuid"], Value::Null);
     assert_eq!(dangling["missionType"]["en"], Value::Null);
+    Ok(())
+}
+
+#[test]
+fn a_template_outside_the_template_folder_is_found_by_its_type() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let stray = entry(&catalog, H, None)?;
+    assert_eq!(
+        stray["templateGuid"],
+        "40000000-0000-4000-8000-000000000003"
+    );
+    assert_eq!(stray["title"]["en"], "Plain Title");
+    assert_eq!(stray["missionType"]["en"], "Delivery");
+    Ok(())
+}
+
+#[test]
+fn an_organisation_token_without_a_variant_takes_the_only_string_variant_else_none() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, I, None)?["title"]["en"],
+        "By [SEVERAL] and Solo Corp",
+        "an organisation with several variants states no choice"
+    );
     Ok(())
 }
 

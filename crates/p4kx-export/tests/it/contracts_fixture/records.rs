@@ -3,10 +3,10 @@ use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 use super::lookups::{legacy, mission_type, plain_record};
 use super::{
     AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
-    CONTRACT_E, CONTRACT_F, CONTRACT_G, DATABASE, DELIVERY, ESCORT, FACTION, FACTION_SCOPE,
-    GENERATOR, GENERATOR_COPY, GENERATOR_DEV, LOC_A, LOC_B, LOSS, MISSING_TEMPLATE, OBJ_PLANET,
-    ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED, SUB_ONE, SUB_TWO, TAG_OTHER,
-    TAG_TITLE, TEMPLATE,
+    CONTRACT_E, CONTRACT_F, CONTRACT_G, CONTRACT_H, CONTRACT_I, DATABASE, DELIVERY, ESCORT,
+    FACTION, FACTION_SCOPE, GENERATOR, GENERATOR_COPY, GENERATOR_DEV, LOC_A, LOC_B, LOSS,
+    MISSING_TEMPLATE, OBJ_PLANET, ORGANIZATION, PLAIN_TEMPLATE, RANK_FIFTY, RANK_TWO_HUNDRED,
+    SOLO_ORGANIZATION, STRAY_TEMPLATE, SUB_ONE, SUB_TWO, TAG_OTHER, TAG_TITLE, TEMPLATE,
 };
 
 const TAG_PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
@@ -295,10 +295,34 @@ fn copy_handler() -> TestValue {
         MISSING_TEMPLATE,
         overrides(Some("@title_handler"), None, Vec::new()),
     );
+    let stray = contract(
+        CONTRACT_H,
+        "Deliver_H",
+        STRAY_TEMPLATE,
+        overrides(None, None, Vec::new()),
+    );
+    let organisations = contract(
+        CONTRACT_I,
+        "Deliver_I",
+        PLAIN_TEMPLATE,
+        overrides(
+            Some("@title_novariant"),
+            None,
+            vec![
+                property("Several", organization(ORGANIZATION)),
+                property("Solo", organization(SOLO_ORGANIZATION)),
+            ],
+        ),
+    );
     handler(
         "Copy_Career",
         overrides(None, None, Vec::new()),
-        vec![TestValue::Struct(again), TestValue::Struct(dangling)],
+        vec![
+            TestValue::Struct(again),
+            TestValue::Struct(dangling),
+            TestValue::Struct(stray),
+            TestValue::Struct(organisations),
+        ],
         Vec::new(),
         0,
     )
@@ -356,11 +380,27 @@ fn template(
     kind: u128,
     properties: Vec<TestValue>,
 ) -> TestRecord {
+    template_at(
+        guid,
+        name,
+        &format!("contracts/contracttemplates/{name}"),
+        (title, kind),
+        properties,
+    )
+}
+
+fn template_at(
+    guid: u128,
+    name: &str,
+    path: &str,
+    (title, kind): (&str, u128),
+    properties: Vec<TestValue>,
+) -> TestRecord {
     TestRecord::new(
         guid,
         "ContractTemplate",
         format!("ContractTemplate.{name}"),
-        format!("libs/foundry/records/contracts/contracttemplates/{name}.xml"),
+        format!("libs/foundry/records/{path}.xml"),
     )
     .value(
         "contractDisplayInfo",
@@ -416,6 +456,13 @@ pub(super) fn referenced(builder: DataForgeBuilder) -> DataForgeBuilder {
             DELIVERY,
             Vec::new(),
         ),
+        template_at(
+            STRAY_TEMPLATE,
+            "stray",
+            "stray_template",
+            ("@title_plain", DELIVERY),
+            Vec::new(),
+        ),
         mission_type(DELIVERY, "delivery", "@type_delivery"),
         mission_type(BOUNTY, "bounty", "@type_bounty"),
         mission_type(ESCORT, "escort", "@type_escort"),
@@ -425,6 +472,18 @@ pub(super) fn referenced(builder: DataForgeBuilder) -> DataForgeBuilder {
         ),
         tag(TAG_TITLE, "Title"),
         tag(TAG_OTHER, "Other"),
+        plain_record(
+            SOLO_ORGANIZATION,
+            "MissionOrganization",
+            "missiondata/pu_organizations/solo",
+        )
+        .value(
+            "stringVariants",
+            TestValue::Struct(TestInstance::new("MissionStringVariants").value(
+                "variants",
+                TestValue::Array(vec![variant(TAG_OTHER, "@org_solo")]),
+            )),
+        ),
         plain_record(
             ORGANIZATION,
             "MissionOrganization",

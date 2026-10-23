@@ -12,6 +12,7 @@ use crate::mission_layers::{Property, items, key, one, properties};
 use crate::record_fields::{integer, reference};
 
 const TEMPLATES: &str = "libs/foundry/records/contracts/contracttemplates/";
+const TEMPLATE_TYPE: &str = "ContractTemplate";
 const TYPES: &str = "libs/foundry/records/missiontype/";
 const ORGANIZATIONS: &str = "libs/foundry/records/missiondata/pu_organizations/";
 const REWARDS: &str = "libs/foundry/records/reputation/rewards/missionrewards_reputation/";
@@ -157,11 +158,15 @@ impl<'f> MissionIndex<'f> {
     }
 
     /// Returns the localisation key of the string variant of organisation `organization` whose
-    /// tag is named `variant`, or, without a variant, of its first string variant.
+    /// tag is named `variant`, or, without a variant, of its only string variant; an organisation
+    /// with several states no choice then.
     pub(crate) fn variant(&self, organization: Guid, variant: Option<&str>) -> Option<&'f str> {
         let variants = self.organizations.get(&organization)?;
         let Some(name) = variant else {
-            return variants.first().map(|(_, key)| *key);
+            return match variants.as_slice() {
+                [(_, key)] => Some(*key),
+                _ => None,
+            };
         };
         variants
             .iter()
@@ -190,13 +195,13 @@ fn piece<'f>(
     ]
     .into_iter()
     .any(starts);
-    if !wanted {
+    if !wanted && record.type_name()? != TEMPLATE_TYPE {
         return Ok(None);
     }
     let tree = trees.build(record)?;
     let root = Some(tree.root());
     let guid = tree.guid();
-    Ok(Some(if starts(TEMPLATES) {
+    Ok(Some(if starts(TEMPLATES) || !wanted {
         Piece::Template(guid, template_of(root))
     } else if starts(TYPES) {
         Piece::Type(

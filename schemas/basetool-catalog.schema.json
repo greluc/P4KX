@@ -3071,7 +3071,7 @@
       "type": "object"
     },
     "Shop": {
-      "description": "A shop: one `ShopBackup` entry of the shop registry `Data\\Libs\\CosmoTools\\LayerRecovery\\\nLayerBackups.xml`, one placement of an `SCShop` Entity in the world. No prices, no stock and no\nitem list: the Archive's inventory files cannot be assigned to a shop reliably (ADR-0069).",
+      "description": "A shop: one `ShopBackup` entry of the shop registry `Data\\Libs\\CosmoTools\\LayerRecovery\\\nLayerBackups.xml`, one placement of an `SCShop` Entity in the world. No prices and no stock; the\nitem GUIDs come only from an inventory file that the shop containers name (ADR-0071).",
       "properties": {
         "body": {
           "description": "The second container, the body or jump point the shop is below (e.g.\n`OOC_Stanton_4_Microtech`, `pyro5`); `null` when the chain has none.",
@@ -3112,6 +3112,23 @@
         "entityName": {
           "description": "The name of the `SCShop` Entity, the last element of the registry's `SuperName`, e.g.\n`SCShop_CommEx_TDD_NewBabbage`. An internal name, not a localisation key.",
           "type": "string"
+        },
+        "inventory": {
+          "description": "The lower-case file stem of `Data\\Scripts\\ShopInventories\\<stem>.json` that the `.soc` of\nevery shop container naming `entityGuid` gives the `SCShop` component (ADR-0071); `null`\nwhen no container names a file, the containers disagree or the file is missing or\nunreadable.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "itemGuids": {
+          "description": "The `EntityClassDefinition` GUIDs of the items in that inventory file, lower case, ordered\nand without repeats; `null` exactly when `inventory` is. No price, stock or rental data.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
         },
         "key": {
           "description": "The identity: the `ID` chain of the registry entry, the `CryGUID`s of the containers from\nthe system root down to the `SCShop` Entity, comma separated. Unique in the catalog.",
@@ -3162,6 +3179,8 @@
         "defaultValue",
         "entityGuid",
         "entityName",
+        "inventory",
+        "itemGuids",
         "key",
         "kind",
         "location",

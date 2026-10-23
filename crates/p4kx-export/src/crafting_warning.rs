@@ -30,6 +30,15 @@ pub enum CraftingWarning {
     /// This many shop containers cannot be opened or their `entitycomponentshop.xml` cannot be
     /// read, so the shops they hold may lack kind and brand.
     UnreadableShopContainers(usize),
+    /// This many inventory files that shop containers name cannot be read, so the shops that use
+    /// them have no item list.
+    UnreadableShopInventories(usize),
+    /// This many distinct inventory files that shop containers name are not in the Archive, so
+    /// the shops that use them have no item list; the files may have moved in this Build.
+    MissingShopInventories(usize),
+    /// Shop containers name shops, but no `.soc` holds a shop component, so no shop has an item
+    /// list; the component layout may have changed in this Build.
+    NoShopComponents,
 }
 
 impl fmt::Display for CraftingWarning {
@@ -63,6 +72,17 @@ impl fmt::Display for CraftingWarning {
             Self::UnreadableShopContainers(count) => write!(
                 f,
                 "{count} shop containers cannot be read; the shops in them may lack kind and brand"
+            ),
+            Self::UnreadableShopInventories(count) => write!(
+                f,
+                "{count} shop inventory files cannot be read; the shops that use them have no item list"
+            ),
+            Self::MissingShopInventories(count) => write!(
+                f,
+                "{count} shop inventory files that shop containers name are not in the Archive; the shops that use them have no item list"
+            ),
+            Self::NoShopComponents => f.write_str(
+                "no shop component was found in the .soc files of the shop containers; no shop has an item list",
             ),
         }
     }

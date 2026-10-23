@@ -50,6 +50,10 @@ struct ShopsJson<'a> {
     with_kind: usize,
     mixed_kind: usize,
     without_container: usize,
+    with_items: usize,
+    inventory_ambiguous: usize,
+    inventory_missing: usize,
+    inventory_unreadable: usize,
     commodity_exchanges: usize,
     linked: usize,
     unlinked: usize,
@@ -72,6 +76,10 @@ impl<'a> From<&'a ShopSummary> for ShopsJson<'a> {
             with_kind: summary.with_kind,
             mixed_kind: summary.mixed_kind,
             without_container: summary.without_container,
+            with_items: summary.with_items,
+            inventory_ambiguous: summary.inventory_ambiguous,
+            inventory_missing: summary.inventory_missing,
+            inventory_unreadable: summary.inventory_unreadable,
             commodity_exchanges: summary.commodity_exchanges,
             linked: summary.linked,
             unlinked: summary.unlinked,
@@ -167,6 +175,7 @@ enum WarningJson {
     UnreadableShopRegistry,
     MissingShopRegistry,
     UnreadableShopContainers { count: usize },
+    UnreadableShopInventories { count: usize },
     Other { message: String },
 }
 
@@ -188,6 +197,9 @@ impl From<&CraftingWarning> for WarningJson {
             CraftingWarning::MissingShopRegistry => Self::MissingShopRegistry,
             CraftingWarning::UnreadableShopContainers(count) => {
                 Self::UnreadableShopContainers { count }
+            }
+            CraftingWarning::UnreadableShopInventories(count) => {
+                Self::UnreadableShopInventories { count }
             }
             ref other => Self::Other {
                 message: other.to_string(),

@@ -7,7 +7,8 @@ use crate::collected::Collected;
 use crate::contract::{Shop, StarmapObject};
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
-use crate::shop_containers::{Containers, Found};
+use crate::shop_containers::{Containers, Found, Inventory};
+use crate::shop_inventories::{Inventories, ItemList};
 use crate::shop_registry::{self, RegistryShop, clean, is_guid};
 use crate::shop_summary::ShopSummary;
 use crate::{CatalogError, CatalogOptions};
@@ -58,6 +59,13 @@ pub(crate) fn add_shops(
                 summary.containers_unreadable,
             ));
     }
+    if summary.inventories_unreadable > 0 {
+        collected
+            .warnings
+            .push(CraftingWarning::UnreadableShopInventories(
+                summary.inventories_unreadable,
+            ));
+    }
     collected.shops = built.shops;
     Ok(summary)
 }
@@ -101,15 +109,28 @@ pub(crate) fn shops(
     summary.containers_with_shop = containers.with_shop;
     summary.registry_entries = registry.len();
     let links = Links::new(starmap);
-    let shops = list(&registry, &containers, &links, &mut summary);
+    let inventories = Inventories::new(archive);
+    let lists: Lists<'_> = containers
+        .inventory_stems()
+        .into_iter()
+        .map(|stem| (stem, inventories.items(stem)))
+        .collect();
+    summary.inventories_unreadable = lists
+        .values()
+        .filter(|list| **list == ItemList::Unreadable)
+        .count();
+    let shops = list(&registry, &containers, &links, &lists, &mut summary);
     Ok(Built { shops, summary })
 }
+
+type Lists<'a> = HashMap<&'a str, ItemList>;
 
 /// Turns the registry entries into shops, ordered by key, and counts them in `summary`.
 fn list(
     registry: &[RegistryShop],
     containers: &Containers,
     links: &Links,
+    lists: &Lists<'_>,
     summary: &mut ShopSummary,
 ) -> Vec<Shop> {
     let mut seen: HashSet<String> = HashSet::new();
@@ -118,7 +139,7 @@ fn list(
     let mut systems: BTreeMap<String, usize> = BTreeMap::new();
     let mut kinds: BTreeMap<String, usize> = BTreeMap::new();
     for raw in registry {
-        let Some(shop) = shop(raw, containers, links) else {
+        let Some(shop) = shop(raw, containers, links, lists) else {
             summary.malformed += 1;
             continue;
         };
@@ -143,6 +164,15 @@ fn list(
             Found::Mixed => summary.mixed_kind += 1,
             Found::Nowhere => summary.without_container += 1,
         }
+        match (containers.inventory(&shop.entity_guid), &shop.item_guids) {
+            (_, Some(_)) => summary.with_items += 1,
+            (Inventory::Ambiguous, None) => summary.inventory_ambiguous += 1,
+            (Inventory::One(stem), None) => match lists.get(stem) {
+                Some(ItemList::Unreadable) => summary.inventory_unreadable += 1,
+                _ => summary.inventory_missing += 1,
+            },
+            (Inventory::None, None) => {}
+        }
         summary.commodity_exchanges += usize::from(shop.commodity_exchange);
         *systems.entry(shop.system.clone()).or_default() += 1;
         if let Some(kind) = &shop.kind {
@@ -158,7 +188,12 @@ fn list(
     built
 }
 
-fn shop(raw: &RegistryShop, containers: &Containers, links: &Links) -> Option<Shop> {
+fn shop(
+    raw: &RegistryShop,
+    containers: &Containers,
+    links: &Links,
+    lists: &Lists<'_>,
+) -> Option<Shop> {
     let ids: Vec<String> = raw
         .id
         .split(',')
@@ -184,6 +219,13 @@ fn shop(raw: &RegistryShop, containers: &Containers, links: &Links) -> Option<Sh
     let lower = entity_name.to_ascii_lowercase();
     let commodity_exchange = lower.starts_with(COMMEX_PREFIX)
         || (lower.starts_with(PLATINUMBAY_PREFIX) && lower.ends_with(COMMODITY_SUFFIX));
+    let (inventory, item_guids) = match containers.inventory(&entity_guid) {
+        Inventory::One(stem) => match lists.get(stem) {
+            Some(ItemList::Items(items)) => (Some(stem.to_owned()), Some(items.clone())),
+            _ => (None, None),
+        },
+        Inventory::None | Inventory::Ambiguous => (None, None),
+    };
     let non_empty = |text: &str| (!text.trim().is_empty()).then(|| text.trim().to_owned());
     let platform = raw.platform.to_ascii_lowercase();
     Some(Shop {
@@ -203,6 +245,8 @@ fn shop(raw: &RegistryShop, containers: &Containers, links: &Links) -> Option<Sh
         kind: class.map(|class| class.kind.clone()),
         brand: class.and_then(|class| class.brand.clone()),
         commodity_exchange,
+        inventory,
+        item_guids,
     })
 }
 
@@ -244,6 +288,8 @@ impl Links {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use p4kx_extraction::Guid;
 
     use super::{Links, RegistryShop, ShopSummary, list};
@@ -303,7 +349,14 @@ mod tests {
             entry("Nowhere", &id(3)),
         ];
         let mut summary = ShopSummary::default();
-        let shops = list(&registry, &Containers::default(), &links, &mut summary);
+        let lists = HashMap::new();
+        let shops = list(
+            &registry,
+            &Containers::default(),
+            &links,
+            &lists,
+            &mut summary,
+        );
         assert_eq!(shops.len(), 3);
         assert_eq!((summary.linked, summary.unlinked), (1, 2));
         assert_eq!(summary.ambiguous_link, 1, "only Spot is ambiguous");
@@ -321,7 +374,14 @@ mod tests {
         let broken = entry("Place", "not-a-guid");
         let registry = [upper, lower, broken];
         let mut summary = ShopSummary::default();
-        let shops = list(&registry, &Containers::default(), &links, &mut summary);
+        let lists = HashMap::new();
+        let shops = list(
+            &registry,
+            &Containers::default(),
+            &links,
+            &lists,
+            &mut summary,
+        );
         assert_eq!(shops.len(), 1, "the case-duplicate is dropped");
         assert_eq!((summary.duplicate, summary.malformed), (1, 1));
         let shop = &shops[0];

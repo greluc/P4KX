@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::io::Read;
+use std::path::Path;
 
 use p4kx_extraction::cryxml::{self, Xml};
 use p4kx_extraction::{Archive, CancelToken, Entry};
 use rayon::prelude::*;
 
 use crate::CatalogError;
+use crate::shop_soc;
 use crate::starmap_index::key;
 use crate::starmap_xml::{Node, attribute};
 
@@ -14,6 +16,7 @@ const LOC: &str = "data\\objectcontainers\\pu\\loc\\";
 const LOC_KINDS: [&str; 2] = ["shopcomm", "shopfood"];
 const SHOP_METADATA: &str = "\\metadata\\entitycomponentshop.xml";
 const MAX_METADATA_LEN: u64 = 1 << 20;
+const MAX_SOC_LEN: u64 = 64 << 20;
 
 /// The kind and the brand of a shop container, from its path.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -33,10 +36,30 @@ pub(crate) enum Found<'a> {
     Mixed,
 }
 
-/// The `SCShop` Entities of the shop containers with the kind and brand of their path.
+/// What the containers say of the inventory file of one `SCShop` Entity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Inventory<'a> {
+    /// No container that names the Entity names an inventory file.
+    None,
+    /// Every container that names the Entity names this file (lower-case stem).
+    One(&'a str),
+    /// The containers differ, or only some of them name a file.
+    Ambiguous,
+}
+
+type Shops = Vec<(String, Option<String>)>;
+
+#[derive(Debug, Default)]
+struct Named {
+    classes: Vec<Class>,
+    inventories: Vec<Option<String>>,
+}
+
+/// The `SCShop` Entities of the shop containers with the kind and brand of their path and the
+/// inventory file their parameters name.
 #[derive(Debug, Default)]
 pub(crate) struct Containers {
-    by_entity: HashMap<String, Vec<Class>>,
+    by_entity: HashMap<String, Named>,
     pub(crate) listed: usize,
     pub(crate) unreadable: usize,
     pub(crate) with_shop: usize,
@@ -54,7 +77,7 @@ impl Containers {
             .iter()
             .filter_map(|entry| classify(&key(entry.path())).map(|class| (entry, class)))
             .collect();
-        let read: Vec<Option<Vec<String>>> = listed
+        let read: Vec<Option<Shops>> = listed
             .par_iter()
             .map(|(entry, _)| {
                 if cancel.is_some_and(CancelToken::is_cancelled) {
@@ -78,10 +101,13 @@ impl Containers {
             if !entities.is_empty() {
                 containers.with_shop += 1;
             }
-            for entity in entities {
-                let classes = containers.by_entity.entry(entity).or_default();
-                if !classes.contains(&class) {
-                    classes.push(class.clone());
+            for (entity, inventory) in entities {
+                let named = containers.by_entity.entry(entity).or_default();
+                if !named.classes.contains(&class) {
+                    named.classes.push(class.clone());
+                }
+                if !named.inventories.contains(&inventory) {
+                    named.inventories.push(inventory);
                 }
             }
         }
@@ -93,12 +119,35 @@ impl Containers {
         match self
             .by_entity
             .get(&entity.to_ascii_lowercase())
-            .map(Vec::as_slice)
+            .map(|named| named.classes.as_slice())
         {
             None | Some([]) => Found::Nowhere,
             Some([class]) => Found::One(class),
             Some(_) => Found::Mixed,
         }
+    }
+
+    /// Returns the inventory file the containers name for the Entity with the `CryGUID` `entity`,
+    /// ignoring case.
+    pub(crate) fn inventory(&self, entity: &str) -> Inventory<'_> {
+        match self
+            .by_entity
+            .get(&entity.to_ascii_lowercase())
+            .map(|named| named.inventories.as_slice())
+        {
+            None | Some([] | [None]) => Inventory::None,
+            Some([Some(stem)]) => Inventory::One(stem),
+            Some(_) => Inventory::Ambiguous,
+        }
+    }
+
+    /// Returns the inventory file stems any container names, ordered.
+    pub(crate) fn inventory_stems(&self) -> BTreeSet<&str> {
+        self.by_entity
+            .values()
+            .flat_map(|named| named.inventories.iter().flatten())
+            .map(String::as_str)
+            .collect()
     }
 }
 
@@ -131,9 +180,10 @@ pub(crate) fn classify(path: &str) -> Option<Class> {
     })
 }
 
-/// Returns the `CryGUID`s `entitycomponentshop.xml` of the container `socpak` names, lower case;
-/// `None` when the container cannot be read.
-fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Vec<String>> {
+/// Returns the `CryGUID`s `entitycomponentshop.xml` of the container `socpak` names, lower case,
+/// each with the inventory file stem the `.soc` of the container names for it; `None` when the
+/// container cannot be read.
+fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Shops> {
     let container = archive.open_container(socpak).ok()?;
     let Some(metadata) = container.entries().iter().find(|inner| {
         let name = key(inner.path());
@@ -141,17 +191,43 @@ fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<Vec<String>> {
     }) else {
         return Some(Vec::new());
     };
-    if metadata.uncompressed_size() > MAX_METADATA_LEN {
+    let guids = entities(&read_limited(&container, metadata, MAX_METADATA_LEN)?)?;
+    let mut inventories: HashMap<String, String> = HashMap::new();
+    for inner in container.entries().iter().filter(|inner| {
+        Path::new(inner.path())
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("soc"))
+    }) {
+        let bytes = read_limited(&container, inner, MAX_SOC_LEN)?;
+        for component in shop_soc::components(&bytes) {
+            if let Some(stem) = component.inventory {
+                inventories.entry(component.entity).or_insert(stem);
+            }
+        }
+    }
+    Some(
+        guids
+            .into_iter()
+            .map(|guid| {
+                let inventory = inventories.get(&guid).cloned();
+                (guid, inventory)
+            })
+            .collect(),
+    )
+}
+
+fn read_limited(container: &Archive, entry: &Entry, limit: u64) -> Option<Vec<u8>> {
+    if entry.uncompressed_size() > limit {
         return None;
     }
     let mut bytes = Vec::new();
     container
-        .open_entry(metadata)
+        .open_entry(entry)
         .ok()?
-        .take(MAX_METADATA_LEN)
+        .take(limit)
         .read_to_end(&mut bytes)
         .ok()?;
-    entities(&bytes)
+    Some(bytes)
 }
 
 fn entities(bytes: &[u8]) -> Option<Vec<String>> {

@@ -5,8 +5,8 @@ use crate::contract::every_field_required;
 use crate::guid_text::CatalogGuid;
 
 /// A shop: one `ShopBackup` entry of the shop registry `Data\Libs\CosmoTools\LayerRecovery\
-/// LayerBackups.xml`, one placement of an `SCShop` Entity in the world. No prices, no stock and no
-/// item list: the Archive's inventory files cannot be assigned to a shop reliably (ADR-0069).
+/// LayerBackups.xml`, one placement of an `SCShop` Entity in the world. No prices and no stock; the
+/// item GUIDs come only from an inventory file that the shop containers name (ADR-0071).
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -54,4 +54,12 @@ pub(crate) struct Shop {
     /// Whether the shop is a commodity exchange or commodity terminal: `entityName` starts with
     /// `SCShop_CommEx_TDD_`, or starts with `SCShop_Platinumbay` and ends with `_Commodity`.
     pub(crate) commodity_exchange: bool,
+    /// The lower-case file stem of `Data\Scripts\ShopInventories\<stem>.json` that the `.soc` of
+    /// every shop container naming `entityGuid` gives the `SCShop` component (ADR-0071); `null`
+    /// when no container names a file, the containers disagree or the file is missing or
+    /// unreadable.
+    pub(crate) inventory: Option<String>,
+    /// The `EntityClassDefinition` GUIDs of the items in that inventory file, lower case, ordered
+    /// and without repeats; `null` exactly when `inventory` is. No price, stock or rental data.
+    pub(crate) item_guids: Option<Vec<String>>,
 }

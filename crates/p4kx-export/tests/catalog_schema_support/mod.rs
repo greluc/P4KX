@@ -231,7 +231,9 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
             "kind": "commex",
             "brand": "tdd",
-            "commodityExchange": true
+            "commodityExchange": true,
+            "inventory": "inv_commex_newbabbage",
+            "itemGuids": ["d195eb47-24b8-45c0-a4d0-1771d60dc1a8"]
         }]
     })
 }

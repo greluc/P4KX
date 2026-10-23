@@ -30,6 +30,9 @@ pub enum CraftingWarning {
     /// This many shop containers cannot be opened or their `entitycomponentshop.xml` cannot be
     /// read, so the shops they hold may lack kind and brand.
     UnreadableShopContainers(usize),
+    /// This many inventory files that shop containers name cannot be read, so the shops that use
+    /// them have no item list.
+    UnreadableShopInventories(usize),
 }
 
 impl fmt::Display for CraftingWarning {
@@ -63,6 +66,10 @@ impl fmt::Display for CraftingWarning {
             Self::UnreadableShopContainers(count) => write!(
                 f,
                 "{count} shop containers cannot be read; the shops in them may lack kind and brand"
+            ),
+            Self::UnreadableShopInventories(count) => write!(
+                f,
+                "{count} shop inventory files cannot be read; the shops that use them have no item list"
             ),
         }
     }

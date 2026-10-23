@@ -23,7 +23,7 @@
 //! The shops of the catalog are the `ShopBackup` entries of the registry
 //! `Data\Libs\CosmoTools\LayerRecovery\LayerBackups.xml`, with kind and brand from the shop
 //! containers and a link to the starmap object of their location ([`ShopSummary`] counts the
-//! result, ADR-0069).
+//! result, ADR-0069) and the item GUIDs of the inventory file their containers name (ADR-0071).
 //!
 //! [`build_ship_base`] reads the base data of every ship: hull mass and hit points from the
 //! vehicle implementation, cargo capacity from the cargo grids of the default Loadout, size and
@@ -104,7 +104,9 @@ mod selection;
 mod ship;
 mod ship_base;
 mod shop_containers;
+mod shop_inventories;
 mod shop_registry;
+mod shop_soc;
 mod shop_summary;
 mod shops;
 mod starmap;

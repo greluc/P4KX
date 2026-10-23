@@ -30,6 +30,17 @@ pub struct ShopSummary {
     pub mixed_kind: usize,
     /// The shops whose Entity no shop container names; kind and brand are `null`.
     pub without_container: usize,
+    /// The shops with an item list.
+    pub with_items: usize,
+    /// The shops whose Entity the containers name with differing inventory files, or only some
+    /// of them with one; they have no item list.
+    pub inventory_ambiguous: usize,
+    /// The shops whose named inventory file the Archive lacks.
+    pub inventory_missing: usize,
+    /// The shops whose named inventory file cannot be read.
+    pub inventory_unreadable: usize,
+    /// The distinct inventory files that cannot be read.
+    pub inventories_unreadable: usize,
     /// The commodity exchanges and commodity terminals.
     pub commodity_exchanges: usize,
     /// The shops linked to a starmap object by their location container.

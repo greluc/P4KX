@@ -1,0 +1,72 @@
+//! A synthetic Archive whose shop containers name inventory files in their `.soc`.
+
+use std::error::Error;
+use std::path::{Path, PathBuf};
+
+use p4kx_testkit::{TestContainer, TestElement, TestEntry};
+
+use crate::shops_fixture::{CLOTHING, EXCHANGE, FOOD, MIXED, REGISTRY, registry};
+use crate::starmap_fixture;
+
+const SHOPS: &str = "Data\\ObjectContainers\\PU\\Shops\\";
+const MODULE: &str = "Data\\ObjectContainers\\PU\\loc\\mod\\station\\util_a\\int\\module\\";
+const INVENTORIES: &str = "Data\\Scripts\\ShopInventories\\";
+
+pub(crate) const ITEM_A: &str = "d195eb47-24b8-45c0-a4d0-1771d60dc1a8";
+pub(crate) const ITEM_B: &str = "70a98c94-9252-4fd3-a673-5a584339e273";
+
+/// Builds the bytes of a `.soc` with one shop component for `entity`; `parameters` are the name
+/// and value strings that follow the component name.
+fn soc(entity: &str, parameters: &[&str]) -> Vec<u8> {
+    let mut bytes = b"CrChF\0SCShop\0".to_vec();
+    for part in [
+        "SCShop",
+        entity,
+        "EntityComponentShop",
+        "SShopComponentParams",
+    ] {
+        bytes.extend_from_slice(part.as_bytes());
+        bytes.push(0);
+    }
+    for part in parameters
+        .iter()
+        .chain(&["shopInventoryType", "ITEM", "ShopRackGUIDs", "tail"])
+    {
+        bytes.extend_from_slice(part.as_bytes());
+        bytes.push(0);
+    }
+    bytes
+}
+
+fn container(stem: &str, entity: &str, parameters: &[&str]) -> Vec<u8> {
+    let metadata = TestElement::new("EntityComponentShop")
+        .child(TestElement::new("Entity").attribute("CryGUID", entity))
+        .to_xml();
+    TestContainer::new()
+        .entry(TestEntry::stored(
+            format!("{stem}\\metadata\\entitycomponentshop.xml"),
+            metadata,
+        ))
+        .entry(TestEntry::stored(
+            format!("{stem}.soc"),
+            soc(entity, parameters),
+        ))
+        .build()
+}
+
+fn inventory(items: &[&str]) -> Vec<u8> {
+    let elements: Vec<String> = items
+        .iter()
+        .map(|item| {
+            format!(
+                r#"{{"ID":{{"ID":["{item}"]}},"BuyPrice":1.5,"SellPrice":0.0,"CurrentInventory":3.0,"MaxInventory":9.0,"RentalOfferings":[]}}"#
+            )
+        })
+        .collect();
+    format!(
+        r#"{{"ShopID":"x","Collection":{{"Inventory":[{}]}}}}"#,
+        elements.join(",")
+    )
+    .into_bytes()
+}
+

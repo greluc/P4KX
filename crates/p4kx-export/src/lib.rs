@@ -105,6 +105,7 @@ mod ship;
 mod ship_base;
 mod shop_containers;
 mod shop_inventories;
+mod shop_links;
 mod shop_registry;
 mod shop_soc;
 mod shop_summary;

@@ -6,9 +6,9 @@ use p4kx_extraction::{Archive, CancelToken};
 use crate::collected::Collected;
 use crate::contract::{Shop, StarmapObject};
 use crate::crafting_warning::CraftingWarning;
-use crate::guid_text::CatalogGuid;
 use crate::shop_containers::{Containers, Found, Inventory};
 use crate::shop_inventories::{Inventories, ItemList};
+use crate::shop_links::Links;
 use crate::shop_registry::{self, RegistryShop, clean, is_guid};
 use crate::shop_summary::ShopSummary;
 use crate::{CatalogError, CatalogOptions};
@@ -273,52 +273,17 @@ fn shop(
     })
 }
 
-/// The starmap objects by the lower-case names that place them.
-struct Links {
-    by_name: HashMap<String, Option<CatalogGuid>>,
-}
-
-impl Links {
-    fn new(starmap: &[StarmapObject<'_>]) -> Self {
-        let mut by_name: HashMap<String, Option<CatalogGuid>> = HashMap::new();
-        for object in starmap {
-            let names = [Some(object.class_name), object.entity_name.as_deref()];
-            for name in names.into_iter().flatten().filter(|name| !name.is_empty()) {
-                by_name
-                    .entry(name.to_ascii_lowercase())
-                    .and_modify(|held| {
-                        if *held != Some(object.guid) {
-                            *held = None;
-                        }
-                    })
-                    .or_insert(Some(object.guid));
-            }
-        }
-        Self { by_name }
-    }
-
-    fn find(&self, name: &str) -> Option<CatalogGuid> {
-        self.by_name
-            .get(&name.to_ascii_lowercase())
-            .copied()
-            .flatten()
-    }
-
-    fn is_ambiguous(&self, name: &str) -> bool {
-        matches!(self.by_name.get(&name.to_ascii_lowercase()), Some(None))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
     use p4kx_extraction::Guid;
 
-    use super::{Links, RegistryShop, ShopSummary, list};
+    use super::{RegistryShop, ShopSummary, list};
     use crate::contract::StarmapObject;
     use crate::guid_text::CatalogGuid;
     use crate::shop_containers::Containers;
+    use crate::shop_links::Links;
 
     const ROOT: &str = "4a269932-183e-362d-aacc-188e7debbea9";
     const BODY: &str = "4ce1f681-b479-5269-0536-3d7f02fdccaf";

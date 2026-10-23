@@ -163,7 +163,10 @@ pub struct ObjectCoverage {
     pub type_name: String,
     /// The `StarMapObject` Records, derived types included, whose type has that name.
     pub records: u64,
-    /// The export of the first such Record, or why it failed; `None` without Records.
+    /// Of `records`, those whose record path contains `template`, in any case.
+    pub templates: u64,
+    /// The export of the first such Record that is no template, or why it failed; `None` without
+    /// one.
     pub sample: Option<SampleExport>,
 }
 

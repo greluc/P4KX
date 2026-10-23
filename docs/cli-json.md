@@ -658,7 +658,8 @@ be searched for components; above 0 it makes `complete` false.
 | `area` | string | As above |
 | `name` | string | The `StarMapObjectType` name, e.g. `SolarSystem` |
 | `records` | number | The `StarMapObject` Records, derived types included, whose Reference `type` links to a `StarMapObjectType` Record of that name |
-| `sample` | object or null | The first such Record exported as Record XML and Record JSON; `null` without Records |
+| `templates` | number | Of `records`, those whose record path contains `template` (case-insensitive) |
+| `sample` | object or null | The first such Record that is no template, exported as Record XML and Record JSON; `null` without one |
 
 `entries` hold one object per Entry folder:
 

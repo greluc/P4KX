@@ -14,10 +14,12 @@ use crate::coverage_objects::{self, STAR_MAP_OBJECT, TypeSlots};
 
 const ENTITY_TYPE: &str = "EntityClassDefinition";
 const COMPONENTS: &str = "Components";
+const TEMPLATE: &str = "template";
 
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct Tally {
     pub(crate) records: u64,
+    pub(crate) templates: u64,
     unreadable: u64,
     errors: u64,
     pub(crate) sample: Option<u32>,
@@ -26,6 +28,7 @@ pub(crate) struct Tally {
 impl Tally {
     fn merge(&mut self, other: Self) {
         self.records += other.records;
+        self.templates += other.templates;
         self.unreadable += other.unreadable;
         self.errors += other.errors;
         self.sample = match (self.sample, other.sample) {
@@ -265,8 +268,19 @@ fn visit<'f>(forge: &'f DataForge<'f>, context: &Context<'_>, index: u32, pass: 
         && let Some(tally) = pass.objects.get_mut(slot)
     {
         tally.records += 1;
-        tally.sample = Some(tally.sample.map_or(index, |first| first.min(index)));
+        if is_template(tree.record_path()) {
+            tally.templates += 1;
+        } else {
+            tally.sample = Some(tally.sample.map_or(index, |first| first.min(index)));
+        }
     }
+}
+
+fn is_template(record_path: &str) -> bool {
+    record_path
+        .as_bytes()
+        .windows(TEMPLATE.len())
+        .any(|window| window.eq_ignore_ascii_case(TEMPLATE.as_bytes()))
 }
 
 fn tally_types(index: u32, read: Option<&RecordTree<'_>>, pass: &mut Pass<'_>) {

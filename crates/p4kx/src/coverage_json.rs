@@ -52,6 +52,7 @@ struct ObjectJson<'a> {
     area: &'a str,
     name: &'a str,
     records: u64,
+    templates: u64,
     sample: Option<SampleJson<'a>>,
 }
 
@@ -61,6 +62,7 @@ impl<'a> From<&'a ObjectCoverage> for ObjectJson<'a> {
             area: &found.area,
             name: &found.type_name,
             records: found.records,
+            templates: found.templates,
             sample: found.sample.as_ref().map(SampleJson::from),
         }
     }

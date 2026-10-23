@@ -55,8 +55,8 @@ fn print(coverage: &CoverageReport) {
     report("StarMapObject Records by StarMapObjectType");
     for found in &coverage.objects {
         report(&format!(
-            "  {:<12} {:<34} records {:>5}; sample {:?}",
-            found.area, found.type_name, found.records, found.sample,
+            "  {:<12} {:<34} records {:>5} templates {}; sample {:?}",
+            found.area, found.type_name, found.records, found.templates, found.sample,
         ));
     }
     for found in &coverage.entries {

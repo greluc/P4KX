@@ -33,7 +33,9 @@ prints the whole table before it asserts, and needs `P4KX_DATA_P4K`.
   select a field of it, as the examples below do.
 - **StarMapObject type**: how many `StarMapObject` Records, derived types included, have a
   Reference `type` to a `StarMapObjectType` Record with the listed name (its plain `name` field,
-  else its Record name), and that the first such Record writes as Record XML and Record JSON. A
+  else its Record name), and that the first such Record writes as Record XML and Record JSON.
+  Every Record counts, as in the Record type rows; Records whose record path contains `template`
+  are counted apart as `templates` and never chosen as the sample. A
   name without Records counts against the exit code like a missing Record type. A name such as
   `SolarSystem` is data of the type Record on LIVE 4.10, not a DataForge struct, so a `record` line
   would report a gap that is none.
@@ -110,8 +112,35 @@ LIVE 4.10. Counts change with every patch; `p4kx coverage <Data.p4k>` gives thos
 
 `SolarSystem` is not a DataForge struct on LIVE 4.10; Nyx, Pyro and Stanton are `StarMapObject`
 Records whose `StarMapObjectType` is named `SolarSystem`, so the list holds it as `starmap-type`
-(#465); expect 3 such Records on LIVE 4.10. The error values are tracked in #464. No Record failed
-to build and every sample exported as Record XML and Record JSON.
+(#465). Like the Record type rows it counts every Record, so LIVE 4.10 shows 4: the three systems
+and `libs/foundry/records/starmap/pu/solarsystem_template`; the table and the JSON give the
+template apart (`templates`), and the sample is never a template. No Record failed to build and
+every sample exported as Record XML and Record JSON.
+
+**Error values** (#464, LIVE 4.10): every error value of the listed types is a dangling
+Reference, a Reference to a GUID that no Record of the DataForge has. The reader resolves the
+other References of the same fields, so this is a property of the game data, not a reader bug.
+The Record exports with `error: …` at the place of the Reference, and a Query sees the value as
+an error.
+
+| Type | Field | Values | Records |
+| --- | --- | --- | --- |
+| `SLoadoutAssortment` | `GroupedLoadouts[].Loadouts[].loadoutRecord` (105), `….entries[].loadout.entries[].loadout.entries[].entityClassReference` (2) | 107 | 16 |
+| `AIWaveCollection` | `waves[].members[].entityClassDefinition` | 35 | 4 |
+| `MissionBrokerEntry` | `owner` | 13 | 13 |
+| `MissionLocationTemplate` | `locationData.entityClusterMember` | 10 | 10 |
+| `ResourceType` | `defaultCargoContainers.<size>SCU`, seven sizes | 7 | 1 |
+| `StarMapObject` | `parent` | 3 | 3 |
+| `MissionItem` | `entityClass` | 2 | 2 |
+| `ContractGenerator` | `generators[].contracts[].template` | 2 | 1 |
+| `Faction` | `factionReputationRef` | 1 | 1 |
+| `CraftingBlueprintRecord` | `blueprint.processSpecificData.entityClass` | 1 | 1 |
+| `SCItemManufacturer` | `DashboardCanvasConfig` | 1 | 1 |
+
+The ceilings in `crates/p4kx-extraction/tests/real_archive/coverage.rs` equal these counts, so
+a new dangling Reference or a repaired one fails the test. The survey that produced the table is
+the ignored test `error_values_of_the_reference_types_are_surveyed`; `p4kx dcb refs --unresolved`
+lists the same References.
 
 **Components** (`EntityClassDefinition` Records with the component or a struct deriving from it;
 instances equal Records on LIVE 4.10)

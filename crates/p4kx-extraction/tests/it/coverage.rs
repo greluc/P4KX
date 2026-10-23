@@ -54,6 +54,7 @@ fn star_map(builder: DataForgeBuilder) -> DataForgeBuilder {
         .structure(TestStruct::new("DerivedStarMapObject").parent("StarMapObject"))
         .record(kind(20, "SolarSystem"))
         .record(kind(21, "Planet"))
+        .record(object(19, "StarMapObject", "SolarSystem_Template", 20))
         .record(object(22, "StarMapObject", "stanton", 20))
         .record(object(23, "DerivedStarMapObject", "pyro", 20))
         .record(object(24, "StarMapObject", "hurston", 21))
@@ -215,11 +216,15 @@ fn starmap_objects_are_counted_by_the_name_of_their_type() -> TestResult {
     };
     assert_eq!(system.type_name, "SolarSystem");
     assert_eq!(
-        system.records, 2,
-        "the derived struct counts, the Planet does not"
+        (system.records, system.templates),
+        (3, 1),
+        "the derived struct and the template count, the Planet does not"
     );
     let sample = system.sample.as_ref().ok_or("a sample")?;
-    assert_eq!(sample.record_path, "libs/starmap/stanton");
+    assert_eq!(
+        sample.record_path, "libs/starmap/stanton",
+        "never the template"
+    );
     assert!(sample.error.is_none());
     assert_eq!((nowhere.records, nowhere.sample.is_none()), (0, true));
     assert!(!report.is_complete());

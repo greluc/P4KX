@@ -121,8 +121,8 @@ fn objects(out: &mut impl Write, report: &CoverageReport) -> io::Result<()> {
             .map_or_else(|| "no Records".to_owned(), sample_note);
         writeln!(
             out,
-            "  {:<12} {:<34} {:>8} Records; {note}",
-            found.area, found.type_name, found.records,
+            "  {:<12} {:<34} {:>8} Records, {} templates; {note}",
+            found.area, found.type_name, found.records, found.templates,
         )?;
     }
     Ok(())

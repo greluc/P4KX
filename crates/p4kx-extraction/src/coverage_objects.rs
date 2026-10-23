@@ -83,6 +83,7 @@ pub(crate) fn coverage(
                 area: item.area.to_owned(),
                 type_name: item.name.to_owned(),
                 records: tally.records,
+                templates: tally.templates,
                 sample: tally.sample.map(|index| sample(forge, index)),
             }
         })

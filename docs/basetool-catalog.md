@@ -1182,33 +1182,46 @@ the `shopcomm` and `shopfood` folders below `PU\loc` and reads `metadata\entityc
 
 **Items** (ADR-0071). The inventory files `Data\Scripts\ShopInventories\*.json` list item GUIDs of
 `EntityClassDefinition` Records. The `ShopID` chain inside a file is no link to a shop (ADR-0069).
-The link is set on the shop side: the `.soc` of a shop container holds the `SCShop` component of the
+The link is set on the shop side: the `.soc` of a container holds the `SCShop` component of the
 Entity (`EntityComponentShop`, `SShopComponentParams`) with the parameter `offlineInventoryJSON` or
-`offlineInventoryXMLName`, whose value is a path of an inventory file. The catalog reads it for
-every container it already opens for kind and brand. A shop gets an item list when every container
-that names its `entityGuid` names the same file (compared by lower-case stem; `.xml` and `.json`
-name the same file) and the Archive holds it. Several `.soc` files of one container follow the
-same rule. A `.soc` that cannot be read leaves only the inventory of its container unknown; kind
-and brand do not depend on it.
+`offlineInventoryXMLName`, whose value is a path of an inventory file. The file stores each string
+once, so a later component of a file repeats neither the component name nor, often, the GUID of its
+Entity; the catalog ties a path to the Entity whose `CryGUID` (`entitycomponentshop.xml`) or object
+name (`<container>_editor.xml`) is the closest anchor before it, with only known structure strings
+in between (at most one position, and a GUID only right behind `SCShop`), and leaves everything else unknown (ADR-0073). It reads the `.soc` of every socpak below
+`PU` and `EA`; kind and brand still come from the shop folders only. The `offlineInventory*`
+attributes of the shop prefabs below `Data\Prefabs\Shops` name the Entity through its editor `Id`,
+which is the container `CryGUID` with the bytes reordered; a prefab is one more place. A shop gets an
+item list when every place that names its `entityGuid` names the same file (compared by lower-case
+stem; `.xml` and `.json` name the same file), the Archive holds it and it is no placeholder. Several
+`.soc` files of one container follow the same rule. A `.soc` that cannot be read leaves only the
+inventory of its container unknown; kind and brand do not depend on it.
 
 | Field | Source |
 |-------|--------|
-| `inventory` | The lower-case stem of that file, e.g. `inv_admin_newbabbage`; `null` when no container names a file, the containers disagree (or only some name one) or the file is missing or unreadable |
+| `inventory` | The lower-case stem of that file, e.g. `inv_admin_newbabbage`; `null` when no place names a file, the places disagree (or only some name one), the file is a placeholder, or the file is missing or unreadable |
 | `itemGuids` | The `ID.ID` GUIDs of the elements of the file (`Collection.Inventory`, or `Inventory` in the shape without `Collection`), lower case, ordered, without repeats, and possibly `[]` for a file without items; an `ID` value that is no GUID is left out and counted in `item_ids_dropped`; `null` exactly when `inventory` is. `BuyPrice`, `SellPrice`, `CurrentInventory`, `MaxInventory` and `RentalOfferings` are never read or exported |
 
-`ShopSummary` counts `with_items`, `inventory_ambiguous`, `inventory_unscanned` (no container has
-the component in a readable `.soc`: nothing is known, which differs from a component that names no
-file), `inventory_missing` and `inventory_unreadable` (shops), `soc_components` (found components),
-`inventories_missing`, `inventories_unreadable` (files) and `item_ids_dropped`. On LIVE (Build
-4.10.197) 331 of the 1,184 shops get an item list (Stanton 208, Pyro 123) from 28 distinct files;
-28 shops have ambiguous containers, 144 are unscanned (128 components were found; for the others
-the `.soc` holds no component or one with a different CryGUID than `entitycomponentshop.xml`) and
-no named file is missing or unreadable. 2,192 of the 2,219 item GUIDs of those files (distinct per file) are the `guid` of an
-entry of `items`, `ships`, `commodities`, `paints` or `loadouts`. 173 of the shops share
-`temp_outpost_shopinventory`, a placeholder list that the designers set on the rest-stop bars. The
-other 91 files of the 119 are named by no container the catalog opens (event sales, city and
-station shops in other containers); those shops have no item list. Prices, stock and demand stay
-server-side and are never exported.
+The placeholders are `temp_outpost_shopinventory` (the same six commodities for bars, refineries,
+showrooms and an expo hall; 264 shops) and `inv_cryastro_dummy` (three GUIDs no Record has; 136
+shops): they say nothing of what a shop sells, so those shops have no list
+(`inventory_placeholder`).
+
+`ShopSummary` counts `with_items`, `inventory_ambiguous`, `inventory_placeholder`,
+`inventory_unscanned` (no place has the component in a readable `.soc`: nothing is known, which
+differs from a component that names no file), `inventory_missing` and `inventory_unreadable`
+(shops), `soc_components` (found components), `inventories_named` and `inventories_in_archive`,
+`inventories_missing`, `inventories_unreadable` (files), `item_ids_dropped`, and the containers
+(`other_containers_*`) and prefabs (`prefabs_*`, `prefab_entities`) read besides the shop folders.
+On LIVE (Build 4.10.197) 294 of the 1,184 shops get an item list (Stanton 275, Pyro 19) from 33
+distinct files; 399 shops name a placeholder, 43 have ambiguous places, 64 are unscanned and one
+names an empty file. 57 of the 119 inventory files are named by a container or prefab; the other 62
+(event sales, `mining_*`, most landing-service, city and station shop files) are named by nothing
+in the Archive and by no Record, and the `ShopID` they carry is a stale design-time value, so those
+shops have no item list. 2,395 of the 2,422 item GUIDs of the exported files (distinct per file) are
+the `guid` of an entry of `items`, `ships`, `commodities`, `paints` or `loadouts`; the other 27 (all
+21 of `inv_commex_tdd_area18`, 6 of `inv_astroarmada_area18`) are no Record of the DataForge. Prices,
+stock and demand are never exported.
 
 **Filter.** Shops are selected by no record path. With a Filter no shop is read and `shops` is empty
 with the status `partial`.

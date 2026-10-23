@@ -6,13 +6,14 @@ use std::error::Error;
 use std::time::SystemTime;
 
 use p4kx_export::{CatalogOptions, build_catalog};
-use p4kx_extraction::Archive;
+use p4kx_extraction::{Archive, DataForgeEntry, Guid};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const KINDS_WITH_ITEMS: [&str; 5] = ["items", "ships", "commodities", "paints", "loadouts"];
+const PLACEHOLDERS: [&str; 2] = ["temp_outpost_shopinventory", "inv_cryastro_dummy"];
 
 fn guids_of(catalog: &Value) -> HashSet<&str> {
     KINDS_WITH_ITEMS
@@ -41,21 +42,55 @@ fn shops_get_item_lists_from_the_inventories_their_containers_name() -> TestResu
         .iter()
         .filter(|shop| !shop["itemGuids"].is_null())
         .collect();
-    let mut by_inventory: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut by_inventory: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for shop in &with {
-        *by_inventory
+        by_inventory
             .entry(shop["inventory"].as_str().unwrap_or("(none)"))
-            .or_default() += 1;
+            .or_default()
+            .push(shop["entityName"].as_str().unwrap_or_default());
     }
     println!(
-        "== shops with an item list {} of {}; distinct inventories {}",
+        "== shops with an item list {} of {}; distinct inventories {} of {} files in the Archive ({} named by containers or prefabs, placeholders included)",
         with.len(),
         shops.len(),
-        by_inventory.len()
+        by_inventory.len(),
+        summary.inventories_in_archive,
+        summary.inventories_named
     );
-    for (name, count) in &by_inventory {
-        println!("   {name}: {count} shops");
+    for (name, entities) in &by_inventory {
+        println!("   {name}: {} shops", entities.len());
     }
+    let mut pairs: Vec<(&str, &str, &str)> = with
+        .iter()
+        .map(|shop| {
+            (
+                shop["entityName"].as_str().unwrap_or_default(),
+                shop["location"].as_str().unwrap_or_default(),
+                shop["inventory"].as_str().unwrap_or_default(),
+            )
+        })
+        .collect();
+    pairs.sort_unstable();
+    pairs.dedup();
+    println!("== shop (location) -> file, {} distinct pairs", pairs.len());
+    for (name, location, file) in &pairs {
+        println!("   {name} ({location}) -> {file}");
+    }
+    println!(
+        "== soc paths without an Entity {}; prefab Entities {} of which ambiguous {}; shops listed by a prefab alone {}",
+        summary.soc_paths_unattributed,
+        summary.prefab_entities,
+        summary.prefab_ambiguous,
+        summary.prefab_only_shops
+    );
+    println!(
+        "== not exported: {} shops name a placeholder, {} are ambiguous, {} unscanned, {} name a file that is missing, {} an unreadable one",
+        summary.inventory_placeholder,
+        summary.inventory_ambiguous,
+        summary.inventory_unscanned,
+        summary.inventory_missing,
+        summary.inventory_unreadable
+    );
     let known = guids_of(&catalog);
     let mut total = 0_usize;
     let mut resolved = 0_usize;
@@ -81,9 +116,30 @@ fn shops_get_item_lists_from_the_inventories_their_containers_name() -> TestResu
         "== item GUIDs over distinct inventories: {total}, found in items/ships/commodities/paints/loadouts: {resolved}, distinct not found: {}, empty lists: {empty}",
         unresolved.len()
     );
-    for item in unresolved.iter().take(40) {
-        println!("   not found {item}");
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut records = 0_usize;
+    for item in &unresolved {
+        match item
+            .parse::<Guid>()
+            .ok()
+            .and_then(|guid| forge.record_by_guid(guid))
+        {
+            Some(record) => {
+                records += 1;
+                println!(
+                    "   not in the catalog {item}: Record {} {}",
+                    record.type_name().unwrap_or("?"),
+                    record.name().unwrap_or("?")
+                );
+            }
+            None => println!("   not in the catalog {item}: no Record has the GUID"),
+        }
     }
+    println!(
+        "== of the {} GUIDs not in the catalog {records} are a Record of another type",
+        unresolved.len()
+    );
     let by_system: BTreeMap<&str, usize> = with.iter().fold(BTreeMap::new(), |mut counts, shop| {
         *counts
             .entry(shop["system"].as_str().unwrap_or("(none)"))
@@ -100,12 +156,19 @@ fn shops_get_item_lists_from_the_inventories_their_containers_name() -> TestResu
     ] {
         assert!(!text.contains(field), "{field} leaked into the shops");
     }
+    for name in by_inventory.keys() {
+        assert!(!PLACEHOLDERS.contains(name), "{name} is a placeholder");
+    }
     assert!(summary.with_items > 0, "{summary:?}");
     assert_eq!(summary.with_items, with.len());
-    assert_eq!(summary.inventory_unreadable, 0, "{summary:?}");
-    assert_eq!(summary.inventory_missing, 0, "{summary:?}");
+    assert!(summary.with_items >= 250, "{summary:?}");
+    assert!(summary.inventory_placeholder > 0, "{summary:?}");
+    assert!(summary.inventory_unscanned < 144, "{summary:?}");
+    assert_eq!(summary.other_containers_unreadable, 0, "{summary:?}");
+    assert_eq!(summary.prefabs_unreadable, 0, "{summary:?}");
     assert_eq!(summary.inventories_missing, 0, "{summary:?}");
     assert!(summary.soc_components > 0, "{summary:?}");
     assert!(resolved * 10 >= total * 9, "{resolved} of {total} resolve");
+    assert_eq!(records, 0, "an unknown GUID is a Record");
     Ok(())
 }

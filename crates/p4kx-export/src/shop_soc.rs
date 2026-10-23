@@ -1,224 +1,246 @@
+use std::collections::{HashMap, HashSet, VecDeque};
+
 use crate::shop_registry::is_guid;
 
-const MARK: &[u8] = b"\0EntityComponentShop\0";
-const PARAMS: &[u8] = b"SShopComponentParams\0";
-const GUID_LEN: usize = 36;
-const WINDOW: usize = 512;
-const ENDS: [&[u8]; 4] = [
-    b"ShopRackGUIDs",
-    b"ShopKioskGUIDs",
-    b"LandingAreaNodeGUIDs",
+const MARK: &str = "EntityComponentShop";
+const PROPERTY: &str = "offlineInventory";
+const KNOWN: [&str; 10] = [
+    "SCShop",
     MARK,
+    "SShopComponentParams",
+    "PropertiesDataCore",
+    "__fullyInstanced",
+    "__version",
+    "__type",
+    "CastShadowMinSpec",
+    "AllowBakedRendering",
+    "RenderProxy",
 ];
-const PROPERTY: &[u8] = b"offlineInventory";
 const MAX_PATH_LEN: usize = 256;
+const MAX_BACK: usize = 12;
 
-/// One `EntityComponentShop` of a container's `.soc`: the `SCShop` Entity and the inventory file
-/// its parameters name.
+/// The identifiers a shop component can be tied to inside one container: the `CryGUID`s of its
+/// `entitycomponentshop.xml` and the names of its `SCShop` objects, both of which the container
+/// states for the same Entities.
+#[derive(Debug, Default)]
+pub(crate) struct Anchors {
+    guids: HashSet<String>,
+    names: HashMap<String, String>,
+}
+
+impl Anchors {
+    /// Anchors for the lower-case `guids`, with the `names` of the objects that are unique in the
+    /// container, each mapped to its lower-case `CryGUID`.
+    pub(crate) fn new(guids: &[String], names: HashMap<String, String>) -> Self {
+        let guids: HashSet<String> = guids.iter().cloned().collect();
+        let names = names
+            .into_iter()
+            .filter(|(_, guid)| guids.contains(guid))
+            .collect();
+        Self { guids, names }
+    }
+
+    fn entity(&self, text: &str) -> Option<String> {
+        if let Some(guid) = self.names.get(text) {
+            return Some(guid.clone());
+        }
+        if is_guid(text) {
+            let lower = text.to_ascii_lowercase();
+            return self.guids.contains(&lower).then_some(lower);
+        }
+        None
+    }
+}
+
+/// One shop component found in a container's `.soc`: the Entity it belongs to and the inventory
+/// file its parameters name.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ShopComponent {
     pub(crate) entity: String,
     pub(crate) inventory: Option<String>,
 }
 
-/// Returns the shop components of the container file `bytes`, in file order. The `CryGUID` of the
-/// Entity stands right before the component name; the parameters, when the component has any,
-/// follow `SShopComponentParams` as name and value strings up to the rack, kiosk or landing area
-/// lists or the next component. `inventory` is the lower-case file stem of the first
-/// `offlineInventory*` value that names a `.json` or `.xml` file, `None` when there is none.
-pub(crate) fn components(bytes: &[u8]) -> Vec<ShopComponent> {
-    let mut found = Vec::new();
-    let mut from = 0;
-    while let Some(relative) = bytes.get(from..).and_then(|rest| find(rest, MARK)) {
-        let at = from + relative;
-        from = at + MARK.len();
-        let Some(entity) = at
-            .checked_sub(GUID_LEN)
-            .and_then(|start| bytes.get(start..at))
-            .and_then(|text| std::str::from_utf8(text).ok())
-            .filter(|text| is_guid(text))
-        else {
-            continue;
-        };
-        let rest = bytes.get(from..).unwrap_or_default();
-        let window = rest.get(..WINDOW.min(rest.len())).unwrap_or_default();
-        let inventory = window.strip_prefix(PARAMS).and_then(|parameters| {
-            let end = ENDS
-                .iter()
-                .filter_map(|end| find(parameters, end))
-                .min()
-                .unwrap_or(parameters.len());
-            inventory_stem(parameters.get(..end)?)
-        });
-        found.push(ShopComponent {
-            entity: entity.to_ascii_lowercase(),
-            inventory,
-        });
-    }
-    found
+/// What reading one container file found.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub(crate) struct Scan {
+    pub(crate) components: Vec<ShopComponent>,
+    /// The inventory paths no anchor could be tied to.
+    pub(crate) rejected: usize,
 }
 
-fn inventory_stem(window: &[u8]) -> Option<String> {
-    let mut from = 0;
-    while let Some(relative) = window.get(from..).and_then(|rest| find(rest, PROPERTY)) {
-        from += relative + PROPERTY.len();
-        if let Some(stem) = window.get(from..).and_then(value_stem) {
-            return Some(stem);
+/// Returns the shop components of the container file `bytes` that belong to an Entity of
+/// `anchors`.
+///
+/// The file stores its strings once, in order of first use, so a later component repeats neither
+/// the component name nor the property names. The inventory path is the value that follows an
+/// `offlineInventory*` property name, or, where that name is not repeated, a path in a
+/// `ShopInventories` folder; it belongs to the Entity whose `CryGUID` or object name is the
+/// closest anchor before it, provided only the component name (once), the parameter type,
+/// property names, class names, one position and, directly after `SCShop`, the class GUID stand
+/// between them. A path with anything else in between is counted in `rejected` and its Entity
+/// stays unknown. A component name before which such an anchor stands and for which no path was
+/// found names no inventory, unless a path close behind it was rejected: then nothing is known.
+pub(crate) fn components(bytes: &[u8], anchors: &Anchors) -> Scan {
+    if !contains(bytes, PROPERTY.as_bytes()) && !contains(bytes, MARK.as_bytes()) {
+        return Scan::default();
+    }
+    let mut window: VecDeque<&str> = VecDeque::with_capacity(MAX_BACK);
+    let mut state = State::default();
+    for (at, part) in bytes.split(|&byte| byte == 0).enumerate() {
+        let text = std::str::from_utf8(part).unwrap_or_default();
+        if text == MARK {
+            state.mark(at, owner(&window, anchors));
+        } else if let Some(stem) = inventory_stem(text)
+            && (is_inventory_folder(text) || window.back().is_some_and(|last| is_property(last)))
+        {
+            state.path(at, stem, owner(&window, anchors));
+        }
+        if window.len() == MAX_BACK {
+            window.pop_front();
+        }
+        window.push_back(text);
+    }
+    state.finish()
+}
+
+#[derive(Default)]
+struct State {
+    found: Vec<ShopComponent>,
+    uncertain: HashSet<usize>,
+    last_mark: Option<(usize, usize)>,
+    rejected: usize,
+}
+
+impl State {
+    fn mark(&mut self, at: usize, owner: Option<String>) {
+        let Some(entity) = owner else {
+            return;
+        };
+        let index = self
+            .found
+            .iter()
+            .position(|component| component.entity == entity)
+            .unwrap_or_else(|| {
+                self.found.push(ShopComponent {
+                    entity,
+                    inventory: None,
+                });
+                self.found.len() - 1
+            });
+        self.last_mark = Some((index, at));
+    }
+
+    fn path(&mut self, at: usize, stem: String, owner: Option<String>) {
+        let Some(entity) = owner else {
+            self.rejected += 1;
+            if let Some((index, mark)) = self.last_mark
+                && at - mark <= MAX_BACK
+            {
+                self.uncertain.insert(index);
+            }
+            return;
+        };
+        match self
+            .found
+            .iter_mut()
+            .find(|component| component.entity == entity && component.inventory.is_none())
+        {
+            Some(component) => component.inventory = Some(stem),
+            None => self.found.push(ShopComponent {
+                entity,
+                inventory: Some(stem),
+            }),
+        }
+    }
+
+    fn finish(self) -> Scan {
+        let components = self
+            .found
+            .into_iter()
+            .enumerate()
+            .filter(|(index, component)| {
+                component.inventory.is_some() || !self.uncertain.contains(index)
+            })
+            .map(|(_, component)| component)
+            .collect();
+        Scan {
+            components,
+            rejected: self.rejected,
+        }
+    }
+}
+
+fn owner(window: &VecDeque<&str>, anchors: &Anchors) -> Option<String> {
+    let (mut positions, mut marks) = (0_usize, 0_usize);
+    for at in (0..window.len()).rev() {
+        let text = *window.get(at)?;
+        if let Some(entity) = anchors.entity(text) {
+            return Some(entity);
+        }
+        if text == MARK {
+            marks += 1;
+            if marks > 1 {
+                return None;
+            }
+        } else if is_guid(text) {
+            let class = at
+                .checked_sub(1)
+                .and_then(|before| window.get(before))
+                .is_some_and(|before| *before == "SCShop");
+            if !class {
+                return None;
+            }
+        } else if is_position(text) {
+            positions += 1;
+            if positions > 1 {
+                return None;
+            }
+        } else if !(text.starts_with(PROPERTY) || KNOWN.contains(&text)) {
+            return None;
         }
     }
     None
 }
 
-fn value_stem(rest: &[u8]) -> Option<String> {
-    let name_end = rest.iter().position(|&byte| byte == 0)?;
-    if !rest.get(..name_end)?.iter().all(u8::is_ascii_alphabetic) {
-        return None;
-    }
-    let value = rest.get(name_end + 1..)?;
-    let value = value.get(..value.iter().position(|&byte| byte == 0)?)?;
+fn is_property(text: &str) -> bool {
+    text.strip_prefix(PROPERTY)
+        .is_some_and(|rest| rest.bytes().all(|byte| byte.is_ascii_alphabetic()))
+}
+
+fn is_inventory_folder(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    lower.contains("shopinventories/") || lower.contains("shopinventories\\")
+}
+
+fn is_position(text: &str) -> bool {
+    text.bytes().any(|byte| byte.is_ascii_digit())
+        && text.bytes().any(|byte| matches!(byte, b'.' | b','))
+        && text
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || matches!(byte, b'-' | b'+' | b'.' | b',' | b'e'))
+}
+
+/// Returns the lower-case file stem of an inventory file `value`, a path ending in `.json` or
+/// `.xml`; `None` for anything else.
+pub(crate) fn inventory_stem(value: &str) -> Option<String> {
     if value.len() > MAX_PATH_LEN
         || !value
-            .iter()
-            .all(|&byte| byte.is_ascii_graphic() || byte == b' ')
+            .bytes()
+            .all(|byte| byte.is_ascii_graphic() || byte == b' ')
     {
         return None;
     }
-    let path = std::str::from_utf8(value).ok()?;
-    let file = path.rsplit(['/', '\\']).next()?;
+    let file = value.rsplit(['/', '\\']).next()?;
     let (stem, extension) = file.rsplit_once('.')?;
     let known = extension.eq_ignore_ascii_case("json") || extension.eq_ignore_ascii_case("xml");
     (known && !stem.is_empty()).then(|| stem.to_ascii_lowercase())
 }
 
-fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+fn contains(haystack: &[u8], needle: &[u8]) -> bool {
     haystack
         .windows(needle.len())
-        .position(|window| window == needle)
+        .any(|window| window == needle)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::components;
-
-    const ENTITY: &str = "4dce4077-9730-ac77-5074-916b3b2700b7";
-    const OTHER: &str = "4a000000-0000-4000-8000-0000000000aa";
-
-    fn push(bytes: &mut Vec<u8>, parts: &[&str]) {
-        for part in parts {
-            bytes.extend_from_slice(part.as_bytes());
-            bytes.push(0);
-        }
-    }
-
-    fn component(entity: &str, parameters: &[&str], end: &str) -> Vec<u8> {
-        let mut bytes = b"junk\0SCShop\0".to_vec();
-        push(
-            &mut bytes,
-            &[entity, "EntityComponentShop", "SShopComponentParams"],
-        );
-        push(&mut bytes, parameters);
-        push(&mut bytes, &[end, "tail"]);
-        bytes
-    }
-
-    #[test]
-    fn the_inventory_stem_is_lower_case_without_folder_and_extension() {
-        for value in [
-            "Data/scripts/shopinventories/Inv_Admin_GrimHex.json",
-            "Scripts\\ShopInventories\\inv_admin_grimhex.xml",
-        ] {
-            let bytes = component(ENTITY, &["offlineInventoryJSON", value], "ShopRackGUIDs");
-            let found = components(&bytes);
-            assert_eq!(found.len(), 1);
-            assert_eq!(found[0].entity, ENTITY);
-            assert_eq!(found[0].inventory.as_deref(), Some("inv_admin_grimhex"));
-        }
-    }
-
-    #[test]
-    fn a_component_without_a_value_names_no_inventory() {
-        let bytes = component(
-            ENTITY,
-            &[
-                "offlineInventoryJSON",
-                "eventSignalRadius",
-                "franchise",
-                "x",
-            ],
-            "ShopKioskGUIDs",
-        );
-        assert_eq!(components(&bytes)[0].inventory, None);
-        let plain = component(
-            ENTITY,
-            &["shopInventoryType", "ITEM"],
-            "LandingAreaNodeGUIDs",
-        );
-        assert_eq!(components(&plain)[0].inventory, None);
-    }
-
-    #[test]
-    fn an_empty_json_value_does_not_hide_the_xml_name_behind_it() {
-        let bytes = component(
-            ENTITY,
-            &[
-                "offlineInventoryJSON",
-                "offlineInventoryXMLName",
-                "Scripts/ShopInventories/Inv_Late.xml",
-            ],
-            "ShopRackGUIDs",
-        );
-        assert_eq!(components(&bytes)[0].inventory.as_deref(), Some("inv_late"));
-    }
-
-    #[test]
-    fn a_value_behind_the_end_marker_is_not_the_components() {
-        let mut bytes = component(ENTITY, &["shopInventoryType", "ITEM"], "ShopRackGUIDs");
-        bytes.extend_from_slice(b"offlineInventoryJSON\0Data/inv_other.json\0");
-        assert_eq!(components(&bytes)[0].inventory, None);
-    }
-
-    #[test]
-    fn a_value_of_the_next_adjacent_component_is_not_the_previous_ones() {
-        let mut bytes = b"junk\0".to_vec();
-        push(
-            &mut bytes,
-            &[
-                ENTITY,
-                "EntityComponentShop",
-                "SShopComponentParams",
-                "shopInventoryType",
-                "ITEM",
-                OTHER,
-                "EntityComponentShop",
-                "SShopComponentParams",
-                "offlineInventoryJSON",
-                "Data/inv_second.json",
-            ],
-        );
-        let found = components(&bytes);
-        assert_eq!(found.len(), 2);
-        assert_eq!(found[0].inventory, None);
-        assert_eq!(found[1].entity, OTHER);
-        assert_eq!(found[1].inventory.as_deref(), Some("inv_second"));
-    }
-
-    #[test]
-    fn a_component_without_parameters_is_found_and_names_no_inventory() {
-        let mut bytes = b"junk\0".to_vec();
-        push(
-            &mut bytes,
-            &[ENTITY, "EntityComponentShop", "offlineInventoryJSON"],
-        );
-        push(&mut bytes, &["Data/inv_not_params.json"]);
-        let found = components(&bytes);
-        assert_eq!(found.len(), 1);
-        assert_eq!(found[0].inventory, None);
-    }
-
-    #[test]
-    fn text_before_the_marker_that_is_no_guid_is_skipped() {
-        let bytes = component("not-a-guid", &[], "ShopRackGUIDs");
-        assert_eq!(components(&bytes).len(), 0);
-        assert_eq!(components(b"EntityComponentShop").len(), 0);
-    }
-}
+mod tests;

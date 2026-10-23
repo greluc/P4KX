@@ -1,6 +1,7 @@
 # Shop item lists come from the inventory file the shop container names
 
-Decided for issue #468. Builds on ADR-0054 and ADR-0069.
+Decided for issue #468. Builds on ADR-0054 and ADR-0069. Amended by ADR-0073: the component is read
+in every container and found by anchor, and placeholder inventories give no list.
 
 ADR-0069 left the item list out because no rule assigned an inventory file to a shop. The
 `ShopID` chain inside a file is the wrong end to look at; the shop side names its file.

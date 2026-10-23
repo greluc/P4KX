@@ -7,8 +7,9 @@ use crate::collected::Collected;
 use crate::contract::{Shop, StarmapObject};
 use crate::crafting_warning::CraftingWarning;
 use crate::shop_containers::{Containers, Found, Inventory};
-use crate::shop_inventories::{Inventories, ItemList};
+use crate::shop_inventories::{Inventories, ItemList, is_placeholder};
 use crate::shop_links::Links;
+use crate::shop_prefabs::Prefabs;
 use crate::shop_registry::{self, RegistryShop, clean, is_guid};
 use crate::shop_summary::ShopSummary;
 use crate::{CatalogError, CatalogOptions};
@@ -89,21 +90,7 @@ pub(crate) fn shops(
     cancel: Option<&CancelToken>,
 ) -> Result<Built, CatalogError> {
     let mut summary = ShopSummary::default();
-    let registry = match files.read(REGISTRY) {
-        Ok(bytes) => {
-            let parsed = shop_registry::read(&bytes);
-            summary.registry_unreadable = parsed.is_none();
-            parsed
-        }
-        Err(LoadoutFileError::NotFound) => {
-            summary.registry_missing = true;
-            None
-        }
-        Err(_) => {
-            summary.registry_unreadable = true;
-            None
-        }
-    };
+    let registry = read_registry(files, &mut summary);
     let Some(registry) = registry else {
         return Ok(Built {
             shops: Vec::new(),
@@ -113,19 +100,30 @@ pub(crate) fn shops(
     if cancel.is_some_and(CancelToken::is_cancelled) {
         return Err(CatalogError::Cancelled);
     }
-    let containers = Containers::read(archive, cancel)?;
-    summary.containers_listed = containers.listed;
-    summary.containers_unreadable = containers.unreadable;
-    summary.containers_with_shop = containers.with_shop;
+    let mut containers = Containers::read(archive, cancel)?;
+    let prefabs = Prefabs::read(archive, cancel);
+    if cancel.is_some_and(CancelToken::is_cancelled) {
+        return Err(CatalogError::Cancelled);
+    }
+    containers.add_prefabs(&prefabs);
+    summary.prefab_ambiguous = prefabs
+        .by_entity
+        .keys()
+        .filter(|entity| matches!(containers.inventory(entity), Inventory::Ambiguous))
+        .count();
+    summary.count_sources(&containers, &prefabs);
     summary.registry_entries = registry.len();
     let links = Links::new(starmap);
     let inventories = Inventories::new(archive);
     let lists: Lists<'_> = containers
         .inventory_stems()
         .into_iter()
+        .filter(|stem| !is_placeholder(stem))
         .map(|stem| (stem, inventories.items(stem)))
         .collect();
     summary.soc_components = containers.components;
+    summary.inventories_named = containers.inventory_stems().len();
+    summary.inventories_in_archive = inventories.count();
     summary.inventories_unreadable = lists
         .values()
         .filter(|list| **list == ItemList::Unreadable)
@@ -143,6 +141,24 @@ pub(crate) fn shops(
         .sum();
     let shops = list(&registry, &containers, &links, &lists, &mut summary);
     Ok(Built { shops, summary })
+}
+
+fn read_registry(files: &ArchiveFiles<'_>, summary: &mut ShopSummary) -> Option<Vec<RegistryShop>> {
+    match files.read(REGISTRY) {
+        Ok(bytes) => {
+            let parsed = shop_registry::read(&bytes);
+            summary.registry_unreadable = parsed.is_none();
+            parsed
+        }
+        Err(LoadoutFileError::NotFound) => {
+            summary.registry_missing = true;
+            None
+        }
+        Err(_) => {
+            summary.registry_unreadable = true;
+            None
+        }
+    }
 }
 
 type Lists<'a> = HashMap<&'a str, ItemList>;
@@ -187,8 +203,14 @@ fn list(
             Found::Nowhere => summary.without_container += 1,
         }
         match (containers.inventory(&shop.entity_guid), &shop.item_guids) {
-            (_, Some(_)) => summary.with_items += 1,
+            (_, Some(_)) => {
+                summary.with_items += 1;
+                summary.prefab_only_shops += usize::from(containers.only_prefab(&shop.entity_guid));
+            }
             (Inventory::Ambiguous, None) => summary.inventory_ambiguous += 1,
+            (Inventory::One(stem), None) if is_placeholder(stem) => {
+                summary.inventory_placeholder += 1;
+            }
             (Inventory::One(stem), None) => match lists.get(stem) {
                 Some(ItemList::Unreadable) => summary.inventory_unreadable += 1,
                 _ => summary.inventory_missing += 1,
@@ -274,110 +296,4 @@ fn shop(
 }
 
 #[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use p4kx_extraction::Guid;
-
-    use super::{RegistryShop, ShopSummary, list};
-    use crate::contract::StarmapObject;
-    use crate::guid_text::CatalogGuid;
-    use crate::shop_containers::Containers;
-    use crate::shop_links::Links;
-
-    const ROOT: &str = "4a269932-183e-362d-aacc-188e7debbea9";
-    const BODY: &str = "4ce1f681-b479-5269-0536-3d7f02fdccaf";
-
-    fn object(
-        id: u8,
-        class_name: &'static str,
-        entity_name: Option<&str>,
-    ) -> StarmapObject<'static> {
-        StarmapObject {
-            guid: CatalogGuid(Guid::from_stored([id; 16])),
-            class_name,
-            record_path: "",
-            name: crate::contract::LocalisedText::default(),
-            r#type: None,
-            type_guid: None,
-            parent_guid: None,
-            hide_in_starmap: None,
-            system: None,
-            entity_name: entity_name.map(str::to_owned),
-            placed_under_guid: None,
-            position: None,
-        }
-    }
-
-    fn entry(location: &str, entity_id: &str) -> RegistryShop {
-        RegistryShop {
-            platform: "StantonSystem".to_owned(),
-            id: format!(
-                "{ROOT},{BODY},{entity_id},{}",
-                entity_id.to_ascii_uppercase()
-            ),
-            super_name: format!("Root,Body,{location},SCShop_X"),
-            default_value: String::new(),
-            shop_name: String::new(),
-        }
-    }
-
-    #[test]
-    fn a_name_of_two_starmap_objects_links_to_none_and_is_counted() {
-        let starmap = [
-            object(1, "Spot", None),
-            object(2, "Other", Some("spot")),
-            object(3, "Unique", None),
-        ];
-        let links = Links::new(&starmap);
-        let id = |n: u8| format!("4a000000-0000-4000-8000-0000000000{n:02x}");
-        let registry = [
-            entry("Spot", &id(1)),
-            entry("Unique", &id(2)),
-            entry("Nowhere", &id(3)),
-        ];
-        let mut summary = ShopSummary::default();
-        let lists = HashMap::new();
-        let shops = list(
-            &registry,
-            &Containers::default(),
-            &links,
-            &lists,
-            &mut summary,
-        );
-        assert_eq!(shops.len(), 3);
-        assert_eq!((summary.linked, summary.unlinked), (1, 2));
-        assert_eq!(summary.ambiguous_link, 1, "only Spot is ambiguous");
-        let spot = shops
-            .iter()
-            .find(|shop| shop.location.as_deref() == Some("Spot"));
-        assert!(spot.is_some_and(|shop| shop.starmap_object_guid.is_none()));
-    }
-
-    #[test]
-    fn a_key_is_lower_case_and_a_non_guid_element_is_malformed() {
-        let links = Links::new(&[]);
-        let upper = entry("Place", "4A000000-0000-4000-8000-0000000000AA");
-        let lower = entry("Place", "4a000000-0000-4000-8000-0000000000aa");
-        let broken = entry("Place", "not-a-guid");
-        let registry = [upper, lower, broken];
-        let mut summary = ShopSummary::default();
-        let lists = HashMap::new();
-        let shops = list(
-            &registry,
-            &Containers::default(),
-            &links,
-            &lists,
-            &mut summary,
-        );
-        assert_eq!(shops.len(), 1, "the case-duplicate is dropped");
-        assert_eq!((summary.duplicate, summary.malformed), (1, 1));
-        let shop = &shops[0];
-        assert_eq!(shop.system, "stanton");
-        assert!(
-            shop.key.ends_with(&shop.entity_guid),
-            "entityGuid is the last element"
-        );
-        assert_eq!(shop.key, shop.key.to_ascii_lowercase());
-    }
-}
+mod tests;

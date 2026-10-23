@@ -67,7 +67,7 @@ pub(crate) fn read<'f>(
         .filter(|record| {
             record
                 .record_path()
-                .is_ok_and(|path| rule.matches_path(path))
+                .is_ok_and(|path| rule.matches_path(path) && filter.is_none_or(|f| f.matches(path)))
         })
         .collect();
     if records.is_empty() {
@@ -77,7 +77,7 @@ pub(crate) fn read<'f>(
             failures: Vec::new(),
         });
     }
-    let index = MissionIndex::read(forge);
+    let index = MissionIndex::read(forge, cancel)?;
     let places = Places::new(starmap);
     let context = Context {
         index: &index,
@@ -90,7 +90,7 @@ pub(crate) fn read<'f>(
             if cancel.is_some_and(CancelToken::is_cancelled) {
                 return Err(CatalogError::Cancelled);
             }
-            Ok(piece(trees, record, filter, &context)
+            Ok(piece(trees, record, &context)
                 .unwrap_or_else(|source| Some(Piece::Failed(CatalogFailure::of(record, &source)))))
         })
         .filter_map(Result::transpose)
@@ -137,12 +137,11 @@ impl Missions<'_> {
 fn piece<'f>(
     trees: &mut TreeBuilder<'f>,
     record: &Record<'f>,
-    filter: Option<&Filter>,
     context: &Context<'_, 'f>,
 ) -> Result<Option<Piece<'f>>, DataForgeError> {
     let rule = Kind::Contracts.rule();
     let path = record.record_path()?;
-    if record.type_name()? != rule.type_name || filter.is_some_and(|filter| !filter.matches(path)) {
+    if record.type_name()? != rule.type_name {
         return Ok(None);
     }
     let tree = trees.build(record)?;

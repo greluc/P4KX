@@ -41,6 +41,9 @@ const B: &str = "20000000-0000-4000-8000-000000000002";
 const C: &str = "20000000-0000-4000-8000-000000000003";
 const D: &str = "20000000-0000-4000-8000-000000000005";
 const E: &str = "20000000-0000-4000-8000-000000000006";
+const G: &str = "20000000-0000-4000-8000-000000000008";
+const H: &str = "20000000-0000-4000-8000-000000000009";
+const I: &str = "20000000-0000-4000-8000-00000000000a";
 const SUB_ONE: &str = "30000000-0000-4000-8000-000000000001";
 const SUB_TWO: &str = "30000000-0000-4000-8000-000000000002";
 
@@ -67,15 +70,81 @@ fn a_contract_and_each_sub_contract_is_an_entry_ordered_by_guid() -> TestResult 
             (B, None),
             (C, None),
             (D, None),
-            (E, None)
+            (E, None),
+            (G, None),
+            (H, None),
+            (I, None)
         ],
         "the contract, then its sub contracts; the leftover and the contract without an id are out"
     );
     let kind = built.summary().kind(Kind::Contracts);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((7, 4, true)),
-        "counts"
+        Some((10, 7, true)),
+        "counts: two duplicates and a contract in a leftover Record are skipped as well"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_pair_a_later_generator_record_repeats_is_skipped_and_the_first_record_wins() -> TestResult {
+    let (_, catalog) = build(None)?;
+    for sub in [None, Some(SUB_ONE)] {
+        assert_eq!(
+            entry(&catalog, A, sub)?["recordGuid"],
+            "10000000-0000-4000-8000-000000000001",
+            "{sub:?}"
+        );
+    }
+    assert_eq!(entry(&catalog, A, None)?["debugName"], "Deliver_A");
+    Ok(())
+}
+
+#[test]
+fn a_contract_in_a_leftover_record_is_not_listed() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert!(entry(&catalog, "20000000-0000-4000-8000-000000000007", None).is_err());
+    Ok(())
+}
+
+#[test]
+fn a_template_reference_that_resolves_to_nothing_leaves_the_template_data_out() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let dangling = entry(&catalog, G, None)?;
+    assert_eq!(
+        dangling["templateGuid"],
+        Value::Null,
+        "a reference to no Record is not a template"
+    );
+    assert_eq!(
+        dangling["title"]["en"], "Handler Title",
+        "the override still applies"
+    );
+    assert_eq!(dangling["missionTypeGuid"], Value::Null);
+    assert_eq!(dangling["missionType"]["en"], Value::Null);
+    Ok(())
+}
+
+#[test]
+fn a_template_outside_the_template_folder_is_found_by_its_type() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let stray = entry(&catalog, H, None)?;
+    assert_eq!(
+        stray["templateGuid"],
+        "40000000-0000-4000-8000-000000000003"
+    );
+    assert_eq!(stray["title"]["en"], "Plain Title");
+    assert_eq!(stray["missionType"]["en"], "Delivery");
+    Ok(())
+}
+
+#[test]
+fn an_organisation_token_without_a_variant_takes_the_only_string_variant_else_none() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        entry(&catalog, I, None)?["title"]["en"],
+        "By [SEVERAL] and Solo Corp",
+        "an organisation with several variants states no choice"
     );
     Ok(())
 }

@@ -6,6 +6,7 @@ use p4kx_assembly::ArchiveFiles;
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, Guid, utc_rfc3339};
 
+use crate::build_starmap::add_starmap;
 use crate::catalog_crafting::{CraftingKinds, kinds};
 use crate::catalog_output::{Compression, emit};
 use crate::collected::Collected;
@@ -18,12 +19,13 @@ use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::missions;
 use crate::paint::paints;
 use crate::scan::Scan;
+use crate::shops::add_shops;
 use crate::starmap_containers::Placements;
 use crate::starmap_report::{ContainerCounts, StarmapReport};
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, LoadoutSummary,
-    PaintSummary, StarmapSummary,
+    PaintSummary, ShopSummary, StarmapSummary,
 };
 
 /// Builds the Basetool catalog of the DataForge in `archive`.
@@ -142,6 +144,7 @@ pub(crate) struct Parts {
     loadouts: LoadoutSummary,
     starmap: StarmapSummary,
     starmap_report: Box<StarmapReport>,
+    shops: Box<ShopSummary>,
     playability: crate::PlayabilitySummary,
     variants: crate::VariantSummary,
     failures: Vec<CatalogFailure>,
@@ -159,6 +162,7 @@ impl Parts {
             loadouts: self.loadouts,
             starmap: self.starmap,
             starmap_report: self.starmap_report,
+            shops: self.shops,
             playability: Box::new(self.playability),
             variants: self.variants,
             failures: self.failures,
@@ -170,6 +174,10 @@ impl Parts {
 }
 
 /// Builds the catalog and hands it to `emit`, which serialises it.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one step and one field per kind of the catalog"
+)]
 fn assemble<R>(
     archive: &Archive,
     entry: &DataForgeEntry,
@@ -194,6 +202,7 @@ fn assemble<R>(
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
     add_contracts(&forge, &texts, options, &mut collected)?;
+    let shop_summary = add_shops(archive, &files, &mut collected, options)?;
     let kinds = collected.summary(options.filter.is_none());
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
@@ -217,6 +226,7 @@ fn assemble<R>(
         contracts: collected.contracts,
         mineable_elements: collected.mineable_elements,
         refining_processes: collected.refining_processes,
+        shops: collected.shops,
     };
     let output = emit(&catalog)?;
     Ok((
@@ -229,6 +239,7 @@ fn assemble<R>(
             loadouts: loadout_summary,
             starmap: starmap_summary,
             starmap_report: Box::new(report),
+            shops: Box::new(shop_summary),
             playability: collected.playability,
             variants,
             failures: collected.failures,
@@ -350,36 +361,6 @@ fn add_loadouts(
     collected.loadouts = built.entries;
     collected.add_failures(built.failures);
     Ok(built.summary)
-}
-
-/// Counts the starmap objects of `collected` and what reading their containers found, and warns
-/// about containers that left objects without a position.
-fn add_starmap(collected: &mut Collected<'_>, counts: ContainerCounts) -> StarmapSummary {
-    let objects = collected.starmap_objects.len();
-    let placed = collected
-        .starmap_objects
-        .iter()
-        .filter(|object| object.position.is_some())
-        .count();
-    let summary = StarmapSummary {
-        objects,
-        placed,
-        unplaced: objects.saturating_sub(placed),
-        ambiguous: counts.ambiguous,
-        systems: counts.systems,
-        unreadable_containers: counts.unreadable,
-        missing_containers: counts.missing,
-        malformed_children: counts.malformed,
-    };
-    let unplaced_containers = counts.unreadable.saturating_add(counts.malformed);
-    if objects > 0 && unplaced_containers > 0 {
-        collected
-            .warnings
-            .push(CraftingWarning::UnplacedStarmapContainers(
-                unplaced_containers,
-            ));
-    }
-    summary
 }
 
 pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {

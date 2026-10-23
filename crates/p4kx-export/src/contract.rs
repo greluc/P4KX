@@ -15,6 +15,7 @@ pub(crate) use crate::contract_missions::ContractEntry;
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
+pub(crate) use crate::contract_shops::Shop;
 pub(crate) use crate::contract_starmap::StarmapObject;
 
 /// The version of the catalog shape.
@@ -74,6 +75,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mineable_elements: Vec<MineableElement<'a>>,
     /// The refining processes, ordered by GUID.
     pub(crate) refining_processes: Vec<RefiningProcess<'a>>,
+    /// The shops of the shop registry with kind, brand and place, ordered by `key`.
+    pub(crate) shops: Vec<Shop>,
 }
 
 /// Where a catalog came from.
@@ -152,6 +155,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mineable_elements: KindCompleteness<'a>,
     /// The completeness of `refiningProcesses`.
     pub(crate) refining_processes: KindCompleteness<'a>,
+    /// The completeness of `shops`.
+    pub(crate) shops: KindCompleteness<'a>,
 }
 
 impl<'a> Completeness<'a> {
@@ -175,6 +180,7 @@ impl<'a> Completeness<'a> {
             contracts: completeness,
             mineable_elements: completeness,
             refining_processes: completeness,
+            shops: completeness,
         }
     }
 }

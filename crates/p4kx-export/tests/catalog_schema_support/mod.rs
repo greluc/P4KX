@@ -30,7 +30,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "starmapObjects": {"status": "complete"},
             "contracts": {"status": "complete"},
             "mineableElements": {"status": "complete"},
-            "refiningProcesses": {"status": "complete"}
+            "refiningProcesses": {"status": "complete"},
+            "shops": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -216,6 +217,21 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             },
             "refiningSpeed": "Fast",
             "refiningQuality": "Careful"
+        }],
+        "shops": [{
+            "key": "4a269932-183e-362d-aacc-188e7debbea9,4ce1f681-b479-5269-0536-3d7f02fdccaf,41000000-0000-4000-8000-000000000001,42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
+            "entityGuid": "42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
+            "system": "stanton",
+            "entityName": "SCShop_CommEx_TDD_NewBabbage",
+            "registryName": "L_TDD_NewBabbage",
+            "defaultValue": "d0000000-0000-4000-8000-000000000001",
+            "containers": ["OOC_Stanton", "OOC_Stanton_4_Microtech", "NewBabbage_LOC"],
+            "body": "OOC_Stanton_4_Microtech",
+            "location": "NewBabbage_LOC",
+            "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
+            "kind": "commex",
+            "brand": "tdd",
+            "commodityExchange": true
         }]
     })
 }

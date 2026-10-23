@@ -20,6 +20,11 @@
 //! (`ObjectContainers/PU/system`): the position of every `Child` element is composed with the
 //! positions and rotations of the Children above it ([`StarmapSummary`] counts the result).
 //!
+//! The shops of the catalog are the `ShopBackup` entries of the registry
+//! `Data\Libs\CosmoTools\LayerRecovery\LayerBackups.xml`, with kind and brand from the shop
+//! containers and a link to the starmap object of their location ([`ShopSummary`] counts the
+//! result, ADR-0069).
+//!
 //! [`build_ship_base`] reads the base data of every ship: hull mass and hit points from the
 //! vehicle implementation, cargo capacity from the cargo grids of the default Loadout, size and
 //! the Loadout itself, each value with its source file and field (`docs/ship-base-data.md`);
@@ -41,6 +46,7 @@
 mod blueprint;
 mod blueprint_category;
 mod build;
+mod build_starmap;
 mod catalog_crafting;
 mod catalog_file;
 mod catalog_output;
@@ -55,6 +61,7 @@ mod contract_mining;
 mod contract_missions;
 mod contract_recipe;
 mod contract_rewards;
+mod contract_shops;
 mod contract_starmap;
 mod contract_stats;
 mod crafting;
@@ -96,6 +103,10 @@ mod scan;
 mod selection;
 mod ship;
 mod ship_base;
+mod shop_containers;
+mod shop_registry;
+mod shop_summary;
+mod shops;
 mod starmap;
 mod starmap_containers;
 mod starmap_index;
@@ -142,6 +153,7 @@ pub use ship_base::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind, build_ship_base,
     build_ship_base_from,
 };
+pub use shop_summary::ShopSummary;
 pub use starmap_report::StarmapReport;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,

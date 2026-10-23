@@ -1,5 +1,6 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
+use crate::shop_summary::ShopSummary;
 use crate::{
     CatalogFailure, CraftingWarning, ItemClassSummary, Kind, PlayabilitySummary, StarmapReport,
 };
@@ -175,6 +176,7 @@ pub struct CatalogSummary {
     pub(crate) loadouts: LoadoutSummary,
     pub(crate) starmap: StarmapSummary,
     pub(crate) starmap_report: Box<StarmapReport>,
+    pub(crate) shops: Box<ShopSummary>,
     pub(crate) playability: Box<PlayabilitySummary>,
     pub(crate) variants: VariantSummary,
     pub(crate) failures: Vec<CatalogFailure>,
@@ -211,6 +213,13 @@ impl CatalogSummary {
     #[must_use]
     pub fn starmap_report(&self) -> &StarmapReport {
         &self.starmap_report
+    }
+
+    /// Returns the counts of the shops: how many the catalog holds, how the registry was read, how
+    /// many shops have a kind and a link to a starmap object, and the unlinked location names.
+    #[must_use]
+    pub fn shops(&self) -> &ShopSummary {
+        &self.shops
     }
 
     /// Returns the selected Records that could not be read and are left out of the catalog,

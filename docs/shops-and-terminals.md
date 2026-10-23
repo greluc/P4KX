@@ -68,10 +68,9 @@ the catalog (case-insensitively), e.g. `Area18_City_objectContainer`, `Drlct_Stm
 stations and the Lagrange points. Rest stops and cities enter as containers whose inner name has
 the shop kind (`pharmacy_*`, `food_foodcourt_*`, `admin_*`, `service_platinumbay_*`).
 
-Not covered: the registry read so far has one platform, `stantonsystem`. Pyro shops appear as
-containers (`SCShop_Pyro_*`, 115 names in the registry, reached through the Stanton-Pyro jump-point
-stations); whether a Pyro registry exists is open. The 14 location containers without a starmap
-match need a manual mapping.
+Pyro: the same file holds a second platform, `pyrosystem` with 371 shops (#462), so the registry
+has 813 Stanton and 371 Pyro entries. The catalog measured it on all 1,184 shops (#462): 184 have
+a location container without a starmap match and need a manual mapping.
 
 The catalog `starmapObjects` carry world positions for 1,239 of 2,093 objects. A shop inherits the
 position of its location object; a position inside the interior needs the `.soc` of the container
@@ -91,6 +90,10 @@ chain. How an inventory file is assigned to a `ShopBackup` therefore stays open:
 second hierarchy for the same shops or a different set of shops. The follow-up must settle it with
 the converted registry and all 120 inventories.
 
+Settled in #462 (ADR-0069): no rule assigns an inventory to a shop. Of 87 inventories with a
+`ShopID`, 4 equal a registry `ID`; the last element matches the `SCShop` of some shop for 39, often
+a shop of another place; 31 have no `ShopID`. The registry `DefaultValue`s (360 distinct) are no DataForge Record GUIDs.
+
 ## Terminals
 
 There is no Record for a terminal. The relevant `SCShop` names are `SCShop_CommEx_TDD_<Place>`
@@ -107,6 +110,6 @@ Basetool keeps the mapping and the manual remainder.
 
 ## Decision
 
-A catalog kind `shops` is added additively (ADR-0054) in a follow-up issue: shop key (chain), name,
+A catalog kind `shops` is added additively (ADR-0054, #462, ADR-0069): shop key (chain), names,
 kind and brand from the container path, starmap link by location container, body and system. The
-item list per shop follows once the inventory link is settled; prices are never exported.
+item list per shop follows once the inventory link is settled (#468); prices are never exported.

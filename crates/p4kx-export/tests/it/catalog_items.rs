@@ -312,6 +312,7 @@ fn every_kind_states_its_completeness() -> TestResult {
             "contracts": {"status": "complete"},
             "mineableElements": {"status": "complete"},
             "refiningProcesses": {"status": "complete"},
+            "shops": {"status": "complete"},
         }),
         "complete"
     );

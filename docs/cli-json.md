@@ -552,7 +552,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
  {"kind": "paints", "count": 1064, "skipped": 0, "complete": true},
  {"kind": "loadouts", "count": 10708, "skipped": 0, "complete": true},
- {"kind": "starmapObjects", "count": 2093, "skipped": 0, "complete": true}], "skipped": 1205,
+ {"kind": "starmapObjects", "count": 2093, "skipped": 0, "complete": true},
+ {"kind": "shops", "count": 1184, "skipped": 0, "complete": true}], "skipped": 1205,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
  "warnings": [{"kind": "unreadable_reference_records", "count": 3}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
@@ -561,6 +562,10 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "docked_vehicles": 65, "unresolved": 505, "outside": 61, "with_issues": 193},
  "starmap": {"objects": 2093, "placed": 1239, "unplaced": 854, "ambiguous": 9, "systems": 3,
  "unreadable_containers": 0, "missing_containers": 2, "malformed_children": 0},
+ "shops": {"shops": 1184, "registry_entries": 1184, "registry_missing": false, "registry_unreadable": false, "malformed": 0,
+ "duplicate": 0, "containers_listed": 317, "containers_unreadable": 0, "containers_with_shop": 164,
+ "with_kind": 590, "mixed_kind": 60, "without_container": 534, "commodity_exchanges": 16,
+ "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
@@ -588,7 +593,9 @@ with a `kind`: `reward_sources_truncated` (the reference index is truncated),
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
 `unreadable_vehicle_files` with a `count` (ships whose vehicle file cannot be read, so they have no paints) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
-limits that left starmap objects without a position); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
+limits that left starmap objects without a position), `unreadable_shop_registry` (the shop registry exists but
+cannot be read, so `shops` is empty), `missing_shop_registry` (starmap objects but no registry at the known path)
+and `unreadable_shop_containers` with a `count` (shop containers that cannot be read); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
 Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit
@@ -604,7 +611,14 @@ elements place more than 1 m apart (`ambiguous`, no position), the star systems 
 the containers that cannot be read (`unreadable_containers`), the external containers the Archive
 lacks (`missing_containers`, no warning) and the Child elements skipped for a malformed placement
 or a limit (`malformed_children`); the unreadable containers and the malformed Children together
-are also the warning `unplaced_starmap_containers` with their `count`. `playability` counts the
+are also the warning `unplaced_starmap_containers` with their `count`. `shops` counts the shops
+(`shops`) of the `registry_entries` read, the entries left out for a malformed or repeated `ID`
+(`malformed`, `duplicate`), the shop containers found, unreadable and naming an `SCShop` Entity,
+the shops whose Entity exactly one container kind names (`with_kind`), several differing ones
+(`mixed_kind`) or none (`without_container`), the commodity exchanges, the shops linked to a
+starmap object (`linked`) and not (`unlinked`, `ambiguous_link` of them because several objects
+carry the name) and the distinct location names without a link, up to 200; the numbers in the
+example are those of LIVE (Build 4.10.197). `playability` counts the
 items and the ships per value of their `playability`, and the ones no rule classifies
 (`unclassified`, `null` in the catalog). `variants` counts per kind the variant groups of at
 least two members (`groups`) and the entities with a `variantOf` (`variants`). `texts` lists per language whether the Archive holds its `global.ini` (`available`) and

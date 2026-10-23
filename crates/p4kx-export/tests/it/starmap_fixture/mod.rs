@@ -171,6 +171,12 @@ fn socpak(name: &str, xml: impl Into<Vec<u8>>) -> Vec<u8> {
 /// Writes the fixture Archive into `dir` and returns its path.
 pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
+    builder().write_to(&path)?;
+    Ok(path)
+}
+
+/// Returns the builder of the fixture Archive, for a test to add Entries to.
+pub(crate) fn builder() -> ArchiveBuilder {
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted())
         .entry(TestEntry::zstd(
@@ -196,6 +202,4 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
             format!("{CONTAINERS}broken\\brokensystem.socpak"),
             b"not a container".to_vec(),
         ))
-        .write_to(&path)?;
-    Ok(path)
 }

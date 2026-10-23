@@ -57,11 +57,14 @@ pub enum Kind {
     MineableElements,
     /// Refining processes: `RefiningProcess` Records under `refiningprocess`.
     RefiningProcesses,
+    /// Shops: the `ShopBackup` entries of the shop registry `LayerBackups.xml`, with kind and brand
+    /// from the shop containers. Derived from Archive files, so no record-path rule of its own.
+    Shops,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 18] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -79,6 +82,7 @@ impl Kind {
         Self::Contracts,
         Self::MineableElements,
         Self::RefiningProcesses,
+        Self::Shops,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -102,6 +106,7 @@ impl Kind {
             Self::Contracts => "contracts",
             Self::MineableElements => "mineableElements",
             Self::RefiningProcesses => "refiningProcesses",
+            Self::Shops => "shops",
         }
     }
 
@@ -122,7 +127,8 @@ impl Kind {
     /// Returns the rule that selects the kind's Records. The rule of [`Kind::Paints`] is that of
     /// [`Kind::Items`]: a Record it selects is a paint when its `AttachDef.Type` is `Paints`.
     /// [`Kind::Loadouts`] has no rule of its own either: it takes the Records of [`Kind::Ships`]
-    /// and of [`Kind::Items`] and reports the rule of the items.
+    /// and of [`Kind::Items`] and reports the rule of the items. [`Kind::Shops`] reads Archive
+    /// files, not Records, and reports an empty rule.
     #[must_use]
     #[expect(clippy::too_many_lines, reason = "a table with one entry per kind")]
     pub const fn rule(self) -> KindRule {
@@ -193,6 +199,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/refiningprocess/"],
                 type_name: "RefiningProcess",
             },
+            Self::Shops => KindRule {
+                prefixes: &[],
+                type_name: "",
+            },
         }
     }
 
@@ -226,6 +236,7 @@ impl Kind {
             Self::Contracts => 14,
             Self::MineableElements => 15,
             Self::RefiningProcesses => 16,
+            Self::Shops => 17,
         }
     }
 
@@ -233,7 +244,7 @@ impl Kind {
     /// of its own.
     #[must_use]
     pub const fn is_derived(self) -> bool {
-        matches!(self, Self::Paints | Self::Loadouts)
+        matches!(self, Self::Paints | Self::Loadouts | Self::Shops)
     }
 }
 

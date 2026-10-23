@@ -6,7 +6,7 @@ use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
     DismantleProcess, GameplayProperty, Item, Loadout, Manufacturer, MineableElement, Paint,
-    QualityDistribution, RefiningProcess, ResourceGroup, Ship, StarmapObject,
+    QualityDistribution, RefiningProcess, ResourceGroup, Ship, Shop, StarmapObject,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -89,7 +89,8 @@ impl<'f> Picked<'f> {
             | Kind::Paints
             | Kind::Loadouts
             | Kind::StarmapObjects
-            | Kind::Contracts => return None,
+            | Kind::Contracts
+            | Kind::Shops => return None,
         })
     }
 }
@@ -115,6 +116,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) starmap_objects: Vec<StarmapObject<'f>>,
     pub(crate) mineable_elements: Vec<MineableElement<'f>>,
     pub(crate) refining_processes: Vec<RefiningProcess<'f>>,
+    pub(crate) shops: Vec<Shop>,
     pub(crate) vehicles: Vec<VehicleFacts<'f>>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
@@ -126,6 +128,10 @@ pub(crate) struct Collected<'f> {
 impl<'f> Collected<'f> {
     /// Sorts `picked` into the kinds and orders every kind by the text of the GUID; `crafting`
     /// fills the kinds [`read_crafting`](crate::read_crafting) reads.
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one initialiser per kind of the catalog"
+    )]
     pub(crate) fn new(picked: Vec<Picked<'f>>, crafting: CraftingKinds<'f>) -> Self {
         let skipped = Self::crafting_skipped(&crafting);
         let mut collected = Self {
@@ -148,6 +154,7 @@ impl<'f> Collected<'f> {
             starmap_objects: Vec::new(),
             mineable_elements: Vec::new(),
             refining_processes: Vec::new(),
+            shops: Vec::new(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
             playability: PlayabilitySummary::default(),
@@ -271,6 +278,7 @@ impl<'f> Collected<'f> {
                     Kind::Contracts => self.contracts.len(),
                     Kind::MineableElements => self.mineable_elements.len(),
                     Kind::RefiningProcesses => self.refining_processes.len(),
+                    Kind::Shops => self.shops.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

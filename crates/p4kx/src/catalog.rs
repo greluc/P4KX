@@ -6,8 +6,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use p4kx_export::{
     CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
-    CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, Playability, SizeWarning,
-    StarmapSummary, UPLOAD_LIMIT, catalog_schema, write_catalog,
+    CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, PaintSummary, Playability,
+    ShopSummary, SizeWarning, StarmapSummary, UPLOAD_LIMIT, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -218,6 +218,37 @@ fn print_starmap(out: &mut impl Write, starmap: StarmapSummary) -> io::Result<()
     )
 }
 
+fn print_paints(out: &mut impl Write, paints: PaintSummary) -> io::Result<()> {
+    writeln!(
+        out,
+        "paint assignment: {} of {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
+        paints.assigned, paints.paints, paints.unassigned, paints.ships, paints.unreadable_vehicles
+    )
+}
+
+fn print_shops(out: &mut impl Write, shops: &ShopSummary) -> io::Result<()> {
+    writeln!(
+        out,
+        "shops: {} of {} registry entries, {} malformed, {} repeated, {} with a kind, {} linked to a starmap object, {} not, {} commodity exchanges, {} containers unreadable, registry {}",
+        shops.shops,
+        shops.registry_entries,
+        shops.malformed,
+        shops.duplicate,
+        shops.with_kind,
+        shops.linked,
+        shops.unlinked,
+        shops.commodity_exchanges,
+        shops.containers_unreadable,
+        if shops.registry_unreadable {
+            "unreadable"
+        } else if shops.registry_missing {
+            "missing"
+        } else {
+            "read"
+        }
+    )
+}
+
 fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     let mut stdout = io::stdout().lock();
     for kind in summary.kinds() {
@@ -236,14 +267,10 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
         "item classes: {} read, {} other values, {} without a Class: line or English description",
         classes.classified, classes.other, classes.missing
     )?;
-    let paints = summary.paints();
-    writeln!(
-        stdout,
-        "paint assignment: {} of {} paints fit a ship, {} fit none, {} ships have paints, {} vehicle files unreadable",
-        paints.assigned, paints.paints, paints.unassigned, paints.ships, paints.unreadable_vehicles
-    )?;
+    print_paints(&mut stdout, summary.paints())?;
     print_loadouts(&mut stdout, summary.loadouts())?;
     print_starmap(&mut stdout, summary.starmap())?;
+    print_shops(&mut stdout, summary.shops())?;
     print_classification(&mut stdout, summary)?;
     for text in summary.texts() {
         writeln!(

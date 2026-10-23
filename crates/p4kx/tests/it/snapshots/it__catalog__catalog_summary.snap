@@ -19,14 +19,16 @@ starmapObjects: 0 written, 0 skipped, complete
 contracts: 0 written, 0 skipped, complete
 mineableElements: 0 written, 0 skipped, complete
 refiningProcesses: 0 written, 0 skipped, complete
+shops: 0 written, 0 skipped, complete
 item classes: 1 read, 0 other values, 0 without a Class: line or English description
 paint assignment: 0 of 0 paints fit a ship, 0 fit none, 0 ships have paints, 0 vehicle files unreadable
 loadouts: 1 ships and 0 items, 0 ports, 0 hold an Entity (0 docked vehicles), 0 unresolved, 0 Entities without an entry in items or ships, 1 loadouts with issues
 starmap placement: 0 of 0 objects have a position, 0 are placed apart, 0 systems, 0 containers unreadable, 0 missing, 0 children malformed
+shops: 0 of 0 registry entries, 0 malformed, 0 repeated, 0 with a kind, 0 linked to a starmap object, 0 not, 0 commodity exchanges, 0 containers unreadable, registry missing
 items playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 ships playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 items variants: 0 in 0 groups
 ships variants: 0 in 0 groups
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 2 texts resolved, 11 unresolved, 0 placeholders
-wrote [DIR]/basetool-catalog.json: 5329 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/basetool-catalog.json: 5370 bytes, 1 Records skipped, 0 failed

@@ -8,7 +8,8 @@ The list holds facts only: the names of Record types, of component structs and o
 game spells them. It is data, not code, in
 [`crates/p4kx-extraction/data/coverage-reference.txt`](../crates/p4kx-extraction/data/coverage-reference.txt),
 one `<area> <kind> <name>` per line. The kinds are `record`, `candidate` (a Record type named as a
-likely future need), `component` and `entries`.
+likely future need), `component`, `entries` and `starmap-type` (the name of a `StarMapObjectType`,
+for the `StarMapObject` Records of that type).
 
 ```text
 p4kx coverage <archive> [--format table|json]
@@ -30,6 +31,12 @@ prints the whole table before it asserts, and needs `P4KX_DATA_P4K`.
   Records that cannot be built are counted apart; and the Component selector `Components[<name>]`
   resolves in a Query over `EntityClassDefinition`. A component is a struct, so a Query has to
   select a field of it, as the examples below do.
+- **StarMapObject type**: how many `StarMapObject` Records, derived types included, have a
+  Reference `type` to a `StarMapObjectType` Record with the listed name (its plain `name` field,
+  else its Record name), and that the first such Record writes as Record XML and Record JSON. A
+  name without Records counts against the exit code like a missing Record type. A name such as
+  `SolarSystem` is data of the type Record on LIVE 4.10, not a DataForge struct, so a `record` line
+  would report a gap that is none.
 - **Entries**: every Entry under the folder is read and, when it is CryXml, converted to XML
   without error. Text XML counts separately.
 
@@ -47,7 +54,7 @@ The Query is an example to start from; run it with `p4kx dcb query <archive> "<Q
 | `consumables` | `ConsumableSubtype`, `ConsumableType` | `SCItemConsumableParams` | `from ConsumableType` |
 | `law` | `InfractionDefinition`, `Jurisdiction` | | `from Jurisdiction` |
 | `cargo` | `CargoManifest`, `InventoryContainer` | `ResourceContainer`, `SCItemInventoryContainerComponentParams`, `SItemPortContainerComponentParams` | `from CargoManifest` |
-| `starmap` | `StarMapObject`, `StarMapObjectType`, `StarMapAmenityTypeEntry`, `SolarSystem` | | `from StarMapObject` |
+| `starmap` | `StarMapObject`, `StarMapObjectType`, `StarMapAmenityTypeEntry`; StarMapObject type `SolarSystem` | | `from StarMapObject` |
 | `vehicles` | `VehicleCareer`, `VehicleRole`, `SLoadoutAssortment` | `VehicleComponentParams`, `SEntityComponentDefaultLoadoutParams`, `SEntityPhysicsControllerParams`, `SCItemVehicleArmorParams`, `SCItemQuantumDriveParams`, `SCItemShieldGeneratorParams` | `from EntityClassDefinition at "libs/foundry/records/entities/spaceships/*" select Components[VehicleComponentParams].vehicleName` |
 | `items` | `AmmoParams`, `SCItemManufacturer`, `Tag` | `ItemResourceComponentParams`, `SAmmoContainerComponentParams`, `SAttachableComponentParams`, `SCItemBombParams`, `SCItemMissileParams`, `SCItemWeaponComponentParams`, `SSCSignatureSystemParams`, `EntityComponentAttachableModifierParams` | `from EntityClassDefinition at "*/ships/weapons/*" select Components[SAttachableComponentParams].AttachDef.Size` |
 
@@ -94,7 +101,6 @@ LIVE 4.10. Counts change with every patch; `p4kx coverage <Data.p4k>` gives thos
 | `starmap` | `StarMapObject` | 2132 (3) |
 | | `StarMapObjectType` | 21 |
 | | `StarMapAmenityTypeEntry` | 25 |
-| | `SolarSystem` | not a struct (0) |
 | `vehicles` | `VehicleCareer` | 11 |
 | | `VehicleRole` | 60 |
 | | `SLoadoutAssortment` | 321 (107) |
@@ -103,8 +109,9 @@ LIVE 4.10. Counts change with every patch; `p4kx coverage <Data.p4k>` gives thos
 | | `Tag` | 18891 |
 
 `SolarSystem` is not a DataForge struct on LIVE 4.10; Nyx, Pyro and Stanton are `StarMapObject`
-Records whose `StarMapObjectType` is named `SolarSystem` (#465). The error values are tracked in
-#464. No Record failed to build and every sample exported as Record XML and Record JSON.
+Records whose `StarMapObjectType` is named `SolarSystem`, so the list holds it as `starmap-type`
+(#465); expect 3 such Records on LIVE 4.10. The error values are tracked in #464. No Record failed
+to build and every sample exported as Record XML and Record JSON.
 
 **Components** (`EntityClassDefinition` Records with the component or a struct deriving from it;
 instances equal Records on LIVE 4.10)

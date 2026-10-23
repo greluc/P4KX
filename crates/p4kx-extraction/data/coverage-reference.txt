@@ -36,7 +36,7 @@ cargo component SItemPortContainerComponentParams
 starmap record StarMapObject
 starmap record StarMapObjectType
 starmap record StarMapAmenityTypeEntry
-starmap record SolarSystem
+starmap starmap-type SolarSystem
 vehicles record VehicleCareer
 vehicles record VehicleRole
 vehicles record SLoadoutAssortment

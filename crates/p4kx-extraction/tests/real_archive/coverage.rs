@@ -6,7 +6,7 @@ use p4kx_testkit::real_archive_path;
 use super::{TestResult, report};
 
 /// Types known to have no Records on LIVE 4.10.
-const MISSING_GAPS: [&str; 1] = ["SolarSystem"];
+const MISSING_GAPS: [&str; 0] = [];
 /// Types known to hold error values on LIVE 4.10, with the most each may hold.
 const ERROR_GAPS: [(&str, u64); 10] = [
     ("SLoadoutAssortment", 107),
@@ -52,6 +52,13 @@ fn print(coverage: &CoverageReport) {
         ));
     }
     report("Entry folders");
+    report("StarMapObject Records by StarMapObjectType");
+    for found in &coverage.objects {
+        report(&format!(
+            "  {:<12} {:<34} records {:>5}; sample {:?}",
+            found.area, found.type_name, found.records, found.sample,
+        ));
+    }
     for found in &coverage.entries {
         report(&format!(
             "  {:<12} {} entries {} converted {} text {} failed {}",
@@ -119,9 +126,25 @@ fn the_companion_app_reference_list_is_covered() -> TestResult {
             _ => {}
         }
     }
+    problems.extend(other_problems(&coverage));
+    assert!(problems.is_empty(), "not covered: {problems:?}");
+    Ok(())
+}
+
+fn other_problems(coverage: &CoverageReport) -> Vec<String> {
+    let mut problems = Vec::new();
     for found in &coverage.components {
         if found.instances == 0 || !found.reachable {
             problems.push(format!("component {}", found.name));
+        }
+    }
+    for found in &coverage.objects {
+        let sample_failed = found
+            .sample
+            .as_ref()
+            .is_none_or(|sample| sample.error.is_some());
+        if found.records == 0 || sample_failed {
+            problems.push(format!("starmap type {}", found.type_name));
         }
     }
     for found in &coverage.entries {
@@ -129,6 +152,5 @@ fn the_companion_app_reference_list_is_covered() -> TestResult {
             problems.push(format!("folder {}", found.folder));
         }
     }
-    assert!(problems.is_empty(), "not covered: {problems:?}");
-    Ok(())
+    problems
 }

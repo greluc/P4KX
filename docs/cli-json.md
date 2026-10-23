@@ -620,7 +620,7 @@ The coverage of the reference list in [coverage.md](coverage.md). The exit code 
 listed type (candidates excepted), component or folder is missing, unreadable or does not convert.
 
 ```json
-{"archive": "…", "complete": false, "unreadable_entities": 0, "types": [Type, …], "components": [Component, …], "entries": [Folder, …]}
+{"archive": "…", "complete": false, "unreadable_entities": 0, "types": [Type, …], "components": [Component, …], "starmap_types": [StarMapType, …], "entries": [Folder, …]}
 ```
 
 `unreadable_entities` counts the `EntityClassDefinition` Records that cannot be built and so cannot
@@ -651,6 +651,15 @@ be searched for components; above 0 it makes `complete` false.
 | `instances` | number | The components of that type, derived ones included, in all of them |
 | `reachable` | bool | The Component selector `Components[<name>]` resolves in a Query |
 
+`starmap_types` hold one object per `starmap-type` line of the list:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `area` | string | As above |
+| `name` | string | The `StarMapObjectType` name, e.g. `SolarSystem` |
+| `records` | number | The `StarMapObject` Records, derived types included, whose Reference `type` links to a `StarMapObjectType` Record of that name |
+| `sample` | object or null | The first such Record exported as Record XML and Record JSON; `null` without Records |
+
 `entries` hold one object per Entry folder:
 
 | Field | Type | Meaning |
@@ -663,7 +672,8 @@ be searched for components; above 0 it makes `complete` false.
 | `failures` | array | `{"path": …, "reason": …}` for each Entry that cannot be read or converted |
 
 `complete` is true when every non-candidate type has Records that read without error and export,
-every component occurs and is reachable, and every folder has Entries that all convert.
+every component occurs and is reachable, every `starmap_types` entry has Records whose sample
+exports, and every folder has Entries that all convert.
 
 ## `p4kx ships <archive> --out <file> --json`
 

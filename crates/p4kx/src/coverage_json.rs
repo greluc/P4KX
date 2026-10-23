@@ -2,7 +2,7 @@ use std::io;
 use std::path::Path;
 
 use p4kx_extraction::{
-    ComponentCoverage, CoverageReport, EntryCoverage, SampleExport, TypeCoverage,
+    ComponentCoverage, CoverageReport, EntryCoverage, ObjectCoverage, SampleExport, TypeCoverage,
 };
 use serde::Serialize;
 
@@ -13,6 +13,7 @@ struct Document<'a> {
     unreadable_entities: u64,
     types: Vec<TypeJson<'a>>,
     components: Vec<ComponentJson<'a>>,
+    starmap_types: Vec<ObjectJson<'a>>,
     entries: Vec<EntryJson<'a>>,
 }
 
@@ -44,6 +45,25 @@ struct ComponentJson<'a> {
     entities: u64,
     instances: u64,
     reachable: bool,
+}
+
+#[derive(Serialize)]
+struct ObjectJson<'a> {
+    area: &'a str,
+    name: &'a str,
+    records: u64,
+    sample: Option<SampleJson<'a>>,
+}
+
+impl<'a> From<&'a ObjectCoverage> for ObjectJson<'a> {
+    fn from(found: &'a ObjectCoverage) -> Self {
+        Self {
+            area: &found.area,
+            name: &found.type_name,
+            records: found.records,
+            sample: found.sample.as_ref().map(SampleJson::from),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -126,6 +146,7 @@ pub(crate) fn print(archive: &Path, report: &CoverageReport) -> io::Result<()> {
         unreadable_entities: report.unreadable_entities,
         types: report.types.iter().map(TypeJson::from).collect(),
         components: report.components.iter().map(ComponentJson::from).collect(),
+        starmap_types: report.objects.iter().map(ObjectJson::from).collect(),
         entries: report.entries.iter().map(EntryJson::from).collect(),
     })
 }

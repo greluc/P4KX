@@ -4,14 +4,14 @@
 //! The armour sets of a real Archive on both body variants: no piece is the loot box of its
 //! Entity's main geometry, and a sample of the NPC Loadouts exports as valid GLB.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::error::Error;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Armour, ArmourPart, AssemblyOptions, BodyVariant, LoadoutResolver,
-    ModelProvider, PartOrigin, Piece,
+    ArchiveFiles, ArchiveModels, Armour, ArmourPart, AssemblyOptions, Attachment, BodyVariant,
+    EntityNode, LoadoutResolver, ModelProvider, PartOrigin, Piece, Wearable, is_worn_type,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
@@ -91,6 +91,33 @@ fn same_file(left: &str, right: &str) -> bool {
         .eq_ignore_ascii_case(&right.replace('\\', "/"))
 }
 
+fn crate_size(
+    models: &ArchiveModels<'_>,
+    main: Option<&str>,
+    name: &str,
+    worn: usize,
+) -> Option<usize> {
+    let vertices = main
+        .and_then(|main| models.model(main, LOD).ok())
+        .map(|provided| {
+            provided
+                .model
+                .lods
+                .iter()
+                .map(Lod::vertex_count)
+                .sum::<usize>()
+        });
+    if let Some(vertices) = vertices {
+        assert!(
+            vertices > BOX_CORNERS * 3 && vertices < worn,
+            "{name}: crate {vertices} vertices, worn {worn}"
+        );
+    } else {
+        assert_ne!(name, PIECES[0], "the undersuit's main geometry is a crate");
+    }
+    vertices
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 #[expect(clippy::print_stdout, reason = "the counts are the measurement")]
@@ -134,17 +161,7 @@ fn a_piece_is_worn_with_the_skin_of_its_body_and_never_with_the_loot_box() -> Te
             assert_eq!(boxes(&armour), Vec::<String>::new(), "{name} {variant:?}");
 
             let worn: usize = part.model().lods.iter().map(Lod::vertex_count).sum();
-            let crate_vertices = main
-                .as_ref()
-                .and_then(|main| models.model(main, LOD).ok())
-                .map(|provided| {
-                    provided
-                        .model
-                        .lods
-                        .iter()
-                        .map(Lod::vertex_count)
-                        .sum::<usize>()
-                });
+            let crate_vertices = crate_size(&models, main.as_deref(), name, worn);
             println!(
                 "{name} {variant:?}: worn {} with {worn} vertices; main geometry {main:?} with \
                  {crate_vertices:?}",
@@ -203,8 +220,9 @@ fn a_sample_of_the_npc_loadouts_exports_on_both_bodies_without_a_box() -> TestRe
             tally.empty += 1;
             continue;
         }
+        let wearables = wearables_of(&mut resolver, &tree);
         for variant in BodyVariant::ALL {
-            if let Err(failure) = tally.export(path, variant, &pieces, &models) {
+            if let Err(failure) = tally.export(path, variant, &pieces, &wearables, &models) {
                 tally
                     .failures
                     .push(format!("{path} {variant:?}: {failure}"));
@@ -213,12 +231,14 @@ fn a_sample_of_the_npc_loadouts_exports_on_both_bodies_without_a_box() -> TestRe
     }
     println!(
         "{} Loadouts in the Archive, {} sampled ({} without worn pieces), {} exports, {} pieces \
-         worn ({} parts without skin weights, {} one-triangle placeholders), pieces skipped {:?}, {} GLB bytes, slowest {:?}, all in {:?}",
+         worn ({} checked against their loot box, {} parts without skin weights, {} one-triangle \
+         placeholders), pieces skipped {:?}, {} GLB bytes, slowest {:?}, all in {:?}",
         all.len(),
         all.len().div_ceil(stride),
         tally.empty,
         tally.sets,
         tally.worn,
+        tally.mains_checked,
         tally.rigid,
         tally.placeholders,
         tally.skipped,
@@ -227,9 +247,42 @@ fn a_sample_of_the_npc_loadouts_exports_on_both_bodies_without_a_box() -> TestRe
         started.elapsed()
     );
     assert!(tally.sets >= SURVEY_LIMIT, "{} exports", tally.sets);
+    assert!(
+        tally.worn >= tally.sets,
+        "{} pieces worn in {} exports",
+        tally.worn,
+        tally.sets
+    );
+    assert!(tally.mains_checked > 0, "no piece had a loot box to avoid");
     assert_eq!(tally.failures, Vec::<String>::new());
     assert_eq!(tally.boxes, Vec::<String>::new());
+    assert_eq!(tally.loot_boxes, Vec::<String>::new());
     Ok(())
+}
+
+fn wearables_of(
+    resolver: &mut LoadoutResolver<'_>,
+    tree: &EntityNode,
+) -> HashMap<String, Wearable> {
+    let mut wearables = HashMap::new();
+    for (_, port) in tree.walk() {
+        let Attachment::Entity(node) = port.attachment() else {
+            continue;
+        };
+        if !is_worn_type(node.attach_type()) {
+            continue;
+        }
+        let name = format!("{}/{}", port.name(), node.class_name());
+        let found = resolver
+            .entities()
+            .find(&node.guid().to_string())
+            .ok()
+            .and_then(|record| resolver.wearable(&record).ok());
+        if let Some(wearable) = found {
+            wearables.insert(name, wearable);
+        }
+    }
+    wearables
 }
 
 #[derive(Default)]
@@ -237,6 +290,8 @@ struct Tally {
     sets: usize,
     empty: usize,
     worn: usize,
+    mains_checked: usize,
+    loot_boxes: Vec<String>,
     rigid: usize,
     placeholders: usize,
     skipped: BTreeMap<String, usize>,
@@ -252,6 +307,7 @@ impl Tally {
         path: &str,
         variant: BodyVariant,
         pieces: &[Piece],
+        wearables: &HashMap<String, Wearable>,
         models: &ArchiveModels<'_>,
     ) -> Result<(), Box<dyn Error>> {
         let started = Instant::now();
@@ -268,6 +324,27 @@ impl Tally {
         self.bytes += bytes.len();
         self.sets += 1;
         self.worn += armour.count(PartOrigin::Piece);
+        for part in armour
+            .parts()
+            .iter()
+            .filter(|part| part.origin() == PartOrigin::Piece)
+        {
+            let Some(wearable) = wearables.get(part.name()) else {
+                continue;
+            };
+            let Some(skin) = wearable
+                .variants()
+                .iter()
+                .find(|found| found.has_tag(variant.tag()))
+            else {
+                continue;
+            };
+            self.mains_checked += 1;
+            if !same_file(part.file(), skin.geometry().path()) {
+                self.loot_boxes
+                    .push(format!("{path} {variant:?}: {}", part.name()));
+            }
+        }
         self.rigid += rigid(&armour);
         self.placeholders += placeholders(&armour);
         for issue in armour.issues().iter().filter(|issue| issue.kind().skips()) {

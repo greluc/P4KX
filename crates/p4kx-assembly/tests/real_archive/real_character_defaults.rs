@@ -30,7 +30,13 @@ fn shipped(archive: &Archive, name: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let entry = archive
         .entries()
         .iter()
-        .find(|entry| entry.path().to_ascii_lowercase().ends_with(name))
+        .find(|entry| {
+            entry
+                .path()
+                .to_ascii_lowercase()
+                .replace('\\', "/")
+                .ends_with(&format!("/{name}"))
+        })
         .ok_or_else(|| format!("the Archive ships no {name}"))?;
     let mut bytes = Vec::new();
     archive.open_entry(entry)?.read_to_end(&mut bytes)?;
@@ -116,6 +122,11 @@ fn check_head_glb(name: &str, bytes: &[u8], summary: &GlbSummary) -> TestResult 
     );
     assert!(animation.channels > 20, "{name}: {}", animation.channels);
     assert!(
+        animation.duration_seconds > 0.0,
+        "{name}: {} s",
+        animation.duration_seconds
+    );
+    assert!(
         glb.document.animations().any(|animation| animation
             .channels()
             .any(|channel| channel.target().property() == Property::MorphTargetWeights)),
@@ -169,7 +180,11 @@ fn the_body_of_each_variant_needs_no_chrm_and_exports_as_a_skinned_mesh() -> Tes
         assert!(armour.skeleton().bones.len() > 100, "{variant:?}");
         assert_eq!(armour.count(PartOrigin::Body), 1, "{variant:?}");
         assert!(armour.issues().is_empty(), "{:?}", armour.issues());
-        let body: &ArmourPart = armour.parts().first().ok_or("the body")?;
+        let body: &ArmourPart = armour
+            .parts()
+            .iter()
+            .find(|part| part.origin() == PartOrigin::Body)
+            .ok_or("the body")?;
         assert!(
             body.model()
                 .lods

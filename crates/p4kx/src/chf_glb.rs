@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
-    ArchiveModels, Armour, AssemblyOptions, Expressions, ForgeItems, Head, IssueKind,
-    LoadoutResolver, PartOrigin,
+    ArchiveModels, Armour, AssemblyOptions, CharacterAnimations, Expressions, ForgeItems, Head,
+    IssueKind, LoadoutResolver, PartOrigin,
 };
 use p4kx_extraction::{
-    ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
-    write_replacing,
+    AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
+    is_same_file, write_replacing,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -22,6 +22,7 @@ use crate::cli::ChfGlbArgs;
 use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
+use crate::model_animations::{WrittenJson, character_animations, write_notes};
 use crate::query_table::one_line;
 
 #[derive(Serialize)]
@@ -66,6 +67,7 @@ struct GlbJson<'a> {
     triangles: usize,
     bytes: u64,
     skipped: usize,
+    animations: Vec<WrittenJson>,
     issues: Vec<IssueJson<'a>>,
 }
 
@@ -101,6 +103,22 @@ fn expressions_of(args: &ChfGlbArgs) -> Expressions {
     }
 }
 
+fn glb_options(args: &ChfGlbArgs) -> GlbOptions {
+    let mode = match args.materials {
+        ChfMaterialsArg::Colours => MaterialMode::Colours,
+        ChfMaterialsArg::Textures => MaterialMode::Textures,
+    };
+    let glb = GlbOptions::default()
+        .with_lod(args.lod)
+        .with_materials(mode)
+        .with_texture_mip(args.texture_mip);
+    if args.no_vertex_colours {
+        glb.without_vertex_colours()
+    } else {
+        glb
+    }
+}
+
 /// Runs `p4kx chf glb`.
 pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     if is_same_file(&args.out, &args.archive) {
@@ -121,22 +139,18 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     let options = AssemblyOptions::default().with_lod(args.lod);
     let armour = Armour::build(head.variant(), head.pieces(), &models, &options)?;
 
-    let mode = match args.materials {
-        ChfMaterialsArg::Colours => MaterialMode::Colours,
-        ChfMaterialsArg::Textures => MaterialMode::Textures,
-    };
-    let mut glb = GlbOptions::default()
-        .with_lod(args.lod)
-        .with_materials(mode)
-        .with_texture_mip(args.texture_mip);
-    if args.no_vertex_colours {
-        glb = glb.without_vertex_colours();
-    }
+    let glb = glb_options(args);
     let name = head.variant().code().to_owned();
     let textures = models.textures();
+    let found = character_animations(
+        &models,
+        head.variant(),
+        (&args.animations, &args.animation_sources),
+    )?;
+    let animated = armour.animate(&found.animations, &models);
     let summary = write_replacing(&args.out, |writer| {
         armour
-            .write_glb_with(&glb, &textures, writer)
+            .write_glb_animated_with(&animated, &glb, &textures, writer)
             .map_err(|error| match error {
                 GltfError::Write(source) => ConversionError::Write {
                     path: args.out.clone(),
@@ -150,13 +164,32 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     })?;
 
     if as_json {
-        json::print(&report(archive.path(), args, &head, &armour, &summary))?;
+        let outcome = Outcome {
+            armour: &armour,
+            animated: &animated,
+            summary: &summary,
+        };
+        json::print(&report(archive.path(), args, &head, &outcome))?;
     } else if let Err(error) = print_report(&armour, &head, &summary, args)
+        .and_then(|()| print_animations(&summary, &found, &animated))
         && error.kind() != io::ErrorKind::BrokenPipe
     {
         return Err(error.into());
     }
     failure(&armour, &args.out).map_or(Ok(()), Err)
+}
+
+/// Writes the notes about the animations: what was written, what was left out and what could not
+/// be done.
+fn print_animations(
+    summary: &GlbSummary,
+    found: &AnimationSet,
+    animated: &CharacterAnimations<'_>,
+) -> io::Result<()> {
+    let mut stdout = BufWriter::new(io::stdout().lock());
+    write_notes(&mut stdout, &summary.animations, found)?;
+    print_issues(&mut stdout, animated.issues())?;
+    stdout.flush()
 }
 
 /// Returns the error for what could not be shaped or made, if there is any.
@@ -190,13 +223,24 @@ fn failure(armour: &Armour, out: &Path) -> Option<anyhow::Error> {
         .then(|| ExpressionsNotMade(out.to_path_buf()).into())
 }
 
+/// What was built and written.
+struct Outcome<'a> {
+    armour: &'a Armour,
+    animated: &'a CharacterAnimations<'a>,
+    summary: &'a GlbSummary,
+}
+
 fn report<'a>(
     archive: &Path,
     args: &ChfGlbArgs,
     head: &Head,
-    armour: &'a Armour,
-    summary: &'a GlbSummary,
+    outcome: &Outcome<'a>,
 ) -> GlbJson<'a> {
+    let Outcome {
+        armour,
+        animated,
+        summary,
+    } = *outcome;
     GlbJson {
         archive: json::path(archive),
         chf: json::path(&args.file),
@@ -244,7 +288,13 @@ fn report<'a>(
             .iter()
             .filter(|issue| issue.kind().skips())
             .count(),
-        issues: armour.issues().iter().map(IssueJson::from).collect(),
+        animations: summary.animations.iter().map(WrittenJson::of).collect(),
+        issues: armour
+            .issues()
+            .iter()
+            .chain(animated.issues())
+            .map(IssueJson::from)
+            .collect(),
     }
 }
 

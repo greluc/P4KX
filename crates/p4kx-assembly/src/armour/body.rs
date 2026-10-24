@@ -59,6 +59,26 @@ impl BodyVariant {
             Self::Female => "Objects/Characters/Human/female_v2/body/f_body.skin",
         }
     }
+
+    /// Returns the folders below `Data` that hold the animations of the body and of the head of
+    /// the variant: the databases and animation files its skeleton's parameters
+    /// (`bhm_skeleton_v7.chrparams`, `bhf_skeleton_v2.chrparams`) list. Nested folders are
+    /// included.
+    #[must_use]
+    pub const fn animation_folders(self) -> [&'static str; 3] {
+        match self {
+            Self::Male => [
+                "Animations/Characters/Human/male_v7",
+                "Animations/pu/male",
+                "Animations/Characters/Human/heads/male",
+            ],
+            Self::Female => [
+                "Animations/Characters/Human/female_v2",
+                "Animations/pu/female",
+                "Animations/Characters/Human/heads/female",
+            ],
+        }
+    }
 }
 
 #[cfg(test)]

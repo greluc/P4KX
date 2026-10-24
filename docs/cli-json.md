@@ -357,8 +357,20 @@ file is written even when parts are skipped.
  "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
  "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
  "materials": 19, "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
+ "animations": [{"name": "…", "duration_seconds": 3.27, "additive": false, "channels": 233,
+                 "keys": 10714, "skipped_tracks": []}],
  "issues": [Issue, …]}
 ```
+
+`--anim NAME` (repeatable, `all` for every one) and `--anim-from ENTRY` write the animations of
+the body variant's folders on the body skeleton; `animations` lists each one written, as in
+`p4kx chf glb`, with `skipped_weights` (a number, only when not 0) for runs of morph weights that
+did not fit. Three Issue kinds belong to animations: `animation_not_used` (no track fits the
+Character, or the animation would exceed the budget of 33,554,432 values for all animations of
+one command, the reason then starting with `limit`; the animation is not written and counts in
+`skipped`), `face_animation_failed` (the rig of the face cannot be read, or gives a pose that is
+not finite, and the animation has no track for a bone) and `face_joints_failed` (see
+`p4kx chf glb`).
 
 `pieces` counts the pieces: the `--piece` options and, with `--loadout`, the armour and clothing of
 the Loadout that were not replaced, including those that could not be resolved. `loadout` is
@@ -1705,12 +1717,15 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
            {"name": "teeth", "origin": "head", "file": "…", "morph_targets": 0},
            {"name": "eyes_itemport", "origin": "head", "file": "…", "morph_targets": 0},
            {"name": "hair_itemport", "origin": "head", "file": "…", "morph_targets": 0}],
- "nodes": 229, "bones": 220, "meshes": 9, "skinned_meshes": 9, "primitives": 41,
+ "nodes": 412, "bones": 403, "meshes": 9, "skinned_meshes": 9, "primitives": 41,
  "materials": 14, "morph_targets": 399, "textured_materials": 12, "textures": 20,
  "texture_pixels": 36700160,
  "texture_fallbacks": [{"material": "…", "role": "diffuse", "file": "…", "reason": "…"}],
  "default_material_ids": 0, "vertices": 61582, "triangles": 66225, "bytes": 37236432,
- "skipped": 0, "issues": [Issue, …]}
+ "skipped": 0,
+ "animations": [{"name": "facerom_t0_face", "duration_seconds": 28.0, "additive": false,
+                 "channels": 353, "keys": 292000, "skipped_tracks": [123456]}],
+ "issues": [Issue, …]}
 ```
 
 `body` and `rig` are the body variant and the head rig that the DNA's `gender_hash` names; `parts`
@@ -1746,7 +1761,28 @@ none and follow only the neutral shape of the head. A name the rig lacks adds
 cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
 the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code
 1 after printing the report. `--lod N` picks the level of detail and `--no-vertex-colours` leaves
-the vertex colours out. A CHF that holds no face DNA or whose DNA names an unknown head rig exits
+the vertex colours out.
+
+The 183 bones of the head skin that the body skeleton lacks are written as joints below their
+nearest body ancestor at the character's own joint positions (ADR-0098), so `bones` is 403 for
+the head at LOD 0 and the head binds to them. `--anim NAME` (repeatable, `all` for every one;
+`--anim-from ENTRY` adds `.caf` or `.dba` Entries) looks for animations below the folders of the
+character's body and head. A track that names a bone of the skeleton moves it by its keys; a
+track that names a control of the head rig is evaluated through the rig logic into the poses of
+the facial joints and the weights of the head's morph targets, sampled at the frames where a
+control has a key. `animations` lists each animation written with `channels`, `keys` (samples
+times channels for a facial animation), `duration_seconds` and, in `skipped_tracks`, the
+controller IDs that fit neither a bone nor a control. An animation that fits nothing is not
+written and adds the Issue `animation_not_used`; so does an animation that would exceed the budget
+of 33,554,432 values (floats of key times, poses and weights) that all animations of one command
+share: it adds `animation_not_used` with a reason starting with `limit`, the clips before it in
+the order of the files are kept (a facial clip of 4,500 samples costs about 7 million values).
+Control values are held to 0 to 1. A facial animation whose rig cannot be read, or whose pose is
+not finite, adds `face_animation_failed` when it has no track for a bone; the rig is read once.
+Facial joints that cannot be placed by the DNA add `face_joints_failed`: the bones are then
+appended to the skeleton without offsets, at the skin's own positions, and the head binds to them
+all the same. An unknown NAME exits with code 2. `p4kx armour glb` takes the same options for the body and has the same
+`animations` field. A CHF that holds no face DNA or whose DNA names an unknown head rig exits
 with code 2, a file that is no CHF with code 3, a missing skeleton with code 3, an Archive key that
 is missing or wrong with code 7, and an `--out` that is the Archive with code 2.
 

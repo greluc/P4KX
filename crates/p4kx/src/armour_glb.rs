@@ -6,10 +6,11 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant, LoadoutResolver, PartOrigin,
+    ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant, CharacterAnimations,
+    LoadoutResolver, PartOrigin,
 };
 use p4kx_extraction::{
-    ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, is_same_file,
+    AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, is_same_file,
     write_replacing,
 };
 use serde::Serialize;
@@ -18,6 +19,7 @@ use crate::armour_loadout::{Files, LoadoutJson, ReplacedJson, Selection};
 use crate::cli_armour::ArmourGlbArgs;
 use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues};
 use crate::json;
+use crate::model_animations::{WrittenJson, character_animations, write_notes};
 use crate::query_table::one_line;
 
 #[derive(Serialize)]
@@ -48,6 +50,7 @@ struct GlbJson<'a> {
     triangles: usize,
     bytes: u64,
     skipped: usize,
+    animations: Vec<WrittenJson>,
     issues: Vec<IssueJson<'a>>,
 }
 
@@ -66,7 +69,13 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let armour = Armour::build(variant, &selection.pieces, &models, &options)?;
-    let summary = write(&armour, args)?;
+    let found = character_animations(
+        &models,
+        variant,
+        (&args.animations, &args.animation_sources),
+    )?;
+    let animated = armour.animate(&found.animations, &models);
+    let summary = write(&armour, &animated, args)?;
     if as_json {
         json::print(&GlbJson {
             archive: json::path(archive.path()),
@@ -77,15 +86,7 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
             loadout: selection.loadout.as_ref(),
             pieces: selection.pieces.len(),
             replaced: selection.replaced.iter().map(ReplacedJson::from).collect(),
-            parts: armour
-                .parts()
-                .iter()
-                .map(|part| PartJson {
-                    name: part.name(),
-                    origin: origin_code(part.origin()),
-                    file: part.file(),
-                })
-                .collect(),
+            parts: parts_json(&armour),
             nodes: summary.nodes,
             bones: summary.bones,
             meshes: summary.meshes,
@@ -95,19 +96,56 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
             vertices: summary.vertices,
             triangles: summary.triangles,
             bytes: summary.bytes,
-            skipped: armour
+            skipped: skipped(&armour),
+            animations: summary.animations.iter().map(WrittenJson::of).collect(),
+            issues: armour
                 .issues()
                 .iter()
-                .filter(|issue| issue.kind().skips())
-                .count(),
-            issues: armour.issues().iter().map(IssueJson::from).collect(),
+                .chain(animated.issues())
+                .map(IssueJson::from)
+                .collect(),
         })?;
         return Ok(());
     }
-    match print_report(&armour, &summary, &selection, &args.out) {
+    let report = print_report(&armour, &summary, &selection, &args.out)
+        .and_then(|()| print_animations(&summary, &found, &animated));
+    match report {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
+}
+
+fn skipped(armour: &Armour) -> usize {
+    armour
+        .issues()
+        .iter()
+        .filter(|issue| issue.kind().skips())
+        .count()
+}
+
+fn parts_json(armour: &Armour) -> Vec<PartJson<'_>> {
+    armour
+        .parts()
+        .iter()
+        .map(|part| PartJson {
+            name: part.name(),
+            origin: origin_code(part.origin()),
+            file: part.file(),
+        })
+        .collect()
+}
+
+/// Writes the notes about the animations: what was written, what was left out and what could not
+/// be done.
+fn print_animations(
+    summary: &GlbSummary,
+    found: &AnimationSet,
+    animated: &CharacterAnimations<'_>,
+) -> io::Result<()> {
+    let mut stdout = BufWriter::new(io::stdout().lock());
+    write_notes(&mut stdout, &summary.animations, found)?;
+    print_issues(&mut stdout, animated.issues())?;
+    stdout.flush()
 }
 
 const fn origin_code(origin: PartOrigin) -> &'static str {
@@ -117,7 +155,11 @@ const fn origin_code(origin: PartOrigin) -> &'static str {
     }
 }
 
-fn write(armour: &Armour, args: &ArmourGlbArgs) -> Result<GlbSummary> {
+fn write(
+    armour: &Armour,
+    animated: &CharacterAnimations<'_>,
+    args: &ArmourGlbArgs,
+) -> Result<GlbSummary> {
     let mut options = GlbOptions::default().with_lod(args.lod);
     if args.no_vertex_colours {
         options = options.without_vertex_colours();
@@ -126,7 +168,7 @@ fn write(armour: &Armour, args: &ArmourGlbArgs) -> Result<GlbSummary> {
     let name = armour.variant().code().to_owned();
     Ok(write_replacing(out, |writer| {
         armour
-            .write_glb(&options, writer)
+            .write_glb_animated(animated, &options, writer)
             .map_err(|error| match error {
                 GltfError::Write(source) => ConversionError::Write {
                     path: out.to_path_buf(),

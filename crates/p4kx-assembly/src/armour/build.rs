@@ -155,7 +155,7 @@ fn drawn_with(
         .as_ref()
         .and_then(|key| libraries.get(key))
         .map_or_else(|| Arc::clone(unnamed), Arc::clone);
-    if let (Some(key), Some(reason)) = (key, library.problem())
+    if let (Some(key), Some(reason)) = (key, library.problem().or_else(|| library.layer_problem()))
         && reported.insert(key)
     {
         issues.push(issue(job, IssueKind::MaterialLibrary { reason }));

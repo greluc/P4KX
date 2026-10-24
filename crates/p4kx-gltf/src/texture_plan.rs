@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use p4kx_model::Material;
 
 use crate::materials::{MaterialPlan, Slot, display_name, is_hair_cards, uses_alpha};
+use crate::shading::shading;
 use crate::texture_loader::TextureLoader;
 use crate::texture_make::{Budget, Outcome, run};
 use crate::texture_pixels::Tints;
@@ -278,6 +279,14 @@ fn refusals(found: &Sources) -> Vec<Failure> {
         .collect()
 }
 
+fn tints_of(material: &Material) -> Tints {
+    let shade = shading(material);
+    Tints {
+        diffuse: shade.diffuse.map(|channel| channel.clamp(0.0, 1.0)),
+        specular: shade.specular.map(|channel| channel.clamp(0.0, 1.0)),
+    }
+}
+
 /// Registers the jobs for the images of `material` with `add`, which returns a job's number, and
 /// returns the jobs with the textures refused for their unsafe paths.
 fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, Vec<Failure>) {
@@ -290,10 +299,7 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
         .as_ref()
         .is_some_and(|diffuse| diffuse.opacity);
     let refused = refusals(&found);
-    let tints = Tints {
-        diffuse: material.diffuse.map(|channel| channel.clamp(0.0, 1.0)),
-        specular: material.specular.map(|channel| channel.clamp(0.0, 1.0)),
-    };
+    let tints = tints_of(material);
     let specular_key = found
         .specular
         .as_ref()

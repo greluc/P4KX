@@ -12,19 +12,15 @@ use json::material::{
 use json::validation::Checked::Valid;
 use p4kx_model::{Lod, Material, MaterialLibrary, TintPalette};
 
+use crate::shading::shading;
 use crate::texture_roles::sources_with;
 
 const GLASS_ALPHA: f32 = 0.3;
-const METAL_SPECULAR: f32 = 0.5;
-const DARK_DIFFUSE: f32 = 0.2;
-const TEXTURE_GLOSS_ROUGHNESS: f32 = 0.5;
-const MAX_SHININESS: f32 = 255.0;
 
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
 const GLASS_SHADERS: [&str; 1] = ["GlassPBR"];
 const HAIR_CARD_SHADERS: [&str; 1] = ["HairPBR"];
 const HAIR_CARD_CUTOFF: f32 = 0.5;
-const TEXTURE_GLOSS_SHADERS: [&str; 3] = ["HardSurface", "LayerBlend_V2", "Layer"];
 
 /// Which glTF material a material ID is drawn with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -212,16 +208,6 @@ pub(crate) fn uses_alpha(material: &Material) -> bool {
     alpha_of(material).0 != AlphaMode::Opaque
 }
 
-/// Returns the plain roughness of `material`: from its shininess, or half where gloss comes from
-/// textures and layers; a palette gives the glossiness of its paint.
-fn plain_roughness(material: &Material) -> f32 {
-    if is_one_of(&material.shader, &TEXTURE_GLOSS_SHADERS) && !material.tinted {
-        TEXTURE_GLOSS_ROUGHNESS
-    } else {
-        1.0 - (material.shininess / MAX_SHININESS).clamp(0.0, 1.0)
-    }
-}
-
 /// Returns the glTF material that draws `material` with `textures` over its plain colours.
 ///
 /// The diffuse colour multiplies a base colour texture that does not hold the colours already (one
@@ -242,15 +228,9 @@ pub(crate) fn build_material(
             (roughness, metallic)
         });
     let tinted = textures.base.is_some_and(|(_, tinted)| tinted);
-    let plain_metal = is_metal(material) && !tinted;
-    let colour = if tinted {
-        [1.0; 3]
-    } else if plain_metal {
-        material.specular
-    } else {
-        material.diffuse
-    };
-    let colour = colour.map(|channel| channel.clamp(0.0, 1.0));
+    let shade = shading(material);
+    let plain_metal = shade.metal && !tinted;
+    let colour = if tinted { [1.0; 3] } else { shade.colour };
     let (mode, alpha, cutoff) = alpha_of(material);
     let decal = is_one_of(&material.shader, &DECAL_SHADERS);
     let info = |index: Index<json::Texture>| json::texture::Info {
@@ -279,7 +259,7 @@ pub(crate) fn build_material(
             roughness_factor: StrengthFactor(if carries_roughness {
                 1.0
             } else {
-                plain_roughness(material)
+                shade.roughness
             }),
             metallic_roughness_texture: textures
                 .metallic_roughness
@@ -302,32 +282,14 @@ fn is_one_of(shader: &str, names: &[&str]) -> bool {
     names.iter().any(|name| shader.eq_ignore_ascii_case(name))
 }
 
-fn luminance([red, green, blue]: [f32; 3]) -> f32 {
-    0.0722_f32.mul_add(blue, 0.2126_f32.mul_add(red, 0.7152 * green))
-}
-
-/// Metals have a bright specular colour, and either a metal surface type or a dark diffuse colour.
-fn is_metal(material: &Material) -> bool {
-    let metal_surface = material
-        .surface_type
-        .get(..5)
-        .is_some_and(|prefix| prefix.eq_ignore_ascii_case("metal"));
-    luminance(material.specular) >= METAL_SPECULAR
-        && (metal_surface || luminance(material.diffuse) < DARK_DIFFUSE)
-}
-
 /// Returns the base colour factor the GLB writer gives `material` without a specular map.
 ///
-/// It is the specular colour of a metal, else the diffuse colour, clamped to 0 to 1; a diffuse
+/// It is [`Shading::colour`](crate::Shading::colour): the specular colour of a metal, else the
+/// diffuse colour, clamped to 0 to 1, for a layered material the blend of its layers; a diffuse
 /// texture is multiplied by it.
 #[must_use]
 pub fn base_colour_factor(material: &Material) -> [f32; 3] {
-    let colour = if is_metal(material) {
-        material.specular
-    } else {
-        material.diffuse
-    };
-    colour.map(|channel| channel.clamp(0.0, 1.0))
+    shading(material).colour
 }
 
 /// The emissive colour times the glow, scaled into 0 to 1 by its brightest channel.

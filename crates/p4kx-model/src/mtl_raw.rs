@@ -3,6 +3,7 @@
 
 use crate::PaletteSlot;
 use crate::mtl_xml::XmlElement;
+use crate::{LayerSurface, TintEntry};
 
 /// The deepest nesting of elements the reader keeps in a [`RawElement`].
 pub const MAX_RAW_DEPTH: usize = 8;
@@ -30,12 +31,18 @@ pub struct RawElement {
 }
 
 /// One layer of a material's `MatLayers` list: another material blended into the surface.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct MaterialLayer {
     /// All attributes of the `Layer` element in file order, e.g. `Name`, `Path`, `TintColor`,
     /// `PaletteTint`, `UVTiling`, `GlossMult`.
     pub attributes: Attributes,
+    /// The surface values of the layer's own `.mtl` file; `None` until
+    /// [`MaterialStatus::load`](crate::MaterialStatus::load) has read it, and when it is missing.
+    pub surface: Option<LayerSurface>,
+    /// The palette entry a [`TintPalette`](crate::TintPalette) gave the layer, for a layer with a
+    /// `PaletteTint` from 1 to 3.
+    pub palette_entry: Option<TintEntry>,
 }
 
 impl MaterialLayer {
@@ -142,6 +149,8 @@ pub(crate) fn layers<'a>(element: impl XmlElement<'a>, budget: &mut Budget) -> V
         }
         layers.push(MaterialLayer {
             attributes: attributes(layer),
+            surface: None,
+            palette_entry: None,
         });
     }
     layers

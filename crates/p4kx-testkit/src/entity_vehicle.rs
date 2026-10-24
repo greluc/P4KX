@@ -64,7 +64,18 @@ pub(crate) fn vehicle_structs() -> Vec<TestStruct> {
             .field(
                 "landingSystem",
                 TestType::ReferenceTo("VehicleLandingGearSystem".to_owned()),
+            )
+            .array(
+                "objectContainers",
+                TestType::Class("SVehicleObjectContainerParams".to_owned()),
             ),
+        TestStruct::new("SVehicleObjectContainerParams")
+            .field("fileName", TestType::String)
+            .field("boneName", TestType::String)
+            .field("Offset", TestType::Class("QuatT".to_owned())),
+        TestStruct::new("SObjectContainerComponentParams")
+            .parent("DataForgeComponentParams")
+            .field("objectContainer", TestType::String),
         TestStruct::new("VehicleLandingGearSystem")
             .array("gears", TestType::Class("VehicleLandingGear".to_owned())),
         TestStruct::new("VehicleLandingGear")
@@ -77,14 +88,49 @@ pub(crate) fn vehicle_structs() -> Vec<TestStruct> {
     ]
 }
 
+/// An object container of a vehicle component: file, bone, position and rotation in degrees.
+pub(crate) type ContainerPlacement = (String, String, [f32; 3], [f32; 3]);
+
+pub(crate) fn item_container_component(file: &str) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("SObjectContainerComponentParams")
+            .value("objectContainer", TestValue::text(file)),
+    )
+}
+
+fn container_value((file, bone, position, rotation): &ContainerPlacement) -> TestValue {
+    let xyz = |type_name: &str, [x, y, z]: [f32; 3]| {
+        TestValue::Struct(
+            TestInstance::new(type_name)
+                .value("x", TestValue::Single(x))
+                .value("y", TestValue::Single(y))
+                .value("z", TestValue::Single(z)),
+        )
+    };
+    let offset = TestInstance::new("QuatT")
+        .value("Rotation", xyz("Ang3", *rotation))
+        .value("Position", xyz("Vec3", *position));
+    TestValue::Struct(
+        TestInstance::new("SVehicleObjectContainerParams")
+            .value("fileName", TestValue::text(file.clone()))
+            .value("boneName", TestValue::text(bone.clone()))
+            .value("Offset", TestValue::Struct(offset)),
+    )
+}
+
 pub(crate) fn vehicle_component(
     definition: &str,
     modification: &str,
     landing_system: Option<u128>,
+    containers: &[ContainerPlacement],
 ) -> TestValue {
     let mut component = TestInstance::new("VehicleComponentParams")
         .value("vehicleDefinition", TestValue::text(definition))
-        .value("modification", TestValue::text(modification));
+        .value("modification", TestValue::text(modification))
+        .value(
+            "objectContainers",
+            TestValue::Array(containers.iter().map(container_value).collect()),
+        );
     if let Some(guid) = landing_system {
         component = component.value("landingSystem", TestValue::Reference(guid));
     }

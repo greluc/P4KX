@@ -133,6 +133,7 @@ impl Assembly {
             parts,
             issues,
             lod: options.lod,
+            interior: None,
         })
     }
 }

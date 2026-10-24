@@ -168,7 +168,17 @@ Early development (milestone M1). Available today:
   whose Entity or geometry cannot be resolved are skipped and listed, and so are palettes and
   textures that cannot be resolved; with `--json` the report has the shape described in
   [docs/cli-json.md](docs/cli-json.md). A docked vehicle such as a Merlin or an Archimedes is
-  placed as one part, without the parts of its own Loadout.
+  placed as one part, without the parts of its own Loadout. `--interior` adds the ship's rooms:
+  the socpak containers its Record names, each at its bone of the hull, below an `Interior` node
+  of the Entity; what cannot be resolved is listed, and without the flag only the hull is written.
+- `p4kx entity package <archive> <entity> --out <folder>` writes an Entity as a Blender package,
+  a folder that does not depend on Blender's file format: `scene.json` (format version, source
+  Channel and Build, the node hierarchy with names and transforms), one GLB per distinct mesh
+  and the textures of the materials as PNG, each written once. `--lod`, `--texture-mip`,
+  `--exclude` and `--replace` work as for `entity glb`. The folder is written beside the target
+  and moved into place when complete; it must not exist or must hold an earlier package. The
+  format is described in [docs/blender-package.md](docs/blender-package.md), the JSON Schema of
+  `scene.json` is [schemas/blender-package.schema.json](schemas/blender-package.schema.json).
 - `p4kx interior glb <archive> <container>... --out <file>` exports the Interior of a socpak
   container, a ship's rooms or a room on its own, as one GLB: a node per container, per streamed
   `.soc` file and per placed model, containers nested in it at their position and rotation.

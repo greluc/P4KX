@@ -132,6 +132,22 @@ pub enum IssueKind {
         /// What is wrong.
         reason: String,
     },
+    /// The offset of an Entity's object container is not finite, so the container sits at its
+    /// bone alone or at the origin.
+    #[error("the offset of the container {name} is not finite and is left out")]
+    InvalidOffset {
+        /// The container's file as the Record spells it.
+        name: String,
+    },
+    /// The offset of an Entity's object container differs from its bone in the hull's model by
+    /// more than the tolerance, so the bone alone places the container.
+    #[error(
+        "the offset of the container differs from the bone {bone} of the hull; the bone is used"
+    )]
+    OffsetDiffers {
+        /// The bone of the hull's model.
+        bone: String,
+    },
     /// Placed models of a `.soc` file name no listed model or have no usable transform, so they
     /// are left out.
     #[error(
@@ -239,6 +255,8 @@ impl IssueKind {
             Self::FileMissing { .. } => "file_missing",
             Self::FileUnreadable { .. } => "file_unreadable",
             Self::InvalidPlacement { .. } => "invalid_placement",
+            Self::InvalidOffset { .. } => "invalid_offset",
+            Self::OffsetDiffers { .. } => "offset_differs",
             Self::ObjectsLeftOut { .. } => "objects_left_out",
             Self::UnsupportedObjects { .. } => "unsupported_objects",
             Self::PieceNotFound { .. } => "piece_not_found",

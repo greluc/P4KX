@@ -4,6 +4,7 @@
 use std::process::ExitCode;
 
 use p4kx_assembly::{AssemblyError, ChangeError, EntityLookupError, HeadError, LoadoutError};
+use p4kx_blender::PackageError;
 use p4kx_comparison::LineDiffError;
 use p4kx_export::CatalogError;
 use p4kx_extraction::cryxml::CryXmlError;
@@ -43,8 +44,9 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, names an output that is one of its inputs or lies inside a Star Citizen
-/// installation, names an armour `--loadout` that is neither an Entity nor an XML Loadout that can
-/// be read, has an invalid Query or a Query or field-statistics output that does not fit
+/// installation, names a package output folder that exists and holds something else than an
+/// earlier package, names an armour `--loadout` that is neither an Entity nor an XML Loadout that
+/// can be read, has an invalid Query or a Query or field-statistics output that does not fit
 /// --json, names a Loadout change (`--exclude`, `--replace`) that is malformed, names a port the
 /// Loadout lacks, contradicts another or attaches an Entity that does not fit its port, names a Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc
 /// for a language the Archive holds no global.ini for, or looks up a localisation key that has no
@@ -82,7 +84,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
      file, model or geometry companion that does not exist, a mip level the texture, a chunk
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
-     lies inside a Star Citizen installation (the tool never writes there), --json without --out
+     lies inside a Star Citizen installation (the tool never writes there), a package folder
+     that exists and holds something else than an earlier package, --json without --out
      for cryxml or chf to-json, an invalid Query, --json with another
      --format and without --out for dcb query, --json with --format table for dcb refs or
      grep, --json with another format than json for dcb fields, an empty text for grep, a GUID
@@ -213,6 +216,10 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<UnknownTag>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<GlbOutputIsArchive>().is_some()
+        || matches!(
+            error.downcast_ref::<PackageError>(),
+            Some(PackageError::NotAPackage { .. } | PackageError::NoFolderName { .. })
+        )
         || error.downcast_ref::<HeadError>().is_some()
         || error.downcast_ref::<UnreadableLoadout>().is_some()
         || error.downcast_ref::<InteriorOutputIsArchive>().is_some()

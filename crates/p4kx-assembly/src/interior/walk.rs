@@ -76,6 +76,7 @@ pub(super) fn walk<'a>(
         issues: Vec::new(),
         full: false,
         max_parts: options.max_parts,
+        max_containers: options.max_containers.min(MAX_INTERIOR_CONTAINERS),
     };
     let Some(root_layer) = given.len().checked_sub(1) else {
         return Ok(walker.finish());
@@ -118,6 +119,7 @@ struct Walker<'a> {
     issues: Vec<Issue>,
     full: bool,
     max_parts: usize,
+    max_containers: usize,
 }
 
 impl<'a> Walker<'a> {
@@ -270,8 +272,8 @@ impl<'a> Walker<'a> {
                 );
                 continue;
             }
-            if self.layers.opened.len() + 1 >= MAX_INTERIOR_CONTAINERS {
-                let limit = MAX_INTERIOR_CONTAINERS;
+            if self.layers.opened.len() + 1 >= self.max_containers {
+                let limit = self.max_containers;
                 self.note(&todo.path, &name, IssueKind::TooManyContainers { limit });
                 continue;
             }

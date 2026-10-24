@@ -21,6 +21,7 @@ mod audio_search;
 mod audio_streamed_localised;
 mod docked_vehicles;
 mod entity_catalogue;
+mod entity_interior;
 mod entity_lookup;
 mod head_build;
 mod head_expressions;

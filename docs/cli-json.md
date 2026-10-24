@@ -253,6 +253,17 @@ issue. The file is
 written even when parts are skipped; an Archive key that is missing or wrong exits with code 7
 and writes nothing, an `--out` that is the Archive with code 2.
 
+With `--interior` the report also has `interior`, an object with `containers` (the top-level
+socpak containers of the Entity that were opened, not the containers nested in them), `parts`, `model_parts` and `modelled_parts` (as for
+`p4kx interior glb`; the models of the containers are not counted in the Entity's `parts`), and
+`issues` lists what the containers could not resolve, with the kinds of `p4kx interior glb` plus
+`container_missing` for a container the Entity's Record names and the Archive lacks,
+`helper_not_found` for its bone the hull lacks, `offset_differs` for an offset that disagrees with
+its bone and `invalid_offset` for one that is not finite, and the limits `too_many_containers`,
+`too_many_parts` and `too_many_vertices`, which hold for the Entity as a whole; their `path` is `Interior`, or the container's name
+followed by the path inside it ([ADR-0086](adr/0086-an-entity-places-its-object-containers-at-its-bones.md)).
+Without the flag `interior` is absent.
+
 An **Issue** has `path` (the port names from the root joined by `/`, empty for the root), `name`
 (the class name, or what the Loadout names for an attachment that cannot be resolved), `kind`, a
 stable code, `skipped` and `reason`, text for people. The kinds are `unresolved` (the Loadout
@@ -266,6 +277,29 @@ colours), `helper_not_found` (the port's helper is no node of the
 parent's model; the part sits at the parent's origin) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.
+
+## `p4kx entity package <archive> <entity> --out <folder> --json`
+
+```json
+{"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "texture_mip": 0,
+ "nodes": 83, "drawn_nodes": 56, "meshes": 31, "shared_meshes": 25, "textures": 120,
+ "texture_pixels": 98304000, "texture_failures": 0, "files": 152, "bytes": 123456789,
+ "vertices": 744831, "triangles": 818426, "skipped": 0, "issues": [Issue, …]}
+```
+
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `nodes` counts the
+parts of the Assembly (the nodes of `scene.json`), `drawn_nodes` those with a model, `meshes` the
+GLB files written and `shared_meshes` the nodes that draw a mesh another node draws. `textures`
+and `texture_pixels` count the PNG files written and their pixels, `texture_failures` the
+textures that could not be loaded or encoded (their materials keep plain colours). `files` and
+`bytes` count the manifest, the parts and the textures; `vertices` and `triangles` count each
+mesh once. `excluded` and `replaced` are as for `p4kx entity glb` and absent without the
+options. An **Issue** is an entry of the `issues` of `scene.json` ([docs/blender-package.md](blender-package.md)):
+`origin` (`assembly` or `texture`), `kind`, `path`, `name`, `skipped` and `reason`; the assembly
+kinds are those of `p4kx entity glb`, the texture kinds are `texture` and `texture_path`. An
+`--out` that is the Archive, that lies in a Star Citizen installation or that exists and is no
+earlier package exits with code 2 and writes nothing; an Archive key that is missing or wrong
+exits with code 7.
 
 ## `p4kx interior glb <archive> <container>... --out <file> --json`
 

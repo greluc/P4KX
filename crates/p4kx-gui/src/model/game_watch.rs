@@ -13,12 +13,25 @@ use super::Model;
 pub const GAME_CHECK_INTERVAL: Duration = Duration::from_secs(20);
 
 /// Whether `StarCitizen.exe` runs, looked up on a background thread now and then.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub(super) struct GameWatch {
     enabled: bool,
     running: bool,
     next: Option<Instant>,
     pending: Option<Receiver<bool>>,
+    probe: fn() -> bool,
+}
+
+impl Default for GameWatch {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            running: false,
+            next: None,
+            pending: None,
+            probe: game_is_running,
+        }
+    }
 }
 
 impl GameWatch {
@@ -38,11 +51,12 @@ impl GameWatch {
         if self.next.is_some_and(|due| Instant::now() < due) {
             return;
         }
+        let probe = self.probe;
         let (sender, result) = mpsc::channel();
         let spawned = thread::Builder::new()
             .name("game-check".to_owned())
             .spawn(move || {
-                if sender.send(game_is_running()).is_ok() {
+                if sender.send(probe()).is_ok() {
                     wake();
                 }
             });
@@ -58,6 +72,12 @@ impl Model {
     /// Switches the look at the process list for a running game on or off; it starts off.
     pub const fn watch_game(&mut self, enabled: bool) {
         self.game.enabled = enabled;
+    }
+
+    /// Replaces the look at the process list with `probe`, so that a test does not depend on
+    /// the machine.
+    pub const fn probe_game_with(&mut self, probe: fn() -> bool) {
+        self.game.probe = probe;
     }
 
     /// Looks at the process list when [`GAME_CHECK_INTERVAL`] passed since the last look, on a

@@ -15,7 +15,7 @@ use crate::cli::{EntityAction, EntityArgs, EntityLoadoutArgs};
 use crate::entity_json::{Counts, LoadoutJson, NodeJson};
 use crate::entity_vehicle;
 use crate::query_table::one_line;
-use crate::{entity_audio, entity_glb, json};
+use crate::{entity_audio, entity_glb, entity_package, json};
 
 /// Runs a `p4kx entity` subcommand.
 pub(crate) fn run(args: &EntityArgs, as_json: bool) -> Result<ExitCode> {
@@ -23,6 +23,7 @@ pub(crate) fn run(args: &EntityArgs, as_json: bool) -> Result<ExitCode> {
     match &args.action {
         EntityAction::Loadout(args) => done(loadout(args, as_json)),
         EntityAction::Audio(args) => entity_audio::run(args, as_json),
+        EntityAction::Package(args) => done(entity_package::run(args, as_json)),
         EntityAction::Glb(args) => done(entity_glb::run(args, as_json)),
     }
 }

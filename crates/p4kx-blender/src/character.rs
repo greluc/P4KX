@@ -54,7 +54,7 @@ struct Stoppable<'a, W> {
 impl<W: Write> Write for Stoppable<'_, W> {
     fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
         if self.cancelled.check().is_err() {
-            return Err(io::ErrorKind::Interrupted.into());
+            return Err(io::Error::other("cancelled"));
         }
         self.inner.write(bytes)
     }
@@ -145,7 +145,7 @@ fn glb_error(
 }
 
 fn flush_error(source: io::Error, path: &Path, cancelled: &Cancelled<'_>) -> PackageError {
-    if source.kind() == io::ErrorKind::Interrupted && cancelled.check().is_err() {
+    if cancelled.check().is_err() {
         PackageError::Cancelled
     } else {
         PackageError::write(path, source)
@@ -195,7 +195,7 @@ fn manifest(
         meshes: vec![Mesh {
             file: format!("{MESHES_FOLDER}/{id}.glb"),
             id,
-            geometry: Some(armour.skeleton_file().to_owned()),
+            geometry: None,
             palette: None,
             palette_id: None,
             instances: 1,

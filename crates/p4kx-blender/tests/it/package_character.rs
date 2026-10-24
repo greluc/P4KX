@@ -6,6 +6,7 @@
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_assembly::character::{Dna, DnaBlend};
 use p4kx_assembly::{ArchiveModels, Armour, AssemblyOptions, BodyVariant, Expressions, Piece};
@@ -306,6 +307,33 @@ fn a_cancelled_run_leaves_no_package_and_no_temporary_folder() -> TestResult {
     );
 
     assert!(matches!(result, Err(PackageError::Cancelled)), "{result:?}");
+    assert_eq!(names_in(dir.path())?.len(), 0);
+    Ok(())
+}
+
+#[test]
+fn a_run_cancelled_while_the_file_is_written_is_cancelled_and_leaves_nothing() -> TestResult {
+    let fixture = fixture(head_entries(Some(
+        head_rig(HEAD_VERTICES, MALE_RIG_HASH).build(),
+    )))?;
+    let archive = Archive::open(&fixture.path)?;
+    let models = ArchiveModels::new(&archive);
+    let armour = Armour::build(BodyVariant::Male, &[], &models, &AssemblyOptions::default())?;
+    let fitted = armour.animate(&[], &models);
+    let dir = tempfile::tempdir()?;
+    let polls = AtomicUsize::new(0);
+
+    let result = write_character_package(
+        &CharacterScene::new("male_v7", &armour, &fitted),
+        &models.textures(),
+        &GlbOptions::default(),
+        &PackageInfo::default(),
+        &dir.path().join("character"),
+        &|| polls.fetch_add(1, Ordering::SeqCst) >= 2,
+    );
+
+    assert!(matches!(result, Err(PackageError::Cancelled)), "{result:?}");
+    assert!(polls.load(Ordering::SeqCst) >= 3, "the writer polled");
     assert_eq!(names_in(dir.path())?.len(), 0);
     Ok(())
 }

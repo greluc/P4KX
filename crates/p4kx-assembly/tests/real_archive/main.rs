@@ -8,6 +8,7 @@ mod real_armour;
 mod real_assembly;
 mod real_assembly_textures;
 mod real_audio;
+mod real_catalogue;
 mod real_changes;
 mod real_chf;
 mod real_chf_tail;

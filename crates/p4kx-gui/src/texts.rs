@@ -6,6 +6,7 @@ use unic_langid::LanguageIdentifier;
 
 mod about_text;
 mod archive_key_text;
+mod assembly_export_text;
 mod audio_text;
 mod catalog_text;
 mod change_extraction_text;
@@ -14,6 +15,7 @@ mod container_text;
 mod content_search_text;
 mod dataforge_text;
 mod diff_text;
+mod entity_text;
 mod extraction_text;
 mod group_text;
 mod image_text;
@@ -36,6 +38,7 @@ mod xml_text;
 
 pub use about_text::AboutText;
 pub use archive_key_text::ArchiveKeyText;
+pub use assembly_export_text::AssemblyExportText;
 pub use audio_text::AudioText;
 pub use catalog_text::CatalogText;
 pub use change_extraction_text::ChangeExtractionText;
@@ -44,6 +47,7 @@ pub use container_text::ContainerText;
 pub use content_search_text::ContentSearchText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
+pub use entity_text::EntityText;
 pub use extraction_text::ExtractionText;
 pub use group_text::GroupText;
 pub use image_text::ImageText;
@@ -260,6 +264,10 @@ pub enum Text {
     ModelInfo(ModelInfoText),
     /// A text of the Export as GLB windows.
     ModelExport(ModelExportText),
+    /// A text of the Entities tab.
+    Entity(EntityText),
+    /// A text of the Export of an Entity as GLB windows.
+    AssemblyExport(AssemblyExportText),
     /// A text of the Archive key dialog.
     Key(ArchiveKeyText),
     /// A text of the About window.

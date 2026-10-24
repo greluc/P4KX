@@ -9,6 +9,8 @@ mod archive_issues;
 mod archive_key;
 mod archive_notice;
 mod archive_picker;
+mod assembly_export;
+mod assembly_export_outcome;
 mod audio_controls;
 mod audio_preview;
 mod catalog_outcome;
@@ -29,6 +31,10 @@ mod content_search_rows;
 mod dataforge_summary;
 mod diff_rows;
 mod empty;
+mod entities;
+mod entity_list;
+mod entity_loadout;
+mod entity_replace;
 mod entry_status;
 mod extraction;
 mod extraction_outcome;
@@ -105,8 +111,8 @@ use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
-    ComparisonSide, ComparisonText, ContentSearchText, LocalizationText, Model, PreviewTab,
-    QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
+    ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText, Model,
+    PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -132,6 +138,8 @@ pub enum Dialog {
     CatalogFile,
     /// Picks the GLB file a model is exported to.
     ModelFile,
+    /// Picks the GLB file an Entity is exported to.
+    AssemblyFile,
     /// Picks the folder of a sound export.
     SoundsFolder,
 }
@@ -196,6 +204,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     record_export_outcome::show(ui, model);
     model_export::setup(ui, model, &mut requests);
     model_export_outcome::show(ui, model);
+    assembly_export::setup(ui, model, &mut requests);
+    assembly_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
     sounds_export::setup(ui, model, &mut requests);
     sounds_outcome::show(ui, model);
@@ -220,6 +230,8 @@ fn poll_background(model: &mut Model) {
     model.poll_extraction();
     model.poll_record_export();
     model.poll_model_export();
+    model.poll_assembly_export();
+    model.entities_mut().poll();
     model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();
@@ -243,6 +255,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         WorkTab::Localization => return localization::show(ui, model),
         WorkTab::Tags => return tags::show(ui, model),
         WorkTab::Search => return content_search::show(ui, model),
+        WorkTab::Entities => return entities::show(ui, model),
         WorkTab::Sounds => return sounds::show(ui, model),
         WorkTab::Archive => {}
     }
@@ -281,7 +294,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 7] = [
+const WORK_TABS: [(WorkTab, Text); 8] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -297,6 +310,7 @@ const WORK_TABS: [(WorkTab, Text); 7] = [
     ),
     (WorkTab::Tags, Text::Tags(TagsText::Tab)),
     (WorkTab::Search, Text::ContentSearch(ContentSearchText::Tab)),
+    (WorkTab::Entities, Text::Entity(EntityText::Tab)),
     (WorkTab::Sounds, Text::Sounds(SoundsText::Tab)),
 ];
 

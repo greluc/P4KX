@@ -9,8 +9,9 @@ use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
 use crate::{
-    CATALOG_FILE, CatalogText, ComparisonText, Model, ModelExportSetup, ModelExportText,
-    QueryExportFormat, QueryText, Text, ViewerSupport, ui, window,
+    AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, ComparisonText, Model,
+    ModelExportSetup, ModelExportText, QueryExportFormat, QueryText, Text, ViewerSupport, ui,
+    window,
 };
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
@@ -62,7 +63,11 @@ impl App {
         let export_filter = self.model.texts().get(export_filter);
         let catalog_filter = self.model.texts().get(CatalogText::FileFilter);
         let catalog_filter_compressed = self.model.texts().get(CatalogText::FileFilterCompressed);
-        let model_file = ModelFileDialog::of(&self.model);
+        let model_file = if dialog == Dialog::AssemblyFile {
+            ModelFileDialog::of_assembly(&self.model)
+        } else {
+            ModelFileDialog::of(&self.model)
+        };
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
@@ -85,7 +90,7 @@ impl App {
                         .add_filter(catalog_filter, &["json"])
                         .set_file_name(CATALOG_FILE)
                         .save_file(),
-                    Dialog::ModelFile => model_file.save(picker),
+                    Dialog::ModelFile | Dialog::AssemblyFile => model_file.save(picker),
                     Dialog::QueryExport(format) => {
                         let extension = format.extension();
                         picker
@@ -100,6 +105,16 @@ impl App {
             });
         if spawned.is_ok() {
             self.dialog = Some((dialog, receiver));
+        }
+    }
+
+    fn choose_export_file(&mut self, dialog: Dialog, path: PathBuf) {
+        if dialog == Dialog::AssemblyFile {
+            if let Some(setup) = self.model.assembly_export_setup_mut() {
+                setup.set_file(path);
+            }
+        } else if let Some(setup) = self.model.model_export_setup_mut() {
+            setup.set_file(path);
         }
     }
 
@@ -167,6 +182,20 @@ impl ModelFileDialog {
         }
     }
 
+    fn of_assembly(model: &Model) -> Self {
+        let setup = model.assembly_export_setup();
+        Self {
+            filter: model.texts().get(AssemblyExportText::FileFilter),
+            name: setup.map_or_else(
+                || "entity.glb".to_owned(),
+                AssemblyExportSetup::proposed_name,
+            ),
+            folder: setup
+                .and_then(AssemblyExportSetup::folder)
+                .map(Path::to_path_buf),
+        }
+    }
+
     fn save(self, picker: rfd::FileDialog) -> Option<PathBuf> {
         let picker = picker
             .add_filter(self.filter, &["glb"])
@@ -180,7 +209,6 @@ impl ModelFileDialog {
 }
 
 impl eframe::App for App {
-    #[expect(clippy::too_many_lines, reason = "one arm per dialog result")]
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         if !self.model.viewer_support().is_probed() {
             self.model.set_viewer_support(ViewerSupport::probe(frame));
@@ -206,10 +234,8 @@ impl eframe::App for App {
                     setup.set_folder(path);
                 }
             }
-            Some((Dialog::ModelFile, path)) => {
-                if let Some(setup) = self.model.model_export_setup_mut() {
-                    setup.set_file(path);
-                }
+            Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
+                self.choose_export_file(dialog, path);
             }
             Some((Dialog::CatalogFile, path)) => {
                 let ctx = ui.ctx().clone();
@@ -251,6 +277,7 @@ impl eframe::App for App {
         self.model.stop_record_export();
         self.model.sounds_mut().stop_export();
         self.model.stop_model_export();
+        self.model.stop_assembly_export();
         self.model.stop_catalog();
         self.model.comparison_mut().cancel();
         self.model.query_mut().cancel();
@@ -276,6 +303,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.extraction_audio = model.extraction_audio();
     settings.update_check = model.update_check();
     settings.model_export = model.model_export_settings().clone();
+    settings.assembly_export = model.assembly_export_settings().clone();
     settings.channels.merge(model.channels().added());
 }
 

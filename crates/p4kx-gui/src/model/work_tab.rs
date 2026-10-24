@@ -22,6 +22,8 @@ pub enum WorkTab {
     Tags,
     /// Searching the contents of the open Archive.
     Search,
+    /// Picking a ship, vehicle or weapon of the open Archive to export with its Loadout.
+    Entities,
     /// Listing and playing the sounds of the Entities of the open Archive.
     Sounds,
 }

@@ -62,6 +62,7 @@ impl Model {
         browser.drop_containers();
         self.record_export.archive_changed();
         self.glb_export.archive_changed();
+        self.assembly.archive_changed();
         self.sounds.archive_changed();
         if self
             .extraction_setup

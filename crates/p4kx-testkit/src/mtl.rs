@@ -7,8 +7,10 @@ use crate::cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestMtlMaterial {
     attributes: Vec<(String, String)>,
-    textures: Vec<(String, String)>,
-    layers: Vec<(String, String)>,
+    textures: Vec<TestElement>,
+    layers: Vec<TestElement>,
+    params: Vec<(String, String)>,
+    children: Vec<TestElement>,
 }
 
 impl TestMtlMaterial {
@@ -22,6 +24,8 @@ impl TestMtlMaterial {
             ],
             textures: Vec::new(),
             layers: Vec::new(),
+            params: Vec::new(),
+            children: Vec::new(),
         }
     }
 
@@ -29,7 +33,37 @@ impl TestMtlMaterial {
     /// written (`1` to `3` take a palette entry, `0` none).
     #[must_use]
     pub fn layer(mut self, name: &str, palette_tint: &str) -> Self {
-        self.layers.push((name.to_owned(), palette_tint.to_owned()));
+        self.layers.push(
+            TestElement::new("Layer")
+                .attribute("Name", name)
+                .attribute("PaletteTint", palette_tint),
+        );
+        self
+    }
+
+    /// Adds a material layer with exactly the attributes `attributes`, in order.
+    #[must_use]
+    pub fn layer_with(mut self, attributes: &[(&str, &str)]) -> Self {
+        let layer = attributes
+            .iter()
+            .fold(TestElement::new("Layer"), |layer, (name, value)| {
+                layer.attribute(*name, *value)
+            });
+        self.layers.push(layer);
+        self
+    }
+
+    /// Adds a shader parameter to the `PublicParams` element.
+    #[must_use]
+    pub fn public_param(mut self, name: &str, value: &str) -> Self {
+        self.params.push((name.to_owned(), value.to_owned()));
+        self
+    }
+
+    /// Adds a child element that the readers do not interpret.
+    #[must_use]
+    pub fn child(mut self, element: TestElement) -> Self {
+        self.children.push(element);
         self
     }
 
@@ -116,7 +150,31 @@ impl TestMtlMaterial {
     /// Adds a texture to the slot `map`, e.g. `TexSlot1`.
     #[must_use]
     pub fn texture(mut self, map: &str, file: &str) -> Self {
-        self.textures.push((map.to_owned(), file.to_owned()));
+        self.textures.push(
+            TestElement::new("Texture")
+                .attribute("Map", map)
+                .attribute("File", file),
+        );
+        self
+    }
+
+    /// Adds a texture to the slot `map` as the game writes it: with `TexType` and `Used`, and a
+    /// `TexMod` child with the attributes `tex_mod`.
+    #[must_use]
+    pub fn texture_with_mod(mut self, map: &str, file: &str, tex_mod: &[(&str, &str)]) -> Self {
+        let tex_mod = tex_mod
+            .iter()
+            .fold(TestElement::new("TexMod"), |element, (name, value)| {
+                element.attribute(*name, *value)
+            });
+        self.textures.push(
+            TestElement::new("Texture")
+                .attribute("Map", map)
+                .attribute("File", file)
+                .attribute("TexType", "0")
+                .attribute("Used", "1")
+                .child(tex_mod),
+        );
         self
     }
 
@@ -125,27 +183,34 @@ impl TestMtlMaterial {
         for (name, value) in &self.attributes {
             element = element.attribute(name, value);
         }
-        let mut textures = TestElement::new("Textures");
-        for (map, file) in &self.textures {
-            textures = textures.child(
-                TestElement::new("Texture")
-                    .attribute("Map", map)
-                    .attribute("File", file),
+        let textures = self
+            .textures
+            .iter()
+            .fold(TestElement::new("Textures"), |list, texture| {
+                list.child(texture.clone())
+            });
+        let mut element = element.child(textures);
+        if !self.params.is_empty() {
+            element = element.child(
+                self.params
+                    .iter()
+                    .fold(TestElement::new("PublicParams"), |params, (name, value)| {
+                        params.attribute(name, value)
+                    }),
             );
         }
-        let element = element.child(textures);
-        if self.layers.is_empty() {
-            return element;
-        }
-        let mut layers = TestElement::new("MatLayers");
-        for (name, palette_tint) in &self.layers {
-            layers = layers.child(
-                TestElement::new("Layer")
-                    .attribute("Name", name)
-                    .attribute("PaletteTint", palette_tint),
+        if !self.layers.is_empty() {
+            element = element.child(
+                self.layers
+                    .iter()
+                    .fold(TestElement::new("MatLayers"), |list, layer| {
+                        list.child(layer.clone())
+                    }),
             );
         }
-        element.child(layers)
+        self.children
+            .iter()
+            .fold(element, |element, child| element.child(child.clone()))
     }
 }
 

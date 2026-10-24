@@ -13,7 +13,6 @@ use crate::context::Context;
 use crate::error::ScreenError;
 use crate::limits::Limits;
 use crate::paint::Area;
-use crate::paint_state::MAX_CLIP_MASKS;
 use crate::report::Report;
 use crate::style::TagPaths;
 use crate::text::Texts;
@@ -23,6 +22,7 @@ use crate::widget::CanvasSizing;
 const STYLES: &str = "libs/foundry/records/ui/buildingblocks/styles";
 const DEFAULT_STYLE: &str = "libs/foundry/records/ui/buildingblocks/styles/default";
 const MAX_CANVAS_SIDE: f32 = 16_384.0;
+const CLIP_LIMIT: &str = "clipping stopped at the 24th mask: later content is not clipped";
 
 /// A screen composed into a scene, with what the composition left out.
 #[derive(Debug)]
@@ -197,11 +197,7 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
         report.shapes = painter.len();
         report.truncated |= painter.is_full();
         if painter.state.mask_limit_hit {
-            report.note(
-                "Overflow",
-                &format!("clipping stopped after {MAX_CLIP_MASKS} masks: later content is not clipped"),
-                &root.record_path,
-            );
+            report.note("Overflow", CLIP_LIMIT, &root.record_path);
         }
         #[expect(
             clippy::cast_possible_truncation,

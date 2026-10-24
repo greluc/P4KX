@@ -32,7 +32,10 @@ fn a_vertical_stack_puts_its_children_below_each_other_with_the_spacing() -> Tes
     assert!(red_at(&image, 5, 5), "the first");
     assert!(empty_at(&image, 5, 12), "the spacing");
     assert!(green_at(&image, 5, 18), "the second");
-    assert!(empty_at(&image, 15, 18), "children stay at the start across");
+    assert!(
+        empty_at(&image, 15, 18),
+        "children stay at the start across"
+    );
     Ok(())
 }
 
@@ -75,7 +78,10 @@ fn a_vertical_grid_pack_fills_a_column_first() -> TestResult {
             .widget(boxed("b", "grid", 10.0, 30.0, GREEN)),
     )?;
     assert!(red_at(&image, 5, 15), "the first column");
-    assert!(green_at(&image, 15, 15), "the second column, as the first is full");
+    assert!(
+        green_at(&image, 15, 15),
+        "the second column, as the first is full"
+    );
     Ok(())
 }
 
@@ -112,7 +118,10 @@ fn wrapped_lines_can_be_reversed_and_spread_across() -> TestResult {
             .widget(boxed("b", "row", 60.0, 10.0, GREEN)),
     )?;
     assert!(green_at(&image, 5, 35), "the second line comes first");
-    assert!(red_at(&image, 5, 45), "and the first line is last, at the end");
+    assert!(
+        red_at(&image, 5, 45),
+        "and the first line is last, at the end"
+    );
     Ok(())
 }
 
@@ -124,7 +133,10 @@ fn a_nowrap_row_shrinks_the_children_that_may_shrink() -> TestResult {
             .widget(boxed("a", "row", 60.0, 10.0, RED).shrink(1.0))
             .widget(boxed("b", "row", 60.0, 10.0, GREEN).shrink(1.0)),
     )?;
-    assert!(red_at(&image, 48, 5), "the first gives up half of the overflow");
+    assert!(
+        red_at(&image, 48, 5),
+        "the first gives up half of the overflow"
+    );
     assert!(green_at(&image, 52, 5), "and the second the same");
     assert!(green_at(&image, 98, 5), "the row fits the container");
     Ok(())
@@ -139,7 +151,10 @@ fn children_that_may_not_shrink_overflow() -> TestResult {
             .widget(boxed("b", "row", 60.0, 10.0, GREEN)),
     )?;
     assert!(red_at(&image, 58, 5), "the first keeps its width");
-    assert!(green_at(&image, 62, 5), "the second sits after it, out of the container");
+    assert!(
+        green_at(&image, 62, 5),
+        "the second sits after it, out of the container"
+    );
     Ok(())
 }
 
@@ -167,7 +182,10 @@ fn stretching_lines_and_items_fill_the_container_across() -> TestResult {
             )
             .widget(boxed("a", "row", 10.0, 10.0, RED)),
     )?;
-    assert!(red_at(&image, 5, 45), "the item is as high as the container");
+    assert!(
+        red_at(&image, 5, 45),
+        "the item is as high as the container"
+    );
     Ok(())
 }
 
@@ -228,7 +246,10 @@ fn a_container_of_automatic_size_is_as_large_as_its_children() -> TestResult {
     assert!(red_at(&image, 5, 5));
     assert!(green_at(&image, 12, 5), "the gap belongs to the container");
     assert!(red_at(&image, 25, 5));
-    assert!(green_at(&image, 12, 12), "the container is as high as its tallest child");
+    assert!(
+        green_at(&image, 12, 12),
+        "the container is as high as its tallest child"
+    );
     assert!(empty_at(&image, 36, 5), "and as wide as its row");
     assert!(empty_at(&image, 12, 16), "and no higher");
     Ok(())

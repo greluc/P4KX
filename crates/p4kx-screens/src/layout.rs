@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 
-use crate::flex::{Flex, Item, arrange, limit};
+use crate::flex::{Flex, Item, Slot, arrange, limit};
 use crate::geometry::{Dim, Geometry};
 use crate::paint::Area;
 use crate::style::Modifiers;
@@ -156,37 +156,42 @@ pub(crate) fn place(frame: &Frame<'_>, siblings: &[Sibling<'_>]) -> Vec<Placed> 
         .zip(&sized)
         .enumerate()
         .map(|(at, (sibling, sized))| {
-            let geometry = sibling.geometry;
-            let margin = geometry.margin;
             let slot = slot_of
                 .get(at)
                 .copied()
                 .flatten()
                 .and_then(|position| slots.get(position));
-            let (origin, size) = slot.map_or_else(
-                || (loose_origin(frame, &geometry, sized.size), sized.size),
-                |slot| {
-                    (
-                        slot.position,
-                        [
-                            slot.size[0] - margin.left - margin.right,
-                            slot.size[1] - margin.top - margin.bottom,
-                        ],
-                    )
-                },
-            );
             Placed {
                 at,
-                area: Area {
-                    x: content.x + origin[0] + margin.left + geometry.offset[0],
-                    y: content.y + origin[1] + margin.top + geometry.offset[1],
-                    width: size[0].max(0.0),
-                    height: size[1].max(0.0),
-                },
+                area: area_of(frame, &sibling.geometry, sized.size, slot),
                 auto: sized.auto,
             }
         })
         .collect()
+}
+
+/// Returns the box of a child that is `size` large by itself: in its slot of the container, or
+/// at its anchor when it is not in the flow.
+fn area_of(frame: &Frame<'_>, geometry: &Geometry, size: [f32; 2], slot: Option<&Slot>) -> Area {
+    let margin = geometry.margin;
+    let (origin, size) = slot.map_or_else(
+        || (loose_origin(frame, geometry, size), size),
+        |slot| {
+            (
+                slot.position,
+                [
+                    slot.size[0] - margin.left - margin.right,
+                    slot.size[1] - margin.top - margin.bottom,
+                ],
+            )
+        },
+    );
+    Area {
+        x: frame.content.x + origin[0] + margin.left + geometry.offset[0],
+        y: frame.content.y + origin[1] + margin.top + geometry.offset[1],
+        width: size[0].max(0.0),
+        height: size[1].max(0.0),
+    }
 }
 
 fn loose_origin(frame: &Frame<'_>, geometry: &Geometry, size: [f32; 2]) -> [f32; 2] {
@@ -200,7 +205,7 @@ fn loose_origin(frame: &Frame<'_>, geometry: &Geometry, size: [f32; 2]) -> [f32;
         ]
     };
     [
-        reach[0] - geometry.pivot[0] * size[0],
-        reach[1] - geometry.pivot[1] * size[1],
+        geometry.pivot[0].mul_add(-size[0], reach[0]),
+        geometry.pivot[1].mul_add(-size[1], reach[1]),
     ]
 }

@@ -203,18 +203,13 @@ fn pick_font(
 }
 
 fn font_size(look: &Look<'_>, spec: &TextSpec, area: Area, scale: f32, notes: &mut Notes) -> f32 {
-    let size = look
-        .style
-        .text
-        .font_size
-        .or(spec.font_size)
-        .map_or_else(
-            || {
-                notes.push("no font size: taken from the height of the widget".to_owned());
-                area.height * FIELD_SIZE_OF_HEIGHT
-            },
-            |pixels| pixels * look.pixel,
-        );
+    let size = look.style.text.font_size.or(spec.font_size).map_or_else(
+        || {
+            notes.push("no font size: taken from the height of the widget".to_owned());
+            area.height * FIELD_SIZE_OF_HEIGHT
+        },
+        |pixels| pixels * look.pixel,
+    );
     (size * scale).clamp(MIN_SIZE * look.pixel, MAX_SIZE * look.pixel)
 }
 

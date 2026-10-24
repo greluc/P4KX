@@ -48,6 +48,55 @@ pub(crate) fn render_with(
         .image)
 }
 
+fn decode(bytes: &[u8]) -> Result<(u32, u32, Vec<u8>), Box<dyn Error>> {
+    let mut reader = png::Decoder::new(std::io::Cursor::new(bytes)).read_info()?;
+    let size = reader
+        .output_buffer_size()
+        .ok_or("the reference image is too large")?;
+    let mut pixels = vec![0; size];
+    let info = reader.next_frame(&mut pixels)?;
+    pixels.truncate(info.buffer_size());
+    Ok((info.width, info.height, pixels))
+}
+
+/// Compares `image` with the PNG `reference` below the folder of the crate, allowing `tolerance`
+/// per channel on at most `most` pixels; `P4KX_UPDATE_REFERENCE` writes the reference again.
+pub(crate) fn matches_reference(
+    reference: &str,
+    image: &RgbaImage,
+    tolerance: u8,
+    most: usize,
+) -> TestResult {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(reference);
+    let mut written = Vec::new();
+    image.write_png(&mut written)?;
+    if std::env::var_os("P4KX_UPDATE_REFERENCE").is_some() {
+        if let Some(folder) = path.parent() {
+            std::fs::create_dir_all(folder)?;
+        }
+        std::fs::write(&path, &written)?;
+    }
+    let (width, height, expected) = decode(&std::fs::read(&path)?)?;
+    let (actual_width, actual_height, actual) = decode(&written)?;
+    assert_eq!((actual_width, actual_height), (width, height), "the size");
+    let differing = expected
+        .chunks(4)
+        .zip(actual.chunks(4))
+        .filter(|(expected, actual)| {
+            expected
+                .iter()
+                .zip(*actual)
+                .any(|(expected, actual)| expected.abs_diff(*actual) > tolerance)
+        })
+        .count();
+    assert!(
+        differing <= most,
+        "{differing} of {} pixels differ from {reference}",
+        width * height
+    );
+    Ok(())
+}
+
 pub(crate) fn red_at(image: &RgbaImage, x: u32, y: u32) -> bool {
     near(pixel(image, x, y), [255, 0, 0, 255], 1)
 }

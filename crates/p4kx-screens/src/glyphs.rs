@@ -56,7 +56,7 @@ impl Painter {
         });
         let mask = if self.state.is_clipped() {
             let bounds = self.shapes.get(shape).and_then(shape_bounds);
-            self.mask_of(&bounds, 0.0, &transform)
+            self.mask_of(bounds.as_ref(), 0.0, &transform)
         } else {
             None
         };

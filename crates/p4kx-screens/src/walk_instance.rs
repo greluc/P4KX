@@ -49,10 +49,8 @@ impl Walk<'_, '_, '_, '_> {
         if !is_list && widget.type_name != CLONE {
             return plan;
         }
-        let Some(at) = widget
-            .target
-            .and_then(|target| canvas.target_index(target))
-        else {
+        let repeat = &widget.repeat;
+        let Some(at) = repeat.target.and_then(|target| canvas.target_index(target)) else {
             plan.note = Some(NO_TARGET);
             return plan;
         };
@@ -61,19 +59,16 @@ impl Walk<'_, '_, '_, '_> {
             return plan;
         }
         let rows = if is_list {
-            let known = widget
+            let known = repeat
                 .array_variable
                 .as_deref()
                 .and_then(|name| canvas.arrays.get(name));
-            match known {
-                Some(&rows) => {
-                    plan.cut = rows > self.limits.rows;
-                    rows.min(self.limits.rows)
-                }
-                None => {
-                    plan.note = Some(AT_REST);
-                    0
-                }
+            if let Some(&rows) = known {
+                plan.cut = rows > self.limits.rows;
+                rows.min(self.limits.rows)
+            } else {
+                plan.note = Some(AT_REST);
+                0
             }
         } else {
             1
@@ -108,7 +103,7 @@ impl Walk<'_, '_, '_, '_> {
 
     /// Puts the modifiers of a clone in force for its template; `true` when it did.
     pub(crate) fn push_override(&mut self, canvas: &Canvas, sibling: &Sibling<'_>) -> bool {
-        let items = &sibling.widget.clone_modifiers;
+        let items = &sibling.widget.repeat.modifiers;
         let root = sibling.kids.last().copied();
         let (false, true, Some(root)) = (
             items.is_empty(),
@@ -128,13 +123,14 @@ impl Walk<'_, '_, '_, '_> {
     /// Lets the modifiers of the clones in force replace what the cascade made of widget `index`.
     pub(crate) fn apply_overrides(&self, canvas: &Canvas, index: usize, style: &mut Modifiers) {
         for active in &self.overrides {
+            if active.canvas != canvas.guid {
+                continue;
+            }
             for item in &active.items {
-                let hit = match item.target {
-                    None => active.canvas == canvas.guid && active.root == index,
-                    Some(target) => {
-                        active.canvas == canvas.guid && canvas.target_index(target) == Some(index)
-                    }
-                };
+                let hit = item.target.map_or_else(
+                    || active.root == index,
+                    |target| canvas.target_index(target) == Some(index),
+                );
                 if hit {
                     merge(style, &item.modifiers);
                 }

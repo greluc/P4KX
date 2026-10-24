@@ -1,8 +1,76 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::screens_widget::{TestDim, vec3};
-use crate::{TestInstance, TestModifier, TestValue, TestWidget};
+use crate::screens_widget::{TestColour, TestDim, vec3};
+use crate::{TestInstance, TestModifier, TestStruct, TestType, TestValue, TestWidget};
+
+fn pointer(name: &str) -> TestType {
+    TestType::StrongPointer(name.to_owned())
+}
+
+fn weak_widget() -> TestType {
+    TestType::WeakPointer("BuildingBlocks_DisplayWidget".to_owned())
+}
+
+fn class(name: &str) -> TestType {
+    TestType::Class(name.to_owned())
+}
+
+/// Adds the structs of the background and the border of a box, with its rounded corners.
+pub(crate) fn box_structs() -> Vec<TestStruct> {
+    let corner = || class("BuildingBlocks_BorderRadiusCorner");
+    vec![
+        TestStruct::new("BuildingBlocks_Background")
+            .field("enable", TestType::Bool)
+            .field("color", pointer("BuildingBlocks_Color"))
+            .field("topLeftColor", pointer("BuildingBlocks_Color")),
+        TestStruct::new("BuildingBlocks_BorderSide")
+            .field("width", TestType::Single)
+            .field("color", pointer("BuildingBlocks_Color")),
+        TestStruct::new("BuildingBlocks_Border")
+            .field("top", class("BuildingBlocks_BorderSide"))
+            .field("right", class("BuildingBlocks_BorderSide"))
+            .field("bottom", class("BuildingBlocks_BorderSide"))
+            .field("left", class("BuildingBlocks_BorderSide"))
+            .field("topLeftRadius", corner())
+            .field("topRightRadius", corner())
+            .field("bottomRightRadius", corner())
+            .field("bottomLeftRadius", corner()),
+        TestStruct::new("BuildingBlocks_BorderRadiusCorner")
+            .field("chamfer", TestType::Bool)
+            .field("radius", class("BuildingBlocks_FixedOrRelativeValue")),
+    ]
+}
+
+/// Adds the structs of clones, lists, the modifiers of clones and the static array variables of
+/// canvases.
+pub(crate) fn instance_structs() -> Vec<TestStruct> {
+    vec![
+        TestStruct::new("BuildingBlocks_WidgetClone")
+            .parent("BuildingBlocks_DisplayWidget")
+            .field("target", weak_widget())
+            .array("modifiers", class("BuildingBlocks_FieldModifierPair")),
+        TestStruct::new("BuildingBlocks_WidgetList")
+            .parent("BuildingBlocks_DisplayWidget")
+            .field("target", weak_widget())
+            .field("arrayVariable", TestType::String),
+        TestStruct::new("BuildingBlocks_FieldModifierPair")
+            .field("target", weak_widget())
+            .field("modifier", pointer("BuildingBlocks_FieldModifier")),
+        TestStruct::new("BuildingBlocks_StaticVariable").field("name", TestType::String),
+        TestStruct::new("BuildingBlocks_StaticVariableArray")
+            .parent("BuildingBlocks_StaticVariable")
+            .array("value", pointer("BuildingBlocks_StaticArrayEntry")),
+        TestStruct::new("BuildingBlocks_StaticArrayEntry").array(
+            "structureVariables",
+            pointer("BuildingBlocks_StaticArrayData"),
+        ),
+        TestStruct::new("BuildingBlocks_StaticArrayData").field("name", TestType::String),
+        TestStruct::new("BuildingBlocks_StaticArrayDataLocalization")
+            .parent("BuildingBlocks_StaticArrayData")
+            .array("values", TestType::Locale),
+    ]
+}
 
 pub(crate) fn static_arrays(arrays: &[(String, usize)]) -> TestValue {
     TestValue::Array(
@@ -89,6 +157,24 @@ impl TestWidget {
     #[must_use]
     pub const fn scale(self, x: f32, y: f32) -> Self {
         self.set_scale([x, y])
+    }
+
+    /// Rounds the four corners of the box by `radius`.
+    #[must_use]
+    pub const fn rounded(self, radius: f32) -> Self {
+        self.set_corner(radius, false)
+    }
+
+    /// Cuts the four corners of the box by `radius`.
+    #[must_use]
+    pub const fn chamfered(self, radius: f32) -> Self {
+        self.set_corner(radius, true)
+    }
+
+    /// Gives the background a colour for its top left corner, which makes it a gradient.
+    #[must_use]
+    pub const fn gradient(self, corner: TestColour) -> Self {
+        self.set_gradient(corner)
     }
 
     /// Sets the overflow, `Visible`, `Clip`, `ClipFade` or `Fade`.

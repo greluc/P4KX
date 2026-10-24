@@ -22,7 +22,7 @@ fn usable(scale: f32) -> bool {
     scale.is_finite() && scale > 0.0
 }
 
-fn scaling(scale: f32, x: f32, y: f32) -> (Affine, f32) {
+const fn scaling(scale: f32, x: f32, y: f32) -> (Affine, f32) {
     (
         Affine {
             a: scale,
@@ -78,8 +78,8 @@ pub(crate) fn fit(canvas: &Canvas, frame: Area, sizing: CanvasSizing) -> Fit {
                 },
                 scaled: Some(scaling(
                     scale,
-                    frame.x + (frame.width - width * scale) / 2.0,
-                    frame.y + (frame.height - height * scale) / 2.0,
+                    frame.x + (-width).mul_add(scale, frame.width) / 2.0,
+                    frame.y + (-height).mul_add(scale, frame.height) / 2.0,
                 )),
                 centred: false,
             };

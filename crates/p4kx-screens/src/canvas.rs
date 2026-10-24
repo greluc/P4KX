@@ -159,7 +159,11 @@ fn unreachable_widgets(
     children: &[Vec<usize>],
 ) -> Vec<usize> {
     let mut seen = vec![false; widgets.len()];
-    let mut stack: Vec<usize> = roots.iter().copied().chain(scene_len..widgets.len()).collect();
+    let mut stack: Vec<usize> = roots
+        .iter()
+        .copied()
+        .chain(scene_len..widgets.len())
+        .collect();
     while let Some(index) = stack.pop() {
         if let Some(flag) = seen.get_mut(index) {
             if *flag {

@@ -24,13 +24,7 @@ fn square(name: &str, side: f32) -> TestWidget {
 
 #[test]
 fn the_pivot_sits_on_the_anchor_of_the_parent() -> TestResult {
-    let image = render(
-        &canvas().widget(
-            square("centred", 20.0)
-                .anchor(0.5, 0.5)
-                .pivot(0.5, 0.5),
-        ),
-    )?;
+    let image = render(&canvas().widget(square("centred", 20.0).anchor(0.5, 0.5).pivot(0.5, 0.5)))?;
     assert!(red_at(&image, 50, 25), "in the middle");
     assert!(red_at(&image, 41, 16), "ten pixels from the middle");
     assert!(empty_at(&image, 38, 25), "no further");
@@ -40,9 +34,7 @@ fn the_pivot_sits_on_the_anchor_of_the_parent() -> TestResult {
 
 #[test]
 fn a_pivot_and_an_anchor_in_a_corner_hold_the_widget_in_that_corner() -> TestResult {
-    let image = render(
-        &canvas().widget(square("corner", 20.0).anchor(1.0, 1.0).pivot(1.0, 1.0)),
-    )?;
+    let image = render(&canvas().widget(square("corner", 20.0).anchor(1.0, 1.0).pivot(1.0, 1.0)))?;
     assert!(red_at(&image, 95, 45), "bottom right");
     assert!(empty_at(&image, 5, 5), "not top left");
     Ok(())
@@ -102,7 +94,10 @@ fn a_turned_widget_turns_its_children_with_it() -> TestResult {
                     .background(GREEN),
             ),
     )?;
-    assert!(green_at(&image, 50, 40), "the right end turned to the bottom");
+    assert!(
+        green_at(&image, 50, 40),
+        "the right end turned to the bottom"
+    );
     Ok(())
 }
 
@@ -131,18 +126,14 @@ fn a_half_turn_about_the_x_axis_flips_the_widget_over() -> TestResult {
 
 #[test]
 fn a_widget_seen_edge_on_is_not_drawn() -> TestResult {
-    let composed = compose(
-        &canvas().widget(square("edge", 20.0).orientation(90.0, 0.0, 0.0)),
-    )?;
+    let composed = compose(&canvas().widget(square("edge", 20.0).orientation(90.0, 0.0, 0.0)))?;
     assert_eq!(composed.report().shapes, 0, "nothing of it is visible");
     Ok(())
 }
 
 #[test]
 fn scale_grows_a_widget_about_its_pivot() -> TestResult {
-    let image = render(
-        &canvas().widget(square("big", 10.0).pivot(0.0, 0.0).scale(2.0, 3.0)),
-    )?;
+    let image = render(&canvas().widget(square("big", 10.0).pivot(0.0, 0.0).scale(2.0, 3.0)))?;
     assert!(red_at(&image, 15, 25), "twice as wide, three times as high");
     assert!(empty_at(&image, 25, 5), "no wider");
     assert!(empty_at(&image, 5, 35), "no higher");
@@ -174,11 +165,7 @@ fn style_entries_move_turn_and_scale_widgets_too() -> TestResult {
         .when(TestCondition::Type("Base"))
         .set(TestModifier::Number("AnchorX", 1.0))
         .set(TestModifier::Number("PivotX", 1.0));
-    let image = render(
-        &canvas()
-            .embedded(entry)
-            .widget(square("moved", 20.0)),
-    )?;
+    let image = render(&canvas().embedded(entry).widget(square("moved", 20.0)))?;
     assert!(red_at(&image, 95, 5), "the style put it at the right edge");
     assert!(empty_at(&image, 5, 5), "and not at the left");
     Ok(())
@@ -209,10 +196,7 @@ fn clipping_cuts_the_children_at_the_box() -> TestResult {
 fn without_clipping_children_may_leave_the_box() -> TestResult {
     let image = render(
         &canvas()
-            .widget(
-                TestWidget::display("window")
-                    .size(TestDim::Fixed(20.0), TestDim::Fixed(20.0)),
-            )
+            .widget(TestWidget::display("window").size(TestDim::Fixed(20.0), TestDim::Fixed(20.0)))
             .widget(
                 TestWidget::display("wide")
                     .parent("window")
@@ -309,9 +293,11 @@ fn a_nested_canvas_is_laid_out_in_the_box_of_its_widget() -> TestResult {
 
 #[test]
 fn a_scaled_canvas_keeps_its_own_size_and_is_scaled_into_the_box() -> TestResult {
-    let image =
-        render_with(&host(60.0, 40.0, "Scale"), vec![inner("auto").record()])?;
-    assert!(red_at(&image, 30, 20), "the fill is as high as the box allows");
+    let image = render_with(&host(60.0, 40.0, "Scale"), vec![inner("auto").record()])?;
+    assert!(
+        red_at(&image, 30, 20),
+        "the fill is as high as the box allows"
+    );
     assert!(red_at(&image, 58, 29), "scaled by three to 60 x 30");
     assert!(empty_at(&image, 30, 35), "the aspect of the canvas is kept");
     Ok(())

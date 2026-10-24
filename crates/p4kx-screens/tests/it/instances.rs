@@ -72,19 +72,15 @@ fn two_clones_of_a_template_are_laid_out_by_their_parent() -> TestResult {
 
 #[test]
 fn the_modifiers_of_a_clone_change_its_template() -> TestResult {
-    let image = render(
-        &canvas()
-            .template(template("tmpl", 40.0, 30.0))
-            .widget(
-                TestWidget::clone_of("copy", "tmpl").with(
-                    "modifiers",
-                    clone_modifiers(&[
-                        TestModifier::EnableBackground(true),
-                        TestModifier::Background(BLUE),
-                    ]),
-                ),
-            ),
-    )?;
+    let image = render(&canvas().template(template("tmpl", 40.0, 30.0)).widget(
+        TestWidget::clone_of("copy", "tmpl").with(
+            "modifiers",
+            clone_modifiers(&[
+                TestModifier::EnableBackground(true),
+                TestModifier::Background(BLUE),
+            ]),
+        ),
+    ))?;
     assert!(blue_at(&image, 20, 15), "the colour the clone sets");
     Ok(())
 }
@@ -95,9 +91,7 @@ fn a_list_repeats_its_template_for_every_row_of_its_static_array() -> TestResult
         &canvas()
             .template(template("item", 10.0, 10.0))
             .static_array("rows", 3)
-            .widget(
-                TestWidget::list("list", "item", "rows").flex("Row", "Start", "Start", 5.0),
-            ),
+            .widget(TestWidget::list("list", "item", "rows").flex("Row", "Start", "Start", 5.0)),
     )?;
     for x in [5, 20, 35] {
         assert!(red_at(&image, x, 5), "an item at x = {x}");
@@ -160,7 +154,11 @@ fn a_template_with_a_clone_of_itself_is_repeated_once_and_reported() -> TestResu
             .widget(TestWidget::clone_of("inside", "loop").parent("loop"))
             .widget(TestWidget::clone_of("outside", "loop")),
     )?;
-    assert!(composed.report().widgets <= 4, "{}", composed.report().widgets);
+    assert!(
+        composed.report().widgets <= 4,
+        "{}",
+        composed.report().widgets
+    );
     assert!(
         composed
             .report()
@@ -194,7 +192,10 @@ fn templates_that_clone_each_other_in_ten_levels_are_bounded() -> TestResult {
         ..Limits::DEFAULT
     };
     let composed = compose_with(&canvas, Vec::new(), limits)?;
-    assert!(composed.report().truncated, "ten to the seventh is too many");
+    assert!(
+        composed.report().truncated,
+        "ten to the seventh is too many"
+    );
     assert!(
         composed.report().widgets <= 4 * 500,
         "{} widgets",
@@ -205,7 +206,8 @@ fn templates_that_clone_each_other_in_ten_levels_are_bounded() -> TestResult {
 
 #[test]
 fn a_clone_without_a_target_is_reported_and_draws_nothing() -> TestResult {
-    let composed = compose(&canvas().widget(TestWidget::new("BuildingBlocks_WidgetClone", "lost")))?;
+    let composed =
+        compose(&canvas().widget(TestWidget::new("BuildingBlocks_WidgetClone", "lost")))?;
     assert_eq!(composed.report().shapes, 0);
     assert!(
         composed

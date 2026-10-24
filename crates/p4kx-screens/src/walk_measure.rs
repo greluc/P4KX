@@ -92,69 +92,114 @@ impl Walk<'_, '_, '_, '_> {
         ]
     }
 
-    fn container_size(&mut self, probe: &Probe<'_>, parent: Area, depth: usize) -> [Option<f32>; 2] {
+    fn container_size(
+        &mut self,
+        probe: &Probe<'_>,
+        parent: Area,
+        depth: usize,
+    ) -> [Option<f32>; 2] {
         let subject = Subject::of(&probe.widget.type_name, &probe.widget.tags);
         self.push_chain(&(&subject.kind, &subject.tags));
         self.above.push(subject);
-        let flex = probe.geometry.flex;
-        let mut main = [0.0_f32; 2];
-        let mut cross = [0.0_f32; 2];
-        let mut seen = [0_usize; 2];
-        let mut flowing = 0_usize;
+        let mut extents = [Extent::default(); 2];
+        let mut flowing = 0_u16;
         for &kid in probe.kids {
-            let Some(widget) = probe.canvas.widgets.get(kid).filter(|w| w.active && w.in_flow)
-            else {
+            let Some(outer) = self.outer_size(probe, kid, parent, depth) else {
                 continue;
             };
-            let style = self.style_of(probe.canvas, kid, widget);
-            let geometry = Geometry::of(widget, &style);
-            let kids = self.plan_kids(probe.canvas, kid, widget).kids;
-            let child = Probe {
-                canvas: probe.canvas,
-                index: kid,
-                widget,
-                style: &style,
-                geometry: &geometry,
-                has_children: !kids.is_empty() || widget.canvas.is_some(),
-                kids: &kids,
-            };
-            let content = self.content_of(&child, parent, depth + 1);
-            flowing += 1;
-            for axis in 0..2 {
-                let own = match geometry.size.get(axis).copied() {
-                    Some(Dim::Fixed(value)) => Some(value),
-                    Some(Dim::Auto) => content.get(axis).copied().flatten(),
-                    _ => None,
-                };
-                let Some(own) = own.filter(|own| own.is_finite()) else {
-                    continue;
-                };
-                let (_, margin) = edges(&geometry, axis);
-                let outer = own.max(0.0) + margin;
-                seen[axis] += 1;
-                main[axis] += outer;
-                cross[axis] = cross[axis].max(outer);
+            flowing = flowing.saturating_add(1);
+            for (extent, size) in extents.iter_mut().zip(outer) {
+                if let Some(size) = size {
+                    extent.add(size);
+                }
             }
         }
         self.above.pop();
         self.chain.pop();
+        let flex = probe.geometry.flex;
         let column = flex.is_some_and(|flex| flex.column);
-        let gap = flex.map_or(0.0, |flex| if column { flex.row_gap } else { flex.column_gap });
-        let spacing = gap * (flowing.saturating_sub(1) as f32);
+        let gap = flex.map_or(0.0, |flex| {
+            if column {
+                flex.row_gap
+            } else {
+                flex.column_gap
+            }
+        });
+        let spacing = gap * f32::from(flowing.saturating_sub(1));
         let mut size = [None; 2];
-        for (axis, slot) in size.iter_mut().enumerate() {
-            if seen.get(axis).copied().unwrap_or(0) == 0 {
+        for (axis, (slot, extent)) in size.iter_mut().zip(extents).enumerate() {
+            if !extent.seen {
                 continue;
             }
             let along = flex.is_some() && (axis == 1) == column;
             let inner = if along {
-                main[axis] + spacing
+                extent.along + spacing
             } else {
-                cross[axis]
+                extent.across
             };
-            let (padding, _) = edges(probe.geometry, axis);
-            *slot = Some(inner + padding);
+            *slot = Some(inner + edges(probe.geometry, axis).0);
         }
         size
+    }
+
+    /// Returns what the child `kid` of `probe` asks for along each axis, margins included, or
+    /// `None` when it takes no part in the layout.
+    fn outer_size(
+        &mut self,
+        probe: &Probe<'_>,
+        kid: usize,
+        parent: Area,
+        depth: usize,
+    ) -> Option<[Option<f32>; 2]> {
+        let widget = probe
+            .canvas
+            .widgets
+            .get(kid)
+            .filter(|widget| widget.active && widget.in_flow)?;
+        let style = self.style_of(probe.canvas, kid, widget);
+        let geometry = Geometry::of(widget, &style);
+        let kids = self.plan_kids(probe.canvas, kid, widget).kids;
+        let child = Probe {
+            canvas: probe.canvas,
+            index: kid,
+            widget,
+            style: &style,
+            geometry: &geometry,
+            has_children: !kids.is_empty() || widget.canvas.is_some(),
+            kids: &kids,
+        };
+        let content = self.content_of(&child, parent, depth + 1);
+        let mut outer = [None; 2];
+        for (axis, (slot, (dim, content))) in outer
+            .iter_mut()
+            .zip(geometry.size.into_iter().zip(content))
+            .enumerate()
+        {
+            let own = match dim {
+                Dim::Fixed(value) => Some(value),
+                Dim::Auto => content,
+                Dim::Percent(_) | Dim::OfWidth(_) | Dim::OfHeight(_) => None,
+            };
+            *slot = own
+                .filter(|own| own.is_finite())
+                .map(|own| own.max(0.0) + edges(&geometry, axis).1);
+        }
+        Some(outer)
+    }
+}
+
+/// How much of one axis the children of a container take: summed, and the largest.
+#[derive(Debug, Clone, Copy, Default)]
+struct Extent {
+    along: f32,
+    across: f32,
+    seen: bool,
+}
+
+impl Extent {
+    fn add(&mut self, size: f32) {
+        self.along += size;
+        self.across = self.across.max(size);
+        self.seen = true;
     }
 }

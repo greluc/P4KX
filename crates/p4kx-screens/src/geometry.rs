@@ -147,7 +147,7 @@ pub(crate) struct Geometry {
     pub(crate) invalid: bool,
 }
 
-fn finite_or(value: f32, fallback: f32, invalid: &mut bool) -> f32 {
+const fn finite_or(value: f32, fallback: f32, invalid: &mut bool) -> f32 {
     if value.is_finite() {
         value
     } else {
@@ -172,70 +172,69 @@ fn bound_with(bound: Option<Dim>, amount: Option<f32>) -> Option<Dim> {
     })
 }
 
+fn sized(base: [Dim; 2], over: [Option<f32>; 2]) -> [Dim; 2] {
+    let mut out = base;
+    for (dim, amount) in out.iter_mut().zip(over) {
+        if let Some(amount) = amount {
+            *dim = dim.with_amount(amount);
+        }
+    }
+    out
+}
+
+fn bounded(base: [Option<Dim>; 2], over: [Option<f32>; 2]) -> [Option<Dim>; 2] {
+    let mut out = base;
+    for (slot, amount) in out.iter_mut().zip(over) {
+        *slot = bound_with(*slot, amount);
+    }
+    out
+}
+
+fn padded(base: Edges, [top, right, bottom, left]: [Option<f32>; 4]) -> Edges {
+    Edges {
+        top: top.unwrap_or(base.top),
+        right: right.unwrap_or(base.right),
+        bottom: bottom.unwrap_or(base.bottom),
+        left: left.unwrap_or(base.left),
+    }
+}
+
+fn sane<const N: usize>(
+    values: [f32; N],
+    fallback: f32,
+    limit: f32,
+    invalid: &mut bool,
+) -> [f32; N] {
+    values.map(|value| finite_or(value, fallback, invalid).clamp(-limit, limit))
+}
+
 impl Geometry {
     pub(crate) fn of(widget: &Widget, style: &Modifiers) -> Self {
-        let over = &style.geometry;
+        let (over, pose) = (&style.geometry, &widget.pose);
         let mut invalid = false;
-        let size = [0, 1].map(|at| match over.size.get(at).copied().flatten() {
-            Some(amount) => widget.size.get(at).copied().unwrap_or(Dim::Auto).with_amount(amount),
-            None => widget.size.get(at).copied().unwrap_or(Dim::Auto),
-        });
-        let position = pick(widget.position, over.position);
-        let shift = pick(widget.position_offset, over.position_offset);
-        let turn = pick(widget.orientation, over.orientation);
-        let pivot = pick(widget.pivot, over.pivot);
-        let anchor = pick(widget.anchor, over.anchor);
-        let scale = pick(widget.scale, over.scale);
-        let mut padding = widget.padding;
-        for (slot, value) in [
-            &mut padding.top,
-            &mut padding.right,
-            &mut padding.bottom,
-            &mut padding.left,
-        ]
-        .into_iter()
-        .zip(over.padding)
-        {
-            if let Some(value) = value {
-                *slot = value;
-            }
+        let position = pick(pose.position, over.position);
+        let shift = pick(pose.position_offset, over.position_offset);
+        let mut turn = pick(pose.orientation, over.orientation);
+        for (angle, extra) in turn.iter_mut().zip(pose.orientation_offset) {
+            *angle += extra;
         }
-        let mut flex = widget.flex;
-        if let Some(flex) = &mut flex {
-            flex.apply_gaps(over.gap);
-        }
-        let bounds = Bounds {
-            min: [0, 1].map(|at| {
-                bound_with(
-                    widget.bounds.min.get(at).copied().flatten(),
-                    over.min.get(at).copied().flatten(),
-                )
-            }),
-            max: [0, 1].map(|at| {
-                bound_with(
-                    widget.bounds.max.get(at).copied().flatten(),
-                    over.max.get(at).copied().flatten(),
-                )
-            }),
-        };
-        let rotation = [0, 1, 2].map(|at| {
-            let total = turn.get(at).copied().unwrap_or(0.0)
-                + widget.orientation_offset.get(at).copied().unwrap_or(0.0);
-            finite_or(total, 0.0, &mut invalid).clamp(-MAX_TURN, MAX_TURN)
-        });
         Self {
-            size,
-            bounds,
-            offset: [0, 1].map(|at| {
-                position.get(at).copied().unwrap_or(0.0) + shift.get(at).copied().unwrap_or(0.0)
-            }),
-            padding,
+            size: sized(widget.size, over.size),
+            bounds: Bounds {
+                min: bounded(widget.bounds.min, over.min),
+                max: bounded(widget.bounds.max, over.max),
+            },
+            offset: [position[0] + shift[0], position[1] + shift[1]],
+            padding: padded(widget.padding, over.padding),
             margin: widget.margin,
-            pivot: pivot.map(|value| finite_or(value, 0.0, &mut invalid)),
-            anchor: anchor.map(|value| finite_or(value, 0.0, &mut invalid)),
-            rotation,
-            scale: scale.map(|value| finite_or(value, 1.0, &mut invalid).clamp(-MAX_SCALE, MAX_SCALE)),
-            flex,
+            pivot: sane(pick(pose.pivot, over.pivot), 0.0, f32::MAX, &mut invalid),
+            anchor: sane(pick(pose.anchor, over.anchor), 0.0, f32::MAX, &mut invalid),
+            rotation: sane(turn, 0.0, MAX_TURN, &mut invalid),
+            scale: sane(pick(pose.scale, over.scale), 1.0, MAX_SCALE, &mut invalid),
+            flex: widget.flex.map(|mut flex| {
+                flex.apply_gaps(over.gap);
+                flex
+            }),
             invalid,
         }
     }

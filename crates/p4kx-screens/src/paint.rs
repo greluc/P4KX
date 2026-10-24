@@ -80,6 +80,11 @@ impl Painter {
         }
     }
 
+    /// Fills the closed contours of `commands` with the even-odd rule.
+    pub(crate) fn fill_outline(&mut self, commands: Vec<PathCommand>, colour: Rgba) {
+        self.push(commands, colour, Mode::Fill);
+    }
+
     pub(crate) fn stroke_ellipse(&mut self, area: Area, colour: Rgba, width: f32) {
         if !area.is_empty() {
             self.push(ellipse(area), colour, Mode::Stroke(width));
@@ -116,7 +121,7 @@ impl Painter {
         };
         let path = ScenePath { commands };
         let transform = self.state.to_twips();
-        let mask = self.mask_of(&bounds_of(&path), reach, &transform);
+        let mask = self.mask_of(bounds_of(&path).as_ref(), reach, &transform);
         let index = self.shapes.len();
         let id = u16::try_from(index % usize::from(u16::MAX)).unwrap_or(0);
         self.shapes.push(SceneShape {
@@ -219,7 +224,7 @@ fn polygon(points: &[(f32, f32)]) -> Option<Vec<PathCommand>> {
     Some(commands)
 }
 
-fn point(x: f32, y: f32) -> ScenePoint {
+pub(crate) fn point(x: f32, y: f32) -> ScenePoint {
     ScenePoint {
         x: x * TWIPS,
         y: y * TWIPS,

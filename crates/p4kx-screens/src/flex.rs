@@ -66,11 +66,11 @@ impl Flex {
     }
 
     /// Replaces the column and row spacing a style sets.
-    pub(crate) fn apply_gaps(&mut self, over: [Option<f32>; 2]) {
-        if let Some(gap) = over[0] {
+    pub(crate) const fn apply_gaps(&mut self, [column, row]: [Option<f32>; 2]) {
+        if let Some(gap) = column {
             self.column_gap = gap;
         }
-        if let Some(gap) = over[1] {
+        if let Some(gap) = row {
             self.row_gap = gap;
         }
     }
@@ -185,13 +185,13 @@ fn number(count: usize) -> f32 {
 }
 
 /// Holds `value` between `min` and `max`, the minimum winning, and above zero.
-pub(crate) fn limit(value: f32, min: f32, max: f32) -> f32 {
+pub(crate) const fn limit(value: f32, min: f32, max: f32) -> f32 {
     value.min(max).max(min).max(0.0)
 }
 
 fn break_lines(flex: &Flex, items: &[Item], main: usize, extent: f32) -> Vec<Range<usize>> {
     if flex.wrap == Wrap::No || items.is_empty() {
-        return vec![0..items.len()];
+        return std::iter::once(0..items.len()).collect();
     }
     let mut lines = Vec::new();
     let mut start = 0;
@@ -211,7 +211,13 @@ fn break_lines(flex: &Flex, items: &[Item], main: usize, extent: f32) -> Vec<Ran
     lines
 }
 
-fn distribute(flex: &Flex, items: &[Item], line: &Range<usize>, main: usize, extent: f32) -> Vec<f32> {
+fn distribute(
+    flex: &Flex,
+    items: &[Item],
+    line: &Range<usize>,
+    main: usize,
+    extent: f32,
+) -> Vec<f32> {
     let members = items.get(line.clone()).unwrap_or(&[]);
     let mut sizes: Vec<f32> = members.iter().map(|item| at(item.size, main)).collect();
     let gaps = flex.main_gap() * (number(members.len()) - 1.0).max(0.0);
@@ -238,7 +244,11 @@ fn distribute(flex: &Flex, items: &[Item], line: &Range<usize>, main: usize, ext
         let total: f32 = weights.iter().sum();
         if total > 0.0 {
             for ((size, item), weight) in sizes.iter_mut().zip(members).zip(weights) {
-                *size = limit(*size + free * weight / total, at(item.min, main), at(item.max, main));
+                *size = limit(
+                    *size + free * weight / total,
+                    at(item.min, main),
+                    at(item.max, main),
+                );
             }
         }
     }
@@ -307,7 +317,15 @@ pub(crate) fn arrange(flex: &Flex, content: [f32; 2], items: &[Item]) -> Vec<Slo
         else {
             continue;
         };
-        place_line(flex, items, line, sizes, (cursor, span), at(content, main), &mut placed);
+        place_line(
+            flex,
+            items,
+            line,
+            sizes,
+            (cursor, span),
+            at(content, main),
+            &mut placed,
+        );
         cursor += span + flex.cross_gap() + between;
     }
     placed
@@ -324,8 +342,10 @@ fn place_line(
 ) {
     let main = usize::from(flex.column);
     let cross = 1 - main;
-    let used = sizes.iter().sum::<f32>()
-        + flex.main_gap() * (number(sizes.len()) - 1.0).max(0.0);
+    let used = flex.main_gap().mul_add(
+        (number(sizes.len()) - 1.0).max(0.0),
+        sizes.iter().sum::<f32>(),
+    );
     let (lead, between) = spread(flex.justify, extent - used, sizes.len());
     let indices: Vec<usize> = if flex.reverse {
         line.clone().rev().collect()
@@ -345,7 +365,11 @@ fn place_line(
             Align::Center => room / 2.0,
             Align::End => room,
             Align::Stretch => {
-                set(&mut size, cross, limit(span, at(item.min, cross), at(item.max, cross)));
+                set(
+                    &mut size,
+                    cross,
+                    limit(span, at(item.min, cross), at(item.max, cross)),
+                );
                 0.0
             }
         };

@@ -106,6 +106,8 @@ pub struct TestWidget {
     bounds: [Option<TestDim>; 4],
     policy: Option<TestInstance>,
     scale: [f32; 2],
+    corner: Option<(f32, bool)>,
+    gradient: Option<TestColour>,
     extra: Vec<(&'static str, TestValue)>,
 }
 
@@ -135,8 +137,20 @@ impl TestWidget {
             bounds: [None; 4],
             policy: None,
             scale: [1.0; 2],
+            corner: None,
+            gradient: None,
             extra: Vec::new(),
         }
+    }
+
+    pub(crate) const fn set_gradient(mut self, corner: TestColour) -> Self {
+        self.gradient = Some(corner);
+        self
+    }
+
+    pub(crate) const fn set_corner(mut self, radius: f32, chamfer: bool) -> Self {
+        self.corner = Some((radius, chamfer));
+        self
     }
 
     pub(crate) const fn set_scale(mut self, scale: [f32; 2]) -> Self {
@@ -158,7 +172,7 @@ impl TestWidget {
 
     pub(crate) fn set_flex_part(mut self, at: usize, value: &str) -> Self {
         if let Some(slot) = self.flex.as_mut().and_then(|flex| flex.get_mut(at)) {
-            *slot = value.to_owned();
+            value.clone_into(slot);
         }
         self
     }
@@ -306,14 +320,13 @@ impl TestWidget {
             instance = instance.value("parent", TestValue::pointer(parent.clone()));
         }
         if let Some(colour) = self.background {
-            instance = instance.value(
-                "background",
-                TestValue::Struct(
-                    TestInstance::new("BuildingBlocks_Background")
-                        .value("enable", TestValue::Bool(true))
-                        .value("color", colour.value()),
-                ),
-            );
+            let mut background = TestInstance::new("BuildingBlocks_Background")
+                .value("enable", TestValue::Bool(true))
+                .value("color", colour.value());
+            if let Some(corner) = self.gradient {
+                background = background.value("topLeftColor", corner.value());
+            }
+            instance = instance.value("background", TestValue::Struct(background));
         }
         instance = self.with_border(instance);
         instance = self.with_layout(instance);
@@ -344,26 +357,42 @@ impl TestWidget {
     }
 
     fn with_border(&self, instance: TestInstance) -> TestInstance {
-        let Some((width, colour)) = self.border else {
+        if self.border.is_none() && self.corner.is_none() {
             return instance;
-        };
-        let side = || {
-            TestValue::Struct(
-                TestInstance::new("BuildingBlocks_BorderSide")
-                    .value("width", TestValue::Single(width))
-                    .value("color", colour.value()),
-            )
-        };
-        instance.value(
-            "border",
-            TestValue::Struct(
-                TestInstance::new("BuildingBlocks_Border")
-                    .value("top", side())
-                    .value("right", side())
-                    .value("bottom", side())
-                    .value("left", side()),
-            ),
-        )
+        }
+        let mut border = TestInstance::new("BuildingBlocks_Border");
+        if let Some((width, colour)) = self.border {
+            let side = || {
+                TestValue::Struct(
+                    TestInstance::new("BuildingBlocks_BorderSide")
+                        .value("width", TestValue::Single(width))
+                        .value("color", colour.value()),
+                )
+            };
+            border = border
+                .value("top", side())
+                .value("right", side())
+                .value("bottom", side())
+                .value("left", side());
+        }
+        if let Some((radius, chamfer)) = self.corner {
+            for name in [
+                "topLeftRadius",
+                "topRightRadius",
+                "bottomRightRadius",
+                "bottomLeftRadius",
+            ] {
+                border = border.value(
+                    name,
+                    TestValue::Struct(
+                        TestInstance::new("BuildingBlocks_BorderRadiusCorner")
+                            .value("chamfer", TestValue::Bool(chamfer))
+                            .value("radius", TestDim::Fixed(radius).value()),
+                    ),
+                );
+            }
+        }
+        instance.value("border", TestValue::Struct(border))
     }
 
     fn with_layout(&self, mut instance: TestInstance) -> TestInstance {
@@ -390,7 +419,10 @@ impl TestWidget {
                 TestValue::Struct(
                     TestInstance::new("BuildingBlocks_FlexItem")
                         .value("growProportion", TestValue::Single(self.grow))
-                        .value("shrinkProportion", TestValue::Single(self.shrink.unwrap_or(0.0))),
+                        .value(
+                            "shrinkProportion",
+                            TestValue::Single(self.shrink.unwrap_or(0.0)),
+                        ),
                 ),
             );
         }

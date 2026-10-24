@@ -16,9 +16,27 @@ pub(crate) struct GeometryModifiers {
     pub(crate) position_offset: [Option<f32>; 2],
     pub(crate) padding: [Option<f32>; 4],
     pub(crate) gap: [Option<f32>; 2],
+    pub(crate) radius: [Option<f32>; 4],
+    pub(crate) chamfer: [Option<bool>; 4],
 }
 
+const CORNERS: [&str; 4] = ["TopLeft", "TopRight", "BottomRight", "BottomLeft"];
+
 impl GeometryModifiers {
+    /// Takes the boolean field `field` when it enables a chamfer, `false` otherwise.
+    pub(crate) fn flag(&mut self, field: &str, value: Option<bool>) -> bool {
+        let corner = field
+            .strip_prefix("Enable")
+            .and_then(|rest| rest.strip_suffix("BorderChamfer"));
+        let slot = corner
+            .and_then(|corner| CORNERS.iter().position(|name| *name == corner))
+            .and_then(|at| self.chamfer.get_mut(at));
+        slot.is_some_and(|slot| {
+            *slot = value;
+            true
+        })
+    }
+
     /// Takes the numeric field `field` when it is one of the geometry, `false` otherwise.
     pub(crate) fn number(&mut self, field: &str, value: Option<f32>) -> bool {
         let table: [(&str, &mut [Option<f32>]); 8] = [
@@ -44,6 +62,14 @@ impl GeometryModifiers {
     }
 
     fn positional(&mut self, field: &str, value: Option<f32>) -> bool {
+        let corner = field
+            .strip_prefix("Border")
+            .and_then(|rest| rest.strip_suffix("Radius"))
+            .and_then(|corner| CORNERS.iter().position(|name| *name == corner));
+        if let Some(slot) = corner.and_then(|at| self.radius.get_mut(at)) {
+            *slot = value;
+            return true;
+        }
         let slot = match field {
             "PosX" => self.position.get_mut(0),
             "PosY" => self.position.get_mut(1),
@@ -79,6 +105,12 @@ impl GeometryModifiers {
         lay(&mut self.position_offset, &other.position_offset);
         lay(&mut self.padding, &other.padding);
         lay(&mut self.gap, &other.gap);
+        lay(&mut self.radius, &other.radius);
+        for (slot, value) in self.chamfer.iter_mut().zip(other.chamfer) {
+            if value.is_some() {
+                *slot = value;
+            }
+        }
     }
 }
 

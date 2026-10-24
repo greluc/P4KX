@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_geometry::{box_structs, instance_structs};
 use crate::screens_text_schema::text_structs;
 use crate::{DataForgeBuilder, TestStruct, TestType};
 
@@ -35,6 +36,8 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(style_structs())
         .chain(condition_structs())
         .chain(component_structs())
+        .chain(instance_structs())
+        .chain(box_structs())
         .chain(text_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
@@ -105,16 +108,6 @@ fn widget_structs() -> Vec<TestStruct> {
             .array("staticVariables", pointer("BuildingBlocks_StaticVariable"))
             .array("scene", pointer("BuildingBlocks_DisplayWidget"))
             .array("library", pointer("BuildingBlocks_DisplayWidget")),
-        TestStruct::new("BuildingBlocks_StaticVariable").field("name", TestType::String),
-        TestStruct::new("BuildingBlocks_StaticVariableArray")
-            .parent("BuildingBlocks_StaticVariable")
-            .array("value", pointer("BuildingBlocks_StaticArrayEntry")),
-        TestStruct::new("BuildingBlocks_StaticArrayEntry")
-            .array("structureVariables", pointer("BuildingBlocks_StaticArrayData")),
-        TestStruct::new("BuildingBlocks_StaticArrayData").field("name", TestType::String),
-        TestStruct::new("BuildingBlocks_StaticArrayDataLocalization")
-            .parent("BuildingBlocks_StaticArrayData")
-            .array("values", TestType::Locale),
         TestStruct::new("BuildingBlocks_DefaultStyles")
             .field("sharedStyles", reference("BuildingBlocks_Style"))
             .array("entries", pointer("BuildingBlocks_StyleEntry")),
@@ -152,17 +145,6 @@ fn widget_structs() -> Vec<TestStruct> {
                 pointer("BuildingBlocks_LayoutItemCommon"),
             )
             .array("inlineStyles", pointer("BuildingBlocks_StyleEntry")),
-        TestStruct::new("BuildingBlocks_Background")
-            .field("enable", TestType::Bool)
-            .field("color", pointer("BuildingBlocks_Color")),
-        TestStruct::new("BuildingBlocks_BorderSide")
-            .field("width", TestType::Single)
-            .field("color", pointer("BuildingBlocks_Color")),
-        TestStruct::new("BuildingBlocks_Border")
-            .field("top", class("BuildingBlocks_BorderSide"))
-            .field("right", class("BuildingBlocks_BorderSide"))
-            .field("bottom", class("BuildingBlocks_BorderSide"))
-            .field("left", class("BuildingBlocks_BorderSide")),
     ]
 }
 
@@ -173,20 +155,6 @@ fn widget_kinds() -> Vec<TestStruct> {
             .parent("BuildingBlocks_DisplayWidget")
             .field("sizingMethod", TestType::String)
             .field("canvas", reference("BuildingBlocks_Canvas")),
-        TestStruct::new("BuildingBlocks_WidgetClone")
-            .parent("BuildingBlocks_DisplayWidget")
-            .field(
-                "target",
-                TestType::WeakPointer("BuildingBlocks_DisplayWidget".to_owned()),
-            )
-            .array("modifiers", class("BuildingBlocks_FieldModifierPair")),
-        TestStruct::new("BuildingBlocks_WidgetList")
-            .parent("BuildingBlocks_DisplayWidget")
-            .field(
-                "target",
-                TestType::WeakPointer("BuildingBlocks_DisplayWidget".to_owned()),
-            )
-            .field("arrayVariable", TestType::String),
         TestStruct::new("BuildingBlocks_WidgetText")
             .parent("BuildingBlocks_DisplayWidget")
             .field("locString", TestType::Locale)
@@ -293,12 +261,6 @@ fn condition_structs() -> Vec<TestStruct> {
         TestStruct::new("BuildingBlocks_StyleSelectorConditionCount")
             .parent("BuildingBlocks_StyleSelectorCondition"),
         TestStruct::new("BuildingBlocks_FieldModifier"),
-        TestStruct::new("BuildingBlocks_FieldModifierPair")
-            .field(
-                "target",
-                TestType::WeakPointer("BuildingBlocks_DisplayWidget".to_owned()),
-            )
-            .field("modifier", pointer("BuildingBlocks_FieldModifier")),
         TestStruct::new("BuildingBlocks_FieldModifierColor")
             .parent("BuildingBlocks_FieldModifier")
             .field("field", TestType::String)

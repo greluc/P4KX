@@ -187,6 +187,7 @@ pub(crate) fn modifiers<'a, 'f: 'a>(
                 match field {
                     "EnableBackground" => found.enable_background = value,
                     "IsActive" => found.active = value,
+                    _ if found.geometry.flag(field, value) => {}
                     _ => found.text.boolean(field, value),
                 }
             }

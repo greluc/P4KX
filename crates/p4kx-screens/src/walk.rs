@@ -13,7 +13,7 @@ use crate::colour::Palette;
 use crate::context::Context;
 use crate::elements;
 use crate::fit::fit;
-use crate::geometry::Geometry;
+use crate::geometry::{Geometry, Overflow};
 use crate::layout::{Frame, Sibling, place};
 use crate::limits::Limits;
 use crate::look::Look;
@@ -117,9 +117,24 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
                 );
             }
         }
+        self.lay_out(canvas, frame, alpha, depth, sizing);
+        self.cx.palette = inherited;
+        self.sheets.pop();
+        self.stack.pop();
+    }
+
+    /// Lays the root widgets of `canvas` out in `frame`, under the scale the canvas asks for.
+    fn lay_out(
+        &mut self,
+        canvas: &Canvas,
+        frame: Area,
+        alpha: f32,
+        depth: usize,
+        sizing: CanvasSizing,
+    ) {
         let fitted = fit(canvas, frame, sizing);
         let pixel = self.pixel;
-        let entered = match fitted.scaled {
+        let scaled = match fitted.scaled {
             Some((affine, scale)) if self.cx.painter.push_transform(&affine) => {
                 self.pixel /= scale;
                 Some(true)
@@ -127,14 +142,15 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             Some(_) => None,
             None => Some(false),
         };
-        if let Some(scaled) = entered {
+        if let Some(scaled) = scaled {
             self.push_chain(&canvas.guid);
             let frame = Frame {
                 content: fitted.layout,
                 flex: None,
                 centred: fitted.centred,
             };
-            self.siblings(canvas, &canvas.roots, canvas.roots.len(), &frame, alpha, depth);
+            let roots = &canvas.roots;
+            self.siblings(canvas, roots, roots.len(), &frame, alpha, depth);
             self.chain.pop();
             if scaled {
                 self.cx.painter.pop_transform();
@@ -147,9 +163,6 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             );
         }
         self.pixel = pixel;
-        self.cx.palette = inherited;
-        self.sheets.pop();
-        self.stack.pop();
     }
 
     fn sheet(&mut self, canvas: &Canvas) -> Rc<CanvasStyles> {
@@ -180,7 +193,12 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         self.chain.push(hasher.finish());
     }
 
-    pub(crate) fn style_of(&mut self, canvas: &Canvas, index: usize, widget: &Widget) -> Rc<Modifiers> {
+    pub(crate) fn style_of(
+        &mut self,
+        canvas: &Canvas,
+        index: usize,
+        widget: &Widget,
+    ) -> Rc<Modifiers> {
         let key = (canvas.guid, index, self.chain.last().copied().unwrap_or(0));
         let plain = self.overrides.is_empty();
         if plain && let Some(known) = self.resolved.get(&key) {
@@ -362,7 +380,14 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         );
         if let Some(nested) = elements::nested_canvas(widget) {
             let params = Rc::clone(&widget.params);
-            self.nested(nested, params, content, widget.canvas_sizing, alpha, depth + 1);
+            self.nested(
+                nested,
+                params,
+                content,
+                widget.canvas_sizing,
+                alpha,
+                depth + 1,
+            );
         } else if widget.canvas_dangling {
             self.cx.report.missing_canvases.push(format!(
                 "{} (a reference that no Record answers)",
@@ -401,30 +426,34 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
     }
 
     fn note_approximations(&mut self, widget: &Widget, geometry: &Geometry) {
-        let report = &mut self.cx.report;
-        if let Some(layout) = &widget.other_layout {
-            report.note(
-                &widget.type_name,
-                &format!("{layout} children are laid out as an overlay"),
-                &widget.name,
-            );
-        }
-        if matches!(
-            widget.overflow,
-            crate::geometry::Overflow::Fade | crate::geometry::Overflow::ClipFade
-        ) {
-            report.note(
-                &widget.type_name,
+        let overlay = widget
+            .other_layout
+            .as_ref()
+            .map(|layout| format!("{layout} children are laid out as an overlay"));
+        let transformed = self.cx.painter.state.is_transformed();
+        let checks = [
+            (overlay.is_some(), overlay.as_deref().unwrap_or_default()),
+            (
+                matches!(widget.overflow, Overflow::Fade | Overflow::ClipFade),
                 "fading edges of the overflow are not drawn",
-                &widget.name,
-            );
-        }
-        if geometry.invalid {
-            report.note(
-                &widget.type_name,
+            ),
+            (
+                !widget.inherits_turn && transformed,
+                "the turn and scale of the parent are not undone: they are inherited",
+            ),
+            (
+                widget.gradient && widget.background_enabled,
+                "gradient backgrounds are drawn in the plain colour of the background",
+            ),
+            (
+                geometry.invalid,
                 "a number of the geometry is not finite: the default is used",
-                &widget.name,
-            );
+            ),
+        ];
+        for (applies, reason) in checks {
+            if applies {
+                self.cx.report.note(&widget.type_name, reason, &widget.name);
+            }
         }
     }
 

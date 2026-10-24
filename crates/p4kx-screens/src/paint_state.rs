@@ -21,7 +21,14 @@ pub(crate) fn shape_bounds(shape: &SceneShape) -> Option<Bounds> {
         .layers
         .iter()
         .filter_map(|layer| bounds_of(&layer.path))
-        .reduce(|a, b| [a[0].min(b[0]), a[1].min(b[1]), a[2].max(b[2]), a[3].max(b[3])])
+        .reduce(|a, b| {
+            [
+                a[0].min(b[0]),
+                a[1].min(b[1]),
+                a[2].max(b[2]),
+                a[3].max(b[3]),
+            ]
+        })
 }
 
 pub(crate) fn bounds_of(path: &ScenePath) -> Option<Bounds> {
@@ -55,7 +62,12 @@ fn stage_bounds(bounds: Bounds, to: &Affine, reach: f32) -> Bounds {
     ];
     let spread = reach * (to.a.abs() + to.b.abs() + to.c.abs() + to.d.abs());
     corners.iter().fold(
-        [f32::INFINITY, f32::INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY],
+        [
+            f32::INFINITY,
+            f32::INFINITY,
+            f32::NEG_INFINITY,
+            f32::NEG_INFINITY,
+        ],
         |found, &(x, y)| {
             let (sx, sy) = (
                 to.a.mul_add(x, to.c.mul_add(y, to.tx)),
@@ -92,7 +104,12 @@ impl Clip {
         let aligned = transform.b.abs() < AXIS_ALIGNED && transform.c.abs() < AXIS_ALIGNED;
         let stage = aligned.then(|| {
             stage_bounds(
-                [area.x * TWIPS, area.y * TWIPS, (area.x + area.width) * TWIPS, (area.y + area.height) * TWIPS],
+                [
+                    area.x * TWIPS,
+                    area.y * TWIPS,
+                    (area.x + area.width) * TWIPS,
+                    (area.y + area.height) * TWIPS,
+                ],
                 &in_twips(transform),
                 0.0,
             )
@@ -133,6 +150,10 @@ impl PaintState {
         !self.clips.is_empty()
     }
 
+    pub(crate) const fn is_transformed(&self) -> bool {
+        !self.transforms.is_empty()
+    }
+
     /// Returns the current transform from the pixels of the layout to the twips of the stage.
     pub(crate) fn to_twips(&self) -> Affine {
         in_twips(self.current())
@@ -169,14 +190,14 @@ impl Painter {
     /// placed by `transform`; `None` when every clip in force holds it entirely.
     pub(crate) fn mask_of(
         &mut self,
-        bounds: &Option<Bounds>,
+        bounds: Option<&Bounds>,
         reach: f32,
         transform: &Affine,
     ) -> Option<usize> {
         if self.state.clips.is_empty() {
             return None;
         }
-        let stage = bounds.map(|bounds| stage_bounds(bounds, transform, reach));
+        let stage = bounds.map(|bounds| stage_bounds(*bounds, transform, reach));
         let mut parent = None;
         for at in 0..self.state.clips.len() {
             let inside = match (stage, self.state.clips.get(at)) {

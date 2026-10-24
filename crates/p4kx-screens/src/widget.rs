@@ -6,6 +6,7 @@ use p4kx_dataforge::{Guid, Location, Reference, Step, StructValue, Value};
 use crate::assets::WidgetAssets;
 use crate::bindings::{ParamValues, param_values};
 use crate::colour::ColorSpec;
+use crate::corners::Corner;
 use crate::flex::{Flex, parse_flex};
 use crate::geometry::{Bounds, Dim, Edges, Overflow};
 use crate::reader::{as_struct, child, flag, float, int, items, reference, text};
@@ -59,21 +60,18 @@ pub(crate) struct Widget {
     pub(crate) in_flow: bool,
     pub(crate) alpha: f32,
     pub(crate) inherits_alpha: bool,
-    pub(crate) position: [f32; 2],
-    pub(crate) position_offset: [f32; 2],
+    pub(crate) inherits_turn: bool,
+    pub(crate) pose: Pose,
     pub(crate) size: [Dim; 2],
     pub(crate) bounds: Bounds,
     pub(crate) padding: Edges,
     pub(crate) margin: Edges,
-    pub(crate) pivot: [f32; 2],
-    pub(crate) anchor: [f32; 2],
-    pub(crate) orientation: [f32; 3],
-    pub(crate) orientation_offset: [f32; 3],
-    pub(crate) scale: [f32; 2],
     pub(crate) overflow: Overflow,
     pub(crate) background: Option<ColorSpec>,
     pub(crate) background_enabled: bool,
+    pub(crate) gradient: bool,
     pub(crate) border: [BorderSide; 4],
+    pub(crate) corners: [Corner; 4],
     pub(crate) tags: Vec<Guid>,
     pub(crate) inline: Vec<Entry>,
     pub(crate) flex: Option<Flex>,
@@ -89,9 +87,54 @@ pub(crate) struct Widget {
     pub(crate) text: Option<TextSpec>,
     pub(crate) params: ParamValues,
     pub(crate) assets: WidgetAssets,
+    pub(crate) repeat: Repeat,
+}
+
+/// Where a widget sits in its parent and how it is turned and scaled about its pivot.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Pose {
+    pub(crate) position: [f32; 2],
+    pub(crate) position_offset: [f32; 2],
+    pub(crate) pivot: [f32; 2],
+    pub(crate) anchor: [f32; 2],
+    pub(crate) orientation: [f32; 3],
+    pub(crate) orientation_offset: [f32; 3],
+    pub(crate) scale: [f32; 2],
+}
+
+impl Pose {
+    fn parse(structure: &StructValue<'_>) -> Self {
+        Self {
+            position: vec2(structure, "position", 0.0),
+            position_offset: vec2(structure, "positionOffset", 0.0),
+            pivot: vec2(structure, "pivot", 0.0),
+            anchor: vec2(structure, "anchor", 0.0),
+            orientation: vec3(structure, "orientation", 0.0),
+            orientation_offset: vec3(structure, "orientationOffset", 0.0),
+            scale: vec2(structure, "scale", 1.0),
+        }
+    }
+}
+
+/// What a clone or a list repeats and how: its target, the array variable that gives the rows
+/// of a list and the modifiers of a clone.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Repeat {
     pub(crate) target: Option<Target>,
     pub(crate) array_variable: Option<String>,
-    pub(crate) clone_modifiers: Vec<CloneModifier>,
+    pub(crate) modifiers: Vec<CloneModifier>,
+}
+
+impl Repeat {
+    fn parse(structure: &StructValue<'_>, canvas: Guid) -> Self {
+        Self {
+            target: reference(structure, "target").and_then(|target| target_of(target, canvas)),
+            array_variable: text(structure, "arrayVariable")
+                .filter(|name| !name.is_empty())
+                .map(str::to_owned),
+            modifiers: clone_modifiers(structure, canvas),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -129,6 +172,7 @@ impl Widget {
         let layout = child(structure, "layoutPolicy");
         let (flex, other_layout) = layout.map_or((None, None), parse_flex);
         let item = child(structure, "layoutPolicyItem");
+        let (background, background_enabled, gradient) = background_of(structure);
         Self {
             type_name: structure.type_name().to_owned(),
             name: text(structure, "name").unwrap_or_default().to_owned(),
@@ -137,32 +181,21 @@ impl Widget {
             in_flow: flag(structure, "affectsLayout").unwrap_or(true),
             alpha: float(structure, "alpha").unwrap_or(1.0),
             inherits_alpha: flag(structure, "inheritsAlpha").unwrap_or(true),
-            position: vec2(structure, "position", 0.0),
-            position_offset: vec2(structure, "positionOffset", 0.0),
+            inherits_turn: ["inheritsRotation", "inheritsScale"]
+                .iter()
+                .all(|name| flag(structure, name).unwrap_or(true)),
+            pose: Pose::parse(structure),
             size: [dim("width"), dim("height")],
             bounds: Bounds::parse(sizing),
             padding: Edges::parse(child(structure, "padding")),
             margin: Edges::parse(child(structure, "margin")),
-            pivot: vec2(structure, "pivot", 0.0),
-            anchor: vec2(structure, "anchor", 0.0),
-            orientation: vec3(structure, "orientation", 0.0),
-            orientation_offset: vec3(structure, "orientationOffset", 0.0),
-            scale: vec2(structure, "scale", 1.0),
             overflow: Overflow::parse(structure),
-            background: child(structure, "background")
-                .and_then(|background| background.field("color"))
-                .and_then(ColorSpec::parse),
-            background_enabled: child(structure, "background")
-                .and_then(|background| flag(background, "enable"))
-                .unwrap_or(false),
+            background,
+            background_enabled,
+            gradient,
             border: borders(structure),
-            tags: items(structure, "styleTags")
-                .iter()
-                .filter_map(|tag| match tag {
-                    Value::Reference(reference) => Some(reference.guid()),
-                    _ => None,
-                })
-                .collect(),
+            corners: corners(structure),
+            tags: tags(structure),
             inline: inline_entries(structure),
             flex,
             other_layout,
@@ -187,11 +220,7 @@ impl Widget {
             text: TextSpec::parse(structure),
             params: param_values(structure),
             assets: WidgetAssets::scan(structure),
-            target: reference(structure, "target").and_then(|target| target_of(target, canvas)),
-            array_variable: text(structure, "arrayVariable")
-                .filter(|name| !name.is_empty())
-                .map(str::to_owned),
-            clone_modifiers: clone_modifiers(structure, canvas),
+            repeat: Repeat::parse(structure, canvas),
         }
     }
 }
@@ -253,6 +282,55 @@ fn parent_of(structure: &StructValue<'_>, canvas: Guid) -> Parent {
         Some(Target::Library(index)) => Parent::Library(index),
         None => Parent::Root,
     }
+}
+
+fn tags(structure: &StructValue<'_>) -> Vec<Guid> {
+    items(structure, "styleTags")
+        .iter()
+        .filter_map(|tag| match tag {
+            Value::Reference(reference) => Some(reference.guid()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Reads the background of a widget: its colour, whether it is enabled and whether it has
+/// colours for its corners, which make it a gradient.
+fn background_of(structure: &StructValue<'_>) -> (Option<ColorSpec>, bool, bool) {
+    let Some(background) = child(structure, "background") else {
+        return (None, false, false);
+    };
+    let corners = [
+        "topLeftColor",
+        "topRightColor",
+        "bottomLeftColor",
+        "bottomRightCColor",
+    ];
+    (
+        background.field("color").and_then(ColorSpec::parse),
+        flag(background, "enable").unwrap_or(false),
+        corners
+            .iter()
+            .any(|name| matches!(background.field(name), Some(Value::Struct(_)))),
+    )
+}
+
+fn corners(structure: &StructValue<'_>) -> [Corner; 4] {
+    let border = child(structure, "border");
+    let corner = |name| {
+        border
+            .and_then(|border| child(border, name))
+            .map_or(Corner::SQUARE, |corner| Corner {
+                radius: Dim::parse(child(corner, "radius")),
+                chamfer: flag(corner, "chamfer").unwrap_or(false),
+            })
+    };
+    [
+        corner("topLeftRadius"),
+        corner("topRightRadius"),
+        corner("bottomRightRadius"),
+        corner("bottomLeftRadius"),
+    ]
 }
 
 fn borders(structure: &StructValue<'_>) -> [BorderSide; 4] {

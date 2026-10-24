@@ -23,10 +23,12 @@
 
 mod assets;
 mod bindings;
+mod boxes;
 mod canvas;
 mod colour;
 mod compose;
 mod context;
+mod corners;
 mod elements;
 mod error;
 mod fit;

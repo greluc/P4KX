@@ -55,7 +55,9 @@ fn check_animation(
                 .and_then(|mesh| mesh.primitives().next())
                 .map_or(0, |primitive| primitive.morph_targets().count());
             if targets == 0 {
-                return Err(format!("{name}: weights target a node without morph targets"));
+                return Err(format!(
+                    "{name}: weights target a node without morph targets"
+                ));
             }
             targets
         } else {

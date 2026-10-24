@@ -30,23 +30,22 @@ pub fn multiply(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
     let [bx, by, bz, bw] = b;
     [
         aw.mul_add(bx, ax.mul_add(bw, ay.mul_add(bz, -(az * by)))),
-        aw.mul_add(by, -(ax * bz)) + ay.mul_add(bw, az * bx),
-        aw.mul_add(bz, ax.mul_add(by, -(ay * bx))) + az * bw,
-        aw.mul_add(bw, -(ax * bx)) - ay.mul_add(by, az * bz),
+        aw.mul_add(by, (-ax).mul_add(bz, ay.mul_add(bw, az * bx))),
+        aw.mul_add(bz, ax.mul_add(by, (-ay).mul_add(bx, az * bw))),
+        aw.mul_add(bw, (-ax).mul_add(bx, (-ay).mul_add(by, -(az * bz)))),
     ]
 }
 
-fn rotate(q: [f32; 4], v: [f32; 3]) -> [f32; 3] {
-    let [x, y, z, w] = q;
-    let t = [
-        2.0 * y.mul_add(v[2], -(z * v[1])),
-        2.0 * z.mul_add(v[0], -(x * v[2])),
-        2.0 * x.mul_add(v[1], -(y * v[0])),
-    ];
+fn rotate(rotation: [f32; 4], vector: [f32; 3]) -> [f32; 3] {
+    let [qx, qy, qz, qw] = rotation;
+    let [vx, vy, vz] = vector;
+    let tx = 2.0 * qy.mul_add(vz, -(qz * vy));
+    let ty = 2.0 * qz.mul_add(vx, -(qx * vz));
+    let tz = 2.0 * qx.mul_add(vy, -(qy * vx));
     [
-        w.mul_add(t[0], v[0]) + y.mul_add(t[2], -(z * t[1])),
-        w.mul_add(t[1], v[1]) + z.mul_add(t[0], -(x * t[2])),
-        w.mul_add(t[2], v[2]) + x.mul_add(t[1], -(y * t[0])),
+        qw.mul_add(tx, vx) + qy.mul_add(tz, -(qz * ty)),
+        qw.mul_add(ty, vy) + qz.mul_add(tx, -(qx * tz)),
+        qw.mul_add(tz, vz) + qx.mul_add(ty, -(qy * tx)),
     ]
 }
 

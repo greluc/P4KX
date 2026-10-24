@@ -12,12 +12,12 @@ use crate::animations::{AnimationPlan, push_animations};
 use crate::document::{GENERATOR, NodeMeshes, push_accessor, push_images, push_meshes};
 use crate::glb::{GlbOptions, GlbSummary, MaterialMode, write_file};
 use crate::glb_plan::{summarise, texture_set};
-use crate::rig_animation::{RigAnimation, RigNodes, plan_all};
 use crate::instance::{Instance, materials};
 use crate::layout::{Layout, Rigging};
 use crate::materials::MaterialPlan;
 use crate::morphs::MorphTarget;
 use crate::nodes::{RigModel, push_rig_nodes};
+use crate::rig_animation::{RigAnimation, RigNodes, plan_all};
 use crate::scene::nearest_lod;
 use crate::skin::inverse_binds;
 use crate::texture_loader::{NoTextures, TextureLoader};
@@ -174,7 +174,45 @@ pub fn write_rigged_glb_animated_with<'m>(
         .iter()
         .map(|instance| instance.model.nodes.len())
         .sum();
-    let piece_mesh_nodes = mesh_nodes(pieces, &layout);
+    let plans = plan_animations(skeleton, pieces, animations, &mut layout);
+    let images = match options.materials {
+        MaterialMode::Textures => texture_set(&layout, &instances, options.texture_mip, textures),
+        MaterialMode::Colours => TextureSet::default(),
+    };
+    layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
+    let mut root = document(skeleton, pieces, &instances, &layout, &images);
+    if let Some(buffer) = root.buffers.first().map(|_| json::Index::new(0)) {
+        push_animations(&mut root, buffer, &layout, &plans);
+    }
+    let total = write_file(&root, &layout, &images, out)?;
+    let defaulted = instances
+        .iter()
+        .map(|instance| instance.plan.defaulted())
+        .sum();
+    let mut summary = summarise(
+        &root,
+        &layout,
+        defaulted,
+        drawn_nodes,
+        images,
+        &plans,
+        total,
+    );
+    summary.parts = instances.len();
+    summary.lod_fallbacks = fallbacks;
+    Ok(summary)
+}
+
+/// Plans the blocks of `animations` in `layout`, once the meshes are planned and the nodes of the
+/// document are known: the nodes of the pieces first, then the bones.
+fn plan_animations<'m>(
+    skeleton: &[Bone],
+    pieces: &[RigPiece<'_>],
+    animations: &[RigAnimation<'m>],
+    layout: &mut Layout<'m>,
+) -> Vec<AnimationPlan> {
+    let drawn_nodes: usize = pieces.iter().map(|piece| piece.model.nodes.len()).sum();
+    let piece_mesh_nodes = mesh_nodes(pieces, layout);
     let piece_targets: Vec<usize> = (0..pieces.len())
         .map(|part| {
             layout
@@ -192,22 +230,7 @@ pub fn write_rigged_glb_animated_with<'m>(
         piece_mesh_nodes: &piece_mesh_nodes,
         piece_targets: &piece_targets,
     };
-    let plans = plan_all(&mut layout, animations, &nodes);
-    let images = match options.materials {
-        MaterialMode::Textures => texture_set(&layout, &instances, options.texture_mip, textures),
-        MaterialMode::Colours => TextureSet::default(),
-    };
-    layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
-    let root = document(skeleton, pieces, &instances, &layout, &images, &plans);
-    let total = write_file(&root, &layout, &images, out)?;
-    let defaulted = instances
-        .iter()
-        .map(|instance| instance.plan.defaulted())
-        .sum();
-    let mut summary = summarise(&root, &layout, defaulted, drawn_nodes, images, &plans, total);
-    summary.parts = instances.len();
-    summary.lod_fallbacks = fallbacks;
-    Ok(summary)
+    plan_all(layout, animations, &nodes)
 }
 
 /// Returns the node of the first mesh of each piece, if it has one.
@@ -260,7 +283,6 @@ fn document(
     instances: &[Instance<'_>],
     layout: &Layout<'_>,
     images: &TextureSet,
-    plans: &[AnimationPlan],
 ) -> json::Root {
     let mut root = json::Root {
         asset: json::Asset {
@@ -321,9 +343,6 @@ fn document(
         &[]
     };
     push_rig_nodes(&mut root, &models, bones, bind_accessor);
-    if let Some(buffer) = buffer {
-        push_animations(&mut root, buffer, layout, plans);
-    }
     root
 }
 

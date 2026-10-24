@@ -168,7 +168,9 @@ impl AnimationSet {
             .filter(|path| {
                 kind(path).is_some() && {
                     let path = normalised(path);
-                    prefixes.iter().any(|prefix| path.starts_with(prefix.as_str()))
+                    prefixes
+                        .iter()
+                        .any(|prefix| path.starts_with(prefix.as_str()))
                 }
             })
             .map(|path| Source {

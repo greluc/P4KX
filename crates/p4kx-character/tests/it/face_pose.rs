@@ -45,7 +45,10 @@ fn controls_and_joints_are_found_by_the_crc_of_their_names() -> TestResult {
     assert_eq!(logic.control_by_hash(1), None);
     assert_eq!(
         logic.joint_hashes(),
-        [crc32fast::hash(b"FACIAL_root"), crc32fast::hash(b"FACIAL_jaw")]
+        [
+            crc32fast::hash(b"FACIAL_root"),
+            crc32fast::hash(b"FACIAL_jaw")
+        ]
     );
     Ok(())
 }
@@ -79,7 +82,12 @@ fn the_rest_pose_has_no_motion() -> TestResult {
 
     let pose = face.pose(&[]);
 
-    assert!(pose.translations.iter().all(|t| t == &[0.0; 3]));
+    assert!(
+        pose.translations
+            .iter()
+            .flatten()
+            .all(|value| *value == 0.0_f32)
+    );
     Ok(())
 }
 
@@ -93,7 +101,10 @@ fn a_record_that_names_a_missing_blendshape_is_malformed() -> TestResult {
 
     let error = FaceRig::new(&dna_rig, &matrix, &logic()?).err();
 
-    assert!(matches!(error, Some(RigError::Malformed { .. })), "{error:?}");
+    assert!(
+        matches!(error, Some(RigError::Malformed { .. })),
+        "{error:?}"
+    );
     Ok(())
 }
 
@@ -107,6 +118,9 @@ fn a_record_that_moves_a_missing_joint_is_malformed() -> TestResult {
 
     let error = FaceRig::new(&dna_rig, &matrix, &logic()?).err();
 
-    assert!(matches!(error, Some(RigError::Malformed { .. })), "{error:?}");
+    assert!(
+        matches!(error, Some(RigError::Malformed { .. })),
+        "{error:?}"
+    );
     Ok(())
 }

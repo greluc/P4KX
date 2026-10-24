@@ -145,6 +145,46 @@ fn empty(name: &str) -> AnimationPlan {
     }
 }
 
+fn plan_bones<'m>(
+    layout: &mut Layout<'m>,
+    animation: &'m SampledAnimation,
+    nodes: &RigNodes<'_>,
+    times: usize,
+    (channels, skipped): (&mut Vec<ChannelPlan>, &mut Vec<u32>),
+) {
+    let frames = animation.times.len();
+    for sampled in &animation.bones {
+        let node = nodes
+            .first_bone_node
+            .filter(|_| sampled.bone < nodes.bones.len())
+            .map(|first| first + sampled.bone);
+        let fits = sampled.translations.len() == frames && sampled.rotations.len() == frames;
+        let (Some(node), true) = (node, fits) else {
+            skipped.push(
+                nodes
+                    .bones
+                    .get(sampled.bone)
+                    .map_or(u32::MAX, |bone| bone.controller_id),
+            );
+            continue;
+        };
+        let translations = layout.push(BlockData::Translations(&sampled.translations));
+        let rotations = layout.push(BlockData::Rotations(&sampled.rotations));
+        for (path, values) in [
+            (ChannelPath::Translation, translations),
+            (ChannelPath::Rotation, rotations),
+        ] {
+            channels.push(ChannelPlan {
+                node,
+                path,
+                times,
+                values,
+                step: frames < 2,
+            });
+        }
+    }
+}
+
 fn plan_sampled<'m>(
     layout: &mut Layout<'m>,
     animation: &'m SampledAnimation,
@@ -155,41 +195,20 @@ fn plan_sampled<'m>(
     let mut skipped = animation.skipped_tracks.clone();
     if frames > 0 {
         let times = layout.push(BlockData::Seconds(&animation.times));
-        for sampled in &animation.bones {
-            let node = nodes
-                .first_bone_node
-                .filter(|_| sampled.bone < nodes.bones.len())
-                .map(|first| first + sampled.bone);
-            let fits = sampled.translations.len() == frames && sampled.rotations.len() == frames;
-            let (Some(node), true) = (node, fits) else {
-                skipped.push(
-                    nodes
-                        .bones
-                        .get(sampled.bone)
-                        .map_or(u32::MAX, |bone| bone.controller_id),
-                );
-                continue;
-            };
-            let translations = layout.push(BlockData::Translations(&sampled.translations));
-            let rotations = layout.push(BlockData::Rotations(&sampled.rotations));
-            for (path, values) in [
-                (ChannelPath::Translation, translations),
-                (ChannelPath::Rotation, rotations),
-            ] {
-                channels.push(ChannelPlan {
-                    node,
-                    path,
-                    times,
-                    values,
-                    step: frames < 2,
-                });
-            }
-        }
+        plan_bones(
+            layout,
+            animation,
+            nodes,
+            times,
+            (&mut channels, &mut skipped),
+        );
         for weights in &animation.weights {
             let node = nodes.piece_mesh_nodes.get(weights.piece).copied().flatten();
             let targets = nodes.piece_targets.get(weights.piece).copied().unwrap_or(0);
-            let (Some(node), true) = (node, targets > 0 && weights.values.len() == frames * targets)
-            else {
+            let (Some(node), true) = (
+                node,
+                targets > 0 && weights.values.len() == frames * targets,
+            ) else {
                 continue;
             };
             let values = layout.push(BlockData::MorphWeights(&weights.values));

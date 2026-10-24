@@ -6,8 +6,8 @@
 use std::error::Error;
 
 use p4kx_gltf::{
-    GlbOptions, MorphTarget, RigAnimation, RigPiece, SampledAnimation, SampledBone,
-    SampledWeights, write_rigged_glb_animated,
+    GlbOptions, MorphTarget, RigAnimation, RigPiece, SampledAnimation, SampledBone, SampledWeights,
+    write_rigged_glb_animated,
 };
 use p4kx_model::MaterialStatus;
 use p4kx_testkit::gltf::animation::Property;

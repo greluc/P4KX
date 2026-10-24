@@ -56,11 +56,6 @@ impl FaceRig {
         let joints = weights.joints();
         let blendshapes = logic.blendshapes();
         let heads = head_weights(matrix);
-        let malformed = |reason| RigError::Malformed {
-            what: WHAT,
-            slot: SLOT_VARIANT_DELTAS,
-            reason,
-        };
         let mut rows = [
             vec![Vec::<(u16, f64)>::new(); joints * AXES],
             vec![Vec::<(u16, f64)>::new(); joints * AXES],
@@ -80,29 +75,13 @@ impl FaceRig {
             let header = deltas
                 .header(*variant)
                 .ok_or_else(|| malformed("the head is outside the table"))?;
-            for (set, set_rows) in [DeltaSet::Main, DeltaSet::Secondary].into_iter().zip(&mut rows)
+            for (set, set_rows) in [DeltaSet::Main, DeltaSet::Secondary]
+                .into_iter()
+                .zip(&mut rows)
             {
                 let step = header.step(set);
-                for record in deltas.records(*variant, set)? {
-                    let record = record?;
-                    let output = usize::from(record.output);
-                    let fold = folds.get(output / AXES).copied().unwrap_or_default();
-                    let row = set_rows
-                        .get_mut(output)
-                        .ok_or_else(|| malformed("a record moves a joint the rig lacks"))?;
-                    if fold == 0.0 {
-                        continue;
-                    }
-                    for entry in record.entries() {
-                        if usize::from(entry.blendshape) >= blendshapes {
-                            return Err(malformed("a record names a blendshape the rig lacks"));
-                        }
-                        row.push((
-                            entry.blendshape,
-                            f64::from(entry.coefficient) * step * f64::from(fold),
-                        ));
-                    }
-                }
+                let records = deltas.records(*variant, set)?;
+                add_records(records, (step, &folds), set_rows, blendshapes)?;
             }
         }
         let [translations, rotations] = rows.map(|set| set.into_iter().map(merged).collect());
@@ -152,29 +131,67 @@ impl FaceRig {
         pose.rotations.clear();
         for joint in 0..self.joints {
             let slice = joint * AXES..(joint + 1) * AXES;
-            let moved = self.sum(&self.translations, slice.clone(), &pose.blendshapes);
-            let turned = self.sum(&self.rotations, slice, &pose.blendshapes);
+            let moved = sum(&self.translations, slice.clone(), &pose.blendshapes);
+            let turned = sum(&self.rotations, slice, &pose.blendshapes);
             pose.translations.push(moved);
             pose.rotations.push(euler_quaternion(turned));
         }
     }
+}
 
-    fn sum(&self, rows: &[Row], axes: std::ops::Range<usize>, activations: &[f32]) -> [f32; 3] {
-        let mut total = [0.0_f32; AXES];
-        for (value, row) in total.iter_mut().zip(rows.get(axes).unwrap_or_default()) {
-            *value = row
-                .iter()
-                .map(|&(blendshape, coefficient)| {
-                    coefficient
-                        * activations
-                            .get(usize::from(blendshape))
-                            .copied()
-                            .unwrap_or_default()
-                })
-                .sum();
-        }
-        total
+const fn malformed(reason: &'static str) -> RigError {
+    RigError::Malformed {
+        what: WHAT,
+        slot: SLOT_VARIANT_DELTAS,
+        reason,
     }
+}
+
+/// Adds the entries of `records`, scaled by `step` and the fold of their joint, to `rows`.
+fn add_records(
+    records: crate::DeltaRecords<'_>,
+    (step, folds): (f64, &[f32]),
+    rows: &mut [Vec<(u16, f64)>],
+    blendshapes: usize,
+) -> Result<(), RigError> {
+    for record in records {
+        let record = record?;
+        let output = usize::from(record.output);
+        let fold = folds.get(output / AXES).copied().unwrap_or_default();
+        let row = rows
+            .get_mut(output)
+            .ok_or_else(|| malformed("a record moves a joint the rig lacks"))?;
+        if fold == 0.0 {
+            continue;
+        }
+        for entry in record.entries() {
+            if usize::from(entry.blendshape) >= blendshapes {
+                return Err(malformed("a record names a blendshape the rig lacks"));
+            }
+            row.push((
+                entry.blendshape,
+                f64::from(entry.coefficient) * step * f64::from(fold),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn sum(rows: &[Row], axes: std::ops::Range<usize>, activations: &[f32]) -> [f32; 3] {
+    let mut total = [0.0_f32; AXES];
+    for (value, row) in total.iter_mut().zip(rows.get(axes).unwrap_or_default()) {
+        *value = row
+            .iter()
+            .map(|&(blendshape, coefficient)| {
+                coefficient
+                    * activations
+                        .get(usize::from(blendshape))
+                        .copied()
+                        .unwrap_or_default()
+            })
+            .sum();
+    }
+    total
 }
 
 /// Returns the heads that move the joints with their weight in each region: the Character's heads
@@ -184,7 +201,9 @@ fn head_weights(matrix: &DnaMatrix) -> Vec<(usize, Vec<f32>)> {
     let mut base = vec![1.0_f32; regions];
     let mut heads = Vec::new();
     for variant in 1..matrix.variants() {
-        let weights: Vec<f32> = (0..regions).map(|region| matrix.cell(variant, region)).collect();
+        let weights: Vec<f32> = (0..regions)
+            .map(|region| matrix.cell(variant, region))
+            .collect();
         if weights.iter().all(|&weight| weight <= 0.0) {
             continue;
         }

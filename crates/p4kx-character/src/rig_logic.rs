@@ -109,7 +109,10 @@ impl RigLogic {
                 "a corrective names a control the rig lacks",
             ));
         }
-        let joints = joint_hashes(chunk, usize::from(u16_at(chunk, JOINTS_AT).unwrap_or_default()))?;
+        let joints = joint_hashes(
+            chunk,
+            usize::from(u16_at(chunk, JOINTS_AT).unwrap_or_default()),
+        )?;
         let mut hashes: Vec<(u32, usize)> = names
             .iter()
             .enumerate()
@@ -243,9 +246,7 @@ fn joint_hashes(chunk: &[u8], count: usize) -> Result<Vec<u32>, RigLogicError> {
     if count == 0 {
         return Ok(Vec::new());
     }
-    let listed = u64_at(chunk, STARTS_AT + JOINTS_SLOT * 8)
-        .filter(|&start| start != 0)
-        .is_some();
+    let listed = u64_at(chunk, STARTS_AT + JOINTS_SLOT * 8).is_some_and(|start| start != 0);
     if !listed {
         return Err(RigLogicError::Malformed("the joint hashes are missing"));
     }

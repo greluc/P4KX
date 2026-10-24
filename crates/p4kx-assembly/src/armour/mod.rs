@@ -4,10 +4,13 @@
 //! The Character assembly of armour: a default body of a [`BodyVariant`] with its skeleton and
 //! the [`Piece`]s of armour and clothing worn on it.
 
+mod animate;
 mod body;
 mod build;
 mod dress;
 mod expressions;
+mod face_build;
+mod facial;
 mod follow;
 mod forge_items;
 mod head;
@@ -28,6 +31,7 @@ use p4kx_gltf::{
 };
 use p4kx_model::{MaterialStatus, Model};
 
+pub use animate::CharacterAnimations;
 pub use body::BodyVariant;
 pub use dress::HeadItems;
 pub use expressions::Expressions;
@@ -60,6 +64,7 @@ pub struct ArmourPart {
     pub(crate) model: Arc<Model>,
     pub(crate) materials: Arc<MaterialStatus>,
     pub(crate) morphs: Vec<MorphTarget>,
+    pub(crate) face: Option<Arc<facial::FaceLink>>,
 }
 
 impl ArmourPart {

@@ -117,7 +117,13 @@ fn plan_animation<'m>(
             keys += rotations.frames.len();
             let times = layout.push(BlockData::Times(&rotations.frames, rate));
             let values = layout.push(BlockData::Rotations(&rotations.values));
-            channels.push(channel(node, ChannelPath::Rotation, times, values, rotations));
+            channels.push(channel(
+                node,
+                ChannelPath::Rotation,
+                times,
+                values,
+                rotations,
+            ));
         }
         if let Some(translations) = &track.translations {
             keys += translations.frames.len();

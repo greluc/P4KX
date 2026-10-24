@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::error::Error;
+use std::io::Read;
 
 use p4kx_extraction::model::{LodSelection, MaterialStatus, Model, ModelError};
 use p4kx_extraction::{Archive, ConversionError, ModelSource, PathIndex, archive_error_in};
@@ -90,11 +91,24 @@ pub trait ModelProvider: Sync {
     /// Reads the material library `name` for a model at `entry`; a bare name is looked for beside
     /// the model first. A library that does not exist or cannot be read is a status.
     fn library(&self, entry: &str, name: &str) -> MaterialStatus;
+
+    /// Reads the bytes of the file at `path`, a path below `Data`, such as the DNA rig a piece is
+    /// shaped by. The default has no such files.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModelFailure::Missing`] when there is no such file and
+    /// [`ModelFailure::Unreadable`] when it holds more than `limit` bytes or cannot be read.
+    fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
+        let _ = (path, limit);
+        Err(ModelFailure::Missing)
+    }
 }
 
 /// Reads models and material libraries from the Entries of an Archive below `Data`.
 #[derive(Debug)]
 pub struct ArchiveModels<'a> {
+    archive: &'a Archive,
     index: PathIndex<'a>,
 }
 
@@ -103,6 +117,7 @@ impl<'a> ArchiveModels<'a> {
     #[must_use]
     pub fn new(archive: &'a Archive) -> Self {
         Self {
+            archive,
             index: PathIndex::new(archive),
         }
     }
@@ -144,5 +159,29 @@ impl ModelProvider for ArchiveModels<'_> {
     }
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
         ModelSource::material_library(&self.index, entry, name)
+    }
+
+    fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
+        let path = self.entry_of(path).ok_or(ModelFailure::Missing)?;
+        let entry = self.index.find(&path).ok_or(ModelFailure::Missing)?;
+        let size = entry.uncompressed_size();
+        if size > limit {
+            return Err(ModelFailure::Unreadable {
+                reason: format!("the file holds {size} bytes, more than the limit of {limit}"),
+            });
+        }
+        let unreadable = |error: &(dyn Error + 'static)| ModelFailure::Unreadable {
+            reason: describe(error),
+        };
+        let reader = self
+            .archive
+            .open_entry(entry)
+            .map_err(|error| unreadable(&error))?;
+        let mut bytes = Vec::with_capacity(usize::try_from(size).unwrap_or_default());
+        reader
+            .take(limit)
+            .read_to_end(&mut bytes)
+            .map_err(|error| unreadable(&error))?;
+        Ok(bytes)
     }
 }

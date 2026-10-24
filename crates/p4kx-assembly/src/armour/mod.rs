@@ -6,7 +6,10 @@
 
 mod body;
 mod build;
+mod head;
+mod normals;
 mod piece;
+mod shape;
 mod wearable;
 
 use std::io::Write;
@@ -16,7 +19,9 @@ use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, RigPiece, write_rigged_glb};
 use p4kx_model::{MaterialStatus, Model};
 
 pub use body::BodyVariant;
+pub use head::{Head, HeadError};
 pub use piece::Piece;
+pub use shape::MAX_DNA_RIG_LEN;
 pub use wearable::Wearable;
 
 use crate::Issue;

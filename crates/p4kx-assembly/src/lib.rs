@@ -43,6 +43,10 @@
 //! the geometry its Record names for the variant's tag ([`Wearable`]), skinned to the body's
 //! skeleton by bone name; [`Armour::write_glb`] exports it as one skinned GLB. A piece that cannot
 //! be fitted is an [`Issue`].
+//!
+//! [`Head::from_character`] makes the head of a CHF [`character::Character`]: the head skin of its
+//! rig, shaped by the Character's face DNA ([`Piece::shaped`]) and worn on the body of the rig's
+//! variant.
 
 mod armour;
 mod assembly;
@@ -70,7 +74,9 @@ mod vehicle;
 mod walk;
 mod xml;
 
-pub use armour::{Armour, ArmourPart, BodyVariant, PartOrigin, Piece, Wearable};
+pub use armour::{
+    Armour, ArmourPart, BodyVariant, Head, HeadError, MAX_DNA_RIG_LEN, PartOrigin, Piece, Wearable,
+};
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
     Placement,

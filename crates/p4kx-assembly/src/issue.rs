@@ -122,6 +122,13 @@ pub enum IssueKind {
     /// The piece's model has no bone weights, so it is placed as it is, without the skeleton.
     #[error("the model has no bone weights and is not skinned to the body")]
     NotSkinned,
+    /// The piece is shaped by a DNA, but the DNA rig cannot be read or does not fit the model, so
+    /// the piece is left out.
+    #[error("the piece cannot be shaped by its DNA: {reason}")]
+    ShapeFailed {
+        /// Why.
+        reason: String,
+    },
 }
 
 impl IssueKind {
@@ -144,6 +151,7 @@ impl IssueKind {
             Self::NoVariantGeometry { .. } => "no_variant_geometry",
             Self::BonesNotInSkeleton { .. } => "bones_not_in_skeleton",
             Self::NotSkinned => "not_skinned",
+            Self::ShapeFailed { .. } => "shape_failed",
         }
     }
 
@@ -161,6 +169,7 @@ impl IssueKind {
                 | Self::PieceNotFound { .. }
                 | Self::NoWornGeometry
                 | Self::NoVariantGeometry { .. }
+                | Self::ShapeFailed { .. }
         )
     }
 }

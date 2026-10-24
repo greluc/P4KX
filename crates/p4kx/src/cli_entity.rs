@@ -156,6 +156,13 @@ pub(crate) struct EntityGlbArgs {
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    /// Includes the Interior: the socpak containers the Entity's Record names
+    /// (`VehicleComponentParams.objectContainers` and `SObjectContainerComponentParams`), each
+    /// placed at its bone of the hull with the Record's offset, as nodes below an `Interior`
+    /// node of the Entity, with the containers nested in them. Containers and parts that cannot
+    /// be resolved are skipped and listed. Without it only the hull is written.
+    #[arg(long)]
+    pub(crate) interior: bool,
     #[command(flatten)]
     pub(crate) changes: LoadoutChangeArgs,
 }

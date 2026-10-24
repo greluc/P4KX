@@ -16,21 +16,43 @@ const GAME_CHECK_VARIABLE: &str = "P4KX_GAME_CHECK";
 static WARNED: Once = Once::new();
 static CHECK: Mutex<Option<JoinHandle<bool>>> = Mutex::new(None);
 
-/// Returns whether the look for the running game is switched off with `P4KX_GAME_CHECK=off`, as
-/// the test suite does so that a game running on the developer's machine changes no output.
-fn game_check_off() -> bool {
-    std::env::var(GAME_CHECK_VARIABLE).is_ok_and(|value| value.eq_ignore_ascii_case("off"))
+/// How the look for the running game is done, chosen with `P4KX_GAME_CHECK`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GameCheck {
+    Process,
+    Off,
+    Running,
+    Closed,
+}
+
+/// Reads `P4KX_GAME_CHECK`: `off` skips the look, `running` and `closed` stand in for the process
+/// list so that tests do not depend on the machine; anything else looks at the process list.
+fn game_check() -> GameCheck {
+    match std::env::var(GAME_CHECK_VARIABLE) {
+        Ok(value) if value.eq_ignore_ascii_case("off") => GameCheck::Off,
+        Ok(value) if value.eq_ignore_ascii_case("running") => GameCheck::Running,
+        Ok(value) if value.eq_ignore_ascii_case("closed") => GameCheck::Closed,
+        _ => GameCheck::Process,
+    }
+}
+
+fn look_for_game() -> bool {
+    match game_check() {
+        GameCheck::Process => game_is_running(),
+        GameCheck::Running => true,
+        GameCheck::Off | GameCheck::Closed => false,
+    }
 }
 
 /// Starts looking for the running game in the background, so that the first Archive opened does
 /// not wait for it.
 pub(crate) fn start_game_check() {
-    if game_check_off() {
+    if game_check() == GameCheck::Off {
         return;
     }
     let spawned = thread::Builder::new()
         .name("game-check".to_owned())
-        .spawn(game_is_running);
+        .spawn(look_for_game);
     if let Ok(handle) = spawned {
         *CHECK.lock().unwrap_or_else(PoisonError::into_inner) = Some(handle);
     }
@@ -40,12 +62,12 @@ pub(crate) fn start_game_check() {
 /// running.
 pub(crate) fn on_archive_open(path: &Path) {
     protect_archive_folder(path);
-    if game_check_off() {
+    if game_check() == GameCheck::Off {
         return;
     }
     WARNED.call_once(|| {
         let started = CHECK.lock().unwrap_or_else(PoisonError::into_inner).take();
-        let running = started.map_or_else(game_is_running, |handle| handle.join().unwrap_or(false));
+        let running = started.map_or_else(look_for_game, |handle| handle.join().unwrap_or(false));
         if running {
             let _ignored = writeln!(
                 io::stderr().lock(),

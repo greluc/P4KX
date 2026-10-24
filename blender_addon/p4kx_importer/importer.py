@@ -10,8 +10,10 @@ from dataclasses import dataclass, field
 import bpy
 from mathutils import Quaternion, Vector
 
+from .lights import gltf_to_blender_light_quaternion, light_settings
 from .materials import ImageCache, apply_textures
 from .package import (
+    Light,
     Mesh,
     Node,
     Package,
@@ -33,15 +35,19 @@ class ImportResult:
     root: bpy.types.Collection
     objects: int = 0
     instances: int = 0
+    lights: int = 0
     meshes: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
-def import_package(context: bpy.types.Context, package: Package) -> ImportResult:
+def import_package(
+    context: bpy.types.Context, package: Package, light_strength: float = 1.0
+) -> ImportResult:
     """Imports ``package`` into the scene of ``context`` and returns what was created.
 
     Each mesh used by a node is imported once into a hidden template collection; every node that
-    draws it becomes an empty that instances that collection. Raises ``PackageError`` when the
+    draws it becomes an empty that instances that collection. A node of the kind ``light`` becomes
+    a Blender light with the settings of ``lights.light_settings`` at ``light_strength``. Raises ``PackageError`` when the
     glTF importer of Blender is not available.
     """
     if not hasattr(bpy.ops.import_scene, "gltf"):
@@ -53,7 +59,11 @@ def import_package(context: bpy.types.Context, package: Package) -> ImportResult
     created: dict[int, bpy.types.Object] = {}
     for node in package.nodes:
         template = templates.get(node.mesh) if node.mesh else None
-        created[node.index] = _create_object(node, template, created, root)
+        if node.light is not None:
+            created[node.index] = _create_light(node, node.light, light_strength, created, root)
+            result.lights += 1
+        else:
+            created[node.index] = _create_object(node, template, created, root)
         result.objects += 1
         result.instances += template is not None
     result.warnings.extend(package.warnings)
@@ -139,6 +149,34 @@ def _create_object(
     if template is not None:
         obj.instance_type = "COLLECTION"
         obj.instance_collection = template
+    if node.parent is not None:
+        obj.parent = created[node.parent]
+    root.objects.link(obj)
+    return obj
+
+
+def _create_light(
+    node: Node,
+    light: Light,
+    strength: float,
+    created: dict[int, bpy.types.Object],
+    root: bpy.types.Collection,
+) -> bpy.types.Object:
+    settings = light_settings(light, strength)
+    data = bpy.data.lights.new(blender_name(node.name), settings.type)
+    data.color = settings.color
+    data.energy = settings.energy
+    data.use_custom_distance = settings.use_custom_distance
+    if settings.use_custom_distance:
+        data.cutoff_distance = settings.cutoff_distance
+    if settings.spot_size is not None and settings.spot_blend is not None:
+        data.spot_size = settings.spot_size
+        data.spot_blend = settings.spot_blend
+    obj = bpy.data.objects.new(blender_name(node.name), data)
+    obj.location = Vector(gltf_to_blender_vector(node.translation))
+    obj.rotation_mode = "QUATERNION"
+    obj.rotation_quaternion = Quaternion(gltf_to_blender_light_quaternion(node.rotation))
+    obj.scale = Vector(gltf_to_blender_scale(node.scale))
     if node.parent is not None:
         obj.parent = created[node.parent]
     root.objects.link(obj)

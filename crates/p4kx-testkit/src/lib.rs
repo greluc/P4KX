@@ -105,7 +105,8 @@ pub use entity_head::{
     head_entries, head_rig,
 };
 pub use entity_interior_sample::{
-    ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, entity_interior_entries,
+    ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, ENTITY_LIT_ROOM_CLASS, entity_interior_entries,
+    entity_lit_room_entries,
 };
 pub use entity_livery::{
     LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,

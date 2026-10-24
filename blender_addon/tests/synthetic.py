@@ -78,6 +78,44 @@ def manifest(**overrides: Any) -> dict[str, Any]:
     return value
 
 
+def lit_manifest(**overrides: Any) -> dict[str, Any]:
+    """Returns ``manifest()`` as format 1.1 with an Interior below the root.
+
+    The Interior is a group ``Interior``, a container ``room`` at (0, 0, -6) with a ``stool``
+    object (mesh m0002) and a point, a spot and a directional light. The lights shine along their
+    local -Z axis; the root is turned a quarter turn about Y.
+    """
+    base = {
+        "kind": "container",
+        "translation": [0.0, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0, 1.0],
+        "scale": [1.0, 1.0, 1.0],
+    }
+
+    def light(name: str, value: dict[str, Any], **extra: Any) -> dict[str, Any]:
+        return {**base, "kind": "light", "name": name, "path": f"Interior/room/{name}", "parent": 5, "light": value, **extra}
+
+    point = {"kind": "point", "colour": [1.0, 0.5, 0.25], "intensity": 3.0, "range": 6.0}
+    spot = {
+        "kind": "spot",
+        "colour": [1.0, 1.0, 1.0],
+        "intensity": 2.0,
+        "inner_cone": 0.0,
+        "outer_cone": 0.5235988,
+    }
+    sun = {"kind": "directional", "colour": [0.9, 0.9, 1.0], "intensity": 1.5}
+    data = manifest(version="1.1", **overrides)
+    data["nodes"] += [
+        {**base, "name": "Interior", "path": "Interior", "parent": 0},
+        {**base, "name": "room", "path": "Interior/room", "parent": 4, "translation": [0.0, 0.0, -6.0]},
+        {**base, "kind": "object", "name": "stool", "path": "Interior/room/stool", "parent": 5, "mesh": "m0002"},
+        light("lamp", point, translation=[0.0, 2.5, 0.0]),
+        light("beam", spot),
+        light("sun", sun),
+    ]
+    return data
+
+
 def write_package(folder: Path, data: dict[str, Any] | None = None) -> Path:
     """Writes ``data`` (default: ``manifest()``) and the files it names; returns ``scene.json``."""
     data = data if data is not None else manifest()

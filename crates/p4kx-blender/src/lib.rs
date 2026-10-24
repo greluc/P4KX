@@ -21,7 +21,9 @@
 mod build;
 mod collect;
 mod error;
+mod items;
 mod manifest;
+mod manifest_light;
 mod meshes;
 mod plan;
 mod schema;
@@ -36,6 +38,7 @@ pub use manifest::{
     MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Replacement, Source,
     TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };
+pub use manifest_light::{Light, LightKind};
 pub use schema::manifest_schema;
 pub use stage::check_output;
 pub use write::{PackageInfo, PackageSummary, write_package};

@@ -197,6 +197,80 @@
         }
       ]
     },
+    "Light": {
+      "description": "A punctual light at a node of the kind `light`.\n\nThe node's transform is already turned so that the light shines along its local -Z axis, as\nglTF and Blender lights do.",
+      "properties": {
+        "colour": {
+          "description": "The colour in linear red, green and blue, each in 0 to 1.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "inner_cone": {
+          "description": "The angle in radians from the axis where a spot light's falloff begins; present for the\nkind `spot`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "intensity": {
+          "description": "The intensity as the engine states it, not converted to a photometric unit; the engine's\nunit is not documented, so the value is only good for comparing lights of one package.",
+          "format": "float",
+          "type": "number"
+        },
+        "kind": {
+          "$ref": "#/$defs/LightKind",
+          "description": "The shape of the light."
+        },
+        "outer_cone": {
+          "description": "The angle in radians from the axis where a spot light ends, within 0 to a quarter turn;\npresent for the kind `spot`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "range": {
+          "description": "The distance in metres beyond which the light has no effect; absent when the light has\nnone.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "colour",
+        "intensity"
+      ],
+      "type": "object"
+    },
+    "LightKind": {
+      "description": "The shape of a [`Light`].",
+      "oneOf": [
+        {
+          "const": "point",
+          "description": "Shines in all directions from the node.",
+          "type": "string"
+        },
+        {
+          "const": "spot",
+          "description": "Shines in a cone along the node's -Z axis.",
+          "type": "string"
+        },
+        {
+          "const": "directional",
+          "description": "Shines along the node's -Z axis from infinitely far away.",
+          "type": "string"
+        }
+      ]
+    },
     "MaterialTextures": {
       "description": "The texture ids of a material by role; a role is absent when the material names no texture for\nit or the texture could not be written.",
       "properties": {
@@ -329,11 +403,22 @@
               "type": "null"
             }
           ],
-          "description": "The Entity placed at the node; present for the kind `entity`."
+          "description": "The Entity placed at the node; present for the kind `entity`, absent for the others."
         },
         "kind": {
           "$ref": "#/$defs/NodeKind",
           "description": "What the node places."
+        },
+        "light": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Light"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The light at the node; present for the kind `light`."
         },
         "mesh": {
           "description": "The id of the mesh drawn at the node; absent when the node draws nothing.",
@@ -343,7 +428,7 @@
           ]
         },
         "name": {
-          "description": "The node's name, `<port>/<entity>`, or the class name for the root.",
+          "description": "The node's name: `<port>/<entity>` or the class name for the root, the name from the\nInterior's files for the other kinds.",
           "type": "string"
         },
         "parent": {
@@ -356,7 +441,7 @@
           ]
         },
         "path": {
-          "description": "The path of the node's port from the root, port names joined by `/`; empty for the root.",
+          "description": "The path of the node from the root, the port names or, below `Interior`, the names of the\nnodes joined by `/`; empty for the root.",
           "type": "string"
         },
         "rotation": {
@@ -406,6 +491,21 @@
         {
           "const": "entity",
           "description": "An Entity of the Archive; `entity` names it.",
+          "type": "string"
+        },
+        {
+          "const": "container",
+          "description": "A group of the Interior: the node that holds the containers of an Entity, a container or a\n`.soc` file a container streams. It draws nothing.",
+          "type": "string"
+        },
+        {
+          "const": "object",
+          "description": "A model an Interior places, a prop or a placed model; it draws a mesh.",
+          "type": "string"
+        },
+        {
+          "const": "light",
+          "description": "A light an Interior places; `light` describes it.",
           "type": "string"
         }
       ]

@@ -3,9 +3,9 @@
 
 use std::collections::HashMap;
 
-use p4kx_assembly::Assembly;
 use p4kx_gltf::{DrawnMaterial, TextureFile, TextureRole, drawn_materials};
 
+use crate::items::Item;
 use crate::plan::MeshPlan;
 use crate::textures::Wanted;
 
@@ -19,14 +19,13 @@ pub(crate) struct Collected {
 
 impl Collected {
     /// Reads the materials of each distinct mesh of `plan` at `level`.
-    pub(crate) fn of(assembly: &Assembly, plan: &MeshPlan, level: u32) -> Self {
+    pub(crate) fn of(items: &[Item<'_>], plan: &MeshPlan, level: u32) -> Self {
         let mut collected = Self::default();
         for index in 0..plan.len() {
-            let part = plan
+            let drawn = plan
                 .first(index)
-                .and_then(|position| assembly.parts().get(position));
-            let drawn = part
-                .and_then(|part| Some(drawn_materials(part.model()?, part.materials(), level)))
+                .and_then(|position| items.get(position)?.drawn)
+                .map(|drawn| drawn_materials(drawn.model, drawn.materials, level))
                 .unwrap_or_default();
             for material in &drawn {
                 for (role, file) in [

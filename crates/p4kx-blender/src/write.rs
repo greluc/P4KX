@@ -10,8 +10,9 @@ use p4kx_gltf::{GlbOptions, TextureLoader};
 
 use crate::build::{Inputs, manifest};
 use crate::collect::Collected;
+use crate::items::items;
 use crate::manifest::{
-    BuildInfo, Issue, MANIFEST_FILE, MESHES_FOLDER, Replacement, TEXTURES_FOLDER,
+    BuildInfo, Issue, MANIFEST_FILE, MESHES_FOLDER, NodeKind, Replacement, TEXTURES_FOLDER,
 };
 use crate::plan::MeshPlan;
 use crate::stage::Staging;
@@ -59,6 +60,12 @@ impl PackageInfo {
 pub struct PackageSummary {
     /// The number of nodes of the scene.
     pub nodes: usize,
+    /// The number of nodes of the kind `container`, the Interior's groups.
+    pub containers: usize,
+    /// The number of nodes of the kind `object`, the models and props of the Interior.
+    pub objects: usize,
+    /// The number of nodes of the kind `light`.
+    pub lights: usize,
     /// The number of nodes that draw a mesh.
     pub drawn_nodes: usize,
     /// The number of GLB meshes, one per distinct mesh set.
@@ -90,7 +97,9 @@ pub struct PackageSummary {
 /// `docs/blender-package.md` describe it. Meshes are drawn with plain colours, with the palette of
 /// each part applied; the textures of their materials are written as they are in the Archive, at
 /// the mip level `options.texture_mip`, not baked into the meshes. The level of detail, the mip
-/// level and the vertex colours are those of `options`; `options.materials` is ignored.
+/// level and the vertex colours are those of `options`; `options.materials` is ignored. The
+/// Interior of `assembly`, if it has one, is written below an `Interior` node of the root: its
+/// containers, models, props and lights are nodes of the kinds `container`, `object` and `light`.
 ///
 /// Everything is written into a temporary folder next to `out`, which replaces `out` once the
 /// package is complete. `out` must not exist, or be an empty folder, or hold a package an earlier
@@ -117,8 +126,9 @@ pub fn write_package(
 ) -> PackageResult<PackageSummary> {
     let cancelled = Cancelled::new(cancelled);
     let staging = Staging::create(out)?;
-    let plan = MeshPlan::of(assembly);
-    let collected = Collected::of(assembly, &plan, options.lod);
+    let items = items(assembly);
+    let plan = MeshPlan::of(&items);
+    let collected = Collected::of(&items, &plan, options.lod);
     cancelled.check()?;
     let outcomes = if collected.wanted.is_empty() {
         Vec::new()
@@ -132,7 +142,7 @@ pub fn write_package(
         )?
     };
     let written = meshes::write_all(
-        assembly,
+        &items,
         &plan,
         options,
         &staging.path().join(MESHES_FOLDER),
@@ -141,6 +151,7 @@ pub fn write_package(
     cancelled.check()?;
     let manifest = manifest(&Inputs {
         assembly,
+        items: &items,
         info,
         options,
         plan: &plan,
@@ -176,6 +187,14 @@ fn write_manifest(path: &Path, manifest: &crate::Manifest) -> PackageResult<u64>
     Ok(len)
 }
 
+fn count(manifest: &crate::Manifest, kind: NodeKind) -> usize {
+    manifest
+        .nodes
+        .iter()
+        .filter(|node| node.kind == kind)
+        .count()
+}
+
 fn summarise(
     manifest: &crate::Manifest,
     outcomes: &[Outcome],
@@ -184,6 +203,9 @@ fn summarise(
 ) -> PackageSummary {
     let mut summary = PackageSummary {
         nodes: manifest.nodes.len(),
+        containers: count(manifest, NodeKind::Container),
+        objects: count(manifest, NodeKind::Object),
+        lights: count(manifest, NodeKind::Light),
         drawn_nodes: manifest
             .nodes
             .iter()

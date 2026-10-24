@@ -120,6 +120,13 @@ pub(crate) struct EntityPackageArgs {
     /// Leaves the vertex colours out of the parts.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    /// Includes the Interior as for `entity glb --interior`: the socpak containers the Entity's
+    /// Record names, each placed at its bone of the hull, as nodes below an `Interior` node of
+    /// the Entity, with their models and props as nodes that draw meshes and their lights as
+    /// nodes of the kind `light`. Containers and parts that cannot be resolved are skipped and
+    /// listed. Without it only the hull is written.
+    #[arg(long)]
+    pub(crate) interior: bool,
     #[command(flatten)]
     pub(crate) changes: LoadoutChangeArgs,
 }

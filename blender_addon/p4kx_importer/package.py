@@ -18,7 +18,7 @@ from typing import Any
 
 FORMAT_NAME = "p4kx-blender-package"
 SUPPORTED_MAJOR = 1
-SUPPORTED_MINOR = 0
+SUPPORTED_MINOR = 1
 MANIFEST_NAME = "scene.json"
 MAX_MANIFEST_BYTES = 64 * 1024 * 1024
 MAX_ITEMS = 200_000
@@ -31,7 +31,9 @@ _TEXTURE_ID = re.compile(r"^t[0-9]{4,}$")
 _MESH_FILE = re.compile(r"^meshes/m[0-9]{4,}\.glb$")
 _TEXTURE_FILE = re.compile(r"^textures/t[0-9]{4,}\.png$")
 _ROLES = ("diffuse", "normal", "specular")
-_KNOWN_NODE_KINDS = frozenset({"entity"})
+_KNOWN_NODE_KINDS = frozenset({"entity", "container", "object", "light"})
+_QUARTER_TURN = math.pi / 2 + 1e-6
+_LIGHT_KINDS = frozenset({"point", "spot", "directional"})
 _COLOUR_SPACES = frozenset({"srgb", "linear"})
 _ALPHA_MEANINGS = frozenset({"none", "opacity", "smoothness"})
 
@@ -76,16 +78,30 @@ class Texture:
 
 
 @dataclass(frozen=True, slots=True)
+class Light:
+    """A punctual light: linear colour, the engine's raw intensity, range and cone angles."""
+
+    kind: str
+    colour: Vector3
+    intensity: float
+    range: float | None
+    inner_cone: float | None
+    outer_cone: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class Node:
     """One node of the scene hierarchy, with its transform in glTF axes."""
 
     index: int
+    kind: str
     name: str
     parent: int | None
     mesh: str | None
     translation: Vector3
     rotation: Quaternion
     scale: Vector3
+    light: Light | None = None
 
 
 @dataclass(slots=True)
@@ -330,6 +346,7 @@ def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str])
     nodes: list[Node] = []
     skipped: set[int] = set()
     unknown_kinds: set[str] = set()
+    unknown_lights = False
     for position, item in enumerate(items):
         where = f"nodes[{position}]"
         entry = _object(item, where)
@@ -344,23 +361,68 @@ def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str])
             if kind not in _KNOWN_NODE_KINDS:
                 unknown_kinds.add(kind)
             continue
+        light = None
+        if kind == "light":
+            light = _parse_light(entry.get("light"), f"{where}.light")
+            if light is None:
+                skipped.add(position)
+                unknown_lights = True
+                continue
         mesh = entry.get("mesh")
         if mesh is not None and (not isinstance(mesh, str) or mesh not in meshes):
             raise PackageError(f"{where}: mesh {mesh!r} is not a mesh of the package.")
         nodes.append(
             Node(
                 index=position,
+                kind=kind,
                 name=_text(entry, "name", where),
                 parent=parent,
                 mesh=mesh,
                 translation=_floats(entry, "translation", 3, where),
                 rotation=_rotation(entry, where),
                 scale=_floats(entry, "scale", 3, where),
+                light=light,
             )
         )
     if unknown_kinds:
         warnings.append(f"Nodes of kind {', '.join(sorted(unknown_kinds))} are skipped.")
+    if unknown_lights:
+        warnings.append("Lights of a kind this add-on does not know are skipped.")
     return nodes
+
+
+def _parse_light(value: object, where: str) -> Light | None:
+    """Returns the light, or ``None`` for a light kind a later minor version added."""
+    entry = _object(value, where)
+    kind = _text(entry, "kind", where)
+    if kind not in _LIGHT_KINDS:
+        return None
+    colour = _floats(entry, "colour", 3, where)
+    if not all(0.0 <= channel <= 1.0 for channel in colour):
+        raise PackageError(f"{where}: colour must lie within 0 and 1.")
+    intensity = _number(entry, "intensity", where)
+    if intensity < 0.0:
+        raise PackageError(f"{where}: intensity must not be negative.")
+    light_range = _optional_number(entry, "range", where)
+    if light_range is not None and light_range <= 0.0:
+        raise PackageError(f"{where}: range must be positive.")
+    inner = _optional_number(entry, "inner_cone", where)
+    outer = _optional_number(entry, "outer_cone", where)
+    if kind == "spot":
+        if inner is None or outer is None or not 0.0 <= inner < outer <= _QUARTER_TURN:
+            raise PackageError(f"{where}: a spot light needs 0 <= inner_cone < outer_cone <= pi/2.")
+    else:
+        inner = outer = None
+    return Light(kind, (colour[0], colour[1], colour[2]), intensity, light_range, inner, outer)
+
+
+def _number(entry: dict[str, Any], key: str, where: str) -> float:
+    (number,) = _floats({key: [entry.get(key)]}, key, 1, f"{where}.{key}")
+    return number
+
+
+def _optional_number(entry: dict[str, Any], key: str, where: str) -> float | None:
+    return None if entry.get(key) is None else _number(entry, key, where)
 
 
 def _rotation(entry: dict[str, Any], where: str) -> Quaternion:

@@ -157,7 +157,7 @@ fn the_schema_rejects_what_a_reader_must_refuse() -> TestResult {
     assert!(broken("/textures/0/format", "exr".into()));
     assert!(broken("/textures/0/colour_space", "aces".into()));
     assert!(broken("/textures/0/alpha", "mask".into()));
-    assert!(broken("/nodes/0/kind", "light".into()));
+    assert!(broken("/nodes/0/kind", "portal".into()));
     Ok(())
 }
 

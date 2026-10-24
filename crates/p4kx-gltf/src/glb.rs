@@ -305,7 +305,7 @@ pub(crate) fn write_instances(
     Ok(summary)
 }
 
-fn write_file(
+pub(crate) fn write_file(
     root: &json::Root,
     layout: &Layout<'_>,
     images: &TextureSet,

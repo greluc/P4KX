@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use p4kx_settings::KeyText;
 
+pub(crate) use crate::cli_armour::ArmourArgs;
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
@@ -13,6 +14,7 @@ pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_coverage::CoverageArgs;
+pub(crate) use crate::cli_cryxml::CryXmlArgs;
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, DcbRefsArgs, DcbTagsArgs,
     QueryFormat, RecordFormat, RefsFormat, TagsFormat,
@@ -114,6 +116,10 @@ pub(crate) enum Command {
     /// item.
     #[command(after_help = EXIT_CODES_HELP)]
     Entity(EntityArgs),
+    /// Lists the body variants, or writes pieces of armour and clothing worn on a body as one
+    /// skinned GLB.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Armour(ArmourArgs),
     /// Compares the Entries and Records of an old and a new Archive, or prints the line diff of
     /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]
@@ -155,16 +161,6 @@ pub(crate) enum Command {
     /// Stores, shows or removes the Archive key of your profile.
     #[command(after_help = EXIT_CODES_HELP)]
     Key(KeyArgs),
-}
-
-/// Arguments of `p4kx cryxml`.
-#[derive(Debug, Args)]
-pub(crate) struct CryXmlArgs {
-    /// Path of the CryXml or text XML file.
-    pub(crate) file: PathBuf,
-    /// Writes the XML to this file instead of stdout; needed with --json.
-    #[arg(long, value_name = "FILE")]
-    pub(crate) out: Option<PathBuf>,
 }
 
 /// Arguments of `p4kx texture`.

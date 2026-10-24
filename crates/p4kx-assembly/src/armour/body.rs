@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+/// A body variant of the human Characters: the skeleton, the default body and the tag that
+/// selects the geometry of armour and clothing for it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum BodyVariant {
+    /// The male body (`male_v7`).
+    Male,
+    /// The female body (`female_v2`).
+    Female,
+}
+
+impl BodyVariant {
+    /// Every body variant.
+    pub const ALL: [Self; 2] = [Self::Male, Self::Female];
+
+    /// Returns the stable code of the variant, e.g. `male`.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Male => "male",
+            Self::Female => "female",
+        }
+    }
+
+    /// Returns the variant with the code `code`, ignoring ASCII case.
+    #[must_use]
+    pub fn from_code(code: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|variant| variant.code().eq_ignore_ascii_case(code))
+    }
+
+    /// Returns the tag an Entity Record gives the geometry worn on this body, e.g. `Male`.
+    #[must_use]
+    pub const fn tag(self) -> &'static str {
+        match self {
+            Self::Male => "Male",
+            Self::Female => "Female",
+        }
+    }
+
+    /// Returns the skeleton file (`.chr`) of the variant, a path below `Data`.
+    #[must_use]
+    pub const fn skeleton(self) -> &'static str {
+        match self {
+            Self::Male => "Objects/Characters/Human/male_v7/export/bhm_skeleton_v7.chr",
+            Self::Female => "Objects/Characters/Human/female_v2/export/bhf_skeleton_v2.chr",
+        }
+    }
+
+    /// Returns the skin of the default body, a path below `Data`.
+    #[must_use]
+    pub const fn skin(self) -> &'static str {
+        match self {
+            Self::Male => "Objects/Characters/Human/male_v7/body/m_body.skin",
+            Self::Female => "Objects/Characters/Human/female_v2/body/f_body.skin",
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BodyVariant;
+
+    #[test]
+    fn a_code_finds_its_variant_whatever_the_case() {
+        for variant in BodyVariant::ALL {
+            assert_eq!(BodyVariant::from_code(variant.code()), Some(variant));
+        }
+        assert_eq!(BodyVariant::from_code("FEMALE"), Some(BodyVariant::Female));
+        assert_eq!(BodyVariant::from_code("other"), None);
+    }
+}

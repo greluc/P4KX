@@ -12,3 +12,7 @@ pub const MODEL_VIEW_MIN_HEIGHT: f32 = 96.0;
 pub const MODEL_OVERLAY_GAP: f32 = SPACE_2;
 /// The least width the facts bar leaves for the overview of the controls before it is left out.
 pub const MODEL_HINT_MIN_WIDTH: f32 = 120.0;
+/// The width of the list of animations beside the 3D view.
+pub const MODEL_ANIMATIONS_WIDTH: f32 = 240.0;
+/// The width in points of the lines that draw the skeleton over the model.
+pub const MODEL_BONE_STROKE: f32 = 2.0;

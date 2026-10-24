@@ -404,3 +404,22 @@ Datei geschrieben und keine Teildatei liegt da. Ein Fehler steht in `color-dange
 „Export fehlgeschlagen" und lässt das übrige Fenster bedienbar; fehlt der Archiv-Schlüssel, steht der
 Hinweis in `color-warning` und der Schlüssel-Dialog (ADR-0027) öffnet sich von selbst, ein
 geändertes Archiv ebenso in `color-warning`.
+
+**D.46 Skelett und Animationen in der Modellansicht.** Hat ein Modell Knochen, wird die Faktenleiste
+des Tabs „Modell" (D.35) 32 px hoch (`sliderHitHeight`), und rechts neben den Fakten stehen statt der
+Bedienhinweise die Steuerelemente. Mit Animationen sind das von links nach rechts: „Abspielen" oder
+„Pause" (`.btn-outline.btn-xs`, deaktiviert, solange keine Animation gewählt ist), die Zeit
+„Minuten:Sekunden.Millisekunden / Länge" in 12 / 400 `color-gray-1` (auf Zehntelsekunden gekürzt, in
+der Breite der längsten Zeit der Animation), der Positionsregler (`.slider`, D.27: Klick und Ziehen
+setzen die Position, Pfeile um eine Sekunde, Bild auf und ab um fünf, Pos1 und Ende an die Enden),
+das Kontrollkästchen „Wiederholen" (an) und „Skelett" (aus); ein Modell mit Knochen ohne Animation
+zeigt nur „Skelett". Verschwindet der Platz (schmales Fenster), bleibt der rechte Rand maßgebend.
+Neben der Ansicht steht, `overlayGap` (8) entfernt und `animationListWidth` (240) breit, die Liste
+der Animationen: die Überschrift „Animationen" in der Eyebrow-Schrift (`color-gray-2-text`) über
+einer Rollliste aus Radios (36 px je Zeile, D.1), deren erste „Ausgangspose" ist; sie zeigt nur
+Animationen, die mindestens einen Knochen des Modells bewegen und nicht additiv sind, mit dem Namen
+aus dem Archiv ohne Steuerzeichen. Die Wahl einer Animation startet sie am Anfang, „Ausgangspose"
+hält an. Das Skelett zeichnet je Knochen eine Linie von `boneStroke` (2) Punkten vom Elternknochen
+in `color-primary` über das Modell, ohne Tiefentest. Die Ansicht selbst behält ihre Maße (D.35);
+Skelett und Liste nehmen ihr keine Höhe, die Liste zeigt bei der Standardhöhe des Panels
+(236 px) etwa zwei Zeilen und rollt.

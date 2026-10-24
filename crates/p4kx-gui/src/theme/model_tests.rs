@@ -22,6 +22,8 @@ fn the_model_preview_metrics_match_the_desktop_spec() {
         ("viewMinHeight", m::MODEL_VIEW_MIN_HEIGHT),
         ("overlayGap", m::MODEL_OVERLAY_GAP),
         ("hintMinWidth", m::MODEL_HINT_MIN_WIDTH),
+        ("animationListWidth", m::MODEL_ANIMATIONS_WIDTH),
+        ("boneStroke", m::MODEL_BONE_STROKE),
         ("factsPaddingX", FACTS_PADDING_X),
     ] {
         let expected = spec[key].as_f64();
@@ -54,7 +56,21 @@ fn the_model_preview_names_its_decision_and_controls() {
     let spec = model_preview();
 
     assert_eq!(spec["decision"].as_str(), Some("D.35"), "decision");
-    for key in ["mouse", "keyboard", "resetButton", "hint", "messages"] {
+    assert_eq!(
+        spec["playbackDecision"].as_str(),
+        Some("D.46"),
+        "playback decision"
+    );
+    for key in [
+        "mouse",
+        "keyboard",
+        "resetButton",
+        "hint",
+        "messages",
+        "playbackBar",
+        "animationList",
+        "skeletonOverlay",
+    ] {
         assert!(
             spec[key].as_str().is_some_and(|text| !text.is_empty()),
             "modelPreview.{key} is described"

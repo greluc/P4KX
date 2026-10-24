@@ -7,16 +7,19 @@ use eframe::egui_wgpu::wgpu;
 
 use super::GpuReport;
 use super::limits::{Rejected, check_buffer, check_texture};
+use super::skeleton::SkeletonBuffers;
 use crate::viewer::scene::Scene;
 
 pub(super) const VERTEX_STRIDE: u64 = 32;
 
-/// The vertex and index buffer of a scene, destroyed when dropped.
+/// The vertex and index buffer of a scene and the buffers of its skeleton, destroyed when
+/// dropped.
 #[derive(Debug)]
 pub(super) struct MeshBuffers {
     pub(super) vertices: wgpu::Buffer,
     pub(super) indices: wgpu::Buffer,
     pub(super) index_count: u32,
+    pub(super) skeleton: Option<SkeletonBuffers>,
     report: Arc<GpuReport>,
 }
 
@@ -38,9 +41,11 @@ pub(super) fn filled(
 }
 
 impl MeshBuffers {
-    /// Uploads `scene` once.
+    /// Uploads `scene` once, with its skeleton when the pipelines for one exist, in which case
+    /// they take bind groups of `skeleton_layout`.
     pub(super) fn upload(
         (device, queue): (&wgpu::Device, &wgpu::Queue),
+        skeleton_layout: Option<&wgpu::BindGroupLayout>,
         scene: &Scene,
         report: &Arc<GpuReport>,
     ) -> Result<Self, Rejected> {
@@ -70,10 +75,13 @@ impl MeshBuffers {
             bytemuck::cast_slice(scene.indices()),
         );
         report.buffer_created(2);
+        let skeleton = skeleton_layout
+            .and_then(|layout| SkeletonBuffers::upload((device, queue), layout, scene, report));
         Ok(Self {
             vertices,
             indices,
             index_count,
+            skeleton,
             report: Arc::clone(report),
         })
     }

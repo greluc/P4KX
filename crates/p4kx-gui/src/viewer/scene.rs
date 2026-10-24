@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_extraction::model::{Mesh, Model, Node, Transform};
@@ -8,6 +9,8 @@ use rayon::prelude::*;
 use thiserror::Error;
 
 use super::camera::{cross, dot};
+use super::skeleton::Skeleton;
+use skin::UNWEIGHTED;
 
 /// The most vertices a [`Scene`] holds; a model with more is refused.
 pub const MAX_SCENE_VERTICES: usize = 4_000_000;
@@ -17,6 +20,12 @@ pub const MAX_SCENE_TRIANGLES: usize = 8_000_000;
 
 /// One vertex as the GPU reads it: position, normal and texture coordinate.
 pub type Vertex = [f32; 8];
+
+/// The bytes of the skin of one vertex: four joints and four weights.
+pub const SKIN_STRIDE: usize = 12;
+
+/// The four bones that move a vertex and their weights.
+pub type SkinVertex = [u8; SKIN_STRIDE];
 
 static SERIAL: AtomicU64 = AtomicU64::new(1);
 
@@ -113,6 +122,8 @@ impl Bounds {
 pub struct Scene {
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
+    skin: Option<Vec<SkinVertex>>,
+    skeleton: Option<Arc<Skeleton>>,
     bounds: Bounds,
     serial: u64,
 }
@@ -134,13 +145,19 @@ impl Scene {
         let (vertices, triangles) = (lod.vertex_count(), lod.triangle_count());
         check_size(vertices, triangles)?;
         let world = world_transforms(&model.nodes);
+        let skeleton = Skeleton::of(model.bones_of(lod)).map(Arc::new);
+        let bones = skeleton
+            .as_ref()
+            .map_or(0, |skeleton| skeleton.bone_count());
         let parts: Vec<Part> = lod
             .meshes
             .par_iter()
-            .map(|mesh| Part::of(mesh, world.get(mesh.node).unwrap_or(&IDENTITY)))
+            .map(|mesh| Part::of(mesh, world.get(mesh.node).unwrap_or(&IDENTITY), bones))
             .collect();
+        let skinned = parts.iter().any(|part| !part.skin.is_empty());
         let mut all_vertices = Vec::with_capacity(vertices);
         let mut all_indices = Vec::with_capacity(triangles.saturating_mul(3));
+        let mut all_skin = Vec::with_capacity(if skinned { vertices } else { 0 });
         let mut bounds = Bounds::EMPTY;
         for part in parts {
             let base = u32::try_from(all_vertices.len()).map_err(|_| SceneError::TooLarge {
@@ -149,6 +166,13 @@ impl Scene {
             })?;
             bounds.union(&part.bounds);
             all_indices.extend(part.indices.iter().map(|index| index.saturating_add(base)));
+            if skinned {
+                if part.skin.is_empty() {
+                    all_skin.extend(std::iter::repeat_n(UNWEIGHTED, part.vertices.len()));
+                } else {
+                    all_skin.extend(part.skin);
+                }
+            }
             all_vertices.extend(part.vertices);
         }
         if !bounds.is_valid() {
@@ -157,6 +181,8 @@ impl Scene {
         Ok(Self {
             vertices: all_vertices,
             indices: all_indices,
+            skin: skinned.then_some(all_skin),
+            skeleton,
             bounds,
             serial: SERIAL.fetch_add(1, Ordering::Relaxed),
         })
@@ -172,6 +198,20 @@ impl Scene {
     #[must_use]
     pub fn indices(&self) -> &[u32] {
         &self.indices
+    }
+
+    /// Returns, per vertex, the four bones that move it and their weights: four little-endian
+    /// `u16` joints and four `u8` weights, 12 bytes; `None` for a model without skinned meshes
+    /// or without a usable skeleton. A vertex with all weights zero stays where it is.
+    #[must_use]
+    pub fn skin(&self) -> Option<&[[u8; SKIN_STRIDE]]> {
+        self.skin.as_deref()
+    }
+
+    /// Returns the skeleton of the most detailed level, or `None` for a model without one.
+    #[must_use]
+    pub const fn skeleton(&self) -> Option<&Arc<Skeleton>> {
+        self.skeleton.as_ref()
     }
 
     /// Returns the box around the finite vertices.
@@ -210,11 +250,14 @@ const fn check_size(vertices: usize, triangles: usize) -> Result<(), SceneError>
 struct Part {
     vertices: Vec<Vertex>,
     indices: Vec<u32>,
+    skin: Vec<SkinVertex>,
     bounds: Bounds,
 }
 
 impl Part {
-    fn of(mesh: &Mesh, world: &Rows) -> Self {
+    fn of(mesh: &Mesh, world: &Rows, bones: usize) -> Self {
+        let skin = skin::of_mesh(mesh, bones);
+        let world = if skin.is_empty() { world } else { &IDENTITY };
         let normal_rows = normal_matrix(world);
         let mut bounds = Bounds::EMPTY;
         let vertices = mesh
@@ -244,6 +287,7 @@ impl Part {
         Self {
             vertices,
             indices,
+            skin,
             bounds,
         }
     }
@@ -352,5 +396,6 @@ fn normalised(vector: [f32; 3]) -> [f32; 3] {
     }
 }
 
+mod skin;
 #[cfg(test)]
 mod tests;

@@ -47,6 +47,7 @@ mod model_export_animations;
 mod model_export_outcome;
 mod model_info;
 mod model_info_rows;
+mod model_playback;
 mod model_preview;
 mod model_view;
 mod moved_path;

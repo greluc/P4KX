@@ -119,6 +119,12 @@ impl FactsStrip {
         }
     }
 
+    /// Returns the strip at least `height` high, for controls laid beside the facts.
+    pub(crate) const fn at_least(mut self, height: f32) -> Self {
+        self.height = self.height.max(height);
+        self
+    }
+
     /// Returns the width the facts take from the left edge of the bar to the end of the last.
     pub(crate) fn width(&self) -> f32 {
         let facts: f32 = self

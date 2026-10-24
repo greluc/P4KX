@@ -141,6 +141,38 @@ fn the_first_state_that_is_on_gives_the_values() -> TestResult {
 }
 
 #[test]
+fn values_that_overflow_single_precision_are_left_out_and_counted() -> TestResult {
+    let soc = TestSoc::new()
+        .entity(
+            TestSocEntity::prop("far", [0.0; 3], IDENTITY, "objects/test/a.cgf")
+                .raw_pos("1e39,0,0"),
+        )
+        .entity(
+            TestSocEntity::prop("huge", [0.0; 3], IDENTITY, "objects/test/b.cgf")
+                .scaled([1e300, 1.0, 1.0]),
+        )
+        .entity(TestSocEntity::light_group(
+            "lg",
+            [0.0; 3],
+            IDENTITY,
+            &[("far", TestLight::new("Omni"), IDENTITY, [1e39, 0.0, 0.0])],
+        ))
+        .entity(TestSocEntity::prop(
+            "good",
+            [0.0; 3],
+            IDENTITY,
+            "objects/test/c.cgf",
+        ));
+
+    let entities = read(&soc)?;
+
+    assert_eq!(entities.props.len(), 1);
+    assert_eq!(entities.lights.len(), 0);
+    assert_eq!(entities.invalid, 3);
+    Ok(())
+}
+
+#[test]
 fn entities_with_unusable_transforms_are_left_out_and_counted() -> TestResult {
     let soc = TestSoc::new()
         .entity(

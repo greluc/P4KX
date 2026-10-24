@@ -271,12 +271,11 @@ was reached). New kinds may be added in later versions.
 
 ```json
 {"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\RSI\\Mantis\\base_int_body_main.socpak"],
- "out": "…", "lod": 0, "parts": 20, "containers_opened": 1, "model_parts": 15,
- "modelled_parts": 15, "props": 0, "lights": 0, "nodes": 35, "meshes": 15, "primitives": 96,
- "materials": 22,
- "default_material_ids": 0, "hidden_primitives": 11, "lod_fallbacks": 0, "shared_meshes": 0,
- "shared_materials": 74, "shared_textures": 0, "vertices": 154546, "triangles": 143253,
- "bytes": 8940016, "skipped": 0, "issues": [Issue, …]}
+ "out": "…", "lod": 0, "parts": 87, "containers_opened": 1, "model_parts": 36,
+ "modelled_parts": 36, "props": 21, "lights": 46, "nodes": 205, "meshes": 37, "primitives": 158,
+ "materials": 32, "default_material_ids": 0, "hidden_primitives": 12, "lod_fallbacks": 0,
+ "shared_meshes": 8, "shared_materials": 118, "shared_textures": 0, "vertices": 170632,
+ "triangles": 159528, "bytes": 9931796, "skipped": 1, "issues": [Issue, …]}
 ```
 
 `containers` are the Entry paths of the chain as for `p4kx socpak list`, with the same exit codes
@@ -284,7 +283,8 @@ was reached). New kinds may be added in later versions.
 container, the `.soc` files, the nested containers, the placed models, the props and the lights;
 `containers_opened` the containers that were opened, the root included; `model_parts` the placed
 models and props, `modelled_parts` those whose model was read, `props` the props among the model
-parts and `lights` the lights written with `KHR_lights_punctual`
+parts and `lights` the lights written with `KHR_lights_punctual`; their intensity is the raw
+engine value and their colour an approximation, not a conversion to photometric units
 ([ADR-0087](adr/0087-an-interior-places-the-props-and-lights-of-its-soc-entities.md)). The other
 counts are those of `entity glb`. An
 **Issue** has the fields of the `entity glb` Issue: `path` is the names of the containers from the

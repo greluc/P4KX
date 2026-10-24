@@ -99,6 +99,16 @@ impl SocEntities {
                     first.lights.append(&mut chunk.lights);
                     first.other += chunk.other;
                     first.invalid += chunk.invalid;
+                    for (what, count) in
+                        [("props", first.props.len()), ("lights", first.lights.len())]
+                    {
+                        if count > MAX_SOC_PLACED {
+                            return Err(SocEntitiesError::TooMany {
+                                what,
+                                limit: MAX_SOC_PLACED,
+                            });
+                        }
+                    }
                     first
                 }
                 None => chunk,
@@ -257,7 +267,9 @@ fn push_light<'a, E: XmlElement<'a>>(
     }
     let placed = match (entity, relative) {
         (Some(entity), None) => Some(entity),
-        (Some(entity), Some(relative)) => relative_transform(relative).map(|r| entity.then(&r)),
+        (Some(entity), Some(relative)) => {
+            relative_transform(relative).and_then(|r| entity.then(&r).finite())
+        }
         (None, _) => None,
     };
     match placed.and_then(|transform| read_light(name, group, transform, component)) {

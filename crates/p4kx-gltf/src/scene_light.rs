@@ -47,8 +47,9 @@ pub struct SceneLight {
     pub kind: SceneLightKind,
     /// The colour in linear red, green and blue, each in 0 to 1; written clamped.
     pub colour: [f32; 3],
-    /// The intensity: candela for point and spot lights, lux for directional lights; written as
-    /// given, or zero when negative or not finite.
+    /// The intensity, written as given, or zero when negative or not finite. glTF reads it as
+    /// candela for point and spot lights and lux for directional lights; a caller that passes the
+    /// raw engine value, as the Interior does, makes it relative and approximate.
     pub intensity: f32,
     /// The distance in metres beyond which the light has no effect; left out when not positive
     /// or not finite.

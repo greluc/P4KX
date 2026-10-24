@@ -36,8 +36,9 @@ scale, then rotation, then position. Entities that are neither are only counted.
 
 - **Direction.** A `CryEngine` light shines along its local +X axis (measured on the Mantis: with
   w,x,y,z and +X, half of the 30 projectors point down within 60 degrees, with any other
-  quaternion order or axis at most 30 % do). glTF lights shine along -Z, so the writer turns the node: its transform
-  composed with the rotation that takes +Y, which is glTF's -Z in `CryEngine` axes, to +X.
+  quaternion order or axis at most 30 % do). glTF lights shine along -Z, so the writer turns the
+  node: its transform composed with the rotation that takes +Y, which is glTF's -Z in `CryEngine`
+  axes, to +X.
 - **Colour.** The colour of a state is read as sRGB and written linear. With `useTemperature` it
   is multiplied by the colour of a black body at the state's `temperature` (Tanner Helland's fit,
   1000 to 40000 K, scaled to a largest channel of 1). Both are assumptions, not measured; the
@@ -48,7 +49,9 @@ scale, then rotation, then position. Entities that are neither are only counted.
   styles and the other states are not written.
 - **Writer.** Colours are clamped to 0 to 1, a negative or non-finite intensity is zero, a range
   that is not positive is left out, and spot angles are kept within 0 to a quarter turn with the
-  inner angle below the outer one. The extension is declared only when lights exist.
+  inner angle below the outer one. Values that overflow single precision (`Pos`, `Scale`,
+  `RelativeXForm`) make the entity unusable: it is left out and counted in `entities_left_out`.
+  The extension is declared only when lights exist.
 - **Reported.** `light_unsupported` (the light types above), `entities_left_out` (props or lights
   with a position, rotation, scale or light type not usable), plus the model issues of the props.
   Limits: 2^20 entities and 2^17 props and lights per `.soc` file, and the part limit of

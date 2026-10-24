@@ -101,6 +101,55 @@ fn a_light_shines_along_the_x_axis_of_its_node() -> TestResult {
     Ok(())
 }
 
+fn apply(matrix: [[f32; 4]; 4], vector: [f32; 3]) -> [f32; 3] {
+    std::array::from_fn(|row| {
+        matrix.iter().zip(vector).fold(0.0, |sum, (column, value)| {
+            column.get(row).copied().unwrap_or(0.0).mul_add(value, sum)
+        })
+    })
+}
+
+#[test]
+fn a_light_in_a_turned_container_shines_along_the_turned_x_axis() -> TestResult {
+    let quarter = Transform {
+        rows: [
+            [0.0, -1.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+        ],
+    };
+    let light = SceneLight::new(SceneLightKind::Directional, [1.0; 3], 1.0);
+    let mut scene = Scene::new();
+    let room = scene.push(SceneNode::new("room", None, quarter))?;
+    scene.push(SceneNode::new("straight", Some(room), Transform::IDENTITY).with_light(light))?;
+    scene.push(SceneNode::new("turned", Some(room), quarter).with_light(light))?;
+
+    let (glb, _) = write(&scene)?;
+
+    let matrix = |name: &str| {
+        glb.document
+            .nodes()
+            .find(|node| node.name() == Some(name))
+            .map(|node| node.transform().matrix())
+            .ok_or_else(|| format!("no node {name}"))
+    };
+    let world_shine = |name: &str| -> Result<[f32; 3], String> {
+        let local = apply(matrix(name)?, [0.0, 0.0, -1.0]);
+        Ok(apply(matrix("room")?, local))
+    };
+    for (name, expected) in [("straight", [0.0, 0.0, -1.0]), ("turned", [-1.0, 0.0, 0.0])] {
+        let shine = world_shine(name)?;
+        assert!(
+            shine
+                .iter()
+                .zip(expected)
+                .all(|(a, e)| (a - e).abs() < 1e-5),
+            "{name}: Cry +X turned once is +Y (glTF -Z), twice is -X: {shine:?}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn values_gltf_cannot_hold_are_made_valid() -> TestResult {
     let mut scene = Scene::new();

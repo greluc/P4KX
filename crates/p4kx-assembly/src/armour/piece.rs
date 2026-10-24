@@ -3,7 +3,7 @@
 
 use p4kx_character::Dna;
 
-use super::Wearable;
+use super::{Expressions, Wearable};
 
 /// Where the geometry of a [`Piece`] comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,6 +30,7 @@ pub struct Piece {
     pub(crate) name: String,
     pub(crate) source: Source,
     pub(crate) shape: Option<Dna>,
+    pub(crate) expressions: Expressions,
 }
 
 impl Piece {
@@ -40,6 +41,7 @@ impl Piece {
             name: wearable.class_name().to_owned(),
             source: Source::Wearable(wearable),
             shape: None,
+            expressions: Expressions::None,
         }
     }
 
@@ -58,6 +60,7 @@ impl Piece {
                 material,
             },
             shape: None,
+            expressions: Expressions::None,
         }
     }
 
@@ -68,6 +71,7 @@ impl Piece {
             name: name.into(),
             source: Source::Failed(reason.into()),
             shape: None,
+            expressions: Expressions::None,
         }
     }
 
@@ -78,6 +82,18 @@ impl Piece {
     #[must_use]
     pub fn shaped(mut self, dna: Dna) -> Self {
         self.shape = Some(dna);
+        self
+    }
+
+    /// Writes the expression blendshapes `expressions` names as morph targets of the piece's mesh,
+    /// mixed by the DNA the piece is shaped by, see [`Piece::shaped`], so that they move the
+    /// Character's own neutral face. A piece that is not shaped has none. The targets are named
+    /// by the `RigLogic` chunk of the skin; if they cannot be made the piece is kept without them
+    /// and listed as [`IssueKind::MorphsFailed`](crate::IssueKind::MorphsFailed), and a name no
+    /// blendshape has as [`IssueKind::UnknownExpression`](crate::IssueKind::UnknownExpression).
+    #[must_use]
+    pub fn with_expressions(mut self, expressions: Expressions) -> Self {
+        self.expressions = expressions;
         self
     }
 

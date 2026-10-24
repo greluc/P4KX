@@ -50,6 +50,10 @@
 //! skeleton by bone name; [`Armour::write_glb`] exports it as one skinned GLB. A piece that cannot
 //! be fitted is an [`Issue`]. [`LoadoutResolver::worn`] takes the pieces from a resolved Loadout
 //! tree, and [`Piece::layer`] puts pieces given by hand on top of them.
+//!
+//! [`Head::from_character`] makes the head of a CHF [`character::Character`]: the head skin of its
+//! rig, shaped by the Character's face DNA ([`Piece::shaped`]) and worn on the body of the rig's
+//! variant.
 
 mod armour;
 mod assembly;
@@ -60,6 +64,7 @@ mod catalogue;
 mod changes;
 mod compat;
 mod entities;
+mod entity_interior;
 mod error;
 mod files;
 mod flatten;
@@ -69,6 +74,7 @@ mod issue;
 mod markup;
 mod merge;
 mod node;
+mod object_containers;
 mod palette;
 mod placement;
 mod plan;
@@ -83,7 +89,8 @@ mod walk;
 mod xml;
 
 pub use armour::{
-    Armour, ArmourPart, BodyVariant, PartOrigin, Piece, Replaced, Wearable, is_worn_type,
+    Armour, ArmourPart, BodyVariant, Head, HeadError, MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced,
+    Wearable, is_worn_type,
 };
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
@@ -93,6 +100,7 @@ pub use catalogue::{EntityCatalogue, EntityKind, EntitySummary};
 pub use changes::{ChangeError, LoadoutChanges, PortChange};
 pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};
+pub use entity_interior::{EntityContainer, EntityInterior, INTERIOR_NODE};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
 pub use geometry::{Geometry, GeometryVariant, PaletteRef};
@@ -101,6 +109,7 @@ pub use interior::{
     MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
 };
 pub use issue::{Issue, IssueKind};
+pub use object_containers::{ContainerSource, ObjectContainerRef};
 pub use p4kx_character as character;
 pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
 pub use port::{PortDefinition, PortTransform, PortType};

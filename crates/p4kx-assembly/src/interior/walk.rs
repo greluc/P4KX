@@ -14,6 +14,10 @@ use super::{
 };
 use crate::{AssemblyError, Issue, IssueKind};
 
+mod entities;
+
+use entities::Placed;
+
 /// A model part waiting for its model: where to look for the file, outermost layer first.
 pub(super) struct Placement {
     pub(super) part: usize,
@@ -59,6 +63,7 @@ fn container_part(
         model_path: None,
         model: None,
         materials: Arc::new(MaterialStatus::Unnamed),
+        light: None,
     }
 }
 
@@ -76,6 +81,7 @@ pub(super) fn walk<'a>(
         issues: Vec::new(),
         full: false,
         max_parts: options.max_parts,
+        max_containers: options.max_containers.min(MAX_INTERIOR_CONTAINERS),
     };
     let Some(root_layer) = given.len().checked_sub(1) else {
         return Ok(walker.finish());
@@ -118,6 +124,7 @@ struct Walker<'a> {
     issues: Vec<Issue>,
     full: bool,
     max_parts: usize,
+    max_containers: usize,
 }
 
 impl<'a> Walker<'a> {
@@ -191,46 +198,35 @@ impl<'a> Walker<'a> {
             );
             part.kind = InteriorPartKind::Stream;
             self.parts.push(part);
-            let Some(objects) = stream.objects else {
-                continue;
-            };
-            if objects.invalid > 0 {
-                let count = objects.invalid;
-                self.note(
-                    &todo.path,
-                    file_name(&stream.name),
-                    IssueKind::ObjectsLeftOut { count },
-                );
-            }
-            if let Some(kind) = objects.unsupported {
-                self.note(
-                    &todo.path,
-                    file_name(&stream.name),
-                    IssueKind::UnsupportedObjects { kind },
-                );
-            }
-            for object in &objects.objects {
-                if !self.room(todo) {
-                    return;
+            let file = file_name(&stream.name);
+            if let Some(objects) = &stream.objects {
+                if objects.invalid > 0 {
+                    let count = objects.invalid;
+                    self.note(&todo.path, file, IssueKind::ObjectsLeftOut { count });
                 }
-                let Some(path) = objects.models.get(object.model) else {
-                    continue;
-                };
-                self.placements.push(Placement {
-                    part: self.parts.len(),
-                    chain: Arc::clone(&todo.chain),
-                    container: Arc::clone(&todo.path),
-                });
-                self.parts.push(InteriorPart {
-                    name: stem(path).to_owned(),
-                    kind: InteriorPartKind::Model,
-                    parent: Some(at),
-                    local: object.transform,
-                    world: world.then(&object.transform),
-                    model_path: Some(path.clone()),
-                    model: None,
-                    materials: Arc::new(MaterialStatus::Unnamed),
-                });
+                if let Some(kind) = objects.unsupported {
+                    self.note(&todo.path, file, IssueKind::UnsupportedObjects { kind });
+                }
+                for object in &objects.objects {
+                    let Some(path) = objects.models.get(object.model) else {
+                        continue;
+                    };
+                    let name = stem(path).to_owned();
+                    let placed = Placed {
+                        name,
+                        kind: InteriorPartKind::Model,
+                        path: Some(path),
+                        transform: object.transform,
+                    };
+                    if !self.add_placed(todo, at, world, placed) {
+                        return;
+                    }
+                }
+            }
+            if let Some(entities) = &stream.entities
+                && !self.add_entities(todo, at, world, file, entities)
+            {
+                return;
             }
         }
     }
@@ -270,8 +266,8 @@ impl<'a> Walker<'a> {
                 );
                 continue;
             }
-            if self.layers.opened.len() + 1 >= MAX_INTERIOR_CONTAINERS {
-                let limit = MAX_INTERIOR_CONTAINERS;
+            if self.layers.opened.len() + 1 >= self.max_containers {
+                let limit = self.max_containers;
                 self.note(&todo.path, &name, IssueKind::TooManyContainers { limit });
                 continue;
             }

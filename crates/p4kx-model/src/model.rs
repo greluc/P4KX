@@ -81,6 +81,10 @@ pub struct Mesh {
     pub node: usize,
     /// The vertex positions in metres.
     pub positions: Vec<[f32; 3]>,
+    /// The index each vertex has in the vertex stream of the geometry file, one per vertex. The
+    /// mesh keeps only the vertices its triangles use, in the order they are first used, so this
+    /// is how data stored per stream vertex, such as a DNA rig, is matched to the mesh.
+    pub source: Vec<u32>,
     /// The unit vertex normals, or `None` when the mesh stores none.
     pub normals: Option<Vec<[f32; 3]>>,
     /// The unit vertex tangents with the handedness of their frame in `w`, +1 or −1, or `None`

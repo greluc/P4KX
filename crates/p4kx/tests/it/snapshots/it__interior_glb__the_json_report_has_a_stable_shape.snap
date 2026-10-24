@@ -62,6 +62,7 @@ expression: "serde_json::to_string_pretty(&shaped)?"
       "skipped": false
     }
   ],
+  "lights": 0,
   "lod": 0,
   "lod_fallbacks": 0,
   "materials": 3,
@@ -72,6 +73,7 @@ expression: "serde_json::to_string_pretty(&shaped)?"
   "out": "<out>",
   "parts": 12,
   "primitives": 6,
+  "props": 0,
   "shared_materials": 1,
   "shared_meshes": 2,
   "shared_textures": 0,

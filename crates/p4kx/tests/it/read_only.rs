@@ -146,22 +146,33 @@ fn warns_while_the_game_runs_and_keeps_reading() -> TestResult {
 
 #[test]
 fn stays_quiet_while_the_game_is_closed() -> TestResult {
-    let _serial = GAME
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if p4kx_extraction::game_is_running() {
-        return Ok(());
-    }
     let dir = tempfile::tempdir()?;
     let archive = installation(dir.path())?;
 
     p4kx_testkit::p4kx()?
-        .env_remove("P4KX_GAME_CHECK")
+        .env("P4KX_GAME_CHECK", "closed")
         .arg("list")
         .arg(&archive)
         .assert()
         .code(0)
         .stderr(predicate::str::contains("game closed").not());
+    Ok(())
+}
+
+#[test]
+fn warns_when_the_process_list_stands_in_for_a_running_game() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = installation(dir.path())?;
+
+    p4kx_testkit::p4kx()?
+        .env("P4KX_GAME_CHECK", "running")
+        .arg("list")
+        .arg(&archive)
+        .assert()
+        .code(0)
+        .stderr(predicate::str::contains(
+            "use this tool with the game closed",
+        ));
     Ok(())
 }
 

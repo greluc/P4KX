@@ -111,6 +111,8 @@ jobs:
           nextest: "true"
       - name: Comparison report schema is current
         run: cargo nextest run --locked -p p4kx-comparison --test report_schema
+      - name: Blender package schema is current
+        run: cargo nextest run --locked -p p4kx-blender --test schema
       - name: Record JSON schema matches the export
         run: cargo nextest run --locked -p p4kx-export --test record_json_schema
       - name: Basetool catalog schema is current

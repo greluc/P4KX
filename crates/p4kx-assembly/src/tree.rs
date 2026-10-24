@@ -7,8 +7,8 @@ use p4kx_dataforge::Guid;
 
 use crate::entities::class_name_of;
 use crate::{
-    Geometry, Incompatibility, ItemFacts, LandingGear, LoadoutError, PortConstraints,
-    PortDefinition, PortVisibility, VehicleImplementation,
+    Geometry, Incompatibility, ItemFacts, LandingGear, LoadoutError, ObjectContainerRef,
+    PortConstraints, PortDefinition, PortVisibility, VehicleImplementation,
 };
 
 /// One Entity in a Loadout tree: its Record and its ports with what they hold.
@@ -28,6 +28,7 @@ pub struct EntityNode {
     pub(crate) attach_sub_type: String,
     pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
+    pub(crate) object_containers: Arc<[ObjectContainerRef]>,
 }
 
 impl EntityNode {
@@ -84,6 +85,13 @@ impl EntityNode {
     #[must_use]
     pub const fn is_expanded(&self) -> bool {
         self.expanded
+    }
+
+    /// Returns the socpak containers the Entity's Record names: the vehicle's object containers
+    /// with their bone and offset, then the item's own container.
+    #[must_use]
+    pub fn object_containers(&self) -> &[ObjectContainerRef] {
+        &self.object_containers
     }
 
     /// Returns the geometry the Entity's Record names, or `None` when it names none.

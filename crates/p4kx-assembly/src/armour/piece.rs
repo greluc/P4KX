@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use p4kx_character::Dna;
+
 use super::Wearable;
 
 /// Where the geometry of a [`Piece`] comes from.
@@ -27,6 +29,7 @@ pub(crate) enum Source {
 pub struct Piece {
     pub(crate) name: String,
     pub(crate) source: Source,
+    pub(crate) shape: Option<Dna>,
 }
 
 impl Piece {
@@ -36,6 +39,7 @@ impl Piece {
         Self {
             name: wearable.class_name().to_owned(),
             source: Source::Wearable(wearable),
+            shape: None,
         }
     }
 
@@ -53,6 +57,7 @@ impl Piece {
                 path: path.into(),
                 material,
             },
+            shape: None,
         }
     }
 
@@ -62,7 +67,18 @@ impl Piece {
         Self {
             name: name.into(),
             source: Source::Failed(reason.into()),
+            shape: None,
         }
+    }
+
+    /// Shapes the piece by `dna`, the face DNA of a Character: the vertices of the piece's model
+    /// are moved by the neutral morphs of the DNA rig that sits beside the model, see
+    /// [`DnaRig`](p4kx_character::DnaRig). A piece whose rig is missing or does not fit its model
+    /// is left out and listed as [`IssueKind::ShapeFailed`](crate::IssueKind::ShapeFailed).
+    #[must_use]
+    pub fn shaped(mut self, dna: Dna) -> Self {
+        self.shape = Some(dna);
+        self
     }
 
     /// Renames the piece's node, e.g. to `<port>/<entity>`.

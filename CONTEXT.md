@@ -274,6 +274,12 @@ An Entity placed in an Assembly: the root Entity or one attached to a port, name
 the material library its Entity chooses (ADR-0040).
 _Avoid_: component, child
 
+**Blender package**:
+A folder that describes an Assembly without depending on Blender's file format: `scene.json` (format
+version, source Channel and Build, node hierarchy), one GLB file per distinct mesh and the textures
+of the materials as PNG (ADR-0083).
+_Avoid_: .blend file, scene export
+
 **Interior**:
 The rooms and props of an Entity, stored in socpak containers inside the Archive.
 _Avoid_: room, level
@@ -367,6 +373,12 @@ _Avoid_: character preset, head file
 **DNA**:
 The face of a Character in a CHF: for every face part, weighted blends of stock heads.
 _Avoid_: face data, morph values
+
+**DNA rig**:
+The `.dna` file beside a head skin: the stock heads of a head family with, per head and face part,
+the morphs that turn the base head into that head. A Character's DNA mixes them into its neutral
+face.
+_Avoid_: face rig, RigLogic (a different file)
 
 **Cubemap face**:
 One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z, −Z; exported as

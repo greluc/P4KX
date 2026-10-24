@@ -17,6 +17,7 @@ p4kx-model = { path = "crates/p4kx-model" }
 p4kx-archive = { path = "crates/p4kx-archive" }
 p4kx-assembly = { path = "crates/p4kx-assembly" }
 p4kx-audio = { path = "crates/p4kx-audio" }
+p4kx-blender = { path = "crates/p4kx-blender" }
 p4kx-channels = { path = "crates/p4kx-channels" }
 p4kx-character = { path = "crates/p4kx-character" }
 p4kx-chunks = { path = "crates/p4kx-chunks" }

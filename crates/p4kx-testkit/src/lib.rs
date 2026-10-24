@@ -26,11 +26,14 @@ mod dataforge_instances;
 mod dataforge_schema;
 mod dataforge_strings;
 mod dataforge_value;
+mod dna;
 mod entity;
 mod entity_armour;
 mod entity_armour_loadout;
 mod entity_assembly;
 mod entity_cargo;
+mod entity_head;
+mod entity_interior_sample;
 mod entity_livery;
 mod entity_port;
 mod entity_sample;
@@ -91,11 +94,19 @@ pub use cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub use dataforge_builder::DataForgeBuilder;
 pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
 pub use dataforge_value::{TestInstance, TestValue};
+pub use dna::{TestCell, TestControl, TestDeltaRecord, TestDna};
 pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry};
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
+pub use entity_head::{
+    FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
+    head_entries, head_rig,
+};
+pub use entity_interior_sample::{
+    ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, entity_interior_entries,
+};
 pub use entity_livery::{
     LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,
     livery_entries,
@@ -123,7 +134,9 @@ pub use global_ini::GlobalIniBuilder;
 pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
 pub use interior_lit::{LIT_ROOM, lit_room_entries};
-pub use interior_sample::{INTERIOR_ROOT, INTERIOR_ROOT_NAME, interior_entries};
+pub use interior_sample::{
+    INTERIOR_LAMP, INTERIOR_ROOT, INTERIOR_ROOT_NAME, interior_entries, lit_interior_entries,
+};
 pub use mesh_streams::{MeshStream, MeshStreams, mesh_streams};
 pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,

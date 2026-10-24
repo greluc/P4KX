@@ -99,6 +99,7 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
             mesh: Mesh {
                 node,
                 positions: Vec::new(),
+                source: Vec::new(),
                 normals: skin.streams.normals.map(|_| Vec::new()),
                 tangents: skin.streams.tangents.map(|_| Vec::new()),
                 colours: Some(Vec::new()),
@@ -147,6 +148,9 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
         let local = u32::try_from(self.mesh.positions.len()).unwrap_or(UNUSED);
         let (position, uv) = self.skin.streams.vertices.vertex(vertex)?;
         self.mesh.positions.push(position);
+        self.mesh
+            .source
+            .push(u32::try_from(vertex).unwrap_or(UNUSED));
         self.mesh.uvs.push(uv);
         if let (Some(stream), Some(normals)) = (&self.skin.streams.normals, &mut self.mesh.normals)
         {

@@ -118,6 +118,7 @@ impl LoadoutResolver<'_> {
             attach_sub_type: String::new(),
             size: None,
             container: None,
+            object_containers: Vec::new().into(),
         };
         let mut walk = Walk::new(spec.guid, None);
         Ok(self.node(&spec, None, &mut walk))

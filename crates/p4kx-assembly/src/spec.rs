@@ -9,7 +9,7 @@ use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
-use crate::{Geometry, GeometryVariant, ItemFacts};
+use crate::{Geometry, GeometryVariant, ItemFacts, ObjectContainerRef};
 
 const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
@@ -83,6 +83,7 @@ pub(crate) struct EntitySpec {
     pub(crate) attach_sub_type: String,
     pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
+    pub(crate) object_containers: Arc<[ObjectContainerRef]>,
 }
 
 impl EntitySpec {
@@ -131,6 +132,7 @@ impl EntitySpec {
             docked_vehicle: attach_type.starts_with(DOCKED_VEHICLE_TYPE),
             attach_type: attach_type.to_owned(),
             container,
+            object_containers: crate::object_containers::read(&components).into(),
             guid: tree.guid(),
             record_path: tree.record_path().to_owned(),
             name: tree.name().to_owned(),

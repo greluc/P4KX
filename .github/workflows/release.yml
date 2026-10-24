@@ -9,6 +9,7 @@ on:
       - ".github/scripts/build-msi.ps1"
       - ".github/scripts/check-msi.ps1"
       - "crates/p4kx-gui/wix/**"
+      - "crates/p4kx-gui/assets/p4kx.ico"
   workflow_dispatch:
 
 permissions:

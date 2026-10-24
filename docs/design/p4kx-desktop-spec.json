@@ -24,6 +24,8 @@
     "paddingX": 16,
     "background": "surface-bar",
     "borderBottom": {"width": 2, "color": "color-primary"},
+    "brandMarkSize": 32,
+    "brandGap": 8,
     "wordmarkHeight": 24,
     "brandPaddingRight": 24,
     "wordmark": {"fontSize": 14.4, "fontWeight": "fw-bold", "letterSpacingEm": 0.05, "uppercase": true, "color": "color-primary"}

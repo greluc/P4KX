@@ -3,14 +3,17 @@
 
 use std::f32::consts::TAU;
 
-use egui::{Color32, CornerRadius, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2};
+use egui::{
+    Color32, CornerRadius, Id, Rect, Sense, Stroke, StrokeKind, TextureHandle, TextureOptions, Ui,
+    UiBuilder, pos2, vec2,
+};
 
 use crate::theme::desktop::{
-    BRAND_HEIGHT, PROGRESS_HEIGHT, ROW_HEIGHT, SPINNER_INLINE, SPINNER_PERIOD, SPINNER_RING,
-    SPINNER_TRACK, WORDMARK_SIZE,
+    BRAND_GAP, BRAND_HEIGHT, BRAND_MARK, PROGRESS_HEIGHT, ROW_HEIGHT, SPINNER_INLINE,
+    SPINNER_PERIOD, SPINNER_RING, SPINNER_TRACK, WORDMARK_SIZE,
 };
-use crate::theme::palette;
 use crate::theme::tokens::{SPACE_2, TRACKING_DISPLAY, Weight};
+use crate::theme::{logo, palette};
 
 use super::text::{caps, line, paint_left};
 
@@ -91,17 +94,54 @@ pub(crate) fn track(ui: &Ui, rect: Rect, fraction: f32, fill: Color32) {
     painter.rect_filled(done.shrink(1.0), CornerRadius::ZERO, fill);
 }
 
-/// Shows the upper-case `name` in orange.
+/// Shows the logo mark and the upper-case `name` in orange after it.
 pub(crate) fn brand(ui: &mut Ui, name: &str) {
-    let galley = line(
-        ui,
-        caps(name, WORDMARK_SIZE, Weight::Bold, TRACKING_DISPLAY),
-        f32::INFINITY,
+    ui.scope(|ui| {
+        ui.spacing_mut().item_spacing.x = BRAND_GAP;
+        logo_mark(ui);
+        let galley = line(
+            ui,
+            caps(name, WORDMARK_SIZE, Weight::Bold, TRACKING_DISPLAY),
+            f32::INFINITY,
+        );
+        let (rect, response) =
+            ui.allocate_exact_size(vec2(galley.size().x, BRAND_HEIGHT), Sense::hover());
+        response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, name));
+        paint_left(ui, rect, galley, palette::PRIMARY);
+    });
+}
+
+fn logo_mark(ui: &mut Ui) {
+    let (rect, _) = ui.allocate_exact_size(vec2(BRAND_MARK, BRAND_MARK), Sense::hover());
+    if !ui.is_rect_visible(rect) {
+        return;
+    }
+    let context = ui.ctx();
+    let pixels = (BRAND_MARK * context.pixels_per_point()).round().max(1.0);
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "the size is a small positive whole number"
+    )]
+    let size = pixels as u32;
+    let id = Id::unique("p4kx-logo-mark").with(size);
+    let texture = context
+        .data(|data| data.get_temp::<TextureHandle>(id))
+        .unwrap_or_else(|| {
+            let texture = context.load_texture(
+                "logo-mark",
+                logo::image(logo::Variant::Mark, size),
+                TextureOptions::LINEAR,
+            );
+            context.data_mut(|data| data.insert_temp(id, texture.clone()));
+            texture
+        });
+    ui.painter().image(
+        texture.id(),
+        rect,
+        Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+        Color32::WHITE,
     );
-    let (rect, response) =
-        ui.allocate_exact_size(vec2(galley.size().x, BRAND_HEIGHT), Sense::hover());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, name));
-    paint_left(ui, rect, galley, palette::PRIMARY);
 }
 
 /// Paints a warning triangle of `size` with its top-left at `rect.min`.

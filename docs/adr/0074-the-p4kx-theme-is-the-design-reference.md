@@ -15,7 +15,7 @@ followed: P4KX carries its own reference.
   in colour, form or type, and is recorded in an ADR (ADR-0006 lists the forced ones).
 - The header shows the wordmark only. The P4KX glyph, its logo files and the window and taskbar
   icon built from it are withdrawn (the glyph rows of ADR-0006 and the earlier brand decision of
-  the desktop spec); window and taskbar show the platform's default icon.
+  the desktop spec). ADR-0075 replaces this with the new logo; the wordmark stays.
 
 ## Consequences
 

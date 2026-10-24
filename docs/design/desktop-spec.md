@@ -114,9 +114,10 @@ Schriftlizenz sind modal, mit flachem Scrim `rgba(0,0,0,0.8)`. „Extraktion lä
 weiter browsen und die Vorschau nutzen, das Archiv wird nur gelesen. Die drei
 Extraktionsaktionen und „Neu laden" sind gesperrt, bis die Extraktion endet.
 
-**D.4 Marke: nur die Wortmarke, in Orange.** In der Kopfzeile steht die Wortmarke „P4KX" Bold 700,
-14,4 px, `color-primary`. Es gibt kein Zeichen und kein eigenes Fenster-Icon; Fenster und
-Taskleiste zeigen das Standard-Icon der Plattform.
+**D.4 Marke: Logo-Zeichen vor der Wortmarke, in Orange.** In der Kopfzeile steht das Logo-Zeichen
+(Datenklammern um ein X, [`logo.md`](logo.md), ADR-0075) 32 px groß (`brandMarkSize`), 8 px
+(`brandGap`) davor die Wortmarke „P4KX" Bold 700, 14,4 px, `color-primary`. Fenster, Taskleiste,
+Programmdateien und Installer zeigen die Kachel des Logos.
 
 **D.5 Fortschritt: Orange.** Fortschritt ist laufende Aktivität, wie Spinner und
 Lade-Indikator, die das DS orange zeichnet. Grün bedeutet im DS einen erreichten Zustand

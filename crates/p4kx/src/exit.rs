@@ -81,7 +81,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      missing external texture, a screen that ui render --screen draws without some widgets
      (types without a renderer, approximated layout) or whose composition hit a limit, or
      the renderer skipped an element of it, or a model cannot be exported or written, e.g. one too
-     large for a GLB file, or a head that chf glb could not shape by its DNA (the GLB is written without it); compare: the Archives or the --diff Entry differ
+     large for a GLB file, or a head that chf glb could not shape by its DNA (the GLB is written without it) or whose expressions it could not make, or a name given to --expression that the rig lacks or that moves no vertex (the GLB is written without them); compare: the Archives or the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie

@@ -3532,6 +3532,7 @@ dependencies = [
  "p4kx-archive",
  "p4kx-audio",
  "p4kx-character",
+ "p4kx-chunks",
  "p4kx-cryxml",
  "p4kx-dataforge",
  "p4kx-extraction",

@@ -52,6 +52,7 @@ mod glb_animation;
 mod glb_container;
 mod glb_images;
 mod glb_lights;
+mod glb_morph;
 mod glb_skin;
 mod global_ini;
 mod hirc_node;
@@ -71,6 +72,7 @@ mod mtl;
 mod opus;
 mod opus_encode;
 mod real_archive;
+mod rig_logic;
 mod screens;
 mod screens_canvas;
 mod screens_sample;
@@ -157,6 +159,7 @@ pub use real_archive::{
     REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR, real_archive_b_path, real_archive_key,
     real_archive_pair, real_archive_path,
 };
+pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
 pub use screens_canvas::{
     TestCanvas, TestCondition, TestModifier, TestStyle, TestStyleEntry, movie_component,

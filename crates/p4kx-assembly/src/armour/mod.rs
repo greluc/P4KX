@@ -6,6 +6,7 @@
 
 mod body;
 mod build;
+mod expressions;
 mod head;
 mod loadout;
 mod normals;
@@ -16,10 +17,11 @@ mod wearable;
 use std::io::Write;
 use std::sync::Arc;
 
-use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, RigPiece, write_rigged_glb};
+use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, MorphTarget, RigPiece, write_rigged_glb};
 use p4kx_model::{MaterialStatus, Model};
 
 pub use body::BodyVariant;
+pub use expressions::Expressions;
 pub use head::{Head, HeadError};
 pub use loadout::{Replaced, is_worn_type};
 pub use piece::Piece;
@@ -46,6 +48,7 @@ pub struct ArmourPart {
     pub(crate) file: String,
     pub(crate) model: Arc<Model>,
     pub(crate) materials: Arc<MaterialStatus>,
+    pub(crate) morphs: Vec<MorphTarget>,
 }
 
 impl ArmourPart {
@@ -72,6 +75,13 @@ impl ArmourPart {
     #[must_use]
     pub fn model(&self) -> &Model {
         &self.model
+    }
+
+    /// Returns the morph targets of the part's mesh: the expression blendshapes the part was built
+    /// with, see [`Piece::with_expressions`].
+    #[must_use]
+    pub fn morphs(&self) -> &[MorphTarget] {
+        &self.morphs
     }
 
     /// Returns the material library the part is drawn with.
@@ -158,7 +168,9 @@ impl Armour {
         let pieces: Vec<RigPiece<'_>> = self
             .parts
             .iter()
-            .map(|part| RigPiece::new(&part.name, &part.model, &part.materials))
+            .map(|part| {
+                RigPiece::new(&part.name, &part.model, &part.materials).with_morphs(&part.morphs)
+            })
             .collect();
         write_rigged_glb(&self.skeleton.bones, &pieces, options, out)
     }

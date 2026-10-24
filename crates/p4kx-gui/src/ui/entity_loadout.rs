@@ -28,6 +28,7 @@ enum Action {
     Include(String, bool),
     Replace(String),
     Restore(String),
+    Hidden(String, bool),
     Reset,
 }
 
@@ -54,6 +55,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             let _ignored = session.set_excluded(&path, !included);
         }
         Action::Restore(path) => session.restore(&path),
+        Action::Hidden(path, hidden) => session.assembly_mut().set_hidden(&path, hidden),
         Action::Reset => session.reset(),
         Action::Replace(path) => model.entities_mut().begin_replace(&path),
     }
@@ -187,12 +189,12 @@ fn port(ui: &mut Ui, texts: &Texts, session: &LoadoutSession, row: &LoadoutRow) 
             UiBuilder::new()
                 .max_rect(rect)
                 .layout(Layout::right_to_left(Align::Center)),
-            |ui| actions(ui, texts, row),
+            |ui| actions(ui, (texts, session), row),
         )
         .inner;
     action = action.or(right);
     let left = box_rect.right() + SPACE_2;
-    let used = status_width(ui, texts, row);
+    let used = status_width(ui, (texts, session), row);
     let text_rect = Rect::from_min_max(
         pos2(left, rect.top()),
         pos2(
@@ -235,9 +237,12 @@ fn names(ui: &Ui, rect: Rect, row: &LoadoutRow) {
     }
 }
 
-fn status(texts: &Texts, row: &LoadoutRow) -> Option<(String, Tone)> {
+fn status((texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> Option<(String, Tone)> {
     if row.unresolved().is_some() {
         return Some((texts.get(EntityText::StatusUnresolved), Tone::Danger));
+    }
+    if session.assembly().is_hidden(row.path()) && row.change() != RowChange::Excluded {
+        return Some((texts.get(EntityText::StatusHidden), Tone::Muted));
     }
     match row.change() {
         RowChange::Excluded => Some((texts.get(EntityText::StatusExcluded), Tone::Warning)),
@@ -252,9 +257,22 @@ fn status(texts: &Texts, row: &LoadoutRow) -> Option<(String, Tone)> {
     }
 }
 
-fn status_width(ui: &Ui, texts: &Texts, row: &LoadoutRow) -> f32 {
-    let chip = status(texts, row).map_or(0.0, |(label, _)| chip_width(&chip::galley(ui, &label)));
+fn hide_text(session: &LoadoutSession, row: &LoadoutRow) -> Option<EntityText> {
+    if row.entity().is_none() || row.change() == RowChange::Excluded {
+        return None;
+    }
+    Some(if session.assembly().is_hidden(row.path()) {
+        EntityText::Show
+    } else {
+        EntityText::Hide
+    })
+}
+
+fn status_width(ui: &Ui, (texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> f32 {
+    let chip = status((texts, session), row)
+        .map_or(0.0, |(label, _)| chip_width(&chip::galley(ui, &label)));
     let width = |text| button::width(ui, Size::Compact, &texts.get(text));
+    let hide = hide_text(session, row).map_or(0.0, width);
     let replace = if row.change() == RowChange::Excluded {
         0.0
     } else {
@@ -265,14 +283,18 @@ fn status_width(ui: &Ui, texts: &Texts, row: &LoadoutRow) -> f32 {
     } else {
         0.0
     };
-    chip + replace + restore
+    chip + hide + replace + restore
 }
 
 fn chip_width(galley: &egui::Galley) -> f32 {
     2.0f32.mul_add(CHIP_PADDING_X, galley.size().x)
 }
 
-fn actions(ui: &mut Ui, texts: &Texts, row: &LoadoutRow) -> Option<Action> {
+fn actions(
+    ui: &mut Ui,
+    (texts, session): (&Texts, &LoadoutSession),
+    row: &LoadoutRow,
+) -> Option<Action> {
     let mut action = None;
     ui.add_space(SPACE_2);
     let excluded = row.change() == RowChange::Excluded;
@@ -288,7 +310,14 @@ fn actions(ui: &mut Ui, texts: &Texts, row: &LoadoutRow) -> Option<Action> {
             action = Some(Action::Restore(row.path().to_owned()));
         }
     }
-    if let Some((label, tone)) = status(texts, row) {
+    if let Some(text) = hide_text(session, row) {
+        let label = texts.get(text);
+        if button::button(ui, Kind::Ghost, Size::Compact, &label, true).clicked() {
+            let hidden = text == EntityText::Hide;
+            action = Some(Action::Hidden(row.path().to_owned(), hidden));
+        }
+    }
+    if let Some((label, tone)) = status((texts, session), row) {
         let galley = chip::galley(ui, &label);
         let (slot, response) =
             ui.allocate_exact_size(vec2(chip_width(&galley), ROW_HEIGHT), Sense::hover());

@@ -10,8 +10,9 @@ use p4kx_assembly::LoadoutChanges;
 use p4kx_extraction::{Guid, WriteRefused};
 use p4kx_settings::{AssemblyExportSettings, ModelMaterials};
 
+pub(crate) use job::stop::{Stoppable, StoppableTextures};
 pub use job::{AssemblyExport, AssemblyExportProgress, AssemblyExportStage, AssemblyExportStatus};
-pub(crate) use job::{Request, start};
+pub(crate) use job::{Request, failure_of, start};
 pub use summary::{AssemblyExportSummary, PartIssue};
 
 use crate::installation::refusal_of;

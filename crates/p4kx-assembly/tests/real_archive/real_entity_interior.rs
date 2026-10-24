@@ -66,12 +66,20 @@ fn rooms_outside_the_hull(class_name: &str) -> Result<(usize, usize), Box<dyn Er
     let tree = resolver.resolve(&record)?;
     let models = ArchiveModels::new(&archive);
     let assembly = Assembly::build(&tree, &models, &AssemblyOptions::default())?;
+    let interior = EntityInterior::build(&archive, &assembly, &tree, &InteriorOptions::default())?;
+    placement_against_hull(class_name, &assembly, &interior)
+}
+
+pub(super) fn placement_against_hull(
+    class_name: &str,
+    assembly: &Assembly,
+    interior: &EntityInterior,
+) -> Result<(usize, usize), Box<dyn Error>> {
     let hull = assembly
         .root()
         .and_then(|part| part.model())
         .and_then(hull_bounds)
         .ok_or("the hull has no geometry")?;
-    let interior = EntityInterior::build(&archive, &assembly, &tree, &InteriorOptions::default())?;
     let hull_model = assembly.root().and_then(|part| part.model());
     let (mut placed, mut outside) = (0, 0);
     for container in interior.containers() {

@@ -1,0 +1,261 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! The Assembly as the viewer draws it: every distinct model flattened once into shared buffers,
+//! the placed parts as instances of those meshes, and the culling that picks the instances a
+//! frame draws.
+
+mod build;
+mod draw;
+mod flatten;
+mod frustum;
+mod surface;
+#[cfg(test)]
+mod tests;
+mod visibility;
+
+use std::ops::Range;
+
+use super::scene::{Bounds, Rows, Vertex};
+
+pub use build::{BuildError, BuildOptions, Hooks, Progress};
+pub use draw::{DrawList, GroupDraw, Instance};
+pub(crate) use visibility::hidden_mask;
+
+/// The most vertices the shared meshes of a [`AssemblyScene`] hold; models that would pass it are
+/// left out.
+pub const MAX_VIEW_VERTICES: usize = 4_000_000;
+
+/// The most triangles the shared meshes of a [`AssemblyScene`] hold.
+pub const MAX_VIEW_TRIANGLES: usize = 8_000_000;
+
+/// The most draw items, one per part and material, an [`AssemblyScene`] holds; further parts are
+/// left out.
+pub const MAX_VIEW_ITEMS: usize = 1 << 19;
+
+/// The most bytes of texture pixels an [`AssemblyScene`] holds; materials beyond it keep their
+/// plain colour.
+pub const MAX_VIEW_TEXTURE_BYTES: usize = 256 * 1024 * 1024;
+
+/// The mip level the viewer reads the textures of the materials at.
+pub const VIEW_TEXTURE_MIP: u32 = 2;
+
+/// The projected radius, in pixels, below which a part is not drawn.
+pub const MIN_PART_PIXELS: f32 = 0.75;
+
+/// Where a draw group's triangles are in the shared index buffer and how they are shaded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Group {
+    pub(crate) first_index: u32,
+    pub(crate) index_count: u32,
+    pub(crate) texture: Option<u32>,
+    pub(crate) translucent: bool,
+}
+
+/// One material range of a part: the group that holds its triangles and the colour it is drawn in.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Item {
+    pub(crate) group: u32,
+    pub(crate) colour: [f32; 4],
+}
+
+/// One part of the Assembly as the Loadout tree knows it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartInfo {
+    name: String,
+    path: String,
+    parent: Option<usize>,
+    triangles: usize,
+}
+
+impl PartInfo {
+    /// Returns the part's name, `<port>/<entity>`.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the path of the part's port from the root, port names joined by `/`; empty for
+    /// the root.
+    #[must_use]
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Returns the index of the parent part, or `None` for the root.
+    #[must_use]
+    pub const fn parent(&self) -> Option<usize> {
+        self.parent
+    }
+
+    /// Returns the number of triangles of the part's model, 0 for a part without one.
+    #[must_use]
+    pub const fn triangles(&self) -> usize {
+        self.triangles
+    }
+}
+
+/// A part that is drawn: where it is, how far its box reaches and which items it has.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct PartDraw {
+    pub(crate) part: usize,
+    pub(crate) world: Rows,
+    pub(crate) centre: [f32; 3],
+    pub(crate) radius: f32,
+    pub(crate) items: Range<u32>,
+}
+
+/// An image the materials of the Assembly are drawn with.
+#[derive(Debug)]
+pub(crate) struct ViewTexture {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    rgba: std::sync::Mutex<Vec<u8>>,
+}
+
+impl ViewTexture {
+    pub(crate) const fn new(width: u32, height: u32, rgba: Vec<u8>) -> Self {
+        Self {
+            width,
+            height,
+            rgba: std::sync::Mutex::new(rgba),
+        }
+    }
+
+    /// Hands the pixels over for the upload, leaving none on the CPU; later calls get none.
+    pub(crate) fn take_pixels(&self) -> Vec<u8> {
+        self.rgba
+            .lock()
+            .map(|mut pixels| std::mem::take(&mut *pixels))
+            .unwrap_or_default()
+    }
+}
+
+/// What building the scene left out or could not do.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Left {
+    /// Parts whose model is above the limits of the scene or has no finite coordinates.
+    pub parts: usize,
+    /// Textures that could not be read or did not fit the budget; their materials keep the
+    /// plain colour.
+    pub textures: usize,
+}
+
+/// The Assembly flattened for drawing: shared meshes and the parts placed as instances.
+///
+/// What is drawn is the [`p4kx_assembly::Assembly`] the export writes, at the same level of
+/// detail, with the same placement, materials and palettes.
+#[derive(Debug)]
+pub struct AssemblyScene {
+    vertices: Vec<Vertex>,
+    indices: Vec<u32>,
+    groups: Vec<Group>,
+    items: Vec<Item>,
+    draws: Vec<PartDraw>,
+    parts: Vec<PartInfo>,
+    textures: Vec<ViewTexture>,
+    meshes: usize,
+    bounds: Bounds,
+    left: Left,
+    serial: u64,
+}
+
+impl AssemblyScene {
+    /// Returns the vertices of the shared meshes.
+    #[must_use]
+    pub fn vertices(&self) -> &[Vertex] {
+        &self.vertices
+    }
+
+    /// Returns the triangle list of the shared meshes: three vertex indices per triangle.
+    #[must_use]
+    pub fn indices(&self) -> &[u32] {
+        &self.indices
+    }
+
+    pub(crate) fn groups(&self) -> &[Group] {
+        &self.groups
+    }
+
+    pub(crate) fn items(&self) -> &[Item] {
+        &self.items
+    }
+
+    pub(crate) fn draws(&self) -> &[PartDraw] {
+        &self.draws
+    }
+
+    pub(crate) fn textures(&self) -> &[ViewTexture] {
+        &self.textures
+    }
+
+    /// Returns every part of the Assembly, the root first, every part after its parent.
+    #[must_use]
+    pub fn parts(&self) -> &[PartInfo] {
+        &self.parts
+    }
+
+    /// Returns the number of parts that are drawn when none is hidden.
+    #[must_use]
+    pub const fn drawn_parts(&self) -> usize {
+        self.draws.len()
+    }
+
+    /// Returns the number of distinct meshes, which the parts share.
+    #[must_use]
+    pub const fn meshes(&self) -> usize {
+        self.meshes
+    }
+
+    /// Returns the number of draw items, one per part and material.
+    #[must_use]
+    pub const fn item_count(&self) -> usize {
+        self.items.len()
+    }
+
+    /// Returns the number of distinct draw groups: a mesh range with its texture.
+    #[must_use]
+    pub const fn group_count(&self) -> usize {
+        self.groups.len()
+    }
+
+    /// Returns the number of distinct textures.
+    #[must_use]
+    pub const fn texture_count(&self) -> usize {
+        self.textures.len()
+    }
+
+    /// Returns the number of triangles stored, each shared mesh once.
+    #[must_use]
+    pub const fn triangle_count(&self) -> usize {
+        self.indices.len() / 3
+    }
+
+    /// Returns the number of triangles the parts draw together when none is hidden or culled.
+    #[must_use]
+    pub fn placed_triangles(&self) -> usize {
+        self.draws
+            .iter()
+            .filter_map(|draw| self.parts.get(draw.part))
+            .map(PartInfo::triangles)
+            .sum()
+    }
+
+    /// Returns the box around every placed part.
+    #[must_use]
+    pub const fn bounds(&self) -> &Bounds {
+        &self.bounds
+    }
+
+    /// Returns what the scene leaves out.
+    #[must_use]
+    pub const fn left(&self) -> Left {
+        self.left
+    }
+
+    /// Returns a number no other scene of this process has; the GPU caches are keyed by it.
+    #[must_use]
+    pub const fn serial(&self) -> u64 {
+        self.serial
+    }
+}

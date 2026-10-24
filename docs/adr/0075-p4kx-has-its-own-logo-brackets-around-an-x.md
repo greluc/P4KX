@@ -8,10 +8,11 @@ owner chose a new logo (draft "B1, white and orange").
 - The logo is data brackets around an X on a 130 unit square: a `CANVAS` tile with `rx` 24, two
   `WHITE` brackets of stroke 9, and the two strokes of the X (back `ACCENT_DARK`, front `PRIMARY`)
   of stroke 11 with round caps. The exact geometry is in `docs/design/logo.md`.
-- Every colour is a `p4kx_gui::theme::palette` constant; a test compares the SVG files with the
-  palette and the geometry constants.
-- There are two variants: the **tile** (the icon) and the **mark** (no tile, for the header and
-  the README).
+- Every colour is a `p4kx_gui::theme::palette` constant; a test builds the expected SVG paths and
+  strokes from the public geometry constants of `p4kx_gui::theme::logo` and compares the SVG files
+  with them and with the palette.
+- There are two variants: the **tile** (the icon, also the README logo) and the **mark** (no tile,
+  for the header).
 - `docs/design/p4kx-logo.svg` and `docs/design/p4kx-mark.svg` are the reference.
   `p4kx_gui::theme::logo` rasterises the same geometry with tiny-skia for the window icon and the
   header mark.
@@ -20,8 +21,10 @@ owner chose a new logo (draft "B1, white and orange").
   (`ARPPRODUCTICON` and the Start-menu shortcut) show the tile.
 - The header shows the mark before the wordmark; the desktop spec carries `brandMarkSize` and
   `brandGap`, and the theme tests compare them.
-- The `.ico`, the 512 px PNG and the 1280 x 640 social-preview PNG are generated from the
-  geometry and committed; a test fails when they differ from the geometry.
+- The `.ico` and the 512 px PNG are generated from the geometry and committed; a test fails when
+  they differ from it. The 1280 x 640 social-preview PNG is generated and committed the same way,
+  but a test only checks its size and ground when a graphics adapter exists; it is not compared
+  pixel for pixel.
 
 ## Consequences
 

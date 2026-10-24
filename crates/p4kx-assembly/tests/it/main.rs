@@ -4,6 +4,7 @@
 //! Integration tests of `p4kx-assembly`, built as one test binary.
 
 mod assembly_build;
+mod assembly_changes;
 mod assembly_glb;
 mod assembly_limits;
 mod assembly_support;
@@ -17,8 +18,10 @@ mod audio_search;
 mod audio_streamed_localised;
 mod docked_vehicles;
 mod entity_lookup;
+mod loadout_changes;
 mod loadout_edges;
 mod loadout_entries;
+mod loadout_fit;
 mod loadout_nested;
 mod loadout_tree;
 mod vehicle_implementation;

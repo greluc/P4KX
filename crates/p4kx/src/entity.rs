@@ -35,8 +35,9 @@ fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
     if args.stop_at_docked_vehicles {
         resolver = resolver.stopping_at_docked_vehicles();
     }
+    let changes = args.changes.changes()?;
     let entity = resolver.entities().find(&args.entity)?;
-    let tree = resolver.resolve(&entity)?;
+    let tree = resolver.resolve_with(&entity, &changes)?;
     let counts = Counts::of(&tree);
     if as_json {
         json::print(&LoadoutJson {
@@ -64,11 +65,19 @@ fn print_tree(tree: &EntityNode, counts: Counts) -> io::Result<()> {
     );
     writeln!(out, "{}", one_line(&header))?;
     print_node(&mut out, tree, 1)?;
-    writeln!(
+    write!(
         out,
         "{} ports: {} attached, {} empty, {} unresolved",
         counts.ports, counts.attached, counts.empty, counts.unresolved
     )?;
+    if counts.excluded > 0 || counts.replaced > 0 {
+        write!(
+            out,
+            "; {} excluded, {} replaced",
+            counts.excluded, counts.replaced
+        )?;
+    }
+    writeln!(out)?;
     out.flush()
 }
 
@@ -113,6 +122,8 @@ fn port_line(port: &PortNode) -> String {
         PortSource::Override => line.push_str(" (override)"),
         PortSource::PortDefault => line.push_str(" (port default)"),
         PortSource::Unset => line.push_str(" (unset)"),
+        PortSource::Excluded => line.push_str(" (excluded)"),
+        PortSource::Replaced => line.push_str(" (replaced)"),
     }
     if let Some(definition) = port.definition() {
         line.push_str(&definition_text(definition));

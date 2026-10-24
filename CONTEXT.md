@@ -239,6 +239,12 @@ The Loadout a Loadout entry gives the Entity it attaches, which replaces the Ent
 port by port (ADR-0012).
 _Avoid_: patch, customisation
 
+**Loadout changes**:
+An own configuration of a Loadout: **exclusions** leave a Port's branch out and **replacements**
+attach another Entity, with its own Loadout, to a Port, if it fits the Port's types and sizes
+(ADR-0076).
+_Avoid_: override (that is the entry's Loadout), mod, swap
+
 **XML Loadout**:
 A Loadout stored as an XML or CryXml Entry, e.g. `Scripts/Loadouts/…`, that a Record names by
 path instead of listing its entries; it may include further XML Loadouts.

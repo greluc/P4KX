@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, Issue, LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, Issue, LoadoutChanges, LoadoutResolver,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
@@ -45,7 +45,17 @@ struct GlbJson<'a> {
     triangles: usize,
     bytes: u64,
     skipped: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    excluded: Vec<&'a str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    replaced: Vec<ReplacedJson<'a>>,
     issues: Vec<IssueJson<'a>>,
+}
+
+#[derive(Serialize)]
+struct ReplacedJson<'a> {
+    port: &'a str,
+    entity: &'a str,
 }
 
 #[derive(Serialize)]
@@ -81,8 +91,9 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     let mut resolver = LoadoutResolver::new(&forge)
         .with_files(&files)
         .stopping_at_docked_vehicles();
+    let changes = args.changes.changes()?;
     let record = resolver.entities().find(&args.entity)?;
-    let tree = resolver.resolve(&record)?;
+    let tree = resolver.resolve_with(&record, &changes)?;
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let assembly = Assembly::build(&tree, &models, &options)?;
@@ -111,11 +122,17 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
                 .iter()
                 .filter(|issue| issue.kind().skips())
                 .count(),
+            excluded: changes.exclusions().iter().map(String::as_str).collect(),
+            replaced: changes
+                .replacements()
+                .iter()
+                .map(|(port, entity)| ReplacedJson { port, entity })
+                .collect(),
             issues: assembly.issues().iter().map(IssueJson::from).collect(),
         })?;
         return Ok(());
     }
-    let printed = print_report(&assembly, &summary, &args.out, tree.class_name());
+    let printed = print_report(&assembly, &summary, &args.out, tree.class_name(), &changes);
     match printed {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
@@ -149,11 +166,22 @@ fn write(assembly: &Assembly, args: &EntityGlbArgs) -> Result<GlbSummary> {
     })?)
 }
 
+fn print_changes(out: &mut impl Write, changes: &LoadoutChanges) -> io::Result<()> {
+    for port in changes.exclusions() {
+        writeln!(out, "excluded {}", one_line(port))?;
+    }
+    for (port, entity) in changes.replacements() {
+        writeln!(out, "replaced {} by {}", one_line(port), one_line(entity))?;
+    }
+    Ok(())
+}
+
 fn print_report(
     assembly: &Assembly,
     summary: &GlbSummary,
     out: &Path,
     class_name: &str,
+    changes: &LoadoutChanges,
 ) -> io::Result<()> {
     let mut stdout = BufWriter::new(io::stdout().lock());
     writeln!(
@@ -171,6 +199,7 @@ fn print_report(
         summary.triangles,
         summary.bytes
     )?;
+    print_changes(&mut stdout, changes)?;
     if summary.lod_fallbacks > 0 {
         writeln!(
             stdout,

@@ -7,7 +7,8 @@ use p4kx_dataforge::Guid;
 
 use crate::entities::class_name_of;
 use crate::{
-    Geometry, LandingGear, LoadoutError, PortDefinition, PortVisibility, VehicleImplementation,
+    Geometry, Incompatibility, ItemFacts, LandingGear, LoadoutError, PortConstraints,
+    PortDefinition, PortVisibility, VehicleImplementation,
 };
 
 /// One Entity in a Loadout tree: its Record and its ports with what they hold.
@@ -24,10 +25,23 @@ pub struct EntityNode {
     pub(crate) docked_vehicle: bool,
     pub(crate) expanded: bool,
     pub(crate) attach_type: String,
+    pub(crate) attach_sub_type: String,
+    pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
 }
 
 impl EntityNode {
+    /// Returns what the Entity offers a port: its item type, sub-type and size.
+    #[must_use]
+    pub fn item_facts(&self) -> ItemFacts {
+        ItemFacts {
+            class_name: self.class_name().to_owned(),
+            item_type: self.attach_type.clone(),
+            sub_type: self.attach_sub_type.clone(),
+            size: self.size,
+        }
+    }
+
     /// Returns the item type of the Entity's `AttachDef.Type`, e.g. `CargoGrid`; empty when the
     /// Record has none.
     #[must_use]
@@ -231,12 +245,33 @@ pub struct PortNode {
     pub(crate) name: String,
     pub(crate) source: PortSource,
     pub(crate) definition: Option<Arc<PortDefinition>>,
+    pub(crate) limits: Option<Arc<PortConstraints>>,
     pub(crate) attachment: Attachment,
     pub(crate) nested: Vec<Self>,
     pub(crate) visibility: PortVisibility,
 }
 
 impl PortNode {
+    /// Returns what the port takes: the types and sizes of its definition in the Entity Record,
+    /// else of the item port of the vehicle implementation. `None` when neither states any.
+    #[must_use]
+    pub fn constraints(&self) -> Option<PortConstraints> {
+        self.definition
+            .as_deref()
+            .and_then(PortConstraints::of_definition)
+            .or_else(|| self.limits.as_deref().cloned())
+    }
+
+    /// Checks that an Entity fits the port; a port without [`Self::constraints`] takes any.
+    ///
+    /// # Errors
+    ///
+    /// Returns what does not fit.
+    pub fn accepts(&self, item: &ItemFacts) -> Result<(), Incompatibility> {
+        self.constraints()
+            .map_or(Ok(()), |constraints| constraints.check(item))
+    }
+
     /// Returns whether the vehicle implementation shows the port: [`PortVisibility::Invisible`]
     /// when the part of that name carries the flag `invisible`, and
     /// [`PortVisibility::Unspecified`] when the Entity has no vehicle implementation or it has
@@ -291,6 +326,12 @@ pub enum PortSource {
     PortDefault,
     /// Nothing names the port; it is defined but holds nothing.
     Unset,
+    /// The port is left out by [`LoadoutChanges::exclude`](crate::LoadoutChanges::exclude); it
+    /// holds nothing.
+    Excluded,
+    /// The port holds the Entity [`LoadoutChanges::replace`](crate::LoadoutChanges::replace)
+    /// names, with that Entity's own Loadout.
+    Replaced,
 }
 
 impl PortSource {
@@ -302,6 +343,8 @@ impl PortSource {
             Self::Override => "override",
             Self::PortDefault => "port_default",
             Self::Unset => "unset",
+            Self::Excluded => "excluded",
+            Self::Replaced => "replaced",
         }
     }
 }

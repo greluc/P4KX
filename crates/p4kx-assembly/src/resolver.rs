@@ -7,11 +7,13 @@ use std::sync::Arc;
 use p4kx_dataforge::{DataForge, Guid, Record, TreeBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
+use crate::changes::Plan;
 use crate::entities::is_entity;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
+use crate::walk::Walk;
 use crate::{
-    Entities, EntityNode, LandingGear, LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH,
-    VehicleImplementation, vehicle, xml,
+    ChangeError, Entities, EntityNode, ItemFacts, LandingGear, LoadoutChanges, LoadoutError,
+    LoadoutFiles, MAX_LOADOUT_DEPTH, VehicleImplementation, vehicle, xml,
 };
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
@@ -113,8 +115,74 @@ impl<'f> LoadoutResolver<'f> {
         self.prefetch(*entity);
         let spec = self.spec(entity.guid());
         let spec = spec.as_ref().as_ref().map_err(Clone::clone)?;
-        let mut walk = crate::node::Walk::new(entity.guid());
+        let mut walk = Walk::new(entity.guid(), None);
         Ok(self.node(spec, None, &mut walk))
+    }
+
+    /// Resolves the default Loadout of `entity` with `changes` applied: the ports they exclude
+    /// hold nothing and have the source [`PortSource::Excluded`](crate::PortSource::Excluded);
+    /// the ports they replace hold the replacing Entity with its own Loadout and have the source
+    /// [`PortSource::Replaced`](crate::PortSource::Replaced). An Entity is checked against the
+    /// port's [`PortNode::constraints`](crate::PortNode::constraints) before it is attached.
+    ///
+    /// # Errors
+    ///
+    /// Returns the first of: [`ChangeError::Loadout`] when `entity` cannot be resolved, a change
+    /// that is no port path or contradicts another, a replacement whose Entity cannot be found
+    /// or read, a replacement that does not fit its port, and a change whose port the Loadout
+    /// does not have.
+    pub fn resolve_with(
+        &mut self,
+        entity: &Record<'f>,
+        changes: &LoadoutChanges,
+    ) -> Result<EntityNode, ChangeError> {
+        if changes.is_empty() {
+            return Ok(self.resolve(entity)?);
+        }
+        let plan = Plan::new(changes, |path, text| self.replacement(path, text))?;
+        self.prefetch(*entity);
+        let spec = self.spec(entity.guid());
+        let spec = spec.as_ref().as_ref().map_err(Clone::clone)?;
+        let mut walk = Walk::new(entity.guid(), Some(plan));
+        let node = self.node(spec, None, &mut walk);
+        walk.plan
+            .take()
+            .and_then(Plan::finish)
+            .map_or(Ok(node), Err)
+    }
+
+    /// Returns what `entity` offers a port, for [`PortNode::accepts`](crate::PortNode::accepts).
+    ///
+    /// # Errors
+    ///
+    /// Returns the reason when the Record is no Entity or cannot be read.
+    pub fn item_facts(&mut self, entity: &Record<'f>) -> Result<ItemFacts, LoadoutError> {
+        let spec = self.spec(entity.guid());
+        spec.as_ref()
+            .as_ref()
+            .map(EntitySpec::item_facts)
+            .map_err(Clone::clone)
+    }
+
+    /// Finds and reads the Entity `text` names for the replacement at `path`, and reads the
+    /// Records its Loadout reaches.
+    fn replacement(&mut self, path: &str, text: &str) -> Result<(Guid, ItemFacts), ChangeError> {
+        let record = self
+            .entities
+            .find(text)
+            .map_err(|source| ChangeError::Entity {
+                path: path.to_owned(),
+                source,
+            })?;
+        self.prefetch(record);
+        let facts = self
+            .item_facts(&record)
+            .map_err(|source| ChangeError::Unreadable {
+                path: path.to_owned(),
+                entity: text.to_owned(),
+                source,
+            })?;
+        Ok((record.guid(), facts))
     }
 
     /// Returns the cached spec of the Record `guid`, reading it on a miss.

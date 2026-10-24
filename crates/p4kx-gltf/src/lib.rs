@@ -61,6 +61,7 @@ pub use glb::{
     write_glb_with,
 };
 pub use morphs::MorphTarget;
+pub use materials::base_colour_factor;
 pub use package_support::{
     DrawnMaterial, NodeTransform, TextureFile, drawn_materials, node_transform,
 };
@@ -70,3 +71,4 @@ pub use scene_light::{SceneLight, SceneLightKind};
 pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 pub use texture_plan::{MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};
 pub use texture_report::{TextureFallback, TextureRole};
+pub use texture_roles::diffuse_texture_path;

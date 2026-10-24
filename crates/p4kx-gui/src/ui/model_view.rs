@@ -14,12 +14,12 @@ use crate::theme::desktop::FACTS_PADDING_X;
 use crate::theme::model_metrics::{MODEL_HINT_MIN_WIDTH, MODEL_OVERLAY_GAP, MODEL_VIEW_MIN_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
-use crate::viewer::{Look, paint_callback};
+use crate::viewer::{Look, Subject, paint_callback};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::rows::focus_inside;
 use crate::widgets::summary::{Fact, FactsStrip};
 use crate::widgets::text::{line, paint_right, plain};
-use crate::{Camera, Language, ModelText, Scene, Texts, format};
+use crate::{Camera, Language, ModelText, Scene, Texts, Uniforms, format};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct FactsKey {
@@ -105,18 +105,38 @@ pub(super) fn viewport(
     (scene, camera): (&Arc<Scene>, &Camera),
     (look, reserve): (Look, f32),
 ) -> Option<Camera> {
-    let size = (ui.available_size() - vec2(0.0, reserve))
-        .max(vec2(MODEL_VIEW_MIN_HEIGHT, MODEL_VIEW_MIN_HEIGHT));
-    let sense = Sense::click_and_drag().union(Sense::focusable_noninteractive());
-    let (rect, response) = ui.allocate_exact_size(size, sense);
-    response.widget_info(|| {
+    let describe = || {
         let args = [
             ("path", FluentValue::from(path.to_owned())),
             ("vertices", scene.vertices().len().to_string().into()),
             ("triangles", scene.triangle_count().to_string().into()),
         ];
-        WidgetInfo::labeled(Role::Canvas, true, texts.format(ModelText::View, &args))
-    });
+        texts.format(ModelText::View, &args)
+    };
+    canvas(
+        ui,
+        (texts, &describe),
+        (
+            |_: &Uniforms, _: u32| Some(Subject::Model(Arc::clone(scene))),
+            camera,
+        ),
+        (look, reserve),
+    )
+}
+
+/// Shows the 3D view of what `subject` picks for the view's uniforms and height in device
+/// pixels, seen by `camera`, named for assistive technology by `describe`; see [`viewport`].
+pub(super) fn canvas(
+    ui: &mut Ui,
+    (texts, describe): (&Texts, &dyn Fn() -> String),
+    (subject, camera): (impl FnOnce(&Uniforms, u32) -> Option<Subject>, &Camera),
+    (look, reserve): (Look, f32),
+) -> Option<Camera> {
+    let size = (ui.available_size() - vec2(0.0, reserve))
+        .max(vec2(MODEL_VIEW_MIN_HEIGHT, MODEL_VIEW_MIN_HEIGHT));
+    let sense = Sense::click_and_drag().union(Sense::focusable_noninteractive());
+    let (rect, response) = ui.allocate_exact_size(size, sense);
+    response.widget_info(|| WidgetInfo::labeled(Role::Canvas, true, describe()));
     let aspect = rect.width() / rect.height().max(1.0);
     let mut framed = camera.clone();
     if !framed.is_fitted() {
@@ -124,18 +144,15 @@ pub(super) fn viewport(
     }
     let asked = collect(ui, &response);
     viewer_input::apply(&mut framed, &asked, aspect, rect.height());
-    ui.painter().add(paint_callback(
-        rect,
-        Arc::clone(scene),
-        framed.uniforms(aspect),
-        (
-            [
-                device_pixels(ui, rect.width()),
-                device_pixels(ui, rect.height()),
-            ],
-            look,
-        ),
-    ));
+    let uniforms = framed.uniforms(aspect);
+    let pixels = [
+        device_pixels(ui, rect.width()),
+        device_pixels(ui, rect.height()),
+    ];
+    if let Some(subject) = subject(&uniforms, pixels[1]) {
+        ui.painter()
+            .add(paint_callback(rect, subject, uniforms, (pixels, look)));
+    }
     ui.painter().rect_stroke(
         rect,
         0.0,

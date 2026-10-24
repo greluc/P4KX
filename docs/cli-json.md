@@ -1236,6 +1236,75 @@ first the tags that could not be read (`kind` `tag`, with `code` and
 or `failed` is not empty. A canvas that is empty or larger than 16384 pixels a side or 2^25
 pixels, and a `--out` that is the movie file, print no JSON and fail with exit code 2.
 
+## `p4kx ui screens <archive> <entity> --json`
+
+The `BuildingBlocks` screens of an Entity and of everything attached in its resolved default
+Loadout (ADR-0089). A screen is any Reference of an Entity's Record to a `BuildingBlocks_Canvas`,
+found at any depth of the Record, e.g. the default view of `UIBuildingBlocksEntityComponentParams`.
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k", "entry": "Data\\Game2.dcb",
+ "entity": "AEGS_Avenger_Titan", "brand": "aegs",
+ "screens": [{"port": "hardpoint_dashboard_pilot/Support_L", "entity": "Vehicle_Screen_MFD",
+              "entity_record_path": "libs/foundry/records/entities/scitem/ships/displays/vehicle_screen_mfd",
+              "field": "Components[12].layers[0].views[0].component.canvas",
+              "canvas_guid": "33bda02c-099a-447f-ba1e-2e6b59bfafce",
+              "canvas": "libs/foundry/records/ui/buildingblocks/ships/displays/mfdscreens/…/m_mfd_screen",
+              "width": 800.0, "height": 600.0,
+              "assets": {"canvases": ["…"], "textures": ["UI/Textures/…/gradient_radial.dds"],
+                         "vectors": ["UI/Textures/Vector/…svg"], "movies": [],
+                         "localisation_keys": ["…"]},
+              "elements": [{"element": "DisplayWidget", "count": 54, "rendered": true},
+                           {"element": "WidgetText", "count": 1, "rendered": false}]}],
+ "movies": [{"port": "…", "entity": "…", "movie": "Data/UI/….gfx"}]}
+```
+
+`port` is the path of port names from the root Entity, empty for the root Entity itself. `brand`
+is the manufacturer code of the class name prefix when the Archive has the HUD style
+`styles/s_<code>_hud`, and absent otherwise; `ui render --brand` takes it. `canvas` is the record
+path `ui render --screen` takes. `assets.canvases` starts with the screen's own canvas and holds
+every canvas it nests; `.tif` textures are listed as the `.dds` files the Archive holds;
+`localisation_keys` lose the leading `@`. `elements` counts the widgets of every canvas of the
+screen by type, `rendered` says whether `ui render --screen` draws the type. `movies` lists the
+`moviePath` of UI owner components. A canvas that cannot be read keeps its row with the GUID as
+`canvas`, size 0 and no assets. The exit code is 0.
+
+## `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--brand <code>] --json`
+
+Renders a `BuildingBlocks` canvas, by record path or GUID, instead of a movie; `--lang` and an ENTRY
+exclude `--screen`.
+
+```json
+{"screen": "libs/foundry/records/ui/buildingblocks/test/test_mfd",
+ "target": "…\\mfd.png", "format": "png", "width": 200, "height": 100,
+ "widgets": 14, "shapes": 9, "canvases": 2,
+ "unsupported": [{"element": "WidgetText", "reason": "no renderer for this element type",
+                  "count": 1, "examples": ["label"]}],
+ "missing_canvases": [], "truncated": false,
+ "skipped": [{"reason": "fill_budget", "message": "the fills cover more than the budget"}]}
+```
+
+`width` and `height` are the pixels written. `widgets` counts the widgets visited in every canvas
+composed, `shapes` the shapes drawn, `canvases` the canvases composed (the screen's own and the
+nested ones). `unsupported` lists per element type and reason (`no renderer for this element
+type`, `rotation is not applied`, `automatic size taken as the size of the parent`, `wrapping flex
+containers are laid out without wrapping`, `<layout> children are laid out as an overlay`, `colour
+slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not evaluated` for
+a `StyleEntry`, and the reasons of circles and polygons) how many widgets it concerns and the names of
+up to three. `missing_canvases` names nested canvases that cannot be read, that no Record answers
+or that contain themselves; widgets whose parents form a cycle are listed in `unsupported`
+(`not reachable from a root: its parents form a cycle`). `truncated` is true when a limit stopped
+the composition: 2^18 widgets visited or placed (hidden ones included), 2^26 steps of the style
+cascade, 2^17 shapes or a depth of 64 widgets and canvases. `skipped` lists what the renderer
+(raster or SVG writer) skipped of the scene, each with the stable `reason` code of
+`p4kx ui render` and a `message`; it is `[]` when nothing was skipped.
+
+The exit code is 0 when nothing is listed in `unsupported`, `missing_canvases` or `skipped` and
+`truncated` is false, and 1 otherwise. It is 2 for an unknown, ambiguous or non-canvas record, for a
+canvas side below 1 or above 16384 pixels and for a size the renderer cannot draw; 3 when the
+Archive or its `Data\Game2.dcb` cannot be read; 5 when a Record of the DataForge cannot be read. In
+these cases no JSON is printed.
+
 ## `p4kx socpak list <archive> <container…> --json`
 
 ```json
@@ -1621,29 +1690,54 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
 {"archive": "…", "chf": "…", "body": "male", "rig": "protos_human_male_face_t1_pu",
  "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…", "lod": 0,
  "parts": [{"name": "body", "origin": "body", "file": "…", "morph_targets": 0},
-           {"name": "head", "origin": "head", "file": "…", "morph_targets": 399}],
- "nodes": 222, "bones": 220, "meshes": 2, "skinned_meshes": 2, "primitives": 31,
- "materials": 4, "morph_targets": 399, "vertices": 17940, "triangles": 31530, "bytes": 4896592,
+           {"name": "head", "origin": "head", "file": "…", "morph_targets": 399},
+           {"name": "teeth", "origin": "head", "file": "…", "morph_targets": 0},
+           {"name": "eyes_itemport", "origin": "head", "file": "…", "morph_targets": 0},
+           {"name": "hair_itemport", "origin": "head", "file": "…", "morph_targets": 0}],
+ "nodes": 229, "bones": 220, "meshes": 9, "skinned_meshes": 9, "primitives": 41,
+ "materials": 14, "morph_targets": 399, "textured_materials": 12, "textures": 20,
+ "texture_pixels": 36700160,
+ "texture_fallbacks": [{"material": "…", "role": "diffuse", "file": "…", "reason": "…"}],
+ "default_material_ids": 0, "vertices": 61582, "triangles": 66225, "bytes": 37236432,
  "skipped": 0, "issues": [Issue, …]}
 ```
 
 `body` and `rig` are the body variant and the head rig that the DNA's `gender_hash` names; `parts`
-lists the skin of the body (`origin` `body`) and the head (`origin` `head`), named `head`, each
-with its `morph_targets`; `morph_targets` is the number of expressions written. They are the
+lists the skin of the body (`origin` `body`), the head, its teeth and every item of the
+character's head port that has geometry for the body variant (`origin` `head`): the head is named
+`head`, an item after its port, e.g. `eyes_itemport`, `hair_itemport`, `eyebrow_itemport`,
+`eyelashes_itemport`, `beard_itemport`, `universal_scalp_itemport`, and a port this tool does not
+know `port_<hash>`. The eyes and the teeth are shaped by the DNA like the head; the other items
+follow the shaped head (ADR-0090). The materials the character chose are applied (its head
+material, skin tone, iris colour and hair melanin and dye), and `--materials textures`, the
+default, embeds the textures of the materials as PNG images at the mip level `--texture-mip N`
+(default 1); `--materials colours` writes plain colours. `textured_materials`, `textures`,
+`texture_pixels` and `texture_fallbacks` are those of `p4kx entity glb`: a texture that cannot be
+read leaves the plain colour and is listed. The Issues are those of `p4kx armour glb`, and a head
+that cannot be shaped adds `shape_failed` (the DNA rig beside the head skin is missing, belongs to
+another rig, does not cover the vertices of the model, has a different vertex count than the
+skin, gives moves that are not finite, or the DNA names a head the rig lacks); the head is then
+left out, `skipped` counts it, the GLB is still written and the command exits with code 1 after
+printing the report. Items that cannot be worn leave the item out and count in `skipped`, the exit
+code staying 0: `piece_not_found` (an item whose Entity the Archive does not have),
+`geometry_missing` (its skin is not in the Archive) and `no_variant_geometry` (its Record has no
+geometry for the body variant). Two Issues leave the piece in and are notes only:
+`material_choice_unknown` (the character's base material is in no lookup table, so the piece keeps
+its own) and `look_ignored` (the texture choices of a material, such as blemishes, makeup and
+tattoos, are not drawn).
+
+Only the piece named `head` has `morph_targets`: the number of expressions written. They are the
 expressions of the head rig that move a vertex of the character's face, all of them by default at
 `--lod 0`, only the ones named by `--expression NAME` (repeatable) otherwise, none with
-`--no-expressions` and at other levels, whose rigs have none. A name the rig lacks adds
-`unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that cannot be made (the rig of the level has no expression
-morphs, the names of the skin do not fit the rig) add `morphs_failed`; the head is kept, the GLB is
-written and the command exits with code 1 after printing the report. The
-Issues are those of `p4kx armour glb`, and a head that cannot be shaped adds `shape_failed` (the
-DNA rig beside the head skin is missing, belongs to another rig, does not cover the vertices of the
-model, has a different vertex count than the skin, gives moves that are not finite, or the DNA
-names a head the rig lacks); the head is then left out, `skipped` counts it, the GLB is still
-written and the command exits with code 1 after printing the report. `--lod N` picks the level of
-detail and `--no-vertex-colours` leaves the vertex colours out. A CHF that holds no face DNA or whose DNA names an unknown head rig exits with code 2, a file that
-is no CHF with code 3, a missing skeleton with code 3, an Archive key that is missing or wrong with
-code 7, and an `--out` that is the Archive with code 2.
+`--no-expressions` and at other levels, whose rigs have none. The teeth, eyes, hair and beard have
+none and follow only the neutral shape of the head. A name the rig lacks adds
+`unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that
+cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
+the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code
+1 after printing the report. `--lod N` picks the level of detail and `--no-vertex-colours` leaves
+the vertex colours out. A CHF that holds no face DNA or whose DNA names an unknown head rig exits
+with code 2, a file that is no CHF with code 3, a missing skeleton with code 3, an Archive key that
+is missing or wrong with code 7, and an `--out` that is the Archive with code 2.
 
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 

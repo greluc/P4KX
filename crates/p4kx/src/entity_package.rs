@@ -36,6 +36,8 @@ struct PackageJson<'a> {
     textures: usize,
     texture_pixels: u64,
     texture_failures: usize,
+    materials: usize,
+    palettes: usize,
     files: usize,
     bytes: u64,
     vertices: usize,
@@ -83,7 +85,7 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
     }
     let info = info_of(&archive, args);
     let loader = models.textures();
-    let summary = write_package(&assembly, &loader, &glb, &info, &args.out, &|| {
+    let summary = write_package(&assembly, &models, &loader, &glb, &info, &args.out, &|| {
         cancel.is_cancelled()
     })?;
     if as_json {
@@ -124,6 +126,8 @@ impl<'a> PackageJson<'a> {
             textures: summary.textures,
             texture_pixels: summary.texture_pixels,
             texture_failures: summary.texture_failures,
+            materials: summary.materials,
+            palettes: summary.palettes,
             files: summary.files,
             bytes: summary.bytes,
             vertices: summary.vertices,
@@ -175,12 +179,14 @@ fn print_report(
     let mut out = BufWriter::new(io::stdout().lock());
     writeln!(
         out,
-        "wrote {} of {}: {} nodes ({} drawn), {} meshes, {} textures, {} files, {} vertices, {} triangles, {} bytes",
+        "wrote {} of {}: {} nodes ({} drawn), {} meshes, {} materials, {} palettes, {} textures, {} files, {} vertices, {} triangles, {} bytes",
         args.out.display(),
         one_line(class_name),
         summary.nodes,
         summary.drawn_nodes,
         summary.meshes,
+        summary.materials,
+        summary.palettes,
         summary.textures,
         summary.files,
         summary.vertices,

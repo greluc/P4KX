@@ -53,7 +53,10 @@
 //!
 //! [`Head::from_character`] makes the head of a CHF [`character::Character`]: the head skin of its
 //! rig, shaped by the Character's face DNA ([`Piece::shaped`]) and worn on the body of the rig's
-//! variant. [`Head::with_expressions`] adds the head's expression blendshapes as morph targets.
+//! variant. [`Head::dressed`] adds the teeth and the items of the Character's head port (eyes,
+//! hair, brows, lashes, beard), read through [`HeadItems`] such as [`ForgeItems`], with the
+//! material choices of the Character ([`Look`]); [`Armour::write_glb_with`] embeds the textures.
+//! [`Head::with_expressions`] adds the head's expression blendshapes as morph targets.
 
 mod armour;
 mod assembly;
@@ -89,8 +92,8 @@ mod walk;
 mod xml;
 
 pub use armour::{
-    Armour, ArmourPart, BodyVariant, Expressions, Head, HeadError, MAX_DNA_RIG_LEN, PartOrigin,
-    Piece, Replaced, Wearable, is_worn_type,
+    Armour, ArmourPart, BodyVariant, Expressions, ForgeItems, Head, HeadError, HeadItems, Look,
+    MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced, Wearable, is_worn_type,
 };
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,

@@ -49,6 +49,7 @@ mod mtl;
 mod mtl_error;
 mod mtl_load;
 mod mtl_parse;
+mod mtl_raw;
 mod mtl_xml;
 mod nmc;
 mod object_container;
@@ -82,6 +83,9 @@ pub use mtl::{
     TextureSlot,
 };
 pub use mtl_error::MaterialError;
+pub use mtl_raw::{
+    Attributes, MAX_LAYERS, MAX_RAW_DEPTH, MAX_RAW_ELEMENTS, MaterialLayer, RawElement,
+};
 pub use object_container::{
     ChildContainer, MAX_CHILD_CONTAINERS, MAX_STREAMED_SOCS, MAX_STREAMING_DEPTH, ObjectContainer,
     ObjectContainerError,

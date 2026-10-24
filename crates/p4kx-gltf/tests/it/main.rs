@@ -11,6 +11,7 @@ mod materials;
 mod morphs;
 mod rig;
 mod rig_animation;
+mod rig_textures;
 mod scene_glb;
 mod scene_lights;
 mod scene_palettes;

@@ -27,7 +27,7 @@
 //!
 //! [`write_rigged_glb`] writes [`RigPiece`]s worn on one shared skeleton, such as the pieces of
 //! armour on a body: the bones once, one skin, and the bones of each piece matched to the
-//! skeleton by name.
+//! skeleton by name. [`write_rigged_glb_with`] adds the textures of the materials.
 
 mod animations;
 mod axes;
@@ -64,9 +64,12 @@ pub use glb::{
 pub use materials::base_colour_factor;
 pub use morphs::MorphTarget;
 pub use package_support::{
-    DrawnMaterial, NodeTransform, TextureFile, drawn_materials, node_transform,
+    DrawnMaterial, NodeTransform, TextureFile, drawn_materials, node_transform, texture_path,
 };
-pub use rig::{RigPiece, write_rigged_glb, write_rigged_glb_animated};
+pub use rig::{
+    RigPiece, write_rigged_glb, write_rigged_glb_animated, write_rigged_glb_animated_with,
+    write_rigged_glb_with,
+};
 pub use rig_animation::{RigAnimation, SampledAnimation, SampledBone, SampledWeights};
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};
 pub use scene_light::{SceneLight, SceneLightKind};

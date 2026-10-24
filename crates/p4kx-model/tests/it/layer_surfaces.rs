@@ -89,7 +89,6 @@ fn the_files_of_the_layers_are_read_and_their_surfaces_kept() -> TestResult {
     let surface = primary.surface.as_ref().ok_or("surface")?;
     assert_eq!(surface.diffuse, [1.0; 3], "diffuse");
     assert_eq!(surface.specular, [0.1, 0.2, 0.3], "specular");
-    assert!((surface.shininess - 200.0).abs() < 1e-3, "shininess");
     assert!(wear.surface.is_some(), "a path below Data is read too");
     assert_eq!(primary.tint(), [0.5, 0.25, 1.0], "tint colour");
     assert_eq!(wear.tint(), [1.0; 3], "a malformed tint is white");
@@ -163,6 +162,19 @@ fn a_sub_material_of_a_layer_file_is_chosen_by_name() -> TestResult {
         .collect();
     assert_eq!(diffuse, [Some([0.9; 3]), None], "by name, else unresolved");
     assert_eq!(library.unresolved_layers.len(), 1, "the absent one");
+    Ok(())
+}
+
+#[test]
+fn spellings_of_one_missing_file_are_listed_once() -> TestResult {
+    let material = TestMtlMaterial::new("hull")
+        .layer_with(&[("Name", "A"), ("Path", "Materials/Layers/Lost.mtl")])
+        .layer_with(&[("Name", "B"), ("Path", "materials\\layers\\lost.mtl")]);
+
+    let status = load(&TestMtl::single(&material), &HashMap::new(), &Cell::new(0));
+
+    let library = status.library().ok_or("loaded")?;
+    assert_eq!(library.unresolved_layers.len(), 1, "one file");
     Ok(())
 }
 

@@ -20,7 +20,7 @@ read without textures.
 ## Decision
 
 **Reading.** `MaterialStatus::load` reads the file of every layer through the companions and keeps
-its `Diffuse`, `Specular` and `Shininess` in `MaterialLayer::surface`. At most 256 distinct layer
+its `Diffuse` and `Specular` in `MaterialLayer::surface`. At most 256 distinct layer
 files are fetched per library; a path that is no plain path below `Data`, a missing or unreadable
 file and an absent `Submtl` leave the layer without a surface and are listed in
 `MaterialLibrary::unresolved_layers` (reported as a `MaterialLibrary` issue of the Assembly and in
@@ -34,12 +34,17 @@ it; a material without layers, or with none of its layer files read, is shaded e
 
 **Blend.** Each layer has the diffuse colour `layer Diffuse x tint` (the tint is the palette entry's
 colour for a palette layer), the specular colour of its file (the palette entry's for a palette
-layer) and the smoothness `0.5 x GlossMult` (the entry's glossiness for a palette layer, as in
-ADR-0080). Its base colour is diffuse plus specular, clamped: a dielectric stays its diffuse
-colour, a metal, whose diffuse colour is dark, takes its specular colour. The layers are weighted
-by the wear share `w = WearBlendBase`: the first layer `1 - w`, the others `w` between them; a
-layer without a surface has no weight and the rest are renormalised. The metalness is the weighted
-share of the layers' `metal_share` (the ramp of the texture baking), a metal from one half.
+layer) and the smoothness `0.5 x GlossMult` (the entry's glossiness times `GlossMult` for a palette
+layer, as in ADR-0080; the glossiness of the layer's own file is not used). The tint, the diffuse
+and the specular colour are clamped to 0 to 1 before they are multiplied, so hostile finite
+values cannot overflow. The layer's base colour moves from its tinted diffuse towards its specular
+colour by `metal_share(specular)`, the ramp of the texture baking (`metal_mix`), so colours and
+textures modes agree: a dielectric keeps its diffuse colour, a metal takes its specular colour.
+The layers are weighted by position and the wear share `w = WearBlendBase`: the first layer
+`1 - w`, the others `w` between them, whatever their names; a layer without a surface has no
+weight and the rest are renormalised. When the first layer is missing and the others have no
+weight, the material keeps its own colours. The metalness is the weighted share of the layers'
+`metal_share`, a metal from one half.
 
 ## Consequences
 

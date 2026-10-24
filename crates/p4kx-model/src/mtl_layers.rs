@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::mtl_load::request_path;
 use crate::mtl_parse::{scalar, vector};
@@ -21,8 +21,6 @@ pub struct LayerSurface {
     pub diffuse: [f32; 3],
     /// The layer's specular colour.
     pub specular: [f32; 3],
-    /// The layer's glossiness from 0 to 255.
-    pub shininess: f32,
 }
 
 impl LayerSurface {
@@ -30,7 +28,6 @@ impl LayerSurface {
         Self {
             diffuse: material.diffuse,
             specular: material.specular,
-            shininess: material.shininess,
         }
     }
 }
@@ -70,6 +67,7 @@ impl Material {
 pub(crate) fn resolve(library: &mut MaterialLibrary, companions: &mut dyn CompanionResolver) {
     let mut files: HashMap<String, Option<MaterialLibrary>> = HashMap::new();
     let mut unresolved: Vec<String> = Vec::new();
+    let mut listed: HashSet<String> = HashSet::new();
     for material in &mut library.materials {
         for layer in &mut material.layers {
             let Some(path) = layer
@@ -98,11 +96,15 @@ pub(crate) fn resolve(library: &mut MaterialLibrary, companions: &mut dyn Compan
                         .and_then(|file| pick(file, submaterial))
                 })
                 .map(LayerSurface::of);
-            if surface.is_none()
-                && unresolved.len() < MAX_LAYER_FILES
-                && !unresolved.contains(&path)
-            {
-                unresolved.push(path);
+            if surface.is_none() && unresolved.len() < MAX_LAYER_FILES {
+                let normal = format!(
+                    "{}|{}",
+                    path.replace('\\', "/").to_ascii_lowercase(),
+                    submaterial.to_ascii_lowercase()
+                );
+                if listed.insert(normal) {
+                    unresolved.push(path);
+                }
             }
             layer.surface = surface;
         }

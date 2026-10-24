@@ -114,7 +114,11 @@ impl Fill {
                     .as_ref()
                     .and_then(|key| self.libraries.get(key))
                     .map_or_else(|| Arc::clone(&self.unnamed), Arc::clone);
-                match (library, part.materials.problem()) {
+                let problem = part
+                    .materials
+                    .problem()
+                    .or_else(|| part.materials.layer_problem());
+                match (library, problem) {
                     (Some(_), Some(reason)) => IssueKind::MaterialLibrary { reason },
                     _ => return,
                 }

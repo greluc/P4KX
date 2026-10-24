@@ -284,8 +284,9 @@ fn is_one_of(shader: &str, names: &[&str]) -> bool {
 
 /// Returns the base colour factor the GLB writer gives `material` without a specular map.
 ///
-/// It is [`Shading::colour`](crate::Shading::colour): the specular colour of a metal, else the diffuse colour, clamped to
-/// 0 to 1, for a layered material the blend of its layers; a diffuse texture is multiplied by it.
+/// It is [`Shading::colour`](crate::Shading::colour): the specular colour of a metal, else the
+/// diffuse colour, clamped to 0 to 1, for a layered material the blend of its layers; a diffuse
+/// texture is multiplied by it.
 #[must_use]
 pub fn base_colour_factor(material: &Material) -> [f32; 3] {
     shading(material).colour

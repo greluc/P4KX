@@ -21,7 +21,8 @@ const TEXTURE_GLOSS_SHADERS: [&str; 3] = ["HardSurface", "LayerBlend_V2", "Layer
 #[non_exhaustive]
 pub struct Shading {
     /// The base colour, linear, clamped to 0 to 1: the specular colour of a metal, else the
-    /// diffuse colour.
+    /// diffuse colour; for a layered material the weighted blend of the layers' colours, each
+    /// moving from its tinted diffuse towards its specular colour by its metal share.
     pub colour: [f32; 3],
     /// Whether the surface is a metal.
     pub metal: bool,
@@ -37,10 +38,12 @@ pub struct Shading {
 ///
 /// A material with `MatLayers` whose layer files were read (see
 /// [`MaterialStatus::load`](p4kx_model::MaterialStatus::load)) is shaded by its layers: each
-/// layer is a surface of its own file's diffuse colour times the layer's tint, or the palette
-/// entry of its `PaletteTint`, and the layers are blended by weight, the first layer with the
-/// share `1 - WearBlendBase` and the others with `WearBlendBase` between them. A layer whose file
-/// is missing has no weight. Any other material is shaded by its own colours and shininess.
+/// layer has its own file's diffuse colour times the layer's tint, or the palette entry of its
+/// `PaletteTint` with that entry's specular colour and glossiness, all clamped to 0 to 1 first.
+/// The layers are weighted by position: the first with `1 - WearBlendBase`, the others with
+/// `WearBlendBase` between them. A layer whose file is missing has no weight; when nothing
+/// resolved has weight, the material is shaded by its own colours, as is any material without
+/// layers.
 #[must_use]
 pub fn shading(material: &Material) -> Shading {
     layered(material).unwrap_or_else(|| plain(material))
@@ -97,6 +100,10 @@ struct Layer {
     roughness: f32,
 }
 
+fn unit(colour: [f32; 3]) -> [f32; 3] {
+    colour.map(|channel| channel.clamp(0.0, 1.0))
+}
+
 fn shade(layer: &MaterialLayer, surface: &LayerSurface) -> Layer {
     let (tint, specular, smoothness) = layer.palette_entry.map_or_else(
         || {
@@ -108,24 +115,28 @@ fn shade(layer: &MaterialLayer, surface: &LayerSurface) -> Layer {
         },
         |entry| (entry.tint, entry.specular, entry.glossiness / MAX_SHININESS),
     );
-    let [red, green, blue] = surface.diffuse;
-    let [tint_red, tint_green, tint_blue] = tint;
+    let [red, green, blue] = unit(surface.diffuse);
+    let [tint_red, tint_green, tint_blue] = unit(tint);
     let diffuse = [red * tint_red, green * tint_green, blue * tint_blue];
+    let specular = unit(specular);
+    let metal = metal_share(specular);
     let [diffuse_red, diffuse_green, diffuse_blue] = diffuse;
     let [specular_red, specular_green, specular_blue] = specular;
+    let towards = |from: f32, to: f32| (to - from).mul_add(metal, from);
     Layer {
         diffuse,
         specular,
         colour: [
-            diffuse_red + specular_red,
-            diffuse_green + specular_green,
-            diffuse_blue + specular_blue,
+            towards(diffuse_red, specular_red),
+            towards(diffuse_green, specular_green),
+            towards(diffuse_blue, specular_blue),
         ],
-        metal: metal_share(specular),
-        roughness: 1.0 - (smoothness * layer.gloss_mult()).clamp(0.0, 1.0),
+        metal,
+        roughness: smoothness
+            .clamp(0.0, 1.0)
+            .mul_add(-layer.gloss_mult().clamp(0.0, 1.0), 1.0),
     }
 }
-
 fn mix(into: &mut [f32; 3], from: [f32; 3], share: f32) {
     for (target, value) in into.iter_mut().zip(from) {
         *target = value.mul_add(share, *target);
@@ -148,6 +159,9 @@ fn layered(material: &Material) -> Option<Shading> {
     let (first, _, _) = resolved().next()?;
     let total: f32 = resolved().map(|(at, _, _)| weight(at)).sum();
     let only = total <= f32::EPSILON;
+    if only && first != 0 {
+        return None;
+    }
     let mut mixed = Shading {
         colour: [0.0; 3],
         metal: false,

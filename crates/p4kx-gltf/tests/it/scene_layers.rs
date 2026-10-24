@@ -71,7 +71,7 @@ fn a_layered_material_is_the_blend_of_its_layers_by_the_wear_share() -> TestResu
 
     let shade = shading(first(&status, 0)?);
 
-    let expected = [0.45, 0.2625, 0.16875];
+    let expected = [0.425, 0.2375, 0.14375];
     assert!(close(shade.colour, expected), "{:?}", shade.colour);
     assert_eq!(
         base_colour_factor(first(&status, 0)?),
@@ -146,6 +146,48 @@ fn a_missing_wear_layer_leaves_the_first_layer_its_full_share() -> TestResult {
 }
 
 #[test]
+fn a_missing_first_layer_without_weight_for_the_rest_keeps_the_colours_of_the_material()
+-> TestResult {
+    let material = hull("0").diffuse([0.3; 3]);
+    let status = load(&[material], &files()[1..]);
+
+    let shade = shading(first(&status, 0)?);
+
+    assert!(close(shade.colour, [0.3; 3]), "{:?}", shade.colour);
+    Ok(())
+}
+
+#[test]
+fn hostile_finite_values_cannot_make_the_colour_infinite_or_not_a_number() -> TestResult {
+    let material = TestMtlMaterial::new("hostile")
+        .shader("HardSurface")
+        .layer_with(&[
+            ("Name", "Primary"),
+            ("Path", "layers/huge.mtl"),
+            ("TintColor", "3e38,3e38,3e38"),
+            ("GlossMult", "3e38"),
+        ])
+        .layer_with(&[("Name", "Wear"), ("Path", "layers/huge.mtl")])
+        .public_param("WearBlendBase", "3e38");
+    let status = load(
+        &[material],
+        &[("layers/huge", layer_file([3e38; 3], [3e38; 3]))],
+    );
+
+    let shade = shading(first(&status, 0)?);
+
+    let finite = |colour: [f32; 3]| colour.iter().all(|channel| channel.is_finite());
+    assert!(finite(shade.colour) && finite(shade.diffuse) && finite(shade.specular));
+    assert!(
+        (0.0..=1.0).contains(&shade.roughness),
+        "{}",
+        shade.roughness
+    );
+    assert!(shade.colour.iter().all(|c| (0.0..=1.0).contains(c)));
+    Ok(())
+}
+
+#[test]
 fn a_palette_entry_replaces_the_tint_and_the_specular_colour_of_its_layer() -> TestResult {
     let material = TestMtlMaterial::new("paint")
         .shader("HardSurface")
@@ -167,8 +209,8 @@ fn a_palette_entry_replaces_the_tint_and_the_specular_colour_of_its_layer() -> T
     let shade = shading(&tinted);
 
     assert!(
-        close(shade.colour, [0.25, 0.35, 0.45]),
-        "diffuse plus specular: {:?}",
+        close(shade.colour, [0.2, 0.3, 0.4]),
+        "the entry's colour, a dielectric: {:?}",
         shade.colour
     );
     assert!((shade.roughness - 0.6).abs() < 1e-5, "{}", shade.roughness);

@@ -23,7 +23,9 @@ python blender_addon/build_zip.py out
 ```
 
 writes `out/p4kx_importer-<version>.zip`. In Blender: Edit > Preferences > Get Extensions >
-Install from Disk.
+Install from Disk. The release workflow builds the same zip and attaches it to every GitHub
+Release; the manifest `version` must equal the workspace (Release) version, which `cargo xtask
+addon` checks in CI.
 
 ## Tests
 

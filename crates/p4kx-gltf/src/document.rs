@@ -4,8 +4,7 @@
 use std::collections::BTreeMap;
 
 use gltf_json as json;
-use json::accessor::{ComponentType, GenericComponentType, Type};
-use json::buffer::Target;
+use json::accessor::GenericComponentType;
 use json::mesh::{Mode, Primitive, Semantic};
 use json::validation::Checked::Valid;
 use json::validation::USize64;
@@ -16,6 +15,7 @@ use crate::animations::{AnimationPlan, push_animations};
 use crate::block_data::BlockData;
 use crate::instance::{Instance, MaterialIds, Wrapper, materials};
 use crate::layout::{Block, Layout, MeshLayout};
+use crate::morphs::{primitive_targets, push_targets};
 use crate::nodes::{Skeleton, push_nodes};
 use crate::scene_nodes::push_scene_nodes;
 use crate::texture_plan::TextureSet;
@@ -264,15 +264,8 @@ fn push_mesh(
         let accessor = push_accessor(root, buffer, &colours, None);
         attributes.insert(Valid(Semantic::Colors(0)), accessor);
     }
-    for (set, (&joints, &weights)) in mesh.joints.iter().zip(&mesh.weights).enumerate() {
-        let set = u32::try_from(set).unwrap_or(u32::MAX);
-        if let (Some(joints), Some(weights)) = (block(joints), block(weights)) {
-            let accessor = push_accessor(root, buffer, &joints, None);
-            attributes.insert(Valid(Semantic::Joints(set)), accessor);
-            let accessor = push_accessor(root, buffer, &weights, None);
-            attributes.insert(Valid(Semantic::Weights(set)), accessor);
-        }
-    }
+    push_skin_attributes(root, buffer, layout, mesh, &mut attributes);
+    let targets = push_targets(root, buffer, layout, mesh);
     let primitives = mesh
         .primitives
         .iter()
@@ -283,7 +276,7 @@ fn push_mesh(
                 indices: Some(push_accessor(root, buffer, &indices, None)),
                 material: materials.and_then(|ids| ids.get(&primitive.material_id).copied()),
                 mode: Valid(Mode::Triangles),
-                targets: None,
+                targets: primitive_targets(&targets),
                 extensions: None,
                 extras: json::extras::Void::default(),
             })
@@ -292,10 +285,32 @@ fn push_mesh(
     root.push(json::Mesh {
         name,
         primitives,
-        weights: None,
+        weights: (!targets.is_empty()).then(|| vec![0.0; targets.len()]),
         extensions: None,
         extras: json::extras::Void::default(),
     })
+}
+
+type Attributes = BTreeMap<json::validation::Checked<Semantic>, Index<Accessor>>;
+
+/// Adds the `JOINTS_n` and `WEIGHTS_n` accessors of the mesh's influence sets to `attributes`.
+fn push_skin_attributes(
+    root: &mut Root,
+    buffer: Index<json::Buffer>,
+    layout: &Layout<'_>,
+    mesh: &MeshLayout,
+    attributes: &mut Attributes,
+) {
+    let block = |index: usize| layout.blocks.get(index).copied();
+    for (set, (&joints, &weights)) in mesh.joints.iter().zip(&mesh.weights).enumerate() {
+        let set = u32::try_from(set).unwrap_or(u32::MAX);
+        if let (Some(joints), Some(weights)) = (block(joints), block(weights)) {
+            let accessor = push_accessor(root, buffer, &joints, None);
+            attributes.insert(Valid(Semantic::Joints(set)), accessor);
+            let accessor = push_accessor(root, buffer, &weights, None);
+            attributes.insert(Valid(Semantic::Weights(set)), accessor);
+        }
+    }
 }
 
 /// Writes the buffer view and accessor of `block`; `bounds` are the accessor's `min` and `max`.
@@ -305,31 +320,7 @@ pub(crate) fn push_accessor(
     block: &Block<'_>,
     bounds: Option<(&[f32], &[f32])>,
 ) -> Index<Accessor> {
-    let (component, kind, target) = match block.data {
-        BlockData::Positions(_) | BlockData::Normals(_) => {
-            (ComponentType::F32, Type::Vec3, Some(Target::ArrayBuffer))
-        }
-        BlockData::Times(..) => (ComponentType::F32, Type::Scalar, None),
-        BlockData::Translations(_) => (ComponentType::F32, Type::Vec3, None),
-        BlockData::Rotations(_) => (ComponentType::F32, Type::Vec4, None),
-        BlockData::Uvs(_) => (ComponentType::F32, Type::Vec2, Some(Target::ArrayBuffer)),
-        BlockData::Tangents(_) => (ComponentType::F32, Type::Vec4, Some(Target::ArrayBuffer)),
-        BlockData::Colours(_) | BlockData::Weights(..) => {
-            (ComponentType::U8, Type::Vec4, Some(Target::ArrayBuffer))
-        }
-        BlockData::Joints(..) => (ComponentType::U16, Type::Vec4, Some(Target::ArrayBuffer)),
-        BlockData::InverseBinds(_) => (ComponentType::F32, Type::Mat4, None),
-        BlockData::Short(_) => (
-            ComponentType::U16,
-            Type::Scalar,
-            Some(Target::ElementArrayBuffer),
-        ),
-        BlockData::Wide(_) => (
-            ComponentType::U32,
-            Type::Scalar,
-            Some(Target::ElementArrayBuffer),
-        ),
-    };
+    let (component, kind, target) = block.data.layout();
     let view = root.push(json::buffer::View {
         buffer,
         byte_length: USize64(block.len),

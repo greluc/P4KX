@@ -13,7 +13,7 @@ use p4kx_testkit::{CheckedGlb, TestBone, TestModel, TestSkeleton, check_glb};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn bone(name: &str, parent: Option<u16>, z: f32) -> TestBone {
+pub(crate) fn bone(name: &str, parent: Option<u16>, z: f32) -> TestBone {
     TestBone {
         name: name.to_owned(),
         parent,
@@ -22,7 +22,7 @@ fn bone(name: &str, parent: Option<u16>, z: f32) -> TestBone {
     }
 }
 
-fn skeleton_model(skeleton: &TestSkeleton) -> Result<Model, Box<dyn Error>> {
+pub(crate) fn skeleton_model(skeleton: &TestSkeleton) -> Result<Model, Box<dyn Error>> {
     let source = TestModel::cube().helpers_only().with_skeleton(skeleton);
     let mut none = |_: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> { Ok(None) };
     Ok(Model::read(
@@ -32,7 +32,7 @@ fn skeleton_model(skeleton: &TestSkeleton) -> Result<Model, Box<dyn Error>> {
     )?)
 }
 
-fn piece_model(source: &TestModel) -> Result<Model, Box<dyn Error>> {
+pub(crate) fn piece_model(source: &TestModel) -> Result<Model, Box<dyn Error>> {
     let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
         Ok(match path {
             CompanionPath::Sibling("piece.skinm") => Some(source.cgfm()),
@@ -81,7 +81,7 @@ fn joints_of(glb: &CheckedGlb, node: &str) -> Result<Vec<u16>, Box<dyn Error>> {
         .collect())
 }
 
-fn body() -> TestSkeleton {
+pub(crate) fn body() -> TestSkeleton {
     TestSkeleton::new(vec![
         bone("pelvis", None, 0.0),
         bone("TIP", Some(0), 1.0),

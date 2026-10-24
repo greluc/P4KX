@@ -116,7 +116,7 @@ pub(crate) fn read(root: &Path) -> Result<String> {
     fs::read_to_string(root.join(FILE)).with_context(|| format!("cannot read {FILE}"))
 }
 
-fn workspace_version(root: &Path) -> Result<String> {
+pub(crate) fn workspace_version(root: &Path) -> Result<String> {
     let manifest = fs::read_to_string(root.join("Cargo.toml")).context("cannot read Cargo.toml")?;
     let manifest: toml::Table = toml::from_str(&manifest).context("Cargo.toml is not TOML")?;
     manifest

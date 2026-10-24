@@ -4,9 +4,9 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use crate::changes::Action;
 use crate::entities::describe;
 use crate::merge::{merge_by_port, port_key};
+use crate::plan::Action;
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
@@ -114,20 +114,21 @@ impl LoadoutResolver<'_> {
         issues: &mut Vec<LoadoutError>,
         vehicle: Option<&VehicleImplementation>,
     ) -> PortNode {
-        let defined = pending
+        let constraints = pending
             .definition
             .as_deref()
-            .is_some_and(PortDefinition::constrains);
-        let limits = vehicle
-            .filter(|_| !defined)
-            .and_then(|vehicle| vehicle.item_port(pending.name))
-            .and_then(PortConstraints::of_vehicle)
+            .and_then(PortConstraints::of_definition)
+            .or_else(|| {
+                vehicle
+                    .and_then(|vehicle| vehicle.item_port(pending.name))
+                    .and_then(PortConstraints::of_vehicle)
+            })
             .map(Arc::new);
         let mut node = PortNode {
             name: pending.name.to_owned(),
             source: pending.source,
             definition: pending.definition,
-            limits,
+            constraints,
             attachment: Attachment::Empty,
             nested: Vec::new(),
             visibility: PortVisibility::default(),
@@ -203,7 +204,7 @@ impl LoadoutResolver<'_> {
                 name: entry.port.clone(),
                 source: PortSource::Override,
                 definition: None,
-                limits: None,
+                constraints: None,
                 attachment: Attachment::Empty,
                 nested: Vec::new(),
                 visibility: PortVisibility::default(),

@@ -169,6 +169,12 @@ Early development (milestone M1). Available today:
   textures that cannot be resolved; with `--json` the report has the shape described in
   [docs/cli-json.md](docs/cli-json.md). A docked vehicle such as a Merlin or an Archimedes is
   placed as one part, without the parts of its own Loadout.
+- `p4kx interior glb <archive> <container>... --out <file>` exports the Interior of a socpak
+  container, a ship's rooms or a room on its own, as one GLB: a node per container, per streamed
+  `.soc` file and per placed model, containers nested in it at their position and rotation.
+  `--lod <n>`, `--materials colours` and `--no-vertex-colours` apply to every model. Containers nested in themselves,
+  and containers, files and models that cannot be resolved, are listed; with `--json` the report
+  has the shape described in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx armour glb <archive> --piece <entity> --body male|female --out <file>` exports pieces of
   armour and clothing worn on the default body of a variant as one skinned GLB: the body's
   skeleton once as bone nodes, one skin over them, the skin of the body and, for every `--piece`

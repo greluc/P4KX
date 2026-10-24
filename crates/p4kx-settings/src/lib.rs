@@ -4,6 +4,7 @@
 //! The settings file of P4KX, a TOML file in the platform config directory, and the
 //! Archive key the user stores in the same folder.
 
+mod assembly_export;
 mod key_choice;
 mod key_store;
 mod key_text;
@@ -13,6 +14,7 @@ mod queries;
 mod recent;
 mod settings;
 
+pub use assembly_export::AssemblyExportSettings;
 pub use key_choice::{ChosenKey, KeyChoiceError, KeySource, choose_key};
 pub use key_store::{KEY_VARIABLE, KeyStore, KeyStoreError};
 pub use key_text::KeyText;

@@ -22,12 +22,14 @@ mod cli_catalog;
 mod cli_channels;
 mod cli_chf;
 mod cli_chunks;
+mod cli_conflict;
 mod cli_coverage;
 mod cli_cryxml;
 mod cli_dcb;
 mod cli_dcb_fields;
 mod cli_entity;
 mod cli_grep;
+mod cli_interior;
 mod cli_key;
 mod cli_loc;
 mod cli_model;
@@ -68,6 +70,7 @@ mod grep_json;
 mod grep_table;
 mod guard;
 mod info;
+mod interior_glb;
 mod issues;
 mod json;
 mod key;
@@ -135,6 +138,9 @@ fn main() -> ExitCode {
         Command::Coverage(args) => coverage::run(&args, json),
         Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json),
+        Command::Interior(args) => match args.action {
+            cli_interior::InteriorAction::Glb(args) => interior_glb::run(&args, json).map(success),
+        },
         Command::Armour(args) => armour::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {

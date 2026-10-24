@@ -4,7 +4,7 @@
 use p4kx_assembly::{ArchiveModels, Assembly, LoadoutChanges};
 use p4kx_blender::{BuildInfo, PackageError, PackageInfo, Replacement, write_package};
 use p4kx_channels::channel_name;
-use p4kx_extraction::{Archive, CancelToken};
+use p4kx_extraction::{Archive, CancelToken, WriteRefused};
 
 use super::run::failed;
 use super::stop::{Stoppable, StoppableTextures};
@@ -42,10 +42,30 @@ pub(super) fn write(
             assembly,
             (summary, changes),
         ))),
-        Err(PackageError::Cancelled) => Ended::Cancelled,
-        Err(_) if cancel.is_cancelled() => Ended::Cancelled,
-        Err(PackageError::Refused(refused)) => Ended::Failed(ModelExportFailure::Refused(refused)),
-        Err(error) => failed(index, &error),
+        Err(error) => match verdict(error, cancel.is_cancelled()) {
+            Verdict::Cancelled => Ended::Cancelled,
+            Verdict::Refused(refused) => Ended::Failed(ModelExportFailure::Refused(refused)),
+            Verdict::Failed(error) => failed(index, &error),
+        },
+    }
+}
+
+#[derive(Debug)]
+enum Verdict {
+    Cancelled,
+    Refused(WriteRefused),
+    Failed(PackageError),
+}
+
+/// Decides how a failed package ends: a refusal and a package that could not be moved back are
+/// never taken for a cancel, whatever the token says.
+fn verdict(error: PackageError, cancelled: bool) -> Verdict {
+    match error {
+        PackageError::Cancelled => Verdict::Cancelled,
+        PackageError::Refused(refused) => Verdict::Refused(refused),
+        error @ PackageError::NotRestored { .. } => Verdict::Failed(error),
+        _ if cancelled => Verdict::Cancelled,
+        error => Verdict::Failed(error),
     }
 }
 
@@ -67,4 +87,56 @@ fn info_of(archive: &Archive, changes: &LoadoutChanges) -> PackageInfo {
         .collect();
     PackageInfo::new(channel_name(archive.path()), build)
         .with_changes(changes.exclusions().to_vec(), replace)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn not_restored() -> PackageError {
+        PackageError::NotRestored {
+            path: PathBuf::from("out"),
+            old: PathBuf::from("out.old"),
+            source: io::Error::other("locked"),
+        }
+    }
+
+    #[test]
+    fn a_package_that_could_not_be_restored_is_a_failure_even_after_a_cancel() {
+        assert!(matches!(
+            verdict(not_restored(), true),
+            Verdict::Failed(PackageError::NotRestored { .. })
+        ));
+    }
+
+    #[test]
+    fn a_write_error_after_a_cancel_is_the_cancel() {
+        let error = PackageError::Write {
+            path: PathBuf::from("out"),
+            source: io::Error::other("stopped"),
+        };
+
+        assert!(matches!(verdict(error, true), Verdict::Cancelled));
+    }
+
+    #[test]
+    fn a_write_error_without_a_cancel_is_a_failure() {
+        let error = PackageError::Write {
+            path: PathBuf::from("out"),
+            source: io::Error::other("full"),
+        };
+
+        assert!(matches!(verdict(error, false), Verdict::Failed(_)));
+    }
+
+    #[test]
+    fn the_writers_own_cancel_is_a_cancel() {
+        assert!(matches!(
+            verdict(PackageError::Cancelled, false),
+            Verdict::Cancelled
+        ));
+    }
 }

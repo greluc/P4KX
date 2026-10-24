@@ -37,12 +37,17 @@ pub(super) struct PackageTarget {
 }
 
 impl PackageTarget {
+    #[expect(
+        clippy::match_same_arms,
+        reason = "an unreadable folder is reported by the export, not by the dialog"
+    )]
     pub(super) fn new(folder: PathBuf) -> Self {
         let problem = match check_output(&folder) {
             Err(PackageError::Refused(refused)) => Some(PackageProblem::Installation(refused)),
             Err(PackageError::NotAPackage { .. }) => Some(PackageProblem::NotAPackage),
             Err(PackageError::NoFolderName { .. }) => Some(PackageProblem::NoFolderName),
-            _ => None,
+            Err(PackageError::Write { .. }) => None,
+            Ok(()) | Err(_) => None,
         };
         let replaces = problem.is_none() && folder.join(MANIFEST_FILE).is_file();
         Self {

@@ -330,4 +330,28 @@ pub(crate) fn start(
 }
 
 #[cfg(test)]
+impl AssemblyExport {
+    /// Returns an export that stays running until the returned guard is dropped, in `stage`.
+    pub(crate) fn pending(
+        (name, form): (&str, AssemblyExportForm),
+        stage: AssemblyExportStage,
+    ) -> (Self, Box<dyn std::any::Any>) {
+        let (sender, result) = mpsc::channel::<Ended>();
+        let shared = Arc::new(Shared::default());
+        shared.enter(stage);
+        let export = Self {
+            id: u64::MAX,
+            file: PathBuf::from(name),
+            name: name.to_owned(),
+            container: false,
+            form,
+            cancel: CancelToken::new(),
+            shared,
+            state: State::Running(result),
+        };
+        (export, Box::new(sender))
+    }
+}
+
+#[cfg(test)]
 mod tests;

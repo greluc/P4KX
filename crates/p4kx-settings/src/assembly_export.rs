@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::ModelMaterials;
 
-/// The choices of the Export of an Entity as GLB, remembered between sessions.
+/// The choices of the Export of an Entity as GLB or as Blender package, remembered between sessions.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AssemblyExportSettings {

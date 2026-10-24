@@ -28,7 +28,7 @@ enum Action {
     ChooseFolder,
 }
 
-/// Shows the Export of an Entity as GLB setup while it is open and applies what the user chose.
+/// Shows the export setup of an Entity or Interior container while it is open and applies what the user chose.
 pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     let Some((setup, texts)) = model.assembly_export_setup_with_texts() else {
         return;

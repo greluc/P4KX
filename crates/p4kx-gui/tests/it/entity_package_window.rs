@@ -59,7 +59,7 @@ fn summary(harness: &Harness<'_, Model>) -> Result<AssemblyExportSummary, &'stat
     }
 }
 
-fn manifest(folder: &Path) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+pub(crate) fn manifest(folder: &Path) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     Ok(serde_json::from_slice(&std::fs::read(
         folder.join("scene.json"),
     )?)?)
@@ -313,11 +313,28 @@ fn a_cancelled_export_keeps_the_earlier_package_and_writes_no_folder() -> TestRe
             .map(AssemblyExport::status),
         Some(AssemblyExportStatus::Cancelled)
     );
-    assert_eq!(fresh.exists(), !cancelled, "a folder only if not cancelled");
+    assert!(
+        cancelled,
+        "the cancel came before the job reached the writer"
+    );
+    assert!(!fresh.exists(), "no folder");
 
+    harness
+        .state_mut()
+        .set_assembly_export_settings(p4kx_settings::AssemblyExportSettings {
+            lod: 3,
+            ..p4kx_settings::AssemblyExportSettings::default()
+        });
     assert!(start(&mut harness, &folder)?);
     harness.state().cancel_assembly_export();
     finished(&mut harness)?;
+    assert!(matches!(
+        harness
+            .state()
+            .assembly_export()
+            .map(AssemblyExport::status),
+        Some(AssemblyExportStatus::Cancelled)
+    ));
     assert_eq!(
         std::fs::read(folder.join("scene.json"))?,
         first,

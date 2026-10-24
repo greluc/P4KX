@@ -47,7 +47,7 @@ fn renderer() -> Option<WgpuTestRenderer> {
 }
 
 fn render(harness: &mut Harness<'_, Model>, name: &str) -> TestResult {
-    harness.run_steps(3);
+    harness.run_steps(12);
     let image = harness.render()?;
     let (width, height) = (image.width(), image.height());
     save(name, width, height, &image.into_raw())
@@ -83,7 +83,7 @@ fn the_dialog_the_progress_and_the_summary_are_drawn_at_1280_by_800() -> TestRes
         select(&mut harness, ENTITY_INTERIOR_CLASS)?;
 
         harness.state_mut().begin_assembly_export();
-        render(&mut harness, &format!("package-glb-{suffix}.png"))?;
+        render(&mut harness, &format!("package-glb-interior-{suffix}.png"))?;
 
         let folder = dir.path().join("hull");
         let setup = harness
@@ -103,7 +103,6 @@ fn the_dialog_the_progress_and_the_summary_are_drawn_at_1280_by_800() -> TestRes
 
         assert!(harness.state_mut().submit_assembly_export(|| {}));
         harness.run_steps(2);
-        render(&mut harness, &format!("package-running-{suffix}.png"))?;
         crate::entity_package_window::finished(&mut harness)?;
         render(&mut harness, &format!("package-summary-{suffix}.png"))?;
 

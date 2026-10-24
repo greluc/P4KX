@@ -19,7 +19,8 @@
 //!
 //! [`ObjectContainer::parse`] reads the description of a socpak's object container, the
 //! containers nested in it and the `.soc` files it streams, and [`IncludedObjects::read`] the
-//! models a `.soc` file places, each with its [`Transform`].
+//! models a `.soc` file places, each with its [`Transform`]; [`SocEntities::read`] reads its
+//! props, which name geometry of their own, and its [`SocLight`]s.
 //!
 //! Both containers are read: an `#ivo` model keeps its meshes in a geometry companion, a `CrCh`
 //! model in its own file, as the physics mesh a `Mesh` chunk refers to (docs/crch-models.md).
@@ -54,6 +55,8 @@ mod palette;
 mod reader;
 mod skeleton;
 mod skin;
+mod soc_entities;
+mod soc_light;
 mod streams;
 mod transform;
 mod vector;
@@ -82,4 +85,6 @@ pub use object_container::{
     ObjectContainerError,
 };
 pub use palette::{PaletteSlot, TintEntry, TintPalette, srgb8_to_linear};
+pub use soc_entities::{MAX_SOC_ENTITIES, MAX_SOC_PLACED, SocEntities, SocEntitiesError, SocProp};
+pub use soc_light::{LightState, SocLight};
 pub use transform::Transform;

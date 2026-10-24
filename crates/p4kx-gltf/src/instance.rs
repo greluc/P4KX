@@ -9,6 +9,7 @@ use p4kx_model::{Lod, Model, Transform};
 
 use crate::layout::Layout;
 use crate::materials::{MaterialPlan, MaterialTextures, Slot, build_material, display_name};
+use crate::scene_light::SceneLight;
 use crate::texture_plan::TextureSet;
 
 /// A glTF node of the scene that holds no model of its own.
@@ -16,6 +17,7 @@ pub(crate) struct Wrapper<'m> {
     pub(crate) name: &'m str,
     pub(crate) parent: Option<usize>,
     pub(crate) transform: &'m Transform,
+    pub(crate) light: Option<&'m SceneLight>,
 }
 
 /// One model written into the document: its nodes hang below the `wrapper` node, or are roots of

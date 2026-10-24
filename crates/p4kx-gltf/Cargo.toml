@@ -12,7 +12,7 @@ publish.workspace = true
 layer = "service"
 
 [dependencies]
-gltf-json = { workspace = true, features = ["names"] }
+gltf-json = { workspace = true, features = ["KHR_lights_punctual", "names"] }
 p4kx-model.workspace = true
 p4kx-texture.workspace = true
 rayon.workspace = true

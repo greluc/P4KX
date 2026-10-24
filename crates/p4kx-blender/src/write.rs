@@ -1,0 +1,220 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::path::Path;
+
+use p4kx_assembly::Assembly;
+use p4kx_gltf::{GlbOptions, TextureLoader};
+
+use crate::build::{Inputs, manifest};
+use crate::collect::Collected;
+use crate::manifest::{
+    BuildInfo, Issue, MANIFEST_FILE, MESHES_FOLDER, Replacement, TEXTURES_FOLDER,
+};
+use crate::plan::MeshPlan;
+use crate::stage::Staging;
+use crate::textures::{self, Outcome};
+use crate::{Cancelled, PackageError, PackageResult, meshes};
+
+/// What the package records about where the Assembly comes from and how it was chosen.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct PackageInfo {
+    /// The Channel folder name of the Archive.
+    pub channel: Option<String>,
+    /// The Build of the Archive.
+    pub build: Option<BuildInfo>,
+    /// The ports the Loadout leaves out.
+    pub exclude: Vec<String>,
+    /// The Entities attached to a port instead of what it holds.
+    pub replace: Vec<Replacement>,
+}
+
+impl PackageInfo {
+    /// Creates the information for an Archive in the Channel `channel` with the Build `build`.
+    #[must_use]
+    pub const fn new(channel: Option<String>, build: Option<BuildInfo>) -> Self {
+        Self {
+            channel,
+            build,
+            exclude: Vec::new(),
+            replace: Vec::new(),
+        }
+    }
+
+    /// Records the Loadout changes the Assembly was built with.
+    #[must_use]
+    pub fn with_changes(mut self, exclude: Vec<String>, replace: Vec<Replacement>) -> Self {
+        self.exclude = exclude;
+        self.replace = replace;
+        self
+    }
+}
+
+/// What a package consists of.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct PackageSummary {
+    /// The number of nodes of the scene.
+    pub nodes: usize,
+    /// The number of nodes that draw a mesh.
+    pub drawn_nodes: usize,
+    /// The number of GLB meshes, one per distinct mesh set.
+    pub meshes: usize,
+    /// The number of nodes that draw a mesh another node already draws.
+    pub shared_meshes: usize,
+    /// The number of PNG textures written.
+    pub textures: usize,
+    /// The number of pixels of all textures written.
+    pub texture_pixels: u64,
+    /// The number of textures that could not be written; the materials keep their plain colours.
+    pub texture_failures: usize,
+    /// The number of files in the package: the manifest, the meshes and the textures.
+    pub files: usize,
+    /// The size of all files in bytes.
+    pub bytes: u64,
+    /// The number of vertices of all meshes, each counted once.
+    pub vertices: usize,
+    /// The number of triangles of all meshes, each counted once.
+    pub triangles: usize,
+    /// The issues the manifest lists.
+    pub issues: Vec<Issue>,
+}
+
+/// Writes `assembly` as a package into the folder `out`.
+///
+/// The package is a folder with `scene.json`, one GLB file per distinct mesh below `meshes` and one
+/// PNG file per distinct texture below `textures`; the module documentation of the crate and
+/// `docs/blender-package.md` describe it. Meshes are drawn with plain colours, with the palette of
+/// each part applied; the textures of their materials are written as they are in the Archive, at
+/// the mip level `options.texture_mip`, not baked into the meshes. The level of detail, the mip
+/// level and the vertex colours are those of `options`; `options.materials` is ignored.
+///
+/// Everything is written into a temporary folder next to `out`, which replaces `out` once the
+/// package is complete. `out` must not exist, or be an empty folder, or hold a package an earlier
+/// run wrote; an earlier package stays when the new one fails. `cancelled` is polled between the
+/// files and stops the run with [`PackageError::Cancelled`].
+///
+/// A texture that cannot be loaded does not fail the package: its materials keep their plain
+/// colours and the manifest lists it among the issues.
+///
+/// # Errors
+///
+/// Returns [`PackageError::Refused`] when `out` lies inside a Star Citizen installation,
+/// [`PackageError::NotAPackage`] when `out` is something else than the above,
+/// [`PackageError::Mesh`] when a mesh does not fit in a GLB file, [`PackageError::Write`] when a
+/// file or folder cannot be written and [`PackageError::Cancelled`] when `cancelled` returned
+/// true.
+pub fn write_package(
+    assembly: &Assembly,
+    textures: &dyn TextureLoader,
+    options: &GlbOptions,
+    info: &PackageInfo,
+    out: &Path,
+    cancelled: &(dyn Fn() -> bool + Sync),
+) -> PackageResult<PackageSummary> {
+    let cancelled = Cancelled::new(cancelled);
+    let staging = Staging::create(out)?;
+    let plan = MeshPlan::of(assembly);
+    let collected = Collected::of(assembly, &plan, options.lod);
+    cancelled.check()?;
+    let outcomes = if collected.wanted.is_empty() {
+        Vec::new()
+    } else {
+        textures::write_all(
+            &collected.wanted,
+            textures,
+            options.texture_mip,
+            &staging.path().join(TEXTURES_FOLDER),
+            &cancelled,
+        )?
+    };
+    let written = meshes::write_all(
+        assembly,
+        &plan,
+        options,
+        &staging.path().join(MESHES_FOLDER),
+        &cancelled,
+    )?;
+    cancelled.check()?;
+    let manifest = manifest(&Inputs {
+        assembly,
+        info,
+        options,
+        plan: &plan,
+        collected: &collected,
+        outcomes: &outcomes,
+        meshes: &written,
+    });
+    let manifest_len = write_manifest(&staging.path().join(MANIFEST_FILE), &manifest)?;
+    let summary = summarise(&manifest, &outcomes, &written, manifest_len);
+    cancelled.check()?;
+    staging.commit()?;
+    Ok(summary)
+}
+
+fn write_manifest(path: &Path, manifest: &crate::Manifest) -> PackageResult<u64> {
+    let file = File::create_new(path).map_err(|source| PackageError::write(path, source))?;
+    let mut writer = BufWriter::new(file);
+    serde_json::to_writer_pretty(&mut writer, manifest)
+        .map_err(|error| PackageError::write(path, error.into()))?;
+    writer
+        .write_all(b"\n")
+        .and_then(|()| writer.flush())
+        .map_err(|source| PackageError::write(path, source))?;
+    let file = writer
+        .into_inner()
+        .map_err(|error| PackageError::write(path, error.into_error()))?;
+    file.sync_all()
+        .map_err(|source| PackageError::write(path, source))?;
+    let len = file
+        .metadata()
+        .map_err(|source| PackageError::write(path, source))?
+        .len();
+    Ok(len)
+}
+
+fn summarise(
+    manifest: &crate::Manifest,
+    outcomes: &[Outcome],
+    meshes: &[p4kx_gltf::GlbSummary],
+    manifest_len: u64,
+) -> PackageSummary {
+    let mut summary = PackageSummary {
+        nodes: manifest.nodes.len(),
+        drawn_nodes: manifest
+            .nodes
+            .iter()
+            .filter(|node| node.mesh.is_some())
+            .count(),
+        meshes: manifest.meshes.len(),
+        textures: manifest.textures.len(),
+        files: 1 + manifest.meshes.len() + manifest.textures.len(),
+        bytes: manifest_len,
+        issues: manifest.issues.clone(),
+        ..PackageSummary::default()
+    };
+    summary.shared_meshes = summary.drawn_nodes.saturating_sub(summary.meshes);
+    for mesh in meshes {
+        summary.bytes += mesh.bytes;
+        summary.vertices += mesh.vertices;
+        summary.triangles += mesh.triangles;
+    }
+    for outcome in outcomes {
+        match outcome {
+            Outcome::Written {
+                width,
+                height,
+                bytes,
+                ..
+            } => {
+                summary.bytes += bytes;
+                summary.texture_pixels += u64::from(*width) * u64::from(*height);
+            }
+            Outcome::Failed(_) => summary.texture_failures += 1,
+        }
+    }
+    summary
+}

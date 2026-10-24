@@ -132,6 +132,22 @@ pub enum IssueKind {
         /// What is wrong.
         reason: String,
     },
+    /// The offset of an Entity's object container is not finite, so the container sits at its
+    /// bone alone or at the origin.
+    #[error("the offset of the container {name} is not finite and is left out")]
+    InvalidOffset {
+        /// The container's file as the Record spells it.
+        name: String,
+    },
+    /// The offset of an Entity's object container differs from its bone in the hull's model by
+    /// more than the tolerance, so the bone alone places the container.
+    #[error(
+        "the offset of the container differs from the bone {bone} of the hull; the bone is used"
+    )]
+    OffsetDiffers {
+        /// The bone of the hull's model.
+        bone: String,
+    },
     /// Placed models of a `.soc` file name no listed model or have no usable transform, so they
     /// are left out.
     #[error(
@@ -146,6 +162,24 @@ pub enum IssueKind {
     UnsupportedObjects {
         /// The kind of the first object that is not a placed model.
         kind: u32,
+    },
+    /// Props or lights of a `.soc` file have a position, rotation, scale or parameters that are
+    /// not usable, so they are left out.
+    #[error("{count} props or lights have no usable placement and are left out")]
+    EntitiesLeftOut {
+        /// How many.
+        count: usize,
+    },
+    /// Lights of a type `KHR_lights_punctual` cannot express (ambient lights, which stand in for
+    /// global illumination, planar area lights and unknown types), so they are left out.
+    #[error(
+        "{count} lights of the type {light_type} cannot be written as glTF lights and are left out"
+    )]
+    LightUnsupported {
+        /// The `lightType` as the `.soc` file spells it.
+        light_type: String,
+        /// How many.
+        count: usize,
     },
     /// The Assembly holds [`MAX_ASSEMBLY_PARTS`](crate::MAX_ASSEMBLY_PARTS) parts, so further
     /// parts are left out.
@@ -238,8 +272,12 @@ impl IssueKind {
             Self::FileMissing { .. } => "file_missing",
             Self::FileUnreadable { .. } => "file_unreadable",
             Self::InvalidPlacement { .. } => "invalid_placement",
+            Self::InvalidOffset { .. } => "invalid_offset",
+            Self::OffsetDiffers { .. } => "offset_differs",
             Self::ObjectsLeftOut { .. } => "objects_left_out",
             Self::UnsupportedObjects { .. } => "unsupported_objects",
+            Self::EntitiesLeftOut { .. } => "entities_left_out",
+            Self::LightUnsupported { .. } => "light_unsupported",
             Self::PieceNotFound { .. } => "piece_not_found",
             Self::NoWornGeometry => "no_worn_geometry",
             Self::NoVariantGeometry { .. } => "no_variant_geometry",
@@ -271,6 +309,8 @@ impl IssueKind {
                 | Self::InvalidPlacement { .. }
                 | Self::ObjectsLeftOut { .. }
                 | Self::UnsupportedObjects { .. }
+                | Self::EntitiesLeftOut { .. }
+                | Self::LightUnsupported { .. }
                 | Self::PieceNotFound { .. }
                 | Self::NoWornGeometry
                 | Self::NoVariantGeometry { .. }

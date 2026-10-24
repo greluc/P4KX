@@ -85,6 +85,7 @@ impl LoadoutResolver<'_> {
             attach_sub_type: spec.attach_sub_type.clone(),
             size: spec.size,
             container: spec.container,
+            object_containers: Arc::clone(&spec.object_containers),
         }
     }
 

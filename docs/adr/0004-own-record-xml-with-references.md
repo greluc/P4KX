@@ -1,6 +1,6 @@
 # Own Record XML: references are links, never embedded
 
-unp4k and the KRT P4K Reader expand referenced Records inline up to configurable depth limits, which
+unp4k and the owner's earlier reference tool expand referenced Records inline up to configurable depth limits, which
 duplicates data, makes output depend on settings and turns small changes into large diffs. The
 P4K-Extractor serialises one canonical Record tree to XML and JSON alike: owned children (strong
 pointers) are nested, every reference to another Record is a link carrying its GUID, record path and

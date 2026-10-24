@@ -13,7 +13,7 @@ instead of refusing.
   `p4kx_channels::ChannelKind` holds the mapping and the English text of the notice.
 - Every kind but `LIVE` and unknown gets the notice. An unknown folder name says nothing about the
   build, so it gets none.
-- GUI: a warning alert of the KRT design system below the header, shown while such an Archive is
+- GUI: a warning alert of the P4KX theme below the header, shown while such an Archive is
   open and in every work tab, never a modal. Its text is in the Fluent files for `de-DE` and `en-GB`.
 - CLI: one line `notice: …` on stderr the first time a run opens such an Archive. Stdout, and so the
   JSON output, is never touched.

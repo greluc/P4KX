@@ -87,7 +87,7 @@ fn the_query_counts_match_the_desktop_spec() {
 }
 
 #[test]
-fn the_danger_alert_takes_the_fill_of_the_design_system() {
+fn the_danger_alert_takes_the_fill_of_the_theme() {
     let json = spec();
 
     assert_eq!(
@@ -103,7 +103,7 @@ fn the_danger_alert_takes_the_fill_of_the_design_system() {
 }
 
 #[test]
-fn the_quiet_danger_button_takes_the_tints_of_the_design_system() {
+fn the_quiet_danger_button_takes_the_tints_of_the_theme() {
     let json = spec();
 
     assert_eq!(
@@ -124,7 +124,7 @@ fn the_quiet_danger_button_takes_the_tints_of_the_design_system() {
 }
 
 #[test]
-fn the_danger_button_is_filled_red_after_the_design_system() {
+fn the_danger_button_is_filled_red_after_the_theme() {
     use crate::theme::palette;
     use crate::widgets::button::{Kind, Phase, look};
 

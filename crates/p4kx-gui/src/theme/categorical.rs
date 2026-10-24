@@ -1,4 +1,4 @@
-//! The categorical colour tokens of the KRT design system: departments, planets and item classes.
+//! The categorical colour tokens of the P4KX design: departments, planets and item classes.
 //!
 //! They carry identity only, never status or action.
 
@@ -26,9 +26,9 @@ pub const DEPT_MARINE: Color32 = DEPT_MARINEKORPS;
 /// A planet's column-header fill and the stripe of its body cells.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PlanetTint {
-    /// `krt-planet-<p>`: the header fill.
+    /// `planet-<p>`: the header fill.
     pub fill: Color32,
-    /// `krt-planet-<p>-stripe`: the 2px left stripe of the body cells.
+    /// `planet-<p>-stripe`: the 2px left stripe of the body cells.
     pub stripe: Color32,
 }
 
@@ -44,15 +44,15 @@ const fn hex(value: u32) -> Color32 {
     Color32::from_rgb(r, g, b)
 }
 
-/// `krt-planet-hurston`.
+/// `planet-hurston`.
 pub const PLANET_HURSTON: PlanetTint = planet(0x003A_2519, 0x007A_4A2E);
-/// `krt-planet-crusader`.
+/// `planet-crusader`.
 pub const PLANET_CRUSADER: PlanetTint = planet(0x003A_2C26, 0x00C9_7A6A);
-/// `krt-planet-arccorp`.
+/// `planet-arccorp`.
 pub const PLANET_ARCCORP: PlanetTint = planet(0x003A_2C1A, 0x00B5_722B);
-/// `krt-planet-microtech`.
+/// `planet-microtech`.
 pub const PLANET_MICROTECH: PlanetTint = planet(0x001F_2C3A, 0x005A_8FB8);
-/// `krt-planet-pyro-1` to `krt-planet-pyro-6`.
+/// `planet-pyro-1` to `planet-pyro-6`.
 pub const PLANET_PYRO: [PlanetTint; 6] = [
     planet(0x003A_3019, 0x00B8_9538),
     planet(0x002A_2018, 0x008A_6F4A),
@@ -61,11 +61,11 @@ pub const PLANET_PYRO: [PlanetTint; 6] = [
     planet(0x002A_1A2A, 0x008A_4A8A),
     planet(0x002A_2A18, 0x008A_8A3A),
 ];
-/// `krt-planet-terra`.
+/// `planet-terra`.
 pub const PLANET_TERRA: PlanetTint = planet(0x001A_323A, 0x003A_8AA8);
-/// `krt-planet-delamar`.
+/// `planet-delamar`.
 pub const PLANET_DELAMAR: PlanetTint = planet(0x0026_2626, 0x007A_7A7A);
-/// `krt-planet-hash-0` to `krt-planet-hash-11`, the buckets of a planet without its own tint.
+/// `planet-hash-0` to `planet-hash-11`, the buckets of a planet without its own tint.
 pub const PLANET_HASH: [PlanetTint; 12] = [
     planet(0x003A_2020, 0x00A8_5050),
     planet(0x003A_2C20, 0x00A8_7850),
@@ -84,9 +84,9 @@ pub const PLANET_HASH: [PlanetTint; 12] = [
 /// An item class's chip hue and its label tint.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ItemClassTint {
-    /// `krt-item-class-<c>`: the chip border and, at 15 %, its fill.
+    /// `item-class-<c>`: the chip border and, at 15 %, its fill.
     pub hue: Color32,
-    /// `krt-item-class-<c>-text`: the chip label.
+    /// `item-class-<c>-text`: the chip label.
     pub text: Color32,
 }
 
@@ -97,13 +97,13 @@ const fn item_class(hue: u32, text: u32) -> ItemClassTint {
     }
 }
 
-/// `krt-item-class-military`.
+/// `item-class-military`.
 pub const ITEM_CLASS_MILITARY: ItemClassTint = item_class(0x008A_9455, 0x00C3_CA96);
-/// `krt-item-class-civilian`.
+/// `item-class-civilian`.
 pub const ITEM_CLASS_CIVILIAN: ItemClassTint = item_class(0x005C_84A8, 0x00AC_C5DC);
-/// `krt-item-class-industrial`.
+/// `item-class-industrial`.
 pub const ITEM_CLASS_INDUSTRIAL: ItemClassTint = item_class(0x00A8_643F, 0x00E2_B59C);
-/// `krt-item-class-stealth`.
+/// `item-class-stealth`.
 pub const ITEM_CLASS_STEALTH: ItemClassTint = item_class(0x009C_6688, 0x00D9_B5CB);
-/// `krt-item-class-competition`.
+/// `item-class-competition`.
 pub const ITEM_CLASS_COMPETITION: ItemClassTint = item_class(0x0044_9C80, 0x0091_D2BC);

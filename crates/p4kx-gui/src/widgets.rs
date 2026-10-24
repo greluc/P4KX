@@ -1,5 +1,5 @@
-//! The components of the KRT design system, drawn with egui after the contracts of its
-//! `krt-components.css` and the desktop metrics of `docs/design/desktop-spec.md`.
+//! The components of the P4KX design, drawn with egui after its component contracts and the
+//! desktop metrics of `docs/design/desktop-spec.md`.
 
 pub(crate) mod button;
 pub(crate) mod chip;

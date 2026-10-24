@@ -38,7 +38,7 @@ fn the_image_preview_names_its_classes_and_surface() {
 
     assert_eq!(
         spec["dsClass"].as_str(),
-        Some("previewPanel + facts-bar + krt-segmented krt-segmented--sm"),
+        Some("previewPanel + facts-bar + segmented segmented--sm"),
         "classes"
     );
     assert_eq!(

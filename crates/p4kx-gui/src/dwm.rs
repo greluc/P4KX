@@ -16,7 +16,7 @@ use windows_sys::Win32::Graphics::Dwm::{
 
 use crate::theme::palette;
 
-/// Tints the frame of `window` in the KRT colours and switches it to dark mode.
+/// Tints the frame of `window` in the P4KX colours and switches it to dark mode.
 ///
 /// The frame keeps snap layouts, shadow and rounded corners. A window without a Win32 handle,
 /// or a Windows version without one of the attributes, keeps the default for it.

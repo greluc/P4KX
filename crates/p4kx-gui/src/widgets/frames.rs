@@ -42,7 +42,7 @@ const fn margin(x: f32, y: f32) -> Margin {
 /// Returns a margin of `value` points as egui stores it.
 #[expect(
     clippy::cast_possible_truncation,
-    reason = "the design system's margins are small whole points"
+    reason = "the theme's margins are small whole points"
 )]
 pub(crate) const fn px(value: f32) -> i8 {
     value as i8
@@ -174,7 +174,7 @@ pub(crate) fn modal_title(title: &str, tone: Tone) -> egui::RichText {
     caps(title, TITLE_SIZE, Weight::Bold, TITLE_TRACKING).color(colour)
 }
 
-/// Returns a non-modal `.krt-modal` window titled `title`; its head is drawn by [`head`].
+/// Returns a non-modal `.modal` window titled `title`; its head is drawn by [`head`].
 pub(crate) fn window(title: &str, tone: Tone) -> Window<'static> {
     Window::new(title.to_owned())
         .title_bar(false)
@@ -240,7 +240,7 @@ pub(crate) fn foot_action(ui: &mut Ui, label: &str, kind: super::button::Kind) -
     .inner
 }
 
-/// Returns a `.krt-modal` on the flat scrim.
+/// Returns a `.modal` on the flat scrim.
 pub(crate) fn modal(id: Id, tone: Tone) -> Modal {
     Modal::new(id)
         .frame(modal_frame(tone))

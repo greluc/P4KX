@@ -7,7 +7,7 @@ use crate::theme::tokens::{CORNER_SM, FS_BODY, GLOW_PRIMARY, SPACE_3, TOUCH_TARG
 
 const FIELD_WIDTH: f32 = 2.0 * TOUCH_TARGET;
 
-/// Shows a whole-number field drawn to the design system's input contract, which also covers
+/// Shows a whole-number field drawn to the theme's input contract, which also covers
 /// `input[type=number]`: `control-bg` fill, a `control-border` border that turns
 /// `color-primary` on hover and focus, and the `glow-primary` bloom while focused. Dragging
 /// or typing changes `value` within `range`.

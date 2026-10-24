@@ -110,7 +110,7 @@ Vorschau stehen, bis die neue Fassung fertig ist. Keine neuen Maße (`recordPrev
 der Spec).
 
 **D.30 Vervollständigung an der Schreibmarke, gespeicherte Abfragen unter dem Editor.** Beim Tippen
-öffnet sich unter der Schreibmarke ein `.krt-combobox__listbox` mit den Namen, die dort passen:
+öffnet sich unter der Schreibmarke ein `.combobox__listbox` mit den Namen, die dort passen:
 Struct-Namen nach `from` und in `[…]` (der Typ der Elemente, seine Basen und alles, was davon
 erbt), Feldnamen am Pfadanfang, nach `.` und nach `->`, jeweils mit dem Typ rechts in
 `color-gray-2-text`. Die Liste steht an der Schreibmarke statt unter dem ganzen Feld, weil der
@@ -122,7 +122,7 @@ sonst sind Farben, Einträge und Schatten die der Combobox. Der getippte Anfang 
 bleibt im Editor: ↑ und ↓ wählen, Enter, Tab oder Klick übernehmen das ganze Wort um die
 Schreibmarke, Esc schließt, Strg+Leertaste öffnet wieder; steht der gewählte Name schon so da,
 bricht Enter die Zeile wie ohne Liste. Höchstens 50 Namen stehen in der Liste, darunter „n weitere
-Namen, weiter tippen" als `.krt-combobox__notice`. Das Schema liest ein Hintergrund-Thread, wenn
+Namen, weiter tippen" als `.combobox__notice`. Das Schema liest ein Hintergrund-Thread, wenn
 der Editor den Fokus bekommt, einmal je Archiv, und einmal je Cache-Stand noch einmal, wenn der
 Editor den Fokus hat und kein Schema da ist (nach einem Fehler oder „Neu laden"); bis dahin, und
 wo kein Name passt, bleibt die Liste zu, statt einen leeren Zustand zu zeigen. Sie öffnet sich
@@ -137,9 +137,9 @@ unter dem Kopf ein Satz in `color-gray-2-text`, der sagt, wie man eine speichert
 klein und der Editor darüber die Aktion. Ein Klick auf die Zeile lädt und startet sie;
 „Umbenennen" (Ghost) und „Löschen" (Quiet-Danger) stehen als `btn-xs` rechts, weil das Löschen
 die einzige zerstörende Aktion ist. Speichern und Umbenennen fragen den Namen in einem
-`.krt-modal` ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in
+`.modal` ab; ein vergebener Name ersetzt beim Speichern die Abfrage (Hinweis in
 `color-gray-2-text`) und sperrt das Umbenennen (Hinweis in `color-danger-text`). Löschen fragt
-in einem `.krt-modal--danger` nach (D.3), dessen Fuß nach dem Modal-Specimen Ghost „Abbrechen"
+in einem `.modal--danger` nach (D.3), dessen Fuß nach dem Modal-Specimen Ghost „Abbrechen"
 und das rot gefüllte `.btn.btn-danger` „Löschen" trägt.
 
 **D.31 Container als Ordner im Pfadbaum.** Ein `.socpak` steht nach den Unterordnern seines
@@ -169,7 +169,7 @@ steht im Dialog „Einträge extrahieren" eingerückt unter den Texturausgaben e
 (14,4 / 400, `color-gray-1`, wie die Radio-Labels) mit den Radios „Ogg", „WAV" und „WEM,
 unverändert" nebeneinander, 16 voneinander wie die Steuerelement-Zeile im Specimen FormControls
 (`gap: 16px`), Radio↔Label 12 wie bei der Radio-Gruppe. Drei sich ausschließende
-Werte sind Radios wie Konfliktregel und Mip-Stufe, kein `.krt-segmented--sm`: der Schnellfilter
+Werte sind Radios wie Konfliktregel und Mip-Stufe, kein `.segmented--sm`: der Schnellfilter
 gehört in Toolbars, im Modal bleiben Formularelemente. Eine Zeile statt einer Spalte, weil die
 Werte kurz sind und der Dialog sonst bei 800 px Fensterhöhe scrollen müsste. Darunter steht in
 12,8 / 400 `color-gray-2-text`, wie der Hinweis auf den neuen Ordnernamen, dass Ogg für Codecs ohne
@@ -209,7 +209,7 @@ nach „Record" ein weiterer Reiter der Vorschau-Leiste (D.1 Tab-Leiste, 44 px, 
 wie die übrigen Reiter in Versalien). Der Reiter erfindet nichts Eigenes: Er zeigt unter der
 Pfadzeile (32 px, Record-Pfad und Name wie im Record-Reiter) eine Zählzeile im Rahmen des
 Vorschau-Körpers („3 Referenzen von 2 Records", 14,4 / 400 `color-gray-1`, wie die Zählzeile
-der Abfrage und der `.page-status` der Pagination des Design Systems, das keine eigene
+der Abfrage und der `.page-status` der Pagination des Themes, das keine eigene
 Zählzeile kennt) und darunter dieselbe virtuelle Liste wie der Record-Reiter: Tabellenkopf 36 px mit den Spalten „Feld" und
 „Verweisender Record" zu gleichen Hälften, Zeilen 36 px mit Zebra, Hover `control-bg` und
 Trennlinie. Links steht das Feld des verweisenden Records mit Array-Index (`Components[3].maker`,
@@ -259,7 +259,7 @@ Griff darüber.
 **D.37 Fenster „Über P4K-Extractor" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
 P4K-Extractor" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
 Schriftlizenz: Kopf mit Titel und Schließen-Icon, Fuß mit der CTA „Schließen". Das Modal hat die
-normale Breite (`.krt-modal`), nicht die breite, die dem Formular-Modal vorbehalten ist. Der Körper
+normale Breite (`.modal`), nicht die breite, die dem Formular-Modal vorbehalten ist. Der Körper
 steht in 14,4 / 400 `color-gray-1`, also über der Mindestgröße von 10 pt der Fankit-Richtlinien,
 Absätze 12 voneinander und nach dem letzten kein Abstand, damit der Körper über und unter dem Text
 gleich weit von den Haarlinien von Kopf und Fuß steht: die Version (700), die Urheberzeile
@@ -289,7 +289,7 @@ Leiste mit der Ghost-Schaltfläche „Archivschlüssel eingeben", die den Schlü
 (`KeyReason::Menu`): Eine Suche öffnet den Dialog nie von selbst, sie zählt diese Einträge nur
 (ADR-0044). Die Leiste hat den Rand des Panels wie die Segmentleiste (`SPACE_3`) und den
 Außenabstand unten des `.alert` (`margin-bottom: 1.5rem`, `SPACE_6`). Darunter die Segmentleiste
-(`.krt-segmented`, D.1) mit einer Quelle je Segment und der Trefferzahl als `.krt-segmented__count`:
+(`.segmented`, D.1) mit einer Quelle je Segment und der Trefferzahl als `.segmented__count`:
 eigener Text im Segment in 700, `color-gray-2-text` (im gewählten Segment `control-selected-fg`),
 ohne Klammern, mit „+" hinter der Zahl bei weiteren Treffern, getrennt vom Namen durch 0,5 rem
 (`SEGMENT_COUNT_GAP`); die Ziffern von Lato sind tabellarisch. Die Segmente tragen den Namen und
@@ -312,7 +312,7 @@ Ein Klick auf einen Treffer öffnet ihn: ein Record wird im Record-Baum gewählt
 wechselt auf „Record"), ein Eintrag in seinem Ordner mit aufgeklappten Ordnern darüber, ein
 Lokalisierungstext im Tab „Lokalisierung" mit der Zelle der Sprache. Wartet das Ziel auf Daten
 (DataForge, Lokalisierungsdateien), wird es geöffnet, sobald sie gelesen sind. Der Tab fügt
-keine Farbe, Größe oder Form hinzu; alle Werte stammen aus `tokens.json`. Geprüft mit Renders in
+keine Farbe, Größe oder Form hinzu; alle Werte stammen aus der Token-Fixture `crates/p4kx-gui/src/theme/fixtures/tokens.json`. Geprüft mit Renders in
 en-GB und de-DE.
 
 **D.45 Tags als Tab im Arbeitsbereich.** Hinter „Lokalisierung" steht der Tab „Tags" (Tab-Leiste wie
@@ -362,7 +362,7 @@ gewählt.
 links von „Kopieren" am rechten Ende der Leiste „Als GLB exportieren …" (`.btn-ghost.btn-xs`, eine
 Routineaktion, kein CTA), deaktiviert, solange das Modell nicht gelesen ist oder ein Export läuft;
 das Menü Export führt denselben Eintrag nach „Record-Export …". Beide öffnen das breite
-Formular-Modal des Record-Exports (`.krt-modal`, D.17) mit Kopf „Als GLB exportieren" und Schließen-Icon und Fuß mit
+Formular-Modal des Record-Exports (`.modal`, D.17) mit Kopf „Als GLB exportieren" und Schließen-Icon und Fuß mit
 „Schließen" und der CTA „Exportieren". Der Körper beginnt mit „Modell: …" in 12,8 / 400
 `color-gray-2-text` und gliedert sich in Gruppen mit Gruppenüberschrift (D.17, Abstand
 `modal-group-gap`): „Detailstufe" mit einem Radio je Stufe („LOD 0, 12 Dreiecke"), „Materialien"
@@ -387,7 +387,7 @@ Hintergrund; sein Fortschrittsfenster hat den Aufbau des Record-Exports (D.17): 
 exportiert", beim Lesen den Inline-Spinner (14) mit „… wird gelesen …", beim Schreiben „x von y
 geschrieben, n %" (in Byte-Größen) über dem Fortschrittsbalken, und im Fuß „Abbrechen" (während
 des Abbruchs der Spinner mit „Breche ab …"). Danach steht ein nicht modales Fenster in der breiten
-Form (`.krt-modal`) mit der CTA „Schließen": bei Erfolg „Modell exportiert" mit dem Zielpfad, den
+Form (`.modal`) mit der CTA „Schließen": bei Erfolg „Modell exportiert" mit dem Zielpfad, den
 Zählern (Knoten, Meshes, Materialien, Vertices, Dreiecke, Größe), bei Knochen deren Zahl, in
 `color-warning` den Hinweisen, dass die Materialbibliothek fehlt oder nicht lesbar ist und das
 Standardmaterial gilt, dass Material-IDs oder Bibliothekseinträge ohne Material darauf

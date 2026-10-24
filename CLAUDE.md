@@ -11,9 +11,9 @@ the build, architecture, or the rules below change.
 - the functionality of [dolkensp/unp4k](https://github.com/dolkensp/unp4k) (reading the p4k
   archive, decompressing and decrypting its entries, and converting the CryEngine formats it
   contains, e.g. binary XML / DataForge), and
-- the functionality of the **KRT P4K Reader**, the owner's earlier tool whose source code was lost.
-  It is still installed locally and serves as the behavioural reference; its behaviour is
-  reconstructed by observing the installed program, not from source.
+- the functionality of the owner's earlier reference tool, whose source code was lost. It is still
+  installed locally and serves as the behavioural reference; its behaviour is reconstructed by
+  observing the installed program, not from source.
 
 ## Real test data
 
@@ -92,8 +92,8 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 - `unsafe_code = "forbid"` everywhere except the `cfg(windows)` DWM module in `p4kx-gui`, whose
   manifest repeats the workspace lints with `unsafe_code = "deny"`; `cargo xtask lints` checks
   that (ADR-0006).
-- The look follows the KRT design system strictly, at the current `main` of its repository: dark
-  only, Lato only (ADR-0006). See "GUI design (hard rule)" below.
+- The look follows the P4KX theme strictly: dark only, Lato only (ADR-0006). See "GUI design
+  (hard rule)" below.
 - Source files stay below about 400 lines; split by responsibility before that.
 - One canonical Record tree serialised to XML and JSON; References are links, never embedded
   (ADR-0004).
@@ -105,23 +105,20 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ## GUI design (hard rule)
 
-- **The KRT design system is always followed, for the whole repository.** Its binding state is
-  the current `main` of [krt-profit/design-system](https://github.com/krt-profit/design-system),
-  never an older copy, a fixture or a memory of it. This holds for every person and every agent,
+- **P4KX's own theme is the reference, for the whole repository.** `p4kx_gui::theme` holds every
+  colour, type size, weight, spacing, radius and glow, and `docs/design/` holds the desktop spec
+  and its machine-readable form. No external design system is followed. This holds for every person and every agent,
   for every change to anything the tool shows (windows, dialogs, views, icons, the About view) and
   for every review of such a change.
 - **Agents:** an agent that delegates work touching the GUI passes this rule on to the agent
-  doing it. A change that does not meet the design system's current `main` is not merged.
-- **Binding source:** read it fresh before GUI work, never from memory: `git pull` a checkout of
-  its `main`, then `README.md` and `SKILL.md` for the rules, `tokens.json` for every colour, type
-  size, weight, spacing, radius and glow, `krt-components.css` and
-  `components/<Name>/preview.html` for the component contracts. Verify a visual change with a
-  render against those contracts.
-- `p4kx_gui::theme` mirrors those tokens 1:1 and draws the components after those contracts.
-  Never invent a colour, size, spacing or radius; when the design system changes, the theme
-  follows.
-- Deviate only where egui or the platform forces it, never in colour, form or type, and record
-  the deviation in an ADR.
+  doing it.
+- **Binding source:** read `p4kx_gui::theme` and `docs/design/` fresh before GUI work, never from
+  memory. Build from the existing tokens and widgets, and verify a visual change with a render
+  against the desktop spec.
+- Never invent a colour, size, spacing or radius: a new value is added to the theme and to
+  `docs/design/` together, with the reason in the commit message.
+- Deviate from the desktop spec only where egui or the platform forces it, never in colour, form
+  or type, and record the deviation in an ADR.
 
 ## Rules
 

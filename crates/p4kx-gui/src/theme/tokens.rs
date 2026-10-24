@@ -1,5 +1,5 @@
-//! The non-colour tokens of the KRT design system: type scale, weights, tracking, spacing, radii
-//! and glows, named as in its `tokens.json`, with 1rem as 16 points.
+//! The non-colour tokens of the P4KX design: type scale, weights, tracking, spacing, radii
+//! and glows, named as in the token list, with 1rem as 16 points.
 
 use egui::epaint::Shadow;
 use egui::{Color32, CornerRadius, FontFamily, FontId};

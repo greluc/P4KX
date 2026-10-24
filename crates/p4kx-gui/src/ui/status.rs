@@ -10,7 +10,7 @@ use crate::widgets::indicator;
 use crate::widgets::text::{link, plain};
 use crate::{Browser, ContainerText, Model, Place, Text, Texts, format};
 
-/// Shows the status bar, the desktop density of `.krt-footer`.
+/// Shows the status bar, the desktop density of `.footer`.
 pub(super) fn show(ui: &mut Ui, model: &Model) {
     let texts = model.texts();
     ui.spacing_mut().item_spacing.x = STATUS_ITEM_PADDING_X;

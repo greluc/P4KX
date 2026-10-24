@@ -20,6 +20,8 @@ pub struct AssemblyExportSettings {
     pub texture_mip: u32,
     /// Whether the vertex colours of the meshes are written.
     pub vertex_colours: bool,
+    /// Whether the Interior of the Entity, its object containers, is exported with the hull.
+    pub interior: bool,
     /// The folder the last Entity was exported to, or `None` before the first export.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder: Option<PathBuf>,
@@ -32,6 +34,7 @@ impl Default for AssemblyExportSettings {
             materials: ModelMaterials::default(),
             texture_mip: 0,
             vertex_colours: true,
+            interior: false,
             folder: None,
         }
     }

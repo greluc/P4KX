@@ -7,7 +7,7 @@ use p4kx_settings::AssemblyExportSettings;
 
 use super::Model;
 use crate::assembly_export::start;
-use crate::{AssemblyExport, AssemblyExportSetup, EntitiesTab, Texts};
+use crate::{AssemblyExport, AssemblyExportSetup, Browser, EntitiesTab, Texts};
 
 /// The Entities tab and the Export of an Entity as GLB of the window: the choices remembered,
 /// the open setup and the running or finished export.
@@ -99,17 +99,56 @@ impl Model {
         let Some(session) = self.assembly.tab.loadout() else {
             return;
         };
+        let view = session.assembly();
         let mut setup = AssemblyExportSetup::new(
             (session.guid(), session.name()),
-            session.changes(),
+            (session.changes(), view.has_interior()),
             &self.assembly.settings,
         );
-        if session.assembly().is_chosen() {
-            setup.set_lod(session.assembly().lod());
-            setup.set_materials(session.assembly().materials());
+        if view.is_chosen() {
+            setup.set_lod(view.lod());
+            setup.set_materials(view.materials());
+            setup.set_interior(view.interior());
         }
         self.assembly.run = None;
         self.assembly.setup = Some(setup);
+    }
+
+    /// Returns whether the selected Entry is a socpak container, so that the preview and the
+    /// Export menu offer the Export of its Interior as GLB.
+    #[must_use]
+    pub fn interior_export_shown(&self) -> bool {
+        self.browser
+            .as_ref()
+            .is_some_and(|browser| browser.selected_container().is_some())
+    }
+
+    /// Returns whether the selected Entry is a socpak container whose places are open and no
+    /// export of an Entity or an Interior runs.
+    #[must_use]
+    pub fn interior_export_available(&self) -> bool {
+        self.interior_export_shown()
+            && !self
+                .assembly
+                .run
+                .as_ref()
+                .is_some_and(AssemblyExport::is_running)
+    }
+
+    /// Opens the Export as GLB setup for the Interior of the selected socpak container, unless
+    /// none is available; a finished export is dismissed.
+    pub fn begin_interior_export(&mut self) {
+        if !self.interior_export_available() || self.check_archive() {
+            return;
+        }
+        let Some(container) = self.browser.as_ref().and_then(Browser::selected_container) else {
+            return;
+        };
+        self.assembly.run = None;
+        self.assembly.setup = Some(AssemblyExportSetup::of_container(
+            (container.chain, &container.name),
+            &self.assembly.settings,
+        ));
     }
 
     /// Returns the open setup, or `None` when none is open.

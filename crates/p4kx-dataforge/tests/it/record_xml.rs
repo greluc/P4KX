@@ -134,7 +134,7 @@ fn error_values_are_elements_with_the_field_and_the_reason() -> TestResult {
         xml,
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-            "<Item xmlns:p4kx=\"https://github.com/greluc/p4kx/record-xml\" ",
+            "<Item xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
             "guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
             "path=\"libs/foundry/records/sample\" count=\"3\">\n",
             "  <p4kx:error field=\"label\" ",
@@ -178,7 +178,7 @@ fn ambiguous_field_names_become_field_elements() -> TestResult {
         xml,
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-            "<Item xmlns:p4kx=\"https://github.com/greluc/p4kx/record-xml\" ",
+            "<Item xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
             "guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
             "path=\"libs/foundry/records/sample\" count=\"4\" ok=\"9\">\n",
             "  <p4kx:field name=\"guid\" value=\"1\"/>\n",
@@ -208,7 +208,7 @@ fn a_type_name_that_is_no_xml_name_becomes_a_record_element() -> TestResult {
         xml,
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-            "<p4kx:record xmlns:p4kx=\"https://github.com/greluc/p4kx/record-xml\" ",
+            "<p4kx:record xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
             "type=\"Bad Type\" guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
             "path=\"libs/foundry/records/sample\" count=\"1\"/>\n",
         ),

@@ -1336,15 +1336,24 @@ composed, `shapes` the shapes drawn (every placed glyph counts), `texts_drawn` a
 the text widgets whose text was and was not drawn (empty or run-time texts, a missing font or
 colour, a limit), `canvases` the canvases composed (the screen's own and the
 nested ones). `unsupported` lists per element type and reason (`no renderer for this element
-type`, `rotation is not applied`, `automatic size taken as the size of the parent`, `wrapping flex
-containers are laid out without wrapping`, `<layout> children are laid out as an overlay`, `colour
-slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not evaluated` for
-a `StyleEntry`, and the reasons of circles and polygons) how many widgets it concerns and the names of
-up to three. `missing_canvases` names nested canvases that cannot be read, that no Record answers
-or that contain themselves; widgets whose parents form a cycle are listed in `unsupported`
-(`not reachable from a root: its parents form a cycle`). `truncated` is true when a limit stopped
-the composition: 2^18 widgets visited or placed (hidden ones included), 2^26 steps of the style
-cascade, 2^17 shapes or a depth of 64 widgets and canvases. `skipped` lists what the renderer
+type`, `automatic size taken as the size of the parent`, `<layout> children are laid out as an
+overlay` for spacer containers, `list rows come from run-time data: none drawn at rest`, `list
+rows repeat the template without the values of their rows`, `fading edges of the overflow are not
+drawn`, `gradient backgrounds are drawn in the plain colour of the background`, `borders that
+differ are drawn straight on a box with rounded corners`, `the turn and scale of the parent are
+not undone: they are inherited`, `a number of the geometry is not finite: the default is used`,
+`transform is not finite: not drawn`, `scale of the canvas is not finite: not drawn` (element
+`Canvas`),
+`no target that is a widget of the canvas: nothing repeated`, `the template contains a clone of
+itself: not repeated`, `clipping stopped at the 24th mask: later content is not clipped`,
+`colour slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not
+evaluated` for a `StyleEntry`, and the reasons of circles, polygons and texts) how many widgets it
+concerns and the names of up to three. `missing_canvases` names nested canvases that cannot be
+read, that no Record answers or that contain themselves; widgets whose parents form a cycle are
+listed in `unsupported` (`not reachable from a root: its parents form a cycle`). `truncated` is
+true when a limit stopped the composition: 2^18 widgets visited or placed (hidden ones included),
+2^26 steps of the style cascade, 2^17 shapes, 2^14 instances of templates, 2^10 rows of one list
+or a depth of 64 widgets and canvases (ADR-0106). `skipped` lists what the renderer
 (raster or SVG writer) skipped of the scene, each with the stable `reason` code of
 `p4kx ui render` and a `message`; it is `[]` when nothing was skipped.
 

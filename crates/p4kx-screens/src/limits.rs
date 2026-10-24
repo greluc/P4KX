@@ -12,14 +12,21 @@ pub struct Limits {
     pub evaluations: u64,
     /// The deepest nesting of widgets and canvases.
     pub depth: usize,
+    /// The most templates clones and lists instantiate, summed over the whole screen.
+    pub instances: usize,
+    /// The most items one list repeats its template for.
+    pub rows: usize,
 }
 
 impl Limits {
-    /// The bounds `p4kx` uses: 2^18 widgets, 2^26 cascade steps and a depth of 64.
+    /// The bounds `p4kx` uses: 2^18 widgets, 2^26 cascade steps, a depth of 64, 2^14 instances
+    /// and 2^10 rows per list.
     pub const DEFAULT: Self = Self {
         widgets: 1 << 18,
         evaluations: 1 << 26,
         depth: 64,
+        instances: 1 << 14,
+        rows: 1 << 10,
     };
 }
 

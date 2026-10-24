@@ -5,18 +5,18 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use p4kx_assembly::Assembly;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, Scene, SceneNode, ScenePart, write_scene_glb};
 use p4kx_model::Transform;
 use rayon::prelude::*;
 
 use crate::glb_extras::with_material_indices;
+use crate::items::Item;
 use crate::plan::{MeshPlan, mesh_id};
 use crate::{Cancelled, PackageError, PackageResult};
 
 /// Writes the GLB file `<folder>/<id>.glb` of every distinct mesh of `plan`, in parallel.
 pub(crate) fn write_all(
-    assembly: &Assembly,
+    items: &[Item<'_>],
     plan: &MeshPlan,
     options: &GlbOptions,
     folder: &Path,
@@ -26,13 +26,13 @@ pub(crate) fn write_all(
         .into_par_iter()
         .map(|index| {
             cancelled.check()?;
-            write_one(assembly, plan, index, options, folder)
+            write_one(items, plan, index, options, folder)
         })
         .collect()
 }
 
 fn write_one(
-    assembly: &Assembly,
+    items: &[Item<'_>],
     plan: &MeshPlan,
     index: usize,
     options: &GlbOptions,
@@ -41,18 +41,16 @@ fn write_one(
     let id = mesh_id(index);
     let first = plan
         .first(index)
-        .and_then(|position| assembly.parts().get(position));
+        .and_then(|position| items.get(position)?.drawn);
     let mut scene = Scene::new();
     let mut name = String::new();
-    if let Some(part) = first
-        && let Some(model) = part.model()
-    {
-        part.class_name().clone_into(&mut name);
-        let drawn = ScenePart::new(model, part.materials());
-        let drawn = part
-            .palette()
+    if let Some(first) = first {
+        first.label.clone_into(&mut name);
+        let drawn = ScenePart::new(first.model, first.materials);
+        let drawn = first
+            .palette
             .map_or(drawn, |palette| drawn.with_palette(palette));
-        let node = SceneNode::new(part.class_name(), None, Transform::IDENTITY).with_part(drawn);
+        let node = SceneNode::new(first.label, None, Transform::IDENTITY).with_part(drawn);
         scene
             .push(node)
             .map_err(|source| mesh_error(&id, &name, source))?;

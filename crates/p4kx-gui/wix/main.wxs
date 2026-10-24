@@ -12,7 +12,7 @@
         AllowSameVersionUpgrades="yes"
         DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
     <MediaTemplate EmbedCab="yes" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/greluc/P4KX" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/p4kx-org/p4kx" />
     <Property Id="ARPNOMODIFY" Value="1" />
     <Icon Id="P4kx.ico" SourceFile="$(var.RepositoryFolder)\crates\p4kx-gui\assets\p4kx.ico" />
     <Property Id="ARPPRODUCTICON" Value="P4kx.ico" />

@@ -335,6 +335,6 @@ also asks at once. When a newer Release exists, the status bar shows **Version â
 which opens its page in your browser.
 
 The request is a plain anonymous GET of
-`https://api.github.com/repos/greluc/P4KX/releases/latest`; it carries only the
+`https://api.github.com/repos/p4kx-org/p4kx/releases/latest`; it carries only the
 program name and version as its user agent and nothing about you, your machine or your Archives.
 It is the only network traffic of P4KX. A failed request shows nothing.

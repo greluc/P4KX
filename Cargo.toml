@@ -7,7 +7,7 @@ version = "0.3.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/greluc/P4KX"
+repository = "https://github.com/p4kx-org/p4kx"
 publish = false
 
 [workspace.dependencies]

@@ -11,7 +11,7 @@ use p4kx_extraction::cryxml::{self, Format, Xml};
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli::CryXmlArgs;
+use crate::cli_cryxml::CryXmlArgs;
 use crate::json;
 
 /// The input file of `p4kx cryxml` cannot be read.

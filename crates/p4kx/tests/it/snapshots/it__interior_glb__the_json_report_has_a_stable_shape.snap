@@ -1,0 +1,81 @@
+---
+source: crates/p4kx/tests/it/interior_glb.rs
+expression: "serde_json::to_string_pretty(&shaped)?"
+---
+{
+  "archive": "<archive>",
+  "bytes": 7096,
+  "containers": [
+    "Data\\ObjectContainers\\ships\\test\\ship_interior.socpak"
+  ],
+  "containers_opened": 4,
+  "default_material_ids": 4,
+  "hidden_primitives": 0,
+  "issues": [
+    {
+      "kind": "container_missing",
+      "name": "modules/absent",
+      "path": "ship_interior",
+      "reason": "the container modules/absent does not exist",
+      "skipped": true
+    },
+    {
+      "kind": "invalid_placement",
+      "name": "modules/cockpit",
+      "path": "ship_interior",
+      "reason": "the placement of the container modules/cockpit is not usable: pos and rot are no finite numbers or the rotation has no length",
+      "skipped": true
+    },
+    {
+      "kind": "container_cycle",
+      "name": "ObjectContainers/ships/test/ship_interior",
+      "path": "ship_interior/cockpit",
+      "reason": "the container ObjectContainers/ships/test/ship_interior is nested in itself and not entered again",
+      "skipped": true
+    },
+    {
+      "kind": "container_cycle",
+      "name": "modules/ring_a",
+      "path": "ship_interior/ring_a/ring_b",
+      "reason": "the container modules/ring_a is nested in itself and not entered again",
+      "skipped": true
+    },
+    {
+      "kind": "material_library",
+      "name": "lodded",
+      "path": "ship_interior",
+      "reason": "the material library objects/test/cube does not exist",
+      "skipped": false
+    },
+    {
+      "kind": "geometry_missing",
+      "name": "absent",
+      "path": "ship_interior",
+      "reason": "the geometry objects/test/absent.cgf does not exist",
+      "skipped": true
+    },
+    {
+      "kind": "material_library",
+      "name": "cockpit_seat",
+      "path": "ship_interior/cockpit",
+      "reason": "the material library objects/test/cube does not exist",
+      "skipped": false
+    }
+  ],
+  "lod": 0,
+  "lod_fallbacks": 0,
+  "materials": 3,
+  "meshes": 3,
+  "model_parts": 6,
+  "modelled_parts": 5,
+  "nodes": 22,
+  "out": "<out>",
+  "parts": 12,
+  "primitives": 6,
+  "shared_materials": 1,
+  "shared_meshes": 2,
+  "shared_textures": 0,
+  "skipped": 5,
+  "triangles": 36,
+  "vertices": 72
+}

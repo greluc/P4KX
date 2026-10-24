@@ -16,6 +16,13 @@ mod audio_controls;
 mod audio_preview;
 mod catalog_outcome;
 mod channels;
+mod character_choices;
+mod character_chooser;
+mod character_export;
+mod character_report;
+mod character_toolbar;
+mod character_view;
+mod characters;
 mod comparison;
 mod comparison_diff;
 mod comparison_extraction;
@@ -113,8 +120,8 @@ use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
-    ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText, Model,
-    PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
+    CharacterText, ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText,
+    Model, PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -144,6 +151,10 @@ pub enum Dialog {
     AssemblyFile,
     /// Picks the folder of a sound export.
     SoundsFolder,
+    /// Picks the CHF file of a head.
+    CharacterChf,
+    /// Picks the GLB file a Character is exported to.
+    CharacterFile,
 }
 
 /// What the window asks of its host after a frame.
@@ -209,6 +220,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     model_export_outcome::show(ui, model);
     assembly_export::setup(ui, model, &mut requests);
     assembly_export_outcome::show(ui, model);
+    character_export::show(ui, model);
     catalog_outcome::show(ui, model);
     sounds_export::setup(ui, model, &mut requests);
     sounds_outcome::show(ui, model);
@@ -251,6 +263,7 @@ fn poll_background(model: &mut Model) {
     model.poll_model_export();
     model.poll_assembly_export();
     model.entities_mut().poll();
+    model.characters_mut().poll();
     model.poll_catalog();
     model.poll_update();
     model.comparison_mut().poll();
@@ -276,6 +289,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         WorkTab::Search => return content_search::show(ui, model),
         WorkTab::Entities => return entities::show(ui, model),
         WorkTab::Sounds => return sounds::show(ui, model),
+        WorkTab::Characters => return characters::show(ui, model, requests),
         WorkTab::Archive => {}
     }
     let dragging = is_dragging_file(ui);
@@ -313,7 +327,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 8] = [
+const WORK_TABS: [(WorkTab, Text); 9] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -331,6 +345,7 @@ const WORK_TABS: [(WorkTab, Text); 8] = [
     (WorkTab::Search, Text::ContentSearch(ContentSearchText::Tab)),
     (WorkTab::Entities, Text::Entity(EntityText::Tab)),
     (WorkTab::Sounds, Text::Sounds(SoundsText::Tab)),
+    (WorkTab::Characters, Text::Character(CharacterText::Tab)),
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {

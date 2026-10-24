@@ -106,7 +106,7 @@ fn entity(
         let mut observed = Observed {
             inner: writer,
             cancel,
-            shared,
+            written: &shared.done,
         };
         let textures = archive_models.textures();
         let textures = StoppableTextures {
@@ -213,7 +213,7 @@ fn container(
         let mut observed = Observed {
             inner: writer,
             cancel,
-            shared,
+            written: &shared.done,
         };
         let textures = archive_models.textures();
         let textures = StoppableTextures {

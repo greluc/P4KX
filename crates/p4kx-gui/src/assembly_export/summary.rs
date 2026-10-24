@@ -23,7 +23,7 @@ pub struct PartIssue {
 }
 
 impl PartIssue {
-    fn of(issue: &Issue) -> Self {
+    pub(crate) fn of(issue: &Issue) -> Self {
         Self {
             path: printable(issue.path()),
             name: printable(issue.name()),

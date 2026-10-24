@@ -3,9 +3,11 @@
 
 use p4kx_cryxml::Xml;
 
-use crate::mtl::{MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS};
+use crate::mtl::{CUSTOM_PARAMS, MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS};
 use crate::mtl_xml::XmlElement;
-use crate::{Material, MaterialError, MaterialFlags, MaterialLibrary, PaletteSlot, TextureSlot};
+use crate::{
+    Material, MaterialError, MaterialFlags, MaterialLibrary, PaletteSlot, PublicParam, TextureSlot,
+};
 
 const DEFAULT_DIFFUSE: [f32; 3] = [1.0; 3];
 const DEFAULT_SPECULAR: [f32; 3] = [0.04; 3];
@@ -91,7 +93,27 @@ fn material<'a>(element: impl XmlElement<'a>) -> Result<Material, MaterialError>
         textures: textures(element)?,
         palette: palette_slot(element),
         tinted: false,
+        public_params: public_params(element),
     })
+}
+
+/// Reads the values of [`CUSTOM_PARAMS`] from the `PublicParams` of a material: a number or a
+/// colour of three numbers; a value of any other form is left out.
+fn public_params<'a>(element: impl XmlElement<'a>) -> Vec<PublicParam> {
+    let Some(params) = element
+        .children()
+        .find(|child| child.name().eq_ignore_ascii_case("PublicParams"))
+    else {
+        return Vec::new();
+    };
+    CUSTOM_PARAMS
+        .iter()
+        .filter_map(|&name| {
+            let text = params.attribute(name)?;
+            let value = vector(text).or_else(|| scalar(text).map(|number| [number, 0.0, 0.0]))?;
+            Some(PublicParam { name, value })
+        })
+        .collect()
 }
 
 /// Returns the palette colour a material takes: that of its first layer with a `PaletteTint`

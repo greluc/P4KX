@@ -21,6 +21,7 @@ mod guid;
 mod item_port;
 mod json_values;
 mod material;
+mod names;
 mod rig;
 mod rig_bytes;
 mod rig_deltas;
@@ -38,6 +39,10 @@ pub use error::ChfError;
 pub use guid::{Guid, InvalidGuid};
 pub use item_port::{ItemPort, MAX_PORT_DEPTH};
 pub use material::{ColorParam, FloatParam, Material, SubMaterial, Texture};
+pub use names::{
+    BODY_COLOR, EYE_COLOR, HAIR_DYE_COLOR, HAIR_TINT_COLOR, lowered_hash, name_hash,
+    skin_attachment,
+};
 pub use rig::{DnaRig, RIG_MAGIC, RigHeader};
 pub use rig_deltas::{
     DeltaEntry, DeltaRecord, DeltaRecords, DeltaSet, VariantDeltas, VariantHeader,

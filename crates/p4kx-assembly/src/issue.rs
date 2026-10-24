@@ -234,6 +234,19 @@ pub enum IssueKind {
         /// Why.
         reason: String,
     },
+    /// The Character's base material for the piece is in no lookup table, so the piece keeps the
+    /// material its Record or model names.
+    #[error("the material {material} the character chose is unknown; the piece keeps its own")]
+    MaterialChoiceUnknown {
+        /// The GUID of the material, as text.
+        material: String,
+    },
+    /// Some of the Character's material choices for the piece are not drawn.
+    #[error("{what} are not drawn")]
+    LookIgnored {
+        /// What is left out.
+        what: String,
+    },
 }
 
 impl IssueKind {
@@ -271,6 +284,8 @@ impl IssueKind {
             Self::BonesNotInSkeleton { .. } => "bones_not_in_skeleton",
             Self::NotSkinned => "not_skinned",
             Self::ShapeFailed { .. } => "shape_failed",
+            Self::MaterialChoiceUnknown { .. } => "material_choice_unknown",
+            Self::LookIgnored { .. } => "look_ignored",
         }
     }
 

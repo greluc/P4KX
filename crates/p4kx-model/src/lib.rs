@@ -76,8 +76,8 @@ pub use included::{
 };
 pub use model::{ChunkUsage, Lod, LodSelection, Mesh, Model, ModelChunk, ModelFile, Node, Submesh};
 pub use mtl::{
-    MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS, Material, MaterialFlags, MaterialLibrary, MaterialStatus,
-    TextureSlot,
+    CUSTOM_PARAMS, MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS, Material, MaterialFlags, MaterialLibrary,
+    MaterialStatus, PublicParam, TextureSlot,
 };
 pub use mtl_error::MaterialError;
 pub use object_container::{

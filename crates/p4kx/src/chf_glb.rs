@@ -6,16 +6,21 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
-use p4kx_assembly::{ArchiveModels, Armour, AssemblyOptions, Head, IssueKind, PartOrigin};
+use p4kx_assembly::{
+    ArchiveModels, Armour, AssemblyOptions, ForgeItems, Head, IssueKind, LoadoutResolver,
+    PartOrigin,
+};
 use p4kx_extraction::{
-    ConversionError, GlbOptions, GlbSummary, GltfError, is_same_file, write_replacing,
+    ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
+    write_replacing,
 };
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::chf::{InvalidChf, read_capped};
 use crate::cli::ChfGlbArgs;
-use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues};
+use crate::cli_chf::ChfMaterialsArg;
+use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
 use crate::query_table::one_line;
 
@@ -24,6 +29,14 @@ struct PartJson<'a> {
     name: &'a str,
     origin: &'static str,
     file: &'a str,
+}
+
+#[derive(Serialize)]
+struct FallbackJson<'a> {
+    material: &'a str,
+    role: &'static str,
+    file: &'a str,
+    reason: &'a str,
 }
 
 #[derive(Serialize)]
@@ -42,6 +55,11 @@ struct GlbJson<'a> {
     skinned_meshes: usize,
     primitives: usize,
     materials: usize,
+    textured_materials: usize,
+    textures: usize,
+    texture_pixels: u64,
+    texture_fallbacks: Vec<FallbackJson<'a>>,
+    default_material_ids: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -71,28 +89,41 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
         path: args.file.clone(),
         source,
     })?;
-    let head = Head::from_character(&chf.character)?;
     let archive = crate::key::open(&args.archive)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let head = Head::dressed(&chf.character, &mut ForgeItems::new(&mut resolver))?;
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let armour = Armour::build(head.variant(), head.pieces(), &models, &options)?;
 
-    let mut glb = GlbOptions::default().with_lod(args.lod);
+    let mode = match args.materials {
+        ChfMaterialsArg::Colours => MaterialMode::Colours,
+        ChfMaterialsArg::Textures => MaterialMode::Textures,
+    };
+    let mut glb = GlbOptions::default()
+        .with_lod(args.lod)
+        .with_materials(mode)
+        .with_texture_mip(args.texture_mip);
     if args.no_vertex_colours {
         glb = glb.without_vertex_colours();
     }
     let name = head.variant().code().to_owned();
+    let textures = models.textures();
     let summary = write_replacing(&args.out, |writer| {
-        armour.write_glb(&glb, writer).map_err(|error| match error {
-            GltfError::Write(source) => ConversionError::Write {
-                path: args.out.clone(),
-                source,
-            },
-            source => ConversionError::Glb {
-                file: name.clone(),
-                source,
-            },
-        })
+        armour
+            .write_glb_with(&glb, &textures, writer)
+            .map_err(|error| match error {
+                GltfError::Write(source) => ConversionError::Write {
+                    path: args.out.clone(),
+                    source,
+                },
+                source => ConversionError::Glb {
+                    file: name.clone(),
+                    source,
+                },
+            })
     })?;
 
     if as_json {
@@ -117,7 +148,7 @@ fn report<'a>(
     args: &ChfGlbArgs,
     head: &Head,
     armour: &'a Armour,
-    summary: &GlbSummary,
+    summary: &'a GlbSummary,
 ) -> GlbJson<'a> {
     GlbJson {
         archive: json::path(archive),
@@ -142,6 +173,20 @@ fn report<'a>(
         skinned_meshes: summary.skinned_meshes,
         primitives: summary.primitives,
         materials: summary.materials,
+        textured_materials: summary.textured_materials,
+        textures: summary.textures,
+        texture_pixels: summary.texture_pixels,
+        texture_fallbacks: summary
+            .texture_fallbacks
+            .iter()
+            .map(|fallback| FallbackJson {
+                material: &fallback.material,
+                role: fallback.role.name(),
+                file: &fallback.file,
+                reason: &fallback.reason,
+            })
+            .collect(),
+        default_material_ids: summary.default_material_ids,
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,
@@ -184,6 +229,14 @@ fn print_report(
             "part {}: {}",
             one_line(part.name()),
             one_line(part.file())
+        )?;
+    }
+    print_textures(&mut stdout, summary)?;
+    if summary.default_material_ids > 0 {
+        writeln!(
+            stdout,
+            "{} material IDs are drawn with the engine's default material",
+            summary.default_material_ids
         )?;
     }
     if summary.lod_fallbacks > 0 {

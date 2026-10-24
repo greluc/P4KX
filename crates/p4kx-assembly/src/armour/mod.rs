@@ -6,8 +6,13 @@
 
 mod body;
 mod build;
+mod dress;
+mod follow;
+mod forge_items;
 mod head;
+mod jobs;
 mod loadout;
+mod look;
 mod normals;
 mod piece;
 mod shape;
@@ -16,12 +21,18 @@ mod wearable;
 use std::io::Write;
 use std::sync::Arc;
 
-use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, RigPiece, write_rigged_glb};
+use p4kx_gltf::{
+    GlbOptions, GlbSummary, GltfError, RigPiece, TextureLoader, write_rigged_glb,
+    write_rigged_glb_with,
+};
 use p4kx_model::{MaterialStatus, Model};
 
 pub use body::BodyVariant;
+pub use dress::HeadItems;
+pub use forge_items::ForgeItems;
 pub use head::{Head, HeadError};
 pub use loadout::{Replaced, is_worn_type};
+pub use look::Look;
 pub use piece::Piece;
 pub use shape::MAX_DNA_RIG_LEN;
 pub use wearable::Wearable;
@@ -161,5 +172,25 @@ impl Armour {
             .map(|part| RigPiece::new(&part.name, &part.model, &part.materials))
             .collect();
         write_rigged_glb(&self.skeleton.bones, &pieces, options, out)
+    }
+
+    /// Writes the Armour as one GLB file to `out` like [`Self::write_glb`], taking the textures
+    /// of [`MaterialMode::Textures`](p4kx_gltf::MaterialMode::Textures) from `textures`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb`].
+    pub fn write_glb_with(
+        &self,
+        options: &GlbOptions,
+        textures: &dyn TextureLoader,
+        out: &mut impl Write,
+    ) -> Result<GlbSummary, GltfError> {
+        let pieces: Vec<RigPiece<'_>> = self
+            .parts
+            .iter()
+            .map(|part| RigPiece::new(&part.name, &part.model, &part.materials))
+            .collect();
+        write_rigged_glb_with(&self.skeleton.bones, &pieces, options, textures, out)
     }
 }

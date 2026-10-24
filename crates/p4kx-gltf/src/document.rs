@@ -179,7 +179,7 @@ pub(crate) fn skeleton_written(model: &Model, lod: &Lod, layout: &Layout<'_>) ->
 
 /// Pushes the sampler, an image of the binary chunk and a texture for each embedded image, and
 /// returns the textures in the order of the images.
-fn push_images(
+pub(crate) fn push_images(
     root: &mut Root,
     buffer: Index<json::Buffer>,
     layout: &Layout<'_>,

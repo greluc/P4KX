@@ -1,0 +1,188 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! Pieces worn on a shared skeleton, written with the textures of their materials.
+
+use std::error::Error;
+
+use p4kx_chunks::ChunkFile;
+use p4kx_gltf::{
+    GlbOptions, GlbSummary, MaterialMode, RigPiece, write_rigged_glb, write_rigged_glb_with,
+};
+use p4kx_model::{CompanionError, CompanionPath, MaterialLibrary, MaterialStatus, Model};
+use p4kx_testkit::gltf::material::AlphaMode;
+use p4kx_testkit::{
+    CheckedGlb, TestBone, TestModel, TestMtl, TestMtlMaterial, TestSkeleton, check_glb,
+};
+
+use crate::textures::support::{Stub, TestResult, base_image, material, near, texture};
+
+fn bone(name: &str, parent: Option<u16>, z: f32) -> TestBone {
+    TestBone {
+        name: name.to_owned(),
+        parent,
+        rotation: [0.0, 0.0, 0.0, 1.0],
+        translation: [0.0, 0.0, z],
+    }
+}
+
+fn body() -> Result<Model, Box<dyn Error>> {
+    let skeleton = TestSkeleton::new(vec![
+        bone("pelvis", None, 0.0),
+        bone("TIP", Some(0), 1.0),
+        bone("root", Some(1), 1.0),
+    ]);
+    let source = TestModel::cube().helpers_only().with_skeleton(&skeleton);
+    let mut none = |_: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> { Ok(None) };
+    Ok(Model::read(
+        "body.chr",
+        &ChunkFile::parse(source.cgf())?,
+        &mut none,
+    )?)
+}
+
+fn piece() -> Result<Model, Box<dyn Error>> {
+    let source = TestModel::two_bone_skin();
+    let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+        Ok(match path {
+            CompanionPath::Sibling("piece.skinm") => Some(source.cgfm()),
+            _ => None,
+        })
+    };
+    Ok(Model::read(
+        "piece.skin",
+        &ChunkFile::parse(source.cgf())?,
+        &mut companions,
+    )?)
+}
+
+fn library(material: &TestMtlMaterial) -> Result<MaterialStatus, Box<dyn Error>> {
+    let materials = [material.clone(), material.clone(), material.clone()];
+    let bytes = TestMtl::multi(&materials).cryxml();
+    Ok(MaterialStatus::Loaded(MaterialLibrary::parse(
+        "objects/test/piece",
+        &bytes,
+    )?))
+}
+
+fn write(
+    status: &MaterialStatus,
+    stub: Option<&Stub>,
+) -> Result<(CheckedGlb, GlbSummary), Box<dyn Error>> {
+    let (body, piece) = (body()?, piece()?);
+    let pieces = [RigPiece::new("head", &piece, status)];
+    let options = GlbOptions::default().with_materials(MaterialMode::Textures);
+    let mut bytes = Vec::new();
+    let summary = match stub {
+        Some(stub) => write_rigged_glb_with(&body.bones, &pieces, &options, stub, &mut bytes)?,
+        None => write_rigged_glb(&body.bones, &pieces, &options, &mut bytes)?,
+    };
+    Ok((check_glb(&bytes)?, summary))
+}
+
+fn skin_material() -> TestMtlMaterial {
+    TestMtlMaterial::new("shader_head")
+        .shader("HumanSkin_V2")
+        .diffuse([0.5, 1.0, 0.25])
+        .texture("TexSlot1", "Objects/Test/head_diff.tif")
+        .texture("TexSlot2", "Objects/Test/head_ddna.tif")
+}
+
+#[test]
+fn the_textures_of_a_rigged_piece_are_embedded_and_shared() -> TestResult {
+    let stub = Stub::default()
+        .with(
+            "objects/test/head_diff.dds",
+            &texture([200, 100, 50, 255], false)?,
+        )
+        .with(
+            "objects/test/head_ddna.dds",
+            &texture([128, 128, 255, 200], true)?,
+        );
+
+    let (glb, summary) = write(&library(&skin_material())?, Some(&stub))?;
+
+    assert_eq!(glb.document.skins().len(), 1, "still one skin");
+    assert!(summary.textured_materials >= 1, "{summary:?}");
+    assert_eq!(
+        summary.textures, 3,
+        "the diffuse, normal and smoothness image, each made once however many materials use them"
+    );
+    let head = material(&glb, "shader_head")?;
+    assert!(head.normal_texture().is_some(), "a normal map");
+    let base = base_image(&glb, &head)?;
+    assert!(
+        near(base.pixel(0, 0), [200, 100, 50, 255]),
+        "{:?}",
+        base.pixel(0, 0)
+    );
+    assert_eq!(
+        head.pbr_metallic_roughness().base_color_factor(),
+        [0.5, 1.0, 0.25, 1.0],
+        "the material's diffuse colour multiplies the image"
+    );
+    Ok(())
+}
+
+#[test]
+fn hair_cards_take_their_opacity_from_the_opacity_map_and_their_colour_from_the_material()
+-> TestResult {
+    let cards = TestMtlMaterial::new("hair_m")
+        .shader("HairPBR")
+        .diffuse([0.2, 0.1, 0.05])
+        .texture("TexSlot1", "Objects/Test/hair_opac.tif")
+        .texture("TexSlot4", "Objects/Test/hair_id.tif");
+    let stub = Stub::default().with(
+        "objects/test/hair_opac.dds",
+        &texture([64, 0, 0, 255], false)?,
+    );
+
+    let (glb, summary) = write(&library(&cards)?, Some(&stub))?;
+
+    let hair = material(&glb, "hair_m")?;
+    assert_eq!(hair.alpha_mode(), AlphaMode::Mask, "cards are cut out");
+    assert_eq!(hair.alpha_cutoff(), Some(0.5));
+    let base = base_image(&glb, &hair)?;
+    assert!(
+        near(base.pixel(0, 0), [255, 255, 255, 64]),
+        "white with the opacity as alpha: {:?}",
+        base.pixel(0, 0)
+    );
+    assert_eq!(
+        hair.pbr_metallic_roughness().base_color_factor(),
+        [0.2, 0.1, 0.05, 1.0]
+    );
+    assert!(summary.texture_fallbacks.is_empty(), "{summary:?}");
+    Ok(())
+}
+
+#[test]
+fn a_texture_that_cannot_be_loaded_leaves_the_plain_colour_and_is_listed() -> TestResult {
+    let stub = Stub::default();
+
+    let (glb, summary) = write(&library(&skin_material())?, Some(&stub))?;
+
+    let head = material(&glb, "shader_head")?;
+    assert!(head.pbr_metallic_roughness().base_color_texture().is_none());
+    assert_eq!(
+        head.pbr_metallic_roughness().base_color_factor(),
+        [0.5, 1.0, 0.25, 1.0]
+    );
+    assert!(
+        summary
+            .texture_fallbacks
+            .iter()
+            .any(|fallback| fallback.file.contains("head_diff")),
+        "{summary:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_plain_writer_ignores_the_material_mode_and_embeds_no_texture() -> TestResult {
+    let (glb, summary) = write(&library(&skin_material())?, None)?;
+
+    assert_eq!(summary.textures, 0);
+    assert_eq!(glb.document.textures().len(), 0);
+    Ok(())
+}

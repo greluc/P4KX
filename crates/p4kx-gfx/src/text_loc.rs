@@ -23,6 +23,30 @@ pub(crate) fn reference(text: &str) -> Option<Reference<'_>> {
     })
 }
 
+/// What a text is after its localisation key, if it holds one, is looked up.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Localised {
+    /// The text is no `@key`; it is drawn as it is.
+    Plain,
+    /// The text of the key with its parameters filled in.
+    Text(String),
+    /// The key, which the texts do not hold.
+    Missing(String),
+}
+
+/// Resolves a text of the form `@key` or `@key,P=a,P=b` with `lookup`, filling the printf-style
+/// placeholders of the found text with the parameters in order.
+#[must_use]
+pub fn localise_text(text: &str, lookup: &dyn Fn(&str) -> Option<String>) -> Localised {
+    let Some(found) = reference(text) else {
+        return Localised::Plain;
+    };
+    match lookup(found.key) {
+        Some(template) => Localised::Text(fill(&template, &found.parameters)),
+        None => Localised::Missing(found.key.to_owned()),
+    }
+}
+
 /// Fills the printf-style placeholders of `template` in order with `parameters`; a placeholder
 /// without a parameter stays.
 pub(crate) fn fill(template: &str, parameters: &[&str]) -> String {

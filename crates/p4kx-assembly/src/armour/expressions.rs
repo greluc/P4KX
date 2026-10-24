@@ -34,6 +34,7 @@ pub enum Expressions {
 /// The morph targets of a head and the requested names no blendshape has.
 pub(super) struct Morphs {
     pub(super) targets: Vec<MorphTarget>,
+    pub(super) numbers: Vec<usize>,
     pub(super) unknown: Vec<String>,
     pub(super) empty: Vec<String>,
 }
@@ -47,7 +48,7 @@ fn normal(name: &str) -> String {
 }
 
 /// Reads the names of the blendshapes from the `RigLogic` chunk of the head skin at `path`.
-fn logic_of(path: &str, models: &dyn ModelProvider) -> Result<RigLogic, String> {
+pub(super) fn logic_of(path: &str, models: &dyn ModelProvider) -> Result<RigLogic, String> {
     let bytes = models
         .file(path, MAX_SKIN_LEN)
         .map_err(|failure| match failure {
@@ -180,6 +181,12 @@ pub(super) fn morphs(
             .collect(),
         _ => Vec::new(),
     };
+    let numbers: Vec<usize> = made
+        .iter()
+        .zip(&chosen)
+        .filter(|(target, _)| target.is_some())
+        .map(|(_, (number, _))| *number)
+        .collect();
     let mut targets: Vec<MorphTarget> = made.into_iter().flatten().collect();
     let mut seen = std::collections::HashMap::<String, usize>::new();
     for target in &mut targets {
@@ -191,6 +198,7 @@ pub(super) fn morphs(
     }
     Ok(Morphs {
         targets,
+        numbers,
         unknown,
         empty,
     })

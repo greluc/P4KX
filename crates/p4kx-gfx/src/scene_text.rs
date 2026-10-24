@@ -89,7 +89,7 @@ fn has_fill(records: &[ShapeRecord]) -> bool {
     })
 }
 
-fn tofu() -> ScenePath {
+pub(crate) fn tofu() -> ScenePath {
     let [left, top, right, bottom] = TOFU_OUTER;
     let point = |x, y| ScenePoint { x, y };
     let mut commands = Vec::with_capacity(10);

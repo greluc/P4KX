@@ -8,6 +8,7 @@ use json::validation::USize64;
 use p4kx_model::{Bone, BoneMatch, Influences, MaterialStatus, Model};
 
 use crate::GltfError;
+use crate::animations::{AnimationPlan, push_animations};
 use crate::document::{GENERATOR, NodeMeshes, push_accessor, push_images, push_meshes};
 use crate::glb::{GlbOptions, GlbSummary, MaterialMode, write_file};
 use crate::glb_plan::{summarise, texture_set};
@@ -16,6 +17,7 @@ use crate::layout::{Layout, Rigging};
 use crate::materials::MaterialPlan;
 use crate::morphs::MorphTarget;
 use crate::nodes::{RigModel, push_rig_nodes};
+use crate::rig_animation::{RigAnimation, RigNodes, plan_all};
 use crate::scene::nearest_lod;
 use crate::skin::inverse_binds;
 use crate::texture_loader::{NoTextures, TextureLoader};
@@ -87,7 +89,7 @@ pub fn write_rigged_glb(
         materials: MaterialMode::Colours,
         ..*options
     };
-    write_rigged_glb_with(skeleton, pieces, &plain, &NoTextures, out)
+    write_rigged_glb_animated_with(skeleton, pieces, &[], &plain, &NoTextures, out)
 }
 
 /// Writes `pieces` worn on `skeleton` as one GLB file to `out` like [`write_rigged_glb`], taking
@@ -104,6 +106,49 @@ pub fn write_rigged_glb(
 pub fn write_rigged_glb_with(
     skeleton: &[Bone],
     pieces: &[RigPiece<'_>],
+    options: &GlbOptions,
+    textures: &dyn TextureLoader,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    write_rigged_glb_animated_with(skeleton, pieces, &[], options, textures, out)
+}
+
+/// Writes `pieces` worn on `skeleton` with `animations` as one GLB file to `out`, in plain
+/// colours; see [`write_rigged_glb`].
+///
+/// # Errors
+///
+/// As [`write_rigged_glb`].
+pub fn write_rigged_glb_animated<'m>(
+    skeleton: &'m [Bone],
+    pieces: &'m [RigPiece<'m>],
+    animations: &[RigAnimation<'m>],
+    options: &GlbOptions,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    let plain = GlbOptions {
+        materials: MaterialMode::Colours,
+        ..*options
+    };
+    write_rigged_glb_animated_with(skeleton, pieces, animations, &plain, &NoTextures, out)
+}
+
+/// Writes `pieces` worn on `skeleton` with `animations` as one GLB file to `out`, taking the
+/// textures from `textures`; see [`write_rigged_glb_with`].
+///
+/// Animations with keys move the bone nodes by controller ID like
+/// [`write_glb_animated`](crate::write_glb_animated) does; sampled animations move the bones they
+/// name and set the morph weights of the pieces they name, with the same `LINEAR` or, for a single
+/// sample, `STEP` interpolation. Animations without a channel are not written and every
+/// animation asked for is listed in [`GlbSummary::animations`].
+///
+/// # Errors
+///
+/// As [`write_rigged_glb`].
+pub fn write_rigged_glb_animated_with<'m>(
+    skeleton: &'m [Bone],
+    pieces: &'m [RigPiece<'m>],
+    animations: &[RigAnimation<'m>],
     options: &GlbOptions,
     textures: &dyn TextureLoader,
     out: &mut impl Write,
@@ -125,25 +170,85 @@ pub fn write_rigged_glb_with(
             layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
         }
     }
+    let drawn_nodes: usize = instances
+        .iter()
+        .map(|instance| instance.model.nodes.len())
+        .sum();
+    let plans = plan_animations(skeleton, pieces, animations, &mut layout);
     let images = match options.materials {
         MaterialMode::Textures => texture_set(&layout, &instances, options.texture_mip, textures),
         MaterialMode::Colours => TextureSet::default(),
     };
     layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
-    let root = document(skeleton, pieces, &instances, &layout, &images);
+    let mut root = document(skeleton, pieces, &instances, &layout, &images);
+    if let Some(buffer) = root.buffers.first().map(|_| json::Index::new(0)) {
+        push_animations(&mut root, buffer, &layout, &plans);
+    }
     let total = write_file(&root, &layout, &images, out)?;
     let defaulted = instances
         .iter()
         .map(|instance| instance.plan.defaulted())
         .sum();
-    let drawn_nodes = instances
-        .iter()
-        .map(|instance| instance.model.nodes.len())
-        .sum();
-    let mut summary = summarise(&root, &layout, defaulted, drawn_nodes, images, &[], total);
+    let mut summary = summarise(
+        &root,
+        &layout,
+        defaulted,
+        drawn_nodes,
+        images,
+        &plans,
+        total,
+    );
     summary.parts = instances.len();
     summary.lod_fallbacks = fallbacks;
     Ok(summary)
+}
+
+/// Plans the blocks of `animations` in `layout`, once the meshes are planned and the nodes of the
+/// document are known: the nodes of the pieces first, then the bones.
+fn plan_animations<'m>(
+    skeleton: &[Bone],
+    pieces: &[RigPiece<'_>],
+    animations: &[RigAnimation<'m>],
+    layout: &mut Layout<'m>,
+) -> Vec<AnimationPlan> {
+    let drawn_nodes: usize = pieces.iter().map(|piece| piece.model.nodes.len()).sum();
+    let piece_mesh_nodes = mesh_nodes(pieces, layout);
+    let piece_targets: Vec<usize> = (0..pieces.len())
+        .map(|part| {
+            layout
+                .meshes
+                .iter()
+                .find(|mesh| mesh.part == part)
+                .map_or(0, |mesh| mesh.morphs.len())
+        })
+        .collect();
+    let bones_written = layout.inverse_binds.is_some() && !skeleton.is_empty();
+    let nodes = RigNodes {
+        bones: if bones_written { skeleton } else { &[] },
+        first_bone_node: bones_written.then_some(drawn_nodes),
+        total: drawn_nodes + skeleton.len(),
+        piece_mesh_nodes: &piece_mesh_nodes,
+        piece_targets: &piece_targets,
+    };
+    plan_all(layout, animations, &nodes)
+}
+
+/// Returns the node of the first mesh of each piece, if it has one.
+fn mesh_nodes(pieces: &[RigPiece<'_>], layout: &Layout<'_>) -> Vec<Option<usize>> {
+    let mut offset = 0;
+    pieces
+        .iter()
+        .enumerate()
+        .map(|(part, piece)| {
+            let start = offset;
+            offset += piece.model.nodes.len();
+            layout
+                .meshes
+                .iter()
+                .find(|mesh| mesh.part == part)
+                .map(|mesh| start + mesh.node)
+        })
+        .collect()
 }
 
 /// Returns an instance per piece at the level of detail `options` asks for or the nearest lower

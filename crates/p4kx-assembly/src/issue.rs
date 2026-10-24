@@ -268,6 +268,25 @@ pub enum IssueKind {
         /// The name that was asked for.
         name: String,
     },
+    /// The joints of a shaped head's face cannot be moved to the Character's own positions, so
+    /// they stay where the skin binds them.
+    #[error("the facial joints cannot be placed by the DNA: {reason}")]
+    FaceJointsFailed {
+        /// Why.
+        reason: String,
+    },
+    /// The rig of the face cannot be read, so its animations are not written.
+    #[error("the face animation cannot be evaluated: {reason}")]
+    FaceAnimationFailed {
+        /// Why.
+        reason: String,
+    },
+    /// No track of an animation fits the Character, so it is not written.
+    #[error("the animation is not written: {reason}")]
+    AnimationNotUsed {
+        /// Why.
+        reason: String,
+    },
 }
 
 impl IssueKind {
@@ -310,6 +329,9 @@ impl IssueKind {
             Self::MorphsFailed { .. } => "morphs_failed",
             Self::UnknownExpression { .. } => "unknown_expression",
             Self::EmptyExpression { .. } => "empty_expression",
+            Self::FaceJointsFailed { .. } => "face_joints_failed",
+            Self::FaceAnimationFailed { .. } => "face_animation_failed",
+            Self::AnimationNotUsed { .. } => "animation_not_used",
         }
     }
 
@@ -339,6 +361,7 @@ impl IssueKind {
                 | Self::NoWornGeometry
                 | Self::NoVariantGeometry { .. }
                 | Self::ShapeFailed { .. }
+                | Self::AnimationNotUsed { .. }
         )
     }
 }

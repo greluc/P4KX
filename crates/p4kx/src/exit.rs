@@ -12,6 +12,7 @@ use p4kx_extraction::{
     UnknownEntries,
 };
 
+use crate::armour_loadout::UnreadableLoadout;
 use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
 use crate::chf::{InvalidChf, InvalidChfJson, UnreadableChfInput};
@@ -84,7 +85,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      --format and without --out for dcb query, --json with --format table for dcb refs or
      grep, --json with another format than json for dcb fields, an empty text for grep, a GUID
      or record path for dcb refs that no Record has, an Entity that no Record or several Records
-     match, a Loadout change (--exclude, --replace) that is malformed, names a port the
+     match, an armour --loadout that is neither an Entity nor an XML Loadout that can be read,
+     a Loadout change (--exclude, --replace) that is malformed, names a port the
      Loadout lacks, contradicts another, or attaches an Entity that does not fit the port, an
      audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
@@ -208,4 +210,5 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<UnknownTag>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<GlbOutputIsArchive>().is_some()
+        || error.downcast_ref::<UnreadableLoadout>().is_some()
 }

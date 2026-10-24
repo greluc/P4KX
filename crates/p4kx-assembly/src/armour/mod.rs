@@ -6,6 +6,7 @@
 
 mod body;
 mod build;
+mod loadout;
 mod piece;
 mod wearable;
 
@@ -16,6 +17,7 @@ use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, RigPiece, write_rigged_glb};
 use p4kx_model::{MaterialStatus, Model};
 
 pub use body::BodyVariant;
+pub use loadout::{Replaced, is_worn_type};
 pub use piece::Piece;
 pub use wearable::Wearable;
 

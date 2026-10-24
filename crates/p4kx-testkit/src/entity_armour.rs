@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::entity_armour_loadout::{loadout_entities, loadout_files};
 use crate::model::TestPositions;
 use crate::{
     DataForgeBuilder, TestBone, TestEntity, TestEntry, TestModel, TestMtl, TestMtlMaterial,
@@ -82,6 +83,7 @@ fn database() -> DataForgeBuilder {
         .geometry(format!("{MALE_ARMOUR}/plain.skin"), None);
     [suit, boots, cape, hat, plain]
         .iter()
+        .chain(&loadout_entities())
         .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
             builder.record(entity.record())
         })
@@ -100,6 +102,17 @@ fn database() -> DataForgeBuilder {
 /// - `TEST_Hat` has a skin for `Male` and names one for `Female` that the Archive lacks;
 /// - `TEST_Plain` names one skin as its main geometry, in the male folder, weighted to a bone
 ///   `cloth` that no skeleton has, below `spine`.
+///
+/// Characters with a Loadout of worn Entities, which have an `AttachDef.Type`:
+///
+/// - `TEST_Torso` (`Char_Armor_Torso`) is worn like `TEST_Suit`, `TEST_Helmet`
+///   (`Char_Armor_Helmet`) like `TEST_Hat` on the male body only, `TEST_Plate`
+///   (`Char_Armor_Torso`) takes the place of the torso, and `TEST_Pants` (`Char_Clothing_Legs`) has
+///   a male skin; `TEST_Pistol` (`WeaponPersonal`) names a skin that is never worn;
+/// - `TEST_Soldier` holds the torso, the pistol, the helmet, `TEST_Gone`, which no Entity has,
+///   and the pants in the nested Loadout of an empty port;
+/// - `TEST_Grunt` names the XML Loadout [`ARMOUR_XML_LOADOUT`], which holds the torso and the
+///   helmet.
 #[must_use]
 pub fn armour_entries() -> Vec<TestEntry> {
     let male = armour_male_skeleton();
@@ -119,6 +132,7 @@ pub fn armour_entries() -> Vec<TestEntry> {
         TestEntry::stored("Data\\objects\\test\\cube.mtl", library.cryxml()),
     ];
     let folder = |path: &str| format!("Data\\{}", path.replace('/', "\\"));
+    entries.extend(loadout_files());
     entries.extend(skin_entries(MALE_BODY, &skin(&male, 0)));
     entries.extend(skin_entries(FEMALE_BODY, &skin(&female, 0)));
     for (path, model) in [

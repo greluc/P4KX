@@ -76,19 +76,7 @@ fn cell_text(value: &Value<'_>) -> String {
     one_line(&text)
 }
 /// Returns `text` on one line: line breaks and tabs escaped, other control characters replaced.
-pub(crate) fn one_line(text: &str) -> String {
-    let mut line = String::with_capacity(text.len());
-    for c in text.chars() {
-        match c {
-            '\n' => line.push_str("\\n"),
-            '\r' => line.push_str("\\r"),
-            '\t' => line.push_str("\\t"),
-            c if c.is_control() => line.push('\u{fffd}'),
-            c => line.push(c),
-        }
-    }
-    line
-}
+pub(crate) use p4kx_extraction::one_line;
 
 /// Returns the number of characters [`one_line`] makes of `text`.
 fn line_width(text: &str) -> usize {

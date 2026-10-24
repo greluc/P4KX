@@ -4,7 +4,7 @@
 use std::error::Error;
 use std::path::PathBuf;
 
-use p4kx_extraction::{ArchiveError, DataForgeError, EntryReadError};
+use p4kx_extraction::{ArchiveError, ConversionError, DataForgeError, EntryReadError};
 use p4kx_settings::{KeyChoiceError, SettingsError};
 use thiserror::Error;
 
@@ -103,6 +103,22 @@ pub(crate) enum ToolError {
     /// No Record has the record path.
     #[error("no Record has the record path `{0}`; search_records finds Records")]
     UnknownRecordPath(String),
+    /// The Entry is no chunk file or no model, or one of its parts cannot be read.
+    #[error("cannot read the Entry {path} as {what}")]
+    Convert {
+        /// The Entry path.
+        path: String,
+        /// What it was read as, e.g. `a chunk file`.
+        what: &'static str,
+        /// What failed.
+        #[source]
+        source: Box<ConversionError>,
+    },
+    /// The chunk type filter is neither a known type name nor a type ID.
+    #[error(
+        "`{0}` is neither a chunk type name known for this file's container nor a hexadecimal type ID such as 0x9293B9D8; list_chunks without `type` shows the types the file holds"
+    )]
+    BadChunkType(String),
     /// One item alone is larger than a response may be.
     #[error("the {what} is larger than the response cap of {limit} bytes; {hint}")]
     TooLargeItem {

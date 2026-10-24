@@ -428,6 +428,9 @@ Service.
 | `list_structs` | The struct definitions matching a `name` Filter, with parent and declared fields (data type, array, target struct or enum) |
 | `list_enums` | The enum definitions matching a `name` Filter, with their values |
 | `run_query` | One page of a Query result (`query`): typed columns, rows as `p4kx dcb query --format json` writes them, failed Records, unresolved References |
+| `list_chunks` | The chunks of a chunk file Entry (`path`) as `p4kx chunks list` shows them: index, type, type ID, known, version, chunk ID, byte order, offset and size; `type` (a name or `0x` ID) narrows it. No chunk data is returned |
+| `get_model_info` | A model Entry (`path`) summarised as `p4kx model info --json`: geometry, material library and IDs, levels of detail, and the number of materials, nodes, meshes, bones, animations and chunks |
+| `list_model_items` | One `section` of a model Entry, paged: `materials`, `nodes`, `meshes`, `bones`, `animations`, `unread_animations` or `chunks`, each item shaped as in `p4kx model info --json` |
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
 or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a

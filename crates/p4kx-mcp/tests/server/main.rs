@@ -12,6 +12,7 @@ mod definitions;
 mod entries;
 mod forge;
 mod legal_notice;
+mod models;
 mod query;
 mod read;
 mod read_only;

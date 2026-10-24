@@ -5,12 +5,12 @@ use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
 use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Model};
+use p4kx_extraction::{ModelInfo, file_name, node_name, usage_name};
 
 use crate::json;
 use crate::model::Opened;
 use crate::model_animations::{count_line, write_table, write_unread};
 use crate::model_bones::write_bones;
-use crate::model_json::{InfoJson, file_name, node_name, usage_name};
 use crate::model_text::printable;
 
 const NONE: &str = "-";
@@ -18,7 +18,7 @@ const NONE: &str = "-";
 /// Prints the text or JSON of `p4kx model info`.
 pub(crate) fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     if as_json {
-        json::print(&InfoJson::of(source, animations))?;
+        json::print(&ModelInfo::of(source, animations))?;
         return Ok(());
     }
     let model = source.model();

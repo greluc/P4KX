@@ -4,46 +4,10 @@
 use std::io::{self, Write};
 
 use p4kx_extraction::model::Model;
-use p4kx_extraction::{AnimationSet, AnimationSummary, UnreadAnimation};
+use p4kx_extraction::{AnimationSet, AnimationSummary};
 use serde::Serialize;
 
 use crate::query_table::one_line;
-
-/// The JSON shape of one animation in `p4kx model info`.
-#[derive(Serialize)]
-pub(crate) struct AnimationJson {
-    name: String,
-    path: String,
-    source: String,
-    frames_per_second: u16,
-    end_frame: u32,
-    duration_seconds: f32,
-    additive: bool,
-    tracks: usize,
-    bound_tracks: usize,
-    keys: usize,
-}
-
-impl AnimationJson {
-    pub(crate) fn of_set(model: &Model, set: &AnimationSet) -> Vec<Self> {
-        set.animations
-            .iter()
-            .zip(&set.origins)
-            .map(|(animation, origin)| Self {
-                name: one_line(&animation.name),
-                path: one_line(&animation.path),
-                source: one_line(origin),
-                frames_per_second: animation.frames_per_second,
-                end_frame: animation.end_frame,
-                duration_seconds: animation.duration_seconds(),
-                additive: animation.additive,
-                tracks: animation.tracks.len(),
-                bound_tracks: animation.bind(&model.bones).bound.len(),
-                keys: animation.key_count(),
-            })
-            .collect()
-    }
-}
 
 /// The JSON shape of an animation of `p4kx model glb`.
 #[derive(Serialize)]
@@ -65,24 +29,6 @@ impl WrittenJson {
             channels: summary.channels,
             keys: summary.keys,
             skipped_tracks: summary.skipped_tracks.clone(),
-        }
-    }
-}
-
-/// The JSON shape of an animation file or animation that could not be read.
-#[derive(Serialize)]
-pub(crate) struct UnreadJson {
-    source: String,
-    name: Option<String>,
-    reason: String,
-}
-
-impl UnreadJson {
-    pub(crate) fn of(unread: &UnreadAnimation) -> Self {
-        Self {
-            source: one_line(&unread.source),
-            name: unread.name.as_deref().map(one_line),
-            reason: one_line(&unread.reason),
         }
     }
 }

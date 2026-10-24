@@ -63,6 +63,8 @@ impl Shared {
             },
             done: self.done.load(Ordering::Relaxed),
             total: 0,
+            models_done: 0,
+            models_total: 0,
         }
     }
 }

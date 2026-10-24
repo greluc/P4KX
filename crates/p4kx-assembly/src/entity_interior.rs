@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::sync::Arc;
+mod budget;
 
 use p4kx_extraction::{Archive, PathIndex};
 use p4kx_gltf::{GltfError, Scene, SceneNode};
 use p4kx_model::{Model, Transform};
 
-use crate::interior::model_vertices;
 use crate::placement::{node_transform, offset};
 use crate::{
-    Assembly, AssemblyError, EntityNode, Interior, InteriorOptions, Issue, IssueKind,
-    ObjectContainerRef,
+    Assembly, AssemblyError, EntityNode, Interior, InteriorOptions, InteriorProgress,
+    InteriorWatch, Issue, IssueKind, ObjectContainerRef,
 };
+use budget::Budget;
 
 /// The name of the scene node that groups the Interior below the Entity.
 pub const INTERIOR_NODE: &str = "Interior";
@@ -122,11 +122,32 @@ impl EntityInterior {
         tree: &EntityNode,
         options: &InteriorOptions,
     ) -> Result<Self, AssemblyError> {
+        Self::build_watched(archive, assembly, tree, options, &InteriorWatch::none())
+    }
+
+    /// Builds the Interior like [`Self::build`], asking `watch` before each container and while
+    /// it reads the models whether to stop, and telling it how far it has come.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build`], and [`AssemblyError::Cancelled`] when `watch` asks to stop.
+    pub fn build_watched(
+        archive: &Archive,
+        assembly: &Assembly,
+        tree: &EntityNode,
+        options: &InteriorOptions,
+        watch: &InteriorWatch<'_>,
+    ) -> Result<Self, AssemblyError> {
         let index = PathIndex::new(archive);
         let root = assembly.root().and_then(|part| part.model());
         let mut built = Self::default();
         let budget = Budget::new(assembly, options);
-        for reference in tree.object_containers() {
+        let total = tree.object_containers().len();
+        for (done, reference) in tree.object_containers().iter().enumerate() {
+            if watch.is_cancelled() {
+                return Err(AssemblyError::Cancelled);
+            }
+            watch.report(InteriorProgress::Container { done, total });
             if let Some(kind) = budget.exhausted(&built) {
                 built.note(reference, kind);
                 break;
@@ -158,7 +179,8 @@ impl EntityInterior {
             };
             let placement = built.place(reference, root);
             let limited = budget.options(&built);
-            let interior = Interior::build(&[archive, &opened], entry.path(), &limited)?;
+            let interior =
+                Interior::build_watched(&[archive, &opened], entry.path(), &limited, watch)?;
             built.add(reference, placement, interior);
         }
         Ok(built)
@@ -266,86 +288,6 @@ fn near(a: [f32; 3], b: [f32; 3]) -> bool {
     a.iter()
         .zip(b)
         .all(|(x, y)| (x - y).abs() <= OFFSET_TOLERANCE)
-}
-
-/// What is left of the limits of one Entity's Interior after the containers built so far.
-struct Budget {
-    options: InteriorOptions,
-    hull_vertices: usize,
-}
-
-impl Budget {
-    fn new(assembly: &Assembly, options: &InteriorOptions) -> Self {
-        let mut seen: Vec<*const Model> = Vec::new();
-        let mut hull_vertices = 0_usize;
-        for model in assembly
-            .parts()
-            .iter()
-            .filter_map(|part| part.model.as_ref())
-        {
-            let pointer = Arc::as_ptr(model);
-            if !seen.contains(&pointer) {
-                seen.push(pointer);
-                hull_vertices = hull_vertices.saturating_add(model_vertices(model));
-            }
-        }
-        Self {
-            options: *options,
-            hull_vertices,
-        }
-    }
-
-    fn used_vertices(&self, built: &EntityInterior) -> usize {
-        built
-            .containers
-            .iter()
-            .fold(self.hull_vertices, |sum, container| {
-                sum.saturating_add(container.interior.vertices())
-            })
-    }
-
-    fn used_parts(built: &EntityInterior) -> usize {
-        built.parts()
-    }
-
-    fn used_containers(built: &EntityInterior) -> usize {
-        built
-            .containers
-            .iter()
-            .map(|container| container.interior.containers())
-            .sum()
-    }
-
-    /// Returns why no further container may be built, or `None` while something is left.
-    fn exhausted(&self, built: &EntityInterior) -> Option<IssueKind> {
-        let options = &self.options;
-        if Self::used_containers(built) >= options.max_containers {
-            let limit = options.max_containers;
-            return Some(IssueKind::TooManyContainers { limit });
-        }
-        if Self::used_parts(built) >= options.max_parts {
-            let limit = options.max_parts;
-            return Some(IssueKind::TooManyParts { limit });
-        }
-        if self.used_vertices(built) >= options.max_vertices {
-            let limit = options.max_vertices;
-            return Some(IssueKind::TooManyVertices { limit });
-        }
-        None
-    }
-
-    /// Returns the options for the next container: the limits less what was used.
-    fn options(&self, built: &EntityInterior) -> InteriorOptions {
-        let mut options = self.options;
-        options.max_containers = options
-            .max_containers
-            .saturating_sub(Self::used_containers(built));
-        options.max_parts = options.max_parts.saturating_sub(Self::used_parts(built));
-        options.max_vertices = options
-            .max_vertices
-            .saturating_sub(self.used_vertices(built));
-        options
-    }
 }
 
 fn find<'a>(index: &PathIndex<'a>, file: &str) -> Option<&'a p4kx_extraction::Entry> {

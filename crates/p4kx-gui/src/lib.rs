@@ -56,7 +56,7 @@ pub mod window;
 pub use app::App;
 pub use assembly_export::{
     ASSEMBLY_LODS, ASSEMBLY_MATERIALS, AssemblyExport, AssemblyExportProgress, AssemblyExportSetup,
-    AssemblyExportStage, AssemblyExportStatus, AssemblyExportSummary, PartIssue,
+    AssemblyExportStage, AssemblyExportStatus, AssemblyExportSummary, InteriorFacts, PartIssue,
 };
 pub use audio::{
     AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,

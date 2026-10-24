@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use p4kx_assembly::{Assembly, Issue, LoadoutChanges};
+use p4kx_assembly::{Assembly, Interior, Issue, LoadoutChanges};
 use p4kx_extraction::GlbSummary;
 
 use crate::model_info::printable;
@@ -33,7 +33,23 @@ impl PartIssue {
     }
 }
 
-/// What a finished Export of an Entity as GLB wrote and what it left out.
+/// What the Interior of an export holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InteriorFacts {
+    /// The containers that were opened.
+    pub containers: usize,
+    /// The parts of the containers: the containers themselves, their `.soc` files, models, props
+    /// and lights.
+    pub parts: usize,
+    /// The parts with a model of their own, readable or not.
+    pub model_parts: usize,
+    /// The parts whose model was read.
+    pub modelled_parts: usize,
+    /// The lights.
+    pub lights: usize,
+}
+
+/// What a finished Export as GLB wrote and what it left out.
 #[derive(Debug, Clone, PartialEq)]
 pub struct AssemblyExportSummary {
     file: PathBuf,
@@ -45,14 +61,14 @@ pub struct AssemblyExportSummary {
     issues: Vec<PartIssue>,
     excluded: usize,
     replaced: usize,
+    interior: Option<InteriorFacts>,
 }
 
 impl AssemblyExportSummary {
     pub(crate) fn new(
         (file, name): (PathBuf, String),
         assembly: &Assembly,
-        written: GlbSummary,
-        changes: &LoadoutChanges,
+        (written, changes): (GlbSummary, &LoadoutChanges),
     ) -> Self {
         Self {
             file,
@@ -64,7 +80,45 @@ impl AssemblyExportSummary {
             issues: assembly.issues().iter().map(PartIssue::of).collect(),
             excluded: changes.exclusions().len(),
             replaced: changes.replacements().len(),
+            interior: assembly.interior().map(|interior| InteriorFacts {
+                containers: interior.containers().len(),
+                parts: interior.parts(),
+                model_parts: interior.model_parts(),
+                modelled_parts: interior.modelled_parts(),
+                lights: interior.lights(),
+            }),
         }
+    }
+
+    pub(crate) fn of_interior(
+        (file, name): (PathBuf, String),
+        interior: &Interior,
+        written: GlbSummary,
+    ) -> Self {
+        Self {
+            file,
+            name,
+            lod: interior.lod(),
+            parts: interior.parts().len(),
+            modelled: interior.modelled_parts(),
+            written,
+            issues: interior.issues().iter().map(PartIssue::of).collect(),
+            excluded: 0,
+            replaced: 0,
+            interior: Some(InteriorFacts {
+                containers: interior.containers(),
+                parts: interior.parts().len(),
+                model_parts: interior.model_parts(),
+                modelled_parts: interior.modelled_parts(),
+                lights: interior.lights(),
+            }),
+        }
+    }
+
+    /// Returns what the Interior holds, or `None` when the export has none.
+    #[must_use]
+    pub const fn interior(&self) -> Option<&InteriorFacts> {
+        self.interior.as_ref()
     }
 
     /// Returns the GLB file that was written.

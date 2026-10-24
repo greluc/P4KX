@@ -11,6 +11,7 @@ mod archive_notice;
 mod archive_picker;
 mod assembly_export;
 mod assembly_export_outcome;
+mod assembly_export_progress;
 mod audio_controls;
 mod audio_preview;
 mod catalog_outcome;

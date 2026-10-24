@@ -118,6 +118,12 @@ pub enum EntityText {
     ViewFlattening,
     /// Shown while the textures are read; takes `done` and `total`.
     ViewTextureProgress,
+    /// The choice to show the Interior of the Entity with the hull, and its fact: the parts of
+    /// the Interior.
+    ViewInterior,
+    /// Shown while the Interior is read; takes `done` and `total` containers and `models` of
+    /// `of` model files.
+    ViewInteriorProgress,
     /// The action that stops building the view.
     ViewStop,
     /// Building the view was stopped.
@@ -152,7 +158,7 @@ pub enum EntityText {
 
 impl EntityText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 72] = [
+    pub(crate) const ALL: [Self; 74] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -210,6 +216,8 @@ impl EntityText {
         Self::ViewReading,
         Self::ViewFlattening,
         Self::ViewTextureProgress,
+        Self::ViewInterior,
+        Self::ViewInteriorProgress,
         Self::ViewStop,
         Self::ViewStopped,
         Self::ViewRestart,
@@ -289,6 +297,8 @@ impl EntityText {
             Self::ViewReading => "entities-view-reading",
             Self::ViewFlattening => "entities-view-flattening",
             Self::ViewTextureProgress => "entities-view-texture-progress",
+            Self::ViewInterior => "entities-view-interior",
+            Self::ViewInteriorProgress => "entities-view-interior-progress",
             Self::ViewStop => "entities-view-stop",
             Self::ViewStopped => "entities-view-stopped",
             Self::ViewRestart => "entities-view-restart",

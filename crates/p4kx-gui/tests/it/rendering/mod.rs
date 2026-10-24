@@ -114,6 +114,14 @@ pub(crate) fn rendered(
     name: &str,
 ) -> Result<(u32, u32, Vec<u8>), Box<dyn Error>> {
     window.harness.run_steps(2);
+    rendered_now(window, name)
+}
+
+/// Renders the frame the window drew last, without running another one.
+pub(crate) fn rendered_now(
+    window: &mut Window,
+    name: &str,
+) -> Result<(u32, u32, Vec<u8>), Box<dyn Error>> {
     let image = window.harness.render()?;
     let (width, height) = (image.width(), image.height());
     let data = image.into_raw();

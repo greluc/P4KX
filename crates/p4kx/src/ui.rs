@@ -5,61 +5,91 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{LocalizationEntry, UiMovie};
+use p4kx_extraction::{Language, LocalizationEntry, UiMovie};
 
 use crate::cli::{UiAction, UiArgs};
+use crate::cli_ui::UiSource;
 use crate::ui_extract::extract;
 use crate::ui_json::{AssetsJson, describe};
 use crate::ui_render::render;
-use crate::{exit, json};
+use crate::{exit, json, ui_screen_render, ui_screens};
 
 const NONE: &str = "-";
 
-/// Runs `p4kx ui assets`, `p4kx ui extract` or `p4kx ui render`.
+/// Runs `p4kx ui assets`, `p4kx ui extract`, `p4kx ui render` or `p4kx ui screens`.
 pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
-    let source = match &args.action {
-        UiAction::Assets(source)
-        | UiAction::Extract { source, .. }
-        | UiAction::Render { source, .. } => source,
-    };
-    let archive;
-    let movie = match &source.entry {
-        Some(entry) => {
-            archive = crate::key::open(&source.path)?;
-            let movie = UiMovie::from_archive(&archive, entry)?;
-            match &args.action {
-                UiAction::Render {
-                    lang: Some(lang), ..
-                } => movie.with_texts(LocalizationEntry::read(&archive, *lang)?),
-                _ => movie,
-            }
-        }
-        None => UiMovie::from_file(&source.path)?,
-    };
     match &args.action {
-        UiAction::Assets(_) => {
-            let assets = movie.movie().assets();
-            let described = describe(&movie, &assets);
-            if as_json {
-                json::print(&described)?;
-            } else {
-                print_assets(&described)?;
-            }
-            Ok(ExitCode::from(if assets.failures.is_empty() {
-                exit::SUCCESS
-            } else {
-                exit::PARTIAL_FAILURE
-            }))
+        UiAction::Screens(screens) => ui_screens::run(screens, as_json),
+        UiAction::Assets(source) => with_movie(source, None, |movie| assets(movie, as_json)),
+        UiAction::Extract { source, out } => {
+            with_movie(source, None, |movie| extract(movie, out, as_json))
         }
-        UiAction::Extract { out, .. } => extract(&movie, out, as_json),
         UiAction::Render {
+            source,
+            screen: Some(screen),
+            brand,
             out,
             size,
             background,
             svg,
             ..
-        } => render(&movie, out, *size, *background, *svg, as_json),
+        } => {
+            let options = ui_screen_render::Options {
+                screen,
+                brand: brand.as_deref(),
+                out,
+                size: *size,
+                background: *background,
+                svg: *svg,
+            };
+            ui_screen_render::run(&source.path, &options, as_json)
+        }
+        UiAction::Render {
+            source,
+            out,
+            size,
+            background,
+            svg,
+            lang,
+            ..
+        } => with_movie(source, *lang, |movie| {
+            render(movie, out, *size, *background, *svg, as_json)
+        }),
     }
+}
+
+fn with_movie(
+    source: &UiSource,
+    lang: Option<Language>,
+    run: impl FnOnce(&UiMovie<'_>) -> Result<ExitCode>,
+) -> Result<ExitCode> {
+    match &source.entry {
+        Some(entry) => {
+            let archive = crate::key::open(&source.path)?;
+            let movie = UiMovie::from_archive(&archive, entry)?;
+            let movie = match lang {
+                Some(lang) => movie.with_texts(LocalizationEntry::read(&archive, lang)?),
+                None => movie,
+            };
+            run(&movie)
+        }
+        None => run(&UiMovie::from_file(&source.path)?),
+    }
+}
+
+fn assets(movie: &UiMovie<'_>, as_json: bool) -> Result<ExitCode> {
+    let assets = movie.movie().assets();
+    let described = describe(movie, &assets);
+    if as_json {
+        json::print(&described)?;
+    } else {
+        print_assets(&described)?;
+    }
+    Ok(ExitCode::from(if assets.failures.is_empty() {
+        exit::SUCCESS
+    } else {
+        exit::PARTIAL_FAILURE
+    }))
 }
 
 fn print_assets(assets: &AssetsJson<'_>) -> io::Result<()> {

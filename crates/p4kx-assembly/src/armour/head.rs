@@ -42,9 +42,9 @@ pub enum HeadError {
 /// Wear it with [`Armour::build`](super::Armour::build) on the [`BodyVariant`] it names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Head {
-    variant: BodyVariant,
-    rig: &'static str,
-    pieces: Vec<Piece>,
+    pub(super) variant: BodyVariant,
+    pub(super) rig: &'static str,
+    pub(super) pieces: Vec<Piece>,
 }
 
 impl Head {
@@ -73,14 +73,31 @@ impl Head {
         })
     }
 
+    /// Returns the folder below `Data` that holds the skins and DNA rigs of the head rig.
+    pub(super) fn folder(&self) -> String {
+        format!(
+            "Objects/Characters/Human/heads/{}/pu/{}",
+            self.variant.code(),
+            self.rig
+        )
+    }
+
     /// Returns the head with the expression blendshapes `expressions` asks for written as morph
-    /// targets of its mesh, see [`Piece::with_expressions`].
+    /// targets of the mesh of the piece named `head`, see [`Piece::with_expressions`]. The teeth,
+    /// eyes, hair and the rest of what a dressed head wears get none: only the head skin carries
+    /// the expression blendshapes, and what follows the head follows its neutral shape.
     #[must_use]
     pub fn with_expressions(mut self, expressions: &Expressions) -> Self {
         self.pieces = self
             .pieces
             .into_iter()
-            .map(|piece| piece.with_expressions(expressions.clone()))
+            .map(|piece| {
+                if piece.name() == "head" {
+                    piece.with_expressions(expressions.clone())
+                } else {
+                    piece
+                }
+            })
             .collect();
         self
     }
@@ -97,7 +114,8 @@ impl Head {
         self.rig
     }
 
-    /// Returns the pieces to wear on the body: the shaped head.
+    /// Returns the pieces to wear on the body: the shaped head, and with [`Head::dressed`] its
+    /// teeth and the items of the Character's head port.
     #[must_use]
     pub fn pieces(&self) -> &[Piece] {
         &self.pieces

@@ -3,7 +3,7 @@
 
 use p4kx_character::Dna;
 
-use super::{Expressions, Wearable};
+use super::{Expressions, Look, Wearable};
 
 /// Where the geometry of a [`Piece`] comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,6 +19,15 @@ pub(crate) enum Source {
     Failed(String),
 }
 
+/// Something to list about a piece that does not keep it from being worn.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Note {
+    /// The Character's base material is in no lookup table.
+    UnknownMaterial(String),
+    /// Parts of the Character's material choice that are not drawn.
+    LookIgnored(String),
+}
+
 /// One piece worn on a body: a piece of armour or clothing, or any skin that belongs on the
 /// skeleton.
 ///
@@ -31,18 +40,30 @@ pub struct Piece {
     pub(crate) source: Source,
     pub(crate) shape: Option<Dna>,
     pub(crate) expressions: Expressions,
+    pub(crate) look: Option<Look>,
+    pub(crate) material: Option<String>,
+    pub(crate) follows_head: bool,
+    pub(crate) notes: Vec<Note>,
 }
 
 impl Piece {
+    const fn from_source(name: String, source: Source) -> Self {
+        Self {
+            name,
+            source,
+            shape: None,
+            expressions: Expressions::None,
+            look: None,
+            material: None,
+            follows_head: false,
+            notes: Vec::new(),
+        }
+    }
+
     /// Wears the Entity `wearable`; the piece is named after its class name.
     #[must_use]
     pub fn wearable(wearable: Wearable) -> Self {
-        Self {
-            name: wearable.class_name().to_owned(),
-            source: Source::Wearable(wearable),
-            shape: None,
-            expressions: Expressions::None,
-        }
+        Self::from_source(wearable.class_name().to_owned(), Source::Wearable(wearable))
     }
 
     /// Wears the skin at `path`, a path below `Data`, in the node `name`, drawn with the
@@ -53,26 +74,19 @@ impl Piece {
         path: impl Into<String>,
         material: Option<String>,
     ) -> Self {
-        Self {
-            name: name.into(),
-            source: Source::File {
+        Self::from_source(
+            name.into(),
+            Source::File {
                 path: path.into(),
                 material,
             },
-            shape: None,
-            expressions: Expressions::None,
-        }
+        )
     }
 
     /// Stands for a piece `name` that could not be found or read, because of `reason`.
     #[must_use]
     pub fn failed(name: impl Into<String>, reason: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            source: Source::Failed(reason.into()),
-            shape: None,
-            expressions: Expressions::None,
-        }
+        Self::from_source(name.into(), Source::Failed(reason.into()))
     }
 
     /// Shapes the piece by `dna`, the face DNA of a Character: the vertices of the piece's model
@@ -82,6 +96,34 @@ impl Piece {
     #[must_use]
     pub fn shaped(mut self, dna: Dna) -> Self {
         self.shape = Some(dna);
+        self
+    }
+
+    /// Draws the piece with the material library at `path`, a path below `Data`, instead of the
+    /// one its Record or its model names.
+    #[must_use]
+    pub fn with_material(mut self, path: impl Into<String>) -> Self {
+        self.material = Some(path.into());
+        self
+    }
+
+    /// Applies the material choices of a Character to the piece's materials, see [`Look`].
+    #[must_use]
+    pub fn looking(mut self, look: Look) -> Self {
+        self.look = Some(look);
+        self
+    }
+
+    /// Makes the piece follow the shape of the head piece named `head`: its vertices move as the
+    /// vertices of the shaped head around them did. For hair, brows, lashes and beards.
+    #[must_use]
+    pub const fn following_head(mut self) -> Self {
+        self.follows_head = true;
+        self
+    }
+
+    pub(crate) fn noting(mut self, note: Note) -> Self {
+        self.notes.push(note);
         self
     }
 

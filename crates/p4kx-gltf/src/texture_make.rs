@@ -5,7 +5,7 @@ use p4kx_texture::{RgbaImage, write_png};
 use rayon::prelude::*;
 
 use crate::texture_loader::{LoadedTexture, TextureLoader};
-use crate::texture_pixels::{base_colour, metallic_roughness, normal_map};
+use crate::texture_pixels::{base_colour, metallic_roughness, normal_map, opacity_colour};
 use crate::texture_plan::{
     EncodedImage, Failure, Job, Key, MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS,
 };
@@ -183,6 +183,13 @@ fn make_base(
         failures,
     );
     outcome.tinted = specular.is_some();
+    if job.diffuse.as_ref().is_some_and(|source| source.opacity) {
+        return Some(
+            opacity_colour(&diffuse.image)
+                .map_err(|error| error.to_string())
+                .and_then(|image| encode(&image)),
+        );
+    }
     Some(
         base_colour(
             &diffuse.image,
@@ -285,6 +292,7 @@ mod tests {
                         file: path.clone(),
                         path,
                         gloss: true,
+                        opacity: false,
                     }),
                     specular: None,
                     tints: Tints {

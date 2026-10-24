@@ -26,6 +26,8 @@ pub enum WorkTab {
     Entities,
     /// Listing and playing the sounds of the Entities of the open Archive.
     Sounds,
+    /// Composing a Character of a body, a head and pieces of armour, and exporting it.
+    Characters,
 }
 
 impl Model {

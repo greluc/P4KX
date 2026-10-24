@@ -28,7 +28,7 @@ fn a_write_after_the_cancel_fails_instead_of_being_retried_forever() {
     let mut observed = Observed {
         inner: Cancelling(cancel.clone()),
         cancel: &cancel,
-        shared: &shared,
+        written: &shared.done,
     };
 
     let result = observed.write_all(b"glTF binary");
@@ -45,7 +45,7 @@ fn an_export_that_is_not_cancelled_counts_what_it_wrote() {
     let mut observed = Observed {
         inner: Vec::new(),
         cancel: &cancel,
-        shared: &shared,
+        written: &shared.done,
     };
 
     observed.write_all(b"abcd").expect("a vector takes it");

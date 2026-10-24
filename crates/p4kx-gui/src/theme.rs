@@ -7,6 +7,7 @@
 pub mod assembly_metrics;
 mod brand_metrics;
 pub mod categorical;
+pub mod character_metrics;
 pub mod desktop;
 pub mod logo;
 pub mod model_metrics;
@@ -22,6 +23,8 @@ mod tooltip_metrics;
 mod assembly_tests;
 #[cfg(test)]
 mod audio_tests;
+#[cfg(test)]
+mod character_tests;
 #[cfg(test)]
 mod comparison_tests;
 #[cfg(test)]

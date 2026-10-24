@@ -11,7 +11,7 @@ mod view;
 
 use std::sync::Arc;
 
-use p4kx_assembly::PortChange;
+use p4kx_assembly::{EntityCatalogue, PortChange};
 use p4kx_extraction::Guid;
 use p4kx_settings::ModelMaterials;
 
@@ -87,6 +87,16 @@ impl EntitiesTab {
             State::ArchiveChanged => EntitiesStatus::ArchiveChanged,
             State::Ready(list) if list.total(EntityFilter::All) == 0 => EntitiesStatus::NoEntities,
             State::Ready(list) => EntitiesStatus::Ready(list),
+        }
+    }
+
+    /// Returns the catalogue of every Entity of the DataForge once they are listed, also when
+    /// none of them is a ship, a vehicle or a weapon.
+    #[must_use]
+    pub fn catalogue(&self) -> Option<&Arc<EntityCatalogue>> {
+        match &self.state {
+            State::Ready(list) => Some(list.catalogue()),
+            _ => None,
         }
     }
 

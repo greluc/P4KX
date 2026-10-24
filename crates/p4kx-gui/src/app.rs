@@ -9,9 +9,9 @@ use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
 use crate::{
-    AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, ComparisonText, Model,
-    ModelExportSetup, ModelExportText, QueryExportFormat, QueryText, Text, ViewerSupport, ui,
-    window,
+    AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, CharacterText,
+    ComparisonText, HeadSource, Model, ModelExportSetup, ModelExportText, QueryExportFormat,
+    QueryText, Text, ViewerSupport, ui, window,
 };
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
@@ -63,10 +63,11 @@ impl App {
         let export_filter = self.model.texts().get(export_filter);
         let catalog_filter = self.model.texts().get(CatalogText::FileFilter);
         let catalog_filter_compressed = self.model.texts().get(CatalogText::FileFilterCompressed);
-        let model_file = if dialog == Dialog::AssemblyFile {
-            ModelFileDialog::of_assembly(&self.model)
-        } else {
-            ModelFileDialog::of(&self.model)
+        let chf_filter = self.model.texts().get(CharacterText::ChfFilter);
+        let model_file = match dialog {
+            Dialog::AssemblyFile => ModelFileDialog::of_assembly(&self.model),
+            Dialog::CharacterFile => ModelFileDialog::of_character(&self.model),
+            _ => ModelFileDialog::of(&self.model),
         };
         let ctx = ctx.clone();
         let spawned = thread::Builder::new()
@@ -90,7 +91,10 @@ impl App {
                         .add_filter(catalog_filter, &["json"])
                         .set_file_name(CATALOG_FILE)
                         .save_file(),
-                    Dialog::ModelFile | Dialog::AssemblyFile => model_file.save(picker),
+                    Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => {
+                        model_file.save(picker)
+                    }
+                    Dialog::CharacterChf => picker.add_filter(chf_filter, &["chf"]).pick_file(),
                     Dialog::QueryExport(format) => {
                         let extension = format.extension();
                         picker
@@ -116,6 +120,66 @@ impl App {
         } else if let Some(setup) = self.model.model_export_setup_mut() {
             setup.set_file(path);
         }
+    }
+
+    fn apply_dialog_result(&mut self, ui: &egui::Ui) -> bool {
+        let mut settings_changed = false;
+        match self.take_dialog_result() {
+            Some((Dialog::OpenArchive, path)) => ui::open(ui, &mut self.model, path),
+            Some((Dialog::AddFolder | Dialog::AddArchive, path)) => {
+                settings_changed = self.model.add_manual(path);
+            }
+            Some((Dialog::ExtractionFolder, path)) => {
+                if let Some(setup) = self.model.extraction_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
+            Some((Dialog::RecordExportFolder, path)) => {
+                if let Some(setup) = self.model.record_export_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
+            Some((Dialog::SoundsFolder, path)) => {
+                if let Some(setup) = self.model.sounds_mut().export_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
+            Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
+                self.choose_export_file(dialog, path);
+            }
+            Some((Dialog::CharacterChf, path)) => {
+                self.model
+                    .characters_mut()
+                    .choose_head(HeadSource::File(path));
+            }
+            Some((Dialog::CharacterFile, path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .start_character_export(path, move || ctx.request_repaint());
+            }
+            Some((Dialog::CatalogFile, path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .start_catalog(path, move || ctx.request_repaint());
+            }
+            Some((Dialog::ComparisonArchive(side), path)) => {
+                self.model.comparison_mut().set_archive(side, path);
+            }
+            Some((Dialog::QueryExport(format), path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .query_mut()
+                    .export(path, format, move || ctx.request_repaint());
+            }
+            Some((Dialog::ComparisonReport, path)) => {
+                let ctx = ui.ctx().clone();
+                if let Some(view) = self.model.comparison_mut().view_mut() {
+                    view.save_report(path, move || ctx.request_repaint());
+                }
+            }
+            None => {}
+        }
+        settings_changed
     }
 
     fn take_dialog_result(&mut self) -> Option<(Dialog, PathBuf)> {
@@ -196,6 +260,15 @@ impl ModelFileDialog {
         }
     }
 
+    fn of_character(model: &Model) -> Self {
+        let characters = model.characters();
+        Self {
+            filter: model.texts().get(AssemblyExportText::FileFilter),
+            name: characters.proposed_name(),
+            folder: characters.folder().map(Path::to_path_buf),
+        }
+    }
+
     fn save(self, picker: rfd::FileDialog) -> Option<PathBuf> {
         let picker = picker
             .add_filter(self.filter, &["glb"])
@@ -213,52 +286,7 @@ impl eframe::App for App {
         if !self.model.viewer_support().is_probed() {
             self.model.set_viewer_support(ViewerSupport::probe(frame));
         }
-        let mut settings_changed = false;
-        match self.take_dialog_result() {
-            Some((Dialog::OpenArchive, path)) => ui::open(ui, &mut self.model, path),
-            Some((Dialog::AddFolder | Dialog::AddArchive, path)) => {
-                settings_changed = self.model.add_manual(path);
-            }
-            Some((Dialog::ExtractionFolder, path)) => {
-                if let Some(setup) = self.model.extraction_setup_mut() {
-                    setup.set_folder(path);
-                }
-            }
-            Some((Dialog::RecordExportFolder, path)) => {
-                if let Some(setup) = self.model.record_export_setup_mut() {
-                    setup.set_folder(path);
-                }
-            }
-            Some((Dialog::SoundsFolder, path)) => {
-                if let Some(setup) = self.model.sounds_mut().export_setup_mut() {
-                    setup.set_folder(path);
-                }
-            }
-            Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
-                self.choose_export_file(dialog, path);
-            }
-            Some((Dialog::CatalogFile, path)) => {
-                let ctx = ui.ctx().clone();
-                self.model
-                    .start_catalog(path, move || ctx.request_repaint());
-            }
-            Some((Dialog::ComparisonArchive(side), path)) => {
-                self.model.comparison_mut().set_archive(side, path);
-            }
-            Some((Dialog::QueryExport(format), path)) => {
-                let ctx = ui.ctx().clone();
-                self.model
-                    .query_mut()
-                    .export(path, format, move || ctx.request_repaint());
-            }
-            Some((Dialog::ComparisonReport, path)) => {
-                let ctx = ui.ctx().clone();
-                if let Some(view) = self.model.comparison_mut().view_mut() {
-                    view.save_report(path, move || ctx.request_repaint());
-                }
-            }
-            None => {}
-        }
+        let settings_changed = self.apply_dialog_result(ui);
         let requests = ui::show(ui, &mut self.model);
         if let Some(dialog) = requests.dialog {
             self.start_dialog(ui.ctx(), dialog);
@@ -278,6 +306,7 @@ impl eframe::App for App {
         self.model.sounds_mut().stop_export();
         self.model.stop_model_export();
         self.model.stop_assembly_export();
+        self.model.characters_mut().stop_export();
         self.model.stop_catalog();
         self.model.comparison_mut().cancel();
         self.model.query_mut().cancel();

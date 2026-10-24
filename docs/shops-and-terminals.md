@@ -1,6 +1,6 @@
 # Shops and terminals in the Archive
 
-Result of the spike [#398](https://github.com/greluc/P4KX/issues/398), measured on the LIVE
+Result of the spike [#398](https://github.com/p4kx-org/p4kx/issues/398), measured on the LIVE
 Archive, Build 4.10.197. It answers what the Archive says about shops and terminals for the Basetool
 (the Basetool issues on shops and terminals). Prices, stock and demand are
 server-side; UEX stays their source, and UEX IDs are never part of the catalog.

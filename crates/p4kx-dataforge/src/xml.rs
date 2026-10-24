@@ -10,7 +10,7 @@ use crate::xml_write::{
 use crate::{Annotations, Field, RecordTree, TextResolver, Value};
 
 /// The namespace of the `p4kx:` elements of Record XML.
-pub const RECORD_XML_NAMESPACE: &str = "https://github.com/greluc/p4kx/record-xml";
+pub const RECORD_XML_NAMESPACE: &str = "https://github.com/p4kx-org/p4kx/record-xml";
 
 const DECLARATION: &[u8] = b"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 const RESERVED: [&str; 3] = ["guid", "path", "type"];

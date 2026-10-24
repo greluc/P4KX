@@ -116,6 +116,7 @@ mod tags_table;
 mod tags_window;
 mod texture_groups;
 mod texture_groups_folders;
+mod theme_render;
 mod update_hint;
 mod viewing;
 mod wide_forge;

@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and specs for this repo live as GitHub issues in `greluc/P4KX`. Use the `gh` CLI for all operations.
+Issues and specs for this repo live as GitHub issues in `p4kx-org/p4kx`. Use the `gh` CLI for all operations.
 
 ## Conventions
 

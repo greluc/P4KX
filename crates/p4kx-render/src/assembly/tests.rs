@@ -22,6 +22,7 @@ fn info(path: &str, parent: Option<usize>) -> PartInfo {
         path: path.to_owned(),
         parent,
         triangles: 12,
+        interior: false,
     }
 }
 
@@ -106,7 +107,7 @@ fn a_hidden_branch_hides_its_parts_and_their_descendants() {
     let scene = scene();
     let hidden: HashSet<String> = ["a".to_owned()].into();
 
-    let mask = hidden_mask(scene.parts(), &hidden);
+    let mask = hidden_mask(scene.parts(), &hidden, true);
     let list = DrawList::of(&scene, &mask, &view(&scene), HEIGHT);
 
     assert_eq!(mask, vec![false, true, true, false], "a and a/b");
@@ -121,9 +122,27 @@ fn the_root_is_never_hidden_by_an_empty_path() {
     let hidden: HashSet<String> = [String::new()].into();
 
     assert_eq!(
-        hidden_mask(scene.parts(), &hidden),
+        hidden_mask(scene.parts(), &hidden, true),
         vec![false; 4],
         "an empty path names no port"
+    );
+}
+
+#[test]
+fn the_interior_is_hidden_with_its_descendants_unless_it_is_shown() {
+    let mut scene = scene();
+    scene.parts[1].interior = true;
+    let none = HashSet::new();
+
+    assert_eq!(
+        hidden_mask(scene.parts(), &none, false),
+        vec![false, true, true, false],
+        "the interior part and what hangs below it"
+    );
+    assert_eq!(
+        hidden_mask(scene.parts(), &none, true),
+        vec![false; 4],
+        "shown"
     );
 }
 

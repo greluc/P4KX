@@ -9,6 +9,7 @@ mod build;
 mod draw;
 mod flatten;
 mod frustum;
+mod pieces;
 mod surface;
 #[cfg(test)]
 pub(crate) mod synthetic;
@@ -68,9 +69,16 @@ pub struct PartInfo {
     path: String,
     parent: Option<usize>,
     triangles: usize,
+    interior: bool,
 }
 
 impl PartInfo {
+    /// Returns whether the part belongs to the Interior of the Entity rather than to its Loadout.
+    #[must_use]
+    pub const fn is_interior(&self) -> bool {
+        self.interior
+    }
+
     /// Returns the part's name, `<port>/<entity>`.
     #[must_use]
     pub fn name(&self) -> &str {
@@ -201,6 +209,25 @@ impl AssemblyScene {
     #[must_use]
     pub const fn drawn_parts(&self) -> usize {
         self.draws.len()
+    }
+
+    /// Returns how many parts are drawn and how many triangles they draw together when none is
+    /// hidden or culled, counting the parts of the Interior only when `interior` is set.
+    #[must_use]
+    pub fn drawn(&self, interior: bool) -> (usize, usize) {
+        self.draws
+            .iter()
+            .filter_map(|draw| self.parts.get(draw.part))
+            .filter(|part| interior || !part.is_interior())
+            .fold((0, 0), |(parts, triangles), part| {
+                (parts + 1, triangles + part.triangles())
+            })
+    }
+
+    /// Returns the number of parts of the Interior that are drawn when none is hidden.
+    #[must_use]
+    pub fn interior_parts(&self) -> usize {
+        self.drawn(true).0 - self.drawn(false).0
     }
 
     /// Returns the number of distinct meshes, which the parts share.

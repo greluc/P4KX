@@ -5,8 +5,8 @@ use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityNode, ForgePalettes,
-    LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, EntityNode,
+    ForgePalettes, InteriorOptions, LoadoutResolver,
 };
 use p4kx_blender::{
     BuildInfo, Issue, PackageInfo, PackageSummary, Replacement, check_output, write_package,
@@ -31,6 +31,9 @@ struct PackageJson<'a> {
     texture_mip: u32,
     nodes: usize,
     drawn_nodes: usize,
+    containers: usize,
+    objects: usize,
+    lights: usize,
     meshes: usize,
     shared_meshes: usize,
     textures: usize,
@@ -76,6 +79,13 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
     let palettes = ForgePalettes::new(&forge);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let assembly = Assembly::build_with_palettes(&tree, &models, &palettes, &options)?;
+    let assembly = if args.interior {
+        let interior_options = InteriorOptions::default().with_lod(args.lod);
+        let interior = EntityInterior::build(&archive, &assembly, &tree, &interior_options)?;
+        assembly.with_interior(interior)
+    } else {
+        assembly
+    };
     let cancel = cancel_on_interrupt()?;
     let mut glb = GlbOptions::default()
         .with_lod(args.lod)
@@ -121,6 +131,9 @@ impl<'a> PackageJson<'a> {
             texture_mip: args.texture_mip,
             nodes: summary.nodes,
             drawn_nodes: summary.drawn_nodes,
+            containers: summary.containers,
+            objects: summary.objects,
+            lights: summary.lights,
             meshes: summary.meshes,
             shared_meshes: summary.shared_meshes,
             textures: summary.textures,
@@ -199,6 +212,13 @@ fn print_report(
     for text in &args.changes.replace {
         let (port, entity) = text.split_once('=').unwrap_or((text, ""));
         writeln!(out, "replaced {} by {}", one_line(port), one_line(entity))?;
+    }
+    if args.interior {
+        writeln!(
+            out,
+            "Interior: {} containers, {} objects, {} lights",
+            summary.containers, summary.objects, summary.lights
+        )?;
     }
     if summary.shared_meshes > 0 {
         writeln!(

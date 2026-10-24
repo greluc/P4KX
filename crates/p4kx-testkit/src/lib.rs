@@ -120,7 +120,8 @@ pub use entity_head::{
     head_entries, head_rig,
 };
 pub use entity_interior_sample::{
-    ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, entity_interior_entries,
+    ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, ENTITY_LIT_ROOM_CLASS, entity_interior_entries,
+    entity_lit_room_entries,
 };
 pub use entity_layer_chain::{LAYER_CHAIN_LENGTH, layer_chain_entries};
 pub use entity_layered::{LAYERED_MISSING_TEXTURE, LAYERED_TINTS, layered_entries};

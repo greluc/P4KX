@@ -126,6 +126,7 @@ pub(crate) fn ship() -> AssemblyScene {
             path: format!("port{at}"),
             parent: at.checked_sub(1).map(|_| 0),
             triangles: 12,
+            interior: false,
         });
     }
     AssemblyScene {

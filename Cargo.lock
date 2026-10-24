@@ -3854,6 +3854,7 @@ dependencies = [
  "p4kx-testkit",
  "png",
  "rayon",
+ "tempfile",
  "thiserror 2.0.21",
  "wgpu",
 ]

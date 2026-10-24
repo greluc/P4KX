@@ -12,7 +12,7 @@ use p4kx_update::{Release, ReleaseCheck};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const PAGE: &str = "https://github.com/greluc/P4KX/releases/tag/v0.2.0";
+const PAGE: &str = "https://github.com/p4kx-org/p4kx/releases/tag/v0.2.0";
 
 struct Server {
     endpoint: String,
@@ -23,7 +23,7 @@ impl Server {
     fn answering(status: &'static str, body: String) -> std::io::Result<Self> {
         let listener = TcpListener::bind("127.0.0.1:0")?;
         let endpoint = format!(
-            "http://{}/repos/greluc/P4KX/releases/latest",
+            "http://{}/repos/p4kx-org/p4kx/releases/latest",
             listener.local_addr()?
         );
         let request = thread::spawn(move || {
@@ -121,7 +121,7 @@ fn the_request_carries_nothing_but_the_get_and_its_basic_headers() -> TestResult
     let request = server.request()?;
     assert_eq!(
         request.first().map(String::as_str),
-        Some("GET /repos/greluc/P4KX/releases/latest HTTP/1.1"),
+        Some("GET /repos/p4kx-org/p4kx/releases/latest HTTP/1.1"),
         "a plain GET without a query"
     );
     let names: Vec<String> = request
@@ -171,7 +171,7 @@ fn an_answer_without_a_version_tag_is_an_error() -> TestResult {
 fn the_default_check_asks_the_github_api_of_this_repository() {
     assert_eq!(
         ReleaseCheck::github().endpoint(),
-        "https://api.github.com/repos/greluc/P4KX/releases/latest",
+        "https://api.github.com/repos/p4kx-org/p4kx/releases/latest",
         "the latest Release of this repository"
     );
 }

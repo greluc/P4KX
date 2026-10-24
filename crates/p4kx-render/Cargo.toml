@@ -23,6 +23,7 @@ wgpu.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

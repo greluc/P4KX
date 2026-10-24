@@ -110,8 +110,8 @@ pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LE
 pub use geometry::{Geometry, GeometryVariant, PaletteRef};
 pub use hologram::HologramCamera;
 pub use interior::{
-    Interior, InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS,
-    MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
+    Interior, InteriorOptions, InteriorPart, InteriorPartKind, InteriorProgress, InteriorWatch,
+    MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
 };
 pub use issue::{Issue, IssueKind};
 pub use object_containers::{ContainerSource, ObjectContainerRef};

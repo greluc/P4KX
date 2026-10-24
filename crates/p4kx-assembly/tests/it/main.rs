@@ -29,6 +29,7 @@ mod head_expressions;
 mod hologram_camera;
 mod interior;
 mod interior_lit;
+mod interior_watch;
 mod loadout_changes;
 mod loadout_changes_edit;
 mod loadout_edges;

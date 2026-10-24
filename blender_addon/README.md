@@ -13,6 +13,10 @@ importer that ships with Blender must be enabled.
 - Imports every shared mesh once and places it as a linked collection instance.
 - Loads the textures with the colour space the package states and gives the materials a basic
   node setup: diffuse, normal map, specular and alpha.
+- Builds the Interior of a package written with `--interior`: containers and models as empties
+  and instances, lights as Blender point, spot and sun lights (mapping in
+  [docs/blender-package.md](../docs/blender-package.md#interiors-and-lights)). The import option
+  *Light strength* multiplies their energy, because the engine's intensity has no known unit.
 - Refuses a package with a newer major version and says to update the add-on; warns about a
   newer minor version.
 

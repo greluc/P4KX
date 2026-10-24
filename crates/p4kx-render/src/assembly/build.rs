@@ -11,6 +11,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 
 use super::flatten::{Range, flatten};
+use super::pieces::{Piece, pieces_of};
 use super::surface::{Surface, SurfaceKey, surface_key, surfaces_of};
 use super::{
     AssemblyScene, Group, Item, Left, MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES,
@@ -95,13 +96,13 @@ impl AssemblyScene {
         options: &BuildOptions<'_>,
         hooks: &Hooks<'_>,
     ) -> Result<Self, BuildError> {
-        let parts = assembly.parts();
+        let pieces = pieces_of(assembly);
         let mut ids: HashMap<usize, usize> = HashMap::new();
         let mut distinct: Vec<&Model> = Vec::new();
-        let model_of: Vec<Option<usize>> = parts
+        let model_of: Vec<Option<usize>> = pieces
             .iter()
-            .map(|part| {
-                part.model().map(|model| {
+            .map(|piece| {
+                piece.model.map(|model| {
                     *ids.entry(address(model)).or_insert_with(|| {
                         distinct.push(model);
                         distinct.len() - 1
@@ -124,9 +125,9 @@ impl AssemblyScene {
         };
         let meshes = scene.merge_meshes(&distinct, assembly.lod(), hooks)?;
         scene.meshes = meshes.iter().flatten().count();
-        let (surfaces, wanted) = surfaces_of(assembly, &model_of, &meshes, options.materials);
+        let (surfaces, wanted) = surfaces_of(&pieces, &model_of, &meshes, options.materials);
         let textures = scene.read_textures(&wanted, options, hooks)?;
-        scene.place(assembly, (&model_of, &meshes), (&surfaces, &textures));
+        scene.place(&pieces, (&model_of, &meshes), (&surfaces, &textures));
         if scene.draws.is_empty() || !scene.bounds.is_valid() {
             return Err(BuildError::Empty);
         }
@@ -238,12 +239,12 @@ impl AssemblyScene {
 
     fn place(
         &mut self,
-        assembly: &Assembly,
+        pieces: &[Piece<'_>],
         (model_of, meshes): (&[Option<usize>], &[Option<SharedMesh>]),
         (surfaces, textures): (&HashMap<SurfaceKey, Option<Surface>>, &HashMap<String, u32>),
     ) {
         let mut groups: HashMap<GroupKey, u32> = HashMap::new();
-        for (at, part) in assembly.parts().iter().enumerate() {
+        for (at, part) in pieces.iter().enumerate() {
             let mesh = model_of
                 .get(at)
                 .copied()
@@ -251,13 +252,14 @@ impl AssemblyScene {
                 .and_then(|id| meshes.get(id).map(|mesh| (id, mesh)))
                 .and_then(|(id, mesh)| mesh.as_ref().map(|mesh| (id, mesh)));
             let mut info = PartInfo {
-                name: part.name().to_owned(),
-                path: part.path().to_owned(),
-                parent: part.parent(),
+                name: part.name.clone(),
+                path: part.path.to_owned(),
+                parent: part.parent,
                 triangles: 0,
+                interior: part.interior,
             };
             let Some((id, mesh)) = mesh else {
-                if part.model().is_some() {
+                if part.model.is_some() {
                     self.left.parts += 1;
                 }
                 self.parts.push(info);
@@ -274,7 +276,7 @@ impl AssemblyScene {
                 self.parts.push(info);
                 continue;
             }
-            let Some((centre, radius)) = self.include(&mesh.bounds, &part.world().rows) else {
+            let Some((centre, radius)) = self.include(&mesh.bounds, &part.world) else {
                 self.left.parts += 1;
                 self.parts.push(info);
                 continue;
@@ -283,7 +285,7 @@ impl AssemblyScene {
             self.items.extend(pending);
             self.draws.push(PartDraw {
                 part: at,
-                world: part.world().rows,
+                world: part.world,
                 centre,
                 radius,
                 items: u32::try_from(first).unwrap_or(u32::MAX)
@@ -295,7 +297,7 @@ impl AssemblyScene {
 
     fn items_of(
         &mut self,
-        part: &p4kx_assembly::Part,
+        part: &Piece<'_>,
         (id, mesh): (usize, &SharedMesh),
         (surfaces, textures): (&HashMap<SurfaceKey, Option<Surface>>, &HashMap<String, u32>),
         groups: &mut HashMap<GroupKey, u32>,

@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import bpy
-from bpy.props import StringProperty
+from bpy.props import FloatProperty, StringProperty
 from bpy_extras.io_utils import ImportHelper
 
 from .importer import import_package
@@ -24,12 +24,20 @@ class IMPORT_SCENE_OT_p4kx_package(bpy.types.Operator, ImportHelper):
 
     filename_ext = ".json"
     filter_glob: StringProperty(default="scene.json", options={"HIDDEN"})
+    light_strength: FloatProperty(
+        name="Light strength",
+        description="Multiplies the energy of every light; the engine's intensity has no known unit",
+        default=1.0,
+        min=0.0,
+        soft_max=100.0,
+        max=1000.0,
+    )
 
     def execute(self, context: bpy.types.Context) -> set[str]:
         """Loads the selected package and builds its objects, or reports why it cannot."""
         try:
             package = load_package(Path(self.filepath))
-            result = import_package(context, package)
+            result = import_package(context, package, self.light_strength)
         except PackageError as error:
             self.report({"ERROR"}, str(error))
             return {"CANCELLED"}
@@ -38,7 +46,7 @@ class IMPORT_SCENE_OT_p4kx_package(bpy.types.Operator, ImportHelper):
         self.report(
             {"INFO"},
             f"Imported {result.objects} nodes, {result.meshes} meshes, "
-            f"{result.instances} instances.",
+            f"{result.instances} instances, {result.lights} lights.",
         )
         return {"FINISHED"}
 

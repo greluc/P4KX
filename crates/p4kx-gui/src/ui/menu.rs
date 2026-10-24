@@ -17,8 +17,9 @@ use crate::widgets::indicator::brand;
 use crate::widgets::text::caps;
 use crate::widgets::toggle;
 use crate::{
-    AboutText, ArchiveKeyText, CatalogText, ExtractionScope, ExtractionText, KeyReason, Language,
-    Model, ModelExportText, RecordExportText, RecordLanguageText, RecordTextChoice, Text, Texts,
+    AboutText, ArchiveKeyText, AssemblyExportText, CatalogText, ExtractionScope, ExtractionText,
+    KeyReason, Language, Model, ModelExportText, RecordExportText, RecordLanguageText,
+    RecordTextChoice, Text, Texts,
 };
 
 /// Shows the header: the brand and the menus.
@@ -135,6 +136,7 @@ enum Pick {
     ExtractSelected,
     RecordExport,
     ModelExport,
+    InteriorExport,
     ArchiveKey,
     About,
     FontLicence,
@@ -150,6 +152,7 @@ fn apply(ui: &Ui, model: &mut Model, pick: Pick) {
         Pick::ExtractSelected => model.begin_extraction(ExtractionScope::Selected),
         Pick::RecordExport => model.begin_record_export(),
         Pick::ModelExport => model.begin_model_export(),
+        Pick::InteriorExport => model.begin_interior_export(),
         Pick::ArchiveKey => model.open_key_dialog(KeyReason::Menu),
         Pick::About => model.set_about_shown(true),
         Pick::FontLicence => model.set_licence_shown(true),
@@ -247,6 +250,13 @@ fn export_menu(ui: &mut Ui, model: &Model, requests: &mut Requests) -> Option<Pi
             .clicked()
         {
             picked = Some(Pick::ModelExport);
+        }
+        let interior_export = Button::new(entry(&texts.get(AssemblyExportText::ActionInterior)));
+        if ui
+            .add_enabled(model.interior_export_available(), interior_export)
+            .clicked()
+        {
+            picked = Some(Pick::InteriorExport);
         }
         let catalog = Button::new(entry(&texts.get(CatalogText::Action)));
         if ui.add_enabled(model.catalog_available(), catalog).clicked() {

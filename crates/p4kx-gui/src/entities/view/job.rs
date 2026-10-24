@@ -7,8 +7,9 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_assembly::{
-    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, EntityNode, ForgePalettes,
-    ModelFailure, ModelProvider, ProvidedModel,
+    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, EntityInterior, EntityNode,
+    ForgePalettes, InteriorOptions, InteriorProgress, InteriorWatch, ModelFailure, ModelProvider,
+    ProvidedModel,
 };
 use p4kx_extraction::CancelToken;
 use p4kx_extraction::model::MaterialStatus;
@@ -30,6 +31,8 @@ pub enum ViewStage {
     Flattening,
     /// The textures of the materials are read.
     Textures,
+    /// The containers of the Interior are read; `done` and `total` count the containers.
+    Interior,
 }
 
 /// How far a building view has come.
@@ -41,6 +44,10 @@ pub struct ViewProgress {
     pub done: u64,
     /// What the step has to do, 0 while unknown.
     pub total: u64,
+    /// The model files read of those the container being read places, in the Interior step.
+    pub models_done: u64,
+    /// The model files the container being read places, in the Interior step.
+    pub models_total: u64,
 }
 
 #[derive(Debug, Default)]
@@ -48,6 +55,8 @@ pub(super) struct Shared {
     stage: AtomicU8,
     done: AtomicU64,
     total: AtomicU64,
+    models_done: AtomicU64,
+    models_total: AtomicU64,
 }
 
 impl Shared {
@@ -56,10 +65,13 @@ impl Shared {
             stage: match self.stage.load(Ordering::Relaxed) {
                 0 => ViewStage::Reading,
                 1 => ViewStage::Flattening,
-                _ => ViewStage::Textures,
+                2 => ViewStage::Textures,
+                _ => ViewStage::Interior,
             },
             done: self.done.load(Ordering::Relaxed),
             total: self.total.load(Ordering::Relaxed),
+            models_done: self.models_done.load(Ordering::Relaxed),
+            models_total: self.models_total.load(Ordering::Relaxed),
         }
     }
 
@@ -68,6 +80,22 @@ impl Shared {
         self.done.store(done, Ordering::Relaxed);
         self.total.store(total, Ordering::Relaxed);
     }
+
+    fn interior(&self, progress: InteriorProgress) {
+        let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
+        match progress {
+            InteriorProgress::Container { done, total } => {
+                self.set(3, count(done) + 1, count(total));
+                self.models_done.store(0, Ordering::Relaxed);
+                self.models_total.store(0, Ordering::Relaxed);
+            }
+            InteriorProgress::Models { done, total } => {
+                self.models_done.store(count(done), Ordering::Relaxed);
+                self.models_total.store(count(total), Ordering::Relaxed);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// What the view is built from.
@@ -75,12 +103,14 @@ pub(super) struct Request {
     pub(super) tree: Arc<EntityNode>,
     pub(super) lod: u32,
     pub(super) materials: ModelMaterials,
+    pub(super) interior: bool,
 }
 
 /// A built view and the number of parts the Assembly could not resolve.
 pub(super) struct Built {
     pub(super) scene: AssemblyScene,
     pub(super) issues: usize,
+    pub(super) interior: bool,
 }
 
 pub(super) enum Ended {
@@ -195,6 +225,32 @@ fn scene_of(
     )
 }
 
+/// Adds the Interior of `request` to `assembly` when it asks for one.
+fn with_interior(
+    index: &EntryIndex,
+    assembly: Assembly,
+    request: &Request,
+    (cancel, shared): (&CancelToken, &Shared),
+) -> Result<Assembly, Ended> {
+    if !request.interior {
+        return Ok(assembly);
+    }
+    shared.set(3, 0, 0);
+    let watch = InteriorWatch {
+        cancelled: &|| cancel.is_cancelled(),
+        progress: &|progress| shared.interior(progress),
+    };
+    let options = InteriorOptions::default().with_lod(request.lod);
+    match EntityInterior::build_watched(index.archive(), &assembly, &request.tree, &options, &watch)
+    {
+        Ok(interior) => Ok(assembly.with_interior(interior)),
+        Err(AssemblyError::Cancelled) => Err(Ended::Cancelled),
+        Err(_) if cancel.is_cancelled() => Err(Ended::Cancelled),
+        Err(AssemblyError::Provider(error)) => Err(Ended::Failed(failure_of(index, &*error))),
+        Err(other) => Err(Ended::Failed(failure_of(index, &other))),
+    }
+}
+
 fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Shared) -> Ended {
     if index.watch().check().is_err() {
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
@@ -232,6 +288,10 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         }
         Err(other) => return Ended::Failed(failure_of(index, &other)),
     };
+    let assembly = match with_interior(index, assembly, request, (cancel, shared)) {
+        Ok(assembly) => assembly,
+        Err(ended) => return ended,
+    };
     let built = scene_of(
         &assembly,
         (&archive_models, request.materials),
@@ -245,6 +305,7 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         Ok(scene) => Ended::Built(Box::new(Built {
             scene,
             issues: assembly.issues().len(),
+            interior: request.interior,
         })),
         Err(BuildError::Cancelled) => Ended::Cancelled,
         Err(BuildError::Empty) => Ended::Empty,

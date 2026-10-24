@@ -907,9 +907,15 @@ entities-status-unresolved = Nicht aufgelöst
 entities-expand-port = { $name } aufklappen
 entities-collapse-port = { $name } zuklappen
 entities-replace-title = { $port } ersetzen
-entities-replace-takes = Der Port nimmt { $types } auf, Größen { $sizes }.
+entities-replace-takes = Der Port nimmt { $types } auf, { $single ->
+    [yes] Größe
+   *[other] Größen
+  } { $sizes }.
 entities-replace-takes-types = Der Port nimmt { $types } auf.
-entities-replace-takes-sizes = Der Port nimmt die Größen { $sizes } auf.
+entities-replace-takes-sizes = Der Port nimmt { $single ->
+    [yes] die Größe
+   *[other] die Größen
+  } { $sizes } auf.
 entities-replace-takes-any = Der Port nimmt jede Entity auf.
 entities-replace-hint = Klassenname oder Record-Pfad
 entities-replace-count = { $number } von { $total } passenden Entities

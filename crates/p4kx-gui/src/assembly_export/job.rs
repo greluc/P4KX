@@ -281,6 +281,9 @@ impl ModelProvider for Stoppable<'_> {
     }
 }
 
+#[cfg(test)]
+mod tests;
+
 struct Observed<'a, W> {
     inner: W,
     cancel: &'a CancelToken,
@@ -290,7 +293,7 @@ struct Observed<'a, W> {
 impl<W: Write> Write for Observed<'_, W> {
     fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
         if self.cancel.is_cancelled() {
-            return Err(io::Error::from(io::ErrorKind::Interrupted));
+            return Err(io::Error::other("the export stopped"));
         }
         let written = self.inner.write(buffer)?;
         self.shared

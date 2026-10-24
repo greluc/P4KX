@@ -38,7 +38,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let Some(session) = model.entities().loadout() else {
         let text = plain(texts.get(EntityText::LoadoutNone), FS_SM, Weight::Regular)
             .color(palette::GRAY_2_TEXT);
-        frames::preview_body().show(ui, |ui| ui.add(Label::new(text)));
+        ui.add(Label::new(text));
         return;
     };
     let action = head(ui, texts, session).or_else(|| body(ui, texts, session));

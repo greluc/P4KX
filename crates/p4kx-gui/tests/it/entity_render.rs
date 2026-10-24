@@ -73,6 +73,15 @@ fn render(
 
 #[test]
 fn the_picker_the_loadout_tree_the_replacement_and_the_export_are_drawn() -> TestResult {
+    drawn([1280.0, 640.0], "")
+}
+
+#[test]
+fn the_replacement_and_the_export_fit_the_smallest_window() -> TestResult {
+    drawn([640.0, 400.0], "small-")
+}
+
+fn drawn(size: [f32; 2], tag: &str) -> TestResult {
     for (language, suffix, replace) in [
         (Language::BritishEnglish, "en-GB", "Replace…"),
         (Language::German, "de-DE", "Ersetzen …"),
@@ -84,7 +93,7 @@ fn the_picker_the_loadout_tree_the_replacement_and_the_export_are_drawn() -> Tes
         let path = crate::tagging::archive(dir.path(), entries())?;
         let mut harness = Harness::builder()
             .with_context_setup(p4kx_gui::theme::apply)
-            .with_size([1280.0, 640.0])
+            .with_size(size)
             .renderer(renderer)
             .build_ui_state(
                 |ui, model: &mut Model| {
@@ -98,9 +107,9 @@ fn the_picker_the_loadout_tree_the_replacement_and_the_export_are_drawn() -> Tes
         harness.run_steps(2);
         crate::tagging::wait_until(&mut harness, listed)?;
         select(&mut harness, "TEST_Ship")?;
-        let orange = render(&mut harness, &format!("entities-{suffix}.png"))?;
+        let orange = render(&mut harness, &format!("entities-{tag}{suffix}.png"))?;
         assert!(
-            orange > 500,
+            orange > 100,
             "the rule and the selected row bar: {orange} pixels"
         );
 
@@ -109,13 +118,13 @@ fn the_picker_the_loadout_tree_the_replacement_and_the_export_are_drawn() -> Tes
             .next()
             .ok_or("no replace action")?
             .click();
-        render(&mut harness, &format!("entities-replace-{suffix}.png"))?;
+        render(&mut harness, &format!("entities-replace-{tag}{suffix}.png"))?;
         harness.state_mut().entities_mut().close_replace();
         harness.run_steps(2);
 
         settle(&mut harness)?;
         harness.state_mut().begin_assembly_export();
-        render(&mut harness, &format!("entities-export-{suffix}.png"))?;
+        render(&mut harness, &format!("entities-export-{tag}{suffix}.png"))?;
     }
     Ok(())
 }

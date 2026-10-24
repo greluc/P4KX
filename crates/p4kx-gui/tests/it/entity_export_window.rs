@@ -13,7 +13,7 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use entity_picking::{TestResult, opened, select, settle};
-use p4kx_gui::{AssemblyExport, AssemblyExportStatus, Language, Model};
+use p4kx_gui::{AssemblyExport, AssemblyExportStatus, Language, Model, Place, WorkTab};
 
 fn start(harness: &mut Harness<'_, Model>, file: &Path) -> Result<bool, &'static str> {
     harness.state_mut().begin_assembly_export();
@@ -175,6 +175,54 @@ fn a_cancelled_export_leaves_no_file() -> TestResult {
         file.exists(),
         !cancelled,
         "a file only if it was not cancelled"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_export_reads_the_archive_even_while_a_container_is_open_in_browse() -> TestResult {
+    let container = p4kx_testkit::TestContainer::new()
+        .entry(p4kx_testkit::TestEntry::stored(
+            "room\\layout.xml",
+            "<layout/>",
+        ))
+        .build();
+    let mut entries = entity_picking::entries();
+    entries.push(p4kx_testkit::TestEntry::stored(
+        "Data\\ObjectContainers\\room.socpak",
+        container,
+    ));
+    let (dir, mut harness) =
+        entity_picking::opened_sized(entries, Language::BritishEnglish, [1400.0, 900.0])?;
+    select(&mut harness, "TEST_Ship")?;
+    harness.state_mut().set_work_tab(WorkTab::Archive);
+    harness.run_steps(2);
+    for folder in ["Data", "ObjectContainers", "room.socpak"] {
+        harness.get_by_role_and_label(Role::Button, folder).click();
+        harness.run_steps(3);
+    }
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !harness
+        .state()
+        .browser()
+        .is_some_and(|browser| matches!(browser.place(), Place::Container(_)))
+    {
+        if Instant::now() > deadline {
+            return Err("the container did not open".into());
+        }
+        std::thread::sleep(Duration::from_millis(5));
+        harness.step();
+    }
+    harness.state_mut().set_work_tab(WorkTab::Entities);
+    harness.run_steps(2);
+
+    assert!(start(&mut harness, &dir.path().join("ship.glb"))?);
+    finished(&mut harness)?;
+
+    assert_eq!(
+        summary(&harness)?.modelled_parts(),
+        3,
+        "the models come from the Archive, not from the container"
     );
     Ok(())
 }

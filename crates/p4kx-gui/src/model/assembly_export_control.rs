@@ -7,7 +7,7 @@ use p4kx_settings::AssemblyExportSettings;
 
 use super::Model;
 use crate::assembly_export::start;
-use crate::{AssemblyExport, AssemblyExportSetup, Browser, EntitiesTab, Texts};
+use crate::{AssemblyExport, AssemblyExportSetup, EntitiesTab, Texts};
 
 /// The Entities tab and the Export of an Entity as GLB of the window: the choices remembered,
 /// the open setup and the running or finished export.
@@ -72,15 +72,13 @@ impl Model {
     /// Returns whether an Entity with its resolved Loadout is selected and no export of one runs.
     #[must_use]
     pub fn assembly_export_available(&self) -> bool {
-        self.assembly
-            .tab
-            .loadout()
-            .is_some_and(|session| session.view().is_some() && !session.is_resolving())
-            && !self
-                .assembly
-                .run
-                .as_ref()
-                .is_some_and(AssemblyExport::is_running)
+        self.assembly.tab.loadout().is_some_and(|session| {
+            session.view().is_some() && !session.is_resolving() && session.failure().is_none()
+        }) && !self
+            .assembly
+            .run
+            .as_ref()
+            .is_some_and(AssemblyExport::is_running)
     }
 
     /// Opens the Export of an Entity as GLB setup for the selected Entity with the changes made to
@@ -151,8 +149,7 @@ impl Model {
         let Some(index) = self
             .browser
             .as_ref()
-            .and_then(Browser::shared_pane)
-            .map(Arc::clone)
+            .map(|browser| Arc::clone(browser.shared_index()))
         else {
             return false;
         };

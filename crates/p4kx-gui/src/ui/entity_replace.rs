@@ -84,17 +84,27 @@ fn takes(ui: &mut Ui, texts: &Texts, chooser: &ReplaceChooser) {
         |constraints| {
             let types = types_text(constraints);
             let sizes = sizes_text(constraints);
+            let single = if constraints.min_size() == constraints.max_size() {
+                "yes"
+            } else {
+                "no"
+            };
             match (types.is_empty(), sizes.is_empty()) {
                 (false, false) => texts.format(
                     EntityText::ReplaceTakes,
-                    &[("types", types.into()), ("sizes", sizes.into())],
+                    &[
+                        ("types", types.into()),
+                        ("sizes", sizes.into()),
+                        ("single", single.into()),
+                    ],
                 ),
                 (false, true) => {
                     texts.format(EntityText::ReplaceTakesTypes, &[("types", types.into())])
                 }
-                (true, false) => {
-                    texts.format(EntityText::ReplaceTakesSizes, &[("sizes", sizes.into())])
-                }
+                (true, false) => texts.format(
+                    EntityText::ReplaceTakesSizes,
+                    &[("sizes", sizes.into()), ("single", single.into())],
+                ),
                 (true, true) => texts.get(EntityText::ReplaceTakesAny),
             }
         },
@@ -154,7 +164,7 @@ fn list(ui: &mut Ui, texts: &Texts, chooser: &ReplaceChooser) -> Option<Guid> {
         ui.spacing_mut().item_spacing.y = 0.0;
         ScrollArea::vertical()
             .id_salt("entity-replace-rows")
-            .max_height(PREVIEW_HEIGHT)
+            .max_height(PREVIEW_HEIGHT.min(frames::modal_room(ui)))
             .show_rows(ui, ROW_HEIGHT, chooser.shown_len(), |ui, visible| {
                 for position in visible {
                     if let Some(entity) = chooser.get(position)

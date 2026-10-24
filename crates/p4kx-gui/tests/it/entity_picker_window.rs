@@ -202,7 +202,7 @@ fn a_port_with_sizes_only_offers_the_entities_without_a_size_or_of_that_size() -
     harness.run_steps(3);
 
     assert!(
-        harness.query_by_label("The port takes sizes 1.").is_some(),
+        harness.query_by_label("The port takes size 1.").is_some(),
         "the sizes are named"
     );
     let chooser = harness.state().entities().replace().ok_or("no chooser")?;

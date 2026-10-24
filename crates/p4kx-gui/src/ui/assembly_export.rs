@@ -36,8 +36,24 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         |ui| {
             ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
             let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
-            let action = choices(ui, texts, setup);
-            if closed { Some(Action::Close) } else { action }
+            let action =
+                frames::scrolling_body(ui, "assembly-export-body", |ui| choices(ui, texts, setup));
+            let pressed = foot(
+                ui,
+                texts,
+                (T::Start, setup.is_ready()),
+                ExtractionText::Close,
+            );
+            let chosen = match pressed {
+                Some(true) => Some(Action::Submit),
+                Some(false) => Some(Action::Close),
+                None => None,
+            };
+            if closed {
+                Some(Action::Close)
+            } else {
+                action.or(chosen)
+            }
         },
     );
     frames::modal_decoration(
@@ -103,17 +119,7 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Optio
         });
     });
     refusal_notice(ui, texts, setup.refusal());
-    let pressed = foot(
-        ui,
-        texts,
-        (T::Start, setup.is_ready()),
-        ExtractionText::Close,
-    );
-    action.or(match pressed {
-        Some(true) => Some(Action::Submit),
-        Some(false) => Some(Action::Close),
-        None => None,
-    })
+    action
 }
 
 fn materials(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {

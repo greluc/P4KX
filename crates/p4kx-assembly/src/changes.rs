@@ -87,9 +87,18 @@ impl LoadoutChanges {
     }
 
     /// Removes the change to the port `port`, an exclusion or a replacement, and returns whether
-    /// there was one. Changes to the ports below it stay.
+    /// there was one. Taking back a replacement also drops the changes to the ports below it, as
+    /// they name ports of the replacing Entity; those below an exclusion are dropped already.
     pub fn remove(&mut self, port: &str) -> bool {
-        path_key(port).is_some_and(|key| self.drop_at(&key))
+        let Some(key) = path_key(port) else {
+            return false;
+        };
+        let replaced = matches!(self.action_for(port), PortChange::Replace(_));
+        let removed = self.drop_at(&key);
+        if removed && replaced {
+            self.drop_below(&key);
+        }
+        removed
     }
 
     /// Returns what the changes do to the port `port`; a path that is none or has no change is

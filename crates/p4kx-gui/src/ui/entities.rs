@@ -137,7 +137,7 @@ fn ready(ui: &mut Ui, model: &mut Model) {
     let picked = Panel::left("entities-list")
         .frame(frames::panel())
         .resizable(true)
-        .default_size(SIDEBAR_MAX_WIDTH)
+        .default_size(SIDEBAR_MAX_WIDTH.min(ui.available_width() / 2.0))
         .size_range(SIDEBAR_MIN_WIDTH..=SIDEBAR_MAX_WIDTH)
         .show(ui, |ui| {
             let EntitiesStatus::Ready(list) = model.entities().status() else {
@@ -156,7 +156,9 @@ fn ready(ui: &mut Ui, model: &mut Model) {
         let ctx = ui.ctx().clone();
         model.select_entity(position, move || ctx.request_repaint());
     }
-    frames::panel().show(ui, |ui| entity_loadout::show(ui, model));
+    frames::panel().show(ui, |ui| {
+        frames::preview_body().show(ui, |ui| entity_loadout::show(ui, model));
+    });
 }
 
 fn footer(ui: &mut Ui, texts: &Texts, list: &EntityList, (filter, query): (EntityFilter, &str)) {

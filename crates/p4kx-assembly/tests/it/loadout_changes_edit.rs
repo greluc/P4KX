@@ -89,6 +89,43 @@ fn a_change_drops_the_changes_below_the_port() -> TestResult {
 }
 
 #[test]
+fn taking_back_a_replacement_drops_the_changes_below_it() -> TestResult {
+    let mut changes = LoadoutChanges::new();
+    changes.set_replacement("weapon_b", "MOUNT")?;
+    changes.set_excluded("weapon_b/mount_gun")?;
+    changes.set_excluded("power")?;
+
+    assert!(changes.remove("weapon_b"));
+
+    assert_eq!(changes.action_for("weapon_b/mount_gun"), PortChange::Keep);
+    assert_eq!(
+        changes.action_for("power"),
+        PortChange::Exclude,
+        "the rest stays"
+    );
+    assert!(
+        applied(&changes).is_ok(),
+        "no change is left that names a port of the replaced Entity"
+    );
+    Ok(())
+}
+
+#[test]
+fn taking_back_an_exclusion_keeps_the_other_changes() -> TestResult {
+    let mut changes = LoadoutChanges::new();
+    changes.set_excluded("weapon_a")?;
+    changes.set_excluded("weapon_b/mount_gun")?;
+
+    assert!(changes.remove("weapon_a"));
+
+    assert_eq!(
+        changes.action_for("weapon_b/mount_gun"),
+        PortChange::Exclude
+    );
+    Ok(())
+}
+
+#[test]
 fn edited_changes_resolve_like_built_ones() -> TestResult {
     let mut edited = LoadoutChanges::new();
     edited.set_excluded("weapon_b")?;

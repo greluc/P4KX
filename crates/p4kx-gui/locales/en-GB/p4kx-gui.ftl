@@ -907,9 +907,15 @@ entities-status-unresolved = Unresolved
 entities-expand-port = Expand { $name }
 entities-collapse-port = Collapse { $name }
 entities-replace-title = Replace { $port }
-entities-replace-takes = The port takes { $types }, sizes { $sizes }.
+entities-replace-takes = The port takes { $types }, { $single ->
+    [yes] size
+   *[other] sizes
+  } { $sizes }.
 entities-replace-takes-types = The port takes { $types }.
-entities-replace-takes-sizes = The port takes sizes { $sizes }.
+entities-replace-takes-sizes = The port takes { $single ->
+    [yes] size
+   *[other] sizes
+  } { $sizes }.
 entities-replace-takes-any = The port takes any Entity.
 entities-replace-hint = Class name or record path
 entities-replace-count = { $number } of { $total } Entities that fit

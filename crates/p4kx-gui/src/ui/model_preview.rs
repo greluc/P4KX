@@ -6,6 +6,7 @@ use std::sync::Arc;
 use egui::{Color32, Ui};
 use fluent_bundle::FluentValue;
 
+use super::model_playback::{self, ViewerAsk};
 use super::model_view;
 use crate::theme::desktop::SPINNER_INLINE;
 use crate::theme::palette;
@@ -13,17 +14,19 @@ use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
 use crate::{
     Camera, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MODEL_FILE_LIMIT, ModelPreview, ModelStatus,
-    ModelText, Problem, Scene, SceneError, Text, Texts, Unavailable, ViewerSupport, format,
+    ModelText, Playback, Problem, Scene, SceneError, Text, Texts, Unavailable, ViewerSupport,
+    format,
 };
 
 /// Shows the Model tab of the model Entry at `path`: its facts and the 3D view, or the reason
-/// there is none. Returns the camera when the user moved it.
+/// there is none. Returns what the user did with the view and the playback controls.
 pub(super) fn show(
     ui: &mut Ui,
     texts: &Texts,
     path: &str,
     (preview, support): (&ModelPreview, &ViewerSupport),
-) -> Option<Camera> {
+) -> Option<ViewerAsk> {
+    ui.set_min_height(ui.available_height());
     match preview.status() {
         ModelStatus::Unshowable(error) => {
             let (colour, text) = unshowable(texts, path, error);
@@ -31,7 +34,13 @@ pub(super) fn show(
         }
         ModelStatus::Ready(scene) => {
             let camera = preview.camera()?;
-            return ready(ui, texts, path, (scene, camera), support);
+            return Some(ready(
+                ui,
+                texts,
+                path,
+                (scene, camera, preview.playback()),
+                support,
+            ));
         }
         status => unread(ui, texts, path, status),
     }
@@ -116,9 +125,9 @@ fn ready(
     ui: &mut Ui,
     texts: &Texts,
     path: &str,
-    (scene, camera): (&Arc<Scene>, &Camera),
+    (scene, camera, playback): (&Arc<Scene>, &Camera, Option<&Playback>),
     support: &ViewerSupport,
-) -> Option<Camera> {
+) -> ViewerAsk {
     let problem = support.problem(scene.serial());
     ui.scope(|ui| {
         ui.spacing_mut().item_spacing.y = 0.0;
@@ -128,9 +137,9 @@ fn ready(
                 Some(problem) => {
                     let (colour, text) = problem_text(texts, path, &problem);
                     ui.colored_label(colour, text);
-                    None
+                    ViewerAsk::default()
                 }
-                None => model_view::viewport(ui, texts, path, (scene, camera)),
+                None => model_playback::view(ui, texts, path, (scene, camera), playback),
             })
             .inner
     })

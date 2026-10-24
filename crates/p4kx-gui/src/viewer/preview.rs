@@ -7,11 +7,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::model::{LodSelection, companion_file_names};
+use p4kx_extraction::model::{Animation, LodSelection, companion_file_names};
 use p4kx_extraction::{AnimationChoice, AnimationSet, Entry, ModelSource, PathIndex};
 
 use super::camera::Camera;
+use super::playback::Playback;
 use super::scene::{Scene, SceneError};
+use super::skeleton::Skeleton;
 use crate::model::describe;
 use crate::{EntryIndex, ModelInfo};
 
@@ -51,7 +53,14 @@ enum Event {
     Failed(Option<String>),
     ArchiveChanged,
     FileTooLarge(u64),
-    Read(Box<(ModelInfo, Result<Scene, SceneError>)>),
+    Read(Box<Loaded>),
+}
+
+#[derive(Debug)]
+struct Loaded {
+    info: ModelInfo,
+    scene: Result<Scene, SceneError>,
+    animations: Vec<Animation>,
 }
 
 #[derive(Debug)]
@@ -72,6 +81,7 @@ pub struct ModelPreview {
     state: State,
     info: Option<Arc<ModelInfo>>,
     camera: Option<Camera>,
+    playback: Option<Playback>,
 }
 
 impl ModelPreview {
@@ -105,6 +115,7 @@ impl ModelPreview {
             state,
             info: None,
             camera: None,
+            playback: None,
         }
     }
 
@@ -153,6 +164,18 @@ impl ModelPreview {
         self.camera.as_mut()
     }
 
+    /// Returns the skeleton overlay and animation playback of the model once it was read, or
+    /// `None` for a model without a skeleton.
+    #[must_use]
+    pub const fn playback(&self) -> Option<&Playback> {
+        self.playback.as_ref()
+    }
+
+    /// Returns the playback for controlling it.
+    pub const fn playback_mut(&mut self) -> Option<&mut Playback> {
+        self.playback.as_mut()
+    }
+
     /// Takes the result the background thread sent; returns whether it arrived.
     pub(crate) fn poll(&mut self) -> bool {
         let State::Loading(events) = &self.state else {
@@ -168,11 +191,18 @@ impl ModelPreview {
             Event::ArchiveChanged => State::ArchiveChanged,
             Event::FileTooLarge(size) => State::FileTooLarge(size),
             Event::Read(read) => {
-                let (info, scene) = *read;
+                let Loaded {
+                    info,
+                    scene,
+                    animations,
+                } = *read;
                 self.info = Some(Arc::new(info));
                 match scene {
                     Ok(scene) => {
                         self.camera = Some(Camera::framing(scene.bounds()));
+                        self.playback = scene
+                            .skeleton()
+                            .map(|skeleton| Playback::new(Arc::clone(skeleton), animations));
                         State::Ready(Arc::new(scene))
                     }
                     Err(error) => State::Unshowable(error),
@@ -220,10 +250,9 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
     if stop() {
         return None;
     }
-    let animations = AnimationSet::from_archive(&paths, entry.path(), &AnimationChoice::All, &[])
-        .ok()
-        .map(|set| set.animations.len());
-    let info = ModelInfo::of(source.model()).with_animations(animations);
+    let set = AnimationSet::from_archive(&paths, entry.path(), &AnimationChoice::All, &[]).ok();
+    let found = set.as_ref().map(|set| set.animations.len());
+    let info = ModelInfo::of(source.model()).with_animations(found);
     if stop() {
         return None;
     }
@@ -234,7 +263,24 @@ fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
     if index.watch().check().is_err() {
         return Some(Event::ArchiveChanged);
     }
-    Some(Event::Read(Box::new((info, scene))))
+    let animations = scene
+        .as_ref()
+        .ok()
+        .filter(|scene| scene.skin().is_some())
+        .and_then(|scene| scene.skeleton())
+        .zip(set)
+        .map(|(skeleton, set)| movers(skeleton, set.animations))
+        .unwrap_or_default();
+    Some(Event::Read(Box::new(Loaded {
+        info,
+        scene,
+        animations,
+    })))
+}
+
+fn movers(skeleton: &Skeleton, mut animations: Vec<Animation>) -> Vec<Animation> {
+    animations.retain(|animation| skeleton.moves(animation));
+    animations
 }
 
 fn oversized_file(paths: &PathIndex<'_>, entry: &Entry) -> Option<u64> {

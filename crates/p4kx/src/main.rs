@@ -93,6 +93,7 @@ mod ui_render;
 mod verify;
 mod wwise;
 mod wwise_events;
+mod wwise_extract;
 mod wwise_json;
 
 use std::io::{self, Write};
@@ -130,7 +131,7 @@ fn main() -> ExitCode {
         Command::Catalog(args) => catalog::run(&args, json),
         Command::Coverage(args) => coverage::run(&args, json),
         Command::Ships(args) => ships::run(&args, json),
-        Command::Entity(args) => entity::run(&args, json).map(success),
+        Command::Entity(args) => entity::run(&args, json),
         Command::Interior(args) => match args.action {
             cli_interior::InteriorAction::Glb(args) => interior_glb::run(&args, json).map(success),
         },
@@ -149,7 +150,7 @@ fn main() -> ExitCode {
         Command::Socpak(args) => socpak::run(&args, json),
         Command::Chf(args) => chf::run(&args, json).map(success),
         Command::Chunks(args) => chunks::run(&args, json).map(success),
-        Command::Wwise(args) => wwise::run(&args, json).map(success),
+        Command::Wwise(args) => wwise::run(&args, json),
         Command::Model(args) => model::run(&args, json).map(success),
         Command::Key(args) => key::run(&args, &given, json).map(success),
     };

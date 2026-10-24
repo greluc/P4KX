@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::Model;
-use crate::{AudioOutput, AudioPreview, Browser, Player};
+use crate::{AudioOutput, AudioPreview, Browser, Player, SoundsTab, WorkTab};
 
 impl Model {
     /// Replaces the audio output sounds are played through, by default the system's default
@@ -31,7 +31,7 @@ impl Model {
     /// it plays; does nothing before it is decoded.
     pub fn toggle_playback(&mut self) {
         let volume = self.audio_volume;
-        let Some(player) = player_of(&mut self.browser) else {
+        let Some(player) = active_player(self.work_tab, &mut self.browser, &mut self.sounds) else {
             return;
         };
         if player.is_playing() {
@@ -42,9 +42,13 @@ impl Model {
         }
     }
 
-    /// Pauses the sound of the selected WEM at its position, so playing resumes from there.
+    /// Pauses the sounds of the Archive tab and the Sounds tab at their positions, so playing
+    /// resumes from there.
     pub fn pause_playback(&mut self) {
-        if let Some(player) = self.player_mut() {
+        if let Some(player) = player_of(&mut self.browser) {
+            player.pause();
+        }
+        if let Some(player) = self.sounds.audio_mut().and_then(AudioPreview::player_mut) {
             player.pause();
         }
     }
@@ -57,7 +61,19 @@ impl Model {
     }
 
     fn player_mut(&mut self) -> Option<&mut Player> {
-        player_of(&mut self.browser)
+        active_player(self.work_tab, &mut self.browser, &mut self.sounds)
+    }
+}
+
+fn active_player<'a>(
+    tab: WorkTab,
+    browser: &'a mut Option<Browser>,
+    sounds: &'a mut SoundsTab,
+) -> Option<&'a mut Player> {
+    if tab == WorkTab::Sounds {
+        sounds.audio_mut().and_then(AudioPreview::player_mut)
+    } else {
+        player_of(browser)
     }
 }
 

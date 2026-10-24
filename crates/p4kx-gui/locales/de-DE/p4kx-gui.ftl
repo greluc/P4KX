@@ -623,6 +623,120 @@ tags-count-shown =
 tags-no-match = Kein Tag-Pfad passt zur Suche.
 tags-copy-path = Tag-Pfad kopieren
 tags-copy-guid = GUID kopieren
+sounds-tab = Sounds
+sounds-entity-label = Entity
+sounds-entity-hint = Klassenname, GUID oder Record-Pfad einer Entity
+sounds-show = Sounds anzeigen
+sounds-use-record = Ausgewählten Record verwenden
+sounds-search-label = Suche
+sounds-search-hint = Name eines Triggers oder Events, * und ? erlaubt
+sounds-export = Sounds exportieren …
+sounds-empty-title = Kein Archiv geöffnet
+sounds-empty-hint = Öffnen Sie ein Archiv, um die Sounds seiner Entities zu durchsuchen.
+sounds-loading = Die Audiodaten des Archivs werden gelesen …
+sounds-failed = Die Audiodaten des Archivs können nicht gelesen werden: { $reason }
+sounds-stopped = Das Lesen der Audiodaten endete ohne Ergebnis.
+sounds-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um seine Audiodaten zu lesen.
+sounds-issues =
+    { $count ->
+        [one] { $number } Audiodatei konnte nicht gelesen werden; die Trigger und Sounds darin fehlen.
+       *[other] { $number } Audiodateien konnten nicht gelesen werden; die Trigger und Sounds darin fehlen.
+    }
+sounds-list-hint = Zeigen Sie eine Entity an oder suchen Sie nach einem Trigger oder Event, um Audio-Trigger aufzulisten.
+sounds-list-loading = Die Audio-Trigger werden aufgelistet …
+sounds-not-an-entity = Der ausgewählte Record ist keine Entity.
+sounds-list-failed = Die Audio-Trigger können nicht aufgelistet werden: { $reason }
+sounds-list-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um die Audio-Trigger aufzulisten.
+sounds-no-match = Kein Trigger- oder Event-Name passt zur Suche.
+sounds-no-triggers = Die Entity nennt keinen Audio-Trigger.
+sounds-column-trigger = Trigger
+sounds-column-state = Status
+sounds-column-events = Wwise-Events
+sounds-state-ok = Aufgelöst
+sounds-state-no-definition = Ohne Definition
+sounds-state-no-event = Ohne Event
+sounds-state-no-soundbank = Ohne Soundbank
+sounds-count-entity =
+    { $count ->
+        [one] { $name }: { $number } Audio-Trigger, { $resolved } mit Soundbank
+       *[other] { $name }: { $number } Audio-Trigger, { $resolved } mit Soundbank
+    }
+sounds-count-search =
+    { $count ->
+        [one] { $number } Trigger
+       *[other] { $number } Trigger
+    }
+sounds-count-search-more = Gezeigt werden die ersten { $number } von { $total } Triggern. Ein längerer Text grenzt die Suche ein.
+sounds-scroll-triggers = Audio-Trigger
+sounds-scroll-variants = Sounds des Triggers
+sounds-select-hint = Wählen Sie einen Trigger, um seine Sounds zu sehen.
+sounds-variants-loading = Die Sounds werden aufgelöst …
+sounds-undefined = Keine ATL-Definition hat diesen Trigger.
+sounds-no-variants = Der Trigger führt zu keinem Sound.
+sounds-variants-count =
+    { $count ->
+        [one] { $name }: { $number } Sound
+       *[other] { $name }: { $number } Sounds
+    }
+sounds-breaks-heading =
+    { $count ->
+        [one] { $number } Stelle, an der der Weg zu einem Sound abbricht
+       *[other] { $number } Stellen, an denen der Weg zu einem Sound abbricht
+    }
+sounds-break-line = { $name }: { $reason }
+sounds-break-line-in = { $name } in { $bank }: { $reason }
+sounds-column-event = Wwise-Event
+sounds-column-wem = WEM-ID
+sounds-column-source = Quelle
+sounds-column-language = Sprache
+sounds-column-soundbank = Soundbank
+sounds-source-embedded = Eingebettet
+sounds-source-prefetch = Vorgeladen
+sounds-source-streamed = Gestreamt
+sounds-source-plugin = Plug-in
+sounds-source-other = Andere
+sounds-language-fallback = { $language } (Ersatz)
+sounds-variant-row = { $name }: { $bank }, WEM { $id }
+sounds-detail = { $path }, WEM { $id }, { $source }
+sounds-select-variant = Wählen Sie einen Sound, um ihn abzuspielen.
+sounds-note-prefetch = Von diesem gestreamten Sound ist nur der Anfang eingebettet und der zugehörige WEM-Eintrag fehlt, deshalb lässt er sich nicht abspielen.
+sounds-note-plugin = Ein Quell-Plug-in erzeugt diesen Sound; kein WEM enthält ihn.
+sounds-note-missing = Weder eine Soundbank noch ein loser WEM-Eintrag enthält dieses WEM.
+sounds-export-title = Sounds exportieren
+sounds-export-scope = Trigger
+sounds-export-selected = Der ausgewählte Trigger: { $name }
+sounds-export-selected-none = Der ausgewählte Trigger (keiner ausgewählt)
+sounds-export-all =
+    { $count ->
+        [one] Der Trigger der Liste mit Soundbank
+       *[other] Alle { $number } Trigger der Liste mit Soundbank
+    }
+sounds-export-format = Sounds als
+sounds-export-start = Exportieren
+sounds-export-running = Sounds werden exportiert
+sounds-export-planning = Der Export wird geplant …
+sounds-export-progress = { $done } von { $total } Sounds, { $percent } %
+sounds-summary-title = Sounds exportiert
+sounds-summary-cancelled-title = Sound-Export abgebrochen
+sounds-failed-title = Sound-Export fehlgeschlagen
+sounds-export-failed = Die Sounds können nicht nach { $path } exportiert werden: { $reason }
+sounds-export-stopped = Der Export der Sounds nach { $path } endete ohne Ergebnis.
+sounds-summary-cancelled = Der Export wurde abgebrochen. Die noch nicht bearbeiteten Sounds wurden nicht geschrieben.
+sounds-summary-counts = Sounds geschrieben { $written }, behalten { $skipped }, fehlgeschlagen { $failed }
+sounds-summary-target = Ziel: { $path }
+sounds-summary-unconverted =
+    { $count ->
+        [one] { $number } Sound wurde unverändert geschrieben, weil er sich nicht umwandeln lässt
+       *[other] { $number } Sounds wurden unverändert geschrieben, weil sie sich nicht umwandeln lassen
+    }
+sounds-summary-failed =
+    { $count ->
+        [one] { $number } Sound wurde nicht exportiert
+       *[other] { $number } Sounds wurden nicht exportiert
+    }
+sounds-summary-file = { $name }: { $reason }
+sounds-summary-failure = { $name }, WEM { $id }: { $reason }
+sounds-summary-failure-plain = { $name }: { $reason }
 tags-irregular =
     { $count ->
         [one] Der Tag-Baum weicht an { $number } Stelle von dem ab, was die TagDatabase auflistet. Der Befehl p4kx dcb tags zählt sie.

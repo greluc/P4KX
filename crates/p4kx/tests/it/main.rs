@@ -6,6 +6,7 @@
 mod animation_support;
 mod archive_key;
 mod armour_glb;
+mod armour_loadout;
 mod audio;
 mod audio_adpcm;
 mod audio_loop;
@@ -56,6 +57,7 @@ mod extract_convert_dataforge;
 mod extract_textures;
 mod grep;
 mod info;
+mod interior_glb;
 mod json;
 mod json_audio;
 mod json_bnk;

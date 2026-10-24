@@ -42,6 +42,7 @@ mod record_tree;
 mod search;
 mod shown_line;
 mod sort;
+mod sounds;
 mod tags;
 mod text_cache;
 mod texts;
@@ -99,6 +100,8 @@ pub use model_export::{
 pub use model_info::{
     ChunkCounts, ChunkFile, ChunkNote, LodInfo, MAX_LISTED_CHUNKS, MaterialsInfo, ModelInfo,
 };
+pub use p4kx_assembly::audio::SoundFormat;
+pub use p4kx_assembly::audio::{SourceKind, Unmatched};
 pub use p4kx_export::RecordForm;
 pub use p4kx_extraction::Language as TextLanguage;
 pub use p4kx_extraction::{ArchiveKey, Folder, FolderId};
@@ -127,13 +130,19 @@ pub use record_preview::{
 };
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
+pub use sounds::{
+    BreakLine, EntityInfo, EventLine, IndexInfo, ListSource, ListStatus, MAX_SOUND_HITS, Playable,
+    SoundList, SoundsExport, SoundsExportSetup, SoundsExportStatus, SoundsListStatus, SoundsScope,
+    SoundsStatus, SoundsTab, TriggerList, TriggerRow, Variant,
+};
 pub use tags::{TagRow, TagsStatus, TagsTab, TagsView};
 pub use texts::{
     AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
     ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText, EntityText,
     ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, ModelExportText,
     ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
-    RecordSearchText, RecordText, SchemaText, ScrollText, TagsText, Text, Texts, XmlText,
+    RecordSearchText, RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, Texts,
+    XmlText,
 };
 pub use viewer::{
     AssemblyScene, BuildError, BuildOptions, DrawList, GroupDraw, Hooks, Instance, Left,

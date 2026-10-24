@@ -48,7 +48,8 @@
 //! [`BodyVariant`]: the variant's skeleton and default body skin, constant paths, and per piece
 //! the geometry its Record names for the variant's tag ([`Wearable`]), skinned to the body's
 //! skeleton by bone name; [`Armour::write_glb`] exports it as one skinned GLB. A piece that cannot
-//! be fitted is an [`Issue`].
+//! be fitted is an [`Issue`]. [`LoadoutResolver::worn`] takes the pieces from a resolved Loadout
+//! tree, and [`Piece::layer`] puts pieces given by hand on top of them.
 
 mod armour;
 mod assembly;
@@ -63,6 +64,7 @@ mod error;
 mod files;
 mod flatten;
 mod geometry;
+mod interior;
 mod issue;
 mod markup;
 mod merge;
@@ -80,7 +82,9 @@ mod vehicle;
 mod walk;
 mod xml;
 
-pub use armour::{Armour, ArmourPart, BodyVariant, PartOrigin, Piece, Wearable};
+pub use armour::{
+    Armour, ArmourPart, BodyVariant, PartOrigin, Piece, Replaced, Wearable, is_worn_type,
+};
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
     Placement,
@@ -92,6 +96,10 @@ pub use entities::{ENTITY_TYPE, Entities};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
 pub use geometry::{Geometry, GeometryVariant, PaletteRef};
+pub use interior::{
+    Interior, InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS,
+    MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
+};
 pub use issue::{Issue, IssueKind};
 pub use p4kx_character as character;
 pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
@@ -104,7 +112,7 @@ pub use vehicle::{
     UnreadableValue, ValueOrigin, VehicleImplementation, VehicleItemPort, VehiclePart,
     VehicleTotals,
 };
-pub use xml::MAX_XML_INCLUDE_DEPTH;
+pub use xml::{MAX_XML_INCLUDE_DEPTH, MAX_XML_INCLUDES};
 
 /// The deepest element nesting of a vehicle implementation or patch file that is read; deeper
 /// files are refused.

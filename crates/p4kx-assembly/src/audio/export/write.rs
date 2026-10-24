@@ -12,7 +12,7 @@ use p4kx_extraction::{ConflictPolicy, ConversionError, MAX_SOUND_LEN, write_repl
 use rayon::prelude::*;
 
 use super::plan::{Job, Origin};
-use super::{ExportFailure, ExportOptions, ExportState, ExportedSound, SoundFormat};
+use super::{ExportFailure, ExportOptions, ExportState, ExportWatch, ExportedSound, SoundFormat};
 use crate::audio::read::entry_bytes;
 use crate::audio::{ArchiveAudio, MAX_SOUNDBANK_LEN};
 
@@ -25,6 +25,7 @@ pub(super) fn run(
     jobs: &[Job],
     folder: &Path,
     options: ExportOptions,
+    watch: &ExportWatch,
 ) -> Vec<Outcome> {
     let mut groups: Vec<(Origin, Vec<usize>)> = Vec::new();
     let mut slots: HashMap<Origin, usize> = HashMap::new();
@@ -40,7 +41,7 @@ pub(super) fn run(
     let mut outcomes: Vec<(usize, Outcome)> = groups
         .par_iter()
         .flat_map_iter(|(origin, members)| {
-            run_group(audio, jobs, *origin, members, folder, options)
+            run_group(audio, jobs, (*origin, members), (folder, options), watch)
         })
         .collect();
     outcomes.sort_unstable_by_key(|(position, _)| *position);
@@ -50,12 +51,15 @@ pub(super) fn run(
 fn run_group(
     audio: &ArchiveAudio<'_>,
     jobs: &[Job],
-    origin: Origin,
-    members: &[usize],
-    folder: &Path,
-    options: ExportOptions,
+    (origin, members): (Origin, &[usize]),
+    (folder, options): (&Path, ExportOptions),
+    watch: &ExportWatch,
 ) -> Vec<(usize, Outcome)> {
+    if watch.is_cancelled() {
+        return Vec::new();
+    }
     let failed_all = |reason: String| -> Vec<(usize, Outcome)> {
+        watch.advance(members.len());
         members
             .iter()
             .filter_map(|&position| {
@@ -84,6 +88,9 @@ fn run_group(
     members
         .iter()
         .filter_map(|&position| {
+            if watch.is_cancelled() {
+                return None;
+            }
             let job = jobs.get(position)?;
             let outcome = match bank.as_ref().map(|bank| bank.wem(job.wem_id)) {
                 None => write_sound(&bytes, false, job, folder, options),
@@ -95,6 +102,7 @@ fn run_group(
                     format!("{} no longer embeds the WEM", entry.path()),
                 )),
             };
+            watch.advance(1);
             Some((position, outcome))
         })
         .collect()

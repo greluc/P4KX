@@ -267,6 +267,31 @@ parent's model; the part sits at the parent's origin) and `too_many_parts`, `too
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.
 
+## `p4kx interior glb <archive> <container>... --out <file> --json`
+
+```json
+{"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\RSI\\Mantis\\base_int_body_main.socpak"],
+ "out": "…", "lod": 0, "parts": 20, "containers_opened": 1, "model_parts": 15,
+ "modelled_parts": 15, "nodes": 35, "meshes": 15, "primitives": 96, "materials": 22,
+ "default_material_ids": 0, "hidden_primitives": 11, "lod_fallbacks": 0, "shared_meshes": 0,
+ "shared_materials": 74, "shared_textures": 0, "vertices": 154546, "triangles": 143253,
+ "bytes": 8940016, "skipped": 0, "issues": [Issue, …]}
+```
+
+`containers` are the Entry paths of the chain as for `p4kx socpak list`, with the same exit codes
+(an Entry the Archive lacks is 2, a container that cannot be opened 3). `parts` counts the root
+container, the `.soc` files, the nested containers and the placed models; `containers_opened` the
+containers that were opened, the root included; `model_parts` the placed models and
+`modelled_parts` those whose model was read. The other counts are those of `entity glb`. An
+**Issue** has the fields of the `entity glb` Issue: `path` is the names of the containers from the
+root joined by `/`, `name` the container, `.soc` file or model, and the kinds are
+`container_missing`, `container_unreadable`, `container_cycle` (the container is nested in
+itself and not entered again), `file_missing`, `file_unreadable`, `invalid_placement`,
+`objects_left_out`, `unsupported_objects`, `geometry_missing`, `geometry_unreadable`,
+`material_library`, `too_many_parts`, `too_many_containers`, `too_many_vertices` and `too_deep`
+([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
+file is written even when parts are skipped.
+
 ## `p4kx armour bodies --json`
 
 ```json
@@ -277,19 +302,27 @@ was reached). New kinds may be added in later versions.
 `code` is what `--body` takes, `tag` the tag a piece's Record gives its geometry for the variant,
 `skeleton` and `skin` the files of the default body.
 
-## `p4kx armour glb <archive> --piece <entity>… --out <file> --json`
+## `p4kx armour glb <archive> --piece <entity>… --loadout <loadout> --out <file> --json`
 
 ```json
 {"archive": "…", "body": "male", "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…",
- "lod": 0, "pieces": 2, "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
+ "lod": 0, "loadout": {"name": "…", "source": "entity", "class_name": "…"}, "pieces": 2,
+ "replaced": [{"name": "…", "by": "…", "item_type": "Char_Armor_Torso"}, …],
+ "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
  "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
  "materials": 19, "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
  "issues": [Issue, …]}
 ```
 
-`pieces` counts the `--piece` options, `parts` lists what was written: the skin of the body
-(`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after the
-piece's class name, with the model `file` as the Record spells it. `bones` and `nodes` count the
+`pieces` counts the pieces: the `--piece` options and, with `--loadout`, the armour and clothing of
+the Loadout that were not replaced, including those that could not be resolved. `loadout` is
+`null` without `--loadout`, else it has the text given as `name`, the `source` of the Loadout
+(`entity` for an Entity's default Loadout, `archive` for an XML Loadout Entry, `file` for a file
+on disk) and, for an Entity, its `class_name`. `replaced` lists the pieces of the Loadout that a
+`--piece` of the same item type took the place of. `parts` lists what was written: the skin of
+the body (`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after
+the piece's class name, or `<port>/<class name>` for a piece of a Loadout, with the model `file`
+as the Record spells it. `bones` and `nodes` count the
 glTF nodes: the bones, written once, and the nodes of the models. `skipped` counts the issues that
 leave a piece out. An Entity that no Record matches, or several do, exits with code 2 and writes
 nothing; a skeleton that is missing exits with code 3; an Archive key that is missing or wrong
@@ -302,7 +335,10 @@ Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometr
 `bones_not_in_skeleton` (some bones of the model are not in the body skeleton and follow their
 nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
-class name; for `piece_not_found` it is the text given to `--piece`.
+class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
+the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when
+part of it cannot be read. A `--loadout` that is neither an Entity nor an XML Loadout that can be
+read exits with code 2 and writes nothing.
 
 ## `p4kx entity audio <archive> <entity> --json`
 

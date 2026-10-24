@@ -79,8 +79,15 @@ mod record_tree;
 mod record_value;
 mod search;
 mod shortcuts;
+mod sound_grid;
 mod soundbank_preview;
 mod soundbank_table;
+mod sounds;
+mod sounds_export;
+mod sounds_outcome;
+mod sounds_toolbar;
+mod sounds_triggers;
+mod sounds_variants;
 mod status;
 mod table;
 mod table_name;
@@ -106,7 +113,7 @@ use crate::widgets::{frames, tab};
 const RESIZE_GAP: i8 = 6;
 use crate::{
     ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText, Model,
-    PreviewTab, QueryExportFormat, QueryText, TagsText, Text, WorkTab,
+    PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -134,6 +141,8 @@ pub enum Dialog {
     ModelFile,
     /// Picks the GLB file an Entity is exported to.
     AssemblyFile,
+    /// Picks the folder of a sound export.
+    SoundsFolder,
 }
 
 /// What the window asks of its host after a frame.
@@ -199,6 +208,8 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     assembly_export::setup(ui, model, &mut requests);
     assembly_export_outcome::show(ui, model);
     catalog_outcome::show(ui, model);
+    sounds_export::setup(ui, model, &mut requests);
+    sounds_outcome::show(ui, model);
     licence::show(ui, model);
     about::show(ui, model);
     archive_key::show(ui, model);
@@ -230,6 +241,7 @@ fn poll_background(model: &mut Model) {
     model.query_mut().poll();
     model.localization_mut().poll();
     model.tags_mut().poll();
+    model.poll_sounds();
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -245,6 +257,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         WorkTab::Tags => return tags::show(ui, model),
         WorkTab::Search => return content_search::show(ui, model),
         WorkTab::Entities => return entities::show(ui, model),
+        WorkTab::Sounds => return sounds::show(ui, model),
         WorkTab::Archive => {}
     }
     let dragging = is_dragging_file(ui);
@@ -282,7 +295,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 7] = [
+const WORK_TABS: [(WorkTab, Text); 8] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -299,6 +312,7 @@ const WORK_TABS: [(WorkTab, Text); 7] = [
     (WorkTab::Tags, Text::Tags(TagsText::Tab)),
     (WorkTab::Search, Text::ContentSearch(ContentSearchText::Tab)),
     (WorkTab::Entities, Text::Entity(EntityText::Tab)),
+    (WorkTab::Sounds, Text::Sounds(SoundsText::Tab)),
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {

@@ -5,6 +5,7 @@
 
 mod real_archive;
 mod real_armour;
+mod real_armour_loadout;
 mod real_assembly;
 mod real_assembly_textures;
 mod real_audio;
@@ -13,9 +14,11 @@ mod real_changes;
 mod real_chf;
 mod real_chf_tail;
 mod real_docked_vehicles;
+mod real_interior;
 mod real_resolve;
 mod real_search;
 mod real_streamed_localised;
 mod real_vehicle;
 mod real_vehicle_support;
+mod real_wwise_verification;
 mod real_xml_nested;

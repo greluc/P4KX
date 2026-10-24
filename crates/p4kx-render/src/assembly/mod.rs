@@ -11,6 +11,8 @@ mod flatten;
 mod frustum;
 mod surface;
 #[cfg(test)]
+pub(crate) mod synthetic;
+#[cfg(test)]
 mod tests;
 mod visibility;
 

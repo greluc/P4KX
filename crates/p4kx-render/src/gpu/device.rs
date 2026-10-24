@@ -3,13 +3,10 @@
 
 use std::future::Future;
 use std::pin::pin;
+use std::sync::Arc;
+use std::task::Wake;
 use std::task::{Context, Poll, Waker};
-#[cfg(test)]
-use std::{
-    sync::Arc,
-    task::Wake,
-    thread::{self, Thread},
-};
+use std::thread::{self, Thread};
 
 use super::pipelines::{COLOUR_FORMAT, DEPTH_FORMAT};
 
@@ -48,10 +45,8 @@ pub(super) fn guarded<T>(device: &wgpu::Device, work: impl FnOnce() -> T) -> (T,
     (output, invalid.or(exhausted).is_some())
 }
 
-#[cfg(test)]
 struct Unpark(Thread);
 
-#[cfg(test)]
 impl Wake for Unpark {
     fn wake(self: Arc<Self>) {
         self.0.unpark();
@@ -59,7 +54,6 @@ impl Wake for Unpark {
 }
 
 /// Runs `future` to completion on the calling thread.
-#[cfg(test)]
 pub(super) fn block_on<F: Future>(future: F) -> F::Output {
     let mut future = pin!(future);
     let waker = Waker::from(Arc::new(Unpark(thread::current())));

@@ -23,8 +23,9 @@ pub use assembly::{
 };
 pub use camera::{Camera, Matrix, Step, Uniforms};
 pub use gpu::{
-    AssemblyDraw, Colours, Frame, GpuReport, Look, MAX_TEXTURE_SIDE, Rejected, Renderer, Subject,
-    Unavailable, check_buffer, check_texture, target_extent,
+    Adapters, AssemblyDraw, Colours, Frame, GpuReport, Look, MAX_TEXTURE_SIDE, Offscreen,
+    OffscreenError, Picture, Rejected, Renderer, Subject, Unavailable, check_buffer, check_texture,
+    target_extent,
 };
 pub use scene::{
     Bounds, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, SKIN_STRIDE, Scene, SceneError, SkinVertex,

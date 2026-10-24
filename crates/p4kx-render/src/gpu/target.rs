@@ -9,6 +9,7 @@ pub(super) struct Target {
     pub(super) extent: [u32; 2],
     pub(super) multisampled: Option<wgpu::TextureView>,
     pub(super) resolved: wgpu::TextureView,
+    pub(super) picture: wgpu::Texture,
     pub(super) depth: wgpu::TextureView,
     pub(super) blit_group: wgpu::BindGroup,
     textures: Vec<wgpu::Texture>,
@@ -46,7 +47,7 @@ impl Target {
             "p4kx-viewer-picture",
             COLOUR_FORMAT,
             1,
-            attachment | wgpu::TextureUsages::TEXTURE_BINDING,
+            attachment | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
         );
         let multisampled =
             (samples > 1).then(|| make("p4kx-viewer-samples", COLOUR_FORMAT, samples, attachment));
@@ -77,6 +78,7 @@ impl Target {
             multisampled: multisampled.as_ref().map(view),
             depth: view(&depth),
             resolved: resolved_view,
+            picture: resolved.clone(),
             blit_group,
             textures: [Some(resolved), multisampled, Some(depth)]
                 .into_iter()

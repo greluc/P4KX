@@ -8,6 +8,9 @@ mod assembly;
 mod device;
 mod frame;
 mod limits;
+mod offscreen;
+#[cfg(test)]
+mod offscreen_tests;
 mod pipelines;
 mod report;
 mod resources;
@@ -22,6 +25,7 @@ use std::sync::Arc;
 use assembly::AssemblyBuffers;
 use device::{settle, supported_samples};
 pub use limits::{MAX_TEXTURE_SIDE, Rejected, check_buffer, check_texture, target_extent};
+pub use offscreen::{Adapters, Offscreen, OffscreenError, Picture};
 use pipelines::{BLIT_BYTES, FRAME_BYTES, Pipelines};
 pub use report::{GpuReport, Unavailable};
 use resources::{MaterialTexture, MeshBuffers};

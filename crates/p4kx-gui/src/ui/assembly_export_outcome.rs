@@ -7,6 +7,7 @@ use std::time::Duration;
 use egui::{Color32, Id, Ui};
 use fluent_bundle::FluentValue;
 
+use super::assembly_export_notes::notes;
 use super::assembly_export_progress::stage_fraction;
 use super::extraction_outcome::decorate;
 use super::record_export_outcome::{list, outcome_window};
@@ -18,9 +19,9 @@ use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::{
-    AssemblyExportProgress, AssemblyExportStage, AssemblyExportStatus, AssemblyExportSummary,
-    AssemblyExportText as T, ExtractionText, Language, Model, ModelExportFailure, ModelExportText,
-    Texts, format,
+    AssemblyExportForm, AssemblyExportProgress, AssemblyExportStage, AssemblyExportStatus,
+    AssemblyExportSummary, AssemblyExportText as T, ExtractionText, Language, Model,
+    ModelExportFailure, ModelExportText, Texts, format,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -39,7 +40,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     match run.status() {
         AssemblyExportStatus::Running(progress) => {
             let cancelling = run.is_cancelled();
-            let title = texts.get(titles(run.is_container()).0);
+            let title = texts.get(titles(run.is_container(), run.form()).0);
             let shown = frames::window(&title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
@@ -47,14 +48,15 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
                 .default_width(MODAL_WIDTH)
                 .show(ui.ctx(), |ui| {
                     frames::head(ui, (&title, Tone::Normal), false, None);
-                    cancel = running(ui, texts, (run.name(), progress), cancelling);
+                    let package = run.form() == AssemblyExportForm::Package;
+                    cancel = running(ui, texts, (run.name(), progress, package), cancelling);
                 });
             decorate(ui, shown, Tone::Normal);
             ui.ctx().request_repaint_after(REFRESH);
         }
         AssemblyExportStatus::Finished(summary) => {
             let laid = Laid::get(ui, texts, (run.id(), summary));
-            let title = titles(run.is_container()).1;
+            let title = titles(run.is_container(), run.form()).1;
             close = outcome_window(ui, texts, (OUTCOME, title.into(), Tone::Normal), |ui| {
                 finished(ui, &laid);
             });
@@ -87,11 +89,11 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
 
 /// Returns the titles of the progress window and of the summary of an Entity, or of a container
 /// whose Interior is exported on its own.
-const fn titles(container: bool) -> (T, T) {
-    if container {
-        (T::RunningTitleInterior, T::SummaryTitleInterior)
-    } else {
-        (T::RunningTitle, T::SummaryTitle)
+const fn titles(container: bool, form: AssemblyExportForm) -> (T, T) {
+    match (container, form) {
+        (true, _) => (T::RunningTitleInterior, T::SummaryTitleInterior),
+        (false, AssemblyExportForm::Package) => (T::RunningTitlePackage, T::SummaryTitlePackage),
+        (false, AssemblyExportForm::Glb) => (T::RunningTitle, T::SummaryTitle),
     }
 }
 
@@ -144,7 +146,7 @@ pub(super) fn failed(
 fn running(
     ui: &mut Ui,
     texts: &Texts,
-    (name, progress): (&str, AssemblyExportProgress),
+    (name, progress, package): (&str, AssemblyExportProgress, bool),
     cancelling: bool,
 ) -> bool {
     let name = ("name", FluentValue::from(name.to_owned()));
@@ -159,6 +161,7 @@ fn running(
                 ("total", number_of(texts, progress.total).into()),
             ],
         ),
+        AssemblyExportStage::Writing if package => texts.format(T::WritingPackage, &[name]),
         AssemblyExportStage::Writing => texts.format(
             T::Writing,
             &[("size", format::size(progress.done, texts.language()).into())],
@@ -274,72 +277,8 @@ fn missing_textures(texts: &Texts, summary: &AssemblyExportSummary) -> (String, 
     (heading, lines)
 }
 
-fn number(texts: &Texts, value: usize) -> String {
+pub(super) fn number(texts: &Texts, value: usize) -> String {
     format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language())
-}
-
-/// Returns the lines above the report, each with its colour.
-fn notes(texts: &Texts, summary: &AssemblyExportSummary) -> Vec<(String, Color32)> {
-    let written = summary.written();
-    let counts = [
-        ("parts", number(texts, summary.parts())),
-        ("modelled", number(texts, summary.modelled_parts())),
-        ("nodes", number(texts, written.nodes)),
-        ("meshes", number(texts, written.meshes)),
-        ("materials", number(texts, written.materials)),
-        ("vertices", number(texts, written.vertices)),
-        ("triangles", number(texts, written.triangles)),
-        ("size", format::size(written.bytes, texts.language())),
-    ]
-    .map(|(name, value)| (name, FluentValue::from(value)));
-    let mut notes = vec![
-        (
-            texts.format(
-                T::SummaryFile,
-                &[("path", summary.file().display().to_string().into())],
-            ),
-            palette::GRAY_1,
-        ),
-        (texts.format(T::SummaryCounts, &counts), palette::GRAY_1),
-    ];
-    if let Some(interior) = summary.interior() {
-        let args = [
-            ("containers", number(texts, interior.containers)),
-            ("parts", number(texts, interior.parts)),
-            ("models", number(texts, interior.model_parts)),
-            ("modelled", number(texts, interior.modelled_parts)),
-            ("lights", number(texts, interior.lights)),
-        ]
-        .map(|(name, value)| (name, FluentValue::from(value)));
-        notes.push((texts.format(T::SummaryInterior, &args), palette::GRAY_1));
-    }
-    if written.textures > 0 || !written.texture_fallbacks.is_empty() {
-        let args = [
-            (
-                "images",
-                u64::try_from(written.textures).unwrap_or(u64::MAX).into(),
-            ),
-            ("textured", number(texts, written.textured_materials).into()),
-            ("materials", number(texts, written.materials).into()),
-        ];
-        notes.push((texts.format(T::SummaryImages, &args), palette::GRAY_1));
-    }
-    for (text, value) in [
-        (T::SummaryFallbacks, written.lod_fallbacks),
-        (T::SummaryHidden, written.hidden_primitives),
-    ] {
-        if value > 0 {
-            let args = [
-                ("count", u64::try_from(value).unwrap_or(u64::MAX).into()),
-                ("number", number(texts, value).into()),
-            ];
-            notes.push((texts.format(text, &args), palette::WARNING));
-        }
-    }
-    if summary.issues().is_empty() {
-        notes.push((texts.get(T::ReportAll), palette::GRAY_1));
-    }
-    notes
 }
 
 fn finished(ui: &mut Ui, laid: &Laid) {

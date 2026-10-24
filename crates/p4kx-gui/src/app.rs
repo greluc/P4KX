@@ -54,18 +54,22 @@ impl App {
             return;
         }
         let (sender, receiver) = mpsc::channel();
-        let filter = self.model.texts().get(Text::DialogArchiveFilter);
-        let report_filter = self.model.texts().get(ComparisonText::ReportFilter);
-        let export_filter = match dialog {
-            Dialog::QueryExport(QueryExportFormat::Json) => QueryText::FilterJson,
-            _ => QueryText::FilterCsv,
+        let texts = self.model.texts();
+        let filters = Filters {
+            archive: texts.get(Text::DialogArchiveFilter),
+            report: texts.get(ComparisonText::ReportFilter),
+            export: texts.get(match dialog {
+                Dialog::QueryExport(QueryExportFormat::Json) => QueryText::FilterJson,
+                _ => QueryText::FilterCsv,
+            }),
+            catalog: texts.get(CatalogText::FileFilter),
+            catalog_compressed: texts.get(CatalogText::FileFilterCompressed),
+            chf: texts.get(CharacterText::ChfFilter),
         };
-        let export_filter = self.model.texts().get(export_filter);
-        let catalog_filter = self.model.texts().get(CatalogText::FileFilter);
-        let catalog_filter_compressed = self.model.texts().get(CatalogText::FileFilterCompressed);
-        let chf_filter = self.model.texts().get(CharacterText::ChfFilter);
         let model_file = match dialog {
-            Dialog::AssemblyFile => ModelFileDialog::of_assembly(&self.model),
+            Dialog::AssemblyFile | Dialog::AssemblyPackage => {
+                ModelFileDialog::of_assembly(&self.model)
+            }
             Dialog::CharacterFile => ModelFileDialog::of_character(&self.model),
             _ => ModelFileDialog::of(&self.model),
         };
@@ -73,36 +77,7 @@ impl App {
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
             .spawn(move || {
-                let picker = rfd::FileDialog::new();
-                let path = match dialog {
-                    Dialog::AddFolder
-                    | Dialog::ExtractionFolder
-                    | Dialog::RecordExportFolder
-                    | Dialog::SoundsFolder => picker.pick_folder(),
-                    Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
-                        picker.add_filter(filter, &["p4k"]).pick_file()
-                    }
-                    Dialog::ComparisonReport => picker
-                        .add_filter(report_filter, &["json"])
-                        .set_file_name("comparison.json")
-                        .save_file(),
-                    Dialog::CatalogFile => picker
-                        .add_filter(catalog_filter_compressed, &["zst"])
-                        .add_filter(catalog_filter, &["json"])
-                        .set_file_name(CATALOG_FILE)
-                        .save_file(),
-                    Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => {
-                        model_file.save(picker)
-                    }
-                    Dialog::CharacterChf => picker.add_filter(chf_filter, &["chf"]).pick_file(),
-                    Dialog::QueryExport(format) => {
-                        let extension = format.extension();
-                        picker
-                            .add_filter(export_filter, &[extension])
-                            .set_file_name(format!("query.{extension}"))
-                            .save_file()
-                    }
-                };
+                let path = pick(dialog, rfd::FileDialog::new(), filters, model_file);
                 if sender.send(path).is_ok() {
                     ctx.request_repaint();
                 }
@@ -113,12 +88,22 @@ impl App {
     }
 
     fn choose_export_file(&mut self, dialog: Dialog, path: PathBuf) {
-        if dialog == Dialog::AssemblyFile {
-            if let Some(setup) = self.model.assembly_export_setup_mut() {
-                setup.set_file(path);
+        match dialog {
+            Dialog::AssemblyFile => {
+                if let Some(setup) = self.model.assembly_export_setup_mut() {
+                    setup.set_file(path);
+                }
             }
-        } else if let Some(setup) = self.model.model_export_setup_mut() {
-            setup.set_file(path);
+            Dialog::AssemblyPackage => {
+                if let Some(setup) = self.model.assembly_export_setup_mut() {
+                    setup.set_package_folder(path);
+                }
+            }
+            _ => {
+                if let Some(setup) = self.model.model_export_setup_mut() {
+                    setup.set_file(path);
+                }
+            }
         }
     }
 
@@ -144,7 +129,10 @@ impl App {
                     setup.set_folder(path);
                 }
             }
-            Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
+            Some((
+                dialog @ (Dialog::ModelFile | Dialog::AssemblyFile | Dialog::AssemblyPackage),
+                path,
+            )) => {
                 self.choose_export_file(dialog, path);
             }
             Some((Dialog::CharacterChf, path)) => {
@@ -226,6 +214,52 @@ impl App {
     }
 }
 
+/// The names of the file types the dialogs show, in the current language.
+struct Filters {
+    archive: String,
+    report: String,
+    export: String,
+    catalog: String,
+    catalog_compressed: String,
+    chf: String,
+}
+
+fn pick(
+    dialog: Dialog,
+    picker: rfd::FileDialog,
+    filters: Filters,
+    model_file: ModelFileDialog,
+) -> Option<PathBuf> {
+    match dialog {
+        Dialog::AddFolder
+        | Dialog::ExtractionFolder
+        | Dialog::RecordExportFolder
+        | Dialog::SoundsFolder => picker.pick_folder(),
+        Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
+            picker.add_filter(filters.archive, &["p4k"]).pick_file()
+        }
+        Dialog::ComparisonReport => picker
+            .add_filter(filters.report, &["json"])
+            .set_file_name("comparison.json")
+            .save_file(),
+        Dialog::CatalogFile => picker
+            .add_filter(filters.catalog_compressed, &["zst"])
+            .add_filter(filters.catalog, &["json"])
+            .set_file_name(CATALOG_FILE)
+            .save_file(),
+        Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => model_file.save(picker),
+        Dialog::AssemblyPackage => model_file.pick_folder(picker),
+        Dialog::CharacterChf => picker.add_filter(filters.chf, &["chf"]).pick_file(),
+        Dialog::QueryExport(format) => {
+            let extension = format.extension();
+            picker
+                .add_filter(filters.export, &[extension])
+                .set_file_name(format!("query.{extension}"))
+                .save_file()
+        }
+    }
+}
+
 /// What the file dialog of the Export as GLB shows: the file type, the proposed name and the
 /// folder it starts in.
 struct ModelFileDialog {
@@ -267,6 +301,14 @@ impl ModelFileDialog {
             name: characters.proposed_name(),
             folder: characters.folder().map(Path::to_path_buf),
         }
+    }
+
+    fn pick_folder(self, picker: rfd::FileDialog) -> Option<PathBuf> {
+        match self.folder {
+            Some(folder) => picker.set_directory(folder),
+            None => picker,
+        }
+        .pick_folder()
     }
 
     fn save(self, picker: rfd::FileDialog) -> Option<PathBuf> {

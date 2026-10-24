@@ -5,10 +5,13 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
-use anyhow::Result;
-use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped};
-use p4kx_extraction::{ConversionError, DataForgeEntry, write_replacing};
-use p4kx_screens::{Composed, Report, ScreenComposer};
+use anyhow::{Context as _, Result};
+use p4kx_extraction::gfx::{Background, CanvasSize, Font, Localise, RasterOptions, Skipped};
+use p4kx_extraction::{
+    Archive, ConversionError, DataForgeEntry, Language, LocalizationEntry, UiMovie,
+    decode_line_breaks, write_replacing,
+};
+use p4kx_screens::{Composed, Report, ScreenComposer, TextSources};
 use serde::Serialize;
 
 use crate::{exit, json};
@@ -16,6 +19,7 @@ use crate::{exit, json};
 pub(crate) struct Options<'a> {
     pub(crate) screen: &'a str,
     pub(crate) brand: Option<&'a str>,
+    pub(crate) lang: Option<Language>,
     pub(crate) out: &'a Path,
     pub(crate) size: Option<CanvasSize>,
     pub(crate) background: Background,
@@ -61,7 +65,28 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
     let archive = crate::key::open(archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
-    let composed = ScreenComposer::new(&forge).compose(options.screen, options.brand)?;
+    let fonts = read_fonts(&archive, &ScreenComposer::new(&forge).font_file())
+        .inspect_err(warn)
+        .ok();
+    let texts = LocalizationEntry::read(&archive, options.lang.unwrap_or(Language::English))
+        .inspect_err(warn)
+        .ok();
+    let ini = texts
+        .as_ref()
+        .and_then(|texts| texts.parse().inspect_err(warn).ok());
+    let lookup = |key: &str| {
+        ini.as_ref()?
+            .resolve(key)
+            .map(|text| decode_line_breaks(text).into_owned())
+    };
+    let mut screens = ScreenComposer::new(&forge);
+    if let Some(fonts) = &fonts {
+        screens = screens.with_texts(TextSources {
+            fonts,
+            localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
+        });
+    }
+    let composed = screens.compose(options.screen, options.brand)?;
     let raster = RasterOptions {
         size: options.size.unwrap_or(CanvasSize::Stage),
         background: options.background,
@@ -88,6 +113,21 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
             exit::PARTIAL_FAILURE
         },
     ))
+}
+
+fn warn(error: &impl std::fmt::Display) {
+    drop(writeln!(
+        io::stderr().lock(),
+        "warning: texts are drawn without it: {error}"
+    ));
+}
+
+fn read_fonts(archive: &Archive, record_path: &str) -> Result<Vec<Font>> {
+    let under_data = format!("Data/{record_path}");
+    let movie = UiMovie::from_archive(archive, record_path)
+        .or_else(|_| UiMovie::from_archive(archive, &under_data))
+        .with_context(|| format!("the font movie {record_path} of the screens"))?;
+    Ok(movie.movie().assets().fonts)
 }
 
 fn write(composed: &Composed, raster: &RasterOptions, options: &Options<'_>) -> Result<Written> {
@@ -147,12 +187,14 @@ fn print_report(options: &Options<'_>, report: &Report, written: &Written) -> io
     drop(stderr);
     writeln!(
         io::stdout().lock(),
-        "rendered {} into {}, {width} x {height} px; {} widgets in {} canvases, {} shapes, {} kinds of element left out",
+        "rendered {} into {}, {width} x {height} px; {} widgets in {} canvases, {} shapes, {} texts drawn and {} left out, {} kinds of element left out",
         options.screen,
         options.out.display(),
         report.widgets,
         report.canvases,
         report.shapes,
+        report.texts_drawn,
+        report.texts_left_out,
         report.unsupported.len()
     )
 }

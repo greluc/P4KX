@@ -79,6 +79,8 @@ mod rig_logic;
 mod screens;
 mod screens_canvas;
 mod screens_sample;
+mod screens_text;
+mod screens_text_schema;
 mod screens_widget;
 mod soc;
 mod soc_entities;
@@ -143,8 +145,8 @@ pub use gfx_place::{TestPlace, background_body, remove_object2_body};
 pub use gfx_shape::{TestFill, TestGradient, TestShape, TestShapeRecord, morph_shape_body};
 pub use gfx_tags::{
     TestGlyph, color_mapped_body, exporter_info_body, exports_body, external_image_body,
-    font_name_body, font3_body, jpeg_body, lossless_body, place_object2_body, sprite_body,
-    sub_image_body,
+    font_name_body, font3_body, font3_body_styled, jpeg_body, lossless_body, place_object2_body,
+    sprite_body, sub_image_body,
 };
 pub use gfx_text::{TestEditText, TestTextRecord, define_text_body};
 pub use glb::{CheckedGlb, check_glb};
@@ -177,6 +179,10 @@ pub use screens_canvas::{
     screen_component, tag_record,
 };
 pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
+pub use screens_text::{
+    SCREEN_TEXT_CANVAS, SCREEN_TEXT_STYLE, screens_font_movie, screens_text_sample,
+    text_localisation,
+};
 pub use screens_widget::{TestColour, TestDim, TestWidget};
 pub use soc::{SOC_IDENTITY, TestObjectContainer, TestSoc};
 pub use soc_entities::{TestLight, TestLightState, TestSocEntity};

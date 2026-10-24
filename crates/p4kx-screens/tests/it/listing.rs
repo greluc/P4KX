@@ -82,8 +82,8 @@ fn element_types_are_counted_and_marked_as_drawn_or_not() -> TestResult {
     let text = find("WidgetText").ok_or("no text")?;
     assert_eq!(
         (text.count, text.rendered),
-        (1, false),
-        "a text is not drawn"
+        (1, true),
+        "a text has a renderer, which needs the fonts"
     );
     let image = find("WidgetImage").ok_or("no image")?;
     assert!(!image.rendered, "an image is not drawn");

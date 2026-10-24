@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::rc::Rc;
+
 use crate::colour::ColorSpec;
 use crate::style::Modifiers;
+use crate::text::FontStyleInfo;
 use crate::widget::Widget;
 
 #[derive(Debug)]
@@ -11,10 +14,18 @@ pub(crate) struct Look<'a> {
     pub(crate) fill: Option<&'a ColorSpec>,
     pub(crate) stroke: Option<&'a ColorSpec>,
     pub(crate) borders: [(f32, Option<&'a ColorSpec>); 4],
+    pub(crate) style: &'a Modifiers,
+    pub(crate) font: Option<Rc<FontStyleInfo>>,
+    pub(crate) bound_text: Option<String>,
 }
 
 impl<'a> Look<'a> {
-    pub(crate) fn of(widget: &'a Widget, style: &'a Modifiers, unit: f32) -> Self {
+    pub(crate) fn of(
+        widget: &'a Widget,
+        style: &'a Modifiers,
+        unit: f32,
+        font: Option<Rc<FontStyleInfo>>,
+    ) -> Self {
         let enabled = style.enable_background.unwrap_or(widget.background_enabled);
         let border = |side: usize| {
             let own = widget.border.get(side);
@@ -42,6 +53,9 @@ impl<'a> Look<'a> {
             fill: style.fill.as_ref().or(widget.shape.fill.as_ref()),
             stroke: style.stroke.as_ref().or(widget.shape.stroke.as_ref()),
             borders: [border(0), border(1), border(2), border(3)],
+            style,
+            font,
+            bound_text: None,
         }
     }
 }

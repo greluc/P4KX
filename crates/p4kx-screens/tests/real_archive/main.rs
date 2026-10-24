@@ -5,3 +5,4 @@
 //! `--ignored` when `P4KX_DATA_P4K` names one.
 
 mod real_screens;
+mod real_text;

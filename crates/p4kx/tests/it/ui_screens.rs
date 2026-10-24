@@ -11,8 +11,10 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use p4kx_testkit::{ArchiveBuilder, TestEntry, p4kx, screens_sample};
-use predicates::prelude::predicate;
+use p4kx_testkit::{
+    ArchiveBuilder, GlobalIniBuilder, TestEntry, p4kx, screens_font_movie, screens_sample,
+};
+use predicates::prelude::{PredicateBooleanExt, predicate};
 use serde_json::Value;
 
 use crate::ui_panel::reference::assert_matches_reference;
@@ -52,7 +54,8 @@ fn screens_lists_each_screen_with_its_assets() -> TestResult {
         .stdout(predicate::str::contains(
             "texture:   UI/Textures/Test/picture.dds",
         ))
-        .stdout(predicate::str::contains("WidgetText 1 (not drawn)"))
+        .stdout(predicate::str::contains("WidgetText 1"))
+        .stdout(predicate::str::contains("WidgetText 1 (not drawn)").not())
         .stdout(predicate::str::contains("WidgetCircle 1"))
         .stdout(predicate::str::contains(
             "Radar  TEST_Screen_Panel  100 x 50 px",
@@ -90,7 +93,7 @@ fn screens_json_carries_the_listing() -> TestResult {
         .ok_or("no text element")?;
     assert_eq!(
         (text["count"].as_u64(), text["rendered"].as_bool()),
-        (Some(1), Some(false))
+        (Some(1), Some(true))
     );
     assert_eq!(
         listing["movies"][0]["movie"], "Data/UI/test.gfx",
@@ -132,6 +135,34 @@ fn a_screen_renders_like_its_reference_and_lists_what_was_left_out() -> TestResu
         .stderr(predicate::str::contains("left out: WidgetImage x1"))
         .stderr(predicate::str::contains("left out: WidgetCustomShape x1"));
     assert_matches_reference(&out, "screen_mfd.png")
+}
+
+#[test]
+fn texts_are_drawn_from_the_font_movie_in_the_language() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd("Data\\Game2.dcb", screens_sample().build()))
+        .entry(TestEntry::zstd(
+            "Data\\UI\\fonts\\Shared\\fonts_en.gfx",
+            screens_font_movie(),
+        ))
+        .entry(TestEntry::zstd(
+            "Data\\Localization\\english\\global.ini",
+            GlobalIniBuilder::new().text("test_label", "AA").build(),
+        ))
+        .write_to(&path)?;
+    let out = dir.path().join("texts.png");
+    p4kx()?
+        .args(["ui", "render"])
+        .arg(&path)
+        .args(["--screen", MFD, "--brand", "test", "--out"])
+        .arg(&out)
+        .assert()
+        .code(1)
+        .stdout(predicate::str::contains("1 texts drawn and 0 left out"))
+        .stderr(predicate::str::contains("no renderer for this element type (label)").not());
+    Ok(())
 }
 
 #[test]

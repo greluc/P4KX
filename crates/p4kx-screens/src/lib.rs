@@ -13,10 +13,16 @@
 //! Layout follows the sizing, margin, padding and position of each widget and the flex
 //! containers that arrange children. Every widget type has its own module under `elements`; a
 //! type without a renderer, and every feature the layout or the painters approximate, is listed
-//! in the [`Report`] of the [`Composed`] scene. `ActionScript` is never run and no texture or text
-//! is drawn.
+//! in the [`Report`] of the [`Composed`] scene. `ActionScript` is never run and no texture is
+//! drawn.
+//!
+//! Texts are drawn as glyph outlines of the fonts in [`TextSources`], which a caller reads from
+//! `fonts_en.gfx`: the font style of a widget and the cascade pick the font, size, letter and line
+//! spacing, alignment and case, localisation keys resolve in the language of the caller, and a
+//! character without a glyph is an empty box. Without [`TextSources`] text widgets are listed.
 
 mod assets;
+mod bindings;
 mod canvas;
 mod colour;
 mod compose;
@@ -24,6 +30,8 @@ mod context;
 mod elements;
 mod error;
 mod flex;
+mod font_file;
+mod glyphs;
 mod inspect;
 mod layout;
 mod limits;
@@ -33,11 +41,12 @@ mod reader;
 mod report;
 mod screens;
 mod style;
+mod text;
 mod walk;
 mod widget;
 
 pub use assets::ScreenAssets;
-pub use compose::{Composed, ScreenComposer};
+pub use compose::{Composed, ScreenComposer, TextSources};
 pub use error::ScreenError;
 pub use inspect::ElementCount;
 pub use limits::Limits;

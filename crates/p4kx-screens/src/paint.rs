@@ -1,12 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::collections::HashMap;
+
 use p4kx_gfx::{
     Affine, Cap, ColorTransform, Join, LayerKind, Origin, Paint, PathCommand, Rect, Rgba, Scene,
     SceneItem, ScenePath, ScenePoint, SceneShape, ShapeLayer, StrokeStyle,
 };
 
-const TWIPS: f32 = 20.0;
+use crate::glyphs::GlyphKey;
+
+pub(crate) const TWIPS: f32 = 20.0;
 const ARC_SEGMENTS: u8 = 16;
 const MITER_LIMIT: f32 = 4.0;
 
@@ -48,17 +52,18 @@ enum Mode {
 
 #[derive(Debug, Default)]
 pub(crate) struct Painter {
-    shapes: Vec<SceneShape>,
-    items: Vec<SceneItem>,
+    pub(crate) shapes: Vec<SceneShape>,
+    pub(crate) items: Vec<SceneItem>,
+    pub(crate) glyphs: HashMap<GlyphKey, Option<usize>>,
 }
 
 impl Painter {
     pub(crate) const fn len(&self) -> usize {
-        self.shapes.len()
+        self.items.len()
     }
 
     pub(crate) const fn is_full(&self) -> bool {
-        self.shapes.len() >= MAX_SHAPES
+        self.items.len() >= MAX_SHAPES
     }
 
     pub(crate) fn rect(&mut self, area: Area, colour: Rgba) {

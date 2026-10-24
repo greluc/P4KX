@@ -3,11 +3,10 @@
 
 use p4kx_cryxml::Xml;
 
-use crate::mtl::{CUSTOM_PARAMS, MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS};
+use crate::mtl::{MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS};
+use crate::mtl_raw::{Budget, attributes, layers, other_elements, public_params, raw};
 use crate::mtl_xml::XmlElement;
-use crate::{
-    Material, MaterialError, MaterialFlags, MaterialLibrary, PaletteSlot, PublicParam, TextureSlot,
-};
+use crate::{Material, MaterialError, MaterialFlags, MaterialLibrary, PaletteSlot, TextureSlot};
 
 const DEFAULT_DIFFUSE: [f32; 3] = [1.0; 3];
 const DEFAULT_SPECULAR: [f32; 3] = [0.04; 3];
@@ -43,7 +42,7 @@ fn library<'a>(path: &str, root: impl XmlElement<'a>) -> Result<MaterialLibrary,
             default_palette,
             single: true,
             unknown_entries: 0,
-            materials: vec![material(root)?],
+            materials: vec![material(root, &mut Budget::new())?],
         });
     };
     let mut materials = Vec::new();
@@ -56,7 +55,7 @@ fn library<'a>(path: &str, root: impl XmlElement<'a>) -> Result<MaterialLibrary,
             });
         }
         if child.name().eq_ignore_ascii_case("Material") {
-            materials.push(material(child)?);
+            materials.push(material(child, &mut Budget::new())?);
         } else {
             unknown_entries += 1;
             materials.push(Material::engine_default());
@@ -71,12 +70,33 @@ fn library<'a>(path: &str, root: impl XmlElement<'a>) -> Result<MaterialLibrary,
     })
 }
 
-fn material<'a>(element: impl XmlElement<'a>) -> Result<Material, MaterialError> {
+const TYPED_ATTRIBUTES: [&str; 12] = [
+    "Name",
+    "MtlFlags",
+    "Shader",
+    "SurfaceType",
+    "StringGenMask",
+    "Diffuse",
+    "Specular",
+    "Emissive",
+    "Shininess",
+    "Opacity",
+    "AlphaTest",
+    "Glow",
+];
+
+fn material<'a>(
+    element: impl XmlElement<'a>,
+    budget: &mut Budget,
+) -> Result<Material, MaterialError> {
     let text = |name: &str| element.attribute(name).unwrap_or_default().to_owned();
     let number =
         |name: &str, default: f32| element.attribute(name).and_then(scalar).unwrap_or(default);
     let colour =
         |name: &str, default: [f32; 3]| element.attribute(name).and_then(vector).unwrap_or(default);
+    let textures = textures(element, budget)?;
+    let layers = layers(element, budget);
+    let elements = other_elements(element, budget);
     Ok(Material {
         name: text("Name"),
         flags: flags(element.attribute("MtlFlags")),
@@ -90,30 +110,22 @@ fn material<'a>(element: impl XmlElement<'a>) -> Result<Material, MaterialError>
         opacity: number("Opacity", 1.0),
         alpha_test: number("AlphaTest", 0.0),
         glow: number("Glow", 0.0),
-        textures: textures(element)?,
+        textures,
         palette: palette_slot(element),
         tinted: false,
+        other_attributes: attributes(element)
+            .into_iter()
+            .filter(|(name, _)| {
+                !TYPED_ATTRIBUTES
+                    .iter()
+                    .any(|typed| typed.eq_ignore_ascii_case(name))
+            })
+            .collect(),
         public_params: public_params(element),
+        layers,
+        elements,
+        truncated: budget.cut(),
     })
-}
-
-/// Reads the values of [`CUSTOM_PARAMS`] from the `PublicParams` of a material: a number or a
-/// colour of three numbers; a value of any other form is left out.
-fn public_params<'a>(element: impl XmlElement<'a>) -> Vec<PublicParam> {
-    let Some(params) = element
-        .children()
-        .find(|child| child.name().eq_ignore_ascii_case("PublicParams"))
-    else {
-        return Vec::new();
-    };
-    CUSTOM_PARAMS
-        .iter()
-        .filter_map(|&name| {
-            let text = params.attribute(name)?;
-            let value = vector(text).or_else(|| scalar(text).map(|number| [number, 0.0, 0.0]))?;
-            Some(PublicParam { name, value })
-        })
-        .collect()
 }
 
 /// Returns the palette colour a material takes: that of its first layer with a `PaletteTint`
@@ -139,7 +151,10 @@ fn palette_slot<'a>(element: impl XmlElement<'a>) -> Option<PaletteSlot> {
     })
 }
 
-fn textures<'a>(element: impl XmlElement<'a>) -> Result<Vec<TextureSlot>, MaterialError> {
+fn textures<'a>(
+    element: impl XmlElement<'a>,
+    budget: &mut Budget,
+) -> Result<Vec<TextureSlot>, MaterialError> {
     let mut slots = Vec::new();
     let lists = element
         .children()
@@ -161,6 +176,16 @@ fn textures<'a>(element: impl XmlElement<'a>) -> Result<Vec<TextureSlot>, Materi
         slots.push(TextureSlot {
             map: texture.attribute("Map").unwrap_or_default().to_owned(),
             file: file.to_owned(),
+            attributes: attributes(texture)
+                .into_iter()
+                .filter(|(name, _)| {
+                    !name.eq_ignore_ascii_case("Map") && !name.eq_ignore_ascii_case("File")
+                })
+                .collect(),
+            children: texture
+                .children()
+                .filter_map(|child| raw(child, 1, budget))
+                .collect(),
         });
     }
     Ok(slots)

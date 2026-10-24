@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::mtl_parse::parse_library;
-use crate::{MaterialError, PaletteSlot};
+use crate::mtl_raw::Attributes;
+use crate::{MaterialError, MaterialLayer, PaletteSlot, RawElement};
 
 /// The most sub-materials a material library may hold; the engine allows 128.
 pub const MAX_SUB_MATERIALS: usize = 1024;
@@ -41,6 +42,10 @@ pub struct TextureSlot {
     /// The texture's path as the file gives it, below `Data`, or an engine placeholder such as
     /// `$RenderToTexture`.
     pub file: String,
+    /// The slot's other attributes in file order, e.g. `TexType`.
+    pub attributes: Attributes,
+    /// The slot's child elements, e.g. `TexMod` with the tiling and offset.
+    pub children: Vec<RawElement>,
 }
 
 /// One material: the surface a submesh is drawn with.
@@ -82,49 +87,44 @@ pub struct Material {
     pub palette: Option<PaletteSlot>,
     /// Whether a [`TintPalette`](crate::TintPalette) replaced the colours of the file.
     pub tinted: bool,
-    /// The values of [`CUSTOM_PARAMS`] the material's `PublicParams` set, in that order: a number
-    /// in the first channel, a colour in all three.
-    pub public_params: Vec<PublicParam>,
-}
-
-/// The `PublicParams` of a material that the customisation of a character sets and that
-/// [`Material::public_params`] therefore keeps.
-pub const CUSTOM_PARAMS: [&str; 12] = [
-    "FinalSkinTone",
-    "SourceAverageColor",
-    "IrisColor",
-    "DyeColor",
-    "BaseTintColor",
-    "DyeAmount",
-    "DyeShift",
-    "DyeFadeout",
-    "DyePigmentVariation",
-    "BaseMelanin",
-    "BaseMelaninRedness",
-    "BaseMelaninVariation",
-];
-
-/// One shader parameter of a material, see [`CUSTOM_PARAMS`].
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct PublicParam {
-    /// The parameter's name, one of [`CUSTOM_PARAMS`].
-    pub name: &'static str,
-    /// The value: a number in the first channel, a colour (linear) in all three.
-    pub value: [f32; 3],
+    /// The attributes of the material element that no field above holds, in file order.
+    pub other_attributes: Attributes,
+    /// The `PublicParams` attributes: the shader's parameters by name, in file order.
+    pub public_params: Attributes,
+    /// The `MatLayers` layers in file order.
+    pub layers: Vec<MaterialLayer>,
+    /// The child elements that are neither `Textures`, `PublicParams`, `MatLayers` nor
+    /// `SubMaterials`, as the file has them.
+    pub elements: Vec<RawElement>,
+    /// What the reader's limits cut off, e.g. `layers beyond 64`; empty when nothing was.
+    pub truncated: Vec<String>,
 }
 
 impl Material {
-    /// Returns the value of the shader parameter `name`, or `None` when the material sets none.
+    /// Returns the shader parameter `name` of the material's `PublicParams`, ignoring case, as a
+    /// number in the first channel or as a colour in all three; `None` when the material sets
+    /// none or its value is neither.
     #[must_use]
     pub fn public_param(&self, name: &str) -> Option<[f32; 3]> {
-        self.public_params
+        let (_, text) = self
+            .public_params
             .iter()
-            .find(|param| param.name.eq_ignore_ascii_case(name))
-            .map(|param| param.value)
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))?;
+        let number = |part: &str| {
+            part.trim()
+                .parse::<f32>()
+                .ok()
+                .filter(|value| value.is_finite())
+        };
+        let mut parts = text.split(',');
+        let first = number(parts.next()?)?;
+        match (parts.next(), parts.next(), parts.next()) {
+            (None, ..) => Some([first, 0.0, 0.0]),
+            (Some(second), Some(third), None) => Some([first, number(second)?, number(third)?]),
+            _ => None,
+        }
     }
-}
 
-impl Material {
     /// Returns the material the engine draws a material ID without a sub-material with: a
     /// light grey, opaque, matt surface.
     #[must_use]
@@ -145,7 +145,11 @@ impl Material {
             textures: Vec::new(),
             palette: None,
             tinted: false,
+            other_attributes: Vec::new(),
             public_params: Vec::new(),
+            layers: Vec::new(),
+            elements: Vec::new(),
+            truncated: Vec::new(),
         }
     }
 

@@ -1,0 +1,34 @@
+---
+source: crates/p4kx/tests/it/entity_package_materials.rs
+expression: "pretty(&manifest[\"meshes\"][0], \"materials\")?"
+---
+[
+  {
+    "index": 0,
+    "material": "x0001",
+    "name": "hull",
+    "textures": {}
+  },
+  {
+    "index": 1,
+    "material": "x0005",
+    "name": "decal",
+    "textures": {
+      "diffuse": "t0008"
+    }
+  },
+  {
+    "index": 2,
+    "material": "x0006",
+    "name": "canopy",
+    "textures": {
+      "normal": "t0009"
+    }
+  },
+  {
+    "index": 3,
+    "material": "x0007",
+    "name": "mystery",
+    "textures": {}
+  }
+]

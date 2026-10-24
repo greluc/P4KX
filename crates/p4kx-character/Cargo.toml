@@ -13,6 +13,7 @@ layer = "format"
 
 [dependencies]
 crc32c.workspace = true
+crc32fast.workspace = true
 p4kx-foundation.workspace = true
 ruzstd.workspace = true
 serde.workspace = true

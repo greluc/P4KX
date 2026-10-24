@@ -101,6 +101,30 @@ pub struct Material {
 }
 
 impl Material {
+    /// Returns the shader parameter `name` of the material's `PublicParams`, ignoring case, as a
+    /// number in the first channel or as a colour in all three; `None` when the material sets
+    /// none or its value is neither.
+    #[must_use]
+    pub fn public_param(&self, name: &str) -> Option<[f32; 3]> {
+        let (_, text) = self
+            .public_params
+            .iter()
+            .find(|(key, _)| key.eq_ignore_ascii_case(name))?;
+        let number = |part: &str| {
+            part.trim()
+                .parse::<f32>()
+                .ok()
+                .filter(|value| value.is_finite())
+        };
+        let mut parts = text.split(',');
+        let first = number(parts.next()?)?;
+        match (parts.next(), parts.next(), parts.next()) {
+            (None, ..) => Some([first, 0.0, 0.0]),
+            (Some(second), Some(third), None) => Some([first, number(second)?, number(third)?]),
+            _ => None,
+        }
+    }
+
     /// Returns the material the engine draws a material ID without a sub-material with: a
     /// light grey, opaque, matt surface.
     #[must_use]

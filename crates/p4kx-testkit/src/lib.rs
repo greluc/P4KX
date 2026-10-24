@@ -32,6 +32,7 @@ mod entity_armour;
 mod entity_armour_loadout;
 mod entity_assembly;
 mod entity_cargo;
+mod entity_dressed;
 mod entity_head;
 mod entity_interior_sample;
 mod entity_layer_chain;
@@ -109,6 +110,11 @@ pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skel
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
+pub use entity_dressed::{
+    DRESSED_BROWS, DRESSED_EYES, DRESSED_EYES_MATERIAL, DRESSED_GONE_HAIR, DRESSED_HAIR,
+    DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,
+    DRESSED_HEAD_MATERIAL_FILE, DRESSED_UNKNOWN_MATERIAL, dressed_entries,
+};
 pub use entity_head::{
     FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
     head_entries, head_rig,

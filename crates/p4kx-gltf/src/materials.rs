@@ -13,11 +13,14 @@ use json::validation::Checked::Valid;
 use p4kx_model::{Lod, Material, MaterialLibrary, TintPalette};
 
 use crate::shading::shading;
+use crate::texture_roles::sources_with;
 
 const GLASS_ALPHA: f32 = 0.3;
 
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
 const GLASS_SHADERS: [&str; 1] = ["GlassPBR"];
+const HAIR_CARD_SHADERS: [&str; 1] = ["HairPBR"];
+const HAIR_CARD_CUTOFF: f32 = 0.5;
 
 /// Which glTF material a material ID is drawn with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -179,6 +182,8 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
             1.0,
             Some(material.alpha_test.clamp(0.0, 1.0)),
         )
+    } else if is_hair_cards(material) {
+        (AlphaMode::Mask, 1.0, Some(HAIR_CARD_CUTOFF))
     } else if glass {
         (AlphaMode::Blend, opacity.min(GLASS_ALPHA), None)
     } else if decal || opacity < 1.0 {
@@ -186,6 +191,15 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
     } else {
         (AlphaMode::Opaque, 1.0, None)
     }
+}
+
+/// Returns whether `material` draws hair cards: a `HairPBR` material without a diffuse map whose
+/// `TexSlot1` is an opacity map, which cuts the cards out.
+pub(crate) fn is_hair_cards(material: &Material) -> bool {
+    is_one_of(&material.shader, &HAIR_CARD_SHADERS)
+        && sources_with(material, true)
+            .diffuse
+            .is_some_and(|source| source.opacity)
 }
 
 /// Returns whether `material` is drawn with transparency, so that the alpha channel of its

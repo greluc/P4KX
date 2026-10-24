@@ -11,6 +11,7 @@ use std::time::Instant;
 use p4kx_assembly::character::Chf;
 use p4kx_assembly::{
     ArchiveModels, Armour, AssemblyOptions, BodyVariant, Expressions, Head, IssueKind,
+    ModelProvider,
 };
 use p4kx_extraction::{AnimationChoice, Archive};
 use p4kx_gltf::GlbOptions;
@@ -40,15 +41,21 @@ fn built(archive: &Archive, name: &str) -> Result<(Armour, BodyVariant), Box<dyn
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-#[expect(clippy::print_stdout, reason = "the counts and times are the measurement")]
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts and times are the measurement"
+)]
 fn the_facial_joints_join_the_skeleton_and_the_head_binds_to_them() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     for name in ["masculinedefault.chf", "femininedefault.chf"] {
         let started = Instant::now();
         let (armour, _) = built(&archive, name)?;
         let body = ArchiveModels::new(&archive)
-            .model_bones(armour.variant())
-            .unwrap_or_default();
+            .model(armour.variant().skeleton(), 0)
+            .map_err(|failure| failure.to_string())?
+            .model
+            .bones
+            .len();
         println!(
             "{name}: skeleton {} bones (body {body}), built in {:?}",
             armour.skeleton().bones.len(),
@@ -61,7 +68,10 @@ fn the_facial_joints_join_the_skeleton_and_the_head_binds_to_them() -> TestResul
             .map(|issue| issue.kind().code())
             .collect();
         assert!(!codes.contains(&"face_joints_failed"), "{name}: {codes:?}");
-        assert!(!codes.contains(&"bones_not_in_skeleton"), "{name}: {codes:?}");
+        assert!(
+            !codes.contains(&"bones_not_in_skeleton"),
+            "{name}: {codes:?}"
+        );
         let mut bytes = Vec::new();
         armour.write_glb(&GlbOptions::default(), &mut bytes)?;
         check_glb(&bytes)?;
@@ -71,7 +81,10 @@ fn the_facial_joints_join_the_skeleton_and_the_head_binds_to_them() -> TestResul
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-#[expect(clippy::print_stdout, reason = "the counts, sizes and times are the measurement")]
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts, sizes and times are the measurement"
+)]
 fn a_facial_animation_moves_the_facial_joints_and_sets_morph_weights() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let models = ArchiveModels::new(&archive);
@@ -86,8 +99,12 @@ fn a_facial_animation_moves_the_facial_joints_and_sets_morph_weights() -> TestRe
             &AnimationChoice::Named(vec![face.to_owned()]),
             &[],
         )?;
-        println!("{name}: read {} animations in {:?}", set.animations.len(), started.elapsed());
-        assert!(!set.animations.is_empty());
+        println!(
+            "{name}: read {} animations in {:?}",
+            set.animations.len(),
+            started.elapsed()
+        );
+        assert_ne!(set.animations.len(), 0);
         let started = Instant::now();
         let animations = armour.animate(&set.animations, &models);
         let evaluated = started.elapsed();
@@ -103,7 +120,7 @@ fn a_facial_animation_moves_the_facial_joints_and_sets_morph_weights() -> TestRe
             first.weights.len()
         );
         assert!(first.bones.len() > 20, "{}", first.bones.len());
-        assert!(!first.weights.is_empty());
+        assert_ne!(first.weights.len(), 0);
 
         let mut bytes = Vec::new();
         let started = Instant::now();
@@ -121,7 +138,11 @@ fn a_facial_animation_moves_the_facial_joints_and_sets_morph_weights() -> TestRe
             .iter()
             .flat_map(|animation| &animation.weights)
             .flat_map(|weights| &weights.values);
-        assert!(weights.clone().all(|weight| weight.is_finite() && weight.abs() < 3.0));
+        assert!(
+            weights
+                .clone()
+                .all(|weight| weight.is_finite() && weight.abs() < 3.0)
+        );
         assert!(weights.clone().any(|weight| *weight > 0.2));
     }
     Ok(())
@@ -129,7 +150,10 @@ fn a_facial_animation_moves_the_facial_joints_and_sets_morph_weights() -> TestRe
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-#[expect(clippy::print_stdout, reason = "the counts, sizes and times are the measurement")]
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts, sizes and times are the measurement"
+)]
 fn a_body_animation_moves_the_bones_of_the_body() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let models = ArchiveModels::new(&archive);
@@ -140,7 +164,11 @@ fn a_body_animation_moves_the_bones_of_the_body() -> TestResult {
         &AnimationChoice::Named(vec!["nw_neutral_stand_getupback".to_owned()]),
         &[],
     )?;
-    println!("read {} animations in {:?}", set.animations.len(), started.elapsed());
+    println!(
+        "read {} animations in {:?}",
+        set.animations.len(),
+        started.elapsed()
+    );
     let animations = armour.animate(&set.animations, &models);
     assert!(animations.issues().is_empty(), "{:?}", animations.issues());
     let mut bytes = Vec::new();
@@ -162,21 +190,73 @@ fn a_body_animation_moves_the_bones_of_the_body() -> TestResult {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn an_animation_no_track_of_which_fits_is_listed_and_not_written() -> TestResult {
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts and times are the measurement"
+)]
+fn every_facial_animation_of_the_male_head_folder_evaluates() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let models = ArchiveModels::new(&archive);
+    let (armour, _) = built(&archive, "masculinedefault.chf")?;
+    let started = Instant::now();
+    let set = models.animations(
+        &["Animations/Characters/Human/heads/male"],
+        &AnimationChoice::All,
+        &[],
+    )?;
+    println!(
+        "read {} animations of {} files in {:?}, {} unread",
+        set.animations.len(),
+        set.files,
+        started.elapsed(),
+        set.unread.len()
+    );
+    let started = Instant::now();
+    let animations = armour.animate(&set.animations, &models);
+    let samples: usize = animations.sampled().iter().map(|a| a.times.len()).sum();
+    println!(
+        "{} facial animations, {samples} samples, {} issues, evaluated in {:?}",
+        animations.sampled().len(),
+        animations.issues().len(),
+        started.elapsed()
+    );
+    assert_eq!(
+        animations.sampled().len() + animations.issues().len(),
+        set.animations.len()
+    );
+    assert!(animations.sampled().len() > 100);
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn tracks_of_absent_bones_are_skipped_and_reported() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let models = ArchiveModels::new(&archive);
     let (armour, _) = built(&archive, "masculinedefault.chf")?;
     let set = models.animations(
-        &["Animations/Characters/Creatures"],
+        &["Animations/Characters/Creatures/gilly"],
         &AnimationChoice::All,
         &[],
     )?;
+    assert_ne!(set.animations.len(), 0);
     let few = &set.animations[..set.animations.len().min(3)];
     let animations = armour.animate(few, &models);
-    assert!(animations.is_empty());
-    assert!(animations
-        .issues()
-        .iter()
-        .all(|issue| matches!(issue.kind(), IssueKind::AnimationNotUsed { .. })));
+    assert!(
+        animations
+            .issues()
+            .iter()
+            .all(|issue| matches!(issue.kind(), IssueKind::AnimationNotUsed { .. }))
+    );
+    let mut bytes = Vec::new();
+    let summary = armour.write_glb_animated(&animations, &GlbOptions::default(), &mut bytes)?;
+    check_glb(&bytes)?;
+    assert!(
+        summary.animations.is_empty()
+            || summary
+                .animations
+                .iter()
+                .all(|animation| !animation.skipped_tracks.is_empty())
+    );
     Ok(())
 }

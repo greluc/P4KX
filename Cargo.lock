@@ -3529,6 +3529,7 @@ dependencies = [
 name = "p4kx-assembly"
 version = "0.3.0"
 dependencies = [
+ "crc32fast",
  "p4kx-archive",
  "p4kx-audio",
  "p4kx-character",

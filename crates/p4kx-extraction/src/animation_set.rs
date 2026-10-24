@@ -394,6 +394,9 @@ fn keep<'a>(
     for animation in animations {
         let hits = wanted.hits(&animation.name, &animation.path);
         if animation.additive && hits.is_empty() && !caf_by_caller {
+            if wanted.by_name && !source.whole {
+                continue;
+            }
             set.unread.push(UnreadAnimation {
                 source: source.label.clone(),
                 name: Some(animation.name),

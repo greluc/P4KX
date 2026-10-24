@@ -29,6 +29,7 @@ sha2.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+crc32fast.workspace = true
 p4kx-testkit.workspace = true
 tempfile.workspace = true
 

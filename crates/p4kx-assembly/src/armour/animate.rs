@@ -7,7 +7,7 @@ use std::io::Write;
 use p4kx_character::{DnaRig, FacePose, FaceRig};
 use p4kx_gltf::{
     GlbOptions, GlbSummary, GltfError, RigAnimation, RigPiece, SampledAnimation, SampledBone,
-    SampledWeights, write_rigged_glb_animated,
+    SampledWeights, TextureLoader, write_rigged_glb_animated, write_rigged_glb_animated_with,
 };
 use p4kx_model::{Animation, Bone, Track, multiply_quaternions};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -198,17 +198,17 @@ impl Armour {
             .collect();
         frames.sort_unstable();
         frames.dedup();
-        let poses: Vec<FacePose> = frames
-            .par_iter()
-            .map(|&frame| {
-                let mut values = vec![0.0_f32; logic.controls()];
-                for &(control, key_frames, key_values) in &controls {
-                    if let Some(slot) = values.get_mut(control) {
-                        *slot = value_at(key_frames, key_values, frame);
-                    }
-                }
-                rig.face.pose(&values)
-            })
+        let poses = evaluate(&rig.face, &controls, &frames);
+        let kept = reduction(&frames, &poses, link);
+        let frames: Vec<u16> = kept
+            .iter()
+            .filter_map(|&at| frames.get(at))
+            .copied()
+            .collect();
+        let poses: Vec<FacePose> = kept
+            .iter()
+            .filter_map(|&at| poses.get(at))
+            .cloned()
             .collect();
         let rate = f32::from(animation.frames_per_second.max(1));
         let times = frames
@@ -239,6 +239,32 @@ impl Armour {
         options: &GlbOptions,
         out: &mut impl Write,
     ) -> Result<GlbSummary, GltfError> {
+        self.write_animated(animations, options, None, out)
+    }
+
+    /// Writes the Armour with `animations` like [`Armour::write_glb_animated`], taking the
+    /// textures of [`MaterialMode::Textures`](p4kx_gltf::MaterialMode::Textures) from `textures`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Armour::write_glb_animated`].
+    pub fn write_glb_animated_with(
+        &self,
+        animations: &CharacterAnimations<'_>,
+        options: &GlbOptions,
+        textures: &dyn TextureLoader,
+        out: &mut impl Write,
+    ) -> Result<GlbSummary, GltfError> {
+        self.write_animated(animations, options, Some(textures), out)
+    }
+
+    fn write_animated(
+        &self,
+        animations: &CharacterAnimations<'_>,
+        options: &GlbOptions,
+        textures: Option<&dyn TextureLoader>,
+        out: &mut impl Write,
+    ) -> Result<GlbSummary, GltfError> {
         let pieces: Vec<RigPiece<'_>> = self
             .parts
             .iter()
@@ -252,7 +278,98 @@ impl Armour {
             .map(|&animation| RigAnimation::Keys(animation))
             .chain(animations.sampled.iter().map(RigAnimation::Sampled))
             .collect();
-        write_rigged_glb_animated(&self.skeleton.bones, &pieces, &list, options, out)
+        let bones = &self.skeleton.bones;
+        match textures {
+            Some(textures) => {
+                write_rigged_glb_animated_with(bones, &pieces, &list, options, textures, out)
+            }
+            None => write_rigged_glb_animated(bones, &pieces, &list, options, out),
+        }
+    }
+}
+
+/// Evaluates the rig at each of `frames`, in parallel, for the controls' keyed values.
+fn evaluate(face: &FaceRig, controls: &[Control<'_>], frames: &[u16]) -> Vec<FacePose> {
+    frames
+        .par_iter()
+        .map(|&frame| {
+            let mut values = vec![0.0_f32; face.logic().controls()];
+            for &(control, key_frames, key_values) in controls {
+                if let Some(slot) = values.get_mut(control) {
+                    *slot = value_at(key_frames, key_values, frame);
+                }
+            }
+            face.pose(&values)
+        })
+        .collect()
+}
+
+/// How far a sample may sit from the line between its neighbours before it is kept: a hundredth
+/// of a millimetre or of a thousandth of a radian for joints, a ten-thousandth for weights.
+const JOINT_TOLERANCE: f32 = 1e-4;
+const WEIGHT_TOLERANCE: f32 = 1e-3;
+
+/// The values of a pose a viewer interpolates linearly, each with its tolerance.
+type Features = Vec<(f32, f32)>;
+
+fn features(pose: &FacePose, link: &FaceLink) -> Features {
+    let joints = pose
+        .translations
+        .iter()
+        .flatten()
+        .chain(pose.rotations.iter().flatten())
+        .map(|&value| (value, JOINT_TOLERANCE));
+    let weights = link.blendshapes.iter().map(|&at| {
+        (
+            pose.blendshapes.get(at).copied().unwrap_or_default(),
+            WEIGHT_TOLERANCE,
+        )
+    });
+    joints.chain(weights).collect()
+}
+
+/// Returns the indices of the samples to keep: the first and the last, and every sample that a
+/// viewer interpolating linearly between the kept ones would miss by more than the tolerance.
+fn reduction(frames: &[u16], poses: &[FacePose], link: &FaceLink) -> Vec<usize> {
+    let values: Vec<Features> = poses.iter().map(|pose| features(pose, link)).collect();
+    let mut kept = vec![0];
+    let mut anchor = 0;
+    let mut end = 1;
+    while end < values.len() {
+        let fits =
+            (anchor + 1..end).all(|inner| line_fits((&values, frames), (anchor, inner, end)));
+        if fits {
+            end += 1;
+        } else {
+            anchor = end - 1;
+            kept.push(anchor);
+        }
+    }
+    if values.len() > 1 {
+        kept.push(values.len() - 1);
+    }
+    kept.dedup();
+    kept
+}
+
+fn line_fits(
+    (values, frames): (&[Features], &[u16]),
+    (from, at, to): (usize, usize, usize),
+) -> bool {
+    let frame = |index: usize| frames.get(index).copied().unwrap_or_default();
+    let span = f32::from(frame(to) - frame(from));
+    let t = f32::from(frame(at) - frame(from)) / span;
+    match (values.get(from), values.get(at), values.get(to)) {
+        (Some(start), Some(inner), Some(finish)) => {
+            start
+                .iter()
+                .zip(inner)
+                .zip(finish)
+                .all(|((&(a, _), &(value, tolerance)), &(b, _))| {
+                    (value - (b - a).mul_add(t, a)).abs() <= tolerance
+                })
+        }
+        _ => true,
     }
 }
 

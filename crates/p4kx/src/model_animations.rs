@@ -3,11 +3,27 @@
 
 use std::io::{self, Write};
 
+use anyhow::Result;
+use p4kx_assembly::{ArchiveModels, BodyVariant};
 use p4kx_extraction::model::Model;
 use p4kx_extraction::{AnimationSet, AnimationSummary};
 use serde::Serialize;
 
+use crate::model::choice_of;
 use crate::query_table::one_line;
+
+/// Reads the animations the options `--anim` and `--anim-from` name for a Character of `variant`
+/// from the folders of its body and head; none without `--anim`.
+pub(crate) fn character_animations(
+    models: &ArchiveModels<'_>,
+    variant: BodyVariant,
+    (names, sources): (&[String], &[String]),
+) -> Result<AnimationSet> {
+    Ok(match choice_of(names) {
+        Some(choice) => models.animations(&variant.animation_folders(), &choice, sources)?,
+        None => AnimationSet::default(),
+    })
+}
 
 /// The JSON shape of an animation of `p4kx model glb`.
 #[derive(Serialize)]

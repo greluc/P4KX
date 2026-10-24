@@ -49,11 +49,27 @@ pub enum ModelText {
     GpuFailed,
     /// Shown when the model is too large for the graphics device; takes `path`.
     GpuRejected,
+    /// The checkbox that shows the skeleton over the model.
+    Skeleton,
+    /// The checkbox that repeats the animation.
+    Loop,
+    /// The action that plays the selected animation.
+    Play,
+    /// The action that pauses the selected animation.
+    Pause,
+    /// The accessible name of the position slider of the selected animation.
+    Position,
+    /// The position and length of the selected animation; takes `position` and `duration`.
+    Time,
+    /// The heading and accessible name of the list of animations.
+    Animations,
+    /// The entry of the list of animations that shows the model without animation.
+    BindPose,
 }
 
 impl ModelText {
     /// Every text of the 3D viewer.
-    pub(crate) const ALL: [Self; 21] = [
+    pub(crate) const ALL: [Self; 29] = [
         Self::Tab,
         Self::Reset,
         Self::Hint,
@@ -75,6 +91,14 @@ impl ModelText {
         Self::GpuLost,
         Self::GpuFailed,
         Self::GpuRejected,
+        Self::Skeleton,
+        Self::Loop,
+        Self::Play,
+        Self::Pause,
+        Self::Position,
+        Self::Time,
+        Self::Animations,
+        Self::BindPose,
     ];
 
     /// Returns the Fluent message id.
@@ -102,6 +126,14 @@ impl ModelText {
             Self::GpuLost => "model-gpu-lost",
             Self::GpuFailed => "model-gpu-failed",
             Self::GpuRejected => "model-gpu-rejected",
+            Self::Skeleton => "model-skeleton",
+            Self::Loop => "model-loop",
+            Self::Play => "model-play",
+            Self::Pause => "model-pause",
+            Self::Position => "model-position",
+            Self::Time => "model-time",
+            Self::Animations => "model-animations",
+            Self::BindPose => "model-bind-pose",
         }
     }
 }

@@ -3,7 +3,7 @@
 
 use p4kx_dataforge::Guid;
 
-use crate::changes::Plan;
+use crate::plan::Plan;
 use crate::{LoadoutError, MAX_LOADOUT_DEPTH, MAX_LOADOUT_PORTS};
 
 /// The state of one resolution: the Entities on the current branch, the ports so far and the

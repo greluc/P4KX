@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::path::Path;
+
 use egui::{Align, Layout, Ui};
 use p4kx_settings::ModelMaterials;
 
@@ -8,20 +10,22 @@ use super::extraction::{foot, group_label, path_field, refusal_notice};
 use super::{Dialog, Requests};
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, Weight};
+use crate::theme::tokens::{FS_SM, FS_XS, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::text::plain;
 use crate::widgets::{tab, toggle};
 use crate::{
-    ASSEMBLY_LODS, ASSEMBLY_MATERIALS, AssemblyExportSetup, AssemblyExportText as T,
-    ExtractionText, MODEL_TEXTURE_MIPS, Model, Text, Texts,
+    ASSEMBLY_LODS, ASSEMBLY_MATERIALS, AssemblyExportForm, AssemblyExportSetup,
+    AssemblyExportText as T, ExtractionText, MODEL_TEXTURE_MIPS, Model, PackageProblem, Text,
+    Texts,
 };
 
 enum Action {
     Submit,
     Close,
     ChooseFile,
+    ChooseFolder,
 }
 
 /// Shows the Export of an Entity as GLB setup while it is open and applies what the user chose.
@@ -75,13 +79,13 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         }
         Some(Action::Close) => model.close_assembly_export_setup(),
         Some(Action::ChooseFile) => requests.dialog = Some(Dialog::AssemblyFile),
+        Some(Action::ChooseFolder) => requests.dialog = Some(Dialog::AssemblyPackage),
         None if close => model.close_assembly_export_setup(),
         None => {}
     }
 }
 
 fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Option<Action> {
-    let mut action = None;
     let subject = if setup.is_container() {
         T::Container
     } else {
@@ -93,12 +97,18 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Optio
         loadout_line(ui, texts, setup);
     }
     ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &texts.get(T::LodHeading));
-    let labels = ASSEMBLY_LODS.map(|level| texts.format(T::Lod, &[("level", level.into())]));
-    let active = ASSEMBLY_LODS.iter().position(|level| *level == setup.lod());
-    let clicked = ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner;
-    if let Some(level) = clicked.and_then(|at| ASSEMBLY_LODS.get(at)) {
-        setup.set_lod(*level);
+    if setup.has_package() {
+        ui.horizontal_top(|ui| {
+            ui.vertical(|ui| form(ui, texts, setup));
+            ui.add_space(MODAL_GROUP_GAP);
+            ui.vertical(|ui| lod(ui, texts, setup));
+        });
+        if setup.form() == AssemblyExportForm::Package {
+            let note = plain(texts.get(T::FormPackageNote), FS_XS, Weight::Regular);
+            ui.add(egui::Label::new(note.color(palette::GRAY_2_TEXT)).wrap());
+        }
+    } else {
+        lod(ui, texts, setup);
     }
     materials(ui, texts, setup);
     if setup.has_interior() {
@@ -110,20 +120,83 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Optio
         }
     }
     ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &texts.get(T::FileHeading));
+    let action = if setup.form() == AssemblyExportForm::Package {
+        let texts_of = (T::FolderHeading, T::ChooseFolder, T::FolderNone);
+        let pressed = target_row(ui, texts, texts_of, setup.package_folder());
+        package_notice(ui, texts, setup);
+        pressed.map(|()| Action::ChooseFolder)
+    } else {
+        let texts_of = (T::FileHeading, T::ChooseFile, T::FileNone);
+        target_row(ui, texts, texts_of, setup.file()).map(|()| Action::ChooseFile)
+    };
+    refusal_notice(ui, texts, setup.refusal());
+    action
+}
+
+fn target_row(
+    ui: &mut Ui,
+    texts: &Texts,
+    (heading, choose, none): (T, T, T),
+    chosen: Option<&Path>,
+) -> Option<()> {
+    let mut pressed = None;
+    group_label(ui, &texts.get(heading));
     ui.horizontal(|ui| {
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let choose = texts.get(T::ChooseFile);
+            let choose = texts.get(choose);
             if button::button(ui, Kind::Ghost, Size::Normal, &choose, true).clicked() {
-                action = Some(Action::ChooseFile);
+                pressed = Some(());
             }
             ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                path_field(ui, texts.get(T::FileNone), setup.file());
+                path_field(ui, texts.get(none), chosen);
             });
         });
     });
-    refusal_notice(ui, texts, setup.refusal());
-    action
+    pressed
+}
+
+fn lod(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {
+    group_label(ui, &texts.get(T::LodHeading));
+    let labels = ASSEMBLY_LODS.map(|level| texts.format(T::Lod, &[("level", level.into())]));
+    let active = ASSEMBLY_LODS.iter().position(|level| *level == setup.lod());
+    let clicked = ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner;
+    if let Some(level) = clicked.and_then(|at| ASSEMBLY_LODS.get(at)) {
+        setup.set_lod(*level);
+    }
+}
+
+fn form(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {
+    group_label(ui, &texts.get(T::FormHeading));
+    let labels = [texts.get(T::FormGlb), texts.get(T::FormPackage)];
+    let active = Some(usize::from(setup.form() == AssemblyExportForm::Package));
+    let clicked = ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner;
+    match clicked {
+        Some(0) => setup.set_form(AssemblyExportForm::Glb),
+        Some(1) => setup.set_form(AssemblyExportForm::Package),
+        _ => {}
+    }
+}
+
+fn package_notice(ui: &mut Ui, texts: &Texts, setup: &AssemblyExportSetup) {
+    match setup.package_problem() {
+        Some(PackageProblem::NotAPackage) => {
+            frames::danger_alert(ui, |ui| {
+                let text = plain(texts.get(T::PackageNotAPackage), FS_SM, Weight::Regular);
+                ui.add(egui::Label::new(text.color(palette::GRAY_1)).wrap());
+            });
+        }
+        Some(PackageProblem::NoFolderName) => {
+            frames::danger_alert(ui, |ui| {
+                let text = plain(texts.get(T::PackageNoName), FS_SM, Weight::Regular);
+                ui.add(egui::Label::new(text.color(palette::GRAY_1)).wrap());
+            });
+        }
+        None if setup.package_replaces() => {
+            let text = plain(texts.get(T::PackageReplaces), FS_SM, Weight::Regular);
+            ui.add(egui::Label::new(text.color(palette::WARNING)).wrap());
+        }
+        Some(PackageProblem::Installation(_)) | None => {}
+    }
 }
 
 fn loadout_line(ui: &mut Ui, texts: &Texts, setup: &AssemblyExportSetup) {
@@ -146,20 +219,23 @@ fn loadout_line(ui: &mut Ui, texts: &Texts, setup: &AssemblyExportSetup) {
 }
 
 fn materials(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {
-    ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &texts.get(T::MaterialsHeading));
-    for materials in ASSEMBLY_MATERIALS {
-        let label = texts.get(match materials {
-            ModelMaterials::Colours => T::MaterialsColours,
-            ModelMaterials::Textures => T::MaterialsTextures,
-        });
-        if toggle::radio(ui, setup.materials() == materials, &label, true).clicked() {
-            setup.set_materials(materials);
+    let package = setup.form() == AssemblyExportForm::Package;
+    if !package {
+        ui.add_space(MODAL_GROUP_GAP);
+        group_label(ui, &texts.get(T::MaterialsHeading));
+        for materials in ASSEMBLY_MATERIALS {
+            let label = texts.get(match materials {
+                ModelMaterials::Colours => T::MaterialsColours,
+                ModelMaterials::Textures => T::MaterialsTextures,
+            });
+            if toggle::radio(ui, setup.materials() == materials, &label, true).clicked() {
+                setup.set_materials(materials);
+            }
         }
     }
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::TextureMipHeading));
-    let mips = setup.materials() == ModelMaterials::Textures;
+    let mips = package || setup.materials() == ModelMaterials::Textures;
     let labels = MODEL_TEXTURE_MIPS.map(|mip| {
         texts.format(
             T::TextureMip,

@@ -3773,6 +3773,7 @@ dependencies = [
  "fluent-bundle",
  "fluent-syntax",
  "p4kx-assembly",
+ "p4kx-blender",
  "p4kx-channels",
  "p4kx-comparison",
  "p4kx-export",

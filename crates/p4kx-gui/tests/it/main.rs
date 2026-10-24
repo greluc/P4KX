@@ -43,6 +43,8 @@ mod containers;
 mod content_search_window;
 mod diffing;
 mod entity_export_window;
+mod entity_package_render;
+mod entity_package_window;
 mod entity_picker_window;
 mod entity_picking;
 mod entity_render;

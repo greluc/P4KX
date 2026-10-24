@@ -22,6 +22,8 @@ pub struct AssemblyExportSettings {
     pub vertex_colours: bool,
     /// Whether the Interior of the Entity, its object containers, is exported with the hull.
     pub interior: bool,
+    /// Whether the Entity is exported as a Blender package folder rather than as a GLB file.
+    pub package: bool,
     /// The folder the last Entity was exported to, or `None` before the first export.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub folder: Option<PathBuf>,
@@ -35,6 +37,7 @@ impl Default for AssemblyExportSettings {
             texture_mip: 0,
             vertex_colours: true,
             interior: false,
+            package: false,
             folder: None,
         }
     }

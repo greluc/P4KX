@@ -987,6 +987,16 @@
     "minPartPixels": 0.75,
     "messages": "empty Loadout and stopped color-gray-1; archive changed color-warning; missing key and failure color-danger-text; graphics problems as modelPreview.messages"
   },
+  "assemblyExportPackage": {
+    "dsClass": "modal + segmented--sm + btn-ghost + danger-alert",
+    "decision": "D.50",
+    "entitiesButton": "btn-cta Export… in the Entities toolbar opens the export setup of the Entity",
+    "output": "the group Output (GLB file, Blender package) as a segmented--sm control in one row with the level of detail, MODAL_GROUP_GAP between; with the package chosen the hint in color-gray-2-text FS_XS under the row, the Materials group is hidden and the group File becomes Package folder",
+    "folder": "the chosen folder is the package; new, empty or an earlier package of P4KX; an earlier package is named in color-warning and replaced as a whole once the new one is complete; anything else, a path without a folder name and an installation are a danger-alert and disable Export",
+    "progress": "stage Writing shows the text without a byte count and Cancel; the summary Blender package written lists folder, counts, Interior, textures not written and the issues",
+    "scope": "Entity only; an Interior container on its own and the Character export offer no package until the library writes one",
+    "messages": "replaces color-warning; not a package, no folder name and installation color-gray-1 in a danger-alert"
+  },
   "characterBuilder": {
     "dsClass": "previewPanel + facts-bar + segmented--sm + btn-ghost btn-xs + btn-outline btn-xs",
     "decision": "D.49",

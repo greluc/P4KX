@@ -27,7 +27,7 @@ fn hull_window(language: Language) -> Result<Window, Box<dyn std::error::Error>>
     opened_sized(entity_interior_entries(), language, [1400.0, 900.0])
 }
 
-fn container_window() -> Result<Window, Box<dyn std::error::Error>> {
+pub(crate) fn container_window() -> Result<Window, Box<dyn std::error::Error>> {
     let (dir, mut harness) = opened_sized(
         lit_interior_entries(),
         Language::BritishEnglish,
@@ -98,7 +98,7 @@ fn has_node(bytes: &[u8], name: &str) -> Result<bool, Box<dyn std::error::Error>
     Ok(glb.document.nodes().any(|node| node.name() == Some(name)))
 }
 
-fn select_socpak(harness: &mut Harness<'_, Model>, path: &str) -> TestResult {
+pub(crate) fn select_socpak(harness: &mut Harness<'_, Model>, path: &str) -> TestResult {
     let browser = harness.state_mut().browser_mut().ok_or("no Archive")?;
     let id = browser
         .archive_index()

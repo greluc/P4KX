@@ -49,6 +49,7 @@ impl App {
         &self.model
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per file dialog")]
     fn start_dialog(&mut self, ctx: &egui::Context, dialog: Dialog) {
         if self.dialog.is_some() {
             return;
@@ -65,7 +66,9 @@ impl App {
         let catalog_filter_compressed = self.model.texts().get(CatalogText::FileFilterCompressed);
         let chf_filter = self.model.texts().get(CharacterText::ChfFilter);
         let model_file = match dialog {
-            Dialog::AssemblyFile => ModelFileDialog::of_assembly(&self.model),
+            Dialog::AssemblyFile | Dialog::AssemblyPackage => {
+                ModelFileDialog::of_assembly(&self.model)
+            }
             Dialog::CharacterFile => ModelFileDialog::of_character(&self.model),
             _ => ModelFileDialog::of(&self.model),
         };
@@ -94,6 +97,7 @@ impl App {
                     Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => {
                         model_file.save(picker)
                     }
+                    Dialog::AssemblyPackage => model_file.pick_folder(picker),
                     Dialog::CharacterChf => picker.add_filter(chf_filter, &["chf"]).pick_file(),
                     Dialog::QueryExport(format) => {
                         let extension = format.extension();
@@ -113,12 +117,22 @@ impl App {
     }
 
     fn choose_export_file(&mut self, dialog: Dialog, path: PathBuf) {
-        if dialog == Dialog::AssemblyFile {
-            if let Some(setup) = self.model.assembly_export_setup_mut() {
-                setup.set_file(path);
+        match dialog {
+            Dialog::AssemblyFile => {
+                if let Some(setup) = self.model.assembly_export_setup_mut() {
+                    setup.set_file(path);
+                }
             }
-        } else if let Some(setup) = self.model.model_export_setup_mut() {
-            setup.set_file(path);
+            Dialog::AssemblyPackage => {
+                if let Some(setup) = self.model.assembly_export_setup_mut() {
+                    setup.set_package_folder(path);
+                }
+            }
+            _ => {
+                if let Some(setup) = self.model.model_export_setup_mut() {
+                    setup.set_file(path);
+                }
+            }
         }
     }
 
@@ -144,7 +158,10 @@ impl App {
                     setup.set_folder(path);
                 }
             }
-            Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
+            Some((
+                dialog @ (Dialog::ModelFile | Dialog::AssemblyFile | Dialog::AssemblyPackage),
+                path,
+            )) => {
                 self.choose_export_file(dialog, path);
             }
             Some((Dialog::CharacterChf, path)) => {
@@ -267,6 +284,14 @@ impl ModelFileDialog {
             name: characters.proposed_name(),
             folder: characters.folder().map(Path::to_path_buf),
         }
+    }
+
+    fn pick_folder(self, picker: rfd::FileDialog) -> Option<PathBuf> {
+        match self.folder {
+            Some(folder) => picker.set_directory(folder),
+            None => picker,
+        }
+        .pick_folder()
     }
 
     fn save(self, picker: rfd::FileDialog) -> Option<PathBuf> {

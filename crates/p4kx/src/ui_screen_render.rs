@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions};
+use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped};
 use p4kx_extraction::{ConversionError, DataForgeEntry, write_replacing};
 use p4kx_screens::{Composed, Report, ScreenComposer};
 use serde::Serialize;
@@ -31,6 +31,29 @@ struct RenderJson<'a> {
     height: u32,
     #[serde(flatten)]
     report: &'a Report,
+    skipped: &'a [SkippedJson],
+}
+
+#[derive(Serialize)]
+struct SkippedJson {
+    reason: &'static str,
+    message: String,
+}
+
+struct Written {
+    width: u32,
+    height: u32,
+    skipped: Vec<SkippedJson>,
+}
+
+fn skipped_json(skipped: &[Skipped]) -> Vec<SkippedJson> {
+    skipped
+        .iter()
+        .map(|skipped| SkippedJson {
+            reason: skipped.reason.code(),
+            message: skipped.reason.to_string(),
+        })
+        .collect()
 }
 
 /// Runs `p4kx ui render --screen`.
@@ -43,36 +66,47 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
         size: options.size.unwrap_or(CanvasSize::Stage),
         background: options.background,
     };
-    let (width, height) = write(&composed, &raster, options)?;
+    let written = write(&composed, &raster, options)?;
     let report = composed.report();
     if as_json {
         json::print(&RenderJson {
             screen: options.screen,
             target: json::path(options.out),
             format: if options.svg { "svg" } else { "png" },
-            width,
-            height,
+            width: written.width,
+            height: written.height,
             report,
+            skipped: &written.skipped,
         })?;
     } else {
-        print_report(options, report, width, height)?;
+        print_report(options, report, &written)?;
     }
-    Ok(ExitCode::from(if report.is_complete() {
-        exit::SUCCESS
-    } else {
-        exit::PARTIAL_FAILURE
-    }))
+    Ok(ExitCode::from(
+        if report.is_complete() && written.skipped.is_empty() {
+            exit::SUCCESS
+        } else {
+            exit::PARTIAL_FAILURE
+        },
+    ))
 }
 
-fn write(composed: &Composed, raster: &RasterOptions, options: &Options<'_>) -> Result<(u32, u32)> {
+fn write(composed: &Composed, raster: &RasterOptions, options: &Options<'_>) -> Result<Written> {
     let mut bytes = Vec::new();
     let size = if options.svg {
         let written = composed.write_svg(raster, Some(options.screen), &mut bytes)?;
-        (written.width, written.height)
+        Written {
+            width: written.width,
+            height: written.height,
+            skipped: skipped_json(&written.skipped),
+        }
     } else {
         let rendered = composed.rasterize(raster)?;
         rendered.image.write_png(&mut bytes)?;
-        (rendered.image.width(), rendered.image.height())
+        Written {
+            width: rendered.image.width(),
+            height: rendered.image.height(),
+            skipped: skipped_json(&rendered.skipped),
+        }
     };
     write_replacing(options.out, |writer| {
         writer
@@ -85,8 +119,12 @@ fn write(composed: &Composed, raster: &RasterOptions, options: &Options<'_>) -> 
     Ok(size)
 }
 
-fn print_report(options: &Options<'_>, report: &Report, width: u32, height: u32) -> io::Result<()> {
+fn print_report(options: &Options<'_>, report: &Report, written: &Written) -> io::Result<()> {
+    let (width, height) = (written.width, written.height);
     let mut stderr = io::stderr().lock();
+    for skipped in &written.skipped {
+        writeln!(stderr, "skipped by the renderer: {}", skipped.message)?;
+    }
     for entry in &report.unsupported {
         writeln!(
             stderr,

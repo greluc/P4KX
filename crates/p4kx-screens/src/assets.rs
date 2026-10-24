@@ -48,7 +48,8 @@ impl WidgetAssets {
 
     fn key(&mut self, key: &str) {
         let key = key.trim_start_matches('@');
-        if !key.is_empty() && !matches!(key, "LOC_EMPTY" | "LOC_UNINITIALIZED" | "LOC_PLACEHOLDER") {
+        if !key.is_empty() && !matches!(key, "LOC_EMPTY" | "LOC_UNINITIALIZED" | "LOC_PLACEHOLDER")
+        {
             self.keys.push(key.to_owned());
         }
     }

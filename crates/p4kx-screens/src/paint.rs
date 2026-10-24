@@ -20,9 +20,14 @@ pub(crate) struct Area {
     pub(crate) height: f32,
 }
 
+const MAX_COORDINATE: f32 = 1.0e6;
+
 impl Area {
-    pub(crate) const fn is_empty(&self) -> bool {
-        !(self.width > 0.0 && self.height > 0.0)
+    pub(crate) fn is_empty(&self) -> bool {
+        let sane = [self.x, self.y, self.width, self.height]
+            .iter()
+            .all(|value| is_sane(*value));
+        !(sane && self.width > 0.0 && self.height > 0.0)
     }
 
     pub(crate) fn inset(&self, top: f32, right: f32, bottom: f32, left: f32) -> Self {
@@ -144,6 +149,10 @@ impl Painter {
     }
 }
 
+fn is_sane(value: f32) -> bool {
+    value.is_finite() && value.abs() <= MAX_COORDINATE
+}
+
 fn rectangle(area: Area) -> Vec<PathCommand> {
     let (left, top) = (area.x, area.y);
     let (right, bottom) = (area.x + area.width, area.y + area.height);
@@ -179,7 +188,7 @@ fn ellipse(area: Area) -> Vec<PathCommand> {
 }
 
 fn polygon(points: &[(f32, f32)]) -> Option<Vec<PathCommand>> {
-    if points.len() < 3 {
+    if points.len() < 3 || !points.iter().all(|(x, y)| is_sane(*x) && is_sane(*y)) {
         return None;
     }
     let mut commands: Vec<PathCommand> = points

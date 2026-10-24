@@ -183,6 +183,38 @@ fn a_share_of_the_height_keeps_a_box_square() -> TestResult {
 }
 
 #[test]
+fn absurd_sizes_and_offsets_are_not_drawn_and_do_not_panic() -> TestResult {
+    let canvas = TestCanvas::new(CANVAS, "layout", 100.0, 50.0)
+        .widget(
+            TestWidget::display("huge")
+                .size(TestDim::Fixed(1.0e30), TestDim::Fixed(10.0))
+                .background(RED),
+        )
+        .widget(
+            TestWidget::display("far")
+                .size(TestDim::Fixed(10.0), TestDim::Fixed(10.0))
+                .offset(f32::NAN, 1.0e38)
+                .background(GREEN),
+        )
+        .widget(
+            TestWidget::display("negative")
+                .size(TestDim::Fixed(-5.0), TestDim::Fixed(10.0))
+                .background(BLUE),
+        );
+    let image = render(canvas)?;
+    assert!(
+        image
+            .pixels()
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|pixel| *pixel == NOTHING),
+        "nothing is drawn"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_widget_out_of_the_flow_sits_at_its_offset() -> TestResult {
     let canvas = boxes(1, "Row", "Start", 0.0).widget(
         TestWidget::display("floating")

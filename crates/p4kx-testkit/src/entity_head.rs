@@ -4,7 +4,7 @@
 use crate::rig_logic::RIG_LOGIC_CHUNK;
 use crate::{
     TestCell, TestControl, TestDna, TestEntry, TestModel, TestPositions, TestRigLogic,
-    armour_entries, armour_male_skeleton,
+    TestSkeleton, armour_entries, armour_male_skeleton,
 };
 
 /// The vertices of the synthetic head skin, a cube.
@@ -28,7 +28,16 @@ pub(crate) fn head_skin() -> TestModel {
         .with_skeleton(&armour_male_skeleton())
         .with_bone_map(false, vec![vec![(2, 255)]; HEAD_VERTICES])
         .with_index(0, 5)
-        .with_chunk(RIG_LOGIC_CHUNK, TestRigLogic::small().build())
+        .with_chunk(RIG_LOGIC_CHUNK, head_logic().build())
+}
+
+/// The rig logic of the synthetic head skin: the blendshapes of [`TestRigLogic::small`] and the
+/// bone `head` as the one joint the rig moves.
+pub(crate) fn head_logic() -> TestRigLogic {
+    TestRigLogic {
+        joints: vec![TestSkeleton::controller_id(2)],
+        ..TestRigLogic::small()
+    }
 }
 
 /// Returns a synthetic male head rig of five heads and thirteen regions for a mesh of `vertices`

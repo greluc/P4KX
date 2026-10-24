@@ -42,6 +42,10 @@ pub(crate) enum BlockData<'m> {
     MorphIndices(&'m [u32], bool),
     /// The moves of a morph target, converted to Y up.
     MorphDeltas(&'m [[f32; 3]]),
+    /// Key times in seconds, as sampled animations store them.
+    Seconds(&'m [f32]),
+    /// The weights of the morph targets of a mesh, one run of all targets per key time.
+    MorphWeights(&'m [f32]),
 }
 
 impl<'m> BlockData<'m> {
@@ -61,6 +65,7 @@ impl<'m> BlockData<'m> {
             Self::Weights(values, _) => (values.len(), SET_LEN),
             Self::InverseBinds(values) => (values.len(), 64),
             Self::Times(values, _) => (values.len(), 4),
+            Self::Seconds(values) | Self::MorphWeights(values) => (values.len(), 4),
         };
         count as u64 * size as u64
     }
@@ -71,7 +76,9 @@ impl<'m> BlockData<'m> {
             Self::Positions(_) | Self::Normals(_) => {
                 (ComponentType::F32, Type::Vec3, Some(Target::ArrayBuffer))
             }
-            Self::Times(..) => (ComponentType::F32, Type::Scalar, None),
+            Self::Times(..) | Self::Seconds(_) | Self::MorphWeights(_) => {
+                (ComponentType::F32, Type::Scalar, None)
+            }
             Self::Translations(_) | Self::MorphDeltas(_) => (ComponentType::F32, Type::Vec3, None),
             Self::MorphIndices(_, wide) => (
                 if *wide {
@@ -118,6 +125,7 @@ impl<'m> BlockData<'m> {
             Self::Joints(values, _) | Self::Weights(values, _) => values.len(),
             Self::InverseBinds(values) => values.len(),
             Self::Times(values, _) => values.len(),
+            Self::Seconds(values) | Self::MorphWeights(values) => values.len(),
         }
     }
 
@@ -152,6 +160,10 @@ impl<'m> BlockData<'m> {
                 Self::MorphIndices(values.get(start..end).unwrap_or_default(), wide)
             }
             Self::MorphDeltas(values) => Self::MorphDeltas(part(values)),
+            Self::Seconds(values) => Self::Seconds(values.get(start..end).unwrap_or_default()),
+            Self::MorphWeights(values) => {
+                Self::MorphWeights(values.get(start..end).unwrap_or_default())
+            }
         }
     }
 
@@ -211,6 +223,11 @@ impl<'m> BlockData<'m> {
                 }
             }
             Self::Times(..) | Self::Rotations(_) => self.encode_keys(out),
+            Self::Seconds(values) | Self::MorphWeights(values) => {
+                for value in *values {
+                    out.extend_from_slice(&value.to_le_bytes());
+                }
+            }
         }
     }
 

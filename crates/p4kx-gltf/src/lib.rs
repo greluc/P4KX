@@ -43,6 +43,7 @@ mod morphs;
 mod nodes;
 mod package_support;
 mod rig;
+mod rig_animation;
 mod scene;
 mod scene_light;
 mod scene_nodes;
@@ -67,7 +68,11 @@ pub use package_support::{
     DrawnMaterial, NodeTransform, TextureFile, drawn_materials, light_node_transform,
     node_transform, texture_path,
 };
-pub use rig::{RigPiece, write_rigged_glb, write_rigged_glb_with};
+pub use rig::{
+    RigPiece, write_rigged_glb, write_rigged_glb_animated, write_rigged_glb_animated_with,
+    write_rigged_glb_with,
+};
+pub use rig_animation::{RigAnimation, SampledAnimation, SampledBone, SampledWeights};
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};
 pub use scene_light::{SceneLight, SceneLightKind};
 pub use shading::{Shading, shading};

@@ -111,4 +111,20 @@ pub(crate) struct ChfGlbArgs {
     /// Leaves the expressions out: the head has its neutral face only.
     #[arg(long)]
     pub(crate) no_expressions: bool,
+    /// Includes an animation; repeat the option for more, or use `all` for every animation found.
+    /// NAME is the name of an animation (a .caf file name without extension, or a name inside a
+    /// .dba), its file name, or the end of its path, ignoring case; or the path of a .caf or .dba
+    /// Entry, which includes all of its animations. Animations are looked for below the folders
+    /// of the character's body (`male_v7` or `female_v2`, and `pu`) and of its head, and in the Entries
+    /// named by --anim-from. A track that names a bone of the skeleton moves it by its keys; a
+    /// track that names a control of the head rig is evaluated through the rig logic into the
+    /// poses of the facial joints and the weights of the morph targets of the head, which needs
+    /// the expressions and LOD 0. Tracks that fit neither are left out and listed, additive
+    /// animations are left out unless named. A NAME that no animation has is invalid input.
+    #[arg(long = "anim", value_name = "NAME")]
+    pub(crate) animations: Vec<String>,
+    /// A .caf or .dba Entry to look for animations in, in addition to the folders of the
+    /// character; repeatable, used with --anim.
+    #[arg(long = "anim-from", value_name = "ENTRY")]
+    pub(crate) animation_sources: Vec<String>,
 }

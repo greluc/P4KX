@@ -31,6 +31,9 @@ pub struct AnimationSummary {
     /// The controller IDs of the tracks left out because no bone of the skeleton has them, or the
     /// bone drives no node, or a bone the animation already moves has the same controller ID.
     pub skipped_tracks: Vec<u32>,
+    /// The number of runs of morph weights left out because the piece they name has no mesh or
+    /// another number of morph targets than the run holds.
+    pub skipped_weights: usize,
 }
 
 /// The nodes the bones of the written skeleton or the static model's helper bones drive.
@@ -61,18 +64,26 @@ impl Targets<'_> {
 /// One channel of an animation: the blocks of its key times and values.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ChannelPlan {
-    node: usize,
-    rotation: bool,
-    times: usize,
-    values: usize,
-    step: bool,
+    pub(crate) node: usize,
+    pub(crate) path: ChannelPath,
+    pub(crate) times: usize,
+    pub(crate) values: usize,
+    pub(crate) step: bool,
+}
+
+/// What a channel moves.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ChannelPath {
+    Translation,
+    Rotation,
+    Weights,
 }
 
 /// An animation's channels and what to tell about it.
 #[derive(Debug, Clone)]
 pub(crate) struct AnimationPlan {
-    name: String,
-    channels: Vec<ChannelPlan>,
+    pub(crate) name: String,
+    pub(crate) channels: Vec<ChannelPlan>,
     pub(crate) summary: AnimationSummary,
 }
 
@@ -109,13 +120,25 @@ fn plan_animation<'m>(
             keys += rotations.frames.len();
             let times = layout.push(BlockData::Times(&rotations.frames, rate));
             let values = layout.push(BlockData::Rotations(&rotations.values));
-            channels.push(channel(node, true, times, values, rotations));
+            channels.push(channel(
+                node,
+                ChannelPath::Rotation,
+                times,
+                values,
+                rotations,
+            ));
         }
         if let Some(translations) = &track.translations {
             keys += translations.frames.len();
             let times = layout.push(BlockData::Times(&translations.frames, rate));
             let values = layout.push(BlockData::Translations(&translations.values));
-            channels.push(channel(node, false, times, values, translations));
+            channels.push(channel(
+                node,
+                ChannelPath::Translation,
+                times,
+                values,
+                translations,
+            ));
         }
     }
     AnimationPlan {
@@ -127,6 +150,7 @@ fn plan_animation<'m>(
             channels: channels.len(),
             keys,
             skipped_tracks: skipped,
+            skipped_weights: 0,
         },
         channels,
     }
@@ -134,14 +158,14 @@ fn plan_animation<'m>(
 
 const fn channel<T>(
     node: usize,
-    rotation: bool,
+    path: ChannelPath,
     times: usize,
     values: usize,
     keys: &Keys<T>,
 ) -> ChannelPlan {
     ChannelPlan {
         node,
-        rotation,
+        path,
         times,
         values,
         step: keys.frames.len() < 2,
@@ -192,10 +216,10 @@ pub(crate) fn push_animations(
                     extensions: None,
                     extras: json::extras::Void::default(),
                     node: Index::new(u32::try_from(channel.node).unwrap_or(u32::MAX)),
-                    path: Valid(if channel.rotation {
-                        Property::Rotation
-                    } else {
-                        Property::Translation
+                    path: Valid(match channel.path {
+                        ChannelPath::Rotation => Property::Rotation,
+                        ChannelPath::Translation => Property::Translation,
+                        ChannelPath::Weights => Property::MorphTargetWeights,
                     }),
                 },
                 extensions: None,
@@ -214,10 +238,13 @@ pub(crate) fn push_animations(
 
 /// Returns the first and last time of a block of key times as the accessor's `min` and `max`.
 fn time_extent(data: BlockData<'_>) -> Option<(Vec<f32>, Vec<f32>)> {
-    let BlockData::Times(frames, rate) = data else {
-        return None;
-    };
-    let first = seconds(*frames.first()?, rate);
-    let last = seconds(*frames.last()?, rate);
-    Some((vec![first], vec![last]))
+    match data {
+        BlockData::Times(frames, rate) => {
+            let first = seconds(*frames.first()?, rate);
+            let last = seconds(*frames.last()?, rate);
+            Some((vec![first], vec![last]))
+        }
+        BlockData::Seconds(times) => Some((vec![*times.first()?], vec![*times.last()?])),
+        _ => None,
+    }
 }

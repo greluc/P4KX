@@ -179,6 +179,24 @@ fn rect_of(harness: &Harness<'_, State>, role: Role, label: &str) -> Rect {
 }
 
 #[test]
+fn the_default_window_draws_the_character_in_both_languages() -> TestResult {
+    for (language, name) in [
+        (Language::BritishEnglish, "characters-default-en-GB.png"),
+        (Language::German, "characters-default-de-DE.png"),
+    ] {
+        let Some(mut window) = composed(language, [1280.0, 800.0])? else {
+            return Ok(());
+        };
+
+        let image = render(&mut window, name)?;
+
+        let view = view_pixels_of(&window.harness);
+        assert!(drawn(&image, view) > 0, "the body is drawn in {language:?}");
+    }
+    Ok(())
+}
+
+#[test]
 fn the_smallest_window_stacks_the_regions_without_overlap() -> TestResult {
     for (language, name, export, male) in [
         (

@@ -152,6 +152,7 @@ impl CharactersTab {
     #[must_use]
     pub fn export_available(&self) -> bool {
         self.shown.is_some()
+            && self.building.is_none()
             && !self
                 .export
                 .as_ref()

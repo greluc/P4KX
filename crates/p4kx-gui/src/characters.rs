@@ -239,7 +239,7 @@ impl CharactersTab {
         let read = match task.poll() {
             Polled::Pending => return false,
             Polled::Ready(read) => read,
-            Polled::Lost => Err(String::new()),
+            Polled::Lost => Err("the work stopped without a result".to_owned()),
         };
         self.head_load = None;
         match read {

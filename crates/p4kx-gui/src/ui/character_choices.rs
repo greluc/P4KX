@@ -45,6 +45,7 @@ enum Ask {
 /// Shows the choices of the Character: the body, the head, the Loadout and the pieces, the
 /// expressions.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
+    let catalogued = model.entities().catalogue().is_some();
     let ask = {
         let (tab, texts) = model.characters_with_texts();
         let tab: &CharactersTab = tab;
@@ -54,7 +55,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
                 [
                     body(ui, tab, texts),
                     head(ui, tab, texts),
-                    armour(ui, tab, texts),
+                    armour(ui, tab, texts, catalogued),
                     expressions(ui, tab, texts),
                 ]
                 .into_iter()
@@ -173,7 +174,7 @@ fn file_name(path: &str) -> &str {
     path.rsplit('/').next().unwrap_or(path)
 }
 
-fn armour(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
+fn armour(ui: &mut Ui, tab: &CharactersTab, texts: &Texts, catalogued: bool) -> Option<Ask> {
     heading(ui, texts, T::ArmourHeading);
     let mut ask = None;
     match tab.loadout() {
@@ -217,7 +218,7 @@ fn armour(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
     }
     ui.spacing_mut().item_spacing.y = ROW_HEIGHT / 6.0;
     let add = texts.get(T::PieceAdd);
-    if button::button(ui, Kind::Outline, Size::Compact, &add, true).clicked() {
+    if button::button(ui, Kind::Outline, Size::Compact, &add, catalogued).clicked() {
         ask = Some(Ask::PieceAdd);
     }
     ask

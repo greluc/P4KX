@@ -53,14 +53,18 @@ impl CharactersTab {
             replaced,
         } = built;
         let issues = armour.issues().iter().map(PartIssue::of).collect();
-        self.expressions.list = expressions::listed(&armour);
-        if self
+        let kept = self
             .expressions
             .chosen
-            .is_some_and(|at| at >= self.expressions.list.len())
-        {
-            self.expressions.chosen = None;
-        }
+            .and_then(|at| self.expressions.list.get(at))
+            .map(|expression| expression.name().to_owned());
+        self.expressions.list = expressions::listed(&armour);
+        self.expressions.chosen = kept.and_then(|name| {
+            self.expressions
+                .list
+                .iter()
+                .position(|expression| expression.name() == name)
+        });
         let framing = Camera::framing(scene.bounds());
         if self.camera.as_ref().is_none_or(Camera::is_home) {
             self.camera = Some(framing);

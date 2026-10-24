@@ -46,6 +46,23 @@ weight and the rest are renormalised. When the first layer is missing and the ot
 weight, the material keeps its own colours. The metalness is the weighted share of the layers'
 `metal_share`, a metal from one half.
 
+## Measured, and what the owner decided
+
+Materials with a linear luminance under 0.05, live Archive, `real_layered_materials`:
+
+| Ship | Materials | Before | Additive (diffuse + specular) | Lerp (decided) |
+|---|---|---|---|---|
+| Polaris | 219 | 39 | 10 | 49 |
+| Gladius | 211 | 26 | 17 | 48 |
+| Constellation | 293 | 22 | 20 | 69 |
+
+Adding the specular colour to the diffuse colour brightens dielectrics and whitens metals and
+disagrees with `metal_mix` of the textures mode, so the lerp blend is kept even though the share
+of dark materials rises: before, many layered materials were white or black placeholders, and many
+layers are dark by their own data (black paint, anodised metal, gunmetal, rubber, dark palette
+entries). The criterion that the share drops clearly does not apply; brightness and detail come
+with the layer textures (#551).
+
 ## Consequences
 
 Layered hulls are flat colours of their layers; their detail (the layer diffuse and normal

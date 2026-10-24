@@ -15,9 +15,9 @@ use p4kx_testkit::{LAYERED_MISSING_TEXTURE, LAYERED_TINTS, layered_entries};
 
 use crate::support::{TestResult, assemble, fixture, glb_options, never};
 
-struct Written {
-    _dir: tempfile::TempDir,
-    manifest: Manifest,
+pub(crate) struct Written {
+    pub(crate) dir: tempfile::TempDir,
+    pub(crate) manifest: Manifest,
     raw: serde_json::Value,
 }
 
@@ -39,7 +39,7 @@ impl Written {
     }
 }
 
-fn write() -> Result<Written, Box<dyn std::error::Error>> {
+pub(crate) fn write() -> Result<Written, Box<dyn std::error::Error>> {
     let fixture = fixture(layered_entries())?;
     let archive = Archive::open(&fixture.path)?;
     let assembly = assemble(&archive, "TEST_Layered")?;
@@ -59,7 +59,7 @@ fn write() -> Result<Written, Box<dyn std::error::Error>> {
     Ok(Written {
         manifest: serde_json::from_str(&text)?,
         raw: serde_json::from_str(&text)?,
-        _dir: dir,
+        dir,
     })
 }
 

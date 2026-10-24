@@ -125,6 +125,12 @@ The file is a plain GLB: one scene whose root node (named after the Entity's cla
 identity transform, the nodes of the model below it, plain-colour materials with the tint palette
 applied and no embedded textures.
 
+From 1.1 every glTF material in the file has `extras` `{"p4kx_index": <index>}`, its index in the
+file's `materials` array, the `index` of the matching entry in the manifest's `materials` list of
+the mesh. Blender's glTF importer creates materials in first-use order and renames duplicates
+(`.001`), so an importer matches materials by this custom property, not by name. `p4kx entity
+glb` files do not carry it.
+
 ### Textures
 
 Each texture the materials of the meshes name is written once, whichever meshes and materials use

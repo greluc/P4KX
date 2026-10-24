@@ -22,6 +22,7 @@ mod build;
 mod collect;
 mod describe;
 mod error;
+mod glb_extras;
 mod manifest;
 mod manifest_materials;
 mod meshes;

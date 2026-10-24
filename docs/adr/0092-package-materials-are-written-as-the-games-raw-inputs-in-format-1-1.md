@@ -53,6 +53,10 @@ and `palettes` are absent from the schema's required list, so a 1.0 manifest sti
 reads. `Issue.origin` gains `material`. A reader of 1.0 that ignores the new fields still gets
 what it got.
 
+**Meshes carry the glTF material index.** Each material in a package mesh GLB gets `extras`
+`{"p4kx_index": <index>}`, because Blender names and orders imported materials by first use. The
+package writer adds it to the finished GLB; `entity glb` output does not change.
+
 **Writing needs the Archive's material files.** `write_package` takes the `ModelProvider` that
 built the Assembly, to read the layer files; the CLI passes the `ArchiveModels` it already has.
 

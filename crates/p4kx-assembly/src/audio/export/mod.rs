@@ -158,10 +158,10 @@ impl ArchiveAudio<'_> {
             failures: plan.failures,
             ..ExportReport::default()
         };
+        p4kx_guard::ensure_writable(folder)?;
         if plan.jobs.is_empty() {
             return Ok(report);
         }
-        p4kx_guard::ensure_writable(folder)?;
         fs::create_dir_all(folder).map_err(|source| ConversionError::Write {
             path: folder.to_path_buf(),
             source,

@@ -334,7 +334,7 @@ and when the DataForge cannot be read, which is a warning on stderr.
 ```
 
 `trigger`, `language` and `issues` are those of `p4kx wwise resolve`; `breaks` counts its broken
-links. `format` is the one asked for (`--format ogg|wav|raw`); each file's `format` is the one
+links. The top-level `format` is the value given to `--format` (`ogg`, `wav` or `raw`); each file's `format` is the one
 written, `wav` for a codec without an Ogg form and `wem` (raw) for a sound that cannot be
 decoded, which then carries the reason in `unconverted`. A file is named `<trigger>.<ext>` for a
 trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
@@ -344,7 +344,9 @@ sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank o
 holds. Exit code 1 when anything is in `failures` or `unconverted`.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
-adds the same fields, without `trigger`, `breaks` and `issues`, as an `extraction` object.
+adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
+`failed`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
+and `issues` are not repeated in it.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`
 

@@ -151,6 +151,7 @@ fn a_trigger_with_several_sounds_is_named_by_trigger_and_wem() -> TestResult {
             "Play_Multi_103.wav"
         ]
     );
+    assert_eq!(report["format"], "ogg");
     assert_eq!(count(&report, "written"), Some(4));
     assert_eq!(count(&report, "unconverted"), Some(1));
     assert_eq!(count(&report, "failed"), Some(1));
@@ -176,7 +177,9 @@ fn a_trigger_with_one_sound_is_named_by_the_trigger() -> TestResult {
 #[test]
 fn raw_keeps_the_wem_bytes() -> TestResult {
     let fixture = fixture()?;
-    extract(&fixture, "Play_Single", &["--format", "raw"], 0)?;
+    let report = extract(&fixture, "Play_Single", &["--format", "raw"], 0)?;
+    assert_eq!(report["format"], "raw");
+    assert_eq!(report["files"][0]["format"], "wem");
     assert_eq!(fs::read(fixture.out.join("Play_Single.wem"))?, pcm());
     Ok(())
 }

@@ -87,7 +87,11 @@ pub(crate) fn export(
 pub(crate) fn export_json(report: &ExportReport, out: &Path, args: &SoundExportArgs) -> ExportJson {
     ExportJson {
         target: json::path(out),
-        format: sound_format(args.format).extension(),
+        format: match args.format {
+            AudioOutput::Ogg => "ogg",
+            AudioOutput::Wav => "wav",
+            AudioOutput::Raw => "raw",
+        },
         written: report.written_count(),
         kept: report.kept_count(),
         unconverted: report.unconverted_count(),

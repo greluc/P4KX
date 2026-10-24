@@ -6,9 +6,9 @@ use std::collections::HashSet;
 /// The longest file name stem written, in bytes.
 pub(super) const MAX_STEM_LEN: usize = 120;
 
-const RESERVED: [&str; 22] = [
+const RESERVED: [&str; 24] = [
     "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    "COM9", "COM0", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
 ];
 
 /// Returns `text` as one safe file name stem: ASCII letters, digits, `_` and `-` are kept, every

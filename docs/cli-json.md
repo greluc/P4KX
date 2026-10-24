@@ -1620,15 +1620,16 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
 ```json
 {"archive": "…", "chf": "…", "body": "male", "rig": "protos_human_male_face_t1_pu",
  "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…", "lod": 0,
- "parts": [{"name": "body", "origin": "body", "file": "…"},
-           {"name": "head", "origin": "head", "file": "…"},
-           {"name": "teeth", "origin": "head", "file": "…"},
-           {"name": "eyes_itemport", "origin": "head", "file": "…"},
-           {"name": "hair_itemport", "origin": "head", "file": "…"}],
+ "parts": [{"name": "body", "origin": "body", "file": "…", "morph_targets": 0},
+           {"name": "head", "origin": "head", "file": "…", "morph_targets": 399},
+           {"name": "teeth", "origin": "head", "file": "…", "morph_targets": 0},
+           {"name": "eyes_itemport", "origin": "head", "file": "…", "morph_targets": 0},
+           {"name": "hair_itemport", "origin": "head", "file": "…", "morph_targets": 0}],
  "nodes": 229, "bones": 220, "meshes": 9, "skinned_meshes": 9, "primitives": 41,
- "materials": 14, "textured_materials": 12, "textures": 20, "texture_pixels": 36700160,
+ "materials": 14, "morph_targets": 399, "textured_materials": 12, "textures": 20,
+ "texture_pixels": 36700160,
  "texture_fallbacks": [{"material": "…", "role": "diffuse", "file": "…", "reason": "…"}],
- "default_material_ids": 0, "vertices": 61582, "triangles": 66225, "bytes": 32863436,
+ "default_material_ids": 0, "vertices": 61582, "triangles": 66225, "bytes": 37236432,
  "skipped": 0, "issues": [Issue, …]}
 ```
 
@@ -1654,11 +1655,20 @@ code staying 0: `piece_not_found` (an item whose Entity the Archive does not hav
 geometry for the body variant). Two Issues leave the piece in and are notes only:
 `material_choice_unknown` (the character's base material is in no lookup table, so the piece keeps
 its own) and `look_ignored` (the texture choices of a material, such as blemishes, makeup and
-tattoos, are not drawn). `--lod N` picks the
-level of detail and `--no-vertex-colours` leaves the vertex colours out. A CHF that holds no face
-DNA or whose DNA names an unknown head rig exits with code 2, a file that is no CHF with code 3, a
-missing skeleton with code 3, an Archive key that is missing or wrong with code 7, and an `--out`
-that is the Archive with code 2.
+tattoos, are not drawn).
+
+Only the piece named `head` has `morph_targets`: the number of expressions written. They are the
+expressions of the head rig that move a vertex of the character's face, all of them by default at
+`--lod 0`, only the ones named by `--expression NAME` (repeatable) otherwise, none with
+`--no-expressions` and at other levels, whose rigs have none. The teeth, eyes, hair and beard have
+none and follow only the neutral shape of the head. A name the rig lacks adds
+`unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that
+cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
+the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code
+1 after printing the report. `--lod N` picks the level of detail and `--no-vertex-colours` leaves
+the vertex colours out. A CHF that holds no face DNA or whose DNA names an unknown head rig exits
+with code 2, a file that is no CHF with code 3, a missing skeleton with code 3, an Archive key that
+is missing or wrong with code 7, and an `--out` that is the Archive with code 2.
 
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 

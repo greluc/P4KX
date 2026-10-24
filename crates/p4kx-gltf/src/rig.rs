@@ -14,6 +14,7 @@ use crate::glb_plan::{summarise, texture_set};
 use crate::instance::{Instance, materials};
 use crate::layout::{Layout, Rigging};
 use crate::materials::MaterialPlan;
+use crate::morphs::MorphTarget;
 use crate::nodes::{RigModel, push_rig_nodes};
 use crate::scene::nearest_lod;
 use crate::skin::inverse_binds;
@@ -33,6 +34,8 @@ pub struct RigPiece<'m> {
     pub model: &'m Model,
     /// The material library of the model, see [`MaterialStatus::library`].
     pub materials: &'m MaterialStatus,
+    /// The morph targets of the piece's first mesh, see [`RigPiece::with_morphs`].
+    pub morphs: &'m [MorphTarget],
 }
 
 impl<'m> RigPiece<'m> {
@@ -43,7 +46,20 @@ impl<'m> RigPiece<'m> {
             name,
             model,
             materials,
+            morphs: &[],
         }
+    }
+
+    /// Gives the piece's first mesh the morph targets `morphs`, as sparse `POSITION` targets named
+    /// by the mesh's `extras.targetNames`, all with the weight 0.
+    ///
+    /// The vertices of a target index the mesh, whose vertices the piece's skin shapes; a target
+    /// that moves no vertex or one the mesh lacks, or whose deltas are not finite, is left out.
+    /// They deform the mesh before the skin does, so they combine with the skeleton.
+    #[must_use]
+    pub const fn with_morphs(mut self, morphs: &'m [MorphTarget]) -> Self {
+        self.morphs = morphs;
+        self
     }
 }
 
@@ -104,6 +120,7 @@ pub fn write_rigged_glb_with(
             let rigging = Rigging {
                 binds: (!binds.is_empty()).then_some(binds.as_slice()),
                 influences: Some(own.as_slice()),
+                morphs: pieces.get(part).map_or(&[], |piece| piece.morphs),
             };
             layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
         }

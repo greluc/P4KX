@@ -21,6 +21,7 @@ mod channel_notice;
 mod channels;
 mod chf;
 mod chf_glb;
+mod chf_glb_dressed;
 mod chunks;
 mod compare;
 mod compare_diff;

@@ -5,7 +5,7 @@ use p4kx_character::Dna;
 
 use super::piece::{Note, Source};
 use super::wearable::Unfit;
-use super::{BodyVariant, Look, PartOrigin, Piece};
+use super::{BodyVariant, Expressions, Look, PartOrigin, Piece};
 use crate::{Issue, IssueKind};
 
 /// One skin to read and wear.
@@ -17,6 +17,7 @@ pub(super) struct Job {
     pub(super) path: String,
     pub(super) material: Option<String>,
     pub(super) shape: Option<Dna>,
+    pub(super) expressions: Expressions,
     pub(super) look: Option<Look>,
     pub(super) follows_head: bool,
 }
@@ -32,6 +33,7 @@ impl Job {
             path: path.to_owned(),
             material: None,
             shape: None,
+            expressions: Expressions::None,
             look: None,
             follows_head: false,
         }
@@ -107,6 +109,7 @@ pub(super) fn gather(
         path: path.to_owned(),
         material: piece.material.as_deref().or(material).map(str::to_owned),
         shape: piece.shape.clone(),
+        expressions: piece.expressions.clone(),
         look: piece.look.clone(),
         follows_head: piece.follows_head,
     });

@@ -8,7 +8,8 @@
 //! Reads the DNA rigs (`.dna` files) the face DNA of a Character is applied to: [`DnaRig`] gives
 //! the names, joint offsets, neutral and expression morphs, joint and region weights and delta
 //! records of the heads of a rig, and [`DnaMatrix`] the weights with which a Character's DNA
-//! blends them.
+//! blends them. [`ExpressionBlend`] turns the expression morphs of the stock heads into the
+//! blendshapes of a Character's head, and [`RigLogic`] names them.
 
 mod body_reader;
 mod body_writer;
@@ -23,10 +24,12 @@ mod json_values;
 mod material;
 mod names;
 mod rig;
+mod rig_blend;
 mod rig_bytes;
 mod rig_deltas;
 mod rig_error;
 mod rig_expression;
+mod rig_logic;
 mod rig_matrix;
 mod rig_neutral;
 mod rig_tables;
@@ -44,11 +47,13 @@ pub use names::{
     skin_attachment,
 };
 pub use rig::{DnaRig, RIG_MAGIC, RigHeader};
+pub use rig_blend::{ExpressionBlend, ExpressionTarget};
 pub use rig_deltas::{
     DeltaEntry, DeltaRecord, DeltaRecords, DeltaSet, VariantDeltas, VariantHeader,
 };
 pub use rig_error::RigError;
 pub use rig_expression::{ExpressionCell, ExpressionMorphs};
+pub use rig_logic::{RIG_LOGIC_MAGIC, RigLogic, RigLogicError};
 pub use rig_matrix::{DnaMatrix, MAX_RIG_CELLS};
 pub use rig_neutral::NeutralMorphs;
 pub use rig_tables::{JointWeights, RegionMasks, VariantJoints};

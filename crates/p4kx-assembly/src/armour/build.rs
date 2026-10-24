@@ -4,6 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use p4kx_gltf::MorphTarget;
 use p4kx_model::{BoneMatch, Lod, MaterialStatus, Mesh, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
@@ -86,7 +87,7 @@ impl Armour {
         let mut head: Option<HeadMove> = None;
         for (job, found) in jobs.iter().zip(&chosen) {
             let Some(found) = found else { continue };
-            let Some(model) = worn(job, found, models, &mut head, &mut issues) else {
+            let Some((model, morphs)) = worn(job, found, models, &mut head, &mut issues) else {
                 continue;
             };
             let materials = drawn_with(
@@ -103,6 +104,7 @@ impl Armour {
                 file: job.path.clone(),
                 model,
                 materials,
+                morphs,
             });
         }
         Ok(Self {
@@ -117,15 +119,16 @@ impl Armour {
 }
 
 /// Returns the model of a job as it is worn: shaped by the job's DNA, if it has one, and following
-/// the shaped head, if it follows it. The first shaped head is remembered in `head`.
+/// the shaped head, if it follows it, with its morph targets; what follows the head has none. The
+/// first shaped head is remembered in `head`, as it is shaped and without morph targets.
 fn worn(
     job: &Job,
     found: &Loaded,
     models: &dyn ModelProvider,
     head: &mut Option<HeadMove>,
     issues: &mut Vec<Issue>,
-) -> Option<Arc<Model>> {
-    let model = fitted(job, found, models, issues)?;
+) -> Option<(Arc<Model>, Vec<MorphTarget>)> {
+    let (model, morphs) = fitted(job, found, models, issues)?;
     if job.shape.is_some() && job.part == HEAD && head.is_none() {
         *head = Some(HeadMove {
             before: Arc::clone(&found.model),
@@ -133,8 +136,8 @@ fn worn(
         });
     }
     Some(match head {
-        Some(moved) if job.follows_head => followed(&model, moved),
-        _ => model,
+        Some(moved) if job.follows_head => (followed(&model, moved), Vec::new()),
+        _ => (model, morphs),
     })
 }
 
@@ -174,24 +177,28 @@ fn followed(model: &Arc<Model>, head: &HeadMove) -> Arc<Model> {
     }
 }
 
-/// Returns the model of a job as it is worn: shaped by the job's DNA, if it has one; a model that
-/// cannot be shaped is listed and left out.
+/// Returns the model of a job as it is worn, shaped by the job's DNA if it has one, and its morph
+/// targets; a model that cannot be shaped is listed and left out, morph targets that cannot be
+/// made are listed.
 fn fitted(
     job: &Job,
     found: &Loaded,
     models: &dyn ModelProvider,
     issues: &mut Vec<Issue>,
-) -> Option<Arc<Model>> {
+) -> Option<(Arc<Model>, Vec<MorphTarget>)> {
     let Some(dna) = &job.shape else {
-        return Some(Arc::clone(&found.model));
+        return Some((Arc::clone(&found.model), Vec::new()));
     };
-    match shaped(&found.model, &job.path, dna, models) {
-        Ok(model) => Some(Arc::new(model)),
+    let shaped = match shaped(&found.model, &job.path, dna, &job.expressions, models) {
+        Ok(shaped) => shaped,
         Err(reason) => {
             issues.push(issue(job, IssueKind::ShapeFailed { reason }));
-            None
+            return None;
         }
-    }
+    };
+    let (model, targets, kinds) = shaped.into_parts();
+    issues.extend(kinds.into_iter().map(|kind| issue(job, kind)));
+    Some((Arc::new(model), targets))
 }
 
 fn provider_failure(path: &str, variant: BodyVariant, failure: ModelFailure) -> AssemblyError {

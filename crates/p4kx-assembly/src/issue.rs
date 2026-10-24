@@ -247,6 +247,27 @@ pub enum IssueKind {
         /// What is left out.
         what: String,
     },
+    /// The expression morph targets of a shaped piece cannot be made, so the piece is kept
+    /// without them.
+    #[error("the expression morph targets cannot be made: {reason}")]
+    MorphsFailed {
+        /// Why.
+        reason: String,
+    },
+    /// An expression the piece was asked for is no blendshape of its head rig, so it is not
+    /// written.
+    #[error("the head rig has no expression {name}")]
+    UnknownExpression {
+        /// The name that was asked for.
+        name: String,
+    },
+    /// An expression the piece was asked for moves no vertex of this Character's head, so it is
+    /// not written.
+    #[error("the expression {name} moves no vertex of the head")]
+    EmptyExpression {
+        /// The name that was asked for.
+        name: String,
+    },
 }
 
 impl IssueKind {
@@ -286,6 +307,9 @@ impl IssueKind {
             Self::ShapeFailed { .. } => "shape_failed",
             Self::MaterialChoiceUnknown { .. } => "material_choice_unknown",
             Self::LookIgnored { .. } => "look_ignored",
+            Self::MorphsFailed { .. } => "morphs_failed",
+            Self::UnknownExpression { .. } => "unknown_expression",
+            Self::EmptyExpression { .. } => "empty_expression",
         }
     }
 

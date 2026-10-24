@@ -51,7 +51,12 @@ pub(crate) enum ChfAction {
     /// character's material choices are applied: its head material, the skin tone, the iris colour
     /// and the melanin and dye of its hair; blemishes, makeup and tattoos are listed as not drawn,
     /// and an item or material the Archive does not have is listed and left out or replaced by the
-    /// item's own. Expressions are not part of it. The head rig and the items come from the
+    /// item's own. The expressions of the head rig, about 400 of its 495 blendshapes, are written
+    /// as morph targets of the head, named like the rig's controls, mixed by the character's DNA
+    /// and stored sparse; limit them with --expression or leave them out with --no-expressions.
+    /// Only the rig of LOD 0 has expressions, so the other levels are written without unless
+    /// --expression names some, which then fails. The eyes, teeth, hair and beard have none and
+    /// follow only the neutral shape of the head. The head rig and the items come from the
     /// Archive; a character without face DNA or for an unknown head rig is invalid input.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(ChfGlbArgs),
@@ -93,4 +98,17 @@ pub(crate) struct ChfGlbArgs {
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    /// Writes only the expression with this name as a morph target; repeat the option for more.
+    /// A name is a control of the head rig, e.g. `CTL_jaw_open`, or the controls of a corrective
+    /// joined by `*`, in any case and with or without the prefix `CTL_`. A name the rig lacks is
+    /// listed as an issue and the command exits with code 1 after writing the file.
+    #[arg(
+        long = "expression",
+        value_name = "NAME",
+        conflicts_with = "no_expressions"
+    )]
+    pub(crate) expressions: Vec<String>,
+    /// Leaves the expressions out: the head has its neutral face only.
+    #[arg(long)]
+    pub(crate) no_expressions: bool,
 }

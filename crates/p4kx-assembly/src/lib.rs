@@ -56,6 +56,7 @@
 //! variant. [`Head::dressed`] adds the teeth and the items of the Character's head port (eyes,
 //! hair, brows, lashes, beard), read through [`HeadItems`] such as [`ForgeItems`], with the
 //! material choices of the Character ([`Look`]); [`Armour::write_glb_with`] embeds the textures.
+//! [`Head::with_expressions`] adds the head's expression blendshapes as morph targets.
 
 mod armour;
 mod assembly;
@@ -91,8 +92,8 @@ mod walk;
 mod xml;
 
 pub use armour::{
-    Armour, ArmourPart, BodyVariant, ForgeItems, Head, HeadError, HeadItems, Look, MAX_DNA_RIG_LEN,
-    PartOrigin, Piece, Replaced, Wearable, is_worn_type,
+    Armour, ArmourPart, BodyVariant, Expressions, ForgeItems, Head, HeadError, HeadItems, Look,
+    MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced, Wearable, is_worn_type,
 };
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,

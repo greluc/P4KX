@@ -7,24 +7,21 @@ use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use p4kx_assembly::character::{BODY_COLOR, Guid, lowered_hash, skin_attachment};
 use p4kx_testkit::gltf::Semantic;
 use p4kx_testkit::{
-    ArchiveBuilder, DRESSED_EYES, DRESSED_GONE_HAIR, DRESSED_HAIR, DRESSED_HAIR_OPACITY,
-    DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL, HEAD_REGIONS, HEAD_VERTICES, MALE_RIG_HASH,
-    SplitDds, TestChf, TestEntry, TestItemPort, TestMaterial, TestSubMaterial, TestTextureFormat,
-    check_glb, dressed_entries, head_entries, head_rig,
+    ArchiveBuilder, HEAD_REGIONS, HEAD_VERTICES, MALE_RIG_HASH, TestChf, TestEntry, check_glb,
+    head_entries, head_rig,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-struct Run {
-    stdout: String,
-    stderr: String,
-    code: Option<i32>,
+pub(crate) struct Run {
+    pub(crate) stdout: String,
+    pub(crate) stderr: String,
+    pub(crate) code: Option<i32>,
 }
 
-fn archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn Error>> {
+pub(crate) fn archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     entries
         .into_iter()
@@ -48,7 +45,22 @@ fn chf(dir: &Path, name: &str, dna: Option<(u32, u16)>) -> Result<PathBuf, Box<d
     Ok(path)
 }
 
-fn glb(archive: &Path, chf: &Path, out: &Path, json: bool) -> Result<Run, Box<dyn Error>> {
+pub(crate) fn glb(
+    archive: &Path,
+    chf: &Path,
+    out: &Path,
+    json: bool,
+) -> Result<Run, Box<dyn Error>> {
+    glb_with(archive, chf, out, json, &[])
+}
+
+fn glb_with(
+    archive: &Path,
+    chf: &Path,
+    out: &Path,
+    json: bool,
+    extra: &[&str],
+) -> Result<Run, Box<dyn Error>> {
     let mut command = p4kx_testkit::p4kx()?;
     if json {
         command.arg("--json");
@@ -58,7 +70,8 @@ fn glb(archive: &Path, chf: &Path, out: &Path, json: bool) -> Result<Run, Box<dy
         .arg(archive)
         .arg(chf)
         .arg("--out")
-        .arg(out);
+        .arg(out)
+        .args(extra);
     let output = command.output()?;
     Ok(Run {
         stdout: String::from_utf8(output.stdout)?,
@@ -175,138 +188,6 @@ fn a_head_whose_rig_is_missing_is_reported_as_skipped_and_exits_with_one() -> Te
     Ok(())
 }
 
-fn stored(guid: u128) -> Result<[u8; 16], Box<dyn Error>> {
-    let text = format!("{guid:032x}");
-    let dashed = format!(
-        "{}-{}-{}-{}-{}",
-        &text[..8],
-        &text[8..12],
-        &text[12..16],
-        &text[16..20],
-        &text[20..]
-    );
-    Ok(dashed.parse::<Guid>()?.stored())
-}
-
-fn item(
-    name: &str,
-    guid: u128,
-    children: Vec<TestItemPort>,
-) -> Result<TestItemPort, Box<dyn Error>> {
-    Ok(TestItemPort {
-        port: lowered_hash(name),
-        item: stored(guid)?,
-        tail_count: 0,
-        children,
-    })
-}
-
-fn dressed_chf(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
-    let head = item(
-        "head_itemport",
-        0x900,
-        vec![
-            item("hair_itemport", DRESSED_HAIR, Vec::new())?,
-            item("eyes_itemport", DRESSED_EYES, Vec::new())?,
-            item("beard_itemport", DRESSED_GONE_HAIR, Vec::new())?,
-        ],
-    )?;
-    let test = TestChf {
-        dna_hashes: Some((MALE_RIG_HASH, 0)),
-        face_parts: (0..HEAD_REGIONS).map(|_| vec![(0, 0), (0, 0)]).collect(),
-        ports: Some(item("body_itemport", 0x901, vec![head])?),
-        materials: vec![TestMaterial {
-            attachment: skin_attachment("head_itemport"),
-            base_material: stored(DRESSED_HEAD_MATERIAL)?,
-            flags: 0,
-            sub_materials: vec![TestSubMaterial {
-                name: lowered_hash("shader_head"),
-                textures: Vec::new(),
-                floats: Vec::new(),
-                colors: vec![(BODY_COLOR, [255, 0, 0, 255])],
-            }],
-        }],
-        ..TestChf::v8()
-    };
-    let path = dir.join("dressed.chf");
-    fs::write(&path, test.to_bytes())?;
-    Ok(path)
-}
-
-#[test]
-fn a_dressed_character_is_written_with_eyes_hair_textures_and_a_report_of_what_is_missing()
--> TestResult {
-    let dir = tempfile::tempdir()?;
-    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
-    let mut entries = dressed_entries(Some(rig));
-    let texture = SplitDds::new(TestTextureFormat::LegacyBgra8, 4, 4).mips(1);
-    for file in [DRESSED_HEAD_DIFFUSE, DRESSED_HAIR_OPACITY] {
-        let dds = file.replace('/', "\\").replace(".tif", ".dds");
-        entries.extend(texture.entries(&format!("Data\\{dds}")));
-    }
-    let archive = archive(dir.path(), entries)?;
-    let file = dressed_chf(dir.path())?;
-    let out = dir.path().join("dressed.glb");
-
-    let run = glb(&archive, &file, &out, true)?;
-
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
-    let names: Vec<&str> = value["parts"]
-        .as_array()
-        .ok_or("parts")?
-        .iter()
-        .filter_map(|part| part["name"].as_str())
-        .collect();
-    assert_eq!(
-        names,
-        ["body", "head", "teeth", "hair_itemport", "eyes_itemport"]
-    );
-    assert_eq!(value["skipped"], 1, "the beard's skin is missing");
-    let kinds: Vec<&str> = value["issues"]
-        .as_array()
-        .ok_or("issues")?
-        .iter()
-        .filter_map(|issue| issue["kind"].as_str())
-        .collect();
-    assert!(kinds.contains(&"geometry_missing"), "{kinds:?}");
-    assert!(value["textures"].as_u64().unwrap_or(0) >= 2, "{value}");
-    assert!(
-        value["textured_materials"].as_u64().unwrap_or(0) >= 2,
-        "{value}"
-    );
-    assert!(check_glb(&fs::read(&out)?).is_ok(), "a valid GLB");
-    Ok(())
-}
-
-#[test]
-fn the_colours_mode_writes_no_texture() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
-    let archive = archive(dir.path(), dressed_entries(Some(rig)))?;
-    let file = dressed_chf(dir.path())?;
-    let out = dir.path().join("plain.glb");
-
-    let output = p4kx_testkit::p4kx()?
-        .args(["--json", "chf", "glb"])
-        .arg(&archive)
-        .arg(&file)
-        .arg("--out")
-        .arg(&out)
-        .args(["--materials", "colours"])
-        .output()?;
-
-    assert_eq!(
-        output.status.code(),
-        Some(0),
-        "a missing skin is listed, not fatal"
-    );
-    let value: serde_json::Value = serde_json::from_slice(&output.stdout)?;
-    assert_eq!(value["textures"], 0);
-    assert_eq!(value["textured_materials"], 0);
-    Ok(())
-}
-
 #[test]
 fn a_character_without_face_dna_or_for_an_unknown_rig_is_invalid_input() -> TestResult {
     let dir = tempfile::tempdir()?;
@@ -338,5 +219,85 @@ fn a_file_that_is_no_chf_is_an_input_error_and_the_archive_is_never_the_output()
 
     assert_eq!(bad.code, Some(3), "{}", bad.stderr);
     assert_eq!(same.code, Some(2), "{}", same.stderr);
+    Ok(())
+}
+
+fn target_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+    let glb = check_glb(&fs::read(path)?)?;
+    let mesh = glb
+        .document
+        .nodes()
+        .find(|node| node.name() == Some("head") && node.mesh().is_some())
+        .and_then(|node| node.mesh())
+        .ok_or("the head node")?;
+    Ok(glb.target_names(mesh.index()).unwrap_or_default())
+}
+
+#[test]
+fn the_expressions_are_written_by_default_limited_by_name_or_left_out() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
+    let archive = archive(dir.path(), head_entries(Some(rig)))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+    let out = dir.path().join("c.glb");
+
+    let all = glb_with(&archive, &file, &out, true, &[])?;
+    let all_names = target_names(&out)?;
+    let one = glb_with(&archive, &file, &out, false, &["--expression", "ctl_b"])?;
+    let one_names = target_names(&out)?;
+    let none = glb_with(&archive, &file, &out, false, &["--no-expressions"])?;
+    let none_names = target_names(&out)?;
+
+    assert_eq!(all.code, Some(0), "{}", all.stderr);
+    assert_eq!(all_names, ["CTL_a", "CTL_b"]);
+    let value: serde_json::Value = serde_json::from_str(&all.stdout)?;
+    assert_eq!(value["morph_targets"], 2);
+    assert_eq!(value["parts"][1]["morph_targets"], 2);
+    assert_eq!(one.code, Some(0), "{}", one.stderr);
+    assert_eq!(one_names, ["CTL_b"]);
+    assert!(one.stdout.contains("1 morph targets"), "{}", one.stdout);
+    assert_eq!(none.code, Some(0), "{}", none.stderr);
+    assert_eq!(none_names.len(), 0);
+    Ok(())
+}
+
+#[test]
+fn an_expression_the_rig_lacks_is_listed_and_exits_with_one() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
+    let archive = archive(dir.path(), head_entries(Some(rig)))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+    let out = dir.path().join("c.glb");
+
+    let run = glb_with(
+        &archive,
+        &file,
+        &out,
+        false,
+        &["--expression", "CTL_a", "--expression", "nope"],
+    )?;
+
+    assert_eq!(run.code, Some(1), "{}", run.stderr);
+    assert!(run.stdout.contains("nope"), "{}", run.stdout);
+    assert!(run.stderr.contains("expressions"), "{}", run.stderr);
+    assert_eq!(target_names(&out)?, ["CTL_a"], "the file is still written");
+    Ok(())
+}
+
+#[test]
+fn no_expressions_and_a_chosen_expression_contradict_each_other() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path(), head_entries(None))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+
+    let run = glb_with(
+        &archive,
+        &file,
+        &dir.path().join("c.glb"),
+        false,
+        &["--no-expressions", "--expression", "CTL_a"],
+    )?;
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
     Ok(())
 }

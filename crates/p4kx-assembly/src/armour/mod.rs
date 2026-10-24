@@ -7,6 +7,7 @@
 mod body;
 mod build;
 mod dress;
+mod expressions;
 mod follow;
 mod forge_items;
 mod head;
@@ -22,13 +23,14 @@ use std::io::Write;
 use std::sync::Arc;
 
 use p4kx_gltf::{
-    GlbOptions, GlbSummary, GltfError, RigPiece, TextureLoader, write_rigged_glb,
+    GlbOptions, GlbSummary, GltfError, MorphTarget, RigPiece, TextureLoader, write_rigged_glb,
     write_rigged_glb_with,
 };
 use p4kx_model::{MaterialStatus, Model};
 
 pub use body::BodyVariant;
 pub use dress::HeadItems;
+pub use expressions::Expressions;
 pub use forge_items::ForgeItems;
 pub use head::{Head, HeadError};
 pub use loadout::{Replaced, is_worn_type};
@@ -57,6 +59,7 @@ pub struct ArmourPart {
     pub(crate) file: String,
     pub(crate) model: Arc<Model>,
     pub(crate) materials: Arc<MaterialStatus>,
+    pub(crate) morphs: Vec<MorphTarget>,
 }
 
 impl ArmourPart {
@@ -83,6 +86,13 @@ impl ArmourPart {
     #[must_use]
     pub fn model(&self) -> &Model {
         &self.model
+    }
+
+    /// Returns the morph targets of the part's mesh: the expression blendshapes the part was built
+    /// with, see [`Piece::with_expressions`].
+    #[must_use]
+    pub fn morphs(&self) -> &[MorphTarget] {
+        &self.morphs
     }
 
     /// Returns the material library the part is drawn with.
@@ -169,7 +179,9 @@ impl Armour {
         let pieces: Vec<RigPiece<'_>> = self
             .parts
             .iter()
-            .map(|part| RigPiece::new(&part.name, &part.model, &part.materials))
+            .map(|part| {
+                RigPiece::new(&part.name, &part.model, &part.materials).with_morphs(&part.morphs)
+            })
             .collect();
         write_rigged_glb(&self.skeleton.bones, &pieces, options, out)
     }
@@ -189,7 +201,9 @@ impl Armour {
         let pieces: Vec<RigPiece<'_>> = self
             .parts
             .iter()
-            .map(|part| RigPiece::new(&part.name, &part.model, &part.materials))
+            .map(|part| {
+                RigPiece::new(&part.name, &part.model, &part.materials).with_morphs(&part.morphs)
+            })
             .collect();
         write_rigged_glb_with(&self.skeleton.bones, &pieces, options, textures, out)
     }

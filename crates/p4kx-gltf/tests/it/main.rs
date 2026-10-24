@@ -8,6 +8,7 @@ mod animation_checker;
 mod cube_glb;
 mod lods_attributes;
 mod materials;
+mod morphs;
 mod rig;
 mod rig_textures;
 mod scene_glb;

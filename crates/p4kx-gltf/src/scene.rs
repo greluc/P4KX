@@ -5,13 +5,15 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::io::Write;
 
-use p4kx_model::{Lod, MaterialStatus, Model, Transform};
+use p4kx_model::{Lod, MaterialStatus, Model, TintPalette, Transform};
 
 use crate::GltfError;
-use crate::glb::{GlbOptions, GlbSummary, write_instances};
+use crate::glb::{GlbOptions, GlbSummary, MaterialMode, write_instances};
 use crate::instance::{Instance, Wrapper};
 use crate::materials::MaterialPlan;
-use crate::texture_loader::NoTextures;
+use crate::texture_loader::{NoTextures, TextureLoader};
+
+type SharingKey = (usize, usize, usize, usize);
 
 /// A model placed in a [`Scene`] with the material library its material IDs index.
 ///
@@ -25,13 +27,30 @@ pub struct ScenePart<'m> {
     /// The material library of the model, see [`MaterialStatus::library`]; a status without a
     /// library draws the model with the engine's default material.
     pub materials: &'m MaterialStatus,
+    /// The tint palette whose colours the materials that take one are drawn with, or `None` for
+    /// the colours of the library.
+    pub palette: Option<&'m TintPalette>,
 }
 
 impl<'m> ScenePart<'m> {
-    /// Places `model`, drawn with the library of `materials`.
+    /// Places `model`, drawn with the library of `materials` and without a palette.
     #[must_use]
     pub const fn new(model: &'m Model, materials: &'m MaterialStatus) -> Self {
-        Self { model, materials }
+        Self {
+            model,
+            materials,
+            palette: None,
+        }
+    }
+
+    /// Draws the part with the colours of `palette`.
+    ///
+    /// Parts share a mesh and its materials only when they also have the same palette, the same
+    /// reference, so a livery never leaks into another part.
+    #[must_use]
+    pub const fn with_palette(mut self, palette: &'m TintPalette) -> Self {
+        self.palette = Some(palette);
+        self
     }
 }
 
@@ -118,13 +137,13 @@ impl<'m> Scene<'m> {
 ///
 /// Every scene node becomes a glTF node with its transform, and the nodes of its model hang below
 /// it. The materials are plain colours whatever [`GlbOptions::materials`] says, and the models are
-/// written without skeletons.
+/// written without skeletons; see [`write_scene_glb_with`] for textures.
 ///
 /// Each model is drawn at the level of detail `options` asks for, or, when it lacks that level,
 /// at the nearest lower one, or the lowest it has; [`GlbSummary::lod_fallbacks`] counts those.
 /// Equal materials are written once, and so are the meshes of nodes that hold the same model
-/// (the same reference) at the same level with the same material library: their glTF nodes
-/// reference one glTF mesh, counted in [`GlbSummary::shared_meshes`].
+/// (the same reference) at the same level with the same material library and the same palette:
+/// their glTF nodes reference one glTF mesh, counted in [`GlbSummary::shared_meshes`].
 ///
 /// # Errors
 ///
@@ -133,6 +152,34 @@ impl<'m> Scene<'m> {
 pub fn write_scene_glb(
     scene: &Scene<'_>,
     options: &GlbOptions,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    let plain = GlbOptions {
+        materials: MaterialMode::Colours,
+        ..*options
+    };
+    write_scene_glb_with(scene, &plain, &NoTextures, out)
+}
+
+/// Writes the models of `scene` as one GLB file to `out` like [`write_scene_glb`], taking the
+/// textures of [`MaterialMode::Textures`] from `textures`.
+///
+/// The textures of all parts are decoded, combined and PNG-encoded before the first byte is
+/// written, a few at a time, at the mip level [`GlbOptions::texture_mip`] names. An image that
+/// several materials or parts use is made and embedded once; a part with a [`TintPalette`] is
+/// drawn with its colours, as the base colour factor over the image, which stays shared unless a
+/// specular map bakes the colours into it (then each palette has its own). At most
+/// [`crate::MAX_TEXTURE_IMAGES`] images and [`crate::MAX_TEXTURE_PIXELS`] pixels are embedded;
+/// a texture that is beyond them or cannot be loaded leaves the plain colour and is listed in
+/// [`GlbSummary::texture_fallbacks`].
+///
+/// # Errors
+///
+/// As [`write_scene_glb`].
+pub fn write_scene_glb_with(
+    scene: &Scene<'_>,
+    options: &GlbOptions,
+    textures: &dyn TextureLoader,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
     let wrappers: Vec<Wrapper<'_>> = scene
@@ -144,9 +191,25 @@ pub fn write_scene_glb(
             transform: &node.transform,
         })
         .collect();
+    let (instances, fallbacks) = instances_of(scene, options);
+    write_instances(
+        &wrappers,
+        &instances,
+        &[],
+        options,
+        textures,
+        fallbacks,
+        out,
+    )
+}
+
+/// Returns the model instances of the nodes that hold a model, and how many are drawn at another
+/// level than asked for. An instance whose model, level, library and palette an earlier one has
+/// is its twin.
+fn instances_of<'m>(scene: &Scene<'m>, options: &GlbOptions) -> (Vec<Instance<'m>>, usize) {
     let mut fallbacks = 0;
-    let mut first_of: HashMap<(usize, usize, usize), usize> = HashMap::new();
-    let mut instances: Vec<Instance<'_>> = Vec::new();
+    let mut first_of: HashMap<SharingKey, usize> = HashMap::new();
+    let mut instances: Vec<Instance<'m>> = Vec::new();
     for (position, node) in scene.nodes().iter().enumerate() {
         let Some(part) = node.part else {
             continue;
@@ -155,14 +218,13 @@ pub fn write_scene_glb(
         if lod.is_some_and(|lod| lod.level != options.lod) {
             fallbacks += 1;
         }
-        let plan = lod.map_or_else(MaterialPlan::empty, |lod| {
-            MaterialPlan::new(part.materials.library(), lod)
-        });
         let twin = lod.and_then(|lod| {
             let key = (
                 std::ptr::from_ref(part.model).addr(),
                 std::ptr::from_ref(lod).addr(),
                 std::ptr::from_ref(part.materials).addr(),
+                part.palette
+                    .map_or(0, |palette| std::ptr::from_ref(palette).addr()),
             );
             match first_of.entry(key) {
                 Entry::Occupied(first) => Some(*first.get()),
@@ -170,6 +232,14 @@ pub fn write_scene_glb(
                     slot.insert(instances.len());
                     None
                 }
+            }
+        });
+        let plan = lod.map_or_else(MaterialPlan::empty, |lod| {
+            let plan = MaterialPlan::new(part.materials.library(), lod);
+            if twin.is_some() {
+                plan
+            } else {
+                plan.tinted_by(part.palette)
             }
         });
         instances.push(Instance {
@@ -180,20 +250,12 @@ pub fn write_scene_glb(
             twin,
         });
     }
-    write_instances(
-        &wrappers,
-        &instances,
-        &[],
-        options,
-        &NoTextures,
-        fallbacks,
-        out,
-    )
+    (instances, fallbacks)
 }
 
 /// Returns the level of `model` closest to `level` from below, or its lowest level when all are
 /// above it.
-fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
+pub(crate) fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
     model
         .lods
         .iter()

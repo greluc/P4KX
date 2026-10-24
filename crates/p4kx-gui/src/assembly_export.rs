@@ -23,10 +23,6 @@ pub const ASSEMBLY_LODS: [u32; 4] = [0, 1, 2, 3];
 pub const ASSEMBLY_MATERIALS: [ModelMaterials; 2] =
     [ModelMaterials::Colours, ModelMaterials::Textures];
 
-/// Whether an Assembly can be written with the textures of its materials. The writer of
-/// Assemblies draws plain colours only, so the choice is shown but cannot be made.
-pub const ASSEMBLY_TEXTURES_AVAILABLE: bool = false;
-
 /// The choices of an Export of an Entity as GLB before it starts: the Entity with the changes
 /// made to its Loadout, the level of detail, the materials and the file.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,11 +50,7 @@ impl AssemblyExportSetup {
             name: name.to_owned(),
             changes: changes.clone(),
             lod: nearest(settings.lod, &ASSEMBLY_LODS),
-            materials: if ASSEMBLY_TEXTURES_AVAILABLE {
-                settings.materials
-            } else {
-                ModelMaterials::Colours
-            },
+            materials: settings.materials,
             texture_mip: nearest(settings.texture_mip, &crate::MODEL_TEXTURE_MIPS),
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
@@ -98,12 +90,9 @@ impl AssemblyExportSetup {
         self.materials
     }
 
-    /// Chooses how the materials are written; textures are ignored while
-    /// [`ASSEMBLY_TEXTURES_AVAILABLE`] is false.
+    /// Chooses how the materials are written.
     pub const fn set_materials(&mut self, materials: ModelMaterials) {
-        if ASSEMBLY_TEXTURES_AVAILABLE || matches!(materials, ModelMaterials::Colours) {
-            self.materials = materials;
-        }
+        self.materials = materials;
     }
 
     /// Returns the mip level of the textures, 0 for the largest.

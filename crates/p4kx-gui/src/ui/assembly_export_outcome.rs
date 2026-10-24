@@ -9,6 +9,7 @@ use fluent_bundle::FluentValue;
 
 use super::extraction_outcome::decorate;
 use super::record_export_outcome::{list, outcome_window};
+use crate::model_info::printable;
 use crate::theme::desktop::{MODAL_WIDTH, SPINNER_INLINE};
 use crate::theme::palette;
 use crate::theme::tokens::SPACE_3;
@@ -180,6 +181,8 @@ struct Laid {
     notes: Vec<(String, Color32)>,
     heading: String,
     issues: Vec<String>,
+    textures_heading: String,
+    textures: Vec<String>,
 }
 
 impl Laid {
@@ -197,8 +200,11 @@ impl Laid {
     }
 
     fn new(key: (u64, Language), texts: &Texts, summary: &AssemblyExportSummary) -> Self {
+        let (textures_heading, textures) = missing_textures(texts, summary);
         Self {
             key,
+            textures_heading,
+            textures,
             notes: notes(texts, summary),
             heading: texts.format(
                 T::ReportHeading,
@@ -232,6 +238,30 @@ impl Laid {
     }
 }
 
+/// Returns the heading and the lines of the textures the file lacks.
+fn missing_textures(texts: &Texts, summary: &AssemblyExportSummary) -> (String, Vec<String>) {
+    let fallbacks = &summary.written().texture_fallbacks;
+    let heading = texts.format(
+        ModelExportText::SummaryTextures,
+        &[("number", number(texts, fallbacks.len()).into())],
+    );
+    let lines = fallbacks
+        .iter()
+        .map(|texture| {
+            texts.format(
+                ModelExportText::SummaryTexture,
+                &[
+                    ("material", printable(&texture.material).into()),
+                    ("role", texture.role.name().into()),
+                    ("file", printable(&texture.file).into()),
+                    ("reason", printable(&texture.reason).into()),
+                ],
+            )
+        })
+        .collect();
+    (heading, lines)
+}
+
 fn number(texts: &Texts, value: usize) -> String {
     format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language())
 }
@@ -260,6 +290,17 @@ fn notes(texts: &Texts, summary: &AssemblyExportSummary) -> Vec<(String, Color32
         ),
         (texts.format(T::SummaryCounts, &counts), palette::GRAY_1),
     ];
+    if written.textures > 0 || !written.texture_fallbacks.is_empty() {
+        let args = [
+            (
+                "images",
+                u64::try_from(written.textures).unwrap_or(u64::MAX).into(),
+            ),
+            ("textured", number(texts, written.textured_materials).into()),
+            ("materials", number(texts, written.materials).into()),
+        ];
+        notes.push((texts.format(T::SummaryImages, &args), palette::GRAY_1));
+    }
     for (text, value) in [
         (T::SummaryFallbacks, written.lod_fallbacks),
         (T::SummaryHidden, written.hidden_primitives),
@@ -282,6 +323,13 @@ fn finished(ui: &mut Ui, laid: &Laid) {
     for (note, colour) in &laid.notes {
         ui.colored_label(*colour, note);
     }
+    list(
+        ui,
+        (&laid.textures_heading, "assembly-export-textures"),
+        &laid.textures,
+        None,
+        true,
+    );
     list(
         ui,
         (&laid.heading, "assembly-export-report"),

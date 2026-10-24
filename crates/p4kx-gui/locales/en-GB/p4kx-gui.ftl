@@ -940,7 +940,6 @@ assembly-export-lod = LOD { $level }
 assembly-export-materials-heading = Materials
 assembly-export-materials-colours = Plain colours, a small and quick file
 assembly-export-materials-textures = With textures, a larger file
-assembly-export-textures-unavailable = Textures cannot be written for Entities yet.
 assembly-export-texture-mip-heading = Texture size
 assembly-export-texture-mip = { $level ->
     [0] Full size
@@ -961,7 +960,12 @@ assembly-export-summary-cancelled-title = Export cancelled
 assembly-export-summary-cancelled = The export was cancelled. No file was written.
 assembly-export-summary-file = Written to { $path }
 assembly-export-summary-counts = Parts { $parts } ({ $modelled } with a model), nodes { $nodes }, meshes { $meshes }, materials { $materials }, vertices { $vertices }, triangles { $triangles }, size { $size }
-assembly-export-summary-fallbacks = { $count ->
+assembly-export-summary-images = { $images ->
+    [0] No textures are written; every material has its plain colour.
+    [one] One texture is written for { $textured } of { $materials } materials.
+   *[other] { $images } textures are written for { $textured } of { $materials } materials.
+  }
+assembly-export-summary-fallbacks ={ $count ->
     [one] One model lacks the chosen level of detail and is written at the nearest lower one.
    *[other] { $number } models lack the chosen level of detail and are written at the nearest lower one.
   }

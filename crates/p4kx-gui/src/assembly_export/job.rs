@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::io::{self, Write};
+mod stop;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
@@ -9,18 +10,18 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_assembly::{
-    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, LoadoutChanges, ModelFailure,
-    ModelProvider, ProvidedModel,
+    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, ForgePalettes, LoadoutChanges,
 };
-use p4kx_extraction::model::MaterialStatus;
 use p4kx_extraction::{
     CancelToken, ConversionError, GlbOptions, GlbSummary, GltfError, Guid, MaterialMode,
     archive_error_in, write_replacing,
 };
 use p4kx_settings::ModelMaterials;
+use stop::{Observed, Stoppable, StoppableTextures};
 
 use super::AssemblyExportSummary;
 use crate::entities::{ResolveFailure, resolve};
+use crate::forge_cache::ReadFailure;
 use crate::model::describe;
 use crate::{EntryIndex, ModelExportFailure};
 
@@ -263,49 +264,8 @@ pub(crate) fn start(
     }
 }
 
-struct Stoppable<'a> {
-    models: ArchiveModels<'a>,
-    cancel: &'a CancelToken,
-}
-
-impl ModelProvider for Stoppable<'_> {
-    fn model(&self, path: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
-        if self.cancel.is_cancelled() {
-            return Err(ModelFailure::Fatal(Box::new(ConversionError::Cancelled)));
-        }
-        self.models.model(path, lod)
-    }
-
-    fn library(&self, entry: &str, name: &str) -> MaterialStatus {
-        self.models.library(entry, name)
-    }
-}
-
 #[cfg(test)]
 mod tests;
-
-struct Observed<'a, W> {
-    inner: W,
-    cancel: &'a CancelToken,
-    shared: &'a Shared,
-}
-
-impl<W: Write> Write for Observed<'_, W> {
-    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
-        if self.cancel.is_cancelled() {
-            return Err(io::Error::other("the export stopped"));
-        }
-        let written = self.inner.write(buffer)?;
-        self.shared
-            .done
-            .fetch_add(u64::try_from(written).unwrap_or(0), Ordering::Relaxed);
-        Ok(written)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.inner.flush()
-    }
-}
 
 fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Shared) -> Ended {
     let tree = match resolve(index, request.guid, &request.changes) {
@@ -321,12 +281,27 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         return Ended::Cancelled;
     }
     shared.enter(AssemblyExportStage::Reading);
+    let source = match index.forge().read(index, || {}) {
+        Ok(source) => source,
+        Err(ReadFailure::ArchiveChanged(_)) => {
+            return Ended::Failed(ModelExportFailure::ArchiveChanged);
+        }
+        Err(ReadFailure::Unreadable(reason)) => {
+            return Ended::Failed(ModelExportFailure::Failed(reason));
+        }
+    };
+    let forge = match source.entry.open() {
+        Ok(forge) => forge,
+        Err(error) => return Ended::Failed(ModelExportFailure::Failed(describe(&error))),
+    };
+    let palettes = ForgePalettes::new(&forge);
+    let archive_models = ArchiveModels::new(index.archive());
     let models = Stoppable {
-        models: ArchiveModels::new(index.archive()),
+        models: &archive_models,
         cancel,
     };
     let options = AssemblyOptions::default().with_lod(request.lod);
-    let assembly = match Assembly::build(&tree, &models, &options) {
+    let assembly = match Assembly::build_with_palettes(&tree, &models, &palettes, &options) {
         Ok(assembly) => assembly,
         Err(_) if cancel.is_cancelled() => return Ended::Cancelled,
         Err(AssemblyError::Provider(error)) => return failed(index, &*error),
@@ -339,7 +314,7 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }
     shared.enter(AssemblyExportStage::Writing);
-    match write(&assembly, request, (cancel, shared)) {
+    match write(&assembly, &archive_models, request, (cancel, shared)) {
         Ok(written) => Ended::Written(Box::new(AssemblyExportSummary::new(
             (request.file.clone(), request.name.clone()),
             &assembly,
@@ -353,10 +328,16 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
 
 fn write(
     assembly: &Assembly,
+    models: &ArchiveModels<'_>,
     request: &Request,
     (cancel, shared): (&CancelToken, &Shared),
 ) -> Result<GlbSummary, ConversionError> {
     let glb = request.options();
+    let archive_textures = models.textures();
+    let textures = StoppableTextures {
+        textures: &archive_textures,
+        cancel,
+    };
     write_replacing(&request.file, |writer| {
         let mut observed = Observed {
             inner: writer,
@@ -364,7 +345,7 @@ fn write(
             shared,
         };
         assembly
-            .write_glb(&glb, &mut observed)
+            .write_glb_with(&glb, &textures, &mut observed)
             .map_err(|error| match error {
                 GltfError::Write(_) if cancel.is_cancelled() => ConversionError::Cancelled,
                 GltfError::Write(source) => ConversionError::Write {

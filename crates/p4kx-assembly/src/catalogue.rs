@@ -37,7 +37,7 @@ impl EntityKind {
     /// `WeaponAttachment`.
     #[must_use]
     pub fn classify(record_path: &str, item_type: &str) -> Self {
-        let path = record_path.replace('\\', "/").to_ascii_lowercase();
+        let path = format!("/{}", record_path.replace('\\', "/").to_ascii_lowercase());
         if path.contains(SHIPS) {
             Self::Ship
         } else if path.contains(VEHICLES) {

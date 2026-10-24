@@ -130,6 +130,8 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("source", "Data\\Animations\\ship.caf".into()),
         ("port", "hardpoint_weapon_nose".into()),
         ("single", "yes".into()),
+        ("images", 3.into()),
+        ("textured", "2".into()),
         ("types", "WeaponGun (Gun)".into()),
         ("sizes", "1\u{2013}2".into()),
         ("excluded", "2".into()),

@@ -5,6 +5,7 @@
 
 mod animation_support;
 mod archive_key;
+mod armour_glb;
 mod audio;
 mod audio_adpcm;
 mod audio_loop;
@@ -43,6 +44,7 @@ mod dcb_tags;
 mod entity_audio;
 mod entity_changes;
 mod entity_glb;
+mod entity_glb_livery;
 mod entity_loadout;
 mod entity_vehicle;
 mod entry_issues;

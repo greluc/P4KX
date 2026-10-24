@@ -221,10 +221,11 @@ order is attached. The same Archive always gives the same document.
 
 ```json
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
- "modelled_parts": 56, "nodes": 899, "meshes": 249, "primitives": 948, "materials": 204,
- "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "shared_meshes": 33,
- "shared_materials": 103, "shared_textures": 0, "vertices": 744831, "triangles": 818426,
- "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
+ "modelled_parts": 56, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
+ "materials": 204, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
+ "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0,
+ "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
+ "triangles": 818426, "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
@@ -232,11 +233,17 @@ root Entity and every attached Entity that resolved, `modelled_parts` those with
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one;
 `shared_meshes` counts the meshes not written again because an earlier part holds the same model
-at the same level with the same material library (their nodes reference one glTF mesh); `meshes`, `primitives`, `vertices` and `triangles` count
+at the same level with the same material library and the same palette (their nodes reference one glTF mesh); `meshes`, `primitives`, `vertices` and `triangles` count
 stored geometry once, so `meshes` can be lower than the number of mesh-bearing nodes;
 `shared_materials` the material requests answered by an equal material already written and
-`shared_textures` the texture references that reuse an embedded image (always 0 until textures
-are written for Assemblies);
+`shared_textures` the texture references that reuse an embedded image. `palettes` counts the
+parts drawn with a tint palette ([ADR-0080](adr/0080-assembly-materials-take-the-palette-of-their-part-and-share-textures.md)).
+With `--materials textures` the textures of all parts are embedded at the mip `--texture-mip`:
+`textures` is the number of PNG images (an image is embedded once however many materials and
+parts use it), `texture_pixels` their pixels, `textured_materials` the materials that have a
+texture, and `texture_fallbacks` the textures that were left out (objects with `material`,
+`role`, `file` and `reason`, as for `p4kx model glb`): their materials keep the plain colour. All
+four are 0 or empty without textures.
 `default_material_ids` and `hidden_primitives` are summed over all models as for
 `p4kx model glb`. `skipped` counts the issues that leave a part or its model out. With `--exclude`
 and `--replace`, as for `p4kx entity loadout`, the Assembly is built from the changed Loadout and
@@ -253,10 +260,49 @@ names an Entity that cannot be resolved, so the port holds no part), `no_geometr
 Record names no model; the part stays as an empty node), `geometry_missing` and
 `geometry_unreadable` (the model is not in the Archive or cannot be read, e.g. a `.cdf`; the part
 stays as an empty node), `material_library` (the library is missing or unreadable; the part is
-drawn with the default material), `helper_not_found` (the port's helper is no node of the
+drawn with the default material), `palette` (a tint palette the Entity or its library names
+cannot be resolved; the part falls back to the library's default palette or to its plain
+colours), `helper_not_found` (the port's helper is no node of the
 parent's model; the part sits at the parent's origin) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.
+
+## `p4kx armour bodies --json`
+
+```json
+{"bodies": [{"code": "male", "tag": "Male", "skeleton": "Objects/…/bhm_skeleton_v7.chr",
+             "skin": "Objects/…/m_body.skin"}, …]}
+```
+
+`code` is what `--body` takes, `tag` the tag a piece's Record gives its geometry for the variant,
+`skeleton` and `skin` the files of the default body.
+
+## `p4kx armour glb <archive> --piece <entity>… --out <file> --json`
+
+```json
+{"archive": "…", "body": "male", "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…",
+ "lod": 0, "pieces": 2, "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
+ "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
+ "materials": 19, "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
+ "issues": [Issue, …]}
+```
+
+`pieces` counts the `--piece` options, `parts` lists what was written: the skin of the body
+(`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after the
+piece's class name, with the model `file` as the Record spells it. `bones` and `nodes` count the
+glTF nodes: the bones, written once, and the nodes of the models. `skipped` counts the issues that
+leave a piece out. An Entity that no Record matches, or several do, exits with code 2 and writes
+nothing; a skeleton that is missing exits with code 3; an Archive key that is missing or wrong
+with code 7, and an `--out` that is the Archive with code 2.
+
+An **Issue** is as for `p4kx entity glb`, with the kinds of the pieces: `piece_not_found` (the
+Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometry), `no_variant_geometry`
+(the Record names geometry per body, but none for this one; the piece is left out),
+`geometry_missing` and `geometry_unreadable` (the model is not in the Archive or cannot be read),
+`bones_not_in_skeleton` (some bones of the model are not in the body skeleton and follow their
+nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is) and
+`material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
+class name; for `piece_not_found` it is the text given to `--piece`.
 
 ## `p4kx entity audio <archive> <entity> --json`
 

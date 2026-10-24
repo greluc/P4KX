@@ -39,12 +39,17 @@ expression: "serde_json::to_string_pretty(&shaped)?"
   "modelled_parts": 4,
   "nodes": 17,
   "out": "<out>",
+  "palettes": 0,
   "parts": 6,
   "primitives": 6,
   "shared_materials": 2,
   "shared_meshes": 1,
   "shared_textures": 0,
   "skipped": 2,
+  "texture_fallbacks": [],
+  "texture_pixels": 0,
+  "textured_materials": 0,
+  "textures": 0,
   "triangles": 36,
   "vertices": 72
 }

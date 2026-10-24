@@ -23,8 +23,6 @@ pub enum AssemblyExportText {
     MaterialsColours,
     /// Materials with their textures.
     MaterialsTextures,
-    /// The note that textures cannot be written for Entities yet.
-    TexturesUnavailable,
     /// The heading of the texture size choice.
     TextureMipHeading,
     /// One texture size; takes `level` and `divisor`.
@@ -60,6 +58,8 @@ pub enum AssemblyExportText {
     /// What the file holds; takes `parts`, `modelled`, `nodes`, `meshes`, `materials`,
     /// `vertices`, `triangles` and `size`.
     SummaryCounts,
+    /// The textures in the file; takes `images`, `textured` and `materials`.
+    SummaryImages,
     /// The models read at a lower level of detail; takes `count` and `number`.
     SummaryFallbacks,
     /// Submeshes left out because their material draws nothing; takes `count` and `number`.
@@ -86,7 +86,6 @@ impl AssemblyExportText {
         Self::MaterialsHeading,
         Self::MaterialsColours,
         Self::MaterialsTextures,
-        Self::TexturesUnavailable,
         Self::TextureMipHeading,
         Self::TextureMip,
         Self::VertexColours,
@@ -104,6 +103,7 @@ impl AssemblyExportText {
         Self::SummaryCancelled,
         Self::SummaryFile,
         Self::SummaryCounts,
+        Self::SummaryImages,
         Self::SummaryFallbacks,
         Self::SummaryHidden,
         Self::ReportHeading,
@@ -125,7 +125,6 @@ impl AssemblyExportText {
             Self::MaterialsHeading => "assembly-export-materials-heading",
             Self::MaterialsColours => "assembly-export-materials-colours",
             Self::MaterialsTextures => "assembly-export-materials-textures",
-            Self::TexturesUnavailable => "assembly-export-textures-unavailable",
             Self::TextureMipHeading => "assembly-export-texture-mip-heading",
             Self::TextureMip => "assembly-export-texture-mip",
             Self::VertexColours => "assembly-export-vertex-colours",
@@ -143,6 +142,7 @@ impl AssemblyExportText {
             Self::SummaryCancelled => "assembly-export-summary-cancelled",
             Self::SummaryFile => "assembly-export-summary-file",
             Self::SummaryCounts => "assembly-export-summary-counts",
+            Self::SummaryImages => "assembly-export-summary-images",
             Self::SummaryFallbacks => "assembly-export-summary-fallbacks",
             Self::SummaryHidden => "assembly-export-summary-hidden",
             Self::ReportHeading => "assembly-export-report-heading",

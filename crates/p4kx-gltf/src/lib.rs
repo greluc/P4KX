@@ -19,8 +19,14 @@
 //! streamed to the writer after the JSON.
 //!
 //! [`write_scene_glb`] writes a [`Scene`]: a tree of named, placed nodes that hold models, each
-//! drawn with the material library the scene gives it, in plain colours and without skeletons.
-//! Equal materials are written once.
+//! drawn with the material library the scene gives it and, if the part has one, a
+//! [`p4kx_model::TintPalette`], in plain colours and without skeletons. Equal materials are
+//! written once. [`write_scene_glb_with`] adds the textures of [`MaterialMode::Textures`], shared
+//! between parts like the materials.
+//!
+//! [`write_rigged_glb`] writes [`RigPiece`]s worn on one shared skeleton, such as the pieces of
+//! armour on a body: the bones once, one skin, and the bones of each piece matched to the
+//! skeleton by name.
 
 mod animations;
 mod axes;
@@ -33,6 +39,7 @@ mod instance;
 mod layout;
 mod materials;
 mod nodes;
+mod rig;
 mod scene;
 mod skin;
 mod texture_loader;
@@ -48,7 +55,8 @@ pub use glb::{
     GlbOptions, GlbSummary, MaterialMode, write_glb, write_glb_animated, write_glb_animated_with,
     write_glb_with,
 };
-pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb};
+pub use rig::{RigPiece, write_rigged_glb};
+pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};
 pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 pub use texture_plan::{MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};
 pub use texture_report::{TextureFallback, TextureRole};

@@ -228,6 +228,51 @@ fn the_export_reads_the_archive_even_while_a_container_is_open_in_browse() -> Te
 }
 
 #[test]
+fn a_textures_export_writes_the_images_of_the_materials() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = crate::tagging::archive(dir.path(), p4kx_testkit::livery_entries())?;
+    let mut harness =
+        crate::tagging::harness_sized(Model::new(Language::BritishEnglish), [1400.0, 900.0]);
+    harness.state_mut().open(path, || {});
+    crate::tagging::wait_until(&mut harness, |model| model.browser().is_some())?;
+    harness.state_mut().set_work_tab(WorkTab::Entities);
+    harness.run_steps(2);
+    crate::tagging::wait_until(&mut harness, entity_picking::listed)?;
+    select(&mut harness, "TEST_Livery")?;
+    harness.state_mut().begin_assembly_export();
+    harness.run_steps(2);
+    harness
+        .state_mut()
+        .assembly_export_setup_mut()
+        .ok_or("the setup is open")?
+        .set_materials(p4kx_settings::ModelMaterials::Textures);
+    harness.run_steps(3);
+    harness.get_by_role_and_label(Role::Button, "1/2").click();
+    harness.run_steps(2);
+    let file = dir.path().join("livery.glb");
+    let setup = harness
+        .state_mut()
+        .assembly_export_setup_mut()
+        .ok_or("the setup is open")?;
+    assert_eq!(setup.materials(), p4kx_settings::ModelMaterials::Textures);
+    assert_eq!(setup.texture_mip(), 1, "the size follows the click");
+    setup.set_file(file.clone());
+    assert!(harness.state_mut().submit_assembly_export(|| {}));
+    finished(&mut harness)?;
+
+    let summary = summary(&harness)?;
+    assert!(summary.written().textures > 0, "{:?}", summary.written());
+    assert!(summary.written().textured_materials > 0);
+    let bytes = std::fs::read(&file)?;
+    p4kx_testkit::check_glb(&bytes)?;
+    assert!(
+        bytes.windows(9).any(|window| window == b"image/png"),
+        "an embedded PNG image"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_file_inside_a_missing_folder_fails_with_the_reason() -> TestResult {
     let (dir, mut harness) = opened(Language::BritishEnglish)?;
     select(&mut harness, "TEST_Ship")?;

@@ -349,6 +349,16 @@ _Avoid_: voice language, locale
 A human body with head (CHF/DNA), armour and clothing, assembled like an Entity.
 _Avoid_: avatar, player model
 
+**Body variant**:
+The build a Character's body comes in, male or female: its skeleton, its default body skin and
+the tag (`Male`, `Female`) an Entity's Record gives the geometry worn on it.
+_Avoid_: gender, body type (the CHF's field)
+
+**Piece**:
+One skin worn on a Character's body: a piece of armour or clothing from an Entity, or a head from
+a CHF, skinned to the body's skeleton by bone name.
+_Avoid_: item (an Entity), attachment
+
 **CHF**:
 A 4096-byte character file holding a Character's body type, face DNA, worn item ports and
 material choices, saved by the character customiser or shipped in the Archive.

@@ -8,10 +8,10 @@ use crate::animations::{AnimationPlan, Targets, plan as plan_animations};
 use crate::document::skeleton_written;
 use crate::glb::{GlbOptions, GlbSummary};
 use crate::instance::Instance;
-use crate::layout::Layout;
+use crate::layout::{Layout, Rigging};
 use crate::materials::Slot;
 use crate::texture_loader::TextureLoader;
-use crate::texture_plan::TextureSet;
+use crate::texture_plan::{PartSlots, TextureSet};
 
 pub(crate) fn plan_layout<'m>(
     instances: &[Instance<'m>],
@@ -25,7 +25,11 @@ pub(crate) fn plan_layout<'m>(
             layout.hidden_primitives += hidden.get(twin).copied().unwrap_or(0);
         } else if let Some(lod) = instance.lod {
             let before = layout.hidden_primitives;
-            layout.add_part(part, lod, options.vertex_colours, &instance.plan, binds);
+            let rigging = Rigging {
+                binds,
+                influences: None,
+            };
+            layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
             if let Some(slot) = hidden.get_mut(part) {
                 *slot = layout.hidden_primitives - before;
             }
@@ -58,21 +62,33 @@ pub(crate) fn single_animation_plans<'m>(
 
 pub(crate) fn texture_set(
     layout: &Layout<'_>,
-    instance: &Instance<'_>,
+    instances: &[Instance<'_>],
     mip: u32,
     textures: &dyn TextureLoader,
 ) -> TextureSet {
-    let mut slots: Vec<Slot> = Vec::new();
-    for slot in layout
-        .material_ids()
-        .into_iter()
-        .filter_map(|id| instance.plan.slot(id))
-    {
-        if !slots.contains(&slot) {
-            slots.push(slot);
-        }
-    }
-    TextureSet::build(&instance.plan, &slots, mip, textures)
+    let parts: Vec<PartSlots<'_>> = instances
+        .iter()
+        .enumerate()
+        .filter(|(_, instance)| instance.twin.is_none())
+        .map(|(part, instance)| {
+            let mut slots: Vec<Slot> = Vec::new();
+            for slot in layout
+                .part_material_ids(part)
+                .into_iter()
+                .filter_map(|id| instance.plan.slot(id))
+            {
+                if !slots.contains(&slot) {
+                    slots.push(slot);
+                }
+            }
+            PartSlots {
+                part,
+                plan: &instance.plan,
+                slots,
+            }
+        })
+        .collect();
+    TextureSet::build(&parts, mip, textures)
 }
 
 /// Returns how many texture references of the materials point at a texture another reference

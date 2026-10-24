@@ -3,7 +3,15 @@
 
 use crate::{TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
-pub(crate) fn geometry_component(path: &str, material: Option<&str>) -> TestValue {
+/// A geometry given to the sub-node tagged `tags`: its model path and material library.
+pub(crate) type GeometryVariant = (String, String, Option<String>);
+
+fn geometry_node(
+    tags: &str,
+    path: &str,
+    material: Option<&str>,
+    palette: Option<&(u128, String)>,
+) -> TestInstance {
     let resource = |type_name: &str, path: &str| {
         TestValue::Struct(TestInstance::new(type_name).value("path", TestValue::text(path)))
     };
@@ -13,7 +21,35 @@ pub(crate) fn geometry_component(path: &str, material: Option<&str>) -> TestValu
         "Material",
         resource("GlobalResourceMaterial", material.unwrap_or_default()),
     );
-    let node = TestInstance::new("SGeometryNodeParams").value("Geometry", TestValue::Struct(data));
+    if let Some((guid, child)) = palette {
+        data = data.value(
+            "Palette",
+            TestValue::Struct(
+                TestInstance::new("TintPaletteRef")
+                    .value("ChildPath", TestValue::text(child.clone()))
+                    .value("RootRecord", TestValue::Reference(*guid)),
+            ),
+        );
+    }
+    TestInstance::new("SGeometryNodeParams")
+        .value("Tags", TestValue::text(tags))
+        .value("Geometry", TestValue::Struct(data))
+}
+
+pub(crate) fn geometry_component(
+    path: &str,
+    material: Option<&str>,
+    variants: &[GeometryVariant],
+    palette: Option<&(u128, String)>,
+) -> TestValue {
+    let subs = variants
+        .iter()
+        .map(|(tags, path, material)| {
+            TestValue::Struct(geometry_node(tags, path, material.as_deref(), None))
+        })
+        .collect();
+    let node =
+        geometry_node("", path, material, palette).value("SubGeometry", TestValue::Array(subs));
     TestValue::Struct(
         TestInstance::new("SGeometryResourceParams").value("Geometry", TestValue::Struct(node)),
     )

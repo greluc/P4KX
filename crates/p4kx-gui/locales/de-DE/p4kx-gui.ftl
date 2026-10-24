@@ -940,7 +940,6 @@ assembly-export-lod = LOD { $level }
 assembly-export-materials-heading = Materialien
 assembly-export-materials-colours = Einfache Farben, eine kleine und schnelle Datei
 assembly-export-materials-textures = Mit Texturen, eine größere Datei
-assembly-export-textures-unavailable = Texturen können für Entities noch nicht geschrieben werden.
 assembly-export-texture-mip-heading = Texturgröße
 assembly-export-texture-mip = { $level ->
     [0] Volle Größe
@@ -961,7 +960,12 @@ assembly-export-summary-cancelled-title = Export abgebrochen
 assembly-export-summary-cancelled = Der Export wurde abgebrochen. Es wurde keine Datei geschrieben.
 assembly-export-summary-file = Geschrieben nach { $path }
 assembly-export-summary-counts = Teile { $parts } ({ $modelled } mit Modell), Knoten { $nodes }, Meshes { $meshes }, Materialien { $materials }, Vertices { $vertices }, Dreiecke { $triangles }, Größe { $size }
-assembly-export-summary-fallbacks = { $count ->
+assembly-export-summary-images = { $images ->
+    [0] Es werden keine Texturen geschrieben; jedes Material behält seine einfache Farbe.
+    [one] Eine Textur wird für { $textured } von { $materials } Materialien geschrieben.
+   *[other] { $images } Texturen werden für { $textured } von { $materials } Materialien geschrieben.
+  }
+assembly-export-summary-fallbacks ={ $count ->
     [one] Einem Modell fehlt die gewählte Detailstufe; es wird in der nächstniedrigeren geschrieben.
    *[other] { $number } Modellen fehlt die gewählte Detailstufe; sie werden in der nächstniedrigeren geschrieben.
   }

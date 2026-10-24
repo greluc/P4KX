@@ -9,7 +9,7 @@ use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
-use crate::{Geometry, ItemFacts};
+use crate::{Geometry, GeometryVariant, ItemFacts};
 
 const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
@@ -76,6 +76,7 @@ pub(crate) struct EntitySpec {
     pub(crate) port_index: HashMap<String, usize>,
     pub(crate) loadout: Option<LoadoutSpec>,
     pub(crate) geometry: Option<Geometry>,
+    pub(crate) variants: Vec<GeometryVariant>,
     pub(crate) vehicle: Option<VehicleSpec>,
     pub(crate) docked_vehicle: bool,
     pub(crate) attach_type: String,
@@ -109,21 +110,17 @@ impl EntitySpec {
         for (at, port) in ports.iter().enumerate() {
             port_index.entry(port_key(&port.name)).or_insert(at);
         }
-        let geometry = components
+        let geometry_component = components
             .iter()
-            .find(|component| component.type_name() == GEOMETRY_RESOURCE)
-            .and_then(|component| Geometry::read(component));
+            .find(|component| component.type_name() == GEOMETRY_RESOURCE);
+        let geometry = geometry_component.and_then(|component| Geometry::read(component));
+        let variants = geometry_component
+            .map(|component| Geometry::read_variants(component))
+            .unwrap_or_default();
         let vehicle = components
             .iter()
             .find(|component| component.type_name() == VEHICLE_PARAMS)
-            .map(|component| VehicleSpec {
-                definition: text(component, "vehicleDefinition").trim().to_owned(),
-                modification: text(component, "modification").trim().to_owned(),
-                landing_system: match component.field("landingSystem").map(reference_target) {
-                    Some(TargetSpec::Reference(guid)) => Some(guid),
-                    _ => None,
-                },
-            });
+            .map(|component| read_vehicle(component));
         let (attach_type, container) = item_facts(&components);
         let definition = attach_def(&components);
         Self {
@@ -141,6 +138,7 @@ impl EntitySpec {
             port_index,
             loadout,
             geometry,
+            variants,
             vehicle,
         }
     }
@@ -199,6 +197,17 @@ pub(crate) fn read_item_facts(tree: &RecordTree<'_>) -> ItemFacts {
             .map_or("", |definition| text(definition, "SubType"))
             .to_owned(),
         size: definition.and_then(|definition| unsigned(definition, "Size")),
+    }
+}
+
+fn read_vehicle(component: &StructValue<'_>) -> VehicleSpec {
+    VehicleSpec {
+        definition: text(component, "vehicleDefinition").trim().to_owned(),
+        modification: text(component, "modification").trim().to_owned(),
+        landing_system: match component.field("landingSystem").map(reference_target) {
+            Some(TargetSpec::Reference(guid)) => Some(guid),
+            _ => None,
+        },
     }
 }
 

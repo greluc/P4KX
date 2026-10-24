@@ -14,8 +14,8 @@ use crate::widgets::frames::{self, Tone};
 use crate::widgets::text::plain;
 use crate::widgets::{tab, toggle};
 use crate::{
-    ASSEMBLY_LODS, ASSEMBLY_MATERIALS, ASSEMBLY_TEXTURES_AVAILABLE, AssemblyExportSetup,
-    AssemblyExportText as T, ExtractionText, MODEL_TEXTURE_MIPS, Model, Text, Texts,
+    ASSEMBLY_LODS, ASSEMBLY_MATERIALS, AssemblyExportSetup, AssemblyExportText as T,
+    ExtractionText, MODEL_TEXTURE_MIPS, Model, Text, Texts,
 };
 
 enum Action {
@@ -130,16 +130,9 @@ fn materials(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {
             ModelMaterials::Colours => T::MaterialsColours,
             ModelMaterials::Textures => T::MaterialsTextures,
         });
-        let enabled = ASSEMBLY_TEXTURES_AVAILABLE || materials == ModelMaterials::Colours;
-        if toggle::radio(ui, setup.materials() == materials, &label, enabled).clicked() {
+        if toggle::radio(ui, setup.materials() == materials, &label, true).clicked() {
             setup.set_materials(materials);
         }
-    }
-    if !ASSEMBLY_TEXTURES_AVAILABLE {
-        ui.label(
-            plain(texts.get(T::TexturesUnavailable), FS_XS, Weight::Regular)
-                .color(palette::GRAY_2_TEXT),
-        );
     }
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::TextureMipHeading));

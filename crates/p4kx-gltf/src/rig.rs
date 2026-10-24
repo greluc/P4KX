@@ -8,9 +8,9 @@ use json::validation::USize64;
 use p4kx_model::{Bone, BoneMatch, Influences, MaterialStatus, Model};
 
 use crate::GltfError;
-use crate::document::{GENERATOR, NodeMeshes, push_accessor, push_meshes};
-use crate::glb::{GlbOptions, GlbSummary, write_file};
-use crate::glb_plan::summarise;
+use crate::document::{GENERATOR, NodeMeshes, push_accessor, push_images, push_meshes};
+use crate::glb::{GlbOptions, GlbSummary, MaterialMode, write_file};
+use crate::glb_plan::{summarise, texture_set};
 use crate::instance::{Instance, materials};
 use crate::layout::{Layout, Rigging};
 use crate::materials::MaterialPlan;
@@ -18,6 +18,7 @@ use crate::morphs::MorphTarget;
 use crate::nodes::{RigModel, push_rig_nodes};
 use crate::scene::nearest_lod;
 use crate::skin::inverse_binds;
+use crate::texture_loader::{NoTextures, TextureLoader};
 use crate::texture_plan::TextureSet;
 
 /// A skinned model worn on a shared skeleton, with the material library it is drawn with.
@@ -68,9 +69,9 @@ impl<'m> RigPiece<'m> {
 /// `skeleton`, and every skinned mesh of every piece uses that skin with its bones turned into the
 /// skeleton's by name; a bone the skeleton lacks takes its nearest ancestor that it has. A piece
 /// whose model has no skinned mesh is placed like in [`write_scene_glb`](crate::write_scene_glb).
-/// The materials are plain colours and equal materials are written once. Each piece is drawn at
-/// the level of detail `options` asks for, or at the nearest lower one it has;
-/// [`GlbSummary::lod_fallbacks`] counts those.
+/// The materials are plain colours and equal materials are written once; see
+/// [`write_rigged_glb_with`] for textures. Each piece is drawn at the level of detail `options`
+/// asks for, or at the nearest lower one it has; [`GlbSummary::lod_fallbacks`] counts those.
 ///
 /// # Errors
 ///
@@ -80,6 +81,31 @@ pub fn write_rigged_glb(
     skeleton: &[Bone],
     pieces: &[RigPiece<'_>],
     options: &GlbOptions,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
+    let plain = GlbOptions {
+        materials: MaterialMode::Colours,
+        ..*options
+    };
+    write_rigged_glb_with(skeleton, pieces, &plain, &NoTextures, out)
+}
+
+/// Writes `pieces` worn on `skeleton` as one GLB file to `out` like [`write_rigged_glb`], taking
+/// the textures of [`MaterialMode::Textures`] from `textures`.
+///
+/// The textures of all pieces are decoded, combined and PNG-encoded before the first byte is
+/// written, a few at a time, at the mip level [`GlbOptions::texture_mip`] names; an image that
+/// several materials use is embedded once, and a texture that cannot be loaded leaves the plain
+/// colour and is listed in [`GlbSummary::texture_fallbacks`].
+///
+/// # Errors
+///
+/// As [`write_rigged_glb`].
+pub fn write_rigged_glb_with(
+    skeleton: &[Bone],
+    pieces: &[RigPiece<'_>],
+    options: &GlbOptions,
+    textures: &dyn TextureLoader,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
     let (instances, fallbacks) = instances_of(pieces, options);
@@ -99,7 +125,11 @@ pub fn write_rigged_glb(
             layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
         }
     }
-    let images = TextureSet::default();
+    let images = match options.materials {
+        MaterialMode::Textures => texture_set(&layout, &instances, options.texture_mip, textures),
+        MaterialMode::Colours => TextureSet::default(),
+    };
+    layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
     let root = document(skeleton, pieces, &instances, &layout, &images);
     let total = write_file(&root, &layout, &images, out)?;
     let defaulted = instances
@@ -165,7 +195,10 @@ fn document(
             extras: json::extras::Void::default(),
         })
     });
-    let ids = materials(&mut root, layout, instances, images, &[]);
+    let image_textures = buffer
+        .map(|buffer| push_images(&mut root, buffer, layout))
+        .unwrap_or_default();
+    let ids = materials(&mut root, layout, instances, images, &image_textures);
     let (node_meshes, skinned): (NodeMeshes, Vec<Vec<bool>>) = buffer.map_or_else(
         || {
             let meshes = instances

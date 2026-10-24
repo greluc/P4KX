@@ -7,17 +7,20 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
-    ArchiveModels, Armour, AssemblyOptions, Expressions, Head, IssueKind, PartOrigin,
+    ArchiveModels, Armour, AssemblyOptions, Expressions, ForgeItems, Head, IssueKind,
+    LoadoutResolver, PartOrigin,
 };
 use p4kx_extraction::{
-    ConversionError, GlbOptions, GlbSummary, GltfError, is_same_file, write_replacing,
+    ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
+    write_replacing,
 };
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::chf::{InvalidChf, read_capped};
 use crate::cli::ChfGlbArgs;
-use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues};
+use crate::cli_chf::ChfMaterialsArg;
+use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
 use crate::query_table::one_line;
 
@@ -27,6 +30,14 @@ struct PartJson<'a> {
     origin: &'static str,
     file: &'a str,
     morph_targets: usize,
+}
+
+#[derive(Serialize)]
+struct FallbackJson<'a> {
+    material: &'a str,
+    role: &'static str,
+    file: &'a str,
+    reason: &'a str,
 }
 
 #[derive(Serialize)]
@@ -46,6 +57,11 @@ struct GlbJson<'a> {
     primitives: usize,
     materials: usize,
     morph_targets: usize,
+    textured_materials: usize,
+    textures: usize,
+    texture_pixels: u64,
+    texture_fallbacks: Vec<FallbackJson<'a>>,
+    default_material_ids: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -53,10 +69,13 @@ struct GlbJson<'a> {
     issues: Vec<IssueJson<'a>>,
 }
 
-/// The head of the character could not be shaped by its DNA, so the file lacks it.
+/// Parts of the head of the character could not be shaped by its DNA, so the file lacks them.
 #[derive(Debug, Error)]
-#[error("the head could not be shaped by its DNA and is not in {}", .0.display())]
-pub(crate) struct HeadNotShaped(PathBuf);
+#[error("{} could not be shaped by its DNA and is not in {}", .parts.join(", "), .out.display())]
+pub(crate) struct HeadNotShaped {
+    parts: Vec<String>,
+    out: PathBuf,
+}
 
 const fn origin_code(origin: PartOrigin) -> &'static str {
     match origin {
@@ -92,28 +111,42 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
         path: args.file.clone(),
         source,
     })?;
-    let head = Head::from_character(&chf.character)?.with_expressions(&expressions_of(args));
     let archive = crate::key::open(&args.archive)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let head = Head::dressed(&chf.character, &mut ForgeItems::new(&mut resolver))?
+        .with_expressions(&expressions_of(args));
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let armour = Armour::build(head.variant(), head.pieces(), &models, &options)?;
 
-    let mut glb = GlbOptions::default().with_lod(args.lod);
+    let mode = match args.materials {
+        ChfMaterialsArg::Colours => MaterialMode::Colours,
+        ChfMaterialsArg::Textures => MaterialMode::Textures,
+    };
+    let mut glb = GlbOptions::default()
+        .with_lod(args.lod)
+        .with_materials(mode)
+        .with_texture_mip(args.texture_mip);
     if args.no_vertex_colours {
         glb = glb.without_vertex_colours();
     }
     let name = head.variant().code().to_owned();
+    let textures = models.textures();
     let summary = write_replacing(&args.out, |writer| {
-        armour.write_glb(&glb, writer).map_err(|error| match error {
-            GltfError::Write(source) => ConversionError::Write {
-                path: args.out.clone(),
-                source,
-            },
-            source => ConversionError::Glb {
-                file: name.clone(),
-                source,
-            },
-        })
+        armour
+            .write_glb_with(&glb, &textures, writer)
+            .map_err(|error| match error {
+                GltfError::Write(source) => ConversionError::Write {
+                    path: args.out.clone(),
+                    source,
+                },
+                source => ConversionError::Glb {
+                    file: name.clone(),
+                    source,
+                },
+            })
     })?;
 
     if as_json {
@@ -123,24 +156,38 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     {
         return Err(error.into());
     }
-    if armour
+    failure(&armour, &args.out).map_or(Ok(()), Err)
+}
+
+/// Returns the error for what could not be shaped or made, if there is any.
+fn failure(armour: &Armour, out: &Path) -> Option<anyhow::Error> {
+    let parts: Vec<String> = armour
         .issues()
         .iter()
-        .any(|issue| matches!(issue.kind(), IssueKind::ShapeFailed { .. }))
-    {
-        return Err(HeadNotShaped(args.out.clone()).into());
+        .filter(|issue| matches!(issue.kind(), IssueKind::ShapeFailed { .. }))
+        .map(|issue| issue.name().to_owned())
+        .collect();
+    if !parts.is_empty() {
+        return Some(
+            HeadNotShaped {
+                parts,
+                out: out.to_path_buf(),
+            }
+            .into(),
+        );
     }
-    if armour.issues().iter().any(|issue| {
-        matches!(
-            issue.kind(),
-            IssueKind::MorphsFailed { .. }
-                | IssueKind::UnknownExpression { .. }
-                | IssueKind::EmptyExpression { .. }
-        )
-    }) {
-        return Err(ExpressionsNotMade(args.out.clone()).into());
-    }
-    Ok(())
+    armour
+        .issues()
+        .iter()
+        .any(|issue| {
+            matches!(
+                issue.kind(),
+                IssueKind::MorphsFailed { .. }
+                    | IssueKind::UnknownExpression { .. }
+                    | IssueKind::EmptyExpression { .. }
+            )
+        })
+        .then(|| ExpressionsNotMade(out.to_path_buf()).into())
 }
 
 fn report<'a>(
@@ -148,7 +195,7 @@ fn report<'a>(
     args: &ChfGlbArgs,
     head: &Head,
     armour: &'a Armour,
-    summary: &GlbSummary,
+    summary: &'a GlbSummary,
 ) -> GlbJson<'a> {
     GlbJson {
         archive: json::path(archive),
@@ -175,6 +222,20 @@ fn report<'a>(
         primitives: summary.primitives,
         materials: summary.materials,
         morph_targets: summary.morph_targets,
+        textured_materials: summary.textured_materials,
+        textures: summary.textures,
+        texture_pixels: summary.texture_pixels,
+        texture_fallbacks: summary
+            .texture_fallbacks
+            .iter()
+            .map(|fallback| FallbackJson {
+                material: &fallback.material,
+                role: fallback.role.name(),
+                file: &fallback.file,
+                reason: &fallback.reason,
+            })
+            .collect(),
+        default_material_ids: summary.default_material_ids,
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,
@@ -218,6 +279,14 @@ fn print_report(
             "part {}: {}",
             one_line(part.name()),
             one_line(part.file())
+        )?;
+    }
+    print_textures(&mut stdout, summary)?;
+    if summary.default_material_ids > 0 {
+        writeln!(
+            stdout,
+            "{} material IDs are drawn with the engine's default material",
+            summary.default_material_ids
         )?;
     }
     if summary.lod_fallbacks > 0 {

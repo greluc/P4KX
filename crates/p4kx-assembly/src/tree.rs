@@ -245,7 +245,7 @@ pub struct PortNode {
     pub(crate) name: String,
     pub(crate) source: PortSource,
     pub(crate) definition: Option<Arc<PortDefinition>>,
-    pub(crate) limits: Option<Arc<PortConstraints>>,
+    pub(crate) constraints: Option<Arc<PortConstraints>>,
     pub(crate) attachment: Attachment,
     pub(crate) nested: Vec<Self>,
     pub(crate) visibility: PortVisibility,
@@ -255,11 +255,8 @@ impl PortNode {
     /// Returns what the port takes: the types and sizes of its definition in the Entity Record,
     /// else of the item port of the vehicle implementation. `None` when neither states any.
     #[must_use]
-    pub fn constraints(&self) -> Option<PortConstraints> {
-        self.definition
-            .as_deref()
-            .and_then(PortConstraints::of_definition)
-            .or_else(|| self.limits.as_deref().cloned())
+    pub fn constraints(&self) -> Option<&PortConstraints> {
+        self.constraints.as_deref()
     }
 
     /// Checks that an Entity fits the port; a port without [`Self::constraints`] takes any.

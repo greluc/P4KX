@@ -7,8 +7,8 @@ use std::sync::Arc;
 use p4kx_dataforge::{DataForge, Guid, Record, TreeBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::changes::Plan;
 use crate::entities::is_entity;
+use crate::plan::Plan;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::walk::Walk;
 use crate::{

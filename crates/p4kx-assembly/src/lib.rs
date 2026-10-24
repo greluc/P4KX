@@ -16,6 +16,9 @@
 //! cycle, is kept in the tree as [`Attachment::Unresolved`] with a [`LoadoutError`]; the rest of
 //! the Loadout still resolves.
 //!
+//! [`EntityCatalogue`] lists every Entity once, with its [`EntityKind`] and [`ItemFacts`], for
+//! pickers; [`EntityCatalogue::compatible`] narrows it to what a port takes.
+//!
 //! [`LoadoutResolver::resolve_with`] applies [`LoadoutChanges`] while it resolves: ports left out
 //! and Entities attached instead, each checked against the port's [`PortConstraints`] with the
 //! [`ItemFacts`] of the Entity, reported as [`ChangeError`]s.
@@ -52,6 +55,7 @@ mod assembly;
 pub mod audio;
 mod build;
 mod build_palettes;
+mod catalogue;
 mod changes;
 mod compat;
 mod entities;
@@ -59,12 +63,14 @@ mod error;
 mod files;
 mod flatten;
 mod geometry;
+mod interior;
 mod issue;
 mod markup;
 mod merge;
 mod node;
 mod palette;
 mod placement;
+mod plan;
 mod port;
 mod provider;
 mod read;
@@ -80,12 +86,17 @@ pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
     Placement,
 };
-pub use changes::{ChangeError, LoadoutChanges};
+pub use catalogue::{EntityCatalogue, EntityKind, EntitySummary};
+pub use changes::{ChangeError, LoadoutChanges, PortChange};
 pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
 pub use geometry::{Geometry, GeometryVariant, PaletteRef};
+pub use interior::{
+    Interior, InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS,
+    MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
+};
 pub use issue::{Issue, IssueKind};
 pub use p4kx_character as character;
 pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};

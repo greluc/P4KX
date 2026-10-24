@@ -872,3 +872,108 @@ content-search-column-key = Schlüssel
 content-search-column-entry = Eintrag
 content-search-column-line = Zeile
 content-search-row = { $place }: { $text }
+entities-tab = Entities
+entities-label = Suche
+entities-hint = Klassenname oder Record-Pfad, z. B. AEGS_Gladius
+entities-empty-title = Kein Archiv geöffnet
+entities-empty-hint = Öffnen Sie ein Archiv, um ein Schiff, ein Fahrzeug oder eine Waffe zu wählen.
+entities-loading = Die Entities werden aufgelistet …
+entities-none = Das DataForge des Archivs enthält keine Schiffe, Fahrzeuge oder Waffen.
+entities-failed = Die Entities können nicht aufgelistet werden: { $reason }
+entities-stopped = Das Auflisten der Entities wurde ohne Ergebnis beendet.
+entities-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um die Entities aufzulisten.
+entities-filter-all = Alle
+entities-filter-ships = Schiffe
+entities-filter-vehicles = Fahrzeuge
+entities-filter-weapons = Waffen
+entities-count =
+    { $count ->
+        [one] { $number } Entity
+       *[other] { $number } Entities
+    }
+entities-count-shown = { $number } von { $total } Entities
+entities-no-match = Keine Entity passt zur Suche.
+entities-loadout-heading = Loadout
+entities-loadout-none = Wählen Sie eine Entity, um ihr Loadout zu sehen.
+entities-loadout-resolving = Das Loadout wird aufgelöst …
+entities-loadout-failed = Das Loadout kann nicht aufgelöst werden: { $reason }
+entities-loadout-stopped = Das Auflösen des Loadouts wurde ohne Ergebnis beendet.
+entities-loadout-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um das Loadout aufzulösen.
+entities-loadout-no-ports = Diese Entity hat keine Ports.
+entities-changes = { $excluded } ausgelassen, { $replaced } ersetzt
+entities-no-changes = Das Standard-Loadout
+entities-reset = Änderungen zurücksetzen
+entities-export = Als GLB exportieren …
+entities-include = { $port } einbeziehen
+entities-replace = Ersetzen …
+entities-restore = Zurücksetzen
+entities-status-excluded = Ausgelassen
+entities-status-replaced = Ersetzt
+entities-status-docked = Angedocktes Fahrzeug
+entities-status-empty = Leer
+entities-status-unresolved = Nicht aufgelöst
+entities-expand-port = { $name } aufklappen
+entities-collapse-port = { $name } zuklappen
+entities-replace-title = { $port } ersetzen
+entities-replace-takes = Der Port nimmt { $types } auf, { $single ->
+    [yes] Größe
+   *[other] Größen
+  } { $sizes }.
+entities-replace-takes-types = Der Port nimmt { $types } auf.
+entities-replace-takes-sizes = Der Port nimmt { $single ->
+    [yes] die Größe
+   *[other] die Größen
+  } { $sizes } auf.
+entities-replace-takes-any = Der Port nimmt jede Entity auf.
+entities-replace-hint = Klassenname oder Record-Pfad
+entities-replace-count = { $number } von { $total } passenden Entities
+entities-replace-none = Keine Entity passt zu Port und Suche.
+entities-facts-sized = { $type }, Größe { $size }
+entities-facts = { $type }
+entities-facts-none = Kein Item-Typ
+assembly-export-title = Entity als GLB exportieren
+assembly-export-entity = Entity: { $name }
+assembly-export-changes = Loadout: { $excluded } ausgelassen, { $replaced } ersetzt
+assembly-export-changes-none = Loadout: das Standard-Loadout
+assembly-export-lod-heading = Detailstufe
+assembly-export-lod = LOD { $level }
+assembly-export-materials-heading = Materialien
+assembly-export-materials-colours = Einfache Farben, eine kleine und schnelle Datei
+assembly-export-materials-textures = Mit Texturen, eine größere Datei
+assembly-export-texture-mip-heading = Texturgröße
+assembly-export-texture-mip = { $level ->
+    [0] Volle Größe
+   *[other] 1/{ $divisor }
+  }
+assembly-export-vertex-colours = Vertex-Farben schreiben
+assembly-export-file-heading = Datei
+assembly-export-choose-file = Datei wählen …
+assembly-export-file-none = Keine Datei gewählt
+assembly-export-file-filter = glTF-Binärdateien
+assembly-export-start = Exportieren
+assembly-export-running-title = Entity wird exportiert
+assembly-export-resolving = Das Loadout von { $name } wird aufgelöst …
+assembly-export-reading = Die Modelle von { $name } werden gelesen …
+assembly-export-writing = Die Datei wird geschrieben, bisher { $size } …
+assembly-export-summary-title = Entity exportiert
+assembly-export-summary-cancelled-title = Export abgebrochen
+assembly-export-summary-cancelled = Der Export wurde abgebrochen. Es wurde keine Datei geschrieben.
+assembly-export-summary-file = Geschrieben nach { $path }
+assembly-export-summary-counts = Teile { $parts } ({ $modelled } mit Modell), Knoten { $nodes }, Meshes { $meshes }, Materialien { $materials }, Vertices { $vertices }, Dreiecke { $triangles }, Größe { $size }
+assembly-export-summary-images = { $images ->
+    [0] Es werden keine Texturen geschrieben; jedes Material behält seine einfache Farbe.
+    [one] Eine Textur wird für { $textured } von { $materials } Materialien geschrieben.
+   *[other] { $images } Texturen werden für { $textured } von { $materials } Materialien geschrieben.
+  }
+assembly-export-summary-fallbacks ={ $count ->
+    [one] Einem Modell fehlt die gewählte Detailstufe; es wird in der nächstniedrigeren geschrieben.
+   *[other] { $number } Modellen fehlt die gewählte Detailstufe; sie werden in der nächstniedrigeren geschrieben.
+  }
+assembly-export-summary-hidden = { $count ->
+    [one] Ein Submesh wurde weggelassen, weil sein Material nichts zeichnet.
+   *[other] { $number } Submeshes wurden weggelassen, weil ihr Material nichts zeichnet.
+  }
+assembly-export-report-heading = Teile, die nicht vollständig aufgelöst werden konnten ({ $number })
+assembly-export-report-all = Alle Teile wurden aufgelöst.
+assembly-export-report-skipped = Ausgelassen: { $path } ({ $name }): { $reason }
+assembly-export-report-note = Hinweis: { $path } ({ $name }): { $reason }

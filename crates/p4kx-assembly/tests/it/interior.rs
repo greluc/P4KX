@@ -14,8 +14,8 @@ use p4kx_extraction::{Archive, select_entries};
 use p4kx_gltf::GlbOptions;
 use p4kx_testkit::gltf::Node;
 use p4kx_testkit::{
-    INTERIOR_ROOT, SOC_IDENTITY, TestContainer, TestEntry, TestMtl, TestMtlMaterial,
-    TestObjectContainer, TestSoc, check_glb, interior_entries,
+    INTERIOR_ROOT, SOC_IDENTITY, TestContainer, TestEntry, TestObjectContainer, TestSoc, check_glb,
+    interior_entries,
 };
 
 use crate::assembly_support::{TestResult, fixture};
@@ -171,34 +171,6 @@ fn what_cannot_be_resolved_is_listed() -> TestResult {
     assert_eq!(models[0].name(), "absent");
     assert_eq!(models[0].path(), "ship_interior");
     assert_eq!(issue(&interior, "invalid_placement").len(), 1);
-    Ok(())
-}
-
-#[test]
-fn a_missing_layer_file_of_a_library_is_an_issue_of_the_part() -> TestResult {
-    let layered = TestMtlMaterial::new("hull")
-        .shader("HardSurface")
-        .layer_with(&[("Name", "Primary"), ("Path", "materials/layers/absent.mtl")]);
-    let mut entries: Vec<TestEntry> = interior_entries()
-        .into_iter()
-        .filter(|entry| !format!("{entry:?}").contains("ship.mtl"))
-        .collect();
-    entries.push(TestEntry::stored(
-        "Data\\objects\\test\\ship.mtl",
-        TestMtl::multi(&[layered.clone(), layered.clone(), layered]).cryxml(),
-    ));
-    let fixture = fixture(entries)?;
-
-    let interior = build_in(&fixture.path, &InteriorOptions::default())?;
-
-    let reported = issue(&interior, "material_library");
-    assert!(
-        reported.iter().any(|issue| matches!(
-            issue.kind(),
-            IssueKind::MaterialLibrary { reason } if reason.contains("layer files")
-        )),
-        "the missing layer file is reported: {reported:?}"
-    );
     Ok(())
 }
 

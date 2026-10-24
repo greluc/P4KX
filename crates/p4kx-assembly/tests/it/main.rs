@@ -27,6 +27,7 @@ mod head_build;
 mod head_dress;
 mod head_expressions;
 mod interior;
+mod interior_layers;
 mod interior_lit;
 mod loadout_changes;
 mod loadout_changes_edit;

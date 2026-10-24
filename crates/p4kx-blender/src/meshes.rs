@@ -10,6 +10,7 @@ use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, Scene, SceneNode, ScenePart, 
 use p4kx_model::Transform;
 use rayon::prelude::*;
 
+use crate::glb_extras::with_material_indices;
 use crate::plan::{MeshPlan, mesh_id};
 use crate::{Cancelled, PackageError, PackageResult};
 
@@ -57,14 +58,18 @@ fn write_one(
             .map_err(|source| mesh_error(&id, &name, source))?;
     }
     let path = folder.join(format!("{id}.glb"));
+    let mut glb = Vec::new();
+    let mut summary = write_scene_glb(&scene, options, &mut glb)
+        .map_err(|source| mesh_error(&id, &name, source))?;
+    if let Some(patched) = with_material_indices(&glb) {
+        glb = patched;
+        summary.bytes = glb.len() as u64;
+    }
     let file = File::create_new(&path).map_err(|source| PackageError::write(&path, source))?;
     let mut writer = BufWriter::new(file);
-    let summary = write_scene_glb(&scene, options, &mut writer).map_err(|error| match error {
-        GltfError::Write(source) => PackageError::write(&path, source),
-        source => mesh_error(&id, &name, source),
-    })?;
     writer
-        .flush()
+        .write_all(&glb)
+        .and_then(|()| writer.flush())
         .map_err(|source| PackageError::write(&path, source))?;
     Ok(summary)
 }

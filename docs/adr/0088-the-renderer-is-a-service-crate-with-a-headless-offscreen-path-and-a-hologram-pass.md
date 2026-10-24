@@ -36,7 +36,9 @@ and blitted, the slots, the error scopes), ADR-0078 and ADR-0085 stand and now d
   (`LessEqual`, no depth write) blended with premultiplied alpha. The shell is two-sided and
   shaded from the angle between the normal and the eye: the body has the opacity of the look, the
   silhouette glows and turns opaque. Both passes use one vertex entry point with an
-  invariant position, so the depth matches. The frame uniform grows from 96 to 128 bytes for the
+  invariant position, so the depth matches. Surfaces that lie in one plane, such as a decal on a
+  hull, pass `LessEqual` together and blend twice, so they glow a little brighter; that is
+  accepted. The frame uniform grows from 96 to 128 bytes for the
   tint, the glow and the opacity; the other shaders read their 96-byte prefix. The pipelines are
   created inside an error scope: a device that refuses them draws the viewer as before and says
   `OffscreenError::Shading` for a hologram.
@@ -64,8 +66,10 @@ and blitted, the slots, the error scopes), ADR-0078 and ADR-0085 stand and now d
   Linux, WARP is part of Windows, and `P4KX_REQUIRE_SOFTWARE_ADAPTER` makes a missing adapter fail
   the tests that would otherwise print why they checked nothing. The reference image of the
   synthetic ship (`crates/p4kx-render/tests/reference`, never game data) is drawn on the software
-  adapter and compared with a tolerance: every channel within 24 for all but 2.5 % of the pixels,
-  since rasterisers differ at the edges. `P4KX_BLESS_REFERENCE=1` redraws it.
+  adapter and compared with a tolerance: the covered area within 10 % of the reference, and every
+  premultiplied channel within 24 for all but 5 % of the covered pixels, since rasterisers
+  differ at the edges; the ship fills the frame, so the budget is measured on the ship, not on
+  the background. `P4KX_BLESS_REFERENCE=1` redraws it.
 
 ## Considered Options
 

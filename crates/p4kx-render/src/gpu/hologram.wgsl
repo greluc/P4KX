@@ -58,7 +58,7 @@ fn fs_main(input: FragmentInput) -> @location(0) vec4<f32> {
     let normal = select(flat_normal, normalize(input.normal), stored);
     let to_eye = normalize(frame.eye.xyz - input.world);
     let facing = abs(dot(normal, to_eye));
-    let rim = pow(1.0 - facing, 2.0);
+    let rim = pow(1.0 - facing, 3.0);
     let lit = 0.5 + 0.5 * abs(dot(normal, frame.key_light.xyz));
     let glow = frame.tint.a;
     let body = frame.shading.x * (0.45 + 0.55 * lit);

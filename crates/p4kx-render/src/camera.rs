@@ -72,6 +72,24 @@ pub struct HologramView {
     pub distance_scaler: f32,
 }
 
+impl HologramView {
+    /// Returns the view with every value that is not finite replaced by that of
+    /// [`HologramView::default`] and the others clamped to their ranges, as the camera uses them.
+    #[must_use]
+    pub fn sanitised(&self) -> Self {
+        let defaults = Self::default();
+        let value = |wanted: f32, fallback: f32| if wanted.is_finite() { wanted } else { fallback };
+        Self {
+            fov_degrees: value(self.fov_degrees, defaults.fov_degrees).clamp(1.0, 120.0),
+            view_angle_degrees: value(self.view_angle_degrees, defaults.view_angle_degrees)
+                .rem_euclid(360.0),
+            elevation_degrees: value(self.elevation_degrees, defaults.elevation_degrees)
+                .clamp(-80.0, 80.0),
+            distance_scaler: value(self.distance_scaler, defaults.distance_scaler).clamp(0.5, 10.0),
+        }
+    }
+}
+
 impl Default for HologramView {
     /// Returns the values of the `UIHoloVehicle_Config` Record of the current game and an
     /// elevation of 20 degrees.
@@ -130,18 +148,13 @@ impl Camera {
     /// Values that are not finite are replaced by those of [`HologramView::default`].
     #[must_use]
     pub fn holographic(bounds: &Bounds, view: &HologramView) -> Self {
-        let defaults = HologramView::default();
-        let value = |wanted: f32, fallback: f32| if wanted.is_finite() { wanted } else { fallback };
+        let view = view.sanitised();
         let mut camera = Self::framing(bounds);
-        camera.fov = value(view.fov_degrees, defaults.fov_degrees)
-            .clamp(1.0, 120.0)
-            .to_radians();
-        camera.margin = value(view.distance_scaler, defaults.distance_scaler).clamp(0.5, 10.0);
-        let angle = value(view.view_angle_degrees, defaults.view_angle_degrees).to_radians();
-        camera.yaw = (FRAC_PI_2 - angle).rem_euclid(std::f32::consts::TAU);
-        camera.pitch = value(view.elevation_degrees, defaults.elevation_degrees)
-            .clamp(-80.0, 80.0)
-            .to_radians();
+        camera.fov = view.fov_degrees.to_radians();
+        camera.margin = view.distance_scaler;
+        camera.yaw =
+            (FRAC_PI_2 - view.view_angle_degrees.to_radians()).rem_euclid(std::f32::consts::TAU);
+        camera.pitch = view.elevation_degrees.to_radians();
         camera.home = (camera.yaw, camera.pitch);
         camera.distance = fit_distance_with(camera.radius, 1.0, (camera.fov, camera.margin));
         camera

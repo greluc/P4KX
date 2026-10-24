@@ -373,9 +373,9 @@ Early development (milestone M1). Available today:
   through the narrow lens of the game's `UIHoloVehicle_Config` Record (field of view, view angle
   and distance factor, 10, 60 and 1.5 in the current game, each overridable). The picture is
   drawn offscreen without a window, by the same wgpu renderer as the 3D viewer, on the graphics
-  card or with `--software` on the software adapter (WARP, lavapipe), which gives the same
-  picture everywhere. The background is `transparent` or `#RRGGBB[AA]`; the PNG has straight
-  alpha. Textures and interiors are not drawn.
+  card or with `--software` on the software adapter (WARP, lavapipe), which gives a picture that
+  does not depend on the graphics card. The background is `transparent` or `#RRGGBB[AA]`; the PNG
+  has straight alpha. Textures and interiors are not drawn.
 - `p4kx ui screens <archive> <entity>` lists the `BuildingBlocks` screens of an Entity and of
   everything in its default Loadout, e.g. the MFDs, the radar and the HUD of a ship: per screen the
   port, the Entity, the canvas Record and its size, the canvases, textures, vector graphics, movies

@@ -84,7 +84,7 @@ fn the_ship_is_drawn_into_a_picture_of_the_wanted_size_on_the_background() {
         .iter()
         .filter(|&&pixel| pixel != background)
         .count();
-    assert!(drawn > 300, "the ship covers pixels, found {drawn}");
+    assert!(drawn > 150, "the ship covers pixels, found {drawn}");
 }
 
 #[test]

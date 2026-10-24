@@ -1268,13 +1268,15 @@ pixels, and a `--out` that is the movie file, print no JSON and fail with exit c
 `camera.source` is `record` when the `UIHoloVehicle_Config` Record of the Archive set the camera,
 `defaults` when it has none (a field of view of 10 degrees, a view angle of 60 and a distance
 factor of 1.5), and `… and options` when `--fov`, `--view-angle` or `--distance-scaler` replaced
-a value. `drawn_parts` is the number of parts with geometry the picture shows, `triangles` the
-triangles they place, and `issues` the notes and skipped parts of the Assembly as `entity glb`
-lists them. `milliseconds` splits the run into reading and assembling, building the scene, drawing
-and reading the picture back, and writing the file. An Entity the Archive lacks, a bad option, a
-`--out` that is the Archive, a `--size` that is empty or beyond what the device draws and a Loadout
-change that does not fit print no JSON and fail with exit code 2; a machine without a graphics adapter fails with `no graphics adapter` on stderr
-and exit code 1.
+a value. The camera values are the ones used: values that are not finite fall back to the
+defaults and the rest are clamped, as the camera does. `drawn_parts` is the number of parts with
+geometry the picture shows, `triangles` the triangles they place, and `issues` the notes and
+skipped parts of the Assembly as `entity glb` lists them. `milliseconds` splits the run into
+reading and assembling, building the scene, drawing and reading the picture back, and writing
+the file. An Entity the Archive lacks, a bad option, a `--out` that is the Archive or lies in a
+Star Citizen installation, a `--size` that is empty or beyond what the device draws and a
+Loadout change that does not fit print no JSON and fail with exit code 2; a machine without a
+graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
 
 ## `p4kx ui screens <archive> <entity> --json`
 

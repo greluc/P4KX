@@ -24,6 +24,10 @@ fn device_limited_to(max_buffer_size: u64) -> Option<(wgpu::Device, wgpu::Queue)
     reason = "tells the test run why a test checked nothing"
 )]
 fn no_adapter(test: &str) {
+    assert!(
+        std::env::var_os("P4KX_REQUIRE_SOFTWARE_ADAPTER").is_none(),
+        "{test}: an adapter is required"
+    );
     eprintln!("{test}: no graphics adapter, nothing checked");
 }
 

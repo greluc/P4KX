@@ -10,15 +10,26 @@ use super::{
 use crate::assembly::synthetic::ship;
 use crate::{Camera, DrawList, HologramView};
 
-const SIZE: [u32; 2] = [192, 128];
+const SIZE: [u32; 2] = [256, 192];
+const DISTANCE_SCALER: f32 = 0.6;
+const ALPHA_FLOOR: u8 = 32;
 const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
 const CHANNEL_TOLERANCE: u8 = 24;
-const DIFFERING_ONE_IN: usize = 40;
+const DIFFERING_ONE_IN: usize = 20;
 const REQUIRE: &str = "P4KX_REQUIRE_SOFTWARE_ADAPTER";
 const BLESS: &str = "P4KX_BLESS_REFERENCE";
 const SAVE: &str = "P4KX_RENDER_DIR";
 
 fn frame(size: [u32; 2], background: [u8; 4], look: Hologram) -> Frame {
+    frame_at(
+        size,
+        background,
+        look,
+        HologramView::default().elevation_degrees,
+    )
+}
+
+fn frame_at(size: [u32; 2], background: [u8; 4], look: Hologram, elevation: f32) -> Frame {
     let scene = Arc::new(ship());
     let aspect = f64::from(size[0]) / f64::from(size[1]);
     #[expect(
@@ -26,7 +37,14 @@ fn frame(size: [u32; 2], background: [u8; 4], look: Hologram) -> Frame {
         reason = "an aspect ratio of a test size is far inside the range of an f32"
     )]
     let aspect = aspect as f32;
-    let mut camera = Camera::holographic(scene.bounds(), &HologramView::default());
+    let mut camera = Camera::holographic(
+        scene.bounds(),
+        &HologramView {
+            distance_scaler: DISTANCE_SCALER,
+            elevation_degrees: elevation,
+            ..HologramView::default()
+        },
+    );
     camera.fit(aspect);
     let uniforms = camera.uniforms(aspect);
     let hidden = vec![false; scene.parts().len()];
@@ -90,6 +108,21 @@ fn drawn(look: Hologram) -> Option<Picture> {
 }
 
 #[test]
+#[expect(
+    clippy::print_stderr,
+    reason = "names the adapter in the log of the CI run"
+)]
+fn the_software_adapter_is_named() {
+    let Some(offscreen) = software("the_software_adapter_is_named") else {
+        return;
+    };
+
+    eprintln!("software adapter: {}", offscreen.adapter_name());
+
+    assert!(!offscreen.adapter_name().is_empty(), "a name");
+}
+
+#[test]
 fn the_hologram_is_a_tinted_shell_on_a_transparent_background() {
     let Some(picture) = drawn(Hologram::default()) else {
         return;
@@ -98,7 +131,7 @@ fn the_hologram_is_a_tinted_shell_on_a_transparent_background() {
     assert_eq!(pixel(&picture, 0, 0), TRANSPARENT, "the corner stays clear");
     let covered: Vec<[u8; 4]> = pixels(&picture).filter(|pixel| pixel[3] > 0).collect();
     assert!(
-        covered.len() > 400,
+        covered.len() > 4000,
         "the shell covers pixels: {}",
         covered.len()
     );
@@ -117,20 +150,60 @@ fn the_hologram_is_a_tinted_shell_on_a_transparent_background() {
     );
 }
 
+fn eroded(mask: &[bool], [width, height]: [usize; 2]) -> Vec<bool> {
+    let at = |x: usize, y: usize| mask.get(y * width + x).copied().unwrap_or(false);
+    (0..height)
+        .flat_map(|y| (0..width).map(move |x| (x, y)))
+        .map(|(x, y)| {
+            x > 0
+                && y > 0
+                && x + 1 < width
+                && y + 1 < height
+                && at(x, y)
+                && at(x - 1, y)
+                && at(x + 1, y)
+                && at(x, y - 1)
+                && at(x, y + 1)
+        })
+        .collect()
+}
+
+fn median_alpha(picture: &Picture, mask: &[bool]) -> u8 {
+    let mut alphas: Vec<u8> = pixels(picture)
+        .zip(mask)
+        .filter(|(_, inside)| **inside)
+        .map(|(pixel, _)| pixel[3])
+        .collect();
+    alphas.sort_unstable();
+    alphas.get(alphas.len() / 2).copied().unwrap_or(0)
+}
+
 #[test]
-fn the_edges_glow_brighter_and_more_opaque_than_the_body() {
-    let Some(picture) = drawn(Hologram::default()) else {
+fn the_silhouette_band_is_more_opaque_than_the_interior() {
+    let Some(mut offscreen) = software("the_silhouette_band") else {
         return;
     };
+    let from_above = frame_at(SIZE, TRANSPARENT, Hologram::default(), 70.0);
+    let Ok(picture) = offscreen.draw(&from_above) else {
+        panic!("drawing failed");
+    };
+    let size = [picture.width() as usize, picture.height() as usize];
+    let covered: Vec<bool> = pixels(&picture).map(|pixel| pixel[3] > 0).collect();
+    let first = eroded(&covered, size);
+    let second = eroded(&first, size);
+    let band: Vec<bool> = first.iter().zip(&second).map(|(a, b)| *a && !*b).collect();
+    let interior = (0..3).fold(second, |mask, _| eroded(&mask, size));
 
-    let covered: Vec<[u8; 4]> = pixels(&picture).filter(|pixel| pixel[3] > 0).collect();
-    let alpha_of = |pixel: &[u8; 4]| u32::from(pixel[3]);
-    let lowest = covered.iter().map(alpha_of).min().unwrap_or(0);
-    let highest = covered.iter().map(alpha_of).max().unwrap_or(0);
+    let at_edge = median_alpha(&picture, &band);
+    let inside = median_alpha(&picture, &interior);
 
     assert!(
-        highest > lowest * 2,
-        "the alpha rises towards the edges: {lowest} to {highest}"
+        interior.iter().any(|inside| *inside),
+        "the shell has an interior to measure"
+    );
+    assert!(
+        u32::from(at_edge) * 20 > u32::from(inside) * 23,
+        "the glow makes the silhouette band more opaque: {at_edge} against {inside}"
     );
 }
 
@@ -231,18 +304,40 @@ fn the_ship_matches_its_reference_image_within_the_tolerance() {
         (picture.width(), picture.height()),
         "the size of the reference"
     );
-    let differing = pixels(&reference)
-        .zip(pixels(&picture))
-        .filter(|(wanted, found)| {
+    let covered = |picture: &Picture| {
+        pixels(picture)
+            .filter(|pixel| pixel[3] >= ALPHA_FLOOR)
+            .count()
+    };
+    let (wanted_coverage, found_coverage) = (covered(&reference), covered(&picture));
+    assert!(
+        wanted_coverage > 0
+            && found_coverage * 10 >= wanted_coverage * 9
+            && found_coverage * 10 <= wanted_coverage * 11,
+        "the ship covers {found_coverage} pixels, the reference {wanted_coverage}"
+    );
+    let premultiplied = |[red, green, blue, alpha]: [u8; 4]| {
+        let scale = |channel: u8| {
+            u8::try_from(u16::from(channel) * u16::from(alpha) / 255).unwrap_or(u8::MAX)
+        };
+        [scale(red), scale(green), scale(blue), alpha]
+    };
+    let (mut union, mut differing) = (0_usize, 0_usize);
+    for (wanted, found) in pixels(&reference).zip(pixels(&picture)) {
+        if wanted[3] < ALPHA_FLOOR && found[3] < ALPHA_FLOOR {
+            continue;
+        }
+        union += 1;
+        let (wanted, found) = (premultiplied(wanted), premultiplied(found));
+        differing += usize::from(
             wanted
                 .iter()
                 .zip(found)
-                .any(|(wanted, found)| wanted.abs_diff(*found) > CHANNEL_TOLERANCE)
-        })
-        .count();
-    let total = (SIZE[0] * SIZE[1]) as usize;
+                .any(|(wanted, found)| wanted.abs_diff(found) > CHANNEL_TOLERANCE),
+        );
+    }
     assert!(
-        differing * DIFFERING_ONE_IN <= total,
-        "{differing} of {total} pixels differ by more than {CHANNEL_TOLERANCE} in a channel"
+        differing * DIFFERING_ONE_IN <= union,
+        "{differing} of {union} covered pixels differ by more than {CHANNEL_TOLERANCE} in a premultiplied channel"
     );
 }

@@ -82,7 +82,7 @@ fn view_of(args: &HologramArgs, record: Option<HologramCamera>) -> (HologramView
         (false, true) => "defaults and options",
         (false, false) => "defaults",
     };
-    (view, source)
+    (view.sanitised(), source)
 }
 
 #[expect(
@@ -209,6 +209,7 @@ pub(crate) fn run(args: &HologramArgs, as_json: bool) -> Result<ExitCode> {
         return Err(GlbOutputIsArchive(args.out.clone()).into());
     }
     let archive = crate::key::open(&args.archive)?;
+    crate::guard::ensure_writable(&args.out)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let files = ArchiveFiles::new(&archive);

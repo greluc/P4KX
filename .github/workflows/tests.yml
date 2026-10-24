@@ -77,3 +77,7 @@ jobs:
         env:
           P4KX_REQUIRE_SOFTWARE_ADAPTER: '1'
         run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --extract-to . --extract-overwrite --partition count:${{ matrix.partition }}/${{ inputs.count }}
+      - name: Name the software adapter the render tests drew on
+        env:
+          P4KX_REQUIRE_SOFTWARE_ADAPTER: '1'
+        run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --extract-to . --extract-overwrite --no-capture -E 'test(the_software_adapter_is_named)'

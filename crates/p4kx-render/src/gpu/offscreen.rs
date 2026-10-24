@@ -21,7 +21,7 @@ pub enum Adapters {
     /// The most capable adapter, or the software one when there is no other.
     #[default]
     Best,
-    /// Only the software adapter (WARP, lavapipe), which draws the same on every machine.
+    /// Only the software adapter (WARP, lavapipe), which gives a picture that does not depend on the graphics card.
     Software,
 }
 
@@ -29,11 +29,11 @@ pub enum Adapters {
 #[derive(Debug, Error)]
 pub enum OffscreenError {
     /// No graphics adapter, not even a software one, is available.
-    #[error("no graphics adapter is available: {0}")]
-    NoAdapter(String),
+    #[error("no graphics adapter is available")]
+    NoAdapter(#[source] wgpu::RequestAdapterError),
     /// The adapter refused to create a device.
-    #[error("the graphics device could not be created: {0}")]
-    Device(String),
+    #[error("the graphics device could not be created")]
+    Device(#[source] wgpu::RequestDeviceError),
     /// The device is too limited for the renderer.
     #[error(transparent)]
     Unavailable(#[from] Unavailable),
@@ -63,8 +63,8 @@ pub enum OffscreenError {
     #[error("the scene is too large for the buffers of the graphics device")]
     Rejected,
     /// The finished picture could not be read back.
-    #[error("the picture could not be read back: {0}")]
-    Readback(String),
+    #[error("the picture could not be read back")]
+    Readback(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// A finished picture: straight-alpha RGBA, eight bits a channel, the top row first.
@@ -144,7 +144,7 @@ impl Offscreen {
             required_limits: adapter.limits(),
             ..wgpu::DeviceDescriptor::default()
         }))
-        .map_err(|error| OffscreenError::Device(error.to_string()))?;
+        .map_err(OffscreenError::Device)?;
         let renderer = Renderer::new(
             &device,
             &queue,
@@ -282,12 +282,14 @@ impl Offscreen {
         }
         Ok(buffer)
     }
+
     fn map(
         &self,
         buffer: &wgpu::Buffer,
         (padded, row): (usize, usize),
     ) -> Result<Vec<u8>, OffscreenError> {
-        let readback = |error: &dyn std::fmt::Display| OffscreenError::Readback(error.to_string());
+        let readback =
+            |error: &dyn std::error::Error| OffscreenError::Readback(error.to_string().into());
         let (sender, receiver) = mpsc::channel();
         buffer
             .slice(..)
@@ -328,5 +330,5 @@ fn request(instance: &wgpu::Instance, adapters: Adapters) -> Result<wgpu::Adapte
         Adapters::Software => ask(true),
         Adapters::Best => ask(false).or_else(|_| ask(true)),
     }
-    .map_err(|error| OffscreenError::NoAdapter(error.to_string()))
+    .map_err(OffscreenError::NoAdapter)
 }

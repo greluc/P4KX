@@ -84,6 +84,46 @@ fn cube() -> (Vec<Vertex>, Vec<u32>) {
     (vertices, indices)
 }
 
+const RINGS: u32 = 12;
+const SEGMENTS: u32 = 20;
+
+fn sphere(base: u32) -> (Vec<Vertex>, Vec<u32>) {
+    let mut vertices = Vec::new();
+    let mut indices = Vec::new();
+    for ring in 0..=RINGS {
+        let polar = std::f32::consts::PI * f32::from(u8::try_from(ring).unwrap_or_default())
+            / f32::from(u8::try_from(RINGS).unwrap_or(1));
+        for segment in 0..=SEGMENTS {
+            let azimuth = std::f32::consts::TAU
+                * f32::from(u8::try_from(segment).unwrap_or_default())
+                / f32::from(u8::try_from(SEGMENTS).unwrap_or(1));
+            let direction = [
+                polar.sin() * azimuth.cos(),
+                polar.sin() * azimuth.sin(),
+                polar.cos(),
+            ];
+            vertices.push([
+                0.5 * direction[0],
+                0.5 * direction[1],
+                0.5 * direction[2],
+                direction[0],
+                direction[1],
+                direction[2],
+                0.0,
+                0.0,
+            ]);
+        }
+    }
+    for ring in 0..RINGS {
+        for segment in 0..SEGMENTS {
+            let first = base + ring * (SEGMENTS + 1) + segment;
+            let below = first + SEGMENTS + 1;
+            indices.extend([first, below, first + 1, first + 1, below, below + 1]);
+        }
+    }
+    (vertices, indices)
+}
+
 fn rows(part: &Box) -> Rows {
     let (sin, cos) = part.turn.sin_cos();
     let [sx, sy, sz] = part.size;
@@ -95,10 +135,26 @@ fn rows(part: &Box) -> Rows {
     ]
 }
 
-/// Returns the ship: seven boxes sharing one cube mesh, a hull, a canopy, two wings, a fin and
-/// two engines.
+fn groups(first_sphere: u32, sphere_indices: u32) -> Vec<Group> {
+    [(0, 36), (first_sphere, sphere_indices)]
+        .map(|(first_index, index_count)| Group {
+            first_index,
+            index_count,
+            texture: None,
+            translucent: false,
+        })
+        .to_vec()
+}
+
+/// Returns the ship: an ellipsoid hull of a smooth sphere mesh, and a canopy, two wings, a fin and
+/// two engines of one cube mesh.
 pub(crate) fn ship() -> AssemblyScene {
-    let (vertices, indices) = cube();
+    let (mut vertices, mut indices) = cube();
+    let first_sphere = u32::try_from(indices.len()).unwrap_or_default();
+    let (round, round_indices) = sphere(u32::try_from(vertices.len()).unwrap_or_default());
+    let sphere_indices = u32::try_from(round_indices.len()).unwrap_or_default();
+    vertices.extend(round);
+    indices.extend(round_indices);
     let mut bounds = Bounds::EMPTY;
     let mut draws = Vec::new();
     let mut parts = Vec::new();
@@ -111,7 +167,7 @@ pub(crate) fn ship() -> AssemblyScene {
         bounds.include(centre.map(|value| value + radius));
         let number = u32::try_from(at).unwrap_or_default();
         items.push(Item {
-            group: 0,
+            group: u32::from(at == 0),
             colour: [0.55, 0.60, 0.65, 1.0],
         });
         draws.push(PartDraw {
@@ -132,17 +188,12 @@ pub(crate) fn ship() -> AssemblyScene {
     AssemblyScene {
         vertices,
         indices,
-        groups: vec![Group {
-            first_index: 0,
-            index_count: 36,
-            texture: None,
-            translucent: false,
-        }],
+        groups: groups(first_sphere, sphere_indices),
         items,
         draws,
         parts,
         textures: Vec::new(),
-        meshes: 1,
+        meshes: 2,
         bounds,
         left: Left::default(),
         serial: next_serial(),

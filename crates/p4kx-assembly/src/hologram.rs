@@ -45,12 +45,13 @@ impl HologramCamera {
 
     /// Reads the camera from the `UIHoloVehicle_Config` Record of `forge`, a field it lacks
     /// keeping the value of [`HologramCamera::default`], or returns `None` when the DataForge
-    /// has no such Record.
+    /// has no such Record; with several the one with the smallest name is read.
     #[must_use]
     pub fn read(forge: &DataForge<'_>) -> Option<Self> {
         let record = forge
             .records()
-            .find(|record| record.type_name().is_ok_and(|name| name == CONFIG))?;
+            .filter(|record| record.type_name().is_ok_and(|name| name == CONFIG))
+            .min_by_key(|record| record.name().unwrap_or_default())?;
         let tree = record.tree().ok()?;
         let root = tree.root();
         let default = Self::default();

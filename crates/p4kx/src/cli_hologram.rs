@@ -55,8 +55,8 @@ pub(crate) struct HologramArgs {
     /// The level of detail of the models; a model without it is drawn at the nearest lower level.
     #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
     pub(crate) lod: u32,
-    /// Draws on the software adapter (WARP, lavapipe) instead of the graphics card, which gives
-    /// the same picture on every machine.
+    /// Draws on the software adapter (WARP, lavapipe) instead of the graphics card, so the
+    /// picture does not depend on the graphics card.
     #[arg(long)]
     pub(crate) software: bool,
     /// Changes of the Loadout.

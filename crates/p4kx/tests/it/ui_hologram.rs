@@ -220,3 +220,23 @@ fn the_output_cannot_be_the_archive() -> TestResult {
     assert!(run.stderr.contains("is the Archive"), "{}", run.stderr);
     Ok(())
 }
+
+#[test]
+fn an_output_inside_a_star_citizen_installation_is_refused() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let channel = dir.path().join("StarCitizen").join("LIVE");
+    std::fs::create_dir_all(channel.join("Bin64"))?;
+    let archive = write_archive(&channel, assembly_entries())?;
+    let out = channel.join("Bin64").join("ship.png");
+
+    let run = hologram(&archive, &out, &[], false)?;
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert!(
+        run.stderr.contains("Star Citizen installation"),
+        "{}",
+        run.stderr
+    );
+    assert!(!out.exists(), "nothing is written into the installation");
+    Ok(())
+}

@@ -74,7 +74,7 @@ fn luminance([red, green, blue]: [f32; 3]) -> f32 {
 /// Returns how metallic a surface with the linear specular colour `specular` is, 0 to 1: its
 /// luminance from [`METAL_FROM`] (a dielectric's reflectance at most) to [`METAL_TO`] (a metal's
 /// at least).
-fn metal_share(specular: [f32; 3]) -> f32 {
+pub(crate) fn metal_share(specular: [f32; 3]) -> f32 {
     ((luminance(specular) - METAL_FROM) / (METAL_TO - METAL_FROM)).clamp(0.0, 1.0)
 }
 

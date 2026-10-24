@@ -46,6 +46,7 @@ mod rig;
 mod scene;
 mod scene_light;
 mod scene_nodes;
+mod shading;
 mod skin;
 mod texture_loader;
 mod texture_make;
@@ -69,6 +70,7 @@ pub use package_support::{
 pub use rig::{RigPiece, write_rigged_glb, write_rigged_glb_with};
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};
 pub use scene_light::{SceneLight, SceneLightKind};
+pub use shading::{Shading, shading};
 pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 pub use texture_plan::{MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};
 pub use texture_report::{TextureFallback, TextureRole};

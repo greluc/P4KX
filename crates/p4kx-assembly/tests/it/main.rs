@@ -28,6 +28,7 @@ mod head_dress;
 mod head_expressions;
 mod hologram_camera;
 mod interior;
+mod interior_layers;
 mod interior_lit;
 mod interior_watch;
 mod loadout_changes;

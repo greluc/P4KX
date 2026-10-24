@@ -23,7 +23,10 @@ pub(crate) fn load(name: Option<&str>, companions: &mut dyn CompanionResolver) -
             reason: error.to_string(),
         },
         Ok(Some(bytes)) => match MaterialLibrary::parse(name, &bytes) {
-            Ok(library) => MaterialStatus::Loaded(library),
+            Ok(mut library) => {
+                crate::mtl_layers::resolve(&mut library, companions);
+                MaterialStatus::Loaded(library)
+            }
             Err(error) => MaterialStatus::Unreadable {
                 path,
                 reason: error.to_string(),
@@ -50,7 +53,7 @@ fn fetch(
 /// Returns `name` with `/` separators and without a leading `Data/` or a `.mtl` extension, or
 /// `None` when it is empty, absolute, names a drive or stream, or has an empty, `.` or `..`
 /// component.
-fn request_path(name: &str) -> Option<String> {
+pub(crate) fn request_path(name: &str) -> Option<String> {
     let path = name.trim().replace('\\', "/");
     let path = match path.len().checked_sub(4).and_then(|at| path.get(at..)) {
         Some(extension) if extension.eq_ignore_ascii_case(".mtl") => {

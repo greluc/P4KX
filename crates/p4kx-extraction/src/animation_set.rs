@@ -120,7 +120,7 @@ impl AnimationSet {
         extra: &[String],
     ) -> Result<Self, ConversionError> {
         let folders = folders(model_entry);
-        let mut sources: Vec<Source> = index
+        let sources: Vec<Source> = index
             .archive()
             .entries()
             .iter()
@@ -137,6 +137,55 @@ impl AnimationSet {
                 whole: false,
             })
             .collect();
+        Self::from_sources(index, sources, choice, extra)
+    }
+
+    /// Reads the animations `choice` selects from the `.caf` and `.dba` Entries anywhere below
+    /// the folders `folders` (Entry paths with `/` or `\`, ignoring case) and the Entries
+    /// `extra`; see [`Self::from_archive`] for the rules of `choice` and the errors.
+    ///
+    /// This is how the animations of a Character are found: its skeleton's parameters list the
+    /// folders of its body and its head.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_archive`].
+    pub fn from_folders(
+        index: &PathIndex<'_>,
+        folders: &[&str],
+        choice: &AnimationChoice,
+        extra: &[String],
+    ) -> Result<Self, ConversionError> {
+        let prefixes: Vec<String> = folders
+            .iter()
+            .map(|folder| format!("{}/", normalised(folder).trim_end_matches('/')))
+            .collect();
+        let sources: Vec<Source> = index
+            .archive()
+            .entries()
+            .iter()
+            .map(Entry::path)
+            .filter(|path| {
+                kind(path).is_some() && {
+                    let path = normalised(path);
+                    prefixes.iter().any(|prefix| path.starts_with(prefix.as_str()))
+                }
+            })
+            .map(|path| Source {
+                label: path.to_owned(),
+                explicit: false,
+                whole: false,
+            })
+            .collect();
+        Self::from_sources(index, sources, choice, extra)
+    }
+
+    fn from_sources(
+        index: &PathIndex<'_>,
+        mut sources: Vec<Source>,
+        choice: &AnimationChoice,
+        extra: &[String],
+    ) -> Result<Self, ConversionError> {
         for path in extra {
             let entry = index
                 .find(path)

@@ -16,7 +16,13 @@ import bpy
 
 from .graph_groups import group_spec
 from .graph_spec import GraphSpec, Socket
-from .material_graph import BuildContext, build_graph
+from .material_graph import (
+    METAL_FROM,
+    METAL_TO,
+    SPECULAR_LEVEL_PER_F0,
+    BuildContext,
+    build_graph,
+)
 from .material_pairing import INDEX_PROPERTY, index_of, pair_by_index
 from .package import Mesh, Package, PackageError, Texture, resolve_file
 
@@ -190,6 +196,7 @@ def apply_textures(
     tree = material.node_tree
     bsdf = _principled(tree)
     row = 0
+    textured: dict[str, bpy.types.Node] = {}
     for role, texture_id in described.textures.items():
         image = images.get(texture_id)
         if image is None:
@@ -207,11 +214,50 @@ def apply_textures(
             normal.location = (bsdf.location.x - 350, node.location.y)
             tree.links.new(node.outputs["Color"], normal.inputs["Color"])
             tree.links.new(normal.outputs["Normal"], bsdf.inputs["Normal"])
-        elif role == "specular":
-            grey = tree.nodes.new("ShaderNodeRGBToBW")
-            grey.location = (bsdf.location.x - 350, node.location.y)
-            tree.links.new(node.outputs["Color"], grey.inputs["Color"])
-            tree.links.new(grey.outputs["Val"], bsdf.inputs["Specular IOR Level"])
+        if role in ("diffuse", "specular"):
+            textured[role] = node
+    if "specular" in textured:
+        _apply_specular(tree, bsdf, textured["specular"], textured.get("diffuse"))
+
+
+def _apply_specular(
+    tree: bpy.types.ShaderNodeTree,
+    bsdf: bpy.types.Node,
+    specular: bpy.types.Node,
+    diffuse: bpy.types.Node | None,
+) -> None:
+    """Wires a specular map as the viewer does: metal share, colour mix and specular level."""
+    x, y = bsdf.location.x - 350, specular.location.y
+    grey = tree.nodes.new("ShaderNodeRGBToBW")
+    grey.location = (x, y)
+    tree.links.new(specular.outputs["Color"], grey.inputs["Color"])
+    ramp = tree.nodes.new("ShaderNodeMapRange")
+    ramp.location = (x + 150, y)
+    ramp.data_type = "FLOAT"
+    ramp.clamp = True
+    ramp.inputs["From Min"].default_value = METAL_FROM
+    ramp.inputs["From Max"].default_value = METAL_TO
+    tree.links.new(grey.outputs["Val"], ramp.inputs["Value"])
+    tree.links.new(ramp.outputs["Result"], bsdf.inputs["Metallic"])
+    level = tree.nodes.new("ShaderNodeMath")
+    level.location = (x + 150, y - 200)
+    level.operation = "MULTIPLY"
+    level.use_clamp = True
+    level.inputs[1].default_value = SPECULAR_LEVEL_PER_F0
+    tree.links.new(grey.outputs["Val"], level.inputs[0])
+    tree.links.new(level.outputs["Value"], bsdf.inputs["Specular IOR Level"])
+    if diffuse is not None:
+        mix = tree.nodes.new("ShaderNodeMix")
+        mix.location = (x + 300, y)
+        mix.data_type = "RGBA"
+        tree.links.new(diffuse.outputs["Color"], _enabled(mix.inputs, "A"))
+        tree.links.new(specular.outputs["Color"], _enabled(mix.inputs, "B"))
+        tree.links.new(ramp.outputs["Result"], _enabled(mix.inputs, "Factor"))
+        tree.links.new(_enabled(mix.outputs, "Result"), bsdf.inputs["Base Color"])
+
+
+def _enabled(sockets: Any, name: str) -> bpy.types.NodeSocket:
+    return next(s for s in sockets if s.name == name and s.enabled)
 
 
 def _principled(tree: bpy.types.ShaderNodeTree) -> bpy.types.Node:

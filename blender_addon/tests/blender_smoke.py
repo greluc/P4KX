@@ -166,32 +166,45 @@ def check_layered_material(folder: Path) -> None:
     check(material.get("p4kx_material") == "x0001", "description id is kept")
     nodes = material.node_tree.nodes
     groups = {n.node_tree.name for n in nodes if n.type == "GROUP"}
-    check(groups == {"P4KX Layer Blend", "P4KX Wear"}, f"groups: {groups}")
-    check(
-        [g.name for g in bpy.data.node_groups if g.name.startswith("P4KX")].count("P4KX Layer Blend")
-        == 1,
-        "the layer blend group exists once for both materials",
-    )
-    inner = next(g for g in bpy.data.node_groups if g.name == "P4KX Layer Blend")
+    check(groups == {"P4KX Layer Blend v1", "P4KX Wear v1"}, f"groups: {groups}")
+
+    def group_count(prefix: str) -> int:
+        return len([g for g in bpy.data.node_groups if g.name.startswith(prefix)])
+
+    check(group_count("P4KX Layer Blend") == 1, "the layer blend group exists once")
+    check(group_count("P4KX Wear") == 1, "the wear group exists once")
+    inner = next(g for g in bpy.data.node_groups if g.name == "P4KX Layer Blend v1")
     check({"MIX", "VECT_MATH", "GROUP_INPUT", "GROUP_OUTPUT"} <= {n.type for n in inner.nodes}, "blend group contents")
     spaces = {n.image.colorspace_settings.name for n in nodes if n.type == "TEX_IMAGE"}
     check(spaces == {"sRGB", "Non-Color"}, f"colour spaces: {spaces}")
-    tints = [
-        tuple(round(v, 4) for v in n.inputs["B"].default_value[:3])
-        for n in nodes
-        if n.type == "MIX" and n.blend_type == "MULTIPLY" and not n.inputs["B"].is_linked
-    ]
+    tints = []
+    for n in nodes:
+        if n.type == "MIX" and n.blend_type == "MULTIPLY":
+            socket = next(s for s in n.inputs if s.name == "B" and s.enabled)
+            if not socket.is_linked:
+                tints.append(tuple(round(v, 4) for v in socket.default_value[:3]))
     check((0.8, 0.09, 0.08) in tints, f"palette tint on the first layer: {tints}")
     bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
     source = bsdf.inputs["Normal"].links[0].from_node
     check(source.type == "GROUP", f"normal comes from the blend group: {source.type}")
-    check(bsdf.inputs["Metallic"].default_value == 1.0, "metal surface type")
+    metallic = bsdf.inputs["Metallic"].links[0].from_node
+    check(metallic.type == "GROUP", f"metallic comes from the blend group: {metallic.type}")
 
     second = bpy.data.materials["Box_mat2"]
     check(second.get("p4kx_material") == "x0001", "second material pairs by index")
     unknown = bpy.data.materials["Box_mat"]
     check(unknown.get("p4kx_family") == "unknown", "unknown shader falls back")
     check(not any(n.type == "GROUP" for n in unknown.node_tree.nodes), "basic fallback")
+    kinds = {n.type for n in unknown.node_tree.nodes}
+    check({"MAP_RANGE", "MIX", "TEX_IMAGE"} <= kinds, f"specular map nodes: {kinds}")
+    unknown_bsdf = next(n for n in unknown.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    check(unknown_bsdf.inputs["Metallic"].is_linked, "metallic from the specular map")
+    check(unknown_bsdf.inputs["Specular IOR Level"].is_linked, "specular level from the map")
+    check(unknown_bsdf.inputs["Base Color"].is_linked, "base colour mixed with the specular map")
+
+    importer.import_package(bpy.context, package.load_package(scene))
+    check(group_count("P4KX Layer Blend") == 1, "a second import reuses the blend group")
+    check(group_count("P4KX Wear") == 1, "a second import reuses the wear group")
 
 
 main()

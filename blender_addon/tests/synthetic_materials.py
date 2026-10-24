@@ -47,7 +47,7 @@ def description(material_id: str, shader: str, **fields: Any) -> dict[str, Any]:
         "two_sided": False,
         "no_draw": False,
         "diffuse": [1.0, 1.0, 1.0],
-        "specular": [1.0, 1.0, 1.0],
+        "specular": [0.04, 0.04, 0.04],
         "emissive": [0.0, 0.0, 0.0],
         "shininess": 128.0,
         "opacity": 1.0,
@@ -71,7 +71,7 @@ def layer(name: str, material: str, **fields: Any) -> dict[str, Any]:
 
 def entry(tint: list[float], gloss: float) -> dict[str, Any]:
     """Returns a palette entry."""
-    return {"tint": tint, "specular": [0.5, 0.5, 0.5], "glossiness": gloss}
+    return {"tint": tint, "specular": [0.05, 0.05, 0.05], "glossiness": gloss}
 
 
 def manifest_11() -> dict[str, Any]:
@@ -84,6 +84,7 @@ def manifest_11() -> dict[str, Any]:
         texture(3, "linear", "smoothness"),
         texture(4, "srgb", "none"),
         texture(5, "linear", "none"),
+        texture(6, "linear", "none"),
     ]
     base["materials"] = [
         description(
@@ -111,7 +112,12 @@ def manifest_11() -> dict[str, Any]:
             textures=[slot("TexSlot1", "diffuse", "t0002"), slot("TexSlot2", "normal", "t0003")],
         ),
         description("x0003", "Layer", textures=[slot("TexSlot1", "diffuse", "t0004")]),
-        description("x0004", "WeirdShader", diffuse=[0.2, 0.4, 0.6]),
+        description(
+            "x0004",
+            "WeirdShader",
+            diffuse=[0.2, 0.4, 0.6],
+            textures=[slot("TexSlot1", "diffuse", "t0002"), slot("TexSlot4", "specular", "t0006")],
+        ),
     ]
     base["palettes"] = [
         {

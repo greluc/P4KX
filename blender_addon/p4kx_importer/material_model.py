@@ -38,6 +38,7 @@ ALPHA_MODES = frozenset({"opaque", "mask", "blend"})
 Colour = tuple[float, float, float]
 WHITE: Colour = (1.0, 1.0, 1.0)
 BLACK: Colour = (0.0, 0.0, 0.0)
+DIELECTRIC: Colour = (0.04, 0.04, 0.04)
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,7 +181,7 @@ def _material(item: object) -> MaterialDesc | None:
         two_sided=item.get("two_sided") is True,
         no_draw=item.get("no_draw") is True,
         diffuse=_colour(item.get("diffuse"), WHITE) or WHITE,
-        specular=_colour(item.get("specular"), WHITE) or WHITE,
+        specular=_colour(item.get("specular"), DIELECTRIC) or DIELECTRIC,
         emissive=_colour(item.get("emissive"), BLACK) or BLACK,
         shininess=_float(item.get("shininess"), 0.0),
         opacity=_float(item.get("opacity"), 1.0),
@@ -246,12 +247,12 @@ def _palette(item: object) -> Palette | None:
     palette_id = item.get("id")
     if not isinstance(palette_id, str) or not _PALETTE_ID.fullmatch(palette_id):
         return None
-    entries = [_palette_colours(item.get(name)) for name in ("primary", "secondary", "tertiary")]
+    primary = _palette_colours(item.get("primary"))
+    secondary = _palette_colours(item.get("secondary"))
+    tertiary = _palette_colours(item.get("tertiary"))
     glass = _colour(item.get("glass"), None)
-    if any(entry is None for entry in entries) or glass is None:
+    if primary is None or secondary is None or tertiary is None or glass is None:
         return None
-    primary, secondary, tertiary = entries
-    assert primary and secondary and tertiary
     return Palette(palette_id, _string(item.get("name")), primary, secondary, tertiary, glass)
 
 

@@ -115,7 +115,8 @@ def test_layered_tinted_material_blends_layers_by_the_blend_map() -> None:
     primary = (0.8 * 1.0, 0.1 * 0.9, 0.1 * 0.8)
     mixes = [n for n in graph.nodes if n.kind == "ShaderNodeMix" and n.props["blend_type"] == "MULTIPLY"]
     assert any(n.inputs.get("B") == pytest.approx(primary) for n in mixes)
-    assert graph.node("bsdf").inputs["Metallic"] == 1.0
+    metallic = graph.linked("bsdf", "Metallic")
+    assert metallic is not None and metallic.key == blend.key
     assert graph.properties["p4kx_param_WearBlendBase"] == "0.5"
 
 
@@ -171,7 +172,7 @@ def test_layers_beyond_the_blendable_ones_are_reported() -> None:
 def test_unknown_shader_gets_the_basic_setup_and_a_warning() -> None:
     graph = graph_of(load(), "x0004")
     assert len(graph.warnings) == 1 and "WeirdShader" in graph.warnings[0]
-    assert graph.node("bsdf").inputs["Base Color"] == (0.2, 0.4, 0.6)
+    assert graph.linked("bsdf", "Base Color") is not None
     assert graph.groups() == set()
 
 
@@ -270,3 +271,96 @@ def test_index_property_values() -> None:
     assert index_of(True) is None
     assert index_of(-1) is None
     assert index_of("3") is None
+
+
+def test_a_dark_diffuse_with_a_bright_specular_is_metal_with_the_specular_colour() -> None:
+    bright = single([description("x0001", "Illum", diffuse=[0.02] * 3, specular=[0.9] * 3)])
+    assert bright.node("bsdf").inputs["Base Color"] == (0.9, 0.9, 0.9)
+    assert bright.node("bsdf").inputs["Metallic"] == 1.0
+    plain = single([description("x0001", "Illum", diffuse=[0.02] * 3, specular=[0.04] * 3)])
+    assert plain.node("bsdf").inputs["Base Color"] == (0.02, 0.02, 0.02)
+    assert plain.node("bsdf").inputs["Metallic"] == 0.0
+    assert "Specular Tint" not in plain.node("bsdf").inputs
+
+
+def test_a_layer_with_a_bright_specular_blends_its_metal_share() -> None:
+    raw = [
+        description("x0001", "HardSurface", layers=[{"name": "a", "material": "x0002"}, {"name": "b", "material": "x0003"}]),
+        description("x0002", "Layer", diffuse=[0.5] * 3, specular=[0.04] * 3),
+        description("x0003", "Layer", diffuse=[0.02] * 3, specular=[0.9] * 3),
+    ]
+    graph = single(raw)
+    blend = next(n for n in graph.nodes if n.group == LAYER_BLEND)
+    assert blend.inputs["Metallic A"] == 0.0
+    assert blend.inputs["Metallic B"] == 1.0
+    assert blend.inputs["Colour B"] == (0.9, 0.9, 0.9)
+    assert graph.linked("bsdf", "Metallic") == Ref(blend.key, "Metallic")
+
+
+def test_a_partial_metal_share_mixes_diffuse_and_specular() -> None:
+    graph = single([description("x0001", "Illum", diffuse=[0.1] * 3, specular=[0.325] * 3)])
+    assert graph.node("bsdf").inputs["Metallic"] == pytest.approx(0.5, abs=0.01)
+    colour = graph.linked("bsdf", "Base Color")
+    assert colour is not None and graph.node(colour.key).kind == "ShaderNodeMix"
+
+
+def test_a_specular_map_drives_metallic_colour_and_level_per_texel() -> None:
+    raw = description(
+        "x0001",
+        "Illum",
+        textures=[slot("TexSlot1", "diffuse", "t0001"), slot("TexSlot4", "specular", "t0002")],
+    )
+    graph = single([raw])
+    metallic = graph.linked("bsdf", "Metallic")
+    assert metallic is not None and graph.node(metallic.key).kind == "ShaderNodeMapRange"
+    ramp = graph.node(metallic.key)
+    assert ramp.inputs["From Min"] == 0.15 and ramp.inputs["From Max"] == 0.5
+    level = graph.linked("bsdf", "Specular IOR Level")
+    assert level is not None
+    node = graph.node(level.key)
+    assert node.props["operation"] == "MULTIPLY" and node.props["use_clamp"] is True
+    assert node.inputs[1] == 12.5
+    colour = graph.linked("bsdf", "Base Color")
+    assert colour is not None and graph.node(colour.key).kind == "ShaderNodeMix"
+    assert graph.linked(colour.key, "Factor") == metallic
+
+
+def test_a_long_parameter_name_is_not_kept_as_a_property() -> None:
+    long_name = "P" * 80
+    raw = description(
+        "x0001",
+        "Illum",
+        parameters=[{"name": long_name, "value": "1"}, {"name": "Short", "value": "2"}],
+    )
+    graph = single([raw])
+    assert "p4kx_param_Short" in graph.properties
+    assert not any(long_name in key for key in graph.properties)
+    assert all(len(key.encode()) <= package.BLENDER_NAME_BYTES for key in graph.properties)
+    assert len(graph.warnings) == 1
+
+
+def test_roughness_without_a_gloss_map_is_neutral_for_layered_shaders_and_layers() -> None:
+    hard = single([description("x0001", "HardSurface", shininess=255.0)])
+    assert hard.node("bsdf").inputs["Roughness"] == 0.5
+    illum = single([description("x0001", "Illum", shininess=255.0)])
+    assert illum.node("bsdf").inputs["Roughness"] == 0.0
+
+
+def test_the_smoothness_subtraction_is_clamped() -> None:
+    graph = single(
+        [description("x0001", "Illum", textures=[slot("TexSlot2", "normal", "t0001")])],
+        alpha={"t0001": "smoothness"},
+    )
+    roughness = graph.linked("bsdf", "Roughness")
+    assert roughness is not None and graph.node(roughness.key).props["use_clamp"] is True
+
+
+def test_unused_alpha_and_wear_nodes_are_not_built() -> None:
+    opaque = single([description("x0001", "Illum", textures=[slot("TexSlot3", "mask", "t0001")])])
+    assert "ShaderNodeTexImage" not in opaque.kinds()
+    layers = [{"name": "a", "material": "x0002"}, {"name": "b", "material": "x0002"}]
+    raw = [
+        description("x0001", "HardSurface", layers=layers, textures=[slot("TexSlot13", "wear", "t0001")]),
+        description("x0002", "Layer"),
+    ]
+    assert "ShaderNodeTexImage" not in single(raw).kinds()

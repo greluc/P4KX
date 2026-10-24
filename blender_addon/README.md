@@ -14,7 +14,7 @@ importer that ships with Blender must be enabled.
 - Loads the textures with the colour space the package states and builds the materials from the
   package's descriptions ([ADR-0100](../docs/adr/0100-the-add-on-builds-material-node-trees-from-the-package-descriptions-by-a-pure-mapping.md)):
   layers blended by their masks, palette tints, wear, glass, decals, holograms and alpha modes,
-  with the node groups `P4KX Layer Blend` and `P4KX Wear` shared by all materials. The glTF
+  with the node groups `P4KX Layer Blend v1` and `P4KX Wear v1` shared by all materials. The glTF
   materials are matched by their `p4kx_index` custom property. Unknown shaders and 1.0 packages
   get a basic setup (diffuse, normal map, specular, alpha); unknown shaders also a warning.
 - Builds the Interior of a package written with `--interior`: containers and models as empties

@@ -133,9 +133,11 @@ class GraphBuilder:
         self.put(key, "Factor", factor)
         return Ref(key, "Result")
 
-    def math(self, operation: str, a: Ref | float, b: Ref | float | None = None) -> Ref:
-        """Adds a Math node and returns its value."""
-        key = self.add("ShaderNodeMath", props={"operation": operation})
+    def math(
+        self, operation: str, a: Ref | float, b: Ref | float | None = None, *, clamp: bool = False
+    ) -> Ref:
+        """Adds a Math node (clamped to 0..1 when ``clamp``) and returns its value."""
+        key = self.add("ShaderNodeMath", props={"operation": operation, "use_clamp": clamp})
         self.put(key, 0, a)
         if b is not None:
             self.put(key, 1, b)

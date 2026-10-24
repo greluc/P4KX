@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 from .graph_spec import GraphBuilder, GraphSpec, Ref
 
-LAYER_BLEND = "P4KX Layer Blend"
-WEAR = "P4KX Wear"
+LAYER_BLEND = "P4KX Layer Blend v1"
+WEAR = "P4KX Wear v1"
 
 GROUP_INPUT = "group_input"
 GROUP_OUTPUT = "group_output"
@@ -38,6 +38,12 @@ def layer_blend() -> GroupSpec:
         Ref(GROUP_INPUT, "Factor"),
         data_type="FLOAT",
     )
+    metallic = builder.mix(
+        Ref(GROUP_INPUT, "Metallic A"),
+        Ref(GROUP_INPUT, "Metallic B"),
+        Ref(GROUP_INPUT, "Factor"),
+        data_type="FLOAT",
+    )
     normal = builder.mix(
         Ref(GROUP_INPUT, "Normal A"),
         Ref(GROUP_INPUT, "Normal B"),
@@ -48,6 +54,7 @@ def layer_blend() -> GroupSpec:
     builder.link(normal, unit, 0)
     builder.link(colour, GROUP_OUTPUT, "Colour")
     builder.link(rough, GROUP_OUTPUT, "Roughness")
+    builder.link(metallic, GROUP_OUTPUT, "Metallic")
     builder.link(Ref(unit, "Vector"), GROUP_OUTPUT, "Normal")
     return GroupSpec(
         LAYER_BLEND,
@@ -56,6 +63,8 @@ def layer_blend() -> GroupSpec:
             ("Colour B", "NodeSocketColor", (0.5, 0.5, 0.5, 1.0)),
             ("Roughness A", "NodeSocketFloat", 0.5),
             ("Roughness B", "NodeSocketFloat", 0.5),
+            ("Metallic A", "NodeSocketFloat", 0.0),
+            ("Metallic B", "NodeSocketFloat", 0.0),
             ("Normal A", "NodeSocketVector", (0.0, 0.0, 1.0)),
             ("Normal B", "NodeSocketVector", (0.0, 0.0, 1.0)),
             ("Factor", "NodeSocketFloat", 0.0),
@@ -63,6 +72,7 @@ def layer_blend() -> GroupSpec:
         (
             ("Colour", "NodeSocketColor"),
             ("Roughness", "NodeSocketFloat"),
+            ("Metallic", "NodeSocketFloat"),
             ("Normal", "NodeSocketVector"),
         ),
         builder.spec,

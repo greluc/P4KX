@@ -96,14 +96,20 @@ pub struct PackageSummary {
     pub skinned_meshes: usize,
     /// The number of morph targets of a Character.
     pub morph_targets: usize,
-    /// The number of animations a Character's file holds.
-    pub animations: usize,
     /// The number of PNG images embedded in a Character's GLB file.
     pub embedded_textures: usize,
     /// What became of each animation asked for, including those left out; empty for an Assembly.
     pub clips: Vec<AnimationSummary>,
     /// The issues the manifest lists.
     pub issues: Vec<Issue>,
+}
+
+impl PackageSummary {
+    /// Returns the number of animations a Character's file holds: those with at least one channel.
+    #[must_use]
+    pub fn animations(&self) -> usize {
+        self.clips.iter().filter(|clip| clip.channels > 0).count()
+    }
 }
 
 /// Writes `assembly` as a package into the folder `out`.

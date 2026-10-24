@@ -49,6 +49,7 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
                     guid: part.guid().to_string(),
                 },
             ),
+            character: None,
         },
         coordinates: coordinates(),
         options: Options {

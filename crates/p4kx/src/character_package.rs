@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::ffi::OsStr;
 use std::path::Path;
 
 use anyhow::Result;
@@ -90,7 +91,13 @@ fn package(args: &CharacterPackageArgs, as_json: bool) -> Result<()> {
     let animated = armour.animate(&found.animations, &models);
 
     let name = name_of(args, variant);
-    let scene = CharacterScene::new(&name, &armour, &animated);
+    let chf_name = args
+        .chf
+        .as_deref()
+        .and_then(Path::file_name)
+        .and_then(OsStr::to_str);
+    let scene = CharacterScene::new(&name, &armour, &animated)
+        .with_origin(chf_name, args.loadout.as_deref());
     let summary = store(args, &archive, &models, &scene)?;
 
     let shown = report::Shown {

@@ -14,8 +14,8 @@
 //! ```
 //!
 //! [`write_package`] writes it; [`write_character_package`] writes a Character, one skinned GLB
-//! with its skeleton, morph targets and animations, as the same kind of folder. [`Manifest`] is the type of `scene.json` and [`manifest_schema`]
-//! its JSON Schema, checked in as `schemas/blender-package.schema.json`. The file names are made
+//! with its skeleton, morph targets and animations, as the same kind of folder. [`Manifest`] is
+//! the type of `scene.json` and [`manifest_schema`] its JSON Schema, checked in as `schemas/blender-package.schema.json`. The file names are made
 //! of ids, never of names from the Archive, so no name can leave the package folder. The format
 //! is documented in `docs/blender-package.md`.
 
@@ -41,8 +41,8 @@ mod write;
 pub use character::{CharacterScene, write_character_package};
 pub use error::PackageError;
 pub use manifest::{
-    AlphaMeaning, Basis, BuildInfo, ColourSpace, Coordinates, EntityRef, FORMAT, FORMAT_VERSION,
-    Format, Generator, Issue, IssueOrigin, MANIFEST_FILE, MESHES_FOLDER, Manifest,
+    AlphaMeaning, Basis, BuildInfo, CharacterSource, ColourSpace, Coordinates, EntityRef, FORMAT,
+    FORMAT_VERSION, Format, Generator, Issue, IssueOrigin, MANIFEST_FILE, MESHES_FOLDER, Manifest,
     MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Replacement, Source,
     TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };

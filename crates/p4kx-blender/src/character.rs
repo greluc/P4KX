@@ -10,8 +10,8 @@ use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, TextureLoader};
 
 use crate::build::{coordinates, generator};
 use crate::manifest::{
-    EntityRef, FORMAT_VERSION, Format, Issue, IssueOrigin, MANIFEST_FILE, MESHES_FOLDER, Manifest,
-    Mesh, Node, NodeKind, Options, Source,
+    CharacterSource, EntityRef, FORMAT_VERSION, Format, Issue, IssueOrigin, MANIFEST_FILE,
+    MESHES_FOLDER, Manifest, Mesh, Node, NodeKind, Options, Source,
 };
 use crate::manifest_rig::{Rig, RigClip, RigPart, RigPartOrigin};
 use crate::plan::mesh_id;
@@ -26,9 +26,20 @@ pub struct CharacterScene<'a> {
     name: &'a str,
     armour: &'a Armour,
     animations: &'a CharacterAnimations<'a>,
+    chf: Option<&'a str>,
+    loadout: Option<&'a str>,
 }
 
 impl<'a> CharacterScene<'a> {
+    /// Records the CHF file the head came from and the Loadout the pieces came from, as
+    /// `source.character` states them; a folder in `chf` is dropped.
+    #[must_use]
+    pub const fn with_origin(mut self, chf: Option<&'a str>, loadout: Option<&'a str>) -> Self {
+        self.chf = chf;
+        self.loadout = loadout;
+        self
+    }
+
     /// Names the Character `name`, the name of the package's root node, wearing `armour` with
     /// `animations`.
     #[must_use]
@@ -41,6 +52,8 @@ impl<'a> CharacterScene<'a> {
             name,
             armour,
             animations,
+            chf: None,
+            loadout: None,
         }
     }
 }
@@ -152,6 +165,26 @@ fn flush_error(source: io::Error, path: &Path, cancelled: &Cancelled<'_>) -> Pac
     }
 }
 
+fn source(character: &CharacterScene<'_>, info: &PackageInfo) -> Source {
+    Source {
+        channel: info.channel.clone(),
+        build: info.build.clone(),
+        entity: EntityRef {
+            class_name: character.name.to_owned(),
+            guid: String::new(),
+        },
+        character: Some(CharacterSource {
+            name: character.name.to_owned(),
+            body: character.armour.variant().code().to_owned(),
+            chf: character
+                .chf
+                .and_then(|chf| Path::new(chf.trim_end_matches(['/', '\\'])).file_name())
+                .map(|name| name.to_string_lossy().into_owned()),
+            loadout: character.loadout.map(str::to_owned),
+        }),
+    }
+}
+
 fn manifest(
     character: &CharacterScene<'_>,
     info: &PackageInfo,
@@ -164,14 +197,7 @@ fn manifest(
         format: Format::P4kxBlenderPackage,
         version: FORMAT_VERSION.to_owned(),
         generator: generator(),
-        source: Source {
-            channel: info.channel.clone(),
-            build: info.build.clone(),
-            entity: EntityRef {
-                class_name: character.name.to_owned(),
-                guid: String::new(),
-            },
-        },
+        source: source(character, info),
         coordinates: coordinates(),
         options: Options {
             lod: options.lod,
@@ -277,11 +303,6 @@ fn summarise(manifest: &Manifest, written: &GlbSummary, manifest_len: u64) -> Pa
         bones: written.bones,
         skinned_meshes: written.skinned_meshes,
         morph_targets: written.morph_targets,
-        animations: manifest
-            .meshes
-            .first()
-            .and_then(|mesh| mesh.rig.as_ref())
-            .map_or(0, |rig| rig.animations.len()),
         embedded_textures: written.textures,
         clips: written.animations.clone(),
         issues: manifest.issues.clone(),

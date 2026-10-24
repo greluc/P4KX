@@ -69,6 +69,16 @@ def test_a_character_node_without_a_mesh_is_skipped() -> None:
         lambda rig: rig["animations"][0].update(duration_seconds=float("inf")),
         lambda rig: rig["animations"][0].update(channels=1.5),
         lambda rig: rig.update(animations=[1]),
+        lambda rig: rig.pop("skeleton"),
+        lambda rig: rig.update(skeleton=7),
+        lambda rig: rig.pop("embedded_textures"),
+        lambda rig: rig.update(embedded_textures=-1),
+        lambda rig: rig["parts"][0].pop("file"),
+        lambda rig: rig["parts"][0].update(file=None),
+        lambda rig: rig["animations"][0].pop("additive"),
+        lambda rig: rig["animations"][0].update(additive=1),
+        lambda rig: rig["animations"][0].pop("keys"),
+        lambda rig: rig["animations"][0].update(keys="4"),
     ],
 )
 def test_a_malformed_rig_is_refused(change: Any) -> None:

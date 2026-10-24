@@ -56,9 +56,10 @@ def parse_rig(value: object, where: str) -> Rig:
         _clip(item, f"{where}.animations[{position}]")
         for position, item in enumerate(_array(entry.get("animations"), f"{where}.animations"))
     )
-    body = entry.get("body")
-    if not isinstance(body, str):
-        raise RigError(f"{where}: body must be a string.")
+    body, skeleton = entry.get("body"), entry.get("skeleton")
+    if not isinstance(body, str) or not isinstance(skeleton, str):
+        raise RigError(f"{where}: body and skeleton must be strings.")
+    _count(entry, "embedded_textures", where)
     return Rig(
         body=body,
         bones=_count(entry, "bones", where),
@@ -71,9 +72,9 @@ def parse_rig(value: object, where: str) -> Rig:
 
 def _part(item: object, where: str) -> RigPart:
     entry = _object(item, where)
-    name, origin = entry.get("name"), entry.get("origin")
-    if not isinstance(name, str) or not isinstance(origin, str):
-        raise RigError(f"{where}: name and origin must be strings.")
+    name, origin, file = entry.get("name"), entry.get("origin"), entry.get("file")
+    if not isinstance(name, str) or not isinstance(origin, str) or not isinstance(file, str):
+        raise RigError(f"{where}: name, origin and file must be strings.")
     return RigPart(name, origin, _count(entry, "morph_targets", where))
 
 
@@ -84,6 +85,9 @@ def _clip(item: object, where: str) -> RigClip:
         raise RigError(f"{where}: name must be a string.")
     if not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or not 0.0 <= seconds < 1e9:
         raise RigError(f"{where}: duration_seconds must be a finite non-negative number.")
+    if not isinstance(entry.get("additive"), bool):
+        raise RigError(f"{where}: additive must be a boolean.")
+    _count(entry, "keys", where)
     return RigClip(name, float(seconds), _count(entry, "channels", where))
 
 

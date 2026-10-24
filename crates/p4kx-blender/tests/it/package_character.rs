@@ -12,7 +12,7 @@ use p4kx_assembly::character::{Dna, DnaBlend};
 use p4kx_assembly::{ArchiveModels, Armour, AssemblyOptions, BodyVariant, Expressions, Piece};
 use p4kx_blender::{
     CharacterScene, FORMAT_VERSION, Manifest, NodeKind, PackageError, PackageInfo, PackageSummary,
-    RigPartOrigin, write_character_package,
+    RigPartOrigin, manifest_schema, write_character_package,
 };
 use p4kx_chunks::ChunkFile;
 use p4kx_extraction::Archive;
@@ -110,7 +110,8 @@ fn write(expressions: bool, animated: bool) -> Result<Written, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let out = dir.path().join("character");
     let info = PackageInfo::new(Some("LIVE".to_owned()), None);
-    let scene = CharacterScene::new("male_v7", &armour, &fitted);
+    let scene = CharacterScene::new("male_v7", &armour, &fitted)
+        .with_origin(Some("chars/hero.chf"), Some("Loadout.xml"));
     let summary = write_character_package(
         &scene,
         &models.textures(),
@@ -159,6 +160,32 @@ fn a_character_is_a_folder_of_a_manifest_and_one_skinned_mesh() -> TestResult {
     );
     assert_eq!(written.manifest.source.channel.as_deref(), Some("LIVE"));
     assert_eq!(written.manifest.source.entity.class_name, "male_v7");
+    assert_eq!(written.manifest.source.entity.guid, "");
+    let character = written
+        .manifest
+        .source
+        .character
+        .as_ref()
+        .ok_or("character")?;
+    assert_eq!(character.name, "male_v7");
+    assert_eq!(character.body, "male");
+    assert_eq!(character.chf.as_deref(), Some("hero.chf"), "no folder");
+    assert_eq!(character.loadout.as_deref(), Some("Loadout.xml"));
+    Ok(())
+}
+
+#[test]
+fn the_manifest_of_a_character_matches_its_schema() -> TestResult {
+    let written = write(true, true)?;
+    let validator = jsonschema::draft202012::new(&manifest_schema())?;
+
+    let violations: Vec<String> = validator
+        .iter_errors(&written.raw)
+        .take(5)
+        .map(|error| format!("{} at {}", error, error.instance_path()))
+        .collect();
+
+    assert_eq!(violations.len(), 0, "{violations:?}");
     Ok(())
 }
 
@@ -220,7 +247,7 @@ fn the_rig_lists_the_parts_morph_targets_and_animations_the_glb_holds() -> TestR
             .iter()
             .all(|clip| clip.channels > 0 && clip.keys > 0)
     );
-    assert_eq!(written.summary.animations, 2);
+    assert_eq!(written.summary.animations(), 2);
     assert_eq!(written.summary.bones, rig.bones);
     assert_eq!(written.summary.morph_targets, rig.morph_targets);
     assert_eq!(written.summary.files, 2);
@@ -275,7 +302,7 @@ fn an_animation_that_fits_nothing_is_an_issue_not_a_clip() -> TestResult {
         &never,
     )?;
 
-    assert_eq!(summary.animations, 0);
+    assert_eq!(summary.animations(), 0);
     let kinds: Vec<&str> = summary
         .issues
         .iter()

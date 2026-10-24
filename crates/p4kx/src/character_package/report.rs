@@ -141,7 +141,7 @@ fn text(shown: &Shown<'_>, summary: &PackageSummary) -> io::Result<()> {
         summary.skinned_meshes,
         summary.materials,
         summary.morph_targets,
-        summary.animations,
+        summary.animations(),
         summary.vertices,
         summary.triangles,
         summary.files,

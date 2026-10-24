@@ -137,6 +137,8 @@ fn a_character_with_animations_is_a_package_of_one_skinned_glb() -> TestResult {
     assert_eq!(manifest["nodes"][0]["kind"], "character");
     assert_eq!(manifest["nodes"][0]["name"], "hero");
     assert_eq!(manifest["nodes"][0]["mesh"], "m0001");
+    assert_eq!(manifest["source"]["character"]["chf"], "hero.chf");
+    assert_eq!(manifest["source"]["character"]["name"], "hero");
     let rig = &manifest["meshes"][0]["rig"];
     assert_eq!(rig["body"], "male");
     let head = rig["parts"]
@@ -199,6 +201,33 @@ fn pieces_on_a_chosen_body_are_a_package_and_the_json_report_names_the_parts() -
     let manifest = manifest(&out)?;
     assert_eq!(manifest["meshes"][0]["rig"]["bones"], 4);
     assert_eq!(manifest["nodes"][0]["kind"], "character");
+    assert_eq!(manifest["source"]["character"]["body"], "female");
+    assert!(manifest["source"]["character"].get("chf").is_none());
+    Ok(())
+}
+
+#[test]
+fn an_output_inside_a_protected_installation_is_invalid_input_and_writes_nothing() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path(), armour_entries())?;
+    let installation = dir.path().join("StarCitizen");
+    fs::create_dir(&installation)?;
+    let out = installation.join("LIVE").join("package");
+
+    let output = p4kx_testkit::p4kx()?
+        .env("P4KX_PROTECT_FOLDERS", &installation)
+        .args(["character", "package"])
+        .arg(&archive)
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("never writes there"),
+        "{output:?}"
+    );
+    assert_eq!(names(&installation)?.len(), 0, "nothing was created");
     Ok(())
 }
 

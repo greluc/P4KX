@@ -85,6 +85,38 @@
       ],
       "type": "object"
     },
+    "CharacterSource": {
+      "description": "What a Character was made from.",
+      "properties": {
+        "body": {
+          "description": "The code of the body variant, e.g. `male`.",
+          "type": "string"
+        },
+        "chf": {
+          "description": "The CHF file the head came from, as a file name without its folder; absent without a CHF.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "loadout": {
+          "description": "The Loadout the pieces came from, as the user named it; absent without one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The Character's name, also the name of its node.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "body"
+      ],
+      "type": "object"
+    },
     "ColourSpace": {
       "description": "How the colour channels of a texture are encoded.",
       "oneOf": [
@@ -148,7 +180,7 @@
       "type": "object"
     },
     "EntityRef": {
-      "description": "An Entity of the Archive.",
+      "description": "An Entity of the Archive. In `source.entity` of a Character package, which is made from no\nEntity, `class_name` is the Character's name and `guid` is empty.",
       "properties": {
         "class_name": {
           "description": "The Entity's class name, e.g. `AEGS_Avenger_Titan`.",
@@ -1268,9 +1300,20 @@
             "null"
           ]
         },
+        "character": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CharacterSource"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What a Character was made from (1.3); present in a Character package only."
+        },
         "entity": {
           "$ref": "#/$defs/EntityRef",
-          "description": "The Entity the scene was built from."
+          "description": "The Entity the scene was built from. A Character package puts the Character's name in\n`class_name` and an empty `guid`."
         }
       },
       "required": [

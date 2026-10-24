@@ -163,8 +163,27 @@ pub struct Source {
     /// The Build of the Archive; absent when its manifest could not be read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build: Option<BuildInfo>,
-    /// The Entity the scene was built from.
+    /// The Entity the scene was built from. A Character package puts the Character's name in
+    /// `class_name` and an empty `guid`.
     pub entity: EntityRef,
+    /// What a Character was made from (1.3); present in a Character package only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub character: Option<CharacterSource>,
+}
+
+/// What a Character was made from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct CharacterSource {
+    /// The Character's name, also the name of its node.
+    pub name: String,
+    /// The code of the body variant, e.g. `male`.
+    pub body: String,
+    /// The CHF file the head came from, as a file name without its folder; absent without a CHF.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chf: Option<String>,
+    /// The Loadout the pieces came from, as the user named it; absent without one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loadout: Option<String>,
 }
 
 /// The Build of the Archive a package was made from, as its build manifest states it.
@@ -183,7 +202,8 @@ pub struct BuildInfo {
     pub build_id: String,
 }
 
-/// An Entity of the Archive.
+/// An Entity of the Archive. In `source.entity` of a Character package, which is made from no
+/// Entity, `class_name` is the Character's name and `guid` is empty.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct EntityRef {
     /// The Entity's class name, e.g. `AEGS_Avenger_Titan`.

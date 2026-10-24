@@ -66,7 +66,7 @@ written (there are no `null`s).
 | `format` | Always `p4kx-blender-package`. |
 | `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.3` today. |
 | `generator` | `name` (`p4kx`) and `version` of the program that wrote the package. |
-| `source` | `channel` (the Channel folder, e.g. `LIVE`), `build` (`branch`, `version`, `public_patch`, `change_number`, `build_id` of the Archive's build manifest) and `entity` (`class_name`, `guid`). `channel` and `build` are absent when unknown. |
+| `source` | `channel` (the Channel folder, e.g. `LIVE`), `build` (`branch`, `version`, `public_patch`, `change_number`, `build_id` of the Archive's build manifest) and `entity` (`class_name`, `guid`). `channel` and `build` are absent when unknown. A Character package (1.3) also has `character` (`name`, `body`, `chf`, `loadout`), see "Characters", and puts the Character's name in `entity.class_name` with an empty `guid`. |
 | `coordinates` | `basis` is `gltf_y_up` and `unit` is `metre`. A reader refuses a `basis` or `unit` it does not know. |
 | `options` | What the package was made with: `lod`, `texture_mip`, `vertex_colours`, `exclude` (ports) and `replace` (`port`, `entity`). |
 | `nodes` | The scene hierarchy, see below. |
@@ -163,7 +163,10 @@ A Character package (version 1.3) is the folder above with one mesh and no textu
 
 - `nodes` has one node of the kind `character`, named after the Character (`--name`, else the
   CHF's file name, else the body variant), at the identity transform, with `mesh` `m0001`. Its
-  `source.entity.class_name` is the same name and `guid` is empty.
+  `source.entity` is the required placeholder with the same name as `class_name` and an empty
+  `guid`. `source.character` says what the Character was made from: `name`, `body` (the code of
+  the body variant), `chf` (the CHF's file name without its folder) and `loadout` (as the user
+  named it), the last two absent without a CHF or a Loadout.
 - `meshes/m0001.glb` is the Character as `armour glb` writes it: the bones as nodes, one glTF skin
   over them, a skinned mesh per part named after it, the sparse morph targets of the head named by
   `extras.targetNames` and the animations as glTF animations. Its materials are in the file; the

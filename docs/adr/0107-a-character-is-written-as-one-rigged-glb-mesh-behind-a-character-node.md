@@ -30,10 +30,13 @@ GLB itself, and a second description of the same bones would be a second source 
 different consumer that wants clips as separate files would add them as a later minor version.
 
 **A new node kind `character`.** The package has one node of that kind below no parent, named after
-the Character, at the identity transform, which draws the mesh. Its `source.entity` carries the
-Character's name as `class_name` and an empty `guid`, because a Character is not an Entity of the
-Archive. The mesh is never shared: one Character is one file, and a second Character in the same
-package would be a second mesh.
+the Character, at the identity transform, which draws the mesh. `source.entity` stays required
+for every reader of 1.x, so a Character package fills it with the Character's name as
+`class_name` and an empty `guid`, because a Character is not an Entity of the Archive. What the
+Character was made from is the new optional `source.character`: `name`, `body`, the CHF's file
+name without its folder and the Loadout as the user named it. Format 1.3 is unreleased, so the
+field is part of it. The mesh is never shared: one Character is one file, and a second Character
+in the same package would be a second mesh.
 
 **Materials stay in the GLB.** The materials of the rigged writer are plain colours or, with
 `--materials textures` (the default of `character package`), textures embedded at the chosen mip.

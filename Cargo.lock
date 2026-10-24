@@ -3598,6 +3598,7 @@ name = "p4kx-character"
 version = "0.3.0"
 dependencies = [
  "crc32c",
+ "crc32fast",
  "p4kx-foundation",
  "p4kx-testkit",
  "proptest",

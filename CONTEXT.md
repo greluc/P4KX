@@ -365,6 +365,12 @@ One skin worn on a Character's body: a piece of armour or clothing from an Entit
 a CHF, skinned to the body's skeleton by bone name.
 _Avoid_: item (an Entity), attachment
 
+**Look**:
+The material choices a CHF makes for one Piece of its head: a base material, and colours and numbers
+that replace parameters of its shaders (skin tone, iris colour, hair melanin and dye). The export
+draws them as one colour per material.
+_Avoid_: skin (a skin is a model), theme
+
 **CHF**:
 A 4096-byte character file holding a Character's body type, face DNA, worn item ports and
 material choices, saved by the character customiser or shipped in the Archive.

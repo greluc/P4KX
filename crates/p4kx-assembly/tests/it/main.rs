@@ -23,6 +23,7 @@ mod docked_vehicles;
 mod entity_catalogue;
 mod entity_interior;
 mod entity_lookup;
+mod head_build;
 mod interior;
 mod loadout_changes;
 mod loadout_changes_edit;

@@ -50,6 +50,10 @@
 //! skeleton by bone name; [`Armour::write_glb`] exports it as one skinned GLB. A piece that cannot
 //! be fitted is an [`Issue`]. [`LoadoutResolver::worn`] takes the pieces from a resolved Loadout
 //! tree, and [`Piece::layer`] puts pieces given by hand on top of them.
+//!
+//! [`Head::from_character`] makes the head of a CHF [`character::Character`]: the head skin of its
+//! rig, shaped by the Character's face DNA ([`Piece::shaped`]) and worn on the body of the rig's
+//! variant.
 
 mod armour;
 mod assembly;
@@ -85,7 +89,8 @@ mod walk;
 mod xml;
 
 pub use armour::{
-    Armour, ArmourPart, BodyVariant, PartOrigin, Piece, Replaced, Wearable, is_worn_type,
+    Armour, ArmourPart, BodyVariant, Head, HeadError, MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced,
+    Wearable, is_worn_type,
 };
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,

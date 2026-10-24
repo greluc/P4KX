@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
+use crate::cli_model::lod_range;
 use crate::exit::EXIT_CODES_HELP;
 
 /// Arguments of `p4kx chf`.
@@ -41,4 +42,31 @@ pub(crate) enum ChfAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
+    /// Writes the head of a CHF character as one skinned glTF 2.0 binary file (GLB): the head
+    /// skin of the character's head rig, its vertices moved by the character's face DNA into the
+    /// character's neutral face, worn on the default body of the character's body variant (the
+    /// male or female skeleton and body skin, as `armour glb` writes them). Y up, in metres.
+    /// Hair, eyes, teeth and expressions are not part of it. The head rig comes from the Archive;
+    /// a character without face DNA or for an unknown head rig is invalid input.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Glb(ChfGlbArgs),
+}
+
+/// Arguments of `p4kx chf glb`.
+#[derive(Debug, Args)]
+pub(crate) struct ChfGlbArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The CHF file.
+    pub(crate) file: PathBuf,
+    /// The GLB file to write; an existing file is replaced.
+    #[arg(long, value_name = "FILE")]
+    pub(crate) out: PathBuf,
+    /// The level of detail of the head and the body: 0 is the most detailed. A model that lacks
+    /// the level is written at the nearest lower level it has.
+    #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
+    pub(crate) lod: u32,
+    /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
+    #[arg(long)]
+    pub(crate) no_vertex_colours: bool,
 }

@@ -4,10 +4,12 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use p4kx_character::Dna;
 use p4kx_model::{BoneMatch, Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::piece::Source;
+use super::shape::shaped;
 use super::wearable::Unfit;
 use super::{Armour, ArmourPart, BodyVariant, PartOrigin, Piece};
 use crate::build::file_key;
@@ -26,6 +28,7 @@ struct Job {
     label: String,
     path: String,
     material: Option<String>,
+    shape: Option<Dna>,
 }
 
 struct Loaded {
@@ -72,6 +75,7 @@ impl Armour {
             label: "body".to_owned(),
             path: variant.skin().to_owned(),
             material: None,
+            shape: None,
         }];
         for piece in pieces {
             gather(piece, variant, &mut jobs, &mut issues);
@@ -92,6 +96,9 @@ impl Armour {
         let mut parts = Vec::with_capacity(chosen.len());
         for (job, found) in jobs.iter().zip(&chosen) {
             let Some(found) = found else { continue };
+            let Some(model) = fitted(job, found, models, &mut issues) else {
+                continue;
+            };
             let key = library_key(job, found);
             let materials = key
                 .as_ref()
@@ -102,12 +109,12 @@ impl Armour {
             {
                 issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
             }
-            note_fit(job, &found.model, &body.skeleton, &mut issues);
+            note_fit(job, &model, &body.skeleton, &mut issues);
             parts.push(ArmourPart {
                 name: job.part.clone(),
                 origin: job.origin,
                 file: job.path.clone(),
-                model: Arc::clone(&found.model),
+                model,
                 materials,
             });
         }
@@ -135,6 +142,26 @@ fn piece_issue(piece: &Piece, kind: IssueKind) -> Issue {
         path: String::new(),
         name: piece.name.clone(),
         kind,
+    }
+}
+
+/// Returns the model of a job as it is worn: shaped by the job's DNA, if it has one; a model that
+/// cannot be shaped is listed and left out.
+fn fitted(
+    job: &Job,
+    found: &Loaded,
+    models: &dyn ModelProvider,
+    issues: &mut Vec<Issue>,
+) -> Option<Arc<Model>> {
+    let Some(dna) = &job.shape else {
+        return Some(Arc::clone(&found.model));
+    };
+    match shaped(&found.model, &job.path, dna, models) {
+        Ok(model) => Some(Arc::new(model)),
+        Err(reason) => {
+            issues.push(issue(job, IssueKind::ShapeFailed { reason }));
+            None
+        }
     }
 }
 
@@ -196,6 +223,7 @@ fn gather(piece: &Piece, variant: BodyVariant, jobs: &mut Vec<Job>, issues: &mut
         label: piece.name.clone(),
         path: path.to_owned(),
         material: material.map(str::to_owned),
+        shape: piece.shape.clone(),
     });
 }
 

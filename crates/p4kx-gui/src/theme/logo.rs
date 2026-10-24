@@ -1,9 +1,9 @@
 //! The P4KX glyph of `docs/design/p4kx-glyph.svg`, rasterised from its geometry.
 //!
 //! The glyph is a ring open towards the lower right, a wedge reading through it and a data block
-//! leaving it, on a 240 unit square. It appears only in the design system's logo colours.
+//! leaving it, on a 240 unit square. It appears only in the logo colours.
 
-use egui::{Color32, ColorImage, Context, IconData, Id, TextureHandle, TextureOptions};
+use egui::{Color32, IconData};
 
 use super::palette;
 
@@ -21,8 +21,6 @@ const WEDGE_HALF_BASE: f32 = 26.0;
 const BLOCK_MIN: (f32, f32) = (185.0, 171.0);
 const BLOCK_SIZE: f32 = 30.0;
 const ICON_SIZE: u32 = 128;
-const MARK_SIZE: u32 = 96;
-const MARK_TEXTURE: &str = "p4kx-brand-mark";
 
 /// Returns the window and taskbar icon: the orange glyph on a black tile.
 #[must_use]
@@ -32,25 +30,6 @@ pub fn window_icon() -> IconData {
         width: ICON_SIZE,
         height: ICON_SIZE,
     }
-}
-
-/// Uploads the orange glyph on a transparent ground as the texture of the brand mark.
-pub fn load_mark(ctx: &Context) {
-    let size = usize::try_from(MARK_SIZE).unwrap_or(0);
-    let pixels = rgba(MARK_SIZE, palette::PRIMARY, None);
-    let image = ColorImage::from_rgba_unmultiplied([size, size], &pixels);
-    let texture = ctx.load_texture(MARK_TEXTURE, image, TextureOptions::LINEAR);
-    ctx.data_mut(|data| data.insert_temp(mark_id(), texture));
-}
-
-/// Returns the texture of the brand mark once [`load_mark`] uploaded it.
-#[must_use]
-pub fn mark(ctx: &Context) -> Option<TextureHandle> {
-    ctx.data(|data| data.get_temp(mark_id()))
-}
-
-fn mark_id() -> Id {
-    Id::unique(MARK_TEXTURE)
 }
 
 /// Returns the glyph as unmultiplied RGBA rows of `size` pixels in `color` over `background`,

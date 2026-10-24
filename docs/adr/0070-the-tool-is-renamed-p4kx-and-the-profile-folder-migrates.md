@@ -4,7 +4,7 @@ Decided for issue #471. Builds on ADR-0004 (Record XML namespace) and ADR-0007 (
 check).
 
 The owner renamed the tool from P4K-Extractor to P4KX and the repository to `greluc/P4KX`. v0.3.0
-is not released yet, so users see one break together with the move from `krt-profit`.
+is not released yet, so users see one break together with the move to the new repository owner.
 
 ## Decision
 
@@ -13,7 +13,7 @@ is not released yet, so users see one break together with the move from `krt-pro
 - Links to the repository (Cargo metadata, the update check, the About text, the installer, the
   docs) use `https://github.com/greluc/P4KX`. The Record XML namespace and every schema `$id` are
   identifiers, not links, and use the lower-case form `https://github.com/greluc/p4kx/…`. The
-  changelog states one breaking change from the `krt-profit` identifiers straight to these.
+  changelog states one breaking change from the identifiers of earlier versions straight to these.
 - The MSI keeps its `UpgradeCode`, so an installed P4K-Extractor upgrades to P4KX. The install
   folder, the shortcut and the registry keys take the new name, and the two components get new
   GUIDs because their directories and key paths changed. The release workflow installs the v0.2.0

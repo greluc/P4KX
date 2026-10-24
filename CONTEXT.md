@@ -1,7 +1,7 @@
 # P4KX
 
 Opens, browses, compares and extracts the game archives of Star Citizen and turns their internal
-formats into readable or importable data for people and for other KRT tools.
+formats into readable or importable data for people and for other tools.
 
 ## Language
 

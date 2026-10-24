@@ -119,16 +119,16 @@ the entries under `## [Unreleased]`.
   in the `chunks` of `model info`), so a `match` on it needs a wildcard arm. The table of
   `p4kx model info` has the columns Tangents and Colours, and its chunk table is wider for the
   `lod<n>-geometry` names.
-- GUI: the window follows the measured KRT palette (`krt-profit/design-system` up to
+- GUI: the window follows the measured palette (tokens up to
   `20aa9da`): the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
   bar `#1A1D21`, the control `#373E43` (hover `#434B51`), the hairline `#36373B`, the count badge
   `#2F394C`, the text `#D1D2D3` and the muted text `#A2A5A9`; the selected tint is 26 % orange,
   every orange tint and glow follows, tooltips fill with the control colour, and the glyph and
   logo SVGs use the house orange, tree rows hover in 2.5 % white and the drop target fills with
-  6 % orange as the design system's CSS sets them. The earlier values were sampled from HDR screenshots and were
+  6 % orange as the CSS of the design sets them. The earlier values were sampled from HDR screenshots and were
   too light.
-- GUI: the window follows the design system after its adaptation to the das-kartell.org website
-  (`krt-profit/design-system` up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
+- GUI: the window follows the design after an adaptation to a website palette
+  (tokens up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
   with panel `#35393D`, bar `#2A2D31` and control `#3F474C` fills, the lighter text and border
   greys, the new text tints, and the `radius-sm` corner of 4 points on buttons, fields, segments,
   chips, alerts, modals, dropdowns, tiles, the list panel and the preview. Header, status bar and
@@ -499,7 +499,7 @@ for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP 
   one row per Entry.
 - `p4kx extract --filter` and `p4kx socpak extract --filter` now also take every Entry of a
   texture whose header, part or Alpha tail matches.
-- The window follows the binding KRT design system and its desktop spec: KRT buttons, toggles,
+- The window follows the P4KX design and its desktop spec: buttons, toggles,
   tabs, tables, tree, modals and alerts, Lato in three weights, the P4K-Extractor glyph as window
   icon and header mark, an empty state with an "Open Archive" action.
 
@@ -519,6 +519,6 @@ The first Release: open, browse and extract Star Citizen Archives.
   Entry table, search with quick-filter chips, text and hex preview, and Extraction of selected,
   shown or all Entries with progress, cancellation and conflict policies.
 - A notice with a reload offer when the open Archive changes on disk.
-- German and British English interface, KRT look.
+- German and British English interface, dark look.
 - A portable ZIP and a per-user MSI installer.
 - An optional check for a newer Release at start, off by default and switchable in the Help menu.

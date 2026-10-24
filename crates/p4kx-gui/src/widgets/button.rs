@@ -56,7 +56,7 @@ pub(crate) struct Look {
     pub(crate) glow: Option<Shadow>,
 }
 
-/// Returns the colours of `kind` in `phase`, after `krt-components.css` and the desktop spec.
+/// Returns the colours of `kind` in `phase`, after `components.css` and the desktop spec.
 pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
     let none = Color32::TRANSPARENT;
     match (kind, phase) {

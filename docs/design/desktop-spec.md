@@ -1,18 +1,18 @@
-# P4K-Extractor · Desktop-Vorgaben aus dem KRT Design System
+# P4K-Extractor · Desktop-Vorgaben des P4KX-Designs
 
-Quelle: `krt-profit/design-system` `main` bis `20aa9da` (gemessene Website-Palette, `radius-sm` 4 px). Maschinenlesbar:
+Grundlage: die Tokens des P4KX-Themes (gemessene Palette, `radius-sm` 4 px). Maschinenlesbar:
 [`p4kx-desktop-spec.json`](p4kx-desktop-spec.json). Artboards: Design-Canvas „P4K-Extractor Desktop".
 Logo: [`p4kx-logo.svg`](p4kx-logo.svg) (ab 64 px), [`p4kx-glyph.svg`](p4kx-glyph.svg) (bis 32 px).
 
 Alle Maße in px bei 1 rem = 16 px. Farben, Glows und Gewichte als Token-Namen aus `tokens.json`.
-Die wenigen `rgba(…)`-Werte stehen so in `krt-components.css` und haben dort kein Token; sie
+Die wenigen `rgba(…)`-Werte stehen so in `components.css` und haben dort kein Token; sie
 sind keine neuen Farben.
 
 ## Grundregeln
 
 - **Zeilendichte 36 px** für Tabelle, Baum, Channels und Dropdown-Einträge (D.1).
 - **Bedienelemente bleiben 44 px** (Buttons, Suchfeld, Tabs, Menü-Links). Kompakte
-  DS-Ausnahmen: `.krt-segmented--sm` 34 px, `.btn.btn-xs` 32 px.
+  DS-Ausnahmen: `.segmented--sm` 34 px, `.btn.btn-xs` 32 px.
 - **Schriftgewicht nach Größe:** Text unter 16 px in Regular 400, Light 300 nur für Fließtext ab
   16 px, Bold 700 für Labels, Buttons, Überschriften. Black 900 nur im Logo-Lockup, das als Bild
   ausgeliefert wird; die App braucht also drei Fontdateien.
@@ -32,15 +32,15 @@ sind keine neuen Farben.
 | Fenster-Titelleiste | nativ (DWM) | 32 | – | – | System | nein | bg `surface-bar`, Text `color-gray-1` | unten 1 `color-gray-3` | – | System |
 | Kopfzeile | App-Header | 46 | x 16 | Marke→Menü 24 | Wortmarke 14,4 / 700 / 0,05 em | ja | bg `surface-bar`, Marke `color-primary` | unten 2 `color-primary` | – | – |
 | Menü-Link | – (nav) | 44 | x 14 | 0 | 12,8 / 700 / 0,05 em | ja | `control-fg`; Hover `color-primary`; offen `control-selected-bg` + `control-selected-fg` | offen: Unterstrich 3 `color-primary` | – | innen −2 |
-| Dropdown | `.krt-combobox__listbox` | – | y 4 | Untermenü −4 überlappend | – | – | bg `color-gray-4` | 1 `color-primary` | `shadow-dropdown` | – |
-| Dropdown-Eintrag | `.krt-combobox__option` | 36 | x 12 | Spalten 12 | 14,4 / 400 / 0; Kürzel 12,8 `color-gray-2-text` | nein | `color-gray-1`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black` | Trenner 1 `color-gray-3`, y 4 | – | Tastatur = Füllung |
+| Dropdown | `.combobox__listbox` | – | y 4 | Untermenü −4 überlappend | – | – | bg `color-gray-4` | 1 `color-primary` | `shadow-dropdown` | – |
+| Dropdown-Eintrag | `.combobox__option` | 36 | x 12 | Spalten 12 | 14,4 / 400 / 0; Kürzel 12,8 `color-gray-2-text` | nein | `color-gray-1`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black` | Trenner 1 `color-gray-3`, y 4 | – | Tastatur = Füllung |
 | Seitenleisten-Titel | `.page-head__eyebrow` | ~32 | 14 / 12 / 6 | – | 11,2 / 700 / 0,15 em | ja | `color-gray-2-text` | – | – | – |
 | Channel-Zeile | `.master-row` | 36 | x 12 | Name↔Build 8 | Name 12,8 / 700 / 0,05 em; Build 12,8 / 400 | Namen sind Konstanten | `color-gray-1`, Build `color-gray-2-text`; Hover `rgba(255,255,255,0.03)`; aktiv bg `color-surface-input`, Text `color-white` | unten 1 `color-gray-3`; aktiv links 3 `color-primary` (innen) | – | innen −2 |
 | Baumzeile | `.tree-row` / `.tree-name` | 36 | links 8 + 12 je Ebene, rechts 8 | Chevron↔Name 6 | 13,76 / 400; aktiv 700 | nein | wie Channel-Zeile, Hover `rgba(255,255,255,0.025)` (`.tree-row--mid:hover`); Chevron `color-primary` 12 px, Strich 3 | Ebenen-Schiene 1 `color-gray-3` | – | innen −2 |
 | Listen-Panel | `.list-panel` / `.master-detail` | füllt | Rand zur Tab-Leiste und zum Fenster 12 (`space-3`), Lücke zwischen den Panels 6 (Größenänderungs-Griff) | – | – | – | bg `surface-panel` | 1 `color-gray-3`, Radius `radius-sm` | – | – |
 | Toolbar | `.list-panel__toolbar` | 68 | 12 | 12, bricht um | – | – | bg `surface-panel` | unten 1 `color-gray-3` | – | – |
 | Suchfeld | `.list-panel__search input` | 44 | links 38,4, rechts 12 | Basis 260, min. 200 | 16 / 400; Platzhalter kursiv | nein | bg `control-bg`, Text `color-gray-1`, Platzhalter `color-gray-2-text` | 1 `control-border`; Fokus `color-primary` | Fokus `glow-primary` | Rahmen + Glow |
-| Schnellfilter | `.krt-segmented--sm` / `__item[aria-pressed]` | 34 | x 12 | Label↔Gruppe 12 | 12,8 / 400 (gewählt 700) / 0 | **nein** | `control-fg` auf `control-bg`; Hover `control-bg-hover` + `color-white`; gewählt `control-selected-bg` + `control-selected-fg` | 1 `control-border`, Trenner 1; gewählt innen 1 + unten 3 `control-selected-border` | – | innen −3 |
+| Schnellfilter | `.segmented--sm` / `__item[aria-pressed]` | 34 | x 12 | Label↔Gruppe 12 | 12,8 / 400 (gewählt 700) / 0 | **nein** | `control-fg` auf `control-bg`; Hover `control-bg-hover` + `color-white`; gewählt `control-selected-bg` + `control-selected-fg` | 1 `control-border`, Trenner 1; gewählt innen 1 + unten 3 `control-selected-border` | – | innen −3 |
 | Button-Grundform | `.btn` | 44 (xs 32) | x 16, y 8 (xs 8,8 / 4) | Icon↔Text 8 | 12,8 / 700 / 0,03 em (xs 10,88) | ja | siehe Leiter | Radius `radius-sm` | – | 2 / +2 |
 | CTA | `.btn.btn--cta` | 44 | wie oben | – | wie oben | ja | bg `color-primary`, Text `color-bg-black`; Hover `color-accent-light`; gedrückt `color-accent-dark` | – | `glow-primary`, Hover `glow-primary-lg` | weiß, +2 |
 | Outline | `.btn-outline` | 44 | wie oben | – | wie oben | ja | `color-primary` auf transparent; Hover `color-accent-light` | 1 `color-primary` | – | 2 / +2 |
@@ -54,14 +54,14 @@ sind keine neuen Farben.
 | Tab-Leiste | `.tab-nav` / `.tab` | 44 | Tab x 14, Leiste links 12 | – | 11,52 / 700 / 0,06 em | ja | `color-gray-2-text`; Hover `color-gray-1`; aktiv `color-white` | unten 1 `color-gray-3`; aktiv 3 `color-primary` | – | innen −2 |
 | Vorschau-Panel | Fläche + `.tab-nav` | Start 236, min. 120 | Pfadzeile 32, x 16; Inhalt x 16 y 8 | – | Pfad 12,8 / 400 | nein | bg `surface-panel`; Pfad `color-gray-1`, Größe `color-gray-2-text` | 1 `color-gray-3`, Radius `radius-sm` | – | – |
 | Hex-Zeile | – | 20 | – | Offset 88; Byte-Zelle 22 + 2; nach 8 Bytes 10; ASCII-Abstand 16, Zelle 10 | 12,8 / 400, Ziffern tabellarisch | Hex in Großbuchstaben | Offset und `00` `color-gray-2-text`; Bytes/ASCII `color-gray-1`; nicht druckbar „." gedämpft | – | – | – |
-| Statusleiste | `.krt-footer` (Desktop-Dichte) | 32 | x 16; Einträge x 12 | Trenner 1 `color-gray-3` | 12,8 / 400 | nein | bg `surface-bar`, `color-gray-2-text`; Pfad `color-gray-1`; „Suche …" `color-primary` | oben 1 `color-gray-3` | – | – |
+| Statusleiste | `.footer` (Desktop-Dichte) | 32 | x 16; Einträge x 12 | Trenner 1 `color-gray-3` | 12,8 / 400 | nein | bg `surface-bar`, `color-gray-2-text`; Pfad `color-gray-1`; „Suche …" `color-primary` | oben 1 `color-gray-3` | – | – |
 | Leerzustand | `.empty-state` | füllt | 24 | 12 | Titel 13,6 / 700 / 0,06 em; Text 12,8 | Titel ja | bg `color-bg-dark-gray`, Titel `color-gray-1`, Text `color-gray-2-text`; Ziehen: `rgba(231,126,35,0.06)` (`.drop-zone.is-over`) | 1 gestrichelt `color-gray-3`, Radius `radius-sm`; Ziehen `color-primary` | – | Aktion |
 | Hinweisleiste | `.alert.alert-warning` | ~44 | x 16, y 10 | 12 | 14,4 / 400 | nein | bg `rgba(255,210,63,0.15)`, Text `color-gray-1`, Icon `color-warning` | 1 `color-warning`, links 4 | – | Aktion |
-| Modal | `.krt-modal` (`--wide` 600) | – | Kopf 16 / 12, Körper 16, Fuß 16 / 12 | Gruppen 20, Fuß 8 | Titel 13,6 / 700 / 0,06 em; Körper 14,4 / 400 | Titel ja | bg `color-bg-dark-gray`, Titel `color-white`; Scrim `rgba(0,0,0,0.8)` flach | 1 `color-gray-3`, oben 3 `color-primary`, Ecken 13 × 2 | `glow-primary-lg` | Fokusfalle, Esc |
-| Modal Danger | `.krt-modal--danger` | – | wie Modal | – | Titel `color-danger-text` | ja | – | oben 3 + Ecken `color-danger` | `glow-danger-lg` | wie Modal |
+| Modal | `.modal` (`--wide` 600) | – | Kopf 16 / 12, Körper 16, Fuß 16 / 12 | Gruppen 20, Fuß 8 | Titel 13,6 / 700 / 0,06 em; Körper 14,4 / 400 | Titel ja | bg `color-bg-dark-gray`, Titel `color-white`; Scrim `rgba(0,0,0,0.8)` flach | 1 `color-gray-3`, oben 3 `color-primary`, Ecken 13 × 2 | `glow-primary-lg` | Fokusfalle, Esc |
+| Modal Danger | `.modal--danger` | – | wie Modal | – | Titel `color-danger-text` | ja | – | oben 3 + Ecken `color-danger` | `glow-danger-lg` | wie Modal |
 | Aufklappbarer Abschnitt | `.panel-header` | 44 | x 16, y 12,8 | Liste max. 180 hoch | 13,6 / 700 / 1 px | ja | bg `color-surface-input`, Titel `color-white`, Chevron `color-primary`; Hover `color-gray-3` | 1 `color-gray-3`, Radius `radius-sm`, links 4 `color-primary` | – | 2 / +2 |
 | Fortschrittsbalken | `.attendance-meter` | 8 | – | Text→Balken 12 | Text 14,4 / 400, tabellarisch | nein | Spur `color-surface-input`; Füllung `color-primary`; beim Abbrechen `color-gray-2` | 1 `color-gray-3` | – | – |
-| Spinner | `.krt-spinner` | 20 (inline 14) | – | Text 8 | – | – | Spur `rgba(231,126,35,0.25)`, Bogen `color-primary` | Ring 2 | – | – |
+| Spinner | `.spinner` | 20 (inline 14) | – | Text 8 | – | – | Spur `rgba(231,126,35,0.25)`, Bogen `color-primary` | Ring 2 | – | – |
 | Detailliste | `.kv-list.kv-ruled` | – | unten 8,8 | Zeilen 8,8, Spalten 20; Schlüsselspalte min. 140 | Schlüssel 14,4 / 700 / 0,04 em; Wert 16,8 / 300 | Schlüssel ja | Schlüssel `color-gray-2-text`, Wert `data-fg` | unten 1 `color-gray-3` | – | – |
 | Abschnittstitel | `.section-title` | – | unten 8 | oben 32 (als Erstes 0), unten 16 | 16 / 700 / 0,05 em | ja | `color-gray-1` | unten 1 `color-gray-3` | – | – |
 | Link | `a` | Text | – | – | 12,8 / 700 | nein | `color-primary`; Hover `color-accent-light` + Unterstrich | – | – | 2 / +2, quadratisch |
@@ -69,7 +69,7 @@ sind keine neuen Farben.
 | Scrollbar | `::-webkit-scrollbar` | 12 (Seitenleiste 8) | Griff ohne Einzug | Griff min. 32 | – | – | Spur `color-gray-4`; Griff `color-gray-2`, Hover `color-accent-light`, Ziehen `color-primary` | keine Haarlinie | – | – |
 | Größenänderungs-Griff | – | 6 | Griff 2 × 24 mittig | – | – | – | Feld `surface-canvas`; Griff `color-gray-2`; Hover volle Länge `color-accent-light`; Ziehen `color-primary` | – | – | 2 / +2, Pfeiltasten |
 | Arbeitsbereich-Tabs | `.tab-nav` / `.tab` | 44 | wie Tab-Leiste | – | wie Tab-Leiste | ja | wie Tab-Leiste | wie Tab-Leiste | – | innen −2 |
-| Archiv-Auswahl | `select` + `.krt-combobox__listbox` | 44 | links 12, rechts 32; min. 260 breit | Beschriftung darüber (Eyebrow); Chevron 10,4 vom rechten Rand | 16 / 400; Platzhalter kursiv | nein | bg `control-bg`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Chevron `color-primary` 12; leere Liste `.krt-combobox__notice` kursiv | 1 `control-border`; Fokus und offen `color-primary` | Fokus und offen `glow-primary` | Rahmen + Glow |
+| Archiv-Auswahl | `select` + `.combobox__listbox` | 44 | links 12, rechts 32; min. 260 breit | Beschriftung darüber (Eyebrow); Chevron 10,4 vom rechten Rand | 16 / 400; Platzhalter kursiv | nein | bg `control-bg`, Text `color-gray-1`, Platzhalter `color-gray-2-text`; Chevron `color-primary` 12; leere Liste `.combobox__notice` kursiv | 1 `control-border`; Fokus und offen `color-primary` | Fokus und offen `glow-primary` | Rahmen + Glow |
 | Faktenleiste | `.facts-bar` | ~32 | x 16, y 8 | 16; Schlüssel→Wert 5 | Schlüssel 9,92 / 700 / 0,08 em; Wert 12,48 / 700 | Schlüssel ja | bg `color-surface-input`, Schlüssel `color-gray-2-text`, Wert `color-white`; Richtungs-Chevron `color-primary` | unten 1 `color-gray-3` | – | – |
 | Zähler-Kachel | `.kpi-total` | ~66 | x 14, y 10 | 12 zwischen Kacheln; Chip→Wert 2 | Wert 19,2 / 700 | Chip ja | bg `color-bg-dark-gray`, Wert `color-white` | 1 `color-gray-3`, links 4 `color-primary` | – | – |
 | Änderungs-Chip | `.chip--success` / `--danger` / `--warning` / `--info` / `--muted` | ~19 | x 8, y 2,4 | – | 11,2 / 700 / 0,06 em | ja | Hinzugefügt: Rand `color-success`, Text `color-success-text`, bg `rgba(35,158,51,0.12)`; Entfernt: `color-danger`, `color-danger-text`, `rgba(163,0,10,0.15)`; Geändert: `color-warning`, `color-warning`, `rgba(255,210,63,0.12)`; Verschoben: `color-info`, `color-info-text`, `rgba(53,93,220,0.15)`; Unlesbar: `color-gray-3`, `color-gray-2-text`, transparent | 1 im Farbton, Radius `radius-sm` | – | – |
@@ -77,7 +77,7 @@ sind keine neuen Farben.
 | Record-Liste | Tab-Leiste + Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten: Änderung 130, Record-Pfad Rest, Typ 260 | wie Tabelle | Kopf ja | wie Tabelle; verschoben alter und neuer Pfad mit `chevron-right` 12 `color-primary` dazwischen, Abstand 8 | wie Tabelle | – | innen −2 |
 | Feldänderungen | Vorschau-Panel + Tabellenkopf + Tabellenzeile | 36 | Zelle x 12,8 | drei gleiche Spalten Feld, Alt, Neu | wie Tabelle | Kopf ja | Text `color-gray-1`; Zebra und Hover wie Tabelle; fehlend „–" `color-gray-2-text`; Fehlerwert `color-danger-text`; Anzahl `color-gray-2-text` | unten 1 `color-gray-3` | – | innen −2; Tooltip bei Fokus |
 | Zeilenvergleich | Vorschau-Panel + Tabellenkopf + Hex-Zeile | Zeile 20 | Zeilennummer x 12,8; Marker→Text 8 | Spalten je Seite halb, Trenner 1 `color-gray-3` | 12,8 / 400, Ziffern tabellarisch | Kopf ja | Text `color-gray-1`, Nummer `color-gray-2-text`; Hinzugefügt bg `rgba(35,158,51,0.12)`, Marker „+" `color-success-text`; Entfernt bg `rgba(163,0,10,0.15)`, Marker „−" `color-danger-text`; Hunk-Kopf bg `color-surface-input`, Text `color-gray-2-text`, aktuell links 3 `color-primary` + `color-white` | – | – | Navigation: Ghost `btn-xs` 2 / +2 |
-| Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.krt-segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
+| Bildvorschau (Tab „Bild") | Vorschau-Panel + `.facts-bar` + `.segmented--sm` | füllt | Inhalt x 16 y 8 | Mip-Label↔Gruppe 12; Mip-Auswahl→Bild 8 | Faktenleiste und Schnellfilter wie oben; Mip-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel und Label ja, Mip-Werte nein | Bild auf `surface-panel`, 1 Texel = 1 Gerätepixel, zentriert; größere Mips scrollen; fehlende Cubemap-Seiten „–" | wie Faktenleiste | – | Segmente innen −3 |
 | Tonvorschau (Tab „Audio") | Vorschau-Panel + `.facts-bar` + `.btn-outline.btn-xs` + `.quality-row`-Range | füllt | Inhalt x 16 y 8 | Bedienelemente 12; Label↔Range 8; Lautstärke 200 breit; Position füllt, min. 200; Zeit so breit wie die breiteste Zeit des Tons | Faktenleiste wie oben; Zeit 12,8 / 400; Lautstärke-Label wie Eyebrow 11,2 / 700 / 0,15 em | Schlüssel, Button und Label ja, Codec und Zeit nein | Zeit `color-gray-1`; unbekannte Dauer „–"; Meldungen `color-danger-text` | wie Faktenleiste | – | Button 2 / +2; Leertaste spielt oder pausiert |
 | Modellvorschau (Tab „Modell") | Vorschau-Panel + `.facts-bar` + `.btn-ghost.btn-xs` | füllt, Ansicht min. 96 | Inhalt x 16 y 8; Reset 8 vom Rand | Faktenleiste→Ansicht 8 | Faktenleiste wie oben; Hinweis 12,8 / 400 | Schlüssel und Button ja, Hinweis nein | Ansicht auf `surface-inset`; Hinweis `color-gray-2-text`; Fehler `color-danger-text`; zu groß `color-gray-1` | 1 `color-gray-3`, Ecken quadratisch | – | innen −2; Pfeiltasten, Umschalt, `+` `−`, Pos1 |
 | Soundbank-Liste (Tab „Audio") | Vorschau-Panel + Tonvorschau + Tabellenkopf + Tabellenzeile | Kopf und Zeile 36; Panel 373 | wie Tabelle | Spalten: ID 106, Codec 112, Dauer 100 (min. 80), Größe Rest rechtsbündig | wie Tabelle | Kopf ja, Zeilen nein | wie Tabelle; „Vorgeladen", „Plug-in" und fehlende Werte „–" `color-gray-2-text`; Hinweise `color-warning`, Fehler `color-danger-text` | wie Tabelle | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
@@ -89,9 +89,9 @@ sind keine neuen Farben.
 | Abfrageergebnis | Tabellenkopf + Tabellenzeile | 36 | wie Tabelle | Spalten 200 (min. 80), letzte füllt; 500 Zeilen je Seite | wie Tabelle | Record-Pfad-Kopf ja, Pfad-Köpfe nein | wie Tabelle; nicht lesbarer Wert und Liste mit einem solchen `color-danger-text`; `null` `color-gray-2-text`; Zahlenspalten rechtsbündig; Listen als `[a, b, …]`, ab 9 Werten die ersten 8 und „… n more" | wie Tabelle | – | innen −2 |
 | Record-Vorschau (Tab „Record") | Vorschau-Panel + `.facts-bar` + Tabellenkopf + Tabellenzeile + `a` | 36 | Zelle x 12,8; 12 je Ebene | zwei gleiche Spalten Feld, Wert; Typ nach dem Link 8 | Werte 13,76 / 400; Link 12,8 / 700 | Kopf und Schlüssel ja, Daten nein | Wert `color-gray-1`, `null` `color-gray-2-text`, Fehler `color-danger-text`; Link `color-primary`, Hover `color-accent-light` + Unterstrich; Ebenen-Schiene 1 `color-gray-3` | unten 1 `color-gray-3` | – | Link 2 / +2; Alt+←, Alt+→, Maustasten zurück/vor |
 | XML-Vorschau (Tab „XML") | Vorschau-Panel + Hex-Zeile | Zeile 20 | Inhalt x 16 y 8; Zeilennummer x 12,8 | – | 12,8 / 400, Lato-Standardziffern (ADR-0006) | Tab-Label ja, XML nein | Text `color-gray-1`, Nummer und Escapes `color-gray-2-text`; Kürzungshinweis `color-warning`; Fehler `color-danger-text` | – | – | innen −2; Pfeiltasten, Bild auf/ab, Pos1, Ende |
-| Abfrage-Vervollständigung | `.krt-combobox__listbox` / `__option` / `__notice` | Eintrag 36; Liste max. 288 (18 rem), dann Scrollleiste | Eintrag x 12; Hinweis 12 | an der Schreibmarke darunter, ohne Platz darüber; min. 240 breit; Name↔Typ 12 | Name 14,4 / 400, getippter Teil 700 (`<mark>`); Typ 12,8 / 400 rechtsbündig | nein | bg `color-gray-4`; Name `color-gray-1`, Typ `color-gray-2-text`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black`; Hinweis kursiv `color-gray-2-text` | 1 `color-primary`; Trenner 1 `color-gray-3` | `shadow-dropdown` | Fokus bleibt im Editor; ↑/↓, Enter/Tab, Esc, Strg+Leertaste |
+| Abfrage-Vervollständigung | `.combobox__listbox` / `__option` / `__notice` | Eintrag 36; Liste max. 288 (18 rem), dann Scrollleiste | Eintrag x 12; Hinweis 12 | an der Schreibmarke darunter, ohne Platz darüber; min. 240 breit; Name↔Typ 12 | Name 14,4 / 400, getippter Teil 700 (`<mark>`); Typ 12,8 / 400 rechtsbündig | nein | bg `color-gray-4`; Name `color-gray-1`, Typ `color-gray-2-text`; Hover bg `color-gray-3` + `color-primary`; Tastatur bg `color-primary` + `color-bg-black`; Hinweis kursiv `color-gray-2-text` | 1 `color-primary`; Trenner 1 `color-gray-3` | `shadow-dropdown` | Fokus bleibt im Editor; ↑/↓, Enter/Tab, Esc, Strg+Leertaste |
 | Gespeicherte Abfragen | `.panel-header` + Zeile + `.btn-xs` | Kopf 44, Zeile 36; Liste max. 180 | Zeile x 12; Aktionen x 8 | unter den Editor-Aktionen; Name↔Abfrage 8 | Name 12,8 / 700, max. 240 breit mit Auslassung; Abfrage 12,8 / 400, einzeilig, gekürzt | Kopf ja, Namen nein | Name `color-gray-1`, Abfrage `color-gray-2-text`; Hover `color-gray-3`; „Umbenennen" Ghost, „Löschen" Quiet-Danger | unten 1 `color-gray-3` | – | Zeile innen −2; Aktionen 2 / +2 |
-| Abfrage speichern / umbenennen / löschen | `.krt-modal` / `.krt-modal--danger` + `.btn-danger` | – | wie Modal | Feld→Hinweis 12; Fuß wie Modal | Feld 16 / 400, Platzhalter kursiv; Hinweis 14,4 / 400 | Titel ja | Hinweis „ersetzt" `color-gray-2-text`, Fehler `color-danger-text` | wie Modal | wie Modal | Fokus im Namensfeld; Enter führt aus, Esc schließt |
+| Abfrage speichern / umbenennen / löschen | `.modal` / `.modal--danger` + `.btn-danger` | – | wie Modal | Feld→Hinweis 12; Fuß wie Modal | Feld 16 / 400, Platzhalter kursiv; Hinweis 14,4 / 400 | Titel ja | Hinweis „ersetzt" `color-gray-2-text`, Fehler `color-danger-text` | wie Modal | wie Modal | Fokus im Namensfeld; Enter führt aus, Esc schließt |
 
 ## Entscheidungen
 
@@ -115,13 +115,12 @@ Schriftlizenz sind modal, mit flachem Scrim `rgba(0,0,0,0.8)`. „Extraktion lä
 weiter browsen und die Vorschau nutzen, das Archiv wird nur gelesen. Die drei
 Extraktionsaktionen und „Neu laden" sind gesperrt, bis die Extraktion endet.
 
-**D.4 Marke: ein neues P4K-Extractor-Zeichen plus Wortmarke, in Orange.** Das Zeichen gehört zur
-Basetool-Familie (Ring, Keil, Vierpunkt-Stern) und erzählt das Werkzeug: Der Keil liest durch den
-Ring (das Archiv), aus der Öffnung kommen Datenblöcke heraus. `basetool-extractor-logo` gehört
-dem SC-Extractor, `krt.webp` ist die Organisationsmarke; beides würde verwechselt. In der
-Kopfzeile: Zeichen 24 px plus „P4K-EXTRACTOR" Bold 700, 14,4 px, `color-primary`. Fenster- und
-Taskleisten-Icon: vereinfachtes Zeichen in Orange auf schwarzer Kachel, damit es auf heller und
-dunkler Taskleiste lesbar bleibt. Das Logo kommt nur in Orange, Weiß oder Schwarz vor.
+**D.4 Marke: Wortmarke in der Kopfzeile, das Zeichen als Fenster-Icon, in Orange.** Das Zeichen
+(Ring, Keil, Viereck) erzählt das Werkzeug: Der Keil liest durch den Ring (das Archiv), aus der
+Öffnung kommt ein Datenblock heraus. In der Kopfzeile steht nur die Wortmarke „P4KX" Bold 700,
+14,4 px, `color-primary`, ohne Zeichen. Fenster- und Taskleisten-Icon: vereinfachtes Zeichen in
+Orange auf schwarzer Kachel, damit es auf heller und dunkler Taskleiste lesbar bleibt. Das Logo
+kommt nur in Orange, Weiß oder Schwarz vor.
 
 **D.5 Fortschritt: Orange.** Fortschritt ist laufende Aktivität, wie Spinner und
 Lade-Indikator, die das DS orange zeichnet. Grün bedeutet im DS einen erreichten Zustand
@@ -189,7 +188,7 @@ normalen Extraktion; ein neuer Ordner trägt Channel und Build der gewählten Se
 **D.14 Texturen im Tab „Bild".** Wählt man den Header einer Textur (`.dds`, `.dds.a`), öffnet die
 Vorschau den Tab „Bild"; andere Einträge kehren zu „Text" zurück. Format, Größe, Mip-Anzahl und
 Cubemap-Seiten stehen als `.facts-bar` über dem Bild, wie die Faktenleiste des Vergleichs. Die
-Mip-Auswahl ist ein `.krt-segmented--sm` mit der längeren Seite jedes Mips als Daten („2048",
+Mip-Auswahl ist ein `.segmented--sm` mit der längeren Seite jedes Mips als Daten („2048",
 „1024" …): jede Stufe ist eindeutig, einen Klick entfernt und per Tastatur erreichbar. Gezeigt
 wird anfangs das größte Mip, das in die Vorschau passt, ein Texel je Gerätepixel ohne Skalierung;
 größere Mips scrollen. Mips, die größer sind, als die Vorschau zeigen kann (mehr als
@@ -311,7 +310,7 @@ Abfrage-Vervollständigung, Container als Ordner, Tonformat der Extraktion, 3D-A
 | Datenzeilen, Baum, Channels, Dropdown-Einträge 36 statt 44 px | Maus/Tastatur-Desktop, Dichte bei 1 Mio. Zeilen (D.1) |
 | Baum 12 statt 24 px je Ebene | zehn Ebenen in 300 px (D.2) |
 | Text unter 16 px in Regular 400 statt Light 300 | Lesbarkeit kleiner Schrift auf Schwarz |
-| Statusleiste 32 statt ~51 px (`.krt-footer` hat 16/32 Innenabstand) | eine Zeile Statusinfo, kein Web-Footer mit Links |
+| Statusleiste 32 statt ~51 px (`.footer` hat 16/32 Innenabstand) | eine Zeile Statusinfo, kein Web-Footer mit Links |
 | Kein `text-transform` | egui setzt Versalien beim Zeichnen; der Barrierefreiheits-Name bleibt normal geschrieben |
 | Scrim flach statt `backdrop-filter: blur` | egui kann nicht weichzeichnen |
 | Scrollbar-Griff volle Breite, keine Haarlinie an der Spur | egui-Scrollbar ohne Einzug; Haarlinie entfällt, weil sie eigene Zeichnung bräuchte |
@@ -320,7 +319,7 @@ Abfrage-Vervollständigung, Container als Ordner, Tonformat der Extraktion, 3D-A
 | Chevron als gezeichneter Pfad statt `▶` | Lato hat kein `▶`; egui bräuchte eine Fallback-Schrift |
 | Hex in festen Zellen statt Monospace | einzige Schrift Lato; die Zellen halten die Spalten, auch für A–F |
 | Zeilenvergleich in Lato statt Monospace, Tabs als vier Leerzeichen | einzige Schrift Lato; beide Seiten richten sich an den Zeilen aus, nicht an Spalten |
-| Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`krt-components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
+| Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
 | DataForge-Übersicht, Record-Suche und Feldänderungen des Vergleichs: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
 | Abfrageergebnis: Spalten 200 breit (min. 80), verschiebbar, letzte füllt; 500 Zeilen je Seite | egui legt Tabellen nicht nach Inhalt aus, die Zahl der `select`-Spalten ist offen; 200 ist die Breite, bei der Record-Pfade und Werte meist ohne Auslassung passen, 80 hält Kopf und Sortierpfeil lesbar; je Seite 500 Zeilen hält Sortieren und Blättern flüssig |
@@ -330,7 +329,7 @@ Abfrage-Vervollständigung, Container als Ordner, Tonformat der Extraktion, 3D-A
 | Gedrückt-Zustand ergänzt | DS definiert keinen; Werte stammen aus vorhandenen Tokens bzw. Hover-Werten |
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Abfrage-Vervollständigung an der Schreibmarke statt unter dem ganzen Feld | der Editor ist mehrzeilig, ein Name wird mitten im Text ergänzt (D.30) |
-| Vervollständigungs-Einträge 14,4 px (`fs-sm`) statt der von `.krt-combobox__option` geerbten 16 px | gleiche Schrift und Zeilenhöhe wie die Dropdown-Einträge (36 px, D.1), damit Name und Typ in eine Zeile passen (D.30) |
+| Vervollständigungs-Einträge 14,4 px (`fs-sm`) statt der von `.combobox__option` geerbten 16 px | gleiche Schrift und Zeilenhöhe wie die Dropdown-Einträge (36 px, D.1), damit Name und Typ in eine Zeile passen (D.30) |
 | Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |
 
 ## Texte

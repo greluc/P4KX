@@ -174,7 +174,7 @@ pub(crate) fn modal_title(title: &str, tone: Tone) -> egui::RichText {
     caps(title, TITLE_SIZE, Weight::Bold, TITLE_TRACKING).color(colour)
 }
 
-/// Returns a non-modal `.krt-modal` window titled `title`; its head is drawn by [`head`].
+/// Returns a non-modal `.modal` window titled `title`; its head is drawn by [`head`].
 pub(crate) fn window(title: &str, tone: Tone) -> Window<'static> {
     Window::new(title.to_owned())
         .title_bar(false)
@@ -240,7 +240,7 @@ pub(crate) fn foot_action(ui: &mut Ui, label: &str, kind: super::button::Kind) -
     .inner
 }
 
-/// Returns a `.krt-modal` on the flat scrim.
+/// Returns a `.modal` on the flat scrim.
 pub(crate) fn modal(id: Id, tone: Tone) -> Modal {
     Modal::new(id)
         .frame(modal_frame(tone))

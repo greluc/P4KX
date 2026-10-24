@@ -1,5 +1,5 @@
-//! The KRT look after the binding design system `krt-profit/design-system`: its tokens, Lato in
-//! three weights, the `radius-sm` corner and the desktop metrics of `docs/design/desktop-spec.md`.
+//! The P4KX look: its tokens, Lato in three weights, the `radius-sm` corner and the desktop
+//! metrics of `docs/design/desktop-spec.md`.
 
 pub mod categorical;
 pub mod desktop;
@@ -58,12 +58,11 @@ const LATO_REGULAR: &str = "Lato-Regular";
 const LATO_BOLD: &str = "Lato-Bold";
 const TOOLTIP_DELAY: f32 = 0.5;
 
-/// Sets the KRT fonts, style and brand mark on `ctx` and keeps it dark whatever the system theme.
+/// Sets the fonts and style on `ctx` and keeps it dark whatever the system theme.
 pub fn apply(ctx: &Context) {
     ctx.set_fonts(fonts());
     ctx.set_theme(Theme::Dark);
     ctx.set_style_of(Theme::Dark, style());
-    logo::load_mark(ctx);
 }
 
 /// Returns Lato Regular as the first font of the proportional and monospace families, Lato Bold
@@ -110,7 +109,7 @@ pub fn fonts() -> FontDefinitions {
     fonts
 }
 
-/// Returns the egui style of the KRT design system.
+/// Returns the egui style of the P4KX design.
 #[must_use]
 pub fn style() -> Style {
     let mut style = Style {

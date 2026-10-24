@@ -190,8 +190,8 @@ fn scrolled(ui: &Ui, strip: Rect, labels: &[TabLabel], current: usize) -> f32 {
     ui.data_mut(|data| data.insert_temp(id, (offset, current, strip.width())));
     offset
 }
-/// One item of a `.krt-segmented` group laid out once: its name in both weights and an optional
-/// `.krt-segmented__count`.
+/// One item of a `.segmented` group laid out once: its name in both weights and an optional
+/// `.segmented__count`.
 #[derive(Clone)]
 pub(crate) struct SegmentLabel {
     accessible: String,
@@ -213,7 +213,7 @@ impl SegmentLabel {
     }
 }
 
-/// Shows the items of a `.krt-segmented--sm` group with their data kept as written; `active` is
+/// Shows the items of a `.segmented--sm` group with their data kept as written; `active` is
 /// the pressed item. Returns the clicked index.
 pub(crate) fn segments<S: AsRef<str>>(
     ui: &mut Ui,
@@ -232,8 +232,8 @@ pub(crate) fn segments<S: AsRef<str>>(
     })
 }
 
-/// Shows the items of a `.krt-segmented--sm` group laid out already, each with its
-/// `.krt-segmented__count`; `active` is the pressed item. Returns the clicked index.
+/// Shows the items of a `.segmented--sm` group laid out already, each with its
+/// `.segmented__count`; `active` is the pressed item. Returns the clicked index.
 pub(crate) fn counted_segments(
     ui: &mut Ui,
     items: &[SegmentLabel],

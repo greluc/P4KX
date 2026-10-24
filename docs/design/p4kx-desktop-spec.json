@@ -1,6 +1,6 @@
 {
   "meta": {
-    "source": "krt-profit/design-system main 20aa9da (measured website palette, radius-sm)",
+    "source": "P4KX theme tokens (measured palette, radius-sm)",
     "unit": "px; colours, glows and fonts as token names from tokens.json",
     "rem": 16,
     "rowDensity": 36,
@@ -24,8 +24,7 @@
     "paddingX": 16,
     "background": "surface-bar",
     "borderBottom": {"width": 2, "color": "color-primary"},
-    "brandMarkSize": 24,
-    "brandGap": 10,
+    "wordmarkHeight": 24,
     "brandPaddingRight": 24,
     "wordmark": {"fontSize": 14.4, "fontWeight": "fw-bold", "letterSpacingEm": 0.05, "uppercase": true, "color": "color-primary"}
   },
@@ -44,7 +43,7 @@
     "focusRingOffset": -2
   },
   "dropdown": {
-    "dsClass": "krt-combobox__listbox",
+    "dsClass": "combobox__listbox",
     "background": "color-gray-4",
     "border": {"width": 1, "color": "color-primary"},
     "shadow": "shadow-dropdown",
@@ -54,7 +53,7 @@
     "submenuOffsetX": -4
   },
   "dropdownItem": {
-    "dsClass": "krt-combobox__option",
+    "dsClass": "combobox__option",
     "height": 36,
     "paddingX": 12,
     "gap": 12,
@@ -190,7 +189,7 @@
     "labelStyle": "sidebarSectionTitle"
   },
   "quickFilter": {
-    "dsClass": "krt-segmented krt-segmented--sm / krt-segmented__item[aria-pressed]",
+    "dsClass": "segmented segmented--sm / segmented__item[aria-pressed]",
     "height": 34,
     "paddingX": 12,
     "fontSize": 12.8,
@@ -417,7 +416,7 @@
     "keyboard": "Tab focuses the Text and Hex lines; arrows, Page Up, Page Down, Home and End scroll"
   },
   "statusBar": {
-    "dsClass": "krt-footer (desktop density)",
+    "dsClass": "footer (desktop density)",
     "height": 32,
     "paddingX": 16,
     "background": "surface-bar",
@@ -470,7 +469,7 @@
     "action": "buttonCompact + buttonOutline"
   },
   "modal": {
-    "dsClass": "krt-modal",
+    "dsClass": "modal",
     "width": 440,
     "wideWidth": 600,
     "background": "color-bg-dark-gray",
@@ -499,7 +498,7 @@
     "footOrder": "secondary, then CTA"
   },
   "modalDanger": {
-    "dsClass": "krt-modal krt-modal--danger",
+    "dsClass": "modal modal--danger",
     "borderTop": {"width": 3, "color": "color-danger"},
     "cornerBracketColor": "color-danger",
     "glow": "glow-danger-lg",
@@ -541,7 +540,7 @@
     "labelTabular": true
   },
   "spinner": {
-    "dsClass": "krt-spinner",
+    "dsClass": "spinner",
     "size": 20,
     "sizeInline": 14,
     "ringWidth": 2,
@@ -648,7 +647,7 @@
     "footer": "listFooter with the number of tags, or the number shown of all tags while searching; a warningAlert above the header when the tree differs from what the TagDatabase lists"
   },
   "archivePicker": {
-    "dsClass": "select + krt-combobox__listbox",
+    "dsClass": "select + combobox__listbox",
     "height": 44,
     "paddingX": 12,
     "paddingRight": 32,
@@ -668,7 +667,7 @@
     "chevron": {"size": 12, "strokeWidth": 3, "color": "color-primary", "insetRight": 10.4},
     "label": "page-head__eyebrow, 11.2 / fw-bold / 0.15 em, color-gray-2-text",
     "list": "dropdown + dropdownItem: Channels with Build, Recent Archives, then Choose file",
-    "notice": "krt-combobox__notice: color-gray-2-text, italic"
+    "notice": "combobox__notice: color-gray-2-text, italic"
   },
   "comparisonProgress": {
     "dsClass": "attendance-meter",
@@ -858,7 +857,7 @@
   },
   "queryCompletion": {
     "decision": "D.30",
-    "dsClass": "krt-combobox__listbox / krt-combobox__option / krt-combobox__notice",
+    "dsClass": "combobox__listbox / combobox__option / combobox__notice",
     "anchor": "below the text cursor of the query editor, above it when there is no room",
     "border": {"width": 1, "color": "color-primary", "sides": "all four, as it hangs on no field"},
     "maxHeight": 288,
@@ -918,7 +917,7 @@
     "messages": "previewPanel body: binary and too large color-gray-1, failure color-danger-text"
   },
   "imagePreview": {
-    "dsClass": "previewPanel + facts-bar + krt-segmented krt-segmented--sm",
+    "dsClass": "previewPanel + facts-bar + segmented segmented--sm",
     "paddingX": 16,
     "paddingY": 8,
     "labelGap": 12,

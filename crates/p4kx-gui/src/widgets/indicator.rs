@@ -1,22 +1,20 @@
 use std::f32::consts::TAU;
 
-use egui::{
-    Color32, CornerRadius, Image, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2,
-};
+use egui::{Color32, CornerRadius, Rect, Sense, Stroke, StrokeKind, Ui, UiBuilder, pos2, vec2};
 
 use crate::theme::desktop::{
-    BRAND_GAP, BRAND_MARK, PROGRESS_HEIGHT, ROW_HEIGHT, SPINNER_INLINE, SPINNER_PERIOD,
-    SPINNER_RING, SPINNER_TRACK, WORDMARK_SIZE,
+    BRAND_HEIGHT, PROGRESS_HEIGHT, ROW_HEIGHT, SPINNER_INLINE, SPINNER_PERIOD, SPINNER_RING,
+    SPINNER_TRACK, WORDMARK_SIZE,
 };
+use crate::theme::palette;
 use crate::theme::tokens::{SPACE_2, TRACKING_DISPLAY, Weight};
-use crate::theme::{logo, palette};
 
 use super::text::{caps, line, paint_left};
 
 const ARC_SEGMENTS: u8 = 12;
 const ARC_SPAN: f32 = TAU / 4.0;
 
-/// Shows a `.krt-spinner` of `size`: a faint orange ring with an orange quarter turning.
+/// Shows a `.spinner` of `size`: a faint orange ring with an orange quarter turning.
 pub(crate) fn spinner(ui: &mut Ui, size: f32) {
     let (rect, _) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
     if !ui.is_rect_visible(rect) {
@@ -90,19 +88,15 @@ pub(crate) fn track(ui: &Ui, rect: Rect, fraction: f32, fill: Color32) {
     painter.rect_filled(done.shrink(1.0), CornerRadius::ZERO, fill);
 }
 
-/// Shows the brand: the glyph and the upper-case `name` in orange.
+/// Shows the upper-case `name` in orange.
 pub(crate) fn brand(ui: &mut Ui, name: &str) {
-    if let Some(mark) = logo::mark(ui.ctx()) {
-        ui.add(Image::new(&mark).fit_to_exact_size(vec2(BRAND_MARK, BRAND_MARK)));
-        ui.add_space(BRAND_GAP - ui.spacing().item_spacing.x);
-    }
     let galley = line(
         ui,
         caps(name, WORDMARK_SIZE, Weight::Bold, TRACKING_DISPLAY),
         f32::INFINITY,
     );
     let (rect, response) =
-        ui.allocate_exact_size(vec2(galley.size().x, BRAND_MARK), Sense::hover());
+        ui.allocate_exact_size(vec2(galley.size().x, BRAND_HEIGHT), Sense::hover());
     response.widget_info(|| egui::WidgetInfo::labeled(egui::Role::Label, true, name));
     paint_left(ui, rect, galley, palette::PRIMARY);
 }

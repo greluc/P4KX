@@ -3,7 +3,7 @@
 StarBreaker (diogotr7, MIT) already reads p4k, CryXml and DataForge in Rust, but it is not
 published on crates.io, its API follows its own GUI, and every DataForge version bump in a patch
 would leave us waiting on its release cadence. We write our own core crate for the Archive, CryXml
-and DataForge, and use StarBreaker, unp4k (MIT) and the observed behaviour of the KRT P4K Reader as
+and DataForge, and use StarBreaker, unp4k (MIT) and the observed behaviour of the owner's earlier reference tool as
 references; code ported from the MIT projects keeps their copyright notice.
 
 ## Considered Options

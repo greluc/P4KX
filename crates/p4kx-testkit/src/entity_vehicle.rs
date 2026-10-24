@@ -3,7 +3,11 @@
 
 use crate::{TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
-pub(crate) fn geometry_component(path: &str, material: Option<&str>) -> TestValue {
+pub(crate) fn geometry_component(
+    path: &str,
+    material: Option<&str>,
+    palette: Option<&(u128, String)>,
+) -> TestValue {
     let resource = |type_name: &str, path: &str| {
         TestValue::Struct(TestInstance::new(type_name).value("path", TestValue::text(path)))
     };
@@ -13,6 +17,16 @@ pub(crate) fn geometry_component(path: &str, material: Option<&str>) -> TestValu
         "Material",
         resource("GlobalResourceMaterial", material.unwrap_or_default()),
     );
+    if let Some((guid, child)) = palette {
+        data = data.value(
+            "Palette",
+            TestValue::Struct(
+                TestInstance::new("TintPaletteRef")
+                    .value("ChildPath", TestValue::text(child.clone()))
+                    .value("RootRecord", TestValue::Reference(*guid)),
+            ),
+        );
+    }
     let node = TestInstance::new("SGeometryNodeParams").value("Geometry", TestValue::Struct(data));
     TestValue::Struct(
         TestInstance::new("SGeometryResourceParams").value("Geometry", TestValue::Struct(node)),

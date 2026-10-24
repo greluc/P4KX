@@ -161,8 +161,12 @@ Early development (milestone M1). Available today:
   that of every Entity of its default Loadout, each placed at its port as a node named
   `<port>/<entity>` below the node of the Entity it is attached to. `--lod <n>` applies to every
   model and `--materials colours` writes plain colours, with the material library an Entity's
-  Record names replacing the one its model names. Parts whose Entity or geometry cannot be
-  resolved are skipped and listed; with `--json` the report has the shape described in
+  Record names replacing the one its model names; `--materials textures` also embeds the
+  textures of every part as PNG, each image once, at the mip `--texture-mip <n>` picks for the
+  whole Assembly. The tint palette of each part (its Entity's, else the default of its material
+  library) gives the colours of the materials that take one, so liveries look right. Parts
+  whose Entity or geometry cannot be resolved are skipped and listed, and so are palettes and
+  textures that cannot be resolved; with `--json` the report has the shape described in
   [docs/cli-json.md](docs/cli-json.md). A docked vehicle such as a Merlin or an Archimedes is
   placed as one part, without the parts of its own Loadout.
 - `p4kx wwise resolve <archive> <trigger>` lists every sound variant of an audio trigger with

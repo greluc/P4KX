@@ -43,6 +43,7 @@ mod mtl_load;
 mod mtl_parse;
 mod mtl_xml;
 mod nmc;
+mod palette;
 mod reader;
 mod skeleton;
 mod skin;
@@ -64,4 +65,5 @@ pub use mtl::{
     TextureSlot,
 };
 pub use mtl_error::MaterialError;
+pub use palette::{PaletteSlot, TintEntry, TintPalette, srgb8_to_linear};
 pub use transform::Transform;

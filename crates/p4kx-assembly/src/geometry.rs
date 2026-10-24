@@ -1,16 +1,40 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_dataforge::StructValue;
+use p4kx_dataforge::{Guid, StructValue, Value, ValueError};
 
 use crate::read::{struct_field, text};
 
-/// The geometry an Entity Record names (`SGeometryResourceParams`): the model file and the
-/// material library that replaces the library the model names itself.
+/// The tint palette an Entity's geometry names (`Palette.TintPaletteRef`): the `TintPaletteTree`
+/// Record and the child of its tree.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PaletteRef {
+    pub(crate) guid: Guid,
+    pub(crate) child_path: String,
+}
+
+impl PaletteRef {
+    /// Returns the GUID of the `TintPaletteTree` Record.
+    #[must_use]
+    pub const fn guid(&self) -> Guid {
+        self.guid
+    }
+
+    /// Returns the path of the child palette below the Record's root, or an empty string for the
+    /// root.
+    #[must_use]
+    pub fn child_path(&self) -> &str {
+        &self.child_path
+    }
+}
+
+/// The geometry an Entity Record names (`SGeometryResourceParams`): the model file, the material
+/// library that replaces the library the model names itself and the tint palette.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Geometry {
     pub(crate) path: String,
     pub(crate) material: Option<String>,
+    pub(crate) palette: Option<PaletteRef>,
 }
 
 impl Geometry {
@@ -28,6 +52,12 @@ impl Geometry {
         self.material.as_deref()
     }
 
+    /// Returns the tint palette the Entity chooses, or `None` when the Record names none.
+    #[must_use]
+    pub const fn palette(&self) -> Option<&PaletteRef> {
+        self.palette.as_ref()
+    }
+
     /// Reads the main geometry of a `SGeometryResourceParams` component.
     pub(crate) fn read(component: &StructValue<'_>) -> Option<Self> {
         let node = struct_field(component, "Geometry")?;
@@ -42,6 +72,20 @@ impl Geometry {
         Some(Self {
             path: path.to_owned(),
             material: material.map(str::to_owned),
+            palette: read_palette(data),
         })
     }
+}
+
+fn read_palette(data: &StructValue<'_>) -> Option<PaletteRef> {
+    let reference = struct_field(data, "Palette")?;
+    let guid = match reference.field("RootRecord")? {
+        Value::Reference(link) => link.guid(),
+        Value::Error(ValueError::DanglingReference { guid }) => *guid,
+        _ => return None,
+    };
+    Some(PaletteRef {
+        guid,
+        child_path: text(reference, "ChildPath").trim().to_owned(),
+    })
 }

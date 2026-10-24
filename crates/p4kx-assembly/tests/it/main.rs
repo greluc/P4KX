@@ -7,6 +7,7 @@ mod assembly_build;
 mod assembly_changes;
 mod assembly_glb;
 mod assembly_limits;
+mod assembly_palettes;
 mod assembly_support;
 mod audio_index;
 mod audio_limits;

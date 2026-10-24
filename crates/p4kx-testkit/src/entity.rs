@@ -24,6 +24,7 @@ pub struct TestEntity {
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
     geometry: Option<(String, Option<String>)>,
+    palette: Option<(u128, String)>,
     vehicle: Option<(String, String)>,
     landing_system: Option<u128>,
     attach_type: Option<String>,
@@ -48,6 +49,7 @@ impl TestEntity {
             triggers: Vec::new(),
             sound_effects: Vec::new(),
             geometry: None,
+            palette: None,
             vehicle: None,
             landing_system: None,
             attach_type: None,
@@ -111,6 +113,15 @@ impl TestEntity {
     #[must_use]
     pub fn geometry(mut self, path: impl Into<String>, material: Option<&str>) -> Self {
         self.geometry = Some((path.into(), material.map(str::to_owned)));
+        self
+    }
+
+    /// Makes the geometry name the tint palette Record `guid` (see
+    /// [`tint_palette_record`](crate::tint_palette_record)) and its child `child` (empty for the
+    /// root); needs [`Self::geometry`].
+    #[must_use]
+    pub fn palette(mut self, guid: u128, child: impl Into<String>) -> Self {
+        self.palette = Some((guid, child.into()));
         self
     }
 
@@ -187,7 +198,11 @@ impl TestEntity {
             components.push(self.audio_component());
         }
         if let Some((path, material)) = &self.geometry {
-            components.push(geometry_component(path, material.as_deref()));
+            components.push(geometry_component(
+                path,
+                material.as_deref(),
+                self.palette.as_ref(),
+            ));
         }
         components.extend(self.vehicle.as_ref().map(|(definition, modification)| {
             vehicle_component(definition, modification, self.landing_system)

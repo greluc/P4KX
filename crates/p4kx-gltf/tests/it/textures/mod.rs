@@ -6,4 +6,4 @@
 mod mapping;
 mod metals;
 mod reports;
-mod support;
+pub(crate) mod support;

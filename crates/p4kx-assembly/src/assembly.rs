@@ -5,8 +5,11 @@ use std::io::Write;
 use std::sync::Arc;
 
 use p4kx_dataforge::Guid;
-use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, Scene, SceneNode, ScenePart, write_scene_glb};
-use p4kx_model::{MaterialStatus, Model, Transform};
+use p4kx_gltf::{
+    GlbOptions, GlbSummary, GltfError, Scene, SceneNode, ScenePart, TextureLoader, write_scene_glb,
+    write_scene_glb_with,
+};
+use p4kx_model::{MaterialStatus, Model, TintPalette, Transform};
 
 use crate::Issue;
 
@@ -104,6 +107,7 @@ pub struct Part {
     pub(crate) geometry: Option<String>,
     pub(crate) model: Option<Arc<Model>>,
     pub(crate) materials: Arc<MaterialStatus>,
+    pub(crate) palette: Option<Arc<TintPalette>>,
 }
 
 impl Part {
@@ -178,6 +182,14 @@ impl Part {
     pub fn materials(&self) -> &MaterialStatus {
         &self.materials
     }
+
+    /// Returns the tint palette the part's materials that take one are drawn with: the one its
+    /// Entity chooses, else the default of its material library; `None` when the Assembly was
+    /// built without palettes or none could be resolved.
+    #[must_use]
+    pub fn palette(&self) -> Option<&TintPalette> {
+        self.palette.as_deref()
+    }
 }
 
 /// An Entity with its Loadout as a scene graph of placed models: the root Entity's geometry and
@@ -238,6 +250,8 @@ impl Assembly {
     /// Writes the Assembly as a GLB file to `out`: a node per part named `<port>/<entity>` below
     /// the node of its parent part, placed by its transform, with the nodes of its model below it;
     /// `out` should be buffered. `options.lod` should be the level the Assembly was built at.
+    /// The materials are plain colours, drawn with the palette of each part; see
+    /// [`Self::write_glb_with`] for textures.
     ///
     /// # Errors
     ///
@@ -248,14 +262,43 @@ impl Assembly {
         options: &GlbOptions,
         out: &mut impl Write,
     ) -> Result<GlbSummary, GltfError> {
+        write_scene_glb(&self.scene()?, options, out)
+    }
+
+    /// Writes the Assembly as a GLB file to `out` like [`Self::write_glb`], taking the textures
+    /// of [`MaterialMode::Textures`](p4kx_gltf::MaterialMode::Textures) from `textures`.
+    ///
+    /// The mip level of `options` applies to every texture. An image several parts use is
+    /// embedded once, and a part with a palette shares the images of its materials with the
+    /// parts of other palettes. A texture that cannot be loaded leaves the material's plain
+    /// colour and is listed in [`GlbSummary::texture_fallbacks`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::write_glb`].
+    pub fn write_glb_with(
+        &self,
+        options: &GlbOptions,
+        textures: &dyn TextureLoader,
+        out: &mut impl Write,
+    ) -> Result<GlbSummary, GltfError> {
+        write_scene_glb_with(&self.scene()?, options, textures, out)
+    }
+
+    fn scene(&self) -> Result<Scene<'_>, GltfError> {
         let mut scene = Scene::new();
         for part in &self.parts {
             let mut node = SceneNode::new(part.name.clone(), part.parent, part.local);
             if let Some(model) = &part.model {
-                node = node.with_part(ScenePart::new(model, &part.materials));
+                let drawn = ScenePart::new(model, &part.materials);
+                node = node.with_part(
+                    part.palette
+                        .as_deref()
+                        .map_or(drawn, |palette| drawn.with_palette(palette)),
+                );
             }
             scene.push(node)?;
         }
-        write_scene_glb(&scene, options, out)
+        Ok(scene)
     }
 }

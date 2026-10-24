@@ -255,11 +255,9 @@ pub(crate) fn write_instances(
             .then(|| inverse_binds(bones))
     });
     let mut layout = plan_layout(instances, options, binds.as_deref());
-    let images = match (options.materials, single) {
-        (MaterialMode::Textures, Some(instance)) => {
-            texture_set(&layout, instance, options.texture_mip, textures)
-        }
-        _ => TextureSet::default(),
+    let images = match options.materials {
+        MaterialMode::Textures => texture_set(&layout, instances, options.texture_mip, textures),
+        MaterialMode::Colours => TextureSet::default(),
     };
     let animation_plans = single.map_or_else(Vec::new, |instance| {
         single_animation_plans(&mut layout, instance, animations)

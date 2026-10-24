@@ -69,6 +69,13 @@ pub enum IssueKind {
         /// What is wrong.
         reason: String,
     },
+    /// A tint palette the Entity or its material library names cannot be resolved, so the part
+    /// falls back to the next palette or to the colours of its library.
+    #[error("{reason}")]
+    Palette {
+        /// What is wrong.
+        reason: String,
+    },
     /// The port's helper is no node of the parent's model, so the part sits at the parent's
     /// origin.
     #[error("the helper {helper} is no node of the parent's model")]
@@ -110,6 +117,7 @@ impl IssueKind {
             Self::GeometryMissing { .. } => "geometry_missing",
             Self::GeometryUnreadable { .. } => "geometry_unreadable",
             Self::MaterialLibrary { .. } => "material_library",
+            Self::Palette { .. } => "palette",
             Self::HelperNotFound { .. } => "helper_not_found",
             Self::TooManyParts { .. } => "too_many_parts",
             Self::TooManyVertices { .. } => "too_many_vertices",

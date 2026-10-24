@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Trigger resolution across several soundbanks: WEM lookup order, one event held by several
 //! soundbanks and a soundbank that cannot be read again.
 

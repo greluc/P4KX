@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The RIFF chunks, format tags and padding of the WEMs of a real Archive.
 
 use std::collections::BTreeMap;

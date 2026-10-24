@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Runs the same checks over a synthetic DataForge in the layouts of versions 6 and 8.
 
 use std::error::Error;

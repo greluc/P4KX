@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The synthetic DataForge the condition tests run over, and helpers to list the selected Records.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Quirks that leave the rest of a soundbank readable are worked around and reported as warnings.
 
 use p4kx_audio::{BankWarning, HircKind, HircValue, Soundbank};

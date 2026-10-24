@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Opus channel layouts beyond the Vorbis surround orders, and the `OpusHead` output gain.
 
 use std::io::Cursor;

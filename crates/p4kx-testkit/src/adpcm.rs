@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Encoders for the Wwise ADPCM codecs: every sub-block starts at the step index that encodes it
 //! best, and each nibble is the one whose decoded sample lies closest to the input.
 

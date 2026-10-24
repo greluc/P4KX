@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Writing PCM WEMs as WAV, and the typed error for codecs without a decoder.
 
 use p4kx_audio::{AudioError, Codec, Wem};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Streamed sounds located as loose WEM Entries, and localised sounds resolved for a chosen
 //! language with a fallback language.
 

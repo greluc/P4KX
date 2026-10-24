@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reads and writes the CHF character files of Star Citizen: the fixed-size container with its
 //! magic, CRC-32C and zstd-compressed body, the body with its inner versions, body type, face DNA,
 //! item port tree and material choices, and a JSON form that converts back byte-exactly.

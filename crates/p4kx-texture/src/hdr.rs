@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::bc6h::{self, HalfTexels};
 use crate::image::{ImageSize, decode_blocks};
 use crate::pixels::half_to_f32;

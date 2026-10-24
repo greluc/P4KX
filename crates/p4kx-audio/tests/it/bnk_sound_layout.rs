@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The layout of a Sound object by bank version: no `cacheID` in version 150, one from version 151.
 
 use p4kx_audio::{HircValue, MediaStorage, SoundSource, Soundbank};

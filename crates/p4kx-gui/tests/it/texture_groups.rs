@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Split textures grouped in the Entry table: one row per texture, parts reachable, and checks,
 //! search and Extraction that cover all parts.
 

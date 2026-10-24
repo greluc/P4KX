@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The tint of the native Windows frame through the Desktop Window Manager.
 //!
 //! This is the only module of the workspace that contains unsafe code.

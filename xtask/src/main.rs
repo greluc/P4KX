@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Repository checks run by CI: `cargo xtask layers`, `cargo xtask lints`,
-//! `cargo xtask file-size`, `cargo xtask changelog`, `cargo xtask keys`, or all of them with
-//! `cargo xtask`.
+//! `cargo xtask file-size`, `cargo xtask changelog`, `cargo xtask keys`, `cargo xtask spdx`, or
+//! all of them with `cargo xtask`.
 //!
 //! `cargo xtask changelog` also checks the fragments in `changelog.d/`; `cargo xtask changelog
 //! --release <version> [--date <YYYY-MM-DD>]` folds them and `## [Unreleased]` into the section of
@@ -21,6 +24,7 @@ mod layers;
 mod lints;
 mod metadata;
 mod notices;
+mod spdx;
 
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -52,8 +56,10 @@ fn run() -> Result<Vec<String>> {
             violations.extend(file_size::check(&root)?);
             violations.extend(changelog::check(&root)?);
             violations.extend(keys::check(&root)?);
+            violations.extend(spdx::check(&root)?);
             Ok(violations)
         }
+        Some("spdx") => spdx::check(&root),
         Some("layers") => layers::check(&root),
         Some("lints") => lints::check(&root),
         Some("file-size") => file_size::check(&root),
@@ -98,7 +104,7 @@ fn run() -> Result<Vec<String>> {
             Ok(Vec::new())
         }
         Some(other) => bail!(
-            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys`, `notices` or `release-notes`"
+            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys`, `spdx`, `notices` or `release-notes`"
         ),
     }
 }

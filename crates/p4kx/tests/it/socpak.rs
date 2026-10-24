@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx socpak list|extract` end to end, over a synthetic Archive with nested socpak containers.
 
 use std::error::Error;

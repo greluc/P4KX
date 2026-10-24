@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::time::Duration;
 
 /// Checks that the measured frame times of a test stay short without failing on one stall.

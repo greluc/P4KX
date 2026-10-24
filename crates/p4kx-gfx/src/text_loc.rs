@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 const PARAMETER_SEPARATOR: &str = ",P=";
 const PLACEHOLDERS: [&str; 5] = ["%ls", "%s", "%S", "%d", "%i"];
 const MAX_PARAMETERS: usize = 16;

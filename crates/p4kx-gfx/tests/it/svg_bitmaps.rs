@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! SVG output of bitmaps and masks: embedded PNG data, patterns, clips and nested masks.
 
 use std::io::Cursor;

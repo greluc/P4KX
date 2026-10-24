@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Audio tab of the preview for a soundbank over a synthetic Archive with BNK Entries, driven
 //! headless through a fake audio output.
 

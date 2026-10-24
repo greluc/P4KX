@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Record preview over a synthetic DataForge, driven without drawing: fields, error values,
 //! following References, back and forward, and the one DataForge cache of the Archive.
 

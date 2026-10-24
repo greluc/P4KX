@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::io::{self, Write};
 
 /// A writer that fails once more than a limit of bytes would pass through it.

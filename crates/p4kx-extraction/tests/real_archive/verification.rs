@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The M2 verification over a real Archive: plausible DataForge counts, the open unp4k cases and
 //! the Record files against the Entries of the Archive.
 

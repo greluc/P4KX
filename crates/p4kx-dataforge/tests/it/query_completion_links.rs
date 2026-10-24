@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Completion after `->` offers the fields of the struct a Reference or weak pointer declares.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Checking Entry checksums during an Extraction and in a verification run.
 
 use std::error::Error;

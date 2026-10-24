@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Query tab driven headless: running off the UI thread, the result table, sorting,
 //! paging, errors with their place, cancelling and reading DataForge once.
 

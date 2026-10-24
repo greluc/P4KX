@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::{HEADER_COMMENT, HEADER_IDENT, VorbisError};
 use crate::loops::LOOP_COMMENTS;
 use crate::{ByteOrder, Loop};

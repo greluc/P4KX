@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Comparison tab's state over a pair of synthetic Archives, without drawing.
 
 use crate::comparing;

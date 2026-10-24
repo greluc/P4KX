@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Merging a split DDS header with its mip parts through a caller-supplied sibling reader.
 
 use std::collections::BTreeMap;

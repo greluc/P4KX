@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Localisation of Star Citizen: the `global.ini` file of a language and the resolution of the
 //! localisation keys DataForge Records hold, e.g. `@manufacturer_NameACAS`.
 //!

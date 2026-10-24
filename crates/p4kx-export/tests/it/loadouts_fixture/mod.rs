@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic Archive with ships, a turret with ports, a docked vehicle, a leftover item and
 //! vehicle implementations, for the loadouts of the catalog.
 

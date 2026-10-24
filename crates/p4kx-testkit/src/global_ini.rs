@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// Builds a `global.ini` localisation file as the game stores it: a UTF-8 byte order mark, then
 /// one `key=value` line per text, each ending in CRLF.
 #[derive(Debug, Clone, Default)]

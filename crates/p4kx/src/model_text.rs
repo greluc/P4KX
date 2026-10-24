@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::borrow::Cow;
 
 /// Returns `text` made safe to print on a terminal: control characters, line and paragraph

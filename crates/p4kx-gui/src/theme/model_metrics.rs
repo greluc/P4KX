@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The metrics of the 3D view of the model preview, taken from the `modelPreview` entry of
 //! `docs/design/p4kx-desktop-spec.json`.
 

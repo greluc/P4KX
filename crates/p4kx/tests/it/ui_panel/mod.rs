@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The synthetic UI panel the `p4kx ui render` tests render: shapes with gradient, bitmap and
 //! solid fills and strokes, a rotated and tinted sprite, a mask and a button the renderer skips.
 

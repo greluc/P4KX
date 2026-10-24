@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The key spellings of the `global.ini` files of a real Archive: `@blank_space`, `,P` pairs.
 
 use std::collections::BTreeMap;

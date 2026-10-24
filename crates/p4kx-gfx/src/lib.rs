@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reads the GFx and SWF user-interface movies of Star Citizen Archives: the file and movie
 //! header with zlib or LZMA compression, the tag stream with unknown tags kept, and the shapes,
 //! morph shapes, bitmaps (embedded, GFx external and sub-images), fonts and sprites a movie

@@ -125,6 +125,10 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 - **No comments in code** besides the language's documentation comments (Rust: `///` and `//!`),
   short and without history. Lint suppressions use `#[expect(lint, reason = "…")]`. The reasoning
   goes into the commit message and the PR body.
+- **Every `.rs` file starts with the SPDX header**, two lines and a blank line, before any `//!`
+  docs: `// SPDX-License-Identifier: MIT OR Apache-2.0` and `// SPDX-FileCopyrightText: 2026 the
+  P4KX contributors`. It is an allowed licence header, not a code comment under the rule above;
+  `cargo xtask spdx` (part of plain `cargo xtask`) fails on a tracked file without it.
 - A user-visible change adds a fragment `changelog.d/<issue>.md` (form in
   `changelog.d/README.md`, ADR-0035) instead of editing `CHANGELOG.md`; `cargo xtask changelog
   --release <version>` assembles the fragments at the Release.

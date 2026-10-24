@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{DataForgeBuilder, TestEntity, TestLoadout, TestLoadoutEntry, TestPort, entity_schema};
 
 /// The GUID of the sample ship [`sample_ship`] holds.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reads the DDS textures of Star Citizen Archives, which store a texture as a header Entry
 //! holding the DDS header and the smallest mips plus one sibling Entry `.dds.N` per larger mip,
 //! `.dds.1` holding the smallest of them; a cubemap's part holds that mip of all six faces. An

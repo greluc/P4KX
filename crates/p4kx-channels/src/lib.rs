@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Finds the installed Channels of Star Citizen: in the default Library folder, in the Library
 //! folders the RSI Launcher log names, and in manually added folders and Archives.
 

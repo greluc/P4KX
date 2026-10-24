@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Info tab, the Export as GLB setup and its summary drawn by wgpu, rendered headless by
 //! `egui_kittest`.
 //!

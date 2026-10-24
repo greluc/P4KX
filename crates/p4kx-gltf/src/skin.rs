@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_model::{Bone, BoneTransform, Influences, MAX_INFLUENCES};
 
 use crate::axes::{Trs, to_y_up};

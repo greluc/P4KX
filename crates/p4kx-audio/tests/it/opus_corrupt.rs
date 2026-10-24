@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Corrupt Opus WEMs give typed errors and never panic.
 
 use p4kx_audio::{AudioError, OpusError, Wem};

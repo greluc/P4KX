@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The combined Record export and the DataForge Conversion over the live DataForge.
 
 use std::collections::HashSet;

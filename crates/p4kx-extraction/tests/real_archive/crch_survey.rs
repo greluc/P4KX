@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Survey of the `CrCh` chunk files of a real Archive, read without the Archive key: Entries that
 //! are encrypted are counted and left out. Runs with `--ignored` when `P4KX_DATA_P4K` names an
 //! Archive; the table is printed with `--nocapture`.

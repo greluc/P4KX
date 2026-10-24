@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A selected Record that cannot be read is left out and reported; the catalog is still built.
 
 use std::error::Error;

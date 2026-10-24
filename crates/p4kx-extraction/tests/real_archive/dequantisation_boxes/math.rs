@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reading of mesh chunk fields and the vector arithmetic of the box survey.
 
 pub(crate) const SNORM16: f32 = 32767.0;

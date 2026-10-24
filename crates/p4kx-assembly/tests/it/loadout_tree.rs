@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Loadout tree of the synthetic sample ship: ports, attached Entities, sources, port
 //! definitions and the ports that cannot be resolved.
 

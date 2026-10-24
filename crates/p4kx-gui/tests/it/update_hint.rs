@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The optional check for a newer Release and the hint it leaves in the status bar.
 
 use std::error::Error;

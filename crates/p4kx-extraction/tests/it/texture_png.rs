@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding split DDS textures and exporting a mip as PNG.
 
 use std::error::Error;

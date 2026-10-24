@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Corrupt movies never panic: every byte of a movie with every kind of definition and a first
 //! frame to render is flipped, and the movie is cut at every length.
 

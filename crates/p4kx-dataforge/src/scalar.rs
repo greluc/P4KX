@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{DataForge, DataType, Guid, Value, ValueError};
 
 /// Reads a scalar of `data_type` from its stored bytes, or returns `None` for a data type that

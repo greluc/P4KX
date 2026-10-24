@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Random, sequence, switch and blend containers of the `HIRC` section, decoded to their children.
 
 use p4kx_audio::{BankError, ContainerKind, HircKind, HircValue, SectionId, Soundbank};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Basetool catalog entry of the Export menu and its windows driven headless through
 //! `egui_kittest`.
 

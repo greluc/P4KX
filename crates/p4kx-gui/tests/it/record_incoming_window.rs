@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The "Referenced by" tab of the preview in the window, driven headless over a synthetic
 //! DataForge: the list, following a line, a Record nobody refers to and German.
 

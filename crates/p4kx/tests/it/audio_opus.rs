@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx audio info|ogg|wav` and `p4kx bnk extract --format ogg` for Opus WEMs end to end.
 
 use std::error::Error;

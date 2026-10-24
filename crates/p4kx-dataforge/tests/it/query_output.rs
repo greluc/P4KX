@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Writing Query results as CSV and JSON: the header, quoting, escaping and the typed values.
 
 use std::error::Error;

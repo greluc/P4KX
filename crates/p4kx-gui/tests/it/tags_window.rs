@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Tags tab in the window, driven headless over a synthetic Archive with a tag tree.
 
 use crate::tagging;

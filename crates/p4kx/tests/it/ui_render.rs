@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx ui render` end to end: rendered PNGs compared with reference images within a
 //! tolerance, the size and background options, the report of what was left out, and bad
 //! arguments.

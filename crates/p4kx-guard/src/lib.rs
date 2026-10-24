@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Keeps P4KX read-only towards the game: writes into a Star Citizen installation are
 //! refused, and a running game is noticed from the process list alone.
 

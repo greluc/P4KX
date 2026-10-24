@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The metrics of the tooltip, taken from the `tooltip` entry of
 //! `docs/design/p4kx-desktop-spec.json`; they are re-exported by [`super::desktop`].
 

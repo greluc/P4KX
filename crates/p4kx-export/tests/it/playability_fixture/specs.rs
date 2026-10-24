@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The ships and items of the playability fixture.
 
 pub(super) const CREWED_MANIFEST: u128 = 0x1100_0000_0000_4000_8000_0000_0000_0001;

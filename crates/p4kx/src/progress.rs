@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::io::{self, IsTerminal, Write};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};

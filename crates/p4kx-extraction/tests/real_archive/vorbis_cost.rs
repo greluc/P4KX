@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The cost of validating a whole Wwise Vorbis stream instead of its first packets (ADR-0011):
 //! the time to rebuild an Ogg against the time to decode all of it, and whether any rebuilt stream
 //! fails after its first packets.

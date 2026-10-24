@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Skeletons and bone weights of the skins, characters and animated models of a real Archive;
 //! runs with `--ignored` when `P4KX_DATA_P4K` names one. No entry involved is encrypted, so no
 //! Archive key is needed. The tables are printed (`--nocapture`).

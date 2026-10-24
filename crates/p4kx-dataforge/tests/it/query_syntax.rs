@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Parsing and printing Queries: the canonical form is stable, and no input makes the parser or
 //! the error marker panic.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::bytes::put_u32;
 use crate::model::{CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, TestVertex};
 use crate::{TestChunkFile, TestModel};

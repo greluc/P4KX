@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// Which Entries of one Archive or container are checked, indexed by id, and how many.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Checks {

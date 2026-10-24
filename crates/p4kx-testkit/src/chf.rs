@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use ruzstd::encoding::{CompressionLevel, compress_to_vec};
 
 use crate::bytes::{put_u16, put_u32, put_u64};

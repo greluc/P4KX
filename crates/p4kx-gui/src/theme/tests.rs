@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{Context, CornerRadius, FontFamily, TextStyle, Theme};
 
 use super::tokens::{CORNER_SM, RADIUS_SM, RADIUS_SM_POINTS};

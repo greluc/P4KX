@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! One `TreeBuilder` for many Records, also of another DataForge.
 
 use std::error::Error;

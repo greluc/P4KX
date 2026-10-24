@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Audio triggers resolved through the soundbank hierarchy to their sound variants and WEMs, and
 //! the broken links on the way.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the Query tests: a synthetic Archive whose DataForge has typed fields.
 
 pub(crate) mod model;

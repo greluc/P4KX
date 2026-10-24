@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Static texts and text fields: glyph outlines of the embedded fonts drawn in both backends,
 //! sizes, colours, alignment, markup, localisation and what is reported when fonts or glyphs
 //! are missing.

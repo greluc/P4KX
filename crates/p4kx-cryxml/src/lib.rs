@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reads `CryXml`, the binary XML encoding `CryEngine` uses for many Entries, and writes it as
 //! UTF-8 XML.
 //!

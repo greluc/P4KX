@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Assemblies of documented ships of a real Archive, exported as GLB.
 
 use std::error::Error;

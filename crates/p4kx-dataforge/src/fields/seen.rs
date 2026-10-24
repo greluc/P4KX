@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::fields::number::{Number, fingerprint, text_fingerprint};
 use crate::scalar::first_bytes;
 use crate::{DataType, Guid, Value};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The settings file of P4KX, a TOML file in the platform config directory, and the
 //! Archive key the user stores in the same folder.
 

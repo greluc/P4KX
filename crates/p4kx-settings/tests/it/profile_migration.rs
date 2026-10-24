@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The one-time copy of the old `P4K-Extractor` profile folder into `P4KX`.
 
 use std::error::Error;

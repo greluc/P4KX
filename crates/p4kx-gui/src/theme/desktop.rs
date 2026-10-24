@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The desktop metrics of the window, taken from `docs/design/p4kx-desktop-spec.json`, which
 //! derives them from the P4KX design for a mouse and keyboard tool.
 

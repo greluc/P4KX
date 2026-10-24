@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Record JSON keeps the field order of the Record XML of the same Record.
 
 use std::error::Error;

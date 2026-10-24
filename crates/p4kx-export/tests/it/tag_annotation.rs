@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The tag tree through the library API of `p4kx-export`: tag GUID to tag path, parent and
 //! children, and the tag paths in exported Records.
 

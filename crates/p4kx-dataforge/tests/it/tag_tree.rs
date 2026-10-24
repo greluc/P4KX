@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The tag tree of a synthetic DataForge: paths, parents, children, issues, and the annotations of
 //! tag References in Record XML and Record JSON.
 

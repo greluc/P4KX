@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// A cache that keeps one resource, replacing it when another key is asked for. The previous
 /// resource is dropped at once, so switching models never holds two.
 #[derive(Debug)]

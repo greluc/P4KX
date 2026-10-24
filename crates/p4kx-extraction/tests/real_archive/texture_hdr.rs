@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding the real Archive's high-range BC6H textures and exporting one as OpenEXR.
 
 use std::io::Write;

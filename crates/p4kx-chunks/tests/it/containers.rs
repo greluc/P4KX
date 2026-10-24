@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Opening `#ivo` and `CrCh` chunk files and reading their chunk tables and data.
 
 use p4kx_chunks::{

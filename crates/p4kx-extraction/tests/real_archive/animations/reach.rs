@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! How far the key data of a `.dba` database lies from its `DbaData` chunk's computed span.
 
 use p4kx_chunks::{ChunkFile, ivo};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A sample of the WEMs and soundbanks of a real Archive converts without a panic; the share that
 //! converts is reported per codec. Reads unencrypted Entries only and needs no Archive key.
 

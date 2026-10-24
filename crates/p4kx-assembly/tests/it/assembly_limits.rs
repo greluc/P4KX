@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Limits and failures of building an Assembly: part, vertex and depth budgets and a missing key.
 
 use crate::assembly_support;

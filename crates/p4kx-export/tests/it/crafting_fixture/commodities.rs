@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The commodity and resource-type Records of the crafting fixture.
 
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};

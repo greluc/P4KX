@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reads the `CryEngine` chunk container that models, skeletons and animations are stored in:
 //! the newer `#ivo` form (version `0x900`) and the older `CrCh` form (version `0x746`).
 //!

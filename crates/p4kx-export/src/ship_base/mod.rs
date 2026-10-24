@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The base data of ships: hull mass, hull hit points, cargo capacity, size and default Loadout,
 //! each value with the file and field it was read from (ADR-0061, `docs/ship-base-data.md`).
 //!

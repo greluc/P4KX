@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The byte order of the vertex colours, checked against the colour words in the file names of
 //! the models of a real Archive; runs with `--ignored` when `P4KX_DATA_P4K` names one.
 

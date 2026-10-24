@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Statistics per field path over the Records of a DataForge, defined in `docs/query.md`.
 //!
 //! [`FieldStatistics::of_all`] and [`FieldStatistics::of_records`] walk the Records in parallel

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the Query model tests: an Archive opened headless and Queries run to the end.
 
 use std::error::Error;

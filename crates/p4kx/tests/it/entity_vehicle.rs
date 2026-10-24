@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx entity loadout` with a vehicle implementation and its Modification in the Archive.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Entry level over two plain-ZIP containers, whose Entries carry the plain CRC-32.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Animations in the Info tab and in Export as GLB over a synthetic Archive with a door model.
 
 use crate::glb_exporting::{finished, start};

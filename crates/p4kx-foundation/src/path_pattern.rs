@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// Matches Entry paths or record paths with the rules of a Filter.
 ///
 /// Text with a `*` or `?` is a glob over the full path: `*` matches any run of characters,

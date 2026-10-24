@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx ui render --svg` end to end: the document structure for the synthetic panel, the same
 //! output for the same input, the size and background options, the escaped Entry name, and the
 //! report.

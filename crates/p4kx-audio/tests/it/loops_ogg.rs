@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Loop points of looping Vorbis and Opus WEMs in the Ogg and WAV they become.
 
 use crate::pages;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Fonts that UI movies import from other movies of a real Archive resolve and draw their texts
 //! with glyphs; runs with `--ignored` when `P4KX_DATA_P4K` names one. The key is not needed: UI
 //! movies are not encrypted.

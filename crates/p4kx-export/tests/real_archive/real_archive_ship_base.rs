@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The base data of ships in a real Archive: mass, hull, cargo, size and default Loadout of every
 //! ship and of three known ones; runs with `--ignored` when `P4KX_DATA_P4K` names one.
 //!

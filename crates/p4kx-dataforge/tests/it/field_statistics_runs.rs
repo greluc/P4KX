@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Field statistics over a synthetic DataForge: the cap of distinct values, the same result on any
 //! number of threads, a stopped computation and indexes that are no Record.
 

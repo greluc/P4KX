@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx dcb export --lang` end to end: resolved texts next to the localisation keys of the
 //! Records, over a synthetic DataForge and synthetic `global.ini` files.
 

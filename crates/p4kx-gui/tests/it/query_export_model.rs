@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Exporting the Query result from the window's model, null cells, and a Query after the Archive
 //! changed on disk.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use p4kx_dataforge::{DataForge, DataForgeError, MAX_INHERITANCE_DEPTH, Property, Struct};

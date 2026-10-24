@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Content search service of P4KX: text inside Records, localisation and Entries
 //! (ADR-0044).
 //!

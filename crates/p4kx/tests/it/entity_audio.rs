@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx entity audio` end to end, over a synthetic Archive with an Entity, ATL definitions and
 //! soundbanks and, with `--ignored`, over the real Archive `P4KX_DATA_P4K` names.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding BC4 and BC5 mips, BC5 as normal maps with reconstructed Z.
 
 use p4kx_texture::{DxgiFormat, RgbaImage, TextureError, TextureFormat, decode};

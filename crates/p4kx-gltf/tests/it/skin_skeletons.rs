@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Skeleton files, levels of detail with a skeleton of their own and the helper bones of static
 //! models written as GLB.
 

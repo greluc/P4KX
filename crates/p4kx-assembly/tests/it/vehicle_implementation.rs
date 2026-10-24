@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The vehicle implementation of an Entity: per-port visibility, treads, wheels and landing gear
 //! in the Loadout tree.
 

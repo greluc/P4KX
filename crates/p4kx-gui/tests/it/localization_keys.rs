@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The localisation tab with the keyboard and the clipboard: Ctrl+C, the selection after a search,
 //! scrolling the table, and the heads after another Archive was opened.
 

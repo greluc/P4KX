@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Docked vehicles in a Loadout: marked, and left unexpanded when the resolver is told to stop.
 
 use std::error::Error;

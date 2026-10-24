@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Bitmaps: lossless and JPEG-family images decode to RGBA, GFx external images and sub-images
 //! are read as references.
 

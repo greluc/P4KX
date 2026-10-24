@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Exporting a Query result to a file as CSV or JSON, page by page, replacing the file only once
 //! it is complete.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx compare --records` end to end over Records with nested structs, arrays and References.
 
 use std::error::Error;

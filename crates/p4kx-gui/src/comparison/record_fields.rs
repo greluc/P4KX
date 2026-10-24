@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_comparison::{ChangedValue, FieldChange, RecordChange, RecordSide, Reference, Value};
 
 /// One side's value of a changed field as the field list shows it.

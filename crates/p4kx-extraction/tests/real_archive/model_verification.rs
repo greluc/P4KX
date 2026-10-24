@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! M7 verification against a real Archive: models of every extension in both containers export
 //! to valid GLB without a panic, the chunks the models skip are counted per type, and known
 //! models have plausible sizes in metres. Runs with `--ignored` when `P4KX_DATA_P4K` names an

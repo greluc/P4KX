@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The "Referenced by" list of a Record over a synthetic DataForge, driven without drawing: the
 //! referring Records with their fields, a Record nobody refers to, following a link, and the one
 //! index of References per Archive.

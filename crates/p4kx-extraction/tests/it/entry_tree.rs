@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The folder tree of an Archive that the GUI and the MCP server list folders from.
 
 use std::error::Error;

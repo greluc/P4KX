@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_foundation::{ByteReader, ParseError};
 
 /// Reads the little-endian values model chunks are made of.

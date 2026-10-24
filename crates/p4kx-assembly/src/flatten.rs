@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{Attachment, EntityNode, Issue, IssueKind, MAX_ASSEMBLY_DEPTH, PortNode, Target};
 
 /// One part of an Assembly before its model is read: an Entity of the Loadout tree with its port.

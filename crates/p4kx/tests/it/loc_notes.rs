@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The stderr notes of `p4kx loc` for a `global.ini` that was read lossily or had lines skipped.
 
 use std::error::Error;

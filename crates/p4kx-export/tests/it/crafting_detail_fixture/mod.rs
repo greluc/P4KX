@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic DataForge with multi-tier blueprints, selections, modifiers, pools, contracts,
 //! quality distributions and a dismantle process.
 

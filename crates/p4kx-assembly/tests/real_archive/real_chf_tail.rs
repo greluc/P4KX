@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The last eight bytes of the CHF files of a real Archive survive a change of the body.
 
 use std::error::Error;

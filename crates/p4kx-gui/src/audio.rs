@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Sound playback of the audio preview: decoded PCM, the play, pause, seek and volume state the
 //! window and the audio thread share, and the audio output that plays it.
 

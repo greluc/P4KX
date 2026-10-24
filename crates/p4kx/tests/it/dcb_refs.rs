@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx dcb refs` over a synthetic DataForge: incoming and outgoing References with their
 //! fields, unresolved References, the file graph, both output formats and invalid input, and,
 //! with `--ignored`, over the real Archive `P4KX_DATA_P4K` names.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Info tab and Export as GLB over models of a real Archive: the info is read and a sample of
 //! models exports as GLB files that pass the checker.
 //!

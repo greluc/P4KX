@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The folder, the Conversion switch and the texture outputs the GUI last chose for an Extraction, kept in the
 //! settings file.
 

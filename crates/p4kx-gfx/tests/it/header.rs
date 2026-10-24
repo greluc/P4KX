@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The file and movie header of GFx and SWF movies, compressed and uncompressed.
 
 use p4kx_gfx::{Compression, GfxError, MAX_MOVIE_LEN, Movie, Signature};

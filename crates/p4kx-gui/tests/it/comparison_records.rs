@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Record level of the Comparison tab over a pair of Archives with synthetic DataForges.
 
 use std::error::Error;

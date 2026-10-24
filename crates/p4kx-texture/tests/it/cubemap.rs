@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Cubemaps and texture arrays: merging parts that hold one mip of every image, reading one mip
 //! of every face and laying the faces out as a cross.
 

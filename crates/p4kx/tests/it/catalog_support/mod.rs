@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic Archive for the `p4kx catalog` tests: manufacturers, an item, a ship, a commodity
 //! and a blueprint with English and German `global.ini` files.
 

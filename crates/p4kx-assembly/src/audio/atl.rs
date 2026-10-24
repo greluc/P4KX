@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_cryxml::{Element, Xml};
 
 use super::{AudioFileError, MAX_ATL_NODES, MAX_TRIGGER_EVENTS, wwise_id};

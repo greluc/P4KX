@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding BC6H mips to floating-point RGB: worked blocks, one known block per mode and
 //! signedness, reserved modes, and agreement with an independent decoder.
 

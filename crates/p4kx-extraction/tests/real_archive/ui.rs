@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Every GFx and SWF movie of a real Archive is read and its embedded bitmaps decode; runs with
 //! `--ignored` when `P4KX_DATA_P4K` names one.
 

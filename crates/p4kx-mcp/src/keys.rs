@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_extraction::{ArchiveKey, archive_error_in};
 use p4kx_settings::{KEY_VARIABLE, KeyChoiceError, KeyStore, KeyText, choose_key};
 

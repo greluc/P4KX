@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Opening the two real Archives of the real-Archive suite and checking reports against the
 //! checked-in schema.
 

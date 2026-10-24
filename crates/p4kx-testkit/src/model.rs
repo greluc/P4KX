@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::TestChunkFile;
 use crate::model_cube::{cube_nodes, cube_submeshes, cube_vertices};
 use crate::model_nmc::nmc_chunk;

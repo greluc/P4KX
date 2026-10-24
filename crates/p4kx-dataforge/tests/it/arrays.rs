@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Arrays in the Record tree: scalars, structs, pointers and References, in stored order.
 
 use p4kx_dataforge::{Field, Guid, RecordTree, Value};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Searching the Records of a synthetic DataForge by record path and type name.
 
 use std::error::Error;

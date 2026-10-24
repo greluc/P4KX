@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_extraction::{Archive, Filter, find_entry, read_text};
 use p4kx_search::{EntryHit, Found, Needle, SearchOptions, Source, Sources, search_entries};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Assembly service of P4KX: resolves the Loadout tree of an Entity and reads the CHF
 //! files of Characters.
 //!

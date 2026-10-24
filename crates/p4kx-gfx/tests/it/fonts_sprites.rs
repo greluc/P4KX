@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Fonts with their glyphs, codes and layout, and sprites with their nested timelines.
 
 use p4kx_gfx::{FontFormat, GfxError, MAX_SPRITE_DEPTH, Movie, Point, ShapeRecord};

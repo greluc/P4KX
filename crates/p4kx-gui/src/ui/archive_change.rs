@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{Frame, Panel, Rect, Ui, vec2};
 use p4kx_extraction::DEFAULT_WATCH_INTERVAL;
 

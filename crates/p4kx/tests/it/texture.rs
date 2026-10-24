@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx texture info|merge` end to end, for Entries of an Archive and for files on disk.
 
 use std::error::Error;

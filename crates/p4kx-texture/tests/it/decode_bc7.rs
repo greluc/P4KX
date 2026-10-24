@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding BC7 mips, one known block per mode.
 
 use p4kx_texture::{DxgiFormat, RgbaImage, TextureError, TextureFormat, decode};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic DataForge of ships whose References lead to makers, planets and shields, some
 //! of them null, dangling or of an unexpected type, and a helper to read the cells of a Query.
 

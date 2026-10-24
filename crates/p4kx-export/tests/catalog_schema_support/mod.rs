@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A minimal catalog that holds one entity of every kind and every field the schema lists.
 
 use serde_json::json;

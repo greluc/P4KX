@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Resolving keys with a fallback language and listing keys, through the public API.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The field diff of the Record level for References, weak pointers and nested error values,
 //! through the public API and the report.
 

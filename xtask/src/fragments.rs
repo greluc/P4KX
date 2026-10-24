@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Changelog fragments: one Markdown file per user-visible change in `changelog.d/`.
 //!
 //! A fragment starts with a `### <Section>` line and holds list items. `release` folds them and the

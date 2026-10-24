@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::patch::{ModificationReport, apply_elems, apply_patch, find_modification};
 use super::{VehicleImplementation, read};
 use crate::markup::{self, Budget, Element, MAX_ELEMENT_DEPTH};

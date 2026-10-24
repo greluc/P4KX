@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The search field, the quick-filter chips and the status bar counters, driven headless.
 
 use std::error::Error;

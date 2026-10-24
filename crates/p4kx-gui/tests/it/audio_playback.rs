@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Playing a WEM in the Audio tab through a fake audio output: play, pause, seek, volume, the
 //! keyboard, and what stops or pauses the sound.
 

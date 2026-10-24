@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The field lines of the Record tab scroll with the keyboard once they take the focus.
 
 use crate::wide_forge;

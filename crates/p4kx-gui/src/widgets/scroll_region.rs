@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{
     EventFilter, Id, Key, Modifiers, Rect, Response, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo,
     scroll_area::ScrollAreaOutput, vec2,

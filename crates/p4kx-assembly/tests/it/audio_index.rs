@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The audio index of an Archive: Entity trigger references, ATL definitions and soundbank
 //! events, joined by Wwise short IDs.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Writers for synthetic test data in the formats P4KX reads.
 //!
 //! The writers reproduce the byte layout of real Star Citizen files so that every reader can be

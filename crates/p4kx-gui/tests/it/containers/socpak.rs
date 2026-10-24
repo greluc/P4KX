@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the container tests: a synthetic Archive with socpak containers, one nested in
 //! another, one compressed and one corrupt.
 

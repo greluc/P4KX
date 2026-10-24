@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Shared building blocks of the P4KX format crates: a bounds-checked little-endian
 //! reader over byte slices, the parse error it reports, path matching with the rules of a Filter,
 //! and the Archive key type and IV.

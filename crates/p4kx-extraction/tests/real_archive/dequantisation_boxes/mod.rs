@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Survey of the two bounding boxes of the mesh chunks of a real Archive; runs with `--ignored`
 //! when `P4KX_DATA_P4K` names one and prints the tables (`--nocapture`).
 //!

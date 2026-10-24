@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic DataForge with one Record of many fields, in an Archive, for the tests of keyboard
 //! scrolling.
 

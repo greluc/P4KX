@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Partial blocks and block alignments that do not fit the channels of ADPCM WEMs.
 
 use p4kx_audio::{AudioError, Wem};

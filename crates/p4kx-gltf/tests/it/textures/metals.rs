@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Metals whose base colour image cannot hold their specular colour keep the plain metal.
 
 use p4kx_gltf::{TextureLoadError, TextureRole};

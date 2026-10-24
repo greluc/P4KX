@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The categorical colour tokens of the P4KX design: departments, planets and item classes.
 //!
 //! They carry identity only, never status or action.

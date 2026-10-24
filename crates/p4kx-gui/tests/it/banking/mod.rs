@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the soundbank tests on top of the synthetic Archive of the sounding helpers.
 
 use std::error::Error;

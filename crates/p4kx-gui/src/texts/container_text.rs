@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::Text;
 
 /// A text of the containers in the path tree, looked up in the Fluent file of the current

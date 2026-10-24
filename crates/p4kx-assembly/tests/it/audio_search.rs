@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Searching the triggers and events of the audio index, and the Entities that name a trigger.
 
 use std::error::Error;

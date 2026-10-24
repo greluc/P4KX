@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::TextureFormat;
 
 /// An uncompressed pixel format the decoder converts to 8-bit RGBA.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Split cubemaps and alpha tails of the real Archive.
 
 use std::collections::BTreeMap;

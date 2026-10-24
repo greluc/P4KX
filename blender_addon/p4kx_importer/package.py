@@ -16,9 +16,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .material_model import MaterialDesc, Palette, parse_materials, parse_palettes
+
 FORMAT_NAME = "p4kx-blender-package"
 SUPPORTED_MAJOR = 1
-SUPPORTED_MINOR = 0
+SUPPORTED_MINOR = 1
 MANIFEST_NAME = "scene.json"
 MAX_MANIFEST_BYTES = 64 * 1024 * 1024
 MAX_ITEMS = 200_000
@@ -54,6 +56,7 @@ class MeshMaterial:
     index: int
     name: str
     textures: dict[str, str]
+    material: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +66,7 @@ class Mesh:
     id: str
     file: str
     materials: tuple[MeshMaterial, ...]
+    palette_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +103,8 @@ class Package:
     meshes: dict[str, Mesh]
     textures: dict[str, Texture]
     warnings: list[str] = field(default_factory=list)
+    material_descriptions: dict[str, MaterialDesc] = field(default_factory=dict)
+    palettes: dict[str, Palette] = field(default_factory=dict)
 
 
 def load_package(location: Path) -> Package:
@@ -137,6 +143,8 @@ def parse_manifest(data: object, root: Path) -> Package:
         meshes=meshes,
         textures=textures,
         warnings=warnings,
+        material_descriptions=parse_materials(manifest.get("materials"), warnings),
+        palettes=parse_palettes(manifest.get("palettes"), warnings),
     )
 
 
@@ -308,7 +316,10 @@ def _parse_meshes(items: list[Any], textures: dict[str, Texture]) -> dict[str, M
             _parse_material(material, f"{where}.materials[{slot}]", textures)
             for slot, material in enumerate(_array(entry.get("materials"), f"{where}.materials"))
         )
-        meshes[mesh_id] = Mesh(mesh_id, file, materials)
+        palette_id = entry.get("palette_id")
+        meshes[mesh_id] = Mesh(
+            mesh_id, file, materials, palette_id if isinstance(palette_id, str) else None
+        )
     return meshes
 
 
@@ -323,7 +334,13 @@ def _parse_material(item: Any, where: str, textures: dict[str, Texture]) -> Mesh
         for role in _ROLES
         if isinstance(texture_id := named.get(role), str) and texture_id in textures
     }
-    return MeshMaterial(index, _text(entry, "name", where), used)
+    description = entry.get("material")
+    return MeshMaterial(
+        index,
+        _text(entry, "name", where),
+        used,
+        description if isinstance(description, str) else None,
+    )
 
 
 def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str]) -> list[Node]:

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 import bpy
 from mathutils import Quaternion, Vector
 
-from .materials import ImageCache, apply_textures
+from .materials import ImageCache, apply_materials
 from .package import (
     Mesh,
     Node,
@@ -21,7 +21,6 @@ from .package import (
     gltf_to_blender_quaternion,
     gltf_to_blender_scale,
     gltf_to_blender_vector,
-    pair_materials,
     resolve_file,
 )
 
@@ -111,15 +110,7 @@ def _import_glb(
     if "FINISHED" not in status:
         return False
     created = [material for material in bpy.data.materials if material not in before]
-    pairs = pair_materials(
-        [(material.index, material.name) for material in mesh.materials],
-        [material.name for material in created],
-    )
-    by_name = {material.name: material for material in created}
-    for described in mesh.materials:
-        blender = by_name.get(pairs.get(described.index, ""))
-        if blender is not None and described.textures:
-            apply_textures(blender, described, package, images)
+    apply_materials(created, package, mesh, images)
     return True
 
 

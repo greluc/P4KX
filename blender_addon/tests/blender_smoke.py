@@ -21,6 +21,7 @@ sys.path[:0] = [str(HERE), str(HERE.parent)]
 
 import p4kx_importer  # noqa: E402
 import synthetic  # noqa: E402
+import synthetic_materials  # noqa: E402
 from p4kx_importer import importer, package  # noqa: E402
 
 
@@ -96,7 +97,52 @@ def main() -> None:
             check(False, "a newer package must be refused")
         p4kx_importer.unregister()
 
+        check_layered_material(Path(folder) / "layered")
+
     print("smoke test passed")
+
+
+def check_layered_material(folder: Path) -> None:
+    """Imports a 1.1 package and checks the node tree of a layered, tinted material."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("io_scene_gltf2", default_set=False)
+    scene = synthetic.write_package(folder, synthetic_materials.manifest_11())
+    loaded = package.load_package(scene)
+    check(loaded.version == (1, 1) and not loaded.warnings, f"loaded: {loaded.warnings}")
+    result = importer.import_package(bpy.context, loaded)
+    check(any("WeirdShader" in w for w in result.warnings), f"warnings: {result.warnings}")
+
+    material = bpy.data.materials["Gun_mat"]
+    check(material.get("p4kx_index") == 0, "glTF extras arrive as a custom property")
+    check(material.get("p4kx_material") == "x0001", "description id is kept")
+    nodes = material.node_tree.nodes
+    groups = {n.node_tree.name for n in nodes if n.type == "GROUP"}
+    check(groups == {"P4KX Layer Blend", "P4KX Wear"}, f"groups: {groups}")
+    check(
+        [g.name for g in bpy.data.node_groups if g.name.startswith("P4KX")].count("P4KX Layer Blend")
+        == 1,
+        "the layer blend group exists once for both materials",
+    )
+    inner = next(g for g in bpy.data.node_groups if g.name == "P4KX Layer Blend")
+    check({"MIX", "VECT_MATH", "GROUP_INPUT", "GROUP_OUTPUT"} <= {n.type for n in inner.nodes}, "blend group contents")
+    spaces = {n.image.colorspace_settings.name for n in nodes if n.type == "TEX_IMAGE"}
+    check(spaces == {"sRGB", "Non-Color"}, f"colour spaces: {spaces}")
+    tints = [
+        tuple(round(v, 4) for v in n.inputs["B"].default_value[:3])
+        for n in nodes
+        if n.type == "MIX" and n.blend_type == "MULTIPLY" and not n.inputs["B"].is_linked
+    ]
+    check((0.8, 0.09, 0.08) in tints, f"palette tint on the first layer: {tints}")
+    bsdf = next(n for n in nodes if n.type == "BSDF_PRINCIPLED")
+    source = bsdf.inputs["Normal"].links[0].from_node
+    check(source.type == "GROUP", f"normal comes from the blend group: {source.type}")
+    check(bsdf.inputs["Metallic"].default_value == 1.0, "metal surface type")
+
+    second = bpy.data.materials["Box_mat2"]
+    check(second.get("p4kx_material") == "x0001", "second material pairs by index")
+    unknown = bpy.data.materials["Box_mat"]
+    check(unknown.get("p4kx_family") == "unknown", "unknown shader falls back")
+    check(not any(n.type == "GROUP" for n in unknown.node_tree.nodes), "basic fallback")
 
 
 main()

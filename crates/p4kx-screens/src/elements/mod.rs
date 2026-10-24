@@ -20,12 +20,14 @@ use crate::picture::{BODY_BACKGROUND, CUSTOM_SHAPE, FOREGROUND_OVERLAY, ICON, IM
 use crate::text::{TEXT, TEXT_FIELD};
 use crate::widget::Widget;
 
-const STRUCTURAL: [&str; 5] = [
+const STRUCTURAL: [&str; 7] = [
     "BuildingBlocks_DisplayWidget",
     "BuildingBlocks_WidgetBase",
     "BuildingBlocks_WidgetCard",
     "BuildingBlocks_WidgetContainer",
     "BuildingBlocks_WidgetCanvas",
+    "BuildingBlocks_WidgetClone",
+    "BuildingBlocks_WidgetList",
 ];
 
 pub(crate) const CIRCLE: &str = "BuildingBlocks_WidgetCircle";

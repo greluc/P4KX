@@ -7,6 +7,7 @@ use p4kx_gfx::{
 };
 
 use crate::paint::{Area, Painter, TWIPS};
+use crate::paint_state::shape_bounds;
 
 fn corner(x: f32, y: f32) -> ScenePoint {
     ScenePoint {
@@ -24,17 +25,32 @@ impl Painter {
         index
     }
 
-    /// Places the shape `shape` with `transform` and `colours`.
+    /// Places the shape `shape` with `transform` (into the twips of the layout) and `colours`,
+    /// under the transform and the clips in force.
     pub(crate) fn place(&mut self, shape: usize, transform: Affine, colours: ColorTransform) {
         if self.is_full() {
             return;
         }
-        let id = self.shapes.get(shape).map_or(0, |shape| shape.id);
+        let Some(placed) = self.shapes.get(shape) else {
+            return;
+        };
+        let id = placed.id;
+        let bounds = shape_bounds(placed);
+        let reach = placed
+            .layers
+            .iter()
+            .filter_map(|layer| match layer.kind {
+                LayerKind::Stroke(style) => Some(style.width),
+                LayerKind::Fill => None,
+            })
+            .fold(0.0, f32::max);
+        let composed = self.state.to_twips().then(&transform);
+        let mask = self.mask_of(bounds.as_ref(), reach, &composed);
         self.items.push(SceneItem {
             shape,
-            transform,
+            transform: composed,
             color_transform: colours,
-            mask: None,
+            mask,
             origin: Origin {
                 id,
                 depth: 0,

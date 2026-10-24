@@ -21,6 +21,61 @@ const SHIPS: [&str; 4] = [
     "DRAK_Cutlass_Black",
 ];
 
+const AVENGER_SCREENS: [&str; 3] = [
+    "libs/foundry/records/ui/buildingblocks/ships/displays/mfdscreens/mc_mfdcomponents/screens/general/m_mfd_screen",
+    "libs/foundry/records/ui/buildingblocks/ships/displays/physicalscreens/annunciator/h_eng_annunciator_master_left",
+    "libs/foundry/records/ui/buildingblocks/components/map/mapdisplaymaster",
+];
+
+const LAYOUT_GAPS: [&str; 6] = [
+    "parents form a cycle",
+    "StackContainer children",
+    "GridPackContainer children",
+    "no target that is a widget of the canvas",
+    "the template contains a clone of itself",
+    "is not finite",
+];
+
+const NO_RENDERER: &str = "no renderer for this element type";
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stdout,
+    reason = "the summary of the run is for the reader of --nocapture"
+)]
+fn the_layout_gaps_of_the_avenger_screens_are_closed() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut screens = ScreenComposer::new(&forge);
+    for canvas in AVENGER_SCREENS {
+        let composed = screens.compose(canvas, Some("aegs"))?;
+        let report = composed.report();
+        composed.rasterize(&RasterOptions {
+            size: CanvasSize::Width(640),
+            background: Background::Transparent,
+        })?;
+        assert!(!report.truncated, "{canvas}: within the limits");
+        for entry in &report.unsupported {
+            let layout_gap = LAYOUT_GAPS
+                .iter()
+                .any(|reason| entry.reason.contains(reason));
+            assert!(!layout_gap, "{canvas}: {} {}", entry.element, entry.reason);
+            let lists_and_clones = matches!(entry.element.as_str(), "WidgetList" | "WidgetClone")
+                && entry.reason.contains(NO_RENDERER);
+            assert!(!lists_and_clones, "{canvas}: {}", entry.element);
+        }
+        println!(
+            "{canvas}: {} widgets, {} shapes, {} kinds left out",
+            report.widgets,
+            report.shapes,
+            report.unsupported.len()
+        );
+    }
+    Ok(())
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 #[expect(

@@ -39,7 +39,7 @@
 //! [`character`] reads and writes the CHF files of Characters and their JSON form.
 //!
 //! [`Armour::build`] puts [`Piece`]s of armour and clothing on the default body of a
-//! [`BodyVariant`]: the body's skeleton and skins from its character definition, and per piece
+//! [`BodyVariant`]: the variant's skeleton and default body skin, constant paths, and per piece
 //! the geometry its Record names for the variant's tag ([`Wearable`]), skinned to the body's
 //! skeleton by bone name; [`Armour::write_glb`] exports it as one skinned GLB. A piece that cannot
 //! be fitted is an [`Issue`].

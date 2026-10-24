@@ -273,8 +273,8 @@ was reached). New kinds may be added in later versions.
 ```json
 {"archive": "…", "body": "male", "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…",
  "lod": 0, "pieces": 2, "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
- "nodes": 222, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 53,
- "materials": 21, "vertices": 41666, "triangles": 66380, "bytes": 3531776, "skipped": 0,
+ "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
+ "materials": 19, "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
  "issues": [Issue, …]}
 ```
 
@@ -293,7 +293,7 @@ Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometr
 `bones_not_in_skeleton` (some bones of the model are not in the body skeleton and follow their
 nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
-class name.
+class name; for `piece_not_found` it is the text given to `--piece`.
 
 ## `p4kx entity audio <archive> <entity> --json`
 

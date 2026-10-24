@@ -10,6 +10,8 @@ on:
       - ".github/scripts/check-msi.ps1"
       - "crates/p4kx-gui/wix/**"
       - "crates/p4kx-gui/assets/p4kx.ico"
+      - "crates/p4kx-gui/build.rs"
+      - "crates/p4kx/build.rs"
   workflow_dispatch:
 
 permissions:

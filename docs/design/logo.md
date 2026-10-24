@@ -24,10 +24,9 @@ The mark is the same drawing without the tile, on a transparent ground. The tile
 
 ## Use
 
-- **Tile:** window and taskbar icon, executables, installer, avatars. It keeps the logo legible
-  on a light or a dark taskbar.
-- **Mark:** the header (32 px, before the wordmark with an 8 px gap) and the README, on dark
-  grounds.
+- **Tile:** window and taskbar icon, executables, installer, the README, avatars. It keeps the
+  logo legible on a light or a dark ground.
+- **Mark:** the header (32 px, before the wordmark with an 8 px gap), on dark grounds.
 - **Minimum size:** tile 16 px, mark 24 px.
 - **Clear space:** at least the length of one bracket arm (14 units, about 11% of the side) on
   every side of the drawing.
@@ -49,6 +48,8 @@ $env:P4KX_WRITE_LOGO_ASSETS = '1'
 cargo test -p p4kx-gui --test it logo::
 ```
 
-The test writes the files and then checks them. The social preview needs a graphics adapter, a
-software one is enough. The SVG files are edited by hand; a test compares their colours and
-geometry with the palette and the constants.
+The test writes the files and then checks the `.ico` and the 512 px PNG against the geometry. The
+social preview needs a graphics adapter (a software one is enough) and is only checked for its
+size and ground, not pixel for pixel. The SVG files are edited by hand; a test builds the expected
+paths and strokes from the constants of `p4kx_gui::theme::logo` and compares them, and the colours,
+with the files.

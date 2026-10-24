@@ -22,6 +22,7 @@ use egui::{Color32, CornerRadius, Rect, TextureHandle, TextureOptions, Ui, pos2,
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
+use p4kx_gui::theme::desktop::HEADER_HEIGHT;
 use p4kx_gui::theme::logo::{self, ICO_SIZES, Variant};
 use p4kx_gui::theme::tokens::{Weight, font};
 use p4kx_gui::theme::{self, palette};
@@ -57,12 +58,34 @@ fn colours_of(svg: &str) -> BTreeSet<String> {
         .collect()
 }
 
-const fn mark_geometry() -> [&'static str; 4] {
+fn bracket(points: [(f32, f32); 4]) -> String {
+    let [first, second, third, fourth] = points;
+    let (white, width) = (hex(palette::WHITE), logo::BRACKET_WIDTH);
+    format!(
+        r#"d="M{},{} H{} V{} H{}" fill="none" stroke="{white}" stroke-width="{width}""#,
+        first.0, first.1, second.0, third.1, fourth.0
+    )
+}
+
+fn cross(ends: [(f32, f32); 2], colour: Color32) -> String {
+    let [from, to] = ends;
+    format!(
+        r#"x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="{}" stroke-linecap="round""#,
+        from.0,
+        from.1,
+        to.0,
+        to.1,
+        hex(colour),
+        logo::CROSS_WIDTH
+    )
+}
+
+fn mark_geometry() -> [String; 4] {
     [
-        r##"d="M42,30 H28 V100 H42" fill="none" stroke="#FFFFFF" stroke-width="9""##,
-        r##"d="M88,30 H102 V100 H88" fill="none" stroke="#FFFFFF" stroke-width="9""##,
-        r##"x1="50" y1="42" x2="80" y2="88" stroke="#C45C00" stroke-width="11" stroke-linecap="round""##,
-        r##"x1="80" y1="42" x2="50" y2="88" stroke="#E77E23" stroke-width="11" stroke-linecap="round""##,
+        bracket(logo::LEFT_BRACKET),
+        bracket(logo::RIGHT_BRACKET),
+        cross(logo::BACK_STROKE, palette::ACCENT_DARK),
+        cross(logo::FRONT_STROKE, palette::PRIMARY),
     ]
 }
 
@@ -80,14 +103,20 @@ fn the_svg_files_carry_the_geometry_and_only_theme_colours() -> TestResult {
     with_tile.insert(hex(palette::CANVAS));
     assert_eq!(colours_of(&tile), with_tile, "tile colours");
     assert_eq!(colours_of(&mark), drawing, "mark colours");
-    assert!(
-        tile.contains(r##"<rect width="130" height="130" rx="24" fill="#0F0F0F"/>"##),
-        "tile"
+    let side = logo::VIEW_BOX;
+    let rect = format!(
+        r#"<rect width="{side}" height="{side}" rx="{}" fill="{}"/>"#,
+        logo::TILE_RADIUS,
+        hex(palette::CANVAS)
     );
+    assert!(tile.contains(&rect), "tile");
     for svg in [&tile, &mark] {
-        assert!(svg.contains(r#"viewBox="0 0 130 130""#), "view box");
+        assert!(
+            svg.contains(&format!(r#"viewBox="0 0 {side} {side}""#)),
+            "view box"
+        );
         for part in mark_geometry() {
-            assert!(svg.contains(part), "{part}");
+            assert!(svg.contains(&part), "{part}");
         }
     }
     assert!(!mark.contains("<rect"), "the mark has no tile");
@@ -248,10 +277,14 @@ fn the_header_shows_the_mark_before_the_wordmark() -> TestResult {
         palette::WHITE.b(),
         255,
     ];
-    let mark_lit = image.enumerate_pixels().any(|(x, _, pixel)| {
-        pixel.0 == white && f32::from(u16::try_from(x).unwrap_or(u16::MAX)) < wordmark.min.x
+    let coordinate = |value: u32| f32::from(u16::try_from(value).unwrap_or(u16::MAX));
+    let mark_lit = image.enumerate_pixels().any(|(x, y, pixel)| {
+        pixel.0 == white && coordinate(x) < wordmark.min.x && coordinate(y) < HEADER_HEIGHT
     });
-    assert!(mark_lit, "white bracket pixels left of the wordmark");
+    assert!(
+        mark_lit,
+        "white bracket pixels in the header, left of the wordmark"
+    );
     if let Some(folder) = std::env::var_os("P4KX_RENDER_DIR").map(PathBuf::from) {
         save(
             &folder.join("header-logo.png"),

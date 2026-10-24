@@ -24,10 +24,16 @@ pub const ICON_SIZE: u32 = 256;
 /// The sides of the images in the executable icon, in pixels.
 pub const ICO_SIZES: [u32; 6] = [16, 24, 32, 48, 64, 256];
 
-const LEFT_BRACKET: [(f32, f32); 4] = [(42.0, 30.0), (28.0, 30.0), (28.0, 100.0), (42.0, 100.0)];
-const RIGHT_BRACKET: [(f32, f32); 4] = [(88.0, 30.0), (102.0, 30.0), (102.0, 100.0), (88.0, 100.0)];
-const BACK_STROKE: [(f32, f32); 2] = [(50.0, 42.0), (80.0, 88.0)];
-const FRONT_STROKE: [(f32, f32); 2] = [(80.0, 42.0), (50.0, 88.0)];
+/// The points of the left bracket, in logo units.
+pub const LEFT_BRACKET: [(f32, f32); 4] =
+    [(42.0, 30.0), (28.0, 30.0), (28.0, 100.0), (42.0, 100.0)];
+/// The points of the right bracket, in logo units.
+pub const RIGHT_BRACKET: [(f32, f32); 4] =
+    [(88.0, 30.0), (102.0, 30.0), (102.0, 100.0), (88.0, 100.0)];
+/// The ends of the back stroke of the X, in logo units.
+pub const BACK_STROKE: [(f32, f32); 2] = [(50.0, 42.0), (80.0, 88.0)];
+/// The ends of the front stroke of the X, in logo units.
+pub const FRONT_STROKE: [(f32, f32); 2] = [(80.0, 42.0), (50.0, 88.0)];
 const BEZIER_QUARTER: f32 = 0.552_284_8;
 
 /// Which drawing of the logo to rasterise.
@@ -52,8 +58,12 @@ pub fn window_icon() -> IconData {
 /// Returns the `variant` as an egui image of `size` pixels.
 #[must_use]
 pub fn image(variant: Variant, size: u32) -> ColorImage {
+    let pixels = rgba(variant, size);
     let edge = usize::try_from(size).unwrap_or(0);
-    ColorImage::from_rgba_unmultiplied([edge, edge], &rgba(variant, size))
+    if pixels.len() != edge.saturating_mul(edge).saturating_mul(4) {
+        return ColorImage::default();
+    }
+    ColorImage::from_rgba_unmultiplied([edge, edge], &pixels)
 }
 
 /// Returns the `variant` as unmultiplied RGBA rows of `size` pixels, or nothing when `size` is

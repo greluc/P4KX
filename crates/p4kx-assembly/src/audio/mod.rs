@@ -10,6 +10,7 @@ mod breaks;
 mod cache;
 mod entity;
 mod error;
+mod export;
 mod hash;
 mod index;
 mod language;
@@ -29,6 +30,9 @@ pub use breaks::{BreakReason, BrokenLink};
 pub use cache::ArchiveAudio;
 pub use entity::{EntityAudio, EntityTrigger, EventMatch, Unmatched};
 pub use error::{AudioFileError, AudioIssue};
+pub use export::{
+    ExportFailure, ExportOptions, ExportReport, ExportState, ExportedSound, SoundFormat,
+};
 pub use hash::wwise_id;
 pub use index::AudioIndex;
 pub use language::LanguageChoice;

@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
+use crate::cli::{AudioOutput, Conflict};
 use crate::exit::EXIT_CODES_HELP;
 
 /// Arguments of `p4kx wwise`.
@@ -39,6 +40,44 @@ pub(crate) enum WwiseAction {
     /// the Record of every Entity once.
     #[command(after_help = EXIT_CODES_HELP)]
     Events(WwiseEventsArgs),
+    /// Writes the sounds of an audio trigger into --out as Ogg or WAV files named after the
+    /// trigger: `<trigger>.<ext>` for a trigger with one sound, `<trigger>_<WEM ID>.<ext>` for
+    /// one with several; a WEM several variants lead to is written once. Names are cut to ASCII
+    /// letters, digits, `_` and `-`, and a name already taken, ignoring case, gets `_2`, `_3`, …
+    /// appended. Resolves the trigger as `resolve` does, so --lang and --fallback-lang choose the
+    /// language of localised sounds. A sound that cannot be decoded is reported and written
+    /// unchanged as .wem, as are plug-in media and the prefetched start of a streamed WEM; a
+    /// sound with no WEM, or none located, is listed as failed. Broken links are counted.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Extract(WwiseExtractArgs),
+}
+
+/// Arguments of `p4kx wwise extract`.
+#[derive(Debug, Args)]
+pub(crate) struct WwiseExtractArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The audio trigger as its ATL definition names it, e.g. `Play_QDrive_Spool`; ignores case.
+    pub(crate) trigger: String,
+    /// Target folder; created if missing, files already in it are handled by --conflict.
+    #[arg(long, value_name = "FOLDER")]
+    pub(crate) out: PathBuf,
+    #[command(flatten)]
+    pub(crate) export: SoundExportArgs,
+    #[command(flatten)]
+    pub(crate) language: AudioLanguageArgs,
+}
+
+/// How exported sounds are written.
+#[derive(Debug, Args)]
+pub(crate) struct SoundExportArgs {
+    /// The format of the sound files: `ogg` rebuilds Wwise Vorbis and Opus without re-encoding
+    /// and writes other codecs as WAV, `wav` writes a 16-bit PCM WAV, `raw` the WEM unchanged.
+    #[arg(long, value_enum, default_value_t = AudioOutput::Ogg, value_name = "FORMAT")]
+    pub(crate) format: AudioOutput,
+    /// What to do with a file that already exists in the target.
+    #[arg(long, value_enum, default_value_t = Conflict::Skip)]
+    pub(crate) conflict: Conflict,
 }
 
 /// Arguments of `p4kx wwise events`.

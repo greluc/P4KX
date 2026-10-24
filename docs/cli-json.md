@@ -366,6 +366,32 @@ and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx e
 and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
 and when the DataForge cannot be read, which is a warning on stderr.
 
+## `p4kx wwise extract <archive> <trigger> --out <folder> --json`
+
+```json
+{"archive": "…", "language": {…}, "trigger": {…}, "breaks": 0,
+ "target": "…", "format": "ogg", "written": 3, "kept": 0, "unconverted": 1, "failed": 1,
+ "files": [{"trigger": "Play_Multi", "wem_id": 100, "file": "…\\Play_Multi_100.ogg",
+            "format": "ogg", "size": 4096, "kept": false, "unconverted": null}, …],
+ "failures": [{"trigger": "Play_Multi", "wem_id": 104, "reason": "…"}, …],
+ "issues": [Issue, …]}
+```
+
+`trigger`, `language` and `issues` are those of `p4kx wwise resolve`; `breaks` counts its broken
+links. The top-level `format` is the value given to `--format` (`ogg`, `wav` or `raw`); each file's `format` is the one
+written, `wav` for a codec without an Ogg form and `wem` (raw) for a sound that cannot be
+decoded, which then carries the reason in `unconverted`. A file is named `<trigger>.<ext>` for a
+trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
+and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
+file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
+sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank or loose Entry
+holds. Exit code 1 when anything is in `failures` or `unconverted`.
+
+`p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
+adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
+`failed`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
+and `issues` are not repeated in it.
+
 ## `p4kx wwise resolve <archive> <trigger> --json`
 
 ```json

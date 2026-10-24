@@ -283,13 +283,17 @@ was reached). New kinds may be added in later versions.
 
 ```json
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "texture_mip": 0,
- "nodes": 83, "drawn_nodes": 56, "meshes": 31, "shared_meshes": 25, "textures": 120,
+ "nodes": 83, "drawn_nodes": 56, "containers": 0, "objects": 0, "lights": 0, "meshes": 31,
+ "shared_meshes": 25, "materials": 48, "palettes": 3, "textures": 120,
  "texture_pixels": 98304000, "texture_failures": 0, "files": 152, "bytes": 123456789,
  "vertices": 744831, "triangles": 818426, "skipped": 0, "issues": [Issue, …]}
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `nodes` counts the
-parts of the Assembly (the nodes of `scene.json`), `drawn_nodes` those with a model, `meshes` the
+nodes of `scene.json`, `drawn_nodes` those with a mesh. `--interior` adds the Interior as for
+`p4kx entity glb`; `containers`, `objects` and `lights` count its nodes of the kinds `container`,
+`object` and `light` and are 0 without it. `materials` and `palettes` count the material
+descriptions and tint palettes of the manifest. `meshes` counts the
 GLB files written and `shared_meshes` the nodes that draw a mesh another node draws. `textures`
 and `texture_pixels` count the PNG files written and their pixels, `texture_failures` the
 textures that could not be loaded or encoded (their materials keep plain colours). `files` and

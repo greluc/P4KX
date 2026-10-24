@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::{
-    DataForgeBuilder, TestEntity, TestEntry, TestModel, TestNode, entity_schema,
-    lit_interior_entries,
+    DataForgeBuilder, LIT_ROOM, TestEntity, TestEntry, TestModel, TestNode, entity_schema,
+    lit_interior_entries, lit_room_entries,
 };
 
 /// The class name of the sample Entity with an Interior.
@@ -11,6 +11,9 @@ pub const ENTITY_INTERIOR_CLASS: &str = "TEST_Hull";
 
 /// The container file the sample Entity's containers name, as a Record spells it.
 pub const ENTITY_INTERIOR_FILE: &str = "ObjectContainers\\ships\\test\\ship_interior.socpak";
+
+/// The class name of the sample Entity with a lit room.
+pub const ENTITY_LIT_ROOM_CLASS: &str = "TEST_LitHull";
 
 const IDENTITY: [[f32; 4]; 3] = [
     [1.0, 0.0, 0.0, 0.0],
@@ -96,5 +99,38 @@ pub fn entity_interior_entries() -> Vec<TestEntry> {
         TestEntry::stored("Data\\Objects\\Test\\hull.cgfm", model.cgfm()),
     ];
     entries.extend(lit_interior_entries());
+    entries
+}
+
+fn lit_database() -> DataForgeBuilder {
+    let entity = TestEntity::new(
+        0x2,
+        ENTITY_LIT_ROOM_CLASS,
+        "entities/spaceships/test_lit_hull.xml",
+    )
+    .geometry("Objects\\Test\\hull.cgf", None)
+    .object_container(
+        LIT_ROOM.trim_start_matches("Data\\"),
+        "hp_int_front",
+        [0.0, 6.0, 0.0],
+        [0.0; 3],
+    );
+    entity_schema(DataForgeBuilder::new()).record(entity.record())
+}
+
+/// Returns the Entries of a synthetic Archive that holds the ship Entity [`ENTITY_LIT_ROOM_CLASS`].
+///
+/// The Entity names the room of [`lit_room_entries`] at its bone `hp_int_front`, (0, 6, 0). The
+/// room has five lights (an `Omni`, a `Projector`, a `Directional` and the two of the group), two
+/// props and a model that is missing.
+#[must_use]
+pub fn entity_lit_room_entries() -> Vec<TestEntry> {
+    let model = hull();
+    let mut entries = vec![
+        TestEntry::zstd("Data\\Game2.dcb", lit_database().build()),
+        TestEntry::stored("Data\\Objects\\Test\\hull.cgf", model.cgf()),
+        TestEntry::stored("Data\\Objects\\Test\\hull.cgfm", model.cgfm()),
+    ];
+    entries.extend(lit_room_entries());
     entries
 }

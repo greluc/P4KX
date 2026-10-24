@@ -23,7 +23,9 @@ mod collect;
 mod describe;
 mod error;
 mod glb_extras;
+mod items;
 mod manifest;
+mod manifest_light;
 mod manifest_materials;
 mod meshes;
 mod plan;
@@ -40,6 +42,7 @@ pub use manifest::{
     MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Replacement, Source,
     TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };
+pub use manifest_light::{Light, LightKind};
 pub use manifest_materials::{
     AlphaMode, Element, MaterialDescription, MaterialLayer, MaterialTexture, Palette,
     PaletteColours, PaletteEntry, Parameter, TextureUse,

@@ -103,6 +103,7 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
     }
     Ok(Some(Mesh {
         node,
+        source: (0..vertex_count).collect(),
         positions,
         normals: None,
         tangents: None,

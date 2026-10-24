@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 const NAME_LEN: usize = 128;
 
 /// Returns the material library a `MtlName` chunk names: the text of its first 128 bytes up to

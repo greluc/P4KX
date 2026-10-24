@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use thiserror::Error;
 
 /// The longest side, in texels, of a texture the viewer uploads, whatever the device allows.

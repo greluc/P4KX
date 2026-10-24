@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The SVG and the raster of one scene agree where it is easy to say what is drawn: at probe
 //! points inside solid shapes, the topmost placed shape of the document has the colour of the
 //! pixel, and points that no shape covers are transparent in the raster and covered by nothing in

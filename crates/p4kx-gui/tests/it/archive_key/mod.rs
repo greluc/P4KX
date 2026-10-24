@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Archive key dialog: it opens when an encrypted Entry is needed, checks and stores the key,
 //! and the window reads the Entry once it fits.
 

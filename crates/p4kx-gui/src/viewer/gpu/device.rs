@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::future::Future;
 use std::pin::pin;
 use std::task::{Context, Poll, Waker};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::epaint::RectShape;
 use egui::layers::ShapeIdx;
 use egui::{Color32, Label, Rect, Sense, Shape, Stroke, StrokeKind, Ui, vec2};

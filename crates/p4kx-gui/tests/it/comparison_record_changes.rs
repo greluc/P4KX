@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Record list of the Comparison tab over a pair of synthetic DataForges: change kinds,
 //! record paths, types, sorting and the Filter.
 

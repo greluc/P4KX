@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The checks the real-Archive tests of skeletons and bone weights share.
 
 use p4kx_archive::{Archive, Entry};

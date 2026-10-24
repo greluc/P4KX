@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// The red, green and blue of endpoint W, the first of region 0.
 const RW: u8 = 0;
 const GW: u8 = 1;

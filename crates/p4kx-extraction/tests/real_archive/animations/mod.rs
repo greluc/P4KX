@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Animations of a real Archive: every `.caf` and `.dba` reads, the controller IDs are the CRC-32
 //! of the bone names, and the first keys of a character animation sit near the skeleton's bind
 //! pose; runs with `--ignored` when `P4KX_DATA_P4K` names one. No entry involved is encrypted, so

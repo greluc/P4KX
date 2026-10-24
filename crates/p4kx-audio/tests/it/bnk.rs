@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Soundbank sections and the WEMs embedded in them, through the public API.
 
 use p4kx_audio::{Codec, SectionId, Soundbank};

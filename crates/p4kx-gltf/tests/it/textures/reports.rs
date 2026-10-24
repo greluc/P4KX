@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! What the export reports and leaves out: failed textures, unsafe paths, alpha, mips and the
 //! absence of a texture source.
 

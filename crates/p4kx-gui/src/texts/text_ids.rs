@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::{
     AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
     ContainerText, ContentSearchText, DataForgeText, DiffText, ExtractionText, GroupText,

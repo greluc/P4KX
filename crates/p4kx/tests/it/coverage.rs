@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx coverage` over a synthetic Archive: the table, the JSON and the exit code.
 
 use std::error::Error;

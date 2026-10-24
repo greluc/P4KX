@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx model glb --materials colours` and the materials of `p4kx model info`, end to end; the
 //! textures are in `model_textures.rs`.
 

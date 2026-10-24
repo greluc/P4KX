@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{Frame, Margin, Popup, PopupKind, Response, RichText, Stroke, TextStyle, Tooltip, Ui};
 
 use super::frames::px;

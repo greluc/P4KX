@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{ChfError, Guid};
 
 /// Little-endian writes of the values a CHF body holds.

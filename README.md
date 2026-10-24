@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/design/p4kx-logo.svg" alt="P4KX logo: data brackets around an X" width="128" height="128">
+</p>
+
 # P4KX
 
 Opens, browses, compares and extracts the `Data.p4k` Archives of Star Citizen. See

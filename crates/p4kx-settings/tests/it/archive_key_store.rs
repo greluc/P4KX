@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Archive key stored in the user's profile and the precedence of its sources.
 
 use std::error::Error;

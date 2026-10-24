@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The tints of table and list rows; they are re-exported by [`super::desktop`].
 
 use egui::Color32;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
 pub(crate) fn geometry_component(path: &str, material: Option<&str>) -> TestValue {

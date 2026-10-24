@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::ParseError;
 
 /// Sequential little-endian reader over a byte slice that never reads out of bounds.

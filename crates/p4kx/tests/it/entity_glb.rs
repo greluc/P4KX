@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx entity glb` end to end over the synthetic ship of the testkit.
 
 use std::error::Error;

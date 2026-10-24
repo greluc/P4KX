@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The limits of the tag tree: depth, name and path length and duplicate GUIDs, over synthetic
 //! DataForges built to be hostile.
 

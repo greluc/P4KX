@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Playing through the system's default audio device: whether one exists or not, the window
 //! stays responsive and either plays or names why it cannot.
 

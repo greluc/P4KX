@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Platinum ADPCM frame decoder Wwise uses for PTADPCM WEMs.
 
 use crate::adpcm::{clamp16, nibbles, sample_bytes};

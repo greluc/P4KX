@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! ADPCM WEMs encoded from the known signal decode back to it within tolerance.
 
 use p4kx_audio::{AudioError, Wem};

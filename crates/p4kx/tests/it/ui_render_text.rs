@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx ui render` with texts end to end: glyph outlines of the embedded font drawn in the PNG
 //! and written as paths in the SVG, localisation keys resolved from the Archive, and the report of
 //! missing fonts and glyphs.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::{
     IDENTITY, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, Rows, SceneError, apply, check_size,
     determinant, multiply, normal_matrix, rotate,

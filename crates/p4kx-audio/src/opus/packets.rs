@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::OpusError;
 use super::framing::{self, MAX_PACKET_LEN};
 use super::ogg_read::OggPackets;

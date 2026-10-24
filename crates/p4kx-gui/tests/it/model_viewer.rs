@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Model tab of the preview over a synthetic Archive with a cube model, driven headless.
 
 use crate::headless;

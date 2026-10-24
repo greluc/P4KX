@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Saved Queries in the Query tab: saved under a name, run with one click, renamed and deleted,
 //! driven headless over a synthetic Archive with a DataForge.
 

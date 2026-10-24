@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// The interpolation weights out of 64 for 2-bit indices.
 pub(crate) const WEIGHTS2: [u8; 4] = [0, 21, 43, 64];
 

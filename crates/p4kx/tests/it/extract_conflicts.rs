@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx extract` into a pre-filled target under each Conflict policy, and cancelled runs.
 
 use std::error::Error;

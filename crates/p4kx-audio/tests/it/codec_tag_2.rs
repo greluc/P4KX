@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Format tag `0x0002` is IMA ADPCM, DSP ADPCM or PTADPCM by the layout of the `fmt` chunk.
 
 use p4kx_audio::{AudioError, Codec, Wem};

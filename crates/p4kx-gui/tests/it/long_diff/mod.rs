@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A pair of Archives whose only Entry is a long text of which every line changed.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// The largest coordinate of a position that is kept, in metres: a light year is 9.5e15 m, far
 /// beyond any star system, so a larger value is data that cannot be a place.
 pub(crate) const MAX_COORDINATE: f64 = 1.0e15;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::TestAnimation;
 use crate::TestChunkFile;
 use crate::bytes::put_u32;

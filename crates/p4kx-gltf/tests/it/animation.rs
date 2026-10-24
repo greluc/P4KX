@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Animations written as GLB: channels on bone nodes and on the nodes of static models.
 
 use std::error::Error;

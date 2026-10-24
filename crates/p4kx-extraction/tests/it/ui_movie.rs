@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! UI movies from an Archive or from disk: bitmaps written as PNG, external images decoded from
 //! the DDS textures next to the movie, shapes written as JSON.
 

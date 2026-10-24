@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx wwise resolve` and `p4kx entity audio --sounds` end to end for streamed sounds located as
 //! loose WEM Entries and for localised sounds in a chosen language, over a synthetic Archive.
 

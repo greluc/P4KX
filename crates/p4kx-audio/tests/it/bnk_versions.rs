@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Objects are decoded only for the bank versions whose layout is known, and `HIRC` type numbers
 //! depend on the version.
 

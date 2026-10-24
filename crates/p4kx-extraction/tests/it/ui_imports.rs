@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Fonts that a UI movie imports from other movies of the Archive: resolution by export name,
 //! URL matching, chains, cycles and the movies the import URL names.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx catalog` over an Archive with an unreadable selected Record: the catalog is written, the
 //! failure is reported and the exit code is 1.
 

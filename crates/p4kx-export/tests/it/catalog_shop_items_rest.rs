@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Item lists of shops whose component lies outside the shop folders, in a later position of a
 //! container file or in a prefab, through the public API.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The metrics of the WEM list of a soundbank in the Audio tab, taken from the `soundbankList`
 //! entry of `docs/design/p4kx-desktop-spec.json`.
 

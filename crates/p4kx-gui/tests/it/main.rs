@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Integration tests of `p4kx-gui`, built as one test binary.
 
 mod archive_change;
@@ -50,6 +53,7 @@ mod info_models;
 mod localization_keys;
 mod localization_window;
 mod localizing;
+mod logo;
 mod long_diff;
 mod model;
 mod model_viewer;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// The 16 texels of one decoded 4×4 block, RGBA, row by row.
 pub(crate) type Texels = [[u8; 4]; 16];
 

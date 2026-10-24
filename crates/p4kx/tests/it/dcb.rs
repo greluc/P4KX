@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx dcb info` end to end, over synthetic DataForge databases of versions 6 and 8 and, with
 //! `--ignored`, over the real Archive `P4KX_DATA_P4K` names.
 

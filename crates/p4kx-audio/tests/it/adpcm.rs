@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding Wwise IMA ADPCM and PTADPCM WEMs to WAV, checked against hand-computed vectors.
 
 use p4kx_audio::{AudioError, Wem};

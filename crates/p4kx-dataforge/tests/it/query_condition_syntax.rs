@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Parsing and printing `where` conditions: precedence, word operators, literals and limits.
 
 use std::error::Error;

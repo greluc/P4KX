@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Comparison tab over two real Archives; runs with `--ignored` when `P4KX_DATA_P4K` and
 //! `P4KX_DATA_P4K_B` name them; the tests over two Archives skip without the second.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use eframe::egui_wgpu::wgpu;
 
 use super::device::{guarded, to_f32};

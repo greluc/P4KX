@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the 3D viewer tests: a synthetic Archive with a cube model opened in a headless
 //! window.
 

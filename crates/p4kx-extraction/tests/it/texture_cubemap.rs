@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Cubemaps and alpha tails of split textures in an Archive and on disk.
 
 use std::error::Error;

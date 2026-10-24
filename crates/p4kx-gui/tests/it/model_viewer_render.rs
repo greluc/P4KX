@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The 3D viewer drawn by wgpu through the paint callback, rendered headless by `egui_kittest`.
 //!
 //! The tests need a graphics adapter, a software one is enough, and return early without one.

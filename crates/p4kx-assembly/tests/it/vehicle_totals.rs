@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The sums over a vehicle implementation: mass, hull hit points, thresholds and value origins.
 
 use crate::vehicle_support::{DEFINITION, TestResult, files};

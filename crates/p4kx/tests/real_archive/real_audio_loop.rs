@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The loops of the loose WEMs of a real Archive survive WAV and Ogg conversion.
 
 use std::error::Error;

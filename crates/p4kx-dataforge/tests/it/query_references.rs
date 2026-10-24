@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `->` follows References and weak pointers into the Records and instances they link to, in
 //! `select` and in `where`, chained and behind array elements.
 

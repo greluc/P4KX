@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::context::{Spot, Step, Trigger, Walk, Want};
 use super::index::{Field, QuerySchema, by_name};
 use super::{At, Candidate, Completion, CompletionKind, MAX_COMPLETIONS};

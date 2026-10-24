@@ -13,7 +13,8 @@ the entries under `## [Unreleased]`.
 ## [0.3.0] - 2026-10-24
 
 The third Release, and the first as P4KX: the tool and its repository are renamed (formerly
-P4K-Extractor, now `greluc/P4KX`), and the settings folder moves to `P4KX` with a one-time copy.
+P4K-Extractor, now `greluc/P4KX`) and get their own logo, and the settings folder moves to `P4KX`
+with a one-time copy.
 The Basetool catalog becomes a full game-data export: ship fields, loadouts, paints, item stats
 including armour, clothing, radar, tractor beams and salvage, variant groups, the starmap with
 world positions, contracts, mineable elements and refining processes, and shops with their item
@@ -25,6 +26,9 @@ Record XML namespace and the Record JSON schema `$id` now use `https://github.co
 
 ### Added
 
+- P4KX has its own logo, data brackets around an X: the window and taskbar icon, `p4kx-gui.exe`,
+  `p4kx.exe`, the installer and its Start-menu shortcut show it, and the header shows its mark
+  before the wordmark. The logo files and rules are in `docs/design/` (ADR-0075).
 - Streamed and localised sounds. `p4kx wwise resolve` locates a streamed or prefetched WEM as the
   loose WEM Entry named by its ID below `Data\Sounds\wwise\` and resolves localised events,
   soundbanks and WEMs for `--lang <language>` with `--fallback-lang` (`English(US)` by default),
@@ -413,9 +417,7 @@ Record XML namespace and the Record JSON schema `$id` now use `https://github.co
 ### Changed
 
 - The window, the installer and the documentation no longer name an organisation. The look is
-  unchanged; the header shows the wordmark only, and the P4KX glyph and the window icon built from
-  it are removed (the platform's default icon shows). The
-  copyright reads "Copyright (c) 2026 the P4KX contributors", the installer manufacturer is "P4KX
+  unchanged, and the earlier P4KX glyph gives way to the new logo. The copyright reads "Copyright (c) 2026 the P4KX contributors", the installer manufacturer is "P4KX
   contributors", and the installer writes `HKCU\Software\P4KX` instead of a key below the earlier
   organisation path; an installed version upgrades and its old key is removed.
 - **Breaking:** the Archive key is no longer part of the tool; you enter it

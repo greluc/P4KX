@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_model::{Model, Transform};
 
 /// Returns the transform of a port's offset from its helper: the rotation `rotation` in degrees,

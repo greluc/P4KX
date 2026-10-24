@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// Returns a baseline greyscale JPEG of `width` x `height` pixels that all have the value
 /// `gray`, written with a quantisation table of ones so it decodes exactly.
 #[must_use]

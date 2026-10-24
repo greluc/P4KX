@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_extraction::query::{Completion, QuerySchema};
 
 /// The completion of the Query editor: the names offered at the cursor and the one chosen with

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Paths into nested data: dot paths through inline structs and strong pointers, `[n]`, `[*]`
 //! and `[TypeName]` in `select` and `where`.
 

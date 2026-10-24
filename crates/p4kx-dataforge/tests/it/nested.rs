@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Owned children in the Record tree: inline classes and strong pointers as nested structs.
 
 use p4kx_dataforge::{Field, StructValue, Value};

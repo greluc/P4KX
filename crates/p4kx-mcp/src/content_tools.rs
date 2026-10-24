@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 use tokio::runtime::Handle;

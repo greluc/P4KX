@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The survey counts pointers in instances, inline structs and pools, and finishes on hostile input.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Exporting a high-range BC6H texture as OpenEXR, and as tone-mapped PNG on request.
 
 use std::error::Error;

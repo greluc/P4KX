@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The metrics of the tag tree of the Tags tab, taken from the `tagTree` entry of
 //! `docs/design/p4kx-desktop-spec.json`; they sit beside [`super::desktop`], which is at its size limit.
 

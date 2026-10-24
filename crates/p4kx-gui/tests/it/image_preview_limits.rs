@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The limits of the image preview: alpha tails on their own, textures too large to show and
 //! levels the window cannot hold.
 

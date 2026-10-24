@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The line diff for a viewer: cancelled through a token, and its lines read by index.
 
 use crate::common::{TestResult, pair, rendered};

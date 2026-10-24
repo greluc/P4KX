@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The textures held in memory, the cube model and the helpers that read a GLB back.
 
 use std::collections::HashMap;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Opening the socpak containers of a real Archive; runs with `--ignored` when `P4KX_DATA_P4K`
 //! names one.
 

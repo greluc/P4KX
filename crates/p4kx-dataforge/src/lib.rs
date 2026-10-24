@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reads DataForge, the typed object database of Star Citizen stored in `Data\Game2.dcb`.
 //!
 //! [`DataForge::open`] reads versions 6 and 8 without copying: the header, the struct, property,

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::fmt;
 
 /// A value pool of DataForge; the variants are in the order the pools are stored.

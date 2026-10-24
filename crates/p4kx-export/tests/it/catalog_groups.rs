@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Resource groups and blueprint categories of the Basetool catalog, through the public API.
 
 use crate::crafting_fixture;

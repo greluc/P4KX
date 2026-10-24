@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The metrics of the Query editor's completion list and of the saved Queries, taken from the
 //! `queryCompletion` and `savedQueries` entries of `docs/design/p4kx-desktop-spec.json`; they are
 //! re-exported by [`super::desktop`].

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx info`, `list` and `extract` on an Archive with defective Entries.
 
 use std::error::Error;

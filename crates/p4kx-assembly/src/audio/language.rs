@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// The folder below which the game keeps its soundbanks and loose WEMs; a file in a language
 /// subfolder of it is localised for that language.
 pub(crate) const SOUND_FOLDER: &str = "Data\\Sounds\\wwise\\";

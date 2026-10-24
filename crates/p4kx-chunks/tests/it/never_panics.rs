@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `ChunkFile::parse` never panics, and every chunk of a file it accepts can be read whole.
 
 use p4kx_chunks::ChunkFile;

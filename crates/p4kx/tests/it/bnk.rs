@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx bnk list|extract` end to end, for soundbank Entries of an Archive and files on disk.
 
 use std::error::Error;

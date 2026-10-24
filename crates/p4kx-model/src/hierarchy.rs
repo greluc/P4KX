@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// Returns an index that is its own ancestor in the forest `parents` describes, or `None` when
 /// every chain ends at a root.
 pub(crate) fn find_cycle(parents: &[Option<usize>]) -> Option<usize> {

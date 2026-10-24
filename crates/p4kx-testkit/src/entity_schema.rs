@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::entity_cargo::cargo_structs;
 use crate::entity_vehicle::vehicle_structs;
 use crate::{DataForgeBuilder, TestInstance, TestStruct, TestType, TestValue};

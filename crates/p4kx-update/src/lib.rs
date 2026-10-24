@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Asks the GitHub API whether a newer Release of P4KX than the running one exists.
 //!
 //! The request is a single anonymous GET of the latest Release; nothing about the user, the

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Both levels over two real Archives and over one real Archive with itself; runs with
 //! `--ignored` when `P4KX_DATA_P4K` names an Archive, and the tests over two Archives skip unless
 //! `P4KX_DATA_P4K_B` names the second.

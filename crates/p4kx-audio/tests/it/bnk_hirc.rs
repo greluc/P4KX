@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `HIRC` objects decoded into typed values with their IDs.
 
 use p4kx_audio::{

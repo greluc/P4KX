@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 const MAGIC: &[u8; 4] = b"glTF";
 const JSON: u32 = 0x4E4F_534A;
 const BIN: u32 = 0x004E_4942;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use super::{Bounds, Camera, Matrix, Step, fit_distance, length, sub};
 
 const ASPECT: f32 = 16.0 / 9.0;

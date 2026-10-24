@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Queries over the Records of a DataForge, defined in `docs/query.md`.
 //!
 //! [`Query::parse`] reads the text into a [`Query`], [`Query::compile`] checks it against one

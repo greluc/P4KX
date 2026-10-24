@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The index of incoming and outgoing References over a synthetic DataForge in both layouts.
 
 use p4kx_dataforge::query::{Query, QueryErrorKind};

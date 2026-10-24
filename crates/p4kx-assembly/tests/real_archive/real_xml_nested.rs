@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! XML Loadouts of a real Archive: items without `itemName` that hold nested `<Items>`.
 
 use std::collections::BTreeMap;

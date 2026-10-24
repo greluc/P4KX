@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The testkit cube written as GLB: valid glTF, Y up, metres, with its nodes, meshes and materials.
 
 use std::error::Error;

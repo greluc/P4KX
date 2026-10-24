@@ -1,7 +1,12 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Placement of the main window and how it is remembered in the settings file.
 
 use egui::{Rect, ViewportBuilder, ViewportInfo};
 use p4kx_settings::WindowGeometry;
+
+use crate::theme::logo::window_icon;
 
 const DEFAULT_SIZE: [f32; 2] = [1280.0, 800.0];
 const MIN_SIZE: [f32; 2] = [640.0, 400.0];
@@ -11,6 +16,7 @@ const MIN_SIZE: [f32; 2] = [640.0, 400.0];
 pub fn viewport(geometry: Option<WindowGeometry>, title: &str) -> ViewportBuilder {
     let builder = ViewportBuilder::default()
         .with_title(title)
+        .with_icon(window_icon())
         .with_min_inner_size(MIN_SIZE)
         .with_drag_and_drop(true);
     let Some(geometry) = geometry else {
@@ -102,6 +108,18 @@ mod tests {
 
         assert_eq!(options.multisampling, 0, "no multisampling");
         assert_eq!(options.depth_buffer, 0, "no depth buffer");
+    }
+
+    #[test]
+    fn the_window_carries_the_logo_as_its_icon() {
+        let builder = viewport(None, "title");
+
+        assert!(
+            builder
+                .icon
+                .is_some_and(|icon| icon.width == 256 && icon.rgba.len() == 4 * 256 * 256),
+            "icon"
+        );
     }
 
     const SAVED: WindowGeometry = WindowGeometry {

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_dataforge::{Resolution, TextResolver};
 use p4kx_localization::{Language, Lookup, OwnedTextSet, TextSet, decode_line_breaks};
 

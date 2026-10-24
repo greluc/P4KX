@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Every real soundbank parses, its embedded WEMs read like loose ones and its `HIRC` objects decode.
 
 use std::collections::{BTreeMap, HashMap, HashSet};

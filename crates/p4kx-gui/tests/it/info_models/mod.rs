@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Models with something to list in the Info tab: a chunk of an unknown type and a material
 //! library the Archive lacks, in an Archive of four Entries so that every row stays in view.
 

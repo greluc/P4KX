@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding Wwise Vorbis WEMs to PCM WAV: the known signal, the length, the format and corrupt
 //! input.
 

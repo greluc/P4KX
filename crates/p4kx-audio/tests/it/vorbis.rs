@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Rebuilding Wwise Vorbis WEMs as Ogg Vorbis: codebook fallback, packets, granule positions
 //! and corrupt input.
 

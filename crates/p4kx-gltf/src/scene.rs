@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::io::Write;
 
 use p4kx_model::{Lod, MaterialStatus, Model, Transform};

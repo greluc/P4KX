@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reading one mip of a split texture and writing a decoded mip as PNG.
 
 use std::collections::BTreeMap;

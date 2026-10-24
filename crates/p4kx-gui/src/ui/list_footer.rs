@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{Frame, Margin, Panel, Stroke, Ui, vec2};
 
 use crate::theme::desktop::{LIST_FOOTER_PADDING_X, LIST_FOOTER_PADDING_Y};

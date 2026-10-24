@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{EventFilter, Id, Key, Rect, Response, Sense, Ui, WidgetInfo, pos2, vec2};
 
 use crate::theme::desktop::{

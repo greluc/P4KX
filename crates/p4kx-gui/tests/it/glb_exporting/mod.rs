@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the Export as GLB tests: start an export into a file and wait for it to end.
 
 use std::error::Error;

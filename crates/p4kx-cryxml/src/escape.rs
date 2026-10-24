@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::io::{self, Write};
 
 const REPLACEMENT: &[u8] = "\u{FFFD}".as_bytes();

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The window state, driven without drawing: opening, navigating, sorting and checking.
 
 use std::error::Error;

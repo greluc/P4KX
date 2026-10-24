@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reading `.caf` files and `.dba` databases into tracks of rotation and translation keys.
 
 use std::error::Error;

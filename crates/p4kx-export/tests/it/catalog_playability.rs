@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The playability of ships and items in the Basetool catalog, through the public API.
 
 use crate::playability_fixture;

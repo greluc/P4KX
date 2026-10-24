@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::bc::Texels;
 use crate::bc6h_modes::{FIELDS, Mode, PARTITION, mode_of};
 use crate::bc7_tables::{ANCHORS, SUBSETS, WEIGHTS3, WEIGHTS4};

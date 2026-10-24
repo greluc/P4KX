@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The test-build notice of the command line: one line on stderr for every Channel but `LIVE`.
 
 use std::error::Error;

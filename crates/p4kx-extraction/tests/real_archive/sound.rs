@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Description, WAV conversion and Ogg rebuilding of real WEM sounds.
 
 use std::collections::HashMap;

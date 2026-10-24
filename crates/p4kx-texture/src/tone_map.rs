@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::pixels::float_unorm;
 
 /// Tone-maps one linear high-range channel value to 8-bit sRGB: Reinhard `v / (1 + v)`, then

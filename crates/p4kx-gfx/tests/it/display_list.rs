@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The display list of the first frame: placements, changes and removals with matrices, colour
 //! transforms and the `PlaceObject3` extras.
 

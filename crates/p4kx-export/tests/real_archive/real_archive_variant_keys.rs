@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The inputs of the variant keys in a real Archive: how many ships name one vehicle definition in
 //! several spellings, and whether any GUID repeats; runs with `--ignored` when `P4KX_DATA_P4K`
 //! names an Archive.

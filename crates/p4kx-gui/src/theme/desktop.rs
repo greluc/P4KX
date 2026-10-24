@@ -1,14 +1,20 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The desktop metrics of the window, taken from `docs/design/p4kx-desktop-spec.json`, which
 //! derives them from the P4KX design for a mouse and keyboard tool.
 
 use egui::Color32;
 
+pub use super::brand_metrics::{
+    BRAND_GAP, BRAND_HEIGHT, BRAND_MARK, BRAND_PADDING_RIGHT, WORDMARK_SIZE,
+};
 pub use super::query_metrics::{
     COMBOBOX_NOTICE_PADDING, COMPLETION_MAX_HEIGHT, SAVED_LIST_HEIGHT, SAVED_NAME_MAX_WIDTH,
 };
 pub use super::row_tints::{LIST_ROW_HOVER, TREE_ROW_HOVER, ZEBRA};
 use super::tokens::{
-    FS_SM, FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
+    FS_XS, REM, SPACE_1, SPACE_2, SPACE_3, SPACE_4, SPACE_6, SPACE_8, TOUCH_TARGET,
 };
 pub use super::tooltip_metrics::{
     TOOLTIP_FILL, TOOLTIP_LINE_HEIGHT, TOOLTIP_MAX_WIDTH, TOOLTIP_PADDING_X, TOOLTIP_PADDING_Y,
@@ -26,12 +32,6 @@ pub const ROW_FONT: f32 = 0.86 * REM;
 pub const HEADER_HEIGHT: f32 = 46.0;
 /// The horizontal padding of the header.
 pub const HEADER_PADDING_X: f32 = SPACE_4;
-/// The height of the wordmark row in the header.
-pub const BRAND_HEIGHT: f32 = 24.0;
-/// The gap between the wordmark and the menus.
-pub const BRAND_PADDING_RIGHT: f32 = 24.0;
-/// The font size of the wordmark.
-pub const WORDMARK_SIZE: f32 = FS_SM;
 /// The horizontal padding of a menu link.
 pub const MENU_LINK_PADDING_X: f32 = 14.0;
 /// The font size of a menu link.

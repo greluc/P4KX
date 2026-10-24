@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding BC1, BC2, BC3 and uncompressed mips to 8-bit RGBA.
 
 use p4kx_texture::{DxgiFormat, RgbaImage, TextureError, TextureFormat, decode};

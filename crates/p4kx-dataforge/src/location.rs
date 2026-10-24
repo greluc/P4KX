@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::fmt::{self, Write as _};
 
 /// One step from a struct down to a value: a field by name or an element of an array by index.

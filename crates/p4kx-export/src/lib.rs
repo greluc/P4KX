@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Export service of P4KX: the Record export and the Basetool catalog (ADR-0002).
 //!
 //! [`write_record_export`] writes a selection of Records in a [`RecordForm`]: one Record XML or

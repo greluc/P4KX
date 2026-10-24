@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::dataforge::out_of_range;
 use crate::rows::{EnumDef, NO_PARENT, PropertyDef, StructDef};
 use crate::{DataForge, DataForgeError, DataType};

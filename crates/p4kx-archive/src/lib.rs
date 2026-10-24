@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reads Star Citizen `Data.p4k` Archives in two layouts: v1, a ZIP64 container whose central
 //! directory carries CIG-specific extra blocks, and v2, fixed 204-byte directory records with a
 //! name table behind a trailer ending in `Jiji`. Entries may be stored, deflate or zstd compressed

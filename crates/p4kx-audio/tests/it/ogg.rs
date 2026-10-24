@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Ogg page writer: page layout, flags, granule positions, lacing and CRC.
 
 use std::io;

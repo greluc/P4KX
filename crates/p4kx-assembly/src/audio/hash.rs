@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 const FNV_OFFSET_BASIS: u32 = 0x811C_9DC5;
 const FNV_PRIME: u32 = 0x0100_0193;
 

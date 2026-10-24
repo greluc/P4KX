@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{CompanionError, CompanionPath, CompanionResolver, MaterialLibrary, MaterialStatus};
 
 /// Fetches and reads the material library `name` through `companions`; a library that is

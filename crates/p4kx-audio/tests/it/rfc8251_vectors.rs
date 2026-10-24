@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The decode path against the official RFC 8251 Opus decoder test vectors, kept outside the
 //! repository.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx-mcp` end to end: the server runs as a child process and is spoken to over stdio, with a
 //! synthetic Library folder and Archive.
 

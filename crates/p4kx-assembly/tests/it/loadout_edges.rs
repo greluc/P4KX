@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Loadout edge cases: cycles, depth and size limits, overrides, port defaults and References
 //! to Records that are no Entities.
 

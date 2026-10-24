@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx dcb tags` and `p4kx dcb export --tags` over a synthetic DataForge: the tag tree as a
 //! table and as JSON, flat and nested, one tag with everything below it, invalid input, and the
 //! tag paths in exported Records.

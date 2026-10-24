@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the loadouts tests: build the fixture catalog and read its JSON.
 
 use crate::loadouts_fixture::write_archive;

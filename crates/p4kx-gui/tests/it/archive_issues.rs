@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! An open Archive whose Entries have defects: the window shows a warning notice with their number.
 
 use std::error::Error;

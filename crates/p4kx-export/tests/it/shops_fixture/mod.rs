@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic Archive with a shop registry, shop containers and the starmap of the starmap
 //! fixture.
 

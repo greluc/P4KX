@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The limits, Archive changes and keyboard scrolling of the XML tab, driven headless.
 
 use crate::xml_previewing;

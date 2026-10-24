@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The items of the variants fixture: pairs that differ in exactly one thing each.
 
 use p4kx_testkit::{TestInstance, TestRecord, TestStruct, TestType, TestValue};

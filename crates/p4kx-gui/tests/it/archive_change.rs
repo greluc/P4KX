@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! An open Archive that changes on disk: no job reads it, a running Extraction stops, and the
 //! window offers to reload it.
 

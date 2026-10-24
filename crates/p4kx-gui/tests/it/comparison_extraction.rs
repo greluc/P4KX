@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Extracting the added and changed Entries of one side of a Comparison, without drawing.
 
 use crate::comparing;

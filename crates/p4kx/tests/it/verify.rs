@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx verify`, `p4kx extract --verify` and `p4kx socpak verify` end to end.
 
 use std::error::Error;

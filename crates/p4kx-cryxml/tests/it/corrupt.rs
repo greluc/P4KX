@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Truncated and corrupt `CryXml` gives typed errors, never a panic.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The texture outputs of the Extraction setup, driven headless through `egui_kittest`.
 
 use std::error::Error;

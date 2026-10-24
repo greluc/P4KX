@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Random `where` conditions over a synthetic DataForge compile or fail with a span inside the
 //! Query, and running them never panics.
 

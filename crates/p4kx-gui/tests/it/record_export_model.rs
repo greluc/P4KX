@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Record export of the window driven headless: the selection from the Record tree or a
 //! record-path filter, both forms, cancel and the summary.
 

@@ -365,6 +365,19 @@ Early development (milestone M1). Available today:
   is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
   bitmap tiles it. Text is written as paths, never as `<text>` elements. A document is at most 1 GiB;
   a larger one is an error and no file is left.
+- `p4kx ui screens <archive> <entity>` lists the `BuildingBlocks` screens of an Entity and of
+  everything in its default Loadout, e.g. the MFDs, the radar and the HUD of a ship: per screen the
+  port, the Entity, the canvas Record and its size, the canvases, textures, vector graphics, movies
+  and localisation keys it uses, and its widgets by element type with whether they are drawn; the
+  UI movies the Entities name are listed after them. `--json` carries the same.
+- `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size …] [--background …]
+  [--brand <code>]` renders such a canvas, named by record path or GUID, as a still through the
+  GFx renderer: the layout of its widgets (sizes, margins, padding, flex containers, raw units)
+  is computed from the Records and the boxes, circles and polygons are drawn in the colours of
+  the style cascade (palette slots of the default and manufacturer style, style entries with type,
+  tag, parent and ancestor selectors at rest). Texts, textures, vector graphics, lists, clones and
+  every other widget type without a renderer are left out and listed, with the features the layout
+  approximates (exit code 1); no ActionScript is run.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
@@ -452,8 +465,8 @@ Early development (milestone M1). Available today:
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
-| 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture cannot be read, merged or written, a tag or definition of a UI movie cannot be read or written, or `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit), or `chf glb` could not shape the head by its DNA (the GLB is written without the head); `compare`: the Archives or the `--diff` Entry differ |
-| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a target or output inside a Star Citizen installation (the tool never writes there), a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, a CHF file for `chf glb` that holds no face DNA or whose DNA belongs to an unknown head rig, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini` |
+| 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture cannot be read, merged or written, a tag or definition of a UI movie cannot be read or written, or `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit; for `--screen` also a widget type without a renderer or an approximated layout), or `chf glb` could not shape the head by its DNA (the GLB is written without the head); `compare`: the Archives or the `--diff` Entry differ |
+| 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a target or output inside a Star Citizen installation (the tool never writes there), a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, a CHF file for `chf glb` that holds no face DNA or whose DNA belongs to an unknown head rig, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini`, a canvas for `ui render --screen` that no Record, several Records or a non-canvas Record names, or whose side is below 1 or above 16384 pixels |
 | 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error); a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |
 | 5 | The DataForge cannot be read: the Archive holds none, its version is not supported or it is corrupt |

@@ -3,6 +3,7 @@
 
 use crate::TestPort;
 use crate::entity_cargo::{container_component, physics_component};
+use crate::entity_loadout::TestLoadout;
 use crate::entity_schema::attachable_component;
 use crate::entity_vehicle::{
     ContainerPlacement, GeometryVariant, geometry_component, item_container_component,
@@ -37,11 +38,20 @@ pub struct TestEntity {
     tags: Option<String>,
     mass: Option<f32>,
     container: Option<u128>,
+    extra: Vec<TestValue>,
     object_containers: Vec<ContainerPlacement>,
     item_container: Option<String>,
 }
 
 impl TestEntity {
+    /// Adds a component of a struct the database declares, after the components the other
+    /// methods add.
+    #[must_use]
+    pub fn component(mut self, component: TestValue) -> Self {
+        self.extra.push(component);
+        self
+    }
+
     /// Creates an Entity with the class name `class_name`, whose Record is named
     /// `EntityClassDefinition.<class_name>`, without ports and Loadout.
     #[must_use]
@@ -65,6 +75,7 @@ impl TestEntity {
             tags: None,
             mass: None,
             container: None,
+            extra: Vec::new(),
             object_containers: Vec::new(),
             item_container: None,
         }
@@ -279,6 +290,7 @@ impl TestEntity {
         }
         components.extend(self.mass.map(physics_component));
         components.extend(self.container.map(container_component));
+        components.extend(self.extra.iter().cloned());
         TestRecord::new(
             self.guid,
             "EntityClassDefinition",
@@ -315,87 +327,5 @@ impl TestEntity {
                 )
                 .value("triggerEffects", TestValue::Array(effects)),
         )
-    }
-}
-
-/// A Loadout of a synthetic Entity or Loadout entry.
-#[derive(Debug, Clone, PartialEq)]
-pub enum TestLoadout {
-    /// A manual Loadout with its entries in order.
-    Manual(Vec<TestLoadoutEntry>),
-    /// An XML Loadout naming the file that holds it.
-    Xml(String),
-}
-
-impl TestLoadout {
-    fn value(&self) -> TestValue {
-        TestValue::Struct(match self {
-            Self::Manual(entries) => TestInstance::new("SItemPortLoadoutManualParams").value(
-                "entries",
-                TestValue::Array(entries.iter().map(TestLoadoutEntry::value).collect()),
-            ),
-            Self::Xml(path) => TestInstance::new("SItemPortLoadoutXMLParams")
-                .value("loadoutPath", TestValue::text(path.clone())),
-        })
-    }
-}
-
-/// One entry of a manual Loadout: a port and what is attached to it.
-#[derive(Debug, Clone, PartialEq)]
-pub struct TestLoadoutEntry {
-    port: String,
-    class_name: String,
-    reference: Option<u128>,
-    loadout: Option<TestLoadout>,
-}
-
-impl TestLoadoutEntry {
-    /// Creates an entry for the port `port` with nothing attached.
-    #[must_use]
-    pub fn empty(port: impl Into<String>) -> Self {
-        Self {
-            port: port.into(),
-            class_name: String::new(),
-            reference: None,
-            loadout: None,
-        }
-    }
-
-    /// Creates an entry attaching the Entity of class name `class_name`.
-    #[must_use]
-    pub fn class(port: impl Into<String>, class_name: impl Into<String>) -> Self {
-        Self {
-            class_name: class_name.into(),
-            ..Self::empty(port)
-        }
-    }
-
-    /// Creates an entry attaching the Entity by a Reference to `guid`.
-    #[must_use]
-    pub fn reference(port: impl Into<String>, guid: u128) -> Self {
-        Self {
-            reference: Some(guid),
-            ..Self::empty(port)
-        }
-    }
-
-    /// Sets the Loadout the entry gives the attached Entity.
-    #[must_use]
-    pub fn loadout(mut self, loadout: TestLoadout) -> Self {
-        self.loadout = Some(loadout);
-        self
-    }
-
-    fn value(&self) -> TestValue {
-        let mut instance = TestInstance::new("SItemPortLoadoutEntryParams")
-            .value("itemPortName", TestValue::text(self.port.clone()))
-            .value("entityClassName", TestValue::text(self.class_name.clone()));
-        if let Some(guid) = self.reference {
-            instance = instance.value("entityClassReference", TestValue::Reference(guid));
-        }
-        if let Some(loadout) = &self.loadout {
-            instance = instance.value("loadout", loadout.value());
-        }
-        TestValue::Struct(instance)
     }
 }

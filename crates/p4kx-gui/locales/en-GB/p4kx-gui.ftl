@@ -1148,7 +1148,6 @@ characters-expressions-no-head = Choose a head to load its expressions.
 characters-expressions-none = The head has no expressions.
 characters-expression-neutral = Neutral face
 characters-expression-strength = Strength { $percent } %
-characters-export-heading = Export
 characters-export-action = Export as GLB…
 characters-export-counts = Parts { $parts }, bones { $bones }, vertices { $vertices }, triangles { $triangles }, size { $size }
 characters-view-label = 3D view of the Character { $name }: { $parts } parts, { $triangles } triangles

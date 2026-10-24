@@ -1148,7 +1148,6 @@ characters-expressions-no-head = Wähle einen Kopf, um seine Ausdrücke zu laden
 characters-expressions-none = Der Kopf hat keine Ausdrücke.
 characters-expression-neutral = Neutrales Gesicht
 characters-expression-strength = Stärke { $percent } %
-characters-export-heading = Export
 characters-export-action = Als GLB exportieren …
 characters-export-counts = Teile { $parts }, Knochen { $bones }, Eckpunkte { $vertices }, Dreiecke { $triangles }, Größe { $size }
 characters-view-label = 3D-Ansicht des Charakters { $name }: { $parts } Teile, { $triangles } Dreiecke

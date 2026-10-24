@@ -3,7 +3,6 @@
 
 use egui::{Label, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, vec2};
 use p4kx_assembly::BodyVariant;
-use p4kx_settings::ModelMaterials;
 
 use super::search::eyebrow;
 use super::{Dialog, Requests};
@@ -21,12 +20,9 @@ use crate::widgets::slider::{Steps, slider};
 use crate::widgets::tab;
 use crate::widgets::text::{line, paint_left, plain};
 use crate::widgets::toggle::{checkbox, radio};
-use crate::{
-    CHARACTER_LODS, CharacterText as T, CharactersTab, ChooserKind, EntityText, Model, Texts,
-};
+use crate::{CharacterText as T, CharactersTab, ChooserKind, Model, Texts};
 
 const BODIES: [BodyVariant; 2] = [BodyVariant::Male, BodyVariant::Female];
-const MATERIALS: [ModelMaterials; 2] = [ModelMaterials::Colours, ModelMaterials::Textures];
 const STRENGTH: Steps = Steps {
     step: 0.05,
     page: 0.25,
@@ -44,13 +40,10 @@ enum Ask {
     Expressions(bool),
     Expression(Option<usize>),
     Strength(f32),
-    Lod(u32),
-    Materials(ModelMaterials),
-    Export,
 }
 
 /// Shows the choices of the Character: the body, the head, the Loadout and the pieces, the
-/// expressions and the export.
+/// expressions.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     let ask = {
         let (tab, texts) = model.characters_with_texts();
@@ -63,7 +56,6 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
                     head(ui, tab, texts),
                     armour(ui, tab, texts),
                     expressions(ui, tab, texts),
-                    export(ui, tab, texts),
                 ]
                 .into_iter()
                 .flatten()
@@ -72,13 +64,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
             .inner
     };
     if let Some(ask) = ask {
-        apply(ui, model, ask, requests);
+        apply(ui, model, &ask, requests);
     }
 }
 
-fn apply(ui: &Ui, model: &mut Model, ask: Ask, requests: &mut Requests) {
+fn apply(ui: &Ui, model: &mut Model, ask: &Ask, requests: &mut Requests) {
     match ask {
-        Ask::Body(variant) => model.characters_mut().set_body(variant),
+        Ask::Body(variant) => model.characters_mut().set_body(*variant),
         Ask::HeadFromArchive => {
             model.begin_character_choice(ChooserKind::Head);
         }
@@ -91,13 +83,10 @@ fn apply(ui: &Ui, model: &mut Model, ask: Ask, requests: &mut Requests) {
         Ask::PieceAdd => {
             model.begin_character_choice(ChooserKind::Piece);
         }
-        Ask::PieceRemove(position) => model.characters_mut().remove_piece(position),
-        Ask::Expressions(enabled) => model.characters_mut().set_expressions_enabled(enabled),
-        Ask::Expression(position) => model.characters_mut().choose_expression(position),
-        Ask::Strength(weight) => model.characters_mut().set_expression_weight(weight),
-        Ask::Lod(level) => model.characters_mut().set_lod(level),
-        Ask::Materials(materials) => model.characters_mut().set_materials(materials),
-        Ask::Export => requests.dialog = Some(Dialog::CharacterFile),
+        Ask::PieceRemove(position) => model.characters_mut().remove_piece(*position),
+        Ask::Expressions(enabled) => model.characters_mut().set_expressions_enabled(*enabled),
+        Ask::Expression(position) => model.characters_mut().choose_expression(*position),
+        Ask::Strength(weight) => model.characters_mut().set_expression_weight(*weight),
     }
     ui.ctx().request_repaint();
 }
@@ -117,7 +106,9 @@ fn body(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
     let active = BODIES.iter().position(|variant| *variant == tab.body());
     let locked = tab.head().is_some();
     let clicked = ui
-        .add_enabled_ui(!locked, |ui| ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner)
+        .add_enabled_ui(!locked, |ui| {
+            ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner
+        })
         .inner;
     if locked {
         muted(ui, texts.get(T::BodyFromHead));
@@ -140,17 +131,24 @@ fn head(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
             ("name", head.name().to_owned().into()),
             ("rig", head.rig().to_owned().into()),
         ];
-        ui.add(Label::new(plain(texts.format(T::HeadLine, &args), FS_XS, Weight::Regular)).wrap());
+        ui.add(
+            Label::new(plain(
+                texts.format(T::HeadLine, &args),
+                FS_XS,
+                Weight::Regular,
+            ))
+            .wrap(),
+        );
     } else {
         muted(ui, texts.get(T::HeadNone));
     }
     if let Some(reason) = tab.head_failure() {
         let text = texts.format(T::HeadFailed, &[("reason", reason.to_owned().into())]);
-        ui.add(
-            Label::new(plain(text, FS_XS, Weight::Regular).color(palette::DANGER_TEXT)).wrap(),
-        );
+        ui.add(Label::new(plain(text, FS_XS, Weight::Regular).color(palette::DANGER_TEXT)).wrap());
     }
-    let listed = tab.sources().is_some_and(|sources| !sources.heads().is_empty());
+    let listed = tab
+        .sources()
+        .is_some_and(|sources| !sources.heads().is_empty());
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing.x = AUDIO_CONTROL_GAP;
         let archive = texts.get(T::HeadFromArchive);
@@ -182,8 +180,12 @@ fn armour(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
         Some(path) => {
             let args = [("name", file_name(path).to_owned().into())];
             ui.add(
-                Label::new(plain(texts.format(T::LoadoutLine, &args), FS_XS, Weight::Regular))
-                    .wrap(),
+                Label::new(plain(
+                    texts.format(T::LoadoutLine, &args),
+                    FS_XS,
+                    Weight::Regular,
+                ))
+                .wrap(),
             );
         }
         None => muted(ui, texts.get(T::LoadoutNone)),
@@ -276,7 +278,11 @@ fn expressions(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
                 let position = row.checked_sub(1);
                 let name = position.map_or_else(
                     || texts.get(T::ExpressionNeutral),
-                    |at| names.get(at).map_or_else(String::new, |one| one.name().to_owned()),
+                    |at| {
+                        names
+                            .get(at)
+                            .map_or_else(String::new, |one| one.name().to_owned())
+                    },
                 );
                 if radio(ui, chosen == position, &name, true).clicked() {
                     ask = Some(Ask::Expression(position));
@@ -284,7 +290,10 @@ fn expressions(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
             }
         });
     let percent = format!("{:.0}", tab.expression_weight() * 100.0);
-    let label = texts.format(T::ExpressionStrength, &[("percent", percent.clone().into())]);
+    let label = texts.format(
+        T::ExpressionStrength,
+        &[("percent", percent.clone().into())],
+    );
     ui.label(plain(label.as_str(), FS_XS, Weight::Regular).color(palette::GRAY_1));
     let width = ui.available_width();
     let (_, picked) = slider(
@@ -295,33 +304,4 @@ fn expressions(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
         width,
     );
     picked.map(Ask::Strength).or(ask)
-}
-
-fn export(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
-    heading(ui, texts, T::ExportHeading);
-    let mut ask = None;
-    ui.label(plain(texts.get(EntityText::ViewLod), FS_XS, Weight::Regular).color(palette::GRAY_1));
-    let levels = CHARACTER_LODS.map(|level| level.to_string());
-    let active = CHARACTER_LODS.iter().position(|level| *level == tab.lod());
-    if let Some(level) = tab::segments(ui, &levels, active).and_then(|at| CHARACTER_LODS.get(at)) {
-        ask = Some(Ask::Lod(*level));
-    }
-    ui.label(
-        plain(texts.get(EntityText::ViewMaterials), FS_XS, Weight::Regular)
-            .color(palette::GRAY_1),
-    );
-    for materials in MATERIALS {
-        let label = texts.get(match materials {
-            ModelMaterials::Colours => EntityText::ViewColours,
-            ModelMaterials::Textures => EntityText::ViewTextures,
-        });
-        if radio(ui, tab.materials() == materials, &label, true).clicked() {
-            ask = Some(Ask::Materials(materials));
-        }
-    }
-    let action = texts.get(T::ExportAction);
-    if button::button(ui, Kind::Cta, Size::Normal, &action, tab.export_available()).clicked() {
-        ask = Some(Ask::Export);
-    }
-    ask
 }

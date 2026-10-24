@@ -214,7 +214,9 @@ impl CharactersTab {
     /// Returns the body variant the Character is built on: the head's, else the chosen one.
     #[must_use]
     pub fn body(&self) -> BodyVariant {
-        self.head.as_ref().map_or(self.body, |head| head.info.variant)
+        self.head
+            .as_ref()
+            .map_or(self.body, |head| head.info.variant)
     }
 
     /// Returns the head, if a CHF is chosen.
@@ -306,7 +308,9 @@ impl CharactersTab {
     /// Returns how far the build that runs has come, or `None` when none runs.
     #[must_use]
     pub fn progress(&self) -> Option<ViewProgress> {
-        self.building.as_ref().map(|building| building.shared.progress())
+        self.building
+            .as_ref()
+            .map(|building| building.shared.progress())
     }
 
     /// Returns whether the Character is being built.

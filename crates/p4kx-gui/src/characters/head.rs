@@ -3,7 +3,7 @@
 
 use std::fs::File;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use p4kx_assembly::character::{CHF_SIZE, Character, Chf};
@@ -118,9 +118,4 @@ pub(super) fn read(source: &HeadSource, index: &EntryIndex) -> Result<HeadPick, 
         },
         character: Arc::new(chf.character),
     })
-}
-
-/// Returns the path of a file the user picked, for the facts of a head.
-pub(super) fn picked(path: &Path) -> HeadSource {
-    HeadSource::File(path.to_path_buf())
 }

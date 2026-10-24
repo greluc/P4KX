@@ -74,8 +74,6 @@ pub enum CharacterText {
     ExpressionNeutral,
     /// The label of the slider of the strength; takes `percent`.
     ExpressionStrength,
-    /// The heading of the choices of the export.
-    ExportHeading,
     /// The action that exports the Character as GLB.
     ExportAction,
     /// How many pieces the export left out; takes `count` and `number`.
@@ -104,7 +102,7 @@ pub enum CharacterText {
 
 impl CharacterText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 48] = [
+    pub(crate) const ALL: [Self; 47] = [
         Self::Tab,
         Self::EmptyHint,
         Self::BodyHeading,
@@ -140,7 +138,6 @@ impl CharacterText {
         Self::ExpressionsNone,
         Self::ExpressionNeutral,
         Self::ExpressionStrength,
-        Self::ExportHeading,
         Self::ExportAction,
         Self::ExportSkipped,
         Self::ExportCounts,
@@ -157,7 +154,6 @@ impl CharacterText {
 
     /// Returns the Fluent message id.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "one arm per text")]
     pub const fn id(self) -> &'static str {
         match self {
             Self::Tab => "characters-tab",
@@ -195,7 +191,6 @@ impl CharacterText {
             Self::ExpressionsNone => "characters-expressions-none",
             Self::ExpressionNeutral => "characters-expression-neutral",
             Self::ExpressionStrength => "characters-expression-strength",
-            Self::ExportHeading => "characters-export-heading",
             Self::ExportAction => "characters-export-action",
             Self::ExportSkipped => "characters-export-skipped",
             Self::ExportCounts => "characters-export-counts",

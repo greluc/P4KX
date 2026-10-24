@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::{
-    AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText, CharacterText,
-    ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText, EntityText,
-    ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, ModelExportText,
-    ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
-    RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, XmlText,
+    AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
+    CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText,
+    EntityText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
+    ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText,
+    RecordLanguageText, RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, XmlText,
 };
 use crate::Language;
 

@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use p4kx_assembly::character::Character;
 use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Armour, AssemblyError, AssemblyOptions, BodyVariant, Expressions,
-    Head, LoadoutResolver, ModelFailure, ModelProvider, Piece, ProvidedModel, Replaced,
+    ForgeItems, Head, LoadoutResolver, ModelFailure, ModelProvider, Piece, ProvidedModel, Replaced,
 };
 use p4kx_extraction::model::MaterialStatus;
 use p4kx_extraction::{CancelToken, Guid};
@@ -15,7 +15,9 @@ use p4kx_extraction::{CancelToken, Guid};
 use crate::assembly_export::{Stoppable, failure_of};
 use crate::forge_cache::ReadFailure;
 use crate::model::describe;
-use crate::{EntryIndex, ModelExportFailure, MorphSpan, Scene, SceneError, ViewProgress, ViewStage};
+use crate::{
+    EntryIndex, ModelExportFailure, MorphSpan, Scene, SceneError, ViewProgress, ViewStage,
+};
 
 /// What the Armour of the Character builder is built from.
 #[derive(Debug, Clone)]
@@ -79,6 +81,10 @@ impl ModelProvider for Counting<'_> {
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
         self.inner.library(entry, name)
     }
+
+    fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
+        self.inner.file(path, limit)
+    }
 }
 
 fn failed(reason: impl Into<String>) -> Ended {
@@ -127,7 +133,7 @@ pub(super) fn run(
         None => (given, Vec::new()),
     };
     if let Some(character) = &request.character {
-        match Head::from_character(character) {
+        match Head::dressed(character, &mut ForgeItems::new(&mut resolver)) {
             Ok(head) => {
                 let head = if request.expressions {
                     head.with_expressions(&Expressions::All)

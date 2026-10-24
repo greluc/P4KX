@@ -89,7 +89,10 @@ impl Chooser {
     }
 
     pub(super) fn loadouts(paths: &[String]) -> Self {
-        Self::new(ChooserKind::Loadout, items_of(paths, Some("scripts/loadouts/")))
+        Self::new(
+            ChooserKind::Loadout,
+            items_of(paths, Some("scripts/loadouts/")),
+        )
     }
 
     pub(super) fn heads(paths: &[String]) -> Self {

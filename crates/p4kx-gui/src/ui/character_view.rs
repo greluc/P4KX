@@ -85,7 +85,9 @@ fn ready(
 }
 
 fn waiting(ui: &mut Ui, texts: &Texts, tab: &CharactersTab) -> Option<Ask> {
-    frames::preview_body().show(ui, |ui| status(ui, texts, tab)).inner
+    frames::preview_body()
+        .show(ui, |ui| status(ui, texts, tab))
+        .inner
 }
 
 fn line(ui: &mut Ui, text: String, colour: Color32) {
@@ -108,7 +110,9 @@ fn status(ui: &mut Ui, texts: &Texts, tab: &CharactersTab) -> Option<Ask> {
                 ),
                 _ => texts.get(T::ViewPreparing),
             };
-            ui.add(Label::new(plain(text, FS_XS, Weight::Regular).color(palette::GRAY_1)).truncate());
+            ui.add(
+                Label::new(plain(text, FS_XS, Weight::Regular).color(palette::GRAY_1)).truncate(),
+            );
             let stop = texts.get(EntityText::ViewStop);
             if button::button(ui, Kind::Outline, Size::Compact, &stop, true).clicked() {
                 ask = Some(Ask::Stop);
@@ -119,7 +123,9 @@ fn status(ui: &mut Ui, texts: &Texts, tab: &CharactersTab) -> Option<Ask> {
             if button::button(ui, Kind::Outline, Size::Compact, &again, true).clicked() {
                 ask = Some(Ask::Restart);
             }
-        } else if let Some((colour, text)) = tab.failure().map(|failure| failure_text(texts, failure)) {
+        } else if let Some((colour, text)) =
+            tab.failure().map(|failure| failure_text(texts, failure))
+        {
             line(ui, text, colour);
         }
     });

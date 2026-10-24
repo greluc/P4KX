@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use egui::{Panel, ScrollArea, Ui, vec2};
+use egui::{Margin, Panel, ScrollArea, Ui, vec2};
 
 use super::{
-    Requests, character_choices, character_chooser, character_report, character_view, empty,
+    Requests, character_choices, character_chooser, character_report, character_toolbar,
+    character_view, empty,
 };
 use crate::theme::assembly_metrics::{ASSEMBLY_PANEL_HEIGHT, ASSEMBLY_PANEL_MIN_HEIGHT};
 use crate::theme::character_metrics::{CHARACTER_REPORT_HEIGHT, CHARACTER_STACK_WIDTH};
-use crate::theme::desktop::{SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_WIDTH};
-use crate::widgets::frames;
+use crate::theme::desktop::{SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_WIDTH, TOOLBAR_PADDING};
+use crate::widgets::frames::{self, px};
+use crate::widgets::text::hairline_below;
 use crate::{CharacterText, EntityText, Model};
 
 /// Shows the Characters tab: the choices of the Character and its 3D view with the report of what
@@ -30,6 +32,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     if ui.available_width() < CHARACTER_STACK_WIDTH {
         stacked(ui, model, requests);
     } else {
+        let toolbar = frames::panel()
+            .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
+            .show(ui, |ui| character_toolbar::show(ui, model, requests, true));
+        hairline_below(ui, toolbar.response.rect);
         side_by_side(ui, model, requests);
     }
     character_chooser::show(ui, model);
@@ -76,6 +82,9 @@ fn stacked(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .id_salt("characters-stacked")
         .auto_shrink(false)
         .show(ui, |ui| {
+            frames::panel()
+                .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
+                .show(ui, |ui| character_toolbar::show(ui, model, requests, false));
             character_choices::show(ui, model, requests);
             ui.allocate_ui(vec2(ui.available_width(), ASSEMBLY_PANEL_HEIGHT), |ui| {
                 character_view::show(ui, model);

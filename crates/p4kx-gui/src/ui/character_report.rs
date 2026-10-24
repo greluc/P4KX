@@ -29,7 +29,9 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
             u64::try_from(issues.len()).unwrap_or(u64::MAX),
             texts.language(),
         );
-        ui.label(eyebrow(&texts.format(T::ReportHeading, &[("number", count.into())])));
+        ui.label(eyebrow(
+            &texts.format(T::ReportHeading, &[("number", count.into())]),
+        ));
         for issue in issues {
             let args = [
                 ("name", issue.name.clone().into()),
@@ -47,7 +49,11 @@ pub(super) fn show(ui: &mut Ui, model: &Model) {
                 ("name", one.name().to_owned().into()),
                 ("by", one.by().to_owned().into()),
             ];
-            let text = plain(texts.format(T::ReportReplaced, &args), FS_SM, Weight::Regular);
+            let text = plain(
+                texts.format(T::ReportReplaced, &args),
+                FS_SM,
+                Weight::Regular,
+            );
             ui.add(Label::new(text.color(palette::GRAY_1)).selectable(true));
         }
     });

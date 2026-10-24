@@ -26,6 +26,13 @@ impl ModelProvider for Stoppable<'_, '_> {
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
         self.models.library(entry, name)
     }
+
+    fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
+        if self.cancel.is_cancelled() {
+            return Err(ModelFailure::Fatal(Box::new(ConversionError::Cancelled)));
+        }
+        self.models.file(path, limit)
+    }
 }
 
 pub(crate) struct StoppableTextures<'a> {

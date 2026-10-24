@@ -19,6 +19,7 @@ mod character_choices;
 mod character_chooser;
 mod character_export;
 mod character_report;
+mod character_toolbar;
 mod character_view;
 mod characters;
 mod comparison;
@@ -118,8 +119,8 @@ use crate::widgets::{frames, tab};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
-    CharacterText, ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText, Model,
-    PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
+    CharacterText, ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText,
+    Model, PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
 };
 
 /// A dialog the host shows for the window.

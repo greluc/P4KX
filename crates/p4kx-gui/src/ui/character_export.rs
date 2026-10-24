@@ -104,7 +104,8 @@ fn running(ui: &mut Ui, texts: &Texts, written: u64, cancelling: bool) -> bool {
 
 fn finished(ui: &mut Ui, texts: &Texts, summary: &CharacterExportSummary) {
     let written = summary.written();
-    let number = |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language());
+    let number =
+        |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language());
     let counts = [
         ("parts", number(summary.parts())),
         ("bones", number(written.bones)),
@@ -118,7 +119,10 @@ fn finished(ui: &mut Ui, texts: &Texts, summary: &CharacterExportSummary) {
     ui.colored_label(palette::GRAY_1, texts.format(T::ExportCounts, &counts));
     if summary.skipped() > 0 {
         let skipped = [
-            ("count", u64::try_from(summary.skipped()).unwrap_or(u64::MAX).into()),
+            (
+                "count",
+                u64::try_from(summary.skipped()).unwrap_or(u64::MAX).into(),
+            ),
             ("number", number(summary.skipped()).into()),
         ];
         ui.colored_label(palette::WARNING, texts.format(T::ExportSkipped, &skipped));

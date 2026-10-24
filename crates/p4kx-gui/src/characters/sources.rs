@@ -63,7 +63,9 @@ pub(super) fn scan(index: &EntryIndex, cancel: &CancelToken) -> Option<Sources> 
             }
         }
     }
-    sources.heads.sort_by_cached_key(|path| path.to_ascii_lowercase());
+    sources
+        .heads
+        .sort_by_cached_key(|path| path.to_ascii_lowercase());
     sources
         .loadouts
         .sort_by_cached_key(|path| path.to_ascii_lowercase());

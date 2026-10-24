@@ -20,7 +20,7 @@ enum Action {
     Close,
 }
 
-fn title(kind: ChooserKind) -> T {
+const fn title(kind: ChooserKind) -> T {
     match kind {
         ChooserKind::Piece => T::ChooseTitlePiece,
         ChooserKind::Loadout => T::ChooseTitleLoadout,
@@ -94,8 +94,8 @@ fn counts(ui: &mut Ui, texts: &Texts, chooser: &Chooser) {
 
 fn list(ui: &mut Ui, texts: &Texts, chooser: &Chooser) -> Option<usize> {
     if chooser.shown_len() == 0 {
-        let text = plain(texts.get(T::ChooseNone), FS_SM, Weight::Regular)
-            .color(palette::GRAY_2_TEXT);
+        let text =
+            plain(texts.get(T::ChooseNone), FS_SM, Weight::Regular).color(palette::GRAY_2_TEXT);
         ui.add(Label::new(text));
         return None;
     }

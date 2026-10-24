@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::Model;
-use crate::{CharactersTab, ChooserKind, EntitiesStatus, Texts};
+use crate::{CharactersTab, ChooserKind, Texts};
 
 impl Model {
     /// Returns the Characters tab.
@@ -44,10 +44,7 @@ impl Model {
     /// Opens the choice of a piece, a Loadout or a head; returns whether it opened. The choice of
     /// a piece needs the Entities to be listed.
     pub fn begin_character_choice(&mut self, kind: ChooserKind) -> bool {
-        let catalogue = match self.assembly.tab.status() {
-            EntitiesStatus::Ready(list) => Some(Arc::clone(list.catalogue())),
-            _ => None,
-        };
+        let catalogue = self.assembly.tab.catalogue().map(Arc::clone);
         self.characters.begin_choose(kind, catalogue.as_ref())
     }
 

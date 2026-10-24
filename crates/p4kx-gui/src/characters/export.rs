@@ -292,7 +292,7 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, written: &At
         };
         request
             .armour
-            .write_glb(&options, &mut observed)
+            .write_glb_with(&options, &textures, &mut observed)
             .map_err(|error| match error {
                 GltfError::Write(_) if cancel.is_cancelled() => ConversionError::Cancelled,
                 GltfError::Write(source) => ConversionError::Write {

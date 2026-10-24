@@ -58,21 +58,21 @@ function Get-Installed {
 }
 
 function Get-RegistryKeys {
-    , @(Get-ChildItem 'HKCU:\Software' -Recurse -ErrorAction SilentlyContinue |
-        Where-Object { $_.ValueCount -gt 0 } |
-        ForEach-Object { $_.Name })
+    @(Get-ChildItem 'HKCU:\Software' -Recurse -ErrorAction SilentlyContinue |
+        ForEach-Object { $_.Name } |
+        Where-Object { $_ -notlike '*\Software\Microsoft' -and $_ -notlike '*\Software\Microsoft\*' -and $_ -notlike '*\Software\Classes' -and $_ -notlike '*\Software\Classes\*' })
 }
 
 if ($PreviousMsi) {
     $oldFolder = Join-Path $env:LOCALAPPDATA 'Programs\P4K-Extractor'
-    $registryBefore = Get-RegistryKeys
+    $registryBefore = @(Get-RegistryKeys)
     Invoke-Msiexec @('/i', $PreviousMsi) 'previous-install.log'
     if (-not (Test-Path (Join-Path $oldFolder 'p4kx-gui.exe'))) { throw 'the previous release did not install into Programs\P4K-Extractor' }
-    $oldRegistry = @(Get-RegistryKeys | Where-Object { $registryBefore -notcontains $_ })
+    $oldRegistry = @((Get-RegistryKeys) | Where-Object { $registryBefore -notcontains $_ })
     if ($oldRegistry.Count -eq 0) { throw 'the previous release wrote no registry key' }
     Invoke-Msiexec @('/i', $Msi) 'rename-upgrade.log'
     if (Test-Path $oldFolder) { throw "left behind after the rename upgrade: $oldFolder" }
-    $registryAfter = Get-RegistryKeys
+    $registryAfter = @(Get-RegistryKeys)
     foreach ($key in $oldRegistry) {
         if ($registryAfter -contains $key) { throw "left behind after the rename upgrade: $key" }
     }

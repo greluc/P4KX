@@ -92,7 +92,7 @@ fn side(texts: &Texts, channel: &Channel) -> String {
     )
 }
 
-/// Paints the field after the design system's `select`: control fill and border, orange border
+/// Paints the field after the theme's `select`: control fill and border, orange border
 /// and glow while focused or open, the value in 16 point Regular, the hint in italics.
 fn paint_field(ui: &Ui, rect: Rect, display: &Display, focused: bool) {
     let border = if focused {

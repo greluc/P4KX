@@ -119,16 +119,14 @@ the entries under `## [Unreleased]`.
   in the `chunks` of `model info`), so a `match` on it needs a wildcard arm. The table of
   `p4kx model info` has the columns Tangents and Colours, and its chunk table is wider for the
   `lod<n>-geometry` names.
-- GUI: the window follows the measured palette (tokens up to
-  `20aa9da`): the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
+- GUI: the window follows the measured palette: the house orange is `#E77E23` again, the canvas `#0F0F0F`, the panel `#282C30`, the
   bar `#1A1D21`, the control `#373E43` (hover `#434B51`), the hairline `#36373B`, the count badge
   `#2F394C`, the text `#D1D2D3` and the muted text `#A2A5A9`; the selected tint is 26 % orange,
   every orange tint and glow follows, tooltips fill with the control colour, and the glyph and
   logo SVGs use the house orange, tree rows hover in 2.5 % white and the drop target fills with
   6 % orange as the CSS of the design sets them. The earlier values were sampled from HDR screenshots and were
   too light.
-- GUI: the window follows the design after an adaptation to a website palette
-  (tokens up to `e456702`): house orange `#FB8A28`, the canvas `#202020`
+- GUI: the window follows the design after an adaptation to a website palette: house orange `#FB8A28`, the canvas `#202020`
   with panel `#35393D`, bar `#2A2D31` and control `#3F474C` fills, the lighter text and border
   greys, the new text tints, and the `radius-sm` corner of 4 points on buttons, fields, segments,
   chips, alerts, modals, dropdowns, tiles, the list panel and the preview. Header, status bar and

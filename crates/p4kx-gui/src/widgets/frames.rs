@@ -42,7 +42,7 @@ const fn margin(x: f32, y: f32) -> Margin {
 /// Returns a margin of `value` points as egui stores it.
 #[expect(
     clippy::cast_possible_truncation,
-    reason = "the design system's margins are small whole points"
+    reason = "the theme's margins are small whole points"
 )]
 pub(crate) const fn px(value: f32) -> i8 {
     value as i8

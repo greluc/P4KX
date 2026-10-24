@@ -4,8 +4,8 @@ Grundlage: die Tokens des P4KX-Themes (gemessene Palette, `radius-sm` 4 px). Mas
 [`p4kx-desktop-spec.json`](p4kx-desktop-spec.json). Artboards: Design-Canvas „P4K-Extractor Desktop".
 Logo: [`p4kx-logo.svg`](p4kx-logo.svg) (ab 64 px), [`p4kx-glyph.svg`](p4kx-glyph.svg) (bis 32 px).
 
-Alle Maße in px bei 1 rem = 16 px. Farben, Glows und Gewichte als Token-Namen aus `tokens.json`.
-Die wenigen `rgba(…)`-Werte stehen so in `components.css` und haben dort kein Token; sie
+Alle Maße in px bei 1 rem = 16 px. Farben, Glows und Gewichte als Token-Namen aus der Token-Fixture `crates/p4kx-gui/src/theme/fixtures/tokens.json`.
+Die wenigen `rgba(…)`-Werte stehen so im Theme und haben dort kein Token; sie
 sind keine neuen Farben.
 
 ## Grundregeln
@@ -203,7 +203,7 @@ Abfrage, die nicht läuft, steht als `.alert.alert-danger` unter dem Editor mit 
 die betroffene Stelle ist im Editor rot hinterlegt und unterstrichen. Darunter die Listenfläche
 mit „CSV/JSON exportieren …" (Ghost, während des Exports „Export abbrechen") und der
 Ergebnistabelle; Anzahl und Seitenwahl stehen im `.list-panel__footer` unter der Tabelle, wie in
-der Listenfläche des Design-Systems. Die Köpfe der
+der Listenfläche des Themes. Die Köpfe der
 `select`-Pfade bleiben wie geschrieben (D.6): Feldnamen unterscheiden Groß- und Kleinschreibung,
 Versalien würden `Size` und `size` gleich aussehen lassen. Nur der Kopf „Record-Pfad" ist ein
 Label in Versalien.
@@ -255,7 +255,7 @@ andere Einträge kehren zu „Text" zurück. Codec, Kanäle, Abtastrate und Daue
 „Abspielen"/„Pause" als Outline `btn-xs` (D.7: keine CTA im Hauptfenster, Abspielen ist die
 betonte Aktion des Tabs), die Zeit („0:03 / 1:12") in `color-gray-1` mit der Breite der breitesten
 Zeit des Tons, damit die Position nicht springt, die Position als Range über die restliche Breite
-und „Lautstärke" als Eyebrow mit einer Range von 200 px. Die Ranges sind die des Design-Systems:
+und „Lautstärke" als Eyebrow mit einer Range von 200 px. Die Ranges sind die des Themes:
 `input[type="range"]` in der Akzentfarbe, 200 × 18 und 8 px vom Label wie in `.quality-row`
 (Specimen MasterDetail). Gefüllt ist bis zum Griff in `color-primary`. Der Griff ist ein Kreis
 der Range-Höhe (wie der native Range-Griff), Hover `color-accent-light`. Pfeiltasten gehen 5 s bzw. ein
@@ -319,7 +319,7 @@ Abfrage-Vervollständigung, Container als Ordner, Tonformat der Extraktion, 3D-A
 | Chevron als gezeichneter Pfad statt `▶` | Lato hat kein `▶`; egui bräuchte eine Fallback-Schrift |
 | Hex in festen Zellen statt Monospace | einzige Schrift Lato; die Zellen halten die Spalten, auch für A–F |
 | Zeilenvergleich in Lato statt Monospace, Tabs als vier Leerzeichen | einzige Schrift Lato; beide Seiten richten sich an den Zeilen aus, nicht an Spalten |
-| Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln (`components.css`), also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
+| Zahlenfeld (Mip-Stufe der Extraktion) als egui-`DragValue` im Look des Eingabefelds: `control-bg`, Rahmen 1 `control-border`, bei Hover und Fokus `color-primary`, Fokus mit `glow-primary`, Höhe 44, Lato 16 / 400 | egui hat kein natives Zahlenfeld; das Design-System gestaltet `input[type=number]` mit den allgemeinen Eingabefeld-Regeln, also wird der `DragValue` nach diesem Vertrag gezeichnet; Ziehen und Tippen, Grenzen 1–15 |
 | Checkbox „gemischt" (Balken) ergänzt | DS hat keinen Teilauswahl-Zustand, die Tabelle braucht ihn |
 | DataForge-Übersicht, Record-Suche und Feldänderungen des Vergleichs: drei gleich breite Tabellenspalten statt `table-layout: auto` | egui legt Tabellen nicht nach Inhalt aus; gleiche Spalten erfinden keine Breite, lange Werte enden mit Auslassung, Name, Typ und Record-Pfad stehen vollständig im Tooltip der Zeile |
 | Abfrageergebnis: Spalten 200 breit (min. 80), verschiebbar, letzte füllt; 500 Zeilen je Seite | egui legt Tabellen nicht nach Inhalt aus, die Zahl der `select`-Spalten ist offen; 200 ist die Breite, bei der Record-Pfade und Werte meist ohne Auslassung passen, 80 hält Kopf und Sortierpfeil lesbar; je Seite 500 Zeilen hält Sortieren und Blättern flüssig |

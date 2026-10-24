@@ -19,7 +19,7 @@ pub(crate) fn frame() -> Frame {
         ))
 }
 
-/// Shows a line of a tooltip with the design system's line height of 1.4, for a tooltip given to
+/// Shows a line of a tooltip with the theme's line height of 1.4, for a tooltip given to
 /// [`hover`] or [`show`].
 pub(crate) fn line(ui: &mut Ui, text: impl Into<RichText>) -> Response {
     ui.label(

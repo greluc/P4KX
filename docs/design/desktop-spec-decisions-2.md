@@ -209,7 +209,7 @@ nach „Record" ein weiterer Reiter der Vorschau-Leiste (D.1 Tab-Leiste, 44 px, 
 wie die übrigen Reiter in Versalien). Der Reiter erfindet nichts Eigenes: Er zeigt unter der
 Pfadzeile (32 px, Record-Pfad und Name wie im Record-Reiter) eine Zählzeile im Rahmen des
 Vorschau-Körpers („3 Referenzen von 2 Records", 14,4 / 400 `color-gray-1`, wie die Zählzeile
-der Abfrage und der `.page-status` der Pagination des Design Systems, das keine eigene
+der Abfrage und der `.page-status` der Pagination des Themes, das keine eigene
 Zählzeile kennt) und darunter dieselbe virtuelle Liste wie der Record-Reiter: Tabellenkopf 36 px mit den Spalten „Feld" und
 „Verweisender Record" zu gleichen Hälften, Zeilen 36 px mit Zebra, Hover `control-bg` und
 Trennlinie. Links steht das Feld des verweisenden Records mit Array-Index (`Components[3].maker`,
@@ -312,7 +312,7 @@ Ein Klick auf einen Treffer öffnet ihn: ein Record wird im Record-Baum gewählt
 wechselt auf „Record"), ein Eintrag in seinem Ordner mit aufgeklappten Ordnern darüber, ein
 Lokalisierungstext im Tab „Lokalisierung" mit der Zelle der Sprache. Wartet das Ziel auf Daten
 (DataForge, Lokalisierungsdateien), wird es geöffnet, sobald sie gelesen sind. Der Tab fügt
-keine Farbe, Größe oder Form hinzu; alle Werte stammen aus `tokens.json`. Geprüft mit Renders in
+keine Farbe, Größe oder Form hinzu; alle Werte stammen aus der Token-Fixture `crates/p4kx-gui/src/theme/fixtures/tokens.json`. Geprüft mit Renders in
 en-GB und de-DE.
 
 **D.45 Tags als Tab im Arbeitsbereich.** Hinter „Lokalisierung" steht der Tab „Tags" (Tab-Leiste wie

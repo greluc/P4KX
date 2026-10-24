@@ -171,7 +171,7 @@ fn length(value: &str) -> f32 {
 }
 
 #[test]
-fn every_colour_token_of_the_design_system_is_mirrored_with_its_value() {
+fn every_colour_token_of_the_theme_is_mirrored_with_its_value() {
     let json = fixture(TOKENS);
     let tokens = tokens_of(&json, "color");
     let values: BTreeMap<&str, &str> = tokens.iter().copied().collect();
@@ -193,7 +193,7 @@ fn every_colour_token_of_the_design_system_is_mirrored_with_its_value() {
 }
 
 #[test]
-fn type_spacing_and_radius_tokens_match_the_design_system() {
+fn type_spacing_and_radius_tokens_match_the_theme() {
     let json = fixture(TOKENS);
     let mirrored: BTreeMap<&str, f32> = [
         ("fs-h1", t::FS_H1),
@@ -245,7 +245,7 @@ fn type_spacing_and_radius_tokens_match_the_design_system() {
 }
 
 #[test]
-fn glows_and_shadows_match_the_design_system() {
+fn glows_and_shadows_match_the_theme() {
     let json = fixture(TOKENS);
     let mirrored: BTreeMap<&str, Shadow> = [
         ("glow-primary", t::GLOW_PRIMARY),

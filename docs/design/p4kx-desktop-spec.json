@@ -1,7 +1,7 @@
 {
   "meta": {
     "source": "P4KX theme tokens (measured palette, radius-sm)",
-    "unit": "px; colours, glows and fonts as token names from tokens.json",
+    "unit": "px; colours, glows and fonts as token names from the fixture crates/p4kx-gui/src/theme/fixtures/tokens.json",
     "rem": 16,
     "rowDensity": 36,
     "focusRing": {"width": 2, "color": "color-primary", "offsetControl": 2, "offsetRow": -2},

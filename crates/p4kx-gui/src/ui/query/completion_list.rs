@@ -207,7 +207,7 @@ fn laid(
     (laid, true)
 }
 
-/// Lays `name` out with its first `typed` bytes in bold, the `<mark>` of the design system,
+/// Lays `name` out with its first `typed` bytes in bold, the `<mark>` of the theme,
 /// in the colour the row paints it with.
 fn marked(ui: &Ui, name: &str, typed: usize) -> Arc<Galley> {
     let mut split = typed.min(name.len());

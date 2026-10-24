@@ -14,7 +14,7 @@ use crate::theme::desktop::{
 use crate::theme::palette;
 use crate::theme::tokens::{CORNER_SM, FS_XS, GLOW_PRIMARY, GLOW_PRIMARY_LG, Weight};
 
-/// A rung of the design system's action hierarchy.
+/// A rung of the theme's action hierarchy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Kind {
     /// `.btn--cta`, the one filled primary action of a context.
@@ -56,7 +56,7 @@ pub(crate) struct Look {
     pub(crate) glow: Option<Shadow>,
 }
 
-/// Returns the colours of `kind` in `phase`, after `components.css` and the desktop spec.
+/// Returns the colours of `kind` in `phase`, after the desktop spec.
 pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
     let none = Color32::TRANSPARENT;
     match (kind, phase) {

@@ -54,9 +54,9 @@ egui's frame.
   device-lost callback sets a flag. All of it ends up in a
   `GpuReport` the window reads. `ViewerSupport` turns it into `Problem`s that the Model tab shows
   in place of the view while every other tab, table and tree keeps working.
-- **Deviation from the design system: the 3D view has square corners.** Controls and surfaces have a
+- **Deviation from the theme: the 3D view has square corners.** Controls and surfaces have a
   4 px radius (ADR-0006), but an egui paint callback can only be clipped to a rectangle, so the
-  picture and its hairline are square. Everything around it follows the design system (D.35).
+  picture and its hairline are square. Everything around it follows the theme (D.35).
 - **Interaction is a pure camera plus a thin egui mapping.** `Camera` (orbit with the pitch clamped
   short of the poles, pan across the view, zoom limited to 0.02 to 60 radii, reset) is plain
   arithmetic tested without a window; the egui code maps the primary drag, the secondary, middle

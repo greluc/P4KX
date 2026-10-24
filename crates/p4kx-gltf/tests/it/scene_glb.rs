@@ -133,6 +133,74 @@ fn parts_with_equal_materials_share_them() -> TestResult {
 }
 
 #[test]
+fn repeated_parts_share_one_mesh_and_keep_their_nodes() -> TestResult {
+    let model = read(&TestModel::cube())?;
+    let green = library([0.1, 0.8, 0.1]);
+    let mut scene = Scene::new();
+    for (name, x) in [("a", 0.0), ("b", 2.0), ("c", 4.0)] {
+        scene.push(
+            SceneNode::new(name, None, translation(x, 0.0, 0.0))
+                .with_part(ScenePart::new(&model, &green)),
+        )?;
+    }
+    let mut single = Scene::new();
+    single.push(
+        SceneNode::new("a", None, Transform::IDENTITY).with_part(ScenePart::new(&model, &green)),
+    )?;
+
+    let (glb, summary) = write(&scene, GlbOptions::default())?;
+    let (_, one) = write(&single, GlbOptions::default())?;
+
+    assert_eq!(summary.parts, 3);
+    assert_eq!(
+        summary.nodes, 9,
+        "three wrappers and the cube's two nodes each"
+    );
+    assert_eq!(summary.meshes, one.meshes, "one mesh however many parts");
+    assert_eq!(summary.shared_meshes, 2 * one.meshes);
+    assert_eq!(summary.vertices, one.vertices);
+    assert_eq!(summary.materials, one.materials);
+    assert!(summary.bytes < one.bytes + 2 * 1024, "{summary:?}");
+    let meshed: Vec<_> = glb
+        .document
+        .nodes()
+        .filter(|node| node.mesh().is_some())
+        .collect();
+    assert_eq!(meshed.len(), 3 * one.meshes);
+    let first = meshed
+        .first()
+        .and_then(p4kx_testkit::gltf::Node::mesh)
+        .map(|mesh| mesh.index());
+    assert!(
+        meshed
+            .iter()
+            .all(|node| node.mesh().map(|mesh| mesh.index()) == first),
+        "every node uses the same mesh"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_same_model_with_another_library_gets_its_own_mesh() -> TestResult {
+    let model = read(&TestModel::cube())?;
+    let green = library([0.1, 0.8, 0.1]);
+    let red = library([0.9, 0.1, 0.1]);
+    let mut scene = Scene::new();
+    for (name, status) in [("a", &green), ("b", &red)] {
+        scene.push(
+            SceneNode::new(name, None, Transform::IDENTITY)
+                .with_part(ScenePart::new(&model, status)),
+        )?;
+    }
+
+    let (_, summary) = write(&scene, GlbOptions::default())?;
+
+    assert_eq!(summary.shared_meshes, 0);
+    assert_eq!(summary.shared_materials, 0);
+    Ok(())
+}
+
+#[test]
 fn the_library_of_the_scene_replaces_the_one_of_the_model() -> TestResult {
     let model = read(&TestModel::cube())?;
     assert!(

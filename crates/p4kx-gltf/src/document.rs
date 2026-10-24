@@ -119,6 +119,14 @@ fn push_meshes(
             *slot = !mesh.joints.is_empty();
         }
     }
+    for (part, instance) in instances.iter().enumerate() {
+        if let Some(twin) = instance.twin
+            && let Some(shared) = node_meshes.get(twin).cloned()
+            && let Some(slot) = node_meshes.get_mut(part)
+        {
+            *slot = shared;
+        }
+    }
     (node_meshes, skinned)
 }
 

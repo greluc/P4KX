@@ -57,7 +57,9 @@ impl Walk<'_, '_, '_, '_> {
         if let Some(known) = self.measured.get(&key) {
             return *known;
         }
-        let size = if depth > self.limits.depth || self.limits.widgets <= self.measures {
+        let exhausted = self.limits.widgets <= self.measures;
+        self.cx.report.truncated |= exhausted;
+        let size = if depth > self.limits.depth || exhausted {
             [None; 2]
         } else {
             self.measures += 1;

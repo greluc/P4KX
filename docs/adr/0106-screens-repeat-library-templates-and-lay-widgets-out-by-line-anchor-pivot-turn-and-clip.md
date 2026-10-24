@@ -45,7 +45,9 @@ and from what the names of the fields say, and the open ones are listed at the e
   `min(frame width / root width, frame height / root height)` pixels per unit, the origin of its
   root widgets is the centre of the frame, and font sizes stay pixels. The canvas is laid out at
   the size of the frame divided by that scale and drawn under the scale, so a nested canvas keeps
-  the pixel of its host. `Scale` lays a canvas widget's canvas out at the canvas size and fits it
+  the pixel of its host. A raw canvas nested in a widget of another size therefore keeps its
+  pixels, as the issue #535 review asked to decide, unless the canvas is a world-space canvas,
+  which fits its root into the box of the widget, or the widget scales it. `Scale` lays a canvas widget's canvas out at the canvas size and fits it
   into the box, centred; `Size` lays it out in the box. `aspectOverridesWidth` takes the width
   of the box from its height by the aspect of the canvas, `aspectOverridesHeight` the height from
   its width, at the start of the box; the names are the only evidence for them, and for a screen

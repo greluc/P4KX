@@ -51,6 +51,7 @@ mod style;
 mod text;
 mod transform;
 mod walk;
+mod walk_canvas;
 mod walk_instance;
 mod walk_measure;
 mod widget;

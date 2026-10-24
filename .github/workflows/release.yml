@@ -12,6 +12,7 @@ on:
       - "crates/p4kx-gui/assets/p4kx.ico"
       - "crates/p4kx-gui/build.rs"
       - "crates/p4kx/build.rs"
+      - "blender_addon/**"
   workflow_dispatch:
 
 permissions:
@@ -63,6 +64,13 @@ jobs:
           New-Item -ItemType Directory -Force $folder | Out-Null
           Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, target\release\p4kx-mcp.exe, LICENSE-MIT, LICENSE-APACHE, THIRD-PARTY-NOTICES, CHANGELOG.md $folder
           Compress-Archive -Path $folder -DestinationPath "target\package\$name-portable.zip"
+      - name: Blender add-on version equals the Release version
+        run: cargo xtask addon
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Blender add-on ZIP
+        run: python blender_addon\build_zip.py target\package
       - name: Install WiX Toolset
         run: |
           $toolPath = Join-Path $env:RUNNER_TEMP 'wix-tool'

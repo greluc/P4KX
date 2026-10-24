@@ -138,7 +138,10 @@ fn the_browse_tab_stripes_its_rows_in_the_table_stripe() -> TestResult {
         let (_dir, mut harness) = opened(language, renderer, WorkTab::Archive)?;
         let picture = picture(&mut harness, &format!("browse-{suffix}.png"))?;
         let stripes = picture.near(STRIPE_ON_PANEL);
-        assert!(stripes > 500, "{suffix}: the striped rows: {stripes} pixels");
+        assert!(
+            stripes > 500,
+            "{suffix}: the striped rows: {stripes} pixels"
+        );
     }
     Ok(())
 }
@@ -221,9 +224,10 @@ fn the_comparison_tiles_take_the_bar_fill_inside_the_panel() -> TestResult {
         tab.set_archive(ComparisonSide::New, pair.new.clone());
         harness.run();
         harness.get_by_label(start).click();
-        tagging::wait_until(&mut harness, |model| {
-            matches!(model.comparison().status(), ComparisonStatus::Finished(view) if !view.is_filtering())
-        })?;
+        tagging::wait_until(
+            &mut harness,
+            |model| matches!(model.comparison().status(), ComparisonStatus::Finished(view) if !view.is_filtering()),
+        )?;
         let tile = harness
             .get_all_by_role_and_label(Role::Label, added)
             .next()

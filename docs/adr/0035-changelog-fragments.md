@@ -23,6 +23,8 @@ review.
   section and an empty release, and changes nothing in those cases. The date is today in UTC
   unless given.
 - The entries already under `## [Unreleased]` stay; nothing is migrated. A Release is prepared
-  by bumping the workspace version and running `--release` with it, before tagging; the tag
+  by bumping the workspace version and the version in
+  `blender_addon/p4kx_importer/blender_manifest.toml` (`cargo xtask addon` checks they are equal)
+  and running `--release` with it, before tagging; the tag
   workflow of ADR-0007 still takes its notes from the section of that version.
 - `changelog.d/README.md` documents the form and is ignored by the checks.

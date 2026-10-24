@@ -136,8 +136,9 @@ pub use texts::{
     RecordSearchText, RecordText, SchemaText, ScrollText, TagsText, Text, Texts, XmlText,
 };
 pub use viewer::{
-    Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,
-    MODEL_FILE_LIMIT, Matrix, ModelPreview, ModelStatus, Problem, Rejected, Scene, SceneError,
-    Step, Unavailable, Uniforms, Vertex, ViewerSupport, check_buffer, check_texture,
+    Bounds, Camera, Control, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES,
+    MAX_SKELETON_BONES, MAX_TEXTURE_SIDE, MODEL_FILE_LIMIT, Matrix, ModelPreview, ModelStatus,
+    Playback, Pose, Problem, Rejected, SKIN_STRIDE, Scene, SceneError, Skeleton, SkinVertex, Step,
+    Unavailable, Uniforms, Vertex, ViewerSupport, check_buffer, check_texture,
     install as install_viewer, is_model_path, target_extent,
 };

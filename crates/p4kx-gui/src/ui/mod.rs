@@ -53,6 +53,7 @@ mod model_export_animations;
 mod model_export_outcome;
 mod model_info;
 mod model_info_rows;
+mod model_playback;
 mod model_preview;
 mod model_view;
 mod moved_path;
@@ -97,6 +98,7 @@ use crate::theme::desktop::{
     HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH,
     SIDEBAR_WIDTH, STATUS_HEIGHT,
 };
+use crate::theme::model_metrics::PREVIEW_MODEL_HEIGHT;
 use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
 use crate::widgets::{frames, tab};
 
@@ -255,6 +257,8 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
             .is_some_and(|browser| browser.soundbank().is_some());
     let (salt, height) = if soundbank {
         ("preview-soundbank", PREVIEW_SOUNDBANK_HEIGHT)
+    } else if model.preview_tab() == PreviewTab::Model {
+        ("preview-model", PREVIEW_MODEL_HEIGHT)
     } else {
         ("preview", PREVIEW_HEIGHT)
     };

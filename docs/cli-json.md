@@ -221,15 +221,22 @@ order is attached. The same Archive always gives the same document.
 
 ```json
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
- "modelled_parts": 56, "nodes": 899, "meshes": 282, "primitives": 1123, "materials": 204,
- "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "vertices": 931217,
- "triangles": 1031918, "bytes": 55798740, "skipped": 0, "issues": [Issue, …]}
+ "modelled_parts": 56, "nodes": 899, "meshes": 249, "primitives": 948, "materials": 204,
+ "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "shared_meshes": 33,
+ "shared_materials": 103, "shared_textures": 0, "vertices": 744831, "triangles": 818426,
+ "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
 root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one;
+`shared_meshes` counts the meshes not written again because an earlier part holds the same model
+at the same level with the same material library (their nodes reference one glTF mesh); `meshes`, `primitives`, `vertices` and `triangles` count
+stored geometry once, so `meshes` can be lower than the number of mesh-bearing nodes;
+`shared_materials` the material requests answered by an equal material already written and
+`shared_textures` the texture references that reuse an embedded image (always 0 until textures
+are written for Assemblies);
 `default_material_ids` and `hidden_primitives` are summed over all models as for
 `p4kx model glb`. `skipped` counts the issues that leave a part or its model out. With `--exclude`
 and `--replace`, as for `p4kx entity loadout`, the Assembly is built from the changed Loadout and
@@ -321,6 +328,32 @@ and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx e
 `entities` counts the Entities that name the trigger through `GlobalResourceAudio.audioTrigger`
 and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
 and when the DataForge cannot be read, which is a warning on stderr.
+
+## `p4kx wwise extract <archive> <trigger> --out <folder> --json`
+
+```json
+{"archive": "…", "language": {…}, "trigger": {…}, "breaks": 0,
+ "target": "…", "format": "ogg", "written": 3, "kept": 0, "unconverted": 1, "failed": 1,
+ "files": [{"trigger": "Play_Multi", "wem_id": 100, "file": "…\\Play_Multi_100.ogg",
+            "format": "ogg", "size": 4096, "kept": false, "unconverted": null}, …],
+ "failures": [{"trigger": "Play_Multi", "wem_id": 104, "reason": "…"}, …],
+ "issues": [Issue, …]}
+```
+
+`trigger`, `language` and `issues` are those of `p4kx wwise resolve`; `breaks` counts its broken
+links. The top-level `format` is the value given to `--format` (`ogg`, `wav` or `raw`); each file's `format` is the one
+written, `wav` for a codec without an Ogg form and `wem` (raw) for a sound that cannot be
+decoded, which then carries the reason in `unconverted`. A file is named `<trigger>.<ext>` for a
+trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
+and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
+file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
+sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank or loose Entry
+holds. Exit code 1 when anything is in `failures` or `unconverted`.
+
+`p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
+adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
+`failed`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
+and `issues` are not repeated in it.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`
 

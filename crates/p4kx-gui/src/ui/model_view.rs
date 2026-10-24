@@ -14,7 +14,7 @@ use crate::theme::desktop::FACTS_PADDING_X;
 use crate::theme::model_metrics::{MODEL_HINT_MIN_WIDTH, MODEL_OVERLAY_GAP, MODEL_VIEW_MIN_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
-use crate::viewer::paint_callback;
+use crate::viewer::{Look, paint_callback};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::rows::focus_inside;
 use crate::widgets::summary::{Fact, FactsStrip};
@@ -96,15 +96,16 @@ fn laid_out_facts(ui: &Ui, texts: &Texts, scene: &Scene) -> Arc<FactsStrip> {
 }
 
 /// Shows the 3D view of `scene` seen by `camera`, reads the pointer and the keyboard and lays the
-/// reset action over it. Returns the camera when it moved.
+/// reset action over it, drawing the model in `look` and leaving `reserve` points of height
+/// below it. Returns the camera when it moved.
 pub(super) fn viewport(
     ui: &mut Ui,
     texts: &Texts,
     path: &str,
     (scene, camera): (&Arc<Scene>, &Camera),
+    (look, reserve): (Look, f32),
 ) -> Option<Camera> {
-    let size = ui
-        .available_size()
+    let size = (ui.available_size() - vec2(0.0, reserve))
         .max(vec2(MODEL_VIEW_MIN_HEIGHT, MODEL_VIEW_MIN_HEIGHT));
     let sense = Sense::click_and_drag().union(Sense::focusable_noninteractive());
     let (rect, response) = ui.allocate_exact_size(size, sense);
@@ -127,10 +128,13 @@ pub(super) fn viewport(
         rect,
         Arc::clone(scene),
         framed.uniforms(aspect),
-        [
-            device_pixels(ui, rect.width()),
-            device_pixels(ui, rect.height()),
-        ],
+        (
+            [
+                device_pixels(ui, rect.width()),
+                device_pixels(ui, rect.height()),
+            ],
+            look,
+        ),
     ));
     ui.painter().rect_stroke(
         rect,

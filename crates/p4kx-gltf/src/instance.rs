@@ -25,6 +25,9 @@ pub(crate) struct Instance<'m> {
     pub(crate) lod: Option<&'m Lod>,
     pub(crate) wrapper: Option<usize>,
     pub(crate) plan: MaterialPlan<'m>,
+    /// The earlier instance of the same model, level and material library whose meshes this one
+    /// reuses; such an instance plans no blocks and no materials of its own.
+    pub(crate) twin: Option<usize>,
 }
 
 pub(crate) type MaterialIds = BTreeMap<u16, Index<json::Material>>;
@@ -46,6 +49,9 @@ pub(crate) fn materials(
         .map(|(part, instance)| {
             let mut pushed: BTreeMap<Slot, Index<json::Material>> = BTreeMap::new();
             let mut by_id = MaterialIds::new();
+            if instance.twin.is_some() {
+                return by_id;
+            }
             for id in layout.part_material_ids(part) {
                 let Some(slot) = instance.plan.slot(id) else {
                     continue;
@@ -67,6 +73,29 @@ pub(crate) fn materials(
             by_id
         })
         .collect()
+}
+
+/// Returns how many materials the instances ask for: one per distinct material slot of each
+/// instance that plans meshes of its own.
+pub(crate) fn material_requests(layout: &Layout<'_>, instances: &[Instance<'_>]) -> usize {
+    instances
+        .iter()
+        .enumerate()
+        .filter(|(_, instance)| instance.twin.is_none())
+        .map(|(part, instance)| {
+            let mut slots: Vec<Slot> = Vec::new();
+            for slot in layout
+                .part_material_ids(part)
+                .into_iter()
+                .filter_map(|id| instance.plan.slot(id))
+            {
+                if !slots.contains(&slot) {
+                    slots.push(slot);
+                }
+            }
+            slots.len()
+        })
+        .sum()
 }
 
 fn built_material(

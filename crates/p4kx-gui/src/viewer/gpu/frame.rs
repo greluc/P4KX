@@ -33,6 +33,8 @@ impl ViewerGpu {
             return Vec::new();
         }
         let wanted = Drawn {
+            pose: frame.look.pose.as_ref().map_or(0, |pose| pose.serial()),
+            bones: frame.look.bones,
             serial,
             uniforms: frame.uniforms,
             size: frame.size,
@@ -73,7 +75,13 @@ impl ViewerGpu {
         }
         self.mesh.clear();
         self.drawn = None;
-        match MeshBuffers::upload((device, queue), scene, &self.report) {
+        self.posed = 0;
+        let layout = self
+            .pipelines
+            .skeleton
+            .as_ref()
+            .map(|skeleton| &skeleton.layout);
+        match MeshBuffers::upload((device, queue), layout, scene, &self.report) {
             Ok(buffers) => {
                 self.mesh.store(serial, buffers);
                 self.report.uploaded(serial);
@@ -124,6 +132,34 @@ impl ViewerGpu {
         queue.write_buffer(&self.blit_buffer, 0, bytemuck::bytes_of(&blit));
     }
 
+    fn write_skeleton(&mut self, queue: &wgpu::Queue, frame: &SceneCallback) {
+        let Some(skeleton) = self
+            .mesh
+            .get(frame.scene.serial())
+            .and_then(|mesh| mesh.skeleton.as_ref())
+        else {
+            return;
+        };
+        if let Some(pose) = &frame.look.pose
+            && pose.serial() != self.posed
+        {
+            skeleton.pose(queue, pose);
+            self.posed = pose.serial();
+        }
+        let [red, green, blue] = linear(palette::PRIMARY);
+        let look: [f32; 8] = [
+            red,
+            green,
+            blue,
+            1.0,
+            to_f32(frame.size[0]),
+            to_f32(frame.size[1]),
+            frame.look.bones.unwrap_or(0.0),
+            0.0,
+        ];
+        queue.write_buffer(&skeleton.look, 0, bytemuck::bytes_of(&look));
+    }
+
     fn record(
         &mut self,
         device: &wgpu::Device,
@@ -132,6 +168,7 @@ impl ViewerGpu {
     ) -> Option<wgpu::CommandBuffer> {
         self.fit_target(device, frame.size);
         self.write_uniforms(queue, frame);
+        self.write_skeleton(queue, frame);
         let target = self.target.as_ref()?;
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("p4kx-viewer"),
@@ -178,19 +215,53 @@ impl ViewerGpu {
         let height = frame.size[1].min(target.extent[1]);
         pass.set_viewport(0.0, 0.0, to_f32(width), to_f32(height), 0.0, 1.0);
         pass.set_scissor_rect(0, 0, width, height);
+        self.draw_model(&mut pass, frame);
+    }
+
+    fn draw_model(&self, pass: &mut wgpu::RenderPass<'_>, frame: &SceneCallback) {
         let (Some(mesh), Some(material)) = (
             self.mesh.get(frame.scene.serial()),
             self.textures.get(BASE_TEXTURE),
         ) else {
             return;
         };
-        pass.set_pipeline(&self.pipelines.scene);
+        let with_bones = mesh.skeleton.as_ref().zip(self.pipelines.skeleton.as_ref());
         pass.set_bind_group(0, &self.frame_group, &[]);
         pass.set_bind_group(1, &material.group, &[]);
         pass.set_vertex_buffer(0, mesh.vertices.slice(..));
+        match with_bones
+            .and_then(|(buffers, pipelines)| Some((buffers, pipelines, buffers.skin.as_ref()?)))
+        {
+            Some((buffers, pipelines, skin)) => {
+                pass.set_pipeline(&pipelines.skinned);
+                pass.set_bind_group(2, &buffers.group, &[]);
+                pass.set_vertex_buffer(1, skin.slice(..));
+            }
+            None => pass.set_pipeline(&self.pipelines.scene),
+        }
         pass.set_index_buffer(mesh.indices.slice(..), wgpu::IndexFormat::Uint32);
         pass.draw_indexed(0..mesh.index_count, 0, 0..1);
+        if frame.look.bones.is_some()
+            && let Some((buffers, pipelines)) = with_bones
+        {
+            pass.set_pipeline(&pipelines.bones);
+            pass.set_bind_group(0, &self.frame_group, &[]);
+            pass.set_bind_group(1, &buffers.group, &[]);
+            pass.draw(0..6, 0..buffers.bone_count);
+        }
     }
+}
+
+/// Returns `colour` as the linear values the sRGB picture encodes back to it.
+fn linear(colour: egui::Color32) -> [f32; 3] {
+    [colour.r(), colour.g(), colour.b()].map(|channel| {
+        let encoded = f32::from(channel) / 255.0;
+        if encoded <= 0.04045 {
+            encoded / 12.92
+        } else {
+            ((encoded + 0.055) / 1.055).powf(2.4)
+        }
+    })
 }
 
 /// The inset surface colour as the linear value the sRGB picture encodes back to it.

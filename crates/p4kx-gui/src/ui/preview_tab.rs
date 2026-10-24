@@ -4,10 +4,11 @@
 use egui::Ui;
 
 use super::audio_preview::{self, AudioAction, Named};
+use super::model_playback::ViewerAsk;
 use super::record_preview::RecordStep;
 use super::soundbank_preview::{self, BankAction};
 use super::{image_preview, model_info, model_preview, xml_preview};
-use crate::{Camera, Preview, PreviewTab, Texts, ViewerSupport};
+use crate::{Preview, PreviewTab, Texts, ViewerSupport};
 
 /// What the body of a tab asks for.
 pub(super) enum Asked {
@@ -15,7 +16,7 @@ pub(super) enum Asked {
     Audio(AudioAction),
     Sound(u32),
     Record(RecordStep),
-    Camera(Camera),
+    Viewer(ViewerAsk),
 }
 
 /// Whether a tab of its own showed the Entry.
@@ -56,7 +57,7 @@ pub(super) fn typed_tab(
     }
     if let Some(model) = preview.model().filter(|_| tab == PreviewTab::Model) {
         return Typed::Shown(
-            model_preview::show(ui, texts, path, (model, support)).map(Asked::Camera),
+            model_preview::show(ui, texts, path, (model, support)).map(Asked::Viewer),
         );
     }
     if let Some(model) = preview.model().filter(|_| tab == PreviewTab::ModelInfo) {

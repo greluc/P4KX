@@ -31,6 +31,9 @@ pub struct AnimationSummary {
     /// The controller IDs of the tracks left out because no bone of the skeleton has them, or the
     /// bone drives no node, or a bone the animation already moves has the same controller ID.
     pub skipped_tracks: Vec<u32>,
+    /// The number of runs of morph weights left out because the piece they name has no mesh or
+    /// another number of morph targets than the run holds.
+    pub skipped_weights: usize,
 }
 
 /// The nodes the bones of the written skeleton or the static model's helper bones drive.
@@ -147,6 +150,7 @@ fn plan_animation<'m>(
             channels: channels.len(),
             keys,
             skipped_tracks: skipped,
+            skipped_weights: 0,
         },
         channels,
     }

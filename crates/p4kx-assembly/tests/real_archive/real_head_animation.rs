@@ -11,7 +11,7 @@ use std::time::Instant;
 use p4kx_assembly::character::Chf;
 use p4kx_assembly::{
     ArchiveModels, Armour, AssemblyOptions, BodyVariant, Expressions, Head, IssueKind,
-    ModelProvider,
+    MAX_ANIMATION_VALUES, ModelProvider,
 };
 use p4kx_extraction::{AnimationChoice, Archive};
 use p4kx_gltf::GlbOptions;
@@ -212,19 +212,28 @@ fn every_facial_animation_of_the_male_head_folder_evaluates() -> TestResult {
         set.unread.len()
     );
     let started = Instant::now();
-    let animations = armour.animate(&set.animations, &models);
+    let animations = armour.animate_within(&set.animations, &models, usize::MAX);
     let samples: usize = animations.sampled().iter().map(|a| a.times.len()).sum();
     println!(
-        "{} facial animations, {samples} samples, {} issues, evaluated in {:?}",
+        "{} facial animations, {samples} samples, {} values, {} issues, evaluated in {:?}",
         animations.sampled().len(),
+        animations.values(),
         animations.issues().len(),
         started.elapsed()
     );
-    assert_eq!(
-        animations.sampled().len() + animations.issues().len(),
-        set.animations.len()
+    assert_eq!(animations.sampled().len(), set.animations.len());
+    assert_eq!(animations.issues().len(), 0);
+
+    let limited = armour.animate(&set.animations, &models);
+    println!(
+        "within the budget: {} written, {} values, {} issues",
+        limited.len(),
+        limited.values(),
+        limited.issues().len()
     );
-    assert!(animations.sampled().len() > 100);
+    assert!(limited.values() <= MAX_ANIMATION_VALUES);
+    assert_eq!(limited.len() + limited.issues().len(), set.animations.len());
+    assert_ne!(limited.issues().len(), 0);
     Ok(())
 }
 

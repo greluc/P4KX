@@ -91,8 +91,10 @@ impl SampledAnimation {
 /// An animation of a skeleton written by [`write_rigged_glb_animated`](crate::write_rigged_glb_animated).
 #[derive(Debug, Clone, Copy)]
 pub enum RigAnimation<'a> {
-    /// Keys per bone controller, matched to the bones by controller ID.
-    Keys(&'a Animation),
+    /// Keys per bone controller, matched to the bones by controller ID; the second part lists the
+    /// controller IDs whose tracks another animation of the file drives, which are not reported
+    /// as left out.
+    Keys(&'a Animation, &'a [u32]),
     /// Poses and weights at sample times.
     Sampled(&'a SampledAnimation),
 }
@@ -115,15 +117,20 @@ pub(crate) fn plan_all<'m>(
     animations
         .iter()
         .map(|animation| match *animation {
-            RigAnimation::Keys(keys) => {
+            RigAnimation::Keys(keys, driven) => {
                 let targets = Targets {
                     bones: nodes.bones,
                     first_bone_node: nodes.first_bone_node,
                     model_nodes: nodes.total,
                 };
-                plan(layout, std::slice::from_ref(keys), &targets)
+                let mut planned = plan(layout, std::slice::from_ref(keys), &targets)
                     .pop()
-                    .unwrap_or_else(|| empty(&keys.name))
+                    .unwrap_or_else(|| empty(&keys.name));
+                planned
+                    .summary
+                    .skipped_tracks
+                    .retain(|id| !driven.contains(id));
+                planned
             }
             RigAnimation::Sampled(sampled) => plan_sampled(layout, sampled, nodes),
         })
@@ -141,6 +148,7 @@ fn empty(name: &str) -> AnimationPlan {
             channels: 0,
             keys: 0,
             skipped_tracks: Vec::new(),
+            skipped_weights: 0,
         },
     }
 }
@@ -149,7 +157,6 @@ fn plan_bones<'m>(
     layout: &mut Layout<'m>,
     animation: &'m SampledAnimation,
     nodes: &RigNodes<'_>,
-    times: usize,
     (channels, skipped): (&mut Vec<ChannelPlan>, &mut Vec<u32>),
 ) {
     let frames = animation.times.len();
@@ -177,7 +184,7 @@ fn plan_bones<'m>(
             channels.push(ChannelPlan {
                 node,
                 path,
-                times,
+                times: NO_TIMES,
                 values,
                 step: frames < 2,
             });
@@ -193,15 +200,9 @@ fn plan_sampled<'m>(
     let frames = animation.times.len();
     let mut channels = Vec::new();
     let mut skipped = animation.skipped_tracks.clone();
+    let mut skipped_weights = 0;
     if frames > 0 {
-        let times = layout.push(BlockData::Seconds(&animation.times));
-        plan_bones(
-            layout,
-            animation,
-            nodes,
-            times,
-            (&mut channels, &mut skipped),
-        );
+        plan_bones(layout, animation, nodes, (&mut channels, &mut skipped));
         for weights in &animation.weights {
             let node = nodes.piece_mesh_nodes.get(weights.piece).copied().flatten();
             let targets = nodes.piece_targets.get(weights.piece).copied().unwrap_or(0);
@@ -209,16 +210,23 @@ fn plan_sampled<'m>(
                 node,
                 targets > 0 && weights.values.len() == frames * targets,
             ) else {
+                skipped_weights += 1;
                 continue;
             };
             let values = layout.push(BlockData::MorphWeights(&weights.values));
             channels.push(ChannelPlan {
                 node,
                 path: ChannelPath::Weights,
-                times,
+                times: NO_TIMES,
                 values,
                 step: frames < 2,
             });
+        }
+    }
+    if !channels.is_empty() {
+        let times = layout.push(BlockData::Seconds(&animation.times));
+        for channel in &mut channels {
+            channel.times = times;
         }
     }
     let keys = frames * channels.len();
@@ -231,7 +239,11 @@ fn plan_sampled<'m>(
             channels: channels.len(),
             keys,
             skipped_tracks: skipped,
+            skipped_weights,
         },
         channels,
     }
 }
+
+/// The times block of a channel not yet planned; replaced once the animation has a channel.
+const NO_TIMES: usize = usize::MAX;

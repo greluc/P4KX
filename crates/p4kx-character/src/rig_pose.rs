@@ -19,7 +19,9 @@ pub struct FacePose {
     /// parent joint, in the rig's axes.
     pub translations: Vec<[f32; 3]>,
     /// The rotation each joint is turned by from its bind pose, as a unit quaternion
-    /// `x, y, z, w` to be multiplied onto the bind rotation.
+    /// `x, y, z, w` from the Euler angles of the secondary delta records (`qx * qy * qz`). It is
+    /// multiplied onto the bind rotation on the right, `bind * delta`, so it turns in the
+    /// joint's own axes.
     pub rotations: Vec<[f32; 4]>,
 }
 
@@ -254,8 +256,11 @@ fn push(out: &mut Row, blendshape: Option<u16>, total: f64) {
     }
 }
 
-/// Returns the quaternion `x, y, z, w` of the Euler angles `x, y, z` in radians, applied in the
-/// order x, y, z: the product of the half-angle quaternions about the axes.
+/// Returns the quaternion `x, y, z, w` of the Euler angles `x, y, z` in radians as the Hamilton
+/// product `qx * qy * qz` of the half-angle quaternions about the axes, `qx` leftmost.
+///
+/// The order and the signs are those `StarBreaker` documents for the engine (`euler_xyz_to_quat`);
+/// they are not verified against the game.
 fn euler_quaternion([x, y, z]: [f32; 3]) -> [f32; 4] {
     let (sx, cx) = (x * 0.5).sin_cos();
     let (sy, cy) = (y * 0.5).sin_cos();
@@ -266,4 +271,34 @@ fn euler_quaternion([x, y, z]: [f32; 3]) -> [f32; 4] {
         (cx * cy).mul_add(sz, sx * sy * cz),
         (cx * cy).mul_add(cz, -(sx * sy * sz)),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::euler_quaternion;
+
+    #[test]
+    fn two_axes_are_the_product_of_x_then_y_with_x_leftmost() {
+        let (x, y) = (0.6_f32, 0.8_f32);
+        let [qx, qy, qz, qw] = euler_quaternion([x, y, 0.0]);
+        let (sx, cx) = (x * 0.5).sin_cos();
+        let (sy, cy) = (y * 0.5).sin_cos();
+        let expected = [sx * cy, cx * sy, sx * sy, cx * cy];
+        for (actual, expected) in [qx, qy, qz, qw].into_iter().zip(expected) {
+            assert!(
+                (actual - expected).abs() < 1e-6,
+                "{actual} against {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_single_axis_turns_about_it_and_the_result_is_a_unit() {
+        let [x, y, z, w] = euler_quaternion([0.0, 0.0, 1.0]);
+        assert!(x.abs() < 1e-7 && y.abs() < 1e-7);
+        assert!((z - 0.5_f32.sin()).abs() < 1e-6 && (w - 0.5_f32.cos()).abs() < 1e-6);
+        let [x, y, z, w] = euler_quaternion([0.3, -0.4, 0.5]);
+        let length: f32 = [x, y, z, w].iter().map(|value| value * value).sum();
+        assert!((length - 1.0).abs() < 1e-6);
+    }
 }

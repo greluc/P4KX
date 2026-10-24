@@ -18,6 +18,13 @@ use super::shape::MAX_DNA_RIG_LEN;
 use super::{Armour, ArmourPart};
 use crate::{Issue, IssueKind, ModelFailure, ModelProvider};
 
+/// The most values, floats of key times and poses, the animations of one Character may write: 32
+/// Mi values, 128 MiB. The 141 facial animations of one head together hold about 150 Mi.
+pub const MAX_ANIMATION_VALUES: usize = 1 << 25;
+
+/// The most distinct sample times of one facial animation.
+const MAX_SAMPLES: usize = 1 << 15;
+
 /// The animations of a Character ready to be written with its [`Armour`].
 ///
 /// They are the animations that move the bones of the body by their keys, and the facial
@@ -25,9 +32,10 @@ use crate::{Issue, IssueKind, ModelFailure, ModelProvider};
 /// [`Armour::animate`].
 #[derive(Debug, Clone, Default)]
 pub struct CharacterAnimations<'a> {
-    keys: Vec<&'a Animation>,
+    keys: Vec<(&'a Animation, Vec<u32>)>,
     sampled: Vec<SampledAnimation>,
     issues: Vec<Issue>,
+    values: usize,
 }
 
 impl CharacterAnimations<'_> {
@@ -44,8 +52,8 @@ impl CharacterAnimations<'_> {
         self.len() == 0
     }
 
-    /// Returns what could not be done: animations that fit nothing of the Character, and facial
-    /// animations whose rig cannot be read.
+    /// Returns what could not be done: animations that fit nothing of the Character, that would
+    /// exceed the budget, and facial animations whose rig cannot be read.
     #[must_use]
     pub fn issues(&self) -> &[Issue] {
         &self.issues
@@ -56,6 +64,12 @@ impl CharacterAnimations<'_> {
     pub fn sampled(&self) -> &[SampledAnimation] {
         &self.sampled
     }
+
+    /// Returns the number of values the animations write, counted against the budget.
+    #[must_use]
+    pub const fn values(&self) -> usize {
+        self.values
+    }
 }
 
 /// The rig logic of one head, loaded once for all animations.
@@ -63,11 +77,58 @@ struct Loaded {
     face: FaceRig,
 }
 
+/// A facial animation evaluated, with the controller IDs of its controls and its cost.
+struct Fitted {
+    sampled: SampledAnimation,
+    driven: Vec<u32>,
+    cost: usize,
+}
+
+/// Why an animation has no facial part.
+enum Refusal {
+    Limit(String),
+    Failed(String),
+}
+
 fn issue(animation: &Animation, kind: IssueKind) -> Issue {
     Issue {
-        path: String::new(),
+        path: animation.path.clone(),
         name: animation.name.clone(),
         kind,
+    }
+}
+
+fn not_used(animation: &Animation, reason: String) -> Issue {
+    issue(animation, IssueKind::AnimationNotUsed { reason })
+}
+
+fn limit(values: usize, remaining: usize) -> String {
+    format!(
+        "limit: the animation needs {values} values, {remaining} of the budget of {MAX_ANIMATION_VALUES} are left"
+    )
+}
+
+/// The Issue for an animation the facial part of which was refused, or that nothing of fits.
+fn refused(
+    animation: &Animation,
+    refusal: Option<Refusal>,
+    (used, reported): (bool, bool),
+    has_rig: bool,
+) -> Option<Issue> {
+    match refusal {
+        Some(Refusal::Limit(reason)) => Some(not_used(animation, reason)),
+        Some(Refusal::Failed(reason)) if !used => {
+            Some(issue(animation, IssueKind::FaceAnimationFailed { reason }))
+        }
+        _ if used || reported => None,
+        _ => {
+            let reason = if has_rig {
+                "no track names a bone of the skeleton or a control of the face rig"
+            } else {
+                "no track names a bone of the skeleton, and the Character has no head rig"
+            };
+            Some(not_used(animation, reason.to_owned()))
+        }
     }
 }
 
@@ -97,14 +158,16 @@ impl Armour {
             .find_map(|(index, part)| Some((index, part, part.face.as_deref()?)))
     }
 
-    /// Fits `animations` to the Character.
+    /// Fits `animations` to the Character, within [`MAX_ANIMATION_VALUES`].
     ///
     /// Tracks that name a bone of the skeleton move it by their keys. Tracks that name a control
     /// of the head rig are evaluated through the rig logic at the frames where a control has a key:
     /// the joints of the face move to the poses the rig gives and the morph targets of the head
     /// take the weights of their blendshapes; this needs the head to have been built from a DNA at
-    /// level of detail 0. An animation that fits nothing, and a facial animation whose rig cannot
-    /// be read, is listed in [`CharacterAnimations::issues`]; tracks that fit neither are left out
+    /// level of detail 0. Control values are held to 0 to 1. An animation that fits nothing, one
+    /// that would exceed the budget (listed as `animation_not_used` with a reason starting with
+    /// `limit`), and a facial animation whose rig cannot be read or that gives a pose that is not
+    /// finite is listed in [`CharacterAnimations::issues`]; tracks that fit neither are left out
     /// and listed in the summary of the GLB.
     #[must_use]
     pub fn animate<'a>(
@@ -112,68 +175,98 @@ impl Armour {
         animations: &'a [Animation],
         models: &dyn ModelProvider,
     ) -> CharacterAnimations<'a> {
+        self.animate_within(animations, models, MAX_ANIMATION_VALUES)
+    }
+
+    /// Fits `animations` like [`Armour::animate`], with a budget of `budget` values.
+    #[must_use]
+    pub fn animate_within<'a>(
+        &self,
+        animations: &'a [Animation],
+        models: &dyn ModelProvider,
+        budget: usize,
+    ) -> CharacterAnimations<'a> {
         let mut out = CharacterAnimations::default();
         let mut loaded: Option<Result<Loaded, String>> = None;
+        let mut remaining = budget;
         for animation in animations {
             let bound = animation.bind(&self.skeleton.bones);
-            let mut used = !bound.bound.is_empty();
-            if used {
-                out.keys.push(animation);
+            let ids: HashSet<u32> = bound
+                .bound
+                .iter()
+                .map(|(_, track)| track.controller_id)
+                .collect();
+            let fitted = if bound.unbound.is_empty() {
+                Ok(None)
+            } else {
+                self.face_fit(animation, (&ids, remaining), (&mut loaded, models))
+            };
+            let (mut driven, mut sampled, mut refusal) = (Vec::new(), None, None);
+            match fitted {
+                Ok(Some(fitted)) => {
+                    remaining = remaining.saturating_sub(fitted.cost);
+                    out.values += fitted.cost;
+                    driven = fitted.driven;
+                    sampled = Some(fitted.sampled);
+                }
+                Ok(None) => {}
+                Err(failed) => refusal = Some(failed),
             }
-            if !bound.unbound.is_empty()
-                && let Some((part, _, link)) = self.face_part()
-            {
-                match loaded.get_or_insert_with(|| load(link, models)) {
-                    Ok(rig) => {
-                        let ids: HashSet<u32> = bound
-                            .bound
-                            .iter()
-                            .map(|(_, track)| track.controller_id)
-                            .collect();
-                        if let Some(sampled) = self.sample(animation, &ids, rig, part, link) {
-                            out.sampled.push(sampled);
-                            used = true;
-                        }
-                    }
-                    Err(reason) => out.issues.push(issue(
-                        animation,
-                        IssueKind::FaceAnimationFailed {
-                            reason: reason.clone(),
-                        },
-                    )),
+            let mut used = sampled.is_some();
+            if let Some(sampled) = sampled {
+                out.sampled.push(sampled);
+            }
+            let cost = animation.key_count().saturating_mul(5);
+            let mut reported = false;
+            if !bound.bound.is_empty() {
+                if cost <= remaining {
+                    remaining -= cost;
+                    out.values += cost;
+                    out.keys.push((animation, driven));
+                    used = true;
+                } else {
+                    out.issues.push(not_used(animation, limit(cost, remaining)));
+                    reported = true;
                 }
             }
-            if !used {
-                let reason = if self.face_part().is_some() {
-                    "no track names a bone of the skeleton or a control of the face rig"
-                } else {
-                    "no track names a bone of the skeleton, and the Character has no head rig"
-                };
-                out.issues.push(issue(
-                    animation,
-                    IssueKind::AnimationNotUsed {
-                        reason: reason.to_owned(),
-                    },
-                ));
-            }
+            let has_rig = self.face_part().is_some();
+            out.issues
+                .extend(refused(animation, refusal, (used, reported), has_rig));
         }
         out
+    }
+
+    /// Evaluates the facial part of `animation`, loading the rig on the first use.
+    fn face_fit(
+        &self,
+        animation: &Animation,
+        (ids, remaining): (&HashSet<u32>, usize),
+        (loaded, models): (&mut Option<Result<Loaded, String>>, &dyn ModelProvider),
+    ) -> Result<Option<Fitted>, Refusal> {
+        let Some((part, _, link)) = self.face_part() else {
+            return Ok(None);
+        };
+        match loaded.get_or_insert_with(|| load(link, models)) {
+            Ok(rig) => self.sample(animation, (ids, remaining), rig, (part, link)),
+            Err(reason) => Err(Refusal::Failed(reason.clone())),
+        }
     }
 
     fn sample(
         &self,
         animation: &Animation,
-        bones: &HashSet<u32>,
+        (bones, remaining): (&HashSet<u32>, usize),
         rig: &Loaded,
-        part: usize,
-        link: &FaceLink,
-    ) -> Option<SampledAnimation> {
+        (part, link): (usize, &FaceLink),
+    ) -> Result<Option<Fitted>, Refusal> {
         let logic = rig.face.logic();
         let mut controls: Vec<Control<'_>> = Vec::new();
+        let mut driven = Vec::new();
         let mut skipped = Vec::new();
         for track in &animation.tracks {
             match (logic.control_by_hash(track.controller_id), values_of(track)) {
                 (Some(control), Some((frames, values))) => {
+                    driven.push(track.controller_id);
                     if control != 0 {
                         controls.push((control, frames, values));
                     }
@@ -183,7 +276,7 @@ impl Armour {
             }
         }
         if controls.is_empty() {
-            return None;
+            return Ok(None);
         }
         let mut frames: Vec<u16> = controls
             .iter()
@@ -191,7 +284,14 @@ impl Armour {
             .collect();
         frames.sort_unstable();
         frames.dedup();
-        let poses = evaluate(&rig.face, &controls, &frames);
+        let estimate = frames
+            .len()
+            .saturating_mul(rig.face.joints() * 7 + link.blendshapes.len() + 1);
+        if frames.len() > MAX_SAMPLES || estimate > remaining {
+            return Err(Refusal::Limit(limit(estimate, remaining)));
+        }
+        let poses = evaluate(&rig.face, &controls, &frames)
+            .ok_or_else(|| Refusal::Failed("the rig gives a pose that is not finite".to_owned()))?;
         let kept = reduction(&frames, &poses, link);
         let frames: Vec<u16> = kept
             .iter()
@@ -209,15 +309,15 @@ impl Armour {
             .map(|&frame| f32::from(frame) / rate)
             .collect();
         let hashes = (logic.joint_hashes(), &mut skipped);
-        let bones = joint_samples(&self.skeleton.bones, &poses, link, hashes);
+        let moved = joint_samples(&self.skeleton.bones, &poses, link, hashes);
         let weights = weight_samples(&poses, link, part);
-        Some(SampledAnimation::new(
-            animation.name.clone(),
-            times,
-            bones,
-            weights,
-            skipped,
-        ))
+        let held: usize = weights.iter().map(|run| run.values.len()).sum();
+        let cost = frames.len() * (1 + moved.len() * 7) + held;
+        Ok(Some(Fitted {
+            sampled: SampledAnimation::new(animation.name.clone(), times, moved, weights, skipped),
+            driven,
+            cost,
+        }))
     }
 
     /// Writes the Armour with `animations` as one GLB file to `out`, see [`Armour::write_glb`].
@@ -268,7 +368,7 @@ impl Armour {
         let list: Vec<RigAnimation<'_>> = animations
             .keys
             .iter()
-            .map(|&animation| RigAnimation::Keys(animation))
+            .map(|(animation, driven)| RigAnimation::Keys(animation, driven))
             .chain(animations.sampled.iter().map(RigAnimation::Sampled))
             .collect();
         let bones = &self.skeleton.bones;

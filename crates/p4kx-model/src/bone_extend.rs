@@ -205,3 +205,22 @@ mod tests {
         assert!((world.translation[1] - 1.0).abs() < 1e-6);
     }
 }
+
+#[cfg(test)]
+mod multiply_tests {
+    use super::multiply;
+
+    #[test]
+    fn the_left_factor_is_the_rotated_frame_so_a_rotated_bind_pose_turns_the_delta() {
+        let quarter = std::f32::consts::FRAC_1_SQRT_2;
+        let about_z = [0.0, 0.0, quarter, quarter];
+        let about_x = [quarter, 0.0, 0.0, quarter];
+
+        let bind_then_delta = multiply(about_z, about_x);
+        let delta_then_bind = multiply(about_x, about_z);
+
+        assert!((bind_then_delta[0] - 0.5).abs() < 1e-6);
+        assert!((bind_then_delta[1] - 0.5).abs() < 1e-6);
+        assert!((delta_then_bind[1] + 0.5).abs() < 1e-6);
+    }
+}

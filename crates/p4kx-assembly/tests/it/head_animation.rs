@@ -116,7 +116,63 @@ fn an_animation_that_fits_nothing_is_listed_and_not_written() -> TestResult {
 fn the_facial_joints_of_the_skin_join_the_skeleton() -> TestResult {
     let (armour, _archive, _dir) = build()?;
 
-    assert!(armour.skeleton().bones.len() >= 3);
+    assert_eq!(
+        armour.skeleton().bones.len(),
+        3,
+        "the fixture's head has the body's bones"
+    );
     assert!(armour.issues().is_empty(), "{:?}", armour.issues());
+    Ok(())
+}
+
+fn reason_of(issue: &Issue) -> &str {
+    match issue.kind() {
+        IssueKind::AnimationNotUsed { reason } => reason,
+        _ => "",
+    }
+}
+
+#[test]
+fn animations_over_the_budget_are_listed_with_the_reason_limit_and_not_written() -> TestResult {
+    let (armour, archive, _dir) = build()?;
+    let models = ArchiveModels::new(&archive);
+    let list = [animation(&face_animation())?, animation(&body_animation())?];
+
+    let animations = armour.animate_within(&list, &models, 5);
+
+    assert!(animations.is_empty());
+    assert_eq!(animations.values(), 0);
+    assert_eq!(animations.issues().len(), 2);
+    for issue in animations.issues() {
+        assert!(reason_of(issue).starts_with("limit"), "{issue:?}");
+    }
+    let spent = armour.animate_within(&list, &models, 10);
+    assert_eq!(spent.len(), 1, "the body animation fits exactly");
+    assert_eq!(spent.values(), 10);
+    Ok(())
+}
+
+#[test]
+fn control_values_are_held_to_zero_and_one() -> TestResult {
+    let (armour, archive, _dir) = build()?;
+    let models = ArchiveModels::new(&archive);
+    let wild = TestAnimation::new("wild.caf", 30).track(
+        TestTrack::new(crc32fast::hash(b"CTL_a")).positions(&[
+            (0, [0.0, 0.0, 0.0]),
+            (10, [1e30, 0.0, 0.0]),
+            (20, [-1e30, 0.0, 0.0]),
+        ]),
+    );
+    let list = [animation(&wild)?];
+
+    let animations = armour.animate(&list, &models);
+
+    assert!(animations.issues().is_empty(), "{:?}", animations.issues());
+    let weights = &animations.sampled()[0].weights[0].values;
+    assert!(
+        weights.iter().all(|weight| (0.0..=1.0).contains(weight)),
+        "{weights:?}"
+    );
+    assert_eq!(weights[2], 1.0);
     Ok(())
 }

@@ -8,16 +8,23 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::facial::FaceLink;
 
-/// A pose that differs from the bind pose by less than this, 0.1 micrometre or a ten-thousandth
-/// of a degree, is the bind pose.
+/// A joint offset, rotation component or weight under this is nothing: 0.1 micrometre for a
+/// translation in metres, a few tenths of a micro-radian for a rotation.
 const REST: f32 = 1e-7;
 
 /// A control of the rig with the frames and values its track keys.
 pub(super) type Control<'a> = (usize, &'a [u16], &'a [[f32; 3]]);
 
 /// Evaluates the rig at each of `frames`, in parallel, for the controls' keyed values.
-pub(super) fn evaluate(face: &FaceRig, controls: &[Control<'_>], frames: &[u16]) -> Vec<FacePose> {
-    frames
+///
+/// A control is a fraction, so its value is held to 0 to 1 whatever the file keys. Returns `None`
+/// when a pose is not finite.
+pub(super) fn evaluate(
+    face: &FaceRig,
+    controls: &[Control<'_>],
+    frames: &[u16],
+) -> Option<Vec<FacePose>> {
+    let poses: Vec<FacePose> = frames
         .par_iter()
         .map(|&frame| {
             let mut values = vec![0.0_f32; face.logic().controls()];
@@ -28,13 +35,26 @@ pub(super) fn evaluate(face: &FaceRig, controls: &[Control<'_>], frames: &[u16])
             }
             face.pose(&values)
         })
-        .collect()
+        .collect();
+    poses.iter().all(is_finite).then_some(poses)
 }
 
-/// How far a sample may sit from the line between its neighbours before it is kept: a hundredth
-/// of a millimetre or of a thousandth of a radian for joints, a ten-thousandth for weights.
+fn is_finite(pose: &FacePose) -> bool {
+    pose.blendshapes
+        .iter()
+        .chain(pose.translations.iter().flatten())
+        .chain(pose.rotations.iter().flatten())
+        .all(|value| value.is_finite())
+}
+
+/// How far a sample may sit from the line between its neighbours before it is kept: 0.1 mm of a
+/// joint translation or 0.0001 of a rotation component (about 0.01 degrees), 0.001 of a weight.
 const JOINT_TOLERANCE: f32 = 1e-4;
 const WEIGHT_TOLERANCE: f32 = 1e-3;
+
+/// The most samples one line of the reduction spans, and the most samples reduced at once.
+const STRETCH: usize = 128;
+const CHUNK: usize = 1024;
 
 /// The values of a pose a viewer interpolates linearly, each with its tolerance.
 type Features = Vec<(f32, f32)>;
@@ -57,19 +77,51 @@ fn features(pose: &FacePose, link: &FaceLink) -> Features {
 
 /// Returns the indices of the samples to keep: the first and the last, and every sample that a
 /// viewer interpolating linearly between the kept ones would miss by more than the tolerance.
+///
+/// The samples are reduced a chunk at a time, and no line spans more than [`STRETCH`] samples, so
+/// the work is linear in the samples and the chunk's values are all that is held.
 pub(super) fn reduction(frames: &[u16], poses: &[FacePose], link: &FaceLink) -> Vec<usize> {
-    let values: Vec<Features> = poses.iter().map(|pose| features(pose, link)).collect();
+    let last = poses.len().saturating_sub(1);
+    let mut kept = Vec::new();
+    let mut start = 0;
+    while start <= last && !poses.is_empty() {
+        let end = (start + CHUNK).min(last);
+        let values: Vec<Features> = poses
+            .get(start..=end)
+            .unwrap_or_default()
+            .iter()
+            .map(|pose| features(pose, link))
+            .collect();
+        let chunk_frames = frames.get(start..=end).unwrap_or_default();
+        kept.extend(
+            reduce(chunk_frames, &values)
+                .into_iter()
+                .map(|at| at + start),
+        );
+        if end == last {
+            break;
+        }
+        start = end;
+    }
+    kept.dedup();
+    kept
+}
+
+fn reduce(frames: &[u16], values: &[Features]) -> Vec<usize> {
     let mut kept = vec![0];
     let mut anchor = 0;
     let mut end = 1;
     while end < values.len() {
-        let fits =
-            (anchor + 1..end).all(|inner| line_fits((&values, frames), (anchor, inner, end)));
-        if fits {
-            end += 1;
-        } else {
+        let fits = (anchor + 1..end).all(|inner| line_fits((values, frames), (anchor, inner, end)));
+        if !fits {
             anchor = end - 1;
             kept.push(anchor);
+        } else if end - anchor >= STRETCH {
+            anchor = end;
+            kept.push(anchor);
+            end += 1;
+        } else {
+            end += 1;
         }
     }
     if values.len() > 1 {
@@ -98,6 +150,12 @@ fn line_fits(
         }
         _ => true,
     }
+}
+
+/// The pose of a joint with the rest pose `rest` and the rotation `delta` from the rig: the delta
+/// is multiplied on the right, so it turns in the joint's own axes.
+fn turned(rest: [f32; 4], delta: [f32; 4]) -> [f32; 4] {
+    multiply_quaternions(rest, delta)
 }
 
 /// The poses of the facial joints that move, as the bones of the skeleton they are.
@@ -140,7 +198,7 @@ pub(super) fn joint_samples(
                     .get(joint)
                     .copied()
                     .unwrap_or([0.0, 0.0, 0.0, 1.0]);
-                multiply_quaternions(rest.relative.rotation, delta)
+                turned(rest.relative.rotation, delta)
             })
             .collect();
         out.push(SampledBone::new(bone, translations, rotations));
@@ -189,12 +247,20 @@ pub(super) fn values_of(track: &Track) -> Option<(&[u16], &[[f32; 3]])> {
     Some((keys.frames.as_slice(), keys.values.as_slice()))
 }
 
-/// Returns the first component of the key values at `frame`: interpolated between the keys around
-/// it, held before the first and after the last.
+/// Returns the first component of the key values at `frame`, held to 0 to 1: interpolated between
+/// the keys around it, held before the first and after the last. A value that is not finite is 0.
 pub(super) fn value_at(frames: &[u16], values: &[[f32; 3]], frame: u16) -> f32 {
     let next = frames.partition_point(|&key| key <= frame);
-    let at = |index: usize| values.get(index).map_or(0.0, |value| value[0]);
-    match (next.checked_sub(1), frames.get(next)) {
+    let at = |index: usize| {
+        values.get(index).map_or(0.0, |value| {
+            if value[0].is_finite() {
+                value[0].clamp(0.0, 1.0)
+            } else {
+                0.0
+            }
+        })
+    };
+    let value = match (next.checked_sub(1), frames.get(next)) {
         (None, _) => at(0),
         (Some(last), None) => at(last),
         (Some(last), Some(&after)) => {
@@ -203,5 +269,6 @@ pub(super) fn value_at(frames: &[u16], values: &[[f32; 3]], frame: u16) -> f32 {
             let t = f32::from(frame - before) / span;
             (at(next) - at(last)).mul_add(t, at(last))
         }
-    }
+    };
+    value.clamp(0.0, 1.0)
 }

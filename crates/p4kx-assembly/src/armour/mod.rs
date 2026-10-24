@@ -32,7 +32,7 @@ use p4kx_gltf::{
 };
 use p4kx_model::{MaterialStatus, Model};
 
-pub use animate::CharacterAnimations;
+pub use animate::{CharacterAnimations, MAX_ANIMATION_VALUES};
 pub use body::BodyVariant;
 pub use dress::HeadItems;
 pub use expressions::Expressions;

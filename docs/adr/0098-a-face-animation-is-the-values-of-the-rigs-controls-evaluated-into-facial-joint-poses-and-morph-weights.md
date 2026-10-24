@@ -50,23 +50,43 @@ cannot be animated.
 coefficients. A control animation is turned into the 495 activations: the controls, with the
 constant control 0 at 1, then each corrective as the product of the five controls of its row in
 section C. The translation of a joint is the sum over the records of the main delta set, the Euler
-rotation (x, y, z, applied in this order, radians) the sum over the secondary set, each coefficient
-times the step of its head (`scale / (2^22 - 1)`) times the activation, mixed over the heads of the
-DNA by the joint weights of the regions. What the heads leave of 1 in a region belongs to the base
-head, as for the expression morphs (ADR-0091); a region without blends has the records of the base
-head. The result is added to the bind translation of the joint and multiplied onto its bind
-rotation. The 495 activations are also the weights of the morph targets: target `n` of the head is
-blendshape `n`.
+angles (radians) the sum over the secondary set, each coefficient times the step of its head
+(`scale / (2^22 - 1)`) times the activation, mixed over the heads of the DNA by the joint weights
+of the regions. What the heads leave of 1 in a region belongs to the base head, as for the
+expression morphs (ADR-0091); a region without blends has the records of the base head.
+
+The Euler angles `x, y, z` become the quaternion `qx * qy * qz`, the Hamilton product of the
+half-angle quaternions with `qx` leftmost, and the pose of the joint is its bind translation plus
+the translation, and its bind rotation times that quaternion on the right (`bind * delta`: the
+delta turns in the joint's own axes). Order, signs and side are those StarBreaker documents for the
+engine; they are tested for what the code does (two axes, a rotated bind pose) and not verified
+against the game, which is a follow-up.
+
+The 495 activations are also the weights of the morph targets: the targets of the head are the
+blendshapes that move a vertex, in the order of their numbers, and the build keeps the number of
+each, so target `k` takes the activation of blendshape `numbers[k]`.
 
 ## Sampling
 
 An animation is sampled at the frames where any of its control tracks has a key, because the
-inputs change linearly between keys and the viewers interpolate linearly; a frame is dropped when
-the line between its kept neighbours misses it by less than 0.1 mm or 0.001 in a weight on every
-output. The face clips key nearly every frame (`ai_civ_neutral_idle_08_face` has 4,524 samples of
-its 4,530 frames), so the reduction saves little and a long clip is large: 34 MB for 151 s. Joints
-that never leave their bind pose and morph targets that never leave 0 get no channel; the weights
-are one `weights` channel of the head's mesh with a run of all targets per sample.
+inputs change linearly between keys and the viewers interpolate linearly. Control values are held
+to 0 to 1, since a control is a fraction and a file with a key of 1e30 must not blow up the pose; a
+pose that is not finite refuses the clip. A sample is dropped when the line between its kept
+neighbours misses it by less than 0.1 mm, 0.0001 of a rotation component or 0.001 of a weight on
+every output; a line spans at most 128 samples and the samples are reduced 1,024 at a time, so the
+work is linear. The face clips key nearly every frame (`ai_civ_neutral_idle_08_face` has 4,354
+samples of its 4,530 frames), so the reduction saves little and a long clip is large: 34 MB for 151
+s. Joints that never leave their bind pose and morph targets that never leave 0 get no channel; the
+weights are one `weights` channel of the head's mesh with a run of all targets per sample.
+
+## The budget
+
+The animations of one Character together may write 33,554,432 values (floats of key times, poses and
+weights, 128 MiB; `MAX_ANIMATION_VALUES`), and one facial clip at most 32,768 samples. The 141
+facial clips of `heads/male` alone come to about 150 Mi values, so `--anim all` writes the clips
+that fit in the order of the files and lists the others as `animation_not_used` with a reason
+starting with `limit`; the cost of a facial clip is estimated before the rig is evaluated, so a
+refused clip costs no memory. Run `--anim` with the names wanted for more.
 
 ## What is not in it
 
@@ -75,8 +95,9 @@ are one `weights` channel of the head's mesh with a run of all targets per sampl
   ADR-0091.
 - The expressions below LOD 0 and the joints of the lower levels (#533).
 - The wrinkle maps that sections G and H of the rig logic drive.
-- The sign and order of the Euler angles are the engine's as StarBreaker documents them; they are
-  checked by the clips moving the right joints, not against a rendering of the game.
+- Verification of the Euler order, signs and multiplication side against the engine (a follow-up).
+- One glTF animation per clip: an animation with tracks for bones and for controls is written as
+  two animations of the same name.
 
 ## Body animations and where they are found
 

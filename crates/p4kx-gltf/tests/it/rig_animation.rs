@@ -110,5 +110,6 @@ fn weights_that_do_not_fit_the_targets_are_left_out() -> TestResult {
 
     check_glb(&bytes)?;
     assert_eq!(summary.animations[0].channels, 2);
+    assert_eq!(summary.animations[0].skipped_weights, 1);
     Ok(())
 }

@@ -34,6 +34,16 @@ pub(crate) struct WrittenJson {
     channels: usize,
     keys: usize,
     skipped_tracks: Vec<u32>,
+    #[serde(skip_serializing_if = "is_zero")]
+    skipped_weights: usize,
+}
+
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde passes the field by reference"
+)]
+const fn is_zero(value: &usize) -> bool {
+    *value == 0
 }
 
 impl WrittenJson {
@@ -45,6 +55,7 @@ impl WrittenJson {
             channels: summary.channels,
             keys: summary.keys,
             skipped_tracks: summary.skipped_tracks.clone(),
+            skipped_weights: summary.skipped_weights,
         }
     }
 }
@@ -138,6 +149,13 @@ pub(crate) fn write_notes(
                 "animation {name}: left out {} tracks whose bone the skeleton lacks: {}",
                 summary.skipped_tracks.len(),
                 list_ids(&summary.skipped_tracks)
+            )?;
+        }
+        if summary.skipped_weights > 0 {
+            writeln!(
+                out,
+                "animation {name}: left out {} runs of morph weights that do not fit the targets of the mesh",
+                summary.skipped_weights
             )?;
         }
         if summary.additive {

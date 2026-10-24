@@ -46,7 +46,7 @@ pub struct Piece {
 }
 
 impl Piece {
-    fn from_source(name: String, source: Source) -> Self {
+    const fn from_source(name: String, source: Source) -> Self {
         Self {
             name,
             source,

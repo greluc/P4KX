@@ -77,13 +77,15 @@ impl<'a> Field<'a> {
                         else {
                             continue;
                         };
-                        let squared: f32 = (0..3)
-                            .map(|axis| (head[axis] - position[axis]).powi(2))
+                        let squared: f32 = head
+                            .iter()
+                            .zip(&position)
+                            .map(|(at, from)| (at - from).powi(2))
                             .sum();
                         if squared > RANGE * RANGE {
                             continue;
                         }
-                        let weight = 1.0 / (squared + SOFTEN * SOFTEN);
+                        let weight = 1.0 / SOFTEN.mul_add(SOFTEN, squared);
                         weights += weight;
                         for (total, value) in sum.iter_mut().zip(by) {
                             *total += weight * value;

@@ -9,6 +9,7 @@ pub struct TestMtlMaterial {
     attributes: Vec<(String, String)>,
     textures: Vec<(String, String)>,
     layers: Vec<(String, String)>,
+    public_params: Vec<(String, String)>,
 }
 
 impl TestMtlMaterial {
@@ -22,7 +23,16 @@ impl TestMtlMaterial {
             ],
             textures: Vec::new(),
             layers: Vec::new(),
+            public_params: Vec::new(),
         }
+    }
+
+    /// Sets the shader parameter `name` of the material's `PublicParams` to `value`, as written:
+    /// a number or colour such as `0.5` or `1,0.5,0.25`.
+    #[must_use]
+    pub fn public_param(mut self, name: &str, value: &str) -> Self {
+        self.public_params.push((name.to_owned(), value.to_owned()));
+        self
     }
 
     /// Adds a material layer named `name` whose `PaletteTint` attribute is `palette_tint`, as
@@ -133,7 +143,14 @@ impl TestMtlMaterial {
                     .attribute("File", file),
             );
         }
-        let element = element.child(textures);
+        let mut element = element.child(textures);
+        if !self.public_params.is_empty() {
+            let mut params = TestElement::new("PublicParams");
+            for (name, value) in &self.public_params {
+                params = params.attribute(name, value);
+            }
+            element = element.child(params);
+        }
         if self.layers.is_empty() {
             return element;
         }

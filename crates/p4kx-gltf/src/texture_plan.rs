@@ -5,12 +5,12 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use p4kx_model::Material;
 
-use crate::materials::{MaterialPlan, Slot, display_name, uses_alpha};
+use crate::materials::{MaterialPlan, Slot, display_name, is_hair_cards, uses_alpha};
 use crate::texture_loader::TextureLoader;
 use crate::texture_make::{Budget, Outcome, run};
 use crate::texture_pixels::Tints;
 use crate::texture_report::{TextureFallback, TextureRole};
-use crate::texture_roles::{Source, Sources, sources};
+use crate::texture_roles::{Source, Sources, sources_with};
 
 /// The most images one GLB embeds.
 pub const MAX_TEXTURE_IMAGES: usize = 256;
@@ -281,11 +281,14 @@ fn refusals(found: &Sources) -> Vec<Failure> {
 /// Registers the jobs for the images of `material` with `add`, which returns a job's number, and
 /// returns the jobs with the textures refused for their unsafe paths.
 fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, Vec<Failure>) {
-    let mut found = sources(material);
+    let mut found = sources_with(material, is_hair_cards(material));
     if found.diffuse.as_ref().is_none_or(|diffuse| diffuse.opacity) {
         found.specular = None;
     }
-    let by_opacity = found.diffuse.as_ref().is_some_and(|diffuse| diffuse.opacity);
+    let by_opacity = found
+        .diffuse
+        .as_ref()
+        .is_some_and(|diffuse| diffuse.opacity);
     let refused = refusals(&found);
     let tints = Tints {
         diffuse: material.diffuse.map(|channel| channel.clamp(0.0, 1.0)),

@@ -11,9 +11,10 @@ use crate::read::{as_struct, struct_items, text};
 
 const GENERATION_PARAMS: &str = "SCharacterGenerationParams";
 
-/// Supplies the items of a Character's head from the Records of a DataForge: the Entities its
-/// item GUIDs name, and the material libraries its material GUIDs stand for, which the
-/// `materialLookupTable` of the Character generation parameters lists.
+/// Supplies the items of a Character's head from the Records of a DataForge.
+///
+/// The Entities are those its item GUIDs name; the material libraries are those its material GUIDs
+/// stand for, which the `materialLookupTable` of the Character generation parameters lists.
 pub struct ForgeItems<'r, 'f> {
     resolver: &'r mut LoadoutResolver<'f>,
     materials: HashMap<Guid, String>,
@@ -49,7 +50,10 @@ impl<'r, 'f> ForgeItems<'r, 'f> {
 fn lookup(forge: &DataForge<'_>) -> HashMap<Guid, String> {
     let mut materials = HashMap::new();
     for record in forge.records() {
-        if !record.type_name().is_ok_and(|name| name == GENERATION_PARAMS) {
+        if !record
+            .type_name()
+            .is_ok_and(|name| name == GENERATION_PARAMS)
+        {
             continue;
         }
         let Ok(tree) = record.tree() else { continue };

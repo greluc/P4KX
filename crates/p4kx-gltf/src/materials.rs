@@ -184,7 +184,7 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
             1.0,
             Some(material.alpha_test.clamp(0.0, 1.0)),
         )
-    } else if is_one_of(&material.shader, &HAIR_CARD_SHADERS) {
+    } else if is_hair_cards(material) {
         (AlphaMode::Mask, 1.0, Some(HAIR_CARD_CUTOFF))
     } else if glass {
         (AlphaMode::Blend, opacity.min(GLASS_ALPHA), None)
@@ -193,6 +193,11 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
     } else {
         (AlphaMode::Opaque, 1.0, None)
     }
+}
+
+/// Returns whether `material` draws hair cards, which are cut out by an opacity map.
+pub(crate) fn is_hair_cards(material: &Material) -> bool {
+    is_one_of(&material.shader, &HAIR_CARD_SHADERS)
 }
 
 /// Returns whether `material` is drawn with transparency, so that the alpha channel of its

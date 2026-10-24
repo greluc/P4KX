@@ -94,7 +94,8 @@ impl Head {
         self.rig
     }
 
-    /// Returns the pieces to wear on the body: the shaped head.
+    /// Returns the pieces to wear on the body: the shaped head, and with [`Head::dressed`] its
+    /// teeth and the items of the Character's head port.
     #[must_use]
     pub fn pieces(&self) -> &[Piece] {
         &self.pieces

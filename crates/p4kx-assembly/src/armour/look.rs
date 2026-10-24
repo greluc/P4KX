@@ -128,9 +128,9 @@ fn has_diffuse_texture(material: &Material) -> bool {
         .any(|texture| texture.map == DIFFUSE_SLOT)
 }
 
-/// Applies `sub` to `material`; `dyes` tells whether the library of a hair takes a dye, which the
-/// materials of brows do not: their shader has no dye parameters, so the choice's dye is unused.
-fn customise(material: &mut Material, sub: &SubMaterial, dyes: bool) -> bool {
+/// Applies `sub` to `material`; `takes_dye` tells whether the library of a hair takes a dye, which
+/// the materials of brows do not: their shader has no dye parameters, so the choice's dye is unused.
+fn customise(material: &mut Material, sub: &SubMaterial, takes_dye: bool) -> bool {
     let shader = material.shader.clone();
     if shader.eq_ignore_ascii_case(SKIN_SHADER) {
         let Some(tone) = colour_of(sub, BODY_COLOR) else {
@@ -145,15 +145,13 @@ fn customise(material: &mut Material, sub: &SubMaterial, dyes: bool) -> bool {
         rebase(material, iris, "IrisColor");
         true
     } else if is_hair(material) {
-        let dyed = colour_of(sub, HAIR_DYE_COLOR);
+        let dye = colour_of(sub, HAIR_DYE_COLOR);
         let tint = colour_of(sub, HAIR_TINT_COLOR);
         let melanin = name_hash("BaseMelanin");
-        if dyed.is_none() && tint.is_none() && sub.floats.iter().all(|param| param.name != melanin)
-        {
+        if dye.is_none() && tint.is_none() && sub.floats.iter().all(|param| param.name != melanin) {
             return false;
         }
-        let dyed = dyed.filter(|_| dyes);
-        material.diffuse = hair_colour(material, sub, dyed, tint);
+        material.diffuse = hair_colour(material, sub, dye.filter(|_| takes_dye), tint);
         true
     } else {
         false
@@ -190,7 +188,8 @@ fn hair_colour(
     let tint = tint.unwrap_or([1.0; 3]);
     let natural = natural_hair(melanin, redness);
     let natural = [0, 1, 2].map(|channel| {
-        natural.get(channel).copied().unwrap_or_default() * tint.get(channel).copied().unwrap_or(1.0)
+        natural.get(channel).copied().unwrap_or_default()
+            * tint.get(channel).copied().unwrap_or(1.0)
     });
     dyed.map_or(natural, |dye| {
         lerp(natural, dye, number(sub, material, "DyeAmount"))
@@ -213,185 +212,14 @@ fn natural_hair(melanin: f32, redness: f32) -> [f32; 3] {
     } else {
         lerp(BROWN, BLACK, (melanin - 0.5) / 0.5)
     };
-    let red = lerp(base, AUBURN.map(|channel| channel * (1.0 - 0.7 * melanin)), 0.6);
+    let red = lerp(
+        base,
+        AUBURN.map(|channel| channel * 0.7_f32.mul_add(-melanin, 1.0)),
+        0.6,
+    );
     lerp(base, red, redness)
 }
 
 #[cfg(test)]
-mod tests {
-    use p4kx_character::{ColorParam, FloatParam, Guid, Material as Choice, SubMaterial};
-    use p4kx_model::{MaterialLibrary, MaterialStatus};
-
-    use super::{BODY_COLOR, EYE_COLOR, HAIR_DYE_COLOR, Look, lowered_hash, name_hash};
-
-    fn library(xml: &str) -> MaterialStatus {
-        MaterialStatus::Loaded(
-            MaterialLibrary::parse("test", xml.as_bytes()).expect("a valid library"),
-        )
-    }
-
-    fn look(name: &str, colors: Vec<ColorParam>, floats: Vec<FloatParam>) -> Look {
-        Look::new(&Choice {
-            attachment: 1,
-            base_material: Guid::default(),
-            flags: 0,
-            sub_materials: vec![SubMaterial {
-                name: lowered_hash(name),
-                textures: Vec::new(),
-                floats,
-                colors,
-            }],
-        })
-    }
-
-    fn colour(name: u32, rgba: [u8; 4]) -> ColorParam {
-        ColorParam { name, rgba }
-    }
-
-    fn diffuse(status: &MaterialStatus, at: usize) -> [f32; 3] {
-        status.library().expect("a library").materials[at].diffuse
-    }
-
-    const SKIN: &str = r#"<Material><SubMaterials>
-        <Material Name="shader_head" Shader="HumanSkin_V2" Diffuse="1,1,1">
-          <Textures><Texture Map="TexSlot1" File="a/head_diff.tif"/></Textures>
-          <PublicParams SourceAverageColor="0.2,0.1,0.05"/>
-        </Material>
-        <Material Name="grey" Shader="HumanSkin_V2" Diffuse="1,1,1"/>
-        </SubMaterials></Material>"#;
-
-    #[test]
-    fn a_skin_with_a_diffuse_texture_is_rebased_by_the_ratio_of_the_skin_tones() {
-        let skin = look(
-            "shader_head",
-            vec![colour(BODY_COLOR, [255, 255, 255, 255])],
-            Vec::new(),
-        );
-
-        let status = skin.apply(&library(SKIN)).expect("the material changes");
-
-        let [red, green, blue] = diffuse(&status, 0);
-        assert!((red - 0.25).abs() < 1e-5, "{red} keeps the hue");
-        assert!((green - 0.5).abs() < 1e-5, "{green} keeps the hue");
-        assert!((blue - 1.0).abs() < 1e-5, "{blue} is the brightest channel");
-    }
-
-    #[test]
-    fn a_skin_without_a_diffuse_texture_takes_the_skin_tone() {
-        let skin = look(
-            "grey",
-            vec![colour(BODY_COLOR, [255, 0, 0, 255])],
-            Vec::new(),
-        );
-
-        let status = skin.apply(&library(SKIN)).expect("the material changes");
-
-        assert_eq!(diffuse(&status, 1), [1.0, 0.0, 0.0]);
-        assert_eq!(diffuse(&status, 0), [1.0; 3], "the other material is as it was");
-    }
-
-    #[test]
-    fn the_iris_colour_tints_an_eye_and_other_materials_stay() {
-        let eyes = library(
-            r#"<Material><SubMaterials>
-            <Material Name="shader_eyeInner" Shader="Eye" Diffuse="1,1,1"/>
-            <Material Name="eyeWet" Shader="Eye" Diffuse="1,1,1"/>
-            </SubMaterials></Material>"#,
-        );
-        let iris = look(
-            "shader_eyeInner",
-            vec![colour(EYE_COLOR, [0, 0, 255, 255])],
-            Vec::new(),
-        );
-
-        let status = iris.apply(&eyes).expect("the material changes");
-
-        assert_eq!(diffuse(&status, 0), [0.0, 0.0, 1.0]);
-        assert_eq!(diffuse(&status, 1), [1.0; 3]);
-    }
-
-    const DYEABLE: &str = r#"<Material><SubMaterials>
-        <Material Name="hair_m" Shader="HairPBR" Diffuse="1,1,1">
-          <PublicParams DyeAmount="0" BaseMelanin="0.5"/>
-        </Material></SubMaterials></Material>"#;
-    const PLAIN: &str = r#"<Material><SubMaterials>
-        <Material Name="hair_m" Shader="HairPBR" Diffuse="1,1,1">
-          <PublicParams BaseMelanin="0.5"/>
-        </Material></SubMaterials></Material>"#;
-
-    fn hair(melanin: f32, dye_amount: f32, dye: [u8; 4]) -> [f32; 3] {
-        hair_of(DYEABLE, melanin, dye_amount, dye)
-    }
-
-    fn hair_of(xml: &str, melanin: f32, dye_amount: f32, dye: [u8; 4]) -> [f32; 3] {
-        let cards = library(xml);
-        let hair = look(
-            "hair_m",
-            vec![colour(HAIR_DYE_COLOR, dye)],
-            vec![
-                FloatParam {
-                    name: name_hash("BaseMelanin"),
-                    value: melanin,
-                },
-                FloatParam {
-                    name: name_hash("DyeAmount"),
-                    value: dye_amount,
-                },
-            ],
-        );
-        diffuse(&hair.apply(&cards).expect("the material changes"), 0)
-    }
-
-    #[test]
-    fn hair_goes_from_blond_over_brown_to_black_with_the_melanin() {
-        let (blond, brown, black) = (
-            hair(0.0, 0.0, [0; 4]),
-            hair(0.5, 0.0, [0; 4]),
-            hair(1.0, 0.0, [0; 4]),
-        );
-
-        assert!(blond[0] > brown[0] && brown[0] > black[0]);
-        assert!(blond[0] > blond[2], "blond is warm");
-    }
-
-    #[test]
-    fn a_full_dye_replaces_the_natural_colour() {
-        let dyed = hair(1.0, 1.0, [0, 0, 255, 255]);
-
-        assert_eq!(dyed, [0.0, 0.0, 1.0]);
-    }
-
-    #[test]
-    fn a_hair_whose_shader_has_no_dye_ignores_the_dye() {
-        let plain = hair_of(PLAIN, 0.5, 1.0, [0, 0, 255, 255]);
-
-        assert_eq!(plain, hair_of(PLAIN, 0.5, 0.0, [0; 4]));
-        assert!(plain[2] < 0.5, "not blue");
-    }
-
-    #[test]
-    fn a_hair_takes_the_first_choice_when_no_sub_material_name_matches() {
-        let renamed = look(
-            "facial_hair_043",
-            vec![colour(HAIR_DYE_COLOR, [0, 255, 0, 255])],
-            vec![FloatParam {
-                name: name_hash("DyeAmount"),
-                value: 1.0,
-            }],
-        );
-
-        let status = renamed
-            .apply(&library(DYEABLE))
-            .expect("the hair takes the choice");
-
-        assert_eq!(diffuse(&status, 0), [0.0, 1.0, 0.0]);
-    }
-
-    #[test]
-    fn a_choice_that_names_no_material_changes_nothing() {
-        let skin = look("other", vec![colour(BODY_COLOR, [1, 2, 3, 255])], Vec::new());
-
-        assert!(skin.apply(&library(SKIN)).is_none());
-        assert!(skin.apply(&MaterialStatus::Unnamed).is_none());
-    }
-}
+#[path = "look_tests.rs"]
+mod tests;

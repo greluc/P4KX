@@ -115,6 +115,18 @@ fn database() -> DataForgeBuilder {
 ///   helmet.
 #[must_use]
 pub fn armour_entries() -> Vec<TestEntry> {
+    let mut entries = vec![TestEntry::zstd("Data\\Game2.dcb", database().build())];
+    entries.extend(armour_files());
+    entries
+}
+
+/// Returns the database of [`armour_entries`], for fixtures that add Records to it.
+pub(crate) fn armour_database() -> DataForgeBuilder {
+    database()
+}
+
+/// Returns the Entries of [`armour_entries`] without the database.
+pub(crate) fn armour_files() -> Vec<TestEntry> {
     let male = armour_male_skeleton();
     let female = armour_female_skeleton();
     let mut cloth_bones = male.bones().to_vec();
@@ -126,7 +138,6 @@ pub fn armour_entries() -> Vec<TestEntry> {
         TestMtlMaterial::new("sides").diffuse([0.5; 3]),
     ]);
     let mut entries = vec![
-        TestEntry::zstd("Data\\Game2.dcb", database().build()),
         skeleton_entry(MALE_SKELETON, &male),
         skeleton_entry(FEMALE_SKELETON, &female),
         TestEntry::stored("Data\\objects\\test\\cube.mtl", library.cryxml()),

@@ -11,8 +11,8 @@ use p4kx_assembly::{
     PartOrigin,
 };
 use p4kx_extraction::{
-    ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
-    is_same_file, write_replacing,
+    ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
+    write_replacing,
 };
 use serde::Serialize;
 use thiserror::Error;

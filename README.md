@@ -380,11 +380,15 @@ Early development (milestone M1). Available today:
   GLB: the head skin of the character's head rig, its vertices moved by the character's face DNA
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by
   the DNA's blends: per face part up to the four strongest heads), worn on the default body of the
-  character's body variant. Hair, eyes, teeth and expressions are not part of it. `--lod N` picks
-  the level of detail of head and body, `--no-vertex-colours` leaves the vertex colours out. A head
-  that cannot be shaped (its rig is missing, belongs to another rig or does not match the skin) is
-  listed and left out of the GLB, which is still written, and the exit code is 1; a character
-  without face DNA exits with 2. The report is described in [docs/cli-json.md](docs/cli-json.md).
+  character's body variant. The teeth and what the character wears on its head are included: the
+  eyes, hair, brows, lashes and beard, with the materials the character chose (its head material,
+  skin tone, iris colour, hair melanin and dye) and their textures (`--materials colours` leaves
+  the textures out, `--texture-mip N` picks their size); expressions are not part of it. `--lod N`
+  picks the level of detail of head and body, `--no-vertex-colours` leaves the vertex colours out.
+  A head that cannot be shaped (its rig is missing, belongs to another rig or does not match the
+  skin) is listed and left out of the GLB, which is still written, and the exit code is 1; an item
+  or a material the Archive does not have is listed, and a character without face DNA exits with
+  2. The report is described in [docs/cli-json.md](docs/cli-json.md).
 - `p4kx socpak list <archive> <container…>` lists the Entries of a socpak container in the
   columns of `list`, read from the Archive without extracting the container first; each further
   path names a container inside the one before. `p4kx socpak extract <archive> <container…>

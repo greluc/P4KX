@@ -1621,22 +1621,42 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
 {"archive": "…", "chf": "…", "body": "male", "rig": "protos_human_male_face_t1_pu",
  "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…", "lod": 0,
  "parts": [{"name": "body", "origin": "body", "file": "…"},
-           {"name": "head", "origin": "head", "file": "…"}],
- "nodes": 222, "bones": 220, "meshes": 2, "skinned_meshes": 2, "primitives": 31,
- "materials": 4, "vertices": 17940, "triangles": 31530, "bytes": 1581492, "skipped": 0,
- "issues": [Issue, …]}
+           {"name": "head", "origin": "head", "file": "…"},
+           {"name": "teeth", "origin": "head", "file": "…"},
+           {"name": "eyes_itemport", "origin": "head", "file": "…"},
+           {"name": "hair_itemport", "origin": "head", "file": "…"}],
+ "nodes": 229, "bones": 220, "meshes": 9, "skinned_meshes": 9, "primitives": 41,
+ "materials": 14, "textured_materials": 12, "textures": 20, "texture_pixels": 36700160,
+ "texture_fallbacks": [{"material": "…", "role": "diffuse", "file": "…", "reason": "…"}],
+ "default_material_ids": 0, "vertices": 61582, "triangles": 66225, "bytes": 32863436,
+ "skipped": 0, "issues": [Issue, …]}
 ```
 
 `body` and `rig` are the body variant and the head rig that the DNA's `gender_hash` names; `parts`
-lists the skin of the body (`origin` `body`) and the head (`origin` `head`), named `head`. The
-Issues are those of `p4kx armour glb`, and a head that cannot be shaped adds `shape_failed` (the
-DNA rig beside the head skin is missing, belongs to another rig, does not cover the vertices of the
-model, has a different vertex count than the skin, gives moves that are not finite, or the DNA
-names a head the rig lacks); the head is then left out, `skipped` counts it, the GLB is still
-written and the command exits with code 1 after printing the report. `--lod N` picks the level of
-detail and `--no-vertex-colours` leaves the vertex colours out. A CHF that holds no face DNA or whose DNA names an unknown head rig exits with code 2, a file that
-is no CHF with code 3, a missing skeleton with code 3, an Archive key that is missing or wrong with
-code 7, and an `--out` that is the Archive with code 2.
+lists the skin of the body (`origin` `body`), the head, its teeth and every item of the
+character's head port that has geometry for the body variant (`origin` `head`): the head is named
+`head`, an item after its port, e.g. `eyes_itemport`, `hair_itemport`, `eyebrow_itemport`,
+`eyelashes_itemport`, `beard_itemport`, `universal_scalp_itemport`, and a port this tool does not
+know `port_<hash>`. The eyes and the teeth are shaped by the DNA like the head; the other items
+follow the shaped head (ADR-0090). The materials the character chose are applied (its head
+material, skin tone, iris colour and hair melanin and dye), and `--materials textures`, the
+default, embeds the textures of the materials as PNG images at the mip level `--texture-mip N`
+(default 1); `--materials colours` writes plain colours. `textured_materials`, `textures`,
+`texture_pixels` and `texture_fallbacks` are those of `p4kx entity glb`: a texture that cannot be
+read leaves the plain colour and is listed. The Issues are those of `p4kx armour glb`, and a head
+that cannot be shaped adds `shape_failed` (the DNA rig beside the head skin is missing, belongs to
+another rig, does not cover the vertices of the model, has a different vertex count than the
+skin, gives moves that are not finite, or the DNA names a head the rig lacks); the head is then
+left out, `skipped` counts it, the GLB is still written and the command exits with code 1 after
+printing the report. Three more Issues name what is missing without leaving a piece out:
+`piece_not_found` (an item whose Entity the Archive does not have, skipped), `geometry_missing`
+(its skin is not in the Archive, skipped), `material_choice_unknown` (the character's base
+material is in no lookup table, so the piece keeps its own) and `look_ignored` (the texture
+choices of a material, such as blemishes, makeup and tattoos, are not drawn). `--lod N` picks the
+level of detail and `--no-vertex-colours` leaves the vertex colours out. A CHF that holds no face
+DNA or whose DNA names an unknown head rig exits with code 2, a file that is no CHF with code 3, a
+missing skeleton with code 3, an Archive key that is missing or wrong with code 7, and an `--out`
+that is the Archive with code 2.
 
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 

@@ -4,7 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use p4kx_model::{BoneMatch, Lod, MaterialStatus, Model};
+use p4kx_model::{BoneMatch, Lod, MaterialStatus, Mesh, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::follow::follow;
@@ -86,35 +86,16 @@ impl Armour {
         let mut head: Option<HeadMove> = None;
         for (job, found) in jobs.iter().zip(&chosen) {
             let Some(found) = found else { continue };
-            let Some(mut model) = fitted(job, found, models, &mut issues) else {
+            let Some(model) = worn(job, found, models, &mut head, &mut issues) else {
                 continue;
             };
-            if job.shape.is_some() && job.part == HEAD && head.is_none() {
-                head = Some(HeadMove {
-                    before: Arc::clone(&found.model),
-                    after: Arc::clone(&model),
-                });
-            }
-            if job.follows_head
-                && let Some(moved) = &head
-            {
-                model = followed(&model, moved);
-            }
-            let key = library_key(job, found);
-            let mut materials = key
-                .as_ref()
-                .and_then(|key| libraries.get(key))
-                .map_or_else(|| Arc::clone(&unnamed), Arc::clone);
-            if let Some(look) = &job.look
-                && let Some(looked) = look.apply(&materials)
-            {
-                materials = Arc::new(looked);
-            }
-            if let (Some(key), Some(reason)) = (key, materials.problem())
-                && reported.insert(key)
-            {
-                issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
-            }
+            let materials = drawn_with(
+                job,
+                found,
+                (&libraries, &unnamed),
+                &mut reported,
+                &mut issues,
+            );
             note_fit(job, &model, &body.skeleton, &mut issues);
             parts.push(ArmourPart {
                 name: job.part.clone(),
@@ -135,11 +116,60 @@ impl Armour {
     }
 }
 
+/// Returns the model of a job as it is worn: shaped by the job's DNA, if it has one, and following
+/// the shaped head, if it follows it. The first shaped head is remembered in `head`.
+fn worn(
+    job: &Job,
+    found: &Loaded,
+    models: &dyn ModelProvider,
+    head: &mut Option<HeadMove>,
+    issues: &mut Vec<Issue>,
+) -> Option<Arc<Model>> {
+    let model = fitted(job, found, models, issues)?;
+    if job.shape.is_some() && job.part == HEAD && head.is_none() {
+        *head = Some(HeadMove {
+            before: Arc::clone(&found.model),
+            after: Arc::clone(&model),
+        });
+    }
+    Some(match head {
+        Some(moved) if job.follows_head => followed(&model, moved),
+        _ => model,
+    })
+}
+
+/// Returns the materials a job is drawn with: its library, with the choices of its Character
+/// applied. A library that cannot be read is listed once.
+fn drawn_with(
+    job: &Job,
+    found: &Loaded,
+    (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
+    reported: &mut HashSet<String>,
+    issues: &mut Vec<Issue>,
+) -> Arc<MaterialStatus> {
+    let key = library_key(job, found);
+    let library = key
+        .as_ref()
+        .and_then(|key| libraries.get(key))
+        .map_or_else(|| Arc::clone(unnamed), Arc::clone);
+    if let (Some(key), Some(reason)) = (key, library.problem())
+        && reported.insert(key)
+    {
+        issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
+    }
+    job.look
+        .as_ref()
+        .and_then(|look| look.apply(&library))
+        .map_or(library, Arc::new)
+}
+
 /// Returns `model` with its vertices following the head as it was shaped.
 fn followed(model: &Arc<Model>, head: &HeadMove) -> Arc<Model> {
-    let meshes = |model: &'_ Model| model.lods.first().and_then(|lod| lod.meshes.first().cloned());
-    match (meshes(&head.before), meshes(&head.after)) {
-        (Some(before), Some(after)) => Arc::new(follow(model, &before, &after)),
+    fn mesh(model: &Model) -> Option<&Mesh> {
+        model.lods.first().and_then(|lod| lod.meshes.first())
+    }
+    match (mesh(&head.before), mesh(&head.after)) {
+        (Some(before), Some(after)) => Arc::new(follow(model, before, after)),
         _ => Arc::clone(model),
     }
 }

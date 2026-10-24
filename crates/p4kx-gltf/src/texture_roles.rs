@@ -54,9 +54,14 @@ impl Source {
 /// normal map of `TexSlot2` or `TexSlot3` whose name ends in `_ddna` (with the smoothness in its
 /// alpha channel) or `_ddn`, and the specular map of `TexSlot4` ending in `_spec`. Engine
 /// placeholders such as `$RenderToTexture` are no files; a file whose path is unsafe is refused.
-/// A material without a diffuse map whose `TexSlot1` ends in `_opac`, such as hair cards, has that
-/// opacity map in place of the diffuse map, see [`Source::opacity`].
 pub(crate) fn sources(material: &Material) -> Sources {
+    sources_with(material, false)
+}
+
+/// Returns the texture files of `material` like [`sources`]; with `opacity_maps`, a material
+/// without a diffuse map whose `TexSlot1` ends in `_opac`, such as hair cards, has that opacity
+/// map in place of the diffuse map, see [`Source::opacity`].
+pub(crate) fn sources_with(material: &Material, opacity_maps: bool) -> Sources {
     let pick = |slots: &[&str], wanted: &dyn Fn(&str) -> bool| {
         slots.iter().find_map(|slot| {
             material.textures.iter().find_map(|texture| {
@@ -89,7 +94,8 @@ pub(crate) fn sources(material: &Material) -> Sources {
     });
     let specular = pick(&[SPECULAR_SLOT], &|name| name == SPECULAR_SUFFIX);
     let gloss = normal.is_some_and(|file| suffix(file) == NORMAL_GLOSS_SUFFIX);
-    let opacity = pick(&[DIFFUSE_SLOT], &|name| name == OPACITY_SUFFIX).filter(|_| diffuse.is_none());
+    let opacity = pick(&[DIFFUSE_SLOT], &|name| name == OPACITY_SUFFIX)
+        .filter(|_| opacity_maps && diffuse.is_none());
     let diffuse = match opacity {
         Some(file) => resolve(TextureRole::Diffuse, Some(file), false, true),
         None => resolve(TextureRole::Diffuse, diffuse, false, false),

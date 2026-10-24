@@ -47,7 +47,7 @@ pub trait HeadItems {
     fn material_path(&self, material: Guid) -> Option<String>;
 }
 
-fn forge_guid(guid: ChfGuid) -> Guid {
+const fn forge_guid(guid: ChfGuid) -> Guid {
     Guid::from_stored(guid.stored())
 }
 
@@ -91,13 +91,12 @@ impl Dressing<'_> {
             return piece;
         };
         if choice.base_material != ChfGuid::default() {
-            match items.material_path(forge_guid(choice.base_material)) {
-                Some(path) => piece = piece.with_material(path),
-                None => {
-                    let note = Note::UnknownMaterial(forge_guid(choice.base_material).to_string());
-                    piece = piece.noting(note);
-                }
-            }
+            let base = forge_guid(choice.base_material);
+            piece = if let Some(path) = items.material_path(base) {
+                piece.with_material(path)
+            } else {
+                piece.noting(Note::UnknownMaterial(base.to_string()))
+            };
         }
         let look = Look::new(choice);
         let textures = look.texture_choices();
@@ -146,8 +145,10 @@ impl Head {
         let mut head = Self::from_character(character)?;
         let dna = character.dna.as_ref().ok_or(HeadError::NoFace)?;
         let dressing = Dressing { character, dna };
-        let skin = head.pieces.remove(0);
-        head.pieces.push(dressing.styled(skin, HEAD_PORT, items));
+        head.pieces = std::mem::take(&mut head.pieces)
+            .into_iter()
+            .map(|skin| dressing.styled(skin, HEAD_PORT, items))
+            .collect();
         head.pieces.push(
             Piece::file(
                 TEETH,

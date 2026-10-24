@@ -4,12 +4,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use p4kx_assembly::{Assembly, ModelProvider};
+use p4kx_assembly::ModelProvider;
 use p4kx_gltf::{DrawnMaterial, drawn_materials, texture_path};
 use p4kx_model::{Material, MaterialLayer, MaterialLibrary, MaterialStatus, TintPalette};
 
 use crate::TextureUse;
 use crate::describe::{describe, library_path};
+use crate::items::Item;
 use crate::manifest::{Issue, IssueOrigin};
 use crate::manifest_materials::MaterialDescription;
 use crate::plan::MeshPlan;
@@ -56,25 +57,24 @@ pub(crate) struct Collected {
 impl Collected {
     /// Reads the materials of each distinct mesh of `plan` at `level`.
     pub(crate) fn of(
-        assembly: &Assembly,
+        items: &[Item<'_>],
         plan: &MeshPlan,
         level: u32,
         models: &dyn ModelProvider,
     ) -> Self {
         let mut collected = Self::default();
         for index in 0..plan.len() {
-            let part = plan
-                .first(index)
-                .and_then(|position| assembly.parts().get(position));
-            let drawn = part
-                .and_then(|part| Some(drawn_materials(part.model()?, part.materials(), level)))
+            let item = plan.first(index).and_then(|position| items.get(position));
+            let drawn = item
+                .and_then(|item| item.drawn)
+                .map(|drawn| drawn_materials(drawn.model, drawn.materials, level))
                 .unwrap_or_default();
-            let palette = part
-                .and_then(p4kx_assembly::Part::palette)
+            let palette = item
+                .and_then(|item| item.drawn?.palette)
                 .map(|palette| collected.palette_index(palette));
             collected.palette_of.push(palette);
-            collected.folder = part
-                .and_then(p4kx_assembly::Part::geometry)
+            collected.folder = item
+                .and_then(|item| item.geometry)
                 .and_then(|geometry| {
                     geometry
                         .replace('\\', "/")
@@ -82,7 +82,7 @@ impl Collected {
                         .map(|(folder, _)| folder.to_ascii_lowercase())
                 })
                 .unwrap_or_default();
-            let library = part.and_then(|part| part.materials().library());
+            let library = item.and_then(|item| item.drawn?.materials.library());
             let described = drawn
                 .iter()
                 .map(|material| {

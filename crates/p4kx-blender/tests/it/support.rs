@@ -6,7 +6,10 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use p4kx_assembly::{ArchiveModels, Assembly, AssemblyOptions, ForgePalettes, LoadoutResolver};
+use p4kx_assembly::{
+    ArchiveModels, Assembly, AssemblyOptions, EntityInterior, ForgePalettes, InteriorOptions,
+    LoadoutResolver,
+};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
@@ -42,6 +45,23 @@ pub(crate) fn assemble(archive: &Archive, entity: &str) -> Result<Assembly, Box<
         &palettes,
         &AssemblyOptions::default(),
     )?)
+}
+
+pub(crate) fn assemble_with_interior(
+    archive: &Archive,
+    entity: &str,
+) -> Result<Assembly, Box<dyn Error>> {
+    let entry = DataForgeEntry::read(archive)?;
+    let forge = entry.open()?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let record = resolver.entities().find(entity)?;
+    let tree = resolver.resolve(&record)?;
+    let models = ArchiveModels::new(archive);
+    let palettes = ForgePalettes::new(&forge);
+    let assembly =
+        Assembly::build_with_palettes(&tree, &models, &palettes, &AssemblyOptions::default())?;
+    let interior = EntityInterior::build(archive, &assembly, &tree, &InteriorOptions::default())?;
+    Ok(assembly.with_interior(interior))
 }
 
 pub(crate) fn glb_options(mip: u32) -> GlbOptions {

@@ -21,7 +21,7 @@ pub const MALE_HEAD_FOLDER: &str =
 /// The name of the male head rig.
 pub const MALE_RIG: &str = "protos_human_male_face_t1_pu";
 
-fn head_skin() -> TestModel {
+pub(crate) fn head_skin() -> TestModel {
     TestModel::cube()
         .with_positions(TestPositions::Float)
         .with_nodes(Vec::new())
@@ -97,17 +97,35 @@ pub fn head_rig(vertices: usize, rig_hash: u32) -> TestDna {
 /// skin of the male head rig.
 ///
 /// The skin is a cube whose first triangle uses vertex 5; `rig` is the bytes of the head's `.dna`
-/// file, left out when `None`.
+/// file, left out when `None`. The teeth are the same cube, with the same rig.
 #[must_use]
 pub fn head_entries(rig: Option<Vec<u8>>) -> Vec<TestEntry> {
-    let model = head_skin();
-    let stem = format!(
-        "Data\\{}\\{MALE_RIG}_head",
-        MALE_HEAD_FOLDER.replace('/', "\\")
-    );
     let mut entries = armour_entries();
-    entries.push(TestEntry::stored(format!("{stem}.skin"), model.cgf()));
-    entries.push(TestEntry::stored(format!("{stem}.skinm"), model.cgfm()));
+    entries.extend(head_files(rig));
+    entries
+}
+
+/// Returns the Entries of [`head_entries`] without those of [`armour_entries`].
+pub(crate) fn head_files(rig: Option<Vec<u8>>) -> Vec<TestEntry> {
+    let mut entries = skin_entries(&head_part("head"), rig.clone());
+    entries.extend(skin_entries(&head_part("teeth"), rig));
+    entries
+}
+
+pub(crate) fn head_part(name: &str) -> String {
+    format!(
+        "Data\\{}\\{MALE_RIG}_{name}",
+        MALE_HEAD_FOLDER.replace('/', "\\")
+    )
+}
+
+/// Returns the skin of the cube at `stem`, with the rig `rig` beside it when given.
+pub(crate) fn skin_entries(stem: &str, rig: Option<Vec<u8>>) -> Vec<TestEntry> {
+    let model = head_skin();
+    let mut entries = vec![
+        TestEntry::stored(format!("{stem}.skin"), model.cgf()),
+        TestEntry::stored(format!("{stem}.skinm"), model.cgfm()),
+    ];
     if let Some(rig) = rig {
         entries.push(TestEntry::stored(format!("{stem}.dna"), rig));
     }

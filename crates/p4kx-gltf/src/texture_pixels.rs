@@ -172,6 +172,17 @@ pub(crate) fn base_colour(
     })
 }
 
+/// Returns the base colour image of the opacity map `opacity`: white, with the red channel of the
+/// map as the alpha channel, so that the material's diffuse colour is the colour of the surface.
+pub(crate) fn opacity_colour(opacity: &RgbaImage) -> Result<RgbaImage, TextureError> {
+    fill(opacity.width(), opacity.height(), |y, out| {
+        for (x, target) in out.as_chunks_mut::<RGBA>().0.iter_mut().enumerate() {
+            let [red, ..] = texel(opacity, x, y);
+            *target = [OPAQUE, OPAQUE, OPAQUE, red];
+        }
+    })
+}
+
 /// Returns the normal map image of the engine's normal map `normal`: X and the reconstructed Z as
 /// they are, Y inverted from the engine's convention (Y points down the image) to glTF's (up),
 /// opaque.

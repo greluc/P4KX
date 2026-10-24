@@ -75,35 +75,92 @@ impl SceneLight {
         self
     }
 
-    pub(crate) fn to_json(self, name: &str) -> Light {
+    /// Returns the light with the values the GLB writer writes: the colour within 0 to 1, the
+    /// intensity not negative, the range only when positive, and the cones of a spot light within
+    /// 0 to a quarter turn with the inner one below the outer one. Values that are not finite
+    /// become zero.
+    #[must_use]
+    pub fn clamped(self) -> Self {
         let clean = |value: f32| if value.is_finite() { value } else { 0.0 };
-        let (type_, spot) = match self.kind {
-            SceneLightKind::Point => (Type::Point, None),
-            SceneLightKind::Directional => (Type::Directional, None),
+        let kind = match self.kind {
             SceneLightKind::Spot {
                 inner_cone,
                 outer_cone,
             } => {
                 let outer = clean(outer_cone).clamp(MIN_CONE, MAX_CONE);
                 let inner = clean(inner_cone).clamp(0.0, outer - MIN_CONE / 2.0);
-                (
-                    Type::Spot,
-                    Some(Spot {
-                        inner_cone_angle: inner,
-                        outer_cone_angle: outer,
-                    }),
-                )
+                SceneLightKind::Spot {
+                    inner_cone: inner,
+                    outer_cone: outer,
+                }
             }
+            other => other,
+        };
+        Self {
+            kind,
+            colour: self.colour.map(|channel| clean(channel).clamp(0.0, 1.0)),
+            intensity: clean(self.intensity).max(0.0),
+            range: self.range.filter(|range| range.is_finite() && *range > 0.0),
+        }
+    }
+
+    pub(crate) fn to_json(self, name: &str) -> Light {
+        let clamped = self.clamped();
+        let (type_, spot) = match clamped.kind {
+            SceneLightKind::Point => (Type::Point, None),
+            SceneLightKind::Directional => (Type::Directional, None),
+            SceneLightKind::Spot {
+                inner_cone,
+                outer_cone,
+            } => (
+                Type::Spot,
+                Some(Spot {
+                    inner_cone_angle: inner_cone,
+                    outer_cone_angle: outer_cone,
+                }),
+            ),
         };
         Light {
-            color: self.colour.map(|channel| clean(channel).clamp(0.0, 1.0)),
+            color: clamped.colour,
             extensions: None,
             extras: gltf_json::extras::Void::default(),
-            intensity: clean(self.intensity).max(0.0),
+            intensity: clamped.intensity,
             name: (!name.is_empty()).then(|| name.to_owned()),
-            range: self.range.filter(|range| range.is_finite() && *range > 0.0),
+            range: clamped.range,
             spot,
             type_: Valid(type_),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SceneLight, SceneLightKind};
+
+    #[test]
+    fn clamped_keeps_what_the_writer_writes() {
+        let light = SceneLight::new(
+            SceneLightKind::Spot {
+                inner_cone: 2.0,
+                outer_cone: 3.0,
+            },
+            [2.0, -1.0, f32::NAN],
+            -4.0,
+        )
+        .with_range(0.0)
+        .clamped();
+
+        assert_eq!(light.colour, [1.0, 0.0, 0.0]);
+        assert!(light.intensity.abs() < f32::EPSILON);
+        assert_eq!(light.range, None);
+        let SceneLightKind::Spot {
+            inner_cone,
+            outer_cone,
+        } = light.kind
+        else {
+            panic!("a spot light stays a spot light");
+        };
+        assert!((outer_cone - std::f32::consts::FRAC_PI_2).abs() < 1e-6);
+        assert!(inner_cone < outer_cone);
     }
 }

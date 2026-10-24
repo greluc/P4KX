@@ -46,6 +46,7 @@ mod entity_changes;
 mod entity_glb;
 mod entity_glb_livery;
 mod entity_loadout;
+mod entity_package;
 mod entity_vehicle;
 mod entry_issues;
 mod extract;

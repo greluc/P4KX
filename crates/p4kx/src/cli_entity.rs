@@ -84,6 +84,44 @@ pub(crate) enum EntityAction {
     /// without the parts of its own Loadout.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(EntityGlbArgs),
+    /// Writes an Entity as a Blender package, a folder that does not depend on Blender's file
+    /// format: `scene.json` with the version, the source Channel and Build and the node
+    /// hierarchy (names, transforms, the part each node draws), one GLB file per distinct part
+    /// (a model drawn with one material library and palette, however many nodes use it) and
+    /// the textures of the materials as PNG files, each written once. The Loadout, parts, levels
+    /// of detail and Loadout changes are those of `entity glb`. The folder must not exist or must
+    /// hold an earlier package; it is written beside the target first and moved into place when
+    /// complete, so a failed or cancelled run leaves nothing behind. Y up, in metres. See
+    /// docs/blender-package.md.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Package(EntityPackageArgs),
+}
+
+/// Arguments of `p4kx entity package`.
+#[derive(Debug, Args)]
+pub(crate) struct EntityPackageArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The Entity: a class name such as `AEGS_Avenger_Titan`, a GUID, or a record path such as
+    /// `libs/foundry/records/entities/spaceships/aegs_avenger_titan`; ignores case.
+    pub(crate) entity: String,
+    /// The folder to write the package to; it must not exist, or be empty, or hold a package an
+    /// earlier run wrote, which is replaced.
+    #[arg(long, value_name = "FOLDER")]
+    pub(crate) out: PathBuf,
+    /// The level of detail of every model: 0 is the most detailed. A model that lacks the level
+    /// is written at the nearest lower level it has.
+    #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
+    pub(crate) lod: u32,
+    /// The mip level of the textures: 0 is the largest, each level halves the width and height;
+    /// a texture with fewer mips gives its smallest.
+    #[arg(long, value_name = "N", default_value_t = 0)]
+    pub(crate) texture_mip: u32,
+    /// Leaves the vertex colours out of the parts.
+    #[arg(long)]
+    pub(crate) no_vertex_colours: bool,
+    #[command(flatten)]
+    pub(crate) changes: LoadoutChangeArgs,
 }
 
 /// Arguments of `p4kx entity glb`.

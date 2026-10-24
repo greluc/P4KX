@@ -267,6 +267,29 @@ parent's model; the part sits at the parent's origin) and `too_many_parts`, `too
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.
 
+## `p4kx entity package <archive> <entity> --out <folder> --json`
+
+```json
+{"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "texture_mip": 0,
+ "nodes": 83, "drawn_nodes": 56, "parts": 31, "shared_parts": 25, "textures": 120,
+ "texture_pixels": 98304000, "texture_failures": 0, "files": 152, "bytes": 123456789,
+ "vertices": 744831, "triangles": 818426, "skipped": 0, "issues": [Issue, …]}
+```
+
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `nodes` counts the
+parts of the Assembly (the nodes of `scene.json`), `drawn_nodes` those with a model, `parts` the
+GLB files written and `shared_parts` the nodes that draw a part another node draws. `textures`
+and `texture_pixels` count the PNG files written and their pixels, `texture_failures` the
+textures that could not be loaded or encoded (their materials keep plain colours). `files` and
+`bytes` count the manifest, the parts and the textures; `vertices` and `triangles` count each
+part once. `excluded` and `replaced` are as for `p4kx entity glb` and absent without the
+options. An **Issue** is an entry of the `issues` of `scene.json` ([docs/blender-package.md](blender-package.md)):
+`origin` (`assembly` or `texture`), `kind`, `path`, `name`, `skipped` and `reason`; the assembly
+kinds are those of `p4kx entity glb`, the texture kinds are `texture` and `texture_path`. An
+`--out` that is the Archive, that lies in a Star Citizen installation or that exists and is no
+earlier package exits with code 2 and writes nothing; an Archive key that is missing or wrong
+exits with code 7.
+
 ## `p4kx armour bodies --json`
 
 ```json

@@ -65,6 +65,10 @@ pub(crate) fn is_refusal(error: &anyhow::Error) -> bool {
                 Some(ConversionError::Installation(_))
             )
             || matches!(
+                cause.downcast_ref::<p4kx_blender::PackageError>(),
+                Some(p4kx_blender::PackageError::Refused(_))
+            )
+            || matches!(
                 cause.downcast_ref::<ExtractionError>(),
                 Some(ExtractionError::Installation(_))
             )

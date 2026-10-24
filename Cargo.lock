@@ -3483,6 +3483,7 @@ dependencies = [
  "lewton",
  "opus-pure",
  "p4kx-assembly",
+ "p4kx-blender",
  "p4kx-channels",
  "p4kx-comparison",
  "p4kx-export",
@@ -3554,6 +3555,27 @@ dependencies = [
  "p4kx-foundation",
  "p4kx-testkit",
  "rayon",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "p4kx-blender"
+version = "0.3.0"
+dependencies = [
+ "jsonschema",
+ "p4kx-assembly",
+ "p4kx-extraction",
+ "p4kx-gltf",
+ "p4kx-guard",
+ "p4kx-model",
+ "p4kx-testkit",
+ "p4kx-texture",
+ "png",
+ "rayon",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

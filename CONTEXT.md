@@ -274,6 +274,12 @@ An Entity placed in an Assembly: the root Entity or one attached to a port, name
 the material library its Entity chooses (ADR-0040).
 _Avoid_: component, child
 
+**Blender package**:
+A folder that describes an Assembly without depending on Blender's file format: `scene.json` (format
+version, source Channel and Build, node hierarchy), one GLB file per distinct part and the textures
+of the materials as PNG (ADR-0082).
+_Avoid_: .blend file, scene export
+
 **Interior**:
 The rooms and props of an Entity, stored in socpak containers inside the Archive.
 _Avoid_: room, level

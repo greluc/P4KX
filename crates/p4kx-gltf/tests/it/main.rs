@@ -10,6 +10,7 @@ mod lods_attributes;
 mod materials;
 mod rig;
 mod scene_glb;
+mod scene_lights;
 mod scene_palettes;
 mod scene_support;
 mod scene_textures;

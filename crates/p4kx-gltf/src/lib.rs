@@ -22,7 +22,8 @@
 //! drawn with the material library the scene gives it and, if the part has one, a
 //! [`p4kx_model::TintPalette`], in plain colours and without skeletons. Equal materials are
 //! written once. [`write_scene_glb_with`] adds the textures of [`MaterialMode::Textures`], shared
-//! between parts like the materials.
+//! between parts like the materials. A scene node may also hold a [`SceneLight`], written with
+//! the `KHR_lights_punctual` extension.
 //!
 //! [`write_rigged_glb`] writes [`RigPiece`]s worn on one shared skeleton, such as the pieces of
 //! armour on a body: the bones once, one skin, and the bones of each piece matched to the
@@ -42,6 +43,8 @@ mod nodes;
 mod package_support;
 mod rig;
 mod scene;
+mod scene_light;
+mod scene_nodes;
 mod skin;
 mod texture_loader;
 mod texture_make;
@@ -61,6 +64,7 @@ pub use package_support::{
 };
 pub use rig::{RigPiece, write_rigged_glb};
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};
+pub use scene_light::{SceneLight, SceneLightKind};
 pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 pub use texture_plan::{MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};
 pub use texture_report::{TextureFallback, TextureRole};

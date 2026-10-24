@@ -2,8 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::bytes::{put_u16, put_u32};
-use crate::{CryXmlByteOrder, CryXmlSignature, TestChunkFile, TestElement};
+use crate::{CryXmlByteOrder, CryXmlSignature, TestChunkFile, TestElement, TestSocEntity};
 
+const ENTITIES: u32 = 0x0004;
 const NAME_LEN: usize = 256;
 const OBJECT_LEN: usize = 208;
 const MODEL_INDEX_AT: usize = 60;
@@ -34,9 +35,28 @@ pub struct TestSoc {
     models: Vec<String>,
     palettes: Vec<String>,
     objects: Vec<TestSocObject>,
+    entities: Vec<TestSocEntity>,
 }
 
 impl TestSoc {
+    /// Adds `entity` to the entity chunk (`CryXmlB`, type `0x0004`).
+    #[must_use]
+    pub fn entity(mut self, entity: TestSocEntity) -> Self {
+        self.entities.push(entity);
+        self
+    }
+
+    /// Returns the bytes of the entity chunk, a `CryXmlB` document.
+    #[must_use]
+    pub fn entities_chunk(&self) -> Vec<u8> {
+        self.entities
+            .iter()
+            .fold(TestElement::new("Entities"), |root, entity| {
+                root.child(entity.element())
+            })
+            .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
+    }
+
     /// Creates a `.soc` file that places nothing.
     #[must_use]
     pub fn new() -> Self {
@@ -127,10 +147,14 @@ impl TestSoc {
     /// Returns the bytes of the file.
     #[must_use]
     pub fn bytes(&self) -> Vec<u8> {
-        TestChunkFile::crch()
+        let file = TestChunkFile::crch()
             .chunk(SOC_HEADER, 5, vec![0; 4])
-            .chunk(INCLUDED_OBJECTS, 1, self.chunk())
-            .bytes()
+            .chunk(INCLUDED_OBJECTS, 1, self.chunk());
+        if self.entities.is_empty() {
+            file.bytes()
+        } else {
+            file.chunk(ENTITIES, 3, self.entities_chunk()).bytes()
+        }
     }
 }
 

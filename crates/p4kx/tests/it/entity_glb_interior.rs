@@ -115,6 +115,13 @@ fn the_json_report_counts_the_interior_only_when_asked() -> TestResult {
     assert!(without.get("interior").is_none());
     assert_eq!(with["interior"]["containers"], 6);
     assert!(with["interior"]["model_parts"].as_u64().unwrap_or(0) > 0);
+    let lights = with["interior"]["lights"].as_u64().unwrap_or(0);
+    assert!(lights > 0, "the root container's lamp reaches the Entity");
+    let glb = check_glb(&std::fs::read(dir.path().join("b.glb"))?)?;
+    assert_eq!(
+        glb.document.lights().map_or(0, Iterator::count) as u64,
+        lights
+    );
     assert!(
         with["issues"]
             .as_array()

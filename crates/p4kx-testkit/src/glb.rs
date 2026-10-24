@@ -97,6 +97,7 @@ pub fn check_glb(bytes: &[u8]) -> Result<CheckedGlb, String> {
     crate::glb_images::check_textures(&checked)?;
     check_skins(&checked)?;
     check_animations(&checked)?;
+    crate::glb_lights::check_lights(&checked)?;
     Ok(checked)
 }
 

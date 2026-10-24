@@ -451,3 +451,22 @@ Nach „Abbrechen" steht in der Leiste „Der Aufbau der Ansicht wurde abgebroch
 „Erneut aufbauen" (`.btn-outline.btn-xs`), die bisherige Ansicht bleibt. Ein Loadout ohne darstellbares Teil
 ersetzt die Ansicht durch die Meldung. Verlässt man den Tab oder wechselt die Auswahl, gibt der Viewer die
 Grafikpuffer der Baugruppe frei.
+
+**D.48 Interior in der 3D-Ansicht und im Export.** In der Leiste der Ansicht (D.47) steht hinter den
+Materialien die Checkbox „Interior" (Komponente Checkbox in `desktop-spec.md`); sie ist gesperrt, wenn die Entity keine Objekt-Container
+nennt. Einschalten baut die Räume und Props der Objekt-Container im Hintergrund auf (Spinner, Stufentext
+„Interior wird gelesen … Container n von m, x von y Modellen" in `color-gray-1` und „Abbrechen" wie in
+D.47) und zeigt sie mit dem Rumpf; die bisherige Ansicht bleibt bis dahin stehen. Ausschalten blendet sie
+aus, ohne neu aufzubauen, und Einschalten zeigt sie wieder, solange die Ansicht nicht ohne Interior
+neu aufgebaut wurde; Auslassen, Ersetzen, Detailgrad und Materialien bauen sie nur auf, solange die Checkbox
+an ist. Die Faktenleiste zählt bei sichtbarem Interior nur dessen Teile mit, und ein Fakt „Interior" nennt
+sie. „Als GLB exportieren …" beginnt mit dem Interior der Ansicht, sobald der Nutzer sie dort geändert hat
+(wie Detailgrad und Materialien in D.47), sonst mit dem gemerkten Wert. Der Export-Dialog der Entity hat
+unter den Materialien die Gruppe „Interior" mit einer Checkbox, die mit den übrigen Werten gemerkt wird und
+fehlt, wenn die Entity keinen Interior hat. Ein socpak-Eintrag im Archiv hat neben „Kopieren" die Schaltfläche
+„Interior als GLB exportieren …" (`.btn-ghost.btn-xs`, wie „Als GLB exportieren …" bei Modellen) und im
+Menü „Export" den gleichen Eintrag; beide öffnen denselben Dialog mit der Zeile „Container: Name" statt der
+Zeilen zu Entity und Loadout, ohne die Gruppe „Interior", mit Detailgrad, Materialien, Texturgröße und
+Vertex-Farben. Das Fortschrittsfenster zeigt dort die Stufe „Das Interior von … wird gelesen … x von y
+Modelldateien"; die Zusammenfassung nennt Container, Teile, Modelle, Lichter und listet, was nicht
+aufgelöst wurde, wie beim Export einer Entity. Neue Maße gibt es nicht.

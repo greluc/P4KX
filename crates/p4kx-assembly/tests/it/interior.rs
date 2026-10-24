@@ -7,11 +7,11 @@
 use std::path::Path;
 
 use p4kx_assembly::{
-    Interior, InteriorOptions, InteriorPart, InteriorPartKind, Issue, IssueKind,
-    MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH,
+    AssemblyError, Interior, InteriorOptions, InteriorPart, InteriorPartKind, InteriorProgress,
+    InteriorWatch, Issue, IssueKind, MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH,
 };
 use p4kx_extraction::{Archive, select_entries};
-use p4kx_gltf::GlbOptions;
+use p4kx_gltf::{GlbOptions, LoadedTexture, TextureLoadError, TextureLoader};
 use p4kx_testkit::gltf::Node;
 use p4kx_testkit::{
     INTERIOR_ROOT, SOC_IDENTITY, TestContainer, TestEntry, TestObjectContainer, TestSoc, check_glb,
@@ -201,6 +201,74 @@ fn the_glb_holds_a_node_per_part_and_shares_the_meshes_of_equal_models() -> Test
     );
     assert_eq!(summary.parts, 5);
     assert_eq!(summary.shared_meshes, 2, "the three cubes share one mesh");
+    Ok(())
+}
+
+#[test]
+fn building_stops_when_the_watch_asks_and_reports_the_model_files_it_reads() -> TestResult {
+    let fixture = fixture(interior_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let found = select_entries(&archive, &[INTERIOR_ROOT])?;
+    let entry = found.first().ok_or("no root container")?;
+    let root = archive.open_container(entry)?;
+    let layers = [&archive, &root];
+    let options = InteriorOptions::default();
+
+    let stopped = InteriorWatch {
+        cancelled: &|| true,
+        progress: &|_| {},
+    };
+    let result = Interior::build_watched(&layers, INTERIOR_ROOT, &options, &stopped);
+    assert!(
+        matches!(result, Err(AssemblyError::Cancelled)),
+        "stopped before any container is read"
+    );
+
+    let seen = std::sync::Mutex::new(Vec::new());
+    let watched = InteriorWatch {
+        cancelled: &|| false,
+        progress: &|progress| {
+            if let Ok(mut seen) = seen.lock() {
+                seen.push(progress);
+            }
+        },
+    };
+    let interior = Interior::build_watched(&layers, INTERIOR_ROOT, &options, &watched)?;
+    let seen = seen.into_inner()?;
+    assert!(
+        seen.iter().any(|progress| matches!(
+            progress,
+            InteriorProgress::Models { total, .. } if *total > 0
+        )),
+        "the files to read are counted: {seen:?}"
+    );
+    assert_eq!(
+        interior.parts().len(),
+        sample(&options)?.parts().len(),
+        "the same Interior as without a watch"
+    );
+    Ok(())
+}
+
+struct NoTextures;
+
+impl TextureLoader for NoTextures {
+    fn load(&self, _path: &str, _mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+        Err(TextureLoadError::NotFound)
+    }
+}
+
+#[test]
+fn writing_with_textures_gives_the_plain_file_when_the_materials_are_plain() -> TestResult {
+    let interior = sample(&InteriorOptions::default())?;
+    let options = GlbOptions::default();
+    let (mut plain, mut with) = (Vec::new(), Vec::new());
+
+    interior.write_glb(&options, &mut plain)?;
+    let summary = interior.write_glb_with(&options, &NoTextures, &mut with)?;
+
+    assert_eq!(plain, with, "the same file");
+    assert!(summary.texture_fallbacks.is_empty(), "no texture asked for");
     Ok(())
 }
 

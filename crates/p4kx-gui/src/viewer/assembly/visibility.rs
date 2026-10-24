@@ -5,9 +5,14 @@ use std::collections::HashSet;
 
 use super::PartInfo;
 
-/// Returns, per part, whether it is hidden: its port path is in `hidden` or its parent is hidden.
-/// A part comes after its parent, so one pass is enough.
-pub(crate) fn hidden_mask(parts: &[PartInfo], hidden: &HashSet<String>) -> Vec<bool> {
+/// Returns, per part, whether it is hidden: its port path is in `hidden`, it belongs to the
+/// Interior and `interior` says that is not shown, or its parent is hidden. A part comes after
+/// its parent, so one pass is enough.
+pub(crate) fn hidden_mask(
+    parts: &[PartInfo],
+    hidden: &HashSet<String>,
+    interior: bool,
+) -> Vec<bool> {
     let mut mask: Vec<bool> = Vec::with_capacity(parts.len());
     for part in parts {
         let inherited = part
@@ -15,7 +20,12 @@ pub(crate) fn hidden_mask(parts: &[PartInfo], hidden: &HashSet<String>) -> Vec<b
             .and_then(|parent| mask.get(parent))
             .copied()
             .unwrap_or(false);
-        mask.push(inherited || (!part.path().is_empty() && hidden.contains(part.path())));
+        let own = if part.is_interior() {
+            !interior
+        } else {
+            !part.path().is_empty() && hidden.contains(part.path())
+        };
+        mask.push(inherited || own);
     }
     mask
 }

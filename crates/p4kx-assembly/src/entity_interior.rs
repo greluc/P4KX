@@ -10,8 +10,8 @@ use p4kx_model::{Model, Transform};
 use crate::interior::model_vertices;
 use crate::placement::{node_transform, offset};
 use crate::{
-    Assembly, AssemblyError, EntityNode, Interior, InteriorOptions, Issue, IssueKind,
-    ObjectContainerRef,
+    Assembly, AssemblyError, EntityNode, Interior, InteriorOptions, InteriorProgress,
+    InteriorWatch, Issue, IssueKind, ObjectContainerRef,
 };
 
 /// The name of the scene node that groups the Interior below the Entity.
@@ -122,11 +122,32 @@ impl EntityInterior {
         tree: &EntityNode,
         options: &InteriorOptions,
     ) -> Result<Self, AssemblyError> {
+        Self::build_watched(archive, assembly, tree, options, &InteriorWatch::none())
+    }
+
+    /// Builds the Interior like [`Self::build`], asking `watch` before each container and while
+    /// it reads the models whether to stop, and telling it how far it has come.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build`], and [`AssemblyError::Cancelled`] when `watch` asks to stop.
+    pub fn build_watched(
+        archive: &Archive,
+        assembly: &Assembly,
+        tree: &EntityNode,
+        options: &InteriorOptions,
+        watch: &InteriorWatch<'_>,
+    ) -> Result<Self, AssemblyError> {
         let index = PathIndex::new(archive);
         let root = assembly.root().and_then(|part| part.model());
         let mut built = Self::default();
         let budget = Budget::new(assembly, options);
-        for reference in tree.object_containers() {
+        let total = tree.object_containers().len();
+        for (done, reference) in tree.object_containers().iter().enumerate() {
+            if watch.is_cancelled() {
+                return Err(AssemblyError::Cancelled);
+            }
+            watch.report(InteriorProgress::Container { done, total });
             if let Some(kind) = budget.exhausted(&built) {
                 built.note(reference, kind);
                 break;
@@ -158,7 +179,8 @@ impl EntityInterior {
             };
             let placement = built.place(reference, root);
             let limited = budget.options(&built);
-            let interior = Interior::build(&[archive, &opened], entry.path(), &limited)?;
+            let interior =
+                Interior::build_watched(&[archive, &opened], entry.path(), &limited, watch)?;
             built.add(reference, placement, interior);
         }
         Ok(built)

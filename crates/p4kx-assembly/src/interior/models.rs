@@ -8,7 +8,7 @@ use p4kx_model::{Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::walk::Walked;
-use super::{InteriorOptions, InteriorPart};
+use super::{InteriorOptions, InteriorPart, InteriorProgress, InteriorWatch};
 use crate::build::{file_key, library_key_of};
 use crate::{ArchiveModels, AssemblyError, Issue, IssueKind, ModelFailure, ModelProvider};
 
@@ -39,6 +39,7 @@ fn vertices(model: &Model) -> usize {
 pub(super) fn attach(
     walked: &mut Walked<'_>,
     options: &InteriorOptions,
+    watch: &InteriorWatch<'_>,
 ) -> Result<(), AssemblyError> {
     let providers: Vec<ArchiveModels<'_>> = (0..walked.layers.len())
         .filter_map(|layer| walked.layers.get(layer))
@@ -52,7 +53,7 @@ pub(super) fn attach(
             files.push((key.clone(), path.clone()));
         }
     }
-    let outcomes = read_models(&files, &providers, options)?;
+    let outcomes = read_models(&files, &providers, (options, watch))?;
     let libraries = read_libraries(&outcomes, &providers);
     let mut fill = Fill {
         outcomes,
@@ -160,11 +161,18 @@ fn resolve(walked: &Walked<'_>, providers: &[ArchiveModels<'_>]) -> Vec<Option<(
 fn read_models(
     files: &[(Key, String)],
     providers: &[ArchiveModels<'_>],
-    options: &InteriorOptions,
+    (options, watch): (&InteriorOptions, &InteriorWatch<'_>),
 ) -> Result<HashMap<Key, Outcome>, AssemblyError> {
     let mut outcomes: HashMap<Key, Outcome> = HashMap::new();
     let mut total = 0_usize;
     for wave in files.chunks(WAVE) {
+        if watch.is_cancelled() {
+            return Err(AssemblyError::Cancelled);
+        }
+        watch.report(InteriorProgress::Models {
+            done: outcomes.len(),
+            total: files.len(),
+        });
         if total >= options.max_vertices {
             break;
         }

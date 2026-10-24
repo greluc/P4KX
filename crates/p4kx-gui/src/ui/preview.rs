@@ -6,6 +6,7 @@ use p4kx_extraction::{Entry, Texture};
 
 use super::audio_preview;
 use super::entry_status::status_body;
+use super::preview_bar::Export;
 use super::preview_tab::{Asked, Typed, typed_tab};
 use super::record_preview;
 use super::soundbank_preview;
@@ -66,9 +67,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         return;
     };
     let texts = model.texts();
-    let export = model
-        .model_export_shown()
-        .then(|| model.model_export_available());
+    let export = if model.model_export_shown() {
+        Some((Export::Model, model.model_export_available()))
+    } else {
+        model
+            .interior_export_shown()
+            .then(|| (Export::Interior, model.interior_export_available()))
+    };
     let bar = preview_bar::tab_bar(ui, texts, browser, (model.preview_tab(), export));
     let tab = bar.tab;
     let asked = tab_body(
@@ -82,8 +87,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         ui.ctx().copy_text(text);
     }
     model.set_preview_tab(tab);
-    if bar.export {
-        model.begin_model_export();
+    match bar.export {
+        Some(Export::Model) => model.begin_model_export(),
+        Some(Export::Interior) => model.begin_interior_export(),
+        None => {}
     }
     answer(ui, model, bar.step.map(Asked::Record).or(asked));
     if tab == PreviewTab::DataForge

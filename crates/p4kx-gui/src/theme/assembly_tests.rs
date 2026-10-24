@@ -39,6 +39,11 @@ fn the_assembly_view_names_its_decision_and_parts() {
     let spec = assembly_view();
 
     assert_eq!(spec["decision"].as_str(), Some("D.47"), "decision");
+    assert_eq!(
+        spec["interiorDecision"].as_str(),
+        Some("D.48"),
+        "the decision of the Interior"
+    );
     for key in [
         "dsClass",
         "layout",
@@ -46,6 +51,8 @@ fn the_assembly_view_names_its_decision_and_parts() {
         "treeActions",
         "culling",
         "messages",
+        "interior",
+        "interiorExport",
     ] {
         assert!(
             spec[key].as_str().is_some_and(|text| !text.is_empty()),

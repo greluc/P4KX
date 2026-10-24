@@ -1,0 +1,315 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use p4kx_assembly::{
+    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, EntityInterior, EntityNode,
+    ForgePalettes, Interior, InteriorOptions, InteriorProgress, InteriorWatch, LoadoutChanges,
+};
+use p4kx_extraction::{
+    Archive, CancelToken, ConversionError, GlbSummary, GltfError, Guid, PathIndex,
+    archive_error_in, write_replacing,
+};
+
+use super::stop::{Observed, Stoppable, StoppableTextures};
+use super::{AssemblyExportStage, Ended, Request, Shared, Subject};
+use crate::assembly_export::AssemblyExportSummary;
+use crate::entities::{ResolveFailure, resolve};
+use crate::forge_cache::ReadFailure;
+use crate::model::describe;
+use crate::{EntryIndex, ModelExportFailure};
+
+pub(super) fn run(
+    index: &EntryIndex,
+    request: &Request,
+    cancel: &CancelToken,
+    shared: &Shared,
+) -> Ended {
+    match &request.subject {
+        Subject::Entity {
+            guid,
+            changes,
+            interior,
+        } => entity(
+            index,
+            request,
+            (*guid, changes, *interior),
+            (cancel, shared),
+        ),
+        Subject::Container { chain } => container(index, request, chain, (cancel, shared)),
+    }
+}
+
+fn with_watch<T>(
+    (cancel, shared): (&CancelToken, &Shared),
+    build: impl FnOnce(&InteriorWatch<'_>) -> T,
+) -> T {
+    build(&InteriorWatch {
+        cancelled: &|| cancel.is_cancelled(),
+        progress: &|progress| {
+            if let InteriorProgress::Models { done, total } = progress {
+                shared.models(done, total);
+            }
+        },
+    })
+}
+
+fn interior_ended(index: &EntryIndex, cancel: &CancelToken, error: AssemblyError) -> Ended {
+    match error {
+        AssemblyError::Cancelled => Ended::Cancelled,
+        _ if cancel.is_cancelled() => Ended::Cancelled,
+        AssemblyError::Provider(error) => failed(index, &*error),
+        other => failed(index, &other),
+    }
+}
+
+fn entity(
+    index: &EntryIndex,
+    request: &Request,
+    (guid, changes, interior): (Guid, &LoadoutChanges, bool),
+    (cancel, shared): (&CancelToken, &Shared),
+) -> Ended {
+    let tree = match resolve(index, guid, changes) {
+        Ok(tree) => tree,
+        Err(ResolveFailure::ArchiveChanged) => {
+            return Ended::Failed(ModelExportFailure::ArchiveChanged);
+        }
+        Err(ResolveFailure::Failed(reason)) => {
+            return Ended::Failed(ModelExportFailure::Failed(reason));
+        }
+    };
+    if cancel.is_cancelled() {
+        return Ended::Cancelled;
+    }
+    shared.enter(AssemblyExportStage::Reading);
+    let archive_models = ArchiveModels::new(index.archive());
+    let assembly = match hull(index, &tree, request.lod, (cancel, &archive_models)) {
+        Ok(assembly) => assembly,
+        Err(ended) => return ended,
+    };
+    let assembly = if interior {
+        shared.enter(AssemblyExportStage::Interior);
+        match interior_of(index, &assembly, &tree, request.lod, (cancel, shared)) {
+            Ok(built) => assembly.with_interior(built),
+            Err(ended) => return ended,
+        }
+    } else {
+        assembly
+    };
+    if cancel.is_cancelled() {
+        return Ended::Cancelled;
+    }
+    if index.watch().check().is_err() {
+        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+    }
+    shared.enter(AssemblyExportStage::Writing);
+    let written = write_replacing(&request.file, |writer| {
+        let mut observed = Observed {
+            inner: writer,
+            cancel,
+            shared,
+        };
+        let textures = archive_models.textures();
+        let textures = StoppableTextures {
+            textures: &textures,
+            cancel,
+        };
+        assembly
+            .write_glb_with(&request.options(), &textures, &mut observed)
+            .map_err(|error| glb_error(error, request, cancel))
+    });
+    ended(index, written, |written| {
+        AssemblyExportSummary::new(
+            (request.file.clone(), request.name.clone()),
+            &assembly,
+            (written, changes),
+        )
+    })
+}
+
+/// Reads the models of the parts of `tree` and places them.
+fn hull(
+    index: &EntryIndex,
+    tree: &EntityNode,
+    lod: u32,
+    (cancel, archive_models): (&CancelToken, &ArchiveModels<'_>),
+) -> Result<Assembly, Ended> {
+    let source = match index.forge().read(index, || {}) {
+        Ok(source) => source,
+        Err(ReadFailure::ArchiveChanged(_)) => {
+            return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
+        }
+        Err(ReadFailure::Unreadable(reason)) => {
+            return Err(Ended::Failed(ModelExportFailure::Failed(reason)));
+        }
+    };
+    let forge = match source.entry.open() {
+        Ok(forge) => forge,
+        Err(error) => {
+            return Err(Ended::Failed(ModelExportFailure::Failed(describe(&error))));
+        }
+    };
+    let palettes = ForgePalettes::new(&forge);
+    let models = Stoppable {
+        models: archive_models,
+        cancel,
+    };
+    let options = AssemblyOptions::default().with_lod(lod);
+    Assembly::build_with_palettes(tree, &models, &palettes, &options).map_err(|error| match error {
+        _ if cancel.is_cancelled() => Ended::Cancelled,
+        AssemblyError::Provider(error) => failed(index, &*error),
+        other => failed(index, &other),
+    })
+}
+
+fn interior_of(
+    index: &EntryIndex,
+    assembly: &Assembly,
+    tree: &EntityNode,
+    lod: u32,
+    state: (&CancelToken, &Shared),
+) -> Result<EntityInterior, Ended> {
+    let options = InteriorOptions::default().with_lod(lod);
+    with_watch(state, |watch| {
+        EntityInterior::build_watched(index.archive(), assembly, tree, &options, watch)
+    })
+    .map_err(|error| interior_ended(index, state.0, error))
+}
+
+fn container(
+    index: &EntryIndex,
+    request: &Request,
+    chain: &[String],
+    (cancel, shared): (&CancelToken, &Shared),
+) -> Ended {
+    shared.enter(AssemblyExportStage::Interior);
+    if index.watch().check().is_err() {
+        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+    }
+    let opened = match open_chain(index, chain) {
+        Ok(opened) => opened,
+        Err(failure) => return Ended::Failed(failure),
+    };
+    let layers: Vec<&Archive> = std::iter::once(index.archive())
+        .chain(opened.iter())
+        .collect();
+    let entry = chain.last().map_or("", String::as_str);
+    let options = InteriorOptions::default().with_lod(request.lod);
+    let built = with_watch((cancel, shared), |watch| {
+        Interior::build_watched(&layers, entry, &options, watch)
+    });
+    let interior = match built {
+        Ok(interior) => interior,
+        Err(error) => return interior_ended(index, cancel, error),
+    };
+    if cancel.is_cancelled() {
+        return Ended::Cancelled;
+    }
+    if index.watch().check().is_err() {
+        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+    }
+    shared.enter(AssemblyExportStage::Writing);
+    let archive_models = ArchiveModels::new(index.archive());
+    let written = write_replacing(&request.file, |writer| {
+        let mut observed = Observed {
+            inner: writer,
+            cancel,
+            shared,
+        };
+        let textures = archive_models.textures();
+        let textures = StoppableTextures {
+            textures: &textures,
+            cancel,
+        };
+        interior
+            .write_glb_with(&request.options(), &textures, &mut observed)
+            .map_err(|error| glb_error(error, request, cancel))
+    });
+    ended(index, written, |written| {
+        AssemblyExportSummary::of_interior(
+            (request.file.clone(), request.name.clone()),
+            &interior,
+            written,
+        )
+    })
+}
+
+/// Opens the containers of `chain` one inside the other, the first from the Archive.
+fn open_chain(index: &EntryIndex, chain: &[String]) -> Result<Vec<Archive>, ModelExportFailure> {
+    let mut opened: Vec<Archive> = Vec::with_capacity(chain.len());
+    for path in chain {
+        let next = match opened.last() {
+            Some(current) => open_in(index, current, &PathIndex::new(current), path)?,
+            None => open_in(index, index.archive(), &index.path_index(), path)?,
+        };
+        opened.push(next);
+    }
+    Ok(opened)
+}
+
+fn open_in(
+    index: &EntryIndex,
+    layer: &Archive,
+    paths: &PathIndex<'_>,
+    path: &str,
+) -> Result<Archive, ModelExportFailure> {
+    let Some(entry) = paths.find(path) else {
+        return Err(ModelExportFailure::Failed(format!(
+            "{path} is not in the Archive or container it was selected in"
+        )));
+    };
+    layer
+        .open_container(entry)
+        .map_err(|error| failure_of(index, &error))
+}
+
+fn glb_error(error: GltfError, request: &Request, cancel: &CancelToken) -> ConversionError {
+    match error {
+        GltfError::Write(_) if cancel.is_cancelled() => ConversionError::Cancelled,
+        GltfError::Write(source) => ConversionError::Write {
+            path: request.file.clone(),
+            source,
+        },
+        source => ConversionError::Glb {
+            file: request.name.clone(),
+            source,
+        },
+    }
+}
+
+fn ended(
+    index: &EntryIndex,
+    written: Result<GlbSummary, ConversionError>,
+    summary: impl FnOnce(GlbSummary) -> AssemblyExportSummary,
+) -> Ended {
+    match written {
+        Ok(written) => Ended::Written(Box::new(summary(written))),
+        Err(ConversionError::Cancelled) => Ended::Cancelled,
+        Err(error) => failed(index, &error),
+    }
+}
+
+fn failed(index: &EntryIndex, error: &(dyn std::error::Error + 'static)) -> Ended {
+    Ended::Failed(failure_of(index, error))
+}
+
+/// Returns why reading or writing an Assembly failed with `error`.
+pub(crate) fn failure_of(
+    index: &EntryIndex,
+    error: &(dyn std::error::Error + 'static),
+) -> ModelExportFailure {
+    if index.watch().check().is_err() {
+        return ModelExportFailure::ArchiveChanged;
+    }
+    if let Some(archive) = archive_error_in(error) {
+        if archive.is_key_required() {
+            return ModelExportFailure::KeyRequired;
+        }
+        if archive.is_wrong_key() {
+            return ModelExportFailure::KeyRejected;
+        }
+    }
+    if let Some(ConversionError::Installation(refused)) = error.downcast_ref::<ConversionError>() {
+        return ModelExportFailure::Refused(refused.clone());
+    }
+    ModelExportFailure::Failed(describe(error))
+}

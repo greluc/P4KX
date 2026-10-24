@@ -4,11 +4,11 @@
 use p4kx_model::{MaterialStatus, Model, Transform};
 
 use crate::axes::decompose;
-use crate::materials::{MaterialPlan, display_name};
+use crate::materials::{MaterialPlan, Slot, display_name};
 use crate::scene::nearest_lod;
 use crate::scene_light::LIGHT_FRAME;
 use crate::texture_report::TextureRole;
-use crate::texture_roles::{Source, sources};
+use crate::texture_roles::{Source, canonical, sources};
 
 /// A node transform in glTF axes (Y up, metres) as the GLB writer writes it.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -71,6 +71,9 @@ pub struct DrawnMaterial {
     /// The name of the glTF material of the GLB writer: the material file's, else
     /// `material_<position>`, else `default`.
     pub name: String,
+    /// The position of the material in its library's sub-material list (0 for a library that is
+    /// one material); `None` for the engine's default material.
+    pub library_index: Option<usize>,
     /// The diffuse map.
     pub diffuse: Option<TextureFile>,
     /// The normal map.
@@ -104,6 +107,10 @@ pub fn drawn_materials(
             let found = sources(material);
             DrawnMaterial {
                 name: display_name(material, slot),
+                library_index: match slot {
+                    Slot::Library(position) => Some(position),
+                    Slot::Default => None,
+                },
                 diffuse: found.diffuse.map(texture_file),
                 normal: found.normal.map(texture_file),
                 specular: found.specular.map(texture_file),
@@ -111,4 +118,13 @@ pub fn drawn_materials(
             }
         })
         .collect()
+}
+
+/// Returns the path of the texture `file` as a loader takes it.
+///
+/// The path is below `Data`, with `/` as separator and the extension `.dds`. An engine placeholder
+/// such as `$RenderToTexture` and a path that is no safe path give `None`.
+#[must_use]
+pub fn texture_path(file: &str) -> Option<String> {
+    canonical(file)
 }

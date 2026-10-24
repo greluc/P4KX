@@ -43,6 +43,7 @@ fn write(mip: u32) -> Result<Written, Box<dyn std::error::Error>> {
     );
     let summary = write_package(
         &assembly,
+        &models,
         &models.textures(),
         &glb_options(mip),
         &info,

@@ -18,7 +18,7 @@ from typing import Any
 
 FORMAT_NAME = "p4kx-blender-package"
 SUPPORTED_MAJOR = 1
-SUPPORTED_MINOR = 1
+SUPPORTED_MINOR = 2
 MANIFEST_NAME = "scene.json"
 MAX_MANIFEST_BYTES = 64 * 1024 * 1024
 MAX_ITEMS = 200_000

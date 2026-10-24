@@ -39,7 +39,7 @@ def by_name(result: package.Package) -> dict[str, package.Node]:
 def test_reads_containers_objects_and_lights() -> None:
     result = parse(lit_manifest())
     nodes = by_name(result)
-    assert result.version == (1, 1)
+    assert result.version == (1, 2)
     assert result.warnings == []
     assert [n.kind for n in result.nodes][4:] == [
         "container",
@@ -127,9 +127,9 @@ def test_children_of_a_skipped_node_are_skipped_too() -> None:
     assert any("portal" in warning for warning in result.warnings)
 
 
-def test_version_1_1_reads_without_a_warning_and_1_2_with_one() -> None:
-    assert parse(manifest(version="1.1")).warnings == []
-    assert len(parse(manifest(version="1.2")).warnings) == 1
+def test_version_1_2_reads_without_a_warning_and_1_3_with_one() -> None:
+    assert parse(manifest(version="1.2")).warnings == []
+    assert len(parse(manifest(version="1.3")).warnings) == 1
 
 
 def test_point_light_settings() -> None:

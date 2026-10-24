@@ -5,7 +5,7 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use p4kx_assembly::Assembly;
+use p4kx_assembly::{Assembly, ModelProvider};
 use p4kx_gltf::{GlbOptions, TextureLoader};
 
 use crate::build::{Inputs, manifest};
@@ -78,6 +78,10 @@ pub struct PackageSummary {
     pub texture_pixels: u64,
     /// The number of textures that could not be written; the materials keep their plain colours.
     pub texture_failures: usize,
+    /// The number of material descriptions, layer materials included.
+    pub materials: usize,
+    /// The number of tint palettes.
+    pub palettes: usize,
     /// The number of files in the package: the manifest, the meshes and the textures.
     pub files: usize,
     /// The size of all files in bytes.
@@ -96,7 +100,9 @@ pub struct PackageSummary {
 /// PNG file per distinct texture below `textures`; the module documentation of the crate and
 /// `docs/blender-package.md` describe it. Meshes are drawn with plain colours, with the palette of
 /// each part applied; the textures of their materials are written as they are in the Archive, at
-/// the mip level `options.texture_mip`, not baked into the meshes. The level of detail, the mip
+/// the mip level `options.texture_mip`, not baked into the meshes. The material descriptions list
+/// every texture slot, layer, palette entry and shader parameter of the materials the meshes are
+/// drawn with; `models` supplies the layer materials their layers name. The level of detail, the mip
 /// level and the vertex colours are those of `options`; `options.materials` is ignored. The
 /// Interior of `assembly`, if it has one, is written below an `Interior` node of the root: its
 /// containers, models, props and lights are nodes of the kinds `container`, `object` and `light`.
@@ -118,6 +124,7 @@ pub struct PackageSummary {
 /// true.
 pub fn write_package(
     assembly: &Assembly,
+    models: &dyn ModelProvider,
     textures: &dyn TextureLoader,
     options: &GlbOptions,
     info: &PackageInfo,
@@ -128,7 +135,7 @@ pub fn write_package(
     let staging = Staging::create(out)?;
     let items = items(assembly);
     let plan = MeshPlan::of(&items);
-    let collected = Collected::of(&items, &plan, options.lod);
+    let collected = Collected::of(&items, &plan, options.lod, models);
     cancelled.check()?;
     let outcomes = if collected.wanted.is_empty() {
         Vec::new()
@@ -213,6 +220,8 @@ fn summarise(
             .count(),
         meshes: manifest.meshes.len(),
         textures: manifest.textures.len(),
+        materials: manifest.materials.len(),
+        palettes: manifest.palettes.len(),
         files: 1 + manifest.meshes.len() + manifest.textures.len(),
         bytes: manifest_len,
         issues: manifest.issues.clone(),

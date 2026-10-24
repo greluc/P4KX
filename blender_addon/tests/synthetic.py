@@ -79,7 +79,7 @@ def manifest(**overrides: Any) -> dict[str, Any]:
 
 
 def lit_manifest(**overrides: Any) -> dict[str, Any]:
-    """Returns ``manifest()`` as format 1.1 with an Interior below the root.
+    """Returns ``manifest()`` as format 1.2 with an Interior below the root.
 
     The Interior is a group ``Interior``, a container ``room`` at (0, 0, -6) with a ``stool``
     object (mesh m0002) and a point, a spot and a directional light. The lights shine along their
@@ -104,7 +104,7 @@ def lit_manifest(**overrides: Any) -> dict[str, Any]:
         "outer_cone": 0.5235988,
     }
     sun = {"kind": "directional", "colour": [0.9, 0.9, 1.0], "intensity": 1.5}
-    data = manifest(version="1.1", **overrides)
+    data = manifest(version="1.2", **overrides)
     data["nodes"] += [
         {**base, "name": "Interior", "path": "Interior", "parent": 0},
         {**base, "name": "room", "path": "Interior/room", "parent": 4, "translation": [0.0, 0.0, -6.0]},

@@ -64,7 +64,7 @@ pub use materials::base_colour_factor;
 pub use morphs::MorphTarget;
 pub use package_support::{
     DrawnMaterial, NodeTransform, TextureFile, drawn_materials, light_node_transform,
-    node_transform,
+    node_transform, texture_path,
 };
 pub use rig::{RigPiece, write_rigged_glb};
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};

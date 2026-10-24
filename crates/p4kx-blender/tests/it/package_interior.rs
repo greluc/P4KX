@@ -38,6 +38,7 @@ fn write(interior: bool) -> Result<Written, Box<dyn std::error::Error>> {
     let out = dir.path().join("ship");
     let summary = write_package(
         &assembly,
+        &models,
         &models.textures(),
         &glb_options(0),
         &PackageInfo::new(None, None),

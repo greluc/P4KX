@@ -5,8 +5,8 @@ Decided for issue #161 (M13 Blender package, #13). Builds on ADR-0083 (the packa
 
 ## Decision
 
-**Format 1.1.** The Interior is additive: three new `NodeKind`s (`container`, `object`, `light`)
-and one new optional node field `light`. A reader of 1.0 already skips unknown kinds with their
+**Format 1.2.** The Interior is additive: three new `NodeKind`s (`container`, `object`, `light`)
+and one new optional node field `light`. A reader of 1.1 already skips unknown kinds with their
 children, so it reads the hull of a 1.1 package unchanged and warns about the minor version.
 `entity package --interior` writes a node `Interior` (kind `container`) below the root, below
 it the containers at the placement ADR-0086 computes, below those the `.soc` files, models,

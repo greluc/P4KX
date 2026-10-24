@@ -62,7 +62,7 @@ written (there are no `null`s).
 | Field | Meaning |
 | --- | --- |
 | `format` | Always `p4kx-blender-package`. |
-| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.1` today. |
+| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.2` today. |
 | `generator` | `name` (`p4kx`) and `version` of the program that wrote the package. |
 | `source` | `channel` (the Channel folder, e.g. `LIVE`), `build` (`branch`, `version`, `public_patch`, `change_number`, `build_id` of the Archive's build manifest) and `entity` (`class_name`, `guid`). `channel` and `build` are absent when unknown. |
 | `coordinates` | `basis` is `gltf_y_up` and `unit` is `metre`. A reader refuses a `basis` or `unit` it does not know. |
@@ -70,10 +70,13 @@ written (there are no `null`s).
 | `nodes` | The scene hierarchy, see below. |
 | `meshes` | The GLB meshes, see below. |
 | `textures` | The PNG textures, see below. |
+| `materials` | The material descriptions, see "Materials". Added in 1.1; absent in 1.0 packages. |
+| `palettes` | The tint palettes, see "Palettes". Added in 1.1; absent in 1.0 packages. |
 | `issues` | What could not be resolved or written. |
 
-`format`, `basis`, `unit`, `Texture.format`, `colour_space`, `alpha`, `Node.kind` and
-`Issue.origin` are enumerations in the schema.
+`format`, `basis`, `unit`, `Texture.format`, `colour_space`, `alpha`, `Node.kind`,
+`Issue.origin`, `usage`, `alpha_mode` and the `palette` of a material or layer are enumerations in
+the schema.
 
 ### Coordinates and composition
 
@@ -95,7 +98,7 @@ A shear in the game's transform is not stored.
 
 | Field | Meaning |
 | --- | --- |
-| `kind` | What the node places: `entity`, or in an Interior (version 1.1) `container`, `object` or `light`. Later minor versions add kinds; a reader skips nodes of a kind it does not know, with their children. |
+| `kind` | What the node places: `entity`, or in an Interior (version 1.2) `container`, `object` or `light`. Later minor versions add kinds; a reader skips nodes of a kind it does not know, with their children. |
 | `name` | `<port>/<entity>` (the class name for the root) for an `entity`, the name from the Interior's files for the other kinds; use it as the object name. |
 | `path` | The port names from the root joined by `/`, below `Interior` the names of the nodes joined by `/`; empty for the root. |
 | `parent` | Index of the parent in `nodes`; absent for the root. |
@@ -157,19 +160,29 @@ objects. The sharing is that of the Assembly ([ADR-0077](adr/0077-scene-meshes-a
 | `id`, `file` | The id and the file relative to the package folder (`meshes/m0001.glb`). |
 | `geometry` | The geometry file the model was read from, below `Data`. |
 | `palette` | The name of the tint palette the mesh's colours were taken from; absent without one. |
+| `palette_id` | The id of that palette in `palettes` (1.1); absent without one. |
 | `instances` | How many nodes draw the mesh. |
 | `bytes`, `vertices`, `triangles` | Size of the file and of its geometry. |
-| `materials` | The materials of the mesh in the order of the glTF materials in its file: `index` is the index in the file's `materials` array, `name` the glTF material's name, and `textures` the ids of the `diffuse`, `normal` and `specular` textures that were written for it, each absent when the material names none or it could not be written. Match by `index`; names can repeat. |
+| `materials` | The materials of the mesh in the order of the glTF materials in its file: `index` is the index in the file's `materials` array, `name` the glTF material's name, and `textures` the ids of the `diffuse`, `normal` and `specular` textures that were written for it, each absent when the material names none or it could not be written, and, from 1.1, `material`, the id of the material's description in `materials`, absent for the engine's default material. Match by `index`; names can repeat. |
 
 The file is a plain GLB: one scene whose root node (named after the Entity's class name) has the
 identity transform, the nodes of the model below it, plain-colour materials with the tint palette
 applied and no embedded textures.
 
+From 1.1 every glTF material in the file has `extras` `{"p4kx_index": <index>}`, its index in the
+file's `materials` array, the `index` of the matching entry in the manifest's `materials` list of
+the mesh. Blender's glTF importer creates materials in first-use order and renames duplicates
+(`.001`), so an importer matches materials by this custom property, not by name. `p4kx entity
+glb` files do not carry it.
+
 ### Textures
 
 Each texture the materials of the meshes name is written once, whichever meshes and materials use
-it, as the pixels the Archive holds: no palette colour is baked in and the diffuse, normal and
-specular maps are not merged. The importer builds the materials from them.
+it, as the pixels the Archive holds: no palette colour is baked in and the maps are not merged.
+From 1.1 these are the files of every texture slot of every described material, layer materials
+included (diffuse, normal, specular, blend, mask, detail, wear and the rest); 1.0 packages hold
+only the diffuse, normal and specular maps of the meshes' materials. The importer builds the
+materials from them; the `textures` of a material description say which slot uses which file.
 
 | Field | Meaning |
 | --- | --- |
@@ -185,12 +198,87 @@ the writer inverts the green channel of the engine's maps, exactly as the GLB wr
 red channel and the reconstructed blue channel are as the Archive has them. A reader that wants
 the DirectX convention inverts green again.
 
+### Materials
+
+`materials` (1.1) describes every material the meshes are drawn with, and every material their
+layers name, as the game's `.mtl` files define it: the inputs of a renderer's material, not a
+renderer's nodes. A description is written once, however many meshes use it; a mesh's
+`materials[].material` and a layer's `material` reference it by id (`x0001`). Colours are linear
+and exactly those of the file: **no palette is applied**; the description says which palette
+entry the material takes and the mesh says which palette it has. A reader that cannot interpret a
+shader still has every value the file holds.
+
+| Field | Meaning |
+| --- | --- |
+| `id`, `name` | The id, and the name in the file (empty when it has none). |
+| `library`, `index` | The material library (path below `Data`, no extension, `/` separators) and the position in its sub-material list, which is the material ID of the submeshes. `index` is absent when the file is one material that serves every ID (most layer files are). A library the model names with a bare name is looked for beside the model first, so two models in different folders do not share a description for it. |
+| `shader` | The shader name, e.g. `Illum`, `HardSurface`, `Layer`, `MeshDecal`, `GlassPBR`. Unknown shaders are written as they are. |
+| `gen_mask` | The shader generation mask split at `%` (`NORMAL_MAP`, `USE_TINT_PALETTE`, `SECOND_UVS`, ...): which features the shader uses. |
+| `surface_type` | The physical surface, e.g. `metal_dense`. |
+| `flags`, `two_sided`, `no_draw` | `MtlFlags` and the two flags the writer decodes. |
+| `diffuse`, `specular`, `emissive` | Linear colours. `emissive` counts times `glow`. |
+| `shininess`, `opacity`, `alpha_test`, `glow` | Scalars of the file (`shininess` from 0 to 255). |
+| `alpha_mode` | `opaque`, `mask` (`alpha_test` above 0) or `blend` (`opacity` below 1, or a glass or decal shader): derived from the fields above. |
+| `palette` | `primary`, `secondary`, `tertiary` or `glass`: the palette entry the material takes (the first layer with a `PaletteTint` from 1 to 3, or the tint-palette glass colour). Absent when it takes none. |
+| `default_palette` | The Record path of the library's default palette. |
+| `textures` | The texture slots in file order, see below. |
+| `layers` | The layers in file order, see below. |
+| `parameters` | The shader parameters (`PublicParams`) as `name` and `value`, in file order. Decal stencil colours and opacities, wear and dirt blends, damage tiling, parallax and every parameter this writer has never heard of are here, as text. |
+| `attributes` | The attributes of the material element that no field above holds, as `name` and `value`. |
+| `elements` | The child elements of the material that are none of textures, layers, parameters or sub-materials, as `name`, `attributes` and `children`, to a depth of 8. |
+
+A **texture slot** has `slot` (`TexSlot1`, ...) and `file` (the name in the file, or an engine
+placeholder such as `$TintPaletteDecal` or `$RenderToTexture`, which has no file), `usage`, and
+`texture`, the id in `textures`, absent for a placeholder and for a texture that could not be
+written. `usage` is derived from the suffix of the file name (`_ddna` and `_ddn` normal, `_spec`
+specular, `_mask`/`_opac` mask, `_blend` blend, `_detail` detail, `_wear` wear, `_ao` occlusion,
+`_displ`/`_disp` displacement, `_gloss` gloss; `_id`, `_scalp`, `_dir`, `_dirm` and `_hal` are
+`other`, even in `TexSlot1`) and, for other files, the slot: `TexSlot1` is `diffuse`, anything
+else `other`. `attributes` (`TexType`, `Used`, ...) and `elements` (the `TexMod`
+child with the tiling `TileU`/`TileV`, the offset `OffsetU`/`OffsetV` and the rotation of the
+slot's UVs) are as in the file. Which UV set a slot samples is decided by the shader and its
+`gen_mask`; the package does not guess it.
+
+A **layer** is another material blended into the surface: `name`, `path` (the layer file, with its
+extension), `sub_material` (`Submtl`, the name of the sub-material in a layer file that has a
+list; absent for none), `tint_colour` (`TintColor`), `wear_tint`, `uv_tiling`, `gloss_mult` (each
+absent when the file gives none or it is malformed), `palette` (the entry of its `PaletteTint`),
+`attributes` (all attributes of the layer in file order, the ones above included, with
+`WearGloss`, `HeightBias`, `HeightScale` and the rest), and `material`, the id of the layer file's
+description in `materials`. A layer file is a material like any other, so it has its own
+textures, shader and parameters, and its own layers. Files that name each other, or themselves,
+refer to each other's descriptions. A layer whose file is missing, unreadable (a path that leaves
+`Data` included) or lacks the named sub-material has no `material` and is listed in `issues`.
+Layers are followed through 8 files; the layers of the eighth stay without a `material` and one
+issue says so.
+
+The reader keeps at most 64 layers and 4096 raw elements per material (the attribute values are
+bounded by the 16 MiB cap on a material file). What is cut off is listed in `issues` (`origin`
+`material`, `kind` `material`), and the rest of the file is read.
+
+Decals and wear are not separate objects in the game's files; they are materials: a decal is a
+material with the shader `MeshDecal` (its stencil colours in `parameters`, the placeholder
+`$TintPaletteDecal` in a slot), wear is `wear` textures, `WearTint`/`WearGloss` on layers and
+`Wear*` parameters.
+
+### Palettes
+
+`palettes` (1.1) lists each tint palette once. A mesh's `palette_id` references it. A palette has
+`id` (`p0001`), `name`, and the entries `primary`, `secondary` and `tertiary`, each with `tint`,
+`specular` (linear colours) and `glossiness` (0 to 255), and `glass`, the glass colour. An importer
+applies a palette by taking the entry a material's or layer's `palette` names: the `tint` replaces
+the diffuse colour (or multiplies a layer's, with its `tint_colour`) and so on, as the game does;
+the package leaves the decision to the importer.
+
 ### Issues
 
 `issues` lists what was left out or fell back: the issues of the Assembly (`origin` is
 `assembly`: parts that could not be resolved, missing geometry, palettes that could not be
-resolved, as for `p4kx entity glb`) and textures that could not be loaded or whose file name is
-no safe path (`origin` is `texture`, `kind` is `texture` or `texture_path`). Each has `kind`, a
+resolved, as for `p4kx entity glb`), textures that could not be loaded or whose file name is
+no safe path (`origin` is `texture`, `kind` is `texture` or `texture_path`) and, from 1.1, layers
+whose material file is missing, unreadable or lacks the named sub-material (`origin` is
+`material`, `kind` is `layer_material`, `path` the layer's `Path`, `name` the material that has
+the layer). Each has `kind`, a
 stable code, `path`, `name`, `skipped` (the node is left out of the scene) and `reason`, text for
 people that comes partly from the Archive and is untrusted.
 
@@ -205,9 +293,10 @@ that a reader can ignore. A reader
 - reads a package with a higher minor version and warns that parts of it may be ignored;
 - reads every lower minor version of its major version.
 
-Version history: **1.0** is the first format; **1.1** adds the node kinds `container`, `object`
-and `light` and the node field `light` (`entity package --interior`). A reader of 1.0 skips such
-nodes with their children.
+Version history: **1.0** is the first format; **1.1** adds the material descriptions, the palettes
+and the glTF material indices in the meshes; **1.2** adds the node kinds `container`, `object` and
+`light` and the node field `light` (`entity package --interior`). A reader of 1.1 skips such nodes
+with their children.
 
 The schema file is the schema of the version in `FORMAT_VERSION`: a change of the Rust types that
 changes the schema is a change of the format, and the checked-in schema changes with it. A schema
@@ -222,5 +311,8 @@ the rules above.
 - **Skeletons and animations (#162).** A manifest-level `skeletons` array. A skeleton has an id
   and its bones; a mesh that is skinned and a node that poses a skeleton reference it by that id.
   Animation clips are lazy sidecar files. Version 1 has no skeletons and no skinned meshes.
-- **Materials (#158).** Layered material descriptions, palettes and decals, as a further field
-  of the mesh's materials and further files.
+- **Node trees of the add-on (#160).** Nothing is reserved: the descriptions of 1.1 are the
+  inputs it builds from.
+
+A reader of a 1.0 package finds no `materials` and `palettes` (read them as empty) and builds
+from the glTF materials of the meshes and the `diffuse`, `normal` and `specular` textures.

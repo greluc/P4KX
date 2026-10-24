@@ -20,12 +20,16 @@
 
 mod build;
 mod collect;
+mod describe;
 mod error;
+mod glb_extras;
 mod items;
 mod manifest;
 mod manifest_light;
+mod manifest_materials;
 mod meshes;
 mod plan;
+mod roles;
 mod schema;
 mod stage;
 mod textures;
@@ -39,6 +43,10 @@ pub use manifest::{
     TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };
 pub use manifest_light::{Light, LightKind};
+pub use manifest_materials::{
+    AlphaMode, Element, MaterialDescription, MaterialLayer, MaterialTexture, Palette,
+    PaletteColours, PaletteEntry, Parameter, TextureUse,
+};
 pub use schema::manifest_schema;
 pub use stage::check_output;
 pub use write::{PackageInfo, PackageSummary, write_package};

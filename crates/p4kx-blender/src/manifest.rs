@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::manifest_light::Light;
+use crate::manifest_materials::{MaterialDescription, Palette};
 
 /// The value of [`Manifest::format`] as text.
 pub const FORMAT: &str = "p4kx-blender-package";
@@ -13,7 +14,7 @@ pub const FORMAT: &str = "p4kx-blender-package";
 ///
 /// A new minor version only adds fields and values readers may ignore; a new major version changes
 /// the meaning of existing ones.
-pub const FORMAT_VERSION: &str = "1.1";
+pub const FORMAT_VERSION: &str = "1.2";
 
 /// The name of the manifest file in the package folder.
 pub const MANIFEST_FILE: &str = "scene.json";
@@ -101,6 +102,8 @@ pub enum IssueOrigin {
     Assembly,
     /// Loading or writing a texture.
     Texture,
+    /// Reading a material or a material layer.
+    Material,
 }
 
 /// The scene description of a package: `scene.json`.
@@ -126,6 +129,13 @@ pub struct Manifest {
     pub meshes: Vec<Mesh>,
     /// The PNG textures, each written once.
     pub textures: Vec<Texture>,
+    /// The material descriptions of the meshes and of their layers, each written once; absent in
+    /// version 1.0.
+    #[serde(default)]
+    pub materials: Vec<MaterialDescription>,
+    /// The tint palettes of the meshes, each written once; absent in version 1.0.
+    #[serde(default)]
+    pub palettes: Vec<Palette>,
     /// What could not be resolved or written, with the node or texture it concerns.
     pub issues: Vec<Issue>,
 }
@@ -258,6 +268,9 @@ pub struct Mesh {
     /// The name of the tint palette the mesh's colours were taken from, when it has one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub palette: Option<String>,
+    /// The id of that palette in `palettes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub palette_id: Option<String>,
     /// The number of nodes that draw this mesh; more than one means the mesh is instanced.
     pub instances: usize,
     /// The size of the file in bytes.
@@ -279,6 +292,10 @@ pub struct MeshMaterial {
     pub name: String,
     /// The textures that were written for the material.
     pub textures: MaterialTextures,
+    /// The id of the material's description in `materials`; absent for the engine's default
+    /// material.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub material: Option<String>,
 }
 
 /// The texture ids of a material by role; a role is absent when the material names no texture for

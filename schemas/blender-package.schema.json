@@ -20,6 +20,26 @@
         }
       ]
     },
+    "AlphaMode": {
+      "description": "How a material is blended with what is behind it, derived from its opacity and alpha test.",
+      "oneOf": [
+        {
+          "const": "opaque",
+          "description": "Opaque.",
+          "type": "string"
+        },
+        {
+          "const": "mask",
+          "description": "Alpha tested: the surface is drawn where alpha reaches `alpha_test`.",
+          "type": "string"
+        },
+        {
+          "const": "blend",
+          "description": "Blended by opacity: `opacity` below 1, or a glass or decal shader.",
+          "type": "string"
+        }
+      ]
+    },
     "Basis": {
       "description": "The axes of every transform and of the GLB meshes.",
       "oneOf": [
@@ -95,6 +115,35 @@
       "required": [
         "basis",
         "unit"
+      ],
+      "type": "object"
+    },
+    "Element": {
+      "description": "An XML element of a material file the writer does not interpret.",
+      "properties": {
+        "attributes": {
+          "description": "The element's attributes in file order.",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          },
+          "type": "array"
+        },
+        "children": {
+          "description": "The element's children in file order.",
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "The element's name.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "attributes",
+        "children"
       ],
       "type": "object"
     },
@@ -194,6 +243,11 @@
           "const": "texture",
           "description": "Loading or writing a texture.",
           "type": "string"
+        },
+        {
+          "const": "material",
+          "description": "Reading a material or a material layer.",
+          "type": "string"
         }
       ]
     },
@@ -271,6 +325,330 @@
         }
       ]
     },
+    "MaterialDescription": {
+      "description": "A material as the game defines it: the inputs of a Blender or any other renderer's material.\n\nColours are linear and exactly those of the file; a palette is not applied. The\n`parameters`, `attributes` and `elements` hold what the writer does not interpret, name and\nvalue as the file has them.",
+      "properties": {
+        "alpha_mode": {
+          "$ref": "#/$defs/AlphaMode",
+          "description": "How the material is blended, derived from `opacity`, `alpha_test` and the shader."
+        },
+        "alpha_test": {
+          "description": "The alpha-test threshold, 0 when the material is not alpha tested.",
+          "format": "float",
+          "type": "number"
+        },
+        "attributes": {
+          "description": "The attributes of the material element that no field above holds, in file order.",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          },
+          "type": "array"
+        },
+        "default_palette": {
+          "description": "The tint palette the library names as its default, a Record path.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "diffuse": {
+          "description": "The diffuse colour, linear.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "elements": {
+          "description": "The child elements of the material that are none of textures, layers, parameters or\nsub-materials, as the file has them.",
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
+          "type": "array"
+        },
+        "emissive": {
+          "description": "The emissive colour, linear; it counts times `glow`.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "flags": {
+          "description": "`MtlFlags`, the engine's material flags.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "gen_mask": {
+          "description": "The shader generation mask, split at `%`: `%NORMAL_MAP%SPECULAR_MAP` is `NORMAL_MAP` and\n`SPECULAR_MAP`.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "glow": {
+          "description": "The glow amount the emissive colour is multiplied by.",
+          "format": "float",
+          "type": "number"
+        },
+        "id": {
+          "description": "The material's id, e.g. `x0001`.",
+          "type": "string"
+        },
+        "index": {
+          "description": "The position of the material in the library's sub-material list, the material ID of the\nsubmeshes; absent when the file is one material that serves every ID.",
+          "format": "uint",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "layers": {
+          "description": "The layers in file order.",
+          "items": {
+            "$ref": "#/$defs/MaterialLayer"
+          },
+          "type": "array"
+        },
+        "library": {
+          "description": "The material library the material is in, a path below `Data` without extension.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The material's name in its file; empty when the file gives none.",
+          "type": "string"
+        },
+        "no_draw": {
+          "description": "Whether the engine draws nothing with the material (flag `0x400` or shader `NoDraw`).",
+          "type": "boolean"
+        },
+        "opacity": {
+          "description": "The opacity from 0 to 1.",
+          "format": "float",
+          "type": "number"
+        },
+        "palette": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaletteEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The palette entry the material takes: that of its first layer with a `PaletteTint` from 1\nto 3, or the glass colour of a glass material that uses the tint palette."
+        },
+        "parameters": {
+          "description": "The shader parameters (`PublicParams`) in file order, name and value as the file has them.",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          },
+          "type": "array"
+        },
+        "shader": {
+          "description": "The shader, e.g. `Illum`, `HardSurface`, `Layer`, `MeshDecal` or `GlassPBR`; empty when the\nfile gives none.",
+          "type": "string"
+        },
+        "shininess": {
+          "description": "The glossiness from 0 to 255.",
+          "format": "float",
+          "type": "number"
+        },
+        "specular": {
+          "description": "The specular colour, linear.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "surface_type": {
+          "description": "The physical surface type, e.g. `metal_dense`; empty when the file gives none.",
+          "type": "string"
+        },
+        "textures": {
+          "description": "The texture slots in file order.",
+          "items": {
+            "$ref": "#/$defs/MaterialTexture"
+          },
+          "type": "array"
+        },
+        "two_sided": {
+          "description": "Whether the engine draws both faces (flag `0x2`).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "library",
+        "shader",
+        "gen_mask",
+        "surface_type",
+        "flags",
+        "two_sided",
+        "no_draw",
+        "diffuse",
+        "specular",
+        "emissive",
+        "shininess",
+        "opacity",
+        "alpha_test",
+        "glow",
+        "alpha_mode",
+        "textures",
+        "layers",
+        "parameters",
+        "attributes",
+        "elements"
+      ],
+      "type": "object"
+    },
+    "MaterialLayer": {
+      "description": "One layer of a material: another material blended into the surface.",
+      "properties": {
+        "attributes": {
+          "description": "All attributes of the layer in file order, the five above included, and `PaletteTint`,\n`WearGloss`, `HeightBias`, `HeightScale` and any other.",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          },
+          "type": "array"
+        },
+        "gloss_mult": {
+          "description": "The factor of the layer's glossiness (`GlossMult`).",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "material": {
+          "description": "The id of the material the layer's `Path` names, in `materials`; absent when the layer names\nno material, or the file is missing or unreadable (an issue is listed).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The layer's name (`Name`), e.g. `Primary` or `Wear`; empty when the file gives none.",
+          "type": "string"
+        },
+        "palette": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PaletteEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The palette entry the layer takes, from its `PaletteTint`."
+        },
+        "path": {
+          "description": "The layer material's file (`Path`), a path below `Data` with its extension; empty when the\nfile gives none.",
+          "type": "string"
+        },
+        "sub_material": {
+          "description": "The sub-material of the layer file (`Submtl`) by name; absent when the layer names none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tint_colour": {
+          "description": "The tint colour (`TintColor`), linear, that multiplies the layer's colour; absent when the\nfile gives none or it is malformed.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "uv_tiling": {
+          "description": "The tiling of the layer's UVs (`UVTiling`).",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wear_tint": {
+          "description": "The tint colour of the layer where it is worn (`WearTint`), linear.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "path",
+        "attributes"
+      ],
+      "type": "object"
+    },
+    "MaterialTexture": {
+      "description": "One texture slot of a material.",
+      "properties": {
+        "attributes": {
+          "description": "The other attributes of the slot in file order.",
+          "items": {
+            "$ref": "#/$defs/Parameter"
+          },
+          "type": "array"
+        },
+        "elements": {
+          "description": "The child elements of the slot, such as `TexMod` with the tiling and offset of the UV set.",
+          "items": {
+            "$ref": "#/$defs/Element"
+          },
+          "type": "array"
+        },
+        "file": {
+          "description": "The texture as the file names it, source image or engine placeholder such as\n`$TintPaletteDecal`.",
+          "type": "string"
+        },
+        "slot": {
+          "description": "The slot as the file names it: `TexSlot1`, `TexSlot2`, and so on.",
+          "type": "string"
+        },
+        "texture": {
+          "description": "The id of the texture in `textures`; absent for a placeholder or a texture that could not\nbe written.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usage": {
+          "$ref": "#/$defs/TextureUse",
+          "description": "What the texture is used for."
+        }
+      },
+      "required": [
+        "slot",
+        "file",
+        "usage"
+      ],
+      "type": "object"
+    },
     "MaterialTextures": {
       "description": "The texture ids of a material by role; a role is absent when the material names no texture for\nit or the texture could not be written.",
       "properties": {
@@ -342,6 +720,13 @@
             "null"
           ]
         },
+        "palette_id": {
+          "description": "The id of that palette in `palettes`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "triangles": {
           "description": "The number of triangles of the mesh.",
           "format": "uint",
@@ -374,6 +759,13 @@
           "format": "uint",
           "minimum": 0,
           "type": "integer"
+        },
+        "material": {
+          "description": "The id of the material's description in `materials`; absent for the engine's default\nmaterial.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "name": {
           "description": "The name of the glTF material in the mesh's file.",
@@ -553,6 +945,129 @@
       ],
       "type": "object"
     },
+    "Palette": {
+      "description": "A tint palette: the colours a livery gives the materials that take a palette entry.\n\nA palette is written once; meshes reference it by id.",
+      "properties": {
+        "glass": {
+          "description": "The colour of the tinted glass, linear.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "id": {
+          "description": "The palette's id, e.g. `p0001`.",
+          "type": "string"
+        },
+        "name": {
+          "description": "The palette's name.",
+          "type": "string"
+        },
+        "primary": {
+          "$ref": "#/$defs/PaletteColours",
+          "description": "The primary entry."
+        },
+        "secondary": {
+          "$ref": "#/$defs/PaletteColours",
+          "description": "The secondary entry."
+        },
+        "tertiary": {
+          "$ref": "#/$defs/PaletteColours",
+          "description": "The tertiary entry."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "primary",
+        "secondary",
+        "tertiary",
+        "glass"
+      ],
+      "type": "object"
+    },
+    "PaletteColours": {
+      "description": "The colours of one palette entry, linear.",
+      "properties": {
+        "glossiness": {
+          "description": "The glossiness from 0 to 255.",
+          "format": "float",
+          "type": "number"
+        },
+        "specular": {
+          "description": "The specular colour.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        "tint": {
+          "description": "The colour of the paint.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        }
+      },
+      "required": [
+        "tint",
+        "specular",
+        "glossiness"
+      ],
+      "type": "object"
+    },
+    "PaletteEntry": {
+      "description": "Which colour of a palette a material or layer takes.",
+      "oneOf": [
+        {
+          "const": "primary",
+          "description": "The primary entry (`PaletteTint` 1).",
+          "type": "string"
+        },
+        {
+          "const": "secondary",
+          "description": "The secondary entry (`PaletteTint` 2).",
+          "type": "string"
+        },
+        {
+          "const": "tertiary",
+          "description": "The tertiary entry (`PaletteTint` 3).",
+          "type": "string"
+        },
+        {
+          "const": "glass",
+          "description": "The glass colour.",
+          "type": "string"
+        }
+      ]
+    },
+    "Parameter": {
+      "description": "A name and a value as the material file gives them.",
+      "properties": {
+        "name": {
+          "description": "The attribute's name.",
+          "type": "string"
+        },
+        "value": {
+          "description": "The attribute's value, text as in the file.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "value"
+      ],
+      "type": "object"
+    },
     "Replacement": {
       "description": "An Entity attached to a port instead of what the Loadout puts there.",
       "properties": {
@@ -672,6 +1187,66 @@
         }
       ]
     },
+    "TextureUse": {
+      "description": "What a texture of a material is used for, by the file naming convention of the game's\ntextures and the slot it sits in.",
+      "oneOf": [
+        {
+          "const": "diffuse",
+          "description": "The colour map (`_diff`, and any other map in `TexSlot1`).",
+          "type": "string"
+        },
+        {
+          "const": "normal",
+          "description": "The normal map (`_ddna` with the smoothness in alpha, or `_ddn`).",
+          "type": "string"
+        },
+        {
+          "const": "specular",
+          "description": "The specular map (`_spec`).",
+          "type": "string"
+        },
+        {
+          "const": "mask",
+          "description": "A mask or opacity map (`_mask`, `_opac`).",
+          "type": "string"
+        },
+        {
+          "const": "blend",
+          "description": "A blend map between layers (`_blend`).",
+          "type": "string"
+        },
+        {
+          "const": "detail",
+          "description": "A detail map (`_detail`).",
+          "type": "string"
+        },
+        {
+          "const": "wear",
+          "description": "A wear map (`_wear`).",
+          "type": "string"
+        },
+        {
+          "const": "occlusion",
+          "description": "An ambient occlusion map (`_ao`).",
+          "type": "string"
+        },
+        {
+          "const": "displacement",
+          "description": "A displacement or height map (`_displ`, `_disp`).",
+          "type": "string"
+        },
+        {
+          "const": "gloss",
+          "description": "A gloss map (`_gloss`).",
+          "type": "string"
+        },
+        {
+          "const": "other",
+          "description": "Any other map; the slot and file say more.",
+          "type": "string"
+        }
+      ]
+    },
     "Unit": {
       "description": "The unit of every length.",
       "oneOf": [
@@ -705,6 +1280,14 @@
       },
       "type": "array"
     },
+    "materials": {
+      "default": [],
+      "description": "The material descriptions of the meshes and of their layers, each written once; absent in\nversion 1.0.",
+      "items": {
+        "$ref": "#/$defs/MaterialDescription"
+      },
+      "type": "array"
+    },
     "meshes": {
       "description": "The GLB meshes, one per distinct mesh set; nodes reference them.",
       "items": {
@@ -722,6 +1305,14 @@
     "options": {
       "$ref": "#/$defs/Options",
       "description": "The choices the package was written with."
+    },
+    "palettes": {
+      "default": [],
+      "description": "The tint palettes of the meshes, each written once; absent in version 1.0.",
+      "items": {
+        "$ref": "#/$defs/Palette"
+      },
+      "type": "array"
     },
     "source": {
       "$ref": "#/$defs/Source",

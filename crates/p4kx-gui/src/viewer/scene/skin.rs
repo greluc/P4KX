@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::model::{Influences, Mesh};
+use p4kx_extraction::model::{BoneMatch, Influences, Mesh};
 
 use super::SkinVertex;
 
@@ -22,6 +22,21 @@ pub(super) fn of_mesh(mesh: &Mesh, bones: usize) -> Vec<SkinVertex> {
             influences
                 .get(vertex)
                 .map_or(UNWEIGHTED, |one| pack(one, bones))
+        })
+        .collect()
+}
+
+/// Returns the skin of every vertex of `mesh` like [`of_mesh`], with the bones of the mesh's own
+/// skeleton replaced by the bones of the skeleton of `bones` bones that `matched` names.
+pub(super) fn of_mesh_matched(mesh: &Mesh, bones: usize, matched: &BoneMatch) -> Vec<SkinVertex> {
+    let Some(influences) = mesh.influences.as_ref().filter(|_| bones > 0) else {
+        return Vec::new();
+    };
+    (0..mesh.positions.len())
+        .map(|vertex| {
+            influences.get(vertex).map_or(UNWEIGHTED, |one| {
+                pack(&one.remapped(|joint| matched.target(joint)), bones)
+            })
         })
         .collect()
 }

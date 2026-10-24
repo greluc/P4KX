@@ -32,6 +32,7 @@ pub use gpu::{
 pub use playback::{Control, Playback};
 pub use preview::{MODEL_FILE_LIMIT, ModelPreview, ModelStatus, is_model_path};
 pub use scene::{
+    MorphSpan,
     Bounds, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, SKIN_STRIDE, Scene, SceneError, SkinVertex,
     Vertex,
 };

@@ -12,6 +12,7 @@ mod audio;
 mod browser;
 mod catalog_export;
 mod channel_list;
+mod characters;
 mod checks;
 mod comparison;
 mod containers;
@@ -67,6 +68,11 @@ pub use catalog_export::{
     CatalogExportSummary,
 };
 pub use channel_list::ChannelList;
+pub use characters::{
+    CHARACTER_LODS, CharacterExport, CharacterExportStatus, CharacterExportSummary,
+    CharactersTab, Chooser, ChooserKind, Expression, HeadInfo, HeadSource, Item, Key, Pick,
+    Sources,
+};
 pub use comparison::{
     ChangeColumn, ChangeSort, ComparisonLevels, ComparisonList, ComparisonSide, ComparisonStage,
     ComparisonStatus, ComparisonTab, ComparisonView, DiffCell, DiffDocument, DiffHunk, DiffRow,
@@ -138,7 +144,7 @@ pub use sounds::{
 pub use tags::{TagRow, TagsStatus, TagsTab, TagsView};
 pub use texts::{
     AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
-    ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText, EntityText,
+    CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText, EntityText,
     ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, ModelExportText,
     ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
     RecordSearchText, RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, Texts,
@@ -152,7 +158,7 @@ pub use viewer::{
 pub use viewer::{
     Bounds, Camera, Control, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES,
     MAX_SKELETON_BONES, MAX_TEXTURE_SIDE, MODEL_FILE_LIMIT, Matrix, ModelPreview, ModelStatus,
-    Playback, Pose, Problem, Rejected, SKIN_STRIDE, Scene, SceneError, Skeleton, SkinVertex, Step,
+    MorphSpan, Playback, Pose, Problem, Rejected, SKIN_STRIDE, Scene, SceneError, Skeleton, SkinVertex, Step,
     Unavailable, Uniforms, Vertex, ViewerSupport, check_buffer, check_texture,
     install as install_viewer, is_model_path, target_extent,
 };

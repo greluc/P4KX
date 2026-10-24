@@ -86,7 +86,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
 }
 
-fn failed(
+pub(super) fn failed(
     texts: &Texts,
     failure: &ModelExportFailure,
     name: (&str, FluentValue<'static>),

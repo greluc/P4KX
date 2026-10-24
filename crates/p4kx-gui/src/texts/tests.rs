@@ -125,6 +125,8 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("meshes", "2".into()),
         ("materials", "2".into()),
         ("bones", "5".into()),
+        ("rig", "protos_human_male_face_t1_pu".into()),
+        ("by", "TEST_Plate".into()),
         ("skinned", "1".into()),
         ("channels", "12".into()),
         ("source", "Data\\Animations\\ship.caf".into()),

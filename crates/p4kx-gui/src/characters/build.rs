@@ -1,0 +1,178 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
+
+use p4kx_assembly::character::Character;
+use p4kx_assembly::{
+    ArchiveFiles, ArchiveModels, Armour, AssemblyError, AssemblyOptions, BodyVariant, Expressions,
+    Head, LoadoutResolver, ModelFailure, ModelProvider, Piece, ProvidedModel, Replaced,
+};
+use p4kx_extraction::model::MaterialStatus;
+use p4kx_extraction::{CancelToken, Guid};
+
+use crate::assembly_export::{Stoppable, failure_of};
+use crate::forge_cache::ReadFailure;
+use crate::model::describe;
+use crate::{EntryIndex, ModelExportFailure, MorphSpan, Scene, SceneError, ViewProgress, ViewStage};
+
+/// What the Armour of the Character builder is built from.
+#[derive(Debug, Clone)]
+pub(super) struct Request {
+    pub(super) variant: BodyVariant,
+    pub(super) character: Option<Arc<Character>>,
+    pub(super) pieces: Vec<Guid>,
+    pub(super) loadout: Option<String>,
+    pub(super) lod: u32,
+    pub(super) expressions: bool,
+}
+
+/// A built Armour with the scene that shows it.
+pub(super) struct Built {
+    pub(super) armour: Armour,
+    pub(super) scene: Scene,
+    pub(super) spans: Vec<Option<MorphSpan>>,
+    pub(super) replaced: Vec<Replaced>,
+}
+
+pub(super) enum Ended {
+    Built(Box<Built>),
+    Cancelled,
+    Empty,
+    Failed(ModelExportFailure),
+}
+
+#[derive(Debug, Default)]
+pub(super) struct Shared {
+    stage: AtomicU8,
+    done: AtomicU64,
+}
+
+impl Shared {
+    pub(super) fn progress(&self) -> ViewProgress {
+        let reading = self.stage.load(Ordering::Relaxed) == 0;
+        ViewProgress {
+            stage: if reading {
+                ViewStage::Reading
+            } else {
+                ViewStage::Flattening
+            },
+            done: self.done.load(Ordering::Relaxed),
+            total: 0,
+        }
+    }
+}
+
+struct Counting<'a> {
+    inner: &'a dyn ModelProvider,
+    shared: &'a Shared,
+}
+
+impl ModelProvider for Counting<'_> {
+    fn model(&self, path: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
+        let model = self.inner.model(path, lod);
+        self.shared.done.fetch_add(1, Ordering::Relaxed);
+        model
+    }
+
+    fn library(&self, entry: &str, name: &str) -> MaterialStatus {
+        self.inner.library(entry, name)
+    }
+}
+
+fn failed(reason: impl Into<String>) -> Ended {
+    Ended::Failed(ModelExportFailure::Failed(reason.into()))
+}
+
+/// Builds the Armour of `request` from `index` and flattens it into a scene.
+pub(super) fn run(
+    index: &EntryIndex,
+    request: &Request,
+    cancel: &CancelToken,
+    shared: &Shared,
+) -> Ended {
+    if index.watch().check().is_err() {
+        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+    }
+    let source = match index.forge().read(index, || {}) {
+        Ok(source) => source,
+        Err(ReadFailure::ArchiveChanged(_)) => {
+            return Ended::Failed(ModelExportFailure::ArchiveChanged);
+        }
+        Err(ReadFailure::Unreadable(reason)) => return failed(reason),
+    };
+    let forge = match source.entry.open() {
+        Ok(forge) => forge,
+        Err(error) => return failed(describe(&error)),
+    };
+    let files = ArchiveFiles::new(index.archive());
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let given: Vec<Piece> = request
+        .pieces
+        .iter()
+        .map(|guid| match forge.record_by_guid(*guid) {
+            Some(record) => match resolver.wearable(&record) {
+                Ok(wearable) => Piece::wearable(wearable),
+                Err(error) => Piece::failed(guid.to_string(), describe(&error)),
+            },
+            None => Piece::failed(guid.to_string(), "the DataForge has no such Record"),
+        })
+        .collect();
+    let (mut pieces, replaced) = match &request.loadout {
+        Some(path) => match resolver.resolve_file(path) {
+            Ok(tree) => Piece::layer(resolver.worn(&tree), given),
+            Err(error) => return failed(describe(&error)),
+        },
+        None => (given, Vec::new()),
+    };
+    if let Some(character) = &request.character {
+        match Head::from_character(character) {
+            Ok(head) => {
+                let head = if request.expressions {
+                    head.with_expressions(&Expressions::All)
+                } else {
+                    head
+                };
+                pieces.extend(head.pieces().iter().cloned());
+            }
+            Err(error) => return failed(describe(&error)),
+        }
+    }
+    if cancel.is_cancelled() {
+        return Ended::Cancelled;
+    }
+    let archive_models = ArchiveModels::new(index.archive());
+    let stoppable = Stoppable {
+        models: &archive_models,
+        cancel,
+    };
+    let models = Counting {
+        inner: &stoppable,
+        shared,
+    };
+    let options = AssemblyOptions::default().with_lod(request.lod);
+    let armour = match Armour::build(request.variant, &pieces, &models, &options) {
+        Ok(armour) => armour,
+        Err(_) if cancel.is_cancelled() => return Ended::Cancelled,
+        Err(AssemblyError::Provider(error)) => return Ended::Failed(failure_of(index, &*error)),
+        Err(other) => return Ended::Failed(failure_of(index, &other)),
+    };
+    shared.stage.store(1, Ordering::Relaxed);
+    if cancel.is_cancelled() {
+        return Ended::Cancelled;
+    }
+    if index.watch().check().is_err() {
+        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+    }
+    match Scene::from_armour(&armour) {
+        Ok((scene, spans)) => Ended::Built(Box::new(Built {
+            armour,
+            scene,
+            spans,
+            replaced,
+        })),
+        Err(SceneError::Empty) => Ended::Empty,
+        Err(error) => failed(error.to_string()),
+    }
+}

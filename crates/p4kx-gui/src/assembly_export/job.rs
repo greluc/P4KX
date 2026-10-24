@@ -342,7 +342,7 @@ fn write(
         let mut observed = Observed {
             inner: writer,
             cancel,
-            shared,
+            written: &shared.done,
         };
         assembly
             .write_glb_with(&glb, &textures, &mut observed)

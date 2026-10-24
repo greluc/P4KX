@@ -198,7 +198,10 @@ pub(super) struct Part {
 
 impl Part {
     pub(super) fn of(mesh: &Mesh, world: &Rows, bones: usize) -> Self {
-        let skin = skin::of_mesh(mesh, bones);
+        Self::with_skin(mesh, world, skin::of_mesh(mesh, bones))
+    }
+
+    pub(super) fn with_skin(mesh: &Mesh, world: &Rows, skin: Vec<SkinVertex>) -> Self {
         let world = if skin.is_empty() { world } else { &IDENTITY };
         let normal_rows = normal_matrix(world);
         let mut bounds = Bounds::EMPTY;
@@ -338,6 +341,9 @@ fn normalised(vector: [f32; 3]) -> [f32; 3] {
     }
 }
 
+mod armour;
 mod skin;
 #[cfg(test)]
 mod tests;
+
+pub use armour::MorphSpan;

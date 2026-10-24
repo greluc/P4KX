@@ -1,7 +1,7 @@
 # Roadmap
 
 P4KX opens, browses, compares and extracts Star Citizen Archives and converts their
-formats. It replaces the KRT P4K Reader and covers the functionality of unp4k and StarBreaker with
+formats. It replaces the owner's earlier reference tool and covers the functionality of unp4k and StarBreaker with
 an own Rust core (ADR-0001). Terms follow [CONTEXT.md](../CONTEXT.md).
 
 Every milestone ends in a usable release: SemVer `0.x`, one minor version per milestone, built by
@@ -12,13 +12,13 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 
 | Topic | Decision |
 |---|---|
-| Purpose | End-user tool first; the core is a library so Exports for other KRT tools need no rework |
+| Purpose | End-user tool first; the core is a library so Exports for other tools need no rework |
 | Front-ends | `p4kx` (CLI), `p4kx-gui` ("P4KX", egui/eframe), `p4kx-mcp` (MCP server, stdio, read-only) |
 | Platforms | Windows is shipped; the code stays platform-neutral and CI also builds on Linux; no macOS |
 | Distribution | Portable ZIP and MSI (WiX Toolset 7, per-user install to `%LOCALAPPDATA%`, no admin rights, Start menu entry, stable UpgradeCode) from M1 |
 | Licence | `MIT OR Apache-2.0`; the repository becomes public later |
 | UI languages | German (`de-DE`) and British English (`en-GB`) via Fluent, chosen from the system locale, switchable |
-| Look | KRT design system (colours, Lato) in egui, dark only (ADR-0006); native window frame tinted via DWM |
+| Look | P4KX theme (colours, Lato) in egui, dark only (ADR-0006); native window frame tinted via DWM |
 | State | `%APPDATA%\P4KX\` (TOML): detected Channels, recent Archives, target folder, language, window |
 | Channel detection | Library folders named in the RSI Launcher log (ADR-0005), the default install path, and manually added folders and Archives; `loginData.json` and the launcher's settings store are never read |
 | Network | Only an optional, switchable check for new GitHub releases, off by default (ADR-0007); no telemetry, no crash reports |
@@ -48,13 +48,13 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 - Record XML, one file per Record under its record path, optionally one combined file.
 - GUI: DataForge mounted as a virtual Record tree, XML and DataForge preview tabs.
 
-### M3 — Exports (replaces the KRT P4K Reader)
+### M3 — Exports (replaces the earlier reference tool)
 
 - Basetool catalog in the new format (ADR-0002): manufacturers, items, ships, commodities,
   blueprints; Channel, Build and completeness per kind; JSON Schema generated from the Rust types
   and checked in.
 - Record export as one JSON file per Record or one NDJSON file, from the same Record tree.
-- Hand-off: a separate session adapts the basetool import in `krt-profit/basetool`.
+- Hand-off: a separate session adapts the Basetool import.
 
 ### M4 — Comparison
 
@@ -129,5 +129,5 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 - Tests: synthetic fixtures from own test writers (Archive, DataForge, CryXml, DDS / WEM headers)
   run in CI; tests against real Archives run locally when `P4KX_DATA_P4K` points to one.
 - CI on Windows and Linux: `fmt`, `clippy`, `test`, layer-direction and file-size checks.
-- References: StarBreaker and unp4k (both MIT) and the observed behaviour of the KRT P4K Reader;
+- References: StarBreaker and unp4k (both MIT) and the observed behaviour of the owner's earlier reference tool;
   ported code keeps its copyright notice.

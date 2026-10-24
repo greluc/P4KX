@@ -73,8 +73,8 @@ fn colours() -> BTreeMap<String, Color32> {
 
 fn add_categorical(map: &mut BTreeMap<String, Color32>) {
     let mut planet = |name: &str, tint: PlanetTint| {
-        map.insert(format!("krt-planet-{name}"), tint.fill);
-        map.insert(format!("krt-planet-{name}-stripe"), tint.stripe);
+        map.insert(format!("planet-{name}"), tint.fill);
+        map.insert(format!("planet-{name}-stripe"), tint.stripe);
     };
     planet("hurston", c::PLANET_HURSTON);
     planet("crusader", c::PLANET_CRUSADER);
@@ -89,8 +89,8 @@ fn add_categorical(map: &mut BTreeMap<String, Color32>) {
         planet(&format!("hash-{index}"), tint);
     }
     let mut item_class = |name: &str, tint: ItemClassTint| {
-        map.insert(format!("krt-item-class-{name}"), tint.hue);
-        map.insert(format!("krt-item-class-{name}-text"), tint.text);
+        map.insert(format!("item-class-{name}"), tint.hue);
+        map.insert(format!("item-class-{name}-text"), tint.text);
     };
     item_class("military", c::ITEM_CLASS_MILITARY);
     item_class("civilian", c::ITEM_CLASS_CIVILIAN);
@@ -171,7 +171,7 @@ fn length(value: &str) -> f32 {
 }
 
 #[test]
-fn every_colour_token_of_the_design_system_is_mirrored_with_its_value() {
+fn every_colour_token_of_the_theme_is_mirrored_with_its_value() {
     let json = fixture(TOKENS);
     let tokens = tokens_of(&json, "color");
     let values: BTreeMap<&str, &str> = tokens.iter().copied().collect();
@@ -193,7 +193,7 @@ fn every_colour_token_of_the_design_system_is_mirrored_with_its_value() {
 }
 
 #[test]
-fn type_spacing_and_radius_tokens_match_the_design_system() {
+fn type_spacing_and_radius_tokens_match_the_theme() {
     let json = fixture(TOKENS);
     let mirrored: BTreeMap<&str, f32> = [
         ("fs-h1", t::FS_H1),
@@ -245,7 +245,7 @@ fn type_spacing_and_radius_tokens_match_the_design_system() {
 }
 
 #[test]
-fn glows_and_shadows_match_the_design_system() {
+fn glows_and_shadows_match_the_theme() {
     let json = fixture(TOKENS);
     let mirrored: BTreeMap<&str, Shadow> = [
         ("glow-primary", t::GLOW_PRIMARY),
@@ -279,11 +279,10 @@ fn glows_and_shadows_match_the_design_system() {
     }
 }
 
-const DESKTOP_METRICS: [(&str, &str, f32); 61] = [
+const DESKTOP_METRICS: [(&str, &str, f32); 60] = [
     ("meta", "rowDensity", desktop::ROW_HEIGHT),
     ("header", "height", desktop::HEADER_HEIGHT),
-    ("header", "brandMarkSize", desktop::BRAND_MARK),
-    ("header", "brandGap", desktop::BRAND_GAP),
+    ("header", "wordmarkHeight", desktop::BRAND_HEIGHT),
     ("menuLink", "paddingX", desktop::MENU_LINK_PADDING_X),
     ("dropdown", "minWidth", desktop::DROPDOWN_MIN_WIDTH),
     ("sidebar", "defaultWidth", desktop::SIDEBAR_WIDTH),

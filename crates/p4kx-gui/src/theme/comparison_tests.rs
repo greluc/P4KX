@@ -88,7 +88,7 @@ fn the_comparison_metrics_match_the_desktop_spec() {
 }
 
 #[test]
-fn the_change_chips_take_the_fills_of_the_design_system() {
+fn the_change_chips_take_the_fills_of_the_theme() {
     let json = spec();
 
     for (kind, fill) in [

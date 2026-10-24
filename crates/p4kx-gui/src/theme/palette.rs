@@ -1,4 +1,4 @@
-//! The colour tokens of the KRT design system, named as in its `tokens.json`.
+//! The colour tokens of the P4KX design, named as in the token fixture.
 
 use egui::Color32;
 

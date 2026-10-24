@@ -6,9 +6,9 @@ use super::desktop::{DROPDOWN_MIN_WIDTH, SECTION_LIST_HEIGHT};
 use super::tokens::REM;
 
 /// The tallest the completion list of the Query editor gets before it scrolls, the
-/// `.krt-combobox__listbox` `max-height` of 18 rem.
+/// `.combobox__listbox` `max-height` of 18 rem.
 pub const COMPLETION_MAX_HEIGHT: f32 = 18.0 * REM;
-/// The padding of a `.krt-combobox__notice`.
+/// The padding of a `.combobox__notice`.
 pub const COMBOBOX_NOTICE_PADDING: f32 = 0.75 * REM;
 /// The tallest the list of saved Queries gets before it scrolls, the list height of a
 /// collapsible section.

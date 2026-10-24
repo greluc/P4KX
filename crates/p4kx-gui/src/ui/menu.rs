@@ -94,7 +94,7 @@ fn link(text: &str) -> egui::RichText {
     caps(text, MENU_LINK_SIZE, Weight::Bold, TRACKING_DISPLAY)
 }
 
-/// Returns a `.krt-combobox__option` label: 14.4 points Regular, as written.
+/// Returns a `.combobox__option` label: 14.4 points Regular, as written.
 pub(super) fn entry(text: &str) -> egui::RichText {
     egui::RichText::new(text).font(font(FS_SM, Weight::Regular))
 }

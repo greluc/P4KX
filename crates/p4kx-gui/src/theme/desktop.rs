@@ -1,5 +1,5 @@
 //! The desktop metrics of the window, taken from `docs/design/p4kx-desktop-spec.json`, which
-//! derives them from the KRT design system for a mouse and keyboard tool.
+//! derives them from the P4KX design for a mouse and keyboard tool.
 
 use egui::Color32;
 
@@ -26,11 +26,9 @@ pub const ROW_FONT: f32 = 0.86 * REM;
 pub const HEADER_HEIGHT: f32 = 46.0;
 /// The horizontal padding of the header.
 pub const HEADER_PADDING_X: f32 = SPACE_4;
-/// The size of the brand mark in the header.
-pub const BRAND_MARK: f32 = 24.0;
-/// The gap between brand mark and wordmark.
-pub const BRAND_GAP: f32 = 10.0;
-/// The gap between the brand and the menus.
+/// The height of the wordmark row in the header.
+pub const BRAND_HEIGHT: f32 = 24.0;
+/// The gap between the wordmark and the menus.
 pub const BRAND_PADDING_RIGHT: f32 = 24.0;
 /// The font size of the wordmark.
 pub const WORDMARK_SIZE: f32 = FS_SM;
@@ -80,7 +78,7 @@ pub const SEARCH_PADDING_LEFT: f32 = 2.4 * REM;
 pub const SEARCH_ICON_INSET: f32 = 0.8 * REM;
 /// The size of an inline icon.
 pub const ICON: f32 = REM;
-/// The height of a quick filter, `krt-segmented--sm`.
+/// The height of a quick filter, `segmented--sm`.
 pub const SEGMENT_HEIGHT: f32 = 34.0;
 /// The horizontal padding of a quick filter.
 pub const SEGMENT_PADDING_X: f32 = SPACE_3;

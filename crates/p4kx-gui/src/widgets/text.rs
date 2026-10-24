@@ -42,7 +42,7 @@ pub(crate) fn paint_right(ui: &Ui, rect: Rect, galley: Arc<Galley>, color: Color
     ui.painter().galley(at, galley, color);
 }
 
-/// Shows a link to `url` in the design system's link colours and opens it on a click.
+/// Shows a link to `url` in the theme's link colours and opens it on a click.
 pub(crate) fn link(ui: &mut Ui, text: &str, url: &str) -> Response {
     let galley = line(ui, plain(text, FS_XS, Weight::Bold), f32::INFINITY);
     let (rect, response) = ui.allocate_exact_size(galley.size(), Sense::click());

@@ -4,7 +4,7 @@ use super::tokens::{CORNER_SM, RADIUS_SM, RADIUS_SM_POINTS};
 use super::{BOLD_FAMILY, LATO_BOLD, LATO_REGULAR, apply, fonts, palette, style};
 
 #[test]
-fn the_style_is_dark_with_the_krt_surfaces() {
+fn the_style_is_dark_with_the_p4kx_surfaces() {
     let visuals = style().visuals;
 
     assert!(visuals.dark_mode, "dark mode");
@@ -127,6 +127,6 @@ fn applying_the_theme_keeps_the_window_dark_on_a_light_system() {
     assert_eq!(
         ctx.style_of(ctx.theme()).visuals.panel_fill,
         palette::GRAY_4,
-        "KRT style"
+        "P4KX style"
     );
 }

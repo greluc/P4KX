@@ -4,10 +4,10 @@
       Language="1033"
       Codepage="1252"
       Version="$(var.Version)"
-      Manufacturer="KRT"
+      Manufacturer="P4KX contributors"
       UpgradeCode="090C8F25-8543-42F0-B40A-1514653149F9"
       Scope="perUser">
-    <SummaryInformation Manufacturer="KRT" Description="P4KX $(var.Version)" />
+    <SummaryInformation Manufacturer="P4KX contributors" Description="P4KX $(var.Version)" />
     <MajorUpgrade
         AllowSameVersionUpgrades="yes"
         DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
@@ -18,7 +18,7 @@
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="UserPrograms" Name="Programs">
         <Directory Id="APPLICATIONFOLDER" Name="P4KX">
-          <Component Id="Application" Guid="63EEC150-779C-40C1-B6D0-5CDB0F649CBA">
+          <Component Id="Application" Guid="5DA0A84A-B1EA-4B11-A4C1-7DB8F1449E7D">
             <File Id="GuiExe" Name="p4kx-gui.exe" Source="$(var.BinaryFolder)\p4kx-gui.exe" />
             <File Id="CliExe" Name="p4kx.exe" Source="$(var.BinaryFolder)\p4kx.exe" />
             <File Id="McpExe" Name="p4kx-mcp.exe" Source="$(var.BinaryFolder)\p4kx-mcp.exe" />
@@ -27,7 +27,7 @@
             <File Id="ThirdPartyNotices" Name="THIRD-PARTY-NOTICES" Source="$(var.RepositoryFolder)\THIRD-PARTY-NOTICES" />
             <RegistryValue
                 Root="HKCU"
-                Key="Software\KRT\P4KX"
+                Key="Software\P4KX"
                 Name="Application"
                 Type="integer"
                 Value="1"
@@ -48,7 +48,7 @@
     </StandardDirectory>
 
     <StandardDirectory Id="ProgramMenuFolder">
-      <Component Id="StartMenuShortcut" Guid="A0168EBF-245F-4907-BB41-58C1B5F456B9">
+      <Component Id="StartMenuShortcut" Guid="5EB01C4B-DB2E-44BF-BFCA-71F808DB8600">
         <Shortcut
             Id="GuiShortcut"
             Name="P4KX"
@@ -57,7 +57,7 @@
             WorkingDirectory="APPLICATIONFOLDER" />
         <RegistryValue
             Root="HKCU"
-            Key="Software\KRT\P4KX"
+            Key="Software\P4KX"
             Name="StartMenuShortcut"
             Type="integer"
             Value="1"

@@ -4,10 +4,12 @@
 use p4kx_dataforge::{Guid, Step, StructValue, Value};
 
 use crate::assets::WidgetAssets;
+use crate::bindings::{ParamValues, param_values};
 use crate::colour::ColorSpec;
 use crate::flex::{Flex, parse_flex};
 use crate::reader::{child, flag, float, int, items, reference, text};
 use crate::style::{Entry, inline_entries};
+use crate::text::TextSpec;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Dim {
@@ -96,10 +98,13 @@ pub(crate) struct Widget {
     pub(crate) other_layout: Option<String>,
     pub(crate) grow: f32,
     pub(crate) order: i32,
+    pub(crate) layer: i32,
     pub(crate) rotated: bool,
     pub(crate) canvas: Option<Guid>,
     pub(crate) canvas_dangling: bool,
     pub(crate) shape: ShapeStyle,
+    pub(crate) text: Option<TextSpec>,
+    pub(crate) params: ParamValues,
     pub(crate) assets: WidgetAssets,
 }
 
@@ -208,10 +213,13 @@ impl Widget {
             order: child(structure, "layoutItemCommon")
                 .and_then(|common| int(common, "order"))
                 .unwrap_or(0),
+            layer: int(structure, "layer").unwrap_or(0),
             rotated: rotated(structure),
             canvas: reference(structure, "canvas").map(p4kx_dataforge::Reference::guid),
             canvas_dangling: matches!(structure.field("canvas"), Some(Value::Error(_))),
             shape: ShapeStyle::parse(structure),
+            text: TextSpec::parse(structure),
+            params: param_values(structure),
             assets: WidgetAssets::scan(structure),
         }
     }

@@ -3850,6 +3850,7 @@ dependencies = [
  "p4kx-extraction",
  "p4kx-gfx",
  "p4kx-testkit",
+ "png",
  "serde",
  "thiserror 2.0.21",
 ]

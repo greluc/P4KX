@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_text_schema::text_structs;
 use crate::{DataForgeBuilder, TestStruct, TestType};
 
 /// The colour slots of the synthetic `BuildingBlocks` styles, in the order their palettes list
@@ -34,6 +35,7 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(style_structs())
         .chain(condition_structs())
         .chain(component_structs())
+        .chain(text_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
 
@@ -134,7 +136,26 @@ fn widget_kinds() -> Vec<TestStruct> {
             .field("canvas", reference("BuildingBlocks_Canvas")),
         TestStruct::new("BuildingBlocks_WidgetText")
             .parent("BuildingBlocks_DisplayWidget")
-            .field("locString", TestType::Locale),
+            .field("locString", TestType::Locale)
+            .field("fontStyle", reference("BuildingBlocks_FontStyle"))
+            .field("fontSize", TestType::Single)
+            .field("autoFontSize", TestType::Bool)
+            .field("color", pointer("BuildingBlocks_Color"))
+            .field("letterSpacing", TestType::Single)
+            .field("lineSpacing", TestType::Single)
+            .field("textAlignment", TestType::String)
+            .field("verticalAlignment", TestType::String)
+            .field("wordWrap", TestType::Bool)
+            .field("caseModifier", TestType::String)
+            .field("kerning", TestType::Bool),
+        TestStruct::new("BuildingBlocks_WidgetTextField")
+            .parent("BuildingBlocks_DisplayWidget")
+            .field(
+                "labelProperties",
+                class("BuildingBlocks_ComponentLabelProperties"),
+            )
+            .field("textAlignment", TestType::String)
+            .field("verticalTextAlignment", TestType::String),
         TestStruct::new("BuildingBlocks_WidgetImage")
             .parent("BuildingBlocks_DisplayWidget")
             .field("imagePath", TestType::String),
@@ -218,15 +239,18 @@ fn condition_structs() -> Vec<TestStruct> {
             ),
         TestStruct::new("BuildingBlocks_StyleSelectorConditionCount")
             .parent("BuildingBlocks_StyleSelectorCondition"),
-        TestStruct::new("BuildingBlocks_FieldModifier").field("field", TestType::String),
+        TestStruct::new("BuildingBlocks_FieldModifier"),
         TestStruct::new("BuildingBlocks_FieldModifierColor")
             .parent("BuildingBlocks_FieldModifier")
-            .field("value", pointer("BuildingBlocks_Color")),
+            .field("field", TestType::String)
+            .field("color", pointer("BuildingBlocks_Color")),
         TestStruct::new("BuildingBlocks_FieldModifierBoolean")
             .parent("BuildingBlocks_FieldModifier")
+            .field("field", TestType::String)
             .field("value", TestType::Bool),
         TestStruct::new("BuildingBlocks_FieldModifierNumber")
             .parent("BuildingBlocks_FieldModifier")
+            .field("field", TestType::String)
             .field("value", TestType::Single),
     ]
 }

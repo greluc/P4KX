@@ -254,8 +254,9 @@ written even when parts are skipped; an Archive key that is missing or wrong exi
 and writes nothing, an `--out` that is the Archive with code 2.
 
 With `--interior` the report also has `interior`, an object with `containers` (the top-level
-socpak containers of the Entity that were opened, not the containers nested in them), `parts`, `model_parts` and `modelled_parts` (as for
-`p4kx interior glb`; the models of the containers are not counted in the Entity's `parts`), and
+socpak containers of the Entity that were opened, not the containers nested in them), `parts`,
+`model_parts` (props included), `modelled_parts` and `lights` (as for
+`p4kx interior glb`, the lights being written with `KHR_lights_punctual`; the models of the containers are not counted in the Entity's `parts`), and
 `issues` lists what the containers could not resolve, with the kinds of `p4kx interior glb` plus
 `container_missing` for a container the Entity's Record names and the Archive lacks,
 `helper_not_found` for its bone the hull lacks, `offset_differs` for an offset that disagrees with
@@ -305,24 +306,31 @@ exits with code 7.
 
 ```json
 {"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\RSI\\Mantis\\base_int_body_main.socpak"],
- "out": "…", "lod": 0, "parts": 20, "containers_opened": 1, "model_parts": 15,
- "modelled_parts": 15, "nodes": 35, "meshes": 15, "primitives": 96, "materials": 22,
- "default_material_ids": 0, "hidden_primitives": 11, "lod_fallbacks": 0, "shared_meshes": 0,
- "shared_materials": 74, "shared_textures": 0, "vertices": 154546, "triangles": 143253,
- "bytes": 8940016, "skipped": 0, "issues": [Issue, …]}
+ "out": "…", "lod": 0, "parts": 87, "containers_opened": 1, "model_parts": 36,
+ "modelled_parts": 36, "props": 21, "lights": 46, "nodes": 205, "meshes": 37, "primitives": 158,
+ "materials": 32, "default_material_ids": 0, "hidden_primitives": 12, "lod_fallbacks": 0,
+ "shared_meshes": 8, "shared_materials": 118, "shared_textures": 0, "vertices": 170632,
+ "triangles": 159528, "bytes": 9931796, "skipped": 1, "issues": [Issue, …]}
 ```
 
 `containers` are the Entry paths of the chain as for `p4kx socpak list`, with the same exit codes
 (an Entry the Archive lacks is 2, a container that cannot be opened 3). `parts` counts the root
-container, the `.soc` files, the nested containers and the placed models; `containers_opened` the
-containers that were opened, the root included; `model_parts` the placed models and
-`modelled_parts` those whose model was read. The other counts are those of `entity glb`. An
+container, the `.soc` files, the nested containers, the placed models, the props and the lights;
+`containers_opened` the containers that were opened, the root included; `model_parts` the placed
+models and props, `modelled_parts` those whose model was read, `props` the props among the model
+parts and `lights` the lights written with `KHR_lights_punctual`; their intensity is the raw
+engine value and their colour an approximation, not a conversion to photometric units
+([ADR-0087](adr/0087-an-interior-places-the-props-and-lights-of-its-soc-entities.md)). The other
+counts are those of `entity glb`. An
 **Issue** has the fields of the `entity glb` Issue: `path` is the names of the containers from the
 root joined by `/`, `name` the container, `.soc` file or model, and the kinds are
 `container_missing`, `container_unreadable`, `container_cycle` (the container is nested in
 itself and not entered again), `file_missing`, `file_unreadable`, `invalid_placement`,
-`objects_left_out`, `unsupported_objects`, `geometry_missing`, `geometry_unreadable`,
-`material_library`, `too_many_parts`, `too_many_containers`, `too_many_vertices` and `too_deep`
+`objects_left_out`, `unsupported_objects`, `entities_left_out` (props or lights without a usable
+placement), `light_unsupported` (ambient, planar or unknown lights, which glTF cannot express; the
+`name` is the `.soc` file and the message gives the type and count), `geometry_missing`,
+`geometry_unreadable`, `material_library`, `too_many_parts`, `too_many_containers`,
+`too_many_vertices` and `too_deep`
 ([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.
 

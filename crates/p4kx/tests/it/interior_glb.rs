@@ -6,7 +6,9 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use p4kx_testkit::{ArchiveBuilder, INTERIOR_ROOT, check_glb, interior_entries};
+use p4kx_testkit::{
+    ArchiveBuilder, INTERIOR_ROOT, LIT_ROOM, check_glb, interior_entries, lit_room_entries,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -93,6 +95,48 @@ fn the_json_report_has_a_stable_shape() -> TestResult {
         shaped[key] = serde_json::Value::String(format!("<{key}>"));
     }
     insta::assert_snapshot!(serde_json::to_string_pretty(&shaped)?);
+    Ok(())
+}
+
+#[test]
+fn props_and_lights_are_counted_written_and_the_unsupported_lights_listed() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = dir.path().join("Data.p4k");
+    lit_room_entries()
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&archive)?;
+    let out = dir.path().join("lit.glb");
+
+    let json = glb(&archive, LIT_ROOM, &out, true)?;
+    let text = glb(&archive, LIT_ROOM, &out, false)?;
+
+    assert_eq!(json.code, Some(0), "{}", json.stderr);
+    let report: serde_json::Value = serde_json::from_str(&json.stdout)?;
+    assert_eq!(report["props"], 2);
+    assert_eq!(report["lights"], 5);
+    let kinds: Vec<&str> = report["issues"]
+        .as_array()
+        .ok_or("no issues")?
+        .iter()
+        .filter_map(|issue| issue["kind"].as_str())
+        .collect();
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == "light_unsupported")
+            .count(),
+        2,
+        "Ambient and Planar: {kinds:?}"
+    );
+    let glb = check_glb(&std::fs::read(&out)?)?;
+    assert_eq!(glb.document.lights().map_or(0, Iterator::count), 5);
+    assert!(text.stdout.contains("5 lights"), "{}", text.stdout);
+    assert!(
+        text.stdout.contains("cannot be written as glTF lights"),
+        "{}",
+        text.stdout
+    );
     Ok(())
 }
 

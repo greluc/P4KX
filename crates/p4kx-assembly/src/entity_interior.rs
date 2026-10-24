@@ -72,31 +72,32 @@ impl EntityInterior {
         &self.issues
     }
 
+    fn total(&self, count: fn(&Interior) -> usize) -> usize {
+        self.containers.iter().map(|c| count(&c.interior)).sum()
+    }
+
     /// Returns the number of parts of all containers.
     #[must_use]
     pub fn parts(&self) -> usize {
-        self.containers
-            .iter()
-            .map(|container| container.interior.parts().len())
-            .sum()
+        self.total(|interior| interior.parts().len())
     }
 
-    /// Returns the number of model parts of all containers, readable or not.
+    /// Returns the number of lights of all containers.
+    #[must_use]
+    pub fn lights(&self) -> usize {
+        self.total(Interior::lights)
+    }
+
+    /// Returns the number of model parts of all containers, props included, readable or not.
     #[must_use]
     pub fn model_parts(&self) -> usize {
-        self.containers
-            .iter()
-            .map(|container| container.interior.model_parts())
-            .sum()
+        self.total(Interior::model_parts)
     }
 
     /// Returns the number of parts of all containers that have a model.
     #[must_use]
     pub fn modelled_parts(&self) -> usize {
-        self.containers
-            .iter()
-            .map(|container| container.interior.modelled_parts())
-            .sum()
+        self.total(Interior::modelled_parts)
     }
 
     /// Builds the Interior of the Entity `tree` of `assembly`, whose root part carries the model

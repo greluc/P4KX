@@ -5,13 +5,14 @@ use std::io::Write;
 use std::sync::Arc;
 
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, Scene, SceneNode, ScenePart, write_scene_glb};
-use p4kx_model::{Lod, MaterialStatus, Model, Transform};
+use p4kx_model::{Lod, MaterialStatus, Model, SocLight, Transform};
 
 use crate::Issue;
 
 mod build;
 mod files;
 mod layers;
+mod light;
 mod models;
 mod scan;
 mod walk;
@@ -96,6 +97,10 @@ pub enum InteriorPartKind {
     Stream,
     /// A model a `.soc` file places.
     Model,
+    /// A prop: an entity of a `.soc` file that names geometry of its own.
+    Prop,
+    /// A light of a `.soc` file that glTF can express: point, spot or directional.
+    Light,
 }
 
 impl InteriorPartKind {
@@ -106,7 +111,15 @@ impl InteriorPartKind {
             Self::Container => "container",
             Self::Stream => "stream",
             Self::Model => "model",
+            Self::Prop => "prop",
+            Self::Light => "light",
         }
+    }
+
+    /// Returns whether a part of this kind is drawn with a model of its own.
+    #[must_use]
+    pub const fn has_model(self) -> bool {
+        matches!(self, Self::Model | Self::Prop)
     }
 }
 
@@ -121,9 +134,17 @@ pub struct InteriorPart {
     pub(crate) model_path: Option<String>,
     pub(crate) model: Option<Arc<Model>>,
     pub(crate) materials: Arc<MaterialStatus>,
+    pub(crate) light: Option<SocLight>,
 }
 
 impl InteriorPart {
+    /// Returns the light of a [`Light`](InteriorPartKind::Light) part as the `.soc` file states
+    /// it.
+    #[must_use]
+    pub const fn light(&self) -> Option<&SocLight> {
+        self.light.as_ref()
+    }
+
     /// Returns the part's name: the container's name, the `.soc` file's name without extension or
     /// the model file's name without extension.
     #[must_use]
@@ -180,8 +201,9 @@ impl InteriorPart {
 
 /// The rooms of an Entity, or a container on its own, as a scene graph of placed models.
 ///
-/// It holds the models of a socpak container's `.soc` files and of the containers nested in it,
-/// each at its transform composed with those of the containers around it.
+/// It holds the models, props and lights of a socpak container's `.soc` files and of the
+/// containers nested in it, each at its transform composed with those of the containers around
+/// it.
 ///
 /// Built by [`Interior::build`]. Models and material libraries are read once per file and shared
 /// by the parts that use them.
@@ -239,13 +261,30 @@ impl Interior {
         total
     }
 
-    /// Returns the number of model parts, readable or not.
+    /// Returns the number of parts with a model of their own, placed models and props, readable
+    /// or not.
     #[must_use]
     pub fn model_parts(&self) -> usize {
         self.parts
             .iter()
-            .filter(|part| part.kind == InteriorPartKind::Model)
+            .filter(|part| part.kind.has_model())
             .count()
+    }
+
+    /// Returns the number of props, readable or not.
+    #[must_use]
+    pub fn props(&self) -> usize {
+        self.count(InteriorPartKind::Prop)
+    }
+
+    /// Returns the number of lights.
+    #[must_use]
+    pub fn lights(&self) -> usize {
+        self.count(InteriorPartKind::Light)
+    }
+
+    fn count(&self, kind: InteriorPartKind) -> usize {
+        self.parts.iter().filter(|part| part.kind == kind).count()
     }
 
     /// Returns the number of parts that have a model.
@@ -277,6 +316,9 @@ impl Interior {
             let mut node = SceneNode::new(part.name.clone(), above, local);
             if let Some(model) = &part.model {
                 node = node.with_part(ScenePart::new(model, &part.materials));
+            }
+            if let Some(light) = part.light.as_ref().and_then(light::scene_light) {
+                node = node.with_light(light);
             }
             nodes.push(scene.push(node)?);
         }

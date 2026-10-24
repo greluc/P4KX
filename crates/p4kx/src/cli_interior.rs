@@ -27,9 +27,11 @@ pub(crate) struct InteriorArgs {
 #[derive(Debug, Subcommand)]
 pub(crate) enum InteriorAction {
     /// Writes the Interior of a socpak container as one glTF 2.0 binary file (GLB): a node for
-    /// the container, one below it for each `.soc` file it streams with a node per placed model
-    /// at its transform, and one for each container nested in it at its position and rotation,
-    /// recursively. Y up, in metres. Containers nested in themselves are not entered again;
+    /// the container, one below it for each `.soc` file it streams with a node per placed model,
+    /// prop (an entity with geometry of its own) and light at its transform, and one for each
+    /// container nested in it at its position and rotation, recursively. Point, spot and
+    /// directional lights are written with the glTF lights extension; ambient and planar lights are
+    /// skipped and listed. Y up, in metres. Containers nested in themselves are not entered again;
     /// containers, files and models that cannot be resolved are skipped and listed. Models are
     /// looked for inside the container first, then in the Archive. Reads every model once, in
     /// parallel.

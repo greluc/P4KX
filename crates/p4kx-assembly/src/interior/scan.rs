@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_extraction::{Archive, PathKeys};
-use p4kx_model::{ChildContainer, IncludedObjects, ObjectContainer, ObjectContainerError};
+use p4kx_model::{ChildContainer, IncludedObjects, ObjectContainer, SocEntities, SocEntitiesError};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::files::{FileFailure, find_first, is_plain, path_key, read_file};
@@ -11,6 +11,7 @@ use crate::{AssemblyError, IssueKind};
 pub(super) struct StreamScan {
     pub(super) name: String,
     pub(super) objects: Option<IncludedObjects>,
+    pub(super) entities: Option<SocEntities>,
 }
 
 pub(super) struct Scan {
@@ -78,6 +79,7 @@ fn read_stream(
     let mut stream = StreamScan {
         name: name.to_owned(),
         objects: None,
+        entities: None,
     };
     let Some(entry) = is_plain(name).then(|| index.find(name)).flatten() else {
         let file = name.to_owned();
@@ -94,23 +96,27 @@ fn read_stream(
             };
             (stream, vec![issue], None)
         }
-        Ok(bytes) => match IncludedObjects::read(&bytes) {
-            Ok(objects) => {
-                stream.objects = objects;
-                (stream, Vec::new(), None)
+        Ok(bytes) => {
+            let mut issues = Vec::new();
+            let unreadable = |reason: String| IssueKind::FileUnreadable {
+                file: entry.path().to_owned(),
+                reason,
+            };
+            match IncludedObjects::read(&bytes) {
+                Ok(objects) => stream.objects = objects,
+                Err(error) => issues.push(unreadable(error.to_string())),
             }
-            Err(error) => {
-                let issue = IssueKind::FileUnreadable {
-                    file: entry.path().to_owned(),
-                    reason: error.to_string(),
-                };
-                (stream, vec![issue], None)
+            match SocEntities::read(&bytes) {
+                Ok(entities) => stream.entities = entities,
+                Err(SocEntitiesError::Chunks(_)) if !issues.is_empty() => {}
+                Err(error) => issues.push(unreadable(describe(&error))),
             }
-        },
+            (stream, issues, None)
+        }
     }
 }
 
-fn describe(error: &ObjectContainerError) -> String {
+fn describe(error: &dyn std::error::Error) -> String {
     let mut text = error.to_string();
     let mut cause = std::error::Error::source(error);
     while let Some(next) = cause {

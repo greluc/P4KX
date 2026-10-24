@@ -1,0 +1,14 @@
+schema_version = "1.0.0"
+id = "p4kx_importer"
+version = "0.3.0"
+name = "P4KX Package Importer"
+tagline = "Import P4KX Blender packages"
+maintainer = "P4KX contributors"
+type = "add-on"
+website = "https://github.com/greluc/P4KX"
+tags = ["Import-Export"]
+blender_version_min = "5.2.0"
+license = ["SPDX:MIT", "SPDX:Apache-2.0"]
+
+[permissions]
+files = "Read the package folder you choose to import"

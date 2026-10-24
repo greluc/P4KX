@@ -5,3 +5,5 @@
 *.iml
 .vscode/
 .claude/settings.local.json
+__pycache__/
+.pytest_cache/

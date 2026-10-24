@@ -16,6 +16,9 @@
 //! cycle, is kept in the tree as [`Attachment::Unresolved`] with a [`LoadoutError`]; the rest of
 //! the Loadout still resolves.
 //!
+//! [`EntityCatalogue`] lists every Entity once, with its [`EntityKind`] and [`ItemFacts`], for
+//! pickers; [`EntityCatalogue::compatible`] narrows it to what a port takes.
+//!
 //! [`LoadoutResolver::resolve_with`] applies [`LoadoutChanges`] while it resolves: ports left out
 //! and Entities attached instead, each checked against the port's [`PortConstraints`] with the
 //! [`ItemFacts`] of the Entity, reported as [`ChangeError`]s.
@@ -25,6 +28,9 @@
 //! [`ArchiveModels`], placed at its port's helper in the parent's model, with the material
 //! library the Entity chooses; [`Assembly::write_glb`] exports it as one GLB with a node per part
 //! named `<port>/<entity>`. Parts that cannot be resolved are listed as [`Issue`]s.
+//! [`Assembly::build_with_palettes`] also resolves the tint palette of each part
+//! ([`ForgePalettes`] reads the `TintPaletteTree` Records), which the GLB draws the materials with
+//! that take one; [`Assembly::write_glb_with`] embeds the textures of the materials.
 //!
 //! An Entity whose Record names a vehicle implementation (`VehicleComponentParams`) gets it with
 //! the Modification it selects applied, as [`EntityNode::vehicle`]: the parts with their item
@@ -42,7 +48,8 @@
 //! [`BodyVariant`]: the variant's skeleton and default body skin, constant paths, and per piece
 //! the geometry its Record names for the variant's tag ([`Wearable`]), skinned to the body's
 //! skeleton by bone name; [`Armour::write_glb`] exports it as one skinned GLB. A piece that cannot
-//! be fitted is an [`Issue`].
+//! be fitted is an [`Issue`]. [`LoadoutResolver::worn`] takes the pieces from a resolved Loadout
+//! tree, and [`Piece::layer`] puts pieces given by hand on top of them.
 //!
 //! [`Head::from_character`] makes the head of a CHF [`character::Character`]: the head skin of its
 //! rig, shaped by the Character's face DNA ([`Piece::shaped`]) and worn on the body of the rig's
@@ -52,6 +59,8 @@ mod armour;
 mod assembly;
 pub mod audio;
 mod build;
+mod build_palettes;
+mod catalogue;
 mod changes;
 mod compat;
 mod entities;
@@ -59,11 +68,14 @@ mod error;
 mod files;
 mod flatten;
 mod geometry;
+mod interior;
 mod issue;
 mod markup;
 mod merge;
 mod node;
+mod palette;
 mod placement;
+mod plan;
 mod port;
 mod provider;
 mod read;
@@ -75,20 +87,27 @@ mod walk;
 mod xml;
 
 pub use armour::{
-    Armour, ArmourPart, BodyVariant, Head, HeadError, MAX_DNA_RIG_LEN, PartOrigin, Piece, Wearable,
+    Armour, ArmourPart, BodyVariant, Head, HeadError, MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced,
+    Wearable, is_worn_type,
 };
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
     Placement,
 };
-pub use changes::{ChangeError, LoadoutChanges};
+pub use catalogue::{EntityCatalogue, EntityKind, EntitySummary};
+pub use changes::{ChangeError, LoadoutChanges, PortChange};
 pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
-pub use geometry::{Geometry, GeometryVariant};
+pub use geometry::{Geometry, GeometryVariant, PaletteRef};
+pub use interior::{
+    Interior, InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS,
+    MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
+};
 pub use issue::{Issue, IssueKind};
 pub use p4kx_character as character;
+pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
 pub use port::{PortDefinition, PortTransform, PortType};
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
@@ -98,7 +117,7 @@ pub use vehicle::{
     UnreadableValue, ValueOrigin, VehicleImplementation, VehicleItemPort, VehiclePart,
     VehicleTotals,
 };
-pub use xml::MAX_XML_INCLUDE_DEPTH;
+pub use xml::{MAX_XML_INCLUDE_DEPTH, MAX_XML_INCLUDES};
 
 /// The deepest element nesting of a vehicle implementation or patch file that is read; deeper
 /// files are refused.

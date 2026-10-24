@@ -16,6 +16,7 @@ name = "p4kx-gui"
 path = "src/main.rs"
 
 [dependencies]
+p4kx-assembly.workspace = true
 p4kx-channels.workspace = true
 p4kx-comparison.workspace = true
 p4kx-export.workspace = true

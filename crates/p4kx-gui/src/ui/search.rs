@@ -90,8 +90,8 @@ pub(super) fn field_response(
             top: 0,
             bottom: 0,
         }))
-        .min_size(vec2(SEARCH_WIDTH, TOUCH_TARGET))
-        .desired_width(ui.available_width().max(SEARCH_WIDTH))
+        .min_size(vec2(SEARCH_WIDTH.min(ui.available_width()), TOUCH_TARGET))
+        .desired_width(ui.available_width())
         .align(egui::Align2::LEFT_CENTER);
     let response = ui.add(edit).labelled_by(label);
     field::paint_frame(ui, frame, response.rect, response.has_focus());

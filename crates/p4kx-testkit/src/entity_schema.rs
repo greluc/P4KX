@@ -3,7 +3,7 @@
 
 use crate::entity_cargo::cargo_structs;
 use crate::entity_vehicle::vehicle_structs;
-use crate::{DataForgeBuilder, TestInstance, TestStruct, TestType, TestValue};
+use crate::{DataForgeBuilder, TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
 /// Adds the structs of Entities, their default Loadouts and their item ports to `builder`.
 ///
@@ -46,10 +46,76 @@ fn geometry_structs() -> Vec<TestStruct> {
             .array("SubGeometry", class("SGeometryNodeParams")),
         TestStruct::new("SGeometryDataParams")
             .field("Geometry", class("GlobalResourceGeometry"))
-            .field("Material", class("GlobalResourceMaterial")),
+            .field("Material", class("GlobalResourceMaterial"))
+            .field("Palette", class("TintPaletteRef")),
         TestStruct::new("GlobalResourceGeometry").field("path", TestType::String),
         TestStruct::new("GlobalResourceMaterial").field("path", TestType::String),
+        TestStruct::new("TintPaletteRef")
+            .field("ChildPath", TestType::String)
+            .field(
+                "RootRecord",
+                TestType::ReferenceTo("TintPaletteTree".to_owned()),
+            ),
+        TestStruct::new("TintPaletteTree").field("root", class("TintPalette")),
+        TestStruct::new("TintPalette")
+            .field("name", TestType::String)
+            .field("entryA", class("TintEntry"))
+            .field("entryB", class("TintEntry"))
+            .field("entryC", class("TintEntry"))
+            .field("glassColor", class("SRGB8")),
+        TestStruct::new("TintEntry")
+            .field("glossiness", TestType::UInt8)
+            .field("tintColor", class("SRGB8"))
+            .field("specColor", class("SRGB8")),
+        TestStruct::new("SRGB8")
+            .field("r", TestType::UInt8)
+            .field("g", TestType::UInt8)
+            .field("b", TestType::UInt8),
     ]
+}
+
+/// Returns the Record of type `TintPaletteTree` named `name`.
+///
+/// The entries A to C have the sRGB bytes `tints` as tint colour and `glossiness`, the glass has
+/// the sRGB bytes `glass`, and the specular colour of every entry is (59, 59, 59). Its record path is `libs/foundry/records/tintpalettes/brand/test/<name>`; the database needs
+/// [`entity_schema`].
+#[must_use]
+pub fn tint_palette_record(
+    guid: u128,
+    name: &str,
+    tints: [[u8; 3]; 3],
+    glass: [u8; 3],
+    glossiness: [u8; 3],
+) -> TestRecord {
+    let colour = |[r, g, b]: [u8; 3]| {
+        TestValue::Struct(
+            TestInstance::new("SRGB8")
+                .value("r", TestValue::UInt8(r))
+                .value("g", TestValue::UInt8(g))
+                .value("b", TestValue::UInt8(b)),
+        )
+    };
+    let entry = |tint: [u8; 3], glossiness: u8| {
+        TestValue::Struct(
+            TestInstance::new("TintEntry")
+                .value("glossiness", TestValue::UInt8(glossiness))
+                .value("tintColor", colour(tint))
+                .value("specColor", colour([59; 3])),
+        )
+    };
+    let root = TestInstance::new("TintPalette")
+        .value("name", TestValue::text(name))
+        .value("entryA", entry(tints[0], glossiness[0]))
+        .value("entryB", entry(tints[1], glossiness[1]))
+        .value("entryC", entry(tints[2], glossiness[2]))
+        .value("glassColor", colour(glass));
+    TestRecord::new(
+        guid,
+        "TintPaletteTree",
+        format!("TintPaletteTree.{name}"),
+        format!("libs/foundry/records/tintpalettes/brand/test/{name}.xml"),
+    )
+    .value("root", TestValue::Struct(root))
 }
 
 fn pointer(name: &str) -> TestType {

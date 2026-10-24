@@ -7,11 +7,12 @@ use std::sync::Arc;
 use p4kx_model::{Lod, MaterialStatus, Model, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+use crate::build_palettes::Palettes;
 use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelFailure,
-    ModelProvider, Part, Placement, PortNode, PortTransform,
+    ModelProvider, PaletteProvider, Part, Placement, PortNode, PortTransform,
 };
 
 /// The most distinct model files read at once before the vertex budget is checked again.
@@ -52,6 +53,34 @@ impl Assembly {
         models: &dyn ModelProvider,
         options: &AssemblyOptions,
     ) -> Result<Self, AssemblyError> {
+        Self::build_inner(tree, models, None, options)
+    }
+
+    /// Builds the Assembly like [`Self::build`] and resolves the tint palette of each part with
+    /// `palettes`: the one its Entity's geometry names, else the default of its material
+    /// library. Each distinct palette is read once and shared by the parts that use it.
+    ///
+    /// A palette that cannot be resolved is an [`Issue`] of the first part that names it; the
+    /// part falls back to the library's default palette, or keeps the colours of its library.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build`].
+    pub fn build_with_palettes(
+        tree: &EntityNode,
+        models: &dyn ModelProvider,
+        palettes: &dyn PaletteProvider,
+        options: &AssemblyOptions,
+    ) -> Result<Self, AssemblyError> {
+        Self::build_inner(tree, models, Some(palettes), options)
+    }
+
+    fn build_inner(
+        tree: &EntityNode,
+        models: &dyn ModelProvider,
+        palettes: Option<&dyn PaletteProvider>,
+        options: &AssemblyOptions,
+    ) -> Result<Self, AssemblyError> {
         let flat = flatten(tree, options.max_parts);
         let mut issues = flat.issues;
         let drafts = flat.drafts;
@@ -60,6 +89,7 @@ impl Assembly {
         let libraries = read_libraries(&drafts, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
         let mut reported = HashSet::new();
+        let mut palettes = Palettes::new(palettes);
         let mut parts: Vec<Part> = Vec::with_capacity(drafts.len());
         for (draft, model) in drafts.iter().zip(&chosen) {
             let key = model.and_then(|loaded| library_key(draft, loaded));
@@ -72,6 +102,13 @@ impl Assembly {
             {
                 issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
             }
+            let palette = if model.is_some() {
+                let (palette, unresolved) = palettes.of(draft.node.geometry(), &materials);
+                issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
+                palette
+            } else {
+                None
+            };
             let (local, placement) = place(draft, &parts, *model, &mut issues);
             let world = draft
                 .parent
@@ -89,6 +126,7 @@ impl Assembly {
                 geometry: draft.node.geometry().map(|g| g.path().to_owned()),
                 model: model.map(|loaded| Arc::clone(&loaded.model)),
                 materials,
+                palette,
             });
         }
         Ok(Self {
@@ -243,17 +281,20 @@ fn library_name<'a>(draft: &'a Draft<'_>, loaded: &'a Loaded) -> Option<&'a str>
 /// Returns the key under which a part's library is cached: a bare name is relative to the
 /// model's folder, any other name is the same for every model.
 fn library_key(draft: &Draft<'_>, loaded: &Loaded) -> Option<String> {
-    let name = library_name(draft, loaded)?;
+    Some(library_key_of(library_name(draft, loaded)?, &loaded.entry))
+}
+
+/// Returns the key under which the library `name` of the model at `entry` is cached.
+pub(crate) fn library_key_of(name: &str, entry: &str) -> String {
     let key = file_key(name);
     let key = key.strip_suffix(".mtl").unwrap_or(&key).to_owned();
     if key.contains('\\') {
-        Some(key)
+        key
     } else {
-        let folder = loaded
-            .entry
+        let folder = entry
             .rsplit_once(['\\', '/'])
             .map_or("", |(folder, _)| folder);
-        Some(format!("{}\\{key}", folder.to_ascii_lowercase()))
+        format!("{}\\{key}", folder.to_ascii_lowercase())
     }
 }
 

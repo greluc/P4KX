@@ -331,3 +331,51 @@ fn a_huge_xml_loadout_merges_its_includes_in_linear_time() -> TestResult {
     );
     Ok(())
 }
+
+struct Counting {
+    files: Files,
+    reads: std::sync::atomic::AtomicUsize,
+}
+
+impl LoadoutFiles for Counting {
+    fn read(&self, path: &str) -> Result<Vec<u8>, LoadoutFileError> {
+        self.reads
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.files.read(path)
+    }
+}
+
+#[test]
+fn includes_are_read_once_and_their_number_is_capped() -> TestResult {
+    let builder = database(TestLoadout::Xml("Scripts/Loadouts/Door.xml".to_owned()));
+    let mut loadouts = TestElement::new("Loadouts");
+    for number in 0..(2 * p4kx_assembly::MAX_XML_INCLUDES) {
+        for _ in 0..2 {
+            loadouts = loadouts.child(
+                TestElement::new("Loadout").attribute("loadout", format!("Missing/{number}.xml")),
+            );
+        }
+    }
+    let door = TestElement::new("Loadout").child(loadouts);
+    let counting = Counting {
+        files: files(&[("scripts/loadouts/door.xml", cryxml(&door))]),
+        reads: std::sync::atomic::AtomicUsize::new(0),
+    };
+    let bytes = builder.build();
+    let forge = DataForge::open(&bytes)?;
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&counting);
+    let record = resolver.entities().find("Door")?;
+    let tree = resolver.resolve(&record)?;
+
+    let reads = counting.reads.load(std::sync::atomic::Ordering::Relaxed);
+    assert_eq!(reads, p4kx_assembly::MAX_XML_INCLUDES, "files read");
+    assert_eq!(
+        tree.issues().len(),
+        p4kx_assembly::MAX_XML_INCLUDES,
+        "{} missing includes and the one left out",
+        p4kx_assembly::MAX_XML_INCLUDES - 1
+    );
+    let last = tree.issues().last().ok_or("an issue")?.to_string();
+    assert!(last.contains("left out"), "{last}");
+    Ok(())
+}

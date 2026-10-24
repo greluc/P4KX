@@ -623,6 +623,120 @@ tags-count-shown =
 tags-no-match = No tag path matches the search.
 tags-copy-path = Copy tag path
 tags-copy-guid = Copy GUID
+sounds-tab = Sounds
+sounds-entity-label = Entity
+sounds-entity-hint = Class name, GUID or record path of an Entity
+sounds-show = Show sounds
+sounds-use-record = Use selected Record
+sounds-search-label = Search
+sounds-search-hint = Trigger or event name, * and ? allowed
+sounds-export = Export sounds…
+sounds-empty-title = No Archive open
+sounds-empty-hint = Open an Archive to browse the sounds of its Entities.
+sounds-loading = Reading the audio of the Archive…
+sounds-failed = The audio of the Archive cannot be read: { $reason }
+sounds-stopped = Reading the audio stopped without a result.
+sounds-archive-changed = The Archive changed on disk. Reload it to read its audio.
+sounds-issues =
+    { $count ->
+        [one] { $number } audio file could not be read; the triggers and sounds in it are missing.
+       *[other] { $number } audio files could not be read; the triggers and sounds in them are missing.
+    }
+sounds-list-hint = Show an Entity, or search for a trigger or event, to list audio triggers.
+sounds-list-loading = Listing the audio triggers…
+sounds-not-an-entity = The selected Record is no Entity.
+sounds-list-failed = The audio triggers cannot be listed: { $reason }
+sounds-list-archive-changed = The Archive changed on disk. Reload it to list the audio triggers.
+sounds-no-match = No trigger or event name matches the search.
+sounds-no-triggers = The Entity names no audio trigger.
+sounds-column-trigger = Trigger
+sounds-column-state = Status
+sounds-column-events = Wwise events
+sounds-state-ok = Resolved
+sounds-state-no-definition = No definition
+sounds-state-no-event = No event
+sounds-state-no-soundbank = No soundbank
+sounds-count-entity =
+    { $count ->
+        [one] { $name }: { $number } audio trigger, { $resolved } with a soundbank
+       *[other] { $name }: { $number } audio triggers, { $resolved } with a soundbank
+    }
+sounds-count-search =
+    { $count ->
+        [one] { $number } trigger
+       *[other] { $number } triggers
+    }
+sounds-count-search-more = The first { $number } of { $total } triggers are shown. Make the text longer to narrow the search.
+sounds-scroll-triggers = Audio triggers
+sounds-scroll-variants = Sounds of the trigger
+sounds-select-hint = Select a trigger to see its sounds.
+sounds-variants-loading = Resolving the sounds…
+sounds-undefined = No ATL definition has this trigger.
+sounds-no-variants = The trigger leads to no sound.
+sounds-variants-count =
+    { $count ->
+        [one] { $name }: { $number } sound
+       *[other] { $name }: { $number } sounds
+    }
+sounds-breaks-heading =
+    { $count ->
+        [one] { $number } place where the way to a sound breaks
+       *[other] { $number } places where the way to a sound breaks
+    }
+sounds-break-line = { $name }: { $reason }
+sounds-break-line-in = { $name } in { $bank }: { $reason }
+sounds-column-event = Wwise event
+sounds-column-wem = WEM ID
+sounds-column-source = Source
+sounds-column-language = Language
+sounds-column-soundbank = Soundbank
+sounds-source-embedded = Embedded
+sounds-source-prefetch = Prefetched
+sounds-source-streamed = Streamed
+sounds-source-plugin = Plug-in
+sounds-source-other = Other
+sounds-language-fallback = { $language } (fallback)
+sounds-variant-row = { $name }: { $bank }, WEM { $id }
+sounds-detail = { $path }, WEM { $id }, { $source }
+sounds-select-variant = Select a sound to play it.
+sounds-note-prefetch = Only the start of this streamed sound is embedded and its loose WEM Entry is missing, so it cannot be played.
+sounds-note-plugin = A source plug-in generates this sound; no WEM holds it.
+sounds-note-missing = No soundbank or loose WEM Entry holds this WEM.
+sounds-export-title = Export sounds
+sounds-export-scope = Triggers
+sounds-export-selected = The selected trigger: { $name }
+sounds-export-selected-none = The selected trigger (none selected)
+sounds-export-all =
+    { $count ->
+        [one] The { $number } trigger of the list with a soundbank
+       *[other] All { $number } triggers of the list with a soundbank
+    }
+sounds-export-format = Sounds as
+sounds-export-start = Export
+sounds-export-running = Exporting sounds
+sounds-export-planning = Planning the export…
+sounds-export-progress = { $done } of { $total } sounds, { $percent } %
+sounds-summary-title = Sounds exported
+sounds-summary-cancelled-title = Sound export stopped
+sounds-failed-title = Sound export failed
+sounds-export-failed = The sounds cannot be exported into { $path }: { $reason }
+sounds-export-stopped = Exporting the sounds into { $path } stopped without a result.
+sounds-summary-cancelled = The export was stopped. The sounds not yet handled are not written.
+sounds-summary-counts = Sounds written { $written }, kept { $skipped }, failed { $failed }
+sounds-summary-target = Target: { $path }
+sounds-summary-unconverted =
+    { $count ->
+        [one] { $number } sound was written unchanged because it cannot be converted
+       *[other] { $number } sounds were written unchanged because they cannot be converted
+    }
+sounds-summary-failed =
+    { $count ->
+        [one] { $number } sound was not exported
+       *[other] { $number } sounds were not exported
+    }
+sounds-summary-file = { $name }: { $reason }
+sounds-summary-failure = { $name }, WEM { $id }: { $reason }
+sounds-summary-failure-plain = { $name }: { $reason }
 tags-irregular =
     { $count ->
         [one] The tag tree differs from what the TagDatabase lists in { $number } place. The command p4kx dcb tags counts it.
@@ -872,3 +986,108 @@ content-search-column-key = Key
 content-search-column-entry = Entry
 content-search-column-line = Line
 content-search-row = { $place }: { $text }
+entities-tab = Entities
+entities-label = Search
+entities-hint = Class name or record path, e.g. AEGS_Gladius
+entities-empty-title = No Archive open
+entities-empty-hint = Open an Archive to pick a ship, vehicle or weapon.
+entities-loading = Listing the Entities…
+entities-none = The DataForge of the Archive holds no ships, vehicles or weapons.
+entities-failed = The Entities cannot be listed: { $reason }
+entities-stopped = Listing the Entities stopped without a result.
+entities-archive-changed = The Archive changed on disk. Reload it to list the Entities.
+entities-filter-all = All
+entities-filter-ships = Ships
+entities-filter-vehicles = Vehicles
+entities-filter-weapons = Weapons
+entities-count =
+    { $count ->
+        [one] { $number } Entity
+       *[other] { $number } Entities
+    }
+entities-count-shown = { $number } of { $total } Entities
+entities-no-match = No Entity matches the search.
+entities-loadout-heading = Loadout
+entities-loadout-none = Select an Entity to see its Loadout.
+entities-loadout-resolving = Resolving the Loadout…
+entities-loadout-failed = The Loadout cannot be resolved: { $reason }
+entities-loadout-stopped = Resolving the Loadout stopped without a result.
+entities-loadout-archive-changed = The Archive changed on disk. Reload it to resolve the Loadout.
+entities-loadout-no-ports = This Entity has no ports.
+entities-changes = { $excluded } left out, { $replaced } replaced
+entities-no-changes = The default Loadout
+entities-reset = Reset changes
+entities-export = Export as GLB…
+entities-include = Include { $port }
+entities-replace = Replace…
+entities-restore = Restore
+entities-status-excluded = Left out
+entities-status-replaced = Replaced
+entities-status-docked = Docked vehicle
+entities-status-empty = Empty
+entities-status-unresolved = Unresolved
+entities-expand-port = Expand { $name }
+entities-collapse-port = Collapse { $name }
+entities-replace-title = Replace { $port }
+entities-replace-takes = The port takes { $types }, { $single ->
+    [yes] size
+   *[other] sizes
+  } { $sizes }.
+entities-replace-takes-types = The port takes { $types }.
+entities-replace-takes-sizes = The port takes { $single ->
+    [yes] size
+   *[other] sizes
+  } { $sizes }.
+entities-replace-takes-any = The port takes any Entity.
+entities-replace-hint = Class name or record path
+entities-replace-count = { $number } of { $total } Entities that fit
+entities-replace-none = No Entity fits the port and the search.
+entities-facts-sized = { $type }, size { $size }
+entities-facts = { $type }
+entities-facts-none = No item type
+assembly-export-title = Export Entity as GLB
+assembly-export-entity = Entity: { $name }
+assembly-export-changes = Loadout: { $excluded } left out, { $replaced } replaced
+assembly-export-changes-none = Loadout: the default one
+assembly-export-lod-heading = Level of detail
+assembly-export-lod = LOD { $level }
+assembly-export-materials-heading = Materials
+assembly-export-materials-colours = Plain colours, a small and quick file
+assembly-export-materials-textures = With textures, a larger file
+assembly-export-texture-mip-heading = Texture size
+assembly-export-texture-mip = { $level ->
+    [0] Full size
+   *[other] 1/{ $divisor }
+  }
+assembly-export-vertex-colours = Write the vertex colours
+assembly-export-file-heading = File
+assembly-export-choose-file = Choose file…
+assembly-export-file-none = No file chosen
+assembly-export-file-filter = glTF binary files
+assembly-export-start = Export
+assembly-export-running-title = Exporting Entity
+assembly-export-resolving = Resolving the Loadout of { $name }…
+assembly-export-reading = Reading the models of { $name }…
+assembly-export-writing = Writing the file, { $size } so far…
+assembly-export-summary-title = Entity exported
+assembly-export-summary-cancelled-title = Export cancelled
+assembly-export-summary-cancelled = The export was cancelled. No file was written.
+assembly-export-summary-file = Written to { $path }
+assembly-export-summary-counts = Parts { $parts } ({ $modelled } with a model), nodes { $nodes }, meshes { $meshes }, materials { $materials }, vertices { $vertices }, triangles { $triangles }, size { $size }
+assembly-export-summary-images = { $images ->
+    [0] No textures are written; every material has its plain colour.
+    [one] One texture is written for { $textured } of { $materials } materials.
+   *[other] { $images } textures are written for { $textured } of { $materials } materials.
+  }
+assembly-export-summary-fallbacks ={ $count ->
+    [one] One model lacks the chosen level of detail and is written at the nearest lower one.
+   *[other] { $number } models lack the chosen level of detail and are written at the nearest lower one.
+  }
+assembly-export-summary-hidden = { $count ->
+    [one] One submesh was left out because its material draws nothing.
+   *[other] { $number } submeshes were left out because their material draws nothing.
+  }
+assembly-export-report-heading = Parts that could not be resolved in full ({ $number })
+assembly-export-report-all = Every part was resolved.
+assembly-export-report-skipped = Left out: { $path } ({ $name }): { $reason }
+assembly-export-report-note = Note: { $path } ({ $name }): { $reason }

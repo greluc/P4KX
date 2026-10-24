@@ -88,10 +88,7 @@ pub(crate) struct EntitySpec {
 impl EntitySpec {
     /// Reads the ports and the default Loadout from the components of an Entity's tree.
     pub(crate) fn read(tree: &RecordTree<'_>) -> Self {
-        let components: Vec<&StructValue<'_>> = match tree.field("Components") {
-            Some(Value::Array(items)) => items.iter().filter_map(as_struct).collect(),
-            _ => Vec::new(),
-        };
+        let components = components_of(tree);
         let loadout = components
             .iter()
             .find(|component| component.type_name() == DEFAULT_LOADOUT)
@@ -174,6 +171,32 @@ impl EntitySpec {
             collect_targets(entries, &mut targets);
         }
         targets
+    }
+}
+
+fn components_of<'v, 'f>(tree: &'v RecordTree<'f>) -> Vec<&'v StructValue<'f>> {
+    match tree.field("Components") {
+        Some(Value::Array(items)) => items.iter().filter_map(as_struct).collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Reads what an Entity Record offers a port, with its class name taken from `name`.
+pub(crate) fn read_item_facts(tree: &RecordTree<'_>) -> ItemFacts {
+    let components = components_of(tree);
+    let definition = attach_def(&components);
+    let name = tree.name();
+    ItemFacts {
+        class_name: crate::entities::class_name_of(name)
+            .unwrap_or(name)
+            .to_owned(),
+        item_type: definition
+            .map_or("", |definition| text(definition, "Type"))
+            .to_owned(),
+        sub_type: definition
+            .map_or("", |definition| text(definition, "SubType"))
+            .to_owned(),
+        size: definition.and_then(|definition| unsigned(definition, "Size")),
     }
 }
 

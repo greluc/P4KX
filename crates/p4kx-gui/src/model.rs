@@ -11,6 +11,7 @@ use p4kx_settings::{ExtractionAudio, ExtractionTextures, RecentArchives};
 
 mod archive_change;
 mod archive_key;
+mod assembly_export_control;
 mod audio_control;
 mod catalog_control;
 mod content_navigation;
@@ -19,12 +20,14 @@ mod game_watch;
 mod model_export_control;
 mod record_export_control;
 mod record_text;
+mod sounds_control;
 mod update;
 mod viewer_control;
 mod work_tab;
 
 use archive_key::KeyState;
 pub use archive_key::{KeyDialog, KeyProblem, KeyReason};
+use assembly_export_control::AssemblyState;
 use catalog_control::CatalogState;
 use content_navigation::PendingHit;
 pub use game_watch::GAME_CHECK_INTERVAL;
@@ -37,7 +40,7 @@ pub use work_tab::WorkTab;
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, ContentSearchTab, DeviceOutput, EntryIndex,
     Extraction, ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice,
-    TagsTab, Texts, ViewerSupport,
+    SoundsTab, TagsTab, Texts, ViewerSupport,
 };
 
 /// Why an Archive could not be opened.
@@ -86,10 +89,12 @@ pub struct Model {
     query: QueryTab,
     localization: LocalizationTab,
     tags: TagsTab,
+    sounds: SoundsTab,
     content_search: ContentSearchTab,
     pending_hit: Option<PendingHit>,
     record_export: RecordExportState,
     glb_export: ModelExportState,
+    assembly: AssemblyState,
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
     viewer_support: ViewerSupport,
@@ -121,6 +126,7 @@ impl std::fmt::Debug for Model {
             .field("query", &self.query)
             .field("localization", &self.localization)
             .field("tags", &self.tags)
+            .field("sounds", &self.sounds)
             .field("content_search", &self.content_search)
             .field("record_export", &self.record_export)
             .field("glb_export", &self.glb_export)
@@ -161,10 +167,12 @@ impl Model {
             query: QueryTab::default(),
             localization: LocalizationTab::default(),
             tags: TagsTab::default(),
+            sounds: SoundsTab::default(),
             content_search: ContentSearchTab::default(),
             pending_hit: None,
             record_export: RecordExportState::default(),
             glb_export: ModelExportState::default(),
+            assembly: AssemblyState::default(),
             catalog: CatalogState::default(),
             record_text_choice: None,
             viewer_support: ViewerSupport::default(),
@@ -267,6 +275,8 @@ impl Model {
                 self.query.archive_opened();
                 self.localization.archive_opened();
                 self.tags.archive_opened();
+                self.assembly.tab.archive_opened();
+                self.sounds.archive_opened();
                 self.content_search.archive_opened();
                 self.pending_hit = None;
             }

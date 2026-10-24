@@ -6,6 +6,7 @@ use unic_langid::LanguageIdentifier;
 
 mod about_text;
 mod archive_key_text;
+mod assembly_export_text;
 mod audio_text;
 mod catalog_text;
 mod change_extraction_text;
@@ -14,6 +15,7 @@ mod container_text;
 mod content_search_text;
 mod dataforge_text;
 mod diff_text;
+mod entity_text;
 mod extraction_text;
 mod group_text;
 mod image_text;
@@ -29,12 +31,14 @@ mod record_language_text;
 mod record_text;
 mod schema_text;
 mod scroll_text;
+mod sounds_text;
 mod tags_text;
 mod text_ids;
 mod xml_text;
 
 pub use about_text::AboutText;
 pub use archive_key_text::ArchiveKeyText;
+pub use assembly_export_text::AssemblyExportText;
 pub use audio_text::AudioText;
 pub use catalog_text::CatalogText;
 pub use change_extraction_text::ChangeExtractionText;
@@ -43,6 +47,7 @@ pub use container_text::ContainerText;
 pub use content_search_text::ContentSearchText;
 pub use dataforge_text::{DataForgeText, RecordSearchText};
 pub use diff_text::DiffText;
+pub use entity_text::EntityText;
 pub use extraction_text::ExtractionText;
 pub use group_text::GroupText;
 pub use image_text::ImageText;
@@ -59,6 +64,7 @@ pub use record_language_text::RecordLanguageText;
 pub use record_text::RecordText;
 pub use schema_text::SchemaText;
 pub use scroll_text::ScrollText;
+pub use sounds_text::SoundsText;
 pub use tags_text::TagsText;
 pub use xml_text::XmlText;
 
@@ -246,6 +252,8 @@ pub enum Text {
     Localization(LocalizationText),
     /// A text of the Tags tab.
     Tags(TagsText),
+    /// A text of the Sounds tab.
+    Sounds(SoundsText),
     /// A text of the schema list of the Comparison tab.
     Schema(SchemaText),
     /// A text of the Search tab.
@@ -256,6 +264,10 @@ pub enum Text {
     ModelInfo(ModelInfoText),
     /// A text of the Export as GLB windows.
     ModelExport(ModelExportText),
+    /// A text of the Entities tab.
+    Entity(EntityText),
+    /// A text of the Export of an Entity as GLB windows.
+    AssemblyExport(AssemblyExportText),
     /// A text of the Archive key dialog.
     Key(ArchiveKeyText),
     /// A text of the About window.

@@ -5,7 +5,7 @@ use p4kx_cryxml::Xml;
 
 use crate::mtl::{MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS};
 use crate::mtl_xml::XmlElement;
-use crate::{Material, MaterialError, MaterialFlags, MaterialLibrary, TextureSlot};
+use crate::{Material, MaterialError, MaterialFlags, MaterialLibrary, PaletteSlot, TextureSlot};
 
 const DEFAULT_DIFFUSE: [f32; 3] = [1.0; 3];
 const DEFAULT_SPECULAR: [f32; 3] = [0.04; 3];
@@ -89,6 +89,31 @@ fn material<'a>(element: impl XmlElement<'a>) -> Result<Material, MaterialError>
         alpha_test: number("AlphaTest", 0.0),
         glow: number("Glow", 0.0),
         textures: textures(element)?,
+        palette: palette_slot(element),
+        tinted: false,
+    })
+}
+
+/// Returns the palette colour a material takes: that of its first layer with a `PaletteTint`
+/// from 1 to 3, else the glass colour of a glass shader whose mask names `USE_TINT_PALETTE`.
+fn palette_slot<'a>(element: impl XmlElement<'a>) -> Option<PaletteSlot> {
+    let layered = element
+        .children()
+        .filter(|child| child.name().eq_ignore_ascii_case("MatLayers"))
+        .flat_map(XmlElement::children)
+        .filter(|child| child.name().eq_ignore_ascii_case("Layer"))
+        .find_map(|layer| {
+            let number = layer.attribute("PaletteTint")?.trim().parse::<u32>().ok()?;
+            PaletteSlot::of_layer(number)
+        });
+    layered.or_else(|| {
+        let glass = element
+            .attribute("Shader")
+            .is_some_and(|shader| shader.eq_ignore_ascii_case("GlassPBR"));
+        let uses_palette = element
+            .attribute("StringGenMask")
+            .is_some_and(|mask| mask.to_ascii_uppercase().contains("USE_TINT_PALETTE"));
+        (glass && uses_palette).then_some(PaletteSlot::Glass)
     })
 }
 

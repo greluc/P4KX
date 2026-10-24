@@ -2,15 +2,15 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use egui::{
-    Color32, Context, CornerRadius, Frame, Id, LayerId, Margin, Modal, Painter, Pos2, Rect, Shape,
-    Stroke, Ui, Vec2, Window, pos2, vec2,
+    Color32, Context, CornerRadius, Frame, Id, LayerId, Margin, Modal, Painter, Pos2, Rect,
+    ScrollArea, Shape, Stroke, Ui, Vec2, Window, pos2, vec2,
 };
 
 use super::text::caps;
 use crate::theme::desktop::{
-    ACCENT_BAR, ALERT_DANGER_FILL, ALERT_WARNING_FILL, BRACKET, BRACKET_STROKE, BUTTON_XS_HEIGHT,
-    HEADER_PADDING_X, MODAL_TOP_EDGE, MODAL_WIDE_WIDTH, MODAL_WIDTH, NOTICE_PADDING_Y,
-    PREVIEW_PADDING_X, SCRIM, TITLE_SIZE, TITLE_TRACKING,
+    ACCENT_BAR, ALERT_DANGER_FILL, ALERT_WARNING_FILL, BRACKET, BRACKET_STROKE, BUTTON_HEIGHT,
+    BUTTON_XS_HEIGHT, HEADER_PADDING_X, MODAL_TOP_EDGE, MODAL_WIDE_WIDTH, MODAL_WIDTH,
+    NOTICE_PADDING_Y, PREVIEW_PADDING_X, SCRIM, TITLE_SIZE, TITLE_TRACKING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{
@@ -241,6 +241,32 @@ pub(crate) fn foot_action(ui: &mut Ui, label: &str, kind: super::button::Kind) -
         .inner
     })
     .inner
+}
+
+/// Returns the height the body of a modal can take below what `ui` holds so far, so that the foot
+/// of the modal stays inside the window: what is left of the window after the head, the foot
+/// and the space around the modal.
+pub(crate) fn modal_room(ui: &Ui) -> f32 {
+    let above = ui.cursor().top() - ui.min_rect().top();
+    let foot = SPACE_4 + SPACE_3 + BUTTON_HEIGHT;
+    4.0f32
+        .mul_add(-SPACE_4, ui.ctx().content_rect().height() - above - foot)
+        .max(BUTTON_HEIGHT)
+}
+
+/// Shows the body of a modal in a vertical scroll area that never grows taller than
+/// [`modal_room`], so that the head and the foot stay in view in a small window.
+pub(crate) fn scrolling_body<R>(
+    ui: &mut Ui,
+    salt: &'static str,
+    body: impl FnOnce(&mut Ui) -> R,
+) -> R {
+    ScrollArea::vertical()
+        .id_salt(salt)
+        .max_height(modal_room(ui))
+        .auto_shrink([false, true])
+        .show(ui, body)
+        .inner
 }
 
 /// Returns a `.modal` on the flat scrim.

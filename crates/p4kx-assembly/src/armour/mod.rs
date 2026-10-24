@@ -7,6 +7,7 @@
 mod body;
 mod build;
 mod head;
+mod loadout;
 mod normals;
 mod piece;
 mod shape;
@@ -20,6 +21,7 @@ use p4kx_model::{MaterialStatus, Model};
 
 pub use body::BodyVariant;
 pub use head::{Head, HeadError};
+pub use loadout::{Replaced, is_worn_type};
 pub use piece::Piece;
 pub use shape::MAX_DNA_RIG_LEN;
 pub use wearable::Wearable;

@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::{
-    AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
-    ContainerText, ContentSearchText, DataForgeText, DiffText, ExtractionText, GroupText,
-    ImageText, IncomingText, LocalizationText, ModelExportText, ModelInfoText, ModelText,
-    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordText, SchemaText,
-    ScrollText, TagsText, Text, XmlText,
+    AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
+    ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText, EntityText,
+    ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, ModelExportText,
+    ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
+    RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, XmlText,
 };
 use crate::Language;
 
@@ -108,10 +108,13 @@ impl Text {
             .chain(RecordLanguageText::ALL.map(Self::RecordLanguage))
             .chain(LocalizationText::ALL.map(Self::Localization))
             .chain(TagsText::ALL.map(Self::Tags))
+            .chain(SoundsText::ALL.map(Self::Sounds))
             .chain(ContentSearchText::ALL.map(Self::ContentSearch))
             .chain(ModelText::ALL.map(Self::Model))
             .chain(ModelInfoText::ALL.map(Self::ModelInfo))
             .chain(ModelExportText::ALL.map(Self::ModelExport))
+            .chain(EntityText::ALL.map(Self::Entity))
+            .chain(AssemblyExportText::ALL.map(Self::AssemblyExport))
             .chain(ArchiveKeyText::ALL.map(Self::Key))
             .chain(AboutText::ALL.map(Self::About))
     }
@@ -210,10 +213,13 @@ impl Text {
             Self::RecordLanguage(text) => text.id(),
             Self::Localization(text) => text.id(),
             Self::Tags(text) => text.id(),
+            Self::Sounds(text) => text.id(),
             Self::ContentSearch(text) => text.id(),
             Self::Model(text) => text.id(),
             Self::ModelInfo(text) => text.id(),
             Self::ModelExport(text) => text.id(),
+            Self::Entity(text) => text.id(),
+            Self::AssemblyExport(text) => text.id(),
             Self::Key(text) => text.id(),
             Self::About(text) => text.id(),
         }

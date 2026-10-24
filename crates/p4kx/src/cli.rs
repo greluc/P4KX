@@ -13,6 +13,7 @@ pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfGlbArgs};
 use crate::cli_chunks::ChunksArgs;
+pub(crate) use crate::cli_conflict::Conflict;
 pub(crate) use crate::cli_coverage::CoverageArgs;
 pub(crate) use crate::cli_cryxml::CryXmlArgs;
 pub(crate) use crate::cli_dcb::{
@@ -116,6 +117,9 @@ pub(crate) enum Command {
     /// item.
     #[command(after_help = EXIT_CODES_HELP)]
     Entity(EntityArgs),
+    /// Exports the Interior of a socpak container as GLB.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Interior(crate::cli_interior::InteriorArgs),
     /// Lists the body variants, or writes pieces of armour and clothing worn on a body as one
     /// skinned GLB.
     #[command(after_help = EXIT_CODES_HELP)]
@@ -385,15 +389,4 @@ pub(crate) enum AudioOutput {
     Wav,
     /// The WEM bytes unchanged.
     Raw,
-}
-
-/// The values of `p4kx extract --conflict`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum Conflict {
-    /// Keep the existing file.
-    Skip,
-    /// Replace the existing file.
-    Overwrite,
-    /// Replace the existing file only when its size or CRC-32C differs from the new content.
-    IfChanged,
 }

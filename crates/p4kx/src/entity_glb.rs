@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, Issue, LoadoutChanges, LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, ForgePalettes, Issue, LoadoutChanges,
+    LoadoutResolver,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
@@ -34,10 +35,15 @@ struct GlbJson<'a> {
     lod: u32,
     parts: usize,
     modelled_parts: usize,
+    palettes: usize,
     nodes: usize,
     meshes: usize,
     primitives: usize,
     materials: usize,
+    textured_materials: usize,
+    textures: usize,
+    texture_pixels: u64,
+    texture_fallbacks: Vec<FallbackJson<'a>>,
     default_material_ids: usize,
     hidden_primitives: usize,
     lod_fallbacks: usize,
@@ -53,6 +59,14 @@ struct GlbJson<'a> {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     replaced: Vec<ReplacedJson<'a>>,
     issues: Vec<IssueJson<'a>>,
+}
+
+#[derive(Serialize)]
+struct FallbackJson<'a> {
+    material: &'a str,
+    role: &'static str,
+    file: &'a str,
+    reason: &'a str,
 }
 
 #[derive(Serialize)]
@@ -83,6 +97,10 @@ impl<'a> From<&'a Issue> for IssueJson<'a> {
 }
 
 /// Runs `p4kx entity glb`.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the JSON report is one literal that names every field"
+)]
 pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     if is_same_file(&args.out, &args.archive) {
         return Err(GlbOutputIsArchive(args.out.clone()).into());
@@ -99,8 +117,9 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     let tree = resolver.resolve_with(&record, &changes)?;
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
-    let assembly = Assembly::build(&tree, &models, &options)?;
-    let summary = write(&assembly, args)?;
+    let palettes = ForgePalettes::new(&forge);
+    let assembly = Assembly::build_with_palettes(&tree, &models, &palettes, &options)?;
+    let summary = write(&assembly, &models, args)?;
     if as_json {
         json::print(&GlbJson {
             archive: json::path(archive.path()),
@@ -110,10 +129,15 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
             lod: args.lod,
             parts: assembly.parts().len(),
             modelled_parts: assembly.modelled_parts(),
+            palettes: painted(&assembly),
             nodes: summary.nodes,
             meshes: summary.meshes,
             primitives: summary.primitives,
             materials: summary.materials,
+            textured_materials: summary.textured_materials,
+            textures: summary.textures,
+            texture_pixels: summary.texture_pixels,
+            texture_fallbacks: fallbacks_json(&summary),
             default_material_ids: summary.default_material_ids,
             hidden_primitives: summary.hidden_primitives,
             lod_fallbacks: summary.lod_fallbacks,
@@ -145,13 +169,40 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     }
 }
 
-fn write(assembly: &Assembly, args: &EntityGlbArgs) -> Result<GlbSummary> {
+fn painted(assembly: &Assembly) -> usize {
+    assembly
+        .parts()
+        .iter()
+        .filter(|part| part.palette().is_some())
+        .count()
+}
+
+fn fallbacks_json(summary: &GlbSummary) -> Vec<FallbackJson<'_>> {
+    summary
+        .texture_fallbacks
+        .iter()
+        .map(|fallback| FallbackJson {
+            material: &fallback.material,
+            role: fallback.role.name(),
+            file: &fallback.file,
+            reason: &fallback.reason,
+        })
+        .collect()
+}
+
+fn write(
+    assembly: &Assembly,
+    models: &ArchiveModels<'_>,
+    args: &EntityGlbArgs,
+) -> Result<GlbSummary> {
     let mode = match args.materials {
         EntityMaterialsArg::Colours => MaterialMode::Colours,
+        EntityMaterialsArg::Textures => MaterialMode::Textures,
     };
     let mut options = GlbOptions::default()
         .with_lod(args.lod)
-        .with_materials(mode);
+        .with_materials(mode)
+        .with_texture_mip(args.texture_mip);
     if args.no_vertex_colours {
         options = options.without_vertex_colours();
     }
@@ -159,9 +210,10 @@ fn write(assembly: &Assembly, args: &EntityGlbArgs) -> Result<GlbSummary> {
         .root()
         .map_or_else(String::new, |root| root.class_name().to_owned());
     let out: &Path = &args.out;
+    let textures = models.textures();
     Ok(write_replacing(out, |writer| {
         assembly
-            .write_glb(&options, writer)
+            .write_glb_with(&options, &textures, writer)
             .map_err(|error| match error {
                 GltfError::Write(source) => ConversionError::Write {
                     path: out.to_path_buf(),
@@ -178,6 +230,27 @@ fn print_changes(out: &mut impl Write, changes: &LoadoutChanges) -> io::Result<(
     }
     for (port, entity) in changes.replacements() {
         writeln!(out, "replaced {} by {}", one_line(port), one_line(entity))?;
+    }
+    Ok(())
+}
+
+fn print_textures(out: &mut impl Write, summary: &GlbSummary) -> io::Result<()> {
+    if summary.textures > 0 || !summary.texture_fallbacks.is_empty() {
+        writeln!(
+            out,
+            "embedded {} images of {} pixels in {} of {} materials",
+            summary.textures, summary.texture_pixels, summary.textured_materials, summary.materials
+        )?;
+    }
+    for fallback in &summary.texture_fallbacks {
+        writeln!(
+            out,
+            "no {} texture {} for material {}: {}; the plain colour is used",
+            fallback.role,
+            one_line(&fallback.file),
+            one_line(&fallback.material),
+            one_line(&fallback.reason)
+        )?;
     }
     Ok(())
 }
@@ -206,6 +279,11 @@ fn print_report(
         summary.bytes
     )?;
     print_changes(&mut stdout, changes)?;
+    let painted = painted(assembly);
+    if painted > 0 {
+        writeln!(stdout, "{painted} parts drawn with a tint palette")?;
+    }
+    print_textures(&mut stdout, summary)?;
     if summary.lod_fallbacks > 0 {
         writeln!(
             stdout,

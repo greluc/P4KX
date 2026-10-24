@@ -69,6 +69,13 @@ pub enum IssueKind {
         /// What is wrong.
         reason: String,
     },
+    /// A tint palette the Entity or its material library names cannot be resolved, so the part
+    /// falls back to the next palette or to the colours of its library.
+    #[error("{reason}")]
+    Palette {
+        /// What is wrong.
+        reason: String,
+    },
     /// The port's helper is no node of the parent's model, so the part sits at the parent's
     /// origin.
     #[error("the helper {helper} is no node of the parent's model")]
@@ -95,6 +102,13 @@ pub enum IssueKind {
     ContainerCycle {
         /// The name the description gives.
         name: String,
+    },
+    /// An Interior holds [`MAX_INTERIOR_CONTAINERS`](crate::MAX_INTERIOR_CONTAINERS) containers,
+    /// so further nested containers are left out.
+    #[error("the Interior reached {limit} containers; further containers are left out")]
+    TooManyContainers {
+        /// The limit.
+        limit: usize,
     },
     /// A file a container names does not exist, so what it holds is left out.
     #[error("the file {file} does not exist")]
@@ -135,7 +149,7 @@ pub enum IssueKind {
     },
     /// The Assembly holds [`MAX_ASSEMBLY_PARTS`](crate::MAX_ASSEMBLY_PARTS) parts, so further
     /// parts are left out.
-    #[error("the Assembly reached {limit} parts; further parts are left out")]
+    #[error("the Assembly or Interior reached {limit} parts; further parts are left out")]
     TooManyParts {
         /// The limit.
         limit: usize,
@@ -192,6 +206,7 @@ impl IssueKind {
             Self::GeometryMissing { .. } => "geometry_missing",
             Self::GeometryUnreadable { .. } => "geometry_unreadable",
             Self::MaterialLibrary { .. } => "material_library",
+            Self::Palette { .. } => "palette",
             Self::HelperNotFound { .. } => "helper_not_found",
             Self::TooManyParts { .. } => "too_many_parts",
             Self::TooManyVertices { .. } => "too_many_vertices",
@@ -199,6 +214,7 @@ impl IssueKind {
             Self::ContainerMissing { .. } => "container_missing",
             Self::ContainerUnreadable { .. } => "container_unreadable",
             Self::ContainerCycle { .. } => "container_cycle",
+            Self::TooManyContainers { .. } => "too_many_containers",
             Self::FileMissing { .. } => "file_missing",
             Self::FileUnreadable { .. } => "file_unreadable",
             Self::InvalidPlacement { .. } => "invalid_placement",
@@ -226,6 +242,7 @@ impl IssueKind {
                 | Self::ContainerMissing { .. }
                 | Self::ContainerUnreadable { .. }
                 | Self::ContainerCycle { .. }
+                | Self::TooManyContainers { .. }
                 | Self::FileMissing { .. }
                 | Self::FileUnreadable { .. }
                 | Self::InvalidPlacement { .. }

@@ -25,7 +25,7 @@ pub(crate) struct Instance<'m> {
     pub(crate) lod: Option<&'m Lod>,
     pub(crate) wrapper: Option<usize>,
     pub(crate) plan: MaterialPlan<'m>,
-    /// The earlier instance of the same model, level and material library whose meshes this one
+    /// The earlier instance of the same model, level, material library and palette whose meshes this one
     /// reuses; such an instance plans no blocks and no materials of its own.
     pub(crate) twin: Option<usize>,
 }
@@ -59,7 +59,7 @@ pub(crate) fn materials(
                 let index = if let Some(&index) = pushed.get(&slot) {
                     index
                 } else {
-                    let built = built_material(instance, slot, textures, image_textures);
+                    let built = built_material(instance, (part, slot), textures, image_textures);
                     let index = if instances.len() > 1 {
                         push_shared(root, &mut shared, built)
                     } else {
@@ -100,13 +100,13 @@ pub(crate) fn material_requests(layout: &Layout<'_>, instances: &[Instance<'_>])
 
 fn built_material(
     instance: &Instance<'_>,
-    slot: Slot,
+    (part, slot): (usize, Slot),
     textures: &TextureSet,
     image_textures: &[Index<json::Texture>],
 ) -> json::Material {
     let texture = |image: usize| image_textures.get(image).copied();
     let material = instance.plan.material(slot);
-    let images = textures.of(slot);
+    let images = textures.of(part, slot);
     let drawn_with = MaterialTextures {
         base: images
             .base

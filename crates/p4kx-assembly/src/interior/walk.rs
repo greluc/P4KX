@@ -74,7 +74,6 @@ pub(super) fn walk<'a>(
         parts: Vec::new(),
         placements: Vec::new(),
         issues: Vec::new(),
-        containers: 0,
         full: false,
         max_parts: options.max_parts,
     };
@@ -99,7 +98,6 @@ pub(super) fn walk<'a>(
         depth: 0,
     }];
     while let Some(todo) = stack.pop() {
-        walker.containers += 1;
         let scan = walker.scan(&todo);
         if let Some(error) = scan.fatal {
             return Err(error);
@@ -118,19 +116,19 @@ struct Walker<'a> {
     parts: Vec<InteriorPart>,
     placements: Vec<Placement>,
     issues: Vec<Issue>,
-    containers: usize,
     full: bool,
     max_parts: usize,
 }
 
 impl<'a> Walker<'a> {
     fn finish(self) -> Walked<'a> {
+        let containers = self.layers.opened.len() + 1;
         Walked {
             parts: self.parts,
             placements: self.placements,
             issues: self.issues,
             layers: self.layers,
-            containers: self.containers,
+            containers,
         }
     }
 
@@ -272,16 +270,9 @@ impl<'a> Walker<'a> {
                 );
                 continue;
             }
-            if self.containers + nested.len() >= MAX_INTERIOR_CONTAINERS {
-                let reason = format!("more than {MAX_INTERIOR_CONTAINERS} containers");
-                self.note(
-                    &todo.path,
-                    &name,
-                    IssueKind::ContainerUnreadable {
-                        name: name.clone(),
-                        reason,
-                    },
-                );
+            if self.layers.opened.len() + 1 >= MAX_INTERIOR_CONTAINERS {
+                let limit = MAX_INTERIOR_CONTAINERS;
+                self.note(&todo.path, &name, IssueKind::TooManyContainers { limit });
                 continue;
             }
             if !self.room(todo) {

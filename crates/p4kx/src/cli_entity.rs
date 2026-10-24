@@ -15,6 +15,8 @@ use crate::exit::EXIT_CODES_HELP;
 pub(crate) enum EntityMaterialsArg {
     /// Plain colours without textures.
     Colours,
+    /// The plain colours with the textures of the materials as embedded PNG images.
+    Textures,
 }
 
 /// The options that change the Loadout of `p4kx entity loadout` and `p4kx entity glb`.
@@ -100,10 +102,19 @@ pub(crate) struct EntityGlbArgs {
     #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
     pub(crate) lod: u32,
     /// How to write the materials. colours: one glTF material per distinct material, with base
-    /// colour, opacity, roughness, metalness and emissive colour and no textures. A material
-    /// library the Entity's Record names replaces the one its model names.
+    /// colour, opacity, roughness, metalness and emissive colour and no textures. textures: the
+    /// same with the diffuse, normal and specular maps of every part as PNG images, each image
+    /// once however many parts use it; a texture that cannot be read leaves the plain colour and
+    /// is listed. A material library the Entity's Record names replaces the one its model names.
+    /// The tint palette of each part (the one its Record names, else the default of its
+    /// material library) gives the colours of the materials that take one, in both modes; a
+    /// palette that cannot be resolved is listed.
     #[arg(long, value_enum, value_name = "MODE", default_value_t = EntityMaterialsArg::Colours)]
     pub(crate) materials: EntityMaterialsArg,
+    /// The mip level of the textures of every part with --materials textures: 0 is the largest,
+    /// each level halves the width and height; a texture with fewer mips gives its smallest.
+    #[arg(long, value_name = "N", default_value_t = 0)]
+    pub(crate) texture_mip: u32,
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,

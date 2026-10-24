@@ -21,6 +21,7 @@ mod cli_catalog;
 mod cli_channels;
 mod cli_chf;
 mod cli_chunks;
+mod cli_conflict;
 mod cli_coverage;
 mod cli_cryxml;
 mod cli_dcb;

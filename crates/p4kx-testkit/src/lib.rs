@@ -30,6 +30,7 @@ mod entity;
 mod entity_armour;
 mod entity_assembly;
 mod entity_cargo;
+mod entity_livery;
 mod entity_port;
 mod entity_sample;
 mod entity_schema;
@@ -90,9 +91,13 @@ pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry};
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
+pub use entity_livery::{
+    LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,
+    livery_entries,
+};
 pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
-pub use entity_schema::entity_schema;
+pub use entity_schema::{entity_schema, tint_palette_record};
 pub use entity_vehicle::landing_system_record;
 pub use frames::assert_steady_frames;
 pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};

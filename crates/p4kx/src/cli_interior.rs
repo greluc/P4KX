@@ -3,11 +3,17 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
-use crate::cli_entity::EntityMaterialsArg;
 use crate::cli_model::lod_range;
 use crate::exit::EXIT_CODES_HELP;
+
+/// The material modes of `p4kx interior glb --materials`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum InteriorMaterialsArg {
+    /// Plain colours without textures.
+    Colours,
+}
 
 /// Arguments of `p4kx interior`.
 #[derive(Debug, Args)]
@@ -49,8 +55,8 @@ pub(crate) struct InteriorGlbArgs {
     pub(crate) lod: u32,
     /// How to write the materials. colours: one glTF material per distinct material, with base
     /// colour, opacity, roughness, metalness and emissive colour and no textures.
-    #[arg(long, value_enum, value_name = "MODE", default_value_t = EntityMaterialsArg::Colours)]
-    pub(crate) materials: EntityMaterialsArg,
+    #[arg(long, value_enum, value_name = "MODE", default_value_t = InteriorMaterialsArg::Colours)]
+    pub(crate) materials: InteriorMaterialsArg,
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,

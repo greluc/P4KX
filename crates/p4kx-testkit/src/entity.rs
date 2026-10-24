@@ -24,6 +24,7 @@ pub struct TestEntity {
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
     geometry: Option<(String, Option<String>)>,
+    palette: Option<(u128, String)>,
     geometry_variants: Vec<GeometryVariant>,
     vehicle: Option<(String, String)>,
     landing_system: Option<u128>,
@@ -49,6 +50,7 @@ impl TestEntity {
             triggers: Vec::new(),
             sound_effects: Vec::new(),
             geometry: None,
+            palette: None,
             geometry_variants: Vec::new(),
             vehicle: None,
             landing_system: None,
@@ -113,6 +115,15 @@ impl TestEntity {
     #[must_use]
     pub fn geometry(mut self, path: impl Into<String>, material: Option<&str>) -> Self {
         self.geometry = Some((path.into(), material.map(str::to_owned)));
+        self
+    }
+
+    /// Makes the geometry name the tint palette Record `guid` (see
+    /// [`tint_palette_record`](crate::tint_palette_record)) and its child `child` (empty for the
+    /// root); needs [`Self::geometry`].
+    #[must_use]
+    pub fn palette(mut self, guid: u128, child: impl Into<String>) -> Self {
+        self.palette = Some((guid, child.into()));
         self
     }
 
@@ -210,6 +221,7 @@ impl TestEntity {
                 &path,
                 material.as_deref(),
                 &self.geometry_variants,
+                self.palette.as_ref(),
             ));
         }
         components.extend(self.vehicle.as_ref().map(|(definition, modification)| {

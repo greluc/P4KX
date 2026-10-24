@@ -14,6 +14,7 @@ mod interior;
 mod lods;
 mod material_library_lookup;
 mod materials;
+mod palettes;
 mod skeleton;
 mod skin_levels;
 mod structured;

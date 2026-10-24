@@ -154,7 +154,9 @@ fn read_chunk(data: &[u8]) -> Result<IncludedObjects, IncludedObjectsError> {
     let mut objects = Vec::new();
     let mut invalid = 0;
     let mut unsupported = None;
-    for record in table.chunks(OBJECT_LEN) {
+    let (records, rest) = table.as_chunks::<OBJECT_LEN>();
+    invalid += usize::from(!rest.is_empty());
+    for record in records {
         let kind = ByteReader::new(record).read_u32()?;
         if kind != MODEL_OBJECT {
             unsupported = Some(kind);

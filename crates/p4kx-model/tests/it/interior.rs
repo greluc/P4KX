@@ -206,3 +206,20 @@ fn a_quaternion_turns_and_moves() -> TestResult {
     assert!(Transform::from_quaternion([1.0, 0.0, 0.0, 0.0], [f64::NAN, 0.0, 0.0]).is_none());
     Ok(())
 }
+
+#[test]
+fn a_short_trailing_record_is_counted_not_an_error() -> TestResult {
+    let mut chunk = TestSoc::new()
+        .model("a.cgf")
+        .object(0, SOC_IDENTITY)
+        .chunk();
+    let at = chunk.len() - 208 - 4;
+    chunk[at..at + 4].copy_from_slice(&218_u32.to_le_bytes());
+    chunk.extend_from_slice(&[0; 10]);
+    let bytes = TestChunkFile::crch().chunk(0x0010, 1, chunk).bytes();
+
+    let objects = IncludedObjects::read(&bytes)?.ok_or("no chunk")?;
+
+    assert_eq!((objects.objects.len(), objects.invalid), (1, 1));
+    Ok(())
+}

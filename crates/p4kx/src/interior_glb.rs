@@ -13,8 +13,7 @@ use p4kx_extraction::{
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli_entity::EntityMaterialsArg;
-use crate::cli_interior::InteriorGlbArgs;
+use crate::cli_interior::{InteriorGlbArgs, InteriorMaterialsArg};
 use crate::entity_glb::IssueJson;
 use crate::json;
 use crate::query_table::one_line;
@@ -123,7 +122,7 @@ pub(crate) fn run(args: &InteriorGlbArgs, as_json: bool) -> Result<()> {
 
 fn write(interior: &Interior, args: &InteriorGlbArgs, entry: &str) -> Result<GlbSummary> {
     let mode = match args.materials {
-        EntityMaterialsArg::Colours => MaterialMode::Colours,
+        InteriorMaterialsArg::Colours => MaterialMode::Colours,
     };
     let mut options = GlbOptions::default()
         .with_lod(args.lod)

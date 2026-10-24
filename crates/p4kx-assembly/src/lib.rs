@@ -25,6 +25,9 @@
 //! [`ArchiveModels`], placed at its port's helper in the parent's model, with the material
 //! library the Entity chooses; [`Assembly::write_glb`] exports it as one GLB with a node per part
 //! named `<port>/<entity>`. Parts that cannot be resolved are listed as [`Issue`]s.
+//! [`Assembly::build_with_palettes`] also resolves the tint palette of each part
+//! ([`ForgePalettes`] reads the `TintPaletteTree` Records), which the GLB draws the materials with
+//! that take one; [`Assembly::write_glb_with`] embeds the textures of the materials.
 //!
 //! An Entity whose Record names a vehicle implementation (`VehicleComponentParams`) gets it with
 //! the Modification it selects applied, as [`EntityNode::vehicle`]: the parts with their item
@@ -48,6 +51,7 @@ mod armour;
 mod assembly;
 pub mod audio;
 mod build;
+mod build_palettes;
 mod changes;
 mod compat;
 mod entities;
@@ -60,6 +64,7 @@ mod issue;
 mod markup;
 mod merge;
 mod node;
+mod palette;
 mod placement;
 mod port;
 mod provider;
@@ -81,13 +86,14 @@ pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
-pub use geometry::{Geometry, GeometryVariant};
+pub use geometry::{Geometry, GeometryVariant, PaletteRef};
 pub use interior::{
     Interior, InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS,
     MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
 };
 pub use issue::{Issue, IssueKind};
 pub use p4kx_character as character;
+pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
 pub use port::{PortDefinition, PortTransform, PortType};
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;

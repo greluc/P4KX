@@ -7,7 +7,8 @@
 use std::path::Path;
 
 use p4kx_assembly::{
-    Interior, InteriorOptions, InteriorPart, InteriorPartKind, Issue, IssueKind, MAX_INTERIOR_DEPTH,
+    Interior, InteriorOptions, InteriorPart, InteriorPartKind, Issue, IssueKind,
+    MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH,
 };
 use p4kx_extraction::{Archive, select_entries};
 use p4kx_gltf::GlbOptions;
@@ -347,5 +348,32 @@ fn an_unreadable_container_is_an_issue_of_its_name() -> TestResult {
     let issues = issue(&interior, "container_unreadable");
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].name(), "broken");
+    Ok(())
+}
+
+#[test]
+fn a_wide_fan_out_of_containers_stops_at_the_limit() -> TestResult {
+    let mut description = TestObjectContainer::new("ship");
+    for _ in 0..MAX_INTERIOR_CONTAINERS + 50 {
+        description = description.child(
+            "ObjectContainers/chain/leaf",
+            [0.0; 3],
+            [1.0, 0.0, 0.0, 0.0],
+        );
+    }
+    let root =
+        TestContainer::new().entry(TestEntry::stored("ship_interior.xml", description.xml()));
+    let fixture = fixture(vec![
+        TestEntry::stored(INTERIOR_ROOT, root.build()),
+        TestEntry::stored(
+            r"Data\ObjectContainers\chain\leaf.socpak",
+            chain_container("leaf", None).build(),
+        ),
+    ])?;
+
+    let interior = build_in(&fixture.path, &InteriorOptions::default())?;
+
+    assert_eq!(interior.containers(), MAX_INTERIOR_CONTAINERS);
+    assert_eq!(issue(&interior, "too_many_containers").len(), 50);
     Ok(())
 }

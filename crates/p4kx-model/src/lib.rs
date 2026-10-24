@@ -50,6 +50,7 @@ mod mtl_parse;
 mod mtl_xml;
 mod nmc;
 mod object_container;
+mod palette;
 mod reader;
 mod skeleton;
 mod skin;
@@ -80,4 +81,5 @@ pub use object_container::{
     ChildContainer, MAX_CHILD_CONTAINERS, MAX_STREAMED_SOCS, MAX_STREAMING_DEPTH, ObjectContainer,
     ObjectContainerError,
 };
+pub use palette::{PaletteSlot, TintEntry, TintPalette, srgb8_to_linear};
 pub use transform::Transform;

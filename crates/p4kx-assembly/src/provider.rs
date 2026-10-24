@@ -4,7 +4,9 @@
 use std::error::Error;
 
 use p4kx_extraction::model::{LodSelection, MaterialStatus, Model, ModelError};
-use p4kx_extraction::{Archive, ConversionError, ModelSource, PathIndex, archive_error_in};
+use p4kx_extraction::{
+    Archive, ArchiveTextures, ConversionError, ModelSource, PathIndex, archive_error_in,
+};
 use thiserror::Error;
 
 /// A model a [`ModelProvider`] read and the Entry it was read from.
@@ -112,6 +114,13 @@ impl<'a> ArchiveModels<'a> {
     #[must_use]
     pub fn contains(&self, path: &str) -> bool {
         self.entry_of(path).is_some()
+    }
+
+    /// Returns a loader for the textures of the materials, reading the Entries the models come
+    /// from; it shares the index of the models.
+    #[must_use]
+    pub const fn textures(&self) -> ArchiveTextures<'_, 'a> {
+        ArchiveTextures::new(&self.index)
     }
 
     fn entry_of(&self, path: &str) -> Option<String> {

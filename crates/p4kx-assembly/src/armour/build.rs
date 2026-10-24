@@ -5,9 +5,11 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_character::Dna;
+use p4kx_gltf::MorphTarget;
 use p4kx_model::{BoneMatch, Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+use super::expressions::Expressions;
 use super::piece::Source;
 use super::shape::shaped;
 use super::wearable::Unfit;
@@ -29,6 +31,22 @@ struct Job {
     path: String,
     material: Option<String>,
     shape: Option<Dna>,
+    expressions: Expressions,
+}
+
+impl Job {
+    fn body(variant: BodyVariant) -> Self {
+        Self {
+            origin: PartOrigin::Body,
+            part: "body".to_owned(),
+            owner: String::new(),
+            label: "body".to_owned(),
+            path: variant.skin().to_owned(),
+            material: None,
+            shape: None,
+            expressions: Expressions::None,
+        }
+    }
 }
 
 struct Loaded {
@@ -68,15 +86,7 @@ impl Armour {
     ) -> Result<Self, AssemblyError> {
         let body = load_body(variant, models, options.lod)?;
         let mut issues = Vec::new();
-        let mut jobs = vec![Job {
-            origin: PartOrigin::Body,
-            part: "body".to_owned(),
-            owner: String::new(),
-            label: "body".to_owned(),
-            path: variant.skin().to_owned(),
-            material: None,
-            shape: None,
-        }];
+        let mut jobs = vec![Job::body(variant)];
         for piece in pieces {
             gather(piece, variant, &mut jobs, &mut issues);
         }
@@ -96,7 +106,7 @@ impl Armour {
         let mut parts = Vec::with_capacity(chosen.len());
         for (job, found) in jobs.iter().zip(&chosen) {
             let Some(found) = found else { continue };
-            let Some(model) = fitted(job, found, models, &mut issues) else {
+            let Some((model, morphs)) = fitted(job, found, models, &mut issues) else {
                 continue;
             };
             let key = library_key(job, found);
@@ -116,6 +126,7 @@ impl Armour {
                 file: job.path.clone(),
                 model,
                 materials,
+                morphs,
             });
         }
         Ok(Self {
@@ -145,24 +156,28 @@ fn piece_issue(piece: &Piece, kind: IssueKind) -> Issue {
     }
 }
 
-/// Returns the model of a job as it is worn: shaped by the job's DNA, if it has one; a model that
-/// cannot be shaped is listed and left out.
+/// Returns the model of a job as it is worn, shaped by the job's DNA if it has one, and its morph
+/// targets; a model that cannot be shaped is listed and left out, morph targets that cannot be
+/// made are listed.
 fn fitted(
     job: &Job,
     found: &Loaded,
     models: &dyn ModelProvider,
     issues: &mut Vec<Issue>,
-) -> Option<Arc<Model>> {
+) -> Option<(Arc<Model>, Vec<MorphTarget>)> {
     let Some(dna) = &job.shape else {
-        return Some(Arc::clone(&found.model));
+        return Some((Arc::clone(&found.model), Vec::new()));
     };
-    match shaped(&found.model, &job.path, dna, models) {
-        Ok(model) => Some(Arc::new(model)),
+    let shaped = match shaped(&found.model, &job.path, dna, &job.expressions, models) {
+        Ok(shaped) => shaped,
         Err(reason) => {
             issues.push(issue(job, IssueKind::ShapeFailed { reason }));
-            None
+            return None;
         }
-    }
+    };
+    let (model, targets, kinds) = shaped.into_parts();
+    issues.extend(kinds.into_iter().map(|kind| issue(job, kind)));
+    Some((Arc::new(model), targets))
 }
 
 fn provider_failure(path: &str, variant: BodyVariant, failure: ModelFailure) -> AssemblyError {
@@ -224,6 +239,7 @@ fn gather(piece: &Piece, variant: BodyVariant, jobs: &mut Vec<Job>, issues: &mut
         path: path.to_owned(),
         material: material.map(str::to_owned),
         shape: piece.shape.clone(),
+        expressions: piece.expressions.clone(),
     });
 }
 

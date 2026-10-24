@@ -380,7 +380,11 @@ Early development (milestone M1). Available today:
   GLB: the head skin of the character's head rig, its vertices moved by the character's face DNA
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by
   the DNA's blends: per face part up to the four strongest heads), worn on the default body of the
-  character's body variant. Hair, eyes, teeth and expressions are not part of it. `--lod N` picks
+  character's body variant. The head rig's expressions (about 400 of its 495 blendshapes, e.g.
+  `CTL_expressions blinkR`) are written as named morph targets of the head, mixed by the DNA so that
+  they move the character's own face and stored sparse; `--expression NAME` (repeatable) limits
+  them, `--no-expressions` leaves them out. Only LOD 0 has expressions. Hair, eyes and teeth are
+  not part of it. `--lod N` picks
   the level of detail of head and body, `--no-vertex-colours` leaves the vertex colours out. A head
   that cannot be shaped (its rig is missing, belongs to another rig or does not match the skin) is
   listed and left out of the GLB, which is still written, and the exit code is 1; a character
@@ -533,6 +537,16 @@ Requires the stable Rust toolchain (1.99 or newer).
 cargo build --release
 .\target\release\p4kx.exe list "C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k"
 ```
+
+## Blender add-on
+
+Every GitHub Release attaches `p4kx_importer-<version>.zip` next to the MSI and the portable ZIP.
+In Blender 5.2 LTS: Edit > Preferences > Get Extensions > Install from Disk, pick the ZIP, then
+import a [Blender package](docs/blender-package.md) with File > Import > P4KX Package
+(scene.json). The add-on version always equals the Release version: `cargo xtask` (part of CI)
+fails when `blender_addon/p4kx_importer/blender_manifest.toml` differs from the workspace
+version, so bump both together when preparing a Release. The ZIP is reproducible; see
+[blender_addon/README.md](blender_addon/README.md) to build it yourself.
 
 ## Development
 

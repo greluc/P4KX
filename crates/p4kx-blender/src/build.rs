@@ -5,12 +5,13 @@ use p4kx_assembly::Assembly;
 use p4kx_gltf::{DrawnMaterial, GlbOptions, GlbSummary, TextureFile, node_transform};
 
 use crate::PackageInfo;
-use crate::collect::Collected;
+use crate::collect::{Collected, id_of as material_id};
 use crate::manifest::{
     Basis, Coordinates, EntityRef, FORMAT_VERSION, Format, Generator, Issue, IssueOrigin,
     MESHES_FOLDER, Manifest, MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Source,
     TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };
+use crate::manifest_materials::{MaterialDescription, Palette, PaletteColours};
 use crate::plan::{MeshPlan, mesh_id};
 use crate::textures::{Outcome, id_of};
 
@@ -63,6 +64,8 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
         nodes: nodes(inputs),
         meshes: meshes(inputs),
         textures: textures(inputs),
+        materials: materials(inputs),
+        palettes: palettes(inputs),
         issues: issues(inputs),
     }
 }
@@ -99,6 +102,7 @@ fn meshes(inputs: &Inputs<'_>) -> Vec<Mesh> {
         .iter()
         .enumerate()
         .map(|(index, summary)| {
+            let mesh = index;
             let first = inputs
                 .plan
                 .first(index)
@@ -113,6 +117,13 @@ fn meshes(inputs: &Inputs<'_>) -> Vec<Mesh> {
                 palette: first
                     .and_then(p4kx_assembly::Part::palette)
                     .map(|palette| palette.name.clone()),
+                palette_id: inputs
+                    .collected
+                    .palette_of
+                    .get(index)
+                    .copied()
+                    .flatten()
+                    .map(palette_id),
                 instances: inputs.plan.instances(index),
                 bytes: summary.bytes,
                 vertices: summary.vertices,
@@ -125,7 +136,9 @@ fn meshes(inputs: &Inputs<'_>) -> Vec<Mesh> {
                         drawn
                             .iter()
                             .enumerate()
-                            .map(|(index, material)| mesh_material(inputs, index, material))
+                            .map(|(position, material)| {
+                                mesh_material(inputs, mesh, position, material)
+                            })
                             .collect()
                     })
                     .unwrap_or_default(),
@@ -134,22 +147,80 @@ fn meshes(inputs: &Inputs<'_>) -> Vec<Mesh> {
         .collect()
 }
 
-fn written_id(inputs: &Inputs<'_>, file: Option<&TextureFile>) -> Option<String> {
-    let position = inputs.collected.position_of(&file?.path)?;
+fn written_path(inputs: &Inputs<'_>, path: &str) -> Option<String> {
+    let position = inputs.collected.position_of(path)?;
     matches!(inputs.outcomes.get(position), Some(Outcome::Written { .. })).then(|| id_of(position))
 }
 
-fn mesh_material(inputs: &Inputs<'_>, index: usize, material: &DrawnMaterial) -> MeshMaterial {
+fn written_id(inputs: &Inputs<'_>, file: Option<&TextureFile>) -> Option<String> {
+    written_path(inputs, &file?.path)
+}
+
+fn palette_id(position: usize) -> String {
+    format!("p{:04}", position + 1)
+}
+
+fn mesh_material(
+    inputs: &Inputs<'_>,
+    mesh: usize,
+    index: usize,
+    material: &DrawnMaterial,
+) -> MeshMaterial {
     let normal = written_id(inputs, material.normal.as_ref());
     MeshMaterial {
         index,
         name: material.name.clone(),
+        material: inputs
+            .collected
+            .described
+            .get(mesh)
+            .and_then(|described| described.get(index))
+            .copied()
+            .flatten()
+            .map(material_id),
         textures: MaterialTextures {
             diffuse: written_id(inputs, material.diffuse.as_ref()),
             normal,
             specular: written_id(inputs, material.specular.as_ref()),
         },
     }
+}
+
+fn materials(inputs: &Inputs<'_>) -> Vec<MaterialDescription> {
+    inputs
+        .collected
+        .descriptions
+        .iter()
+        .map(|described| {
+            let mut description = described.description.clone();
+            for (texture, path) in description.textures.iter_mut().zip(&described.paths) {
+                texture.texture = path.as_deref().and_then(|path| written_path(inputs, path));
+            }
+            description
+        })
+        .collect()
+}
+
+fn palettes(inputs: &Inputs<'_>) -> Vec<Palette> {
+    let colours = |entry: &p4kx_model::TintEntry| PaletteColours {
+        tint: entry.tint,
+        specular: entry.specular,
+        glossiness: entry.glossiness,
+    };
+    inputs
+        .collected
+        .palettes
+        .iter()
+        .enumerate()
+        .map(|(position, palette)| Palette {
+            id: palette_id(position),
+            name: palette.name.clone(),
+            primary: colours(&palette.primary),
+            secondary: colours(&palette.secondary),
+            tertiary: colours(&palette.tertiary),
+            glass: palette.glass,
+        })
+        .collect()
 }
 
 fn textures(inputs: &Inputs<'_>) -> Vec<Texture> {
@@ -212,20 +283,19 @@ fn issues(inputs: &Inputs<'_>) -> Vec<Issue> {
         }
     }
     let mut refused: Vec<(&str, &str)> = Vec::new();
-    for material in inputs.collected.materials.iter().flatten() {
-        for (_, file) in &material.refused {
-            if !refused.contains(&(file.as_str(), material.name.as_str())) {
-                refused.push((file.as_str(), material.name.as_str()));
-                issues.push(Issue {
-                    origin: IssueOrigin::Texture,
-                    kind: "texture_path".to_owned(),
-                    path: file.clone(),
-                    name: material.name.clone(),
-                    skipped: false,
-                    reason: "the texture file name is not a safe path".to_owned(),
-                });
-            }
+    for found in &inputs.collected.refused {
+        if !refused.contains(&(found.file.as_str(), found.material.as_str())) {
+            refused.push((found.file.as_str(), found.material.as_str()));
+            issues.push(Issue {
+                origin: IssueOrigin::Texture,
+                kind: "texture_path".to_owned(),
+                path: found.file.clone(),
+                name: found.material.clone(),
+                skipped: false,
+                reason: "the texture file name is not a safe path".to_owned(),
+            });
         }
     }
+    issues.extend(inputs.collected.issues.iter().cloned());
     issues
 }

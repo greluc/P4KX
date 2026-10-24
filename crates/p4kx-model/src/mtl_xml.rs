@@ -9,6 +9,8 @@ pub(crate) trait XmlElement<'a>: Copy {
 
     fn attribute(self, name: &str) -> Option<&'a str>;
 
+    fn attributes(self) -> impl Iterator<Item = (&'a str, &'a str)>;
+
     fn children(self) -> impl Iterator<Item = Self>;
 }
 
@@ -19,6 +21,10 @@ impl<'a> XmlElement<'a> for Element<'a> {
 
     fn attribute(self, name: &str) -> Option<&'a str> {
         Element::attribute(self, name)
+    }
+
+    fn attributes(self) -> impl Iterator<Item = (&'a str, &'a str)> {
+        Element::attributes(self).map(|attribute| (attribute.name(), attribute.value()))
     }
 
     fn children(self) -> impl Iterator<Item = Self> {
@@ -33,6 +39,10 @@ impl<'a> XmlElement<'a> for roxmltree::Node<'a, '_> {
 
     fn attribute(self, name: &str) -> Option<&'a str> {
         roxmltree::Node::attribute(&self, name)
+    }
+
+    fn attributes(self) -> impl Iterator<Item = (&'a str, &'a str)> {
+        roxmltree::Node::attributes(&self).map(|attribute| (attribute.name(), attribute.value()))
     }
 
     fn children(self) -> impl Iterator<Item = Self> {

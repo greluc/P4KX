@@ -4,5 +4,6 @@
 //! Integration tests of `p4kx-blender`, built as one test binary.
 
 mod package_layout;
+mod package_materials;
 mod package_safety;
 mod support;

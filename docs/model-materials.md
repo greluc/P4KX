@@ -19,7 +19,11 @@ Attributes per material: `Name`, `MtlFlags`, `Shader`, `StringGenMask`, `Surface
 `AlphaTest`, and in the root `DefaultPalette`. A material may also have `Textures/Texture`
 (`Map="TexSlot<n>"`, `File`), `PublicParams` and `MatLayers`; the reader keeps the texture slots
 (placeholders such as `$TintPaletteDecal` and `$RenderToTexture` included, empty files left out)
-and leaves the rest for textured materials (#105) and tints (#127).
+and also keeps the layers, the shader parameters, the other attributes and elements and the
+texture slots' attributes and modifiers as the file has them, for the Blender package
+([ADR-0092](adr/0092-package-materials-are-written-as-the-games-raw-inputs-in-format-1-1.md)).
+The layers' `Path` names another `.mtl` file (a single material with its own textures and
+parameters), which the package resolves.
 
 - `MtlFlags` is a signed 32-bit number in the file (negative values occur); the reader keeps its
   32 bits. Bit `0x400` is the engine's no-draw flag: it is set on 24,626 materials, exactly the

@@ -20,10 +20,13 @@
 
 mod build;
 mod collect;
+mod describe;
 mod error;
 mod manifest;
+mod manifest_materials;
 mod meshes;
 mod plan;
+mod roles;
 mod schema;
 mod stage;
 mod textures;
@@ -35,6 +38,10 @@ pub use manifest::{
     Format, Generator, Issue, IssueOrigin, MANIFEST_FILE, MESHES_FOLDER, Manifest,
     MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Replacement, Source,
     TEXTURES_FOLDER, Texture, TextureFormat, Unit,
+};
+pub use manifest_materials::{
+    AlphaMode, Element, MaterialDescription, MaterialLayer, MaterialTexture, Palette,
+    PaletteColours, PaletteEntry, Parameter, TextureUse,
 };
 pub use schema::manifest_schema;
 pub use stage::check_output;

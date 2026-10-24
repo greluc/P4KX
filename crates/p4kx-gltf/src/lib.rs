@@ -60,8 +60,8 @@ pub use glb::{
     GlbOptions, GlbSummary, MaterialMode, write_glb, write_glb_animated, write_glb_animated_with,
     write_glb_with,
 };
-pub use morphs::MorphTarget;
 pub use materials::base_colour_factor;
+pub use morphs::MorphTarget;
 pub use package_support::{
     DrawnMaterial, NodeTransform, TextureFile, drawn_materials, node_transform,
 };

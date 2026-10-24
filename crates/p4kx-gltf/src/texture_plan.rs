@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use p4kx_model::Material;
 
@@ -113,12 +113,30 @@ pub(crate) struct SlotImages {
 #[derive(Debug, Default)]
 pub(crate) struct TextureSet {
     pub(crate) images: Vec<EncodedImage>,
-    slots: BTreeMap<Slot, SlotImages>,
+    slots: BTreeMap<(usize, Slot), SlotImages>,
     pub(crate) fallbacks: Vec<TextureFallback>,
 }
 
 /// The jobs of a material: its base colour, normal and metallic-roughness images.
 type Wanted = [Option<usize>; 3];
+
+/// The materials of one model instance whose images are wanted.
+pub(crate) struct PartSlots<'a> {
+    pub(crate) part: usize,
+    pub(crate) plan: &'a MaterialPlan<'a>,
+    pub(crate) slots: Vec<Slot>,
+}
+
+type Reported = HashSet<(String, TextureRole, String, String)>;
+
+/// The images one material of one model instance asks for, with the name it is reported by.
+struct Wish {
+    part: usize,
+    slot: Slot,
+    name: String,
+    jobs: Wanted,
+    refused: Vec<Failure>,
+}
 
 fn quantise(colour: [f32; 3]) -> [u8; 3] {
     colour.map(|channel| {
@@ -133,39 +151,39 @@ fn quantise(colour: [f32; 3]) -> [u8; 3] {
 }
 
 impl TextureSet {
-    /// Returns the images of the materials `slots` of `plan`, loaded at mip level `mip`.
+    /// Returns the images of the materials `parts` ask for, loaded at mip level `mip`.
     ///
-    /// Every distinct image is made once, whatever number of materials use it; a texture that
-    /// cannot be loaded is left out and reported, and the material keeps its plain colour for it.
-    pub(crate) fn build(
-        plan: &MaterialPlan<'_>,
-        slots: &[Slot],
-        mip: u32,
-        loader: &dyn TextureLoader,
-    ) -> Self {
+    /// Every distinct image is made once, whatever number of materials and parts use it; a
+    /// texture that cannot be loaded is left out and reported once per material name, and the
+    /// material keeps its plain colour for it.
+    pub(crate) fn build(parts: &[PartSlots<'_>], mip: u32, loader: &dyn TextureLoader) -> Self {
         let mut jobs: Vec<Job> = Vec::new();
         let mut known: HashMap<Key, usize> = HashMap::new();
-        let mut wanted: Vec<(Slot, Wanted, Vec<Failure>)> = Vec::new();
-        for &slot in slots {
-            let material = plan.material(slot);
-            let mut add = |job: Job| -> usize {
-                *known.entry(job.key.clone()).or_insert_with(|| {
-                    jobs.push(job);
-                    jobs.len() - 1
-                })
-            };
-            let (images, refused) = jobs_of(material, &mut add);
-            wanted.push((slot, images, refused));
+        let mut wanted: Vec<Wish> = Vec::new();
+        for requested in parts {
+            for &slot in &requested.slots {
+                let material = requested.plan.material(slot);
+                let mut add = |job: Job| -> usize {
+                    *known.entry(job.key.clone()).or_insert_with(|| {
+                        jobs.push(job);
+                        jobs.len() - 1
+                    })
+                };
+                let (images, refused) = jobs_of(material, &mut add);
+                wanted.push(Wish {
+                    part: requested.part,
+                    slot,
+                    name: display_name(material, slot),
+                    jobs: images,
+                    refused,
+                });
+            }
         }
         let outcomes = run(&jobs, mip, loader, Budget::DEFAULT);
-        Self::assemble(plan, &wanted, outcomes)
+        Self::assemble(&wanted, outcomes)
     }
 
-    fn assemble(
-        plan: &MaterialPlan<'_>,
-        wanted: &[(Slot, Wanted, Vec<Failure>)],
-        outcomes: Vec<Outcome>,
-    ) -> Self {
+    fn assemble(wanted: &[Wish], outcomes: Vec<Outcome>) -> Self {
         let mut set = Self::default();
         let mut made: Vec<(Option<usize>, Outcome)> = Vec::with_capacity(outcomes.len());
         for mut outcome in outcomes {
@@ -175,10 +193,18 @@ impl TextureSet {
             });
             made.push((index, outcome));
         }
-        for (slot, [base, normal, packed], refused) in wanted {
+        let mut reported = Reported::new();
+        for Wish {
+            part,
+            slot,
+            name,
+            jobs: [base, normal, packed],
+            refused,
+        } in wanted
+        {
             let of = |job: &Option<usize>| job.and_then(|job| made.get(job));
             set.slots.insert(
-                *slot,
+                (*part, *slot),
                 SlotImages {
                     base: of(base).and_then(|(index, outcome)| {
                         Some(BaseImage {
@@ -196,36 +222,39 @@ impl TextureSet {
                     }),
                 },
             );
-            let name = display_name(plan.material(*slot), *slot);
-            let mut reported: Vec<&Failure> = Vec::new();
             let made_failures = [base, normal, packed]
                 .into_iter()
                 .flatten()
                 .filter_map(|job| made.get(*job))
                 .flat_map(|(_, outcome)| &outcome.failures);
             for failure in refused.iter().chain(made_failures) {
-                let repeated = reported.iter().any(|seen| {
-                    seen.role == failure.role
-                        && seen.file == failure.file
-                        && seen.reason == failure.reason
-                });
-                if !repeated {
-                    reported.push(failure);
-                    set.fallbacks.push(TextureFallback {
-                        material: name.clone(),
-                        role: failure.role,
-                        file: failure.file.clone(),
-                        reason: failure.reason.clone(),
-                    });
-                }
+                set.note(&mut reported, name, failure);
             }
         }
         set
     }
 
-    /// Returns the images the material of `slot` is drawn with.
-    pub(crate) fn of(&self, slot: Slot) -> SlotImages {
-        self.slots.get(&slot).copied().unwrap_or_default()
+    /// Lists `failure` as a fallback of the material `name` unless `reported` has it already.
+    fn note(&mut self, reported: &mut Reported, name: &str, failure: &Failure) {
+        let key = (
+            name.to_owned(),
+            failure.role,
+            failure.file.clone(),
+            failure.reason.clone(),
+        );
+        if reported.insert(key) {
+            self.fallbacks.push(TextureFallback {
+                material: name.to_owned(),
+                role: failure.role,
+                file: failure.file.clone(),
+                reason: failure.reason.clone(),
+            });
+        }
+    }
+
+    /// Returns the images the material of `slot` of the model instance `part` is drawn with.
+    pub(crate) fn of(&self, part: usize, slot: Slot) -> SlotImages {
+        self.slots.get(&(part, slot)).copied().unwrap_or_default()
     }
 
     /// Returns the pixels all the images hold.

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::MaterialError;
 use crate::mtl_parse::parse_library;
+use crate::{MaterialError, PaletteSlot};
 
 /// The most sub-materials a material library may hold; the engine allows 128.
 pub const MAX_SUB_MATERIALS: usize = 1024;
@@ -76,6 +76,12 @@ pub struct Material {
     pub glow: f32,
     /// The texture slots in file order.
     pub textures: Vec<TextureSlot>,
+    /// The palette colour the material takes: that of its first material layer with a
+    /// `PaletteTint` from 1 to 3, or the glass colour of a glass material that uses the tint
+    /// palette.
+    pub palette: Option<PaletteSlot>,
+    /// Whether a [`TintPalette`](crate::TintPalette) replaced the colours of the file.
+    pub tinted: bool,
 }
 
 impl Material {
@@ -97,6 +103,8 @@ impl Material {
             alpha_test: 0.0,
             glow: 0.0,
             textures: Vec::new(),
+            palette: None,
+            tinted: false,
         }
     }
 

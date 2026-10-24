@@ -221,10 +221,11 @@ order is attached. The same Archive always gives the same document.
 
 ```json
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
- "modelled_parts": 56, "nodes": 899, "meshes": 249, "primitives": 948, "materials": 204,
- "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "shared_meshes": 33,
- "shared_materials": 103, "shared_textures": 0, "vertices": 744831, "triangles": 818426,
- "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
+ "modelled_parts": 56, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
+ "materials": 204, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
+ "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0,
+ "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
+ "triangles": 818426, "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
@@ -232,11 +233,17 @@ root Entity and every attached Entity that resolved, `modelled_parts` those with
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one;
 `shared_meshes` counts the meshes not written again because an earlier part holds the same model
-at the same level with the same material library (their nodes reference one glTF mesh); `meshes`, `primitives`, `vertices` and `triangles` count
+at the same level with the same material library and the same palette (their nodes reference one glTF mesh); `meshes`, `primitives`, `vertices` and `triangles` count
 stored geometry once, so `meshes` can be lower than the number of mesh-bearing nodes;
 `shared_materials` the material requests answered by an equal material already written and
-`shared_textures` the texture references that reuse an embedded image (always 0 until textures
-are written for Assemblies);
+`shared_textures` the texture references that reuse an embedded image. `palettes` counts the
+parts drawn with a tint palette ([ADR-0080](adr/0080-assembly-materials-take-the-palette-of-their-part-and-share-textures.md)).
+With `--materials textures` the textures of all parts are embedded at the mip `--texture-mip`:
+`textures` is the number of PNG images (an image is embedded once however many materials and
+parts use it), `texture_pixels` their pixels, `textured_materials` the materials that have a
+texture, and `texture_fallbacks` the textures that were left out (objects with `material`,
+`role`, `file` and `reason`, as for `p4kx model glb`): their materials keep the plain colour. All
+four are 0 or empty without textures.
 `default_material_ids` and `hidden_primitives` are summed over all models as for
 `p4kx model glb`. `skipped` counts the issues that leave a part or its model out. With `--exclude`
 and `--replace`, as for `p4kx entity loadout`, the Assembly is built from the changed Loadout and
@@ -253,7 +260,9 @@ names an Entity that cannot be resolved, so the port holds no part), `no_geometr
 Record names no model; the part stays as an empty node), `geometry_missing` and
 `geometry_unreadable` (the model is not in the Archive or cannot be read, e.g. a `.cdf`; the part
 stays as an empty node), `material_library` (the library is missing or unreadable; the part is
-drawn with the default material), `helper_not_found` (the port's helper is no node of the
+drawn with the default material), `palette` (a tint palette the Entity or its library names
+cannot be resolved; the part falls back to the library's default palette or to its plain
+colours), `helper_not_found` (the port's helper is no node of the
 parent's model; the part sits at the parent's origin) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.

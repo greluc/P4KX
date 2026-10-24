@@ -213,3 +213,100 @@ fn a_loadout_that_names_nothing_readable_is_invalid_input_and_writes_nothing() -
     }
     Ok(())
 }
+
+fn local_loadout(
+    dir: &Path,
+    items: &[(&str, &str)],
+    includes: &[&str],
+) -> Result<String, Box<dyn Error>> {
+    use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement};
+    let mut list = TestElement::new("Items");
+    for (port, class) in items {
+        list = list.child(
+            TestElement::new("Item")
+                .attribute("portName", *port)
+                .attribute("itemName", *class),
+        );
+    }
+    let mut root = TestElement::new("Loadout");
+    if !includes.is_empty() {
+        let mut loadouts = TestElement::new("Loadouts");
+        for include in includes {
+            loadouts = loadouts.child(TestElement::new("Loadout").attribute("loadout", *include));
+        }
+        root = root.child(loadouts);
+    }
+    let path = dir.join("local.xml");
+    std::fs::write(
+        &path,
+        root.child(list)
+            .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little),
+    )?;
+    Ok(path.to_str().ok_or("path")?.to_owned())
+}
+
+#[test]
+fn a_file_on_disk_takes_its_includes_from_the_archive_and_names_itself_by_its_path() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("local.glb");
+    let local = local_loadout(
+        dir.path(),
+        &[("pants", "TEST_Pants"), ("lost", "TEST_Gone")],
+        &[
+            p4kx_testkit::ARMOUR_XML_LOADOUT,
+            "Scripts/Loadouts/Missing.xml",
+        ],
+    )?;
+
+    let run = glb(&archive, &out, &["--loadout", &local], false)?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    for expected in [
+        "part torso/TEST_Torso:",
+        "part helmet/TEST_Helmet:",
+        "part pants/TEST_Pants:",
+        "skipped lost/TEST_Gone:",
+        &format!("skipped {local}:"),
+    ] {
+        assert!(run.stdout.contains(expected), "{expected}: {}", run.stdout);
+    }
+    assert!(!run.stdout.contains("local:loadout"), "{}", run.stdout);
+    assert!(!run.stderr.contains("local:loadout"), "{}", run.stderr);
+    Ok(())
+}
+
+#[test]
+fn every_loadout_piece_of_the_type_of_a_piece_is_replaced() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("two.glb");
+    let local = local_loadout(
+        dir.path(),
+        &[
+            ("torso", "TEST_Torso"),
+            ("vest", "TEST_Plate"),
+            ("legs", "TEST_Pants"),
+        ],
+        &[],
+    )?;
+
+    let run = glb(
+        &archive,
+        &out,
+        &["--loadout", &local, "--piece", "TEST_Cuirass"],
+        true,
+    )?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    assert_eq!(names(&value)?, ["body", "legs/TEST_Pants", "TEST_Cuirass"]);
+    let replaced: Vec<&str> = value["replaced"]
+        .as_array()
+        .ok_or("replaced")?
+        .iter()
+        .filter_map(|each| each["name"].as_str())
+        .collect();
+    assert_eq!(replaced, ["torso/TEST_Torso", "vest/TEST_Plate"]);
+    Ok(())
+}

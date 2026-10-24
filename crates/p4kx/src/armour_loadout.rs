@@ -16,8 +16,6 @@ use thiserror::Error;
 use crate::cli_armour::ArmourGlbArgs;
 use crate::query_table::one_line;
 
-const LOCAL_KEY: &str = "local:loadout.xml";
-
 /// A `--loadout` that names no Entity and no XML Loadout file that can be read.
 #[derive(Debug, Error)]
 #[error("{text:?} is no Entity and no readable XML Loadout: {reason}")]
@@ -50,47 +48,54 @@ impl LoadoutSource {
 
 /// The XML Loadout files the resolver reads: one file from disk, else the Archive.
 pub(crate) struct Files<'a> {
-    local: Option<Vec<u8>>,
+    local: Option<(String, Vec<u8>)>,
     archive: ArchiveFiles<'a>,
 }
 
 impl<'a> Files<'a> {
-    /// Reads `local` when the path `--loadout` names is a file on disk, else only the Archive.
+    /// Reads the file the text `--loadout` gives names when it is a file on disk, else only the
+    /// Archive.
     pub(crate) fn open(archive: ArchiveFiles<'a>, text: Option<&str>) -> Result<Self> {
-        let local = match text.map(Path::new).filter(|path| path.is_file()) {
-            Some(path) => Some(read_local(path)?),
+        let local = match text.filter(|text| Path::new(text).is_file()) {
+            Some(text) => Some((text.to_owned(), read_local(text)?)),
             None => None,
         };
         Ok(Self { local, archive })
     }
 
-    const fn is_local(&self) -> bool {
-        self.local.is_some()
+    fn local_name(&self) -> Option<&str> {
+        self.local.as_ref().map(|(name, _)| name.as_str())
     }
 }
 
 impl LoadoutFiles for Files<'_> {
     fn read(&self, path: &str) -> Result<Vec<u8>, LoadoutFileError> {
         match &self.local {
-            Some(bytes) if path == LOCAL_KEY => Ok(bytes.clone()),
+            Some((name, bytes)) if path.eq_ignore_ascii_case(name) => Ok(bytes.clone()),
             _ => self.archive.read(path),
         }
     }
 }
 
-fn read_local(path: &Path) -> Result<Vec<u8>> {
+fn read_local(text: &str) -> Result<Vec<u8>> {
+    let unreadable = |reason: String| UnreadableLoadout {
+        text: text.to_owned(),
+        reason,
+    };
     let mut bytes = Vec::new();
-    File::open(path)?
-        .take(MAX_XML_LOADOUT_LEN.saturating_add(1))
-        .read_to_end(&mut bytes)?;
+    File::open(text)
+        .and_then(|file| {
+            file.take(MAX_XML_LOADOUT_LEN.saturating_add(1))
+                .read_to_end(&mut bytes)
+        })
+        .map_err(|error| unreadable(error.to_string()))?;
     if u64::try_from(bytes.len()).is_ok_and(|len| len > MAX_XML_LOADOUT_LEN) {
-        return Err(UnreadableLoadout {
-            text: path.display().to_string(),
-            reason: LoadoutFileError::TooLarge {
+        return Err(unreadable(
+            LoadoutFileError::TooLarge {
                 size: u64::try_from(bytes.len()).unwrap_or(u64::MAX),
             }
             .to_string(),
-        }
+        )
         .into());
     }
     Ok(bytes)
@@ -208,8 +213,8 @@ fn resolve(resolver: &mut LoadoutResolver<'_>, files: &Files<'_>, text: &str) ->
         text: text.to_owned(),
         reason: error.to_string(),
     };
-    if files.is_local() {
-        let tree = resolver.resolve_file(LOCAL_KEY).map_err(unreadable)?;
+    if let Some(name) = files.local_name() {
+        let tree = resolver.resolve_file(name).map_err(unreadable)?;
         return Ok(Resolved {
             tree,
             source: LoadoutSource::File,

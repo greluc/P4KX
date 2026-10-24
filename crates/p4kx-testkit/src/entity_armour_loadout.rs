@@ -34,6 +34,11 @@ pub(crate) fn loadout_entities() -> Vec<TestEntity> {
         format!("{MALE_ARMOUR}/m_boots.skin"),
         None,
     );
+    let cuirass = worn(0x15, "TEST_Cuirass", "Char_Armor_Torso").geometry_variant(
+        "Male",
+        format!("{MALE_ARMOUR}/m_hat.skin"),
+        None,
+    );
     let pistol = worn(0x13, "TEST_Pistol", "WeaponPersonal")
         .geometry(format!("{MALE_ARMOUR}/plain.skin"), None);
     let soldier = TestEntity::new(0x20, "TEST_Soldier", "entities/scitem/test_soldier.xml")
@@ -48,7 +53,7 @@ pub(crate) fn loadout_entities() -> Vec<TestEntity> {
         ]));
     let grunt = TestEntity::new(0x21, "TEST_Grunt", "entities/scitem/test_grunt.xml")
         .loadout(TestLoadout::Xml(ARMOUR_XML_LOADOUT.to_owned()));
-    vec![torso, helmet, plate, pants, pistol, soldier, grunt]
+    vec![torso, helmet, plate, pants, cuirass, pistol, soldier, grunt]
 }
 
 /// Returns the XML Loadout of `TEST_Grunt`, with the path of the file it is stored at.

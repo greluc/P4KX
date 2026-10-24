@@ -8,17 +8,20 @@ undersuit, arms, helmet, legs, torso and a backpack, the GLB passing the checker
 
 ## What a Loadout gives
 
-`--loadout` names one of:
+`--loadout` names one of, tried in this order:
 
+- an XML Loadout file on disk, when the text is the path of a file; a file on disk always wins
+  over an Entity or Archive Entry of the same text. Its includes are read from the Archive, and
+  the text is the name of its root in the report;
 - an Entity, by class name, GUID or record path, whose default Loadout is resolved as for
   `entity loadout`;
 - an XML Loadout Entry of the Archive, by its path (`Scripts/Loadouts/…xml`), when no Entity
-  matches and the text ends in `.xml`;
-- an XML Loadout file on disk, when the text is the path of a file. Its includes are read from the
-  Archive.
+  matches and the text ends in `.xml`.
 
 An XML Loadout is resolved into a tree whose root is no Entity (`LoadoutResolver::resolve_file`),
-so that both forms go through the same `EntityNode` walk. A text that is none of these is invalid
+so that all forms go through the same `EntityNode` walk. One resolution reads at most
+`MAX_XML_INCLUDES` files, each file once, failures included; further includes are left out with
+an issue. A file on disk that cannot be opened is invalid input like the other forms. A text that is none of these is invalid
 input (exit code 2) and writes nothing.
 
 The pieces are the Entities anywhere in the tree whose `AttachDef.Type` starts with `Char_Armor_`

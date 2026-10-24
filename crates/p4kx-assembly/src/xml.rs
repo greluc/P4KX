@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_cryxml::{Element, Xml};
@@ -12,6 +12,10 @@ use crate::{LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH};
 
 /// The most XML Loadouts one XML Loadout includes through nested `<Loadouts>`.
 pub const MAX_XML_INCLUDE_DEPTH: usize = 8;
+
+/// The most XML Loadout files one resolution of an XML Loadout reads, the Loadout itself and
+/// everything it includes; further includes are left out with an issue.
+pub const MAX_XML_INCLUDES: usize = 256;
 
 /// One XML Loadout file: the Loadouts it includes and its own entries.
 struct XmlLoadout {
@@ -70,6 +74,7 @@ pub(crate) fn load(files: &dyn LoadoutFiles, path: &str) -> Result<XmlEntries, L
         files,
         stack: Vec::new(),
         done: HashMap::new(),
+        loads: 0,
         issues: Vec::new(),
     };
     let entries = loader.load(path)?;
@@ -83,14 +88,15 @@ pub(crate) fn load(files: &dyn LoadoutFiles, path: &str) -> Result<XmlEntries, L
 struct Loader<'l> {
     files: &'l dyn LoadoutFiles,
     stack: Vec<String>,
-    done: HashMap<String, Vec<EntrySpec>>,
+    done: HashMap<String, Result<Vec<EntrySpec>, LoadoutError>>,
+    loads: usize,
     issues: Vec<LoadoutError>,
 }
 
 impl Loader<'_> {
     fn load(&mut self, path: &str) -> Result<Vec<EntrySpec>, LoadoutError> {
-        if let Some(entries) = self.done.get(&path.to_ascii_lowercase()) {
-            return Ok(entries.clone());
+        if let Some(done) = self.done.get(&path.to_ascii_lowercase()) {
+            return done.clone();
         }
         let failed = |reason: String| LoadoutError::XmlLoadout {
             path: path.to_owned(),
@@ -108,14 +114,37 @@ impl Loader<'_> {
                 "it is included deeper than {MAX_XML_INCLUDE_DEPTH} Loadouts"
             )));
         }
-        let bytes = self
+        self.loads = self.loads.saturating_add(1);
+        let loadout = match self
             .files
             .read(path)
-            .map_err(|error| failed(error.to_string()))?;
-        let loadout = parse(&bytes).map_err(failed)?;
+            .map_err(|error| failed(error.to_string()))
+            .and_then(|bytes| parse(&bytes).map_err(failed))
+        {
+            Ok(loadout) => loadout,
+            Err(error) => {
+                self.done
+                    .insert(path.to_ascii_lowercase(), Err(error.clone()));
+                return Err(error);
+            }
+        };
         self.stack.push(path.to_owned());
         let mut entries = Vec::new();
+        let mut named = HashSet::new();
         for include in &loadout.includes {
+            let key = include.to_ascii_lowercase();
+            if !named.insert(key.clone()) {
+                continue;
+            }
+            if self.loads >= MAX_XML_INCLUDES && !self.done.contains_key(&key) {
+                self.issues.push(LoadoutError::XmlLoadout {
+                    path: include.clone(),
+                    reason: format!(
+                        "more than {MAX_XML_INCLUDES} Loadouts are read; the rest are left out"
+                    ),
+                });
+                break;
+            }
             match self.load(include) {
                 Ok(included) => merge_into(&mut entries, included),
                 Err(error) => self.issues.push(error),
@@ -123,7 +152,8 @@ impl Loader<'_> {
         }
         self.stack.pop();
         merge_into(&mut entries, loadout.entries);
-        self.done.insert(path.to_ascii_lowercase(), entries.clone());
+        self.done
+            .insert(path.to_ascii_lowercase(), Ok(entries.clone()));
         Ok(entries)
     }
 }

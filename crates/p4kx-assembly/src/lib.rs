@@ -101,7 +101,7 @@ pub use vehicle::{
     UnreadableValue, ValueOrigin, VehicleImplementation, VehicleItemPort, VehiclePart,
     VehicleTotals,
 };
-pub use xml::MAX_XML_INCLUDE_DEPTH;
+pub use xml::{MAX_XML_INCLUDE_DEPTH, MAX_XML_INCLUDES};
 
 /// The deepest element nesting of a vehicle implementation or patch file that is read; deeper
 /// files are refused.

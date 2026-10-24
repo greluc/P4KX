@@ -174,10 +174,11 @@ Early development (milestone M1). Available today:
   skeleton once as bone nodes, one skin over them, the skin of the body and, for every `--piece`
   (repeatable; class name, GUID or record path), the geometry its Record names for the variant's
   tag, with its bones matched to the skeleton by name. `--loadout <loadout>` takes the pieces from
-  a Loadout instead: an Entity's default Loadout by class name, GUID or record path, or an XML
-  Loadout (`Scripts/Loadouts/…xml`) by its path in the Archive or as a file on disk, whose armour
-  and clothing (`Char_Armor_*`, `Char_Clothing_*`) are worn; a `--piece` then takes the place of the
-  Loadout's piece of the same item type. A piece with no geometry for the variant, one that cannot
+  a Loadout instead: a file on disk of that name is tried first and read as an XML Loadout,
+  otherwise an Entity's default Loadout by class name, GUID or record path, or an XML Loadout
+  (`Scripts/Loadouts/…xml`) by its path in the Archive; its armour and clothing (`Char_Armor_*`,
+  `Char_Clothing_*`) are worn. A `--piece` then takes the place of the Loadout's pieces of the
+  same item type, or is added. A piece with no geometry for the variant, one that cannot
   be resolved, or whose model is missing or unreadable, is skipped and listed; with `--json` the report has
   the shape described in [docs/cli-json.md](docs/cli-json.md). `p4kx armour bodies` lists the
   variants.

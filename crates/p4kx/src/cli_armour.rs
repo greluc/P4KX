@@ -66,9 +66,10 @@ pub(crate) struct ArmourGlbArgs {
     pub(crate) pieces: Vec<String>,
     /// A Loadout to take the pieces from: the armour and clothing (item types `Char_Armor_*`
     /// and `Char_Clothing_*`) anywhere in its tree; other items such as weapons are not worn.
-    /// Either an Entity whose default Loadout is used, e.g. a player or NPC character, by class
-    /// name, GUID or record path; or an XML Loadout, by its path in the Archive such as
-    /// `Scripts/Loadouts/…xml`, or a file on disk. A port that cannot be resolved is listed. An
+    /// A file on disk of that name is tried first and read as an XML Loadout, whose includes come
+    /// from the Archive. Otherwise it is an Entity whose default Loadout is used, e.g. a player
+    /// or NPC character, by class name, GUID or record path; or an XML Loadout by its path in
+    /// the Archive such as `Scripts/Loadouts/…xml`. A port that cannot be resolved is listed. An
     /// Entity no Record matches, or several do, or an XML Loadout that cannot be read, is
     /// invalid input.
     #[arg(long, value_name = "LOADOUT")]

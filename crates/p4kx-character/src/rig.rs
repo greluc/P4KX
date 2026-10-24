@@ -43,7 +43,8 @@ pub struct RigHeader {
     pub covered_regions: u8,
     /// The number of heads the rig has: the base head 0 and the selectable archetypes.
     pub variants: u16,
-    /// The number of vertices the header states for this level of detail.
+    /// The number of vertices the header states for this level of detail, the low half of the
+    /// `u32` at offset 0x30; the high half holds other data.
     pub vertices: u32,
     /// The number of indices the header states for this level of detail.
     pub indices: u32,
@@ -96,7 +97,7 @@ impl<'a> DnaRig<'a> {
             regions: bytes.get(0x28).copied().unwrap_or_default(),
             covered_regions: bytes.get(0x29).copied().unwrap_or_default(),
             variants: u16_at(bytes, 0x2a).unwrap_or_default(),
-            vertices: u32_at(bytes, 0x30).unwrap_or_default(),
+            vertices: u16_at(bytes, 0x30).map_or(0, u32::from),
             indices: u32_at(bytes, 0x34).unwrap_or_default(),
         };
         if header.variants == 0 {

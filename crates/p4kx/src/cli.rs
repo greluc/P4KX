@@ -11,7 +11,7 @@ pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
-pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
+pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfGlbArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_coverage::CoverageArgs;
 pub(crate) use crate::cli_cryxml::CryXmlArgs;

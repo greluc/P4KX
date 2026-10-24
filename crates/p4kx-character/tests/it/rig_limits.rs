@@ -144,8 +144,8 @@ fn a_vertex_count_the_file_cannot_hold_is_too_short_not_an_allocation() -> TestR
     let bytes = TestDna::small().build();
     let slot_at = 0x40 + 8 * 22;
     let slot = u64::from_le_bytes(bytes.get(slot_at..slot_at + 8).ok_or("slot")?.try_into()?);
-    let bytes = patched(bytes, slot_at, &(slot + 1).to_le_bytes());
-    let bytes = patched(bytes, 0x30, &u32::MAX.to_le_bytes());
+    let bytes = patched(bytes, slot_at, &(slot + 33).to_le_bytes());
+    let bytes = patched(bytes, 0x30, &[0xff, 0xff, 0, 0]);
 
     let rig = DnaRig::read(&bytes)?;
 

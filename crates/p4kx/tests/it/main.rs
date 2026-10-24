@@ -19,6 +19,7 @@ mod catalog_support;
 mod channel_notice;
 mod channels;
 mod chf;
+mod chf_glb;
 mod chunks;
 mod compare;
 mod compare_diff;

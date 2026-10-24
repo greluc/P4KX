@@ -58,6 +58,8 @@ pub struct TestDna {
     pub joint_weights: Vec<Vec<f32>>,
     /// The weight of each covered region for each vertex, `[local region][vertex]`.
     pub masks: Vec<Vec<f32>>,
+    /// The bytes written behind the weights of the region masks.
+    pub mask_trailer: usize,
     /// The controls of the neutral morphs, head-major.
     pub controls: Vec<TestControl>,
     /// For each vertex the active controls, ascending, with the codes of each axis.
@@ -101,6 +103,7 @@ impl TestDna {
             ],
             joint_weights: vec![vec![0.0; 3], vec![0.25, 0.25, 0.5]],
             masks: vec![vec![1.0, 0.5, 0.0, 0.0], vec![0.0, 0.5, 1.0, 1.0]],
+            mask_trailer: 8,
             controls: vec![
                 control(0.01, 0.0),
                 control(0.02, 0.0),
@@ -249,7 +252,7 @@ impl TestDna {
                 out.extend_from_slice(&weight.to_le_bytes());
             }
         }
-        put_u64(&mut out, 0);
+        out.resize(out.len() + self.mask_trailer, 0);
         out
     }
 

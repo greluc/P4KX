@@ -44,9 +44,9 @@ pub(crate) enum UnreadableChfInput {
 #[derive(Debug, Error)]
 #[error("cannot read {} as CHF", path.display())]
 pub(crate) struct InvalidChf {
-    path: PathBuf,
+    pub(crate) path: PathBuf,
     #[source]
-    source: ChfError,
+    pub(crate) source: ChfError,
 }
 
 /// The input of `p4kx chf from-json` is not valid CHF JSON or cannot be written as CHF.
@@ -71,6 +71,7 @@ pub(crate) fn run(args: &ChfArgs, as_json: bool) -> Result<()> {
     match &args.action {
         ChfAction::ToJson { file, out } => to_json(file, out.as_deref(), as_json),
         ChfAction::FromJson { file, out } => from_json(file, out, as_json),
+        ChfAction::Glb(args) => crate::chf_glb::run(args, as_json),
     }
 }
 
@@ -145,7 +146,7 @@ fn report(input: &Path, output: &Path, versions: Versions, size: u64, as_json: b
 }
 
 /// Reads a whole file of at most `limit` bytes.
-fn read_capped(path: &Path, limit: u64) -> Result<Vec<u8>, UnreadableChfInput> {
+pub(crate) fn read_capped(path: &Path, limit: u64) -> Result<Vec<u8>, UnreadableChfInput> {
     let io_error = |source| UnreadableChfInput::Io {
         path: path.to_owned(),
         source,

@@ -12,6 +12,7 @@ mod catalog_json;
 mod catalog_json_shops;
 mod channels;
 mod chf;
+mod chf_glb;
 mod chunks;
 mod cli;
 mod cli_armour;

@@ -11,6 +11,7 @@ mod real_changes;
 mod real_chf;
 mod real_chf_tail;
 mod real_docked_vehicles;
+mod real_head;
 mod real_resolve;
 mod real_search;
 mod real_streamed_localised;

@@ -1,0 +1,192 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! `p4kx chf glb` end to end over a synthetic head rig, body and CHF files.
+
+use std::error::Error;
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use p4kx_testkit::gltf::Semantic;
+use p4kx_testkit::{
+    ArchiveBuilder, HEAD_REGIONS, HEAD_VERTICES, MALE_RIG_HASH, TestChf, TestEntry, check_glb,
+    head_entries, head_rig,
+};
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+struct Run {
+    stdout: String,
+    stderr: String,
+    code: Option<i32>,
+}
+
+fn archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn Error>> {
+    let path = dir.join("Data.p4k");
+    entries
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&path)?;
+    Ok(path)
+}
+
+fn chf(dir: &Path, name: &str, dna: Option<(u32, u16)>) -> Result<PathBuf, Box<dyn Error>> {
+    let blend = |part: usize| match dna {
+        Some((_, head)) if part == 3 => vec![(65535, head), (0, 0)],
+        _ => vec![(0, 0), (0, 0)],
+    };
+    let test = TestChf {
+        dna_hashes: dna.map(|(hash, _)| (hash, 0)),
+        face_parts: (0..HEAD_REGIONS).map(blend).collect(),
+        ..TestChf::v8()
+    };
+    let path = dir.join(name);
+    fs::write(&path, test.to_bytes())?;
+    Ok(path)
+}
+
+fn glb(archive: &Path, chf: &Path, out: &Path, json: bool) -> Result<Run, Box<dyn Error>> {
+    let mut command = p4kx_testkit::p4kx()?;
+    if json {
+        command.arg("--json");
+    }
+    command
+        .args(["chf", "glb"])
+        .arg(archive)
+        .arg(chf)
+        .arg("--out")
+        .arg(out);
+    let output = command.output()?;
+    Ok(Run {
+        stdout: String::from_utf8(output.stdout)?,
+        stderr: String::from_utf8(output.stderr)?,
+        code: output.status.code(),
+    })
+}
+
+fn head_positions(path: &Path) -> Result<Vec<f32>, Box<dyn Error>> {
+    let glb = check_glb(&fs::read(path)?)?;
+    let mesh = glb
+        .document
+        .nodes()
+        .find(|node| node.name() == Some("head") && node.mesh().is_some())
+        .and_then(|node| node.mesh())
+        .ok_or("the head node")?;
+    let accessor = mesh
+        .primitives()
+        .next()
+        .and_then(|primitive| primitive.get(&Semantic::Positions))
+        .ok_or("positions")?;
+    Ok(glb
+        .bytes(&accessor)
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|&bytes| f32::from_le_bytes(bytes))
+        .collect())
+}
+
+#[test]
+fn a_character_is_written_as_its_head_on_the_body_of_its_variant() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
+    let archive = archive(dir.path(), head_entries(Some(rig)))?;
+    let shaped = chf(dir.path(), "shaped.chf", Some((MALE_RIG_HASH, 2)))?;
+    let plain = chf(dir.path(), "plain.chf", Some((MALE_RIG_HASH, 0)))?;
+    let (shaped_out, plain_out) = (dir.path().join("shaped.glb"), dir.path().join("plain.glb"));
+
+    let first = glb(&archive, &shaped, &shaped_out, false)?;
+    let second = glb(&archive, &plain, &plain_out, false)?;
+
+    assert_eq!(first.code, Some(0), "{}", first.stderr);
+    assert_eq!(second.code, Some(0), "{}", second.stderr);
+    assert!(
+        first
+            .stdout
+            .contains("the head of protos_human_male_face_t1_pu on the male body"),
+        "{}",
+        first.stdout
+    );
+    assert!(first.stdout.contains("part head: "), "{}", first.stdout);
+    let (moved, base) = (head_positions(&shaped_out)?, head_positions(&plain_out)?);
+    assert_eq!(moved.len(), base.len());
+    let changed = moved
+        .iter()
+        .zip(&base)
+        .filter(|(moved, base)| (*moved - *base).abs() > 1e-6)
+        .count();
+    assert_eq!(changed, 3, "one vertex moved on each axis");
+    Ok(())
+}
+
+#[test]
+fn the_json_report_names_the_rig_the_body_and_the_parts() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
+    let archive = archive(dir.path(), head_entries(Some(rig)))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+
+    let run = glb(&archive, &file, &dir.path().join("c.glb"), true)?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    assert_eq!(value["body"], "male");
+    assert_eq!(value["rig"], "protos_human_male_face_t1_pu");
+    assert_eq!(value["skipped"], 0);
+    let origins: Vec<&str> = value["parts"]
+        .as_array()
+        .ok_or("parts")?
+        .iter()
+        .filter_map(|part| part["origin"].as_str())
+        .collect();
+    assert_eq!(origins, ["body", "head"]);
+    Ok(())
+}
+
+#[test]
+fn a_head_whose_rig_is_missing_is_reported_as_skipped() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path(), head_entries(None))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+
+    let run = glb(&archive, &file, &dir.path().join("c.glb"), false)?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert!(run.stdout.contains("skipped head: "), "{}", run.stdout);
+    assert!(run.stdout.contains("does not exist"), "{}", run.stdout);
+    Ok(())
+}
+
+#[test]
+fn a_character_without_face_dna_or_for_an_unknown_rig_is_invalid_input() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path(), head_entries(None))?;
+    for (name, dna, message) in [
+        ("none.chf", None, "no face DNA"),
+        ("other.chf", Some((0xdead_beef, 1)), "unknown head rig"),
+    ] {
+        let file = chf(dir.path(), name, dna)?;
+
+        let run = glb(&archive, &file, &dir.path().join("c.glb"), false)?;
+
+        assert_eq!(run.code, Some(2), "{name}: {}", run.stderr);
+        assert!(run.stderr.contains(message), "{name}: {}", run.stderr);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_file_that_is_no_chf_is_an_input_error_and_the_archive_is_never_the_output() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path(), head_entries(None))?;
+    let junk = dir.path().join("junk.chf");
+    fs::write(&junk, b"not a character")?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 1)))?;
+
+    let bad = glb(&archive, &junk, &dir.path().join("c.glb"), false)?;
+    let same = glb(&archive, &file, &archive, false)?;
+
+    assert_eq!(bad.code, Some(3), "{}", bad.stderr);
+    assert_eq!(same.code, Some(2), "{}", same.stderr);
+    Ok(())
+}

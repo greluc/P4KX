@@ -6,6 +6,7 @@ use crate::rig_bytes::{f32_at, vec3_at};
 use crate::{DnaRig, RigError};
 
 const VEC3_LEN: usize = 12;
+/// The most bytes that follow the weights in the region masks slot.
 const MASK_TRAILER: usize = 8;
 
 /// The translation of each joint of the rig for each head: parent-local offsets, with the joints
@@ -170,30 +171,37 @@ impl<'a> DnaRig<'a> {
 
     /// Returns the number of vertices of the mesh this file belongs to.
     ///
-    /// The region masks give it exactly, since they hold one weight per covered region and vertex
-    /// and a trailer; the header's count is used when they do not divide evenly.
+    /// The region masks hold one weight per covered region and vertex and a trailer of up to
+    /// 8 bytes. The header's count is used when the masks fit it that way, and
+    /// otherwise the count that fills the masks.
     ///
     /// # Errors
     ///
     /// Returns [`RigError::SlotUnset`] without region masks and [`RigError::Malformed`] when they
-    /// cover no region.
+    /// cover no region or fit no vertex count.
     pub fn vertex_count(&self) -> Result<usize, RigError> {
         let data = self.slot(SLOT_REGION_MASKS, "region masks")?;
         let covered = self.covered_regions()?.len();
+        let malformed = |reason| RigError::Malformed {
+            what: "region masks",
+            slot: SLOT_REGION_MASKS,
+            reason,
+        };
         if covered == 0 {
-            return Err(RigError::Malformed {
-                what: "region masks",
-                slot: SLOT_REGION_MASKS,
-                reason: "the file covers no region",
-            });
+            return Err(malformed("the file covers no region"));
         }
         let row = covered * 4;
-        let body = data.len().saturating_sub(MASK_TRAILER);
-        if body > 0 && body % row == 0 {
-            Ok(body / row)
-        } else {
-            Ok(usize::try_from(self.header().vertices).unwrap_or(usize::MAX))
-        }
+        let fits = |vertices: usize| {
+            vertices
+                .checked_mul(row)
+                .is_some_and(|body| body <= data.len() && data.len() - body <= MASK_TRAILER)
+        };
+        let stated = usize::try_from(self.header().vertices).unwrap_or(usize::MAX);
+        let filled = data.len() / row;
+        [stated, filled, filled.saturating_sub(1)]
+            .into_iter()
+            .find(|&vertices| vertices > 0 && fits(vertices))
+            .ok_or_else(|| malformed("the masks fit no vertex count"))
     }
 
     /// Reads the region masks of the mesh.
@@ -209,15 +217,13 @@ impl<'a> DnaRig<'a> {
         let need = vertices
             .checked_mul(covered)
             .and_then(|cells| cells.checked_mul(4))
-            .and_then(|bytes| bytes.checked_add(MASK_TRAILER))
             .filter(|&need| need <= data.len())
             .ok_or_else(|| RigError::SlotTooShort {
                 what: "region masks",
                 slot: SLOT_REGION_MASKS,
                 need: (vertices as u64)
                     .saturating_mul(covered as u64)
-                    .saturating_mul(4)
-                    .saturating_add(MASK_TRAILER as u64),
+                    .saturating_mul(4),
                 have: data.len(),
             })?;
         Ok(RegionMasks {

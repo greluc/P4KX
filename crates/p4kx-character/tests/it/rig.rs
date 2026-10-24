@@ -74,6 +74,21 @@ fn a_file_without_a_region_list_covers_every_region() -> TestResult {
 }
 
 #[test]
+fn the_vertex_count_survives_any_trailer_behind_the_region_masks() -> TestResult {
+    for trailer in [0, 4, 8] {
+        let mut test = TestDna::small();
+        test.mask_trailer = trailer;
+        let bytes = test.build();
+        let rig = DnaRig::read(&bytes)?;
+
+        assert_eq!(rig.vertex_count()?, 4, "trailer {trailer}");
+        assert_eq!(rig.region_masks()?.weight(1, 3), Some(1.0), "{trailer}");
+        assert_eq!(rig.neutral_morphs()?.vertices(), 4, "{trailer}");
+    }
+    Ok(())
+}
+
+#[test]
 fn the_joint_offsets_of_each_head_are_read_per_joint() -> TestResult {
     let bytes = TestDna::small().build();
     let rig = DnaRig::read(&bytes)?;

@@ -19,6 +19,7 @@ mod audio_search;
 mod audio_streamed_localised;
 mod docked_vehicles;
 mod entity_lookup;
+mod head_build;
 mod loadout_changes;
 mod loadout_edges;
 mod loadout_entries;

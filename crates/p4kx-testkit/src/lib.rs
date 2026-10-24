@@ -31,6 +31,7 @@ mod entity;
 mod entity_armour;
 mod entity_assembly;
 mod entity_cargo;
+mod entity_head;
 mod entity_port;
 mod entity_sample;
 mod entity_schema;
@@ -90,6 +91,10 @@ pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry};
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
+pub use entity_head::{
+    FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
+    head_entries, head_rig,
+};
 pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::entity_schema;

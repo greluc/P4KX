@@ -10,7 +10,7 @@ use crate::GltfError;
 use crate::animations::AnimationSummary;
 use crate::document::document;
 use crate::glb_plan::{plan_layout, single_animation_plans, summarise, texture_set};
-use crate::instance::{Instance, Wrapper};
+use crate::instance::{Instance, Wrapper, material_requests};
 use crate::layout::Layout;
 use crate::materials::MaterialPlan;
 use crate::skin::inverse_binds;
@@ -143,6 +143,15 @@ pub struct GlbSummary {
     /// The number of scene models drawn at another level of detail than the one asked for,
     /// because they lack it.
     pub lod_fallbacks: usize,
+    /// The number of scene meshes that are not written again because an earlier scene node holds
+    /// the same model at the same level with the same material library; their nodes reference
+    /// the first one's glTF mesh.
+    pub shared_meshes: usize,
+    /// The number of material requests of the written models that reuse an equal glTF material.
+    pub shared_materials: usize,
+    /// The number of texture references of materials that reuse an image another reference
+    /// already uses, so the image is embedded once.
+    pub shared_textures: usize,
 }
 
 /// Writes `model` as a GLB file to `out`: the JSON chunk first, then the binary data, streamed
@@ -221,6 +230,7 @@ pub fn write_glb_animated_with(
         lod: Some(lod),
         wrapper: None,
         plan: MaterialPlan::new(model.materials.library(), lod),
+        twin: None,
     };
     write_instances(&[], &[instance], animations, options, textures, 0, out)
 }
@@ -277,6 +287,21 @@ pub(crate) fn write_instances(
     );
     summary.parts = instances.len();
     summary.lod_fallbacks = lod_fallbacks;
+    summary.shared_meshes = instances
+        .iter()
+        .filter_map(|instance| instance.twin)
+        .map(|twin| {
+            layout
+                .meshes
+                .iter()
+                .filter(|mesh| mesh.part == twin)
+                .count()
+        })
+        .sum();
+    if instances.len() > 1 {
+        summary.shared_materials =
+            material_requests(&layout, instances).saturating_sub(root.materials.len());
+    }
     Ok(summary)
 }
 

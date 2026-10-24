@@ -117,6 +117,7 @@ fn instances_of<'m>(pieces: &[RigPiece<'m>], options: &GlbOptions) -> (Vec<Insta
                 plan: lod.map_or_else(MaterialPlan::empty, |lod| {
                     MaterialPlan::new(piece.materials.library(), lod)
                 }),
+                twin: None,
             }
         })
         .collect();

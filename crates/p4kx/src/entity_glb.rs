@@ -41,6 +41,9 @@ struct GlbJson<'a> {
     default_material_ids: usize,
     hidden_primitives: usize,
     lod_fallbacks: usize,
+    shared_meshes: usize,
+    shared_materials: usize,
+    shared_textures: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -114,6 +117,9 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
             default_material_ids: summary.default_material_ids,
             hidden_primitives: summary.hidden_primitives,
             lod_fallbacks: summary.lod_fallbacks,
+            shared_meshes: summary.shared_meshes,
+            shared_materials: summary.shared_materials,
+            shared_textures: summary.shared_textures,
             vertices: summary.vertices,
             triangles: summary.triangles,
             bytes: summary.bytes,
@@ -206,6 +212,13 @@ fn print_report(
             "{} models lack LOD{} and are written at the nearest lower level",
             summary.lod_fallbacks,
             assembly.lod()
+        )?;
+    }
+    if summary.shared_meshes + summary.shared_materials + summary.shared_textures > 0 {
+        writeln!(
+            stdout,
+            "shared {} meshes, {} materials and {} textures instead of writing them again",
+            summary.shared_meshes, summary.shared_materials, summary.shared_textures
         )?;
     }
     if summary.hidden_primitives > 0 {

@@ -19,18 +19,20 @@ pub(crate) fn plan_layout<'m>(
     binds: Option<&'m [[f32; 16]]>,
 ) -> Layout<'m> {
     let mut layout = Layout::new();
+    let mut hidden = vec![0; instances.len()];
     for (part, instance) in instances.iter().enumerate() {
-        if let Some(lod) = instance.lod {
-            layout.add_part(
-                part,
-                lod,
-                options.vertex_colours,
-                &instance.plan,
-                Rigging {
-                    binds,
-                    influences: None,
-                },
-            );
+        if let Some(twin) = instance.twin {
+            layout.hidden_primitives += hidden.get(twin).copied().unwrap_or(0);
+        } else if let Some(lod) = instance.lod {
+            let before = layout.hidden_primitives;
+            let rigging = Rigging {
+                binds,
+                influences: None,
+            };
+            layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
+            if let Some(slot) = hidden.get_mut(part) {
+                *slot = layout.hidden_primitives - before;
+            }
         }
     }
     layout
@@ -75,6 +77,30 @@ pub(crate) fn texture_set(
         }
     }
     TextureSet::build(&instance.plan, &slots, mip, textures)
+}
+
+/// Returns how many texture references of the materials point at a texture another reference
+/// already uses.
+fn shared_textures(root: &json::Root) -> usize {
+    let mut used = vec![false; root.textures.len()];
+    let mut references = 0_usize;
+    for material in &root.materials {
+        let pbr = &material.pbr_metallic_roughness;
+        let indices = [
+            pbr.base_color_texture.as_ref().map(|info| info.index),
+            pbr.metallic_roughness_texture
+                .as_ref()
+                .map(|info| info.index),
+            material.normal_texture.as_ref().map(|info| info.index),
+        ];
+        for index in indices.into_iter().flatten() {
+            references += 1;
+            if let Some(slot) = used.get_mut(index.value()) {
+                *slot = true;
+            }
+        }
+    }
+    references.saturating_sub(used.iter().filter(|used| **used).count())
 }
 
 pub(crate) fn summarise(
@@ -128,5 +154,8 @@ pub(crate) fn summarise(
         bytes,
         parts: 0,
         lod_fallbacks: 0,
+        shared_meshes: 0,
+        shared_materials: 0,
+        shared_textures: shared_textures(root),
     }
 }

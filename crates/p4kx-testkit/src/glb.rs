@@ -6,6 +6,7 @@ use gltf::{Accessor, Document, Gltf, Semantic};
 
 use crate::glb_animation::check_animations;
 use crate::glb_container::split_glb;
+use crate::glb_morph::{check_morph_targets, check_sparse};
 use crate::glb_skin::check_skins;
 
 /// A GLB file that passed [`check_glb`], with its document and binary chunk.
@@ -14,12 +15,20 @@ pub struct CheckedGlb {
     /// The glTF document.
     pub document: Document,
     pub(crate) blob: Vec<u8>,
+    pub(crate) json: gltf::json::Value,
 }
 
 impl CheckedGlb {
     /// Returns the values of a float accessor, component after component.
     #[must_use]
     pub fn floats(&self, accessor: &Accessor<'_>) -> Vec<f32> {
+        if accessor.sparse().is_some() {
+            return self.sparse_floats(accessor);
+        }
+        self.plain_floats(accessor)
+    }
+
+    pub(crate) fn plain_floats(&self, accessor: &Accessor<'_>) -> Vec<f32> {
         self.elements(accessor)
             .flat_map(|bytes| {
                 bytes
@@ -77,7 +86,10 @@ impl CheckedGlb {
 /// the skeleton root, skinned meshes at the root of the scene and per vertex weights that add up
 /// to 1 over bones the skin has, and for animations distinct channel targets, strictly increasing
 /// key times with exact `min` and `max`, one output per key of the property's type and unit
-/// rotations.
+/// rotations, and for sparse accessors strictly ascending indices below the count with unshared,
+/// in-bounds views, and for morph targets one `POSITION` delta accessor with `min` and `max` of
+/// the primitive's vertex count per target, the same number of targets on every primitive of a
+/// mesh and default weights and target names that match them.
 ///
 /// # Errors
 ///
@@ -89,10 +101,13 @@ pub fn check_glb(bytes: &[u8]) -> Result<CheckedGlb, String> {
     let checked = CheckedGlb {
         document: gltf.document,
         blob: blob.to_vec(),
+        json: gltf::json::deserialize::from_slice(json)
+            .map_err(|error| format!("invalid JSON: {error}"))?,
     };
     check_buffers(&checked)?;
     check_accessors(&checked)?;
     check_meshes(&checked)?;
+    check_morph_targets(&checked)?;
     check_nodes(&checked)?;
     crate::glb_images::check_textures(&checked)?;
     check_skins(&checked)?;
@@ -126,7 +141,14 @@ fn check_buffers(glb: &CheckedGlb) -> Result<(), String> {
 fn check_accessors(glb: &CheckedGlb) -> Result<(), String> {
     for accessor in glb.document.accessors() {
         let index = accessor.index();
+        check_sparse(glb, &accessor)?;
         let Some(view) = accessor.view() else {
+            if accessor.sparse().is_some() && accessor.count() > 0 {
+                if accessor.data_type() == DataType::F32 {
+                    check_floats(glb, &accessor)?;
+                }
+                continue;
+            }
             return Err(format!("accessor {index} has no bufferView"));
         };
         let component = accessor.data_type().size();

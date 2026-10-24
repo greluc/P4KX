@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{Field, Guid, Location, Step, StructValue, Value, ValueError};
 
 /// The canonical tree of one Record: its GUID, record path, name and root struct with the fields.

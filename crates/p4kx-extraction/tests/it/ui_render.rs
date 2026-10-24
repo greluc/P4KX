@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Rendering the first frame of a UI movie in an Archive: external images and sub-images fill
 //! shapes, and bitmaps that cannot be decoded are listed with their fills skipped.
 

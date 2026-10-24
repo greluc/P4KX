@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_foundation::ArchiveKey;
 
 /// The key synthetic Archives are encrypted with; it is not the key of any real Archive.

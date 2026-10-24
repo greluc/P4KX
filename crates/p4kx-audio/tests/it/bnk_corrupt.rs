@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Corrupt soundbanks fail with a typed error naming the section, never a panic.
 
 use p4kx_audio::{BankError, HircValue, SectionId, Soundbank};

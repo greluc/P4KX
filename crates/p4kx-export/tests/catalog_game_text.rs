@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Exactly the game-text fields of the catalog carry `x-gameText` in its JSON Schema.
 
 use serde_json::json;

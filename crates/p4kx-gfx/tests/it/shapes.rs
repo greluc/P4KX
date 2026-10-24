@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Shapes and morph shapes: bounds, fill and line styles, edge records and the JSON form.
 
 use p4kx_gfx::{FillStyle, Movie, Point, Rect, Rgba, ShapeRecord};

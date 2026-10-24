@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx extract --convert` over a synthetic Archive with a DataForge Entry.
 
 use std::error::Error;

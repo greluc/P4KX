@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx dcb query --out` writes CSV and JSON byte for byte as the window's export does, since
 //! both go through `p4kx_extraction::export_query`.
 

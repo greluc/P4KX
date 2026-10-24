@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Which texture of a material becomes which glTF texture, and what the images hold.
 
 use p4kx_testkit::TestMtlMaterial;

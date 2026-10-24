@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Field statistics over a synthetic DataForge: counting, kinds, empty values, numbers, the
 //! struct a strong pointer owns in the path and Record selections.
 

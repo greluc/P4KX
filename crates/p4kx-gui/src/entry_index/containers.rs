@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::sort::{compare_ignoring_case, file_name};
 use p4kx_extraction::{Entry, EntryTree, FolderId};
 

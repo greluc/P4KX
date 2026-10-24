@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The colour tokens of the P4KX design, named as in the token fixture.
 
 use egui::Color32;

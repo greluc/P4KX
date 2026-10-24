@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx catalog` end to end, over a synthetic DataForge and English and German `global.ini`
 //! files.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the Comparison tests: a pair of synthetic Archives that differ in known ways.
 
 use std::error::Error;

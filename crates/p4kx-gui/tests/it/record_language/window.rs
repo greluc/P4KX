@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A headless window over an Archive of the fixtures, and the helpers to drive it.
 
 use std::error::Error;

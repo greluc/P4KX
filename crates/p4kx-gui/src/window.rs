@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Placement of the main window and how it is remembered in the settings file.
 
 use egui::{Rect, ViewportBuilder, ViewportInfo};

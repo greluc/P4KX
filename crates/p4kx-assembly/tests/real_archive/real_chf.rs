@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The CHF files of a real Archive round-trip through JSON byte-exactly.
 
 use std::error::Error;

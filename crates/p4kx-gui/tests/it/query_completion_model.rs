@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The completion schema of the Query editor lives in the one DataForge cache of the Archive: it is
 //! built from the DataForge already read, once, and dropped with the cache.
 

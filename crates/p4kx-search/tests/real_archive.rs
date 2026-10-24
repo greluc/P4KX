@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The content search over the real Archive `P4KX_DATA_P4K` names; runs with `--ignored`.
 //!
 //! The tests open the Archive without a key and read nothing encrypted: the DataForge, the

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! An open Archive of a test Channel: the window shows a persistent warning notice that the
 //! material is confidential; the Archive stays browsable.
 

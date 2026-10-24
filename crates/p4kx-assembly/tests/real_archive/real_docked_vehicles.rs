@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Ships of a real Archive that carry docked vehicles in their default Loadout.
 
 use std::error::Error;

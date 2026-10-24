@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// A text of the Basetool catalog entry of the Export menu and its windows, looked up in the
 /// Fluent file of the current language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The synthetic DataForge of the field statistics tests and helpers to read their result.
 
 use std::error::Error;

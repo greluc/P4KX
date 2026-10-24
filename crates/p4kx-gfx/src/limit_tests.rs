@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The limits of composing and rasterising, exercised with small values through the private
 //! functions the public ones pass their constants to.
 

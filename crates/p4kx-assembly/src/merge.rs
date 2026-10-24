@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use std::collections::HashMap;
 
 /// Returns the key a port name is matched by: the name in ASCII lower case.

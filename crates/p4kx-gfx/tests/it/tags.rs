@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The tag stream: counts, unknown tags, long headers, broken tags, exports and exporter info.
 
 use p4kx_gfx::{FrameLabel, GfxError, Movie, tag_name};

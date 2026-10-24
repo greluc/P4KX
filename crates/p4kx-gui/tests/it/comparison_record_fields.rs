@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The field changes of one Record of the Comparison's Record list over a pair of synthetic
 //! DataForges: values, links, error values, names and types, and a new selection.
 

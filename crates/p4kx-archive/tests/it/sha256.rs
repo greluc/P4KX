@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Checking the SHA-256 of the stored bytes of an Entry while it is read.
 
 use std::error::Error;

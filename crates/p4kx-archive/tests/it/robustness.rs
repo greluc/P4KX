@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Archives with malformed fields that still open, and the defects reported for their Entries.
 
 use std::error::Error;

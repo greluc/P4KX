@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Containers behave like the folded folders of the Entry tree (ADR-0023) and like the Archive
 //! for split textures: search, checks, the Shown scope and sorting cover their parts.
 

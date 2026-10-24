@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Vehicle implementations and their Modifications in a real Archive: ships and ground vehicles,
 //! the issues the reader records, the patch shapes of ADR-0050 and some known vehicles.
 //!

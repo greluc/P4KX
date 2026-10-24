@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A pair of Archives whose synthetic DataForges differ in every kind of Record change, and a
 //! Comparison of them on the Record level.
 

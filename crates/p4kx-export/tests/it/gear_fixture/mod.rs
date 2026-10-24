@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic Archive with one item of each gear stat kind: armour, clothing, radar, tractor
 //! beam, salvage modifier and a beam weapon.
 

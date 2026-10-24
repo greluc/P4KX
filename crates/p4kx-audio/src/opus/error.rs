@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use thiserror::Error;
 
 /// A reason an Opus WEM cannot be repackaged as Ogg Opus or decoded to PCM.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A survey of the quirks of the soundbanks and WEMs of a real Archive: bank sizes and versions,
 //! sections that deviate, and the chunks, tags and padding of the RIFF files.
 

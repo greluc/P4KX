@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{Align, Color32, Label, Layout, Margin, Ui, vec2};
 use fluent_bundle::FluentValue;
 

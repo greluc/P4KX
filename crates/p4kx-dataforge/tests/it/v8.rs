@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Opening a version 8 DataForge, whose Records carry a tag, next to an equivalent version 6 one.
 
 use std::error::Error;

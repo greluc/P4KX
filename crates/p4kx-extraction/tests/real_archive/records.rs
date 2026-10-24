@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reading the DataForge of a real Archive and building, writing and exporting every Record.
 
 use std::collections::HashMap;

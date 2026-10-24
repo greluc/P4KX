@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Archive key dialog: what it says about a malformed key source and how it checks a key.
 
 use egui_kittest::kittest::Queryable;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Skeletons and skinned meshes written as GLB: joints, inverse bind matrices, weights.
 
 use std::error::Error;

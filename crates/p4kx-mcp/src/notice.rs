@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The legal notice of `p4kx-mcp --help` and `p4kx-mcp --version`.
 
 macro_rules! legal_notice {

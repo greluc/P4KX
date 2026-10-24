@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Extraction service of P4KX and the Archive, `CryXml`, DataForge, localisation,
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 

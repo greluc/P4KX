@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The DataForge node in the path tree and the DataForge tab of the preview, driven headless.
 
 use std::error::Error;

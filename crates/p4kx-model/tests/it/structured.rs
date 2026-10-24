@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Mesh chunks with arbitrary header counts, submesh fields and page bases, and with multi-byte
 //! mutations, give a typed error or a model whose indices stay in range, never a panic.
 

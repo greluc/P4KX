@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use thiserror::Error;
 
 /// A failure to read binary data, located by its offset in the input.

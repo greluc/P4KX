@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Loadout trees of every ship and ground vehicle of a real Archive.
 
 use std::error::Error;

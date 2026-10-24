@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Weak pointers, Records that share a file, the order of a limited index and cancelling the build.
 
 use p4kx_dataforge::{DataForge, ReferenceIndex};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Extracting into a folder that already holds files, under each Conflict policy.
 
 use std::error::Error;

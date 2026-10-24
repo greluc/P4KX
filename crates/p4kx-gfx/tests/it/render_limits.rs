@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Hostile movies: nesting, mask counts and canvases beyond the limits end in a report or a typed
 //! error, never in a panic, a hang or an unbounded allocation.
 

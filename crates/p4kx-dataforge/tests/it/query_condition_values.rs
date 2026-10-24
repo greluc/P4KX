@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Running `where` conditions over a synthetic DataForge: the comparison rules of every scalar type.
 
 use crate::common::{TestResult, assert_selects, database};

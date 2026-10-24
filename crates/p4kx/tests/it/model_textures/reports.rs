@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! What a textured export reports: missing and undecodable textures, unsafe and hostile names, a
 //! model without an Archive.
 

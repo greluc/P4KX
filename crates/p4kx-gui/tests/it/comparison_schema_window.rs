@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The schema list of the Comparison tab drawn and driven headless over a pair of synthetic
 //! DataForges, and rendered by wgpu when a graphics adapter exists.
 //!

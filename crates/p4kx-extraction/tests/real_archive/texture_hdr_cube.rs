@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Decoding the real Archive's BC6H cubemaps face by face: every face is finite, and the faces
 //! meet at their shared edges, which holds only when the faces come in DDS order.
 

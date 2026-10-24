@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// A value of one field in the instance of a synthetic DataForge Record.
 #[derive(Debug, Clone, PartialEq)]
 pub enum TestValue {

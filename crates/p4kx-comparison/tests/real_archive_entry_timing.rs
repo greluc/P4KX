@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The time the Entry level of two real Archives takes; runs with `--ignored` when
 //! `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B` name them, and skips without the second.
 //!

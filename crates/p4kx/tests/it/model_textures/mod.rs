@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx model glb --materials textures` end to end: split DDS textures of an Archive become the
 //! PNG images of the GLB.
 

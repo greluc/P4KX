@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Composing the first frame: transforms, sprites, colour transforms, masks, morph shapes, and
 //! what is skipped and why.
 

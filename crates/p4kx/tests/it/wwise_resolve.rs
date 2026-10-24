@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `p4kx wwise resolve` end to end, over a synthetic Archive with an ATL definition and a
 //! soundbank hierarchy of events, actions, containers and sounds.
 

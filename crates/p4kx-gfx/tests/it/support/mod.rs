@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Helpers of the render tests: movies of a 100 x 100 pixel stage, rendering and pixel checks.
 
 use std::collections::HashMap;

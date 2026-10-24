@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::{Guid, Reference, StructValue, ValueError};
 
 /// The value of one field or array element in the canonical Record tree.

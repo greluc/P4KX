@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::model::{
     CUBE_CAPS_MATERIAL, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestNode, TestSubmesh, TestVertex,
 };

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Canary for the DataForge format details no tool interprets: when a game update changes one,
 //! these tests fail or report it before the reader reads wrong data.
 

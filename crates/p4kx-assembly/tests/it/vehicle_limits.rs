@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Hostile and malformed vehicle implementations: depth, budgets, path confinement, numbers and
 //! the issues that make the patch rule of ADR-0050 visible.
 

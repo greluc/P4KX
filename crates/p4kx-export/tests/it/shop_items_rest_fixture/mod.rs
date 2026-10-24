@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic Archive whose shop components lie outside the shop folders, repeat neither the
 //! component name nor the GUID of their Entity, or are named by a prefab.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Writes a [`p4kx_model::Model`] as one glTF 2.0 binary file (GLB).
 //!
 //! [`write_glb`] converts the model from `CryEngine` coordinates (Z up) to glTF's (Y up), keeps

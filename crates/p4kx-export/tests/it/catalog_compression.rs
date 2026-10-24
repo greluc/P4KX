@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Basetool catalog written as plain JSON or as a zstd frame, through the public API.
 
 use std::error::Error;

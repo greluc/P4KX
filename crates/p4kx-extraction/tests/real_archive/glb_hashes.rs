@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! CRC-32 of the GLB of a sample of real models, to compare two builds of the model reader; runs
 //! with `--ignored` when `P4KX_DATA_P4K` names an Archive. The lines are printed
 //! (`--nocapture`) and, when `P4KX_HASH_OUT` names a file, written there.

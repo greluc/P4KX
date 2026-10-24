@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Comparison service of P4KX: the Entries added, removed and changed and the Records
 //! added, removed, moved and changed between two Archives, as a queryable result and as a JSON
 //! report with a generated schema, the line diff of one Entry pair, and the schema drift between

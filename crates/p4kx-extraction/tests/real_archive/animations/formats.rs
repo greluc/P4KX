@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A census of the key format codes the controllers of `.caf` files and `.dba` databases use.
 
 use std::collections::BTreeMap;

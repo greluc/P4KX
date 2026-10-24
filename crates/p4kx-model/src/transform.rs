@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// An affine transform as a 3×4 row-major matrix: three rows of rotation and scale with the
 /// translation in the last column.
 #[derive(Debug, Clone, Copy, PartialEq)]

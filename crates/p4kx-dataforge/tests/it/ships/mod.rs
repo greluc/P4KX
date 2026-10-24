@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic DataForge of ships with nested structs, strong pointers, arrays and a polymorphic
 //! component array, and a helper to read the cells of a Query.
 

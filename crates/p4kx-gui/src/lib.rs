@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The desktop window of P4KX.
 //!
 //! The window state lives in [`Model`], separate from the egui code in [`ui`] that draws it, so

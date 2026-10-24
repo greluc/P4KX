@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The crafting data of a synthetic DataForge through [`read_crafting`].
 
 use crate::crafting_detail_fixture;

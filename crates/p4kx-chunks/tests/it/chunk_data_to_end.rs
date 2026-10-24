@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! `ChunkFile::chunk_data_to_end` reaches data behind a chunk's computed span, which `.dba`
 //! animation databases need.
 

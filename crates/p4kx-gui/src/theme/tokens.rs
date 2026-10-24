@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The non-colour tokens of the P4KX design: type scale, weights, tracking, spacing, radii
 //! and glows, named as in the token list, with 1rem as 16 points.
 

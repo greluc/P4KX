@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The checked-in JSON Schema of the Comparison report matches the report types.
 //!
 //! Run with `P4KX_BLESS=1` to regenerate `schemas/comparison-report.schema.json`.

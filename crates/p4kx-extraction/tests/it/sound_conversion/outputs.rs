@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_extraction::{AudioConversion, ConflictPolicy, EntryFailure, ExtractOptions};
 use p4kx_testkit::{TestBank, TestEntry, TestOpus, TestOpusFraming, test_signal};
 

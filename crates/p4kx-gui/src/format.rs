@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::Language;
 
 const UNITS: [&str; 5] = ["KiB", "MiB", "GiB", "TiB", "PiB"];

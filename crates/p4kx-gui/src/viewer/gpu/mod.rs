@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The wgpu side of the viewer: the scene drawn into an offscreen picture inside an egui paint
 //! callback and blitted into the panel.
 

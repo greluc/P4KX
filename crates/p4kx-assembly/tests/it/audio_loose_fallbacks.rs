@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The order in which loose WEMs are tried for localised and embedded sources, and the message
 //! of a missing localisation.
 

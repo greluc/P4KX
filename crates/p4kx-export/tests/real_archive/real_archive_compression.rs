@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Basetool catalog of a real Archive written as zstd at levels 15, 17 and 19: sizes, ratios
 //! and times, the limits of the Basetool, and the decoded bytes against the plain catalog; runs
 //! with `--ignored` when `P4KX_DATA_P4K` names an Archive. The level 19 frame is left in the

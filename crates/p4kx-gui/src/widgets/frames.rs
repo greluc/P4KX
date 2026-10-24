@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{
     Color32, Context, CornerRadius, Frame, Id, LayerId, Margin, Modal, Painter, Pos2, Rect, Shape,
     Stroke, Ui, Vec2, Window, pos2, vec2,

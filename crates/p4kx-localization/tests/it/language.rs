@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Language names, codes and Entry paths, through the public API.
 
 use p4kx_localization::Language;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! How the line diff reads each side: CryXml, text XML, UTF-16, binary and oversized Entries.
 
 use crate::common::{TestResult, pair, rendered};

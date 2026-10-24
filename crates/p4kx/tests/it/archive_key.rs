@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Archive key on the command line: `--key`, `P4KX_ARCHIVE_KEY`, the stored key and the
 //! `key` commands.
 

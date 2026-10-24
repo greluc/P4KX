@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Small drifts of the format are read and reported instead of failing or reading wrong data.
 
 use std::error::Error;

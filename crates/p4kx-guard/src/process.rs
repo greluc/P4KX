@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// The process names of the game, compared ignoring case.
 const GAME_PROCESSES: [&str; 2] = ["StarCitizen.exe", "StarCitizen"];
 

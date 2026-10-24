@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The audio index is built while rayon tasks that need it wait, without a deadlock.
 
 use std::error::Error;

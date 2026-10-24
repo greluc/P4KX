@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The public patch of a Build, told by the RSI Launcher log line with the same change number.
 
 use std::error::Error;

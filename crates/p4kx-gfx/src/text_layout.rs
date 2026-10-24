@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// What a character occupies on its line.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct Item {

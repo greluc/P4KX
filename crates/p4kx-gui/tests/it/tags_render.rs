@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Tags tab drawn by wgpu, rendered headless by `egui_kittest`.
 //!
 //! The test needs a graphics adapter, a software one is enough, and returns early without one.

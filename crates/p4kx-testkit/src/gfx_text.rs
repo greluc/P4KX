@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use crate::gfx::{BitWriter, rect, translation};
 
 /// One record of [`define_text_body`]: what it changes of the state and its glyph entries.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Confirmation of an Extraction from the window that covers every Entry, driven headless.
 
 use crate::common;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Compiling and running Queries over a synthetic DataForge: selection, order, paging and
 //! compile errors, also for random Queries.
 

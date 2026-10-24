@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Field changes of one Record pair, described as text for the nested field diff tests.
 
 use std::error::Error;

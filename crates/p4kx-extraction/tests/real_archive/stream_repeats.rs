@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Survey of repeated stream tags in the mesh chunks of a real Archive; runs with `--ignored` when
 //! `P4KX_DATA_P4K` names one, prints the tags that occur twice in a chunk with an example, and
 //! fails when a tag the model reads repeats, a stream overruns its chunk or a file cannot be read.

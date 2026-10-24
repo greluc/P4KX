@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 /// Returns whether `needle` occurs in `text`, ignoring ASCII case.
 pub(crate) fn contains(text: &str, needle: &str) -> bool {
     needle.is_empty()

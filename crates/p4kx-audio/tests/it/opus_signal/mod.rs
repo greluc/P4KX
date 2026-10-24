@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Comparing decoded Opus sounds with the known signal they were encoded from.
 
 /// Returns the signal-to-noise ratio in dB of channel `channel` of `decoded` against `signal`.

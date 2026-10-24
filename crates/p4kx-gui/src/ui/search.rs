@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use egui::{Align, Frame, Id, Layout, Margin, Rect, TextEdit, Ui, pos2, vec2};
 
 use super::extraction;

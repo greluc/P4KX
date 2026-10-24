@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The one image a texture's preview shows per mip, and which Entries are textures.
 
 use std::error::Error;

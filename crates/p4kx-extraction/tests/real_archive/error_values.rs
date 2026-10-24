@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Survey of the error values in the Records of the companion-app reference types on a real
 //! Archive: which error each value carries and where.
 

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The `CrCh` models of a real Archive as GLB, read without the Archive key: Entries that are
 //! encrypted are left out. Runs with `--ignored` when `P4KX_DATA_P4K` names an Archive.
 

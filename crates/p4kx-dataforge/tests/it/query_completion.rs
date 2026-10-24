@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Completion offers the struct names after `from` and in `[…]` and the field names at the start
 //! of a path and after `.`, from the schema of one DataForge.
 

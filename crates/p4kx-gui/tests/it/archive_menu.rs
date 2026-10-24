@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Reload and Extract selected entries of the Archive menu and their shortcuts, driven headless.
 
 use std::error::Error;

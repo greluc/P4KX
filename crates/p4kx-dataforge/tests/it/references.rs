@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! References and weak pointers in the Record tree: links, never embedded content.
 
 use crate::versions::{TestResult, in_both_versions};

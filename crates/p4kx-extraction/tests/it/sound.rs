@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Reading WEM sounds from an Archive or from disk and writing them as WAV files.
 
 use std::error::Error;

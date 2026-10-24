@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The audio index of a real Archive and the audio triggers of its ships.
 
 use std::error::Error;

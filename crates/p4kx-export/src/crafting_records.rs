@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 use p4kx_extraction::{Guid, RecordTree, StructValue, Value, is_placeholder_key};
 
 use crate::blueprint::{as_struct, craft_time};

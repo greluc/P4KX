@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Record tab of the preview in the window, driven headless over a synthetic DataForge:
 //! showing a Record, following References, back and forward, and a dangling Reference.
 

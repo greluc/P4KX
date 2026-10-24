@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The memory budget of the open containers: reservations, closing, refusing and retrying.
 
 use p4kx_gui::{ContainerFailure, ContainerStatus, TreeNode};

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The virtual Record tree of DataForge in the path tree, driven without drawing.
 
 use std::error::Error;

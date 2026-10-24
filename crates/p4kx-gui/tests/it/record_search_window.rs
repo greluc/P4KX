@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The Record search in the list panel, driven headless over a synthetic DataForge.
 
 use std::error::Error;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The verification of M3 over real Archives: the whole catalog against the checked-in schema,
 //! plausible counts, no development leftovers, resolved texts and the upload limit; runs with
 //! `--ignored` when `P4KX_DATA_P4K` names one; the test of the second Channel returns early

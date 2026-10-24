@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! A synthetic DataForge whose Records hold localisation keys, in Archives with English and
 //! German `global.ini` files.
 

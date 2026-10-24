@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! Survey of the chunk types in a real Archive; runs with `--ignored` when `P4KX_DATA_P4K` names
 //! one. The survey table is printed (`--nocapture`) and, when `P4KX_SURVEY_OUT` names a file,
 //! written there as tab-separated text.

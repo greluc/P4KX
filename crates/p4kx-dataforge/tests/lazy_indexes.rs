@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
 //! The lazily built Record indexes stay usable from many rayon tasks at once.
 
 use std::error::Error;

@@ -43,6 +43,7 @@ mod morphs;
 mod nodes;
 mod package_support;
 mod rig;
+mod rig_animation;
 mod scene;
 mod scene_light;
 mod scene_nodes;
@@ -65,7 +66,8 @@ pub use morphs::MorphTarget;
 pub use package_support::{
     DrawnMaterial, NodeTransform, TextureFile, drawn_materials, node_transform,
 };
-pub use rig::{RigPiece, write_rigged_glb};
+pub use rig::{RigPiece, write_rigged_glb, write_rigged_glb_animated};
+pub use rig_animation::{RigAnimation, SampledAnimation, SampledBone, SampledWeights};
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};
 pub use scene_light::{SceneLight, SceneLightKind};
 pub use texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};

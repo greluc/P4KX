@@ -42,7 +42,7 @@ bcdec_rs = "0.2.0"
 bytemuck = "1.25.2"
 cbc = "0.2.1"
 crc32c = "0.6.8"
-crc32fast = "1.5.2"
+crc32fast = "1.5.3"
 ctrlc = "3.5.2"
 clap = { version = "4.6.7", features = ["derive"] }
 dirs = "7.0.0"

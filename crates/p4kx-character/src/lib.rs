@@ -31,6 +31,7 @@ mod rig_expression;
 mod rig_logic;
 mod rig_matrix;
 mod rig_neutral;
+mod rig_pose;
 mod rig_tables;
 
 pub use character::{Character, FEMALE_VERSIONS, MALE_VERSIONS, Versions};
@@ -51,4 +52,5 @@ pub use rig_expression::{ExpressionCell, ExpressionMorphs};
 pub use rig_logic::{RIG_LOGIC_MAGIC, RigLogic, RigLogicError};
 pub use rig_matrix::{DnaMatrix, MAX_RIG_CELLS};
 pub use rig_neutral::NeutralMorphs;
+pub use rig_pose::{FacePose, FaceRig};
 pub use rig_tables::{JointWeights, RegionMasks, VariantJoints};

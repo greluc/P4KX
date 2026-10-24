@@ -48,9 +48,22 @@ fn check_animation(
         let (input, output) = (sampler.input(), sampler.output());
         check_times(glb, &input, &name)?;
         let keys = input.count();
+        let per_key = if property == Property::MorphTargetWeights {
+            let targets = target
+                .node()
+                .mesh()
+                .and_then(|mesh| mesh.primitives().next())
+                .map_or(0, |primitive| primitive.morph_targets().count());
+            if targets == 0 {
+                return Err(format!("{name}: weights target a node without morph targets"));
+            }
+            targets
+        } else {
+            1
+        };
         let expected = match sampler.interpolation() {
-            Interpolation::CubicSpline => 3 * keys,
-            _ => keys,
+            Interpolation::CubicSpline => 3 * keys * per_key,
+            _ => keys * per_key,
         };
         if output.count() != expected {
             return Err(format!(
@@ -93,7 +106,16 @@ fn check_output(
     let (dimensions, label) = match property {
         Property::Translation | Property::Scale => (Dimensions::Vec3, "VEC3"),
         Property::Rotation => (Dimensions::Vec4, "VEC4"),
-        Property::MorphTargetWeights => return Ok(()),
+        Property::MorphTargetWeights => {
+            return if output.dimensions() == Dimensions::Scalar
+                && output.data_type() == DataType::F32
+                && glb.floats(output).iter().all(|weight| weight.is_finite())
+            {
+                Ok(())
+            } else {
+                Err(format!("{name}: weights are no finite SCALAR floats"))
+            };
+        }
     };
     if output.dimensions() != dimensions || output.data_type() != DataType::F32 {
         return Err(format!(

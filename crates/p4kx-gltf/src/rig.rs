@@ -8,6 +8,8 @@ use json::validation::USize64;
 use p4kx_model::{Bone, BoneMatch, Influences, MaterialStatus, Model};
 
 use crate::GltfError;
+use crate::animations::{AnimationPlan, push_animations};
+use crate::rig_animation::{RigAnimation, RigNodes, plan_all};
 use crate::document::{GENERATOR, NodeMeshes, push_accessor, push_meshes};
 use crate::glb::{GlbOptions, GlbSummary, write_file};
 use crate::glb_plan::summarise;
@@ -82,6 +84,28 @@ pub fn write_rigged_glb(
     options: &GlbOptions,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
+    write_rigged_glb_animated(skeleton, pieces, &[], options, out)
+}
+
+/// Writes `pieces` worn on `skeleton` with `animations` as one GLB file to `out`; see
+/// [`write_rigged_glb`].
+///
+/// Animations with keys move the bone nodes by controller ID like
+/// [`write_glb_animated`](crate::write_glb_animated) does; sampled animations move the bones they
+/// name and set the morph weights of the pieces they name, with the same `LINEAR` or, for a single
+/// sample, `STEP` interpolation. Animations without a channel are not written and every
+/// animation asked for is listed in [`GlbSummary::animations`].
+///
+/// # Errors
+///
+/// As [`write_rigged_glb`].
+pub fn write_rigged_glb_animated<'m>(
+    skeleton: &'m [Bone],
+    pieces: &'m [RigPiece<'m>],
+    animations: &[RigAnimation<'m>],
+    options: &GlbOptions,
+    out: &mut impl Write,
+) -> Result<GlbSummary, GltfError> {
     let (instances, fallbacks) = instances_of(pieces, options);
     let binds = inverse_binds(skeleton);
     let remapped: Vec<Vec<Vec<Influences>>> = instances
@@ -99,21 +123,58 @@ pub fn write_rigged_glb(
             layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
         }
     }
+    let drawn_nodes: usize = instances
+        .iter()
+        .map(|instance| instance.model.nodes.len())
+        .sum();
+    let piece_mesh_nodes = mesh_nodes(pieces, &layout);
+    let piece_targets: Vec<usize> = (0..pieces.len())
+        .map(|part| {
+            layout
+                .meshes
+                .iter()
+                .find(|mesh| mesh.part == part)
+                .map_or(0, |mesh| mesh.morphs.len())
+        })
+        .collect();
+    let bones_written = layout.inverse_binds.is_some() && !skeleton.is_empty();
+    let nodes = RigNodes {
+        bones: if bones_written { skeleton } else { &[] },
+        first_bone_node: bones_written.then_some(drawn_nodes),
+        total: drawn_nodes + skeleton.len(),
+        piece_mesh_nodes: &piece_mesh_nodes,
+        piece_targets: &piece_targets,
+    };
+    let plans = plan_all(&mut layout, animations, &nodes);
     let images = TextureSet::default();
-    let root = document(skeleton, pieces, &instances, &layout, &images);
+    let root = document(skeleton, pieces, &instances, &layout, &images, &plans);
     let total = write_file(&root, &layout, &images, out)?;
     let defaulted = instances
         .iter()
         .map(|instance| instance.plan.defaulted())
         .sum();
-    let drawn_nodes = instances
-        .iter()
-        .map(|instance| instance.model.nodes.len())
-        .sum();
-    let mut summary = summarise(&root, &layout, defaulted, drawn_nodes, images, &[], total);
+    let mut summary = summarise(&root, &layout, defaulted, drawn_nodes, images, &plans, total);
     summary.parts = instances.len();
     summary.lod_fallbacks = fallbacks;
     Ok(summary)
+}
+
+/// Returns the node of the first mesh of each piece, if it has one.
+fn mesh_nodes(pieces: &[RigPiece<'_>], layout: &Layout<'_>) -> Vec<Option<usize>> {
+    let mut offset = 0;
+    pieces
+        .iter()
+        .enumerate()
+        .map(|(part, piece)| {
+            let start = offset;
+            offset += piece.model.nodes.len();
+            layout
+                .meshes
+                .iter()
+                .find(|mesh| mesh.part == part)
+                .map(|mesh| start + mesh.node)
+        })
+        .collect()
 }
 
 /// Returns an instance per piece at the level of detail `options` asks for or the nearest lower
@@ -148,6 +209,7 @@ fn document(
     instances: &[Instance<'_>],
     layout: &Layout<'_>,
     images: &TextureSet,
+    plans: &[AnimationPlan],
 ) -> json::Root {
     let mut root = json::Root {
         asset: json::Asset {
@@ -205,6 +267,9 @@ fn document(
         &[]
     };
     push_rig_nodes(&mut root, &models, bones, bind_accessor);
+    if let Some(buffer) = buffer {
+        push_animations(&mut root, buffer, layout, plans);
+    }
     root
 }
 

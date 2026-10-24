@@ -16,6 +16,8 @@ pub struct TestRigLogic {
     pub controls: Vec<String>,
     /// For each corrective blendshape the five controls it combines.
     pub correctives: Vec<[u8; 5]>,
+    /// The names of the joints the rig moves, in the order of the DNA rig's joints.
+    pub joints: Vec<String>,
 }
 
 impl TestRigLogic {
@@ -26,6 +28,7 @@ impl TestRigLogic {
         Self {
             controls: ["CTL_PSD", "CTL_a", "CTL_b"].map(str::to_owned).to_vec(),
             correctives: vec![[0, 1, 2, 0, 0]],
+            joints: ["FACIAL_root", "FACIAL_jaw"].map(str::to_owned).to_vec(),
         }
     }
 
@@ -58,19 +61,27 @@ impl TestRigLogic {
         let b = a + crcs.len();
         let c = b + names.len();
         let d = c + rows.len();
+        let joints: Vec<u8> = self
+            .joints
+            .iter()
+            .flat_map(|name| crc32fast::hash(name.as_bytes()).to_le_bytes())
+            .collect();
+        let f = if joints.is_empty() { 0 } else { d };
         let mut out = Vec::new();
         out.extend_from_slice(b"RIG V1.9");
         out.resize(0x3e, 0);
         put_u16(&mut out, 0xa8);
         put_u16(&mut out, u16::try_from(self.controls.len()).unwrap_or(0));
         put_u16(&mut out, u16::try_from(self.correctives.len()).unwrap_or(0));
+        put_u16(&mut out, u16::try_from(self.joints.len()).unwrap_or(0));
         out.resize(0x68, 0);
-        for start in [b, a, c, d, 0, 0, 0, 0] {
+        for start in [b, a, c, d, 0, f, 0, 0] {
             put_u64(&mut out, start as u64);
         }
         out.extend_from_slice(&crcs);
         out.extend_from_slice(&names);
         out.extend_from_slice(&rows);
+        out.extend_from_slice(&joints);
         out.extend_from_slice(&[0; 8]);
         out
     }

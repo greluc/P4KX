@@ -269,8 +269,8 @@ impl Assembly {
     /// of [`MaterialMode::Textures`](p4kx_gltf::MaterialMode::Textures) from `textures`.
     ///
     /// The mip level of `options` applies to every texture. An image several parts use is
-    /// embedded once, and a part with a palette shares the images of its materials with the
-    /// parts of other palettes. A texture that cannot be loaded leaves the material's plain
+    /// embedded once; the images of a part with a palette are shared with the parts of other
+    /// palettes unless a specular map bakes the colours into the image. A texture that cannot be loaded leaves the material's plain
     /// colour and is listed in [`GlbSummary::texture_fallbacks`].
     ///
     /// # Errors

@@ -25,7 +25,7 @@ pub(crate) struct Instance<'m> {
     pub(crate) lod: Option<&'m Lod>,
     pub(crate) wrapper: Option<usize>,
     pub(crate) plan: MaterialPlan<'m>,
-    /// The earlier instance of the same model, level and material library whose meshes this one
+    /// The earlier instance of the same model, level, material library and palette whose meshes this one
     /// reuses; such an instance plans no blocks and no materials of its own.
     pub(crate) twin: Option<usize>,
 }

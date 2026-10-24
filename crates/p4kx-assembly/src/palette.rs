@@ -45,13 +45,13 @@ pub trait PaletteProvider {
     /// [`PaletteFailure::Unreadable`] when it is no readable tint palette.
     fn by_guid(&self, guid: Guid) -> Result<TintPalette, PaletteFailure>;
 
-    /// Reads the `TintPaletteTree` Record at the record path `path`, as a material library
-    /// names its default palette; ignores case and the kind of separator.
+    /// Returns the GUID of the `TintPaletteTree` Record at the record path `path`, as a material
+    /// library names its default palette; ignores case and the kind of separator.
     ///
     /// # Errors
     ///
-    /// As [`Self::by_guid`].
-    fn by_path(&self, path: &str) -> Result<TintPalette, PaletteFailure>;
+    /// Returns [`PaletteFailure::Missing`] when no tint palette is at the path.
+    fn guid_at(&self, path: &str) -> Result<Guid, PaletteFailure>;
 }
 
 /// Reads tint palettes from the `TintPaletteTree` Records of a DataForge.
@@ -77,17 +77,16 @@ impl PaletteProvider for ForgePalettes<'_> {
         read_record(&record)
     }
 
-    fn by_path(&self, path: &str) -> Result<TintPalette, PaletteFailure> {
-        let record = self
-            .forge
+    fn guid_at(&self, path: &str) -> Result<Guid, PaletteFailure> {
+        self.forge
             .records_at_path(path)
             .find(|record| {
                 record
                     .type_name()
                     .is_ok_and(|name| name == TINT_PALETTE_TREE)
             })
-            .ok_or(PaletteFailure::Missing)?;
-        read_record(&record)
+            .map(|record| record.guid())
+            .ok_or(PaletteFailure::Missing)
     }
 }
 

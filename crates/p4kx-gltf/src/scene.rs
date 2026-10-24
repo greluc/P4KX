@@ -167,7 +167,8 @@ pub fn write_scene_glb(
 /// The textures of all parts are decoded, combined and PNG-encoded before the first byte is
 /// written, a few at a time, at the mip level [`GlbOptions::texture_mip`] names. An image that
 /// several materials or parts use is made and embedded once; a part with a [`TintPalette`] is
-/// drawn with its colours, as the base colour factor over the shared image. At most
+/// drawn with its colours, as the base colour factor over the image, which stays shared unless a
+/// specular map bakes the colours into it (then each palette has its own). At most
 /// [`crate::MAX_TEXTURE_IMAGES`] images and [`crate::MAX_TEXTURE_PIXELS`] pixels are embedded;
 /// a texture that is beyond them or cannot be loaded leaves the plain colour and is listed in
 /// [`GlbSummary::texture_fallbacks`].
@@ -254,7 +255,7 @@ fn instances_of<'m>(scene: &Scene<'m>, options: &GlbOptions) -> (Vec<Instance<'m
 
 /// Returns the level of `model` closest to `level` from below, or its lowest level when all are
 /// above it.
-fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
+pub(crate) fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
     model
         .lods
         .iter()

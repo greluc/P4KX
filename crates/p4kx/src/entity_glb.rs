@@ -24,7 +24,7 @@ use crate::query_table::one_line;
 /// The output of `p4kx entity glb` is the Archive it reads.
 #[derive(Debug, Error)]
 #[error("{} is the Archive the Entity is read from", .0.display())]
-pub(crate) struct GlbOutputIsArchive(PathBuf);
+pub(crate) struct GlbOutputIsArchive(pub(crate) PathBuf);
 
 #[derive(Serialize)]
 struct GlbJson<'a> {
@@ -76,7 +76,7 @@ struct ReplacedJson<'a> {
 }
 
 #[derive(Serialize)]
-struct IssueJson<'a> {
+pub(crate) struct IssueJson<'a> {
     path: &'a str,
     name: &'a str,
     kind: &'static str,
@@ -188,28 +188,6 @@ fn fallbacks_json(summary: &GlbSummary) -> Vec<FallbackJson<'_>> {
             reason: &fallback.reason,
         })
         .collect()
-}
-
-fn print_issues(out: &mut impl Write, assembly: &Assembly) -> io::Result<()> {
-    for issue in assembly.issues() {
-        let what = if issue.kind().skips() {
-            "skipped"
-        } else {
-            "note"
-        };
-        let path = if issue.path().is_empty() {
-            issue.name().to_owned()
-        } else {
-            format!("{} ({})", issue.path(), issue.name())
-        };
-        writeln!(
-            out,
-            "{what} {}: {}",
-            one_line(&path),
-            one_line(&issue.kind().to_string())
-        )?;
-    }
-    Ok(())
 }
 
 fn write(
@@ -328,6 +306,29 @@ fn print_report(
             summary.hidden_primitives
         )?;
     }
-    print_issues(&mut stdout, assembly)?;
+    print_issues(&mut stdout, assembly.issues())?;
     stdout.flush()
+}
+
+/// Prints one line per issue: `skipped` for a part that is left out, `note` for the others.
+pub(crate) fn print_issues(out: &mut impl Write, issues: &[Issue]) -> io::Result<()> {
+    for issue in issues {
+        let what = if issue.kind().skips() {
+            "skipped"
+        } else {
+            "note"
+        };
+        let path = if issue.path().is_empty() {
+            issue.name().to_owned()
+        } else {
+            format!("{} ({})", issue.path(), issue.name())
+        };
+        writeln!(
+            out,
+            "{what} {}: {}",
+            one_line(&path),
+            one_line(&issue.kind().to_string())
+        )?;
+    }
+    Ok(())
 }

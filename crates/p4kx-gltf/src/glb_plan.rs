@@ -8,7 +8,7 @@ use crate::animations::{AnimationPlan, Targets, plan as plan_animations};
 use crate::document::skeleton_written;
 use crate::glb::{GlbOptions, GlbSummary};
 use crate::instance::Instance;
-use crate::layout::Layout;
+use crate::layout::{Layout, Rigging};
 use crate::materials::Slot;
 use crate::texture_loader::TextureLoader;
 use crate::texture_plan::{PartSlots, TextureSet};
@@ -25,7 +25,11 @@ pub(crate) fn plan_layout<'m>(
             layout.hidden_primitives += hidden.get(twin).copied().unwrap_or(0);
         } else if let Some(lod) = instance.lod {
             let before = layout.hidden_primitives;
-            layout.add_part(part, lod, options.vertex_colours, &instance.plan, binds);
+            let rigging = Rigging {
+                binds,
+                influences: None,
+            };
+            layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
             if let Some(slot) = hidden.get_mut(part) {
                 *slot = layout.hidden_primitives - before;
             }

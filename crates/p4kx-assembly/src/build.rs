@@ -146,7 +146,7 @@ fn issue(draft: &Draft<'_>, kind: IssueKind) -> Issue {
 }
 
 /// Returns a key for a path that ignores case, the separator kind and a leading `Data\`.
-fn file_key(path: &str) -> String {
+pub(crate) fn file_key(path: &str) -> String {
     let key = path
         .trim_start_matches(['/', '\\'])
         .replace('/', "\\")

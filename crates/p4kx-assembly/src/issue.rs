@@ -104,6 +104,31 @@ pub enum IssueKind {
         /// The limit.
         limit: usize,
     },
+    /// The piece of armour or clothing cannot be found or read as an Entity, so it is left out.
+    #[error("the piece cannot be resolved: {reason}")]
+    PieceNotFound {
+        /// Why.
+        reason: String,
+    },
+    /// The piece's Record names no geometry to wear, so it is left out.
+    #[error("the Entity names no geometry to wear")]
+    NoWornGeometry,
+    /// The piece's Record names geometry per body, but none for this one, so it is left out.
+    #[error("the Entity has no geometry for the {body} body")]
+    NoVariantGeometry {
+        /// The code of the body variant.
+        body: String,
+    },
+    /// Some bones of the piece's model are not in the body skeleton; their vertices follow the
+    /// nearest ancestor bone the skeleton has.
+    #[error("{count} bones are not in the body skeleton and follow their nearest parent")]
+    BonesNotInSkeleton {
+        /// The number of bones.
+        count: usize,
+    },
+    /// The piece's model has no bone weights, so it is placed as it is, without the skeleton.
+    #[error("the model has no bone weights and is not skinned to the body")]
+    NotSkinned,
 }
 
 impl IssueKind {
@@ -122,6 +147,11 @@ impl IssueKind {
             Self::TooManyParts { .. } => "too_many_parts",
             Self::TooManyVertices { .. } => "too_many_vertices",
             Self::TooDeep { .. } => "too_deep",
+            Self::PieceNotFound { .. } => "piece_not_found",
+            Self::NoWornGeometry => "no_worn_geometry",
+            Self::NoVariantGeometry { .. } => "no_variant_geometry",
+            Self::BonesNotInSkeleton { .. } => "bones_not_in_skeleton",
+            Self::NotSkinned => "not_skinned",
         }
     }
 
@@ -136,6 +166,9 @@ impl IssueKind {
                 | Self::TooManyParts { .. }
                 | Self::TooManyVertices { .. }
                 | Self::TooDeep { .. }
+                | Self::PieceNotFound { .. }
+                | Self::NoWornGeometry
+                | Self::NoVariantGeometry { .. }
         )
     }
 }

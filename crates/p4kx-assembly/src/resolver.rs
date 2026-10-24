@@ -13,7 +13,7 @@ use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::walk::Walk;
 use crate::{
     ChangeError, Entities, EntityNode, ItemFacts, LandingGear, LoadoutChanges, LoadoutError,
-    LoadoutFiles, MAX_LOADOUT_DEPTH, VehicleImplementation, vehicle, xml,
+    LoadoutFiles, MAX_LOADOUT_DEPTH, VehicleImplementation, Wearable, vehicle, xml,
 };
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
@@ -161,6 +161,20 @@ impl<'f> LoadoutResolver<'f> {
         spec.as_ref()
             .as_ref()
             .map(EntitySpec::item_facts)
+            .map_err(Clone::clone)
+    }
+
+    /// Reads what `entity` offers to be worn on a body: its geometry and its sub-geometry per body
+    /// tag. Its Loadout is not resolved.
+    ///
+    /// # Errors
+    ///
+    /// Returns the reason when the Record is no Entity or cannot be read.
+    pub fn wearable(&mut self, entity: &Record<'f>) -> Result<Wearable, LoadoutError> {
+        let spec = self.spec(entity.guid());
+        spec.as_ref()
+            .as_ref()
+            .map(Wearable::from_spec)
             .map_err(Clone::clone)
     }
 

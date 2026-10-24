@@ -31,6 +31,21 @@ fn scene_of<'m>(
     Ok(scene)
 }
 
+fn scene_of_palettes<'m>(
+    model: &'m Model,
+    status: &'m MaterialStatus,
+    palettes: &[&'m TintPalette],
+) -> Result<Scene<'m>, Box<dyn std::error::Error>> {
+    let mut scene = Scene::new();
+    for (position, palette) in palettes.iter().enumerate() {
+        scene.push(
+            SceneNode::new(format!("part{position}"), None, Transform::IDENTITY)
+                .with_part(ScenePart::new(model, status).with_palette(palette)),
+        )?;
+    }
+    Ok(scene)
+}
+
 fn plates() -> Vec<TestMtlMaterial> {
     vec![plain("unused"), plate("caps"), plate("sides")]
 }
@@ -224,5 +239,53 @@ fn parts_with_different_palettes_share_the_images_and_differ_in_the_colour_facto
     let colours = base_colours(&glb);
     assert!(close(colours[0], [0.25; 3]), "{colours:?}");
     assert!(close(colours[3], [0.75; 3]), "{colours:?}");
+    Ok(())
+}
+
+#[test]
+fn a_specular_map_bakes_the_palette_colours_into_the_images_of_each_livery() -> TestResult {
+    let model = read_cube()?;
+    let status = library(&[
+        plain("unused"),
+        TestMtlMaterial::new("caps")
+            .shader("HardSurface")
+            .layer("Primary", "1")
+            .texture("TexSlot1", "Objects/Test/plate_diff.tif")
+            .texture("TexSlot4", "Objects/Test/plate_spec.tif"),
+    ]);
+    let palette = |name: &str, tint: f32| {
+        let entry = TintEntry {
+            tint: [tint; 3],
+            specular: [0.05; 3],
+            glossiness: 100.0,
+        };
+        TintPalette::new(name, [entry; 3], [1.0; 3])
+    };
+    let (first, second) = (palette("first", 0.25), palette("second", 0.75));
+    let stub = Stub::default()
+        .with(
+            "objects/test/plate_diff.dds",
+            &texture([200, 100, 50, 255], false)?,
+        )
+        .with(
+            "objects/test/plate_spec.dds",
+            &texture([255, 255, 255, 255], false)?,
+        );
+    let (_, one) = write(
+        &scene_of_palettes(&model, &status, &[&first])?,
+        &textured(),
+        &stub,
+    )?;
+    let (_, two) = write(
+        &scene_of_palettes(&model, &status, &[&first, &second])?,
+        &textured(),
+        &stub,
+    )?;
+
+    assert_eq!(
+        two.textures,
+        one.textures + 1,
+        "the base colour image of the second livery has its own colours: {one:?} {two:?}"
+    );
     Ok(())
 }

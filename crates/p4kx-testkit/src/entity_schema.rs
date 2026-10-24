@@ -40,7 +40,10 @@ fn geometry_structs() -> Vec<TestStruct> {
         TestStruct::new("SGeometryResourceParams")
             .parent("DataForgeComponentParams")
             .field("Geometry", class("SGeometryNodeParams")),
-        TestStruct::new("SGeometryNodeParams").field("Geometry", class("SGeometryDataParams")),
+        TestStruct::new("SGeometryNodeParams")
+            .field("Tags", TestType::String)
+            .field("Geometry", class("SGeometryDataParams"))
+            .array("SubGeometry", class("SGeometryNodeParams")),
         TestStruct::new("SGeometryDataParams")
             .field("Geometry", class("GlobalResourceGeometry"))
             .field("Material", class("GlobalResourceMaterial"))

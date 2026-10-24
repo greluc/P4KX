@@ -4,20 +4,22 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use p4kx_dataforge::Guid;
 use p4kx_model::{MaterialStatus, TintPalette};
 
 use crate::{Geometry, IssueKind, PaletteFailure, PaletteProvider};
 
 type Cached = Result<Arc<TintPalette>, PaletteFailure>;
 
-/// Resolves the tint palette of each part, reading every distinct palette once.
+/// Resolves the tint palette of each part, reading every distinct palette Record once.
 ///
 /// A part takes the palette its Entity's geometry names; when that cannot be resolved, or the
-/// Entity names none, the default palette of its material library. Each failure is reported for
-/// the first part that meets it.
+/// Entity names none, the default palette of its material library. Palettes are cached by the
+/// GUID of the Record, however it was named, so one Record is one palette. Each failure message
+/// is reported for the first part that meets it.
 pub(crate) struct Palettes<'p> {
     provider: Option<&'p dyn PaletteProvider>,
-    cache: HashMap<String, Cached>,
+    cache: HashMap<Guid, Cached>,
     reported: HashSet<String>,
 }
 
@@ -38,14 +40,14 @@ impl<'p> Palettes<'p> {
         library: &MaterialStatus,
     ) -> (Option<Arc<TintPalette>>, Vec<IssueKind>) {
         let mut issues = Vec::new();
-        if self.provider.is_none() {
+        let Some(provider) = self.provider else {
             return (None, issues);
-        }
+        };
         if let Some(named) = geometry.and_then(Geometry::palette) {
             let guid = named.guid();
-            let key = format!("guid:{guid}");
+            let what = format!("the tint palette {guid}");
             let found = if named.child_path().is_empty() {
-                self.read(&key, |provider| provider.by_guid(guid))
+                self.read(provider, guid)
             } else {
                 Err(PaletteFailure::Unreadable {
                     reason: format!("the child {} is not supported", named.child_path()),
@@ -53,58 +55,39 @@ impl<'p> Palettes<'p> {
             };
             match found {
                 Ok(palette) => return (Some(palette), issues),
-                Err(failure) => {
-                    if self.reported.insert(key) {
-                        issues.push(IssueKind::Palette {
-                            reason: describe(&format!("the tint palette {guid}"), &failure),
-                        });
-                    }
-                }
+                Err(failure) => self.note(&mut issues, &what, &failure),
             }
         }
         let default = library
             .library()
             .and_then(|library| library.default_palette.as_deref());
         if let Some(path) = default {
-            let key = format!("path:{}", path.to_ascii_lowercase());
-            match self.read(&key, |provider| provider.by_path(path)) {
+            let what = format!("the default tint palette {path} of the material library");
+            match provider
+                .guid_at(path)
+                .and_then(|guid| self.read(provider, guid))
+            {
                 Ok(palette) => return (Some(palette), issues),
-                Err(failure) => {
-                    if self.reported.insert(key) {
-                        issues.push(IssueKind::Palette {
-                            reason: describe(
-                                &format!("the default tint palette {path} of the material library"),
-                                &failure,
-                            ),
-                        });
-                    }
-                }
+                Err(failure) => self.note(&mut issues, &what, &failure),
             }
         }
         (None, issues)
     }
 
-    fn read(
-        &mut self,
-        key: &str,
-        fetch: impl FnOnce(&dyn PaletteProvider) -> Result<TintPalette, PaletteFailure>,
-    ) -> Cached {
-        if let Some(cached) = self.cache.get(key) {
-            return cached.clone();
-        }
-        let result = self
-            .provider
-            .ok_or(PaletteFailure::Missing)
-            .and_then(fetch)
-            .map(Arc::new);
-        self.cache.insert(key.to_owned(), result.clone());
-        result
+    fn read(&mut self, provider: &dyn PaletteProvider, guid: Guid) -> Cached {
+        self.cache
+            .entry(guid)
+            .or_insert_with(|| provider.by_guid(guid).map(Arc::new))
+            .clone()
     }
-}
 
-fn describe(what: &str, failure: &PaletteFailure) -> String {
-    match failure {
-        PaletteFailure::Missing => format!("{what} does not exist"),
-        PaletteFailure::Unreadable { reason } => format!("{what} cannot be used: {reason}"),
+    fn note(&mut self, issues: &mut Vec<IssueKind>, what: &str, failure: &PaletteFailure) {
+        let reason = match failure {
+            PaletteFailure::Missing => format!("{what} does not exist"),
+            PaletteFailure::Unreadable { reason } => format!("{what} cannot be used: {reason}"),
+        };
+        if self.reported.insert(reason.clone()) {
+            issues.push(IssueKind::Palette { reason });
+        }
     }
 }

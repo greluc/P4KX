@@ -37,8 +37,7 @@ fn the_model_preview_metrics_match_the_desktop_spec() {
     }
 }
 
-#[test]
-fn the_model_panel_leaves_the_view_well_above_its_minimum() {
+const _: () = {
     assert!(
         m::MODEL_VIEW_HEIGHT >= 1.5 * m::MODEL_VIEW_MIN_HEIGHT,
         "the view the panel opens with is at least half as high again as its minimum"
@@ -47,7 +46,7 @@ fn the_model_panel_leaves_the_view_well_above_its_minimum() {
         m::PREVIEW_MODEL_HEIGHT > super::desktop::PREVIEW_HEIGHT,
         "the panel of a model opens higher than the default"
     );
-}
+};
 
 #[test]
 fn the_model_view_sits_on_the_inset_surface_with_a_hairline() {

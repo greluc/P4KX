@@ -173,7 +173,7 @@ fn truncated_and_oversized_tables_are_errors_not_panics() {
             .bytes();
         assert!(IncludedObjects::read(&bytes).is_err(), "cut at {cut}");
     }
-    let mut huge = chunk.clone();
+    let mut huge = chunk;
     huge[4..8].copy_from_slice(&u32::MAX.to_le_bytes());
     let bytes = TestChunkFile::crch().chunk(0x0010, 1, huge).bytes();
     assert!(matches!(

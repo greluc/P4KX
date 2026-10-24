@@ -97,14 +97,12 @@ fn the_parts_hang_in_the_container_hierarchy() -> TestResult {
         (root.name(), root.kind(), root.parent()),
         ("ship_interior", InteriorPartKind::Container, None)
     );
-    let streams: Vec<usize> = interior
+    let streams = interior
         .parts()
         .iter()
-        .enumerate()
-        .filter(|(_, part)| part.kind() == InteriorPartKind::Stream)
-        .map(|(index, _)| index)
-        .collect();
-    assert_eq!(streams.len(), 2, "the root's and the cockpit's .soc file");
+        .filter(|part| part.kind() == InteriorPartKind::Stream)
+        .count();
+    assert_eq!(streams, 2, "the root's and the cockpit's .soc file");
     for (index, part) in interior.parts().iter().enumerate() {
         if let Some(parent) = part.parent() {
             assert!(parent < index, "{} comes after its parent", part.name());
@@ -231,7 +229,7 @@ fn the_parts_and_vertices_are_limited() -> TestResult {
 
     assert_eq!(few.parts().len(), 5);
     assert_eq!(issue(&few, "too_many_parts").len(), 1);
-    assert!(issue(&small, "too_many_vertices").len() >= 1);
+    assert_eq!(issue(&small, "too_many_vertices").len().min(1), 1);
     assert!(small.modelled_parts() < 5);
     Ok(())
 }
@@ -324,7 +322,7 @@ fn nesting_beyond_the_depth_limit_is_refused() -> TestResult {
     let deepest = interior.parts().last().ok_or("no parts")?;
     assert!(close(
         &deepest.world().translation(),
-        &[0.0, (MAX_INTERIOR_DEPTH - 1) as f32, 0.0]
+        &[0.0, f32::from(u8::try_from(MAX_INTERIOR_DEPTH - 1)?), 0.0]
     ));
     Ok(())
 }

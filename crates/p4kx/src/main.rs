@@ -19,6 +19,7 @@ mod cli_channels;
 mod cli_chf;
 mod cli_chunks;
 mod cli_coverage;
+mod cli_cryxml;
 mod cli_dcb;
 mod cli_dcb_fields;
 mod cli_entity;

@@ -38,6 +38,10 @@ impl Transform {
     /// and normalised here, and then moves by `position`; or `None` when a value is not finite or
     /// the quaternion has no length.
     #[must_use]
+    #[expect(
+        clippy::suboptimal_flops,
+        reason = "the matrix entries follow the textbook quaternion formulas"
+    )]
     pub fn from_quaternion(rotation: [f64; 4], position: [f64; 3]) -> Option<Self> {
         let [w, x, y, z] = rotation;
         let length = w.mul_add(w, x.mul_add(x, y.mul_add(y, z * z))).sqrt();

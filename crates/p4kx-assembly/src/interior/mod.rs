@@ -11,7 +11,9 @@ use crate::Issue;
 
 mod build;
 mod files;
+mod layers;
 mod models;
+mod scan;
 mod walk;
 
 /// The most parts an Interior holds; further parts are left out.
@@ -160,9 +162,10 @@ impl InteriorPart {
     }
 }
 
-/// The rooms of an Entity, or a container on its own, as a scene graph of placed models: the
-/// models of a socpak container's `.soc` files and of the containers nested in it, each at its
-/// transform composed with those of the containers around it.
+/// The rooms of an Entity, or a container on its own, as a scene graph of placed models.
+///
+/// It holds the models of a socpak container's `.soc` files and of the containers nested in it,
+/// each at its transform composed with those of the containers around it.
 ///
 /// Built by [`Interior::build`]. Models and material libraries are read once per file and shared
 /// by the parts that use them.
@@ -237,10 +240,9 @@ impl Interior {
     ) -> Result<usize, GltfError> {
         let mut nodes = Vec::with_capacity(self.parts.len());
         for part in &self.parts {
-            let (above, local) = match part.parent {
-                Some(index) => (nodes.get(index).copied(), part.local),
-                None => (parent, placement),
-            };
+            let (above, local) = part.parent.map_or((parent, placement), |index| {
+                (nodes.get(index).copied(), part.local)
+            });
             let mut node = SceneNode::new(part.name.clone(), above, local);
             if let Some(model) = &part.model {
                 node = node.with_part(ScenePart::new(model, &part.materials));

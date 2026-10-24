@@ -174,7 +174,7 @@ fn read_chunk(data: &[u8]) -> Result<IncludedObjects, IncludedObjectsError> {
     })
 }
 
-fn check(count: usize, limit: usize, what: &'static str) -> Result<(), IncludedObjectsError> {
+const fn check(count: usize, limit: usize, what: &'static str) -> Result<(), IncludedObjectsError> {
     if count > limit {
         Err(IncludedObjectsError::TooMany { what, limit })
     } else {
@@ -185,7 +185,9 @@ fn check(count: usize, limit: usize, what: &'static str) -> Result<(), IncludedO
 fn names(reader: &mut ByteReader<'_>, count: usize) -> Result<Vec<String>, ParseError> {
     let table = reader.read_bytes(count.saturating_mul(NAME_LEN))?;
     Ok(table
-        .chunks_exact(NAME_LEN)
+        .as_chunks::<NAME_LEN>()
+        .0
+        .iter()
         .map(|field| {
             let name = field.split(|&byte| byte == 0).next().unwrap_or(field);
             String::from_utf8_lossy(name).trim().to_owned()

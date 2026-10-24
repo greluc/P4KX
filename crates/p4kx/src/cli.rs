@@ -13,6 +13,7 @@ pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_coverage::CoverageArgs;
+use crate::cli_cryxml::CryXmlArgs;
 pub(crate) use crate::cli_dcb::{
     DcbArgs, DcbCommand, DcbExportArgs, DcbInfoArgs, DcbQueryArgs, DcbRefsArgs, DcbTagsArgs,
     QueryFormat, RecordFormat, RefsFormat, TagsFormat,
@@ -159,16 +160,6 @@ pub(crate) enum Command {
     /// Stores, shows or removes the Archive key of your profile.
     #[command(after_help = EXIT_CODES_HELP)]
     Key(KeyArgs),
-}
-
-/// Arguments of `p4kx cryxml`.
-#[derive(Debug, Args)]
-pub(crate) struct CryXmlArgs {
-    /// Path of the CryXml or text XML file.
-    pub(crate) file: PathBuf,
-    /// Writes the XML to this file instead of stdout; needed with --json.
-    #[arg(long, value_name = "FILE")]
-    pub(crate) out: Option<PathBuf>,
 }
 
 /// Arguments of `p4kx texture`.

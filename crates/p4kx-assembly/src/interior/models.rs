@@ -7,8 +7,8 @@ use std::sync::Arc;
 use p4kx_model::{Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use super::InteriorOptions;
 use super::walk::Walked;
+use super::{InteriorOptions, InteriorPart};
 use crate::build::{file_key, library_key_of};
 use crate::{ArchiveModels, AssemblyError, Issue, IssueKind, ModelFailure, ModelProvider};
 
@@ -16,6 +16,7 @@ use crate::{ArchiveModels, AssemblyError, Issue, IssueKind, ModelFailure, ModelP
 const WAVE: usize = 256;
 
 type Key = (usize, String);
+type Read = Result<(String, Model), ModelFailure>;
 
 struct Loaded {
     entry: String,
@@ -53,75 +54,82 @@ pub(super) fn attach(
     }
     let outcomes = read_models(&files, &providers, options)?;
     let libraries = read_libraries(&outcomes, &providers);
-    let unnamed = Arc::new(MaterialStatus::Unnamed);
-    let mut reported: HashSet<(String, String)> = HashSet::new();
-    let mut issues: Vec<Issue> = Vec::new();
-    let mut note = |container: &str, name: &str, kind: IssueKind| {
-        if reported.insert((container.to_owned(), format!("{name}|{kind}"))) {
-            issues.push(Issue {
+    let mut fill = Fill {
+        outcomes,
+        libraries,
+        unnamed: Arc::new(MaterialStatus::Unnamed),
+        max_vertices: options.max_vertices,
+        reported: HashSet::new(),
+        issues: Vec::new(),
+    };
+    for (placement, found) in walked.placements.iter().zip(&resolved) {
+        if let Some(part) = walked.parts.get_mut(placement.part) {
+            fill.part(
+                part,
+                &placement.container,
+                found.as_ref().map(|(key, _)| key),
+            );
+        }
+    }
+    walked.issues.extend(fill.issues);
+    Ok(())
+}
+
+/// The models and libraries that were read, and the issues found while handing them to parts.
+struct Fill {
+    outcomes: HashMap<Key, Outcome>,
+    libraries: HashMap<Key, Arc<MaterialStatus>>,
+    unnamed: Arc<MaterialStatus>,
+    max_vertices: usize,
+    reported: HashSet<(String, String)>,
+    issues: Vec<Issue>,
+}
+
+impl Fill {
+    fn note(&mut self, container: &str, name: &str, kind: IssueKind) {
+        if self
+            .reported
+            .insert((container.to_owned(), format!("{name}|{kind}")))
+        {
+            self.issues.push(Issue {
                 path: container.to_owned(),
                 name: name.to_owned(),
                 kind,
             });
         }
-    };
-    for (placement, found) in walked.placements.iter().zip(&resolved) {
-        let Some(part) = walked.parts.get_mut(placement.part) else {
-            continue;
-        };
+    }
+
+    fn part(&mut self, part: &mut InteriorPart, container: &str, key: Option<&Key>) {
         let path = part.model_path.clone().unwrap_or_default();
         let name = part.name.clone();
-        let Some((key, _)) = found else {
-            note(
-                &placement.container,
-                &name,
-                IssueKind::GeometryMissing { path },
-            );
-            continue;
+        let Some(key) = key else {
+            self.note(container, &name, IssueKind::GeometryMissing { path });
+            return;
         };
-        match outcomes.get(key) {
+        let kind = match self.outcomes.get(key) {
             Some(Outcome::Loaded(loaded)) => {
                 part.model = Some(Arc::clone(&loaded.model));
                 let library = library_key(key.0, loaded);
                 part.materials = library
                     .as_ref()
-                    .and_then(|key| libraries.get(key))
-                    .map_or_else(|| Arc::clone(&unnamed), Arc::clone);
-                if let (Some(_), Some(reason)) = (library, part.materials.problem()) {
-                    note(
-                        &placement.container,
-                        &name,
-                        IssueKind::MaterialLibrary { reason },
-                    );
+                    .and_then(|key| self.libraries.get(key))
+                    .map_or_else(|| Arc::clone(&self.unnamed), Arc::clone);
+                match (library, part.materials.problem()) {
+                    (Some(_), Some(reason)) => IssueKind::MaterialLibrary { reason },
+                    _ => return,
                 }
             }
-            Some(Outcome::Failed { missing: true, .. }) => {
-                note(
-                    &placement.container,
-                    &name,
-                    IssueKind::GeometryMissing { path },
-                );
-            }
-            Some(Outcome::Failed { reason, .. }) => {
-                let reason = reason.clone();
-                note(
-                    &placement.container,
-                    &name,
-                    IssueKind::GeometryUnreadable { path, reason },
-                );
-            }
-            Some(Outcome::NotRead) | None => {
-                let limit = options.max_vertices;
-                note(
-                    &placement.container,
-                    &name,
-                    IssueKind::TooManyVertices { limit },
-                );
-            }
-        }
+            Some(Outcome::Failed { missing: true, .. }) => IssueKind::GeometryMissing { path },
+            Some(Outcome::Failed { reason, .. }) => IssueKind::GeometryUnreadable {
+                path,
+                reason: reason.clone(),
+            },
+            Some(Outcome::NotRead) | None => IssueKind::TooManyVertices {
+                limit: self.max_vertices,
+            },
+        };
+        self.note(container, &name, kind);
     }
-    walked.issues.extend(issues);
-    Ok(())
 }
 
 /// Returns for every placement the layer that holds its model and the path as the part spells it;
@@ -160,7 +168,7 @@ fn read_models(
         if total >= options.max_vertices {
             break;
         }
-        let read: Vec<(Key, Result<(String, Model), ModelFailure>)> = wave
+        let read: Vec<(Key, Read)> = wave
             .par_iter()
             .map(|(key, path)| {
                 let result = providers

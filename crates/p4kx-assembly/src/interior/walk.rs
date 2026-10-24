@@ -3,55 +3,16 @@
 
 use std::sync::Arc;
 
-use p4kx_extraction::{Archive, PathKeys};
-use p4kx_model::{
-    ChildContainer, IncludedObjects, MaterialStatus, ObjectContainer, ObjectContainerError,
-    Transform,
-};
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use p4kx_extraction::Archive;
+use p4kx_model::{ChildContainer, MaterialStatus, Transform};
 
-use super::files::{
-    FileFailure, child_candidates, file_name, find_first, is_plain, path_key, read_file, stem,
-};
+use super::files::{child_candidates, file_name, find_first, is_plain, path_key, stem};
+use super::layers::Layers;
+use super::scan::{Scan, StreamScan, scan_container};
 use super::{
     InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH,
 };
 use crate::{AssemblyError, Issue, IssueKind};
-
-/// The Archives an Interior is read from: the ones the caller opened, outermost first, and the
-/// containers nested in them that the walk opened.
-pub(super) struct Layers<'a> {
-    given: &'a [&'a Archive],
-    opened: Vec<Archive>,
-    keys: Vec<PathKeys>,
-}
-
-impl<'a> Layers<'a> {
-    fn new(given: &'a [&'a Archive]) -> Self {
-        Self {
-            given,
-            opened: Vec::new(),
-            keys: given.iter().map(|archive| PathKeys::new(archive)).collect(),
-        }
-    }
-
-    pub(super) fn get(&self, layer: usize) -> Option<&Archive> {
-        match layer.checked_sub(self.given.len()) {
-            None => self.given.get(layer).copied(),
-            Some(at) => self.opened.get(at),
-        }
-    }
-
-    pub(super) fn len(&self) -> usize {
-        self.given.len() + self.opened.len()
-    }
-
-    fn push(&mut self, archive: Archive) -> usize {
-        self.keys.push(PathKeys::new(&archive));
-        self.opened.push(archive);
-        self.len() - 1
-    }
-}
 
 /// A model part waiting for its model: where to look for the file, outermost layer first.
 pub(super) struct Placement {
@@ -77,18 +38,6 @@ struct Todo {
     stem: String,
     ids: Vec<String>,
     depth: usize,
-}
-
-struct StreamScan {
-    name: String,
-    objects: Option<IncludedObjects>,
-}
-
-struct Scan {
-    children: Vec<ChildContainer>,
-    streams: Vec<StreamScan>,
-    issues: Vec<IssueKind>,
-    fatal: Option<AssemblyError>,
 }
 
 fn identity(layer: usize, path: &str) -> String {
@@ -345,13 +294,14 @@ impl<'a> Walker<'a> {
         Ok(nested)
     }
 
-    fn enter(
+    /// Finds the file of the nested container `child`, checks it is no ancestor and opens it;
+    /// returns the container and its Entry path and identity.
+    fn open_child(
         &mut self,
         todo: &Todo,
         child: &ChildContainer,
         name: &str,
-        local: Transform,
-    ) -> Result<Option<Todo>, AssemblyError> {
+    ) -> Result<Option<(Archive, String, String)>, AssemblyError> {
         let found = if is_plain(&child.name) {
             todo.chain.iter().rev().find_map(|&layer| {
                 let archive = self.layers.get(layer)?;
@@ -400,6 +350,19 @@ impl<'a> Walker<'a> {
             }
             None => return Ok(None),
         };
+        Ok(Some((archive, entry_path, id)))
+    }
+
+    fn enter(
+        &mut self,
+        todo: &Todo,
+        child: &ChildContainer,
+        name: &str,
+        local: Transform,
+    ) -> Result<Option<Todo>, AssemblyError> {
+        let Some((archive, entry_path, id)) = self.open_child(todo, child, name)? else {
+            return Ok(None);
+        };
         let layer = self.layers.push(archive);
         let world = self
             .parts
@@ -426,105 +389,4 @@ impl<'a> Walker<'a> {
             depth: todo.depth + 1,
         }))
     }
-}
-
-fn scan_container(archive: &Archive, keys: &PathKeys, stem: &str) -> Scan {
-    let index = keys.index(archive);
-    let mut scan = Scan {
-        children: Vec::new(),
-        streams: Vec::new(),
-        issues: Vec::new(),
-        fatal: None,
-    };
-    let candidates = [format!("{stem}.xml"), format!("{stem}\\{stem}.xml")];
-    let mut names: Vec<String> = Vec::new();
-    match find_first(&index, &candidates) {
-        None => scan.issues.push(IssueKind::FileMissing {
-            file: candidates[0].clone(),
-        }),
-        Some(entry) => match read_file(archive, entry) {
-            Err(FileFailure::Fatal(error)) => scan.fatal = Some(AssemblyError::Provider(error)),
-            Err(failure) => scan.issues.push(IssueKind::FileUnreadable {
-                file: entry.path().to_owned(),
-                reason: failure.reason(),
-            }),
-            Ok(bytes) => match ObjectContainer::parse(&bytes) {
-                Ok(container) => {
-                    names = container.streams;
-                    scan.children = container.children;
-                }
-                Err(error) => scan.issues.push(IssueKind::FileUnreadable {
-                    file: entry.path().to_owned(),
-                    reason: describe(&error),
-                }),
-            },
-        },
-    }
-    if names.is_empty() && scan.children.is_empty() && index.find(&format!("{stem}.soc")).is_some()
-    {
-        names.push(format!("{stem}.soc"));
-    }
-    let mut seen = std::collections::HashSet::new();
-    names.retain(|name| seen.insert(path_key(name)));
-    let read: Vec<(StreamScan, Vec<IssueKind>, Option<AssemblyError>)> = names
-        .par_iter()
-        .map(|name| read_stream(archive, &index, name))
-        .collect();
-    for (stream, issues, fatal) in read {
-        scan.streams.push(stream);
-        scan.issues.extend(issues);
-        scan.fatal = scan.fatal.take().or(fatal);
-    }
-    scan
-}
-
-fn read_stream(
-    archive: &Archive,
-    index: &p4kx_extraction::PathIndex<'_>,
-    name: &str,
-) -> (StreamScan, Vec<IssueKind>, Option<AssemblyError>) {
-    let mut stream = StreamScan {
-        name: name.to_owned(),
-        objects: None,
-    };
-    let Some(entry) = is_plain(name).then(|| index.find(name)).flatten() else {
-        let file = name.to_owned();
-        return (stream, vec![IssueKind::FileMissing { file }], None);
-    };
-    match read_file(archive, entry) {
-        Err(FileFailure::Fatal(error)) => {
-            (stream, Vec::new(), Some(AssemblyError::Provider(error)))
-        }
-        Err(failure) => {
-            let issue = IssueKind::FileUnreadable {
-                file: entry.path().to_owned(),
-                reason: failure.reason(),
-            };
-            (stream, vec![issue], None)
-        }
-        Ok(bytes) => match IncludedObjects::read(&bytes) {
-            Ok(objects) => {
-                stream.objects = objects;
-                (stream, Vec::new(), None)
-            }
-            Err(error) => {
-                let issue = IssueKind::FileUnreadable {
-                    file: entry.path().to_owned(),
-                    reason: error.to_string(),
-                };
-                (stream, vec![issue], None)
-            }
-        },
-    }
-}
-
-fn describe(error: &ObjectContainerError) -> String {
-    let mut text = error.to_string();
-    let mut cause = std::error::Error::source(error);
-    while let Some(next) = cause {
-        text.push_str(": ");
-        text.push_str(&next.to_string());
-        cause = next.source();
-    }
-    text
 }

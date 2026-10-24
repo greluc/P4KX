@@ -4,15 +4,16 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use egui::{Align, Galley, Id, Layout, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
+use egui::{Align, Galley, Id, Layout, Role, ScrollArea, Sense, Ui, UiBuilder, WidgetInfo, vec2};
 use fluent_bundle::FluentValue;
 
 use super::audio_controls::clock;
 use super::model_view;
 use super::search::eyebrow;
 use crate::theme::desktop::{AUDIO_CONTROL_GAP, ROW_HEIGHT, SLIDER_HIT_HEIGHT};
-
-use crate::theme::model_metrics::{MODEL_ANIMATIONS_WIDTH, MODEL_BONE_STROKE, MODEL_OVERLAY_GAP};
+use crate::theme::model_metrics::{
+    MODEL_ANIMATIONS_WIDTH, MODEL_BAR_HEIGHT, MODEL_BONE_STROKE, MODEL_OVERLAY_GAP,
+};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::viewer::Look;
@@ -34,7 +35,8 @@ pub(super) struct ViewerAsk {
 }
 
 /// Shows the 3D view of `scene` seen by `camera` with the skeleton over it when `playback` asks
-/// for it, and beside it the list of animations the model has.
+/// for it, under it the bar with the playback controls, and beside it the list of animations the
+/// model has.
 pub(super) fn view(
     ui: &mut Ui,
     texts: &Texts,
@@ -43,7 +45,7 @@ pub(super) fn view(
     playback: Option<&Playback>,
 ) -> ViewerAsk {
     let Some(playback) = playback else {
-        let camera = model_view::viewport(ui, texts, path, (scene, camera), Look::default());
+        let camera = model_view::viewport(ui, texts, path, (scene, camera), (Look::default(), 0.0));
         return ViewerAsk {
             camera,
             control: None,
@@ -65,14 +67,26 @@ pub(super) fn view(
     let column = Layout::top_down(Align::Min);
     let mut ask = ViewerAsk::default();
     ui.horizontal_top(|ui| {
-        ui.spacing_mut().item_spacing.x = MODEL_OVERLAY_GAP;
+        ui.spacing_mut().item_spacing = vec2(MODEL_OVERLAY_GAP, 0.0);
         let width = (total.x - side).max(1.0);
         ui.allocate_ui_with_layout(vec2(width, total.y), column, |ui| {
-            ask.camera = model_view::viewport(ui, texts, path, (scene, camera), look);
+            let reserve = MODEL_OVERLAY_GAP + MODEL_BAR_HEIGHT;
+            let below = ui
+                .max_rect()
+                .with_min_y(ui.max_rect().bottom() - MODEL_BAR_HEIGHT);
+            ask.camera = model_view::viewport(ui, texts, path, (scene, camera), (look, reserve));
+            ask.control = ui
+                .scope_builder(
+                    UiBuilder::new()
+                        .max_rect(below)
+                        .layout(Layout::left_to_right(Align::Center)),
+                    |ui| bar(ui, texts, playback),
+                )
+                .inner;
         });
         if listed {
             ui.allocate_ui_with_layout(vec2(MODEL_ANIMATIONS_WIDTH, total.y), column, |ui| {
-                ask.control = list(ui, texts, playback);
+                ask.control = list(ui, texts, playback).or(ask.control);
             });
         }
     });
@@ -112,8 +126,8 @@ fn labels(ui: &Ui, texts: &Texts) -> Labels {
     labels
 }
 
-/// Shows the controls of `playback` in the facts bar: the skeleton checkbox and, when the model
-/// has animations, play or pause, the time, the position slider and the loop checkbox.
+/// Shows the bar under the view with the controls of `playback`: the skeleton checkbox and, when
+/// the model has animations, play or pause, the time, the position slider and the loop checkbox.
 pub(super) fn bar(ui: &mut Ui, texts: &Texts, playback: &Playback) -> Option<Control> {
     let labels = labels(ui, texts);
     let timing = (!playback.animations().is_empty()).then(|| time(ui, texts, playback));

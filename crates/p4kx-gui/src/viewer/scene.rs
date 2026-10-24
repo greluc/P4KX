@@ -21,7 +21,7 @@ pub const MAX_SCENE_TRIANGLES: usize = 8_000_000;
 /// One vertex as the GPU reads it: position, normal and texture coordinate.
 pub type Vertex = [f32; 8];
 
-/// The bytes of the skin of one vertex: four joints and four weights.
+/// The bytes of the skin of one vertex: four bone indices and four weights.
 pub const SKIN_STRIDE: usize = 12;
 
 /// The four bones that move a vertex and their weights.
@@ -201,7 +201,7 @@ impl Scene {
     }
 
     /// Returns, per vertex, the four bones that move it and their weights: four little-endian
-    /// `u16` joints and four `u8` weights, 12 bytes; `None` for a model without skinned meshes
+    /// `u16` bone indices and four `u8` weights, 12 bytes; `None` for a model without skinned meshes
     /// or without a usable skeleton. A vertex with all weights zero stays where it is.
     #[must_use]
     pub fn skin(&self) -> Option<&[[u8; SKIN_STRIDE]]> {

@@ -26,6 +26,7 @@ pub(super) fn show(
     path: &str,
     (preview, support): (&ModelPreview, &ViewerSupport),
 ) -> Option<ViewerAsk> {
+    ui.set_min_height(ui.available_height());
     match preview.status() {
         ModelStatus::Unshowable(error) => {
             let (colour, text) = unshowable(texts, path, error);
@@ -130,8 +131,8 @@ fn ready(
     let problem = support.problem(scene.serial());
     ui.scope(|ui| {
         ui.spacing_mut().item_spacing.y = 0.0;
-        let bar = model_view::facts(ui, texts, scene, playback);
-        let mut ask = frames::preview_body()
+        model_view::facts(ui, texts, scene);
+        frames::preview_body()
             .show(ui, |ui| match problem {
                 Some(problem) => {
                     let (colour, text) = problem_text(texts, path, &problem);
@@ -140,9 +141,7 @@ fn ready(
                 }
                 None => model_playback::view(ui, texts, path, (scene, camera), playback),
             })
-            .inner;
-        ask.control = ask.control.or(bar);
-        ask
+            .inner
     })
     .inner
 }

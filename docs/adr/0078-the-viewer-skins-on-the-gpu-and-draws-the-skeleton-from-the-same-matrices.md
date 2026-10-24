@@ -46,10 +46,11 @@ and bone weights) and ADR-0046 (animations).
   model is drawn without skeleton and playback instead of the viewer being unavailable. The
   buffers belong to the scene's slot and are destroyed with it (ADR-0031).
 - **At most 4,096 bones.** A skeleton with more is left out; the matrices are 64 bytes a bone.
-- **Layout.** The controls live in the facts bar, which is 32 points high for a model with a
-  skeleton and shows them in place of the overview of the mouse and keyboard controls; the list
-  of animations sits beside the view. Both avoid taking height from the 3D view, which the panel
-  gives little of (D.35). New metrics and the decision are in the desktop spec (D.46).
+- **Layout.** The controls live in a bar of their own under the 3D view, like a video player's;
+  the list of animations sits beside the view; the facts bar keeps its hint. The bar costs 44
+  points, so the panel opens higher while it shows a model (349 points, remembered apart from the
+  other previews, like the soundbank list) and the view keeps 160 points against its minimum of
+  96. New metrics and the decision are in the desktop spec (D.46).
 
 ## Considered Options
 
@@ -58,7 +59,7 @@ and bone weights) and ADR-0046 (animations).
   weight and the overlay and playback do not depend on it.
 - A bone-matrix uniform buffer: 256 matrices at most with the default limits; skeletons of
   characters have more.
-- Controls in a bar of their own under the view: costs 40 points of the height of the panel,
-  which leaves less than the minimum view at its default size.
+- Controls in the facts bar, to keep the panel at 236 points: the owner preferred a taller panel
+  and a bar under the view.
 - Playing the node animations of static models in the viewer: needs a node transform per mesh
   per frame; left to a follow-up.

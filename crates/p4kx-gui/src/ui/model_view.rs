@@ -9,9 +9,8 @@ use egui::{
 };
 use fluent_bundle::FluentValue;
 
-use super::model_playback;
 use super::viewer_input::{self, Moves};
-use crate::theme::desktop::{FACTS_PADDING_X, SLIDER_HIT_HEIGHT};
+use crate::theme::desktop::FACTS_PADDING_X;
 use crate::theme::model_metrics::{MODEL_HINT_MIN_WIDTH, MODEL_OVERLAY_GAP, MODEL_VIEW_MIN_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
@@ -20,47 +19,25 @@ use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::rows::focus_inside;
 use crate::widgets::summary::{Fact, FactsStrip};
 use crate::widgets::text::{line, paint_right, plain};
-use crate::{Camera, Control, Language, ModelText, Playback, Scene, Texts, format};
+use crate::{Camera, Language, ModelText, Scene, Texts, format};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct FactsKey {
     serial: u64,
     language: Language,
     pixels_per_point: f32,
-    controls: bool,
 }
 
-/// Shows the facts bar of `scene`, with the skeleton and animation controls of `playback` in the
-/// space beside the facts, or without them the overview of the mouse and keyboard controls.
-/// Returns what the user did with the playback controls.
-pub(super) fn facts(
-    ui: &mut Ui,
-    texts: &Texts,
-    scene: &Scene,
-    playback: Option<&Playback>,
-) -> Option<Control> {
-    let strip = laid_out_facts(ui, texts, scene, playback.is_some());
+/// Shows the facts bar of `scene`, with the overview of the controls in the space beside the
+/// facts.
+pub(super) fn facts(ui: &mut Ui, texts: &Texts, scene: &Scene) {
+    let strip = laid_out_facts(ui, texts, scene);
     let bar = strip.show(ui);
+    let hint_text = texts.get(ModelText::Hint);
     let area = Rect::from_min_max(
         pos2(bar.left() + strip.width(), bar.top()),
         pos2(bar.right() - FACTS_PADDING_X, bar.bottom()),
     );
-    if let Some(playback) = playback {
-        return ui
-            .scope_builder(
-                UiBuilder::new()
-                    .max_rect(area)
-                    .layout(Layout::left_to_right(Align::Center)),
-                |ui| model_playback::bar(ui, texts, playback),
-            )
-            .inner;
-    }
-    hint(ui, texts, scene, area);
-    None
-}
-
-fn hint(ui: &Ui, texts: &Texts, scene: &Scene, area: Rect) {
-    let hint_text = texts.get(ModelText::Hint);
     ui.interact(
         area,
         ui.scope_id().with(("p4kx-model-hint", scene.serial())),
@@ -73,13 +50,12 @@ fn hint(ui: &Ui, texts: &Texts, scene: &Scene, area: Rect) {
     }
 }
 
-fn laid_out_facts(ui: &Ui, texts: &Texts, scene: &Scene, controls: bool) -> Arc<FactsStrip> {
+fn laid_out_facts(ui: &Ui, texts: &Texts, scene: &Scene) -> Arc<FactsStrip> {
     let id = ui.scope_id().with("p4kx-model-facts");
     let key = FactsKey {
         serial: scene.serial(),
         language: texts.language(),
         pixels_per_point: ui.ctx().pixels_per_point(),
-        controls,
     };
     if let Some((cached, strip)) = ui.data(|data| data.get_temp::<(FactsKey, Arc<FactsStrip>)>(id))
         && cached == key
@@ -114,27 +90,22 @@ fn laid_out_facts(ui: &Ui, texts: &Texts, scene: &Scene, controls: bool) -> Arc<
         .zip(&values)
         .map(|(key, value)| Fact { key, value })
         .collect();
-    let strip = FactsStrip::lay_out(ui, &laid);
-    let strip = Arc::new(if controls {
-        strip.at_least(SLIDER_HIT_HEIGHT)
-    } else {
-        strip
-    });
+    let strip = Arc::new(FactsStrip::lay_out(ui, &laid));
     ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&strip))));
     strip
 }
 
 /// Shows the 3D view of `scene` seen by `camera`, reads the pointer and the keyboard and lays the
-/// reset action over it, drawing the model in `look`. Returns the camera when it moved.
+/// reset action over it, drawing the model in `look` and leaving `reserve` points of height
+/// below it. Returns the camera when it moved.
 pub(super) fn viewport(
     ui: &mut Ui,
     texts: &Texts,
     path: &str,
     (scene, camera): (&Arc<Scene>, &Camera),
-    look: Look,
+    (look, reserve): (Look, f32),
 ) -> Option<Camera> {
-    let size = ui
-        .available_size()
+    let size = (ui.available_size() - vec2(0.0, reserve))
         .max(vec2(MODEL_VIEW_MIN_HEIGHT, MODEL_VIEW_MIN_HEIGHT));
     let sense = Sense::click_and_drag().union(Sense::focusable_noninteractive());
     let (rect, response) = ui.allocate_exact_size(size, sense);

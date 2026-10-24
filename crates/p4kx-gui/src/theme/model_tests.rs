@@ -24,6 +24,9 @@ fn the_model_preview_metrics_match_the_desktop_spec() {
         ("hintMinWidth", m::MODEL_HINT_MIN_WIDTH),
         ("animationListWidth", m::MODEL_ANIMATIONS_WIDTH),
         ("boneStroke", m::MODEL_BONE_STROKE),
+        ("barHeight", m::MODEL_BAR_HEIGHT),
+        ("viewHeight", m::MODEL_VIEW_HEIGHT),
+        ("panelHeight", m::PREVIEW_MODEL_HEIGHT),
         ("factsPaddingX", FACTS_PADDING_X),
     ] {
         let expected = spec[key].as_f64();
@@ -32,6 +35,18 @@ fn the_model_preview_metrics_match_the_desktop_spec() {
             "modelPreview.{key} is {expected:?}, the theme has {value}"
         );
     }
+}
+
+#[test]
+fn the_model_panel_leaves_the_view_well_above_its_minimum() {
+    assert!(
+        m::MODEL_VIEW_HEIGHT >= 1.5 * m::MODEL_VIEW_MIN_HEIGHT,
+        "the view the panel opens with is at least half as high again as its minimum"
+    );
+    assert!(
+        m::PREVIEW_MODEL_HEIGHT > super::desktop::PREVIEW_HEIGHT,
+        "the panel of a model opens higher than the default"
+    );
 }
 
 #[test]

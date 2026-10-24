@@ -22,6 +22,10 @@ fn skinned(language: Language) -> Result<Option<Window>, Box<dyn std::error::Err
     };
     select(&mut window.harness, "arm.skin")?;
     window.harness.run_steps(3);
+    let [_, top, _, bottom] = view_pixels(&window.harness);
+    if bottom - top < 150 {
+        return Err(format!("the view is {} points high, below 150", bottom - top).into());
+    }
     Ok(Some(window))
 }
 
@@ -123,7 +127,7 @@ fn the_skeleton_is_drawn_over_the_model_when_switched_on() -> TestResult {
         };
         let without = rendered(&mut window, "skin-without-skeleton.png")?;
         let view = view_pixels(&window.harness);
-        assert_eq!(orange(&without, view), 0, "no overlay yet");
+        assert_eq!(orange(&without, view), 0, "no overlay yet in {view:?}");
 
         window.harness.get_by_label(label).click();
         window.harness.run_steps(2);

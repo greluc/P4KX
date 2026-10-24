@@ -1,0 +1,283 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use p4kx_chunks::{ByteOrder, ChunkFile, ChunkType, Container};
+use p4kx_cryxml::{CryXmlError, Xml};
+use thiserror::Error;
+
+use crate::Transform;
+use crate::mtl_xml::XmlElement;
+use crate::soc_light::{SocLight, read_light};
+
+const ENTITIES: ChunkType = ChunkType::new(Container::CrCh, 0x0004);
+
+/// The most entities one `.soc` file lists.
+pub const MAX_SOC_ENTITIES: usize = 1 << 20;
+
+/// The most props and lights one `.soc` file yields, each.
+pub const MAX_SOC_PLACED: usize = 1 << 17;
+
+/// A failure to read the entities of a `.soc` file.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum SocEntitiesError {
+    /// The file is no chunk file this crate reads.
+    #[error("the file is not a readable chunk file")]
+    Chunks(#[from] p4kx_chunks::ChunkError),
+    /// The entity chunk is no readable `CryXml`.
+    #[error("the entity chunk is not valid CryXml")]
+    CryXml(#[from] CryXmlError),
+    /// The entity chunk is no well-formed text XML.
+    #[error("the entity chunk is not well-formed XML")]
+    Xml(#[from] roxmltree::Error),
+    /// The entity chunk is flagged big-endian, which is not read.
+    #[error("the entity chunk is big-endian")]
+    BigEndian,
+    /// The file lists more of something than is read.
+    #[error("the entity chunk lists more than {limit} {what}")]
+    TooMany {
+        /// What there is too much of.
+        what: &'static str,
+        /// The most read.
+        limit: usize,
+    },
+}
+
+/// A prop a `.soc` file places: an entity whose geometry the file names itself
+/// (`EntityGeometryResource`).
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct SocProp {
+    /// The entity's name.
+    pub name: String,
+    /// The model path as the file spells it, below `Data`.
+    pub model: String,
+    /// The transform from the prop's space to the container's, in `CryEngine` coordinates, Z up
+    /// and in metres.
+    pub transform: Transform,
+}
+
+/// The props and lights a `.soc` file places: its entity chunk (`CrCh` type `0x0004`, `CryXmlB`).
+///
+/// Entities that name no geometry of their own and are no lights, e.g. audio triggers, rooms,
+/// and entities whose geometry comes from their class Record, are only counted in
+/// [`other`](Self::other).
+#[derive(Debug, Clone, Default, PartialEq)]
+#[non_exhaustive]
+pub struct SocEntities {
+    /// The props with geometry of their own in file order.
+    pub props: Vec<SocProp>,
+    /// The lights in file order; the lights of a light group follow the group's position.
+    pub lights: Vec<SocLight>,
+    /// The number of entities that are neither a prop nor a light.
+    pub other: usize,
+    /// The number of props and lights left out because their transform or parameters are not
+    /// usable.
+    pub invalid: usize,
+}
+
+impl SocEntities {
+    /// Reads the entity chunks of the `CrCh` chunk file `bytes`, a `.soc` file, and joins them;
+    /// returns `None` when it holds none.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SocEntitiesError`] when the file is no chunk file, a chunk is no XML, or it lists
+    /// more than is read.
+    pub fn read(bytes: &[u8]) -> Result<Option<Self>, SocEntitiesError> {
+        let file = ChunkFile::parse(bytes)?;
+        let mut found: Option<Self> = None;
+        for (index, chunk) in file.chunks_of(ENTITIES) {
+            if chunk.byte_order() == ByteOrder::Big {
+                return Err(SocEntitiesError::BigEndian);
+            }
+            let data = file.chunk_data(index).unwrap_or_default();
+            let mut chunk = Self::parse(data)?;
+            found = Some(match found.take() {
+                Some(mut first) => {
+                    first.props.append(&mut chunk.props);
+                    first.lights.append(&mut chunk.lights);
+                    first.other += chunk.other;
+                    first.invalid += chunk.invalid;
+                    first
+                }
+                None => chunk,
+            });
+        }
+        Ok(found)
+    }
+
+    /// Reads the entities of the XML document `bytes`, `CryXml` or text, whose root lists
+    /// `Entity` elements.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SocEntitiesError`] when `bytes` is no XML or lists more than is read.
+    pub fn parse(bytes: &[u8]) -> Result<Self, SocEntitiesError> {
+        match p4kx_cryxml::read(bytes)? {
+            Xml::CryXml(document) => entities(document.root()),
+            Xml::Text(text) => {
+                let text = String::from_utf8_lossy(text);
+                let document = roxmltree::Document::parse(&text)?;
+                entities(document.root_element())
+            }
+        }
+    }
+}
+
+pub(crate) fn child<'a, E: XmlElement<'a>>(parent: E, name: &str) -> Option<E> {
+    parent
+        .children()
+        .find(|element| element.name().eq_ignore_ascii_case(name))
+}
+
+pub(crate) fn numbers<const N: usize>(text: Option<&str>) -> Option<[f64; N]> {
+    let mut values = [0.0; N];
+    let mut parts = text?.split(',');
+    for value in &mut values {
+        let number: f64 = parts.next()?.trim().parse().ok()?;
+        if !number.is_finite() {
+            return None;
+        }
+        *value = number;
+    }
+    parts.next().is_none().then_some(values)
+}
+
+pub(crate) fn number<'a>(element: impl XmlElement<'a>, name: &str) -> Option<f32> {
+    let value: f32 = element.attribute(name)?.trim().parse().ok()?;
+    value.is_finite().then_some(value)
+}
+
+/// Returns the transform of an entity element from its `Pos`, `Rotate` and `Scale`; a missing
+/// attribute is the identity, a malformed one or a degenerate rotation gives `None`.
+pub(crate) fn entity_transform<'a>(entity: impl XmlElement<'a>) -> Option<Transform> {
+    let attribute = |name: &str| entity.attribute(name);
+    let position = match attribute("Pos") {
+        None => [0.0; 3],
+        Some(text) => numbers::<3>(Some(text))?,
+    };
+    let rotation = match attribute("Rotate") {
+        None => [1.0, 0.0, 0.0, 0.0],
+        Some(text) => numbers::<4>(Some(text))?,
+    };
+    let scale = match attribute("Scale") {
+        None => [1.0; 3],
+        Some(text) => numbers::<3>(Some(text))?,
+    };
+    Transform::from_quaternion(rotation, position)?.scaled(scale)
+}
+
+fn entities<'a>(root: impl XmlElement<'a>) -> Result<SocEntities, SocEntitiesError> {
+    let mut result = SocEntities::default();
+    let mut seen = 0_usize;
+    for entity in root.children() {
+        if !entity.name().eq_ignore_ascii_case("Entity") {
+            continue;
+        }
+        seen += 1;
+        if seen > MAX_SOC_ENTITIES {
+            return Err(SocEntitiesError::TooMany {
+                what: "entities",
+                limit: MAX_SOC_ENTITIES,
+            });
+        }
+        read_entity(entity, &mut result)?;
+    }
+    Ok(result)
+}
+
+fn read_entity<'a>(
+    entity: impl XmlElement<'a>,
+    out: &mut SocEntities,
+) -> Result<(), SocEntitiesError> {
+    let name = entity.attribute("Name").unwrap_or_default();
+    let before = (out.props.len(), out.lights.len(), out.invalid);
+    let transform = entity_transform(entity);
+    if let Some(path) = geometry_path(entity) {
+        match transform {
+            Some(transform) => {
+                if out.props.len() >= MAX_SOC_PLACED {
+                    return Err(SocEntitiesError::TooMany {
+                        what: "props",
+                        limit: MAX_SOC_PLACED,
+                    });
+                }
+                out.props.push(SocProp {
+                    name: name.to_owned(),
+                    model: path.to_owned(),
+                    transform,
+                });
+            }
+            None => out.invalid += 1,
+        }
+        return Ok(());
+    }
+    let class = entity.attribute("EntityClass").unwrap_or_default();
+    if class.eq_ignore_ascii_case("Light") {
+        if let Some(component) =
+            child(entity, "PropertiesDataCore").and_then(|data| child(data, "EntityComponentLight"))
+        {
+            push_light(out, name, None, transform, component, None)?;
+        }
+    } else if let Some(baked) =
+        child(entity, "EntityComponentLightGroup").and_then(|group| child(group, "BakedInLights"))
+    {
+        for light in baked.children() {
+            if !light.name().eq_ignore_ascii_case("Light") {
+                continue;
+            }
+            let Some(component) = child(light, "EntityComponentLight") else {
+                continue;
+            };
+            let relative = child(light, "RelativeXForm");
+            let own = light.attribute("Name").unwrap_or(name);
+            push_light(out, own, Some(name), transform, component, relative)?;
+        }
+    }
+    if (out.props.len(), out.lights.len(), out.invalid) == before {
+        out.other += 1;
+    }
+    Ok(())
+}
+
+fn push_light<'a, E: XmlElement<'a>>(
+    out: &mut SocEntities,
+    name: &str,
+    group: Option<&str>,
+    entity: Option<Transform>,
+    component: E,
+    relative: Option<E>,
+) -> Result<(), SocEntitiesError> {
+    if out.lights.len() >= MAX_SOC_PLACED {
+        return Err(SocEntitiesError::TooMany {
+            what: "lights",
+            limit: MAX_SOC_PLACED,
+        });
+    }
+    let placed = match (entity, relative) {
+        (Some(entity), None) => Some(entity),
+        (Some(entity), Some(relative)) => relative_transform(relative).map(|r| entity.then(&r)),
+        (None, _) => None,
+    };
+    match placed.and_then(|transform| read_light(name, group, transform, component)) {
+        Some(light) => out.lights.push(light),
+        None => out.invalid += 1,
+    }
+    Ok(())
+}
+
+fn relative_transform<'a>(element: impl XmlElement<'a>) -> Option<Transform> {
+    let rotation = numbers::<4>(element.attribute("rotation"))?;
+    let translation = numbers::<3>(element.attribute("translation"))?;
+    Transform::from_quaternion(rotation, translation)
+}
+
+fn geometry_path<'a, E: XmlElement<'a>>(entity: E) -> Option<&'a str> {
+    let mut node = child(entity, "PropertiesDataCore")?;
+    node = child(node, "EntityGeometryResource")?;
+    for _ in 0..3 {
+        node = child(node, "Geometry")?;
+    }
+    node.attribute("path").filter(|path| !path.is_empty())
+}

@@ -74,6 +74,25 @@ impl Transform {
         })
     }
 
+    /// Returns the transform that scales by `scale` along the axes of the space it maps from,
+    /// and then applies this transform; or `None` when a factor is not finite or is zero.
+    #[must_use]
+    pub fn scaled(self, scale: [f64; 3]) -> Option<Self> {
+        if scale
+            .iter()
+            .any(|factor| !factor.is_finite() || *factor == 0.0)
+        {
+            return None;
+        }
+        let mut rows = self.rows;
+        for row in &mut rows {
+            for (value, factor) in row.iter_mut().zip(scale) {
+                *value = narrow(f64::from(*value) * factor);
+            }
+        }
+        Some(Self { rows })
+    }
+
     /// Returns the transform of the 3×4 row-major matrix `rows`, or `None` when a value is not
     /// finite once narrowed to single precision.
     #[must_use]

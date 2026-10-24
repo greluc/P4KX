@@ -15,16 +15,18 @@ struct Planned {
     parent: Option<usize>,
     trs: Trs,
     mesh: Option<Index<json::Mesh>>,
+    light: Option<u32>,
 }
 
 /// Writes the `wrappers` as nodes, then the nodes of every model instance below its wrapper, and
-/// the scene that holds the roots.
+/// the scene that holds the roots; the lights of the wrappers become `KHR_lights_punctual`.
 pub(crate) fn push_scene_nodes(
     root: &mut Root,
     wrappers: &[Wrapper<'_>],
     instances: &[Instance<'_>],
     meshes: &[Vec<Option<Index<json::Mesh>>>],
 ) {
+    let mut lights = Vec::new();
     let mut planned: Vec<Planned> = wrappers
         .iter()
         .map(|wrapper| Planned {
@@ -32,6 +34,10 @@ pub(crate) fn push_scene_nodes(
             parent: wrapper.parent,
             trs: decompose(wrapper.transform),
             mesh: None,
+            light: wrapper.light.map(|light| {
+                lights.push(light.to_json(wrapper.name));
+                index_u32(lights.len() - 1)
+            }),
         })
         .collect();
     for (instance, instance_meshes) in instances.iter().zip(meshes) {
@@ -46,6 +52,7 @@ pub(crate) fn push_scene_nodes(
                     .or(instance.wrapper),
                 trs: decompose(&node.transform),
                 mesh: instance_meshes.get(position).copied().flatten(),
+                light: None,
             });
         }
     }
@@ -66,9 +73,11 @@ pub(crate) fn push_scene_nodes(
                 mesh: node.mesh,
                 skin: None,
                 trs: node.trs,
+                light: node.light,
             },
         );
     }
+    declare_lights(root, lights);
     let scene = root.push(json::Scene {
         name: None,
         nodes: roots,
@@ -76,6 +85,19 @@ pub(crate) fn push_scene_nodes(
         extras: json::extras::Void::default(),
     });
     root.scene = Some(scene);
+}
+
+fn declare_lights(
+    root: &mut Root,
+    lights: Vec<json::extensions::scene::khr_lights_punctual::Light>,
+) {
+    if lights.is_empty() {
+        return;
+    }
+    root.extensions = Some(json::extensions::root::Root {
+        khr_lights_punctual: Some(json::extensions::root::KhrLightsPunctual { lights }),
+    });
+    root.extensions_used.push("KHR_lights_punctual".to_owned());
 }
 
 /// One model written below a shared skeleton: its nodes, its name and which of its nodes carry a
@@ -129,6 +151,7 @@ pub(crate) fn push_rig_nodes(
                     } else {
                         decompose(&node.transform)
                     },
+                    light: None,
                 },
             );
         }
@@ -142,6 +165,7 @@ pub(crate) fn push_rig_nodes(
                 mesh: None,
                 skin: None,
                 trs: bone_trs(&bone.relative),
+                light: None,
             },
         );
     }
@@ -263,6 +287,7 @@ pub(crate) fn push_nodes(
                 mesh: *mesh,
                 skin: skin.filter(|_| is_skinned),
                 trs,
+                light: None,
             },
         );
     }
@@ -273,6 +298,7 @@ pub(crate) fn push_nodes(
             mesh: None,
             skin: None,
             trs: bone_trs(&bone.relative),
+            light: None,
         };
         push_node(root, part);
     }
@@ -353,6 +379,11 @@ struct Part<'a> {
     mesh: Option<Index<json::Mesh>>,
     skin: Option<Index<json::Skin>>,
     trs: Trs,
+    light: Option<u32>,
+}
+
+fn index_u32(position: usize) -> u32 {
+    u32::try_from(position).unwrap_or(u32::MAX)
 }
 
 fn push_node(root: &mut Root, part: Part<'_>) {
@@ -362,6 +393,7 @@ fn push_node(root: &mut Root, part: Part<'_>) {
         mesh,
         skin,
         trs,
+        light,
     } = part;
     let differs =
         |value: [f32; 3], neutral: [f32; 3]| (!exactly(&value, &neutral)).then_some(value);
@@ -377,7 +409,13 @@ fn push_node(root: &mut Root, part: Part<'_>) {
         matrix: None,
         skin,
         weights: None,
-        extensions: None,
+        extensions: light.map(|light| json::extensions::scene::Node {
+            khr_lights_punctual: Some(
+                json::extensions::scene::khr_lights_punctual::KhrLightsPunctual {
+                    light: Index::new(light),
+                },
+            ),
+        }),
         extras: json::extras::Void::default(),
     });
 }

@@ -18,7 +18,7 @@ const fn at(x: f64, y: f64, z: f64) -> [[f64; 4]; 3] {
     [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, y], [0.0, 0.0, 1.0, z]]
 }
 
-fn model_entries(path: &str, model: &TestModel) -> Vec<TestEntry> {
+pub(crate) fn model_entries(path: &str, model: &TestModel) -> Vec<TestEntry> {
     let mut entries = vec![
         TestEntry::stored(format!("{path}.cgf"), model.cgf()),
         TestEntry::stored(format!("{path}.cgfm"), model.cgfm()),

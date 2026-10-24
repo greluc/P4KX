@@ -169,5 +169,10 @@ pub(crate) fn summarise(
         shared_meshes: 0,
         shared_materials: 0,
         shared_textures: shared_textures(root),
+        lights: root
+            .extensions
+            .as_ref()
+            .and_then(|extensions| extensions.khr_lights_punctual.as_ref())
+            .map_or(0, |lights| lights.lights.len()),
     }
 }

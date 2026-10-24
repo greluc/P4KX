@@ -538,6 +538,16 @@ cargo build --release
 .\target\release\p4kx.exe list "C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k"
 ```
 
+## Blender add-on
+
+Every GitHub Release attaches `p4kx_importer-<version>.zip` next to the MSI and the portable ZIP.
+In Blender 5.2 LTS: Edit > Preferences > Get Extensions > Install from Disk, pick the ZIP, then
+import a [Blender package](docs/blender-package.md) with File > Import > P4KX Package
+(scene.json). The add-on version always equals the Release version: `cargo xtask` (part of CI)
+fails when `blender_addon/p4kx_importer/blender_manifest.toml` differs from the workspace
+version, so bump both together when preparing a Release. The ZIP is reproducible; see
+[blender_addon/README.md](blender_addon/README.md) to build it yourself.
+
 ## Development
 
 ```powershell

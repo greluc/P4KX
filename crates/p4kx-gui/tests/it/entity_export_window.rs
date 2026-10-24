@@ -1,0 +1,205 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! The Export of an Entity as GLB, driven headless over the synthetic Archive of the Entities
+//! tab.
+
+use std::path::Path;
+use std::time::{Duration, Instant};
+
+use crate::entity_picking;
+
+use egui::accesskit::Role;
+use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
+use entity_picking::{TestResult, opened, select, settle};
+use p4kx_gui::{AssemblyExport, AssemblyExportStatus, Language, Model};
+
+fn start(harness: &mut Harness<'_, Model>, file: &Path) -> Result<bool, &'static str> {
+    harness.state_mut().begin_assembly_export();
+    let setup = harness
+        .state_mut()
+        .assembly_export_setup_mut()
+        .ok_or("the setup did not open")?;
+    setup.set_file(file.to_path_buf());
+    Ok(harness.state_mut().submit_assembly_export(|| {}))
+}
+
+fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while harness
+        .state()
+        .assembly_export()
+        .is_some_and(AssemblyExport::is_running)
+    {
+        if Instant::now() > deadline {
+            return Err("the export did not end in time".into());
+        }
+        std::thread::sleep(Duration::from_millis(5));
+        harness.step();
+    }
+    harness.run_steps(3);
+    Ok(())
+}
+
+fn summary(harness: &Harness<'_, Model>) -> Result<p4kx_gui::AssemblyExportSummary, &'static str> {
+    match harness
+        .state()
+        .assembly_export()
+        .map(AssemblyExport::status)
+    {
+        Some(AssemblyExportStatus::Finished(summary)) => Ok(summary.clone()),
+        _ => Err("the export did not finish"),
+    }
+}
+
+#[test]
+fn the_export_waits_for_a_resolved_loadout() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
+    assert!(
+        !harness.state().assembly_export_available(),
+        "nothing selected"
+    );
+    harness.state_mut().begin_assembly_export();
+    assert!(harness.state().assembly_export_setup().is_none());
+
+    select(&mut harness, "TEST_Ship")?;
+
+    assert!(harness.state().assembly_export_available());
+    Ok(())
+}
+
+#[test]
+fn the_export_writes_the_entity_with_its_loadout_as_one_glb_and_remembers_the_choices() -> TestResult
+{
+    let (dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    harness
+        .get_by_role_and_label(Role::Button, "Export as GLB…")
+        .click();
+    harness.run_steps(3);
+    assert!(
+        harness.query_by_label("Entity: TEST_Ship").is_some(),
+        "the setup names the Entity"
+    );
+    harness.get_by_role_and_label(Role::Button, "LOD 1").click();
+    harness.run_steps(2);
+    let file = dir.path().join("ship.glb");
+
+    harness
+        .state_mut()
+        .assembly_export_setup_mut()
+        .ok_or("the setup is open")?
+        .set_file(file.clone());
+    assert!(
+        harness.state_mut().submit_assembly_export(|| {}),
+        "the export starts"
+    );
+    finished(&mut harness)?;
+
+    let summary = summary(&harness)?;
+    assert_eq!(summary.parts(), 3, "the ship, the gun and the relay");
+    assert_eq!(summary.modelled_parts(), 3);
+    assert_eq!(summary.lod(), 1);
+    assert_eq!((summary.excluded(), summary.replaced()), (0, 0));
+    let bytes = std::fs::read(&file)?;
+    assert_eq!(bytes.get(..4), Some(&b"glTF"[..]), "a GLB file");
+    assert_eq!(
+        u64::try_from(bytes.len())?,
+        summary.written().bytes,
+        "the summary counts the file"
+    );
+    assert!(harness.query_by_label("Entity exported").is_some());
+    let remembered = harness.state().assembly_export_settings();
+    assert_eq!(remembered.lod, 1, "remembered");
+    assert_eq!(remembered.folder.as_deref(), Some(dir.path()));
+    Ok(())
+}
+
+#[test]
+fn the_changes_of_the_loadout_apply_to_the_file() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    harness
+        .get_by_role_and_label(Role::CheckBox, "Include hardpoint_relay")
+        .click();
+    settle(&mut harness)?;
+
+    assert!(start(&mut harness, &dir.path().join("ship.glb"))?);
+    finished(&mut harness)?;
+
+    let summary = summary(&harness)?;
+    assert_eq!(summary.parts(), 2, "the relay is left out");
+    assert_eq!(summary.excluded(), 1);
+    Ok(())
+}
+
+#[test]
+fn parts_that_cannot_be_resolved_are_listed_in_the_report() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Cart")?;
+
+    assert!(start(&mut harness, &dir.path().join("cart.glb"))?);
+    finished(&mut harness)?;
+
+    let summary = summary(&harness)?;
+    assert_eq!(summary.issues().len(), 1, "{:?}", summary.issues());
+    assert!(!summary.issues().iter().any(|issue| issue.skipped));
+    assert!(
+        harness
+            .query_by_label_contains("the Entity names no geometry")
+            .is_some(),
+        "the report shows it"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cancelled_export_leaves_no_file() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    let file = dir.path().join("ship.glb");
+
+    assert!(start(&mut harness, &file)?);
+    harness.state().cancel_assembly_export();
+    finished(&mut harness)?;
+
+    let cancelled = matches!(
+        harness
+            .state()
+            .assembly_export()
+            .map(AssemblyExport::status),
+        Some(AssemblyExportStatus::Cancelled)
+    );
+    assert_eq!(
+        file.exists(),
+        !cancelled,
+        "a file only if it was not cancelled"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_file_inside_a_missing_folder_fails_with_the_reason() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+
+    assert!(start(
+        &mut harness,
+        &dir.path().join("none").join("ship.glb")
+    )?);
+    finished(&mut harness)?;
+
+    assert!(
+        matches!(
+            harness
+                .state()
+                .assembly_export()
+                .map(AssemblyExport::status),
+            Some(AssemblyExportStatus::Failed(_))
+        ),
+        "failed"
+    );
+    assert!(harness.query_by_label("Export failed").is_some());
+    Ok(())
+}

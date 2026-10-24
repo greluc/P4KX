@@ -163,6 +163,17 @@ impl Install {
         Self::serve_command(command)
     }
 
+    /// Starts the server with `args` and the key of the real Archive, found as the real-Archive
+    /// suite finds it.
+    pub(crate) fn serve_real(&self, args: &[&str]) -> TestResult<Server> {
+        let mut command = self.command(args);
+        command.env(
+            p4kx_testkit::REAL_ARCHIVE_KEY_VAR,
+            p4kx_testkit::real_archive_key()?.to_hex(),
+        );
+        Self::serve_command(command)
+    }
+
     fn serve_command(mut command: Command) -> TestResult<Server> {
         let mut child = command
             .stdin(Stdio::piped())
@@ -185,6 +196,7 @@ impl Install {
             stdin,
             lines,
             next_id: 0,
+            timeout: TIMEOUT,
         };
         let init = server.request(
             "initialize",
@@ -206,9 +218,15 @@ pub(crate) struct Server {
     stdin: ChildStdin,
     lines: Receiver<String>,
     next_id: u64,
+    timeout: Duration,
 }
 
 impl Server {
+    /// Waits up to `timeout` for each response from now on.
+    pub(crate) const fn wait_up_to(&mut self, timeout: Duration) {
+        self.timeout = timeout;
+    }
+
     fn send(&mut self, message: &Value) -> TestResult {
         writeln!(self.stdin, "{message}")?;
         self.stdin.flush()?;
@@ -221,7 +239,7 @@ impl Server {
         let id = self.next_id;
         self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }))?;
         loop {
-            let line = self.lines.recv_timeout(TIMEOUT)?;
+            let line = self.lines.recv_timeout(self.timeout)?;
             let message: Value = serde_json::from_str(&line)?;
             if message.get("id").and_then(Value::as_u64) == Some(id) {
                 return Ok(message);

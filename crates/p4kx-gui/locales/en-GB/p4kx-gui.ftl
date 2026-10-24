@@ -864,3 +864,98 @@ content-search-column-key = Key
 content-search-column-entry = Entry
 content-search-column-line = Line
 content-search-row = { $place }: { $text }
+entities-tab = Entities
+entities-label = Search
+entities-hint = Class name or record path, e.g. AEGS_Gladius
+entities-empty-title = No Archive open
+entities-empty-hint = Open an Archive to pick a ship, vehicle or weapon.
+entities-loading = Listing the Entities…
+entities-none = The DataForge of the Archive holds no ships, vehicles or weapons.
+entities-failed = The Entities cannot be listed: { $reason }
+entities-stopped = Listing the Entities stopped without a result.
+entities-archive-changed = The Archive changed on disk. Reload it to list the Entities.
+entities-filter-all = All
+entities-filter-ships = Ships
+entities-filter-vehicles = Vehicles
+entities-filter-weapons = Weapons
+entities-count =
+    { $count ->
+        [one] { $number } Entity
+       *[other] { $number } Entities
+    }
+entities-count-shown = { $number } of { $total } Entities
+entities-no-match = No Entity matches the search.
+entities-loadout-heading = Loadout
+entities-loadout-none = Select an Entity to see its Loadout.
+entities-loadout-resolving = Resolving the Loadout…
+entities-loadout-failed = The Loadout cannot be resolved: { $reason }
+entities-loadout-stopped = Resolving the Loadout stopped without a result.
+entities-loadout-archive-changed = The Archive changed on disk. Reload it to resolve the Loadout.
+entities-loadout-no-ports = This Entity has no ports.
+entities-changes = { $excluded } left out, { $replaced } replaced
+entities-no-changes = The default Loadout
+entities-reset = Reset changes
+entities-export = Export as GLB…
+entities-include = Include { $port }
+entities-replace = Replace…
+entities-restore = Restore
+entities-status-excluded = Left out
+entities-status-replaced = Replaced
+entities-status-docked = Docked vehicle
+entities-status-empty = Empty
+entities-status-unresolved = Unresolved
+entities-expand-port = Expand { $name }
+entities-collapse-port = Collapse { $name }
+entities-replace-title = Replace { $port }
+entities-replace-takes = The port takes { $types }, sizes { $sizes }.
+entities-replace-takes-types = The port takes { $types }.
+entities-replace-takes-sizes = The port takes sizes { $sizes }.
+entities-replace-takes-any = The port takes any Entity.
+entities-replace-hint = Class name or record path
+entities-replace-count = { $number } of { $total } Entities that fit
+entities-replace-none = No Entity fits the port and the search.
+entities-facts-sized = { $type }, size { $size }
+entities-facts = { $type }
+entities-facts-none = No item type
+assembly-export-title = Export Entity as GLB
+assembly-export-entity = Entity: { $name }
+assembly-export-changes = Loadout: { $excluded } left out, { $replaced } replaced
+assembly-export-changes-none = Loadout: the default one
+assembly-export-lod-heading = Level of detail
+assembly-export-lod = LOD { $level }
+assembly-export-materials-heading = Materials
+assembly-export-materials-colours = Plain colours, a small and quick file
+assembly-export-materials-textures = With textures, a larger file
+assembly-export-textures-unavailable = Textures cannot be written for Entities yet.
+assembly-export-texture-mip-heading = Texture size
+assembly-export-texture-mip = { $level ->
+    [0] Full size
+   *[other] 1/{ $divisor }
+  }
+assembly-export-vertex-colours = Write the vertex colours
+assembly-export-file-heading = File
+assembly-export-choose-file = Choose file…
+assembly-export-file-none = No file chosen
+assembly-export-file-filter = glTF binary files
+assembly-export-start = Export
+assembly-export-running-title = Exporting Entity
+assembly-export-resolving = Resolving the Loadout of { $name }…
+assembly-export-reading = Reading the models of { $name }…
+assembly-export-writing = Writing the file, { $size } so far…
+assembly-export-summary-title = Entity exported
+assembly-export-summary-cancelled-title = Export cancelled
+assembly-export-summary-cancelled = The export was cancelled. No file was written.
+assembly-export-summary-file = Written to { $path }
+assembly-export-summary-counts = Parts { $parts } ({ $modelled } with a model), nodes { $nodes }, meshes { $meshes }, materials { $materials }, vertices { $vertices }, triangles { $triangles }, size { $size }
+assembly-export-summary-fallbacks = { $count ->
+    [one] One model lacks the chosen level of detail and is written at the nearest lower one.
+   *[other] { $number } models lack the chosen level of detail and are written at the nearest lower one.
+  }
+assembly-export-summary-hidden = { $count ->
+    [one] One submesh was left out because its material draws nothing.
+   *[other] { $number } submeshes were left out because their material draws nothing.
+  }
+assembly-export-report-heading = Parts that could not be resolved in full ({ $number })
+assembly-export-report-all = Every part was resolved.
+assembly-export-report-skipped = Left out: { $path } ({ $name }): { $reason }
+assembly-export-report-note = Note: { $path } ({ $name }): { $reason }

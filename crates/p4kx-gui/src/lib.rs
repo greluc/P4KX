@@ -7,6 +7,7 @@
 //! tests can drive it headless.
 
 mod app;
+mod assembly_export;
 mod audio;
 mod browser;
 mod catalog_export;
@@ -17,6 +18,7 @@ mod containers;
 mod content_search;
 #[cfg(windows)]
 pub mod dwm;
+mod entities;
 mod entry_groups;
 mod entry_index;
 mod extraction;
@@ -50,6 +52,11 @@ mod widgets;
 pub mod window;
 
 pub use app::App;
+pub use assembly_export::{
+    ASSEMBLY_LODS, ASSEMBLY_MATERIALS, ASSEMBLY_TEXTURES_AVAILABLE, AssemblyExport,
+    AssemblyExportProgress, AssemblyExportSetup, AssemblyExportStage, AssemblyExportStatus,
+    AssemblyExportSummary, PartIssue,
+};
 pub use audio::{
     AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
     StreamGuard,
@@ -72,6 +79,10 @@ pub use containers::{
     ContainerFailure, ContainerId, ContainerStatus, OPEN_CONTAINERS_BUDGET, Place,
 };
 pub use content_search::{ContentResult, ContentSearchStatus, ContentSearchTab};
+pub use entities::{
+    EntitiesStatus, EntitiesTab, EntityFilter, EntityList, LoadoutRow, LoadoutSession, LoadoutView,
+    ReplaceChooser, ResolveFailure, RowChange,
+};
 pub use entry_index::EntryIndex;
 pub use extraction::{
     Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
@@ -118,11 +129,11 @@ pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, Recor
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use tags::{TagRow, TagsStatus, TagsTab, TagsView};
 pub use texts::{
-    AboutText, ArchiveKeyText, AudioText, CatalogText, ChangeExtractionText, ComparisonText,
-    ContainerText, ContentSearchText, DataForgeText, DiffText, ExtractionText, GroupText,
-    ImageText, IncomingText, LocalizationText, ModelExportText, ModelInfoText, ModelText,
-    QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordSearchText,
-    RecordText, SchemaText, ScrollText, TagsText, Text, Texts, XmlText,
+    AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
+    ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText, EntityText,
+    ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, ModelExportText,
+    ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
+    RecordSearchText, RecordText, SchemaText, ScrollText, TagsText, Text, Texts, XmlText,
 };
 pub use viewer::{
     Bounds, Camera, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_TEXTURE_SIDE,

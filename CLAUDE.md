@@ -107,7 +107,7 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 - **P4KX's own theme is the reference, for the whole repository.** `p4kx_gui::theme` holds every
   colour, type size, weight, spacing, radius and glow, and `docs/design/` holds the desktop spec
-  and the logo. No external design system is followed. This holds for every person and every agent,
+  and its machine-readable form. No external design system is followed. This holds for every person and every agent,
   for every change to anything the tool shows (windows, dialogs, views, icons, the About view) and
   for every review of such a change.
 - **Agents:** an agent that delegates work touching the GUI passes this rule on to the agent

@@ -2,7 +2,6 @@
 
 Grundlage: die Tokens des P4KX-Themes (gemessene Palette, `radius-sm` 4 px). Maschinenlesbar:
 [`p4kx-desktop-spec.json`](p4kx-desktop-spec.json). Artboards: Design-Canvas „P4K-Extractor Desktop".
-Logo: [`p4kx-logo.svg`](p4kx-logo.svg) (ab 64 px), [`p4kx-glyph.svg`](p4kx-glyph.svg) (bis 32 px).
 
 Alle Maße in px bei 1 rem = 16 px. Farben, Glows und Gewichte als Token-Namen aus der Token-Fixture `crates/p4kx-gui/src/theme/fixtures/tokens.json`.
 Die wenigen `rgba(…)`-Werte stehen so im Theme und haben dort kein Token; sie
@@ -14,8 +13,8 @@ sind keine neuen Farben.
 - **Bedienelemente bleiben 44 px** (Buttons, Suchfeld, Tabs, Menü-Links). Kompakte
   DS-Ausnahmen: `.segmented--sm` 34 px, `.btn.btn-xs` 32 px.
 - **Schriftgewicht nach Größe:** Text unter 16 px in Regular 400, Light 300 nur für Fließtext ab
-  16 px, Bold 700 für Labels, Buttons, Überschriften. Black 900 nur im Logo-Lockup, das als Bild
-  ausgeliefert wird; die App braucht also drei Fontdateien.
+  16 px, Bold 700 für Labels, Buttons, Überschriften. Black 900 wird nicht gebraucht,
+  die App lädt also drei Fontdateien.
 - **Fokusring:** 2 px `color-primary`, Abstand 2 px bei Bedienelementen, −2 px (innen) bei Zeilen
   und Tabs, −3 px bei Segmenten. Auf der CTA weiß.
 - **Deaktiviert:** Deckkraft 0,45, kein Hover.
@@ -115,12 +114,9 @@ Schriftlizenz sind modal, mit flachem Scrim `rgba(0,0,0,0.8)`. „Extraktion lä
 weiter browsen und die Vorschau nutzen, das Archiv wird nur gelesen. Die drei
 Extraktionsaktionen und „Neu laden" sind gesperrt, bis die Extraktion endet.
 
-**D.4 Marke: Wortmarke in der Kopfzeile, das Zeichen als Fenster-Icon, in Orange.** Das Zeichen
-(Ring, Keil, Viereck) erzählt das Werkzeug: Der Keil liest durch den Ring (das Archiv), aus der
-Öffnung kommt ein Datenblock heraus. In der Kopfzeile steht nur die Wortmarke „P4KX" Bold 700,
-14,4 px, `color-primary`, ohne Zeichen. Fenster- und Taskleisten-Icon: vereinfachtes Zeichen in
-Orange auf schwarzer Kachel, damit es auf heller und dunkler Taskleiste lesbar bleibt. Das Logo
-kommt nur in Orange, Weiß oder Schwarz vor.
+**D.4 Marke: nur die Wortmarke, in Orange.** In der Kopfzeile steht die Wortmarke „P4KX" Bold 700,
+14,4 px, `color-primary`. Es gibt kein Zeichen und kein eigenes Fenster-Icon; Fenster und
+Taskleiste zeigen das Standard-Icon der Plattform.
 
 **D.5 Fortschritt: Orange.** Fortschritt ist laufende Aktivität, wie Spinner und
 Lade-Indikator, die das DS orange zeichnet. Grün bedeutet im DS einen erreichten Zustand
@@ -330,7 +326,6 @@ Abfrage-Vervollständigung, Container als Ordner, Tonformat der Extraktion, 3D-A
 | `.panel-header`-Titel 13,6 statt 17,6 px im Dialog | darf nicht größer sein als der Dialogtitel |
 | Abfrage-Vervollständigung an der Schreibmarke statt unter dem ganzen Feld | der Editor ist mehrzeilig, ein Name wird mitten im Text ergänzt (D.30) |
 | Vervollständigungs-Einträge 14,4 px (`fs-sm`) statt der von `.combobox__option` geerbten 16 px | gleiche Schrift und Zeilenhöhe wie die Dropdown-Einträge (36 px, D.1), damit Name und Typ in eine Zeile passen (D.30) |
-| Logo-Lockup mit Black 900 als Bild | die App lädt nur Light, Regular und Bold |
 
 ## Texte
 

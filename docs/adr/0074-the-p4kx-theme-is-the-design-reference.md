@@ -6,14 +6,16 @@ followed: P4KX carries its own reference.
 
 ## Decision
 
-- `p4kx_gui::theme` and `docs/design/` (the desktop spec, its machine-readable form and the logo)
+- `p4kx_gui::theme` and `docs/design/` (the desktop spec and its machine-readable form)
   are the reference for every GUI change. No external design system is read or followed.
 - The tokens, class names and fixtures carry neutral names (`planet-hurston`, `item-class-*`,
   `.modal`, `.segmented`); every value is unchanged.
 - A new colour, size, spacing or radius is added to the theme and to `docs/design/` together.
 - A deviation from the desktop spec is allowed only where egui or the platform forces it, never
   in colour, form or type, and is recorded in an ADR (ADR-0006 lists the forced ones).
-- The header shows the wordmark only; the glyph stays the window and taskbar icon.
+- The header shows the wordmark only. The P4KX glyph, its logo files and the window and taskbar
+  icon built from it are withdrawn (the glyph rows of ADR-0006 and the earlier brand decision of
+  the desktop spec); window and taskbar show the platform's default icon.
 
 ## Consequences
 

@@ -1057,14 +1057,5 @@
     "glow-primary-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(231,126,35,0.2)"},
     "glow-danger-lg": {"x": 0, "y": 0, "blur": 20, "spread": 0, "color": "rgba(163,0,10,0.2)"},
     "shadow-dropdown": {"x": 0, "y": 8, "blur": 16, "spread": 0, "color": "rgba(0,0,0,0.8)"}
-  },
-  "logo": {
-    "viewBox": 240,
-    "color": "color-primary",
-    "allowedColors": ["color-primary", "color-white", "color-bg-black"],
-    "fullFromPx": 64,
-    "mediumAtPx": 48,
-    "glyphAtOrBelowPx": 32,
-    "appIconTile": "color-bg-black"
   }
 }

@@ -51,7 +51,6 @@ Each is forced by egui 0.37 or Windows; colour, form and type stay as the theme 
 | Menu link open: selected tint plus 3 point orange underline | Selected tint and white text, no underline | egui's menu bar draws its own buttons |
 | Dropdown entry hover: Grau 3 and orange text; keyboard-active entry filled orange | Grau 3 and orange text on hover; keyboard focus outlined | egui's menu entries share the button visuals |
 | `:focus-visible` only for keyboard focus | The focus ring shows while a control has focus, also after a click | egui does not tell keyboard focus from pointer focus |
-| Logo as SVG | The glyph is rasterised from its geometry for the window icon | egui and Windows need raster images |
 | Native `input[type="range"]` | Drawn: progress track, round thumb as the native one | egui has no range input of this look |
 
 ## Decisions of the desktop spec

@@ -144,16 +144,24 @@ fn the_json_report_names_the_rig_the_body_and_the_parts() -> TestResult {
 }
 
 #[test]
-fn a_head_whose_rig_is_missing_is_reported_as_skipped() -> TestResult {
+fn a_head_whose_rig_is_missing_is_reported_as_skipped_and_exits_with_one() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(dir.path(), head_entries(None))?;
     let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+    let out = dir.path().join("c.glb");
 
-    let run = glb(&archive, &file, &dir.path().join("c.glb"), false)?;
+    let run = glb(&archive, &file, &out, false)?;
+    let json = glb(&archive, &file, &out, true)?;
 
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(run.code, Some(1), "{}", run.stderr);
     assert!(run.stdout.contains("skipped head: "), "{}", run.stdout);
     assert!(run.stdout.contains("does not exist"), "{}", run.stdout);
+    assert!(run.stderr.contains("could not be shaped"), "{}", run.stderr);
+    assert!(out.exists(), "the GLB is written without the head");
+    assert_eq!(json.code, Some(1), "{}", json.stderr);
+    let value: serde_json::Value = serde_json::from_str(&json.stdout)?;
+    assert_eq!(value["skipped"], 1);
+    assert_eq!(value["issues"][0]["kind"], "shape_failed");
     Ok(())
 }
 

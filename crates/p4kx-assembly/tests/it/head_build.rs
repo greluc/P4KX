@@ -205,7 +205,46 @@ fn a_rig_that_covers_fewer_vertices_than_the_head_uses_is_refused() -> TestResul
     let issue = only_issue(&armour)?;
 
     assert!(
-        issue.kind().to_string().contains("vertex"),
+        issue
+            .kind()
+            .to_string()
+            .contains("covers 6 vertices, the skin has 24"),
+        "{}",
+        issue.kind()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_rig_that_covers_more_vertices_than_the_skin_has_is_refused() -> TestResult {
+    let armour = build(
+        head_entries(Some(head_rig(HEAD_VERTICES + 6, MALE_RIG_HASH).build())),
+        dna_of_head_two_in_region_three(),
+    )?;
+
+    let issue = only_issue(&armour)?;
+
+    let text = issue.kind().to_string();
+    assert!(
+        text.contains("covers 30 vertices, the skin has 24"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_rig_whose_moves_are_not_finite_is_refused() -> TestResult {
+    let mut rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH);
+    rig.controls[16].scale = [f32::NAN; 3];
+
+    let armour = build(
+        head_entries(Some(rig.build())),
+        dna_of_head_two_in_region_three(),
+    )?;
+
+    let issue = only_issue(&armour)?;
+    assert!(
+        issue.kind().to_string().contains("not finite"),
         "{}",
         issue.kind()
     );

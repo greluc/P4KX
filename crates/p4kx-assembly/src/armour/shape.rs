@@ -61,31 +61,54 @@ pub(super) fn shaped(
         .and_then(|morphs| morphs.decode(&matrix))
         .map_err(failed)?;
     let mut shaped = model.clone();
-    for lod in shaped.lods.iter_mut().take(1) {
-        for mesh in &mut lod.meshes {
-            apply(mesh, &moves).map_err(|vertex| {
-                format!(
-                    "{rig_path} covers {} vertices, the model uses the vertex {vertex}",
-                    moves.len()
-                )
-            })?;
-        }
-    }
+    let lod = shaped
+        .lods
+        .first_mut()
+        .ok_or("the model has no level of detail")?;
+    let [mesh] = lod.meshes.as_mut_slice() else {
+        return Err(format!(
+            "the skin has {} meshes, a head has exactly one",
+            lod.meshes.len()
+        ));
+    };
+    apply(mesh, &moves).map_err(|problem| format!("{rig_path}: {problem}"))?;
     Ok(shaped)
 }
 
-/// Moves the vertices of `mesh` by the moves of their stream vertices; returns the stream vertex
-/// the moves lack.
-fn apply(mesh: &mut Mesh, moves: &[[f32; 3]]) -> Result<(), u32> {
+/// Moves the vertices of `mesh` by the moves of their stream vertices.
+///
+/// The moves must cover exactly the vertices of the mesh, which holds every vertex of the
+/// stream, and every move and moved position must be finite.
+fn apply(mesh: &mut Mesh, moves: &[[f32; 3]]) -> Result<(), String> {
+    if moves.len() != mesh.positions.len() {
+        return Err(format!(
+            "the rig covers {} vertices, the skin has {}",
+            moves.len(),
+            mesh.positions.len()
+        ));
+    }
+    if moves.iter().flatten().any(|value| !value.is_finite()) {
+        return Err("the rig gives a move that is not finite".to_owned());
+    }
     let old = mesh.positions.clone();
     for (position, &source) in mesh.positions.iter_mut().zip(&mesh.source) {
         let by = usize::try_from(source)
             .ok()
             .and_then(|at| moves.get(at))
-            .ok_or(source)?;
+            .ok_or_else(|| {
+                format!("the skin uses the vertex {source}, beyond the rig's vertices")
+            })?;
         for (value, delta) in position.iter_mut().zip(by) {
             *value += delta;
         }
+    }
+    if mesh
+        .positions
+        .iter()
+        .flatten()
+        .any(|value| !value.is_finite())
+    {
+        return Err("a moved vertex is not finite".to_owned());
     }
     carry_normals(mesh, &old);
     Ok(())

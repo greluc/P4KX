@@ -1,9 +1,11 @@
 # A head is shaped by the neutral morphs of its DNA rig
 
 Decided for issue #151. Evidence: `p4kx chf glb` over the default characters the Archive ships
-(`masculinedefault.chf`, `femininedefault.chf`) and `Macken.chf` of LIVE, at LOD 0 and 2: smooth,
-distinct human heads on the matching body, no part skipped, the GLB passing the checker of the
-testkit (`crates/p4kx-assembly/tests/real_archive/real_head.rs`). The file layout of the rigs is
+(`masculinedefault.chf`, `femininedefault.chf`) and the mission-giver CHF
+`Data\Libs\CharacterCustomizer\PU\MissionGivers\Male\Macken.chf` shipped in the LIVE Archive, at
+LOD 0 and 2: smooth, distinct human heads on the matching body, no part skipped, the GLB passing
+the checker of the testkit (`crates/p4kx-assembly/tests/real_archive/real_head.rs`, which reads
+the two defaults). No player's file was used. The file layout of the rigs is
 format knowledge from the MIT-licensed StarBreaker project, checked against the Archive.
 
 ## The rig
@@ -35,11 +37,12 @@ stream index of each vertex, so the moves are matched exactly.
 
 `Piece::shaped(dna)` shapes any skin piece; `Head::from_character` makes the head piece and the
 body variant from the DNA's `gender_hash`. `Armour::build` reads the rig through
-`ModelProvider::file`, checks that the rig is the DNA's, that it covers the model's vertices and
-that the DNA names heads the rig has, and moves the vertices of the model's level of detail; the
+`ModelProvider::file`, checks that the rig is the DNA's, that it covers exactly the vertices of the
+skin (which has one mesh), that every move is finite and that the DNA names heads the rig has, and moves the vertices of the model's level of detail; the
 normals take over the change of the surface normal at their vertex, so authored seams stay. A head
 that cannot be shaped is left out and listed as `shape_failed`: an unshaped head would show the
-base face for a character that has another.
+base face for a character that has another. `p4kx chf glb` still writes the GLB, then exits with
+code 1.
 
 The head is skinned like armour (ADR-0079). The body skeleton has no facial joints, so the weights
 on the 183 facial bones follow their nearest body ancestor; in a static export that changes

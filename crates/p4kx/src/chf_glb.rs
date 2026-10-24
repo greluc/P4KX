@@ -2,15 +2,16 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::io::{self, BufWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
-use p4kx_assembly::{ArchiveModels, Armour, AssemblyOptions, Head, PartOrigin};
+use p4kx_assembly::{ArchiveModels, Armour, AssemblyOptions, Head, IssueKind, PartOrigin};
 use p4kx_extraction::{
     ConversionError, GlbOptions, GlbSummary, GltfError, is_same_file, write_replacing,
 };
 use serde::Serialize;
+use thiserror::Error;
 
 use crate::chf::{InvalidChf, read_capped};
 use crate::cli::ChfGlbArgs;
@@ -47,6 +48,11 @@ struct GlbJson<'a> {
     skipped: usize,
     issues: Vec<IssueJson<'a>>,
 }
+
+/// The head of the character could not be shaped by its DNA, so the file lacks it.
+#[derive(Debug, Error)]
+#[error("the head could not be shaped by its DNA and is not in {}", .0.display())]
+pub(crate) struct HeadNotShaped(PathBuf);
 
 const fn origin_code(origin: PartOrigin) -> &'static str {
     match origin {
@@ -91,12 +97,19 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
 
     if as_json {
         json::print(&report(archive.path(), args, &head, &armour, &summary))?;
-        return Ok(());
+    } else if let Err(error) = print_report(&armour, &head, &summary, args)
+        && error.kind() != io::ErrorKind::BrokenPipe
+    {
+        return Err(error.into());
     }
-    match print_report(&armour, &head, &summary, args) {
-        Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
-        _ => Ok(()),
+    if armour
+        .issues()
+        .iter()
+        .any(|issue| matches!(issue.kind(), IssueKind::ShapeFailed { .. }))
+    {
+        return Err(HeadNotShaped(args.out.clone()).into());
     }
+    Ok(())
 }
 
 fn report<'a>(

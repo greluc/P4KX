@@ -1589,8 +1589,10 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
 lists the skin of the body (`origin` `body`) and the head (`origin` `head`), named `head`. The
 Issues are those of `p4kx armour glb`, and a head that cannot be shaped adds `shape_failed` (the
 DNA rig beside the head skin is missing, belongs to another rig, does not cover the vertices of the
-model, or the DNA names a head the rig lacks); the head is then left out and `skipped` counts it.
-A CHF that holds no face DNA or whose DNA names an unknown head rig exits with code 2, a file that
+model, has a different vertex count than the skin, gives moves that are not finite, or the DNA
+names a head the rig lacks); the head is then left out, `skipped` counts it, the GLB is still
+written and the command exits with code 1 after printing the report. `--lod N` picks the level of
+detail and `--no-vertex-colours` leaves the vertex colours out. A CHF that holds no face DNA or whose DNA names an unknown head rig exits with code 2, a file that
 is no CHF with code 3, a missing skeleton with code 3, an Archive key that is missing or wrong with
 code 7, and an `--out` that is the Archive with code 2.
 

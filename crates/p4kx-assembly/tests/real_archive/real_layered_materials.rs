@@ -39,7 +39,10 @@ struct Census {
     still_dark: BTreeMap<String, f32>,
 }
 
-#[expect(clippy::too_many_lines, reason = "one pass counts every column of the report")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass counts every column of the report"
+)]
 fn census(assembly: &Assembly) -> Census {
     let mut seen: BTreeSet<(usize, usize, usize)> = BTreeSet::new();
     let mut found = Census::default();

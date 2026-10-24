@@ -3,7 +3,7 @@
 
 use std::process::ExitCode;
 
-use p4kx_assembly::{AssemblyError, ChangeError, EntityLookupError, LoadoutError};
+use p4kx_assembly::{AssemblyError, ChangeError, EntityLookupError, HeadError, LoadoutError};
 use p4kx_blender::PackageError;
 use p4kx_comparison::LineDiffError;
 use p4kx_export::CatalogError;
@@ -78,7 +78,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, a tag or
      definition of a UI movie cannot be read or written, e.g. a truncated bitmap tag or a
      missing external texture, or a model cannot be exported or written, e.g. one too
-     large for a GLB file; compare: the Archives or the --diff Entry differ
+     large for a GLB file, or a head that chf glb could not shape by its DNA (the GLB is written without it); compare: the Archives or the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
@@ -95,7 +95,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      Loadout lacks, contradicts another, or attaches an Entity that does not fit the port, an
      audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
-     CHF file cannot store, a language the Archive holds no global.ini for, or a localisation
+     CHF file cannot store, a CHF file for chf glb that holds no face DNA or whose DNA belongs
+     to an unknown head rig, a language the Archive holds no global.ini for, or a localisation
      key that has no text in the language or its fallback
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
@@ -219,6 +220,7 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
             error.downcast_ref::<PackageError>(),
             Some(PackageError::NotAPackage { .. } | PackageError::NoFolderName { .. })
         )
+        || error.downcast_ref::<HeadError>().is_some()
         || error.downcast_ref::<UnreadableLoadout>().is_some()
         || error.downcast_ref::<InteriorOutputIsArchive>().is_some()
 }

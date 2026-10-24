@@ -6,5 +6,7 @@
 mod chf;
 mod json;
 mod limits;
+mod rig;
+mod rig_limits;
 mod round_trip;
 mod tail;

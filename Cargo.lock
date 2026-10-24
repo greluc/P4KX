@@ -3489,6 +3489,7 @@ dependencies = [
  "p4kx-export",
  "p4kx-extraction",
  "p4kx-render",
+ "p4kx-screens",
  "p4kx-search",
  "p4kx-settings",
  "p4kx-testkit",
@@ -3854,6 +3855,19 @@ dependencies = [
  "rayon",
  "thiserror 2.0.21",
  "wgpu",
+]
+
+[[package]]
+name = "p4kx-screens"
+version = "0.3.0"
+dependencies = [
+ "p4kx-assembly",
+ "p4kx-dataforge",
+ "p4kx-extraction",
+ "p4kx-gfx",
+ "p4kx-testkit",
+ "serde",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

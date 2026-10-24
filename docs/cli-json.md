@@ -1260,6 +1260,75 @@ and reading the picture back, and writing the file. An Entity the Archive lacks,
 change that does not fit print no JSON and fail with exit code 2; a machine without a graphics adapter fails with `no graphics adapter` on stderr
 and exit code 1.
 
+## `p4kx ui screens <archive> <entity> --json`
+
+The `BuildingBlocks` screens of an Entity and of everything attached in its resolved default
+Loadout (ADR-0089). A screen is any Reference of an Entity's Record to a `BuildingBlocks_Canvas`,
+found at any depth of the Record, e.g. the default view of `UIBuildingBlocksEntityComponentParams`.
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k", "entry": "Data\\Game2.dcb",
+ "entity": "AEGS_Avenger_Titan", "brand": "aegs",
+ "screens": [{"port": "hardpoint_dashboard_pilot/Support_L", "entity": "Vehicle_Screen_MFD",
+              "entity_record_path": "libs/foundry/records/entities/scitem/ships/displays/vehicle_screen_mfd",
+              "field": "Components[12].layers[0].views[0].component.canvas",
+              "canvas_guid": "33bda02c-099a-447f-ba1e-2e6b59bfafce",
+              "canvas": "libs/foundry/records/ui/buildingblocks/ships/displays/mfdscreens/…/m_mfd_screen",
+              "width": 800.0, "height": 600.0,
+              "assets": {"canvases": ["…"], "textures": ["UI/Textures/…/gradient_radial.dds"],
+                         "vectors": ["UI/Textures/Vector/…svg"], "movies": [],
+                         "localisation_keys": ["…"]},
+              "elements": [{"element": "DisplayWidget", "count": 54, "rendered": true},
+                           {"element": "WidgetText", "count": 1, "rendered": false}]}],
+ "movies": [{"port": "…", "entity": "…", "movie": "Data/UI/….gfx"}]}
+```
+
+`port` is the path of port names from the root Entity, empty for the root Entity itself. `brand`
+is the manufacturer code of the class name prefix when the Archive has the HUD style
+`styles/s_<code>_hud`, and absent otherwise; `ui render --brand` takes it. `canvas` is the record
+path `ui render --screen` takes. `assets.canvases` starts with the screen's own canvas and holds
+every canvas it nests; `.tif` textures are listed as the `.dds` files the Archive holds;
+`localisation_keys` lose the leading `@`. `elements` counts the widgets of every canvas of the
+screen by type, `rendered` says whether `ui render --screen` draws the type. `movies` lists the
+`moviePath` of UI owner components. A canvas that cannot be read keeps its row with the GUID as
+`canvas`, size 0 and no assets. The exit code is 0.
+
+## `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--brand <code>] --json`
+
+Renders a `BuildingBlocks` canvas, by record path or GUID, instead of a movie; `--lang` and an ENTRY
+exclude `--screen`.
+
+```json
+{"screen": "libs/foundry/records/ui/buildingblocks/test/test_mfd",
+ "target": "…\\mfd.png", "format": "png", "width": 200, "height": 100,
+ "widgets": 14, "shapes": 9, "canvases": 2,
+ "unsupported": [{"element": "WidgetText", "reason": "no renderer for this element type",
+                  "count": 1, "examples": ["label"]}],
+ "missing_canvases": [], "truncated": false,
+ "skipped": [{"reason": "fill_budget", "message": "the fills cover more than the budget"}]}
+```
+
+`width` and `height` are the pixels written. `widgets` counts the widgets visited in every canvas
+composed, `shapes` the shapes drawn, `canvases` the canvases composed (the screen's own and the
+nested ones). `unsupported` lists per element type and reason (`no renderer for this element
+type`, `rotation is not applied`, `automatic size taken as the size of the parent`, `wrapping flex
+containers are laid out without wrapping`, `<layout> children are laid out as an overlay`, `colour
+slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not evaluated` for
+a `StyleEntry`, and the reasons of circles and polygons) how many widgets it concerns and the names of
+up to three. `missing_canvases` names nested canvases that cannot be read, that no Record answers
+or that contain themselves; widgets whose parents form a cycle are listed in `unsupported`
+(`not reachable from a root: its parents form a cycle`). `truncated` is true when a limit stopped
+the composition: 2^18 widgets visited or placed (hidden ones included), 2^26 steps of the style
+cascade, 2^17 shapes or a depth of 64 widgets and canvases. `skipped` lists what the renderer
+(raster or SVG writer) skipped of the scene, each with the stable `reason` code of
+`p4kx ui render` and a `message`; it is `[]` when nothing was skipped.
+
+The exit code is 0 when nothing is listed in `unsupported`, `missing_canvases` or `skipped` and
+`truncated` is false, and 1 otherwise. It is 2 for an unknown, ambiguous or non-canvas record, for a
+canvas side below 1 or above 16384 pixels and for a size the renderer cannot draw; 3 when the
+Archive or its `Data\Game2.dcb` cannot be read; 5 when a Record of the DataForge cannot be read. In
+these cases no JSON is printed.
+
 ## `p4kx socpak list <archive> <container…> --json`
 
 ```json

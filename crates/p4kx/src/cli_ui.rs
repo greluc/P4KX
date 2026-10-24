@@ -25,6 +25,12 @@ pub(crate) enum UiAction {
     /// with their IDs and export names, and the tags that are unknown or cannot be read.
     #[command(after_help = EXIT_CODES_HELP)]
     Assets(UiSource),
+    /// Lists the `BuildingBlocks` screens of an Entity and of everything in its default Loadout,
+    /// such as the MFDs and the radar of a ship, with the canvases, textures, vector graphics,
+    /// movies and localisation keys each uses, the widgets by element type and the UI movies the
+    /// Entities name.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Screens(UiScreensArgs),
     /// Writes every bitmap of a GFx or SWF UI movie into a folder as `bitmap_<ID>.png` and every
     /// shape as `shape_<ID>.json` and morph shape as `morph_shape_<ID>.json`, in twips as the movie
     /// stores them. External images are decoded from the DDS texture they name, relative to the
@@ -46,11 +52,24 @@ pub(crate) enum UiAction {
     /// character whose font or glyph is missing is drawn as an empty box, since no system font is
     /// used. Buttons and videos are skipped, filters and blend modes are not applied, and every
     /// element left out or drawn as a fallback is listed.
+    ///
+    /// With `--screen` it renders a `BuildingBlocks` canvas of the Archive instead (the screens of
+    /// a ship, listed by `ui screens`): the layout of its widgets is computed from the Records
+    /// and drawn through the same renderer. Widget types without a renderer, texts and textures
+    /// among them, are left out and listed in the report.
     #[command(after_help = EXIT_CODES_HELP)]
     Render {
-        /// The UI movie.
+        /// The UI movie, or with `--screen` the Archive.
         #[command(flatten)]
         source: UiSource,
+        /// Render this `BuildingBlocks` canvas of the Archive, by record path or GUID, instead of
+        /// a movie.
+        #[arg(long, value_name = "CANVAS", conflicts_with_all = ["entry", "lang"])]
+        screen: Option<String>,
+        /// The manufacturer code, e.g. `aegs`, whose colour style the canvas is drawn with;
+        /// without a match the first brand style of the canvas is used.
+        #[arg(long, value_name = "BRAND", requires = "screen")]
+        brand: Option<String>,
         /// The file to write, a PNG or with `--svg` an SVG; replaced if it exists.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
@@ -132,6 +151,15 @@ fn parse_background(text: &str) -> Result<Background, String> {
         })),
         _ => Err(invalid()),
     }
+}
+
+/// Arguments of `p4kx ui screens`.
+#[derive(Debug, Args)]
+pub(crate) struct UiScreensArgs {
+    /// Path of the Data.p4k Archive.
+    pub(crate) archive: PathBuf,
+    /// The Entity: its record path, GUID or class name.
+    pub(crate) entity: String,
 }
 
 /// Where a UI movie is.

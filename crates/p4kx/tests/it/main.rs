@@ -87,6 +87,7 @@ mod ui_panel;
 mod ui_render;
 mod ui_render_svg;
 mod ui_render_text;
+mod ui_screens;
 mod verify;
 mod wwise_events;
 mod wwise_extract;

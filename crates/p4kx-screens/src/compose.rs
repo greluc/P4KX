@@ -1,0 +1,201 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use std::collections::HashMap;
+use std::io::Write;
+
+use p4kx_dataforge::{DataForge, Guid};
+use p4kx_gfx::{Raster, RasterOptions, Scene, SvgReport};
+
+use crate::canvas::{CanvasStore, StyleRef, find_canvas};
+use crate::colour::{Palette, slot_names};
+use crate::context::Context;
+use crate::error::ScreenError;
+use crate::paint::Area;
+use crate::report::Report;
+use crate::style::TagPaths;
+use crate::walk::Walk;
+
+const STYLES: &str = "libs/foundry/records/ui/buildingblocks/styles";
+const DEFAULT_STYLE: &str = "libs/foundry/records/ui/buildingblocks/styles/default";
+const MAX_CANVAS_SIDE: f32 = 16_384.0;
+
+/// A screen composed into a scene, with what the composition left out.
+#[derive(Debug)]
+pub struct Composed {
+    scene: Scene,
+    report: Report,
+    width: u32,
+    height: u32,
+}
+
+impl Composed {
+    /// Returns the width of the screen in pixels.
+    #[must_use]
+    pub const fn width(&self) -> u32 {
+        self.width
+    }
+
+    /// Returns the height of the screen in pixels.
+    #[must_use]
+    pub const fn height(&self) -> u32 {
+        self.height
+    }
+
+    /// Returns the drawing instructions the GFx renderer draws.
+    #[must_use]
+    pub const fn scene(&self) -> &Scene {
+        &self.scene
+    }
+
+    /// Returns what was drawn and what was left out.
+    #[must_use]
+    pub const fn report(&self) -> &Report {
+        &self.report
+    }
+
+    /// Rasterises the scene.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ScreenError::Gfx`] when the canvas size the options ask for cannot be drawn.
+    pub fn rasterize(&self, options: &RasterOptions) -> Result<Raster, ScreenError> {
+        Ok(self.scene.rasterize(&HashMap::new(), options)?)
+    }
+
+    /// Writes the scene as an SVG document.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ScreenError::Gfx`] when the canvas size cannot be drawn or `out` fails.
+    pub fn write_svg<W: Write>(
+        &self,
+        options: &RasterOptions,
+        title: Option<&str>,
+        out: W,
+    ) -> Result<SvgReport, ScreenError> {
+        Ok(self.scene.write_svg(&HashMap::new(), options, title, out)?)
+    }
+}
+
+/// Composes `BuildingBlocks` canvases of one DataForge into scenes.
+pub struct ScreenComposer<'a, 'f> {
+    store: CanvasStore<'a, 'f>,
+    slots: Vec<String>,
+    tags: TagPaths,
+}
+
+impl<'a, 'f> ScreenComposer<'a, 'f> {
+    /// Creates a composer that reads canvases and styles from `forge`.
+    #[must_use]
+    pub fn new(forge: &'a DataForge<'f>) -> Self {
+        Self {
+            store: CanvasStore::new(forge),
+            slots: slot_names(forge),
+            tags: TagPaths::build(forge),
+        }
+    }
+
+    /// Composes the canvas that `canvas` names, a GUID or a record path, into a scene of its own
+    /// size.
+    ///
+    /// The colour slots (`Base`, `Accent1` and so on) of the widgets take their colours from the
+    /// default style, overlaid by the HUD style of the manufacturer `brand` (a code such as
+    /// `aegs`), overlaid by the styles each canvas names for itself and its nested canvases; a
+    /// canvas with several brand styles uses the one of `brand`, else its first. The style
+    /// entries of those canvases and styles, whose selectors the composer evaluates, set the
+    /// colours, borders, alpha and visibility of the widgets at rest.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ScreenError::UnknownCanvas`], [`ScreenError::AmbiguousCanvas`] or
+    /// [`ScreenError::NotACanvas`] when `canvas` names no canvas, and
+    /// [`ScreenError::EmptyCanvas`] when its size is no area of 1 to 16384 pixels a side.
+    pub fn compose(&mut self, canvas: &str, brand: Option<&str>) -> Result<Composed, ScreenError> {
+        let guid = find_canvas(self.store.forge(), canvas)?;
+        self.compose_guid(guid, brand)
+    }
+
+    fn compose_guid(&mut self, guid: Guid, brand: Option<&str>) -> Result<Composed, ScreenError> {
+        let root = self
+            .store
+            .get(guid)
+            .ok_or_else(|| ScreenError::UnknownCanvas {
+                text: guid.to_string(),
+            })?;
+        let [width, height] = root.size;
+        if !(1.0..=MAX_CANVAS_SIDE).contains(&width) || !(1.0..=MAX_CANVAS_SIDE).contains(&height) {
+            return Err(ScreenError::EmptyCanvas {
+                path: root.record_path.clone(),
+            });
+        }
+        let mut cx = Context {
+            palette: self.base_palette(brand),
+            ..Context::default()
+        };
+        let mut walk = Walk::new(&mut self.store, &self.slots, &self.tags, brand, &mut cx);
+        walk.enter(
+            &root,
+            Area {
+                x: 0.0,
+                y: 0.0,
+                width,
+                height,
+            },
+            1.0,
+            0,
+        );
+        let Context {
+            painter,
+            mut report,
+            ..
+        } = cx;
+        report.shapes = painter.len();
+        report.truncated |= painter.is_full();
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "the sides are checked to be from 1 to 16384"
+        )]
+        let (pixels_wide, pixels_high) = (width.round() as u32, height.round() as u32);
+        Ok(Composed {
+            scene: painter.finish(width, height),
+            report,
+            width: pixels_wide,
+            height: pixels_high,
+        })
+    }
+
+    /// Returns the manufacturer code in the class name of an Entity, e.g. `aegs` for
+    /// `AEGS_Avenger_Titan`, when the Archive has a HUD style for it.
+    #[must_use]
+    pub fn brand_of(&self, class_name: &str) -> Option<String> {
+        let code = class_name.split('_').next()?.to_ascii_lowercase();
+        self.style_ref(&brand_style_path(&code)).map(|_| code)
+    }
+
+    fn style_ref(&self, path: &str) -> Option<StyleRef> {
+        let record = self.store.forge().records_at_path(path).next()?;
+        Some(StyleRef {
+            guid: record.guid(),
+            record_path: path.to_owned(),
+        })
+    }
+
+    fn base_palette(&self, brand: Option<&str>) -> Palette {
+        let styles: Vec<StyleRef> = std::iter::once(DEFAULT_STYLE.to_owned())
+            .chain(brand.map(|code| brand_style_path(&code.to_ascii_lowercase())))
+            .filter_map(|path| self.style_ref(&path))
+            .collect();
+        let styles: Vec<&StyleRef> = styles.iter().collect();
+        Palette::of_styles(self.store.forge(), &self.slots, &styles)
+    }
+
+    pub(crate) const fn store(&mut self) -> &mut CanvasStore<'a, 'f> {
+        &mut self.store
+    }
+}
+
+fn brand_style_path(code: &str) -> String {
+    format!("{STYLES}/s_{code}_hud")
+}

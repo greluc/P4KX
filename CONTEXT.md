@@ -476,6 +476,26 @@ once, its placements with transforms, colour transforms and masks, and what was 
 rasterised to PNG or written as SVG. Text is part of it as glyph shapes, one per glyph and colour.
 _Avoid_: render tree, stage (the stage is the area of the movie)
 
+**Screen**:
+A `BuildingBlocks_Canvas` Record that an Entity's Record refers to, e.g. the MFD, the radar or the
+HUD of a ship: widgets laid out inside a canvas of its own size, nesting further canvases through
+canvas widgets. `p4kx ui screens` lists them, `p4kx ui render --screen` draws one into a Scene
+(ADR-0089).
+_Avoid_: UI movie (a Screen is DataForge data, not a movie), display (that is the Entity that shows it)
+
+**Widget**:
+One node of a Screen's `scene` array, a `BuildingBlocks_DisplayWidget` or a type derived from it
+(card, canvas, text, image, circle, ...), with sizing, margin, padding, a flex layout policy,
+tags, a background and a border; the tree of widgets is given by their `parent` links.
+_Avoid_: element (the renderer's report names widgets by element type), node
+
+**Style cascade**:
+The rules that give a widget its colours and visibility at rest: the palette slots of a
+`BuildingBlocks_Style`, and style entries whose selectors (type, tag, parent, ancestor and their
+combinations) pick widgets and whose modifiers set fill, stroke, background, border colour, alpha
+and activity. Only the passes ADR-0089 names are evaluated.
+_Avoid_: CSS, theme
+
 **Text field**:
 A definition of a UI movie that shows a text (`DefineEditText`), with a font, size, colour,
 alignment and optionally HTML markup or a localisation key (`@key`); a static text (`DefineText`)

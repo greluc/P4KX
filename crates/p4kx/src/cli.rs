@@ -28,7 +28,7 @@ use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
 pub(crate) use crate::cli_ships::{ShipsArgs, ShipsFormat};
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
-pub(crate) use crate::cli_ui::{UiAction, UiArgs};
+pub(crate) use crate::cli_ui::{UiAction, UiArgs, UiScreensArgs};
 pub(crate) use crate::cli_verify::VerifyArgs;
 pub(crate) use crate::cli_wwise::{
     AudioLanguageArgs, WwiseAction, WwiseArgs, WwiseEventsArgs, WwiseResolveArgs,

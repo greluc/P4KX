@@ -34,9 +34,18 @@ pub struct TestEntity {
     tags: Option<String>,
     mass: Option<f32>,
     container: Option<u128>,
+    extra: Vec<TestValue>,
 }
 
 impl TestEntity {
+    /// Adds a component of a struct the database declares, after the components the other
+    /// methods add.
+    #[must_use]
+    pub fn component(mut self, component: TestValue) -> Self {
+        self.extra.push(component);
+        self
+    }
+
     /// Creates an Entity with the class name `class_name`, whose Record is named
     /// `EntityClassDefinition.<class_name>`, without ports and Loadout.
     #[must_use]
@@ -60,6 +69,7 @@ impl TestEntity {
             tags: None,
             mass: None,
             container: None,
+            extra: Vec::new(),
         }
     }
 
@@ -241,6 +251,7 @@ impl TestEntity {
         }
         components.extend(self.mass.map(physics_component));
         components.extend(self.container.map(container_component));
+        components.extend(self.extra.iter().cloned());
         TestRecord::new(
             self.guid,
             "EntityClassDefinition",

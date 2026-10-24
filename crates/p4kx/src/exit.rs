@@ -11,6 +11,7 @@ use p4kx_extraction::{
     ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, LocalizationLoadError,
     UnknownEntries,
 };
+use p4kx_screens::ScreenError;
 
 use crate::armour_loadout::UnreadableLoadout;
 use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
@@ -157,8 +158,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else if dataforge.is_some()
         || error.downcast_ref::<DataForgeError>().is_some()
         || error.downcast_ref::<FieldStatisticsError>().is_some()
-        || error.downcast_ref::<UnreadableSchema>().is_some()
-        || error.downcast_ref::<LoadoutError>().is_some()
+        || is_loadout_or_screen_forge_error(error)
         || is_unreadable_change(error)
     {
         DATAFORGE_ERROR
@@ -171,6 +171,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || model::is_invalid_input(error)
         || is_output_or_query_error(error)
         || error.downcast_ref::<EntityLookupError>().is_some()
+        || is_screen_error(error, |error| !matches!(error, ScreenError::DataForge(_)))
         || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
         || error.downcast_ref::<InvalidChfJson>().is_some()
@@ -185,6 +186,16 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else {
         PARTIAL_FAILURE
     }
+}
+
+fn is_screen_error(error: &anyhow::Error, which: impl Fn(&ScreenError) -> bool) -> bool {
+    error.downcast_ref::<ScreenError>().is_some_and(which)
+}
+
+fn is_loadout_or_screen_forge_error(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<UnreadableSchema>().is_some()
+        || error.downcast_ref::<LoadoutError>().is_some()
+        || is_screen_error(error, |error| matches!(error, ScreenError::DataForge(_)))
 }
 
 fn is_missing_skeleton(error: &anyhow::Error) -> bool {

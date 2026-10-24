@@ -241,6 +241,15 @@ impl AssemblyView {
         if let Some(job) = self.job.take() {
             job.cancel();
             self.cancelled = true;
+            if self.interior
+                && self
+                    .shown
+                    .as_ref()
+                    .is_some_and(|shown| !shown.with_interior)
+            {
+                self.interior = false;
+                self.remask();
+            }
         }
     }
 

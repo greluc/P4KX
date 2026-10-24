@@ -467,6 +467,14 @@ fehlt, wenn die Entity keinen Interior hat. Ein socpak-Eintrag im Archiv hat neb
 „Interior als GLB exportieren …" (`.btn-ghost.btn-xs`, wie „Als GLB exportieren …" bei Modellen) und im
 Menü „Export" den gleichen Eintrag; beide öffnen denselben Dialog mit der Zeile „Container: Name" statt der
 Zeilen zu Entity und Loadout, ohne die Gruppe „Interior", mit Detailgrad, Materialien, Texturgröße und
-Vertex-Farben. Das Fortschrittsfenster zeigt dort die Stufe „Das Interior von … wird gelesen … x von y
+Vertex-Farben. Die Leiste unter der Ansicht hat jetzt zwei Zeilen zu je `barHeight` (36, `barRows` 2): oben
+Detailgrad, Materialien und die Checkbox „Interior", darunter über die ganze Breite die Statuszeile
+(Spinner, Stufentext, „Abbrechen" oder die Meldung zu nicht aufgelösten Teilen, Fehlern und Abbruch, ganz
+rechts „Alle zeigen (n)"), damit sie bei der Standardgröße 1280 × 800 nicht abgeschnitten wird. Das Panel
+öffnet damit 429 hoch (393 + 36) und ist mindestens 245 hoch (209 + 36); die Ansicht behält 280 und 96.
+Die Auswahlliste öffnet mit der Breite der Seitenleiste (300, höchstens die halbe Breite), nicht mehr mit
+480, damit die Zeile mit den Reglern bei 1280 × 800 auch auf Deutsch in die Ansicht passt; sie bleibt
+zwischen 240 und 480 verstellbar.
+Das Fortschrittsfenster zeigt dort die Stufe „Das Interior von … wird gelesen … x von y
 Modelldateien"; die Zusammenfassung nennt Container, Teile, Modelle, Lichter und listet, was nicht
 aufgelöst wurde, wie beim Export einer Entity. Neue Maße gibt es nicht.

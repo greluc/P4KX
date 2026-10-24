@@ -10,7 +10,7 @@ use p4kx_settings::ModelMaterials;
 use super::model_preview::problem_text;
 use super::model_view::canvas;
 use super::search::eyebrow;
-use crate::theme::assembly_metrics::ASSEMBLY_TREE_MIN_HEIGHT;
+use crate::theme::assembly_metrics::{ASSEMBLY_BAR_ROWS, ASSEMBLY_TREE_MIN_HEIGHT};
 use crate::theme::desktop::{AUDIO_CONTROL_GAP, SPINNER_INLINE};
 use crate::theme::model_metrics::{MODEL_BAR_HEIGHT, MODEL_OVERLAY_GAP};
 use crate::theme::palette;
@@ -104,10 +104,14 @@ fn viewport(
     (view, scene): (&mut AssemblyView, &Arc<AssemblyScene>),
 ) -> Option<Ask> {
     let camera = view.camera().cloned()?;
-    let reserve = MODEL_OVERLAY_GAP + MODEL_BAR_HEIGHT;
-    let below = ui
+    let bars = ASSEMBLY_BAR_ROWS * MODEL_BAR_HEIGHT;
+    let reserve = MODEL_OVERLAY_GAP + bars;
+    let bottom = ui.max_rect().bottom();
+    let status_rect = ui.max_rect().with_min_y(bottom - MODEL_BAR_HEIGHT);
+    let controls_rect = ui
         .max_rect()
-        .with_min_y(ui.max_rect().bottom() - MODEL_BAR_HEIGHT);
+        .with_min_y(bottom - bars)
+        .with_max_y(bottom - MODEL_BAR_HEIGHT);
     let interior = view.interior();
     let describe = || {
         let (parts, triangles) = scene.drawn(interior);
@@ -129,15 +133,18 @@ fn viewport(
         (pick, &camera),
         (Look::default(), reserve),
     );
+    let row = |rect| {
+        UiBuilder::new()
+            .max_rect(rect)
+            .layout(Layout::left_to_right(Align::Center))
+    };
     let chosen = ui
-        .scope_builder(
-            UiBuilder::new()
-                .max_rect(below)
-                .layout(Layout::left_to_right(Align::Center)),
-            |ui| bar(ui, texts, view),
-        )
+        .scope_builder(row(controls_rect), |ui| bar(ui, texts, view))
         .inner;
-    chosen.or_else(|| moved.map(Ask::Camera))
+    let status = ui
+        .scope_builder(row(status_rect), |ui| status_row(ui, texts, view))
+        .inner;
+    chosen.or(status).or_else(|| moved.map(Ask::Camera))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -243,8 +250,13 @@ fn bar(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
     if toggle::checkbox_if(ui, &mut shown, &label, view.has_interior()).changed() {
         ask = Some(Ask::Interior(shown));
     }
+    ask
+}
+
+fn status_row(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
+    let mut ask = None;
+    ui.spacing_mut().item_spacing.x = AUDIO_CONTROL_GAP;
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        ask = status(ui, texts, view).or_else(|| ask.take());
         if view.hidden_count() > 0 {
             let label = texts.format(
                 EntityText::ViewShowAll,
@@ -254,6 +266,7 @@ fn bar(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
                 ask = Some(Ask::ShowAll);
             }
         }
+        ask = status(ui, texts, view).or_else(|| ask.take());
     });
     ask
 }

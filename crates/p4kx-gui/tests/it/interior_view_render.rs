@@ -27,17 +27,17 @@ use p4kx_testkit::{
     ENTITY_INTERIOR_CLASS, INTERIOR_ROOT, entity_interior_entries, interior_entries,
 };
 
-fn view(model: &Model) -> Option<&AssemblyView> {
+pub(crate) fn view(model: &Model) -> Option<&AssemblyView> {
     model.entities().loadout().map(LoadoutSession::assembly)
 }
 
-fn serial(model: &Model) -> Option<u64> {
+pub(crate) fn serial(model: &Model) -> Option<u64> {
     view(model)
         .and_then(AssemblyView::scene)
         .map(|scene| scene.serial())
 }
 
-fn built(window: &mut Window, before: Option<u64>) -> TestResult {
+pub(crate) fn built(window: &mut Window, before: Option<u64>) -> TestResult {
     wait_until(&mut window.harness, |model| {
         view(model).is_some_and(|view| !view.is_building())
             && serial(model).is_some()
@@ -45,7 +45,7 @@ fn built(window: &mut Window, before: Option<u64>) -> TestResult {
     })
 }
 
-fn hull_window(
+pub(crate) fn hull_window(
     language: Language,
     size: [f32; 2],
 ) -> Result<Option<Window>, Box<dyn std::error::Error>> {

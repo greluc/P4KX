@@ -88,6 +88,11 @@ pub struct AssemblyExportProgress {
     pub done: u64,
     /// While reading the Interior, the model files the container being read places, else 0.
     pub total: u64,
+    /// While reading the Interior of an Entity, the containers done before the one being read.
+    pub containers_done: u64,
+    /// While reading the Interior of an Entity, the containers it names; 0 for a container on
+    /// its own.
+    pub containers_total: u64,
 }
 
 #[derive(Debug, Default)]
@@ -95,6 +100,8 @@ pub(super) struct Shared {
     stage: AtomicU8,
     done: AtomicU64,
     total: AtomicU64,
+    containers_done: AtomicU64,
+    containers_total: AtomicU64,
 }
 
 impl Shared {
@@ -108,6 +115,8 @@ impl Shared {
             },
             done: self.done.load(Ordering::Relaxed),
             total: self.total.load(Ordering::Relaxed),
+            containers_done: self.containers_done.load(Ordering::Relaxed),
+            containers_total: self.containers_total.load(Ordering::Relaxed),
         }
     }
 
@@ -121,6 +130,15 @@ impl Shared {
         self.stage.store(code, Ordering::Relaxed);
         self.done.store(0, Ordering::Relaxed);
         self.total.store(0, Ordering::Relaxed);
+        self.containers_done.store(0, Ordering::Relaxed);
+        self.containers_total.store(0, Ordering::Relaxed);
+    }
+
+    fn containers(&self, done: usize, total: usize) {
+        let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
+        self.containers_done.store(count(done), Ordering::Relaxed);
+        self.containers_total.store(count(total), Ordering::Relaxed);
+        self.models(0, 0);
     }
 
     fn models(&self, done: usize, total: usize) {

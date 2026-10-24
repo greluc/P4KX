@@ -6,6 +6,9 @@ use p4kx_extraction::model::{MaterialStatus, Model, TintPalette};
 
 use crate::viewer::scene::Rows;
 
+#[cfg(test)]
+mod tests;
+
 /// One thing the scene places: a part of the Loadout, or a part of the Interior with the
 /// transform of its container and the hull applied.
 pub(super) struct Piece<'a> {

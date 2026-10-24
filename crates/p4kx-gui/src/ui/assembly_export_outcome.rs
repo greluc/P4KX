@@ -7,6 +7,7 @@ use std::time::Duration;
 use egui::{Color32, Id, Ui};
 use fluent_bundle::FluentValue;
 
+use super::assembly_export_progress::stage_fraction;
 use super::extraction_outcome::decorate;
 use super::record_export_outcome::{list, outcome_window};
 use crate::model_info::printable;
@@ -179,28 +180,6 @@ fn running(
         false
     } else {
         frames::foot_action(ui, &texts.get(ExtractionText::Cancel), Kind::Ghost)
-    }
-}
-
-/// The share of the export each step stands for: the models are the longest step, and the
-/// Interior fills the span from the models to the file as its model files are read.
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "the model files of a container fit f32's integers"
-)]
-fn stage_fraction(progress: AssemblyExportProgress) -> f32 {
-    match progress.stage {
-        AssemblyExportStage::Resolving => 0.1,
-        AssemblyExportStage::Reading => 0.4,
-        AssemblyExportStage::Interior => {
-            let read = if progress.total == 0 {
-                0.0
-            } else {
-                progress.done as f32 / progress.total as f32
-            };
-            0.3_f32.mul_add(read.clamp(0.0, 1.0), 0.4)
-        }
-        AssemblyExportStage::Writing => 0.8,
     }
 }
 

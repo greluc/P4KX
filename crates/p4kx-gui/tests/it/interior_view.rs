@@ -191,16 +191,20 @@ fn stopping_the_interior_keeps_the_view_built_before() -> TestResult {
     built(&mut harness, None)?;
     let first = serial(harness.state());
 
-    let view = view_mut(&mut harness)?;
-    view.set_interior(true);
-    assert!(view.is_building(), "building");
-    view.cancel();
+    let building = view_mut(&mut harness)?;
+    building.set_interior(true);
+    assert!(building.is_building(), "building");
+    building.cancel();
 
-    assert!(!view.is_building(), "stopped");
-    assert!(view.is_cancelled(), "by the user");
+    assert!(!building.is_building(), "stopped");
+    assert!(building.is_cancelled(), "by the user");
     harness.run_steps(3);
     assert_eq!(serial(harness.state()), first, "the hull stays");
     assert_eq!(interior_parts(harness.state()), 0, "without the Interior");
+    assert!(
+        !view(harness.state()).is_some_and(AssemblyView::interior),
+        "the checkbox is off again, as no Interior is shown"
+    );
     Ok(())
 }
 

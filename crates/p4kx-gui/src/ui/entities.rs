@@ -13,7 +13,7 @@ use crate::theme::assembly_metrics::{
     ASSEMBLY_PANEL_HEIGHT, ASSEMBLY_PANEL_MIN_HEIGHT, ASSEMBLY_PANEL_SHARE,
 };
 use crate::theme::desktop::{
-    SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, SPINNER, SPINNER_INLINE, TOOLBAR_PADDING,
+    SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_WIDTH, SPINNER, SPINNER_INLINE, TOOLBAR_PADDING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, Weight};
@@ -141,7 +141,7 @@ fn ready(ui: &mut Ui, model: &mut Model) {
     let picked = Panel::left("entities-list")
         .frame(frames::panel())
         .resizable(true)
-        .default_size(SIDEBAR_MAX_WIDTH.min(ui.available_width() / 2.0))
+        .default_size(SIDEBAR_WIDTH.min(ui.available_width() / 2.0))
         .size_range(SIDEBAR_MIN_WIDTH..=SIDEBAR_MAX_WIDTH)
         .show(ui, |ui| {
             let EntitiesStatus::Ready(list) = model.entities().status() else {

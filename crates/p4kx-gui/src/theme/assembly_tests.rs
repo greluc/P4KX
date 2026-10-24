@@ -20,6 +20,7 @@ fn the_assembly_view_metrics_match_the_desktop_spec() {
     for (key, value) in [
         ("viewHeight", m::ASSEMBLY_VIEW_HEIGHT),
         ("treeMinRows", m::ASSEMBLY_TREE_MIN_ROWS),
+        ("barRows", m::ASSEMBLY_BAR_ROWS),
         ("panelHeight", m::ASSEMBLY_PANEL_HEIGHT),
         ("panelMinHeight", m::ASSEMBLY_PANEL_MIN_HEIGHT),
         ("treeMinHeight", m::ASSEMBLY_TREE_MIN_HEIGHT),

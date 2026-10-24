@@ -45,10 +45,10 @@ fn with_watch<T>(
 ) -> T {
     build(&InteriorWatch {
         cancelled: &|| cancel.is_cancelled(),
-        progress: &|progress| {
-            if let InteriorProgress::Models { done, total } = progress {
-                shared.models(done, total);
-            }
+        progress: &|progress| match progress {
+            InteriorProgress::Container { done, total } => shared.containers(done, total),
+            InteriorProgress::Models { done, total } => shared.models(done, total),
+            _ => {}
         },
     })
 }

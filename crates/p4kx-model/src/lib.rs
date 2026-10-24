@@ -46,6 +46,7 @@ mod mesh;
 mod model;
 mod mtl;
 mod mtl_error;
+mod mtl_layers;
 mod mtl_load;
 mod mtl_parse;
 mod mtl_raw;
@@ -81,6 +82,7 @@ pub use mtl::{
     TextureSlot,
 };
 pub use mtl_error::MaterialError;
+pub use mtl_layers::{LayerSurface, MAX_LAYER_FILES};
 pub use mtl_raw::{
     Attributes, MAX_LAYERS, MAX_RAW_DEPTH, MAX_RAW_ELEMENTS, MaterialLayer, RawElement,
 };

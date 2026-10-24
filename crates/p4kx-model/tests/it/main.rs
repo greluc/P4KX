@@ -11,6 +11,7 @@ mod crch;
 mod crch_corrupt;
 mod cube;
 mod interior;
+mod layer_surfaces;
 mod lods;
 mod material_library_lookup;
 mod material_raw;

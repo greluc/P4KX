@@ -98,7 +98,8 @@ impl TintPalette {
     ///
     /// A painted material gets the entry's colour as its diffuse colour, the entry's specular
     /// colour and its glossiness as the shininess; a glass material gets the glass colour as its
-    /// diffuse colour. The result is [`Material::tinted`].
+    /// diffuse colour. Each layer with a `PaletteTint` keeps the entry it takes. The result is
+    /// [`Material::tinted`].
     #[must_use]
     pub fn apply(&self, material: &Material) -> Option<Material> {
         let slot = material.palette?;
@@ -110,6 +111,12 @@ impl TintPalette {
                 tinted.shininess = entry.glossiness;
             }
             None => tinted.diffuse = self.glass,
+        }
+        for layer in &mut tinted.layers {
+            layer.palette_entry = layer
+                .palette_slot()
+                .and_then(|slot| self.entry(slot))
+                .copied();
         }
         tinted.tinted = true;
         Some(tinted)

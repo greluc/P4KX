@@ -6,6 +6,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use p4kx_model::Material;
 
 use crate::materials::{MaterialPlan, Slot, display_name, uses_alpha};
+use crate::shading::shading;
 use crate::texture_loader::TextureLoader;
 use crate::texture_make::{Budget, Outcome, run};
 use crate::texture_pixels::Tints;
@@ -286,9 +287,10 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
         found.specular = None;
     }
     let refused = refusals(&found);
+    let shade = shading(material);
     let tints = Tints {
-        diffuse: material.diffuse.map(|channel| channel.clamp(0.0, 1.0)),
-        specular: material.specular.map(|channel| channel.clamp(0.0, 1.0)),
+        diffuse: shade.diffuse.map(|channel| channel.clamp(0.0, 1.0)),
+        specular: shade.specular.map(|channel| channel.clamp(0.0, 1.0)),
     };
     let specular_key = found
         .specular

@@ -67,7 +67,7 @@ fn minus_z(rotation: [f32; 4]) -> [f32; 3] {
     [
         -2.0 * qx.mul_add(qz, qw * qy),
         -2.0 * qy.mul_add(qz, -(qw * qx)),
-        -2.0f32.mul_add(qx.mul_add(qx, qy * qy), 1.0),
+        2.0f32.mul_add(qx.mul_add(qx, qy * qy), -1.0),
     ]
 }
 

@@ -92,11 +92,17 @@ const fn origin_code(origin: PartOrigin) -> &'static str {
 pub(crate) struct ExpressionsNotMade(PathBuf);
 
 fn expressions_of(args: &ChfGlbArgs) -> Expressions {
-    if args.no_expressions {
+    expressions_choice(args.lod, &args.expressions, args.no_expressions)
+}
+
+/// Returns the expressions the options ask for: none with `none`, those named, else all at LOD 0
+/// and none at the other levels, which have no expressions.
+pub(crate) fn expressions_choice(lod: u32, named: &[String], none: bool) -> Expressions {
+    if none {
         Expressions::None
-    } else if !args.expressions.is_empty() {
-        Expressions::Only(args.expressions.clone())
-    } else if args.lod == 0 {
+    } else if !named.is_empty() {
+        Expressions::Only(named.to_vec())
+    } else if lod == 0 {
         Expressions::All
     } else {
         Expressions::None
@@ -193,7 +199,7 @@ fn print_animations(
 }
 
 /// Returns the error for what could not be shaped or made, if there is any.
-fn failure(armour: &Armour, out: &Path) -> Option<anyhow::Error> {
+pub(crate) fn failure(armour: &Armour, out: &Path) -> Option<anyhow::Error> {
     let parts: Vec<String> = armour
         .issues()
         .iter()

@@ -35,10 +35,7 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
     Manifest {
         format: Format::P4kxBlenderPackage,
         version: FORMAT_VERSION.to_owned(),
-        generator: Generator {
-            name: "p4kx".to_owned(),
-            version: env!("CARGO_PKG_VERSION").to_owned(),
-        },
+        generator: generator(),
         source: Source {
             channel: inputs.info.channel.clone(),
             build: inputs.info.build.clone(),
@@ -53,10 +50,7 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
                 },
             ),
         },
-        coordinates: Coordinates {
-            basis: Basis::GltfYUp,
-            unit: Unit::Metre,
-        },
+        coordinates: coordinates(),
         options: Options {
             lod: inputs.options.lod,
             texture_mip: inputs.options.texture_mip,
@@ -70,6 +64,22 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
         materials: materials(inputs),
         palettes: palettes(inputs),
         issues: issues(inputs),
+    }
+}
+
+/// The program that writes the package.
+pub(crate) fn generator() -> Generator {
+    Generator {
+        name: "p4kx".to_owned(),
+        version: env!("CARGO_PKG_VERSION").to_owned(),
+    }
+}
+
+/// The axes and unit of every package.
+pub(crate) const fn coordinates() -> Coordinates {
+    Coordinates {
+        basis: Basis::GltfYUp,
+        unit: Unit::Metre,
     }
 }
 
@@ -137,6 +147,7 @@ fn meshes(inputs: &Inputs<'_>) -> Vec<Mesh> {
                             .collect()
                     })
                     .unwrap_or_default(),
+                rig: None,
             }
         })
         .collect()

@@ -18,10 +18,11 @@ from typing import Any
 
 from .light_model import Light, LightError, parse_light
 from .material_model import MaterialDesc, Palette, parse_materials, parse_palettes
+from .rig_model import Rig, RigError, parse_rig
 
 FORMAT_NAME = "p4kx-blender-package"
 SUPPORTED_MAJOR = 1
-SUPPORTED_MINOR = 2
+SUPPORTED_MINOR = 3
 MANIFEST_NAME = "scene.json"
 MAX_MANIFEST_BYTES = 64 * 1024 * 1024
 MAX_ITEMS = 200_000
@@ -34,7 +35,7 @@ _TEXTURE_ID = re.compile(r"^t[0-9]{4,}$")
 _MESH_FILE = re.compile(r"^meshes/m[0-9]{4,}\.glb$")
 _TEXTURE_FILE = re.compile(r"^textures/t[0-9]{4,}\.png$")
 _ROLES = ("diffuse", "normal", "specular")
-_KNOWN_NODE_KINDS = frozenset({"entity", "container", "object", "light"})
+_KNOWN_NODE_KINDS = frozenset({"entity", "container", "object", "light", "character"})
 _COLOUR_SPACES = frozenset({"srgb", "linear"})
 _ALPHA_MEANINGS = frozenset({"none", "opacity", "smoothness"})
 
@@ -68,6 +69,7 @@ class Mesh:
     file: str
     materials: tuple[MeshMaterial, ...]
     palette_id: str | None = None
+    rig: Rig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -321,7 +323,11 @@ def _parse_meshes(items: list[Any], textures: dict[str, Texture]) -> dict[str, M
         )
         palette_id = entry.get("palette_id")
         meshes[mesh_id] = Mesh(
-            mesh_id, file, materials, palette_id if isinstance(palette_id, str) else None
+            mesh_id,
+            file,
+            materials,
+            palette_id if isinstance(palette_id, str) else None,
+            _rig(entry.get("rig"), f"{where}.rig"),
         )
     return meshes
 
@@ -351,6 +357,7 @@ def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str])
     skipped: set[int] = set()
     unknown_kinds: set[str] = set()
     unknown_lights = False
+    bare_characters = False
     light_children = False
     light_nodes: set[int] = set()
     for position, item in enumerate(items):
@@ -382,6 +389,10 @@ def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str])
         mesh = None if kind == "light" else entry.get("mesh")
         if mesh is not None and (not isinstance(mesh, str) or mesh not in meshes):
             raise PackageError(f"{where}: mesh {mesh!r} is not a mesh of the package.")
+        if kind == "character" and (mesh is None or meshes[mesh].rig is None):
+            skipped.add(position)
+            bare_characters = True
+            continue
         nodes.append(
             Node(
                 index=position,
@@ -401,7 +412,18 @@ def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str])
         warnings.append("Lights of a kind this add-on does not know are skipped.")
     if light_children:
         warnings.append("Children of light nodes are skipped.")
+    if bare_characters:
+        warnings.append("Character nodes without a rigged mesh are skipped.")
     return nodes
+
+
+def _rig(value: object, where: str) -> Rig | None:
+    if value is None:
+        return None
+    try:
+        return parse_rig(value, where)
+    except RigError as error:
+        raise PackageError(str(error)) from error
 
 
 def _light(value: object, where: str) -> Light | None:

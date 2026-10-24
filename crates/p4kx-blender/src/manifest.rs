@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::manifest_light::Light;
 use crate::manifest_materials::{MaterialDescription, Palette};
+use crate::manifest_rig::Rig;
 
 /// The value of [`Manifest::format`] as text.
 pub const FORMAT: &str = "p4kx-blender-package";
@@ -14,7 +15,7 @@ pub const FORMAT: &str = "p4kx-blender-package";
 ///
 /// A new minor version only adds fields and values readers may ignore; a new major version changes
 /// the meaning of existing ones.
-pub const FORMAT_VERSION: &str = "1.2";
+pub const FORMAT_VERSION: &str = "1.3";
 
 /// The name of the manifest file in the package folder.
 pub const MANIFEST_FILE: &str = "scene.json";
@@ -92,6 +93,9 @@ pub enum NodeKind {
     Object,
     /// A light an Interior places; `light` describes it.
     Light,
+    /// A Character: the node draws a mesh whose `rig` holds a skeleton, skinned parts, morph
+    /// targets and animations.
+    Character,
 }
 
 /// What reported an issue.
@@ -256,7 +260,7 @@ pub struct Node {
 }
 
 /// One GLB mesh: the geometry of a model drawn with one material library and one palette.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Mesh {
     /// The mesh's id, e.g. `m0001`; also the stem of its file.
     pub id: String,
@@ -279,8 +283,13 @@ pub struct Mesh {
     pub vertices: usize,
     /// The number of triangles of the mesh.
     pub triangles: usize,
-    /// The materials the mesh is drawn with, in the order of the glTF materials in its file.
+    /// The materials the mesh is drawn with, in the order of the glTF materials in its file; empty
+    /// for a mesh with a `rig`, whose materials are in the file.
     pub materials: Vec<MeshMaterial>,
+    /// The skeleton, skinned parts, morph targets and animations of the file; present for a
+    /// Character (version 1.3), absent for a static mesh.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rig: Option<Rig>,
 }
 
 /// A material of a mesh and the textures its material file names.

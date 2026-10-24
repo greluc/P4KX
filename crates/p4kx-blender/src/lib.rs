@@ -13,12 +13,14 @@
 //!   textures/t0001.png  one PNG per distinct texture of the materials
 //! ```
 //!
-//! [`write_package`] writes it; [`Manifest`] is the type of `scene.json` and [`manifest_schema`]
+//! [`write_package`] writes it; [`write_character_package`] writes a Character, one skinned GLB
+//! with its skeleton, morph targets and animations, as the same kind of folder. [`Manifest`] is the type of `scene.json` and [`manifest_schema`]
 //! its JSON Schema, checked in as `schemas/blender-package.schema.json`. The file names are made
 //! of ids, never of names from the Archive, so no name can leave the package folder. The format
 //! is documented in `docs/blender-package.md`.
 
 mod build;
+mod character;
 mod collect;
 mod describe;
 mod error;
@@ -27,6 +29,7 @@ mod items;
 mod manifest;
 mod manifest_light;
 mod manifest_materials;
+mod manifest_rig;
 mod meshes;
 mod plan;
 mod roles;
@@ -35,6 +38,7 @@ mod stage;
 mod textures;
 mod write;
 
+pub use character::{CharacterScene, write_character_package};
 pub use error::PackageError;
 pub use manifest::{
     AlphaMeaning, Basis, BuildInfo, ColourSpace, Coordinates, EntityRef, FORMAT, FORMAT_VERSION,
@@ -47,6 +51,7 @@ pub use manifest_materials::{
     AlphaMode, Element, MaterialDescription, MaterialLayer, MaterialTexture, Palette,
     PaletteColours, PaletteEntry, Parameter, TextureUse,
 };
+pub use manifest_rig::{Rig, RigClip, RigPart, RigPartOrigin};
 pub use schema::manifest_schema;
 pub use stage::check_output;
 pub use write::{PackageInfo, PackageSummary, write_package};

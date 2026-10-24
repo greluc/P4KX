@@ -36,6 +36,9 @@ class ImportResult:
     instances: int = 0
     lights: int = 0
     meshes: int = 0
+    armatures: int = 0
+    shape_keys: int = 0
+    actions: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -46,8 +49,11 @@ def import_package(
 
     Each mesh used by a node is imported once into a hidden template collection; every node that
     draws it becomes an empty that instances that collection. A node of the kind ``light`` becomes
-    a Blender light with the settings of ``lights.light_settings`` at ``light_strength``. Raises ``PackageError`` when the
-    glTF importer of Blender is not available.
+    a Blender light with the settings of ``lights.light_settings`` at ``light_strength``. A node
+    whose mesh has a ``rig`` is a Character: its GLB is imported once for that node, not
+    instanced, so that its armature, shape keys and actions can be posed and animated, and the
+    imported top-level objects become children of the node's empty. Raises ``PackageError`` when
+    the glTF importer of Blender is not available.
     """
     if not hasattr(bpy.ops.import_scene, "gltf"):
         raise PackageError("Enable Blender's 'glTF 2.0 format' add-on first.")
@@ -63,6 +69,9 @@ def import_package(
             result.lights += 1
         else:
             created[node.index] = _create_object(node, template, created, root)
+            mesh = package.meshes[node.mesh] if node.mesh else None
+            if mesh is not None and mesh.rig is not None:
+                _import_character(context, package, mesh, created[node.index], root, result)
         result.objects += 1
         result.instances += template is not None
     result.warnings.extend(package.warnings)
@@ -72,7 +81,9 @@ def import_package(
 def _import_meshes(
     context: bpy.types.Context, package: Package, root: bpy.types.Collection, result: ImportResult
 ) -> dict[str, bpy.types.Collection]:
-    wanted = {node.mesh for node in package.nodes if node.mesh}
+    wanted = {
+        node.mesh for node in package.nodes if node.mesh and package.meshes[node.mesh].rig is None
+    }
     holder = bpy.data.collections.new(blender_name(f"{package.entity_name} meshes"))
     root.children.link(holder)
     holder_layer = _layer_collection(context.view_layer.layer_collection, holder)
@@ -122,6 +133,49 @@ def _import_glb(
     created = [material for material in bpy.data.materials if material not in before]
     apply_materials(created, package, mesh, images)
     return True
+
+
+def _import_character(
+    context: bpy.types.Context,
+    package: Package,
+    mesh: Mesh,
+    parent: bpy.types.Object,
+    root: bpy.types.Collection,
+    result: ImportResult,
+) -> None:
+    try:
+        path = resolve_file(package.root, mesh.file)
+        if not path.is_file():
+            package.warnings.append(f"Mesh {mesh.id} could not be imported.")
+            return
+        check_glb(path)
+    except PackageError as error:
+        package.warnings.append(str(error))
+        return
+    layer = _layer_collection(context.view_layer.layer_collection, root)
+    previous = context.view_layer.active_layer_collection
+    if layer is not None:
+        context.view_layer.active_layer_collection = layer
+    objects_before = set(bpy.data.objects)
+    actions_before = set(bpy.data.actions)
+    try:
+        status = bpy.ops.import_scene.gltf(filepath=str(path))
+    except RuntimeError:
+        status = set()
+    finally:
+        context.view_layer.active_layer_collection = previous
+    if "FINISHED" not in status:
+        package.warnings.append(f"Mesh {mesh.id} could not be imported.")
+        return
+    created = [obj for obj in bpy.data.objects if obj not in objects_before]
+    for obj in created:
+        if obj.parent is None:
+            obj.parent = parent
+        result.armatures += obj.type == "ARMATURE"
+        keys = obj.data.shape_keys if obj.type == "MESH" else None
+        result.shape_keys += max(len(keys.key_blocks) - 1, 0) if keys is not None else 0
+    result.actions += len(set(bpy.data.actions) - actions_before)
+    result.meshes += 1
 
 
 def _create_object(

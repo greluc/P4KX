@@ -707,7 +707,7 @@
           "type": "integer"
         },
         "materials": {
-          "description": "The materials the mesh is drawn with, in the order of the glTF materials in its file.",
+          "description": "The materials the mesh is drawn with, in the order of the glTF materials in its file; empty\nfor a mesh with a `rig`, whose materials are in the file.",
           "items": {
             "$ref": "#/$defs/MeshMaterial"
           },
@@ -726,6 +726,17 @@
             "string",
             "null"
           ]
+        },
+        "rig": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Rig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The skeleton, skinned parts, morph targets and animations of the file; present for a\nCharacter (version 1.3), absent for a static mesh."
         },
         "triangles": {
           "description": "The number of triangles of the mesh.",
@@ -898,6 +909,11 @@
         {
           "const": "light",
           "description": "A light an Interior places; `light` describes it.",
+          "type": "string"
+        },
+        {
+          "const": "character",
+          "description": "A Character: the node draws a mesh whose `rig` holds a skeleton, skinned parts, morph\ntargets and animations.",
           "type": "string"
         }
       ]
@@ -1085,6 +1101,151 @@
         "entity"
       ],
       "type": "object"
+    },
+    "Rig": {
+      "description": "The skeleton, skins, morph targets and animations a mesh file carries.\n\nA mesh with a `rig` is a skinned Character: the GLB holds the bones as nodes, one glTF skin\nover them, a skinned mesh per part, the morph targets of the parts and the animations, and a\nreader imports it once, not as an instance.",
+      "properties": {
+        "animations": {
+          "description": "The animations in the GLB file, in order.",
+          "items": {
+            "$ref": "#/$defs/RigClip"
+          },
+          "type": "array"
+        },
+        "body": {
+          "description": "The code of the body variant the Character is worn on, e.g. `male`.",
+          "type": "string"
+        },
+        "bones": {
+          "description": "The number of bones written as nodes.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "embedded_textures": {
+          "description": "The number of PNG images embedded in the GLB file; the textures of a Character are not\nwritten as files of the package.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "morph_targets": {
+          "description": "The number of morph targets over all meshes.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "parts": {
+          "description": "The skins worn on the skeleton, the body first.",
+          "items": {
+            "$ref": "#/$defs/RigPart"
+          },
+          "type": "array"
+        },
+        "skeleton": {
+          "description": "The skeleton file the bones come from, below `Data`.",
+          "type": "string"
+        },
+        "skinned_meshes": {
+          "description": "The number of meshes that carry bone weights.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "body",
+        "skeleton",
+        "bones",
+        "skinned_meshes",
+        "morph_targets",
+        "embedded_textures",
+        "parts",
+        "animations"
+      ],
+      "type": "object"
+    },
+    "RigClip": {
+      "description": "One animation of a Character as the GLB file holds it.",
+      "properties": {
+        "additive": {
+          "description": "Whether the keys are offsets to be added to a pose, which glTF cannot say.",
+          "type": "boolean"
+        },
+        "channels": {
+          "description": "The number of channels: rotation, translation and morph weight tracks.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "duration_seconds": {
+          "description": "The length in seconds.",
+          "format": "float",
+          "type": "number"
+        },
+        "keys": {
+          "description": "The number of keys.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "The animation's name, also the name of the glTF animation.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "duration_seconds",
+        "additive",
+        "channels",
+        "keys"
+      ],
+      "type": "object"
+    },
+    "RigPart": {
+      "description": "One skin worn on the skeleton of a Character.",
+      "properties": {
+        "file": {
+          "description": "The skin file the part was read from, below `Data`.",
+          "type": "string"
+        },
+        "morph_targets": {
+          "description": "The number of morph targets of the part's mesh.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "The name of the part's node in the GLB file.",
+          "type": "string"
+        },
+        "origin": {
+          "$ref": "#/$defs/RigPartOrigin",
+          "description": "Where the part comes from."
+        }
+      },
+      "required": [
+        "name",
+        "origin",
+        "file",
+        "morph_targets"
+      ],
+      "type": "object"
+    },
+    "RigPartOrigin": {
+      "description": "Where a part of a Character comes from.",
+      "oneOf": [
+        {
+          "const": "body",
+          "description": "The skin of the default body.",
+          "type": "string"
+        },
+        {
+          "const": "piece",
+          "description": "The skin of a piece: the head, an item of the head or a piece of armour or clothing.",
+          "type": "string"
+        }
+      ]
     },
     "Source": {
       "description": "Where a package comes from.",

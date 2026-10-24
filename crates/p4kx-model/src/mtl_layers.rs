@@ -26,7 +26,7 @@ pub struct LayerSurface {
 }
 
 impl LayerSurface {
-    fn of(material: &Material) -> Self {
+    const fn of(material: &Material) -> Self {
         Self {
             diffuse: material.diffuse,
             specular: material.specular,
@@ -72,7 +72,10 @@ pub(crate) fn resolve(library: &mut MaterialLibrary, companions: &mut dyn Compan
     let mut unresolved: Vec<String> = Vec::new();
     for material in &mut library.materials {
         for layer in &mut material.layers {
-            let Some(path) = layer.attribute("Path").map(str::trim).filter(|p| !p.is_empty())
+            let Some(path) = layer
+                .attribute("Path")
+                .map(str::trim)
+                .filter(|p| !p.is_empty())
             else {
                 continue;
             };
@@ -89,7 +92,10 @@ pub(crate) fn resolve(library: &mut MaterialLibrary, companions: &mut dyn Compan
                         };
                         files.insert(key.clone(), file);
                     }
-                    files.get(&key)?.as_ref().and_then(|file| pick(file, submaterial))
+                    files
+                        .get(&key)?
+                        .as_ref()
+                        .and_then(|file| pick(file, submaterial))
                 })
                 .map(LayerSurface::of);
             if surface.is_none()
@@ -113,9 +119,7 @@ fn fetch(request: &str, companions: &mut dyn CompanionResolver) -> Option<Materi
 }
 
 fn pick<'f>(file: &'f MaterialLibrary, submaterial: &str) -> Option<&'f Material> {
-    if file.single {
-        file.materials.first()
-    } else if submaterial.is_empty() {
+    if file.single || submaterial.is_empty() {
         file.materials.first()
     } else {
         file.materials

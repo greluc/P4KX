@@ -114,8 +114,10 @@ impl Armour {
                 .as_ref()
                 .and_then(|key| libraries.get(key))
                 .map_or_else(|| Arc::clone(&unnamed), Arc::clone);
-            if let (Some(key), Some(reason)) = (key, materials.problem())
-                && reported.insert(key)
+            if let (Some(key), Some(reason)) = (
+                key,
+                materials.problem().or_else(|| materials.layer_problem()),
+            ) && reported.insert(key)
             {
                 issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
             }

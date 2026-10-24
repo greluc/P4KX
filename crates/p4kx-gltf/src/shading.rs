@@ -98,27 +98,40 @@ struct Layer {
 }
 
 fn shade(layer: &MaterialLayer, surface: &LayerSurface) -> Layer {
-    let (tint, specular, smoothness) = match layer.palette_entry {
-        Some(entry) => (entry.tint, entry.specular, entry.glossiness / MAX_SHININESS),
-        None => (layer.tint(), surface.specular, 1.0 - TEXTURE_GLOSS_ROUGHNESS),
-    };
+    let (tint, specular, smoothness) = layer.palette_entry.map_or_else(
+        || {
+            (
+                layer.tint(),
+                surface.specular,
+                1.0 - TEXTURE_GLOSS_ROUGHNESS,
+            )
+        },
+        |entry| (entry.tint, entry.specular, entry.glossiness / MAX_SHININESS),
+    );
     let [red, green, blue] = surface.diffuse;
     let [tint_red, tint_green, tint_blue] = tint;
     let diffuse = [red * tint_red, green * tint_green, blue * tint_blue];
-    let metal = metal_share(specular);
-    let colour = [0, 1, 2].map(|channel| {
-        let from = diffuse.get(channel).copied().unwrap_or_default();
-        let to = specular.get(channel).copied().unwrap_or_default();
-        (to - from).mul_add(metal, from)
-    });
+    let [diffuse_red, diffuse_green, diffuse_blue] = diffuse;
+    let [specular_red, specular_green, specular_blue] = specular;
     Layer {
         diffuse,
         specular,
-        colour,
-        metal,
+        colour: [
+            diffuse_red + specular_red,
+            diffuse_green + specular_green,
+            diffuse_blue + specular_blue,
+        ],
+        metal: metal_share(specular),
         roughness: 1.0 - (smoothness * layer.gloss_mult()).clamp(0.0, 1.0),
     }
 }
+
+fn mix(into: &mut [f32; 3], from: [f32; 3], share: f32) {
+    for (target, value) in into.iter_mut().zip(from) {
+        *target = value.mul_add(share, *target);
+    }
+}
+
 fn layered(material: &Material) -> Option<Shading> {
     let layers = &material.layers;
     let wear = material.wear_blend().clamp(0.0, 1.0);
@@ -142,7 +155,7 @@ fn layered(material: &Material) -> Option<Shading> {
         diffuse: [0.0; 3],
         specular: [0.0; 3],
     };
-    let mut metal_total = 0.0;
+    let mut metal_total = 0.0_f32;
     for (at, layer, surface) in resolved() {
         let share = if only {
             f32::from(u8::from(at == first))
@@ -153,21 +166,13 @@ fn layered(material: &Material) -> Option<Shading> {
             continue;
         }
         let shaded = shade(layer, surface);
-        for channel in 0..3 {
-            add(&mut mixed.colour, channel, share * shaded.colour[channel]);
-            add(&mut mixed.diffuse, channel, share * shaded.diffuse[channel]);
-            add(&mut mixed.specular, channel, share * shaded.specular[channel]);
-        }
-        mixed.roughness += share * shaded.roughness;
-        metal_total += share * shaded.metal;
+        mix(&mut mixed.colour, shaded.colour, share);
+        mix(&mut mixed.diffuse, shaded.diffuse, share);
+        mix(&mut mixed.specular, shaded.specular, share);
+        mixed.roughness = shaded.roughness.mul_add(share, mixed.roughness);
+        metal_total = shaded.metal.mul_add(share, metal_total);
     }
     mixed.colour = mixed.colour.map(|channel| channel.clamp(0.0, 1.0));
     mixed.metal = metal_total >= 0.5;
     Some(mixed)
-}
-
-fn add(target: &mut [f32; 3], channel: usize, value: f32) {
-    if let Some(slot) = target.get_mut(channel) {
-        *slot += value;
-    }
 }

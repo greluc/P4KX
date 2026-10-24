@@ -16,6 +16,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SHIPS: [&str; 3] = ["RSI_Polaris", "AEGS_Gladius", "RSI_Constellation_Andromeda"];
 const DARK: f32 = 0.05;
+const BLACK: f32 = 0.005;
 
 fn luminance([red, green, blue]: [f32; 3]) -> f32 {
     0.0722_f32.mul_add(blue, 0.2126_f32.mul_add(red, 0.7152 * green))
@@ -26,6 +27,8 @@ struct Census {
     materials: usize,
     layered: usize,
     layers_resolved: usize,
+    black_before: usize,
+    black_after: usize,
     lightened: usize,
     darkened: usize,
     dark_before: usize,
@@ -36,6 +39,7 @@ struct Census {
     still_dark: BTreeMap<String, f32>,
 }
 
+#[expect(clippy::too_many_lines, reason = "one pass counts every column of the report")]
 fn census(assembly: &Assembly) -> Census {
     let mut seen: BTreeSet<(usize, usize, usize)> = BTreeSet::new();
     let mut found = Census::default();
@@ -76,8 +80,12 @@ fn census(assembly: &Assembly) -> Census {
             let material = tinted.as_ref().unwrap_or(material);
             let mut plain = material.clone();
             plain.layers.clear();
-            let before = luminance(base_colour_factor(&plain)) < DARK;
-            let after = luminance(base_colour_factor(material)) < DARK;
+            let shade_before = luminance(base_colour_factor(&plain));
+            let shade_after = luminance(base_colour_factor(material));
+            let before = shade_before < DARK;
+            let after = shade_after < DARK;
+            found.black_before += usize::from(shade_before < BLACK);
+            found.black_after += usize::from(shade_after < BLACK);
             let layered = !material.layers.is_empty();
             found.materials += 1;
             found.dark_before += usize::from(before);
@@ -88,9 +96,8 @@ fn census(assembly: &Assembly) -> Census {
                 found.layered += 1;
                 found.layered_dark_before += usize::from(before);
                 found.layered_dark_after += usize::from(after);
-                found.layers_resolved += usize::from(
-                    material.layers.iter().all(|layer| layer.surface.is_some()),
-                );
+                found.layers_resolved +=
+                    usize::from(material.layers.iter().all(|layer| layer.surface.is_some()));
             }
             if after {
                 found.still_dark.insert(
@@ -129,7 +136,7 @@ fn the_layers_lighten_the_dark_materials_of_the_ships() -> TestResult {
         println!(
             "{name}: {} materials; dark (luminance under {DARK}) {} before, {} after; \
              {} layered, of which dark {} before, {} after; {} with all layers read; \
-             {} layer files missing; {} dark materials lightened, {} others darkened",
+             {} layer files missing; near black (under {BLACK}) {} before, {} after; {} dark materials lightened, {} others darkened",
             found.materials,
             found.dark_before,
             found.dark_after,
@@ -138,6 +145,8 @@ fn the_layers_lighten_the_dark_materials_of_the_ships() -> TestResult {
             found.layered_dark_after,
             found.layers_resolved,
             found.unresolved.len(),
+            found.black_before,
+            found.black_after,
             found.lightened,
             found.darkened
         );
@@ -147,7 +156,10 @@ fn the_layers_lighten_the_dark_materials_of_the_ships() -> TestResult {
         for (material, shade) in found.still_dark.iter().take(60) {
             println!("  still dark: {material} {shade:.3}");
         }
-        assert!(found.lightened > 0, "{name}: the layers lighten some materials");
+        assert!(
+            found.lightened > 0,
+            "{name}: the layers lighten some materials"
+        );
         measured += 1;
     }
     assert!(measured > 0, "a ship is in the Archive");

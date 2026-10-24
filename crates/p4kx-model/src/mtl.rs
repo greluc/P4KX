@@ -152,8 +152,8 @@ pub struct MaterialLibrary {
     /// [`Material::engine_default`] so that the IDs after them keep their position.
     pub unknown_entries: usize,
     /// The paths of the layer files of the materials that are missing or unreadable, as the
-    /// layers name them; their layers keep no [LayerSurface]. Set by
-    /// [MaterialStatus::load], empty after [Self::parse].
+    /// layers name them; their layers keep no [`LayerSurface`]. Set by
+    /// [`MaterialStatus::load`], empty after [`Self::parse`].
     pub unresolved_layers: Vec<String>,
     /// The sub-materials in material ID order; one material when [`Self::single`].
     pub materials: Vec<Material>,
@@ -230,6 +230,19 @@ impl MaterialStatus {
             Self::Loaded(library) => Some(library),
             _ => None,
         }
+    }
+
+    /// Returns what went wrong with the layer files of a read library, or `None` when all were
+    /// read: the materials of the missing layers keep the colours of their own file.
+    #[must_use]
+    pub fn layer_problem(&self) -> Option<String> {
+        let library = self.library()?;
+        let first = library.unresolved_layers.first()?;
+        Some(format!(
+            "{} layer files of the material library {} are missing or unreadable, e.g. {first}",
+            library.unresolved_layers.len(),
+            library.path
+        ))
     }
 
     /// Returns what went wrong with the library, or `None` when it was read or the model names

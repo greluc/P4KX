@@ -30,7 +30,7 @@ fn layer_file(diffuse: [f32; 3], specular: [f32; 3], shininess: f32) -> Vec<u8> 
 
 fn load(
     library: &TestMtl,
-    files: HashMap<&'static str, Vec<u8>>,
+    files: &HashMap<&'static str, Vec<u8>>,
     fetched: &Cell<usize>,
 ) -> MaterialStatus {
     let library = library.cryxml();
@@ -79,7 +79,7 @@ fn the_files_of_the_layers_are_read_and_their_surfaces_kept() -> TestResult {
     ]);
     let fetched = Cell::new(0);
 
-    let status = load(&TestMtl::single(&hull()), files, &fetched);
+    let status = load(&TestMtl::single(&hull()), &files, &fetched);
 
     let library = status.library().ok_or("loaded")?;
     let material = library.materials.first().ok_or("material")?;
@@ -93,7 +93,10 @@ fn the_files_of_the_layers_are_read_and_their_surfaces_kept() -> TestResult {
     assert!(wear.surface.is_some(), "a path below Data is read too");
     assert_eq!(primary.tint(), [0.5, 0.25, 1.0], "tint colour");
     assert_eq!(wear.tint(), [1.0; 3], "a malformed tint is white");
-    assert!((primary.gloss_mult() - 0.5).abs() < 1e-6, "gloss multiplier");
+    assert!(
+        (primary.gloss_mult() - 0.5).abs() < 1e-6,
+        "gloss multiplier"
+    );
     assert!((material.wear_blend() - 0.25).abs() < 1e-6, "wear blend");
     assert!(library.unresolved_layers.is_empty(), "nothing is missing");
     Ok(())
@@ -111,11 +114,7 @@ fn a_missing_layer_file_is_listed_once_and_leaves_the_layer_without_a_surface() 
     ]);
     let fetched = Cell::new(0);
 
-    let status = load(
-        &TestMtl::multi(&[hull(), second]),
-        files,
-        &fetched,
-    );
+    let status = load(&TestMtl::multi(&[hull(), second]), &files, &fetched);
 
     let library = status.library().ok_or("loaded")?;
     assert_eq!(
@@ -154,7 +153,7 @@ fn a_sub_material_of_a_layer_file_is_chosen_by_name() -> TestResult {
         ]);
     let files = HashMap::from([("materials/layers/set", file)]);
 
-    let status = load(&TestMtl::single(&material), files, &Cell::new(0));
+    let status = load(&TestMtl::single(&material), &files, &Cell::new(0));
 
     let library = status.library().ok_or("loaded")?;
     let layers = &library.materials.first().ok_or("material")?.layers;
@@ -169,13 +168,11 @@ fn a_sub_material_of_a_layer_file_is_chosen_by_name() -> TestResult {
 
 #[test]
 fn a_path_that_leaves_the_data_folder_is_not_fetched() -> TestResult {
-    let material = TestMtlMaterial::new("hull").layer_with(&[
-        ("Name", "Primary"),
-        ("Path", "../secret.mtl"),
-    ]);
+    let material =
+        TestMtlMaterial::new("hull").layer_with(&[("Name", "Primary"), ("Path", "../secret.mtl")]);
     let fetched = Cell::new(0);
 
-    let status = load(&TestMtl::single(&material), HashMap::new(), &fetched);
+    let status = load(&TestMtl::single(&material), &HashMap::new(), &fetched);
 
     let library = status.library().ok_or("loaded")?;
     assert_eq!(fetched.get(), 0, "nothing is asked for");
@@ -194,15 +191,16 @@ fn the_files_one_library_makes_the_reader_fetch_are_limited() -> TestResult {
         .chunks(layers_per_material)
         .enumerate()
         .map(|(at, chunk)| {
-            chunk.iter().fold(
-                TestMtlMaterial::new(format!("m{at}")),
-                |material, path| material.layer_with(&[("Name", "L"), ("Path", path)]),
-            )
+            chunk
+                .iter()
+                .fold(TestMtlMaterial::new(format!("m{at}")), |material, path| {
+                    material.layer_with(&[("Name", "L"), ("Path", path)])
+                })
         })
         .collect();
     let fetched = Cell::new(0);
 
-    let status = load(&TestMtl::multi(&list), HashMap::new(), &fetched);
+    let status = load(&TestMtl::multi(&list), &HashMap::new(), &fetched);
 
     let library = status.library().ok_or("loaded")?;
     assert_eq!(fetched.get(), MAX_LAYER_FILES, "the files asked for");

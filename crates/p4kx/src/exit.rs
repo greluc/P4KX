@@ -78,7 +78,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, a tag or
      definition of a UI movie cannot be read or written, e.g. a truncated bitmap tag or a
      missing external texture, or a model cannot be exported or written, e.g. one too
-     large for a GLB file, or a head that chf glb could not shape by its DNA (the GLB is written without it); compare: the Archives or the --diff Entry differ
+     large for a GLB file, or a head that chf glb could not shape by its DNA (the GLB is written without it) or whose expressions it could not make (the GLB is written without them); compare: the Archives or the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie

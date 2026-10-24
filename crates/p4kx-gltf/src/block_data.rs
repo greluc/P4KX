@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use gltf_json::accessor::{ComponentType, Type};
+use gltf_json::buffer::Target;
 use p4kx_model::Influences;
 
 use crate::axes::to_y_up;
@@ -36,14 +38,20 @@ pub(crate) enum BlockData<'m> {
     Translations(&'m [[f32; 3]]),
     /// The rotations of an animation channel as quaternions, converted to Y up.
     Rotations(&'m [[f32; 4]]),
+    /// The vertices a morph target moves as 16-bit values, or as 32-bit values when `.1` is set.
+    MorphIndices(&'m [u32], bool),
+    /// The moves of a morph target, converted to Y up.
+    MorphDeltas(&'m [[f32; 3]]),
 }
 
 impl<'m> BlockData<'m> {
     pub(crate) const fn len(&self) -> u64 {
         let (count, size) = match self {
-            Self::Positions(values) | Self::Normals(values) | Self::Translations(values) => {
-                (values.len(), 12)
-            }
+            Self::Positions(values)
+            | Self::Normals(values)
+            | Self::Translations(values)
+            | Self::MorphDeltas(values) => (values.len(), 12),
+            Self::MorphIndices(values, wide) => (values.len(), if *wide { 4 } else { 2 }),
             Self::Uvs(values) => (values.len(), 8),
             Self::Tangents(values) | Self::Rotations(values) => (values.len(), 16),
             Self::Colours(values) => (values.len(), 4),
@@ -57,15 +65,56 @@ impl<'m> BlockData<'m> {
         count as u64 * size as u64
     }
 
+    /// Returns the glTF component type, element type and buffer view target of the block.
+    pub(crate) const fn layout(&self) -> (ComponentType, Type, Option<Target>) {
+        match self {
+            Self::Positions(_) | Self::Normals(_) => {
+                (ComponentType::F32, Type::Vec3, Some(Target::ArrayBuffer))
+            }
+            Self::Times(..) => (ComponentType::F32, Type::Scalar, None),
+            Self::Translations(_) | Self::MorphDeltas(_) => (ComponentType::F32, Type::Vec3, None),
+            Self::MorphIndices(_, wide) => (
+                if *wide {
+                    ComponentType::U32
+                } else {
+                    ComponentType::U16
+                },
+                Type::Scalar,
+                None,
+            ),
+            Self::Rotations(_) => (ComponentType::F32, Type::Vec4, None),
+            Self::Uvs(_) => (ComponentType::F32, Type::Vec2, Some(Target::ArrayBuffer)),
+            Self::Tangents(_) => (ComponentType::F32, Type::Vec4, Some(Target::ArrayBuffer)),
+            Self::Colours(_) | Self::Weights(..) => {
+                (ComponentType::U8, Type::Vec4, Some(Target::ArrayBuffer))
+            }
+            Self::Joints(..) => (ComponentType::U16, Type::Vec4, Some(Target::ArrayBuffer)),
+            Self::InverseBinds(_) => (ComponentType::F32, Type::Mat4, None),
+            Self::Short(_) => (
+                ComponentType::U16,
+                Type::Scalar,
+                Some(Target::ElementArrayBuffer),
+            ),
+            Self::Wide(_) => (
+                ComponentType::U32,
+                Type::Scalar,
+                Some(Target::ElementArrayBuffer),
+            ),
+        }
+    }
+
     pub(crate) const fn count(&self) -> usize {
         match self {
-            Self::Positions(values) | Self::Normals(values) | Self::Translations(values) => {
+            Self::Positions(values)
+            | Self::Normals(values)
+            | Self::Translations(values)
+            | Self::MorphDeltas(values) => values.len(),
+            Self::MorphIndices(values, _) | Self::Short(values) | Self::Wide(values) => {
                 values.len()
             }
             Self::Uvs(values) => values.len(),
             Self::Tangents(values) | Self::Rotations(values) => values.len(),
             Self::Colours(values) => values.len(),
-            Self::Short(values) | Self::Wide(values) => values.len(),
             Self::Joints(values, _) | Self::Weights(values, _) => values.len(),
             Self::InverseBinds(values) => values.len(),
             Self::Times(values, _) => values.len(),
@@ -99,13 +148,20 @@ impl<'m> BlockData<'m> {
                 Self::Translations(values.get(start..end).unwrap_or_default())
             }
             Self::Rotations(values) => Self::Rotations(values.get(start..end).unwrap_or_default()),
+            Self::MorphIndices(values, wide) => {
+                Self::MorphIndices(values.get(start..end).unwrap_or_default(), wide)
+            }
+            Self::MorphDeltas(values) => Self::MorphDeltas(part(values)),
         }
     }
 
     /// Appends the block's bytes, little-endian, to `out`.
     pub(crate) fn encode(&self, out: &mut Vec<u8>) {
         match self {
-            Self::Positions(values) | Self::Normals(values) | Self::Translations(values) => {
+            Self::Positions(values)
+            | Self::Normals(values)
+            | Self::Translations(values)
+            | Self::MorphDeltas(values) => {
                 for &value in *values {
                     for component in to_y_up(value) {
                         out.extend_from_slice(&component.to_le_bytes());
@@ -126,13 +182,13 @@ impl<'m> BlockData<'m> {
                 }
             }
             Self::Colours(values) => out.extend(values.iter().flatten()),
-            Self::Short(values) => {
+            Self::Short(values) | Self::MorphIndices(values, false) => {
                 for &value in *values {
                     let short = u16::try_from(value).unwrap_or(u16::MAX);
                     out.extend_from_slice(&short.to_le_bytes());
                 }
             }
-            Self::Wide(values) => {
+            Self::Wide(values) | Self::MorphIndices(values, true) => {
                 for value in *values {
                     out.extend_from_slice(&value.to_le_bytes());
                 }

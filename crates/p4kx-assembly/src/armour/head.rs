@@ -4,7 +4,7 @@
 use p4kx_character::Character;
 use thiserror::Error;
 
-use super::{BodyVariant, Piece};
+use super::{BodyVariant, Expressions, Piece};
 
 /// The rigs of the heads: the body variant, the CRC-32C of the rig's name, which is the
 /// `gender_hash` of the DNA of the Characters made for it, and the name.
@@ -71,6 +71,18 @@ impl Head {
             rig,
             pieces: vec![head],
         })
+    }
+
+    /// Returns the head with the expression blendshapes `expressions` asks for written as morph
+    /// targets of its mesh, see [`Piece::with_expressions`].
+    #[must_use]
+    pub fn with_expressions(mut self, expressions: &Expressions) -> Self {
+        self.pieces = self
+            .pieces
+            .into_iter()
+            .map(|piece| piece.with_expressions(expressions.clone()))
+            .collect();
+        self
     }
 
     /// Returns the body variant the head belongs on.

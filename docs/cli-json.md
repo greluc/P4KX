@@ -221,9 +221,10 @@ order is attached. The same Archive always gives the same document.
 
 ```json
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
- "modelled_parts": 56, "nodes": 899, "meshes": 282, "primitives": 1123, "materials": 204,
- "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "shared_meshes": 0,
- "shared_materials": 0, "shared_textures": 0, "vertices": 931217, "triangles": 1031918, "bytes": 55798740, "skipped": 0, "issues": [Issue, …]}
+ "modelled_parts": 56, "nodes": 899, "meshes": 249, "primitives": 948, "materials": 204,
+ "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0, "shared_meshes": 33,
+ "shared_materials": 103, "shared_textures": 0, "vertices": 744831, "triangles": 818426,
+ "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
@@ -231,7 +232,8 @@ root Entity and every attached Entity that resolved, `modelled_parts` those with
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one;
 `shared_meshes` counts the meshes not written again because an earlier part holds the same model
-at the same level with the same material library (their nodes reference one glTF mesh),
+at the same level with the same material library (their nodes reference one glTF mesh); `meshes`, `primitives`, `vertices` and `triangles` count
+stored geometry once, so `meshes` can be lower than the number of mesh-bearing nodes;
 `shared_materials` the material requests answered by an equal material already written and
 `shared_textures` the texture references that reuse an embedded image (always 0 until textures
 are written for Assemblies);

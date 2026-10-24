@@ -177,6 +177,10 @@ fn repeated_parts_share_one_mesh_and_keep_their_nodes() -> TestResult {
             .all(|node| node.mesh().map(|mesh| mesh.index()) == first),
         "every node uses the same mesh"
     );
+    for (name, x) in [("a", 0.0), ("b", 2.0), ("c", 4.0)] {
+        let wrapper = node_named(&glb, name)?;
+        assert_eq!(wrapper.transform().decomposed().0, [x, 0.0, 0.0], "{name}");
+    }
     Ok(())
 }
 

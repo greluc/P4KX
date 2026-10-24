@@ -54,6 +54,14 @@ pub(super) fn select(model: &mut Model, id: u32) {
 
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     load(ui, model);
+    if model.preview_tab() == PreviewTab::Model
+        && let Some(playback) = model.viewer_playback_mut()
+    {
+        let seconds = ui.input(|input| input.stable_dt);
+        if playback.tick(seconds) {
+            ui.ctx().request_repaint();
+        }
+    }
     let Some(browser) = model.browser() else {
         return;
     };
@@ -118,9 +126,17 @@ fn answer(ui: &Ui, model: &mut Model, asked: Option<Asked>) {
             }
         }
         Some(Asked::Audio(action)) => audio_preview::apply(model, action),
-        Some(Asked::Camera(camera)) => {
-            if let Some(slot) = model.viewer_camera_mut() {
+        Some(Asked::Viewer(ask)) => {
+            if let Some(camera) = ask.camera
+                && let Some(slot) = model.viewer_camera_mut()
+            {
                 *slot = camera;
+            }
+            if let Some(control) = ask.control
+                && let Some(playback) = model.viewer_playback_mut()
+            {
+                playback.apply(control);
+                ui.ctx().request_repaint();
             }
         }
         Some(Asked::Sound(id)) => {

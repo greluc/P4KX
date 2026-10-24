@@ -2,9 +2,10 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::{
-    IDENTITY, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, Rows, SceneError, apply, check_size,
+    IDENTITY, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, Rows, Scene, SceneError, apply, check_size,
     determinant, multiply, normal_matrix, rotate,
 };
+use crate::viewer::fixtures::{door_model, skin_model};
 
 const MIRROR_X: Rows = [
     [-1.0, 0.0, 0.0, 0.0],
@@ -82,5 +83,62 @@ fn a_stretch_shrinks_the_normal_along_the_stretched_axis() {
     assert!(
         normal[0] < normal[1],
         "the inverse transpose shrinks X: {normal:?}"
+    );
+}
+
+#[test]
+fn a_skin_keeps_the_bones_and_weights_of_every_vertex() {
+    let scene = Scene::from_model(&skin_model()).unwrap_or_else(|error| panic!("{error}"));
+
+    let skin = scene.skin().unwrap_or_else(|| panic!("a skin"));
+    assert_eq!(skin.len(), scene.vertices().len(), "one skin per vertex");
+    assert_eq!(
+        scene.skeleton().map(|skeleton| skeleton.bone_count()),
+        Some(2),
+        "two bones"
+    );
+    let root = skin
+        .iter()
+        .filter(|one| one[0] == 0 && one[8] == 255)
+        .count();
+    let tip = skin
+        .iter()
+        .filter(|one| one[0] == 1 && one[8] == 255)
+        .count();
+    assert!(root > 0 && tip > 0, "vertices of both bones: {root} {tip}");
+    assert_eq!(root + tip, skin.len(), "every vertex is bound to one bone");
+}
+
+#[test]
+fn a_static_model_with_bones_has_a_rig_and_no_skin() {
+    let scene = Scene::from_model(&door_model()).unwrap_or_else(|error| panic!("{error}"));
+
+    assert!(scene.skin().is_none(), "nothing is weighted");
+    let skeleton = scene.skeleton().unwrap_or_else(|| panic!("a skeleton"));
+    assert_eq!(skeleton.bone_count(), 2, "both helper bones");
+    assert_eq!(
+        skeleton.bones()[1].parent,
+        Some(0),
+        "the second hangs below the first"
+    );
+    let [x, y, z] = skeleton.bones()[1].world.translation;
+    assert!(
+        (x.hypot(y).hypot(z) - 1.0).abs() < 1.0e-4,
+        "one metre from its parent: {x} {y} {z}"
+    );
+}
+
+#[test]
+fn a_model_without_bones_has_neither() {
+    let model = skin_model();
+    let mut bare = model;
+    bare.bones.clear();
+
+    let scene = Scene::from_model(&bare).unwrap_or_else(|error| panic!("{error}"));
+
+    assert!(scene.skeleton().is_none(), "no skeleton");
+    assert!(
+        scene.skin().is_none(),
+        "no skin without a skeleton to move it"
     );
 }

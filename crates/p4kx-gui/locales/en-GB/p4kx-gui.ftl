@@ -761,6 +761,14 @@ model-gpu-setup = The graphics device refused the 3D viewer: { $reason } Everyth
 model-gpu-lost = The graphics device was lost. Restart P4KX to see models again.
 model-gpu-failed = The graphics device failed to draw the model. Select another model or restart P4KX.
 model-gpu-rejected = { $path } is too large for the graphics device.
+model-skeleton = Skeleton
+model-loop = Loop
+model-play = Play
+model-pause = Pause
+model-position = Animation position
+model-time = { $position } / { $duration }
+model-animations = Animations
+model-bind-pose = Bind pose
 
 
 preview-tab-incoming = Referenced by

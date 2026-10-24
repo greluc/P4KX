@@ -10,12 +10,12 @@ use super::tokens::TOUCH_TARGET;
 /// The rows of the list that stay visible while a WEM is selected.
 pub const SOUNDBANK_VISIBLE_ROWS: f32 = 4.0;
 /// The height of the facts bar, about 32.
-const FACTS_HEIGHT: f32 = 32.0;
+pub(super) const FACTS_HEIGHT: f32 = 32.0;
 /// The vertical padding of the preview body around the controls, twice 8.
 const CONTROLS_PADDING: f32 = 16.0;
 /// What the panel adds around its content: the resize gap, the frame padding and the rules,
 /// measured in a render of the list.
-const PANEL_CHROME: f32 = 37.0;
+pub(super) const PANEL_CHROME: f32 = 37.0;
 /// The default height of the preview while it lists the WEMs of a soundbank: the tab bar, the path
 /// line, the facts bar, the controls, the head and [`SOUNDBANK_VISIBLE_ROWS`] rows.
 pub const PREVIEW_SOUNDBANK_HEIGHT: f32 = TOUCH_TARGET

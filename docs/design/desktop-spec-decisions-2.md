@@ -253,8 +253,8 @@ setzt zurück; die Pfeiltasten verlassen den Fokus nicht. Die Meldungen stehen a
 unter der Faktenleiste: Lesefehler, Grafikgerät fehlt, zu klein oder verloren und fehlgeschlagenes
 Zeichnen in `color-danger-text`; zu groß, ohne Dreiecke und zu groß für das Grafikgerät in
 `color-gray-1` (wie „zu groß" in der Vorschau); geändertes Archiv in `color-warning` (D.8). Das
-Panel behält seine Höhe (236 px, frei verstellbar); wer mehr vom Modell sehen will, zieht den
-Griff darüber.
+Panel öffnet für Modelle höher als sonst (D.46) und ist frei verstellbar; wer mehr vom Modell sehen
+will, zieht den Griff darüber.
 
 **D.37 Fenster „Über P4K-Extractor" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
 P4K-Extractor" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
@@ -404,3 +404,24 @@ Datei geschrieben und keine Teildatei liegt da. Ein Fehler steht in `color-dange
 „Export fehlgeschlagen" und lässt das übrige Fenster bedienbar; fehlt der Archiv-Schlüssel, steht der
 Hinweis in `color-warning` und der Schlüssel-Dialog (ADR-0027) öffnet sich von selbst, ein
 geändertes Archiv ebenso in `color-warning`.
+
+**D.46 Skelett und Animationen in der Modellansicht.** Hat ein Modell Knochen, steht unter der 3D-Ansicht
+des Tabs „Modell" (D.35), `overlayGap` (8) von ihr entfernt, eine Leiste mit den Steuerelementen
+wie bei einem Videoplayer, 36 px hoch (`barHeight`, `rowHeight`: so hoch ist eine Kontrollkästchen-Zelle); die Faktenleiste behält ihre Bedienhinweise.
+Mit Animationen sind das von links nach rechts: „Abspielen" oder
+„Pause" (`.btn-outline.btn-xs`, deaktiviert, solange keine Animation gewählt ist), die Zeit
+„Minuten:Sekunden.Millisekunden / Länge" in 12 / 400 `color-gray-1` (auf Zehntelsekunden gekürzt, in
+der Breite der längsten Zeit der Animation), der Positionsregler (`.slider`, D.27: Klick und Ziehen
+setzen die Position, Pfeile um eine Sekunde, Bild auf und ab um fünf, Pos1 und Ende an die Enden),
+das Kontrollkästchen „Wiederholen" (an) und „Skelett" (aus); ein Modell mit Knochen ohne Animation
+zeigt nur „Skelett". Neben der Ansicht steht, `overlayGap` (8) entfernt und `animationListWidth` (240) breit, die Liste
+der Animationen: die Überschrift „Animationen" in der Eyebrow-Schrift (`color-gray-2-text`) über
+einer Rollliste aus Radios (36 px je Zeile, D.1), deren erste „Ausgangspose" ist; sie zeigt nur
+Animationen, die mindestens einen Knochen des Modells bewegen und nicht additiv sind, mit dem Namen
+aus dem Archiv ohne Steuerzeichen. Die Wahl einer Animation startet sie am Anfang, „Ausgangspose"
+hält an. Das Skelett zeichnet je Knochen eine Linie von `boneStroke` (2) Punkten vom Elternknochen
+in `color-primary` über das Modell, ohne Tiefentest. Damit die Ansicht mit der Leiste weit über ihren
+96 px Mindesthöhe bleibt, öffnet das Panel für Modelle 349 hoch statt 236 (Tab-Leiste 44, Pfadzeile 32,
+Faktenleiste 32, Ansicht 160, `overlayGap` 8, Leiste 36 und 37 Panelrand, wie bei der Soundbank-Liste
+D.33) und merkt sich seine Größe getrennt von der der anderen Vorschauen; es bleibt frei
+verstellbar. Die Liste der Animationen zeigt bei dieser Höhe etwa drei Zeilen und rollt.

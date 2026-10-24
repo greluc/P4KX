@@ -6,7 +6,9 @@ use std::num::NonZeroU64;
 
 use eframe::egui_wgpu::wgpu;
 
+use super::device::guarded;
 use super::resources::VERTEX_STRIDE;
+use super::skeleton::SkeletonPipelines;
 
 pub(super) const COLOUR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 pub(super) const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
@@ -21,6 +23,7 @@ const BLIT_SHADER: &str = include_str!("blit.wgsl");
 pub(super) struct Pipelines {
     pub(super) scene: wgpu::RenderPipeline,
     pub(super) blit: wgpu::RenderPipeline,
+    pub(super) skeleton: Option<SkeletonPipelines>,
     pub(super) frame_layout: wgpu::BindGroupLayout,
     pub(super) material_layout: wgpu::BindGroupLayout,
     pub(super) blit_layout: wgpu::BindGroupLayout,
@@ -55,11 +58,26 @@ impl Pipelines {
                 buffer_entry(2, wgpu::ShaderStages::VERTEX_FRAGMENT, BLIT_BYTES),
             ],
         );
-        let scene = scene_pipeline(device, [&frame_layout, &material_layout], samples);
+        let scene_module = shader(device, "p4kx-viewer-scene", SCENE_SHADER);
+        let scene = scene_pipeline(
+            device,
+            [&frame_layout, &material_layout],
+            &scene_module,
+            samples,
+        );
         let blit = blit_pipeline(device, &blit_layout, target_format);
+        let (skeleton, refused) = guarded(device, || {
+            SkeletonPipelines::new(
+                device,
+                (&frame_layout, &material_layout),
+                &scene_module,
+                samples,
+            )
+        });
         Self {
             scene,
             blit,
+            skeleton: (!refused).then_some(skeleton),
             frame_layout,
             material_layout,
             blit_layout,
@@ -67,7 +85,7 @@ impl Pipelines {
     }
 }
 
-fn layout(
+pub(super) fn layout(
     device: &wgpu::Device,
     label: &str,
     entries: &[wgpu::BindGroupLayoutEntry],
@@ -127,9 +145,9 @@ fn shader(device: &wgpu::Device, label: &str, source: &'static str) -> wgpu::Sha
 fn scene_pipeline(
     device: &wgpu::Device,
     layouts: [&wgpu::BindGroupLayout; 2],
+    module: &wgpu::ShaderModule,
     samples: u32,
 ) -> wgpu::RenderPipeline {
-    let module = shader(device, "p4kx-viewer-scene", SCENE_SHADER);
     let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
         label: Some("p4kx-viewer-scene"),
         bind_group_layouts: &layouts.map(Some),
@@ -139,7 +157,7 @@ fn scene_pipeline(
         label: Some("p4kx-viewer-scene"),
         layout: Some(&pipeline_layout),
         vertex: wgpu::VertexState {
-            module: &module,
+            module,
             entry_point: Some("vs_main"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
             buffers: &[Some(wgpu::VertexBufferLayout {
@@ -170,7 +188,7 @@ fn scene_pipeline(
             alpha_to_coverage_enabled: false,
         },
         fragment: Some(wgpu::FragmentState {
-            module: &module,
+            module,
             entry_point: Some("fs_main"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
             targets: &[Some(wgpu::ColorTargetState {

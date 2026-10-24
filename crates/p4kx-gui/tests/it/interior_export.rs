@@ -360,13 +360,7 @@ fn tree_node(
 #[test]
 fn an_entry_that_is_no_socpak_offers_no_interior_export() -> TestResult {
     let (_dir, mut harness) = container_window()?;
-    let browser = harness.state_mut().browser_mut().ok_or("no Archive")?;
-    let id = browser
-        .archive_index()
-        .id_of_path("Data\\Objects\\Test\\cube.cgf")
-        .ok_or("no model")?;
-    browser.select_entry(id, || {});
-    harness.run_steps(2);
+    select_socpak(&mut harness, "Data\\Objects\\Test\\cube.cgf")?;
 
     assert!(!harness.state().interior_export_shown());
     harness.state_mut().begin_interior_export();

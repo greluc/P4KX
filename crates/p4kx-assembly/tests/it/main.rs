@@ -24,6 +24,7 @@ mod entity_catalogue;
 mod entity_interior;
 mod entity_lookup;
 mod head_build;
+mod head_expressions;
 mod interior;
 mod interior_lit;
 mod interior_watch;

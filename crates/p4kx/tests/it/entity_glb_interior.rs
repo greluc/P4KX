@@ -86,9 +86,9 @@ fn the_flag_adds_the_interior_below_the_hull_and_lists_what_is_missing() -> Test
         .children()
         .find(|node| node.name() == Some("Interior"))
         .ok_or("no Interior node below the hull")?;
-    assert_eq!(group.children().count(), 4);
+    assert_eq!(group.children().count(), 6);
     assert!(
-        run.stdout.contains("Interior: 4 containers"),
+        run.stdout.contains("Interior: 6 containers"),
         "{}",
         run.stdout
     );
@@ -113,7 +113,7 @@ fn the_json_report_counts_the_interior_only_when_asked() -> TestResult {
     let without: serde_json::Value = serde_json::from_str(&without.stdout)?;
     let with: serde_json::Value = serde_json::from_str(&with.stdout)?;
     assert!(without.get("interior").is_none());
-    assert_eq!(with["interior"]["containers"], 4);
+    assert_eq!(with["interior"]["containers"], 6);
     assert!(with["interior"]["model_parts"].as_u64().unwrap_or(0) > 0);
     assert!(
         with["issues"]

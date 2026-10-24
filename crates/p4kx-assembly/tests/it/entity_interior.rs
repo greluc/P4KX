@@ -69,20 +69,21 @@ fn the_entitys_records_name_its_containers_with_bone_and_offset() -> TestResult 
     let built = build()?;
 
     let containers = built.tree.object_containers();
-    assert_eq!(containers.len(), 5);
+    assert_eq!(containers.len(), 7);
     let front = &containers[0];
     assert_eq!(front.file(), ENTITY_INTERIOR_FILE);
     assert_eq!(front.bone(), "hp_int_front");
     assert!(close(&front.position(), &[0.0, 6.0, 0.0]));
     assert_eq!(front.source(), ContainerSource::Vehicle);
-    let item = &containers[4];
+    let item = &containers[6];
     assert_eq!(item.source(), ContainerSource::Item);
     assert_eq!(item.bone(), "");
     Ok(())
 }
 
 #[test]
-fn a_container_is_placed_at_its_bone_moved_by_the_offset_but_never_twice() -> TestResult {
+fn a_container_sits_at_its_bone_and_the_offset_only_where_the_bone_is_the_origin_or_missing()
+-> TestResult {
     let built = build()?;
 
     let placed: Vec<[f32; 3]> = built
@@ -91,27 +92,90 @@ fn a_container_is_placed_at_its_bone_moved_by_the_offset_but_never_twice() -> Te
         .iter()
         .map(|container| container.placement().translation())
         .collect();
-    assert_eq!(placed.len(), 4, "the missing container is left out");
-    assert!(
-        close(&placed[0], &[0.0, 6.0, 0.0]),
-        "the bone already is at the offset: {:?}",
-        placed[0]
+    assert_eq!(placed.len(), 6, "the missing container is left out");
+    let expected = [
+        [0.0, 6.0, 0.0],
+        [0.0, -3.0, 0.0],
+        [0.0, 0.0, 10.0],
+        [2.0, 0.0, 0.0],
+        [0.02, 0.0, 0.0],
+        [0.0; 3],
+    ];
+    for (at, (placed, expected)) in placed.iter().zip(&expected).enumerate() {
+        assert!(
+            close(placed, expected),
+            "{at}: {placed:?} against {expected:?}"
+        );
+    }
+    let codes: Vec<&str> = built
+        .interior
+        .issues()
+        .iter()
+        .filter(|issue| issue.path() == INTERIOR_NODE)
+        .map(|issue| issue.kind().code())
+        .collect();
+    assert_eq!(
+        codes
+            .iter()
+            .filter(|code| **code == "offset_differs")
+            .count(),
+        1,
+        "only the aft container disagrees: {codes:?}"
     );
-    assert!(
-        close(&placed[1], &[1.0, -3.0, 0.0]),
-        "the offset moves the bone: {:?}",
-        placed[1]
-    );
-    assert!(
-        close(&placed[2], &[0.0, 0.0, 10.0]),
-        "no bone, the offset from the origin: {:?}",
-        placed[2]
-    );
-    assert!(
-        close(&placed[3], &[0.0; 3]),
-        "the item's container sits at the origin: {:?}",
-        placed[3]
-    );
+    Ok(())
+}
+
+fn limited(options: &InteriorOptions) -> Result<EntityInterior, Box<dyn Error>> {
+    let fixture = fixture(entity_interior_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let record = resolver.entities().find(ENTITY_INTERIOR_CLASS)?;
+    let tree = resolver.resolve(&record)?;
+    let models = ArchiveModels::new(&archive);
+    let assembly = Assembly::build(&tree, &models, &AssemblyOptions::default())?;
+    Ok(EntityInterior::build(&archive, &assembly, &tree, options)?)
+}
+
+fn has(interior: &EntityInterior, code: &str) -> bool {
+    interior
+        .issues()
+        .iter()
+        .any(|issue| issue.path() == INTERIOR_NODE && issue.kind().code() == code)
+}
+
+#[test]
+fn the_container_limit_holds_for_the_whole_entity() -> TestResult {
+    let interior = limited(&InteriorOptions::default().with_max_containers(6))?;
+
+    let opened: usize = interior
+        .containers()
+        .iter()
+        .map(|container| container.interior().containers())
+        .sum();
+    assert!(opened <= 6, "{opened} containers opened");
+    assert!(interior.containers().len() < 6, "the rest is left out");
+    assert!(has(&interior, "too_many_containers"));
+    Ok(())
+}
+
+#[test]
+fn the_part_limit_holds_for_the_whole_entity() -> TestResult {
+    let interior = limited(&InteriorOptions::default().with_limits(10, usize::MAX))?;
+
+    assert!(interior.parts() <= 10, "{} parts", interior.parts());
+    assert_eq!(interior.containers().len(), 1);
+    assert!(has(&interior, "too_many_parts"));
+    Ok(())
+}
+
+#[test]
+fn the_hulls_vertices_count_against_the_vertex_limit() -> TestResult {
+    let interior = limited(&InteriorOptions::default().with_limits(usize::MAX, 1))?;
+
+    assert!(interior.containers().is_empty());
+    assert!(has(&interior, "too_many_vertices"));
     Ok(())
 }
 
@@ -128,8 +192,8 @@ fn the_interior_models_lie_where_the_container_and_the_hull_put_them() -> TestRe
         .ok_or("no seat")?;
     let world = container.placement().then(seat.world()).translation();
     assert!(
-        close(&world, &[1.0, 2.5, 0.0]),
-        "(0.5, 0, 0) in the cockpit at (0, 5, 0) turned a quarter, in the container at (1, -3, 0): {world:?}"
+        close(&world, &[0.0, 2.5, 0.0]),
+        "(0.5, 0, 0) in the cockpit at (0, 5, 0) turned a quarter, in the container at (0, -3, 0): {world:?}"
     );
     assert!(built.interior.modelled_parts() > 0);
     Ok(())
@@ -204,14 +268,14 @@ fn the_glb_groups_the_interior_below_an_interior_node_of_the_hull() -> TestResul
         "the Interior node hangs below the hull"
     );
     let rooms: Vec<Node<'_>> = group.children().collect();
-    assert_eq!(rooms.len(), 4, "one node per container");
+    assert_eq!(rooms.len(), 6, "one node per container");
     let front = rooms[0].transform().decomposed().0;
     assert!(
         close(&front, &[0.0, 0.0, -6.0]),
         "(0, 6, 0) in Z up is (0, 0, -6) in Y up: {front:?}"
     );
     let aft = rooms[1].transform().decomposed().0;
-    assert!(close(&aft, &[1.0, 0.0, 3.0]), "(1, -3, 0) in Z up: {aft:?}");
+    assert!(close(&aft, &[0.0, 0.0, 3.0]), "(0, -3, 0) in Z up: {aft:?}");
     assert!(glb.document.meshes().count() >= 2, "the hull and the cubes");
     Ok(())
 }

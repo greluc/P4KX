@@ -13,6 +13,8 @@ use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_model::{Model, Transform};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
+use super::real_container_census::{bone_translation, near};
+
 type TestResult = Result<(), Box<dyn Error>>;
 
 const MARGIN: f32 = 2.0;
@@ -70,8 +72,21 @@ fn rooms_outside_the_hull(class_name: &str) -> Result<(usize, usize), Box<dyn Er
         .and_then(hull_bounds)
         .ok_or("the hull has no geometry")?;
     let interior = EntityInterior::build(&archive, &assembly, &tree, &InteriorOptions::default())?;
+    let hull_model = assembly.root().and_then(|part| part.model());
     let (mut placed, mut outside) = (0, 0);
     for container in interior.containers() {
+        let reference = container.reference();
+        let bone = hull_model.and_then(|model| bone_translation(model, reference.bone()));
+        let expected = match bone {
+            Some(at) if !near(at, [0.0; 3]) => at,
+            _ => reference.position(),
+        };
+        assert!(
+            near(container.placement().translation(), expected),
+            "{class_name}: {} sits at {:?}, not at {expected:?}",
+            reference.file(),
+            container.placement().translation()
+        );
         let models = container
             .interior()
             .parts()

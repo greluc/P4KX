@@ -253,12 +253,14 @@ issue. The file is
 written even when parts are skipped; an Archive key that is missing or wrong exits with code 7
 and writes nothing, an `--out` that is the Archive with code 2.
 
-With `--interior` the report also has `interior`, an object with `containers` (the socpak
-containers of the Entity that were opened), `parts`, `model_parts` and `modelled_parts` (as for
+With `--interior` the report also has `interior`, an object with `containers` (the top-level
+socpak containers of the Entity that were opened, not the containers nested in them), `parts`, `model_parts` and `modelled_parts` (as for
 `p4kx interior glb`; the models of the containers are not counted in the Entity's `parts`), and
 `issues` lists what the containers could not resolve, with the kinds of `p4kx interior glb` plus
-`container_missing` for a container the Entity's Record names and the Archive lacks and
-`helper_not_found` for its bone the hull lacks; their `path` is `Interior`, or the container's name
+`container_missing` for a container the Entity's Record names and the Archive lacks,
+`helper_not_found` for its bone the hull lacks, `offset_differs` for an offset that disagrees with
+its bone and `invalid_offset` for one that is not finite, and the limits `too_many_containers`,
+`too_many_parts` and `too_many_vertices`, which hold for the Entity as a whole; their `path` is `Interior`, or the container's name
 followed by the path inside it ([ADR-0086](adr/0086-an-entity-places-its-object-containers-at-its-bones.md)).
 Without the flag `interior` is absent.
 

@@ -70,6 +70,8 @@ fn database() -> DataForgeBuilder {
         [0.0, 0.0, 10.0],
         [0.0; 3],
     )
+    .object_container(ENTITY_INTERIOR_FILE, "hull", [2.0, 0.0, 0.0], [0.0; 3])
+    .object_container(ENTITY_INTERIOR_FILE, "", [0.02, 0.0, 0.0], [0.0; 3])
     .item_container(ENTITY_INTERIOR_FILE);
     entity_schema(DataForgeBuilder::new()).record(entity.record())
 }
@@ -77,11 +79,13 @@ fn database() -> DataForgeBuilder {
 /// Returns the Entries of a synthetic Archive that holds the ship Entity [`ENTITY_INTERIOR_CLASS`]
 /// with the Interior of [`interior_entries`].
 ///
-/// The hull has the bones `hp_int_front` at (0, 6, 0) and `hp_int_aft` at (0, -3, 0). The Entity
-/// names five containers: the Interior at `hp_int_front` with the offset (0, 6, 0), which the
-/// bone already carries; the same at `hp_int_aft` with the offset (1, 0, 0); a container the
-/// Archive lacks; the same at the bone `hp_nowhere`, which the hull lacks, with the offset
-/// (0, 0, 10); and the same as the item component's container, at the origin.
+/// The hull has the bones `hp_int_front` at (0, 6, 0), `hp_int_aft` at (0, -3, 0) and its root
+/// `hull` at the origin. The Entity names seven containers: the Interior at `hp_int_front` with the
+/// offset (0, 6, 0), which the bone carries; the same at `hp_int_aft` with the offset (1, 0, 0),
+/// which differs from the bone; a container the Archive lacks; the same at the bone `hp_nowhere`,
+/// which the hull lacks, with the offset (0, 0, 10); the same at `hull` with the offset (2, 0, 0);
+/// the same without a bone and the offset (0.02, 0, 0); and the same as the item component's
+/// container, at the origin.
 #[must_use]
 pub fn entity_interior_entries() -> Vec<TestEntry> {
     let model = hull();

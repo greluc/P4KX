@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_extraction::{Archive, PathIndex};
 use p4kx_gltf::{GltfError, Scene, SceneNode};
 use p4kx_model::{Model, Transform};
 
+use crate::interior::model_vertices;
 use crate::placement::{node_transform, offset};
 use crate::{
     Assembly, AssemblyError, EntityNode, Interior, InteriorOptions, Issue, IssueKind,
-    MAX_INTERIOR_CONTAINERS, ObjectContainerRef,
+    ObjectContainerRef,
 };
 
 /// The name of the scene node that groups the Interior below the Entity.
@@ -103,7 +106,10 @@ impl EntityInterior {
     ///
     /// A container that cannot be found or opened, a bone the root model lacks (the container
     /// then sits at the Entity's origin) and everything an Interior cannot resolve are listed in
-    /// [`Self::issues`]. At most [`MAX_INTERIOR_CONTAINERS`] containers are opened.
+    /// [`Self::issues`]. The limits of `options` hold for the Entity as a whole: the containers,
+    /// the parts and the vertices of every container are counted together, and the vertices of
+    /// the hull too; when one is used up, the remaining containers are left out with
+    /// `too_many_containers`, `too_many_parts` or `too_many_vertices`.
     ///
     /// # Errors
     ///
@@ -118,14 +124,10 @@ impl EntityInterior {
         let index = PathIndex::new(archive);
         let root = assembly.root().and_then(|part| part.model());
         let mut built = Self::default();
+        let budget = Budget::new(assembly, options);
         for reference in tree.object_containers() {
-            if built.containers.len() >= MAX_INTERIOR_CONTAINERS {
-                built.note(
-                    reference,
-                    IssueKind::TooManyContainers {
-                        limit: MAX_INTERIOR_CONTAINERS,
-                    },
-                );
+            if let Some(kind) = budget.exhausted(&built) {
+                built.note(reference, kind);
                 break;
             }
             let Some(entry) = find(&index, reference.file()) else {
@@ -154,33 +156,56 @@ impl EntityInterior {
                 }
             };
             let placement = built.place(reference, root);
-            let interior = Interior::build(&[archive, &opened], entry.path(), options)?;
+            let limited = budget.options(&built);
+            let interior = Interior::build(&[archive, &opened], entry.path(), &limited)?;
             built.add(reference, placement, interior);
         }
         Ok(built)
     }
 
     fn place(&mut self, reference: &ObjectContainerRef, root: Option<&Model>) -> Transform {
-        let anchor = match reference.bone() {
-            "" => Transform::IDENTITY,
-            bone => root
-                .and_then(|model| node_transform(model, bone))
-                .unwrap_or_else(|| {
-                    self.note(
-                        reference,
-                        IssueKind::HelperNotFound {
-                            helper: bone.to_owned(),
-                        },
-                    );
-                    Transform::IDENTITY
-                }),
-        };
-        let moved = offset(reference.position(), reference.rotation());
-        if same(&anchor, &moved) {
-            anchor
+        let finite = reference
+            .position()
+            .iter()
+            .chain(&reference.rotation())
+            .all(|value| value.is_finite());
+        let moved = if finite {
+            offset(reference.position(), reference.rotation())
         } else {
-            anchor.then(&moved)
+            self.note(
+                reference,
+                IssueKind::InvalidOffset {
+                    name: reference.file().to_owned(),
+                },
+            );
+            Transform::IDENTITY
+        };
+        let bone = reference.bone();
+        if bone.is_empty() {
+            return moved;
         }
+        let Some(anchor) = root.and_then(|model| node_transform(model, bone)) else {
+            self.note(
+                reference,
+                IssueKind::HelperNotFound {
+                    helper: bone.to_owned(),
+                },
+            );
+            return moved;
+        };
+        let at = anchor.translation();
+        if near(at, [0.0; 3]) {
+            return anchor.then(&moved);
+        }
+        if finite && !near(reference.position(), [0.0; 3]) && !near(reference.position(), at) {
+            self.note(
+                reference,
+                IssueKind::OffsetDiffers {
+                    bone: bone.to_owned(),
+                },
+            );
+        }
+        anchor
     }
 
     fn add(&mut self, reference: &ObjectContainerRef, placement: Transform, interior: Interior) {
@@ -232,19 +257,94 @@ impl EntityInterior {
     }
 }
 
-/// The largest difference of a translation, in metres, and of a rotation entry between two
-/// transforms that still counts as the same transform: the bone of the hull and the Record's
-/// offset then place the container once.
-const SAME_SHIFT: f32 = 0.05;
-const SAME_TURN: f32 = 0.01;
+/// The largest difference per axis, in metres, between two translations that still counts as
+/// the same place.
+const OFFSET_TOLERANCE: f32 = 0.05;
 
-fn same(a: &Transform, b: &Transform) -> bool {
-    a.rows.iter().zip(&b.rows).all(|(row_a, row_b)| {
-        row_a.iter().zip(row_b).enumerate().all(|(column, (x, y))| {
-            let limit = if column == 3 { SAME_SHIFT } else { SAME_TURN };
-            (x - y).abs() <= limit
-        })
-    })
+fn near(a: [f32; 3], b: [f32; 3]) -> bool {
+    a.iter()
+        .zip(b)
+        .all(|(x, y)| (x - y).abs() <= OFFSET_TOLERANCE)
+}
+
+/// What is left of the limits of one Entity's Interior after the containers built so far.
+struct Budget {
+    options: InteriorOptions,
+    hull_vertices: usize,
+}
+
+impl Budget {
+    fn new(assembly: &Assembly, options: &InteriorOptions) -> Self {
+        let mut seen: Vec<*const Model> = Vec::new();
+        let mut hull_vertices = 0_usize;
+        for model in assembly
+            .parts()
+            .iter()
+            .filter_map(|part| part.model.as_ref())
+        {
+            let pointer = Arc::as_ptr(model);
+            if !seen.contains(&pointer) {
+                seen.push(pointer);
+                hull_vertices = hull_vertices.saturating_add(model_vertices(model));
+            }
+        }
+        Self {
+            options: *options,
+            hull_vertices,
+        }
+    }
+
+    fn used_vertices(&self, built: &EntityInterior) -> usize {
+        built
+            .containers
+            .iter()
+            .fold(self.hull_vertices, |sum, container| {
+                sum.saturating_add(container.interior.vertices())
+            })
+    }
+
+    fn used_parts(built: &EntityInterior) -> usize {
+        built.parts()
+    }
+
+    fn used_containers(built: &EntityInterior) -> usize {
+        built
+            .containers
+            .iter()
+            .map(|container| container.interior.containers())
+            .sum()
+    }
+
+    /// Returns why no further container may be built, or `None` while something is left.
+    fn exhausted(&self, built: &EntityInterior) -> Option<IssueKind> {
+        let options = &self.options;
+        if Self::used_containers(built) >= options.max_containers {
+            let limit = options.max_containers;
+            return Some(IssueKind::TooManyContainers { limit });
+        }
+        if Self::used_parts(built) >= options.max_parts {
+            let limit = options.max_parts;
+            return Some(IssueKind::TooManyParts { limit });
+        }
+        if self.used_vertices(built) >= options.max_vertices {
+            let limit = options.max_vertices;
+            return Some(IssueKind::TooManyVertices { limit });
+        }
+        None
+    }
+
+    /// Returns the options for the next container: the limits less what was used.
+    fn options(&self, built: &EntityInterior) -> InteriorOptions {
+        let mut options = self.options;
+        options.max_containers = options
+            .max_containers
+            .saturating_sub(Self::used_containers(built));
+        options.max_parts = options.max_parts.saturating_sub(Self::used_parts(built));
+        options.max_vertices = options
+            .max_vertices
+            .saturating_sub(self.used_vertices(built));
+        options
+    }
 }
 
 fn find<'a>(index: &PathIndex<'a>, file: &str) -> Option<&'a p4kx_extraction::Entry> {
@@ -273,5 +373,29 @@ impl Assembly {
         self.issues.extend(interior.issues.iter().cloned());
         self.interior = Some(interior);
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ContainerSource;
+
+    #[test]
+    fn a_non_finite_offset_is_the_identity_and_an_issue() {
+        let reference = ObjectContainerRef {
+            file: "a.socpak".to_owned(),
+            bone: String::new(),
+            position: [f32::NAN, 0.0, 0.0],
+            rotation: [0.0; 3],
+            source: ContainerSource::Vehicle,
+        };
+        let mut built = EntityInterior::default();
+
+        let placed = built.place(&reference, None);
+
+        assert!(placed.is_identity());
+        assert_eq!(built.issues.len(), 1);
+        assert_eq!(built.issues[0].kind.code(), "invalid_offset");
     }
 }

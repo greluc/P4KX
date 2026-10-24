@@ -13,16 +13,26 @@ all lie inside the hull's bounds with this rule and 9 of 69 and 7 of 10 outside 
 the root Entity's containers are used; containers of attached Entities are not yet.
 
 **How they are placed.** A container sits at the node of the hull's model named by `boneName`
-(the root part's model), moved by the offset: `bone * offset`. A container without a bone sits at
-the offset from the Entity's origin. The offset rotation uses the convention of port offsets (X,
-then Y, then Z). A bone the hull lacks puts the container at the offset from the origin and is a
-`helper_not_found` issue.
+(the root part's model). The Record's offset is in the Entity's space, so it normally equals the
+bone: composing both doubled every position (the Constellation's front section at 39.5 m instead
+of 19.75 m). A census of every Entity with containers on LIVE (1326 Entities, 5048 containers)
+found 191 containers without a bone name, 45 whose bone the hull lacks, 996 with an offset of
+zero, 3555 whose offset equals the bone within 0.05 m and 261 that disagree. The disagreements
+are of two kinds: a bone at the hull's origin with the real position in the offset (MISC Hull C,
+Command Module), and hulls longer or shorter than the base ship the offset was written for (the
+Constellation Phoenix and Taurus, XIAN Scout, Retaliator animated parts, differences of 0.05 m to
+several metres). So the rule is, comparing translations only (0.05 m per axis):
 
-**Bone and offset are never applied twice.** In the ship Records the bone's transform in the hull
-model already equals the Record's offset: composing both doubles every position (the Constellation's
-front section at 39.5 m instead of 19.75 m). When bone and offset agree within 0.05 m in the
-translation and 0.01 in each rotation entry, the bone alone places the container. Otherwise both
-compose.
+- a bone that resolves and sits away from the origin places the container alone; an offset that
+  disagrees with it is an `offset_differs` issue (an offset of zero is no disagreement);
+- a bone at the origin places the container with the offset: `bone * offset`;
+- no bone name, or a bone the hull lacks (`helper_not_found`), places it at the offset from the
+  origin, whatever its size;
+- an offset that is not finite is the identity with an `invalid_offset` issue.
+
+The offset rotation uses the convention of port offsets (X, then Y, then Z). The real-Archive
+tests check that every placed container of the Constellation and the Cutlass equals this rule and
+that all its models lie inside the hull's bounds.
 
 **API.** `EntityInterior::build(archive, assembly, tree, options)` opens each container from the
 Archive (below `Data` or as spelled), builds its `Interior` with `Interior::build`, and returns the
@@ -38,9 +48,17 @@ add or drop it without rebuilding the hull.
 the container's name put in front of its path. At most `MAX_INTERIOR_CONTAINERS` containers are
 opened per Entity.
 
+**Limits per Entity.** `InteriorOptions` gains `max_containers`. The limits of the options hold for
+the Entity as a whole: each container is built with what is left of the containers, parts and
+vertices after the containers before it, and the hull's own vertices are counted. When one is
+used up the remaining containers are left out with `too_many_containers`, `too_many_parts` or
+`too_many_vertices`.
+
 ## Open points
 
-The tolerance rule is a heuristic of the Records seen on LIVE: a container whose bone is genuinely
-not at the offset, but within the tolerance, is placed at the bone. Containers in the Records of
+The 0.05 m tolerance and the origin test are heuristics of the Records seen on LIVE. For the 261
+disagreeing containers the bone is trusted over the offset, which is right for the longer Phoenix
+hull and unverified for the others.
+Containers in the Records of
 attached Entities (modules) are not placed. Models of the Interior are drawn with plain colours or
 the textures of the materials, without the hull's tint palette.

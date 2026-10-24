@@ -13,6 +13,7 @@ mod real_catalogue;
 mod real_changes;
 mod real_chf;
 mod real_chf_tail;
+mod real_container_census;
 mod real_docked_vehicles;
 mod real_entity_interior;
 mod real_interior;

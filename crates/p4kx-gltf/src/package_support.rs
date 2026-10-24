@@ -6,6 +6,7 @@ use p4kx_model::{MaterialStatus, Model, Transform};
 use crate::axes::decompose;
 use crate::materials::{MaterialPlan, Slot, display_name};
 use crate::scene::nearest_lod;
+use crate::scene_light::LIGHT_FRAME;
 use crate::texture_report::TextureRole;
 use crate::texture_roles::{Source, canonical, sources};
 
@@ -31,6 +32,15 @@ pub fn node_transform(transform: &Transform) -> NodeTransform {
         rotation: trs.rotation,
         scale: trs.scale,
     }
+}
+
+/// Returns `transform`, the placement of a light, as the GLB writer writes its node.
+///
+/// `transform` is in `CryEngine` coordinates; the node is turned so that the light shines along its
+/// -Z axis, as glTF and Blender lights do.
+#[must_use]
+pub fn light_node_transform(transform: &Transform) -> NodeTransform {
+    node_transform(&transform.then(&LIGHT_FRAME))
 }
 
 /// One texture file a material names for a glTF role.

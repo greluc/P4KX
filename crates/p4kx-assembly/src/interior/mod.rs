@@ -5,8 +5,8 @@ use std::io::Write;
 use std::sync::Arc;
 
 use p4kx_gltf::{
-    GlbOptions, GlbSummary, GltfError, Scene, SceneNode, ScenePart, TextureLoader, write_scene_glb,
-    write_scene_glb_with,
+    GlbOptions, GlbSummary, GltfError, Scene, SceneLight, SceneNode, ScenePart, TextureLoader,
+    write_scene_glb, write_scene_glb_with,
 };
 use p4kx_model::{Lod, MaterialStatus, Model, SocLight, Transform};
 
@@ -149,6 +149,13 @@ impl InteriorPart {
     #[must_use]
     pub const fn light(&self) -> Option<&SocLight> {
         self.light.as_ref()
+    }
+
+    /// Returns the light of a [`Light`](InteriorPartKind::Light) part as glTF expresses it: its
+    /// colour linear, its intensity the engine's raw value, its range the light radius.
+    #[must_use]
+    pub fn scene_light(&self) -> Option<SceneLight> {
+        self.light.as_ref().and_then(light::scene_light)
     }
 
     /// Returns the part's name: the container's name, the `.soc` file's name without extension or
@@ -323,7 +330,7 @@ impl Interior {
             if let Some(model) = &part.model {
                 node = node.with_part(ScenePart::new(model, &part.materials));
             }
-            if let Some(light) = part.light.as_ref().and_then(light::scene_light) {
+            if let Some(light) = part.scene_light() {
                 node = node.with_light(light);
             }
             nodes.push(scene.push(node)?);

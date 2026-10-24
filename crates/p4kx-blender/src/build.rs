@@ -2,15 +2,17 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_assembly::Assembly;
-use p4kx_gltf::{DrawnMaterial, GlbOptions, GlbSummary, TextureFile, node_transform};
+use p4kx_gltf::{DrawnMaterial, GlbOptions, GlbSummary, TextureFile};
 
 use crate::PackageInfo;
 use crate::collect::{Collected, id_of as material_id};
+use crate::items::Item;
 use crate::manifest::{
     Basis, Coordinates, EntityRef, FORMAT_VERSION, Format, Generator, Issue, IssueOrigin,
-    MESHES_FOLDER, Manifest, MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Source,
+    MESHES_FOLDER, Manifest, MaterialTextures, Mesh, MeshMaterial, Node, Options, Source,
     TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };
+use crate::manifest_light::Light;
 use crate::manifest_materials::{MaterialDescription, Palette, PaletteColours};
 use crate::plan::{MeshPlan, mesh_id};
 use crate::textures::{Outcome, id_of};
@@ -18,6 +20,7 @@ use crate::textures::{Outcome, id_of};
 /// Everything the manifest is made of.
 pub(crate) struct Inputs<'a> {
     pub(crate) assembly: &'a Assembly,
+    pub(crate) items: &'a [Item<'a>],
     pub(crate) info: &'a PackageInfo,
     pub(crate) options: &'a GlbOptions,
     pub(crate) plan: &'a MeshPlan,
@@ -72,26 +75,20 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
 
 fn nodes(inputs: &Inputs<'_>) -> Vec<Node> {
     inputs
-        .assembly
-        .parts()
+        .items
         .iter()
         .enumerate()
-        .map(|(position, part)| {
-            let transform = node_transform(part.local());
-            Node {
-                kind: NodeKind::Entity,
-                name: part.name().to_owned(),
-                path: part.path().to_owned(),
-                parent: part.parent(),
-                entity: Some(EntityRef {
-                    class_name: part.class_name().to_owned(),
-                    guid: part.guid().to_string(),
-                }),
-                mesh: inputs.plan.drawn_by(position).map(mesh_id),
-                translation: transform.translation,
-                rotation: transform.rotation,
-                scale: transform.scale,
-            }
+        .map(|(position, item)| Node {
+            kind: item.kind,
+            name: item.name.to_owned(),
+            path: item.path.clone(),
+            parent: item.parent,
+            entity: item.entity.clone(),
+            light: item.light.map(Light::of),
+            mesh: inputs.plan.drawn_by(position).map(mesh_id),
+            translation: item.transform.translation,
+            rotation: item.transform.rotation,
+            scale: item.transform.scale,
         })
         .collect()
 }
@@ -106,16 +103,14 @@ fn meshes(inputs: &Inputs<'_>) -> Vec<Mesh> {
             let first = inputs
                 .plan
                 .first(index)
-                .and_then(|position| inputs.assembly.parts().get(position));
+                .and_then(|position| inputs.items.get(position));
             let id = mesh_id(index);
             Mesh {
                 file: format!("{MESHES_FOLDER}/{id}.glb"),
                 id,
-                geometry: first
-                    .and_then(p4kx_assembly::Part::geometry)
-                    .map(str::to_owned),
+                geometry: first.and_then(|item| item.geometry).map(str::to_owned),
                 palette: first
-                    .and_then(p4kx_assembly::Part::palette)
+                    .and_then(|item| item.drawn?.palette)
                     .map(|palette| palette.name.clone()),
                 palette_id: inputs
                     .collected

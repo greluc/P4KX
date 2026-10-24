@@ -23,8 +23,13 @@ pub struct Unsupported {
 pub struct Report {
     /// The widgets visited, every nested canvas included.
     pub widgets: usize,
-    /// The shapes drawn.
+    /// The shapes drawn, every placement of a glyph counted.
     pub shapes: usize,
+    /// The text widgets whose text was drawn.
+    pub texts_drawn: usize,
+    /// The text widgets whose text was not drawn: no fonts were given, the text is empty or filled
+    /// in by the game at run time, the font or colour is missing, or a limit was reached.
+    pub texts_left_out: usize,
     /// The canvases composed, the screen's own first.
     pub canvases: usize,
     /// The element types and features left out or approximated.

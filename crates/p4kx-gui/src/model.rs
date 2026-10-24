@@ -14,6 +14,7 @@ mod archive_key;
 mod assembly_export_control;
 mod audio_control;
 mod catalog_control;
+mod characters_control;
 mod content_navigation;
 mod extraction_control;
 mod game_watch;
@@ -38,9 +39,9 @@ use update::UpdateState;
 pub use work_tab::WorkTab;
 
 use crate::{
-    AudioOutput, Browser, ChannelList, ComparisonTab, ContentSearchTab, DeviceOutput, EntryIndex,
-    Extraction, ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice,
-    SoundsTab, TagsTab, Texts, ViewerSupport,
+    AudioOutput, Browser, ChannelList, CharactersTab, ComparisonTab, ContentSearchTab,
+    DeviceOutput, EntryIndex, Extraction, ExtractionSetup, Language, LocalizationTab, PreviewTab,
+    QueryTab, RecordTextChoice, SoundsTab, TagsTab, Texts, ViewerSupport,
 };
 
 /// Why an Archive could not be opened.
@@ -95,6 +96,7 @@ pub struct Model {
     record_export: RecordExportState,
     glb_export: ModelExportState,
     assembly: AssemblyState,
+    characters: CharactersTab,
     catalog: CatalogState,
     record_text_choice: Option<RecordTextChoice>,
     viewer_support: ViewerSupport,
@@ -130,6 +132,7 @@ impl std::fmt::Debug for Model {
             .field("content_search", &self.content_search)
             .field("record_export", &self.record_export)
             .field("glb_export", &self.glb_export)
+            .field("characters", &self.characters)
             .field("catalog", &self.catalog)
             .field("record_text_choice", &self.record_text_choice)
             .field("key", &self.key)
@@ -173,6 +176,7 @@ impl Model {
             record_export: RecordExportState::default(),
             glb_export: ModelExportState::default(),
             assembly: AssemblyState::default(),
+            characters: CharactersTab::default(),
             catalog: CatalogState::default(),
             record_text_choice: None,
             viewer_support: ViewerSupport::default(),
@@ -276,6 +280,7 @@ impl Model {
                 self.localization.archive_opened();
                 self.tags.archive_opened();
                 self.assembly.tab.archive_opened();
+                self.characters.reset(false);
                 self.sounds.archive_opened();
                 self.content_search.archive_opened();
                 self.pending_hit = None;

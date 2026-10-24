@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::{ArgGroup, Args, Subcommand};
 use p4kx_extraction::Language;
 use p4kx_extraction::gfx::{Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Rgba};
 
@@ -55,16 +55,18 @@ pub(crate) enum UiAction {
     ///
     /// With `--screen` it renders a `BuildingBlocks` canvas of the Archive instead (the screens of
     /// a ship, listed by `ui screens`): the layout of its widgets is computed from the Records
-    /// and drawn through the same renderer. Widget types without a renderer, texts and textures
-    /// among them, are left out and listed in the report.
-    #[command(after_help = EXIT_CODES_HELP)]
+    /// and drawn through the same renderer. Texts are drawn as glyph outlines of the fonts of
+    /// `fonts_en.gfx`, in the font, size, colour and alignment of the widget and the style
+    /// cascade; `--lang` resolves their localisation keys. Widget types without a renderer,
+    /// textures among them, and every text left out or approximated are listed in the report.
+    #[command(after_help = EXIT_CODES_HELP, group(ArgGroup::new("text_source").multiple(true).args(["entry", "screen"])))]
     Render {
         /// The UI movie, or with `--screen` the Archive.
         #[command(flatten)]
         source: UiSource,
         /// Render this `BuildingBlocks` canvas of the Archive, by record path or GUID, instead of
         /// a movie.
-        #[arg(long, value_name = "CANVAS", conflicts_with_all = ["entry", "lang"])]
+        #[arg(long, value_name = "CANVAS", conflicts_with = "entry")]
         screen: Option<String>,
         /// The manufacturer code, e.g. `aegs`, whose colour style the canvas is drawn with;
         /// without a match the first brand style of the canvas is used.
@@ -91,9 +93,10 @@ pub(crate) enum UiAction {
         #[arg(long, value_name = "COLOUR", default_value = "transparent", value_parser = parse_background)]
         background: Background,
         /// The language that localisation keys (`@key`) of text fields resolve in: a code such as
-        /// `en` or `de`, or the folder name of the Archive. Needs an ENTRY; without it keys are drawn
-        /// as they are, and a key the language does not hold is listed.
-        #[arg(long, value_name = "LANGUAGE", requires = "entry", value_parser = clap::value_parser!(Language))]
+        /// `en` or `de`, or the folder name of the Archive. Needs an ENTRY or `--screen`. For a
+        /// movie, without it keys are drawn as they are; for a screen the default is English. A
+        /// key the language does not hold is drawn as it is and listed.
+        #[arg(long, value_name = "LANGUAGE", requires = "text_source", value_parser = clap::value_parser!(Language))]
         lang: Option<Language>,
     },
     /// Draws the hologram of a vehicle as a PNG: the Assembly of the Entity, with its Loadout, seen

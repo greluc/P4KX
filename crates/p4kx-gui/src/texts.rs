@@ -10,6 +10,7 @@ mod assembly_export_text;
 mod audio_text;
 mod catalog_text;
 mod change_extraction_text;
+mod character_text;
 mod comparison_text;
 mod container_text;
 mod content_search_text;
@@ -42,6 +43,7 @@ pub use assembly_export_text::AssemblyExportText;
 pub use audio_text::AudioText;
 pub use catalog_text::CatalogText;
 pub use change_extraction_text::ChangeExtractionText;
+pub use character_text::CharacterText;
 pub use comparison_text::ComparisonText;
 pub use container_text::ContainerText;
 pub use content_search_text::ContentSearchText;
@@ -264,6 +266,8 @@ pub enum Text {
     ModelInfo(ModelInfoText),
     /// A text of the Export as GLB windows.
     ModelExport(ModelExportText),
+    /// A text of the Characters tab.
+    Character(CharacterText),
     /// A text of the Entities tab.
     Entity(EntityText),
     /// A text of the Export of an Entity as GLB windows.

@@ -3,10 +3,10 @@
 
 use super::{
     AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
-    ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText, EntityText,
-    ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, ModelExportText,
-    ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
-    RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, XmlText,
+    CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText,
+    EntityText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
+    ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText,
+    RecordLanguageText, RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, XmlText,
 };
 use crate::Language;
 
@@ -114,6 +114,7 @@ impl Text {
             .chain(ModelInfoText::ALL.map(Self::ModelInfo))
             .chain(ModelExportText::ALL.map(Self::ModelExport))
             .chain(EntityText::ALL.map(Self::Entity))
+            .chain(CharacterText::ALL.map(Self::Character))
             .chain(AssemblyExportText::ALL.map(Self::AssemblyExport))
             .chain(ArchiveKeyText::ALL.map(Self::Key))
             .chain(AboutText::ALL.map(Self::About))
@@ -219,6 +220,7 @@ impl Text {
             Self::ModelInfo(text) => text.id(),
             Self::ModelExport(text) => text.id(),
             Self::Entity(text) => text.id(),
+            Self::Character(text) => text.id(),
             Self::AssemblyExport(text) => text.id(),
             Self::Key(text) => text.id(),
             Self::About(text) => text.id(),

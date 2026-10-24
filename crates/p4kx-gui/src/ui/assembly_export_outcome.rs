@@ -95,7 +95,7 @@ const fn titles(container: bool) -> (T, T) {
     }
 }
 
-fn failed(
+pub(super) fn failed(
     texts: &Texts,
     failure: &ModelExportFailure,
     name: (&str, FluentValue<'static>),

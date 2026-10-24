@@ -1297,23 +1297,30 @@ screen by type, `rendered` says whether `ui render --screen` draws the type. `mo
 `moviePath` of UI owner components. A canvas that cannot be read keeps its row with the GUID as
 `canvas`, size 0 and no assets. The exit code is 0.
 
-## `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--brand <code>] --json`
+## `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size <W>x<H>|<W>] [--background …] [--brand <code>] [--lang <language>] --json`
 
-Renders a `BuildingBlocks` canvas, by record path or GUID, instead of a movie; `--lang` and an ENTRY
-exclude `--screen`.
+Renders a `BuildingBlocks` canvas, by record path or GUID, instead of a movie; an ENTRY excludes
+`--screen`. Texts are drawn from the fonts of the movie the `UIElement` Record
+`uielements/buildingblocks` names (`fonts_en.gfx`) and their localisation keys resolve in `--lang`,
+English by default; when the font movie or the language cannot be read, a warning goes to stderr and
+the texts are left out.
 
 ```json
 {"screen": "libs/foundry/records/ui/buildingblocks/test/test_mfd",
  "target": "…\\mfd.png", "format": "png", "width": 200, "height": 100,
- "widgets": 14, "shapes": 9, "canvases": 2,
- "unsupported": [{"element": "WidgetText", "reason": "no renderer for this element type",
-                  "count": 1, "examples": ["label"]}],
+ "widgets": 14, "shapes": 12, "texts_drawn": 1, "texts_left_out": 0, "canvases": 2,
+ "unsupported": [{"element": "WidgetText", "reason": "no font style: default font used",
+                  "count": 1, "examples": ["label"]},
+                 {"element": "WidgetImage", "reason": "no renderer for this element type",
+                  "count": 1, "examples": ["picture"]}],
  "missing_canvases": [], "truncated": false,
  "skipped": [{"reason": "fill_budget", "message": "the fills cover more than the budget"}]}
 ```
 
 `width` and `height` are the pixels written. `widgets` counts the widgets visited in every canvas
-composed, `shapes` the shapes drawn, `canvases` the canvases composed (the screen's own and the
+composed, `shapes` the shapes drawn (every placed glyph counts), `texts_drawn` and `texts_left_out`
+the text widgets whose text was and was not drawn (empty or run-time texts, a missing font or
+colour, a limit), `canvases` the canvases composed (the screen's own and the
 nested ones). `unsupported` lists per element type and reason (`no renderer for this element
 type`, `rotation is not applied`, `automatic size taken as the size of the parent`, `wrapping flex
 containers are laid out without wrapping`, `<layout> children are laid out as an overlay`, `colour

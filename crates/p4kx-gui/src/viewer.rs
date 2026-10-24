@@ -17,9 +17,9 @@ pub use p4kx_render::{
     AssemblyScene, Bounds, BuildError, BuildOptions, Camera, DrawList, GpuReport, GroupDraw, Hooks,
     Instance, Left, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, MAX_SKELETON_BONES, MAX_TEXTURE_SIDE,
     MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES, MAX_VIEW_VERTICES, MIN_PART_PIXELS,
-    Matrix, PartInfo, Pose, Progress, Rejected, SKIN_STRIDE, Scene, SceneError, Skeleton,
-    SkinVertex, Step, Unavailable, Uniforms, VIEW_TEXTURE_MIP, Vertex, check_buffer, check_texture,
-    target_extent,
+    Matrix, MorphSpan, PartInfo, Pose, Progress, Rejected, SKIN_STRIDE, Scene, SceneError,
+    Skeleton, SkinVertex, Step, Unavailable, Uniforms, VIEW_TEXTURE_MIP, Vertex, check_buffer,
+    check_texture, target_extent,
 };
 pub use paint::install;
 pub(crate) use paint::{paint_callback, release_callback};

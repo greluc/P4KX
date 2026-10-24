@@ -1,0 +1,192 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! The export of the Character of the Characters tab as GLB, with progress, cancel and the
+//! refusal of a Star Citizen installation.
+
+use crate::characters::{
+    TestResult, Window, built, opened, opened_in_installation, pick, settle, wait_until,
+};
+use egui::accesskit::Role;
+use egui_kittest::kittest::Queryable;
+use p4kx_gui::ui::Dialog;
+use p4kx_gui::{CharacterExportStatus, ChooserKind, Language, ModelExportFailure};
+use p4kx_testkit::check_glb;
+
+fn ended(window: &mut Window) -> TestResult {
+    wait_until(&mut window.1, |model| {
+        model
+            .characters()
+            .export()
+            .is_some_and(|export| !export.is_running())
+    })
+}
+
+fn composed() -> Result<Window, Box<dyn std::error::Error>> {
+    compose(opened(Language::BritishEnglish)?)
+}
+
+fn compose(mut window: Window) -> Result<Window, Box<dyn std::error::Error>> {
+    pick(&mut window.1, ChooserKind::Head, "Runner.chf")?;
+    wait_until(&mut window.1, |model| {
+        model.characters().head().is_some() && built(model)
+    })?;
+    pick(&mut window.1, ChooserKind::Piece, "TEST_Torso")?;
+    window
+        .1
+        .state_mut()
+        .model
+        .characters_mut()
+        .set_expressions_enabled(true);
+    settle(&mut window.1)?;
+    Ok(window)
+}
+
+#[test]
+fn the_export_button_asks_the_host_for_a_file() -> TestResult {
+    let mut window = opened(Language::BritishEnglish)?;
+
+    window
+        .1
+        .get_by_role_and_label(Role::Button, "Export as GLB…")
+        .click();
+    window.1.run_steps(2);
+
+    assert_eq!(
+        window.1.state().dialog,
+        Some(Dialog::CharacterFile),
+        "asked"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_character_is_written_as_one_skinned_glb_with_its_morph_targets() -> TestResult {
+    let mut window = composed()?;
+    let file = window.0.path().join("character");
+
+    assert!(
+        window
+            .1
+            .state_mut()
+            .model
+            .start_character_export(file, || {}),
+        "started"
+    );
+    window.1.run_steps(1);
+    ended(&mut window)?;
+
+    let model = &window.1.state().model;
+    let export = model.characters().export().ok_or("no export")?;
+    let CharacterExportStatus::Finished(summary) = export.status() else {
+        return Err(format!("not finished: {export:?}").into());
+    };
+    let written = window.0.path().join("character.glb");
+    assert_eq!(
+        summary.file(),
+        written,
+        "a name without extension gets .glb"
+    );
+    assert_eq!(summary.parts(), 4, "body, torso, head and teeth");
+    let checked = check_glb(&std::fs::read(&written)?)?;
+    let skin = checked.document.skins().next().ok_or("a skin")?;
+    assert_eq!(skin.joints().count(), 3, "the male skeleton");
+    let targets: usize = checked
+        .document
+        .meshes()
+        .flat_map(|mesh| mesh.primitives())
+        .map(|primitive| primitive.morph_targets().count())
+        .sum();
+    assert!(targets >= 2, "the expressions are morph targets: {targets}");
+    Ok(())
+}
+
+#[test]
+fn the_progress_window_shows_while_it_runs_and_the_summary_after() -> TestResult {
+    let mut window = composed()?;
+    let file = window.0.path().join("seen.glb");
+    window
+        .1
+        .state_mut()
+        .model
+        .start_character_export(file, || {});
+
+    ended(&mut window)?;
+    window.1.run_steps(3);
+
+    assert!(
+        window.1.query_by_label("Character exported").is_some(),
+        "the summary is shown"
+    );
+    window.1.get_by_label("Close").click();
+    window.1.run_steps(3);
+    assert!(
+        window.1.state().model.characters().export().is_none(),
+        "dismissed"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_stopped_export_leaves_no_file() -> TestResult {
+    let mut window = composed()?;
+    let file = window.0.path().join("stopped.glb");
+    window
+        .1
+        .state_mut()
+        .model
+        .start_character_export(file.clone(), || {});
+
+    window.1.state_mut().model.characters_mut().stop_export();
+
+    let export = window
+        .1
+        .state()
+        .model
+        .characters()
+        .export()
+        .ok_or("no export")?;
+    match export.status() {
+        CharacterExportStatus::Cancelled => {
+            assert!(!file.exists(), "no partial file");
+        }
+        CharacterExportStatus::Finished(_) => {
+            assert!(file.exists(), "it was quicker than the stop");
+        }
+        other => return Err(format!("unexpected: {other:?}").into()),
+    }
+    Ok(())
+}
+
+#[test]
+fn a_file_inside_an_installation_is_refused() -> TestResult {
+    let (window, channel) = opened_in_installation(Language::BritishEnglish)?;
+    let mut window = compose(window)?;
+    let file = channel.join("character.glb");
+
+    assert!(
+        window
+            .1
+            .state_mut()
+            .model
+            .start_character_export(file.clone(), || {}),
+        "the attempt is shown"
+    );
+
+    let export = window
+        .1
+        .state()
+        .model
+        .characters()
+        .export()
+        .ok_or("no export")?;
+    assert!(
+        matches!(
+            export.status(),
+            CharacterExportStatus::Failed(ModelExportFailure::Refused(_))
+        ),
+        "refused: {export:?}"
+    );
+    assert!(!file.exists(), "nothing written");
+    Ok(())
+}

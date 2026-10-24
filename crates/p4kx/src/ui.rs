@@ -34,11 +34,12 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
             size,
             background,
             svg,
-            ..
+            lang,
         } => {
             let options = ui_screen_render::Options {
                 screen,
                 brand: brand.as_deref(),
+                lang: *lang,
                 out,
                 size: *size,
                 background: *background,

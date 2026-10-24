@@ -101,7 +101,9 @@ fn row_widgets() -> Vec<TestWidget> {
         TestWidget::new("BuildingBlocks_WidgetText", "label")
             .parent("row")
             .size(TestDim::Fixed(30.0), TestDim::Fixed(10.0))
-            .with("locString", TestValue::text("@test_label")),
+            .with("locString", TestValue::text("@test_label"))
+            .with("fontSize", TestValue::Single(8.0))
+            .with("color", colour(255, 255, 255).value()),
         TestWidget::new("BuildingBlocks_WidgetCanvas", "panel")
             .parent("row")
             .size(TestDim::Fixed(0.0), TestDim::Percent(1.0))

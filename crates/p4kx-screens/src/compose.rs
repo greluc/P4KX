@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use p4kx_dataforge::{DataForge, Guid};
-use p4kx_gfx::{Raster, RasterOptions, Scene, SvgReport};
+use p4kx_gfx::{Font, Localise, Raster, RasterOptions, Scene, SvgReport};
 
 use crate::canvas::{CanvasStore, StyleRef, find_canvas};
 use crate::colour::{Palette, slot_names};
@@ -15,6 +15,7 @@ use crate::limits::Limits;
 use crate::paint::Area;
 use crate::report::Report;
 use crate::style::TagPaths;
+use crate::text::Texts;
 use crate::walk::Walk;
 
 const STYLES: &str = "libs/foundry/records/ui/buildingblocks/styles";
@@ -79,12 +80,27 @@ impl Composed {
     }
 }
 
+/// The fonts and the language the texts of screens are drawn with.
+///
+/// `fonts` are those of the movie `fonts_en.gfx`, which the `UIElement` Record
+/// `uielements/buildingblocks` names; a font style of a widget finds its font there by name.
+/// `localise` looks a localisation key up, without its `@`, in the language to draw in; without
+/// it keys are drawn as they are.
+#[derive(Clone, Copy)]
+pub struct TextSources<'a> {
+    /// The fonts texts are drawn with.
+    pub fonts: &'a [Font],
+    /// Looks a localisation key up.
+    pub localise: Option<Localise<'a>>,
+}
+
 /// Composes `BuildingBlocks` canvases of one DataForge into scenes.
 pub struct ScreenComposer<'a, 'f> {
-    store: CanvasStore<'a, 'f>,
+    pub(crate) store: CanvasStore<'a, 'f>,
     slots: Vec<String>,
     tags: TagPaths,
     limits: Limits,
+    texts: Option<TextSources<'a>>,
 }
 
 impl<'a, 'f> ScreenComposer<'a, 'f> {
@@ -96,7 +112,15 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             slots: slot_names(forge),
             tags: TagPaths::build(forge),
             limits: Limits::DEFAULT,
+            texts: None,
         }
+    }
+
+    /// Draws the texts of text widgets with `texts`; without it they are left out and listed.
+    #[must_use]
+    pub const fn with_texts(mut self, texts: TextSources<'a>) -> Self {
+        self.texts = Some(texts);
+        self
     }
 
     /// Replaces the bounds of the compositions with limits.
@@ -138,6 +162,9 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
         check_size(&root.record_path, width, height)?;
         let mut cx = Context {
             palette: self.base_palette(brand),
+            texts: self.texts.map_or_else(Texts::default, |texts| {
+                Texts::new(texts.fonts, texts.localise)
+            }),
             ..Context::default()
         };
         let mut walk = Walk::new(

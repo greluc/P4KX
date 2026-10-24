@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use p4kx_dataforge::Guid;
 
+use crate::bindings::ParamValues;
 use crate::canvas::{Canvas, CanvasStore};
 use crate::colour::Palette;
 use crate::context::Context;
@@ -15,15 +16,16 @@ use crate::layout::{Sibling, place};
 use crate::limits::Limits;
 use crate::look::Look;
 use crate::paint::Area;
-use crate::style::{CanvasStyles, StyleCache, Subject, TagPaths, resolve};
-use crate::widget::Widget;
+use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, resolve};
+use crate::text::FontStyleInfo;
+use crate::widget::{Dim, Widget};
 
-pub(crate) struct Walk<'s, 'a, 'f> {
+pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) store: &'s mut CanvasStore<'a, 'f>,
     pub(crate) slots: &'s [String],
     pub(crate) tags: &'s TagPaths,
     pub(crate) brand: Option<&'s str>,
-    pub(crate) cx: &'s mut Context,
+    pub(crate) cx: &'s mut Context<'t>,
     pub(crate) stack: Vec<Guid>,
     pub(crate) widgets: usize,
     limits: Limits,
@@ -33,15 +35,16 @@ pub(crate) struct Walk<'s, 'a, 'f> {
     sheets: Vec<Rc<CanvasStyles>>,
     above: Vec<Subject>,
     cache: HashMap<Guid, Rc<CanvasStyles>>,
+    params: Vec<ParamValues>,
 }
 
-impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
+impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
     pub(crate) fn new(
         store: &'s mut CanvasStore<'a, 'f>,
         slots: &'s [String],
         tags: &'s TagPaths,
         brand: Option<&'s str>,
-        cx: &'s mut Context,
+        cx: &'s mut Context<'t>,
         limits: Limits,
     ) -> Self {
         Self {
@@ -59,6 +62,7 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             sheets: Vec::new(),
             above: Vec::new(),
             cache: HashMap::new(),
+            params: Vec::new(),
         }
     }
 
@@ -129,18 +133,27 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             .iter()
             .filter_map(|&index| {
                 let widget = canvas.widgets.get(index)?;
+                let has_children = canvas
+                    .children
+                    .get(index)
+                    .is_some_and(|children| !children.is_empty())
+                    || widget.canvas.is_some();
                 widget.active.then(|| Sibling {
                     widget,
                     index,
-                    has_children: canvas
-                        .children
-                        .get(index)
-                        .is_some_and(|children| !children.is_empty())
-                        || widget.canvas.is_some(),
+                    has_children,
+                    content: self.content_of(canvas, index, has_children, content),
                 })
             })
             .collect();
-        for placed in place(content, flex, &siblings) {
+        let mut placed_all = place(content, flex, &siblings);
+        placed_all.sort_by_key(|placed| {
+            canvas
+                .widgets
+                .get(placed.index)
+                .map_or(0, |widget| widget.layer)
+        });
+        for placed in placed_all {
             if let Some(widget) = canvas.widgets.get(placed.index) {
                 if placed.auto {
                     self.cx.report.note(
@@ -193,7 +206,9 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             own
         };
         self.note_approximations(widget);
-        let look = Look::of(widget, &style, canvas.unit);
+        let font = self.font_of(widget, &style);
+        let mut look = Look::of(widget, &style, canvas.unit, font);
+        look.bound_text = self.bound_text(canvas, index);
         elements::paint(self.cx, widget, &look, area, alpha);
         let content = area.inset(
             widget.padding.top,
@@ -213,7 +228,7 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             depth + 1,
         );
         if let Some(nested) = elements::nested_canvas(widget) {
-            self.nested(nested, content, alpha, depth + 1);
+            self.nested(nested, Rc::clone(&widget.params), content, alpha, depth + 1);
         } else if widget.canvas_dangling {
             self.cx.report.missing_canvases.push(format!(
                 "{} (a reference that no Record answers)",
@@ -221,6 +236,55 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             ));
         }
         self.above.pop();
+    }
+
+    fn font_of(&mut self, widget: &Widget, style: &Modifiers) -> Option<Rc<FontStyleInfo>> {
+        let spec = widget.text.as_ref()?;
+        let guid = style.text.font_style.or(spec.font_style)?;
+        self.cx.texts.styles.get(self.store.forge(), guid)
+    }
+
+    fn bound_text(&self, canvas: &Canvas, index: usize) -> Option<String> {
+        let binding = canvas.text_bindings.get(&index)?;
+        let given = self.params.last().and_then(|values| {
+            values
+                .iter()
+                .find(|(name, _)| *name == binding.parameter)
+                .map(|(_, value)| value.clone())
+        });
+        given.or_else(|| binding.default.clone())
+    }
+
+    fn content_of(
+        &mut self,
+        canvas: &Canvas,
+        index: usize,
+        has_children: bool,
+        parent: Area,
+    ) -> Option<[f32; 2]> {
+        let widget = canvas.widgets.get(index)?;
+        if has_children
+            || widget.text.is_none()
+            || !self.cx.texts.is_enabled()
+            || !widget.size.contains(&Dim::Auto)
+        {
+            return None;
+        }
+        let style = resolve(
+            &self.sheets,
+            widget,
+            &self.above,
+            self.tags,
+            &mut self.budget,
+        );
+        let font = self.font_of(widget, &style);
+        let mut look = Look::of(widget, &style, canvas.unit, font);
+        look.bound_text = self.bound_text(canvas, index);
+        let [width, height] = self.cx.texts.measure(widget, &look, parent)?;
+        Some([
+            width + widget.padding.left + widget.padding.right,
+            height + widget.padding.top + widget.padding.bottom,
+        ])
     }
 
     fn note_approximations(&mut self, widget: &Widget) {
@@ -245,7 +309,7 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
         }
     }
 
-    fn nested(&mut self, guid: Guid, frame: Area, alpha: f32, depth: usize) {
+    fn nested(&mut self, guid: Guid, params: ParamValues, frame: Area, alpha: f32, depth: usize) {
         if self.stack.contains(&guid) {
             self.cx
                 .report
@@ -257,6 +321,8 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             self.cx.report.missing_canvases.push(guid.to_string());
             return;
         };
+        self.params.push(params);
         self.enter(&canvas, frame, alpha, depth);
+        self.params.pop();
     }
 }

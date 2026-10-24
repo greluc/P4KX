@@ -2,15 +2,13 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::io::{self, Write};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_assembly::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 use p4kx_extraction::model::MaterialStatus;
 use p4kx_extraction::{
     CancelToken, ConversionError, LoadedTexture, TextureLoadError, TextureLoader,
 };
-
-use super::Shared;
 
 pub(crate) struct Stoppable<'a, 'b> {
     pub(crate) models: &'a ArchiveModels<'b>,
@@ -27,6 +25,13 @@ impl ModelProvider for Stoppable<'_, '_> {
 
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
         self.models.library(entry, name)
+    }
+
+    fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
+        if self.cancel.is_cancelled() {
+            return Err(ModelFailure::Fatal(Box::new(ConversionError::Cancelled)));
+        }
+        self.models.file(path, limit)
     }
 }
 
@@ -46,10 +51,10 @@ impl TextureLoader for StoppableTextures<'_> {
     }
 }
 
-pub(super) struct Observed<'a, W> {
-    pub(super) inner: W,
-    pub(super) cancel: &'a CancelToken,
-    pub(super) shared: &'a Shared,
+pub(crate) struct Observed<'a, W> {
+    pub(crate) inner: W,
+    pub(crate) cancel: &'a CancelToken,
+    pub(crate) written: &'a AtomicU64,
 }
 
 impl<W: Write> Write for Observed<'_, W> {
@@ -58,8 +63,7 @@ impl<W: Write> Write for Observed<'_, W> {
             return Err(io::Error::other("the export stopped"));
         }
         let written = self.inner.write(buffer)?;
-        self.shared
-            .done
+        self.written
             .fetch_add(u64::try_from(written).unwrap_or(0), Ordering::Relaxed);
         Ok(written)
     }

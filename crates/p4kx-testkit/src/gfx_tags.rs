@@ -118,6 +118,18 @@ pub struct TestGlyph {
 /// between the first two glyphs.
 #[must_use]
 pub fn font3_body(id: u16, name: &str, glyphs: &[TestGlyph]) -> Vec<u8> {
+    font3_body_styled(id, name, glyphs, (true, 900, 200))
+}
+
+/// Returns the body of a `DefineFont3` tag as [`font3_body`] does, bold or not, with the given
+/// ascent and descent.
+#[must_use]
+pub fn font3_body_styled(
+    id: u16,
+    name: &str,
+    glyphs: &[TestGlyph],
+    (bold, ascent, descent): (bool, u16, u16),
+) -> Vec<u8> {
     let shapes: Vec<Vec<u8>> = glyphs
         .iter()
         .map(|glyph| {
@@ -127,7 +139,7 @@ pub fn font3_body(id: u16, name: &str, glyphs: &[TestGlyph]) -> Vec<u8> {
         })
         .collect();
     let mut body = id.to_le_bytes().to_vec();
-    body.extend_from_slice(&[0x80 | 0x04 | 0x01, 1]);
+    body.extend_from_slice(&[0x80 | 0x04 | u8::from(bold), 1]);
     body.push(u8::try_from(name.len()).unwrap_or(u8::MAX));
     body.extend_from_slice(name.as_bytes());
     body.extend_from_slice(&u16::try_from(glyphs.len()).unwrap_or(0).to_le_bytes());
@@ -143,7 +155,7 @@ pub fn font3_body(id: u16, name: &str, glyphs: &[TestGlyph]) -> Vec<u8> {
     for glyph in glyphs {
         body.extend_from_slice(&glyph.code.to_le_bytes());
     }
-    for value in [900_u16, 200, 0] {
+    for value in [ascent, descent, 0] {
         body.extend_from_slice(&value.to_le_bytes());
     }
     for glyph in glyphs {

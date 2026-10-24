@@ -21,6 +21,7 @@ thiserror.workspace = true
 [dev-dependencies]
 p4kx-extraction.workspace = true
 p4kx-testkit.workspace = true
+png.workspace = true
 
 [lints]
 workspace = true

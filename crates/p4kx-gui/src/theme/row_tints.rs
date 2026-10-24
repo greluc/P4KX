@@ -9,5 +9,5 @@ use egui::Color32;
 pub const LIST_ROW_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 8);
 /// The hover fill of a path-tree row (`.tree-row--mid:hover`), `rgba(255,255,255,0.025)`.
 pub const TREE_ROW_HOVER: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 6);
-/// The zebra stripe of a table, `rgba(255,255,255,0.02)`.
-pub const ZEBRA: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 5);
+/// The zebra stripe of a table, `table-stripe-bg`: `color-control` at 50 %, `#30353A` on the panel.
+pub const ZEBRA: Color32 = super::palette::TABLE_STRIPE_BG;

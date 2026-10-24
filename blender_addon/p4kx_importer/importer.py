@@ -17,6 +17,7 @@ from .package import (
     Package,
     PackageError,
     blender_name,
+    check_glb,
     gltf_to_blender_quaternion,
     gltf_to_blender_scale,
     gltf_to_blender_vector,
@@ -91,9 +92,11 @@ def _import_glb(
 ) -> bool:
     try:
         path = resolve_file(package.root, mesh.file)
-    except PackageError:
-        return False
-    if not path.is_file():
+        if not path.is_file():
+            return False
+        check_glb(path)
+    except PackageError as error:
+        package.warnings.append(str(error))
         return False
     layer = _layer_collection(context.view_layer.layer_collection, template)
     previous = context.view_layer.active_layer_collection

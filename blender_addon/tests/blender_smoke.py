@@ -53,6 +53,20 @@ def main() -> None:
         check(gun_a.parent is bpy.data.objects["TEST_Ship"], "hierarchy kept")
         check(tuple(round(v, 4) for v in gun_a.location) == (1.0, -3.0, 2.0), "axes converted")
 
+        bpy.context.view_layer.update()
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        placed = [
+            inst.object.matrix_world @ inst.object.data.vertices[1].co
+            for inst in depsgraph.object_instances
+            if inst.is_instance and inst.parent.original is gun_a and inst.object.type == "MESH"
+        ]
+        check(len(placed) == 1, f"instanced gun meshes: {len(placed)}")
+        expected = (3.0, 2.0, 2.0)
+        check(
+            all(abs(a - b) < 1e-4 for a, b in zip(placed[0], expected)),
+            f"world position {tuple(placed[0])}, expected {expected}",
+        )
+
         meshes = [o for o in bpy.data.objects if o.type == "MESH"]
         listing = [(o.name, o.type) for o in bpy.data.objects]
         check(len(meshes) == 2, f"mesh objects imported once each: {listing}")

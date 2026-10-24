@@ -50,7 +50,7 @@ def manifest(**overrides: Any) -> dict[str, Any]:
             "replace": [],
         },
         "nodes": [
-            {**identity, "name": "TEST_Ship"},
+            {**identity, "name": "TEST_Ship", "rotation": [0.0, 0.70710678, 0.0, 0.70710678]},
             {
                 **identity,
                 "name": "hardpoint_a/Gun",
@@ -92,8 +92,11 @@ def write_package(folder: Path, data: dict[str, Any] | None = None) -> Path:
     return path
 
 
-def glb(root_name: str, materials: list[str]) -> bytes:
-    """Returns a GLB with a root node, a child with one triangle per material."""
+def glb(root_name: str, materials: list[str], external: dict[str, Any] | None = None) -> bytes:
+    """Returns a GLB with a root node, a child with one triangle per material.
+
+    ``external`` entries replace top-level keys of the glTF JSON, e.g. a buffer with a ``uri``.
+    """
     document = {
         "asset": {"version": "2.0"},
         "scene": 0,
@@ -125,6 +128,7 @@ def glb(root_name: str, materials: list[str]) -> bytes:
         "bufferViews": [{"buffer": 0, "byteLength": len(TRIANGLE), "target": 34962}],
         "buffers": [{"byteLength": len(TRIANGLE)}],
     }
+    document.update(external or {})
     json_chunk = json.dumps(document).encode("utf-8")
     json_chunk += b" " * (-len(json_chunk) % 4)
     total = 12 + 8 + len(json_chunk) + 8 + len(TRIANGLE)

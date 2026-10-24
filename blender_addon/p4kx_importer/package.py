@@ -20,7 +20,9 @@ FORMAT_NAME = "p4kx-blender-package"
 SUPPORTED_MAJOR = 1
 SUPPORTED_MINOR = 0
 MANIFEST_NAME = "scene.json"
-MAX_MANIFEST_BYTES = 256 * 1024 * 1024
+MAX_MANIFEST_BYTES = 64 * 1024 * 1024
+MAX_ITEMS = 200_000
+MAX_GLB_JSON_BYTES = 16 * 1024 * 1024
 BLENDER_NAME_BYTES = 63
 
 _VERSION = re.compile(r"^([0-9]+)\.([0-9]+)$")
@@ -147,6 +149,39 @@ def resolve_file(root: Path, relative: str) -> Path:
     return path
 
 
+def check_glb(path: Path) -> None:
+    """Refuses a GLB whose header is wrong or whose JSON names an external ``uri``.
+
+    Only the 12-byte header and the JSON chunk (at most ``MAX_GLB_JSON_BYTES``) are read. The
+    GLBs of a package embed everything, so a ``uri`` on a buffer or image is never legitimate.
+    """
+    try:
+        with path.open("rb") as stream:
+            header = stream.read(20)
+            if len(header) < 20 or header[:4] != b"glTF":
+                raise PackageError(f"{path.name} is not a GLB file.")
+            length = int.from_bytes(header[12:16], "little")
+            if header[16:20] != b"JSON" or length > MAX_GLB_JSON_BYTES:
+                raise PackageError(f"{path.name} has no usable JSON chunk.")
+            raw = stream.read(length)
+    except OSError as error:
+        raise PackageError(f"Cannot read {path.name}: {error.strerror}.") from error
+    if len(raw) != length:
+        raise PackageError(f"{path.name} is truncated.")
+    try:
+        document = json.loads(raw)
+    except (RecursionError, ValueError) as error:
+        raise PackageError(f"{path.name} has invalid JSON.") from error
+    if not isinstance(document, dict):
+        raise PackageError(f"{path.name} has invalid JSON.")
+    for key in ("buffers", "images"):
+        entries = document.get(key)
+        if isinstance(entries, list) and any(
+            isinstance(entry, dict) and "uri" in entry for entry in entries
+        ):
+            raise PackageError(f"{path.name} refers to an external file in {key}.")
+
+
 def blender_name(name: str, limit: int = BLENDER_NAME_BYTES) -> str:
     """Shortens ``name`` to at most ``limit`` UTF-8 bytes without splitting a character."""
     encoded = name.encode("utf-8")
@@ -179,6 +214,7 @@ def pair_materials(manifest_names: list[tuple[int, str]], blender_names: list[st
     Blender suffixes a repeated name with ``.001``; the pairing strips that suffix when the bare
     name is one the manifest knows, then matches equal names in order of index and of name.
     """
+    manifest_names = [(index, blender_name(name)) for index, name in manifest_names]
     known = {name for _, name in manifest_names}
     groups: dict[str, list[str]] = {}
     for blender_name_ in sorted(blender_names):
@@ -249,7 +285,8 @@ def _parse_textures(items: list[Any], warnings: list[str]) -> dict[str, Texture]
         colour_space = _text(entry, "colour_space", where)
         alpha = _text(entry, "alpha", where)
         if colour_space not in _COLOUR_SPACES or alpha not in _ALPHA_MEANINGS:
-            raise PackageError(f"{where}: unknown colour_space or alpha.")
+            warnings.append(f"Texture {texture_id} has a colour space or alpha this add-on does not know.")
+            continue
         textures[texture_id] = Texture(texture_id, file, colour_space, alpha)
     return textures
 
@@ -334,20 +371,23 @@ def _rotation(entry: dict[str, Any], where: str) -> Quaternion:
     return (x / length, y / length, z / length, w / length)
 
 
-def _floats(entry: dict[str, Any], key: str, count: int, where: str) -> Any:
+def _floats(entry: dict[str, Any], key: str, count: int, where: str) -> tuple[float, ...]:
     values = entry.get(key)
-    if (
-        not isinstance(values, list)
-        or len(values) != count
-        or not all(
-            isinstance(value, (int, float))
-            and not isinstance(value, bool)
-            and math.isfinite(value)
-            for value in values
-        )
-    ):
-        raise PackageError(f"{where}: {key} must be {count} finite numbers.")
-    return tuple(float(value) for value in values)
+    message = f"{where}: {key} must be {count} finite numbers."
+    if not isinstance(values, list) or len(values) != count:
+        raise PackageError(message)
+    converted: list[float] = []
+    for value in values:
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise PackageError(message)
+        try:
+            number = float(value)
+        except OverflowError as error:
+            raise PackageError(message) from error
+        if not math.isfinite(number):
+            raise PackageError(message)
+        converted.append(number)
+    return tuple(converted)
 
 
 def _object(value: object, where: str) -> dict[str, Any]:
@@ -359,6 +399,8 @@ def _object(value: object, where: str) -> dict[str, Any]:
 def _array(value: object, where: str) -> list[Any]:
     if not isinstance(value, list):
         raise PackageError(f"{where} must be an array.")
+    if len(value) > (limit := MAX_ITEMS):
+        raise PackageError(f"{where} has more than {limit} entries.")
     return value
 
 

@@ -14,7 +14,7 @@ import pytest
 
 from p4kx_importer import package
 from p4kx_importer.package import PackageError, PackageTooNewError
-from synthetic import manifest, write_package
+from synthetic import glb, manifest, write_package
 
 
 def parse(data: dict[str, Any], root: Path = Path(".")) -> package.Package:
@@ -72,10 +72,14 @@ def test_unknown_fields_and_values_of_a_later_minor_version_are_tolerated() -> N
     data["meshes"][0]["materials"][0]["layers"] = [1, 2]
     data["textures"][0]["unknown"] = True
     data["textures"].append({**data["textures"][0], "id": "t0003", "format": "exr"})
+    data["textures"].append({**data["textures"][0], "id": "t0004", "colour_space": "acescg"})
+    data["textures"].append({**data["textures"][0], "id": "t0005", "alpha": "roughness"})
+    data["meshes"][0]["materials"][0]["textures"]["specular"] = "t0004"
     data["nodes"].append({**data["nodes"][0], "kind": "light", "name": "L", "parent": 0})
     data["nodes"].append({**data["nodes"][0], "kind": "entity", "name": "child", "parent": 4})
     result = parse(data)
-    assert "t0003" not in result.textures
+    assert set(result.textures) == {"t0001", "t0002"}
+    assert "specular" not in result.meshes["m0001"].materials[0].textures
     assert [node.name for node in result.nodes] == [
         "TEST_Ship",
         "hardpoint_a/Gun",
@@ -152,7 +156,7 @@ def test_bad_references_and_values_are_refused() -> None:
         lambda d: d["meshes"][0].update(id="../m0001"),
         lambda d: d["meshes"].append(copy.deepcopy(d["meshes"][0])),
         lambda d: d["textures"].append(copy.deepcopy(d["textures"][0])),
-        lambda d: d["textures"][0].update(colour_space="weird"),
+        lambda d: d["textures"][0].update(colour_space=5),
         lambda d: d["meshes"][0]["materials"][0].update(index=-1),
         lambda d: d.update(nodes={}),
         lambda d: d.pop("meshes"),
@@ -223,3 +227,47 @@ def test_pair_materials_matches_suffixed_duplicates_in_order() -> None:
     assert pairs == {0: "Steel", 1: "Steel.001", 2: "Glass"}
     assert package.pair_materials([(0, "A")], ["B"]) == {}
     assert package.pair_materials([(0, "Steel")], ["Steel.001"]) == {0: "Steel.001"}
+
+
+def test_pair_materials_matches_names_longer_than_blender_allows() -> None:
+    long = "x" * 70
+    assert package.pair_materials([(0, long)], ["x" * 63]) == {0: "x" * 63}
+
+
+def test_a_huge_integer_is_refused_not_an_overflow() -> None:
+    data = manifest()
+    data["nodes"][1]["translation"] = [0, 0, 10**400]
+    with pytest.raises(PackageError, match="finite"):
+        parse(data)
+
+
+def test_the_counts_of_nodes_meshes_and_textures_are_bounded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(package, "MAX_ITEMS", 3)
+    with pytest.raises(PackageError, match="more than 3"):
+        parse(manifest())
+
+
+def test_glb_with_embedded_data_passes_the_check(tmp_path: Path) -> None:
+    path = tmp_path / "m0001.glb"
+    path.write_bytes(glb("m0001", ["Mat"]))
+    package.check_glb(path)
+
+
+@pytest.mark.parametrize("key", ["buffers", "images"])
+def test_glb_with_an_external_uri_is_refused(tmp_path: Path, key: str) -> None:
+    path = tmp_path / "m0001.glb"
+    path.write_bytes(glb("m0001", ["Mat"], external={key: [{"uri": "../secret.bin"}]}))
+    with pytest.raises(PackageError, match="external file"):
+        package.check_glb(path)
+
+
+def test_a_broken_glb_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "m0001.glb"
+    for content in (b"", b"glTF", b"x" * 40, glb("a", [])[:30]):
+        path.write_bytes(content)
+        with pytest.raises(PackageError):
+            package.check_glb(path)
+    with pytest.raises(PackageError):
+        package.check_glb(tmp_path / "missing.glb")

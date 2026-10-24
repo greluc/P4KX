@@ -26,11 +26,16 @@ reads a higher minor version with a warning, and ignores fields it does not know
 formats it cannot read and nodes of a kind it does not know (with their children).
 
 **Package input is untrusted and never executed.** The reader accepts only the shapes it expects,
-checks types, counts, finite numbers and parent indices, caps `scene.json` at 256 MiB, and takes
-file references only as the writer's ids: a mesh file must be `meshes/m<digits>.glb`, a texture
-file `textures/t<digits>.png`, and every path is resolved and refused when it leaves the package
-folder (symbolic links included). Names from the package are only object and material names,
-shortened to Blender's 63 bytes.
+checks types, finite numbers (a number too large for a float is refused) and parent indices, caps
+`scene.json` at 64 MiB and the nodes, meshes and textures at 200,000 entries each, and takes file
+references only as the writer's ids: a mesh file must be `meshes/m<digits>.glb`, a texture file
+`textures/t<digits>.png`, and every path is resolved and refused when it leaves the package
+folder (symbolic links included). Before Blender's importer sees a mesh, the add-on reads the
+GLB header and its JSON chunk (at most 16 MiB) and refuses a mesh whose buffers or images name
+an external `uri`; the GLBs of a package embed everything. Names from the package are only
+object and material names, shortened to Blender's 63 bytes. A texture with a format, colour
+space or alpha meaning this add-on does not know is skipped with a warning, so later minor
+versions can add values.
 
 **Shared meshes are collection instances.** A GLB mesh has a node tree of its own, so each mesh
 that a node uses is imported once, by the glTF importer, into its own collection inside a
@@ -46,7 +51,8 @@ import the add-on pairs the created Blender materials with the manifest's materi
 `.001` suffix is stripped when the bare name is one the manifest knows; equal names are matched
 in order) and gives each a basic setup on its Principled BSDF: the diffuse texture to Base Color
 (and its alpha to Alpha when the texture's `alpha` is `opacity`), the normal texture through a
-Normal Map node, the specular texture to Specular IOR Level. The colour space of each image is
+Normal Map node, the specular texture to Specular IOR Level, which is a placeholder until the
+material descriptions of #158 say what the map means. The colour space of each image is
 the manifest's `colour_space`; the alpha of images that hold no opacity is ignored. Normal maps
 are already OpenGL, so nothing is inverted. Layered materials, palettes and decals come with
 #158 in a later minor version of the package.

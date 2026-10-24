@@ -11,6 +11,7 @@ use crate::GltfError;
 use crate::glb::{GlbOptions, GlbSummary, MaterialMode, write_instances};
 use crate::instance::{Instance, Wrapper};
 use crate::materials::MaterialPlan;
+use crate::scene_light::{LIGHT_FRAME, SceneLight};
 use crate::texture_loader::{NoTextures, TextureLoader};
 
 type SharingKey = (usize, usize, usize, usize);
@@ -66,6 +67,8 @@ pub struct SceneNode<'m> {
     pub transform: Transform,
     /// The model placed at the node, if it has one.
     pub part: Option<ScenePart<'m>>,
+    /// The light placed at the node, if it has one.
+    pub light: Option<SceneLight>,
 }
 
 impl<'m> SceneNode<'m> {
@@ -77,7 +80,15 @@ impl<'m> SceneNode<'m> {
             parent,
             transform,
             part: None,
+            light: None,
         }
+    }
+
+    /// Places `light` at the node; it is written with `KHR_lights_punctual`.
+    #[must_use]
+    pub const fn with_light(mut self, light: SceneLight) -> Self {
+        self.light = Some(light);
+        self
     }
 
     /// Places `part` at the node.
@@ -182,13 +193,26 @@ pub fn write_scene_glb_with(
     textures: &dyn TextureLoader,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
+    let placed: Vec<Transform> = scene
+        .nodes()
+        .iter()
+        .map(|node| {
+            if node.light.is_some() {
+                node.transform.then(&LIGHT_FRAME)
+            } else {
+                node.transform
+            }
+        })
+        .collect();
     let wrappers: Vec<Wrapper<'_>> = scene
         .nodes()
         .iter()
-        .map(|node| Wrapper {
+        .zip(&placed)
+        .map(|(node, transform)| Wrapper {
             name: &node.name,
             parent: node.parent,
-            transform: &node.transform,
+            transform,
+            light: node.light.as_ref(),
         })
         .collect();
     let (instances, fallbacks) = instances_of(scene, options);

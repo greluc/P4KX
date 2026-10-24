@@ -155,6 +155,8 @@ pub struct GlbSummary {
     /// The number of texture references of materials that reuse an image another reference
     /// already uses, so the image is embedded once.
     pub shared_textures: usize,
+    /// The number of lights written with `KHR_lights_punctual`.
+    pub lights: usize,
 }
 
 /// Writes `model` as a GLB file to `out`: the JSON chunk first, then the binary data, streamed

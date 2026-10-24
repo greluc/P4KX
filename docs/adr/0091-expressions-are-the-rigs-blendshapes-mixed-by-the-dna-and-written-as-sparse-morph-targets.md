@@ -76,7 +76,8 @@ amplitude of the targets is millimetres (`CTL_expressions blinkL` moves 702 vert
 2.5 mm). The body skeleton has none of the facial joints (ADR-0084), so the export has the
 correctives only, and the Character's own joint positions (`DnaRig::neutral_joint_offsets`) do not
 change anything in a static export. Evaluating the rig into weights and joint motion over time, and
-the facial skeleton it needs, belong to the face animation (#154). Slot 17 of the rig, which
+the facial skeleton it needs, belong to the face animation (#154); the follow-up issue #533 lists
+the facial joints, the comparison with `BShapesGpu` and the lower levels of detail. Slot 17 of the rig, which
 StarBreaker uses to attenuate the blendshapes of the skin's `BShapesGpu` per vertex, is not applied
 here; the cells of slot 19 are used as they are, and the comparison with the `BShapesGpu` chunk
 (`0x57A38888`) of the head's `.skinm` is not made.

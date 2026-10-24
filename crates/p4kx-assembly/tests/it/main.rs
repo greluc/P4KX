@@ -26,6 +26,7 @@ mod entity_lookup;
 mod head_build;
 mod head_expressions;
 mod interior;
+mod interior_lit;
 mod loadout_changes;
 mod loadout_changes_edit;
 mod loadout_edges;

@@ -69,6 +69,7 @@ struct InteriorJson {
     parts: usize,
     model_parts: usize,
     modelled_parts: usize,
+    lights: usize,
 }
 
 fn interior_json(assembly: &Assembly) -> Option<InteriorJson> {
@@ -77,6 +78,7 @@ fn interior_json(assembly: &Assembly) -> Option<InteriorJson> {
         parts: interior.parts(),
         model_parts: interior.model_parts(),
         modelled_parts: interior.modelled_parts(),
+        lights: interior.lights(),
     })
 }
 
@@ -309,11 +311,12 @@ fn print_report(
     if let Some(interior) = assembly.interior() {
         writeln!(
             stdout,
-            "Interior: {} containers, {} parts ({} models, {} with geometry)",
+            "Interior: {} containers, {} parts ({} models, {} with geometry, {} lights)",
             interior.containers().len(),
             interior.parts(),
             interior.model_parts(),
-            interior.modelled_parts()
+            interior.modelled_parts(),
+            interior.lights()
         )?;
     }
     let painted = painted(assembly);

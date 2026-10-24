@@ -50,10 +50,12 @@ mod glb;
 mod glb_animation;
 mod glb_container;
 mod glb_images;
+mod glb_lights;
 mod glb_morph;
 mod glb_skin;
 mod global_ini;
 mod hirc_node;
+mod interior_lit;
 mod interior_sample;
 mod layout_v1;
 mod layout_v2;
@@ -71,6 +73,7 @@ mod opus_encode;
 mod real_archive;
 mod rig_logic;
 mod soc;
+mod soc_entities;
 mod split_dds;
 mod test_entry;
 mod test_jpeg;
@@ -132,7 +135,10 @@ pub use glb_images::DecodedImage;
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
-pub use interior_sample::{INTERIOR_ROOT, INTERIOR_ROOT_NAME, interior_entries};
+pub use interior_lit::{LIT_ROOM, lit_room_entries};
+pub use interior_sample::{
+    INTERIOR_LAMP, INTERIOR_ROOT, INTERIOR_ROOT_NAME, interior_entries, lit_interior_entries,
+};
 pub use mesh_streams::{MeshStream, MeshStreams, mesh_streams};
 pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
@@ -149,6 +155,7 @@ pub use real_archive::{
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use soc::{SOC_IDENTITY, TestObjectContainer, TestSoc};
+pub use soc_entities::{TestLight, TestLightState, TestSocEntity};
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
 pub use test_jpeg::{gray_jpeg, progressive_gray_jpeg, sampled_jpeg};

@@ -163,6 +163,24 @@ pub enum IssueKind {
         /// The kind of the first object that is not a placed model.
         kind: u32,
     },
+    /// Props or lights of a `.soc` file have a position, rotation, scale or parameters that are
+    /// not usable, so they are left out.
+    #[error("{count} props or lights have no usable placement and are left out")]
+    EntitiesLeftOut {
+        /// How many.
+        count: usize,
+    },
+    /// Lights of a type `KHR_lights_punctual` cannot express (ambient lights, which stand in for
+    /// global illumination, planar area lights and unknown types), so they are left out.
+    #[error(
+        "{count} lights of the type {light_type} cannot be written as glTF lights and are left out"
+    )]
+    LightUnsupported {
+        /// The `lightType` as the `.soc` file spells it.
+        light_type: String,
+        /// How many.
+        count: usize,
+    },
     /// The Assembly holds [`MAX_ASSEMBLY_PARTS`](crate::MAX_ASSEMBLY_PARTS) parts, so further
     /// parts are left out.
     #[error("the Assembly or Interior reached {limit} parts; further parts are left out")]
@@ -259,6 +277,8 @@ impl IssueKind {
             Self::OffsetDiffers { .. } => "offset_differs",
             Self::ObjectsLeftOut { .. } => "objects_left_out",
             Self::UnsupportedObjects { .. } => "unsupported_objects",
+            Self::EntitiesLeftOut { .. } => "entities_left_out",
+            Self::LightUnsupported { .. } => "light_unsupported",
             Self::PieceNotFound { .. } => "piece_not_found",
             Self::NoWornGeometry => "no_worn_geometry",
             Self::NoVariantGeometry { .. } => "no_variant_geometry",
@@ -290,6 +310,8 @@ impl IssueKind {
                 | Self::InvalidPlacement { .. }
                 | Self::ObjectsLeftOut { .. }
                 | Self::UnsupportedObjects { .. }
+                | Self::EntitiesLeftOut { .. }
+                | Self::LightUnsupported { .. }
                 | Self::PieceNotFound { .. }
                 | Self::NoWornGeometry
                 | Self::NoVariantGeometry { .. }

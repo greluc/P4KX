@@ -16,7 +16,8 @@ use crate::block_data::BlockData;
 use crate::instance::{Instance, MaterialIds, Wrapper, materials};
 use crate::layout::{Block, Layout, MeshLayout};
 use crate::morphs::{primitive_targets, push_targets};
-use crate::nodes::{Skeleton, push_nodes, push_scene_nodes};
+use crate::nodes::{Skeleton, push_nodes};
+use crate::scene_nodes::push_scene_nodes;
 use crate::texture_plan::TextureSet;
 
 pub(crate) const GENERATOR: &str = concat!("P4KX ", env!("CARGO_PKG_VERSION"));

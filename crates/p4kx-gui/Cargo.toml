@@ -17,10 +17,12 @@ path = "src/main.rs"
 
 [dependencies]
 p4kx-assembly.workspace = true
+p4kx-blender.workspace = true
 p4kx-channels.workspace = true
 p4kx-comparison.workspace = true
 p4kx-export.workspace = true
 p4kx-extraction.workspace = true
+p4kx-render.workspace = true
 p4kx-search.workspace = true
 p4kx-settings.workspace = true
 p4kx-update.workspace = true

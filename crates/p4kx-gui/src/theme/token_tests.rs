@@ -59,6 +59,7 @@ fn colours() -> BTreeMap<String, Color32> {
         ("surface-raised", p::SURFACE_RAISED),
         ("control-bg", p::CONTROL_BG),
         ("control-bg-hover", p::CONTROL_BG_HOVER),
+        ("table-stripe-bg", p::TABLE_STRIPE_BG),
         ("control-border", p::CONTROL_BORDER),
         ("control-fg", p::CONTROL_FG),
         ("control-selected-bg", p::CONTROL_SELECTED_BG),

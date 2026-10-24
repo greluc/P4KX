@@ -11,6 +11,37 @@ pub enum AssemblyExportText {
     SetupTitleInterior,
     /// The action that opens the export of the Interior of a socpak container.
     ActionInterior,
+    /// The heading of the choice between the GLB file and the Blender package.
+    FormHeading,
+    /// The GLB file as the output.
+    FormGlb,
+    /// The Blender package as the output.
+    FormPackage,
+    /// What the Blender package is.
+    FormPackageNote,
+    /// The heading of the package folder choice.
+    FolderHeading,
+    /// The action that opens the folder dialog.
+    ChooseFolder,
+    /// The hint of the folder field while no folder is chosen.
+    FolderNone,
+    /// Shown when the chosen folder holds an earlier package that is replaced.
+    PackageReplaces,
+    /// Shown when the chosen folder is not empty and holds no package.
+    PackageNotAPackage,
+    /// Shown when the chosen path names no folder.
+    PackageNoName,
+    /// The title of the progress window of a package.
+    RunningTitlePackage,
+    /// The progress while the package is written; takes `name`.
+    WritingPackage,
+    /// The title of the summary of a written package.
+    SummaryTitlePackage,
+    /// What the package holds; takes `parts`, `modelled`, `nodes`, `meshes`, `textures`,
+    /// `materials`, `palettes`, `files`, `vertices`, `triangles` and `size`.
+    SummaryPackageCounts,
+    /// The textures the package lacks; takes `count` and `number`.
+    SummaryPackageTextures,
     /// The Entity that is exported; takes `name`.
     Entity,
     /// The container whose Interior is exported; takes `name`.
@@ -94,7 +125,22 @@ pub enum AssemblyExportText {
 
 impl AssemblyExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 42] = [
+    pub(crate) const ALL: [Self; 57] = [
+        Self::FormHeading,
+        Self::FormGlb,
+        Self::FormPackage,
+        Self::FormPackageNote,
+        Self::FolderHeading,
+        Self::ChooseFolder,
+        Self::FolderNone,
+        Self::PackageReplaces,
+        Self::PackageNotAPackage,
+        Self::PackageNoName,
+        Self::RunningTitlePackage,
+        Self::WritingPackage,
+        Self::SummaryTitlePackage,
+        Self::SummaryPackageCounts,
+        Self::SummaryPackageTextures,
         Self::SetupTitle,
         Self::SetupTitleInterior,
         Self::ActionInterior,
@@ -143,6 +189,21 @@ impl AssemblyExportText {
     #[must_use]
     pub const fn id(self) -> &'static str {
         match self {
+            Self::FormHeading => "assembly-export-form-heading",
+            Self::FormGlb => "assembly-export-form-glb",
+            Self::FormPackage => "assembly-export-form-package",
+            Self::FormPackageNote => "assembly-export-form-package-note",
+            Self::FolderHeading => "assembly-export-folder-heading",
+            Self::ChooseFolder => "assembly-export-choose-folder",
+            Self::FolderNone => "assembly-export-folder-none",
+            Self::PackageReplaces => "assembly-export-package-replaces",
+            Self::PackageNotAPackage => "assembly-export-package-not-a-package",
+            Self::PackageNoName => "assembly-export-package-no-name",
+            Self::RunningTitlePackage => "assembly-export-running-title-package",
+            Self::WritingPackage => "assembly-export-writing-package",
+            Self::SummaryTitlePackage => "assembly-export-summary-title-package",
+            Self::SummaryPackageCounts => "assembly-export-summary-package-counts",
+            Self::SummaryPackageTextures => "assembly-export-summary-package-textures",
             Self::SetupTitle => "assembly-export-title",
             Self::SetupTitleInterior => "assembly-export-title-interior",
             Self::ActionInterior => "assembly-export-action-interior",

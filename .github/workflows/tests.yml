@@ -70,5 +70,14 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           name: nextest-archive-${{ inputs.os }}
+      - name: Install the software Vulkan driver (lavapipe) the render tests draw on
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends mesa-vulkan-drivers libvulkan1
       - name: Tests with nextest, one process per test
+        env:
+          P4KX_REQUIRE_SOFTWARE_ADAPTER: '1'
         run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --extract-to . --extract-overwrite --partition count:${{ matrix.partition }}/${{ inputs.count }}
+      - name: Name the software adapter the render tests drew on
+        env:
+          P4KX_REQUIRE_SOFTWARE_ADAPTER: '1'
+        run: cargo nextest run --archive-file nextest-archive.tar.zst --workspace-remap . --extract-to . --extract-overwrite --no-capture -E 'test(the_software_adapter_is_named)'

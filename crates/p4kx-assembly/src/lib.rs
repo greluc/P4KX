@@ -72,6 +72,7 @@ mod error;
 mod files;
 mod flatten;
 mod geometry;
+mod hologram;
 mod interior;
 mod issue;
 mod markup;
@@ -92,8 +93,9 @@ mod walk;
 mod xml;
 
 pub use armour::{
-    Armour, ArmourPart, BodyVariant, Expressions, ForgeItems, Head, HeadError, HeadItems, Look,
-    MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced, Wearable, is_worn_type,
+    Armour, ArmourPart, BodyVariant, CharacterAnimations, Expressions, ForgeItems, Head, HeadError,
+    HeadItems, Look, MAX_ANIMATION_VALUES, MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced, Wearable,
+    is_worn_type,
 };
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
@@ -107,6 +109,7 @@ pub use entity_interior::{EntityContainer, EntityInterior, INTERIOR_NODE};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
 pub use geometry::{Geometry, GeometryVariant, PaletteRef};
+pub use hologram::HologramCamera;
 pub use interior::{
     Interior, InteriorOptions, InteriorPart, InteriorPartKind, InteriorProgress, InteriorWatch,
     MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,

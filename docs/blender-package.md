@@ -39,6 +39,10 @@ every texture and `--no-vertex-colours` leaves the vertex colours out of the mes
 `--interior` adds the Entity's Interior as for `entity glb --interior` (ADR-0086), see
 [Interiors and lights](#interiors-and-lights).
 
+The desktop window writes the same package: the export dialog of an Entity offers "Blender
+package" next to "GLB file", with the same choices, a folder instead of a file, progress and
+Cancel (ADR-0104). The rules below apply to it as well.
+
 - The output is checked before the Archive is opened (`p4kx_blender::check_output`). The folder
   must not exist, or be empty, or hold a package an earlier run wrote: `scene.json` with the
   format name, a `meshes` folder holding only `m<digits>.glb` files and a `textures` folder

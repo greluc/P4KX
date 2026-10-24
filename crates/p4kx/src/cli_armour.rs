@@ -87,4 +87,17 @@ pub(crate) struct ArmourGlbArgs {
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    /// Includes an animation of the body; repeat the option for more, or use `all` for every
+    /// animation found. NAME is the name of an animation (a .caf file name without extension, or
+    /// a name inside a .dba), its file name, or the end of its path, ignoring case; or the path
+    /// of a .caf or .dba Entry, which includes all of its animations. Animations are looked for
+    /// below the folders of the body variant and in the Entries named by --anim-from. Tracks that
+    /// name no bone of the skeleton are left out and listed; additive animations are left out
+    /// unless named. A NAME that no animation has is invalid input.
+    #[arg(long = "anim", value_name = "NAME")]
+    pub(crate) animations: Vec<String>,
+    /// A .caf or .dba Entry to look for animations in, in addition to the folders of the body;
+    /// repeatable, used with --anim.
+    #[arg(long = "anim-from", value_name = "ENTRY")]
+    pub(crate) animation_sources: Vec<String>,
 }

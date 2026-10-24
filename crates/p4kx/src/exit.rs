@@ -31,6 +31,7 @@ use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
 use crate::wwise::{UnknownAudioLanguage, UnknownTrigger};
 use crate::{model, texture};
+use p4kx_render::OffscreenError;
 
 /// Every requested Entry was extracted or already existed; a Comparison found no difference.
 pub(crate) const SUCCESS: u8 = 0;
@@ -231,6 +232,10 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<UnknownTag>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<GlbOutputIsArchive>().is_some()
+        || matches!(
+            error.downcast_ref::<OffscreenError>(),
+            Some(OffscreenError::Empty | OffscreenError::TooLarge { .. })
+        )
         || matches!(
             error.downcast_ref::<PackageError>(),
             Some(PackageError::NotAPackage { .. } | PackageError::NoFolderName { .. })

@@ -75,7 +75,7 @@ fn the_export_writes_the_entity_with_its_loadout_as_one_glb_and_remembers_the_ch
     let (dir, mut harness) = opened(Language::BritishEnglish)?;
     select(&mut harness, "TEST_Ship")?;
     harness
-        .get_by_role_and_label(Role::Button, "Export as GLB…")
+        .get_by_role_and_label(Role::Button, "Export…")
         .click();
     harness.run_steps(3);
     assert!(

@@ -303,7 +303,7 @@ The command line behaves the same way: `p4kx extract` stops and exits with code 
 
 ## Installing and updating
 
-Each Release on GitHub offers two downloads:
+Each Release on GitHub offers three downloads:
 
 - **`P4KX-<version>-x86_64.msi`** installs for the current user only, without
   administrator rights, into `%LOCALAPPDATA%\Programs\P4KX`. It adds P4KX to the
@@ -311,6 +311,9 @@ Each Release on GitHub offers two downloads:
   replaces the installed version in place; uninstall through **Settings › Apps**.
 - **`P4KX-<version>-x86_64-portable.zip`** holds `p4kx-gui.exe` and `p4kx.exe` to run
   from any folder, without installing anything.
+- **`p4kx_importer-<version>.zip`** is the Blender add-on that imports a Blender package. In
+  Blender 5.2 LTS use Edit › Preferences › Get Extensions › Install from Disk. It needs no
+  installer and has the same version as the Release.
 
 Both keep their settings in `%APPDATA%\P4KX\settings.toml`, so switching between them or
 uninstalling keeps them. Coming from P4K-Extractor, the first start copies its old settings

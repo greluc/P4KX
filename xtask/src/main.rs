@@ -2,8 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 //! Repository checks run by CI: `cargo xtask layers`, `cargo xtask lints`,
-//! `cargo xtask file-size`, `cargo xtask changelog`, `cargo xtask keys`, `cargo xtask spdx`, or
-//! all of them with `cargo xtask`.
+//! `cargo xtask file-size`, `cargo xtask changelog`, `cargo xtask keys`, `cargo xtask spdx`,
+//! `cargo xtask addon` (the Blender add-on manifest version equals the workspace version), or all
+//! of them with `cargo xtask`.
 //!
 //! `cargo xtask changelog` also checks the fragments in `changelog.d/`; `cargo xtask changelog
 //! --release <version> [--date <YYYY-MM-DD>]` folds them and `## [Unreleased]` into the section of
@@ -15,6 +16,7 @@
 //!
 //! `cargo xtask release-notes <tag> <file>` writes the `CHANGELOG.md` notes of a Release tag.
 
+mod addon;
 mod changelog;
 mod file_size;
 mod fragments;
@@ -50,16 +52,9 @@ fn run() -> Result<Vec<String>> {
     let root = workspace_root()?;
     let command = std::env::args().nth(1);
     match command.as_deref() {
-        None => {
-            let mut violations = layers::check(&root)?;
-            violations.extend(lints::check(&root)?);
-            violations.extend(file_size::check(&root)?);
-            violations.extend(changelog::check(&root)?);
-            violations.extend(keys::check(&root)?);
-            violations.extend(spdx::check(&root)?);
-            Ok(violations)
-        }
+        None => check_all(&root),
         Some("spdx") => spdx::check(&root),
+        Some("addon") => addon::check(&root),
         Some("layers") => layers::check(&root),
         Some("lints") => lints::check(&root),
         Some("file-size") => file_size::check(&root),
@@ -104,9 +99,20 @@ fn run() -> Result<Vec<String>> {
             Ok(Vec::new())
         }
         Some(other) => bail!(
-            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys`, `spdx`, `notices` or `release-notes`"
+            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys`, `spdx`, `addon`, `notices` or `release-notes`"
         ),
     }
+}
+
+fn check_all(root: &Path) -> Result<Vec<String>> {
+    let mut violations = layers::check(root)?;
+    violations.extend(lints::check(root)?);
+    violations.extend(file_size::check(root)?);
+    violations.extend(changelog::check(root)?);
+    violations.extend(keys::check(root)?);
+    violations.extend(spdx::check(root)?);
+    violations.extend(addon::check(root)?);
+    Ok(violations)
 }
 
 fn workspace_root() -> Result<PathBuf> {

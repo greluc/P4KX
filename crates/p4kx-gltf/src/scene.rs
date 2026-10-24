@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::io::Write;
 
 use p4kx_model::{Lod, MaterialStatus, Model, Transform};
@@ -120,7 +122,9 @@ impl<'m> Scene<'m> {
 ///
 /// Each model is drawn at the level of detail `options` asks for, or, when it lacks that level,
 /// at the nearest lower one, or the lowest it has; [`GlbSummary::lod_fallbacks`] counts those.
-/// Equal materials are written once.
+/// Equal materials are written once, and so are the meshes of nodes that hold the same model
+/// (the same reference) at the same level with the same material library: their glTF nodes
+/// reference one glTF mesh, counted in [`GlbSummary::shared_meshes`].
 ///
 /// # Errors
 ///
@@ -141,27 +145,41 @@ pub fn write_scene_glb(
         })
         .collect();
     let mut fallbacks = 0;
-    let instances: Vec<Instance<'_>> = scene
-        .nodes()
-        .iter()
-        .enumerate()
-        .filter_map(|(position, node)| {
-            let part = node.part?;
-            let lod = nearest_lod(part.model, options.lod);
-            if lod.is_some_and(|lod| lod.level != options.lod) {
-                fallbacks += 1;
+    let mut first_of: HashMap<(usize, usize, usize), usize> = HashMap::new();
+    let mut instances: Vec<Instance<'_>> = Vec::new();
+    for (position, node) in scene.nodes().iter().enumerate() {
+        let Some(part) = node.part else {
+            continue;
+        };
+        let lod = nearest_lod(part.model, options.lod);
+        if lod.is_some_and(|lod| lod.level != options.lod) {
+            fallbacks += 1;
+        }
+        let plan = lod.map_or_else(MaterialPlan::empty, |lod| {
+            MaterialPlan::new(part.materials.library(), lod)
+        });
+        let twin = lod.and_then(|lod| {
+            let key = (
+                std::ptr::from_ref(part.model).addr(),
+                std::ptr::from_ref(lod).addr(),
+                std::ptr::from_ref(part.materials).addr(),
+            );
+            match first_of.entry(key) {
+                Entry::Occupied(first) => Some(*first.get()),
+                Entry::Vacant(slot) => {
+                    slot.insert(instances.len());
+                    None
+                }
             }
-            let plan = lod.map_or_else(MaterialPlan::empty, |lod| {
-                MaterialPlan::new(part.materials.library(), lod)
-            });
-            Some(Instance {
-                model: part.model,
-                lod,
-                wrapper: Some(position),
-                plan,
-            })
-        })
-        .collect();
+        });
+        instances.push(Instance {
+            model: part.model,
+            lod,
+            wrapper: Some(position),
+            plan,
+            twin,
+        });
+    }
     write_instances(
         &wrappers,
         &instances,

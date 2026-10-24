@@ -111,14 +111,17 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 
 ### M14 — MFD and holograms
 
-- Ship screens (GFx/SWF) and vehicle holograms rendered to images.
+- Ship screens and vehicle holograms rendered to images. Ship screens are `BuildingBlocks_Canvas`
+  Records of DataForge, laid out and drawn by `p4kx-screens` through the 2D GFx renderer, not SWF
+  movies; the movies only provide fonts and pieces (ADR-0089). Stills of boxes, circles and
+  polygons come first; texts, textures and vector graphics follow as their own issues.
 
 ## Engineering
 
 - Workspace of `p4kx-*` crates in three layers with enforced direction (ADR-0003, ADR-0019):
   - formats: `foundation`, `archive`, `cryxml`, `dataforge`, `localization`, `texture`, `audio`,
     `chunks`, `model`, `character`, `gfx`
-  - services: `assembly`, `gltf`, `blender`, `comparison`, `export`, `extraction`
+  - services: `assembly`, `gltf`, `blender`, `comparison`, `export`, `extraction`, `screens`
   - front-ends: `p4kx`, `p4kx-gui`, `p4kx-mcp`
 - Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.
 - Rust edition 2024, `rustfmt`, clippy `all`, `pedantic`, `nursery` and selected `restriction`

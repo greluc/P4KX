@@ -35,6 +35,7 @@ mod entity_cargo;
 mod entity_head;
 mod entity_interior_sample;
 mod entity_livery;
+mod entity_loadout;
 mod entity_port;
 mod entity_sample;
 mod entity_schema;
@@ -70,6 +71,10 @@ mod mtl;
 mod opus;
 mod opus_encode;
 mod real_archive;
+mod screens;
+mod screens_canvas;
+mod screens_sample;
+mod screens_widget;
 mod soc;
 mod soc_entities;
 mod split_dds;
@@ -95,7 +100,7 @@ pub use dataforge_builder::DataForgeBuilder;
 pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
 pub use dataforge_value::{TestInstance, TestValue};
 pub use dna::{TestCell, TestControl, TestDeltaRecord, TestDna};
-pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry};
+pub use entity::TestEntity;
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
@@ -111,6 +116,7 @@ pub use entity_livery::{
     LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,
     livery_entries,
 };
+pub use entity_loadout::{TestLoadout, TestLoadoutEntry};
 pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::{entity_schema, tint_palette_record};
@@ -151,6 +157,13 @@ pub use real_archive::{
     REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR, real_archive_b_path, real_archive_key,
     real_archive_pair, real_archive_path,
 };
+pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
+pub use screens_canvas::{
+    TestCanvas, TestCondition, TestModifier, TestStyle, TestStyleEntry, movie_component,
+    screen_component, tag_record,
+};
+pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
+pub use screens_widget::{TestColour, TestDim, TestWidget};
 pub use soc::{SOC_IDENTITY, TestObjectContainer, TestSoc};
 pub use soc_entities::{TestLight, TestLightState, TestSocEntity};
 pub use split_dds::{SplitDds, TestTextureFormat};

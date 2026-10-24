@@ -365,6 +365,19 @@ Early development (milestone M1). Available today:
   is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
   bitmap tiles it. Text is written as paths, never as `<text>` elements. A document is at most 1 GiB;
   a larger one is an error and no file is left.
+- `p4kx ui screens <archive> <entity>` lists the `BuildingBlocks` screens of an Entity and of
+  everything in its default Loadout, e.g. the MFDs, the radar and the HUD of a ship: per screen the
+  port, the Entity, the canvas Record and its size, the canvases, textures, vector graphics, movies
+  and localisation keys it uses, and its widgets by element type with whether they are drawn; the
+  UI movies the Entities name are listed after them. `--json` carries the same.
+- `p4kx ui render <archive> --screen <canvas> --out <file.png> [--svg] [--size …] [--background …]
+  [--brand <code>]` renders such a canvas, named by record path or GUID, as a still through the
+  GFx renderer: the layout of its widgets (sizes, margins, padding, flex containers, raw units)
+  is computed from the Records and the boxes, circles and polygons are drawn in the colours of
+  the style cascade (palette slots of the default and manufacturer style, style entries with type,
+  tag, parent and ancestor selectors at rest). Texts, textures, vector graphics, lists, clones and
+  every other widget type without a renderer are left out and listed, with the features the layout
+  approximates (exit code 1); no ActionScript is run.
 - `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.

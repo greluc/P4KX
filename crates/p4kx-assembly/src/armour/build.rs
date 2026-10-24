@@ -5,9 +5,10 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_gltf::MorphTarget;
-use p4kx_model::{BoneMatch, Lod, MaterialStatus, Mesh, Model};
+use p4kx_model::{Lod, MaterialStatus, Mesh, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+use super::face_build::{Face, Found, settled};
 use super::follow::follow;
 use super::jobs::{Job, gather, issue};
 use super::shape::shaped;
@@ -85,11 +86,16 @@ impl Armour {
         let mut reported = HashSet::new();
         let mut parts = Vec::with_capacity(chosen.len());
         let mut head: Option<HeadMove> = None;
+        let mut heads = Vec::new();
+        let mut part_jobs = Vec::new();
         for (job, found) in jobs.iter().zip(&chosen) {
             let Some(found) = found else { continue };
-            let Some((model, morphs)) = worn(job, found, models, &mut head, &mut issues) else {
+            let Some((model, morphs, face)) = worn(job, found, models, &mut head, &mut issues)
+            else {
                 continue;
             };
+            heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
+            part_jobs.push(job);
             let materials = drawn_with(
                 job,
                 found,
@@ -97,7 +103,6 @@ impl Armour {
                 &mut reported,
                 &mut issues,
             );
-            note_fit(job, &model, &body.skeleton, &mut issues);
             parts.push(ArmourPart {
                 name: job.part.clone(),
                 origin: job.origin,
@@ -105,11 +110,13 @@ impl Armour {
                 model,
                 materials,
                 morphs,
+                face: None,
             });
         }
+        let skeleton = settled(body.skeleton, &mut parts, heads, &part_jobs, &mut issues);
         Ok(Self {
             variant,
-            skeleton: Arc::new(body.skeleton),
+            skeleton: Arc::new(skeleton),
             skeleton_file: body.skeleton_file,
             parts,
             issues,
@@ -127,8 +134,8 @@ fn worn(
     models: &dyn ModelProvider,
     head: &mut Option<HeadMove>,
     issues: &mut Vec<Issue>,
-) -> Option<(Arc<Model>, Vec<MorphTarget>)> {
-    let (model, morphs) = fitted(job, found, models, issues)?;
+) -> Option<(Arc<Model>, Vec<MorphTarget>, Option<Face>)> {
+    let (model, morphs, face) = fitted(job, found, models, issues)?;
     if job.shape.is_some() && job.part == HEAD && head.is_none() {
         *head = Some(HeadMove {
             before: Arc::clone(&found.model),
@@ -136,8 +143,8 @@ fn worn(
         });
     }
     Some(match head {
-        Some(moved) if job.follows_head => (followed(&model, moved), Vec::new()),
-        _ => (model, morphs),
+        Some(moved) if job.follows_head => (followed(&model, moved), Vec::new(), None),
+        _ => (model, morphs, face),
     })
 }
 
@@ -185,20 +192,29 @@ fn fitted(
     found: &Loaded,
     models: &dyn ModelProvider,
     issues: &mut Vec<Issue>,
-) -> Option<(Arc<Model>, Vec<MorphTarget>)> {
+) -> Option<(Arc<Model>, Vec<MorphTarget>, Option<Face>)> {
     let Some(dna) = &job.shape else {
-        return Some((Arc::clone(&found.model), Vec::new()));
+        return Some((Arc::clone(&found.model), Vec::new(), None));
     };
-    let shaped = match shaped(&found.model, &job.path, dna, &job.expressions, models) {
+    let head = job.part == HEAD;
+    let shaped = match shaped(&found.model, &job.path, dna, &job.expressions, models, head) {
         Ok(shaped) => shaped,
         Err(reason) => {
             issues.push(issue(job, IssueKind::ShapeFailed { reason }));
             return None;
         }
     };
-    let (model, targets, kinds) = shaped.into_parts();
-    issues.extend(kinds.into_iter().map(|kind| issue(job, kind)));
-    Some((Arc::new(model), targets))
+    let worn = shaped.into_parts();
+    issues.extend(worn.kinds.into_iter().map(|kind| issue(job, kind)));
+    let face = head.then(|| {
+        let (facial, rig) = worn.face.unzip();
+        Face {
+            facial,
+            rig: rig.unwrap_or_default(),
+            numbers: worn.numbers,
+        }
+    });
+    Some((Arc::new(worn.model), worn.targets, face))
 }
 
 fn provider_failure(path: &str, variant: BodyVariant, failure: ModelFailure) -> AssemblyError {
@@ -358,21 +374,4 @@ fn read_libraries(
         .par_iter()
         .map(|(key, entry, name)| (key.clone(), Arc::new(provider.library(entry, name))))
         .collect()
-}
-
-/// Notes how a part fits the skeleton: bones it lacks, and a model that is not skinned at all.
-fn note_fit(job: &Job, model: &Model, skeleton: &Model, issues: &mut Vec<Issue>) {
-    let Some(lod) = model.lods.first() else {
-        return;
-    };
-    let skinned = lod.meshes.iter().any(|mesh| mesh.influences.is_some());
-    if !skinned {
-        issues.push(issue(job, IssueKind::NotSkinned));
-        return;
-    }
-    let matched = BoneMatch::new(&skeleton.bones, model.bones_of(lod));
-    let count = matched.unmatched().len();
-    if count > 0 {
-        issues.push(issue(job, IssueKind::BonesNotInSkeleton { count }));
-    }
 }

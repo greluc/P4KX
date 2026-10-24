@@ -5,7 +5,8 @@ use p4kx_character::{Dna, DnaRig};
 use p4kx_gltf::MorphTarget;
 use p4kx_model::{Mesh, Model};
 
-use super::expressions::{Expressions, Morphs, morphs};
+use super::expressions::{Expressions, Morphs, logic_of, morphs};
+use super::facial::{Facial, facial};
 use super::normals::carry_normals;
 use crate::{IssueKind, ModelFailure, ModelProvider};
 
@@ -30,12 +31,24 @@ fn rig_path(path: &str, level: u32) -> Option<String> {
 pub(super) struct Shaped {
     pub(super) model: Model,
     pub(super) morphs: Option<Result<Morphs, String>>,
+    pub(super) face: Option<Result<(Facial, String), String>>,
+}
+
+/// What a shaped head contributes besides its model and morph targets: the joints of its face and
+/// the blendshape number of each morph target.
+pub(super) struct Worn {
+    pub(super) model: Model,
+    pub(super) targets: Vec<MorphTarget>,
+    pub(super) kinds: Vec<IssueKind>,
+    pub(super) face: Option<(Facial, String)>,
+    pub(super) numbers: Vec<usize>,
 }
 
 impl Shaped {
     /// Returns the model, its morph targets and what could not be made of them as issues.
-    pub(super) fn into_parts(self) -> (Model, Vec<MorphTarget>, Vec<IssueKind>) {
-        let (targets, kinds) = match self.morphs {
+    pub(super) fn into_parts(self) -> Worn {
+        let mut numbers = Vec::new();
+        let (targets, mut kinds) = match self.morphs {
             Some(Ok(morphs)) => {
                 let unknown = morphs
                     .unknown
@@ -45,12 +58,27 @@ impl Shaped {
                     .empty
                     .into_iter()
                     .map(|name| IssueKind::EmptyExpression { name });
+                numbers = morphs.numbers;
                 (morphs.targets, unknown.chain(empty).collect())
             }
             Some(Err(reason)) => (Vec::new(), vec![IssueKind::MorphsFailed { reason }]),
             None => (Vec::new(), Vec::new()),
         };
-        (self.model, targets, kinds)
+        let face = match self.face {
+            Some(Ok(face)) => Some(face),
+            Some(Err(reason)) => {
+                kinds.push(IssueKind::FaceJointsFailed { reason });
+                None
+            }
+            None => None,
+        };
+        Worn {
+            model: self.model,
+            targets,
+            kinds,
+            face,
+            numbers,
+        }
     }
 }
 
@@ -65,6 +93,7 @@ pub(super) fn shaped(
     dna: &Dna,
     expressions: &Expressions,
     models: &dyn ModelProvider,
+    face: bool,
 ) -> Result<Shaped, String> {
     let level = model
         .lods
@@ -106,9 +135,14 @@ pub(super) fn shaped(
     apply(mesh, &moves).map_err(|problem| format!("{rig_path}: {problem}"))?;
     let morphs = (*expressions != Expressions::None)
         .then(|| morphs(&rig, &matrix, mesh, path, expressions, models));
+    let face = (face && level == 0).then(|| {
+        let logic = logic_of(path, models)?;
+        facial(model, &logic, &rig, &matrix).map(|found| (found, rig_path.clone()))
+    });
     Ok(Shaped {
         model: shaped,
         morphs,
+        face,
     })
 }
 

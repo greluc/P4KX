@@ -6,7 +6,8 @@ use std::io::Read;
 
 use p4kx_extraction::model::{LodSelection, MaterialStatus, Model, ModelError};
 use p4kx_extraction::{
-    Archive, ArchiveTextures, ConversionError, ModelSource, PathIndex, archive_error_in,
+    AnimationChoice, AnimationSet, Archive, ArchiveTextures, ConversionError, ModelSource,
+    PathIndex, archive_error_in,
 };
 use thiserror::Error;
 
@@ -136,6 +137,27 @@ impl<'a> ArchiveModels<'a> {
     #[must_use]
     pub const fn textures(&self) -> ArchiveTextures<'_, 'a> {
         ArchiveTextures::new(&self.index)
+    }
+
+    /// Reads the animations `choice` selects from the `.caf` files and `.dba` databases below the
+    /// folders `folders`, paths below `Data`, and the Entries `extra`; see
+    /// [`AnimationSet::from_folders`].
+    ///
+    /// # Errors
+    ///
+    /// As [`AnimationSet::from_folders`].
+    pub fn animations(
+        &self,
+        folders: &[&str],
+        choice: &AnimationChoice,
+        extra: &[String],
+    ) -> Result<AnimationSet, ConversionError> {
+        let folders: Vec<String> = folders
+            .iter()
+            .map(|folder| format!("Data/{}", folder.trim_start_matches(['/', '\\'])))
+            .collect();
+        let folders: Vec<&str> = folders.iter().map(String::as_str).collect();
+        AnimationSet::from_folders(&self.index, &folders, choice, extra)
     }
 
     fn entry_of(&self, path: &str) -> Option<String> {

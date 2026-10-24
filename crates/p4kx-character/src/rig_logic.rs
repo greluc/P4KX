@@ -15,10 +15,12 @@ const HEADER_LEN: usize = 0xa8;
 const HEADER_SIZE_AT: usize = 0x3e;
 const APPEARANCE_AT: usize = 0x40;
 const CORRECTIVE_AT: usize = 0x42;
+const JOINTS_AT: usize = 0x44;
 const STARTS_AT: usize = 0x68;
 const STARTS: usize = 8;
 const NAMES_SLOT: usize = 0;
 const CORRECTIVES_SLOT: usize = 2;
+const JOINTS_SLOT: usize = 5;
 const ROW_LEN: usize = 5;
 
 /// A failure to read the `RigLogic` chunk of a head skin.
@@ -45,11 +47,14 @@ pub enum RigLogicError {
 ///
 /// The rig has named controls, then correctives that fire when up to five of the controls are
 /// active together; the blendshape numbers of the DNA rig's expression morphs run over both in
-/// this order.
+/// this order. The chunk also lists the joints the rig moves, by the CRC-32 of their names, in the
+/// order of the joints of the DNA rig.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RigLogic {
     names: Vec<String>,
+    hashes: Vec<(u32, usize)>,
     correctives: Vec<[u8; ROW_LEN]>,
+    joints: Vec<u32>,
 }
 
 impl RigLogic {
@@ -104,10 +109,80 @@ impl RigLogic {
                 "a corrective names a control the rig lacks",
             ));
         }
+        let joints = joint_hashes(
+            chunk,
+            usize::from(u16_at(chunk, JOINTS_AT).unwrap_or_default()),
+        )?;
+        let mut hashes: Vec<(u32, usize)> = names
+            .iter()
+            .enumerate()
+            .map(|(control, name)| (crc32fast::hash(name.as_bytes()), control))
+            .collect();
+        hashes.sort_unstable();
         Ok(Self {
             names,
+            hashes,
             correctives: rows,
+            joints,
         })
+    }
+
+    /// Returns the control whose name has the CRC-32 `hash`, the hash a face animation names its
+    /// tracks by; the first of equal hashes.
+    #[must_use]
+    pub fn control_by_hash(&self, hash: u32) -> Option<usize> {
+        let first = self.hashes.partition_point(|&(other, _)| other < hash);
+        self.hashes
+            .get(first)
+            .filter(|&&(other, _)| other == hash)
+            .map(|&(_, control)| control)
+    }
+
+    /// Returns the CRC-32 of the name of each joint the rig moves, in the order of the joints of
+    /// the DNA rig; empty when the chunk lists none.
+    #[must_use]
+    pub fn joint_hashes(&self) -> &[u32] {
+        &self.joints
+    }
+
+    /// Returns the activation of every blendshape for the values of the controls: the controls
+    /// themselves, with the constant control 0 at 1, then each corrective as the product of the
+    /// controls it combines.
+    ///
+    /// `controls` is padded with zeros or cut to the number of controls.
+    #[must_use]
+    pub fn activations(&self, controls: &[f32]) -> Vec<f32> {
+        let mut out = vec![0.0_f32; self.blendshapes()];
+        self.activations_into(controls, &mut out);
+        out
+    }
+
+    /// Writes [`Self::activations`] into `out`, which must hold [`Self::blendshapes`] values;
+    /// a shorter slice is filled as far as it goes.
+    pub fn activations_into(&self, controls: &[f32], out: &mut [f32]) {
+        let count = self.names.len();
+        for (slot, value) in out.iter_mut().take(count).zip(controls) {
+            *slot = *value;
+        }
+        for slot in out.iter_mut().take(count).skip(controls.len()) {
+            *slot = 0.0;
+        }
+        if let Some(constant) = out.first_mut() {
+            *constant = 1.0;
+        }
+        let (given, derived) = out.split_at_mut(count.min(out.len()));
+        for (slot, row) in derived.iter_mut().zip(&self.correctives) {
+            *slot = row
+                .iter()
+                .map(|&control| given.get(usize::from(control)).copied().unwrap_or(0.0))
+                .product();
+        }
+    }
+
+    /// Returns the numbers of the controls of each corrective: the five controls it combines.
+    #[must_use]
+    pub fn corrective_rows(&self) -> &[[u8; 5]] {
+        &self.correctives
     }
 
     /// Returns the number of named controls.
@@ -164,6 +239,28 @@ fn section(chunk: &[u8], slot: usize) -> Result<&[u8], RigLogicError> {
     chunk
         .get(start..end)
         .ok_or(RigLogicError::Malformed("a section lies outside the chunk"))
+}
+
+/// Returns the `count` joint hashes of the chunk, none when the chunk states no joints.
+fn joint_hashes(chunk: &[u8], count: usize) -> Result<Vec<u32>, RigLogicError> {
+    if count == 0 {
+        return Ok(Vec::new());
+    }
+    let listed = u64_at(chunk, STARTS_AT + JOINTS_SLOT * 8).is_some_and(|start| start != 0);
+    if !listed {
+        return Err(RigLogicError::Malformed("the joint hashes are missing"));
+    }
+    let bytes = section(chunk, JOINTS_SLOT)?
+        .get(..count * 4)
+        .ok_or(RigLogicError::Malformed(
+            "the joint table is shorter than its joints",
+        ))?;
+    Ok(bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|&hash| u32::from_le_bytes(hash))
+        .collect())
 }
 
 fn names_of(pool: &[u8]) -> Result<Vec<String>, RigLogicError> {

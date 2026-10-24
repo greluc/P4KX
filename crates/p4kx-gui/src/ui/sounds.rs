@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use egui::{Color32, Label, Margin, Panel, Ui};
+use egui::{Color32, Frame, Label, Margin, Panel, RichText, ScrollArea, Ui};
 use fluent_bundle::FluentValue;
 
 use super::audio_preview::{self, AudioAction, Named};
 use super::record_export_outcome;
 use super::{RESIZE_GAP, empty, list_footer, sounds_toolbar, sounds_triggers, sounds_variants};
 use crate::theme::desktop::{
-    PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SPINNER, SPINNER_INLINE, TOOLBAR_PADDING,
+    CELL_PADDING_X, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SPINNER, SPINNER_INLINE, TOOLBAR_PADDING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, Weight};
@@ -68,7 +68,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
 fn ready(ui: &mut Ui, model: &mut Model, info: IndexInfo) {
     let toolbar = frames::panel()
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
-        .show(ui, |ui| sounds_toolbar::show(ui, model));
+        .show(ui, |ui| {
+            ScrollArea::vertical()
+                .id_salt("sounds-toolbar-scroll")
+                .max_height(ui.available_height() / 2.0)
+                .auto_shrink([false, true])
+                .show(ui, |ui| sounds_toolbar::show(ui, model));
+        });
     hairline_below(ui, toolbar.response.rect);
     if info.issues > 0 {
         issues(ui, model.texts(), info.issues);
@@ -208,8 +214,15 @@ enum DetailAction {
 }
 
 fn detail(ui: &mut Ui, model: &Model) -> Option<DetailAction> {
-    ui.set_min_height(ui.available_height());
     let texts = model.texts();
+    ScrollArea::vertical()
+        .id_salt("sounds-detail-scroll")
+        .auto_shrink([false, false])
+        .show(ui, |ui| detail_body(ui, model, texts))
+        .inner
+}
+
+fn detail_body(ui: &mut Ui, model: &Model, texts: &Texts) -> Option<DetailAction> {
     match model.sounds().sounds_status() {
         SoundsListStatus::None => {
             message(ui, texts.get(SoundsText::SelectHint), palette::GRAY_2_TEXT);
@@ -235,7 +248,10 @@ fn sounds(ui: &mut Ui, model: &Model, list: &SoundList) -> Option<DetailAction> 
             ("number", format::number(total, texts.language()).into()),
         ],
     );
-    ui.label(plain(heading, FS_SM, Weight::Bold).color(palette::GRAY_1));
+    padded(
+        ui,
+        plain(heading, FS_SM, Weight::Bold).color(palette::GRAY_1),
+    );
     if !list.breaks.is_empty() {
         let breaks = u64::try_from(list.breaks.len()).unwrap_or(u64::MAX);
         let heading = texts.format(
@@ -245,18 +261,37 @@ fn sounds(ui: &mut Ui, model: &Model, list: &SoundList) -> Option<DetailAction> 
                 ("number", format::number(breaks, texts.language()).into()),
             ],
         );
-        record_export_outcome::list(ui, (&heading, "sound-breaks"), &list.breaks, None, false);
+        let lines: Vec<String> = list
+            .breaks
+            .iter()
+            .map(|link| {
+                let mut args = vec![
+                    ("name", link.event.clone().into()),
+                    ("reason", link.reason.clone().into()),
+                ];
+                let text = link
+                    .soundbank
+                    .as_ref()
+                    .map_or(SoundsText::BreakLine, |bank| {
+                        args.push(("bank", bank.clone().into()));
+                        SoundsText::BreakLineIn
+                    });
+                texts.format(text, &args)
+            })
+            .collect();
+        record_export_outcome::list(ui, (&heading, "sound-breaks"), &lines, None, false);
     }
     if list.variants.is_empty() {
         message(ui, texts.get(SoundsText::NoVariants), palette::GRAY_2_TEXT);
         return None;
     }
     let audio = selected(ui, model, list);
+    let room = ui.clip_rect().bottom() - ui.cursor().top();
     let picked = sounds_variants::show(
         ui,
         texts,
         (list, tab.sounds_serial()),
-        tab.selected_variant(),
+        (tab.selected_variant(), room),
     );
     picked
         .map(DetailAction::Select)
@@ -284,7 +319,10 @@ fn selected(ui: &mut Ui, model: &Model, list: &SoundList) -> Option<AudioAction>
             ("source", source.into()),
         ],
     );
-    ui.label(plain(detail, FS_SM, Weight::Regular).color(palette::GRAY_2_TEXT));
+    padded(
+        ui,
+        plain(detail, FS_SM, Weight::Regular).color(palette::GRAY_2_TEXT),
+    );
     let note = match variant.playable() {
         Playable::Yes => None,
         Playable::PrefetchOnly => Some(SoundsText::NotePrefetch),
@@ -309,6 +347,15 @@ fn selected(ui: &mut Ui, model: &Model, list: &SoundList) -> Option<AudioAction>
         embedded: variant.is_embedded(),
     };
     audio_preview::show(ui, texts, named, audio, model.audio_volume())
+}
+
+/// Shows `text` with the inner padding of a table cell.
+fn padded(ui: &mut Ui, text: RichText) {
+    Frame::NONE
+        .inner_margin(Margin::symmetric(px(CELL_PADDING_X), 0))
+        .show(ui, |ui| {
+            ui.label(text);
+        });
 }
 
 fn loading(ui: &mut Ui, texts: &Texts, text: SoundsText) {

@@ -120,8 +120,8 @@ pub use record_preview::{
 pub use record_tree::{DataForgeFailure, RecordNode, RecordRow, RecordTree, RecordTreeStatus};
 pub use sort::{Sort, SortColumn, SortDirection};
 pub use sounds::{
-    EntityInfo, EventLine, IndexInfo, ListSource, ListStatus, MAX_SOUND_HITS, Playable, SoundList,
-    SoundsExport, SoundsExportSetup, SoundsExportStatus, SoundsListStatus, SoundsScope,
+    BreakLine, EntityInfo, EventLine, IndexInfo, ListSource, ListStatus, MAX_SOUND_HITS, Playable,
+    SoundList, SoundsExport, SoundsExportSetup, SoundsExportStatus, SoundsListStatus, SoundsScope,
     SoundsStatus, SoundsTab, TriggerList, TriggerRow, Variant,
 };
 pub use tags::{TagRow, TagsStatus, TagsTab, TagsView};

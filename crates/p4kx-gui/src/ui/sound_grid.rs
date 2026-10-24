@@ -69,6 +69,7 @@ pub(super) struct Grid<'a> {
     pub(super) widths: &'a [Width],
     pub(super) laid: &'a Laid,
     pub(super) selected: Option<usize>,
+    pub(super) height: Option<f32>,
 }
 
 #[derive(Default)]
@@ -132,6 +133,9 @@ fn builder<'a>(ui: &'a mut Ui, grid: &Grid<'_>) -> TableBuilder<'a> {
         .min_scrolled_height(0.0)
         .sense(Sense::click())
         .cell_layout(Layout::left_to_right(Align::Center));
+    if let Some(height) = grid.height {
+        table = table.min_scrolled_height(height).max_scroll_height(height);
+    }
     for width in grid.widths {
         table = table.column(match *width {
             Width::Initial(width) => Column::initial(width).at_least(SOUND_COLUMN_MIN).clip(true),

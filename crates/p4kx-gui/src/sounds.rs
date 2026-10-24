@@ -13,8 +13,8 @@ use std::sync::Arc;
 pub use export::{SoundsExport, SoundsExportSetup, SoundsExportStatus, SoundsScope};
 pub use status::{ListStatus, SoundsListStatus, SoundsStatus};
 pub use view::{
-    EntityInfo, EventLine, IndexInfo, ListSource, Playable, SoundList, TriggerList, TriggerRow,
-    Variant,
+    BreakLine, EntityInfo, EventLine, IndexInfo, ListSource, Playable, SoundList, TriggerList,
+    TriggerRow, Variant,
 };
 pub(crate) use worker::EntityTarget;
 pub use worker::MAX_SOUND_HITS;
@@ -36,6 +36,7 @@ pub struct SoundsTab {
     list: Option<TriggerList>,
     list_error: Option<ListError>,
     listing: bool,
+    pending_search: bool,
     list_generation: u64,
     list_serial: u64,
     selected: Option<usize>,
@@ -173,6 +174,7 @@ impl SoundsTab {
 
     /// Forgets the audio, the lists and the playback, because another Archive was opened.
     pub(crate) fn archive_opened(&mut self) {
+        self.stop_export();
         *self = Self {
             entity_text: std::mem::take(&mut self.entity_text),
             exports: self.exports,
@@ -192,6 +194,7 @@ impl SoundsTab {
             return false;
         };
         self.list_generation += 1;
+        self.pending_search = matches!(request, ListRequest::Search(_));
         self.listing = worker.request(Request::List(self.list_generation, request));
         self.listing
     }
@@ -213,6 +216,11 @@ impl SoundsTab {
     pub fn set_query(&mut self, text: &str) {
         text.clone_into(&mut self.query);
         if text.trim().is_empty() {
+            if self.pending_search {
+                self.list_generation += 1;
+                self.pending_search = false;
+                self.listing = false;
+            }
             if self
                 .list
                 .as_ref()
@@ -226,8 +234,6 @@ impl SoundsTab {
     }
 
     fn clear_list(&mut self) {
-        self.list_generation += 1;
-        self.listing = false;
         self.list = None;
         self.list_error = None;
         self.reset_selection();
@@ -331,6 +337,7 @@ impl SoundsTab {
             }
             Answer::List(generation, result) if generation == self.list_generation => {
                 self.listing = false;
+                self.pending_search = false;
                 self.list_serial += 1;
                 self.reset_selection();
                 match result {

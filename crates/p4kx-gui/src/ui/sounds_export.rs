@@ -38,8 +38,24 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         frames::modal(frames::modal_id("sounds-export-setup"), Tone::Normal).show(ui.ctx(), |ui| {
             ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
             let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
-            let action = choices(ui, texts, setup);
-            if closed { Some(Action::Close) } else { action }
+            let action =
+                frames::scrolling_body(ui, "sounds-export-scroll", |ui| choices(ui, texts, setup));
+            let pressed = foot(
+                ui,
+                texts,
+                (T::ExportStart, setup.is_ready()),
+                ExtractionText::Close,
+            );
+            let footer = match pressed {
+                Some(true) => Some(Action::Submit),
+                Some(false) => Some(Action::Close),
+                None => None,
+            };
+            if closed {
+                Some(Action::Close)
+            } else {
+                action.or(footer)
+            }
         });
     frames::modal_decoration(
         ui.ctx(),
@@ -126,15 +142,5 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut SoundsExportSetup) -> Option<
             setup.set_policy(policy);
         }
     }
-    let pressed = foot(
-        ui,
-        texts,
-        (T::ExportStart, setup.is_ready()),
-        ExtractionText::Close,
-    );
-    action.or(match pressed {
-        Some(true) => Some(Action::Submit),
-        Some(false) => Some(Action::Close),
-        None => None,
-    })
+    action
 }

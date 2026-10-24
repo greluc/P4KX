@@ -12,7 +12,9 @@ use std::panic::catch_unwind;
 use std::path::PathBuf;
 
 use eframe::egui_wgpu::RendererOptions;
+use egui::accesskit::Role;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
 use p4kx_gui::{Language, ListStatus, Model, SoundsListStatus};
 use tempfile::TempDir;
@@ -55,13 +57,9 @@ fn renderer() -> Option<WgpuTestRenderer> {
 fn rendered(
     language: Language,
     renderer: WgpuTestRenderer,
+    size: [f32; 2],
 ) -> Result<(TempDir, Harness<'static, Model>), Box<dyn std::error::Error>> {
-    let (dir, mut harness) = opened_with(
-        language,
-        [1280.0, 760.0],
-        &FakeOutput::default(),
-        Some(renderer),
-    )?;
+    let (dir, mut harness) = opened_with(language, size, &FakeOutput::default(), Some(renderer))?;
     harness
         .state_mut()
         .sounds_mut()
@@ -94,7 +92,7 @@ fn the_sounds_tab_is_drawn_with_triggers_variants_and_player() -> TestResult {
         let Some(renderer) = renderer() else {
             return Ok(());
         };
-        let (_dir, mut harness) = rendered(language, renderer)?;
+        let (_dir, mut harness) = rendered(language, renderer, [1280.0, 760.0])?;
         let image = harness.render()?;
         let (width, height) = (image.width(), image.height());
         let data = image.into_raw();
@@ -107,6 +105,75 @@ fn the_sounds_tab_is_drawn_with_triggers_variants_and_player() -> TestResult {
             .filter(|pixel| pixel.get(..3) == Some(&PRIMARY[..]))
             .count();
         assert!(orange > 500, "the active row bars are orange: {orange}");
+    }
+    Ok(())
+}
+
+#[test]
+fn a_small_window_keeps_the_toolbar_apart_and_the_whole_tab_reachable() -> TestResult {
+    for (language, name, show) in [
+        (
+            Language::BritishEnglish,
+            "sounds-small-en-GB.png",
+            "Show sounds",
+        ),
+        (
+            Language::German,
+            "sounds-small-de-DE.png",
+            "Sounds anzeigen",
+        ),
+    ] {
+        let Some(renderer) = renderer() else {
+            return Ok(());
+        };
+        let (_dir, mut harness) = rendered(language, renderer, [640.0, 400.0])?;
+        let field = harness
+            .query_all_by_role(Role::TextInput)
+            .next()
+            .ok_or("no Entity field")?
+            .rect();
+        let button = harness.get_by_role_and_label(Role::Button, show).rect();
+        assert!(
+            !field.intersects(button),
+            "the Entity field {field:?} and the button {button:?} do not overlap"
+        );
+        let image = harness.render()?;
+        save(name, image.width(), image.height(), &image.into_raw())?;
+    }
+    Ok(())
+}
+
+#[test]
+fn the_export_setup_keeps_its_foot_inside_a_small_window() -> TestResult {
+    for (language, name, export) in [
+        (
+            Language::BritishEnglish,
+            "sounds-export-small-en-GB.png",
+            "Export",
+        ),
+        (
+            Language::German,
+            "sounds-export-small-de-DE.png",
+            "Exportieren",
+        ),
+    ] {
+        let Some(renderer) = renderer() else {
+            return Ok(());
+        };
+        let (_dir, mut harness) = rendered(language, renderer, [640.0, 400.0])?;
+        assert!(harness.state_mut().begin_sounds_export(), "setup opens");
+        harness.run_steps(4);
+        let foot = harness
+            .query_all_by_role_and_label(Role::Button, export)
+            .last()
+            .ok_or("no foot")?
+            .rect();
+        assert!(
+            foot.bottom() <= 400.0,
+            "the foot {foot:?} is inside the window"
+        );
+        let image = harness.render()?;
+        save(name, image.width(), image.height(), &image.into_raw())?;
     }
     Ok(())
 }

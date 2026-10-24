@@ -683,6 +683,8 @@ sounds-breaks-heading =
         [one] { $number } place where the way to a sound breaks
        *[other] { $number } places where the way to a sound breaks
     }
+sounds-break-line = { $name }: { $reason }
+sounds-break-line-in = { $name } in { $bank }: { $reason }
 sounds-column-event = Wwise event
 sounds-column-wem = WEM ID
 sounds-column-source = Source

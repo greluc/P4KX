@@ -6,7 +6,7 @@ use p4kx_assembly::audio::{
     WemLocation,
 };
 
-use super::view::{EventLine, Playable, Playback, SoundList, TriggerRow, Variant};
+use super::view::{BreakLine, EventLine, Playable, Playback, SoundList, TriggerRow, Variant};
 
 fn event_line(event: &EventMatch<'_>, matched: bool) -> EventLine {
     EventLine {
@@ -85,11 +85,12 @@ fn variant(variant: &SoundVariant<'_>) -> Variant {
     }
 }
 
-fn break_line(link: &BrokenLink<'_>) -> String {
-    let bank = link
-        .soundbank()
-        .map_or_else(String::new, |bank| format!(" in {}", bank.file_name()));
-    format!("{}{bank}: {}", link.event().name(), link.reason())
+fn break_line(link: &BrokenLink<'_>) -> BreakLine {
+    BreakLine {
+        event: link.event().name().to_owned(),
+        soundbank: link.soundbank().map(|bank| bank.file_name().to_owned()),
+        reason: link.reason().to_string(),
+    }
 }
 
 /// Returns the sounds of a trigger as the list shows them.

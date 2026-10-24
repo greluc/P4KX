@@ -50,7 +50,11 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             decorate(ui, shown, Tone::Normal);
             ui.ctx().request_repaint_after(REFRESH);
         }
-        SoundsExportStatus::Finished { report, cancelled } => {
+        SoundsExportStatus::Finished {
+            report,
+            undefined,
+            cancelled,
+        } => {
             let title = if cancelled {
                 T::SummaryCancelledTitle
             } else {
@@ -60,7 +64,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
                 ui,
                 texts,
                 ("sounds-export-outcome", Text::Sounds(title), Tone::Normal),
-                |ui| finished(ui, texts, export, (report, cancelled)),
+                |ui| finished(ui, texts, export, (report, undefined, cancelled)),
             );
         }
         SoundsExportStatus::Failed(reason) => {
@@ -132,7 +136,7 @@ fn finished(
     ui: &mut Ui,
     texts: &Texts,
     export: &SoundsExport,
-    (report, cancelled): (&ExportReport, bool),
+    (report, undefined, cancelled): (&ExportReport, &[String], bool),
 ) {
     if cancelled {
         ui.colored_label(palette::WARNING, texts.get(T::SummaryCancelled));
@@ -142,14 +146,18 @@ fn finished(
         &[
             ("written", number(texts, report.written_count())),
             ("skipped", number(texts, report.kept_count())),
-            ("failed", number(texts, report.failures.len())),
+            (
+                "failed",
+                number(texts, report.failures.len() + undefined.len()),
+            ),
         ],
     ));
     ui.label(texts.format(
         T::SummaryTarget,
         &[("path", export.folder().display().to_string().into())],
     ));
-    let failures: Vec<String> = report
+    let reason = texts.get(T::Undefined);
+    let mut failures: Vec<String> = report
         .failures
         .iter()
         .map(|failure| {
@@ -164,6 +172,15 @@ fn finished(
             texts.format(text, &args)
         })
         .collect();
+    failures.extend(undefined.iter().map(|name| {
+        texts.format(
+            T::SummaryFailurePlain,
+            &[
+                ("name", name.clone().into()),
+                ("reason", reason.clone().into()),
+            ],
+        )
+    }));
     let unconverted: Vec<String> = report
         .sounds
         .iter()

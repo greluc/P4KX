@@ -7,8 +7,7 @@ use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
 use p4kx_assembly::audio::{
-    ArchiveAudio, ExportFailure, ExportOptions, ExportReport, ExportWatch, LanguageChoice,
-    TriggerSounds,
+    ArchiveAudio, ExportOptions, ExportReport, ExportWatch, LanguageChoice, TriggerSounds,
 };
 use p4kx_assembly::{ENTITY_TYPE, Entities};
 
@@ -59,13 +58,16 @@ pub(super) enum ListError {
     Failed(String),
 }
 
+/// What an export wrote and the triggers no ATL definition has.
+pub(super) type Written = (ExportReport, Vec<String>);
+
 #[derive(Debug)]
 pub(super) enum Answer {
     Ready(IndexInfo),
     Unavailable,
     List(u64, Result<TriggerList, ListError>),
     Sounds(u64, Result<SoundList, String>),
-    Exported(u64, Result<ExportReport, String>),
+    Exported(u64, Result<Written, String>),
 }
 
 /// What the worker answered since the last poll.
@@ -102,6 +104,12 @@ impl Worker {
 
     pub(super) fn request(&self, request: Request) -> bool {
         self.requests.send(request).is_ok()
+    }
+
+    pub(super) fn wait(&self) -> Answered {
+        self.answers
+            .recv()
+            .map_or(Answered::Gone, |answer| Answered::Answer(Box::new(answer)))
     }
 
     pub(super) fn poll(&self) -> Answered {
@@ -274,7 +282,7 @@ fn write(
     audio: &ArchiveAudio<'_>,
     choice: &LanguageChoice,
     export: &ExportRequest,
-) -> Result<ExportReport, String> {
+) -> Result<Written, String> {
     let mut missing = Vec::new();
     let mut resolved: Vec<TriggerSounds<'_>> = Vec::new();
     for name in &export.triggers {
@@ -284,15 +292,8 @@ fn write(
         }
     }
     let triggers: Vec<&TriggerSounds<'_>> = resolved.iter().collect();
-    let mut report = audio
+    let report = audio
         .export_sounds_watched(&triggers, &export.folder, export.options, &export.watch)
         .map_err(|error| describe(&error))?;
-    report
-        .failures
-        .extend(missing.into_iter().map(|trigger| ExportFailure {
-            trigger,
-            wem_id: None,
-            reason: "no ATL definition has the trigger".to_owned(),
-        }));
-    Ok(report)
+    Ok((report, missing))
 }

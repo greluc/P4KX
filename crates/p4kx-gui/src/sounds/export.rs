@@ -7,7 +7,7 @@ use std::sync::Arc;
 use p4kx_assembly::audio::{ExportOptions, ExportReport, ExportWatch, SoundFormat};
 use p4kx_extraction::{ConflictPolicy, WriteRefused};
 
-use super::worker::{ExportRequest, Request, Worker};
+use super::worker::{ExportRequest, Request, Worker, Written};
 use crate::installation::refusal_of;
 
 /// Which sounds a sound export writes.
@@ -155,6 +155,8 @@ pub enum SoundsExportStatus<'a> {
     Finished {
         /// What was written.
         report: &'a ExportReport,
+        /// The triggers no ATL definition has, which were not exported.
+        undefined: &'a [String],
         /// Whether the export was stopped before it handled every sound.
         cancelled: bool,
     },
@@ -165,7 +167,7 @@ pub enum SoundsExportStatus<'a> {
 #[derive(Debug)]
 enum Outcome {
     Running,
-    Finished(Box<ExportReport>),
+    Finished(Box<ExportReport>, Vec<String>),
     Failed(Option<String>),
 }
 
@@ -211,17 +213,18 @@ impl SoundsExport {
                 total: self.watch.total(),
                 cancelling: self.watch.is_cancelled(),
             },
-            Outcome::Finished(report) => SoundsExportStatus::Finished {
+            Outcome::Finished(report, undefined) => SoundsExportStatus::Finished {
                 report,
+                undefined,
                 cancelled: self.watch.is_cancelled(),
             },
             Outcome::Failed(reason) => SoundsExportStatus::Failed(reason.as_deref()),
         }
     }
 
-    pub(super) fn finish(&mut self, result: Result<ExportReport, String>) {
+    pub(super) fn finish(&mut self, result: Result<Written, String>) {
         self.outcome = match result {
-            Ok(report) => Outcome::Finished(Box::new(report)),
+            Ok((report, undefined)) => Outcome::Finished(Box::new(report), undefined),
             Err(reason) => Outcome::Failed(Some(reason)),
         };
     }

@@ -133,8 +133,19 @@ pub struct SoundList {
     pub trigger: String,
     /// The variants in the order of the trigger's events and soundbanks.
     pub variants: Vec<Variant>,
-    /// The places where the way from an event to a WEM breaks, one line each.
-    pub breaks: Vec<String>,
+    /// The places where the way from an event to a WEM breaks.
+    pub breaks: Vec<BreakLine>,
+}
+
+/// A place where the way from a Wwise event to a WEM breaks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BreakLine {
+    /// The Wwise event the way starts at.
+    pub event: String,
+    /// The file name of the soundbank that was followed, or `None` when none holds the event.
+    pub soundbank: Option<String>,
+    /// Why the way breaks.
+    pub reason: String,
 }
 
 /// What the audio index of the Archive holds.

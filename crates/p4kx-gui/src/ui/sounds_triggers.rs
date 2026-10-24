@@ -80,6 +80,7 @@ pub(super) fn show(
         widths: &WIDTHS,
         laid: &laid,
         selected,
+        height: None,
     };
     sound_grid::show(ui, &grid)
 }

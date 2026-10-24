@@ -85,6 +85,10 @@ pub enum SoundsText {
     VariantsCount,
     /// The heading of the broken links of a trigger; takes `count` and `number`.
     BreaksHeading,
+    /// A broken link of a trigger; takes `name` and `reason`.
+    BreakLine,
+    /// A broken link of a trigger in a soundbank; takes `name`, `bank` and `reason`.
+    BreakLineIn,
     /// The head of the event column.
     ColumnEvent,
     /// The head of the WEM ID column.
@@ -169,7 +173,7 @@ pub enum SoundsText {
 
 impl SoundsText {
     /// Every text of the Sounds tab.
-    pub(crate) const ALL: [Self; 80] = [
+    pub(crate) const ALL: [Self; 82] = [
         Self::Tab,
         Self::EntityLabel,
         Self::EntityHint,
@@ -210,6 +214,8 @@ impl SoundsText {
         Self::NoVariants,
         Self::VariantsCount,
         Self::BreaksHeading,
+        Self::BreakLine,
+        Self::BreakLineIn,
         Self::ColumnEvent,
         Self::ColumnWem,
         Self::ColumnSource,
@@ -297,6 +303,8 @@ impl SoundsText {
             Self::NoVariants => "sounds-no-variants",
             Self::VariantsCount => "sounds-variants-count",
             Self::BreaksHeading => "sounds-breaks-heading",
+            Self::BreakLine => "sounds-break-line",
+            Self::BreakLineIn => "sounds-break-line-in",
             Self::ColumnEvent => "sounds-column-event",
             Self::ColumnWem => "sounds-column-wem",
             Self::ColumnSource => "sounds-column-source",

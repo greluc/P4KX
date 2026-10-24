@@ -14,8 +14,8 @@ enum Action {
     Export,
 }
 
-#[expect(clippy::too_many_lines, reason = "one block per control of the form")]
 /// Shows the Entity and search fields with their actions and applies what the user did.
+#[expect(clippy::too_many_lines, reason = "one block per control of the form")]
 pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
     let texts = model.texts();
@@ -38,25 +38,25 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let mut entity_changed = false;
     ui.horizontal(|ui| {
         let label = ui.label(entity_label);
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            if button::button(ui, Kind::Ghost, Size::Normal, &export_label, can_export).clicked() {
-                action = Some(Action::Export);
-            }
-            if button::button(ui, Kind::Ghost, Size::Normal, &record_label, has_record).clicked() {
-                action = Some(Action::UseRecord);
-            }
-            let ready = !entity.trim().is_empty();
-            if button::button(ui, Kind::Outline, Size::Normal, &show_label, ready).clicked() {
+        ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+            let response = field_response(ui, &mut entity, &entity_hint, label.id);
+            entity_changed |= response.changed();
+            if response.lost_focus() && ui.input(|input| input.key_pressed(Key::Enter)) {
                 action = Some(Action::Show);
             }
-            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                let response = field_response(ui, &mut entity, &entity_hint, label.id);
-                entity_changed |= response.changed();
-                if response.lost_focus() && ui.input(|input| input.key_pressed(Key::Enter)) {
-                    action = Some(Action::Show);
-                }
-            });
         });
+    });
+    ui.horizontal_wrapped(|ui| {
+        let ready = !entity.trim().is_empty();
+        if button::button(ui, Kind::Outline, Size::Normal, &show_label, ready).clicked() {
+            action = Some(Action::Show);
+        }
+        if button::button(ui, Kind::Ghost, Size::Normal, &record_label, has_record).clicked() {
+            action = Some(Action::UseRecord);
+        }
+        if button::button(ui, Kind::Ghost, Size::Normal, &export_label, can_export).clicked() {
+            action = Some(Action::Export);
+        }
     });
     let mut query_changed = false;
     ui.horizontal(|ui| {

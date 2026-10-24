@@ -4,7 +4,10 @@
 use egui::Ui;
 
 use super::sound_grid::{self, Cell, Grid, Laid, NAME_COLUMN, Row, Tint, Width};
-use crate::theme::sound_metrics::{SOUND_CODEC_COLUMN, SOUND_DURATION_COLUMN, SOUND_ID_COLUMN};
+use crate::theme::desktop::ROW_HEIGHT;
+use crate::theme::sound_metrics::{
+    SOUND_CODEC_COLUMN, SOUND_DURATION_COLUMN, SOUND_ID_COLUMN, SOUNDBANK_VISIBLE_ROWS,
+};
 use crate::{Language, Playable, SoundList, SoundsText, SourceKind, Texts, Variant};
 
 const WIDTHS: [Width; 5] = [
@@ -86,12 +89,12 @@ struct Key {
 }
 
 /// Shows the variants of `list` as a table of event, WEM ID, source, language and soundbank,
-/// `selected` highlighted; returns the position of the row that was clicked.
+/// `selected` highlighted and the table `room` tall, but never below the rows that stay visible; returns the position of the row that was clicked.
 pub(super) fn show(
     ui: &mut Ui,
     texts: &Texts,
     (list, serial): (&SoundList, u64),
-    selected: Option<usize>,
+    (selected, room): (Option<usize>, f32),
 ) -> Option<usize> {
     let key = Key {
         serial,
@@ -104,6 +107,7 @@ pub(super) fn show(
         widths: &WIDTHS,
         laid: &laid,
         selected,
+        height: Some(room.max(ROW_HEIGHT * (1.0 + SOUNDBANK_VISIBLE_ROWS))),
     };
     sound_grid::show(ui, &grid)
 }

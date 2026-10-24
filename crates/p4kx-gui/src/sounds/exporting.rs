@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 use p4kx_assembly::audio::SoundFormat;
 
+use super::worker::{Answer, Answered};
 use super::{SoundsExport, SoundsExportSetup, SoundsTab, export};
 
 impl SoundsTab {
@@ -80,6 +81,44 @@ impl SoundsTab {
         if let Some(export) = &self.export {
             export.cancel();
         }
+    }
+
+    /// Cancels the running sound export and waits until it ended, so that no partial file stays
+    /// behind.
+    pub fn stop_export(&mut self) {
+        let Some(id) = self
+            .export
+            .as_ref()
+            .filter(|export| export.is_running())
+            .map(SoundsExport::id)
+        else {
+            return;
+        };
+        self.cancel_export();
+        let Some(worker) = self.worker.take() else {
+            if let Some(export) = &mut self.export {
+                export.lost();
+            }
+            return;
+        };
+        loop {
+            match worker.wait() {
+                Answered::Answer(answer) => {
+                    let ended = matches!(*answer, Answer::Exported(ended, _) if ended == id);
+                    self.apply(*answer);
+                    if ended {
+                        break;
+                    }
+                }
+                Answered::Nothing | Answered::Gone => {
+                    if let Some(export) = &mut self.export {
+                        export.lost();
+                    }
+                    break;
+                }
+            }
+        }
+        self.worker = Some(worker);
     }
 
     /// Dismisses the outcome of a sound export that ended.

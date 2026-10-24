@@ -249,7 +249,7 @@ impl eframe::App for App {
     fn on_exit(&mut self) {
         self.model.stop_extraction();
         self.model.stop_record_export();
-        self.model.sounds().cancel_export();
+        self.model.sounds_mut().stop_export();
         self.model.stop_model_export();
         self.model.stop_catalog();
         self.model.comparison_mut().cancel();

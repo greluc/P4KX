@@ -214,7 +214,12 @@ fn the_sounds_of_a_trigger_are_exported_with_progress_and_the_trigger_name() -> 
             .is_some_and(|export| !export.is_running())
     })?;
     let export = harness.state().sounds().export().ok_or("no export")?;
-    let SoundsExportStatus::Finished { report, cancelled } = export.status() else {
+    let SoundsExportStatus::Finished {
+        report,
+        cancelled,
+        undefined: _,
+    } = export.status()
+    else {
         return Err("not finished".into());
     };
     assert!(!cancelled, "not stopped");
@@ -247,5 +252,36 @@ fn the_tab_is_german_in_the_german_window() -> TestResult {
         harness.query_by_label("Sounds anzeigen").is_some(),
         "German action"
     );
+    Ok(())
+}
+
+#[test]
+fn stopping_an_export_waits_for_it_and_clearing_a_search_keeps_the_entity_list() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish, SIZE, &FakeOutput::default())?;
+    harness
+        .state_mut()
+        .sounds_mut()
+        .set_entity_text("TEST_Ship");
+    harness.state_mut().sounds_mut().show_entity_text();
+    harness.state_mut().sounds_mut().set_query("");
+    listed(&mut harness)?;
+    assert_eq!(
+        rows(&harness).len(),
+        3,
+        "the Entity list survives clearing the search"
+    );
+
+    assert!(harness.state_mut().begin_sounds_export(), "setup opens");
+    let setup = harness
+        .state_mut()
+        .sounds_mut()
+        .export_setup_mut()
+        .ok_or("no setup")?;
+    setup.set_folder(dir.path().join("out"));
+    assert!(harness.state_mut().submit_sounds_export(), "starts");
+    harness.state_mut().sounds_mut().stop_export();
+
+    let export = harness.state().sounds().export().ok_or("no export")?;
+    assert!(!export.is_running(), "ended before stop_export returned");
     Ok(())
 }

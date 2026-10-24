@@ -72,7 +72,6 @@ if ($PreviousMsi) {
     if ($oldRegistry.Count -eq 0) { throw 'the previous release wrote no registry key' }
     Invoke-Msiexec @('/i', $Msi) 'rename-upgrade.log'
     if (Test-Path $oldFolder) { throw "left behind after the rename upgrade: $oldFolder" }
-    New-Item -Path ('Registry::' + $oldRegistry[0]) -Force | Out-Null
     $registryAfter = @(Get-RegistryKeys)
     foreach ($key in $oldRegistry) {
         if ($registryAfter -contains $key) { throw "left behind after the rename upgrade: $key" }

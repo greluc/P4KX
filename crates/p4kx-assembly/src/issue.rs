@@ -200,6 +200,20 @@ pub enum IssueKind {
         /// Why.
         reason: String,
     },
+    /// The expression morph targets of a shaped piece cannot be made, so the piece is kept
+    /// without them.
+    #[error("the expression morph targets cannot be made: {reason}")]
+    MorphsFailed {
+        /// Why.
+        reason: String,
+    },
+    /// An expression the piece was asked for is no blendshape of its head rig, so it is not
+    /// written.
+    #[error("the head rig has no expression {name}")]
+    UnknownExpression {
+        /// The name that was asked for.
+        name: String,
+    },
 }
 
 impl IssueKind {
@@ -233,6 +247,8 @@ impl IssueKind {
             Self::BonesNotInSkeleton { .. } => "bones_not_in_skeleton",
             Self::NotSkinned => "not_skinned",
             Self::ShapeFailed { .. } => "shape_failed",
+            Self::MorphsFailed { .. } => "morphs_failed",
+            Self::UnknownExpression { .. } => "unknown_expression",
         }
     }
 

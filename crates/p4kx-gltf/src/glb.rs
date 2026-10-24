@@ -13,6 +13,7 @@ use crate::glb_plan::{plan_layout, single_animation_plans, summarise, texture_se
 use crate::instance::{Instance, Wrapper, material_requests};
 use crate::layout::Layout;
 use crate::materials::MaterialPlan;
+use crate::morphs::json_bytes;
 use crate::skin::inverse_binds;
 use crate::texture_loader::{NoTextures, TextureLoader};
 use crate::texture_plan::TextureSet;
@@ -133,6 +134,8 @@ pub struct GlbSummary {
     pub vertices: usize,
     /// The number of triangles of all meshes.
     pub triangles: usize,
+    /// The number of morph targets written, over all meshes.
+    pub morph_targets: usize,
     /// The animations that were asked for, in order, with what became of each; one without
     /// channels is not written.
     pub animations: Vec<AnimationSummary>,
@@ -309,7 +312,7 @@ pub(crate) fn write_file(
     images: &TextureSet,
     out: &mut impl Write,
 ) -> Result<u64, GltfError> {
-    let mut json = root.to_vec()?;
+    let mut json = json_bytes(root, layout)?;
     json.resize(json.len().next_multiple_of(4), b' ');
     let json_len = json.len() as u64;
     let bin_len = layout.len;

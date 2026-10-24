@@ -20,11 +20,11 @@ use p4kx_testkit::{
 
 use crate::assembly_support::{TestResult, fixture};
 
-fn head_path() -> String {
+pub(crate) fn head_path() -> String {
     format!("{MALE_HEAD_FOLDER}/{MALE_RIG}_head.skin")
 }
 
-fn dna_of_head_two_in_region_three() -> Dna {
+pub(crate) fn dna_of_head_two_in_region_three() -> Dna {
     let blends = |value, head_id| vec![DnaBlend { value, head_id }];
     Dna {
         gender_hash: MALE_RIG_HASH,

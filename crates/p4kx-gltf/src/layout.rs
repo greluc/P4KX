@@ -9,6 +9,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::axes::to_y_up;
 use crate::block_data::BlockData;
 use crate::materials::MaterialPlan;
+use crate::morphs::{MorphLayout, MorphTarget};
 use crate::skin::SET_LEN;
 use crate::texture_plan::EncodedImage;
 
@@ -44,6 +45,7 @@ pub(crate) struct MeshLayout {
     pub(crate) joints: Vec<usize>,
     pub(crate) weights: Vec<usize>,
     pub(crate) primitives: Vec<PrimitiveLayout>,
+    pub(crate) morphs: Vec<MorphLayout>,
     pub(crate) min: [f32; 3],
     pub(crate) max: [f32; 3],
 }
@@ -54,6 +56,7 @@ pub(crate) struct MeshLayout {
 pub(crate) struct Rigging<'m> {
     pub(crate) binds: Option<&'m [[f32; 16]]>,
     pub(crate) influences: Option<&'m [Vec<Influences>]>,
+    pub(crate) morphs: &'m [MorphTarget],
 }
 
 /// The inverse bind matrices of a mesh's skeleton and the influences to write for the mesh.
@@ -108,7 +111,11 @@ impl<'m> Layout<'m> {
                 .influences
                 .and_then(|all| all.get(position))
                 .map(Vec::as_slice);
+            let before = self.meshes.len();
             self.plan_mesh(part, mesh, colours_wanted, materials, (rigging.binds, own));
+            if position == 0 && self.meshes.len() > before {
+                self.plan_morphs(mesh, rigging.morphs);
+            }
         }
     }
 
@@ -203,6 +210,7 @@ impl<'m> Layout<'m> {
             joints,
             weights,
             primitives,
+            morphs: Vec::new(),
             min,
             max,
         });

@@ -4,6 +4,7 @@
 use p4kx_character::{Dna, DnaRig};
 use p4kx_model::{Mesh, Model};
 
+use super::expressions::{Expressions, Morphs, morphs};
 use super::normals::carry_normals;
 use crate::{ModelFailure, ModelProvider};
 
@@ -24,16 +25,24 @@ fn rig_path(path: &str, level: u32) -> Option<String> {
     })
 }
 
+/// A skin shaped by a Character's DNA, with the expression morphs `expressions` asked for.
+pub(super) struct Shaped {
+    pub(super) model: Model,
+    pub(super) morphs: Option<Result<Morphs, String>>,
+}
+
 /// Returns `model`, the skin at `path`, with its vertices moved to the shape `dna` describes.
 ///
 /// The moves are the neutral morphs of the DNA rig beside the skin, mixed by the DNA's weights;
-/// the normals follow the new surface.
+/// the normals follow the new surface. The morph targets of `expressions` are made from the same
+/// rig; their failure does not fail the shape.
 pub(super) fn shaped(
     model: &Model,
     path: &str,
     dna: &Dna,
+    expressions: &Expressions,
     models: &dyn ModelProvider,
-) -> Result<Model, String> {
+) -> Result<Shaped, String> {
     let level = model
         .lods
         .first()
@@ -72,7 +81,12 @@ pub(super) fn shaped(
         ));
     };
     apply(mesh, &moves).map_err(|problem| format!("{rig_path}: {problem}"))?;
-    Ok(shaped)
+    let morphs = (*expressions != Expressions::None)
+        .then(|| morphs(&rig, &matrix, mesh, path, expressions, models));
+    Ok(Shaped {
+        model: shaped,
+        morphs,
+    })
 }
 
 /// Moves the vertices of `mesh` by the moves of their stream vertices.

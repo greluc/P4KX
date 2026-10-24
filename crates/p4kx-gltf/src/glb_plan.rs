@@ -28,6 +28,7 @@ pub(crate) fn plan_layout<'m>(
             let rigging = Rigging {
                 binds,
                 influences: None,
+                morphs: &[],
             };
             layout.add_part(part, lod, options.vertex_colours, &instance.plan, rigging);
             if let Some(slot) = hidden.get_mut(part) {
@@ -162,6 +163,7 @@ pub(crate) fn summarise(
         skinned_meshes: meshes.iter().filter(|mesh| !mesh.joints.is_empty()).count(),
         vertices,
         triangles,
+        morph_targets: meshes.iter().map(|mesh| mesh.morphs.len()).sum(),
         animations: animations.iter().map(|plan| plan.summary.clone()).collect(),
         bytes,
         parts: 0,

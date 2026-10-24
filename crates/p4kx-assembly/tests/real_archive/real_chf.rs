@@ -14,6 +14,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(clippy::print_stdout, reason = "the count is the measurement")]
 fn every_chf_of_the_archive_round_trips_through_json_byte_exactly() -> TestResult {
     let archive = Archive::open_with_key(
         real_archive_path()?,
@@ -37,6 +38,10 @@ fn every_chf_of_the_archive_round_trips_through_json_byte_exactly() -> TestResul
             Err(error) => failures.push(format!("{}: {error}", entry.path())),
         }
     }
+    println!(
+        "{checked} CHF files round-tripped, {} failures",
+        failures.len()
+    );
     assert!(checked > 0, "the Archive holds CHF files");
     assert!(
         failures.is_empty(),

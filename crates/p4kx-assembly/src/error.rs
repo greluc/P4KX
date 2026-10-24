@@ -127,6 +127,16 @@ pub enum AssemblyError {
     /// merely cannot be resolved are issues of the Assembly instead.
     #[error("the models cannot be read")]
     Provider(#[source] Box<dyn std::error::Error + Send + Sync>),
+    /// The skeleton of a body variant is missing or unreadable, so nothing can be worn on it.
+    #[error("the {variant} skeleton cannot be loaded from {path}: {reason}")]
+    Body {
+        /// The code of the body variant, e.g. `male`.
+        variant: String,
+        /// The file that failed.
+        path: String,
+        /// What is wrong.
+        reason: String,
+    },
 }
 
 /// An Entity named by record path, GUID or class name cannot be found.

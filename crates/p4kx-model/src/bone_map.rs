@@ -50,6 +50,19 @@ impl Influences {
         }
     }
 
+    /// Returns the influences with every bone `joint` replaced by `map(joint)`; bones that map to
+    /// the same bone are added up, and the order is by weight again.
+    #[must_use]
+    pub fn remapped(&self, map: impl Fn(u16) -> u16) -> Self {
+        Self::from_pairs(
+            self.joints
+                .iter()
+                .zip(&self.weights)
+                .filter(|&(_, &weight)| weight > 0)
+                .map(|(&joint, &weight)| (map(joint), weight)),
+        )
+    }
+
     /// Returns the number of bones with a weight above 0.
     #[must_use]
     pub fn count(&self) -> usize {
@@ -118,5 +131,19 @@ impl<'a> BoneMapStream<'a> {
             .iter()
             .map(|&pair| u16::from_le_bytes(pair));
         Ok(Influences::from_pairs(joints.zip(weights.iter().copied())))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Influences;
+
+    #[test]
+    fn remapping_adds_up_bones_that_meet() {
+        let influences = Influences::from_pairs([(3, 100), (4, 100), (5, 55)].into_iter());
+        let remapped = influences.remapped(|joint| if joint < 5 { 1 } else { 2 });
+        assert_eq!(remapped.joints.get(..2), Some([1, 2].as_slice()));
+        assert_eq!(remapped.weights.get(..2), Some([200, 55].as_slice()));
+        assert_eq!(remapped.count(), 2);
     }
 }

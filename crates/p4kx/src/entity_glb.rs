@@ -23,7 +23,7 @@ use crate::query_table::one_line;
 /// The output of `p4kx entity glb` is the Archive it reads.
 #[derive(Debug, Error)]
 #[error("{} is the Archive the Entity is read from", .0.display())]
-pub(crate) struct GlbOutputIsArchive(PathBuf);
+pub(crate) struct GlbOutputIsArchive(pub(crate) PathBuf);
 
 #[derive(Serialize)]
 struct GlbJson<'a> {
@@ -228,7 +228,13 @@ fn print_report(
             summary.hidden_primitives
         )?;
     }
-    for issue in assembly.issues() {
+    print_issues(&mut stdout, assembly.issues())?;
+    stdout.flush()
+}
+
+/// Prints one line per issue: `skipped` for a part that is left out, `note` for the others.
+pub(crate) fn print_issues(out: &mut impl Write, issues: &[Issue]) -> io::Result<()> {
+    for issue in issues {
         let what = if issue.kind().skips() {
             "skipped"
         } else {
@@ -240,11 +246,11 @@ fn print_report(
             format!("{} ({})", issue.path(), issue.name())
         };
         writeln!(
-            stdout,
+            out,
             "{what} {}: {}",
             one_line(&path),
             one_line(&issue.kind().to_string())
         )?;
     }
-    stdout.flush()
+    Ok(())
 }

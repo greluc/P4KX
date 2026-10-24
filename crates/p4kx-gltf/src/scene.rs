@@ -193,7 +193,7 @@ pub fn write_scene_glb(
 
 /// Returns the level of `model` closest to `level` from below, or its lowest level when all are
 /// above it.
-fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
+pub(crate) fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
     model
         .lods
         .iter()

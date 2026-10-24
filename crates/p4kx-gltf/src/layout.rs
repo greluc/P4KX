@@ -3,7 +3,7 @@
 
 use std::io::Write;
 
-use p4kx_model::{Lod, Mesh};
+use p4kx_model::{Influences, Lod, Mesh};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::axes::to_y_up;
@@ -48,6 +48,17 @@ pub(crate) struct MeshLayout {
     pub(crate) max: [f32; 3],
 }
 
+/// The skeleton a part is skinned to: its inverse bind matrices, and per mesh the influences to
+/// write instead of the mesh's own.
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) struct Rigging<'m> {
+    pub(crate) binds: Option<&'m [[f32; 16]]>,
+    pub(crate) influences: Option<&'m [Vec<Influences>]>,
+}
+
+/// The inverse bind matrices of a mesh's skeleton and the influences to write for the mesh.
+type SkinSource<'m> = (Option<&'m [[f32; 16]]>, Option<&'m [Influences]>);
+
 /// The place of one embedded image in the binary chunk.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ImageBlock {
@@ -81,18 +92,23 @@ impl<'m> Layout<'m> {
 
     /// Plans the blocks of every mesh of `lod`, a level of the model instance `part`, that has
     /// vertices and triangles, leaving out the submeshes whose material draws nothing; vertex
-    /// colours only when `colours_wanted` is set. A skinned mesh gets its bone weights when
-    /// `binds`, the inverse bind matrices of the skeleton, are given.
+    /// colours only when `colours_wanted` is set. A skinned mesh gets its bone weights when the
+    /// inverse bind matrices of `rigging` are given; its influences, when it has any, replace
+    /// those of the meshes.
     pub(crate) fn add_part(
         &mut self,
         part: usize,
         lod: &'m Lod,
         colours_wanted: bool,
         materials: &MaterialPlan<'_>,
-        binds: Option<&'m [[f32; 16]]>,
+        rigging: Rigging<'m>,
     ) {
-        for mesh in &lod.meshes {
-            self.plan_mesh(part, mesh, colours_wanted, materials, binds);
+        for (position, mesh) in lod.meshes.iter().enumerate() {
+            let own = rigging
+                .influences
+                .and_then(|all| all.get(position))
+                .map(Vec::as_slice);
+            self.plan_mesh(part, mesh, colours_wanted, materials, (rigging.binds, own));
         }
     }
 
@@ -100,10 +116,10 @@ impl<'m> Layout<'m> {
         &mut self,
         mesh: &'m Mesh,
         binds: Option<&'m [[f32; 16]]>,
+        remapped: Option<&'m [Influences]>,
     ) -> (Vec<usize>, Vec<usize>) {
-        let influences = mesh
-            .influences
-            .as_deref()
+        let influences = remapped
+            .or(mesh.influences.as_deref())
             .filter(|influences| influences.len() == mesh.positions.len());
         let (Some(influences), Some(binds)) = (influences, binds) else {
             return (Vec::new(), Vec::new());
@@ -134,8 +150,9 @@ impl<'m> Layout<'m> {
         mesh: &'m Mesh,
         colours_wanted: bool,
         materials: &MaterialPlan<'_>,
-        binds: Option<&'m [[f32; 16]]>,
+        skin: SkinSource<'m>,
     ) {
+        let (binds, remapped) = skin;
         let drawn: Vec<(&'m [u32], u16)> = mesh
             .submeshes
             .iter()
@@ -173,7 +190,7 @@ impl<'m> Layout<'m> {
             .as_ref()
             .filter(|colours| colours_wanted && colours.len() == mesh.positions.len())
             .map(|colours| self.push(BlockData::Colours(colours)));
-        let (joints, weights) = self.plan_skin(mesh, binds);
+        let (joints, weights) = self.plan_skin(mesh, binds, remapped);
         let primitives = self.plan_primitives(&primitives, mesh.positions.len());
         self.meshes.push(MeshLayout {
             part,

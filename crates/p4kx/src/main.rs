@@ -3,6 +3,8 @@
 
 //! `p4kx`, the command-line interface of P4KX.
 
+mod armour;
+mod armour_glb;
 mod audio;
 mod bnk;
 mod catalog;
@@ -12,6 +14,7 @@ mod channels;
 mod chf;
 mod chunks;
 mod cli;
+mod cli_armour;
 mod cli_audio;
 mod cli_bnk;
 mod cli_catalog;
@@ -136,6 +139,7 @@ fn main() -> ExitCode {
         Command::Interior(args) => match args.action {
             cli_interior::InteriorAction::Glb(args) => interior_glb::run(&args, json).map(success),
         },
+        Command::Armour(args) => armour::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {

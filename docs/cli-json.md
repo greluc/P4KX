@@ -280,8 +280,44 @@ root joined by `/`, `name` the container, `.soc` file or model, and the kinds ar
 itself and not entered again), `file_missing`, `file_unreadable`, `invalid_placement`,
 `objects_left_out`, `unsupported_objects`, `geometry_missing`, `geometry_unreadable`,
 `material_library`, `too_many_parts`, `too_many_vertices` and `too_deep`
-([ADR-0079](adr/0079-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
+([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.
+## `p4kx armour bodies --json`
+
+```json
+{"bodies": [{"code": "male", "tag": "Male", "skeleton": "Objects/…/bhm_skeleton_v7.chr",
+             "skin": "Objects/…/m_body.skin"}, …]}
+```
+
+`code` is what `--body` takes, `tag` the tag a piece's Record gives its geometry for the variant,
+`skeleton` and `skin` the files of the default body.
+
+## `p4kx armour glb <archive> --piece <entity>… --out <file> --json`
+
+```json
+{"archive": "…", "body": "male", "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…",
+ "lod": 0, "pieces": 2, "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
+ "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
+ "materials": 19, "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
+ "issues": [Issue, …]}
+```
+
+`pieces` counts the `--piece` options, `parts` lists what was written: the skin of the body
+(`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after the
+piece's class name, with the model `file` as the Record spells it. `bones` and `nodes` count the
+glTF nodes: the bones, written once, and the nodes of the models. `skipped` counts the issues that
+leave a piece out. An Entity that no Record matches, or several do, exits with code 2 and writes
+nothing; a skeleton that is missing exits with code 3; an Archive key that is missing or wrong
+with code 7, and an `--out` that is the Archive with code 2.
+
+An **Issue** is as for `p4kx entity glb`, with the kinds of the pieces: `piece_not_found` (the
+Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometry), `no_variant_geometry`
+(the Record names geometry per body, but none for this one; the piece is left out),
+`geometry_missing` and `geometry_unreadable` (the model is not in the Archive or cannot be read),
+`bones_not_in_skeleton` (some bones of the model are not in the body skeleton and follow their
+nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is) and
+`material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
+class name; for `piece_not_found` it is the text given to `--piece`.
 
 ## `p4kx entity audio <archive> <entity> --json`
 

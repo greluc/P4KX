@@ -3535,6 +3535,7 @@ dependencies = [
  "p4kx-extraction",
  "p4kx-foundation",
  "p4kx-gltf",
+ "p4kx-guard",
  "p4kx-model",
  "p4kx-testkit",
  "rayon",

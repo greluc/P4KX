@@ -187,6 +187,10 @@ Early development (milestone M1). Available today:
   `Play_QDrive_Spool: Play_QDrive_Spool in SSQD_QDrive.bnk`; triggers that reach no soundbank are
   listed with the reason, and `--json` gives the shape in [docs/cli-json.md](docs/cli-json.md);
   `--sounds` lists the sounds of every trigger with their source and location, in `--lang`.
+- `p4kx wwise extract <archive> <trigger> --out <folder>` writes the sounds of an audio trigger as
+  `<trigger>[_<WEM ID>].ogg|wav` (`--format ogg|wav|raw`, `--conflict skip|overwrite|if-changed`,
+  `--lang`); a sound that cannot be decoded is reported and written as `.wem`.
+  `p4kx entity audio --extract <folder>` does the same for every trigger of an Entity.
 - `p4kx loc languages <archive>` lists the languages the Archive holds a `global.ini` for, with
   their codes (`en`, `de`, `fr`, `it`, `es-ES`, `es-419`, `pt-BR`, `ja`, `ko`, `zh-Hans`,
   `zh-Hant`); `p4kx loc get <archive> <key> [--lang <language>] [--fallback <language>]` prints the

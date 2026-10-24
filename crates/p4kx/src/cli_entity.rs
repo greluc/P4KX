@@ -7,7 +7,7 @@ use clap::{Args, Subcommand, ValueEnum};
 use p4kx_assembly::{ChangeError, LoadoutChanges};
 
 use crate::cli_model::lod_range;
-use crate::cli_wwise::AudioLanguageArgs;
+use crate::cli_wwise::{AudioLanguageArgs, SoundExportArgs};
 use crate::exit::EXIT_CODES_HELP;
 
 /// The material modes of `p4kx entity glb --materials`.
@@ -149,6 +149,12 @@ pub(crate) struct EntityAudioArgs {
     /// Also lists the sounds of every trigger: each variant with its source and WEM location.
     #[arg(long)]
     pub(crate) sounds: bool,
+    /// Writes the sounds of every trigger into this folder as Ogg or WAV files named
+    /// `<trigger>[_<WEM ID>].<ext>`, as `p4kx wwise extract` does; implies --sounds.
+    #[arg(long, value_name = "FOLDER")]
+    pub(crate) extract: Option<PathBuf>,
+    #[command(flatten)]
+    pub(crate) export: SoundExportArgs,
     #[command(flatten)]
     pub(crate) language: AudioLanguageArgs,
 }

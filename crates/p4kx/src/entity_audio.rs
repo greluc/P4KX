@@ -3,12 +3,13 @@
 
 use std::fmt::Write as _;
 use std::io::{self, BufWriter, Write};
+use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_assembly::Entities;
 use p4kx_assembly::audio::{
-    ArchiveAudio, AudioIndex, EntityAudio, EntityTrigger, EventMatch, IndexedSoundbank,
-    TriggerSounds, Unmatched, trigger_references,
+    ArchiveAudio, AudioIndex, EntityAudio, EntityTrigger, EventMatch, ExportReport,
+    IndexedSoundbank, LanguageChoice, TriggerSounds, Unmatched, trigger_references,
 };
 use p4kx_extraction::{DataForgeEntry, Record};
 use serde::Serialize;
@@ -17,6 +18,7 @@ use crate::cli::EntityAudioArgs;
 use crate::json;
 use crate::query_table::one_line;
 use crate::wwise::{break_line, language_choice, variant_line};
+use crate::wwise_extract::{self, ExportJson};
 use crate::wwise_json::{self, BreakJson, LanguageJson, VariantJson};
 
 const CLASS_PREFIX: &str = "EntityClassDefinition.";
@@ -30,6 +32,8 @@ struct AudioJson<'a> {
     entity: EntityJson<'a>,
     triggers: Vec<TriggerJson<'a>>,
     counts: Counts,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extraction: Option<ExportJson>,
     issues: Vec<IssueJson<'a>>,
 }
 
@@ -94,7 +98,7 @@ struct Counts {
 }
 
 /// Prints the audio triggers of an Entity with their Wwise events and soundbanks.
-pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<()> {
+pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<ExitCode> {
     let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -104,15 +108,7 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<()> {
     let index = audio.index();
     let choice = language_choice(index, &args.language)?;
     let resolved = index.resolve(references);
-    let sounds: Vec<Option<TriggerSounds<'_>>> = if args.sounds {
-        resolved
-            .triggers()
-            .iter()
-            .map(|trigger| audio.resolve_trigger_in(trigger.name(), &choice))
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let sounds = resolve_sounds(&audio, &resolved, &choice, args);
     let counts = Counts {
         triggers: resolved.triggers().len(),
         matched: resolved.matched_count(),
@@ -121,11 +117,15 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<()> {
             .len()
             .saturating_sub(resolved.matched_count()),
     };
+    let report = export_sounds(&audio, &sounds, args)?;
+    let code = report
+        .as_ref()
+        .map_or(ExitCode::SUCCESS, wwise_extract::exit_code);
     if as_json {
         json::print(&AudioJson {
             archive: json::path(archive.path()),
             entry: entry.path(),
-            language: args.sounds.then(|| LanguageJson::of(&choice)),
+            language: (args.sounds || args.extract.is_some()).then(|| LanguageJson::of(&choice)),
             entity: entity_json(&entity),
             triggers: resolved
                 .triggers()
@@ -136,15 +136,57 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<()> {
                 })
                 .collect(),
             counts,
+            extraction: report
+                .as_ref()
+                .zip(args.extract.as_deref())
+                .map(|(report, out)| wwise_extract::export_json(report, out, &args.export)),
             issues: issues_json(index),
         })?;
-        return Ok(());
+        return Ok(code);
     }
     warn(index)?;
     match print_text(&entity, &resolved, &sounds, counts) {
-        Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
-        _ => Ok(()),
+        Err(error) if error.kind() != io::ErrorKind::BrokenPipe => return Err(error.into()),
+        Err(_) => return Ok(code),
+        Ok(()) => {}
     }
+    if let (Some(report), Some(out)) = (&report, &args.extract) {
+        wwise_extract::print_report(report, out)?;
+    }
+    Ok(code)
+}
+
+fn resolve_sounds<'i>(
+    audio: &'i ArchiveAudio<'_>,
+    resolved: &EntityAudio<'i>,
+    choice: &LanguageChoice,
+    args: &EntityAudioArgs,
+) -> Vec<Option<TriggerSounds<'i>>> {
+    if !(args.sounds || args.extract.is_some()) {
+        return Vec::new();
+    }
+    resolved
+        .triggers()
+        .iter()
+        .map(|trigger| audio.resolve_trigger_in(trigger.name(), choice))
+        .collect()
+}
+
+fn export_sounds(
+    audio: &ArchiveAudio<'_>,
+    sounds: &[Option<TriggerSounds<'_>>],
+    args: &EntityAudioArgs,
+) -> Result<Option<ExportReport>> {
+    let Some(out) = &args.extract else {
+        return Ok(None);
+    };
+    let found: Vec<&TriggerSounds<'_>> = sounds.iter().flatten().collect();
+    Ok(Some(wwise_extract::export(
+        audio,
+        &found,
+        out,
+        &args.export,
+    )?))
 }
 
 fn entity_json<'a>(entity: &Record<'a>) -> EntityJson<'a> {

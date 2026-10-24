@@ -10,6 +10,7 @@ mod limits;
 mod pipelines;
 mod report;
 mod resources;
+mod skeleton;
 mod slot;
 mod target;
 #[cfg(test)]
@@ -30,6 +31,7 @@ use target::Target;
 
 use super::camera::Uniforms;
 use super::scene::Scene;
+use super::skeleton::Pose;
 
 const BASE_TEXTURE: u64 = 0;
 const MIN_TEXTURE_SIDE: u32 = 2048;
@@ -48,14 +50,26 @@ pub(super) struct ViewerGpu {
     mesh: Slot<MeshBuffers>,
     target: Option<Target>,
     drawn: Option<Drawn>,
+    posed: u64,
     samples: u32,
     linear_target: bool,
     report: Arc<GpuReport>,
 }
 
+/// How the model is drawn on top of the scene: in which pose, and whether with its skeleton.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Look {
+    /// The bone matrices of the pose to draw, or `None` for the bind pose.
+    pub(crate) pose: Option<Arc<Pose>>,
+    /// The width in device pixels of the skeleton lines, or `None` to leave the skeleton out.
+    pub(crate) bones: Option<f32>,
+}
+
 /// What the picture in the target shows, so a repaint with the same input skips the pass.
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Drawn {
+    pose: u64,
+    bones: Option<f32>,
     serial: u64,
     uniforms: Uniforms,
     size: [u32; 2],
@@ -79,14 +93,14 @@ pub fn install(state: &egui_wgpu::RenderState) -> Result<Arc<GpuReport>, Unavail
     Ok(report)
 }
 
-/// Builds the paint callback that draws `scene` seen through `uniforms` into `rect`, a view of
-/// `size` pixels.
+/// Builds the paint callback that draws `scene` in the `look` seen through `uniforms` into
+/// `rect`, a view of `size` pixels.
 #[must_use]
 pub(crate) fn paint_callback(
     rect: Rect,
     scene: Arc<Scene>,
     uniforms: Uniforms,
-    size: [u32; 2],
+    (size, look): ([u32; 2], Look),
 ) -> egui::PaintCallback {
     egui_wgpu::Callback::new_paint_callback(
         rect,
@@ -94,6 +108,7 @@ pub(crate) fn paint_callback(
             scene,
             uniforms,
             size,
+            look,
         },
     )
 }
@@ -102,6 +117,7 @@ struct SceneCallback {
     scene: Arc<Scene>,
     uniforms: Uniforms,
     size: [u32; 2],
+    look: Look,
 }
 
 impl egui_wgpu::CallbackTrait for SceneCallback {
@@ -214,6 +230,7 @@ impl ViewerGpu {
             mesh: Slot::default(),
             target: None,
             drawn: None,
+            posed: 0,
             samples,
             linear_target: target_format.is_srgb(),
             report,

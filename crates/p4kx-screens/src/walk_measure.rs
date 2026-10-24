@@ -11,8 +11,9 @@ use crate::style::{Modifiers, Subject};
 use crate::walk::Walk;
 use crate::widget::Widget;
 
-/// A widget measured under an ancestor chain, in a parent of a size, at a pixel size.
-pub(crate) type MeasureKey = (Guid, usize, u64, [u32; 2], u32);
+/// A widget measured under an ancestor chain and the modifiers of the clones in force, in a
+/// parent of a size, at a pixel size.
+pub(crate) type MeasureKey = (Guid, usize, u64, u64, [u32; 2], u32);
 
 /// A widget whose content size is asked for, with what the cascade made of it.
 pub(crate) struct Probe<'c> {
@@ -22,6 +23,7 @@ pub(crate) struct Probe<'c> {
     pub(crate) style: &'c Modifiers,
     pub(crate) geometry: &'c Geometry,
     pub(crate) kids: &'c [usize],
+    pub(crate) own: usize,
     pub(crate) has_children: bool,
 }
 
@@ -51,6 +53,7 @@ impl Walk<'_, '_, '_, '_> {
             probe.canvas.guid,
             probe.index,
             self.chain.last().copied().unwrap_or(0),
+            self.override_key(),
             [parent.width.to_bits(), parent.height.to_bits()],
             self.pixel.to_bits(),
         );
@@ -103,10 +106,23 @@ impl Walk<'_, '_, '_, '_> {
         let subject = Subject::of(&probe.widget.type_name, &probe.widget.tags);
         self.push_chain(&(&subject.kind, &subject.tags));
         self.above.push(subject);
+        let overridden = self.push_override(
+            probe.canvas,
+            (probe.index, probe.widget),
+            (probe.kids, probe.own),
+        );
         let mut extents = [Extent::default(); 2];
         let mut flowing = 0_u16;
-        for &kid in probe.kids {
-            let Some(outer) = self.outer_size(probe, kid, parent, depth) else {
+        for (position, &kid) in probe.kids.iter().enumerate() {
+            let instance = position >= probe.own;
+            if instance {
+                self.templates.push((probe.canvas.guid, kid));
+            }
+            let outer = self.outer_size(probe, kid, parent, depth);
+            if instance {
+                self.templates.pop();
+            }
+            let Some(outer) = outer else {
                 continue;
             };
             flowing = flowing.saturating_add(1);
@@ -115,6 +131,9 @@ impl Walk<'_, '_, '_, '_> {
                     extent.add(size);
                 }
             }
+        }
+        if overridden {
+            self.overrides.pop();
         }
         self.above.pop();
         self.chain.pop();
@@ -160,15 +179,16 @@ impl Walk<'_, '_, '_, '_> {
             .filter(|widget| widget.active && widget.in_flow)?;
         let style = self.style_of(probe.canvas, kid, widget);
         let geometry = Geometry::of(widget, &style);
-        let kids = self.plan_kids(probe.canvas, kid, widget).kids;
+        let plan = self.plan_kids(probe.canvas, kid, widget);
         let child = Probe {
             canvas: probe.canvas,
             index: kid,
             widget,
             style: &style,
             geometry: &geometry,
-            has_children: !kids.is_empty() || widget.canvas.is_some(),
-            kids: &kids,
+            has_children: !plan.kids.is_empty() || widget.canvas.is_some(),
+            kids: &plan.kids,
+            own: plan.own,
         };
         let content = self.content_of(&child, parent, depth + 1);
         let mut outer = [None; 2];

@@ -285,3 +285,31 @@ fn a_world_canvas_fits_its_root_widget_into_the_frame_and_centres_it() -> TestRe
     assert_eq!(pixel(&image, 160, 50), NOTHING, "right of the root");
     Ok(())
 }
+
+#[test]
+fn roots_of_other_sizes_do_not_make_a_pixel_canvas_a_world_canvas() -> TestResult {
+    let image = render(
+        TestCanvas::new(CANVAS, "layout", 200.0, 100.0)
+            .raw()
+            .widget(
+                TestWidget::display("dot")
+                    .size(TestDim::Fixed(1.0), TestDim::Fixed(1.0))
+                    .background(RED),
+            )
+            .widget(
+                TestWidget::display("panel")
+                    .size(TestDim::Fixed(50.0), TestDim::Fixed(50.0))
+                    .background(GREEN),
+            ),
+    )?;
+    assert!(
+        near(pixel(&image, 49, 49), [0, 255, 0, 255], 0),
+        "the large root is 50 pixels"
+    );
+    assert_eq!(
+        pixel(&image, 51, 10),
+        NOTHING,
+        "and not scaled to the frame"
+    );
+    Ok(())
+}

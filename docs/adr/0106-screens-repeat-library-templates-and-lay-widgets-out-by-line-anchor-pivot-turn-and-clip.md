@@ -40,8 +40,10 @@ and from what the names of the fields say, and the open ones are listed at the e
 ## Decisions
 
 - **Units.** A raw canvas counts fixed values in pixels of its own units, no more in canvas
-  heights. A canvas whose root widget has a fixed size of at most 3 on both axes (a world-space
-  canvas, such as a HUD) counts in world units instead: the root is scaled to fit the frame,
+  heights. A canvas whose largest root widget of fixed size, by area, is at most 3 on both axes
+  (a world-space canvas, such as a HUD) counts in world units instead; roots of other sizes do
+  not count, since some HUD canvases have twenty roots of which one is small. That root is scaled
+  to fit the frame,
   `min(frame width / root width, frame height / root height)` pixels per unit, the origin of its
   root widgets is the centre of the frame, and font sizes stay pixels. The canvas is laid out at
   the size of the frame divided by that scale and drawn under the scale, so a nested canvas keeps
@@ -65,13 +67,18 @@ and from what the names of the fields say, and the open ones are listed at the e
   template that contains a clone of itself, directly or through other templates, is repeated no
   deeper and listed, and the widget, depth and shape limits of ADR-0089 count every instance. The
   style of an instance, which depends on the type and tags of its ancestors only, is resolved once
-  per ancestor chain and widget, so a list of a thousand rows costs one cascade.
+  per ancestor chain, the modifiers of the clones in force and widget, so a list of a thousand
+  rows costs one cascade. Widgets of the library whose parents form a cycle, like those of the
+  scene, are listed and not drawn. Numbers a style entry sets for sizes, positions and padding
+  are held to ±10^6 and pivot and anchor to ±10^4; non-finite ones are ignored.
 - **Flex containers** place their children in lines, as the data suggests. The items of a line
   keep their sizes, grow by `growProportion` (an axis justification of `Stretch` shares what is
   free equally among items without growth), shrink by `shrinkProportion` times their size when
   the line is too long (an item without an item policy and `NoWrapInfinite` containers do not
   shrink), and are spread by the axis justification. A container that wraps starts a new line
-  when the next item does not fit; `WrapReverse` puts the lines in the reverse order. The lines
+  when the next item does not fit; `WrapReverse` puts the lines in the reverse order and starts
+  them at the end of the cross axis, so a `Start` cross justification packs them at the end (a
+  guess from the name). The lines
   are as high as their highest item, are placed across by the cross justification (and grow to fill
   the container for `Stretch`), and an item sits in its line by the item alignment (`Stretch`
   fills the line). A container that does not wrap has one line. Minimum and maximum sizes bound

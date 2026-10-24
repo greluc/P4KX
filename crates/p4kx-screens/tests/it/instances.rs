@@ -220,3 +220,35 @@ fn a_clone_without_a_target_is_reported_and_draws_nothing() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn the_modifiers_of_a_clone_change_the_size_its_container_takes() -> TestResult {
+    let image = render(
+        &canvas()
+            .template(template("tmpl", 40.0, 30.0))
+            .widget(
+                TestWidget::display("fit")
+                    .size(TestDim::Auto, TestDim::Auto)
+                    .flex("Row", "Start", "Start", 0.0)
+                    .background(GREEN),
+            )
+            .widget(
+                TestWidget::clone_of("copy", "tmpl")
+                    .parent("fit")
+                    .size(TestDim::Auto, TestDim::Auto)
+                    .with(
+                        "modifiers",
+                        clone_modifiers(&[TestModifier::Number("SizeX", 20.0)]),
+                    ),
+            ),
+    )?;
+    assert!(
+        red_at(&image, 15, 10),
+        "the template, as wide as the modifier says"
+    );
+    assert!(
+        empty_at(&image, 30, 10),
+        "the container is not as wide as the template without the modifier"
+    );
+    Ok(())
+}

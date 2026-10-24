@@ -65,6 +65,16 @@ impl Flex {
         }
     }
 
+    /// Returns how the lines are placed across: the start of a container that wraps in reverse
+    /// is the end of the cross axis.
+    const fn line_justification(&self) -> Justify {
+        match (self.wrap, self.lines) {
+            (Wrap::Reverse, Justify::Start) => Justify::End,
+            (Wrap::Reverse, Justify::End) => Justify::Start,
+            (_, how) => how,
+        }
+    }
+
     /// Replaces the column and row spacing a style sets.
     pub(crate) const fn apply_gaps(&mut self, [column, row]: [Option<f32>; 2]) {
         if let Some(gap) = column {
@@ -304,7 +314,7 @@ pub(crate) fn arrange(flex: &Flex, content: [f32; 2], items: &[Item]) -> Vec<Slo
         }
     }
     let free = at(content, cross) - spans.iter().sum::<f32>() - line_gap;
-    let (lead, between) = spread(flex.lines, free, lines.len());
+    let (lead, between) = spread(flex.line_justification(), free, lines.len());
     let order: Vec<usize> = if flex.wrap == Wrap::Reverse {
         (0..lines.len()).rev().collect()
     } else {

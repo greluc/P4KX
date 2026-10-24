@@ -324,3 +324,15 @@ fn aspect_overrides_height_takes_the_height_from_the_width() -> TestResult {
     assert!(empty_at(&image, 20, 25), "and no higher");
     Ok(())
 }
+
+#[test]
+fn numbers_a_style_sets_are_held_to_a_sane_range_or_ignored() -> TestResult {
+    let entry = TestStyleEntry::new("wild")
+        .when(TestCondition::Type("Base"))
+        .set(TestModifier::Number("SizeX", f32::NAN))
+        .set(TestModifier::Number("PosY", f32::INFINITY))
+        .set(TestModifier::Number("PivotX", 1.0e30));
+    let image = render(&canvas().embedded(entry).widget(square("steady", 20.0)))?;
+    assert!(empty_at(&image, 5, 5), "the pivot sent it far away");
+    Ok(())
+}

@@ -41,13 +41,14 @@ pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) chain: Vec<u64>,
     pub(crate) cache: HashMap<Guid, Rc<CanvasStyles>>,
     pub(crate) params: Vec<ParamValues>,
-    pub(crate) resolved: HashMap<(Guid, usize, u64), Rc<Modifiers>>,
+    pub(crate) resolved: HashMap<(Guid, usize, u64, u64), Rc<Modifiers>>,
     pub(crate) measured: HashMap<MeasureKey, [Option<f32>; 2]>,
     pub(crate) measures: usize,
     pub(crate) instances: usize,
     pub(crate) templates: Vec<(Guid, usize)>,
     pub(crate) overrides: Vec<Override>,
     pub(crate) pixel: f32,
+    pub(crate) turned: usize,
 }
 
 impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
@@ -83,6 +84,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             templates: Vec::new(),
             overrides: Vec::new(),
             pixel: 1.0,
+            turned: 0,
         }
     }
 
@@ -99,9 +101,13 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         index: usize,
         widget: &Widget,
     ) -> Rc<Modifiers> {
-        let key = (canvas.guid, index, self.chain.last().copied().unwrap_or(0));
-        let plain = self.overrides.is_empty();
-        if plain && let Some(known) = self.resolved.get(&key) {
+        let key = (
+            canvas.guid,
+            index,
+            self.chain.last().copied().unwrap_or(0),
+            self.override_key(),
+        );
+        if let Some(known) = self.resolved.get(&key) {
             return Rc::clone(known);
         }
         let mut style = resolve(
@@ -113,9 +119,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         );
         self.apply_overrides(canvas, index, &mut style);
         let style = Rc::new(style);
-        if plain {
-            self.resolved.insert(key, Rc::clone(&style));
-        }
+        self.resolved.insert(key, Rc::clone(&style));
         style
     }
 
@@ -153,6 +157,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
                 style: &style,
                 geometry: &geometry,
                 kids: &plan.kids,
+                own: plan.own,
                 has_children,
             };
             let content = self.content_of(&probe, frame.content, depth);
@@ -227,6 +232,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
                     );
                     return;
                 }
+                self.turned += 1;
                 true
             }
         };
@@ -244,6 +250,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         }
         if moved {
             self.cx.painter.pop_transform();
+            self.turned = self.turned.saturating_sub(1);
         }
     }
 
@@ -264,7 +271,11 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         if sibling.instance {
             self.templates.push((canvas.guid, sibling.index));
         }
-        let overridden = self.push_override(canvas, sibling);
+        let overridden = self.push_override(
+            canvas,
+            (sibling.index, widget),
+            (&sibling.kids, sibling.own_kids),
+        );
         let frame = Frame {
             content,
             flex: sibling.geometry.flex.as_ref(),
@@ -330,7 +341,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             .other_layout
             .as_ref()
             .map(|layout| format!("{layout} children are laid out as an overlay"));
-        let transformed = self.cx.painter.state.is_transformed();
+        let transformed = self.turned > 0;
         let checks = [
             (overlay.is_some(), overlay.as_deref().unwrap_or_default()),
             (

@@ -1342,6 +1342,8 @@ rows repeat the template without the values of their rows`, `fading edges of the
 drawn`, `gradient backgrounds are drawn in the plain colour of the background`, `borders that
 differ are drawn straight on a box with rounded corners`, `the turn and scale of the parent are
 not undone: they are inherited`, `a number of the geometry is not finite: the default is used`,
+`transform is not finite: not drawn`, `scale of the canvas is not finite: not drawn` (element
+`Canvas`),
 `no target that is a widget of the canvas: nothing repeated`, `the template contains a clone of
 itself: not repeated`, `clipping stopped at the 24th mask: later content is not clipped`,
 `colour slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not

@@ -59,19 +59,26 @@ fn a_style_entry_rounds_single_corners() -> TestResult {
 }
 
 #[test]
-fn a_gradient_background_is_drawn_plain_and_listed() -> TestResult {
-    let composed = compose(&canvas().widget(boxed().gradient(GREEN)))?;
-    let image = composed.rasterize(&crate::support::stage())?.image;
-    assert!(red_at(&image, 20, 20), "the plain colour");
-    assert!(
-        composed
-            .report()
-            .unsupported
-            .iter()
-            .any(|entry| entry.reason.contains("gradient")),
-        "{:?}",
-        composed.report().unsupported
-    );
+fn a_gradient_background_is_drawn_plain_and_listed_for_every_corner() -> TestResult {
+    for corner in [
+        "topLeftColor",
+        "topRightColor",
+        "bottomLeftColor",
+        "bottomRightCColor",
+    ] {
+        let composed = compose(&canvas().widget(boxed().gradient(corner, GREEN)))?;
+        let image = composed.rasterize(&crate::support::stage())?.image;
+        assert!(red_at(&image, 20, 20), "{corner}: the plain colour");
+        assert!(
+            composed
+                .report()
+                .unsupported
+                .iter()
+                .any(|entry| entry.reason.contains("gradient")),
+            "{corner}: {:?}",
+            composed.report().unsupported
+        );
+    }
     Ok(())
 }
 

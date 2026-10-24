@@ -27,11 +27,13 @@ const AVENGER_SCREENS: [&str; 3] = [
     "libs/foundry/records/ui/buildingblocks/components/map/mapdisplaymaster",
 ];
 
-const LAYOUT_GAPS: [&str; 4] = [
-    "wrapping flex containers",
-    "rotation is not applied",
-    "StackContainer children are laid out as an overlay",
+const LAYOUT_GAPS: [&str; 6] = [
     "parents form a cycle",
+    "StackContainer children",
+    "GridPackContainer children",
+    "no target that is a widget of the canvas",
+    "the template contains a clone of itself",
+    "is not finite",
 ];
 
 const NO_RENDERER: &str = "no renderer for this element type";

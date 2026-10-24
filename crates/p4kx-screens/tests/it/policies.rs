@@ -111,8 +111,7 @@ fn wrapped_lines_can_be_reversed_and_spread_across() -> TestResult {
             .widget(
                 TestWidget::display("row")
                     .flex("Row", "Start", "Start", 0.0)
-                    .wrap("WrapReverse")
-                    .lines("End"),
+                    .wrap("WrapReverse"),
             )
             .widget(boxed("a", "row", 60.0, 10.0, RED))
             .widget(boxed("b", "row", 60.0, 10.0, GREEN)),
@@ -121,6 +120,10 @@ fn wrapped_lines_can_be_reversed_and_spread_across() -> TestResult {
     assert!(
         red_at(&image, 5, 45),
         "and the first line is last, at the end"
+    );
+    assert!(
+        empty_at(&image, 5, 5),
+        "the lines start at the end of the cross axis"
     );
     Ok(())
 }

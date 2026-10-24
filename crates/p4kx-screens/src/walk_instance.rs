@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use p4kx_dataforge::Guid;
 
 use crate::canvas::Canvas;
-use crate::layout::Sibling;
 use crate::style::{Modifiers, merge};
 use crate::walk::Walk;
 use crate::widget::{CloneModifier, Widget};
@@ -22,6 +23,7 @@ const FROM_STATIC: &str = "list rows repeat the template without the values of t
 pub(crate) struct Override {
     canvas: Guid,
     root: usize,
+    key: u64,
     items: Vec<CloneModifier>,
 }
 
@@ -101,20 +103,29 @@ impl Walk<'_, '_, '_, '_> {
         }
     }
 
-    /// Puts the modifiers of a clone in force for its template; `true` when it did.
-    pub(crate) fn push_override(&mut self, canvas: &Canvas, sibling: &Sibling<'_>) -> bool {
-        let items = &sibling.widget.repeat.modifiers;
-        let root = sibling.kids.last().copied();
-        let (false, true, Some(root)) = (
-            items.is_empty(),
-            sibling.kids.len() > sibling.own_kids,
-            root,
-        ) else {
+    /// Returns what the modifiers in force add to the key of a resolved style or a measure.
+    pub(crate) fn override_key(&self) -> u64 {
+        self.overrides.last().map_or(0, |active| active.key)
+    }
+
+    /// Puts the modifiers of the clone `widget`, the widget `index` with the children `kids` of
+    /// which `own` are its own, in force for its template; `true` when it did.
+    pub(crate) fn push_override(
+        &mut self,
+        canvas: &Canvas,
+        (index, widget): (usize, &Widget),
+        (kids, own): (&[usize], usize),
+    ) -> bool {
+        let items = &widget.repeat.modifiers;
+        let (false, true, Some(&root)) = (items.is_empty(), kids.len() > own, kids.last()) else {
             return false;
         };
+        let mut hasher = DefaultHasher::new();
+        (self.override_key(), canvas.guid, index, root).hash(&mut hasher);
         self.overrides.push(Override {
             canvas: canvas.guid,
             root,
+            key: hasher.finish(),
             items: items.clone(),
         });
         true

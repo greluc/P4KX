@@ -47,7 +47,7 @@ pub struct TestWidget {
     policy: Option<TestInstance>,
     scale: [f32; 2],
     corner: Option<(f32, bool)>,
-    gradient: Option<TestColour>,
+    gradient: Option<(&'static str, TestColour)>,
     extra: Vec<(&'static str, TestValue)>,
 }
 
@@ -83,8 +83,8 @@ impl TestWidget {
         }
     }
 
-    pub(crate) const fn set_gradient(mut self, corner: TestColour) -> Self {
-        self.gradient = Some(corner);
+    pub(crate) const fn set_gradient(mut self, field: &'static str, corner: TestColour) -> Self {
+        self.gradient = Some((field, corner));
         self
     }
 
@@ -263,8 +263,8 @@ impl TestWidget {
             let mut background = TestInstance::new("BuildingBlocks_Background")
                 .value("enable", TestValue::Bool(true))
                 .value("color", colour.value());
-            if let Some(corner) = self.gradient {
-                background = background.value("topLeftColor", corner.value());
+            if let Some((field, corner)) = self.gradient {
+                background = background.value(field, corner.value());
             }
             instance = instance.value("background", TestValue::Struct(background));
         }

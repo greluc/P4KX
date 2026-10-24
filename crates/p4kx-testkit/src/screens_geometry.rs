@@ -23,7 +23,10 @@ pub(crate) fn box_structs() -> Vec<TestStruct> {
         TestStruct::new("BuildingBlocks_Background")
             .field("enable", TestType::Bool)
             .field("color", pointer("BuildingBlocks_Color"))
-            .field("topLeftColor", pointer("BuildingBlocks_Color")),
+            .field("topLeftColor", pointer("BuildingBlocks_Color"))
+            .field("topRightColor", pointer("BuildingBlocks_Color"))
+            .field("bottomLeftColor", pointer("BuildingBlocks_Color"))
+            .field("bottomRightCColor", pointer("BuildingBlocks_Color")),
         TestStruct::new("BuildingBlocks_BorderSide")
             .field("width", TestType::Single)
             .field("color", pointer("BuildingBlocks_Color")),
@@ -171,10 +174,11 @@ impl TestWidget {
         self.set_corner(radius, true)
     }
 
-    /// Gives the background a colour for its top left corner, which makes it a gradient.
+    /// Gives the background a colour for one of its corners, `topLeftColor`, `topRightColor`,
+    /// `bottomLeftColor` or `bottomRightCColor` as the data spells them, which makes it a gradient.
     #[must_use]
-    pub const fn gradient(self, corner: TestColour) -> Self {
-        self.set_gradient(corner)
+    pub const fn gradient(self, field: &'static str, corner: TestColour) -> Self {
+        self.set_gradient(field, corner)
     }
 
     /// Sets the overflow, `Visible`, `Clip`, `ClipFade` or `Fade`.

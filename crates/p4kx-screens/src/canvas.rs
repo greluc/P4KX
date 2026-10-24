@@ -142,16 +142,24 @@ impl Canvas {
     }
 }
 
+/// Returns the size of the largest root widget of fixed size when it is a few units only, which
+/// makes the canvas a world-space canvas; roots of other sizes do not count.
 fn world_root(widgets: &[Widget], roots: &[usize]) -> Option<[f32; 2]> {
-    roots.iter().find_map(|&index| {
-        let [Dim::Fixed(width), Dim::Fixed(height)] = widgets.get(index)?.size else {
-            return None;
-        };
-        let small = |value: f32| value > 0.0 && value <= WORLD_UNIT_LIMIT;
-        (small(width) && small(height)).then_some([width, height])
-    })
+    let [width, height] = roots
+        .iter()
+        .filter_map(|&index| match widgets.get(index)?.size {
+            [Dim::Fixed(width), Dim::Fixed(height)] if width.is_finite() && height.is_finite() => {
+                Some([width, height])
+            }
+            _ => None,
+        })
+        .max_by(|a, b| (a[0] * a[1]).total_cmp(&(b[0] * b[1])))?;
+    let small = |value: f32| value > 0.0 && value <= WORLD_UNIT_LIMIT;
+    (small(width) && small(height)).then_some([width, height])
 }
 
+/// Returns the widgets that neither a root of the scene nor a template without a parent in the
+/// library reaches: their parents form a cycle or name no widget.
 fn unreachable_widgets(
     widgets: &[Widget],
     scene_len: usize,
@@ -159,11 +167,12 @@ fn unreachable_widgets(
     children: &[Vec<usize>],
 ) -> Vec<usize> {
     let mut seen = vec![false; widgets.len()];
-    let mut stack: Vec<usize> = roots
-        .iter()
-        .copied()
-        .chain(scene_len..widgets.len())
-        .collect();
+    let templates = (scene_len..widgets.len()).filter(|&index| {
+        widgets
+            .get(index)
+            .is_some_and(|widget| !matches!(widget.parent, Parent::Library(_)))
+    });
+    let mut stack: Vec<usize> = roots.iter().copied().chain(templates).collect();
     while let Some(index) = stack.pop() {
         if let Some(flag) = seen.get_mut(index) {
             if *flag {
@@ -173,7 +182,7 @@ fn unreachable_widgets(
         }
         stack.extend(children.get(index).into_iter().flatten().copied());
     }
-    (0..scene_len)
+    (0..widgets.len())
         .filter(|index| !seen.get(*index).copied().unwrap_or(true))
         .collect()
 }

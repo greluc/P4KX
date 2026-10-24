@@ -9,6 +9,8 @@ use crate::style::Modifiers;
 use crate::widget::Widget;
 
 const MAX_SCALE: f32 = 1.0e4;
+const MAX_SHARE: f32 = 1.0e4;
+const MAX_STYLE: f32 = 1.0e6;
 const MAX_TURN: f32 = 1.0e6;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -156,10 +158,17 @@ const fn finite_or(value: f32, fallback: f32, invalid: &mut bool) -> f32 {
     }
 }
 
+/// Returns a number a style entry sets when it is finite, held to a sane range.
+fn limited(value: Option<f32>) -> Option<f32> {
+    value
+        .filter(|value| value.is_finite())
+        .map(|value| value.clamp(-MAX_STYLE, MAX_STYLE))
+}
+
 fn pick<const N: usize>(base: [f32; N], over: [Option<f32>; N]) -> [f32; N] {
     let mut out = base;
     for (slot, value) in out.iter_mut().zip(over) {
-        if let Some(value) = value {
+        if let Some(value) = limited(value) {
             *slot = value;
         }
     }
@@ -167,7 +176,7 @@ fn pick<const N: usize>(base: [f32; N], over: [Option<f32>; N]) -> [f32; N] {
 }
 
 fn bound_with(bound: Option<Dim>, amount: Option<f32>) -> Option<Dim> {
-    amount.map_or(bound, |amount| {
+    limited(amount).map_or(bound, |amount| {
         Some(bound.unwrap_or(Dim::Fixed(0.0)).with_amount(amount))
     })
 }
@@ -175,7 +184,7 @@ fn bound_with(bound: Option<Dim>, amount: Option<f32>) -> Option<Dim> {
 fn sized(base: [Dim; 2], over: [Option<f32>; 2]) -> [Dim; 2] {
     let mut out = base;
     for (dim, amount) in out.iter_mut().zip(over) {
-        if let Some(amount) = amount {
+        if let Some(amount) = limited(amount) {
             *dim = dim.with_amount(amount);
         }
     }
@@ -192,10 +201,10 @@ fn bounded(base: [Option<Dim>; 2], over: [Option<f32>; 2]) -> [Option<Dim>; 2] {
 
 fn padded(base: Edges, [top, right, bottom, left]: [Option<f32>; 4]) -> Edges {
     Edges {
-        top: top.unwrap_or(base.top),
-        right: right.unwrap_or(base.right),
-        bottom: bottom.unwrap_or(base.bottom),
-        left: left.unwrap_or(base.left),
+        top: limited(top).unwrap_or(base.top),
+        right: limited(right).unwrap_or(base.right),
+        bottom: limited(bottom).unwrap_or(base.bottom),
+        left: limited(left).unwrap_or(base.left),
     }
 }
 
@@ -227,8 +236,8 @@ impl Geometry {
             offset: [position[0] + shift[0], position[1] + shift[1]],
             padding: padded(widget.padding, over.padding),
             margin: widget.margin,
-            pivot: sane(pick(pose.pivot, over.pivot), 0.0, f32::MAX, &mut invalid),
-            anchor: sane(pick(pose.anchor, over.anchor), 0.0, f32::MAX, &mut invalid),
+            pivot: sane(pick(pose.pivot, over.pivot), 0.0, MAX_SHARE, &mut invalid),
+            anchor: sane(pick(pose.anchor, over.anchor), 0.0, MAX_SHARE, &mut invalid),
             rotation: sane(turn, 0.0, MAX_TURN, &mut invalid),
             scale: sane(pick(pose.scale, over.scale), 1.0, MAX_SCALE, &mut invalid),
             flex: widget.flex.map(|mut flex| {

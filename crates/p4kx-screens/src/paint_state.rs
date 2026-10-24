@@ -150,10 +150,6 @@ impl PaintState {
         !self.clips.is_empty()
     }
 
-    pub(crate) const fn is_transformed(&self) -> bool {
-        !self.transforms.is_empty()
-    }
-
     /// Returns the current transform from the pixels of the layout to the twips of the stage.
     pub(crate) fn to_twips(&self) -> Affine {
         in_twips(self.current())

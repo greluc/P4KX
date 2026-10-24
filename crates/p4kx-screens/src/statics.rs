@@ -9,8 +9,8 @@ use crate::reader::{as_struct, items, text};
 
 const ARRAY: &str = "BuildingBlocks_StaticVariableArray";
 
-/// Reads the static array variables of a canvas with the number of rows each holds, the most
-/// values any of its columns lists.
+/// Reads the static array variables of a canvas with the number of rows each holds: an entry of
+/// the array has as many rows as its longest column lists values, and the entries add up.
 pub(crate) fn static_arrays(root: &StructValue<'_>) -> HashMap<String, usize> {
     items(root, "staticVariables")
         .iter()

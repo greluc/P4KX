@@ -102,11 +102,57 @@ pub enum EntityText {
     Facts,
     /// Shown for an Entity without an item type.
     FactsNone,
+    /// The accessible name of the 3D view; takes `name`, `parts` and `triangles`.
+    ViewLabel,
+    /// The label of the choice of the level of detail.
+    ViewLod,
+    /// The label of the choice of the materials.
+    ViewMaterials,
+    /// The materials drawn as plain colours.
+    ViewColours,
+    /// The materials drawn with their textures.
+    ViewTextures,
+    /// Shown while the models are read; takes `count`.
+    ViewReading,
+    /// Shown while the models are prepared; takes `done` and `total`.
+    ViewFlattening,
+    /// Shown while the textures are read; takes `done` and `total`.
+    ViewTextureProgress,
+    /// The action that stops building the view.
+    ViewStop,
+    /// Building the view was stopped.
+    ViewStopped,
+    /// The action that builds the view again.
+    ViewRestart,
+    /// No part of the Loadout has a model to show.
+    ViewEmpty,
+    /// The Archive changed on disk, so the view was not built.
+    ViewArchiveChanged,
+    /// The models are encrypted and the Archive key is missing or wrong.
+    ViewKey,
+    /// The models cannot be read; takes `reason`.
+    ViewFailed,
+    /// The fact: the parts of the Assembly.
+    ViewParts,
+    /// The fact: the distinct meshes the parts share.
+    ViewMeshes,
+    /// The fact: the triangles of the parts.
+    ViewTriangles,
+    /// The action that shows every hidden branch; takes `count`.
+    ViewShowAll,
+    /// The parts of the Loadout the view could not resolve; takes `count`.
+    ViewIssues,
+    /// The action that hides a branch in the view.
+    Hide,
+    /// The action that shows a hidden branch in the view.
+    Show,
+    /// The port is hidden in the view.
+    StatusHidden,
 }
 
 impl EntityText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 49] = [
+    pub(crate) const ALL: [Self; 72] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -156,10 +202,34 @@ impl EntityText {
         Self::FactsSized,
         Self::Facts,
         Self::FactsNone,
+        Self::ViewLabel,
+        Self::ViewLod,
+        Self::ViewMaterials,
+        Self::ViewColours,
+        Self::ViewTextures,
+        Self::ViewReading,
+        Self::ViewFlattening,
+        Self::ViewTextureProgress,
+        Self::ViewStop,
+        Self::ViewStopped,
+        Self::ViewRestart,
+        Self::ViewEmpty,
+        Self::ViewArchiveChanged,
+        Self::ViewKey,
+        Self::ViewFailed,
+        Self::ViewParts,
+        Self::ViewMeshes,
+        Self::ViewTriangles,
+        Self::ViewShowAll,
+        Self::ViewIssues,
+        Self::Hide,
+        Self::Show,
+        Self::StatusHidden,
     ];
 
     /// Returns the Fluent message id.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one arm per text")]
     pub const fn id(self) -> &'static str {
         match self {
             Self::Tab => "entities-tab",
@@ -211,6 +281,29 @@ impl EntityText {
             Self::FactsSized => "entities-facts-sized",
             Self::Facts => "entities-facts",
             Self::FactsNone => "entities-facts-none",
+            Self::ViewLabel => "entities-view-label",
+            Self::ViewLod => "entities-view-lod",
+            Self::ViewMaterials => "entities-view-materials",
+            Self::ViewColours => "entities-view-colours",
+            Self::ViewTextures => "entities-view-textures",
+            Self::ViewReading => "entities-view-reading",
+            Self::ViewFlattening => "entities-view-flattening",
+            Self::ViewTextureProgress => "entities-view-texture-progress",
+            Self::ViewStop => "entities-view-stop",
+            Self::ViewStopped => "entities-view-stopped",
+            Self::ViewRestart => "entities-view-restart",
+            Self::ViewEmpty => "entities-view-empty",
+            Self::ViewArchiveChanged => "entities-view-archive-changed",
+            Self::ViewKey => "entities-view-key",
+            Self::ViewFailed => "entities-view-failed",
+            Self::ViewParts => "entities-view-parts",
+            Self::ViewMeshes => "entities-view-meshes",
+            Self::ViewTriangles => "entities-view-triangles",
+            Self::ViewShowAll => "entities-view-show-all",
+            Self::ViewIssues => "entities-view-issues",
+            Self::Hide => "entities-hide",
+            Self::Show => "entities-show",
+            Self::StatusHidden => "entities-status-hidden",
         }
     }
 }

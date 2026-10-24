@@ -6,15 +6,17 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_assembly::{ChangeError, LoadoutChanges, PortChange};
+use p4kx_assembly::{ChangeError, EntityNode, LoadoutChanges, PortChange};
 use p4kx_extraction::Guid;
+use p4kx_settings::ModelMaterials;
 
 use super::resolve::{ResolveFailure, resolve};
 use super::rows::LoadoutView;
+use super::view::AssemblyView;
 use crate::EntryIndex;
 use crate::model::describe;
 
-type Resolved = Result<LoadoutView, ResolveFailure>;
+type Resolved = Result<(LoadoutView, EntityNode), ResolveFailure>;
 
 /// The Loadout of the selected Entity: the changes made to it, the ports it resolves to and
 /// which branches are collapsed.
@@ -33,6 +35,7 @@ pub struct LoadoutSession {
     failure: Option<ResolveFailure>,
     collapsed: HashSet<String>,
     shown: Vec<usize>,
+    assembly: AssemblyView,
 }
 
 impl std::fmt::Debug for LoadoutSession {
@@ -52,19 +55,21 @@ impl LoadoutSession {
         index: &Arc<EntryIndex>,
         (guid, name, record_path): (Guid, &str, &str),
         wake: Arc<dyn Fn() + Send + Sync>,
+        initial: (u32, ModelMaterials),
     ) -> Self {
         let mut session = Self {
             guid,
             name: name.to_owned(),
             record_path: record_path.to_owned(),
             index: Arc::clone(index),
-            wake,
+            wake: Arc::clone(&wake),
             changes: LoadoutChanges::new(),
             view: None,
             pending: None,
             failure: None,
             collapsed: HashSet::new(),
             shown: Vec::new(),
+            assembly: AssemblyView::new(index, wake, initial),
         };
         session.resolve_again();
         session
@@ -78,7 +83,8 @@ impl LoadoutSession {
         let spawned = thread::Builder::new()
             .name("loadout".to_owned())
             .spawn(move || {
-                let view = resolve(&index, guid, &changes).map(|tree| LoadoutView::of(&tree));
+                let view =
+                    resolve(&index, guid, &changes).map(|tree| (LoadoutView::of(&tree), tree));
                 if sender.send(view).is_ok() {
                     wake();
                 }
@@ -97,24 +103,37 @@ impl LoadoutSession {
 
     /// Takes the ports once they are resolved; returns whether something changed.
     pub fn poll(&mut self) -> bool {
+        let built = self.assembly.poll();
         let Some(receiver) = &self.pending else {
-            return false;
+            return built;
         };
         let outcome = match receiver.try_recv() {
             Ok(outcome) => outcome,
-            Err(TryRecvError::Empty) => return false,
+            Err(TryRecvError::Empty) => return built,
             Err(TryRecvError::Disconnected) => Err(ResolveFailure::Failed(String::new())),
         };
         self.pending = None;
         match outcome {
-            Ok(view) => {
+            Ok((view, tree)) => {
                 self.view = Some(view);
                 self.failure = None;
                 self.reshow();
+                self.assembly.set_tree(tree);
             }
             Err(failure) => self.failure = Some(failure),
         }
         true
+    }
+
+    /// Returns the 3D view of the Loadout.
+    #[must_use]
+    pub const fn assembly(&self) -> &AssemblyView {
+        &self.assembly
+    }
+
+    /// Returns the 3D view of the Loadout for changing its choices.
+    pub const fn assembly_mut(&mut self) -> &mut AssemblyView {
+        &mut self.assembly
     }
 
     /// Returns the GUID of the Entity.

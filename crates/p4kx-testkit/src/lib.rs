@@ -28,6 +28,7 @@ mod dataforge_strings;
 mod dataforge_value;
 mod entity;
 mod entity_armour;
+mod entity_armour_loadout;
 mod entity_assembly;
 mod entity_cargo;
 mod entity_interior_sample;
@@ -90,6 +91,7 @@ pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
 pub use dataforge_value::{TestInstance, TestValue};
 pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry};
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
+pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
 pub use entity_interior_sample::{

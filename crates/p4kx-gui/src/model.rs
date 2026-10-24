@@ -20,6 +20,7 @@ mod game_watch;
 mod model_export_control;
 mod record_export_control;
 mod record_text;
+mod sounds_control;
 mod update;
 mod viewer_control;
 mod work_tab;
@@ -39,7 +40,7 @@ pub use work_tab::WorkTab;
 use crate::{
     AudioOutput, Browser, ChannelList, ComparisonTab, ContentSearchTab, DeviceOutput, EntryIndex,
     Extraction, ExtractionSetup, Language, LocalizationTab, PreviewTab, QueryTab, RecordTextChoice,
-    TagsTab, Texts, ViewerSupport,
+    SoundsTab, TagsTab, Texts, ViewerSupport,
 };
 
 /// Why an Archive could not be opened.
@@ -88,6 +89,7 @@ pub struct Model {
     query: QueryTab,
     localization: LocalizationTab,
     tags: TagsTab,
+    sounds: SoundsTab,
     content_search: ContentSearchTab,
     pending_hit: Option<PendingHit>,
     record_export: RecordExportState,
@@ -124,6 +126,7 @@ impl std::fmt::Debug for Model {
             .field("query", &self.query)
             .field("localization", &self.localization)
             .field("tags", &self.tags)
+            .field("sounds", &self.sounds)
             .field("content_search", &self.content_search)
             .field("record_export", &self.record_export)
             .field("glb_export", &self.glb_export)
@@ -164,6 +167,7 @@ impl Model {
             query: QueryTab::default(),
             localization: LocalizationTab::default(),
             tags: TagsTab::default(),
+            sounds: SoundsTab::default(),
             content_search: ContentSearchTab::default(),
             pending_hit: None,
             record_export: RecordExportState::default(),
@@ -272,6 +276,7 @@ impl Model {
                 self.localization.archive_opened();
                 self.tags.archive_opened();
                 self.assembly.tab.archive_opened();
+                self.sounds.archive_opened();
                 self.content_search.archive_opened();
                 self.pending_hit = None;
             }

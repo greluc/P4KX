@@ -103,7 +103,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      key that has no text in the language or its fallback, or a canvas for ui render --screen
      that no Record, several Records or a Record of another type name, or whose side is
      below 1 or above 16384 pixels
-  3 the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
+  3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
      read into memory, or with unreadable Entry data, also a socpak container that cannot be

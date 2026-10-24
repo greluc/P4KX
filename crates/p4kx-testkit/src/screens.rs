@@ -32,6 +32,7 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(widget_structs())
         .chain(widget_kinds())
         .chain(style_structs())
+        .chain(condition_structs())
         .chain(component_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
@@ -191,6 +192,11 @@ fn style_structs() -> Vec<TestStruct> {
                 "conditions",
                 pointer("BuildingBlocks_StyleSelectorCondition"),
             ),
+    ]
+}
+
+fn condition_structs() -> Vec<TestStruct> {
+    vec![
         TestStruct::new("BuildingBlocks_StyleSelectorCondition"),
         TestStruct::new("BuildingBlocks_StyleSelectorConditionType")
             .parent("BuildingBlocks_StyleSelectorCondition")

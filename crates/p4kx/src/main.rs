@@ -5,6 +5,7 @@
 
 mod armour;
 mod armour_glb;
+mod armour_loadout;
 mod audio;
 mod bnk;
 mod catalog;

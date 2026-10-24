@@ -24,6 +24,8 @@ pub enum WorkTab {
     Search,
     /// Picking a ship, vehicle or weapon of the open Archive to export with its Loadout.
     Entities,
+    /// Listing and playing the sounds of the Entities of the open Archive.
+    Sounds,
 }
 
 impl Model {
@@ -33,12 +35,12 @@ impl Model {
         self.work_tab
     }
 
-    /// Shows `tab` in the work surface, pausing a sound when it leaves the Archive.
+    /// Shows `tab` in the work surface, pausing a sound when it leaves the tab it plays in.
     pub fn set_work_tab(&mut self, tab: WorkTab) {
-        self.work_tab = tab;
-        if tab != WorkTab::Archive {
+        if self.work_tab != tab {
             self.pause_playback();
         }
+        self.work_tab = tab;
     }
 
     /// Returns the Comparison tab.

@@ -96,6 +96,8 @@ pub struct Material {
     /// The child elements that are neither `Textures`, `PublicParams`, `MatLayers` nor
     /// `SubMaterials`, as the file has them.
     pub elements: Vec<RawElement>,
+    /// What the reader's limits cut off, e.g. `layers beyond 64`; empty when nothing was.
+    pub truncated: Vec<String>,
 }
 
 impl Material {
@@ -123,6 +125,7 @@ impl Material {
             public_params: Vec::new(),
             layers: Vec::new(),
             elements: Vec::new(),
+            truncated: Vec::new(),
         }
     }
 

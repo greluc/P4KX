@@ -18,6 +18,7 @@ mod real_container_census;
 mod real_docked_vehicles;
 mod real_entity_interior;
 mod real_head;
+mod real_head_expressions;
 mod real_interior;
 mod real_interior_verification;
 mod real_layered_materials;

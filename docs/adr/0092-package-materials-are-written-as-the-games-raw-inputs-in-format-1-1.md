@@ -19,7 +19,9 @@ the layers (`MatLayers`, all attributes), the shader parameters (`PublicParams`)
 attribute of the material, the attributes and child elements of each texture slot (`TexMod`
 carries the UV tiling and offset) and every other child element, as name and text value in file
 order. Elements are kept to a depth of 8 and a count of 4096 per material, layers to 64, as the
-file is untrusted. A parameter, attribute or element the writer has never heard of is therefore
+file is untrusted. Beyond a limit the reader cuts off and records it (`Material::truncated`, an
+issue in the package); it never fails the file, so `entity glb` loses no material to it.
+Descriptions are keyed by library path and index, with the model's folder for a bare library name. A parameter, attribute or element the writer has never heard of is therefore
 in the package, unchanged: no list of known parameters has to be maintained for a new game
 version. The few values importers always need as numbers (`TintColor`, `WearTint`, `UVTiling`,
 `GlossMult` of a layer) are also written typed; a malformed one is absent, and the raw text stays.

@@ -50,6 +50,7 @@ pub(crate) struct Collected {
     index_of: HashMap<String, usize>,
     keys: HashMap<MaterialKey, usize>,
     layer_files: HashMap<String, Arc<MaterialStatus>>,
+    folder: String,
 }
 
 impl Collected {
@@ -72,6 +73,15 @@ impl Collected {
                 .and_then(p4kx_assembly::Part::palette)
                 .map(|palette| collected.palette_index(palette));
             collected.palette_of.push(palette);
+            collected.folder = part
+                .and_then(p4kx_assembly::Part::geometry)
+                .and_then(|geometry| {
+                    geometry
+                        .replace('\\', "/")
+                        .rsplit_once('/')
+                        .map(|(folder, _)| folder.to_ascii_lowercase())
+                })
+                .unwrap_or_default();
             let library = part.and_then(|part| part.materials().library());
             let described = drawn
                 .iter()
@@ -107,7 +117,12 @@ impl Collected {
         let material = library.materials.get(position)?;
         let index = (!library.single).then_some(position);
         let path = library_path(&library.path);
-        let key = (path.to_ascii_lowercase(), index);
+        let identity = if path.contains('/') {
+            path.to_ascii_lowercase()
+        } else {
+            format!("{}/{}", self.folder, path.to_ascii_lowercase())
+        };
+        let key = (identity, index);
         if let Some(&known) = self.keys.get(&key) {
             return Some(known);
         }
@@ -122,6 +137,23 @@ impl Collected {
         let paths = self.want_textures(material, drawn);
         self.keys.insert(key, at);
         self.descriptions.push(Described { description, paths });
+        for cut in &material.truncated {
+            self.issues.push(Issue {
+                origin: IssueOrigin::Material,
+                kind: "material".to_owned(),
+                path: path.clone(),
+                name: material.name.clone(),
+                skipped: false,
+                reason: format!("the material file is cut off: {cut}"),
+            });
+        }
+        if depth >= MAX_LAYER_DEPTH && !material.layers.is_empty() {
+            self.layer_issue(
+                material,
+                &path,
+                &format!("layers are followed {MAX_LAYER_DEPTH} files deep"),
+            );
+        }
         if depth < MAX_LAYER_DEPTH {
             for (number, layer) in material.layers.iter().enumerate() {
                 let found = self.layer_material(material, layer, models, depth);

@@ -46,8 +46,13 @@ pub(crate) enum ChfAction {
     /// skin of the character's head rig, its vertices moved by the character's face DNA into the
     /// character's neutral face, worn on the default body of the character's body variant (the
     /// male or female skeleton and body skin, as `armour glb` writes them). Y up, in metres.
-    /// Hair, eyes, teeth and expressions are not part of it. The head rig comes from the Archive;
-    /// a character without face DNA or for an unknown head rig is invalid input.
+    /// The expressions of the head rig, about 400 of its 495 blendshapes, are written as morph
+    /// targets of the head, named like the rig's controls, mixed by the character's DNA and
+    /// stored sparse; limit them with --expression or leave them out with --no-expressions. Only
+    /// the rig of LOD 0 has expressions, so the other levels are written without unless
+    /// --expression names some, which then fails. Hair, eyes and teeth are not part of it. The
+    /// head rig comes from the Archive; a character without face DNA or for an unknown head rig
+    /// is invalid input.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(ChfGlbArgs),
 }
@@ -69,4 +74,17 @@ pub(crate) struct ChfGlbArgs {
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    /// Writes only the expression with this name as a morph target; repeat the option for more.
+    /// A name is a control of the head rig, e.g. `CTL_jaw_open`, or the controls of a corrective
+    /// joined by `*`, in any case and with or without the prefix `CTL_`. A name the rig lacks is
+    /// listed as an issue and the command exits with code 1 after writing the file.
+    #[arg(
+        long = "expression",
+        value_name = "NAME",
+        conflicts_with = "no_expressions"
+    )]
+    pub(crate) expressions: Vec<String>,
+    /// Leaves the expressions out: the head has its neutral face only.
+    #[arg(long)]
+    pub(crate) no_expressions: bool,
 }

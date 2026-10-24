@@ -63,8 +63,9 @@ textures stay as they are:
 - skin (`HumanSkin_V2`): a material with a diffuse map is multiplied by the ratio of the chosen
   skin tone to the map's `SourceAverageColor`, divided by its largest channel when that is above
   1 so that the hue stays; one without a map takes the skin tone;
-- eyes (`Eye`): the same with `IrisColor`;
-- hair (`HairPBR`, `Hair`): the natural colour from the melanin (blond over brown to black) and the
+- eyes (`Eye`): the same with `IrisColor`; the colour tints the whole eye texture, sclera
+  included, because glTF cannot tint the iris alone;
+- hair (`HairPBR`; the lashes' `Hair` shader is left as it is): the natural colour from the melanin (blond over brown to black) and the
   redness, times the tint, mixed with the dye by `DyeAmount`. Dye applies only to a library whose
   hair materials declare `DyeAmount`: the brows' shaders do not, so a dye in the choice of a
   brow, which the default Characters carry as a blue they never show, is not drawn. A hair
@@ -83,7 +84,11 @@ game's face, not its pixels.
 pieces are made once, each distinct image embedded once, a texture that cannot be read keeps the
 plain colour and is listed. Hair cards (`HairPBR`) have no diffuse map, only an opacity map as
 `TexSlot1` (`_opac`): such a map becomes a white image with the opacity as alpha, the material's
-colour is the colour of the hair, and the material is alpha-masked at 0.5. `p4kx chf glb` writes
+colour is the colour of the hair, and the material is alpha-masked at 0.5. This holds for every
+`HairPBR` material with such a map in the shared writers, so `entity glb` and `model glb` cut hair
+cards out too (changelog fragment `152-changed`); a `HairPBR` material without an opacity map is
+unchanged. The cut-out hair follows the shaped head with a kernel that reaches zero at 10 cm, so
+a card crossing that distance gets no step. `p4kx chf glb` writes
 the textures by default at mip 1, which keeps the default Characters at some 40 MB; `--texture-mip
 0` and `--materials colours` choose otherwise.
 

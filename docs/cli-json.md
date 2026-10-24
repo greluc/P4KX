@@ -1648,11 +1648,13 @@ that cannot be shaped adds `shape_failed` (the DNA rig beside the head skin is m
 another rig, does not cover the vertices of the model, has a different vertex count than the
 skin, gives moves that are not finite, or the DNA names a head the rig lacks); the head is then
 left out, `skipped` counts it, the GLB is still written and the command exits with code 1 after
-printing the report. Three more Issues name what is missing without leaving a piece out:
-`piece_not_found` (an item whose Entity the Archive does not have, skipped), `geometry_missing`
-(its skin is not in the Archive, skipped), `material_choice_unknown` (the character's base
-material is in no lookup table, so the piece keeps its own) and `look_ignored` (the texture
-choices of a material, such as blemishes, makeup and tattoos, are not drawn). `--lod N` picks the
+printing the report. Items that cannot be worn leave the item out and count in `skipped`, the exit
+code staying 0: `piece_not_found` (an item whose Entity the Archive does not have),
+`geometry_missing` (its skin is not in the Archive) and `no_variant_geometry` (its Record has no
+geometry for the body variant). Two Issues leave the piece in and are notes only:
+`material_choice_unknown` (the character's base material is in no lookup table, so the piece keeps
+its own) and `look_ignored` (the texture choices of a material, such as blemishes, makeup and
+tattoos, are not drawn). `--lod N` picks the
 level of detail and `--no-vertex-colours` leaves the vertex colours out. A CHF that holds no face
 DNA or whose DNA names an unknown head rig exits with code 2, a file that is no CHF with code 3, a
 missing skeleton with code 3, an Archive key that is missing or wrong with code 7, and an `--out`

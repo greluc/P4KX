@@ -9,7 +9,7 @@ use p4kx_model::{Material, MaterialLibrary, MaterialStatus, srgb8_to_linear};
 
 const SKIN_SHADER: &str = "HumanSkin_V2";
 const EYE_SHADER: &str = "Eye";
-const HAIR_SHADERS: [&str; 2] = ["HairPBR", "Hair"];
+const HAIR_SHADERS: [&str; 1] = ["HairPBR"];
 const DIFFUSE_SLOT: &str = "TexSlot1";
 
 const BLOND: [f32; 3] = [0.45, 0.28, 0.10];

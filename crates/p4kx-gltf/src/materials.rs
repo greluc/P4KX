@@ -12,6 +12,8 @@ use json::material::{
 use json::validation::Checked::Valid;
 use p4kx_model::{Lod, Material, MaterialLibrary, TintPalette};
 
+use crate::texture_roles::sources_with;
+
 const GLASS_ALPHA: f32 = 0.3;
 const METAL_SPECULAR: f32 = 0.5;
 const DARK_DIFFUSE: f32 = 0.2;
@@ -195,9 +197,13 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
     }
 }
 
-/// Returns whether `material` draws hair cards, which are cut out by an opacity map.
+/// Returns whether `material` draws hair cards: a `HairPBR` material without a diffuse map whose
+/// `TexSlot1` is an opacity map, which cuts the cards out.
 pub(crate) fn is_hair_cards(material: &Material) -> bool {
     is_one_of(&material.shader, &HAIR_CARD_SHADERS)
+        && sources_with(material, true)
+            .diffuse
+            .is_some_and(|source| source.opacity)
 }
 
 /// Returns whether `material` is drawn with transparency, so that the alpha channel of its

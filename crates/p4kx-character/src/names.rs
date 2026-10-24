@@ -31,11 +31,12 @@ pub const BODY_COLOR: u32 = 0xbd53_0797;
 /// The hash of the colour parameter that sets the colour of the iris (`EyeColor`).
 pub const EYE_COLOR: u32 = 0x442a_34ac;
 
-/// The hash of the colour parameter that sets the dye of a hair, beard or eyebrow material.
+/// The hash of the colour parameter that sets the dye of a hair, beard or eyebrow material;
+/// inferred from the shipped characters, not documented.
 pub const HAIR_DYE_COLOR: u32 = 0x15e9_0814;
 
 /// The hash of the colour parameter that tints the natural colour of a hair, beard or eyebrow
-/// material; the shipped characters leave it white.
+/// material; inferred from the shipped characters, which mostly leave it white.
 pub const HAIR_TINT_COLOR: u32 = 0xa2c7_c909;
 
 #[cfg(test)]

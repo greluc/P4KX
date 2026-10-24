@@ -67,10 +67,13 @@ struct GlbJson<'a> {
     issues: Vec<IssueJson<'a>>,
 }
 
-/// The head of the character could not be shaped by its DNA, so the file lacks it.
+/// Parts of the head of the character could not be shaped by its DNA, so the file lacks them.
 #[derive(Debug, Error)]
-#[error("the head could not be shaped by its DNA and is not in {}", .0.display())]
-pub(crate) struct HeadNotShaped(PathBuf);
+#[error("{} could not be shaped by its DNA and is not in {}", .parts.join(", "), .out.display())]
+pub(crate) struct HeadNotShaped {
+    parts: Vec<String>,
+    out: PathBuf,
+}
 
 const fn origin_code(origin: PartOrigin) -> &'static str {
     match origin {
@@ -133,14 +136,21 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     {
         return Err(error.into());
     }
-    if armour
+    unshaped(&armour, &args.out).map_or(Ok(()), |error| Err(error.into()))
+}
+
+/// Returns the error for the parts of the head that could not be shaped, if there are any.
+fn unshaped(armour: &Armour, out: &Path) -> Option<HeadNotShaped> {
+    let parts: Vec<String> = armour
         .issues()
         .iter()
-        .any(|issue| matches!(issue.kind(), IssueKind::ShapeFailed { .. }))
-    {
-        return Err(HeadNotShaped(args.out.clone()).into());
-    }
-    Ok(())
+        .filter(|issue| matches!(issue.kind(), IssueKind::ShapeFailed { .. }))
+        .map(|issue| issue.name().to_owned())
+        .collect();
+    (!parts.is_empty()).then(|| HeadNotShaped {
+        parts,
+        out: out.to_path_buf(),
+    })
 }
 
 fn report<'a>(

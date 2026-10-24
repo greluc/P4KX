@@ -85,7 +85,8 @@ impl<'a> Field<'a> {
                         if squared > RANGE * RANGE {
                             continue;
                         }
-                        let weight = 1.0 / SOFTEN.mul_add(SOFTEN, squared);
+                        let fade = 1.0 - squared / (RANGE * RANGE);
+                        let weight = fade * fade / SOFTEN.mul_add(SOFTEN, squared);
                         weights += weight;
                         for (total, value) in sum.iter_mut().zip(by) {
                             *total += weight * value;
@@ -155,6 +156,21 @@ mod tests {
         let field = Field::new(&before, &after);
 
         assert_eq!(field.at([0.0, 0.0, 0.5]), [0.0; 3]);
+    }
+
+    #[test]
+    fn the_move_has_no_step_where_head_vertices_cross_the_range() {
+        let before: Vec<[f32; 3]> = (0..200_u16)
+            .map(|index| [0.0, 0.0, f32::from(index) * 0.0001])
+            .collect();
+        let after: Vec<[f32; 3]> = before.iter().map(|[x, y, z]| [*x, *y, z + 0.05]).collect();
+        let field = Field::new(&before, &after);
+        let edge = 0.0199 + super::RANGE;
+
+        let inside = field.at([0.0, 0.0, edge - 0.0002])[2];
+        let outside = field.at([0.0, 0.0, edge + 0.0002])[2];
+
+        assert!((inside - outside).abs() < 1e-3, "{inside} {outside}");
     }
 
     #[test]

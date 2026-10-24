@@ -1,0 +1,170 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use p4kx_dataforge::Guid;
+
+use super::{Piece, Wearable};
+use crate::resolver::LoadoutResolver;
+use crate::spec::{EntitySpec, LoadoutSpec};
+use crate::walk::Walk;
+use crate::{Attachment, EntityNode, LoadoutError, Target};
+
+const WORN_PREFIXES: [&str; 2] = ["Char_Armor_", "Char_Clothing_"];
+
+/// Returns whether an Entity of the `AttachDef.Type` `item_type` is armour or clothing worn on a
+/// body, ignoring ASCII case.
+#[must_use]
+pub fn is_worn_type(item_type: &str) -> bool {
+    WORN_PREFIXES.iter().any(|prefix| {
+        item_type
+            .get(..prefix.len())
+            .is_some_and(|start| start.eq_ignore_ascii_case(prefix))
+    })
+}
+
+/// A piece of a Loadout that a piece given on top of it replaced.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Replaced {
+    pub(crate) name: String,
+    pub(crate) by: String,
+    pub(crate) item_type: String,
+}
+
+impl Replaced {
+    /// Returns the name of the piece that was left out.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Returns the name of the piece that took its place.
+    #[must_use]
+    pub fn by(&self) -> &str {
+        &self.by
+    }
+
+    /// Returns the item type both pieces have.
+    #[must_use]
+    pub fn item_type(&self) -> &str {
+        &self.item_type
+    }
+}
+
+impl Piece {
+    /// Returns the `AttachDef.Type` of the Entity the piece wears, if it comes from one and the
+    /// Record names a type.
+    #[must_use]
+    pub fn item_type(&self) -> Option<&str> {
+        match &self.source {
+            super::piece::Source::Wearable(wearable) => {
+                Some(wearable.item_type()).filter(|item_type| !item_type.is_empty())
+            }
+            _ => None,
+        }
+    }
+
+    /// Puts `over` on top of the pieces of a Loadout: a piece of `over` with an item type takes
+    /// the place of the pieces of `base` with the same item type, ignoring ASCII case, and every
+    /// other piece of `over` is added. Returns the pieces, `base` first, and what was replaced.
+    #[must_use]
+    pub fn layer(base: Vec<Self>, over: Vec<Self>) -> (Vec<Self>, Vec<Replaced>) {
+        let mut replaced = Vec::new();
+        let mut pieces = Vec::with_capacity(base.len().saturating_add(over.len()));
+        for piece in base {
+            let taken_by = piece.item_type().and_then(|item_type| {
+                over.iter().find(|other| {
+                    other
+                        .item_type()
+                        .is_some_and(|other| other.eq_ignore_ascii_case(item_type))
+                })
+            });
+            if let (Some(by), Some(item_type)) = (taken_by, piece.item_type()) {
+                replaced.push(Replaced {
+                    name: piece.name.clone(),
+                    by: by.name.clone(),
+                    item_type: item_type.to_owned(),
+                });
+            } else {
+                pieces.push(piece);
+            }
+        }
+        pieces.extend(over);
+        (pieces, replaced)
+    }
+}
+
+impl LoadoutResolver<'_> {
+    /// Resolves the XML Loadout at `path`, a path as a Record names it, into a tree whose root
+    /// is no Entity: its ports are the Loadout's entries, with the Loadouts it includes merged.
+    ///
+    /// # Errors
+    ///
+    /// Returns the reason when no files were given to read it from or it cannot be read.
+    pub fn resolve_file(&mut self, path: &str) -> Result<EntityNode, LoadoutError> {
+        let loadout = LoadoutSpec::Xml(path.to_owned());
+        self.entries(Some(&loadout))?;
+        let spec = EntitySpec {
+            guid: Guid::default(),
+            record_path: path.to_owned(),
+            name: path.to_owned(),
+            ports: Vec::new(),
+            port_index: std::collections::HashMap::new(),
+            loadout: Some(loadout),
+            geometry: None,
+            variants: Vec::new(),
+            vehicle: None,
+            docked_vehicle: false,
+            attach_type: String::new(),
+            attach_sub_type: String::new(),
+            size: None,
+            container: None,
+        };
+        let mut walk = Walk::new(spec.guid, None);
+        Ok(self.node(&spec, None, &mut walk))
+    }
+
+    /// Returns the pieces of armour and clothing a Loadout tree holds, in tree order: every
+    /// Entity of an item type that [`is_worn_type`] accepts, wherever it hangs in the tree, named
+    /// `<port>/<class name>`.
+    ///
+    /// What cannot be resolved stays a [`Piece::failed`] so that the report lists it: an
+    /// attachment that fails, an Entity whose Record cannot be read, and what the root's own
+    /// Loadout could not read. Other Entities, such as weapons, are not pieces.
+    pub fn worn(&mut self, tree: &EntityNode) -> Vec<Piece> {
+        let mut pieces: Vec<Piece> = tree
+            .issues()
+            .iter()
+            .filter(|issue| {
+                !matches!(
+                    issue,
+                    LoadoutError::AmbiguousClass { .. }
+                        | LoadoutError::VehicleImplementation { .. }
+                )
+            })
+            .map(|issue| Piece::failed(tree.record_path(), issue.to_string()))
+            .collect();
+        for (path, port) in tree.walk() {
+            match port.attachment() {
+                Attachment::Entity(node) if is_worn_type(node.attach_type()) => {
+                    let name = format!("{}/{}", port.name(), node.class_name());
+                    let spec = self.spec(node.guid());
+                    pieces.push(match spec.as_ref() {
+                        Ok(spec) => Piece::wearable(Wearable::from_spec(spec)).named(name),
+                        Err(error) => Piece::failed(name, error.to_string()),
+                    });
+                }
+                Attachment::Unresolved(unresolved) => {
+                    let named = match unresolved.target() {
+                        Target::ClassName(class) => class.clone(),
+                        Target::Reference(guid) => guid.to_string(),
+                        Target::Unreadable => path,
+                    };
+                    let name = format!("{}/{named}", port.name());
+                    pieces.push(Piece::failed(name, unresolved.error().to_string()));
+                }
+                _ => {}
+            }
+        }
+        pieces
+    }
+}

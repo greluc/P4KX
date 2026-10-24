@@ -116,7 +116,7 @@ fn the_choice_of_a_piece_lists_only_armour_and_clothing() -> TestResult {
         .ok_or("no choice")?;
     let names: Vec<&str> = (0..chooser.shown_len())
         .filter_map(|at| chooser.get(at))
-        .map(|item| item.name())
+        .map(p4kx_gui::Item::name)
         .collect();
     assert_eq!(
         names,
@@ -278,7 +278,11 @@ fn a_chf_file_the_user_picks_is_read_and_a_broken_one_is_reported() -> TestResul
     })?;
     let tab = harness.state().model.characters();
     assert!(tab.head_failure().is_none(), "the failure is cleared");
-    assert_eq!(tab.head().map(|head| head.name()), Some("mine.chf"), "read");
+    assert_eq!(
+        tab.head().map(p4kx_gui::HeadInfo::name),
+        Some("mine.chf"),
+        "read"
+    );
     assert_eq!(tab.name(), "mine", "the Character is named after the file");
     Ok(())
 }
@@ -294,7 +298,12 @@ fn the_level_of_detail_is_chosen_from_the_offered_ones() -> TestResult {
     assert_eq!(tab.lod(), 2, "a known one is taken");
     settle(&mut harness)?;
     assert_eq!(
-        harness.state().model.characters().armour().map(|a| a.lod()),
+        harness
+            .state()
+            .model
+            .characters()
+            .armour()
+            .map(p4kx_assembly::Armour::lod),
         Some(2),
         "built at it"
     );

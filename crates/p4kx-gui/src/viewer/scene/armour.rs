@@ -35,7 +35,6 @@ impl MorphSpan {
     }
 }
 
-
 struct Piece<'a> {
     part: usize,
     mesh: &'a Mesh,
@@ -69,9 +68,11 @@ fn gather<'a>(
         triangles: 0,
     };
     for (at, part) in armour.parts().iter().enumerate() {
-        let (Some(lod), Some(Some(fit)), Some(world)) =
-            (level_of(part.model(), armour.lod()), fits.get(at), worlds.get(at))
-        else {
+        let (Some(lod), Some(Some(fit)), Some(world)) = (
+            level_of(part.model(), armour.lod()),
+            fits.get(at),
+            worlds.get(at),
+        ) else {
             continue;
         };
         for mesh in &lod.meshes {

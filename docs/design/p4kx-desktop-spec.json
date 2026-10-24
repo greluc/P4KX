@@ -985,7 +985,7 @@
   },
   "characterBuilder": {
     "dsClass": "previewPanel + facts-bar + segmented--sm + btn-ghost btn-xs + btn-outline btn-xs",
-    "decision": "D.48",
+    "decision": "D.49",
     "stackWidth": 560,
     "reportRows": 3,
     "reportHeight": 144,

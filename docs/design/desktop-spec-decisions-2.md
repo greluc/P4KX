@@ -451,3 +451,26 @@ Nach „Abbrechen" steht in der Leiste „Der Aufbau der Ansicht wurde abgebroch
 „Erneut aufbauen" (`.btn-outline.btn-xs`), die bisherige Ansicht bleibt. Ein Loadout ohne darstellbares Teil
 ersetzt die Ansicht durch die Meldung. Verlässt man den Tab oder wechselt die Auswahl, gibt der Viewer die
 Grafikpuffer der Baugruppe frei.
+
+**D.49 Tab „Charaktere" stellt einen Charakter zusammen.** Hinter „Sounds" steht der Tab „Charaktere"
+(`characterBuilder` in `p4kx-desktop-spec.json`). Oben eine Werkzeugleiste wie im Tab „Entities"
+(`TOOLBAR_PADDING`): die Eyebrow „Detailgrad" mit einer Segmentgruppe (`.segmented--sm`) 0 bis 3, die
+Eyebrow „Materialien" mit „Farben" und „Texturen" und rechts „Als GLB exportieren …" (`.btn-cta`).
+Darunter links ein verstellbares Auswahl-Panel (zwischen `sidebarMinWidth` und `sidebarMaxWidth`,
+rollbar) mit den Eyebrow-Gruppen „Körper" (Segmentgruppe „Männlich" und „Weiblich", gesperrt mit dem
+Hinweis „Der Kopf bestimmt den Körper.", solange ein Kopf gewählt ist), „Kopf" (Zeile mit CHF-Datei und
+Rig, `.btn-outline.btn-xs` „Aus dem Archiv wählen …" und „CHF-Datei öffnen …", `.btn-ghost.btn-xs`
+„Kopf entfernen"), „Rüstung und Kleidung" (Loadout-Zeile mit „Loadout wählen …" und „Loadout
+entfernen", die Teile als Zeilen mit Schließkreuz, „Teil hinzufügen …") und „Ausdrücke" (Checkbox „Ausdrücke
+des Kopfes laden", Radioliste „Neutrales Gesicht" und die Ausdrücke mit höchstens `expressionRows` (5)
+Zeilen, die rollt, Regler „Stärke"). Rechts davon Faktenleiste, Statuszeile (Spinner, Stufentext und
+„Abbrechen" wie in D.47), die 3D-Ansicht mit der Wiedergabeleiste der Modellansicht (D.46) und darunter
+der Bericht der Höhe `reportHeight` (144): „Teile, die nicht vollständig angepasst werden konnten (n)"
+mit „Ausgelassen:" in `color-warning`, „Hinweis:" und ersetzten Teilen des Loadouts in `color-gray-1`,
+sonst „Alle Teile passen.". Auswahl von Teil, Loadout und Kopf öffnet ein Modal wie die Auswahl des Ersatzes im Tab „Entities" mit Suchfeld und
+Liste. Unter `stackWidth` (560) der Arbeitsfläche steht alles in einer rollenden Spalte: Werkzeugleiste (die
+Gruppen untereinander), Auswahl, Ansicht in der Höhe von `assemblyView.panelHeight`, Bericht. Jede
+Änderung baut den Charakter im Hintergrund neu auf, die bisherige Ansicht bleibt bis dahin; ein Ausdruck
+verschiebt nur die Eckpunkte des Kopfes und lädt das Mesh neu. Der Export läuft im Hintergrund mit
+Fortschritt (geschriebene Bytes) und „Abbrechen" und zeigt danach Datei, Zahlen und die Zahl der
+ausgelassenen Teile.

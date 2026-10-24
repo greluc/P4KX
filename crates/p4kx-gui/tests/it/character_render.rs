@@ -11,7 +11,7 @@ use std::error::Error;
 use std::sync::Arc;
 
 use crate::characters::{State, TestResult, built, entries, wait_until};
-use crate::rendering::{BACKGROUND, pixel, render_state};
+use crate::rendering::{BACKGROUND, pixel, pixels, render_state};
 use crate::tagging::archive;
 use egui::Rect;
 use egui::accesskit::Role;
@@ -145,8 +145,7 @@ fn the_character_is_drawn_in_both_languages() -> TestResult {
 }
 
 fn view_pixels_of(harness: &Harness<'_, State>) -> [u32; 4] {
-    let rect = harness.get_by_role(Role::Canvas).rect();
-    [rect.left(), rect.top(), rect.right(), rect.bottom()].map(|edge| edge as u32)
+    pixels(harness.get_by_role(Role::Canvas).rect())
 }
 
 #[test]
@@ -252,15 +251,7 @@ fn a_tall_narrow_window_stacks_the_toolbar_the_choices_the_view_and_the_report()
         assert!(toolbar.bottom() <= canvas.top(), "toolbar above the view");
         assert!(canvas.bottom() <= report.top(), "the report below the view");
         assert!(
-            drawn(
-                &image,
-                [
-                    canvas.left() as u32,
-                    canvas.top() as u32,
-                    canvas.right() as u32,
-                    canvas.bottom() as u32
-                ]
-            ) > 0,
+            drawn(&image, pixels(canvas)) > 0,
             "the character is drawn in {language:?}"
         );
     }

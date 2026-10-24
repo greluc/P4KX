@@ -35,7 +35,7 @@ fn the_character_builder_metrics_match_the_desktop_spec() {
 fn the_character_builder_names_its_decision_and_parts() {
     let spec = character_builder();
 
-    assert_eq!(spec["decision"].as_str(), Some("D.48"), "decision");
+    assert_eq!(spec["decision"].as_str(), Some("D.49"), "decision");
     for key in ["dsClass", "layout", "choices", "report", "messages"] {
         assert!(
             spec[key].as_str().is_some_and(|text| !text.is_empty()),

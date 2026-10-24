@@ -205,8 +205,8 @@ mod tests {
 
         let first = chooser.get(0);
 
-        assert_eq!(first.map(|item| item.name()), Some("Grunt.xml"), "name");
-        assert_eq!(first.map(|item| item.detail()), Some("Character"), "folder");
+        assert_eq!(first.map(super::Item::name), Some("Grunt.xml"), "name");
+        assert_eq!(first.map(super::Item::detail), Some("Character"), "folder");
         assert_eq!(
             first.map(|item| item.key().clone()),
             Some(Key::Path("Scripts/Loadouts/Character/Grunt.xml".to_owned())),

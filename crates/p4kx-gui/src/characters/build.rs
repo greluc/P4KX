@@ -9,6 +9,7 @@ use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Armour, AssemblyError, AssemblyOptions, BodyVariant, Expressions,
     ForgeItems, Head, LoadoutResolver, ModelFailure, ModelProvider, Piece, ProvidedModel, Replaced,
 };
+use p4kx_extraction::DataForge;
 use p4kx_extraction::model::MaterialStatus;
 use p4kx_extraction::{CancelToken, Guid};
 
@@ -91,6 +92,49 @@ fn failed(reason: impl Into<String>) -> Ended {
     Ended::Failed(ModelExportFailure::Failed(reason.into()))
 }
 
+/// Returns the pieces to wear, the Loadout's with the given ones on top, and the head's, with
+/// the pieces of the Loadout that were replaced.
+fn worn(
+    forge: &DataForge<'_>,
+    files: &ArchiveFiles<'_>,
+    request: &Request,
+) -> Result<(Vec<Piece>, Vec<Replaced>), String> {
+    let mut resolver = LoadoutResolver::new(forge).with_files(files);
+    let given: Vec<Piece> = request
+        .pieces
+        .iter()
+        .map(|guid| {
+            forge.record_by_guid(*guid).map_or_else(
+                || Piece::failed(guid.to_string(), "the DataForge has no such Record"),
+                |record| match resolver.wearable(&record) {
+                    Ok(wearable) => Piece::wearable(wearable),
+                    Err(error) => Piece::failed(guid.to_string(), describe(&error)),
+                },
+            )
+        })
+        .collect();
+    let (mut pieces, replaced) = match &request.loadout {
+        Some(path) => {
+            let tree = resolver
+                .resolve_file(path)
+                .map_err(|error| describe(&error))?;
+            Piece::layer(resolver.worn(&tree), given)
+        }
+        None => (given, Vec::new()),
+    };
+    if let Some(character) = &request.character {
+        let head = Head::dressed(character, &mut ForgeItems::new(&mut resolver))
+            .map_err(|error| describe(&error))?;
+        let head = if request.expressions {
+            head.with_expressions(&Expressions::All)
+        } else {
+            head
+        };
+        pieces.extend(head.pieces().iter().cloned());
+    }
+    Ok((pieces, replaced))
+}
+
 /// Builds the Armour of `request` from `index` and flattens it into a scene.
 pub(super) fn run(
     index: &EntryIndex,
@@ -113,38 +157,10 @@ pub(super) fn run(
         Err(error) => return failed(describe(&error)),
     };
     let files = ArchiveFiles::new(index.archive());
-    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
-    let given: Vec<Piece> = request
-        .pieces
-        .iter()
-        .map(|guid| match forge.record_by_guid(*guid) {
-            Some(record) => match resolver.wearable(&record) {
-                Ok(wearable) => Piece::wearable(wearable),
-                Err(error) => Piece::failed(guid.to_string(), describe(&error)),
-            },
-            None => Piece::failed(guid.to_string(), "the DataForge has no such Record"),
-        })
-        .collect();
-    let (mut pieces, replaced) = match &request.loadout {
-        Some(path) => match resolver.resolve_file(path) {
-            Ok(tree) => Piece::layer(resolver.worn(&tree), given),
-            Err(error) => return failed(describe(&error)),
-        },
-        None => (given, Vec::new()),
+    let (pieces, replaced) = match worn(&forge, &files, request) {
+        Ok(worn) => worn,
+        Err(reason) => return failed(reason),
     };
-    if let Some(character) = &request.character {
-        match Head::dressed(character, &mut ForgeItems::new(&mut resolver)) {
-            Ok(head) => {
-                let head = if request.expressions {
-                    head.with_expressions(&Expressions::All)
-                } else {
-                    head
-                };
-                pieces.extend(head.pieces().iter().cloned());
-            }
-            Err(error) => return failed(describe(&error)),
-        }
-    }
     if cancel.is_cancelled() {
         return Ended::Cancelled;
     }

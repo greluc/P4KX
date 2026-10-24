@@ -34,7 +34,7 @@ fn moved(before: &Scene, after: &Scene) -> Vec<f32> {
         .vertices()
         .iter()
         .zip(after.vertices())
-        .filter(|(a, b)| a != b)
+        .filter(|(a, b)| a.iter().zip(b.iter()).any(|(x, y)| (x - y).abs() > 0.0))
         .map(|(a, b)| {
             (b[0] - a[0])
                 .abs()
@@ -56,6 +56,7 @@ fn the_expressions_are_not_loaded_until_asked_for() -> TestResult {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scenario in three steps")]
 fn an_expression_moves_the_face_by_its_strength_and_the_neutral_face_restores_it() -> TestResult {
     let mut window = with_head()?;
     window

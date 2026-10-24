@@ -70,7 +70,7 @@ fn the_character_is_written_as_one_skinned_glb_with_its_morph_targets() -> TestR
             .1
             .state_mut()
             .model
-            .start_character_export(file.clone(), || {}),
+            .start_character_export(file, || {}),
         "started"
     );
     window.1.run_steps(1);

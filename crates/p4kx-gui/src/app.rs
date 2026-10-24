@@ -122,6 +122,66 @@ impl App {
         }
     }
 
+    fn apply_dialog_result(&mut self, ui: &egui::Ui) -> bool {
+        let mut settings_changed = false;
+        match self.take_dialog_result() {
+            Some((Dialog::OpenArchive, path)) => ui::open(ui, &mut self.model, path),
+            Some((Dialog::AddFolder | Dialog::AddArchive, path)) => {
+                settings_changed = self.model.add_manual(path);
+            }
+            Some((Dialog::ExtractionFolder, path)) => {
+                if let Some(setup) = self.model.extraction_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
+            Some((Dialog::RecordExportFolder, path)) => {
+                if let Some(setup) = self.model.record_export_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
+            Some((Dialog::SoundsFolder, path)) => {
+                if let Some(setup) = self.model.sounds_mut().export_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
+            Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
+                self.choose_export_file(dialog, path);
+            }
+            Some((Dialog::CharacterChf, path)) => {
+                self.model
+                    .characters_mut()
+                    .choose_head(HeadSource::File(path));
+            }
+            Some((Dialog::CharacterFile, path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .start_character_export(path, move || ctx.request_repaint());
+            }
+            Some((Dialog::CatalogFile, path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .start_catalog(path, move || ctx.request_repaint());
+            }
+            Some((Dialog::ComparisonArchive(side), path)) => {
+                self.model.comparison_mut().set_archive(side, path);
+            }
+            Some((Dialog::QueryExport(format), path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .query_mut()
+                    .export(path, format, move || ctx.request_repaint());
+            }
+            Some((Dialog::ComparisonReport, path)) => {
+                let ctx = ui.ctx().clone();
+                if let Some(view) = self.model.comparison_mut().view_mut() {
+                    view.save_report(path, move || ctx.request_repaint());
+                }
+            }
+            None => {}
+        }
+        settings_changed
+    }
+
     fn take_dialog_result(&mut self) -> Option<(Dialog, PathBuf)> {
         let (dialog, receiver) = self.dialog.as_ref()?;
         let dialog = *dialog;
@@ -226,62 +286,7 @@ impl eframe::App for App {
         if !self.model.viewer_support().is_probed() {
             self.model.set_viewer_support(ViewerSupport::probe(frame));
         }
-        let mut settings_changed = false;
-        match self.take_dialog_result() {
-            Some((Dialog::OpenArchive, path)) => ui::open(ui, &mut self.model, path),
-            Some((Dialog::AddFolder | Dialog::AddArchive, path)) => {
-                settings_changed = self.model.add_manual(path);
-            }
-            Some((Dialog::ExtractionFolder, path)) => {
-                if let Some(setup) = self.model.extraction_setup_mut() {
-                    setup.set_folder(path);
-                }
-            }
-            Some((Dialog::RecordExportFolder, path)) => {
-                if let Some(setup) = self.model.record_export_setup_mut() {
-                    setup.set_folder(path);
-                }
-            }
-            Some((Dialog::SoundsFolder, path)) => {
-                if let Some(setup) = self.model.sounds_mut().export_setup_mut() {
-                    setup.set_folder(path);
-                }
-            }
-            Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
-                self.choose_export_file(dialog, path);
-            }
-            Some((Dialog::CharacterChf, path)) => {
-                self.model
-                    .characters_mut()
-                    .choose_head(HeadSource::File(path));
-            }
-            Some((Dialog::CharacterFile, path)) => {
-                let ctx = ui.ctx().clone();
-                self.model
-                    .start_character_export(path, move || ctx.request_repaint());
-            }
-            Some((Dialog::CatalogFile, path)) => {
-                let ctx = ui.ctx().clone();
-                self.model
-                    .start_catalog(path, move || ctx.request_repaint());
-            }
-            Some((Dialog::ComparisonArchive(side), path)) => {
-                self.model.comparison_mut().set_archive(side, path);
-            }
-            Some((Dialog::QueryExport(format), path)) => {
-                let ctx = ui.ctx().clone();
-                self.model
-                    .query_mut()
-                    .export(path, format, move || ctx.request_repaint());
-            }
-            Some((Dialog::ComparisonReport, path)) => {
-                let ctx = ui.ctx().clone();
-                if let Some(view) = self.model.comparison_mut().view_mut() {
-                    view.save_report(path, move || ctx.request_repaint());
-                }
-            }
-            None => {}
-        }
+        let settings_changed = self.apply_dialog_result(ui);
         let requests = ui::show(ui, &mut self.model);
         if let Some(dialog) = requests.dialog {
             self.start_dialog(ui.ctx(), dialog);

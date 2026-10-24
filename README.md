@@ -171,7 +171,7 @@ Early development (milestone M1). Available today:
   placed as one part, without the parts of its own Loadout.
 - `p4kx entity package <archive> <entity> --out <folder>` writes an Entity as a Blender package,
   a folder that does not depend on Blender's file format: `scene.json` (format version, source
-  Channel and Build, the node hierarchy with names and transforms), one GLB per distinct part
+  Channel and Build, the node hierarchy with names and transforms), one GLB per distinct mesh
   and the textures of the materials as PNG, each written once. `--lod`, `--texture-mip`,
   `--exclude` and `--replace` work as for `entity glb`. The folder is written beside the target
   and moved into place when complete; it must not exist or must hold an earlier package. The

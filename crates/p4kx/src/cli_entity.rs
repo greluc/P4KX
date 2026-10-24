@@ -86,7 +86,7 @@ pub(crate) enum EntityAction {
     Glb(EntityGlbArgs),
     /// Writes an Entity as a Blender package, a folder that does not depend on Blender's file
     /// format: `scene.json` with the version, the source Channel and Build and the node
-    /// hierarchy (names, transforms, the part each node draws), one GLB file per distinct part
+    /// hierarchy (names, transforms, the mesh each node draws), one GLB file per distinct mesh
     /// (a model drawn with one material library and palette, however many nodes use it) and
     /// the textures of the materials as PNG files, each written once. The Loadout, parts, levels
     /// of detail and Loadout changes are those of `entity glb`. The folder must not exist or must

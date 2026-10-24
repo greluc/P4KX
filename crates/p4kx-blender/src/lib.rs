@@ -8,8 +8,8 @@
 //!
 //! ```text
 //! <package>/
-//!   scene.json        the manifest: version, source, node hierarchy, parts, textures, issues
-//!   parts/p0001.glb   one GLB per distinct mesh set (model, material library and palette)
+//!   scene.json        the manifest: version, source, node hierarchy, meshes, textures, issues
+//!   meshes/m0001.glb  one GLB per distinct mesh set (model, material library and palette)
 //!   textures/t0001.png  one PNG per distinct texture of the materials
 //! ```
 //!
@@ -22,7 +22,7 @@ mod build;
 mod collect;
 mod error;
 mod manifest;
-mod parts;
+mod meshes;
 mod plan;
 mod schema;
 mod stage;
@@ -31,11 +31,13 @@ mod write;
 
 pub use error::PackageError;
 pub use manifest::{
-    BuildInfo, Coordinates, EntityRef, FORMAT, FORMAT_VERSION, Generator, Issue, MANIFEST_FILE,
-    Manifest, MaterialTextures, Node, Options, PARTS_FOLDER, Part, PartMaterial, Replacement,
-    Source, TEXTURES_FOLDER, Texture,
+    AlphaMeaning, Basis, BuildInfo, ColourSpace, Coordinates, EntityRef, FORMAT, FORMAT_VERSION,
+    Format, Generator, Issue, IssueOrigin, MANIFEST_FILE, MESHES_FOLDER, Manifest,
+    MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Replacement, Source,
+    TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };
 pub use schema::manifest_schema;
+pub use stage::check_output;
 pub use write::{PackageInfo, PackageSummary, write_package};
 
 pub(crate) type PackageResult<T> = Result<T, PackageError>;

@@ -62,7 +62,7 @@ fn the_schema_requires_the_fields_a_reader_depends_on() {
         "source",
         "coordinates",
         "nodes",
-        "parts",
+        "meshes",
         "textures",
     ] {
         assert!(required.contains(&name), "{name} is required: {required:?}");

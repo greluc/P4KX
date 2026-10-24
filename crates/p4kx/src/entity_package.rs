@@ -8,7 +8,9 @@ use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityNode, ForgePalettes,
     LoadoutResolver,
 };
-use p4kx_blender::{BuildInfo, Issue, PackageInfo, PackageSummary, Replacement, write_package};
+use p4kx_blender::{
+    BuildInfo, Issue, PackageInfo, PackageSummary, Replacement, check_output, write_package,
+};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, Build, DataForgeEntry, GlbOptions, is_same_file};
 use serde::Serialize;
@@ -29,8 +31,8 @@ struct PackageJson<'a> {
     texture_mip: u32,
     nodes: usize,
     drawn_nodes: usize,
-    parts: usize,
-    shared_parts: usize,
+    meshes: usize,
+    shared_meshes: usize,
     textures: usize,
     texture_pixels: u64,
     texture_failures: usize,
@@ -57,6 +59,7 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
     if is_same_file(&args.out, &args.archive) {
         return Err(GlbOutputIsArchive(args.out.clone()).into());
     }
+    check_output(&args.out)?;
     let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -116,8 +119,8 @@ impl<'a> PackageJson<'a> {
             texture_mip: args.texture_mip,
             nodes: summary.nodes,
             drawn_nodes: summary.drawn_nodes,
-            parts: summary.parts,
-            shared_parts: summary.shared_parts,
+            meshes: summary.meshes,
+            shared_meshes: summary.shared_meshes,
             textures: summary.textures,
             texture_pixels: summary.texture_pixels,
             texture_failures: summary.texture_failures,
@@ -172,12 +175,12 @@ fn print_report(
     let mut out = BufWriter::new(io::stdout().lock());
     writeln!(
         out,
-        "wrote {} of {}: {} nodes ({} drawn), {} parts, {} textures, {} files, {} vertices, {} triangles, {} bytes",
+        "wrote {} of {}: {} nodes ({} drawn), {} meshes, {} textures, {} files, {} vertices, {} triangles, {} bytes",
         args.out.display(),
         one_line(class_name),
         summary.nodes,
         summary.drawn_nodes,
-        summary.parts,
+        summary.meshes,
         summary.textures,
         summary.files,
         summary.vertices,
@@ -191,11 +194,11 @@ fn print_report(
         let (port, entity) = text.split_once('=').unwrap_or((text, ""));
         writeln!(out, "replaced {} by {}", one_line(port), one_line(entity))?;
     }
-    if summary.shared_parts > 0 {
+    if summary.shared_meshes > 0 {
         writeln!(
             out,
-            "{} nodes draw a part another node draws; {} parts are written once",
-            summary.shared_parts, summary.parts
+            "{} nodes draw a mesh another node draws; {} meshes are written once",
+            summary.shared_meshes, summary.meshes
         )?;
     }
     if summary.texture_failures > 0 {

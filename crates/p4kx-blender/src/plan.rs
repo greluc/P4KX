@@ -5,22 +5,22 @@ use std::collections::HashMap;
 
 use p4kx_assembly::{Assembly, Part};
 
-type PartKey = (usize, usize, usize);
+type MeshKey = (usize, usize, usize);
 
-/// The distinct parts of an Assembly and which part each of its parts draws.
+/// The distinct meshes of an Assembly and which mesh each of its parts draws.
 ///
-/// Two parts draw the same GLB part when they have the same model, material library and palette,
+/// Two parts draw the same GLB mesh when they have the same model, material library and palette,
 /// the same objects as the Assembly shares them (ADR-0077, ADR-0080).
 #[derive(Debug)]
-pub(crate) struct PartPlan {
+pub(crate) struct MeshPlan {
     firsts: Vec<usize>,
     instances: Vec<usize>,
     drawn: Vec<Option<usize>>,
 }
 
-impl PartPlan {
+impl MeshPlan {
     pub(crate) fn of(assembly: &Assembly) -> Self {
-        let mut index_of: HashMap<PartKey, usize> = HashMap::new();
+        let mut index_of: HashMap<MeshKey, usize> = HashMap::new();
         let mut firsts = Vec::new();
         let mut instances: Vec<usize> = Vec::new();
         let drawn = assembly
@@ -47,33 +47,33 @@ impl PartPlan {
         }
     }
 
-    /// Returns the number of distinct parts.
+    /// Returns the number of distinct meshs.
     pub(crate) const fn len(&self) -> usize {
         self.firsts.len()
     }
 
-    /// Returns the position in the Assembly of the first part that draws distinct part `index`.
+    /// Returns the position in the Assembly of the first part that draws distinct mesh `index`.
     pub(crate) fn first(&self, index: usize) -> Option<usize> {
         self.firsts.get(index).copied()
     }
 
-    /// Returns how many parts of the Assembly draw distinct part `index`.
+    /// Returns how many parts of the Assembly draw distinct mesh `index`.
     pub(crate) fn instances(&self, index: usize) -> usize {
         self.instances.get(index).copied().unwrap_or(0)
     }
 
-    /// Returns the distinct part the Assembly's part at `position` draws, if it has a model.
+    /// Returns the distinct mesh the Assembly's part at `position` draws, if it has a model.
     pub(crate) fn drawn_by(&self, position: usize) -> Option<usize> {
         self.drawn.get(position).copied().flatten()
     }
 }
 
-/// Returns the id of distinct part `index`.
-pub(crate) fn part_id(index: usize) -> String {
-    format!("p{:04}", index + 1)
+/// Returns the id of distinct mesh `index`.
+pub(crate) fn mesh_id(index: usize) -> String {
+    format!("m{:04}", index + 1)
 }
 
-fn key_of(part: &Part) -> Option<PartKey> {
+fn key_of(part: &Part) -> Option<MeshKey> {
     let model = part.model()?;
     Some((
         std::ptr::from_ref(model).addr(),

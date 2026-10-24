@@ -48,7 +48,7 @@ fn an_earlier_package_is_replaced_and_nothing_else_is_left_beside_it() -> TestRe
     let out = dir.path().join("ship");
 
     write(&assembly, &archive, &out, &never)?;
-    std::fs::write(out.join("parts").join("stale.glb"), b"stale")?;
+    std::fs::write(out.join("meshes").join("m9999.glb"), b"stale")?;
     write(&assembly, &archive, &out, &never)?;
 
     assert_eq!(
@@ -56,7 +56,7 @@ fn an_earlier_package_is_replaced_and_nothing_else_is_left_beside_it() -> TestRe
         ["ship"],
         "no temporary folder remains"
     );
-    assert!(!out.join("parts").join("stale.glb").exists());
+    assert!(!out.join("meshes").join("m9999.glb").exists());
     assert!(out.join("scene.json").is_file());
     Ok(())
 }
@@ -195,7 +195,7 @@ fn a_texture_that_cannot_be_loaded_is_an_issue_not_a_failure() -> TestResult {
     let failure = manifest
         .issues
         .iter()
-        .find(|issue| issue.origin == "texture")
+        .find(|issue| issue.origin == p4kx_blender::IssueOrigin::Texture)
         .ok_or("a texture issue")?;
     assert_eq!(failure.kind, "texture");
     assert!(
@@ -205,11 +205,61 @@ fn a_texture_that_cannot_be_loaded_is_an_issue_not_a_failure() -> TestResult {
     );
     assert!(
         manifest
-            .parts
+            .meshes
             .iter()
             .flat_map(|part| &part.materials)
             .all(|material| material.textures.diffuse.is_none()),
         "no material names a texture that is not there"
     );
+    Ok(())
+}
+
+#[test]
+fn a_package_folder_with_a_foreign_file_inside_is_not_replaced() -> TestResult {
+    let fixture = fixture(livery_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let assembly = assemble(&archive, "TEST_Livery")?;
+    let dir = tempfile::tempdir()?;
+
+    for (index, foreign) in ["meshes/notes.txt", "textures/m0001.glb", "meshes/m1.glb"]
+        .into_iter()
+        .enumerate()
+    {
+        let out = dir.path().join(format!("ship{index}"));
+        write(&assembly, &archive, &out, &never)?;
+        std::fs::write(out.join(foreign), b"mine")?;
+
+        let error = write(&assembly, &archive, &out, &never)
+            .err()
+            .ok_or("must fail")?;
+
+        assert!(
+            matches!(error, PackageError::NotAPackage { .. }),
+            "{foreign}: {error}"
+        );
+        assert_eq!(std::fs::read(out.join(foreign))?, b"mine");
+        assert!(out.join("scene.json").is_file());
+    }
+    Ok(())
+}
+
+#[test]
+fn check_output_judges_a_folder_without_an_archive() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let fresh = dir.path().join("fresh");
+    let other = dir.path().join("other");
+    std::fs::create_dir(&other)?;
+    std::fs::write(other.join("file.txt"), b"mine")?;
+
+    assert!(p4kx_blender::check_output(&fresh).is_ok());
+    assert!(matches!(
+        p4kx_blender::check_output(&other),
+        Err(PackageError::NotAPackage { .. })
+    ));
+    assert!(matches!(
+        p4kx_blender::check_output(Path::new("..")),
+        Err(PackageError::NoFolderName { .. })
+    ));
+    assert!(!fresh.exists(), "checking creates nothing");
     Ok(())
 }

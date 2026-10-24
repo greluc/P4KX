@@ -4,7 +4,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// The value of [`Manifest::format`].
+/// The value of [`Manifest::format`] as text.
 pub const FORMAT: &str = "p4kx-blender-package";
 
 /// The version of the package format this crate writes, `<major>.<minor>`.
@@ -16,35 +16,108 @@ pub const FORMAT_VERSION: &str = "1.0";
 /// The name of the manifest file in the package folder.
 pub const MANIFEST_FILE: &str = "scene.json";
 
-/// The folder of the GLB parts in the package folder.
-pub const PARTS_FOLDER: &str = "parts";
+/// The folder of the GLB meshes in the package folder.
+pub const MESHES_FOLDER: &str = "meshes";
 
 /// The folder of the PNG textures in the package folder.
 pub const TEXTURES_FOLDER: &str = "textures";
 
+/// The format name in `scene.json`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum Format {
+    /// A package of this tool.
+    #[serde(rename = "p4kx-blender-package")]
+    P4kxBlenderPackage,
+}
+
+/// The axes of every transform and of the GLB meshes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum Basis {
+    /// glTF's axes, Y up. A reader refuses a basis it does not know.
+    #[serde(rename = "gltf_y_up")]
+    GltfYUp,
+}
+
+/// The unit of every length.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum Unit {
+    /// Metres. A reader refuses a unit it does not know.
+    #[serde(rename = "metre")]
+    Metre,
+}
+
+/// The image format of a texture file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum TextureFormat {
+    /// An 8-bit RGBA PNG.
+    #[serde(rename = "png")]
+    Png,
+}
+
+/// How the colour channels of a texture are encoded.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ColourSpace {
+    /// sRGB transfer curve: colour data, such as a diffuse map.
+    Srgb,
+    /// Linear values: data such as normals, smoothness and metalness.
+    Linear,
+}
+
+/// What the alpha channel of a texture holds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum AlphaMeaning {
+    /// Nothing: the channel is fully opaque and is to be ignored.
+    None,
+    /// Opacity.
+    Opacity,
+    /// Smoothness, as in the alpha channel of a `_ddna` normal map.
+    Smoothness,
+}
+
+/// What a node places.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum NodeKind {
+    /// An Entity of the Archive; `entity` names it.
+    Entity,
+}
+
+/// What reported an issue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum IssueOrigin {
+    /// Resolving the Assembly.
+    Assembly,
+    /// Loading or writing a texture.
+    Texture,
+}
+
 /// The scene description of a package: `scene.json`.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Manifest {
-    /// Always [`FORMAT`]; tells a reader that the folder is a package.
-    pub format: String,
+    /// Always `p4kx-blender-package`; tells a reader that the folder is a package.
+    pub format: Format,
     /// The version of the package format, `<major>.<minor>`, see [`FORMAT_VERSION`]. A reader
     /// refuses a higher major version and warns about a higher minor one.
+    #[schemars(regex(pattern = r"^[0-9]+\.[0-9]+$"))]
     pub version: String,
     /// The program that wrote the package.
     pub generator: Generator,
     /// Where the scene comes from.
     pub source: Source,
-    /// The axes and unit of every transform and of the GLB parts.
+    /// The axes and unit of every transform and of the GLB meshes.
     pub coordinates: Coordinates,
     /// The choices the package was written with.
     pub options: Options,
     /// The scene hierarchy; a node comes after its parent.
     pub nodes: Vec<Node>,
-    /// The GLB parts, one per distinct mesh set; nodes reference them.
-    pub parts: Vec<Part>,
+    /// The GLB meshes, one per distinct mesh set; nodes reference them.
+    pub meshes: Vec<Mesh>,
     /// The PNG textures, each written once.
     pub textures: Vec<Texture>,
-    /// What could not be resolved or written, with the part or texture it concerns.
+    /// What could not be resolved or written, with the node or texture it concerns.
     pub issues: Vec<Issue>,
 }
 
@@ -99,12 +172,11 @@ pub struct EntityRef {
 /// The coordinate system of a package.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Coordinates {
-    /// Always `gltf_y_up`: glTF's axes, Y up, as the GLB parts have them. Node transforms are
-    /// already converted from the game's Z-up axes by the writer; a reader only maps glTF's axes
-    /// to its own.
-    pub basis: String,
-    /// Always `metre`.
-    pub unit: String,
+    /// The axes: always `gltf_y_up`, glTF's, as the GLB meshes have them. Node transforms are
+    /// already converted from the game's Z-up axes by the writer.
+    pub basis: Basis,
+    /// The unit: always `metre`.
+    pub unit: Unit,
 }
 
 /// The choices a package was written with.
@@ -116,7 +188,7 @@ pub struct Options {
     /// The mip level of the textures, 0 for the largest; a texture with fewer mips gives its
     /// smallest.
     pub texture_mip: u32,
-    /// Whether the parts carry the vertex colours of their meshes.
+    /// Whether the meshes carry the vertex colours of their models.
     pub vertex_colours: bool,
     /// The ports left out of the Loadout, as the paths `entity loadout` lists.
     pub exclude: Vec<String>,
@@ -133,9 +205,11 @@ pub struct Replacement {
     pub entity: String,
 }
 
-/// One node of the scene hierarchy: a placed Entity.
+/// One node of the scene hierarchy.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Node {
+    /// What the node places.
+    pub kind: NodeKind,
     /// The node's name, `<port>/<entity>`, or the class name for the root.
     pub name: String,
     /// The path of the node's port from the root, port names joined by `/`; empty for the root.
@@ -143,11 +217,12 @@ pub struct Node {
     /// The index of the parent node in `nodes`, absent for the root.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<usize>,
-    /// The Entity placed at the node.
-    pub entity: EntityRef,
-    /// The id of the part drawn at the node; absent when the Entity has no geometry.
+    /// The Entity placed at the node; present for the kind `entity`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub part: Option<String>,
+    pub entity: Option<EntityRef>,
+    /// The id of the mesh drawn at the node; absent when the node draws nothing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mesh: Option<String>,
     /// The translation relative to the parent, in metres.
     pub translation: [f32; 3],
     /// The rotation relative to the parent as a unit quaternion `[x, y, z, w]`.
@@ -156,35 +231,37 @@ pub struct Node {
     pub scale: [f32; 3],
 }
 
-/// One GLB part: the meshes of a model drawn with one material library and one palette.
+/// One GLB mesh: the geometry of a model drawn with one material library and one palette.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct Part {
-    /// The part's id, e.g. `p0001`; also the stem of its file.
+pub struct Mesh {
+    /// The mesh's id, e.g. `m0001`; also the stem of its file.
     pub id: String,
-    /// The GLB file relative to the package folder, e.g. `parts/p0001.glb`.
+    /// The GLB file relative to the package folder, e.g. `meshes/m0001.glb`.
     pub file: String,
     /// The geometry file in the Archive the model was read from, below `Data`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub geometry: Option<String>,
-    /// The name of the tint palette the part's colours were taken from, when it has one.
+    /// The name of the tint palette the mesh's colours were taken from, when it has one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub palette: Option<String>,
-    /// The number of nodes that draw this part; more than one means the part is instanced.
+    /// The number of nodes that draw this mesh; more than one means the mesh is instanced.
     pub instances: usize,
     /// The size of the file in bytes.
     pub bytes: u64,
-    /// The number of vertices of the part's meshes.
+    /// The number of vertices of the mesh.
     pub vertices: usize,
-    /// The number of triangles of the part's meshes.
+    /// The number of triangles of the mesh.
     pub triangles: usize,
-    /// The materials the part is drawn with, by the names of the glTF materials in its file.
-    pub materials: Vec<PartMaterial>,
+    /// The materials the mesh is drawn with, in the order of the glTF materials in its file.
+    pub materials: Vec<MeshMaterial>,
 }
 
-/// A material of a part and the textures its material file names.
+/// A material of a mesh and the textures its material file names.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-pub struct PartMaterial {
-    /// The name of the glTF material in the part's file.
+pub struct MeshMaterial {
+    /// The index of the glTF material in the mesh's file.
+    pub index: usize,
+    /// The name of the glTF material in the mesh's file.
     pub name: String,
     /// The textures that were written for the material.
     pub textures: MaterialTextures,
@@ -197,15 +274,12 @@ pub struct MaterialTextures {
     /// The diffuse map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub diffuse: Option<String>,
-    /// The normal map; with `smoothness_in_alpha` set its alpha channel holds the smoothness.
+    /// The normal map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub normal: Option<String>,
     /// The specular map.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub specular: Option<String>,
-    /// Whether the normal map's alpha channel holds the smoothness.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub smoothness_in_alpha: bool,
 }
 
 /// One texture file of the package.
@@ -217,28 +291,32 @@ pub struct Texture {
     pub file: String,
     /// The texture's path in the Archive, below `Data`.
     pub source: String,
-    /// The image format, `png` in version 1.
-    pub format: String,
+    /// The image format.
+    pub format: TextureFormat,
     /// The bits per channel; 8 in version 1.
     pub bit_depth: u8,
-    /// The width in pixels at the written mip level.
+    /// How the colour channels are encoded.
+    pub colour_space: ColourSpace,
+    /// What the alpha channel holds.
+    pub alpha: AlphaMeaning,
+    /// The width in pixels of the mip level that was written.
     pub width: u32,
-    /// The height in pixels at the written mip level.
+    /// The height in pixels of the mip level that was written.
     pub height: u32,
 }
 
 /// Something that could not be resolved or written.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct Issue {
-    /// What reported it: `assembly` or `texture`.
-    pub origin: String,
+    /// What reported it.
+    pub origin: IssueOrigin,
     /// A stable code of the kind, e.g. `geometry_missing` or `texture`.
     pub kind: String,
-    /// The port path of the part, or the texture file as the material file names it.
+    /// The port path of the node, or the texture file as the material file names it.
     pub path: String,
-    /// The class name of the part's Entity, or the name of the material.
+    /// The class name of the node's Entity, or the name of the material.
     pub name: String,
-    /// Whether the part is left out of the scene.
+    /// Whether the node is left out of the scene.
     pub skipped: bool,
     /// The reason in words. Untrusted text from the Archive.
     pub reason: String,

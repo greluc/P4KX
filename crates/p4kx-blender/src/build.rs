@@ -7,31 +7,29 @@ use p4kx_gltf::{DrawnMaterial, GlbOptions, GlbSummary, TextureFile, node_transfo
 use crate::PackageInfo;
 use crate::collect::Collected;
 use crate::manifest::{
-    Coordinates, EntityRef, FORMAT, FORMAT_VERSION, Generator, Issue, Manifest, MaterialTextures,
-    Node, Options, PARTS_FOLDER, Part, PartMaterial, Source, TEXTURES_FOLDER, Texture,
+    Basis, Coordinates, EntityRef, FORMAT_VERSION, Format, Generator, Issue, IssueOrigin,
+    MESHES_FOLDER, Manifest, MaterialTextures, Mesh, MeshMaterial, Node, NodeKind, Options, Source,
+    TEXTURES_FOLDER, Texture, TextureFormat, Unit,
 };
-use crate::plan::{PartPlan, part_id};
+use crate::plan::{MeshPlan, mesh_id};
 use crate::textures::{Outcome, id_of};
-
-const ORIGIN_ASSEMBLY: &str = "assembly";
-const ORIGIN_TEXTURE: &str = "texture";
 
 /// Everything the manifest is made of.
 pub(crate) struct Inputs<'a> {
     pub(crate) assembly: &'a Assembly,
     pub(crate) info: &'a PackageInfo,
     pub(crate) options: &'a GlbOptions,
-    pub(crate) plan: &'a PartPlan,
+    pub(crate) plan: &'a MeshPlan,
     pub(crate) collected: &'a Collected,
     pub(crate) outcomes: &'a [Outcome],
-    pub(crate) parts: &'a [GlbSummary],
+    pub(crate) meshes: &'a [GlbSummary],
 }
 
 /// Builds the manifest of a package whose files are written.
 pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
     let root = inputs.assembly.root();
     Manifest {
-        format: FORMAT.to_owned(),
+        format: Format::P4kxBlenderPackage,
         version: FORMAT_VERSION.to_owned(),
         generator: Generator {
             name: "p4kx".to_owned(),
@@ -52,8 +50,8 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
             ),
         },
         coordinates: Coordinates {
-            basis: "gltf_y_up".to_owned(),
-            unit: "metre".to_owned(),
+            basis: Basis::GltfYUp,
+            unit: Unit::Metre,
         },
         options: Options {
             lod: inputs.options.lod,
@@ -63,7 +61,7 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
             replace: inputs.info.replace.clone(),
         },
         nodes: nodes(inputs),
-        parts: parts(inputs),
+        meshes: meshes(inputs),
         textures: textures(inputs),
         issues: issues(inputs),
     }
@@ -78,14 +76,15 @@ fn nodes(inputs: &Inputs<'_>) -> Vec<Node> {
         .map(|(position, part)| {
             let transform = node_transform(part.local());
             Node {
+                kind: NodeKind::Entity,
                 name: part.name().to_owned(),
                 path: part.path().to_owned(),
                 parent: part.parent(),
-                entity: EntityRef {
+                entity: Some(EntityRef {
                     class_name: part.class_name().to_owned(),
                     guid: part.guid().to_string(),
-                },
-                part: inputs.plan.drawn_by(position).map(part_id),
+                }),
+                mesh: inputs.plan.drawn_by(position).map(mesh_id),
                 translation: transform.translation,
                 rotation: transform.rotation,
                 scale: transform.scale,
@@ -94,9 +93,9 @@ fn nodes(inputs: &Inputs<'_>) -> Vec<Node> {
         .collect()
 }
 
-fn parts(inputs: &Inputs<'_>) -> Vec<Part> {
+fn meshes(inputs: &Inputs<'_>) -> Vec<Mesh> {
     inputs
-        .parts
+        .meshes
         .iter()
         .enumerate()
         .map(|(index, summary)| {
@@ -104,9 +103,9 @@ fn parts(inputs: &Inputs<'_>) -> Vec<Part> {
                 .plan
                 .first(index)
                 .and_then(|position| inputs.assembly.parts().get(position));
-            let id = part_id(index);
-            Part {
-                file: format!("{PARTS_FOLDER}/{id}.glb"),
+            let id = mesh_id(index);
+            Mesh {
+                file: format!("{MESHES_FOLDER}/{id}.glb"),
                 id,
                 geometry: first
                     .and_then(p4kx_assembly::Part::geometry)
@@ -125,7 +124,8 @@ fn parts(inputs: &Inputs<'_>) -> Vec<Part> {
                     .map(|drawn| {
                         drawn
                             .iter()
-                            .map(|material| part_material(inputs, material))
+                            .enumerate()
+                            .map(|(index, material)| mesh_material(inputs, index, material))
                             .collect()
                     })
                     .unwrap_or_default(),
@@ -139,14 +139,13 @@ fn written_id(inputs: &Inputs<'_>, file: Option<&TextureFile>) -> Option<String>
     matches!(inputs.outcomes.get(position), Some(Outcome::Written { .. })).then(|| id_of(position))
 }
 
-fn part_material(inputs: &Inputs<'_>, material: &DrawnMaterial) -> PartMaterial {
+fn mesh_material(inputs: &Inputs<'_>, index: usize, material: &DrawnMaterial) -> MeshMaterial {
     let normal = written_id(inputs, material.normal.as_ref());
-    PartMaterial {
+    MeshMaterial {
+        index,
         name: material.name.clone(),
         textures: MaterialTextures {
             diffuse: written_id(inputs, material.diffuse.as_ref()),
-            smoothness_in_alpha: normal.is_some()
-                && material.normal.as_ref().is_some_and(|file| file.gloss),
             normal,
             specular: written_id(inputs, material.specular.as_ref()),
         },
@@ -161,14 +160,22 @@ fn textures(inputs: &Inputs<'_>) -> Vec<Texture> {
         .zip(inputs.outcomes)
         .enumerate()
         .filter_map(|(position, (wanted, outcome))| match outcome {
-            Outcome::Written { width, height, .. } => {
+            Outcome::Written {
+                width,
+                height,
+                colour_space,
+                alpha,
+                ..
+            } => {
                 let id = id_of(position);
                 Some(Texture {
                     file: format!("{TEXTURES_FOLDER}/{id}.png"),
                     id,
                     source: wanted.path.clone(),
-                    format: "png".to_owned(),
+                    format: TextureFormat::Png,
                     bit_depth: 8,
+                    colour_space: *colour_space,
+                    alpha: *alpha,
                     width: *width,
                     height: *height,
                 })
@@ -184,7 +191,7 @@ fn issues(inputs: &Inputs<'_>) -> Vec<Issue> {
         .issues()
         .iter()
         .map(|issue| Issue {
-            origin: ORIGIN_ASSEMBLY.to_owned(),
+            origin: IssueOrigin::Assembly,
             kind: issue.kind().code().to_owned(),
             path: issue.path().to_owned(),
             name: issue.name().to_owned(),
@@ -195,7 +202,7 @@ fn issues(inputs: &Inputs<'_>) -> Vec<Issue> {
     for (wanted, outcome) in inputs.collected.wanted.iter().zip(inputs.outcomes) {
         if let Outcome::Failed(reason) = outcome {
             issues.push(Issue {
-                origin: ORIGIN_TEXTURE.to_owned(),
+                origin: IssueOrigin::Texture,
                 kind: "texture".to_owned(),
                 path: wanted.file.clone(),
                 name: wanted.material.clone(),
@@ -210,7 +217,7 @@ fn issues(inputs: &Inputs<'_>) -> Vec<Issue> {
             if !refused.contains(&(file.as_str(), material.name.as_str())) {
                 refused.push((file.as_str(), material.name.as_str()));
                 issues.push(Issue {
-                    origin: ORIGIN_TEXTURE.to_owned(),
+                    origin: IssueOrigin::Texture,
                     kind: "texture_path".to_owned(),
                     path: file.clone(),
                     name: material.name.clone(),

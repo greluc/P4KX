@@ -11,12 +11,12 @@ use p4kx_gltf::{GlbOptions, TextureLoader};
 use crate::build::{Inputs, manifest};
 use crate::collect::Collected;
 use crate::manifest::{
-    BuildInfo, Issue, MANIFEST_FILE, PARTS_FOLDER, Replacement, TEXTURES_FOLDER,
+    BuildInfo, Issue, MANIFEST_FILE, MESHES_FOLDER, Replacement, TEXTURES_FOLDER,
 };
-use crate::plan::PartPlan;
+use crate::plan::MeshPlan;
 use crate::stage::Staging;
 use crate::textures::{self, Outcome};
-use crate::{Cancelled, PackageError, PackageResult, parts};
+use crate::{Cancelled, PackageError, PackageResult, meshes};
 
 /// What the package records about where the Assembly comes from and how it was chosen.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -59,25 +59,25 @@ impl PackageInfo {
 pub struct PackageSummary {
     /// The number of nodes of the scene.
     pub nodes: usize,
-    /// The number of nodes that draw a part.
+    /// The number of nodes that draw a mesh.
     pub drawn_nodes: usize,
-    /// The number of GLB parts, one per distinct mesh set.
-    pub parts: usize,
-    /// The number of nodes that draw a part another node already draws.
-    pub shared_parts: usize,
+    /// The number of GLB meshes, one per distinct mesh set.
+    pub meshes: usize,
+    /// The number of nodes that draw a mesh another node already draws.
+    pub shared_meshes: usize,
     /// The number of PNG textures written.
     pub textures: usize,
     /// The number of pixels of all textures written.
     pub texture_pixels: u64,
     /// The number of textures that could not be written; the materials keep their plain colours.
     pub texture_failures: usize,
-    /// The number of files in the package: the manifest, the parts and the textures.
+    /// The number of files in the package: the manifest, the meshes and the textures.
     pub files: usize,
     /// The size of all files in bytes.
     pub bytes: u64,
-    /// The number of vertices of all parts, each counted once.
+    /// The number of vertices of all meshes, each counted once.
     pub vertices: usize,
-    /// The number of triangles of all parts, each counted once.
+    /// The number of triangles of all meshes, each counted once.
     pub triangles: usize,
     /// The issues the manifest lists.
     pub issues: Vec<Issue>,
@@ -85,11 +85,11 @@ pub struct PackageSummary {
 
 /// Writes `assembly` as a package into the folder `out`.
 ///
-/// The package is a folder with `scene.json`, one GLB file per distinct part below `parts` and one
+/// The package is a folder with `scene.json`, one GLB file per distinct mesh below `meshes` and one
 /// PNG file per distinct texture below `textures`; the module documentation of the crate and
-/// `docs/blender-package.md` describe it. Parts are drawn with plain colours, with the palette of
+/// `docs/blender-package.md` describe it. Meshes are drawn with plain colours, with the palette of
 /// each part applied; the textures of their materials are written as they are in the Archive, at
-/// the mip level `options.texture_mip`, not baked into the parts. The level of detail, the mip
+/// the mip level `options.texture_mip`, not baked into the meshes. The level of detail, the mip
 /// level and the vertex colours are those of `options`; `options.materials` is ignored.
 ///
 /// Everything is written into a temporary folder next to `out`, which replaces `out` once the
@@ -104,7 +104,7 @@ pub struct PackageSummary {
 ///
 /// Returns [`PackageError::Refused`] when `out` lies inside a Star Citizen installation,
 /// [`PackageError::NotAPackage`] when `out` is something else than the above,
-/// [`PackageError::Part`] when a part does not fit in a GLB file, [`PackageError::Write`] when a
+/// [`PackageError::Mesh`] when a mesh does not fit in a GLB file, [`PackageError::Write`] when a
 /// file or folder cannot be written and [`PackageError::Cancelled`] when `cancelled` returned
 /// true.
 pub fn write_package(
@@ -117,7 +117,7 @@ pub fn write_package(
 ) -> PackageResult<PackageSummary> {
     let cancelled = Cancelled::new(cancelled);
     let staging = Staging::create(out)?;
-    let plan = PartPlan::of(assembly);
+    let plan = MeshPlan::of(assembly);
     let collected = Collected::of(assembly, &plan, options.lod);
     cancelled.check()?;
     let outcomes = if collected.wanted.is_empty() {
@@ -131,11 +131,11 @@ pub fn write_package(
             &cancelled,
         )?
     };
-    let written = parts::write_all(
+    let written = meshes::write_all(
         assembly,
         &plan,
         options,
-        &staging.path().join(PARTS_FOLDER),
+        &staging.path().join(MESHES_FOLDER),
         &cancelled,
     )?;
     cancelled.check()?;
@@ -146,7 +146,7 @@ pub fn write_package(
         plan: &plan,
         collected: &collected,
         outcomes: &outcomes,
-        parts: &written,
+        meshes: &written,
     });
     let manifest_len = write_manifest(&staging.path().join(MANIFEST_FILE), &manifest)?;
     let summary = summarise(&manifest, &outcomes, &written, manifest_len);
@@ -179,7 +179,7 @@ fn write_manifest(path: &Path, manifest: &crate::Manifest) -> PackageResult<u64>
 fn summarise(
     manifest: &crate::Manifest,
     outcomes: &[Outcome],
-    parts: &[p4kx_gltf::GlbSummary],
+    meshes: &[p4kx_gltf::GlbSummary],
     manifest_len: u64,
 ) -> PackageSummary {
     let mut summary = PackageSummary {
@@ -187,20 +187,20 @@ fn summarise(
         drawn_nodes: manifest
             .nodes
             .iter()
-            .filter(|node| node.part.is_some())
+            .filter(|node| node.mesh.is_some())
             .count(),
-        parts: manifest.parts.len(),
+        meshes: manifest.meshes.len(),
         textures: manifest.textures.len(),
-        files: 1 + manifest.parts.len() + manifest.textures.len(),
+        files: 1 + manifest.meshes.len() + manifest.textures.len(),
         bytes: manifest_len,
         issues: manifest.issues.clone(),
         ..PackageSummary::default()
     };
-    summary.shared_parts = summary.drawn_nodes.saturating_sub(summary.parts);
-    for part in parts {
-        summary.bytes += part.bytes;
-        summary.vertices += part.vertices;
-        summary.triangles += part.triangles;
+    summary.shared_meshes = summary.drawn_nodes.saturating_sub(summary.meshes);
+    for mesh in meshes {
+        summary.bytes += mesh.bytes;
+        summary.vertices += mesh.vertices;
+        summary.triangles += mesh.triangles;
     }
     for outcome in outcomes {
         match outcome {
@@ -208,6 +208,7 @@ fn summarise(
                 width,
                 height,
                 bytes,
+                ..
             } => {
                 summary.bytes += bytes;
                 summary.texture_pixels += u64::from(*width) * u64::from(*height);

@@ -10,13 +10,13 @@ use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, Scene, SceneNode, ScenePart, 
 use p4kx_model::Transform;
 use rayon::prelude::*;
 
-use crate::plan::{PartPlan, part_id};
+use crate::plan::{MeshPlan, mesh_id};
 use crate::{Cancelled, PackageError, PackageResult};
 
-/// Writes the GLB file `<folder>/<id>.glb` of every distinct part of `plan`, in parallel.
+/// Writes the GLB file `<folder>/<id>.glb` of every distinct mesh of `plan`, in parallel.
 pub(crate) fn write_all(
     assembly: &Assembly,
-    plan: &PartPlan,
+    plan: &MeshPlan,
     options: &GlbOptions,
     folder: &Path,
     cancelled: &Cancelled<'_>,
@@ -32,12 +32,12 @@ pub(crate) fn write_all(
 
 fn write_one(
     assembly: &Assembly,
-    plan: &PartPlan,
+    plan: &MeshPlan,
     index: usize,
     options: &GlbOptions,
     folder: &Path,
 ) -> PackageResult<GlbSummary> {
-    let id = part_id(index);
+    let id = mesh_id(index);
     let first = plan
         .first(index)
         .and_then(|position| assembly.parts().get(position));
@@ -54,14 +54,14 @@ fn write_one(
         let node = SceneNode::new(part.class_name(), None, Transform::IDENTITY).with_part(drawn);
         scene
             .push(node)
-            .map_err(|source| part_error(&id, &name, source))?;
+            .map_err(|source| mesh_error(&id, &name, source))?;
     }
     let path = folder.join(format!("{id}.glb"));
     let file = File::create_new(&path).map_err(|source| PackageError::write(&path, source))?;
     let mut writer = BufWriter::new(file);
     let summary = write_scene_glb(&scene, options, &mut writer).map_err(|error| match error {
         GltfError::Write(source) => PackageError::write(&path, source),
-        source => part_error(&id, &name, source),
+        source => mesh_error(&id, &name, source),
     })?;
     writer
         .flush()
@@ -69,8 +69,8 @@ fn write_one(
     Ok(summary)
 }
 
-fn part_error(id: &str, name: &str, source: GltfError) -> PackageError {
-    PackageError::Part {
+fn mesh_error(id: &str, name: &str, source: GltfError) -> PackageError {
+    PackageError::Mesh {
         id: id.to_owned(),
         name: name.to_owned(),
         source,

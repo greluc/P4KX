@@ -48,6 +48,7 @@ mod entity_glb;
 mod entity_glb_livery;
 mod entity_loadout;
 mod entity_package;
+mod entity_package_parity;
 mod entity_vehicle;
 mod entry_issues;
 mod extract;

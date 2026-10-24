@@ -5,11 +5,11 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use p4kx_gltf::TextureLoader;
-use p4kx_texture::{TextureError, write_png};
+use p4kx_gltf::{TextureLoader, TextureRole};
+use p4kx_texture::{RgbaImage, TextureError, write_png};
 use rayon::prelude::*;
 
-use crate::{Cancelled, PackageError, PackageResult};
+use crate::{AlphaMeaning, Cancelled, ColourSpace, PackageError, PackageResult};
 
 /// How many textures are decoded and encoded at once; a texture can hold 64 megapixels.
 const BATCH: usize = 4;
@@ -20,12 +20,20 @@ pub(crate) struct Wanted {
     pub(crate) path: String,
     pub(crate) file: String,
     pub(crate) material: String,
+    pub(crate) role: TextureRole,
+    pub(crate) gloss: bool,
 }
 
 /// What became of one wanted texture.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Outcome {
-    Written { width: u32, height: u32, bytes: u64 },
+    Written {
+        width: u32,
+        height: u32,
+        bytes: u64,
+        colour_space: ColourSpace,
+        alpha: AlphaMeaning,
+    },
     Failed(String),
 }
 
@@ -71,7 +79,19 @@ fn write_one(
         Ok(decoded) => decoded,
         Err(error) => return Ok(Outcome::Failed(error.to_string())),
     };
-    let image = decoded.image;
+    let alpha = match (decoded.has_alpha, texture.role, texture.gloss) {
+        (false, _, _) => AlphaMeaning::None,
+        (true, TextureRole::Normal, true) => AlphaMeaning::Smoothness,
+        (true, _, _) => AlphaMeaning::Opacity,
+    };
+    let image = if texture.role == TextureRole::Normal {
+        match flip_green(decoded.image) {
+            Ok(image) => image,
+            Err(error) => return Ok(Outcome::Failed(error.to_string())),
+        }
+    } else {
+        decoded.image
+    };
     let path = folder.join(format!("{id}.png"));
     let file = File::create_new(&path).map_err(|source| PackageError::write(&path, source))?;
     let mut writer = BufWriter::new(file);
@@ -97,5 +117,117 @@ fn write_one(
         width: image.width(),
         height: image.height(),
         bytes,
+        colour_space: if texture.role == TextureRole::Diffuse {
+            ColourSpace::Srgb
+        } else {
+            ColourSpace::Linear
+        },
+        alpha,
     })
+}
+
+/// Returns `image` with the green channel inverted: the engine's normal maps have Y pointing down
+/// the image, glTF's and OpenGL's up.
+fn flip_green(image: RgbaImage) -> Result<RgbaImage, TextureError> {
+    let (width, height) = (image.width(), image.height());
+    let mut pixels = image.into_pixels();
+    for [_, green, _, _] in pixels.as_chunks_mut::<4>().0 {
+        *green = u8::MAX - *green;
+    }
+    RgbaImage::new(width, height, pixels)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use p4kx_gltf::{LoadedTexture, TextureLoadError, TextureLoader, TextureRole};
+    use p4kx_texture::RgbaImage;
+
+    use super::{Outcome, Wanted, write_all};
+    use crate::{AlphaMeaning, Cancelled, ColourSpace};
+
+    struct One(LoadedTexture);
+
+    impl TextureLoader for One {
+        fn load(&self, _path: &str, _mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+            Ok(self.0.clone())
+        }
+    }
+
+    fn wanted(role: TextureRole, gloss: bool) -> Wanted {
+        Wanted {
+            path: "a/b.dds".to_owned(),
+            file: "a/b.tif".to_owned(),
+            material: "m".to_owned(),
+            role,
+            gloss,
+        }
+    }
+
+    fn written(
+        role: TextureRole,
+        gloss: bool,
+        has_alpha: bool,
+    ) -> Result<(Outcome, Vec<u8>), Box<dyn Error>> {
+        let image = RgbaImage::new(2, 1, vec![10, 20, 30, 40, 250, 255, 0, 255])?;
+        let dir = tempfile::tempdir()?;
+        let never = || false;
+        let outcomes = write_all(
+            &[wanted(role, gloss)],
+            &One(LoadedTexture::new(image, has_alpha)),
+            0,
+            dir.path(),
+            &Cancelled::new(&never),
+        )?;
+        let decoder = png::Decoder::new(std::io::Cursor::new(std::fs::read(
+            dir.path().join("t0001.png"),
+        )?));
+        let mut reader = decoder.read_info()?;
+        let mut pixels = vec![0; reader.output_buffer_size().ok_or("size")?];
+        reader.next_frame(&mut pixels)?;
+        Ok((outcomes.into_iter().next().ok_or("outcome")?, pixels))
+    }
+
+    #[test]
+    fn a_normal_map_has_its_green_flipped_and_keeps_the_smoothness_in_alpha()
+    -> Result<(), Box<dyn Error>> {
+        let (outcome, pixels) = written(TextureRole::Normal, true, true)?;
+
+        assert_eq!(pixels, [10, 235, 30, 40, 250, 0, 0, 255]);
+        assert!(matches!(
+            outcome,
+            Outcome::Written {
+                colour_space: ColourSpace::Linear,
+                alpha: AlphaMeaning::Smoothness,
+                ..
+            }
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn a_diffuse_map_is_srgb_and_untouched_and_alpha_follows_the_loader()
+    -> Result<(), Box<dyn Error>> {
+        let (opaque, pixels) = written(TextureRole::Diffuse, false, false)?;
+        let (translucent, _) = written(TextureRole::Diffuse, false, true)?;
+
+        assert_eq!(pixels, [10, 20, 30, 40, 250, 255, 0, 255]);
+        assert!(matches!(
+            opaque,
+            Outcome::Written {
+                colour_space: ColourSpace::Srgb,
+                alpha: AlphaMeaning::None,
+                ..
+            }
+        ));
+        assert!(matches!(
+            translucent,
+            Outcome::Written {
+                alpha: AlphaMeaning::Opacity,
+                ..
+            }
+        ));
+        Ok(())
+    }
 }

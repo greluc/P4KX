@@ -4,12 +4,12 @@
 use std::collections::HashMap;
 
 use p4kx_assembly::Assembly;
-use p4kx_gltf::{DrawnMaterial, drawn_materials};
+use p4kx_gltf::{DrawnMaterial, TextureFile, TextureRole, drawn_materials};
 
-use crate::plan::PartPlan;
+use crate::plan::MeshPlan;
 use crate::textures::Wanted;
 
-/// The materials of every distinct part and the distinct texture files they name.
+/// The materials of every distinct mesh and the distinct texture files they name.
 #[derive(Debug, Default)]
 pub(crate) struct Collected {
     pub(crate) materials: Vec<Vec<DrawnMaterial>>,
@@ -18,8 +18,8 @@ pub(crate) struct Collected {
 }
 
 impl Collected {
-    /// Reads the materials of each distinct part of `plan` at `level`.
-    pub(crate) fn of(assembly: &Assembly, plan: &PartPlan, level: u32) -> Self {
+    /// Reads the materials of each distinct mesh of `plan` at `level`.
+    pub(crate) fn of(assembly: &Assembly, plan: &MeshPlan, level: u32) -> Self {
         let mut collected = Self::default();
         for index in 0..plan.len() {
             let part = plan
@@ -29,11 +29,14 @@ impl Collected {
                 .and_then(|part| Some(drawn_materials(part.model()?, part.materials(), level)))
                 .unwrap_or_default();
             for material in &drawn {
-                for file in [&material.diffuse, &material.normal, &material.specular]
-                    .into_iter()
-                    .flatten()
-                {
-                    collected.want(&file.path, &file.file, &material.name);
+                for (role, file) in [
+                    (TextureRole::Diffuse, &material.diffuse),
+                    (TextureRole::Normal, &material.normal),
+                    (TextureRole::Specular, &material.specular),
+                ] {
+                    if let Some(file) = file {
+                        collected.want(file, role, &material.name);
+                    }
                 }
             }
             collected.materials.push(drawn);
@@ -41,16 +44,18 @@ impl Collected {
         collected
     }
 
-    fn want(&mut self, path: &str, file: &str, material: &str) {
-        let identity = path.to_ascii_lowercase();
+    fn want(&mut self, file: &TextureFile, role: TextureRole, material: &str) {
+        let identity = file.path.to_ascii_lowercase();
         if self.index_of.contains_key(&identity) {
             return;
         }
         self.index_of.insert(identity, self.wanted.len());
         self.wanted.push(Wanted {
-            path: path.to_owned(),
-            file: file.to_owned(),
+            path: file.path.clone(),
+            file: file.file.clone(),
             material: material.to_owned(),
+            role,
+            gloss: file.gloss,
         });
     }
 

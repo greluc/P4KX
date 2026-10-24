@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs::{self, File};
 use std::io::{self, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -9,14 +9,36 @@ use std::process;
 
 use serde::Deserialize;
 
-use crate::manifest::{FORMAT, MANIFEST_FILE, PARTS_FOLDER, TEXTURES_FOLDER};
+use crate::manifest::{FORMAT, MANIFEST_FILE, MESHES_FOLDER, TEXTURES_FOLDER};
 use crate::{PackageError, PackageResult};
 
 const MAX_MARKER_LEN: u64 = 1 << 30;
+const MIN_ID_DIGITS: usize = 4;
 
 #[derive(Deserialize)]
 struct Marker {
     format: String,
+}
+
+/// Checks that a package may be written to `out`, before any work is done for it.
+///
+/// `out` must lie outside every Star Citizen installation, and must not exist, or be an empty
+/// folder, or hold only a package an earlier run wrote: `scene.json` with the format name, a
+/// `meshes` folder of `m<digits>.glb` files and a `textures` folder of `t<digits>.png` files.
+///
+/// # Errors
+///
+/// Returns [`PackageError::Refused`] inside an installation, [`PackageError::NotAPackage`] for
+/// anything else that exists, [`PackageError::NoFolderName`] when `out` names no folder and
+/// [`PackageError::Write`] when `out` cannot be inspected.
+pub fn check_output(out: &Path) -> PackageResult<()> {
+    p4kx_guard::ensure_writable(out)?;
+    if out.file_name().is_none() {
+        return Err(PackageError::NoFolderName {
+            path: out.to_path_buf(),
+        });
+    }
+    check_replaceable(out)
 }
 
 /// A temporary folder next to the output that becomes the output once the package is complete and
@@ -31,14 +53,8 @@ pub(crate) struct Staging {
 impl Staging {
     /// Checks that `out` may be written and creates the temporary folder next to it.
     pub(crate) fn create(out: &Path) -> PackageResult<Self> {
-        p4kx_guard::ensure_writable(out)?;
-        let name = out
-            .file_name()
-            .ok_or_else(|| PackageError::NoFolderName {
-                path: out.to_path_buf(),
-            })?
-            .to_os_string();
-        check_replaceable(out)?;
+        check_output(out)?;
+        let name = out.file_name().map(OsStr::to_os_string).unwrap_or_default();
         let parent = parent_of(out);
         if !parent.as_os_str().is_empty() {
             fs::create_dir_all(&parent).map_err(|source| PackageError::write(&parent, source))?;
@@ -50,7 +66,7 @@ impl Staging {
             out: out.to_path_buf(),
             committed: false,
         };
-        for sub in [PARTS_FOLDER, TEXTURES_FOLDER] {
+        for sub in [MESHES_FOLDER, TEXTURES_FOLDER] {
             let path = staging.folder.join(sub);
             fs::create_dir(&path).map_err(|source| PackageError::write(&path, source))?;
         }
@@ -66,15 +82,20 @@ impl Staging {
     /// package stays when the move fails.
     pub(crate) fn commit(mut self) -> PackageResult<()> {
         let out = self.out.clone();
-        let name = out.file_name().map(OsString::from).unwrap_or_default();
+        check_output(&out)?;
+        let name = out.file_name().map(OsStr::to_os_string).unwrap_or_default();
         let old = parent_of(&out).join(sibling_name(&name, "old"));
         let replaced = fs::symlink_metadata(&out).is_ok();
         if replaced {
             fs::rename(&out, &old).map_err(|source| PackageError::write(&out, source))?;
         }
         if let Err(source) = fs::rename(&self.folder, &out) {
-            if replaced {
-                let _restored = fs::rename(&old, &out);
+            if replaced && let Err(restore) = fs::rename(&old, &out) {
+                return Err(PackageError::NotRestored {
+                    path: out,
+                    old,
+                    source: restore,
+                });
             }
             return Err(PackageError::write(&out, source));
         }
@@ -104,37 +125,74 @@ fn sibling_name(name: &OsString, kind: &str) -> OsString {
     sibling
 }
 
-/// Accepts an output that does not exist, an empty folder, or a folder that holds only a package
-/// of this tool: a manifest with the format name, and the parts and textures folders.
 fn check_replaceable(out: &Path) -> PackageResult<()> {
     let not_a_package = || PackageError::NotAPackage {
         path: out.to_path_buf(),
     };
+    let io_error = |path: &Path, source| PackageError::write(path, source);
     let metadata = match fs::symlink_metadata(out) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(source) => return Err(PackageError::write(out, source)),
+        Err(source) => return Err(io_error(out, source)),
     };
     if !metadata.is_dir() {
         return Err(not_a_package());
     }
-    let mut entries = Vec::new();
-    for entry in fs::read_dir(out).map_err(|source| PackageError::write(out, source))? {
-        let entry = entry.map_err(|source| PackageError::write(out, source))?;
-        entries.push(entry.file_name());
-    }
-    if entries.is_empty() {
+    let names = names_in(out).map_err(|source| io_error(out, source))?;
+    if names.is_empty() {
         return Ok(());
     }
-    let known = [MANIFEST_FILE, PARTS_FOLDER, TEXTURES_FOLDER];
-    let only_known = entries
+    let known = [MANIFEST_FILE, MESHES_FOLDER, TEXTURES_FOLDER];
+    if !names
         .iter()
-        .all(|name| known.iter().any(|known| name == known));
-    if only_known && is_manifest(&out.join(MANIFEST_FILE)) {
-        Ok(())
-    } else {
-        Err(not_a_package())
+        .all(|name| known.iter().any(|known| name == known))
+        || !is_manifest(&out.join(MANIFEST_FILE))
+    {
+        return Err(not_a_package());
     }
+    for (folder, prefix, extension) in [(MESHES_FOLDER, 'm', "glb"), (TEXTURES_FOLDER, 't', "png")]
+    {
+        let path = out.join(folder);
+        match fs::symlink_metadata(&path) {
+            Ok(metadata) if metadata.is_dir() => {}
+            Ok(_) => return Err(not_a_package()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => continue,
+            Err(source) => return Err(io_error(&path, source)),
+        }
+        let files = names_in(&path).map_err(|source| io_error(&path, source))?;
+        if !files
+            .iter()
+            .all(|name| is_id_file(name, prefix, extension) && is_plain_file(&path.join(name)))
+        {
+            return Err(not_a_package());
+        }
+    }
+    Ok(())
+}
+
+fn names_in(folder: &Path) -> io::Result<Vec<OsString>> {
+    fs::read_dir(folder)?
+        .map(|entry| entry.map(|entry| entry.file_name()))
+        .collect()
+}
+
+fn is_plain_file(path: &Path) -> bool {
+    fs::symlink_metadata(path).is_ok_and(|metadata| metadata.is_file())
+}
+
+/// Returns whether `name` is `<prefix><at least four digits>.<extension>`.
+fn is_id_file(name: &OsStr, prefix: char, extension: &str) -> bool {
+    let Some(name) = name.to_str() else {
+        return false;
+    };
+    let Some(stem) = name
+        .strip_suffix(extension)
+        .and_then(|rest| rest.strip_suffix('.'))
+        .and_then(|rest| rest.strip_prefix(prefix))
+    else {
+        return false;
+    };
+    stem.len() >= MIN_ID_DIGITS && stem.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 fn is_manifest(path: &Path) -> bool {

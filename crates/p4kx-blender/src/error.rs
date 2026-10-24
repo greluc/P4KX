@@ -42,10 +42,26 @@ pub enum PackageError {
         #[source]
         source: io::Error,
     },
-    /// A part cannot be written as a GLB file.
-    #[error("cannot write the part {id} of {name}")]
-    Part {
-        /// The part's id.
+    /// The new package could not be moved into place and the earlier one could not be moved back;
+    /// it is at `old`.
+    #[error(
+        "cannot move the new package to {} and cannot restore the earlier one, which is at {}",
+        path.display(),
+        old.display()
+    )]
+    NotRestored {
+        /// The output.
+        path: PathBuf,
+        /// Where the earlier package is now.
+        old: PathBuf,
+        /// Why it could not be moved back.
+        #[source]
+        source: io::Error,
+    },
+    /// A mesh cannot be written as a GLB file.
+    #[error("cannot write the mesh {id} of {name}")]
+    Mesh {
+        /// The mesh's id.
         id: String,
         /// The class name of the first Entity that draws it.
         name: String,

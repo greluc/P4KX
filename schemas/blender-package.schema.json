@@ -1,5 +1,35 @@
 {
   "$defs": {
+    "AlphaMeaning": {
+      "description": "What the alpha channel of a texture holds.",
+      "oneOf": [
+        {
+          "const": "none",
+          "description": "Nothing: the channel is fully opaque and is to be ignored.",
+          "type": "string"
+        },
+        {
+          "const": "opacity",
+          "description": "Opacity.",
+          "type": "string"
+        },
+        {
+          "const": "smoothness",
+          "description": "Smoothness, as in the alpha channel of a `_ddna` normal map.",
+          "type": "string"
+        }
+      ]
+    },
+    "Basis": {
+      "description": "The axes of every transform and of the GLB meshes.",
+      "oneOf": [
+        {
+          "const": "gltf_y_up",
+          "description": "glTF's axes, Y up. A reader refuses a basis it does not know.",
+          "type": "string"
+        }
+      ]
+    },
     "BuildInfo": {
       "description": "The Build of the Archive a package was made from, as its build manifest states it.",
       "properties": {
@@ -35,16 +65,31 @@
       ],
       "type": "object"
     },
+    "ColourSpace": {
+      "description": "How the colour channels of a texture are encoded.",
+      "oneOf": [
+        {
+          "const": "srgb",
+          "description": "sRGB transfer curve: colour data, such as a diffuse map.",
+          "type": "string"
+        },
+        {
+          "const": "linear",
+          "description": "Linear values: data such as normals, smoothness and metalness.",
+          "type": "string"
+        }
+      ]
+    },
     "Coordinates": {
       "description": "The coordinate system of a package.",
       "properties": {
         "basis": {
-          "description": "Always `gltf_y_up`: glTF's axes, Y up, as the GLB parts have them. Node transforms are\nalready converted from the game's Z-up axes by the writer; a reader only maps glTF's axes\nto its own.",
-          "type": "string"
+          "$ref": "#/$defs/Basis",
+          "description": "The axes: always `gltf_y_up`, glTF's, as the GLB meshes have them. Node transforms are\nalready converted from the game's Z-up axes by the writer."
         },
         "unit": {
-          "description": "Always `metre`.",
-          "type": "string"
+          "$ref": "#/$defs/Unit",
+          "description": "The unit: always `metre`."
         }
       },
       "required": [
@@ -70,6 +115,16 @@
         "guid"
       ],
       "type": "object"
+    },
+    "Format": {
+      "description": "The format name in `scene.json`.",
+      "oneOf": [
+        {
+          "const": "p4kx-blender-package",
+          "description": "A package of this tool.",
+          "type": "string"
+        }
+      ]
     },
     "Generator": {
       "description": "The program that wrote a package.",
@@ -97,15 +152,15 @@
           "type": "string"
         },
         "name": {
-          "description": "The class name of the part's Entity, or the name of the material.",
+          "description": "The class name of the node's Entity, or the name of the material.",
           "type": "string"
         },
         "origin": {
-          "description": "What reported it: `assembly` or `texture`.",
-          "type": "string"
+          "$ref": "#/$defs/IssueOrigin",
+          "description": "What reported it."
         },
         "path": {
-          "description": "The port path of the part, or the texture file as the material file names it.",
+          "description": "The port path of the node, or the texture file as the material file names it.",
           "type": "string"
         },
         "reason": {
@@ -113,7 +168,7 @@
           "type": "string"
         },
         "skipped": {
-          "description": "Whether the part is left out of the scene.",
+          "description": "Whether the node is left out of the scene.",
           "type": "boolean"
         }
       },
@@ -127,6 +182,21 @@
       ],
       "type": "object"
     },
+    "IssueOrigin": {
+      "description": "What reported an issue.",
+      "oneOf": [
+        {
+          "const": "assembly",
+          "description": "Resolving the Assembly.",
+          "type": "string"
+        },
+        {
+          "const": "texture",
+          "description": "Loading or writing a texture.",
+          "type": "string"
+        }
+      ]
+    },
     "MaterialTextures": {
       "description": "The texture ids of a material by role; a role is absent when the material names no texture for\nit or the texture could not be written.",
       "properties": {
@@ -138,15 +208,11 @@
           ]
         },
         "normal": {
-          "description": "The normal map; with `smoothness_in_alpha` set its alpha channel holds the smoothness.",
+          "description": "The normal map.",
           "type": [
             "string",
             "null"
           ]
-        },
-        "smoothness_in_alpha": {
-          "description": "Whether the normal map's alpha channel holds the smoothness.",
-          "type": "boolean"
         },
         "specular": {
           "description": "The specular map.",
@@ -158,12 +224,123 @@
       },
       "type": "object"
     },
+    "Mesh": {
+      "description": "One GLB mesh: the geometry of a model drawn with one material library and one palette.",
+      "properties": {
+        "bytes": {
+          "description": "The size of the file in bytes.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "file": {
+          "description": "The GLB file relative to the package folder, e.g. `meshes/m0001.glb`.",
+          "type": "string"
+        },
+        "geometry": {
+          "description": "The geometry file in the Archive the model was read from, below `Data`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "description": "The mesh's id, e.g. `m0001`; also the stem of its file.",
+          "type": "string"
+        },
+        "instances": {
+          "description": "The number of nodes that draw this mesh; more than one means the mesh is instanced.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "materials": {
+          "description": "The materials the mesh is drawn with, in the order of the glTF materials in its file.",
+          "items": {
+            "$ref": "#/$defs/MeshMaterial"
+          },
+          "type": "array"
+        },
+        "palette": {
+          "description": "The name of the tint palette the mesh's colours were taken from, when it has one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "triangles": {
+          "description": "The number of triangles of the mesh.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "vertices": {
+          "description": "The number of vertices of the mesh.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "file",
+        "instances",
+        "bytes",
+        "vertices",
+        "triangles",
+        "materials"
+      ],
+      "type": "object"
+    },
+    "MeshMaterial": {
+      "description": "A material of a mesh and the textures its material file names.",
+      "properties": {
+        "index": {
+          "description": "The index of the glTF material in the mesh's file.",
+          "format": "uint",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "description": "The name of the glTF material in the mesh's file.",
+          "type": "string"
+        },
+        "textures": {
+          "$ref": "#/$defs/MaterialTextures",
+          "description": "The textures that were written for the material."
+        }
+      },
+      "required": [
+        "index",
+        "name",
+        "textures"
+      ],
+      "type": "object"
+    },
     "Node": {
-      "description": "One node of the scene hierarchy: a placed Entity.",
+      "description": "One node of the scene hierarchy.",
       "properties": {
         "entity": {
-          "$ref": "#/$defs/EntityRef",
-          "description": "The Entity placed at the node."
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EntityRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Entity placed at the node; present for the kind `entity`."
+        },
+        "kind": {
+          "$ref": "#/$defs/NodeKind",
+          "description": "What the node places."
+        },
+        "mesh": {
+          "description": "The id of the mesh drawn at the node; absent when the node draws nothing.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "name": {
           "description": "The node's name, `<port>/<entity>`, or the class name for the root.",
@@ -175,13 +352,6 @@
           "minimum": 0,
           "type": [
             "integer",
-            "null"
-          ]
-        },
-        "part": {
-          "description": "The id of the part drawn at the node; absent when the Entity has no geometry.",
-          "type": [
-            "string",
             "null"
           ]
         },
@@ -221,14 +391,24 @@
         }
       },
       "required": [
+        "kind",
         "name",
         "path",
-        "entity",
         "translation",
         "rotation",
         "scale"
       ],
       "type": "object"
+    },
+    "NodeKind": {
+      "description": "What a node places.",
+      "oneOf": [
+        {
+          "const": "entity",
+          "description": "An Entity of the Archive; `entity` names it.",
+          "type": "string"
+        }
+      ]
     },
     "Options": {
       "description": "The choices a package was written with.",
@@ -260,7 +440,7 @@
           "type": "integer"
         },
         "vertex_colours": {
-          "description": "Whether the parts carry the vertex colours of their meshes.",
+          "description": "Whether the meshes carry the vertex colours of their models.",
           "type": "boolean"
         }
       },
@@ -270,92 +450,6 @@
         "vertex_colours",
         "exclude",
         "replace"
-      ],
-      "type": "object"
-    },
-    "Part": {
-      "description": "One GLB part: the meshes of a model drawn with one material library and one palette.",
-      "properties": {
-        "bytes": {
-          "description": "The size of the file in bytes.",
-          "format": "uint64",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "file": {
-          "description": "The GLB file relative to the package folder, e.g. `parts/p0001.glb`.",
-          "type": "string"
-        },
-        "geometry": {
-          "description": "The geometry file in the Archive the model was read from, below `Data`.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "id": {
-          "description": "The part's id, e.g. `p0001`; also the stem of its file.",
-          "type": "string"
-        },
-        "instances": {
-          "description": "The number of nodes that draw this part; more than one means the part is instanced.",
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "materials": {
-          "description": "The materials the part is drawn with, by the names of the glTF materials in its file.",
-          "items": {
-            "$ref": "#/$defs/PartMaterial"
-          },
-          "type": "array"
-        },
-        "palette": {
-          "description": "The name of the tint palette the part's colours were taken from, when it has one.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "triangles": {
-          "description": "The number of triangles of the part's meshes.",
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        },
-        "vertices": {
-          "description": "The number of vertices of the part's meshes.",
-          "format": "uint",
-          "minimum": 0,
-          "type": "integer"
-        }
-      },
-      "required": [
-        "id",
-        "file",
-        "instances",
-        "bytes",
-        "vertices",
-        "triangles",
-        "materials"
-      ],
-      "type": "object"
-    },
-    "PartMaterial": {
-      "description": "A material of a part and the textures its material file names.",
-      "properties": {
-        "name": {
-          "description": "The name of the glTF material in the part's file.",
-          "type": "string"
-        },
-        "textures": {
-          "$ref": "#/$defs/MaterialTextures",
-          "description": "The textures that were written for the material."
-        }
-      },
-      "required": [
-        "name",
-        "textures"
       ],
       "type": "object"
     },
@@ -411,6 +505,10 @@
     "Texture": {
       "description": "One texture file of the package.",
       "properties": {
+        "alpha": {
+          "$ref": "#/$defs/AlphaMeaning",
+          "description": "What the alpha channel holds."
+        },
         "bit_depth": {
           "description": "The bits per channel; 8 in version 1.",
           "format": "uint8",
@@ -418,16 +516,20 @@
           "minimum": 0,
           "type": "integer"
         },
+        "colour_space": {
+          "$ref": "#/$defs/ColourSpace",
+          "description": "How the colour channels are encoded."
+        },
         "file": {
           "description": "The image file relative to the package folder, e.g. `textures/t0001.png`.",
           "type": "string"
         },
         "format": {
-          "description": "The image format, `png` in version 1.",
-          "type": "string"
+          "$ref": "#/$defs/TextureFormat",
+          "description": "The image format."
         },
         "height": {
-          "description": "The height in pixels at the written mip level.",
+          "description": "The height in pixels of the mip level that was written.",
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
@@ -441,7 +543,7 @@
           "type": "string"
         },
         "width": {
-          "description": "The width in pixels at the written mip level.",
+          "description": "The width in pixels of the mip level that was written.",
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
@@ -453,10 +555,32 @@
         "source",
         "format",
         "bit_depth",
+        "colour_space",
+        "alpha",
         "width",
         "height"
       ],
       "type": "object"
+    },
+    "TextureFormat": {
+      "description": "The image format of a texture file.",
+      "oneOf": [
+        {
+          "const": "png",
+          "description": "An 8-bit RGBA PNG.",
+          "type": "string"
+        }
+      ]
+    },
+    "Unit": {
+      "description": "The unit of every length.",
+      "oneOf": [
+        {
+          "const": "metre",
+          "description": "Metres. A reader refuses a unit it does not know.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -464,20 +588,27 @@
   "properties": {
     "coordinates": {
       "$ref": "#/$defs/Coordinates",
-      "description": "The axes and unit of every transform and of the GLB parts."
+      "description": "The axes and unit of every transform and of the GLB meshes."
     },
     "format": {
-      "description": "Always [`FORMAT`]; tells a reader that the folder is a package.",
-      "type": "string"
+      "$ref": "#/$defs/Format",
+      "description": "Always `p4kx-blender-package`; tells a reader that the folder is a package."
     },
     "generator": {
       "$ref": "#/$defs/Generator",
       "description": "The program that wrote the package."
     },
     "issues": {
-      "description": "What could not be resolved or written, with the part or texture it concerns.",
+      "description": "What could not be resolved or written, with the node or texture it concerns.",
       "items": {
         "$ref": "#/$defs/Issue"
+      },
+      "type": "array"
+    },
+    "meshes": {
+      "description": "The GLB meshes, one per distinct mesh set; nodes reference them.",
+      "items": {
+        "$ref": "#/$defs/Mesh"
       },
       "type": "array"
     },
@@ -492,13 +623,6 @@
       "$ref": "#/$defs/Options",
       "description": "The choices the package was written with."
     },
-    "parts": {
-      "description": "The GLB parts, one per distinct mesh set; nodes reference them.",
-      "items": {
-        "$ref": "#/$defs/Part"
-      },
-      "type": "array"
-    },
     "source": {
       "$ref": "#/$defs/Source",
       "description": "Where the scene comes from."
@@ -512,6 +636,7 @@
     },
     "version": {
       "description": "The version of the package format, `<major>.<minor>`, see [`FORMAT_VERSION`]. A reader\nrefuses a higher major version and warns about a higher minor one.",
+      "pattern": "^[0-9]+\\.[0-9]+$",
       "type": "string"
     }
   },
@@ -523,7 +648,7 @@
     "coordinates",
     "options",
     "nodes",
-    "parts",
+    "meshes",
     "textures",
     "issues"
   ],

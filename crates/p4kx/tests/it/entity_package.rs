@@ -11,13 +11,16 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-struct Run {
-    stdout: String,
-    stderr: String,
-    code: Option<i32>,
+pub(crate) struct Run {
+    pub(crate) stdout: String,
+    pub(crate) stderr: String,
+    pub(crate) code: Option<i32>,
 }
 
-fn write_archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn Error>> {
+pub(crate) fn write_archive(
+    dir: &Path,
+    entries: Vec<TestEntry>,
+) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     entries
         .into_iter()
@@ -26,7 +29,7 @@ fn write_archive(dir: &Path, entries: Vec<TestEntry>) -> Result<PathBuf, Box<dyn
     Ok(path)
 }
 
-fn package(
+pub(crate) fn package(
     archive: &Path,
     entity: &str,
     out: &Path,
@@ -60,7 +63,7 @@ fn names(folder: &Path) -> Result<Vec<String>, Box<dyn Error>> {
     Ok(names)
 }
 
-fn manifest(out: &Path) -> Result<Value, Box<dyn Error>> {
+pub(crate) fn manifest(out: &Path) -> Result<Value, Box<dyn Error>> {
     Ok(serde_json::from_slice(&std::fs::read(
         out.join("scene.json"),
     )?)?)
@@ -81,10 +84,10 @@ fn the_package_has_the_documented_layout_and_validates_against_the_schema() -> T
     )?;
 
     assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert_eq!(names(&out)?, ["parts", "scene.json", "textures"]);
+    assert_eq!(names(&out)?, ["meshes", "scene.json", "textures"]);
     assert_eq!(
-        names(&out.join("parts"))?,
-        ["p0001.glb", "p0002.glb", "p0003.glb", "p0004.glb"]
+        names(&out.join("meshes"))?,
+        ["m0001.glb", "m0002.glb", "m0003.glb", "m0004.glb"]
     );
     assert_eq!(names(&out.join("textures"))?, ["t0001.png"]);
     let manifest = manifest(&out)?;
@@ -99,13 +102,13 @@ fn the_package_has_the_documented_layout_and_validates_against_the_schema() -> T
     assert_eq!(manifest["format"], "p4kx-blender-package");
     assert_eq!(manifest["version"], "1.0");
     assert_eq!(manifest["source"]["entity"]["class_name"], "TEST_Livery");
-    for part in manifest["parts"].as_array().ok_or("parts")? {
+    for part in manifest["meshes"].as_array().ok_or("parts")? {
         let file = part["file"].as_str().ok_or("file")?;
         check_glb(&std::fs::read(out.join(file))?)?;
     }
     assert!(
         run.stdout
-            .contains("7 nodes (7 drawn), 4 parts, 1 textures"),
+            .contains("7 nodes (7 drawn), 4 meshes, 1 textures"),
         "{}",
         run.stdout
     );
@@ -113,7 +116,7 @@ fn the_package_has_the_documented_layout_and_validates_against_the_schema() -> T
 }
 
 #[test]
-fn shared_parts_are_written_once_and_the_json_report_says_so() -> TestResult {
+fn shared_meshes_are_written_once_and_the_json_report_says_so() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path(), livery_entries())?;
     let out = dir.path().join("livery");
@@ -125,13 +128,13 @@ fn shared_parts_are_written_once_and_the_json_report_says_so() -> TestResult {
     let report: Value = serde_json::from_str(&run.stdout)?;
     assert_eq!(report["nodes"], 7);
     assert_eq!(report["drawn_nodes"], 7);
-    assert_eq!(report["parts"], 4);
-    assert_eq!(report["shared_parts"], 3);
+    assert_eq!(report["meshes"], 4);
+    assert_eq!(report["shared_meshes"], 3);
     assert_eq!(report["textures"], 1);
     assert_eq!(report["files"], 6);
     assert_eq!(report["lod"], 0);
     let manifest = manifest(&out)?;
-    let instances: Vec<u64> = manifest["parts"]
+    let instances: Vec<u64> = manifest["meshes"]
         .as_array()
         .ok_or("parts")?
         .iter()
@@ -222,13 +225,13 @@ fn an_existing_package_is_replaced_and_any_other_folder_is_refused() -> TestResu
     std::fs::write(documents.join("thesis.txt"), b"precious")?;
 
     let first = package(&archive, "TEST_Livery", &out, &[], false)?;
-    std::fs::write(out.join("parts").join("old.glb"), b"old")?;
+    std::fs::write(out.join("meshes").join("m9999.glb"), b"old")?;
     let second = package(&archive, "TEST_Livery", &out, &[], false)?;
     let refused = package(&archive, "TEST_Livery", &documents, &[], false)?;
 
     assert_eq!(first.code, Some(0), "{}", first.stderr);
     assert_eq!(second.code, Some(0), "{}", second.stderr);
-    assert!(!out.join("parts").join("old.glb").exists());
+    assert!(!out.join("meshes").join("m9999.glb").exists());
     assert_eq!(refused.code, Some(2), "{}", refused.stderr);
     assert!(
         refused.stderr.contains("not a package folder"),

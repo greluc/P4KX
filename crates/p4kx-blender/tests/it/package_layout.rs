@@ -2,13 +2,14 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 //! The layout of a package written from the synthetic ship `TEST_Livery`: files, manifest,
-//! schema, shared parts and textures.
+//! schema, shared meshes and textures.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use p4kx_blender::{
-    BuildInfo, FORMAT, FORMAT_VERSION, Manifest, PackageInfo, manifest_schema, write_package,
+    AlphaMeaning, Basis, BuildInfo, ColourSpace, FORMAT_VERSION, Format, IssueOrigin, Manifest,
+    NodeKind, PackageInfo, TextureFormat, Unit, manifest_schema, write_package,
 };
 use p4kx_extraction::Archive;
 use p4kx_testkit::{check_glb, livery_entries};
@@ -63,30 +64,30 @@ fn read(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
 }
 
 #[test]
-fn the_package_is_a_folder_of_a_manifest_parts_and_textures() -> TestResult {
+fn the_package_is_a_folder_of_a_manifest_meshes_and_textures() -> TestResult {
     let written = write(2)?;
 
     assert_eq!(
         names_in(&written.out)?,
-        ["parts", "scene.json", "textures"],
+        ["meshes", "scene.json", "textures"],
         "nothing else is in the folder"
     );
     assert_eq!(
-        names_in(&written.out.join("parts"))?,
-        ["p0001.glb", "p0002.glb", "p0003.glb", "p0004.glb"]
+        names_in(&written.out.join("meshes"))?,
+        ["m0001.glb", "m0002.glb", "m0003.glb", "m0004.glb"]
     );
     assert_eq!(names_in(&written.out.join("textures"))?, ["t0001.png"]);
     assert_eq!(written.summary.files, 6);
     let on_disk: u64 = [
-        written.out.join("scene.json"),
-        written.out.join("parts/p0001.glb"),
-        written.out.join("parts/p0002.glb"),
-        written.out.join("parts/p0003.glb"),
-        written.out.join("parts/p0004.glb"),
-        written.out.join("textures/t0001.png"),
+        "scene.json",
+        "meshes/m0001.glb",
+        "meshes/m0002.glb",
+        "meshes/m0003.glb",
+        "meshes/m0004.glb",
+        "textures/t0001.png",
     ]
     .iter()
-    .map(|path| std::fs::metadata(path).map(|metadata| metadata.len()))
+    .map(|path| std::fs::metadata(written.out.join(path)).map(|metadata| metadata.len()))
     .sum::<Result<u64, _>>()?;
     assert_eq!(
         written.summary.bytes, on_disk,
@@ -100,7 +101,7 @@ fn the_manifest_states_version_source_and_axes() -> TestResult {
     let written = write(2)?;
     let manifest = &written.manifest;
 
-    assert_eq!(manifest.format, FORMAT);
+    assert_eq!(manifest.format, Format::P4kxBlenderPackage);
     assert_eq!(manifest.version, FORMAT_VERSION);
     assert_eq!(manifest.generator.name, "p4kx");
     assert_eq!(manifest.source.channel.as_deref(), Some("LIVE"));
@@ -113,9 +114,11 @@ fn the_manifest_states_version_source_and_axes() -> TestResult {
         Some("4.0.0")
     );
     assert_eq!(manifest.source.entity.class_name, "TEST_Livery");
-    assert_eq!(manifest.coordinates.basis, "gltf_y_up");
-    assert_eq!(manifest.coordinates.unit, "metre");
+    assert_eq!(manifest.coordinates.basis, Basis::GltfYUp);
+    assert_eq!(manifest.coordinates.unit, Unit::Metre);
     assert_eq!(manifest.options.texture_mip, 2);
+    assert_eq!(written.raw["format"], "p4kx-blender-package");
+    assert_eq!(written.raw["coordinates"]["basis"], "gltf_y_up");
     Ok(())
 }
 
@@ -131,6 +134,30 @@ fn the_manifest_matches_its_schema() -> TestResult {
         .collect();
 
     assert!(violations.is_empty(), "{violations:?}");
+    Ok(())
+}
+
+#[test]
+fn the_schema_rejects_what_a_reader_must_refuse() -> TestResult {
+    let written = write(0)?;
+    let validator = jsonschema::draft202012::new(&manifest_schema())?;
+    let broken = |pointer: &str, value: serde_json::Value| {
+        let mut raw = written.raw.clone();
+        if let Some(slot) = raw.pointer_mut(pointer) {
+            *slot = value;
+        }
+        !validator.is_valid(&raw)
+    };
+
+    assert!(broken("/format", "something-else".into()));
+    assert!(broken("/version", "one".into()));
+    assert!(broken("/version", "1".into()));
+    assert!(broken("/coordinates/basis", "z_up".into()));
+    assert!(broken("/coordinates/unit", "foot".into()));
+    assert!(broken("/textures/0/format", "exr".into()));
+    assert!(broken("/textures/0/colour_space", "aces".into()));
+    assert!(broken("/textures/0/alpha", "mask".into()));
+    assert!(broken("/nodes/0/kind", "light".into()));
     Ok(())
 }
 
@@ -152,6 +179,8 @@ fn nodes_keep_the_hierarchy_and_names_of_the_assembly() -> TestResult {
             "hardpoint_plain/TEST_Plain",
         ]
     );
+    assert!(nodes.iter().all(|node| node.kind == NodeKind::Entity));
+    assert!(nodes.iter().all(|node| node.entity.is_some()));
     assert_eq!(nodes.first().and_then(|node| node.parent), None);
     assert!(
         nodes.iter().skip(1).all(|node| node.parent == Some(0)),
@@ -172,30 +201,30 @@ fn nodes_keep_the_hierarchy_and_names_of_the_assembly() -> TestResult {
 }
 
 #[test]
-fn parts_of_one_model_library_and_palette_are_written_once_and_instanced() -> TestResult {
+fn parts_of_one_model_library_and_palette_share_one_mesh() -> TestResult {
     let written = write(0)?;
     let manifest = &written.manifest;
 
-    let part_of = |index: usize| {
+    let mesh_of = |index: usize| {
         manifest
             .nodes
             .get(index)
-            .and_then(|node| node.part.as_deref())
+            .and_then(|node| node.mesh.as_deref())
     };
-    assert_eq!(manifest.parts.len(), 4, "ship, painted, default, plain");
-    assert_eq!(part_of(1), part_of(2), "the two painted guns share a part");
-    assert_eq!(part_of(4), part_of(5), "lost and child fall back to none");
-    assert_eq!(part_of(4), part_of(6), "and so does the plain one");
-    let distinct: BTreeSet<_> = (0..7).filter_map(part_of).collect();
+    assert_eq!(manifest.meshes.len(), 4, "ship, painted, default, plain");
+    assert_eq!(mesh_of(1), mesh_of(2), "the two painted guns share a mesh");
+    assert_eq!(mesh_of(4), mesh_of(5), "lost and child fall back to none");
+    assert_eq!(mesh_of(4), mesh_of(6), "and so does the plain one");
+    let distinct: BTreeSet<_> = (0..7).filter_map(mesh_of).collect();
     assert_eq!(distinct.len(), 4);
-    let instances: Vec<usize> = manifest.parts.iter().map(|part| part.instances).collect();
+    let instances: Vec<usize> = manifest.meshes.iter().map(|mesh| mesh.instances).collect();
     assert_eq!(instances, [1, 2, 1, 3]);
     assert_eq!(written.summary.drawn_nodes, 7);
-    assert_eq!(written.summary.shared_parts, 3);
+    assert_eq!(written.summary.shared_meshes, 3);
     let palettes: Vec<Option<&str>> = manifest
-        .parts
+        .meshes
         .iter()
-        .map(|part| part.palette.as_deref())
+        .map(|mesh| mesh.palette.as_deref())
         .collect();
     assert_eq!(
         palettes,
@@ -205,18 +234,30 @@ fn parts_of_one_model_library_and_palette_are_written_once_and_instanced() -> Te
 }
 
 #[test]
-fn every_part_is_a_valid_glb_with_one_model_below_an_identity_root() -> TestResult {
+fn every_mesh_is_a_valid_glb_and_its_material_indices_are_the_writers_order() -> TestResult {
     let written = write(0)?;
 
-    for part in &written.manifest.parts {
-        let bytes = read(&written.out.join(&part.file))?;
+    for mesh in &written.manifest.meshes {
+        let bytes = read(&written.out.join(&mesh.file))?;
         let checked = check_glb(&bytes)?;
-        assert_eq!(part.bytes, u64::try_from(bytes.len())?, "{}", part.id);
+        assert_eq!(mesh.bytes, u64::try_from(bytes.len())?, "{}", mesh.id);
         assert_eq!(checked.document.images().len(), 0, "textures stay outside");
         assert_eq!(checked.document.scenes().len(), 1);
-        assert_eq!(checked.document.meshes().len(), 1, "{}", part.id);
-        assert!(part.triangles > 0 && part.vertices > 0);
-        assert!(part.geometry.is_some(), "{}", part.id);
+        assert_eq!(checked.document.meshes().len(), 1, "{}", mesh.id);
+        assert!(mesh.triangles > 0 && mesh.vertices > 0);
+        assert!(mesh.geometry.is_some(), "{}", mesh.id);
+        let in_file: Vec<(usize, Option<&str>)> = checked
+            .document
+            .materials()
+            .map(|material| (material.index().unwrap_or(usize::MAX), material.name()))
+            .collect();
+        let listed: Vec<(usize, Option<&str>)> = mesh
+            .materials
+            .iter()
+            .map(|material| (material.index, Some(material.name.as_str())))
+            .collect();
+        assert_eq!(listed, in_file, "{}", mesh.id);
+        assert_eq!(listed.len(), 2, "caps and sides: {}", mesh.id);
     }
     Ok(())
 }
@@ -230,7 +271,9 @@ fn textures_are_written_once_at_the_chosen_mip_and_named_by_the_materials() -> T
     let texture = manifest.textures.first().ok_or("texture")?;
     assert_eq!(texture.file, "textures/t0001.png");
     assert_eq!(texture.source, "Objects/Test/livery_diff.dds");
-    assert_eq!((texture.format.as_str(), texture.bit_depth), ("png", 8));
+    assert_eq!((texture.format, texture.bit_depth), (TextureFormat::Png, 8));
+    assert_eq!(texture.colour_space, ColourSpace::Srgb, "a diffuse map");
+    assert_eq!(texture.alpha, AlphaMeaning::None, "DXT1 has no alpha");
     assert_eq!((texture.width, texture.height), (2, 2), "8 by 8 at mip 2");
     let decoder = png::Decoder::new(std::io::Cursor::new(read(
         &written.out.join(&texture.file),
@@ -244,12 +287,12 @@ fn textures_are_written_once_at_the_chosen_mip_and_named_by_the_materials() -> T
     assert_eq!(written.summary.textures, 1);
     assert_eq!(written.summary.texture_pixels, 4);
     let used: Vec<Option<&str>> = manifest
-        .parts
+        .meshes
         .iter()
-        .flat_map(|part| &part.materials)
+        .flat_map(|mesh| &mesh.materials)
         .map(|material| material.textures.diffuse.as_deref())
         .collect();
-    assert_eq!(used.len(), 8, "caps and sides of four parts");
+    assert_eq!(used.len(), 8, "caps and sides of four meshes");
     assert!(used.iter().all(|id| *id == Some("t0001")), "{used:?}");
     Ok(())
 }
@@ -270,7 +313,7 @@ fn what_the_assembly_could_not_resolve_is_listed_as_issues() -> TestResult {
             .manifest
             .issues
             .iter()
-            .all(|issue| issue.origin == "assembly" && !issue.skipped)
+            .all(|issue| issue.origin == IssueOrigin::Assembly && !issue.skipped)
     );
     Ok(())
 }

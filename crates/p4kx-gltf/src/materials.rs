@@ -10,7 +10,7 @@ use json::material::{
     StrengthFactor,
 };
 use json::validation::Checked::Valid;
-use p4kx_model::{Lod, Material, MaterialLibrary};
+use p4kx_model::{Lod, Material, MaterialLibrary, TintPalette};
 
 const GLASS_ALPHA: f32 = 0.3;
 const METAL_SPECULAR: f32 = 0.5;
@@ -36,6 +36,7 @@ pub(crate) struct MaterialPlan<'m> {
     library: Option<&'m MaterialLibrary>,
     slots: BTreeMap<u16, Option<Slot>>,
     default: Material,
+    tinted: BTreeMap<usize, Material>,
 }
 
 impl<'m> MaterialPlan<'m> {
@@ -60,7 +61,26 @@ impl<'m> MaterialPlan<'m> {
             library,
             slots,
             default: Material::engine_default(),
+            tinted: BTreeMap::new(),
         }
+    }
+
+    /// Draws the materials that take a palette colour with `palette`, if there is one.
+    pub(crate) fn tinted_by(mut self, palette: Option<&TintPalette>) -> Self {
+        let (Some(palette), Some(library)) = (palette, self.library) else {
+            return self;
+        };
+        for slot in self.slots.values().flatten() {
+            if let Slot::Library(position) = *slot
+                && let Some(tinted) = library
+                    .materials
+                    .get(position)
+                    .and_then(|material| palette.apply(material))
+            {
+                self.tinted.insert(position, tinted);
+            }
+        }
+        self
     }
 
     /// Returns a plan for a model that has no level of detail to draw.
@@ -69,6 +89,7 @@ impl<'m> MaterialPlan<'m> {
             library: None,
             slots: BTreeMap::new(),
             default: Material::engine_default(),
+            tinted: BTreeMap::new(),
         }
     }
 
@@ -94,8 +115,12 @@ impl<'m> MaterialPlan<'m> {
     pub(crate) fn material(&self, slot: Slot) -> &Material {
         match slot {
             Slot::Library(position) => self
-                .library
-                .and_then(|library| library.materials.get(position))
+                .tinted
+                .get(&position)
+                .or_else(|| {
+                    self.library
+                        .and_then(|library| library.materials.get(position))
+                })
                 .unwrap_or(&self.default),
             Slot::Default => &self.default,
         }
@@ -162,9 +187,9 @@ pub(crate) fn uses_alpha(material: &Material) -> bool {
 }
 
 /// Returns the plain roughness of `material`: from its shininess, or half where gloss comes from
-/// textures and layers.
+/// textures and layers; a palette gives the glossiness of its paint.
 fn plain_roughness(material: &Material) -> f32 {
-    if is_one_of(&material.shader, &TEXTURE_GLOSS_SHADERS) {
+    if is_one_of(&material.shader, &TEXTURE_GLOSS_SHADERS) && !material.tinted {
         TEXTURE_GLOSS_ROUGHNESS
     } else {
         1.0 - (material.shininess / MAX_SHININESS).clamp(0.0, 1.0)

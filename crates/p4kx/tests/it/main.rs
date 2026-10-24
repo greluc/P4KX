@@ -41,6 +41,7 @@ mod dcb_query_references;
 mod dcb_refs;
 mod dcb_tags;
 mod entity_audio;
+mod entity_changes;
 mod entity_glb;
 mod entity_loadout;
 mod entity_vehicle;

@@ -4,54 +4,17 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use p4kx_dataforge::Guid;
-
+use crate::changes::Action;
 use crate::entities::describe;
 use crate::merge::{merge_by_port, port_key};
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
+use crate::walk::Walk;
 use crate::{
-    Attachment, EntityNode, LoadoutError, MAX_LOADOUT_DEPTH, MAX_LOADOUT_PORTS, PortNode,
-    PortSource, PortVisibility, Target, Unresolved,
+    Attachment, EntityNode, LoadoutError, MAX_LOADOUT_DEPTH, PortConstraints, PortNode, PortSource,
+    PortVisibility, Target, Unresolved, VehicleImplementation,
 };
-
-/// The state of one resolution: the Entities on the current branch and the ports so far.
-pub(crate) struct Walk {
-    ancestors: Vec<Guid>,
-    nesting: usize,
-    ports: usize,
-}
-
-impl Walk {
-    pub(crate) fn new(root: Guid) -> Self {
-        Self {
-            ancestors: vec![root],
-            nesting: 0,
-            ports: 0,
-        }
-    }
-
-    /// Returns whether the Entity being built is the root of the tree.
-    const fn is_root(&self) -> bool {
-        self.ancestors.len() == 1
-    }
-
-    /// Returns the depth of the current branch: attached Entities plus nested Loadout levels.
-    const fn depth(&self) -> usize {
-        self.ancestors.len().saturating_add(self.nesting)
-    }
-
-    /// Counts one more port, or returns `false` when the tree already holds
-    /// [`MAX_LOADOUT_PORTS`].
-    const fn reserve(&mut self) -> bool {
-        if self.ports >= MAX_LOADOUT_PORTS {
-            return false;
-        }
-        self.ports = self.ports.saturating_add(1);
-        true
-    }
-}
 
 /// One port of an Entity before it is resolved.
 struct Pending<'s> {
@@ -75,17 +38,7 @@ impl LoadoutResolver<'_> {
         let attached_vehicle = spec.docked_vehicle && !walk.is_root();
         let expanded = !(self.stop_at_docked && attached_vehicle);
         let vehicle = if expanded {
-            match self.vehicle_of(spec) {
-                Some(Ok(vehicle)) => {
-                    issues.extend(vehicle.issues.iter().cloned());
-                    Some(vehicle)
-                }
-                Some(Err(error)) => {
-                    issues.push(error);
-                    None
-                }
-                None => None,
-            }
+            self.vehicle_with_issues(spec, &mut issues)
         } else {
             None
         };
@@ -109,7 +62,9 @@ impl LoadoutResolver<'_> {
                 issues.push(LoadoutError::TooManyPorts);
                 break;
             }
-            let mut port = self.port_node(pending, walk, &mut issues);
+            walk.enter(pending.name);
+            let mut port = self.port_node(pending, walk, &mut issues, vehicle.as_deref());
+            walk.leave();
             if let Some(vehicle) = &vehicle {
                 port.visibility = vehicle.port_visibility(&port.name);
             }
@@ -127,7 +82,28 @@ impl LoadoutResolver<'_> {
             docked_vehicle: attached_vehicle,
             expanded,
             attach_type: spec.attach_type.clone(),
+            attach_sub_type: spec.attach_sub_type.clone(),
+            size: spec.size,
             container: spec.container,
+        }
+    }
+
+    /// Returns the vehicle implementation of `spec`, pushing its issues to `issues`.
+    fn vehicle_with_issues(
+        &mut self,
+        spec: &EntitySpec,
+        issues: &mut Vec<LoadoutError>,
+    ) -> Option<Arc<VehicleImplementation>> {
+        match self.vehicle_of(spec) {
+            Some(Ok(vehicle)) => {
+                issues.extend(vehicle.issues.iter().cloned());
+                Some(vehicle)
+            }
+            Some(Err(error)) => {
+                issues.push(error);
+                None
+            }
+            None => None,
         }
     }
 
@@ -136,20 +112,59 @@ impl LoadoutResolver<'_> {
         pending: Pending<'_>,
         walk: &mut Walk,
         issues: &mut Vec<LoadoutError>,
+        vehicle: Option<&VehicleImplementation>,
     ) -> PortNode {
-        let attachment = self.attach(pending.target, pending.loadout, walk);
-        let nested = if matches!(attachment, Attachment::Empty) {
-            self.nested_ports(pending.loadout, walk, issues)
-        } else {
-            Vec::new()
-        };
-        PortNode {
+        let defined = pending
+            .definition
+            .as_deref()
+            .is_some_and(PortDefinition::constrains);
+        let limits = vehicle
+            .filter(|_| !defined)
+            .and_then(|vehicle| vehicle.item_port(pending.name))
+            .and_then(PortConstraints::of_vehicle)
+            .map(Arc::new);
+        let mut node = PortNode {
             name: pending.name.to_owned(),
             source: pending.source,
             definition: pending.definition,
-            attachment,
-            nested,
+            limits,
+            attachment: Attachment::Empty,
+            nested: Vec::new(),
             visibility: PortVisibility::default(),
+        };
+        if self.change(&mut node, walk) {
+            return node;
+        }
+        node.attachment = self.attach(pending.target, pending.loadout, walk);
+        if matches!(node.attachment, Attachment::Empty) {
+            node.nested = self.nested_ports(pending.loadout, walk, issues);
+        }
+        node
+    }
+
+    /// Applies the change of the plan to the port entered last, if it has one, and returns
+    /// whether it holds what the plan says now.
+    fn change(&mut self, node: &mut PortNode, walk: &mut Walk) -> bool {
+        let Some(plan) = walk.plan.as_mut() else {
+            return false;
+        };
+        match plan.action() {
+            Action::Keep => false,
+            Action::Exclude => {
+                node.source = PortSource::Excluded;
+                true
+            }
+            Action::Replace(guid, facts) => {
+                if let Some(constraints) = node.constraints()
+                    && let Err(reason) = constraints.check(&facts)
+                {
+                    plan.reject(&facts, reason);
+                    return false;
+                }
+                node.attachment = self.attach(&TargetSpec::Reference(guid), None, walk);
+                node.source = PortSource::Replaced;
+                true
+            }
         }
     }
 
@@ -183,20 +198,24 @@ impl LoadoutResolver<'_> {
                 issues.push(LoadoutError::TooManyPorts);
                 break;
             }
-            let attachment = self.attach(&entry.target, entry.loadout.as_ref(), walk);
-            let nested = if matches!(attachment, Attachment::Empty) {
-                self.nested_ports(entry.loadout.as_ref(), walk, issues)
-            } else {
-                Vec::new()
-            };
-            ports.push(PortNode {
+            walk.enter(&entry.port);
+            let mut node = PortNode {
                 name: entry.port.clone(),
                 source: PortSource::Override,
                 definition: None,
-                attachment,
-                nested,
+                limits: None,
+                attachment: Attachment::Empty,
+                nested: Vec::new(),
                 visibility: PortVisibility::default(),
-            });
+            };
+            if !self.change(&mut node, walk) {
+                node.attachment = self.attach(&entry.target, entry.loadout.as_ref(), walk);
+                if matches!(node.attachment, Attachment::Empty) {
+                    node.nested = self.nested_ports(entry.loadout.as_ref(), walk, issues);
+                }
+            }
+            walk.leave();
+            ports.push(node);
         }
         walk.nesting = walk.nesting.saturating_sub(1);
         ports
@@ -263,7 +282,7 @@ impl LoadoutResolver<'_> {
             return unresolved(named, error);
         };
         let guid = record.guid();
-        if let Some(error) = limit(walk, guid) {
+        if let Some(error) = walk.limit(guid) {
             return unresolved(named, error);
         }
         let spec = self.spec(guid);
@@ -328,17 +347,6 @@ fn pending_ports<'s>(
             loadout: None,
         });
     from_entries.chain(defined)
-}
-
-/// Returns why the Entity `guid` may not be attached below the current branch, if it may not.
-fn limit(walk: &Walk, guid: Guid) -> Option<LoadoutError> {
-    if walk.ancestors.contains(&guid) {
-        Some(LoadoutError::Cycle { guid })
-    } else if walk.depth() > MAX_LOADOUT_DEPTH {
-        Some(LoadoutError::TooDeep)
-    } else {
-        None
-    }
 }
 
 fn class_text(target: &TargetSpec) -> String {

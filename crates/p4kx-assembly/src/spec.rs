@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
-use crate::Geometry;
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
-use crate::read::{as_struct, struct_field, struct_items, text};
+use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
+use crate::{Geometry, ItemFacts};
 
 const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
@@ -79,6 +79,8 @@ pub(crate) struct EntitySpec {
     pub(crate) vehicle: Option<VehicleSpec>,
     pub(crate) docked_vehicle: bool,
     pub(crate) attach_type: String,
+    pub(crate) attach_sub_type: String,
+    pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
 }
 
@@ -126,7 +128,12 @@ impl EntitySpec {
                 },
             });
         let (attach_type, container) = item_facts(&components);
+        let definition = attach_def(&components);
         Self {
+            attach_sub_type: definition
+                .map_or("", |definition| text(definition, "SubType"))
+                .to_owned(),
+            size: definition.and_then(|definition| unsigned(definition, "Size")),
             docked_vehicle: attach_type.starts_with(DOCKED_VEHICLE_TYPE),
             attach_type: attach_type.to_owned(),
             container,
@@ -148,6 +155,18 @@ impl EntitySpec {
             .and_then(|at| self.ports.get(*at))
     }
 
+    /// Returns what the Entity offers a port.
+    pub(crate) fn item_facts(&self) -> ItemFacts {
+        ItemFacts {
+            class_name: crate::entities::class_name_of(&self.name)
+                .unwrap_or(&self.name)
+                .to_owned(),
+            item_type: self.attach_type.clone(),
+            sub_type: self.attach_sub_type.clone(),
+            size: self.size,
+        }
+    }
+
     /// Returns every target the Entity's own Loadout and port defaults name, nested ones
     /// included.
     pub(crate) fn targets(&self) -> Vec<&TargetSpec> {
@@ -160,13 +179,17 @@ impl EntitySpec {
     }
 }
 
-/// Returns the `AttachDef.Type` and the inventory container Record the components name.
-fn item_facts<'f>(components: &[&StructValue<'f>]) -> (&'f str, Option<Guid>) {
-    let attach_type = components
+/// Returns the `AttachDef` of the attachable component, if the components have one.
+fn attach_def<'v, 'f>(components: &[&'v StructValue<'f>]) -> Option<&'v StructValue<'f>> {
+    components
         .iter()
         .find(|component| component.type_name() == ATTACHABLE)
         .and_then(|component| struct_field(component, "AttachDef"))
-        .map_or("", |definition| text(definition, "Type"));
+}
+
+/// Returns the `AttachDef.Type` and the inventory container Record the components name.
+fn item_facts<'f>(components: &[&StructValue<'f>]) -> (&'f str, Option<Guid>) {
+    let attach_type = attach_def(components).map_or("", |definition| text(definition, "Type"));
     let container = components
         .iter()
         .find(|component| component.type_name() == INVENTORY_CONTAINER)

@@ -64,7 +64,10 @@ fn the_glb_holds_a_node_per_part_named_after_port_and_entity_in_the_loadout_hier
         );
     }
     assert_eq!(summary.parts, 4, "ship, mount, gun and relay have models");
-    assert_eq!(summary.meshes, 4, "one mesh node each");
+    assert_eq!(
+        summary.meshes, 3,
+        "four mesh nodes, two of them share a mesh"
+    );
     assert!(
         node(&glb, "hardpoint_seat/TEST_Seat")?.mesh().is_none(),
         "no geometry, no mesh"
@@ -133,6 +136,31 @@ fn equal_materials_are_written_once_and_the_entitys_library_is_used() -> TestRes
         "the model's own blue library is replaced: {colours:?}"
     );
     assert!(gun.primitives().len() > 0);
+    Ok(())
+}
+
+#[test]
+fn parts_with_one_model_and_library_are_written_once_and_instanced() -> TestResult {
+    let (glb, summary) = export(0)?;
+
+    assert_eq!(
+        summary.shared_meshes, 1,
+        "two of the four modelled parts match"
+    );
+    let meshed: Vec<usize> = glb
+        .document
+        .nodes()
+        .filter_map(|node| node.mesh().map(|mesh| mesh.index()))
+        .collect();
+    assert_eq!(meshed.len(), summary.meshes + summary.shared_meshes);
+    let mut distinct = meshed.clone();
+    distinct.sort_unstable();
+    distinct.dedup();
+    assert_eq!(
+        distinct.len(),
+        summary.meshes,
+        "the nodes reference {meshed:?}"
+    );
     Ok(())
 }
 

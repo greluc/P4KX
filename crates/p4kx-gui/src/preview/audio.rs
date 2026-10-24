@@ -140,6 +140,16 @@ impl AudioPreview {
         Self::spawn(Source::Embedded(Arc::clone(bank), id), wake)
     }
 
+    /// Starts reading the soundbank Entry `bank` of `index` and decoding the WEM `id` it embeds
+    /// on a background thread, calling `wake` from it whenever a result is ready.
+    pub(crate) fn start_in_bank(
+        index: &Arc<EntryIndex>,
+        (bank, id): (u32, u32),
+        wake: impl Fn() + Send + 'static,
+    ) -> Self {
+        Self::spawn(Source::InBank(Arc::clone(index), bank, id), wake)
+    }
+
     fn spawn(source: Source, wake: impl Fn() + Send + 'static) -> Self {
         let (sender, events) = mpsc::channel();
         let dropped = Arc::new(AtomicBool::new(false));
@@ -275,6 +285,7 @@ fn sound_status(sound: &Sound) -> SoundStatus<'_> {
 enum Source {
     Entry(Arc<EntryIndex>, u32),
     Embedded(Arc<Soundbank<Vec<u8>>>, u32),
+    InBank(Arc<EntryIndex>, u32, u32),
 }
 
 /// What the background thread of one audio preview works with.
@@ -297,6 +308,7 @@ impl Worker {
         let event = match &self.source {
             Source::Entry(index, id) => self.run_entry(index, *id, wake),
             Source::Embedded(bank, id) => self.run_embedded(bank, *id, wake),
+            Source::InBank(index, bank, id) => self.run_in_bank(index, (*bank, *id), wake),
         };
         if let Some(event) = event {
             self.send(event, wake);
@@ -318,6 +330,26 @@ impl Worker {
             Event::ArchiveChanged
         } else {
             Event::Decoded(decoded)
+        })
+    }
+
+    fn run_in_bank(
+        &self,
+        index: &EntryIndex,
+        (bank, id): (u32, u32),
+        wake: &impl Fn(),
+    ) -> Option<Event> {
+        let bank = match read_whole(index, bank, &self.dropped) {
+            Ok(bytes) => match Soundbank::parse(bytes) {
+                Ok(bank) => bank,
+                Err(error) => return Some(Event::Failed(Some(describe(&error)))),
+            },
+            Err(unread) => return Some(Event::from(unread)),
+        };
+        let event = self.run_embedded(&bank, id, wake)?;
+        Some(match event {
+            Event::Decoded(_) if index.watch().check().is_err() => Event::ArchiveChanged,
+            other => other,
         })
     }
 

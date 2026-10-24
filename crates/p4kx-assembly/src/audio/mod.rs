@@ -31,7 +31,8 @@ pub use cache::ArchiveAudio;
 pub use entity::{EntityAudio, EntityTrigger, EventMatch, Unmatched};
 pub use error::{AudioFileError, AudioIssue};
 pub use export::{
-    ExportFailure, ExportOptions, ExportReport, ExportState, ExportedSound, SoundFormat,
+    ExportFailure, ExportOptions, ExportReport, ExportState, ExportWatch, ExportedSound,
+    SoundFormat,
 };
 pub use hash::wwise_id;
 pub use index::AudioIndex;

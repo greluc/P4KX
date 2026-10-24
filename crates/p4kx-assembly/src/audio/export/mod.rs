@@ -9,6 +9,7 @@ mod write;
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use p4kx_extraction::{ConflictPolicy, ConversionError};
 
@@ -44,6 +45,49 @@ pub struct ExportOptions {
     pub format: SoundFormat,
     /// What to do with a file that already exists.
     pub policy: ConflictPolicy,
+}
+
+/// The progress of a sound export and the request to stop it, shared with the thread that runs it.
+///
+/// A stopped export leaves out the sounds it had not started; the files it wrote stay.
+#[derive(Debug, Default)]
+pub struct ExportWatch {
+    cancelled: AtomicBool,
+    done: AtomicUsize,
+    total: AtomicUsize,
+}
+
+impl ExportWatch {
+    /// Asks the export to stop after the sounds it is writing.
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Relaxed);
+    }
+
+    /// Returns whether the export was asked to stop.
+    #[must_use]
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::Relaxed)
+    }
+
+    /// Returns how many sounds are handled so far, written, kept or failed.
+    #[must_use]
+    pub fn done(&self) -> usize {
+        self.done.load(Ordering::Relaxed)
+    }
+
+    /// Returns how many sounds the export handles, once it is planned; zero before.
+    #[must_use]
+    pub fn total(&self) -> usize {
+        self.total.load(Ordering::Relaxed)
+    }
+
+    pub(super) fn plan(&self, total: usize) {
+        self.total.store(total, Ordering::Relaxed);
+    }
+
+    pub(super) fn advance(&self, count: usize) {
+        self.done.fetch_add(count, Ordering::Relaxed);
+    }
 }
 
 /// Whether an exported file was written or kept.
@@ -153,7 +197,25 @@ impl ArchiveAudio<'_> {
         folder: &Path,
         options: ExportOptions,
     ) -> Result<ExportReport, ConversionError> {
+        self.export_sounds_watched(triggers, folder, options, &ExportWatch::default())
+    }
+
+    /// Writes the sounds like [`export_sounds`](Self::export_sounds), reporting its progress to
+    /// `watch` and stopping when `watch` is cancelled; the report then lists what was handled.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`ConversionError`] when `folder` is in a Star Citizen installation or cannot be
+    /// created.
+    pub fn export_sounds_watched(
+        &self,
+        triggers: &[&TriggerSounds<'_>],
+        folder: &Path,
+        options: ExportOptions,
+        watch: &ExportWatch,
+    ) -> Result<ExportReport, ConversionError> {
         let plan = plan::build(triggers);
+        watch.plan(plan.jobs.len());
         let mut report = ExportReport {
             failures: plan.failures,
             ..ExportReport::default()
@@ -166,7 +228,7 @@ impl ArchiveAudio<'_> {
             path: folder.to_path_buf(),
             source,
         })?;
-        for outcome in write::run(self, &plan.jobs, folder, options) {
+        for outcome in write::run(self, &plan.jobs, folder, options, watch) {
             match outcome {
                 Ok(sound) => report.sounds.push(sound),
                 Err(failure) => report.failures.push(failure),

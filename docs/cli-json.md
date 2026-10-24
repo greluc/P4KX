@@ -325,19 +325,27 @@ file is written even when parts are skipped.
 `code` is what `--body` takes, `tag` the tag a piece's Record gives its geometry for the variant,
 `skeleton` and `skin` the files of the default body.
 
-## `p4kx armour glb <archive> --piece <entity>… --out <file> --json`
+## `p4kx armour glb <archive> --piece <entity>… --loadout <loadout> --out <file> --json`
 
 ```json
 {"archive": "…", "body": "male", "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…",
- "lod": 0, "pieces": 2, "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
+ "lod": 0, "loadout": {"name": "…", "source": "entity", "class_name": "…"}, "pieces": 2,
+ "replaced": [{"name": "…", "by": "…", "item_type": "Char_Armor_Torso"}, …],
+ "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
  "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
  "materials": 19, "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
  "issues": [Issue, …]}
 ```
 
-`pieces` counts the `--piece` options, `parts` lists what was written: the skin of the body
-(`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after the
-piece's class name, with the model `file` as the Record spells it. `bones` and `nodes` count the
+`pieces` counts the pieces: the `--piece` options and, with `--loadout`, the armour and clothing of
+the Loadout that were not replaced, including those that could not be resolved. `loadout` is
+`null` without `--loadout`, else it has the text given as `name`, the `source` of the Loadout
+(`entity` for an Entity's default Loadout, `archive` for an XML Loadout Entry, `file` for a file
+on disk) and, for an Entity, its `class_name`. `replaced` lists the pieces of the Loadout that a
+`--piece` of the same item type took the place of. `parts` lists what was written: the skin of
+the body (`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after
+the piece's class name, or `<port>/<class name>` for a piece of a Loadout, with the model `file`
+as the Record spells it. `bones` and `nodes` count the
 glTF nodes: the bones, written once, and the nodes of the models. `skipped` counts the issues that
 leave a piece out. An Entity that no Record matches, or several do, exits with code 2 and writes
 nothing; a skeleton that is missing exits with code 3; an Archive key that is missing or wrong
@@ -350,7 +358,10 @@ Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometr
 `bones_not_in_skeleton` (some bones of the model are not in the body skeleton and follow their
 nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
-class name; for `piece_not_found` it is the text given to `--piece`.
+class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
+the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when
+part of it cannot be read. A `--loadout` that is neither an Entity nor an XML Loadout that can be
+read exits with code 2 and writes nothing.
 
 ## `p4kx entity audio <archive> <entity> --json`
 

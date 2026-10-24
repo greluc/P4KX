@@ -74,9 +74,10 @@ impl App {
             .spawn(move || {
                 let picker = rfd::FileDialog::new();
                 let path = match dialog {
-                    Dialog::AddFolder | Dialog::ExtractionFolder | Dialog::RecordExportFolder => {
-                        picker.pick_folder()
-                    }
+                    Dialog::AddFolder
+                    | Dialog::ExtractionFolder
+                    | Dialog::RecordExportFolder
+                    | Dialog::SoundsFolder => picker.pick_folder(),
                     Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
                         picker.add_filter(filter, &["p4k"]).pick_file()
                     }
@@ -228,6 +229,11 @@ impl eframe::App for App {
                     setup.set_folder(path);
                 }
             }
+            Some((Dialog::SoundsFolder, path)) => {
+                if let Some(setup) = self.model.sounds_mut().export_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
             Some((dialog @ (Dialog::ModelFile | Dialog::AssemblyFile), path)) => {
                 self.choose_export_file(dialog, path);
             }
@@ -269,6 +275,7 @@ impl eframe::App for App {
     fn on_exit(&mut self) {
         self.model.stop_extraction();
         self.model.stop_record_export();
+        self.model.sounds_mut().stop_export();
         self.model.stop_model_export();
         self.model.stop_assembly_export();
         self.model.stop_catalog();

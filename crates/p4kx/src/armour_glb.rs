@@ -6,7 +6,7 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveModels, Armour, AssemblyOptions, BodyVariant, LoadoutResolver, PartOrigin, Piece,
+    ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant, LoadoutResolver, PartOrigin,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, is_same_file,
@@ -14,6 +14,7 @@ use p4kx_extraction::{
 };
 use serde::Serialize;
 
+use crate::armour_loadout::{Files, LoadoutJson, ReplacedJson, Selection};
 use crate::cli_armour::ArmourGlbArgs;
 use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues};
 use crate::json;
@@ -33,7 +34,9 @@ struct GlbJson<'a> {
     skeleton: &'a str,
     out: String,
     lod: u32,
+    loadout: Option<&'a LoadoutJson<'a>>,
     pieces: usize,
+    replaced: Vec<ReplacedJson<'a>>,
     parts: Vec<PartJson<'a>>,
     nodes: usize,
     bones: usize,
@@ -56,16 +59,13 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
     let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
-    let mut resolver = LoadoutResolver::new(&forge);
-    let pieces = args
-        .pieces
-        .iter()
-        .map(|text| piece(&mut resolver, text))
-        .collect::<Result<Vec<_>>>()?;
+    let files = Files::open(ArchiveFiles::new(&archive), args.loadout.as_deref())?;
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let selection = Selection::gather(&mut resolver, &files, args)?;
     let variant = BodyVariant::from(args.body);
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
-    let armour = Armour::build(variant, &pieces, &models, &options)?;
+    let armour = Armour::build(variant, &selection.pieces, &models, &options)?;
     let summary = write(&armour, args)?;
     if as_json {
         json::print(&GlbJson {
@@ -74,7 +74,9 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
             skeleton: armour.skeleton_file(),
             out: json::path(&args.out),
             lod: args.lod,
-            pieces: pieces.len(),
+            loadout: selection.loadout.as_ref(),
+            pieces: selection.pieces.len(),
+            replaced: selection.replaced.iter().map(ReplacedJson::from).collect(),
             parts: armour
                 .parts()
                 .iter()
@@ -102,7 +104,7 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
         })?;
         return Ok(());
     }
-    match print_report(&armour, &summary, &args.out, pieces.len()) {
+    match print_report(&armour, &summary, &selection, &args.out) {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
@@ -113,16 +115,6 @@ const fn origin_code(origin: PartOrigin) -> &'static str {
         PartOrigin::Body => "body",
         _ => "piece",
     }
-}
-
-/// Finds the Entity `text` names and reads what it offers to be worn; an Entity that cannot be
-/// read stays a piece that the report lists.
-fn piece(resolver: &mut LoadoutResolver<'_>, text: &str) -> Result<Piece> {
-    let record = resolver.entities().find(text)?;
-    Ok(match resolver.wearable(&record) {
-        Ok(wearable) => Piece::wearable(wearable),
-        Err(error) => Piece::failed(text, error.to_string()),
-    })
 }
 
 fn write(armour: &Armour, args: &ArmourGlbArgs) -> Result<GlbSummary> {
@@ -151,16 +143,17 @@ fn write(armour: &Armour, args: &ArmourGlbArgs) -> Result<GlbSummary> {
 fn print_report(
     armour: &Armour,
     summary: &GlbSummary,
+    selection: &Selection<'_>,
     out: &Path,
-    pieces: usize,
 ) -> io::Result<()> {
     let mut stdout = BufWriter::new(io::stdout().lock());
+    selection.print(&mut stdout)?;
     writeln!(
         stdout,
         "wrote {} on the {} body: {} pieces, {} parts ({} of the body), {} bones, {} nodes, {} meshes ({} skinned), {} primitives, {} materials, {} vertices, {} triangles, {} bytes",
         out.display(),
         armour.variant().code(),
-        pieces,
+        selection.pieces.len(),
         armour.parts().len(),
         armour.count(PartOrigin::Body),
         summary.bones,

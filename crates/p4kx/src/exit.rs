@@ -12,6 +12,7 @@ use p4kx_extraction::{
     ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, LocalizationLoadError,
     UnknownEntries,
 };
+use p4kx_screens::ScreenError;
 
 use crate::armour_loadout::UnreadableLoadout;
 use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
@@ -77,7 +78,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      e.g. because its format is not supported, a sound or soundbank is invalid or cannot be
      converted or written, e.g. a corrupt WEM or BNK or a codec without a decoder, a tag or
      definition of a UI movie cannot be read or written, e.g. a truncated bitmap tag or a
-     missing external texture, or a model cannot be exported or written, e.g. one too
+     missing external texture, a screen that ui render --screen draws without some widgets
+     (types without a renderer, approximated layout) or whose composition hit a limit, or
+     the renderer skipped an element of it, or a model cannot be exported or written, e.g. one too
      large for a GLB file, or a head that chf glb could not shape by its DNA (the GLB is written without it) or whose expressions it could not make, or a name given to --expression that the rig lacks or that moves no vertex (the GLB is written without them); compare: the Archives or the --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
@@ -97,7 +100,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
      CHF file cannot store, a CHF file for chf glb that holds no face DNA or whose DNA belongs
      to an unknown head rig, a language the Archive holds no global.ini for, or a localisation
-     key that has no text in the language or its fallback
+     key that has no text in the language or its fallback, or a canvas for ui render --screen
+     that no Record, several Records or a Record of another type name, or whose side is
+     below 1 or above 16384 pixels
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
@@ -161,8 +166,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else if dataforge.is_some()
         || error.downcast_ref::<DataForgeError>().is_some()
         || error.downcast_ref::<FieldStatisticsError>().is_some()
-        || error.downcast_ref::<UnreadableSchema>().is_some()
-        || error.downcast_ref::<LoadoutError>().is_some()
+        || is_loadout_or_screen_forge_error(error)
         || is_unreadable_change(error)
     {
         DATAFORGE_ERROR
@@ -175,6 +179,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || model::is_invalid_input(error)
         || is_output_or_query_error(error)
         || error.downcast_ref::<EntityLookupError>().is_some()
+        || is_screen_error(error, |error| !matches!(error, ScreenError::DataForge(_)))
         || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
         || error.downcast_ref::<InvalidChfJson>().is_some()
@@ -189,6 +194,16 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else {
         PARTIAL_FAILURE
     }
+}
+
+fn is_screen_error(error: &anyhow::Error, which: impl Fn(&ScreenError) -> bool) -> bool {
+    error.downcast_ref::<ScreenError>().is_some_and(which)
+}
+
+fn is_loadout_or_screen_forge_error(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<UnreadableSchema>().is_some()
+        || error.downcast_ref::<LoadoutError>().is_some()
+        || is_screen_error(error, |error| matches!(error, ScreenError::DataForge(_)))
 }
 
 fn is_missing_skeleton(error: &anyhow::Error) -> bool {

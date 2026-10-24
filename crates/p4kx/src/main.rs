@@ -98,6 +98,8 @@ mod ui;
 mod ui_extract;
 mod ui_json;
 mod ui_render;
+mod ui_screen_render;
+mod ui_screens;
 mod verify;
 mod wwise;
 mod wwise_events;

@@ -50,7 +50,7 @@ impl Transform {
         }
         let [w, x, y, z] = [w / length, x / length, y / length, z / length];
         let [px, py, pz] = position;
-        Some(Self {
+        Self {
             rows: [
                 [
                     narrow((-2.0_f64).mul_add(y * y + z * z, 1.0)),
@@ -71,7 +71,38 @@ impl Transform {
                     narrow(pz),
                 ],
             ],
-        })
+        }
+        .finite()
+    }
+
+    /// Returns the transform, or `None` when a value is not finite at single precision.
+    #[must_use]
+    pub fn finite(self) -> Option<Self> {
+        self.rows
+            .iter()
+            .flatten()
+            .all(|value| value.is_finite())
+            .then_some(self)
+    }
+
+    /// Returns the transform that scales by `scale` along the axes of the space it maps from,
+    /// and then applies this transform; or `None` when a factor is not finite or is zero, or a
+    /// value overflows single precision.
+    #[must_use]
+    pub fn scaled(self, scale: [f64; 3]) -> Option<Self> {
+        if scale
+            .iter()
+            .any(|factor| !factor.is_finite() || *factor == 0.0)
+        {
+            return None;
+        }
+        let mut rows = self.rows;
+        for row in &mut rows {
+            for (value, factor) in row.iter_mut().zip(scale) {
+                *value = narrow(f64::from(*value) * factor);
+            }
+        }
+        Self { rows }.finite()
     }
 
     /// Returns the transform of the 3×4 row-major matrix `rows`, or `None` when a value is not

@@ -2,9 +2,12 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::{
-    SOC_IDENTITY, TestContainer, TestEntry, TestModel, TestMtl, TestMtlMaterial,
-    TestObjectContainer, TestSoc,
+    SOC_IDENTITY, TestContainer, TestEntry, TestLight, TestModel, TestMtl, TestMtlMaterial,
+    TestObjectContainer, TestSoc, TestSocEntity,
 };
+
+/// The name of the light the root container of [`lit_interior_entries`] holds.
+pub const INTERIOR_LAMP: &str = "root_lamp";
 
 /// The Entry of the sample Interior's root container.
 pub const INTERIOR_ROOT: &str = "Data\\ObjectContainers\\ships\\test\\ship_interior.socpak";
@@ -18,7 +21,7 @@ const fn at(x: f64, y: f64, z: f64) -> [[f64; 4]; 3] {
     [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, y], [0.0, 0.0, 1.0, z]]
 }
 
-fn model_entries(path: &str, model: &TestModel) -> Vec<TestEntry> {
+pub(crate) fn model_entries(path: &str, model: &TestModel) -> Vec<TestEntry> {
     let mut entries = vec![
         TestEntry::stored(format!("{path}.cgf"), model.cgf()),
         TestEntry::stored(format!("{path}.cgfm"), model.cgfm()),
@@ -57,8 +60,8 @@ fn ring(name: &str, next: &str) -> TestContainer {
     TestContainer::new().entry(TestEntry::stored(format!("{name}.xml"), description.xml()))
 }
 
-fn root() -> TestContainer {
-    let soc = TestSoc::new()
+fn root(lit: bool) -> TestContainer {
+    let mut soc = TestSoc::new()
         .model("objects/test/cube.cgf")
         .model("objects/test/lodded.cgf")
         .model("objects/test/absent.cgf")
@@ -66,6 +69,14 @@ fn root() -> TestContainer {
         .object(0, at(0.0, 0.0, 2.0))
         .object(1, at(0.0, 3.0, 0.0))
         .object(2, SOC_IDENTITY);
+    if lit {
+        soc = soc.entity(TestSocEntity::light(
+            INTERIOR_LAMP,
+            [0.0, 1.0, 2.0],
+            [1.0, 0.0, 0.0, 0.0],
+            &TestLight::new("Omni"),
+        ));
+    }
     let description = TestObjectContainer::new("ship_interior")
         .child(
             "modules/cockpit",
@@ -96,6 +107,17 @@ fn root() -> TestContainer {
 /// level of detail at half the size.
 #[must_use]
 pub fn interior_entries() -> Vec<TestEntry> {
+    entries(false)
+}
+
+/// Returns the Entries of [`interior_entries`] with one more thing in the root container: an
+/// `Omni` light named [`INTERIOR_LAMP`] at (0, 1, 2).
+#[must_use]
+pub fn lit_interior_entries() -> Vec<TestEntry> {
+    entries(true)
+}
+
+fn entries(lit: bool) -> Vec<TestEntry> {
     let mut entries = Vec::new();
     entries.extend(model_entries(
         "Data\\Objects\\Test\\cube",
@@ -110,6 +132,6 @@ pub fn interior_entries() -> Vec<TestEntry> {
         "Data\\objects\\test\\ship.mtl",
         TestMtl::multi(&[material("unused"), material("caps"), material("sides")]).cryxml(),
     ));
-    entries.push(TestEntry::stored(INTERIOR_ROOT, root().build()));
+    entries.push(TestEntry::stored(INTERIOR_ROOT, root(lit).build()));
     entries
 }

@@ -19,7 +19,7 @@ crc32c.workspace = true
 crc32fast.workspace = true
 dirs.workspace = true
 flate2.workspace = true
-gltf = { workspace = true, features = ["names"] }
+gltf = { workspace = true, features = ["KHR_lights_punctual", "names"] }
 half.workspace = true
 lzma-rs.workspace = true
 png.workspace = true

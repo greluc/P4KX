@@ -33,6 +33,7 @@ mod entity_armour_loadout;
 mod entity_assembly;
 mod entity_cargo;
 mod entity_head;
+mod entity_interior_sample;
 mod entity_livery;
 mod entity_port;
 mod entity_sample;
@@ -49,9 +50,11 @@ mod glb;
 mod glb_animation;
 mod glb_container;
 mod glb_images;
+mod glb_lights;
 mod glb_skin;
 mod global_ini;
 mod hirc_node;
+mod interior_lit;
 mod interior_sample;
 mod layout_v1;
 mod layout_v2;
@@ -68,6 +71,7 @@ mod opus;
 mod opus_encode;
 mod real_archive;
 mod soc;
+mod soc_entities;
 mod split_dds;
 mod test_entry;
 mod test_jpeg;
@@ -100,6 +104,9 @@ pub use entity_head::{
     FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
     head_entries, head_rig,
 };
+pub use entity_interior_sample::{
+    ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, entity_interior_entries,
+};
 pub use entity_livery::{
     LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,
     livery_entries,
@@ -126,7 +133,10 @@ pub use glb_images::DecodedImage;
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
-pub use interior_sample::{INTERIOR_ROOT, INTERIOR_ROOT_NAME, interior_entries};
+pub use interior_lit::{LIT_ROOM, lit_room_entries};
+pub use interior_sample::{
+    INTERIOR_LAMP, INTERIOR_ROOT, INTERIOR_ROOT_NAME, interior_entries, lit_interior_entries,
+};
 pub use mesh_streams::{MeshStream, MeshStreams, mesh_streams};
 pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
@@ -142,6 +152,7 @@ pub use real_archive::{
     real_archive_pair, real_archive_path,
 };
 pub use soc::{SOC_IDENTITY, TestObjectContainer, TestSoc};
+pub use soc_entities::{TestLight, TestLightState, TestSocEntity};
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
 pub use test_jpeg::{gray_jpeg, progressive_gray_jpeg, sampled_jpeg};

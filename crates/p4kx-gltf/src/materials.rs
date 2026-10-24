@@ -103,6 +103,17 @@ impl<'m> MaterialPlan<'m> {
         self.slots.get(&id).copied().flatten()
     }
 
+    /// Returns the distinct slots something is drawn with, in the order of the material IDs.
+    pub(crate) fn drawn_slots(&self) -> Vec<Slot> {
+        let mut drawn: Vec<Slot> = Vec::new();
+        for slot in self.slots.values().flatten() {
+            if !drawn.contains(slot) {
+                drawn.push(*slot);
+            }
+        }
+        drawn
+    }
+
     /// Returns the number of material IDs drawn with the engine's default material.
     pub(crate) fn defaulted(&self) -> usize {
         self.slots

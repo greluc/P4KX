@@ -7,7 +7,6 @@
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
@@ -113,50 +112,11 @@ fn a_folder_elsewhere_is_fine() -> TestResult {
     Ok(())
 }
 
-static GAME: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-struct FakeGame(Child);
-
-impl FakeGame {
-    fn start(dir: &Path) -> Result<Self, Box<dyn Error>> {
-        let (source, name, args): (PathBuf, &str, &[&str]) = if cfg!(windows) {
-            let root = std::env::var_os("SystemRoot").ok_or("no SystemRoot")?;
-            (
-                PathBuf::from(root).join("System32").join("ping.exe"),
-                "StarCitizen.exe",
-                &["-n", "60", "127.0.0.1"],
-            )
-        } else {
-            (PathBuf::from("/bin/sleep"), "StarCitizen", &["60"])
-        };
-        let folder = dir.join("game");
-        fs::create_dir_all(&folder)?;
-        let copy = folder.join(name);
-        fs::copy(source, &copy)?;
-        let child = Command::new(copy)
-            .args(args)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
-        Ok(Self(child))
-    }
-}
-
-impl Drop for FakeGame {
-    fn drop(&mut self) {
-        let _ignored = self.0.kill();
-        let _ignored = self.0.wait();
-    }
-}
-
 #[test]
 fn warns_while_the_game_runs_and_keeps_the_window_usable() -> TestResult {
-    let (dir, mut harness) = opened(Language::BritishEnglish, |dir, _| dir.join("elsewhere"))?;
-    let _serial = GAME
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let _game = FakeGame::start(dir.path())?;
+    let (_dir, mut harness) = opened(Language::BritishEnglish, |dir, _| dir.join("elsewhere"))?;
 
+    harness.state_mut().probe_game_with(|| true);
     harness.state_mut().watch_game(true);
     wait_until(&mut harness, Model::game_running)?;
 
@@ -171,14 +131,9 @@ fn warns_while_the_game_runs_and_keeps_the_window_usable() -> TestResult {
 
 #[test]
 fn stays_quiet_while_the_game_is_closed() -> TestResult {
-    let _serial = GAME
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if p4kx_extraction::game_is_running() {
-        return Ok(());
-    }
     let (_dir, mut harness) = opened(Language::BritishEnglish, |dir, _| dir.join("elsewhere"))?;
 
+    harness.state_mut().probe_game_with(|| false);
     harness.state_mut().watch_game(true);
     let deadline = Instant::now() + Duration::from_secs(3);
     while Instant::now() < deadline {

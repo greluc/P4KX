@@ -148,7 +148,10 @@ fn replace(bytes: &mut [u8], from: &[u8], to: &[u8]) -> TestResult {
         .windows(from.len())
         .position(|window| window == from)
         .ok_or("the bytes to corrupt")?;
-    bytes[at..at + to.len()].copy_from_slice(to);
+    bytes
+        .get_mut(at..at + to.len())
+        .ok_or("room for the bytes")?
+        .copy_from_slice(to);
     Ok(())
 }
 

@@ -245,7 +245,7 @@ fn the_expressions_are_written_by_default_limited_by_name_or_left_out() -> TestR
     assert_eq!(one_names, ["CTL_b"]);
     assert!(one.stdout.contains("1 morph targets"), "{}", one.stdout);
     assert_eq!(none.code, Some(0), "{}", none.stderr);
-    assert!(none_names.is_empty());
+    assert_eq!(none_names.len(), 0);
     Ok(())
 }
 

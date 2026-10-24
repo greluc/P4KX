@@ -175,20 +175,9 @@ fn fitted(
             return None;
         }
     };
-    let targets = match shaped.morphs {
-        Some(Ok(morphs)) => {
-            for name in morphs.unknown {
-                issues.push(issue(job, IssueKind::UnknownExpression { name }));
-            }
-            morphs.targets
-        }
-        Some(Err(reason)) => {
-            issues.push(issue(job, IssueKind::MorphsFailed { reason }));
-            Vec::new()
-        }
-        None => Vec::new(),
-    };
-    Some((Arc::new(shaped.model), targets))
+    let (model, targets, kinds) = shaped.into_parts();
+    issues.extend(kinds.into_iter().map(|kind| issue(job, kind)));
+    Some((Arc::new(model), targets))
 }
 
 fn provider_failure(path: &str, variant: BodyVariant, failure: ModelFailure) -> AssemblyError {

@@ -148,6 +148,13 @@ pub(super) fn morphs(
     selection: &Expressions,
     models: &dyn ModelProvider,
 ) -> Result<Morphs, String> {
+    let covered = rig.vertex_count().map_err(|error| error.to_string())?;
+    if covered != mesh.positions.len() {
+        return Err(format!(
+            "the rig covers {covered} vertices, the skin has {}",
+            mesh.positions.len()
+        ));
+    }
     let logic = logic_of(path, models)?;
     let blend = rig
         .expression_blend(matrix)

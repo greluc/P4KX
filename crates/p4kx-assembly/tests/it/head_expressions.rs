@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The expression blendshapes of a head as morph targets: named by the skin's RigLogic chunk,
+//! The expression blendshapes of a head as morph targets: named by the skin's `RigLogic` chunk,
 //! mixed by the Character's DNA, limited to a chosen set, and valid in the GLB.
 
 use std::error::Error;
@@ -57,7 +57,9 @@ fn close(actual: [f32; 3], expected: [f32; 3]) {
 }
 
 fn mesh_vertex(part: &ArmourPart, stream: u32) -> Result<u32, Box<dyn Error>> {
-    let position = part.model().lods[0].meshes[0]
+    let mesh = part.model().lods.first().and_then(|lod| lod.meshes.first());
+    let position = mesh
+        .ok_or("the mesh")?
         .source
         .iter()
         .position(|&source| source == stream)
@@ -69,7 +71,7 @@ fn mesh_vertex(part: &ArmourPart, stream: u32) -> Result<u32, Box<dyn Error>> {
 fn without_expressions_the_head_has_no_morph_targets() -> TestResult {
     let armour = armour(Expressions::None)?;
 
-    assert!(head(&armour)?.morphs().is_empty());
+    assert_eq!(head(&armour)?.morphs().len(), 0);
     assert!(armour.issues().is_empty(), "{:?}", armour.issues());
     Ok(())
 }
@@ -170,7 +172,7 @@ fn a_rig_whose_blendshapes_do_not_match_the_names_keeps_the_head_without_targets
 
     let armour = build(Some(rig.build()), Expressions::All)?;
 
-    assert!(head(&armour)?.morphs().is_empty());
+    assert_eq!(head(&armour)?.morphs().len(), 0);
     let issue = armour.issues().first().ok_or("an issue")?;
     assert!(
         matches!(issue.kind(), IssueKind::MorphsFailed { .. }),

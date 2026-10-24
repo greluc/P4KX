@@ -5,8 +5,11 @@ use thiserror::Error;
 
 use crate::rig_bytes::{u16_at, u64_at};
 
-/// The first 8 bytes of a `RigLogic` chunk of a head skin.
+/// The 8 bytes a rig starts with; in the `RigLogic` chunk of a head skin they follow a `u64` with
+/// the length of the rig.
 pub const RIG_LOGIC_MAGIC: [u8; 8] = *b"RIG V1.9";
+
+const PREFIX_LEN: usize = 8;
 
 const HEADER_LEN: usize = 0xa8;
 const HEADER_SIZE_AT: usize = 0x3e;
@@ -50,21 +53,28 @@ pub struct RigLogic {
 }
 
 impl RigLogic {
-    /// Reads the control names and the corrective compositions of a `RigLogic` chunk.
+    /// Reads the control names and the corrective compositions of a `RigLogic` chunk, or of a
+    /// rig file, which lacks the chunk's length prefix.
     ///
     /// # Errors
     ///
     /// Returns [`RigLogicError`] when the chunk is not a `RigLogic` chunk of the version this
     /// reader knows or its sections do not fit the chunk.
     pub fn read(chunk: &[u8]) -> Result<Self, RigLogicError> {
+        let has_magic = |bytes: &[u8]| bytes.get(..RIG_LOGIC_MAGIC.len()) == Some(&RIG_LOGIC_MAGIC);
+        let chunk = if has_magic(chunk) {
+            chunk
+        } else {
+            chunk
+                .get(PREFIX_LEN..)
+                .filter(|rig| has_magic(rig))
+                .ok_or(RigLogicError::BadMagic)?
+        };
         if chunk.len() < HEADER_LEN {
             return Err(RigLogicError::Truncated {
                 need: HEADER_LEN,
                 have: chunk.len(),
             });
-        }
-        if chunk.get(..RIG_LOGIC_MAGIC.len()) != Some(RIG_LOGIC_MAGIC.as_slice()) {
-            return Err(RigLogicError::BadMagic);
         }
         if u16_at(chunk, HEADER_SIZE_AT).map(usize::from) != Some(HEADER_LEN) {
             return Err(RigLogicError::Malformed("the header size is not 168"));
@@ -113,7 +123,8 @@ impl RigLogic {
     }
 
     /// Returns the name of `blendshape`: the control's name, or for a corrective the names of the
-    /// controls it combines, each once and joined by `*`; `None` outside the rig.
+    /// controls it combines, each once and joined by `*`, without the constant control 0 unless
+    /// it is the only one; `None` outside the rig.
     #[must_use]
     pub fn name(&self, blendshape: usize) -> Option<String> {
         if let Some(name) = self.names.get(blendshape) {
@@ -123,12 +134,15 @@ impl RigLogic {
             .correctives
             .get(blendshape.checked_sub(self.names.len())?)?;
         let mut parts: Vec<&str> = Vec::with_capacity(ROW_LEN);
-        for &slot in row {
+        for &slot in row.iter().filter(|&&slot| slot != 0) {
             if let Some(name) = self.names.get(usize::from(slot))
                 && !parts.contains(&name.as_str())
             {
                 parts.push(name);
             }
+        }
+        if parts.is_empty() {
+            parts.extend(self.names.first().map(String::as_str));
         }
         Some(parts.join("*"))
     }

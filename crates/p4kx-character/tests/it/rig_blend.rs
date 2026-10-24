@@ -134,18 +134,19 @@ fn a_matrix_of_another_rig_is_refused() -> TestResult {
 #[test]
 fn the_names_of_the_controls_and_the_correctives_are_read() -> TestResult {
     let logic = RigLogic::read(&TestRigLogic::small().build())?;
+    assert_eq!(RigLogic::read(&TestRigLogic::small().build_rig())?, logic);
 
     assert_eq!((logic.controls(), logic.blendshapes()), (3, 4));
-    assert_eq!(logic.name(0).as_deref(), Some("CTL_a"));
-    assert_eq!(logic.name(2).as_deref(), Some("CTL_c"));
-    assert_eq!(logic.name(3).as_deref(), Some("CTL_a*CTL_c"));
+    assert_eq!(logic.name(0).as_deref(), Some("CTL_PSD"));
+    assert_eq!(logic.name(2).as_deref(), Some("CTL_b"));
+    assert_eq!(logic.name(3).as_deref(), Some("CTL_a*CTL_b"));
     assert_eq!(logic.name(4), None);
     Ok(())
 }
 
 #[test]
 fn a_chunk_that_is_not_a_rig_logic_chunk_is_refused() {
-    let good = TestRigLogic::small().build();
+    let good = TestRigLogic::small().build_rig();
 
     assert_eq!(
         RigLogic::read(&good[..20]).err(),

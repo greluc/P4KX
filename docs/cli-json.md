@@ -1581,12 +1581,19 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
  "parts": [{"name": "body", "origin": "body", "file": "…"},
            {"name": "head", "origin": "head", "file": "…"}],
  "nodes": 222, "bones": 220, "meshes": 2, "skinned_meshes": 2, "primitives": 31,
- "materials": 4, "vertices": 17940, "triangles": 31530, "bytes": 1581492, "skipped": 0,
- "issues": [Issue, …]}
+ "materials": 4, "morph_targets": 399, "vertices": 17940, "triangles": 31530, "bytes": 4896592,
+ "skipped": 0, "issues": [Issue, …]}
 ```
 
 `body` and `rig` are the body variant and the head rig that the DNA's `gender_hash` names; `parts`
-lists the skin of the body (`origin` `body`) and the head (`origin` `head`), named `head`. The
+lists the skin of the body (`origin` `body`) and the head (`origin` `head`), named `head`, each
+with its `morph_targets`; `morph_targets` is the number of expressions written. They are the
+expressions of the head rig that move a vertex of the character's face, all of them by default at
+`--lod 0`, only the ones named by `--expression NAME` (repeatable) otherwise, none with
+`--no-expressions` and at other levels, whose rigs have none. A name the rig lacks adds
+`unknown_expression`, and expressions that cannot be made (the rig of the level has no expression
+morphs, the names of the skin do not fit the rig) add `morphs_failed`; the head is kept, the GLB is
+written and the command exits with code 1 after printing the report. The
 Issues are those of `p4kx armour glb`, and a head that cannot be shaped adds `shape_failed` (the
 DNA rig beside the head skin is missing, belongs to another rig, does not cover the vertices of the
 model, has a different vertex count than the skin, gives moves that are not finite, or the DNA

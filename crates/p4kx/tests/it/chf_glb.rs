@@ -46,6 +46,16 @@ fn chf(dir: &Path, name: &str, dna: Option<(u32, u16)>) -> Result<PathBuf, Box<d
 }
 
 fn glb(archive: &Path, chf: &Path, out: &Path, json: bool) -> Result<Run, Box<dyn Error>> {
+    glb_with(archive, chf, out, json, &[])
+}
+
+fn glb_with(
+    archive: &Path,
+    chf: &Path,
+    out: &Path,
+    json: bool,
+    extra: &[&str],
+) -> Result<Run, Box<dyn Error>> {
     let mut command = p4kx_testkit::p4kx()?;
     if json {
         command.arg("--json");
@@ -55,7 +65,8 @@ fn glb(archive: &Path, chf: &Path, out: &Path, json: bool) -> Result<Run, Box<dy
         .arg(archive)
         .arg(chf)
         .arg("--out")
-        .arg(out);
+        .arg(out)
+        .args(extra);
     let output = command.output()?;
     Ok(Run {
         stdout: String::from_utf8(output.stdout)?,
@@ -196,5 +207,85 @@ fn a_file_that_is_no_chf_is_an_input_error_and_the_archive_is_never_the_output()
 
     assert_eq!(bad.code, Some(3), "{}", bad.stderr);
     assert_eq!(same.code, Some(2), "{}", same.stderr);
+    Ok(())
+}
+
+fn target_names(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {
+    let glb = check_glb(&fs::read(path)?)?;
+    let mesh = glb
+        .document
+        .nodes()
+        .find(|node| node.name() == Some("head") && node.mesh().is_some())
+        .and_then(|node| node.mesh())
+        .ok_or("the head node")?;
+    Ok(glb.target_names(mesh.index()).unwrap_or_default())
+}
+
+#[test]
+fn the_expressions_are_written_by_default_limited_by_name_or_left_out() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
+    let archive = archive(dir.path(), head_entries(Some(rig)))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+    let out = dir.path().join("c.glb");
+
+    let all = glb_with(&archive, &file, &out, true, &[])?;
+    let all_names = target_names(&out)?;
+    let one = glb_with(&archive, &file, &out, false, &["--expression", "ctl_b"])?;
+    let one_names = target_names(&out)?;
+    let none = glb_with(&archive, &file, &out, false, &["--no-expressions"])?;
+    let none_names = target_names(&out)?;
+
+    assert_eq!(all.code, Some(0), "{}", all.stderr);
+    assert_eq!(all_names, ["CTL_a", "CTL_b"]);
+    let value: serde_json::Value = serde_json::from_str(&all.stdout)?;
+    assert_eq!(value["morph_targets"], 2);
+    assert_eq!(value["parts"][1]["morph_targets"], 2);
+    assert_eq!(one.code, Some(0), "{}", one.stderr);
+    assert_eq!(one_names, ["CTL_b"]);
+    assert!(one.stdout.contains("1 morph targets"), "{}", one.stdout);
+    assert_eq!(none.code, Some(0), "{}", none.stderr);
+    assert!(none_names.is_empty());
+    Ok(())
+}
+
+#[test]
+fn an_expression_the_rig_lacks_is_listed_and_exits_with_one() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let rig = head_rig(HEAD_VERTICES, MALE_RIG_HASH).build();
+    let archive = archive(dir.path(), head_entries(Some(rig)))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+    let out = dir.path().join("c.glb");
+
+    let run = glb_with(
+        &archive,
+        &file,
+        &out,
+        false,
+        &["--expression", "CTL_a", "--expression", "nope"],
+    )?;
+
+    assert_eq!(run.code, Some(1), "{}", run.stderr);
+    assert!(run.stdout.contains("nope"), "{}", run.stdout);
+    assert!(run.stderr.contains("expressions"), "{}", run.stderr);
+    assert_eq!(target_names(&out)?, ["CTL_a"], "the file is still written");
+    Ok(())
+}
+
+#[test]
+fn no_expressions_and_a_chosen_expression_contradict_each_other() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path(), head_entries(None))?;
+    let file = chf(dir.path(), "c.chf", Some((MALE_RIG_HASH, 2)))?;
+
+    let run = glb_with(
+        &archive,
+        &file,
+        &dir.path().join("c.glb"),
+        false,
+        &["--no-expressions", "--expression", "CTL_a"],
+    )?;
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
     Ok(())
 }

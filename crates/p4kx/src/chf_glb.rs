@@ -6,7 +6,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
-use p4kx_assembly::{ArchiveModels, Armour, AssemblyOptions, Head, IssueKind, PartOrigin};
+use p4kx_assembly::{
+    ArchiveModels, Armour, AssemblyOptions, Expressions, Head, IssueKind, PartOrigin,
+};
 use p4kx_extraction::{
     ConversionError, GlbOptions, GlbSummary, GltfError, is_same_file, write_replacing,
 };
@@ -24,6 +26,7 @@ struct PartJson<'a> {
     name: &'a str,
     origin: &'static str,
     file: &'a str,
+    morph_targets: usize,
 }
 
 #[derive(Serialize)]
@@ -42,6 +45,7 @@ struct GlbJson<'a> {
     skinned_meshes: usize,
     primitives: usize,
     materials: usize,
+    morph_targets: usize,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -61,6 +65,23 @@ const fn origin_code(origin: PartOrigin) -> &'static str {
     }
 }
 
+/// Some expressions of the head could not be made, so the file lacks them.
+#[derive(Debug, Error)]
+#[error("some expressions of the head could not be made and are not in {}", .0.display())]
+pub(crate) struct ExpressionsNotMade(PathBuf);
+
+fn expressions_of(args: &ChfGlbArgs) -> Expressions {
+    if args.no_expressions {
+        Expressions::None
+    } else if !args.expressions.is_empty() {
+        Expressions::Only(args.expressions.clone())
+    } else if args.lod == 0 {
+        Expressions::All
+    } else {
+        Expressions::None
+    }
+}
+
 /// Runs `p4kx chf glb`.
 pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     if is_same_file(&args.out, &args.archive) {
@@ -71,7 +92,7 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
         path: args.file.clone(),
         source,
     })?;
-    let head = Head::from_character(&chf.character)?;
+    let head = Head::from_character(&chf.character)?.with_expressions(&expressions_of(args));
     let archive = crate::key::open(&args.archive)?;
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
@@ -109,6 +130,14 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     {
         return Err(HeadNotShaped(args.out.clone()).into());
     }
+    if armour.issues().iter().any(|issue| {
+        matches!(
+            issue.kind(),
+            IssueKind::MorphsFailed { .. } | IssueKind::UnknownExpression { .. }
+        )
+    }) {
+        return Err(ExpressionsNotMade(args.out.clone()).into());
+    }
     Ok(())
 }
 
@@ -134,6 +163,7 @@ fn report<'a>(
                 name: part.name(),
                 origin: origin_code(part.origin()),
                 file: part.file(),
+                morph_targets: part.morphs().len(),
             })
             .collect(),
         nodes: summary.nodes,
@@ -142,6 +172,7 @@ fn report<'a>(
         skinned_meshes: summary.skinned_meshes,
         primitives: summary.primitives,
         materials: summary.materials,
+        morph_targets: summary.morph_targets,
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,
@@ -163,7 +194,7 @@ fn print_report(
     let mut stdout = BufWriter::new(io::stdout().lock());
     writeln!(
         stdout,
-        "wrote {} with the head of {} on the {} body: {} parts, {} bones, {} nodes, {} meshes ({} skinned), {} primitives, {} materials, {} vertices, {} triangles, {} bytes",
+        "wrote {} with the head of {} on the {} body: {} parts, {} bones, {} nodes, {} meshes ({} skinned), {} primitives, {} materials, {} morph targets, {} vertices, {} triangles, {} bytes",
         args.out.display(),
         head.rig(),
         head.variant().code(),
@@ -174,6 +205,7 @@ fn print_report(
         summary.skinned_meshes,
         summary.primitives,
         summary.materials,
+        summary.morph_targets,
         summary.vertices,
         summary.triangles,
         summary.bytes

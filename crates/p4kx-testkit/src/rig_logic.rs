@@ -19,13 +19,13 @@ pub struct TestRigLogic {
 }
 
 impl TestRigLogic {
-    /// Three controls `CTL_a`, `CTL_b` and `CTL_c`, and one corrective that combines `CTL_a` and
-    /// `CTL_c`.
+    /// Three controls `CTL_PSD`, the constant control 0, `CTL_a` and `CTL_b`, and one corrective
+    /// that combines `CTL_PSD`, `CTL_a` and `CTL_b`.
     #[must_use]
     pub fn small() -> Self {
         Self {
-            controls: ["CTL_a", "CTL_b", "CTL_c"].map(str::to_owned).to_vec(),
-            correctives: vec![[0, 2, 0, 2, 2]],
+            controls: ["CTL_PSD", "CTL_a", "CTL_b"].map(str::to_owned).to_vec(),
+            correctives: vec![[0, 1, 2, 0, 0]],
         }
     }
 
@@ -35,9 +35,18 @@ impl TestRigLogic {
         self.controls.len() + self.correctives.len()
     }
 
-    /// Returns the bytes of the chunk.
+    /// Returns the bytes of the chunk: the rig behind a `u64` with its length.
     #[must_use]
     pub fn build(&self) -> Vec<u8> {
+        let rig = self.build_rig();
+        let mut out = (rig.len() as u64).to_le_bytes().to_vec();
+        out.extend_from_slice(&rig);
+        out
+    }
+
+    /// Returns the bytes of the rig alone, without the length in front.
+    #[must_use]
+    pub fn build_rig(&self) -> Vec<u8> {
         let crcs = vec![0_u8; self.controls.len() * 4];
         let mut names = Vec::new();
         for name in &self.controls {

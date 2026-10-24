@@ -38,9 +38,10 @@ fn head_skin() -> TestModel {
 /// `code * scale` with the codes 100, 50 and 10 and the scale 0.001, 0.002 and 0.003 per axis;
 /// controls of other heads and regions are set on vertices 5 and 6, with larger scales.
 ///
-/// The expression morphs have the four blendshapes of [`TestRigLogic::small`]: blendshape 0 moves
-/// vertex 5 by 0.01 m along x on the base head and by 0.03 m on head 2, blendshape 1 moves vertex 6
+/// The expression morphs have the four blendshapes of [`TestRigLogic::small`]: blendshape 1 moves
+/// vertex 5 by 0.01 m along x on the base head and by 0.03 m on head 2, blendshape 2 moves vertex 6
 /// by 0.02 m along y on head 2, and head 3 moves vertex 7 along z by 0.04 m in blendshape 2.
+/// Blendshape 0 and the corrective 3 move nothing.
 #[must_use]
 pub fn head_rig(vertices: usize, rig_hash: u32) -> TestDna {
     let control = |scale: [f32; 3]| TestControl {
@@ -82,9 +83,9 @@ pub fn head_rig(vertices: usize, rig_hash: u32) -> TestDna {
         entries: vec![(0, codes)],
     };
     dna.cells = vec![
-        cell(0, 0, 5, [10, 0, 0]),
-        cell(2, 0, 5, [30, 0, 0]),
-        cell(2, 1, 6, [0, 20, 0]),
+        cell(0, 1, 5, [10, 0, 0]),
+        cell(2, 1, 5, [30, 0, 0]),
+        cell(2, 2, 6, [0, 20, 0]),
         cell(3, 2, 7, [0, 0, 40]),
     ];
     dna.deltas = vec![[Vec::new(), Vec::new()]; 5];

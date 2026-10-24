@@ -374,6 +374,13 @@ the morphs that turn the base head into that head. A Character's DNA mixes them 
 face.
 _Avoid_: face rig, RigLogic (a different file)
 
+**Expression**:
+One facial movement of a head rig, such as a blink or a lip corner pull: a control named in the
+`RigLogic` chunk of the head skin, or a corrective that fires when some controls are active
+together. The DNA rig holds its moves per stock head; a Character's DNA mixes them, and the head is
+exported with them as named morph targets.
+_Avoid_: face morph, shape key
+
 **Cubemap face**:
 One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z, −Z; exported as
 `posx` … `negz`.

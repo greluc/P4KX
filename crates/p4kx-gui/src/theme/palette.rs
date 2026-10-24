@@ -79,6 +79,8 @@ pub const SURFACE_RAISED: Color32 = GRAY_3;
 pub const CONTROL_BG: Color32 = CONTROL;
 /// `control-bg-hover`: the hover fill of controls.
 pub const CONTROL_BG_HOVER: Color32 = CONTROL_HOVER;
+/// `table-stripe-bg`: the zebra fill of every second table row, `color-control` at 50 %.
+pub const TABLE_STRIPE_BG: Color32 = Color32::from_rgba_unmultiplied_const(55, 62, 67, 128);
 /// `control-border`: the border of every non-CTA control.
 pub const CONTROL_BORDER: Color32 = GRAY_2;
 /// `control-fg`: control label text.

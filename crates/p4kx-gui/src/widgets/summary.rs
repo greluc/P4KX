@@ -168,7 +168,7 @@ pub(crate) fn kpi_tile(ui: &mut Ui, label: &str, value: &str, tone: Tone, width:
     painter.rect(
         rect,
         CORNER_SM,
-        palette::BG_DARK_GRAY,
+        palette::SURFACE_BAR,
         Stroke::new(1.0, palette::GRAY_3),
         StrokeKind::Inside,
     );

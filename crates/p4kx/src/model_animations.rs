@@ -3,11 +3,27 @@
 
 use std::io::{self, Write};
 
+use anyhow::Result;
+use p4kx_assembly::{ArchiveModels, BodyVariant};
 use p4kx_extraction::model::Model;
 use p4kx_extraction::{AnimationSet, AnimationSummary};
 use serde::Serialize;
 
+use crate::model::choice_of;
 use crate::query_table::one_line;
+
+/// Reads the animations the options `--anim` and `--anim-from` name for a Character of `variant`
+/// from the folders of its body and head; none without `--anim`.
+pub(crate) fn character_animations(
+    models: &ArchiveModels<'_>,
+    variant: BodyVariant,
+    (names, sources): (&[String], &[String]),
+) -> Result<AnimationSet> {
+    Ok(match choice_of(names) {
+        Some(choice) => models.animations(&variant.animation_folders(), &choice, sources)?,
+        None => AnimationSet::default(),
+    })
+}
 
 /// The JSON shape of an animation of `p4kx model glb`.
 #[derive(Serialize)]
@@ -18,6 +34,16 @@ pub(crate) struct WrittenJson {
     channels: usize,
     keys: usize,
     skipped_tracks: Vec<u32>,
+    #[serde(skip_serializing_if = "is_zero")]
+    skipped_weights: usize,
+}
+
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde passes the field by reference"
+)]
+const fn is_zero(value: &usize) -> bool {
+    *value == 0
 }
 
 impl WrittenJson {
@@ -29,6 +55,7 @@ impl WrittenJson {
             channels: summary.channels,
             keys: summary.keys,
             skipped_tracks: summary.skipped_tracks.clone(),
+            skipped_weights: summary.skipped_weights,
         }
     }
 }
@@ -122,6 +149,13 @@ pub(crate) fn write_notes(
                 "animation {name}: left out {} tracks whose bone the skeleton lacks: {}",
                 summary.skipped_tracks.len(),
                 list_ids(&summary.skipped_tracks)
+            )?;
+        }
+        if summary.skipped_weights > 0 {
+            writeln!(
+                out,
+                "animation {name}: left out {} runs of morph weights that do not fit the targets of the mesh",
+                summary.skipped_weights
             )?;
         }
         if summary.additive {

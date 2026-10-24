@@ -8,6 +8,7 @@ use crate::cryxml::{CryXmlByteOrder, CryXmlSignature, TestElement};
 pub struct TestMtlMaterial {
     attributes: Vec<(String, String)>,
     textures: Vec<(String, String)>,
+    layers: Vec<(String, String)>,
 }
 
 impl TestMtlMaterial {
@@ -20,7 +21,16 @@ impl TestMtlMaterial {
                 ("Shader".to_owned(), "Illum".to_owned()),
             ],
             textures: Vec::new(),
+            layers: Vec::new(),
         }
+    }
+
+    /// Adds a material layer named `name` whose `PaletteTint` attribute is `palette_tint`, as
+    /// written (`1` to `3` take a palette entry, `0` none).
+    #[must_use]
+    pub fn layer(mut self, name: &str, palette_tint: &str) -> Self {
+        self.layers.push((name.to_owned(), palette_tint.to_owned()));
+        self
     }
 
     /// Sets an attribute to any value, even a malformed one.
@@ -123,7 +133,19 @@ impl TestMtlMaterial {
                     .attribute("File", file),
             );
         }
-        element.child(textures)
+        let element = element.child(textures);
+        if self.layers.is_empty() {
+            return element;
+        }
+        let mut layers = TestElement::new("MatLayers");
+        for (name, palette_tint) in &self.layers {
+            layers = layers.child(
+                TestElement::new("Layer")
+                    .attribute("Name", name)
+                    .attribute("PaletteTint", palette_tint),
+            );
+        }
+        element.child(layers)
     }
 }
 

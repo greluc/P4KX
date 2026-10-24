@@ -238,11 +238,6 @@ impl<'m> Layout<'m> {
         self.blocks.len() - 1
     }
 
-    /// Returns the material IDs of the primitives, sorted, each once.
-    pub(crate) fn material_ids(&self) -> Vec<u16> {
-        self.ids_where(|_| true)
-    }
-
     /// Returns the material IDs of the primitives of the model instance `part`, sorted, each once.
     pub(crate) fn part_material_ids(&self, part: usize) -> Vec<u16> {
         self.ids_where(|mesh| mesh.part == part)

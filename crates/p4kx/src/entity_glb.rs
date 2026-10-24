@@ -263,7 +263,7 @@ fn print_changes(out: &mut impl Write, changes: &LoadoutChanges) -> io::Result<(
     Ok(())
 }
 
-fn print_textures(out: &mut impl Write, summary: &GlbSummary) -> io::Result<()> {
+pub(crate) fn print_textures(out: &mut impl Write, summary: &GlbSummary) -> io::Result<()> {
     if summary.textures > 0 || !summary.texture_fallbacks.is_empty() {
         writeln!(
             out,

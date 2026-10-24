@@ -4,6 +4,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use crate::manifest_light::Light;
 use crate::manifest_materials::{MaterialDescription, Palette};
 
 /// The value of [`Manifest::format`] as text.
@@ -13,7 +14,7 @@ pub const FORMAT: &str = "p4kx-blender-package";
 ///
 /// A new minor version only adds fields and values readers may ignore; a new major version changes
 /// the meaning of existing ones.
-pub const FORMAT_VERSION: &str = "1.1";
+pub const FORMAT_VERSION: &str = "1.2";
 
 /// The name of the manifest file in the package folder.
 pub const MANIFEST_FILE: &str = "scene.json";
@@ -84,6 +85,13 @@ pub enum AlphaMeaning {
 pub enum NodeKind {
     /// An Entity of the Archive; `entity` names it.
     Entity,
+    /// A group of the Interior: the node that holds the containers of an Entity, a container or a
+    /// `.soc` file a container streams. It draws nothing.
+    Container,
+    /// A model an Interior places, a prop or a placed model; it draws a mesh.
+    Object,
+    /// A light an Interior places; `light` describes it.
+    Light,
 }
 
 /// What reported an issue.
@@ -221,16 +229,21 @@ pub struct Replacement {
 pub struct Node {
     /// What the node places.
     pub kind: NodeKind,
-    /// The node's name, `<port>/<entity>`, or the class name for the root.
+    /// The node's name: `<port>/<entity>` or the class name for the root, the name from the
+    /// Interior's files for the other kinds.
     pub name: String,
-    /// The path of the node's port from the root, port names joined by `/`; empty for the root.
+    /// The path of the node from the root, the port names or, below `Interior`, the names of the
+    /// nodes joined by `/`; empty for the root.
     pub path: String,
     /// The index of the parent node in `nodes`, absent for the root.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<usize>,
-    /// The Entity placed at the node; present for the kind `entity`.
+    /// The Entity placed at the node; present for the kind `entity`, absent for the others.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub entity: Option<EntityRef>,
+    /// The light at the node; present for the kind `light`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub light: Option<Light>,
     /// The id of the mesh drawn at the node; absent when the node draws nothing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mesh: Option<String>,

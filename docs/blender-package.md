@@ -36,6 +36,8 @@ glossary); a **mesh** of the package is a GLB file with the geometry of one mode
 `p4kx entity package <archive> <entity> --out <folder>`. The Loadout, the parts, `--lod`,
 `--exclude` and `--replace` are those of `p4kx entity glb`; `--texture-mip <n>` picks the mip of
 every texture and `--no-vertex-colours` leaves the vertex colours out of the meshes.
+`--interior` adds the Entity's Interior as for `entity glb --interior` (ADR-0086), see
+[Interiors and lights](#interiors-and-lights).
 
 - The output is checked before the Archive is opened (`p4kx_blender::check_output`). The folder
   must not exist, or be empty, or hold a package an earlier run wrote: `scene.json` with the
@@ -60,7 +62,7 @@ written (there are no `null`s).
 | Field | Meaning |
 | --- | --- |
 | `format` | Always `p4kx-blender-package`. |
-| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.1` today. |
+| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.2` today. |
 | `generator` | `name` (`p4kx`) and `version` of the program that wrote the package. |
 | `source` | `channel` (the Channel folder, e.g. `LIVE`), `build` (`branch`, `version`, `public_patch`, `change_number`, `build_id` of the Archive's build manifest) and `entity` (`class_name`, `guid`). `channel` and `build` are absent when unknown. |
 | `coordinates` | `basis` is `gltf_y_up` and `unit` is `metre`. A reader refuses a `basis` or `unit` it does not know. |
@@ -96,13 +98,54 @@ A shear in the game's transform is not stored.
 
 | Field | Meaning |
 | --- | --- |
-| `kind` | What the node places: `entity` in version 1. Later minor versions add kinds (containers, objects, lights); a reader skips nodes of a kind it does not know, with their children. |
-| `name` | `<port>/<entity>` (the class name for the root); use it as the object name. |
-| `path` | The port names from the root joined by `/`; empty for the root. |
+| `kind` | What the node places: `entity`, or in an Interior (version 1.2) `container`, `object` or `light`. Later minor versions add kinds; a reader skips nodes of a kind it does not know, with their children. |
+| `name` | `<port>/<entity>` (the class name for the root) for an `entity`, the name from the Interior's files for the other kinds; use it as the object name. |
+| `path` | The port names from the root joined by `/`, below `Interior` the names of the nodes joined by `/`; empty for the root. |
 | `parent` | Index of the parent in `nodes`; absent for the root. |
-| `entity` | `class_name` and `guid` of the Entity; present for the kind `entity`. |
+| `entity` | `class_name` and `guid` of the Entity; present for the kind `entity`, absent for the others. |
+| `light` | The light, see below; present for the kind `light`. |
 | `mesh` | Id of the mesh drawn at the node; absent when the node draws nothing. |
 | `translation`, `rotation`, `scale` | The local transform in glTF axes: a vector, a unit quaternion `[x, y, z, w]` and a vector. |
+
+### Interiors and lights
+
+With `--interior` the root Entity gets one more child, the node `Interior` (kind `container`,
+path `Interior`). Below it, in the order of the Entity's Record, hang the containers the Entity
+names, placed at their bones as in ADR-0086, and below each container the nodes ADR-0081 and
+ADR-0087 describe:
+
+| Kind | What it is | `mesh` | `entity` |
+| --- | --- | --- | --- |
+| `container` | The group `Interior`, a container, or a `.soc` file a container streams. It draws nothing and only gives its children a place. | absent | absent |
+| `object` | A model a `.soc` file places, or a prop. The mesh is absent when the model could not be read; the issue says why. | the mesh drawn | absent |
+| `light` | A punctual light. | absent | absent |
+
+Objects share meshes with each other and with the Entity's parts as everything else does (same
+model, material library and palette), and an Interior model has no tint palette: it is drawn with
+plain colours or its textures. Paths and names come from the Archive and are
+untrusted text.
+
+A `light` node has a `light` object:
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | `point`, `spot` or `directional`. Other engine types (`Ambient`, `Planar`) are no nodes; the issues list them as `light_unsupported`. |
+| `colour` | Linear red, green and blue, each in 0 to 1. The engine's colour is read as sRGB; with a colour temperature it is multiplied by the colour of a black body (ADR-0087). |
+| `intensity` | The engine's value, not converted: its unit is not documented, so it only compares lights of one package. Never negative. |
+| `range` | Metres beyond which the light has no effect; absent when the engine gives none. |
+| `inner_cone`, `outer_cone` | Radians from the axis, for the kind `spot` only: where the falloff begins (0 today) and where the light ends (half of the projector's opening angle, at most a quarter turn). |
+
+**Direction.** The node's transform is already turned so that the light shines along the node's
+local -Z axis, as glTF and Blender lights do (the engine's lights shine along +X; the writer
+applies the same rotation as `entity glb`). An importer needs no correction beyond its axis
+conversion.
+
+**Mapping in the Blender add-on** (approximate, because the intensity has no unit): `point`,
+`spot` and `directional` become a point, spot and sun light; the colour is carried over; a point
+or spot light gets 10 W per unit of intensity and a sun 1 per unit, both times the import
+option *Light strength*; a spot's size is `2 * outer_cone` between 1 and 180 degrees and its
+blend `1 - inner_cone / outer_cone`; a `range` becomes the light's custom distance. The mapping is
+`blender_addon/p4kx_importer/lights.py`.
 
 ### Meshes
 
@@ -250,6 +293,11 @@ that a reader can ignore. A reader
 - reads a package with a higher minor version and warns that parts of it may be ignored;
 - reads every lower minor version of its major version.
 
+Version history: **1.0** is the first format; **1.1** adds the material descriptions, the palettes
+and the glTF material indices in the meshes; **1.2** adds the node kinds `container`, `object` and
+`light` and the node field `light` (`entity package --interior`). A reader of 1.1 skips such nodes
+with their children.
+
 The schema file is the schema of the version in `FORMAT_VERSION`: a change of the Rust types that
 changes the schema is a change of the format, and the checked-in schema changes with it. A schema
 of a later minor version can contain values (a texture `format`, a node `kind`) that an older
@@ -263,8 +311,6 @@ the rules above.
 - **Skeletons and animations (#162).** A manifest-level `skeletons` array. A skeleton has an id
   and its bones; a mesh that is skinned and a node that poses a skeleton reference it by that id.
   Animation clips are lazy sidecar files. Version 1 has no skeletons and no skinned meshes.
-- **Interiors (#161).** Nodes of other `kind`s (containers, placed objects, lights) next to the
-  `entity` nodes; they need no `entity`.
 - **Node trees of the add-on (#160).** Nothing is reserved: the descriptions of 1.1 are the
   inputs it builds from ([ADR-0100](adr/0100-the-add-on-builds-material-node-trees-from-the-package-descriptions-by-a-pure-mapping.md)).
 

@@ -16,11 +16,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from .light_model import Light, LightError, parse_light
 from .material_model import MaterialDesc, Palette, parse_materials, parse_palettes
 
 FORMAT_NAME = "p4kx-blender-package"
 SUPPORTED_MAJOR = 1
-SUPPORTED_MINOR = 1
+SUPPORTED_MINOR = 2
 MANIFEST_NAME = "scene.json"
 MAX_MANIFEST_BYTES = 64 * 1024 * 1024
 MAX_ITEMS = 200_000
@@ -33,7 +34,7 @@ _TEXTURE_ID = re.compile(r"^t[0-9]{4,}$")
 _MESH_FILE = re.compile(r"^meshes/m[0-9]{4,}\.glb$")
 _TEXTURE_FILE = re.compile(r"^textures/t[0-9]{4,}\.png$")
 _ROLES = ("diffuse", "normal", "specular")
-_KNOWN_NODE_KINDS = frozenset({"entity"})
+_KNOWN_NODE_KINDS = frozenset({"entity", "container", "object", "light"})
 _COLOUR_SPACES = frozenset({"srgb", "linear"})
 _ALPHA_MEANINGS = frozenset({"none", "opacity", "smoothness"})
 
@@ -84,12 +85,14 @@ class Node:
     """One node of the scene hierarchy, with its transform in glTF axes."""
 
     index: int
+    kind: str
     name: str
     parent: int | None
     mesh: str | None
     translation: Vector3
     rotation: Quaternion
     scale: Vector3
+    light: Light | None = None
 
 
 @dataclass(slots=True)
@@ -347,6 +350,9 @@ def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str])
     nodes: list[Node] = []
     skipped: set[int] = set()
     unknown_kinds: set[str] = set()
+    unknown_lights = False
+    light_children = False
+    light_nodes: set[int] = set()
     for position, item in enumerate(items):
         where = f"nodes[{position}]"
         entry = _object(item, where)
@@ -356,28 +362,53 @@ def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str])
         ):
             raise PackageError(f"{where}: parent must be the index of an earlier node.")
         kind = _text(entry, "kind", where)
+        if parent in light_nodes:
+            skipped.add(position)
+            light_children = True
+            continue
         if kind not in _KNOWN_NODE_KINDS or parent in skipped:
             skipped.add(position)
             if kind not in _KNOWN_NODE_KINDS:
                 unknown_kinds.add(kind)
             continue
-        mesh = entry.get("mesh")
+        light = None
+        if kind == "light":
+            light = _light(entry.get("light"), f"{where}.light")
+            if light is None:
+                skipped.add(position)
+                unknown_lights = True
+                continue
+            light_nodes.add(position)
+        mesh = None if kind == "light" else entry.get("mesh")
         if mesh is not None and (not isinstance(mesh, str) or mesh not in meshes):
             raise PackageError(f"{where}: mesh {mesh!r} is not a mesh of the package.")
         nodes.append(
             Node(
                 index=position,
+                kind=kind,
                 name=_text(entry, "name", where),
                 parent=parent,
                 mesh=mesh,
                 translation=_floats(entry, "translation", 3, where),
                 rotation=_rotation(entry, where),
                 scale=_floats(entry, "scale", 3, where),
+                light=light,
             )
         )
     if unknown_kinds:
         warnings.append(f"Nodes of kind {', '.join(sorted(unknown_kinds))} are skipped.")
+    if unknown_lights:
+        warnings.append("Lights of a kind this add-on does not know are skipped.")
+    if light_children:
+        warnings.append("Children of light nodes are skipped.")
     return nodes
+
+
+def _light(value: object, where: str) -> Light | None:
+    try:
+        return parse_light(value, where)
+    except LightError as error:
+        raise PackageError(str(error)) from error
 
 
 def _rotation(entry: dict[str, Any], where: str) -> Quaternion:

@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 
 use crate::cli_model::lod_range;
 use crate::exit::EXIT_CODES_HELP;
@@ -46,15 +46,29 @@ pub(crate) enum ChfAction {
     /// skin of the character's head rig, its vertices moved by the character's face DNA into the
     /// character's neutral face, worn on the default body of the character's body variant (the
     /// male or female skeleton and body skin, as `armour glb` writes them). Y up, in metres.
-    /// The expressions of the head rig, about 400 of its 495 blendshapes, are written as morph
-    /// targets of the head, named like the rig's controls, mixed by the character's DNA and
-    /// stored sparse; limit them with --expression or leave them out with --no-expressions. Only
-    /// the rig of LOD 0 has expressions, so the other levels are written without unless
-    /// --expression names some, which then fails. Hair, eyes and teeth are not part of it. The
-    /// head rig comes from the Archive; a character without face DNA or for an unknown head rig
-    /// is invalid input.
+    /// The eyes, teeth, hair, brows, lashes and beard the character wears on its head are
+    /// included: the eyes and teeth are shaped by the DNA, the others follow the shaped head. The
+    /// character's material choices are applied: its head material, the skin tone, the iris colour
+    /// and the melanin and dye of its hair; blemishes, makeup and tattoos are listed as not drawn,
+    /// and an item or material the Archive does not have is listed and left out or replaced by the
+    /// item's own. The expressions of the head rig, about 400 of its 495 blendshapes, are written
+    /// as morph targets of the head, named like the rig's controls, mixed by the character's DNA
+    /// and stored sparse; limit them with --expression or leave them out with --no-expressions.
+    /// Only the rig of LOD 0 has expressions, so the other levels are written without unless
+    /// --expression names some, which then fails. The eyes, teeth, hair and beard have none and
+    /// follow only the neutral shape of the head. The head rig and the items come from the
+    /// Archive; a character without face DNA or for an unknown head rig is invalid input.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(ChfGlbArgs),
+}
+
+/// The material modes of `p4kx chf glb --materials`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum ChfMaterialsArg {
+    /// Plain colours without textures.
+    Colours,
+    /// The plain colours with the textures of the materials as embedded PNG images.
+    Textures,
 }
 
 /// Arguments of `p4kx chf glb`.
@@ -71,6 +85,16 @@ pub(crate) struct ChfGlbArgs {
     /// the level is written at the nearest lower level it has.
     #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
     pub(crate) lod: u32,
+    /// How to write the materials. textures: the diffuse, normal and specular maps of the skin,
+    /// eyes, hair and the other pieces as PNG images, each image once; a texture that cannot be
+    /// read leaves the plain colour and is listed. colours: plain colours without textures.
+    #[arg(long, value_enum, value_name = "MODE", default_value_t = ChfMaterialsArg::Textures)]
+    pub(crate) materials: ChfMaterialsArg,
+    /// The mip level of the textures with --materials textures: 0 is the largest, each level
+    /// halves the width and height; a texture with fewer mips gives its smallest. The default 1
+    /// keeps the file of a head with its skin, eye and hair maps at a few tens of megabytes.
+    #[arg(long, value_name = "N", default_value_t = 1)]
+    pub(crate) texture_mip: u32,
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,

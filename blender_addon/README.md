@@ -17,6 +17,10 @@ importer that ships with Blender must be enabled.
   with the node groups `P4KX Layer Blend` and `P4KX Wear` shared by all materials. The glTF
   materials are matched by their `p4kx_index` custom property. Unknown shaders and 1.0 packages
   get a basic setup (diffuse, normal map, specular, alpha); unknown shaders also a warning.
+- Builds the Interior of a package written with `--interior`: containers and models as empties
+  and instances, lights as Blender point, spot and sun lights (mapping in
+  [docs/blender-package.md](../docs/blender-package.md#interiors-and-lights)). The import option
+  *Light strength* multiplies their energy, because the engine's intensity has no known unit.
 - Refuses a package with a newer major version and says to update the add-on; warns about a
   newer minor version.
 

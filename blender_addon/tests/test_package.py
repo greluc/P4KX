@@ -75,7 +75,7 @@ def test_unknown_fields_and_values_of_a_later_minor_version_are_tolerated() -> N
     data["textures"].append({**data["textures"][0], "id": "t0004", "colour_space": "acescg"})
     data["textures"].append({**data["textures"][0], "id": "t0005", "alpha": "roughness"})
     data["meshes"][0]["materials"][0]["textures"]["specular"] = "t0004"
-    data["nodes"].append({**data["nodes"][0], "kind": "light", "name": "L", "parent": 0})
+    data["nodes"].append({**data["nodes"][0], "kind": "portal", "name": "L", "parent": 0})
     data["nodes"].append({**data["nodes"][0], "kind": "entity", "name": "child", "parent": 4})
     result = parse(data)
     assert set(result.textures) == {"t0001", "t0002"}
@@ -86,7 +86,7 @@ def test_unknown_fields_and_values_of_a_later_minor_version_are_tolerated() -> N
         "hardpoint_b/Gun",
         "hardpoint_c/Box",
     ]
-    assert any("light" in warning for warning in result.warnings)
+    assert any("portal" in warning for warning in result.warnings)
 
 
 @pytest.mark.parametrize(

@@ -11,8 +11,8 @@ use p4kx_extraction::{
 };
 
 use super::stop::{Observed, Stoppable, StoppableTextures};
-use super::{AssemblyExportStage, Ended, Request, Shared, Subject};
-use crate::assembly_export::AssemblyExportSummary;
+use super::{AssemblyExportStage, Ended, Request, Shared, Subject, package};
+use crate::assembly_export::{AssemblyExportForm, AssemblyExportSummary};
 use crate::entities::{ResolveFailure, resolve};
 use crate::forge_cache::ReadFailure;
 use crate::model::describe;
@@ -102,6 +102,19 @@ fn entity(
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }
     shared.enter(AssemblyExportStage::Writing);
+    let models = (&assembly, &archive_models);
+    if request.form == AssemblyExportForm::Package {
+        return package::write(index, request, models, (changes, cancel));
+    }
+    write_glb(index, request, models, (changes, cancel, shared))
+}
+
+fn write_glb(
+    index: &EntryIndex,
+    request: &Request,
+    (assembly, archive_models): (&Assembly, &ArchiveModels<'_>),
+    (changes, cancel, shared): (&LoadoutChanges, &CancelToken, &Shared),
+) -> Ended {
     let written = write_replacing(&request.file, |writer| {
         let mut observed = Observed {
             inner: writer,
@@ -120,7 +133,7 @@ fn entity(
     ended(index, written, |written| {
         AssemblyExportSummary::new(
             (request.file.clone(), request.name.clone()),
-            &assembly,
+            assembly,
             (written, changes),
         )
     })
@@ -288,7 +301,7 @@ fn ended(
     }
 }
 
-fn failed(index: &EntryIndex, error: &(dyn std::error::Error + 'static)) -> Ended {
+pub(super) fn failed(index: &EntryIndex, error: &(dyn std::error::Error + 'static)) -> Ended {
     Ended::Failed(failure_of(index, error))
 }
 

@@ -7,6 +7,7 @@ use clap::{ArgGroup, Args, Subcommand};
 use p4kx_extraction::Language;
 use p4kx_extraction::gfx::{Background, CanvasSize, MAX_CANVAS_PIXELS, MAX_CANVAS_SIDE, Rgba};
 
+use crate::cli_hologram::HologramArgs;
 use crate::exit::EXIT_CODES_HELP;
 
 /// Arguments of `p4kx ui`.
@@ -98,6 +99,13 @@ pub(crate) enum UiAction {
         #[arg(long, value_name = "LANGUAGE", requires = "text_source", value_parser = clap::value_parser!(Language))]
         lang: Option<Language>,
     },
+    /// Draws the hologram of a vehicle as a PNG: the Assembly of the Entity, with its Loadout, seen
+    /// through the narrow lens of the `UIHoloVehicle_Config` Record of the game and drawn as a
+    /// transparent tinted shell whose edges glow. The picture is drawn offscreen on the graphics
+    /// card or, with --software, on the software adapter, so no window is needed. Textures and
+    /// interiors are not drawn.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Hologram(HologramArgs),
 }
 
 fn parse_size(text: &str) -> Result<CanvasSize, String> {

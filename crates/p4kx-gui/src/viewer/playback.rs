@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use p4kx_extraction::model::{Animation, BoneTransform};
 
-use super::skeleton::{Pose, Sample, Skeleton};
 use crate::model_info::printable;
+use p4kx_render::{Pose, Sample, Skeleton};
 
 /// The longest time one frame advances an animation, so a stalled window does not jump.
 const MAX_STEP: f32 = 0.25;

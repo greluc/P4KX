@@ -21,6 +21,7 @@ fn the_export_choices_survive_a_round_trip() -> TestResult {
             texture_mip: 3,
             vertex_colours: false,
             interior: true,
+            package: true,
             folder: Some(PathBuf::from("D:\\Ships")),
         },
         ..Settings::default()
@@ -44,6 +45,7 @@ fn a_file_without_export_choices_gets_the_defaults() -> TestResult {
     assert_eq!(loaded.lod, 0, "most detailed level");
     assert!(loaded.vertex_colours, "vertex colours on");
     assert!(!loaded.interior, "hull only");
+    assert!(!loaded.package, "a GLB file");
     assert_eq!(loaded.folder, None, "no folder");
     Ok(())
 }

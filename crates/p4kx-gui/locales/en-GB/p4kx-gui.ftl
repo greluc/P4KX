@@ -1017,7 +1017,7 @@ entities-loadout-no-ports = This Entity has no ports.
 entities-changes = { $excluded } left out, { $replaced } replaced
 entities-no-changes = The default Loadout
 entities-reset = Reset changes
-entities-export = Export as GLB…
+entities-export = Export…
 entities-include = Include { $port }
 entities-replace = Replace…
 entities-restore = Restore
@@ -1070,7 +1070,25 @@ entities-view-issues = Parts not resolved: { $count }
 entities-hide = Hide
 entities-show = Show
 entities-status-hidden = Hidden
-assembly-export-title = Export Entity as GLB
+assembly-export-title = Export Entity
+assembly-export-form-heading = Output
+assembly-export-form-glb = GLB file
+assembly-export-form-package = Blender package
+assembly-export-form-package-note = A folder with scene.json, one GLB file per mesh and the textures as PNG, for the Blender add-on.
+assembly-export-folder-heading = Package folder
+assembly-export-choose-folder = Choose folder…
+assembly-export-folder-none = No folder chosen
+assembly-export-package-replaces = The folder holds an earlier package. It is replaced once the new one is complete.
+assembly-export-package-not-a-package = The folder is not empty and holds no package written by P4KX. Choose a new or an empty folder.
+assembly-export-package-no-name = The path names no folder. Choose another one.
+assembly-export-running-title-package = Exporting Blender package
+assembly-export-writing-package = Writing the package of { $name }…
+assembly-export-summary-title-package = Blender package written
+assembly-export-summary-package-counts = Parts { $parts } ({ $modelled } with a model), nodes { $nodes }, meshes { $meshes }, textures { $textures }, materials { $materials }, palettes { $palettes }, files { $files }, vertices { $vertices }, triangles { $triangles }, size { $size }
+assembly-export-summary-package-textures = { $count ->
+    [one] One texture could not be written; its materials keep the plain colours.
+   *[other] { $number } textures could not be written; their materials keep the plain colours.
+  }
 assembly-export-title-interior = Export Interior as GLB
 assembly-export-action-interior = Export Interior as GLB…
 assembly-export-entity = Entity: { $name }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod package;
 mod run;
 pub(super) mod stop;
 
@@ -17,7 +18,7 @@ pub(crate) use run::failure_of;
 #[cfg(test)]
 use stop::Observed;
 
-use super::AssemblyExportSummary;
+use super::{AssemblyExportForm, AssemblyExportSummary};
 use crate::model::describe;
 use crate::{EntryIndex, ModelExportFailure};
 
@@ -40,6 +41,7 @@ pub(crate) enum Subject {
 pub(crate) struct Request {
     pub(crate) subject: Subject,
     pub(crate) name: String,
+    pub(crate) form: AssemblyExportForm,
     pub(crate) file: PathBuf,
     pub(crate) lod: u32,
     pub(crate) materials: ModelMaterials,
@@ -188,12 +190,19 @@ pub struct AssemblyExport {
     file: PathBuf,
     name: String,
     container: bool,
+    form: AssemblyExportForm,
     cancel: CancelToken,
     shared: Arc<Shared>,
     state: State,
 }
 
 impl AssemblyExport {
+    /// Returns what the export writes: a GLB file or a Blender package folder.
+    #[must_use]
+    pub const fn form(&self) -> AssemblyExportForm {
+        self.form
+    }
+
     /// Returns whether the export writes the Interior of a container on its own rather than an
     /// Entity.
     #[must_use]
@@ -207,7 +216,7 @@ impl AssemblyExport {
         self.id
     }
 
-    /// Returns the GLB file the export writes.
+    /// Returns the GLB file the export writes, or the package folder.
     #[must_use]
     pub fn file(&self) -> &Path {
         &self.file
@@ -291,6 +300,7 @@ pub(crate) fn start(
     let shared = Arc::new(Shared::default());
     let (file, name) = (request.file.clone(), request.name.clone());
     let container = matches!(request.subject, Subject::Container { .. });
+    let form = request.form;
     let (sender, result) = mpsc::channel();
     let thread_index = Arc::clone(index);
     let thread_cancel = cancel.clone();
@@ -312,9 +322,34 @@ pub(crate) fn start(
         file,
         name,
         container,
+        form,
         cancel,
         shared,
         state,
+    }
+}
+
+#[cfg(test)]
+impl AssemblyExport {
+    /// Returns an export that stays running until the returned guard is dropped, in `stage`.
+    pub(crate) fn pending(
+        (name, form): (&str, AssemblyExportForm),
+        stage: AssemblyExportStage,
+    ) -> (Self, Box<dyn std::any::Any>) {
+        let (sender, result) = mpsc::channel::<Ended>();
+        let shared = Arc::new(Shared::default());
+        shared.enter(stage);
+        let export = Self {
+            id: u64::MAX,
+            file: PathBuf::from(name),
+            name: name.to_owned(),
+            container: false,
+            form,
+            cancel: CancelToken::new(),
+            shared,
+            state: State::Running(result),
+        };
+        (export, Box::new(sender))
     }
 }
 

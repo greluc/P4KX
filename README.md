@@ -370,6 +370,17 @@ Early development (milestone M1). Available today:
   is drawn once without continuing its edge pixels, and a stroke painted with a non-repeating
   bitmap tiles it. Text is written as paths, never as `<text>` elements. A document is at most 1 GiB;
   a larger one is an error and no file is left.
+- `p4kx ui hologram <archive> <entity> --out <file.png> [--size <W>x<H>|<side>] [--background
+  <colour>] [--view-angle <degrees>] [--elevation <degrees>] [--fov <degrees>] [--distance-scaler
+  <factor>] [--tint <colour>] [--opacity <0..1>] [--glow <0..4>] [--lod <n>] [--software]
+  [--exclude <port>] [--replace <port>=<entity>]` draws the hologram of a vehicle: the Assembly of
+  the Entity with its Loadout, as a transparent tinted shell that glows along its edges, seen
+  through the narrow lens of the game's `UIHoloVehicle_Config` Record (field of view, view angle
+  and distance factor, 10, 60 and 1.5 in the current game, each overridable). The picture is
+  drawn offscreen without a window, by the same wgpu renderer as the 3D viewer, on the graphics
+  card or with `--software` on the software adapter (WARP, lavapipe), which gives a picture that
+  does not depend on the graphics card. The background is `transparent` or `#RRGGBB[AA]`; the PNG
+  has straight alpha. Textures and interiors are not drawn.
 - `p4kx ui screens <archive> <entity>` lists the `BuildingBlocks` screens of an Entity and of
   everything in its default Loadout, e.g. the MFDs, the radar and the HUD of a ship: per screen the
   port, the Entity, the canvas Record and its size, the canvases, textures, vector graphics, movies

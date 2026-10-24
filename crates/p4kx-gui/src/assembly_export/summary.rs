@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_assembly::{Assembly, Interior, Issue, LoadoutChanges};
+use p4kx_blender::{Issue as PackageIssue, PackageSummary};
 use p4kx_extraction::GlbSummary;
 
 use crate::model_info::printable;
@@ -29,6 +30,15 @@ impl PartIssue {
             name: printable(issue.name()),
             reason: printable(&issue.kind().to_string()),
             skipped: issue.kind().skips(),
+        }
+    }
+
+    pub(crate) fn of_package(issue: &PackageIssue) -> Self {
+        Self {
+            path: printable(&issue.path),
+            name: printable(&issue.name),
+            reason: printable(&issue.reason),
+            skipped: issue.skipped,
         }
     }
 }
@@ -62,9 +72,23 @@ pub struct AssemblyExportSummary {
     excluded: usize,
     replaced: usize,
     interior: Option<InteriorFacts>,
+    package: Option<PackageSummary>,
 }
 
 impl AssemblyExportSummary {
+    pub(crate) fn of_package(
+        (folder, name): (PathBuf, String),
+        assembly: &Assembly,
+        (package, changes): (PackageSummary, &LoadoutChanges),
+    ) -> Self {
+        let issues = package.issues.iter().map(PartIssue::of_package).collect();
+        Self {
+            issues,
+            package: Some(package),
+            ..Self::new((folder, name), assembly, (GlbSummary::default(), changes))
+        }
+    }
+
     pub(crate) fn new(
         (file, name): (PathBuf, String),
         assembly: &Assembly,
@@ -87,6 +111,7 @@ impl AssemblyExportSummary {
                 modelled_parts: interior.modelled_parts(),
                 lights: interior.lights(),
             }),
+            package: None,
         }
     }
 
@@ -112,7 +137,14 @@ impl AssemblyExportSummary {
                 modelled_parts: interior.modelled_parts(),
                 lights: interior.lights(),
             }),
+            package: None,
         }
+    }
+
+    /// Returns what the Blender package holds, or `None` when the export wrote a GLB file.
+    #[must_use]
+    pub const fn package(&self) -> Option<&PackageSummary> {
+        self.package.as_ref()
     }
 
     /// Returns what the Interior holds, or `None` when the export has none.

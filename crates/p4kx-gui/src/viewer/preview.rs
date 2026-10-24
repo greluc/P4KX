@@ -10,10 +10,9 @@ use std::thread;
 use p4kx_extraction::model::{Animation, LodSelection, companion_file_names};
 use p4kx_extraction::{AnimationChoice, AnimationSet, Entry, ModelSource, PathIndex};
 
-use super::camera::Camera;
+use p4kx_render::{Camera, Scene, SceneError, Skeleton};
+
 use super::playback::Playback;
-use super::scene::{Scene, SceneError};
-use super::skeleton::Skeleton;
 use crate::model::describe;
 use crate::{EntryIndex, ModelInfo};
 

@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use super::{Control, Playback};
 use crate::viewer::fixtures::{skin_model, swing};
-use crate::viewer::skeleton::Skeleton;
+use p4kx_render::Skeleton;
 
 fn playback() -> Playback {
     let model = skin_model();
@@ -224,11 +224,10 @@ fn the_selected_animation_poses_the_tip_away_from_the_bind_pose() {
     playback.apply(Control::Seek(1.0));
     playback.tick(0.0);
 
+    let identity: [f32; 16] = std::array::from_fn(|at| if at % 5 == 0 { 1.0 } else { 0.0 });
     let matrices = playback.pose().matrices();
-    let moved = matrices.last().is_some_and(|tip| {
-        tip.iter()
-            .zip(crate::viewer::rigid::IDENTITY_MATRIX)
-            .any(|(a, b)| (a - b).abs() > 0.1)
-    });
+    let moved = matrices
+        .last()
+        .is_some_and(|tip| tip.iter().zip(identity).any(|(a, b)| (a - b).abs() > 0.1));
     assert!(moved, "the tip is posed");
 }

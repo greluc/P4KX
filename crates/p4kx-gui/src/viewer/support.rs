@@ -3,7 +3,9 @@
 
 use std::sync::Arc;
 
-use super::gpu::{self, GpuReport, Unavailable};
+use p4kx_render::{GpuReport, Unavailable};
+
+use super::paint;
 
 /// Whether the window can draw the viewer, and what it learned about the graphics device.
 #[derive(Debug, Clone, Default)]
@@ -37,7 +39,7 @@ impl ViewerSupport {
         frame
             .wgpu_render_state()
             .map_or(Self::Unavailable(Unavailable::NoDevice), |state| {
-                gpu::install(state).map_or_else(Self::Unavailable, Self::Ready)
+                paint::install(state).map_or_else(Self::Unavailable, Self::Ready)
             })
     }
 
@@ -67,7 +69,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::{Problem, ViewerSupport};
-    use crate::viewer::gpu::{GpuReport, Unavailable};
+    use p4kx_render::{GpuReport, Unavailable};
 
     #[test]
     fn a_ready_device_has_no_problem() {

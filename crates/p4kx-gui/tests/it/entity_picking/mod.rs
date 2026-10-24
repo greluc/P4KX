@@ -145,13 +145,36 @@ pub(crate) fn opened_sized(
 ) -> Result<Window, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let path = archive(dir.path(), entries)?;
+    let harness = opened_from(&path, language, size)?;
+    Ok((dir, harness))
+}
+
+fn opened_from(
+    path: &std::path::Path,
+    language: Language,
+    size: [f32; 2],
+) -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let mut harness = harness_sized(Model::new(language), size);
-    harness.state_mut().open(path, || {});
+    harness.state_mut().open(path.to_path_buf(), || {});
     wait_until(&mut harness, |model| model.browser().is_some())?;
     harness.state_mut().set_work_tab(WorkTab::Entities);
     harness.run_steps(2);
     wait_until(&mut harness, listed)?;
-    Ok((dir, harness))
+    Ok(harness)
+}
+
+/// Opens the Archive in the channel folder `StarCitizen/LIVE` of a temporary folder that holds
+/// a `Bin64` folder, so that the folder counts as a Star Citizen installation; returns the
+/// window and the channel folder.
+pub(crate) fn opened_in_installation(
+    language: Language,
+) -> Result<(Window, std::path::PathBuf), Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let channel = dir.path().join("StarCitizen").join("LIVE");
+    std::fs::create_dir_all(channel.join("Bin64"))?;
+    let path = archive(&channel, entries())?;
+    let harness = opened_from(&path, language, [1400.0, 900.0])?;
+    Ok(((dir, harness), channel))
 }
 
 pub(crate) fn opened(language: Language) -> Result<Window, Box<dyn Error>> {

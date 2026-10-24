@@ -101,6 +101,7 @@ fn select_ship(model: &mut Model, class: &str) -> Result<bool, Box<dyn Error>> {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(clippy::too_many_lines, reason = "one scenario per ship")]
 fn a_capital_ship_is_built_culled_and_instanced_within_bounded_work() -> TestResult {
     let mut model = opened(real_archive_path()?)?;
     let mut measured = 0;

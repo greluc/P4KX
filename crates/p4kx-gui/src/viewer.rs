@@ -5,6 +5,7 @@
 //! that looks at it, the [`Playback`] of its skeleton and animations, and the wgpu drawing of it.
 
 mod assembly;
+mod bounds;
 mod camera;
 #[cfg(test)]
 mod fixtures;

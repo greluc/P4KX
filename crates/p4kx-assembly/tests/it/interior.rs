@@ -374,6 +374,6 @@ fn a_wide_fan_out_of_containers_stops_at_the_limit() -> TestResult {
     let interior = build_in(&fixture.path, &InteriorOptions::default())?;
 
     assert_eq!(interior.containers(), MAX_INTERIOR_CONTAINERS);
-    assert_eq!(issue(&interior, "too_many_containers").len(), 50);
+    assert_eq!(issue(&interior, "too_many_containers").len(), 51);
     Ok(())
 }

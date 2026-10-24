@@ -6,7 +6,8 @@ an own Rust core (ADR-0001). Terms follow [CONTEXT.md](../CONTEXT.md).
 
 Every milestone ends in a usable release: SemVer `0.x`, one minor version per milestone, built by
 GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe` and
-`p4kx-mcp.exe` and a per-user MSI (ADR-0007), with notes from `CHANGELOG.md`.
+`p4kx-mcp.exe`, a per-user MSI (ADR-0007) and the Blender add-on ZIP, with notes from
+`CHANGELOG.md`.
 
 ## Product decisions
 

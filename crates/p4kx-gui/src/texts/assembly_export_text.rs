@@ -7,8 +7,18 @@
 pub enum AssemblyExportText {
     /// The title of the setup window.
     SetupTitle,
+    /// The title of the setup window of an Interior container.
+    SetupTitleInterior,
+    /// The action that opens the export of the Interior of a socpak container.
+    ActionInterior,
     /// The Entity that is exported; takes `name`.
     Entity,
+    /// The container whose Interior is exported; takes `name`.
+    Container,
+    /// The heading of the choice to export the Interior with the hull.
+    InteriorHeading,
+    /// The switch that exports the Interior with the hull.
+    Interior,
     /// What the changes to the Loadout amount to; takes `excluded` and `replaced`.
     Changes,
     /// Shown when the Loadout is the default one.
@@ -41,14 +51,22 @@ pub enum AssemblyExportText {
     Start,
     /// The title of the progress window.
     RunningTitle,
+    /// The title of the progress window of an Interior container.
+    RunningTitleInterior,
     /// Shown while the Loadout is resolved; takes `name`.
     Resolving,
     /// Shown while the models are read; takes `name`.
     Reading,
+    /// Shown while the Interior is read; takes `name`, `done` and `total` model files.
+    ReadingInterior,
     /// The progress while the file is written; takes `size`.
     Writing,
     /// The title of the summary of a finished export.
     SummaryTitle,
+    /// The title of the summary of a finished export of an Interior container.
+    SummaryTitleInterior,
+    /// What the Interior holds; takes `containers`, `parts`, `models`, `modelled` and `lights`.
+    SummaryInterior,
     /// The title of the summary of a cancelled export.
     SummaryCancelledTitle,
     /// The note that the export was cancelled and wrote no file.
@@ -76,9 +94,14 @@ pub enum AssemblyExportText {
 
 impl AssemblyExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 33] = [
+    pub(crate) const ALL: [Self; 42] = [
         Self::SetupTitle,
+        Self::SetupTitleInterior,
+        Self::ActionInterior,
         Self::Entity,
+        Self::Container,
+        Self::InteriorHeading,
+        Self::Interior,
         Self::Changes,
         Self::ChangesNone,
         Self::LodHeading,
@@ -95,10 +118,14 @@ impl AssemblyExportText {
         Self::FileFilter,
         Self::Start,
         Self::RunningTitle,
+        Self::RunningTitleInterior,
         Self::Resolving,
         Self::Reading,
+        Self::ReadingInterior,
         Self::Writing,
         Self::SummaryTitle,
+        Self::SummaryTitleInterior,
+        Self::SummaryInterior,
         Self::SummaryCancelledTitle,
         Self::SummaryCancelled,
         Self::SummaryFile,
@@ -117,7 +144,12 @@ impl AssemblyExportText {
     pub const fn id(self) -> &'static str {
         match self {
             Self::SetupTitle => "assembly-export-title",
+            Self::SetupTitleInterior => "assembly-export-title-interior",
+            Self::ActionInterior => "assembly-export-action-interior",
             Self::Entity => "assembly-export-entity",
+            Self::Container => "assembly-export-container",
+            Self::InteriorHeading => "assembly-export-interior-heading",
+            Self::Interior => "assembly-export-interior",
             Self::Changes => "assembly-export-changes",
             Self::ChangesNone => "assembly-export-changes-none",
             Self::LodHeading => "assembly-export-lod-heading",
@@ -134,10 +166,14 @@ impl AssemblyExportText {
             Self::FileFilter => "assembly-export-file-filter",
             Self::Start => "assembly-export-start",
             Self::RunningTitle => "assembly-export-running-title",
+            Self::RunningTitleInterior => "assembly-export-running-title-interior",
             Self::Resolving => "assembly-export-resolving",
             Self::Reading => "assembly-export-reading",
+            Self::ReadingInterior => "assembly-export-reading-interior",
             Self::Writing => "assembly-export-writing",
             Self::SummaryTitle => "assembly-export-summary-title",
+            Self::SummaryTitleInterior => "assembly-export-summary-title-interior",
+            Self::SummaryInterior => "assembly-export-summary-interior",
             Self::SummaryCancelledTitle => "assembly-export-summary-cancelled-title",
             Self::SummaryCancelled => "assembly-export-summary-cancelled",
             Self::SummaryFile => "assembly-export-summary-file",

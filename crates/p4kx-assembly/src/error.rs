@@ -137,6 +137,9 @@ pub enum AssemblyError {
         /// What is wrong.
         reason: String,
     },
+    /// Building an Interior was stopped by its [`InteriorWatch`](crate::InteriorWatch).
+    #[error("building the Interior was stopped")]
+    Cancelled,
 }
 
 /// An Entity named by record path, GUID or class name cannot be found.

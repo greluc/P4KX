@@ -10,7 +10,7 @@ use p4kx_settings::ModelMaterials;
 use super::model_preview::problem_text;
 use super::model_view::canvas;
 use super::search::eyebrow;
-use crate::theme::assembly_metrics::ASSEMBLY_TREE_MIN_HEIGHT;
+use crate::theme::assembly_metrics::{ASSEMBLY_BAR_ROWS, ASSEMBLY_TREE_MIN_HEIGHT};
 use crate::theme::desktop::{AUDIO_CONTROL_GAP, SPINNER_INLINE};
 use crate::theme::model_metrics::{MODEL_BAR_HEIGHT, MODEL_OVERLAY_GAP};
 use crate::theme::palette;
@@ -20,8 +20,8 @@ use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
 use crate::widgets::summary::{Fact, FactsStrip};
-use crate::widgets::tab;
 use crate::widgets::text::plain;
+use crate::widgets::{tab, toggle};
 use crate::{
     ASSEMBLY_LODS, AssemblyScene, AssemblyView, Camera, EntitiesTab, EntityText, Language,
     ModelText, Texts, ViewFailure, ViewProgress, ViewStage, ViewerSupport, format,
@@ -32,6 +32,7 @@ const MATERIALS: [ModelMaterials; 2] = [ModelMaterials::Colours, ModelMaterials:
 enum Ask {
     Lod(u32),
     Materials(ModelMaterials),
+    Interior(bool),
     ShowAll,
     Stop,
     Restart,
@@ -58,6 +59,7 @@ pub(super) fn show(ui: &mut Ui, tab: &mut EntitiesTab, texts: &Texts, support: &
     match ask {
         Some(Ask::Lod(level)) => view.set_lod(level),
         Some(Ask::Materials(materials)) => view.set_materials(materials),
+        Some(Ask::Interior(shown)) => view.set_interior(shown),
         Some(Ask::ShowAll) => view.show_all(),
         Some(Ask::Stop) => view.cancel(),
         Some(Ask::Restart) => view.restart(),
@@ -80,7 +82,7 @@ fn ready(
     let problem = support.problem(scene.serial());
     ui.scope(|ui| {
         ui.spacing_mut().item_spacing.y = 0.0;
-        facts(ui, texts, scene);
+        facts(ui, texts, (scene, view.interior()));
         frames::preview_body()
             .show(ui, |ui| {
                 if let Some(problem) = problem {
@@ -102,15 +104,21 @@ fn viewport(
     (view, scene): (&mut AssemblyView, &Arc<AssemblyScene>),
 ) -> Option<Ask> {
     let camera = view.camera().cloned()?;
-    let reserve = MODEL_OVERLAY_GAP + MODEL_BAR_HEIGHT;
-    let below = ui
+    let bars = ASSEMBLY_BAR_ROWS * MODEL_BAR_HEIGHT;
+    let reserve = MODEL_OVERLAY_GAP + bars;
+    let bottom = ui.max_rect().bottom();
+    let status_rect = ui.max_rect().with_min_y(bottom - MODEL_BAR_HEIGHT);
+    let controls_rect = ui
         .max_rect()
-        .with_min_y(ui.max_rect().bottom() - MODEL_BAR_HEIGHT);
+        .with_min_y(bottom - bars)
+        .with_max_y(bottom - MODEL_BAR_HEIGHT);
+    let interior = view.interior();
     let describe = || {
+        let (parts, triangles) = scene.drawn(interior);
         let args = [
             ("name", FluentValue::from(name.to_owned())),
-            ("parts", scene.drawn_parts().to_string().into()),
-            ("triangles", scene.placed_triangles().to_string().into()),
+            ("parts", parts.to_string().into()),
+            ("triangles", triangles.to_string().into()),
         ];
         texts.format(EntityText::ViewLabel, &args)
     };
@@ -125,28 +133,33 @@ fn viewport(
         (pick, &camera),
         (Look::default(), reserve),
     );
+    let row = |rect| {
+        UiBuilder::new()
+            .max_rect(rect)
+            .layout(Layout::left_to_right(Align::Center))
+    };
     let chosen = ui
-        .scope_builder(
-            UiBuilder::new()
-                .max_rect(below)
-                .layout(Layout::left_to_right(Align::Center)),
-            |ui| bar(ui, texts, view),
-        )
+        .scope_builder(row(controls_rect), |ui| bar(ui, texts, view))
         .inner;
-    chosen.or_else(|| moved.map(Ask::Camera))
+    let status = ui
+        .scope_builder(row(status_rect), |ui| status_row(ui, texts, view))
+        .inner;
+    chosen.or(status).or_else(|| moved.map(Ask::Camera))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct FactsKey {
     serial: u64,
+    interior: bool,
     language: Language,
     pixels_per_point: f32,
 }
 
-fn facts(ui: &mut Ui, texts: &Texts, scene: &AssemblyScene) {
+fn facts(ui: &mut Ui, texts: &Texts, (scene, interior): (&AssemblyScene, bool)) {
     let id = ui.scope_id().with("p4kx-assembly-facts");
     let key = FactsKey {
         serial: scene.serial(),
+        interior,
         language: texts.language(),
         pixels_per_point: ui.ctx().pixels_per_point(),
     };
@@ -154,7 +167,7 @@ fn facts(ui: &mut Ui, texts: &Texts, scene: &AssemblyScene) {
     let strip = match cached {
         Some((cached, strip)) if cached == key => strip,
         _ => {
-            let strip = Arc::new(lay_out(ui, texts, scene));
+            let strip = Arc::new(lay_out(ui, texts, (scene, interior)));
             ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&strip))));
             strip
         }
@@ -162,7 +175,7 @@ fn facts(ui: &mut Ui, texts: &Texts, scene: &AssemblyScene) {
     strip.show(ui);
 }
 
-fn lay_out(ui: &Ui, texts: &Texts, scene: &AssemblyScene) -> FactsStrip {
+fn lay_out(ui: &Ui, texts: &Texts, (scene, interior): (&AssemblyScene, bool)) -> FactsStrip {
     let language = texts.language();
     let count = |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), language);
     let bounds = scene.bounds();
@@ -179,18 +192,23 @@ fn lay_out(ui: &Ui, texts: &Texts, scene: &AssemblyScene) -> FactsStrip {
             ("height", side(2).into()),
         ],
     );
-    let keys = [
+    let (parts, triangles) = scene.drawn(interior);
+    let mut keys = vec![
         texts.get(EntityText::ViewParts),
         texts.get(EntityText::ViewMeshes),
         texts.get(EntityText::ViewTriangles),
         texts.get(ModelText::Extent),
     ];
-    let values = [
-        count(scene.drawn_parts()),
+    let mut values = vec![
+        count(parts),
         count(scene.meshes()),
-        count(scene.placed_triangles()),
+        count(triangles),
         extent,
     ];
+    if interior && scene.interior_parts() > 0 {
+        keys.push(texts.get(EntityText::ViewInterior));
+        values.push(count(scene.interior_parts()));
+    }
     let laid: Vec<Fact<'_>> = keys
         .iter()
         .zip(&values)
@@ -226,8 +244,19 @@ fn bar(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
     {
         ask = Some(Ask::Materials(*materials));
     }
+    ui.add_space(AUDIO_CONTROL_GAP);
+    let mut shown = view.interior();
+    let label = texts.get(EntityText::ViewInterior);
+    if toggle::checkbox_if(ui, &mut shown, &label, view.has_interior()).changed() {
+        ask = Some(Ask::Interior(shown));
+    }
+    ask
+}
+
+fn status_row(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
+    let mut ask = None;
+    ui.spacing_mut().item_spacing.x = AUDIO_CONTROL_GAP;
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        ask = status(ui, texts, view).or_else(|| ask.take());
         if view.hidden_count() > 0 {
             let label = texts.format(
                 EntityText::ViewShowAll,
@@ -237,6 +266,7 @@ fn bar(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
                 ask = Some(Ask::ShowAll);
             }
         }
+        ask = status(ui, texts, view).or_else(|| ask.take());
     });
     ask
 }
@@ -292,6 +322,15 @@ fn note(ui: &mut Ui, texts: &Texts, progress: ViewProgress) {
             &[
                 ("done", number(progress.done).into()),
                 ("total", number(progress.total).into()),
+            ],
+        ),
+        ViewStage::Interior => texts.format(
+            EntityText::ViewInteriorProgress,
+            &[
+                ("done", number(progress.done).into()),
+                ("total", number(progress.total).into()),
+                ("models", number(progress.models_done).into()),
+                ("of", number(progress.models_total).into()),
             ],
         ),
     };

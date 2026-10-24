@@ -8,8 +8,9 @@ use crate::theme::tokens::{SPACE_2, TOUCH_TARGET};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::tab;
 use crate::{
-    AudioText, Browser, DataForgeText, ImageText, IncomingText, ModelExportText, ModelInfoText,
-    ModelText, Preview, PreviewTab, RecordText, Text, Texts, XmlDocument, XmlPreview, XmlText,
+    AssemblyExportText, AudioText, Browser, DataForgeText, ImageText, IncomingText,
+    ModelExportText, ModelInfoText, ModelText, Preview, PreviewTab, RecordText, Text, Texts,
+    XmlDocument, XmlPreview, XmlText,
 };
 
 pub(super) const TABS: [(PreviewTab, Text); 10] = [
@@ -25,23 +26,33 @@ pub(super) const TABS: [(PreviewTab, Text); 10] = [
     (PreviewTab::Incoming, Text::Incoming(IncomingText::Tab)),
 ];
 
-/// What the tab bar asks for: the tab to show, the text to copy and a step through the Records.
+/// The export action the tab bar offers for the selected Entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Export {
+    /// Export as GLB, of a model.
+    Model,
+    /// Export Interior as GLB, of a socpak container.
+    Interior,
+}
+
+/// What the tab bar asks for: the tab to show, the text to copy, a step through the Records and
+/// the export that was clicked.
 pub(super) struct Bar {
     pub(super) tab: PreviewTab,
     pub(super) copy: Option<String>,
     pub(super) step: Option<RecordStep>,
-    pub(super) export: bool,
+    pub(super) export: Option<Export>,
 }
 
 /// Shows the tabs `browser` offers with back and forward through the Records, the export of a
-/// model and the copy action; the tab to show is the first of `shown` unless another was clicked
-/// or it is not offered, and its second says whether the Export as GLB action is shown, and if so
-/// whether it is enabled.
+/// model or of an Interior and the copy action; the tab to show is the first of `shown` unless
+/// another was clicked or it is not offered, and its second says which export action is shown,
+/// and if so whether it is enabled.
 pub(super) fn tab_bar(
     ui: &mut Ui,
     texts: &Texts,
     browser: &Browser,
-    shown: (PreviewTab, Option<bool>),
+    shown: (PreviewTab, Option<(Export, bool)>),
 ) -> Bar {
     let (wanted, export) = shown;
     let (tabs, mut tab) = offered_tabs(browser, wanted);
@@ -121,24 +132,28 @@ fn offered_tabs(browser: &Browser, wanted: PreviewTab) -> (Vec<(PreviewTab, Text
 struct Controls {
     copy: Option<String>,
     step: Option<RecordStep>,
-    export: bool,
+    export: Option<Export>,
     left: f32,
 }
 
-/// Shows Copy, the Export as GLB action of a model and, over Records, back and forward at the right
-/// end of `bar`; `copy` gives the text when `enabled` and Copy is clicked, and `export` says
-/// whether the export action is shown and enabled.
+/// Shows Copy, the Export as GLB action of a model or an Interior and, over Records, back and
+/// forward at the right end of `bar`; `copy` gives the text when `enabled` and Copy is clicked,
+/// and `export` says which export action is shown and whether it is enabled.
 fn controls(
     ui: &mut Ui,
     (texts, browser): (&Texts, &Browser),
     bar: Rect,
-    (enabled, copy, export): (bool, impl FnOnce() -> Option<String>, Option<bool>),
+    (enabled, copy, export): (
+        bool,
+        impl FnOnce() -> Option<String>,
+        Option<(Export, bool)>,
+    ),
 ) -> Controls {
     let label = texts.get(Text::PreviewCopy);
     let mut shown = Controls {
         copy: None,
         step: None,
-        export: false,
+        export: None,
         left: bar.right(),
     };
     ui.scope_builder(
@@ -148,10 +163,14 @@ fn controls(
                 if button::button(ui, Kind::Ghost, Size::Compact, &label, enabled).clicked() {
                     shown.copy = copy();
                 }
-                if let Some(available) = export {
-                    let label = texts.get(ModelExportText::Action);
-                    shown.export =
-                        button::button(ui, Kind::Ghost, Size::Compact, &label, available).clicked();
+                if let Some((kind, available)) = export {
+                    let label = match kind {
+                        Export::Model => texts.get(ModelExportText::Action),
+                        Export::Interior => texts.get(AssemblyExportText::ActionInterior),
+                    };
+                    if button::button(ui, Kind::Ghost, Size::Compact, &label, available).clicked() {
+                        shown.export = Some(kind);
+                    }
                 }
                 if browser.shows_records() {
                     shown.step = steps(ui, texts, browser);

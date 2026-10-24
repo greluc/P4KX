@@ -5,7 +5,7 @@ use p4kx_extraction::Archive;
 
 use super::models::attach;
 use super::walk::walk;
-use super::{Interior, InteriorOptions};
+use super::{Interior, InteriorOptions, InteriorWatch};
 use crate::AssemblyError;
 
 impl Interior {
@@ -39,8 +39,23 @@ impl Interior {
         entry: &str,
         options: &InteriorOptions,
     ) -> Result<Self, AssemblyError> {
-        let mut walked = walk(layers, entry, options)?;
-        attach(&mut walked, options)?;
+        Self::build_watched(layers, entry, options, &InteriorWatch::none())
+    }
+
+    /// Builds the Interior like [`Self::build`], asking `watch` between containers and between
+    /// the waves of model files whether to stop, and telling it how far it has come.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build`], and [`AssemblyError::Cancelled`] when `watch` asks to stop.
+    pub fn build_watched(
+        layers: &[&Archive],
+        entry: &str,
+        options: &InteriorOptions,
+        watch: &InteriorWatch<'_>,
+    ) -> Result<Self, AssemblyError> {
+        let mut walked = walk(layers, entry, options, watch)?;
+        attach(&mut walked, options, watch)?;
         Ok(Self {
             parts: walked.parts,
             issues: walked.issues,

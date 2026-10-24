@@ -20,6 +20,7 @@ fn the_assembly_view_metrics_match_the_desktop_spec() {
     for (key, value) in [
         ("viewHeight", m::ASSEMBLY_VIEW_HEIGHT),
         ("treeMinRows", m::ASSEMBLY_TREE_MIN_ROWS),
+        ("barRows", m::ASSEMBLY_BAR_ROWS),
         ("panelHeight", m::ASSEMBLY_PANEL_HEIGHT),
         ("panelMinHeight", m::ASSEMBLY_PANEL_MIN_HEIGHT),
         ("treeMinHeight", m::ASSEMBLY_TREE_MIN_HEIGHT),
@@ -39,6 +40,11 @@ fn the_assembly_view_names_its_decision_and_parts() {
     let spec = assembly_view();
 
     assert_eq!(spec["decision"].as_str(), Some("D.47"), "decision");
+    assert_eq!(
+        spec["interiorDecision"].as_str(),
+        Some("D.48"),
+        "the decision of the Interior"
+    );
     for key in [
         "dsClass",
         "layout",
@@ -46,6 +52,8 @@ fn the_assembly_view_names_its_decision_and_parts() {
         "treeActions",
         "culling",
         "messages",
+        "interior",
+        "interiorExport",
     ] {
         assert!(
             spec[key].as_str().is_some_and(|text| !text.is_empty()),

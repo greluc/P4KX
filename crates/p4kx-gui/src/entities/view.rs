@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod failure;
+mod interior;
 mod job;
 
 use std::collections::HashSet;
@@ -9,47 +11,21 @@ use std::sync::Arc;
 use p4kx_assembly::EntityNode;
 use p4kx_settings::ModelMaterials;
 
+pub use failure::ViewFailure;
 pub use job::{ViewProgress, ViewStage};
 
 use crate::viewer::{AssemblyDraw, hidden_mask};
-use crate::{
-    ASSEMBLY_LODS, AssemblyScene, Camera, DrawList, EntryIndex, Matrix, ModelExportFailure,
-};
+use crate::{ASSEMBLY_LODS, AssemblyScene, Camera, DrawList, EntryIndex, Matrix};
 
 /// The level of detail the view opens with: light enough for a capital ship.
 pub const VIEW_LOD: u32 = 1;
-
-/// Why the view shows nothing, or nothing new.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ViewFailure {
-    /// No part of the Assembly has triangles to show.
-    Empty,
-    /// The Archive changed on disk.
-    ArchiveChanged,
-    /// The models are encrypted and the Archive key is missing or wrong.
-    Key,
-    /// The Assembly could not be read, for the reason given.
-    Failed(String),
-    /// Building stopped without a result.
-    Stopped,
-}
-
-impl From<ModelExportFailure> for ViewFailure {
-    fn from(failure: ModelExportFailure) -> Self {
-        match failure {
-            ModelExportFailure::ArchiveChanged => Self::ArchiveChanged,
-            ModelExportFailure::KeyRequired | ModelExportFailure::KeyRejected => Self::Key,
-            ModelExportFailure::Failed(reason) => Self::Failed(reason),
-            ModelExportFailure::Refused(_) | ModelExportFailure::Stopped => Self::Stopped,
-        }
-    }
-}
 
 #[derive(Debug)]
 struct Shown {
     scene: Arc<AssemblyScene>,
     mask: Vec<bool>,
     issues: usize,
+    with_interior: bool,
     list: Option<(ListKey, Arc<DrawList>)>,
     mask_serial: u64,
 }
@@ -62,15 +38,19 @@ struct ListKey {
 }
 
 /// The 3D view of the Loadout of the selected Entity: the Assembly built from the Loadout tree
-/// as it resolved, the choices of detail and materials, the branches hidden and the camera.
+/// as it resolved, the choices of detail, materials and Interior, the branches hidden and the
+/// camera.
 ///
 /// Every new tree or choice builds the Assembly again off the UI thread; the view built before
-/// stays shown until the new one arrives.
+/// stays shown until the new one arrives. The Interior is built once it is switched on; switching
+/// it off hides it without building again, and switching it on again shows it as long as the
+/// view was not built anew without it.
 pub struct AssemblyView {
     index: Arc<EntryIndex>,
     wake: Arc<dyn Fn() + Send + Sync>,
     lod: u32,
     materials: ModelMaterials,
+    interior: bool,
     chosen: bool,
     hidden: HashSet<String>,
     tree: Option<Arc<EntityNode>>,
@@ -87,6 +67,7 @@ impl std::fmt::Debug for AssemblyView {
         f.debug_struct("AssemblyView")
             .field("lod", &self.lod)
             .field("materials", &self.materials)
+            .field("interior", &self.interior)
             .field("hidden", &self.hidden)
             .field("building", &self.job.is_some())
             .field("failure", &self.failure)
@@ -112,6 +93,7 @@ impl AssemblyView {
             wake,
             lod,
             materials: initial.1,
+            interior: false,
             chosen: false,
             hidden: HashSet::new(),
             tree: None,
@@ -154,8 +136,9 @@ impl AssemblyView {
         }
     }
 
-    /// Returns whether the user changed the level of detail or the materials of the view; the
-    /// export then starts with them, else with the choices remembered from the last export.
+    /// Returns whether the user changed the level of detail, the materials or the Interior of
+    /// the view; the export then starts with them, else with the choices remembered from the
+    /// last export.
     #[must_use]
     pub const fn is_chosen(&self) -> bool {
         self.chosen
@@ -197,7 +180,7 @@ impl AssemblyView {
     fn remask(&mut self) {
         self.counter += 1;
         if let Some(shown) = &mut self.shown {
-            shown.mask = hidden_mask(shown.scene.parts(), &self.hidden);
+            shown.mask = hidden_mask(shown.scene.parts(), &self.hidden, self.interior);
             shown.mask_serial = self.counter;
             shown.list = None;
         }
@@ -215,11 +198,17 @@ impl AssemblyView {
         self.shown.as_ref().map_or(0, |shown| shown.issues)
     }
 
-    /// Returns how many parts of the scene are hidden, with the hidden branches' parts.
+    /// Returns how many parts of the Loadout are hidden, with the hidden branches' parts; the
+    /// parts of the Interior are not counted.
     #[must_use]
     pub fn hidden_parts(&self) -> usize {
         self.shown.as_ref().map_or(0, |shown| {
-            shown.mask.iter().filter(|hidden| **hidden).count()
+            shown
+                .mask
+                .iter()
+                .zip(shown.scene.parts())
+                .filter(|(hidden, part)| **hidden && !part.is_interior())
+                .count()
         })
     }
 
@@ -252,6 +241,15 @@ impl AssemblyView {
         if let Some(job) = self.job.take() {
             job.cancel();
             self.cancelled = true;
+            if self.interior
+                && self
+                    .shown
+                    .as_ref()
+                    .is_some_and(|shown| !shown.with_interior)
+            {
+                self.interior = false;
+                self.remask();
+            }
         }
     }
 
@@ -321,6 +319,7 @@ impl AssemblyView {
             tree: Arc::clone(tree),
             lod: self.lod,
             materials: self.materials,
+            interior: self.interior,
         };
         self.cancelled = false;
         match job::start(&self.index, request, Arc::clone(&self.wake)) {
@@ -343,8 +342,7 @@ impl AssemblyView {
         self.job = None;
         match ended {
             job::Ended::Built(built) => {
-                let job::Built { scene, issues } = *built;
-                self.install(scene, issues);
+                self.install(*built);
             }
             job::Ended::Cancelled => self.cancelled = true,
             job::Ended::Empty => {
@@ -356,9 +354,14 @@ impl AssemblyView {
         true
     }
 
-    fn install(&mut self, scene: AssemblyScene, issues: usize) {
+    fn install(&mut self, built: job::Built) {
+        let job::Built {
+            scene,
+            issues,
+            interior,
+        } = built;
         self.counter += 1;
-        let mask = hidden_mask(scene.parts(), &self.hidden);
+        let mask = hidden_mask(scene.parts(), &self.hidden, self.interior);
         let framing = Camera::framing(scene.bounds());
         if self.camera.as_ref().is_none_or(Camera::is_home) {
             self.camera = Some(framing);
@@ -368,6 +371,7 @@ impl AssemblyView {
             scene: Arc::new(scene),
             mask,
             issues,
+            with_interior: interior,
             list: None,
             mask_serial: self.counter,
         });

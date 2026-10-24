@@ -3,6 +3,7 @@
 
 mod checks;
 mod entry_search;
+mod interior;
 mod navigation;
 mod records;
 mod rows;

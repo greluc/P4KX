@@ -10,7 +10,8 @@ use super::files::{child_candidates, file_name, find_first, is_plain, path_key, 
 use super::layers::Layers;
 use super::scan::{Scan, StreamScan, scan_container};
 use super::{
-    InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH,
+    InteriorOptions, InteriorPart, InteriorPartKind, InteriorWatch, MAX_INTERIOR_CONTAINERS,
+    MAX_INTERIOR_DEPTH,
 };
 use crate::{AssemblyError, Issue, IssueKind};
 
@@ -73,6 +74,7 @@ pub(super) fn walk<'a>(
     given: &'a [&'a Archive],
     entry: &str,
     options: &InteriorOptions,
+    watch: &InteriorWatch<'_>,
 ) -> Result<Walked<'a>, AssemblyError> {
     let mut walker = Walker {
         layers: Layers::new(given),
@@ -104,6 +106,9 @@ pub(super) fn walk<'a>(
         depth: 0,
     }];
     while let Some(todo) = stack.pop() {
+        if watch.is_cancelled() {
+            return Err(AssemblyError::Cancelled);
+        }
         let scan = walker.scan(&todo);
         if let Some(error) = scan.fatal {
             return Err(error);

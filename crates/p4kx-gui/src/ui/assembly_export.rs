@@ -29,7 +29,11 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     let Some((setup, texts)) = model.assembly_export_setup_with_texts() else {
         return;
     };
-    let title = texts.get(T::SetupTitle);
+    let title = texts.get(if setup.is_container() {
+        T::SetupTitleInterior
+    } else {
+        T::SetupTitle
+    });
     let close_dialog = texts.get(Text::CloseDialog);
     let shown = frames::modal(frames::modal_id("assembly-export-setup"), Tone::Normal).show(
         ui.ctx(),
@@ -78,8 +82,51 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
 
 fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Option<Action> {
     let mut action = None;
-    let entity = texts.format(T::Entity, &[("name", setup.name().to_owned().into())]);
-    ui.label(plain(entity, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
+    let subject = if setup.is_container() {
+        T::Container
+    } else {
+        T::Entity
+    };
+    let subject = texts.format(subject, &[("name", setup.name().to_owned().into())]);
+    ui.label(plain(subject, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
+    if !setup.is_container() {
+        loadout_line(ui, texts, setup);
+    }
+    ui.add_space(MODAL_GROUP_GAP);
+    group_label(ui, &texts.get(T::LodHeading));
+    let labels = ASSEMBLY_LODS.map(|level| texts.format(T::Lod, &[("level", level.into())]));
+    let active = ASSEMBLY_LODS.iter().position(|level| *level == setup.lod());
+    let clicked = ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner;
+    if let Some(level) = clicked.and_then(|at| ASSEMBLY_LODS.get(at)) {
+        setup.set_lod(*level);
+    }
+    materials(ui, texts, setup);
+    if setup.has_interior() {
+        ui.add_space(MODAL_GROUP_GAP);
+        group_label(ui, &texts.get(T::InteriorHeading));
+        let mut interior = setup.interior();
+        if toggle::checkbox(ui, &mut interior, &texts.get(T::Interior)).changed() {
+            setup.set_interior(interior);
+        }
+    }
+    ui.add_space(MODAL_GROUP_GAP);
+    group_label(ui, &texts.get(T::FileHeading));
+    ui.horizontal(|ui| {
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let choose = texts.get(T::ChooseFile);
+            if button::button(ui, Kind::Ghost, Size::Normal, &choose, true).clicked() {
+                action = Some(Action::ChooseFile);
+            }
+            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                path_field(ui, texts.get(T::FileNone), setup.file());
+            });
+        });
+    });
+    refusal_notice(ui, texts, setup.refusal());
+    action
+}
+
+fn loadout_line(ui: &mut Ui, texts: &Texts, setup: &AssemblyExportSetup) {
     let (excluded, replaced) = (
         setup.changes().exclusions().len(),
         setup.changes().replacements().len(),
@@ -96,30 +143,6 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Optio
         )
     };
     ui.label(plain(changes, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
-    ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &texts.get(T::LodHeading));
-    let labels = ASSEMBLY_LODS.map(|level| texts.format(T::Lod, &[("level", level.into())]));
-    let active = ASSEMBLY_LODS.iter().position(|level| *level == setup.lod());
-    let clicked = ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner;
-    if let Some(level) = clicked.and_then(|at| ASSEMBLY_LODS.get(at)) {
-        setup.set_lod(*level);
-    }
-    materials(ui, texts, setup);
-    ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &texts.get(T::FileHeading));
-    ui.horizontal(|ui| {
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let choose = texts.get(T::ChooseFile);
-            if button::button(ui, Kind::Ghost, Size::Normal, &choose, true).clicked() {
-                action = Some(Action::ChooseFile);
-            }
-            ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                path_field(ui, texts.get(T::FileNone), setup.file());
-            });
-        });
-    });
-    refusal_notice(ui, texts, setup.refusal());
-    action
 }
 
 fn materials(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {

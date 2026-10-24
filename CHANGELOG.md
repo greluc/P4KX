@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes of P4K-Extractor, one section per Release. The section of a version becomes the
+Notable changes of P4KX, one section per Release. The section of a version becomes the
 notes of its GitHub Release; the workspace version names the next Release, and `cargo xtask`
 fails while its section is missing.
 
@@ -9,6 +9,19 @@ New changes are not written here but as fragments in `changelog.d/` (see its `RE
 the entries under `## [Unreleased]`.
 
 ## [Unreleased]
+
+## [0.3.0] - 2026-10-24
+
+The third Release, and the first as P4KX: the tool and its repository are renamed (formerly
+P4K-Extractor, now `greluc/P4KX`), and the settings folder moves to `P4KX` with a one-time copy.
+The Basetool catalog becomes a full game-data export: ship fields, loadouts, paints, item stats
+including armour, clothing, radar, tractor beams and salvage, variant groups, the starmap with
+world positions, contracts, mineable elements and refining processes, and shops with their item
+lists; the catalog is written as `.json.zst` for the upload. New tools: `p4kx coverage` and the
+schema drift of `p4kx compare --schema`.
+
+Two breaking changes: the Archive key is no longer part of the tool and is entered once, and the
+Record XML namespace and the Record JSON schema `$id` now use `https://github.com/greluc/p4kx/`.
 
 ### Added
 
@@ -95,6 +108,307 @@ the entries under `## [Unreleased]`.
   plug-in media are marked and explained instead of played; a corrupt soundbank shows a message
   and the rest of the window keeps working. The preview opens taller for soundbanks, and the list
   scrolls with the keyboard.
+- Models: materials as plain colours. A model's `.mtl` file (text XML or CryXml) is read into a
+  `MaterialLibrary` of sub-materials with shader, surface type, flags, colours, opacity, glow and
+  texture slots; the material ID of a submesh is the position of its sub-material, and a file
+  without sub-materials serves every ID. `p4kx model glb --materials colours` (the default)
+  writes one glTF material per sub-material with base colour, opacity, roughness, metalness and
+  emissive colour and no textures; alpha-tested materials mask, translucent ones, decals and
+  glass blend, `MtlFlags` two-sided draws both faces, and submeshes whose material draws nothing
+  (the `NoDraw` flag or shader, opacity 0) are left out. A library the model names with a bare
+  name is looked for beside the model first. A missing, unreadable or unsafe `.mtl` path is
+  reported by `model info` and `model glb` (text and `--json`) while the model exports with a
+  grey default material, as does a material ID beyond the sub-materials or an entry of the
+  sub-material list that is no material. `model info` lists the materials. `MaterialLibrary`,
+  `MaterialStatus`, `Model::materials` in `p4kx-model`, `MaterialMode` in `p4kx-gltf`
+  (docs/model-materials.md, ADR-0032).
+- Models: textured PBR materials. `p4kx model glb --materials textures` embeds the textures of
+  the materials in the GLB as PNG images, found through the Archive's path index (a `.tif` name in
+  the `.mtl` file is the `.dds` Entry, with its alpha tail): the diffuse map (`TexSlot1`) as base
+  colour, the normal map (`TexSlot2` or `TexSlot3`, `_ddna`/`_ddn`) with its blue channel
+  reconstructed and its green channel flipped to glTF's up, and a metallic-roughness image whose
+  roughness is the inverse of the normal map's smoothness (its alpha tail) and whose metalness
+  comes from the specular map (`TexSlot4`); a metal's colour is its specular colour, so with a
+  specular map the base colour holds the tinted diffuse and specular colours. `--texture-mip <n>`
+  picks the mip level, 0 (the largest) by default. Masked materials use the texture's alpha.
+  An image several materials use is embedded once; at most 256 images and 2^29 pixels per file.
+  A texture that is missing, has an unsafe path, cannot be decoded or does not fit leaves the
+  material's plain colour and is listed in the summary (`textures`, `textured_materials`,
+  `texture_pixels` and `texture_fallbacks` in `--json`), names sanitised for the terminal.
+  `write_glb_with` and `TextureLoader` in `p4kx-gltf`, `Texture::from_index` and
+  `ModelSource::write_glb_textured` in `p4kx-extraction` (docs/model-materials.md, ADR-0042).
+- Models: skeletons and skinning. `.skin` and `.chr` files are read with their bones (parent,
+  bind pose relative to the parent and in the model's space, controller ID) and, for skins, the
+  weights of up to eight bones per vertex; the `CompiledBones` form of static models with animated
+  parts is read too. `p4kx model glb` writes a skin with its skeleton as a glTF skin: the bones as
+  nodes, `JOINTS_0`/`WEIGHTS_0` (and a second set for vertices with more than four bones), inverse
+  bind matrices, all in Y up and metres like the mesh; a `.chr` is written as its bone nodes. A level
+  of detail whose own `_lod<n>` file has a different skeleton is weighted to that one. `model info`
+  lists the bones with parent, node and bind position, and marks skinned meshes (new `Skinned`
+  column; `--json` has `bones` with both poses and `skinned` per mesh); `model glb` reports the bones
+  and skinned meshes. `Bone`, `BoneTransform`, `Influences`, `Mesh::influences`, `Lod::bones` and
+  `Model::bones_of` in `p4kx-model` (docs/model-skeletons-and-skinning.md, ADR-0039).
+- Models: `p4kx model glb --anim <name>` writes the animations of `.caf` files and `.dba`
+  databases as glTF animations on the bone nodes of a skinned model or skeleton, or on the nodes a
+  static model's helper bones drive (a door, a turret). `--anim all` takes every animation found in
+  the model's folders, `--anim-from` adds files to look in. `p4kx model info` lists the animations
+  with their duration. Tracks for bones the skeleton lacks are left out and reported. Additive animations (offsets
+  to a base animation) are left out and listed as skipped unless named.
+- Chunk files: `ChunkFile::chunk_data_to_end` returns the bytes from a chunk to the end of the file.
+- Models: the older `CrCh` container. `p4kx model info|glb` reads nodes (name, hierarchy, parent
+  relative transform), the physics mesh a `Mesh` chunk refers to as LOD0 with one submesh, and
+  the material library from the `MtlName` chunk of a `CrCh` model, and reports unknown chunks as
+  for `#ivo`. The Archives hold one such model, a Carrack collision proxy; only its chunk layouts
+  are read (docs/crch-models.md, ADR-0041). `p4kx model` prints node and material names with
+  control characters replaced.
+- Window: a model file (`.cgf`, `.cga`, `.skin`, `.chr`) gets an Info tab next to Model that lists
+  what the file holds: nodes, meshes, levels of detail with their vertices and triangles, the
+  geometry file, the material library and the material IDs in use, the bones, the animations of the
+  `.caf` files and `.dba` databases next to it, and the chunks counted as read, skipped and unknown
+  with the ones the model did not read listed by file, type and type ID. It works for a model the 3D
+  view cannot draw, such as a skeleton file. Export as GLB…
+  (at the right end of the preview tab bar and in the Export menu) writes the selected model as one
+  GLB file: a dialog chooses the level of detail, the material mode, the vertex colours, whether to
+  write the animations of a model that has some (additive ones are left out) and the file,
+  which cannot lie inside a Star Citizen installation. The export runs in the background with a
+  progress bar and Cancel, writes the file only when it is complete, and ends with a summary of what
+  the file holds, the animations written and the ones left out, the chunks it skipped, the materials
+  that fell back to the default material and, with textures
+  (choose "With textures" and a texture size), the textures the Archive lacks;
+  a failure shows a message and the rest of the window keeps working, and a missing Archive key
+  opens the key dialog. The choices are remembered in the settings file. `ModelSource::write_glb_observed`
+  in `p4kx-extraction` writes with the animations, progress and cancellation
+  (`ConversionError::Cancelled`) (ADR-0047).
+- `p4kx entity glb <archive> <entity> --out <file>`: exports an Entity as one GLB, its geometry
+  and the geometry of every Entity of its default Loadout placed at its port. Each part is a node
+  named `<port>/<entity>` below the node of the Entity it is attached to, placed at the port's
+  helper in the parent's model with the port's offset. `--lod <n>` applies to every model (a model
+  without that level is written at the nearest lower one) and `--materials colours` writes plain
+  colours, with the material library an Entity's Record names replacing the one its model names.
+  Parts whose Entity or geometry cannot be resolved are skipped and listed in the report, as text
+  or with `--json`. Models are read once and in parallel.
+- `p4kx-assembly` builds an `Assembly`, a scene graph of placed models, from a Loadout tree, and
+  `p4kx-gltf` writes a `Scene` of placed models as one GLB, writing equal materials once.
+- 3D viewer tracer: selecting a model Entry (`.cgf`, `.cga`, `.skin`) opens the new Model tab of the
+  Preview, which draws the model's most detailed level with wgpu inside the window: lit, framed
+  to fit and shown beside a facts bar (vertices, triangles, size in metres). Drag orbits, a right
+  or Shift drag pans, the wheel zooms; with the keyboard focus the arrow keys orbit, Shift and the
+  arrow keys pan, `+` and `-` zoom and Home resets; **Reset view** frames the model again. The
+  model is read and flattened on a background thread (at most 4,000,000 vertices and 8,000,000
+  triangles, files up to 256 MiB), its buffers are uploaded once and replaced when another model
+  is selected, and a device that cannot draw the view or is lost gets a message while the rest of
+  the window keeps working. Materials, LOD and skeleton switches follow (ADR-0031, design
+  decision D.35).
+- `p4kx wwise events [--search <text>]` searches the audio triggers and Wwise events of the ATL
+  definitions by name (substring or glob, ignoring case) and lists for each result the trigger,
+  its events, the soundbanks that hold them and the Entities that name the trigger. The output is
+  plain or `--json`, in definition order and paged with `--limit` and `--offset`; `--entities`
+  bounds the Entities listed per trigger and `--no-entities` skips the DataForge.
+- `p4kx ui render … --svg`: writes the first frame of a UI movie as an SVG document that scales
+  without loss, for the movie file or an Entry. Shapes become `<g>` elements placed with `<use>`,
+  gradients, strokes, colour transforms and masks become the matching SVG elements, and bitmaps
+  are embedded as PNG data; the output is deterministic, streamed to the file, and bounded by the
+  limits of the PNG, so both end at the same element, and at most 1 GiB. The title is the Entry
+  name, or the file name without its directory, escaped. A bitmap fill that does not repeat is
+  drawn once, without continuing its edge pixels, and a stroke painted with a non-repeating
+  bitmap tiles it. The `--json` report of `ui render` names the written `format`.
+- `p4kx ui render`: static texts (`DefineText`) and text fields (`DefineEditText`) are drawn from
+  the glyph outlines of the embedded fonts, with their size, colour and alignment, in the PNG and
+  as paths in the SVG. Text fields honour the Flash HTML subset (`<p align>`, `<font face size
+  color letterSpacing kerning>`, `<br>`), word wrap, margins, indent, leading and password
+  fields. A character whose font or glyph is missing is drawn as an empty box and listed in the
+  report (`missing_font`, `missing_glyph`, `missing_glyph_index`); no system font is used. With
+  `--lang <language>` and an Archive, localisation keys (`@key`, with `,P=` parameters) resolve in
+  that language's `global.ini`; an unknown key is drawn as it is and listed (`unlocalised`). A
+  text field shows at most 4096 characters and a frame lays out at most 131072; the rest is
+  listed (`text_truncated`, `too_many_glyphs`).
+- Incoming References: `p4kx dcb refs <archive> <guid|record path> --incoming|--outgoing [--format table|json]`
+  lists the Records that refer to a Record, or those it refers to, with the field and the array
+  indices of every Reference, the References to a GUID no Record has apart; `--files` lists the
+  edges between record files, `--unresolved` every Reference to a GUID no Record has. The window
+  shows a *Referenced by* tab for the selected Record, a Query selects Records with `referencing
+  "<GUID or record path>"`. One index over all Records, built in parallel on first use and kept
+  per Archive, serves all of them.
+- Content search: `p4kx grep <archive> <text> [--in records,loc,entries] [--filter <filter>]
+  [--lang <language>,…] [--limit <n>] [--per-item <n>] [--format table|json]` finds a text, ignoring
+  case and as part of a word (`Gladi` finds `AEGS_Gladius`), in the string, localisation key and
+  enum values of all Records, in the localisation texts of each language and in the lines of text
+  and CryXml Entries. A hit names the Record and its field path, the language and key, or the
+  Entry and its line, with a short excerpt. Binary and oversized Entries and encrypted Entries
+  without the Archive key are skipped and counted. The window gets a *Search* tab with the same
+  three sources: a click on a hit selects the Record, opens the localisation key or selects the
+  Entry. Each search scans in parallel without an index (ADR-0044); on LIVE it takes about a second
+  for all Records, 0.15 s for all localisation texts and two seconds for all text Entries.
+- Field statistics: `p4kx dcb fields <archive> [<type or Query>] [--path <glob>] [--format table|csv|json]`
+  lists every field path of the Records, e.g.
+  `Components/SCItemWeaponComponentParams/fireActions/SWeaponActionFireRapidParams/fireRate`, with
+  how many values it has, in how many Records, of which kinds, how many are empty or distinct, and
+  the smallest and largest number, to find the field a Query needs. The target of a strong pointer
+  adds its actual struct to the path. One parallel pass counts all Records of LIVE in about two
+  seconds.
+- CLI: `p4kx coverage <archive>` checks a reference list of the game data a companion app reads
+  against the Archive: for each Record type, component of an `EntityClassDefinition` and vehicle
+  definition folder whether it exists, how many Records, instances or Entries it has, and whether
+  they read, export and convert. The list is data in the repository; the result is a table or
+  JSON ([docs/coverage.md](docs/coverage.md)).
+- `p4kx ui render`: fonts that a UI movie imports from another movie (`ImportAssets`,
+  `ImportAssets2`), which most text fields of the game name, are resolved in the Archive and the
+  texts are drawn with their glyphs instead of boxes. The exporting movie is found from the import
+  URL relative to the importing movie, with `.swf` and `.gfx` as alternatives and the UI and
+  English localisation folders as fallbacks, read once per render, and followed through chains of
+  imports up to 4 levels deep; the report lists the movies read and the fonts not found
+  (`imports`). On the LIVE Archive 98.6 % of the text fields with imported fonts resolve, and the
+  first frames of the movies with text lose 1388 of 1424 `missing_font` entries.
+- `p4kx ui assets`: lists the imports (`imports`), symbol classes, nine-slice grids, the frame index
+  of every frame label (`frame_labels`) and the known tags whose content is not read
+  (`unread_tags`).
+- Entity: `p4kx entity loadout` reads the vehicle implementation XML of a ship with the
+  Modification its Record selects. The tree shows per port whether the implementation hides it
+  (`invisible`), and lists the ship's treads, wheels and landing gear; the JSON has `vehicle`,
+  `landing_gear` and a port `visibility`. `p4kx-assembly` offers `VehicleImplementation::read`
+  for exports.
+- `PortNode::nested` in `p4kx-assembly`: the ports of the nested Loadout of an empty port.
+- Loadout: docked vehicles (attached Entities whose item type starts with `NOITEM_Vehicle`, such
+  as snub craft) are marked in `p4kx entity loadout`, in the text and as `docked_vehicle`,
+  `expanded` and `docked_vehicles` in the JSON. `--stop-at-docked-vehicles` leaves their ports
+  out; `LoadoutResolver::stopping_at_docked_vehicles` does the same for library users.
+- Entry SHA-256: every Entry of the Archives measured states a SHA-256 of its stored bytes (the
+  `0x5003` block of the v1 directory), which `Entry::sha256` returns and `p4kx verify` and
+  `--verify` check in addition to the CRC-32C, while the data streams. It covers the bytes before
+  decryption and decompression, so it needs no key; a mismatch is reported with the kind `sha256`
+  and 64 hex digits (ADR-0034, docs/verify.md). The 32 bytes of a v2 record are read and returned
+  by `Entry::sha256` but not checked until a real v2 Archive confirms the layout. `Checksum::hex`
+  was added in `p4kx-archive`.
+- DataForge: the tag tree. Fields such as `Tags`, `RequiredTags` and `PortTags` refer to Tags by
+  GUID; `TagTree` in `p4kx-dataforge` reads the `TagDatabase` into the tree of Tags with their tag
+  paths (`Ship.Series.Avenger`), parents and children, and answers tag GUID to tag path. A Tag the
+  `TagDatabase` does not reach is a root of its own; Tags listed twice, dangling children and
+  cycles are counted and never fail (ADR-0052). The tree is reachable from `p4kx-extraction` and
+  `p4kx-export` for the Basetool catalog kinds that match tags.
+- `p4kx dcb tags <archive> [<tag>] [--tree] [--format table|json]` prints the tag tree, or one Tag
+  and everything below it; `--tree` indents the names or nests the JSON. `p4kx dcb export --tags`
+  writes the tag path next to every Reference to a Tag, as the `tag` attribute of Record XML and
+  the `tag` key of Record JSON (`RecordExportOptions::tags`, `Annotations`); without it the output
+  is unchanged (docs/record-xml.md, docs/record-json.md, docs/cli-json.md).
+- The Tags tab of the window shows the tag tree with GUID and legacy ID, expands and collapses
+  Tags, searches the tag paths and copies the path or GUID of the selected Tag.
+- Comparison: `p4kx compare <old> <new> --schema` lists the structs, properties (data type, conversion type, target), enums and enum options that were added, removed or changed between the DataForges of two Builds, with the number of Records each concerns; `--json` prints the report, whose JSON Schema is `schemas/schema-drift-report.schema.json`. The Comparison tab shows the same drift in a new Schema list once the Record level was compared.
+- Ship base data: `p4kx ships <archive> --out <file>` writes the hull mass, the hull points with
+  the destruction and detach thresholds of the parts, the cargo capacity of the cargo grids of the
+  default Loadout, `AttachDef.Size` and the default Loadout as class names per port path of every
+  ship as JSON or NDJSON, each value with the file and field it was read from (the Record, the
+  vehicle implementation, the Modification's patch file or its `Elem`). Docked vehicles are marked
+  and not counted. `build_ship_base` and `ShipReader` in `p4kx-export`;
+  `VehicleImplementation::totals`, `ValueOrigin` per part value, `VehiclePart::destroy_ratio`,
+  `EntityNode::loadout`, `EntityNode::attach_type` and `EntityNode::inventory_container` in
+  `p4kx-assembly` (docs/ship-base-data.md, ADR-0061).
+- Basetool catalog: every weapon, shield, quantum drive, power plant, cooler and missile in `items`
+  carries typed stat blocks in a new `stats` field, as raw Archive values without derived
+  figures (ADR-0065). The catalog stays at version 1 (ADR-0054).
+- Basetool catalog: the new kind `starmapObjects` lists the starmap objects (star systems, planets,
+  moons, stations, jump points) with `type`, `parentGuid`, the localised `name` and the world
+  `position` in metres. The position composes the `pos` and `rot` of every `Child` element of the
+  system containers, with the full rotations of the containers above it. Additive; `schemaVersion`
+  stays 1 (ADR-0054). `p4kx catalog` prints the placement counts and warns about containers it
+  cannot read (exit code 1).
+- The Build carries the public patch version (for example `4.7.2`) when the RSI Launcher log has a
+  line with the Build's change number. `p4kx info`, `p4kx channels --json` and the Basetool
+  catalog's `source.build.publicPatch` show it; it is `null` when the log has no such line.
+- Basetool catalog: every ship and item carries `variantOf`, the GUID of the base of its cosmetic
+  variant group, or `null` (ADR-0066). `p4kx catalog` counts the groups and variants per kind. The
+  catalog stays at version 1 (ADR-0054).
+- Legal notices: README, the new window "About P4KX" under Help, `p4kx --version` and
+  `--help`, the `p4kx-mcp` help and instructions, and the notes of every Release state that
+  P4KX is an unofficial Star Citizen fan project, not affiliated with or endorsed by the
+  Cloud Imperium group of companies, ships no game data, reads only your own installation, and
+  that you are responsible for complying with the Star Citizen EULA and Terms of Service. README
+  and the About window also carry the trademark notice of the Fankit (text only; in the English
+  wording in German too).
+- MCP server: the README, the server instructions and the descriptions of `read_entry_text`,
+  `read_entry_bytes`, `get_record` and `run_query` say that returned content may be forwarded by
+  the MCP client to third parties such as a cloud model provider, and that game texts and media
+  must not be redistributed.
+- Read-only use: Extraction, Export and every other write refuse a target folder inside a Star
+  Citizen installation (the folder holding the opened Archive and the Library folders), however
+  the path is spelled. While `StarCitizen.exe` runs, the window and the command line warn that the
+  tool should be used with the game closed; reading continues. Only the process list is read.
+  The whole installation counts, including a Channel's `user` folder, so `p4kx chf from-json` no
+  longer writes into `CustomCharacters`: copy the file in by hand.
+- Archives of test Channels (PTU, EPTU, TECH-PREVIEW, HOTFIX): the window shows a persistent
+  warning notice, `p4kx` prints one line on stderr and `p4kx-mcp` adds a note to its responses that
+  the material of test builds is confidential under the Star Citizen Terms of Service and must not
+  be shared or published. Opening, browsing, extracting and comparing work as before (ADR-0038).
+- Basetool catalog: every ship and item carries `playability` (`player`, `ai`, `mission`,
+  `special` or `null`), decided from crew manifests, tags, the inclusion mode and the shop display
+  of the Records, never from names. `p4kx catalog` prints the count per value and `--json` lists
+  them under `playability`. The catalog stays at `schemaVersion` 1.
+- Basetool catalog: the kind `loadouts` lists, for every ship and every item that has ports, the
+  ports with size, item types, flags, tags and visibility, and the Entity the Default Loadout puts
+  into each as an `itemGuid` into `items` or `ships`, with the ports of the attached Entity nested
+  below it (the Loadout's overrides applied). Docked vehicles are marked and not expanded. The kind
+  is additive, `schemaVersion` stays 1 (ADR-0054, ADR-0064). `p4kx catalog` and `--json` count the
+  ports, the attached Entities and those without an entry in `items` or `ships`; the window lists
+  the kind (docs/basetool-catalog.md).
+- Basetool catalog: the kinds `resourceGroups` (the `ResourceTypeGroup` Records, with the group that
+  lists each as `parentGuid`) and `blueprintCategories` (the `BlueprintCategoryRecord` Records).
+  Every commodity `typeGuid` and every blueprint `categoryGuid` now resolves to an entry. The
+  kinds are additive and keep `schemaVersion` 1 (ADR-0054). `p4kx catalog` and the Basetool
+  catalog summary of the desktop app list their counts.
+- Basetool catalog: every ship carries `mass`, `massBasis`, `hullHealth`, `cargoScu`,
+  `cargoGridsWithIssue`, `size` and `vehicleKind` (spaceship or ground vehicle) from the ship base
+  data. Unknown values are `null`, never 0. `p4kx ships` states the `vehicleKind` too.
+- Basetool catalog: every blueprint lists all its `tiers` with the selections ("choose n", with
+  `count` and `options`), the quantity multiplier per cost line and the quality modifiers, next to
+  the unchanged first-tier fields `craftTimeSeconds` and `ingredients`; it also states
+  `defaultAvailable` and its `dismantle` link. The new kinds `gameplayProperties`,
+  `qualityDistributions` (with their location overrides), `blueprintPools` (with the places that
+  reward them and their chance) and `dismantleProcesses`, and `craftingGlobal` with the resources
+  and items a dismantle excludes, complete the crafting data. All additive; `schemaVersion` stays 1
+  (ADR-0054). `p4kx catalog` lists the counts and warns when the reference index is truncated or
+  holds several dismantle processes (exit code 1).
+- Crafting library: `Crafting::warnings` reports a truncated reference index, the Records it could
+  not read and several dismantle processes instead of dropping reward sources silently;
+  `dismantle_return()` links only the single dismantle process and exposes the tier and
+  `excluded_resources`. The catalog and the library select blueprints by one rule.
+- Basetool catalog: every commodity carries `densityGramsPerCubicCentimetre` and
+  `refinedSubtypeGuid` from its `ResourceType` (additive in schema version 1). The DataForge holds
+  no yields; see `docs/commodity-refining.md`.
+- Basetool catalog: the kind `paints` lists every paint (an item of the type `Paints`) with the
+  ships it fits, `shipGuids`, found structurally: the paint port of a ship (`SItemPortDef` of its
+  Record or `ItemPort` of its vehicle implementation, with the Modification applied) requires tags
+  that the paint's `Tags` carry or lie below in the tag tree. The kind is additive, `schemaVersion`
+  stays 1 (ADR-0054). `p4kx catalog` and `--json` count the paints that fit a ship and those that
+  fit none; the window lists the kind (docs/basetool-catalog.md).
+- Basetool catalog: an output name ending in `.zst`, for example `p4kx catalog <archive> --out
+  basetool-catalog.json.zst`, writes the catalog as one zstd frame (level 19, content size and
+  checksum declared, so a plain `zstd -d` decodes it), compressed while it is serialised. The desktop save dialog offers the
+  second file type, and the summary shows the compressed and the uncompressed size. The size
+  warning compares the compressed file with the 64 MB upload limit and the decompressed catalog
+  with the 1 GB limit of the Basetool; `p4kx catalog --json` gains `compressed_size`,
+  `decompressed_limit` and `decompressed_warning`. Plain `.json` stays the default.
+- Basetool catalog: the new kind `contracts` lists every contract and sub contract with its
+  resolved title, mission type and the reputation it grants on success. Version 1 stays.
+- Basetool catalog: the new kinds `mineableElements` and `refiningProcesses`. A mineable element
+  carries `resourceTypeGuid` (a commodity's `subtypeGuid` only when the catalog has that commodity;
+  20 of 41 on LIVE), `instability` and the other plain numbers of the `MineableElement` Record;
+  several elements may share one `ResourceType`, so none is picked per commodity. A refining process carries `processName`, `refiningSpeed` and
+  `refiningQuality`; the DataForge holds no yields. Additive; `schemaVersion` stays 1 (ADR-0054).
+- Basetool catalog: the new kind `shops` lists the shops of the registry `LayerBackups.xml` (Stanton
+  and Pyro) with their identity (`key`), internal names, the container chain, `body` and `location`,
+  `kind` and `brand` from the shop containers, a link to the starmap object of the location
+  (`starmapObjectGuid`) and a flag for commodity exchanges. It holds no prices, stock or item list;
+  the inventory files cannot be assigned to shops (ADR-0069). Additive; `schemaVersion` stays 1
+  (ADR-0054). `p4kx catalog` prints the shop counts.
+- Basetool catalog: a shop carries `inventory` and `itemGuids` when its shop containers name an
+  inventory file in their `.soc` (ADR-0071); 331 of the 1,184 shops on LIVE get a list. It holds the
+  item GUIDs only, no price, stock or rental data. `p4kx catalog` counts the shops with and without
+  a list and warns about inventory files it cannot read.
+- Basetool catalog: `stats` of an item now also covers suit armour (`armor`), clothing and
+  armour worn values (`clothing`), radars (`radar`), tractor beams (`tractorBeam`) and the salvage
+  and tractor multipliers of attachments (`weaponModifier`), and every fire mode has a
+  `damagePerSecond` (the power of a mining laser) and a `spread`. The document states, for each
+  gameplay property a blueprint modifies, the `stats` field it changes or why there is none
+  (ADR-0072). The catalog stays at version 1.
 
 ### Changed
 
@@ -155,6 +469,61 @@ the entries under `## [Unreleased]`.
   `BoundingData`), `0x58DE1772` `StatObjPhysics` (was `LodMeshData`) and `0xBE5E493E`
   `ExportFlags` (was `AssetMetadata`); `0x57A38888` is now `BShapesGpu` and `0xF5C6EB5B`
   `BShapes`.
+- Models: the `TANGENT` attribute of a GLB has the handedness `w` negated, so that the bitangent
+  points up the image as glTF's does; the engine's points down it, and the normal maps of
+  textured materials have their green channel flipped to match (ADR-0042, which settles the open
+  question of ADR-0028).
+- GUI: alerts fill the width of their panel like the design system's `.alert`, and the tabs of
+  the preview scroll sideways with the mouse wheel when they do not fit next to Back, Forward and
+  Copy, like `.tab-nav` with `overflow-x: auto`.
+- `p4kx ui render`: a font without any glyph outline is a missing font (`missing_font`, drawn as
+  boxes) instead of drawing nothing, and fonts of other movies are found by name only, never by
+  their own ID.
+- `p4kx entity glb` places a docked vehicle, such as the Merlin of a Constellation or an
+  Archimedes, as one part without the parts of its own Loadout, so nothing is counted twice.
+- `p4kx-archive`: `Checksum::value` now returns `Option<u32>`, `None` for a SHA-256 digest, which
+  breaks library users that relied on a plain `u32`.
+- Changelog fragments: a user-visible change adds a file `changelog.d/<issue>.md` instead of an
+  entry in `CHANGELOG.md`, so parallel pull requests no longer conflict there. `cargo xtask
+  changelog` checks the fragments, and `cargo xtask changelog --release <version>` folds them and
+  the entries under `## [Unreleased]` into the section of the version (ADR-0035).
+- Basetool catalog: new kinds and fields may be added to version 1 without raising `schemaVersion`
+  (ADR-0054), and a new value in a closed value set is additive. The JSON Schema now allows unknown
+  properties, types `itemClass` as a string, and marks every game-text field with `x-gameText`. The
+  documentation lists the guarantees for readers and says that a production import takes `LIVE`
+  catalogs only.
+- Basetool catalog: the window suggests `basetool-catalog.json.zst` as the file name and lists the
+  compressed form first. Plain `.json` stays selectable but is over the 64 MB upload limit; a
+  warning advises `.json.zst`.
+- Breaking: the Record XML namespace URI is now `https://github.com/greluc/p4kx/record-xml` and
+  the `$id` of the Record JSON schema is
+  `https://github.com/greluc/p4kx/schemas/record-json.schema.json`. These replace the
+  `krt-profit` identifiers of earlier versions in one step. A consumer that checks the old
+  namespace or schema id must switch to the new one. The update check, the About text and the
+  installer link point to the new repository.
+- The tool is now called P4KX, and its repository is `greluc/P4KX`. The window, the About text,
+  the help, the installer and the artefacts (`P4KX-<version>-x86_64.msi` and the portable ZIP)
+  carry the new name. The MSI keeps its upgrade code, so an installed P4K-Extractor upgrades to
+  P4KX; its install folder, Start menu shortcut and `PATH` entry move to the new name.
+- Converted audio carries `P4KX` in the Ogg and Opus vendor string, so the bytes of converted
+  files differ from earlier versions. The generator of exported glTF files reads `P4KX <version>`
+  and the update check identifies itself as `P4KX/<version>`.
+- The settings folder is now `P4KX` in the platform config directory (`%APPDATA%\P4KX` on
+  Windows). On first start, when it does not exist yet, the content of the old `P4K-Extractor`
+  folder (the settings and the stored Archive key) is copied into it; the old folder stays as a
+  backup, and the copy never overwrites a file. When the copy fails, the old folder stays in use
+  and the next start tries again.
+- Basetool catalog: shops get their item list from shop components in every container and from the
+  shop prefabs, not only from the shop folders, and the components that later positions of a
+  container file hold are found by object name or `CryGUID` (ADR-0073). For the shops that name the
+  placeholder inventories `temp_outpost_shopinventory` and `inv_cryastro_dummy`, `inventory` and
+  `itemGuids` are now `null` instead of the placeholder list. On LIVE 294 of 1,184 shops have a
+  list, 64 are unscanned instead of 144. The shape of the catalog does not
+  change; `p4kx catalog --json` counts the new cases in `shops`.
+
+### Removed
+
+- `ModelError::UnsupportedContainer` in `p4kx-model`: `CrCh` models are read.
 
 ### Fixed
 
@@ -223,6 +592,37 @@ the entries under `## [Unreleased]`.
   misaligns the chunks after it: the reader takes the position right after the chunk when it
   holds a valid chunk header, and skips the pad byte of plain RIFF otherwise. No WEM of the LIVE,
   PTU and TECH-PREVIEW Archives has an odd-sized chunk before its last.
+- Models: a skin with a texture coordinate that is NaN or infinite (14 `.skinm` of LIVE, helmets
+  among them) no longer fails to open; the coordinate reads as 0.
+- Models: a model whose geometry companion holds only visibility areas (a `VisAreas` chunk and no
+  mesh, as in the interior visarea corridors of ships) reads as helper nodes without meshes
+  instead of failing with a missing mesh; `model info` lists the chunk as skipped.
+- Loadout: an entry without an Entity (an XML `<Item>` with an empty `itemName`, or a DataForge
+  manual entry without target) that carries nested entries no longer drops them. The port stays
+  empty and the nested entries appear below it as `PortNode::nested` in `p4kx-assembly`. This
+  changes the output of `p4kx entity loadout`: the text lists them indented below the empty port,
+  the JSON gives every Port a `nested` array, and `ports`, `attached` and `empty` count them. On
+  LIVE it affects the two human body Entities (`Body_ItemPort` with 10 nested items) and
+  no ship or vehicle.
+- `THIRD-PARTY-NOTICES` now carries the licence text and copyright notice of every Rust crate
+  linked into `p4kx`, `p4kx-gui` and `p4kx-mcp` (ISC, Unicode, MPL-2.0, Zlib, OFL and the other
+  licences that were missing), plus the Lato fonts. CI fails when a dependency change leaves the
+  file out of date (`cargo xtask notices`).
+- Vehicle implementations: a number with an invisible Unicode format character inside it, such as
+  the U+202C in the Carrack's `mass`, is read in full instead of up to the character.
+- Query: a completion request made right after the Archive changed on disk is no longer ignored
+  while the build of the schema for the previous DataForge is still running.
+- `p4kx coverage`: `SolarSystem` is counted as the `StarMapObject` Records of that
+  `StarMapObjectType` (new `starmap-type` kind and `starmap_types` JSON array) instead of as a
+  missing Record type, so the exit code no longer reports a gap that does not exist.
+- Catalog: ships whose vehicle definition differs only in case or path separator now fall into
+  one variant group. Items with weak pointers into different instances of their Record no longer
+  compare equal, and a repeated GUID in a malformed Archive no longer counts as a group without
+  variants.
+- Catalog: contracts whose `ContractTemplate` Record lies outside `contracts/contracttemplates`
+  now take title and mission type from it. An organisation token without a variant is resolved
+  only for an organisation with a single string variant. A cancelled build stops while the
+  contract records are read, and a Filter that matches no generator no longer reads them.
 
 ## [0.2.0]
 

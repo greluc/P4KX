@@ -315,7 +315,7 @@
     "fontWeight": "fw-regular",
     "color": "color-gray-1",
     "borderBottom": {"width": 1, "color": "color-gray-3"},
-    "zebraBackground": "rgba(255,255,255,0.02)",
+    "zebraBackground": "table-stripe-bg",
     "hoverBackground": "control-bg",
     "selectedBackground": "control-selected-bg",
     "activeBackground": "color-surface-input",
@@ -722,11 +722,11 @@
     "direction": "chevron right between old and new, chevron size 12, color-primary"
   },
   "kpiTile": {
-    "dsClass": "kpi-total",
+    "dsClass": "kpi-total kpi-total--inset",
     "paddingX": 14,
     "paddingY": 10,
     "gap": 12,
-    "background": "color-bg-dark-gray",
+    "background": "color-surface-input",
     "radius": "radius-sm",
     "border": {"width": 1, "color": "color-gray-3"},
     "borderLeft": {"width": 4, "color": "color-primary"},

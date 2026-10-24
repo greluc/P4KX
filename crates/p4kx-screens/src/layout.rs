@@ -10,7 +10,12 @@ pub(crate) struct Sized {
     pub(crate) auto: bool,
 }
 
-pub(crate) fn size_of(widget: &Widget, parent: [f32; 2], has_children: bool) -> Sized {
+pub(crate) fn size_of(
+    widget: &Widget,
+    parent: [f32; 2],
+    has_children: bool,
+    content: Option<[f32; 2]>,
+) -> Sized {
     let [parent_width, parent_height] = parent;
     let [width, height] = widget.size;
     let independent = |dim: Dim, axis: f32| match dim {
@@ -18,18 +23,24 @@ pub(crate) fn size_of(widget: &Widget, parent: [f32; 2], has_children: bool) -> 
         Dim::Percent(value) => Some(value * axis),
         Dim::Auto | Dim::OfWidth(_) | Dim::OfHeight(_) => None,
     };
-    let auto_axis = |axis: f32| if has_children { axis } else { 0.0 };
+    let auto_axis = |axis: f32, own: Option<f32>| {
+        if has_children {
+            axis
+        } else {
+            own.unwrap_or(0.0)
+        }
+    };
     let fixed_width = independent(width, parent_width);
     let fixed_height = independent(height, parent_height);
     let resolved_width = fixed_width.unwrap_or_else(|| match width {
         Dim::OfHeight(value) => value * fixed_height.unwrap_or(parent_height),
         Dim::OfWidth(value) => value * parent_width,
-        _ => auto_axis(parent_width),
+        _ => auto_axis(parent_width, content.map(|own| own[0])),
     });
     let resolved_height = fixed_height.unwrap_or_else(|| match height {
         Dim::OfWidth(value) => value * resolved_width,
         Dim::OfHeight(value) => value * parent_height,
-        _ => auto_axis(parent_height),
+        _ => auto_axis(parent_height, content.map(|own| own[1])),
     });
     Sized {
         size: [resolved_width.max(0.0), resolved_height.max(0.0)],
@@ -41,6 +52,13 @@ pub(crate) struct Sibling<'w> {
     pub(crate) widget: &'w Widget,
     pub(crate) index: usize,
     pub(crate) has_children: bool,
+    pub(crate) content: Option<[f32; 2]>,
+}
+
+impl Sibling<'_> {
+    fn size_in(&self, parent: [f32; 2]) -> Sized {
+        size_of(self.widget, parent, self.has_children, self.content)
+    }
 }
 
 pub(crate) struct Placed {
@@ -70,7 +88,7 @@ pub(crate) fn place(content: Area, flex: Option<&Flex>, siblings: &[Sibling<'_>]
     let parent = [content.width, content.height];
     let sized: Vec<Sized> = siblings
         .iter()
-        .map(|sibling| size_of(sibling.widget, parent, sibling.has_children))
+        .map(|sibling| sibling.size_in(parent))
         .collect();
     let in_flow: Vec<usize> = (0..siblings.len())
         .filter(|&at| {

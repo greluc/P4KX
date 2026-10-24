@@ -5,6 +5,8 @@ mod canvas;
 mod circle;
 mod display;
 mod polygon;
+mod text;
+mod text_field;
 mod unsupported;
 
 pub(crate) use canvas::nested as nested_canvas;
@@ -12,6 +14,7 @@ pub(crate) use canvas::nested as nested_canvas;
 use crate::context::Context;
 use crate::look::Look;
 use crate::paint::Area;
+use crate::text::{TEXT, TEXT_FIELD};
 use crate::widget::Widget;
 
 const STRUCTURAL: [&str; 6] = [
@@ -27,14 +30,22 @@ pub(crate) const CIRCLE: &str = "BuildingBlocks_WidgetCircle";
 pub(crate) const POLYGON: &str = "BuildingBlocks_WidgetPolygon";
 
 pub(crate) fn is_rendered(type_name: &str) -> bool {
-    STRUCTURAL.contains(&type_name) || type_name == CIRCLE || type_name == POLYGON
+    STRUCTURAL.contains(&type_name) || matches!(type_name, CIRCLE | POLYGON | TEXT | TEXT_FIELD)
 }
 
-pub(crate) fn paint(cx: &mut Context, widget: &Widget, look: &Look<'_>, area: Area, alpha: f32) {
+pub(crate) fn paint(
+    cx: &mut Context<'_>,
+    widget: &Widget,
+    look: &Look<'_>,
+    area: Area,
+    alpha: f32,
+) {
     display::paint(cx, widget, look, area, alpha);
     match widget.type_name.as_str() {
         CIRCLE => circle::paint(cx, widget, look, area, alpha),
         POLYGON => polygon::paint(cx, widget, look, area, alpha),
+        TEXT => text::paint(cx, widget, look, area, alpha),
+        TEXT_FIELD => text_field::paint(cx, widget, look, area, alpha),
         name if STRUCTURAL.contains(&name) => {}
         _ => unsupported::note(cx, widget),
     }

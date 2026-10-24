@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use p4kx_dataforge::{DataForge, Guid, RecordTree, StructValue};
 
+use crate::bindings::{TextBinding, text_bindings};
 use crate::error::ScreenError;
 use crate::reader::{as_struct, child, float, items, reference, text};
 use crate::style::Entry;
@@ -40,6 +41,7 @@ pub(crate) struct Canvas {
     pub(crate) defaults: Rc<[Entry]>,
     pub(crate) embedded: Rc<[Entry]>,
     pub(crate) unreachable: Vec<usize>,
+    pub(crate) text_bindings: HashMap<usize, TextBinding>,
 }
 
 impl Canvas {
@@ -85,6 +87,7 @@ impl Canvas {
         let unreachable = unreachable_widgets(&widgets, &roots, &children);
         Self {
             unreachable,
+            text_bindings: text_bindings(root),
             guid,
             record_path: tree.record_path().to_owned(),
             size,

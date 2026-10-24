@@ -27,6 +27,7 @@ mod assets;
 mod bitmap;
 mod embedded_png;
 mod error;
+mod face;
 mod font;
 mod font_info;
 mod geometry;
@@ -79,6 +80,7 @@ pub use bitmap::{
     Bitmap, BitmapSource, EmbeddedFormat, ExternalImage, ImageFileFormat, Jpeg, Lossless, SubImage,
 };
 pub use error::GfxError;
+pub use face::{FontFace, MISSING_GLYPH_EM, missing_glyph};
 pub use font::{Font, FontFormat, FontLayout, Glyph, Kerning};
 pub use geometry::{Matrix, Point, Rect, Rgba};
 pub use header::{Compression, Header, MAX_MOVIE_LEN, Signature};
@@ -106,6 +108,7 @@ pub use tag::tag_name;
 pub use text::{EditLayout, EditText, GlyphEntry, MAX_TEXT_GLYPHS, StaticText, TextRecord};
 pub use text_fonts::{Localise, TextOptions};
 pub use text_html::MAX_TEXT_CHARS;
+pub use text_loc::{Localised, localise_text};
 pub use timeline::{
     Export, ExporterInfo, FrameLabel, MAX_FRAME_BYTES, MAX_FRAME_PLACEMENTS, Sprite, Timeline,
 };

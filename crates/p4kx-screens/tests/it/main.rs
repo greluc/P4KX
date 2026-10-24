@@ -10,3 +10,6 @@ mod limits;
 mod listing;
 mod render;
 mod support;
+mod text;
+mod text_limits;
+mod text_reference;

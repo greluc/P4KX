@@ -4,7 +4,8 @@
 use p4kx_dataforge::{Guid, StructValue, Value};
 
 use crate::colour::ColorSpec;
-use crate::reader::{as_struct, flag, float, items, reference, text};
+use crate::reader::{as_struct, child, flag, float, items, reference, text};
+use crate::style::TextModifiers;
 
 const PREFIX: &str = "BuildingBlocks_StyleSelectorCondition";
 
@@ -32,6 +33,7 @@ pub(crate) struct Modifiers {
     pub(crate) enable_background: Option<bool>,
     pub(crate) active: Option<bool>,
     pub(crate) alpha: Option<f32>,
+    pub(crate) text: TextModifiers,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -160,21 +162,36 @@ const BORDER_SIDES: [&str; 4] = ["Top", "Right", "Bottom", "Left"];
 fn modifiers(values: &[Value<'_>]) -> Modifiers {
     let mut found = Modifiers::default();
     for modifier in values.iter().filter_map(as_struct) {
+        if matches!(
+            modifier.type_name(),
+            "BuildingBlocks_FieldModifierRecordRef" | "BuildingBlocks_FieldModifierEnumerated"
+        ) {
+            if let Some(inner) = child(modifier, "field") {
+                found.text.typed(inner);
+            }
+            continue;
+        }
         let Some(field) = text(modifier, "field") else {
             continue;
         };
         match modifier.type_name() {
             "BuildingBlocks_FieldModifierColor" => {
-                let colour = modifier.field("value").and_then(ColorSpec::parse);
+                let colour = modifier.field("color").and_then(ColorSpec::parse);
                 colour_field(&mut found, field, colour);
             }
-            "BuildingBlocks_FieldModifierBoolean" => match field {
-                "EnableBackground" => found.enable_background = flag(modifier, "value"),
-                "IsActive" => found.active = flag(modifier, "value"),
-                _ => {}
-            },
+            "BuildingBlocks_FieldModifierBoolean" => {
+                let value = flag(modifier, "value");
+                match field {
+                    "EnableBackground" => found.enable_background = value,
+                    "IsActive" => found.active = value,
+                    _ => found.text.boolean(field, value),
+                }
+            }
             "BuildingBlocks_FieldModifierNumber" => {
                 number_field(&mut found, field, float(modifier, "value"));
+            }
+            "BuildingBlocks_FieldModifierLocalization" => {
+                found.text.localised(field, text(modifier, "value"));
             }
             _ => {}
         }
@@ -203,6 +220,7 @@ fn number_field(found: &mut Modifiers, field: &str, value: Option<f32>) {
         found.alpha = value;
         return;
     }
+    found.text.number(field, value);
     if let Some(side) = field
         .strip_prefix("Border")
         .and_then(|rest| rest.strip_suffix("Width"))

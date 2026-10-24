@@ -48,7 +48,7 @@ pub(crate) struct FontIndex {
 }
 
 impl FontIndex {
-    fn new(font: &Font) -> Self {
+    pub(crate) fn new(font: &Font) -> Self {
         let mut codes = HashMap::with_capacity(font.glyphs.len());
         for (at, glyph) in font.glyphs.iter().enumerate() {
             if let Some(code) = glyph.code {

@@ -133,7 +133,9 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     if armour.issues().iter().any(|issue| {
         matches!(
             issue.kind(),
-            IssueKind::MorphsFailed { .. } | IssueKind::UnknownExpression { .. }
+            IssueKind::MorphsFailed { .. }
+                | IssueKind::UnknownExpression { .. }
+                | IssueKind::EmptyExpression { .. }
         )
     }) {
         return Err(ExpressionsNotMade(args.out.clone()).into());

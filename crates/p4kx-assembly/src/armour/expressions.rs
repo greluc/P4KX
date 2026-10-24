@@ -35,13 +35,15 @@ pub enum Expressions {
 pub(super) struct Morphs {
     pub(super) targets: Vec<MorphTarget>,
     pub(super) unknown: Vec<String>,
+    pub(super) empty: Vec<String>,
 }
 
 fn normal(name: &str) -> String {
-    let lower = name.to_lowercase();
-    lower
-        .strip_prefix(CONTROL_PREFIX)
-        .map_or_else(|| lower.clone(), str::to_owned)
+    name.to_lowercase()
+        .split('*')
+        .map(|part| part.strip_prefix(CONTROL_PREFIX).unwrap_or(part))
+        .collect::<Vec<_>>()
+        .join("*")
 }
 
 /// Reads the names of the blendshapes from the `RigLogic` chunk of the head skin at `path`.
@@ -168,8 +170,30 @@ pub(super) fn morphs(
     }
     let (chosen, unknown) = select(&logic, selection);
     let (first, next) = by_stream_vertex(mesh, blend.vertices());
-    let targets = make(&blend, &chosen, &first, &next);
-    Ok(Morphs { targets, unknown })
+    let made = make(&blend, &chosen, &first, &next);
+    let empty = match selection {
+        Expressions::Only(_) => made
+            .iter()
+            .zip(&chosen)
+            .filter(|(target, _)| target.is_none())
+            .map(|(_, (_, name))| name.clone())
+            .collect(),
+        _ => Vec::new(),
+    };
+    let mut targets: Vec<MorphTarget> = made.into_iter().flatten().collect();
+    let mut seen = std::collections::HashMap::<String, usize>::new();
+    for target in &mut targets {
+        let count = seen.entry(target.name.clone()).or_insert(0);
+        *count += 1;
+        if *count > 1 {
+            target.name = format!("{}#{count}", target.name);
+        }
+    }
+    Ok(Morphs {
+        targets,
+        unknown,
+        empty,
+    })
 }
 
 fn make(
@@ -177,11 +201,11 @@ fn make(
     chosen: &[(usize, String)],
     first: &[u32],
     next: &[u32],
-) -> Vec<MorphTarget> {
+) -> Vec<Option<MorphTarget>> {
     chosen
         .to_vec()
         .into_par_iter()
-        .filter_map(|(number, name)| {
+        .map(|(number, name)| {
             let (vertices, deltas) = on_mesh(&blend.target(number), first, next);
             (!vertices.is_empty()).then_some(MorphTarget {
                 name,

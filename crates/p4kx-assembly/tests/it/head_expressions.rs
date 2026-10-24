@@ -181,3 +181,20 @@ fn a_rig_whose_blendshapes_do_not_match_the_names_keeps_the_head_without_targets
     assert!(!issue.kind().skips(), "the shaped head stays");
     Ok(())
 }
+
+#[test]
+fn a_corrective_matches_by_its_controls_and_an_empty_expression_is_listed() -> TestResult {
+    let armour = armour(Expressions::Only(vec![
+        "a*b".to_owned(),
+        "CTL_PSD".to_owned(),
+    ]))?;
+
+    assert_eq!(head(&armour)?.morphs().len(), 0);
+    let codes: Vec<&str> = armour
+        .issues()
+        .iter()
+        .map(|issue| issue.kind().code())
+        .collect();
+    assert_eq!(codes, ["empty_expression", "empty_expression"]);
+    Ok(())
+}

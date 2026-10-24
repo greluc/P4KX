@@ -50,8 +50,9 @@ pub(crate) enum ChfAction {
     /// targets of the head, named like the rig's controls, mixed by the character's DNA and
     /// stored sparse; limit them with --expression or leave them out with --no-expressions. Only
     /// the rig of LOD 0 has expressions, so the other levels are written without unless
-    /// --expression names some, which then fails. Hair, eyes and teeth are not part of it. The head rig comes from the Archive; a character without face DNA or for an
-    /// unknown head rig is invalid input.
+    /// --expression names some, which then fails. Hair, eyes and teeth are not part of it. The
+    /// head rig comes from the Archive; a character without face DNA or for an unknown head rig
+    /// is invalid input.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(ChfGlbArgs),
 }

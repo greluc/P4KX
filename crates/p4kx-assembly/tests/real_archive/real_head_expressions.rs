@@ -106,6 +106,10 @@ fn check_glb_of(name: &str, armour: &Armour, lod: u32) -> TestResult {
         names.iter().all(|name| !name.is_empty()),
         "{name}: an empty target name"
     );
+    let mut unique = names.clone();
+    unique.sort();
+    unique.dedup();
+    assert_eq!(unique.len(), names.len(), "{name}: target names repeat");
     Ok(())
 }
 

@@ -41,7 +41,11 @@ impl Shaped {
                     .unknown
                     .into_iter()
                     .map(|name| IssueKind::UnknownExpression { name });
-                (morphs.targets, unknown.collect())
+                let empty = morphs
+                    .empty
+                    .into_iter()
+                    .map(|name| IssueKind::EmptyExpression { name });
+                (morphs.targets, unknown.chain(empty).collect())
             }
             Some(Err(reason)) => (Vec::new(), vec![IssueKind::MorphsFailed { reason }]),
             None => (Vec::new(), Vec::new()),

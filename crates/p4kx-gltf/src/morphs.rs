@@ -61,7 +61,12 @@ impl<'m> Layout<'m> {
         let wide = u16::try_from(vertices).is_err();
         let mut planned = Vec::new();
         for morph in morphs.iter().filter(|morph| morph.fits(vertices)) {
-            let (mut min, mut max) = ([0.0_f32; 3], [0.0_f32; 3]);
+            let rest = if morph.vertices.len() < vertices {
+                0.0
+            } else {
+                f32::INFINITY
+            };
+            let (mut min, mut max) = ([rest; 3], [-rest; 3]);
             for &delta in &morph.deltas {
                 for ((low, high), value) in min.iter_mut().zip(&mut max).zip(to_y_up(delta)) {
                     *low = low.min(value);

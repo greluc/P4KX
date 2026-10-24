@@ -182,3 +182,20 @@ fn the_checker_rejects_broken_sparse_accessors_and_target_names() -> TestResult 
     assert!(check_glb(&renamed).is_err());
     Ok(())
 }
+
+#[test]
+fn the_bounds_of_a_target_that_moves_every_vertex_do_not_include_zero() -> TestResult {
+    let moves: Vec<(u32, [f32; 3])> = (0..24).map(|vertex| (vertex, [0.0, 0.0, 0.5])).collect();
+    let (glb, _) = write(&[target("all", &moves)])?;
+
+    let mesh = glb.document.meshes().next().ok_or("a mesh")?;
+    let positions = mesh
+        .primitives()
+        .next()
+        .and_then(|primitive| primitive.morph_targets().next())
+        .and_then(|target| target.positions())
+        .ok_or("a target")?;
+    assert_eq!(positions.min().ok_or("min")?, serde_values([0.0, 0.5, 0.0]));
+    assert_eq!(positions.max().ok_or("max")?, serde_values([0.0, 0.5, 0.0]));
+    Ok(())
+}

@@ -248,6 +248,13 @@ pub enum IssueKind {
         /// The name that was asked for.
         name: String,
     },
+    /// An expression the piece was asked for moves no vertex of this Character's head, so it is
+    /// not written.
+    #[error("the expression {name} moves no vertex of the head")]
+    EmptyExpression {
+        /// The name that was asked for.
+        name: String,
+    },
 }
 
 impl IssueKind {
@@ -287,6 +294,7 @@ impl IssueKind {
             Self::ShapeFailed { .. } => "shape_failed",
             Self::MorphsFailed { .. } => "morphs_failed",
             Self::UnknownExpression { .. } => "unknown_expression",
+            Self::EmptyExpression { .. } => "empty_expression",
         }
     }
 

@@ -73,8 +73,6 @@ mod model_animations;
 mod model_bones;
 mod model_glb;
 mod model_info;
-mod model_json;
-mod model_materials_json;
 mod model_text;
 mod notice;
 mod progress;

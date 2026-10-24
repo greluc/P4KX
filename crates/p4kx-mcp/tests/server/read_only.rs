@@ -4,10 +4,11 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+use p4kx_testkit::{TestEntry, TestModel};
 use serde_json::{Value, json};
 
-use crate::forge::{AVENGER_TEXT, dataforge, install};
-use crate::support::TestResult;
+use crate::forge::{AVENGER_TEXT, dataforge};
+use crate::support::{Install, TestResult};
 
 type Snapshot = Vec<(PathBuf, u64, Option<SystemTime>, Vec<u8>)>;
 
@@ -33,7 +34,12 @@ fn snapshot(root: &Path) -> TestResult<Snapshot> {
 
 #[test]
 fn every_tool_leaves_the_archive_and_all_folders_untouched() -> TestResult {
-    let install = install(dataforge(1, 16))?;
+    let install = Install::new(vec![
+        TestEntry::stored("readme.txt", b"hello".to_vec()),
+        TestEntry::zstd("Data\\Game2.dcb", dataforge(1, 16)),
+        TestEntry::zstd("Data\\Objects\\cube.cgf", TestModel::cube().cgf()),
+        TestEntry::zstd("Data\\Objects\\cube.cgfm", TestModel::cube().cgfm()),
+    ])?;
     let before = snapshot(install.path())?;
     let mut server = install.serve(&["--archive", "LIVE"])?;
     let tools = server.tools()?;
@@ -49,6 +55,12 @@ fn every_tool_leaves_the_archive_and_all_folders_untouched() -> TestResult {
         ("list_structs", json!({})),
         ("list_enums", json!({})),
         ("run_query", json!({ "query": "from Ship select crew" })),
+        ("list_chunks", json!({ "path": "Data/Objects/cube.cgf" })),
+        ("get_model_info", json!({ "path": "Data/Objects/cube.cgf" })),
+        (
+            "list_model_items",
+            json!({ "path": "Data/Objects/cube.cgf", "section": "nodes" }),
+        ),
     ];
     for (name, arguments) in &calls {
         server.ok(name, arguments)?;

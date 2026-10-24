@@ -6,15 +6,16 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_extraction::model::{LodSelection, Model};
-use p4kx_extraction::{AnimationSet, GlbOptions, GlbSummary, MaterialMode, ModelSource, PathIndex};
+use p4kx_extraction::{
+    AnimationSet, ChunkInfo, GlbOptions, GlbSummary, LibraryInfo, MaterialMode, ModelSource,
+    PathIndex, UnreadInfo, file_name,
+};
 use serde::Serialize;
 
 use crate::cli_model::{MaterialsArg, ModelAction};
 use crate::json;
 use crate::model::{archive_animations, choice_of, disk_animations};
-use crate::model_animations::{UnreadJson, WrittenJson, write_notes as write_animation_notes};
-use crate::model_json::{ChunkJson, file_name};
-use crate::model_materials_json::LibraryJson;
+use crate::model_animations::{WrittenJson, write_notes as write_animation_notes};
 use crate::model_text::printable;
 
 #[derive(Serialize)]
@@ -36,10 +37,10 @@ struct GlbJson<'a> {
     vertices: usize,
     triangles: usize,
     bytes: u64,
-    library: LibraryJson<'a>,
+    library: LibraryInfo<'a>,
     animations: Vec<WrittenJson>,
-    unread_animations: Vec<UnreadJson>,
-    unknown_chunks: Vec<ChunkJson>,
+    unread_animations: Vec<UnreadInfo>,
+    unknown_chunks: Vec<ChunkInfo>,
 }
 
 #[derive(Serialize)]
@@ -242,9 +243,9 @@ fn glb_json<'a>(
         vertices: summary.vertices,
         triangles: summary.triangles,
         bytes: summary.bytes,
-        library: LibraryJson::of(source.model()),
+        library: LibraryInfo::of(source.model()),
         animations: summary.animations.iter().map(WrittenJson::of).collect(),
-        unread_animations: animations.unread.iter().map(UnreadJson::of).collect(),
-        unknown_chunks: source.model().unknown_chunks().map(ChunkJson::of).collect(),
+        unread_animations: animations.unread.iter().map(UnreadInfo::of).collect(),
+        unknown_chunks: source.model().unknown_chunks().map(ChunkInfo::of).collect(),
     }
 }

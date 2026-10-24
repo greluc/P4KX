@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 use std::time::SystemTime;
 
 use p4kx_channels::ChannelKind;
-use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge};
+use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys};
 
 use crate::error::{ToolError, chain};
 use crate::keys::KeyChoice;
@@ -44,6 +44,7 @@ pub(crate) struct Opened {
     archive: Archive,
     notice: Option<String>,
     tree: OnceLock<EntryTree>,
+    keys: OnceLock<PathKeys>,
     building: Mutex<()>,
     dataforge: Mutex<Option<Result<Arc<LoadedDataForge>, String>>>,
     selection: Mutex<Selection>,
@@ -55,6 +56,7 @@ impl Opened {
             notice: ChannelKind::of_archive(archive.path()).notice(),
             archive,
             tree: OnceLock::new(),
+            keys: OnceLock::new(),
             building: Mutex::new(()),
             dataforge: Mutex::new(None),
             selection: Mutex::new(None),
@@ -96,6 +98,13 @@ impl Opened {
         }
         let built = EntryTree::build(&self.archive);
         self.tree.get_or_init(|| built)
+    }
+
+    /// Returns the Entries by path, hashing the paths on first use.
+    pub(crate) fn index(&self) -> PathIndex<'_> {
+        self.keys
+            .get_or_init(|| PathKeys::new(&self.archive))
+            .index(&self.archive)
     }
 
     /// Runs `work` against the DataForge with the Archive path as text, reading the DataForge on

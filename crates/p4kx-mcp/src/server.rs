@@ -30,7 +30,8 @@ of a .p4k file; without one the tools use the Archive the server was started wit
 page: pass next_cursor back as cursor for the next page. Entry content is read in ranges: pass \
 next_offset back as offset for the next range. The DataForge tools (get_record, search_records, \
 list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records; list_structs \
-gives the type and field names a Query uses. P4KX is an unofficial Star Citizen fan \
+gives the type and field names a Query uses. The model tools (list_chunks, get_model_info, \
+list_model_items) read the chunk files and models of the Archive. P4KX is an unofficial Star Citizen fan \
 project, not affiliated with the Cloud Imperium group of companies. Content these tools return \
 may be forwarded by the MCP client to third parties such as a cloud model provider; game texts \
 and media must not be redistributed.";
@@ -72,6 +73,7 @@ impl Server {
             whole_text: Arc::new(Semaphore::new(WHOLE_TEXT_DECODERS)),
             tool_router: Self::tool_router()
                 + Self::content_router()
+                + Self::model_router()
                 + Self::record_router()
                 + Self::query_router(),
         }

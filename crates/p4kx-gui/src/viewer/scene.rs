@@ -29,9 +29,14 @@ pub type SkinVertex = [u8; SKIN_STRIDE];
 
 static SERIAL: AtomicU64 = AtomicU64::new(1);
 
-type Rows = [[f32; 4]; 3];
+/// Returns a number no scene of this process has had; the GPU caches are keyed by it.
+pub(super) fn next_serial() -> u64 {
+    SERIAL.fetch_add(1, Ordering::Relaxed)
+}
 
-const IDENTITY: Rows = Transform::IDENTITY.rows;
+pub(super) type Rows = [[f32; 4]; 3];
+
+pub(super) const IDENTITY: Rows = Transform::IDENTITY.rows;
 
 /// Why a model cannot be shown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
@@ -62,12 +67,12 @@ pub struct Bounds {
 }
 
 impl Bounds {
-    const EMPTY: Self = Self {
+    pub(super) const EMPTY: Self = Self {
         min: [f32::INFINITY; 3],
         max: [f32::NEG_INFINITY; 3],
     };
 
-    fn include(&mut self, point: [f32; 3]) {
+    pub(super) fn include(&mut self, point: [f32; 3]) {
         if point.iter().all(|value| value.is_finite()) {
             for axis in 0..3 {
                 if let (Some(min), Some(max), Some(value)) = (
@@ -82,12 +87,12 @@ impl Bounds {
         }
     }
 
-    fn union(&mut self, other: &Self) {
+    pub(super) fn union(&mut self, other: &Self) {
         self.include(other.min);
         self.include(other.max);
     }
 
-    fn is_valid(&self) -> bool {
+    pub(super) fn is_valid(&self) -> bool {
         self.min.iter().chain(&self.max).all(|v| v.is_finite())
     }
 
@@ -184,7 +189,7 @@ impl Scene {
             skin: skinned.then_some(all_skin),
             skeleton,
             bounds,
-            serial: SERIAL.fetch_add(1, Ordering::Relaxed),
+            serial: next_serial(),
         })
     }
 
@@ -247,15 +252,15 @@ const fn check_size(vertices: usize, triangles: usize) -> Result<(), SceneError>
     }
 }
 
-struct Part {
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
-    skin: Vec<SkinVertex>,
-    bounds: Bounds,
+pub(super) struct Part {
+    pub(super) vertices: Vec<Vertex>,
+    pub(super) indices: Vec<u32>,
+    pub(super) skin: Vec<SkinVertex>,
+    pub(super) bounds: Bounds,
 }
 
 impl Part {
-    fn of(mesh: &Mesh, world: &Rows, bones: usize) -> Self {
+    pub(super) fn of(mesh: &Mesh, world: &Rows, bones: usize) -> Self {
         let skin = skin::of_mesh(mesh, bones);
         let world = if skin.is_empty() { world } else { &IDENTITY };
         let normal_rows = normal_matrix(world);
@@ -293,7 +298,7 @@ impl Part {
     }
 }
 
-fn world_transforms(nodes: &[Node]) -> Vec<Rows> {
+pub(super) fn world_transforms(nodes: &[Node]) -> Vec<Rows> {
     let mut done: Vec<Option<Rows>> = vec![None; nodes.len()];
     for start in 0..nodes.len() {
         let mut chain = Vec::new();
@@ -346,7 +351,7 @@ fn cell(rows: &Rows, row: usize, column: usize) -> f32 {
         .unwrap_or(0.0)
 }
 
-fn apply(rows: &Rows, [x, y, z]: [f32; 3]) -> [f32; 3] {
+pub(super) fn apply(rows: &Rows, [x, y, z]: [f32; 3]) -> [f32; 3] {
     std::array::from_fn(|row| {
         cell(rows, row, 0).mul_add(
             x,

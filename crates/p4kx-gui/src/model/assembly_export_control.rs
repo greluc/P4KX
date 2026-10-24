@@ -33,6 +33,11 @@ impl Model {
         &self.assembly.tab
     }
 
+    /// Returns the Entities tab for changes together with the interface texts.
+    pub(crate) const fn entities_with_texts(&mut self) -> (&mut EntitiesTab, &Texts) {
+        (&mut self.assembly.tab, &self.texts)
+    }
+
     /// Returns the Entities tab for changes.
     pub const fn entities_mut(&mut self) -> &mut EntitiesTab {
         &mut self.assembly.tab
@@ -90,11 +95,13 @@ impl Model {
         let Some(session) = self.assembly.tab.loadout() else {
             return;
         };
-        let setup = AssemblyExportSetup::new(
+        let mut setup = AssemblyExportSetup::new(
             (session.guid(), session.name()),
             session.changes(),
             &self.assembly.settings,
         );
+        setup.set_lod(session.assembly().lod());
+        setup.set_materials(session.assembly().materials());
         self.assembly.run = None;
         self.assembly.setup = Some(setup);
     }

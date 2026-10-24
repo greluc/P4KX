@@ -3,6 +3,7 @@
 
 //! Tests of `p4kx-gui` against a real Archive; run with `--ignored` when `P4KX_DATA_P4K` names one.
 
+mod assembly_view_real_archive;
 mod audio_preview_real_archive;
 mod catalog_real_archive;
 mod comparison_diff_real_archive;

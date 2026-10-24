@@ -6,8 +6,10 @@ use fluent_bundle::FluentValue;
 
 use super::entity_list;
 use super::entity_loadout;
+use super::entity_view;
 use super::search::{eyebrow, field};
 use super::{empty, entity_replace, list_footer};
+use crate::theme::assembly_metrics::{ASSEMBLY_PANEL_HEIGHT, ASSEMBLY_PANEL_MIN_HEIGHT};
 use crate::theme::desktop::{
     SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, SPINNER, SPINNER_INLINE, TOOLBAR_PADDING,
 };
@@ -155,6 +157,20 @@ fn ready(ui: &mut Ui, model: &mut Model) {
     if let Some(position) = picked {
         let ctx = ui.ctx().clone();
         model.select_entity(position, move || ctx.request_repaint());
+    }
+    if model.entities().loadout().is_some() {
+        let least = ASSEMBLY_PANEL_MIN_HEIGHT;
+        let most = (ui.available_height() - entity_view::TREE_MIN_HEIGHT).max(least);
+        let support = model.viewer_support().clone();
+        Panel::top("entities-view")
+            .frame(frames::panel())
+            .resizable(true)
+            .default_size(ASSEMBLY_PANEL_HEIGHT.clamp(least, most))
+            .size_range(least..=most)
+            .show(ui, |ui| {
+                let (tab, texts) = model.entities_with_texts();
+                entity_view::show(ui, tab, texts, &support);
+            });
     }
     frames::panel().show(ui, |ui| {
         frames::preview_body().show(ui, |ui| entity_loadout::show(ui, model));

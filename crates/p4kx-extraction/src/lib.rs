@@ -147,7 +147,7 @@ pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{
     AnimationSummary, GlbOptions, GlbSummary, GltfError, LoadedTexture, MAX_TEXTURE_IMAGES,
     MAX_TEXTURE_PIXELS, MaterialMode, TextureFallback, TextureLoadError, TextureLoader,
-    TextureRole,
+    TextureRole, diffuse_texture_path,
 };
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,

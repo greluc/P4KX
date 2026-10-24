@@ -35,6 +35,7 @@ mod entities;
 mod entity_list;
 mod entity_loadout;
 mod entity_replace;
+mod entity_view;
 mod entry_status;
 mod extraction;
 mod extraction_outcome;

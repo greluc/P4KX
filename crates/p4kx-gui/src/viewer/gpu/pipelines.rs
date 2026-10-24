@@ -6,6 +6,7 @@ use std::num::NonZeroU64;
 
 use eframe::egui_wgpu::wgpu;
 
+use super::assembly::AssemblyPipelines;
 use super::device::guarded;
 use super::resources::VERTEX_STRIDE;
 use super::skeleton::SkeletonPipelines;
@@ -24,6 +25,7 @@ pub(super) struct Pipelines {
     pub(super) scene: wgpu::RenderPipeline,
     pub(super) blit: wgpu::RenderPipeline,
     pub(super) skeleton: Option<SkeletonPipelines>,
+    pub(super) assembly: AssemblyPipelines,
     pub(super) frame_layout: wgpu::BindGroupLayout,
     pub(super) material_layout: wgpu::BindGroupLayout,
     pub(super) blit_layout: wgpu::BindGroupLayout,
@@ -74,10 +76,12 @@ impl Pipelines {
                 samples,
             )
         });
+        let assembly = AssemblyPipelines::new(device, (&frame_layout, &material_layout), samples);
         Self {
             scene,
             blit,
             skeleton: (!refused).then_some(skeleton),
+            assembly,
             frame_layout,
             material_layout,
             blit_layout,

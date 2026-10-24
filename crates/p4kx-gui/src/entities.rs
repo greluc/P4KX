@@ -7,6 +7,7 @@ mod loadout;
 mod replace;
 mod resolve;
 mod rows;
+mod view;
 
 use std::sync::Arc;
 
@@ -19,6 +20,7 @@ pub use replace::ReplaceChooser;
 pub use resolve::ResolveFailure;
 pub(crate) use resolve::resolve;
 pub use rows::{LoadoutRow, LoadoutView, RowChange};
+pub use view::{AssemblyView, VIEW_LOD, ViewFailure, ViewProgress, ViewStage};
 
 use crate::EntryIndex;
 use load::{Load, Outcome};

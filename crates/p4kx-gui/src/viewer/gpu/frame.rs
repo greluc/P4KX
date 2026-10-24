@@ -6,7 +6,7 @@ use eframe::egui_wgpu::wgpu;
 use super::device::{guarded, to_f32};
 use super::resources::MeshBuffers;
 use super::target::Target;
-use super::{BASE_TEXTURE, Drawn, SceneCallback, ViewerGpu, target_extent};
+use super::{BASE_TEXTURE, Drawn, SceneCallback, Subject, ViewerGpu, target_extent};
 use crate::theme::palette;
 use crate::viewer::scene::Scene;
 
@@ -19,12 +19,25 @@ impl ViewerGpu {
         queue: &wgpu::Queue,
         frame: &SceneCallback,
     ) -> Vec<wgpu::CommandBuffer> {
-        let serial = frame.scene.serial();
+        match &frame.subject {
+            Subject::Model(scene) => self.prepare_model(device, queue, frame, scene),
+            Subject::Assembly(view) => self.prepare_assembly(device, queue, frame, view),
+        }
+    }
+
+    fn prepare_model(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        frame: &SceneCallback,
+        scene: &Scene,
+    ) -> Vec<wgpu::CommandBuffer> {
+        let serial = scene.serial();
         if self.report.is_lost() || self.report.has_failed(serial) {
             return Vec::new();
         }
         let ((), upload_failed) = guarded(device, || {
-            self.upload((device, queue), frame.scene.as_ref());
+            self.upload((device, queue), scene);
         });
         if upload_failed {
             self.mesh.clear();
@@ -34,6 +47,7 @@ impl ViewerGpu {
         }
         let wanted = Drawn {
             pose: frame.look.pose.as_ref().map_or(0, |pose| pose.serial()),
+            list: 0,
             bones: frame.look.bones,
             serial,
             uniforms: frame.uniforms,
@@ -133,9 +147,12 @@ impl ViewerGpu {
     }
 
     fn write_skeleton(&mut self, queue: &wgpu::Queue, frame: &SceneCallback) {
+        let Subject::Model(scene) = &frame.subject else {
+            return;
+        };
         let Some(skeleton) = self
             .mesh
-            .get(frame.scene.serial())
+            .get(scene.serial())
             .and_then(|mesh| mesh.skeleton.as_ref())
         else {
             return;
@@ -160,7 +177,7 @@ impl ViewerGpu {
         queue.write_buffer(&skeleton.look, 0, bytemuck::bytes_of(&look));
     }
 
-    fn record(
+    pub(super) fn record(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -169,6 +186,9 @@ impl ViewerGpu {
         self.fit_target(device, frame.size);
         self.write_uniforms(queue, frame);
         self.write_skeleton(queue, frame);
+        if let Subject::Assembly(view) = &frame.subject {
+            self.write_instances(queue, view);
+        }
         let target = self.target.as_ref()?;
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("p4kx-viewer"),
@@ -219,8 +239,12 @@ impl ViewerGpu {
     }
 
     fn draw_model(&self, pass: &mut wgpu::RenderPass<'_>, frame: &SceneCallback) {
+        let scene = match &frame.subject {
+            Subject::Model(scene) => scene,
+            Subject::Assembly(view) => return self.draw_assembly(pass, view),
+        };
         let (Some(mesh), Some(material)) = (
-            self.mesh.get(frame.scene.serial()),
+            self.mesh.get(scene.serial()),
             self.textures.get(BASE_TEXTURE),
         ) else {
             return;

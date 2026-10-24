@@ -78,6 +78,7 @@ pub use containers::{
     ContainerFailure, ContainerId, ContainerStatus, OPEN_CONTAINERS_BUDGET, Place,
 };
 pub use content_search::{ContentResult, ContentSearchStatus, ContentSearchTab};
+pub use entities::{AssemblyView, VIEW_LOD, ViewFailure, ViewProgress, ViewStage};
 pub use entities::{
     EntitiesStatus, EntitiesTab, EntityFilter, EntityList, LoadoutRow, LoadoutSession, LoadoutView,
     ReplaceChooser, ResolveFailure, RowChange,
@@ -133,6 +134,11 @@ pub use texts::{
     ExtractionText, GroupText, ImageText, IncomingText, LocalizationText, ModelExportText,
     ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText, RecordLanguageText,
     RecordSearchText, RecordText, SchemaText, ScrollText, TagsText, Text, Texts, XmlText,
+};
+pub use viewer::{
+    AssemblyScene, BuildError, BuildOptions, DrawList, GroupDraw, Hooks, Instance, Left,
+    MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES, MAX_VIEW_VERTICES, MIN_PART_PIXELS,
+    PartInfo, Progress, VIEW_TEXTURE_MIP,
 };
 pub use viewer::{
     Bounds, Camera, Control, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES,

@@ -1,0 +1,195 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use std::io::{self, Write};
+use std::path::Path;
+use std::process::ExitCode;
+
+use anyhow::Result;
+use p4kx_assembly::audio::{
+    ArchiveAudio, ExportOptions, ExportReport, ExportState, SoundFormat, TriggerSounds,
+};
+use serde::Serialize;
+
+use crate::cli::AudioOutput;
+use crate::cli_wwise::{SoundExportArgs, WwiseExtractArgs};
+use crate::entity_audio::{IssueJson, issues_json, warn};
+use crate::extract::policy;
+use crate::wwise::{UnknownTrigger, language_choice};
+use crate::wwise_json::{self, LanguageJson, TriggerJson};
+use crate::{exit, json};
+
+#[derive(Serialize)]
+struct ExtractJson<'a> {
+    archive: String,
+    language: LanguageJson<'a>,
+    trigger: TriggerJson<'a>,
+    breaks: usize,
+    #[serde(flatten)]
+    export: ExportJson,
+    issues: Vec<IssueJson<'a>>,
+}
+
+/// The JSON shape of a sound export.
+#[derive(Serialize)]
+pub(crate) struct ExportJson {
+    target: String,
+    format: &'static str,
+    written: usize,
+    kept: usize,
+    unconverted: usize,
+    failed: usize,
+    files: Vec<FileJson>,
+    failures: Vec<FailureJson>,
+}
+
+#[derive(Serialize)]
+struct FileJson {
+    trigger: String,
+    wem_id: u32,
+    file: String,
+    format: &'static str,
+    size: u64,
+    kept: bool,
+    unconverted: Option<String>,
+}
+
+#[derive(Serialize)]
+struct FailureJson {
+    trigger: String,
+    wem_id: Option<u32>,
+    reason: String,
+}
+
+const fn sound_format(output: AudioOutput) -> SoundFormat {
+    match output {
+        AudioOutput::Ogg => SoundFormat::Ogg,
+        AudioOutput::Wav => SoundFormat::Wav,
+        AudioOutput::Raw => SoundFormat::Raw,
+    }
+}
+
+/// Writes the sounds of `triggers` into `out` as the export arguments say.
+pub(crate) fn export(
+    audio: &ArchiveAudio<'_>,
+    triggers: &[&TriggerSounds<'_>],
+    out: &Path,
+    args: &SoundExportArgs,
+) -> Result<ExportReport> {
+    let options = ExportOptions {
+        format: sound_format(args.format),
+        policy: policy(args.conflict),
+    };
+    Ok(audio.export_sounds(triggers, out, options)?)
+}
+
+/// Returns the JSON shape of `report`.
+pub(crate) fn export_json(report: &ExportReport, out: &Path, args: &SoundExportArgs) -> ExportJson {
+    ExportJson {
+        target: json::path(out),
+        format: sound_format(args.format).extension(),
+        written: report.written_count(),
+        kept: report.kept_count(),
+        unconverted: report.unconverted_count(),
+        failed: report.failures.len(),
+        files: report
+            .sounds
+            .iter()
+            .map(|sound| FileJson {
+                trigger: sound.trigger.clone(),
+                wem_id: sound.wem_id,
+                file: json::path(&sound.path),
+                format: sound.format.extension(),
+                size: sound.size,
+                kept: sound.state == ExportState::Kept,
+                unconverted: sound.unconverted.clone(),
+            })
+            .collect(),
+        failures: report
+            .failures
+            .iter()
+            .map(|failure| FailureJson {
+                trigger: failure.trigger.clone(),
+                wem_id: failure.wem_id,
+                reason: failure.reason.clone(),
+            })
+            .collect(),
+    }
+}
+
+/// Prints the summary of an export to stdout and what went wrong to stderr.
+pub(crate) fn print_report(report: &ExportReport, out: &Path) -> io::Result<()> {
+    let mut stderr = io::stderr().lock();
+    for sound in &report.sounds {
+        if let Some(reason) = &sound.unconverted {
+            writeln!(
+                stderr,
+                "error: {} WEM {} written unchanged as {}: {reason}",
+                sound.trigger,
+                sound.wem_id,
+                sound.path.display()
+            )?;
+        }
+    }
+    for failure in &report.failures {
+        let wem = failure
+            .wem_id
+            .map_or_else(String::new, |id| format!(" WEM {id}"));
+        writeln!(
+            stderr,
+            "error: {}{wem}: {}",
+            failure.trigger, failure.reason
+        )?;
+    }
+    writeln!(
+        io::stdout().lock(),
+        "wrote {} sounds into {}; {} kept, {} written unchanged because they cannot be converted, {} failed",
+        report.written_count(),
+        out.display(),
+        report.kept_count(),
+        report.unconverted_count(),
+        report.failures.len()
+    )
+}
+
+/// Returns the exit code of an export: partial failure unless every sound was exported as asked.
+pub(crate) fn exit_code(report: &ExportReport) -> ExitCode {
+    ExitCode::from(if report.is_clean() {
+        exit::SUCCESS
+    } else {
+        exit::PARTIAL_FAILURE
+    })
+}
+
+/// Runs `p4kx wwise extract`.
+pub(crate) fn run(args: &WwiseExtractArgs, as_json: bool) -> Result<ExitCode> {
+    let archive = crate::key::open(&args.archive)?;
+    let audio = ArchiveAudio::new(&archive);
+    let index = audio.index();
+    let choice = language_choice(index, &args.language)?;
+    let sounds = audio
+        .resolve_trigger_in(&args.trigger, &choice)
+        .ok_or_else(|| UnknownTrigger::new(&args.trigger))?;
+    let report = export(&audio, &[&sounds], &args.out, &args.export)?;
+    if as_json {
+        json::print(&ExtractJson {
+            archive: json::path(archive.path()),
+            language: LanguageJson::of(&choice),
+            trigger: wwise_json::trigger(&sounds),
+            breaks: sounds.breaks().len(),
+            export: export_json(&report, &args.out, &args.export),
+            issues: issues_json(index),
+        })?;
+    } else {
+        warn(index)?;
+        print_report(&report, &args.out)?;
+        if !sounds.breaks().is_empty() {
+            writeln!(
+                io::stderr().lock(),
+                "warning: {} broken links; run `p4kx wwise resolve` to list them",
+                sounds.breaks().len()
+            )?;
+        }
+    }
+    Ok(exit_code(&report))
+}

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::io::{self, BufWriter, Write};
+use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_assembly::audio::{
@@ -21,6 +22,12 @@ use crate::wwise_json::{self, Counts, LanguageJson, ResolveJson};
 #[error("no ATL definition has the audio trigger {0}")]
 pub(crate) struct UnknownTrigger(String);
 
+impl UnknownTrigger {
+    pub(crate) fn new(name: &str) -> Self {
+        Self(name.to_owned())
+    }
+}
+
 /// The requested audio language is no language folder of the Archive.
 #[derive(Debug, Error)]
 #[error("the Archive holds no audio language {language}; its language folders are: {available}")]
@@ -30,10 +37,13 @@ pub(crate) struct UnknownAudioLanguage {
 }
 
 /// Runs a `p4kx wwise` subcommand.
-pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<()> {
+pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<ExitCode> {
     match &args.action {
-        WwiseAction::Resolve(args) => resolve(args, as_json),
-        WwiseAction::Events(args) => crate::wwise_events::run(args, as_json),
+        WwiseAction::Resolve(args) => resolve(args, as_json).map(|()| ExitCode::SUCCESS),
+        WwiseAction::Events(args) => {
+            crate::wwise_events::run(args, as_json).map(|()| ExitCode::SUCCESS)
+        }
+        WwiseAction::Extract(args) => crate::wwise_extract::run(args, as_json),
     }
 }
 

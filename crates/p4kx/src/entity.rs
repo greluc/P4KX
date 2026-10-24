@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::io::{self, BufWriter, Write};
+use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_assembly::{
@@ -17,11 +18,12 @@ use crate::query_table::one_line;
 use crate::{entity_audio, entity_glb, json};
 
 /// Runs a `p4kx entity` subcommand.
-pub(crate) fn run(args: &EntityArgs, as_json: bool) -> Result<()> {
+pub(crate) fn run(args: &EntityArgs, as_json: bool) -> Result<ExitCode> {
+    let done = |result: Result<()>| result.map(|()| ExitCode::SUCCESS);
     match &args.action {
-        EntityAction::Loadout(args) => loadout(args, as_json),
+        EntityAction::Loadout(args) => done(loadout(args, as_json)),
         EntityAction::Audio(args) => entity_audio::run(args, as_json),
-        EntityAction::Glb(args) => entity_glb::run(args, as_json),
+        EntityAction::Glb(args) => done(entity_glb::run(args, as_json)),
     }
 }
 

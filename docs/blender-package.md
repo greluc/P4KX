@@ -3,7 +3,7 @@
 A Blender package is a folder that describes an Assembly in files any importer can read: a scene
 description, shared GLB parts and PNG textures. It does not depend on Blender's file format, so
 new Blender versions do not break it; the Blender add-on of M13 imports it, and so can any other
-tool. `p4kx entity package` writes it ([ADR-0082](adr/0082-a-blender-package-is-a-versioned-manifest-with-shared-glb-parts-and-png-textures.md)).
+tool. `p4kx entity package` writes it ([ADR-0083](adr/0083-a-blender-package-is-a-versioned-manifest-with-shared-glb-parts-and-png-textures.md)).
 
 The JSON Schema of `scene.json` is generated from the Rust types of `p4kx-blender` and checked in
 as [schemas/blender-package.schema.json](../schemas/blender-package.schema.json); a test fails

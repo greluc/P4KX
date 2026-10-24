@@ -277,7 +277,7 @@ _Avoid_: component, child
 **Blender package**:
 A folder that describes an Assembly without depending on Blender's file format: `scene.json` (format
 version, source Channel and Build, node hierarchy), one GLB file per distinct part and the textures
-of the materials as PNG (ADR-0082).
+of the materials as PNG (ADR-0083).
 _Avoid_: .blend file, scene export
 
 **Interior**:

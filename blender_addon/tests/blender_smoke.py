@@ -15,19 +15,66 @@ from pathlib import Path
 
 import bpy
 import addon_utils
+from mathutils import Vector
 
 HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent)]
 
 import p4kx_importer  # noqa: E402
 import synthetic  # noqa: E402
-from p4kx_importer import importer, package  # noqa: E402
+from p4kx_importer import importer, lights, package  # noqa: E402
 
 
 def check(condition: bool, message: str) -> None:
     """Raises ``SystemExit`` with ``message`` when ``condition`` is false."""
     if not condition:
         raise SystemExit(f"smoke test failed: {message}")
+
+
+def check_interior(folder: Path) -> None:
+    """Imports ``synthetic.lit_manifest()`` and checks its containers, object and lights."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("io_scene_gltf2", default_set=False)
+    loaded = package.load_package(synthetic.write_package(folder, synthetic.lit_manifest()))
+    result = importer.import_package(bpy.context, loaded, light_strength=2.0)
+    check(result.lights == 3, f"lights: {result.lights}")
+    check(result.objects == 10, f"node objects: {result.objects}")
+    check(result.meshes == 2, f"meshes: {result.meshes}")
+    light_objects = [o for o in bpy.data.objects if o.type == "LIGHT"]
+    check(len(light_objects) == 3, f"light objects: {len(light_objects)}")
+    check(len(bpy.data.lights) == 3, f"light data: {len(bpy.data.lights)}")
+
+    lamp = bpy.data.objects["lamp"]
+    check(lamp.data.type == "POINT", f"lamp type {lamp.data.type}")
+    check(abs(lamp.data.energy - 3.0 * lights.WATTS_PER_UNIT * 2.0) < 1e-4, f"energy {lamp.data.energy}")
+    check(lamp.data.use_custom_distance and abs(lamp.data.cutoff_distance - 6.0) < 1e-5, "range")
+    check(tuple(round(c, 4) for c in lamp.data.color) == (1.0, 0.5, 0.25), "colour")
+    check(tuple(lamp.scale) == (1.0, 1.0, 1.0), f"light scale {tuple(lamp.scale)}")
+    beam = bpy.data.objects["beam"]
+    check(beam.data.type == "SPOT", f"beam type {beam.data.type}")
+    check(abs(beam.data.spot_size - 1.0471976) < 1e-4, f"spot size {beam.data.spot_size}")
+    check(abs(beam.data.spot_blend - 1.0) < 1e-5, f"spot blend {beam.data.spot_blend}")
+    sun = bpy.data.objects["sun"]
+    check(sun.data.type == "SUN", f"sun type {sun.data.type}")
+    check(abs(sun.data.energy - 1.5 * lights.SUN_STRENGTH_PER_UNIT * 2.0) < 1e-4, "sun strength")
+
+    check(bpy.data.objects["room"].parent is bpy.data.objects["Interior"], "room below the group")
+    check(bpy.data.objects["lamp"].parent is bpy.data.objects["room"], "lamp below the room")
+    stool = bpy.data.objects["stool"]
+    box = bpy.data.objects["hardpoint_c/Box"]
+    check(stool.instance_collection is box.instance_collection, "the stool shares the box mesh")
+
+    bpy.context.view_layer.update()
+    shines = sun.matrix_world.to_quaternion() @ Vector((0.0, 0.0, -1.0))
+    check(
+        all(abs(a - b) < 1e-4 for a, b in zip(shines, (-1.0, 0.0, 0.0))),
+        f"the sun shines along {tuple(shines)}, expected (-1, 0, 0)",
+    )
+    where = lamp.matrix_world.translation
+    check(
+        all(abs(a - b) < 1e-4 for a, b in zip(where, (-6.0, 0.0, 2.5))),
+        f"the lamp is at {tuple(where)}, expected (-6, 0, 2.5)",
+    )
 
 
 def main() -> None:
@@ -78,6 +125,8 @@ def main() -> None:
         spaces = {image.colorspace_settings.name for image in images}
         check(spaces == {"sRGB", "Non-Color"}, f"colour spaces: {spaces}")
         check(not result.warnings, f"warnings: {result.warnings}")
+
+        check_interior(Path(folder) / "lit")
 
         bpy.ops.wm.read_factory_settings(use_empty=True)
         addon_utils.enable("io_scene_gltf2", default_set=False)

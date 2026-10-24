@@ -6,8 +6,8 @@
 //! parameters.
 
 use p4kx_blender::{
-    AlphaMeaning, AlphaMode, ColourSpace, IssueOrigin, Manifest, MaterialDescription, PackageInfo,
-    PaletteEntry, TextureUse, manifest_schema, write_package,
+    AlphaMeaning, AlphaMode, ColourSpace, FORMAT_VERSION, IssueOrigin, Manifest,
+    MaterialDescription, PackageInfo, PaletteEntry, TextureUse, manifest_schema, write_package,
 };
 use p4kx_extraction::Archive;
 use p4kx_model::srgb8_to_linear;
@@ -72,11 +72,11 @@ fn parameter<'a>(material: &'a MaterialDescription, name: &str) -> Option<&'a st
 }
 
 #[test]
-fn the_manifest_is_version_1_1_and_matches_its_schema() -> TestResult {
+fn the_manifest_is_version_1_2_and_matches_its_schema() -> TestResult {
     let written = write()?;
     let validator = jsonschema::draft202012::new(&manifest_schema())?;
 
-    assert_eq!(written.manifest.version, "1.1");
+    assert_eq!(written.manifest.version, FORMAT_VERSION);
     let violations: Vec<String> = validator
         .iter_errors(&written.raw)
         .take(5)

@@ -10,8 +10,11 @@ mod archive_key;
 mod archive_notice;
 mod archive_picker;
 mod assembly_export;
+mod assembly_export_notes;
 mod assembly_export_outcome;
 mod assembly_export_progress;
+#[cfg(test)]
+mod assembly_export_running_tests;
 mod audio_controls;
 mod audio_preview;
 mod catalog_outcome;
@@ -149,6 +152,8 @@ pub enum Dialog {
     ModelFile,
     /// Picks the GLB file an Entity is exported to.
     AssemblyFile,
+    /// Picks the folder an Entity is exported to as a Blender package.
+    AssemblyPackage,
     /// Picks the folder of a sound export.
     SoundsFolder,
     /// Picks the CHF file of a head.

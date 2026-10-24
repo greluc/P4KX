@@ -1017,7 +1017,7 @@ entities-loadout-no-ports = Diese Entity hat keine Ports.
 entities-changes = { $excluded } ausgelassen, { $replaced } ersetzt
 entities-no-changes = Das Standard-Loadout
 entities-reset = Änderungen zurücksetzen
-entities-export = Als GLB exportieren …
+entities-export = Exportieren …
 entities-include = { $port } einbeziehen
 entities-replace = Ersetzen …
 entities-restore = Zurücksetzen
@@ -1070,7 +1070,25 @@ entities-view-issues = Nicht aufgelöste Teile: { $count }
 entities-hide = Ausblenden
 entities-show = Einblenden
 entities-status-hidden = Ausgeblendet
-assembly-export-title = Entity als GLB exportieren
+assembly-export-title = Entity exportieren
+assembly-export-form-heading = Ausgabe
+assembly-export-form-glb = GLB-Datei
+assembly-export-form-package = Blender-Paket
+assembly-export-form-package-note = Ein Ordner mit scene.json, einer GLB-Datei je Mesh und den Texturen als PNG, für das Blender-Add-on.
+assembly-export-folder-heading = Paketordner
+assembly-export-choose-folder = Ordner wählen …
+assembly-export-folder-none = Kein Ordner gewählt
+assembly-export-package-replaces = Der Ordner enthält ein früheres Paket. Es wird ersetzt, sobald das neue vollständig ist.
+assembly-export-package-not-a-package = Der Ordner ist nicht leer und enthält kein von P4KX geschriebenes Paket. Wähle einen neuen oder einen leeren Ordner.
+assembly-export-package-no-name = Der Pfad benennt keinen Ordner. Wähle einen anderen.
+assembly-export-running-title-package = Blender-Paket wird exportiert
+assembly-export-writing-package = Das Paket von { $name } wird geschrieben …
+assembly-export-summary-title-package = Blender-Paket geschrieben
+assembly-export-summary-package-counts = Teile { $parts } ({ $modelled } mit Modell), Knoten { $nodes }, Meshes { $meshes }, Texturen { $textures }, Materialien { $materials }, Paletten { $palettes }, Dateien { $files }, Vertices { $vertices }, Dreiecke { $triangles }, Größe { $size }
+assembly-export-summary-package-textures = { $count ->
+    [one] Eine Textur konnte nicht geschrieben werden; ihre Materialien behalten die einfachen Farben.
+   *[other] { $number } Texturen konnten nicht geschrieben werden; ihre Materialien behalten die einfachen Farben.
+  }
 assembly-export-title-interior = Interior als GLB exportieren
 assembly-export-action-interior = Interior als GLB exportieren …
 assembly-export-entity = Entity: { $name }

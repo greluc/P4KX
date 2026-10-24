@@ -501,3 +501,24 @@ Gruppen untereinander), Auswahl, Ansicht in der Höhe von `assemblyView.panelHei
 verschiebt nur die Eckpunkte des Kopfes und lädt das Mesh neu. Der Export läuft im Hintergrund mit
 Fortschritt (geschriebene Bytes) und „Abbrechen" und zeigt danach Datei, Zahlen und die Zahl der
 ausgelassenen Teile.
+
+**D.50 Der Export einer Entity als Blender-Paket.** Die Schaltfläche der Werkzeugleiste im Tab „Entities"
+heißt „Exportieren …" (`.btn-cta`) und öffnet den Export-Dialog der Entity (Titel „Entity exportieren").
+Dessen Gruppe „Ausgabe" steht mit der Segmentgruppe „Detailstufe" in einer Zeile (`.segmented--sm`, mit
+`MODAL_GROUP_GAP` dazwischen), damit der Dialog bei 1280 × 800 nicht höher wird: „GLB-Datei" (Vorgabe) und
+„Blender-Paket". Bei „Blender-Paket" steht darunter der Hinweis in `color-gray-2-text` (Größe `FS_XS`), entfallen
+die Materialien (ein Paket enthält immer die Texturen), bleiben Texturgröße, Vertex-Farben und Interior,
+und die Gruppe „Datei" wird zur Gruppe „Paketordner" mit demselben Pfadfeld und „Ordner wählen …"
+(Ordnerdialog des Systems). Der gewählte Ordner ist das Paket selbst. Er darf neu, leer oder ein früheres
+Paket von P4KX sein; ein früheres Paket meldet der Dialog in `color-warning` („wird ersetzt, sobald das neue
+vollständig ist"), und es bleibt bis dahin und bei Abbruch oder Fehler unberührt. Ein Ordner mit anderem
+Inhalt und ein Pfad ohne Ordnernamen sind eine Gefahrenmeldung (`danger-alert`, `color-gray-1`) und sperren
+„Exportieren"; ein Ordner in einer Star-Citizen-Installation ebenso wie bei GLB. Es gibt keine
+Richtlinie „Überspringen" oder „Nur bei Änderung" für Pakete (Konfliktrichtlinie, `CONTEXT.md`): ein Paket
+wird als Ganzes ersetzt. Das Fortschrittsfenster heißt „Blender-Paket wird exportiert" und zeigt in der Stufe
+„Schreiben" den Text „Das Paket von … wird geschrieben …" ohne Byte-Zähler (der Schreiber meldet keinen
+Fortschritt) und „Abbrechen"; die Zusammenfassung „Blender-Paket geschrieben" nennt den Ordner, Teile,
+Knoten, Meshes, Texturen, Materialien, Paletten, Dateien, Vertices, Dreiecke und Größe, Interior und die
+nicht geschriebenen Texturen, und listet die Hinweise des Pakets wie den Bericht des GLB-Exports. Der Export
+eines Interior-Containers allein und der Charakter-Export bieten kein Paket an, solange die Bibliothek
+keines schreibt. Neue Maße gibt es nicht.

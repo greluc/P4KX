@@ -238,6 +238,11 @@ impl Model {
         }
     }
 
+    #[cfg(test)]
+    pub(crate) fn show_export(&mut self, run: AssemblyExport) {
+        self.assembly.run = Some(run);
+    }
+
     /// Dismisses the outcome of an export that ended.
     pub fn close_assembly_export(&mut self) {
         if !self

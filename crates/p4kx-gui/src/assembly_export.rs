@@ -3,6 +3,7 @@
 
 mod job;
 mod summary;
+mod target;
 
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
@@ -10,11 +11,13 @@ use std::sync::LazyLock;
 use p4kx_assembly::LoadoutChanges;
 use p4kx_extraction::{Guid, WriteRefused};
 use p4kx_settings::{AssemblyExportSettings, ModelMaterials};
+use target::PackageTarget;
 
 pub(crate) use job::stop::{Observed, Stoppable, StoppableTextures};
 pub use job::{AssemblyExport, AssemblyExportProgress, AssemblyExportStage, AssemblyExportStatus};
 pub(crate) use job::{Request, Subject, failure_of, start};
 pub use summary::{AssemblyExportSummary, InteriorFacts, PartIssue};
+pub use target::{AssemblyExportForm, PackageProblem};
 
 use crate::installation::refusal_of;
 
@@ -45,8 +48,10 @@ pub struct AssemblyExportSetup {
     texture_mip: u32,
     vertex_colours: bool,
     folder: Option<PathBuf>,
+    chosen_form: AssemblyExportForm,
     file: Option<PathBuf>,
     refusal: Option<WriteRefused>,
+    target: Option<PackageTarget>,
 }
 
 impl AssemblyExportSetup {
@@ -94,9 +99,64 @@ impl AssemblyExportSetup {
             texture_mip: nearest(settings.texture_mip, &crate::MODEL_TEXTURE_MIPS),
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
+            chosen_form: if settings.package {
+                AssemblyExportForm::Package
+            } else {
+                AssemblyExportForm::Glb
+            },
             file: None,
             refusal: None,
+            target: None,
         }
+    }
+
+    /// Returns whether the setup offers the Blender package: an Entity does, a container on its
+    /// own does not.
+    #[must_use]
+    pub const fn has_package(&self) -> bool {
+        self.entity.is_some()
+    }
+
+    /// Returns what the export writes.
+    #[must_use]
+    pub const fn form(&self) -> AssemblyExportForm {
+        if self.entity.is_some() {
+            self.chosen_form
+        } else {
+            AssemblyExportForm::Glb
+        }
+    }
+
+    /// Chooses what the export writes; ignored for a container, which only has the GLB file.
+    pub const fn set_form(&mut self, form: AssemblyExportForm) {
+        if self.entity.is_some() {
+            self.chosen_form = form;
+        }
+    }
+
+    /// Returns the folder the package is written to, or `None` while none is chosen.
+    #[must_use]
+    pub fn package_folder(&self) -> Option<&Path> {
+        self.target.as_ref().map(PackageTarget::folder)
+    }
+
+    /// Chooses the folder of the package: it must be new, empty or hold an earlier package.
+    pub fn set_package_folder(&mut self, folder: PathBuf) {
+        self.target = Some(PackageTarget::new(folder));
+    }
+
+    /// Returns why the chosen package folder cannot be written, or `None` when it can or none is
+    /// chosen.
+    #[must_use]
+    pub fn package_problem(&self) -> Option<&PackageProblem> {
+        self.target.as_ref().and_then(PackageTarget::problem)
+    }
+
+    /// Returns whether the chosen package folder holds an earlier package, which the export
+    /// replaces once the new one is complete.
+    #[must_use]
+    pub fn package_replaces(&self) -> bool {
+        self.target.as_ref().is_some_and(PackageTarget::replaces)
     }
 
     /// Returns the class name of the Entity, or the name of the container.
@@ -219,17 +279,30 @@ impl AssemblyExportSetup {
         self.file = Some(file);
     }
 
-    /// Returns why the chosen file cannot be written, when it lies inside a Star Citizen
-    /// installation.
+    /// Returns why the chosen file or package folder cannot be written, when it lies inside a Star
+    /// Citizen installation.
     #[must_use]
-    pub const fn refusal(&self) -> Option<&WriteRefused> {
-        self.refusal.as_ref()
+    pub fn refusal(&self) -> Option<&WriteRefused> {
+        if self.form() == AssemblyExportForm::Package {
+            match self.package_problem() {
+                Some(PackageProblem::Installation(refused)) => Some(refused),
+                _ => None,
+            }
+        } else {
+            self.refusal.as_ref()
+        }
     }
 
-    /// Returns whether the setup can start: a file is chosen outside every installation.
+    /// Returns whether the setup can start: a file or package folder is chosen that can be
+    /// written.
     #[must_use]
-    pub const fn is_ready(&self) -> bool {
-        self.file.is_some() && self.refusal.is_none()
+    pub fn is_ready(&self) -> bool {
+        match self.form() {
+            AssemblyExportForm::Glb => self.file.is_some() && self.refusal.is_none(),
+            AssemblyExportForm::Package => {
+                self.target.is_some() && self.package_problem().is_none()
+            }
+        }
     }
 
     pub(crate) fn request(&self) -> Option<Request> {
@@ -246,10 +319,15 @@ impl AssemblyExportSetup {
                 interior: self.interior(),
             },
         );
+        let file = match self.form() {
+            AssemblyExportForm::Glb => self.file.clone()?,
+            AssemblyExportForm::Package => self.package_folder()?.to_path_buf(),
+        };
         Some(Request {
             subject,
             name: self.name.clone(),
-            file: self.file.clone()?,
+            form: self.form(),
+            file,
             lod: self.lod,
             materials: self.materials,
             texture_mip: self.texture_mip,
@@ -264,12 +342,14 @@ impl AssemblyExportSetup {
             texture_mip: self.texture_mip,
             vertex_colours: self.vertex_colours,
             interior: self.interior,
-            folder: self
-                .file
-                .as_deref()
-                .and_then(Path::parent)
-                .map(Path::to_path_buf)
-                .or_else(|| self.folder.clone()),
+            package: self.chosen_form == AssemblyExportForm::Package,
+            folder: match self.form() {
+                AssemblyExportForm::Glb => self.file.as_deref(),
+                AssemblyExportForm::Package => self.package_folder(),
+            }
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .or_else(|| self.folder.clone()),
         }
     }
 }

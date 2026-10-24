@@ -282,9 +282,11 @@ fn glows_and_shadows_match_the_theme() {
     }
 }
 
-const DESKTOP_METRICS: [(&str, &str, f32); 60] = [
+const DESKTOP_METRICS: [(&str, &str, f32); 62] = [
     ("meta", "rowDensity", desktop::ROW_HEIGHT),
     ("header", "height", desktop::HEADER_HEIGHT),
+    ("header", "brandMarkSize", desktop::BRAND_MARK),
+    ("header", "brandGap", desktop::BRAND_GAP),
     ("header", "wordmarkHeight", desktop::BRAND_HEIGHT),
     ("menuLink", "paddingX", desktop::MENU_LINK_PADDING_X),
     ("dropdown", "minWidth", desktop::DROPDOWN_MIN_WIDTH),

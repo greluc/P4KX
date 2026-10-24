@@ -34,11 +34,15 @@ rfd.workspace = true
 rodio.workspace = true
 sys-locale.workspace = true
 thiserror.workspace = true
+tiny-skia.workspace = true
 unic-langid.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 raw-window-handle.workspace = true
 windows-sys.workspace = true
+
+[target.'cfg(windows)'.build-dependencies]
+winresource.workspace = true
 
 [dev-dependencies]
 p4kx-testkit.workspace = true

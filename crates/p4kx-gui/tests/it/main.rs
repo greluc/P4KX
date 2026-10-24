@@ -53,6 +53,7 @@ mod info_models;
 mod localization_keys;
 mod localization_window;
 mod localizing;
+mod logo;
 mod long_diff;
 mod model;
 mod model_viewer;

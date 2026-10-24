@@ -27,6 +27,9 @@ serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 
+[target.'cfg(windows)'.build-dependencies]
+winresource.workspace = true
+
 [dev-dependencies]
 p4kx-testkit.workspace = true
 assert_cmd.workspace = true

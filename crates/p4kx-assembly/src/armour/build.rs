@@ -5,10 +5,10 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_gltf::MorphTarget;
-use p4kx_model::{BoneMatch, Lod, MaterialStatus, Mesh, Model};
+use p4kx_model::{Lod, MaterialStatus, Mesh, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use super::face_build::{Face, Found, extend_with_faces};
+use super::face_build::{Face, Found, settled};
 use super::follow::follow;
 use super::jobs::{Job, gather, issue};
 use super::shape::shaped;
@@ -374,37 +374,4 @@ fn read_libraries(
         .par_iter()
         .map(|(key, entry, name)| (key.clone(), Arc::new(provider.library(entry, name))))
         .collect()
-}
-
-/// Returns `skeleton` with the bones of the heads appended and notes how each part fits it.
-fn settled(
-    mut skeleton: Model,
-    parts: &mut [ArmourPart],
-    heads: Vec<Found>,
-    jobs: &[&Job],
-    issues: &mut Vec<Issue>,
-) -> Model {
-    extend_with_faces(&mut skeleton, parts, heads);
-    for (job, part) in jobs.iter().zip(parts.iter()) {
-        note_fit(job, part, &skeleton, issues);
-    }
-    skeleton
-}
-
-/// Notes how a part fits the skeleton: bones it lacks, and a model that is not skinned at all.
-fn note_fit(job: &Job, part: &ArmourPart, skeleton: &Model, issues: &mut Vec<Issue>) {
-    let model = &part.model;
-    let Some(lod) = model.lods.first() else {
-        return;
-    };
-    let skinned = lod.meshes.iter().any(|mesh| mesh.influences.is_some());
-    if !skinned {
-        issues.push(issue(job, IssueKind::NotSkinned));
-        return;
-    }
-    let matched = BoneMatch::new(&skeleton.bones, model.bones_of(lod));
-    let count = matched.unmatched().len();
-    if count > 0 {
-        issues.push(issue(job, IssueKind::BonesNotInSkeleton { count }));
-    }
 }

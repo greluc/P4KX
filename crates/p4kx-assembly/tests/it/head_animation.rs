@@ -7,7 +7,7 @@
 use std::error::Error;
 
 use p4kx_assembly::{
-    ArchiveModels, Armour, AssemblyOptions, BodyVariant, Expressions, IssueKind, Piece,
+    ArchiveModels, Armour, AssemblyOptions, BodyVariant, Expressions, Issue, IssueKind, Piece,
 };
 use p4kx_chunks::ChunkFile;
 use p4kx_extraction::Archive;
@@ -30,13 +30,13 @@ fn animation(source: &TestAnimation) -> Result<Animation, Box<dyn Error>> {
 }
 
 fn face_animation() -> TestAnimation {
-    TestAnimation::new("blink.caf", 30).track(
-        TestTrack::new(crc32fast::hash(b"CTL_a")).positions(&[
+    TestAnimation::new("blink.caf", 30).track(TestTrack::new(crc32fast::hash(b"CTL_a")).positions(
+        &[
             (0, [0.0, 0.0, 0.0]),
             (10, [1.0, 0.0, 0.0]),
             (20, [0.0, 0.0, 0.0]),
-        ]),
-    )
+        ],
+    ))
 }
 
 fn body_animation() -> TestAnimation {
@@ -68,10 +68,7 @@ fn a_facial_animation_sets_the_weights_of_the_morph_targets_and_a_body_animation
 -> TestResult {
     let (armour, archive, _dir) = build()?;
     let models = ArchiveModels::new(&archive);
-    let list = [
-        animation(&face_animation())?,
-        animation(&body_animation())?,
-    ];
+    let list = [animation(&face_animation())?, animation(&body_animation())?];
 
     let animations = armour.animate(&list, &models);
 
@@ -109,7 +106,7 @@ fn an_animation_that_fits_nothing_is_listed_and_not_written() -> TestResult {
         .collect();
     assert_eq!(codes, ["animation_not_used"]);
     assert!(matches!(
-        animations.issues().first().map(|issue| issue.kind()),
+        animations.issues().first().map(Issue::kind),
         Some(IssueKind::AnimationNotUsed { .. })
     ));
     Ok(())

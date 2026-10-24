@@ -4,10 +4,12 @@
 use std::collections::HashMap;
 
 use p4kx_character::Dna;
-use p4kx_model::{Bone, Model, extend_skeleton};
+use p4kx_model::{Bone, BoneMatch, Model, extend_skeleton};
 
 use super::ArmourPart;
 use super::facial::{FaceLink, Facial};
+use super::jobs::{Job, issue};
+use crate::{Issue, IssueKind};
 
 /// What a shaped head brings to the skeleton: where its rig's joints are among its bones, and the
 /// blendshape number of each of its morph targets.
@@ -96,5 +98,38 @@ pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], 
             }
             .shared(),
         );
+    }
+}
+
+/// Returns `skeleton` with the bones of the heads appended and notes how each part fits it.
+pub(super) fn settled(
+    mut skeleton: Model,
+    parts: &mut [ArmourPart],
+    heads: Vec<Found>,
+    jobs: &[&Job],
+    issues: &mut Vec<Issue>,
+) -> Model {
+    extend_with_faces(&mut skeleton, parts, heads);
+    for (job, part) in jobs.iter().zip(parts.iter()) {
+        note_fit(job, part, &skeleton, issues);
+    }
+    skeleton
+}
+
+/// Notes how a part fits the skeleton: bones it lacks, and a model that is not skinned at all.
+fn note_fit(job: &Job, part: &ArmourPart, skeleton: &Model, issues: &mut Vec<Issue>) {
+    let model = &part.model;
+    let Some(lod) = model.lods.first() else {
+        return;
+    };
+    let skinned = lod.meshes.iter().any(|mesh| mesh.influences.is_some());
+    if !skinned {
+        issues.push(issue(job, IssueKind::NotSkinned));
+        return;
+    }
+    let matched = BoneMatch::new(&skeleton.bones, model.bones_of(lod));
+    let count = matched.unmatched().len();
+    if count > 0 {
+        issues.push(issue(job, IssueKind::BonesNotInSkeleton { count }));
     }
 }

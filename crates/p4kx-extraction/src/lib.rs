@@ -5,6 +5,7 @@
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
 mod animation_load;
+mod animation_select;
 mod animation_set;
 mod archive_cause;
 mod bank;

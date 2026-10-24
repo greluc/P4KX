@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use p4kx_model::Animation;
-use rayon::prelude::*;
 
-use crate::animation_load::{Kind, kind, load};
+use crate::animation_load::kind;
+use crate::animation_select::read;
 use crate::{ChunkSource, ConversionError, Entry, PathIndex};
 
 /// The largest `.caf` or `.dba` file read into memory, far above the largest of a real Archive.
 pub const MAX_ANIMATION_FILE_LEN: u64 = 256 << 20;
 
 /// Why an additive animation is not written unless it is named.
-const ADDITIVE_REASON: &str = "additive animation — needs a base animation";
+pub(crate) const ADDITIVE_REASON: &str = "additive animation — needs a base animation";
 
 /// Which animations of the sources to read.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,23 +57,23 @@ pub struct AnimationSet {
 }
 
 #[derive(Debug, Clone)]
-struct Source {
-    label: String,
-    explicit: bool,
-    whole: bool,
+pub(crate) struct Source {
+    pub(crate) label: String,
+    pub(crate) explicit: bool,
+    pub(crate) whole: bool,
 }
 
-fn normalised(path: &str) -> String {
+pub(crate) fn normalised(path: &str) -> String {
     path.replace('\\', "/").to_ascii_lowercase()
 }
 
-fn stem(path: &str) -> &str {
+pub(crate) fn stem(path: &str) -> &str {
     let file = path.rsplit(['/', '\\']).next().unwrap_or(path);
     file.rsplit_once('.').map_or(file, |(stem, _)| stem)
 }
 
 /// Returns whether `spec` names `animation`: its stem or file name, or the end of its path.
-fn names(spec: &str, name: &str, path: &str) -> bool {
+pub(crate) fn names(spec: &str, name: &str, path: &str) -> bool {
     let spec = normalised(spec);
     let path = normalised(path);
     spec == normalised(name)
@@ -280,153 +279,4 @@ impl AnimationSet {
         set.inputs = set.origins.iter().map(PathBuf::from).collect();
         Ok(set)
     }
-}
-
-/// What the choice asks for: every animation, or the ones the specs name.
-struct Wanted<'a> {
-    specs: Vec<&'a str>,
-    by_name: bool,
-}
-
-impl<'a> Wanted<'a> {
-    fn of(choice: &'a AnimationChoice) -> Self {
-        match choice {
-            AnimationChoice::Named(specs) => Self {
-                specs: specs.iter().map(String::as_str).collect(),
-                by_name: true,
-            },
-            AnimationChoice::All => Self {
-                specs: Vec::new(),
-                by_name: false,
-            },
-        }
-    }
-
-    fn hits(&self, name: &str, path: &str) -> Vec<&'a str> {
-        self.specs
-            .iter()
-            .copied()
-            .filter(|spec| names(spec, name, path))
-            .collect()
-    }
-
-    /// Returns whether a source is worth reading: databases always, since their animations
-    /// show their names only inside, and `.caf` files by their stem.
-    fn reads(&self, source: &Source, kind: Kind) -> bool {
-        !self.by_name
-            || source.explicit
-            || kind == Kind::Dba
-            || !self.hits(stem(&source.label), &source.label).is_empty()
-    }
-}
-
-/// Sorts and merges `sources`, reads those the choice wants and collects the animations.
-fn read(
-    mut sources: Vec<Source>,
-    choice: &AnimationChoice,
-    open: impl Fn(&str) -> Result<ChunkSource, ConversionError> + Sync,
-) -> Result<AnimationSet, ConversionError> {
-    sources.sort_by_cached_key(|source| (normalised(&source.label), !source.whole));
-    sources.dedup_by(|later, earlier| {
-        let same = normalised(&later.label) == normalised(&earlier.label);
-        earlier.explicit |= same && later.explicit;
-        earlier.whole |= same && later.whole;
-        same
-    });
-    let wanted = Wanted::of(choice);
-    let results: Vec<_> = sources
-        .par_iter()
-        .filter_map(|source| {
-            let kind = kind(&source.label)?;
-            wanted.reads(source, kind).then(|| {
-                let loaded = open(&source.label).and_then(|file| load(&file, &source.label, kind));
-                (source, loaded)
-            })
-        })
-        .collect();
-    let mut set = AnimationSet::default();
-    let mut matched: HashSet<&str> = HashSet::new();
-    for (source, result) in results {
-        let loaded = match result {
-            Ok(loaded) => loaded,
-            Err(error) if is_fatal(source, &error) => return Err(error),
-            Err(error) => {
-                set.unread.push(UnreadAnimation {
-                    source: source.label.clone(),
-                    name: None,
-                    reason: describe(&error),
-                });
-                continue;
-            }
-        };
-        set.files += 1;
-        set.unread.extend(loaded.unread);
-        keep(&mut set, &mut matched, &wanted, source, loaded.animations);
-    }
-    let missing: Vec<String> = wanted
-        .specs
-        .iter()
-        .filter(|spec| {
-            !matched.contains(**spec)
-                && !sources
-                    .iter()
-                    .any(|source| source.whole && names(spec, "", &source.label))
-        })
-        .map(|spec| (*spec).to_owned())
-        .collect();
-    if missing.is_empty() {
-        Ok(set)
-    } else {
-        Err(ConversionError::UnknownAnimations { names: missing })
-    }
-}
-
-/// Adds the animations of `source` that the choice wants to `set`, and lists the additive ones
-/// nothing names as unread.
-fn keep<'a>(
-    set: &mut AnimationSet,
-    matched: &mut HashSet<&'a str>,
-    wanted: &Wanted<'a>,
-    source: &Source,
-    animations: Vec<Animation>,
-) {
-    let caf_by_caller = source.explicit && kind(&source.label) == Some(Kind::Caf);
-    for animation in animations {
-        let hits = wanted.hits(&animation.name, &animation.path);
-        if animation.additive && hits.is_empty() && !caf_by_caller {
-            if wanted.by_name && !source.whole {
-                continue;
-            }
-            set.unread.push(UnreadAnimation {
-                source: source.label.clone(),
-                name: Some(animation.name),
-                reason: ADDITIVE_REASON.to_owned(),
-            });
-        } else if source.whole || !wanted.by_name || !hits.is_empty() {
-            matched.extend(hits);
-            set.origins.push(source.label.clone());
-            set.animations.push(animation);
-        }
-    }
-}
-
-/// Returns whether a failure to read `source` fails the whole read: a file the caller named, or
-/// one that does not exist.
-const fn is_fatal(source: &Source, error: &ConversionError) -> bool {
-    source.explicit
-        || matches!(
-            error,
-            ConversionError::UnknownEntry(_) | ConversionError::NoSuchFile { .. }
-        )
-}
-
-fn describe(error: &ConversionError) -> String {
-    let mut text = error.to_string();
-    let mut cause = std::error::Error::source(error);
-    while let Some(next) = cause {
-        text.push_str(": ");
-        text.push_str(&next.to_string());
-        cause = next.source();
-    }
-    text
 }

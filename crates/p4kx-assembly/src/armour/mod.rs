@@ -19,6 +19,7 @@ mod loadout;
 mod look;
 mod normals;
 mod piece;
+mod sample;
 mod shape;
 mod wearable;
 

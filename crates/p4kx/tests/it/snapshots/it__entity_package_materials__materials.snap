@@ -1,0 +1,561 @@
+---
+source: crates/p4kx/tests/it/entity_package_materials.rs
+expression: "pretty(&manifest, \"materials\")?"
+---
+[
+  {
+    "alpha_mode": "opaque",
+    "alpha_test": 0.0,
+    "attributes": [],
+    "default_palette": "Libs/Foundry/Records/TintPalettes/brand/test/p_layered",
+    "diffuse": [
+      0.5,
+      0.5,
+      0.5
+    ],
+    "elements": [],
+    "emissive": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flags": 0,
+    "gen_mask": [
+      "VERTCOLORS",
+      "USE_DAMAGE_MAP",
+      "WEAR_LAYER"
+    ],
+    "glow": 0.0,
+    "id": "x0001",
+    "index": 1,
+    "layers": [
+      {
+        "attributes": [
+          {
+            "name": "Name",
+            "value": "Primary"
+          },
+          {
+            "name": "Path",
+            "value": "Objects/Test/layers/base.mtl"
+          },
+          {
+            "name": "Submtl",
+            "value": ""
+          },
+          {
+            "name": "TintColor",
+            "value": "0.75,0.5,0.25"
+          },
+          {
+            "name": "WearTint",
+            "value": "1,1,1"
+          },
+          {
+            "name": "GlossMult",
+            "value": "0.5"
+          },
+          {
+            "name": "UVTiling",
+            "value": "2"
+          },
+          {
+            "name": "PaletteTint",
+            "value": "1"
+          }
+        ],
+        "gloss_mult": 0.5,
+        "material": "x0002",
+        "name": "Primary",
+        "palette": "primary",
+        "path": "Objects/Test/layers/base.mtl",
+        "tint_colour": [
+          0.75,
+          0.5,
+          0.25
+        ],
+        "uv_tiling": 2.0,
+        "wear_tint": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      {
+        "attributes": [
+          {
+            "name": "Name",
+            "value": "Wear"
+          },
+          {
+            "name": "Path",
+            "value": "Objects/Test/layers/wear.mtl"
+          },
+          {
+            "name": "TintColor",
+            "value": "x"
+          },
+          {
+            "name": "PaletteTint",
+            "value": "0"
+          }
+        ],
+        "material": "x0003",
+        "name": "Wear",
+        "path": "Objects/Test/layers/wear.mtl"
+      },
+      {
+        "attributes": [
+          {
+            "name": "Name",
+            "value": "Lost"
+          },
+          {
+            "name": "Path",
+            "value": "Objects/Test/layers/lost.mtl"
+          }
+        ],
+        "name": "Lost",
+        "path": "Objects/Test/layers/lost.mtl"
+      },
+      {
+        "attributes": [
+          {
+            "name": "Name",
+            "value": "Loop"
+          },
+          {
+            "name": "Path",
+            "value": "Objects/Test/layers/loop.mtl"
+          }
+        ],
+        "material": "x0004",
+        "name": "Loop",
+        "path": "Objects/Test/layers/loop.mtl"
+      }
+    ],
+    "library": "Objects/Test/layered",
+    "name": "hull",
+    "no_draw": false,
+    "opacity": 1.0,
+    "palette": "primary",
+    "parameters": [
+      {
+        "name": "WearBlendBase",
+        "value": "0.25"
+      },
+      {
+        "name": "DamageTiling",
+        "value": "5"
+      }
+    ],
+    "shader": "HardSurface",
+    "shininess": 10.0,
+    "specular": [
+      0.04,
+      0.04,
+      0.04
+    ],
+    "surface_type": "metal_solid",
+    "textures": [],
+    "two_sided": false
+  },
+  {
+    "alpha_mode": "opaque",
+    "alpha_test": 0.0,
+    "attributes": [],
+    "diffuse": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "elements": [],
+    "emissive": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flags": 0,
+    "gen_mask": [],
+    "glow": 0.0,
+    "id": "x0002",
+    "layers": [],
+    "library": "Objects/Test/layers/base",
+    "name": "layer",
+    "no_draw": false,
+    "opacity": 1.0,
+    "parameters": [
+      {
+        "name": "LayerTiling",
+        "value": "1"
+      },
+      {
+        "name": "TintMode",
+        "value": "0"
+      }
+    ],
+    "shader": "Layer",
+    "shininess": 10.0,
+    "specular": [
+      0.04,
+      0.04,
+      0.04
+    ],
+    "surface_type": "",
+    "textures": [
+      {
+        "file": "Objects/Test/layers/textures/base_diff.tif",
+        "slot": "TexSlot1",
+        "texture": "t0001",
+        "usage": "diffuse"
+      },
+      {
+        "file": "Objects/Test/layers/textures/base_ddna.tif",
+        "slot": "TexSlot2",
+        "texture": "t0002",
+        "usage": "normal"
+      },
+      {
+        "file": "Objects/Test/layers/textures/base_detail.tif",
+        "slot": "TexSlot7",
+        "texture": "t0003",
+        "usage": "detail"
+      },
+      {
+        "file": "Objects/Test/layers/textures/base_blend.tif",
+        "slot": "TexSlot8",
+        "texture": "t0004",
+        "usage": "blend"
+      }
+    ],
+    "two_sided": false
+  },
+  {
+    "alpha_mode": "opaque",
+    "alpha_test": 0.0,
+    "attributes": [],
+    "diffuse": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "elements": [],
+    "emissive": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flags": 0,
+    "gen_mask": [],
+    "glow": 0.0,
+    "id": "x0003",
+    "layers": [],
+    "library": "Objects/Test/layers/wear",
+    "name": "layer",
+    "no_draw": false,
+    "opacity": 1.0,
+    "parameters": [
+      {
+        "name": "TintMode",
+        "value": "1"
+      }
+    ],
+    "shader": "Layer",
+    "shininess": 10.0,
+    "specular": [
+      0.04,
+      0.04,
+      0.04
+    ],
+    "surface_type": "",
+    "textures": [
+      {
+        "file": "Objects/Test/layers/textures/wear_diff.tif",
+        "slot": "TexSlot1",
+        "texture": "t0005",
+        "usage": "diffuse"
+      },
+      {
+        "file": "Objects/Test/layers/textures/wear_ddna.tif",
+        "slot": "TexSlot2",
+        "texture": "t0006",
+        "usage": "normal"
+      },
+      {
+        "file": "Objects/Test/layers/textures/wear_spec.tif",
+        "slot": "TexSlot6",
+        "usage": "specular"
+      }
+    ],
+    "two_sided": false
+  },
+  {
+    "alpha_mode": "opaque",
+    "alpha_test": 0.0,
+    "attributes": [],
+    "diffuse": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "elements": [],
+    "emissive": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flags": 0,
+    "gen_mask": [],
+    "glow": 0.0,
+    "id": "x0004",
+    "layers": [
+      {
+        "attributes": [
+          {
+            "name": "Name",
+            "value": "Self"
+          },
+          {
+            "name": "Path",
+            "value": "Objects/Test/layers/loop.mtl"
+          }
+        ],
+        "material": "x0004",
+        "name": "Self",
+        "path": "Objects/Test/layers/loop.mtl"
+      }
+    ],
+    "library": "Objects/Test/layers/loop",
+    "name": "layer",
+    "no_draw": false,
+    "opacity": 1.0,
+    "parameters": [],
+    "shader": "Layer",
+    "shininess": 10.0,
+    "specular": [
+      0.04,
+      0.04,
+      0.04
+    ],
+    "surface_type": "",
+    "textures": [],
+    "two_sided": false
+  },
+  {
+    "alpha_mode": "blend",
+    "alpha_test": 0.0,
+    "attributes": [],
+    "default_palette": "Libs/Foundry/Records/TintPalettes/brand/test/p_layered",
+    "diffuse": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "elements": [],
+    "emissive": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flags": 0,
+    "gen_mask": [
+      "VERTDATA",
+      "STENCIL_MAP",
+      "USE_DAMAGE_MAP"
+    ],
+    "glow": 0.0,
+    "id": "x0005",
+    "index": 2,
+    "layers": [],
+    "library": "Objects/Test/layered",
+    "name": "decal",
+    "no_draw": false,
+    "opacity": 1.0,
+    "parameters": [
+      {
+        "name": "StencilDiffuseColor",
+        "value": "0.1,0.2,0.3"
+      },
+      {
+        "name": "StencilOpacity",
+        "value": "1"
+      }
+    ],
+    "shader": "MeshDecal",
+    "shininess": 10.0,
+    "specular": [
+      0.04,
+      0.04,
+      0.04
+    ],
+    "surface_type": "",
+    "textures": [
+      {
+        "file": "$TintPaletteDecal",
+        "slot": "TexSlot7",
+        "usage": "other"
+      },
+      {
+        "attributes": [
+          {
+            "name": "TexType",
+            "value": "0"
+          },
+          {
+            "name": "Used",
+            "value": "1"
+          }
+        ],
+        "elements": [
+          {
+            "attributes": [
+              {
+                "name": "TileU",
+                "value": "3"
+              },
+              {
+                "name": "OffsetV",
+                "value": "0.5"
+              }
+            ],
+            "children": [],
+            "name": "TexMod"
+          }
+        ],
+        "file": "Objects/Test/layers/textures/decal_diff.tif",
+        "slot": "TexSlot1",
+        "texture": "t0008",
+        "usage": "diffuse"
+      }
+    ],
+    "two_sided": false
+  },
+  {
+    "alpha_mode": "blend",
+    "alpha_test": 0.0,
+    "attributes": [],
+    "default_palette": "Libs/Foundry/Records/TintPalettes/brand/test/p_layered",
+    "diffuse": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "elements": [],
+    "emissive": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flags": 0,
+    "gen_mask": [
+      "NORMAL_MAP",
+      "USE_TINT_PALETTE"
+    ],
+    "glow": 0.0,
+    "id": "x0006",
+    "index": 3,
+    "layers": [],
+    "library": "Objects/Test/layered",
+    "name": "canopy",
+    "no_draw": false,
+    "opacity": 1.0,
+    "palette": "glass",
+    "parameters": [
+      {
+        "name": "GlareStrength",
+        "value": "0.05"
+      }
+    ],
+    "shader": "GlassPBR",
+    "shininess": 10.0,
+    "specular": [
+      0.04,
+      0.04,
+      0.04
+    ],
+    "surface_type": "",
+    "textures": [
+      {
+        "file": "Objects/Test/layers/textures/canopy_ddna.tif",
+        "slot": "TexSlot2",
+        "texture": "t0009",
+        "usage": "normal"
+      }
+    ],
+    "two_sided": false
+  },
+  {
+    "alpha_mode": "mask",
+    "alpha_test": 0.4,
+    "attributes": [
+      {
+        "name": "ZedFlag",
+        "value": "7"
+      }
+    ],
+    "default_palette": "Libs/Foundry/Records/TintPalettes/brand/test/p_layered",
+    "diffuse": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "elements": [
+      {
+        "attributes": [
+          {
+            "name": "Level",
+            "value": "3"
+          }
+        ],
+        "children": [
+          {
+            "attributes": [
+              {
+                "name": "A",
+                "value": "b"
+              }
+            ],
+            "children": [],
+            "name": "Inner"
+          }
+        ],
+        "name": "ZedExtension"
+      }
+    ],
+    "emissive": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "flags": 0,
+    "gen_mask": [],
+    "glow": 0.0,
+    "id": "x0007",
+    "index": 4,
+    "layers": [],
+    "library": "Objects/Test/layered",
+    "name": "mystery",
+    "no_draw": false,
+    "opacity": 0.5,
+    "parameters": [
+      {
+        "name": "ZedStrength",
+        "value": "1.5"
+      },
+      {
+        "name": "ZedMode",
+        "value": "odd"
+      }
+    ],
+    "shader": "ZedPBR",
+    "shininess": 10.0,
+    "specular": [
+      0.04,
+      0.04,
+      0.04
+    ],
+    "surface_type": "",
+    "textures": [],
+    "two_sided": false
+  }
+]

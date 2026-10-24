@@ -34,6 +34,7 @@ mod entity_assembly;
 mod entity_cargo;
 mod entity_head;
 mod entity_interior_sample;
+mod entity_layered;
 mod entity_livery;
 mod entity_port;
 mod entity_sample;
@@ -107,6 +108,7 @@ pub use entity_head::{
 pub use entity_interior_sample::{
     ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, entity_interior_entries,
 };
+pub use entity_layered::{LAYERED_MISSING_TEXTURE, LAYERED_TINTS, layered_entries};
 pub use entity_livery::{
     LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,
     livery_entries,

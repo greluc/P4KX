@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod run;
 pub(super) mod stop;
 
 use std::path::{Path, PathBuf};
@@ -9,28 +10,36 @@ use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_assembly::{
-    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, ForgePalettes, LoadoutChanges,
-};
-use p4kx_extraction::{
-    CancelToken, ConversionError, GlbOptions, GlbSummary, GltfError, Guid, MaterialMode,
-    archive_error_in, write_replacing,
-};
+use p4kx_assembly::LoadoutChanges;
+use p4kx_extraction::{CancelToken, GlbOptions, Guid, MaterialMode};
 use p4kx_settings::ModelMaterials;
-use stop::{Observed, Stoppable, StoppableTextures};
+pub(crate) use run::failure_of;
+#[cfg(test)]
+use stop::Observed;
 
 use super::AssemblyExportSummary;
-use crate::entities::{ResolveFailure, resolve};
-use crate::forge_cache::ReadFailure;
 use crate::model::describe;
 use crate::{EntryIndex, ModelExportFailure};
 
-/// What an Export of an Entity as GLB writes and where.
+/// What an Export as GLB writes the scene of.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Subject {
+    /// An Entity with the changes made to its Loadout, and whether its Interior comes with it.
+    Entity {
+        guid: Guid,
+        changes: LoadoutChanges,
+        interior: bool,
+    },
+    /// The Interior of a socpak container on its own: the Entry paths from the Archive down to
+    /// it, each in the Archive or container before it.
+    Container { chain: Vec<String> },
+}
+
+/// What an Export as GLB writes and where.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Request {
-    pub(crate) guid: Guid,
+    pub(crate) subject: Subject,
     pub(crate) name: String,
-    pub(crate) changes: LoadoutChanges,
     pub(crate) file: PathBuf,
     pub(crate) lod: u32,
     pub(crate) materials: ModelMaterials,
@@ -39,7 +48,7 @@ pub(crate) struct Request {
 }
 
 impl Request {
-    fn options(&self) -> GlbOptions {
+    pub(super) fn options(&self) -> GlbOptions {
         let mode = match self.materials {
             ModelMaterials::Colours => MaterialMode::Colours,
             ModelMaterials::Textures => MaterialMode::Textures,
@@ -56,41 +65,58 @@ impl Request {
     }
 }
 
-/// The step a running Export of an Entity as GLB is at.
+/// The step a running Export as GLB is at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssemblyExportStage {
     /// The Loadout of the Entity is resolved.
     Resolving,
     /// The models of the parts are read from the Archive.
     Reading,
+    /// The containers of the Interior are read and their models placed.
+    Interior,
     /// The GLB file is written.
     Writing,
 }
 
-/// How far a running Export of an Entity as GLB has come.
+/// How far a running Export as GLB has come.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AssemblyExportProgress {
     /// The step it is at.
     pub stage: AssemblyExportStage,
-    /// The bytes of the file written so far.
+    /// While writing, the bytes of the file written so far; while reading the Interior, the model
+    /// files read of the container being read.
     pub done: u64,
+    /// While reading the Interior, the model files the container being read places, else 0.
+    pub total: u64,
+    /// While reading the Interior of an Entity, the containers done before the one being read.
+    pub containers_done: u64,
+    /// While reading the Interior of an Entity, the containers it names; 0 for a container on
+    /// its own.
+    pub containers_total: u64,
 }
 
 #[derive(Debug, Default)]
-struct Shared {
+pub(super) struct Shared {
     stage: AtomicU8,
     done: AtomicU64,
+    total: AtomicU64,
+    containers_done: AtomicU64,
+    containers_total: AtomicU64,
 }
 
 impl Shared {
-    fn progress(&self) -> AssemblyExportProgress {
+    pub(super) fn progress(&self) -> AssemblyExportProgress {
         AssemblyExportProgress {
             stage: match self.stage.load(Ordering::Relaxed) {
                 0 => AssemblyExportStage::Resolving,
                 1 => AssemblyExportStage::Reading,
+                2 => AssemblyExportStage::Interior,
                 _ => AssemblyExportStage::Writing,
             },
             done: self.done.load(Ordering::Relaxed),
+            total: self.total.load(Ordering::Relaxed),
+            containers_done: self.containers_done.load(Ordering::Relaxed),
+            containers_total: self.containers_total.load(Ordering::Relaxed),
         }
     }
 
@@ -98,9 +124,27 @@ impl Shared {
         let code = match stage {
             AssemblyExportStage::Resolving => 0,
             AssemblyExportStage::Reading => 1,
-            AssemblyExportStage::Writing => 2,
+            AssemblyExportStage::Interior => 2,
+            AssemblyExportStage::Writing => 3,
         };
         self.stage.store(code, Ordering::Relaxed);
+        self.done.store(0, Ordering::Relaxed);
+        self.total.store(0, Ordering::Relaxed);
+        self.containers_done.store(0, Ordering::Relaxed);
+        self.containers_total.store(0, Ordering::Relaxed);
+    }
+
+    fn containers(&self, done: usize, total: usize) {
+        let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
+        self.containers_done.store(count(done), Ordering::Relaxed);
+        self.containers_total.store(count(total), Ordering::Relaxed);
+        self.models(0, 0);
+    }
+
+    fn models(&self, done: usize, total: usize) {
+        let count = |value: usize| u64::try_from(value).unwrap_or(u64::MAX);
+        self.done.store(count(done), Ordering::Relaxed);
+        self.total.store(count(total), Ordering::Relaxed);
     }
 }
 
@@ -143,12 +187,20 @@ pub struct AssemblyExport {
     id: u64,
     file: PathBuf,
     name: String,
+    container: bool,
     cancel: CancelToken,
     shared: Arc<Shared>,
     state: State,
 }
 
 impl AssemblyExport {
+    /// Returns whether the export writes the Interior of a container on its own rather than an
+    /// Entity.
+    #[must_use]
+    pub const fn is_container(&self) -> bool {
+        self.container
+    }
+
     /// Returns the number that tells this export apart from every other one of the process.
     #[must_use]
     pub const fn id(&self) -> u64 {
@@ -161,7 +213,7 @@ impl AssemblyExport {
         &self.file
     }
 
-    /// Returns the class name of the Entity that is exported.
+    /// Returns the class name of the Entity that is exported, or the name of the container.
     #[must_use]
     pub fn name(&self) -> &str {
         &self.name
@@ -238,6 +290,7 @@ pub(crate) fn start(
     let cancel = CancelToken::new();
     let shared = Arc::new(Shared::default());
     let (file, name) = (request.file.clone(), request.name.clone());
+    let container = matches!(request.subject, Subject::Container { .. });
     let (sender, result) = mpsc::channel();
     let thread_index = Arc::clone(index);
     let thread_cancel = cancel.clone();
@@ -245,7 +298,7 @@ pub(crate) fn start(
     let spawned = thread::Builder::new()
         .name("assembly-export".to_owned())
         .spawn(move || {
-            let ended = run(&thread_index, &request, &thread_cancel, &thread_shared);
+            let ended = run::run(&thread_index, &request, &thread_cancel, &thread_shared);
             if sender.send(ended).is_ok() {
                 wake();
             }
@@ -258,6 +311,7 @@ pub(crate) fn start(
         id,
         file,
         name,
+        container,
         cancel,
         shared,
         state,
@@ -266,122 +320,3 @@ pub(crate) fn start(
 
 #[cfg(test)]
 mod tests;
-
-fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Shared) -> Ended {
-    let tree = match resolve(index, request.guid, &request.changes) {
-        Ok(tree) => tree,
-        Err(ResolveFailure::ArchiveChanged) => {
-            return Ended::Failed(ModelExportFailure::ArchiveChanged);
-        }
-        Err(ResolveFailure::Failed(reason)) => {
-            return Ended::Failed(ModelExportFailure::Failed(reason));
-        }
-    };
-    if cancel.is_cancelled() {
-        return Ended::Cancelled;
-    }
-    shared.enter(AssemblyExportStage::Reading);
-    let source = match index.forge().read(index, || {}) {
-        Ok(source) => source,
-        Err(ReadFailure::ArchiveChanged(_)) => {
-            return Ended::Failed(ModelExportFailure::ArchiveChanged);
-        }
-        Err(ReadFailure::Unreadable(reason)) => {
-            return Ended::Failed(ModelExportFailure::Failed(reason));
-        }
-    };
-    let forge = match source.entry.open() {
-        Ok(forge) => forge,
-        Err(error) => return Ended::Failed(ModelExportFailure::Failed(describe(&error))),
-    };
-    let palettes = ForgePalettes::new(&forge);
-    let archive_models = ArchiveModels::new(index.archive());
-    let models = Stoppable {
-        models: &archive_models,
-        cancel,
-    };
-    let options = AssemblyOptions::default().with_lod(request.lod);
-    let assembly = match Assembly::build_with_palettes(&tree, &models, &palettes, &options) {
-        Ok(assembly) => assembly,
-        Err(_) if cancel.is_cancelled() => return Ended::Cancelled,
-        Err(AssemblyError::Provider(error)) => return failed(index, &*error),
-        Err(other) => return failed(index, &other),
-    };
-    if cancel.is_cancelled() {
-        return Ended::Cancelled;
-    }
-    if index.watch().check().is_err() {
-        return Ended::Failed(ModelExportFailure::ArchiveChanged);
-    }
-    shared.enter(AssemblyExportStage::Writing);
-    match write(&assembly, &archive_models, request, (cancel, shared)) {
-        Ok(written) => Ended::Written(Box::new(AssemblyExportSummary::new(
-            (request.file.clone(), request.name.clone()),
-            &assembly,
-            written,
-            &request.changes,
-        ))),
-        Err(ConversionError::Cancelled) => Ended::Cancelled,
-        Err(error) => failed(index, &error),
-    }
-}
-
-fn write(
-    assembly: &Assembly,
-    models: &ArchiveModels<'_>,
-    request: &Request,
-    (cancel, shared): (&CancelToken, &Shared),
-) -> Result<GlbSummary, ConversionError> {
-    let glb = request.options();
-    let archive_textures = models.textures();
-    let textures = StoppableTextures {
-        textures: &archive_textures,
-        cancel,
-    };
-    write_replacing(&request.file, |writer| {
-        let mut observed = Observed {
-            inner: writer,
-            cancel,
-            shared,
-        };
-        assembly
-            .write_glb_with(&glb, &textures, &mut observed)
-            .map_err(|error| match error {
-                GltfError::Write(_) if cancel.is_cancelled() => ConversionError::Cancelled,
-                GltfError::Write(source) => ConversionError::Write {
-                    path: request.file.clone(),
-                    source,
-                },
-                source => ConversionError::Glb {
-                    file: request.name.clone(),
-                    source,
-                },
-            })
-    })
-}
-
-fn failed(index: &EntryIndex, error: &(dyn std::error::Error + 'static)) -> Ended {
-    Ended::Failed(failure_of(index, error))
-}
-
-/// Returns why reading or writing an Assembly failed with `error`.
-pub(crate) fn failure_of(
-    index: &EntryIndex,
-    error: &(dyn std::error::Error + 'static),
-) -> ModelExportFailure {
-    if index.watch().check().is_err() {
-        return ModelExportFailure::ArchiveChanged;
-    }
-    if let Some(archive) = archive_error_in(error) {
-        if archive.is_key_required() {
-            return ModelExportFailure::KeyRequired;
-        }
-        if archive.is_wrong_key() {
-            return ModelExportFailure::KeyRejected;
-        }
-    }
-    if let Some(ConversionError::Installation(refused)) = error.downcast_ref::<ConversionError>() {
-        return ModelExportFailure::Refused(refused.clone());
-    }
-    ModelExportFailure::Failed(describe(error))
-}

@@ -3,12 +3,12 @@
 
 use std::collections::{HashMap, HashSet};
 
-use p4kx_assembly::{Assembly, Part};
 use p4kx_extraction::model::Material;
 use p4kx_extraction::{base_colour_factor, diffuse_texture_path};
 use p4kx_settings::ModelMaterials;
 
 use super::build::SharedMesh;
+use super::pieces::Piece;
 
 const GLASS_ALPHA: f32 = 0.3;
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
@@ -33,20 +33,16 @@ fn address<T>(value: &T) -> usize {
     std::ptr::from_ref(value) as usize
 }
 
-pub(super) fn surface_key(part: &Part, id: u16) -> SurfaceKey {
-    (
-        address(part.materials()),
-        part.palette().map_or(0, address),
-        id,
-    )
+pub(super) fn surface_key(part: &Piece<'_>, id: u16) -> SurfaceKey {
+    (address(part.materials), part.palette.map_or(0, address), id)
 }
 
 /// Resolves the material `id` of `part` the way the GLB export picks it: the sub-material of
 /// its library, else the engine's default, with the part's tint palette applied. Returns `None`
 /// when nothing is drawn with it: a hidden material or a decal, whose shape only a texture gives.
-pub(super) fn resolve(part: &Part, id: u16, mode: ModelMaterials) -> Option<Surface> {
+pub(super) fn resolve(part: &Piece<'_>, id: u16, mode: ModelMaterials) -> Option<Surface> {
     let fallback = Material::engine_default();
-    let library = part.materials().library();
+    let library = part.materials.library();
     let found = library
         .and_then(|library| {
             let position = if library.single { 0 } else { usize::from(id) };
@@ -56,7 +52,7 @@ pub(super) fn resolve(part: &Part, id: u16, mode: ModelMaterials) -> Option<Surf
     if found.hidden() || is_one_of(&found.shader, &DECAL_SHADERS) {
         return None;
     }
-    let tinted = part.palette().and_then(|palette| palette.apply(found));
+    let tinted = part.palette.and_then(|palette| palette.apply(found));
     surface_of(tinted.as_ref().unwrap_or(found), mode)
 }
 
@@ -88,7 +84,7 @@ pub(super) fn surface_of(material: &Material, mode: ModelMaterials) -> Option<Su
 /// Resolves the surface of every material range the parts use, once per library, palette and
 /// material ID, and lists the distinct texture paths they want.
 pub(super) fn surfaces_of(
-    assembly: &Assembly,
+    pieces: &[Piece<'_>],
     model_of: &[Option<usize>],
     meshes: &[Option<SharedMesh>],
     mode: ModelMaterials,
@@ -96,7 +92,7 @@ pub(super) fn surfaces_of(
     let mut surfaces = HashMap::new();
     let mut wanted: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
-    for (at, part) in assembly.parts().iter().enumerate() {
+    for (at, part) in pieces.iter().enumerate() {
         let mesh = model_of
             .get(at)
             .copied()

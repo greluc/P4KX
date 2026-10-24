@@ -7,6 +7,7 @@ use std::time::Duration;
 use egui::{Color32, Id, Ui};
 use fluent_bundle::FluentValue;
 
+use super::assembly_export_progress::stage_fraction;
 use super::extraction_outcome::decorate;
 use super::record_export_outcome::{list, outcome_window};
 use crate::model_info::printable;
@@ -38,7 +39,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     match run.status() {
         AssemblyExportStatus::Running(progress) => {
             let cancelling = run.is_cancelled();
-            let title = texts.get(T::RunningTitle);
+            let title = texts.get(titles(run.is_container()).0);
             let shown = frames::window(&title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
@@ -53,12 +54,10 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         }
         AssemblyExportStatus::Finished(summary) => {
             let laid = Laid::get(ui, texts, (run.id(), summary));
-            close = outcome_window(
-                ui,
-                texts,
-                (OUTCOME, T::SummaryTitle.into(), Tone::Normal),
-                |ui| finished(ui, &laid),
-            );
+            let title = titles(run.is_container()).1;
+            close = outcome_window(ui, texts, (OUTCOME, title.into(), Tone::Normal), |ui| {
+                finished(ui, &laid);
+            });
         }
         AssemblyExportStatus::Cancelled => {
             let title = (OUTCOME, T::SummaryCancelledTitle.into(), Tone::Normal);
@@ -83,6 +82,16 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
     if close {
         model.close_assembly_export();
+    }
+}
+
+/// Returns the titles of the progress window and of the summary of an Entity, or of a container
+/// whose Interior is exported on its own.
+const fn titles(container: bool) -> (T, T) {
+    if container {
+        (T::RunningTitleInterior, T::SummaryTitleInterior)
+    } else {
+        (T::RunningTitle, T::SummaryTitle)
     }
 }
 
@@ -142,6 +151,14 @@ fn running(
     let text = match progress.stage {
         AssemblyExportStage::Resolving => texts.format(T::Resolving, &[name]),
         AssemblyExportStage::Reading => texts.format(T::Reading, &[name]),
+        AssemblyExportStage::Interior => texts.format(
+            T::ReadingInterior,
+            &[
+                name,
+                ("done", number_of(texts, progress.done).into()),
+                ("total", number_of(texts, progress.total).into()),
+            ],
+        ),
         AssemblyExportStage::Writing => texts.format(
             T::Writing,
             &[("size", format::size(progress.done, texts.language()).into())],
@@ -153,7 +170,7 @@ fn running(
     });
     ui.add_space(SPACE_3);
     let width = ui.available_width().max(frames::MODAL_BODY_WIDTH);
-    indicator::progress(ui, stage_fraction(progress.stage), cancelling, width);
+    indicator::progress(ui, stage_fraction(progress), cancelling, width);
     frames::foot_rule(ui);
     if cancelling {
         ui.horizontal(|ui| {
@@ -166,13 +183,8 @@ fn running(
     }
 }
 
-/// The share of the export each step stands for: the models are the longest step.
-const fn stage_fraction(stage: AssemblyExportStage) -> f32 {
-    match stage {
-        AssemblyExportStage::Resolving => 0.1,
-        AssemblyExportStage::Reading => 0.4,
-        AssemblyExportStage::Writing => 0.8,
-    }
+fn number_of(texts: &Texts, value: u64) -> String {
+    format::number(value, texts.language())
 }
 
 /// The texts of one summary, formatted once per export and language.
@@ -290,6 +302,17 @@ fn notes(texts: &Texts, summary: &AssemblyExportSummary) -> Vec<(String, Color32
         ),
         (texts.format(T::SummaryCounts, &counts), palette::GRAY_1),
     ];
+    if let Some(interior) = summary.interior() {
+        let args = [
+            ("containers", number(texts, interior.containers)),
+            ("parts", number(texts, interior.parts)),
+            ("models", number(texts, interior.model_parts)),
+            ("modelled", number(texts, interior.modelled_parts)),
+            ("lights", number(texts, interior.lights)),
+        ]
+        .map(|(name, value)| (name, FluentValue::from(value)));
+        notes.push((texts.format(T::SummaryInterior, &args), palette::GRAY_1));
+    }
     if written.textures > 0 || !written.texture_fallbacks.is_empty() {
         let args = [
             (

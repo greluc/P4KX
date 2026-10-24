@@ -3,6 +3,8 @@
 
 mod containers;
 
+pub(crate) use containers::is_container;
+
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 

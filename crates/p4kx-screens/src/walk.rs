@@ -12,13 +12,11 @@ use crate::context::Context;
 use crate::elements;
 use crate::flex::Flex;
 use crate::layout::{Sibling, place};
+use crate::limits::Limits;
 use crate::look::Look;
 use crate::paint::Area;
-use crate::style::{CanvasStyles, Subject, TagPaths, resolve};
+use crate::style::{CanvasStyles, StyleCache, Subject, TagPaths, resolve};
 use crate::widget::Widget;
-
-const MAX_DEPTH: usize = 256;
-const MAX_WIDGETS: usize = 1 << 18;
 
 pub(crate) struct Walk<'s, 'a, 'f> {
     pub(crate) store: &'s mut CanvasStore<'a, 'f>,
@@ -28,6 +26,10 @@ pub(crate) struct Walk<'s, 'a, 'f> {
     pub(crate) cx: &'s mut Context,
     pub(crate) stack: Vec<Guid>,
     pub(crate) widgets: usize,
+    limits: Limits,
+    budget: u64,
+    styles: StyleCache,
+    palettes: HashMap<Guid, Palette>,
     sheets: Vec<Rc<CanvasStyles>>,
     above: Vec<Subject>,
     cache: HashMap<Guid, Rc<CanvasStyles>>,
@@ -40,6 +42,7 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
         tags: &'s TagPaths,
         brand: Option<&'s str>,
         cx: &'s mut Context,
+        limits: Limits,
     ) -> Self {
         Self {
             store,
@@ -49,6 +52,10 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             cx,
             stack: Vec::new(),
             widgets: 0,
+            limits,
+            budget: limits.evaluations,
+            styles: StyleCache::new(),
+            palettes: HashMap::new(),
             sheets: Vec::new(),
             above: Vec::new(),
             cache: HashMap::new(),
@@ -67,7 +74,17 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
             canvas,
             self.brand,
             &inherited,
+            &mut self.palettes,
         );
+        for &index in &canvas.unreachable {
+            if let Some(widget) = canvas.widgets.get(index) {
+                self.cx.report.note(
+                    &widget.type_name,
+                    "not reachable from a root: its parents form a cycle",
+                    &widget.name,
+                );
+            }
+        }
         self.siblings(canvas, &canvas.roots, None, frame, alpha, depth);
         self.cx.palette = inherited;
         self.sheets.pop();
@@ -78,7 +95,12 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
         if let Some(cached) = self.cache.get(&canvas.guid) {
             return Rc::clone(cached);
         }
-        let sheet = Rc::new(CanvasStyles::build(self.store.forge(), canvas, self.brand));
+        let sheet = Rc::new(CanvasStyles::build(
+            self.store.forge(),
+            &mut self.styles,
+            canvas,
+            self.brand,
+        ));
         for (entry, selector) in sheet.unsupported() {
             self.cx.report.note(
                 "StyleEntry",
@@ -99,6 +121,10 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
         alpha: f32,
         depth: usize,
     ) {
+        if self.widgets.saturating_add(indices.len()) > self.limits.widgets {
+            self.cx.report.truncated = true;
+            return;
+        }
         let siblings: Vec<Sibling<'_>> = indices
             .iter()
             .filter_map(|&index| {
@@ -137,15 +163,28 @@ impl<'s, 'a, 'f> Walk<'s, 'a, 'f> {
         alpha: f32,
         depth: usize,
     ) {
-        if depth > MAX_DEPTH || self.widgets >= MAX_WIDGETS || self.cx.painter.is_full() {
+        if depth > self.limits.depth
+            || self.widgets >= self.limits.widgets
+            || self.cx.painter.is_full()
+        {
             self.cx.report.truncated = true;
             return;
         }
-        let style = resolve(&self.sheets, widget, &self.above, self.tags);
+        self.widgets += 1;
+        let style = resolve(
+            &self.sheets,
+            widget,
+            &self.above,
+            self.tags,
+            &mut self.budget,
+        );
+        if self.budget == 0 {
+            self.cx.report.truncated = true;
+            return;
+        }
         if style.active == Some(false) {
             return;
         }
-        self.widgets += 1;
         self.cx.report.widgets += 1;
         let own = style.alpha.unwrap_or(widget.alpha);
         let alpha = if widget.inherits_alpha {

@@ -29,6 +29,8 @@ pub enum TestCondition {
     Tag(u128),
     /// The parent widget meets every condition.
     Parent(Vec<Self>),
+    /// Some ancestor widget meets every condition.
+    Ancestor(Vec<Self>),
     /// A selector the screens reader does not evaluate.
     Count,
 }
@@ -45,6 +47,12 @@ impl TestCondition {
                     "conditions",
                     TestValue::Array(inner.iter().map(Self::value).collect()),
                 ),
+            Self::Ancestor(inner) => {
+                TestInstance::new("BuildingBlocks_StyleSelectorConditionAncestor").value(
+                    "conditions",
+                    TestValue::Array(inner.iter().map(Self::value).collect()),
+                )
+            }
             Self::Count => TestInstance::new("BuildingBlocks_StyleSelectorConditionCount"),
         })
     }

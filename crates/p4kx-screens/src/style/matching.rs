@@ -67,15 +67,51 @@ pub(crate) fn applies(
     subject: &Subject,
     above: &[Subject],
     tags: &TagPaths,
+    budget: &mut u64,
 ) -> bool {
+    *budget = budget.saturating_sub(1);
     entry.lists.is_empty()
-        || entry.lists.iter().any(|list| {
-            list.iter()
-                .all(|condition| holds(condition, subject, above, tags))
-        })
+        || entry
+            .lists
+            .iter()
+            .any(|list| all(list, subject, above, tags, budget))
 }
 
-fn holds(condition: &Condition, subject: &Subject, above: &[Subject], tags: &TagPaths) -> bool {
+fn all(
+    conditions: &[Condition],
+    subject: &Subject,
+    above: &[Subject],
+    tags: &TagPaths,
+    budget: &mut u64,
+) -> bool {
+    conditions
+        .iter()
+        .all(|condition| holds(condition, subject, above, tags, budget))
+}
+
+fn any(
+    conditions: &[Condition],
+    subject: &Subject,
+    above: &[Subject],
+    tags: &TagPaths,
+    budget: &mut u64,
+) -> bool {
+    conditions
+        .iter()
+        .any(|condition| holds(condition, subject, above, tags, budget))
+}
+
+fn holds(
+    condition: &Condition,
+    subject: &Subject,
+    above: &[Subject],
+    tags: &TagPaths,
+    budget: &mut u64,
+) -> bool {
+    if *budget == 0 {
+        return false;
+    }
+    *budget -= 1;
     match condition {
         Condition::Tag(tag) => tags.has(subject, *tag),
         Condition::NotTag(tag) => !tags.has(subject, *tag),
@@ -84,15 +120,23 @@ fn holds(condition: &Condition, subject: &Subject, above: &[Subject], tags: &Tag
         Condition::Type(kind) => subject.kind == *kind,
         Condition::Parent(inner) => above
             .split_last()
-            .is_some_and(|(parent, rest)| inner.iter().all(|c| holds(c, parent, rest, tags))),
-        Condition::Ancestor(inner) => (0..above.len()).rev().any(|at| {
-            above.get(at).is_some_and(|ancestor| {
-                let rest = above.get(..at).unwrap_or_default();
-                inner.iter().all(|c| holds(c, ancestor, rest, tags))
-            })
-        }),
-        Condition::AllOf(inner) => inner.iter().all(|c| holds(c, subject, above, tags)),
-        Condition::AnyOf(inner) => inner.iter().any(|c| holds(c, subject, above, tags)),
+            .is_some_and(|(parent, rest)| all(inner, parent, rest, tags, budget)),
+        Condition::Ancestor(inner) => {
+            for at in (0..above.len()).rev() {
+                if let Some(ancestor) = above.get(at) {
+                    let rest = above.get(..at).unwrap_or_default();
+                    if all(inner, ancestor, rest, tags, budget) {
+                        return true;
+                    }
+                }
+                if *budget == 0 {
+                    return false;
+                }
+            }
+            false
+        }
+        Condition::AllOf(inner) => all(inner, subject, above, tags, budget),
+        Condition::AnyOf(inner) => any(inner, subject, above, tags, budget),
         Condition::Unsupported(_) => false,
     }
 }

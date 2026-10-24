@@ -7,4 +7,4 @@ mod sheet;
 
 pub(crate) use entry::{Entry, Modifiers, inline_entries, parse_entries};
 pub(crate) use matching::{Subject, TagPaths};
-pub(crate) use sheet::{CanvasStyles, resolve};
+pub(crate) use sheet::{CanvasStyles, StyleCache, resolve};

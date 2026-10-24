@@ -88,10 +88,19 @@ of ADR-0020, so the PNG and the SVG writers, their budgets and their listing of 
   guard that a canvas is visited once: canvases, textures (a `.tif` as the `.dds`), vector
   graphics, movies and localisation keys without the `@` (`LOC_EMPTY`, `LOC_UNINITIALIZED` and
   `LOC_PLACEHOLDER` are no keys), and the widgets by element type with whether they are drawn.
-- Limits (the Records are untrusted): at most 2^18 widgets, 2^17 shapes and a depth of 256; a
-  canvas that contains itself is drawn once and listed, a Reference that no Record answers is
-  listed with its widget, a size outside 1 to 16384 pixels is an error; sizes are checked and
-  nothing indexes unchecked.
+- Precedence, lowest to highest: the widget's own fields, then style entries in the cascade
+  order above, so a style entry beats a widget field (`BackgroundColor` of an entry over the
+  widget's background), and an entry of an inner canvas beats one of an outer canvas and, inside
+  one canvas, a later source beats an earlier one; of equal rank the later entry wins.
+- Limits (the Records are untrusted), set by `Limits` and reported as `truncated`: at most 2^18
+  widgets visited or placed, hidden ones and nested canvases included, 2^26 steps of the cascade
+  (entries tried plus selectors evaluated, over the whole screen), 2^17 shapes and a depth of 64
+  widgets and canvases, as for DataForge. `Parent` and `Ancestor` selectors nested deeper than
+  four and any selector nested deeper than eight are not evaluated and are listed. Style entries
+  are parsed once per style Record and shared, a canvas's palette once per canvas. A canvas that
+  contains itself is drawn once and listed, widgets whose parents form a cycle and a Reference
+  that no Record answers are listed, a canvas side below 1 pixel or above 16384 is an error;
+  sizes are checked and nothing indexes unchecked.
 - Hologram rendering (#172) and the viewer's UI tab (#171) are untouched: they need the 3D
   renderer, and #167 (the 2D renderer) is the one this uses. #169, texts of movies, does not carry
   over: canvas texts need the font style cascade above.

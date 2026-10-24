@@ -215,3 +215,34 @@ fn a_colour_slot_without_a_palette_is_reported_and_skipped() -> TestResult {
     assert_eq!(composed.report().shapes, 0, "nothing is drawn");
     Ok(())
 }
+
+#[test]
+fn style_entries_win_over_widget_fields_and_inner_canvases_over_outer_ones() -> TestResult {
+    let colour = |colour| {
+        TestStyleEntry::new("paint")
+            .when(TestCondition::Type("Base"))
+            .set(TestModifier::EnableBackground(true))
+            .set(TestModifier::Background(colour))
+    };
+    let inner_guid = CANVAS + 0x100;
+    let outer = TestCanvas::new(CANVAS, "outer", 10.0, 10.0)
+        .embedded(colour(TestColour::Solid([0, 0, 255, 255])))
+        .widget(TestWidget::display("outer root"))
+        .widget(
+            TestWidget::new("BuildingBlocks_WidgetCanvas", "inner")
+                .parent("outer root")
+                .with("canvas", p4kx_testkit::TestValue::Reference(inner_guid)),
+        );
+    let inner = TestCanvas::new(inner_guid, "inner", 10.0, 10.0)
+        .embedded(colour(TestColour::Solid([0, 255, 0, 255])))
+        .widget(TestWidget::display("inner root").background(RED));
+    let bytes = database([outer.record(), inner.record()]);
+    let forge = DataForge::open(&bytes)?;
+    let composed = ScreenComposer::new(&forge).compose(&guid_text(CANVAS), None)?;
+    let image = composed.rasterize(&stage())?.image;
+    assert!(
+        near(pixel(&image, 5, 5), [0, 255, 0, 255], 0),
+        "the entry of the inner canvas beats the widget's red and the outer entry's blue"
+    );
+    Ok(())
+}

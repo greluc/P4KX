@@ -1280,7 +1280,8 @@ exclude `--screen`.
  "widgets": 14, "shapes": 9, "canvases": 2,
  "unsupported": [{"element": "WidgetText", "reason": "no renderer for this element type",
                   "count": 1, "examples": ["label"]}],
- "missing_canvases": [], "truncated": false}
+ "missing_canvases": [], "truncated": false,
+ "skipped": [{"reason": "fill_budget", "message": "the fills cover more than the budget"}]}
 ```
 
 `width` and `height` are the pixels written. `widgets` counts the widgets visited in every canvas
@@ -1291,9 +1292,18 @@ containers are laid out without wrapping`, `<layout> children are laid out as an
 slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not evaluated` for
 a `StyleEntry`, and the reasons of circles and polygons) how many widgets it concerns and the names of
 up to three. `missing_canvases` names nested canvases that cannot be read, that no Record answers
-or that contain themselves; `truncated` is true when a limit (2^18 widgets, 2^17 shapes, depth 256)
-stopped the composition. The exit code is 1 when `unsupported` or `missing_canvases` is not empty or
-`truncated` is true, 2 for an unknown, ambiguous or non-canvas record and for a canvas without area.
+or that contain themselves; widgets whose parents form a cycle are listed in `unsupported`
+(`not reachable from a root: its parents form a cycle`). `truncated` is true when a limit stopped
+the composition: 2^18 widgets visited or placed (hidden ones included), 2^26 steps of the style
+cascade, 2^17 shapes or a depth of 64 widgets and canvases. `skipped` lists what the renderer
+(raster or SVG writer) skipped of the scene, each with the stable `reason` code of
+`p4kx ui render` and a `message`; it is `[]` when nothing was skipped.
+
+The exit code is 0 when nothing is listed in `unsupported`, `missing_canvases` or `skipped` and
+`truncated` is false, and 1 otherwise. It is 2 for an unknown, ambiguous or non-canvas record, for a
+canvas side below 1 or above 16384 pixels and for a size the renderer cannot draw; 3 when the
+Archive or its `Data\Game2.dcb` cannot be read; 5 when a Record of the DataForge cannot be read. In
+these cases no JSON is printed.
 
 ## `p4kx socpak list <archive> <container…> --json`
 

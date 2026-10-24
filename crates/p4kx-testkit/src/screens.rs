@@ -204,6 +204,12 @@ fn style_structs() -> Vec<TestStruct> {
                 "conditions",
                 pointer("BuildingBlocks_StyleSelectorCondition"),
             ),
+        TestStruct::new("BuildingBlocks_StyleSelectorConditionAncestor")
+            .parent("BuildingBlocks_StyleSelectorCondition")
+            .array(
+                "conditions",
+                pointer("BuildingBlocks_StyleSelectorCondition"),
+            ),
         TestStruct::new("BuildingBlocks_StyleSelectorConditionCount")
             .parent("BuildingBlocks_StyleSelectorCondition"),
         TestStruct::new("BuildingBlocks_FieldModifier").field("field", TestType::String),

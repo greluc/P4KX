@@ -80,11 +80,15 @@ impl Palette {
         canvas: &Canvas,
         brand: Option<&str>,
         inherited: &Self,
+        cache: &mut HashMap<Guid, Self>,
     ) -> Self {
-        let chosen = canvas.pick_brand(brand).map(|chosen| &chosen.style);
-        let styles: Vec<&StyleRef> = canvas.shared.iter().chain(chosen).collect();
+        let own = cache.entry(canvas.guid).or_insert_with(|| {
+            let chosen = canvas.pick_brand(brand).map(|chosen| &chosen.style);
+            let styles: Vec<&StyleRef> = canvas.shared.iter().chain(chosen).collect();
+            Self::of_styles(forge, slot_names, &styles)
+        });
         let mut palette = inherited.clone();
-        palette.overlay(Self::of_styles(forge, slot_names, &styles));
+        palette.overlay(own.clone());
         palette
     }
 
@@ -129,8 +133,8 @@ impl Palette {
                     .ok_or_else(|| format!("colour slot {name} is not in the palette"))?,
                 *alpha,
             ),
-            ColorSpec::Record { alpha, .. } => {
-                return Err(format!("colour record reference with alpha {alpha}"));
+            ColorSpec::Record { .. } => {
+                return Err("colour that is a reference to a colour Record".to_owned());
             }
             ColorSpec::Other(kind) => return Err(format!("colour of kind {kind}")),
         };

@@ -11,6 +11,7 @@ use crate::canvas::{CanvasStore, StyleRef, find_canvas};
 use crate::colour::{Palette, slot_names};
 use crate::context::Context;
 use crate::error::ScreenError;
+use crate::limits::Limits;
 use crate::paint::Area;
 use crate::report::Report;
 use crate::style::TagPaths;
@@ -83,6 +84,7 @@ pub struct ScreenComposer<'a, 'f> {
     store: CanvasStore<'a, 'f>,
     slots: Vec<String>,
     tags: TagPaths,
+    limits: Limits,
 }
 
 impl<'a, 'f> ScreenComposer<'a, 'f> {
@@ -93,7 +95,15 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             store: CanvasStore::new(forge),
             slots: slot_names(forge),
             tags: TagPaths::build(forge),
+            limits: Limits::DEFAULT,
         }
+    }
+
+    /// Replaces the bounds of the compositions with limits.
+    #[must_use]
+    pub const fn with_limits(mut self, limits: Limits) -> Self {
+        self.limits = limits;
+        self
     }
 
     /// Composes the canvas that `canvas` names, a GUID or a record path, into a scene of its own
@@ -110,7 +120,8 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
     ///
     /// Returns [`ScreenError::UnknownCanvas`], [`ScreenError::AmbiguousCanvas`] or
     /// [`ScreenError::NotACanvas`] when `canvas` names no canvas, and
-    /// [`ScreenError::EmptyCanvas`] when its size is no area of 1 to 16384 pixels a side.
+    /// [`ScreenError::EmptyCanvas`] when a side is less than 1 pixel and
+    /// [`ScreenError::CanvasTooLarge`] when one is more than 16384.
     pub fn compose(&mut self, canvas: &str, brand: Option<&str>) -> Result<Composed, ScreenError> {
         let guid = find_canvas(self.store.forge(), canvas)?;
         self.compose_guid(guid, brand)
@@ -124,16 +135,19 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
                 text: guid.to_string(),
             })?;
         let [width, height] = root.size;
-        if !(1.0..=MAX_CANVAS_SIDE).contains(&width) || !(1.0..=MAX_CANVAS_SIDE).contains(&height) {
-            return Err(ScreenError::EmptyCanvas {
-                path: root.record_path.clone(),
-            });
-        }
+        check_size(&root.record_path, width, height)?;
         let mut cx = Context {
             palette: self.base_palette(brand),
             ..Context::default()
         };
-        let mut walk = Walk::new(&mut self.store, &self.slots, &self.tags, brand, &mut cx);
+        let mut walk = Walk::new(
+            &mut self.store,
+            &self.slots,
+            &self.tags,
+            brand,
+            &mut cx,
+            self.limits,
+        );
         walk.enter(
             &root,
             Area {
@@ -194,6 +208,22 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
     pub(crate) const fn store(&mut self) -> &mut CanvasStore<'a, 'f> {
         &mut self.store
     }
+}
+
+fn check_size(path: &str, width: f32, height: f32) -> Result<(), ScreenError> {
+    if width > MAX_CANVAS_SIDE || height > MAX_CANVAS_SIDE {
+        return Err(ScreenError::CanvasTooLarge {
+            path: path.to_owned(),
+            width,
+            height,
+        });
+    }
+    if !(width >= 1.0 && height >= 1.0) {
+        return Err(ScreenError::EmptyCanvas {
+            path: path.to_owned(),
+        });
+    }
+    Ok(())
 }
 
 fn brand_style_path(code: &str) -> String {

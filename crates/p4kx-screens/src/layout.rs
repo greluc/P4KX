@@ -80,6 +80,12 @@ pub(crate) fn place(content: Area, flex: Option<&Flex>, siblings: &[Sibling<'_>]
                     .is_some_and(|sibling| sibling.widget.in_flow)
         })
         .collect();
+    let mut slot_of = vec![None; siblings.len()];
+    for (position, &at) in in_flow.iter().enumerate() {
+        if let Some(slot) = slot_of.get_mut(at) {
+            *slot = Some(position);
+        }
+    }
     let items = flow_items(siblings, &sized, &in_flow);
     let slots = flex
         .map(|flex| arrange(flex, parent, &items))
@@ -91,9 +97,10 @@ pub(crate) fn place(content: Area, flex: Option<&Flex>, siblings: &[Sibling<'_>]
         .map(|(at, (sibling, sized))| {
             let widget = sibling.widget;
             let margin = widget.margin;
-            let slot = in_flow
-                .iter()
-                .position(|&flowed| flowed == at)
+            let slot = slot_of
+                .get(at)
+                .copied()
+                .flatten()
                 .and_then(|position| slots.get(position));
             let (origin, size) = slot.map_or(([0.0, 0.0], sized.size), |slot| {
                 (

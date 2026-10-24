@@ -88,8 +88,25 @@ fn collect_unsupported(condition: &Condition, out: &mut Vec<String>) {
     }
 }
 
+const MAX_CONDITION_DEPTH: usize = 8;
+const MAX_LINK_DEPTH: usize = 4;
+
+#[derive(Clone, Copy)]
+struct Depth {
+    all: usize,
+    links: usize,
+}
+
 fn conditions(values: &[Value<'_>]) -> Vec<Condition> {
-    values.iter().filter_map(as_struct).map(condition).collect()
+    conditions_at(values, Depth { all: 0, links: 0 })
+}
+
+fn conditions_at(values: &[Value<'_>], depth: Depth) -> Vec<Condition> {
+    values
+        .iter()
+        .filter_map(as_struct)
+        .map(|structure| condition(structure, depth))
+        .collect()
 }
 
 fn guid_of(structure: &StructValue<'_>, name: &str) -> Option<Guid> {
@@ -106,12 +123,20 @@ fn guids_of(structure: &StructValue<'_>, name: &str) -> Vec<Guid> {
         .collect()
 }
 
-fn condition(structure: &StructValue<'_>) -> Condition {
+fn condition(structure: &StructValue<'_>, depth: Depth) -> Condition {
     let kind = structure
         .type_name()
         .strip_prefix(PREFIX)
         .unwrap_or_else(|| structure.type_name());
-    let nested = || conditions(items(structure, "conditions"));
+    let link = matches!(kind, "Parent" | "Ancestor");
+    if depth.all >= MAX_CONDITION_DEPTH || (link && depth.links >= MAX_LINK_DEPTH) {
+        return Condition::Unsupported(format!("{kind} nested too deep"));
+    }
+    let deeper = Depth {
+        all: depth.all + 1,
+        links: depth.links + usize::from(link),
+    };
+    let nested = || conditions_at(items(structure, "conditions"), deeper);
     match kind {
         "Tag" => guid_of(structure, "tag")
             .map_or_else(|| Condition::Unsupported("Tag".to_owned()), Condition::Tag),

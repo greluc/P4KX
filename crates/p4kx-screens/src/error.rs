@@ -36,6 +36,16 @@ pub enum ScreenError {
         /// The record path.
         path: String,
     },
+    /// A side of the canvas is more than 16384 pixels.
+    #[error("the canvas `{path}` is {width} x {height} pixels, more than 16384 a side")]
+    CanvasTooLarge {
+        /// The record path.
+        path: String,
+        /// The width in pixels.
+        width: f32,
+        /// The height in pixels.
+        height: f32,
+    },
     /// The DataForge could not be read.
     #[error(transparent)]
     DataForge(#[from] DataForgeError),

@@ -23,7 +23,7 @@ pub(crate) struct StyleRef {
 #[derive(Debug)]
 pub(crate) struct BrandStyle {
     pub(crate) style: StyleRef,
-    pub(crate) entries: Vec<Entry>,
+    pub(crate) entries: Rc<[Entry]>,
 }
 
 #[derive(Debug)]
@@ -37,8 +37,9 @@ pub(crate) struct Canvas {
     pub(crate) children: Vec<Vec<usize>>,
     pub(crate) brands: Vec<BrandStyle>,
     pub(crate) shared: Vec<StyleRef>,
-    pub(crate) defaults: Vec<Entry>,
-    pub(crate) embedded: Vec<Entry>,
+    pub(crate) defaults: Rc<[Entry]>,
+    pub(crate) embedded: Rc<[Entry]>,
+    pub(crate) unreachable: Vec<usize>,
 }
 
 impl Canvas {
@@ -81,7 +82,9 @@ impl Canvas {
             })
             .collect();
         let (roots, children) = hierarchy(&widgets);
+        let unreachable = unreachable_widgets(&widgets, &roots, &children);
         Self {
+            unreachable,
             guid,
             record_path: tree.record_path().to_owned(),
             size,
@@ -92,11 +95,33 @@ impl Canvas {
             brands: brand_styles(root),
             shared: shared_styles(root),
             defaults: child(root, "defaultStyles")
-                .map(|defaults| parse_entries(items(defaults, "entries")))
+                .map(|defaults| parse_entries(items(defaults, "entries")).into())
                 .unwrap_or_default(),
-            embedded: parse_entries(items(root, "embeddedStyles")),
+            embedded: parse_entries(items(root, "embeddedStyles")).into(),
         }
     }
+}
+
+fn unreachable_widgets(widgets: &[Widget], roots: &[usize], children: &[Vec<usize>]) -> Vec<usize> {
+    let mut seen = vec![false; widgets.len()];
+    let mut stack: Vec<usize> = roots.to_vec();
+    while let Some(index) = stack.pop() {
+        if let Some(flag) = seen.get_mut(index) {
+            if *flag {
+                continue;
+            }
+            *flag = true;
+        }
+        stack.extend(children.get(index).into_iter().flatten().copied());
+    }
+    widgets
+        .iter()
+        .enumerate()
+        .filter(|(index, widget)| {
+            widget.parent != Parent::Library && !seen.get(*index).copied().unwrap_or(true)
+        })
+        .map(|(index, _)| index)
+        .collect()
 }
 
 fn hierarchy(widgets: &[Widget]) -> (Vec<usize>, Vec<Vec<usize>>) {
@@ -135,7 +160,7 @@ fn brand_styles(root: &StructValue<'_>) -> Vec<BrandStyle> {
         .filter_map(|brand| {
             Some(BrandStyle {
                 style: style_ref(brand, "brandIdentifier")?,
-                entries: parse_entries(items(brand, "entries")),
+                entries: parse_entries(items(brand, "entries")).into(),
             })
         })
         .collect()

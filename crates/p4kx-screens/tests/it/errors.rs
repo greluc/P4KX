@@ -118,3 +118,15 @@ fn a_nested_canvas_that_is_missing_is_reported() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_canvas_side_above_the_limit_has_its_own_error() -> TestResult {
+    let bytes = database([TestCanvas::new(FIRST, "wide", 20000.0, 10.0).record()]);
+    let forge = DataForge::open(&bytes)?;
+    let error = ScreenComposer::new(&forge).compose(&guid_text(FIRST), None);
+    assert!(
+        matches!(error, Err(ScreenError::CanvasTooLarge { .. })),
+        "{error:?}"
+    );
+    Ok(())
+}

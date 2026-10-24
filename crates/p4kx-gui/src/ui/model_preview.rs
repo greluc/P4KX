@@ -155,7 +155,7 @@ fn sentence(reason: &str) -> String {
     }
 }
 
-fn problem_text(texts: &Texts, path: &str, problem: &Problem) -> (Color32, String) {
+pub(super) fn problem_text(texts: &Texts, path: &str, problem: &Problem) -> (Color32, String) {
     let language = texts.language();
     let limit = |value: u64| ("limit", format::number(value, language).into());
     let text = |text: ModelText, args: &[(&str, FluentValue<'_>)]| texts.format(text, args);

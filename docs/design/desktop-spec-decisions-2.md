@@ -425,3 +425,29 @@ in `color-primary` über das Modell, ohne Tiefentest. Damit die Ansicht mit der 
 Faktenleiste 32, Ansicht 160, `overlayGap` 8, Leiste 36 und 37 Panelrand, wie bei der Soundbank-Liste
 D.33) und merkt sich seine Größe getrennt von der der anderen Vorschauen; es bleibt frei
 verstellbar. Die Liste der Animationen zeigt bei dieser Höhe etwa drei Zeilen und rollt.
+
+**D.47 3D-Ansicht des Loadouts im Tab „Entities".** Rechts neben der Auswahlliste steht über dem
+Loadout-Baum das Ansichts-Panel (`assemblyView` in `p4kx-desktop-spec.json`): oben eine
+Faktenleiste (D.35, 32 px) mit Teile, Meshes, Dreiecke und Größe der Baugruppe, darunter die
+3D-Ansicht (Eingaben, Rücksetzknopf und Meldungen wie in D.35), `overlayGap` (8) darunter eine Leiste
+von 36 px (`barHeight`) mit der Eyebrow „Detailgrad" und einer Segmentgruppe (`.segmented--sm`)
+0 bis 3, der Eyebrow „Materialien" und einer Segmentgruppe „Farben" und „Texturen"; rechts „Alle zeigen (n)"
+(`.btn-ghost.btn-xs`), solange Zweige ausgeblendet sind, und während des Aufbaus Spinner, Stufentext in
+`color-gray-1` („Modelle werden gelesen …", „Modelle werden vorbereitet …", „Texturen werden gelesen …")
+und „Abbrechen" (`.btn-outline.btn-xs`). Das Panel öffnet 393 hoch (Faktenleiste 32, Ansicht 280,
+`overlayGap` 8, Leiste 36, Panelrand 37), ist am unteren Rand verstellbar zwischen 209 (Ansicht
+auf ihrer Mindesthöhe 96) und der Höhe, die dem Baum noch vier Zeilen (Kopf und `treeMinRows` 3) lässt.
+Jede Zeile des Baums mit einer Entity hat vor „Ersetzen …" die Schaltfläche „Ausblenden" oder „Einblenden"
+(`.btn-ghost.btn-xs`); ein ausgeblendeter Port zeigt den gedämpften Chip „Ausgeblendet", der Zweig darunter
+ist mit ausgeblendet. Ausblenden ändert weder das Loadout noch den Export und baut nichts neu auf;
+Auslassen, Ersetzen, Detailgrad und Materialien bauen die Ansicht im Hintergrund neu auf, die bisherige
+bleibt bis dahin stehen. Teile außerhalb des Sichtbereichs oder mit weniger als `minPartPixels` (0,75) Radius
+auf dem Bildschirm werden nicht gezeichnet. Ist kein Teil des Loadouts darstellbar, steht
+„Kein Teil dieses Loadouts hat ein Modell, das der Viewer zeigen kann." in `color-gray-1`. „Als GLB exportieren …"
+beginnt mit Detailgrad und Materialien der Ansicht, sobald der Nutzer sie dort geändert hat, sonst mit den
+gemerkten Werten des letzten Exports; die Ansicht selbst startet mit diesen Werten, der Detailgrad höchstens
+so fein wie 1. Das Panel öffnet mit `panelShare` (0,55) des Platzes rechts der Liste, wenn das mehr als 393 sind.
+Nach „Abbrechen" steht in der Leiste „Der Aufbau der Ansicht wurde abgebrochen." in `color-gray-1` mit
+„Erneut aufbauen" (`.btn-outline.btn-xs`), die bisherige Ansicht bleibt. Ein Loadout ohne darstellbares Teil
+ersetzt die Ansicht durch die Meldung. Verlässt man den Tab oder wechselt die Auswahl, gibt der Viewer die
+Grafikpuffer der Baugruppe frei.

@@ -12,9 +12,9 @@ use p4kx_extraction::{
 
 use super::Shared;
 
-pub(super) struct Stoppable<'a, 'b> {
-    pub(super) models: &'a ArchiveModels<'b>,
-    pub(super) cancel: &'a CancelToken,
+pub(crate) struct Stoppable<'a, 'b> {
+    pub(crate) models: &'a ArchiveModels<'b>,
+    pub(crate) cancel: &'a CancelToken,
 }
 
 impl ModelProvider for Stoppable<'_, '_> {
@@ -30,9 +30,9 @@ impl ModelProvider for Stoppable<'_, '_> {
     }
 }
 
-pub(super) struct StoppableTextures<'a> {
-    pub(super) textures: &'a dyn TextureLoader,
-    pub(super) cancel: &'a CancelToken,
+pub(crate) struct StoppableTextures<'a> {
+    pub(crate) textures: &'a dyn TextureLoader,
+    pub(crate) cancel: &'a CancelToken,
 }
 
 impl TextureLoader for StoppableTextures<'_> {

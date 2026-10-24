@@ -4,6 +4,7 @@
 //! The wgpu side of the viewer: the scene drawn into an offscreen picture inside an egui paint
 //! callback and blitted into the panel.
 
+mod assembly;
 mod device;
 mod frame;
 mod limits;
@@ -21,6 +22,7 @@ use std::sync::Arc;
 use eframe::egui_wgpu::{self, wgpu};
 use egui::Rect;
 
+use assembly::AssemblyBuffers;
 use device::{settle, supported_samples};
 pub use limits::{MAX_TEXTURE_SIDE, Rejected, check_buffer, check_texture, target_extent};
 use pipelines::{BLIT_BYTES, FRAME_BYTES, Pipelines};
@@ -29,6 +31,7 @@ use resources::{MaterialTexture, MeshBuffers};
 use slot::Slot;
 use target::Target;
 
+use super::assembly::{AssemblyScene, DrawList};
 use super::camera::Uniforms;
 use super::scene::Scene;
 use super::skeleton::Pose;
@@ -48,6 +51,8 @@ pub(super) struct ViewerGpu {
     blit_sampler: wgpu::Sampler,
     textures: Slot<MaterialTexture>,
     mesh: Slot<MeshBuffers>,
+    assembly: Slot<AssemblyBuffers>,
+    material_sampler: wgpu::Sampler,
     target: Option<Target>,
     drawn: Option<Drawn>,
     posed: u64,
@@ -69,6 +74,7 @@ pub(crate) struct Look {
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Drawn {
     pose: u64,
+    list: u64,
     bones: Option<f32>,
     serial: u64,
     uniforms: Uniforms,
@@ -93,19 +99,44 @@ pub fn install(state: &egui_wgpu::RenderState) -> Result<Arc<GpuReport>, Unavail
     Ok(report)
 }
 
-/// Builds the paint callback that draws `scene` in the `look` seen through `uniforms` into
+/// What a paint callback draws: one model, or the instances of an Assembly that a draw list picked.
+#[derive(Debug, Clone)]
+pub(crate) enum Subject {
+    /// A model flattened into one mesh.
+    Model(Arc<Scene>),
+    /// An Assembly with the instances of this frame.
+    Assembly(AssemblyDraw),
+}
+
+/// An Assembly and the draw list of the frame.
+#[derive(Debug, Clone)]
+pub(crate) struct AssemblyDraw {
+    pub(crate) scene: Arc<AssemblyScene>,
+    pub(crate) list: Arc<DrawList>,
+}
+
+impl Subject {
+    fn serial(&self) -> u64 {
+        match self {
+            Self::Model(scene) => scene.serial(),
+            Self::Assembly(view) => view.scene.serial(),
+        }
+    }
+}
+
+/// Builds the paint callback that draws `subject` in the `look` seen through `uniforms` into
 /// `rect`, a view of `size` pixels.
 #[must_use]
 pub(crate) fn paint_callback(
     rect: Rect,
-    scene: Arc<Scene>,
+    subject: Subject,
     uniforms: Uniforms,
     (size, look): ([u32; 2], Look),
 ) -> egui::PaintCallback {
     egui_wgpu::Callback::new_paint_callback(
         rect,
         SceneCallback {
-            scene,
+            subject,
             uniforms,
             size,
             look,
@@ -113,8 +144,45 @@ pub(crate) fn paint_callback(
     )
 }
 
+/// Builds the paint callback that frees the Assembly buffers of the viewer, for a window that no
+/// longer shows one.
+#[must_use]
+pub(crate) fn release_callback() -> egui::PaintCallback {
+    egui_wgpu::Callback::new_paint_callback(
+        Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1.0, 1.0)),
+        Release,
+    )
+}
+
+struct Release;
+
+impl egui_wgpu::CallbackTrait for Release {
+    fn prepare(
+        &self,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _screen: &egui_wgpu::ScreenDescriptor,
+        _encoder: &mut wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        if let Some(gpu) = resources.get_mut::<ViewerGpu>() {
+            gpu.assembly.clear();
+            gpu.drawn = None;
+        }
+        Vec::new()
+    }
+
+    fn paint(
+        &self,
+        _info: egui::PaintCallbackInfo,
+        _pass: &mut wgpu::RenderPass<'static>,
+        _resources: &egui_wgpu::CallbackResources,
+    ) {
+    }
+}
+
 struct SceneCallback {
-    scene: Arc<Scene>,
+    subject: Subject,
     uniforms: Uniforms,
     size: [u32; 2],
     look: Look,
@@ -142,7 +210,7 @@ impl egui_wgpu::CallbackTrait for SceneCallback {
         resources: &egui_wgpu::CallbackResources,
     ) {
         if let Some(gpu) = resources.get::<ViewerGpu>() {
-            gpu.paint(pass, self.scene.serial());
+            gpu.paint(pass, self.subject.serial());
         }
     }
 }
@@ -228,6 +296,8 @@ impl ViewerGpu {
             blit_sampler,
             textures,
             mesh: Slot::default(),
+            assembly: Slot::default(),
+            material_sampler,
             target: None,
             drawn: None,
             posed: 0,

@@ -4,6 +4,7 @@
 //! The P4KX look: its tokens, Lato in three weights, the `radius-sm` corner and the desktop
 //! metrics of `docs/design/desktop-spec.md`.
 
+pub mod assembly_metrics;
 mod brand_metrics;
 pub mod categorical;
 pub mod desktop;
@@ -17,6 +18,8 @@ pub mod tags_metrics;
 pub mod tokens;
 mod tooltip_metrics;
 
+#[cfg(test)]
+mod assembly_tests;
 #[cfg(test)]
 mod audio_tests;
 #[cfg(test)]

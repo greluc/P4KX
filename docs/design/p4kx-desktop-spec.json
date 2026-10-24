@@ -966,6 +966,23 @@
     "keyboard": "Tab focuses the view; arrows orbit, Shift and arrows pan, plus and minus zoom, Home resets",
     "messages": "no device, lost device, failure and unreadable model color-danger-text; too large, empty and too large for the device color-gray-1; archive changed color-warning"
   },
+  "assemblyView": {
+    "dsClass": "previewPanel + facts-bar + segmented--sm + btn-ghost btn-xs",
+    "decision": "D.47",
+    "viewHeight": 280,
+    "treeMinRows": 3,
+    "panelHeight": 393,
+    "panelShare": 0.55,
+    "panelMinHeight": 209,
+    "treeMinHeight": 144,
+    "panelHeightFrom": "facts bar 32 + view 280 + overlayGap 8 + bar 36 (rowHeight) + panel chrome 37; the minimum has the view at modelPreview.viewMinHeight 96",
+    "layout": "in the Entities tab, right of the picker: the view panel on top, resizable at its lower edge between panelMinHeight and the height that leaves treeMinHeight to the Loadout tree, then the Loadout tree",
+    "bar": "below the view, overlayGap under it, barHeight high: the eyebrow Detail with a segmented control 0 to 3, the eyebrow Materials with a segmented control Colours and Textures, then right a btn-ghost btn-xs Show all (n) while branches are hidden; while building a spinner, the stage text in color-gray-1 and a btn-outline btn-xs Stop",
+    "treeActions": "btn-ghost btn-xs Hide or Show per port with an entity, before Replace; a hidden port gets the muted chip Hidden",
+    "culling": "parts outside the view or under minPartPixels 0.75 projected radius are not drawn; parts sharing a mesh range and texture are one instanced draw call",
+    "minPartPixels": 0.75,
+    "messages": "empty Loadout and stopped color-gray-1; archive changed color-warning; missing key and failure color-danger-text; graphics problems as modelPreview.messages"
+  },
   "slider": {
     "dsClass": "input[type=range] accent-color color-primary, quality-row",
     "width": 200,

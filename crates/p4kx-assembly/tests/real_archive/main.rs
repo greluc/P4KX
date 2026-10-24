@@ -19,6 +19,7 @@ mod real_dressed_head;
 mod real_entity_interior;
 mod real_head;
 mod real_interior;
+mod real_interior_verification;
 mod real_resolve;
 mod real_search;
 mod real_streamed_localised;

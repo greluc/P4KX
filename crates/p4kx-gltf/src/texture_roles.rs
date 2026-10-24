@@ -108,6 +108,14 @@ pub(crate) fn sources_with(material: &Material, opacity_maps: bool) -> Sources {
     found
 }
 
+/// Returns the path of the diffuse map of `material` as a [`TextureLoader`](crate::TextureLoader)
+/// takes it, the texture the GLB writer draws the base colour from, or `None` when the material
+/// has none a loader can use.
+#[must_use]
+pub fn diffuse_texture_path(material: &Material) -> Option<String> {
+    sources(material).diffuse.map(|source| source.path)
+}
+
 /// Returns the last `_` part of a texture file's name without extension, folded to lower case:
 /// `ddna` for `a/b_ddna.tif`.
 fn suffix(file: &str) -> String {

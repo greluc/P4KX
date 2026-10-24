@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-mod stop;
+pub(super) mod stop;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -361,19 +361,27 @@ fn write(
 }
 
 fn failed(index: &EntryIndex, error: &(dyn std::error::Error + 'static)) -> Ended {
+    Ended::Failed(failure_of(index, error))
+}
+
+/// Returns why reading or writing an Assembly failed with `error`.
+pub(crate) fn failure_of(
+    index: &EntryIndex,
+    error: &(dyn std::error::Error + 'static),
+) -> ModelExportFailure {
     if index.watch().check().is_err() {
-        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+        return ModelExportFailure::ArchiveChanged;
     }
     if let Some(archive) = archive_error_in(error) {
         if archive.is_key_required() {
-            return Ended::Failed(ModelExportFailure::KeyRequired);
+            return ModelExportFailure::KeyRequired;
         }
         if archive.is_wrong_key() {
-            return Ended::Failed(ModelExportFailure::KeyRejected);
+            return ModelExportFailure::KeyRejected;
         }
     }
     if let Some(ConversionError::Installation(refused)) = error.downcast_ref::<ConversionError>() {
-        return Ended::Failed(ModelExportFailure::Refused(refused.clone()));
+        return ModelExportFailure::Refused(refused.clone());
     }
-    Ended::Failed(ModelExportFailure::Failed(describe(error)))
+    ModelExportFailure::Failed(describe(error))
 }

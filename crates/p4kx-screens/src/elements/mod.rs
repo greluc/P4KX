@@ -6,7 +6,6 @@ mod circle;
 mod display;
 mod polygon;
 mod text;
-mod text_field;
 mod unsupported;
 
 pub(crate) use canvas::nested as nested_canvas;
@@ -44,8 +43,7 @@ pub(crate) fn paint(
     match widget.type_name.as_str() {
         CIRCLE => circle::paint(cx, widget, look, area, alpha),
         POLYGON => polygon::paint(cx, widget, look, area, alpha),
-        TEXT => text::paint(cx, widget, look, area, alpha),
-        TEXT_FIELD => text_field::paint(cx, widget, look, area, alpha),
+        TEXT | TEXT_FIELD => text::paint(cx, widget, look, area, alpha),
         name if STRUCTURAL.contains(&name) => {}
         _ => unsupported::note(cx, widget),
     }

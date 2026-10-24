@@ -65,6 +65,10 @@ impl Texts<'_> {
         }
         let resolved = resolve(self.localise, source, notes);
         let cased = modifiers.case.unwrap_or(spec.case).apply(&resolved);
+        if cased.trim().is_empty() {
+            notes.push("text is empty or filled in by the game at run time".to_owned());
+            return None;
+        }
         let font = pick_font(book, widget, look, spec, notes)?;
         let size = font_size(look, spec, area, font.1, notes);
         let limited = cased.chars().take(MAX_TEXT_CHARS).collect::<String>();
@@ -77,7 +81,10 @@ impl Texts<'_> {
             .then_some(area.width);
         let how = Shaping {
             size,
-            letter_spacing: modifiers.letter_spacing.unwrap_or(spec.letter_spacing),
+            letter_spacing: modifiers
+                .letter_spacing
+                .unwrap_or(spec.letter_spacing)
+                .clamp(-MAX_SIZE, MAX_SIZE),
             kerning: spec.kerning,
         };
         let (cells, size) = shape_fitted(book.face(font.0)?, &limited, how, fit);
@@ -85,7 +92,10 @@ impl Texts<'_> {
             font: font.0,
             size,
             cells,
-            line_spacing: modifiers.line_spacing.unwrap_or(spec.line_spacing),
+            line_spacing: modifiers
+                .line_spacing
+                .unwrap_or(spec.line_spacing)
+                .clamp(-MAX_SIZE, MAX_SIZE),
             horizontal: modifiers.horizontal.unwrap_or(spec.horizontal),
             vertical: modifiers.vertical.unwrap_or(spec.vertical),
             wrap: modifiers.wrap.unwrap_or(spec.wrap),
@@ -270,6 +280,15 @@ impl Context<'_> {
             self.report.texts_left_out += 1;
             return;
         };
+        if colour.alpha == 0 {
+            self.report.note(
+                &widget.type_name,
+                "text is fully transparent at rest",
+                &widget.name,
+            );
+            self.report.texts_left_out += 1;
+            return;
+        }
         self.texts.chars = self.texts.chars.saturating_add(prepared.cells.len());
         if self.texts.chars > MAX_SCENE_GLYPHS {
             self.report.truncated = true;
@@ -313,6 +332,7 @@ impl Context<'_> {
                 Vertical::Center => (area.height - total) / 2.0,
                 Vertical::Bottom => area.height - total,
             };
+        let before = self.painter.len();
         let mut line_drawer = LineDrawer {
             face,
             font: prepared.font,
@@ -341,7 +361,7 @@ impl Context<'_> {
             line_drawer.draw(&mut self.painter, cells, (pen, baseline));
         }
         self.note_missing(widget, &line_drawer.missing);
-        true
+        self.painter.len() > before
     }
 
     fn note_missing(&mut self, widget: &Widget, missing: &[char]) {

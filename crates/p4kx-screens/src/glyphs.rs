@@ -28,7 +28,7 @@ impl Painter {
         make: impl FnOnce() -> Option<SceneShape>,
         (at, scale): ((f32, f32), f32),
     ) {
-        if self.is_full() {
+        if self.is_full() || ![at.0, at.1, scale].iter().all(|value| value.is_finite()) {
             return;
         }
         let shape = if let Some(&known) = self.glyphs.get(&key) {

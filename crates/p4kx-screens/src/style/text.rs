@@ -25,6 +25,7 @@ pub(crate) struct TextModifiers {
 
 impl TextModifiers {
     pub(crate) fn number(&mut self, field: &str, value: Option<f32>) {
+        let value = value.filter(|value| value.is_finite());
         match field {
             "FontSize" => self.font_size = value,
             "LetterSpacing" => self.letter_spacing = value,

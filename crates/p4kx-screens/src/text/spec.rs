@@ -74,6 +74,10 @@ impl Case {
     }
 }
 
+fn finite(structure: &StructValue<'_>, name: &str) -> Option<f32> {
+    float(structure, name).filter(|value| value.is_finite())
+}
+
 #[derive(Debug, Clone)]
 pub(crate) struct TextSpec {
     pub(crate) source: String,
@@ -104,11 +108,11 @@ impl TextSpec {
         Self {
             source: text(structure, "locString").unwrap_or_default().to_owned(),
             font_style: reference(structure, "fontStyle").map(p4kx_dataforge::Reference::guid),
-            font_size: float(structure, "fontSize"),
+            font_size: finite(structure, "fontSize"),
             auto_size: flag(structure, "autoFontSize").unwrap_or(false),
             colour: structure.field("color").and_then(ColorSpec::parse),
-            letter_spacing: float(structure, "letterSpacing").unwrap_or(0.0),
-            line_spacing: float(structure, "lineSpacing").unwrap_or(0.0),
+            letter_spacing: finite(structure, "letterSpacing").unwrap_or(0.0),
+            line_spacing: finite(structure, "lineSpacing").unwrap_or(0.0),
             horizontal: text(structure, "textAlignment")
                 .and_then(Horizontal::parse)
                 .unwrap_or_default(),

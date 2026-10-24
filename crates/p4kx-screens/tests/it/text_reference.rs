@@ -14,7 +14,7 @@ use p4kx_testkit::text_localisation;
 
 const REFERENCE: &str = "tests/it/reference/text_sample.png";
 const TOLERANCE: u8 = 3;
-const MAX_DIFFERING_PIXELS: usize = 200;
+const MAX_DIFFERING_PIXELS: usize = 12;
 
 fn path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(REFERENCE)

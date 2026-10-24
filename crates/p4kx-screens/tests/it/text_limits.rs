@@ -41,6 +41,56 @@ fn long_texts(count: usize, text: &str) -> Vec<u8> {
 }
 
 #[test]
+fn non_finite_font_numbers_never_reach_the_scene() -> TestResult {
+    let fonts = fonts()?;
+    let entry = TestStyleEntry::new("texts")
+        .when(TestCondition::Type("Text"))
+        .set(TestModifier::Fill(TestColour::Solid([255, 255, 255, 255])));
+    let widget = |name: &str, field: &'static str, value: f32| {
+        TestWidget::new("BuildingBlocks_WidgetText", name)
+            .parent("root")
+            .size(TestDim::Fixed(200.0), TestDim::Fixed(100.0))
+            .with("locString", TestValue::text("AA AA"))
+            .with("fontSize", TestValue::Single(10.0))
+            .with(field, TestValue::Single(value))
+    };
+    let canvas = [
+        widget("size", "fontSize", f32::NAN),
+        widget("letters", "letterSpacing", f32::INFINITY),
+        widget("lines", "lineSpacing", f32::NEG_INFINITY),
+        widget("letters_nan", "letterSpacing", f32::NAN),
+    ]
+    .into_iter()
+    .fold(
+        TestCanvas::new(LONG, "long_texts", 200.0, 100.0)
+            .embedded(entry)
+            .widget(TestWidget::display("root")),
+        TestCanvas::widget,
+    );
+    let bytes = screens_schema(entity_schema(DataForgeBuilder::new()))
+        .record(canvas.record())
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let composed = ScreenComposer::new(&forge)
+        .with_texts(TextSources {
+            fonts: &fonts,
+            localise: None,
+        })
+        .compose(PATH, None)?;
+    assert!(!composed.scene().items.is_empty(), "the texts are drawn");
+    for item in &composed.scene().items {
+        let t = item.transform;
+        assert!(
+            [t.a, t.b, t.c, t.d, t.tx, t.ty]
+                .iter()
+                .all(|value| value.is_finite()),
+            "{t:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn a_text_is_cut_to_the_characters_of_a_text_field() -> TestResult {
     let fonts = fonts()?;
     let bytes = long_texts(1, &"A".repeat(MAX_TEXT_CHARS + 904));

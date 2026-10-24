@@ -1,23 +1,20 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use eframe::egui_wgpu::wgpu;
-
 use super::device::{guarded, to_f32};
 use super::resources::MeshBuffers;
 use super::target::Target;
-use super::{BASE_TEXTURE, Drawn, SceneCallback, Subject, ViewerGpu, target_extent};
-use crate::theme::palette;
-use crate::viewer::scene::Scene;
+use super::{BASE_TEXTURE, Drawn, Frame, Renderer, Subject, target_extent};
+use crate::scene::Scene;
 
-impl ViewerGpu {
+impl Renderer {
     /// Uploads the scene if it is new and records the pass that draws it, returning the command
     /// buffer to submit, or nothing when the picture is current or the work failed.
-    pub(super) fn prepare(
+    pub fn prepare(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        frame: &SceneCallback,
+        frame: &Frame,
     ) -> Vec<wgpu::CommandBuffer> {
         match &frame.subject {
             Subject::Model(scene) => self.prepare_model(device, queue, frame, scene),
@@ -29,7 +26,7 @@ impl ViewerGpu {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        frame: &SceneCallback,
+        frame: &Frame,
         scene: &Scene,
     ) -> Vec<wgpu::CommandBuffer> {
         let serial = scene.serial();
@@ -53,6 +50,7 @@ impl ViewerGpu {
             serial,
             uniforms: frame.uniforms,
             size: frame.size,
+            colours: frame.colours,
         };
         if self.target.is_some() && self.drawn == Some(wanted) {
             return Vec::new();
@@ -71,7 +69,7 @@ impl ViewerGpu {
     }
 
     /// Blits the picture of the scene with this `serial` into the panel.
-    pub(super) fn paint(&self, pass: &mut wgpu::RenderPass<'static>, serial: u64) {
+    pub fn paint(&self, pass: &mut wgpu::RenderPass<'static>, serial: u64) {
         if self.report.is_lost() || self.report.has_failed(serial) {
             return;
         }
@@ -122,7 +120,7 @@ impl ViewerGpu {
         }
     }
 
-    fn write_uniforms(&self, queue: &wgpu::Queue, frame: &SceneCallback) {
+    fn write_uniforms(&self, queue: &wgpu::Queue, frame: &Frame) {
         let uniforms = &frame.uniforms;
         let packed: [[f32; 4]; 6] = [
             uniforms.view_proj[0],
@@ -147,7 +145,7 @@ impl ViewerGpu {
         queue.write_buffer(&self.blit_buffer, 0, bytemuck::bytes_of(&blit));
     }
 
-    fn write_skeleton(&mut self, queue: &wgpu::Queue, frame: &SceneCallback) {
+    fn write_skeleton(&mut self, queue: &wgpu::Queue, frame: &Frame) {
         let Subject::Model(scene) = &frame.subject else {
             return;
         };
@@ -164,7 +162,7 @@ impl ViewerGpu {
             skeleton.pose(queue, pose);
             self.posed = pose.serial();
         }
-        let [red, green, blue] = linear(palette::PRIMARY);
+        let [red, green, blue] = linear(frame.colours.bones);
         let look: [f32; 8] = [
             red,
             green,
@@ -182,7 +180,7 @@ impl ViewerGpu {
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        frame: &SceneCallback,
+        frame: &Frame,
     ) -> Option<wgpu::CommandBuffer> {
         self.fit_target(device, frame.size);
         self.write_uniforms(queue, frame);
@@ -198,7 +196,7 @@ impl ViewerGpu {
         Some(encoder.finish())
     }
 
-    fn draw(&self, encoder: &mut wgpu::CommandEncoder, target: &Target, frame: &SceneCallback) {
+    fn draw(&self, encoder: &mut wgpu::CommandEncoder, target: &Target, frame: &Frame) {
         let (view, resolve) = target
             .multisampled
             .as_ref()
@@ -212,7 +210,7 @@ impl ViewerGpu {
                 depth_slice: None,
                 resolve_target: resolve,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(background()),
+                    load: wgpu::LoadOp::Clear(background(frame.colours.background)),
                     store: if resolve.is_some() {
                         wgpu::StoreOp::Discard
                     } else {
@@ -239,7 +237,7 @@ impl ViewerGpu {
         self.draw_model(&mut pass, frame);
     }
 
-    fn draw_model(&self, pass: &mut wgpu::RenderPass<'_>, frame: &SceneCallback) {
+    fn draw_model(&self, pass: &mut wgpu::RenderPass<'_>, frame: &Frame) {
         let scene = match &frame.subject {
             Subject::Model(scene) => scene,
             Subject::Assembly(view) => return self.draw_assembly(pass, view),
@@ -278,8 +276,8 @@ impl ViewerGpu {
 }
 
 /// Returns `colour` as the linear values the sRGB picture encodes back to it.
-fn linear(colour: egui::Color32) -> [f32; 3] {
-    [colour.r(), colour.g(), colour.b()].map(|channel| {
+fn linear(colour: [u8; 3]) -> [f32; 3] {
+    colour.map(|channel| {
         let encoded = f32::from(channel) / 255.0;
         if encoded <= 0.04045 {
             encoded / 12.92
@@ -289,8 +287,8 @@ fn linear(colour: egui::Color32) -> [f32; 3] {
     })
 }
 
-/// The inset surface colour as the linear value the sRGB picture encodes back to it.
-fn background() -> wgpu::Color {
+/// `colour` as the linear value the sRGB picture encodes back to it.
+fn background([red, green, blue]: [u8; 3]) -> wgpu::Color {
     let linear = |channel: u8| {
         let encoded = f64::from(channel) / 255.0;
         if encoded <= 0.04045 {
@@ -300,9 +298,9 @@ fn background() -> wgpu::Color {
         }
     };
     wgpu::Color {
-        r: linear(palette::SURFACE_INSET.r()),
-        g: linear(palette::SURFACE_INSET.g()),
-        b: linear(palette::SURFACE_INSET.b()),
+        r: linear(red),
+        g: linear(green),
+        b: linear(blue),
         a: 1.0,
     }
 }

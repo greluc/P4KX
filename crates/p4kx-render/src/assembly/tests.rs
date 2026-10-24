@@ -6,8 +6,8 @@ use std::collections::HashSet;
 use super::{
     AssemblyScene, DrawList, Group, Item, Left, MIN_PART_PIXELS, PartDraw, PartInfo, hidden_mask,
 };
-use crate::viewer::scene::{Bounds, Rows};
-use crate::viewer::{Camera, Matrix};
+use crate::scene::{Bounds, Rows};
+use crate::{Camera, Matrix};
 
 const ASPECT: f32 = 1.5;
 const HEIGHT: f32 = 600.0;

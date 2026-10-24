@@ -4,8 +4,8 @@
 use p4kx_extraction::model::BoneTransform;
 
 use super::{Pose, Sample, Skeleton};
-use crate::viewer::fixtures::{skin_model, swing, unrelated};
-use crate::viewer::rigid::IDENTITY_MATRIX;
+use crate::fixtures::{skin_model, swing, unrelated};
+use crate::rigid::IDENTITY_MATRIX;
 
 fn skeleton() -> Skeleton {
     let model = skin_model();

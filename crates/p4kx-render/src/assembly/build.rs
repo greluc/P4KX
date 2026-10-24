@@ -16,7 +16,7 @@ use super::{
     AssemblyScene, Group, Item, Left, MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES,
     MAX_VIEW_VERTICES, PartDraw, PartInfo, VIEW_TEXTURE_MIP, ViewTexture,
 };
-use crate::viewer::scene::{Bounds, apply, next_serial};
+use crate::scene::{Bounds, apply, next_serial};
 
 const WAVE: usize = 64;
 const TEXTURE_WAVE: usize = 16;

@@ -3,8 +3,8 @@
 
 use super::frustum::Frustum;
 use super::{AssemblyScene, MIN_PART_PIXELS};
-use crate::viewer::Matrix;
-use crate::viewer::scene::next_serial;
+use crate::Matrix;
+use crate::scene::next_serial;
 
 /// One instance as the GPU reads it: three rows of the part's transform, then its colour.
 pub type Instance = [[f32; 4]; 4];

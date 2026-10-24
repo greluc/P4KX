@@ -3,12 +3,10 @@
 
 use std::sync::Arc;
 
-use eframe::egui_wgpu::wgpu;
-
 use super::GpuReport;
 use super::limits::{Rejected, check_buffer, check_texture};
 use super::skeleton::SkeletonBuffers;
-use crate::viewer::scene::Scene;
+use crate::scene::Scene;
 
 pub(super) const VERTEX_STRIDE: u64 = 32;
 

@@ -5,7 +5,7 @@ use super::{
     IDENTITY, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, Rows, Scene, SceneError, apply, check_size,
     determinant, multiply, normal_matrix, rotate,
 };
-use crate::viewer::fixtures::{door_model, skin_model};
+use crate::fixtures::{door_model, skin_model};
 
 const MIRROR_X: Rows = [
     [-1.0, 0.0, 0.0, 0.0],

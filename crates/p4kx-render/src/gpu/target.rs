@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use eframe::egui_wgpu::wgpu;
-
 use super::pipelines::{COLOUR_FORMAT, DEPTH_FORMAT};
 
 /// The offscreen picture the model is drawn into and the bind group the blit samples it with.

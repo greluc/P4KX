@@ -4,8 +4,6 @@
 use std::borrow::Cow;
 use std::num::NonZeroU64;
 
-use eframe::egui_wgpu::wgpu;
-
 use super::assembly::AssemblyPipelines;
 use super::device::guarded;
 use super::resources::VERTEX_STRIDE;

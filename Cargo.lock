@@ -3774,6 +3774,7 @@ dependencies = [
  "p4kx-comparison",
  "p4kx-export",
  "p4kx-extraction",
+ "p4kx-render",
  "p4kx-search",
  "p4kx-settings",
  "p4kx-testkit",
@@ -3836,6 +3837,21 @@ dependencies = [
  "rayon",
  "roxmltree",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "p4kx-render"
+version = "0.3.0"
+dependencies = [
+ "bytemuck",
+ "p4kx-assembly",
+ "p4kx-extraction",
+ "p4kx-settings",
+ "p4kx-testkit",
+ "png",
+ "rayon",
+ "thiserror 2.0.21",
+ "wgpu",
 ]
 
 [[package]]

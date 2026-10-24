@@ -5,15 +5,13 @@ use std::borrow::Cow;
 use std::num::NonZeroU64;
 use std::sync::Arc;
 
-use eframe::egui_wgpu::wgpu;
-
 use super::GpuReport;
 use super::limits::check_buffer;
 use super::pipelines::{COLOUR_FORMAT, DEPTH_FORMAT, layout};
 use super::resources::{VERTEX_STRIDE, filled};
-use crate::viewer::rigid::IDENTITY_MATRIX;
-use crate::viewer::scene::{SKIN_STRIDE, Scene};
-use crate::viewer::skeleton::Pose;
+use crate::rigid::IDENTITY_MATRIX;
+use crate::scene::{SKIN_STRIDE, Scene};
+use crate::skeleton::Pose;
 
 const LOOK_LEN: usize = 32;
 pub(super) const LOOK_BYTES: u64 = 32;

@@ -4,14 +4,12 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use eframe::egui_wgpu::wgpu;
-
 use super::device::guarded;
 use super::limits::{Rejected, check_buffer};
 use super::pipelines::{COLOUR_FORMAT, DEPTH_FORMAT};
 use super::resources::{MaterialTexture, VERTEX_STRIDE, filled};
-use super::{AssemblyDraw, BASE_TEXTURE, Drawn, GpuReport, SceneCallback, ViewerGpu};
-use crate::viewer::assembly::AssemblyScene;
+use super::{AssemblyDraw, BASE_TEXTURE, Drawn, Frame, GpuReport, Renderer};
+use crate::assembly::AssemblyScene;
 
 const SHADER: &str = include_str!("assembly.wgsl");
 const INSTANCE_BYTES: u64 = 64;
@@ -201,12 +199,12 @@ impl Drop for AssemblyBuffers {
     }
 }
 
-impl ViewerGpu {
+impl Renderer {
     pub(super) fn prepare_assembly(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
-        frame: &SceneCallback,
+        frame: &Frame,
         view: &AssemblyDraw,
     ) -> Vec<wgpu::CommandBuffer> {
         let serial = view.scene.serial();
@@ -231,6 +229,7 @@ impl ViewerGpu {
             serial,
             uniforms: frame.uniforms,
             size: frame.size,
+            colours: frame.colours,
         };
         if self.target.is_some() && self.drawn == Some(wanted) {
             return Vec::new();

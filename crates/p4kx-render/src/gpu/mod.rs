@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The wgpu side of the viewer: the scene drawn into an offscreen picture inside an egui paint
-//! callback and blitted into the panel.
+//! The wgpu side of the renderer: a scene drawn into an offscreen picture that a host blits into
+//! its surface, or reads back.
 
 mod assembly;
 mod device;
@@ -18,9 +18,6 @@ mod target;
 mod tests;
 
 use std::sync::Arc;
-
-use eframe::egui_wgpu::{self, wgpu};
-use egui::Rect;
 
 use assembly::AssemblyBuffers;
 use device::{settle, supported_samples};
@@ -41,9 +38,10 @@ const MIN_TEXTURE_SIDE: u32 = 2048;
 const MIN_BUFFER_BYTES: u64 = 64 * 1024 * 1024;
 const WHITE: [u8; 4] = [255; 4];
 
-/// The GPU resources of the viewer, kept in the callback resources of the egui renderer.
+/// The GPU resources of the renderer: pipelines, the cached meshes and textures of the scene
+/// that was drawn last, and the picture it was drawn into.
 #[derive(Debug)]
-pub(super) struct ViewerGpu {
+pub struct Renderer {
     pipelines: Pipelines,
     frame_buffer: wgpu::Buffer,
     frame_group: wgpu::BindGroup,
@@ -63,11 +61,29 @@ pub(super) struct ViewerGpu {
 
 /// How the model is drawn on top of the scene: in which pose, and whether with its skeleton.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Look {
+pub struct Look {
     /// The bone matrices of the pose to draw, or `None` for the bind pose.
-    pub(crate) pose: Option<Arc<Pose>>,
+    pub pose: Option<Arc<Pose>>,
     /// The width in device pixels of the skeleton lines, or `None` to leave the skeleton out.
-    pub(crate) bones: Option<f32>,
+    pub bones: Option<f32>,
+}
+
+/// The colours of a picture, as sRGB bytes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Colours {
+    /// What the picture is cleared to.
+    pub background: [u8; 3],
+    /// The colour of the skeleton lines.
+    pub bones: [u8; 3],
+}
+
+impl Default for Colours {
+    fn default() -> Self {
+        Self {
+            background: [0x14, 0x16, 0x1a],
+            bones: [0xff, 0xff, 0xff],
+        }
+    }
 }
 
 /// What the picture in the target shows, so a repaint with the same input skips the pass.
@@ -79,29 +95,12 @@ struct Drawn {
     serial: u64,
     uniforms: Uniforms,
     size: [u32; 2],
+    colours: Colours,
 }
 
-/// Creates the viewer on `state` and registers it with the renderer so paint callbacks find it.
-///
-/// # Errors
-///
-/// Returns [`Unavailable`] when the device is too limited or the shaders and pipelines cannot be
-/// created; the rest of the window is not affected.
-pub fn install(state: &egui_wgpu::RenderState) -> Result<Arc<GpuReport>, Unavailable> {
-    let gpu = ViewerGpu::new(
-        &state.device,
-        &state.queue,
-        &state.adapter,
-        state.target_format,
-    )?;
-    let report = Arc::clone(&gpu.report);
-    state.renderer.write().callback_resources.insert(gpu);
-    Ok(report)
-}
-
-/// What a paint callback draws: one model, or the instances of an Assembly that a draw list picked.
+/// What a frame draws: one model, or the instances of an Assembly that a draw list picked.
 #[derive(Debug, Clone)]
-pub(crate) enum Subject {
+pub enum Subject {
     /// A model flattened into one mesh.
     Model(Arc<Scene>),
     /// An Assembly with the instances of this frame.
@@ -110,13 +109,17 @@ pub(crate) enum Subject {
 
 /// An Assembly and the draw list of the frame.
 #[derive(Debug, Clone)]
-pub(crate) struct AssemblyDraw {
-    pub(crate) scene: Arc<AssemblyScene>,
-    pub(crate) list: Arc<DrawList>,
+pub struct AssemblyDraw {
+    /// The shared meshes and the placed parts.
+    pub scene: Arc<AssemblyScene>,
+    /// The instances of this frame.
+    pub list: Arc<DrawList>,
 }
 
 impl Subject {
-    fn serial(&self) -> u64 {
+    /// Returns the serial number of the scene the subject draws.
+    #[must_use]
+    pub fn serial(&self) -> u64 {
         match self {
             Self::Model(scene) => scene.serial(),
             Self::Assembly(view) => view.scene.serial(),
@@ -124,99 +127,30 @@ impl Subject {
     }
 }
 
-/// Builds the paint callback that draws `subject` in the `look` seen through `uniforms` into
-/// `rect`, a view of `size` pixels.
-#[must_use]
-pub(crate) fn paint_callback(
-    rect: Rect,
-    subject: Subject,
-    uniforms: Uniforms,
-    (size, look): ([u32; 2], Look),
-) -> egui::PaintCallback {
-    egui_wgpu::Callback::new_paint_callback(
-        rect,
-        SceneCallback {
-            subject,
-            uniforms,
-            size,
-            look,
-        },
-    )
+/// One picture to draw: the `subject` in the `look` seen through `uniforms`, in a view of `size`
+/// pixels.
+#[derive(Debug, Clone)]
+pub struct Frame {
+    /// What to draw.
+    pub subject: Subject,
+    /// The camera.
+    pub uniforms: Uniforms,
+    /// The size of the view in pixels.
+    pub size: [u32; 2],
+    /// The pose and the skeleton overlay.
+    pub look: Look,
+    /// The background and overlay colours.
+    pub colours: Colours,
 }
 
-/// Builds the paint callback that frees the Assembly buffers of the viewer, for a window that no
-/// longer shows one.
-#[must_use]
-pub(crate) fn release_callback() -> egui::PaintCallback {
-    egui_wgpu::Callback::new_paint_callback(
-        Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1.0, 1.0)),
-        Release,
-    )
-}
-
-struct Release;
-
-impl egui_wgpu::CallbackTrait for Release {
-    fn prepare(
-        &self,
-        _device: &wgpu::Device,
-        _queue: &wgpu::Queue,
-        _screen: &egui_wgpu::ScreenDescriptor,
-        _encoder: &mut wgpu::CommandEncoder,
-        resources: &mut egui_wgpu::CallbackResources,
-    ) -> Vec<wgpu::CommandBuffer> {
-        if let Some(gpu) = resources.get_mut::<ViewerGpu>() {
-            gpu.assembly.clear();
-            gpu.drawn = None;
-        }
-        Vec::new()
-    }
-
-    fn paint(
-        &self,
-        _info: egui::PaintCallbackInfo,
-        _pass: &mut wgpu::RenderPass<'static>,
-        _resources: &egui_wgpu::CallbackResources,
-    ) {
-    }
-}
-
-struct SceneCallback {
-    subject: Subject,
-    uniforms: Uniforms,
-    size: [u32; 2],
-    look: Look,
-}
-
-impl egui_wgpu::CallbackTrait for SceneCallback {
-    fn prepare(
-        &self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        _screen: &egui_wgpu::ScreenDescriptor,
-        _encoder: &mut wgpu::CommandEncoder,
-        resources: &mut egui_wgpu::CallbackResources,
-    ) -> Vec<wgpu::CommandBuffer> {
-        resources
-            .get_mut::<ViewerGpu>()
-            .map(|gpu| gpu.prepare(device, queue, self))
-            .unwrap_or_default()
-    }
-
-    fn paint(
-        &self,
-        _info: egui::PaintCallbackInfo,
-        pass: &mut wgpu::RenderPass<'static>,
-        resources: &egui_wgpu::CallbackResources,
-    ) {
-        if let Some(gpu) = resources.get::<ViewerGpu>() {
-            gpu.paint(pass, self.subject.serial());
-        }
-    }
-}
-
-impl ViewerGpu {
-    fn new(
+impl Renderer {
+    /// Creates the renderer on `device`, drawing the blit of its picture in `target_format`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Unavailable`] when the device is too limited or the shaders and pipelines cannot
+    /// be created.
+    pub fn new(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         adapter: &wgpu::Adapter,
@@ -238,6 +172,18 @@ impl ViewerGpu {
         settle(validation.pop())
             .flatten()
             .map_or(gpu, |error| Err(Unavailable::Setup(error.to_string())))
+    }
+
+    /// Returns what the renderer learned about the device and the scenes.
+    #[must_use]
+    pub fn report(&self) -> Arc<GpuReport> {
+        Arc::clone(&self.report)
+    }
+
+    /// Frees the Assembly buffers, for a host that no longer shows one.
+    pub fn release(&mut self) {
+        self.assembly.clear();
+        self.drawn = None;
     }
 
     fn create(

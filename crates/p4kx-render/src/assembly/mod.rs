@@ -20,7 +20,7 @@ use super::scene::{Bounds, Rows, Vertex};
 
 pub use build::{BuildError, BuildOptions, Hooks, Progress};
 pub use draw::{DrawList, GroupDraw, Instance};
-pub(crate) use visibility::hidden_mask;
+pub use visibility::hidden_mask;
 
 /// The most vertices the shared meshes of a [`AssemblyScene`] hold; models that would pass it are
 /// left out.

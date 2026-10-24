@@ -33,7 +33,8 @@ pub struct Pose {
 
 impl Pose {
     /// Returns the pose in which no bone moves, for `bones` bones.
-    pub(super) fn rest(bones: usize) -> Self {
+    #[must_use]
+    pub fn rest(bones: usize) -> Self {
         Self {
             serial: Self::next_serial(),
             matrices: vec![IDENTITY_MATRIX; bones],
@@ -56,7 +57,7 @@ impl Pose {
         &self.matrices
     }
 
-    pub(super) fn update(&mut self, work: impl FnOnce(&mut [Flat])) {
+    fn update(&mut self, work: impl FnOnce(&mut [Flat])) {
         work(&mut self.matrices);
         self.serial = Self::next_serial();
     }
@@ -64,16 +65,20 @@ impl Pose {
 
 /// An animation sampled at one moment, with the track each bone follows.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct Sample<'a> {
-    pub(super) animation: &'a Animation,
-    pub(super) bindings: &'a [Option<u32>],
-    pub(super) frame: f32,
+pub struct Sample<'a> {
+    /// The animation.
+    pub animation: &'a Animation,
+    /// The track each bone follows, indexed by bone.
+    pub bindings: &'a [Option<u32>],
+    /// The moment, in frames.
+    pub frame: f32,
 }
 
 impl Skeleton {
     /// Builds the skeleton of `bones`, or returns `None` for no bones, more than [`MAX_SKELETON_BONES`], or
     /// a parent that does not precede its children along any order (a cycle or a bad index).
-    pub(super) fn of(bones: &[Bone]) -> Option<Self> {
+    #[must_use]
+    pub fn of(bones: &[Bone]) -> Option<Self> {
         if bones.is_empty() || bones.len() > MAX_SKELETON_BONES {
             return None;
         }
@@ -120,7 +125,8 @@ impl Skeleton {
     }
 
     /// Returns, for each bone, the index of the track of `animation` that moves it.
-    pub(super) fn bind(&self, animation: &Animation) -> Vec<Option<u32>> {
+    #[must_use]
+    pub fn bind(&self, animation: &Animation) -> Vec<Option<u32>> {
         let mut bindings = vec![None; self.bones.len()];
         for (bone, track) in animation.bind(&self.bones).bound {
             let at = animation
@@ -137,7 +143,7 @@ impl Skeleton {
 
     /// Writes into `pose` the matrices of the bones posed by `clip`, or bound when there is none,
     /// using `world` as scratch space of one transform per bone. Allocates nothing.
-    pub(super) fn evaluate(
+    pub fn evaluate(
         &self,
         clip: Option<Sample<'_>>,
         world: &mut Vec<BoneTransform>,

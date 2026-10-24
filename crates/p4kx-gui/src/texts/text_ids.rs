@@ -6,7 +6,7 @@ use super::{
     ContainerText, ContentSearchText, DataForgeText, DiffText, ExtractionText, GroupText,
     ImageText, IncomingText, LocalizationText, ModelExportText, ModelInfoText, ModelText,
     QueryText, RecordChangeText, RecordExportText, RecordLanguageText, RecordText, SchemaText,
-    ScrollText, TagsText, Text, XmlText,
+    ScrollText, SoundsText, TagsText, Text, XmlText,
 };
 use crate::Language;
 
@@ -108,6 +108,7 @@ impl Text {
             .chain(RecordLanguageText::ALL.map(Self::RecordLanguage))
             .chain(LocalizationText::ALL.map(Self::Localization))
             .chain(TagsText::ALL.map(Self::Tags))
+            .chain(SoundsText::ALL.map(Self::Sounds))
             .chain(ContentSearchText::ALL.map(Self::ContentSearch))
             .chain(ModelText::ALL.map(Self::Model))
             .chain(ModelInfoText::ALL.map(Self::ModelInfo))
@@ -210,6 +211,7 @@ impl Text {
             Self::RecordLanguage(text) => text.id(),
             Self::Localization(text) => text.id(),
             Self::Tags(text) => text.id(),
+            Self::Sounds(text) => text.id(),
             Self::ContentSearch(text) => text.id(),
             Self::Model(text) => text.id(),
             Self::ModelInfo(text) => text.id(),

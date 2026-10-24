@@ -8,6 +8,7 @@ mod assembly_changes;
 mod assembly_glb;
 mod assembly_limits;
 mod assembly_support;
+mod audio_export_watch;
 mod audio_index;
 mod audio_limits;
 mod audio_loose_fallbacks;

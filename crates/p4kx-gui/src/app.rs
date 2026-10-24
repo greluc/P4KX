@@ -69,9 +69,10 @@ impl App {
             .spawn(move || {
                 let picker = rfd::FileDialog::new();
                 let path = match dialog {
-                    Dialog::AddFolder | Dialog::ExtractionFolder | Dialog::RecordExportFolder => {
-                        picker.pick_folder()
-                    }
+                    Dialog::AddFolder
+                    | Dialog::ExtractionFolder
+                    | Dialog::RecordExportFolder
+                    | Dialog::SoundsFolder => picker.pick_folder(),
                     Dialog::OpenArchive | Dialog::AddArchive | Dialog::ComparisonArchive(_) => {
                         picker.add_filter(filter, &["p4k"]).pick_file()
                     }
@@ -179,6 +180,7 @@ impl ModelFileDialog {
 }
 
 impl eframe::App for App {
+    #[expect(clippy::too_many_lines, reason = "one arm per dialog result")]
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         if !self.model.viewer_support().is_probed() {
             self.model.set_viewer_support(ViewerSupport::probe(frame));
@@ -196,6 +198,11 @@ impl eframe::App for App {
             }
             Some((Dialog::RecordExportFolder, path)) => {
                 if let Some(setup) = self.model.record_export_setup_mut() {
+                    setup.set_folder(path);
+                }
+            }
+            Some((Dialog::SoundsFolder, path)) => {
+                if let Some(setup) = self.model.sounds_mut().export_setup_mut() {
                     setup.set_folder(path);
                 }
             }
@@ -242,6 +249,7 @@ impl eframe::App for App {
     fn on_exit(&mut self) {
         self.model.stop_extraction();
         self.model.stop_record_export();
+        self.model.sounds().cancel_export();
         self.model.stop_model_export();
         self.model.stop_catalog();
         self.model.comparison_mut().cancel();

@@ -623,6 +623,118 @@ tags-count-shown =
 tags-no-match = No tag path matches the search.
 tags-copy-path = Copy tag path
 tags-copy-guid = Copy GUID
+sounds-tab = Sounds
+sounds-entity-label = Entity
+sounds-entity-hint = Class name, GUID or record path of an Entity
+sounds-show = Show sounds
+sounds-use-record = Use selected Record
+sounds-search-label = Search
+sounds-search-hint = Trigger or event name, * and ? allowed
+sounds-export = Export sounds…
+sounds-empty-title = No Archive open
+sounds-empty-hint = Open an Archive to browse the sounds of its Entities.
+sounds-loading = Reading the audio of the Archive…
+sounds-failed = The audio of the Archive cannot be read: { $reason }
+sounds-stopped = Reading the audio stopped without a result.
+sounds-archive-changed = The Archive changed on disk. Reload it to read its audio.
+sounds-issues =
+    { $count ->
+        [one] { $number } audio file could not be read; the triggers and sounds in it are missing.
+       *[other] { $number } audio files could not be read; the triggers and sounds in them are missing.
+    }
+sounds-list-hint = Show an Entity, or search for a trigger or event, to list audio triggers.
+sounds-list-loading = Listing the audio triggers…
+sounds-not-an-entity = The selected Record is no Entity.
+sounds-list-failed = The audio triggers cannot be listed: { $reason }
+sounds-list-archive-changed = The Archive changed on disk. Reload it to list the audio triggers.
+sounds-no-match = No trigger or event name matches the search.
+sounds-no-triggers = The Entity names no audio trigger.
+sounds-column-trigger = Trigger
+sounds-column-state = Status
+sounds-column-events = Wwise events
+sounds-state-ok = Resolved
+sounds-state-no-definition = No definition
+sounds-state-no-event = No event
+sounds-state-no-soundbank = No soundbank
+sounds-count-entity =
+    { $count ->
+        [one] { $name }: { $number } audio trigger, { $resolved } with a soundbank
+       *[other] { $name }: { $number } audio triggers, { $resolved } with a soundbank
+    }
+sounds-count-search =
+    { $count ->
+        [one] { $number } trigger
+       *[other] { $number } triggers
+    }
+sounds-count-search-more = The first { $number } of { $total } triggers are shown. Make the text longer to narrow the search.
+sounds-scroll-triggers = Audio triggers
+sounds-scroll-variants = Sounds of the trigger
+sounds-select-hint = Select a trigger to see its sounds.
+sounds-variants-loading = Resolving the sounds…
+sounds-undefined = No ATL definition has this trigger.
+sounds-no-variants = The trigger leads to no sound.
+sounds-variants-count =
+    { $count ->
+        [one] { $name }: { $number } sound
+       *[other] { $name }: { $number } sounds
+    }
+sounds-breaks-heading =
+    { $count ->
+        [one] { $number } place where the way to a sound breaks
+       *[other] { $number } places where the way to a sound breaks
+    }
+sounds-column-event = Wwise event
+sounds-column-wem = WEM ID
+sounds-column-source = Source
+sounds-column-language = Language
+sounds-column-soundbank = Soundbank
+sounds-source-embedded = Embedded
+sounds-source-prefetch = Prefetched
+sounds-source-streamed = Streamed
+sounds-source-plugin = Plug-in
+sounds-source-other = Other
+sounds-language-fallback = { $language } (fallback)
+sounds-variant-row = { $name }: { $bank }, WEM { $id }
+sounds-detail = { $path }, WEM { $id }, { $source }
+sounds-select-variant = Select a sound to play it.
+sounds-note-prefetch = Only the start of this streamed sound is embedded and its loose WEM Entry is missing, so it cannot be played.
+sounds-note-plugin = A source plug-in generates this sound; no WEM holds it.
+sounds-note-missing = No soundbank or loose WEM Entry holds this WEM.
+sounds-export-title = Export sounds
+sounds-export-scope = Triggers
+sounds-export-selected = The selected trigger: { $name }
+sounds-export-selected-none = The selected trigger (none selected)
+sounds-export-all =
+    { $count ->
+        [one] The { $number } trigger of the list with a soundbank
+       *[other] All { $number } triggers of the list with a soundbank
+    }
+sounds-export-format = Sounds as
+sounds-export-start = Export
+sounds-export-running = Exporting sounds
+sounds-export-planning = Planning the export…
+sounds-export-progress = { $done } of { $total } sounds, { $percent } %
+sounds-summary-title = Sounds exported
+sounds-summary-cancelled-title = Sound export stopped
+sounds-failed-title = Sound export failed
+sounds-export-failed = The sounds cannot be exported into { $path }: { $reason }
+sounds-export-stopped = Exporting the sounds into { $path } stopped without a result.
+sounds-summary-cancelled = The export was stopped. The sounds not yet handled are not written.
+sounds-summary-counts = Sounds written { $written }, kept { $skipped }, failed { $failed }
+sounds-summary-target = Target: { $path }
+sounds-summary-unconverted =
+    { $count ->
+        [one] { $number } sound was written unchanged because it cannot be converted
+       *[other] { $number } sounds were written unchanged because they cannot be converted
+    }
+sounds-summary-failed =
+    { $count ->
+        [one] { $number } sound was not exported
+       *[other] { $number } sounds were not exported
+    }
+sounds-summary-file = { $name }: { $reason }
+sounds-summary-failure = { $name }, WEM { $id }: { $reason }
+sounds-summary-failure-plain = { $name }: { $reason }
 tags-irregular =
     { $count ->
         [one] The tag tree differs from what the TagDatabase lists in { $number } place. The command p4kx dcb tags counts it.

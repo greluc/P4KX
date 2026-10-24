@@ -414,6 +414,12 @@ a bone is addressed by (`controller_id`, the CRC-32 of its name); keys are absol
 to the parent bone. Exported as one glTF animation.
 _Avoid_: clip, motion, take
 
+**Pose**:
+The matrices that move every bone of a skeleton from its bind pose to where an animation puts it
+at one moment, one per bone. The 3D viewer computes it once per frame while an animation plays and
+the GPU uses it to move the vertices of a skinned mesh and to draw the skeleton over the model.
+_Avoid_: frame (a frame of an animation is a key time), snapshot
+
 **Material library**:
 The `.mtl` file a model names with its `MtlName` chunk: one material that serves every material
 ID, or a list of sub-materials whose position is the material ID. Each material has a shader,

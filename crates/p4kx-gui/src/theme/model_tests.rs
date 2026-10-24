@@ -22,6 +22,11 @@ fn the_model_preview_metrics_match_the_desktop_spec() {
         ("viewMinHeight", m::MODEL_VIEW_MIN_HEIGHT),
         ("overlayGap", m::MODEL_OVERLAY_GAP),
         ("hintMinWidth", m::MODEL_HINT_MIN_WIDTH),
+        ("animationListWidth", m::MODEL_ANIMATIONS_WIDTH),
+        ("boneStroke", m::MODEL_BONE_STROKE),
+        ("barHeight", m::MODEL_BAR_HEIGHT),
+        ("viewHeight", m::MODEL_VIEW_HEIGHT),
+        ("panelHeight", m::PREVIEW_MODEL_HEIGHT),
         ("factsPaddingX", FACTS_PADDING_X),
     ] {
         let expected = spec[key].as_f64();
@@ -31,6 +36,17 @@ fn the_model_preview_metrics_match_the_desktop_spec() {
         );
     }
 }
+
+const _: () = {
+    assert!(
+        m::MODEL_VIEW_HEIGHT >= 1.5 * m::MODEL_VIEW_MIN_HEIGHT,
+        "the view the panel opens with is at least half as high again as its minimum"
+    );
+    assert!(
+        m::PREVIEW_MODEL_HEIGHT > super::desktop::PREVIEW_HEIGHT,
+        "the panel of a model opens higher than the default"
+    );
+};
 
 #[test]
 fn the_model_view_sits_on_the_inset_surface_with_a_hairline() {
@@ -54,7 +70,21 @@ fn the_model_preview_names_its_decision_and_controls() {
     let spec = model_preview();
 
     assert_eq!(spec["decision"].as_str(), Some("D.35"), "decision");
-    for key in ["mouse", "keyboard", "resetButton", "hint", "messages"] {
+    assert_eq!(
+        spec["playbackDecision"].as_str(),
+        Some("D.46"),
+        "playback decision"
+    );
+    for key in [
+        "mouse",
+        "keyboard",
+        "resetButton",
+        "hint",
+        "messages",
+        "playbackBar",
+        "animationList",
+        "skeletonOverlay",
+    ] {
         assert!(
             spec[key].as_str().is_some_and(|text| !text.is_empty()),
             "modelPreview.{key} is described"

@@ -1252,6 +1252,32 @@ first the tags that could not be read (`kind` `tag`, with `code` and
 or `failed` is not empty. A canvas that is empty or larger than 16384 pixels a side or 2^25
 pixels, and a `--out` that is the movie file, print no JSON and fail with exit code 2.
 
+## `p4kx ui hologram <archive> <entity> --out <file.png> [--size …] [--background …] [--view-angle …] [--elevation …] [--fov …] [--distance-scaler …] [--tint …] [--opacity …] [--glow …] [--lod <n>] [--software] --json`
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k", "entity": "AEGS_Avenger_Titan", "guid": "…",
+ "out": "C:\\…\\titan.png", "width": 1600, "height": 900, "bytes": 56408,
+ "parts": 72, "modelled_parts": 44, "drawn_parts": 43, "meshes": 25, "triangles": 589733,
+ "camera": {"source": "record", "fov_degrees": 10.0, "view_angle_degrees": 60.0,
+            "elevation_degrees": 20.0, "distance_scaler": 1.5},
+ "adapter": "NVIDIA GeForce RTX 5090 (Vulkan)",
+ "milliseconds": {"assembly": 1166, "scene": 11, "draw": 484, "write": 11, "total": 1674},
+ "issues": [Issue, …]}
+```
+
+`camera.source` is `record` when the `UIHoloVehicle_Config` Record of the Archive set the camera,
+`defaults` when it has none (a field of view of 10 degrees, a view angle of 60 and a distance
+factor of 1.5), and `… and options` when `--fov`, `--view-angle` or `--distance-scaler` replaced
+a value. The camera values are the ones used: values that are not finite fall back to the
+defaults and the rest are clamped, as the camera does. `drawn_parts` is the number of parts with
+geometry the picture shows, `triangles` the triangles they place, and `issues` the notes and
+skipped parts of the Assembly as `entity glb` lists them. `milliseconds` splits the run into
+reading and assembling, building the scene, drawing and reading the picture back, and writing
+the file. An Entity the Archive lacks, a bad option, a `--out` that is the Archive or lies in a
+Star Citizen installation, a `--size` that is empty or beyond what the device draws and a
+Loadout change that does not fit print no JSON and fail with exit code 2; a machine without a
+graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
+
 ## `p4kx ui screens <archive> <entity> --json`
 
 The `BuildingBlocks` screens of an Entity and of everything attached in its resolved default

@@ -63,10 +63,10 @@ jobs:
       count: 4
 
   tests-ubuntu:
-    name: Tests (ubuntu-latest)
+    name: Tests (ubuntu-24.04)
     uses: ./.github/workflows/tests.yml
     with:
-      os: ubuntu-latest
+      os: ubuntu-24.04
       partitions: "[1, 2]"
       count: 2
   doctests:

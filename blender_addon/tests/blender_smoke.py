@@ -49,6 +49,7 @@ def check_interior(folder: Path) -> None:
     check(abs(lamp.data.energy - 3.0 * lights.WATTS_PER_UNIT * 2.0) < 1e-4, f"energy {lamp.data.energy}")
     check(lamp.data.use_custom_distance and abs(lamp.data.cutoff_distance - 6.0) < 1e-5, "range")
     check(tuple(round(c, 4) for c in lamp.data.color) == (1.0, 0.5, 0.25), "colour")
+    check(tuple(lamp.scale) == (1.0, 1.0, 1.0), f"light scale {tuple(lamp.scale)}")
     beam = bpy.data.objects["beam"]
     check(beam.data.type == "SPOT", f"beam type {beam.data.type}")
     check(abs(beam.data.spot_size - 1.0471976) < 1e-4, f"spot size {beam.data.spot_size}")

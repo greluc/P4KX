@@ -12,8 +12,8 @@ from mathutils import Quaternion, Vector
 
 from .lights import gltf_to_blender_light_quaternion, light_settings
 from .materials import ImageCache, apply_textures
+from .light_model import Light
 from .package import (
-    Light,
     Mesh,
     Node,
     Package,
@@ -176,7 +176,7 @@ def _create_light(
     obj.location = Vector(gltf_to_blender_vector(node.translation))
     obj.rotation_mode = "QUATERNION"
     obj.rotation_quaternion = Quaternion(gltf_to_blender_light_quaternion(node.rotation))
-    obj.scale = Vector(gltf_to_blender_scale(node.scale))
+    obj.scale = Vector((1.0, 1.0, 1.0))
     if node.parent is not None:
         obj.parent = created[node.parent]
     root.objects.link(obj)

@@ -30,6 +30,7 @@ class IMPORT_SCENE_OT_p4kx_package(bpy.types.Operator, ImportHelper):
         default=1.0,
         min=0.0,
         soft_max=100.0,
+        max=1000.0,
     )
 
     def execute(self, context: bpy.types.Context) -> set[str]:

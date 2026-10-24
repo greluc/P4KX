@@ -13,7 +13,8 @@ from typing import Any
 import pytest
 
 from p4kx_importer import lights, package
-from p4kx_importer.package import Light, PackageError, Quaternion, Vector3
+from p4kx_importer.light_model import Light
+from p4kx_importer.package import PackageError, Quaternion, Vector3
 from synthetic import lit_manifest, manifest
 
 
@@ -178,3 +179,35 @@ def test_an_unturned_light_shines_down_the_gltf_minus_z_axis() -> None:
     blender = lights.gltf_to_blender_light_quaternion((0.0, 0.0, 0.0, 1.0))
     shines = rotate(blender, (0.0, 0.0, -1.0))
     assert shines == pytest.approx(package.gltf_to_blender_vector((0.0, 0.0, -1.0)), abs=1e-6)
+
+
+def test_an_absurd_intensity_is_refused() -> None:
+    data = lit_manifest()
+    data["nodes"][7]["light"]["intensity"] = 2e9
+    with pytest.raises(PackageError, match="intensity"):
+        parse(data)
+
+
+def test_children_of_a_light_node_are_skipped_with_a_warning() -> None:
+    data = lit_manifest()
+    child = {**data["nodes"][7], "kind": "container", "name": "under_lamp", "parent": 7}
+    child.pop("light")
+    data["nodes"].append(child)
+    result = parse(data)
+    assert "under_lamp" not in by_name(result)
+    assert any("Children of light nodes" in warning for warning in result.warnings)
+
+
+def test_a_mesh_on_a_light_node_is_ignored() -> None:
+    data = lit_manifest()
+    data["nodes"][7]["mesh"] = "m0001"
+    assert by_name(parse(data))["lamp"].mesh is None
+
+
+def test_the_energy_and_the_strength_are_capped() -> None:
+    huge = Light("point", (1.0, 1.0, 1.0), 1e9, None, None, None)
+    assert lights.light_settings(huge, 1000.0).energy == lights.MAX_ENERGY
+    one = Light("point", (1.0, 1.0, 1.0), 1.0, None, None, None)
+    assert lights.light_settings(one, 1e9).energy == pytest.approx(
+        lights.WATTS_PER_UNIT * lights.MAX_STRENGTH
+    )

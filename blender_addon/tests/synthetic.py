@@ -109,7 +109,7 @@ def lit_manifest(**overrides: Any) -> dict[str, Any]:
         {**base, "name": "Interior", "path": "Interior", "parent": 0},
         {**base, "name": "room", "path": "Interior/room", "parent": 4, "translation": [0.0, 0.0, -6.0]},
         {**base, "kind": "object", "name": "stool", "path": "Interior/room/stool", "parent": 5, "mesh": "m0002"},
-        light("lamp", point, translation=[0.0, 2.5, 0.0]),
+        light("lamp", point, translation=[0.0, 2.5, 0.0], scale=[2.0, 3.0, 4.0]),
         light("beam", spot),
         light("sun", sun),
     ]

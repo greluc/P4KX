@@ -14,12 +14,15 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from .package import Light, Quaternion, gltf_to_blender_quaternion
+from .light_model import Light
+from .package import Quaternion, gltf_to_blender_quaternion
 
 WATTS_PER_UNIT = 10.0
 SUN_STRENGTH_PER_UNIT = 1.0
 MIN_SPOT_SIZE = math.radians(1.0)
 MAX_SPOT_SIZE = math.radians(180.0)
+MAX_ENERGY = 1e7
+MAX_STRENGTH = 1000.0
 
 _BLENDER_TYPES = {"point": "POINT", "spot": "SPOT", "directional": "SUN"}
 _QUARTER_TURN_ABOUT_X: Quaternion = (math.sqrt(0.5), math.sqrt(0.5), 0.0, 0.0)
@@ -55,7 +58,7 @@ def light_settings(light: Light, strength: float = 1.0) -> LightSettings:
     return LightSettings(
         type=_BLENDER_TYPES[light.kind],
         color=light.colour,
-        energy=light.intensity * per_unit * max(strength, 0.0),
+        energy=min(light.intensity * per_unit * min(max(strength, 0.0), MAX_STRENGTH), MAX_ENERGY),
         use_custom_distance=light.range is not None,
         cutoff_distance=light.range if light.range is not None else 0.0,
         spot_size=spot_size,

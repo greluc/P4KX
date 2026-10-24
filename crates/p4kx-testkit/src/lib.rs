@@ -33,6 +33,7 @@ mod entity_armour_loadout;
 mod entity_assembly;
 mod entity_cargo;
 mod entity_head;
+mod entity_interior_sample;
 mod entity_livery;
 mod entity_port;
 mod entity_sample;
@@ -99,6 +100,9 @@ pub use entity_cargo::{TestCapacity, closed_container_record, open_container_rec
 pub use entity_head::{
     FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
     head_entries, head_rig,
+};
+pub use entity_interior_sample::{
+    ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, entity_interior_entries,
 };
 pub use entity_livery::{
     LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,

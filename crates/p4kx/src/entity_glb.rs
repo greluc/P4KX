@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, ForgePalettes, Issue, LoadoutChanges,
-    LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, ForgePalettes,
+    InteriorOptions, Issue, LoadoutChanges, LoadoutResolver,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
@@ -54,11 +54,30 @@ struct GlbJson<'a> {
     triangles: usize,
     bytes: u64,
     skipped: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    interior: Option<InteriorJson>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     excluded: Vec<&'a str>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     replaced: Vec<ReplacedJson<'a>>,
     issues: Vec<IssueJson<'a>>,
+}
+
+#[derive(Serialize)]
+struct InteriorJson {
+    containers: usize,
+    parts: usize,
+    model_parts: usize,
+    modelled_parts: usize,
+}
+
+fn interior_json(assembly: &Assembly) -> Option<InteriorJson> {
+    assembly.interior().map(|interior| InteriorJson {
+        containers: interior.containers().len(),
+        parts: interior.parts(),
+        model_parts: interior.model_parts(),
+        modelled_parts: interior.modelled_parts(),
+    })
 }
 
 #[derive(Serialize)]
@@ -119,6 +138,13 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     let options = AssemblyOptions::default().with_lod(args.lod);
     let palettes = ForgePalettes::new(&forge);
     let assembly = Assembly::build_with_palettes(&tree, &models, &palettes, &options)?;
+    let assembly = if args.interior {
+        let interior_options = InteriorOptions::default().with_lod(args.lod);
+        let interior = EntityInterior::build(&archive, &assembly, &tree, &interior_options)?;
+        assembly.with_interior(interior)
+    } else {
+        assembly
+    };
     let summary = write(&assembly, &models, args)?;
     if as_json {
         json::print(&GlbJson {
@@ -152,6 +178,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
                 .iter()
                 .filter(|issue| issue.kind().skips())
                 .count(),
+            interior: interior_json(&assembly),
             excluded: changes.exclusions().iter().map(String::as_str).collect(),
             replaced: changes
                 .replacements()
@@ -279,6 +306,16 @@ fn print_report(
         summary.bytes
     )?;
     print_changes(&mut stdout, changes)?;
+    if let Some(interior) = assembly.interior() {
+        writeln!(
+            stdout,
+            "Interior: {} containers, {} parts ({} models, {} with geometry)",
+            interior.containers().len(),
+            interior.parts(),
+            interior.model_parts(),
+            interior.modelled_parts()
+        )?;
+    }
     let painted = painted(assembly);
     if painted > 0 {
         writeln!(stdout, "{painted} parts drawn with a tint palette")?;

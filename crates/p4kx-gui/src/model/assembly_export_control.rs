@@ -57,9 +57,13 @@ impl Model {
     /// the UI thread, calling `wake` from it as it ends.
     pub fn select_entity(&mut self, position: usize, wake: impl Fn() + Send + Sync + 'static) {
         if let Some(browser) = &self.browser {
-            self.assembly
-                .tab
-                .select(position, browser.shared_index(), Arc::new(wake));
+            let settings = &self.assembly.settings;
+            self.assembly.tab.select(
+                position,
+                browser.shared_index(),
+                Arc::new(wake),
+                (settings.lod, settings.materials),
+            );
         }
     }
 
@@ -100,8 +104,10 @@ impl Model {
             session.changes(),
             &self.assembly.settings,
         );
-        setup.set_lod(session.assembly().lod());
-        setup.set_materials(session.assembly().materials());
+        if session.assembly().is_chosen() {
+            setup.set_lod(session.assembly().lod());
+            setup.set_materials(session.assembly().materials());
+        }
         self.assembly.run = None;
         self.assembly.setup = Some(setup);
     }

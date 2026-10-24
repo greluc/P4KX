@@ -16,6 +16,9 @@ pub const ASSEMBLY_TREE_MIN_ROWS: f32 = 3.0;
 /// with the choices, and what the panel adds around them.
 pub const ASSEMBLY_PANEL_HEIGHT: f32 =
     FACTS_HEIGHT + ASSEMBLY_VIEW_HEIGHT + MODEL_OVERLAY_GAP + MODEL_BAR_HEIGHT + PANEL_CHROME;
+/// The share of the room right of the picker the view panel opens with when that is more than
+/// [`ASSEMBLY_PANEL_HEIGHT`].
+pub const ASSEMBLY_PANEL_SHARE: f32 = 0.55;
 /// The least height of the view panel: the same with the smallest 3D view.
 pub const ASSEMBLY_PANEL_MIN_HEIGHT: f32 =
     FACTS_HEIGHT + MODEL_VIEW_MIN_HEIGHT + MODEL_OVERLAY_GAP + MODEL_BAR_HEIGHT + PANEL_CHROME;

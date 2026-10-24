@@ -9,7 +9,9 @@ use super::entity_loadout;
 use super::entity_view;
 use super::search::{eyebrow, field};
 use super::{empty, entity_replace, list_footer};
-use crate::theme::assembly_metrics::{ASSEMBLY_PANEL_HEIGHT, ASSEMBLY_PANEL_MIN_HEIGHT};
+use crate::theme::assembly_metrics::{
+    ASSEMBLY_PANEL_HEIGHT, ASSEMBLY_PANEL_MIN_HEIGHT, ASSEMBLY_PANEL_SHARE,
+};
 use crate::theme::desktop::{
     SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, SPINNER, SPINNER_INLINE, TOOLBAR_PADDING,
 };
@@ -165,7 +167,11 @@ fn ready(ui: &mut Ui, model: &mut Model) {
         Panel::top("entities-view")
             .frame(frames::panel())
             .resizable(true)
-            .default_size(ASSEMBLY_PANEL_HEIGHT.clamp(least, most))
+            .default_size(
+                (ui.available_height() * ASSEMBLY_PANEL_SHARE)
+                    .max(ASSEMBLY_PANEL_HEIGHT)
+                    .clamp(least, most),
+            )
             .size_range(least..=most)
             .show(ui, |ui| {
                 let (tab, texts) = model.entities_with_texts();

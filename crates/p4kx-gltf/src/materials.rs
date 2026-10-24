@@ -290,6 +290,20 @@ fn is_metal(material: &Material) -> bool {
         && (metal_surface || luminance(material.diffuse) < DARK_DIFFUSE)
 }
 
+/// Returns the base colour factor the GLB writer gives `material` without a specular map.
+///
+/// It is the specular colour of a metal, else the diffuse colour, clamped to 0 to 1; a diffuse
+/// texture is multiplied by it.
+#[must_use]
+pub fn base_colour_factor(material: &Material) -> [f32; 3] {
+    let colour = if is_metal(material) {
+        material.specular
+    } else {
+        material.diffuse
+    };
+    colour.map(|channel| channel.clamp(0.0, 1.0))
+}
+
 /// The emissive colour times the glow, scaled into 0 to 1 by its brightest channel.
 fn emissive(material: &Material) -> [f32; 3] {
     let glow = material.glow.max(0.0);

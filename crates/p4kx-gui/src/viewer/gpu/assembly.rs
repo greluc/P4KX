@@ -161,16 +161,18 @@ impl AssemblyBuffers {
             mapped_at_creation: false,
         });
         report.buffer_created(3);
+        report.assembly_created();
         let textures: Vec<Option<MaterialTexture>> = scene
             .textures()
             .iter()
             .map(|texture| {
+                let pixels = texture.take_pixels();
                 MaterialTexture::upload(
                     device,
                     queue,
                     layout,
                     sampler,
-                    (texture.width, texture.height, &texture.rgba),
+                    (texture.width, texture.height, &pixels),
                 )
                 .ok()
             })
@@ -193,6 +195,7 @@ impl Drop for AssemblyBuffers {
         self.indices.destroy();
         self.instances.destroy();
         self.report.buffer_destroyed(3);
+        self.report.assembly_destroyed();
         self.report
             .texture_destroyed(self.textures.iter().flatten().count());
     }
@@ -210,6 +213,8 @@ impl ViewerGpu {
         if self.report.is_lost() || self.report.has_failed(serial) {
             return Vec::new();
         }
+        self.mesh.clear();
+        self.posed = 0;
         let ((), upload_failed) = guarded(device, || {
             self.upload_assembly((device, queue), &view.scene);
         });

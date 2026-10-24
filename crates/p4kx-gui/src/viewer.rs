@@ -24,7 +24,7 @@ pub use assembly::{
     PartInfo, Progress, VIEW_TEXTURE_MIP,
 };
 pub use camera::{Camera, Matrix, Step, Uniforms};
-pub(crate) use gpu::{AssemblyDraw, Look, Subject, paint_callback};
+pub(crate) use gpu::{AssemblyDraw, Look, Subject, paint_callback, release_callback};
 pub use gpu::{
     GpuReport, MAX_TEXTURE_SIDE, Rejected, Unavailable, check_buffer, check_texture, install,
     target_extent,

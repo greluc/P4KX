@@ -8,6 +8,7 @@ use std::thread;
 
 use p4kx_assembly::{ChangeError, EntityNode, LoadoutChanges, PortChange};
 use p4kx_extraction::Guid;
+use p4kx_settings::ModelMaterials;
 
 use super::resolve::{ResolveFailure, resolve};
 use super::rows::LoadoutView;
@@ -54,6 +55,7 @@ impl LoadoutSession {
         index: &Arc<EntryIndex>,
         (guid, name, record_path): (Guid, &str, &str),
         wake: Arc<dyn Fn() + Send + Sync>,
+        initial: (u32, ModelMaterials),
     ) -> Self {
         let mut session = Self {
             guid,
@@ -67,7 +69,7 @@ impl LoadoutSession {
             failure: None,
             collapsed: HashSet::new(),
             shown: Vec::new(),
-            assembly: AssemblyView::new(index, wake),
+            assembly: AssemblyView::new(index, wake, initial),
         };
         session.resolve_again();
         session

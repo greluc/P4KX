@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use p4kx_assembly::PortChange;
 use p4kx_extraction::Guid;
+use p4kx_settings::ModelMaterials;
 
 pub use list::{EntityFilter, EntityList};
 pub use loadout::LoadoutSession;
@@ -179,6 +180,7 @@ impl EntitiesTab {
         position: usize,
         index: &Arc<EntryIndex>,
         wake: Arc<dyn Fn() + Send + Sync>,
+        initial: (u32, ModelMaterials),
     ) {
         let State::Ready(list) = &self.state else {
             return;
@@ -193,6 +195,7 @@ impl EntitiesTab {
             index,
             (entity.guid(), entity.class_name(), entity.record_path()),
             wake,
+            initial,
         );
         self.loadout = Some(session);
         self.replace = None;

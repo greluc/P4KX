@@ -227,24 +227,7 @@ fn bar(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
         ask = Some(Ask::Materials(*materials));
     }
     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-        if let Some(progress) = view.progress() {
-            let stop = texts.get(EntityText::ViewStop);
-            if button::button(ui, Kind::Outline, Size::Compact, &stop, true).clicked() {
-                ask = Some(Ask::Stop);
-            }
-            note(ui, texts, progress);
-            spinner(ui, SPINNER_INLINE);
-        } else if let Some((colour, text)) = failure_text(texts, view) {
-            ui.add(Label::new(plain(text, FS_XS, Weight::Regular).color(colour)).truncate());
-        } else if view.issues() > 0 {
-            let text = texts.format(
-                EntityText::ViewIssues,
-                &[("count", view.issues().to_string().into())],
-            );
-            ui.add(
-                Label::new(plain(text, FS_XS, Weight::Regular).color(palette::WARNING)).truncate(),
-            );
-        }
+        ask = status(ui, texts, view).or_else(|| ask.take());
         if view.hidden_count() > 0 {
             let label = texts.format(
                 EntityText::ViewShowAll,
@@ -255,6 +238,37 @@ fn bar(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
             }
         }
     });
+    ask
+}
+
+fn status(ui: &mut Ui, texts: &Texts, view: &AssemblyView) -> Option<Ask> {
+    let mut ask = None;
+    let line = |ui: &mut Ui, text: String, colour: Color32| {
+        ui.add(Label::new(plain(text, FS_XS, Weight::Regular).color(colour)).truncate());
+    };
+    if let Some(progress) = view.progress() {
+        let stop = texts.get(EntityText::ViewStop);
+        if button::button(ui, Kind::Outline, Size::Compact, &stop, true).clicked() {
+            ask = Some(Ask::Stop);
+        }
+        note(ui, texts, progress);
+        spinner(ui, SPINNER_INLINE);
+    } else if view.is_cancelled() {
+        let again = texts.get(EntityText::ViewRestart);
+        if button::button(ui, Kind::Outline, Size::Compact, &again, true).clicked() {
+            ask = Some(Ask::Restart);
+        }
+        line(ui, texts.get(EntityText::ViewStopped), palette::GRAY_1);
+    } else if let Some((colour, text)) = failure_text(texts, view) {
+        line(ui, text, colour);
+    } else if view.issues() > 0 {
+        let count = [("count", view.issues().to_string().into())];
+        line(
+            ui,
+            texts.format(EntityText::ViewIssues, &count),
+            palette::WARNING,
+        );
+    }
     ask
 }
 
@@ -296,7 +310,7 @@ fn failure_text(texts: &Texts, view: &AssemblyView) -> Option<(Color32, String)>
             palette::DANGER_TEXT,
             texts.format(EntityText::ViewFailed, &[("reason", reason.clone().into())]),
         ),
-        ViewFailure::Stopped => (palette::DANGER_TEXT, texts.get(EntityText::ViewStopped)),
+        ViewFailure::Stopped => (palette::GRAY_1, texts.get(EntityText::ViewStopped)),
     })
 }
 

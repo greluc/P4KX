@@ -444,4 +444,10 @@ Auslassen, Ersetzen, Detailgrad und Materialien bauen die Ansicht im Hintergrund
 bleibt bis dahin stehen. Teile außerhalb des Sichtbereichs oder mit weniger als `minPartPixels` (0,75) Radius
 auf dem Bildschirm werden nicht gezeichnet. Ist kein Teil des Loadouts darstellbar, steht
 „Kein Teil dieses Loadouts hat ein Modell, das der Viewer zeigen kann." in `color-gray-1`. „Als GLB exportieren …"
-beginnt mit Detailgrad und Materialien der Ansicht.
+beginnt mit Detailgrad und Materialien der Ansicht, sobald der Nutzer sie dort geändert hat, sonst mit den
+gemerkten Werten des letzten Exports; die Ansicht selbst startet mit diesen Werten, der Detailgrad höchstens
+so fein wie 1. Das Panel öffnet mit `panelShare` (0,55) des Platzes rechts der Liste, wenn das mehr als 393 sind.
+Nach „Abbrechen" steht in der Leiste „Der Aufbau der Ansicht wurde abgebrochen." in `color-gray-1` mit
+„Erneut aufbauen" (`.btn-outline.btn-xs`), die bisherige Ansicht bleibt. Ein Loadout ohne darstellbares Teil
+ersetzt die Ansicht durch die Meldung. Verlässt man den Tab oder wechselt die Auswahl, gibt der Viewer die
+Grafikpuffer der Baugruppe frei.

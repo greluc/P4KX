@@ -31,9 +31,12 @@ textures of Assemblies).
   the view, never the triangles; a repaint with the same camera, size, hidden set and scene
   draws nothing (`Drawn` carries the list's serial). The pick is cached by the UI until the
   camera, the size or the hidden set changes.
-- **Materials.** Colours: the diffuse colour of the sub-material the export would choose
+- **Materials.** Colours: the base colour factor of the sub-material the export would choose
   (`library.single` or the material ID, else the engine default), replaced by the tint palette of
-  the part. Textures: the diffuse texture the GLB writer uses (`diffuse_texture_path`) at mip 2,
+  the part: `p4kx_gltf::base_colour_factor`, the specular colour of a metal and else the diffuse
+  colour, the same function the GLB writer uses for plain materials. A base colour the writer bakes
+  from a specular map is not reproduced. The light is normalised to a maximum of 1, so a bright
+  material is not clipped, and normals of instances go through the cofactor of the transform. Textures: the diffuse texture the GLB writer uses (`diffuse_texture_path`) at mip 2,
   multiplied by that colour, uploaded once per image and shared by every part that names it.
   Hidden materials (`NoDraw`, flags, zero opacity) and decals are not drawn: a decal's shape is
   only in its texture's alpha, which the viewer does not blend. Alpha-tested materials are drawn
@@ -49,6 +52,9 @@ textures of Assemblies).
   pressing "Stop" cancels it; the view built before stays on screen until the new one is
   installed. The Loadout resolves to an `EntityNode` that the session keeps for the view, so the
   tree is not resolved twice (#506 is about sharing the index between sessions).
+- **GPU memory.** The Assembly buffers are freed when a model is drawn instead and when the window
+  stops showing an Assembly (another tab, another selection); the CPU pixels of a texture are
+  handed over at the upload and not kept.
 - **Hiding is a view state.** "Hide" and "Show" in the Loadout tree add or remove a port path in a
   set; a part is hidden when its path or its parent's is. Nothing is built again and the export is
   not changed. Leaving a port out and replacing an Entity are changes of the Loadout and rebuild.

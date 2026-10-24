@@ -9,7 +9,7 @@ use crate::tagging::wait_until;
 
 use egui_kittest::Harness;
 use p4kx_gui::{AssemblyView, Camera, DrawList, Language, LoadoutSession, Model, VIEW_LOD};
-use p4kx_settings::ModelMaterials;
+use p4kx_settings::{AssemblyExportSettings, ModelMaterials};
 
 fn view(model: &Model) -> Option<&AssemblyView> {
     model.entities().loadout().map(LoadoutSession::assembly)
@@ -252,6 +252,30 @@ fn another_detail_or_material_mode_builds_the_view_again() -> TestResult {
         view(harness.state()).is_some_and(|view| view.failure().is_none()),
         "no failure"
     );
+    Ok(())
+}
+
+#[test]
+fn the_export_keeps_its_remembered_choices_until_the_view_is_changed() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
+    harness
+        .state_mut()
+        .set_assembly_export_settings(AssemblyExportSettings {
+            lod: 0,
+            materials: ModelMaterials::Textures,
+            ..AssemblyExportSettings::default()
+        });
+    select(&mut harness, "TEST_Ship")?;
+    built(&mut harness, None)?;
+    let view = view(harness.state()).ok_or("no view")?;
+    assert_eq!(view.materials(), ModelMaterials::Textures, "starts there");
+    assert_eq!(view.lod(), VIEW_LOD, "but no heavier than the default");
+
+    harness.state_mut().begin_assembly_export();
+
+    let setup = harness.state().assembly_export_setup().ok_or("no setup")?;
+    assert_eq!(setup.lod(), 0, "the remembered level");
+    assert_eq!(setup.materials(), ModelMaterials::Textures, "materials");
     Ok(())
 }
 

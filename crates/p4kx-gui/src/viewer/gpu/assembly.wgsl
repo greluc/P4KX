@@ -31,14 +31,19 @@ fn vs_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
     let local = vec4<f32>(input.position, 1.0);
     let world = vec3<f32>(dot(input.row0, local), dot(input.row1, local), dot(input.row2, local));
+    let has_normal = dot(input.normal, input.normal) > 0.25;
+    let cofactor_x = cross(input.row1.xyz, input.row2.xyz);
+    let cofactor_y = cross(input.row2.xyz, input.row0.xyz);
+    let cofactor_z = cross(input.row0.xyz, input.row1.xyz);
     let turned = vec3<f32>(
-        dot(input.row0.xyz, input.normal),
-        dot(input.row1.xyz, input.normal),
-        dot(input.row2.xyz, input.normal),
+        dot(cofactor_x, input.normal),
+        dot(cofactor_y, input.normal),
+        dot(cofactor_z, input.normal),
     );
+    let unit = turned / max(length(turned), 1.0e-20);
     output.clip = frame.view_proj * vec4<f32>(world, 1.0);
     output.world = world;
-    output.normal = turned;
+    output.normal = select(vec3<f32>(0.0), unit, has_normal);
     output.uv = input.uv;
     output.colour = input.colour;
     return output;
@@ -58,7 +63,7 @@ fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let head = max(dot(normal, to_eye), 0.0);
     let key = max(dot(normal, frame.key_light.xyz), 0.0);
     let sky = mix(0.18, 0.42, 0.5 + 0.5 * normal.z);
-    let light = sky + 0.30 * head + 0.50 * key;
+    let light = (sky + 0.30 * head + 0.50 * key) / 1.22;
     let colour = input.colour.rgb * texel.rgb * light;
     return vec4<f32>(clamp(colour, vec3<f32>(0.0), vec3<f32>(1.0)), input.colour.a);
 }

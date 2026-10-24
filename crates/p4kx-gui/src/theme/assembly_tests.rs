@@ -24,6 +24,7 @@ fn the_assembly_view_metrics_match_the_desktop_spec() {
         ("panelMinHeight", m::ASSEMBLY_PANEL_MIN_HEIGHT),
         ("treeMinHeight", m::ASSEMBLY_TREE_MIN_HEIGHT),
         ("minPartPixels", crate::MIN_PART_PIXELS),
+        ("panelShare", m::ASSEMBLY_PANEL_SHARE),
     ] {
         let expected = spec[key].as_f64();
         assert!(

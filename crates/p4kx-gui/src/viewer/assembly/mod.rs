@@ -106,11 +106,29 @@ pub(crate) struct PartDraw {
 }
 
 /// An image the materials of the Assembly are drawn with.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug)]
 pub(crate) struct ViewTexture {
     pub(crate) width: u32,
     pub(crate) height: u32,
-    pub(crate) rgba: Vec<u8>,
+    rgba: std::sync::Mutex<Vec<u8>>,
+}
+
+impl ViewTexture {
+    pub(crate) const fn new(width: u32, height: u32, rgba: Vec<u8>) -> Self {
+        Self {
+            width,
+            height,
+            rgba: std::sync::Mutex::new(rgba),
+        }
+    }
+
+    /// Hands the pixels over for the upload, leaving none on the CPU; later calls get none.
+    pub(crate) fn take_pixels(&self) -> Vec<u8> {
+        self.rgba
+            .lock()
+            .map(|mut pixels| std::mem::take(&mut *pixels))
+            .unwrap_or_default()
+    }
 }
 
 /// What building the scene left out or could not do.

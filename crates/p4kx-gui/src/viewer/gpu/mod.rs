@@ -144,6 +144,43 @@ pub(crate) fn paint_callback(
     )
 }
 
+/// Builds the paint callback that frees the Assembly buffers of the viewer, for a window that no
+/// longer shows one.
+#[must_use]
+pub(crate) fn release_callback() -> egui::PaintCallback {
+    egui_wgpu::Callback::new_paint_callback(
+        Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1.0, 1.0)),
+        Release,
+    )
+}
+
+struct Release;
+
+impl egui_wgpu::CallbackTrait for Release {
+    fn prepare(
+        &self,
+        _device: &wgpu::Device,
+        _queue: &wgpu::Queue,
+        _screen: &egui_wgpu::ScreenDescriptor,
+        _encoder: &mut wgpu::CommandEncoder,
+        resources: &mut egui_wgpu::CallbackResources,
+    ) -> Vec<wgpu::CommandBuffer> {
+        if let Some(gpu) = resources.get_mut::<ViewerGpu>() {
+            gpu.assembly.clear();
+            gpu.drawn = None;
+        }
+        Vec::new()
+    }
+
+    fn paint(
+        &self,
+        _info: egui::PaintCallbackInfo,
+        _pass: &mut wgpu::RenderPass<'static>,
+        _resources: &egui_wgpu::CallbackResources,
+    ) {
+    }
+}
+
 struct SceneCallback {
     subject: Subject,
     uniforms: Uniforms,

@@ -36,6 +36,7 @@ impl ViewerGpu {
         if self.report.is_lost() || self.report.has_failed(serial) {
             return Vec::new();
         }
+        self.assembly.clear();
         let ((), upload_failed) = guarded(device, || {
             self.upload((device, queue), scene);
         });

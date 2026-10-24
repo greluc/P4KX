@@ -972,6 +972,7 @@
     "viewHeight": 280,
     "treeMinRows": 3,
     "panelHeight": 393,
+    "panelShare": 0.55,
     "panelMinHeight": 209,
     "treeMinHeight": 144,
     "panelHeightFrom": "facts bar 32 + view 280 + overlayGap 8 + bar 36 (rowHeight) + panel chrome 37; the minimum has the view at modelPreview.viewMinHeight 96",

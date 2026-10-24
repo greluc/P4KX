@@ -36,6 +36,7 @@ pub struct GpuReport {
     instances: AtomicU64,
     draw_calls: AtomicU64,
     textures: AtomicUsize,
+    assemblies: AtomicUsize,
 }
 
 impl GpuReport {
@@ -99,6 +100,20 @@ impl GpuReport {
     #[must_use]
     pub fn textures(&self) -> usize {
         self.textures.load(Ordering::Acquire)
+    }
+
+    /// Returns whether the viewer holds the buffers of an Assembly on the device.
+    #[must_use]
+    pub fn holds_assembly(&self) -> bool {
+        self.assemblies.load(Ordering::Acquire) > 0
+    }
+
+    pub(super) fn assembly_created(&self) {
+        self.assemblies.fetch_add(1, Ordering::AcqRel);
+    }
+
+    pub(super) fn assembly_destroyed(&self) {
+        self.assemblies.fetch_sub(1, Ordering::AcqRel);
     }
 
     pub(super) fn drew_instances(&self, instances: u64, calls: u64) {

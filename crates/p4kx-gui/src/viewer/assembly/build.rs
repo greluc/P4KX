@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use p4kx_assembly::Assembly;
 use p4kx_extraction::TextureLoader;
@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use thiserror::Error;
 
 use super::flatten::{Range, flatten};
-use super::surface::{Surface, resolve};
+use super::surface::{Surface, SurfaceKey, surface_key, surfaces_of};
 use super::{
     AssemblyScene, Group, Item, Left, MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES,
     MAX_VIEW_VERTICES, PartDraw, PartInfo, VIEW_TEXTURE_MIP, ViewTexture,
@@ -70,13 +70,12 @@ pub struct Hooks<'a> {
     pub progress: &'a (dyn Fn(Progress) + Sync),
 }
 
-struct SharedMesh {
-    ranges: Vec<Range>,
+pub(super) struct SharedMesh {
+    pub(super) ranges: Vec<Range>,
     bounds: Bounds,
     triangles: usize,
 }
 
-type SurfaceKey = (usize, usize, u16);
 type GroupKey = (usize, usize, Option<u32>, bool);
 
 fn address<T>(value: &T) -> usize {
@@ -223,11 +222,11 @@ impl AssemblyScene {
                     path.clone(),
                     u32::try_from(self.textures.len()).unwrap_or(0),
                 );
-                self.textures.push(ViewTexture {
-                    width: image.width(),
-                    height: image.height(),
-                    rgba: image.into_pixels(),
-                });
+                self.textures.push(ViewTexture::new(
+                    image.width(),
+                    image.height(),
+                    image.into_pixels(),
+                ));
             }
             (hooks.progress)(Progress::Textures {
                 done: ((done + 1) * TEXTURE_WAVE).min(wanted.len()),
@@ -350,50 +349,4 @@ impl AssemblyScene {
             (placed.centre(), placed.radius())
         })
     }
-}
-
-fn surface_key(part: &p4kx_assembly::Part, id: u16) -> SurfaceKey {
-    (
-        address(part.materials()),
-        part.palette().map_or(0, address),
-        id,
-    )
-}
-
-/// Resolves the surface of every material range the parts use, once per library, palette and
-/// material ID, and lists the distinct texture paths they want.
-fn surfaces_of(
-    assembly: &Assembly,
-    model_of: &[Option<usize>],
-    meshes: &[Option<SharedMesh>],
-    mode: ModelMaterials,
-) -> (HashMap<SurfaceKey, Option<Surface>>, Vec<String>) {
-    let mut surfaces = HashMap::new();
-    let mut wanted: Vec<String> = Vec::new();
-    let mut seen: HashSet<String> = HashSet::new();
-    for (at, part) in assembly.parts().iter().enumerate() {
-        let mesh = model_of
-            .get(at)
-            .copied()
-            .flatten()
-            .and_then(|id| meshes.get(id))
-            .and_then(Option::as_ref);
-        let Some(mesh) = mesh else {
-            continue;
-        };
-        for range in &mesh.ranges {
-            surfaces
-                .entry(surface_key(part, range.material))
-                .or_insert_with(|| {
-                    let surface = resolve(part, range.material, mode);
-                    if let Some(path) = surface.as_ref().and_then(|s| s.texture.as_ref())
-                        && seen.insert(path.clone())
-                    {
-                        wanted.push(path.clone());
-                    }
-                    surface
-                });
-        }
-    }
-    (surfaces, wanted)
 }

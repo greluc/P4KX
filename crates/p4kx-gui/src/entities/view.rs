@@ -71,6 +71,7 @@ pub struct AssemblyView {
     wake: Arc<dyn Fn() + Send + Sync>,
     lod: u32,
     materials: ModelMaterials,
+    chosen: bool,
     hidden: HashSet<String>,
     tree: Option<Arc<EntityNode>>,
     job: Option<job::Job>,
@@ -94,12 +95,24 @@ impl std::fmt::Debug for AssemblyView {
 }
 
 impl AssemblyView {
-    pub(super) fn new(index: &Arc<EntryIndex>, wake: Arc<dyn Fn() + Send + Sync>) -> Self {
+    /// Starts at the level of detail `initial` names, though at least [`VIEW_LOD`] to stay light,
+    /// and the materials it names.
+    pub(super) fn new(
+        index: &Arc<EntryIndex>,
+        wake: Arc<dyn Fn() + Send + Sync>,
+        initial: (u32, ModelMaterials),
+    ) -> Self {
+        let lod = if ASSEMBLY_LODS.contains(&initial.0) {
+            initial.0.max(VIEW_LOD)
+        } else {
+            VIEW_LOD
+        };
         Self {
             index: Arc::clone(index),
             wake,
-            lod: VIEW_LOD,
-            materials: ModelMaterials::Colours,
+            lod,
+            materials: initial.1,
+            chosen: false,
             hidden: HashSet::new(),
             tree: None,
             job: None,
@@ -121,6 +134,7 @@ impl AssemblyView {
     pub fn set_lod(&mut self, lod: u32) {
         if lod != self.lod && ASSEMBLY_LODS.contains(&lod) {
             self.lod = lod;
+            self.chosen = true;
             self.build();
         }
     }
@@ -135,8 +149,16 @@ impl AssemblyView {
     pub fn set_materials(&mut self, materials: ModelMaterials) {
         if materials != self.materials {
             self.materials = materials;
+            self.chosen = true;
             self.build();
         }
+    }
+
+    /// Returns whether the user changed the level of detail or the materials of the view; the
+    /// export then starts with them, else with the choices remembered from the last export.
+    #[must_use]
+    pub const fn is_chosen(&self) -> bool {
+        self.chosen
     }
 
     /// Returns whether the branch below the port `path` is hidden in the view.
@@ -325,7 +347,10 @@ impl AssemblyView {
                 self.install(scene, issues);
             }
             job::Ended::Cancelled => self.cancelled = true,
-            job::Ended::Empty => self.failure = Some(ViewFailure::Empty),
+            job::Ended::Empty => {
+                self.shown = None;
+                self.failure = Some(ViewFailure::Empty);
+            }
             job::Ended::Failed(failure) => self.failure = Some(failure.into()),
         }
         true

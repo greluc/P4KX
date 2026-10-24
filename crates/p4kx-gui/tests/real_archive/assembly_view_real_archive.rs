@@ -227,7 +227,7 @@ fn a_capital_ship_is_drawn_in_the_window() -> TestResult {
     }
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
-        .with_size([1600.0, 1000.0])
+        .with_size([2400.0, 1500.0])
         .renderer(WgpuTestRenderer::from_render_state(state))
         .build_ui_state(
             |ui, model: &mut Model| {

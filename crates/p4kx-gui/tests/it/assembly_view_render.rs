@@ -156,6 +156,22 @@ fn shared_meshes_are_uploaded_once_and_drawn_as_instances() -> TestResult {
 }
 
 #[test]
+fn leaving_the_tab_frees_the_buffers_of_the_assembly() -> TestResult {
+    let Some(mut window) = entities_window(Language::BritishEnglish, [1400.0, 900.0])? else {
+        return Ok(());
+    };
+    rendered(&mut window, "assembly-before-leaving.png")?;
+    assert!(window.report.holds_assembly(), "on the device while shown");
+
+    window.harness.state_mut().set_work_tab(WorkTab::Archive);
+    rendered(&mut window, "assembly-left.png")?;
+
+    assert!(!window.report.holds_assembly(), "freed once not shown");
+    assert_eq!(window.report.buffers(), 0, "no buffers are left");
+    Ok(())
+}
+
+#[test]
 fn hiding_a_branch_draws_fewer_instances_and_a_new_level_replaces_the_buffers() -> TestResult {
     let Some(mut window) = entities_window(Language::BritishEnglish, [1400.0, 900.0])? else {
         return Ok(());

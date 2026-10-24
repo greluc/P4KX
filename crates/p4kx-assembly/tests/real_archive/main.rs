@@ -23,6 +23,7 @@ mod real_head_animation;
 mod real_head_expressions;
 mod real_interior;
 mod real_interior_verification;
+mod real_layered_materials;
 mod real_resolve;
 mod real_search;
 mod real_streamed_localised;

@@ -13,6 +13,7 @@ mod rig;
 mod rig_animation;
 mod rig_textures;
 mod scene_glb;
+mod scene_layers;
 mod scene_lights;
 mod scene_palettes;
 mod scene_support;

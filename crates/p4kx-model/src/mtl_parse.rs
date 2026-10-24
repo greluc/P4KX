@@ -42,6 +42,7 @@ fn library<'a>(path: &str, root: impl XmlElement<'a>) -> Result<MaterialLibrary,
             default_palette,
             single: true,
             unknown_entries: 0,
+            unresolved_layers: Vec::new(),
             materials: vec![material(root, &mut Budget::new())?],
         });
     };
@@ -66,6 +67,7 @@ fn library<'a>(path: &str, root: impl XmlElement<'a>) -> Result<MaterialLibrary,
         default_palette,
         single: false,
         unknown_entries,
+        unresolved_layers: Vec::new(),
         materials,
     })
 }
@@ -199,7 +201,7 @@ fn flags(value: Option<&str>) -> MaterialFlags {
     MaterialFlags(u32::try_from(bits).unwrap_or(0))
 }
 
-fn scalar(value: &str) -> Option<f32> {
+pub(crate) fn scalar(value: &str) -> Option<f32> {
     value
         .trim()
         .parse::<f32>()
@@ -207,7 +209,7 @@ fn scalar(value: &str) -> Option<f32> {
         .filter(|value| value.is_finite())
 }
 
-fn vector(value: &str) -> Option<[f32; 3]> {
+pub(crate) fn vector(value: &str) -> Option<[f32; 3]> {
     let mut parts = value.split(',').map(scalar);
     let colour = [parts.next()??, parts.next()??, parts.next()??];
     parts.next().is_none().then_some(colour)

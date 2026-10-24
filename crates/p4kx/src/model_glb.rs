@@ -162,6 +162,15 @@ fn write_notes(out: &mut impl Write, model: &Model, summary: &GlbSummary) -> io:
             library.unknown_entries
         )?;
     }
+    if let Some(library) = model.materials.library()
+        && !library.unresolved_layers.is_empty()
+    {
+        writeln!(
+            stdout,
+            "{} layer files of the material library are missing or unreadable; their materials keep the colours of their own file",
+            library.unresolved_layers.len()
+        )?;
+    }
     if summary.hidden_primitives > 0 {
         writeln!(
             stdout,

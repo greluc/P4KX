@@ -122,7 +122,13 @@ def write_package(folder: Path, data: dict[str, Any] | None = None) -> Path:
     (folder / "meshes").mkdir(parents=True, exist_ok=True)
     (folder / "textures").mkdir(parents=True, exist_ok=True)
     for mesh in data["meshes"]:
-        (folder / mesh["file"]).write_bytes(glb(mesh["id"], [m["name"] for m in mesh["materials"]]))
+        (folder / mesh["file"]).write_bytes(
+            glb(
+                mesh["id"],
+                [m["name"] for m in mesh["materials"]],
+                extras=any("material" in m for m in mesh["materials"]),
+            )
+        )
     for texture in data["textures"]:
         (folder / texture["file"]).write_bytes(png())
     path = folder / "scene.json"
@@ -130,10 +136,16 @@ def write_package(folder: Path, data: dict[str, Any] | None = None) -> Path:
     return path
 
 
-def glb(root_name: str, materials: list[str], external: dict[str, Any] | None = None) -> bytes:
+def glb(
+    root_name: str,
+    materials: list[str],
+    external: dict[str, Any] | None = None,
+    extras: bool = False,
+) -> bytes:
     """Returns a GLB with a root node, a child with one triangle per material.
 
     ``external`` entries replace top-level keys of the glTF JSON, e.g. a buffer with a ``uri``.
+    ``extras`` gives each material the ``p4kx_index`` extras of format 1.1.
     """
     document = {
         "asset": {"version": "2.0"},
@@ -150,8 +162,12 @@ def glb(root_name: str, materials: list[str], external: dict[str, Any] | None = 
             }
         ],
         "materials": [
-            {"name": name, "pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1.0]}}
-            for name in materials
+            {
+                "name": name,
+                "pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1.0]},
+                **({"extras": {"p4kx_index": slot}} if extras else {}),
+            }
+            for slot, name in enumerate(materials)
         ],
         "accessors": [
             {

@@ -8,7 +8,8 @@ use super::audio_preview::{self, AudioAction, Named};
 use super::record_export_outcome;
 use super::{RESIZE_GAP, empty, list_footer, sounds_toolbar, sounds_triggers, sounds_variants};
 use crate::theme::desktop::{
-    CELL_PADDING_X, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SPINNER, SPINNER_INLINE, TOOLBAR_PADDING,
+    CELL_PADDING_X, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, ROW_HEIGHT, SPINNER, SPINNER_INLINE,
+    TOOLBAR_PADDING,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, Weight};
@@ -71,7 +72,7 @@ fn ready(ui: &mut Ui, model: &mut Model, info: IndexInfo) {
         .show(ui, |ui| {
             ScrollArea::vertical()
                 .id_salt("sounds-toolbar-scroll")
-                .max_height(ui.available_height() / 2.0)
+                .max_height(ui.available_height() / 3.0)
                 .auto_shrink([false, true])
                 .show(ui, |ui| sounds_toolbar::show(ui, model));
         });
@@ -79,14 +80,15 @@ fn ready(ui: &mut Ui, model: &mut Model, info: IndexInfo) {
     if info.issues > 0 {
         issues(ui, model.texts(), info.issues);
     }
+    let room = ROW_HEIGHT.mul_add(-4.0, ui.available_height()).max(0.0);
     let action = Panel::bottom("sounds-detail")
         .frame(frames::panel().outer_margin(Margin {
             top: RESIZE_GAP,
             ..Margin::ZERO
         }))
         .resizable(true)
-        .default_size(PREVIEW_HEIGHT)
-        .min_size(PREVIEW_MIN_HEIGHT)
+        .default_size(PREVIEW_HEIGHT.min(room))
+        .size_range(PREVIEW_MIN_HEIGHT.min(room)..=room)
         .show(ui, |ui| detail(ui, model))
         .inner;
     let picked = frames::panel()

@@ -132,6 +132,18 @@ fn a_small_window_keeps_the_toolbar_apart_and_the_whole_tab_reachable() -> TestR
             .next()
             .ok_or("no Entity field")?
             .rect();
+        assert!(
+            field.right() <= 640.0,
+            "the Entity field {field:?} ends inside the window"
+        );
+        let head = harness
+            .get_by_role_and_label(Role::ColumnHeader, "Trigger")
+            .rect();
+        let detail = harness.get_by_label_contains("Play_Multi: 3").rect();
+        assert!(
+            !head.intersects(detail) && head.bottom() <= detail.top(),
+            "the trigger table {head:?} lies above the detail panel {detail:?}"
+        );
         let button = harness.get_by_role_and_label(Role::Button, show).rect();
         assert!(
             !field.intersects(button),

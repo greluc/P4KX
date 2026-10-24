@@ -8,6 +8,7 @@
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
 use crate::entity_picking::{TestResult, listed, select};
+use crate::interior_export::click_settled;
 use crate::rendering::{Window, pixel, render_state, rendered, view_pixels, window_at};
 use crate::tagging::{archive, wait_until};
 use crate::viewing::Site;
@@ -204,7 +205,7 @@ fn the_entity_export_shows_the_interior_switch_in_both_languages() -> TestResult
                 .harness
                 .state()
                 .assembly_export_setup()
-                .is_some_and(|setup| setup.interior()),
+                .is_some_and(p4kx_gui::AssemblyExportSetup::interior),
             "the switch is on after the click"
         );
     }
@@ -235,10 +236,7 @@ fn a_socpak_offers_the_export_of_its_interior_beside_copy_and_in_the_setup() -> 
     window.harness.run_steps(6);
     rendered(&mut window, "interior-action.png")?;
 
-    window
-        .harness
-        .get_by_role_and_label(Role::Button, "Export Interior as GLB…")
-        .click();
+    click_settled(&mut window.harness, "Export Interior as GLB…");
     rendered(&mut window, "interior-setup.png")?;
 
     assert!(

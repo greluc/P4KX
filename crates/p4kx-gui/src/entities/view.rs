@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod failure;
+mod interior;
 mod job;
 
 use std::collections::HashSet;
@@ -9,41 +11,14 @@ use std::sync::Arc;
 use p4kx_assembly::EntityNode;
 use p4kx_settings::ModelMaterials;
 
+pub use failure::ViewFailure;
 pub use job::{ViewProgress, ViewStage};
 
 use crate::viewer::{AssemblyDraw, hidden_mask};
-use crate::{
-    ASSEMBLY_LODS, AssemblyScene, Camera, DrawList, EntryIndex, Matrix, ModelExportFailure,
-};
+use crate::{ASSEMBLY_LODS, AssemblyScene, Camera, DrawList, EntryIndex, Matrix};
 
 /// The level of detail the view opens with: light enough for a capital ship.
 pub const VIEW_LOD: u32 = 1;
-
-/// Why the view shows nothing, or nothing new.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ViewFailure {
-    /// No part of the Assembly has triangles to show.
-    Empty,
-    /// The Archive changed on disk.
-    ArchiveChanged,
-    /// The models are encrypted and the Archive key is missing or wrong.
-    Key,
-    /// The Assembly could not be read, for the reason given.
-    Failed(String),
-    /// Building stopped without a result.
-    Stopped,
-}
-
-impl From<ModelExportFailure> for ViewFailure {
-    fn from(failure: ModelExportFailure) -> Self {
-        match failure {
-            ModelExportFailure::ArchiveChanged => Self::ArchiveChanged,
-            ModelExportFailure::KeyRequired | ModelExportFailure::KeyRejected => Self::Key,
-            ModelExportFailure::Failed(reason) => Self::Failed(reason),
-            ModelExportFailure::Refused(_) | ModelExportFailure::Stopped => Self::Stopped,
-        }
-    }
-}
 
 #[derive(Debug)]
 struct Shown {
@@ -158,36 +133,6 @@ impl AssemblyView {
             self.materials = materials;
             self.chosen = true;
             self.build();
-        }
-    }
-
-    /// Returns whether the view shows the Interior of the Entity, its object containers.
-    #[must_use]
-    pub const fn interior(&self) -> bool {
-        self.interior
-    }
-
-    /// Returns whether the Entity names object containers, so that it has an Interior to show.
-    #[must_use]
-    pub fn has_interior(&self) -> bool {
-        self.tree
-            .as_ref()
-            .is_some_and(|tree| !tree.object_containers().is_empty())
-    }
-
-    /// Shows the Interior with the hull, or hides it. It is built off the UI thread the first
-    /// time it is shown; the view built before stays until then. Nothing changes for an Entity
-    /// without an Interior.
-    pub fn set_interior(&mut self, shown: bool) {
-        if shown == self.interior || (shown && !self.has_interior()) {
-            return;
-        }
-        self.interior = shown;
-        self.chosen = true;
-        if shown && !self.shown.as_ref().is_some_and(|shown| shown.with_interior) {
-            self.build();
-        } else {
-            self.remask();
         }
     }
 

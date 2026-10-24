@@ -39,6 +39,20 @@ fn container_window() -> Result<Window, Box<dyn std::error::Error>> {
     Ok((dir, harness))
 }
 
+/// Clicks the button `label` once its place no longer moves from one frame to the next.
+pub(crate) fn click_settled(harness: &mut Harness<'_, Model>, label: &str) {
+    let mut rect = harness.get_by_role_and_label(Role::Button, label).rect();
+    for _ in 0..100 {
+        harness.step();
+        let now = harness.get_by_role_and_label(Role::Button, label).rect();
+        if now == rect {
+            break;
+        }
+        rect = now;
+    }
+    harness.get_by_role_and_label(Role::Button, label).click();
+}
+
 fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
     let deadline = Instant::now() + Duration::from_secs(30);
     while harness
@@ -218,9 +232,7 @@ fn a_socpak_entry_offers_the_export_of_its_interior() -> TestResult {
     select_socpak(&mut harness, INTERIOR_ROOT)?;
     assert!(harness.state().interior_export_shown());
     assert!(harness.state().interior_export_available());
-    harness
-        .get_by_role_and_label(Role::Button, "Export Interior as GLB…")
-        .click();
+    click_settled(&mut harness, "Export Interior as GLB…");
     harness.run_steps(3);
 
     let setup = harness.state().assembly_export_setup().ok_or("no setup")?;
@@ -256,25 +268,31 @@ fn a_socpak_entry_offers_the_export_of_its_interior() -> TestResult {
     Ok(())
 }
 
-#[test]
-fn a_socpak_of_another_container_is_exported_from_where_it_lies() -> TestResult {
-    let (dir, mut harness) = container_window()?;
+fn is_cockpit(browser: &p4kx_gui::Browser, id: u32) -> bool {
+    browser
+        .index()
+        .entry(id)
+        .is_some_and(|entry| entry.path().ends_with("cockpit.socpak"))
+}
+
+/// Selects the Entry `modules\cockpit.socpak` inside the container `ship_interior.socpak`.
+fn select_nested_cockpit(harness: &mut Harness<'_, Model>) -> TestResult {
     for name in ["Data", "ObjectContainers", "ships", "test"] {
-        let node = tree_node(&harness, name)?;
+        let node = tree_node(harness, name)?;
         harness
             .state_mut()
             .browser_mut()
             .ok_or("no Archive")?
             .toggle_expanded(node);
     }
-    let root = tree_node(&harness, "ship_interior.socpak")?;
+    let root = tree_node(harness, "ship_interior.socpak")?;
     let id = root.as_container().ok_or("no container")?;
     harness
         .state_mut()
         .browser_mut()
         .ok_or("no Archive")?
         .toggle_expanded(root);
-    wait_until(&mut harness, |model| {
+    wait_until(harness, |model| {
         model.browser().is_some_and(|browser| {
             !matches!(
                 browser.container_status(id),
@@ -282,36 +300,33 @@ fn a_socpak_of_another_container_is_exported_from_where_it_lies() -> TestResult 
             )
         })
     })?;
-    let modules = tree_node(&harness, "modules")?;
+    let modules = tree_node(harness, "modules")?;
     harness
         .state_mut()
         .browser_mut()
         .ok_or("no Archive")?
         .select_folder(modules);
-    wait_until(&mut harness, |model| {
-        model.browser().is_some_and(|browser| {
-            browser.shown().iter().any(|&id| {
-                browser
-                    .index()
-                    .entry(id)
-                    .is_some_and(|entry| entry.path().ends_with("cockpit.socpak"))
-            })
-        })
+    wait_until(harness, |model| {
+        model
+            .browser()
+            .is_some_and(|browser| browser.shown().iter().any(|&id| is_cockpit(browser, id)))
     })?;
     let browser = harness.state_mut().browser_mut().ok_or("no Archive")?;
     let cockpit = browser
         .shown()
         .iter()
         .copied()
-        .find(|&id| {
-            browser
-                .index()
-                .entry(id)
-                .is_some_and(|entry| entry.path().ends_with("cockpit.socpak"))
-        })
+        .find(|&id| is_cockpit(browser, id))
         .ok_or("no cockpit")?;
     browser.select_entry(cockpit, || {});
     harness.run_steps(2);
+    Ok(())
+}
+
+#[test]
+fn a_socpak_of_another_container_is_exported_from_where_it_lies() -> TestResult {
+    let (dir, mut harness) = container_window()?;
+    select_nested_cockpit(&mut harness)?;
     assert!(harness.state().interior_export_available());
 
     harness.state_mut().begin_interior_export();

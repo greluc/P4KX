@@ -1,0 +1,122 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use p4kx_extraction::{Archive, PathKeys};
+use p4kx_model::{ChildContainer, IncludedObjects, ObjectContainer, ObjectContainerError};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+
+use super::files::{FileFailure, find_first, is_plain, path_key, read_file};
+use crate::{AssemblyError, IssueKind};
+
+pub(super) struct StreamScan {
+    pub(super) name: String,
+    pub(super) objects: Option<IncludedObjects>,
+}
+
+pub(super) struct Scan {
+    pub(super) children: Vec<ChildContainer>,
+    pub(super) streams: Vec<StreamScan>,
+    pub(super) issues: Vec<IssueKind>,
+    pub(super) fatal: Option<AssemblyError>,
+}
+
+pub(super) fn scan_container(archive: &Archive, keys: &PathKeys, stem: &str) -> Scan {
+    let index = keys.index(archive);
+    let mut scan = Scan {
+        children: Vec::new(),
+        streams: Vec::new(),
+        issues: Vec::new(),
+        fatal: None,
+    };
+    let candidates = [format!("{stem}.xml"), format!("{stem}\\{stem}.xml")];
+    let mut names: Vec<String> = Vec::new();
+    match find_first(&index, &candidates) {
+        None => scan.issues.push(IssueKind::FileMissing {
+            file: candidates[0].clone(),
+        }),
+        Some(entry) => match read_file(archive, entry) {
+            Err(FileFailure::Fatal(error)) => scan.fatal = Some(AssemblyError::Provider(error)),
+            Err(failure) => scan.issues.push(IssueKind::FileUnreadable {
+                file: entry.path().to_owned(),
+                reason: failure.reason(),
+            }),
+            Ok(bytes) => match ObjectContainer::parse(&bytes) {
+                Ok(container) => {
+                    names = container.streams;
+                    scan.children = container.children;
+                }
+                Err(error) => scan.issues.push(IssueKind::FileUnreadable {
+                    file: entry.path().to_owned(),
+                    reason: describe(&error),
+                }),
+            },
+        },
+    }
+    if names.is_empty() && scan.children.is_empty() && index.find(&format!("{stem}.soc")).is_some()
+    {
+        names.push(format!("{stem}.soc"));
+    }
+    let mut seen = std::collections::HashSet::new();
+    names.retain(|name| seen.insert(path_key(name)));
+    let read: Vec<(StreamScan, Vec<IssueKind>, Option<AssemblyError>)> = names
+        .par_iter()
+        .map(|name| read_stream(archive, &index, name))
+        .collect();
+    for (stream, issues, fatal) in read {
+        scan.streams.push(stream);
+        scan.issues.extend(issues);
+        scan.fatal = scan.fatal.take().or(fatal);
+    }
+    scan
+}
+
+fn read_stream(
+    archive: &Archive,
+    index: &p4kx_extraction::PathIndex<'_>,
+    name: &str,
+) -> (StreamScan, Vec<IssueKind>, Option<AssemblyError>) {
+    let mut stream = StreamScan {
+        name: name.to_owned(),
+        objects: None,
+    };
+    let Some(entry) = is_plain(name).then(|| index.find(name)).flatten() else {
+        let file = name.to_owned();
+        return (stream, vec![IssueKind::FileMissing { file }], None);
+    };
+    match read_file(archive, entry) {
+        Err(FileFailure::Fatal(error)) => {
+            (stream, Vec::new(), Some(AssemblyError::Provider(error)))
+        }
+        Err(failure) => {
+            let issue = IssueKind::FileUnreadable {
+                file: entry.path().to_owned(),
+                reason: failure.reason(),
+            };
+            (stream, vec![issue], None)
+        }
+        Ok(bytes) => match IncludedObjects::read(&bytes) {
+            Ok(objects) => {
+                stream.objects = objects;
+                (stream, Vec::new(), None)
+            }
+            Err(error) => {
+                let issue = IssueKind::FileUnreadable {
+                    file: entry.path().to_owned(),
+                    reason: error.to_string(),
+                };
+                (stream, vec![issue], None)
+            }
+        },
+    }
+}
+
+fn describe(error: &ObjectContainerError) -> String {
+    let mut text = error.to_string();
+    let mut cause = std::error::Error::source(error);
+    while let Some(next) = cause {
+        text.push_str(": ");
+        text.push_str(&next.to_string());
+        cause = next.source();
+    }
+    text
+}

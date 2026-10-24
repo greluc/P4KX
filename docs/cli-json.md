@@ -267,6 +267,31 @@ parent's model; the part sits at the parent's origin) and `too_many_parts`, `too
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.
 
+## `p4kx interior glb <archive> <container>... --out <file> --json`
+
+```json
+{"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\RSI\\Mantis\\base_int_body_main.socpak"],
+ "out": "…", "lod": 0, "parts": 20, "containers_opened": 1, "model_parts": 15,
+ "modelled_parts": 15, "nodes": 35, "meshes": 15, "primitives": 96, "materials": 22,
+ "default_material_ids": 0, "hidden_primitives": 11, "lod_fallbacks": 0, "shared_meshes": 0,
+ "shared_materials": 74, "shared_textures": 0, "vertices": 154546, "triangles": 143253,
+ "bytes": 8940016, "skipped": 0, "issues": [Issue, …]}
+```
+
+`containers` are the Entry paths of the chain as for `p4kx socpak list`, with the same exit codes
+(an Entry the Archive lacks is 2, a container that cannot be opened 3). `parts` counts the root
+container, the `.soc` files, the nested containers and the placed models; `containers_opened` the
+containers that were opened, the root included; `model_parts` the placed models and
+`modelled_parts` those whose model was read. The other counts are those of `entity glb`. An
+**Issue** has the fields of the `entity glb` Issue: `path` is the names of the containers from the
+root joined by `/`, `name` the container, `.soc` file or model, and the kinds are
+`container_missing`, `container_unreadable`, `container_cycle` (the container is nested in
+itself and not entered again), `file_missing`, `file_unreadable`, `invalid_placement`,
+`objects_left_out`, `unsupported_objects`, `geometry_missing`, `geometry_unreadable`,
+`material_library`, `too_many_parts`, `too_many_containers`, `too_many_vertices` and `too_deep`
+([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
+file is written even when parts are skipped.
+
 ## `p4kx armour bodies --json`
 
 ```json

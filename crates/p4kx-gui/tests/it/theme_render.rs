@@ -8,19 +8,19 @@
 //! The tests need a graphics adapter, a software one is enough, and return early without one.
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
+use crate::rendering::{pixel, pixels, render_state};
 use crate::{comparing, entity_picking, entity_sounds, sounding, tagging};
 
 use std::error::Error;
 use std::fs::File;
 use std::io::BufWriter;
-use std::panic::catch_unwind;
 use std::path::PathBuf;
 
-use eframe::egui_wgpu::RendererOptions;
+use egui::Rect;
 use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
+use egui_kittest::wgpu::WgpuTestRenderer;
 use p4kx_channels::SearchPaths;
 use p4kx_gui::{
     ChannelList, ComparisonSide, ComparisonStatus, Language, ListStatus, Model, SoundsListStatus,
@@ -55,44 +55,33 @@ fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
     Ok(())
 }
 
-#[expect(
-    clippy::print_stderr,
-    reason = "tells the test run why a test checked nothing"
-)]
 fn renderer() -> Option<WgpuTestRenderer> {
-    let state =
-        catch_unwind(|| create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE))
-            .ok();
-    if state.is_none() {
-        eprintln!("no graphics adapter: the test checks nothing");
-    }
-    state.map(WgpuTestRenderer::from_render_state)
+    render_state().map(WgpuTestRenderer::from_render_state)
 }
 
 struct Picture {
     width: u32,
+    height: u32,
     data: Vec<u8>,
 }
 
 impl Picture {
-    fn near(&self, wanted: [u8; 3]) -> usize {
-        self.data
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .filter(|pixel| {
-                pixel
+    fn at(&self, column: u32, row: u32) -> [u8; 3] {
+        pixel(&self.data, self.width, column, row)
+    }
+
+    /// Counts the pixels of the table stripe in the column just inside the left edge of `head`,
+    /// below the head: the cell padding of the rows, where no text is drawn.
+    fn stripe_rows(&self, head: Rect) -> usize {
+        let [column, _, _, bottom] = pixels(head);
+        (bottom..self.height)
+            .filter(|&row| {
+                self.at(column + 6, row)
                     .iter()
-                    .zip(wanted)
+                    .zip(STRIPE_ON_PANEL)
                     .all(|(&got, want)| got.abs_diff(want) <= 2)
             })
             .count()
-    }
-
-    fn at(&self, column: u32, row: u32) -> Option<[u8; 3]> {
-        let start = (row as usize * self.width as usize + column as usize) * 4;
-        let pixel = self.data.get(start..start + 3)?;
-        Some([*pixel.first()?, *pixel.get(1)?, *pixel.get(2)?])
     }
 }
 
@@ -102,7 +91,27 @@ fn picture<S>(harness: &mut Harness<'_, S>, name: &str) -> Result<Picture, Box<d
     let (width, height) = (image.width(), image.height());
     let data = image.into_raw();
     save(name, width, height, &data)?;
-    Ok(Picture { width, data })
+    Ok(Picture {
+        width,
+        height,
+        data,
+    })
+}
+
+fn last_head<S>(harness: &Harness<'_, S>) -> Result<Rect, Box<dyn Error>> {
+    Ok(harness
+        .query_all_by_role(Role::ColumnHeader)
+        .last()
+        .ok_or("no table head")?
+        .rect())
+}
+
+fn assert_striped(picture: &Picture, head: Rect, tab: &str) {
+    let rows = picture.stripe_rows(head);
+    assert!(
+        rows >= 30,
+        "{tab}: {rows} pixel rows of the stripe in the table"
+    );
 }
 
 fn opened(
@@ -131,23 +140,24 @@ fn opened(
 
 #[test]
 fn the_browse_tab_stripes_its_rows_in_the_table_stripe() -> TestResult {
-    for (language, suffix) in LANGUAGES {
+    for ((language, suffix), size) in LANGUAGES.into_iter().zip(["Size", "Größe"]) {
         let Some(renderer) = renderer() else {
             return Ok(());
         };
         let (_dir, mut harness) = opened(language, renderer, WorkTab::Archive)?;
         let picture = picture(&mut harness, &format!("browse-{suffix}.png"))?;
-        let stripes = picture.near(STRIPE_ON_PANEL);
-        assert!(
-            stripes > 500,
-            "{suffix}: the striped rows: {stripes} pixels"
-        );
+        let head = harness
+            .get_all_by_label(size)
+            .last()
+            .ok_or("no size head")?
+            .rect();
+        assert_striped(&picture, head, &format!("browse {suffix}"));
     }
     Ok(())
 }
 
 #[test]
-fn the_entities_tab_is_drawn() -> TestResult {
+fn the_entities_tab_is_only_rendered() -> TestResult {
     for (language, suffix) in LANGUAGES {
         let Some(renderer) = renderer() else {
             return Ok(());
@@ -161,7 +171,7 @@ fn the_entities_tab_is_drawn() -> TestResult {
 }
 
 #[test]
-fn the_sounds_tab_is_drawn() -> TestResult {
+fn the_sounds_tab_stripes_its_rows_in_the_table_stripe() -> TestResult {
     for (language, suffix) in LANGUAGES {
         let Some(renderer) = renderer() else {
             return Ok(());
@@ -185,7 +195,9 @@ fn the_sounds_tab_is_drawn() -> TestResult {
             matches!(model.sounds().sounds_status(), SoundsListStatus::Ready(_))
         })?;
         harness.run_steps(3);
-        picture(&mut harness, &format!("sounds-{suffix}.png"))?;
+        let picture = picture(&mut harness, &format!("sounds-{suffix}.png"))?;
+        let head = last_head(&harness)?;
+        assert_striped(&picture, head, &format!("sounds {suffix}"));
     }
     Ok(())
 }
@@ -240,7 +252,7 @@ fn the_comparison_tiles_take_the_bar_fill_inside_the_panel() -> TestResult {
             reason = "the point is inside the window"
         )]
         let inside = picture.at((tile.right() - 8.0) as u32, tile.center().y as u32);
-        assert_eq!(inside, Some(TILE_FILL), "{suffix}: the fill of the tile");
+        assert_eq!(inside, TILE_FILL, "{suffix}: the fill of the tile");
     }
     Ok(())
 }

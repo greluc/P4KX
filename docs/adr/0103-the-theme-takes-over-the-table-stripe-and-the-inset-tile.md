@@ -33,8 +33,6 @@ P4KX's own names.
 
 ## Left out
 
-- KPI strip and account cards of the bank patterns, and the card inset variants: P4KX draws only
-  the comparison tile.
-- Planet-system and item-class tints, the price-matrix patterns and the department tags: they
-  are in the theme and unchanged.
+- Patterns P4KX does not draw (cards, matrices, tags), including the inset variants of cards:
+  P4KX draws only the comparison tile.
 - Every other token (palette, type, spacing, radii, glows) already equals the current values.

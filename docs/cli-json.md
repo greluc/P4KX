@@ -115,6 +115,17 @@ field is absent.
  "empty": 29, "unresolved": 0, "docked_vehicles": 0}
 ```
 
+`--exclude <port>` and `--replace <port>=<entity>` (each may be given several times) apply an
+own configuration, see [ADR-0076](adr/0076-loadout-changes-are-applied-while-the-tree-is-resolved-and-checked-against-the-port.md).
+A port is named by its path of port names from the root joined by `/`, as `entity loadout` lists
+them (`hardpoint_weapon_nose/hardpoint_class_2`), ignoring case. An excluded port has `source`
+`excluded` and holds nothing, so nothing below it is listed; a replaced port has `source`
+`replaced` and holds the new Entity with its own default Loadout. `excluded` and `replaced` count
+those ports and are absent when 0. A change that is no port path, names a port the tree lacks,
+contradicts another, names an Entity that no Record or several Records match, or attaches an
+Entity that does not fit the port's item types and sizes exits with code 2 and prints the reason;
+a replacement whose Record cannot be read exits with code 5.
+
 `<entity>` is a class name such as `AEGS_Avenger_Titan` (also as the Record name
 `EntityClassDefinition.AEGS_Avenger_Titan`), a GUID, or a record path, which is recognised by a
 `/` or `\`; case does not matter. An Entity that nothing or several Records match exits with code
@@ -159,7 +170,7 @@ A **Port**:
 | Field | Type | Meaning |
 |-------|------|---------|
 | `name` | string | The port name as the Loadout or the port definition spells it |
-| `source` | string | `loadout` (the Entity's own default Loadout), `override` (the Loadout of the entry that attached the Entity, which replaces the Entity's own entry for this port), `port_default` (the default item of the port definition) or `unset` (a defined port that nothing names) |
+| `source` | string | `loadout` (the Entity's own default Loadout), `override` (the Loadout of the entry that attached the Entity, which replaces the Entity's own entry for this port), `port_default` (the default item of the port definition), `unset` (a defined port that nothing names), `excluded` (left out by `--exclude`) or `replaced` (holds the Entity `--replace` names) |
 | `visibility` | string | Only when the Entity's vehicle implementation has a part of this name (ignoring ASCII case): `visible`, or `invisible` when its item port carries the flag `invisible`; absent otherwise |
 | `definition` | object or `null` | The port's `SItemPortDef` in the Entity's Record; `null` when the Record defines no port of this name, e.g. a ship port that only its vehicle definition declares |
 | `entity` | Node or `null` | The attached Entity |
@@ -220,7 +231,11 @@ root Entity and every attached Entity that resolved, `modelled_parts` those with
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one;
 `default_material_ids` and `hidden_primitives` are summed over all models as for
-`p4kx model glb`. `skipped` counts the issues that leave a part or its model out. The file is
+`p4kx model glb`. `skipped` counts the issues that leave a part or its model out. With `--exclude`
+and `--replace`, as for `p4kx entity loadout`, the Assembly is built from the changed Loadout and
+the report lists `excluded` (the ports as given) and `replaced` (objects with `port` and
+`entity`, as given); both are absent without the options. An excluded branch is no part and no
+issue. The file is
 written even when parts are skipped; an Archive key that is missing or wrong exits with code 7
 and writes nothing, an `--out` that is the Archive with code 2.
 

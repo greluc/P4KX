@@ -3,7 +3,7 @@
 
 use std::process::ExitCode;
 
-use p4kx_assembly::{EntityLookupError, LoadoutError};
+use p4kx_assembly::{ChangeError, EntityLookupError, LoadoutError};
 use p4kx_comparison::LineDiffError;
 use p4kx_export::CatalogError;
 use p4kx_extraction::cryxml::CryXmlError;
@@ -42,7 +42,8 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// texture, a chunk the chunk file or a LOD the model does not have, has a Filter that matches no
 /// Entry or Record, names an output that is one of its inputs or lies inside a Star Citizen
 /// installation, has an invalid Query or a Query or field-statistics output that does not fit
-/// --json, names a Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc
+/// --json, names a Loadout change (`--exclude`, `--replace`) that is malformed, names a port the
+/// Loadout lacks, contradicts another or attaches an Entity that does not fit its port, names a Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc
 /// for a language the Archive holds no global.ini for, or looks up a localisation key that has no
 /// text.
 pub(crate) const INVALID_INPUT: u8 = 2;
@@ -83,7 +84,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      --format and without --out for dcb query, --json with --format table for dcb refs or
      grep, --json with another format than json for dcb fields, an empty text for grep, a GUID
      or record path for dcb refs that no Record has, an Entity that no Record or several Records
-     match, an audio trigger no ATL definition has, an audio language the Archive holds no
+     match, a Loadout change (--exclude, --replace) that is malformed, names a port the
+     Loadout lacks, contradicts another, or attaches an Entity that does not fit the port, an
+     audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
      CHF file cannot store, a language the Archive holds no global.ini for, or a localisation
      key that has no text in the language or its fallback
@@ -150,6 +153,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<FieldStatisticsError>().is_some()
         || error.downcast_ref::<UnreadableSchema>().is_some()
         || error.downcast_ref::<LoadoutError>().is_some()
+        || is_unreadable_change(error)
     {
         DATAFORGE_ERROR
     } else if error.downcast_ref::<UnknownEntries>().is_some()
@@ -177,8 +181,16 @@ fn code_for(error: &anyhow::Error) -> u8 {
     }
 }
 
+fn is_unreadable_change(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<ChangeError>(),
+        Some(ChangeError::Loadout(_) | ChangeError::Unreadable { .. })
+    )
+}
+
 fn is_output_or_query_error(error: &anyhow::Error) -> bool {
-    error.downcast_ref::<JsonNeedsOut>().is_some()
+    error.downcast_ref::<ChangeError>().is_some()
+        || error.downcast_ref::<JsonNeedsOut>().is_some()
         || error.downcast_ref::<InvalidQuery>().is_some()
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()
         || error.downcast_ref::<JsonWithTable>().is_some()

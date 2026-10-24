@@ -16,6 +16,10 @@
 //! cycle, is kept in the tree as [`Attachment::Unresolved`] with a [`LoadoutError`]; the rest of
 //! the Loadout still resolves.
 //!
+//! [`LoadoutResolver::resolve_with`] applies [`LoadoutChanges`] while it resolves: ports left out
+//! and Entities attached instead, each checked against the port's [`PortConstraints`] with the
+//! [`ItemFacts`] of the Entity, reported as [`ChangeError`]s.
+//!
 //! [`Assembly::build`] turns the tree into a scene graph of placed models: the geometry each
 //! Entity's Record names ([`Geometry`]), read through a [`ModelProvider`] such as
 //! [`ArchiveModels`], placed at its port's helper in the parent's model, with the material
@@ -37,6 +41,8 @@
 mod assembly;
 pub mod audio;
 mod build;
+mod changes;
+mod compat;
 mod entities;
 mod error;
 mod files;
@@ -54,12 +60,15 @@ mod resolver;
 mod spec;
 mod tree;
 mod vehicle;
+mod walk;
 mod xml;
 
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,
     Placement,
 };
+pub use changes::{ChangeError, LoadoutChanges};
+pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};

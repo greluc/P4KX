@@ -22,6 +22,10 @@ pub struct PortDefinition {
 }
 
 impl PortDefinition {
+    pub(crate) const fn constrains(&self) -> bool {
+        self.min_size.is_some() || self.max_size.is_some() || !self.types.is_empty()
+    }
+
     /// Returns the tags the port offers, as stored: words separated by white space.
     #[must_use]
     pub fn port_tags(&self) -> &str {

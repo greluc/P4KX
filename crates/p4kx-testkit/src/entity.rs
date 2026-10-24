@@ -27,6 +27,7 @@ pub struct TestEntity {
     vehicle: Option<(String, String)>,
     landing_system: Option<u128>,
     attach_type: Option<String>,
+    sub_type: Option<String>,
     size: Option<i32>,
     tags: Option<String>,
     mass: Option<f32>,
@@ -50,6 +51,7 @@ impl TestEntity {
             vehicle: None,
             landing_system: None,
             attach_type: None,
+            sub_type: None,
             size: None,
             tags: None,
             mass: None,
@@ -61,6 +63,14 @@ impl TestEntity {
     #[must_use]
     pub const fn size(mut self, size: i32) -> Self {
         self.size = Some(size);
+        self
+    }
+
+    /// Sets the Entity's `AttachDef.SubType`, e.g. `Gun`; without [`Self::attach_type`] the type
+    /// is empty.
+    #[must_use]
+    pub fn sub_type(mut self, sub_type: impl Into<String>) -> Self {
+        self.sub_type = Some(sub_type.into());
         self
     }
 
@@ -182,9 +192,14 @@ impl TestEntity {
         components.extend(self.vehicle.as_ref().map(|(definition, modification)| {
             vehicle_component(definition, modification, self.landing_system)
         }));
-        if self.attach_type.is_some() || self.size.is_some() || self.tags.is_some() {
+        if self.attach_type.is_some()
+            || self.sub_type.is_some()
+            || self.size.is_some()
+            || self.tags.is_some()
+        {
             components.push(attachable_component(
                 self.attach_type.as_deref().unwrap_or_default(),
+                self.sub_type.as_deref(),
                 self.size,
                 self.tags.as_deref(),
             ));

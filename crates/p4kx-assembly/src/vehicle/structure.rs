@@ -11,6 +11,14 @@ const MODIFICATIONS: &str = "Modifications";
 const VEHICLE_NAME: &str = "name";
 
 impl VehicleImplementation {
+    /// Returns the item port of the first part named `name`, ignoring ASCII case.
+    #[must_use]
+    pub fn item_port(&self, name: &str) -> Option<&super::VehicleItemPort> {
+        self.item_ports()
+            .find(|part| part.name.eq_ignore_ascii_case(name))
+            .and_then(|part| part.item_port.as_ref())
+    }
+
     /// Returns a 128-bit digest of the whole `Vehicle` element after the Modification is applied:
     /// every element below the root except `Modifications`, with all its attributes sorted by
     /// name, and the children in file order.

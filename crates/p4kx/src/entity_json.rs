@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_assembly::{
-    Attachment, EntityNode, LoadoutError, PortDefinition, PortNode, PortTransform, Target,
+    Attachment, EntityNode, LoadoutError, PortDefinition, PortNode, PortSource, PortTransform,
+    Target,
 };
 use serde::Serialize;
 
@@ -16,6 +17,18 @@ pub(crate) struct Counts {
     pub(crate) empty: usize,
     pub(crate) unresolved: usize,
     pub(crate) docked_vehicles: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub(crate) excluded: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub(crate) replaced: usize,
+}
+
+#[expect(
+    clippy::trivially_copy_pass_by_ref,
+    reason = "serde passes a reference"
+)]
+const fn is_zero(count: &usize) -> bool {
+    *count == 0
 }
 
 impl Counts {
@@ -27,6 +40,11 @@ impl Counts {
                 && child.is_docked_vehicle()
             {
                 counts.docked_vehicles = counts.docked_vehicles.saturating_add(1);
+            }
+            match port.source() {
+                PortSource::Excluded => counts.excluded = counts.excluded.saturating_add(1),
+                PortSource::Replaced => counts.replaced = counts.replaced.saturating_add(1),
+                _ => {}
             }
             let count = match port.attachment() {
                 Attachment::Empty => &mut counts.empty,

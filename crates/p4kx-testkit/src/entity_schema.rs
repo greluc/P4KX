@@ -29,6 +29,7 @@ fn attachable_structs() -> Vec<TestStruct> {
             .field("AttachDef", class("SItemDefinition")),
         TestStruct::new("SItemDefinition")
             .field("Type", TestType::String)
+            .field("SubType", TestType::String)
             .field("Size", TestType::Int32)
             .field("Tags", TestType::String),
     ]
@@ -135,11 +136,15 @@ fn port_structs() -> Vec<TestStruct> {
 
 pub(crate) fn attachable_component(
     attach_type: &str,
+    sub_type: Option<&str>,
     size: Option<i32>,
     tags: Option<&str>,
 ) -> TestValue {
     let mut definition =
         TestInstance::new("SItemDefinition").value("Type", TestValue::text(attach_type));
+    if let Some(sub_type) = sub_type {
+        definition = definition.value("SubType", TestValue::text(sub_type));
+    }
     if let Some(size) = size {
         definition = definition.value("Size", TestValue::Int32(size));
     }

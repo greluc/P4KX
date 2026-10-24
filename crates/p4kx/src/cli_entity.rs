@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand, ValueEnum};
+use p4kx_assembly::{ChangeError, LoadoutChanges};
 
 use crate::cli_model::lod_range;
 use crate::cli_wwise::AudioLanguageArgs;
@@ -14,6 +15,37 @@ use crate::exit::EXIT_CODES_HELP;
 pub(crate) enum EntityMaterialsArg {
     /// Plain colours without textures.
     Colours,
+}
+
+/// The options that change the Loadout of `p4kx entity loadout` and `p4kx entity glb`.
+#[derive(Debug, Args, Default)]
+pub(crate) struct LoadoutChangeArgs {
+    /// Leaves out a port with everything attached below it. The port is its path of port names
+    /// from the Entity joined by `/`, as `entity loadout` lists them, e.g.
+    /// `hardpoint_weapon_nose/hardpoint_class_2`; ignores case. May be given several times. A
+    /// port the Loadout does not have is invalid input.
+    #[arg(long, value_name = "PORT")]
+    pub(crate) exclude: Vec<String>,
+    /// Attaches another Entity to a port instead of what it holds, as `<port>=<entity>`: the
+    /// port as for --exclude and the Entity a class name, GUID or record path. The Entity is
+    /// resolved with its own default Loadout, and the Loadout of the Entity it replaces is
+    /// dropped. An Entity that does not fit the port's item types and sizes is invalid input,
+    /// with the reason. May be given several times.
+    #[arg(long, value_name = "PORT=ENTITY")]
+    pub(crate) replace: Vec<String>,
+}
+
+impl LoadoutChangeArgs {
+    /// Returns the changes the options ask for.
+    pub(crate) fn changes(&self) -> Result<LoadoutChanges, ChangeError> {
+        let changes = self
+            .exclude
+            .iter()
+            .fold(LoadoutChanges::new(), LoadoutChanges::exclude);
+        self.replace
+            .iter()
+            .try_fold(changes, |changes, text| changes.replace_text(text))
+    }
 }
 
 /// Arguments of `p4kx entity`.
@@ -29,6 +61,8 @@ pub(crate) struct EntityArgs {
 pub(crate) enum EntityAction {
     /// Prints the default Loadout tree of an Entity: every port, the Entity attached to it and
     /// its own ports, recursively; ports that cannot be resolved are listed with the reason.
+    /// With --exclude and --replace it prints the tree of an own configuration, marking the
+    /// ports changed.
     #[command(after_help = EXIT_CODES_HELP)]
     Loadout(EntityLoadoutArgs),
     /// Lists the audio triggers an Entity names, each with the Wwise events its ATL definition
@@ -42,8 +76,9 @@ pub(crate) enum EntityAction {
     /// Writes an Entity as one glTF 2.0 binary file (GLB): its geometry and the geometry of every
     /// Entity of its default Loadout, each placed at its port, as a node named after the port and
     /// the Entity below the node of the Entity it is attached to. Y up, in metres. Parts whose
-    /// Entity or geometry cannot be resolved are skipped and listed. Reads every model once, in
-    /// parallel. A docked vehicle (a Merlin in a docking collar, say) is placed as one part,
+    /// Entity or geometry cannot be resolved are skipped and listed. With --exclude and
+    /// --replace the Loadout is an own configuration: excluded branches and the Entity a
+    /// replacement removes are not written. Reads every model once, in parallel. A docked vehicle (a Merlin in a docking collar, say) is placed as one part,
     /// without the parts of its own Loadout.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(EntityGlbArgs),
@@ -72,6 +107,8 @@ pub(crate) struct EntityGlbArgs {
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    #[command(flatten)]
+    pub(crate) changes: LoadoutChangeArgs,
 }
 
 /// Arguments of `p4kx entity loadout`.
@@ -86,6 +123,8 @@ pub(crate) struct EntityLoadoutArgs {
     /// `NOITEM_Vehicle`: they stay in their port, marked, but their own ports are not listed.
     #[arg(long)]
     pub(crate) stop_at_docked_vehicles: bool,
+    #[command(flatten)]
+    pub(crate) changes: LoadoutChangeArgs,
 }
 
 /// Arguments of `p4kx entity audio`.

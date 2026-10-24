@@ -6,6 +6,7 @@
 mod real_archive;
 mod real_assembly;
 mod real_audio;
+mod real_changes;
 mod real_chf;
 mod real_chf_tail;
 mod real_docked_vehicles;

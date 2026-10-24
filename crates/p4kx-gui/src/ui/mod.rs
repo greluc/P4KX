@@ -35,6 +35,7 @@ mod entities;
 mod entity_list;
 mod entity_loadout;
 mod entity_replace;
+mod entity_view;
 mod entry_status;
 mod extraction;
 mod extraction_outcome;
@@ -162,6 +163,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         ..Requests::default()
     };
     poll_background(model);
+    release_assembly(ui, model);
     poll_search(ui, model);
     if let Some(path) = dropped_file(ui) {
         if path.is_dir() {
@@ -214,6 +216,22 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     archive_key::show(ui, model);
     query::saved_dialog(ui, model, &mut requests);
     requests
+}
+
+/// Frees the Assembly buffers on the graphics device once no Assembly is on screen: another tab
+/// is shown, or the selection or the Archive changed.
+fn release_assembly(ui: &Ui, model: &Model) {
+    let crate::ViewerSupport::Ready(report) = model.viewer_support() else {
+        return;
+    };
+    let shown = model.work_tab() == WorkTab::Entities
+        && model
+            .entities()
+            .loadout()
+            .is_some_and(|session| session.assembly().scene().is_some());
+    if !shown && report.holds_assembly() {
+        ui.painter().add(crate::viewer::release_callback());
+    }
 }
 
 /// Takes the result of a content search and shows a hit that waited for its data.

@@ -33,6 +33,11 @@ impl Model {
         &self.assembly.tab
     }
 
+    /// Returns the Entities tab for changes together with the interface texts.
+    pub(crate) const fn entities_with_texts(&mut self) -> (&mut EntitiesTab, &Texts) {
+        (&mut self.assembly.tab, &self.texts)
+    }
+
     /// Returns the Entities tab for changes.
     pub const fn entities_mut(&mut self) -> &mut EntitiesTab {
         &mut self.assembly.tab
@@ -52,9 +57,13 @@ impl Model {
     /// the UI thread, calling `wake` from it as it ends.
     pub fn select_entity(&mut self, position: usize, wake: impl Fn() + Send + Sync + 'static) {
         if let Some(browser) = &self.browser {
-            self.assembly
-                .tab
-                .select(position, browser.shared_index(), Arc::new(wake));
+            let settings = &self.assembly.settings;
+            self.assembly.tab.select(
+                position,
+                browser.shared_index(),
+                Arc::new(wake),
+                (settings.lod, settings.materials),
+            );
         }
     }
 
@@ -90,11 +99,15 @@ impl Model {
         let Some(session) = self.assembly.tab.loadout() else {
             return;
         };
-        let setup = AssemblyExportSetup::new(
+        let mut setup = AssemblyExportSetup::new(
             (session.guid(), session.name()),
             session.changes(),
             &self.assembly.settings,
         );
+        if session.assembly().is_chosen() {
+            setup.set_lod(session.assembly().lod());
+            setup.set_materials(session.assembly().materials());
+        }
         self.assembly.run = None;
         self.assembly.setup = Some(setup);
     }

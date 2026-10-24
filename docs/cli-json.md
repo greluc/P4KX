@@ -1573,6 +1573,29 @@ side holds at most 128 MiB of text and about 9 bytes of bookkeeping per line.
 unchanged; `byte_order` is `little`, `big`, or `null` for text XML. `--json` needs `--out`,
 because the XML would otherwise share stdout with the JSON; without it the exit code is 2.
 
+## `p4kx chf glb <archive> <file> --out <file> --json`
+
+```json
+{"archive": "…", "chf": "…", "body": "male", "rig": "protos_human_male_face_t1_pu",
+ "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…", "lod": 0,
+ "parts": [{"name": "body", "origin": "body", "file": "…"},
+           {"name": "head", "origin": "head", "file": "…"}],
+ "nodes": 222, "bones": 220, "meshes": 2, "skinned_meshes": 2, "primitives": 31,
+ "materials": 4, "vertices": 17940, "triangles": 31530, "bytes": 1581492, "skipped": 0,
+ "issues": [Issue, …]}
+```
+
+`body` and `rig` are the body variant and the head rig that the DNA's `gender_hash` names; `parts`
+lists the skin of the body (`origin` `body`) and the head (`origin` `head`), named `head`. The
+Issues are those of `p4kx armour glb`, and a head that cannot be shaped adds `shape_failed` (the
+DNA rig beside the head skin is missing, belongs to another rig, does not cover the vertices of the
+model, has a different vertex count than the skin, gives moves that are not finite, or the DNA
+names a head the rig lacks); the head is then left out, `skipped` counts it, the GLB is still
+written and the command exits with code 1 after printing the report. `--lod N` picks the level of
+detail and `--no-vertex-colours` leaves the vertex colours out. A CHF that holds no face DNA or whose DNA names an unknown head rig exits with code 2, a file that
+is no CHF with code 3, a missing skeleton with code 3, an Archive key that is missing or wrong with
+code 7, and an `--out` that is the Archive with code 2.
+
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 
 ```json

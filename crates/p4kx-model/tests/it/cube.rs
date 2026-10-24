@@ -271,3 +271,30 @@ fn a_model_without_nodes_gets_one_root_named_after_the_file() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_mesh_remembers_the_stream_index_of_each_of_its_vertices() -> TestResult {
+    let plain = read(&TestModel::cube())?;
+    let reordered = read(&TestModel::cube().with_index(0, 5))?;
+
+    let source = |model: &Model| -> Result<Vec<u32>, Box<dyn Error>> {
+        Ok(model
+            .lods
+            .first()
+            .and_then(|lod| lod.meshes.first())
+            .ok_or("a mesh")?
+            .source
+            .clone())
+    };
+    assert_eq!(source(&plain)?, (0..24).collect::<Vec<u32>>());
+    let reordered = source(&reordered)?;
+    assert_eq!(
+        reordered.first(),
+        Some(&5),
+        "the first triangle uses vertex 5"
+    );
+    let mut sorted = reordered;
+    sorted.sort_unstable();
+    assert_eq!(sorted, (0..24).collect::<Vec<u32>>(), "every vertex once");
+    Ok(())
+}

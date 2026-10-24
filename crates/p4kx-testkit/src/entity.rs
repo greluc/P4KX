@@ -4,7 +4,7 @@
 use crate::TestPort;
 use crate::entity_cargo::{container_component, physics_component};
 use crate::entity_schema::attachable_component;
-use crate::entity_vehicle::{geometry_component, vehicle_component};
+use crate::entity_vehicle::{GeometryVariant, geometry_component, vehicle_component};
 use crate::{TestInstance, TestRecord, TestValue};
 
 /// The prefix of the Record name of every Entity.
@@ -24,6 +24,7 @@ pub struct TestEntity {
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
     geometry: Option<(String, Option<String>)>,
+    geometry_variants: Vec<GeometryVariant>,
     vehicle: Option<(String, String)>,
     landing_system: Option<u128>,
     attach_type: Option<String>,
@@ -48,6 +49,7 @@ impl TestEntity {
             triggers: Vec::new(),
             sound_effects: Vec::new(),
             geometry: None,
+            geometry_variants: Vec::new(),
             vehicle: None,
             landing_system: None,
             attach_type: None,
@@ -111,6 +113,22 @@ impl TestEntity {
     #[must_use]
     pub fn geometry(mut self, path: impl Into<String>, material: Option<&str>) -> Self {
         self.geometry = Some((path.into(), material.map(str::to_owned)));
+        self
+    }
+
+    /// Adds a sub-geometry tagged `tags`, words separated by white space, such as `Male`, naming
+    /// the model `path` and, if given, the material library `material`; without
+    /// [`Self::geometry`] the main geometry names no model. The database needs
+    /// [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn geometry_variant(
+        mut self,
+        tags: impl Into<String>,
+        path: impl Into<String>,
+        material: Option<&str>,
+    ) -> Self {
+        self.geometry_variants
+            .push((tags.into(), path.into(), material.map(str::to_owned)));
         self
     }
 
@@ -186,8 +204,13 @@ impl TestEntity {
         if !self.triggers.is_empty() || !self.sound_effects.is_empty() {
             components.push(self.audio_component());
         }
-        if let Some((path, material)) = &self.geometry {
-            components.push(geometry_component(path, material.as_deref()));
+        if self.geometry.is_some() || !self.geometry_variants.is_empty() {
+            let (path, material) = self.geometry.clone().unwrap_or_default();
+            components.push(geometry_component(
+                &path,
+                material.as_deref(),
+                &self.geometry_variants,
+            ));
         }
         components.extend(self.vehicle.as_ref().map(|(definition, modification)| {
             vehicle_component(definition, modification, self.landing_system)

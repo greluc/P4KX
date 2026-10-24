@@ -3,6 +3,8 @@
 
 //! `p4kx`, the command-line interface of P4KX.
 
+mod armour;
+mod armour_glb;
 mod audio;
 mod bnk;
 mod catalog;
@@ -12,6 +14,7 @@ mod channels;
 mod chf;
 mod chunks;
 mod cli;
+mod cli_armour;
 mod cli_audio;
 mod cli_bnk;
 mod cli_catalog;
@@ -19,6 +22,7 @@ mod cli_channels;
 mod cli_chf;
 mod cli_chunks;
 mod cli_coverage;
+mod cli_cryxml;
 mod cli_dcb;
 mod cli_dcb_fields;
 mod cli_entity;
@@ -130,6 +134,7 @@ fn main() -> ExitCode {
         Command::Coverage(args) => coverage::run(&args, json),
         Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json),
+        Command::Armour(args) => armour::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {

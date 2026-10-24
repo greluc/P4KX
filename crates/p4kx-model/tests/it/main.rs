@@ -18,6 +18,7 @@ mod materials;
 mod palettes;
 mod skeleton;
 mod skin_levels;
+mod soc_entities;
 mod structured;
 mod transform;
 mod weights;

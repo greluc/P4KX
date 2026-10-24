@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::{
-    DataForgeBuilder, TestEntity, TestEntry, TestModel, TestNode, entity_schema, interior_entries,
+    DataForgeBuilder, TestEntity, TestEntry, TestModel, TestNode, entity_schema,
+    lit_interior_entries,
 };
 
 /// The class name of the sample Entity with an Interior.
@@ -77,7 +78,7 @@ fn database() -> DataForgeBuilder {
 }
 
 /// Returns the Entries of a synthetic Archive that holds the ship Entity [`ENTITY_INTERIOR_CLASS`]
-/// with the Interior of [`interior_entries`].
+/// with the Interior of [`lit_interior_entries`].
 ///
 /// The hull has the bones `hp_int_front` at (0, 6, 0), `hp_int_aft` at (0, -3, 0) and its root
 /// `hull` at the origin. The Entity names seven containers: the Interior at `hp_int_front` with the
@@ -94,6 +95,6 @@ pub fn entity_interior_entries() -> Vec<TestEntry> {
         TestEntry::stored("Data\\Objects\\Test\\hull.cgf", model.cgf()),
         TestEntry::stored("Data\\Objects\\Test\\hull.cgfm", model.cgfm()),
     ];
-    entries.extend(interior_entries());
+    entries.extend(lit_interior_entries());
     entries
 }

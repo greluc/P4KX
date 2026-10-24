@@ -13,6 +13,7 @@ const SPECULAR_SLOT: &str = "TexSlot4";
 const NORMAL_GLOSS_SUFFIX: &str = "ddna";
 const NORMAL_SUFFIX: &str = "ddn";
 const SPECULAR_SUFFIX: &str = "spec";
+const OPACITY_SUFFIX: &str = "opac";
 const NOT_DIFFUSE: [&str; 16] = [
     "ao", "blend", "mask", "opac", "id", "scalp", "dir", "dirm", "hal", "wear", "displ", "disp",
     "detail", "gloss", "ddna", "ddn",
@@ -37,6 +38,9 @@ pub(crate) struct Source {
     pub(crate) file: String,
     /// Whether the texture carries the smoothness in its alpha channel.
     pub(crate) gloss: bool,
+    /// Whether the texture is an opacity map standing in for the diffuse map: its red channel is
+    /// the opacity and the colour comes from the material alone.
+    pub(crate) opacity: bool,
 }
 
 impl Source {
@@ -50,6 +54,8 @@ impl Source {
 /// normal map of `TexSlot2` or `TexSlot3` whose name ends in `_ddna` (with the smoothness in its
 /// alpha channel) or `_ddn`, and the specular map of `TexSlot4` ending in `_spec`. Engine
 /// placeholders such as `$RenderToTexture` are no files; a file whose path is unsafe is refused.
+/// A material without a diffuse map whose `TexSlot1` ends in `_opac`, such as hair cards, has that
+/// opacity map in place of the diffuse map, see [`Source::opacity`].
 pub(crate) fn sources(material: &Material) -> Sources {
     let pick = |slots: &[&str], wanted: &dyn Fn(&str) -> bool| {
         slots.iter().find_map(|slot| {
@@ -63,13 +69,14 @@ pub(crate) fn sources(material: &Material) -> Sources {
         })
     };
     let mut found = Sources::default();
-    let mut resolve = |role: TextureRole, file: Option<&str>, gloss: bool| {
+    let mut resolve = |role: TextureRole, file: Option<&str>, gloss: bool, opacity: bool| {
         let file = file?;
         if let Some(path) = canonical(file) {
             Some(Source {
                 path,
                 file: file.to_owned(),
                 gloss,
+                opacity,
             })
         } else {
             found.refused.push((role, file.to_owned()));
@@ -82,9 +89,13 @@ pub(crate) fn sources(material: &Material) -> Sources {
     });
     let specular = pick(&[SPECULAR_SLOT], &|name| name == SPECULAR_SUFFIX);
     let gloss = normal.is_some_and(|file| suffix(file) == NORMAL_GLOSS_SUFFIX);
-    let diffuse = resolve(TextureRole::Diffuse, diffuse, false);
-    let normal = resolve(TextureRole::Normal, normal, gloss);
-    let specular = resolve(TextureRole::Specular, specular, false);
+    let opacity = pick(&[DIFFUSE_SLOT], &|name| name == OPACITY_SUFFIX).filter(|_| diffuse.is_none());
+    let diffuse = match opacity {
+        Some(file) => resolve(TextureRole::Diffuse, Some(file), false, true),
+        None => resolve(TextureRole::Diffuse, diffuse, false, false),
+    };
+    let normal = resolve(TextureRole::Normal, normal, gloss, false);
+    let specular = resolve(TextureRole::Specular, specular, false, false);
     found.diffuse = diffuse;
     found.normal = normal;
     found.specular = specular;

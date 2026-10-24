@@ -5,6 +5,9 @@ use p4kx_dataforge::{Guid, StructValue, Value, ValueError};
 
 use crate::read::{struct_field, struct_items, text};
 
+/// The deepest nesting of sub-geometry nodes that is read.
+const MAX_NESTED_SUB_GEOMETRY: usize = 4;
+
 /// The tint palette an Entity's geometry names (`Palette.TintPaletteRef`): the `TintPaletteTree`
 /// Record and the child of its tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,22 +95,36 @@ impl Geometry {
     }
 
     /// Reads the geometry of the sub-nodes of the main node of a `SGeometryResourceParams`
-    /// component that name a model, with their tags.
+    /// component that name a model, with their tags: the children of the main node first, then
+    /// the sub-nodes nested in them, which carry the tags of the nodes they are nested in as well
+    /// as their own.
     pub(crate) fn read_variants(component: &StructValue<'_>) -> Vec<GeometryVariant> {
         let Some(node) = struct_field(component, "Geometry") else {
             return Vec::new();
         };
-        struct_items(node, "SubGeometry")
-            .filter_map(|sub| {
-                Some(GeometryVariant {
-                    tags: text(sub, "Tags")
-                        .split_whitespace()
-                        .map(str::to_owned)
-                        .collect(),
-                    geometry: Self::of_node(sub)?,
-                })
-            })
-            .collect()
+        let mut variants = Vec::new();
+        let mut level = vec![(node, Vec::<String>::new())];
+        for _ in 0..MAX_NESTED_SUB_GEOMETRY {
+            let mut next = Vec::new();
+            for (parent, inherited) in &level {
+                for sub in struct_items(parent, "SubGeometry") {
+                    let mut tags = inherited.clone();
+                    tags.extend(text(sub, "Tags").split_whitespace().map(str::to_owned));
+                    if let Some(geometry) = Self::of_node(sub) {
+                        variants.push(GeometryVariant {
+                            tags: tags.clone(),
+                            geometry,
+                        });
+                    }
+                    next.push((sub, tags));
+                }
+            }
+            if next.is_empty() {
+                break;
+            }
+            level = next;
+        }
+        variants
     }
 
     fn of_node(node: &StructValue<'_>) -> Option<Self> {

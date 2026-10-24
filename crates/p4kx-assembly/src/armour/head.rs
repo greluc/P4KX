@@ -42,9 +42,9 @@ pub enum HeadError {
 /// Wear it with [`Armour::build`](super::Armour::build) on the [`BodyVariant`] it names.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Head {
-    variant: BodyVariant,
-    rig: &'static str,
-    pieces: Vec<Piece>,
+    pub(super) variant: BodyVariant,
+    pub(super) rig: &'static str,
+    pub(super) pieces: Vec<Piece>,
 }
 
 impl Head {
@@ -71,6 +71,15 @@ impl Head {
             rig,
             pieces: vec![head],
         })
+    }
+
+    /// Returns the folder below `Data` that holds the skins and DNA rigs of the head rig.
+    pub(super) fn folder(&self) -> String {
+        format!(
+            "Objects/Characters/Human/heads/{}/pu/{}",
+            self.variant.code(),
+            self.rig
+        )
     }
 
     /// Returns the body variant the head belongs on.

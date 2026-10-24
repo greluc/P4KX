@@ -20,6 +20,8 @@ const MAX_SHININESS: f32 = 255.0;
 
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
 const GLASS_SHADERS: [&str; 1] = ["GlassPBR"];
+const HAIR_CARD_SHADERS: [&str; 1] = ["HairPBR"];
+const HAIR_CARD_CUTOFF: f32 = 0.5;
 const TEXTURE_GLOSS_SHADERS: [&str; 3] = ["HardSurface", "LayerBlend_V2", "Layer"];
 
 /// Which glTF material a material ID is drawn with.
@@ -171,6 +173,8 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
             1.0,
             Some(material.alpha_test.clamp(0.0, 1.0)),
         )
+    } else if is_one_of(&material.shader, &HAIR_CARD_SHADERS) {
+        (AlphaMode::Mask, 1.0, Some(HAIR_CARD_CUTOFF))
     } else if glass {
         (AlphaMode::Blend, opacity.min(GLASS_ALPHA), None)
     } else if decal || opacity < 1.0 {

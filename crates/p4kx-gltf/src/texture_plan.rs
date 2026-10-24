@@ -282,9 +282,10 @@ fn refusals(found: &Sources) -> Vec<Failure> {
 /// returns the jobs with the textures refused for their unsafe paths.
 fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, Vec<Failure>) {
     let mut found = sources(material);
-    if found.diffuse.is_none() {
+    if found.diffuse.as_ref().is_none_or(|diffuse| diffuse.opacity) {
         found.specular = None;
     }
+    let by_opacity = found.diffuse.as_ref().is_some_and(|diffuse| diffuse.opacity);
     let refused = refusals(&found);
     let tints = Tints {
         diffuse: material.diffuse.map(|channel| channel.clamp(0.0, 1.0)),
@@ -304,7 +305,7 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
                 } else {
                     NEUTRAL
                 },
-                keep_alpha: uses_alpha(material),
+                keep_alpha: by_opacity || uses_alpha(material),
             },
             diffuse: found.diffuse.clone(),
             normal: None,

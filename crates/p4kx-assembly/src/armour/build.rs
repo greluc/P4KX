@@ -4,14 +4,13 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use p4kx_character::Dna;
 use p4kx_model::{BoneMatch, Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use super::piece::Source;
+use super::follow::follow;
+use super::jobs::{Job, gather, issue};
 use super::shape::shaped;
-use super::wearable::Unfit;
-use super::{Armour, ArmourPart, BodyVariant, PartOrigin, Piece};
+use super::{Armour, ArmourPart, BodyVariant, Piece};
 use crate::build::file_key;
 use crate::{
     AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider, ProvidedModel,
@@ -20,15 +19,13 @@ use crate::{
 /// The most distinct model files read at once before the vertex budget is checked again.
 const WAVE: usize = 64;
 
-/// One skin to read and wear.
-struct Job {
-    origin: PartOrigin,
-    part: String,
-    owner: String,
-    label: String,
-    path: String,
-    material: Option<String>,
-    shape: Option<Dna>,
+/// The name of the piece the pieces that follow the head follow.
+const HEAD: &str = "head";
+
+/// The head as it was made and as it was shaped, which what follows the head moves with.
+struct HeadMove {
+    before: Arc<Model>,
+    after: Arc<Model>,
 }
 
 struct Loaded {
@@ -68,15 +65,7 @@ impl Armour {
     ) -> Result<Self, AssemblyError> {
         let body = load_body(variant, models, options.lod)?;
         let mut issues = Vec::new();
-        let mut jobs = vec![Job {
-            origin: PartOrigin::Body,
-            part: "body".to_owned(),
-            owner: String::new(),
-            label: "body".to_owned(),
-            path: variant.skin().to_owned(),
-            material: None,
-            shape: None,
-        }];
+        let mut jobs = vec![Job::body(variant.skin())];
         for piece in pieces {
             gather(piece, variant, &mut jobs, &mut issues);
         }
@@ -94,16 +83,33 @@ impl Armour {
         let unnamed = Arc::new(MaterialStatus::Unnamed);
         let mut reported = HashSet::new();
         let mut parts = Vec::with_capacity(chosen.len());
+        let mut head: Option<HeadMove> = None;
         for (job, found) in jobs.iter().zip(&chosen) {
             let Some(found) = found else { continue };
-            let Some(model) = fitted(job, found, models, &mut issues) else {
+            let Some(mut model) = fitted(job, found, models, &mut issues) else {
                 continue;
             };
+            if job.shape.is_some() && job.part == HEAD && head.is_none() {
+                head = Some(HeadMove {
+                    before: Arc::clone(&found.model),
+                    after: Arc::clone(&model),
+                });
+            }
+            if job.follows_head
+                && let Some(moved) = &head
+            {
+                model = followed(&model, moved);
+            }
             let key = library_key(job, found);
-            let materials = key
+            let mut materials = key
                 .as_ref()
                 .and_then(|key| libraries.get(key))
                 .map_or_else(|| Arc::clone(&unnamed), Arc::clone);
+            if let Some(look) = &job.look
+                && let Some(looked) = look.apply(&materials)
+            {
+                materials = Arc::new(looked);
+            }
             if let (Some(key), Some(reason)) = (key, materials.problem())
                 && reported.insert(key)
             {
@@ -129,19 +135,12 @@ impl Armour {
     }
 }
 
-fn issue(job: &Job, kind: IssueKind) -> Issue {
-    Issue {
-        path: job.owner.clone(),
-        name: job.label.clone(),
-        kind,
-    }
-}
-
-fn piece_issue(piece: &Piece, kind: IssueKind) -> Issue {
-    Issue {
-        path: String::new(),
-        name: piece.name.clone(),
-        kind,
+/// Returns `model` with its vertices following the head as it was shaped.
+fn followed(model: &Arc<Model>, head: &HeadMove) -> Arc<Model> {
+    let meshes = |model: &'_ Model| model.lods.first().and_then(|lod| lod.meshes.first().cloned());
+    match (meshes(&head.before), meshes(&head.after)) {
+        (Some(before), Some(after)) => Arc::new(follow(model, &before, &after)),
+        _ => Arc::clone(model),
     }
 }
 
@@ -189,42 +188,6 @@ fn load_body(
         skeleton: model,
         skeleton_file: skeleton_file.to_owned(),
     })
-}
-
-/// Adds the skin `piece` contributes for `variant` to `jobs`, or the reason it contributes none
-/// to `issues`.
-fn gather(piece: &Piece, variant: BodyVariant, jobs: &mut Vec<Job>, issues: &mut Vec<Issue>) {
-    let (path, material) = match &piece.source {
-        Source::Failed(reason) => {
-            let kind = IssueKind::PieceNotFound {
-                reason: reason.clone(),
-            };
-            issues.push(piece_issue(piece, kind));
-            return;
-        }
-        Source::File { path, material } => (path.as_str(), material.as_deref()),
-        Source::Wearable(wearable) => match wearable.geometry_for(variant) {
-            Ok(geometry) => (geometry.path(), geometry.material()),
-            Err(Unfit::NoGeometry) => {
-                issues.push(piece_issue(piece, IssueKind::NoWornGeometry));
-                return;
-            }
-            Err(Unfit::NoVariant) => {
-                let body = variant.code().to_owned();
-                issues.push(piece_issue(piece, IssueKind::NoVariantGeometry { body }));
-                return;
-            }
-        },
-    };
-    jobs.push(Job {
-        origin: PartOrigin::Piece,
-        part: piece.name.clone(),
-        owner: String::new(),
-        label: piece.name.clone(),
-        path: path.to_owned(),
-        material: material.map(str::to_owned),
-        shape: piece.shape.clone(),
-    });
 }
 
 fn vertices(model: &Model) -> usize {

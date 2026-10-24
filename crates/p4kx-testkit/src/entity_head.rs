@@ -76,7 +76,7 @@ pub fn head_rig(vertices: usize, rig_hash: u32) -> TestDna {
 /// skin of the male head rig.
 ///
 /// The skin is a cube whose first triangle uses vertex 5; `rig` is the bytes of the head's `.dna`
-/// file, left out when `None`.
+/// file, left out when `None`. The teeth are the same cube, with the same rig.
 #[must_use]
 pub fn head_entries(rig: Option<Vec<u8>>) -> Vec<TestEntry> {
     let model = head_skin();
@@ -84,10 +84,14 @@ pub fn head_entries(rig: Option<Vec<u8>>) -> Vec<TestEntry> {
         "Data\\{}\\{MALE_RIG}_head",
         MALE_HEAD_FOLDER.replace('/', "\\")
     );
+    let teeth = stem.replace("_head", "_teeth");
     let mut entries = armour_entries();
-    entries.push(TestEntry::stored(format!("{stem}.skin"), model.cgf()));
-    entries.push(TestEntry::stored(format!("{stem}.skinm"), model.cgfm()));
+    for part in [&stem, &teeth] {
+        entries.push(TestEntry::stored(format!("{part}.skin"), model.cgf()));
+        entries.push(TestEntry::stored(format!("{part}.skinm"), model.cgfm()));
+    }
     if let Some(rig) = rig {
+        entries.push(TestEntry::stored(format!("{teeth}.dna"), rig.clone()));
         entries.push(TestEntry::stored(format!("{stem}.dna"), rig));
     }
     entries

@@ -87,8 +87,8 @@ mod walk;
 mod xml;
 
 pub use armour::{
-    Armour, ArmourPart, BodyVariant, Head, HeadError, MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced,
-    Wearable, is_worn_type,
+    Armour, ArmourPart, BodyVariant, ForgeItems, Head, HeadError, HeadItems, Look,
+    MAX_DNA_RIG_LEN, PartOrigin, Piece, Replaced, Wearable, is_worn_type,
 };
 pub use assembly::{
     Assembly, AssemblyOptions, MAX_ASSEMBLY_DEPTH, MAX_ASSEMBLY_PARTS, MAX_ASSEMBLY_VERTICES, Part,

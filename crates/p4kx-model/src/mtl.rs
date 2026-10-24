@@ -82,6 +82,46 @@ pub struct Material {
     pub palette: Option<PaletteSlot>,
     /// Whether a [`TintPalette`](crate::TintPalette) replaced the colours of the file.
     pub tinted: bool,
+    /// The values of [`CUSTOM_PARAMS`] the material's `PublicParams` set, in that order: a number
+    /// in the first channel, a colour in all three.
+    pub public_params: Vec<PublicParam>,
+}
+
+/// The `PublicParams` of a material that the customisation of a character sets and that
+/// [`Material::public_params`] therefore keeps.
+pub const CUSTOM_PARAMS: [&str; 12] = [
+    "FinalSkinTone",
+    "SourceAverageColor",
+    "IrisColor",
+    "DyeColor",
+    "BaseTintColor",
+    "DyeAmount",
+    "DyeShift",
+    "DyeFadeout",
+    "DyePigmentVariation",
+    "BaseMelanin",
+    "BaseMelaninRedness",
+    "BaseMelaninVariation",
+];
+
+/// One shader parameter of a material, see [`CUSTOM_PARAMS`].
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PublicParam {
+    /// The parameter's name, one of [`CUSTOM_PARAMS`].
+    pub name: &'static str,
+    /// The value: a number in the first channel, a colour (linear) in all three.
+    pub value: [f32; 3],
+}
+
+impl Material {
+    /// Returns the value of the shader parameter `name`, or `None` when the material sets none.
+    #[must_use]
+    pub fn public_param(&self, name: &str) -> Option<[f32; 3]> {
+        self.public_params
+            .iter()
+            .find(|param| param.name.eq_ignore_ascii_case(name))
+            .map(|param| param.value)
+    }
 }
 
 impl Material {
@@ -105,6 +145,7 @@ impl Material {
             textures: Vec::new(),
             palette: None,
             tinted: false,
+            public_params: Vec::new(),
         }
     }
 

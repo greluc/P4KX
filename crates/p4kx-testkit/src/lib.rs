@@ -78,6 +78,9 @@ mod real_archive;
 mod rig_logic;
 mod screens;
 mod screens_canvas;
+mod screens_image;
+mod screens_image_schema;
+mod screens_modifier;
 mod screens_sample;
 mod screens_text;
 mod screens_text_schema;
@@ -175,9 +178,13 @@ pub use real_archive::{
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
 pub use screens_canvas::{
-    TestCanvas, TestCondition, TestModifier, TestStyle, TestStyleEntry, movie_component,
-    screen_component, tag_record,
+    TestCanvas, TestCondition, TestStyle, TestStyleEntry, movie_component, screen_component,
+    tag_record,
 };
+pub use screens_image::{
+    SCREEN_IMAGE_CANVAS, screens_image_sample, screens_texture, screens_vector,
+};
+pub use screens_modifier::TestModifier;
 pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
 pub use screens_text::{
     SCREEN_TEXT_CANVAS, SCREEN_TEXT_STYLE, screens_font_movie, screens_text_sample,

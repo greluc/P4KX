@@ -7,6 +7,7 @@ use crate::assets::WidgetAssets;
 use crate::bindings::{ParamValues, param_values};
 use crate::colour::ColorSpec;
 use crate::flex::{Flex, parse_flex};
+use crate::picture::Picture;
 use crate::reader::{child, flag, float, int, items, reference, text};
 use crate::style::{Entry, inline_entries};
 use crate::text::TextSpec;
@@ -104,6 +105,7 @@ pub(crate) struct Widget {
     pub(crate) canvas_dangling: bool,
     pub(crate) shape: ShapeStyle,
     pub(crate) text: Option<TextSpec>,
+    pub(crate) picture: Picture,
     pub(crate) params: ParamValues,
     pub(crate) assets: WidgetAssets,
 }
@@ -219,6 +221,7 @@ impl Widget {
             canvas_dangling: matches!(structure.field("canvas"), Some(Value::Error(_))),
             shape: ShapeStyle::parse(structure),
             text: TextSpec::parse(structure),
+            picture: Picture::parse(structure),
             params: param_values(structure),
             assets: WidgetAssets::scan(structure),
         }

@@ -5,7 +5,7 @@ use p4kx_dataforge::{Guid, StructValue, Value};
 
 use crate::colour::ColorSpec;
 use crate::reader::{as_struct, child, flag, float, items, reference, text};
-use crate::style::TextModifiers;
+use crate::style::{PictureModifiers, TextModifiers};
 
 const PREFIX: &str = "BuildingBlocks_StyleSelectorCondition";
 
@@ -34,6 +34,7 @@ pub(crate) struct Modifiers {
     pub(crate) active: Option<bool>,
     pub(crate) alpha: Option<f32>,
     pub(crate) text: TextModifiers,
+    pub(crate) picture: PictureModifiers,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -184,11 +185,17 @@ fn modifiers(values: &[Value<'_>]) -> Modifiers {
                 match field {
                     "EnableBackground" => found.enable_background = value,
                     "IsActive" => found.active = value,
-                    _ => found.text.boolean(field, value),
+                    _ => {
+                        found.text.boolean(field, value);
+                        found.picture.boolean(field, value);
+                    }
                 }
             }
             "BuildingBlocks_FieldModifierNumber" => {
                 number_field(&mut found, field, float(modifier, "value"));
+            }
+            "BuildingBlocks_FieldModifierString" => {
+                found.picture.string(field, text(modifier, "value"));
             }
             "BuildingBlocks_FieldModifierLocalization" => {
                 found.text.localised(field, text(modifier, "value"));

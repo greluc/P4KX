@@ -103,6 +103,7 @@ fn merge(into: &mut Modifiers, from: &Modifiers) {
     set(&mut into.active, from.active.as_ref());
     set(&mut into.alpha, from.alpha.as_ref());
     into.text.merge(&from.text);
+    into.picture.merge(&from.picture);
     for (slot, value) in into.border_colours.iter_mut().zip(&from.border_colours) {
         set(slot, value.as_ref());
     }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_image_schema::image_structs;
 use crate::screens_text_schema::text_structs;
 use crate::{DataForgeBuilder, TestStruct, TestType};
 
@@ -36,6 +37,7 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(condition_structs())
         .chain(component_structs())
         .chain(text_structs())
+        .chain(image_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
 
@@ -156,12 +158,6 @@ fn widget_kinds() -> Vec<TestStruct> {
             )
             .field("textAlignment", TestType::String)
             .field("verticalTextAlignment", TestType::String),
-        TestStruct::new("BuildingBlocks_WidgetImage")
-            .parent("BuildingBlocks_DisplayWidget")
-            .field("imagePath", TestType::String),
-        TestStruct::new("BuildingBlocks_WidgetCustomShape")
-            .parent("BuildingBlocks_DisplayWidget")
-            .field("svgPath", TestType::String),
         TestStruct::new("BuildingBlocks_WidgetCircle")
             .parent("BuildingBlocks_DisplayWidget")
             .field("doFill", TestType::Bool)

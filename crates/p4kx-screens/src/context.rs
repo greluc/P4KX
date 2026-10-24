@@ -4,6 +4,7 @@
 use p4kx_gfx::Rgba;
 
 use crate::colour::{ColorSpec, Palette};
+use crate::images::Images;
 use crate::paint::Painter;
 use crate::report::Report;
 use crate::text::Texts;
@@ -15,6 +16,7 @@ pub(crate) struct Context<'t> {
     pub(crate) painter: Painter,
     pub(crate) report: Report,
     pub(crate) texts: Texts<'t>,
+    pub(crate) images: Images<'t>,
 }
 
 impl Context<'_> {

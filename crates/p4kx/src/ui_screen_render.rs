@@ -8,10 +8,10 @@ use std::process::ExitCode;
 use anyhow::{Context as _, Result};
 use p4kx_extraction::gfx::{Background, CanvasSize, Font, Localise, RasterOptions, Skipped};
 use p4kx_extraction::{
-    Archive, ConversionError, DataForgeEntry, Language, LocalizationEntry, UiMovie,
+    Archive, ArchiveImages, ConversionError, DataForgeEntry, Language, LocalizationEntry, UiMovie,
     decode_line_breaks, write_replacing,
 };
-use p4kx_screens::{Composed, Report, ScreenComposer, TextSources};
+use p4kx_screens::{Composed, ImageSources, MAX_SVG_BYTES, Report, ScreenComposer, TextSources};
 use serde::Serialize;
 
 use crate::{exit, json};
@@ -60,15 +60,13 @@ fn skipped_json(skipped: &[Skipped]) -> Vec<SkippedJson> {
         .collect()
 }
 
-/// Runs `p4kx ui render --screen`.
-pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Result<ExitCode> {
-    let archive = crate::key::open(archive)?;
-    let entry = DataForgeEntry::read(&archive)?;
+fn compose(archive: &Archive, options: &Options<'_>) -> Result<Composed> {
+    let entry = DataForgeEntry::read(archive)?;
     let forge = entry.open()?;
-    let fonts = read_fonts(&archive, &ScreenComposer::new(&forge).font_file())
+    let fonts = read_fonts(archive, &ScreenComposer::new(&forge).font_file())
         .inspect_err(warn)
         .ok();
-    let texts = LocalizationEntry::read(&archive, options.lang.unwrap_or(Language::English))
+    let texts = LocalizationEntry::read(archive, options.lang.unwrap_or(Language::English))
         .inspect_err(warn)
         .ok();
     let ini = texts
@@ -79,14 +77,30 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
             .resolve(key)
             .map(|text| decode_line_breaks(text).into_owned())
     };
-    let mut screens = ScreenComposer::new(&forge);
+    let images = ArchiveImages::new(archive);
+    let read_texture = |path: &str, side: u32| images.texture(path, side).map_err(|e| describe(&e));
+    let read_vector = |path: &str| {
+        images
+            .vector(path, MAX_SVG_BYTES as u64)
+            .map_err(|e| describe(&e))
+    };
+    let mut screens = ScreenComposer::new(&forge).with_images(ImageSources {
+        texture: &read_texture,
+        vector: &read_vector,
+    });
     if let Some(fonts) = &fonts {
         screens = screens.with_texts(TextSources {
             fonts,
             localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
         });
     }
-    let composed = screens.compose(options.screen, options.brand)?;
+    Ok(screens.compose(options.screen, options.brand)?)
+}
+
+/// Runs `p4kx ui render --screen`.
+pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Result<ExitCode> {
+    let archive = crate::key::open(archive)?;
+    let composed = compose(&archive, options)?;
     let raster = RasterOptions {
         size: options.size.unwrap_or(CanvasSize::Stage),
         background: options.background,
@@ -120,6 +134,17 @@ fn warn(error: &impl std::fmt::Display) {
         io::stderr().lock(),
         "warning: texts are drawn without it: {error}"
     ));
+}
+
+fn describe(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
 }
 
 fn read_fonts(archive: &Archive, record_path: &str) -> Result<Vec<Font>> {
@@ -187,7 +212,7 @@ fn print_report(options: &Options<'_>, report: &Report, written: &Written) -> io
     drop(stderr);
     writeln!(
         io::stdout().lock(),
-        "rendered {} into {}, {width} x {height} px; {} widgets in {} canvases, {} shapes, {} texts drawn and {} left out, {} kinds of element left out",
+        "rendered {} into {}, {width} x {height} px; {} widgets in {} canvases, {} shapes, {} texts drawn and {} left out, {} images drawn and {} left out, {} kinds of element left out",
         options.screen,
         options.out.display(),
         report.widgets,
@@ -195,6 +220,8 @@ fn print_report(options: &Options<'_>, report: &Report, written: &Written) -> io
         report.shapes,
         report.texts_drawn,
         report.texts_left_out,
+        report.images_drawn,
+        report.images_left_out,
         report.unsupported.len()
     )
 }

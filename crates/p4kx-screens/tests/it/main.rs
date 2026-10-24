@@ -5,6 +5,9 @@
 
 mod cascade;
 mod errors;
+mod image_limits;
+mod image_reference;
+mod images;
 mod layout;
 mod limits;
 mod listing;
@@ -13,3 +16,4 @@ mod support;
 mod text;
 mod text_limits;
 mod text_reference;
+mod vectors;

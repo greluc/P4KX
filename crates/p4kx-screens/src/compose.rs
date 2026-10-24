@@ -5,12 +5,13 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use p4kx_dataforge::{DataForge, Guid};
-use p4kx_gfx::{Font, Localise, Raster, RasterOptions, Scene, SvgReport};
+use p4kx_gfx::{Font, Localise, Raster, RasterOptions, RgbaImage, Scene, SvgReport};
 
 use crate::canvas::{CanvasStore, StyleRef, find_canvas};
 use crate::colour::{Palette, slot_names};
 use crate::context::Context;
 use crate::error::ScreenError;
+use crate::images::{ImageSources, Images};
 use crate::limits::Limits;
 use crate::paint::Area;
 use crate::report::Report;
@@ -26,6 +27,7 @@ const MAX_CANVAS_SIDE: f32 = 16_384.0;
 #[derive(Debug)]
 pub struct Composed {
     scene: Scene,
+    bitmaps: HashMap<u16, RgbaImage>,
     report: Report,
     width: u32,
     height: u32,
@@ -62,7 +64,7 @@ impl Composed {
     ///
     /// Returns [`ScreenError::Gfx`] when the canvas size the options ask for cannot be drawn.
     pub fn rasterize(&self, options: &RasterOptions) -> Result<Raster, ScreenError> {
-        Ok(self.scene.rasterize(&HashMap::new(), options)?)
+        Ok(self.scene.rasterize(&self.bitmaps, options)?)
     }
 
     /// Writes the scene as an SVG document.
@@ -76,7 +78,7 @@ impl Composed {
         title: Option<&str>,
         out: W,
     ) -> Result<SvgReport, ScreenError> {
-        Ok(self.scene.write_svg(&HashMap::new(), options, title, out)?)
+        Ok(self.scene.write_svg(&self.bitmaps, options, title, out)?)
     }
 }
 
@@ -101,6 +103,7 @@ pub struct ScreenComposer<'a, 'f> {
     tags: TagPaths,
     limits: Limits,
     texts: Option<TextSources<'a>>,
+    images: Option<ImageSources<'a>>,
 }
 
 impl<'a, 'f> ScreenComposer<'a, 'f> {
@@ -113,6 +116,7 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             tags: TagPaths::build(forge),
             limits: Limits::DEFAULT,
             texts: None,
+            images: None,
         }
     }
 
@@ -120,6 +124,14 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
     #[must_use]
     pub const fn with_texts(mut self, texts: TextSources<'a>) -> Self {
         self.texts = Some(texts);
+        self
+    }
+
+    /// Draws the textures and vector graphics of image, icon and custom shape widgets, read with
+    /// `images`; without it they are left out and listed.
+    #[must_use]
+    pub const fn with_images(mut self, images: ImageSources<'a>) -> Self {
+        self.images = Some(images);
         self
     }
 
@@ -160,13 +172,13 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             })?;
         let [width, height] = root.size;
         check_size(&root.record_path, width, height)?;
-        let mut cx = Context {
-            palette: self.base_palette(brand),
-            texts: self.texts.map_or_else(Texts::default, |texts| {
-                Texts::new(texts.fonts, texts.localise)
-            }),
-            ..Context::default()
-        };
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "the sides are checked to be from 1 to 16384"
+        )]
+        let side = width.max(height).ceil() as u32;
+        let mut cx = self.context(brand, side);
         let mut walk = Walk::new(
             &mut self.store,
             &self.slots,
@@ -189,6 +201,7 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
         let Context {
             painter,
             mut report,
+            images,
             ..
         } = cx;
         report.shapes = painter.len();
@@ -201,10 +214,24 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
         let (pixels_wide, pixels_high) = (width.round() as u32, height.round() as u32);
         Ok(Composed {
             scene: painter.finish(width, height),
+            bitmaps: images.into_bitmaps(),
             report,
             width: pixels_wide,
             height: pixels_high,
         })
+    }
+
+    fn context(&self, brand: Option<&str>, side: u32) -> Context<'a> {
+        Context {
+            palette: self.base_palette(brand),
+            texts: self.texts.map_or_else(Texts::default, |texts| {
+                Texts::new(texts.fonts, texts.localise)
+            }),
+            images: self.images.map_or_else(Images::default, |sources| {
+                Images::new(sources, side, self.limits)
+            }),
+            ..Context::default()
+        }
     }
 
     /// Returns the manufacturer code in the class name of an Entity, e.g. `aegs` for

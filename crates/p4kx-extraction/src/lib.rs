@@ -73,6 +73,7 @@ mod tracker;
 mod ui_disk_path;
 mod ui_external;
 mod ui_extract;
+mod ui_images;
 mod ui_import_match;
 mod ui_imports;
 mod ui_jobs;
@@ -185,6 +186,7 @@ pub use texture_exr::ExrReport;
 pub use texture_groups::{TextureGroup, TextureGroups};
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
+pub use ui_images::{ArchiveImages, MAX_SCREEN_TEXTURE_PIXELS};
 pub use ui_imports::{
     ImportIssue, ImportReport, MAX_IMPORT_BYTES, MAX_IMPORT_DEPTH, MAX_IMPORTED_FONTS,
     MAX_IMPORTED_MOVIES, UnresolvedImport,

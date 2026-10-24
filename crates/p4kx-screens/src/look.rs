@@ -17,13 +17,16 @@ pub(crate) struct Look<'a> {
     pub(crate) style: &'a Modifiers,
     pub(crate) font: Option<Rc<FontStyleInfo>>,
     pub(crate) bound_text: Option<String>,
+    pub(crate) pixel: f32,
 }
 
 impl<'a> Look<'a> {
+    /// Returns the look of `widget` under `style`; `pixel` is how many units of the layout a
+    /// pixel of the canvas takes, which font sizes are counted in.
     pub(crate) fn of(
         widget: &'a Widget,
         style: &'a Modifiers,
-        unit: f32,
+        pixel: f32,
         font: Option<Rc<FontStyleInfo>>,
     ) -> Self {
         let enabled = style.enable_background.unwrap_or(widget.background_enabled);
@@ -34,7 +37,6 @@ impl<'a> Look<'a> {
                 .get(side)
                 .copied()
                 .flatten()
-                .map(|width| width * unit)
                 .or_else(|| own.map(|own| own.width))
                 .unwrap_or(0.0);
             let colour = style
@@ -56,6 +58,7 @@ impl<'a> Look<'a> {
             style,
             font,
             bound_text: None,
+            pixel,
         }
     }
 }

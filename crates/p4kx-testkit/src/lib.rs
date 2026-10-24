@@ -78,6 +78,7 @@ mod real_archive;
 mod rig_logic;
 mod screens;
 mod screens_canvas;
+mod screens_geometry;
 mod screens_sample;
 mod screens_text;
 mod screens_text_schema;
@@ -178,6 +179,7 @@ pub use screens_canvas::{
     TestCanvas, TestCondition, TestModifier, TestStyle, TestStyleEntry, movie_component,
     screen_component, tag_record,
 };
+pub use screens_geometry::clone_modifiers;
 pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
 pub use screens_text::{
     SCREEN_TEXT_CANVAS, SCREEN_TEXT_STYLE, screens_font_movie, screens_text_sample,

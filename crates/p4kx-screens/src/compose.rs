@@ -13,10 +13,12 @@ use crate::context::Context;
 use crate::error::ScreenError;
 use crate::limits::Limits;
 use crate::paint::Area;
+use crate::paint_state::MAX_CLIP_MASKS;
 use crate::report::Report;
 use crate::style::TagPaths;
 use crate::text::Texts;
 use crate::walk::Walk;
+use crate::widget::CanvasSizing;
 
 const STYLES: &str = "libs/foundry/records/ui/buildingblocks/styles";
 const DEFAULT_STYLE: &str = "libs/foundry/records/ui/buildingblocks/styles/default";
@@ -185,6 +187,7 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             },
             1.0,
             0,
+            CanvasSizing::Size,
         );
         let Context {
             painter,
@@ -193,6 +196,13 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
         } = cx;
         report.shapes = painter.len();
         report.truncated |= painter.is_full();
+        if painter.state.mask_limit_hit {
+            report.note(
+                "Overflow",
+                &format!("clipping stopped after {MAX_CLIP_MASKS} masks: later content is not clipped"),
+                &root.record_path,
+            );
+        }
         #[expect(
             clippy::cast_possible_truncation,
             clippy::cast_sign_loss,

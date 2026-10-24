@@ -19,7 +19,7 @@ pub enum TestDim {
 }
 
 impl TestDim {
-    fn value(self) -> TestValue {
+    pub(crate) fn value(self) -> TestValue {
         let (value, behavior) = match self {
             Self::Fixed(value) => (value, "Fixed"),
             Self::Percent(value) => (value, "Percent"),
@@ -74,7 +74,7 @@ fn trbl([top, right, bottom, left]: [f32; 4]) -> TestValue {
     )
 }
 
-fn vec3(x: f32, y: f32) -> TestValue {
+pub(crate) fn vec3(x: f32, y: f32) -> TestValue {
     TestValue::Struct(
         TestInstance::new("Vec3")
             .value("x", TestValue::Single(x))
@@ -95,13 +95,17 @@ pub struct TestWidget {
     padding: [f32; 4],
     background: Option<TestColour>,
     border: Option<(f32, TestColour)>,
-    flex: Option<[String; 4]>,
+    flex: Option<[String; 5]>,
     gap: f32,
     grow: f32,
+    shrink: Option<f32>,
     active: bool,
     in_flow: bool,
     alpha: f32,
     tags: Vec<u128>,
+    bounds: [Option<TestDim>; 4],
+    policy: Option<TestInstance>,
+    scale: [f32; 2],
     extra: Vec<(&'static str, TestValue)>,
 }
 
@@ -123,12 +127,45 @@ impl TestWidget {
             flex: None,
             gap: 0.0,
             grow: 0.0,
+            shrink: None,
             active: true,
             in_flow: true,
             alpha: 1.0,
             tags: Vec::new(),
+            bounds: [None; 4],
+            policy: None,
+            scale: [1.0; 2],
             extra: Vec::new(),
         }
+    }
+
+    pub(crate) const fn set_scale(mut self, scale: [f32; 2]) -> Self {
+        self.scale = scale;
+        self
+    }
+
+    pub(crate) fn set_policy(mut self, policy: TestInstance) -> Self {
+        self.policy = Some(policy);
+        self
+    }
+
+    pub(crate) fn set_bound(mut self, at: usize, dim: TestDim) -> Self {
+        if let Some(slot) = self.bounds.get_mut(at) {
+            *slot = Some(dim);
+        }
+        self
+    }
+
+    pub(crate) fn set_flex_part(mut self, at: usize, value: &str) -> Self {
+        if let Some(slot) = self.flex.as_mut().and_then(|flex| flex.get_mut(at)) {
+            *slot = value.to_owned();
+        }
+        self
+    }
+
+    pub(crate) const fn set_shrink(mut self, shrink: f32) -> Self {
+        self.shrink = Some(shrink);
+        self
     }
 
     /// Creates a `BuildingBlocks_DisplayWidget`.
@@ -195,6 +232,7 @@ impl TestWidget {
             "NoWrap".to_owned(),
             justification.to_owned(),
             alignment.to_owned(),
+            "Start".to_owned(),
         ]);
         self.gap = gap;
         self
@@ -260,14 +298,8 @@ impl TestWidget {
                 ),
             )
             .value("positionOffset", vec3(self.offset[0], self.offset[1]))
-            .value(
-                "sizing",
-                TestValue::Struct(
-                    TestInstance::new("BuildingBlocks_Size")
-                        .value("width", self.size[0].value())
-                        .value("height", self.size[1].value()),
-                ),
-            )
+            .value("scale", vec3(self.scale[0], self.scale[1]))
+            .value("sizing", self.sizing())
             .value("padding", trbl(self.padding))
             .value("margin", trbl(self.margin));
         if let Some(parent) = &self.parent {
@@ -289,6 +321,26 @@ impl TestWidget {
             instance = instance.value(*field, value.clone());
         }
         TestValue::Struct(instance)
+    }
+
+    fn sizing(&self) -> TestValue {
+        let mut sizing = TestInstance::new("BuildingBlocks_Size")
+            .value("width", self.size[0].value())
+            .value("height", self.size[1].value());
+        let names = [
+            ("enableMinWidth", "minWidth"),
+            ("enableMinHeight", "minHeight"),
+            ("enableMaxWidth", "maxWidth"),
+            ("enableMaxHeight", "maxHeight"),
+        ];
+        for (bound, (enable, field)) in self.bounds.iter().zip(names) {
+            if let Some(dim) = bound {
+                sizing = sizing
+                    .value(enable, TestValue::Bool(true))
+                    .value(field, dim.value());
+            }
+        }
+        TestValue::Struct(sizing)
     }
 
     fn with_border(&self, instance: TestInstance) -> TestInstance {
@@ -315,7 +367,7 @@ impl TestWidget {
     }
 
     fn with_layout(&self, mut instance: TestInstance) -> TestInstance {
-        if let Some([direction, wrap, justification, alignment]) = &self.flex {
+        if let Some([direction, wrap, justification, alignment, cross]) = &self.flex {
             instance = instance.value(
                 "layoutPolicy",
                 TestValue::Struct(
@@ -323,18 +375,22 @@ impl TestWidget {
                         .value("direction", TestValue::text(direction.clone()))
                         .value("wrap", TestValue::text(wrap.clone()))
                         .value("axisJustification", TestValue::text(justification.clone()))
+                        .value("crossAxisJustification", TestValue::text(cross.clone()))
                         .value("itemAlignment", TestValue::text(alignment.clone()))
                         .value("columnSpacing", TestValue::Single(self.gap))
                         .value("rowSpacing", TestValue::Single(self.gap)),
                 ),
             );
+        } else if let Some(policy) = &self.policy {
+            instance = instance.value("layoutPolicy", TestValue::Struct(policy.clone()));
         }
-        if self.grow > 0.0 {
+        if self.grow > 0.0 || self.shrink.is_some() {
             instance = instance.value(
                 "layoutPolicyItem",
                 TestValue::Struct(
                     TestInstance::new("BuildingBlocks_FlexItem")
-                        .value("growProportion", TestValue::Single(self.grow)),
+                        .value("growProportion", TestValue::Single(self.grow))
+                        .value("shrinkProportion", TestValue::Single(self.shrink.unwrap_or(0.0))),
                 ),
             );
         }

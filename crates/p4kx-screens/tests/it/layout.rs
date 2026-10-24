@@ -237,13 +237,13 @@ fn a_widget_out_of_the_flow_sits_at_its_offset() -> TestResult {
 }
 
 #[test]
-fn raw_canvases_count_fixed_values_in_canvas_heights() -> TestResult {
+fn raw_canvases_count_fixed_values_in_pixels_of_their_size() -> TestResult {
     let image = render(
         TestCanvas::new(CANVAS, "layout", 200.0, 100.0)
             .raw()
             .widget(
-                TestWidget::display("quarter")
-                    .size(TestDim::Fixed(0.5), TestDim::Fixed(0.25))
+                TestWidget::display("box")
+                    .size(TestDim::Fixed(50.0), TestDim::Fixed(25.0))
                     .background(RED),
             ),
     )?;
@@ -253,5 +253,35 @@ fn raw_canvases_count_fixed_values_in_canvas_heights() -> TestResult {
     );
     assert_eq!(pixel(&image, 51, 24), NOTHING, "not wider");
     assert_eq!(pixel(&image, 49, 26), NOTHING, "not higher");
+    Ok(())
+}
+
+#[test]
+fn a_world_canvas_fits_its_root_widget_into_the_frame_and_centres_it() -> TestResult {
+    let image = render(
+        TestCanvas::new(CANVAS, "layout", 200.0, 100.0)
+            .raw()
+            .widget(
+                TestWidget::display("root")
+                    .size(TestDim::Fixed(1.0), TestDim::Fixed(1.0))
+                    .pivot(0.5, 0.5),
+            )
+            .widget(
+                TestWidget::display("fill")
+                    .parent("root")
+                    .size(TestDim::Percent(1.0), TestDim::Percent(1.0))
+                    .background(RED),
+            ),
+    )?;
+    assert!(
+        near(pixel(&image, 100, 50), [255, 0, 0, 255], 0),
+        "the root square fills the height and sits in the middle"
+    );
+    assert!(
+        near(pixel(&image, 51, 2), [255, 0, 0, 255], 0),
+        "up to 50 pixels from the left"
+    );
+    assert_eq!(pixel(&image, 40, 50), NOTHING, "left of the root");
+    assert_eq!(pixel(&image, 160, 50), NOTHING, "right of the root");
     Ok(())
 }

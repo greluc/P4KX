@@ -3,10 +3,66 @@
 
 use std::error::Error;
 
+use p4kx_dataforge::DataForge;
 use p4kx_gfx::{CanvasSize, RasterOptions, RgbaImage};
-use p4kx_testkit::{DataForgeBuilder, TestRecord, entity_schema, screens_schema};
+use p4kx_screens::{Composed, Limits, ScreenComposer};
+use p4kx_testkit::{
+    DataForgeBuilder, TestCanvas, TestColour, TestRecord, entity_schema, screens_schema,
+};
 
 pub(crate) type TestResult = Result<(), Box<dyn Error>>;
+
+pub(crate) const SCREEN: u128 = 0x5a00_0000_0000_4000_8000_0000_0000_0010;
+pub(crate) const RED: TestColour = TestColour::Solid([255, 0, 0, 255]);
+pub(crate) const GREEN: TestColour = TestColour::Solid([0, 255, 0, 255]);
+pub(crate) const BLUE: TestColour = TestColour::Solid([0, 0, 255, 255]);
+pub(crate) const NOTHING: [u8; 4] = [0, 0, 0, 0];
+
+/// Composes the canvas `SCREEN` of `canvas`, with `others` in the same database.
+pub(crate) fn compose_with(
+    canvas: &TestCanvas,
+    others: Vec<TestRecord>,
+    limits: Limits,
+) -> Result<Composed, Box<dyn Error>> {
+    let bytes = database(std::iter::once(canvas.record()).chain(others));
+    let forge = DataForge::open(&bytes)?;
+    Ok(ScreenComposer::new(&forge)
+        .with_limits(limits)
+        .compose(&guid_text(SCREEN), None)?)
+}
+
+pub(crate) fn compose(canvas: &TestCanvas) -> Result<Composed, Box<dyn Error>> {
+    compose_with(canvas, Vec::new(), Limits::DEFAULT)
+}
+
+pub(crate) fn render(canvas: &TestCanvas) -> Result<RgbaImage, Box<dyn Error>> {
+    Ok(compose(canvas)?.rasterize(&stage())?.image)
+}
+
+pub(crate) fn render_with(
+    canvas: &TestCanvas,
+    others: Vec<TestRecord>,
+) -> Result<RgbaImage, Box<dyn Error>> {
+    Ok(compose_with(canvas, others, Limits::DEFAULT)?
+        .rasterize(&stage())?
+        .image)
+}
+
+pub(crate) fn red_at(image: &RgbaImage, x: u32, y: u32) -> bool {
+    near(pixel(image, x, y), [255, 0, 0, 255], 1)
+}
+
+pub(crate) fn green_at(image: &RgbaImage, x: u32, y: u32) -> bool {
+    near(pixel(image, x, y), [0, 255, 0, 255], 1)
+}
+
+pub(crate) fn blue_at(image: &RgbaImage, x: u32, y: u32) -> bool {
+    near(pixel(image, x, y), [0, 0, 255, 255], 1)
+}
+
+pub(crate) fn empty_at(image: &RgbaImage, x: u32, y: u32) -> bool {
+    pixel(image, x, y) == NOTHING
+}
 
 pub(crate) fn database(records: impl IntoIterator<Item = TestRecord>) -> Vec<u8> {
     records

@@ -49,8 +49,17 @@ fn layout_structs() -> Vec<TestStruct> {
             .field("value", TestType::Single)
             .field("behavior", TestType::String),
         TestStruct::new("BuildingBlocks_Size")
+            .field("enableMinWidth", TestType::Bool)
+            .field("enableMinHeight", TestType::Bool)
+            .field("enableMaxWidth", TestType::Bool)
+            .field("enableMaxHeight", TestType::Bool)
             .field("width", class("BuildingBlocks_FixedOrRelativeValue"))
-            .field("height", class("BuildingBlocks_FixedOrRelativeValue")),
+            .field("height", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("minWidth", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("minHeight", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("maxWidth", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("maxHeight", class("BuildingBlocks_FixedOrRelativeValue")),
+        TestStruct::new("BuildingBlocks_Overflow").field("overflow", TestType::String),
         TestStruct::new("BuildingBlocks_TRBL")
             .field("top", TestType::Single)
             .field("right", TestType::Single)
@@ -62,10 +71,21 @@ fn layout_structs() -> Vec<TestStruct> {
             .field("direction", TestType::String)
             .field("wrap", TestType::String)
             .field("axisJustification", TestType::String)
+            .field("crossAxisJustification", TestType::String)
             .field("itemAlignment", TestType::String)
             .field("columnSpacing", TestType::Single)
             .field("rowSpacing", TestType::Single),
-        TestStruct::new("BuildingBlocks_StackContainer").parent("BuildingBlocks_LayoutPolicy"),
+        TestStruct::new("BuildingBlocks_StackContainer")
+            .parent("BuildingBlocks_LayoutPolicy")
+            .field("direction", TestType::String)
+            .field("spacing", TestType::Single),
+        TestStruct::new("BuildingBlocks_GridPackContainer")
+            .parent("BuildingBlocks_LayoutPolicy")
+            .field("direction", TestType::String)
+            .field("gutter", TestType::Single),
+        TestStruct::new("BuildingBlocks_SpacerContainer")
+            .parent("BuildingBlocks_LayoutPolicy")
+            .field("spacing", TestType::Single),
         TestStruct::new("BuildingBlocks_FlexItem")
             .field("growProportion", TestType::Single)
             .field("shrinkProportion", TestType::Single),
@@ -82,7 +102,19 @@ fn widget_structs() -> Vec<TestStruct> {
             .field("defaultStyles", class("BuildingBlocks_DefaultStyles"))
             .field("style", reference("BuildingBlocks_Style"))
             .array("brandStyles", class("BuildingBlocks_BrandStyles"))
-            .array("scene", pointer("BuildingBlocks_DisplayWidget")),
+            .array("staticVariables", pointer("BuildingBlocks_StaticVariable"))
+            .array("scene", pointer("BuildingBlocks_DisplayWidget"))
+            .array("library", pointer("BuildingBlocks_DisplayWidget")),
+        TestStruct::new("BuildingBlocks_StaticVariable").field("name", TestType::String),
+        TestStruct::new("BuildingBlocks_StaticVariableArray")
+            .parent("BuildingBlocks_StaticVariable")
+            .array("value", pointer("BuildingBlocks_StaticArrayEntry")),
+        TestStruct::new("BuildingBlocks_StaticArrayEntry")
+            .array("structureVariables", pointer("BuildingBlocks_StaticArrayData")),
+        TestStruct::new("BuildingBlocks_StaticArrayData").field("name", TestType::String),
+        TestStruct::new("BuildingBlocks_StaticArrayDataLocalization")
+            .parent("BuildingBlocks_StaticArrayData")
+            .array("values", TestType::Locale),
         TestStruct::new("BuildingBlocks_DefaultStyles")
             .field("sharedStyles", reference("BuildingBlocks_Style"))
             .array("entries", pointer("BuildingBlocks_StyleEntry")),
@@ -102,6 +134,12 @@ fn widget_structs() -> Vec<TestStruct> {
             )
             .field("position", class("Vec3"))
             .field("positionOffset", class("Vec3"))
+            .field("orientation", class("Vec3"))
+            .field("orientationOffset", class("Vec3"))
+            .field("scale", class("Vec3"))
+            .field("pivot", class("Vec3"))
+            .field("anchor", class("Vec3"))
+            .field("overflow", class("BuildingBlocks_Overflow"))
             .field("sizing", class("BuildingBlocks_Size"))
             .field("padding", class("BuildingBlocks_TRBL"))
             .field("margin", class("BuildingBlocks_TRBL"))
@@ -133,7 +171,22 @@ fn widget_kinds() -> Vec<TestStruct> {
         TestStruct::new("BuildingBlocks_WidgetCard").parent("BuildingBlocks_DisplayWidget"),
         TestStruct::new("BuildingBlocks_WidgetCanvas")
             .parent("BuildingBlocks_DisplayWidget")
+            .field("sizingMethod", TestType::String)
             .field("canvas", reference("BuildingBlocks_Canvas")),
+        TestStruct::new("BuildingBlocks_WidgetClone")
+            .parent("BuildingBlocks_DisplayWidget")
+            .field(
+                "target",
+                TestType::WeakPointer("BuildingBlocks_DisplayWidget".to_owned()),
+            )
+            .array("modifiers", class("BuildingBlocks_FieldModifierPair")),
+        TestStruct::new("BuildingBlocks_WidgetList")
+            .parent("BuildingBlocks_DisplayWidget")
+            .field(
+                "target",
+                TestType::WeakPointer("BuildingBlocks_DisplayWidget".to_owned()),
+            )
+            .field("arrayVariable", TestType::String),
         TestStruct::new("BuildingBlocks_WidgetText")
             .parent("BuildingBlocks_DisplayWidget")
             .field("locString", TestType::Locale)
@@ -240,6 +293,12 @@ fn condition_structs() -> Vec<TestStruct> {
         TestStruct::new("BuildingBlocks_StyleSelectorConditionCount")
             .parent("BuildingBlocks_StyleSelectorCondition"),
         TestStruct::new("BuildingBlocks_FieldModifier"),
+        TestStruct::new("BuildingBlocks_FieldModifierPair")
+            .field(
+                "target",
+                TestType::WeakPointer("BuildingBlocks_DisplayWidget".to_owned()),
+            )
+            .field("modifier", pointer("BuildingBlocks_FieldModifier")),
         TestStruct::new("BuildingBlocks_FieldModifierColor")
             .parent("BuildingBlocks_FieldModifier")
             .field("field", TestType::String)

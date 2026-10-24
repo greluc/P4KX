@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_geometry::static_arrays;
 use crate::screens_widget::TestColour;
 use crate::{TestInstance, TestRecord, TestValue, TestWidget};
 
@@ -91,11 +92,14 @@ pub enum TestModifier {
     Case(&'static str),
     /// The localised `Text` field, e.g. a key as `@key`.
     Text(&'static str),
+    /// Any numeric field by its name, e.g. `AnchorX`, `SizeX` or `OrientationZ`.
+    Number(&'static str, f32),
 }
 
 impl TestModifier {
-    fn value(self) -> TestValue {
+    pub(crate) fn value(self) -> TestValue {
         let (kind, field, value) = match self {
+            Self::Number(field, value) => ("Number", field, TestValue::Single(value)),
             Self::Background(colour) => ("Color", "BackgroundColor", colour.value()),
             Self::Fill(colour) => ("Color", "FillColor", colour.value()),
             Self::Stroke(colour) => ("Color", "StrokeColor", colour.value()),
@@ -273,8 +277,10 @@ pub struct TestCanvas {
     guid: u128,
     name: String,
     size: [f32; 2],
-    raw: bool,
+    method: &'static str,
     widgets: Vec<TestWidget>,
+    templates: Vec<TestWidget>,
+    arrays: Vec<(String, usize)>,
     shared: Option<u128>,
     brand: Option<(u128, Vec<TestStyleEntry>)>,
     embedded: Vec<TestStyleEntry>,
@@ -288,18 +294,42 @@ impl TestCanvas {
             guid,
             name: name.into(),
             size: [width, height],
-            raw: false,
+            method: "auto",
             widgets: Vec::new(),
+            templates: Vec::new(),
+            arrays: Vec::new(),
             shared: None,
             brand: None,
             embedded: Vec::new(),
         }
     }
 
-    /// Makes the canvas use raw coordinates, whose fixed values count in canvas heights.
+    /// Makes the canvas use raw coordinates, whose fixed values count in pixels of its own size.
     #[must_use]
-    pub const fn raw(mut self) -> Self {
-        self.raw = true;
+    pub const fn raw(self) -> Self {
+        self.coordinates("useRaw")
+    }
+
+    /// Sets the coordinate method: `auto`, `useRaw`, `aspectOverridesWidth` or
+    /// `aspectOverridesHeight`.
+    #[must_use]
+    pub const fn coordinates(mut self, method: &'static str) -> Self {
+        self.method = method;
+        self
+    }
+
+    /// Adds a widget to the library of the canvas, the templates that clones and lists
+    /// instantiate; widgets whose parent it is are its children.
+    #[must_use]
+    pub fn template(mut self, widget: TestWidget) -> Self {
+        self.templates.push(widget);
+        self
+    }
+
+    /// Adds a static array variable of `rows` localised values.
+    #[must_use]
+    pub fn static_array(mut self, name: impl Into<String>, rows: usize) -> Self {
+        self.arrays.push((name.into(), rows));
         self
     }
 
@@ -354,14 +384,16 @@ impl TestCanvas {
             )
         });
         record(self.guid, "BuildingBlocks_Canvas", &self.name)
-            .value(
-                "coordinateMethod",
-                TestValue::text(if self.raw { "useRaw" } else { "auto" }),
-            )
+            .value("coordinateMethod", TestValue::text(self.method))
             .value("size", size)
+            .value("staticVariables", static_arrays(&self.arrays))
             .value("embeddedStyles", entries(&self.embedded))
             .value("defaultStyles", TestValue::Struct(defaults))
             .value("brandStyles", TestValue::Array(brands.collect()))
+            .value(
+                "library",
+                TestValue::Array(self.templates.iter().map(TestWidget::value).collect()),
+            )
             .value(
                 "scene",
                 TestValue::Array(self.widgets.iter().map(TestWidget::value).collect()),

@@ -1,0 +1,54 @@
+---
+source: crates/p4kx/tests/it/entity_package_materials.rs
+expression: "pretty(&manifest, \"palettes\")?"
+---
+[
+  {
+    "glass": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "id": "p0001",
+    "name": "p_layered",
+    "primary": {
+      "glossiness": 51.0,
+      "specular": [
+        0.043735027,
+        0.043735027,
+        0.043735027
+      ],
+      "tint": [
+        1.0,
+        0.0,
+        0.0
+      ]
+    },
+    "secondary": {
+      "glossiness": 102.0,
+      "specular": [
+        0.043735027,
+        0.043735027,
+        0.043735027
+      ],
+      "tint": [
+        0.0,
+        1.0,
+        0.0
+      ]
+    },
+    "tertiary": {
+      "glossiness": 153.0,
+      "specular": [
+        0.043735027,
+        0.043735027,
+        0.043735027
+      ],
+      "tint": [
+        0.0,
+        0.0,
+        1.0
+      ]
+    }
+  }
+]

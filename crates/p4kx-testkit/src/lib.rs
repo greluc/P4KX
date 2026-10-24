@@ -32,9 +32,13 @@ mod entity_armour;
 mod entity_armour_loadout;
 mod entity_assembly;
 mod entity_cargo;
+mod entity_dressed;
 mod entity_head;
 mod entity_interior_sample;
+mod entity_layer_chain;
+mod entity_layered;
 mod entity_livery;
+mod entity_loadout;
 mod entity_port;
 mod entity_sample;
 mod entity_schema;
@@ -72,6 +76,10 @@ mod opus;
 mod opus_encode;
 mod real_archive;
 mod rig_logic;
+mod screens;
+mod screens_canvas;
+mod screens_sample;
+mod screens_widget;
 mod soc;
 mod soc_entities;
 mod split_dds;
@@ -97,11 +105,16 @@ pub use dataforge_builder::DataForgeBuilder;
 pub use dataforge_schema::{TestPool, TestRecord, TestStruct, TestType};
 pub use dataforge_value::{TestInstance, TestValue};
 pub use dna::{TestCell, TestControl, TestDeltaRecord, TestDna};
-pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry};
+pub use entity::TestEntity;
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
+pub use entity_dressed::{
+    DRESSED_BROWS, DRESSED_EYES, DRESSED_EYES_MATERIAL, DRESSED_GONE_HAIR, DRESSED_HAIR,
+    DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,
+    DRESSED_HEAD_MATERIAL_FILE, DRESSED_UNKNOWN_MATERIAL, dressed_entries,
+};
 pub use entity_head::{
     FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
     head_entries, head_rig,
@@ -109,10 +122,13 @@ pub use entity_head::{
 pub use entity_interior_sample::{
     ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, entity_interior_entries,
 };
+pub use entity_layer_chain::{LAYER_CHAIN_LENGTH, layer_chain_entries};
+pub use entity_layered::{LAYERED_MISSING_TEXTURE, LAYERED_TINTS, layered_entries};
 pub use entity_livery::{
     LIVERY_DEFAULT_PALETTE, LIVERY_DEFAULT_TINTS, LIVERY_GUN_TINTS, LIVERY_SHIP_TINTS,
     livery_entries,
 };
+pub use entity_loadout::{TestLoadout, TestLoadoutEntry};
 pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::{entity_schema, tint_palette_record};
@@ -154,6 +170,13 @@ pub use real_archive::{
     real_archive_pair, real_archive_path,
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
+pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
+pub use screens_canvas::{
+    TestCanvas, TestCondition, TestModifier, TestStyle, TestStyleEntry, movie_component,
+    screen_component, tag_record,
+};
+pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
+pub use screens_widget::{TestColour, TestDim, TestWidget};
 pub use soc::{SOC_IDENTITY, TestObjectContainer, TestSoc};
 pub use soc_entities::{TestLight, TestLightState, TestSocEntity};
 pub use split_dds::{SplitDds, TestTextureFormat};

@@ -58,6 +58,14 @@ pub enum PackageError {
         #[source]
         source: io::Error,
     },
+    /// The GLB file of a mesh cannot be given the index of its materials in their `extras`.
+    #[error("cannot add the material indices to the mesh {id} of {name}")]
+    MeshExtras {
+        /// The mesh's id.
+        id: String,
+        /// The class name of the first Entity that draws it.
+        name: String,
+    },
     /// A mesh cannot be written as a GLB file.
     #[error("cannot write the mesh {id} of {name}")]
     Mesh {

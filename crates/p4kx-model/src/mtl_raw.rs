@@ -1,0 +1,172 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use crate::PaletteSlot;
+use crate::mtl_xml::XmlElement;
+
+/// The deepest nesting of elements the reader keeps in a [`RawElement`].
+pub const MAX_RAW_DEPTH: usize = 8;
+
+/// The most elements the reader keeps in the raw elements of one material.
+pub const MAX_RAW_ELEMENTS: usize = 4096;
+
+/// The most material layers one material may hold.
+pub const MAX_LAYERS: usize = 64;
+
+/// An attribute list as the file gives it: names and values in file order.
+pub type Attributes = Vec<(String, String)>;
+
+/// An XML element of a material as the file has it, for parts of the format the reader does not
+/// interpret.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct RawElement {
+    /// The element's name.
+    pub name: String,
+    /// The element's attributes in file order.
+    pub attributes: Attributes,
+    /// The element's child elements in file order.
+    pub children: Vec<Self>,
+}
+
+/// One layer of a material's `MatLayers` list: another material blended into the surface.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct MaterialLayer {
+    /// All attributes of the `Layer` element in file order, e.g. `Name`, `Path`, `TintColor`,
+    /// `PaletteTint`, `UVTiling`, `GlossMult`.
+    pub attributes: Attributes,
+}
+
+impl MaterialLayer {
+    /// Returns the value of the attribute `name`, ignoring case.
+    #[must_use]
+    pub fn attribute(&self, name: &str) -> Option<&str> {
+        self.attributes
+            .iter()
+            .find(|(known, _)| known.eq_ignore_ascii_case(name))
+            .map(|(_, value)| value.as_str())
+    }
+
+    /// Returns the palette entry the layer takes: that of its `PaletteTint` from 1 to 3.
+    #[must_use]
+    pub fn palette_slot(&self) -> Option<PaletteSlot> {
+        let number = self.attribute("PaletteTint")?.trim().parse::<u32>().ok()?;
+        PaletteSlot::of_layer(number)
+    }
+}
+
+pub(crate) struct Budget {
+    left: usize,
+    elements_cut: bool,
+    layers_cut: bool,
+}
+
+impl Budget {
+    pub(crate) const fn new() -> Self {
+        Self {
+            left: MAX_RAW_ELEMENTS,
+            elements_cut: false,
+            layers_cut: false,
+        }
+    }
+
+    const fn take(&mut self) -> bool {
+        if let Some(left) = self.left.checked_sub(1) {
+            self.left = left;
+            true
+        } else {
+            self.elements_cut = true;
+            false
+        }
+    }
+
+    /// Returns what the limits cut off, for [`Material::truncated`](crate::Material::truncated).
+    pub(crate) fn cut(&self) -> Vec<String> {
+        let mut cut = Vec::new();
+        if self.layers_cut {
+            cut.push(format!("layers beyond {MAX_LAYERS}"));
+        }
+        if self.elements_cut {
+            cut.push(format!("elements beyond {MAX_RAW_ELEMENTS}"));
+        }
+        cut
+    }
+}
+
+pub(crate) fn attributes<'a>(element: impl XmlElement<'a>) -> Attributes {
+    element
+        .attributes()
+        .map(|(name, value)| (name.to_owned(), value.to_owned()))
+        .collect()
+}
+
+pub(crate) fn raw<'a>(
+    element: impl XmlElement<'a>,
+    depth: usize,
+    budget: &mut Budget,
+) -> Option<RawElement> {
+    if !budget.take() {
+        return None;
+    }
+    let children = if depth < MAX_RAW_DEPTH {
+        element
+            .children()
+            .filter_map(|child| raw(child, depth + 1, budget))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    Some(RawElement {
+        name: element.name().to_owned(),
+        attributes: attributes(element),
+        children,
+    })
+}
+
+pub(crate) fn layers<'a>(element: impl XmlElement<'a>, budget: &mut Budget) -> Vec<MaterialLayer> {
+    let mut layers = Vec::new();
+    let lists = element
+        .children()
+        .filter(|child| child.name().eq_ignore_ascii_case("MatLayers"));
+    for layer in lists
+        .flat_map(XmlElement::children)
+        .filter(|child| child.name().eq_ignore_ascii_case("Layer"))
+    {
+        if layers.len() == MAX_LAYERS {
+            budget.layers_cut = true;
+            break;
+        }
+        if !budget.take() {
+            break;
+        }
+        layers.push(MaterialLayer {
+            attributes: attributes(layer),
+        });
+    }
+    layers
+}
+
+pub(crate) fn public_params<'a>(element: impl XmlElement<'a>) -> Attributes {
+    element
+        .children()
+        .filter(|child| child.name().eq_ignore_ascii_case("PublicParams"))
+        .flat_map(|params| attributes(params))
+        .collect()
+}
+
+pub(crate) fn other_elements<'a>(
+    element: impl XmlElement<'a>,
+    budget: &mut Budget,
+) -> Vec<RawElement> {
+    const INTERPRETED: [&str; 4] = ["SubMaterials", "Textures", "MatLayers", "PublicParams"];
+    element
+        .children()
+        .filter(|child| {
+            !INTERPRETED
+                .iter()
+                .any(|known| child.name().eq_ignore_ascii_case(known))
+        })
+        .filter_map(|child| raw(child, 1, budget))
+        .collect()
+}

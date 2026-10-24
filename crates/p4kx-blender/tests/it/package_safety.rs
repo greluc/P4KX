@@ -31,6 +31,7 @@ fn write(
     let models = ArchiveModels::new(archive);
     write_package(
         assembly,
+        &models,
         &models.textures(),
         &glb_options(0),
         &PackageInfo::default(),
@@ -175,11 +176,13 @@ fn a_texture_that_cannot_be_loaded_is_an_issue_not_a_failure() -> TestResult {
     let fixture = fixture(livery_entries())?;
     let archive = Archive::open(&fixture.path)?;
     let assembly = assemble(&archive, "TEST_Livery")?;
+    let models = ArchiveModels::new(&archive);
     let dir = tempfile::tempdir()?;
     let out = dir.path().join("ship");
 
     let summary = write_package(
         &assembly,
+        &models,
         &Failing,
         &glb_options(0),
         &PackageInfo::default(),

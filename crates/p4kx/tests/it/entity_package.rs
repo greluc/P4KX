@@ -100,7 +100,7 @@ fn the_package_has_the_documented_layout_and_validates_against_the_schema() -> T
         .collect();
     assert!(violations.is_empty(), "{violations:?}");
     assert_eq!(manifest["format"], "p4kx-blender-package");
-    assert_eq!(manifest["version"], "1.0");
+    assert_eq!(manifest["version"], "1.1");
     assert_eq!(manifest["source"]["entity"]["class_name"], "TEST_Livery");
     for part in manifest["meshes"].as_array().ok_or("parts")? {
         let file = part["file"].as_str().ok_or("file")?;
@@ -108,7 +108,7 @@ fn the_package_has_the_documented_layout_and_validates_against_the_schema() -> T
     }
     assert!(
         run.stdout
-            .contains("7 nodes (7 drawn), 4 meshes, 1 textures"),
+            .contains("7 nodes (7 drawn), 4 meshes, 4 materials, 3 palettes, 1 textures"),
         "{}",
         run.stdout
     );

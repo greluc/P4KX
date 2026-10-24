@@ -312,7 +312,7 @@ the rules above.
   and its bones; a mesh that is skinned and a node that poses a skeleton reference it by that id.
   Animation clips are lazy sidecar files. Version 1 has no skeletons and no skinned meshes.
 - **Node trees of the add-on (#160).** Nothing is reserved: the descriptions of 1.1 are the
-  inputs it builds from.
+  inputs it builds from ([ADR-0100](adr/0100-the-add-on-builds-material-node-trees-from-the-package-descriptions-by-a-pure-mapping.md)).
 
 A reader of a 1.0 package finds no `materials` and `palettes` (read them as empty) and builds
 from the glTF materials of the meshes and the `diffuse`, `normal` and `specular` textures.

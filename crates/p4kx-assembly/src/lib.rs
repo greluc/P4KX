@@ -69,6 +69,7 @@ mod error;
 mod files;
 mod flatten;
 mod geometry;
+mod hologram;
 mod interior;
 mod issue;
 mod markup;
@@ -104,6 +105,7 @@ pub use entity_interior::{EntityContainer, EntityInterior, INTERIOR_NODE};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
 pub use geometry::{Geometry, GeometryVariant, PaletteRef};
+pub use hologram::HologramCamera;
 pub use interior::{
     Interior, InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS,
     MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,

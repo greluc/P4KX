@@ -98,7 +98,7 @@ pub use dna::{TestCell, TestControl, TestDeltaRecord, TestDna};
 pub use entity::{TestEntity, TestLoadout, TestLoadoutEntry};
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
-pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
+pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries, hologram_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
 pub use entity_head::{
     FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,

@@ -9,6 +9,7 @@ use thiserror::Error;
 
 use super::device::{block_on, guarded};
 use super::limits::check_buffer;
+use super::straight::straighten;
 use super::{Frame, GpuReport, Renderer, Unavailable};
 
 const ALIGNMENT: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
@@ -49,6 +50,9 @@ pub enum OffscreenError {
         /// The longest side of a texture the device supports.
         limit: u32,
     },
+    /// The device cannot draw the shading that was asked for.
+    #[error("the graphics device cannot draw the hologram shading")]
+    Shading,
     /// The device was lost while drawing.
     #[error("the graphics device was lost")]
     Lost,
@@ -186,6 +190,9 @@ impl Offscreen {
                 limit,
             });
         }
+        if !self.renderer.supports(&frame.shading) {
+            return Err(OffscreenError::Shading);
+        }
         let serial = frame.subject.serial();
         let commands = self.renderer.prepare(&self.device, &self.queue, frame);
         self.queue.submit(commands);
@@ -214,6 +221,22 @@ impl Offscreen {
         let height = drawn.size[1].min(target.extent[1]);
         let row = width.saturating_mul(BYTES_PER_PIXEL);
         let padded = row.next_multiple_of(ALIGNMENT);
+        let buffer = self.copy_picture(&target.picture, (width, height, padded))?;
+        let mapped = self.map(&buffer, (padded as usize, row as usize));
+        buffer.destroy();
+        let mut rgba = mapped?;
+        if drawn.shading.is_premultiplied() {
+            straighten(&mut rgba);
+        }
+        Picture::from_rgba(width, height, rgba)
+            .ok_or_else(|| OffscreenError::Readback("the rows are shorter than the picture".into()))
+    }
+
+    fn copy_picture(
+        &self,
+        picture: &wgpu::Texture,
+        (width, height, padded): (u32, u32, u32),
+    ) -> Result<wgpu::Buffer, OffscreenError> {
         let bytes = u64::from(padded) * u64::from(height);
         check_buffer(bytes, self.device.limits().max_buffer_size)
             .map_err(|_| OffscreenError::Rejected)?;
@@ -231,7 +254,7 @@ impl Offscreen {
                 });
             encoder.copy_texture_to_buffer(
                 wgpu::TexelCopyTextureInfo {
-                    texture: &target.picture,
+                    texture: picture,
                     mip_level: 0,
                     origin: wgpu::Origin3d::ZERO,
                     aspect: wgpu::TextureAspect::All,
@@ -257,12 +280,8 @@ impl Offscreen {
             buffer.destroy();
             return Err(OffscreenError::Failed);
         }
-        let rgba = self.map(&buffer, (padded as usize, row as usize))?;
-        buffer.destroy();
-        Picture::from_rgba(width, height, rgba)
-            .ok_or_else(|| OffscreenError::Readback("the rows are shorter than the picture".into()))
+        Ok(buffer)
     }
-
     fn map(
         &self,
         buffer: &wgpu::Buffer,

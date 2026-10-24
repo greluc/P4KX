@@ -87,6 +87,7 @@ mod texture_cubemap;
 mod texture_hdr;
 mod texture_png;
 mod ui;
+mod ui_hologram;
 mod ui_panel;
 mod ui_render;
 mod ui_render_svg;

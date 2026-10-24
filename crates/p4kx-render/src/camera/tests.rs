@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use super::{Bounds, Camera, Matrix, Step, fit_distance, length, sub};
+use super::{Bounds, Camera, HologramView, Matrix, Step, fit_distance, length, sub};
 
 const ASPECT: f32 = 16.0 / 9.0;
 
@@ -188,5 +188,77 @@ fn every_uniform_is_finite() {
             .chain(&uniforms.key_light)
             .all(|value| value.is_finite()),
         "{uniforms:?}"
+    );
+}
+
+fn holographic(view: &HologramView) -> Camera {
+    let mut camera = Camera::holographic(&unit_box(), view);
+    camera.fit(1.0);
+    camera
+}
+
+#[test]
+fn the_hologram_camera_stands_at_the_view_angle_from_the_nose() {
+    let view = HologramView {
+        elevation_degrees: 0.0,
+        ..HologramView::default()
+    };
+    let camera = holographic(&view);
+
+    let [eye_x, eye_y, eye_z] = camera.eye();
+    let [target_x, target_y, target_z] = camera.target();
+    let angle = (eye_x - target_x).atan2(eye_y - target_y).to_degrees();
+
+    assert!(
+        (angle - 60.0).abs() < 1.0e-3,
+        "60 degrees off the nose: {angle}"
+    );
+    assert!((eye_z - target_z).abs() < 1.0e-3, "level with the target");
+}
+
+#[test]
+fn the_hologram_camera_stands_back_by_the_radius_over_the_lens_times_the_scaler() {
+    let camera = holographic(&HologramView::default());
+    let radius = unit_box().radius();
+
+    let wanted = radius * 1.5 / 5.0_f32.to_radians().sin();
+
+    assert!(
+        (camera.distance() - wanted).abs() < 1.0e-3 * wanted,
+        "{} against {wanted}",
+        camera.distance()
+    );
+}
+
+#[test]
+fn the_hologram_camera_keeps_its_side_when_reset() {
+    let mut camera = holographic(&HologramView::default());
+    camera.orbit(120.0, 40.0);
+    assert!(!camera.is_home(), "orbited away");
+
+    camera.reset(1.0);
+
+    assert!(camera.is_home(), "back at the hologram's own side");
+}
+
+#[test]
+fn values_that_are_not_finite_fall_back_to_the_defaults() {
+    let hostile = HologramView {
+        fov_degrees: f32::NAN,
+        view_angle_degrees: f32::INFINITY,
+        elevation_degrees: f32::NEG_INFINITY,
+        distance_scaler: f32::NAN,
+    };
+
+    let matrix = holographic(&hostile).uniforms(1.0).view_proj;
+
+    assert!(
+        matrix.iter().flatten().all(|value| value.is_finite()),
+        "finite"
+    );
+    assert!(
+        (holographic(&hostile).distance() - holographic(&HologramView::default()).distance()).abs()
+            < 1.0e-3,
+        "the same distance as the defaults"
     );
 }

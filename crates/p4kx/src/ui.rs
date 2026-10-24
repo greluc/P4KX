@@ -9,6 +9,7 @@ use p4kx_extraction::{LocalizationEntry, UiMovie};
 
 use crate::cli::{UiAction, UiArgs};
 use crate::ui_extract::extract;
+use crate::ui_hologram;
 use crate::ui_json::{AssetsJson, describe};
 use crate::ui_render::render;
 use crate::{exit, json};
@@ -21,6 +22,7 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
         UiAction::Assets(source)
         | UiAction::Extract { source, .. }
         | UiAction::Render { source, .. } => source,
+        UiAction::Hologram(hologram) => return ui_hologram::run(hologram, as_json),
     };
     let archive;
     let movie = match &source.entry {
@@ -59,6 +61,7 @@ pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
             svg,
             ..
         } => render(&movie, out, *size, *background, *svg, as_json),
+        UiAction::Hologram(hologram) => ui_hologram::run(hologram, as_json),
     }
 }
 

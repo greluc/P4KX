@@ -7,6 +7,9 @@
 mod assembly;
 mod device;
 mod frame;
+mod hologram;
+#[cfg(test)]
+mod hologram_tests;
 mod limits;
 mod offscreen;
 #[cfg(test)]
@@ -14,8 +17,10 @@ mod offscreen_tests;
 mod pipelines;
 mod report;
 mod resources;
+mod shading;
 mod skeleton;
 mod slot;
+mod straight;
 mod target;
 #[cfg(test)]
 mod tests;
@@ -29,6 +34,7 @@ pub use offscreen::{Adapters, Offscreen, OffscreenError, Picture};
 use pipelines::{BLIT_BYTES, FRAME_BYTES, Pipelines};
 pub use report::{GpuReport, Unavailable};
 use resources::{MaterialTexture, MeshBuffers};
+pub use shading::{Hologram, Shading};
 use slot::Slot;
 use target::Target;
 
@@ -75,8 +81,9 @@ pub struct Look {
 /// The colours of a picture, as sRGB bytes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Colours {
-    /// What the picture is cleared to.
-    pub background: [u8; 3],
+    /// What the picture is cleared to, with its alpha; the alpha is only meaningful to a picture
+    /// that is read back.
+    pub background: [u8; 4],
     /// The colour of the skeleton lines.
     pub bones: [u8; 3],
 }
@@ -84,7 +91,7 @@ pub struct Colours {
 impl Default for Colours {
     fn default() -> Self {
         Self {
-            background: [0x14, 0x16, 0x1a],
+            background: [0x14, 0x16, 0x1a, 0xff],
             bones: [0xff, 0xff, 0xff],
         }
     }
@@ -100,6 +107,7 @@ struct Drawn {
     uniforms: Uniforms,
     size: [u32; 2],
     colours: Colours,
+    shading: Shading,
 }
 
 /// What a frame draws: one model, or the instances of an Assembly that a draw list picked.
@@ -145,6 +153,8 @@ pub struct Frame {
     pub look: Look,
     /// The background and overlay colours.
     pub colours: Colours,
+    /// How an Assembly is shaded; a model is always drawn solid.
+    pub shading: Shading,
 }
 
 impl Renderer {
@@ -182,6 +192,15 @@ impl Renderer {
     #[must_use]
     pub fn report(&self) -> Arc<GpuReport> {
         Arc::clone(&self.report)
+    }
+
+    /// Returns whether the device can draw with shading; solid shading always works.
+    #[must_use]
+    pub const fn supports(&self, shading: &Shading) -> bool {
+        match shading {
+            Shading::Solid => true,
+            Shading::Hologram(_) => self.pipelines.hologram.is_some(),
+        }
     }
 
     /// Frees the Assembly buffers, for a host that no longer shows one.

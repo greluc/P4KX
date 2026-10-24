@@ -55,6 +55,36 @@ impl Step {
     }
 }
 
+/// How the vehicle hologram looks at its subject: through a narrow lens from a fixed side, at a
+/// distance that leaves room around the vehicle.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HologramView {
+    /// The vertical field of view in degrees; clamped to 1 to 120.
+    pub fov_degrees: f32,
+    /// The angle in degrees, in the horizontal plane, between the nose (+Y) and the direction
+    /// the camera looks from; positive towards +X.
+    pub view_angle_degrees: f32,
+    /// The height of the camera above the horizontal plane, as an angle in degrees; clamped to
+    /// -80 to 80.
+    pub elevation_degrees: f32,
+    /// The factor on the distance at which the bounding sphere of the vehicle just fits;
+    /// clamped to 0.5 to 10.
+    pub distance_scaler: f32,
+}
+
+impl Default for HologramView {
+    /// Returns the values of the `UIHoloVehicle_Config` Record of the current game and an
+    /// elevation of 20 degrees.
+    fn default() -> Self {
+        Self {
+            fov_degrees: 10.0,
+            view_angle_degrees: 60.0,
+            elevation_degrees: 20.0,
+            distance_scaler: 1.5,
+        }
+    }
+}
+
 /// An orbit camera around a target with Z up, framing a [`Bounds`].
 ///
 /// Dragging orbits, a secondary drag pans, the wheel and the plus and minus keys zoom, and
@@ -69,6 +99,9 @@ pub struct Camera {
     radius: f32,
     fitted: bool,
     fitted_aspect: f32,
+    fov: f32,
+    margin: f32,
+    home: (f32, f32),
 }
 
 impl Camera {
@@ -86,7 +119,32 @@ impl Camera {
             radius,
             fitted: false,
             fitted_aspect: 1.0,
+            fov: FOV_Y,
+            margin: FIT_MARGIN,
+            home: (HOME_YAW, HOME_PITCH),
         }
+    }
+
+    /// Frames `bounds` the way the vehicle hologram does: through the lens and from the side that
+    /// `view` names, at the distance that fits the bounding sphere times the distance scaler.
+    /// Values that are not finite are replaced by those of [`HologramView::default`].
+    #[must_use]
+    pub fn holographic(bounds: &Bounds, view: &HologramView) -> Self {
+        let defaults = HologramView::default();
+        let value = |wanted: f32, fallback: f32| if wanted.is_finite() { wanted } else { fallback };
+        let mut camera = Self::framing(bounds);
+        camera.fov = value(view.fov_degrees, defaults.fov_degrees)
+            .clamp(1.0, 120.0)
+            .to_radians();
+        camera.margin = value(view.distance_scaler, defaults.distance_scaler).clamp(0.5, 10.0);
+        let angle = value(view.view_angle_degrees, defaults.view_angle_degrees).to_radians();
+        camera.yaw = (FRAC_PI_2 - angle).rem_euclid(std::f32::consts::TAU);
+        camera.pitch = value(view.elevation_degrees, defaults.elevation_degrees)
+            .clamp(-80.0, 80.0)
+            .to_radians();
+        camera.home = (camera.yaw, camera.pitch);
+        camera.distance = fit_distance_with(camera.radius, 1.0, (camera.fov, camera.margin));
+        camera
     }
 
     /// Returns whether [`Camera::fit`] was called since the camera was made.
@@ -97,7 +155,7 @@ impl Camera {
 
     /// Frames the whole model in a view of `aspect` (width over height).
     pub fn fit(&mut self, aspect: f32) {
-        self.distance = fit_distance(self.radius, aspect);
+        self.distance = fit_distance_with(self.radius, aspect, (self.fov, self.margin));
         self.fitted_aspect = aspect;
         self.fitted = true;
     }
@@ -105,8 +163,7 @@ impl Camera {
     /// Returns to the home direction and frames the whole model in a view of `aspect`.
     pub fn reset(&mut self, aspect: f32) {
         self.target = self.centre;
-        self.yaw = HOME_YAW;
-        self.pitch = HOME_PITCH;
+        (self.yaw, self.pitch) = self.home;
         self.fit(aspect);
     }
 
@@ -119,9 +176,12 @@ impl Camera {
             .iter()
             .zip(self.centre)
             .all(|(a, b)| near(*a, b))
-            && (self.yaw - HOME_YAW).abs() < 1.0e-5
-            && (self.pitch - HOME_PITCH).abs() < 1.0e-5
-            && near(self.distance, fit_distance(self.radius, self.fitted_aspect))
+            && (self.yaw - self.home.0).abs() < 1.0e-5
+            && (self.pitch - self.home.1).abs() < 1.0e-5
+            && near(
+                self.distance,
+                fit_distance_with(self.radius, self.fitted_aspect, (self.fov, self.margin)),
+            )
     }
 
     /// Turns the camera around the target by a drag of `dx` and `dy` pixels.
@@ -149,7 +209,7 @@ impl Camera {
     /// Moves the target across the view by a drag of `dx` and `dy` pixels in a view `height`
     /// pixels high, so the model follows the pointer.
     pub fn pan(&mut self, dx: f32, dy: f32, height: f32) {
-        let per_pixel = 2.0 * self.distance * (0.5 * FOV_Y).tan() / height.max(1.0);
+        let per_pixel = 2.0 * self.distance * (0.5 * self.fov).tan() / height.max(1.0);
         let (right, up, _) = self.basis();
         for axis in 0..3 {
             if let (Some(target), Some(right), Some(up)) =
@@ -200,7 +260,7 @@ impl Camera {
         let near = (self.distance - self.radius - offset).max(self.radius * 0.005);
         let far = self.distance + self.radius + offset;
         let view = look_at(eye, right, up, back);
-        let projection = perspective(aspect, near, far.max(near * 2.0));
+        let projection = perspective(aspect, near, far.max(near * 2.0), self.fov);
         let key = normalise(add(
             add(scale(right, -0.5), scale(up, 0.7)),
             scale(back, 0.5),
@@ -223,9 +283,13 @@ impl Camera {
 }
 
 fn fit_distance(radius: f32, aspect: f32) -> f32 {
-    let half_y = 0.5 * FOV_Y;
+    fit_distance_with(radius, aspect, (FOV_Y, FIT_MARGIN))
+}
+
+fn fit_distance_with(radius: f32, aspect: f32, (fov, margin): (f32, f32)) -> f32 {
+    let half_y = 0.5 * fov;
     let half_x = (half_y.tan() * aspect.max(0.05)).atan();
-    radius * FIT_MARGIN / half_y.min(half_x).sin()
+    radius * margin / half_y.min(half_x).sin()
 }
 
 fn look_at(eye: [f32; 3], right: [f32; 3], up: [f32; 3], back: [f32; 3]) -> Matrix {
@@ -237,8 +301,8 @@ fn look_at(eye: [f32; 3], right: [f32; 3], up: [f32; 3], back: [f32; 3]) -> Matr
     ]
 }
 
-fn perspective(aspect: f32, near: f32, far: f32) -> Matrix {
-    let focal = 1.0 / (0.5 * FOV_Y).tan();
+fn perspective(aspect: f32, near: f32, far: f32, fov: f32) -> Matrix {
+    let focal = 1.0 / (0.5 * fov).tan();
     let depth = far / (near - far);
     [
         [focal / aspect.max(0.05), 0.0, 0.0, 0.0],

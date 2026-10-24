@@ -8,18 +8,46 @@ use super::device::guarded;
 use super::limits::{Rejected, check_buffer};
 use super::pipelines::{COLOUR_FORMAT, DEPTH_FORMAT};
 use super::resources::{MaterialTexture, VERTEX_STRIDE, filled};
-use super::{AssemblyDraw, BASE_TEXTURE, Drawn, Frame, GpuReport, Renderer};
+use super::{AssemblyDraw, BASE_TEXTURE, Drawn, Frame, GpuReport, Renderer, Shading};
 use crate::assembly::AssemblyScene;
 
 const SHADER: &str = include_str!("assembly.wgsl");
 const INSTANCE_BYTES: u64 = 64;
 
+const VERTEX_ATTRIBUTES: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![
+    0 => Float32x3,
+    1 => Float32x3,
+    2 => Float32x2,
+];
+
+const INSTANCE_ATTRIBUTES: [wgpu::VertexAttribute; 4] = wgpu::vertex_attr_array![
+    3 => Float32x4,
+    4 => Float32x4,
+    5 => Float32x4,
+    6 => Float32x4,
+];
+
+/// The vertex buffers of the instanced pipelines: the shared mesh, then the instances.
+pub(super) const fn buffer_layouts() -> [Option<wgpu::VertexBufferLayout<'static>>; 2] {
+    [
+        Some(wgpu::VertexBufferLayout {
+            array_stride: VERTEX_STRIDE,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &VERTEX_ATTRIBUTES,
+        }),
+        Some(wgpu::VertexBufferLayout {
+            array_stride: INSTANCE_BYTES,
+            step_mode: wgpu::VertexStepMode::Instance,
+            attributes: &INSTANCE_ATTRIBUTES,
+        }),
+    ]
+}
 /// The pipelines that draw the instances of an Assembly: opaque ones with depth writes, then
 /// translucent ones that blend over them.
 #[derive(Debug)]
 pub(super) struct AssemblyPipelines {
-    opaque: wgpu::RenderPipeline,
-    translucent: wgpu::RenderPipeline,
+    pub(super) opaque: wgpu::RenderPipeline,
+    pub(super) translucent: wgpu::RenderPipeline,
 }
 
 impl AssemblyPipelines {
@@ -58,27 +86,7 @@ fn pipeline(
             module,
             entry_point: Some("vs_main"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
-            buffers: &[
-                Some(wgpu::VertexBufferLayout {
-                    array_stride: VERTEX_STRIDE,
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: &wgpu::vertex_attr_array![
-                        0 => Float32x3,
-                        1 => Float32x3,
-                        2 => Float32x2,
-                    ],
-                }),
-                Some(wgpu::VertexBufferLayout {
-                    array_stride: INSTANCE_BYTES,
-                    step_mode: wgpu::VertexStepMode::Instance,
-                    attributes: &wgpu::vertex_attr_array![
-                        3 => Float32x4,
-                        4 => Float32x4,
-                        5 => Float32x4,
-                        6 => Float32x4,
-                    ],
-                }),
-            ],
+            buffers: &buffer_layouts(),
         },
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
@@ -230,6 +238,7 @@ impl Renderer {
             uniforms: frame.uniforms,
             size: frame.size,
             colours: frame.colours,
+            shading: frame.shading,
         };
         if self.target.is_some() && self.drawn == Some(wanted) {
             return Vec::new();
@@ -277,7 +286,12 @@ impl Renderer {
         queue.write_buffer(&buffers.instances, 0, bytemuck::cast_slice(shown));
     }
 
-    pub(super) fn draw_assembly(&self, pass: &mut wgpu::RenderPass<'_>, view: &AssemblyDraw) {
+    pub(super) fn draw_assembly(
+        &self,
+        pass: &mut wgpu::RenderPass<'_>,
+        view: &AssemblyDraw,
+        shading: Shading,
+    ) {
         let (Some(buffers), Some(white)) = (
             self.assembly.get(view.scene.serial()),
             self.textures.get(BASE_TEXTURE),
@@ -289,17 +303,29 @@ impl Renderer {
         pass.set_vertex_buffer(1, buffers.instances.slice(..));
         pass.set_index_buffer(buffers.indices.slice(..), wgpu::IndexFormat::Uint32);
         let (mut instances, mut calls) = (0_u64, 0_u64);
-        for translucent in [false, true] {
-            pass.set_pipeline(if translucent {
-                &self.pipelines.assembly.translucent
-            } else {
-                &self.pipelines.assembly.opaque
-            });
+        let assembly = &self.pipelines.assembly;
+        let solid = [
+            (&assembly.opaque, Some(false), true),
+            (&assembly.translucent, Some(true), true),
+        ];
+        let hologram;
+        let steps = match (shading, self.pipelines.hologram.as_ref()) {
+            (Shading::Hologram(_), Some(pipelines)) => {
+                hologram = [
+                    (&pipelines.depth, None, false),
+                    (&pipelines.colour, None, true),
+                ];
+                &hologram
+            }
+            _ => &solid,
+        };
+        for &(pipeline, only, counted) in steps {
+            pass.set_pipeline(pipeline);
             for run in view.list.draws() {
                 let Some(group) = view.scene.groups().get(run.group as usize) else {
                     continue;
                 };
-                if group.translucent != translucent {
+                if only.is_some_and(|translucent| group.translucent != translucent) {
                     continue;
                 }
                 let texture = group
@@ -314,7 +340,9 @@ impl Renderer {
                     0,
                     run.first..run.first.saturating_add(run.count),
                 );
-                instances += u64::from(run.count);
+                if counted {
+                    instances += u64::from(run.count);
+                }
                 calls += 1;
             }
         }

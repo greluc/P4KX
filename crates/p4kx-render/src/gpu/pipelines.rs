@@ -6,12 +6,13 @@ use std::num::NonZeroU64;
 
 use super::assembly::AssemblyPipelines;
 use super::device::guarded;
+use super::hologram::HologramPipelines;
 use super::resources::VERTEX_STRIDE;
 use super::skeleton::SkeletonPipelines;
 
 pub(super) const COLOUR_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 pub(super) const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
-pub(super) const FRAME_BYTES: u64 = 96;
+pub(super) const FRAME_BYTES: u64 = 128;
 pub(super) const BLIT_BYTES: u64 = 16;
 
 const SCENE_SHADER: &str = include_str!("scene.wgsl");
@@ -24,6 +25,7 @@ pub(super) struct Pipelines {
     pub(super) blit: wgpu::RenderPipeline,
     pub(super) skeleton: Option<SkeletonPipelines>,
     pub(super) assembly: AssemblyPipelines,
+    pub(super) hologram: Option<HologramPipelines>,
     pub(super) frame_layout: wgpu::BindGroupLayout,
     pub(super) material_layout: wgpu::BindGroupLayout,
     pub(super) blit_layout: wgpu::BindGroupLayout,
@@ -75,11 +77,15 @@ impl Pipelines {
             )
         });
         let assembly = AssemblyPipelines::new(device, (&frame_layout, &material_layout), samples);
+        let (hologram, shell_refused) = guarded(device, || {
+            HologramPipelines::new(device, (&frame_layout, &material_layout), samples)
+        });
         Self {
             scene,
             blit,
             skeleton: (!refused).then_some(skeleton),
             assembly,
+            hologram: (!shell_refused).then_some(hologram),
             frame_layout,
             material_layout,
             blit_layout,

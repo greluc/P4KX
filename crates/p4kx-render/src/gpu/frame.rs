@@ -51,6 +51,7 @@ impl Renderer {
             uniforms: frame.uniforms,
             size: frame.size,
             colours: frame.colours,
+            shading: frame.shading,
         };
         if self.target.is_some() && self.drawn == Some(wanted) {
             return Vec::new();
@@ -122,13 +123,16 @@ impl Renderer {
 
     fn write_uniforms(&self, queue: &wgpu::Queue, frame: &Frame) {
         let uniforms = &frame.uniforms;
-        let packed: [[f32; 4]; 6] = [
+        let [tint, shading] = frame.shading.rows();
+        let packed: [[f32; 4]; 8] = [
             uniforms.view_proj[0],
             uniforms.view_proj[1],
             uniforms.view_proj[2],
             uniforms.view_proj[3],
             uniforms.eye,
             uniforms.key_light,
+            tint,
+            shading,
         ];
         queue.write_buffer(&self.frame_buffer, 0, bytemuck::bytes_of(&packed));
         let extent = self.target.as_ref().map_or([1, 1], |target| target.extent);
@@ -210,7 +214,10 @@ impl Renderer {
                 depth_slice: None,
                 resolve_target: resolve,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(background(frame.colours.background)),
+                    load: wgpu::LoadOp::Clear(background(
+                        frame.colours.background,
+                        frame.shading.is_premultiplied(),
+                    )),
                     store: if resolve.is_some() {
                         wgpu::StoreOp::Discard
                     } else {
@@ -240,7 +247,7 @@ impl Renderer {
     fn draw_model(&self, pass: &mut wgpu::RenderPass<'_>, frame: &Frame) {
         let scene = match &frame.subject {
             Subject::Model(scene) => scene,
-            Subject::Assembly(view) => return self.draw_assembly(pass, view),
+            Subject::Assembly(view) => return self.draw_assembly(pass, view, frame.shading),
         };
         let (Some(mesh), Some(material)) = (
             self.mesh.get(scene.serial()),
@@ -276,7 +283,7 @@ impl Renderer {
 }
 
 /// Returns `colour` as the linear values the sRGB picture encodes back to it.
-fn linear(colour: [u8; 3]) -> [f32; 3] {
+pub(super) fn linear(colour: [u8; 3]) -> [f32; 3] {
     colour.map(|channel| {
         let encoded = f32::from(channel) / 255.0;
         if encoded <= 0.04045 {
@@ -287,8 +294,9 @@ fn linear(colour: [u8; 3]) -> [f32; 3] {
     })
 }
 
-/// `colour` as the linear value the sRGB picture encodes back to it.
-fn background([red, green, blue]: [u8; 3]) -> wgpu::Color {
+/// `colour` as the linear value the sRGB picture encodes back to it, with its alpha, the colour
+/// multiplied by it for a picture of premultiplied colours.
+fn background([red, green, blue, alpha]: [u8; 4], premultiplied: bool) -> wgpu::Color {
     let linear = |channel: u8| {
         let encoded = f64::from(channel) / 255.0;
         if encoded <= 0.04045 {
@@ -297,10 +305,12 @@ fn background([red, green, blue]: [u8; 3]) -> wgpu::Color {
             ((encoded + 0.055) / 1.055).powf(2.4)
         }
     };
+    let alpha = f64::from(alpha) / 255.0;
+    let weight = if premultiplied { alpha } else { 1.0 };
     wgpu::Color {
-        r: linear(red),
-        g: linear(green),
-        b: linear(blue),
-        a: 1.0,
+        r: linear(red) * weight,
+        g: linear(green) * weight,
+        b: linear(blue) * weight,
+        a: alpha,
     }
 }

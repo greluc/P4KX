@@ -21,11 +21,11 @@ pub use assembly::{
     MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES, MAX_VIEW_VERTICES, MIN_PART_PIXELS,
     PartInfo, Progress, VIEW_TEXTURE_MIP, hidden_mask,
 };
-pub use camera::{Camera, Matrix, Step, Uniforms};
+pub use camera::{Camera, HologramView, Matrix, Step, Uniforms};
 pub use gpu::{
-    Adapters, AssemblyDraw, Colours, Frame, GpuReport, Look, MAX_TEXTURE_SIDE, Offscreen,
-    OffscreenError, Picture, Rejected, Renderer, Subject, Unavailable, check_buffer, check_texture,
-    target_extent,
+    Adapters, AssemblyDraw, Colours, Frame, GpuReport, Hologram, Look, MAX_TEXTURE_SIDE, Offscreen,
+    OffscreenError, Picture, Rejected, Renderer, Shading, Subject, Unavailable, check_buffer,
+    check_texture, target_extent,
 };
 pub use scene::{
     Bounds, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, SKIN_STRIDE, Scene, SceneError, SkinVertex,

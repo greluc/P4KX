@@ -7,7 +7,9 @@ use std::sync::Arc;
 
 use eframe::egui_wgpu::{self, wgpu};
 use egui::{Color32, Rect};
-use p4kx_render::{Colours, Frame, GpuReport, Look, Renderer, Subject, Unavailable, Uniforms};
+use p4kx_render::{
+    Colours, Frame, GpuReport, Look, Renderer, Shading, Subject, Unavailable, Uniforms,
+};
 
 use crate::theme::palette;
 
@@ -30,7 +32,11 @@ pub fn install(state: &egui_wgpu::RenderState) -> Result<Arc<GpuReport>, Unavail
     Ok(report)
 }
 
-const fn bytes(colour: Color32) -> [u8; 3] {
+const fn bytes(colour: Color32) -> [u8; 4] {
+    [colour.r(), colour.g(), colour.b(), u8::MAX]
+}
+
+const fn rgb(colour: Color32) -> [u8; 3] {
     [colour.r(), colour.g(), colour.b()]
 }
 
@@ -51,9 +57,10 @@ pub(crate) fn paint_callback(
                 uniforms,
                 size,
                 look,
+                shading: Shading::Solid,
                 colours: Colours {
                     background: bytes(palette::SURFACE_INSET),
-                    bones: bytes(palette::PRIMARY),
+                    bones: rgb(palette::PRIMARY),
                 },
             },
         },

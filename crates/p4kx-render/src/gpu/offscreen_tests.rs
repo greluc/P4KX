@@ -3,7 +3,9 @@
 
 use std::sync::Arc;
 
-use super::{Adapters, AssemblyDraw, Colours, Frame, Look, Offscreen, OffscreenError, Subject};
+use super::{
+    Adapters, AssemblyDraw, Colours, Frame, Look, Offscreen, OffscreenError, Shading, Subject,
+};
 use crate::assembly::synthetic::ship;
 use crate::{Camera, DrawList};
 
@@ -17,6 +19,10 @@ fn open(test: &str) -> Option<Offscreen> {
     match Offscreen::new(Adapters::Best) {
         Ok(offscreen) => Some(offscreen),
         Err(error) => {
+            assert!(
+                std::env::var_os("P4KX_REQUIRE_SOFTWARE_ADAPTER").is_none(),
+                "{test}: an adapter is required: {error}"
+            );
             eprintln!("{test}: {error}, nothing checked");
             None
         }
@@ -46,6 +52,7 @@ fn frame(size: [u32; 2]) -> Frame {
         size,
         look: Look::default(),
         colours: Colours::default(),
+        shading: Shading::Solid,
     }
 }
 
@@ -75,7 +82,7 @@ fn the_ship_is_drawn_into_a_picture_of_the_wanted_size_on_the_background() {
         .as_chunks::<4>()
         .0
         .iter()
-        .filter(|&&[red, green, blue, _]| [red, green, blue] != background)
+        .filter(|&&pixel| pixel != background)
         .count();
     assert!(drawn > 300, "the ship covers pixels, found {drawn}");
 }

@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const MARGIN: f32 = 2.0;
 
-type Bounds = ([f32; 3], [f32; 3]);
+pub(super) type Bounds = ([f32; 3], [f32; 3]);
 
 fn apply(chain: &Transform, [x, y, z]: [f32; 3]) -> [f32; 3] {
     chain
@@ -27,7 +27,7 @@ fn apply(chain: &Transform, [x, y, z]: [f32; 3]) -> [f32; 3] {
         .map(|[a, b, c, d]| a.mul_add(x, b.mul_add(y, c.mul_add(z, d))))
 }
 
-fn hull_bounds(model: &Model) -> Option<Bounds> {
+pub(super) fn hull_bounds(model: &Model) -> Option<Bounds> {
     let mut bounds: Option<Bounds> = None;
     for mesh in &model.lods.first()?.meshes {
         let mut chain = Transform::IDENTITY;

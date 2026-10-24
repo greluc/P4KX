@@ -9,6 +9,7 @@ use std::error::Error;
 use p4kx_model::{
     MAX_LAYERS, MAX_RAW_DEPTH, MAX_RAW_ELEMENTS, MaterialError, MaterialLibrary, PaletteSlot,
 };
+
 use p4kx_testkit::{TestElement, TestMtl, TestMtlMaterial};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -99,22 +100,26 @@ fn a_texture_slot_keeps_its_attributes_and_modifier() -> TestResult {
 }
 
 #[test]
-fn too_many_layers_or_raw_elements_are_refused() {
+fn too_many_layers_or_raw_elements_are_cut_off_and_reported_not_refused() -> TestResult {
     let layered = (0..=MAX_LAYERS).fold(TestMtlMaterial::new("many"), |material, _| {
         material.layer_with(&[("Name", "L")])
     });
-    assert!(matches!(
-        parse(&TestMtl::single(&layered)),
-        Err(MaterialError::TooMany { .. })
-    ));
+    let library = parse(&TestMtl::single(&layered))?;
+    let many = library.materials.first().ok_or("material")?;
+    assert_eq!(many.layers.len(), MAX_LAYERS);
+    assert_eq!(many.truncated, [format!("layers beyond {MAX_LAYERS}")]);
 
     let crowded = (0..=MAX_RAW_ELEMENTS).fold(TestMtlMaterial::new("crowd"), |material, _| {
         material.child(TestElement::new("E"))
     });
-    assert!(matches!(
-        parse(&TestMtl::single(&crowded)),
-        Err(MaterialError::TooMany { .. })
-    ));
+    let library = parse(&TestMtl::single(&crowded))?;
+    let crowd = library.materials.first().ok_or("material")?;
+    assert_eq!(crowd.elements.len(), MAX_RAW_ELEMENTS);
+    assert_eq!(
+        crowd.truncated,
+        [format!("elements beyond {MAX_RAW_ELEMENTS}")]
+    );
+    Ok(())
 }
 
 #[test]

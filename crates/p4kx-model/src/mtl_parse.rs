@@ -94,6 +94,9 @@ fn material<'a>(
         |name: &str, default: f32| element.attribute(name).and_then(scalar).unwrap_or(default);
     let colour =
         |name: &str, default: [f32; 3]| element.attribute(name).and_then(vector).unwrap_or(default);
+    let textures = textures(element, budget)?;
+    let layers = layers(element, budget);
+    let elements = other_elements(element, budget);
     Ok(Material {
         name: text("Name"),
         flags: flags(element.attribute("MtlFlags")),
@@ -107,7 +110,7 @@ fn material<'a>(
         opacity: number("Opacity", 1.0),
         alpha_test: number("AlphaTest", 0.0),
         glow: number("Glow", 0.0),
-        textures: textures(element, budget)?,
+        textures,
         palette: palette_slot(element),
         tinted: false,
         other_attributes: attributes(element)
@@ -119,8 +122,9 @@ fn material<'a>(
             })
             .collect(),
         public_params: public_params(element),
-        layers: layers(element, budget)?,
-        elements: other_elements(element, budget)?,
+        layers,
+        elements,
+        truncated: budget.cut(),
     })
 }
 
@@ -180,8 +184,8 @@ fn textures<'a>(
                 .collect(),
             children: texture
                 .children()
-                .map(|child| raw(child, 1, budget))
-                .collect::<Result<_, _>>()?,
+                .filter_map(|child| raw(child, 1, budget))
+                .collect(),
         });
     }
     Ok(slots)

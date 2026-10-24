@@ -168,7 +168,7 @@ shader still has every value the file holds.
 | Field | Meaning |
 | --- | --- |
 | `id`, `name` | The id, and the name in the file (empty when it has none). |
-| `library`, `index` | The material library (path below `Data`, no extension, `/` separators) and the position in its sub-material list, which is the material ID of the submeshes. `index` is absent when the file is one material that serves every ID (layer files are). |
+| `library`, `index` | The material library (path below `Data`, no extension, `/` separators) and the position in its sub-material list, which is the material ID of the submeshes. `index` is absent when the file is one material that serves every ID (most layer files are). A library the model names with a bare name is looked for beside the model first, so two models in different folders do not share a description for it. |
 | `shader` | The shader name, e.g. `Illum`, `HardSurface`, `Layer`, `MeshDecal`, `GlassPBR`. Unknown shaders are written as they are. |
 | `gen_mask` | The shader generation mask split at `%` (`NORMAL_MAP`, `USE_TINT_PALETTE`, `SECOND_UVS`, ...): which features the shader uses. |
 | `surface_type` | The physical surface, e.g. `metal_dense`. |
@@ -189,8 +189,9 @@ placeholder such as `$TintPaletteDecal` or `$RenderToTexture`, which has no file
 `texture`, the id in `textures`, absent for a placeholder and for a texture that could not be
 written. `usage` is derived from the suffix of the file name (`_ddna` and `_ddn` normal, `_spec`
 specular, `_mask`/`_opac` mask, `_blend` blend, `_detail` detail, `_wear` wear, `_ao` occlusion,
-`_displ`/`_disp` displacement, `_gloss` gloss) and, for other files, the slot: `TexSlot1` is
-`diffuse`, anything else `other`. `attributes` (`TexType`, `Used`, ...) and `elements` (the `TexMod`
+`_displ`/`_disp` displacement, `_gloss` gloss; `_id`, `_scalp`, `_dir`, `_dirm` and `_hal` are
+`other`, even in `TexSlot1`) and, for other files, the slot: `TexSlot1` is `diffuse`, anything
+else `other`. `attributes` (`TexType`, `Used`, ...) and `elements` (the `TexMod`
 child with the tiling `TileU`/`TileV`, the offset `OffsetU`/`OffsetV` and the rotation of the
 slot's UVs) are as in the file. Which UV set a slot samples is decided by the shader and its
 `gen_mask`; the package does not guess it.
@@ -201,10 +202,16 @@ list; absent for none), `tint_colour` (`TintColor`), `wear_tint`, `uv_tiling`, `
 absent when the file gives none or it is malformed), `palette` (the entry of its `PaletteTint`),
 `attributes` (all attributes of the layer in file order, the ones above included, with
 `WearGloss`, `HeightBias`, `HeightScale` and the rest), and `material`, the id of the layer file's
-description in `materials`. A layer file is a material like any other, so it has its own textures,
-shader and parameters, and its own layers; a layer file that names itself refers to itself. A
-layer whose file is missing has no `material` and is listed in `issues`. Layers are followed to a
-depth of 8.
+description in `materials`. A layer file is a material like any other, so it has its own
+textures, shader and parameters, and its own layers. Files that name each other, or themselves,
+refer to each other's descriptions. A layer whose file is missing, unreadable (a path that leaves
+`Data` included) or lacks the named sub-material has no `material` and is listed in `issues`.
+Layers are followed through 8 files; the layers of the eighth stay without a `material` and one
+issue says so.
+
+The reader keeps at most 64 layers and 4096 raw elements per material (the attribute values are
+bounded by the 16 MiB cap on a material file). What is cut off is listed in `issues` (`origin`
+`material`, `kind` `material`), and the rest of the file is read.
 
 Decals and wear are not separate objects in the game's files; they are materials: a decal is a
 material with the shader `MeshDecal` (its stencil colours in `parameters`, the placeholder

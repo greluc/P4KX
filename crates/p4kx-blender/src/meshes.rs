@@ -61,10 +61,11 @@ fn write_one(
     let mut glb = Vec::new();
     let mut summary = write_scene_glb(&scene, options, &mut glb)
         .map_err(|source| mesh_error(&id, &name, source))?;
-    if let Some(patched) = with_material_indices(&glb) {
-        glb = patched;
-        summary.bytes = glb.len() as u64;
-    }
+    glb = with_material_indices(&glb).ok_or_else(|| PackageError::MeshExtras {
+        id: id.clone(),
+        name: name.clone(),
+    })?;
+    summary.bytes = glb.len() as u64;
     let file = File::create_new(&path).map_err(|source| PackageError::write(&path, source))?;
     let mut writer = BufWriter::new(file);
     writer

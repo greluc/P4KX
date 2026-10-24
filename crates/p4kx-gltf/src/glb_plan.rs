@@ -8,7 +8,7 @@ use crate::animations::{AnimationPlan, Targets, plan as plan_animations};
 use crate::document::skeleton_written;
 use crate::glb::{GlbOptions, GlbSummary};
 use crate::instance::Instance;
-use crate::layout::Layout;
+use crate::layout::{Layout, Rigging};
 use crate::materials::Slot;
 use crate::texture_loader::TextureLoader;
 use crate::texture_plan::TextureSet;
@@ -21,7 +21,16 @@ pub(crate) fn plan_layout<'m>(
     let mut layout = Layout::new();
     for (part, instance) in instances.iter().enumerate() {
         if let Some(lod) = instance.lod {
-            layout.add_part(part, lod, options.vertex_colours, &instance.plan, binds);
+            layout.add_part(
+                part,
+                lod,
+                options.vertex_colours,
+                &instance.plan,
+                Rigging {
+                    binds,
+                    influences: None,
+                },
+            );
         }
     }
     layout

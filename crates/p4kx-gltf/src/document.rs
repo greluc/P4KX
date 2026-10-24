@@ -19,7 +19,7 @@ use crate::layout::{Block, Layout, MeshLayout};
 use crate::nodes::{Skeleton, push_nodes, push_scene_nodes};
 use crate::texture_plan::TextureSet;
 
-const GENERATOR: &str = concat!("P4KX ", env!("CARGO_PKG_VERSION"));
+pub(crate) const GENERATOR: &str = concat!("P4KX ", env!("CARGO_PKG_VERSION"));
 const PNG_MIME: &str = "image/png";
 
 /// Builds the glTF document of the `wrappers` and the model `instances` over the planned binary
@@ -76,7 +76,7 @@ pub(crate) fn document(
     root
 }
 
-type NodeMeshes = Vec<Vec<Option<Index<json::Mesh>>>>;
+pub(crate) type NodeMeshes = Vec<Vec<Option<Index<json::Mesh>>>>;
 
 fn empty_nodes(instances: &[Instance<'_>]) -> (NodeMeshes, Vec<Vec<bool>>) {
     let meshes = instances
@@ -92,7 +92,7 @@ fn empty_nodes(instances: &[Instance<'_>]) -> (NodeMeshes, Vec<Vec<bool>>) {
 
 /// Pushes the mesh of every mesh layout and returns, per instance and node, the mesh and whether
 /// it is skinned.
-fn push_meshes(
+pub(crate) fn push_meshes(
     root: &mut Root,
     buffer: Index<json::Buffer>,
     layout: &Layout<'_>,

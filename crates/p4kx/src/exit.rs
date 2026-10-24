@@ -3,7 +3,7 @@
 
 use std::process::ExitCode;
 
-use p4kx_assembly::{ChangeError, EntityLookupError, LoadoutError};
+use p4kx_assembly::{AssemblyError, ChangeError, EntityLookupError, LoadoutError};
 use p4kx_comparison::LineDiffError;
 use p4kx_export::CatalogError;
 use p4kx_extraction::cryxml::CryXmlError;
@@ -94,8 +94,9 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
      read into memory, or with unreadable Entry data, also a socpak container that cannot be
-     opened, a --diff Entry that cannot be read or holds corrupt CryXml, or a global.ini of the
-     catalog that is corrupt or cannot be read; a missing texture, sound, soundbank, chunk
+     opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
+     catalog that is corrupt or cannot be read, or the skeleton of a body variant (armour glb)
+     that is missing or unreadable; a missing texture, sound, soundbank, chunk
      file, UI movie file, model or geometry companion is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
@@ -138,6 +139,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnreadableChfInput>().is_some()
         || error.downcast_ref::<InvalidChf>().is_some()
         || error.downcast_ref::<LocalizationLoadError>().is_some()
+        || is_missing_skeleton(error)
         || matches!(
             error.downcast_ref::<CatalogError>(),
             Some(CatalogError::Texts { .. })
@@ -179,6 +181,13 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else {
         PARTIAL_FAILURE
     }
+}
+
+fn is_missing_skeleton(error: &anyhow::Error) -> bool {
+    matches!(
+        error.downcast_ref::<AssemblyError>(),
+        Some(AssemblyError::Body { .. })
+    )
 }
 
 fn is_unreadable_change(error: &anyhow::Error) -> bool {

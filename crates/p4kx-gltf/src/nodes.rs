@@ -78,6 +78,142 @@ pub(crate) fn push_scene_nodes(
     root.scene = Some(scene);
 }
 
+/// One model written below a shared skeleton: its nodes, its name and which of its nodes carry a
+/// skinned mesh.
+pub(crate) struct RigModel<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) model: &'a Model,
+    pub(crate) meshes: &'a [Option<Index<json::Mesh>>],
+    pub(crate) skinned: &'a [bool],
+}
+
+/// Writes the nodes of every model of `models`, then the bones of `bones` once, and the scene
+/// that holds the roots; all skinned meshes share one skin over the bones.
+///
+/// The node of a skinned mesh is a root with no transform and is named after its model; the other
+/// nodes of a model keep their hierarchy and their transforms.
+pub(crate) fn push_rig_nodes(
+    root: &mut Root,
+    models: &[RigModel<'_>],
+    bones: &[Bone],
+    binds: Option<Index<Accessor>>,
+) {
+    let base: usize = models.iter().map(|rig| rig.model.nodes.len()).sum();
+    let Forest {
+        children,
+        roots,
+        bone_roots,
+    } = rig_forest(models, bones, base);
+    let any_skinned = models
+        .iter()
+        .any(|rig| rig.skinned.iter().any(|&skinned| skinned));
+    let skin = binds.filter(|_| any_skinned).map(|binds| {
+        let joints = (0..bones.len())
+            .map(|position| index_of(base + position))
+            .collect();
+        push_joints(root, joints, &bone_roots, binds)
+    });
+    let mut children = children.into_iter();
+    for rig in models {
+        for (position, (node, mesh)) in rig.model.nodes.iter().zip(rig.meshes).enumerate() {
+            let is_skinned = rig_skinned(rig, position) && skin.is_some();
+            push_node(
+                root,
+                Part {
+                    name: if is_skinned { rig.name } else { &node.name },
+                    children: children.next().unwrap_or_default(),
+                    mesh: *mesh,
+                    skin: skin.filter(|_| is_skinned),
+                    trs: if is_skinned {
+                        Trs::IDENTITY
+                    } else {
+                        decompose(&node.transform)
+                    },
+                },
+            );
+        }
+    }
+    for (bone, children) in bones.iter().zip(children) {
+        push_node(
+            root,
+            Part {
+                name: &bone.name,
+                children,
+                mesh: None,
+                skin: None,
+                trs: bone_trs(&bone.relative),
+            },
+        );
+    }
+    let scene = root.push(json::Scene {
+        name: None,
+        nodes: roots,
+        extensions: None,
+        extras: json::extras::Void::default(),
+    });
+    root.scene = Some(scene);
+}
+
+fn push_joints(
+    root: &mut Root,
+    joints: Vec<Index<json::Node>>,
+    bone_roots: &[Index<json::Node>],
+    binds: Index<Accessor>,
+) -> Index<json::Skin> {
+    root.push(json::Skin {
+        name: None,
+        joints,
+        inverse_bind_matrices: Some(binds),
+        skeleton: match bone_roots {
+            [only] => Some(*only),
+            _ => None,
+        },
+        extensions: None,
+        extras: json::extras::Void::default(),
+    })
+}
+
+/// Returns the children of every node, the nodes of the models first and the `base`-th node on
+/// the bones, and the roots of the scene.
+fn rig_forest(models: &[RigModel<'_>], bones: &[Bone], base: usize) -> Forest {
+    let mut forest = Forest {
+        children: vec![Vec::new(); base + bones.len()],
+        roots: Vec::new(),
+        bone_roots: Vec::new(),
+    };
+    let mut offset = 0;
+    for rig in models {
+        for (position, node) in rig.model.nodes.iter().enumerate() {
+            let index = index_of(offset + position);
+            let parent = node
+                .parent
+                .filter(|parent| *parent < rig.model.nodes.len() && !rig_skinned(rig, position))
+                .map(|parent| offset + parent);
+            if let Some(siblings) = parent.and_then(|parent| forest.children.get_mut(parent)) {
+                siblings.push(index);
+            } else {
+                forest.roots.push(index);
+            }
+        }
+        offset += rig.model.nodes.len();
+    }
+    for (position, bone) in bones.iter().enumerate() {
+        let index = index_of(base + position);
+        let parent = bone.parent.map(|parent| base + parent);
+        if let Some(siblings) = parent.and_then(|parent| forest.children.get_mut(parent)) {
+            siblings.push(index);
+        } else {
+            forest.roots.push(index);
+            forest.bone_roots.push(index);
+        }
+    }
+    forest
+}
+
+fn rig_skinned(rig: &RigModel<'_>, position: usize) -> bool {
+    rig.skinned.get(position).copied().unwrap_or(false)
+}
+
 /// The skeleton a document writes next to the model's nodes.
 pub(crate) struct Skeleton<'a> {
     /// The bones to write as nodes, after the model's nodes.

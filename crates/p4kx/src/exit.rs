@@ -23,6 +23,7 @@ use crate::dcb_tags::UnknownTag;
 use crate::entity_glb::GlbOutputIsArchive;
 use crate::extract::NoMatch;
 use crate::grep::EmptySearchText;
+use crate::interior_glb::InteriorOutputIsArchive;
 use crate::key::InvalidKey;
 use crate::loc::{LanguageNotInArchive, NoLanguages};
 use crate::wwise::{UnknownAudioLanguage, UnknownTrigger};
@@ -199,4 +200,5 @@ fn is_output_or_query_error(error: &anyhow::Error) -> bool {
         || error.downcast_ref::<UnknownTag>().is_some()
         || error.downcast_ref::<OutputIsArchive>().is_some()
         || error.downcast_ref::<GlbOutputIsArchive>().is_some()
+        || error.downcast_ref::<InteriorOutputIsArchive>().is_some()
 }

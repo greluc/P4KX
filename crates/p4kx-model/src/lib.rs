@@ -17,6 +17,10 @@
 //! animation databases into [`Track`]s of rotation and translation [`Keys`] per controller;
 //! [`Animation::bind`] matches them to the [`Bone`]s of a skeleton by controller ID.
 //!
+//! [`ObjectContainer::parse`] reads the description of a socpak's object container, the
+//! containers nested in it and the `.soc` files it streams, and [`IncludedObjects::read`] the
+//! models a `.soc` file places, each with its [`Transform`].
+//!
 //! Both containers are read: an `#ivo` model keeps its meshes in a geometry companion, a `CrCh`
 //! model in its own file, as the physics mesh a `Mesh` chunk refers to (docs/crch-models.md).
 
@@ -34,6 +38,7 @@ mod crch_mesh;
 mod crch_node;
 mod error;
 mod hierarchy;
+mod included;
 mod material;
 mod mesh;
 mod model;
@@ -43,6 +48,7 @@ mod mtl_load;
 mod mtl_parse;
 mod mtl_xml;
 mod nmc;
+mod object_container;
 mod reader;
 mod skeleton;
 mod skin;
@@ -58,10 +64,18 @@ pub use bone::{Bone, BoneTransform};
 pub use bone_map::{Influences, MAX_INFLUENCES};
 pub use companion::{CompanionError, CompanionPath, CompanionResolver, companion_file_names};
 pub use error::{CorruptChunk, ModelError};
+pub use included::{
+    IncludedObject, IncludedObjects, IncludedObjectsError, MAX_INCLUDED_MODELS,
+    MAX_INCLUDED_OBJECTS,
+};
 pub use model::{ChunkUsage, Lod, LodSelection, Mesh, Model, ModelChunk, ModelFile, Node, Submesh};
 pub use mtl::{
     MAX_SUB_MATERIALS, MAX_TEXTURE_SLOTS, Material, MaterialFlags, MaterialLibrary, MaterialStatus,
     TextureSlot,
 };
 pub use mtl_error::MaterialError;
+pub use object_container::{
+    ChildContainer, MAX_CHILD_CONTAINERS, MAX_STREAMED_SOCS, MAX_STREAMING_DEPTH, ObjectContainer,
+    ObjectContainerError,
+};
 pub use transform::Transform;

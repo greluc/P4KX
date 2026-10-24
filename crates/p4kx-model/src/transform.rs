@@ -34,6 +34,53 @@ impl Transform {
 }
 
 impl Transform {
+    /// Returns the transform that turns by the quaternion `rotation`, given as `[w, x, y, z]`
+    /// and normalised here, and then moves by `position`; or `None` when a value is not finite or
+    /// the quaternion has no length.
+    #[must_use]
+    pub fn from_quaternion(rotation: [f64; 4], position: [f64; 3]) -> Option<Self> {
+        let [w, x, y, z] = rotation;
+        let length = w.mul_add(w, x.mul_add(x, y.mul_add(y, z * z))).sqrt();
+        if !length.is_finite() || length < f64::EPSILON || !position.iter().all(|v| v.is_finite()) {
+            return None;
+        }
+        let [w, x, y, z] = [w / length, x / length, y / length, z / length];
+        let [px, py, pz] = position;
+        Some(Self {
+            rows: [
+                [
+                    narrow((-2.0_f64).mul_add(y * y + z * z, 1.0)),
+                    narrow(2.0 * x.mul_add(y, -(w * z))),
+                    narrow(2.0 * x.mul_add(z, w * y)),
+                    narrow(px),
+                ],
+                [
+                    narrow(2.0 * x.mul_add(y, w * z)),
+                    narrow((-2.0_f64).mul_add(x * x + z * z, 1.0)),
+                    narrow(2.0 * y.mul_add(z, -(w * x))),
+                    narrow(py),
+                ],
+                [
+                    narrow(2.0 * x.mul_add(z, -(w * y))),
+                    narrow(2.0 * y.mul_add(z, w * x)),
+                    narrow((-2.0_f64).mul_add(x * x + y * y, 1.0)),
+                    narrow(pz),
+                ],
+            ],
+        })
+    }
+
+    /// Returns the transform of the 3×4 row-major matrix `rows`, or `None` when a value is not
+    /// finite once narrowed to single precision.
+    #[must_use]
+    pub fn from_rows_f64(rows: [[f64; 4]; 3]) -> Option<Self> {
+        let rows = rows.map(|row| row.map(narrow));
+        rows.iter()
+            .flatten()
+            .all(|value| value.is_finite())
+            .then_some(Self { rows })
+    }
+
     /// Returns the transform that applies `inner` first and this transform after it: the matrix
     /// product `self * inner`, so `parent.then(&child)` places a child in its parent's parent.
     #[must_use]

@@ -107,6 +107,13 @@ impl<'a> ArchiveModels<'a> {
         }
     }
 
+    /// Returns whether the Archive holds a file at `path`, a path below `Data` as an Entity Record
+    /// spells it.
+    #[must_use]
+    pub fn contains(&self, path: &str) -> bool {
+        self.entry_of(path).is_some()
+    }
+
     fn entry_of(&self, path: &str) -> Option<String> {
         let path = path.trim_start_matches(['/', '\\']);
         [format!("Data\\{path}"), path.to_owned()]

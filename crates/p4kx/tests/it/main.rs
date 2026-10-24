@@ -54,6 +54,7 @@ mod extract_convert_dataforge;
 mod extract_textures;
 mod grep;
 mod info;
+mod interior_glb;
 mod json;
 mod json_audio;
 mod json_bnk;

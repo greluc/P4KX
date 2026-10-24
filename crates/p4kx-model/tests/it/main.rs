@@ -10,6 +10,7 @@ mod corrupt;
 mod crch;
 mod crch_corrupt;
 mod cube;
+mod interior;
 mod lods;
 mod material_library_lookup;
 mod materials;

@@ -20,6 +20,7 @@ pub(crate) use crate::cli_dcb::{
 pub(crate) use crate::cli_dcb_fields::DcbFieldsArgs;
 pub(crate) use crate::cli_entity::{EntityAction, EntityArgs, EntityAudioArgs, EntityLoadoutArgs};
 pub(crate) use crate::cli_grep::{GrepArgs, GrepFormat};
+pub(crate) use crate::cli_interior::InteriorArgs;
 pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
@@ -114,6 +115,9 @@ pub(crate) enum Command {
     /// item.
     #[command(after_help = EXIT_CODES_HELP)]
     Entity(EntityArgs),
+    /// Exports the Interior of a socpak container, a ship's rooms or a room on its own, as GLB.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Interior(InteriorArgs),
     /// Compares the Entries and Records of an old and a new Archive, or prints the line diff of
     /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]

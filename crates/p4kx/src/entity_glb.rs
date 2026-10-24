@@ -62,7 +62,7 @@ struct ReplacedJson<'a> {
 }
 
 #[derive(Serialize)]
-struct IssueJson<'a> {
+pub(crate) struct IssueJson<'a> {
     path: &'a str,
     name: &'a str,
     kind: &'static str,

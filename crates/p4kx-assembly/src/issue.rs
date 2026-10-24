@@ -76,6 +76,63 @@ pub enum IssueKind {
         /// The helper the port names.
         helper: String,
     },
+    /// A container nested in an Interior cannot be found, so it and what is in it are left out.
+    #[error("the container {name} does not exist")]
+    ContainerMissing {
+        /// The name the description gives.
+        name: String,
+    },
+    /// A nested container cannot be opened, so it and what is in it are left out.
+    #[error("the container {name} cannot be opened: {reason}")]
+    ContainerUnreadable {
+        /// The name the description gives.
+        name: String,
+        /// What is wrong.
+        reason: String,
+    },
+    /// A container is nested in itself, directly or through others, so it is not entered again.
+    #[error("the container {name} is nested in itself and not entered again")]
+    ContainerCycle {
+        /// The name the description gives.
+        name: String,
+    },
+    /// A file a container names does not exist, so what it holds is left out.
+    #[error("the file {file} does not exist")]
+    FileMissing {
+        /// The file's path in the container.
+        file: String,
+    },
+    /// A file of a container cannot be read, so what it holds is left out.
+    #[error("the file {file} cannot be read: {reason}")]
+    FileUnreadable {
+        /// The file's path in the container.
+        file: String,
+        /// What is wrong.
+        reason: String,
+    },
+    /// A nested container has a placement that is not usable, so it is left out.
+    #[error("the placement of the container {name} is not usable: {reason}")]
+    InvalidPlacement {
+        /// The name the description gives.
+        name: String,
+        /// What is wrong.
+        reason: String,
+    },
+    /// Placed models of a `.soc` file name no listed model or have no usable transform, so they
+    /// are left out.
+    #[error(
+        "{count} placed models name no listed model or have no usable transform and are left out"
+    )]
+    ObjectsLeftOut {
+        /// How many.
+        count: usize,
+    },
+    /// A `.soc` file lists objects of a kind that is not read, so the list ends there.
+    #[error("the objects from the first of kind {kind} on are not read")]
+    UnsupportedObjects {
+        /// The kind of the first object that is not a placed model.
+        kind: u32,
+    },
     /// The Assembly holds [`MAX_ASSEMBLY_PARTS`](crate::MAX_ASSEMBLY_PARTS) parts, so further
     /// parts are left out.
     #[error("the Assembly reached {limit} parts; further parts are left out")]
@@ -114,6 +171,14 @@ impl IssueKind {
             Self::TooManyParts { .. } => "too_many_parts",
             Self::TooManyVertices { .. } => "too_many_vertices",
             Self::TooDeep { .. } => "too_deep",
+            Self::ContainerMissing { .. } => "container_missing",
+            Self::ContainerUnreadable { .. } => "container_unreadable",
+            Self::ContainerCycle { .. } => "container_cycle",
+            Self::FileMissing { .. } => "file_missing",
+            Self::FileUnreadable { .. } => "file_unreadable",
+            Self::InvalidPlacement { .. } => "invalid_placement",
+            Self::ObjectsLeftOut { .. } => "objects_left_out",
+            Self::UnsupportedObjects { .. } => "unsupported_objects",
         }
     }
 
@@ -128,6 +193,14 @@ impl IssueKind {
                 | Self::TooManyParts { .. }
                 | Self::TooManyVertices { .. }
                 | Self::TooDeep { .. }
+                | Self::ContainerMissing { .. }
+                | Self::ContainerUnreadable { .. }
+                | Self::ContainerCycle { .. }
+                | Self::FileMissing { .. }
+                | Self::FileUnreadable { .. }
+                | Self::InvalidPlacement { .. }
+                | Self::ObjectsLeftOut { .. }
+                | Self::UnsupportedObjects { .. }
         )
     }
 }

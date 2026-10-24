@@ -48,6 +48,7 @@ mod error;
 mod files;
 mod flatten;
 mod geometry;
+mod interior;
 mod issue;
 mod markup;
 mod merge;
@@ -73,6 +74,10 @@ pub use entities::{ENTITY_TYPE, Entities};
 pub use error::{AssemblyError, EntityLookupError, LoadoutError};
 pub use files::{ArchiveFiles, LoadoutFileError, LoadoutFiles, MAX_XML_LOADOUT_LEN};
 pub use geometry::Geometry;
+pub use interior::{
+    Interior, InteriorOptions, InteriorPart, InteriorPartKind, MAX_INTERIOR_CONTAINERS,
+    MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
+};
 pub use issue::{Issue, IssueKind};
 pub use p4kx_character as character;
 pub use port::{PortDefinition, PortTransform, PortType};

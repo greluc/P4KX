@@ -108,7 +108,7 @@ fn issue(draft: &Draft<'_>, kind: IssueKind) -> Issue {
 }
 
 /// Returns a key for a path that ignores case, the separator kind and a leading `Data\`.
-fn file_key(path: &str) -> String {
+pub(crate) fn file_key(path: &str) -> String {
     let key = path
         .trim_start_matches(['/', '\\'])
         .replace('/', "\\")
@@ -243,17 +243,20 @@ fn library_name<'a>(draft: &'a Draft<'_>, loaded: &'a Loaded) -> Option<&'a str>
 /// Returns the key under which a part's library is cached: a bare name is relative to the
 /// model's folder, any other name is the same for every model.
 fn library_key(draft: &Draft<'_>, loaded: &Loaded) -> Option<String> {
-    let name = library_name(draft, loaded)?;
+    Some(library_key_of(library_name(draft, loaded)?, &loaded.entry))
+}
+
+/// Returns the key under which the library `name` of the model at `entry` is cached.
+pub(crate) fn library_key_of(name: &str, entry: &str) -> String {
     let key = file_key(name);
     let key = key.strip_suffix(".mtl").unwrap_or(&key).to_owned();
     if key.contains('\\') {
-        Some(key)
+        key
     } else {
-        let folder = loaded
-            .entry
+        let folder = entry
             .rsplit_once(['\\', '/'])
             .map_or("", |(folder, _)| folder);
-        Some(format!("{}\\{key}", folder.to_ascii_lowercase()))
+        format!("{}\\{key}", folder.to_ascii_lowercase())
     }
 }
 

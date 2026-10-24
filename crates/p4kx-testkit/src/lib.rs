@@ -47,6 +47,7 @@ mod glb_images;
 mod glb_skin;
 mod global_ini;
 mod hirc_node;
+mod interior_sample;
 mod layout_v1;
 mod layout_v2;
 mod mesh_streams;
@@ -61,6 +62,7 @@ mod mtl;
 mod opus;
 mod opus_encode;
 mod real_archive;
+mod soc;
 mod split_dds;
 mod test_entry;
 mod test_jpeg;
@@ -108,6 +110,7 @@ pub use glb_images::DecodedImage;
 pub use global_ini::GlobalIniBuilder;
 pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
+pub use interior_sample::{INTERIOR_ROOT, INTERIOR_ROOT_NAME, interior_entries};
 pub use mesh_streams::{MeshStream, MeshStreams, mesh_streams};
 pub use model::{
     CUBE_CAPS_MATERIAL, CUBE_MATERIAL_LIBRARY, CUBE_MESH_OFFSET, CUBE_SIDES_MATERIAL, TestModel,
@@ -122,6 +125,7 @@ pub use real_archive::{
     REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR, real_archive_b_path, real_archive_key,
     real_archive_pair, real_archive_path,
 };
+pub use soc::{SOC_IDENTITY, TestObjectContainer, TestSoc};
 pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
 pub use test_jpeg::{gray_jpeg, progressive_gray_jpeg, sampled_jpeg};

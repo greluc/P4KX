@@ -23,6 +23,7 @@ mod cli_dcb;
 mod cli_dcb_fields;
 mod cli_entity;
 mod cli_grep;
+mod cli_interior;
 mod cli_key;
 mod cli_loc;
 mod cli_model;
@@ -63,6 +64,7 @@ mod grep_json;
 mod grep_table;
 mod guard;
 mod info;
+mod interior_glb;
 mod issues;
 mod json;
 mod key;
@@ -129,6 +131,9 @@ fn main() -> ExitCode {
         Command::Coverage(args) => coverage::run(&args, json),
         Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json).map(success),
+        Command::Interior(args) => match args.action {
+            cli_interior::InteriorAction::Glb(args) => interior_glb::run(&args, json).map(success),
+        },
         Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {

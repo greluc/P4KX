@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! `p4kx interior glb` end to end over the synthetic socpak of the testkit.
+
+use std::error::Error;
+use std::path::{Path, PathBuf};
+
+use p4kx_testkit::{ArchiveBuilder, INTERIOR_ROOT, check_glb, interior_entries};
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+struct Run {
+    stdout: String,
+    stderr: String,
+    code: Option<i32>,
+}
+
+fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let path = dir.join("Data.p4k");
+    interior_entries()
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&path)?;
+    Ok(path)
+}
+
+fn glb(archive: &Path, container: &str, out: &Path, json: bool) -> Result<Run, Box<dyn Error>> {
+    let mut command = p4kx_testkit::p4kx()?;
+    if json {
+        command.arg("--json");
+    }
+    let output = command
+        .args(["interior", "glb"])
+        .arg(archive)
+        .arg(container)
+        .arg("--out")
+        .arg(out)
+        .output()?;
+    Ok(Run {
+        stdout: String::from_utf8(output.stdout)?,
+        stderr: String::from_utf8(output.stderr)?,
+        code: output.status.code(),
+    })
+}
+
+#[test]
+fn the_interior_is_written_with_its_nested_containers_and_what_is_missing_listed() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("interior.glb");
+
+    let run = glb(&archive, INTERIOR_ROOT, &out, false)?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let checked = check_glb(&std::fs::read(&out)?)?;
+    let cockpit = checked
+        .document
+        .nodes()
+        .find(|node| node.name() == Some("cockpit"))
+        .ok_or("no cockpit node")?;
+    let (translation, _, _) = cockpit.transform().decomposed();
+    assert!(
+        translation
+            .iter()
+            .zip([0.0, 0.0, -5.0])
+            .all(|(a, e)| (a - e).abs() < 1e-5),
+        "{translation:?}"
+    );
+    assert!(run.stdout.contains("in 4 containers"), "{}", run.stdout);
+    for expected in [
+        "skipped ship_interior (modules/absent): the container modules/absent does not exist",
+        "is nested in itself and not entered again",
+        "the geometry objects/test/absent.cgf does not exist",
+    ] {
+        assert!(run.stdout.contains(expected), "{expected}: {}", run.stdout);
+    }
+    Ok(())
+}
+
+#[test]
+fn the_json_report_has_a_stable_shape() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("interior.glb");
+
+    let run = glb(&archive, INTERIOR_ROOT, &out, true)?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert_eq!(run.stdout.lines().count(), 1, "one line of JSON");
+    let mut shaped: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    for key in ["archive", "out"] {
+        shaped[key] = serde_json::Value::String(format!("<{key}>"));
+    }
+    insta::assert_snapshot!(serde_json::to_string_pretty(&shaped)?);
+    Ok(())
+}
+
+#[test]
+fn an_output_that_is_the_archive_is_invalid_input() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    let run = glb(&archive, INTERIOR_ROOT, &archive, false)?;
+
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert!(run.stderr.contains("is the Archive"), "{}", run.stderr);
+    Ok(())
+}
+
+#[test]
+fn a_container_the_archive_lacks_is_invalid_and_a_non_container_is_unreadable() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("interior.glb");
+
+    let unknown = glb(&archive, "Data\\nothing.socpak", &out, false)?;
+    let not_container = glb(&archive, "Data\\objects\\test\\ship.mtl", &out, false)?;
+
+    assert_eq!(unknown.code, Some(2), "{}", unknown.stderr);
+    assert_eq!(not_container.code, Some(3), "{}", not_container.stderr);
+    assert!(!out.exists());
+    Ok(())
+}

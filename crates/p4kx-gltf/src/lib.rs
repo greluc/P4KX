@@ -43,6 +43,7 @@ mod nodes;
 mod rig;
 mod scene;
 mod scene_light;
+mod scene_nodes;
 mod skin;
 mod texture_loader;
 mod texture_make;

@@ -7,98 +7,7 @@ use json::{Accessor, Index, Root};
 use p4kx_model::{Bone, Model};
 
 use crate::axes::{Trs, decompose};
-use crate::instance::{Instance, Wrapper};
 use crate::skin::bone_trs;
-
-struct Planned {
-    name: String,
-    parent: Option<usize>,
-    trs: Trs,
-    mesh: Option<Index<json::Mesh>>,
-    light: Option<u32>,
-}
-
-/// Writes the `wrappers` as nodes, then the nodes of every model instance below its wrapper, and
-/// the scene that holds the roots; the lights of the wrappers become `KHR_lights_punctual`.
-pub(crate) fn push_scene_nodes(
-    root: &mut Root,
-    wrappers: &[Wrapper<'_>],
-    instances: &[Instance<'_>],
-    meshes: &[Vec<Option<Index<json::Mesh>>>],
-) {
-    let mut lights = Vec::new();
-    let mut planned: Vec<Planned> = wrappers
-        .iter()
-        .map(|wrapper| Planned {
-            name: wrapper.name.to_owned(),
-            parent: wrapper.parent,
-            trs: decompose(wrapper.transform),
-            mesh: None,
-            light: wrapper.light.map(|light| {
-                lights.push(light.to_json(wrapper.name));
-                index_u32(lights.len() - 1)
-            }),
-        })
-        .collect();
-    for (instance, instance_meshes) in instances.iter().zip(meshes) {
-        let base = planned.len();
-        for (position, node) in instance.model.nodes.iter().enumerate() {
-            planned.push(Planned {
-                name: node.name.clone(),
-                parent: node
-                    .parent
-                    .filter(|parent| *parent < instance.model.nodes.len())
-                    .map(|parent| base.saturating_add(parent))
-                    .or(instance.wrapper),
-                trs: decompose(&node.transform),
-                mesh: instance_meshes.get(position).copied().flatten(),
-                light: None,
-            });
-        }
-    }
-    let mut children: Vec<Vec<Index<json::Node>>> = vec![Vec::new(); planned.len()];
-    let mut roots = Vec::new();
-    for (position, node) in planned.iter().enumerate() {
-        match node.parent.and_then(|parent| children.get_mut(parent)) {
-            Some(siblings) => siblings.push(index_of(position)),
-            None => roots.push(index_of(position)),
-        }
-    }
-    for (node, children) in planned.into_iter().zip(children) {
-        push_node(
-            root,
-            Part {
-                name: &node.name,
-                children,
-                mesh: node.mesh,
-                skin: None,
-                trs: node.trs,
-                light: node.light,
-            },
-        );
-    }
-    declare_lights(root, lights);
-    let scene = root.push(json::Scene {
-        name: None,
-        nodes: roots,
-        extensions: None,
-        extras: json::extras::Void::default(),
-    });
-    root.scene = Some(scene);
-}
-
-fn declare_lights(
-    root: &mut Root,
-    lights: Vec<json::extensions::scene::khr_lights_punctual::Light>,
-) {
-    if lights.is_empty() {
-        return;
-    }
-    root.extensions = Some(json::extensions::root::Root {
-        khr_lights_punctual: Some(json::extensions::root::KhrLightsPunctual { lights }),
-    });
-    root.extensions_used.push("KHR_lights_punctual".to_owned());
-}
 
 /// One model written below a shared skeleton: its nodes, its name and which of its nodes carry a
 /// skinned mesh.
@@ -248,7 +157,7 @@ pub(crate) struct Skeleton<'a> {
     pub(crate) inverse_binds: Option<Index<Accessor>>,
 }
 
-fn index_of(position: usize) -> Index<json::Node> {
+pub(crate) fn index_of(position: usize) -> Index<json::Node> {
     Index::new(u32::try_from(position).unwrap_or(u32::MAX))
 }
 
@@ -373,20 +282,16 @@ fn push_skin(
     })
 }
 
-struct Part<'a> {
-    name: &'a str,
-    children: Vec<Index<json::Node>>,
-    mesh: Option<Index<json::Mesh>>,
-    skin: Option<Index<json::Skin>>,
-    trs: Trs,
-    light: Option<u32>,
+pub(crate) struct Part<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) children: Vec<Index<json::Node>>,
+    pub(crate) mesh: Option<Index<json::Mesh>>,
+    pub(crate) skin: Option<Index<json::Skin>>,
+    pub(crate) trs: Trs,
+    pub(crate) light: Option<u32>,
 }
 
-fn index_u32(position: usize) -> u32 {
-    u32::try_from(position).unwrap_or(u32::MAX)
-}
-
-fn push_node(root: &mut Root, part: Part<'_>) {
+pub(crate) fn push_node(root: &mut Root, part: Part<'_>) {
     let Part {
         name,
         children,

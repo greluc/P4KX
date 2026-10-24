@@ -85,5 +85,6 @@ mod ui_render_svg;
 mod ui_render_text;
 mod verify;
 mod wwise_events;
+mod wwise_extract;
 mod wwise_resolve;
 mod wwise_streamed_localised;

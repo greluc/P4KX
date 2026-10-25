@@ -8,12 +8,15 @@ use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_extraction::model::{Lod, LodSelection, Model, ModelError, Transform};
 use p4kx_extraction::{Archive, ConversionError, Entry, GlbOptions, ModelSource, PathIndex};
 use p4kx_testkit::{check_glb, real_archive_b_path, real_archive_path};
 use rayon::prelude::*;
+
+static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -116,10 +119,7 @@ fn check_levels(index: &PathIndex<'_>, base: &str, dir: &std::path::Path) -> Lod
         }
     }
     for lod in &model.lods {
-        let out = dir.join(format!(
-            "{}.glb",
-            rayon::current_thread_index().unwrap_or(0)
-        ));
+        let out = dir.join(format!("{}.glb", NEXT_FILE.fetch_add(1, Ordering::Relaxed)));
         let exported = export_level(index, base, lod, &out);
         let _ignored = fs::remove_file(&out);
         if let Err(error) = exported {

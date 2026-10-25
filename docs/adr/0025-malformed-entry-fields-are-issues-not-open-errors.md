@@ -25,6 +25,8 @@ that are not UTF-8 are kept apart from the list, one per such Entry and found by
   `extract --verify` close that gap (ADR-0026). A 0x5002 block that is not 6 bytes long (4 header,
   2 value) is `EncryptionBlockSize`; the value is still read when the block holds one, and a
   block too short for a value counts as encrypted.
+- **Hash block.** A 0x5003 block that is not 36 bytes long (4 header, 32 SHA-256) is
+  `HashBlockSize` and states no digest (ADR-0148).
 - **Data range (v2).** An Entry whose data ends behind the start of the central directory or of the
   name table, whichever comes first, or whose end overflows, is `DataOutsideFile`. Opening it fails
   with the existing `Corrupt` error; the other Entries read.

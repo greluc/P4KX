@@ -59,8 +59,10 @@ pub(crate) enum UiAction {
     /// `fonts_en.gfx`, in the font, size, colour and alignment of the widget and the style
     /// cascade; `--lang` resolves their localisation keys. Clones, lists and library templates,
     /// flex, stack and grid containers, anchor, pivot, rotation, clipping and corners are laid out
-    /// and drawn. Widget types without a renderer, textures among them, and every text and layout
-    /// feature left out or approximated are listed in the report.
+    /// and drawn. Textures are drawn as bitmap fills with the scaling method, flips and colour of
+    /// the widget, and SVG files as shapes with their fit, colour overlay and nine-slice. Widget
+    /// types without a renderer, and every text, texture, vector graphic and layout feature left
+    /// out or approximated, are listed in the report.
     #[command(after_help = EXIT_CODES_HELP, group(ArgGroup::new("text_source").multiple(true).args(["entry", "screen"])))]
     Render {
         /// The UI movie, or with `--screen` the Archive.

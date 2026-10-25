@@ -15,6 +15,8 @@ layer = "service"
 p4kx-assembly.workspace = true
 p4kx-dataforge.workspace = true
 p4kx-gfx.workspace = true
+p4kx-texture.workspace = true
+roxmltree.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

@@ -64,7 +64,8 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
     let forge = entry.open()?;
     let files = Files::open(ArchiveFiles::new(&archive), args.loadout.as_deref())?;
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
-    let selection = Selection::gather(&mut resolver, &files, args)?;
+    let names = (args.pieces.as_slice(), args.loadout.as_deref());
+    let selection = Selection::gather(&mut resolver, &files, names)?;
     let variant = BodyVariant::from(args.body);
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);

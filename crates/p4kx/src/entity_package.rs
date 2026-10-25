@@ -160,14 +160,19 @@ impl<'a> PackageJson<'a> {
     }
 }
 
-fn info_of(archive: &Archive, args: &EntityPackageArgs) -> PackageInfo {
-    let build = archive.build().map(|build: &Build| BuildInfo {
+/// Returns the Build of `archive` as a package records it.
+pub(crate) fn build_info(archive: &Archive) -> Option<BuildInfo> {
+    archive.build().map(|build: &Build| BuildInfo {
         branch: build.branch().to_owned(),
         version: build.version().to_owned(),
         public_patch: build.public_patch().map(str::to_owned),
         change_number: build.change_number().to_owned(),
         build_id: build.build_id().to_owned(),
-    });
+    })
+}
+
+fn info_of(archive: &Archive, args: &EntityPackageArgs) -> PackageInfo {
+    let build = build_info(archive);
     let replace = args
         .changes
         .replace

@@ -3,6 +3,7 @@
 
 //! Integration tests of `p4kx-blender`, built as one test binary.
 
+mod package_character;
 mod package_interior;
 mod package_layer_limits;
 mod package_layout;

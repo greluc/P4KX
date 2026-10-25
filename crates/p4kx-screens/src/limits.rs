@@ -12,6 +12,10 @@ pub struct Limits {
     pub evaluations: u64,
     /// The deepest nesting of widgets and canvases.
     pub depth: usize,
+    /// The most pixels all textures of the screen have together, and the most one may have.
+    pub texture_pixels: u64,
+    /// The most path commands all vector graphics of the screen have together.
+    pub vector_commands: usize,
     /// The most templates clones and lists instantiate, summed over the whole screen.
     pub instances: usize,
     /// The most items one list repeats its template for.
@@ -19,12 +23,14 @@ pub struct Limits {
 }
 
 impl Limits {
-    /// The bounds `p4kx` uses: 2^18 widgets, 2^26 cascade steps, a depth of 64, 2^14 instances
-    /// and 2^10 rows per list.
+    /// The bounds `p4kx` uses: 2^18 widgets, 2^26 cascade steps, a depth of 64, 2^14 instances,
+    /// 2^10 rows per list, 2^26 texture pixels (2^25 for one texture) and 2^22 path commands.
     pub const DEFAULT: Self = Self {
         widgets: 1 << 18,
         evaluations: 1 << 26,
         depth: 64,
+        texture_pixels: 1 << 26,
+        vector_commands: 1 << 22,
         instances: 1 << 14,
         rows: 1 << 10,
     };

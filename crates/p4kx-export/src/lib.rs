@@ -68,6 +68,7 @@ mod contract_shops;
 mod contract_starmap;
 mod contract_stats;
 mod contract_stats_gear;
+mod contract_store_slugs;
 mod crafting;
 mod crafting_records;
 mod crafting_sources;
@@ -107,6 +108,7 @@ mod scan;
 mod selection;
 mod ship;
 mod ship_base;
+mod ship_store_slugs;
 mod shop_container_scan;
 mod shop_containers;
 mod shop_inventories;
@@ -166,6 +168,6 @@ pub use shop_summary::ShopSummary;
 pub use starmap_report::StarmapReport;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
-    LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,
-    UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
+    LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, StoreSlugSummary, TextSummary,
+    UPLOAD_LIMIT, UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
 };

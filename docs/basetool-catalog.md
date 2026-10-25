@@ -112,6 +112,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `mineableElements` | The mineable elements with their instability and other plain numbers, each linked to a `ResourceType`, ordered by GUID |
 | `refiningProcesses` | The refining processes (speed and quality pairs of a refinery), ordered by GUID |
 | `shops` | The shops of the shop registry with kind, brand, location and the link to a starmap object, ordered by `key` |
+| `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
@@ -1274,6 +1275,59 @@ A blueprint's `name` is almost always a placeholder key. The Basetool names a bl
 `producedItemGuid`, the item it produces, not through `name`.
 
 Manufacturer GUIDs are always taken from References, never from embedded Records (ADR-0004).
+
+### Ship store slugs
+
+The Archive does not carry the slugs of the RSI pledge store, and the class names of the ships do
+not match them. `shipStoreSlugs` maps the slug of a store ship to the catalog ship (ADR-0117). It
+is curated data that ships with the tool (`crates/p4kx-export/data/ship-store-slugs.json`), not
+extracted data. Only identifiers are kept: no description, price or media.
+
+| Field | Meaning |
+|-------|---------|
+| `slug` | The last segment of the ship's pledge URL, e.g. `Aurora-Mk-I-ES`; the entries are ordered by it |
+| `rsiId` | The ship id of the RSI store |
+| `storeName` | The name the RSI store shows |
+| `className` | The `className` of the mapped ship; `null` for a retired slug |
+| `shipGuid` | The `guid` of the mapped entry of `ships`; `null` for a retired slug |
+| `retired` | `true` when the slug's ship no longer exists in the game data |
+
+The kind lists only slugs that map to a ship: the slugs of ships the game does not have (the
+store lists concept ships) are not exported. A slug is exported when its `shipGuid` and `className`
+resolve to a ship of the catalog, or when it is `retired`; a retired slug stays in the data file
+and in the catalog so that a pledge of it is recognised as retired and not as unknown. A mapping
+that no longer resolves and is not retired is *stale*: it is not exported, `p4kx catalog` prints
+it and lists it in `store_slugs.stale` of `--json`, and the real-Archive test
+`every_mapped_store_slug_resolves_to_a_ship_of_the_archive` fails. With a `--filter` the ships are
+a selection, so only the slugs that resolve are exported, no retired one, and none is stale; the
+kind is `partial` then.
+
+The mapping is made by name, manufacturer and variant against the ships of the `LIVE` Archive whose
+`playability` is `player`, and it never guesses:
+
+- the store name and the catalog `name` are compared after dropping the manufacturer, punctuation,
+  case and the word "Edition";
+- when several player ships share the name, the one whose `className` carries none of the
+  suffixes of a display, test, event or reward variant (`_BIS…`, `_Display`, `_TEMP…`, `_Unmanned`,
+  `_AI_Super`, `_Tutorial`, `_Collector_…`, `_Prison`, `_NoInterior`, `_Hijacked…`, `_Exec_…` and the
+  like) is taken; if more than one is left, the slug stays unmapped;
+- a store name that is a part of exactly one catalog name (`M50` for "Origin M50 Interceptor", `C2
+  Hercules`, `Mercury`, `Ares Ion`, `85X`, `C8R Pisces`) is accepted after review of each such slug.
+
+On `LIVE` 4.7 the 256 slugs of the store (227 flight-ready, 29 in concept) give 204 mapped slugs
+and 52 unmapped: the 29 concept ships, 5 whose name fits several equal ships (the four Constellation
+Mk IV variants and the Hammerhead, each present once as `_GS` and once without), and 18 flight-ready
+ones the Archive holds under another name or not at all (e.g. `Mustang Alpha Vindicator`, `Carrack
+w/C8X`, `600i Explorer`, `ATLS`). 120 ships with `playability` `player` have no slug; most are
+event, reward and display variants of a ship that has one.
+
+To refresh the file, a human fetches the public ship list of the store, reduces it to the
+identifiers above (`id`, name, pledge URL), and adds new slugs to `ship-store-slugs.json` with
+`className` and `guid` `null`; the tool never fetches anything. Then `p4kx catalog` on the
+current `LIVE` Archive and its `store_slugs.stale` and `unmapped` lists show what is left to do: a
+new ship is mapped by the rules above, a mapping that went stale is corrected, or marked
+`"retired": true` when the ship is gone. The real-Archive test must pass before the file is
+committed.
 
 ### Texts
 

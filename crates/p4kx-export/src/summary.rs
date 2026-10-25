@@ -151,6 +151,26 @@ pub struct StarmapSummary {
     pub malformed_children: usize,
 }
 
+/// What a catalog holds of the curated RSI store slugs (ADR-0117).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct StoreSlugSummary {
+    /// The slugs in the data file.
+    pub slugs: usize,
+    /// The slugs with no ship mapped yet.
+    pub unmapped: usize,
+    /// The slugs with a mapped ship, retired ones included.
+    pub mapped: usize,
+    /// The mapped, not retired slugs whose ship the catalog has.
+    pub resolved: usize,
+    /// The slugs marked retired.
+    pub retired: usize,
+    /// The slugs the catalog lists: the resolved ones and, without a Filter, the retired ones.
+    pub exported: usize,
+    /// The slugs whose mapping no longer holds: the GUID is no ship of the catalog, the ship has
+    /// another class name, or a retired slug's ship exists again. Always empty with a Filter.
+    pub stale: Vec<String>,
+}
+
 /// How the localisation keys of a catalog resolved in one language.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextSummary {
@@ -180,6 +200,7 @@ pub struct CatalogSummary {
     pub(crate) starmap: StarmapSummary,
     pub(crate) starmap_report: Box<StarmapReport>,
     pub(crate) shops: Box<ShopSummary>,
+    pub(crate) store_slugs: Box<StoreSlugSummary>,
     pub(crate) playability: Box<PlayabilitySummary>,
     pub(crate) variants: VariantSummary,
     pub(crate) failures: Vec<CatalogFailure>,
@@ -223,6 +244,13 @@ impl CatalogSummary {
     #[must_use]
     pub fn shops(&self) -> &ShopSummary {
         &self.shops
+    }
+
+    /// Returns how the curated store slugs resolved against the ships of the catalog and which
+    /// mappings are stale.
+    #[must_use]
+    pub fn store_slugs(&self) -> &StoreSlugSummary {
+        &self.store_slugs
     }
 
     /// Returns the selected Records that could not be read and are left out of the catalog,

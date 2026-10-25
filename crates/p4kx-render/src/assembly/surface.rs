@@ -4,11 +4,14 @@
 use std::collections::{HashMap, HashSet};
 
 use p4kx_extraction::model::Material;
-use p4kx_extraction::{base_colour_factor, diffuse_texture_path};
+use p4kx_extraction::{base_colour_factor, diffuse_texture_path, layered_base_key};
 use p4kx_settings::ModelMaterials;
 
 use super::build::SharedMesh;
 use super::pieces::Piece;
+
+/// The start of the key a layered material's blended image has in place of a texture path.
+pub(super) const LAYERED_PREFIX: &str = "layered:";
 
 const GLASS_ALPHA: f32 = 0.3;
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
@@ -23,6 +26,8 @@ pub(super) struct Surface {
     pub(super) colour: [f32; 4],
     pub(super) translucent: bool,
     pub(super) texture: Option<String>,
+    /// The layered material whose blended image is the texture, which a path does not name.
+    pub(super) layered: Option<Material>,
 }
 
 fn is_one_of(shader: &str, names: &[&str]) -> bool {
@@ -71,25 +76,41 @@ pub(super) fn surface_of(material: &Material, mode: ModelMaterials) -> Option<Su
     } else {
         (1.0, false)
     };
-    let [red, green, blue] = base_colour_factor(material);
+    let textured = mode == ModelMaterials::Textures;
+    let blend = textured.then(|| layered_base_key(material)).flatten();
+    let [red, green, blue] = if blend.is_some() {
+        [1.0; 3]
+    } else {
+        base_colour_factor(material)
+    };
     Some(Surface {
         colour: [red, green, blue, alpha],
         translucent,
-        texture: (mode == ModelMaterials::Textures)
-            .then(|| diffuse_texture_path(material))
-            .flatten(),
+        layered: blend.is_some().then(|| material.clone()),
+        texture: blend
+            .map(|key| format!("{LAYERED_PREFIX}{key}"))
+            .or_else(|| textured.then(|| diffuse_texture_path(material)).flatten()),
     })
 }
 
+/// The surfaces of the material ranges of a scene, the distinct texture keys they want in order,
+/// and the layered materials whose blended images some keys stand for.
+pub(super) struct SceneSurfaces {
+    pub(super) surfaces: HashMap<SurfaceKey, Option<Surface>>,
+    pub(super) wanted: Vec<String>,
+    pub(super) layered: HashMap<String, Material>,
+}
+
 /// Resolves the surface of every material range the parts use, once per library, palette and
-/// material ID, and lists the distinct texture paths they want.
+/// material ID, and lists the distinct texture keys they want.
 pub(super) fn surfaces_of(
     pieces: &[Piece<'_>],
     model_of: &[Option<usize>],
     meshes: &[Option<SharedMesh>],
     mode: ModelMaterials,
-) -> (HashMap<SurfaceKey, Option<Surface>>, Vec<String>) {
+) -> SceneSurfaces {
     let mut surfaces = HashMap::new();
+    let mut layered: HashMap<String, Material> = HashMap::new();
     let mut wanted: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     for (at, part) in pieces.iter().enumerate() {
@@ -111,18 +132,28 @@ pub(super) fn surfaces_of(
                         && seen.insert(path.clone())
                     {
                         wanted.push(path.clone());
+                        if let Some(material) = surface.as_ref().and_then(|s| s.layered.as_ref()) {
+                            layered.insert(path.clone(), material.clone());
+                        }
                     }
                     surface
                 });
         }
     }
-    (surfaces, wanted)
+    SceneSurfaces {
+        surfaces,
+        wanted,
+        layered,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use p4kx_extraction::model::Material;
     use p4kx_settings::ModelMaterials;
+
+    use p4kx_extraction::model::{CompanionError, CompanionPath, MaterialStatus};
+    use p4kx_testkit::{TestMtl, TestMtlMaterial};
 
     use super::surface_of;
 
@@ -175,5 +206,55 @@ mod tests {
             surface_of(&decal, ModelMaterials::Colours).is_none(),
             "decals are left out"
         );
+    }
+
+    #[test]
+    fn a_layered_material_in_the_textures_mode_is_drawn_with_its_blended_image() {
+        let layer = TestMtl::single(
+            &TestMtlMaterial::new("layer")
+                .shader("Layer")
+                .diffuse([1.0; 3])
+                .texture("TexSlot1", "Objects/Test/a_diff.tif"),
+        )
+        .cryxml();
+        let hull = TestMtlMaterial::new("hull")
+            .shader("HardSurface")
+            .layer_with(&[
+                ("Name", "Primary"),
+                ("Path", "layers/a.mtl"),
+                ("TintColor", "0.5,0.5,0.5"),
+            ]);
+        let library = TestMtl::multi(&[hull]).cryxml();
+        let mut companions =
+            move |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
+                Ok(match path {
+                    CompanionPath::Material("objects/test/hull") => Some(library.clone()),
+                    CompanionPath::Material("layers/a") => Some(layer.clone()),
+                    _ => None,
+                })
+            };
+        let status = MaterialStatus::load(Some("objects/test/hull"), &mut companions);
+        let material = status
+            .library()
+            .and_then(|library| library.materials.first())
+            .expect("the hull");
+
+        let colours = surface_of(material, ModelMaterials::Colours).expect("a surface");
+        let textures = surface_of(material, ModelMaterials::Textures).expect("a surface");
+
+        assert!(colours.texture.is_none() && colours.layered.is_none());
+        assert_eq!(colours.colour, [0.5, 0.5, 0.5, 1.0]);
+        assert!(
+            textures
+                .texture
+                .as_deref()
+                .is_some_and(|key| key.starts_with(super::LAYERED_PREFIX))
+        );
+        assert_eq!(
+            textures.colour,
+            [1.0, 1.0, 1.0, 1.0],
+            "the colours are in the image"
+        );
+        assert!(textures.layered.is_some());
     }
 }

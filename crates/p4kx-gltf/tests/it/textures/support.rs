@@ -24,12 +24,26 @@ pub(crate) const SIDE: u32 = 2;
 pub(crate) struct Stub {
     textures: HashMap<String, Result<LoadedTexture, TextureLoadError>>,
     calls: Mutex<Vec<(String, u32)>>,
+    sized: bool,
+    sizes: HashMap<String, (u32, u32)>,
 }
 
 impl Stub {
     pub(crate) fn with(mut self, path: &str, texture: &LoadedTexture) -> Self {
         self.textures
             .insert(path.to_ascii_lowercase(), Ok(texture.clone()));
+        self
+    }
+
+    /// Makes the stub tell the sizes of its textures without decoding them.
+    pub(crate) const fn sized(mut self) -> Self {
+        self.sized = true;
+        self
+    }
+
+    /// Makes the stub tell `size` for the texture at `path`, whatever it holds.
+    pub(crate) fn sized_as(mut self, path: &str, size: (u32, u32)) -> Self {
+        self.sizes.insert(path.to_ascii_lowercase(), size);
         self
     }
 
@@ -47,6 +61,21 @@ impl Stub {
 }
 
 impl TextureLoader for Stub {
+    fn dimensions(&self, path: &str, _mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        let key = path.to_ascii_lowercase();
+        if let Some(size) = self.sizes.get(&key) {
+            return Ok(Some(*size));
+        }
+        if !self.sized {
+            return Ok(None);
+        }
+        match self.textures.get(&key) {
+            Some(Ok(texture)) => Ok(Some((texture.image.width(), texture.image.height()))),
+            Some(Err(error)) => Err(error.clone()),
+            None => Err(TextureLoadError::NotFound),
+        }
+    }
+
     fn load(&self, path: &str, mip: u32) -> Result<LoadedTexture, TextureLoadError> {
         self.calls
             .lock()

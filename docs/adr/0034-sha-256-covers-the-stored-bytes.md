@@ -38,6 +38,7 @@ decision; `docs/verify.md`).
 - **`Entry::sha256`** returns the digest the directory states. An all-zero digest, or a `0x5003`
   block of another length than 32 bytes, states none (`None`): a real SHA-256 of zeros is out of
   reach, and the synthetic fixtures use zeros for "no digest". `Entry::checksum` stays the CRC.
+  A block of another length is also an Entry issue (ADR-0148).
 - **Hashed on the stored side of the reader.** `Archive::open_entry_verified` hashes the stored
   bytes in a tap below decryption and decompression, so the Entry is still read once. At the byte
   that completes the decoded size, the bytes the decoder did not consume (AES padding, a

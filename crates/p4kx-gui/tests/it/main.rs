@@ -21,6 +21,7 @@ mod cataloging;
 mod channel_picker;
 mod character_export_window;
 mod character_expression;
+mod character_followups;
 mod character_model;
 mod character_package;
 mod character_package_animations;

@@ -15,7 +15,7 @@ use crate::entry_path::relative_path;
 use crate::sound_convert::{Converted, SoundFile};
 use crate::sound_job::sound_role;
 use crate::texture_convert::Step;
-use crate::write::{EntryWriter, Outcome, create_folders};
+use crate::write::{EntryWriter, Outcome};
 use crate::{ConversionError, ExtractionError};
 
 /// What unpacking a soundbank got done: how its files ended, whether a WEM was written converted,
@@ -99,7 +99,10 @@ impl EntryWriter<'_> {
             Ok(bank) => {
                 if bank.wems().next().is_some() {
                     let existed = self.target.join(&wem_folder).symlink_metadata().is_ok();
-                    let folder = create_folders(self.target, Some(&wem_folder))?;
+                    let folder = self
+                        .tracker
+                        .folders
+                        .folder(self.target, Some(&wem_folder))?;
                     self.unpack(
                         entry,
                         &bank,

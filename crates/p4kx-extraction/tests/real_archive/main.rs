@@ -19,6 +19,7 @@ mod adpcm;
 mod animations;
 mod audio_survey;
 mod audio_verification;
+mod bench;
 mod chunk_types;
 mod chunks;
 mod combined;

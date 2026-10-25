@@ -183,7 +183,7 @@ fn main() -> ExitCode {
 fn report(error: &anyhow::Error) {
     let mut stderr = io::stderr().lock();
     let _ignored = writeln!(stderr, "error: {error:#}");
-    if let Some(hint) = key::hint(error) {
+    if let Some(hint) = key::hint(error).or_else(|| extract::no_match_hint(error)) {
         let _ignored = writeln!(stderr, "hint: {hint}");
     }
 }

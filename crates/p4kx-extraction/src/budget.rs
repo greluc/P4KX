@@ -2,6 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::sync::{Condvar, Mutex, PoisonError};
+use std::time::Duration;
+
+const STOP_POLL: Duration = Duration::from_millis(50);
 
 /// Units, pixels or bytes, that parallel jobs may hold at the same time; a job waits until enough
 /// are free.
@@ -27,6 +30,29 @@ impl Budget {
             freed: Condvar::new(),
             total,
         }
+    }
+
+    /// Waits until `units`, at most the whole budget, are free and takes them, or returns `None`
+    /// once `stop` says so; `stop` is asked at least every 50 ms.
+    pub(crate) fn take_unless(&self, units: u64, stop: &dyn Fn() -> bool) -> Option<Lease<'_>> {
+        let units = units.min(self.total);
+        let mut free = self.free.lock().unwrap_or_else(PoisonError::into_inner);
+        while *free < units {
+            if stop() {
+                return None;
+            }
+            free = self
+                .freed
+                .wait_timeout(free, STOP_POLL)
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
+        }
+        *free -= units;
+        drop(free);
+        Some(Lease {
+            budget: self,
+            units,
+        })
     }
 
     /// Waits until `units`, at most the whole budget, are free and takes them.

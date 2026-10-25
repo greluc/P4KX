@@ -67,6 +67,7 @@ pub(crate) fn run(args: &SocpakArgs, as_json: bool) -> Result<ExitCode> {
                 },
                 audio: AudioConversion::Ogg,
                 verify: *verify,
+                threads: None,
                 cancel_after: None,
             };
             extract::execute(&container, &entries, &settings, as_json)

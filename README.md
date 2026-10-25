@@ -104,7 +104,8 @@ Early development (milestone M1). Available today:
   are written unchanged without a report. Every file follows `--conflict`, `if-changed` comparing
   with the converted output. Sounds and soundbanks are converted on a few threads of their own,
   within a memory budget of 1 GiB.
-  `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
+  `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input and the error says what to try, e.g. that a glob must match the whole path.
+  `--threads <n>` limits the worker threads (default one per logical processor); more than about four rarely help on one disk (docs/performance.md).
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries, and the number of Entry issues (ADR-0025). An Archive without a readable manifest has

@@ -221,7 +221,7 @@ fn print_report(
     if args.interior {
         writeln!(
             out,
-            "Interior: {} containers, {} objects, {} lights",
+            "Interior: {} object containers, {} objects, {} lights",
             summary.containers, summary.objects, summary.lights
         )?;
     }

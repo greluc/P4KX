@@ -178,7 +178,7 @@ fn facts(ui: &mut Ui, texts: &Texts, (scene, interior): (&AssemblyScene, bool)) 
 fn lay_out(ui: &Ui, texts: &Texts, (scene, interior): (&AssemblyScene, bool)) -> FactsStrip {
     let language = texts.language();
     let count = |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), language);
-    let bounds = scene.bounds();
+    let bounds = scene.bounds_of(interior);
     let side = |axis: usize| {
         let min = bounds.min.get(axis).copied().unwrap_or(0.0);
         let max = bounds.max.get(axis).copied().unwrap_or(0.0);
@@ -201,7 +201,7 @@ fn lay_out(ui: &Ui, texts: &Texts, (scene, interior): (&AssemblyScene, bool)) ->
     ];
     let mut values = vec![
         count(parts),
-        count(scene.meshes()),
+        count(scene.meshes_of(interior)),
         count(triangles),
         extent,
     ];

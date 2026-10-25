@@ -16,6 +16,7 @@ use crate::theme::tokens::SPACE_3;
 use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
+use crate::widgets::placement;
 use crate::{
     ExtractionText, Model, SoundsExport, SoundsExportStatus, SoundsText as T, Text, Texts,
 };
@@ -38,7 +39,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             cancelling,
         } => {
             let title = texts.get(T::ExportRunning);
-            let shown = frames::window(&title, Tone::Normal)
+            let shown = placement::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique("sounds-export-run"))
                 .collapsible(false)
                 .resizable(false)

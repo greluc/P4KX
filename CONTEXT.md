@@ -294,6 +294,13 @@ _Avoid_: .blend file, scene export
 The rooms and props of an Entity, stored in socpak containers inside the Archive.
 _Avoid_: room, level
 
+**Object container**:
+A socpak container the Record of an Entity names for its Interior; it is placed at a bone of the
+Entity and may hold further containers. Counts of an Entity's Interior are of its object
+containers, counts of a container exported on its own are of the containers opened, nested ones
+included.
+_Avoid_: room container
+
 **WEM**:
 A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one audio stream in one
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).

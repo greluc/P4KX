@@ -30,6 +30,31 @@ impl Gate {
     }
 }
 
+/// The place a background job waits at until a [`Hold`] is dropped or the job is cancelled; two
+/// are always equal, so that a request holding one still compares by what it asks for.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Pause(Option<Arc<Gate>>);
+
+impl Pause {
+    pub(crate) const fn at(gate: Arc<Gate>) -> Self {
+        Self(Some(gate))
+    }
+
+    pub(crate) fn wait(&self, cancelled: impl Fn() -> bool) {
+        if let Some(gate) = &self.0 {
+            gate.wait(cancelled);
+        }
+    }
+}
+
+impl PartialEq for Pause {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for Pause {}
+
 /// Keeps a background job from ending until it is dropped, so that a test can look at the running
 /// state for as long as it needs.
 #[derive(Debug)]

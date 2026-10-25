@@ -17,6 +17,11 @@ clip name a control. The control's value, 0 to 1, is the first component of the 
 keys; the rotation keys are a constant. The frames are 30 per second. The reader of ADR-0046
 decodes these tracks without change.
 
+Amendment (#565): the chunk also stores the table of these hashes, one per control (slot 1 of the
+rig, in front of the name pool). `RigLogic::read` finds the controls by the stored hashes and
+refuses a chunk whose table is not the CRC-32 of the names. On LIVE all 130 skins with a
+`RigLogic` chunk agree (`real_rig_logic.rs`).
+
 ## Why the facial joints are needed (#533)
 
 The 495 blendshapes of ADR-0091 move vertices by millimetres (at most 2.5 mm for `blinkL`). The
@@ -59,8 +64,24 @@ The Euler angles `x, y, z` become the quaternion `qx * qy * qz`, the Hamilton pr
 half-angle quaternions with `qx` leftmost, and the pose of the joint is its bind translation plus
 the translation, and its bind rotation times that quaternion on the right (`bind * delta`: the
 delta turns in the joint's own axes). Order, signs and side are those StarBreaker documents for the
-engine; they are tested for what the code does (two axes, a rotated bind pose) and not verified
-against the game, which is a follow-up.
+engine; they are tested for what the code does (two axes, a rotated bind pose).
+
+Amendment (#565), what the data settles. No in-game reference is available, so the rotations were
+checked on LIVE against motions whose direction is known (`real_head_rotation.rs`, clip
+`facerom_t0_face`, forward kinematics over the skeleton, the probe joint a descendant of the
+rotated one). With the convention above, `eyeLookUp` moves the pupil up by 6 mm and `eyeLookDown`
+down by 3.5 mm, `blinkL` and `blinkR` move the upper eyelid down by 7 mm, and `CTL_C_jaw ty` moves
+the chin down by 26 mm and back by 20 mm, as the names say. Applying the inverse rotation
+(`bind * inverse(delta)` or `inverse(delta) * bind`) moves every one of these the opposite way, so
+the **sign of the angles** is settled. The **Euler order** (XYZ against ZYX would move a joint by
+up to 14 degrees on this clip, most at the eyeballs and the lower lip) and the **side** of the
+product (`delta * bind` against `bind * delta` by up to 44 degrees, most at the nostrils and the
+lip corners) are not: the motions with a known direction do not depend on them at all (eyes, jaw)
+or by under 1 mm (eyelids). They rest on StarBreaker's reading of the engine
+(`euler_xyz_to_quat` as `qx * qy * qz`, the sin/cos chain at `0x1466e4dbf`, and
+`bind.rotation * euler_xyz_to_quat(delta)`), and stay open (#627) until an in-game or engine
+reference of one expression with a rotated bind pose, such as a nostril or a lip corner, can be
+compared.
 
 The 495 activations are also the weights of the morph targets: the targets of the head are the
 blendshapes that move a vertex, in the order of their numbers, and the build keeps the number of
@@ -69,14 +90,29 @@ each, so target `k` takes the activation of blendshape `numbers[k]`.
 ## Sampling
 
 An animation is sampled at the frames where any of its control tracks has a key, because the
-inputs change linearly between keys and the viewers interpolate linearly. Control values are held
+inputs change linearly between keys and the viewers interpolate translations and weights linearly
+and rotations spherically. Control values are held
 to 0 to 1, since a control is a fraction and a file with a key of 1e30 must not blow up the pose; a
 pose that is not finite refuses the clip. A sample is dropped when the line between its kept
-neighbours misses it by less than 0.1 mm, 0.0001 of a rotation component or 0.001 of a weight on
-every output; a line spans at most 128 samples and the samples are reduced 1,024 at a time, so the
-work is linear. The face clips key nearly every frame (`ai_civ_neutral_idle_08_face` has 4,354
-samples of its 4,530 frames), so the reduction saves little and a long clip is large: 34 MB for 151
-s. Joints that never leave their bind pose and morph targets that never leave 0 get no channel; the
+neighbours misses it by no more than 0.5 mm of a joint translation, 0.001 per quaternion
+component (about 0.1 to 0.2 degrees) and 0.01 of a weight on every output; a line spans at most 128 samples and the
+samples are reduced 1,024 at a time, so the work is linear. The face clips key nearly every frame
+(`ai_civ_neutral_idle_08_face` has 4,354 samples of its 4,530 frames), so the reduction needs
+tolerances that are coarse against the keys' noise to save anything.
+
+Amendment (#565), the tolerances were 0.1 mm, 0.0001 and 0.001 and are now those above. Measured
+on LIVE: `ai_civ_neutral_idle_08_face` (151 s) keeps 2,275 samples instead of 4,352 and its GLB is
+20.7 MB instead of 34.3 MB (40 % less); `facerom_t0_face` (28 s) keeps 681 instead of 827 and 9.5
+MB instead of 10.5 MB. The error is the stated tolerance, at most, at every dropped sample and
+every output, and a viewer interpolating between kept samples is within it there (for rotations
+the straight line and the slerp differ negligibly over such small angles); 0.5 mm
+is a twentieth of the 1 to 3 cm the strongest joints move. A coarser tolerance saves more (2 mm,
+0.002 and 0.01 keep 1,794 samples of the idle clip) but starts to show on the eyelids, which move
+by 7 mm. A separate, sparser time axis for the weights alone was measured and not made: reduced on
+their own, the weights of the idle clip keep 3,765 of 4,529 samples at the old tolerance and 1,574
+at ten times that, as many as the joints do, so a second time axis would save little.
+
+Joints that never leave their bind pose and morph targets that never leave 0 get no channel; the
 weights are one `weights` channel of the head's mesh with a run of all targets per sample.
 
 ## The budget
@@ -95,7 +131,8 @@ refused clip costs no memory. Run `--anim` with the names wanted for more.
   ADR-0091.
 - The expressions below LOD 0 and the joints of the lower levels (#533).
 - The wrinkle maps that sections G and H of the rig logic drive.
-- Verification of the Euler order, signs and multiplication side against the engine (a follow-up).
+- Verification of the Euler order and the multiplication side against the engine (#627; the sign
+  is settled, see the amendment of #565).
 - One glTF animation per clip: an animation with tracks for bones and for controls is written as
   two animations of the same name.
 
@@ -108,7 +145,9 @@ parameters list (`bhm_skeleton_v7.chrparams`, `bhf_skeleton_v2.chrparams`): `Ani
 constants of the variant, like its skeleton and skin. `Armour::animate` fits each animation: tracks
 whose controller ID is that of a bone of the skeleton move it by their keys (ADR-0046), tracks
 whose controller ID is that of a control of the head rig are evaluated as above, and the controller
-IDs that fit neither are reported in the summary of the GLB. An animation that fits nothing is not
+IDs that fit neither are reported in the summary of the GLB, in `skipped_tracks`, together with
+the IDs of the face rig's joints that move but are not in the skeleton (#565): both are the CRC-32
+of a name and the field does not tell them apart. An animation that fits nothing is not
 written and is listed as `animation_not_used`. `p4kx chf glb` and `p4kx armour glb` take `--anim`
 and `--anim-from`. Additive animations that nothing names are no longer listed one by one when a
 name picks the animations (a character's folders hold hundreds).

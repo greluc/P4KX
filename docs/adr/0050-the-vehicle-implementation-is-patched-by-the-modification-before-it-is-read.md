@@ -55,7 +55,10 @@ takes effect before anything is interpreted.
   input read. It stops CryXml nodes that share one attribute range, a patch copied into many
   elements with one `id`, and an Elem fanned out over them. A patch that exhausts it, or nests
   the tree deeper than 128, is an issue and the unpatched base stays. The file size limit is that
-  of XML Loadouts.
+  of XML Loadouts. Each element also carries a vector of origins (`ValueOrigin`, ADR-0061), one
+  entry per attribute that a patch or an Elem set, with a copy of the attribute name; the vector
+  is cloned with the element, is bounded by the attribute count, and its name copies are not
+  counted in the copied bytes.
 - **Visible outcomes.** A patch file that dangles (even when a fallback file is applied), a
   replacing patch child with no base counterpart, and an `id` (of an element or of a wrapper's
   child) that matches nothing in the base and has no base child of its name to replace are
@@ -68,7 +71,8 @@ takes effect before anything is interpreted.
   class or Modification name makes the candidate unusable.
 - **Numbers.** A number is the longest numeric prefix of the trimmed value (`12.5kg` is 12.5,
   `1,5` is 1, `v2 1500` is none); `VehiclePart::attribute` gives the raw value for readers with
-  their own rule (#304, #316).
+  their own rule (#304, #316). A remainder other than white space, `d`, `f` or `kg` makes the
+  read partial, which the sums report (ADR-0128).
 - **Layers.** `p4kx-assembly` is a service, and a service may depend on another service
   (ADR-0003), so `p4kx-export` can call `VehicleImplementation::read` directly.
 

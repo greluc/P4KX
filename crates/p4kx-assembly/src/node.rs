@@ -9,7 +9,7 @@ use crate::merge::{merge_by_port, port_key};
 use crate::plan::Action;
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
-use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
+use crate::spec::{EntitySpec, EntrySpec, LoadoutOrigin, LoadoutSpec, TargetSpec};
 use crate::walk::Walk;
 use crate::{
     Attachment, EntityNode, LoadoutError, MAX_LOADOUT_DEPTH, PortConstraints, PortNode, PortSource,
@@ -23,6 +23,7 @@ struct Pending<'s> {
     definition: Option<Arc<PortDefinition>>,
     target: &'s TargetSpec,
     loadout: Option<&'s LoadoutSpec>,
+    origin: Option<&'s LoadoutOrigin>,
 }
 
 impl LoadoutResolver<'_> {
@@ -80,6 +81,10 @@ impl LoadoutResolver<'_> {
             vehicle,
             landing_gear,
             docked_vehicle: attached_vehicle,
+            loadout_file: match &spec.loadout {
+                Some(LoadoutSpec::Xml(path)) => Some(Arc::clone(path)),
+                _ => None,
+            },
             expanded,
             attach_type: spec.attach_type.clone(),
             attach_sub_type: spec.attach_sub_type.clone(),
@@ -133,6 +138,7 @@ impl LoadoutResolver<'_> {
             attachment: Attachment::Empty,
             nested: Vec::new(),
             visibility: PortVisibility::default(),
+            origin: pending.origin.cloned(),
         };
         if self.change(&mut node, walk) {
             return node;
@@ -154,6 +160,7 @@ impl LoadoutResolver<'_> {
             Action::Keep => false,
             Action::Exclude => {
                 node.source = PortSource::Excluded;
+                node.origin = None;
                 true
             }
             Action::Replace(guid, facts) => {
@@ -165,6 +172,7 @@ impl LoadoutResolver<'_> {
                 }
                 node.attachment = self.attach(&TargetSpec::Reference(guid), None, walk);
                 node.source = PortSource::Replaced;
+                node.origin = None;
                 true
             }
         }
@@ -209,6 +217,7 @@ impl LoadoutResolver<'_> {
                 attachment: Attachment::Empty,
                 nested: Vec::new(),
                 visibility: PortVisibility::default(),
+                origin: Some(entry.origin.clone()),
             };
             if !self.change(&mut node, walk) {
                 node.attachment = self.attach(&entry.target, entry.loadout.as_ref(), walk);
@@ -332,6 +341,7 @@ fn pending_ports<'s>(
             .map(|port| Arc::clone(&port.definition)),
         target: &entry.target,
         loadout: entry.loadout.as_ref(),
+        origin: Some(&entry.origin),
     });
     let defined = spec
         .ports
@@ -347,6 +357,7 @@ fn pending_ports<'s>(
             definition: Some(Arc::clone(&port.definition)),
             target: &port.default_item,
             loadout: None,
+            origin: (port.default_item != TargetSpec::None).then_some(&spec.origin),
         });
     from_entries.chain(defined)
 }

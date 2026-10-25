@@ -7,9 +7,10 @@ use p4kx_chunks::{ByteOrder, ChunkFile, crch};
 use p4kx_foundation::ByteReader;
 
 use crate::build::corrupt;
+use crate::error::failure;
 use crate::hierarchy::find_cycle;
 use crate::reader::ReadValues;
-use crate::{CorruptChunk, ModelError, ModelFile, Node, Transform};
+use crate::{CorruptChunk, ModelError, ModelFile, Node, Transform, UnsupportedLayout};
 
 const NODE_VERSION: u32 = 0x824;
 const NAME_LEN: usize = 64;
@@ -45,7 +46,9 @@ pub(crate) fn read_nodes<B: AsRef<[u8]>>(
         }
         let fail = corrupt(file_name, index, "Node");
         if chunk.byte_order() != ByteOrder::Little {
-            return Err(fail(CorruptChunk::BigEndian));
+            return Err(failure(file_name, index, "Node")(
+                UnsupportedLayout::BigEndian.into(),
+            ));
         }
         let chunk_id = chunk.id().unwrap_or_default();
         let record = read_record(file.chunk_data(index).unwrap_or_default()).map_err(&fail)?;

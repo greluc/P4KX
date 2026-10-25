@@ -45,7 +45,7 @@ pub(super) fn attach(
         .filter_map(|layer| walked.layers.get(layer))
         .map(ArchiveModels::new)
         .collect();
-    let resolved = resolve(walked, &providers);
+    let resolved = resolve(walked, &providers, watch)?;
     let mut files: Vec<(Key, String)> = Vec::new();
     let mut seen = HashSet::new();
     for (key, path) in resolved.iter().flatten() {
@@ -54,7 +54,7 @@ pub(super) fn attach(
         }
     }
     let outcomes = read_models(&files, &providers, (options, watch))?;
-    let libraries = read_libraries(&outcomes, &providers);
+    let libraries = read_libraries(&outcomes, &providers, watch)?;
     let mut fill = Fill {
         outcomes,
         libraries,
@@ -64,6 +64,9 @@ pub(super) fn attach(
         issues: Vec::new(),
     };
     for (placement, found) in walked.placements.iter().zip(&resolved) {
+        if watch.is_cancelled() {
+            return Err(AssemblyError::Cancelled);
+        }
         if let Some(part) = walked.parts.get_mut(placement.part) {
             fill.part(
                 part,
@@ -139,14 +142,26 @@ impl Fill {
 
 /// Returns for every placement the layer that holds its model and the path as the part spells it;
 /// `None` when no layer holds it.
-fn resolve(walked: &Walked<'_>, providers: &[ArchiveModels<'_>]) -> Vec<Option<(Key, String)>> {
+fn resolve(
+    walked: &Walked<'_>,
+    providers: &[ArchiveModels<'_>],
+    watch: &InteriorWatch<'_>,
+) -> Result<Vec<Option<(Key, String)>>, AssemblyError> {
     let mut cache: HashMap<(usize, String), Option<usize>> = HashMap::new();
     walked
         .placements
         .iter()
         .map(|placement| {
-            let part = walked.parts.get(placement.part)?;
-            let path = part.model_path.as_deref()?;
+            if watch.is_cancelled() {
+                return Err(AssemblyError::Cancelled);
+            }
+            let Some(path) = walked
+                .parts
+                .get(placement.part)
+                .and_then(|part| part.model_path.as_deref())
+            else {
+                return Ok(None);
+            };
             let file = file_key(path);
             let last = placement.chain.last().copied().unwrap_or_default();
             let layer = *cache.entry((last, file.clone())).or_insert_with(|| {
@@ -157,7 +172,29 @@ fn resolve(walked: &Walked<'_>, providers: &[ArchiveModels<'_>]) -> Vec<Option<(
                     .copied()
                     .find(|&layer| providers.get(layer).is_some_and(|p| p.contains(path)))
             });
-            Some(((layer?, file), path.to_owned()))
+            Ok(layer.map(|layer| ((layer, file), path.to_owned())))
+        })
+        .collect()
+}
+
+/// Reads the models of `wave` in parallel; once `watch` asks to stop, the files not yet read come
+/// back as missing, for the caller to drop.
+fn read_wave(
+    wave: &[(Key, String)],
+    providers: &[ArchiveModels<'_>],
+    (options, watch): (&InteriorOptions, &InteriorWatch<'_>),
+) -> Vec<(Key, Read)> {
+    wave.par_iter()
+        .map(|(key, path)| {
+            if watch.is_cancelled() {
+                return (key.clone(), Err(ModelFailure::Missing));
+            }
+            let result = providers
+                .get(key.0)
+                .ok_or(ModelFailure::Missing)
+                .and_then(|provider| provider.model(path, options.lod))
+                .map(|provided| (provided.entry, provided.model));
+            (key.clone(), result)
         })
         .collect()
 }
@@ -180,18 +217,7 @@ fn read_models(
         if total >= options.max_vertices {
             break;
         }
-        let read: Vec<(Key, Read)> = wave
-            .par_iter()
-            .map(|(key, path)| {
-                let result = providers
-                    .get(key.0)
-                    .ok_or(ModelFailure::Missing)
-                    .and_then(|provider| provider.model(path, options.lod))
-                    .map(|provided| (provided.entry, provided.model));
-                (key.clone(), result)
-            })
-            .collect();
-        for (key, result) in read {
+        for (key, result) in read_wave(wave, providers, (options, watch)) {
             let outcome = match result {
                 Ok((entry, model)) => {
                     let count = vertices(&model);
@@ -217,7 +243,14 @@ fn read_models(
             };
             outcomes.insert(key, outcome);
         }
+        if watch.is_cancelled() {
+            return Err(AssemblyError::Cancelled);
+        }
     }
+    watch.report(InteriorProgress::Models {
+        done: files.len(),
+        total: files.len(),
+    });
     Ok(outcomes)
 }
 
@@ -229,7 +262,8 @@ fn library_key(layer: usize, loaded: &Loaded) -> Option<Key> {
 fn read_libraries(
     outcomes: &HashMap<Key, Outcome>,
     providers: &[ArchiveModels<'_>],
-) -> HashMap<Key, Arc<MaterialStatus>> {
+    watch: &InteriorWatch<'_>,
+) -> Result<HashMap<Key, Arc<MaterialStatus>>, AssemblyError> {
     let mut seen = HashSet::new();
     let wanted: Vec<(Key, &str, &str)> = outcomes
         .iter()
@@ -243,11 +277,18 @@ fn read_libraries(
             _ => None,
         })
         .collect();
-    wanted
+    let libraries = wanted
         .par_iter()
         .filter_map(|(key, entry, name)| {
+            if watch.is_cancelled() {
+                return None;
+            }
             let provider = providers.get(key.0)?;
             Some((key.clone(), Arc::new(provider.library(entry, name))))
         })
-        .collect()
+        .collect();
+    if watch.is_cancelled() {
+        return Err(AssemblyError::Cancelled);
+    }
+    Ok(libraries)
 }

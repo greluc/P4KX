@@ -44,7 +44,7 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 ### M2 — CryXml and DataForge
 
 - CryXml to XML.
-- DataForge versions 6 and 8 (`Game2.dcb`, falling back to `Game.dcb`) into the canonical Record
+- DataForge versions 6 and 8, not 5 and older (ADR-0136) (`Game2.dcb`, falling back to `Game.dcb`) into the canonical Record
   tree; owned children nested, References as links (ADR-0004).
 - Record XML, one file per Record under its record path, optionally one combined file.
 - GUI: DataForge mounted as a virtual Record tree, XML and DataForge preview tabs.

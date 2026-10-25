@@ -165,6 +165,9 @@ pub(crate) fn ship() -> AssemblyScene {
         let centre = part.at;
         bounds.include(centre.map(|value| value - radius));
         bounds.include(centre.map(|value| value + radius));
+        let mut placed = Bounds::EMPTY;
+        placed.include(centre.map(|value| value - radius));
+        placed.include(centre.map(|value| value + radius));
         let number = u32::try_from(at).unwrap_or_default();
         items.push(Item {
             group: u32::from(at == 0),
@@ -172,6 +175,8 @@ pub(crate) fn ship() -> AssemblyScene {
         });
         draws.push(PartDraw {
             part: at,
+            mesh: usize::from(at == 0),
+            bounds: placed,
             world,
             centre,
             radius,

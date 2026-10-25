@@ -109,6 +109,8 @@ impl PartInfo {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PartDraw {
     pub(crate) part: usize,
+    pub(crate) mesh: usize,
+    pub(crate) bounds: Bounds,
     pub(crate) world: Rows,
     pub(crate) centre: [f32; 3],
     pub(crate) radius: f32,
@@ -234,6 +236,51 @@ impl AssemblyScene {
     #[must_use]
     pub const fn meshes(&self) -> usize {
         self.meshes
+    }
+
+    /// Returns the number of distinct meshes the drawn parts use, counting the parts of the
+    /// Interior only when `interior` is set.
+    #[must_use]
+    pub fn meshes_of(&self, interior: bool) -> usize {
+        let mut used: Vec<usize> = self
+            .draws
+            .iter()
+            .filter(|draw| self.is_counted(draw, interior))
+            .map(|draw| draw.mesh)
+            .collect();
+        used.sort_unstable();
+        used.dedup();
+        used.len()
+    }
+
+    /// Returns the box around the drawn parts, counting the parts of the Interior only when
+    /// `interior` is set.
+    #[must_use]
+    pub fn bounds_of(&self, interior: bool) -> Bounds {
+        if interior {
+            return self.bounds;
+        }
+        let mut bounds = Bounds::EMPTY;
+        for draw in self
+            .draws
+            .iter()
+            .filter(|draw| self.is_counted(draw, false))
+        {
+            bounds.union(&draw.bounds);
+        }
+        if bounds.is_valid() {
+            bounds
+        } else {
+            self.bounds
+        }
+    }
+
+    fn is_counted(&self, draw: &PartDraw, interior: bool) -> bool {
+        interior
+            || self
+                .parts
+                .get(draw.part)
+                .is_some_and(|part| !part.is_interior())
     }
 
     /// Returns the number of draw items, one per part and material.

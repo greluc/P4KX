@@ -4,6 +4,8 @@
 use std::error::Error;
 use std::path::PathBuf;
 
+use p4kx_assembly::{EntityLookupError, LoadoutError};
+use p4kx_extraction::model::MaterialError;
 use p4kx_extraction::{ArchiveError, ConversionError, DataForgeError, EntryReadError};
 use p4kx_settings::{KeyChoiceError, SettingsError};
 use thiserror::Error;
@@ -54,6 +56,39 @@ pub(crate) enum ToolError {
     /// The Archive holds no Entry with the path.
     #[error("the Archive holds no Entry `{0}`; search_entries finds Entries by path")]
     UnknownEntry(String),
+    /// A container path has an empty container name.
+    #[error(
+        "`{0}` is no container path; write it as outer.socpak::inner.socpak::path with every container named"
+    )]
+    BadContainerPath(String),
+    /// An Entry cannot be opened as a container.
+    #[error("cannot open the container {path}")]
+    Container {
+        /// The container's path, with the containers it lies in.
+        path: String,
+        /// What failed.
+        #[source]
+        source: ArchiveError,
+    },
+    /// The request asks for something the tool does not give; the message says what and how to
+    /// ask for less.
+    #[error("{0}")]
+    Refused(String),
+    /// A material library cannot be read.
+    #[error("cannot read the material library {path}")]
+    Material {
+        /// The Entry path.
+        path: String,
+        /// What failed.
+        #[source]
+        source: MaterialError,
+    },
+    /// No Entity is named by the text.
+    #[error("cannot find the Entity")]
+    Entity(#[from] EntityLookupError),
+    /// The Loadout of the Entity cannot be resolved at all.
+    #[error("cannot resolve the Loadout")]
+    Loadout(#[from] LoadoutError),
     /// The Entry holds binary data where text was asked for.
     #[error("the Entry {0} holds binary data, not text; read it with read_entry_bytes")]
     Binary(String),
@@ -166,6 +201,20 @@ pub(crate) enum ToolError {
 }
 
 impl ToolError {
+    /// Returns the error of `path` that could not be converted `what`: an unknown Entry, or the
+    /// conversion error.
+    pub(crate) fn converted(path: &str, what: &'static str, error: ConversionError) -> Self {
+        if matches!(error, ConversionError::UnknownEntry(_)) {
+            Self::UnknownEntry(path.to_owned())
+        } else {
+            Self::Convert {
+                path: path.to_owned(),
+                what,
+                source: Box::new(error),
+            }
+        }
+    }
+
     /// Returns the message with every cause, `: ` separated.
     pub(crate) fn message(&self) -> String {
         let mut message = chain(self);

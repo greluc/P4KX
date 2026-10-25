@@ -3,7 +3,7 @@
 
 use p4kx_extraction::{Archive, Filter};
 
-use crate::archives::Opened;
+use crate::container::Place;
 use crate::error::ToolError;
 use crate::page::Page;
 use crate::shapes::{
@@ -52,23 +52,25 @@ pub(crate) fn info(archive: &Archive) -> ArchiveInfo {
 
 /// Returns one page of the Entries of `archive` that `filter` matches, in Archive order.
 pub(crate) fn search(
-    archive: &Archive,
+    place: &Place<'_>,
     filter: &str,
     page: Page,
 ) -> Result<SearchResult, ToolError> {
+    let archive = place.archive();
     let filter = Filter::new(filter);
     let mut total = 0;
     let mut entries = Vec::with_capacity(page.limit());
     for entry in archive.entries() {
         if filter.matches(entry.path()) {
             if page.contains(total) {
-                entries.push(EntryShape::from(entry));
+                entries.push(EntryShape::at(entry, place.shown(entry.path())));
             }
             total += 1;
         }
     }
     Ok(SearchResult {
         archive: archive.path().display().to_string(),
+        container: place.chain().map(str::to_owned),
         filter: filter.as_str().to_owned(),
         total,
         entries,
@@ -78,9 +80,9 @@ pub(crate) fn search(
 
 /// Returns one page of the content of `folder`: its subfolders by name ignoring ASCII case,
 /// then its Entries in path order. Case and separator kind of `folder` do not matter.
-pub(crate) fn list(opened: &Opened, folder: &str, page: Page) -> Result<FolderResult, ToolError> {
-    let archive = opened.archive();
-    let tree = opened.tree();
+pub(crate) fn list(place: &Place<'_>, folder: &str, page: Page) -> Result<FolderResult, ToolError> {
+    let archive = place.archive();
+    let tree = place.tree();
     let (folders, files) = tree
         .find_folder(folder)
         .map(|id| (tree.folder(id).children(), tree.files(id)))
@@ -98,19 +100,20 @@ pub(crate) fn list(opened: &Opened, folder: &str, page: Page) -> Result<FolderRe
         .map(|&child| {
             let child = tree.folder(child);
             FolderItem::Folder {
-                path: child.path().to_owned(),
+                path: place.shown(child.path()),
                 entry_count: child.entry_count(),
             }
         })
         .chain(
             file_page
                 .filter_map(|&id| tree.entry(archive, id))
-                .map(|entry| FolderItem::Entry(EntryShape::from(entry))),
+                .map(|entry| FolderItem::Entry(EntryShape::at(entry, place.shown(entry.path())))),
         )
         .collect();
     Ok(FolderResult {
         archive: archive.path().display().to_string(),
-        folder: folder.trim_matches(['/', '\\']).to_owned(),
+        container: place.chain().map(str::to_owned),
+        folder: place.shown(folder.trim_matches(['/', '\\'])),
         total,
         items,
         next_cursor: page.next_cursor(total)?,

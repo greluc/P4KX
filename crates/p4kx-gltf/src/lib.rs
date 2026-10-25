@@ -37,6 +37,11 @@ mod error;
 mod glb;
 mod glb_plan;
 mod instance;
+mod layer_bake;
+mod layer_jobs;
+mod layer_make;
+mod layer_plan;
+mod layer_view;
 mod layout;
 mod materials;
 mod morphs;
@@ -64,6 +69,8 @@ pub use glb::{
     GlbOptions, GlbSummary, MaterialMode, write_glb, write_glb_animated, write_glb_animated_with,
     write_glb_with,
 };
+pub use layer_plan::draws_layer_diffuse;
+pub use layer_view::{layered_base_key, layered_base_texture};
 pub use materials::base_colour_factor;
 pub use morphs::MorphTarget;
 pub use package_support::{

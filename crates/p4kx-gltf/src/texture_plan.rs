@@ -5,6 +5,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use p4kx_model::Material;
 
+use crate::layer_jobs::{layer_jobs, layer_normals_last};
+use crate::layer_plan::Layered;
 use crate::materials::{MaterialPlan, Slot, display_name, is_hair_cards, uses_alpha};
 use crate::shading::shading;
 use crate::texture_loader::TextureLoader;
@@ -41,6 +43,13 @@ pub(crate) enum Key {
         gloss: Option<String>,
         specular: Option<(String, [u8; 3])>,
     },
+    LayerBase {
+        blend: String,
+    },
+    LayerNormal {
+        blend: String,
+        own: Option<String>,
+    },
 }
 
 /// One image to make: its key, its source textures and the material's colours.
@@ -51,6 +60,7 @@ pub(crate) struct Job {
     pub(crate) normal: Option<Source>,
     pub(crate) specular: Option<Source>,
     pub(crate) tints: Tints,
+    pub(crate) layered: Option<Layered>,
 }
 
 impl Job {
@@ -59,6 +69,17 @@ impl Job {
         match &self.key {
             Key::Base { .. } => self.diffuse.as_ref().map(|s| (TextureRole::Diffuse, s)),
             Key::Normal { .. } => self.normal.as_ref().map(|s| (TextureRole::Normal, s)),
+            Key::LayerBase { .. } => self
+                .layered
+                .as_ref()
+                .and_then(|layered| layered.sizing(false))
+                .map(|s| (TextureRole::Diffuse, s)),
+            Key::LayerNormal { .. } => self
+                .layered
+                .as_ref()
+                .and_then(|layered| layered.sizing(true))
+                .or(self.normal.as_ref())
+                .map(|s| (TextureRole::Normal, s)),
             Key::MetallicRoughness { gloss, .. } => {
                 if gloss.is_some() {
                     self.normal.as_ref().map(|s| (TextureRole::Normal, s))
@@ -119,7 +140,7 @@ pub(crate) struct TextureSet {
 }
 
 /// The jobs of a material: its base colour, normal and metallic-roughness images.
-type Wanted = [Option<usize>; 3];
+pub(crate) type Wanted = [Option<usize>; 3];
 
 /// The materials of one model instance whose images are wanted.
 pub(crate) struct PartSlots<'a> {
@@ -180,6 +201,7 @@ impl TextureSet {
                 });
             }
         }
+        let jobs = layer_normals_last(jobs, wanted.iter_mut().map(|wish| &mut wish.jobs));
         let outcomes = run(&jobs, mip, loader, Budget::DEFAULT);
         Self::assemble(&wanted, outcomes)
     }
@@ -287,6 +309,34 @@ fn tints_of(material: &Material) -> Tints {
     }
 }
 
+/// Returns the job of the base colour image of the diffuse map `diffuse` of `material`, with the
+/// specular map of `found`, if any.
+fn base_job(
+    material: &Material,
+    (found, diffuse): (&Sources, &Source),
+    specular: Option<(String, [u8; 3])>,
+    tints: Tints,
+) -> Job {
+    let tint = if specular.is_some() {
+        quantise(tints.diffuse)
+    } else {
+        NEUTRAL
+    };
+    Job {
+        key: Key::Base {
+            diffuse: diffuse.identity(),
+            specular,
+            tint,
+            keep_alpha: diffuse.opacity || uses_alpha(material),
+        },
+        diffuse: Some(diffuse.clone()),
+        normal: None,
+        specular: found.specular.clone(),
+        tints,
+        layered: None,
+    }
+}
+
 /// Registers the jobs for the images of `material` with `add`, which returns a job's number, and
 /// returns the jobs with the textures refused for their unsafe paths.
 fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, Vec<Failure>) {
@@ -294,36 +344,25 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
     if found.diffuse.as_ref().is_none_or(|diffuse| diffuse.opacity) {
         found.specular = None;
     }
-    let by_opacity = found
-        .diffuse
-        .as_ref()
-        .is_some_and(|diffuse| diffuse.opacity);
     let refused = refusals(&found);
     let tints = tints_of(material);
     let specular_key = found
         .specular
         .as_ref()
         .map(|specular| (specular.identity(), quantise(tints.specular)));
-    let base = found.diffuse.as_ref().map(|diffuse| {
-        add(Job {
-            key: Key::Base {
-                diffuse: diffuse.identity(),
-                specular: specular_key.clone(),
-                tint: if specular_key.is_some() {
-                    quantise(tints.diffuse)
-                } else {
-                    NEUTRAL
-                },
-                keep_alpha: by_opacity || uses_alpha(material),
-            },
-            diffuse: found.diffuse.clone(),
-            normal: None,
-            specular: found.specular.clone(),
+    let (layer_base, layer_normal) = layer_jobs(material, &found, tints);
+    let base = match (&found.diffuse, layer_base) {
+        (Some(diffuse), _) => Some(add(base_job(
+            material,
+            (&found, diffuse),
+            specular_key.clone(),
             tints,
-        })
-    });
-    let normal = found.normal.as_ref().map(|normal| {
-        add(Job {
+        ))),
+        (None, layered) => layered.map(&mut *add),
+    };
+    let normal = match (&found.normal, layer_normal) {
+        (_, Some(layered)) => Some(add(layered)),
+        (Some(normal), None) => Some(add(Job {
             key: Key::Normal {
                 normal: normal.identity(),
             },
@@ -331,8 +370,10 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
             normal: found.normal.clone(),
             specular: None,
             tints,
-        })
-    });
+            layered: None,
+        })),
+        (None, None) => None,
+    };
     let gloss = found.normal.as_ref().filter(|normal| normal.gloss);
     let packed = (gloss.is_some() || specular_key.is_some()).then(|| {
         add(Job {
@@ -344,6 +385,7 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
             normal: gloss.cloned(),
             specular: found.specular.clone(),
             tints,
+            layered: None,
         })
     });
     ([base, normal, packed], refused)

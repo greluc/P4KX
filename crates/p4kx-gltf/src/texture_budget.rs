@@ -112,6 +112,18 @@ fn sized_by(job: &Job) -> Option<(TextureRole, &Source)> {
     let normal = job.normal.as_ref().map(|s| (TextureRole::Normal, s));
     let specular = job.specular.as_ref().map(|s| (TextureRole::Specular, s));
     match &job.key {
+        Key::LayerBase { .. } | Key::LayerNormal { .. } => {
+            let role = if matches!(job.key, Key::LayerBase { .. }) {
+                TextureRole::Diffuse
+            } else {
+                TextureRole::Normal
+            };
+            let normal = role == TextureRole::Normal;
+            job.layered
+                .as_ref()
+                .and_then(|layered| layered.sizing(normal))
+                .map(|source| (role, source))
+        }
         Key::Base { .. } => diffuse,
         Key::Normal { .. } => normal,
         Key::MetallicRoughness { .. } => match (normal, specular) {

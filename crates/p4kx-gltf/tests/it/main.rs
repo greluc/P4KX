@@ -6,6 +6,7 @@
 mod animation;
 mod animation_checker;
 mod cube_glb;
+mod layer_textures;
 mod lods_attributes;
 mod materials;
 mod morphs;

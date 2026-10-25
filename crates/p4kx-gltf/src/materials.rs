@@ -229,7 +229,8 @@ pub(crate) fn build_material(
         });
     let tinted = textures.base.is_some_and(|(_, tinted)| tinted);
     let shade = shading(material);
-    let plain_metal = shade.metal && !tinted;
+    let layered = material.layers.iter().any(|layer| layer.surface.is_some());
+    let plain_metal = shade.metal && (!tinted || layered);
     let colour = if tinted { [1.0; 3] } else { shade.colour };
     let (mode, alpha, cutoff) = alpha_of(material);
     let decal = is_one_of(&material.shader, &DECAL_SHADERS);

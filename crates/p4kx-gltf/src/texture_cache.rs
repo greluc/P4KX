@@ -7,7 +7,7 @@ use std::sync::Arc;
 use rayon::prelude::*;
 
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
-use crate::texture_plan::Job;
+use crate::texture_plan::{Job, Key};
 
 /// The most pixels the decoded sources kept for the next group of jobs may hold together.
 pub(crate) const MAX_HELD_PIXELS: u64 = 1 << 27;
@@ -24,10 +24,16 @@ pub(crate) type Decoded = HashMap<String, Loaded>;
 
 /// Returns the paths of the source textures `job` loads.
 pub(crate) fn paths(job: &Job) -> impl Iterator<Item = &str> {
+    let normal = matches!(job.key, Key::LayerNormal { .. });
     [&job.diffuse, &job.normal, &job.specular]
         .into_iter()
         .flatten()
         .map(|source| source.path.as_str())
+        .chain(
+            job.layered
+                .iter()
+                .flat_map(move |layered| layered.paths(normal)),
+        )
 }
 
 /// Decodes the source textures of a build a group of jobs at a time, each once per group however

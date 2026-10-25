@@ -100,6 +100,7 @@ fn normal_jobs(count: usize) -> Vec<Job> {
                 normal: Some(source(path, true)),
                 specular: None,
                 tints: TINTS,
+                layered: None,
             }
         })
         .collect()
@@ -215,6 +216,7 @@ fn a_texture_shared_by_two_jobs_is_decoded_once() {
         normal: Some(source(path.clone(), true)),
         specular: None,
         tints: TINTS,
+        layered: None,
     };
     let packed = Job {
         key: Key::MetallicRoughness {
@@ -225,6 +227,7 @@ fn a_texture_shared_by_two_jobs_is_decoded_once() {
         normal: Some(source(path, true)),
         specular: None,
         tints: TINTS,
+        layered: None,
     };
     let loader = Squares::new(2);
 
@@ -269,6 +272,7 @@ fn a_metallic_roughness_image_with_two_sources_is_not_sized_by_the_normal_map() 
         normal: Some(normal),
         specular: Some(specular),
         tints: TINTS,
+        layered: None,
     };
     let loader = Squares::new(4).sized();
 

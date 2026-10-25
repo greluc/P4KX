@@ -485,7 +485,8 @@ nearest parent that is), `not_skinned` (the model has no bone weights and is pla
 `body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of
 the body are left out, ADR-0140), `body_zones_unknown` (the submeshes of the body skin do not fit
 the zone table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the reason counts the layered
-materials of the part that have no diffuse map and are drawn in their layer colours) and
+materials of the part that have no diffuse map of their own and none in a layer, and are drawn in their
+layer colours, ADR-0147) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
 class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
 the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when
@@ -1718,7 +1719,7 @@ pixels and `textured_materials` the materials that use at least one; all are 0 w
 `--materials colours`. `texture_fallbacks` lists, per material, each texture file that is not used
 because it is missing, cannot be decoded, has an unsafe path or would exceed the budget of 256
 images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
-the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The
+the `.mtl` file gives (for a map of a layer of a layered material, the layer file's name for the map, as `diffuse` or `normal`) and `reason` the cause; the material keeps its plain colour for it. The
 names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
 that the export skipped, as in `p4kx model info`. `animations` lists the animations asked for with `--anim`, in order (empty without it): `channels` is the number of glTF channels written (a rotation or a
 translation of a bone each; an animation with none is not written), `keys` the keys in them and

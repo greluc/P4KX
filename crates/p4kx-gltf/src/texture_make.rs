@@ -6,6 +6,7 @@ use std::sync::Arc;
 use p4kx_texture::{RgbaImage, write_png};
 use rayon::prelude::*;
 
+use crate::layer_make::{make_base as make_base_layers, make_normal as make_normal_layers};
 use crate::texture_budget::{Tally, Verdict};
 use crate::texture_cache::{Decoded, MAX_HELD_PIXELS, SourceStore};
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
@@ -132,7 +133,7 @@ fn over_budget(job: &Job) -> Outcome {
     }
 }
 
-fn load(
+pub(crate) fn load(
     decoded: &Decoded,
     role: TextureRole,
     source: Option<&Source>,
@@ -157,7 +158,7 @@ fn load(
     }
 }
 
-fn encode(image: &RgbaImage) -> Result<EncodedImage, String> {
+pub(crate) fn encode(image: &RgbaImage) -> Result<EncodedImage, String> {
     let mut png = Vec::new();
     write_png(image, &mut png).map_err(|error| error.to_string())?;
     Ok(EncodedImage {
@@ -169,7 +170,7 @@ fn encode(image: &RgbaImage) -> Result<EncodedImage, String> {
 
 /// The image a job made, or why it could not be made; `None` when there was nothing to make it
 /// of, because the textures failed to load, which `failures` records.
-type Made = Option<Result<EncodedImage, String>>;
+pub(crate) type Made = Option<Result<EncodedImage, String>>;
 
 fn make(job: &Job, decoded: &Decoded) -> Outcome {
     let mut outcome = Outcome::default();
@@ -180,6 +181,8 @@ fn make(job: &Job, decoded: &Decoded) -> Outcome {
         }
         Key::Normal { .. } => make_normal(job, decoded, &mut failures),
         Key::MetallicRoughness { .. } => make_packed(job, decoded, &mut outcome, &mut failures),
+        Key::LayerBase { .. } => make_base_layers(job, decoded, &mut outcome, &mut failures),
+        Key::LayerNormal { .. } => make_normal_layers(job, decoded, &mut failures),
     };
     match made {
         Some(Ok(image)) => outcome.image = Some(image),

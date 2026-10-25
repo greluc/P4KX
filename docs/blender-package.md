@@ -187,7 +187,10 @@ A Character package (version 1.3) is the folder above with one mesh and no textu
 | `animations` | The animations in the file: `name`, `duration_seconds`, `additive` (its keys are offsets to a pose, which glTF cannot say), `channels` and `keys`. |
 
 Pieces that cannot be fitted to the body and animations that fit nothing are `issues` with the
-kinds the `armour glb` report uses (`origin` `assembly`).
+kinds the `armour glb` report uses (`origin` `assembly`). Animations left out for the same reason
+(no track fits, or the budget of values is used up) are one `animation_not_used` issue whose
+`reason` gives their count and the names of the first three, so `scene.json` stays small however
+many animations a command is given.
 
 The add-on imports a `character` node's mesh once for that node, not as an instance, so that the
 armature can be posed: the armature, the skinned meshes below it, the shape keys of the head and

@@ -22,6 +22,7 @@ mod npc;
 mod piece;
 mod sample;
 mod shape;
+mod unused;
 mod wearable;
 
 use std::io::Write;

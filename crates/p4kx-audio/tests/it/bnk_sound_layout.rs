@@ -11,13 +11,16 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 const SOURCE: u32 = 617_647_119;
 const SIZE: u32 = 252_487;
 
-const fn source() -> SoundSource {
+const PARENT: u32 = 0x2C21_1B2E;
+
+const fn source(parent_id: Option<u32>) -> SoundSource {
     SoundSource {
         plugin_id: 0x0004_0001,
         storage: MediaStorage::Embedded,
         source_id: SOURCE,
         in_memory_size: SIZE,
         source_bits: 0,
+        parent_id,
     }
 }
 
@@ -33,7 +36,7 @@ fn version_150_has_no_cache_id() -> TestResult {
         .object(TestHircObject::sound_without_cache_id(7, SOURCE, 0, SIZE))
         .bytes();
 
-    assert_eq!(value_of(&bytes)?, HircValue::Sound(source()));
+    assert_eq!(value_of(&bytes)?, HircValue::Sound(source(None)));
     Ok(())
 }
 
@@ -45,10 +48,11 @@ fn versions_from_151_on_have_a_cache_id() -> TestResult {
             .object(TestHircObject::sound(7, SOURCE, 0, SIZE))
             .bytes();
 
+        let parent = (version == 154).then_some(PARENT);
         assert_eq!(
             value_of(&bytes)?,
-            HircValue::Sound(source()),
-            "version {version}"
+            HircValue::Sound(source(parent)),
+            "version {version}: the parent is read from version 154 on"
         );
     }
     Ok(())

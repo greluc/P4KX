@@ -1,10 +1,10 @@
 # The four-byte second normal stream is the second UV set and the sixteen-byte tangent layout is not read
 
-Decided for issue #343. Amends ADR-0028, which accepted both streams as normal sources.
+Decided for issue #343. Amends ADR-0028 (its tangent rule) and the stream reader of #299 (PR #338), which accepted both streams as normal sources.
 
 ## Context
 
-ADR-0028 took the normal of a mesh from the first source it found: floats, a packed vector, a
+The stream reader of #299 (PR #338) took the normal of a mesh from the best source it found: floats, a packed vector, a
 tangent frame, and as a last resort the four-byte `NORMALS2` stream and the unverified 16-byte
 `TANGENTS` layout. The tangent itself (with handedness, in `Mesh::tangents` and the GLB `TANGENT`
 attribute) was added for #103.

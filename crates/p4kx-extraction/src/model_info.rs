@@ -143,6 +143,7 @@ pub struct MeshInfo {
     normals_computed: bool,
     tangents: bool,
     colours: bool,
+    second_uvs: bool,
     skinned: bool,
     submeshes: Vec<SubmeshInfo>,
 }
@@ -157,6 +158,7 @@ impl MeshInfo {
             normals_computed: mesh.normals_computed,
             tangents: mesh.tangents.is_some(),
             colours: mesh.colours.is_some(),
+            second_uvs: mesh.second_uvs.is_some(),
             skinned: mesh.influences.is_some(),
             submeshes: mesh.submeshes.iter().map(SubmeshInfo::of).collect(),
         }

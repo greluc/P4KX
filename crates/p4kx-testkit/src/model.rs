@@ -3,6 +3,7 @@
 
 use crate::TestChunkFile;
 use crate::model_cube::{cube_nodes, cube_submeshes, cube_vertices};
+pub use crate::model_layout::{TestNormals, TestPositions};
 use crate::model_nmc::nmc_chunk;
 use crate::model_skin::{skin_chunk, tangent_frame};
 
@@ -16,33 +17,6 @@ const IVO_VERSION: u32 = 0x900;
 
 /// Whether the stream has eight influences per vertex, and the (bone, weight) pairs of each vertex.
 pub(crate) type BoneMap = (bool, Vec<Vec<(u16, u8)>>);
-
-/// How a [`TestModel`] stores its vertex positions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TestPositions {
-    /// 16-byte vertices with positions as signed 16-bit values scaled to the mesh's bounding box.
-    Quantized,
-    /// 20-byte vertices with positions as three 32-bit floats.
-    Float,
-}
-
-/// How a [`TestModel`] stores its vertex normals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TestNormals {
-    /// An `IVONORMALS2` stream of three 32-bit floats per vertex.
-    Float,
-    /// An `IVOQTANGENTS` stream of a packed tangent and bitangent per vertex.
-    Compressed,
-    /// An `IVONORMALS` stream of three 32-bit floats per vertex.
-    FloatOnNormals,
-    /// An `IVONORMALS` stream of one packed unit vector per vertex.
-    PackedOnNormals,
-    /// An `IVOTANGENTS` stream of 16 bytes per vertex, a layout no real Archive holds and the
-    /// reader skips.
-    Tangents16,
-    /// No normal stream.
-    None,
-}
 
 /// One node of a [`TestModel`]'s `NodeMeshCombo` chunk.
 #[derive(Debug, Clone, PartialEq)]

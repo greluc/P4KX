@@ -2,6 +2,8 @@
 
 Decided for issue #103. Evidence: docs/model-lods-and-vertex-attributes.md.
 
+Amended by ADR-0114: the 16-byte tangent layout is no longer read.
+
 ## LOD companions
 
 The meshes of a level of detail from 1 on are in `<stem>_lod<n>.<extension>m` beside the model,
@@ -39,7 +41,7 @@ meshes unless asked not to (`GlbOptions::vertex_colours`, `--no-vertex-colours`)
 
 `Mesh::tangents` holds a unit tangent and the handedness in `w`: the bitangent is
 `cross(normal, tangent) * w`, as in glTF. They come from the tangent frame streams of 8 bytes
-(`QTANGENTS` and `TANGENTS`); the unverified 16-byte layout gives none. The bitangent points along
+(`QTANGENTS` and `TANGENTS`); the unverified 16-byte layout gave none and is no longer read (ADR-0114). The bitangent points along
 the V axis of the stored texture coordinates, which glTF shares (V down). The frame is the
 engine's own. ADR-0042 settles what the open question left to the material export: glTF's
 bitangent points up the image, so the GLB writer negates `w` and flips the green channel of the

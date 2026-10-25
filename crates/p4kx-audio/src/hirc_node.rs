@@ -7,8 +7,8 @@ use crate::{BankError, HircKind, SectionId};
 const ID_LEN: usize = 4;
 const FX_LEN: usize = 6;
 const METADATA_FX_LEN: usize = 6;
-const PROP_LEN: usize = 5;
-const RANGED_PROP_LEN: usize = 9;
+pub(crate) const PROP_LEN: usize = 5;
+pub(crate) const RANGED_PROP_LEN: usize = 9;
 const VERTEX_LEN: usize = 16;
 const PATH_ITEM_LEN: usize = 8;
 const AUTOMATION_LEN: usize = 12;
@@ -205,7 +205,7 @@ fn skip_layers(fields: &mut SectionReader<'_>) -> Result<(), BankError> {
     Ok(())
 }
 
-fn children(fields: &mut SectionReader<'_>) -> Result<Vec<u32>, BankError> {
+pub(crate) fn children(fields: &mut SectionReader<'_>) -> Result<Vec<u32>, BankError> {
     let count = usize::try_from(fields.u32()?).unwrap_or(usize::MAX);
     if count > fields.remaining() / ID_LEN {
         return Err(BankError::invalid(
@@ -220,7 +220,11 @@ fn children(fields: &mut SectionReader<'_>) -> Result<Vec<u32>, BankError> {
     Ok(children)
 }
 
-fn skip_items(fields: &mut SectionReader<'_>, count: u32, len: usize) -> Result<(), BankError> {
+pub(crate) fn skip_items(
+    fields: &mut SectionReader<'_>,
+    count: u32,
+    len: usize,
+) -> Result<(), BankError> {
     let total = usize::try_from(count)
         .ok()
         .and_then(|count| count.checked_mul(len))

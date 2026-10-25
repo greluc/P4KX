@@ -100,6 +100,9 @@ fn tile_of(
     colour: bool,
 ) -> Result<Tile<'_>, TextureError> {
     let (width, height) = (image.width() as usize, image.height() as usize);
+    if width == 0 || height == 0 {
+        return Ok(Cow::Borrowed(image));
+    }
     let wanted = (
         tile_len(size.0, repeats[0], width),
         tile_len(size.1, repeats[1], height),
@@ -122,7 +125,7 @@ fn axis(coordinate: f32, repeats: f32, length: usize) -> (usize, usize, f32) {
         .rem_euclid(1.0)
         .mul_add(length as f32, -0.5);
     let floor = scaled.floor();
-    let side = length as isize;
+    let side = length.max(1) as isize;
     let first = (floor as isize).rem_euclid(side) as usize;
     let second = (first + 1) % length.max(1);
     (first, second, scaled - floor)

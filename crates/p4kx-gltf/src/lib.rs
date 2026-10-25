@@ -54,6 +54,7 @@ mod scene_light;
 mod scene_nodes;
 mod shading;
 mod skin;
+mod texture_assemble;
 mod texture_budget;
 mod texture_cache;
 mod texture_loader;
@@ -70,7 +71,7 @@ pub use glb::{
     write_glb_with,
 };
 pub use layer_plan::draws_layer_diffuse;
-pub use layer_view::{layered_base_key, layered_base_texture};
+pub use layer_view::{layered_base_key, layered_base_texture, layered_base_textures};
 pub use materials::base_colour_factor;
 pub use morphs::MorphTarget;
 pub use package_support::{

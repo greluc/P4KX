@@ -134,6 +134,26 @@ impl<'l> SourceStore<'l> {
         size
     }
 
+    /// Returns the pixels the distinct textures `paths` decode together, by their headers; a
+    /// texture whose size is unknown counts for the whole decode limit, and one whose header
+    /// cannot be read for nothing, because it cannot be decoded either.
+    pub(crate) fn header_pixels<'a>(&mut self, paths: impl Iterator<Item = &'a str>) -> u64 {
+        let mut seen: Vec<&str> = Vec::new();
+        let mut total = 0_u64;
+        for path in paths {
+            if seen.contains(&path) {
+                continue;
+            }
+            seen.push(path);
+            total = total.saturating_add(match self.dimensions(path) {
+                Ok(Some((width, height))) => u64::from(width) * u64::from(height),
+                Ok(None) => self.limit,
+                Err(_) => 0,
+            });
+        }
+        total
+    }
+
     /// Returns how many of the leading `jobs`, at most `most`, may be made together: the
     /// distinct sources they decode stay within the decode limit, but the first job always counts.
     /// A source whose size is unknown or cannot be read counts for the whole limit.

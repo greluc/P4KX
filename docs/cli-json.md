@@ -1720,7 +1720,13 @@ pixels and `textured_materials` the materials that use at least one; all are 0 w
 `--materials colours`. `texture_fallbacks` lists, per material, each texture file that is not used
 because it is missing, cannot be decoded, has an unsafe path or would exceed the budget of 256
 images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
-the `.mtl` file gives (for a map of a layer of a layered material, the layer file's name for the map, as `diffuse` or `normal`) and `reason` the cause; the material keeps its plain colour for it. The
+the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The reason is
+`the images of this export are as many as allowed (256)` when the image cap is spent (a higher mip does not help),
+and `the textures of this layered image would decode more than 2^27 pixels together` for a layered image. For the
+blended image of a layered material `file` names the texture that sizes it, the blend map (`_blend`) or else the
+first layer's map, followed by `(layered base colour image of N layers)` or `(layered normal image of N layers)`;
+the role is `diffuse` for the base colour image and its blend map and `normal` for the normal image. A layered
+material whose layered normal image is refused is drawn with its own normal map, if it has one. The
 names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
 that the export skipped, as in `p4kx model info`. `animations` lists the animations asked for with `--anim`, in order (empty without it): `channels` is the number of glTF channels written (a rotation or a
 translation of a bone each; an animation with none is not written), `keys` the keys in them and

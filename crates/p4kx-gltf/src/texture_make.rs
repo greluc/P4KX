@@ -11,7 +11,7 @@ use crate::texture_budget::{Tally, Verdict};
 use crate::texture_cache::{Decoded, MAX_HELD_PIXELS, SourceStore};
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_pixels::{base_colour, metallic_roughness, normal_map, opacity_colour};
-use crate::texture_plan::{EncodedImage, Failure, Job, Key};
+use crate::texture_plan::{EncodedImage, Failure, Job, Key, MAX_TEXTURE_IMAGES};
 use crate::texture_report::TextureRole;
 use crate::texture_roles::Source;
 
@@ -21,15 +21,22 @@ pub(crate) use crate::texture_budget::Budget;
 mod tests;
 
 const PARALLEL_IMAGES: usize = 4;
+const TOO_LARGE: &str = "the textures of this layered image would decode more than 2^27 pixels together; use a higher --texture-mip";
 const OVER_BUDGET: &str =
     "the images of this export would exceed the budget; use a higher --texture-mip";
 
 /// What making one image came to.
 #[derive(Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each flag says one thing about the image that the glTF material needs"
+)]
 pub(crate) struct Outcome {
     pub(crate) image: Option<EncodedImage>,
     /// For a base colour image: whether the material's colours are in it.
     pub(crate) tinted: bool,
+    /// For a base colour image: whether it is blended of the layers of a layered material.
+    pub(crate) layered: bool,
     /// For a metallic-roughness image: whether it carries the roughness.
     pub(crate) roughness: bool,
     /// For a metallic-roughness image: whether it carries the metalness.
@@ -103,10 +110,19 @@ fn run_with(jobs: &[Job], mut store: SourceStore<'_>, budget: Budget) -> Vec<Out
                     failures: vec![failure],
                     ..Outcome::default()
                 },
-                (None, _) => over_budget(job),
+                (None, Verdict::Spent) => refused(job, spent_reason()),
+                (None, Verdict::TooLarge) => refused(job, TOO_LARGE.to_owned()),
+                (None, _) => refused(job, OVER_BUDGET.to_owned()),
             };
             outcomes.push(match outcome.pixels() {
-                Some(size) if !tally.fits(size) => over_budget(job),
+                Some(size) if !tally.fits(size) => refused(
+                    job,
+                    if tally.images_spent() {
+                        spent_reason()
+                    } else {
+                        OVER_BUDGET.to_owned()
+                    },
+                ),
                 Some(size) => {
                     tally.take(size);
                     outcome
@@ -118,14 +134,20 @@ fn run_with(jobs: &[Job], mut store: SourceStore<'_>, budget: Budget) -> Vec<Out
     outcomes
 }
 
-fn over_budget(job: &Job) -> Outcome {
+fn spent_reason() -> String {
+    format!(
+        "the images of this export are as many as allowed ({MAX_TEXTURE_IMAGES}), so this one is left out"
+    )
+}
+
+fn refused(job: &Job, reason: String) -> Outcome {
     Outcome {
         failures: job
             .primary()
             .map(|(role, source)| Failure {
                 role,
-                file: source.file.clone(),
-                reason: OVER_BUDGET.to_owned(),
+                file: job.file_of(source),
+                reason,
             })
             .into_iter()
             .collect(),
@@ -190,7 +212,7 @@ fn make(job: &Job, decoded: &Decoded) -> Outcome {
             if let Some((role, source)) = job.primary() {
                 failures.push(Failure {
                     role,
-                    file: source.file.clone(),
+                    file: job.file_of(source),
                     reason,
                 });
             }

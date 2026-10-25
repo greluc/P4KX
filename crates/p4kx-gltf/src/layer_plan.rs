@@ -6,6 +6,7 @@ use std::fmt::Write as _;
 use p4kx_model::{Material, MaterialLayer, TextureSlot};
 
 use crate::shading::{Shaded, shaded_layers};
+use crate::texture_report::TextureRole;
 use crate::texture_roles::{Source, canonical, sources_of, suffix};
 
 /// The most layers one baked image blends; the others keep out of it.
@@ -33,6 +34,7 @@ pub(crate) struct LayerPlan {
     pub(crate) normal: Option<(Source, [f32; 2])>,
     /// The layer's diffuse colour times its tint, which the diffuse map multiplies.
     pub(crate) colour: [f32; 3],
+    /// The layer's specular colour, which its colour moves towards by its metalness.
     pub(crate) specular: [f32; 3],
     /// How metallic the layer is: its colour moves towards its specular colour by this much.
     pub(crate) metal: f32,
@@ -45,6 +47,8 @@ pub(crate) struct Layered {
     /// The blend mask of the material: its red, green and blue channel choose the layers after
     /// the first of the [`BASE_LAYERS`], the rest the first.
     pub(crate) mask: Option<Source>,
+    /// The texture files of the blend mask and the layers that have no safe path, with their role.
+    pub(crate) refused: Vec<(TextureRole, String)>,
 }
 
 fn number(value: &str) -> Option<f32> {
@@ -77,24 +81,32 @@ fn repeats(layer: &MaterialLayer, textures: &[TextureSlot], slot: &str) -> [f32;
 }
 
 /// Returns the blend mask of `material`: its texture whose name ends in `_blend`.
-fn mask_of(material: &Material) -> Option<Source> {
-    material.textures.iter().find_map(|texture| {
+fn mask_of(material: &Material, refused: &mut Vec<(TextureRole, String)>) -> Option<Source> {
+    let file = material.textures.iter().find_map(|texture| {
         let file = texture.file.as_str();
-        (!file.trim_start().starts_with('$') && suffix(file) == MASK_SUFFIX).then(|| {
-            canonical(file).map(|path| Source {
-                path,
-                file: file.to_owned(),
-                gloss: false,
-                opacity: false,
-            })
-        })?
-    })
+        (!file.trim_start().starts_with('$') && suffix(file) == MASK_SUFFIX).then_some(file)
+    })?;
+    let source = canonical(file).map(|path| Source {
+        path,
+        file: file.to_owned(),
+        gloss: false,
+        opacity: false,
+    });
+    if source.is_none() {
+        refused.push((TextureRole::Diffuse, file.to_owned()));
+    }
+    source
 }
 
-fn plan_of(material: &Material, shaded: &Shaded) -> Option<LayerPlan> {
+fn plan_of(
+    material: &Material,
+    shaded: &Shaded,
+    refused: &mut Vec<(TextureRole, String)>,
+) -> Option<LayerPlan> {
     let layer = material.layers.get(shaded.at)?;
     let surface = layer.surface.as_ref()?;
-    let found = sources_of(&surface.textures, false);
+    let mut found = sources_of(&surface.textures, false);
+    refused.append(&mut found.refused);
     let tiled = |source: Option<Source>, slot: &str| {
         source.map(|source| {
             let tiling = repeats(layer, &surface.textures, slot);
@@ -128,17 +140,22 @@ fn plan_of(material: &Material, shaded: &Shaded) -> Option<LayerPlan> {
 /// `None` when the material has no such layer or none of them has a diffuse or a normal map.
 pub(crate) fn layered_of(material: &Material) -> Option<Layered> {
     let shaded = shaded_layers(material)?;
-    let mask = mask_of(material);
+    let mut refused = Vec::new();
+    let mask = mask_of(material, &mut refused);
     let mut layers: Vec<LayerPlan> = shaded
         .iter()
         .filter(|layer| layer.share > 0.0 || (mask.is_some() && layer.at < BASE_LAYERS))
-        .filter_map(|layer| plan_of(material, layer))
+        .filter_map(|layer| plan_of(material, layer, &mut refused))
         .collect();
     layers.truncate(MAX_BAKED_LAYERS);
     let mapped = layers
         .iter()
         .any(|layer| layer.diffuse.is_some() || layer.normal.is_some());
-    mapped.then_some(Layered { layers, mask })
+    mapped.then_some(Layered {
+        layers,
+        mask,
+        refused,
+    })
 }
 
 /// Returns whether the textures mode draws the layers' diffuse maps of `material`: it has no
@@ -178,6 +195,21 @@ impl Layered {
             };
             map.as_ref().map(|(source, _)| source)
         })
+    }
+
+    /// Returns the sources that may give the image its size, in order: the mask, then the maps of
+    /// the layers.
+    pub(crate) fn size_sources(&self, normal: bool) -> impl Iterator<Item = &Source> {
+        self.mask
+            .iter()
+            .chain(self.layers.iter().filter_map(move |layer| {
+                let map = if normal {
+                    &layer.normal
+                } else {
+                    &layer.diffuse
+                };
+                map.as_ref().map(|(source, _)| source)
+            }))
     }
 
     /// Returns the source that gives the image its size: the mask, else the first layer's map.
@@ -321,6 +353,7 @@ mod tests {
                 .map(|at| layer(at, if at == 4 { 0.2 } else { 0.0 }))
                 .collect(),
             mask: None,
+            refused: Vec::new(),
         };
 
         assert!(close(
@@ -342,6 +375,7 @@ mod tests {
         let layered = Layered {
             layers: vec![layer(0, 0.75), layer(1, 0.25)],
             mask: None,
+            refused: Vec::new(),
         };
 
         assert!(close(shares_at(&layered, None), &[0.75, 0.25]));
@@ -352,6 +386,7 @@ mod tests {
         let layered = Layered {
             layers: vec![layer(0, 0.7), layer(1, 0.3)],
             mask: None,
+            refused: Vec::new(),
         };
 
         assert!(close(

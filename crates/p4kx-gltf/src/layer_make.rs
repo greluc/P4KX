@@ -9,12 +9,32 @@ use crate::layer_bake::{Maps, base_colour, normal_colour};
 use crate::layer_plan::Layered;
 use crate::texture_cache::Decoded;
 use crate::texture_loader::LoadedTexture;
-use crate::texture_make::{Made, Outcome, encode, load};
+use crate::texture_make::{Made, Outcome, encode, load as load_texture};
 use crate::texture_plan::{Failure, Job};
 use crate::texture_report::TextureRole;
+use crate::texture_roles::Source;
 
 const fn side(image: &RgbaImage) -> (u32, u32) {
     (image.width(), image.height())
+}
+
+/// Loads the texture of `source`, which counts as not loaded when it has no pixels.
+fn load(
+    decoded: &Decoded,
+    role: TextureRole,
+    source: Option<&Source>,
+    failures: &mut Vec<Failure>,
+) -> Option<Arc<LoadedTexture>> {
+    let texture = load_texture(decoded, role, source, failures)?;
+    if texture.image.width() == 0 || texture.image.height() == 0 {
+        failures.push(Failure {
+            role,
+            file: source?.file.clone(),
+            reason: "the texture has no pixels".to_owned(),
+        });
+        return None;
+    }
+    Some(texture)
 }
 
 fn loaded_maps(
@@ -86,6 +106,7 @@ pub(crate) fn make_base(
 ) -> Made {
     let made = bake_base(job, decoded, failures)?;
     outcome.tinted = true;
+    outcome.layered = true;
     Some(
         made.map_err(|error| error.to_string())
             .and_then(|image| encode(&image)),
@@ -98,7 +119,7 @@ pub(crate) fn make_normal(job: &Job, decoded: &Decoded, failures: &mut Vec<Failu
     let layered = job.layered.as_ref()?;
     let mask = load(
         decoded,
-        TextureRole::Normal,
+        TextureRole::Diffuse,
         layered.mask.as_ref(),
         failures,
     );

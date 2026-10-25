@@ -45,15 +45,18 @@ failed. At most eight layers are blended; the layers beyond keep out.
 
 **Shares.** Without a blend map the layers have the shares of ADR-0097 by position and wear share,
 so the image averages to the flat colour. With a blend map (`_blend` in any slot of the material)
-the first four layers have the shares of the map (the first the rest of 1 less red, green and
-blue, the second red, the third green, the fourth blue, normalised over the layers that exist),
+the first four layers have the shares of the map (assumed: the first the rest of 1 less red,
+green and blue, the second red, the third green, the fourth blue, normalised over the layers that
+exist),
 taken from the texel of the map, together `1 - w` where `w` is the share of the layers from the
 fifth on; those share `w` by position as before. The wear map is not read; `WearBlendBase` is the
 only wear.
 
-**Tiling.** A layer repeats `UVTiling x TileU` times over U and `UVTiling x TileV` over V (each
-capped at 4096; a malformed or non-positive value is 1). The image has the size of the blend map,
-else of the first layer's map, at the texture mip. A map is averaged down by a box filter, in
+**Tiling.** A layer repeats `UVTiling x TileU` times over U and `UVTiling x TileV` over V
+(assumed: the two multiply; each capped at 4096; a malformed or non-positive value is 1). The image has the size of the blend map,
+else of the first layer's map whose header can be read, at the texture mip; a blend map that is
+missing, cannot be loaded or has no pixels is treated alike: the layers have their shares by
+position, and the failure is listed once. A map is averaged down by a box filter, in
 linear light for a diffuse map, to the texels one repeat covers in the image before it is sampled
 with wrap-around and bilinear interpolation, so a layer tiled 80 times gives its mean colour with
 the structure that survives and no noise; the average is the "cheaper first step" of the issue and
@@ -69,16 +72,26 @@ map, repeats, share and, for the base colour, colour, specular colour and metaln
 materials with equal blends share it; the normal key leaves the colours out, so the palettes of a
 hull share one normal image. The maps count with the sources of the job in the decode groups of
 ADR-0138: each is decoded once per group, in parallel and with nothing waiting on another, the
-size of the image is reserved from the header of the blend map or the first layer's map, and the
-sources of one job count together against the decode limit of 2^27 pixels. The budget of 256
-images and 2^29 pixels of ADR-0042 is unchanged. The normal images of layered materials are made
+size of the image is reserved from the header of the blend map or the first layer's map that can
+be read, and a layered job whose sources together exceed 2^27 pixels by their headers is refused
+before anything is decoded (a source whose size is not told counts for the whole limit, one whose
+header cannot be read for nothing, as it cannot be decoded), so no job decodes more than the limit.
+A map without pixels counts as not loaded. The budget of 256 images and 2^29 pixels of ADR-0042 is
+unchanged; a refusal for the image count says so in its own reason, and a layered image is named
+by the texture that sizes it followed by `(layered base colour image of N layers)` or
+`(layered normal image of N layers)`. The normal images of layered materials are made
 after every other image, so that when the images run out every material has its colours before a
-layered one has its normals; a layered material whose images were refused keeps its flat colour
-and is reported like any other.
+layered one has its normals. A layered material whose base colour image was refused keeps its
+flat colour; one whose layered normal image was refused is drawn with its own normal map, if it has
+one, which is made after the layered normals, and otherwise without; each refusal is reported.
+A texture path of a layer or of the blend map that is not safe is a `texture_fallbacks` entry too.
+The base colour image of a layered material keeps the metalness factor of its layers.
 
-**The viewer.** `p4kx_gltf::layered_base_texture` makes the base colour image of one material for
-a viewer with the same code, checks the headers of its sources against the decode limit first
-and returns it as a texture; `layered_base_key` names it. The viewer draws such a material with the
+**The viewer.** `p4kx_gltf::layered_base_textures` makes the base colour images of the layered
+materials of one wave of the viewer's textures with the same code: a few at a time under one
+shared source store, so that the textures of one wave are decoded once and no more than the
+decode limit plus the held cap is in memory, whatever the number of materials; a material whose
+sources exceed the limit by their headers gets none. `layered_base_key` names an image. The viewer draws such a material with the
 image and without the colour factor, and keeps drawing the vertex colours as before.
 
 **Reporting.** `layers_without_diffuse` counts the layered materials that no layer gives a diffuse
@@ -94,7 +107,8 @@ listed are drawn from their layers (the pockets, panels, knee pads, zip and cuff
 map chooses appear), and none is listed. `p4kx entity glb AEGS_Gladius --materials textures
 --texture-mip 2`: 165 images before, 256 (the cap) after; of the materials, 130 had a texture
 before and 186 have after; the hull panels show their seams and the fine layer structure, and the
-normal images of 86 materials are refused for the cap and reported.
+normal images of 87 later layered materials, and the plain fallback of one of them, are refused for
+the cap with the reason that the image count is spent; no other image is refused.
 
 ## Consequences
 

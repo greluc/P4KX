@@ -4,8 +4,9 @@
 use std::collections::HashMap;
 
 use p4kx_assembly::Assembly;
+use p4kx_extraction::model::Material;
 use p4kx_extraction::model::Model;
-use p4kx_extraction::{TextureLoader, layered_base_texture};
+use p4kx_extraction::{LoadedTexture, TextureLoader, layered_base_textures};
 use p4kx_settings::ModelMaterials;
 use rayon::prelude::*;
 use thiserror::Error;
@@ -200,15 +201,7 @@ impl AssemblyScene {
             if (hooks.cancelled)() {
                 return Err(BuildError::Cancelled);
             }
-            let images: Vec<_> = wave
-                .par_iter()
-                .map(|path| {
-                    layered.get(path).map_or_else(
-                        || loader.load(path, VIEW_TEXTURE_MIP).ok(),
-                        |material| layered_base_texture(material, loader, VIEW_TEXTURE_MIP),
-                    )
-                })
-                .collect();
+            let images = load_wave(wave, layered, loader);
             for (path, texture) in wave.iter().zip(images) {
                 let image = texture.map(|texture| texture.image).filter(|image| {
                     image.width() > 0
@@ -360,4 +353,39 @@ impl AssemblyScene {
             placed
         })
     }
+}
+
+/// Loads the textures of `wave`, a few of the layered materials' images blended together under one
+/// decode budget and the others in parallel; an entry is `None` when its texture cannot be made.
+fn load_wave(
+    wave: &[String],
+    layered: &HashMap<String, Material>,
+    loader: &dyn TextureLoader,
+) -> Vec<Option<LoadedTexture>> {
+    let mut images: Vec<Option<LoadedTexture>> = wave
+        .par_iter()
+        .map(|path| {
+            if layered.contains_key(path) {
+                None
+            } else {
+                loader.load(path, VIEW_TEXTURE_MIP).ok()
+            }
+        })
+        .collect();
+    let blended: Vec<(usize, &Material)> = wave
+        .iter()
+        .enumerate()
+        .filter_map(|(at, path)| Some((at, layered.get(path)?)))
+        .collect();
+    let materials: Vec<&Material> = blended.iter().map(|(_, material)| *material).collect();
+    for ((at, _), texture) in
+        blended
+            .iter()
+            .zip(layered_base_textures(&materials, loader, VIEW_TEXTURE_MIP))
+    {
+        if let Some(slot) = images.get_mut(*at) {
+            *slot = texture;
+        }
+    }
+    images
 }

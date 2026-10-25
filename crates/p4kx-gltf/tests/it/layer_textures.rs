@@ -22,22 +22,22 @@ const MASK: &str = "Objects/Test/hull_blend.tif";
 
 type Pixels = [[u8; 4]; 4];
 
-const fn grey(value: u8) -> [u8; 4] {
+pub(crate) const fn grey(value: u8) -> [u8; 4] {
     [value, value, value, 255]
 }
 
-fn image(pixels: Pixels) -> Result<LoadedTexture, Box<dyn std::error::Error>> {
+pub(crate) fn image(pixels: Pixels) -> Result<LoadedTexture, Box<dyn std::error::Error>> {
     Ok(LoadedTexture::new(
         RgbaImage::new(2, 2, pixels.concat())?,
         true,
     ))
 }
 
-fn uniform(colour: [u8; 4]) -> Result<LoadedTexture, Box<dyn std::error::Error>> {
+pub(crate) fn uniform(colour: [u8; 4]) -> Result<LoadedTexture, Box<dyn std::error::Error>> {
     image([colour; 4])
 }
 
-fn mask() -> Result<LoadedTexture, Box<dyn std::error::Error>> {
+pub(crate) fn mask() -> Result<LoadedTexture, Box<dyn std::error::Error>> {
     image([
         [0, 0, 0, 255],
         [255, 0, 0, 255],
@@ -46,7 +46,7 @@ fn mask() -> Result<LoadedTexture, Box<dyn std::error::Error>> {
     ])
 }
 
-fn layer_file(diffuse: &str, normal: Option<&str>) -> Vec<u8> {
+pub(crate) fn layer_file(diffuse: &str, normal: Option<&str>) -> Vec<u8> {
     let layer = TestMtlMaterial::new("layer")
         .shader("Layer")
         .diffuse([1.0; 3])
@@ -63,7 +63,7 @@ fn layer_file(diffuse: &str, normal: Option<&str>) -> Vec<u8> {
     TestMtl::single(&layer).cryxml()
 }
 
-fn hull(name: &str, masked: bool, layers: usize, wear: &str) -> TestMtlMaterial {
+pub(crate) fn hull(name: &str, masked: bool, layers: usize, wear: &str) -> TestMtlMaterial {
     let mut hull = TestMtlMaterial::new(name)
         .shader("LayerBlend_V2")
         .diffuse([1.0; 3])
@@ -79,7 +79,10 @@ fn hull(name: &str, masked: bool, layers: usize, wear: &str) -> TestMtlMaterial 
     hull
 }
 
-fn status(materials: &[TestMtlMaterial], files: Vec<(&'static str, Vec<u8>)>) -> MaterialStatus {
+pub(crate) fn status(
+    materials: &[TestMtlMaterial],
+    files: Vec<(&'static str, Vec<u8>)>,
+) -> MaterialStatus {
     let library = TestMtl::multi(materials).cryxml();
     let files: HashMap<&str, Vec<u8>> = files.into_iter().collect();
     let mut companions = move |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
@@ -92,7 +95,7 @@ fn status(materials: &[TestMtlMaterial], files: Vec<(&'static str, Vec<u8>)>) ->
     MaterialStatus::load(Some(LIBRARY), &mut companions)
 }
 
-fn four_layers() -> Vec<(&'static str, Vec<u8>)> {
+pub(crate) fn four_layers() -> Vec<(&'static str, Vec<u8>)> {
     vec![
         ("layers/l0", layer_file("a_diff", Some("a_ddna"))),
         ("layers/l1", layer_file("b_diff", Some("b_ddna"))),
@@ -101,8 +104,9 @@ fn four_layers() -> Vec<(&'static str, Vec<u8>)> {
     ]
 }
 
-fn stub() -> Result<Stub, Box<dyn std::error::Error>> {
+pub(crate) fn stub() -> Result<Stub, Box<dyn std::error::Error>> {
     Ok(Stub::default()
+        .sized()
         .with("objects/test/hull_blend.dds", &mask()?)
         .with("objects/test/a_diff.dds", &uniform([200, 50, 0, 255])?)
         .with("objects/test/b_diff.dds", &uniform([0, 200, 50, 255])?)
@@ -114,7 +118,7 @@ fn stub() -> Result<Stub, Box<dyn std::error::Error>> {
         .with("objects/test/d_ddna.dds", &uniform([128, 128, 255, 255])?))
 }
 
-fn export(
+pub(crate) fn export(
     materials: &[TestMtlMaterial],
     files: Vec<(&'static str, Vec<u8>)>,
     stub: &Stub,
@@ -128,18 +132,24 @@ fn export(
     write(&scene, &textured(), stub)
 }
 
-fn base_of(glb: &CheckedGlb, name: &str) -> Result<DecodedImage, Box<dyn std::error::Error>> {
+pub(crate) fn base_of(
+    glb: &CheckedGlb,
+    name: &str,
+) -> Result<DecodedImage, Box<dyn std::error::Error>> {
     let found = material(glb, name)?;
     let pbr = found.pbr_metallic_roughness();
     image_of(glb, pbr.base_color_texture().map(|info| info.texture()))
 }
 
-fn normal_of(glb: &CheckedGlb, name: &str) -> Result<DecodedImage, Box<dyn std::error::Error>> {
+pub(crate) fn normal_of(
+    glb: &CheckedGlb,
+    name: &str,
+) -> Result<DecodedImage, Box<dyn std::error::Error>> {
     let found = material(glb, name)?;
     image_of(glb, found.normal_texture().map(|info| info.texture()))
 }
 
-fn unused() -> TestMtlMaterial {
+pub(crate) fn unused() -> TestMtlMaterial {
     TestMtlMaterial::new("unused")
 }
 
@@ -217,6 +227,7 @@ fn without_a_mask_the_layers_blend_by_the_wear_share() -> TestResult {
         ("layers/l1", layer_file("b_diff", None)),
     ];
     let stub = Stub::default()
+        .sized()
         .with("objects/test/a_diff.dds", &uniform(grey(255))?)
         .with("objects/test/b_diff.dds", &uniform(grey(0))?);
     let (glb, _) = export(
@@ -238,6 +249,7 @@ fn without_a_mask_the_layers_blend_by_the_wear_share() -> TestResult {
 #[test]
 fn a_layer_whose_texture_is_missing_keeps_its_plain_colour_and_is_reported() -> TestResult {
     let stub = Stub::default()
+        .sized()
         .with("objects/test/hull_blend.dds", &mask()?)
         .with("objects/test/a_diff.dds", &uniform([200, 50, 0, 255])?)
         .failing("objects/test/b_diff.dds", TextureLoadError::NotFound);

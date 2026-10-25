@@ -77,6 +77,7 @@ mod localization_window;
 mod localizing;
 mod logo;
 mod long_diff;
+mod min_window;
 mod model;
 mod model_viewer;
 mod model_viewer_controls;

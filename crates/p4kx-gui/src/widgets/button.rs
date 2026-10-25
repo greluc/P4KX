@@ -279,6 +279,20 @@ pub(crate) fn button_laid(
 /// technology.
 pub(crate) fn close_icon(ui: &Ui, rect: Rect, label: &str) -> Response {
     let response = ui.interact(rect, ui.scope_id().with(("close", label)), Sense::click());
+    ghost_icon(ui, &response, label, |colour| {
+        let cross = rect.shrink(rect.width() / 2.0 - FS_XS / 2.0);
+        let stroke = Stroke::new(FOCUS_WIDTH, colour);
+        ui.painter()
+            .line_segment([cross.left_top(), cross.right_bottom()], stroke);
+        ui.painter()
+            .line_segment([cross.right_top(), cross.left_bottom()], stroke);
+    });
+    response
+}
+
+/// Paints the ghost `.btn-xs.btn-icon` of `response`, named `label` for assistive technology,
+/// and calls `icon` with the colour of its glyph.
+pub(crate) fn ghost_icon(ui: &Ui, response: &Response, label: &str, icon: impl FnOnce(Color32)) {
     response.widget_info(|| WidgetInfo::labeled(Role::Button, true, label));
     let phase = if response.is_pointer_button_down_on() {
         Phase::Pressed
@@ -288,19 +302,12 @@ pub(crate) fn close_icon(ui: &Ui, rect: Rect, label: &str) -> Response {
         Phase::Rest
     };
     let colours = look(Kind::Ghost, phase);
-    paint(ui, rect, colours);
-    let cross = rect.shrink(rect.width() / 2.0 - FS_XS / 2.0);
-    let stroke = Stroke::new(FOCUS_WIDTH, colours.text);
-    ui.painter()
-        .line_segment([cross.left_top(), cross.right_bottom()], stroke);
-    ui.painter()
-        .line_segment([cross.right_top(), cross.left_bottom()], stroke);
+    paint(ui, response.rect, colours);
+    icon(colours.text);
     if response.has_focus() {
-        focus_ring(ui, rect, palette::PRIMARY, FOCUS_OFFSET);
+        focus_ring(ui, response.rect, palette::PRIMARY, FOCUS_OFFSET);
     }
-    response
 }
-
 /// Paints the fill, tint, border and glow of `look` over `rect` with the `radius-sm` corner.
 pub(crate) fn paint(ui: &Ui, rect: Rect, look: Look) {
     let painter = ui.painter();

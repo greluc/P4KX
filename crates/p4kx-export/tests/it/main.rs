@@ -48,6 +48,8 @@ mod record_export;
 mod record_export_plans;
 mod ship_base;
 mod ship_base_fixture;
+mod ship_followups;
+mod ship_followups_fixture;
 mod shop_items_fixture;
 mod shop_items_rest_fixture;
 mod shops_fixture;

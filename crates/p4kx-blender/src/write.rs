@@ -6,7 +6,7 @@ use std::io::{BufWriter, Write};
 use std::path::Path;
 
 use p4kx_assembly::{Assembly, ModelProvider};
-use p4kx_gltf::{GlbOptions, TextureLoader};
+use p4kx_gltf::{AnimationSummary, GlbOptions, TextureLoader};
 
 use crate::build::{Inputs, manifest};
 use crate::collect::Collected;
@@ -55,7 +55,7 @@ impl PackageInfo {
 }
 
 /// What a package consists of.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct PackageSummary {
     /// The number of nodes of the scene.
@@ -90,8 +90,26 @@ pub struct PackageSummary {
     pub vertices: usize,
     /// The number of triangles of all meshes, each counted once.
     pub triangles: usize,
+    /// The number of bones of a Character's skeleton; 0 for an Assembly.
+    pub bones: usize,
+    /// The number of meshes of a Character that carry bone weights.
+    pub skinned_meshes: usize,
+    /// The number of morph targets of a Character.
+    pub morph_targets: usize,
+    /// The number of PNG images embedded in a Character's GLB file.
+    pub embedded_textures: usize,
+    /// What became of each animation asked for, including those left out; empty for an Assembly.
+    pub clips: Vec<AnimationSummary>,
     /// The issues the manifest lists.
     pub issues: Vec<Issue>,
+}
+
+impl PackageSummary {
+    /// Returns the number of animations a Character's file holds: those with at least one channel.
+    #[must_use]
+    pub fn animations(&self) -> usize {
+        self.clips.iter().filter(|clip| clip.channels > 0).count()
+    }
 }
 
 /// Writes `assembly` as a package into the folder `out`.
@@ -173,7 +191,7 @@ pub fn write_package(
     Ok(summary)
 }
 
-fn write_manifest(path: &Path, manifest: &crate::Manifest) -> PackageResult<u64> {
+pub(crate) fn write_manifest(path: &Path, manifest: &crate::Manifest) -> PackageResult<u64> {
     let file = File::create_new(path).map_err(|source| PackageError::write(path, source))?;
     let mut writer = BufWriter::new(file);
     serde_json::to_writer_pretty(&mut writer, manifest)

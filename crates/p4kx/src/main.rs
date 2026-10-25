@@ -12,6 +12,7 @@ mod catalog;
 mod catalog_json;
 mod catalog_json_shops;
 mod channels;
+mod character_package;
 mod chf;
 mod chf_glb;
 mod chunks;
@@ -21,6 +22,7 @@ mod cli_audio;
 mod cli_bnk;
 mod cli_catalog;
 mod cli_channels;
+mod cli_character;
 mod cli_chf;
 mod cli_chunks;
 mod cli_conflict;
@@ -148,6 +150,7 @@ fn main() -> ExitCode {
             cli_interior::InteriorAction::Glb(args) => interior_glb::run(&args, json).map(success),
         },
         Command::Armour(args) => armour::run(&args, json).map(success),
+        Command::Character(args) => character_package::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {

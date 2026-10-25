@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from p4kx_importer import package
+from p4kx_importer import manifest_fields, package
 from p4kx_importer.package import PackageError, PackageTooNewError
 from synthetic import glb, manifest, write_package
 
@@ -244,7 +244,7 @@ def test_a_huge_integer_is_refused_not_an_overflow() -> None:
 def test_the_counts_of_nodes_meshes_and_textures_are_bounded(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(package, "MAX_ITEMS", 3)
+    monkeypatch.setattr(manifest_fields, "MAX_ITEMS", 3)
     with pytest.raises(PackageError, match="more than 3"):
         parse(manifest())
 

@@ -22,6 +22,7 @@ sys.path[:0] = [str(HERE), str(HERE.parent)]
 
 import p4kx_importer  # noqa: E402
 import synthetic  # noqa: E402
+import synthetic_character  # noqa: E402
 import synthetic_materials  # noqa: E402
 from p4kx_importer import importer, lights, package  # noqa: E402
 
@@ -78,6 +79,50 @@ def check_interior(folder: Path) -> None:
     )
 
 
+def check_character(folder: Path) -> None:
+    """Imports ``synthetic_character.character_manifest()`` and checks armature, shapes, actions."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("io_scene_gltf2", default_set=False)
+    scene = synthetic_character.write_character_package(folder)
+    loaded = package.load_package(scene)
+    check(not loaded.warnings, f"loaded: {loaded.warnings}")
+    result = importer.import_package(bpy.context, loaded)
+    check(not result.warnings, f"warnings: {result.warnings}")
+    check(result.armatures == 1, f"armatures: {result.armatures}")
+    check(result.shape_keys == 1, f"shape keys: {result.shape_keys}")
+    check(result.actions >= 1, f"actions: {result.actions}")
+    check(result.meshes == 2, f"meshes: {result.meshes}")
+
+    hero = bpy.data.objects["Hero"]
+    check(hero.type == "EMPTY" and hero.instance_collection is None, "the Character is not instanced")
+    armatures = [o for o in bpy.data.objects if o.type == "ARMATURE"]
+    check(len(armatures) == 1, f"armature objects: {len(armatures)}")
+    armature = armatures[0]
+    check(armature.parent is hero, f"the armature is below the node: {armature.parent}")
+    bones = {bone.name for bone in armature.data.bones}
+    check({"root", "tip"} <= bones, f"bones: {bones}")
+
+    skinned = [o for o in bpy.data.objects if o.type == "MESH" and o.find_armature() is armature]
+    check(len(skinned) == 1, f"skinned meshes: {len(skinned)}")
+    body = skinned[0]
+    check({"root", "tip"} <= {group.name for group in body.vertex_groups}, "vertex groups")
+    keys = body.data.shape_keys
+    check(keys is not None, "the mesh has shape keys")
+    names = [block.name for block in keys.key_blocks]
+    check(names == ["Basis", "smile"], f"shape keys: {names}")
+
+    waves = [action for action in bpy.data.actions if "wave" in action.name]
+    check(len(waves) >= 1, f"actions: {[action.name for action in bpy.data.actions]}")
+    check(
+        any(o.animation_data is not None for o in (armature, keys)),
+        "the armature or the shape keys are animated",
+    )
+
+    prop = bpy.data.objects["Prop"]
+    check(prop.instance_collection is not None, "static meshes are still instanced")
+    check(prop.parent is hero, "the prop is below the Character")
+
+
 def main() -> None:
     """Runs the import and the checks."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -128,6 +173,7 @@ def main() -> None:
         check(not result.warnings, f"warnings: {result.warnings}")
 
         check_interior(Path(folder) / "lit")
+        check_character(Path(folder) / "character")
 
         bpy.ops.wm.read_factory_settings(use_empty=True)
         addon_utils.enable("io_scene_gltf2", default_set=False)

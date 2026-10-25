@@ -3785,6 +3785,7 @@ dependencies = [
  "p4kx-extraction",
  "p4kx-gui",
  "p4kx-render",
+ "p4kx-screens",
  "p4kx-search",
  "p4kx-settings",
  "p4kx-testkit",
@@ -3878,6 +3879,7 @@ dependencies = [
  "png",
  "roxmltree",
  "serde",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

@@ -28,6 +28,8 @@ pub enum WorkTab {
     Sounds,
     /// Composing a Character of a body, a head and pieces of armour, and exporting it.
     Characters,
+    /// Drawing the GFx movies and the ship screens of the open Archive as pictures.
+    Ui,
 }
 
 impl Model {

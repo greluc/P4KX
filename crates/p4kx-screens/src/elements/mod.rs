@@ -16,13 +16,15 @@ use crate::paint::Area;
 use crate::text::{TEXT, TEXT_FIELD};
 use crate::widget::Widget;
 
-const STRUCTURAL: [&str; 6] = [
+const STRUCTURAL: [&str; 8] = [
     "BuildingBlocks_DisplayWidget",
     "BuildingBlocks_WidgetBase",
     "BuildingBlocks_WidgetCard",
     "BuildingBlocks_WidgetContainer",
     "BuildingBlocks_WidgetCanvas",
     "BuildingBlocks_WidgetBodyBackground",
+    "BuildingBlocks_WidgetClone",
+    "BuildingBlocks_WidgetList",
 ];
 
 pub(crate) const CIRCLE: &str = "BuildingBlocks_WidgetCircle";

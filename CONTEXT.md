@@ -510,9 +510,16 @@ _Avoid_: UI movie (a Screen is DataForge data, not a movie), display (that is th
 
 **Widget**:
 One node of a Screen's `scene` array, a `BuildingBlocks_DisplayWidget` or a type derived from it
-(card, canvas, text, image, circle, ...), with sizing, margin, padding, a flex layout policy,
-tags, a background and a border; the tree of widgets is given by their `parent` links.
+(card, canvas, text, image, circle, ...), with sizing, margin, padding, a flex, stack or grid
+layout policy, an anchor, a pivot, a turn, tags, a background and a border; the tree of widgets is
+given by their `parent` links.
 _Avoid_: element (the renderer's report names widgets by element type), node
+
+**Template**:
+A widget in the `library` array of a Screen's canvas, with the widgets whose `parent` it is. It is
+not drawn where it stands: a clone draws it once and a list once per row of its static array
+(ADR-0106).
+_Avoid_: prefab, component (a component is the Entity's UI component)
 
 **Style cascade**:
 The rules that give a widget its colours and visibility at rest: the palette slots of a

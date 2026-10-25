@@ -32,8 +32,12 @@ fn index_at(location: Option<&Location<'_>>, field: &str) -> Option<usize> {
     }
 }
 
-/// Reads which widget texts a canvas binds to component parameters.
-pub(crate) fn text_bindings(root: &StructValue<'_>) -> HashMap<usize, TextBinding> {
+/// Reads which widget texts a canvas binds to component parameters; the widgets of the library
+/// follow the `scene_len` widgets of the scene.
+pub(crate) fn text_bindings(
+    root: &StructValue<'_>,
+    scene_len: usize,
+) -> HashMap<usize, TextBinding> {
     let operations = items(root, "operations");
     let parameters: HashMap<usize, TextBinding> = operations
         .iter()
@@ -56,7 +60,10 @@ pub(crate) fn text_bindings(root: &StructValue<'_>) -> HashMap<usize, TextBindin
             operation.type_name() == FIELD && text(operation, "field") == Some("Text")
         })
         .filter_map(|operation| {
-            let widget = index_at(reference(operation, "widget")?.location(), "scene")?;
+            let location = reference(operation, "widget")?.location();
+            let widget = index_at(location, "scene").or_else(|| {
+                index_at(location, "library").and_then(|index| index.checked_add(scene_len))
+            })?;
             let input = index_at(reference(operation, "input")?.location(), "operations")?;
             Some((widget, parameters.get(&input)?.clone()))
         })

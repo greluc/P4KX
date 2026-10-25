@@ -8,10 +8,12 @@ use p4kx_dataforge::{DataForge, Guid, RecordTree, StructValue};
 
 use crate::bindings::{TextBinding, text_bindings};
 use crate::error::ScreenError;
+use crate::geometry::Dim;
 use crate::reader::{as_struct, child, float, items, reference, text};
+use crate::statics::static_arrays;
 use crate::style::Entry;
 use crate::style::parse_entries;
-use crate::widget::{Parent, Widget};
+use crate::widget::{Parent, Target, Widget};
 
 pub(crate) const CANVAS_TYPE: &str = "BuildingBlocks_Canvas";
 
@@ -27,13 +29,36 @@ pub(crate) struct BrandStyle {
     pub(crate) entries: Rc<[Entry]>,
 }
 
+/// How a canvas relates its own size to the box it is laid out in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Coordinates {
+    Auto,
+    Raw,
+    AspectOverridesWidth,
+    AspectOverridesHeight,
+}
+
+impl Coordinates {
+    fn parse(name: Option<&str>) -> Self {
+        match name {
+            Some("useRaw") => Self::Raw,
+            Some("aspectOverridesWidth") => Self::AspectOverridesWidth,
+            Some("aspectOverridesHeight") => Self::AspectOverridesHeight,
+            _ => Self::Auto,
+        }
+    }
+}
+
+/// A canvas read from its Record: the widgets of its scene followed by those of its library.
 #[derive(Debug)]
 pub(crate) struct Canvas {
     pub(crate) guid: Guid,
     pub(crate) record_path: String,
     pub(crate) size: [f32; 2],
-    pub(crate) unit: f32,
+    pub(crate) coordinates: Coordinates,
+    pub(crate) world_root: Option<[f32; 2]>,
     pub(crate) widgets: Vec<Widget>,
+    pub(crate) scene_len: usize,
     pub(crate) roots: Vec<usize>,
     pub(crate) children: Vec<Vec<usize>>,
     pub(crate) brands: Vec<BrandStyle>,
@@ -42,7 +67,10 @@ pub(crate) struct Canvas {
     pub(crate) embedded: Rc<[Entry]>,
     pub(crate) unreachable: Vec<usize>,
     pub(crate) text_bindings: HashMap<usize, TextBinding>,
+    pub(crate) arrays: HashMap<String, usize>,
 }
+
+const WORLD_UNIT_LIMIT: f32 = 3.0;
 
 impl Canvas {
     pub(crate) fn pick_brand(&self, code: Option<&str>) -> Option<&BrandStyle> {
@@ -61,6 +89,15 @@ impl Canvas {
             .or_else(|| self.brands.first())
     }
 
+    /// Returns the index in `widgets` of the widget a clone or list repeats.
+    pub(crate) fn target_index(&self, target: Target) -> Option<usize> {
+        let index = match target {
+            Target::Scene(index) => index,
+            Target::Library(index) => self.scene_len.checked_add(index)?,
+        };
+        (index < self.widgets.len()).then_some(index)
+    }
+
     pub(crate) fn read(tree: &RecordTree<'_>) -> Self {
         let root = tree.root();
         let guid = tree.guid();
@@ -70,30 +107,30 @@ impl Canvas {
                 float(size, "y").unwrap_or(0.0),
             ]
         });
-        let raw = text(root, "coordinateMethod") == Some("useRaw");
-        let unit = if raw { size[1] } else { 1.0 };
-        let widgets: Vec<Widget> = items(root, "scene")
-            .iter()
-            .filter_map(as_struct)
-            .map(|widget| {
-                let mut widget = Widget::parse(widget, guid);
-                if raw {
-                    widget.scale_units(unit);
-                }
-                widget
-            })
+        let coordinates = Coordinates::parse(text(root, "coordinateMethod"));
+        let parse = |value| as_struct(value).map(|widget| Widget::parse(widget, guid));
+        let scene: Vec<Widget> = items(root, "scene").iter().filter_map(parse).collect();
+        let scene_len = scene.len();
+        let widgets: Vec<Widget> = scene
+            .into_iter()
+            .chain(items(root, "library").iter().filter_map(parse))
             .collect();
-        let (roots, children) = hierarchy(&widgets);
-        let unreachable = unreachable_widgets(&widgets, &roots, &children);
+        let (roots, children) = hierarchy(&widgets, scene_len);
+        let unreachable = unreachable_widgets(&widgets, scene_len, &roots, &children);
         Self {
             unreachable,
-            text_bindings: text_bindings(root),
+            text_bindings: text_bindings(root, scene_len),
+            arrays: static_arrays(root),
+            world_root: (coordinates == Coordinates::Raw)
+                .then(|| world_root(&widgets, &roots))
+                .flatten(),
             guid,
             record_path: tree.record_path().to_owned(),
             size,
-            unit,
+            coordinates,
             roots,
             children,
+            scene_len,
             widgets,
             brands: brand_styles(root),
             shared: shared_styles(root),
@@ -105,9 +142,37 @@ impl Canvas {
     }
 }
 
-fn unreachable_widgets(widgets: &[Widget], roots: &[usize], children: &[Vec<usize>]) -> Vec<usize> {
+/// Returns the size of the largest root widget of fixed size when it is a few units only, which
+/// makes the canvas a world-space canvas; roots of other sizes do not count.
+fn world_root(widgets: &[Widget], roots: &[usize]) -> Option<[f32; 2]> {
+    let [width, height] = roots
+        .iter()
+        .filter_map(|&index| match widgets.get(index)?.size {
+            [Dim::Fixed(width), Dim::Fixed(height)] if width.is_finite() && height.is_finite() => {
+                Some([width, height])
+            }
+            _ => None,
+        })
+        .max_by(|a, b| (a[0] * a[1]).total_cmp(&(b[0] * b[1])))?;
+    let small = |value: f32| value > 0.0 && value <= WORLD_UNIT_LIMIT;
+    (small(width) && small(height)).then_some([width, height])
+}
+
+/// Returns the widgets that neither a root of the scene nor a template without a parent in the
+/// library reaches: their parents form a cycle or name no widget.
+fn unreachable_widgets(
+    widgets: &[Widget],
+    scene_len: usize,
+    roots: &[usize],
+    children: &[Vec<usize>],
+) -> Vec<usize> {
     let mut seen = vec![false; widgets.len()];
-    let mut stack: Vec<usize> = roots.to_vec();
+    let templates = (scene_len..widgets.len()).filter(|&index| {
+        widgets
+            .get(index)
+            .is_some_and(|widget| !matches!(widget.parent, Parent::Library(_)))
+    });
+    let mut stack: Vec<usize> = roots.iter().copied().chain(templates).collect();
     while let Some(index) = stack.pop() {
         if let Some(flag) = seen.get_mut(index) {
             if *flag {
@@ -117,28 +182,33 @@ fn unreachable_widgets(widgets: &[Widget], roots: &[usize], children: &[Vec<usiz
         }
         stack.extend(children.get(index).into_iter().flatten().copied());
     }
-    widgets
-        .iter()
-        .enumerate()
-        .filter(|(index, widget)| {
-            widget.parent != Parent::Library && !seen.get(*index).copied().unwrap_or(true)
-        })
-        .map(|(index, _)| index)
+    (0..widgets.len())
+        .filter(|index| !seen.get(*index).copied().unwrap_or(true))
         .collect()
 }
 
-fn hierarchy(widgets: &[Widget]) -> (Vec<usize>, Vec<Vec<usize>>) {
+fn hierarchy(widgets: &[Widget], scene_len: usize) -> (Vec<usize>, Vec<Vec<usize>>) {
     let mut roots = Vec::new();
     let mut children = vec![Vec::new(); widgets.len()];
+    let mut attach = |parent: usize, index: usize| {
+        if parent != index
+            && let Some(list) = children.get_mut(parent)
+        {
+            list.push(index);
+            true
+        } else {
+            false
+        }
+    };
     for (index, widget) in widgets.iter().enumerate() {
-        match widget.parent {
-            Parent::Library => {}
-            Parent::Widget(parent) if parent != index && parent < widgets.len() => {
-                if let Some(list) = children.get_mut(parent) {
-                    list.push(index);
-                }
-            }
-            Parent::Root | Parent::Widget(_) => roots.push(index),
+        let parent = match widget.parent {
+            Parent::Widget(parent) if parent < scene_len => Some(parent),
+            Parent::Library(parent) => scene_len.checked_add(parent),
+            Parent::Root | Parent::Widget(_) => None,
+        };
+        let attached = parent.is_some_and(|parent| attach(parent, index));
+        if !attached && index < scene_len && !matches!(widget.parent, Parent::Library(_)) {
+            roots.push(index);
         }
     }
     let order = |index: &usize| widgets.get(*index).map_or(0, |widget| widget.order);

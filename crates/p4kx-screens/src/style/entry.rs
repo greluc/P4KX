@@ -5,7 +5,7 @@ use p4kx_dataforge::{Guid, StructValue, Value};
 
 use crate::colour::ColorSpec;
 use crate::reader::{as_struct, child, flag, float, items, reference, text};
-use crate::style::TextModifiers;
+use crate::style::{GeometryModifiers, TextModifiers};
 
 const PREFIX: &str = "BuildingBlocks_StyleSelectorCondition";
 
@@ -34,6 +34,7 @@ pub(crate) struct Modifiers {
     pub(crate) active: Option<bool>,
     pub(crate) alpha: Option<f32>,
     pub(crate) text: TextModifiers,
+    pub(crate) geometry: GeometryModifiers,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -66,7 +67,7 @@ fn parse_entry(entry: &StructValue<'_>) -> Entry {
     Entry {
         name: text(entry, "name").unwrap_or_default().to_owned(),
         lists,
-        modifiers: modifiers(items(entry, "modifiers")),
+        modifiers: modifiers(items(entry, "modifiers").iter().filter_map(as_struct)),
         unsupported,
     }
 }
@@ -159,9 +160,11 @@ fn condition(structure: &StructValue<'_>, depth: Depth) -> Condition {
 
 const BORDER_SIDES: [&str; 4] = ["Top", "Right", "Bottom", "Left"];
 
-fn modifiers(values: &[Value<'_>]) -> Modifiers {
+pub(crate) fn modifiers<'a, 'f: 'a>(
+    structs: impl Iterator<Item = &'a StructValue<'f>>,
+) -> Modifiers {
     let mut found = Modifiers::default();
-    for modifier in values.iter().filter_map(as_struct) {
+    for modifier in structs {
         if matches!(
             modifier.type_name(),
             "BuildingBlocks_FieldModifierRecordRef" | "BuildingBlocks_FieldModifierEnumerated"
@@ -184,6 +187,7 @@ fn modifiers(values: &[Value<'_>]) -> Modifiers {
                 match field {
                     "EnableBackground" => found.enable_background = value,
                     "IsActive" => found.active = value,
+                    _ if found.geometry.flag(field, value) => {}
                     _ => found.text.boolean(field, value),
                 }
             }
@@ -218,6 +222,9 @@ fn colour_field(found: &mut Modifiers, field: &str, colour: Option<ColorSpec>) {
 fn number_field(found: &mut Modifiers, field: &str, value: Option<f32>) {
     if field == "Alpha" {
         found.alpha = value;
+        return;
+    }
+    if found.geometry.number(field, value) {
         return;
     }
     found.text.number(field, value);

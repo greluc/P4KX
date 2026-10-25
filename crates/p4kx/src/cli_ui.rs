@@ -57,8 +57,10 @@ pub(crate) enum UiAction {
     /// a ship, listed by `ui screens`): the layout of its widgets is computed from the Records
     /// and drawn through the same renderer. Texts are drawn as glyph outlines of the fonts of
     /// `fonts_en.gfx`, in the font, size, colour and alignment of the widget and the style
-    /// cascade; `--lang` resolves their localisation keys. Widget types without a renderer,
-    /// textures among them, and every text left out or approximated are listed in the report.
+    /// cascade; `--lang` resolves their localisation keys. Clones, lists and library templates,
+    /// flex, stack and grid containers, anchor, pivot, rotation, clipping and corners are laid out
+    /// and drawn. Widget types without a renderer, textures among them, and every text and layout
+    /// feature left out or approximated are listed in the report.
     #[command(after_help = EXIT_CODES_HELP, group(ArgGroup::new("text_source").multiple(true).args(["entry", "screen"])))]
     Render {
         /// The UI movie, or with `--screen` the Archive.

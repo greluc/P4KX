@@ -92,12 +92,23 @@ pub(crate) fn is_metal(material: &Material) -> bool {
         && (named || luminance(material.diffuse) < DARK_DIFFUSE)
 }
 
-struct Layer {
-    diffuse: [f32; 3],
-    specular: [f32; 3],
+/// What one layer gives without its textures, all colours linear and clamped to 0 to 1.
+pub(crate) struct Layer {
+    /// The layer's own diffuse colour times its tint; a diffuse texture multiplies it.
+    pub(crate) diffuse: [f32; 3],
+    pub(crate) specular: [f32; 3],
     colour: [f32; 3],
-    metal: f32,
+    /// How metallic the layer is, 0 to 1.
+    pub(crate) metal: f32,
     roughness: f32,
+}
+
+/// A layer whose file was read, with its position and its share of the material.
+pub(crate) struct Shaded {
+    pub(crate) at: usize,
+    /// The share by position, see [`shading`]; 0 for a layer the wear share does not reach.
+    pub(crate) share: f32,
+    pub(crate) layer: Layer,
 }
 
 fn unit(colour: [f32; 3]) -> [f32; 3] {
@@ -143,7 +154,9 @@ fn mix(into: &mut [f32; 3], from: [f32; 3], share: f32) {
     }
 }
 
-fn layered(material: &Material) -> Option<Shading> {
+/// Returns the layers of `material` whose files were read, each with its share by position, or
+/// `None` when the material is shaded by its own colours.
+pub(crate) fn shaded_layers(material: &Material) -> Option<Vec<Shaded>> {
     let layers = &material.layers;
     let wear = material.wear_blend().clamp(0.0, 1.0);
     let others = layers.len().saturating_sub(1).max(1);
@@ -162,6 +175,23 @@ fn layered(material: &Material) -> Option<Shading> {
     if only && first != 0 {
         return None;
     }
+    Some(
+        resolved()
+            .map(|(at, layer, surface)| Shaded {
+                at,
+                share: if only {
+                    f32::from(u8::from(at == first))
+                } else {
+                    weight(at) / total
+                },
+                layer: shade(layer, surface),
+            })
+            .collect(),
+    )
+}
+
+fn layered(material: &Material) -> Option<Shading> {
+    let shaded = shaded_layers(material)?;
     let mut mixed = Shading {
         colour: [0.0; 3],
         metal: false,
@@ -170,21 +200,15 @@ fn layered(material: &Material) -> Option<Shading> {
         specular: [0.0; 3],
     };
     let mut metal_total = 0.0_f32;
-    for (at, layer, surface) in resolved() {
-        let share = if only {
-            f32::from(u8::from(at == first))
-        } else {
-            weight(at) / total
-        };
+    for Shaded { share, layer, .. } in shaded {
         if share <= 0.0 {
             continue;
         }
-        let shaded = shade(layer, surface);
-        mix(&mut mixed.colour, shaded.colour, share);
-        mix(&mut mixed.diffuse, shaded.diffuse, share);
-        mix(&mut mixed.specular, shaded.specular, share);
-        mixed.roughness = shaded.roughness.mul_add(share, mixed.roughness);
-        metal_total = shaded.metal.mul_add(share, metal_total);
+        mix(&mut mixed.colour, layer.colour, share);
+        mix(&mut mixed.diffuse, layer.diffuse, share);
+        mix(&mut mixed.specular, layer.specular, share);
+        mixed.roughness = layer.roughness.mul_add(share, mixed.roughness);
+        metal_total = layer.metal.mul_add(share, metal_total);
     }
     mixed.colour = mixed.colour.map(|channel| channel.clamp(0.0, 1.0));
     mixed.metal = metal_total >= 0.5;

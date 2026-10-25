@@ -131,30 +131,39 @@ pub(crate) fn entity_sounds(
     opened.audio_index();
     let held = Arc::clone(opened);
     let text = params.entity.clone();
-    let (entity, triggers, matched) = opened.with_dataforge(move |forge: &DataForge<'_>, _| {
-        let record = Entities::new(forge).find(&text)?;
-        let index = held.audio_index();
-        let audio = index.entity_audio(&record)?;
-        let triggers: Vec<EntityTriggerShape> = audio
-            .triggers()
-            .iter()
-            .map(|trigger| {
-                let (events, events_total) =
-                    convert::events(trigger.events().map(|event| (event, None)));
-                EntityTriggerShape {
-                    name: convert::clip(trigger.name()),
-                    location: convert::clip(trigger.reference().location()),
-                    references: trigger.reference().count(),
-                    definition: trigger.definition_path().map(str::to_owned),
-                    events_total,
-                    events,
-                    unmatched: trigger.unmatched().map(convert::unmatched),
-                }
-            })
-            .collect();
-        Ok((entity_shape(&record), triggers, audio.matched_count()))
-    })?;
-    let total = triggers.len();
+    let (entity, triggers, total, matched) =
+        opened.with_dataforge(move |forge: &DataForge<'_>, _| {
+            let record = Entities::new(forge).find(&text)?;
+            let index = held.audio_index();
+            let audio = index.entity_audio(&record)?;
+            let total = audio.triggers().len();
+            page.check(total)?;
+            let triggers: Vec<EntityTriggerShape> = audio
+                .triggers()
+                .iter()
+                .skip(page.offset())
+                .take(page.limit())
+                .map(|trigger| {
+                    let (events, events_total) =
+                        convert::events(trigger.events().map(|event| (event, None)));
+                    EntityTriggerShape {
+                        name: convert::clip(trigger.name()),
+                        location: convert::clip(trigger.reference().location()),
+                        references: trigger.reference().count(),
+                        definition: trigger.definition_path().map(str::to_owned),
+                        events_total,
+                        events,
+                        unmatched: trigger.unmatched().map(convert::unmatched),
+                    }
+                })
+                .collect();
+            Ok((
+                entity_shape(&record),
+                triggers,
+                total,
+                audio.matched_count(),
+            ))
+        })?;
     let (issues, issues_total) = convert::issues(opened.audio_index());
     let mut result = EntitySoundsResult {
         archive: opened.archive().path().display().to_string(),
@@ -170,7 +179,7 @@ pub(crate) fn entity_sounds(
         page,
         total,
         json_len(&result),
-        triggers.into_iter().skip(page.offset()).map(Ok),
+        triggers.into_iter().map(Ok),
         |trigger: &EntityTriggerShape| format!("audio trigger {}", trigger.name),
     )?;
     result.triggers = listed;

@@ -166,7 +166,7 @@ impl Server {
 
     #[tool(
         description = "Describe one WEM, named by wem_id or by the Entry path of a loose WEM: every place that holds it \
-        (embedded in a soundbank, or a loose Entry per language) and, read from the first place that holds the whole \
+        (embedded in a soundbank, or a loose Entry per language; paged with a cursor) and, read from the first place that holds the whole \
         sound, its codec, channels, sample rate, frame count, duration and whether it loops. Only metadata is returned, \
         no audio. The content may be forwarded by the client to third parties; game texts and media must not be \
         redistributed.",
@@ -186,8 +186,15 @@ impl Server {
         self.run(move |state| {
             let opened = state.archive(params.archive.as_deref())?;
             opened.audio_index();
+            let listing = (
+                "get_wem_info",
+                opened.version(),
+                params.wem_id,
+                params.path.as_deref(),
+            );
+            let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
             let _permit = state.model().hold()?;
-            audio_wem::info(&opened, &params)
+            audio_wem::info(&opened, &params, page)
         })
         .await
     }

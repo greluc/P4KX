@@ -123,19 +123,21 @@ fn running(
     (progress, path): (CatalogExportProgress, &str),
     cancelling: bool,
 ) -> bool {
-    let fraction = match progress.stage {
-        CatalogExportStage::Building if progress.total > 0 => {
-            ratio(progress.done as u64, progress.total as u64)
-        }
-        CatalogExportStage::Writing => 1.0,
-        _ => 0.0,
-    };
     match progress.stage {
-        CatalogExportStage::Reading => waiting(ui, &texts.get(T::Reading)),
+        CatalogExportStage::Reading => {
+            waiting(ui, &texts.get(T::Reading));
+            ui.add_space(SPACE_3);
+        }
         CatalogExportStage::Writing => {
             waiting(ui, &texts.format(T::Writing, &[("path", path.into())]));
+            ui.add_space(SPACE_3);
         }
         CatalogExportStage::Building => {
+            let fraction = if progress.total > 0 {
+                ratio(progress.done as u64, progress.total as u64)
+            } else {
+                0.0
+            };
             let percent = (fraction * 100.0).floor();
             ui.label(texts.format(
                 T::Progress,
@@ -145,11 +147,11 @@ fn running(
                     ("percent", FluentValue::from(f64::from(percent))),
                 ],
             ));
+            ui.add_space(SPACE_3);
+            let width = ui.available_width().max(frames::MODAL_BODY_WIDTH);
+            indicator::progress(ui, fraction, cancelling, width);
         }
     }
-    ui.add_space(SPACE_3);
-    let width = ui.available_width().max(frames::MODAL_BODY_WIDTH);
-    indicator::progress(ui, fraction, cancelling, width);
     frames::foot_rule(ui);
     if cancelling {
         waiting(ui, &texts.get(ExtractionText::Cancelling));

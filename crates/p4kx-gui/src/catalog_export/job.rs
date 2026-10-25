@@ -176,6 +176,7 @@ pub(crate) fn start(
     index: &Arc<EntryIndex>,
     file: PathBuf,
     wake: impl Fn() + Send + 'static,
+    #[cfg(feature = "test-hooks")] pause: crate::hold::Pause,
 ) -> CatalogExport {
     let cancel = CancelToken::new();
     let shared = Arc::new(Shared::default());
@@ -185,6 +186,8 @@ pub(crate) fn start(
         file: file.clone(),
         cancel: cancel.clone(),
         shared: Arc::clone(&shared),
+        #[cfg(feature = "test-hooks")]
+        pause,
     };
     let spawned = thread::Builder::new()
         .name("basetool-catalog".to_owned())
@@ -210,6 +213,8 @@ struct Job {
     file: PathBuf,
     cancel: CancelToken,
     shared: Arc<Shared>,
+    #[cfg(feature = "test-hooks")]
+    pause: crate::hold::Pause,
 }
 
 impl Job {
@@ -226,6 +231,8 @@ impl Job {
             return Ok(Outcome::Cancelled);
         }
         self.shared.enter(CatalogExportStage::Building);
+        #[cfg(feature = "test-hooks")]
+        self.pause.wait(|| self.cancel.is_cancelled());
         let progress = |progress: CatalogProgress| {
             self.shared
                 .total

@@ -43,6 +43,32 @@ impl InvalidExportTime {
 #[error("p4kx catalog needs an Archive and --out")]
 pub(crate) struct MissingCatalogArgs;
 
+/// The output file of `p4kx catalog` ends in `.gz`, which would be written as plain JSON.
+#[derive(Debug, Error)]
+#[error(
+    "{0} would be written as plain JSON, because gzip is not supported; use a name ending in .json.zst for a compressed catalog or .json for a plain one"
+)]
+pub(crate) struct GzipNotSupported(String);
+
+/// Returns whether `error` is a command line `p4kx catalog` refuses: a missing Archive or output,
+/// an export time out of range or an output file that would silently be plain JSON.
+pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<InvalidExportTime>().is_some()
+        || error.downcast_ref::<MissingCatalogArgs>().is_some()
+        || error.downcast_ref::<GzipNotSupported>().is_some()
+}
+
+fn refuse_gzip(out: &Path) -> Result<(), GzipNotSupported> {
+    if out
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("gz"))
+    {
+        Err(GzipNotSupported(out.display().to_string()))
+    } else {
+        Ok(())
+    }
+}
+
 /// Writes the Basetool catalog of the Archive to the output file and prints its summary, or
 /// prints the catalog's JSON Schema; the exit code is 1 when a selected Record could not be read.
 pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
@@ -53,6 +79,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     let (Some(archive), Some(out)) = (&args.archive, &args.out) else {
         return Err(MissingCatalogArgs.into());
     };
+    refuse_gzip(out)?;
     let exported_at = match args.exported_at {
         None => SystemTime::now(),
         Some(seconds) => UNIX_EPOCH

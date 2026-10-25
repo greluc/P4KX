@@ -474,7 +474,7 @@ catalog-summary-texts-unavailable = { $language ->
 }: the Archive holds no global.ini, { $missing } missing
 catalog-summary-missing = Missing texts: { $number }
 catalog-summary-size = Size: { $size } of the upload limit of { $limit }
-catalog-summary-size-compressed = Size: { $compressed } compressed, { $size } uncompressed, of the upload limit of { $limit }
+catalog-summary-size-compressed = Size: { $compressed } compressed (of the upload limit of { $limit }), { $size } uncompressed
 catalog-near-limit = The catalog is close to the basetool upload limit of { $limit }.
 catalog-over-limit = The catalog is over the basetool upload limit of { $limit }; the basetool will reject the upload.
 catalog-near-limit-plain = The plain JSON catalog is close to the basetool upload limit of { $limit }. Write the catalog as .json.zst for the upload; plain .json is for inspection.

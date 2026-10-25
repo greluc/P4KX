@@ -8,12 +8,16 @@ use p4kx_extraction::is_same_file;
 
 use super::Model;
 use crate::catalog_export::{refused, start};
+#[cfg(feature = "test-hooks")]
+use crate::hold::Pause;
 use crate::{CatalogExport, RecordTreeStatus};
 
 /// The Basetool catalog of the window: the running or finished catalog.
 #[derive(Debug, Default)]
 pub(crate) struct CatalogState {
     run: Option<CatalogExport>,
+    #[cfg(feature = "test-hooks")]
+    gate: Option<Arc<crate::hold::Gate>>,
 }
 
 impl Model {
@@ -47,8 +51,29 @@ impl Model {
             return false;
         }
         let index = Arc::clone(browser.shared_index());
-        self.catalog.run = Some(start(&index, file, wake));
+        #[cfg(feature = "test-hooks")]
+        let run = start(
+            &index,
+            file,
+            wake,
+            self.catalog
+                .gate
+                .clone()
+                .map_or_else(Pause::default, Pause::at),
+        );
+        #[cfg(not(feature = "test-hooks"))]
+        let run = start(&index, file, wake);
+        self.catalog.run = Some(run);
         true
+    }
+
+    /// Makes the next Basetool catalog wait once it started building, until the returned hold is
+    /// dropped or the catalog is cancelled.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_catalog(&mut self) -> crate::Hold {
+        let (hold, gate) = crate::hold::Hold::new();
+        self.catalog.gate = Some(gate);
+        hold
     }
 
     /// Returns whether the open Archive has a DataForge that did not fail to load.

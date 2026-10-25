@@ -474,7 +474,7 @@ catalog-summary-texts-unavailable = { $language ->
 }: das Archiv enthält keine global.ini, { $missing } fehlen
 catalog-summary-missing = Fehlende Texte: { $number }
 catalog-summary-size = Größe: { $size } vom Upload-Limit { $limit }
-catalog-summary-size-compressed = Größe: { $compressed } komprimiert, { $size } unkomprimiert, vom Upload-Limit { $limit }
+catalog-summary-size-compressed = Größe: { $compressed } komprimiert (vom Upload-Limit { $limit }), { $size } unkomprimiert
 catalog-near-limit = Der Katalog liegt nahe am Upload-Limit des Basetools von { $limit }.
 catalog-over-limit = Der Katalog liegt über dem Upload-Limit des Basetools von { $limit }; das Basetool lehnt den Upload ab.
 catalog-near-limit-plain = Der JSON-Katalog liegt nahe am Upload-Limit des Basetools von { $limit }. Schreibe den Katalog für den Upload als .json.zst; reines .json dient der Ansicht.

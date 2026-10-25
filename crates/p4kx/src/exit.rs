@@ -15,7 +15,6 @@ use p4kx_extraction::{
 use p4kx_screens::ScreenError;
 
 use crate::armour_loadout::UnreadableLoadout;
-use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
 use crate::chf::{InvalidChf, InvalidChfJson, UnreadableChfInput};
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
@@ -187,8 +186,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
         || error.downcast_ref::<InvalidChfJson>().is_some()
-        || error.downcast_ref::<InvalidExportTime>().is_some()
-        || error.downcast_ref::<MissingCatalogArgs>().is_some()
+        || crate::catalog::is_invalid_input(error)
         || error.downcast_ref::<LanguageNotInArchive>().is_some()
         || error.downcast_ref::<NoLanguages>().is_some()
         || error.downcast_ref::<InvalidKey>().is_some()

@@ -53,8 +53,9 @@ p4kx catalog schema
 
 ### Compressed form
 
-An output name ending in `.zst` (any case) writes the catalog as one zstd frame; any other name
-writes plain JSON, which stays the default. The JSON is serialised straight into the encoder and
+An output name ending in `.zst` (any case) writes the catalog as one zstd frame; a name ending in
+`.gz` is refused with exit code 2, because gzip is not written; any other name writes plain JSON,
+which stays the default. The zstd encoder is libzstd (ADR-0149). The JSON is serialised straight into the encoder and
 never held in memory; it is serialised twice, the first time only to count its length. The frame
 uses zstd level 19, long-distance matching, a content checksum, and declares the content size
 (`Frame_Content_Size`), so the window it needs is the content size, about 26.5 MB for LIVE, and not

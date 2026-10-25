@@ -71,10 +71,10 @@ fn flat_csv_is_one_file_with_a_row_per_value_in_record_path_order() -> TestResul
         count as usize + 1,
         "header and one row per Record"
     );
-    assert!(rows.get(1).is_some_and(|row| row.ends_with(",n,,uint,0,")));
+    assert!(rows.get(1).is_some_and(|row| row.ends_with(",n,,uint,0,,")));
     assert!(
         rows.last()
-            .is_some_and(|row| row.ends_with(",n,,uint,4999,"))
+            .is_some_and(|row| row.ends_with(",n,,uint,4999,,"))
     );
     assert!(!dir.path().join(FLAT_NDJSON_FILE).exists());
     Ok(())

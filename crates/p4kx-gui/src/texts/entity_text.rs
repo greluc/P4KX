@@ -86,6 +86,10 @@ pub enum EntityText {
     ShowVariants,
     /// Folds the variants of a base away; takes `name`.
     HideVariants,
+    /// The accessible name of the row of a base; takes `name` and `variants`.
+    BaseRow,
+    /// The accessible name of the row of a variant; takes `name`.
+    VariantRow,
     /// The title of the choice of a replacement; takes `port`.
     ReplaceTitle,
     /// What the port takes, item types and sizes; takes `types` and `sizes`.
@@ -164,7 +168,7 @@ pub enum EntityText {
 
 impl EntityText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 77] = [
+    pub(crate) const ALL: [Self; 79] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -206,6 +210,8 @@ impl EntityText {
         Self::Variants,
         Self::ShowVariants,
         Self::HideVariants,
+        Self::BaseRow,
+        Self::VariantRow,
         Self::ReplaceTitle,
         Self::ReplaceTakes,
         Self::ReplaceTakesTypes,
@@ -290,6 +296,8 @@ impl EntityText {
             Self::Variants => "entities-variants",
             Self::ShowVariants => "entities-show-variants",
             Self::HideVariants => "entities-hide-variants",
+            Self::BaseRow => "entities-base-row",
+            Self::VariantRow => "entities-variant-row",
             Self::ReplaceTitle => "entities-replace-title",
             Self::ReplaceTakes => "entities-replace-takes",
             Self::ReplaceTakesTypes => "entities-replace-takes-types",

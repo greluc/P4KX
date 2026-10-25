@@ -52,7 +52,7 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
             "displayType",
         )),
         class: line.class(),
-        playability: playability_rules::item(tree, name_key),
+        playability: playability(tree),
         variant_of: None,
         stats: None,
         variant_key: None,

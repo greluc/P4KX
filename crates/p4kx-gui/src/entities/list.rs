@@ -101,10 +101,11 @@ pub struct EntityList {
     terms: Vec<String>,
     open: HashSet<Guid>,
     shut: HashSet<Guid>,
+    selected: Option<Guid>,
 }
 
 impl EntityList {
-    pub(super) fn new(catalogue: Arc<EntityCatalogue>, groups: Option<&VariantGroups>) -> Self {
+    pub(super) fn new(catalogue: Arc<EntityCatalogue>) -> Self {
         let mut counts = [0; 3];
         for entry in catalogue.entries() {
             if let Some(slot) = slot(entry.kind()).and_then(|slot| counts.get_mut(slot)) {
@@ -112,7 +113,7 @@ impl EntityList {
             }
         }
         let mut list = Self {
-            fold: Fold::new(&catalogue, groups),
+            fold: Fold::new(&catalogue, None),
             catalogue,
             rows: Vec::new(),
             matched: 0,
@@ -121,6 +122,7 @@ impl EntityList {
             terms: Vec::new(),
             open: HashSet::new(),
             shut: HashSet::new(),
+            selected: None,
         };
         list.refilter(EntityFilter::All, "");
         list
@@ -179,6 +181,19 @@ impl EntityList {
             .filter(|position| self.listed(*position))
     }
 
+    fn is_selected(&self, child: u32) -> bool {
+        self.selected.is_some_and(|selected| {
+            usize::try_from(child)
+                .ok()
+                .and_then(|at| self.catalogue.entries().get(at))
+                .is_some_and(|entry| entry.guid() == selected)
+        })
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one decision after another about a single group"
+    )]
     fn push_group(&self, rows: &mut Vec<Row>, position: usize) {
         let variants: Vec<u32> = self
             .fold
@@ -205,11 +220,14 @@ impl EntityList {
         if !self.hit(position) && hits == 0 {
             return;
         }
-        let expanded = if forced {
-            !self.shut.contains(&guid)
-        } else {
-            self.open.contains(&guid)
-        };
+        let holds_selection = variants.iter().any(|child| self.is_selected(*child));
+        let expanded = holds_selection
+            || if forced {
+                !self.shut.contains(&guid)
+            } else {
+                self.open.contains(&guid)
+            };
+        let only_hits = searching && hits > 0;
         let role = if variants.is_empty() {
             EntityRole::Single
         } else {
@@ -228,7 +246,9 @@ impl EntityList {
                 variants
                     .iter()
                     .filter(|child| {
-                        !searching || self.listed_child(**child).is_some_and(|at| self.hit(at))
+                        !only_hits
+                            || self.is_selected(**child)
+                            || self.listed_child(**child).is_some_and(|at| self.hit(at))
                     })
                     .map(|child| Row {
                         entry: *child,
@@ -237,6 +257,19 @@ impl EntityList {
                     }),
             );
         }
+    }
+
+    /// Folds the variants of `groups` under their bases.
+    pub(super) fn set_groups(&mut self, groups: &VariantGroups) {
+        self.fold = Fold::new(&self.catalogue, Some(groups));
+        self.rebuild();
+    }
+
+    /// Tells the list which Entity is selected: a group that holds it stays open, with the
+    /// selected variant listed.
+    pub(super) fn set_selected(&mut self, selected: Option<Guid>) {
+        self.selected = selected;
+        self.rebuild();
     }
 
     /// Returns the catalogue the list is taken from.

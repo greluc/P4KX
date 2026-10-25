@@ -59,6 +59,7 @@ enum State {
 #[derive(Debug, Default)]
 pub struct EntitiesTab {
     state: State,
+    grouping: Option<Load>,
     query: String,
     filter: EntityFilter,
     loadout: Option<LoadoutSession>,
@@ -127,6 +128,7 @@ impl EntitiesTab {
     /// Forgets the list, the Loadout and the search, because another Archive was opened.
     pub(crate) fn archive_opened(&mut self) {
         self.state = State::Idle;
+        self.grouping = None;
         self.query.clear();
         self.filter = EntityFilter::default();
         self.loadout = None;
@@ -138,6 +140,7 @@ impl EntitiesTab {
         if !matches!(self.state, State::Idle) {
             self.state = State::ArchiveChanged;
         }
+        self.grouping = None;
         self.loadout = None;
         self.replace = None;
     }
@@ -145,23 +148,59 @@ impl EntitiesTab {
     /// Takes the list once it is listed and the Loadout once it is resolved; returns whether
     /// something changed.
     pub fn poll(&mut self) -> bool {
-        let mut changed = self.loadout.as_mut().is_some_and(LoadoutSession::poll);
-        let State::Loading(load) = &self.state else {
-            return changed;
-        };
-        if let Some(outcome) = load.poll() {
-            self.state = match outcome {
-                Outcome::Ready(catalogue, groups) => {
-                    let mut list = EntityList::new(catalogue, Some(&groups));
-                    list.refilter(self.filter, &self.query);
-                    State::Ready(Box::new(list))
-                }
-                Outcome::Failed(reason) => State::Failed(reason),
-                Outcome::ArchiveChanged => State::ArchiveChanged,
-            };
-            changed = true;
+        let loaded = self.loadout.as_mut().is_some_and(LoadoutSession::poll);
+        let listed = self.poll_listing();
+        let grouped = self.poll_grouping();
+        loaded || listed || grouped
+    }
+
+    fn poll_listing(&mut self) -> bool {
+        if !matches!(self.state, State::Loading(_)) {
+            return false;
         }
-        changed
+        let State::Loading(load) = std::mem::take(&mut self.state) else {
+            return false;
+        };
+        match load.poll() {
+            None | Some(Outcome::Groups(_)) => {
+                self.state = State::Loading(load);
+                return false;
+            }
+            Some(Outcome::Catalogue(catalogue)) => {
+                let mut list = EntityList::new(catalogue);
+                list.refilter(self.filter, &self.query);
+                self.state = State::Ready(Box::new(list));
+                self.grouping = Some(load);
+            }
+            Some(Outcome::Failed(reason)) => self.state = State::Failed(reason),
+            Some(Outcome::ArchiveChanged) => self.state = State::ArchiveChanged,
+        }
+        true
+    }
+
+    fn poll_grouping(&mut self) -> bool {
+        let Some(outcome) = self.grouping.as_ref().and_then(Load::poll) else {
+            return false;
+        };
+        match outcome {
+            Outcome::Catalogue(_) => return false,
+            Outcome::Groups(groups) => {
+                if let State::Ready(list) = &mut self.state {
+                    list.set_groups(&groups);
+                }
+            }
+            Outcome::ArchiveChanged => self.state = State::ArchiveChanged,
+            Outcome::Failed(_) => {}
+        }
+        self.grouping = None;
+        true
+    }
+
+    /// Returns whether the variant groups of the listed Entities are still being read; until
+    /// they are, no variant is folded.
+    #[must_use]
+    pub const fn is_grouping(&self) -> bool {
+        self.grouping.is_some()
     }
 
     /// Searches the class names and record paths of the Entities for `text`, ignoring case; every
@@ -206,17 +245,21 @@ impl EntitiesTab {
         let Some(entity) = list.get(position) else {
             return;
         };
-        if self.selected() == Some(entity.guid()) {
+        let guid = entity.guid();
+        if self.selected() == Some(guid) {
             return;
         }
         let session = LoadoutSession::start(
             index,
-            (entity.guid(), entity.class_name(), entity.record_path()),
+            (guid, entity.class_name(), entity.record_path()),
             wake,
             initial,
         );
         self.loadout = Some(session);
         self.replace = None;
+        if let State::Ready(list) = &mut self.state {
+            list.set_selected(Some(guid));
+        }
     }
 
     /// Returns the GUID of the selected Entity.

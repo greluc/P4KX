@@ -16,12 +16,14 @@ use crate::model::describe;
 /// How listing the Entities ended.
 #[derive(Debug)]
 pub(super) enum Outcome {
-    Ready(Arc<EntityCatalogue>, Box<VariantGroups>),
+    Catalogue(Arc<EntityCatalogue>),
+    Groups(Box<VariantGroups>),
     Failed(Option<String>),
     ArchiveChanged,
 }
 
-/// The Entities being listed on a background thread; dropping it stops the listing.
+/// The Entities being listed on a background thread, then their variant groups; dropping it stops
+/// the thread.
 #[derive(Debug)]
 pub(super) struct Load {
     result: Receiver<Outcome>,
@@ -56,36 +58,49 @@ pub(super) fn start(
     thread::Builder::new()
         .name("entities".to_owned())
         .spawn(move || {
-            if sender.send(read(&index, &thread_stop)).is_ok() {
-                wake();
-            }
+            let send = |outcome| {
+                let sent = sender.send(outcome).is_ok();
+                if sent {
+                    wake();
+                }
+                sent
+            };
+            read(&index, &thread_stop, &send);
         })
         .map_err(|error| describe(&error))?;
     Ok(Load { result, stop })
 }
 
-fn read(index: &Arc<EntryIndex>, stop: &AtomicBool) -> Outcome {
+/// Reads the Entities, sending the catalogue as soon as it is there and the variant groups when
+/// they are read; returns whether the last outcome was received.
+fn read(index: &Arc<EntryIndex>, stop: &AtomicBool, send: &dyn Fn(Outcome) -> bool) -> bool {
     if index.watch().check().is_err() {
-        return Outcome::ArchiveChanged;
+        return send(Outcome::ArchiveChanged);
     }
     let source = match index.forge().read(index, || {}) {
         Ok(source) => source,
-        Err(ReadFailure::ArchiveChanged(_)) => return Outcome::ArchiveChanged,
-        Err(ReadFailure::Unreadable(reason)) => return Outcome::Failed(Some(reason)),
+        Err(ReadFailure::ArchiveChanged(_)) => return send(Outcome::ArchiveChanged),
+        Err(ReadFailure::Unreadable(reason)) => return send(Outcome::Failed(Some(reason))),
     };
     let forge = match source.entry.open() {
         Ok(forge) => forge,
-        Err(error) => return Outcome::Failed(Some(describe(&error))),
+        Err(error) => return send(Outcome::Failed(Some(describe(&error)))),
     };
     let stopped = || stop.load(Ordering::Relaxed);
     let Some(catalogue) = EntityCatalogue::build(&forge, &stopped) else {
-        return Outcome::Failed(None);
-    };
-    let Some(groups) = read_variant_groups(index.archive(), &forge, &stopped) else {
-        return Outcome::Failed(None);
+        return send(Outcome::Failed(None));
     };
     if index.watch().check().is_err() {
-        return Outcome::ArchiveChanged;
+        return send(Outcome::ArchiveChanged);
     }
-    Outcome::Ready(Arc::new(catalogue), Box::new(groups))
+    if !send(Outcome::Catalogue(Arc::new(catalogue))) {
+        return false;
+    }
+    let Some(groups) = read_variant_groups(index.archive(), &forge, &stopped) else {
+        return send(Outcome::Failed(None));
+    };
+    if index.watch().check().is_err() {
+        return send(Outcome::ArchiveChanged);
+    }
+    send(Outcome::Groups(Box::new(groups)))
 }

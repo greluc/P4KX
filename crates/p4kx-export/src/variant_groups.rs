@@ -12,7 +12,7 @@ use crate::guid_text::CatalogGuid;
 use crate::item_variant::{self, ItemKey};
 use crate::playability_rules::{self, Evidence};
 use crate::record_fields::class_name;
-use crate::selection::is_leftover;
+use crate::selection::{Selected, select};
 use crate::ship_pool::ShipPool;
 use crate::variants::{Candidate, ShipKey, group};
 use crate::{Kind, VariantSummary, item, item_stats, ship};
@@ -82,9 +82,15 @@ pub fn read_variant_groups(
     forge: &DataForge<'_>,
     stop: &(dyn Fn() -> bool + Sync),
 ) -> Option<VariantGroups> {
+    if stop() {
+        return None;
+    }
     let files = ArchiveFiles::new(archive);
     let entities = Arc::new(Entities::new(forge));
     let records: Vec<Record<'_>> = forge.records().collect();
+    if stop() {
+        return None;
+    }
     let (evidence, _unreadable) = Evidence::read(&records);
     let ships = ShipPool::new(entities, &files);
     let picked: Result<Vec<Option<Pick<'_>>>, Stopped> = records
@@ -123,14 +129,9 @@ fn pick<'f>(
     trees: &mut TreeBuilder<'f>,
     record: &Record<'f>,
 ) -> Result<Option<Pick<'f>>, DataForgeError> {
-    let path = record.record_path()?;
-    let Some(kind) = Kind::by_path(path).filter(|kind| matches!(kind, Kind::Ships | Kind::Items))
-    else {
+    let Some(Selected::Entity(kind @ (Kind::Ships | Kind::Items))) = select(record, None)? else {
         return Ok(None);
     };
-    if record.type_name()? != kind.rule().type_name || is_leftover(path, record.name()?) {
-        return Ok(None);
-    }
     let tree = trees.build(record)?;
     if kind == Kind::Ships {
         return Ok(ships.read(record, &tree).ok().map(|read| {

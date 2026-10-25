@@ -4,10 +4,29 @@
 //! Helpers of the variant tests of the Entities tab: a synthetic Archive whose rifle has two
 //! colour variants, beside a pistol, a ship and a second family of variants.
 
-use p4kx_gui::{EntitiesStatus, EntityRole, Model};
+use egui_kittest::Harness;
+use p4kx_gui::{EntitiesStatus, EntityRole, Language, Model};
 use p4kx_testkit::{
     DataForgeBuilder, TestEntity, TestEntry, TestPort, assembly_entries, entity_schema,
 };
+
+use crate::entity_picking::opened_sized;
+use crate::waiting::wait_for_model;
+
+type Window = (tempfile::TempDir, Harness<'static, Model>);
+
+/// Opens the synthetic Archive in a window of `size` on the Entities tab and waits until the
+/// Entities are listed and their variants folded.
+pub(crate) fn opened(
+    language: Language,
+    size: [f32; 2],
+) -> Result<Window, Box<dyn std::error::Error>> {
+    let (dir, mut harness) = opened_sized(entries(), language, size)?;
+    wait_for_model(&mut harness, "the variants to be grouped", |model| {
+        !model.entities().is_grouping()
+    })?;
+    Ok((dir, harness))
+}
 
 const FOLDER: &str = "libs/foundry/records/entities";
 
@@ -65,13 +84,7 @@ fn entities() -> Vec<TestEntity> {
             "Objects/Test/cannon.cgf",
             "base.mtl",
         ),
-        gun(
-            0x15,
-            "ACME_Cannon_Dark",
-            4,
-            "Objects/Test/cannon.cgf",
-            "dark.mtl",
-        ),
+        gun(0x15, "ACME_Dart", 4, "Objects/Test/cannon.cgf", "dark.mtl"),
     ]
 }
 

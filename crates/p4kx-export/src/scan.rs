@@ -14,7 +14,7 @@ use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::Blueprint;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
-use crate::selection::is_leftover;
+use crate::selection::{Selected, select};
 use crate::ship_pool::ShipPool;
 use crate::starmap::starmap_object;
 use crate::starmap_containers::Placements;
@@ -188,23 +188,11 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         trees: &mut TreeBuilder<'f>,
         record: &Record<'f>,
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
-        let path = record.record_path()?;
-        let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
-            return Ok(None);
+        let kind = match select(record, self.options.filter)? {
+            None => return Ok(None),
+            Some(Selected::Leftover(kind)) => return Ok(Some(Picked::Skipped(kind))),
+            Some(Selected::Entity(kind)) => kind,
         };
-        if record.type_name()? != kind.rule().type_name {
-            return Ok(None);
-        }
-        if self
-            .options
-            .filter
-            .is_some_and(|filter| !filter.matches(path))
-        {
-            return Ok(None);
-        }
-        if is_leftover(path, record.name()?) {
-            return Ok(Some(Picked::Skipped(kind)));
-        }
         let tree = trees.build(record)?;
         if kind == Kind::StarmapObjects {
             return Ok(Some(Picked::Starmap(starmap_object(

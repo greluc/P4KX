@@ -59,6 +59,29 @@ fn render(harness: &mut Harness<'_, Model>, name: &str) -> TestResult {
     save(name, width, height, &image.into_raw())
 }
 
+fn list_variants(harness: &mut Harness<'_, Model>, (show, hide): (&str, &str)) -> TestResult {
+    act_until(
+        harness,
+        "listing the variants",
+        |harness| harness.get_by_label(show).click(),
+        |model| crate::entity_variants::rows(model).len() == 6,
+    )?;
+    harness.get_by_label(hide).focus();
+    harness.run_steps(2);
+    harness.hover_at(egui::pos2(300.0, 150.0));
+    harness.event(egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        delta: egui::vec2(0.0, -200.0),
+        phase: egui::TouchPhase::Move,
+        modifiers: egui::Modifiers::NONE,
+        source: egui::MouseWheelSource::Wheel,
+    });
+    harness.run_steps(3);
+    harness.hover_at(egui::pos2(600.0, 5.0));
+    harness.run_steps(3);
+    Ok(())
+}
+
 fn drawn(size: [f32; 2], tag: &str) -> TestResult {
     for (language, suffix, show, hide) in [
         (
@@ -94,18 +117,13 @@ fn drawn(size: [f32; 2], tag: &str) -> TestResult {
         harness.state_mut().set_work_tab(WorkTab::Entities);
         harness.run_steps(2);
         crate::tagging::wait_until(&mut harness, listed)?;
+        crate::tagging::wait_until(&mut harness, |model| !model.entities().is_grouping())?;
         render(
             &mut harness,
             &format!("entity-variants-folded-{tag}{suffix}.png"),
         )?;
 
-        act_until(
-            &mut harness,
-            "listing the variants",
-            |harness| harness.get_by_label(show).click(),
-            |model| model.entities().is_started() && crate::entity_variants::rows(model).len() == 6,
-        )?;
-        harness.get_by_label(hide).focus();
+        list_variants(&mut harness, (show, hide))?;
         render(
             &mut harness,
             &format!("entity-variants-open-{tag}{suffix}.png"),

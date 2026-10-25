@@ -4,8 +4,8 @@
 //! The variants in the Entities tab, driven headless over a synthetic Archive: folded under their
 //! base, expanded, found by the search and reached from the keyboard.
 
-use crate::entity_picking::{TestResult, opened_sized, shown};
-use crate::entity_variants::{entries, folded, open, rows};
+use crate::entity_picking::{TestResult, shown};
+use crate::entity_variants::{folded, open, opened, rows};
 use crate::waiting::{act_until, wait_for_model};
 
 use egui::Key;
@@ -16,7 +16,7 @@ const SIZE: [f32; 2] = [1400.0, 900.0];
 
 #[test]
 fn variants_are_folded_under_their_base_and_the_base_counts_them() -> TestResult {
-    let (_dir, harness) = opened_sized(entries(), Language::BritishEnglish, SIZE)?;
+    let (_dir, harness) = opened(Language::BritishEnglish, SIZE)?;
 
     assert_eq!(
         rows(harness.state()),
@@ -49,7 +49,7 @@ fn variants_are_folded_under_their_base_and_the_base_counts_them() -> TestResult
 
 #[test]
 fn a_base_expands_to_its_variants_and_folds_them_away_again() -> TestResult {
-    let (_dir, mut harness) = opened_sized(entries(), Language::BritishEnglish, SIZE)?;
+    let (_dir, mut harness) = opened(Language::BritishEnglish, SIZE)?;
 
     act_until(
         &mut harness,
@@ -89,7 +89,7 @@ fn a_base_expands_to_its_variants_and_folds_them_away_again() -> TestResult {
 
 #[test]
 fn a_variant_can_be_selected_like_any_other_entity() -> TestResult {
-    let (_dir, mut harness) = opened_sized(entries(), Language::BritishEnglish, SIZE)?;
+    let (_dir, mut harness) = opened(Language::BritishEnglish, SIZE)?;
     act_until(
         &mut harness,
         "listing the variants",
@@ -112,16 +112,71 @@ fn a_variant_can_be_selected_like_any_other_entity() -> TestResult {
         _ => None,
     }
     .ok_or("no Entity at the row")?;
-    harness.state_mut().select_entity(at, || {});
+    act_until(
+        &mut harness,
+        "selecting the variant",
+        |harness| {
+            harness.get_by_label("ACME_Rifle_Blue, variant").click();
+        },
+        |model| model.entities().selected() == Some(guid),
+    )?;
 
-    wait_for_model(&mut harness, "the variant to be selected", |model| {
-        model.entities().selected() == Some(guid)
-    })
+    harness
+        .get_by_label("Hide the variants of ACME_Rifle")
+        .click();
+    harness.run_steps(3);
+    assert!(
+        shown(harness.state()).contains(&"ACME_Rifle_Blue".to_owned()),
+        "the selected variant stays listed"
+    );
+    assert!(
+        harness.query_by_label("ACME_Rifle, 2 variants").is_some(),
+        "the base row names its variants"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_base_that_matches_alone_lists_all_its_variants_once_opened_and_keeps_them_open() -> TestResult
+{
+    let (_dir, mut harness) = opened(Language::BritishEnglish, SIZE)?;
+    harness.state_mut().entities_mut().set_query("cannon");
+    wait_for_model(&mut harness, "the match", |model| shown(model).len() == 1)?;
+
+    act_until(
+        &mut harness,
+        "opening the group",
+        |harness| {
+            harness
+                .get_by_label("Show the variants of ACME_Cannon")
+                .click();
+        },
+        |model| shown(model).len() == 2,
+    )?;
+    assert_eq!(
+        rows(harness.state()),
+        [
+            ("ACME_Cannon".to_owned(), open(1)),
+            ("ACME_Dart".to_owned(), EntityRole::Variant),
+        ],
+        "the variant that does not match is listed, the group is not empty"
+    );
+
+    harness.state_mut().entities_mut().set_query("");
+    wait_for_model(&mut harness, "the search to end", |model| {
+        shown(model).len() == 5
+    })?;
+    assert_eq!(
+        rows(harness.state()).first(),
+        Some(&("ACME_Cannon".to_owned(), open(1))),
+        "the group opened by hand stays open"
+    );
+    Ok(())
 }
 
 #[test]
 fn the_search_finds_a_variant_and_shows_it_under_its_expanded_base() -> TestResult {
-    let (_dir, mut harness) = opened_sized(entries(), Language::BritishEnglish, SIZE)?;
+    let (_dir, mut harness) = opened(Language::BritishEnglish, SIZE)?;
 
     harness.state_mut().entities_mut().set_query("blue");
     wait_for_model(&mut harness, "the search to show the variant", |model| {
@@ -151,7 +206,7 @@ fn the_search_finds_a_variant_and_shows_it_under_its_expanded_base() -> TestResu
 
 #[test]
 fn a_search_group_can_be_folded_by_hand() -> TestResult {
-    let (_dir, mut harness) = opened_sized(entries(), Language::BritishEnglish, SIZE)?;
+    let (_dir, mut harness) = opened(Language::BritishEnglish, SIZE)?;
     harness.state_mut().entities_mut().set_query("rifle");
     wait_for_model(&mut harness, "the matches", |model| shown(model).len() == 3)?;
 
@@ -180,7 +235,7 @@ fn a_search_group_can_be_folded_by_hand() -> TestResult {
 
 #[test]
 fn the_expander_works_from_the_keyboard() -> TestResult {
-    let (_dir, mut harness) = opened_sized(entries(), Language::BritishEnglish, SIZE)?;
+    let (_dir, mut harness) = opened(Language::BritishEnglish, SIZE)?;
 
     act_until(
         &mut harness,
@@ -211,7 +266,7 @@ fn the_expander_works_from_the_keyboard() -> TestResult {
 
 #[test]
 fn the_kinds_narrow_the_groups_and_the_window_is_german_in_the_german_window() -> TestResult {
-    let (_dir, mut harness) = opened_sized(entries(), Language::German, SIZE)?;
+    let (_dir, mut harness) = opened(Language::German, SIZE)?;
 
     assert!(
         harness

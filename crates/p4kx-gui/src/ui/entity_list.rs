@@ -16,7 +16,7 @@ use crate::widgets::focus::focus_ring_square;
 use crate::widgets::rows::{RowState, chevron, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::widgets::tooltip;
-use crate::{EntityList, EntityRole, EntityText, Texts, format};
+use crate::{EntityList, EntityRole, EntityRow, EntityText, Texts, format};
 
 /// What the user did in the list of Entities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,7 +62,8 @@ fn row(
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     let active = selected == Some(entity.guid());
-    response.widget_info(|| WidgetInfo::selected(Role::Button, true, active, entity.class_name()));
+    response
+        .widget_info(|| WidgetInfo::selected(Role::Button, true, active, row_label(texts, &row)));
     let state = RowState::of_list(active, response.hovered());
     paint_row(ui.painter(), rect, state);
     let (_, colour) = state.colours();
@@ -81,8 +82,8 @@ fn row(
         right -= CHANNEL_GAP;
     }
     let inner = Rect::from_min_max(
-        pos2(cell.right(), rect.top()),
-        pos2(right.max(cell.right()), rect.bottom()),
+        pos2(cell.right() + SPACE_2, rect.top()),
+        pos2(right.max(cell.right() + SPACE_2), rect.bottom()),
     );
     let name = line(
         ui,
@@ -110,6 +111,23 @@ fn row(
         action = Some(Action::Select(position));
     }
     action
+}
+
+fn row_label(texts: &Texts, row: &EntityRow<'_>) -> String {
+    let name = row.entity().class_name();
+    match row.role() {
+        EntityRole::Single => name.to_owned(),
+        EntityRole::Base { variants, .. } => texts.format(
+            EntityText::BaseRow,
+            &[
+                ("name", name.to_owned().into()),
+                ("variants", count_text(texts, variants).into()),
+            ],
+        ),
+        EntityRole::Variant => {
+            texts.format(EntityText::VariantRow, &[("name", name.to_owned().into())])
+        }
+    }
 }
 
 fn count_text(texts: &Texts, variants: usize) -> String {

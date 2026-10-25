@@ -1065,6 +1065,8 @@ entities-variants =
     }
 entities-show-variants = Varianten von { $name } anzeigen
 entities-hide-variants = Varianten von { $name } ausblenden
+entities-base-row = { $name }, { $variants }
+entities-variant-row = { $name }, Variante
 entities-replace-title = { $port } ersetzen
 entities-replace-takes = Der Port nimmt { $types } auf, { $single ->
     [yes] Größe

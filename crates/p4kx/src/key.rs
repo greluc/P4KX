@@ -105,6 +105,7 @@ pub(crate) fn open(path: impl AsRef<Path>) -> Result<Archive, ArchiveError> {
         .key(KEY.get().cloned().flatten())
         .recover(RECOVER.load(Ordering::Relaxed));
     let archive = Archive::open_with(path.as_ref(), options)?;
+    crate::issues::warn_archive_wide(&archive);
     crate::test_build::announce(path.as_ref());
     Ok(archive)
 }

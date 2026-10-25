@@ -49,9 +49,20 @@ pub enum EntryIssue {
     /// incomplete: Entries whose records are lost are missing.
     #[error("the Archive was recovered by scanning for directory records; Entries may be missing")]
     Recovered,
+    /// Recovery stopped at a limit (the Entry count, the signature hits or the work budget), so
+    /// more Entries than the missing ones of [`EntryIssue::Recovered`] may be absent. Listed at
+    /// Entry 0 after it.
+    #[error("recovery stopped at a scan limit; more Entries may be missing")]
+    RecoveryLimit,
 }
 
 impl EntryIssue {
+    /// Returns whether the issue concerns the whole Archive, not the Entry it is listed at.
+    #[must_use]
+    pub const fn is_archive_wide(&self) -> bool {
+        matches!(self, Self::Recovered | Self::RecoveryLimit)
+    }
+
     const fn kind(&self) -> u8 {
         match self {
             Self::DataOutsideFile => 1,
@@ -60,6 +71,7 @@ impl EntryIssue {
             Self::PathNotUtf8 => 8,
             Self::HashBlockSize { .. } => 16,
             Self::Recovered => 32,
+            Self::RecoveryLimit => 64,
         }
     }
 }

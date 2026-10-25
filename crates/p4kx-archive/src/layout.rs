@@ -36,7 +36,12 @@ pub(crate) fn read_entries_recovering(source: &Source) -> Result<Directory, Form
             error @ (FormatError::NotAnArchive
             | FormatError::Corrupt { .. }
             | FormatError::Truncated(_)),
-        ) if layout_version(source)?.is_none() => recovery::recover(source)?.ok_or(error),
+        ) if layout_version(source)?.is_none() => {
+            let hint = end_records::locate_directory(source)
+                .ok()
+                .map(|location| location.offset);
+            recovery::recover(source, hint)?.ok_or(error)
+        }
         other => other,
     }
 }

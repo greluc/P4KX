@@ -65,7 +65,11 @@ when nothing matches.
 ```
 
 `issue_count` is the number of Entry issues found in the directory of the Archive (ADR-0025); `info`,
-`list` and `extract` print the first ten to stderr as `warning: Entry <path>: <issue>`.
+`list`, `extract` and `verify` print the first ten to stderr as `warning: Entry <path>: <issue>`.
+With the global `--recover` flag an Archive whose end records or central directory are damaged is
+rebuilt by a scan for directory records; `issue_count` then counts one more issue, the recovery
+itself (two when a scan limit cut the scan short), which every command prints once on opening as
+`warning: <archive>: <issue>`. The `key` commands ignore `--recover`.
 
 `channel` is the name of the folder holding the Archive, or `null` when there is none; `build` is
 `null` when the Build is unknown.

@@ -63,7 +63,8 @@ pub(crate) struct Cli {
     pub(crate) key_file: Option<PathBuf>,
     /// Rebuilds an Archive whose end of central directory is missing or whose central directory
     /// is damaged by scanning its last 4 GiB for directory records. Entries whose records are
-    /// lost are missing; a warning says so. An intact Archive opens as usual. Never the default.
+    /// lost are missing; a warning says so. An intact Archive opens as usual. The `key` commands
+    /// ignore it. Never the default.
     #[arg(long, global = true)]
     pub(crate) recover: bool,
     /// What to do.

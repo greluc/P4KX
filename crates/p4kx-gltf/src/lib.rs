@@ -49,6 +49,8 @@ mod scene_light;
 mod scene_nodes;
 mod shading;
 mod skin;
+mod texture_budget;
+mod texture_cache;
 mod texture_loader;
 mod texture_make;
 mod texture_pixels;

@@ -178,3 +178,44 @@ fn a_model_file_on_disk_has_no_textures_to_read() -> TestResult {
     check_glb(&fs::read(dir.path().join("cube.glb"))?)?;
     Ok(())
 }
+
+#[test]
+fn a_model_file_on_disk_says_once_in_json_that_it_has_no_textures() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let model = TestModel::cube();
+    fs::write(dir.path().join("cube.cgf"), model.cgf())?;
+    fs::write(dir.path().join("cube.cgfm"), model.cgfm())?;
+
+    let output = p4kx_testkit::p4kx()?
+        .current_dir(dir.path())
+        .args([
+            "--json",
+            "model",
+            "glb",
+            "cube.cgf",
+            "--out",
+            "cube.glb",
+            "--materials",
+            "textures",
+        ])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    let summary: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(
+        summary["texture_fallbacks"]
+            .as_array()
+            .ok_or("a list")?
+            .len(),
+        0,
+        "no fallback per texture: {summary}"
+    );
+    assert!(
+        summary["textures_note"]
+            .as_str()
+            .ok_or("a note")?
+            .contains("read from an Archive"),
+        "one note: {summary}"
+    );
+    Ok(())
+}

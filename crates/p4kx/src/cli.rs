@@ -4,7 +4,7 @@
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand};
 use p4kx_settings::KeyText;
 
 pub(crate) use crate::cli_armour::ArmourArgs;
@@ -28,6 +28,7 @@ pub(crate) use crate::cli_grep::{GrepArgs, GrepFormat};
 pub(crate) use crate::cli_key::{KeyAction, KeyArgs};
 use crate::cli_loc::LocArgs;
 use crate::cli_model::ModelArgs;
+pub(crate) use crate::cli_output::{AudioOutput, TextureOutput};
 pub(crate) use crate::cli_ships::{ShipsArgs, ShipsFormat};
 pub(crate) use crate::cli_socpak::{SocpakAction, SocpakArgs, SocpakSource};
 pub(crate) use crate::cli_ui::{UiAction, UiArgs, UiScreensArgs};
@@ -60,6 +61,11 @@ pub(crate) struct Cli {
     /// the `P4KX_KEY_FILE` environment variable does the same.
     #[arg(long, global = true, value_name = "FILE", env = "P4KX_KEY_FILE")]
     pub(crate) key_file: Option<PathBuf>,
+    /// Rebuilds an Archive whose end of central directory is missing or whose central directory
+    /// is damaged by scanning its last 4 GiB for directory records. Entries whose records are
+    /// lost are missing; a warning says so. An intact Archive opens as usual. Never the default.
+    #[arg(long, global = true)]
+    pub(crate) recover: bool,
     /// What to do.
     #[command(subcommand)]
     pub(crate) command: Command,
@@ -376,27 +382,4 @@ pub(crate) struct ExtractArgs {
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,
-}
-
-/// The values of `p4kx extract --textures`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum TextureOutput {
-    /// Merge the header and its parts into one standard DDS file.
-    Merge,
-    /// Export one mip as an 8-bit RGBA PNG, a high-range texture as OpenEXR.
-    Png,
-    /// Write the Entries unchanged as well.
-    Raw,
-}
-
-/// The values of `p4kx extract --audio`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub(crate) enum AudioOutput {
-    /// Ogg Vorbis or Ogg Opus rebuilt from Wwise Vorbis or Opus without re-encoding; other codecs
-    /// as WAV.
-    Ogg,
-    /// A 16-bit PCM WAV.
-    Wav,
-    /// The WEM bytes unchanged.
-    Raw,
 }

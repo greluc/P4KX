@@ -13,7 +13,9 @@ use crate::format_error::FormatError;
 use crate::issue::{Directory, IssueLog};
 use crate::key_slot::KeySlot;
 use crate::source::Source;
-use crate::{ArchiveError, Build, Entry, EntryIssue, EntryReader, entry_reader, layout};
+use crate::{
+    ArchiveError, Build, Entry, EntryIssue, EntryReader, OpenOptions, entry_reader, layout,
+};
 
 mod key;
 
@@ -48,10 +50,29 @@ impl Archive {
     ///
     /// Returns an [`ArchiveError`] when the file cannot be read or is not a valid Archive.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, ArchiveError> {
+        Self::open_with(path, OpenOptions::default())
+    }
+
+    /// Opens the Archive at `path` like [`Archive::open`], as `options` say.
+    ///
+    /// With [`OpenOptions::recover`], an Archive whose end records are missing or whose central
+    /// directory is damaged is rebuilt from the directory records a bounded scan finds, and
+    /// [`Archive::issues`] lists [`EntryIssue::Recovered`]. Recovered Entries are read and
+    /// verified like any other. Without it, such an Archive fails to open.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`ArchiveError`] when the file cannot be read or is not a valid Archive and, with
+    /// recovery, holds no recoverable record; the error is then the one the normal open gave.
+    pub fn open_with(path: impl AsRef<Path>, options: OpenOptions) -> Result<Self, ArchiveError> {
         let path = path.as_ref();
         let source = Source::open(path).map_err(|error| FormatError::from(error).at(path))?;
-        let Directory { entries, log } =
-            layout::read_entries(&source, None).map_err(|error| error.at(path))?;
+        let directory = if options.recover {
+            layout::read_entries_recovering(&source)
+        } else {
+            layout::read_entries(&source, None)
+        };
+        let Directory { entries, log } = directory.map_err(|error| error.at(path))?;
         let build = path
             .parent()
             .and_then(|folder| Build::read_from(folder).ok().flatten())
@@ -67,7 +88,7 @@ impl Archive {
             entries,
             log,
             build,
-            key: KeySlot::default(),
+            key: KeySlot::with(options.key),
         })
     }
 

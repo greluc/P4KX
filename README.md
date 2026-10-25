@@ -503,6 +503,10 @@ Early development (milestone M1). Available today:
   the last four digits hidden, `p4kx key remove` deletes the stored key. The key never appears in
   logs, error messages or JSON. `--key-file` (or `P4KX_KEY_FILE`) names another file for the stored
   key, for the command line, the window and the MCP server alike.
+- `--recover` on any command rebuilds an Archive whose end of central directory is missing or
+  whose central directory is damaged, by scanning its last 4 GiB for directory records. Entries
+  whose records are lost are missing, and a warning says the Archive was recovered. Without the
+  flag such an Archive does not open.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

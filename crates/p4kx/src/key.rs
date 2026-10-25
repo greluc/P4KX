@@ -4,12 +4,14 @@
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::{Context, Result};
 use p4kx_channels::{SearchPaths, detect};
 use p4kx_comparison::LineDiffError;
 use p4kx_extraction::{
-    Archive, ArchiveError, ArchiveKey, ArchiveKeyError, Entry, KeyCheck, archive_error_in,
+    Archive, ArchiveError, ArchiveKey, ArchiveKeyError, Entry, KeyCheck, OpenOptions,
+    archive_error_in,
 };
 use p4kx_settings::{
     ChosenKey, KEY_VARIABLE, KeyChoiceError, KeySource, KeyStore, KeyText, Settings, choose_key,
@@ -22,6 +24,7 @@ use crate::cli::{Cli, Command, KeyAction, KeyArgs};
 use crate::json;
 
 static KEY: OnceLock<Option<ArchiveKey>> = OnceLock::new();
+static RECOVER: AtomicBool = AtomicBool::new(false);
 
 /// The key options of the command line.
 pub(crate) struct Given {
@@ -72,6 +75,7 @@ struct InUseJson {
 /// A stored key that cannot be read only costs a warning, as the commands that need no key still
 /// work. The `key` commands choose for themselves.
 pub(crate) fn init(cli: &Cli) -> Result<()> {
+    RECOVER.store(cli.recover, Ordering::Relaxed);
     if matches!(cli.command, Command::Key(_)) {
         return Ok(());
     }
@@ -97,7 +101,10 @@ pub(crate) fn init(cli: &Cli) -> Result<()> {
 /// that it belongs to a test build.
 pub(crate) fn open(path: impl AsRef<Path>) -> Result<Archive, ArchiveError> {
     crate::guard::on_archive_open(path.as_ref());
-    let archive = Archive::open_with_key(path.as_ref(), KEY.get().cloned().flatten())?;
+    let options = OpenOptions::new()
+        .key(KEY.get().cloned().flatten())
+        .recover(RECOVER.load(Ordering::Relaxed));
+    let archive = Archive::open_with(path.as_ref(), options)?;
     crate::test_build::announce(path.as_ref());
     Ok(archive)
 }

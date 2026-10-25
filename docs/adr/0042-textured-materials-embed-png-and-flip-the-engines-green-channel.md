@@ -34,7 +34,8 @@ chunk of the GLB.
   image is made once per key (its sources and the colours that go into it) however many
   materials use it, which is the sharing #126 extends across models. At most 256 images and
   2^29 pixels per file and 2^26 pixels per texture, so that a ship cannot exhaust memory or the
-  4 GiB of a GLB; what does not fit is left out and listed.
+  4 GiB of a GLB; what does not fit is left out and listed. ADR-0138 checks the per-file budget
+  from the texture headers before decoding.
 - **A texture is a status, not an error.** A texture that is missing, has an unsafe path, cannot
   be decoded or does not fit leaves the material its plain colour and is listed in the summary
   (`GlbSummary::texture_fallbacks`, `p4kx model glb` in text and `--json`), like a missing

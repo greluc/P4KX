@@ -232,7 +232,15 @@ fn every_facial_animation_of_the_male_head_folder_evaluates() -> TestResult {
         limited.issues().len()
     );
     assert!(limited.values() <= MAX_ANIMATION_VALUES);
-    assert_eq!(limited.len() + limited.issues().len(), set.animations.len());
+    let refused: usize = limited
+        .issues()
+        .iter()
+        .map(|issue| match issue.kind() {
+            IssueKind::AnimationNotUsed { count, .. } => *count,
+            _ => 1,
+        })
+        .sum();
+    assert_eq!(limited.len() + refused, set.animations.len());
     assert_ne!(limited.issues().len(), 0);
     Ok(())
 }

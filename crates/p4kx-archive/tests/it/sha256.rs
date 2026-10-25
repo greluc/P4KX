@@ -197,6 +197,33 @@ fn the_crc_is_reported_first_when_both_checks_fail() -> TestResult {
 }
 
 #[test]
+fn a_crc_mismatch_is_not_replaced_by_a_failed_read_of_the_trailing_bytes() -> TestResult {
+    let entry = TestEntry::stored("Data\\a.bin", DATA);
+    let mut payload = entry.payload().to_vec();
+    payload.resize(payload.len() + 20_000, 0xAA);
+    let entry = entry
+        .with_payload(payload)
+        .with_crc32c(0x1234_5678)
+        .with_sha256();
+    let (dir, archive) = open(&ArchiveBuilder::new().entry(entry))?;
+    let path = dir.path().join("Data.p4k");
+    let bytes = std::fs::read(&path)?;
+    let start = bytes
+        .windows(DATA.len())
+        .position(|window| window == DATA)
+        .ok_or("the data is not in the file")?;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&path)?
+        .set_len((start + DATA.len() + 100) as u64)?;
+
+    let (expected, _) = mismatch(read(&archive, true)?)?;
+
+    assert_eq!(expected, Checksum::Crc32c(0x1234_5678), "the CRC-32C");
+    Ok(())
+}
+
+#[test]
 fn reading_without_verification_ignores_the_digest() -> TestResult {
     for builder in builders() {
         let entry = TestEntry::deflated("Data\\a.bin", DATA).with_sha256_value([0x5A; 32]);

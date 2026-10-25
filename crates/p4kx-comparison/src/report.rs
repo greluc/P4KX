@@ -122,6 +122,7 @@ impl From<&Entry> for EntryState {
     fn from(entry: &Entry) -> Self {
         let checksum = match entry.checksum() {
             Checksum::Crc32c(value) => ChecksumReport::Crc32c(value),
+            Checksum::Crc32(value) => ChecksumReport::Crc32(value),
             other => ChecksumReport::Crc32(other.value().unwrap_or_default()),
         };
         Self {

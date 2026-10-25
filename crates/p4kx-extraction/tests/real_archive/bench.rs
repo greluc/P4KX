@@ -9,7 +9,8 @@ use std::time::Duration;
 
 use p4kx_extraction::{
     Archive, ConflictPolicy, DataForgeEntry, Entry, ExtractOptions, Filter, PathKeys,
-    RecordExportOptions, TextureGroups, export_records, extract, select_entries,
+    RecordExportOptions, TextureGroups, VerifyOptions, export_records, extract, select_entries,
+    verify,
 };
 use p4kx_testkit::{bench, bench_once, real_archive_path};
 
@@ -227,5 +228,26 @@ fn bench_extraction_threads() -> TestResult {
             mib_per_second(bytes, elapsed)
         ));
     }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn bench_verify() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
+    let archive = open()?;
+    let selected: Vec<&Entry> = Filter::new(EXTRACT_FILTER).select(&archive);
+    let bytes: u64 = selected.iter().map(|entry| entry.uncompressed_size()).sum();
+    let timing = bench(
+        &format!("verify {} Entries, {} MiB", selected.len(), bytes >> 20),
+        3,
+        || verify(&archive, &selected, &VerifyOptions::default()),
+    );
+    report(&format!(
+        "BENCH verify: {} MiB/s",
+        mib_per_second(bytes, timing.median())
+    ));
     Ok(())
 }

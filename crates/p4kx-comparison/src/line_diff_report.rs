@@ -44,7 +44,10 @@ impl Serialize for Side<'_> {
         let mut out = serializer.serialize_struct("Side", 3)?;
         out.serialize_field("size", &self.0.uncompressed_size())?;
         let checksum = self.0.checksum();
-        out.serialize_field(checksum.name(), &checksum.value())?;
+        match checksum.value() {
+            Some(value) => out.serialize_field(checksum.name(), &value)?,
+            None => out.serialize_field(checksum.name(), &checksum.hex())?,
+        }
         out.serialize_field("encoding", &self.1.map(Encoding::as_str))?;
         out.end()
     }

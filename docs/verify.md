@@ -23,10 +23,13 @@ of the decoded data (ADR-0034). So the SHA-256 needs no Archive key, and a wrong
 CRC-32C but not the SHA-256.
 
 The check is on whenever verification is: it needs no switch of its own, and a mismatch is reported
-like a CRC mismatch with the kind `sha256` and the digests as 64 hex digits. The CRC-32C is
-reported first when both fail. The stored bytes are hashed as the reader consumes them; the bytes
-it leaves unread (AES padding, a compression trailer) are read and hashed when the decoded data
-ends. An all-zero digest, as the synthetic fixtures use, states none and is not checked.
+like a CRC mismatch with the kind `sha256` and the digests as 64 hex digits. The stored bytes are
+hashed as the reader consumes them; the bytes it leaves unread (AES padding, a compression
+trailer) are read and hashed when the decoded data ends, unless the CRC-32C already failed: then
+the CRC mismatch is reported and those bytes are not read, so a failing read cannot replace it.
+An all-zero digest, as the synthetic fixtures use, states none and is not checked. A `0x5003`
+block that is not 36 bytes long states none too and is an Entry issue (ADR-0148); of several
+blocks in one record the last decides.
 
 The v2 record has 32 bytes after the encryption field. They are read and returned by
 `Entry::sha256`, not checked: no v2 Archive was available to confirm that they are the same
@@ -66,6 +69,22 @@ For scale: a review of an external extractor that checked only sizes measured ab
 a full scan of LIVE 4.10 (1,362,047 Entries). The runs above were bound by the disk at about
 3 GB/s: the 150.9 GiB Archive does not fit into the 94 GiB of RAM, so the file cache could not hold
 it between runs.
+
+### What the SHA-256 costs
+
+Measured on LIVE with the file in the cache, so that the disk does not hide the CPU cost
+(release build, same machine); the benchmarks are `bench_verification_cost` in `p4kx-archive` and
+`bench_verify` in `p4kx-extraction` (ADR-0137, ADR-0148):
+
+| Measurement | No SHA-256 | With SHA-256 |
+|-------------|------------|--------------|
+| One thread, 300 Entries of 64 KiB to 16 MiB (176 MiB): read without a check | 332 ms | |
+| The same, CRC-32C | 351 ms | |
+| The same, CRC-32C and SHA-256 (`open_entry_verified`) | | 395 ms (+13 % over the CRC-32C) |
+| All cores, `verify` of 76,310 Entries, 8,225 MiB (median of three runs) | 2.03 s | 1.88 s and 2.14 s (two runs) |
+
+The SHA-256 adds about 0.25 ms per MiB on one core. With all cores the differences lie within the
+spread between runs, so "no separate switch" (ADR-0034) stays.
 
 ## Real-Archive tests
 

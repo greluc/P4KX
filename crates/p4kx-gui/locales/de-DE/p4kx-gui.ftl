@@ -506,6 +506,7 @@ scroll-localization = Lokalisierungszeilen
 scroll-saved-queries = Gespeicherte Abfragen
 scroll-soundbank = Eingebettete WEMs
 scroll-summary = DataForge-Übersicht
+scroll-list = { $heading }, Zeilen
 
 preview-tab-audio = Audio
 audio-codec = Codec

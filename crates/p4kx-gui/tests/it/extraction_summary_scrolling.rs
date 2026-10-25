@@ -156,7 +156,7 @@ fn the_failed_entries_scroll_with_the_keyboard() -> TestResult {
     let (_dir, mut harness) = finished([1400.0, 900.0])?;
     let (failed, _) = lines(harness.state())?;
     assert_eq!(failed.len(), usize::try_from(COUNT)?, "every Entry failed");
-    scrolls_with_the_keyboard(&mut harness, ("Failed (30)", &failed))
+    scrolls_with_the_keyboard(&mut harness, ("Failed (30), rows", &failed))
 }
 
 #[test]
@@ -168,5 +168,5 @@ fn the_records_not_written_scroll_with_the_keyboard() -> TestResult {
         usize::try_from(COUNT)?,
         "every Record failed"
     );
-    scrolls_with_the_keyboard(&mut harness, ("Records not written (30)", &records))
+    scrolls_with_the_keyboard(&mut harness, ("Records not written (30), rows", &records))
 }

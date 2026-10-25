@@ -24,7 +24,7 @@ use crate::widgets::scroll_region;
 use crate::widgets::text::paint_left;
 use crate::{
     ChangeExtractionText, ExtractionStatus, ExtractionSummary, ExtractionText as T, Language,
-    Model, Texts,
+    Model, ScrollText, Texts,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -327,7 +327,9 @@ fn list(
     let step = ROW_HEIGHT + ui.spacing().item_spacing.y;
     scroll_region::show(
         ui,
-        (id.with("rows"), || title.clone()),
+        (id.with("rows"), || {
+            texts.format(ScrollText::List, &[("heading", title.clone().into())])
+        }),
         step,
         area,
         |area, ui| {

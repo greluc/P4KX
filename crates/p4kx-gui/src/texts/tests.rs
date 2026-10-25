@@ -147,6 +147,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("models", "300".into()),
         ("of", "1,200".into()),
         ("lights", "12".into()),
+        ("heading", "Failed (3)".into()),
     ]
 }
 

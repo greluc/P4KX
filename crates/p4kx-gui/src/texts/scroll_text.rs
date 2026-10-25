@@ -29,11 +29,13 @@ pub enum ScrollText {
     Hits,
     /// The summary of the DataForge tab.
     Summary,
+    /// The rows of a list of the Extraction summary, named after its heading.
+    List,
 }
 
 impl ScrollText {
     /// Every accessible name of a scrollable view.
-    pub(crate) const ALL: [Self; 12] = [
+    pub(crate) const ALL: [Self; 13] = [
         Self::Text,
         Self::Hex,
         Self::Image,
@@ -46,6 +48,7 @@ impl ScrollText {
         Self::Soundbank,
         Self::Hits,
         Self::Summary,
+        Self::List,
     ];
 
     /// Returns the Fluent message id.
@@ -64,6 +67,7 @@ impl ScrollText {
             Self::Soundbank => "scroll-soundbank",
             Self::Hits => "scroll-hits",
             Self::Summary => "scroll-summary",
+            Self::List => "scroll-list",
         }
     }
 }

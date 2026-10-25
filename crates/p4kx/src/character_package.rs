@@ -7,8 +7,8 @@ use std::path::Path;
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant, ForgeItems, Head,
-    LoadoutResolver, Piece,
+    AnimationFolders, ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant,
+    ForgeItems, Head, LoadoutResolver, Piece, character_animations,
 };
 use p4kx_blender::{
     CharacterScene, PackageInfo, PackageSummary, check_output, write_character_package,
@@ -25,7 +25,6 @@ use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::GlbOutputIsArchive;
 use crate::entity_package::build_info;
 use crate::extract::cancel_on_interrupt;
-use crate::model_animations::{AnimationFolders, character_animations};
 
 mod report;
 

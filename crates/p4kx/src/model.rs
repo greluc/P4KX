@@ -26,19 +26,6 @@ pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
     }
 }
 
-pub(crate) fn choice_of(animations: &[String]) -> Option<AnimationChoice> {
-    if animations.is_empty() {
-        None
-    } else if animations
-        .iter()
-        .any(|name| name.eq_ignore_ascii_case("all"))
-    {
-        Some(AnimationChoice::All)
-    } else {
-        Some(AnimationChoice::Named(animations.to_vec()))
-    }
-}
-
 /// Reads the animations `choice` selects for the model Entry `entry` of the Archive `index` is
 /// over; none without a choice.
 pub(crate) fn archive_animations(

@@ -147,6 +147,19 @@ impl AssemblyExportSummary {
         }
     }
 
+    pub(crate) fn of_interior_package(
+        (folder, name): (PathBuf, String),
+        interior: &Interior,
+        package: PackageSummary,
+    ) -> Self {
+        let issues = package.issues.iter().map(PartIssue::of_package).collect();
+        Self {
+            issues,
+            package: Some(package),
+            ..Self::of_interior((folder, name), interior, GlbSummary::default())
+        }
+    }
+
     /// Returns what the Blender package holds, or `None` when the export wrote a GLB file.
     #[must_use]
     pub const fn package(&self) -> Option<&PackageSummary> {

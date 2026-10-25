@@ -239,7 +239,7 @@ fn a_socpak_offers_the_export_of_its_interior_beside_copy_and_in_the_setup() -> 
         "the export of the Interior beside copy",
         |harness| {
             harness
-                .query_by_role_and_label(Role::Button, "Export Interior as GLB…")
+                .query_by_role_and_label(Role::Button, "Export Interior…")
                 .is_some()
         },
     )?;
@@ -249,7 +249,7 @@ fn a_socpak_offers_the_export_of_its_interior_beside_copy_and_in_the_setup() -> 
     crate::waiting::act_until(
         &mut window.harness,
         "the click on the Interior export to open the setup",
-        |harness| click_settled(harness, "Export Interior as GLB…"),
+        |harness| click_settled(harness, "Export Interior…"),
         |model| model.assembly_export_setup().is_some(),
     )?;
     rendered(&mut window, "interior-setup.png")?;

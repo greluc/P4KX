@@ -86,6 +86,7 @@ pub(crate) struct Sibling<'w> {
     pub(crate) kids: Vec<usize>,
     pub(crate) own_kids: usize,
     pub(crate) instance: bool,
+    pub(crate) position: usize,
 }
 
 impl Sibling<'_> {
@@ -110,8 +111,8 @@ fn flow_items(siblings: &[Sibling<'_>], sized: &[Sized], in_flow: &[usize]) -> V
             let down = margin.top + margin.bottom;
             Item {
                 size: [sized.size[0] + across, sized.size[1] + down],
-                grow: sibling.widget.grow,
-                shrink: sibling.widget.shrink,
+                grow: sibling.geometry.grow,
+                shrink: sibling.geometry.shrink,
                 min: [sized.min[0] + across, sized.min[1] + down],
                 max: [sized.max[0] + across, sized.max[1] + down],
             }

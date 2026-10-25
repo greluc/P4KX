@@ -5,14 +5,14 @@ use std::rc::Rc;
 
 use p4kx_dataforge::Guid;
 
-use crate::bindings::ParamValues;
 use crate::canvas::Canvas;
 use crate::colour::Palette;
 use crate::fit::fit;
 use crate::layout::Frame;
 use crate::paint::Area;
-use crate::style::CanvasStyles;
+use crate::style::{CanvasStyles, Uses};
 use crate::walk::Walk;
+use crate::walk_rest::Handover;
 use crate::widget::CanvasSizing;
 
 impl Walk<'_, '_, '_, '_> {
@@ -28,6 +28,12 @@ impl Walk<'_, '_, '_, '_> {
         self.stack.push(canvas.guid);
         let sheet = self.sheet(canvas);
         self.sheets.push(sheet);
+        let shape = self.shape;
+        self.shape = self
+            .sheets
+            .iter()
+            .fold(Uses::default(), |found, sheet| found.or(sheet.uses()));
+        self.enter_rest(canvas);
         let inherited = std::mem::take(&mut self.cx.palette);
         self.cx.palette = Palette::of_canvas(
             self.store.forge(),
@@ -48,6 +54,8 @@ impl Walk<'_, '_, '_, '_> {
         }
         self.lay_out(canvas, frame, alpha, depth, sizing);
         self.cx.palette = inherited;
+        self.rests.pop();
+        self.shape = shape;
         self.sheets.pop();
         self.stack.pop();
     }
@@ -72,7 +80,7 @@ impl Walk<'_, '_, '_, '_> {
             None => Some(false),
         };
         if let Some(scaled) = scaled {
-            self.push_chain(&canvas.guid);
+            self.push_chain(&(canvas.guid, self.rest_key()));
             let frame = Frame {
                 content: fitted.layout,
                 flex: None,
@@ -119,7 +127,7 @@ impl Walk<'_, '_, '_, '_> {
     pub(crate) fn nested(
         &mut self,
         guid: Guid,
-        params: ParamValues,
+        handover: Handover,
         frame: Area,
         sizing: CanvasSizing,
         alpha: f32,
@@ -136,8 +144,10 @@ impl Walk<'_, '_, '_, '_> {
             self.cx.report.missing_canvases.push(guid.to_string());
             return;
         };
-        self.params.push(params);
+        self.params.push(handover.text);
+        self.typed.push(handover.typed);
         self.enter(&canvas, frame, alpha, depth, sizing);
+        self.typed.pop();
         self.params.pop();
     }
 }

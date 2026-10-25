@@ -82,6 +82,40 @@ fn the_layout_gaps_of_the_avenger_screens_are_closed() -> TestResult {
     clippy::print_stdout,
     reason = "the summary of the run is for the reader of --nocapture"
 )]
+fn the_selectors_and_the_state_at_rest_of_the_avenger_screens_are_evaluated() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut screens = ScreenComposer::new(&forge);
+    for canvas in AVENGER_SCREENS {
+        let composed = screens.compose(canvas, Some("aegs"))?;
+        let report = composed.report();
+        assert!(!report.truncated, "{canvas}: within the limits");
+        for entry in &report.unsupported {
+            let selector = entry.element == "StyleEntry"
+                && (entry.reason.contains("Child") || entry.reason.contains("Count"));
+            assert!(!selector, "{canvas}: {} {}", entry.element, entry.reason);
+            if entry.element == "Binding" {
+                println!(
+                    "{canvas}: {} x{}: {}",
+                    entry.element, entry.count, entry.reason
+                );
+            }
+        }
+        println!(
+            "{canvas}: {} widgets in {} canvases, {} shapes",
+            report.widgets, report.canvases, report.shapes
+        );
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stdout,
+    reason = "the summary of the run is for the reader of --nocapture"
+)]
 fn the_screens_of_real_ships_list_and_render() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let entry = DataForgeEntry::read(&archive)?;

@@ -20,11 +20,15 @@ pub struct Limits {
     pub instances: usize,
     /// The most items one list repeats its template for.
     pub rows: usize,
+    /// The most clones whose modifiers are in force at once, and the most modifiers one clone
+    /// applies.
+    pub overrides: [usize; 2],
 }
 
 impl Limits {
     /// The bounds `p4kx` uses: 2^18 widgets, 2^26 cascade steps, a depth of 64, 2^14 instances,
-    /// 2^10 rows per list, 2^26 texture pixels (2^25 for one texture) and 2^22 path commands.
+    /// 2^10 rows per list, 2^26 texture pixels (2^25 for one texture), 2^22 path commands, 32
+    /// clones in force at once and 256 modifiers per clone.
     pub const DEFAULT: Self = Self {
         widgets: 1 << 18,
         evaluations: 1 << 26,
@@ -33,6 +37,7 @@ impl Limits {
         vector_commands: 1 << 22,
         instances: 1 << 14,
         rows: 1 << 10,
+        overrides: [32, 256],
     };
 }
 

@@ -5,12 +5,17 @@ use std::collections::HashMap;
 
 use p4kx_dataforge::{DataForge, Guid, TAG_PATH_SEPARATOR, TagTree};
 
-use super::entry::{Condition, Entry};
+use super::condition::{Condition, counted};
+use super::entry::Entry;
 
+/// A widget as the selectors see it: its type, its tags, its place among its siblings and, where
+/// an entry asks for them, its children.
 #[derive(Debug, Clone)]
 pub(crate) struct Subject {
     pub(crate) kind: String,
     pub(crate) tags: Vec<Guid>,
+    pub(crate) position: usize,
+    pub(crate) kids: Vec<Self>,
 }
 
 impl Subject {
@@ -26,7 +31,21 @@ impl Subject {
         Self {
             kind: kind.to_owned(),
             tags: tags.to_vec(),
+            position: 0,
+            kids: Vec::new(),
         }
+    }
+
+    /// Sets the place of the widget among its siblings.
+    pub(crate) const fn at(mut self, position: usize) -> Self {
+        self.position = position;
+        self
+    }
+
+    /// Sets the children `Child` selectors look at.
+    pub(crate) fn with_kids(mut self, kids: Vec<Self>) -> Self {
+        self.kids = kids;
+        self
     }
 }
 
@@ -101,6 +120,31 @@ fn any(
         .any(|condition| holds(condition, subject, above, tags, budget))
 }
 
+/// Looks for an ancestor that meets `conditions`, nearest first, without looking at or beyond
+/// one that meets `breaks`.
+fn ancestor(
+    (conditions, breaks): (&[Condition], &[Condition]),
+    above: &[Subject],
+    tags: &TagPaths,
+    budget: &mut u64,
+) -> bool {
+    for at in (0..above.len()).rev() {
+        if let Some(candidate) = above.get(at) {
+            let rest = above.get(..at).unwrap_or_default();
+            if !breaks.is_empty() && all(breaks, candidate, rest, tags, budget) {
+                return false;
+            }
+            if all(conditions, candidate, rest, tags, budget) {
+                return true;
+            }
+        }
+        if *budget == 0 {
+            return false;
+        }
+    }
+    false
+}
+
 fn holds(
     condition: &Condition,
     subject: &Subject,
@@ -121,20 +165,20 @@ fn holds(
         Condition::Parent(inner) => above
             .split_last()
             .is_some_and(|(parent, rest)| all(inner, parent, rest, tags, budget)),
-        Condition::Ancestor(inner) => {
-            for at in (0..above.len()).rev() {
-                if let Some(ancestor) = above.get(at) {
-                    let rest = above.get(..at).unwrap_or_default();
-                    if all(inner, ancestor, rest, tags, budget) {
-                        return true;
-                    }
-                }
-                if *budget == 0 {
-                    return false;
-                }
-            }
-            false
+        Condition::Ancestor { conditions, breaks } => {
+            ancestor((conditions, breaks), above, tags, budget)
         }
+        Condition::Child(inner) => subject.kids.iter().any(|kid| {
+            *budget > 0 && {
+                *budget -= 1;
+                all(inner, kid, &[], tags, budget)
+            }
+        }),
+        Condition::Count {
+            kind,
+            count,
+            offset,
+        } => counted(*kind, *count, *offset, subject.position),
         Condition::AllOf(inner) => all(inner, subject, above, tags, budget),
         Condition::AnyOf(inner) => any(inner, subject, above, tags, budget),
         Condition::Unsupported(_) => false,

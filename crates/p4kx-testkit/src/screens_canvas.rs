@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::screens_geometry::static_arrays;
+use crate::screens_rest::{TestOp, operations};
 use crate::screens_style::entries;
 pub(crate) use crate::screens_style::{TestCondition, TestModifier, TestStyle, TestStyleEntry};
 use crate::{TestInstance, TestRecord, TestValue, TestWidget};
@@ -37,6 +38,7 @@ pub struct TestCanvas {
     widgets: Vec<TestWidget>,
     templates: Vec<TestWidget>,
     arrays: Vec<(String, usize)>,
+    operations: Vec<(String, TestOp)>,
     shared: Option<u128>,
     brand: Option<(u128, Vec<TestStyleEntry>)>,
     embedded: Vec<TestStyleEntry>,
@@ -54,6 +56,7 @@ impl TestCanvas {
             widgets: Vec::new(),
             templates: Vec::new(),
             arrays: Vec::new(),
+            operations: Vec::new(),
             shared: None,
             brand: None,
             embedded: Vec::new(),
@@ -86,6 +89,14 @@ impl TestCanvas {
     #[must_use]
     pub fn static_array(mut self, name: impl Into<String>, rows: usize) -> Self {
         self.arrays.push((name.into(), rows));
+        self
+    }
+
+    /// Adds an entry to the `operations` of the canvas, the graph that binds game variables to
+    /// fields of widgets; the operations it names as inputs must be added before it.
+    #[must_use]
+    pub fn operation(mut self, name: impl Into<String>, operation: TestOp) -> Self {
+        self.operations.push((name.into(), operation));
         self
     }
 
@@ -154,6 +165,7 @@ impl TestCanvas {
                 "scene",
                 TestValue::Array(self.widgets.iter().map(TestWidget::value).collect()),
             )
+            .value("operations", operations(&self.operations))
     }
 }
 

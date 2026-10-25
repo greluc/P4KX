@@ -17,6 +17,13 @@
 //! renderer, and every feature the layout or the painters approximate, is listed in the
 //! [`Report`] of the [`Composed`] scene. `ActionScript` is never run and no texture is drawn.
 //!
+//! The style entries of a screen are evaluated with the selectors of tags, types, parents,
+//! ancestors (with their break conditions), children and counts, and their modifiers change
+//! colours, geometry and flex settings. A screen is drawn in its state at rest: the bindings of
+//! each canvas, calculated with every game variable at zero and the parameters its canvas widget
+//! hands it, decide which widgets are instantiated and active and what their alpha is
+//! (ADR-0110).
+//!
 //! Texts are drawn as glyph outlines of the fonts in [`TextSources`], which a caller reads from
 //! `fonts_en.gfx`: the font style of a widget and the cascade pick the font, size, letter and line
 //! spacing, alignment and case, localisation keys resolve in the language of the caller, and a
@@ -54,6 +61,7 @@ mod paint_state;
 mod picture;
 mod reader;
 mod report;
+mod rest;
 mod screens;
 mod statics;
 mod style;
@@ -64,6 +72,8 @@ mod walk;
 mod walk_canvas;
 mod walk_instance;
 mod walk_measure;
+mod walk_rest;
+mod walk_text;
 mod widget;
 
 pub use assets::ScreenAssets;

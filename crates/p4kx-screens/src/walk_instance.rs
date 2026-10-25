@@ -120,13 +120,20 @@ impl Walk<'_, '_, '_, '_> {
         let (false, true, Some(&root)) = (items.is_empty(), kids.len() > own, kids.last()) else {
             return false;
         };
+        let [stack, per_clone] = self.limits.overrides;
+        if self.overrides.len() >= stack || items.len() > per_clone {
+            self.cx.report.truncated = true;
+        }
+        if self.overrides.len() >= stack {
+            return false;
+        }
         let mut hasher = DefaultHasher::new();
         (self.override_key(), canvas.guid, index, root).hash(&mut hasher);
         self.overrides.push(Override {
             canvas: canvas.guid,
             root,
             key: hasher.finish(),
-            items: items.clone(),
+            items: items.iter().take(per_clone).cloned().collect(),
         });
         true
     }

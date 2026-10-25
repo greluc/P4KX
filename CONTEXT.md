@@ -522,11 +522,18 @@ not drawn where it stands: a clone draws it once and a list once per row of its 
 _Avoid_: prefab, component (a component is the Entity's UI component)
 
 **Style cascade**:
-The rules that give a widget its colours and visibility at rest: the palette slots of a
-`BuildingBlocks_Style`, and style entries whose selectors (type, tag, parent, ancestor and their
-combinations) pick widgets and whose modifiers set fill, stroke, background, border colour, alpha
-and activity. Only the passes ADR-0089 names are evaluated.
+The rules that give a widget its colours, geometry and visibility at rest: the palette slots of a
+`BuildingBlocks_Style`, and style entries whose selectors (type, tag, parent, ancestor, child,
+count and their combinations) pick widgets and whose modifiers set fill, stroke, background,
+border colour, alpha, activity, sizes, margins, padding, anchor, pivot, scale and flex settings.
+State tags, animations and transitions are not evaluated (ADR-0089, ADR-0110).
 _Avoid_: CSS, theme
+
+**State at rest**:
+What a Screen shows before the game sets anything: every game variable has its zero value, and
+the `operations` of each canvas, evaluated on that, decide which widgets are instantiated and
+active, their alpha and the parameters of nested canvases (ADR-0110).
+_Avoid_: default state, idle (the game has no such state)
 
 **Text field**:
 A definition of a UI movie that shows a text (`DefineEditText`), with a font, size, colour,

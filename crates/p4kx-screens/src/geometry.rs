@@ -5,7 +5,7 @@ use p4kx_dataforge::StructValue;
 
 use crate::flex::Flex;
 use crate::reader::{child, flag, float, text};
-use crate::style::Modifiers;
+use crate::style::{Behaviour, GeometryModifiers, Modifiers};
 use crate::widget::Widget;
 
 const MAX_SCALE: f32 = 1.0e4;
@@ -43,6 +43,26 @@ impl Dim {
             Self::Percent(_) => Self::Percent(amount),
             Self::OfWidth(_) => Self::OfWidth(amount),
             Self::OfHeight(_) => Self::OfHeight(amount),
+        }
+    }
+
+    pub(crate) const fn amount(self) -> f32 {
+        match self {
+            Self::Fixed(value)
+            | Self::Percent(value)
+            | Self::OfWidth(value)
+            | Self::OfHeight(value) => value,
+            Self::Auto => 0.0,
+        }
+    }
+
+    pub(crate) const fn with_behaviour(behaviour: Behaviour, amount: f32) -> Self {
+        match behaviour {
+            Behaviour::Fixed => Self::Fixed(amount),
+            Behaviour::Percent => Self::Percent(amount),
+            Behaviour::OfWidth => Self::OfWidth(amount),
+            Behaviour::OfHeight => Self::OfHeight(amount),
+            Behaviour::Auto => Self::Auto,
         }
     }
 
@@ -146,6 +166,8 @@ pub(crate) struct Geometry {
     pub(crate) rotation: [f32; 3],
     pub(crate) scale: [f32; 2],
     pub(crate) flex: Option<Flex>,
+    pub(crate) grow: f32,
+    pub(crate) shrink: f32,
     pub(crate) invalid: bool,
 }
 
@@ -181,12 +203,17 @@ fn bound_with(bound: Option<Dim>, amount: Option<f32>) -> Option<Dim> {
     })
 }
 
-fn sized(base: [Dim; 2], over: [Option<f32>; 2]) -> [Dim; 2] {
+fn sized(base: [Dim; 2], over: &GeometryModifiers) -> [Dim; 2] {
     let mut out = base;
-    for (dim, amount) in out.iter_mut().zip(over) {
-        if let Some(amount) = limited(amount) {
-            *dim = dim.with_amount(amount);
-        }
+    for ((dim, amount), behaviour) in out.iter_mut().zip(over.size).zip(over.behaviour) {
+        let amount = limited(amount);
+        *dim = match (behaviour, amount) {
+            (Some(behaviour), amount) => {
+                Dim::with_behaviour(behaviour, amount.unwrap_or_else(|| dim.amount()))
+            }
+            (None, Some(amount)) => dim.with_amount(amount),
+            (None, None) => *dim,
+        };
     }
     out
 }
@@ -224,23 +251,28 @@ impl Geometry {
         let position = pick(pose.position, over.position);
         let shift = pick(pose.position_offset, over.position_offset);
         let mut turn = pick(pose.orientation, over.orientation);
-        for (angle, extra) in turn.iter_mut().zip(pose.orientation_offset) {
+        let extra = pick(pose.orientation_offset, over.orientation_offset);
+        for (angle, extra) in turn.iter_mut().zip(extra) {
             *angle += extra;
         }
+        let [grow, shrink] = pick([widget.grow, widget.shrink], over.item);
         Self {
-            size: sized(widget.size, over.size),
+            grow,
+            shrink,
+            size: sized(widget.size, over),
             bounds: Bounds {
                 min: bounded(widget.bounds.min, over.min),
                 max: bounded(widget.bounds.max, over.max),
             },
             offset: [position[0] + shift[0], position[1] + shift[1]],
             padding: padded(widget.padding, over.padding),
-            margin: widget.margin,
+            margin: padded(widget.margin, over.margin),
             pivot: sane(pick(pose.pivot, over.pivot), 0.0, MAX_SHARE, &mut invalid),
             anchor: sane(pick(pose.anchor, over.anchor), 0.0, MAX_SHARE, &mut invalid),
             rotation: sane(turn, 0.0, MAX_TURN, &mut invalid),
             scale: sane(pick(pose.scale, over.scale), 1.0, MAX_SCALE, &mut invalid),
             flex: widget.flex.map(|mut flex| {
+                over.flex.apply(&mut flex);
                 flex.apply_gaps(over.gap);
                 flex
             }),

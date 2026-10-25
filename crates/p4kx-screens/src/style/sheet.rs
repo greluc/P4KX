@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use p4kx_dataforge::{DataForge, Guid};
 
+use super::condition::Uses;
 use super::entry::{Entry, Modifiers, parse_entries};
 use super::matching::{Subject, TagPaths, applies};
 use crate::canvas::{Canvas, StyleRef};
@@ -17,6 +18,7 @@ pub(crate) type StyleCache = HashMap<Guid, Rc<[Entry]>>;
 #[derive(Debug, Default)]
 pub(crate) struct CanvasStyles {
     groups: Vec<Rc<[Entry]>>,
+    uses: Uses,
 }
 
 impl CanvasStyles {
@@ -36,7 +38,22 @@ impl CanvasStyles {
             groups.push(Rc::clone(&chosen.entries));
         }
         groups.push(Rc::clone(&canvas.embedded));
-        Self { groups }
+        let uses = groups
+            .iter()
+            .flat_map(|group| group.iter())
+            .chain(
+                canvas
+                    .widgets
+                    .iter()
+                    .flat_map(|widget| widget.inline.iter()),
+            )
+            .fold(Uses::default(), |found, entry| found.or(entry.uses));
+        Self { groups, uses }
+    }
+
+    /// Returns which selectors that need the shape of the tree the styles hold.
+    pub(crate) const fn uses(&self) -> Uses {
+        self.uses
     }
 
     pub(crate) fn unsupported(&self) -> impl Iterator<Item = (&str, &str)> {
@@ -68,11 +85,10 @@ fn style_entries(forge: &DataForge<'_>, cache: &mut StyleCache, style: &StyleRef
 pub(crate) fn resolve(
     sheets: &[Rc<CanvasStyles>],
     widget: &Widget,
-    above: &[Subject],
+    (subject, above): (&Subject, &[Subject]),
     tags: &TagPaths,
     budget: &mut u64,
 ) -> Modifiers {
-    let subject = Subject::of(&widget.type_name, &widget.tags);
     let mut resolved = Modifiers::default();
     let all = sheets
         .iter()
@@ -83,7 +99,7 @@ pub(crate) fn resolve(
         if *budget == 0 {
             break;
         }
-        if applies(entry, &subject, above, tags, budget) {
+        if applies(entry, subject, above, tags, budget) {
             merge(&mut resolved, &entry.modifiers);
         }
     }

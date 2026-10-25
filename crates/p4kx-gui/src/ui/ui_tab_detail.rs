@@ -5,6 +5,7 @@ use egui::{Color32, Frame, Label, Margin, Rect, Role, ScrollArea, Sense, Ui, Wid
 use fluent_bundle::FluentValue;
 
 use super::search::eyebrow;
+use super::ui_tab_toolbar::pack;
 use crate::theme::desktop::{
     CELL_PADDING_X, FACT_KEY_GAP, FACT_VALUE_SIZE, FACTS_GAP, FACTS_PADDING_X, FACTS_PADDING_Y,
     ROW_FONT, SCROLLBAR_THIN, TOOLBAR_PADDING, XML_ROW_HEIGHT,
@@ -195,22 +196,43 @@ fn facts(ui: &mut Ui, texts: &Texts, facts: &[(UiText, Fact)]) {
         .inner_margin(Margin::symmetric(px(FACTS_PADDING_X), px(FACTS_PADDING_Y)))
         .show(ui, |ui| {
             ui.set_width(ui.available_width());
-            ui.horizontal_wrapped(|ui| {
-                ui.spacing_mut().item_spacing.x = FACT_KEY_GAP;
-                for (key, value) in &shown {
-                    ui.horizontal(|ui| {
-                        ui.spacing_mut().item_spacing.x = FACT_KEY_GAP;
-                        ui.label(eyebrow(&texts.get(*key)));
+            let names: Vec<String> = shown.iter().map(|(key, _)| texts.get(*key)).collect();
+            let widths: Vec<f32> = names
+                .iter()
+                .zip(&shown)
+                .map(|(name, (_, value))| {
+                    let key = line(ui, eyebrow(name), f32::INFINITY).size().x;
+                    let value = line(
+                        ui,
+                        plain(value, FACT_VALUE_SIZE, Weight::Bold),
+                        f32::INFINITY,
+                    )
+                    .size()
+                    .x;
+                    key + FACT_KEY_GAP + value
+                })
+                .collect();
+            for row in pack(&widths, ui.available_width(), FACTS_GAP) {
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = FACT_KEY_GAP;
+                    for position in row {
+                        let (Some(name), Some((_, value))) =
+                            (names.get(position), shown.get(position))
+                        else {
+                            continue;
+                        };
+                        ui.label(eyebrow(name));
                         ui.add(
                             Label::new(
                                 plain(value, FACT_VALUE_SIZE, Weight::Bold).color(palette::WHITE),
                             )
+                            .extend()
                             .selectable(true),
                         );
-                    });
-                    ui.add_space(FACTS_GAP - FACT_KEY_GAP);
-                }
-            });
+                        ui.add_space(FACTS_GAP - FACT_KEY_GAP);
+                    }
+                });
+            }
         });
 }
 

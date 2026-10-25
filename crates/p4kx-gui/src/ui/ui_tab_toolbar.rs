@@ -170,7 +170,7 @@ fn mode_at(at: usize) -> Option<UiMode> {
 }
 
 /// Splits items of the given widths into rows that each fit `available`, in order.
-fn pack(widths: &[f32], available: f32, gap: f32) -> Vec<std::ops::Range<usize>> {
+pub(super) fn pack(widths: &[f32], available: f32, gap: f32) -> Vec<std::ops::Range<usize>> {
     let mut rows = Vec::new();
     let (mut start, mut used) = (0, 0.0_f32);
     for (position, width) in widths.iter().enumerate() {

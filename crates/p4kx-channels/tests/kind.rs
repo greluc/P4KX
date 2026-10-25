@@ -55,6 +55,16 @@ fn only_test_channels_carry_a_notice() {
             "{notice}"
         );
     }
+    for kind in [
+        ChannelKind::Ptu,
+        ChannelKind::Hotfix,
+        ChannelKind::TechPreview,
+    ] {
+        let notice = kind.notice().unwrap_or_default();
+        assert!(!notice.contains("non-disclosure"), "{notice}");
+    }
+    let eptu = ChannelKind::Eptu.notice().unwrap_or_default();
+    assert!(eptu.contains("non-disclosure agreement"), "{eptu}");
     for kind in [ChannelKind::Live, ChannelKind::Unknown] {
         assert!(!kind.is_test_build());
         assert_eq!(kind.notice(), None);

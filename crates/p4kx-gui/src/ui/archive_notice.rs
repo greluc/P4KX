@@ -15,7 +15,10 @@ use crate::{Model, Text, WorkTab};
 
 fn channels(model: &Model) -> Option<(&str, bool)> {
     if model.work_tab() == WorkTab::Comparison {
-        return model.comparison().test_channels();
+        return model
+            .comparison()
+            .test_channels()
+            .map(|channels| (channels.names(), channels.several()));
     }
     if model.opening_path().is_some() {
         return None;
@@ -37,19 +40,21 @@ fn notice_text(ui: &Ui, model: &Model, channel: &str, several: bool) -> Arc<str>
         return cached;
     }
     let kind = if several { "other" } else { "one" };
-    let text: Arc<str> = model
-        .texts()
-        .format(
-            Text::ArchiveTestBuild,
-            &[("channel", channel.into()), ("kind", kind.into())],
-        )
-        .into();
+    let mut text = model.texts().format(
+        Text::ArchiveTestBuild,
+        &[("channel", channel.into()), ("kind", kind.into())],
+    );
+    if channel.split(", ").any(|name| name == "EPTU") {
+        text.push(' ');
+        text.push_str(&model.texts().get(Text::ArchiveTestBuildNda));
+    }
+    let text: Arc<str> = text.into();
     ui.data_mut(|data| data.insert_temp(id, Arc::clone(&text)));
     text
 }
 
-/// Shows the warning notice that the open Archive belongs to a Star Citizen test build, whose
-/// material is confidential. It stays for as long as such an Archive is open.
+/// Shows the warning notice that the open Archive belongs to a Channel that carries Star Citizen
+/// test builds, whose material is confidential. It stays for as long as such an Archive is open.
 pub(super) fn show(ui: &mut Ui, model: &Model) {
     let Some((channel, several)) = channels(model) else {
         return;

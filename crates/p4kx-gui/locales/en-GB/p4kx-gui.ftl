@@ -79,6 +79,7 @@ archive-test-build =
         [one] This Archive belongs to the { $channel } Channel, which carries Star Citizen test builds. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
        *[other] These Archives belong to the { $channel } Channels, which carry Star Citizen test builds. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from them.
     }
+archive-test-build-nda = The content of EPTU may also be covered by a non-disclosure agreement and must not be shared.
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…

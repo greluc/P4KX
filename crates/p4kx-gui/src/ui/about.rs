@@ -13,11 +13,9 @@ use crate::{AboutText, ExtractionText, Language, Model, Text};
 
 const PROJECT_URL: &str = "https://github.com/p4kx-org/p4kx";
 
-const SOURCE_AFTER: usize = 1;
+const BEFORE_SOURCE: [AboutText; 2] = [AboutText::Copyright, AboutText::Licence];
 
-const PARAGRAPHS: [AboutText; 7] = [
-    AboutText::Copyright,
-    AboutText::Licence,
+const AFTER_SOURCE: [AboutText; 5] = [
     AboutText::FanProject,
     AboutText::NoGameData,
     AboutText::Responsibility,
@@ -30,7 +28,8 @@ struct Strings {
     title: String,
     version: String,
     source: String,
-    paragraphs: [String; PARAGRAPHS.len()],
+    before_source: [String; BEFORE_SOURCE.len()],
+    after_source: [String; AFTER_SOURCE.len()],
     close_label: String,
     close_dialog: String,
 }
@@ -45,7 +44,8 @@ impl Strings {
                 &[("version", env!("CARGO_PKG_VERSION").into())],
             ),
             source: texts.get(AboutText::Source),
-            paragraphs: PARAGRAPHS.map(|text| texts.get(text)),
+            before_source: BEFORE_SOURCE.map(|text| texts.get(text)),
+            after_source: AFTER_SOURCE.map(|text| texts.get(text)),
             close_label: texts.get(ExtractionText::Close),
             close_dialog: texts.get(Text::CloseDialog),
         }
@@ -82,11 +82,12 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         frames::scrolling_body(ui, "about-body", |ui| {
             ui.spacing_mut().item_spacing.y = SPACE_3;
             paragraph(ui, &strings.version, Weight::Bold);
-            for (index, text) in strings.paragraphs.iter().enumerate() {
+            for text in &strings.before_source {
                 paragraph(ui, text, Weight::Regular);
-                if index == SOURCE_AFTER {
-                    source_link(ui, &strings.source);
-                }
+            }
+            source_link(ui, &strings.source);
+            for text in &strings.after_source {
+                paragraph(ui, text, Weight::Regular);
             }
         });
         frames::foot_rule(ui);

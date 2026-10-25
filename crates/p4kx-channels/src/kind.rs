@@ -5,6 +5,9 @@ use std::path::Path;
 
 use crate::channel_name;
 
+const EPTU_NDA: &str = "The content of EPTU may also be covered by a non-disclosure agreement and \
+                        must not be shared.";
+
 /// The kind of a Channel, told by the name of the installation folder that holds its Archive.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ChannelKind {
@@ -58,8 +61,8 @@ impl ChannelKind {
         }
     }
 
-    /// Returns whether Archives of this kind hold material of a Star Citizen test build, whose
-    /// publication the Terms of Service forbid. `LIVE` and unknown kinds hold none.
+    /// Returns whether Archives of this kind carry Star Citizen test builds, whose material is
+    /// confidential. `LIVE` and unknown kinds do not.
     #[must_use]
     pub const fn is_test_build(self) -> bool {
         matches!(
@@ -72,10 +75,15 @@ impl ChannelKind {
     #[must_use]
     pub fn notice(self) -> Option<String> {
         let name = self.name().filter(|_| self.is_test_build())?;
-        Some(format!(
+        let mut notice = format!(
             "This Archive belongs to the {name} Channel, which carries Star Citizen test builds. \
              Material of test builds is confidential under the Star Citizen Terms of Service: do \
              not share or publish anything taken from it."
-        ))
+        );
+        if self == Self::Eptu {
+            notice.push(' ');
+            notice.push_str(EPTU_NDA);
+        }
+        Some(notice)
     }
 }

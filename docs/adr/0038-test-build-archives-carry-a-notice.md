@@ -27,3 +27,9 @@ instead of refusing.
 - Wording (#368): the notice calls the Channel one that carries Star Citizen test builds, not a
   build. The GUI text has a plural form for the Comparison tab, which names both test Channels when
   the two Archives live in different ones. The formatted text is cached per language.
+- EPTU (decided by the owner for #368): the Channel of the Evocati test universe. Its notice adds a
+  sentence that the content may also be covered by a non-disclosure agreement
+  (`Geheimhaltungsvereinbarung`) and must not be shared. The GUI holds it as its own Fluent message
+  appended whenever EPTU is among the Channels shown; the CLI and MCP get it from
+  `ChannelKind::notice`. PTU, HOTFIX and TECH-PREVIEW stay as they are. p4kx has no separate
+  Evocati Channel.

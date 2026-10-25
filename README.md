@@ -114,8 +114,8 @@ Early development (milestone M1). Available today:
   lines to stderr for the Entries concerned.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
-  structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
-  supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
+  structs and enums. DataForge versions 6 and 8 are read; any other version, version 5 and older included, is
+  reported as not supported with exit code 5 (ADR-0136), and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
   `[--lang <language>] [--tags] [--out <folder>] [--conflict …]` writes Records as Record XML
   ([docs/record-xml.md](docs/record-xml.md)) or Record JSON

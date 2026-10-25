@@ -32,7 +32,10 @@ fn new_output(library: &Path, name: &str) -> PathBuf {
 fn assert_nothing_created(out: &Path) -> TestResult {
     assert!(!out.exists(), "no file is created inside the installation");
     let parent = out.parent().ok_or("no parent")?;
-    assert!(!parent.exists(), "no folder is created inside the installation");
+    assert!(
+        !parent.exists(),
+        "no folder is created inside the installation"
+    );
     Ok(())
 }
 

@@ -7,14 +7,15 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_assembly::audio::{
-    ArchiveAudio, ExportOptions, ExportReport, ExportState, SoundFormat, TriggerSounds,
+    ArchiveAudio, ExportOptions, ExportReport, ExportState, ExportWatch, SoundFormat, TriggerSounds,
 };
+use p4kx_extraction::CancelToken;
 use serde::Serialize;
 
 use crate::cli::AudioOutput;
 use crate::cli_wwise::{SoundExportArgs, WwiseExtractArgs};
 use crate::entity_audio::{IssueJson, issues_json, warn};
-use crate::extract::policy;
+use crate::extract::{cancel_on_interrupt, policy};
 use crate::wwise::{UnknownTrigger, language_choice};
 use crate::wwise_json::{self, LanguageJson, TriggerJson};
 use crate::{exit, json};
@@ -39,6 +40,7 @@ pub(crate) struct ExportJson {
     kept: usize,
     unconverted: usize,
     failed: usize,
+    cancelled: bool,
     files: Vec<FileJson>,
     failures: Vec<FailureJson>,
 }
@@ -75,12 +77,14 @@ pub(crate) fn export(
     triggers: &[&TriggerSounds<'_>],
     out: &Path,
     args: &SoundExportArgs,
+    cancel: &CancelToken,
 ) -> Result<ExportReport> {
     let options = ExportOptions {
         format: sound_format(args.format),
         policy: policy(args.conflict),
     };
-    Ok(audio.export_sounds(triggers, out, options)?)
+    let watch = ExportWatch::linked(cancel.clone());
+    Ok(audio.export_sounds_watched(triggers, out, options, &watch)?)
 }
 
 /// Returns the JSON shape of `report`.
@@ -96,6 +100,7 @@ pub(crate) fn export_json(report: &ExportReport, out: &Path, args: &SoundExportA
         kept: report.kept_count(),
         unconverted: report.unconverted_count(),
         failed: report.failures.len(),
+        cancelled: report.cancelled,
         files: report
             .sounds
             .iter()
@@ -145,6 +150,12 @@ pub(crate) fn print_report(report: &ExportReport, out: &Path) -> io::Result<()> 
             failure.trigger, failure.reason
         )?;
     }
+    if report.cancelled {
+        writeln!(
+            stderr,
+            "error: cancelled; the remaining sounds were not exported"
+        )?;
+    }
     writeln!(
         io::stdout().lock(),
         "wrote {} sounds into {}; {} kept, {} written unchanged because they cannot be converted, {} failed",
@@ -167,6 +178,7 @@ pub(crate) fn exit_code(report: &ExportReport) -> ExitCode {
 
 /// Runs `p4kx wwise extract`.
 pub(crate) fn run(args: &WwiseExtractArgs, as_json: bool) -> Result<ExitCode> {
+    let cancel = cancel_on_interrupt()?;
     let archive = crate::key::open(&args.archive)?;
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
@@ -174,7 +186,7 @@ pub(crate) fn run(args: &WwiseExtractArgs, as_json: bool) -> Result<ExitCode> {
     let sounds = audio
         .resolve_trigger_in(&args.trigger, &choice)
         .ok_or_else(|| UnknownTrigger::new(&args.trigger))?;
-    let report = export(&audio, &[&sounds], &args.out, &args.export)?;
+    let report = export(&audio, &[&sounds], &args.out, &args.export, &cancel)?;
     if as_json {
         json::print(&ExtractJson {
             archive: json::path(archive.path()),

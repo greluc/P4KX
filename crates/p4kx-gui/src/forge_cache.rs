@@ -15,26 +15,13 @@ use p4kx_extraction::{MAX_INDEXED_REFERENCES, ReferenceIndex};
 
 use crate::EntryIndex;
 use crate::model::describe;
+use waiting::Waiting;
+
+mod waiting;
 
 /// How often a consumer waiting for its turn to read DataForge or to build the index of References
 /// looks at its stop flag.
 const TURN_POLL: Duration = Duration::from_millis(25);
-
-/// A consumer waiting for the read of DataForge, counted until it is dropped.
-struct Waiting<'a>(&'a AtomicUsize);
-
-impl<'a> Waiting<'a> {
-    fn new(count: &'a AtomicUsize) -> Self {
-        count.fetch_add(1, Ordering::AcqRel);
-        Self(count)
-    }
-}
-
-impl Drop for Waiting<'_> {
-    fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::AcqRel);
-    }
-}
 
 /// The DataForge of one open Archive as every consumer reads it: its Entry, read once, the files
 /// of its Records, planned once per form, and the Query completion schema, built once.

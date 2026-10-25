@@ -31,7 +31,11 @@ pub(crate) fn warn(archive: &Archive) -> io::Result<()> {
     }
     let shown = issues.len().min(SHOWN);
     if count > shown {
-        writeln!(err, "warning: {} more Entry issues not shown", count - shown)?;
+        writeln!(
+            err,
+            "warning: {} more Entry issues not shown",
+            count - shown
+        )?;
     }
     Ok(())
 }

@@ -79,7 +79,7 @@ fn dense_overlapping_signatures_stop_at_the_work_budget() {
     let started = Instant::now();
     let found = scan(&source, 0).expect("scan");
 
-    assert!(found.entries.is_empty());
+    assert_eq!(found.entries.len(), 0);
     assert!(found.cut, "the budget ends the scan");
     assert!(started.elapsed() < Duration::from_secs(20));
 }

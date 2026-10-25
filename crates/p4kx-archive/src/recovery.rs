@@ -146,7 +146,7 @@ struct Found {
 }
 
 enum Outcome {
-    Found(Found),
+    Found(Box<Found>),
     Rejected,
     OverBudget,
 }
@@ -197,6 +197,17 @@ fn accept(
             Checked::OverBudget => return Ok(Outcome::OverBudget),
         }
     }
+    finish(source, record, candidate, index, (local, budget))
+}
+
+fn finish(
+    source: &Source,
+    record: &[u8],
+    candidate: u64,
+    index: usize,
+    (local, budget): (Option<LocalStart>, &mut u64),
+) -> Result<Outcome, FormatError> {
+    let total = record.len();
     if !charge(budget, total) {
         return Ok(Outcome::OverBudget);
     }
@@ -226,12 +237,12 @@ fn accept(
     {
         log.record(index, EntryIssue::DataOutsideFile);
     }
-    Ok(Outcome::Found(Found {
+    Ok(Outcome::Found(Box::new(Found {
         entry,
         len,
         p4k: header.zip64_block || local.cig,
         log,
-    }))
+    })))
 }
 
 enum Checked {

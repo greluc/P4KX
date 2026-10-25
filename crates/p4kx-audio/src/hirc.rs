@@ -18,6 +18,8 @@ const LAST_OLD_TYPE_NUMBERING_VERSION: u32 = 126;
 const PLUGIN_TYPE_MASK: u32 = 0x0F;
 const LANGUAGE_SPECIFIC_BIT: u8 = 0x01;
 const SOURCE_PLUGIN_TYPE: u32 = 2;
+const EXTERNAL_SOURCE_PLUGIN_ID: u32 = 0x0008_0001;
+const MIDI_PLUGIN_ID: u32 = 0x0010_0001;
 const PLAY_ACTION_GROUP: u16 = 0x04;
 const LAST_FIXED_EVENT_COUNT_VERSION: u32 = 122;
 
@@ -179,6 +181,26 @@ impl SoundSource {
     #[must_use]
     pub const fn is_source_plugin(&self) -> bool {
         self.plugin_id & PLUGIN_TYPE_MASK == SOURCE_PLUGIN_TYPE
+    }
+
+    /// Returns whether the source is the External Source plug-in, whose media the game hands in
+    /// at runtime, so that no bank or loose file holds it.
+    #[must_use]
+    pub const fn is_external_source(&self) -> bool {
+        self.plugin_id == EXTERNAL_SOURCE_PLUGIN_ID
+    }
+
+    /// Returns whether the source is the MIDI plug-in, whose media is a MIDI file, not a WEM.
+    #[must_use]
+    pub const fn is_midi(&self) -> bool {
+        self.plugin_id == MIDI_PLUGIN_ID
+    }
+
+    /// Returns whether a media file stands behind the source: neither a generating plug-in nor an
+    /// external source.
+    #[must_use]
+    pub const fn has_media_file(&self) -> bool {
+        !self.is_source_plugin() && !self.is_external_source()
     }
 
     /// Returns whether the media is language-specific: its WEM lies in the folder of a language,

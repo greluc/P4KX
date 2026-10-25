@@ -98,7 +98,7 @@ impl Tally {
     fn convert(&mut self, label: &str, bytes: &[u8]) {
         let wem = match Wem::parse(bytes) {
             Ok(wem) => wem,
-            Err(AudioError::PluginMedia) => {
+            Err(AudioError::PluginMedia | AudioError::MidiMedia) => {
                 self.plugin_media += 1;
                 return;
             }
@@ -327,7 +327,7 @@ fn extract_banks(path: &Path) -> TestResult {
                     failure.error,
                     ConversionError::PrefetchedWem { .. }
                         | ConversionError::Audio {
-                            source: AudioError::PluginMedia,
+                            source: AudioError::PluginMedia | AudioError::MidiMedia,
                             ..
                         }
                 )

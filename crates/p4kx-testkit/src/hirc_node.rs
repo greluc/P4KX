@@ -62,8 +62,25 @@ impl TestHircObject {
     /// has no WEM.
     #[must_use]
     pub fn plugin_sound(id: u32, source_id: u32) -> Self {
+        Self::sound_of_plugin(id, source_id, 0x0065_0002)
+    }
+
+    /// A Sound object whose source is the External Source plug-in `0x0008_0001`, which the game
+    /// resolves at runtime and no bank holds.
+    #[must_use]
+    pub fn external_sound(id: u32, source_id: u32) -> Self {
+        Self::sound_of_plugin(id, source_id, 0x0008_0001)
+    }
+
+    /// A Sound object whose source is the MIDI plug-in `0x0010_0001`, stored in a bank.
+    #[must_use]
+    pub fn midi_sound(id: u32, source_id: u32) -> Self {
+        Self::sound_of_plugin(id, source_id, 0x0010_0001)
+    }
+
+    fn sound_of_plugin(id: u32, source_id: u32, plugin_id: u32) -> Self {
         let mut body = Vec::new();
-        put_u32(&mut body, 0x0065_0002);
+        put_u32(&mut body, plugin_id);
         body.push(0);
         put_u32(&mut body, source_id);
         body.extend_from_slice(&[0; 9]);

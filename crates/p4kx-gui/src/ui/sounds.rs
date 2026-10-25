@@ -329,6 +329,8 @@ fn selected(ui: &mut Ui, model: &Model, list: &SoundList) -> Option<AudioAction>
         Playable::Yes => None,
         Playable::PrefetchOnly => Some(SoundsText::NotePrefetch),
         Playable::Plugin => Some(SoundsText::NotePlugin),
+        Playable::External => Some(SoundsText::NoteExternal),
+        Playable::Midi => Some(SoundsText::NoteMidi),
         Playable::Missing => Some(SoundsText::NoteMissing),
     };
     if let Some(note) = note {

@@ -40,6 +40,7 @@ enum Kind {
     Sound(SoundInfo),
     Prefetch,
     Plugin,
+    Midi,
     Unreadable,
 }
 
@@ -51,6 +52,7 @@ impl BankSound {
             match wem.parse() {
                 Ok(parsed) => Kind::Sound(SoundInfo::of(&parsed)),
                 Err(AudioError::PluginMedia) => Kind::Plugin,
+                Err(AudioError::MidiMedia) => Kind::Midi,
                 Err(_) => Kind::Unreadable,
             }
         };
@@ -87,10 +89,17 @@ impl BankSound {
         matches!(self.kind, Kind::Plugin)
     }
 
-    /// Returns whether the WEM can be decoded: it is neither a prefetched start nor plug-in media.
+    /// Returns whether the media is a MIDI file, which holds no sound to decode.
+    #[must_use]
+    pub const fn is_midi(&self) -> bool {
+        matches!(self.kind, Kind::Midi)
+    }
+
+    /// Returns whether the WEM can be decoded: it is neither a prefetched start, plug-in media
+    /// nor MIDI.
     #[must_use]
     pub const fn is_playable(&self) -> bool {
-        !matches!(self.kind, Kind::Prefetch | Kind::Plugin)
+        !matches!(self.kind, Kind::Prefetch | Kind::Plugin | Kind::Midi)
     }
 
     /// Returns what the header says about the sound, or `None` for a prefetched start, plug-in

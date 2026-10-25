@@ -16,6 +16,7 @@ mod bnk_versions;
 mod codec_tag_2;
 mod loops;
 mod loops_ogg;
+mod media_class;
 mod ogg;
 mod opus;
 mod opus_corrupt;

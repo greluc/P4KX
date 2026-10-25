@@ -125,6 +125,8 @@ fn selected(
     if !sound.is_playable() {
         let text = if sound.is_prefetch() {
             AudioText::PrefetchedNote
+        } else if sound.is_midi() {
+            AudioText::MidiNote
         } else {
             AudioText::PluginNote
         };

@@ -516,6 +516,8 @@ audio-prefetched = Prefetched
 audio-prefetched-note = WEM { $id } is only prefetched in this soundbank and cannot be played here. The loose WEM Entry with the same ID holds the whole sound.
 audio-plugin = Plug-in
 audio-plugin-note = WEM { $id } is plug-in media, such as a convolution reverb impulse, and holds no sound to play.
+audio-midi = MIDI
+audio-midi-note = Media { $id } is a MIDI file and holds no sound to play.
 audio-bank-summary =
     { $size } · { $count ->
         [one] { $number } WEM
@@ -694,6 +696,8 @@ sounds-source-embedded = Embedded
 sounds-source-prefetch = Prefetched
 sounds-source-streamed = Streamed
 sounds-source-plugin = Plug-in
+sounds-source-external = External
+sounds-source-midi = MIDI
 sounds-source-other = Other
 sounds-language-fallback = { $language } (fallback)
 sounds-variant-row = { $name }: { $bank }, WEM { $id }
@@ -701,6 +705,8 @@ sounds-detail = { $path }, WEM { $id }, { $source }
 sounds-select-variant = Select a sound to play it.
 sounds-note-prefetch = Only the start of this streamed sound is embedded and its loose WEM Entry is missing, so it cannot be played.
 sounds-note-plugin = A source plug-in generates this sound; no WEM holds it.
+sounds-note-external = An external source supplies this sound at runtime; no file holds it.
+sounds-note-midi = This sound is a MIDI file and cannot be played here.
 sounds-note-missing = No soundbank or loose WEM Entry holds this WEM.
 sounds-export-title = Export sounds
 sounds-export-scope = Triggers

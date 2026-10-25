@@ -52,7 +52,9 @@ pub(super) fn search_rows(page: &SearchPage<'_>) -> Vec<TriggerRow> {
 fn variant(variant: &SoundVariant<'_>) -> Variant {
     let kind = variant.source_kind();
     let (playable, playback) = match (variant.wem_id(), kind, variant.location()) {
+        (None, SourceKind::External, _) => (Playable::External, None),
         (None, _, _) | (_, SourceKind::Plugin, _) => (Playable::Plugin, None),
+        (_, SourceKind::Midi, _) => (Playable::Midi, None),
         (Some(_), SourceKind::PrefetchStreamed, Some(WemLocation::Soundbank { .. })) => {
             (Playable::PrefetchOnly, None)
         }

@@ -51,7 +51,8 @@ pub(super) fn build(triggers: &[&TriggerSounds<'_>]) -> Plan {
                     trigger: trigger.to_owned(),
                     wem_id: None,
                     reason: format!(
-                        "plug-in source {} has no WEM to write",
+                        "{} source {} has no file to write",
+                        variant.source_kind().name(),
                         variant.source().source_id
                     ),
                 });

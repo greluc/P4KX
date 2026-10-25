@@ -148,7 +148,13 @@ pub(crate) fn variant_line(variant: &SoundVariant<'_>) -> String {
         None => "not located".to_owned(),
     };
     let media = variant.wem_id().map_or_else(
-        || format!("plug-in source {}, no WEM", variant.source().source_id),
+        || {
+            format!(
+                "{} source {}, no file",
+                variant.source_kind().name(),
+                variant.source().source_id
+            )
+        },
         |wem| {
             format!(
                 "WEM {wem} {}{}, {location}",

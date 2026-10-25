@@ -548,8 +548,8 @@ decoded, which then carries the reason in `unconverted`. A file is named `<trigg
 trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
-sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank or loose Entry
-holds. Exit code 1 when anything is in `failures` or `unconverted`.
+sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
+soundbank or loose Entry holds. Exit code 1 when anything is in `failures` or `unconverted`.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
@@ -582,8 +582,8 @@ A **Variant**:
 | `event` | string | The Wwise event it is reached from |
 | `soundbank` | object | `path` and `language` of the soundbank whose `HIRC` section leads to it |
 | `sound_id` | number | ID of the Sound object |
-| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in, which has no WEM |
-| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` or `other` |
+| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in or an external source, which have no file |
+| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` (generated, no file), `external` (supplied by the game at runtime, no file), `midi` (a MIDI file, located like a WEM) or `other` |
 | `localised` | boolean | The source is language-specific or its soundbank lies in a language folder |
 | `language` | string or `null` | The language folder the WEM was found in, for a localised variant with a location |
 | `fallback` | boolean | `language` is the fallback language, not `requested` |
@@ -1148,17 +1148,20 @@ Also `p4kx bnk list <file> --json` for a soundbank file on disk.
 
 ```json
 {"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "version": 154, "bank_id": 3512036681,
- "wems": [{"id": 100, "size": 4852, "codec": "pcm", "codec_name": "PCM", "sample_count": 1200,
-           "duration_seconds": 0.025, "prefetch": false, "error": null},
-          {"id": 400, "size": 120, "codec": null, "codec_name": null, "sample_count": null,
-           "duration_seconds": null, "prefetch": true, "error": null}]}
+ "wems": [{"id": 100, "size": 4852, "class": "wem", "codec": "pcm", "codec_name": "PCM",
+           "sample_count": 1200, "duration_seconds": 0.025, "prefetch": false, "error": null},
+          {"id": 400, "size": 120, "class": "wem", "codec": null, "codec_name": null,
+           "sample_count": null, "duration_seconds": null, "prefetch": true, "error": null}]}
 ```
 
-`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded WEM in
+`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded media item in
 ascending ID order: `size` is its size in the bank, and `codec` to `duration_seconds` are as in
-`p4kx audio info`. `prefetch` is `true` when the bank holds only the start of a streamed WEM, whose
-whole file is the loose WEM of the same ID; its codec is then not read. `error` names why a WEM
-cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
+`p4kx audio info`. `class` tells what the item holds from its first bytes: `wem` (a RIFF or RIFX
+WAVE file), `midi` (a MIDI file), `impulse` (Wwise plug-in data such as a convolution reverb's
+impulse response) or `unknown`. `prefetch` is `true` when the bank holds only the start of a
+streamed WEM, whose whole file is the loose WEM of the same ID; its codec is then not read.
+`error` names why a `wem` cannot be read, or the class of `unknown` media; for `midi` and
+`impulse` it is `null`, and the other fields are `null` too. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
 ## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`

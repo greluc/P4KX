@@ -211,7 +211,7 @@ impl EntryWriter<'_> {
         } else {
             match Wem::parse(bytes) {
                 Ok(wem) => Ok(Some(wem)),
-                Err(AudioError::PluginMedia) => Ok(None),
+                Err(AudioError::PluginMedia | AudioError::MidiMedia) => Ok(None),
                 Err(error) => Err(error),
             }
         };

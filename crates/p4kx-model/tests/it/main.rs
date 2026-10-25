@@ -6,6 +6,7 @@
 mod animation;
 mod animation_bind;
 mod animation_corrupt;
+mod animation_header;
 mod corrupt;
 mod crch;
 mod crch_corrupt;

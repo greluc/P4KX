@@ -1,0 +1,50 @@
+# `model info` lists animations from their headers, and additive ones stay uncomposed
+
+Decided for issue #386. Follows up ADR-0046 and ADR-0151.
+
+`p4kx model info` read every `.caf` and `.dba` in the model's folders and decoded every key,
+only to print names, durations and counts. #386 asked to list from the headers and to say whether
+additive animations can be composed onto a base.
+
+## Decision
+
+- **Header listing.** `AnimationListing` (`p4kx-extraction`) is what `AnimationSet` is for
+  `AnimationChoice::All`, with `AnimationHeader` in place of `Animation`: name, path, frame rate,
+  end frame, additive flag, the controller IDs of the tracks that have keys, and the number of
+  keys they declare. `AnimationHeader::read_caf` and `DbaHeaders::read` read the record, the block
+  headers and the controller entries and decode no key. They apply the same limits as the
+  decoders (frame rate, signatures, bounds, the key budgets), so a file that fails there fails
+  in both. `p4kx model info` (text and `--json`) uses it; the MCP tools and the GUI keep their
+  own reads. The selection (folders, `--anim-from`, additive ones listed as unread) is the one
+  code path of `AnimationSet`, generic over what a file loads to.
+- **What the listing does not notice.** An animation whose keys the decoder refuses (an unknown
+  key format) is listed from its header and skipped only when it is decoded for an export. The
+  duration is the end frame over the frame rate; the full read takes the later of the end frame
+  and the last key, and in the 70,058 animations of LIVE both are equal
+  (`every_header_of_the_archive_agrees_with_the_decoded_animation`).
+- **Where the cost was.** Before the change a call of `AnimationSet::from_archive` took 105 to
+  120 ms on LIVE for every model, also for a folder without an animation, and 7 files or 52 files
+  made no difference: the folder lookup normalised and compared the path of every Entry of the
+  Archive on one thread. It now compares the folder in place, case-insensitively and without
+  allocating, over the Entries in parallel, and takes 4 to 7 ms. The decoding of a folder's files
+  is about 1 ms; the header listing saves that and the memory of the keys, which only matters for
+  a database of thousands of animations named with `--anim-from`.
+- **Checker.** The testkit's GLB checker compares the `min` and `max` of the key times with the
+  first and last time (the claim of ADR-0046), not only that they exist.
+- **Additive animations stay uncomposed.** ADR-0046 still holds: they are written only when
+  named, with the note that the pose needs a base. Composing them needs two facts the data does
+  not give. Which pose the offsets apply to (the bind pose, or the matching frame of a base
+  animation) and the order of the multiplication (offset times base, or base times offset) are
+  engine behaviour; the keys of the 1,475 additive `.caf` files and 1,905 database animations
+  lie near the identity (docs/model-animations.md) whichever convention is right, so no
+  measurement on the Archive tells the conventions apart, and no field of the records read so far
+  names a base. Writing a guess would pose a skeleton wrongly without any sign of it. This is
+  reopened if a base is named by a source (an animation graph or `.chrparams` entry) and a
+  convention is confirmed against the game.
+
+## Consequences
+
+- `AnimationInfo` has public fields and is `#[non_exhaustive]`; `ModelInfo::of_listing` takes the
+  listing, `ModelInfo::of` the set.
+- The error chain of an unreadable animation file names the file once
+  (`cannot read the animation file`, then the cause).

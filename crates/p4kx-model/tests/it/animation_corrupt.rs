@@ -6,7 +6,10 @@
 use std::error::Error;
 
 use p4kx_chunks::ChunkFile;
-use p4kx_model::{Animation, AnimationError, CorruptAnimation, Dba, MAX_ANIMATION_KEYS};
+use p4kx_model::{
+    Animation, AnimationError, AnimationHeader, CorruptAnimation, Dba, DbaHeaders,
+    MAX_ANIMATION_KEYS,
+};
 use p4kx_testkit::{TestAnimation, TestChunkFile, TestDba, TestTimes, TestTrack};
 use proptest::collection::vec;
 use proptest::prelude::*;
@@ -295,6 +298,10 @@ fn check(bytes: &[u8]) -> Result<(), TestCaseError> {
     if let Ok(file) = ChunkFile::parse(bytes) {
         let caf = Animation::read_caf("a.caf", &file);
         let dba = Dba::read("a.dba", &file);
+        if let Ok(header) = AnimationHeader::read_caf("a.caf", &file) {
+            prop_assert!(header.duration_seconds().is_finite(), "header duration");
+        }
+        drop(DbaHeaders::read("a.dba", &file));
         if let Ok(animation) = caf {
             prop_assert!(animation.duration_seconds().is_finite(), "duration");
             for track in &animation.tracks {

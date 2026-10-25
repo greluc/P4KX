@@ -18,6 +18,7 @@ use p4kx_testkit::{check_glb, real_archive_path};
 use rayon::prelude::*;
 
 mod formats;
+mod listing;
 mod reach;
 mod support;
 

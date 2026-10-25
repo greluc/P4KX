@@ -13,14 +13,14 @@ pub const MAX_ANIMATION_KEYS: u64 = 1 << 22;
 /// The most keys all animations of one database may declare together.
 pub const MAX_DATABASE_KEYS: u64 = 1 << 24;
 
-const ANIM_INFO_VERSION: u32 = 0x901;
-const CAF_DATA_VERSION: u32 = 0x900;
+pub(crate) const ANIM_INFO_VERSION: u32 = 0x901;
+pub(crate) const CAF_DATA_VERSION: u32 = 0x900;
 pub(crate) const RECORD_LEN: usize = 48;
 const BLOCK_HEADER_LEN: usize = 12;
 const CONTROLLER_LEN: usize = 24;
 const SIDE_LEN: usize = 12;
 const ADDITIVE: u32 = 1;
-const CAF_SIGNATURE: [u8; 4] = *b"#caf";
+pub(crate) const CAF_SIGNATURE: [u8; 4] = *b"#caf";
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Record {
@@ -111,16 +111,44 @@ pub(crate) fn declared_keys(data: &[u8], block: &Block) -> Result<u64, CorruptAn
         .as_chunks::<CONTROLLER_LEN>()
         .0
         .iter()
-        .map(|entry| {
-            let count = |at: usize| {
-                entry
-                    .get(at..at + 2)
-                    .and_then(|pair| <[u8; 2]>::try_from(pair).ok())
-                    .map_or(0, u16::from_le_bytes)
-            };
-            u64::from(count(0)) + u64::from(count(SIDE_LEN))
-        })
+        .map(side_keys)
         .sum())
+}
+
+fn side_keys(entry: &[u8; CONTROLLER_LEN]) -> u64 {
+    let count = |at: usize| {
+        entry
+            .get(at..at + 2)
+            .and_then(|pair| <[u8; 2]>::try_from(pair).ok())
+            .map_or(0, u16::from_le_bytes)
+    };
+    u64::from(count(0)) + u64::from(count(SIDE_LEN))
+}
+
+/// Returns the controller IDs of the tracks of `block` that have keys, in order, and the number
+/// of keys they declare, without decoding any key.
+pub(crate) fn listed_tracks(
+    data: &[u8],
+    block: &Block,
+) -> Result<(Vec<u32>, usize), CorruptAnimation> {
+    let hashes = bytes_at(data, block.at + BLOCK_HEADER_LEN, 4 * block.count)?;
+    let controllers_at = block.at + BLOCK_HEADER_LEN + 4 * block.count;
+    let controllers = bytes_at(data, controllers_at, block.count * CONTROLLER_LEN)?;
+    let mut ids = Vec::with_capacity(block.count);
+    let mut keys = 0_usize;
+    for (hash, entry) in hashes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip(controllers.as_chunks::<CONTROLLER_LEN>().0)
+    {
+        let declared = side_keys(entry);
+        if declared > 0 {
+            ids.push(u32::from_le_bytes(*hash));
+            keys = keys.saturating_add(usize::try_from(declared).unwrap_or(usize::MAX));
+        }
+    }
+    Ok((ids, keys))
 }
 
 pub(crate) fn decode_tracks(data: &[u8], block: &Block) -> Result<Vec<Track>, CorruptAnimation> {

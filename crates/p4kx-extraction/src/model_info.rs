@@ -14,7 +14,7 @@ use serde::Serialize;
 
 use crate::model_info_animations::{AnimationInfo, UnreadInfo};
 use crate::model_info_materials::{LibraryInfo, MaterialInfo};
-use crate::{AnimationSet, ModelSource};
+use crate::{AnimationListing, AnimationSet, ModelSource};
 
 /// What `p4kx model info --json` says about a model, and what front-ends serialise of it.
 #[derive(Debug, Serialize)]
@@ -53,6 +53,28 @@ impl<'a> ModelInfo<'a> {
     /// Describes `source` and the `animations` read for it.
     #[must_use]
     pub fn of(source: &'a ModelSource, animations: &AnimationSet) -> Self {
+        Self::with_animations(
+            source,
+            AnimationInfo::of_set(source.model(), animations),
+            animations.unread.iter().map(UnreadInfo::of).collect(),
+        )
+    }
+
+    /// Describes `source` and the `listing` of the animations found for it.
+    #[must_use]
+    pub fn of_listing(source: &'a ModelSource, listing: &AnimationListing) -> Self {
+        Self::with_animations(
+            source,
+            AnimationInfo::of_listing(source.model(), listing),
+            listing.unread.iter().map(UnreadInfo::of).collect(),
+        )
+    }
+
+    fn with_animations(
+        source: &'a ModelSource,
+        animations: Vec<AnimationInfo>,
+        unread_animations: Vec<UnreadInfo>,
+    ) -> Self {
         let model = source.model();
         Self {
             model: source.name(),
@@ -66,8 +88,8 @@ impl<'a> ModelInfo<'a> {
             nodes: NodeInfo::of_model(model),
             lods: LodInfo::of_model(model),
             bones: BoneInfo::of_model(model),
-            animations: AnimationInfo::of_set(model, animations),
-            unread_animations: animations.unread.iter().map(UnreadInfo::of).collect(),
+            animations,
+            unread_animations,
             chunks: ChunkInfo::of_model(model),
         }
     }

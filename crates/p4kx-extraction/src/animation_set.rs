@@ -4,9 +4,11 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_model::Animation;
+use rayon::prelude::*;
 
-use crate::animation_load::kind;
+use crate::animation_load::{kind, load};
 use crate::animation_select::read;
+use crate::animation_sources::{disk_sources, open_entry, with_extras};
 use crate::{CancelToken, ChunkSource, ConversionError, Entry, PathIndex};
 
 /// The largest `.caf` or `.dba` file read into memory, far above the largest of a real Archive.
@@ -106,18 +108,29 @@ fn folders(entry: &str) -> Vec<String> {
     folders
 }
 
-fn folder_entries<'i>(index: &PathIndex<'i>, model_entry: &str) -> Vec<&'i Entry> {
+fn same_folder(folder: &str, wanted: &str) -> bool {
+    folder.len() == wanted.len()
+        && folder.bytes().zip(wanted.bytes()).all(|(found, wanted)| {
+            let found = if found == b'\\' { b'/' } else { found };
+            found.eq_ignore_ascii_case(&wanted)
+        })
+}
+
+fn in_folders(path: &str, folders: &[String]) -> bool {
+    path.rfind(['/', '\\'])
+        .and_then(|at| path.get(..at))
+        .is_some_and(|folder| folders.iter().any(|wanted| same_folder(folder, wanted)))
+}
+
+pub(crate) fn folder_entries<'i>(index: &PathIndex<'i>, model_entry: &str) -> Vec<&'i Entry> {
     let folders = folders(model_entry);
     index
         .archive()
         .entries()
-        .iter()
+        .par_iter()
         .filter(|entry| {
             let path = entry.path();
-            kind(path).is_some()
-                && normalised(path)
-                    .rsplit_once('/')
-                    .is_some_and(|(folder, _)| folders.iter().any(|wanted| wanted == folder))
+            kind(path).is_some() && in_folders(path, &folders)
         })
         .collect()
 }
@@ -129,7 +142,7 @@ fn within(bounds: &AnimationBounds, mut sizes: impl ExactSizeIterator<Item = u64
             .is_some_and(|bytes| bytes <= bounds.bytes)
 }
 
-fn source_of(entry: &Entry) -> Source {
+pub(crate) fn source_of(entry: &Entry) -> Source {
     Source {
         label: entry.path().to_owned(),
         explicit: false,
@@ -248,47 +261,19 @@ impl AnimationSet {
 
     fn from_sources(
         index: &PathIndex<'_>,
-        mut sources: Vec<Source>,
+        sources: Vec<Source>,
         choice: &AnimationChoice,
         extra: &[String],
         cancel: Option<&CancelToken>,
     ) -> Result<Self, ConversionError> {
-        for path in extra {
-            let entry = index
-                .find(path)
-                .ok_or_else(|| crate::UnknownEntries(vec![path.clone()]))?;
-            if kind(entry.path()).is_none() {
-                return Err(ConversionError::NotAnimationFile {
-                    file: entry.path().to_owned(),
-                });
-            }
-            sources.push(Source {
-                label: entry.path().to_owned(),
-                explicit: true,
-                whole: false,
-            });
-        }
-        let named = match choice {
-            AnimationChoice::Named(specs) => specs.as_slice(),
-            AnimationChoice::All => &[],
-        };
-        for spec in named {
-            if kind(spec).is_some()
-                && let Some(entry) = index.find(spec)
-            {
-                sources.push(Source {
-                    label: entry.path().to_owned(),
-                    explicit: true,
-                    whole: true,
-                });
-            }
-        }
-        read(sources, choice, |label| {
-            if cancel.is_some_and(CancelToken::is_cancelled) {
-                return Err(ConversionError::Cancelled);
-            }
-            ChunkSource::from_index_limited(index, label, MAX_ANIMATION_FILE_LEN)
-        })
+        let sources = with_extras(index, sources, choice, extra)?;
+        read(
+            sources,
+            choice,
+            |label| open_entry(index, label, cancel),
+            load,
+        )
+        .map(Self::from)
     }
 
     /// Reads the animations `choice` selects from the `.caf` and `.dba` files in the folder of
@@ -303,48 +288,13 @@ impl AnimationSet {
         choice: &AnimationChoice,
         extra: &[PathBuf],
     ) -> Result<Self, ConversionError> {
-        let folder = model
-            .parent()
-            .filter(|folder| !folder.as_os_str().is_empty());
-        let listing = std::fs::read_dir(folder.unwrap_or_else(|| Path::new(".")));
-        let mut sources: Vec<Source> = listing
-            .into_iter()
-            .flatten()
-            .flatten()
-            .map(|entry| entry.path())
-            .filter(|path| path.is_file() && kind(&path.to_string_lossy()).is_some())
-            .map(|path| Source {
-                label: path.display().to_string(),
-                explicit: false,
-                whole: false,
-            })
-            .collect();
-        for path in extra {
-            let label = path.display().to_string();
-            if kind(&label).is_none() {
-                return Err(ConversionError::NotAnimationFile { file: label });
-            }
-            sources.push(Source {
-                label,
-                explicit: true,
-                whole: false,
-            });
-        }
-        if let AnimationChoice::Named(specs) = choice {
-            sources.extend(
-                specs
-                    .iter()
-                    .filter(|spec| kind(spec).is_some() && Path::new(spec).is_file())
-                    .map(|spec| Source {
-                        label: spec.clone(),
-                        explicit: true,
-                        whole: true,
-                    }),
-            );
-        }
-        let mut set = read(sources, choice, |label| {
-            ChunkSource::from_file(Path::new(label))
-        })?;
+        let sources = disk_sources(model, choice, extra)?;
+        let mut set = Self::from(read(
+            sources,
+            choice,
+            |label| ChunkSource::from_file(Path::new(label)),
+            load,
+        )?);
         set.inputs = set.origins.iter().map(PathBuf::from).collect();
         Ok(set)
     }

@@ -6,11 +6,11 @@ use p4kx_foundation::ByteReader;
 use rayon::prelude::*;
 
 use crate::animation_read::{
-    MAX_ANIMATION_KEYS, MAX_DATABASE_KEYS, RECORD_LEN, build, check_budget, chunk_bytes, corrupt,
-    declared_keys, decode_tracks, read_block, read_record, stem,
+    Block, MAX_ANIMATION_KEYS, MAX_DATABASE_KEYS, RECORD_LEN, build, check_budget, chunk_bytes,
+    corrupt, declared_keys, decode_tracks, listed_tracks, read_block, read_record, stem,
 };
 use crate::reader::to_usize;
-use crate::{Animation, AnimationError, CorruptAnimation};
+use crate::{Animation, AnimationError, AnimationHeader, CorruptAnimation};
 
 const DBA_DATA_VERSION: u32 = 0x900;
 const DBA_METADATA_VERSION: u32 = 0x902;
@@ -38,6 +38,39 @@ pub struct Dba {
     pub animations: Vec<Animation>,
     /// The animations that could not be read.
     pub skipped: Vec<SkippedAnimation>,
+}
+
+/// The headers of the animations of a `.dba` animation database.
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct DbaHeaders {
+    /// The animations whose headers were read, in the database's order.
+    pub animations: Vec<AnimationHeader>,
+    /// The animations whose record or block header is unusable.
+    pub skipped: Vec<SkippedAnimation>,
+}
+
+impl DbaHeaders {
+    /// Reads the headers of the animations of the `.dba` file `file` named `file_name` without
+    /// decoding a key; see [`Dba::read`] for the layout and the errors.
+    ///
+    /// # Errors
+    ///
+    /// As [`Dba::read`], except for errors in the keys themselves.
+    pub fn read<B: AsRef<[u8]>>(
+        file_name: &str,
+        file: &ChunkFile<B>,
+    ) -> Result<Self, AnimationError> {
+        let metadata = chunk_bytes(
+            file_name,
+            file,
+            ivo::DBA_METADATA,
+            DBA_METADATA_VERSION,
+            "DbaMetadata",
+        )?;
+        let data = chunk_bytes(file_name, file, ivo::DBA_DATA, DBA_DATA_VERSION, "DbaData")?;
+        read_headers(metadata, data).map_err(|(chunk, source)| corrupt(file_name, chunk, source))
+    }
 }
 
 impl Dba {
@@ -71,7 +104,79 @@ impl Dba {
     }
 }
 
-fn read_database(metadata: &[u8], data: &[u8]) -> Result<Dba, (&'static str, CorruptAnimation)> {
+type ChunkFailure = (&'static str, CorruptAnimation);
+
+struct Layout<'a> {
+    records: &'a [u8],
+    paths: Vec<String>,
+    blocks: Vec<Block>,
+}
+
+fn read_database(metadata: &[u8], data: &[u8]) -> Result<Dba, ChunkFailure> {
+    let Layout {
+        records,
+        paths,
+        blocks,
+    } = layout(metadata, data)?;
+    let count = blocks.len();
+    let decoded: Vec<_> = blocks
+        .par_iter()
+        .zip(records.par_chunks_exact(RECORD_LEN))
+        .map(|(block, record)| {
+            let record = read_record(record)?;
+            check_budget(declared_keys(data, block)?, MAX_ANIMATION_KEYS)?;
+            Ok::<_, CorruptAnimation>((record, decode_tracks(data, block)?))
+        })
+        .collect();
+    let mut dba = Dba {
+        animations: Vec::with_capacity(count),
+        skipped: Vec::new(),
+    };
+    for (path, result) in paths.into_iter().zip(decoded) {
+        let name = stem(&path).to_owned();
+        match result {
+            Ok((record, tracks)) => dba.animations.push(build(name, path, record, tracks)),
+            Err(reason) => dba.skipped.push(SkippedAnimation { name, path, reason }),
+        }
+    }
+    Ok(dba)
+}
+
+fn read_headers(metadata: &[u8], data: &[u8]) -> Result<DbaHeaders, ChunkFailure> {
+    let Layout {
+        records,
+        paths,
+        blocks,
+    } = layout(metadata, data)?;
+    let mut headers = DbaHeaders {
+        animations: Vec::with_capacity(blocks.len()),
+        skipped: Vec::new(),
+    };
+    for ((path, block), record) in paths
+        .into_iter()
+        .zip(&blocks)
+        .zip(records.as_chunks::<RECORD_LEN>().0)
+    {
+        let name = stem(&path).to_owned();
+        let read = read_record(record).and_then(|record| {
+            check_budget(declared_keys(data, block)?, MAX_ANIMATION_KEYS)?;
+            let (ids, keys) = listed_tracks(data, block)?;
+            let mut header = AnimationHeader::of(name.clone(), path.clone(), record);
+            header.controller_ids = ids;
+            header.keys = keys;
+            Ok(header)
+        });
+        match read {
+            Ok(header) => headers.animations.push(header),
+            Err(reason) => headers
+                .skipped
+                .push(SkippedAnimation { name, path, reason }),
+        }
+    }
+    Ok(headers)
+}
+
+fn layout<'a>(metadata: &'a [u8], data: &[u8]) -> Result<Layout<'a>, ChunkFailure> {
     let in_metadata = |source| ("DbaMetadata", source);
     let in_data = |source| ("DbaData", source);
     let mut reader = ByteReader::new(metadata);
@@ -104,27 +209,11 @@ fn read_database(metadata: &[u8], data: &[u8]) -> Result<Dba, (&'static str, Cor
         position = block.end;
         blocks.push(block);
     }
-    let decoded: Vec<_> = blocks
-        .par_iter()
-        .zip(records.par_chunks_exact(RECORD_LEN))
-        .map(|(block, record)| {
-            let record = read_record(record)?;
-            check_budget(declared_keys(data, block)?, MAX_ANIMATION_KEYS)?;
-            Ok::<_, CorruptAnimation>((record, decode_tracks(data, block)?))
-        })
-        .collect();
-    let mut dba = Dba {
-        animations: Vec::with_capacity(count),
-        skipped: Vec::new(),
-    };
-    for (path, result) in paths.into_iter().zip(decoded) {
-        let name = stem(&path).to_owned();
-        match result {
-            Ok((record, tracks)) => dba.animations.push(build(name, path, record, tracks)),
-            Err(reason) => dba.skipped.push(SkippedAnimation { name, path, reason }),
-        }
-    }
-    Ok(dba)
+    Ok(Layout {
+        records,
+        paths,
+        blocks,
+    })
 }
 
 fn names(table: &[u8], count: usize) -> Result<Vec<String>, CorruptAnimation> {

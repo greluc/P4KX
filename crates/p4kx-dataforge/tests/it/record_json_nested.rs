@@ -110,7 +110,7 @@ fn owned_children_are_nested_objects_and_references_are_links() -> TestResult {
             "{\n",
             "  \"$type\": \"Car\",\n",
             "  \"$guid\": \"cbee34fd-6441-4000-b99f-924f7f26e19f\",\n",
-            "  \"$path\": \"libs/foundry/records/cars/one\",\n",
+            "  \"$path\": \"libs/foundry/records/cars/one\",\n  \"$name\": \"Car.One\",\n",
             "  \"name\": \"Avenger\",\n",
             "  \"position\": {\n",
             "    \"$type\": \"Vector\",\n",

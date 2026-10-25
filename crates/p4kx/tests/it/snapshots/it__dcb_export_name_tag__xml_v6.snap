@@ -1,0 +1,9 @@
+---
+source: crates/p4kx/tests/it/dcb_export_name_tag.rs
+expression: "exported(6, &[\"--combined\"], \"Game2.xml\")?"
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<p4kx:records xmlns:p4kx="https://github.com/p4kx-org/p4kx/record-xml">
+  <Item guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/items/shared" p4kx:name="Item.Box" mass="1"/>
+  <Item guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/items/shared" p4kx:name="Item.Crate" mass="2"/>
+</p4kx:records>

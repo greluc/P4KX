@@ -116,6 +116,53 @@ def lit_manifest(**overrides: Any) -> dict[str, Any]:
     return data
 
 
+def interior_manifest(**overrides: Any) -> dict[str, Any]:
+    """Returns a format 1.3 manifest of an Interior on its own, without a node of the kind entity.
+
+    The container ``ship_interior`` is the root; below it are the container ``room`` at (0, 0, -6),
+    a ``stool`` object (mesh m0001) and a point light ``lamp``. It mirrors what
+    ``p4kx interior package`` writes: the container is the root and ``source.entity`` carries its
+    name with an empty ``guid``.
+    """
+    base = {
+        "kind": "container",
+        "translation": [0.0, 0.0, 0.0],
+        "rotation": [0.0, 0.0, 0.0, 1.0],
+        "scale": [1.0, 1.0, 1.0],
+    }
+    data = manifest(version="1.3", **overrides)
+    data["source"] = {"entity": {"class_name": "ship_interior", "guid": ""}}
+    data["nodes"] = [
+        {**base, "name": "ship_interior", "path": "ship_interior"},
+        {
+            **base,
+            "name": "room",
+            "path": "ship_interior/room",
+            "parent": 0,
+            "translation": [0.0, 0.0, -6.0],
+        },
+        {
+            **base,
+            "kind": "object",
+            "name": "stool",
+            "path": "ship_interior/room/stool",
+            "parent": 1,
+            "mesh": "m0001",
+        },
+        {
+            **base,
+            "kind": "light",
+            "name": "lamp",
+            "path": "ship_interior/room/lamp",
+            "parent": 1,
+            "light": {"kind": "point", "colour": [1.0, 1.0, 1.0], "intensity": 2.0},
+        },
+    ]
+    data["meshes"] = [_mesh("m0001", "Box_mat", {})]
+    data["textures"] = []
+    return data
+
+
 def write_package(folder: Path, data: dict[str, Any] | None = None) -> Path:
     """Writes ``data`` (default: ``manifest()``) and the files it names; returns ``scene.json``."""
     data = data if data is not None else manifest()

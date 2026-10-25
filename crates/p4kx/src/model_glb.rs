@@ -61,6 +61,7 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
         materials,
         texture_mip,
         no_vertex_colours,
+        max_influences,
         animations,
     } = action
     else {
@@ -73,7 +74,8 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
     let mut options = GlbOptions::default()
         .with_lod(*lod)
         .with_materials(mode)
-        .with_texture_mip(*texture_mip);
+        .with_texture_mip(*texture_mip)
+        .with_max_influences(usize::from(*max_influences));
     if *no_vertex_colours {
         options = options.without_vertex_colours();
     }

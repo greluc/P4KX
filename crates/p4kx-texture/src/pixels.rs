@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::TextureFormat;
+use crate::rgtc::snorm_to_unorm;
 
 /// An uncompressed pixel format the decoder converts to 8-bit RGBA.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,11 +23,9 @@ pub(crate) enum PixelFormat {
     B5G6R5,
     B5G5R5A1,
     B4G4R4A4,
-    R16Float,
-    Rg16Float,
-    Rgba16Float,
-    R32Float,
-    Rgba32Float,
+    R8Snorm,
+    Rg8Snorm,
+    Rgba8Snorm,
 }
 
 impl PixelFormat {
@@ -54,11 +53,9 @@ impl PixelFormat {
             85 => Self::B5G6R5,
             86 => Self::B5G5R5A1,
             115 => Self::B4G4R4A4,
-            54 => Self::R16Float,
-            34 => Self::Rg16Float,
-            10 => Self::Rgba16Float,
-            41 => Self::R32Float,
-            2 => Self::Rgba32Float,
+            63 => Self::R8Snorm,
+            51 => Self::Rg8Snorm,
+            31 => Self::Rgba8Snorm,
             _ => return None,
         })
     }
@@ -103,11 +100,14 @@ impl PixelFormat {
                 ]
             }),
             Self::B5G6R5 | Self::B5G5R5A1 | Self::B4G4R4A4 => self.convert_packed16(src, dst),
-            Self::R16Float
-            | Self::Rg16Float
-            | Self::Rgba16Float
-            | Self::R32Float
-            | Self::Rgba32Float => self.convert_float(src, dst),
+            Self::R8Snorm => convert(src, dst, |[r]: [u8; 1]| {
+                let r = snorm(r);
+                [r, r, r, 255]
+            }),
+            Self::Rg8Snorm => convert(src, dst, |[r, g]| [snorm(r), snorm(g), 128, 255]),
+            Self::Rgba8Snorm => convert(src, dst, |[r, g, b, a]| {
+                [snorm(r), snorm(g), snorm(b), snorm_alpha(a)]
+            }),
         }
     }
 
@@ -143,35 +143,6 @@ impl PixelFormat {
             }),
         }
     }
-
-    fn convert_float(self, src: &[u8], dst: &mut [u8]) {
-        let half = |low: u8, high: u8| float_unorm(half_to_f32(u16::from_le_bytes([low, high])));
-        let single = |bytes: &[u8; 4]| float_unorm(f32::from_le_bytes(*bytes));
-        match self {
-            Self::R16Float => convert(src, dst, |[low, high]| {
-                let r = half(low, high);
-                [r, r, r, 255]
-            }),
-            Self::Rg16Float => convert(src, dst, |[r0, r1, g0, g1]| {
-                [half(r0, r1), half(g0, g1), 0, 255]
-            }),
-            Self::Rgba16Float => convert(src, dst, |[r0, r1, g0, g1, b0, b1, a0, a1]| {
-                [half(r0, r1), half(g0, g1), half(b0, b1), half(a0, a1)]
-            }),
-            Self::R32Float => convert(src, dst, |bytes: [u8; 4]| {
-                let r = single(&bytes);
-                [r, r, r, 255]
-            }),
-            _ => convert(src, dst, |bytes: [u8; 16]| {
-                let (channels, _) = bytes.as_chunks::<4>();
-                let mut rgba = [0; 4];
-                for (out, channel) in rgba.iter_mut().zip(channels) {
-                    *out = single(channel);
-                }
-                rgba
-            }),
-        }
-    }
 }
 
 fn convert<const N: usize>(src: &[u8], dst: &mut [u8], pixel: impl Fn([u8; N]) -> [u8; 4]) {
@@ -185,6 +156,16 @@ fn convert<const N: usize>(src: &[u8], dst: &mut [u8], pixel: impl Fn([u8; N]) -
 fn unorm(value: u32, bits: u32) -> u8 {
     let max = (1 << bits) - 1;
     u8::try_from(((value & max) * 255 + max / 2) / max).unwrap_or(u8::MAX)
+}
+
+/// Maps a signed byte, -1 to 1, to 0 to 255 as BC4 and BC5 signed do; -128 counts as -127.
+fn snorm(value: u8) -> u8 {
+    snorm_to_unorm(i32::from(value.cast_signed()))
+}
+
+/// Maps the signed alpha byte to 0 to 255; negative values become 0.
+fn snorm_alpha(value: u8) -> u8 {
+    u8::try_from((i32::from(value.cast_signed()).clamp(0, 127) * 255 + 63) / 127).unwrap_or(u8::MAX)
 }
 
 fn unorm32(value: u32) -> u8 {

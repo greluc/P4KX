@@ -98,6 +98,7 @@ has a skeleton of 13,736 bytes (about 200 bones) where the `.skin` has 960 bytes
 weights go up to bone 51. Reading such a level against the model's bones fails (some skins did,
 before the reader looked at the level's file). The model reader therefore reads the
 `X_lod<n>.skin` file of a skinned level and keeps its skeleton in `Lod::bones` when it differs.
+`model info` marks such a level with its bone count (`Skeleton` column, `skeleton_bones` in JSON).
 
 ## Mesh boxes of skins
 
@@ -111,7 +112,9 @@ LIVE store 20-byte vertices with float positions, none is quantised, and no `.ch
 14 `.skinm` of LIVE (helmets of the RSI pilot flightsuit and the explorer, the front landing gear
 of the 400i, a medical strap; 3,565 vertices) hold a half float NaN or infinity as a texture
 coordinate. The reader used to refuse the whole model for it, so these skins could not be opened at
-all. The coordinate reads as 0 now and the vertex stays.
+all. The coordinate reads as 0 now and the vertex stays. `Mesh::non_finite_uvs` counts the vertices
+that had such a coordinate in either set, and `model info` shows the count per mesh (`Bad UVs`,
+`non_finite_uvs` in JSON).
 
 ## glTF
 

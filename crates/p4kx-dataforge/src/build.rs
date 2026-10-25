@@ -72,6 +72,7 @@ impl<'f> TreeBuilder<'f> {
         let layout = self.layouts.get(forge, def.struct_index)?;
         let record_path = record.record_path()?;
         let name = record.name()?;
+        let tag = record.tag()?.filter(|tag| !tag.is_empty());
         let bytes = forge.instance(def.struct_index, instance).ok_or_else(|| {
             out_of_range("Record", record.index as usize, "instance", instance.into())
         })?;
@@ -81,6 +82,7 @@ impl<'f> TreeBuilder<'f> {
             guid: Guid::from_stored(def.guid),
             record_path,
             name,
+            tag,
             root: StructValue {
                 type_name: layout.type_name,
                 fields,

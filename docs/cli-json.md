@@ -390,6 +390,25 @@ placement), `light_unsupported` (ambient, planar or unknown lights, which glTF c
 ([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.
 
+## `p4kx interior package <archive> <container>... --out <folder> --json`
+
+```json
+{"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\DRAK\\Cutlass\\base_int_body_main.socpak"],
+ "out": "…", "lod": 0, "texture_mip": 0, "containers_opened": 1, "model_parts": 4, "modelled_parts": 4,
+ "props": 4, "nodes": 77, "drawn_nodes": 4, "container_nodes": 2, "objects": 4, "lights": 70,
+ "meshes": 4, "shared_meshes": 0, "materials": 34, "palettes": 0, "textures": 79,
+ "texture_pixels": 5242880, "texture_failures": 0, "files": 84, "bytes": 18847044,
+ "vertices": 229192, "triangles": 246389, "skipped": 0, "issues": [Issue, …]}
+```
+
+`containers`, the exit codes and `containers_opened`, `model_parts`, `modelled_parts` and `props`
+are those of `p4kx interior glb`; a package folder that holds something else than an earlier
+package, or lies inside a Star Citizen installation, is 2. The other counts are those of
+`p4kx entity package`, with `container_nodes` for its `containers`: `nodes` counts the nodes of
+`scene.json`, `drawn_nodes` those with a mesh, `container_nodes`, `objects` and `lights` those of
+the kinds `container`, `object` and `light`. An **Issue** is that of `p4kx entity package`. The
+package is written even when parts are skipped.
+
 ## `p4kx armour bodies --json`
 
 ```json
@@ -551,6 +570,7 @@ DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 ```json
 {"archive": "…", "language": {…}, "trigger": {…}, "breaks": 0,
  "target": "…", "format": "ogg", "written": 3, "kept": 0, "unconverted": 1, "failed": 1,
+ "cancelled": false,
  "files": [{"trigger": "Play_Multi", "wem_id": 100, "file": "…\\Play_Multi_100.ogg",
             "format": "ogg", "size": 4096, "kept": false, "unconverted": null}, …],
  "failures": [{"trigger": "Play_Multi", "wem_id": 104, "reason": "…"}, …],
@@ -565,11 +585,13 @@ trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII le
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
 sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
-soundbank or loose Entry holds. Exit code 1 when anything is in `failures` or `unconverted`.
+soundbank or loose Entry holds. `cancelled` is true when Ctrl+C stopped the export before it handled
+every sound; no partial file is left. Exit code 1 when anything is in `failures` or `unconverted`,
+or `cancelled` is true.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
-`failed`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
+`failed`, `cancelled`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
 and `issues` are not repeated in it.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`
@@ -1119,7 +1141,7 @@ with `--cross` `output` holding one horizontal cross; a texture array has one fi
 `<stem>_layerN.png` and a volume one per slice of the mip `<stem>_sliceN.png`, and a cubemap
 array has `<stem>_layerN_posx.png` … or, with `--cross`, one cross `<stem>_layerN.png` per
 element, the numbers padded with zeros to the width of the last. `format` is `png` for 8-bit
-RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
+RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H or floating-point texture is written as without
 `--tone-map`; `files` then carry the extension `.exr` instead of the one of `output`. `mip` is the
 exported level, 0 being the largest and the default; `width` and `height` are the size of each
 written image. `alpha_tail` says whether an alpha or smoothness tail was merged into the alpha
@@ -1566,10 +1588,10 @@ companion next to it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …],
             "scale": [1.0, 1.0, 1.0], "geometry_type": 0, "helper": false,
             "properties": [{"key": "class", "value": "AnimatedJoint"}]}],
- "lods": [{"level": 0, "vertices": 24, "triangles": 12,
+ "lods": [{"level": 0, "vertices": 24, "triangles": 12, "skeleton_bones": null,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
                        "normals_computed": false, "tangents": false, "colours": false,
-                       "skinned": false,
+                       "second_uvs": false, "non_finite_uvs": 0, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
@@ -1610,7 +1632,11 @@ read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level 
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
 (`colours` is false for a mesh of opaque white vertices); `normals_computed` says that the mesh
 stores no normals and the smooth ones were computed from its triangles; `first_index` and `index_count` locate a
-submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
+submesh in its mesh's triangle list. `second_uvs` says whether the mesh has a second set of texture
+coordinates, and `non_finite_uvs` counts its vertices that had a texture coordinate, of either
+set, that was not a finite number and reads as 0. `skeleton_bones` of a level is the number of
+bones of the skeleton the level's own file carries when it differs from the model's, `null`
+otherwise. `skinned` says whether the mesh has bone weights.
 `bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
 of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
 bone by; `node` is the index of the node of the model the bone drives (the bones of a static
@@ -1639,7 +1665,10 @@ companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file
 geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
 is `null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--max-influences <n>] [--anim <name>]… [--anim-from <entry>]… --json`
+
+`--max-influences N` (1 to 8, default 8) keeps the strongest N bones of each vertex and scales
+their weights to add up to 1; 4 writes the first set of joints and weights only.
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
@@ -1764,7 +1793,7 @@ code is 0 without and 1 with differences on any compared level.
 | `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
 | `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and the checksum for the sides that have it: `crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive |
 | `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
-| `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
+| `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name`, `tag` (version 8 only, absent without one) and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
 | `records.changes[].fields` | array | One object per changed field or array element, nested ones included: `path` (its location, e.g. `hull.plates[1].armor`), and `old` and `new` values for the sides that have it; empty for an added, removed or unreadable Record |
 | `records.changes[].errors` | array | One object per side whose Record cannot be read: `side` (`old` or `new`) and `reason`; absent for every other Record |
 

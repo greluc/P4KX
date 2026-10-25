@@ -297,8 +297,8 @@ fn r16g16_float_decodes_to_red_and_green() -> Result<(), TextureError> {
 
     assert_eq!(
         image.pixels(),
-        [255, 128, 0, 255, 0, 255, 0, 255],
-        "1.0 and 0.5, then 0 and a value clamped from 2.0"
+        [188, 156, 0, 255, 0, 213, 0, 255],
+        "1.0 and 0.5, then 0 and 2.0, tone-mapped"
     );
     Ok(())
 }

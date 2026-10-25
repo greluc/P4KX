@@ -29,18 +29,29 @@ pub fn cube_cross(faces: &[RgbaImage]) -> Result<RgbaImage, TextureError> {
 }
 
 /// Lays the six faces of a high-range cubemap out as a horizontal cross like [`cube_cross`];
-/// the cells without a face are zero.
+/// the cells without a face are zero. The cross has an alpha channel when every face has one.
 ///
 /// # Errors
 ///
 /// Returns the errors of [`cube_cross`].
-pub fn cube_cross_hdr(faces: &[HdrImage]) -> Result<HdrImage, TextureError> {
-    let faces: Vec<Face<'_, f32>> = faces
+pub fn cube_cross_hdr(hdr_faces: &[HdrImage]) -> Result<HdrImage, TextureError> {
+    let faces: Vec<Face<'_, f32>> = hdr_faces
         .iter()
         .map(|face| (face.width(), face.height(), face.pixels()))
         .collect();
     let (width, height, pixels) = cross(&faces, RGB)?;
-    HdrImage::new(width, height, pixels)
+    let image = HdrImage::new(width, height, pixels)?;
+    let alphas: Option<Vec<Face<'_, f32>>> = hdr_faces
+        .iter()
+        .map(|face| Some((face.width(), face.height(), face.alpha()?)))
+        .collect();
+    match alphas {
+        Some(alphas) => {
+            let (_, _, alpha) = cross(&alphas, 1)?;
+            image.with_alpha(alpha)
+        }
+        None => Ok(image),
+    }
 }
 
 /// The width, height and pixels of one face.

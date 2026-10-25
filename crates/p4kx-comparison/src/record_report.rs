@@ -69,6 +69,11 @@ struct RecordStateReport<'a> {
     record_path: &'a str,
     /// The Record name, e.g. `EntityClassDefinition.AEGS_Avenger`.
     name: &'a str,
+    /// The Record tag, e.g. `SystemsDesign`; absent in a version 6 DataForge and for a Record
+    /// without tag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "String")]
+    tag: Option<&'a str>,
     /// The name of the Record's struct.
     #[serde(rename = "type")]
     type_name: &'a str,
@@ -93,6 +98,7 @@ impl<'a> From<RecordState<'a>> for RecordStateReport<'a> {
         Self {
             record_path: state.record_path(),
             name: state.name(),
+            tag: state.tag(),
             type_name: state.type_name(),
         }
     }

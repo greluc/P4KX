@@ -77,7 +77,7 @@ pub use animation_dba::{Dba, SkippedAnimation};
 pub use animation_error::{AnimationError, CorruptAnimation};
 pub use animation_read::{MAX_ANIMATION_KEYS, MAX_DATABASE_KEYS};
 pub use bone::{Bone, BoneTransform};
-pub use bone_extend::{extend_skeleton, multiply as multiply_quaternions};
+pub use bone_extend::{chained_world_poses, extend_skeleton, multiply as multiply_quaternions};
 pub use bone_map::{Influences, MAX_INFLUENCES};
 pub use bone_match::BoneMatch;
 pub use companion::{CompanionError, CompanionPath, CompanionResolver, companion_file_names};

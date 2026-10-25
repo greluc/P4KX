@@ -89,6 +89,6 @@ fn snorm_palette(e0: i8, e1: i8) -> [u8; 8] {
     palette
 }
 
-fn snorm_to_unorm(value: i32) -> u8 {
+pub(crate) fn snorm_to_unorm(value: i32) -> u8 {
     u8::try_from(((value.clamp(-127, 127) + 127) * 255 + 127) / 254).unwrap_or(u8::MAX)
 }

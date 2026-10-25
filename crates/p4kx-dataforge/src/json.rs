@@ -127,6 +127,12 @@ impl RecordJson {
             write!(out.out, "\"{}\"", tree.guid())?;
             out.key(false, depth + 1, "$path")?;
             write_string(out.out, tree.record_path())?;
+            out.key(false, depth + 1, "$name")?;
+            write_string(out.out, tree.name())?;
+            if let Some(tag) = tree.tag() {
+                out.key(false, depth + 1, "$tag")?;
+                write_string(out.out, tag)?;
+            }
         }
         let base = self.attribute.len();
         classify(fields, &mut self.attribute, &mut self.order);

@@ -259,6 +259,7 @@ fn write(
         textures: texture_conversion(request.textures),
         audio: audio_conversion(request.audio),
         verify: false,
+        threads: None,
         cancel: Some(cancel),
         progress: Some(&on_progress),
         watch: Some(watch),

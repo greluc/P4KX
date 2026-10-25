@@ -11,10 +11,11 @@ use rayon::prelude::*;
 
 use crate::dependent::split_dependent;
 use crate::entry_path::relative_path;
+use crate::folder_cache::FolderCache;
 use crate::record_files::{RecordFiles, fold};
 use crate::record_format::RecordFileFormat;
 use crate::record_plan::RecordFilePlan;
-use crate::write::{create_folders, create_temporary, read_existing_error, write_error};
+use crate::write::{create_temporary, read_existing_error, write_error};
 use crate::{
     ConflictPolicy, ExtractionError, RecordExportError, RecordExportOptions, RecordExportReport,
     RecordFailure,
@@ -133,6 +134,7 @@ pub(crate) fn write_records<'f, F: RecordFileFormat>(
         policy: run.policy,
         annotations: run.annotations,
         stop: run.stop,
+        folders: FolderCache::default(),
     };
     let ended = run.ended;
     let run = |scratch: &mut Scratch<'f, F>, index: usize| {
@@ -253,6 +255,7 @@ struct Writer<'a> {
     policy: ConflictPolicy,
     annotations: Annotations<'a>,
     stop: &'a (dyn Fn() -> bool + Sync),
+    folders: FolderCache,
 }
 
 impl Writer<'_> {
@@ -281,7 +284,7 @@ impl Writer<'_> {
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let tree = scratch.trees.build(record)?;
         let errors = tree.error_count();
-        let folder = create_folders(self.target, relative.parent())?;
+        let folder = self.folders.folder(self.target, relative.parent())?;
         let destination = folder.join(name);
         scratch.bytes.clear();
         scratch

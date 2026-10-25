@@ -75,6 +75,7 @@ mod geometry;
 mod hologram;
 mod interior;
 mod issue;
+mod loadout_entry;
 mod markup;
 mod merge;
 mod node;
@@ -86,6 +87,7 @@ mod port;
 mod provider;
 mod read;
 mod resolver;
+mod resolver_vehicle;
 mod spec;
 mod tree;
 mod vehicle;
@@ -115,17 +117,19 @@ pub use interior::{
     MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH, MAX_INTERIOR_FILE_LEN, MAX_INTERIOR_PARTS,
 };
 pub use issue::{Issue, IssueKind};
+pub use loadout_entry::LoadoutEntry;
 pub use object_containers::{ContainerSource, ObjectContainerRef};
 pub use p4kx_character as character;
 pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
 pub use port::{PortDefinition, PortTransform, PortType};
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
-pub use tree::{Attachment, EntityNode, LoadoutEntry, PortNode, PortSource, Target, Unresolved};
+pub use spec::LoadoutOrigin;
+pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};
 pub use vehicle::{
-    LandingGear, ModificationReport, OriginTally, PartKind, PartThreshold, PortVisibility,
-    UnreadableValue, ValueOrigin, VehicleImplementation, VehicleItemPort, VehiclePart,
-    VehicleTotals,
+    LandingGear, ModificationReport, OriginTally, PartKind, PartThreshold, PartialValue,
+    PortVisibility, UnreadableValue, ValueOrigin, VehicleImplementation, VehicleItemPort,
+    VehiclePart, VehicleTotals,
 };
 pub use xml::{MAX_XML_INCLUDE_DEPTH, MAX_XML_INCLUDES};
 

@@ -114,8 +114,8 @@ Early development (milestone M1). Available today:
   lines to stderr for the Entries concerned.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
-  structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
-  supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
+  structs and enums. DataForge versions 6 and 8 are read; any other version, version 5 and older included, is
+  reported as not supported with exit code 5 (ADR-0136), and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
   `[--lang <language>] [--tags] [--out <folder>] [--conflict …]` writes Records as Record XML
   ([docs/record-xml.md](docs/record-xml.md)) or Record JSON
@@ -547,6 +547,15 @@ change. `p4kx-mcp --version` and `-V` show the legal notice.
 | `list_chunks` | The chunks of a chunk file Entry (`path`) as `p4kx chunks list` shows them: index, type, type ID, known, version, chunk ID, byte order, offset and size; `type` (a name or `0x` ID) narrows it. No chunk data is returned |
 | `get_model_info` | A model Entry (`path`) summarised as `p4kx model info --json`: geometry, material library and IDs, levels of detail, and the number of materials, nodes, meshes, bones, animations and chunks |
 | `list_model_items` | One `section` of a model Entry, paged: `materials`, `nodes`, `meshes`, `bones`, `animations`, `unread_animations` or `chunks`, each item shaped as in `p4kx model info --json` |
+| `image_preview` | A DDS texture (`path`) as one PNG image content block of at most 1 MiB, with its format, size and mip count as structured content: the mip chosen by `mip` or the largest that fits `max_side` (512 by default, at most 2048), a cubemap as a cross or one `face`, an array or volume as a sheet |
+| `mtl_summary` | A `.mtl` Entry (`path`), paged by sub-material: name, shader, surface type, flags, colours, opacity, glow, texture slots, shader parameters and layers |
+| `entity_loadout` | The default Loadout of an Entity (`entity`: class name, record path or GUID) as a list of ports, parents first: path, depth, source, what the port takes, the Entity attached and for each unresolved port the reason; `max_depth` (16 by default, at most 32) and a cursor bound it |
+
+`list_entries`, `search_entries` (with `container`), `read_entry_text`, `read_entry_bytes`,
+`image_preview` and `mtl_summary` open socpak containers with `::`: `outer.socpak::inner.socpak::path`
+reads an Entry of a container inside a container, and `outer.socpak::` lists a container's top level
+([ADR-0129](docs/adr/0129-container-paths-in-mcp-tools-join-containers-with-a-double-colon.md)).
+The paths a listing returns carry their containers and work as they are in the other tools.
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
 or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a

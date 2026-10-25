@@ -128,8 +128,8 @@ fn destroy_ratio(part: &Element) -> Option<f64> {
     Some(number(behavior.attribute("damageRatioMin")).unwrap_or(1.0))
 }
 
-/// Returns whether `character` is an invisible Unicode format character (category Cf) that game
-/// data carries inside numbers, e.g. U+202C.
+/// Returns whether `character` is a Unicode format character (general category Cf, Unicode 16),
+/// which is invisible and which game data carries inside numbers, e.g. U+202C.
 pub(crate) const fn is_format_character(character: char) -> bool {
     matches!(
         character,
@@ -138,6 +138,8 @@ pub(crate) const fn is_format_character(character: char) -> bool {
             | '\u{061C}'
             | '\u{06DD}'
             | '\u{070F}'
+            | '\u{0890}'..='\u{0891}'
+            | '\u{08E2}'
             | '\u{180E}'
             | '\u{200B}'..='\u{200F}'
             | '\u{202A}'..='\u{202E}'
@@ -145,6 +147,13 @@ pub(crate) const fn is_format_character(character: char) -> bool {
             | '\u{2066}'..='\u{206F}'
             | '\u{FEFF}'
             | '\u{FFF9}'..='\u{FFFB}'
+            | '\u{110BD}'
+            | '\u{110CD}'
+            | '\u{13430}'..='\u{1343F}'
+            | '\u{1BCA0}'..='\u{1BCA3}'
+            | '\u{1D173}'..='\u{1D17A}'
+            | '\u{E0001}'
+            | '\u{E0020}'..='\u{E007F}'
     )
 }
 
@@ -158,12 +167,37 @@ pub(crate) fn number(value: Option<&str>) -> Option<f64> {
             .chars()
             .filter(|character| !is_format_character(*character))
             .collect();
-        return numeric_prefix(&cleaned);
+        return numeric_prefix(&cleaned).map(|(number, _)| number);
     }
-    numeric_prefix(value)
+    numeric_prefix(value).map(|(number, _)| number)
 }
 
-fn numeric_prefix(value: &str) -> Option<f64> {
+const UNIT_SUFFIXES: [&str; 3] = ["d", "f", "kg"];
+
+/// Returns whether `value` has a numeric prefix followed by a remainder other than white space or
+/// a unit suffix (`d`, `f`, `kg`), so that [`number`] reads only part of it, e.g. `12,5x` as 12.
+pub(crate) fn is_partial_number(value: &str) -> bool {
+    let cleaned: std::borrow::Cow<'_, str> = if value.chars().any(is_format_character) {
+        value
+            .chars()
+            .filter(|character| !is_format_character(*character))
+            .collect::<String>()
+            .into()
+    } else {
+        value.into()
+    };
+    let text = cleaned.trim();
+    let Some((_, end)) = numeric_prefix(text) else {
+        return false;
+    };
+    let rest = text.get(end..).unwrap_or_default().trim();
+    !(rest.is_empty()
+        || UNIT_SUFFIXES
+            .iter()
+            .any(|unit| rest.eq_ignore_ascii_case(unit)))
+}
+
+fn numeric_prefix(value: &str) -> Option<(f64, usize)> {
     let text = value.trim();
     let bytes = text.as_bytes();
     let digits = |from: usize| {
@@ -196,8 +230,9 @@ fn numeric_prefix(value: &str) -> Option<f64> {
         }
     }
     let parsed = text.get(..end)?.parse::<f64>().ok()?;
-    parsed.is_finite().then_some(parsed)
+    parsed.is_finite().then_some((parsed, end))
 }
+
 /// Returns the visibility of each item port by lower-case part name; the first part decides.
 pub(super) fn visibility(parts: &[VehiclePart]) -> HashMap<String, PortVisibility> {
     let mut map = HashMap::new();

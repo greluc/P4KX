@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use super::read::is_format_character;
+use super::read::{is_format_character, is_partial_number};
 use super::{ValueOrigin, VehicleImplementation, VehiclePart};
 
 /// How many values of a sum came from each [`ValueOrigin`].
@@ -104,6 +104,42 @@ impl UnreadableValue {
     }
 }
 
+/// A number attribute of a part of which only a prefix was read, with its raw text, e.g. `12,5x`
+/// read as 12. The value enters a sum or a threshold.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PartialValue {
+    part: String,
+    attribute: &'static str,
+    raw: String,
+    read: f64,
+}
+
+impl PartialValue {
+    /// Returns the part's name.
+    #[must_use]
+    pub fn part(&self) -> &str {
+        &self.part
+    }
+
+    /// Returns the attribute's name, e.g. `mass`.
+    #[must_use]
+    pub const fn attribute(&self) -> &'static str {
+        self.attribute
+    }
+
+    /// Returns the value as stored.
+    #[must_use]
+    pub fn raw(&self) -> &str {
+        &self.raw
+    }
+
+    /// Returns the number that was read from it.
+    #[must_use]
+    pub const fn read(&self) -> f64 {
+        self.read
+    }
+}
+
 /// The sums over the parts of a vehicle implementation: mass, hull hit points and the thresholds
 /// at which parts destroy the vehicle or detach (ADR-0061).
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -117,6 +153,7 @@ pub struct VehicleTotals {
     destruction: Vec<PartThreshold>,
     detach: Vec<PartThreshold>,
     unreadable: Vec<UnreadableValue>,
+    partial: Vec<PartialValue>,
     cleaned_mass: usize,
     cleaned_damage: usize,
 }
@@ -180,6 +217,14 @@ impl VehicleTotals {
         &self.unreadable
     }
 
+    /// Returns the `mass`, `damageMax` and `detachRatio` values that enter a sum or a threshold
+    /// and of which only a numeric prefix was read, because other text than a unit (`d`, `f`,
+    /// `kg`) follows it.
+    #[must_use]
+    pub fn partial(&self) -> &[PartialValue] {
+        &self.partial
+    }
+
     /// Returns how many numbers read carried invisible format characters that were dropped.
     #[must_use]
     pub const fn cleaned(&self) -> usize {
@@ -219,6 +264,7 @@ fn add_part(totals: &mut VehicleTotals, part: &VehiclePart) {
         totals.mass += mass;
         totals.mass_parts = totals.mass_parts.saturating_add(1);
         totals.mass_origins.add(part.origin_of("mass"));
+        note_partial(totals, part, "mass", mass);
     }
     let detach = number_of(totals, part, "detachRatio", part.detach_ratio);
     let Some(health) = number_of(totals, part, "damageMax", part.damage_max).filter(|h| *h > 0.0)
@@ -226,11 +272,13 @@ fn add_part(totals: &mut VehicleTotals, part: &VehiclePart) {
         return;
     };
     let origin = part.origin_of("damageMax");
-    if counts_as_hull(part) {
+    let in_hull = counts_as_hull(part);
+    if in_hull {
         totals.health += health;
         totals.health_parts = totals.health_parts.saturating_add(1);
         totals.health_origins.add(origin);
     }
+    let mut damage_used = in_hull;
     let threshold = |damage: f64| PartThreshold {
         part: part.name.clone(),
         health,
@@ -241,9 +289,30 @@ fn add_part(totals: &mut VehicleTotals, part: &VehiclePart) {
         let damage = ratio * health;
         if damage > 0.0 {
             totals.destruction.push(threshold(damage));
+            damage_used = true;
         }
     } else if let Some(ratio) = detach.filter(|ratio| *ratio > 0.0) {
         totals.detach.push(threshold(ratio * health));
+        damage_used = true;
+        note_partial(totals, part, "detachRatio", ratio);
+    }
+    if damage_used {
+        note_partial(totals, part, "damageMax", health);
+    }
+}
+
+/// Records the attribute `name` of `part` as partly read when its raw text has a remainder after
+/// the number `read`. Only values that enter a sum or a threshold are recorded.
+fn note_partial(totals: &mut VehicleTotals, part: &VehiclePart, name: &'static str, read: f64) {
+    if let Some(raw) = part.attribute(name)
+        && is_partial_number(raw)
+    {
+        totals.partial.push(PartialValue {
+            part: part.name.clone(),
+            attribute: name,
+            raw: raw.to_owned(),
+            read,
+        });
     }
 }
 

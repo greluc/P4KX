@@ -116,7 +116,7 @@ named after that part.
 Hovering a Record shows its name, type and GUID.
 
 DataForge is loaded once per open Archive and kept until you reload the Archive or it changes on
-disk. A DataForge version this P4KX does not read, or a database it cannot read, is named
+disk. A DataForge version this P4KX does not read (only versions 6 and 8 are read), or a database it cannot read, is named
 on the node; the rest of the window keeps working.
 
 The **DataForge** tab of the preview shows the version, the numbers of Records, structs and enums,

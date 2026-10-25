@@ -2,7 +2,8 @@
 
 What `p4kx-dataforge` assumes about details of `Data\Game2.dcb` that no tool documents, what it
 tolerates when they drift, and what the installed Channels show. The reader reads versions 6 and
-8; every byte is untrusted, so a deviation is a typed error, an error value at its place or an
+8 and rejects every other version, version 5 and older included, with
+`DataForgeError::UnsupportedVersion` (ADR-0136); every byte is untrusted, so a deviation is a typed error, an error value at its place or an
 issue, never a panic and never silently wrong data.
 
 The findings below come from the real-Archive canary

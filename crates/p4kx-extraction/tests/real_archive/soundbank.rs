@@ -22,7 +22,7 @@ struct Tally {
     banks: usize,
     wems: usize,
     classes: BTreeMap<&'static str, usize>,
-    sources_without_file: BTreeMap<&'static str, usize>,
+    plugin_sources: BTreeMap<&'static str, usize>,
     prefetch: usize,
     codecs: BTreeMap<String, usize>,
     kinds: BTreeMap<String, usize>,
@@ -39,8 +39,8 @@ impl Tally {
         for (class, count) in other.classes {
             *self.classes.entry(class).or_default() += count;
         }
-        for (kind, count) in other.sources_without_file {
-            *self.sources_without_file.entry(kind).or_default() += count;
+        for (kind, count) in other.plugin_sources {
+            *self.plugin_sources.entry(kind).or_default() += count;
         }
         self.prefetch += other.prefetch;
         self.media.extend(other.media);
@@ -85,14 +85,14 @@ fn every_real_soundbank_parses_with_its_wems_and_hirc_objects() -> TestResult {
     writeln!(
         std::io::stderr(),
         "{} banks of versions {:?}, {} embedded media items by class {:?} ({} prefetched starts), codecs {:?}, \
-         Sound sources without a file {:?}, HIRC kinds {:?}, Sound sources found: {:?}",
+         Sound sources by plug-in kind {:?}, HIRC kinds {:?}, Sound sources found: {:?}",
         tally.banks,
         tally.versions,
         tally.wems,
         tally.classes,
         tally.prefetch,
         tally.codecs,
-        tally.sources_without_file,
+        tally.plugin_sources,
         tally.kinds,
         found
     )?;
@@ -215,7 +215,7 @@ fn count_source_plugins(tally: &mut Tally, source: &SoundSource) {
         (source.is_midi(), "midi"),
     ] {
         if flag {
-            *tally.sources_without_file.entry(name).or_default() += 1;
+            *tally.plugin_sources.entry(name).or_default() += 1;
         }
     }
 }

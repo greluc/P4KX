@@ -64,3 +64,26 @@ fn list_names_the_class_of_every_item_in_text_and_json() -> TestResult {
     assert_eq!(classes, ["wem", "midi", "impulse", "unknown"]);
     Ok(())
 }
+
+#[test]
+fn extract_as_wem_writes_midi_media_with_the_mid_extension() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("Classes.bnk");
+    fs::write(&file, bank())?;
+    let out = dir.path().join("out");
+
+    p4kx_testkit::p4kx()?
+        .args(["bnk", "extract"])
+        .arg(&file)
+        .arg("--out")
+        .arg(&out)
+        .assert()
+        .code(0);
+
+    let mut names: Vec<String> = fs::read_dir(&out)?
+        .map(|entry| entry.map(|entry| entry.file_name().to_string_lossy().into_owned()))
+        .collect::<Result<_, _>>()?;
+    names.sort();
+    assert_eq!(names, ["100.wem", "200.mid", "300.wem", "400.wem"]);
+    Ok(())
+}

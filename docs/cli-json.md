@@ -575,7 +575,7 @@ and `issues` are not repeated in it.
  "issues": [Issue, …]}
 ```
 
-`<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
+`counts.plugins` is the number of variants without a file: source plug-ins and external sources. `<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
 ATL definition has exits with code 2. The audio index is built as for `p4kx entity audio`, with
 the same `issues`; each soundbank holding one of the trigger's events is then read again and its
 `HIRC` section followed from the Event object through Play actions (other actions lead to no
@@ -1176,8 +1176,8 @@ ascending ID order: `size` is its size in the bank, and `codec` to `duration_sec
 WAVE file), `midi` (a MIDI file), `impulse` (Wwise plug-in data such as a convolution reverb's
 impulse response) or `unknown`. `prefetch` is `true` when the bank holds only the start of a
 streamed WEM, whose whole file is the loose WEM of the same ID; its codec is then not read.
-`error` names why a `wem` cannot be read, or the class of `unknown` media; for `midi` and
-`impulse` it is `null`, and the other fields are `null` too. A corrupt soundbank
+`error` is the reason an item of class `wem` or `unknown` cannot be read, else `null`; the codec fields are `null` for `midi`,
+`impulse`, prefetched and unreadable items. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
 ## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`
@@ -1190,11 +1190,11 @@ Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on dis
  "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
 ```
 
-`format` is `wem`, `wav` or `ogg`, the extension of the files. `extracted` lists the WEMs written as
+`format` is `wem`, `wav` or `ogg`, the extension of the files (MIDI media written with `wem` has the extension `mid`). `extracted` lists the WEMs written as
 `<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
 both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
-`"prefetch": true`. With `--json`
+`"prefetch": true`, and MIDI media is written as `<id>.mid`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
 ## `p4kx ui assets <archive> <entry> --json`

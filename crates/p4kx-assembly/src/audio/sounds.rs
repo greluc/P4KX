@@ -133,6 +133,20 @@ impl SourceKind {
         }
     }
 
+    /// Returns the kind as prose, e.g. `plug-in source`, for messages.
+    #[must_use]
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Embedded => "embedded source",
+            Self::PrefetchStreamed => "prefetched streamed source",
+            Self::Streamed => "streamed source",
+            Self::Plugin => "plug-in source",
+            Self::External => "external source",
+            Self::Midi => "MIDI source",
+            Self::Other(_) => "source",
+        }
+    }
+
     /// Returns a stable name for the kind, e.g. `embedded`, for scripts.
     #[must_use]
     pub const fn name(self) -> &'static str {

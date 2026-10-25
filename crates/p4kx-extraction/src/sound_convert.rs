@@ -6,7 +6,7 @@ use std::path::Path;
 use std::sync::atomic::AtomicU64;
 
 use p4kx_archive::Entry;
-use p4kx_audio::{AudioError, Codec, Wem};
+use p4kx_audio::{AudioError, Codec, MediaClass, Wem};
 
 use crate::buffers::Buffers;
 use crate::entry_path::relative_path;
@@ -40,6 +40,7 @@ enum Form {
     Ogg,
     Wav,
     Raw,
+    Midi,
 }
 
 impl Form {
@@ -56,6 +57,7 @@ impl Form {
             Self::Ogg => "ogg",
             Self::Wav => "wav",
             Self::Raw => "wem",
+            Self::Midi => "mid",
         }
     }
 }
@@ -197,7 +199,7 @@ impl EntryWriter<'_> {
 
     /// Writes the WEM `bytes` into its folder: as Ogg where the audio option asks for it and the
     /// codec has an Ogg form, else as WAV unless the option keeps sounds unchanged; a sound that
-    /// cannot be converted, plug-in media and a prefetched start are written unchanged as `.wem`,
+    /// cannot be converted, plug-in media and a prefetched start are written unchanged as `.wem` and MIDI as `.mid`,
     /// and only a sound that cannot be converted carries its error.
     pub(crate) fn write_sound(
         &self,
@@ -229,7 +231,12 @@ impl EntryWriter<'_> {
             Ok(None) => None,
             Err(error) => Some(error),
         };
-        let destination = sound_destination(sound, Form::Raw)?;
+        let unchanged = if MediaClass::of(bytes) == MediaClass::Midi {
+            Form::Midi
+        } else {
+            Form::Raw
+        };
+        let destination = sound_destination(sound, unchanged)?;
         let step = self
             .write_converted(
                 &destination,
@@ -268,7 +275,7 @@ impl EntryWriter<'_> {
                 &destination,
                 |sink| match form {
                     Form::Ogg => wem.write_ogg(sink).map(drop),
-                    Form::Wav | Form::Raw => wem.write_wav(sink).map(drop),
+                    Form::Wav | Form::Raw | Form::Midi => wem.write_wav(sink).map(drop),
                 },
                 chunk,
             )?;

@@ -5,6 +5,8 @@ use crate::TestHircObject;
 use crate::bnk::variable_length;
 use crate::bytes::{put_u16, put_u32};
 
+const PLUGIN_TYPE_MASK: u32 = 0x0F;
+const SOURCE_PLUGIN_TYPE: u32 = 2;
 const PARENT_ID: u32 = 0x2C21_1B2E;
 const PLAYLIST_WEIGHT: u32 = 50_000;
 
@@ -84,7 +86,7 @@ impl TestHircObject {
         body.push(0);
         put_u32(&mut body, source_id);
         body.extend_from_slice(&[0; 9]);
-        if plugin_id & 0x0F == 2 {
+        if plugin_id & PLUGIN_TYPE_MASK == SOURCE_PLUGIN_TYPE {
             put_u32(&mut body, 0);
         }
         body.extend_from_slice(&node_base(TestNodeBase::Plain));

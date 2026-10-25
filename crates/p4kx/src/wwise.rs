@@ -120,7 +120,7 @@ fn print_text(sounds: &TriggerSounds<'_>, counts: Counts) -> io::Result<()> {
     }
     writeln!(
         out,
-        "{} variants: {} located, {} not located, {} plug-in; {} broken links",
+        "{} variants: {} located, {} not located, {} without a file; {} broken links",
         counts.variants, counts.located, counts.unlocated, counts.plugins, counts.breaks
     )?;
     out.flush()
@@ -150,8 +150,8 @@ pub(crate) fn variant_line(variant: &SoundVariant<'_>) -> String {
     let media = variant.wem_id().map_or_else(
         || {
             format!(
-                "{} source {}, no file",
-                variant.source_kind().name(),
+                "{} {}, no file",
+                variant.source_kind().label(),
                 variant.source().source_id
             )
         },

@@ -8,7 +8,7 @@ reader tells them apart instead of reporting a generic "not a WEM".
 is `impulse`, Wwise plug-in data such as a convolution reverb's impulse response; anything else,
 including an item shorter than four bytes, is `unknown`. `midi` and `impulse` are non-sound
 classes: `Wem::parse` returns `AudioError::MidiMedia` and `AudioError::PluginMedia` for them,
-extraction writes them unchanged, and the listings (`p4kx bnk list`, the Audio tab) show the class
+extraction writes them unchanged (MIDI with the extension `.mid`, the rest as `.wem`), and the listings (`p4kx bnk list`, the Audio tab) show the class
 and no codec. `unknown` keeps `AudioError::NotWem`. The names `wem`, `midi`, `impulse` and
 `unknown` are the stable `class` values of `p4kx bnk list --json`. vgmstream also knows ADM3
 media; no live soundbank holds any, so it stays `unknown` until one does.

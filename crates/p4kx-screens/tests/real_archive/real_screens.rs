@@ -95,9 +95,8 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
     };
     let mut rendered = BTreeSet::new();
     for ship in SHIPS {
-        let Ok(record) = resolver.entities().find(ship) else {
-            continue;
-        };
+        let record = resolver.entities().find(ship)?;
+
         let tree = resolver.resolve(&record)?;
         let listing = screens.screens_of(&tree);
         assert!(!listing.screens.is_empty(), "{ship} has screens");

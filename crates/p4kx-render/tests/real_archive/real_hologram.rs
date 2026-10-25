@@ -32,7 +32,11 @@ const SHIPS: [&str; 4] = [
 ];
 const SIZE: [u32; 2] = [640, 360];
 const ALPHA_FLOOR: u8 = 8;
+/// The least share of the picture a see-through hologram covers; 0.022 to 0.044 on LIVE, so half
+/// of the smallest value is the floor.
 const MIN_COVERAGE: f64 = 0.01;
+/// The largest share it may cover; a ship that fills the picture is a camera error.
+const MAX_COVERAGE: f64 = 0.5;
 const REQUIRE: &str = "P4KX_REQUIRE_SOFTWARE_ADAPTER";
 
 #[expect(
@@ -113,7 +117,6 @@ fn the_holograms_of_real_ships_are_drawn() -> TestResult {
     }
     .sanitised();
     let dir = tempfile::tempdir()?;
-    let mut drawn = 0_usize;
     for ship in SHIPS {
         let record = resolver.entities().find(ship)?;
         let started = Instant::now();
@@ -156,9 +159,11 @@ fn the_holograms_of_real_ships_are_drawn() -> TestResult {
             coverage > MIN_COVERAGE,
             "{ship}: the hologram covers {coverage:.3} of the picture"
         );
+        assert!(
+            coverage < MAX_COVERAGE,
+            "{ship}: the hologram covers {coverage:.3} of the picture"
+        );
         assert!(std::fs::metadata(&png)?.len() > 0, "{ship}: PNG written");
-        drawn += 1;
     }
-    assert_eq!(drawn, SHIPS.len(), "every ship drawn");
     Ok(())
 }

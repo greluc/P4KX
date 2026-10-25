@@ -59,11 +59,11 @@ fn the_texts_of_real_ship_screens_are_drawn() -> TestResult {
     });
     let (mut drawn, mut left_out, mut widgets, mut no_renderer) = (0, 0, 0, 0);
     for ship in SHIPS {
-        let Ok(record) = resolver.entities().find(ship) else {
-            continue;
-        };
+        let record = resolver.entities().find(ship)?;
+
         let tree = resolver.resolve(&record)?;
         let listing = composer.screens_of(&tree);
+        let before = (no_renderer, widgets);
         for screen in &listing.screens {
             let drawn_screen = composer.compose(&screen.canvas_guid, listing.brand.as_deref())?;
             let report = drawn_screen.report();
@@ -77,6 +77,11 @@ fn the_texts_of_real_ship_screens_are_drawn() -> TestResult {
                 .map(|entry| entry.count)
                 .sum::<usize>();
         }
+        let (ship_no_renderer, ship_widgets) = (no_renderer - before.0, widgets - before.1);
+        println!(
+            "{ship}: {ship_no_renderer} of {ship_widgets} widgets without a renderer ({:.3})",
+            ship_no_renderer as f64 / ship_widgets.max(1) as f64
+        );
     }
     let share = no_renderer as f64 / widgets.max(1) as f64;
     println!(

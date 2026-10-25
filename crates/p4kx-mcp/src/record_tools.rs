@@ -10,7 +10,7 @@ use crate::forge_params::{
     DefinitionParams, MAX_GUID_LEN, MAX_NAME_LEN, RecordParams, RecordSearchParams,
 };
 use crate::forge_shapes::{EnumsResult, RecordResult, RecordSearchResult, StructsResult};
-use crate::noted::Json;
+use crate::noted::Noted;
 use crate::ordered::Ordered;
 use crate::page::Page;
 use crate::params::MAX_PATH_LEN;
@@ -58,7 +58,9 @@ impl Server {
     #[tool(
         description = "Search the Records of the Archive's DataForge by record path and type name, both Filters: \
         with * or ? a glob over the whole text, otherwise a substring; case and separator kind do not matter. \
-        Results are in Record order and page with a cursor.",
+        Results are in Record order and page with a cursor. The content may be forwarded by the client to \
+        third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<RecordSearchResult>(),
         annotations(
             title = "Search Records",
             read_only_hint = true,
@@ -70,7 +72,7 @@ impl Server {
     async fn search_records(
         &self,
         Parameters(params): Parameters<RecordSearchParams>,
-    ) -> Result<Json<RecordSearchResult>, String> {
+    ) -> Result<Noted<RecordSearchResult>, String> {
         self.preload(params.archive.clone()).await?;
         self.run(move |state| {
             if let Some(path) = &params.path {
@@ -98,7 +100,9 @@ impl Server {
     #[tool(
         description = "List the struct definitions of the Archive's DataForge, the types of Records and nested values, \
         with their parent and the fields each declares (name, data type, array, target struct or enum). \
-        name is a Filter over the struct name. Paged with a cursor; use it to write correct Queries.",
+        name is a Filter over the struct name. Paged with a cursor; use it to write correct Queries. The content may be forwarded by the client to \
+        third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<StructsResult>(),
         annotations(
             title = "List structs",
             read_only_hint = true,
@@ -110,7 +114,7 @@ impl Server {
     async fn list_structs(
         &self,
         Parameters(params): Parameters<DefinitionParams>,
-    ) -> Result<Json<StructsResult>, String> {
+    ) -> Result<Noted<StructsResult>, String> {
         self.preload(params.archive.clone()).await?;
         self.run(move |state| {
             if let Some(name) = &params.name {
@@ -128,7 +132,9 @@ impl Server {
 
     #[tool(
         description = "List the enum definitions of the Archive's DataForge with their values in order. \
-        name is a Filter over the enum name. Paged with a cursor.",
+        name is a Filter over the enum name. Paged with a cursor. The content may be forwarded by the \
+        client to third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<EnumsResult>(),
         annotations(
             title = "List enums",
             read_only_hint = true,
@@ -140,7 +146,7 @@ impl Server {
     async fn list_enums(
         &self,
         Parameters(params): Parameters<DefinitionParams>,
-    ) -> Result<Json<EnumsResult>, String> {
+    ) -> Result<Noted<EnumsResult>, String> {
         self.preload(params.archive.clone()).await?;
         self.run(move |state| {
             if let Some(name) = &params.name {

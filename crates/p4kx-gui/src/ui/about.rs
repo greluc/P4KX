@@ -3,13 +3,17 @@
 
 use std::sync::Arc;
 
-use egui::{Align, Id, Label, Layout, RichText, Ui};
+use egui::{Align, Hyperlink, Id, Label, Layout, RichText, Ui};
 
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, SPACE_3, Weight, font};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
 use crate::{AboutText, ExtractionText, Language, Model, Text};
+
+const PROJECT_URL: &str = "https://github.com/p4kx-org/p4kx";
+
+const SOURCE_AFTER: usize = 1;
 
 const PARAGRAPHS: [AboutText; 7] = [
     AboutText::Copyright,
@@ -25,6 +29,7 @@ const PARAGRAPHS: [AboutText; 7] = [
 struct Strings {
     title: String,
     version: String,
+    source: String,
     paragraphs: [String; PARAGRAPHS.len()],
     close_label: String,
     close_dialog: String,
@@ -39,6 +44,7 @@ impl Strings {
                 AboutText::Version,
                 &[("version", env!("CARGO_PKG_VERSION").into())],
             ),
+            source: texts.get(AboutText::Source),
             paragraphs: PARAGRAPHS.map(|text| texts.get(text)),
             close_label: texts.get(ExtractionText::Close),
             close_dialog: texts.get(Text::CloseDialog),
@@ -73,11 +79,14 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             true,
             Some(&strings.close_dialog),
         );
-        ui.scope(|ui| {
+        frames::scrolling_body(ui, "about-body", |ui| {
             ui.spacing_mut().item_spacing.y = SPACE_3;
             paragraph(ui, &strings.version, Weight::Bold);
-            for text in &strings.paragraphs {
+            for (index, text) in strings.paragraphs.iter().enumerate() {
                 paragraph(ui, text, Weight::Regular);
+                if index == SOURCE_AFTER {
+                    source_link(ui, &strings.source);
+                }
             }
         });
         frames::foot_rule(ui);
@@ -96,6 +105,17 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     if shown.inner || shown.should_close() {
         model.set_about_shown(false);
     }
+}
+
+fn source_link(ui: &mut Ui, label: &str) {
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACE_3;
+        paragraph(ui, label, Weight::Regular);
+        ui.add(Hyperlink::from_label_and_url(
+            RichText::new(PROJECT_URL).font(font(FS_SM, Weight::Regular)),
+            PROJECT_URL,
+        ));
+    });
 }
 
 fn paragraph(ui: &mut Ui, text: &str, weight: Weight) {

@@ -322,10 +322,20 @@ does not exist yet; the old folder stays as a backup.
 
 ### About
 
-**Help › About P4KX** shows the version, the licence and the legal notices: P4KX
-is an unofficial Star Citizen fan project, not affiliated with or endorsed by the Cloud Imperium
-group of companies. It ships no game data and reads only your own installation, and you are
-responsible for complying with the Star Citizen EULA and Terms of Service.
+**Help › About P4KX** shows the version, the licence, a link to the source code and the legal
+notices: P4KX is an unofficial Star Citizen fan project, not affiliated with or endorsed by the
+Cloud Imperium group of companies. It ships no game data and reads only your own installation, and
+you are responsible for complying with the Star Citizen EULA and Terms of Service. In a very small
+window the text scrolls. `p4kx --version` and `-V` show the same legal notice.
+
+### Archives of test Channels
+
+An Archive in a `PTU`, `EPTU`, `HOTFIX` or `TECH-PREVIEW` folder holds material of Star Citizen
+test builds, which is confidential under the Star Citizen Terms of Service. You can still open,
+browse, extract and compare it, and the window says so with a warning below the menu for as long as
+such an Archive is open, in every tab. In the Comparison tab it names the test Channel or Channels
+of the two Archives. Do not share or publish anything taken from it. The command line prints a
+`notice: …` line to stderr once per run, and the MCP server adds the notice to its results.
 
 ### Checking for a new version
 

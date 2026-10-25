@@ -73,9 +73,9 @@ impl ChannelKind {
     pub fn notice(self) -> Option<String> {
         let name = self.name().filter(|_| self.is_test_build())?;
         Some(format!(
-            "This Archive belongs to the {name} Channel, a Star Citizen test build. Material of \
-             test builds is confidential under the Star Citizen Terms of Service: do not share or \
-             publish anything taken from it."
+            "This Archive belongs to the {name} Channel, which carries Star Citizen test builds. \
+             Material of test builds is confidential under the Star Citizen Terms of Service: do \
+             not share or publish anything taken from it."
         ))
     }
 }

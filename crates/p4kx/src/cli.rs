@@ -35,14 +35,13 @@ pub(crate) use crate::cli_wwise::{
     AudioLanguageArgs, WwiseAction, WwiseArgs, WwiseEventsArgs, WwiseResolveArgs,
 };
 use crate::exit::EXIT_CODES_HELP;
-use crate::notice::{LEGAL_NOTICE, LONG_VERSION};
+use crate::notice::{LEGAL_NOTICE, VERSION};
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
 #[derive(Debug, Parser)]
 #[command(
     name = "p4kx",
-    version,
-    long_version = LONG_VERSION,
+    version = VERSION,
     before_help = LEGAL_NOTICE,
     after_help = EXIT_CODES_HELP
 )]

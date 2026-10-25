@@ -511,6 +511,11 @@ third parties, for example the cloud model provider behind the client. Game text
 not be redistributed. You remain responsible for complying with the Star Citizen EULA and Terms of
 Service.
 
+A tool that reads an Archive of a test Channel (`PTU`, `EPTU`, `HOTFIX`, `TECH-PREVIEW`) adds
+the test-build notice of [ADR-0038](docs/adr/0038-test-build-archives-carry-a-notice.md) to its
+result as one more text content block. The structured content and the output schemas do not
+change. `p4kx-mcp --version` and `-V` show the legal notice.
+
 | Tool | Result |
 |------|--------|
 | `list_channels` | The detected Channels with Archive path, source and Build, found like `p4kx channels` |

@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use p4kx_extraction::{ensure_writable, is_same_file};
+use p4kx_extraction::{ArchiveImages, ensure_writable, is_same_file};
 use p4kx_screens::{ScreenTexts, Still, StillFormat, StillRequest};
 
 use super::job::{Job, Poll};
@@ -232,7 +232,8 @@ fn write_screen(
             UiFormat::Svg => StillFormat::Svg,
         },
     };
-    let still = Still::render(&forge, &texts, &asked).map_err(|e| reason(&e))?;
+    let images = ArchiveImages::new(index.archive());
+    let still = Still::render(&forge, (&texts, &images), &asked).map_err(|e| reason(&e))?;
     still.write(file).map_err(|e| reason(&e))?;
     Ok(UiExportSummary {
         file: file.clone(),

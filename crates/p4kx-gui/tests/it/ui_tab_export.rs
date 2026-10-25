@@ -11,7 +11,7 @@ use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
 use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions};
 use p4kx_extraction::{
-    Archive, DataForgeEntry, Language as TextLanguage, LocalizationEntry, UiMovie,
+    Archive, ArchiveImages, DataForgeEntry, Language as TextLanguage, LocalizationEntry, UiMovie,
 };
 use p4kx_gui::ui::Dialog;
 use p4kx_gui::{Language, UiExportStatus, UiFormat};
@@ -54,7 +54,8 @@ fn screen_by_library(
         raster: STAGE,
         format,
     };
-    let still = Still::render(&forge, &texts, &request)?;
+    let images = ArchiveImages::new(&archive);
+    let still = Still::render(&forge, (&texts, &images), &request)?;
     Ok(still.encode()?.into_owned())
 }
 

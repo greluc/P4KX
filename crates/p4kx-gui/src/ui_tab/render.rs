@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use egui::ColorImage;
 use p4kx_extraction::gfx::RasterOptions;
-use p4kx_extraction::{LocalizationEntry, UiMovie};
+use p4kx_extraction::{ArchiveImages, LocalizationEntry, UiMovie};
 use p4kx_screens::{ScreenTexts, Still, StillFormat, StillRequest};
 
 use super::contents::UiContents;
@@ -209,7 +209,8 @@ fn screen(
         raster: key.raster(),
         format: StillFormat::Png,
     };
-    let still = Still::render(&forge, &texts, &request).map_err(|e| reason(&e))?;
+    let images = ArchiveImages::new(index.archive());
+    let still = Still::render(&forge, (&texts, &images), &request).map_err(|e| reason(&e))?;
     let image = still
         .image()
         .ok_or_else(|| Fail::Reason("the screen has no pixels".to_owned()))?;

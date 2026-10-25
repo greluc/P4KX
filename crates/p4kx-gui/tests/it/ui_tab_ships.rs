@@ -159,9 +159,8 @@ fn what_no_renderer_draws_is_reported_for_a_screen() -> TestResult {
         contents
             .rows()
             .iter()
-            .any(|row| row.kind == UiText::KindElementUndrawn
-                && row.detail.starts_with("WidgetImage")),
-        "the screen's own widgets are listed with what is not drawn"
+            .any(|row| row.kind == UiText::KindElement && row.detail.starts_with("WidgetImage")),
+        "the screen's own widgets are listed, the image widget as one the renderer draws"
     );
     Ok(())
 }

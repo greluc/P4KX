@@ -7,7 +7,7 @@ use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped};
-use p4kx_extraction::{DataForgeEntry, Language};
+use p4kx_extraction::{ArchiveImages, DataForgeEntry, Language};
 use p4kx_screens::{Report, ScreenTexts, Still, StillFormat, StillRequest};
 use serde::Serialize;
 
@@ -64,6 +64,7 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
     for warning in texts.warnings() {
         warn(warning);
     }
+    let images = ArchiveImages::new(&archive);
     let request = StillRequest {
         screen: options.screen,
         brand: options.brand,
@@ -77,7 +78,7 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
             StillFormat::Png
         },
     };
-    let still = Still::render(&forge, &texts, &request)?;
+    let still = Still::render(&forge, (&texts, &images), &request)?;
     for warning in still.warnings() {
         warn(warning);
     }
@@ -139,7 +140,7 @@ fn print_report(options: &Options<'_>, still: &Still, skipped: &[SkippedJson]) -
     drop(stderr);
     writeln!(
         io::stdout().lock(),
-        "rendered {} into {}, {width} x {height} px; {} widgets in {} canvases, {} shapes, {} texts drawn and {} left out, {} kinds of element left out",
+        "rendered {} into {}, {width} x {height} px; {} widgets in {} canvases, {} shapes, {} texts drawn and {} left out, {} images drawn and {} left out, {} kinds of element left out",
         options.screen,
         options.out.display(),
         report.widgets,
@@ -147,6 +148,8 @@ fn print_report(options: &Options<'_>, still: &Still, skipped: &[SkippedJson]) -
         report.shapes,
         report.texts_drawn,
         report.texts_left_out,
+        report.images_drawn,
+        report.images_left_out,
         report.unsupported.len()
     )
 }

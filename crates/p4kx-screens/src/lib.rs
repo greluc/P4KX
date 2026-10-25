@@ -22,6 +22,13 @@
 //! spacing, alignment and case, localisation keys resolve in the language of the caller, and a
 //! character without a glyph is an empty box. Without [`TextSources`] text widgets are listed.
 //!
+//! Textures and vector graphics are read through [`ImageSources`]: image widgets draw their
+//! texture as a bitmap fill with the scaling method, flips and colour of the widget, and icons,
+//! custom shapes and images that name an SVG draw its paths as shapes, fitted to the widget, with
+//! a colour overlay or palette slots and an optional nine-slice. The files are untrusted and
+//! bounded by [`Limits`]; one that is missing or unreadable is listed and its widget skipped.
+//! Without [`ImageSources`] these widgets are listed.
+//!
 //! [`Still::render`] does all of that for a front-end: [`ScreenTexts::load`] reads the fonts and
 //! the `global.ini` of a language from an Archive once, and a [`Still`] holds the PNG pixels or
 //! the SVG document of one canvas with its report, which [`Still::write`] writes to a file.
@@ -41,18 +48,21 @@ mod flex;
 mod font_file;
 mod geometry;
 mod glyphs;
+mod images;
 mod inspect;
 mod layout;
 mod limits;
 mod look;
 mod paint;
 mod paint_state;
+mod picture;
 mod reader;
 mod report;
 mod screens;
 mod statics;
 mod still;
 mod style;
+mod svg;
 mod text;
 mod transform;
 mod walk;
@@ -64,8 +74,10 @@ mod widget;
 pub use assets::ScreenAssets;
 pub use compose::{Composed, ScreenComposer, TextSources};
 pub use error::ScreenError;
+pub use images::{ImageSources, LoadTexture, LoadVector};
 pub use inspect::ElementCount;
 pub use limits::Limits;
 pub use report::{Report, Unsupported};
 pub use screens::{EntityScreens, MovieUse, Screen};
 pub use still::{ScreenTexts, Still, StillFormat, StillRequest, StillWriteError};
+pub use svg::MAX_SVG_BYTES;

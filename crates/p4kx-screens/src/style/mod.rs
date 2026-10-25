@@ -4,11 +4,13 @@
 mod entry;
 mod geometry;
 mod matching;
+mod picture;
 mod sheet;
 mod text;
 
 pub(crate) use entry::{Entry, Modifiers, inline_entries, modifiers, parse_entries};
 pub(crate) use geometry::GeometryModifiers;
 pub(crate) use matching::{Subject, TagPaths};
+pub(crate) use picture::PictureModifiers;
 pub(crate) use sheet::{CanvasStyles, StyleCache, merge, resolve};
 pub(crate) use text::TextModifiers;

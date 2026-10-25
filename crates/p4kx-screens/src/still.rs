@@ -6,13 +6,15 @@ use std::io::Write;
 use std::path::Path;
 
 use p4kx_dataforge::DataForge;
-use p4kx_extraction::{ConversionError, write_replacing};
+use p4kx_extraction::{ArchiveImages, ConversionError, write_replacing};
 use p4kx_gfx::{Localise, RasterOptions, RgbaImage, Skipped};
 use thiserror::Error;
 
 use crate::compose::{ScreenComposer, TextSources};
 use crate::error::ScreenError;
+use crate::images::ImageSources;
 use crate::report::Report;
+use crate::svg::MAX_SVG_BYTES;
 
 mod texts;
 
@@ -51,6 +53,17 @@ pub enum StillWriteError {
     Write(#[from] ConversionError),
 }
 
+fn describe(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
+}
+
 #[derive(Debug)]
 enum Picture {
     Png(RgbaImage),
@@ -70,7 +83,7 @@ pub struct Still {
 
 impl Still {
     /// Composes the canvas of `request` of `forge` and draws it in the format of the request,
-    /// the texts with `texts`.
+    /// the texts with `texts` and the textures and vector graphics with `images`.
     ///
     /// # Errors
     ///
@@ -78,13 +91,24 @@ impl Still {
     /// of the request cannot be drawn.
     pub fn render(
         forge: &DataForge<'_>,
-        texts: &ScreenTexts,
+        (texts, images): (&ScreenTexts, &ArchiveImages<'_>),
         request: &StillRequest<'_>,
     ) -> Result<Self, ScreenError> {
         let mut warnings = Vec::new();
         let ini = texts.parsed(&mut warnings);
         let lookup = |key: &str| ini.as_ref()?.resolve(key).map(texts::decoded);
-        let mut composer = ScreenComposer::new(forge);
+        let read_texture = |path: &str, side: u32, pixels: u64| {
+            images.texture(path, side, pixels).map_err(|e| describe(&e))
+        };
+        let read_vector = |path: &str| {
+            images
+                .vector(path, MAX_SVG_BYTES as u64)
+                .map_err(|e| describe(&e))
+        };
+        let mut composer = ScreenComposer::new(forge).with_images(ImageSources {
+            texture: &read_texture,
+            vector: &read_vector,
+        });
         if let Some(fonts) = texts.fonts() {
             composer = composer.with_texts(TextSources {
                 fonts,

@@ -78,6 +78,12 @@ pub enum TestModifier {
     Case(&'static str),
     /// The localised `Text` field, e.g. a key as `@key`.
     Text(&'static str),
+    /// `ImagePath`.
+    ImagePath(&'static str),
+    /// `SvgPath`.
+    SvgPath(&'static str),
+    /// `EnableColorOverlay`.
+    ColourOverlay(bool),
     /// Any numeric field by its name, e.g. `AnchorX`, `SizeX` or `OrientationZ`.
     Number(&'static str, f32),
 }
@@ -97,6 +103,9 @@ impl TestModifier {
             Self::LetterSpacing(space) => ("Number", "LetterSpacing", TestValue::Single(space)),
             Self::LineSpacing(space) => ("Number", "LineSpacing", TestValue::Single(space)),
             Self::Text(text) => ("Localization", "Text", TestValue::text(text)),
+            Self::ImagePath(path) => ("String", "ImagePath", TestValue::text(path)),
+            Self::SvgPath(path) => ("String", "SvgPath", TestValue::text(path)),
+            Self::ColourOverlay(on) => ("Boolean", "EnableColorOverlay", TestValue::Bool(on)),
             Self::FontStyle(guid) => {
                 return typed(
                     "RecordRef",

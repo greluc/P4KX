@@ -7,7 +7,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use p4kx_dataforge::DataForge;
-use p4kx_extraction::{Archive, Language};
+use p4kx_extraction::{Archive, ArchiveImages, Language};
 use p4kx_gfx::{Background, CanvasSize, RasterOptions};
 use p4kx_screens::{ScreenError, ScreenTexts, Still, StillFormat, StillRequest};
 use p4kx_testkit::{
@@ -59,7 +59,11 @@ fn a_png_still_draws_the_fonts_and_resolves_the_keys_of_the_archive() -> TestRes
     assert!(texts.has_texts(), "the global.ini was read");
     assert!(texts.warnings().is_empty(), "nothing was left out");
 
-    let still = Still::render(&forge, &texts, &request(StillFormat::Png))?;
+    let still = Still::render(
+        &forge,
+        (&texts, &ArchiveImages::new(&archive)),
+        &request(StillFormat::Png),
+    )?;
 
     let image = still.image().ok_or("a PNG still has pixels")?;
     assert_eq!(
@@ -81,7 +85,11 @@ fn an_svg_still_writes_one_path_per_shape_and_the_screen_as_title() -> TestResul
     let forge = DataForge::open(&bytes)?;
     let texts = ScreenTexts::load(&archive, &forge, Some(Language::English));
 
-    let still = Still::render(&forge, &texts, &request(StillFormat::Svg))?;
+    let still = Still::render(
+        &forge,
+        (&texts, &ArchiveImages::new(&archive)),
+        &request(StillFormat::Svg),
+    )?;
 
     assert!(still.image().is_none(), "an SVG still has no pixels");
     let svg = String::from_utf8(still.encode()?.into_owned())?;
@@ -103,7 +111,11 @@ fn missing_fonts_are_named_and_the_texts_are_listed() -> TestResult {
 
     assert!(!texts.has_fonts(), "no font movie");
     assert_eq!(texts.warnings().len(), 1, "one source left out");
-    let still = Still::render(&forge, &texts, &request(StillFormat::Png))?;
+    let still = Still::render(
+        &forge,
+        (&texts, &ArchiveImages::new(&archive)),
+        &request(StillFormat::Png),
+    )?;
     assert!(
         still
             .report()
@@ -128,7 +140,11 @@ fn a_language_the_archive_lacks_is_a_warning_not_an_error() -> TestResult {
     assert!(texts.has_fonts(), "the fonts are there");
     assert!(!texts.has_texts(), "no German global.ini");
     assert_eq!(texts.warnings().len(), 1, "named");
-    Still::render(&forge, &texts, &request(StillFormat::Png))?;
+    Still::render(
+        &forge,
+        (&texts, &ArchiveImages::new(&archive)),
+        &request(StillFormat::Png),
+    )?;
     Ok(())
 }
 
@@ -139,7 +155,11 @@ fn writing_a_still_replaces_the_file_with_the_encoded_bytes() -> TestResult {
     let bytes = screens_text_sample().build();
     let forge = DataForge::open(&bytes)?;
     let texts = ScreenTexts::load(&archive, &forge, Some(Language::English));
-    let still = Still::render(&forge, &texts, &request(StillFormat::Png))?;
+    let still = Still::render(
+        &forge,
+        (&texts, &ArchiveImages::new(&archive)),
+        &request(StillFormat::Png),
+    )?;
     let out = dir.path().join("out.png");
     fs::write(&out, b"old")?;
 
@@ -163,7 +183,7 @@ fn an_unknown_screen_is_an_error() -> TestResult {
     let mut asked = request(StillFormat::Png);
     asked.screen = "libs/foundry/records/ui/buildingblocks/test/nothing";
 
-    let error = Still::render(&forge, &texts, &asked).err();
+    let error = Still::render(&forge, (&texts, &ArchiveImages::new(&archive)), &asked).err();
 
     assert!(
         matches!(error, Some(ScreenError::UnknownCanvas { .. })),

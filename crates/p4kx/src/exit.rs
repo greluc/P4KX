@@ -38,7 +38,8 @@ pub(crate) const SUCCESS: u8 = 0;
 /// Some Entries or Records failed or were cancelled, the data of an Entry does not match its
 /// checksum, the target folder could not be created, a texture is invalid or cannot be merged,
 /// decoded or written, a sound or soundbank is invalid or cannot be converted or written, a tag or
-/// definition of a UI movie cannot be read or written, or a model cannot be exported or written.
+/// definition of a UI movie cannot be read or written, a model cannot be exported or written, or
+/// `wwise events` cannot look up the Entities.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
 /// A Comparison found differences.
 pub(crate) const DIFFERENCES: u8 = 1;

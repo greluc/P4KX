@@ -40,9 +40,7 @@ pub(crate) struct UnknownAudioLanguage {
 pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<ExitCode> {
     match &args.action {
         WwiseAction::Resolve(args) => resolve(args, as_json).map(|()| ExitCode::SUCCESS),
-        WwiseAction::Events(args) => {
-            crate::wwise_events::run(args, as_json).map(|()| ExitCode::SUCCESS)
-        }
+        WwiseAction::Events(args) => crate::wwise_events::run(args, as_json),
         WwiseAction::Extract(args) => crate::wwise_extract::run(args, as_json),
     }
 }

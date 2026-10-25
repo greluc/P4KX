@@ -528,8 +528,13 @@ definitions' Entry paths, and `next_offset` is the offset of the next page or `n
 last one. A trigger matches when its name or the name of one of its events does; `matched_trigger`
 and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx entity audio`.
 `entities` counts the Entities that name the trigger through those fields
-and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
-and when the DataForge cannot be read, which is a warning on stderr.
+and lists the first `--entities` of them in definition order; only Entities whose own Record names
+the trigger count, not those that reach it through a Loadout or a Reference. In `--search`, `/`
+and `\` match each other. `entities` is `null` with `--no-entities` and for an empty page. It is
+also `null` when the DataForge cannot be found, decrypted or read: `entities_skipped` then holds
+the reason, a warning goes to stderr and the exit code is 1. Otherwise `entities_skipped` is
+`null`. `unreadable_records` counts the Entity Records that could not be read and so name no
+trigger; above 0 it is also a warning on stderr.
 
 ## `p4kx wwise extract <archive> <trigger> --out <folder> --json`
 

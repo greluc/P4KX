@@ -3,6 +3,7 @@
 
 use std::collections::HashSet;
 use std::io::{self, BufWriter, Write};
+use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_assembly::audio::{
@@ -13,6 +14,7 @@ use serde::Serialize;
 
 use crate::cli::WwiseEventsArgs;
 use crate::entity_audio::{IssueJson, issues_json, warn};
+use crate::exit::PARTIAL_FAILURE;
 use crate::json;
 use crate::query_table::one_line;
 
@@ -26,6 +28,8 @@ struct EventsJson<'a> {
     limit: usize,
     total: usize,
     next_offset: Option<usize>,
+    entities_skipped: Option<&'a str>,
+    unreadable_records: usize,
     triggers: Vec<HitJson<'a>>,
     issues: Vec<IssueJson<'a>>,
 }
@@ -82,24 +86,39 @@ struct Finder<'f> {
 }
 
 /// Prints the audio triggers whose names or whose events' names match a search, a page at a time.
-pub(crate) fn run(args: &WwiseEventsArgs, as_json: bool) -> Result<()> {
+///
+/// Exits with 1 when the Entities were asked for and could not be looked up.
+pub(crate) fn run(args: &WwiseEventsArgs, as_json: bool) -> Result<ExitCode> {
     let archive = crate::key::open(&args.archive)?;
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
     let limit = usize::try_from(args.limit)?;
     let offset = usize::try_from(args.offset)?;
     let page = index.search(args.search.as_deref().unwrap_or_default(), offset, limit);
-    let entry = (!args.no_entities)
-        .then(|| DataForgeEntry::read(&archive).map_err(skipped).ok())
-        .flatten();
+    let mut failure = None;
+    let entry = (!args.no_entities && !page.hits().is_empty())
+        .then(|| DataForgeEntry::read(&archive))
+        .and_then(|read| note(read, &mut failure));
     let forge = entry
         .as_ref()
-        .and_then(|entry| entry.open().map_err(skipped).ok());
+        .and_then(|entry| note(entry.open(), &mut failure));
     let finder = forge.as_ref().map(|forge| Finder {
         forge,
         found: TriggerUsers::build(forge, &wanted_by(&page)),
         listed: usize::try_from(args.entities).unwrap_or(usize::MAX),
     });
+    let unreadable = finder
+        .as_ref()
+        .map_or(0, |finder| finder.found.unreadable_records());
+    if unreadable > 0 {
+        let _ignored = writeln!(
+            io::stderr().lock(),
+            "warning: {unreadable} Entity Records cannot be read and name no trigger"
+        );
+    }
+    let code = failure
+        .as_ref()
+        .map_or(ExitCode::SUCCESS, |_| ExitCode::from(PARTIAL_FAILURE));
     if as_json {
         json::print(&EventsJson {
             archive: json::path(archive.path()),
@@ -108,6 +127,8 @@ pub(crate) fn run(args: &WwiseEventsArgs, as_json: bool) -> Result<()> {
             limit,
             total: page.total(),
             next_offset: page.next_offset(),
+            entities_skipped: failure.as_deref(),
+            unreadable_records: unreadable,
             triggers: page
                 .hits()
                 .iter()
@@ -115,12 +136,30 @@ pub(crate) fn run(args: &WwiseEventsArgs, as_json: bool) -> Result<()> {
                 .collect(),
             issues: issues_json(index),
         })?;
-        return Ok(());
+        return Ok(code);
     }
-    warn(index)?;
+    if let Err(error) = warn(index) {
+        return if error.kind() == io::ErrorKind::BrokenPipe {
+            Ok(code)
+        } else {
+            Err(error.into())
+        };
+    }
     match print_text(index, &page, finder.as_ref()) {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
-        _ => Ok(()),
+        _ => Ok(code),
+    }
+}
+
+fn note<T, E: std::fmt::Display>(result: Result<T, E>, failure: &mut Option<String>) -> Option<T> {
+    match result {
+        Ok(value) => Some(value),
+        Err(error) => {
+            let line = one_line(&format!("no Entities listed: {error}"));
+            let _ignored = writeln!(io::stderr().lock(), "warning: {line}");
+            failure.get_or_insert_with(|| error.to_string());
+            None
+        }
     }
 }
 
@@ -132,12 +171,6 @@ fn wanted_by(page: &SearchPage<'_>) -> impl Fn(&str) -> bool + Sync + use<> {
         .collect();
     move |name| wanted.contains(name)
 }
-
-fn skipped(error: impl std::fmt::Display) {
-    let line = one_line(&format!("no Entities listed: {error}"));
-    let _ignored = writeln!(io::stderr().lock(), "warning: {line}");
-}
-
 fn hit_json<'a>(hit: &TriggerHit<'a>, users: Option<&Finder<'a>>) -> HitJson<'a> {
     HitJson {
         name: hit.trigger().name(),

@@ -39,6 +39,10 @@
 //! A separator draws the `ModularKit` canvas of its direction and style (ADR-0111). What the game
 //! fills at run time, such as a map picture, 3D content or a line to a placed widget, keeps its
 //! box and is listed with its reason.
+//!
+//! [`Still::render`] does all of that for a front-end that hands it the sources: a [`Still`]
+//! holds the PNG pixels or the SVG document of one canvas with its report, which
+//! [`Still::encode`] turns into the bytes of a file.
 
 mod assets;
 mod bindings;
@@ -68,6 +72,7 @@ mod report;
 mod rest;
 mod screens;
 mod statics;
+mod still;
 mod style;
 mod svg;
 mod text;
@@ -88,4 +93,5 @@ pub use inspect::ElementCount;
 pub use limits::Limits;
 pub use report::{Report, Unsupported};
 pub use screens::{EntityScreens, MovieUse, Screen};
+pub use still::{Still, StillFormat, StillRequest};
 pub use svg::MAX_SVG_BYTES;

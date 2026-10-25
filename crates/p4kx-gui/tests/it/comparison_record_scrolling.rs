@@ -3,6 +3,7 @@
 
 //! The field list of a Record change scrolls with the keyboard once it takes the focus.
 
+use crate::waiting::RunQuiet;
 use crate::wide_forge;
 
 use std::time::{Duration, Instant};
@@ -31,7 +32,7 @@ fn settle(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> Te
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -67,13 +68,13 @@ fn changed_record()
             },
             model,
         );
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Compare").click();
     settle(&mut harness, |model| {
         matches!(model.comparison().status(), ComparisonStatus::Finished(_))
     })?;
     harness.get_by_role_and_label(Role::Tab, "Records").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Changed: libs/wide/record").click();
     settle(&mut harness, detail_loaded)?;
     Ok((dir, harness))
@@ -89,9 +90,9 @@ fn the_focused_field_list_scrolls_with_the_keyboard() -> TestResult {
     assert!(harness.query_by_label(&last).is_none(), "the last is below");
 
     harness.get_by_label("Changed fields").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(&last).is_some(),
         "End shows the last"
@@ -102,24 +103,24 @@ fn the_focused_field_list_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(&first).is_some(),
         "Home shows the first"
     );
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(&first).is_none(), "one row down");
     assert!(harness.query_by_label(&second).is_some(), "only one row");
 
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(&second).is_none(), "a page down");
 
     harness.key_press(Key::PageUp);
     harness.key_press(Key::ArrowUp);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(&first).is_some(), "back at the top");
     Ok(())
 }

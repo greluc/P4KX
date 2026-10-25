@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufWriter};
+use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process;
 
@@ -44,6 +44,19 @@ pub fn write_replacing<T>(
             ..
         } => write_error(out, source),
         other => other,
+    })
+}
+
+/// Writes `bytes` to the file `out` like [`write_replacing`].
+///
+/// # Errors
+///
+/// Returns the errors of [`write_replacing`].
+pub fn write_bytes_replacing(out: &Path, bytes: &[u8]) -> Result<(), ConversionError> {
+    write_replacing(out, |writer| {
+        writer
+            .write_all(bytes)
+            .map_err(|source| write_error(out, source))
     })
 }
 

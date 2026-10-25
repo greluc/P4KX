@@ -3,6 +3,7 @@
 
 //! The optional check for a newer Release and the hint it leaves in the status bar.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::net::TcpListener;
@@ -60,9 +61,9 @@ fn wait_for_hint(harness: &mut Harness<'_, State>) -> TestResult {
             return Err("no newer Release arrived".into());
         }
         thread::sleep(Duration::from_millis(5));
-        harness.run();
+        harness.run_quiet();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -91,9 +92,9 @@ fn a_switched_off_check_asks_nobody() -> TestResult {
     )));
     model.check_for_update(|| {});
     let mut harness = harness(model);
-    harness.run();
+    harness.run_quiet();
     thread::sleep(Duration::from_millis(200));
-    harness.run();
+    harness.run_quiet();
 
     let accepted = listener.accept();
 
@@ -112,10 +113,10 @@ fn the_help_menu_switches_the_check_and_asks_to_store_it() -> TestResult {
     let mut model = Model::new(Language::BritishEnglish);
     model.set_release_check(serve_newer_release()?);
     let mut harness = harness(model);
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Help").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label(SWITCH).click();
     wait_for_hint(&mut harness)?;
 
@@ -125,9 +126,9 @@ fn the_help_menu_switches_the_check_and_asks_to_store_it() -> TestResult {
 
     harness.state_mut().1 = ui::Requests::default();
     harness.get_by_label("Help").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label(SWITCH).click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(!harness.state().0.update_check(), "switched off");
     assert!(harness.state().1.settings_changed, "to be stored again");

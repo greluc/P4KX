@@ -5,6 +5,7 @@
 //! DataForges, in both languages.
 
 use crate::record_pair;
+use crate::waiting::RunQuiet;
 
 use std::error::Error;
 use std::path::Path;
@@ -47,7 +48,7 @@ fn settle(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> Te
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -66,13 +67,13 @@ fn records_shown(
     (compare, records): (&str, &str),
 ) -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let mut harness = harness(pair, language);
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label(compare).click();
     settle(&mut harness, |model| {
         matches!(model.comparison().status(), ComparisonStatus::Finished(_))
     })?;
     harness.get_by_role_and_label(Role::Tab, records).click();
-    harness.run();
+    harness.run_quiet();
     Ok(harness)
 }
 
@@ -131,7 +132,7 @@ fn extracting_the_changes_of_a_side_belongs_to_the_entries_tab() -> TestResult {
 
     let on_records = harness.query_by_label_contains("Extract new").is_some();
     harness.get_by_role_and_label(Role::Tab, "Entries").click();
-    harness.run();
+    harness.run_quiet();
     let on_entries = harness.query_by_label_contains("Extract new").is_some();
 
     assert!(!on_records, "no Extraction of Entries beside the Records");
@@ -247,7 +248,7 @@ fn the_filter_narrows_the_record_list() -> TestResult {
     )?;
 
     harness.get_by_role(Role::TextInput).click();
-    harness.run();
+    harness.run_quiet();
     harness
         .get_by_role(Role::TextInput)
         .type_text("makers/gone");
@@ -286,7 +287,7 @@ fn the_records_tab_is_missing_without_the_record_level() -> TestResult {
         .state_mut()
         .comparison_mut()
         .set_levels(p4kx_gui::ComparisonLevels::default());
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Compare").click();
     settle(&mut harness, |model| {

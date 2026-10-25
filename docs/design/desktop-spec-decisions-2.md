@@ -522,3 +522,27 @@ Knoten, Meshes, Texturen, Materialien, Paletten, Dateien, Vertices, Dreiecke und
 nicht geschriebenen Texturen, und listet die Hinweise des Pakets wie den Bericht des GLB-Exports. Der Export
 eines Interior-Containers allein und der Charakter-Export bieten kein Paket an, solange die Bibliothek
 keines schreibt. Neue Maße gibt es nicht.
+
+**D.51 Tab „UI" zeichnet GFx-Dateien und Bildschirme.** Hinter „Charaktere" steht der Tab „UI" (ADR-0108).
+Eine Werkzeugleiste (Innenabstand `TOOLBAR_PADDING`) trägt beschriftete Segmentgruppen (`.segmented--sm`,
+Beschriftung als `page-head__eyebrow`): „Quelle" (Dateien, Schiffe), „Größe" (Bühne, 1024 px breit,
+2048 px breit, 1920 × 1080), „Hintergrund" (Transparent, Filmfarbe, Schwarz, Weiß) und „Format" (PNG, SVG),
+dann „Exportieren …" (`.btn-cta`). Die Gruppen brechen nach gemessener Breite in Zeilen um. Die Leiste ist
+höchstens `toolbarMaxShare` (0,2) der Fensterhöhe hoch und rollt, wenn ihre Zeilen mehr brauchen, damit die
+Arbeitsfläche bei 640 × 400 sichtbar bleibt. Größe, Hintergrund und Format merkt sich die Einstellungsdatei.
+Links steht die Liste: bei „Dateien" ein Suchfeld und die GFx- und SWF-Einträge des Archivs, bei „Schiffe"
+die Schiffe und Fahrzeuge mit einer zweiten Liste der Bildschirme des gewählten Schiffs. Rechts steht das
+Bild, skaliert auf den Platz (höchstens `pictureMaxScale`, 4), zentriert, mit Haarlinie in `color-gray-3`;
+ein transparentes Bild zeigt die Fläche durch sich. Das Bild wird im Hintergrund gezeichnet (Spinner mit
+„Zeichne …"); höchstens eine Zeichnung läuft, eine neue Wahl hält nur den letzten Schlüssel, und ein
+geändertes Archiv bricht sie ab. Darunter steht ein verstellbares Feld mit den Segmenten „Inhalt" und
+„Ausgelassen", jedes mit seiner Zahl. „Inhalt" zeigt eine Faktenleiste, deren Paare aus Name und Wert nicht
+umbrechen, und die Zeilen der Teile (Art in `color-gray-2-text`, Zeilenhöhe `rowHeight`); „Ausgelassen"
+zeigt die Zahlen und die Zeilen dessen, was der Renderer übersprang, ohne Wirkung zeichnete, ausließ oder
+nicht lesen konnte, in den Worten von `p4kx ui render`, bis `reportMaxLines`. „Exportieren …" öffnet den
+Speichern-Dialog des Systems mit dem vorgeschlagenen Namen; das Ergebnis steht unter der Leiste in
+`color-success-text`, bei ausgelassenen Elementen in `color-warning`, bei Fehlern in `color-danger-text`, mit
+„Schließen" (`btn-ghost btn-xs`). Das geöffnete Archiv wird nie überschrieben, eine Datei in einer
+Star-Citizen-Installation lehnt der Tab wie die anderen Exporte ab, und hat sich das Archiv während des
+Schreibens geändert, meldet der Tab die geschriebene Datei mit dieser Warnung statt „nichts exportiert".
+Neue Maße: `toolbarMaxShare`.

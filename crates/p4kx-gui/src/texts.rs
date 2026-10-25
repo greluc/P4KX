@@ -35,6 +35,7 @@ mod scroll_text;
 mod sounds_text;
 mod tags_text;
 mod text_ids;
+mod ui_text;
 mod xml_text;
 
 pub use about_text::AboutText;
@@ -68,6 +69,7 @@ pub use schema_text::SchemaText;
 pub use scroll_text::ScrollText;
 pub use sounds_text::SoundsText;
 pub use tags_text::TagsText;
+pub use ui_text::UiText;
 pub use xml_text::XmlText;
 
 use crate::Language;
@@ -254,6 +256,8 @@ pub enum Text {
     Localization(LocalizationText),
     /// A text of the Tags tab.
     Tags(TagsText),
+    /// A text of the UI tab.
+    Ui(UiText),
     /// A text of the Sounds tab.
     Sounds(SoundsText),
     /// A text of the schema list of the Comparison tab.

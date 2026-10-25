@@ -3,6 +3,7 @@
 
 //! The Text and Hex preview of the selected Entry, driven headless.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -82,7 +83,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -185,7 +186,7 @@ fn the_hex_tab_shows_offsets_bytes_and_printable_characters() -> TestResult {
     preview(&mut harness, "blob.bin")?;
 
     harness.get_by_label("Hex").click();
-    harness.run();
+    harness.run_quiet();
 
     let (first, second) = BLOB.split_at(16);
     assert!(
@@ -285,7 +286,7 @@ fn the_hex_tab_copies_the_dump() -> TestResult {
     let (_folder, mut harness) = opened(Language::BritishEnglish)?;
     preview(&mut harness, "blob.bin")?;
     harness.get_by_label("Hex").click();
-    harness.run();
+    harness.run_quiet();
 
     let text = copied(&mut harness);
 

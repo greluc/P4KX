@@ -3,6 +3,7 @@
 
 //! Export as GLB over a synthetic Archive with a cube model, driven headless.
 
+use crate::waiting::RunQuiet;
 use std::path::Path;
 
 use crate::glb_exporting::{Window, finished, start};
@@ -165,7 +166,7 @@ fn a_file_inside_an_installation_is_refused_before_anything_starts() -> TestResu
     assert!(setup.refusal().is_some(), "the setup says why");
     assert!(!setup.is_ready(), "and cannot start");
     assert!(!inside.exists(), "nothing was written");
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_by_label_contains("never writes there")

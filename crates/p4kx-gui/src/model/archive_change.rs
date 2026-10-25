@@ -65,6 +65,7 @@ impl Model {
         self.assembly.archive_changed();
         self.characters.reset(true);
         self.sounds.archive_changed();
+        self.ui.archive_changed();
         if self
             .extraction_setup
             .as_ref()

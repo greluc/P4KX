@@ -434,11 +434,12 @@ the body variant's folders on the body skeleton, those of the character's own fo
 `--anim-folder FOLDER` (repeatable) looks only below the named folders; `animations` lists each one written, as in
 `p4kx chf glb`, with `skipped_weights` (a number, only when not 0) for runs of morph weights that
 did not fit. Three Issue kinds belong to animations: `animation_not_used` (no track fits the
-Character, or the animation would exceed the budget of 33,554,432 values for all animations of
-one command, the reason then starting with `limit`; the animation is not written and counts in
-`skipped`), `face_animation_failed` (the rig of the face cannot be read, or gives a pose that is
-not finite, and the animation has no track for a bone) and `face_joints_failed` (see
-`p4kx chf glb`).
+Character, or the animations would exceed the budget of 33,554,432 values for all animations of
+one command, the reason then starting with `limit`; the animations are not written; animations
+left out for the same reason are one Issue, named `animations` when it sums up several, whose
+message gives their count and the names of the first three, and `skipped` counts it once),
+`face_animation_failed` (the rig of the face cannot be read, or gives a pose that is not finite,
+and the animation has no track for a bone) and `face_joints_failed` (see `p4kx chf glb`).
 
 `pieces` counts the pieces: the `--piece` options and, with `--loadout`, the armour and clothing of
 the Loadout that were not replaced, including those that could not be resolved. `loadout` is
@@ -550,6 +551,7 @@ DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 ```json
 {"archive": "…", "language": {…}, "trigger": {…}, "breaks": 0,
  "target": "…", "format": "ogg", "written": 3, "kept": 0, "unconverted": 1, "failed": 1,
+ "cancelled": false,
  "files": [{"trigger": "Play_Multi", "wem_id": 100, "file": "…\\Play_Multi_100.ogg",
             "format": "ogg", "size": 4096, "kept": false, "unconverted": null}, …],
  "failures": [{"trigger": "Play_Multi", "wem_id": 104, "reason": "…"}, …],
@@ -564,11 +566,13 @@ trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII le
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
 sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
-soundbank or loose Entry holds. Exit code 1 when anything is in `failures` or `unconverted`.
+soundbank or loose Entry holds. `cancelled` is true when Ctrl+C stopped the export before it handled
+every sound; no partial file is left. Exit code 1 when anything is in `failures` or `unconverted`,
+or `cancelled` is true.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
-`failed`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
+`failed`, `cancelled`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
 and `issues` are not repeated in it.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`
@@ -1954,6 +1958,10 @@ written and adds the Issue `animation_not_used`; so does an animation that would
 of 33,554,432 values (floats of key times, poses and weights) that all animations of one command
 share: it adds `animation_not_used` with a reason starting with `limit`, the clips before it in
 the order of the files are kept (a facial clip of 4,500 samples costs about 7 million values).
+A clip is reported at most once. Animations left out for the same reason are one
+`animation_not_used` Issue, named `animations` when it sums up several, whose message gives their
+count and the names of the first three, so a command with thousands of unused animations adds one
+line to the report. `skipped` counts only the Issues of the Armour, not those of the animations.
 Control values are held to 0 to 1. A facial animation whose rig cannot be read, or whose pose is
 not finite, adds `face_animation_failed` when it has no track for a bone; the rig is read once.
 Facial joints that cannot be placed by the DNA add `face_joints_failed`: the bones are then

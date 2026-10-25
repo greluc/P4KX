@@ -4,11 +4,11 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::io::Write;
+use std::io::{self, Write};
 use std::path::Path;
 
 use p4kx_audio::{AudioError, Codec, Soundbank, Wem};
-use p4kx_extraction::{ConflictPolicy, ConversionError, MAX_SOUND_LEN, write_replacing};
+use p4kx_extraction::{ConflictPolicy, ConversionError, MAX_SOUND_LEN, write_replacing_counted};
 use rayon::prelude::*;
 
 use super::plan::{Job, Origin};
@@ -85,18 +85,22 @@ fn run_group(
         },
         Origin::Loose(_) => None,
     };
-    members
-        .iter()
+    let mut outcomes: Vec<(usize, Outcome)> = members
+        .par_iter()
         .filter_map(|&position| {
             if watch.is_cancelled() {
                 return None;
             }
             let job = jobs.get(position)?;
             let outcome = match bank.as_ref().map(|bank| bank.wem(job.wem_id)) {
-                None => write_sound(&bytes, false, job, folder, options),
-                Some(Some(wem)) => {
-                    write_sound(wem.bytes(), wem.is_prefetch(), job, folder, options)
-                }
+                None => write_sound(&bytes, false, job, folder, (options, watch))?,
+                Some(Some(wem)) => write_sound(
+                    wem.bytes(),
+                    wem.is_prefetch(),
+                    job,
+                    folder,
+                    (options, watch),
+                )?,
                 Some(None) => Err(failure(
                     job,
                     format!("{} no longer embeds the WEM", entry.path()),
@@ -105,7 +109,9 @@ fn run_group(
             watch.advance(1);
             Some((position, outcome))
         })
-        .collect()
+        .collect();
+    outcomes.sort_unstable_by_key(|(position, _)| *position);
+    outcomes
 }
 
 fn failure(job: &Job, reason: String) -> ExportFailure {
@@ -127,8 +133,8 @@ fn write_sound(
     prefetch: bool,
     job: &Job,
     folder: &Path,
-    options: ExportOptions,
-) -> Outcome {
+    (options, watch): (ExportOptions, &ExportWatch),
+) -> Option<Outcome> {
     let mut note = None;
     let wem = if options.format == SoundFormat::Raw {
         None
@@ -170,17 +176,37 @@ fn write_sound(
                 size: existing.len(),
                 state: ExportState::Kept,
             };
-            return Ok(sound(emitted, note));
+            return Some(Ok(sound(emitted, note)));
         }
-        match emit(format, wem.as_ref(), bytes, &path, job, options.policy) {
-            Ok(emitted) => return Ok(sound(emitted, note)),
+        match emit(format, wem.as_ref(), bytes, &path, (job, options, watch)) {
+            Ok(emitted) => return Some(Ok(sound(emitted, note))),
+            Err(_) if watch.is_cancelled() => return None,
             Err(ConversionError::Audio { source, .. }) if format != SoundFormat::Raw => {
                 note = Some(source.to_string());
             }
-            Err(error) => return Err(failure(job, chain_text(&error))),
+            Err(error) => return Some(Err(failure(job, chain_text(&error)))),
         }
     }
-    Err(failure(job, "no form could be written".to_owned()))
+    Some(Err(failure(job, "no form could be written".to_owned())))
+}
+
+/// Fails a write once the export is cancelled, so the file being written is dropped.
+struct Guarded<'w, 'o> {
+    inner: &'w mut dyn Write,
+    watch: &'o ExportWatch,
+}
+
+impl Write for Guarded<'_, '_> {
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        if self.watch.is_cancelled() {
+            return Err(io::Error::other("the export was cancelled"));
+        }
+        self.inner.write(data)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
 
 fn emit(
@@ -188,8 +214,7 @@ fn emit(
     wem: Option<&Wem<&[u8]>>,
     bytes: &[u8],
     path: &Path,
-    job: &Job,
-    policy: ConflictPolicy,
+    (job, options, watch): (&Job, ExportOptions, &ExportWatch),
 ) -> Result<Emitted, ConversionError> {
     let convert = |source: AudioError, path: &Path| match source {
         AudioError::Write(source) => ConversionError::Write {
@@ -201,49 +226,24 @@ fn emit(
             source,
         },
     };
-    let render = |out: &mut dyn Write| -> Result<(), AudioError> {
-        let mut out = out;
-        match (format, wem) {
-            (SoundFormat::Ogg, Some(wem)) => wem.write_ogg(&mut out).map(drop),
-            (SoundFormat::Wav, Some(wem)) => wem.write_wav(&mut out).map(drop),
-            _ => out.write_all(bytes).map_err(AudioError::Write),
-        }
-    };
-    if policy == ConflictPolicy::IfChanged {
-        let mut rendered = Vec::new();
-        render(&mut rendered).map_err(|source| convert(source, path))?;
-        if same_content(path, &rendered) {
-            return Ok(Emitted {
-                size: rendered.len() as u64,
-                state: ExportState::Kept,
-            });
-        }
-        write_replacing(path, |writer| {
-            writer
-                .write_all(&rendered)
-                .map_err(|source| ConversionError::Write {
-                    path: path.to_path_buf(),
-                    source,
-                })
+    let replaced =
+        write_replacing_counted(path, options.policy == ConflictPolicy::IfChanged, |out| {
+            let mut guarded = Guarded { inner: out, watch };
+            match (format, wem) {
+                (SoundFormat::Ogg, Some(wem)) => wem.write_ogg(&mut guarded).map(drop),
+                (SoundFormat::Wav, Some(wem)) => wem.write_wav(&mut guarded).map(drop),
+                _ => guarded.write_all(bytes).map_err(AudioError::Write),
+            }
+            .map_err(|source| convert(source, path))
         })?;
-        return Ok(Emitted {
-            size: rendered.len() as u64,
-            state: ExportState::Written,
-        });
-    }
-    write_replacing(path, |writer| {
-        render(writer).map_err(|source| convert(source, path))
-    })?;
-    let size = fs::metadata(path).map_or(0, |metadata| metadata.len());
     Ok(Emitted {
-        size,
-        state: ExportState::Written,
+        size: replaced.len,
+        state: if replaced.changed {
+            ExportState::Written
+        } else {
+            ExportState::Kept
+        },
     })
-}
-
-fn same_content(path: &Path, content: &[u8]) -> bool {
-    fs::metadata(path).is_ok_and(|metadata| metadata.len() == content.len() as u64)
-        && fs::read(path).is_ok_and(|existing| existing == content)
 }
 
 fn chain_text(error: &ConversionError) -> String {
@@ -255,4 +255,80 @@ fn chain_text(error: &ConversionError) -> String {
         source = cause.source();
     }
     text
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use p4kx_extraction::ConflictPolicy;
+
+    use super::super::plan::{Job, Origin};
+    use super::super::{ExportOptions, ExportWatch, SoundFormat};
+    use super::{ExportState, emit};
+
+    fn job() -> Job {
+        Job {
+            trigger: "Play".to_owned(),
+            stem: "Play".to_owned(),
+            wem_id: 1,
+            origin: Origin::Loose(0),
+        }
+    }
+
+    #[test]
+    fn a_write_after_cancel_fails_and_leaves_no_file_behind() {
+        let dir = tempfile::tempdir().expect("folder");
+        let watch = ExportWatch::default();
+        watch.cancel();
+        let options = ExportOptions {
+            format: SoundFormat::Raw,
+            policy: ConflictPolicy::Overwrite,
+        };
+
+        let emitted = emit(
+            SoundFormat::Raw,
+            None,
+            &[7; 64],
+            &dir.path().join("Play.wem"),
+            (&job(), options, &watch),
+        );
+
+        assert!(emitted.is_err(), "the write stops");
+        assert_eq!(fs::read_dir(dir.path()).expect("read").count(), 0);
+    }
+
+    #[test]
+    fn an_uncancelled_write_reports_the_bytes_it_wrote() {
+        let dir = tempfile::tempdir().expect("folder");
+        let options = ExportOptions {
+            format: SoundFormat::Raw,
+            policy: ConflictPolicy::IfChanged,
+        };
+        let path = dir.path().join("Play.wem");
+        let watch = ExportWatch::default();
+
+        let first = emit(
+            SoundFormat::Raw,
+            None,
+            &[7; 64],
+            &path,
+            (&job(), options, &watch),
+        )
+        .expect("first");
+        let second = emit(
+            SoundFormat::Raw,
+            None,
+            &[7; 64],
+            &path,
+            (&job(), options, &watch),
+        )
+        .expect("second");
+
+        assert_eq!((first.size, second.size), (64, 64));
+        assert_eq!(
+            (first.state, second.state),
+            (ExportState::Written, ExportState::Kept)
+        );
+    }
 }

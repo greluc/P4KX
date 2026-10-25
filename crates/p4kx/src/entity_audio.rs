@@ -11,10 +11,11 @@ use p4kx_assembly::audio::{
     ArchiveAudio, AudioIndex, EntityAudio, EntityTrigger, EventMatch, ExportReport,
     IndexedSoundbank, LanguageChoice, TriggerSounds, Unmatched, trigger_references,
 };
-use p4kx_extraction::{DataForgeEntry, Record};
+use p4kx_extraction::{CancelToken, DataForgeEntry, Record};
 use serde::Serialize;
 
 use crate::cli::EntityAudioArgs;
+use crate::extract::cancel_on_interrupt;
 use crate::json;
 use crate::query_table::one_line;
 use crate::wwise::{break_line, language_choice, variant_line};
@@ -99,6 +100,7 @@ struct Counts {
 
 /// Prints the audio triggers of an Entity with their Wwise events and soundbanks.
 pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<ExitCode> {
+    let cancel = interrupt_if_extracting(args)?;
     let archive = crate::key::open(&args.archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -117,7 +119,7 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<ExitCode> {
             .len()
             .saturating_sub(resolved.matched_count()),
     };
-    let report = export_sounds(&audio, &sounds, args)?;
+    let report = export_sounds(&audio, &sounds, args, &cancel)?;
     let code = report
         .as_ref()
         .map_or(ExitCode::SUCCESS, wwise_extract::exit_code);
@@ -158,6 +160,14 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<ExitCode> {
     Ok(code)
 }
 
+fn interrupt_if_extracting(args: &EntityAudioArgs) -> Result<CancelToken> {
+    if args.extract.is_some() {
+        cancel_on_interrupt()
+    } else {
+        Ok(CancelToken::new())
+    }
+}
+
 fn resolve_sounds<'i>(
     audio: &'i ArchiveAudio<'_>,
     resolved: &EntityAudio<'i>,
@@ -178,6 +188,7 @@ fn export_sounds(
     audio: &ArchiveAudio<'_>,
     sounds: &[Option<TriggerSounds<'_>>],
     args: &EntityAudioArgs,
+    cancel: &CancelToken,
 ) -> Result<Option<ExportReport>> {
     let Some(out) = &args.extract else {
         return Ok(None);
@@ -188,6 +199,7 @@ fn export_sounds(
         &found,
         out,
         &args.export,
+        cancel,
     )?))
 }
 

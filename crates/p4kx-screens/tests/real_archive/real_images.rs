@@ -24,7 +24,7 @@ const SHIPS: [&str; 4] = [
     "ANVL_Hornet_F7A_Mk2",
     "DRAK_Cutlass_Black",
 ];
-/// The share of widgets listed as without a renderer that fails the test; 0.019 on LIVE, with
+/// The share of widgets listed as without a renderer that fails the test; 0.009 on LIVE, with
 /// room for a changed Archive.
 const MAX_NO_RENDERER_SHARE: f64 = 0.05;
 

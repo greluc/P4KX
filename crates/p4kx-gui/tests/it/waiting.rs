@@ -45,6 +45,26 @@ pub(crate) fn wait_for_model(
     wait_for(harness, what, |harness| done(harness.state()))
 }
 
+/// Acts on a window of the [`Model`] with `act` until `done` holds for the model, and fails with a
+/// message naming `what` once [`PATIENCE`] passed. A click that lands while the layout still moves
+/// is lost, so it is repeated after a few frames until it took effect.
+pub(crate) fn act_until(
+    harness: &mut Harness<'_, Model>,
+    what: &str,
+    mut act: impl FnMut(&mut Harness<'_, Model>),
+    mut done: impl FnMut(&Model) -> bool,
+) -> Result<(), Box<dyn Error>> {
+    let started = Instant::now();
+    while !done(harness.state()) {
+        if started.elapsed() > PATIENCE {
+            return Err(format!("timed out after {PATIENCE:?} waiting for {what}").into());
+        }
+        act(harness);
+        harness.run_steps(3);
+    }
+    Ok(())
+}
+
 /// Runs a window to rest.
 pub(crate) trait RunQuiet {
     /// Steps the window until it asked for no more frames, and panics once [`PATIENCE`] passed.

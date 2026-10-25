@@ -246,13 +246,14 @@ fn a_socpak_offers_the_export_of_its_interior_beside_copy_and_in_the_setup() -> 
     window.harness.run_steps(2);
     rendered(&mut window, "interior-action.png")?;
 
-    click_settled(&mut window.harness, "Export Interior as GLB…");
+    crate::waiting::act_until(
+        &mut window.harness,
+        "the click on the Interior export to open the setup",
+        |harness| click_settled(harness, "Export Interior as GLB…"),
+        |model| model.assembly_export_setup().is_some(),
+    )?;
     rendered(&mut window, "interior-setup.png")?;
 
-    assert!(
-        window.harness.state().assembly_export_setup().is_some(),
-        "the click opens the setup"
-    );
     Ok(())
 }
 

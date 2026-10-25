@@ -62,7 +62,7 @@ fn a_folder_swapped_for_a_link_mid_run_is_refused_for_the_later_entries() -> Tes
     if !link(&outside, &probe) {
         return Ok(());
     }
-    fs::remove_dir(&probe)?;
+    fs::remove_dir(&probe).or_else(|_| fs::remove_file(&probe))?;
     let swapped = AtomicBool::new(false);
     let on_progress = |progress: Progress| {
         if progress.entries_done >= 1 && !swapped.swap(true, Ordering::SeqCst) {

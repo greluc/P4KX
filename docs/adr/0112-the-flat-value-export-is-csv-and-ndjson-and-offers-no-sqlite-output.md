@@ -31,6 +31,24 @@ Decided for issue #268, on top of ADR-0004 (the canonical Record tree) and ADR-0
 - A field name that starts with `$` or repeats an earlier name of its struct is written `$<n>` in
   the field path, `n` being its position among the fields of the struct, as in Record JSON.
 
+## Amendment: the Record tag (issue #614)
+
+- The CSV gets a last column `record_tag`, and NDJSON an optional key
+  `record_tag` after `record_path`. Both carry the Record tag of a version 8 DataForge
+  (`RecordTree::tag`, ADR-0124); the cell is empty and the key absent for a Record without tag,
+  for an empty tag and for version 6.
+- The column is appended after every other column, so after `text` with `--lang`: every column
+  that existed before keeps its name and position, and a script that reads columns by position or
+  by name still reads them right. The tag is the ninth column without `--lang` and the tenth with
+  it. The header row has one more name, and every row one more cell, so a script that checks the
+  header or the cell count of a row has to change. The column is always there, also for version 6,
+  so the header does not depend on the database.
+- The CSV cell is written like any text: quoted when needed and, in the default CSV, with the
+  leading `'` before a formula (`--csv-raw` writes it exactly).
+- The two other options were a fixed ninth column before `text` (rejected: it moves `text` from
+  the ninth to the tenth position) and no column (rejected: the tag then needs a join with the
+  Record JSON).
+
 ## Consequences
 
 - Every localisation key of the default CSV starts with `'@`, because every key starts with `@`.

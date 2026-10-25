@@ -208,9 +208,11 @@ pub enum IssueKind {
     /// The body's submeshes do not fit its zone table, so no body triangles are left out.
     #[error("the body cannot be cut by zone: {0}")]
     BodyZonesUnknown(String),
-    /// This many layered materials of the part have no diffuse map and are drawn in the colours
-    /// of their layers.
-    #[error("layered materials without a diffuse map ({0}) are drawn in their layer colours")]
+    /// This many layered materials of the part have no diffuse map, neither their own nor one in
+    /// a layer, and are drawn in the colours of their layers.
+    #[error(
+        "layered materials whose layers have no diffuse map ({0}) are drawn in their layer colours"
+    )]
     LayersWithoutDiffuse(usize),
     /// The piece of armour or clothing cannot be found or read as an Entity, so it is left out.
     #[error("the piece cannot be resolved: {reason}")]

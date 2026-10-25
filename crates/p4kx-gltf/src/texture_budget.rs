@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::texture_cache::SourceStore;
+use crate::texture_cache::{MAX_DECODE_PIXELS, SourceStore, paths};
 use crate::texture_plan::{Failure, Job, Key, MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS};
 use crate::texture_report::TextureRole;
 use crate::texture_roles::Source;
@@ -23,8 +23,13 @@ impl Budget {
 /// What the budget says about a job before it runs.
 #[derive(Debug, Clone)]
 pub(crate) enum Verdict {
-    /// The image is known not to fit, or the budget is spent: the job does not run.
+    /// The image is known not to fit the pixels left: the job does not run.
     Refused,
+    /// The export holds as many images as allowed: the job does not run.
+    Spent,
+    /// The textures of a layered image decode more than the decode limit together: the job does
+    /// not run.
+    TooLarge,
     /// The texture that sizes the image cannot be loaded: the job does not run.
     Failed(Failure),
     /// The image is known to fit with this many pixels, which the tally holds back for it.
@@ -57,8 +62,13 @@ impl Tally {
         }
     }
 
+    /// Returns whether the export holds as many images as it may.
+    pub(crate) const fn images_spent(&self) -> bool {
+        self.images >= self.budget.images
+    }
+
     const fn spent(&self) -> bool {
-        self.images >= self.budget.images || self.pixels >= self.budget.pixels
+        self.images_spent() || self.pixels >= self.budget.pixels
     }
 
     /// Returns whether one more image of `size` pixels fits.
@@ -78,24 +88,32 @@ impl Tally {
         self.pixels = self.pixels.saturating_sub(size);
     }
 
+    fn reserve(&mut self, (width, height): (u32, u32)) -> Verdict {
+        let size = u64::from(width) * u64::from(height);
+        if self.fits(size) {
+            self.take(size);
+            Verdict::Reserved(size)
+        } else {
+            Verdict::Refused
+        }
+    }
+
     /// Decides from the header sizes whether `job` may run, and holds back its pixels if so.
     pub(crate) fn plan(&mut self, job: &Job, store: &mut SourceStore<'_>) -> Verdict {
+        if self.images_spent() {
+            return Verdict::Spent;
+        }
         if self.spent() {
             return Verdict::Refused;
+        }
+        if job.layered.is_some() {
+            return self.plan_layered(job, store);
         }
         let Some((role, source)) = sized_by(job) else {
             return Verdict::Unknown;
         };
         match store.dimensions(&source.path) {
-            Ok(Some((width, height))) => {
-                let size = u64::from(width) * u64::from(height);
-                if self.fits(size) {
-                    self.take(size);
-                    Verdict::Reserved(size)
-                } else {
-                    Verdict::Refused
-                }
-            }
+            Ok(Some(size)) => self.reserve(size),
             Ok(None) => Verdict::Unknown,
             Err(error) => Verdict::Failed(Failure {
                 role,
@@ -103,6 +121,39 @@ impl Tally {
                 reason: error.to_string(),
             }),
         }
+    }
+
+    /// Decides for a layered job: its textures must decode within the limit together, and its
+    /// image has the size of the first of its maps, the blend map first, whose header can be read;
+    /// a map that cannot be read is left to the job to report.
+    fn plan_layered(&mut self, job: &Job, store: &mut SourceStore<'_>) -> Verdict {
+        if store.header_pixels(paths(job)) > MAX_DECODE_PIXELS {
+            return Verdict::TooLarge;
+        }
+        let Some(layered) = &job.layered else {
+            return Verdict::Unknown;
+        };
+        let normal = matches!(job.key, Key::LayerNormal { .. });
+        let role = if normal {
+            TextureRole::Normal
+        } else {
+            TextureRole::Diffuse
+        };
+        let mut failure = None;
+        for source in layered.size_sources(normal) {
+            match store.dimensions(&source.path) {
+                Ok(Some(size)) => return self.reserve(size),
+                Ok(None) => return Verdict::Unknown,
+                Err(error) => {
+                    failure.get_or_insert_with(|| Failure {
+                        role,
+                        file: job.file_of(source),
+                        reason: error.to_string(),
+                    });
+                }
+            }
+        }
+        failure.map_or(Verdict::Unknown, Verdict::Failed)
     }
 }
 
@@ -112,6 +163,7 @@ fn sized_by(job: &Job) -> Option<(TextureRole, &Source)> {
     let normal = job.normal.as_ref().map(|s| (TextureRole::Normal, s));
     let specular = job.specular.as_ref().map(|s| (TextureRole::Specular, s));
     match &job.key {
+        Key::LayerBase { .. } | Key::LayerNormal { .. } => None,
         Key::Base { .. } => diffuse,
         Key::Normal { .. } => normal,
         Key::MetallicRoughness { .. } => match (normal, specular) {

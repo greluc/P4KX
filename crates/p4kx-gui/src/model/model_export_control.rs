@@ -6,8 +6,10 @@ use std::sync::Arc;
 use p4kx_settings::ModelExportSettings;
 
 use super::Model;
+#[cfg(feature = "test-hooks")]
+use crate::model_export::Request;
 use crate::model_export::start;
-use crate::{Browser, ModelExport, ModelExportSetup, ModelInfo, Texts};
+use crate::{AnimationCount, Browser, ModelExport, ModelExportSetup, ModelInfo, Texts};
 
 /// The Export as GLB of the window: the choices remembered, the open setup and the running or
 /// finished export.
@@ -16,6 +18,8 @@ pub(crate) struct ModelExportState {
     settings: ModelExportSettings,
     setup: Option<ModelExportSetup>,
     run: Option<ModelExport>,
+    #[cfg(feature = "test-hooks")]
+    gate: Option<Arc<crate::hold::Gate>>,
 }
 
 impl ModelExportState {
@@ -54,10 +58,12 @@ impl Model {
             .is_some_and(|preview| preview.model().is_some())
     }
 
-    /// Returns whether the selected Entry is a model that was read and no Export as GLB runs.
+    /// Returns whether the selected Entry is a model that was read, with the animations next to
+    /// it counted, and no Export as GLB runs.
     #[must_use]
     pub fn model_export_available(&self) -> bool {
-        self.selected_model_info().is_some()
+        self.selected_model_info()
+            .is_some_and(|(_, _, info)| info.animations != AnimationCount::Reading)
             && !self
                 .glb_export
                 .run
@@ -120,6 +126,17 @@ impl Model {
         let Some(request) = setup.request() else {
             return false;
         };
+        #[cfg(feature = "test-hooks")]
+        let request = Request {
+            pause: self
+                .glb_export
+                .gate
+                .as_ref()
+                .map_or_else(crate::hold::Pause::default, |gate| {
+                    crate::hold::Pause::at(Arc::clone(gate))
+                }),
+            ..request
+        };
         let Some(index) = self
             .browser
             .as_ref()
@@ -133,6 +150,15 @@ impl Model {
         self.glb_export.run = Some(start(&index, request, name, wake));
         self.glb_export.setup = None;
         true
+    }
+
+    /// Makes the next Export as GLB wait between reading the model and writing the file until
+    /// the returned hold is dropped or the export is cancelled.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_model_export(&mut self) -> crate::Hold {
+        let (hold, gate) = crate::hold::Hold::new();
+        self.glb_export.gate = Some(gate);
+        hold
     }
 
     /// Returns the running or finished export, or `None` when there is none.

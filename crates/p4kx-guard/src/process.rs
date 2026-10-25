@@ -46,8 +46,9 @@ pub fn process_count_lists_game(output: &str) -> bool {
 /// Returns whether `StarCitizen.exe` of any Channel is running.
 ///
 /// Only the list of process names is read: `qprocess` on Windows (a PowerShell count of the
-/// matching processes where `qprocess` is missing), the process names below `/proc` elsewhere. No process is opened, attached to or inspected, so the game's memory and handles
-/// are never touched. The check takes a few hundred milliseconds on Windows.
+/// matching processes where `qprocess` is missing), the process names below `/proc` elsewhere. No
+/// process is opened, attached to or inspected, so the game's memory and handles are never
+/// touched. The check takes a few hundred milliseconds on Windows.
 #[must_use]
 pub fn game_is_running() -> bool {
     platform::game_is_running()

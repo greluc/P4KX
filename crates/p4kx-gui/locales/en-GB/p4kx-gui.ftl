@@ -75,7 +75,7 @@ archive-issues =
         [one] The directory of the Archive has one defect in an Entry. The Entry stays listed, but its data may not be readable; an Extraction reports it if it fails, and `p4kx info` names it.
        *[other] The directory of the Archive has { $count } defects in its Entries. The Entries stay listed, but their data may not be readable; an Extraction reports those that fail, and `p4kx info` names them.
     }
-game-running = Star Citizen is running. Use this tool with the game closed: reading continues, but the Archive changes while the game updates, and the tool never writes into the installation.
+game-running = Star Citizen is running. Use this tool with the game closed: reading continues, but the RSI Launcher can change the Archive when it updates, and the tool never writes into the installation.
 archive-test-build =
     { $kind ->
         [one] This Archive belongs to the { $channel } Channel, which carries Star Citizen test builds. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
@@ -864,6 +864,7 @@ model-info-material-ids-none = None
 model-info-bones = Bones
 model-info-animations = Animations
 model-info-animations-unread = Not read
+model-info-animations-reading = Reading…
 model-info-chunks = Chunks
 model-info-chunks-value = { $total } ({ $read } read, { $skipped } skipped, { $unknown } unknown)
 model-info-materials-unnamed = None named
@@ -911,6 +912,8 @@ model-export-animations = { $count ->
     [one] Write the animation of the model
    *[other] Write the { $number } animations of the model
   }
+model-export-animations-unknown = Write the animations of the model
+model-export-animations-large = They are read in full, and the file can be large.
 model-export-vertex-colours = Write the vertex colours
 model-export-file-heading = File
 model-export-choose-file = Choose file…
@@ -954,6 +957,11 @@ model-export-summary-animations = Animations { $written }, channels { $channels 
 model-export-summary-animations-unread = Animations not written ({ $number })
 model-export-summary-animation-unread = { $name } ({ $source }): { $reason }
 model-export-summary-animation-file-unread = { $source }: { $reason }
+model-export-summary-animation-unmatched = { $name } ({ $source }): no track matches a bone, { $tracks ->
+    [0] no track skipped
+    [one] one track skipped
+   *[other] { $number } tracks skipped
+  }
 model-export-failed-title = Export failed
 model-export-failed = { $name } could not be exported: { $reason }
 model-export-stopped = The export of { $name } stopped without a result.

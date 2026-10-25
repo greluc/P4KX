@@ -5,7 +5,9 @@ use std::collections::{HashMap, HashSet};
 
 use crate::mtl_load::request_path;
 use crate::mtl_parse::{scalar, vector};
-use crate::{CompanionPath, CompanionResolver, Material, MaterialLayer, MaterialLibrary};
+use crate::{
+    CompanionPath, CompanionResolver, Material, MaterialLayer, MaterialLibrary, TextureSlot,
+};
 
 /// The most distinct layer files one material library may make the reader fetch; layers beyond
 /// are reported as unresolved.
@@ -21,13 +23,17 @@ pub struct LayerSurface {
     pub diffuse: [f32; 3],
     /// The layer's specular colour.
     pub specular: [f32; 3],
+    /// The texture slots of the layer's own file, in file order: its diffuse map in `TexSlot1`
+    /// and its normal map in `TexSlot2`, with their `TexMod` tiling.
+    pub textures: Vec<TextureSlot>,
 }
 
 impl LayerSurface {
-    const fn of(material: &Material) -> Self {
+    fn of(material: &Material) -> Self {
         Self {
             diffuse: material.diffuse,
             specular: material.specular,
+            textures: material.textures.clone(),
         }
     }
 }

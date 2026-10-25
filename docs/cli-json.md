@@ -519,6 +519,7 @@ the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `mes
 
 ```json
 {"archive": "…", "search": "spool", "offset": 0, "limit": 100, "total": 210, "next_offset": 100,
+ "entities_skipped": null, "unreadable_records": 0,
  "triggers": [{"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
                "matched_trigger": true,
                "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false,
@@ -537,11 +538,12 @@ and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx e
 `entities` counts the Entities that name the trigger through those fields
 and lists the first `--entities` of them in definition order; only Entities whose own Record names
 the trigger count, not those that reach it through a Loadout or a Reference. In `--search`, `/`
-and `\` match each other. `entities` is `null` with `--no-entities` and for an empty page. It is
+and `\` match each other. `entities` is `null` with `--no-entities`. It is
 also `null` when the DataForge cannot be found, decrypted or read: `entities_skipped` then holds
 the reason, a warning goes to stderr and the exit code is 1. Otherwise `entities_skipped` is
 `null`. `unreadable_records` counts the Entity Records that could not be read and so name no
-trigger; above 0 it is also a warning on stderr.
+trigger; above 0 it is also a warning on stderr. A page without triggers does not read the
+DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 
 ## `p4kx wwise extract <archive> <trigger> --out <folder> --json`
 

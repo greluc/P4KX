@@ -13,7 +13,7 @@ use p4kx_extraction::{DataForge, DataForgeEntry, Record};
 use serde::Serialize;
 
 use crate::cli::WwiseEventsArgs;
-use crate::entity_audio::{IssueJson, issues_json, warn};
+use crate::entity_audio::{IssueJson, issues_json, warn_open};
 use crate::exit::PARTIAL_FAILURE;
 use crate::json;
 use crate::query_table::one_line;
@@ -138,12 +138,8 @@ pub(crate) fn run(args: &WwiseEventsArgs, as_json: bool) -> Result<ExitCode> {
         })?;
         return Ok(code);
     }
-    if let Err(error) = warn(index) {
-        return if error.kind() == io::ErrorKind::BrokenPipe {
-            Ok(code)
-        } else {
-            Err(error.into())
-        };
+    if !warn_open(index)? {
+        return Ok(code);
     }
     match print_text(index, &page, finder.as_ref()) {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
@@ -171,6 +167,7 @@ fn wanted_by(page: &SearchPage<'_>) -> impl Fn(&str) -> bool + Sync + use<> {
         .collect();
     move |name| wanted.contains(name)
 }
+
 fn hit_json<'a>(hit: &TriggerHit<'a>, users: Option<&Finder<'a>>) -> HitJson<'a> {
     HitJson {
         name: hit.trigger().name(),

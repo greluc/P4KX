@@ -144,7 +144,9 @@ pub(crate) fn run(args: &EntityAudioArgs, as_json: bool) -> Result<ExitCode> {
         })?;
         return Ok(code);
     }
-    warn(index)?;
+    if !warn_open(index)? {
+        return Ok(code);
+    }
     match print_text(&entity, &resolved, &sounds, counts) {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => return Err(error.into()),
         Err(_) => return Ok(code),
@@ -250,7 +252,16 @@ pub(crate) fn issues_json(index: &AudioIndex) -> Vec<IssueJson<'_>> {
         .collect()
 }
 
-pub(crate) fn warn(index: &AudioIndex) -> io::Result<()> {
+/// Writes the warnings of [`warn`]; returns `false` when stderr is a closed pipe.
+pub(crate) fn warn_open(index: &AudioIndex) -> io::Result<bool> {
+    match warn(index) {
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(false),
+        Err(error) => Err(error),
+        Ok(()) => Ok(true),
+    }
+}
+
+fn warn(index: &AudioIndex) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for issue in index.issues() {
         writeln!(

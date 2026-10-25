@@ -74,8 +74,12 @@ impl Package {
     /// Whether this package may have a `kind` dependency on `target` in layer `target_layer`.
     ///
     /// A format crate depends on another format crate only when it names it in `builds-on`,
-    /// and never on `p4kx-archive` (ADR-0019).
+    /// and never on `p4kx-archive` (ADR-0019). A dev-dependency of a package on itself only turns
+    /// on its test-only features and is always allowed.
     fn may_depend_on(&self, kind: DependencyKind, target: &str, target_layer: Layer) -> bool {
+        if kind == DependencyKind::Dev && target == self.name {
+            return true;
+        }
         if !self.layer.allows(kind, target_layer) {
             return false;
         }
@@ -249,6 +253,15 @@ mod tests {
         assert!(chunks.may_depend_on(DependencyKind::Normal, "p4kx-foundation", Layer::Foundation));
         assert!(chunks.may_depend_on(DependencyKind::Dev, "p4kx-testkit", Layer::Testkit));
         assert!(!chunks.may_depend_on(DependencyKind::Normal, "p4kx-testkit", Layer::Testkit));
+    }
+
+    #[test]
+    fn a_crate_may_dev_depend_on_itself_to_turn_on_test_features() {
+        let gui = package("p4kx-gui", Layer::Frontend, &[], &[]);
+        assert!(gui.may_depend_on(DependencyKind::Dev, "p4kx-gui", Layer::Frontend));
+        let chunks = package("p4kx-chunks", Layer::Format, &[], &[]);
+        assert!(chunks.may_depend_on(DependencyKind::Dev, "p4kx-chunks", Layer::Format));
+        assert!(!chunks.may_depend_on(DependencyKind::Dev, "p4kx-gui", Layer::Frontend));
     }
 
     #[test]

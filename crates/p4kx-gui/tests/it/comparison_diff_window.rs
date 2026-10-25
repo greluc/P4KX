@@ -6,6 +6,7 @@
 
 use crate::diffing;
 use crate::long_diff;
+use crate::waiting::RunQuiet;
 
 use std::error::Error;
 use std::path::Path;
@@ -60,7 +61,7 @@ fn settle(harness: &mut Harness<'_, State>, done: impl Fn(&Model) -> bool) -> Te
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -69,7 +70,7 @@ fn compared(
     language: Language,
 ) -> Result<Harness<'static, State>, Box<dyn Error>> {
     let mut harness = harness(pair, language);
-    harness.run();
+    harness.run_quiet();
     let start = if language == Language::German {
         "Vergleichen"
     } else {
@@ -192,13 +193,13 @@ fn next_and_previous_jump_between_the_hunks() -> TestResult {
 
     let first = harness.query_by_label("Difference 1 of 2").is_some();
     harness.get_by_label("Next difference").click();
-    harness.run();
+    harness.run_quiet();
     let second = harness.query_by_label("Difference 2 of 2").is_some();
     let shown = harness
         .query_by_label("Lines 32–38 | Lines 32–38")
         .is_some();
     harness.get_by_label("Previous difference").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(first, "starts at the first hunk");
     assert!(second, "moved to the second hunk");
@@ -264,9 +265,9 @@ fn next_onto_the_last_hunk_hands_the_focus_to_previous() -> TestResult {
     open(&mut harness, "Changed: Data\\far.txt")?;
 
     harness.get_by_label("Next difference").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::Enter);
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness.query_by_label("Difference 2 of 2").is_some(),
@@ -294,9 +295,9 @@ fn the_focused_line_diff_scrolls_with_the_keyboard() -> TestResult {
     assert!(harness.query_by_label(&last).is_none(), "the last is below");
 
     harness.get_by_label("Line differences").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(&last).is_some(),
         "End shows the last"
@@ -307,24 +308,24 @@ fn the_focused_line_diff_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(&first).is_some(),
         "Home shows the first"
     );
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(head).is_none(), "one row down");
     assert!(harness.query_by_label(&first).is_some(), "only one row");
 
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(&first).is_none(), "a page down");
 
     harness.key_press(Key::PageUp);
     harness.key_press(Key::ArrowUp);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(head).is_some(), "back at the top");
     Ok(())
 }

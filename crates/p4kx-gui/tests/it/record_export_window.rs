@@ -4,6 +4,7 @@
 //! The Export menu and the Record export windows driven headless through `egui_kittest`.
 
 use crate::exporting;
+use crate::waiting::RunQuiet;
 
 use std::fs;
 use std::path::PathBuf;
@@ -28,7 +29,7 @@ fn harness(model: Model) -> Harness<'static, Model> {
             },
             model,
         );
-    harness.run();
+    harness.run_quiet();
     harness
 }
 
@@ -43,15 +44,15 @@ fn wait_for_the_end(harness: &mut Harness<'_, Model>) -> TestResult {
     wait_until(harness.state_mut(), |model| {
         model.record_export().is_some_and(|run| !run.is_running())
     })?;
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
 fn open_dialog(harness: &mut Harness<'_, Model>, menu: &str, entry: &str) {
     harness.get_by_role_and_label(Role::Button, menu).click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label(entry).click();
-    harness.run();
+    harness.run_quiet();
 }
 
 #[test]
@@ -88,11 +89,11 @@ fn the_tree_selection_is_exported_and_summarised() -> TestResult {
     open_dialog(&mut harness, "Export", "Record export…");
     harness.get_by_label("Selected in the Record tree: spaceships (2)");
     harness.get_by_label("Existing folder").click();
-    harness.run();
+    harness.run_quiet();
     harness
         .get_by_label("NDJSON, one file records.ndjson with one Record per line")
         .click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Start export").click();
     wait_for_the_end(&mut harness)?;
 
@@ -108,7 +109,7 @@ fn the_tree_selection_is_exported_and_summarised() -> TestResult {
     harness.get_by_label(&format!("Target: {}", file.display()));
     assert_eq!(fs::read_to_string(&file)?.lines().count(), 2, "two lines");
     harness.get_by_label("Close").click();
-    harness.run();
+    harness.run_quiet();
     assert!(harness.state().record_export().is_none(), "dismissed");
     Ok(())
 }
@@ -124,13 +125,13 @@ fn a_typed_filter_selects_the_records_by_record_path() -> TestResult {
         .is_some_and(p4kx_gui::RecordExportSetup::is_ready);
     let filter = (Role::TextInput, "Record path filter");
     harness.get_by_role_and_label(filter.0, filter.1).click();
-    harness.run();
+    harness.run_quiet();
     harness
         .get_by_role_and_label(filter.0, filter.1)
         .type_text("weapons");
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Existing folder").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Start export").click();
     wait_for_the_end(&mut harness)?;
 
@@ -146,13 +147,13 @@ fn the_running_export_can_be_cancelled_from_its_window() -> TestResult {
     open_dialog(&mut harness, "Export", "Record export…");
     let filter = (Role::TextInput, "Record path filter");
     harness.get_by_role_and_label(filter.0, filter.1).click();
-    harness.run();
+    harness.run_quiet();
     harness
         .get_by_role_and_label(filter.0, filter.1)
         .type_text("items");
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Existing folder").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Start export").click();
     harness.step();
     harness.step();
@@ -164,7 +165,7 @@ fn the_running_export_can_be_cancelled_from_its_window() -> TestResult {
         ended(harness.state_mut())?,
         RecordExportStatus::Finished(summary) if summary.was_cancelled()
     );
-    harness.run();
+    harness.run_quiet();
 
     assert!(cancelled, "the summary says so");
     assert!(
@@ -200,13 +201,13 @@ fn an_export_cancelled_while_writing_reports_what_it_wrote() -> TestResult {
     open_dialog(&mut harness, "Export", "Record export…");
     let filter = (Role::TextInput, "Record path filter");
     harness.get_by_role_and_label(filter.0, filter.1).click();
-    harness.run();
+    harness.run_quiet();
     harness
         .get_by_role_and_label(filter.0, filter.1)
         .type_text("items");
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Existing folder").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Start export").click();
     harness.step();
     wait_until(harness.state_mut(), |model| {
@@ -227,7 +228,7 @@ fn an_export_cancelled_while_writing_reports_what_it_wrote() -> TestResult {
     };
     let (written, cancelled) = (summary.written(), summary.cancelled());
     let was_cancelled = summary.was_cancelled();
-    harness.run();
+    harness.run_quiet();
 
     assert!(was_cancelled, "cancelled");
     assert!(written > 0, "some Records were written first");

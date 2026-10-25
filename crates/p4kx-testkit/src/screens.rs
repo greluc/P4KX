@@ -3,6 +3,7 @@
 
 use crate::screens_geometry::{box_structs, instance_structs};
 use crate::screens_image_schema::image_structs;
+use crate::screens_radar_schema::radar_structs;
 use crate::screens_text_schema::text_structs;
 use crate::{DataForgeBuilder, TestStruct, TestType};
 
@@ -41,6 +42,7 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(box_structs())
         .chain(text_structs())
         .chain(image_structs())
+        .chain(radar_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
 
@@ -200,7 +202,7 @@ fn widget_kinds() -> Vec<TestStruct> {
 
 fn style_structs() -> Vec<TestStruct> {
     vec![
-        TestStruct::new("Tag"),
+        TestStruct::new("Tag").field("tagName", TestType::String),
         TestStruct::new("SRGBA8")
             .field("r", TestType::UInt8)
             .field("g", TestType::UInt8)

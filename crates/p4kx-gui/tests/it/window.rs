@@ -3,6 +3,7 @@
 
 //! The window driven headless through `egui_kittest`: open, navigate, sort, select.
 
+use crate::waiting::{RunQuiet, click_shown_once};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -66,14 +67,14 @@ fn drop_and_wait(harness: &mut Harness<'_, Model>, path: &Path) -> TestResult {
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
 fn opened() -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let (folder, path) = archive()?;
     let mut harness = harness(Language::BritishEnglish);
-    harness.run();
+    harness.run_quiet();
     drop_and_wait(&mut harness, &path)?;
     Ok((folder, harness))
 }
@@ -113,7 +114,7 @@ fn dropping_an_archive_opens_it_and_lists_every_entry() -> TestResult {
 fn the_window_starts_empty_with_a_hint() {
     let mut harness = harness(Language::BritishEnglish);
 
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness
@@ -128,9 +129,9 @@ fn clicking_a_folder_shows_only_its_entries() -> TestResult {
     let (_folder, mut harness) = opened()?;
 
     harness.get_by_label("Data").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Objects").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness.query_by_label("ship.cgf").is_some(),
@@ -142,7 +143,7 @@ fn clicking_a_folder_shows_only_its_entries() -> TestResult {
     );
     assert!(harness.query_by_label("2 shown").is_some(), "status bar");
     harness.get_by_label("Collapse Data").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("Objects").is_none(),
         "Data collapsed"
@@ -156,10 +157,10 @@ fn clicking_a_column_header_sorts_and_clicking_again_reverses() -> TestResult {
     let names = ["anchor.cgf", "config.xml", "readme.txt", "ship.cgf"];
 
     harness.get_by_label("Size").click();
-    harness.run();
+    harness.run_quiet();
     let ascending = row_order(&harness, &names);
     harness.get_by_label("Size").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(
         ascending,
@@ -186,13 +187,13 @@ fn checkboxes_select_entries_one_by_one_or_all_shown() -> TestResult {
     let (_folder, mut harness) = opened()?;
 
     harness.get_by_label("Select ship.cgf").click();
-    harness.run();
+    harness.run_quiet();
     let one = harness
         .state()
         .browser()
         .map(p4kx_gui::Browser::checked_count);
     harness.get_by_label("Select all shown Entries").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(one, Some(1), "one Entry checked");
     let browser = harness.state().browser().ok_or("no Archive open")?;
@@ -206,9 +207,9 @@ fn the_language_menu_switches_every_text() -> TestResult {
     let (_folder, mut harness) = opened()?;
 
     harness.get_by_label("Language").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Deutsch").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(
         harness.state().texts().language(),
@@ -242,17 +243,17 @@ fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() -> Res
         );
 
     harness.get_by_label("Archiv").click();
-    harness.run();
+    harness.run_quiet();
     harness
         .get_all_by_label("Archiv öffnen …")
         .last()
         .ok_or("the menu entry is missing")?
         .click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Sprache").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("English (UK)").click();
-    harness.run();
+    harness.run_quiet();
 
     let (model, requests) = harness.state();
     assert_eq!(
@@ -272,12 +273,12 @@ fn the_menus_ask_the_host_for_the_open_dialog_and_to_store_the_language() -> Res
 #[test]
 fn the_help_menu_shows_the_font_licence() {
     let mut harness = harness(Language::BritishEnglish);
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Help").click();
-    harness.run();
-    harness.get_by_label("Font licence").click();
-    harness.run();
+    harness.run_quiet();
+    click_shown_once(&mut harness, "Font licence").expect("the entry is shown once");
+    harness.run_quiet();
 
     assert!(harness.state().licence_shown(), "the licence is open");
     assert!(
@@ -307,12 +308,12 @@ fn the_help_menu_shows_the_legal_notices_in_both_languages() {
         ),
     ] {
         let mut harness = harness(language);
-        harness.run();
+        harness.run_quiet();
 
         harness.get_by_label(help).click();
-        harness.run();
-        harness.get_by_label(entry).click();
-        harness.run();
+        harness.run_quiet();
+        click_shown_once(&mut harness, entry).expect("the entry is shown once");
+        harness.run_quiet();
 
         assert!(harness.state().about_shown(), "{language:?}: About is open");
         for needle in [
@@ -335,7 +336,7 @@ fn a_file_that_is_no_archive_shows_the_failure() -> TestResult {
     let path = folder.path().join("broken.p4k");
     std::fs::write(&path, b"not an archive")?;
     let mut harness = harness(Language::BritishEnglish);
-    harness.run();
+    harness.run_quiet();
     harness
         .input_mut()
         .dropped_files
@@ -348,7 +349,7 @@ fn a_file_that_is_no_archive_shows_the_failure() -> TestResult {
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
 
     let prefix = format!("Cannot open {}", path.display());
     assert!(

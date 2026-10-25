@@ -5,6 +5,7 @@
 
 use crate::headless::{opened, ready, status_is_ready};
 use crate::viewing::{TestResult, model_preview, opened_at, select};
+use crate::waiting::RunQuiet;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{ChunkFile, Language, LodInfo, MaterialsInfo, ModelInfo, ModelPreview, PreviewTab};
 
@@ -58,7 +59,7 @@ fn the_info_tab_lists_the_facts_in_the_interface_language() -> TestResult {
     select(&mut harness, "cube.cgf")?;
 
     harness.get_by_label("Info").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(harness.state().preview_tab(), PreviewTab::ModelInfo, "tab");
     for label in [
@@ -94,7 +95,7 @@ fn the_info_tab_is_in_german_when_the_window_is() -> TestResult {
     select(&mut harness, "cube.cgf")?;
 
     harness.get_by_label("Info").click();
-    harness.run();
+    harness.run_quiet();
 
     for label in [
         "Knoten",
@@ -119,7 +120,7 @@ fn a_model_that_cannot_be_drawn_still_lists_its_facts() -> TestResult {
     select(&mut harness, "helpers.cgf")?;
 
     harness.get_by_label("Info").click();
-    harness.run();
+    harness.run_quiet();
 
     let info = info(&harness)?;
     assert_eq!(
@@ -140,7 +141,7 @@ fn a_file_that_is_no_model_has_no_info_and_says_so() -> TestResult {
     select(&mut harness, "broken.cgf")?;
 
     harness.get_by_label("Info").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         model_preview(harness.state())
@@ -182,7 +183,7 @@ fn chunks_the_model_did_not_read_are_counted_and_listed() -> TestResult {
         "in one of the files"
     );
     harness.get_by_label("Info").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_by_label_contains("Chunks not read (")
@@ -215,7 +216,7 @@ fn a_missing_material_library_is_named_in_the_facts() -> TestResult {
         "the library is not in the Archive"
     );
     harness.get_by_label("Info").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_by_label("objects/gone (does not exist)")

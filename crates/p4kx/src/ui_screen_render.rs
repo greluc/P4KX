@@ -5,13 +5,16 @@ use std::io::{self, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
-use anyhow::{Context as _, Result};
-use p4kx_extraction::gfx::{Background, CanvasSize, Font, Localise, RasterOptions, Skipped};
+use anyhow::Result;
+use p4kx_extraction::gfx::{Background, CanvasSize, Localise, RasterOptions, Skipped};
 use p4kx_extraction::{
-    Archive, ArchiveImages, ConversionError, DataForgeEntry, Language, LocalizationEntry, UiMovie,
-    decode_line_breaks, write_replacing,
+    Archive, ArchiveImages, DataForgeEntry, Language, ScreenTexts, decode_line_breaks,
+    write_bytes_replacing,
 };
-use p4kx_screens::{Composed, ImageSources, MAX_SVG_BYTES, Report, ScreenComposer, TextSources};
+use p4kx_screens::{
+    ImageSources, MAX_SVG_BYTES, Report, ScreenComposer, Still, StillFormat, StillRequest,
+    TextSources,
+};
 use serde::Serialize;
 
 use crate::{exit, json};
@@ -44,12 +47,6 @@ struct SkippedJson {
     message: String,
 }
 
-struct Written {
-    width: u32,
-    height: u32,
-    skipped: Vec<SkippedJson>,
-}
-
 fn skipped_json(skipped: &[Skipped]) -> Vec<SkippedJson> {
     skipped
         .iter()
@@ -60,18 +57,19 @@ fn skipped_json(skipped: &[Skipped]) -> Vec<SkippedJson> {
         .collect()
 }
 
-fn compose(archive: &Archive, options: &Options<'_>) -> Result<Composed> {
+fn draw(archive: &Archive, options: &Options<'_>) -> Result<Still> {
     let entry = DataForgeEntry::read(archive)?;
     let forge = entry.open()?;
-    let fonts = read_fonts(archive, &ScreenComposer::new(&forge).font_file())
-        .inspect_err(warn)
-        .ok();
-    let texts = LocalizationEntry::read(archive, options.lang.unwrap_or(Language::English))
-        .inspect_err(warn)
-        .ok();
-    let ini = texts
-        .as_ref()
-        .and_then(|texts| texts.parse().inspect_err(warn).ok());
+    let texts = ScreenTexts::load(
+        archive,
+        &ScreenComposer::new(&forge).font_file(),
+        Some(options.lang.unwrap_or(Language::English)),
+    );
+    let mut warnings = texts.warnings().to_vec();
+    let ini = texts.parsed(&mut warnings);
+    for warning in &warnings {
+        warn(warning);
+    }
     let lookup = |key: &str| {
         ini.as_ref()?
             .resolve(key)
@@ -79,63 +77,68 @@ fn compose(archive: &Archive, options: &Options<'_>) -> Result<Composed> {
     };
     let images = ArchiveImages::new(archive);
     let read_texture = |path: &str, side: u32, pixels: u64| {
-        images.texture(path, side, pixels).map_err(|e| describe(&e))
+        images
+            .texture(path, side, pixels)
+            .map_err(|error| describe(&error))
     };
     let read_vector = |path: &str| {
         images
             .vector(path, MAX_SVG_BYTES as u64)
-            .map_err(|e| describe(&e))
+            .map_err(|error| describe(&error))
     };
-    let mut screens = ScreenComposer::new(&forge).with_images(ImageSources {
+    let request = StillRequest {
+        screen: options.screen,
+        brand: options.brand,
+        raster: RasterOptions {
+            size: options.size.unwrap_or(CanvasSize::Stage),
+            background: options.background,
+        },
+        format: if options.svg {
+            StillFormat::Svg
+        } else {
+            StillFormat::Png
+        },
+    };
+    let text_sources = texts.fonts().map(|fonts| TextSources {
+        fonts,
+        localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
+    });
+    let image_sources = ImageSources {
         texture: &read_texture,
         vector: &read_vector,
-    });
-    if let Some(fonts) = &fonts {
-        screens = screens.with_texts(TextSources {
-            fonts,
-            localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
-        });
-    }
-    Ok(screens.compose(options.screen, options.brand)?)
+    };
+    Ok(Still::render(
+        &forge,
+        text_sources,
+        Some(image_sources),
+        &request,
+    )?)
 }
 
 /// Runs `p4kx ui render --screen`.
 pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Result<ExitCode> {
     let archive = crate::key::open(archive)?;
-    let composed = compose(&archive, options)?;
-    let raster = RasterOptions {
-        size: options.size.unwrap_or(CanvasSize::Stage),
-        background: options.background,
-    };
-    let written = write(&composed, &raster, options)?;
-    let report = composed.report();
+    let still = draw(&archive, options)?;
+    write_bytes_replacing(options.out, &still.encode()?)?;
+    let skipped = skipped_json(still.skipped());
     if as_json {
         json::print(&RenderJson {
             screen: options.screen,
             target: json::path(options.out),
             format: if options.svg { "svg" } else { "png" },
-            width: written.width,
-            height: written.height,
-            report,
-            skipped: &written.skipped,
+            width: still.width(),
+            height: still.height(),
+            report: still.report(),
+            skipped: &skipped,
         })?;
     } else {
-        print_report(options, report, &written)?;
+        print_report(options, &still, &skipped)?;
     }
-    Ok(ExitCode::from(
-        if report.is_complete() && written.skipped.is_empty() {
-            exit::SUCCESS
-        } else {
-            exit::PARTIAL_FAILURE
-        },
-    ))
-}
-
-fn warn(error: &impl std::fmt::Display) {
-    drop(writeln!(
-        io::stderr().lock(),
-        "warning: texts are drawn without it: {error}"
-    ));
+    Ok(ExitCode::from(if still.is_complete() {
+        exit::SUCCESS
+    } else {
+        exit::PARTIAL_FAILURE
+    }))
 }
 
 fn describe(error: &dyn std::error::Error) -> String {
@@ -149,47 +152,18 @@ fn describe(error: &dyn std::error::Error) -> String {
     text
 }
 
-fn read_fonts(archive: &Archive, record_path: &str) -> Result<Vec<Font>> {
-    let under_data = format!("Data/{record_path}");
-    let movie = UiMovie::from_archive(archive, record_path)
-        .or_else(|_| UiMovie::from_archive(archive, &under_data))
-        .with_context(|| format!("the font movie {record_path} of the screens"))?;
-    Ok(movie.movie().assets().fonts)
+fn warn(error: &impl std::fmt::Display) {
+    drop(writeln!(
+        io::stderr().lock(),
+        "warning: texts are drawn without it: {error}"
+    ));
 }
 
-fn write(composed: &Composed, raster: &RasterOptions, options: &Options<'_>) -> Result<Written> {
-    let mut bytes = Vec::new();
-    let size = if options.svg {
-        let written = composed.write_svg(raster, Some(options.screen), &mut bytes)?;
-        Written {
-            width: written.width,
-            height: written.height,
-            skipped: skipped_json(&written.skipped),
-        }
-    } else {
-        let rendered = composed.rasterize(raster)?;
-        rendered.image.write_png(&mut bytes)?;
-        Written {
-            width: rendered.image.width(),
-            height: rendered.image.height(),
-            skipped: skipped_json(&rendered.skipped),
-        }
-    };
-    write_replacing(options.out, |writer| {
-        writer
-            .write_all(&bytes)
-            .map_err(|source| ConversionError::Write {
-                path: options.out.to_owned(),
-                source,
-            })
-    })?;
-    Ok(size)
-}
-
-fn print_report(options: &Options<'_>, report: &Report, written: &Written) -> io::Result<()> {
-    let (width, height) = (written.width, written.height);
+fn print_report(options: &Options<'_>, still: &Still, skipped: &[SkippedJson]) -> io::Result<()> {
+    let report = still.report();
+    let (width, height) = (still.width(), still.height());
     let mut stderr = io::stderr().lock();
-    for skipped in &written.skipped {
+    for skipped in skipped {
         writeln!(stderr, "skipped by the renderer: {}", skipped.message)?;
     }
     for entry in &report.unsupported {

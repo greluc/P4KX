@@ -82,6 +82,7 @@ mod screens_canvas;
 mod screens_geometry;
 mod screens_image;
 mod screens_image_schema;
+mod screens_radar_schema;
 mod screens_sample;
 mod screens_style;
 mod screens_text;
@@ -184,7 +185,9 @@ pub use real_archive::{
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
-pub use screens_canvas::{TestCanvas, movie_component, screen_component, tag_record};
+pub use screens_canvas::{
+    TestCanvas, movie_component, named_tag_record, screen_component, tag_record,
+};
 pub use screens_geometry::clone_modifiers;
 pub use screens_image::{
     SCREEN_IMAGE_CANVAS, screens_image_sample, screens_texture, screens_vector,

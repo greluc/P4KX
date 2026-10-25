@@ -3,6 +3,7 @@
 
 //! The Text and Hex previews scroll with the keyboard once they take the focus.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::time::{Duration, Instant};
 
@@ -81,7 +82,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -104,9 +105,9 @@ fn the_focused_text_view_scrolls_with_the_keyboard() -> TestResult {
     assert!(harness.query_by_label(&last).is_none(), "the last is below");
 
     harness.get_by_label("Text lines").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(&last).is_some(),
         "End shows the last"
@@ -117,24 +118,24 @@ fn the_focused_text_view_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("line 0").is_some(),
         "Home shows the first"
     );
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label("line 0").is_none(), "one line down");
     assert!(harness.query_by_label("line 1").is_some(), "only one line");
 
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label("line 1").is_none(), "a page down");
 
     harness.key_press(Key::PageUp);
     harness.key_press(Key::ArrowUp);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("line 0").is_some(),
         "back at the top"
@@ -147,19 +148,19 @@ fn a_key_with_a_modifier_does_not_scroll_the_focused_region() -> TestResult {
     let (_folder, mut harness) = opened()?;
     preview(&mut harness, "lines.txt")?;
     harness.get_by_label("Text lines").focus();
-    harness.run();
+    harness.run_quiet();
 
     harness.key_press_modifiers(Modifiers::ALT, Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     harness.key_press_modifiers(Modifiers::SHIFT, Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("line 0").is_some(),
         "Alt and Shift keys leave the region where it is"
     );
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label("line 0").is_none(), "a plain key");
     Ok(())
 }
@@ -169,15 +170,15 @@ fn the_focused_hex_view_scrolls_with_the_keyboard() -> TestResult {
     let (_folder, mut harness) = opened()?;
     preview(&mut harness, "bytes.bin")?;
     harness.get_by_label("Hex").click();
-    harness.run();
+    harness.run_quiet();
     let (first, second, last) = (hex_row(0), hex_row(1), hex_row(HEX_ROWS - 1));
     assert!(harness.query_by_label(&first).is_some(), "the first row");
     assert!(harness.query_by_label(&last).is_none(), "the last is below");
 
     harness.get_by_label("Hexadecimal rows").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(&last).is_some(),
         "End shows the last"
@@ -188,24 +189,24 @@ fn the_focused_hex_view_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(&first).is_some(),
         "Home shows the first"
     );
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(&first).is_none(), "one row down");
     assert!(harness.query_by_label(&second).is_some(), "only one row");
 
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(&second).is_none(), "a page down");
 
     harness.key_press(Key::PageUp);
     harness.key_press(Key::ArrowUp);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(&first).is_some(), "back at the top");
     Ok(())
 }

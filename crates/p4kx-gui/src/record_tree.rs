@@ -108,6 +108,8 @@ pub struct RecordTree {
     generation: u64,
     cancelled: Arc<AtomicBool>,
     scroll_to: Option<RecordNodeId>,
+    #[cfg(feature = "test-hooks")]
+    gate: Option<Arc<crate::hold::Gate>>,
 }
 
 impl std::fmt::Debug for RecordTree {
@@ -142,7 +144,17 @@ impl RecordTree {
             generation: GENERATIONS.fetch_add(1, Ordering::Relaxed),
             cancelled: Arc::new(AtomicBool::new(false)),
             scroll_to: None,
+            #[cfg(feature = "test-hooks")]
+            gate: None,
         }
+    }
+
+    /// Makes the load of DataForge stay running until the returned hold is dropped.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_load(&mut self) -> crate::Hold {
+        let (hold, gate) = crate::hold::Hold::new();
+        self.gate = Some(gate);
+        hold
     }
 
     /// Returns the path of the Entry DataForge is read from.
@@ -323,9 +335,15 @@ impl RecordTree {
         let (sender, result) = mpsc::channel();
         let thread_index = Arc::clone(index);
         let cancelled = Arc::clone(&self.cancelled);
+        #[cfg(feature = "test-hooks")]
+        let gate = self.gate.clone();
         let spawned = thread::Builder::new()
             .name("dataforge".to_owned())
             .spawn(move || {
+                #[cfg(feature = "test-hooks")]
+                if let Some(gate) = gate {
+                    gate.wait(|| cancelled.load(Ordering::Relaxed));
+                }
                 if sender.send(load(&thread_index, &cancelled)).is_ok() {
                     wake();
                 }

@@ -3,6 +3,7 @@
 
 //! The field lines of the Record tab scroll with the keyboard once they take the focus.
 
+use crate::waiting::RunQuiet;
 use crate::wide_forge;
 
 use std::time::{Duration, Instant};
@@ -84,28 +85,28 @@ fn the_focused_record_lines_scroll_with_the_keyboard() -> TestResult {
     assert!(!shown(&harness, &last), "the last is below");
 
     harness.get_by_label("Record fields").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     assert!(shown(&harness, &last), "End shows the last");
     assert!(!shown(&harness, &first), "the first is gone");
 
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
     assert!(shown(&harness, &first), "Home shows the first");
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(!shown(&harness, &first), "one row down");
     assert!(shown(&harness, &second), "only one row");
 
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(!shown(&harness, &second), "a page down");
 
     harness.key_press(Key::PageUp);
     harness.key_press(Key::ArrowUp);
-    harness.run();
+    harness.run_quiet();
     assert!(shown(&harness, &first), "back at the top");
     Ok(())
 }

@@ -4,6 +4,7 @@
 //! Helpers of the XML preview tests: a synthetic Archive with `CryXml` Entries opened in a
 //! headless window.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -118,7 +119,7 @@ pub(crate) fn wait_until(
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 

@@ -8,6 +8,7 @@ use std::thread;
 use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
+use crate::ui_file_dialog::UiFileDialog;
 use crate::{
     AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, CharacterText,
     ComparisonText, HeadSource, Model, ModelExportSetup, ModelExportText, QueryExportFormat,
@@ -66,6 +67,7 @@ impl App {
             catalog_compressed: texts.get(CatalogText::FileFilterCompressed),
             chf: texts.get(CharacterText::ChfFilter),
         };
+        let ui_file = UiFileDialog::of(&self.model);
         let model_file = match dialog {
             Dialog::AssemblyFile | Dialog::AssemblyPackage => {
                 ModelFileDialog::of_assembly(&self.model)
@@ -77,7 +79,12 @@ impl App {
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
             .spawn(move || {
-                let path = pick(dialog, rfd::FileDialog::new(), filters, model_file);
+                let path = pick(
+                    dialog,
+                    rfd::FileDialog::new(),
+                    filters,
+                    (model_file, ui_file),
+                );
                 if sender.send(path).is_ok() {
                     ctx.request_repaint();
                 }
@@ -107,6 +114,7 @@ impl App {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "one arm per dialog")]
     fn apply_dialog_result(&mut self, ui: &egui::Ui) -> bool {
         let mut settings_changed = false;
         match self.take_dialog_result() {
@@ -144,6 +152,11 @@ impl App {
                 let ctx = ui.ctx().clone();
                 self.model
                     .start_character_export(path, move || ctx.request_repaint());
+            }
+            Some((Dialog::UiFile, path)) => {
+                let ctx = ui.ctx().clone();
+                self.model
+                    .start_ui_export(path, move || ctx.request_repaint());
             }
             Some((Dialog::CatalogFile, path)) => {
                 let ctx = ui.ctx().clone();
@@ -228,7 +241,7 @@ fn pick(
     dialog: Dialog,
     picker: rfd::FileDialog,
     filters: Filters,
-    model_file: ModelFileDialog,
+    (model_file, ui_file): (ModelFileDialog, UiFileDialog),
 ) -> Option<PathBuf> {
     match dialog {
         Dialog::AddFolder
@@ -249,6 +262,7 @@ fn pick(
             .save_file(),
         Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => model_file.save(picker),
         Dialog::AssemblyPackage => model_file.pick_folder(picker),
+        Dialog::UiFile => ui_file.save(picker),
         Dialog::CharacterChf => picker.add_filter(filters.chf, &["chf"]).pick_file(),
         Dialog::QueryExport(format) => {
             let extension = format.extension();
@@ -375,6 +389,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.update_check = model.update_check();
     settings.model_export = model.model_export_settings().clone();
     settings.assembly_export = model.assembly_export_settings().clone();
+    settings.ui = model.ui_render_settings();
     settings.channels.merge(model.channels().added());
 }
 

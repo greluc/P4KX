@@ -10,10 +10,11 @@
 use crate::entity_picking::TestResult;
 use crate::interior_view_render::{built, hull_window, serial, view};
 use crate::rendering::{Window, rendered, rendered_now, view_pixels};
+use crate::waiting::wait_for;
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{AssemblyView, Language, LoadoutSession, ViewStage};
+use p4kx_gui::{AssemblyView, Hold, Language, LoadoutSession, Model, ViewStage};
 
 const DEFAULT: [f32; 2] = [1280.0, 800.0];
 
@@ -27,30 +28,31 @@ fn view_mut(window: &mut Window) -> Result<&mut AssemblyView, &'static str> {
         .ok_or("no Loadout")
 }
 
-fn stage(window: &Window) -> Option<ViewStage> {
-    view(window.harness.state())
+fn stage(model: &Model) -> Option<ViewStage> {
+    view(model)
         .and_then(AssemblyView::progress)
         .map(|progress| progress.stage)
 }
 
-/// Asks for the Interior again and steps the window until a frame drew the stage that reads it.
-fn catch_the_interior_stage(window: &mut Window) -> Result<bool, &'static str> {
-    for _ in 0..20 {
-        let next = u32::from(view_mut(window)?.lod() == 0);
-        view_mut(window)?.set_lod(next);
-        for _ in 0..3000 {
-            window.harness.step();
-            match stage(window) {
-                Some(ViewStage::Interior) => return Ok(true),
-                Some(_) => std::thread::sleep(std::time::Duration::from_micros(200)),
-                None => break,
-            }
-        }
-        if view_mut(window)?.is_building() {
-            view_mut(window)?.cancel();
-        }
-    }
-    Ok(false)
+/// Holds the Interior step of the next build and asks for the Interior again, then steps the
+/// window until a frame drew the stage that reads it, with `stage_text` in the frame.
+fn hold_the_interior_stage(
+    window: &mut Window,
+    stage_text: &str,
+) -> Result<Hold, Box<dyn std::error::Error>> {
+    let hold = view_mut(window)?.hold_interior();
+    let next = u32::from(view_mut(window)?.lod() == 0);
+    view_mut(window)?.set_lod(next);
+    wait_for(
+        &mut window.harness,
+        "the Interior stage of the build",
+        |harness| {
+            stage(harness.state()) == Some(ViewStage::Interior)
+                && harness.query_by_label_contains(stage_text).is_some()
+        },
+    )?;
+    window.harness.run_steps(2);
+    Ok(hold)
 }
 
 #[test]
@@ -76,10 +78,7 @@ fn the_building_state_shows_its_stage_and_stop_in_the_whole_width() -> TestResul
         let before = serial(window.harness.state());
         built(&mut window, before)?;
 
-        assert!(
-            catch_the_interior_stage(&mut window)?,
-            "a frame drew the Interior stage"
-        );
+        let hold = hold_the_interior_stage(&mut window, stage_text)?;
         let text = window.harness.get_by_label_contains(stage_text).rect();
         let button = window
             .harness
@@ -87,6 +86,7 @@ fn the_building_state_shows_its_stage_and_stop_in_the_whole_width() -> TestResul
             .rect();
         let canvas = window.harness.get_by_role(Role::Canvas).rect();
         rendered_now(&mut window, name)?;
+        drop(hold);
 
         assert!(text.width() > 150.0, "the stage text keeps room: {text:?}");
         assert!(

@@ -5,6 +5,7 @@
 //! levels the window cannot hold.
 
 use crate::imaging;
+use crate::waiting::RunQuiet;
 
 use egui_kittest::kittest::Queryable;
 use imaging::{TestResult, image, opened, opened_with, select, shown_level};
@@ -24,7 +25,7 @@ fn an_alpha_tail_opens_in_the_image_tab_on_its_own() -> TestResult {
     harness
         .get_by_label("Show the parts of glass_ddna.dds")
         .click();
-    harness.run();
+    harness.run_quiet();
     select(&mut harness, "glass_ddna.dds.a")?;
 
     assert_eq!(

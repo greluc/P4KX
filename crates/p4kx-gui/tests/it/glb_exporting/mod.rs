@@ -3,6 +3,7 @@
 
 //! Helpers of the Export as GLB tests: start an export into a file and wait for it to end.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -38,6 +39,6 @@ pub(crate) fn finished(harness: &mut Harness<'_, Model>) -> Result<(), Box<dyn E
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }

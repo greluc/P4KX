@@ -4,6 +4,7 @@
 //! The Archive key dialog: it opens when an encrypted Entry is needed, checks and stores the key,
 //! and the window reads the Entry once it fits.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -67,7 +68,7 @@ fn wait_until(harness: &mut Window, done: impl Fn(&Model) -> bool) -> TestResult
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -98,7 +99,7 @@ fn type_key(harness: &mut Window, text: &str) {
     if let Some(dialog) = harness.state_mut().key_dialog_mut() {
         dialog.set_text(text.to_owned());
     }
-    harness.run();
+    harness.run_quiet();
 }
 
 #[test]
@@ -113,7 +114,7 @@ fn an_encrypted_entry_without_a_key_opens_the_dialog_and_says_so_in_the_preview(
         "plain Entry needs none"
     );
     select(&mut harness, "secret.txt")?;
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(status(&harness), "required", "preview");
     assert_eq!(
@@ -139,11 +140,11 @@ fn the_dialog_names_what_is_wrong_with_the_key_typed() -> TestResult {
     let setup = setup()?;
     let mut harness = window(Language::BritishEnglish, &setup, None)?;
     select(&mut harness, "secret.txt")?;
-    harness.run();
+    harness.run_quiet();
 
     type_key(&mut harness, "abcd");
     harness.get_by_label("Save").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_by_label("A key has 32 hexadecimal digits; you entered 4.")
@@ -153,7 +154,7 @@ fn the_dialog_names_what_is_wrong_with_the_key_typed() -> TestResult {
 
     type_key(&mut harness, &"g".repeat(32));
     harness.get_by_label("Save").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_by_label("Character 1 is not a hexadecimal digit.")
@@ -191,7 +192,7 @@ fn a_right_key_is_stored_used_and_the_entry_is_read_again() -> TestResult {
     let setup = setup()?;
     let mut harness = window(Language::BritishEnglish, &setup, None)?;
     select(&mut harness, "secret.txt")?;
-    harness.run();
+    harness.run_quiet();
 
     type_key(&mut harness, &format!("  {}  ", test_key().to_hex()));
     harness.get_by_label("Save").click();
@@ -224,22 +225,22 @@ fn a_dialog_closed_by_the_user_stays_closed_until_asked_for_in_the_menu() -> Tes
     let setup = setup()?;
     let mut harness = window(Language::BritishEnglish, &setup, None)?;
     select(&mut harness, "secret.txt")?;
-    harness.run();
+    harness.run_quiet();
     assert!(harness.state().key_dialog().is_some(), "opened");
 
     harness.get_by_label("Cancel").click();
-    harness.run();
+    harness.run_quiet();
     assert!(harness.state().key_dialog().is_none(), "closed");
 
     select(&mut harness, "other.txt")?;
-    harness.run();
+    harness.run_quiet();
     assert!(harness.state().key_dialog().is_none(), "not asked again");
     assert_eq!(status(&harness), "required", "preview still says so");
 
     harness.get_by_label("Archive").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Archive key…").click();
-    harness.run();
+    harness.run_quiet();
     assert_eq!(
         harness
             .state()
@@ -261,7 +262,7 @@ fn a_stored_key_that_does_not_fit_opens_the_dialog_as_rejected() -> TestResult {
     )?;
 
     select(&mut harness, "secret.txt")?;
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(status(&harness), "rejected", "preview");
     assert_eq!(
@@ -287,7 +288,7 @@ fn the_stored_key_is_shown_masked_and_can_be_removed() -> TestResult {
     let hex = test_key().to_hex();
     let mut harness = window(Language::BritishEnglish, &setup, Some(&hex))?;
     harness.state_mut().open_key_dialog(KeyReason::Menu);
-    harness.run();
+    harness.run_quiet();
 
     let masked = test_key().masked();
     assert!(
@@ -302,7 +303,7 @@ fn the_stored_key_is_shown_masked_and_can_be_removed() -> TestResult {
     );
 
     harness.get_by_label("Remove stored key").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(!setup.store.exists(), "file removed");
     assert!(!harness.state().has_archive_key(), "no key in use");
@@ -318,7 +319,7 @@ fn the_dialog_speaks_german_too() -> TestResult {
     let setup = setup()?;
     let mut harness = window(Language::German, &setup, None)?;
     select(&mut harness, "secret.txt")?;
-    harness.run();
+    harness.run_quiet();
 
     for text in [
         "SCHLÜSSEL",

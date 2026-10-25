@@ -265,7 +265,7 @@ fn an_unsupported_format_is_named_and_fails_with_code_1() -> TestResult {
         dir.path(),
         &SplitDds::new(
             TestTextureFormat::Dx10Pixel {
-                dxgi_format: 67,
+                dxgi_format: 32,
                 pixel_bytes: 4,
             },
             16,
@@ -284,7 +284,7 @@ fn an_unsupported_format_is_named_and_fails_with_code_1() -> TestResult {
         .assert()
         .code(1)
         .stderr(predicate::str::contains(
-            "decoding the texture format R9G9B9E5_SHAREDEXP is not supported",
+            "decoding the texture format R8G8B8A8_SINT is not supported",
         ));
 
     assert!(!out.exists(), "nothing is written");

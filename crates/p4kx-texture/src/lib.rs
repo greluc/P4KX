@@ -9,7 +9,7 @@
 //! [`SiblingReader`] the caller supplies, reads and decodes mips to RGBA, BC5 normal maps with
 //! their Z reconstructed, merges an alpha tail into the alpha channel, lays cubemap faces out as
 //! a cross and the images of arrays and volumes out as a sheet, and writes images as PNG; decodes
-//! BC6H to floating-point RGB as well and writes that as OpenEXR.
+//! BC6H and the floating-point formats to floating-point RGB as well and writes that as OpenEXR.
 
 mod alpha;
 mod bc;
@@ -21,6 +21,7 @@ mod cube;
 mod dxgi;
 mod error;
 mod exr_export;
+mod floats;
 mod format;
 mod hdr;
 mod header;

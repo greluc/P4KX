@@ -390,6 +390,25 @@ placement), `light_unsupported` (ambient, planar or unknown lights, which glTF c
 ([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.
 
+## `p4kx interior package <archive> <container>... --out <folder> --json`
+
+```json
+{"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\DRAK\\Cutlass\\base_int_body_main.socpak"],
+ "out": "…", "lod": 0, "texture_mip": 0, "containers_opened": 1, "model_parts": 4, "modelled_parts": 4,
+ "props": 4, "nodes": 77, "drawn_nodes": 4, "container_nodes": 2, "objects": 4, "lights": 70,
+ "meshes": 4, "shared_meshes": 0, "materials": 34, "palettes": 0, "textures": 79,
+ "texture_pixels": 5242880, "texture_failures": 0, "files": 84, "bytes": 18847044,
+ "vertices": 229192, "triangles": 246389, "skipped": 0, "issues": [Issue, …]}
+```
+
+`containers`, the exit codes and `containers_opened`, `model_parts`, `modelled_parts` and `props`
+are those of `p4kx interior glb`; a package folder that holds something else than an earlier
+package, or lies inside a Star Citizen installation, is 2. The other counts are those of
+`p4kx entity package`, with `container_nodes` for its `containers`: `nodes` counts the nodes of
+`scene.json`, `drawn_nodes` those with a mesh, `container_nodes`, `objects` and `lights` those of
+the kinds `container`, `object` and `light`. An **Issue** is that of `p4kx entity package`. The
+package is written even when parts are skipped.
+
 ## `p4kx armour bodies --json`
 
 ```json

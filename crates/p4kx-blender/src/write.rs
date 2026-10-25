@@ -5,14 +5,15 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
 
-use p4kx_assembly::{Assembly, ModelProvider};
+use p4kx_assembly::{Assembly, Issue as AssemblyIssue, ModelProvider};
 use p4kx_gltf::{AnimationSummary, GlbOptions, TextureLoader};
 
 use crate::build::{Inputs, manifest};
 use crate::collect::Collected;
-use crate::items::items;
+use crate::items::{Item, items};
 use crate::manifest::{
-    BuildInfo, Issue, MANIFEST_FILE, MESHES_FOLDER, NodeKind, Replacement, TEXTURES_FOLDER,
+    BuildInfo, EntityRef, Issue, MANIFEST_FILE, MESHES_FOLDER, NodeKind, Replacement,
+    TEXTURES_FOLDER,
 };
 use crate::plan::MeshPlan;
 use crate::stage::Staging;
@@ -149,11 +150,45 @@ pub fn write_package(
     out: &Path,
     cancelled: &(dyn Fn() -> bool + Sync),
 ) -> PackageResult<PackageSummary> {
+    let entity = assembly.root().map_or_else(
+        || EntityRef {
+            class_name: String::new(),
+            guid: String::new(),
+        },
+        |part| EntityRef {
+            class_name: part.class_name().to_owned(),
+            guid: part.guid().to_string(),
+        },
+    );
+    let scene = Scene {
+        entity,
+        items: items(assembly),
+        issues: assembly.issues(),
+    };
+    write_scene(&scene, models, textures, options, info, out, cancelled)
+}
+
+/// The nodes of a package before the files are written, and where they come from.
+pub(crate) struct Scene<'a> {
+    pub(crate) entity: EntityRef,
+    pub(crate) items: Vec<Item<'a>>,
+    pub(crate) issues: &'a [AssemblyIssue],
+}
+
+pub(crate) fn write_scene(
+    scene: &Scene<'_>,
+    models: &dyn ModelProvider,
+    textures: &dyn TextureLoader,
+    options: &GlbOptions,
+    info: &PackageInfo,
+    out: &Path,
+    cancelled: &(dyn Fn() -> bool + Sync),
+) -> PackageResult<PackageSummary> {
     let cancelled = Cancelled::new(cancelled);
     let staging = Staging::create(out)?;
-    let items = items(assembly);
-    let plan = MeshPlan::of(&items);
-    let collected = Collected::of(&items, &plan, options.lod, models);
+    let items = &scene.items;
+    let plan = MeshPlan::of(items);
+    let collected = Collected::of(items, &plan, options.lod, models);
     cancelled.check()?;
     let outcomes = if collected.wanted.is_empty() {
         Vec::new()
@@ -167,7 +202,7 @@ pub fn write_package(
         )?
     };
     let written = meshes::write_all(
-        &items,
+        items,
         &plan,
         options,
         &staging.path().join(MESHES_FOLDER),
@@ -175,8 +210,9 @@ pub fn write_package(
     )?;
     cancelled.check()?;
     let manifest = manifest(&Inputs {
-        assembly,
-        items: &items,
+        entity: scene.entity.clone(),
+        assembly_issues: scene.issues,
+        items,
         info,
         options,
         plan: &plan,
@@ -190,7 +226,6 @@ pub fn write_package(
     staging.commit()?;
     Ok(summary)
 }
-
 pub(crate) fn write_manifest(path: &Path, manifest: &crate::Manifest) -> PackageResult<u64> {
     let file = File::create_new(path).map_err(|source| PackageError::write(path, source))?;
     let mut writer = BufWriter::new(file);

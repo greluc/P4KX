@@ -68,6 +68,7 @@ mod extract_textures;
 mod grep;
 mod info;
 mod interior_glb;
+mod interior_package;
 mod json;
 mod json_audio;
 mod json_bnk;

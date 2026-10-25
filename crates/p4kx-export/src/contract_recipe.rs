@@ -23,7 +23,7 @@ pub(crate) struct BlueprintTier<'a> {
 /// One cost of a tier: a selection ("choose n") of costs, a resource line or an item line.
 ///
 /// The fields of the other lines are `null`, or empty for `options` and `modifiers`.
-#[derive(Debug, Default, Serialize, JsonSchema)]
+#[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct CostLine<'a> {

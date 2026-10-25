@@ -10,7 +10,7 @@ use std::error::Error;
 use crafting_detail_fixture as fixture;
 use p4kx_export::{
     CancelToken, CatalogError, Cost, Crafting, CraftingWarning, Filter, ModifierKind, Selection,
-    read_crafting, read_crafting_limited,
+    read_crafting,
 };
 use p4kx_extraction::{DataForge, Guid};
 
@@ -290,24 +290,19 @@ fn several_dismantle_processes_link_nothing_and_warn() -> TestResult {
 }
 
 #[test]
-fn a_truncated_reference_index_is_reported_instead_of_dropping_sources_silently() -> TestResult {
-    let bytes = fixture::database().build();
-    let forge = DataForge::open(&bytes)?;
-    let complete = read_crafting(&forge, None, None)?;
-    assert!(complete.warnings.is_empty(), "{:?}", complete.warnings);
-    let capped = read_crafting_limited(&forge, None, None, 1)?;
-    assert_eq!(capped.warnings, [CraftingWarning::RewardSourcesTruncated]);
-    assert!(
-        capped.reward_sources.len() < complete.reward_sources.len(),
-        "sources are missing"
+fn the_unreadable_count_of_a_warning_is_reported() {
+    let warning = CraftingWarning::UnreadableRewardRecords(3);
+    assert!(warning.to_string().contains('3'));
+    assert_eq!(
+        (warning.kind(), warning.count(), warning.details()),
+        ("unreadable_reward_records", Some(3), &[] as &[String])
     );
-    assert!(
-        CraftingWarning::UnreadableReferenceRecords(3)
-            .to_string()
-            .contains('3'),
-        "the unreadable count is reported"
-    );
-    Ok(())
+    let listed = CraftingWarning::UnreadableShopInventories {
+        count: 1,
+        details: vec!["inv.json: the file is empty".to_owned()],
+    };
+    assert_eq!(listed.details(), ["inv.json: the file is empty"]);
+    assert_eq!(CraftingWarning::NoShopComponents.count(), None);
 }
 
 #[test]

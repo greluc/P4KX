@@ -95,7 +95,8 @@ pub(crate) struct RewardSource<'a> {
     pub(crate) contract_id: Option<CatalogGuid>,
     /// The `debugName` of that struct.
     pub(crate) contract_name: Option<&'a str>,
-    /// The chance that the reward is given, 0 to 1, `null` when the Record holds none.
+    /// The chance that the reward is given as the Record states it, 0 to 1 on LIVE and not
+    /// clamped, `null` when the Record holds none.
     pub(crate) chance: Option<f32>,
 }
 

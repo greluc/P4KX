@@ -23,36 +23,42 @@ pub(crate) fn tier_of<'f>(tier: &Tier<'f>) -> BlueprintTier<'f> {
 fn line<'f>(cost: &Cost<'f>) -> CostLine<'f> {
     match cost {
         Cost::Select(selection) => CostLine {
-            kind: SELECT,
             count: selection.count,
             slot: selection.slot,
             slot_key: selection.slot_key,
             options: selection.options.iter().map(line).collect(),
-            ..with_context(&selection.context)
+            ..bare(SELECT, &selection.context)
         },
         Cost::Resource(resource) => CostLine {
-            kind: RESOURCE,
             resource_guid: resource.resource.map(CatalogGuid),
             quantity_scu: resource.quantity_scu,
             min_quality: resource.min_quality,
-            ..with_context(&resource.context)
+            ..bare(RESOURCE, &resource.context)
         },
         Cost::Item(item) => CostLine {
-            kind: ITEM,
             item_guid: item.item.map(CatalogGuid),
             quantity_units: item.quantity,
             min_quality: item.min_quality,
-            ..with_context(&item.context)
+            ..bare(ITEM, &item.context)
         },
     }
 }
 
-fn with_context<'f>(context: &CostContext<'f>) -> CostLine<'f> {
+fn bare<'f>(kind: &'static str, context: &CostContext<'f>) -> CostLine<'f> {
     CostLine {
+        kind,
+        count: None,
+        slot: None,
+        slot_key: None,
+        options: Vec::new(),
+        resource_guid: None,
+        item_guid: None,
+        quantity_scu: None,
+        quantity_units: None,
+        min_quality: None,
         quantity_multiplier: context.quantity_multiplier,
         composition_inclusion: context.composition_inclusion,
         modifiers: context.modifiers.iter().map(modifier).collect(),
-        ..CostLine::default()
     }
 }
 

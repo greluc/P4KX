@@ -7,7 +7,7 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, UNIX_EPOCH};
 
-use p4kx_export::{BuiltCatalog, CatalogOptions, Filter, build_catalog};
+use p4kx_export::{BuiltCatalog, CatalogOptions, CatalogProgress, Filter, build_catalog};
 use p4kx_extraction::Archive;
 use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry};
 use serde_json::Value;
@@ -43,6 +43,17 @@ pub(crate) fn build_from(
     forge: &DataForgeBuilder,
     filter: Option<&Filter>,
 ) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
+    let built = build_with(forge, filter, None)?;
+    let json = serde_json::from_slice(built.json())?;
+    Ok((built, json))
+}
+
+/// Builds the catalog of an Archive holding `forge`, reporting its progress to `progress`.
+pub(crate) fn build_with(
+    forge: &DataForgeBuilder,
+    filter: Option<&Filter>,
+    progress: Option<&(dyn Fn(CatalogProgress) + Sync)>,
+) -> Result<BuiltCatalog, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = Archive::open_with_key(
         write_archive(dir.path(), forge)?,
@@ -50,11 +61,10 @@ pub(crate) fn build_from(
     )?;
     let options = CatalogOptions {
         filter,
+        progress,
         ..CatalogOptions::new(UNIX_EPOCH + Duration::from_secs(1_792_000_000))
     };
-    let built = build_catalog(&archive, &options)?;
-    let json = serde_json::from_slice(built.json())?;
-    Ok((built, json))
+    Ok(build_catalog(&archive, &options)?)
 }
 
 /// Returns the blueprint with the GUID `guid`.

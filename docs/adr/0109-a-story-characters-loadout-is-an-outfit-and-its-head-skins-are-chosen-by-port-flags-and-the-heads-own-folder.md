@@ -36,7 +36,10 @@ teeth, brows, lashes, eyes and hair.
 `Eyes_ItemPort` with `Flags="eckhart_t2_head"`. The brows, lashes, eyes and teeth Entities have
 `SubGeometry` nodes tagged with such a flag, one per story character. An item takes the
 sub-geometry tagged with a flag of the port it sits at (`Piece::selected_by`), else the one for
-the body variant as before.
+the body variant as before. The `PortFlags` of the head's port container apply to all its ports
+beside the `Flags` of the port: the brow port of `hurston_t3_head` has no flags of its own, but the
+container has `hurston_t3_head`, and without it the brow would take the default sub-geometry,
+which is Eckhart's.
 
 **Which skin the head is.** No Record links the head Entity to its bespoke skin. The Item
 `eckhart_t2_head` has `DeformerType="Protos"`, names the generic Protos head skin as its geometry
@@ -48,12 +51,21 @@ of the head's material library holds the character's own skins named `<prefix>_<
 the prefix is the head's class name without `_head` (`eckhart_t2`) and the part is what the
 generic file's name adds to its rig's name (`…_pu_head.skin` is `head`, `…_pu_eyes.skin` is
 `eyes`, `…_pu_teeth.skin` is `teeth`). The skin is used when the Archive holds it and the generic
-one stays otherwise (`Piece::bespoke_in`). The head's bones join the body skeleton by name like
-those of a CHF head, at the positions its skin gives.
+one stays otherwise (`Piece::bespoke_in`). The real-Archive test
+`no_story_character_head_takes_the_skin_of_another_character` applies the rule to the 16 mission
+givers of the LIVE Archive that have a head with a folder of its own (Eckhart, Hurston, Macken,
+Regen Boss, Klim, Parr, Darneely and others) and checks that each head is its own skin or the
+generic one, and that Hurston's brows are his. The head's bones join the body skeleton by name like
+those of a CHF head, at the positions its skin gives. When the material library a Record names for
+such a part does not exist in the Archive, the part takes the material library of the head, which
+has a sub-material per part (`teeth`, `eyeInner`, …), and the export reports the missing library
+as a `MaterialLibrary` issue that does not skip the part.
 
-**Skeleton and RigLogic.** The skin carries its bone table, bind poses and a `RigLogic` chunk, the
-same data `eckhart_t2_head_skel.chr` and `Objects/Characters/RigLogic/eckhart_t2.RigLogic` hold;
-the bones come from the skin as for every head. The expression morphs and face poses of ADR-0091
+**Skeleton and RigLogic.** The skin carries its bone table, bind poses and a `RigLogic` chunk, and
+the Archive holds `eckhart_t2_head_skel.chr` and `Objects/Characters/RigLogic/eckhart_t2.RigLogic`
+beside it. Whether they hold the same data was not compared. The bones come from the skin as for
+every head; neither the `.chr` nor the `.RigLogic` file is read. Reading `.RigLogic` is the
+follow-up #589. The expression morphs and face poses of ADR-0091
 and ADR-0098 need the DNA rig (`.dna`) of the head. The Archive ships none for Eckhart's head, so
 a bespoke head has a neutral face only and no face animation: bones of the body animations move
 it, the rest of the face stays as modelled.
@@ -86,8 +98,8 @@ of a CHF) is unchanged.
 `armour glb` takes `--materials colours|textures` (default `colours`, as before) and
 `--texture-mip`, like `chf glb`; `character package` has them already. `--anim` looks in the
 folders of the body variant, which include `Animations/pu/<body>/<npc>/body`. For a Loadout with a
-bespoke head the folder `Animations/pu/<body>/<first word of the head's skin prefix>`, e.g.
-`…/eckhart`, is searched first when it exists, and a name or `all` that folder lacks falls back to
+bespoke head the folder `Animations/pu/<body>/<name>`, where `<name>` is the name of the head's
+own folder up to its first underscore, e.g. `…/eckhart`, is searched first when it exists, and a name or `all` that folder lacks falls back to
 the folders of the body, so `--anim all` writes the character's own animations only. `--anim-folder`
 (repeatable) names the folders to search instead and never falls back. `--chf` beside a `--loadout`
 in `character package` keeps the CHF's head and drops the Loadout's.
@@ -96,4 +108,4 @@ in `character package` keeps the CHF's head and drops the Loadout's.
 
 - Every Entity whose default Loadout is an outfit resolves with its clothing in `entity` trees too.
 - Bespoke heads have no expressions while the Archive ships no DNA rig for them.
-- The eye overlays are not drawn by any GLB export.
+- The eye overlays are not drawn by any export or render.

@@ -7,13 +7,13 @@
 use std::error::Error;
 
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Armour, ArmourPart, AssemblyOptions, BodyVariant, LoadoutResolver,
-    NpcHead,
+    ArchiveFiles, ArchiveModels, Armour, ArmourPart, AssemblyOptions, BodyVariant, IssueKind,
+    LoadoutResolver, NpcHead,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{
-    NPC_CLASS, NPC_HAIR_BROWN, NPC_HEAD_CLASS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, TestEntry,
-    npc_entries,
+    NPC_BROW_SKIN, NPC_CLASS, NPC_HAIR_BROWN, NPC_HEAD_CLASS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL,
+    TestEntry, npc_entries,
 };
 
 use crate::assembly_support::{TestResult, fixture};
@@ -112,6 +112,18 @@ fn the_head_and_its_parts_use_the_skins_of_the_characters_own_folder_when_the_ar
 }
 
 #[test]
+fn the_flags_of_the_head_container_select_the_sub_geometry_of_a_port_without_flags() -> TestResult {
+    let npc = build(npc_entries())?;
+    let brow = part(&npc, "Eyebrow_ItemPort")?;
+    assert!(
+        brow.file().eq_ignore_ascii_case(NPC_BROW_SKIN),
+        "{}",
+        brow.file()
+    );
+    Ok(())
+}
+
+#[test]
 fn a_skin_the_archive_lacks_leaves_the_generic_one() -> TestResult {
     let entries: Vec<TestEntry> = npc_entries()
         .into_iter()
@@ -130,6 +142,46 @@ fn a_skin_the_archive_lacks_leaves_the_generic_one() -> TestResult {
         "{}",
         eyes.file()
     );
+    Ok(())
+}
+
+#[test]
+fn a_part_whose_library_is_missing_takes_the_library_of_the_head_and_says_so() -> TestResult {
+    let entries: Vec<TestEntry> = npc_entries()
+        .into_iter()
+        .filter(|entry| {
+            !entry
+                .path()
+                .to_ascii_lowercase()
+                .contains("npc_test_t1_eyes_material.mtl")
+        })
+        .collect();
+    let npc = build(entries)?;
+    let eyes = part(&npc, "Eyes_ItemPort")?;
+    assert_eq!(
+        eyes.file(),
+        format!("{NPC_HEAD_FOLDER}/npc_test_t1_eyes.skin")
+    );
+    let library = eyes
+        .materials()
+        .library()
+        .ok_or("the eyes have no library")?;
+    assert!(
+        library.path.eq_ignore_ascii_case(NPC_HEAD_MATERIAL),
+        "{}",
+        library.path
+    );
+    let reported: Vec<_> = npc
+        .armour
+        .issues()
+        .iter()
+        .filter(|issue| {
+            issue.name() == "Eyes_ItemPort"
+                && matches!(issue.kind(), IssueKind::MaterialLibrary { .. })
+        })
+        .collect();
+    assert_eq!(reported.len(), 1, "{reported:?}");
+    assert!(!reported[0].kind().skips());
     Ok(())
 }
 

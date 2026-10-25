@@ -78,10 +78,13 @@ fn bespoke_path(path: &str, bespoke: &Bespoke, models: &dyn ModelProvider) -> Op
     }
     let part = rig_part(stem)?;
     let candidate = format!("{}/{}_{part}.skin", bespoke.folder, bespoke.prefix);
-    match models.file(&candidate, 0) {
-        Err(ModelFailure::Missing) => None,
-        _ => Some(candidate),
-    }
+    exists(&candidate, models).then_some(candidate)
+}
+
+/// Returns whether the Archive holds the file at `path`, a path below `Data`; a file that cannot
+/// be read still exists.
+fn exists(path: &str, models: &dyn ModelProvider) -> bool {
+    !matches!(models.file(path, 0), Err(ModelFailure::Missing))
 }
 
 /// Adds the skin `piece` contributes for `variant` to `jobs`, or the reason it contributes none
@@ -129,11 +132,7 @@ pub(super) fn gather(
         .as_ref()
         .and_then(|bespoke| bespoke_path(&path, bespoke, models));
     let bespoke = own.is_some();
-    let material = material.filter(|library| {
-        piece.bespoke.is_none() || !library.contains(['/', '\\']) || {
-            !matches!(models.file(library, 0), Err(ModelFailure::Missing))
-        }
-    });
+    let material = existing_library(piece, material, bespoke, models, issues);
     jobs.push(Job {
         origin: PartOrigin::Piece,
         part: piece.name.clone(),
@@ -147,6 +146,35 @@ pub(super) fn gather(
         follows_head: piece.follows_head,
         bespoke,
     });
+}
+
+/// Returns `material` for a piece of a story character's head, or, when the Archive lacks that
+/// library, the head's own library for a part with a skin of its own, and none otherwise; the
+/// missing library is reported to `issues`. Other pieces keep `material`.
+fn existing_library(
+    piece: &Piece,
+    material: Option<String>,
+    bespoke: bool,
+    models: &dyn ModelProvider,
+    issues: &mut Vec<Issue>,
+) -> Option<String> {
+    let (Some(head), Some(library)) = (&piece.bespoke, &material) else {
+        return material;
+    };
+    if !library.contains(['/', '\\']) || exists(library, models) {
+        return material;
+    }
+    let fallback = head.library.clone().filter(|_| bespoke);
+    let reason = fallback.as_ref().map_or_else(
+        || format!("the material library {library} does not exist"),
+        |head_library| {
+            format!(
+                "the material library {library} does not exist; the library of the head, {head_library}, is used"
+            )
+        },
+    );
+    issues.push(piece_issue(piece, IssueKind::MaterialLibrary { reason }));
+    fallback
 }
 
 /// Returns the material library of a worn Entity: the one its material tree has for the tags of

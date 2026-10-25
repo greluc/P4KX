@@ -2,7 +2,10 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
+use crate::LoadoutError;
+use crate::resolver::{Entries, EntriesResult, LoadoutResolver};
 use crate::spec::{EntrySpec, LoadoutSpec, TargetSpec};
 
 /// Returns the key a port name is matched by: the name in ASCII lower case.
@@ -56,6 +59,36 @@ pub(crate) fn merge_by_port<T>(
         } else {
             index.insert(key, items.len());
             items.push(item);
+        }
+    }
+}
+
+impl LoadoutResolver<'_> {
+    /// Returns the entries of the layers of an outfit laid over each other with [`overlay`]; the
+    /// issues of every layer are kept, and a layer that cannot be read is an issue unless no layer
+    /// gives any entry.
+    pub(crate) fn layered_entries(&mut self, layers: &[LoadoutSpec]) -> EntriesResult {
+        let mut list: Vec<EntrySpec> = Vec::new();
+        let mut issues: Vec<LoadoutError> = Vec::new();
+        let mut failure = None;
+        for layer in layers {
+            match self.entries(Some(layer)) {
+                Ok(entries) => {
+                    issues.extend(entries.issues.iter().cloned());
+                    overlay(&mut list, entries.list.iter().cloned());
+                }
+                Err(error) => {
+                    failure = Some(error.clone());
+                    issues.push(error);
+                }
+            }
+        }
+        match failure {
+            Some(error) if list.is_empty() => Err(error),
+            _ => Ok(Entries {
+                list: Arc::from(list),
+                issues: Arc::from(issues),
+            }),
         }
     }
 }

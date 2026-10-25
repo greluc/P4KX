@@ -323,8 +323,16 @@ exits with code 7.
 ```
 
 The inputs are those of `p4kx chf glb` and `p4kx armour glb`: `--chf`, `--body`, `--piece`,
-`--loadout`, `--expression`, `--no-expressions`, `--anim` and `--anim-from`, see
-[docs/blender-package.md](blender-package.md#characters). `name` is the Character's name (`--name`,
+`--loadout`, `--expression`, `--no-expressions`, `--materials colours|textures` (default
+`textures`), `--texture-mip`, `--anim`, `--anim-from` and `--anim-folder`, see
+[docs/blender-package.md](blender-package.md#characters). `--body` is optional with a `--loadout`
+whose Entity has a `Char_Head`: the head decides the body, and the head's own skins replace the
+generic Protos head (ADR-0109); an outfit Loadout of a story character such as Miles Eckhart gives
+its base Loadout and its clothing. With `--chf` beside `--loadout`, the CHF's head is kept and the
+head of the Loadout is dropped. `--anim` looks first in the character's own animation folder
+`Animations/pu/<body>/<name>` for a bespoke head and then in the folders of the body (`--anim all`
+writes the own folder's animations only); `--anim-folder FOLDER` (repeatable) looks only in the
+named folders. `name` is the Character's name (`--name`,
 else the CHF's file name without extension, else the body variant). `chf` is the CHF path as
 given and `null` without `--chf`; `rig` is the head rig and `null` without a CHF. `loadout` is
 `null` without `--loadout` and `replaced` lists the pieces of the Loadout that a `--piece` took the

@@ -134,6 +134,7 @@ impl<'f> LoadoutResolver<'f> {
             record_path: path.to_owned(),
             name: path.to_owned(),
             ports: Vec::new(),
+            port_flags: Vec::new(),
             port_index: std::collections::HashMap::new(),
             loadout: Some(loadout),
             geometry: None,

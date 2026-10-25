@@ -176,6 +176,7 @@ fn port_structs() -> Vec<TestStruct> {
     vec![
         TestStruct::new("SItemPortContainerComponentParams")
             .parent("DataForgeComponentParams")
+            .field("PortFlags", TestType::String)
             .array("Ports", class("SItemPortDef")),
         TestStruct::new("SItemPortDef")
             .field("Name", TestType::String)

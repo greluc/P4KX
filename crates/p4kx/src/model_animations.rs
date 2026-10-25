@@ -6,7 +6,7 @@ use std::io::{self, Write};
 use anyhow::Result;
 use p4kx_assembly::{ArchiveModels, BodyVariant};
 use p4kx_extraction::model::Model;
-use p4kx_extraction::{AnimationSet, AnimationSummary};
+use p4kx_extraction::{AnimationSet, AnimationSummary, ConversionError};
 use serde::Serialize;
 
 use crate::model::choice_of;
@@ -31,9 +31,9 @@ impl AnimationFolders {
     }
 
     /// Looks in the folder of the story character's own animations first, `Animations/pu/<body>/
-    /// <name>`, where `name` is the first word of the class name of its head's skins; a name or
-    /// path that folder lacks is looked for in the folders of the body. Nothing when the Archive
-    /// has no such folder.
+    /// <name>`, where `name` is the name of the head's own folder `folder` up to its first
+    /// underscore; a name or path that folder lacks is looked for in the folders of the body.
+    /// Only the folders of the body when the Archive has no such folder.
     pub(crate) fn of_npc(models: &ArchiveModels<'_>, variant: BodyVariant, folder: &str) -> Self {
         let name = folder
             .rsplit(['/', '\\'])
@@ -73,8 +73,8 @@ pub(crate) fn character_animations(
         let own: Vec<&str> = folders.folders.iter().map(String::as_str).collect();
         match models.animations(&own, &choice, sources) {
             Ok(found) => return Ok(found),
-            Err(error) if !folders.fallback => return Err(error.into()),
-            Err(_) => {}
+            Err(ConversionError::UnknownAnimations { .. }) if folders.fallback => {}
+            Err(error) => return Err(error.into()),
         }
     }
     Ok(models.animations(&variant.animation_folders(), &choice, sources)?)

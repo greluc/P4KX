@@ -218,30 +218,7 @@ impl<'f> LoadoutResolver<'f> {
         match loadout {
             None => Ok(Entries::complete(Arc::from([]))),
             Some(LoadoutSpec::Manual(entries)) => Ok(Entries::complete(Arc::clone(entries))),
-            Some(LoadoutSpec::Layered(layers)) => {
-                let mut list: Vec<EntrySpec> = Vec::new();
-                let mut issues: Vec<LoadoutError> = Vec::new();
-                let mut failure = None;
-                for layer in layers.iter() {
-                    match self.entries(Some(layer)) {
-                        Ok(entries) => {
-                            issues.extend(entries.issues.iter().cloned());
-                            crate::merge::overlay(&mut list, entries.list.iter().cloned());
-                        }
-                        Err(error) => {
-                            failure = Some(error.clone());
-                            issues.push(error);
-                        }
-                    }
-                }
-                match failure {
-                    Some(error) if list.is_empty() => Err(error),
-                    _ => Ok(Entries {
-                        list: Arc::from(list),
-                        issues: Arc::from(issues),
-                    }),
-                }
-            }
+            Some(LoadoutSpec::Layered(layers)) => self.layered_entries(layers),
             Some(LoadoutSpec::Xml(path)) => {
                 let Some(files) = self.files else {
                     return Err(LoadoutError::NoLoadoutFiles { path: path.clone() });

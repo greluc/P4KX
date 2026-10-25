@@ -24,6 +24,7 @@ pub struct TestEntity {
     class_name: String,
     file_name: String,
     ports: Vec<TestPort>,
+    port_flags: Option<String>,
     loadout: Option<TestLoadout>,
     triggers: Vec<String>,
     sound_effects: Vec<(String, String)>,
@@ -62,6 +63,7 @@ impl TestEntity {
             class_name: class_name.into(),
             file_name: file_name.into(),
             ports: Vec::new(),
+            port_flags: None,
             loadout: None,
             triggers: Vec::new(),
             sound_effects: Vec::new(),
@@ -240,6 +242,13 @@ impl TestEntity {
         self
     }
 
+    /// Sets the `PortFlags` of the port container, the flags all its ports share.
+    #[must_use]
+    pub fn port_flags(mut self, flags: impl Into<String>) -> Self {
+        self.port_flags = Some(flags.into());
+        self
+    }
+
     /// Sets the default Loadout.
     #[must_use]
     pub fn loadout(mut self, loadout: TestLoadout) -> Self {
@@ -263,10 +272,15 @@ impl TestEntity {
         }
         if !self.ports.is_empty() {
             components.push(TestValue::Struct(
-                TestInstance::new("SItemPortContainerComponentParams").value(
-                    "Ports",
-                    TestValue::Array(self.ports.iter().map(TestPort::value).collect()),
-                ),
+                TestInstance::new("SItemPortContainerComponentParams")
+                    .value(
+                        "PortFlags",
+                        TestValue::text(self.port_flags.clone().unwrap_or_default()),
+                    )
+                    .value(
+                        "Ports",
+                        TestValue::Array(self.ports.iter().map(TestPort::value).collect()),
+                    ),
             ));
         }
         if !self.triggers.is_empty() || !self.sound_effects.is_empty() {

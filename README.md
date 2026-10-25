@@ -181,9 +181,12 @@ Early development (milestone M1). Available today:
   `scene.json` is [schemas/blender-package.schema.json](schemas/blender-package.schema.json).
 - `p4kx character package <archive> --out <folder>` writes a Character as a Blender package: the
   head of a CHF file (`--chf`), armour and clothing (`--piece`, `--loadout`) on the default body
-  (`--body`), as one skinned GLB with the skeleton, the head's expressions as morph targets and
-  the animations (`--anim`, `--anim-from`), listed in `scene.json`. The Blender add-on imports it
-  as an armature with shape keys and actions.
+  (`--body`, optional when the Loadout has a head), as one skinned GLB with the skeleton, the
+  head's expressions as morph targets and the animations (`--anim`, `--anim-from`,
+  `--anim-folder`), listed in `scene.json`; `--materials` and `--texture-mip` pick plain colours or
+  textures. A `--loadout` of a story character such as Miles Eckhart exports his outfit and his
+  own head, hair and eyes; with `--chf` the CHF's head is kept instead. The Blender add-on imports
+  it as an armature with shape keys and actions.
 - `p4kx interior glb <archive> <container>... --out <file>` exports the Interior of a socpak
   container, a ship's rooms or a room on its own, as one GLB: a node per container, per streamed
   `.soc` file and per placed model, containers nested in it at their position and rotation.
@@ -199,7 +202,13 @@ Early development (milestone M1). Available today:
   otherwise an Entity's default Loadout by class name, GUID or record path, or an XML Loadout
   (`Scripts/Loadouts/…xml`) by its path in the Archive; its armour and clothing (`Char_Armor_*`,
   `Char_Clothing_*`) are worn. A `--piece` then takes the place of the Loadout's pieces of the
-  same item type, or is added. A piece with no geometry for the variant, one that cannot
+  same item type, or is added. An Entity whose default Loadout is an outfit, an NPC such as Miles
+  Eckhart, gives its base Loadout and its clothing; its `Char_Head` is worn with its own skins
+  instead of the generic head and decides the body, so `--body` is optional (it overrides).
+  `--materials textures` embeds the textures as PNG at the mip `--texture-mip <n>` picks (default
+  `colours`), `--anim <name>` (or `all`) and `--anim-from <entry>` add animations, looked for first
+  in the character's own folder `Animations/pu/<body>/<name>`, and `--anim-folder <folder>`
+  names the only folders to look in. A piece with no geometry for the variant, one that cannot
   be resolved, or whose model is missing or unreadable, is skipped and listed; with `--json` the report has
   the shape described in [docs/cli-json.md](docs/cli-json.md). `p4kx armour bodies` lists the
   variants.

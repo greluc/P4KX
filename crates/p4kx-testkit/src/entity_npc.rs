@@ -26,6 +26,12 @@ pub const NPC_HAIR_BROWN: &str = "Objects/Test/hair_brown.mtl";
 /// The material library of the male hair for the variant `hairVar_Blonde`.
 pub const NPC_HAIR_BLONDE: &str = "Objects/Test/hair_blonde.mtl";
 
+/// The eyebrow skin in [`NPC_HEAD_FOLDER`] that the sub-geometry tagged with [`NPC_HEAD_FLAGS`]
+/// names; the flags sit at the port container of the head, not at the eyebrow port.
+pub const NPC_BROW_SKIN: &str =
+    "Objects/Characters/Human/heads/male/pu/npc_test/npc_test_t1_eyebrow.skin";
+
+const OTHER_BROW_SKIN: &str = "Objects/Test/other_eyebrow.skin";
 const HAIR_SKIN: &str = "Objects/Test/hair";
 
 fn windows(path: &str) -> String {
@@ -47,8 +53,15 @@ fn head_entities() -> Vec<TestEntity> {
         .attach_type("Char_Head")
         .sub_type("Male")
         .geometry(generic_head, Some(NPC_HEAD_MATERIAL))
+        .port_flags(NPC_HEAD_FLAGS)
         .port(TestPort::new("Eyes_ItemPort").flags(NPC_HEAD_FLAGS))
+        .port(TestPort::new("Eyebrow_ItemPort"))
         .port(TestPort::new("Hair_ItemPort"));
+    let brow = TestEntity::new(0x308, "TEST_NpcBrow", "entities/scitem/test_npc_brow.xml")
+        .attach_type("Char_Head_Eyebrow")
+        .geometry(OTHER_BROW_SKIN, None::<&str>)
+        .geometry_variant(NPC_HEAD_FLAGS, NPC_BROW_SKIN, None)
+        .geometry_variant("other_head", OTHER_BROW_SKIN, None);
     let eyes = TestEntity::new(0x303, "TEST_NpcEyes", "entities/scitem/test_npc_eyes.xml")
         .attach_type("Char_Head_Eyes")
         .geometry_variant(
@@ -69,7 +82,7 @@ fn head_entities() -> Vec<TestEntity> {
     )
     .attach_type("Char_Hair_Color")
     .tags("UnifiedHead $$hairVar_Brown++");
-    vec![head, eyes, hair, brown]
+    vec![head, eyes, brow, hair, brown]
 }
 
 fn entities() -> Vec<TestEntity> {
@@ -93,6 +106,7 @@ fn entities() -> Vec<TestEntity> {
         manual(vec![entry("Head_ItemPort", NPC_HEAD_CLASS).loadout(
             manual(vec![
             entry("Eyes_ItemPort", "TEST_NpcEyes"),
+            entry("Eyebrow_ItemPort", "TEST_NpcBrow"),
             entry("Hair_ItemPort", "TEST_NpcHair")
                 .loadout(manual(vec![entry("Material_Variant", "TEST_HairBrown")])),
         ]),
@@ -146,6 +160,9 @@ pub fn npc_entries() -> Vec<TestEntry> {
         entries.extend(skin_entries(&stem, None));
     }
     entries.extend(skin_entries(&windows(HAIR_SKIN), None));
+    for skin in [NPC_BROW_SKIN, OTHER_BROW_SKIN] {
+        entries.extend(skin_entries(&windows(&skin.replace(".skin", "")), None));
+    }
     for path in [
         NPC_HEAD_MATERIAL,
         NPC_EYES_MATERIAL,

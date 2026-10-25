@@ -79,6 +79,7 @@ pub(crate) struct EntitySpec {
     pub(crate) record_path: String,
     pub(crate) name: String,
     pub(crate) ports: Vec<PortSpec>,
+    pub(crate) port_flags: Vec<String>,
     pub(crate) port_index: HashMap<String, usize>,
     pub(crate) loadout: Option<LoadoutSpec>,
     pub(crate) geometry: Option<Geometry>,
@@ -103,18 +104,7 @@ impl EntitySpec {
             .find(|component| component.type_name() == DEFAULT_LOADOUT)
             .and_then(|component| struct_field(component, "loadout"))
             .and_then(read_loadout);
-        let ports = components
-            .iter()
-            .filter(|component| component.type_name() == PORT_CONTAINER)
-            .flat_map(|component| struct_items(component, "Ports"))
-            .map(|port| PortSpec {
-                name: text(port, "Name").to_owned(),
-                definition: Arc::new(read_definition(port)),
-                default_item: struct_field(port, "defaultItem")
-                    .and_then(|item| item.field("entityClass"))
-                    .map_or(TargetSpec::None, reference_target),
-            })
-            .collect::<Vec<_>>();
+        let (ports, port_flags) = read_ports(&components);
         let mut port_index = HashMap::with_capacity(ports.len());
         for (at, port) in ports.iter().enumerate() {
             port_index.entry(port_key(&port.name)).or_insert(at);
@@ -151,6 +141,7 @@ impl EntitySpec {
             record_path: tree.record_path().to_owned(),
             name: tree.name().to_owned(),
             ports,
+            port_flags,
             port_index,
             loadout,
             geometry,
@@ -188,6 +179,31 @@ impl EntitySpec {
         }
         targets
     }
+}
+
+/// Reads the item ports of the port containers among `components`, and the flags the containers
+/// give all their ports.
+fn read_ports(components: &[&StructValue<'_>]) -> (Vec<PortSpec>, Vec<String>) {
+    let containers = || {
+        components
+            .iter()
+            .filter(|component| component.type_name() == PORT_CONTAINER)
+    };
+    let ports = containers()
+        .flat_map(|component| struct_items(component, "Ports"))
+        .map(|port| PortSpec {
+            name: text(port, "Name").to_owned(),
+            definition: Arc::new(read_definition(port)),
+            default_item: struct_field(port, "defaultItem")
+                .and_then(|item| item.field("entityClass"))
+                .map_or(TargetSpec::None, reference_target),
+        })
+        .collect();
+    let flags = containers()
+        .flat_map(|component| text(component, "PortFlags").split_whitespace())
+        .map(str::to_owned)
+        .collect();
+    (ports, flags)
 }
 
 fn components_of<'v, 'f>(tree: &'v RecordTree<'f>) -> Vec<&'v StructValue<'f>> {
@@ -271,10 +287,7 @@ fn tag_words(tags: &str) -> Vec<String> {
 /// Reads an outfit: the base Loadout, then the Loadouts of the outfits without name tags; when
 /// every outfit has name tags, those of the first.
 fn read_outfit(outfit: &StructValue<'_>) -> Option<LoadoutSpec> {
-    let mut layers: Vec<LoadoutSpec> = struct_field(outfit, "BaseLoadout")
-        .and_then(read_loadout)
-        .into_iter()
-        .collect();
+    let base = struct_field(outfit, "BaseLoadout").and_then(read_loadout);
     let outfits: Vec<&StructValue<'_>> = struct_items(outfit, "Outfits").collect();
     let chosen: Vec<&StructValue<'_>> = {
         let untagged: Vec<_> = outfits
@@ -288,10 +301,16 @@ fn read_outfit(outfit: &StructValue<'_>) -> Option<LoadoutSpec> {
             untagged
         }
     };
-    for outfit in chosen {
-        layers.extend(struct_items(outfit, "Loadouts").filter_map(read_loadout));
-    }
-    layers.truncate(MAX_OUTFIT_LAYERS);
+    let layers: Vec<LoadoutSpec> = base
+        .into_iter()
+        .chain(
+            chosen
+                .into_iter()
+                .flat_map(|outfit| struct_items(outfit, "Loadouts"))
+                .filter_map(read_loadout),
+        )
+        .take(MAX_OUTFIT_LAYERS)
+        .collect();
     (!layers.is_empty()).then(|| LoadoutSpec::Layered(layers.into()))
 }
 

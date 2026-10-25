@@ -101,10 +101,11 @@ impl LoadoutResolver<'_> {
         let spec = spec.as_ref().as_ref().ok()?;
         let variant = BodyVariant::from_code(&spec.attach_sub_type)?;
         let wearable = Wearable::from_spec(spec);
-        let folder = wearable
+        let library = wearable
             .geometry()
             .and_then(|geometry| geometry.material())
-            .and_then(folder_of);
+            .map(str::to_owned);
+        let folder = library.as_deref().and_then(folder_of);
         let prefix = {
             let class = wearable.class_name();
             let cut = class.len().checked_sub(HEAD_SUFFIX.len());
@@ -116,13 +117,17 @@ impl LoadoutResolver<'_> {
             }
         };
         let class_name = wearable.class_name().to_owned();
-        let own = folder.clone().map(|folder| (folder, prefix));
+        let own = folder.clone().map(|folder| Own {
+            folder,
+            prefix,
+            library,
+        });
         let mut pieces = vec![bespoke(
             Piece::wearable(wearable).named("head"),
             own.as_ref(),
         )];
         for port in head.ports() {
-            if let Some(piece) = self.item_piece(port) {
+            if let Some(piece) = self.item_piece(port, &spec.port_flags) {
                 pieces.push(bespoke(piece, own.as_ref()));
             }
         }
@@ -135,8 +140,9 @@ impl LoadoutResolver<'_> {
     }
 
     /// Returns the piece for the Entity on a port of the head, `None` for an empty port or an
-    /// Entity without geometry.
-    fn item_piece(&mut self, port: &PortNode) -> Option<Piece> {
+    /// Entity without geometry. The flags the head's port container gives all its ports, `shared`,
+    /// select the sub-geometry beside the flags of the port.
+    fn item_piece(&mut self, port: &PortNode, shared: &[String]) -> Option<Piece> {
         let Attachment::Entity(item) = port.attachment() else {
             return None;
         };
@@ -168,15 +174,26 @@ impl LoadoutResolver<'_> {
         Some(
             Piece::wearable(wearable)
                 .named(port.name())
-                .selected_by(flags_of(port))
+                .selected_by(
+                    flags_of(port)
+                        .into_iter()
+                        .chain(shared.iter().cloned())
+                        .collect(),
+                )
                 .with_material_tags(tags),
         )
     }
 }
 
-fn bespoke(piece: Piece, own: Option<&(String, String)>) -> Piece {
-    let Some((folder, prefix)) = own else {
+struct Own {
+    folder: String,
+    prefix: String,
+    library: Option<String>,
+}
+
+fn bespoke(piece: Piece, own: Option<&Own>) -> Piece {
+    let Some(own) = own else {
         return piece;
     };
-    piece.bespoke_in(folder.clone(), prefix.clone())
+    piece.bespoke_in(own.folder.clone(), own.prefix.clone(), own.library.clone())
 }

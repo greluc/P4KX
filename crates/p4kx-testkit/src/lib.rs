@@ -139,8 +139,8 @@ pub use entity_livery::{
 };
 pub use entity_loadout::{TestLoadout, TestLoadoutEntry};
 pub use entity_npc::{
-    NPC_CLASS, NPC_EYES_MATERIAL, NPC_HAIR_BLONDE, NPC_HAIR_BROWN, NPC_HEAD_CLASS, NPC_HEAD_FLAGS,
-    NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,
+    NPC_BROW_SKIN, NPC_CLASS, NPC_EYES_MATERIAL, NPC_HAIR_BLONDE, NPC_HAIR_BROWN, NPC_HEAD_CLASS,
+    NPC_HEAD_FLAGS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,
 };
 pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};

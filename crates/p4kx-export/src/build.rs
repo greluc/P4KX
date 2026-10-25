@@ -203,7 +203,7 @@ fn assemble<R>(
     );
     let files = ArchiveFiles::new(archive);
     let (mut collected, counts, report) = scan(archive, &forge, &files, options, &texts, crafting)?;
-    let paint_summary = add_paints(archive, &forge, &mut collected);
+    let paint_summary = add_paints(&forge, &mut collected);
     let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
@@ -330,12 +330,8 @@ fn add_contracts<'f>(
 }
 
 /// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
-fn add_paints(
-    archive: &Archive,
-    forge: &DataForge<'_>,
-    collected: &mut Collected<'_>,
-) -> PaintSummary {
-    let derived = paints(archive, forge, &collected.items, &collected.vehicles);
+fn add_paints(forge: &DataForge<'_>, collected: &mut Collected<'_>) -> PaintSummary {
+    let derived = paints(forge, &collected.items, &collected.vehicles);
     collected.paints = derived.paints;
     if derived.summary.unreadable_vehicles > 0 {
         collected

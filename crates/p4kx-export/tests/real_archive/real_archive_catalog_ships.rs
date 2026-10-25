@@ -5,13 +5,18 @@
 //! `--ignored` when `P4KX_DATA_P4K` names one.
 //!
 //! Run with `--nocapture` to see the counts, the field survey and the build time.
+//!
+//! The anchors and counts are the exact values of LIVE and follow each patch; a failure after a
+//! patch means the value moved, to be checked against the Archive and updated here and in
+//! `docs/basetool-catalog.md`. The survey test asserts the documented findings on the field
+//! names of the ship Records.
 
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::sync::OnceLock;
 use std::time::{Instant, SystemTime};
 
-use p4kx_export::{CatalogOptions, ShipBaseOptions, build_catalog, build_ship_base};
+use p4kx_export::{CatalogOptions, ShipBase, ShipBaseOptions, build_catalog, build_ship_base};
 use p4kx_extraction::{Archive, DataForgeEntry, Field, TreeBuilder, Value};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 use serde_json::Value as Json;
@@ -64,6 +69,14 @@ const SURVEY_WORDS: [&str; 9] = [
     "height",
     "minimum",
     "seat",
+];
+
+const INVENTORY_BOUNDS: [&str; 5] = [
+    "/Components/AttachDef/inventoryOccupancyDimensions",
+    "/Components/AttachDef/inventoryOccupancyLocalBoundsMin",
+    "/Components/AttachDef/inventoryOccupancyLocalBoundsMax",
+    "/Components/maxBoundingBoxSize",
+    "/Components/hasLocalBounds",
 ];
 
 #[expect(clippy::print_stdout, reason = "the numbers are the result of the run")]
@@ -158,6 +171,42 @@ fn dangling_container_references_leave_the_cargo_unknown() -> TestResult {
     Ok(())
 }
 
+fn assert_entry_equals_base(entry: &Json, base: &ShipBase) -> TestResult {
+    let name = base.class_name.as_str();
+    assert_eq!(
+        entry["mass"].as_f64(),
+        base.mass.as_ref().map(|mass| mass.kg),
+        "{name}"
+    );
+    assert_eq!(
+        entry["hullHealth"].as_f64(),
+        base.hull.as_ref().map(|hull| hull.health),
+        "{name}"
+    );
+    assert_eq!(entry["cargoScu"].as_f64(), base.cargo.scu, "{name}");
+    assert_eq!(
+        entry["cargoGridsWithIssue"].as_u64(),
+        u64::try_from(base.cargo.grids_with_issue).ok(),
+        "{name}"
+    );
+    assert_eq!(
+        entry["size"].as_i64(),
+        base.size.as_ref().map(|size| size.value),
+        "{name}"
+    );
+    let mass_basis = match &base.mass {
+        Some(mass) => serde_json::to_value(mass.basis)?,
+        None => Json::Null,
+    };
+    assert_eq!(entry["massBasis"], mass_basis, "{name}");
+    assert_eq!(
+        entry["vehicleKind"].as_str(),
+        base.vehicle_kind.map(p4kx_export::VehicleKind::code),
+        "{name}"
+    );
+    Ok(())
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_catalog_ships_equal_the_ship_base_export_and_the_kind_is_settled() -> TestResult {
@@ -181,30 +230,7 @@ fn the_catalog_ships_equal_the_ship_base_export_and_the_kind_is_settled() -> Tes
             .iter()
             .find(|ship| ship["guid"] == base.guid.to_string().as_str())
             .ok_or_else(|| format!("{} is missing", base.class_name))?;
-        assert_eq!(
-            entry["mass"].as_f64(),
-            base.mass.as_ref().map(|mass| mass.kg),
-            "{}",
-            base.class_name
-        );
-        assert_eq!(
-            entry["hullHealth"].as_f64(),
-            base.hull.as_ref().map(|hull| hull.health),
-            "{}",
-            base.class_name
-        );
-        assert_eq!(
-            entry["cargoScu"].as_f64(),
-            base.cargo.scu,
-            "{}",
-            base.class_name
-        );
-        assert_eq!(
-            entry["vehicleKind"].as_str(),
-            base.vehicle_kind.map(p4kx_export::VehicleKind::code),
-            "{}",
-            base.class_name
-        );
+        assert_entry_equals_base(entry, base)?;
     }
     let ground = ships
         .iter()
@@ -217,6 +243,10 @@ fn the_catalog_ships_equal_the_ship_base_export_and_the_kind_is_settled() -> Tes
     assert!(
         ground,
         "every ship under groundvehicles is a ground vehicle"
+    );
+    assert!(
+        ships.iter().all(|ship| !ship["vehicleKind"].is_null()),
+        "no ship has an undecided kind: no Record under spaceships has a wheel or tread"
     );
     Ok(())
 }
@@ -269,5 +299,49 @@ fn survey_the_ship_records_for_minimum_crew_and_outer_dimensions() -> TestResult
         print_line(&format!("{count:5} {path}"));
     }
     assert!(ships > 0);
+    assert_documented_findings(&found, ships);
     Ok(())
+}
+
+fn assert_documented_findings(found: &BTreeMap<String, usize>, ships: usize) {
+    let last = |path: &str| {
+        path.rsplit('/')
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+    };
+    let crew: Vec<&str> = found
+        .keys()
+        .map(String::as_str)
+        .filter(|path| last(path).contains("crew"))
+        .collect();
+    assert_eq!(
+        crew,
+        [
+            "/Components/crewManifest",
+            "/Components/crewSize",
+            "/StaticEntityClassData/displayParams/crewSize"
+        ],
+        "crewSize and crewManifest are the only crew fields; the game states no minimum crew"
+    );
+    assert!(
+        found.keys().all(|path| {
+            let name = path.rsplit('/').next().unwrap_or_default();
+            !name.starts_with("seat") && !name.contains("Seat")
+        }),
+        "no field names a seat (useAttachedLookAimPose only contains the letters)"
+    );
+    for outer in ["length", "width", "height", "dimensions"] {
+        assert!(
+            found.keys().all(|path| last(path) != outer),
+            "no field states the outer size of a ship: {outer}"
+        );
+    }
+    for inventory in INVENTORY_BOUNDS {
+        assert_eq!(
+            found.get(inventory),
+            Some(&ships),
+            "{inventory} is on every ship Record and describes inventory space, not the hull"
+        );
+    }
 }

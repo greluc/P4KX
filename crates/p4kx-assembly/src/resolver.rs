@@ -44,7 +44,7 @@ impl Entries {
 /// [`MAX_LOADOUT_PORTS`](crate::MAX_LOADOUT_PORTS); a port that cannot be resolved is kept in the
 /// tree with the reason.
 pub struct LoadoutResolver<'f> {
-    pub(crate) entities: Entities<'f>,
+    pub(crate) entities: Arc<Entities<'f>>,
     files: Option<&'f dyn LoadoutFiles>,
     specs: HashMap<Guid, SpecResult>,
     xml: HashMap<String, EntriesResult>,
@@ -68,8 +68,15 @@ impl<'f> LoadoutResolver<'f> {
     /// Creates a resolver over `forge` that reports XML Loadouts as not read.
     #[must_use]
     pub fn new(forge: &'f DataForge<'f>) -> Self {
+        Self::with_entities(Arc::new(Entities::new(forge)))
+    }
+
+    /// Creates a resolver over the DataForge of `entities`, sharing the index with every other
+    /// resolver built from the same `Arc`, so that the Records are walked once.
+    #[must_use]
+    pub fn with_entities(entities: Arc<Entities<'f>>) -> Self {
         Self {
-            entities: Entities::new(forge),
+            entities,
             files: None,
             specs: HashMap::new(),
             xml: HashMap::new(),
@@ -100,7 +107,7 @@ impl<'f> LoadoutResolver<'f> {
 
     /// Returns the Entities, to find the one to resolve.
     #[must_use]
-    pub const fn entities(&self) -> &Entities<'f> {
+    pub fn entities(&self) -> &Entities<'f> {
         &self.entities
     }
 

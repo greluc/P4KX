@@ -7,17 +7,17 @@
 //! [`build_ship_base`] reads every ship of an Archive in parallel and returns a
 //! [`BuiltShipBase`] that writes as JSON or NDJSON. [`ShipReader`] reads one ship at a time and is
 //! the library API for catalog kinds built on the same values.
-
 mod cargo;
 mod model;
 mod read;
 mod select;
 mod write;
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTime;
 
-use p4kx_assembly::ArchiveFiles;
+use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{Archive, CancelToken, DataForgeEntry, Filter, Record};
 use rayon::prelude::*;
 use serde_json::Value;
@@ -151,11 +151,12 @@ pub fn build_ship_base_from(
     let selection = select::ships(&records, options);
     let total = selection.ships.len();
     let done = AtomicUsize::new(0);
+    let entities = Arc::new(Entities::new(&forge));
     let read: Vec<Option<Result<ShipBase, CatalogFailure>>> = selection
         .ships
         .par_iter()
         .map_init(
-            || ShipReader::new(&forge, &files),
+            || ShipReader::with_entities(Arc::clone(&entities), &files),
             |reader, record| {
                 if options.cancel.is_some_and(CancelToken::is_cancelled) {
                     return None;

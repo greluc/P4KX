@@ -100,6 +100,11 @@ fn every_catalog_ship_equals_its_ship_base_data() -> TestResult {
             entry["hullHealth"],
             json(base.hull.as_ref().map(|h| h.health))
         );
+        let basis = match &base.mass {
+            Some(mass) => serde_json::to_value(mass.basis)?,
+            None => Value::Null,
+        };
+        assert_eq!(entry["massBasis"], basis, "{}", base.class_name);
         assert_eq!(entry["cargoScu"], json(base.cargo.scu));
         assert_eq!(entry["cargoGridsWithIssue"], base.cargo.grids_with_issue);
         assert_eq!(

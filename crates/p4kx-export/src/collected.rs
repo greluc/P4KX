@@ -36,7 +36,7 @@ pub(crate) enum Picked<'f> {
     /// An item, the `Class:` line of its English description and whether it may have ports.
     Item(Item<'f>, ClassLine, bool),
     /// A ship and the vehicle facts its paints are derived from.
-    Ship(Ship<'f>, VehicleFacts<'f>),
+    Ship(Ship<'f>, VehicleFacts),
     /// A commodity.
     Commodity(Commodity<'f>),
     /// A resource group.
@@ -58,9 +58,10 @@ pub(crate) enum Picked<'f> {
 impl<'f> Picked<'f> {
     /// Returns the entity of `kind` the Record tree `tree` describes, its texts resolved by
     /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type` and its
-    /// type from `groups`, a ship its playability from `evidence` and its base data from
-    /// `ship_base`. `None` for a kind that [`read_crafting`](crate::read_crafting) fills, and for
-    /// a ship without `ship_base`.
+    /// type from `groups`, a ship its playability from `evidence`. A ship's base data is read by
+    /// `ship_base`, called for a ship only; a ship it cannot read becomes a
+    /// [`Failed`](Self::Failed), never a missing Record. `None` for a kind that
+    /// [`read_crafting`](crate::read_crafting) fills.
     pub(crate) fn entity(
         kind: Kind,
         tree: &RecordTree<'f>,
@@ -68,7 +69,7 @@ impl<'f> Picked<'f> {
         resource_type: Option<&RecordTree<'f>>,
         groups: &Groups,
         evidence: &Evidence,
-        ship_base: Option<&ShipRead>,
+        ship_base: &dyn Fn() -> Result<ShipRead, CatalogFailure>,
     ) -> Option<Self> {
         Some(match kind {
             Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
@@ -76,10 +77,13 @@ impl<'f> Picked<'f> {
                 let (item, line) = item(tree, texts);
                 Self::Item(item, line, carries_ports(tree))
             }
-            Kind::Ships => {
-                let (ship, vehicle) = ship(tree, texts, evidence, ship_base?);
-                Self::Ship(ship, vehicle)
-            }
+            Kind::Ships => match ship_base() {
+                Ok(read) => {
+                    let (ship, vehicle) = ship(tree, texts, evidence, &read);
+                    Self::Ship(ship, vehicle)
+                }
+                Err(failure) => Self::Failed(failure),
+            },
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
             Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
@@ -121,7 +125,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) mineable_elements: Vec<MineableElement<'f>>,
     pub(crate) refining_processes: Vec<RefiningProcess<'f>>,
     pub(crate) shops: Vec<Shop>,
-    pub(crate) vehicles: Vec<VehicleFacts<'f>>,
+    pub(crate) vehicles: Vec<VehicleFacts>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
     pub(crate) failures: Vec<CatalogFailure>,

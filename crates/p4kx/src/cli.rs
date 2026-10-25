@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -367,6 +368,11 @@ pub(crate) struct ExtractArgs {
     /// stored CRC-32C.
     #[arg(long)]
     pub(crate) verify: bool,
+    /// The most threads the extraction uses, sound conversion included; by default one per
+    /// logical processor, and a larger value is capped there. Fewer threads leave processors to
+    /// other programs and ease the load on a slow disk.
+    #[arg(long, value_name = "N")]
+    pub(crate) threads: Option<NonZeroUsize>,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.
     #[arg(long, hide = true, value_name = "COUNT")]
     pub(crate) cancel_after: Option<usize>,

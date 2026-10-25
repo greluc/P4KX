@@ -1,5 +1,7 @@
 # The GUI exports an Entity as a Blender package into a folder it may replace only as a whole
 
+Amended by ADR-0139: an Interior container and a Character offer the package too.
+
 Decided for issue #163, which builds on ADR-0083 (the package format), ADR-0094 (the GUI export of
 an Entity and of an Interior container) and ADR-0099 (the Character export). D.50 of the desktop
 spec.

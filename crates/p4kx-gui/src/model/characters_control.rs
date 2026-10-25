@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::Model;
-use crate::{CharactersTab, ChooserKind, Texts};
+use crate::{CharacterExportSetup, CharactersTab, ChooserKind, Texts};
 
 impl Model {
     /// Returns the Characters tab.
@@ -48,16 +47,39 @@ impl Model {
         self.characters.begin_choose(kind, catalogue.as_ref())
     }
 
-    /// Starts writing the Character to `file` off the UI thread, calling `wake` from it once it
-    /// ended; returns whether it started. Nothing starts once the Archive changed on disk.
-    pub fn start_character_export(
-        &mut self,
-        file: PathBuf,
-        wake: impl Fn() + Send + Sync + 'static,
-    ) -> bool {
+    /// Opens the setup of the Export of the Character as shown, unless none is available; a
+    /// finished export is dismissed. Nothing opens once the Archive changed on disk.
+    pub fn begin_character_export(&mut self) -> bool {
         if self.check_archive() {
             return false;
         }
-        self.characters.begin_export(file, Arc::new(wake))
+        self.characters.begin_export_setup()
+    }
+
+    /// Starts writing the Character as the open setup chose, off the UI thread, calling `wake`
+    /// from it once it ended; returns whether it started. Nothing starts while the setup is not
+    /// ready, while an export runs, or once the Archive changed on disk.
+    pub fn submit_character_export(&mut self, wake: impl Fn() + Send + Sync + 'static) -> bool {
+        if self.check_archive() {
+            return false;
+        }
+        self.characters.submit_export(Arc::new(wake))
+    }
+
+    /// Makes the export of the Character wait before it writes until the returned hold is dropped
+    /// or the export is cancelled.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_character_export(&mut self) -> crate::Hold {
+        self.characters.hold_export()
+    }
+
+    /// Returns the open setup of the export of the Character and the interface texts, for changes.
+    pub(crate) const fn character_export_setup_with_texts(
+        &mut self,
+    ) -> Option<(&mut CharacterExportSetup, &Texts)> {
+        match self.characters.export_setup_mut() {
+            Some(setup) => Some((setup, &self.texts)),
+            None => None,
+        }
     }
 }

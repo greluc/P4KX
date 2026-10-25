@@ -158,12 +158,6 @@ impl CharactersTab {
         self.export.as_ref()
     }
 
-    /// Returns the name the file dialog of the export proposes.
-    #[must_use]
-    pub fn proposed_name(&self) -> String {
-        format!("{}.glb", self.name())
-    }
-
     /// Returns the name of the Character: the CHF's file stem, else the body variant.
     #[must_use]
     pub fn name(&self) -> String {
@@ -177,11 +171,5 @@ impl CharactersTab {
                     .to_owned()
             },
         )
-    }
-
-    /// Returns the folder the file dialog of the export starts in.
-    #[must_use]
-    pub fn folder(&self) -> Option<&std::path::Path> {
-        self.export_choices.folder.as_deref()
     }
 }

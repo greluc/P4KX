@@ -1108,8 +1108,8 @@ assembly-export-summary-package-textures = { $count ->
     [one] Eine Textur konnte nicht geschrieben werden; ihre Materialien behalten die einfachen Farben.
    *[other] { $number } Texturen konnten nicht geschrieben werden; ihre Materialien behalten die einfachen Farben.
   }
-assembly-export-title-interior = Interior als GLB exportieren
-assembly-export-action-interior = Interior als GLB exportieren …
+assembly-export-title-interior = Interior exportieren
+assembly-export-action-interior = Interior exportieren …
 assembly-export-entity = Entity: { $name }
 assembly-export-container = Container: { $name }
 assembly-export-interior-heading = Interior
@@ -1197,8 +1197,16 @@ characters-expressions-no-head = Wähle einen Kopf, um seine Ausdrücke zu laden
 characters-expressions-none = Der Kopf hat keine Ausdrücke.
 characters-expression-neutral = Neutrales Gesicht
 characters-expression-strength = Stärke { $percent } %
-characters-export-action = Als GLB exportieren …
-characters-export-counts = Teile { $parts }, Knochen { $bones }, Eckpunkte { $vertices }, Dreiecke { $triangles }, Größe { $size }
+characters-export-action = Exportieren …
+characters-export-setup-title = Charakter exportieren
+characters-export-setup-name = Charakter: { $name }
+characters-export-package-note = Ein Ordner mit scene.json und einer GLB-Datei des Charakters: Skelett, Shape Keys und die Materialien, mit ihren Texturen, wenn die Texturen gewählt sind, und die Animationen, wenn du sie wählst, für das Blender-Add-on.
+characters-export-animations-heading = Animationen
+characters-export-animations-none = Keine
+characters-export-animations-all = Alle
+characters-export-busy = Der Charakter wird gerade neu aufgebaut. Exportiere ihn, sobald das fertig ist.
+characters-export-package-counts = Teile { $parts }, Knochen { $bones }, Skin-Meshes { $skinned }, Shape Keys { $morphs }, Animationen { $animations }, Vertices { $vertices }, Dreiecke { $triangles }, Dateien { $files }, Größe { $size }
+characters-export-counts = Teile { $parts }, Knochen { $bones }, Vertices { $vertices }, Dreiecke { $triangles }, Größe { $size }
 characters-view-label = 3D-Ansicht des Charakters { $name }: { $parts } Teile, { $triangles } Dreiecke
 characters-report-heading = Teile, die nicht vollständig angepasst werden konnten ({ $number })
 characters-report-all = Alle Teile passen.

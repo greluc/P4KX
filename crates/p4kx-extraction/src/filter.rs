@@ -75,7 +75,7 @@ impl Filter {
     pub fn select<'a>(&self, archive: &'a Archive) -> Vec<&'a Entry> {
         archive
             .entries()
-            .iter()
+            .par_iter()
             .filter(|entry| self.matches(entry.path()))
             .collect()
     }

@@ -46,9 +46,12 @@ container on its own, with `--lod`, `--texture-mip` and `--no-vertex-colours`: t
 props and lights as `entity package --interior`, see
 [An Interior on its own](#an-interior-on-its-own).
 
-The desktop window writes the same package: the export dialog of an Entity offers "Blender
-package" next to "GLB file", with the same choices, a folder instead of a file, progress and
-Cancel (ADR-0104). The rules below apply to it as well.
+The desktop window writes the same package: the export dialogs of an Entity, of an Interior
+container and of the Character of the Characters tab offer "Blender package" next to "GLB file",
+with the same choices, a folder instead of a file, progress and Cancel (ADR-0104, ADR-0139). The
+Character package of the window carries the animations of the Character's animation folders unless
+"None" is chosen; the window has no choice of single clips. The
+rules below apply to it as well.
 
 - The output is checked before the Archive is opened (`p4kx_blender::check_output`). The folder
   must not exist, or be empty, or hold a package an earlier run wrote: `scene.json` with the

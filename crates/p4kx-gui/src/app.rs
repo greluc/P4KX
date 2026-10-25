@@ -1,17 +1,19 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod model_file;
+
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver};
 use std::thread;
 
+use model_file::ModelFileDialog;
 use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
 use crate::ui_file_dialog::UiFileDialog;
 use crate::{
-    AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, CharacterText,
-    ComparisonText, HeadSource, Model, ModelExportSetup, ModelExportText, QueryExportFormat,
+    CATALOG_FILE, CatalogText, CharacterText, ComparisonText, HeadSource, Model, QueryExportFormat,
     QueryText, Text, ViewerSupport, ui, window,
 };
 
@@ -72,7 +74,9 @@ impl App {
             Dialog::AssemblyFile | Dialog::AssemblyPackage => {
                 ModelFileDialog::of_assembly(&self.model)
             }
-            Dialog::CharacterFile => ModelFileDialog::of_character(&self.model),
+            Dialog::CharacterFile | Dialog::CharacterPackage => {
+                ModelFileDialog::of_character(&self.model)
+            }
             _ => ModelFileDialog::of(&self.model),
         };
         let ctx = ctx.clone();
@@ -149,9 +153,14 @@ impl App {
                     .choose_head(HeadSource::File(path));
             }
             Some((Dialog::CharacterFile, path)) => {
-                let ctx = ui.ctx().clone();
-                self.model
-                    .start_character_export(path, move || ctx.request_repaint());
+                if let Some(setup) = self.model.characters_mut().export_setup_mut() {
+                    setup.set_file(path);
+                }
+            }
+            Some((Dialog::CharacterPackage, path)) => {
+                if let Some(setup) = self.model.characters_mut().export_setup_mut() {
+                    setup.set_package_folder(path);
+                }
             }
             Some((Dialog::UiFile, path)) => {
                 let ctx = ui.ctx().clone();
@@ -261,7 +270,7 @@ fn pick(
             .set_file_name(CATALOG_FILE)
             .save_file(),
         Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => model_file.save(picker),
-        Dialog::AssemblyPackage => model_file.pick_folder(picker),
+        Dialog::AssemblyPackage | Dialog::CharacterPackage => model_file.pick_folder(picker),
         Dialog::UiFile => ui_file.save(picker),
         Dialog::CharacterChf => picker.add_filter(filters.chf, &["chf"]).pick_file(),
         Dialog::QueryExport(format) => {
@@ -271,69 +280,6 @@ fn pick(
                 .set_file_name(format!("query.{extension}"))
                 .save_file()
         }
-    }
-}
-
-/// What the file dialog of the Export as GLB shows: the file type, the proposed name and the
-/// folder it starts in.
-struct ModelFileDialog {
-    filter: String,
-    name: String,
-    folder: Option<PathBuf>,
-}
-
-impl ModelFileDialog {
-    fn of(model: &Model) -> Self {
-        let setup = model.model_export_setup();
-        Self {
-            filter: model.texts().get(ModelExportText::FileFilter),
-            name: setup.map_or_else(|| "model.glb".to_owned(), ModelExportSetup::proposed_name),
-            folder: setup
-                .and_then(ModelExportSetup::folder)
-                .map(Path::to_path_buf),
-        }
-    }
-
-    fn of_assembly(model: &Model) -> Self {
-        let setup = model.assembly_export_setup();
-        Self {
-            filter: model.texts().get(AssemblyExportText::FileFilter),
-            name: setup.map_or_else(
-                || "entity.glb".to_owned(),
-                AssemblyExportSetup::proposed_name,
-            ),
-            folder: setup
-                .and_then(AssemblyExportSetup::folder)
-                .map(Path::to_path_buf),
-        }
-    }
-
-    fn of_character(model: &Model) -> Self {
-        let characters = model.characters();
-        Self {
-            filter: model.texts().get(AssemblyExportText::FileFilter),
-            name: characters.proposed_name(),
-            folder: characters.folder().map(Path::to_path_buf),
-        }
-    }
-
-    fn pick_folder(self, picker: rfd::FileDialog) -> Option<PathBuf> {
-        match self.folder {
-            Some(folder) => picker.set_directory(folder),
-            None => picker,
-        }
-        .pick_folder()
-    }
-
-    fn save(self, picker: rfd::FileDialog) -> Option<PathBuf> {
-        let picker = picker
-            .add_filter(self.filter, &["glb"])
-            .set_file_name(self.name);
-        match self.folder {
-            Some(folder) => picker.set_directory(folder),
-            None => picker,
-        }
-        .save_file()
     }
 }
 

@@ -226,6 +226,9 @@ fn container(
     }
     shared.enter(AssemblyExportStage::Writing);
     let archive_models = ArchiveModels::new(index.archive());
+    if request.form == AssemblyExportForm::Package {
+        return package::write_interior(index, request, &interior, (&archive_models, cancel));
+    }
     let written = write_replacing(&request.file, |writer| {
         let mut observed = Observed {
             inner: writer,

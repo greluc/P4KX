@@ -1207,7 +1207,6 @@ characters-export-animations-all = Alle
 characters-export-busy = Der Charakter wird gerade neu aufgebaut. Exportiere ihn, sobald das fertig ist.
 characters-export-package-counts = Teile { $parts }, Knochen { $bones }, Skin-Meshes { $skinned }, Shape Keys { $morphs }, Animationen { $animations }, Vertices { $vertices }, Dreiecke { $triangles }, Dateien { $files }, Größe { $size }
 characters-export-counts = Teile { $parts }, Knochen { $bones }, Vertices { $vertices }, Dreiecke { $triangles }, Größe { $size }
-characters-view-label = 3D-Ansicht des Charakters { $name }: { $parts } Teile, { $triangles } Dreiecke
 characters-report-heading = Teile, die nicht vollständig angepasst werden konnten ({ $number })
 characters-report-all = Alle Teile passen.
 characters-report-skipped = Ausgelassen: { $name }: { $reason }

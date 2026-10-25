@@ -1207,7 +1207,6 @@ characters-export-animations-all = All
 characters-export-busy = The Character is being built again. Export it once that is done.
 characters-export-package-counts = Parts { $parts }, bones { $bones }, skinned meshes { $skinned }, shape keys { $morphs }, animations { $animations }, vertices { $vertices }, triangles { $triangles }, files { $files }, size { $size }
 characters-export-counts = Parts { $parts }, bones { $bones }, vertices { $vertices }, triangles { $triangles }, size { $size }
-characters-view-label = 3D view of the Character { $name }: { $parts } parts, { $triangles } triangles
 characters-report-heading = Pieces that could not be fitted in full ({ $number })
 characters-report-all = Every piece fits.
 characters-report-skipped = Left out: { $name }: { $reason }

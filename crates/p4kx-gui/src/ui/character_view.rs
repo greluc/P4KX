@@ -95,6 +95,9 @@ fn line(ui: &mut Ui, text: String, colour: Color32) {
 }
 
 fn status(ui: &mut Ui, texts: &Texts, tab: &CharactersTab) -> Option<Ask> {
+    if tab.progress().is_none() && !tab.is_cancelled() && tab.failure().is_none() {
+        return None;
+    }
     let mut ask = None;
     ui.horizontal(|ui| {
         ui.set_min_height(MODEL_BAR_HEIGHT);

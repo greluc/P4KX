@@ -17,6 +17,8 @@ use crate::theme::desktop::{
 use crate::theme::palette;
 use crate::theme::tokens::{CORNER_SM, RADIUS_SM, SPACE_1, Weight};
 
+const MIN_VALUE_CHARS: f32 = 3.0;
+
 /// One fact of a `.facts-bar`: an upper-case key and a value.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Fact<'a> {
@@ -130,24 +132,37 @@ impl FactsStrip {
     }
 
     /// Shows the facts as a `.facts-bar` across the available width and returns its rectangle.
+    ///
+    /// A value that does not fit is cut with an ellipsis, and the facts after the last that fits
+    /// are left out, so nothing is painted outside the bar.
     pub(crate) fn show(&self, ui: &mut Ui) -> Rect {
         let (rect, response) =
             ui.allocate_exact_size(vec2(ui.available_width(), self.height), Sense::hover());
         response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &self.label));
         paint_bar(ui, rect);
+        let limit = rect.right() - FACTS_PADDING_X;
         let mut left = rect.left() + FACTS_PADDING_X;
         for (key, value) in &self.facts {
             let key_width = key.size().x;
-            let value_width = value.size().x;
+            let after_key = left + key_width + FACT_KEY_GAP;
+            let room = limit - after_key;
+            if room < FACT_VALUE_SIZE * MIN_VALUE_CHARS {
+                break;
+            }
             paint_left(
                 ui,
                 rect.with_min_x(left),
                 Arc::clone(key),
                 palette::GRAY_2_TEXT,
             );
-            left += key_width + FACT_KEY_GAP;
-            paint_left(ui, rect.with_min_x(left), Arc::clone(value), palette::WHITE);
-            left += value_width + FACTS_GAP;
+            let value = if value.size().x > room {
+                line(ui, plain(value.text(), FACT_VALUE_SIZE, Weight::Bold), room)
+            } else {
+                Arc::clone(value)
+            };
+            let value_width = value.size().x;
+            paint_left(ui, rect.with_min_x(after_key), value, palette::WHITE);
+            left = after_key + value_width + FACTS_GAP;
         }
         rect
     }

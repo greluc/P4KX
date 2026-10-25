@@ -80,6 +80,24 @@ fn manual_entries_join_those_already_in_the_settings() -> Result<(), std::io::Er
 }
 
 #[test]
+fn a_folder_added_by_hand_is_protected_like_an_installation() -> Result<(), std::io::Error> {
+    let folder = tempfile::tempdir()?;
+    let mut model = Model::new(Language::German);
+    assert!(
+        p4kx_extraction::ensure_writable(&folder.path().join("export")).is_ok(),
+        "writable before"
+    );
+
+    model.add_manual(folder.path().to_path_buf());
+
+    assert!(
+        p4kx_extraction::ensure_writable(&folder.path().join("export")).is_err(),
+        "refused after"
+    );
+    Ok(())
+}
+
+#[test]
 fn the_extraction_folder_is_stored() {
     let mut model = Model::new(Language::German);
     model.set_extraction_folder(Some(PathBuf::from(r"D:\Exports")));

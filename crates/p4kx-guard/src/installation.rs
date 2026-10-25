@@ -68,7 +68,7 @@ impl Installation {
         let target_key = key(&resolved);
         let refused = |folder: &Protected| WriteRefused {
             target: target.to_path_buf(),
-            installation: folder.shown.clone(),
+            installation: without_verbatim_prefix(&folder.shown),
         };
         if let Some(folder) = self
             .folders
@@ -87,6 +87,20 @@ impl Installation {
                 Handle::from_path(&folder.shown).is_ok_and(|handle| ancestors.contains(&handle))
             })
             .map_or(Ok(()), |folder| Err(refused(folder)))
+    }
+}
+
+/// Returns `path` spelled the way a person writes it: `\\?\C:\x` as `C:\x` and `\\?\UNC\s\x` as
+/// `\\s\x`. Any other path is returned unchanged.
+#[must_use]
+pub fn without_verbatim_prefix(path: &Path) -> PathBuf {
+    let text = path.as_os_str().to_string_lossy();
+    if let Some(share) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{share}"));
+    }
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
+        _ => path.to_path_buf(),
     }
 }
 

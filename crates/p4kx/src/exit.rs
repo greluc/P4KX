@@ -51,9 +51,10 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// earlier package, names an armour `--loadout` that is neither an Entity nor an XML Loadout that
 /// can be read, has an invalid Query or a Query or field-statistics output that does not fit
 /// --json, names a Loadout change (`--exclude`, `--replace`) that is malformed, names a port the
-/// Loadout lacks, contradicts another or attaches an Entity that does not fit its port, names a Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF, asks loc
-/// for a language the Archive holds no global.ini for, or looks up a localisation key that has no
-/// text.
+/// Loadout lacks, contradicts another or attaches an Entity that does not fit its port, names a
+/// Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF,
+/// asks loc for a language the Archive holds no global.ini for, or looks up a localisation key
+/// that has no text.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.
@@ -85,7 +86,11 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      the renderer skipped an element of it, or a model cannot be exported or written, e.g. one too
      large for a GLB file, or a CrCh model with a layout that is not implemented (streamed
      mesh, big-endian chunk, another chunk version, physics primitive other than a polyhedron),
-     or a head that chf glb or character package could not shape by its DNA (the GLB is written without it) or whose expressions it could not make, or a name given to --expression that the rig lacks or that moves no vertex (the GLB is written without them); wwise events: the Entities cannot be looked up (the triggers are still listed); compare: the Archives or the --diff Entry differ
+     or a head that chf glb or character package could not shape by its DNA (the GLB is written
+     without it) or whose expressions it could not make, or a name given to --expression that
+     the rig lacks or that moves no vertex (the GLB is written without them); wwise events: the
+     Entities cannot be looked up (the triggers are still listed); compare: the Archives or the
+     --diff Entry differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie
@@ -102,8 +107,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      Loadout lacks, contradicts another, or attaches an Entity that does not fit the port, an
      audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
-     CHF file cannot store, a CHF file for chf glb or character package that holds no face DNA or whose DNA belongs
-     to an unknown head rig, a language the Archive holds no global.ini for, or a localisation
+     CHF file cannot store, a CHF file for chf glb or character package that holds no face DNA
+     or whose DNA belongs to an unknown head rig, a language the Archive holds no global.ini for, or a localisation
      key that has no text in the language or its fallback, or a canvas for ui render --screen
      that no Record, several Records or a Record of another type name, or whose side is
      below 1 or above 16384 pixels
@@ -118,7 +123,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it
-     is corrupt, or its Records have more field paths than dcb fields counts, or the Record of the Entity whose Loadout or audio is shown cannot be read
+     is corrupt, or its Records have more field paths than dcb fields counts, or the Record of
+     the Entity whose Loadout or audio is shown cannot be read
   6  compare: the report or the output cannot be written
   7  the Archive key is missing or wrong: an Entry is encrypted and no key was given with --key,
      P4KX_ARCHIVE_KEY or `p4kx key set`, or the key does not decrypt the Archive

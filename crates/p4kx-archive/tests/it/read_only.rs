@@ -48,5 +48,16 @@ fn opens_and_reads_an_archive_that_nothing_may_write_to() -> TestResult {
         std::fs::metadata(&path)?.permissions().readonly(),
         "the file is still read-only"
     );
+    make_writable(&path)?;
     Ok(())
+}
+
+#[expect(
+    clippy::permissions_set_readonly_false,
+    reason = "the file lies in a temp folder that is deleted afterwards"
+)]
+fn make_writable(path: &std::path::Path) -> std::io::Result<()> {
+    let mut permissions = std::fs::metadata(path)?.permissions();
+    permissions.set_readonly(false);
+    std::fs::set_permissions(path, permissions)
 }

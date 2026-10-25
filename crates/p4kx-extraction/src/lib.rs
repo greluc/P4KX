@@ -159,7 +159,7 @@ pub use p4kx_gltf::{
 };
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,
-    protect_libraries,
+    protect_libraries, protect_manual, without_verbatim_prefix,
 };
 pub use p4kx_localization::{
     GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,

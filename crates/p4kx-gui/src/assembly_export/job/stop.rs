@@ -40,17 +40,25 @@ pub(crate) struct StoppableTextures<'a> {
     pub(crate) cancel: &'a CancelToken,
 }
 
-impl TextureLoader for StoppableTextures<'_> {
-    fn load(&self, path: &str, mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+impl StoppableTextures<'_> {
+    fn stopped(&self) -> Result<(), TextureLoadError> {
         if self.cancel.is_cancelled() {
             return Err(TextureLoadError::Unreadable(
                 "the export stopped".to_owned(),
             ));
         }
+        Ok(())
+    }
+}
+
+impl TextureLoader for StoppableTextures<'_> {
+    fn load(&self, path: &str, mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+        self.stopped()?;
         self.textures.load(path, mip)
     }
 
     fn dimensions(&self, path: &str, mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        self.stopped()?;
         self.textures.dimensions(path, mip)
     }
 }

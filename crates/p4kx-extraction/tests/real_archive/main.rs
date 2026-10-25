@@ -27,6 +27,7 @@ mod conversion;
 mod coverage;
 mod crch_models;
 mod crch_survey;
+mod cryxml_trees;
 mod cubemap_alpha;
 mod dataforge_canary;
 mod dequantisation_boxes;

@@ -8,11 +8,17 @@ use super::pipelines::{COLOUR_FORMAT, DEPTH_FORMAT};
 
 const SHADER: &str = include_str!("hologram.wgsl");
 
-/// The pipelines of the hologram shading pass: the depth of the nearest surface first, then the
-/// tinted shell on exactly that surface, blended over the background with premultiplied alpha.
+const CAPPED: wgpu::BlendComponent = wgpu::BlendComponent {
+    src_factor: wgpu::BlendFactor::Constant,
+    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+    operation: wgpu::BlendOperation::Add,
+};
+
+/// The pipeline of the hologram shading pass: every surface blended over the background without
+/// a depth test, each layer weaker the deeper it lies. The blend constant is the cap that the
+/// accumulated opacity approaches and never passes, so many layers cannot turn the shell solid.
 #[derive(Debug)]
 pub(super) struct HologramPipelines {
-    pub(super) depth: wgpu::RenderPipeline,
     pub(super) colour: wgpu::RenderPipeline,
 }
 
@@ -32,8 +38,7 @@ impl HologramPipelines {
             immediate_size: 0,
         });
         Self {
-            depth: pipeline(device, &layout, &module, samples, false),
-            colour: pipeline(device, &layout, &module, samples, true),
+            colour: pipeline(device, &layout, &module, samples),
         }
     }
 }
@@ -43,14 +48,9 @@ fn pipeline(
     layout: &wgpu::PipelineLayout,
     module: &wgpu::ShaderModule,
     samples: u32,
-    shaded: bool,
 ) -> wgpu::RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some(if shaded {
-            "p4kx-viewer-hologram-shell"
-        } else {
-            "p4kx-viewer-hologram-depth"
-        }),
+        label: Some("p4kx-viewer-hologram-shell"),
         layout: Some(layout),
         vertex: wgpu::VertexState {
             module,
@@ -65,12 +65,8 @@ fn pipeline(
         },
         depth_stencil: Some(wgpu::DepthStencilState {
             format: DEPTH_FORMAT,
-            depth_write_enabled: Some(!shaded),
-            depth_compare: Some(if shaded {
-                wgpu::CompareFunction::LessEqual
-            } else {
-                wgpu::CompareFunction::Less
-            }),
+            depth_write_enabled: Some(false),
+            depth_compare: Some(wgpu::CompareFunction::Always),
             stencil: wgpu::StencilState::default(),
             bias: wgpu::DepthBiasState::default(),
         }),
@@ -81,16 +77,15 @@ fn pipeline(
         },
         fragment: Some(wgpu::FragmentState {
             module,
-            entry_point: Some(if shaded { "fs_main" } else { "fs_depth" }),
+            entry_point: Some("fs_main"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
             targets: &[Some(wgpu::ColorTargetState {
                 format: COLOUR_FORMAT,
-                blend: shaded.then_some(wgpu::BlendState::PREMULTIPLIED_ALPHA_BLENDING),
-                write_mask: if shaded {
-                    wgpu::ColorWrites::ALL
-                } else {
-                    wgpu::ColorWrites::empty()
-                },
+                blend: Some(wgpu::BlendState {
+                    color: CAPPED,
+                    alpha: CAPPED,
+                }),
+                write_mask: wgpu::ColorWrites::ALL,
             })],
         }),
         multiview_mask: None,

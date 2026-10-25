@@ -309,12 +309,16 @@ impl Renderer {
             (&assembly.translucent, Some(true), true),
         ];
         let hologram;
-        let steps = match (shading, self.pipelines.hologram.as_ref()) {
-            (Shading::Hologram(_), Some(pipelines)) => {
-                hologram = [
-                    (&pipelines.depth, None, false),
-                    (&pipelines.colour, None, true),
-                ];
+        let steps: &[_] = match (shading, self.pipelines.hologram.as_ref()) {
+            (Shading::Hologram(look), Some(pipelines)) => {
+                let cap = f64::from(look.cap());
+                pass.set_blend_constant(wgpu::Color {
+                    r: cap,
+                    g: cap,
+                    b: cap,
+                    a: cap,
+                });
+                hologram = [(&pipelines.colour, None, true)];
                 &hologram
             }
             _ => &solid,

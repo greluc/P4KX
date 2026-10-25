@@ -199,3 +199,20 @@ pub(crate) fn ship() -> AssemblyScene {
         serial: next_serial(),
     }
 }
+
+/// Returns the ship with every draw repeated `copies` times in the same place, so that many
+/// layers lie over each other.
+pub(crate) fn stacked(copies: usize) -> AssemblyScene {
+    let mut scene = ship();
+    let draws = scene.draws.clone();
+    let items = scene.items.clone();
+    let step = u32::try_from(items.len()).unwrap_or_default();
+    for copy in 1..u32::try_from(copies).unwrap_or(1) {
+        scene.items.extend(items.iter().copied());
+        scene.draws.extend(draws.iter().cloned().map(|mut draw| {
+            draw.items = draw.items.start + copy * step..draw.items.end + copy * step;
+            draw
+        }));
+    }
+    scene
+}

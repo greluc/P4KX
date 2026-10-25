@@ -146,7 +146,7 @@ fn csv_starts_with_a_byte_order_mark_and_the_header_and_ends_rows_with_crlf() ->
     let text = flat("n", FlatFormat::Csv, None)?;
 
     assert!(text.starts_with(
-        "\u{feff}record_guid,record_name,record_path,field_path,array_indices,kind,value,target_path\r\n"
+        "\u{feff}record_guid,record_name,record_path,field_path,array_indices,kind,value,target_path,record_tag\r\n"
     ));
     assert!(text.ends_with("\r\n"));
     assert!(!text.replace("\r\n", "").contains('\n'));
@@ -159,18 +159,18 @@ fn every_kind_has_one_row_with_its_value() -> TestResult {
     let rows = rows(&text);
 
     for expected in [
-        "flag,,bool,true,",
-        "small,,int,-5,",
-        "count,,int,0,",
-        "wide,,int,-9223372036854775808,",
-        "tiny,,uint,7,",
-        "huge,,uint,18446744073709551615,",
-        "single,,single,0.1,",
-        "double,,double,2.5,",
-        "name,,string,n,",
-        "label,,locale,@item_Name,",
-        "size,,enum,Large,",
-        "id,,guid,00000001-0002-0003-0004-000000000005,",
+        "flag,,bool,true,,",
+        "small,,int,-5,,",
+        "count,,int,0,,",
+        "wide,,int,-9223372036854775808,,",
+        "tiny,,uint,7,,",
+        "huge,,uint,18446744073709551615,,",
+        "single,,single,0.1,,",
+        "double,,double,2.5,,",
+        "name,,string,n,,",
+        "label,,locale,@item_Name,,",
+        "size,,enum,Large,,",
+        "id,,guid,00000001-0002-0003-0004-000000000005,,",
     ] {
         let row = format!("{HEAD}{expected}");
         assert!(rows.contains(&row.as_str()), "{row} in {rows:#?}");
@@ -192,12 +192,14 @@ fn references_carry_the_target_guid_and_record_path() -> TestResult {
     let rows = rows(&text);
 
     assert!(
-        rows.contains(&format!("{HEAD}maker,,reference,{MAKER_TEXT},libs/makers/aegis").as_str())
+        rows.contains(&format!("{HEAD}maker,,reference,{MAKER_TEXT},libs/makers/aegis,").as_str())
     );
     assert!(
         rows.contains(
-            &format!("{HEAD}front,,reference,cbee34fd-6441-4000-b99f-924f7f26e19f,libs/things/one")
-                .as_str()
+            &format!(
+                "{HEAD}front,,reference,cbee34fd-6441-4000-b99f-924f7f26e19f,libs/things/one,"
+            )
+            .as_str()
         ),
         "{rows:#?}"
     );
@@ -231,12 +233,12 @@ fn array_positions_leave_the_field_path_and_fill_the_indices() -> TestResult {
     let rows = rows(&text);
 
     for expected in [
-        "wheels.size,0,int,16,",
-        "wheels.size,1,int,17,",
-        "wheels.marks,1.0,uint,1,",
-        "wheels.marks,1.1,uint,2,",
-        "tags,0,string,a,",
-        "spare.size,,int,15,",
+        "wheels.size,0,int,16,,",
+        "wheels.size,1,int,17,,",
+        "wheels.marks,1.0,uint,1,,",
+        "wheels.marks,1.1,uint,2,,",
+        "tags,0,string,a,,",
+        "spare.size,,int,15,,",
     ] {
         let row = format!("{HEAD}{expected}");
         assert!(rows.contains(&row.as_str()), "{row} in {rows:#?}");
@@ -262,7 +264,10 @@ fn rows_follow_the_field_order() -> TestResult {
 fn csv_quotes_cells_with_commas_quotes_and_line_breaks() -> TestResult {
     let text = flat("a,\"b\"\nc", FlatFormat::CsvRaw, None)?;
 
-    assert!(text.contains(",name,,string,\"a,\"\"b\"\"\nc\","), "{text}");
+    assert!(
+        text.contains(",name,,string,\"a,\"\"b\"\"\nc\",,"),
+        "{text}"
+    );
     Ok(())
 }
 
@@ -270,17 +275,17 @@ fn csv_quotes_cells_with_commas_quotes_and_line_breaks() -> TestResult {
 fn csv_neutralises_formulas_in_text_kinds_only() -> TestResult {
     let text = flat("=1+1", FlatFormat::Csv, None)?;
 
-    assert!(text.contains(",name,,string,'=1+1,"), "{text}");
+    assert!(text.contains(",name,,string,'=1+1,,"), "{text}");
     assert!(
-        text.contains(",small,,int,-5,"),
+        text.contains(",small,,int,-5,,"),
         "negative numbers stay numbers"
     );
     for lead in ["+x", "-x", "@x", "\tx"] {
         let text = flat(lead, FlatFormat::Csv, None)?;
-        assert!(text.contains(&format!(",string,'{lead},")), "{lead}");
+        assert!(text.contains(&format!(",string,'{lead},,")), "{lead}");
     }
     let text = flat("\rx", FlatFormat::Csv, None)?;
-    assert!(text.contains(",string,\"'\rx\","));
+    assert!(text.contains(",string,\"'\rx\",,"));
     Ok(())
 }
 
@@ -288,7 +293,7 @@ fn csv_neutralises_formulas_in_text_kinds_only() -> TestResult {
 fn raw_csv_changes_no_value() -> TestResult {
     let text = flat("=1+1", FlatFormat::CsvRaw, None)?;
 
-    assert!(text.contains(",name,,string,=1+1,"), "{text}");
+    assert!(text.contains(",name,,string,=1+1,,"), "{text}");
     Ok(())
 }
 
@@ -299,15 +304,15 @@ fn texts_add_a_column_filled_for_resolved_locale_values() -> TestResult {
 
     assert!(
         rows.first()
-            .is_some_and(|header| header.ends_with(",target_path,text"))
+            .is_some_and(|header| header.ends_with(",target_path,record_tag,text"))
     );
     assert!(
         rows.contains(
-            &format!("{HEAD}label,,locale,'@item_Name,,\"'=Crate, \"\"big\"\"\"").as_str()
+            &format!("{HEAD}label,,locale,'@item_Name,,,\"'=Crate, \"\"big\"\"\"").as_str()
         ),
         "{rows:#?}"
     );
-    assert!(rows.contains(&format!("{HEAD}flag,,bool,true,,").as_str()));
+    assert!(rows.contains(&format!("{HEAD}flag,,bool,true,,,").as_str()));
     Ok(())
 }
 
@@ -322,7 +327,7 @@ fn a_missing_text_leaves_the_cell_empty() -> TestResult {
 
     let text = flat("n", FlatFormat::CsvRaw, Some(&Gone))?;
 
-    assert!(text.contains(&format!("{HEAD}label,,locale,@item_Name,,\r\n")));
+    assert!(text.contains(&format!("{HEAD}label,,locale,@item_Name,,,\r\n")));
     Ok(())
 }
 
@@ -348,6 +353,7 @@ fn ndjson_has_one_object_per_value_without_byte_order_mark() -> TestResult {
     assert_eq!(huge["record_name"], "Thing.One");
     assert_eq!(huge["record_path"], "libs/things/one");
     assert!(huge.get("target_path").is_none());
+    assert!(huge.get("record_tag").is_none());
     assert_eq!(
         find("single", "").ok_or("single")?["value"].to_string(),
         "0.1"

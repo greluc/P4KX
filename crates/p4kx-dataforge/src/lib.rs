@@ -24,6 +24,7 @@ mod dataforge;
 mod error;
 mod fields;
 mod flat;
+mod flat_cells;
 mod guid;
 mod header;
 mod instance;

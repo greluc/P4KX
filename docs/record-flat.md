@@ -38,7 +38,14 @@ with `--flat`, and so is `--format xml|json`.
 | `kind` | `bool`, `int`, `uint`, `single`, `double`, `string`, `locale`, `enum`, `guid` or `reference` |
 | `value` | The value, see below |
 | `target_path` | For a `reference`, the record path of the target Record; empty for every other kind |
-| `text` | Only with `--lang`: the resolved text of a `locale` value, empty otherwise |
+| `record_tag` | The Record tag of a version 8 DataForge, e.g. `SystemsDesign`; empty for a Record without tag, with an empty tag, and for version 6 |
+| `text` | Only with `--lang`: the resolved text of a `locale` value, empty otherwise; always the last column, so the tenth |
+
+`record_tag` is appended after `target_path`, so the eight columns before it keep their names and
+positions; it is always in the header, whichever DataForge version the Records come from
+([ADR-0112](adr/0112-the-flat-value-export-is-csv-and-ndjson-and-offers-no-sqlite-output.md)).
+It is the `$tag` of [Record JSON](record-json.md#record-and-struct-objects) and the `p4kx:tag` of
+[Record XML](record-xml.md), and like them it repeats on every row of the Record.
 
 `field_path` and `array_indices` identify the place: the second element of the `wheels` array of the
 first element of `parts` is `parts.wheels` with `0.1`. A nested struct, an inline class or the
@@ -93,9 +100,9 @@ value.
 ## NDJSON
 
 UTF-8 without byte order mark, one compact object per row, ended by a line feed, with the keys
-`record_guid`, `record_name`, `record_path`, `field_path`, `array_indices` (the text above, `""`
-outside arrays), `kind` and `value`, then `target_path` for a `reference` and `text` for a resolved
-`locale` value. `value` is typed: a boolean, an exact number, or a string; a number beyond 2^53
+`record_guid`, `record_name`, `record_path`, then `record_tag` when the Record has a tag (the key
+is left out otherwise), `field_path`, `array_indices` (the text above, `""` outside arrays), `kind`
+and `value`, then `target_path` for a `reference` and `text` for a resolved `locale` value. `value` is typed: a boolean, an exact number, or a string; a number beyond 2^53
 loses precision in readers that use doubles, as in [Record JSON](record-json.md#values). Strings
 are escaped as in Record JSON. Values are never changed for spreadsheets.
 

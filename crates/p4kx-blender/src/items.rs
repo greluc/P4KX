@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{Assembly, INTERIOR_NODE, InteriorPart, InteriorPartKind, Part};
+use p4kx_assembly::{Assembly, INTERIOR_NODE, Interior, InteriorPart, InteriorPartKind, Part};
 use p4kx_gltf::{NodeTransform, SceneLight, light_node_transform, node_transform};
 use p4kx_model::{MaterialStatus, Model, TintPalette, Transform};
 
@@ -43,20 +43,47 @@ pub(crate) fn items(assembly: &Assembly) -> Vec<Item<'_>> {
         let group = items.len();
         items.push(group_item(INTERIOR_NODE, Some(0), INTERIOR_NODE.to_owned()));
         for container in interior.containers() {
-            let base = items.len();
-            for part in container.interior().parts() {
-                let parent = part.parent().map_or(group, |index| base + index);
-                let path = join(items.get(parent).map_or("", |item| &item.path), part.name());
-                let local = if part.parent().is_none() {
-                    container.placement()
-                } else {
-                    part.local()
-                };
-                items.push(interior_item(part, parent, path, local));
-            }
+            push_parts(
+                &mut items,
+                container.interior(),
+                Some(group),
+                container.placement(),
+            );
         }
     }
     items
+}
+
+/// Lists the nodes of an Interior on its own: the container is the root, below it its `.soc`
+/// files, models, props, lights and nested containers. A node comes after its parent.
+pub(crate) fn interior_items(interior: &Interior) -> Vec<Item<'_>> {
+    let mut items = Vec::with_capacity(interior.parts().len());
+    push_parts(&mut items, interior, None, &Transform::IDENTITY);
+    items
+}
+
+fn push_parts<'a>(
+    items: &mut Vec<Item<'a>>,
+    interior: &'a Interior,
+    group: Option<usize>,
+    placement: &Transform,
+) {
+    let base = items.len();
+    for part in interior.parts() {
+        let parent = part.parent().map(|index| base + index).or(group);
+        let path = join(
+            parent
+                .and_then(|index| items.get(index))
+                .map_or("", |item| &item.path),
+            part.name(),
+        );
+        let local = if part.parent().is_none() {
+            placement
+        } else {
+            part.local()
+        };
+        items.push(interior_item(part, parent, path, local));
+    }
 }
 
 fn part_item(part: &Part) -> Item<'_> {
@@ -83,7 +110,7 @@ fn part_item(part: &Part) -> Item<'_> {
 
 fn interior_item<'a>(
     part: &'a InteriorPart,
-    parent: usize,
+    parent: Option<usize>,
     path: String,
     local: &Transform,
 ) -> Item<'a> {
@@ -97,7 +124,7 @@ fn interior_item<'a>(
         kind,
         name: part.name(),
         path,
-        parent: Some(parent),
+        parent,
         transform: if light.is_some() {
             light_node_transform(local)
         } else {

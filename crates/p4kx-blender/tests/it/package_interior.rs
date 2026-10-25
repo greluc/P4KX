@@ -6,12 +6,13 @@
 
 use std::path::PathBuf;
 
+use p4kx_assembly::{Interior, InteriorOptions};
 use p4kx_blender::{
-    LightKind, Manifest, Node, NodeKind, PackageInfo, PackageSummary, manifest_schema,
-    write_package,
+    InteriorScene, LightKind, Manifest, Node, NodeKind, PackageInfo, PackageSummary,
+    manifest_schema, write_interior_package, write_package,
 };
-use p4kx_extraction::Archive;
-use p4kx_testkit::{ENTITY_LIT_ROOM_CLASS, check_glb, entity_lit_room_entries};
+use p4kx_extraction::{Archive, select_entries};
+use p4kx_testkit::{ENTITY_LIT_ROOM_CLASS, LIT_ROOM, check_glb, entity_lit_room_entries};
 
 use crate::support::{
     TestResult, assemble, assemble_with_interior, fixture, glb_options, names_in, never,
@@ -297,5 +298,97 @@ fn the_manifest_with_an_interior_matches_its_schema() -> TestResult {
     assert_eq!(lamp["kind"], "light");
     assert_eq!(lamp["light"]["kind"], "point");
     assert!(lamp.get("entity").is_none(), "no nulls, no entity");
+    Ok(())
+}
+
+fn write_alone() -> Result<Written, Box<dyn std::error::Error>> {
+    let fixture = fixture(entity_lit_room_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let found = select_entries(&archive, &[LIT_ROOM])?;
+    let entry = found.first().ok_or("no container")?;
+    let opened = archive.open_container(entry)?;
+    let interior = Interior::build(
+        &[&archive, &opened],
+        entry.path(),
+        &InteriorOptions::default(),
+    )?;
+    let models = p4kx_assembly::ArchiveModels::new(&archive);
+    let dir = tempfile::tempdir()?;
+    let out = dir.path().join("room");
+    let summary = write_interior_package(
+        &InteriorScene::new("lit_room", &interior),
+        &models,
+        &models.textures(),
+        &glb_options(0),
+        &PackageInfo::new(None, None),
+        &out,
+        &never,
+    )?;
+    let text = std::fs::read_to_string(out.join("scene.json"))?;
+    Ok(Written {
+        manifest: serde_json::from_str(&text)?,
+        raw: serde_json::from_str(&text)?,
+        _dir: dir,
+        out,
+        summary,
+    })
+}
+
+fn below(manifest: &Manifest, root: &str) -> Vec<String> {
+    let prefix = format!("{root}/");
+    let mut found: Vec<String> = manifest
+        .nodes
+        .iter()
+        .filter_map(|node| {
+            let relative = node.path.strip_prefix(&prefix)?;
+            let geometry = node.mesh.as_deref().and_then(|id| {
+                manifest
+                    .meshes
+                    .iter()
+                    .find(|mesh| mesh.id == id)
+                    .map(|mesh| mesh.geometry.clone())
+            });
+            Some(format!(
+                "{relative} {} {:?} {:?} {:?} {:?} {geometry:?} {:?}",
+                node.name, node.kind, node.translation, node.rotation, node.scale, node.light
+            ))
+        })
+        .collect();
+    found.sort();
+    found
+}
+
+#[test]
+fn an_interior_on_its_own_has_the_subtree_of_the_entitys_container() -> TestResult {
+    let entity = write(true)?;
+    let alone = write_alone()?;
+
+    let inside = below(&entity.manifest, "Interior/lit_room");
+    let own = below(&alone.manifest, "lit_room");
+
+    assert!(own.len() >= 8, "{own:?}");
+    assert_eq!(own, inside);
+    let root = alone.manifest.nodes.first().ok_or("no root")?;
+    assert_eq!(root.kind, NodeKind::Container);
+    assert_eq!(root.name, "lit_room");
+    assert_eq!(root.path, "lit_room");
+    assert!(root.parent.is_none());
+    assert_eq!(root.translation, [0.0; 3]);
+    assert!(
+        alone
+            .manifest
+            .nodes
+            .iter()
+            .all(|node| node.kind != NodeKind::Entity)
+    );
+    assert_eq!(alone.manifest.source.entity.class_name, "lit_room");
+    assert_eq!(alone.manifest.source.entity.guid, "");
+    assert_eq!(alone.summary.lights, entity.summary.lights);
+    assert_eq!(alone.summary.objects, entity.summary.objects);
+    let validator = jsonschema::draft202012::new(&manifest_schema())?;
+    assert!(validator.is_valid(&alone.raw));
+    for mesh in &alone.manifest.meshes {
+        check_glb(&std::fs::read(alone.out.join(&mesh.file))?)?;
+    }
     Ok(())
 }

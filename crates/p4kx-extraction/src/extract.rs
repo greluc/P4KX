@@ -8,7 +8,7 @@ use p4kx_archive::{Archive, Entry};
 use crate::buffers::Buffers;
 use crate::dependent::Collisions;
 use crate::sound_job::mark_sounds;
-use crate::sound_workers::run_parallel;
+use crate::sound_workers::{run_parallel, within};
 use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
@@ -77,7 +77,7 @@ pub fn extract(
     options: &ExtractOptions<'_>,
 ) -> ExtractionReport {
     let Some(threads) = options.threads else {
-        return run(archive, entries, target, options);
+        return run(archive, entries, target, options, None);
     };
     let limit = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
     let pool = rayon::ThreadPoolBuilder::new()
@@ -85,7 +85,7 @@ pub fn extract(
         .thread_name(|number| format!("p4kx-extract-{number}"))
         .build();
     match pool {
-        Ok(pool) => pool.install(|| run(archive, entries, target, options)),
+        Ok(pool) => run(archive, entries, target, options, Some(&pool)),
         Err(error) => ExtractionReport {
             failures: entries
                 .iter()
@@ -105,6 +105,7 @@ fn run(
     entries: &[&Entry],
     target: &Path,
     options: &ExtractOptions<'_>,
+    pool: Option<&rayon::ThreadPool>,
 ) -> ExtractionReport {
     if let Some(report) = not_started(entries, target, options) {
         return report;
@@ -124,7 +125,8 @@ fn run(
         .convert
         .then(|| dataforge_position(archive, entries))
         .flatten();
-    let (independent, dependent) = split_dependent(items(archive, entries, options, dataforge));
+    let (independent, dependent) =
+        split_dependent(within(pool, || items(archive, entries, options, dataforge)));
     let run = |buffers: &mut Buffers, item: Item<'_>| match item {
         Item::Entry((index, entry)) => {
             Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
@@ -143,13 +145,19 @@ fn run(
             EntryWriter::try_write_bank,
         ),
     };
-    let mut ended = run_parallel(independent, &run);
+    let mut ended = run_parallel(independent, &run, pool, &|| tracker.should_stop());
     let mut buffers = Buffers::new();
-    ended.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    let later = within(pool, || {
+        dependent
+            .into_iter()
+            .map(|item| run(&mut buffers, item))
+            .collect::<Vec<_>>()
+    });
+    ended.extend(later);
     let records = dataforge
         .and_then(|index| entries.get(index).map(|entry| (index, entry)))
         .and_then(|(index, entry)| {
-            let (outcome, records) = writer.write_dataforge(entry, &mut buffers);
+            let (outcome, records) = within(pool, || writer.write_dataforge(entry, &mut buffers));
             ended.push(Ended::Entry((index, entry.path().to_owned(), outcome)));
             records
         });

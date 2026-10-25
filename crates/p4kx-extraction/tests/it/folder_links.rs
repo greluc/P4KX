@@ -52,12 +52,26 @@ fn sequential() -> ExtractOptions<'static> {
 
 #[test]
 fn a_folder_swapped_for_a_link_mid_run_is_refused_for_the_later_entries() -> TestResult {
+    refuses_after_swap(false)
+}
+
+#[test]
+fn a_parent_swapped_for_a_link_mid_run_is_refused_for_the_later_entries() -> TestResult {
+    refuses_after_swap(true)
+}
+
+fn refuses_after_swap(parent: bool) -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(dir.path())?;
     let target = dir.path().join("out");
     let outside = dir.path().join("outside");
     fs::create_dir(&target)?;
-    fs::create_dir(&outside)?;
+    let (swapped_path, watched) = if parent {
+        (target.join("Data"), outside.join("Dir"))
+    } else {
+        (target.join("Data").join("Dir"), outside.clone())
+    };
+    fs::create_dir_all(&watched)?;
     let probe = dir.path().join("probe");
     if !link(&outside, &probe) {
         return Ok(());
@@ -66,9 +80,9 @@ fn a_folder_swapped_for_a_link_mid_run_is_refused_for_the_later_entries() -> Tes
     let swapped = AtomicBool::new(false);
     let on_progress = |progress: Progress| {
         if progress.entries_done >= 1 && !swapped.swap(true, Ordering::SeqCst) {
-            let folder = target.join("Data").join("Dir");
-            fs::remove_dir_all(&folder).expect("remove the folder");
-            assert!(link(&outside, &folder), "link in its place");
+            let removed = fs::remove_dir_all(&swapped_path);
+            assert!(removed.is_ok(), "remove the folder: {removed:?}");
+            assert!(link(&outside, &swapped_path), "link in its place");
         }
     };
     let options = ExtractOptions {
@@ -81,11 +95,8 @@ fn a_folder_swapped_for_a_link_mid_run_is_refused_for_the_later_entries() -> Tes
 
     assert_eq!(report.extracted(), 1, "only the Entry before the swap");
     assert_eq!(report.failures().len(), 2, "the later Entries are refused");
-    assert_eq!(
-        fs::read_dir(&outside)?.count(),
-        0,
-        "nothing is written through the link"
-    );
+    let leaked = fs::read_dir(&watched)?.count();
+    assert_eq!(leaked, 0, "nothing is written through the link");
     Ok(())
 }
 

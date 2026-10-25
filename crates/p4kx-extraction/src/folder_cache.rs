@@ -19,9 +19,9 @@ pub(crate) struct FolderCache {
 impl FolderCache {
     /// Returns the folder `relative` below `target`, created if missing.
     ///
-    /// A folder seen before is trusted only while it still is a real folder: a single
-    /// `symlink_metadata` of it must say so, otherwise the full creation runs again, which
-    /// recreates a deleted folder and refuses a link.
+    /// A folder seen before is trusted only while it and every folder above it below `target`
+    /// still are real folders, each checked by a `symlink_metadata`; otherwise the full creation
+    /// runs again, which recreates a deleted folder and refuses a link.
     pub(crate) fn folder(
         &self,
         target: &Path,
@@ -32,11 +32,9 @@ impl FolderCache {
                 .known
                 .read()
                 .is_ok_and(|known| known.contains(relative))
+            && let Some(folder) = still_real(target, relative)
         {
-            let folder = target.join(relative);
-            if fs::symlink_metadata(&folder).is_ok_and(|metadata| metadata.is_dir()) {
-                return Ok(folder);
-            }
+            return Ok(folder);
         }
         let folder = create_folders(target, relative)?;
         if let Some(relative) = relative
@@ -46,4 +44,15 @@ impl FolderCache {
         }
         Ok(folder)
     }
+}
+
+fn still_real(target: &Path, relative: &Path) -> Option<PathBuf> {
+    let mut folder = target.to_path_buf();
+    for component in relative.components() {
+        folder.push(component);
+        if !fs::symlink_metadata(&folder).is_ok_and(|metadata| metadata.is_dir()) {
+            return None;
+        }
+    }
+    Some(folder)
 }

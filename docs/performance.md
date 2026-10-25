@@ -49,7 +49,7 @@ runs stated.
 | Open the DataForge over the bytes (median of 5; the open is lazy, the indexes are built on use) | 0.12 ms | unchanged |
 | Export all 117,709 Records as XML (single run) | 53.2 s | 47.0 s |
 | Extract 76,310 Entries, 8,225 MiB (three runs each) | 267 to 276 MiB/s | 325 to 362 MiB/s |
-| Extract them again, every file exists (single run each) | 13.2 s | 0.68 s with the leaf check |
+| Extract them again, every file exists (single run each) | 13.2 s | 4.3 s (every folder level checked) |
 | Extract 26,083 `.mtl` Entries with 1 / 2 / 4 / 8 / all threads (single runs) | not applicable | 11 / 17 / 22 / 21 / 18 MiB/s |
 
 The "before" rows of the Extraction come from the same build with the folder cache switched off;
@@ -66,5 +66,7 @@ every other "before" row comes from main before the change.
   single runs close to the run-to-run noise of the disk. The repeat Extraction, where only folder
   handling remains, is the clear result: the 13.2 s were file system calls for folders that
   already existed.
-- The extra `symlink_metadata` of the folder on every use (which keeps a folder swapped for a
-  link from being followed) cost nothing measurable: 0.76 s without it, 0.68 s with it.
+- The `symlink_metadata` of every folder level on each use (which keeps a folder or parent
+  swapped for a link from being followed) is what remains of the folder work: 0.7 s for the
+  repeat Extraction when only the leaf was checked, 4.3 s with every level, against 13.2 s
+  before the cache. The first Extraction is unaffected within the noise (326 and 328 MiB/s).

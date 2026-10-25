@@ -11,5 +11,6 @@ mod decode_bc6h;
 mod decode_bc7;
 mod hdr_export;
 mod header;
+mod images;
 mod merge;
 mod mip;

@@ -19,7 +19,7 @@ use crate::catalog::{InvalidExportTime, MissingCatalogArgs};
 use crate::channels::InvalidPath;
 use crate::chf::{InvalidChf, InvalidChfJson, UnreadableChfInput};
 use crate::cryxml::{JsonNeedsOut, UnreadableInput};
-use crate::dcb_export::{CombinedNeedsXml, NoRecordMatch};
+use crate::dcb_export::{CombinedNeedsXml, FlatConflict, NoRecordMatch};
 use crate::dcb_query::{InvalidQuery, JsonNeedsJsonFormat, OutputIsArchive, UnreadableSchema};
 use crate::dcb_refs::{JsonWithTable, UnknownRecord};
 use crate::dcb_tags::UnknownTag;
@@ -175,7 +175,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<InvalidPath>().is_some()
         || error.downcast_ref::<NoMatch>().is_some()
         || error.downcast_ref::<NoRecordMatch>().is_some()
-        || error.downcast_ref::<CombinedNeedsXml>().is_some()
+        || is_export_conflict(error)
         || texture::is_invalid_input(error)
         || model::is_invalid_input(error)
         || is_output_or_query_error(error)
@@ -212,6 +212,11 @@ fn is_missing_skeleton(error: &anyhow::Error) -> bool {
         error.downcast_ref::<AssemblyError>(),
         Some(AssemblyError::Body { .. })
     )
+}
+
+fn is_export_conflict(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<CombinedNeedsXml>().is_some()
+        || error.downcast_ref::<FlatConflict>().is_some()
 }
 
 fn is_unreadable_change(error: &anyhow::Error) -> bool {

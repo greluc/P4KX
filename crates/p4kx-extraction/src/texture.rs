@@ -166,8 +166,7 @@ impl<'a> Texture<'a> {
     /// # Errors
     ///
     /// Returns a [`ConversionError`] naming the part when the mip's part is missing, truncated,
-    /// oversized or unreadable, and another one when the level does not exist or the texture is
-    /// a volume.
+    /// oversized or unreadable, and another one when the level does not exist.
     pub fn read_mip(&self, level: u32) -> Result<Mip, ConversionError> {
         let header = self.open_header()?;
         read_mip(header, self.header_size, &self.parts, level)
@@ -186,11 +185,11 @@ impl<'a> Texture<'a> {
             ConversionError::of_texture(
                 &self.name,
                 TextureError::UnsupportedImage {
-                    images: self.header.surfaces(),
+                    images: self.header.images(level),
                 },
             )
         };
-        if self.header.surfaces() > 1 {
+        if self.header.images(level) > 1 {
             return Err(several());
         }
         let mut images = self.decode_surfaces(level)?;
@@ -200,8 +199,9 @@ impl<'a> Texture<'a> {
         }
     }
 
-    /// Reads and decodes every image of mip `level`, a cubemap's six faces in DDS order, to
-    /// 8-bit RGBA with the alpha tail merged into the alpha channel.
+    /// Reads and decodes every image of mip `level`, a cubemap's six faces in DDS order, an
+    /// array's elements or a volume's slices, to 8-bit RGBA with the alpha tail merged into the
+    /// alpha channel.
     ///
     /// # Errors
     ///
@@ -268,7 +268,7 @@ impl<'a> Texture<'a> {
             return Err(ConversionError::of_texture(
                 &alpha.name,
                 TextureError::UnsupportedImage {
-                    images: alpha.header.surfaces(),
+                    images: alpha.header.images(level),
                 },
             ));
         }

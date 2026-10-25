@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use egui::{Align, Id, Label, Layout, RichText, Ui};
+use egui::{Align, Hyperlink, Id, Label, Layout, RichText, Ui};
 
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, SPACE_3, Weight, font};
@@ -11,9 +11,11 @@ use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
 use crate::{AboutText, ExtractionText, Language, Model, Text};
 
-const PARAGRAPHS: [AboutText; 7] = [
-    AboutText::Copyright,
-    AboutText::Licence,
+const PROJECT_URL: &str = "https://github.com/p4kx-org/p4kx";
+
+const BEFORE_SOURCE: [AboutText; 2] = [AboutText::Copyright, AboutText::Licence];
+
+const AFTER_SOURCE: [AboutText; 5] = [
     AboutText::FanProject,
     AboutText::NoGameData,
     AboutText::Responsibility,
@@ -25,7 +27,9 @@ const PARAGRAPHS: [AboutText; 7] = [
 struct Strings {
     title: String,
     version: String,
-    paragraphs: [String; PARAGRAPHS.len()],
+    source: String,
+    before_source: [String; BEFORE_SOURCE.len()],
+    after_source: [String; AFTER_SOURCE.len()],
     close_label: String,
     close_dialog: String,
 }
@@ -39,7 +43,9 @@ impl Strings {
                 AboutText::Version,
                 &[("version", env!("CARGO_PKG_VERSION").into())],
             ),
-            paragraphs: PARAGRAPHS.map(|text| texts.get(text)),
+            source: texts.get(AboutText::Source),
+            before_source: BEFORE_SOURCE.map(|text| texts.get(text)),
+            after_source: AFTER_SOURCE.map(|text| texts.get(text)),
             close_label: texts.get(ExtractionText::Close),
             close_dialog: texts.get(Text::CloseDialog),
         }
@@ -73,10 +79,14 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             true,
             Some(&strings.close_dialog),
         );
-        ui.scope(|ui| {
+        frames::scrolling_body(ui, "about-body", |ui| {
             ui.spacing_mut().item_spacing.y = SPACE_3;
             paragraph(ui, &strings.version, Weight::Bold);
-            for text in &strings.paragraphs {
+            for text in &strings.before_source {
+                paragraph(ui, text, Weight::Regular);
+            }
+            source_link(ui, &strings.source);
+            for text in &strings.after_source {
                 paragraph(ui, text, Weight::Regular);
             }
         });
@@ -96,6 +106,17 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     if shown.inner || shown.should_close() {
         model.set_about_shown(false);
     }
+}
+
+fn source_link(ui: &mut Ui, label: &str) {
+    ui.horizontal_wrapped(|ui| {
+        ui.spacing_mut().item_spacing.x = SPACE_3;
+        paragraph(ui, label, Weight::Regular);
+        ui.add(Hyperlink::from_label_and_url(
+            RichText::new(PROJECT_URL).font(font(FS_SM, Weight::Regular)),
+            PROJECT_URL,
+        ));
+    });
 }
 
 fn paragraph(ui: &mut Ui, text: &str, weight: Weight) {

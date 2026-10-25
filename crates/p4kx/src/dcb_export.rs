@@ -34,6 +34,44 @@ pub(crate) struct CombinedNeedsXml;
 #[error("no Record matches {0}")]
 pub(crate) struct NoRecordMatch(String);
 
+/// A combination of `--flat`, `--format`, `--csv-raw`, `--combined` and `--tags` that has no
+/// meaning.
+#[derive(Debug, Error)]
+#[error("{0}")]
+pub(crate) struct FlatConflict(&'static str);
+
+/// Returns the form of the export `args` ask for.
+const fn record_form(args: &DcbExportArgs) -> Result<RecordForm, FlatConflict> {
+    if !args.flat {
+        if args.csv_raw {
+            return Err(FlatConflict("--csv-raw needs --flat --format csv"));
+        }
+        return match args.format {
+            None | Some(RecordFormat::Xml) => Ok(RecordForm::Xml),
+            Some(RecordFormat::Json) => Ok(RecordForm::Json),
+            Some(RecordFormat::Ndjson) => Ok(RecordForm::Ndjson),
+            Some(RecordFormat::Csv) => Err(FlatConflict("--format csv needs --flat")),
+        };
+    }
+    if args.combined {
+        return Err(FlatConflict("--flat cannot be combined with --combined"));
+    }
+    if args.tags {
+        return Err(FlatConflict("--flat cannot be combined with --tags"));
+    }
+    match args.format {
+        None | Some(RecordFormat::Csv) if args.csv_raw => Ok(RecordForm::FlatCsvRaw),
+        None | Some(RecordFormat::Csv) => Ok(RecordForm::FlatCsv),
+        Some(RecordFormat::Ndjson) if args.csv_raw => {
+            Err(FlatConflict("--csv-raw needs --flat --format csv"))
+        }
+        Some(RecordFormat::Ndjson) => Ok(RecordForm::FlatNdjson),
+        Some(RecordFormat::Xml | RecordFormat::Json) => Err(FlatConflict(
+            "--flat writes --format csv or --format ndjson",
+        )),
+    }
+}
+
 #[derive(Serialize)]
 struct ReportJson<'a> {
     archive: String,
@@ -65,11 +103,7 @@ pub(crate) struct FailureJson<'a> {
 /// Writes the selected Records of the Archive's DataForge in the chosen format into the target
 /// folder and prints the report.
 pub(crate) fn run(args: &DcbExportArgs, as_json: bool) -> Result<ExitCode> {
-    let form = match args.format {
-        RecordFormat::Xml => RecordForm::Xml,
-        RecordFormat::Json => RecordForm::Json,
-        RecordFormat::Ndjson => RecordForm::Ndjson,
-    };
+    let form = record_form(args)?;
     if args.combined && form != RecordForm::Xml {
         return Err(CombinedNeedsXml.into());
     }
@@ -163,7 +197,7 @@ impl Job<'_, '_> {
             })
         } else {
             let into = combined.map_or_else(|| target.clone(), |name| target.join(name));
-            print_report(&report, &into, args.conflict)
+            print_report(&report, &into, args.conflict, form)
         };
         if let Err(error) = printed
             && error.kind() != io::ErrorKind::BrokenPipe
@@ -271,7 +305,9 @@ pub(crate) fn print_report(
     report: &Outcome<'_>,
     target: &Path,
     conflict: Conflict,
+    form: RecordForm,
 ) -> io::Result<()> {
+    let file = form.file().unwrap_or(NDJSON_FILE);
     let mut err = io::stderr().lock();
     for failure in report.failures {
         writeln!(
@@ -283,7 +319,7 @@ pub(crate) fn print_report(
         )?;
     }
     if let Some(error) = report.error {
-        writeln!(err, "failed {NDJSON_FILE}: {}", reason(error))?;
+        writeln!(err, "failed {file}: {}", reason(error))?;
     }
     let mut out = io::stdout().lock();
     let kept = if conflict == Conflict::IfChanged {

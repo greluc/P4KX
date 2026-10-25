@@ -18,8 +18,6 @@ use crate::{TestResult, report};
 const SAMPLES_PER_FORMAT: usize = 16;
 const PREVIEW_SIDE: u32 = 1024;
 const CUBE_FACES: u32 = 6;
-const CROSS_COLUMNS: u32 = 4;
-const CROSS_ROWS: u32 = 3;
 const BLOCK_FORMATS: [&str; 6] = [
     "BC1_UNORM",
     "BC3_UNORM",
@@ -54,11 +52,17 @@ struct Limits {
     several_images: bool,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one flag per kind of texture the survey counts"
+)]
 struct Header {
     path: String,
     format: String,
     kind: Kind,
     cubemap: bool,
+    volume: bool,
+    array: bool,
     alpha_tail: bool,
     limits: Limits,
     parts: Result<u32, String>,
@@ -96,6 +100,8 @@ fn read_header(
             Kind::Texture
         },
         cubemap: dds.is_cubemap(),
+        volume: dds.depth() > 1,
+        array: dds.array_size() > 1,
         alpha_tail: tails.contains(&format!("{path}.a").to_ascii_lowercase()),
         limits: Limits {
             no_decoder: !dds.format().is_decodable(),
@@ -152,15 +158,14 @@ fn preview_level(texture: &Texture<'_>) -> u32 {
         .unwrap_or_else(|| header.mip_count().saturating_sub(1))
 }
 
-const fn unsupported(error: &ConversionError) -> Option<&TextureError> {
-    match error {
+const fn undecodable(error: &ConversionError) -> bool {
+    matches!(
+        error,
         ConversionError::Texture {
-            source:
-                source @ (TextureError::UnsupportedDecode(_) | TextureError::UnsupportedImage { .. }),
+            source: TextureError::UnsupportedDecode(_),
             ..
-        } => Some(source),
-        _ => None,
-    }
+        }
+    )
 }
 
 fn check_merge(texture: &Texture<'_>) -> TestResult {
@@ -183,6 +188,22 @@ fn check_merge(texture: &Texture<'_>) -> TestResult {
     Ok(())
 }
 
+fn check_images(texture: &Texture<'_>, level: u32) -> TestResult {
+    let dds = *texture.header();
+    let folder = tempfile::tempdir()?;
+    let report = texture.png_to_file(&folder.path().join("image.png"), level)?;
+    let expected = usize::try_from(dds.images(level))?;
+    if report.files.len() != expected || report.files.iter().any(|file| !file.is_file()) {
+        return Err(format!(
+            "{}: {} files written, {expected} images",
+            texture.name(),
+            report.files.len()
+        )
+        .into());
+    }
+    Ok(())
+}
+
 fn check(archive: &Archive, header: &Header, outcome: &mut Outcome) -> TestResult {
     let texture = Texture::from_archive(archive, &header.path)?;
     let dds = *texture.header();
@@ -191,14 +212,8 @@ fn check(archive: &Archive, header: &Header, outcome: &mut Outcome) -> TestResul
     let level = preview_level(&texture);
     match texture.decode_preview(level) {
         Ok(image) => {
-            let side = |full: u32| (full >> level).max(1);
-            let (columns, rows) = if dds.faces() == CUBE_FACES && dds.array_size() == 1 {
-                (CROSS_COLUMNS, CROSS_ROWS)
-            } else {
-                (1, 1)
-            };
-            let shape = (side(dds.width()) * columns, side(dds.height()) * rows);
-            if (image.width(), image.height()) != shape {
+            let shape = dds.preview_size(level);
+            if Some([image.width(), image.height()]) != shape {
                 return Err(format!(
                     "{}: decoded {}x{}, expected {shape:?}",
                     header.path,
@@ -208,12 +223,13 @@ fn check(archive: &Archive, header: &Header, outcome: &mut Outcome) -> TestResul
                 .into());
             }
             outcome.decoded += 1;
+            if header.limits.several_images {
+                check_images(&texture, level)?;
+                outcome.several_images += 1;
+            }
         }
-        Err(error) => match unsupported(&error) {
-            Some(TextureError::UnsupportedDecode(_)) => outcome.no_decoder += 1,
-            Some(_) => outcome.several_images += 1,
-            None => return Err(format!("{}: {error}", header.path).into()),
-        },
+        Err(error) if undecodable(&error) => outcome.no_decoder += 1,
+        Err(error) => return Err(format!("{}: {error}", header.path).into()),
     }
     Ok(())
 }
@@ -225,10 +241,14 @@ fn sampled(headers: &[Header], formats: &BTreeMap<&str, usize>) -> Vec<usize> {
     }
     samples.extend(spread(headers.iter().filter(|header| header.cubemap)));
     samples.extend(spread(headers.iter().filter(|header| header.alpha_tail)));
-    samples
+    samples.extend(headers.iter().filter(|header| header.limits.several_images));
+    let mut positions: Vec<usize> = samples
         .into_iter()
         .filter_map(|sample| headers.iter().position(|header| header.path == sample.path))
-        .collect()
+        .collect();
+    positions.sort_unstable();
+    positions.dedup();
+    positions
 }
 
 fn run<'a>(
@@ -268,6 +288,23 @@ fn summarise(headers: &[Header], formats: &BTreeMap<&str, usize>, per: &BTreeMap
         count(&|header| header.alpha_tail),
         count(&|header| header.limits.no_decoder),
         count(&|header| header.limits.several_images),
+    ));
+    let kinds = |keep: &dyn Fn(&Header) -> bool| {
+        headers
+            .iter()
+            .filter(|header| header.limits.several_images && keep(header))
+            .count()
+    };
+    report(&format!(
+        "textures with several images: {} volumes, {} arrays, {} of them cubemap arrays, {} \
+         other; {} of them decoded and exported one PNG per image",
+        kinds(&|header| header.volume),
+        kinds(&|header| header.array),
+        kinds(&|header| header.array && header.cubemap),
+        kinds(&|header| !header.volume && !header.array),
+        per.values()
+            .map(|outcome| outcome.several_images)
+            .sum::<usize>(),
     ));
     for (format, headers) in formats {
         let outcome = per.get(format);
@@ -314,6 +351,22 @@ fn a_sample_of_every_texture_format_merges_and_decodes_without_a_panic() -> Test
     ));
     summarise(&headers, &formats, &per_format);
 
+    for name in ["R16G16_FLOAT", "R32_UINT"] {
+        let undecoded = per_format.get(name).map_or(0, |outcome| outcome.no_decoder);
+        assert_eq!(undecoded, 0, "{name} has a decoder");
+    }
+    let several = headers
+        .iter()
+        .filter(|header| header.limits.several_images && !header.limits.no_decoder)
+        .count();
+    let decoded: usize = per_format
+        .values()
+        .map(|outcome| outcome.several_images)
+        .sum();
+    assert_eq!(
+        decoded, several,
+        "every texture with several images decodes and exports one PNG per image"
+    );
     for name in BLOCK_FORMATS {
         let outcome = per_format
             .get(name)

@@ -18,8 +18,10 @@ the window stays responsive while it loads.
   number of mips and the cubemap faces. The texture's split parts are read and decoded in the
   background; the first mip shown is the largest that fits the preview, at one texture pixel per
   screen pixel. The **Mip** buttons, labelled with each mip's longer side, switch to another mip;
-  a mip larger than the preview scrolls. A cubemap shows its six faces as a cross, an alpha tail
-  is merged into the alpha channel, and BC6H is tone-mapped. A format the preview cannot decode is
+  a mip larger than the preview scrolls. A cubemap shows its six faces as a cross, the elements
+  of a texture array and the slices of a volume are tiled on one sheet, row by row from the top
+  left (the facts bar then gives their number as **Layers**), an alpha tail is merged into the
+  alpha channel, and BC6H is tone-mapped. A format the preview cannot decode is
   named; the Text and Hex tabs still show the Entry's data.
 - **Info** appears next to Model for a model file and lists what the file holds: the nodes, the
   meshes and levels of detail with their vertices and triangles, the geometry file, the material
@@ -322,10 +324,22 @@ does not exist yet; the old folder stays as a backup.
 
 ### About
 
-**Help › About P4KX** shows the version, the licence and the legal notices: P4KX
-is an unofficial Star Citizen fan project, not affiliated with or endorsed by the Cloud Imperium
-group of companies. It ships no game data and reads only your own installation, and you are
-responsible for complying with the Star Citizen EULA and Terms of Service.
+**Help › About P4KX** shows the version, the licence, a link to the source code and the legal
+notices: P4KX is an unofficial Star Citizen fan project, not affiliated with or endorsed by the
+Cloud Imperium group of companies. It ships no game data and reads only your own installation, and
+you are responsible for complying with the Star Citizen EULA and Terms of Service. In a very small
+window the text scrolls. `p4kx --version` and `-V` show the same legal notice.
+
+### Archives of test Channels
+
+An Archive in a `PTU`, `EPTU`, `HOTFIX` or `TECH-PREVIEW` folder holds material of Star Citizen
+test builds. Material of the community tests is confidential under the Star Citizen Terms of
+Service, and `HOTFIX` builds are treated the same way. You can still open,
+browse, extract and compare it, and the window says so with a warning below the header for as long as
+such an Archive is open, in every tab. In the Comparison tab it names the test Channel or Channels
+of the two Archives. Do not share or publish anything taken from it. For `EPTU`, the Evocati test universe, the notice adds that the content may also be
+covered by a non-disclosure agreement and must not be shared. The command line prints a
+`notice: …` line to stderr once per Archive and run, and the MCP server adds the notice to its results.
 
 ### Checking for a new version
 

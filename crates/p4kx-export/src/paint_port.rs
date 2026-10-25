@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{ArchiveFiles, LoadoutFileError, VehicleImplementation};
-use p4kx_extraction::Archive;
+use p4kx_assembly::{LoadoutFileError, VehicleImplementation};
 
 use crate::guid_text::CatalogGuid;
 use crate::variants::ShipKey;
@@ -35,15 +34,13 @@ fn tags(value: Option<&str>) -> Vec<String> {
         .collect()
 }
 
-/// What the paints of a ship are derived from: the paint ports of its Record and the vehicle
-/// implementation and Modification it names.
+/// What the paints of a ship are derived from: the paint ports of its Record and of the vehicle
+/// implementation the ship base data read.
 #[derive(Debug)]
-pub(crate) struct VehicleFacts<'f> {
+pub(crate) struct VehicleFacts {
     pub(crate) ship: CatalogGuid,
-    pub(crate) class_name: &'f str,
-    pub(crate) definition: Option<&'f str>,
-    pub(crate) modification: Option<&'f str>,
     pub(crate) paint_ports: Vec<PaintPort>,
+    pub(crate) implementation: VehiclePorts,
     pub(crate) variant_key: Option<ShipKey>,
 }
 
@@ -55,37 +52,20 @@ pub(crate) struct VehiclePorts {
     pub(crate) unreadable: bool,
 }
 
-/// Reads the vehicle implementations of an Archive with `p4kx-assembly` (ADR-0050).
-pub(crate) struct VehicleFiles<'a> {
-    files: ArchiveFiles<'a>,
-}
-
-impl<'a> VehicleFiles<'a> {
-    pub(crate) const fn new(archive: &'a Archive) -> Self {
-        Self {
-            files: ArchiveFiles::new(archive),
-        }
-    }
-
-    /// Returns the paint ports of the vehicle implementation `definition` of the Entity
-    /// `class_name` with the Modification `modification` applied: its item ports that take
-    /// `Paints`, with the required tags the patch leaves them.
-    pub(crate) fn paint_ports(
-        &self,
-        class_name: &str,
-        definition: &str,
-        modification: Option<&str>,
-    ) -> VehiclePorts {
-        let Ok(implementation) =
-            VehicleImplementation::read(&self.files, class_name, definition, modification)
-        else {
-            return VehiclePorts {
+impl VehiclePorts {
+    /// Returns the paint ports of `vehicle`, the implementation read for a ship with the
+    /// Modification applied: its item ports that take `Paints`, with the required tags the patch
+    /// leaves them. `vehicle` is `None` when the ship names no implementation or it could not be
+    /// read; `named` tells which of the two it is.
+    pub(crate) fn of(vehicle: Option<&VehicleImplementation>, named: bool) -> Self {
+        let Some(implementation) = vehicle else {
+            return Self {
                 ports: Vec::new(),
-                unreadable: true,
+                unreadable: named,
             };
         };
         let missing = LoadoutFileError::NotFound.to_string();
-        VehiclePorts {
+        Self {
             ports: implementation
                 .item_ports()
                 .filter_map(|part| part.item_port())

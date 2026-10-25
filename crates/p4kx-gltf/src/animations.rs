@@ -29,7 +29,9 @@ pub struct AnimationSummary {
     /// The number of keys written.
     pub keys: usize,
     /// The controller IDs of the tracks left out because no bone of the skeleton has them, or the
-    /// bone drives no node, or a bone the animation already moves has the same controller ID.
+    /// bone drives no node, or a bone the animation already moves has the same controller ID. For
+    /// a sampled animation they also hold the controller IDs of the joints that move but cannot
+    /// be written; all are the CRC-32 of a name and are not told apart.
     pub skipped_tracks: Vec<u32>,
     /// The number of runs of morph weights left out because the piece they name has no mesh or
     /// another number of morph targets than the run holds.

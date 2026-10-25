@@ -35,6 +35,10 @@
 //! a colour overlay or palette slots and an optional nine-slice. The files are untrusted and
 //! bounded by [`Limits`]; one that is missing or unreadable is listed and its widget skipped.
 //! Without [`ImageSources`] these widgets are listed.
+//!
+//! A separator draws the `ModularKit` canvas of its direction and style (ADR-0111). What the game
+//! fills at run time, such as a map picture, 3D content or a line to a placed widget, keeps its
+//! box and is listed with its reason.
 
 mod assets;
 mod bindings;

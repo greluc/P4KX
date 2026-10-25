@@ -17,6 +17,7 @@ mod limits;
 mod listing;
 mod nested_shape;
 mod policies;
+mod radar;
 mod render;
 mod rest;
 mod selectors;

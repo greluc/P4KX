@@ -109,6 +109,15 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         self.chain.push(hasher.finish());
     }
 
+    fn push_subject(&mut self, subject: &Subject, position: usize) {
+        let place = self.position_key(position);
+        let mut kids = DefaultHasher::new();
+        for kid in &subject.kids {
+            (&kid.kind, &kid.tags, kid.position).hash(&mut kids);
+        }
+        self.push_chain(&(&subject.kind, &subject.tags, place, kids.finish()));
+    }
+
     pub(crate) fn style_of(
         &mut self,
         canvas: &Canvas,
@@ -304,12 +313,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let padding = sibling.geometry.padding;
         let content = area.inset(padding.top, padding.right, padding.bottom, padding.left);
         let subject = self.subject_of(canvas, widget, (sibling.position, &sibling.kids));
-        let place = self.position_key(sibling.position);
-        let mut kids = DefaultHasher::new();
-        for kid in &subject.kids {
-            (&kid.kind, &kid.tags, kid.position).hash(&mut kids);
-        }
-        self.push_chain(&(&subject.kind, &subject.tags, place, kids.finish()));
+        self.push_subject(&subject, sibling.position);
         self.above.push(subject);
         if sibling.instance {
             self.templates.push((canvas.guid, sibling.index));
@@ -332,7 +336,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             alpha,
             depth + 1,
         );
-        if let Some(nested) = elements::nested_canvas(widget) {
+        if let Some(nested) = elements::nested_canvas(widget, self.store.forge()) {
             let handover = self.handover(sibling.index, widget);
             self.nested(
                 nested,
@@ -341,6 +345,12 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
                 widget.canvas_sizing,
                 alpha,
                 depth + 1,
+            );
+        } else if elements::is_standard(&widget.type_name) {
+            self.cx.report.note(
+                &widget.type_name,
+                "the Archive has no canvas for this standard widget",
+                &widget.name,
             );
         } else if widget.canvas_dangling {
             self.cx.report.missing_canvases.push(format!(

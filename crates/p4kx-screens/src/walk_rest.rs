@@ -7,6 +7,7 @@ use p4kx_dataforge::Guid;
 
 use crate::bindings::ParamValues;
 use crate::canvas::Canvas;
+use crate::elements;
 use crate::rest::{AtRest, RestParams};
 use crate::style::{Modifiers, Subject};
 use crate::walk::Walk;
@@ -170,7 +171,7 @@ impl Walk<'_, '_, '_, '_> {
         widget: &Widget,
         (position, kids): (usize, &[usize]),
     ) -> Subject {
-        let subject = Subject::of(&widget.type_name, &widget.tags).at(position);
+        let subject = self.subject_at(widget, position);
         if !self.shape.child {
             return subject;
         }
@@ -178,9 +179,17 @@ impl Walk<'_, '_, '_, '_> {
             .iter()
             .filter_map(|&kid| canvas.widgets.get(kid))
             .enumerate()
-            .map(|(at, kid)| Subject::of(&kid.type_name, &kid.tags).at(at))
+            .map(|(at, kid)| self.subject_at(kid, at))
             .collect();
         subject.with_kids(kids)
+    }
+
+    fn subject_at(&self, widget: &Widget, position: usize) -> Subject {
+        let mut subject = Subject::of(&widget.type_name, &widget.tags).at(position);
+        subject
+            .tags
+            .extend(elements::standard_tags(widget, self.tags));
+        subject
     }
 
     /// Returns what the place of a widget adds to the key of a resolved style: its position among

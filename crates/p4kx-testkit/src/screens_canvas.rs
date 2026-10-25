@@ -28,11 +28,18 @@ pub fn tag_record(guid: u128, name: &str) -> TestRecord {
     record(guid, "Tag", name)
 }
 
+/// Returns a Record of type `Tag` whose tag path is `path`, as a root tag of its own.
+#[must_use]
+pub fn named_tag_record(guid: u128, path: &str) -> TestRecord {
+    record(guid, "Tag", path).value("tagName", TestValue::text(path))
+}
+
 /// A synthetic `BuildingBlocks_Canvas` Record.
 #[derive(Debug, Clone)]
 pub struct TestCanvas {
     guid: u128,
     name: String,
+    folder: &'static str,
     size: [f32; 2],
     method: &'static str,
     widgets: Vec<TestWidget>,
@@ -51,6 +58,7 @@ impl TestCanvas {
         Self {
             guid,
             name: name.into(),
+            folder: RECORD_FOLDER,
             size: [width, height],
             method: "auto",
             widgets: Vec::new(),
@@ -61,6 +69,13 @@ impl TestCanvas {
             brand: None,
             embedded: Vec::new(),
         }
+    }
+
+    /// Puts the Record in the record folder `folder` (ending in `/`) instead of the test folder.
+    #[must_use]
+    pub const fn in_folder(mut self, folder: &'static str) -> Self {
+        self.folder = folder;
+        self
     }
 
     /// Makes the canvas use raw coordinates, whose fixed values count in pixels of its own size.
@@ -150,7 +165,7 @@ impl TestCanvas {
                     .value("entries", entries(brand_entries)),
             )
         });
-        record(self.guid, "BuildingBlocks_Canvas", &self.name)
+        record_in(self.folder, self.guid, "BuildingBlocks_Canvas", &self.name)
             .value("coordinateMethod", TestValue::text(self.method))
             .value("size", size)
             .value("staticVariables", static_arrays(&self.arrays))

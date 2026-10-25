@@ -13,7 +13,7 @@ use p4kx_extraction::Archive;
 use p4kx_testkit::{real_archive_key, real_archive_path};
 use serde_json::Value;
 
-use super::package_support::{Built, Measured, TestResult, build, nodes_of, verify, workspace};
+use super::package_support::{Built, Measured, Scratch, TestResult, build, nodes_of, verify};
 
 const SHIPS: [&str; 4] = [
     "AEGS_Gladius",
@@ -32,8 +32,15 @@ const MAX_INTERIOR_BYTES: u64 = 3 << 29;
 const MAX_CHARACTER_BYTES: u64 = 128 << 20;
 const MAX_MESH_RATIO: f64 = 0.85;
 const MIN_SHARING: f64 = 0.3;
+const MIN_SHIP_TEXTURES: usize = 100;
 
 fn shared(built: &Built, measured: &Measured) {
+    assert!(
+        measured.textures() >= MIN_SHIP_TEXTURES,
+        "{}: only {} textures",
+        built.name,
+        measured.textures()
+    );
     let drawn = (built.report.get("drawn_nodes")).and_then(Value::as_u64);
     let drawn = drawn.unwrap_or_default();
     assert_eq!(
@@ -58,8 +65,9 @@ fn shared(built: &Built, measured: &Measured) {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn documented_ships_are_packages_within_the_documented_size() -> TestResult {
+    let scratch = Scratch::new("ships")?;
     for class in SHIPS {
-        let built = build("entity", Some(class), &class.to_lowercase(), &[])?;
+        let built = build(&scratch, "entity", Some(class), &class.to_lowercase(), &[])?;
         let measured = verify(&built)?;
         shared(&built, &measured);
         assert!(measured.meshes > 1, "{class}: {} meshes", measured.meshes);
@@ -81,7 +89,9 @@ fn documented_ships_are_packages_within_the_documented_size() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_coarser_texture_mip_makes_a_ship_package_much_smaller() -> TestResult {
+    let scratch = Scratch::new("coarse")?;
     let built = build(
+        &scratch,
         "entity",
         Some("AEGS_Gladius"),
         "aegs_gladius-mip2",
@@ -100,9 +110,16 @@ fn a_coarser_texture_mip_makes_a_ship_package_much_smaller() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn ships_with_an_interior_are_packages_with_containers_objects_and_lights() -> TestResult {
+    let scratch = Scratch::new("interiors")?;
     for class in INTERIOR_SHIPS {
         let name = format!("{}-interior", class.to_lowercase());
-        let built = build("entity", Some(class), &name, &[OsStr::new("--interior")])?;
+        let built = build(
+            &scratch,
+            "entity",
+            Some(class),
+            &name,
+            &[OsStr::new("--interior")],
+        )?;
         let measured = verify(&built)?;
         shared(&built, &measured);
         let containers = nodes_of(&built.manifest, "container")?;
@@ -125,16 +142,25 @@ fn ships_with_an_interior_are_packages_with_containers_objects_and_lights() -> T
     Ok(())
 }
 
-fn extract_chf(name: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+fn matches_name(path: &str, name: &str) -> bool {
+    let path = path.to_ascii_lowercase();
+    path.strip_suffix(name)
+        .is_some_and(|rest| rest.ends_with(['/', '\\']))
+}
+
+fn extract_chf(
+    scratch: &Scratch,
+    name: &str,
+) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let entry = archive
         .entries()
         .iter()
-        .find(|entry| entry.path().to_ascii_lowercase().ends_with(name))
+        .find(|entry| matches_name(entry.path(), name))
         .ok_or_else(|| format!("the Archive holds no {name}"))?;
     let mut bytes = Vec::new();
     archive.open_entry(entry)?.read_to_end(&mut bytes)?;
-    let file = workspace()?.join(name);
+    let file = scratch.path().join(name);
     std::fs::write(&file, bytes)?;
     Ok(file)
 }
@@ -142,8 +168,10 @@ fn extract_chf(name: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Err
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_character_with_armour_is_one_skinned_package() -> TestResult {
-    let chf = extract_chf(CHF)?;
+    let scratch = Scratch::new("character")?;
+    let chf = extract_chf(&scratch, CHF)?;
     let built = build(
+        &scratch,
         "character",
         None,
         "character",

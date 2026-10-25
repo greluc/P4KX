@@ -352,20 +352,27 @@ The bounds a package keeps, asserted by the real-Archive tests
 
 - A ship package is at most 2 GiB at the default mip and 128 MiB at `--texture-mip 2`; a ship
   with its Interior is at most 1.5 GiB; a Character package is at most 128 MiB.
-- At least 30 % of the drawing nodes share a mesh with another node (`meshes` against
-  `instances`), and the meshes take at most 85 % of the bytes they would take if every node had
-  its own file. Every drawing node is an instance of exactly one mesh.
-- Every texture of the Archive is written once: no two entries of `textures` have the same
-  `source`.
+- The sharing, `1 - meshes / instances` (the sum of `instances` over all meshes is the number of
+  drawing nodes), is at least 0.3, and the meshes take at most 85 % of the bytes they would take
+  if every node had its own file. Every drawing node is an instance of exactly one mesh.
+- A ship package holds at least 100 textures, and every texture of the Archive is written once:
+  no two entries of `textures` have the same `source`.
 
 ## Verifying a package in Blender
 
 `blender_addon/tests/import_real_package.py <package folder>...` imports packages in headless
-Blender (the `bpy` 5.2.3 wheel in a virtual environment, or `blender --background --python`) and
-prints one JSON line per package: objects, collections, armatures, shape keys, actions,
-materials, node groups, images, warnings and the time. The warnings of the real ships are the
-notes of the material mapping: shaders without a mapping get a basic material, and materials
-with more than 5 layers blend the first 5.
+Blender (the `bpy` 5.2.3 wheel in a virtual environment, or
+`blender --background --factory-startup --python blender_addon/tests/import_real_package.py -- <package folder>...`)
+and prints one JSON line per package: objects, collections, armatures, shape keys, actions,
+materials, node groups, images, warnings and the time. The exit status is 1 when no folder is
+given, a package fails to import, or the instances created differ from the drawing nodes of its
+manifest. The warnings of the real ships are the notes of the material mapping: shaders without
+a mapping get a basic material, and materials with more than 5 layers blend the first 5.
+
+The real-Archive tests write the packages to `p4kx-package-verification` below `TMP` (about
+5.5 GB for all of them) and remove them when the checks pass. Set `P4KX_KEEP_PACKAGES` to any
+value to keep them, for example to import them with the script above; the packages of a test
+are in the folder named after it (`ships`, `coarse`, `interiors`, `character`).
 
 ## Versions
 

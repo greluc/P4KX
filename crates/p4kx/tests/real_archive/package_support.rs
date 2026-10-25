@@ -39,6 +39,10 @@ impl Measured {
         ratio(self.mesh_bytes, self.undeduplicated_mesh_bytes)
     }
 
+    pub(super) const fn textures(&self) -> usize {
+        self.files.saturating_sub(self.meshes + 1)
+    }
+
     pub(super) fn sharing(&self) -> f64 {
         1.0 - ratio(self.meshes as u64, self.instances)
     }
@@ -52,21 +56,50 @@ fn ratio(part: u64, whole: u64) -> f64 {
     part as f64 / whole as f64
 }
 
-/// Returns the folder the packages of this run are written to, below `TMP`.
-pub(super) fn workspace() -> Result<PathBuf, Box<dyn Error>> {
-    let folder = std::env::temp_dir().join("p4kx-package-verification");
-    std::fs::create_dir_all(&folder)?;
-    Ok(folder)
+/// The environment variable that keeps the packages after the checks passed.
+pub(super) const KEEP_VAR: &str = "P4KX_KEEP_PACKAGES";
+
+/// The folder of one test below `TMP`; it is removed when the test passes, unless
+/// `P4KX_KEEP_PACKAGES` is set.
+pub(super) struct Scratch(PathBuf);
+
+impl Scratch {
+    pub(super) fn new(test: &str) -> Result<Self, Box<dyn Error>> {
+        let folder = std::env::temp_dir()
+            .join("p4kx-package-verification")
+            .join(test);
+        std::fs::create_dir_all(&folder)?;
+        Ok(Self(folder))
+    }
+
+    pub(super) fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        if std::thread::panicking() || std::env::var_os(KEEP_VAR).is_some() {
+            return;
+        }
+        let removed = std::fs::remove_dir_all(&self.0);
+        assert!(removed.is_ok(), "{}: {removed:?}", self.0.display());
+        if let Some(parent) = self.0.parent() {
+            let emptied = std::fs::remove_dir(parent);
+            drop(emptied);
+        }
+    }
 }
 
 /// Runs `p4kx <command> package <archive> [entity] --out <name> <extra>` and reads the package.
 pub(super) fn build(
+    scratch: &Scratch,
     command: &str,
     entity: Option<&str>,
     name: &str,
     extra: &[&OsStr],
 ) -> Result<Built, Box<dyn Error>> {
-    let out = workspace()?.join(name);
+    let out = scratch.path().join(name);
     let mut run = p4kx_testkit::p4kx()?;
     run.env(
         "P4KX_ARCHIVE_KEY",

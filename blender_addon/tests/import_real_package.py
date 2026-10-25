@@ -5,7 +5,8 @@
 
 Run with ``python import_real_package.py <package folder>...`` in an environment with the ``bpy``
 wheel, or with ``blender --background --factory-startup --python import_real_package.py -- <folder>...``.
-The exit status is 1 when a package fails to import; warnings are part of the printed result.
+The exit status is 1 when no folder is given, a package fails to import, or the instances created
+differ from the drawing nodes of the manifest; warnings are part of the printed result.
 """
 
 from __future__ import annotations
@@ -38,7 +39,11 @@ def import_one(folder: Path) -> dict[str, object]:
     loaded = package.load_package(folder / "scene.json")
     result = importer.import_package(bpy.context, loaded)
     elapsed = time.perf_counter() - started
+    drawing = sum(
+        1 for node in loaded.nodes if node.mesh and loaded.meshes[node.mesh].rig is None
+    )
     return {
+        "drawing_nodes": drawing,
         "package": folder.name,
         "seconds": round(elapsed, 2),
         "objects": len(bpy.data.objects),
@@ -61,13 +66,18 @@ def import_one(folder: Path) -> dict[str, object]:
 
 def main() -> int:
     """Imports every package, prints the results and returns the exit status."""
-    status = 0
-    for folder in folders():
+    given = folders()
+    status = 0 if given else 1
+    for folder in given:
         try:
             report = import_one(folder)
         except Exception as error:
             report = {"package": folder.name, "error": f"{type(error).__name__}: {error}"}
             status = 1
+        else:
+            if report["instances"] != report["drawing_nodes"]:
+                report["error"] = "the instances differ from the drawing nodes of the manifest"
+                status = 1
         print(json.dumps(report))
     return status
 

@@ -1,8 +1,9 @@
 # Worn clothing hides the body zones its Record covers
 
 Decided for issue #591. Evidence: `p4kx armour glb --loadout NPC_Archetypes-Male-Human-MissionGivers-MilesEckhart`
-of the LIVE Archive, rendered from the GLB at the front before and after
-(`crates/p4kx-assembly/tests/real_archive/real_body_zones.rs`). Builds on ADR-0079 (armour on a
+of the LIVE Archive, rendered from the GLB at the front before and after (a local check, not a
+test; the skin of the belly and the thighs showed through before, nothing after), and the
+real-Archive tests in `crates/p4kx-assembly/tests/real_archive/real_body_zones.rs`. Builds on ADR-0079 (armour on a
 body), ADR-0082 (armour from a Loadout), ADR-0097 (layered materials) and ADR-0109 (story
 characters).
 
@@ -48,13 +49,16 @@ checked on both skins (`real_body_zones`). The zones `hips_zone` (both bodies) a
 (materials `underw_m`, `underwear_m`, `waist_m`).
 
 **Fit.** The table is used only when every level of detail of the body skin numbers exactly the
-zones 0 to N - 1 of the variant. A skin that does not (a new body of a patch) is kept whole and
-the Armour reports `body_zones_unknown`, so a patch cannot silently cut the wrong parts.
+zones 0 to N - 1 of the variant, and, at the first level, the `l_` zones have their vertices at
+negative X on average, the `r_` zones at positive X, and the feet lie below every torso zone. A
+skin that fails (a new body of a patch) is kept whole and the Armour reports
+`body_zones_unknown`, so a patch cannot silently cut the wrong parts. A Record that lists more
+than 256 chunks has the rest ignored and reports the same.
 
-**Cut.** `Armour::build` replaces the body's model with a copy without the submeshes of the
-covered zones and reports the zones as `body_zones_hidden`. The vertices stay in the model; no
-triangle of another submesh changes. The viewer, `armour glb`, `character package` and every
-output that builds an Armour show the same.
+**Cut.** `Armour::build` replaces the body's model with a copy whose submeshes and triangle list
+no longer hold the covered zones, so every user of the model, the viewer included, sees the cut
+(`crates/p4kx-render/tests/armour_zones.rs` counts the triangles of the viewer's scene). The
+zones are reported as `body_zones_hidden`. The vertices stay in the model.
 
 ## Eckhart
 
@@ -63,6 +67,7 @@ and `underwear_top`; the pants `leg01` to `leg03`, `hips` and `underwear`; the b
 the jacket the torso, hips and arms on layer 2. The body keeps its head, `arm05` and the hands,
 `leg04` (the ankles). 24 of the 30 zones of the male body are hidden. Before, the skin of the
 belly, the thighs and the shorts showed through the shirt and the pants.
+`real_body_zones` asserts exactly these 24 zones.
 
 ## Not decided here
 
@@ -74,5 +79,9 @@ belly, the thighs and the shorts showed through the shirt and the pants.
 - **Layer textures.** The clothing's materials use the shader `LayerBlend_V2`, which has no
   diffuse map: its colour comes from the tint palette and the layer maps (wear `TexSlot11`,
   blend `TexSlot12`, `TexSlot13`) beside the normal map. They stay flat colours of their layers
-  (ADR-0097); drawing the maps is #551. The Armour reports, per part, `layers_without_diffuse`
-  with the number of layered materials that have no diffuse map.
+  (ADR-0097); drawing the maps is #551. `Armour::layer_issues` lists, per part, the layered
+  materials that have no diffuse map; `armour glb` reports them as `layers_without_diffuse` with
+  `--materials textures` only.
+- **Holes.** The body is cut for the clothing the Armour holds. A garment that is hidden or left
+  out later, as in the Blender package, shows holes in the body there. Follow-up #638 treats the
+  related clothing rules.

@@ -5,19 +5,21 @@ use crate::model::{CUBE_CAPS_MATERIAL, TestSubmesh, TestVertex};
 use crate::{TestModel, TestPositions};
 
 impl TestModel {
-    /// Returns a skin without nodes of `zones` triangles, 1 m apart along X, each its own submesh
-    /// numbered by its position as the node, drawn with material ID [`CUBE_CAPS_MATERIAL`]: the
-    /// shape of a body skin, whose submeshes are its zones.
+    /// Returns a skin without nodes with one triangle per place, each its own submesh numbered by
+    /// its position as the node and drawn with material ID [`CUBE_CAPS_MATERIAL`]: the shape of
+    /// a body skin, whose submeshes are its zones. A place is the `[x, z]` of the triangle's
+    /// corner, in metres.
     #[must_use]
-    pub fn zoned(zones: usize) -> Self {
+    pub fn zoned(places: &[[f32; 2]]) -> Self {
+        let zones = places.len();
         let mut model = Self::cube()
             .with_positions(TestPositions::Float)
             .with_nodes(Vec::new());
         let at = |value: usize| u32::try_from(value).unwrap_or(u32::MAX);
-        model.vertices = (0..zones)
-            .flat_map(|zone| {
-                let x = f32::from(u16::try_from(zone).unwrap_or(u16::MAX));
-                [[x, 0.0], [x + 0.5, 0.0], [x, 0.5]]
+        model.vertices = places
+            .iter()
+            .flat_map(|&[x, z]| {
+                [[x, z], [x + 0.05, z], [x, z + 0.05]]
                     .into_iter()
                     .map(|[px, pz]| TestVertex {
                         position: [px, 0.0, pz],

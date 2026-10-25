@@ -7,6 +7,8 @@ use std::sync::Arc;
 use p4kx_dataforge::StructValue;
 use p4kx_model::Model;
 
+use super::uncover::uncover;
+
 use super::jobs::{Job, issue};
 use super::{BodyVariant, PartOrigin};
 use crate::read::{struct_items, text, unsigned, unsigned_list};
@@ -58,14 +60,19 @@ impl ZoneChunk {
     }
 }
 
-/// Reads the zones the `SCItemClothingParams` among `components` cover; at most
-/// [`MAX_CHUNKS`].
-pub(crate) fn read_zones(components: &[&StructValue<'_>]) -> Arc<[ZoneChunk]> {
-    components
+/// The zones an Entity covers, at most [`MAX_CHUNKS`] of them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct ZoneList {
+    pub(crate) chunks: Arc<[ZoneChunk]>,
+    pub(crate) truncated: bool,
+}
+
+/// Reads the zones the `SCItemClothingParams` among `components` cover.
+pub(crate) fn read_zones(components: &[&StructValue<'_>]) -> ZoneList {
+    let mut chunks: Vec<ZoneChunk> = components
         .iter()
         .filter(|component| component.type_name() == CLOTHING)
         .flat_map(|component| struct_items(component, "Chunks"))
-        .take(MAX_CHUNKS)
         .map(|chunk| ZoneChunk {
             zone: text(chunk, "MeshChunk").to_ascii_lowercase(),
             layer: unsigned(chunk, "Layer").unwrap_or(BODY_LAYER),
@@ -73,7 +80,14 @@ pub(crate) fn read_zones(components: &[&StructValue<'_>]) -> Arc<[ZoneChunk]> {
             conditional: struct_items(chunk, "VisibilityConditions").next().is_some(),
         })
         .filter(|chunk| !chunk.zone.is_empty())
-        .collect()
+        .take(MAX_CHUNKS + 1)
+        .collect();
+    let truncated = chunks.len() > MAX_CHUNKS;
+    chunks.truncate(MAX_CHUNKS);
+    ZoneList {
+        chunks: chunks.into(),
+        truncated,
+    }
 }
 
 /// Returns the zones of the body that some zone of `chunks` covers: those a chunk above the body
@@ -84,57 +98,6 @@ pub(crate) fn covered<'c>(chunks: impl IntoIterator<Item = &'c ZoneChunk>) -> BT
         .filter(|chunk| chunk.covers_body())
         .map(|chunk| chunk.zone.as_str())
         .collect()
-}
-
-/// A body without the zones that worn clothing covers.
-pub(crate) struct Uncovered {
-    pub(crate) model: Model,
-    pub(crate) hidden: Vec<&'static str>,
-}
-
-/// Returns `body` without the submeshes of the zones in `covered`, or the reason its submeshes
-/// cannot be told apart by zone: every level of detail must number its submeshes with exactly
-/// the node numbers of the variant's zones. `None` when no zone of the body is covered.
-pub(crate) fn uncover(
-    body: &Model,
-    variant: BodyVariant,
-    covered: &BTreeSet<&str>,
-) -> Result<Option<Uncovered>, String> {
-    let names = variant.zone_names();
-    let hidden: Vec<&'static str> = names
-        .iter()
-        .copied()
-        .filter(|zone| covered.contains(*zone))
-        .collect();
-    if hidden.is_empty() {
-        return Ok(None);
-    }
-    let mut model = body.clone();
-    for lod in &mut model.lods {
-        for mesh in &mut lod.meshes {
-            let present: BTreeSet<u16> = mesh.submeshes.iter().map(|part| part.node_id).collect();
-            let fits = present.len() == names.len()
-                && present
-                    .iter()
-                    .enumerate()
-                    .all(|(at, node)| usize::from(*node) == at);
-            if !fits {
-                return Err(format!(
-                    "level {} of the body has {} zones numbered {:?}..., not the {} the zone table lists",
-                    lod.level,
-                    present.len(),
-                    present.iter().take(3).collect::<Vec<_>>(),
-                    names.len()
-                ));
-            }
-            mesh.submeshes.retain(|part| {
-                names
-                    .get(usize::from(part.node_id))
-                    .is_none_or(|zone| !covered.contains(*zone))
-            });
-        }
-    }
-    Ok(Some(Uncovered { model, hidden }))
 }
 
 /// Returns the model of `job` as it is worn: the body without the zones that clothing covers,
@@ -156,8 +119,8 @@ pub(super) fn without_covered(
             issues.push(issue(job, IssueKind::BodyZonesHidden(zones)));
             Arc::new(done.model)
         }
-        Err(reason) => {
-            issues.push(issue(job, IssueKind::BodyZonesUnknown(reason)));
+        Err(misfit) => {
+            issues.push(issue(job, IssueKind::BodyZonesUnknown(misfit.to_string())));
             model
         }
     }

@@ -20,6 +20,32 @@ type Means = BTreeMap<&'static str, (f32, f32)>;
 
 const NPC: &str = "NPC_Archetypes-Male-Human-MissionGivers-MilesEckhart";
 const LEVELS: u32 = 6;
+const ECKHART_HIDDEN: [&str; 24] = [
+    "torso01_zone",
+    "torso02_zone",
+    "torso03_zone",
+    "torso04_zone",
+    "vneck_zone",
+    "underwear_zone",
+    "l_shoulder_zone",
+    "r_shoulder_zone",
+    "l_arm01_zone",
+    "l_arm02_zone",
+    "l_arm03_zone",
+    "l_arm04_zone",
+    "r_arm01_zone",
+    "r_arm02_zone",
+    "r_arm03_zone",
+    "r_arm04_zone",
+    "l_leg01_zone",
+    "l_leg02_zone",
+    "l_leg03_zone",
+    "r_leg01_zone",
+    "r_leg02_zone",
+    "r_leg03_zone",
+    "l_foot_zone",
+    "r_foot_zone",
+];
 
 fn open() -> Result<Archive, Box<dyn Error>> {
     Ok(Archive::open_with_key(
@@ -129,12 +155,33 @@ fn the_zone_table_puts_each_zone_on_its_side_and_height_of_the_body() -> TestRes
             let (low, high) = band_of(zone);
             assert!((low..high).contains(&z), "{who}");
         }
+        let height = |zone: &str| means.get(zone).map(|&(_, z)| z);
+        let (underwear, vneck) = (height("underwear_zone"), height("vneck_zone"));
+        for torso in [
+            "torso01_zone",
+            "torso02_zone",
+            "torso03_zone",
+            "torso04_zone",
+        ] {
+            assert!(
+                underwear < height(torso),
+                "{} underwear below {torso}",
+                variant.code()
+            );
+            assert!(
+                vneck > height(torso),
+                "{} vneck above {torso}",
+                variant.code()
+            );
+        }
         for side in ["l", "r"] {
             let at = |part: &str| means.get(format!("{side}_{part}_zone").as_str());
-            let arm: Vec<f32> = ["arm01", "arm02", "arm03", "arm04", "arm05", "hand"]
-                .iter()
-                .filter_map(|part| at(part).map(|(x, _)| x.abs()))
-                .collect();
+            let arm: Vec<f32> = [
+                "shoulder", "arm01", "arm02", "arm03", "arm04", "arm05", "hand",
+            ]
+            .iter()
+            .filter_map(|part| at(part).map(|(x, _)| x.abs()))
+            .collect();
             assert!(arm.is_sorted(), "{} {side} arm {arm:?}", variant.code());
             let leg: Vec<f32> = ["leg01", "leg02", "leg03", "leg04", "foot"]
                 .iter()
@@ -170,22 +217,11 @@ fn the_clothing_of_miles_eckhart_covers_his_torso_arms_and_legs_but_not_his_hand
             _ => None,
         })
         .ok_or("no body zone is hidden")?;
-    let is_hidden = |zone: &str| hidden.iter().any(|name| name == zone);
-    for zone in [
-        "torso01_zone",
-        "torso02_zone",
-        "torso03_zone",
-        "torso04_zone",
-        "l_arm01_zone",
-        "r_arm04_zone",
-        "l_leg03_zone",
-        "r_foot_zone",
-    ] {
-        assert!(is_hidden(zone), "{zone}: {hidden:?}");
-    }
-    for zone in ["l_hand_zone", "r_hand_zone", "l_arm05_zone", "l_leg04_zone"] {
-        assert!(!is_hidden(zone), "{zone}: {hidden:?}");
-    }
+    let mut hidden = hidden;
+    hidden.sort();
+    let mut expected: Vec<String> = ECKHART_HIDDEN.map(str::to_owned).into();
+    expected.sort();
+    assert_eq!(hidden, expected);
     let drawn = nodes_of(body_of(&armour)?);
     assert_eq!(
         drawn.len() + hidden.len(),

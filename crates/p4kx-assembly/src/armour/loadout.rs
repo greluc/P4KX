@@ -3,7 +3,7 @@
 
 use p4kx_dataforge::Guid;
 
-use super::{Piece, Wearable};
+use super::{Piece, Wearable, ZoneList};
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, LoadoutSpec};
 use crate::walk::Walk;
@@ -149,7 +149,7 @@ impl<'f> LoadoutResolver<'f> {
             size: None,
             container: None,
             object_containers: Vec::new().into(),
-            zones: Vec::new().into(),
+            zones: ZoneList::default(),
         };
         let mut walk = Walk::new(spec.guid, None);
         Ok(self.node(&spec, None, &mut walk))

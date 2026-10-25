@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
-use crate::armour::{ZoneChunk, read_zones};
+use crate::armour::{ZoneList, read_zones};
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
@@ -121,7 +121,7 @@ pub(crate) struct EntitySpec {
     pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
     pub(crate) object_containers: Arc<[ObjectContainerRef]>,
-    pub(crate) zones: Arc<[ZoneChunk]>,
+    pub(crate) zones: ZoneList,
 }
 
 impl EntitySpec {

@@ -484,7 +484,7 @@ Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometr
 nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is),
 `body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of
 the body are left out, ADR-0140), `body_zones_unknown` (the submeshes of the body skin do not fit
-the zone table, so nothing is left out), `layers_without_diffuse` (the reason counts the layered
+the zone table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the reason counts the layered
 materials of the part that have no diffuse map and are drawn in their layer colours) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
 class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or

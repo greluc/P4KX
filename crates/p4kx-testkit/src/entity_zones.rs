@@ -13,13 +13,14 @@ const LIBRARY: &str = "Data\\objects\\test\\cube";
 /// The class name of the shirt of [`zone_entries`].
 pub const ZONE_SHIRT: &str = "TEST_ZoneShirt";
 
-/// Returns the Entries of an Archive of [`armour_entries`](crate::armour_entries) with zoned bodies.
+/// Returns the Entries of an Archive of [`armour_entries`](crate::armour_entries) with zoned
+/// bodies.
 ///
-/// The male body skin has `zones` triangles and the female one `zones + 1`, each its own submesh
-/// numbered by its position. [`ZONE_SHIRT`] (`Char_Clothing_Torso_0`) covers `chunks` and is worn like `TEST_Torso`. The
+/// The male and the female body skin are [`TestModel::zoned`] by the places `bodies` give.
+/// [`ZONE_SHIRT`] (`Char_Clothing_Torso_0`) covers `chunks` and is worn like `TEST_Torso`. The
 /// material of the zones is layered and has no diffuse map.
 #[must_use]
-pub fn zone_entries(zones: usize, chunks: &[TestZoneChunk]) -> Vec<TestEntry> {
+pub fn zone_entries(bodies: [&[[f32; 2]]; 2], chunks: &[TestZoneChunk]) -> Vec<TestEntry> {
     let shirt = TestEntity::new(0x30, ZONE_SHIRT, "entities/scitem/test_zone_shirt.xml")
         .attach_type("Char_Clothing_Torso_0")
         .geometry_variant("Male", format!("{MALE_ARMOUR}/m_suit.skin"), None)
@@ -46,10 +47,13 @@ pub fn zone_entries(zones: usize, chunks: &[TestZoneChunk]) -> Vec<TestEntry> {
     ));
     let male = armour_male_skeleton();
     let female = armour_female_skeleton();
-    for (path, skeleton, count) in [(MALE_BODY, &male, zones), (FEMALE_BODY, &female, zones + 1)] {
-        let model = TestModel::zoned(count)
+    for (path, skeleton, places) in [
+        (MALE_BODY, &male, bodies[0]),
+        (FEMALE_BODY, &female, bodies[1]),
+    ] {
+        let model = TestModel::zoned(places)
             .with_skeleton(skeleton)
-            .with_bone_map(false, vec![vec![(0, 255)]; count * 3]);
+            .with_bone_map(false, vec![vec![(0, 255)]; places.len() * 3]);
         entries.extend(skin_entries(path, &model));
     }
     entries

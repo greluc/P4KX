@@ -144,6 +144,46 @@ pub(crate) enum ToolError {
         "selecting the Records was stopped after at most {0} seconds or by the client; narrow the Query with `from`, `at` or `where`"
     )]
     QueryStopped(u64),
+    /// The Entity text names no single Entity.
+    #[error(transparent)]
+    Entity(#[from] p4kx_assembly::EntityLookupError),
+    /// No ATL definition has the audio trigger.
+    #[error("no ATL definition has the audio trigger `{0}`; search_audio_triggers finds triggers")]
+    UnknownTrigger(String),
+    /// The audio language is no language folder of the Archive.
+    #[error(
+        "the Archive holds no audio language `{language}`; its language folders are: {available}"
+    )]
+    UnknownLanguage {
+        /// The language asked for.
+        language: String,
+        /// The language folders of the Archive, comma separated.
+        available: String,
+    },
+    /// The call names neither a WEM ID nor an Entry path, or both.
+    #[error("pass either `wem_id` or `path`")]
+    WemSelector,
+    /// No soundbank embeds the WEM and no loose WEM Entry has its ID.
+    #[error("no soundbank embeds the WEM {0} and no loose WEM Entry has that ID")]
+    UnknownWem(u32),
+    /// Only the prefetched start of the WEM is in the Archive.
+    #[error("the Archive holds only the prefetched start of the WEM {0}, which cannot be decoded")]
+    PrefetchOnly(u32),
+    /// The sound is too long to decode for an excerpt.
+    #[error("the sound decodes to more than {limit} bytes, too long for an excerpt")]
+    ExcerptSource {
+        /// The decoded size cap in bytes.
+        limit: u64,
+    },
+    /// The excerpt starts behind the end of the sound.
+    #[error("the sound is only {seconds:.3} seconds long; start_seconds is behind its end")]
+    ExcerptStart {
+        /// The playing time of the sound.
+        seconds: f64,
+    },
+    /// The excerpt window is not a finite, non-negative number of seconds.
+    #[error("`{0}` must be a finite number of seconds, not negative")]
+    BadSeconds(&'static str),
     /// A result cannot be converted to JSON.
     #[error("cannot convert the result to JSON")]
     Json(#[from] serde_json::Error),

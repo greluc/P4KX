@@ -541,6 +541,12 @@ change. `p4kx-mcp --version` and `-V` show the legal notice.
 | `list_chunks` | The chunks of a chunk file Entry (`path`) as `p4kx chunks list` shows them: index, type, type ID, known, version, chunk ID, byte order, offset and size; `type` (a name or `0x` ID) narrows it. No chunk data is returned |
 | `get_model_info` | A model Entry (`path`) summarised as `p4kx model info --json`: geometry, material library and IDs, levels of detail, and the number of materials, nodes, meshes, bones, animations and chunks |
 | `list_model_items` | One `section` of a model Entry, paged: `materials`, `nodes`, `meshes`, `bones`, `animations`, `unread_animations` or `chunks`, each item shaped as in `p4kx model info --json` |
+| `search_audio_triggers` | The audio triggers whose name or Wwise event names match `search` (a substring or a glob), as `p4kx wwise events`: events, the soundbanks holding them, why a trigger leads to none, and the Entities naming it (`entities`, 0 skips that lookup) |
+| `get_entity_sounds` | The audio triggers an Entity (`entity`: GUID, record path or class name) names, each with its ATL definition, events and soundbanks, as `p4kx entity audio` |
+| `resolve_audio_trigger` | The sound variants of a trigger (`trigger`, `lang`, `fallback_lang`) as `p4kx wwise resolve`: soundbank, WEM ID, source kind, where the WEM is and the object path; broken links with the first page |
+| `list_soundbank_wems` | The WEMs a soundbank (`soundbank`) embeds, paged, as `p4kx bnk list`: ID, size, codec, channels, sample rate, frames, duration, prefetch. No audio |
+| `get_wem_info` | One WEM by `wem_id` or loose Entry `path`: every place that holds it and its codec, channels, sample rate, duration and loop. No audio |
+| `get_audio_excerpt` | A short decoded excerpt of one WEM (`wem_id` or `path`, `start_seconds`, `duration_seconds`) as an `audio/wav` content block next to its metadata; at most 10 seconds and 1 MiB, see [ADR-0131](docs/adr/0131-the-mcp-audio-excerpt-is-a-bounded-wav-and-the-only-tool-that-returns-audio.md) |
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
 or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a

@@ -219,7 +219,7 @@ fn read(
     Ok((source, animations))
 }
 
-fn converted(path: &str, what: &'static str, error: ConversionError) -> ToolError {
+pub(crate) fn converted(path: &str, what: &'static str, error: ConversionError) -> ToolError {
     match error {
         ConversionError::UnknownEntry(unknown) => ToolError::UnknownEntry(
             unknown

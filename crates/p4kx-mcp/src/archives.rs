@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 use std::time::SystemTime;
 
+use p4kx_assembly::audio::{ArchiveAudio, AudioIndex};
 use p4kx_channels::ChannelKind;
 use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys};
 
@@ -46,6 +47,8 @@ pub(crate) struct Opened {
     tree: OnceLock<EntryTree>,
     keys: OnceLock<PathKeys>,
     building: Mutex<()>,
+    audio: OnceLock<AudioIndex>,
+    building_audio: Mutex<()>,
     dataforge: Mutex<Option<Result<Arc<LoadedDataForge>, String>>>,
     selection: Mutex<Selection>,
 }
@@ -58,6 +61,8 @@ impl Opened {
             tree: OnceLock::new(),
             keys: OnceLock::new(),
             building: Mutex::new(()),
+            audio: OnceLock::new(),
+            building_audio: Mutex::new(()),
             dataforge: Mutex::new(None),
             selection: Mutex::new(None),
         }
@@ -98,6 +103,24 @@ impl Opened {
         }
         let built = EntryTree::build(&self.archive);
         self.tree.get_or_init(|| built)
+    }
+
+    /// Returns the audio index, reading every ATL definition and soundbank on first use; calls
+    /// meanwhile wait for that read.
+    pub(crate) fn audio_index(&self) -> &AudioIndex {
+        if let Some(index) = self.audio.get() {
+            return index;
+        }
+        let _turn = self
+            .building_audio
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        self.audio.get_or_init(|| AudioIndex::build(&self.archive))
+    }
+
+    /// Returns the audio of the Archive over the kept audio index.
+    pub(crate) fn audio(&self) -> ArchiveAudio<'_> {
+        ArchiveAudio::with_index(&self.archive, self.audio_index())
     }
 
     /// Returns the Entries by path, hashing the paths on first use.

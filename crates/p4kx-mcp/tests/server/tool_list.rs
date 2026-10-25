@@ -19,21 +19,27 @@ fn the_tool_list_holds_the_archive_and_dataforge_tools_all_read_only() -> TestRe
         names,
         [
             "archive_info",
+            "get_audio_excerpt",
+            "get_entity_sounds",
             "get_model_info",
             "get_record",
+            "get_wem_info",
             "list_channels",
             "list_chunks",
             "list_entries",
             "list_enums",
             "list_model_items",
+            "list_soundbank_wems",
             "list_structs",
             "read_entry_bytes",
             "read_entry_text",
+            "resolve_audio_trigger",
             "run_query",
+            "search_audio_triggers",
             "search_entries",
             "search_records"
         ],
-        "the Archive and DataForge tools"
+        "the Archive, DataForge, model and audio tools"
     );
     for tool in &tools {
         let annotations = tool.get("annotations").cloned().unwrap_or_default();
@@ -79,6 +85,12 @@ fn the_tools_that_return_game_content_say_it_may_be_forwarded_and_not_redistribu
         "search_records",
         "list_structs",
         "list_enums",
+        "search_audio_triggers",
+        "get_entity_sounds",
+        "resolve_audio_trigger",
+        "list_soundbank_wems",
+        "get_wem_info",
+        "get_audio_excerpt",
     ] {
         let description = tools
             .iter()

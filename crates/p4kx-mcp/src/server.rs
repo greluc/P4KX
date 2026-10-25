@@ -32,7 +32,10 @@ page: pass next_cursor back as cursor for the next page. Entry content is read i
 next_offset back as offset for the next range. The DataForge tools (get_record, search_records, \
 list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records; list_structs \
 gives the type and field names a Query uses. The model tools (list_chunks, get_model_info, \
-list_model_items) read the chunk files and models of the Archive. P4KX is an unofficial Star Citizen fan \
+list_model_items) read the chunk files and models of the Archive. The audio tools \
+(search_audio_triggers, get_entity_sounds, resolve_audio_trigger, list_soundbank_wems, get_wem_info, \
+get_audio_excerpt) follow the Wwise chain from an Entity's trigger through events and soundbanks to \
+WEMs; only get_audio_excerpt returns audio, a short WAV. P4KX is an unofficial Star Citizen fan \
 project, not affiliated with the Cloud Imperium group of companies. Content these tools return \
 may be forwarded by the MCP client to third parties such as a cloud model provider; game texts \
 and media must not be redistributed.";
@@ -77,6 +80,7 @@ impl Server {
             tool_router: Self::tool_router()
                 + Self::content_router()
                 + Self::model_router()
+                + Self::audio_router()
                 + Self::record_router()
                 + Self::query_router(),
         }

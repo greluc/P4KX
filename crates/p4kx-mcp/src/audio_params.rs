@@ -98,6 +98,10 @@ pub(crate) struct WemParams {
     /// The Entry path of a loose WEM, e.g. `Data/Sounds/wwise/12345.wem`; use it instead of
     /// `wem_id` to name one Entry of several languages.
     pub(crate) path: Option<String>,
+    /// The `next_cursor` of the previous page of `locations`; omit it for the first page.
+    pub(crate) cursor: Option<String>,
+    /// The page size of `locations`, 100 by default, at most 1000.
+    pub(crate) limit: Option<u32>,
 }
 
 /// The arguments of `get_audio_excerpt`.

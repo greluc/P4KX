@@ -9,6 +9,19 @@ use crate::support::{Install, TestResult};
 
 const SLOW: Duration = Duration::from_mins(10);
 
+fn assert_one_location_per_page(info: &Value) {
+    assert_eq!(
+        info["locations"].as_array().map(Vec::len),
+        Some(1),
+        "{info}"
+    );
+    assert_eq!(
+        info["next_cursor"].is_string(),
+        info["locations_total"].as_u64().unwrap_or_default() > 1,
+        "a cursor exactly when more places follow: {info}"
+    );
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_real_ship_leads_from_its_triggers_to_a_decodable_excerpt() -> TestResult {
@@ -45,7 +58,8 @@ fn a_real_ship_leads_from_its_triggers_to_a_decodable_excerpt() -> TestResult {
         else {
             continue;
         };
-        let info = server.ok("get_wem_info", &json!({ "wem_id": id }))?;
+        let info = server.ok("get_wem_info", &json!({ "wem_id": id, "limit": 1 }))?;
+        assert_one_location_per_page(&info);
         if info["wem"]["codec"].is_null() {
             continue;
         }

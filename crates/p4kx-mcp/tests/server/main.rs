@@ -7,6 +7,7 @@
 mod archive_key;
 mod archives;
 mod audio;
+mod audio_followups;
 mod audio_limits;
 mod audio_wem;
 mod channel_notice;

@@ -58,3 +58,37 @@ pub fn zone_entries(bodies: [&[[f32; 2]]; 2], chunks: &[TestZoneChunk]) -> Vec<T
     }
     entries
 }
+
+/// Returns the Entries of [`zone_entries`] with a diffuse map in the layer of the zones' material.
+///
+/// The layer names the file `Objects/Test/zone_layer.mtl`, whose `TexSlot1` is a diffuse map.
+#[must_use]
+pub fn zone_entries_with_layer_textures(
+    bodies: [&[[f32; 2]]; 2],
+    chunks: &[TestZoneChunk],
+) -> Vec<TestEntry> {
+    let mut entries = zone_entries(bodies, chunks);
+    let library = format!("{LIBRARY}.mtl");
+    entries.retain(|entry| !entry.path.eq_ignore_ascii_case(&library));
+    let layered = TestMtlMaterial::new("caps")
+        .diffuse([0.5; 3])
+        .layer_with(&[("Name", "Primary"), ("Path", "Objects/Test/zone_layer.mtl")]);
+    entries.push(TestEntry::stored(
+        library,
+        TestMtl::multi(&[
+            TestMtlMaterial::new("unused"),
+            layered,
+            TestMtlMaterial::new("sides").diffuse([0.5; 3]),
+        ])
+        .cryxml(),
+    ));
+    let layer = TestMtlMaterial::new("layer")
+        .shader("Layer")
+        .diffuse([1.0; 3])
+        .texture("TexSlot1", "Objects/Test/zone_layer_diff.tif");
+    entries.push(TestEntry::stored(
+        "Data\\Objects\\Test\\zone_layer.mtl",
+        TestMtl::single(&layer).cryxml(),
+    ));
+    entries
+}

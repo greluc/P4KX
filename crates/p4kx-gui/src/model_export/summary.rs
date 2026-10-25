@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use p4kx_extraction::model::{MaterialStatus, Model};
 use p4kx_extraction::{AnimationSet, GlbSummary, TextureRole, WriteRefused};
 
-use crate::model_info::{MAX_LISTED_CHUNKS, printable};
+use crate::model_info::{MAX_LISTED_ANIMATIONS, printable};
 use crate::{ChunkNote, ModelInfo};
 
 /// What a finished Export as GLB wrote and what it left out.
@@ -26,15 +26,32 @@ pub struct ModelExportSummary {
     unread_animations_total: usize,
 }
 
-/// An animation file or an animation of a database that was not written, with the reason.
+/// An animation file or an animation that was not written, with the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnimationNote {
     /// The Entry path of the animation file.
     pub source: String,
-    /// The animation's name when only this animation of a database was left out.
+    /// The animation's name when only this animation of a database was left out, and always for
+    /// an animation no bone matched.
     pub name: Option<String>,
     /// Why it was left out.
-    pub reason: String,
+    pub kind: AnimationNoteKind,
+}
+
+/// Why an animation is missing from the file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AnimationNoteKind {
+    /// The file or animation could not be read, or is additive, for the reason given.
+    Unread {
+        /// Why it was left out.
+        reason: String,
+    },
+    /// The animation was read, but none of its tracks matches a bone of the model, so it has no
+    /// channel in the file.
+    NoBoneMatched {
+        /// The number of tracks that were left out.
+        skipped_tracks: usize,
+    },
 }
 
 /// Why the material library of a model was not used.
@@ -68,6 +85,7 @@ impl ModelExportSummary {
         animations_asked: bool,
     ) -> Self {
         let info = ModelInfo::of(model);
+        let unmatched = unmatched(&written, animations);
         Self {
             file,
             name: info.name,
@@ -101,16 +119,19 @@ impl ModelExportSummary {
                 .library()
                 .map_or(0, |library| library.unknown_entries),
             animations_asked,
-            unread_animations_total: animations.unread.len(),
+            unread_animations_total: animations.unread.len() + unmatched.len(),
             unread_animations: animations
                 .unread
                 .iter()
-                .take(MAX_LISTED_CHUNKS)
                 .map(|unread| AnimationNote {
                     source: printable(&unread.source),
                     name: unread.name.as_deref().map(printable),
-                    reason: printable(&unread.reason),
+                    kind: AnimationNoteKind::Unread {
+                        reason: printable(&unread.reason),
+                    },
                 })
+                .chain(unmatched)
+                .take(MAX_LISTED_ANIMATIONS)
                 .collect(),
         }
     }
@@ -132,7 +153,7 @@ impl ModelExportSummary {
     }
 
     /// Returns the animation files and animations that were not written because they could not
-    /// be read or are additive, at most [`MAX_LISTED_CHUNKS`].
+    /// be read, are additive or match no bone, at most [`MAX_LISTED_ANIMATIONS`].
     #[must_use]
     pub fn unread_animations(&self) -> &[AnimationNote] {
         &self.unread_animations
@@ -203,6 +224,24 @@ impl ModelExportSummary {
     pub const fn unnamed_sub_materials(&self) -> usize {
         self.unnamed_sub_materials
     }
+}
+
+/// Returns a note for each animation the file holds without a channel, because no track of it
+/// matches a bone of the model.
+fn unmatched(written: &GlbSummary, animations: &AnimationSet) -> Vec<AnimationNote> {
+    written
+        .animations
+        .iter()
+        .zip(&animations.origins)
+        .filter(|(animation, _)| animation.channels == 0)
+        .map(|(animation, origin)| AnimationNote {
+            source: printable(origin),
+            name: Some(printable(&animation.name)),
+            kind: AnimationNoteKind::NoBoneMatched {
+                skipped_tracks: animation.skipped_tracks.len(),
+            },
+        })
+        .collect()
 }
 
 /// Why an Export as GLB wrote no file.

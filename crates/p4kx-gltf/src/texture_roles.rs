@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::Material;
+use p4kx_model::{Material, TextureSlot};
 
 use crate::texture_report::TextureRole;
 
@@ -62,9 +62,14 @@ pub(crate) fn sources(material: &Material) -> Sources {
 /// without a diffuse map whose `TexSlot1` ends in `_opac`, such as hair cards, has that opacity
 /// map in place of the diffuse map, see [`Source::opacity`].
 pub(crate) fn sources_with(material: &Material, opacity_maps: bool) -> Sources {
+    sources_of(&material.textures, opacity_maps)
+}
+
+/// Returns the texture files of the slots `textures` like [`sources_with`].
+pub(crate) fn sources_of(textures: &[TextureSlot], opacity_maps: bool) -> Sources {
     let pick = |slots: &[&str], wanted: &dyn Fn(&str) -> bool| {
         slots.iter().find_map(|slot| {
-            material.textures.iter().find_map(|texture| {
+            textures.iter().find_map(|texture| {
                 let file = texture.file.as_str();
                 (texture.map == *slot
                     && !file.trim_start().starts_with('$')
@@ -118,7 +123,7 @@ pub fn diffuse_texture_path(material: &Material) -> Option<String> {
 
 /// Returns the last `_` part of a texture file's name without extension, folded to lower case:
 /// `ddna` for `a/b_ddna.tif`.
-fn suffix(file: &str) -> String {
+pub(crate) fn suffix(file: &str) -> String {
     let name = file.rsplit(['/', '\\']).next().unwrap_or(file);
     let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
     stem.rsplit('_').next().unwrap_or(stem).to_ascii_lowercase()

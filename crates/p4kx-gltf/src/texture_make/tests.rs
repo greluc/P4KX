@@ -13,7 +13,7 @@ use crate::texture_pixels::Tints;
 use crate::texture_plan::{Job, Key};
 use crate::texture_roles::Source;
 
-struct Squares {
+pub(super) struct Squares {
     side: u32,
     sized: bool,
     parallel: bool,
@@ -22,7 +22,7 @@ struct Squares {
 }
 
 impl Squares {
-    const fn new(side: u32) -> Self {
+    pub(super) const fn new(side: u32) -> Self {
         Self {
             side,
             sized: false,
@@ -32,7 +32,7 @@ impl Squares {
         }
     }
 
-    const fn sized(mut self) -> Self {
+    pub(super) const fn sized(mut self) -> Self {
         self.sized = true;
         self
     }
@@ -47,7 +47,7 @@ impl Squares {
         self
     }
 
-    fn loads(&self) -> usize {
+    pub(super) fn loads(&self) -> usize {
         self.loads.load(Ordering::SeqCst)
     }
 }
@@ -74,7 +74,7 @@ impl TextureLoader for Squares {
     }
 }
 
-fn source(path: String, gloss: bool) -> Source {
+pub(super) fn source(path: String, gloss: bool) -> Source {
     Source {
         file: path.clone(),
         path,
@@ -83,12 +83,12 @@ fn source(path: String, gloss: bool) -> Source {
     }
 }
 
-const TINTS: Tints = Tints {
+pub(super) const TINTS: Tints = Tints {
     diffuse: [1.0; 3],
     specular: [1.0; 3],
 };
 
-fn normal_jobs(count: usize) -> Vec<Job> {
+pub(super) fn normal_jobs(count: usize) -> Vec<Job> {
     (0..count)
         .map(|number| {
             let path = format!("objects/n{number}_ddna.dds");
@@ -100,6 +100,7 @@ fn normal_jobs(count: usize) -> Vec<Job> {
                 normal: Some(source(path, true)),
                 specular: None,
                 tints: TINTS,
+                layered: None,
             }
         })
         .collect()
@@ -215,6 +216,7 @@ fn a_texture_shared_by_two_jobs_is_decoded_once() {
         normal: Some(source(path.clone(), true)),
         specular: None,
         tints: TINTS,
+        layered: None,
     };
     let packed = Job {
         key: Key::MetallicRoughness {
@@ -225,6 +227,7 @@ fn a_texture_shared_by_two_jobs_is_decoded_once() {
         normal: Some(source(path, true)),
         specular: None,
         tints: TINTS,
+        layered: None,
     };
     let loader = Squares::new(2);
 
@@ -235,6 +238,7 @@ fn a_texture_shared_by_two_jobs_is_decoded_once() {
 }
 
 mod groups;
+mod layered;
 
 #[test]
 fn a_texture_whose_size_cannot_be_read_fails_its_job_at_once() {
@@ -269,6 +273,7 @@ fn a_metallic_roughness_image_with_two_sources_is_not_sized_by_the_normal_map() 
         normal: Some(normal),
         specular: Some(specular),
         tints: TINTS,
+        layered: None,
     };
     let loader = Squares::new(4).sized();
 

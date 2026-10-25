@@ -7,7 +7,7 @@ use std::sync::Arc;
 use rayon::prelude::*;
 
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
-use crate::texture_plan::Job;
+use crate::texture_plan::{Job, Key};
 
 /// The most pixels the decoded sources kept for the next group of jobs may hold together.
 pub(crate) const MAX_HELD_PIXELS: u64 = 1 << 27;
@@ -24,10 +24,16 @@ pub(crate) type Decoded = HashMap<String, Loaded>;
 
 /// Returns the paths of the source textures `job` loads.
 pub(crate) fn paths(job: &Job) -> impl Iterator<Item = &str> {
+    let normal = matches!(job.key, Key::LayerNormal { .. });
     [&job.diffuse, &job.normal, &job.specular]
         .into_iter()
         .flatten()
         .map(|source| source.path.as_str())
+        .chain(
+            job.layered
+                .iter()
+                .flat_map(move |layered| layered.paths(normal)),
+        )
 }
 
 /// Decodes the source textures of a build a group of jobs at a time, each once per group however
@@ -126,6 +132,26 @@ impl<'l> SourceStore<'l> {
         let size = self.loader.dimensions(path, self.mip);
         self.sizes.insert(path.to_owned(), size.clone());
         size
+    }
+
+    /// Returns the pixels the distinct textures `paths` decode together, by their headers; a
+    /// texture whose size is unknown counts for the whole decode limit, and one whose header
+    /// cannot be read for nothing, because it cannot be decoded either.
+    pub(crate) fn header_pixels<'a>(&mut self, paths: impl Iterator<Item = &'a str>) -> u64 {
+        let mut seen: Vec<&str> = Vec::new();
+        let mut total = 0_u64;
+        for path in paths {
+            if seen.contains(&path) {
+                continue;
+            }
+            seen.push(path);
+            total = total.saturating_add(match self.dimensions(path) {
+                Ok(Some((width, height))) => u64::from(width) * u64::from(height),
+                Ok(None) => self.limit,
+                Err(_) => 0,
+            });
+        }
+        total
     }
 
     /// Returns how many of the leading `jobs`, at most `most`, may be made together: the

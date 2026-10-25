@@ -2,14 +2,17 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, Once, PoisonError};
 use std::thread::{self, JoinHandle};
 
 use p4kx_extraction::{
     ConversionError, ExtractionError, QueryExportError, WriteRefused, game_is_running,
-    protect_archive_folder,
+    protect_archive_folder, protect_libraries, protect_manual,
 };
+use p4kx_settings::{Settings, default_settings_file};
+
+const CONFIG_DIR_VARIABLE: &str = "P4KX_CONFIG_DIR";
 
 const GAME_CHECK_VARIABLE: &str = "P4KX_GAME_CHECK";
 
@@ -41,6 +44,18 @@ fn look_for_game() -> bool {
         GameCheck::Process => game_is_running(),
         GameCheck::Running => true,
         GameCheck::Off | GameCheck::Closed => false,
+    }
+}
+
+/// Protects the Library folders and the folders and Archives added by hand to the settings, which
+/// `P4KX_CONFIG_DIR` can point to another folder.
+pub(crate) fn protect_installations() {
+    protect_libraries();
+    let file = std::env::var_os(CONFIG_DIR_VARIABLE)
+        .map(|dir| PathBuf::from(dir).join("settings.toml"))
+        .or_else(default_settings_file);
+    if let Some(settings) = file.and_then(|file| Settings::load(&file).ok()) {
+        protect_manual(&settings.channels.folders, &settings.channels.archives);
     }
 }
 

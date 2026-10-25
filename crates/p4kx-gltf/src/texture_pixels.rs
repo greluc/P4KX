@@ -6,8 +6,8 @@ use std::sync::LazyLock;
 use p4kx_texture::{RgbaImage, TextureError};
 use rayon::prelude::*;
 
-const RGBA: usize = 4;
-const OPAQUE: u8 = u8::MAX;
+pub(crate) const RGBA: usize = 4;
+pub(crate) const OPAQUE: u8 = u8::MAX;
 const METAL_FROM: f32 = 0.15;
 const METAL_TO: f32 = 0.5;
 const ENCODE_STEPS: usize = 4095;
@@ -53,11 +53,11 @@ pub(crate) struct Tints {
     pub(crate) specular: [f32; 3],
 }
 
-fn linear(value: u8) -> f32 {
+pub(crate) fn linear(value: u8) -> f32 {
     LINEAR.get(usize::from(value)).copied().unwrap_or_default()
 }
 
-fn encode(value: f32) -> u8 {
+pub(crate) fn encode(value: f32) -> u8 {
     #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
@@ -90,7 +90,7 @@ fn nearest(at: usize, from: usize, to: usize) -> usize {
     (at.saturating_mul(from) / to.max(1)).min(from.saturating_sub(1))
 }
 
-fn texel(image: &RgbaImage, x: usize, y: usize) -> [u8; RGBA] {
+pub(crate) fn texel(image: &RgbaImage, x: usize, y: usize) -> [u8; RGBA] {
     let width = image.width() as usize;
     let at = (y * width + x) * RGBA;
     image
@@ -102,7 +102,7 @@ fn texel(image: &RgbaImage, x: usize, y: usize) -> [u8; RGBA] {
 
 /// Returns the texel of `image` at the position of texel (`x`, `y`) of an image of
 /// `width` × `height` texels.
-fn sampled(
+pub(crate) fn sampled(
     image: &RgbaImage,
     (x, y): (usize, usize),
     (width, height): (usize, usize),
@@ -114,7 +114,7 @@ fn sampled(
     )
 }
 
-fn fill(
+pub(crate) fn fill(
     width: u32,
     height: u32,
     row: impl Fn(usize, &mut [u8]) + Sync,

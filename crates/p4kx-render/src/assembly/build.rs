@@ -4,15 +4,16 @@
 use std::collections::HashMap;
 
 use p4kx_assembly::Assembly;
-use p4kx_extraction::TextureLoader;
+use p4kx_extraction::model::Material;
 use p4kx_extraction::model::Model;
+use p4kx_extraction::{LoadedTexture, TextureLoader, layered_base_textures};
 use p4kx_settings::ModelMaterials;
 use rayon::prelude::*;
 use thiserror::Error;
 
 use super::flatten::{Range, flatten};
 use super::pieces::{Piece, pieces_of};
-use super::surface::{Surface, SurfaceKey, surface_key, surfaces_of};
+use super::surface::{SceneSurfaces, Surface, SurfaceKey, surface_key, surfaces_of};
 use super::{
     AssemblyScene, Group, Item, Left, MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES,
     MAX_VIEW_VERTICES, PartDraw, PartInfo, VIEW_TEXTURE_MIP, ViewTexture,
@@ -125,9 +126,9 @@ impl AssemblyScene {
         };
         let meshes = scene.merge_meshes(&distinct, assembly.lod(), hooks)?;
         scene.meshes = meshes.iter().flatten().count();
-        let (surfaces, wanted) = surfaces_of(&pieces, &model_of, &meshes, options.materials);
+        let wanted = surfaces_of(&pieces, &model_of, &meshes, options.materials);
         let textures = scene.read_textures(&wanted, options, hooks)?;
-        scene.place(&pieces, (&model_of, &meshes), (&surfaces, &textures));
+        scene.place(&pieces, (&model_of, &meshes), (&wanted.surfaces, &textures));
         if scene.draws.is_empty() || !scene.bounds.is_valid() {
             return Err(BuildError::Empty);
         }
@@ -184,7 +185,9 @@ impl AssemblyScene {
 
     fn read_textures(
         &mut self,
-        wanted: &[String],
+        SceneSurfaces {
+            wanted, layered, ..
+        }: &SceneSurfaces,
         options: &BuildOptions<'_>,
         hooks: &Hooks<'_>,
     ) -> Result<HashMap<String, u32>, BuildError> {
@@ -198,10 +201,7 @@ impl AssemblyScene {
             if (hooks.cancelled)() {
                 return Err(BuildError::Cancelled);
             }
-            let images: Vec<_> = wave
-                .par_iter()
-                .map(|path| loader.load(path, VIEW_TEXTURE_MIP).ok())
-                .collect();
+            let images = load_wave(wave, layered, loader);
             for (path, texture) in wave.iter().zip(images) {
                 let image = texture.map(|texture| texture.image).filter(|image| {
                     image.width() > 0
@@ -353,4 +353,39 @@ impl AssemblyScene {
             placed
         })
     }
+}
+
+/// Loads the textures of `wave`, a few of the layered materials' images blended together under one
+/// decode budget and the others in parallel; an entry is `None` when its texture cannot be made.
+fn load_wave(
+    wave: &[String],
+    layered: &HashMap<String, Material>,
+    loader: &dyn TextureLoader,
+) -> Vec<Option<LoadedTexture>> {
+    let mut images: Vec<Option<LoadedTexture>> = wave
+        .par_iter()
+        .map(|path| {
+            if layered.contains_key(path) {
+                None
+            } else {
+                loader.load(path, VIEW_TEXTURE_MIP).ok()
+            }
+        })
+        .collect();
+    let blended: Vec<(usize, &Material)> = wave
+        .iter()
+        .enumerate()
+        .filter_map(|(at, path)| Some((at, layered.get(path)?)))
+        .collect();
+    let materials: Vec<&Material> = blended.iter().map(|(_, material)| *material).collect();
+    for ((at, _), texture) in
+        blended
+            .iter()
+            .zip(layered_base_textures(&materials, loader, VIEW_TEXTURE_MIP))
+    {
+        if let Some(slot) = images.get_mut(*at) {
+            *slot = texture;
+        }
+    }
+    images
 }

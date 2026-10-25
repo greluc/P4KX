@@ -6,11 +6,13 @@
 
 mod animate;
 mod body;
+mod body_zones;
 mod build;
 mod dress;
 mod expressions;
 mod face_build;
 mod facial;
+mod flat_layers;
 mod follow;
 mod forge_items;
 mod head;
@@ -24,6 +26,7 @@ mod sample;
 mod shape;
 mod unused;
 mod wearable;
+mod zones;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -46,6 +49,8 @@ pub use npc::NpcHead;
 pub use piece::Piece;
 pub use shape::MAX_DNA_RIG_LEN;
 pub use wearable::Wearable;
+pub use zones::ZoneChunk;
+pub(crate) use zones::read_zones;
 
 use crate::Issue;
 

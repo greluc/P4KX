@@ -165,6 +165,9 @@ pub struct Mesh {
 pub struct Submesh {
     /// The material ID: the position of the sub-material in the material library.
     pub material_id: u16,
+    /// The number the geometry file gives the submesh's node. In a skin, whose submeshes all
+    /// belong to node 0 of the model, it numbers the submesh's zone of the body.
+    pub node_id: u16,
     /// The first index of the range in the mesh's triangle list.
     pub first_index: usize,
     /// The number of indices, a multiple of three.

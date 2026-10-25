@@ -149,6 +149,7 @@ impl<'f> LoadoutResolver<'f> {
             size: None,
             container: None,
             object_containers: Vec::new().into(),
+            zones: Vec::new().into(),
         };
         let mut walk = Walk::new(spec.guid, None);
         Ok(self.node(&spec, None, &mut walk))

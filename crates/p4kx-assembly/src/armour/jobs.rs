@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_character::Dna;
 
 use super::head::rig_part;
 use super::piece::{Bespoke, Note, Source};
 use super::wearable::Unfit;
-use super::{BodyVariant, Expressions, Look, PartOrigin, Piece};
+use super::{BodyVariant, Expressions, Look, PartOrigin, Piece, ZoneChunk};
 use crate::{Issue, IssueKind, MaterialVariant, ModelFailure, ModelProvider};
 
 /// One skin to read and wear.
@@ -22,6 +24,7 @@ pub(super) struct Job {
     pub(super) look: Option<Look>,
     pub(super) follows_head: bool,
     pub(super) bespoke: bool,
+    pub(super) zones: Arc<[ZoneChunk]>,
 }
 
 impl Job {
@@ -39,6 +42,7 @@ impl Job {
             look: None,
             follows_head: false,
             bespoke: false,
+            zones: Arc::default(),
         }
     }
 }
@@ -133,7 +137,12 @@ pub(super) fn gather(
         .and_then(|bespoke| bespoke_path(&path, bespoke, models));
     let bespoke = own.is_some();
     let material = existing_library(piece, material, bespoke, models, issues);
+    let zones = match &piece.source {
+        Source::Wearable(wearable) => Arc::clone(&wearable.zones),
+        _ => Arc::default(),
+    };
     jobs.push(Job {
+        zones,
         origin: PartOrigin::Piece,
         part: piece.name.clone(),
         owner: String::new(),

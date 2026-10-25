@@ -481,7 +481,11 @@ Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometr
 (the Record names geometry per body, but none for this one; the piece is left out),
 `geometry_missing` and `geometry_unreadable` (the model is not in the Archive or cannot be read),
 `bones_not_in_skeleton` (some bones of the model are not in the body skeleton and follow their
-nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is) and
+nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is),
+`body_zones_hidden` (`zones`: the body zones the worn clothing covers, whose triangles of the body
+are left out, ADR-0140), `body_zones_unknown` (the submeshes of the body skin do not fit the zone
+table, so nothing is left out), `layers_without_diffuse` (`count` layered materials of the part
+have no diffuse map and are drawn in their layer colours) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
 class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
 the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when

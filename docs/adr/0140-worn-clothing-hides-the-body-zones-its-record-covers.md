@@ -1,0 +1,78 @@
+# Worn clothing hides the body zones its Record covers
+
+Decided for issue #591. Evidence: `p4kx armour glb --loadout NPC_Archetypes-Male-Human-MissionGivers-MilesEckhart`
+of the LIVE Archive, rendered from the GLB at the front before and after
+(`crates/p4kx-assembly/tests/real_archive/real_body_zones.rs`). Builds on ADR-0079 (armour on a
+body), ADR-0082 (armour from a Loadout), ADR-0097 (layered materials) and ADR-0109 (story
+characters).
+
+## What the data says
+
+Every Entity worn on a body has a component `SCItemClothingParams`. Its `Chunks` are
+`SCItemClothingMeshChunkParams`: a `MeshChunk`, the name of a **body zone** (`torso01_zone`,
+`l_arm04_zone`, `l_foot_zone`, `underwear_zone`), a `Layer`, the `VisibleLayers` and
+`VisibilityConditions`. The body Entity (`m_body_01`, `f_body_01`) lists the 32 zones on layer 0;
+a shirt lists the zones it covers on layer 1, a jacket on layer 2, armour up to layer 4. A chunk
+whose `VisibleLayers` holds 0 lets the body show through (sleeves that stop above the wrist);
+otherwise the body is hidden in the zone. A chunk with `VisibilityConditions` depends on the
+items in ports (a backpack). The component also holds `HiddenParts`, ports whose items are not
+drawn when the Entity is worn (a hat hides the hair).
+
+The game does not put the clothing over a complete body. The body skin (`m_body.skin`,
+`f_body.skin`) is cut into one submesh per zone, and the zones that clothing covers are not
+drawn. The Archive keeps no name of a zone in any skin: the `.skinm` stores per submesh a node
+number, and no file holds the table of the numbers. Where a static model of a garment has the
+zone names (`m_marine_bdu_shirt_01_prop.cgf` names its nodes `torso01_zone`, `l_arm01_zone` …),
+its skin's submeshes follow the same order, so the names are real, but the body has no such
+file.
+
+## Decision
+
+**Covered zones.** A zone of the body is covered when a worn Entity has an unconditional chunk
+for it on a layer above 0 whose `VisibleLayers` lacks 0 (`ZoneChunk`, read by `Wearable::zones`).
+Chunks on layer 0 and chunks with visibility conditions cover nothing: the conditions are not
+evaluated, and the body is never cut away on a chunk that might not apply. The names are compared
+ignoring case.
+
+**The table.** The node number of a body submesh is its zone's rank among the zones of the skin,
+by an order of the names that no file states (it is no alphabetical order and no common hash of
+the names). The male body has 30 zones, numbered 0 to 29; the female body has the bra zone
+`underwear_top_zone` as well, which takes 27 and moves the zones after it up (31 zones). All six
+levels of detail number alike. `BodyVariant::zone_names` holds the table. It was found by
+comparing the two skins: the numbers agree between the male and the female skin zone by zone, and
+the order of the names in a shirt's static model agrees with the order of the numbers in the
+skin. A zone's side (`l_` has negative X), height, and the order along the arm and the leg were
+checked on both skins (`real_body_zones`). The zones `hips_zone` (both bodies) and
+`underwear_top_zone` (the male body) have no geometry; the pants cover `hips_zone` and
+`underwear_zone`, and `underwear_zone` is the shorts and the female panties and waist band
+(materials `underw_m`, `underwear_m`, `waist_m`).
+
+**Fit.** The table is used only when every level of detail of the body skin numbers exactly the
+zones 0 to N - 1 of the variant. A skin that does not (a new body of a patch) is kept whole and
+the Armour reports `body_zones_unknown`, so a patch cannot silently cut the wrong parts.
+
+**Cut.** `Armour::build` replaces the body's model with a copy without the submeshes of the
+covered zones and reports the zones as `body_zones_hidden`. The vertices stay in the model; no
+triangle of another submesh changes. The viewer, `armour glb`, `character package` and every
+output that builds an Armour show the same.
+
+## Eckhart
+
+His shirt covers `torso01_zone` to `torso04_zone`, the shoulders, `arm01` to `arm04`, `vneck`
+and `underwear_top`; the pants `leg01` to `leg03`, `hips` and `underwear`; the boots the feet;
+the jacket the torso, hips and arms on layer 2. The body keeps its head, `arm05` and the hands,
+`leg04` (the ankles). 24 of the 30 zones of the male body are hidden. Before, the skin of the
+belly, the thighs and the shorts showed through the shirt and the pants.
+
+## Not decided here
+
+- **Clothing under clothing.** The zones of a garment's own skin are not hidden by a garment on
+  a higher layer; the garments' skins carry no zone names (only their static models do).
+- **`HiddenParts`.** The ports a piece hides are not applied: the hat that hides the hair, the
+  suit that hides the clothing. It changes which pieces an export holds and is a follow-up.
+- **Conditions.** `VisibilityConditions` are not evaluated.
+- **Layer textures.** The clothing's materials use the shader `LayerBlend_V2`, which has no
+  diffuse map: its colour comes from the tint palette and the layer maps (wear `TexSlot11`,
+  blend `TexSlot12`, `TexSlot13`) beside the normal map. They stay flat colours of their layers
+  (ADR-0097); drawing the maps is #551. The Armour reports, per part, `layers_without_diffuse`
+  with the number of layered materials that have no diffuse map.

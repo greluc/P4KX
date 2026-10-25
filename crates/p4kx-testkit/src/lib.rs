@@ -32,6 +32,7 @@ mod entity_armour;
 mod entity_armour_loadout;
 mod entity_assembly;
 mod entity_cargo;
+mod entity_clothing;
 mod entity_dressed;
 mod entity_head;
 mod entity_interior_sample;
@@ -44,6 +45,7 @@ mod entity_port;
 mod entity_sample;
 mod entity_schema;
 mod entity_vehicle;
+mod entity_zones;
 mod frames;
 mod gfx;
 mod gfx_import;
@@ -74,6 +76,7 @@ mod model_nmc;
 mod model_rig;
 mod model_skeleton;
 mod model_skin;
+mod model_zoned;
 mod mtl;
 mod opus;
 mod opus_encode;
@@ -122,6 +125,7 @@ pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skel
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
 pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries, hologram_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
+pub use entity_clothing::{TestZoneChunk, clothing_component};
 pub use entity_dressed::{
     DRESSED_BROWS, DRESSED_EYES, DRESSED_EYES_MATERIAL, DRESSED_GONE_HAIR, DRESSED_HAIR,
     DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,
@@ -150,6 +154,7 @@ pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::{entity_schema, tint_palette_record};
 pub use entity_vehicle::landing_system_record;
+pub use entity_zones::{ZONE_SHIRT, zone_entries};
 pub use frames::assert_steady_frames;
 pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};
 pub use gfx_import::{

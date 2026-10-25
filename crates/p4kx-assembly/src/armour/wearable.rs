@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_dataforge::Guid;
 
-use super::BodyVariant;
+use super::{BodyVariant, ZoneChunk};
 use crate::spec::EntitySpec;
 use crate::{Geometry, GeometryVariant, MaterialVariant};
 
@@ -28,6 +30,7 @@ pub struct Wearable {
     pub(crate) variants: Vec<GeometryVariant>,
     pub(crate) tags: Vec<String>,
     pub(crate) material_variants: Vec<MaterialVariant>,
+    pub(crate) zones: Arc<[ZoneChunk]>,
 }
 
 impl Wearable {
@@ -43,7 +46,15 @@ impl Wearable {
             variants: spec.variants.clone(),
             tags: spec.attach_tags.clone(),
             material_variants: spec.material_variants.clone(),
+            zones: Arc::clone(&spec.zones),
         }
+    }
+
+    /// Returns the zones of the body the Entity covers when it is worn, from the Record's
+    /// `SCItemClothingParams`.
+    #[must_use]
+    pub fn zones(&self) -> &[ZoneChunk] {
+        &self.zones
     }
 
     /// Returns the tags of the Entity's `AttachDef`, e.g. `hairVar_Brown` for a hair colour.

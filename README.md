@@ -217,7 +217,11 @@ Early development (milestone M1). Available today:
   `--materials textures` embeds the textures as PNG at the mip `--texture-mip <n>` picks (default
   `colours`), `--anim <name>` (or `all`) and `--anim-from <entry>` add animations, looked for first
   in the character's own folder `Animations/pu/<body>/<name>`, and `--anim-folder <folder>`
-  names the only folders to look in. A piece with no geometry for the variant, one that cannot
+  names the only folders to look in. The zones of the body that the worn clothing covers
+  (`SCItemClothingParams`, ADR-0140) are left out of the body skin, as the game does not draw
+  them, and listed as `body_zones_hidden`; layered materials without a diffuse map, such as the
+  `LayerBlend_V2` clothing, are drawn in their layer colours and listed as
+  `layers_without_diffuse`. A piece with no geometry for the variant, one that cannot
   be resolved, or whose model is missing or unreadable, is skipped and listed; with `--json` the report has
   the shape described in [docs/cli-json.md](docs/cli-json.md). `p4kx armour bodies` lists the
   variants.

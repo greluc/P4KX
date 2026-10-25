@@ -92,9 +92,18 @@ fn missing_unreadable_and_ambiguous_inventories_give_no_list_and_are_counted() -
     assert_eq!(shops.inventory_unscanned, 0);
     assert_eq!(shops.soc_components, 6);
     let warnings = built.summary().warnings();
+    let details = warnings
+        .iter()
+        .find_map(|warning| match warning {
+            CraftingWarning::UnreadableShopInventories { count: 1, details } => Some(details),
+            _ => None,
+        })
+        .ok_or_else(|| format!("{warnings:?}"))?;
     assert!(
-        warnings.contains(&CraftingWarning::UnreadableShopInventories(1)),
-        "{warnings:?}"
+        matches!(details.as_slice(), [detail]
+            if detail.to_ascii_lowercase().contains("inv_noodle.json")
+                && detail.ends_with("the file is no inventory JSON")),
+        "the warning names the file and why: {details:?}"
     );
     assert!(
         warnings.contains(&CraftingWarning::MissingShopInventories(1)),

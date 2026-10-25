@@ -29,8 +29,9 @@ pub(crate) enum ItemList {
     Items { guids: Vec<String>, dropped: usize },
     /// The Archive holds no such file.
     Missing,
-    /// The file is too large, cannot be opened or is no inventory JSON.
-    Unreadable,
+    /// The file is too large, empty, cannot be opened or is no inventory JSON; holds the path of
+    /// the file and why it cannot be read.
+    Unreadable(String),
 }
 
 /// The inventory files `Data\Scripts\ShopInventories\<stem>.json` of an Archive.
@@ -101,27 +102,39 @@ impl<'a> Inventories<'a> {
         let Some(entry) = self.by_stem.get(stem) else {
             return ItemList::Missing;
         };
+        let unreadable = |reason: &dyn std::fmt::Display| {
+            ItemList::Unreadable(format!("{}: {reason}", entry.path()))
+        };
         if entry.uncompressed_size() > MAX_INVENTORY_LEN {
-            return ItemList::Unreadable;
+            return unreadable(&"the file is too large");
         }
         let mut bytes = Vec::new();
         let read = self
             .archive
             .open_entry(entry)
-            .map_err(drop)
+            .map_err(|error| format!("the file cannot be opened: {error}"))
             .and_then(|reader| {
                 reader
                     .take(MAX_INVENTORY_LEN)
                     .read_to_end(&mut bytes)
-                    .map_err(drop)
+                    .map_err(|error| format!("the file cannot be read: {error}"))
             });
-        if read.is_err() {
-            return ItemList::Unreadable;
+        if let Err(reason) = read {
+            return unreadable(&reason);
         }
-        parse(&bytes).map_or(ItemList::Unreadable, |(guids, dropped)| ItemList::Items {
-            guids,
-            dropped,
-        })
+        match parse(&bytes) {
+            Some((guids, dropped)) => ItemList::Items { guids, dropped },
+            None => unreadable(&why_unparsed(&bytes)),
+        }
+    }
+}
+
+/// Returns why `bytes`, which [`parse`] rejects, are no inventory.
+fn why_unparsed(bytes: &[u8]) -> &'static str {
+    if bytes.iter().all(u8::is_ascii_whitespace) {
+        "the file is empty"
+    } else {
+        "the file is no inventory JSON"
     }
 }
 
@@ -148,7 +161,15 @@ fn parse(bytes: &[u8]) -> Option<(Vec<String>, usize)> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse;
+    use super::{parse, why_unparsed};
+
+    #[test]
+    fn an_empty_file_is_told_from_one_that_is_no_inventory() {
+        assert_eq!(why_unparsed(b""), "the file is empty");
+        assert_eq!(why_unparsed(b" \r\n"), "the file is empty");
+        assert_eq!(why_unparsed(b"not json"), "the file is no inventory JSON");
+        assert_eq!(parse(b""), None);
+    }
 
     #[test]
     fn only_the_item_ids_are_read_ordered_and_without_repeats() {

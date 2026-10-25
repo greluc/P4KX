@@ -4,7 +4,7 @@
 use std::fmt;
 
 /// Something that makes the crafting data incomplete or ambiguous without failing a Record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CraftingWarning {
     /// The DataForge holds more References than the reference index keeps, so
@@ -18,8 +18,14 @@ pub enum CraftingWarning {
     /// [`Crafting::dismantle_return`](crate::Crafting::dismantle_return) links no blueprint.
     AmbiguousDismantle(usize),
     /// This many ships have a vehicle implementation file or Modification patch file that exists
-    /// but cannot be read, so no paint is assigned through it.
-    UnreadableVehicleFiles(usize),
+    /// but cannot be read, so no paint is assigned through it. `details` names the files and why
+    /// they cannot be read, ordered and without repeats. A file the Archive lacks is no such ship.
+    UnreadableVehicleFiles {
+        /// The number of ships.
+        count: usize,
+        /// One entry per file: its path and the reason.
+        details: Vec<String>,
+    },
     /// This many references to containers that cannot be read, Child elements with a malformed or
     /// out-of-range placement and walk limits were hit, so the starmap objects below them have no
     /// position. A container the Archive lacks is not counted.
@@ -34,14 +40,41 @@ pub enum CraftingWarning {
     /// read, so the shops they hold may lack kind and brand.
     UnreadableShopContainers(usize),
     /// This many inventory files that shop containers name cannot be read, so the shops that use
-    /// them have no item list.
-    UnreadableShopInventories(usize),
+    /// them have no item list. `details` names the files and why they cannot be read, ordered and
+    /// without repeats.
+    UnreadableShopInventories {
+        /// The number of files.
+        count: usize,
+        /// One entry per file: its path and the reason.
+        details: Vec<String>,
+    },
     /// This many distinct inventory files that shop containers name are not in the Archive, so
     /// the shops that use them have no item list; the files may have moved in this Build.
     MissingShopInventories(usize),
     /// Shop containers name shops, but no `.soc` holds a shop component, so no shop has an item
     /// list; the component layout may have changed in this Build.
     NoShopComponents,
+}
+
+const LISTED_DETAILS: usize = 8;
+
+/// The details of a warning as ` (a; b)`, empty for none; lists at most [`LISTED_DETAILS`].
+struct Listed<'a>(&'a [String]);
+
+impl fmt::Display for Listed<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Some(first) = self.0.first() else {
+            return Ok(());
+        };
+        write!(f, " ({first}")?;
+        for detail in self.0.iter().take(LISTED_DETAILS).skip(1) {
+            write!(f, "; {detail}")?;
+        }
+        match self.0.len().checked_sub(LISTED_DETAILS) {
+            Some(more) if more > 0 => write!(f, "; and {more} more)"),
+            _ => f.write_str(")"),
+        }
+    }
 }
 
 impl fmt::Display for CraftingWarning {
@@ -58,9 +91,10 @@ impl fmt::Display for CraftingWarning {
                 f,
                 "the DataForge holds {count} dismantle processes instead of one; no dismantle return is linked"
             ),
-            Self::UnreadableVehicleFiles(count) => write!(
+            Self::UnreadableVehicleFiles { count, details } => write!(
                 f,
-                "{count} ships have a vehicle file that cannot be read; their paints are missing"
+                "{count} ships have a vehicle file that cannot be read; their paints are missing{}",
+                Listed(details)
             ),
             Self::UnplacedStarmapContainers(count) => write!(
                 f,
@@ -76,9 +110,10 @@ impl fmt::Display for CraftingWarning {
                 f,
                 "{count} shop containers cannot be read; the shops in them may lack kind and brand"
             ),
-            Self::UnreadableShopInventories(count) => write!(
+            Self::UnreadableShopInventories { count, details } => write!(
                 f,
-                "{count} shop inventory files cannot be read; the shops that use them have no item list"
+                "{count} shop inventory files cannot be read; the shops that use them have no item list{}",
+                Listed(details)
             ),
             Self::MissingShopInventories(count) => write!(
                 f,

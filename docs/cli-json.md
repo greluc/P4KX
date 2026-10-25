@@ -565,6 +565,8 @@ trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII le
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
 sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
+soundbank or loose Entry holds. `cancelled` is true when Ctrl+C stopped the export before it handled
+every sound; no partial file is left. Exit code 1 when anything is in `failures` or `unconverted`,
 or `cancelled` is true.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and

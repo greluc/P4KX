@@ -26,6 +26,43 @@ struct Tally {
     missing_by_movie: BTreeMap<String, usize>,
     unresolved: BTreeMap<String, usize>,
     errors: Vec<String>,
+    imports: usize,
+    clashing_names: usize,
+    own_export_clashes: usize,
+    budget_hits: usize,
+}
+
+fn count_imports(assets: &Assets<'_>, budget_hits: usize, tally: &mut Tally) {
+    let used: Vec<u16> = assets
+        .static_texts
+        .iter()
+        .flat_map(|text| text.records.iter().filter_map(|record| record.font_id))
+        .chain(assets.edit_texts.iter().filter_map(|text| text.font_id))
+        .collect();
+    let mut urls: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for import in &assets.imports {
+        for asset in import
+            .assets
+            .iter()
+            .filter(|asset| used.contains(&asset.id))
+        {
+            tally.imports += 1;
+            let name = asset.name.to_ascii_lowercase();
+            if assets.fonts.iter().any(|font| {
+                font.export_name
+                    .as_deref()
+                    .is_some_and(|own| own.eq_ignore_ascii_case(&name))
+            }) {
+                tally.own_export_clashes += 1;
+            }
+            let from = urls.entry(name).or_default();
+            if !from.contains(&import.url.as_str()) {
+                from.push(import.url.as_str());
+            }
+        }
+    }
+    tally.clashing_names += urls.values().filter(|from| from.len() > 1).count();
+    tally.budget_hits += budget_hits;
 }
 
 fn is_movie(entry: &Entry) -> bool {
@@ -78,6 +115,13 @@ fn tally_movie(archive: &Archive, entry: &Entry, tally: &mut Tally) -> TestResul
             .or_default() += 1;
     }
     count_fields(&assets, &unresolved, tally);
+    let over_budget = render
+        .imports
+        .unresolved
+        .iter()
+        .filter(|import| import.issue == ImportIssue::OverBudget)
+        .count();
+    count_imports(&assets, over_budget, tally);
     Ok(())
 }
 

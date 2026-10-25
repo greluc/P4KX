@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::rc::Rc;
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_gfx::{Assets, Export, Font, Import, Movie};
+use p4kx_localization::Language;
 
 use crate::sound::read_capped;
 use crate::ui_import_match::{candidates, contained, folder_of};
@@ -22,7 +23,8 @@ pub const MAX_IMPORTED_MOVIES: usize = 16;
 /// The most fonts one render takes from other movies.
 pub const MAX_IMPORTED_FONTS: usize = 256;
 
-/// The most bytes of decompressed movies one render reads to resolve imports.
+/// The most bytes of movies one render reads to resolve imports, each counted by the larger of its
+/// Entry size and the uncompressed length its header declares, checked before it is decompressed.
 pub const MAX_IMPORT_BYTES: u64 = 256 << 20;
 
 const MAX_CANDIDATES: usize = 2;
@@ -103,6 +105,7 @@ enum Slot {
 
 struct Resolver<'a> {
     archive: &'a Archive,
+    language: Language,
     slots: HashMap<usize, Slot>,
     found: HashMap<(String, String), Vec<usize>>,
     bytes: u64,
@@ -110,11 +113,14 @@ struct Resolver<'a> {
 }
 
 /// Resolves the fonts that texts of `assets`, read from the Entry `importer`, use by an imported
-/// ID: the exporting movies are looked up in `archive` and read once each.
+/// ID: the exporting movies are looked up in `archive`, with the localisation folder of
+/// `language` as the fallback, and read once each. Every (URL, name) pair is resolved once, so
+/// two imports of one name from different movies stay two fonts.
 pub(crate) fn resolve_fonts(
     archive: &Archive,
     importer: &str,
     assets: &Assets<'_>,
+    language: Language,
 ) -> ImportedFonts {
     let mut used: Vec<u16> = assets
         .static_texts
@@ -126,28 +132,31 @@ pub(crate) fn resolve_fonts(
     used.dedup();
     let mut resolver = Resolver {
         archive,
+        language,
         slots: HashMap::new(),
         found: HashMap::new(),
         bytes: 0,
         out: ImportedFonts::default(),
     };
     let folder = folder_of(importer);
+    let mut seen: HashSet<(String, String)> = HashSet::new();
     for import in &assets.imports {
         for asset in import
             .assets
             .iter()
-            .filter(|asset| used.contains(&asset.id))
+            .filter(|asset| used.binary_search(&asset.id).is_ok())
         {
-            if resolver.out.fonts.iter().any(|font| {
-                font.export_name
-                    .as_deref()
-                    .is_some_and(|name| name.eq_ignore_ascii_case(&asset.name))
-            }) {
+            let key = (
+                import.url.to_ascii_lowercase(),
+                asset.name.to_ascii_lowercase(),
+            );
+            if !seen.insert(key) {
                 continue;
             }
             match resolver.font(&import.url, &asset.name, folder, 0, &mut Vec::new()) {
                 Ok(mut font) => {
                     font.export_name = Some(asset.name.clone());
+                    font.import_url = Some(import.url.clone());
                     resolver.out.fonts.push(font);
                 }
                 Err(issue) => resolver.out.report.unresolved.push(UnresolvedImport {
@@ -237,7 +246,7 @@ impl Resolver<'_> {
         if let Some(found) = self.found.get(&key) {
             return found.clone();
         }
-        let found = candidates(self.archive, url, folder, MAX_CANDIDATES);
+        let found = candidates(self.archive, url, folder, self.language, MAX_CANDIDATES);
         self.found.insert(key, found.clone());
         found
     }
@@ -260,6 +269,15 @@ impl Resolver<'_> {
         result
     }
 
+    fn charge(&mut self, amount: u64) -> Option<()> {
+        let total = self
+            .bytes
+            .checked_add(amount)
+            .filter(|&total| total <= MAX_IMPORT_BYTES)?;
+        self.bytes = total;
+        Some(())
+    }
+
     fn read(&mut self, at: usize) -> Result<Rc<Loaded>, ImportIssue> {
         let entry: &Entry = self
             .archive
@@ -267,9 +285,7 @@ impl Resolver<'_> {
             .get(at)
             .ok_or(ImportIssue::NotFound)?;
         let size = entry.uncompressed_size();
-        if self.out.report.movies.len() >= MAX_IMPORTED_MOVIES
-            || self.bytes.saturating_add(size) > MAX_IMPORT_BYTES
-        {
+        if self.out.report.movies.len() >= MAX_IMPORTED_MOVIES || self.charge(size).is_none() {
             return Err(ImportIssue::OverBudget);
         }
         let reader = self
@@ -279,7 +295,14 @@ impl Resolver<'_> {
         let bytes = read_capped(reader, size, MAX_UI_MOVIE_LEN)
             .map_err(|error| ImportIssue::Unreadable(error.to_string()))?
             .ok_or_else(|| ImportIssue::Unreadable("the movie is too large".to_owned()))?;
-        self.bytes += bytes.len() as u64;
+        let declared = Movie::declared_len(&bytes)
+            .map_err(|error| ImportIssue::Unreadable(error.to_string()))?;
+        if self
+            .charge(u64::from(declared).saturating_sub(size))
+            .is_none()
+        {
+            return Err(ImportIssue::OverBudget);
+        }
         let movie =
             Movie::parse(bytes).map_err(|error| ImportIssue::Unreadable(error.to_string()))?;
         let mut assets = movie.assets();
@@ -309,7 +332,8 @@ impl UiMovie<'_> {
     pub fn import_source(&self, url: &str) -> Result<Self, ConversionError> {
         match self.origin() {
             Origin::Entry(archive) => {
-                let entry = candidates(archive, url, folder_of(self.name()), 1)
+                let language = self.font_language();
+                let entry = candidates(archive, url, folder_of(self.name()), language, 1)
                     .first()
                     .and_then(|&at| archive.entries().get(at))
                     .ok_or_else(|| UnknownEntries(vec![url.to_owned()]))?;

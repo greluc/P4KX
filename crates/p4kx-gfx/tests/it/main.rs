@@ -20,3 +20,4 @@ mod svg_parity;
 mod svg_support;
 mod tags;
 mod text;
+mod text_whitespace;

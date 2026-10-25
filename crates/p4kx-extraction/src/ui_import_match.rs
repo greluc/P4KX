@@ -4,9 +4,9 @@
 use std::path::PathBuf;
 
 use p4kx_archive::Archive;
+use p4kx_localization::Language;
 use rayon::prelude::*;
 
-const LANGUAGE_FOLDER: &str = "data\\localization\\english\\";
 const UI_FOLDER: &str = "data\\ui\\";
 
 pub(crate) fn folder_of(path: &str) -> &str {
@@ -58,10 +58,18 @@ pub(super) fn contained(url: &str) -> Option<PathBuf> {
 }
 
 /// Returns the indexes of up to `limit` Entries that a movie in `folder` may mean by the import
-/// URL `url`, the best first: the exact path, the same tail below the UI folder or the English
-/// localisation folder, the same file name there, then anywhere. A `.swf` and a `.gfx` of the
-/// same name are alternatives, the one the URL names first.
-pub(crate) fn candidates(archive: &Archive, url: &str, folder: &str, limit: usize) -> Vec<usize> {
+/// URL `url`, the best first: the exact path, the same tail below the UI folder or the
+/// localisation folder of `language`, the same file name there, then anywhere. A `.swf` and a
+/// `.gfx` of the same name are alternatives, the one the URL names first; Entries that tie on
+/// all of it keep the order of the Archive.
+pub(crate) fn candidates(
+    archive: &Archive,
+    url: &str,
+    folder: &str,
+    language: Language,
+    limit: usize,
+) -> Vec<usize> {
+    let language_folder = format!("data\\localization\\{}\\", language.folder());
     let relative = normalised(&format!("{folder}\\{url}"));
     let file = url.rsplit(['\\', '/']).next().unwrap_or(url);
     let other = swapped(file);
@@ -89,9 +97,9 @@ pub(crate) fn candidates(archive: &Archive, url: &str, folder: &str, limit: usiz
                 0
             } else if suffixed && path.starts_with(UI_FOLDER) {
                 1
-            } else if suffixed && path.starts_with(LANGUAGE_FOLDER) {
+            } else if suffixed && path.starts_with(&language_folder) {
                 2
-            } else if folder_of(&path) == LANGUAGE_FOLDER.trim_end_matches('\\') {
+            } else if folder_of(&path) == language_folder.trim_end_matches('\\') {
                 3
             } else if path.starts_with(UI_FOLDER) {
                 4
@@ -101,6 +109,8 @@ pub(crate) fn candidates(archive: &Archive, url: &str, folder: &str, limit: usiz
             Some((twin + 2 * place, path, at))
         })
         .collect();
-    found.sort_unstable_by(|left, right| (left.0, &left.1).cmp(&(right.0, &right.1)));
+    found.sort_unstable_by(|left, right| {
+        (left.0, &left.1, left.2).cmp(&(right.0, &right.1, right.2))
+    });
     found.into_iter().take(limit).map(|(_, _, at)| at).collect()
 }

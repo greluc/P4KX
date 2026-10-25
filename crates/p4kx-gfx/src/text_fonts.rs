@@ -24,7 +24,8 @@ pub type Localise<'a> = &'a dyn Fn(&str) -> Option<String>;
 pub struct TextOptions<'a> {
     /// Fonts of other movies, searched by name only after the fonts of the movie, because a font
     /// ID means something only inside its own movie.
-    /// A font the movie imports is found by the name it imports it under.
+    /// A font the movie imports is found by the URL and the name it imports it under when
+    /// [`Font::import_url`] holds the URL, else by the name alone.
     pub fonts: &'a [Font],
     /// Looks a localisation key up, without its `@`; `None` leaves the key as it is.
     pub localise: Option<Localise<'a>>,
@@ -98,6 +99,7 @@ impl<'b> Fonts<'b> {
         let mut by_id = HashMap::new();
         let mut by_name = HashMap::new();
         let mut by_export = HashMap::new();
+        let mut by_import: HashMap<(String, String), usize> = HashMap::new();
         for (at, font) in list.iter().enumerate() {
             if at < movie.len() {
                 by_id.entry(font.id).or_insert(at);
@@ -108,14 +110,32 @@ impl<'b> Fonts<'b> {
                 }
             }
             if let Some(name) = font.export_name.as_ref().filter(|name| !name.is_empty()) {
-                by_export.entry(name.to_ascii_lowercase()).or_insert(at);
-                by_name.entry(name.to_ascii_lowercase()).or_insert(at);
+                let name = name.to_ascii_lowercase();
+                if let Some(url) = &font.import_url {
+                    by_import
+                        .entry((url.to_ascii_lowercase(), name.clone()))
+                        .or_insert(at);
+                } else {
+                    by_export.entry(name.clone()).or_insert(at);
+                }
+                by_name.entry(name).or_insert(at);
             }
         }
-        for asset in imports.iter().flat_map(|import| &import.assets) {
-            let name = asset.name.to_ascii_lowercase();
-            if let Some(&at) = by_export.get(&name).or_else(|| by_name.get(&name)) {
-                by_id.entry(asset.id).or_insert(at);
+        for import in imports {
+            let url = import.url.to_ascii_lowercase();
+            for asset in &import.assets {
+                let name = asset.name.to_ascii_lowercase();
+                let found = by_import
+                    .get(&(url.clone(), name.clone()))
+                    .or_else(|| by_export.get(&name))
+                    .or_else(|| {
+                        by_name.get(&name).filter(|&&at| {
+                            list.get(at).is_some_and(|font| font.import_url.is_none())
+                        })
+                    });
+                if let Some(&at) = found {
+                    by_id.entry(asset.id).or_insert(at);
+                }
             }
         }
         let indexes = list.iter().map(|_| OnceCell::new()).collect();

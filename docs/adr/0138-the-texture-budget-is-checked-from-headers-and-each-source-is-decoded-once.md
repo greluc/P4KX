@@ -39,6 +39,30 @@ differs from the colour texture's is refused before anything is decoded.
 without an Archive reports `texture_fallbacks: []` and one `textures_note`, as the text report
 prints one note, instead of one fallback per texture.
 
+## Amendment (issue #633)
+
+**What bounds a chunk.** "At most twelve sources" is a bound only if each texture is bounded. The
+archive loader limits a texture to 2^26 pixels, so twelve of them are about 3 GiB RGBA, and any
+other `TextureLoader` has no limit. The bound now lies in `p4kx-gltf`. Jobs still run in groups of
+at most four, but a group ends early when the distinct sources of its jobs, sized by `dimensions`,
+would exceed 2^27 pixels together (`MAX_DECODE_PIXELS`, 512 MiB RGBA). A source counts once
+however many jobs of the group use it. A source whose size the loader does not tell counts for the
+whole limit, so its job runs alone; one that cannot be sized counts for nothing and fails when
+decoded. The first job of a group always runs, so only one job whose own sources exceed the limit
+can pass it. Sizes are read once per source and kept.
+
+**Resulting peak.** The decoded sources in memory are those of one group, at most 2^27 pixels (or
+one job's), plus the held sources, at most 2^27 pixels (`MAX_HELD_PIXELS`): 2^28 pixels, 1 GiB
+RGBA, instead of about 3.5 GiB. Held sources stay while the next four jobs use them, so a source
+shared by jobs that are not neighbours is still decoded once while it fits the cap. Groups are
+chosen before any decode starts, so nothing waits inside the parallel decode.
+
+**Cancel.** `dimensions` of the GUI's stoppable loader fails after Cancel like `load`, so the
+header reads of the remaining groups stop too.
+
+**Test.** The shared-source regression test runs the build on a two-thread pool with a loader whose
+decode is itself parallel, and fails after a timeout instead of hanging if a job waits on another.
+
 ## Considered Options
 
 - Check only the per-texture limit: leaves the per-file budget to the post-decode check; rejected.

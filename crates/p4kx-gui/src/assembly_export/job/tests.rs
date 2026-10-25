@@ -3,8 +3,9 @@
 
 use std::io::{self, Write};
 
-use p4kx_extraction::CancelToken;
+use p4kx_extraction::{CancelToken, LoadedTexture, TextureLoadError, TextureLoader};
 
+use super::stop::StoppableTextures;
 use super::{Observed, Shared};
 
 /// A writer that cancels the export while it takes the first chunk.
@@ -36,6 +37,33 @@ fn a_write_after_the_cancel_fails_instead_of_being_retried_forever() {
     let error = result.expect_err("the second chunk meets the cancel");
     assert_eq!(error.kind(), io::ErrorKind::Other, "no retry by write_all");
     assert_eq!(shared.progress().done, 2, "only the first chunk counted");
+}
+
+struct Sized;
+
+impl TextureLoader for Sized {
+    fn load(&self, _path: &str, _mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+        Err(TextureLoadError::NotFound)
+    }
+
+    fn dimensions(&self, _path: &str, _mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        Ok(Some((4, 4)))
+    }
+}
+
+#[test]
+fn header_reads_stop_after_the_cancel() {
+    let cancel = CancelToken::new();
+    let inner = Sized;
+    let textures = StoppableTextures {
+        textures: &inner,
+        cancel: &cancel,
+    };
+
+    assert!(matches!(textures.dimensions("a.dds", 0), Ok(Some((4, 4)))));
+    cancel.cancel();
+
+    assert!(textures.dimensions("a.dds", 0).is_err(), "stopped");
 }
 
 #[test]

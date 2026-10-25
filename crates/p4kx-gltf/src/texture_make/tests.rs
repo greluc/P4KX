@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use p4kx_texture::RgbaImage;
 use rayon::prelude::*;
 
-use super::{Budget, Outcome, run, run_holding};
+use super::{Budget, Outcome, run, run_with};
 use crate::texture_cache::SourceStore;
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_pixels::Tints;
@@ -251,23 +251,86 @@ fn neighbouring_jobs(count: usize) -> Vec<Job> {
         .collect()
 }
 
+fn run_holding(jobs: &[Job], loader: &Squares, held: u64) -> Vec<Outcome> {
+    run_with(jobs, SourceStore::new(loader, 0, held), Budget::DEFAULT)
+}
+
 #[test]
 fn sources_shared_by_neighbouring_jobs_are_decoded_once_though_the_decode_is_parallel() {
-    let loader = Squares::new(4).parallel();
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(2)
+        .build()
+        .expect("a pool");
+    let (sender, receiver) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let loader = Squares::new(4).parallel();
+        let outcomes = pool.install(|| run(&neighbouring_jobs(64), 0, &loader, Budget::DEFAULT));
+        let _ = sender.send((made(&outcomes), loader.loads()));
+    });
 
-    let outcomes = run(&neighbouring_jobs(64), 0, &loader, Budget::DEFAULT);
+    let (images, loads) = receiver
+        .recv_timeout(std::time::Duration::from_secs(60))
+        .expect("the build finishes instead of waiting on a shared source");
 
-    assert_eq!(made(&outcomes), 64, "every image is made");
-    assert_eq!(loader.loads(), 33, "one decode per distinct source");
+    assert_eq!(images, 64, "every image is made");
+    assert_eq!(loads, 33, "one decode per distinct source");
+}
+
+#[test]
+fn a_group_of_jobs_decodes_no_more_pixels_than_the_limit() {
+    let loader = Squares::new(4).sized();
+    let jobs = normal_jobs(8);
+    let mut store = SourceStore::new(&loader, 0, 0).decoding(40);
+
+    assert_eq!(
+        store.group_len(&jobs, 4),
+        2,
+        "two sources of 16 pixels fit 40"
+    );
+    assert_eq!(store.group_len(&[], 4), 0);
+}
+
+#[test]
+fn a_source_shared_inside_a_group_counts_once() {
+    let loader = Squares::new(4).sized();
+    let jobs = neighbouring_jobs(8);
+    let mut store = SourceStore::new(&loader, 0, 0).decoding(32);
+
+    assert_eq!(
+        store.group_len(&jobs, 4),
+        3,
+        "s0, s1 and s1 again: 32 pixels"
+    );
+}
+
+#[test]
+fn a_job_larger_than_the_limit_or_of_unknown_size_runs_alone() {
+    let sized = Squares::new(4).sized();
+    let unsized_loader = Squares::new(4);
+    let mut small = SourceStore::new(&sized, 0, 0).decoding(8);
+    let mut unknown = SourceStore::new(&unsized_loader, 0, 0);
+
+    assert_eq!(small.group_len(&normal_jobs(4), 4), 1);
+    assert_eq!(unknown.group_len(&normal_jobs(4), 4), 1);
+}
+
+#[test]
+fn a_build_under_a_small_limit_makes_every_image() {
+    let loader = Squares::new(4).sized();
+    let store = SourceStore::new(&loader, 0, 0).decoding(20);
+
+    let outcomes = run_with(&neighbouring_jobs(9), store, Budget::DEFAULT);
+
+    assert_eq!(made(&outcomes), 9, "every image is made");
 }
 
 #[test]
 fn a_source_the_next_chunk_needs_is_held_only_within_the_cap() {
-    let kept = Squares::new(4);
-    let dropped = Squares::new(4);
+    let kept = Squares::new(4).sized();
+    let dropped = Squares::new(4).sized();
 
-    run_holding(&neighbouring_jobs(8), 0, &kept, Budget::DEFAULT, 16);
-    run_holding(&neighbouring_jobs(8), 0, &dropped, Budget::DEFAULT, 15);
+    run_holding(&neighbouring_jobs(8), &kept, 16);
+    run_holding(&neighbouring_jobs(8), &dropped, 15);
 
     assert_eq!(
         kept.loads(),

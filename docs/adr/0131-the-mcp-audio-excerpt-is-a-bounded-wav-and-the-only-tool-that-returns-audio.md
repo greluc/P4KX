@@ -33,7 +33,10 @@ out of the Archive:
 
 The audio index (every ATL definition and soundbank) is built once per open Archive and kept with
 it, by the first audio call. `ArchiveAudio::with_index` lets a service user keep the index itself.
-Audio calls take the model permit because they read whole soundbanks.
+The calls that read a WEM or a soundbank (`list_soundbank_wems`, `get_wem_info`,
+`get_audio_excerpt`) take a model permit inside the tool, after the audio index is built or
+fetched, so a minutes-long index build never holds a permit. The trigger and Entity tools only
+read the index and take none.
 
 Memory per call, stated honestly: the source is read whole before it is parsed. A loose WEM up to
 512 MiB (the cap of `Sound`), a soundbank up to 32 MiB (the cap of the audio index; a larger

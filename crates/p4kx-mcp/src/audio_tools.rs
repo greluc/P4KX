@@ -44,9 +44,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<SearchTriggersParams>,
     ) -> Result<Noted<TriggerSearchResult>, String> {
-        let permit = self.model_permit().await?;
         self.run(move |state| {
-            let _permit = permit;
             let search = capped(
                 "search",
                 params.search.as_deref().unwrap_or_default(),
@@ -79,9 +77,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<EntitySoundsParams>,
     ) -> Result<Noted<EntitySoundsResult>, String> {
-        let permit = self.model_permit().await?;
         self.run(move |state| {
-            let _permit = permit;
             let entity = capped("entity", &params.entity, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
             let listing = ("get_entity_sounds", opened.version(), entity);
@@ -112,9 +108,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<TriggerParams>,
     ) -> Result<Noted<TriggerSoundsResult>, String> {
-        let permit = self.model_permit().await?;
         self.run(move |state| {
-            let _permit = permit;
             capped("trigger", &params.trigger, MAX_NAME_LEN)?;
             capped(
                 "lang",
@@ -159,13 +153,12 @@ impl Server {
         &self,
         Parameters(params): Parameters<SoundbankParams>,
     ) -> Result<Noted<SoundbankWemsResult>, String> {
-        let permit = self.model_permit().await?;
         self.run(move |state| {
-            let _permit = permit;
             let soundbank = capped("soundbank", &params.soundbank, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
             let listing = ("list_soundbank_wems", opened.version(), soundbank);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
+            let _permit = state.model().hold()?;
             audio_wem::soundbank_wems(&opened, &params, page)
         })
         .await
@@ -190,10 +183,10 @@ impl Server {
         &self,
         Parameters(params): Parameters<WemParams>,
     ) -> Result<Noted<WemInfoResult>, String> {
-        let permit = self.model_permit().await?;
         self.run(move |state| {
-            let _permit = permit;
             let opened = state.archive(params.archive.as_deref())?;
+            opened.audio_index();
+            let _permit = state.model().hold()?;
             audio_wem::info(&opened, &params)
         })
         .await
@@ -219,11 +212,11 @@ impl Server {
         &self,
         Parameters(params): Parameters<ExcerptParams>,
     ) -> Result<Sounded<ExcerptResult>, String> {
-        let permit = self.model_permit().await?;
         let done = self
             .run(move |state| {
-                let _permit = permit;
                 let opened = state.archive(params.archive.as_deref())?;
+                opened.audio_index();
+                let _permit = state.model().hold()?;
                 audio_excerpt::excerpt(&opened, &params)
             })
             .await?;

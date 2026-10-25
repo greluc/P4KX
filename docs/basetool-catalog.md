@@ -806,7 +806,7 @@ media: name and record stay on the entry in `ships` or `items`, so no GUID occur
 |-------|--------|
 | `entityGuid` | The `guid` of the entry in `ships` or `items` the ports belong to |
 | `entityKind` | `ship` or `item`; a closed set the game may extend, so the schema keeps a string |
-| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `xml_loadout`, `vehicle_implementation`; empty when all was read. A patch file the Archive lacks is a `vehicle_implementation` issue, a fact of the game data |
+| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `xml_loadout`, `vehicle_implementation`; empty when all was read. A vehicle implementation or a patch file the Archive lacks is a `vehicle_implementation` issue too, a fact of the game data |
 | `ports` | The ports of the entity, see below |
 
 **Selection.** Every entry of `ships` has a loadout, also one without ports. An entry of `items`
@@ -1155,7 +1155,9 @@ agree in length everywhere). The chains have 4 to 9 elements.
 (`unreadable_shop_registry`), when the Archive holds starmap objects but no registry at the known
 path (`missing_shop_registry`, the registry may have moved in the Build) and when shop containers
 cannot be read (`unreadable_shop_containers` with a `count`; their shops may lack kind and brand)
-or inventory files cannot be read (`unreadable_shop_inventories` with a `count` of files), when
+or inventory files cannot be read (`unreadable_shop_inventories` with a `count` of files and
+`details`, the path and the reason of each; a file with no content at all, such as
+`inv_shopping_test_featuretest.json` on LIVE 4.10.197 and the PTU Build, is one of them, ADR-0141), when
 inventory files that containers name are not in the Archive (`missing_shop_inventories` with a
 `count` of distinct files; a Build may have moved or renamed them) and when shop containers name
 shops but no `.soc` holds a shop component (`no_shop_components`; the layout may have changed).

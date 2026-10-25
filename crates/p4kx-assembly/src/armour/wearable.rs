@@ -3,7 +3,7 @@
 
 use p4kx_dataforge::Guid;
 
-use super::BodyVariant;
+use super::{BodyVariant, ZoneChunk, ZoneList};
 use crate::spec::EntitySpec;
 use crate::{Geometry, GeometryVariant, MaterialVariant};
 
@@ -28,6 +28,7 @@ pub struct Wearable {
     pub(crate) variants: Vec<GeometryVariant>,
     pub(crate) tags: Vec<String>,
     pub(crate) material_variants: Vec<MaterialVariant>,
+    pub(crate) zones: ZoneList,
 }
 
 impl Wearable {
@@ -43,7 +44,15 @@ impl Wearable {
             variants: spec.variants.clone(),
             tags: spec.attach_tags.clone(),
             material_variants: spec.material_variants.clone(),
+            zones: spec.zones.clone(),
         }
+    }
+
+    /// Returns the zones of the body the Entity covers when it is worn, from the Record's
+    /// `SCItemClothingParams`.
+    #[must_use]
+    pub fn zones(&self) -> &[ZoneChunk] {
+        &self.zones.chunks
     }
 
     /// Returns the tags of the Entity's `AttachDef`, e.g. `hairVar_Brown` for a hair colour.

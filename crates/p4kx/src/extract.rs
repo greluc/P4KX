@@ -3,6 +3,7 @@
 
 use std::fs;
 use std::io::{self, Write};
+use std::num::NonZeroUsize;
 use std::path::{Path, PathBuf};
 use std::process::{self, ExitCode};
 use std::time::SystemTime;
@@ -33,6 +34,28 @@ impl NoMatch {
     pub(crate) fn new(text: &str) -> Self {
         Self(text.to_owned())
     }
+
+    /// Returns what to try instead, after the way the Filter text is matched.
+    pub(crate) fn hint(&self) -> &'static str {
+        let text = &self.0;
+        if text.trim() != text {
+            "the Filter has leading or trailing whitespace, which is matched literally"
+        } else if text.contains(['*', '?']) && !text.starts_with('*') {
+            "a glob must match the whole path, which starts at its first folder; start the \
+             Filter with * to match anywhere"
+        } else if text.contains(['*', '?']) {
+            "a glob must match the whole path; end the Filter with * to match what follows, or \
+             drop the * and ? for text anywhere in the path"
+        } else {
+            "a Filter without * or ? matches text anywhere in the path, ignoring case and \
+             treating / and \\ alike; try less text, or see the paths with `p4kx search`"
+        }
+    }
+}
+
+/// Returns the line that tells what to try when `error` is a Filter that matched no Entry.
+pub(crate) fn no_match_hint(error: &anyhow::Error) -> Option<&'static str> {
+    error.downcast_ref::<NoMatch>().map(NoMatch::hint)
 }
 
 /// Extracts the requested Entries, showing progress, stopping on Ctrl+C and quitting on a second
@@ -50,6 +73,7 @@ pub(crate) fn run(args: &ExtractArgs, as_json: bool) -> Result<ExitCode> {
         textures: textures(args),
         audio: audio(args.audio),
         verify: args.verify,
+        threads: args.threads,
         cancel_after: args.cancel_after,
     };
     execute(&archive, &entries, &settings, as_json)
@@ -69,6 +93,8 @@ pub(crate) struct Settings<'a> {
     pub(crate) audio: AudioConversion,
     /// Whether each Entry is checked against its checksum while it is written.
     pub(crate) verify: bool,
+    /// The most worker threads, or `None` for one per logical processor.
+    pub(crate) threads: Option<NonZeroUsize>,
     /// Cancels the run once this many Entries have ended.
     pub(crate) cancel_after: Option<usize>,
 }
@@ -101,6 +127,7 @@ pub(crate) fn execute(
         textures: settings.textures,
         audio: settings.audio,
         verify: settings.verify,
+        threads: settings.threads,
         cancel: Some(&cancel),
         progress: Some(&on_progress),
         watch: Some(&watch),

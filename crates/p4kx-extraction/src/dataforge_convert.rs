@@ -11,7 +11,7 @@ use crate::buffers::Buffers;
 use crate::record_export::{RecordRun, write_records};
 use crate::record_files::RecordFiles;
 use crate::record_format::RecordFileFormat;
-use crate::write::{Chunk, EntryWriter, Outcome, create_folders};
+use crate::write::{Chunk, EntryWriter, Outcome};
 use crate::{ExtractionError, MAX_DATAFORGE_SIZE, RecordExportReport};
 
 const INITIAL_RESERVE: u64 = 64 << 20;
@@ -70,7 +70,10 @@ impl EntryWriter<'_> {
             return Ok((Outcome::Cancelled, None));
         }
         let forge = DataForge::open(bytes).map_err(ExtractionError::DataForge)?;
-        let folder = create_folders(self.target, relative.parent())?;
+        let folder = self
+            .tracker
+            .folders
+            .folder(self.target, relative.parent())?;
         let records: Vec<Record<'_>> = forge.records().collect();
         let rest = size.saturating_sub(credited.load(Ordering::Relaxed));
         let share = rest.checked_div(records.len() as u64).unwrap_or_default();

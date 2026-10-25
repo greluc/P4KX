@@ -186,7 +186,10 @@ impl EntryWriter<'_> {
             .relative_path(entry)
             .ok_or(ExtractionError::UnsafePath)?;
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
-        let folder = create_folders(self.target, relative.parent())?;
+        let folder = self
+            .tracker
+            .folders
+            .folder(self.target, relative.parent())?;
         Destination::new(folder, name)
     }
 

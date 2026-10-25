@@ -6,11 +6,13 @@
 
 mod animate;
 mod body;
+mod body_zones;
 mod build;
 mod dress;
 mod expressions;
 mod face_build;
 mod facial;
+mod flat_layers;
 mod follow;
 mod forge_items;
 mod head;
@@ -22,8 +24,10 @@ mod npc;
 mod piece;
 mod sample;
 mod shape;
+mod uncover;
 mod unused;
 mod wearable;
+mod zones;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -46,6 +50,8 @@ pub use npc::NpcHead;
 pub use piece::Piece;
 pub use shape::MAX_DNA_RIG_LEN;
 pub use wearable::Wearable;
+pub use zones::ZoneChunk;
+pub(crate) use zones::{ZoneList, read_zones};
 
 use crate::Issue;
 
@@ -164,6 +170,16 @@ impl Armour {
     #[must_use]
     pub fn issues(&self) -> &[Issue] {
         &self.issues
+    }
+
+    /// Returns, per part, the layered materials that have no diffuse map and are drawn in the
+    /// colours of their layers; report them when the textures are drawn.
+    #[must_use]
+    pub fn layer_issues(&self) -> Vec<Issue> {
+        self.parts
+            .iter()
+            .filter_map(flat_layers::flat_layers)
+            .collect()
     }
 
     /// Returns the level of detail the models were read at.

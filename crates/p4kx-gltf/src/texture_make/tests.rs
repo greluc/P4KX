@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use p4kx_texture::RgbaImage;
 use rayon::prelude::*;
 
-use super::{Budget, Outcome, run, run_holding};
+use super::{Budget, Outcome, run, run_with};
 use crate::texture_cache::SourceStore;
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_pixels::Tints;
@@ -234,61 +234,7 @@ fn a_texture_shared_by_two_jobs_is_decoded_once() {
     assert_eq!(loader.loads(), 1, "from one decode");
 }
 
-fn neighbouring_jobs(count: usize) -> Vec<Job> {
-    (0..count)
-        .map(|number| {
-            let path = format!("objects/s{}_ddna.dds", number.div_ceil(2));
-            Job {
-                key: Key::Normal {
-                    normal: format!("{path}#{number}"),
-                },
-                diffuse: None,
-                normal: Some(source(path, true)),
-                specular: None,
-                tints: TINTS,
-            }
-        })
-        .collect()
-}
-
-#[test]
-fn sources_shared_by_neighbouring_jobs_are_decoded_once_though_the_decode_is_parallel() {
-    let loader = Squares::new(4).parallel();
-
-    let outcomes = run(&neighbouring_jobs(64), 0, &loader, Budget::DEFAULT);
-
-    assert_eq!(made(&outcomes), 64, "every image is made");
-    assert_eq!(loader.loads(), 33, "one decode per distinct source");
-}
-
-#[test]
-fn a_source_the_next_chunk_needs_is_held_only_within_the_cap() {
-    let kept = Squares::new(4);
-    let dropped = Squares::new(4);
-
-    run_holding(&neighbouring_jobs(8), 0, &kept, Budget::DEFAULT, 16);
-    run_holding(&neighbouring_jobs(8), 0, &dropped, Budget::DEFAULT, 15);
-
-    assert_eq!(
-        kept.loads(),
-        5,
-        "the source across the chunk boundary is held"
-    );
-    assert_eq!(dropped.loads(), 6, "over the cap it is decoded again");
-}
-
-#[test]
-fn the_held_sources_never_exceed_the_cap() {
-    let loader = Squares::new(4);
-    let jobs = neighbouring_jobs(8);
-    let mut store = SourceStore::new(&loader, 0, 16);
-
-    let decoded = store.prepare(&jobs[..4]);
-    store.keep(decoded, &jobs[4..]);
-
-    assert!(store.held_pixels() <= 16, "{}", store.held_pixels());
-    assert!(store.held_pixels() > 0, "the shared source is held");
-}
+mod groups;
 
 #[test]
 fn a_texture_whose_size_cannot_be_read_fails_its_job_at_once() {

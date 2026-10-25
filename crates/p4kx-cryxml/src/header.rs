@@ -15,6 +15,7 @@ pub(crate) struct Header<'a> {
     pub(crate) byte_order: ByteOrder,
     pub(crate) nodes: &'a [u8],
     pub(crate) attributes: &'a [u8],
+    pub(crate) children: &'a [u8],
     pub(crate) strings: &'a [u8],
 }
 
@@ -34,12 +35,13 @@ impl<'a> Header<'a> {
         };
         let nodes = table(Table::Nodes, NODE_LEN)?;
         let attributes = table(Table::Attributes, ATTRIBUTE_LEN)?;
-        let _children = table(Table::Children, CHILD_LEN)?;
+        let children = table(Table::Children, CHILD_LEN)?;
         let strings = table(Table::Strings, 1)?;
         Ok(Self {
             byte_order,
             nodes,
             attributes,
+            children,
             strings,
         })
     }

@@ -79,7 +79,7 @@ impl Tally {
     }
 
     /// Decides from the header sizes whether `job` may run, and holds back its pixels if so.
-    pub(crate) fn plan(&mut self, job: &Job, store: &SourceStore<'_>) -> Verdict {
+    pub(crate) fn plan(&mut self, job: &Job, store: &mut SourceStore<'_>) -> Verdict {
         if self.spent() {
             return Verdict::Refused;
         }

@@ -481,7 +481,11 @@ Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometr
 (the Record names geometry per body, but none for this one; the piece is left out),
 `geometry_missing` and `geometry_unreadable` (the model is not in the Archive or cannot be read),
 `bones_not_in_skeleton` (some bones of the model are not in the body skeleton and follow their
-nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is) and
+nearest parent that is), `not_skinned` (the model has no bone weights and is placed as it is),
+`body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of
+the body are left out, ADR-0140), `body_zones_unknown` (the submeshes of the body skin do not fit
+the zone table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the reason counts the layered
+materials of the part that have no diffuse map and are drawn in their layer colours) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
 class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
 the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when
@@ -897,19 +901,19 @@ makes the crafting data incomplete or ambiguous although every Record was read, 
 with a `kind`: `reward_sources_truncated` (the reference index is truncated),
 `unreadable_reference_records` with a `count` (Records the index could not read) and
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
-`unreadable_vehicle_files` with a `count` (ships whose vehicle file cannot be read, so they have no paints) and
+`unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats; the JSON lists every file, stderr the first eight) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
 limits that left starmap objects without a position), `unreadable_shop_registry` (the shop registry exists but
 cannot be read, so `shops` is empty), `missing_shop_registry` (starmap objects but no registry at the known path)
 `unreadable_shop_containers` with a `count` (shop containers that cannot be read) and
-`unreadable_shop_inventories` with a `count` (inventory files that cannot be read),
+`unreadable_shop_inventories` with a `count` (inventory files that cannot be read) and `details` (as above: every file in the JSON),
 `missing_shop_inventories` with a `count` (distinct inventory files that containers name and the Archive lacks) and
 `no_shop_components` (shop containers name shops but no `.soc` holds a shop component); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
 Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit
 none (`unassigned`), the ships with at least one paint (`ships`) and the ships whose vehicle
-implementation is not read in full (`unreadable_vehicles`). `loadouts` counts the loadouts of
+implementation is present but cannot be read in full (`unreadable_vehicles`; a file the Archive lacks is not counted). `loadouts` counts the loadouts of
 ships (`ships`) and of items that have ports (`items`), the ports of all loadouts with the nested
 ones (`ports`), the ports that hold an Entity (`attached`), the ports that hold a docked vehicle
 (`docked_vehicles`), the attachments that cannot be resolved (`unresolved`), the distinct attached

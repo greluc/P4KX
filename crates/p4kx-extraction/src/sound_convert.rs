@@ -14,7 +14,7 @@ use crate::extract::Ended;
 use crate::sound_job::sound_role;
 use crate::texture_convert::Step;
 use crate::texture_job::Indexed;
-use crate::write::{Destination, EntryWriter, Outcome, create_folders};
+use crate::write::{Destination, EntryWriter, Outcome};
 use crate::{AudioConversion, ConflictPolicy, ConversionError, EntryFailure, ExtractionError};
 
 /// One sound to write: the folder it goes to, its file name without extension, the name its
@@ -166,7 +166,10 @@ impl EntryWriter<'_> {
         let stem = sound_role(&disk_name)
             .and_then(|(_, stem)| stem.rsplit(['\\', '/']).next())
             .ok_or(ExtractionError::UnsafePath)?;
-        let folder = create_folders(self.target, relative.parent())?;
+        let folder = self
+            .tracker
+            .folders
+            .folder(self.target, relative.parent())?;
         let sound = SoundFile {
             folder: &folder,
             stem,

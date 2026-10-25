@@ -21,6 +21,7 @@ pub(crate) const SHIP_ALPHA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SHIP_BETA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const SHIP_GAMMA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const SHIP_BROKEN: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const SHIP_MISSING: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0005;
 
 const PLANT: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const PAINT_TEST: u128 = 0x3000_0000_0000_4000_8000_0000_0000_0002;
@@ -229,6 +230,13 @@ fn ships() -> Vec<TestRecord> {
             SHIP_BROKEN,
             "ACAS_Broken",
             "scripts/entities/vehicles/implementations/xml/acas_broken.xml",
+            "",
+            Vec::new(),
+        ),
+        ship(
+            SHIP_MISSING,
+            "ACAS_Missing",
+            "scripts/entities/vehicles/implementations/xml/acas_missing.xml",
             "",
             Vec::new(),
         ),

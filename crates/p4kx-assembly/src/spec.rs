@@ -41,7 +41,7 @@ pub(crate) enum LoadoutSpec {
     /// Entries in the Record.
     Manual(Arc<[EntrySpec]>),
     /// An XML Loadout file, by the path the Record names.
-    Xml(String),
+    Xml(Arc<str>),
     /// Loadouts laid over each other in order, an outfit (`SItemPortLoadoutOutfitParams`): its
     /// base Loadout, then the Loadouts of the outfits that always apply. An entry without an
     /// Entity adds its nested entries to those of the earlier entry of the same port.
@@ -352,7 +352,7 @@ fn has_items(structure: &StructValue<'_>, name: &str) -> bool {
 fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Option<LoadoutSpec> {
     if loadout.type_name() == XML_LOADOUT {
         let path = text(loadout, "loadoutPath");
-        return (!path.is_empty()).then(|| LoadoutSpec::Xml(path.to_owned()));
+        return (!path.is_empty()).then(|| LoadoutSpec::Xml(Arc::from(path)));
     }
     if loadout.type_name() == OUTFIT_LOADOUT {
         return read_outfit(loadout, record);

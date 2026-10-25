@@ -76,6 +76,41 @@ fn report(built: &BuiltShipBase) {
     println!(
         "numbers cleaned of format characters {cleaned}, unreadable mass values {unreadable}, grids with an issue {grid_issues}"
     );
+    let partial_mass: usize = ships
+        .iter()
+        .filter_map(|ship| ship.mass.as_ref())
+        .map(|mass| mass.partial.len())
+        .sum();
+    let partial_hull: usize = ships
+        .iter()
+        .filter_map(|ship| ship.hull.as_ref())
+        .map(|hull| hull.partial.len())
+        .sum();
+    let mut suppliers = std::collections::BTreeMap::<String, usize>::new();
+    for port in ships.iter().flat_map(|ship| &ship.loadout) {
+        let key = port.supplied_by.as_ref().map_or_else(
+            || format!("{} none", port.origin),
+            |source| format!("{} {:?}", port.origin, source.kind),
+        );
+        *suppliers.entry(key).or_default() += 1;
+    }
+    let xml_ships: Vec<_> = ships
+        .iter()
+        .filter(|ship| {
+            ship.loadout.iter().any(|port| {
+                port.supplied_by
+                    .as_ref()
+                    .is_some_and(|source| source.kind == SourceKind::LoadoutXml)
+            })
+        })
+        .map(|ship| ship.class_name.as_str())
+        .take(8)
+        .collect();
+    println!("ships with a port supplied by an XML Loadout (first 8): {xml_ships:?}");
+    println!(
+        "partial values: mass {partial_mass}, hull {partial_hull}; ships with an XML Loadout {}; suppliers {suppliers:?}",
+        with(|s| s.loadout_source.kind == SourceKind::LoadoutXml)
+    );
     for class_name in [
         HARBINGER,
         FREELANCER_MAX,
@@ -163,6 +198,45 @@ fn every_ship_is_read_and_most_have_mass_hull_and_size() -> TestResult {
         .windows(2)
         .all(|pair| pair[0].guid.to_string() <= pair[1].guid.to_string());
     assert!(sorted, "ordered by GUID");
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn ports_name_the_xml_loadout_file_or_the_record_that_supplied_them() -> TestResult {
+    let built = built()?;
+    let terrapin = ship(built, "ANVL_Terrapin")?;
+    let from_file: Vec<_> = terrapin
+        .loadout
+        .iter()
+        .filter_map(|port| port.supplied_by.as_ref().map(|source| (port, source)))
+        .filter(|(_, source)| source.kind == SourceKind::LoadoutXml)
+        .collect();
+    assert!(
+        !from_file.is_empty(),
+        "the Terrapin has ports from an XML Loadout"
+    );
+    for (port, source) in from_file {
+        assert!(
+            source.file.to_ascii_lowercase().ends_with(".xml"),
+            "{}: {}",
+            port.port,
+            source.file
+        );
+        assert_eq!(source.field, "Loadout/Items");
+        assert!(matches!(port.origin, "loadout" | "override"), "{}", port.port);
+    }
+    for ship in built.ships() {
+        for port in &ship.loadout {
+            assert!(
+                port.supplied_by.is_some(),
+                "{}: port {} ({}) has no supplier",
+                ship.class_name,
+                port.port,
+                port.origin
+            );
+        }
+    }
     Ok(())
 }
 

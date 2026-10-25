@@ -4,7 +4,8 @@
 //! Ship base data: the provenance of Loadout ports, partly read numbers and cargo units.
 
 use crate::ship_followups_fixture::{
-    BASE_LOADOUT_FILE, CARGO, FROM_FILE, FROM_RECORD, LOADOUT_FILE, PARTIAL, write_archive,
+    BASE_LOADOUT_FILE, CARGO, DEFAULTED, FROM_FILE, FROM_RECORD, LOADOUT_FILE, NESTED, PARTIAL,
+    write_archive,
 };
 
 use std::error::Error;
@@ -92,6 +93,37 @@ fn a_record_loadout_names_the_record_for_each_port() -> TestResult {
         assert_eq!(supplier.field, ship.loadout_source.field, "{name}");
     }
     assert!(port(ship, "lost")?.unresolved.is_some());
+    Ok(())
+}
+
+#[test]
+fn a_port_default_names_the_record_that_defines_the_port() -> TestResult {
+    let built = build()?;
+    let ship = ship(&built, DEFAULTED)?;
+    let seat = port(ship, "seat")?;
+    assert_eq!(seat.origin, "port_default");
+    assert_eq!(seat.class_name.as_deref(), Some("ACME_Gun"));
+    let supplier = seat.supplied_by.as_ref().ok_or("no supplier")?;
+    assert_eq!(supplier.kind, SourceKind::Record);
+    assert_eq!(supplier.file, ship.record_path);
+    assert_eq!(
+        supplier.field,
+        "Components/SItemPortContainerComponentParams/Ports"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_override_port_filled_by_a_nested_entry_names_the_record() -> TestResult {
+    let built = build()?;
+    let ship = ship(&built, NESTED)?;
+    let hat = port(ship, "body/hat")?;
+    assert_eq!(hat.origin, "override");
+    assert_eq!(hat.class_name.as_deref(), Some("ACME_Gun"));
+    let supplier = hat.supplied_by.as_ref().ok_or("no supplier")?;
+    assert_eq!(supplier.kind, SourceKind::Record);
+    assert_eq!(supplier.file, ship.record_path);
+    assert_eq!(supplier.field, ship.loadout_source.field);
     Ok(())
 }
 

@@ -25,7 +25,7 @@ pub struct EntityNode {
     pub(crate) vehicle: Option<Arc<VehicleImplementation>>,
     pub(crate) landing_gear: Arc<[LandingGear]>,
     pub(crate) docked_vehicle: bool,
-    pub(crate) loadout_file: Option<String>,
+    pub(crate) loadout_file: Option<Arc<str>>,
     pub(crate) expanded: bool,
     pub(crate) attach_type: String,
     pub(crate) attach_sub_type: String,

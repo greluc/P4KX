@@ -9,13 +9,16 @@ use std::path::{Path, PathBuf};
 
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestCapacity, TestElement, TestEntity, TestEntry,
-    TestLoadout, TestLoadoutEntry, closed_container_record, entity_schema, open_container_record,
+    TestLoadout, TestLoadoutEntry, TestPort, closed_container_record, entity_schema,
+    open_container_record,
 };
 
 pub(crate) const FROM_FILE: u128 = 0x40;
 pub(crate) const FROM_RECORD: u128 = 0x41;
 pub(crate) const PARTIAL: u128 = 0x42;
 pub(crate) const CARGO: u128 = 0x43;
+pub(crate) const DEFAULTED: u128 = 0x44;
+pub(crate) const NESTED: u128 = 0x45;
 
 const GUN: u128 = 0x50;
 const RADAR: u128 = 0x51;
@@ -56,6 +59,12 @@ fn entities() -> Vec<TestEntity> {
             TestLoadoutEntry::class("grid_standard", "ACME_Grid_Standard"),
             TestLoadoutEntry::class("grid_micro", "ACME_Grid_Micro"),
             TestLoadoutEntry::class("grid_odd", "ACME_Grid_Odd"),
+        ])),
+        ship(DEFAULTED, "ACME_Defaulted").port(TestPort::new("seat").default_item(GUN)),
+        ship(NESTED, "ACME_Nested").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::empty("body").loadout(TestLoadout::Manual(vec![
+                TestLoadoutEntry::class("hat", "ACME_Gun"),
+            ])),
         ])),
         item(GUN, "ACME_Gun").attach_type("WeaponGun"),
         item(RADAR, "ACME_Radar").attach_type("Radar"),

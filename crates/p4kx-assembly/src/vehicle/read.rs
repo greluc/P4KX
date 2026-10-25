@@ -177,10 +177,15 @@ const UNIT_SUFFIXES: [&str; 3] = ["d", "f", "kg"];
 /// Returns whether `value` has a numeric prefix followed by a remainder other than white space or
 /// a unit suffix (`d`, `f`, `kg`), so that [`number`] reads only part of it, e.g. `12,5x` as 12.
 pub(crate) fn is_partial_number(value: &str) -> bool {
-    let cleaned: String = value
-        .chars()
-        .filter(|character| !is_format_character(*character))
-        .collect();
+    let cleaned: std::borrow::Cow<'_, str> = if value.chars().any(is_format_character) {
+        value
+            .chars()
+            .filter(|character| !is_format_character(*character))
+            .collect::<String>()
+            .into()
+    } else {
+        value.into()
+    };
     let text = cleaned.trim();
     let Some((_, end)) = numeric_prefix(text) else {
         return false;

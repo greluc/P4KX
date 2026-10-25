@@ -17,7 +17,7 @@ const XML: &str = r#"<Vehicle name="TEST_Ship">
       </DamageBehaviors>
       <Parts>
         <Part name="wing" id="wingId" class="Animated" mass="200" damageMax="100" detachRatio="0.25"/>
-        <Part name="thruster" class="ItemPort" mass="50" damageMax="80">
+        <Part name="thruster" class="ItemPort" mass="50" damageMax="80x">
           <ItemPort flags="$uneditable"/>
         </Part>
         <Part name="odd" class="Animated" mass="97858&#x202C;.0d" damagemax="&#x200E;10f"/>
@@ -93,7 +93,7 @@ fn the_hull_sums_the_damage_of_structural_parts_only() -> TestResult {
     assert_eq!(
         partial,
         [("bad", "damageMax", "12,5x", 12.0)],
-        "units d and f after a number are no partial read"
+        "units d and f are no partial read; the left-out thruster's 80x is in no sum"
     );
     let destroy = totals.destruction();
     assert_eq!(destroy.len(), 1);

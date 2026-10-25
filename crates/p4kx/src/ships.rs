@@ -50,8 +50,8 @@ pub(crate) fn run(args: &ShipsArgs, as_json: bool) -> Result<ExitCode> {
             .checked_add(Duration::from_secs(seconds))
             .ok_or_else(|| InvalidExportTime::of(seconds))?,
     };
-    let archive = crate::key::open(&args.archive)?;
     crate::guard::ensure_writable(&args.out)?;
+    let archive = crate::key::open(&args.archive)?;
     let filter = args.filter.as_deref().map(Filter::new);
     let cancel = cancel_on_interrupt()?;
     let line = ProgressLine::new();

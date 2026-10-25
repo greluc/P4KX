@@ -18,13 +18,15 @@ count as invisible format characters.
 - **Partial reads.** The prefix rule of ADR-0050 stays, so `12,5x` is still 12 and `1,5` still
   1. A remainder after the number other than white space, `d`, `f` or `kg` (ignoring case) is a
   partial read. The sums list it next to `unreadable` as `partial` with the part, the attribute,
-  the raw text and the number read; the value stays in the sum. Mass and hull each have the list
-  for their own attributes. It is additive within version 1 (ADR-0054).
+  the raw text and the number read, when the value enters a sum or a threshold; a left-out part,
+  a non-positive `damageMax` and an unused `detachRatio` are not listed. Mass and hull each have
+  the list for their own attributes. It is additive within version 1 (ADR-0054).
 - **Supplier per Loadout port.** Each `LoadoutPort` of `p4kx ships` has `suppliedBy`: the
   Record or XML Loadout file whose entry or port definition supplied the attachment. A Loadout
   entry gives its Record (field `Components/SEntityComponentDefaultLoadoutParams/loadout`) or the
   XML file it was read from, an included file counting as its own file (`kind` `loadoutXml`); a
-  `port_default` port gives the Record that defines the port; a port nothing names gives `null`.
+  `port_default` port gives the Record that defines the port (field
+  `Components/SItemPortContainerComponentParams/Ports`); a port nothing names gives `null`.
   `loadoutSource` names the XML file when the ship's Loadout is an XML Loadout. `p4kx-assembly`
   carries the supplier as `PortNode::origin` and `LoadoutOrigin`.
 - **Format characters.** `is_format_character` covers the whole of the general category Cf of

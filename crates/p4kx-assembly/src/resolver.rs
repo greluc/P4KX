@@ -121,7 +121,7 @@ impl<'f> LoadoutResolver<'f> {
 
     /// Resolves the default Loadout of `entity` like [`resolve`](Self::resolve), taking the
     /// Entity's own Record from `tree`, which the caller already built from it, so that the
-    /// Record is not built again.
+    /// Record is not built again. A `tree` of another Record is ignored.
     ///
     /// # Errors
     ///
@@ -131,7 +131,10 @@ impl<'f> LoadoutResolver<'f> {
         entity: &Record<'f>,
         tree: &RecordTree<'f>,
     ) -> Result<EntityNode, LoadoutError> {
-        if !self.specs.contains_key(&entity.guid()) && is_entity(entity) {
+        if tree.guid() == entity.guid()
+            && !self.specs.contains_key(&entity.guid())
+            && is_entity(entity)
+        {
             self.specs
                 .insert(entity.guid(), Arc::new(Ok(EntitySpec::read(tree))));
         }
@@ -240,7 +243,9 @@ impl<'f> LoadoutResolver<'f> {
             Some(LoadoutSpec::Layered(layers)) => self.layered_entries(layers),
             Some(LoadoutSpec::Xml(path)) => {
                 let Some(files) = self.files else {
-                    return Err(LoadoutError::NoLoadoutFiles { path: path.clone() });
+                    return Err(LoadoutError::NoLoadoutFiles {
+                        path: path.to_string(),
+                    });
                 };
                 self.xml
                     .entry(path.to_ascii_lowercase())

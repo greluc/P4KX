@@ -95,7 +95,7 @@ impl Piece {
 
 fn xml_paths(loadout: &LoadoutSpec, paths: &mut Vec<String>) {
     match loadout {
-        LoadoutSpec::Xml(path) => paths.push(path.clone()),
+        LoadoutSpec::Xml(path) => paths.push(path.to_string()),
         LoadoutSpec::Layered(layers) => {
             for layer in layers.iter() {
                 xml_paths(layer, paths);
@@ -127,7 +127,7 @@ impl<'f> LoadoutResolver<'f> {
     ///
     /// Returns the reason when no files were given to read it from or it cannot be read.
     pub fn resolve_file(&mut self, path: &str) -> Result<EntityNode, LoadoutError> {
-        let loadout = LoadoutSpec::Xml(path.to_owned());
+        let loadout = LoadoutSpec::Xml(path.into());
         self.entries(Some(&loadout))?;
         let spec = EntitySpec {
             guid: Guid::default(),

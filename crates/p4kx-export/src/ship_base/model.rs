@@ -84,8 +84,8 @@ pub struct UnreadablePartValue {
     pub raw: String,
 }
 
-/// A number attribute of a vehicle part of which only a prefix was read, e.g. `12,5x` as 12; the
-/// number is in the sum.
+/// A number attribute of a vehicle part that was read as its numeric prefix, e.g. `12,5x` as 12,
+/// and enters a sum or a threshold.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PartialPartValue {
     /// The part's name.
@@ -122,7 +122,7 @@ pub struct Mass {
     pub sources: Vec<SourceShare>,
     /// Part values that hold text but no number; they are not in the sum.
     pub unreadable: Vec<UnreadablePartValue>,
-    /// Part values of which only a prefix was read; they are in the sum.
+    /// Part values read as their numeric prefix that enter the sum.
     pub partial: Vec<PartialPartValue>,
     /// How many numbers had invisible format characters dropped before they were read.
     pub cleaned: usize,
@@ -158,7 +158,8 @@ pub struct Hull {
     pub detach: Vec<HullThreshold>,
     /// Part `damageMax` and `detachRatio` values that hold text but no number; they are not used.
     pub unreadable: Vec<UnreadablePartValue>,
-    /// Part `damageMax` and `detachRatio` values of which only a prefix was read; they are used.
+    /// Part `damageMax` and `detachRatio` values read as their numeric prefix that enter the sum
+    /// or a threshold.
     pub partial: Vec<PartialPartValue>,
     /// How many `damageMax` numbers had invisible format characters dropped before they were read.
     pub cleaned: usize,

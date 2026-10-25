@@ -59,8 +59,9 @@ tool version, export time). NDJSON has the ship objects only.
 `{kind, file, field}`. `kind` is `record` (`file` is a record path), `vehicleXml` (the vehicle
 implementation file), `patchXml` (the Modification's patch file) or `modification` (an `Elem` of the
 Modification, which sits in the vehicle implementation file; `field` names the Modification).
-`loadoutXml` is an XML Loadout file (`file` is its path, `field` is `Loadout/Items`). Sums list the sources as `sources: [{kind, file, field, values}]`, with the number of values each
-supplied; only the origins that supplied a value appear.
+`loadoutXml` is an XML Loadout file (`file` is its path, `field` is `Loadout/Items`). Sums list the
+sources as `sources: [{kind, file, field, values}]`, with the number of values each supplied; only
+the origins that supplied a value appear.
 
 ### Vehicle kind
 
@@ -80,8 +81,8 @@ part of it. When the parts state no mass the ship's rigid physics controller mas
 invisible Unicode format characters (U+202C and the like) inside them; `cleaned` counts the numbers
 that needed it. A `mass` that holds text but no number is listed in `unreadable` with its raw text
 and is not in the sum, never counted as 0. A number followed by anything but white space, `d`,
-`f` or `kg` (`12,5x`, `1,5`) is read as its numeric prefix (12, 1), stays in the sum and is listed
-in `partial` as `{part, attribute, raw, read}`. The format characters dropped are all of the
+`f` or `kg` (`12,5x`, `1,5`) is read as its numeric prefix (12, 1) and, when the value enters the
+sum, is listed in `partial` as `{part, attribute, raw, read}`. The format characters dropped are all of the
 Unicode category Cf (Unicode 16).
 
 ### Hull
@@ -91,7 +92,9 @@ port flagged `uneditable` or `invisible` (thrusters, intakes), `parts` the numbe
 vehicle implementation states hit points per part and no total, hence the sum over the parts; the
 exclusion keeps the replaceable hardware out of the hull. Both rules are read from the game data
 and reproduce no reference tool (ADR-0128). `damage` and `health` of a threshold are rounded to
-four decimals. `partial` lists the `damageMax` and `detachRatio` values read in part.
+four decimals. `partial` lists the `damageMax` and `detachRatio` values read as their prefix that enter the
+hull sum or a threshold; a left-out part, a non-positive `damageMax` or an unused `detachRatio`
+is not listed.
 `destruction` lists the parts that destroy the ship at `damageRatioMin` (1 when absent) of their
 `damageMax` (their first damage behaviour in the group `Destroy`); `detach` lists the parts with a
 `detachRatio` and no destroying behaviour, which detach at that share. Each entry has `part`,
@@ -134,7 +137,7 @@ Cargo that the Loadout does not reach (other containers, interior storage) is no
 be resolved, depth first in port order: `port` (names joined by `/`), `className`, `guid`,
 `origin` (`loadout`, `override` or `port_default`, ADR-0012), `suppliedBy` (a source: the Record
 or XML Loadout file whose entry supplied the attachment, the Record that defines the port for
-`port_default`, an included XML file as its own file), `unresolved` (the reason, or
+`port_default` (field `Components/SItemPortContainerComponentParams/Ports`), an included XML file as its own file), `unresolved` (the reason, or
 `null`) and `dockedVehicle` (present and `true` for a docked vehicle: its `AttachDef.Type` starts
 with `NOITEM_Vehicle`; it stays in its port and its own ports are not listed or counted). The walk
 is `EntityNode::loadout` of `p4kx-assembly`, which the Basetool catalog's loadout kind shares.

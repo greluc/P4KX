@@ -82,7 +82,7 @@ impl LoadoutResolver<'_> {
             landing_gear,
             docked_vehicle: attached_vehicle,
             loadout_file: match &spec.loadout {
-                Some(LoadoutSpec::Xml(path)) => Some(path.clone()),
+                Some(LoadoutSpec::Xml(path)) => Some(Arc::clone(path)),
                 _ => None,
             },
             expanded,

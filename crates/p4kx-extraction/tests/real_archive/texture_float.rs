@@ -31,11 +31,8 @@ fn is_float(entry: &Entry, archive: &Archive) -> Option<DdsHeader> {
         .read_to_end(&mut start)
         .ok()?;
     let header = DdsHeader::parse(&start).ok()?;
-    header
-        .format()
-        .to_string()
-        .ends_with("_FLOAT")
-        .then_some(header)
+    let format = header.format();
+    (format.is_high_range() && !format.to_string().starts_with("BC6H")).then_some(header)
 }
 
 fn check(archive: &Archive, path: &str) -> Result<String, String> {
@@ -56,6 +53,11 @@ fn check(archive: &Archive, path: &str) -> Result<String, String> {
         .map_err(|error| format!("{path}: {error}"))?;
     if images.len() != usize::try_from(header.images(level)).unwrap_or(0) {
         return Err(format!("{path}: {} images decoded", images.len()));
+    }
+    let rgba = format.to_string().starts_with("R16G16B16A16")
+        || format.to_string().starts_with("R32G32B32A32");
+    if rgba != images.iter().all(|image| image.alpha().is_some()) {
+        return Err(format!("{path}: alpha kept only by four-channel formats"));
     }
     if let Some(value) = images
         .iter()

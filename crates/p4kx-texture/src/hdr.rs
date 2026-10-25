@@ -15,6 +15,7 @@ pub struct HdrImage {
     width: u32,
     height: u32,
     pixels: Vec<f32>,
+    alpha: Option<Vec<f32>>,
 }
 
 impl HdrImage {
@@ -40,7 +41,32 @@ impl HdrImage {
             width,
             height,
             pixels,
+            alpha: None,
         })
+    }
+
+    /// Returns the image with the alpha channel `alpha`, one value per pixel, row by row from
+    /// the top.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TextureError::MipLength`] when `alpha` does not hold one value per pixel.
+    pub fn with_alpha(mut self, alpha: Vec<f32>) -> Result<Self, TextureError> {
+        let expected = self.pixels.len() as u64 / RGB as u64;
+        if alpha.len() as u64 != expected {
+            return Err(TextureError::MipLength {
+                expected,
+                actual: alpha.len() as u64,
+            });
+        }
+        self.alpha = Some(alpha);
+        Ok(self)
+    }
+
+    /// Returns the alpha channel, one value per pixel, or `None` when the image has none.
+    #[must_use]
+    pub fn alpha(&self) -> Option<&[f32]> {
+        self.alpha.as_deref()
     }
 
     /// Returns the width in pixels.
@@ -64,7 +90,7 @@ impl HdrImage {
 
 impl TextureFormat {
     /// Returns whether the format holds values beyond 0..=1 that [`decode_hdr`] keeps: BC6H,
-    /// signed or unsigned, and the floating-point formats. Alpha is not kept.
+    /// signed or unsigned, and the floating-point formats.
     #[must_use]
     pub const fn is_high_range(self) -> bool {
         half_decoder(self).is_some() || FloatFormat::of(self).is_some()
@@ -83,8 +109,8 @@ const fn half_decoder(format: TextureFormat) -> Option<fn([u8; 16]) -> HalfTexel
 /// floating-point RGB without clipping its range, block rows in parallel.
 ///
 /// Every value is exactly the float the format specifies, a half float widened for BC6H and the
-/// 16-bit formats; a reserved BC6H mode decodes to zero. Channels a format lacks are zero and
-/// alpha is dropped.
+/// 16-bit formats; a reserved BC6H mode decodes to zero. Channels a format lacks are zero; the
+/// four-channel formats keep their alpha.
 ///
 /// # Errors
 ///
@@ -101,11 +127,19 @@ pub fn decode_hdr(
         let size = ImageSize::of(format, width, height, data, RGB)?;
         let mut pixels = vec![0.0; size.len()];
         size.for_each_row(data, &mut pixels, |src, dst| floats.rgb_row(src, dst));
-        return Ok(HdrImage {
+        let image = HdrImage {
             width,
             height,
             pixels,
-        });
+            alpha: None,
+        };
+        if !floats.has_alpha() {
+            return Ok(image);
+        }
+        let alpha_size = ImageSize::of(format, width, height, data, 1)?;
+        let mut alpha = vec![0.0; alpha_size.len()];
+        alpha_size.for_each_row(data, &mut alpha, |src, dst| floats.alpha_row(src, dst));
+        return image.with_alpha(alpha);
     }
     let decode_block = half_decoder(format).ok_or(TextureError::NotHighRange(format))?;
     let size = ImageSize::of(format, width, height, data, RGB)?;
@@ -117,5 +151,6 @@ pub fn decode_hdr(
         width,
         height,
         pixels,
+        alpha: None,
     })
 }

@@ -103,7 +103,21 @@ impl FloatFormat {
         });
     }
 
-    /// Converts the row `src` into the floating-point RGB row `dst`; alpha is not kept.
+    /// Returns whether the format stores an alpha channel.
+    pub(crate) const fn has_alpha(self) -> bool {
+        matches!(self, Self::Rgba16 | Self::Rgba32)
+    }
+
+    /// Converts the row `src` into the alpha row `dst`, one value per pixel.
+    pub(crate) fn alpha_row(self, src: &[u8], dst: &mut [f32]) {
+        self.each(src, |index, [_, _, _, a]| {
+            if let Some(target) = dst.get_mut(index) {
+                *target = a;
+            }
+        });
+    }
+
+    /// Converts the row `src` into the floating-point RGB row `dst`.
     pub(crate) fn rgb_row(self, src: &[u8], dst: &mut [f32]) {
         let (targets, _) = dst.as_chunks_mut::<3>();
         self.each(src, |index, [r, g, b, _]| {

@@ -74,7 +74,7 @@ one appears.
 (vector fields, colour charts, nebula faces), `R16G16_FLOAT` 28 (flow maps), `R16_FLOAT` 26 and
 `R32_FLOAT` 5 (signed distance field volumes). Before, all 107 were written as clamped 8-bit PNG;
 now each is detected as high range and written as OpenEXR, one file per image, 8-bit output
-tone-mapped. None has an alpha tail. The formats `R11G11B10_FLOAT`, `R9G9B9E5_SHAREDEXP`,
+tone-mapped. The alpha of the 48 four-channel textures is written to the EXR. None has an alpha tail. The formats `R11G11B10_FLOAT`, `R9G9B9E5_SHAREDEXP`,
 `R32G32_FLOAT`, `R32G32B32_FLOAT` and the signed 8-bit formats occur in no Channel; they decode
 with known-pixel tests. The format survey still reports 0 formats without a decoder.
 

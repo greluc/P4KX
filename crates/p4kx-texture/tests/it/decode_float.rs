@@ -69,9 +69,17 @@ fn every_floating_point_format_is_high_range() {
 }
 
 #[test]
-fn half_floats_keep_their_range_and_lose_alpha() -> Result<(), TextureError> {
+fn half_floats_keep_their_range_and_alpha() -> Result<(), TextureError> {
     let rgba = halves(&[0x4000, 0xC000, 0x5640, 0x3C00]);
     assert_eq!(hdr(R16G16B16A16_FLOAT, 1, &rgba)?, [2.0, -2.0, 100.0]);
+    let image = decode_hdr(dxgi(R16G16B16A16_FLOAT), 1, 1, &rgba)?;
+    assert_eq!(
+        image.alpha(),
+        Some(&[1.0][..]),
+        "the alpha of four channels"
+    );
+    let image = decode_hdr(dxgi(R16G16_FLOAT), 1, 1, &halves(&[0, 0]))?;
+    assert_eq!(image.alpha(), None, "two channels have none");
     assert_eq!(
         hdr(R16G16_FLOAT, 1, &halves(&[0x3800, 0x4400]))?,
         [0.5, 4.0, 0.0]
@@ -89,6 +97,12 @@ fn single_floats_keep_their_range() -> Result<(), TextureError> {
     assert_eq!(
         hdr(R32G32B32A32_FLOAT, 1, &singles(&wide))?,
         [1.5, -2.0, 1000.0]
+    );
+    let image = decode_hdr(dxgi(R32G32B32A32_FLOAT), 1, 1, &singles(&wide))?;
+    assert_eq!(
+        image.alpha(),
+        Some(&[0.25][..]),
+        "alpha beyond 8 bits is kept"
     );
     assert_eq!(
         hdr(R32G32B32_FLOAT, 1, &singles(&wide[..3]))?,
@@ -216,7 +230,11 @@ fn signed_eight_bit_formats_map_minus_one_to_zero_and_one_to_255() -> Result<(),
     assert_eq!(pixels(&image), [[0, 0, 0, 255]], "-128 counts as -127");
 
     let image = decode(dxgi(R8G8_SNORM), 1, 1, &[0x7F, 0x81])?;
-    assert_eq!(pixels(&image), [[255, 0, 0, 255]], "red and green");
+    assert_eq!(
+        pixels(&image),
+        [[255, 0, 128, 255]],
+        "red and green, blue at signed zero"
+    );
 
     let image = decode(
         dxgi(R8G8B8A8_SNORM),

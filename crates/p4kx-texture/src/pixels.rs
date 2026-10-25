@@ -104,7 +104,7 @@ impl PixelFormat {
                 let r = snorm(r);
                 [r, r, r, 255]
             }),
-            Self::Rg8Snorm => convert(src, dst, |[r, g]| [snorm(r), snorm(g), 0, 255]),
+            Self::Rg8Snorm => convert(src, dst, |[r, g]| [snorm(r), snorm(g), 128, 255]),
             Self::Rgba8Snorm => convert(src, dst, |[r, g, b, a]| {
                 [snorm(r), snorm(g), snorm(b), snorm_alpha(a)]
             }),

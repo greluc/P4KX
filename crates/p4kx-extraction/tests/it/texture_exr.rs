@@ -44,6 +44,27 @@ fn read_exr(path: &Path) -> Result<(Vec2<usize>, Vec<f32>), Box<dyn Error>> {
     Ok(image.layer_data.channel_data.pixels)
 }
 
+fn read_exr_alpha(path: &Path) -> Result<Vec<f32>, Box<dyn Error>> {
+    let image = exr::prelude::read()
+        .no_deep_data()
+        .largest_resolution_level()
+        .rgba_channels(
+            |resolution, _| (resolution, vec![0.0_f32; resolution.area()]),
+            |(resolution, alpha): &mut (Vec2<usize>, Vec<f32>),
+             position: Vec2<usize>,
+             (_, _, _, a): (f32, f32, f32, f32)| {
+                if let Some(slot) = alpha.get_mut(position.y() * resolution.width() + position.x())
+                {
+                    *slot = a;
+                }
+            },
+        )
+        .first_valid_layer()
+        .all_attributes()
+        .from_file(path)?;
+    Ok(image.layer_data.channel_data.pixels.1)
+}
+
 #[test]
 fn a_bc6h_mip_is_exported_as_exr_with_its_decoded_values() -> TestResult {
     for format in [95, 96] {
@@ -92,6 +113,10 @@ fn a_bc6h_mip_is_exported_as_tone_mapped_png_on_request() -> TestResult {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one loop checks the EXR, the alpha and the PNG of nine formats"
+)]
 fn a_floating_point_mip_is_exported_as_exr_and_as_tone_mapped_png() -> TestResult {
     for (dxgi_format, pixel_bytes) in [
         (10, 8),
@@ -135,6 +160,25 @@ fn a_floating_point_mip_is_exported_as_exr_and_as_tone_mapped_png() -> TestResul
                     || (read.is_nan() && decoded.is_nan())),
             "the decoded values of DXGI format {dxgi_format}"
         );
+
+        let read = read_exr_alpha(&out)?;
+        let bits = |values: &[f32]| {
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        match expected.alpha() {
+            Some(alpha) => assert_eq!(
+                bits(&read),
+                bits(alpha),
+                "the alpha of DXGI format {dxgi_format}"
+            ),
+            None => assert!(
+                read.iter().all(|a| a.to_bits() == 1.0_f32.to_bits()),
+                "no alpha reads as opaque for DXGI format {dxgi_format}"
+            ),
+        }
 
         let png = dir.path().join("field.png");
         texture.png_to_file(&png, 0)?;

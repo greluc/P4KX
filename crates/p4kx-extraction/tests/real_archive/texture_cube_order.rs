@@ -136,6 +136,7 @@ fn the_tail_mips_of_real_split_cubemaps_follow_the_faces_of_the_mips_above() -> 
         total.pairs, total.separable, total.in_order, total.worst
     ));
     assert!(failures.is_empty(), "failures: {failures:?}");
+    assert!(total.separable > 0, "some pairs tell the face order apart");
     assert_eq!(
         total.in_order, total.separable,
         "every pair follows its face"

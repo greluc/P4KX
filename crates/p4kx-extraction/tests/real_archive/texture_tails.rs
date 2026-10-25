@@ -146,5 +146,6 @@ fn alpha_tails_are_surveyed_by_layout() -> TestResult {
         .map(|(_, count)| count)
         .sum::<usize>();
     assert_eq!(raw, 0, "a headerless alpha tail appeared: {counts:?}");
+    assert_eq!(orphans, 0, "numbered tail parts without a tail header");
     Ok(())
 }

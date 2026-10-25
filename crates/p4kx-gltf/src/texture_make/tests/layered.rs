@@ -3,7 +3,7 @@
 
 use p4kx_texture::RgbaImage;
 
-use super::{Budget, Squares, TINTS, normal_jobs, run, source};
+use super::{Budget, Outcome, Squares, TINTS, normal_jobs, run, run_guarded, source};
 use crate::layer_plan::{LayerPlan, Layered};
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_plan::{Job, Key};
@@ -31,11 +31,34 @@ impl TextureLoader for Odd {
     }
 }
 
+struct Picky;
+
+impl TextureLoader for Picky {
+    fn load(&self, path: &str, _mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+        let side = if path.contains("bad") { 0 } else { 4 };
+        RgbaImage::new(side, side, vec![200; (side * side * 4) as usize])
+            .map(|image| LoadedTexture::new(image, true))
+            .map_err(|error| TextureLoadError::Unreadable(error.to_string()))
+    }
+
+    fn dimensions(&self, path: &str, _mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        let side = if path.contains("bad") { 0 } else { 4 };
+        Ok(Some((side, side)))
+    }
+}
+
 fn layered_job(with_mask: bool) -> Job {
+    layered_job_of("l", with_mask)
+}
+
+fn layered_job_of(prefix: &str, with_mask: bool) -> Job {
     let layer = |at: usize, share: f32| LayerPlan {
         at,
         share,
-        diffuse: Some((source(format!("objects/l{at}_diff.dds"), false), [1.0; 2])),
+        diffuse: Some((
+            source(format!("objects/{prefix}{at}_diff.dds"), false),
+            [1.0; 2],
+        )),
         normal: None,
         colour: [1.0; 3],
         specular: [0.0; 3],
@@ -120,6 +143,40 @@ fn a_missing_blend_map_leaves_the_shares_by_position_and_is_reported_once() {
     );
     let failures = outcome.map_or(0, |outcome| outcome.failures.len());
     assert_eq!(failures, 1, "the blend map once");
+}
+
+#[test]
+fn a_fallback_whose_layered_image_was_made_takes_no_slot_a_needed_fallback_gets() {
+    let mut jobs = vec![layered_job_of("good", false), layered_job_of("bad", false)];
+    jobs.extend(normal_jobs(2));
+    let budget = Budget {
+        images: 2,
+        pixels: u64::MAX,
+    };
+
+    let unguarded = run(&jobs, 0, &Picky, budget);
+    let guarded = run_guarded(
+        &jobs,
+        0,
+        &Picky,
+        budget,
+        &[vec![], vec![], vec![0], vec![1]],
+    );
+
+    let made = |outcomes: &[Outcome]| -> Vec<bool> {
+        outcomes
+            .iter()
+            .map(|outcome| outcome.image.is_some())
+            .collect()
+    };
+    assert_eq!(made(&unguarded), [true, false, false, false]);
+    assert_eq!(made(&guarded), [true, false, false, true]);
+    assert!(guarded.iter().all(|outcome| {
+        outcome
+            .failures
+            .iter()
+            .all(|f| !f.reason.contains("as many as allowed"))
+    }));
 }
 
 #[test]

@@ -60,6 +60,29 @@ pub(crate) fn layer_normals_last(jobs: Vec<Job>, wanted: &mut [Wish]) -> Vec<Job
     numbered.into_iter().map(|(_, (_, job))| job).collect()
 }
 
+/// Returns for each of `len` jobs the layered normal jobs of the materials that use it only as
+/// their fallback; the job is unneeded once all of them made an image. Empty for a job that some
+/// material draws as its own normal image.
+pub(crate) fn fallback_guards(wanted: &[Wish], len: usize) -> Vec<Vec<usize>> {
+    let primary: HashSet<usize> = wanted
+        .iter()
+        .flat_map(|wish| wish.jobs.into_iter().flatten())
+        .collect();
+    let mut guards = vec![Vec::new(); len];
+    for wish in wanted {
+        let [_, Some(layered), _] = wish.jobs else {
+            continue;
+        };
+        if let Some(fallback) = wish.fallback.filter(|job| !primary.contains(job))
+            && let Some(guard) = guards.get_mut(fallback)
+            && !guard.contains(&layered)
+        {
+            guard.push(layered);
+        }
+    }
+    guards
+}
+
 /// Returns the job of the base colour image of `layered`, or when `normal` is set its normal
 /// image, to which `own`, the material's own normal map, adds its slopes.
 pub(crate) fn layer_job(

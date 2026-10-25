@@ -331,38 +331,6 @@ pub(crate) fn selects_blueprint(
     })
 }
 
-/// What the entity kinds make of a Record.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Selected {
-    /// The Record is an entity of the kind.
-    Entity(Kind),
-    /// The Record is a development leftover of the kind.
-    Leftover(Kind),
-}
-
-/// Returns what the kind of `record` makes of it: the kinds that
-/// [`read_crafting`](crate::read_crafting) fills do not select, and a Record is selected when its
-/// struct is the type of its kind and, with a `filter`, its record path matches.
-pub(crate) fn select(
-    record: &Record<'_>,
-    filter: Option<&Filter>,
-) -> Result<Option<Selected>, DataForgeError> {
-    let path = record.record_path()?;
-    let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
-        return Ok(None);
-    };
-    if record.type_name()? != kind.rule().type_name
-        || filter.is_some_and(|filter| !filter.matches(path))
-    {
-        return Ok(None);
-    }
-    Ok(Some(if is_leftover(path, record.name()?) {
-        Selected::Leftover(kind)
-    } else {
-        Selected::Entity(kind)
-    }))
-}
-
 /// Returns whether a Record with `record_path` and `name` is a development leftover.
 pub(crate) fn is_leftover(record_path: &str, name: &str) -> bool {
     [record_path, name].into_iter().any(|text| {

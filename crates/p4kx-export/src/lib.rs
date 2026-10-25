@@ -82,6 +82,7 @@ mod crafting_tier;
 mod crafting_types;
 mod crafting_warning;
 mod digest;
+mod entity_selection;
 mod error;
 mod failure;
 mod form;

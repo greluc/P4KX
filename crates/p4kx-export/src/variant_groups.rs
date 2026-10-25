@@ -8,11 +8,11 @@ use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{Archive, DataForge, DataForgeError, Guid, Record, TreeBuilder};
 use rayon::prelude::*;
 
+use crate::entity_selection::{Selected, select};
 use crate::guid_text::CatalogGuid;
 use crate::item_variant::{self, ItemKey};
 use crate::playability_rules::{self, Evidence};
 use crate::record_fields::class_name;
-use crate::selection::{Selected, select};
 use crate::ship_pool::ShipPool;
 use crate::variants::{Candidate, ShipKey, group};
 use crate::{Kind, VariantSummary, item, item_stats, ship};

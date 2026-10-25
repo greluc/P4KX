@@ -5,7 +5,6 @@
 
 use std::error::Error;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{
     ComparisonLevels, ComparisonSide, ComparisonStatus, ComparisonTab, ComparisonView, Language,
@@ -13,17 +12,19 @@ use p4kx_gui::{
 };
 
 use crate::record_pair::TestResult;
+use crate::waiting::wait_polling_described;
 
 /// Polls `tab` until `done` holds.
 pub(crate) fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(tab) {
-        if Instant::now() > deadline {
-            return Err(format!("the Comparison did not settle: {:?}", tab.status()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        tab.poll();
-    }
+    wait_polling_described(
+        tab,
+        "the Comparison to settle",
+        |tab| {
+            tab.poll();
+        },
+        done,
+        |tab| format!("{:?}", tab.status()),
+    )?;
     Ok(())
 }
 

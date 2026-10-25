@@ -6,9 +6,6 @@
 
 use super::desktop::ROW_HEIGHT;
 
-/// The width of the work surface below which the choices, the 3D view and the report stack in
-/// one column that scrolls, instead of standing side by side.
-pub const CHARACTER_STACK_WIDTH: f32 = 560.0;
 /// The rows of the report that stay visible below the 3D view.
 pub const CHARACTER_REPORT_ROWS: f32 = 3.0;
 /// The height of the report below the 3D view: its head row and [`CHARACTER_REPORT_ROWS`] rows.

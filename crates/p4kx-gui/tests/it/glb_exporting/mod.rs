@@ -3,10 +3,9 @@
 
 //! Helpers of the Export as GLB tests: start an export into a file and wait for it to end.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for};
 use std::error::Error;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use p4kx_gui::{Model, ModelExport};
@@ -27,18 +26,12 @@ pub(crate) fn start(harness: &mut Harness<'_, Model>, file: &Path) -> Result<boo
 
 /// Steps the window until the export ended.
 pub(crate) fn finished(harness: &mut Harness<'_, Model>) -> Result<(), Box<dyn Error>> {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while harness
-        .state()
-        .model_export()
-        .is_some_and(ModelExport::is_running)
-    {
-        if Instant::now() > deadline {
-            return Err("the export did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the export to end", |harness| {
+        !harness
+            .state()
+            .model_export()
+            .is_some_and(ModelExport::is_running)
+    })?;
     harness.run_quiet();
     Ok(())
 }

@@ -4,10 +4,10 @@
 //! An open Archive that changes on disk: no job reads it, a running Extraction stops, and the
 //! window offers to reload it.
 
+use crate::waiting::wait_polling_described;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -43,18 +43,19 @@ fn large() -> ArchiveBuilder {
 }
 
 fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err(format!("timed out: {model:?}").into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-        model.poll_extraction();
-        if let Some(browser) = model.browser_mut() {
-            browser.poll();
-        }
-    }
+    wait_polling_described(
+        model,
+        "the work to finish",
+        |model| {
+            model.poll();
+            model.poll_extraction();
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        done,
+        |model| format!("{model:?}"),
+    )?;
     Ok(())
 }
 

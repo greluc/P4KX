@@ -6,9 +6,9 @@
 //! handling of an existing folder.
 
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use crate::entity_picking::{TestResult, opened, opened_sized, select};
+use crate::waiting::wait_for;
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -31,18 +31,12 @@ fn start(harness: &mut Harness<'_, Model>, folder: &Path) -> Result<bool, &'stat
 }
 
 pub(crate) fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while harness
-        .state()
-        .assembly_export()
-        .is_some_and(AssemblyExport::is_running)
-    {
-        if Instant::now() > deadline {
-            return Err("the export did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the export to end", |harness| {
+        !harness
+            .state()
+            .assembly_export()
+            .is_some_and(AssemblyExport::is_running)
+    })?;
     harness.run_steps(3);
     Ok(())
 }

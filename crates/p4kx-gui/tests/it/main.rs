@@ -77,6 +77,7 @@ mod info_models;
 mod interior_cancel;
 mod interior_export;
 mod interior_package;
+mod interior_socpak_export;
 mod interior_view;
 mod interior_view_bar;
 mod interior_view_render;

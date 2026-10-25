@@ -149,6 +149,15 @@ impl Archive {
         self.file_len
     }
 
+    /// Returns how many decoded bytes this Archive keeps in memory: `0` for an Archive read from
+    /// its file and for a stored container of it, the size of the decoded buffer for a compressed
+    /// or encrypted container, and for a stored container of such a container the size of that
+    /// buffer, which the container keeps alive.
+    #[must_use]
+    pub fn resident_len(&self) -> u64 {
+        self.source.resident_len()
+    }
+
     /// Returns the modification time of the Archive file when it was opened, or `None` when the
     /// platform records none.
     #[must_use]

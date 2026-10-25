@@ -1338,7 +1338,9 @@ Also `p4kx ui render <file> --out <file.png> --json` for a GFx or SWF file on di
 `--lang` (only with an Archive and an Entry) resolves the localisation keys (`@key`) of text fields
 in the `global.ini` of that language; a key it does not hold is listed as `unlocalised`, and without
 `--lang` keys are drawn as they are. A `global.ini` that cannot be indexed prints no JSON and fails
-with exit code 3.
+with exit code 3. The same language is the localisation folder (`Data\Localization\<folder>`) in
+which fonts that the movie imports are looked for after the folders of the UI, English without
+`--lang` (ADR-0152).
 
 ```json
 {"movie": "Data\\UI\\Screens\\SWF\\Panel.gfx", "target": "…\\panel.png", "format": "png",
@@ -1358,7 +1360,9 @@ with exit code 3.
 the Entries read to resolve them (an Archive only), `unresolved` the imported names that were not
 found, each with its `url` as the movie states it, a stable `reason` (`not_found`, `unreadable`,
 `no_such_export`, `too_deep` or `over_budget`) and a `message` that says it in words; their texts
-are drawn as boxes and listed as `missing_font` in `skipped`.
+are drawn as boxes and listed as `missing_font` in `skipped`. Two imports of one name from
+different URLs are two fonts, and a movie's bytes count towards `over_budget` as the larger of the
+Entry size and the uncompressed length the movie declares.
 
 `format` is `png`, or `svg` with `--svg`; `width` and `height` are the pixels of the PNG, or the
 size of the SVG document, written to `target`. `skipped` lists in drawing order every element the

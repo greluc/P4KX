@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_gfx::Movie;
+use p4kx_localization::Language;
 use rayon::prelude::*;
 
 use crate::LocalizationEntry;
@@ -36,6 +37,7 @@ pub struct UiMovie<'a> {
     origin: Origin<'a>,
     movie: Movie,
     texts: Option<LocalizationEntry>,
+    font_language: Option<Language>,
 }
 
 impl<'a> UiMovie<'a> {
@@ -115,6 +117,7 @@ impl<'a> UiMovie<'a> {
                 origin,
                 movie,
                 texts: None,
+                font_language: None,
             }),
             Err(source) => Err(ConversionError::UiMovie {
                 movie: name,
@@ -129,6 +132,23 @@ impl<'a> UiMovie<'a> {
     pub fn with_texts(mut self, texts: LocalizationEntry) -> Self {
         self.texts = Some(texts);
         self
+    }
+
+    /// Sets the language whose localisation folder the fonts that the movie imports are looked
+    /// for in, after the folders of the UI; it overrides the language of the texts.
+    #[must_use]
+    pub const fn with_font_language(mut self, language: Language) -> Self {
+        self.font_language = Some(language);
+        self
+    }
+
+    /// Returns the language the imported fonts are looked for in: the one set with
+    /// [`UiMovie::with_font_language`], else that of the texts, else English.
+    #[must_use]
+    pub fn font_language(&self) -> Language {
+        self.font_language
+            .or_else(|| self.texts.as_ref().map(LocalizationEntry::language))
+            .unwrap_or(Language::English)
     }
 
     /// Returns the texts localisation keys resolve in, if set.

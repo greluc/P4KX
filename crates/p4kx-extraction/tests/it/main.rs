@@ -38,6 +38,7 @@ mod texture_png;
 mod texture_preview;
 mod ui_images;
 mod ui_import_budget;
+mod ui_import_language;
 mod ui_import_names;
 mod ui_import_ranking;
 mod ui_import_support;

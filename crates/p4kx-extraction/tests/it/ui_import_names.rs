@@ -106,6 +106,27 @@ fn a_font_the_movie_exports_itself_does_not_replace_the_imported_one() -> TestRe
 }
 
 #[test]
+fn an_unresolved_import_stays_a_missing_font_beside_an_own_export_of_its_name() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let own = stage()
+        .tag(75, &font3_body(4, "Own", &[glyph(WIDE)]))
+        .tag(56, &exports_body(&[(4, "$Font")]));
+    let archive = archive(
+        dir.path(),
+        vec![TestEntry::zstd(
+            CLIENT,
+            client_of(own, &[("gone.gfx", 9, "$Font")], &[(9, 0)]),
+        )],
+    )?;
+    let render = UiMovie::from_archive(&archive, CLIENT)?.render(&options())?;
+    assert_eq!(render.imports.unresolved.len(), 1, "{:?}", render.imports);
+    assert_eq!(render.imports.unresolved[0].issue, ImportIssue::NotFound);
+    assert_eq!(render.skipped.len(), 1, "{:?}", render.skipped);
+    assert_eq!(render.skipped[0].reason.code(), "missing_font");
+    Ok(())
+}
+
+#[test]
 fn a_name_one_movie_lacks_is_reported_for_that_url_only() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(

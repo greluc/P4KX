@@ -94,9 +94,8 @@ fn a_render_takes_at_most_the_font_budget_from_the_movies() -> TestResult {
 }
 
 #[test]
-fn a_movie_declaring_more_than_the_byte_budget_is_refused_before_it_is_decompressed() -> TestResult
-{
-    for length in [u32::MAX, 300 * MIB, 257 * MIB] {
+fn a_movie_declaring_more_than_a_movie_may_be_is_refused_without_using_the_budget() -> TestResult {
+    for length in [u32::MAX, 300 * MIB, 65 * MIB] {
         let dir = tempfile::tempdir()?;
         let bomb = declared(*b"CWS", length);
         assert_eq!(Movie::declared_len(&bomb)?, length);
@@ -105,19 +104,31 @@ fn a_movie_declaring_more_than_the_byte_budget_is_refused_before_it_is_decompres
             vec![
                 TestEntry::zstd(
                     CLIENT,
-                    client_of(stage(), &[("bomb.gfx", 9, "$Font")], &[(9, 0)]),
+                    client_of(
+                        stage(),
+                        &[("bomb.gfx", 9, "$Bomb"), ("good.gfx", 10, "$Font")],
+                        &[(9, 0), (10, 0)],
+                    ),
                 ),
                 TestEntry::zstd(entry_path("bomb.gfx"), bomb),
+                TestEntry::zstd(entry_path("good.gfx"), font_file(4, "$Font")),
             ],
         )?;
         let render = UiMovie::from_archive(&archive, CLIENT)?.render(&options())?;
         assert_eq!(render.imports.unresolved.len(), 1, "{length}");
-        assert_eq!(
-            render.imports.unresolved[0].issue,
-            ImportIssue::OverBudget,
-            "{length}"
+        assert!(
+            matches!(
+                render.imports.unresolved[0].issue,
+                ImportIssue::Unreadable(_)
+            ),
+            "{length}: {:?}",
+            render.imports.unresolved[0].issue
         );
-        assert!(render.imports.movies.is_empty(), "{length}");
+        assert_eq!(
+            render.imports.movies,
+            [entry_path("good.gfx")],
+            "{length}: a later import still loads"
+        );
     }
     Ok(())
 }

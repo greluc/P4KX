@@ -205,6 +205,44 @@ fn the_tags_of_real_ui_movies_that_are_not_read_are_counted_by_code() -> TestRes
     clippy::print_stderr,
     reason = "the counts of the real Archive are the output"
 )]
+fn localisation_folders_that_hold_font_movies_are_counted() -> TestResult {
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
+    let mut folders: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    for entry in archive.entries().iter().filter(|entry| is_movie(entry)) {
+        let path = entry.path().to_ascii_lowercase().replace('/', "\\");
+        let Some(rest) = path.strip_prefix("data\\localization\\") else {
+            continue;
+        };
+        let Some((folder, _)) = rest.split_once('\\') else {
+            continue;
+        };
+        let movie = UiMovie::from_archive(&archive, entry.path())?;
+        let assets = movie.movie().assets();
+        let counts = folders.entry(folder.to_owned()).or_default();
+        if !assets.fonts.is_empty() {
+            counts.0 += 1;
+        }
+        if assets
+            .fonts
+            .iter()
+            .any(|font| font.glyphs.iter().any(|glyph| !glyph.records.is_empty()))
+        {
+            counts.1 += 1;
+        }
+    }
+    eprintln!("folder: (movies defining fonts, movies with outlines) {folders:#?}");
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stderr,
+    reason = "the counts of the real Archive are the output"
+)]
 fn imported_fonts_of_real_ui_movies_resolve() -> TestResult {
     let archive = Archive::open_with_key(
         real_archive_path()?,

@@ -6,7 +6,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use p4kx_archive::{Archive, Entry};
-use p4kx_gfx::{Assets, Export, Font, Import, Movie};
+use p4kx_gfx::{Assets, Export, Font, Import, MAX_MOVIE_LEN, Movie};
 use p4kx_localization::Language;
 
 use crate::sound::read_capped;
@@ -297,6 +297,11 @@ impl Resolver<'_> {
             .ok_or_else(|| ImportIssue::Unreadable("the movie is too large".to_owned()))?;
         let declared = Movie::declared_len(&bytes)
             .map_err(|error| ImportIssue::Unreadable(error.to_string()))?;
+        if u64::from(declared) > MAX_MOVIE_LEN {
+            return Err(ImportIssue::Unreadable(
+                "the movie declares more than it may decompress to".to_owned(),
+            ));
+        }
         if self
             .charge(u64::from(declared).saturating_sub(size))
             .is_none()

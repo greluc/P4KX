@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use crate::support::{CLEAR, pixel, stage};
 use p4kx_gfx::{Background, CanvasSize, Movie, Raster, RasterOptions};
-use p4kx_testkit::{TestEditText, TestGlyph, TestPlace, font3_body};
+use p4kx_testkit::{TestEditText, TestGlyph, TestPlace, TestShapeRecord, font3_body};
 
 const FIELD: [i32; 4] = [0, 2000, 800, 1400];
 const FONT: u16 = 3;
@@ -60,7 +60,18 @@ fn a_font_without_a_space_glyph_draws_no_boxes_for_spaces() {
     let letter = TestGlyph {
         code: u16::from(b'A'),
         advance: 12_000,
-        records: Vec::new(),
+        records: vec![
+            TestShapeRecord::Move {
+                to: (0, 0),
+                fill0: 0,
+                fill1: 1,
+                line: 0,
+            },
+            TestShapeRecord::Line(10_000, 0),
+            TestShapeRecord::Line(0, -14_000),
+            TestShapeRecord::Line(-10_000, 0),
+            TestShapeRecord::Line(0, 14_000),
+        ],
     };
     let raster = render(&[letter]);
     assert_eq!(drawn(&raster), 0, "no box for a missing space glyph");

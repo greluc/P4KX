@@ -99,14 +99,20 @@ impl<'b> Fonts<'b> {
         let mut by_id = HashMap::new();
         let mut by_name = HashMap::new();
         let mut by_export = HashMap::new();
+        let mut by_plain: HashMap<String, usize> = HashMap::new();
         let mut by_import: HashMap<(String, String), usize> = HashMap::new();
         for (at, font) in list.iter().enumerate() {
-            if at < movie.len() {
+            let own = at < movie.len();
+            if own {
                 by_id.entry(font.id).or_insert(at);
             }
+            let plain = !own && font.import_url.is_none();
             for name in std::iter::once(&font.name).chain(font.full_name.as_ref()) {
                 if !name.is_empty() {
                     by_name.entry(name.to_ascii_lowercase()).or_insert(at);
+                    if plain {
+                        by_plain.entry(name.to_ascii_lowercase()).or_insert(at);
+                    }
                 }
             }
             if let Some(name) = font.export_name.as_ref().filter(|name| !name.is_empty()) {
@@ -115,7 +121,7 @@ impl<'b> Fonts<'b> {
                     by_import
                         .entry((url.to_ascii_lowercase(), name.clone()))
                         .or_insert(at);
-                } else {
+                } else if plain {
                     by_export.entry(name.clone()).or_insert(at);
                 }
                 by_name.entry(name).or_insert(at);
@@ -128,11 +134,7 @@ impl<'b> Fonts<'b> {
                 let found = by_import
                     .get(&(url.clone(), name.clone()))
                     .or_else(|| by_export.get(&name))
-                    .or_else(|| {
-                        by_name.get(&name).filter(|&&at| {
-                            list.get(at).is_some_and(|font| font.import_url.is_none())
-                        })
-                    });
+                    .or_else(|| by_plain.get(&name));
                 if let Some(&at) = found {
                     by_id.entry(asset.id).or_insert(at);
                 }

@@ -8,6 +8,7 @@ use p4kx_localization::Language;
 use rayon::prelude::*;
 
 const UI_FOLDER: &str = "data\\ui\\";
+const ENGLISH_FOLDER: &str = "data\\localization\\english\\";
 
 pub(crate) fn folder_of(path: &str) -> &str {
     path.rfind(['\\', '/']).map_or("", |at| &path[..at])
@@ -59,7 +60,8 @@ pub(super) fn contained(url: &str) -> Option<PathBuf> {
 
 /// Returns the indexes of up to `limit` Entries that a movie in `folder` may mean by the import
 /// URL `url`, the best first: the exact path, the same tail below the UI folder or the
-/// localisation folder of `language`, the same file name there, then anywhere. A `.swf` and a
+/// localisation folder of `language` and then of English, the same file name there, then
+/// anywhere below the UI folder, then anywhere. A `.swf` and a
 /// `.gfx` of the same name are alternatives, the one the URL names first; Entries that tie on
 /// all of it keep the order of the Archive.
 pub(crate) fn candidates(
@@ -70,6 +72,7 @@ pub(crate) fn candidates(
     limit: usize,
 ) -> Vec<usize> {
     let language_folder = format!("data\\localization\\{}\\", language.folder());
+    let fallback = language != Language::English;
     let relative = normalised(&format!("{folder}\\{url}"));
     let file = url.rsplit(['\\', '/']).next().unwrap_or(url);
     let other = swapped(file);
@@ -101,10 +104,14 @@ pub(crate) fn candidates(
                 2
             } else if folder_of(&path) == language_folder.trim_end_matches('\\') {
                 3
-            } else if path.starts_with(UI_FOLDER) {
+            } else if fallback && suffixed && path.starts_with(ENGLISH_FOLDER) {
                 4
-            } else {
+            } else if fallback && folder_of(&path) == ENGLISH_FOLDER.trim_end_matches('\\') {
                 5
+            } else if path.starts_with(UI_FOLDER) {
+                4 + 2 * usize::from(fallback)
+            } else {
+                5 + 2 * usize::from(fallback)
             };
             Some((twin + 2 * place, path, at))
         })

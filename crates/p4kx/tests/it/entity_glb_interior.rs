@@ -88,7 +88,7 @@ fn the_flag_adds_the_interior_below_the_hull_and_lists_what_is_missing() -> Test
         .ok_or("no Interior node below the hull")?;
     assert_eq!(group.children().count(), 6);
     assert!(
-        run.stdout.contains("Interior: 6 containers"),
+        run.stdout.contains("Interior: 6 object containers"),
         "{}",
         run.stdout
     );

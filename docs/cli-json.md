@@ -261,7 +261,9 @@ written even when parts are skipped; an Archive key that is missing or wrong exi
 and writes nothing, an `--out` that is the Archive with code 2.
 
 With `--interior` the report also has `interior`, an object with `containers` (the top-level
-socpak containers of the Entity that were opened, not the containers nested in them), `parts`,
+socpak containers of the Entity that were opened, not the containers nested in them; the text
+and the window call them object containers, while `containers_opened` of `p4kx interior glb`
+counts the nested ones too), `parts`,
 `model_parts` (props included), `modelled_parts` and `lights` (as for
 `p4kx interior glb`, the lights being written with `KHR_lights_punctual`; the models of the containers are not counted in the Entity's `parts`), and
 `issues` lists what the containers could not resolve, with the kinds of `p4kx interior glb` plus

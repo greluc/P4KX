@@ -7,12 +7,13 @@ use egui::{Align, Layout, Ui};
 use p4kx_settings::ModelMaterials;
 
 use super::extraction::{foot, group_label, path_field, refusal_notice};
-use super::{Dialog, Requests};
+use super::{Dialog, Requests, regions};
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
+use crate::widgets::placement;
 use crate::widgets::text::plain;
 use crate::widgets::{tab, toggle};
 use crate::{
@@ -39,37 +40,44 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         T::SetupTitle
     });
     let close_dialog = texts.get(Text::CloseDialog);
-    let shown = frames::modal(frames::modal_id("assembly-export-setup"), Tone::Normal).show(
-        ui.ctx(),
-        |ui| {
-            ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
-            let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
-            let action =
-                frames::scrolling_body(ui, "assembly-export-body", |ui| choices(ui, texts, setup));
-            let pressed = foot(
-                ui,
-                texts,
-                (T::Start, setup.is_ready()),
-                ExtractionText::Close,
-            );
-            let chosen = match pressed {
-                Some(true) => Some(Action::Submit),
-                Some(false) => Some(Action::Close),
-                None => None,
-            };
-            if closed {
-                Some(Action::Close)
-            } else {
-                action.or(chosen)
-            }
-        },
-    );
+    let id = frames::modal_id("assembly-export-setup");
+    let shown = placement::hanging_modal(ui.ctx(), id, Tone::Normal).show(ui.ctx(), |ui| {
+        ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
+        let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
+        let room = placement::body_room(ui);
+        let body = frames::scrolling_body_in(ui, ("assembly-export-body", room), |ui| {
+            choices(ui, texts, setup)
+        });
+        regions::record(ui.ctx(), |regions| {
+            regions.scrolls = body.content_size.y > body.inner_rect.height() + 0.5;
+        });
+        let action = body.inner;
+        let pressed = foot(
+            ui,
+            texts,
+            (T::Start, setup.is_ready()),
+            ExtractionText::Close,
+        );
+        let chosen = match pressed {
+            Some(true) => Some(Action::Submit),
+            Some(false) => Some(Action::Close),
+            None => None,
+        };
+        if closed {
+            Some(Action::Close)
+        } else {
+            action.or(chosen)
+        }
+    });
     frames::modal_decoration(
         ui.ctx(),
         shown.response.layer_id,
         shown.response.rect,
         Tone::Normal,
     );
+    regions::record(ui.ctx(), |regions| {
+        regions.dialogs.push(shown.response.rect);
+    });
     let close = shown.should_close();
     match shown.inner {
         Some(Action::Submit) => {

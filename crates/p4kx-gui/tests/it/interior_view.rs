@@ -104,6 +104,45 @@ fn an_entity_with_object_containers_offers_the_interior_and_builds_it_once_it_is
 }
 
 #[test]
+fn the_facts_of_the_view_follow_the_interior_toggle() -> TestResult {
+    let (_dir, mut harness) = hull_window()?;
+    select(&mut harness, ENTITY_INTERIOR_CLASS)?;
+    built(&mut harness, None)?;
+    let hull_issues = view(harness.state()).map_or(0, AssemblyView::issues);
+    view_mut(&mut harness)?.set_interior(true);
+    let before = serial(harness.state());
+    built(&mut harness, before)?;
+    let scene = view(harness.state())
+        .and_then(AssemblyView::scene)
+        .cloned()
+        .ok_or("no scene")?;
+    let with = view(harness.state()).map_or(0, AssemblyView::issues);
+
+    assert!(
+        with > hull_issues,
+        "the Interior has issues of its own: {with}"
+    );
+    assert!(
+        scene.meshes_of(true) > scene.meshes_of(false),
+        "more meshes"
+    );
+    assert_ne!(
+        scene.bounds_of(true),
+        scene.bounds_of(false),
+        "a larger extent"
+    );
+
+    view_mut(&mut harness)?.set_interior(false);
+
+    assert_eq!(
+        view(harness.state()).map(AssemblyView::issues),
+        Some(hull_issues),
+        "the issues of the hull alone"
+    );
+    Ok(())
+}
+
+#[test]
 fn switching_the_interior_off_and_on_hides_and_shows_it_without_building_again() -> TestResult {
     let (_dir, mut harness) = hull_window()?;
     select(&mut harness, ENTITY_INTERIOR_CLASS)?;

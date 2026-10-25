@@ -550,6 +550,7 @@ DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 ```json
 {"archive": "…", "language": {…}, "trigger": {…}, "breaks": 0,
  "target": "…", "format": "ogg", "written": 3, "kept": 0, "unconverted": 1, "failed": 1,
+ "cancelled": false,
  "files": [{"trigger": "Play_Multi", "wem_id": 100, "file": "…\\Play_Multi_100.ogg",
             "format": "ogg", "size": 4096, "kept": false, "unconverted": null}, …],
  "failures": [{"trigger": "Play_Multi", "wem_id": 104, "reason": "…"}, …],
@@ -564,11 +565,12 @@ trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII le
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
 sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank or loose Entry
-holds. Exit code 1 when anything is in `failures` or `unconverted`.
+holds. `cancelled` is true when Ctrl+C stopped the export before it handled every sound; no partial
+file is left. Exit code 1 when anything is in `failures` or `unconverted`, or `cancelled` is true.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
-`failed`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
+`failed`, `cancelled`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
 and `issues` are not repeated in it.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`

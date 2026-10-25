@@ -11,7 +11,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use p4kx_extraction::{ConflictPolicy, ConversionError};
+use p4kx_extraction::{CancelToken, ConflictPolicy, ConversionError, ensure_writable};
 
 use super::{ArchiveAudio, TriggerSounds};
 
@@ -49,16 +49,27 @@ pub struct ExportOptions {
 
 /// The progress of a sound export and the request to stop it, shared with the thread that runs it.
 ///
-/// A stopped export leaves out the sounds it had not started; the files it wrote stay.
+/// A stopped export leaves out the sounds it had not started and drops the one it is writing,
+/// leaving no partial file; the files it finished stay.
 #[derive(Debug, Default)]
 pub struct ExportWatch {
     cancelled: AtomicBool,
+    token: Option<CancelToken>,
     done: AtomicUsize,
     total: AtomicUsize,
 }
 
 impl ExportWatch {
-    /// Asks the export to stop after the sounds it is writing.
+    /// Creates a watch that also stops the export once `token` is cancelled.
+    #[must_use]
+    pub fn linked(token: CancelToken) -> Self {
+        Self {
+            token: Some(token),
+            ..Self::default()
+        }
+    }
+
+    /// Asks the export to stop at the next write.
     pub fn cancel(&self) {
         self.cancelled.store(true, Ordering::Relaxed);
     }
@@ -67,6 +78,7 @@ impl ExportWatch {
     #[must_use]
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.load(Ordering::Relaxed)
+            || self.token.as_ref().is_some_and(CancelToken::is_cancelled)
     }
 
     /// Returns how many sounds are handled so far, written, kept or failed.
@@ -137,6 +149,8 @@ pub struct ExportReport {
     pub sounds: Vec<ExportedSound>,
     /// The sounds that got no file.
     pub failures: Vec<ExportFailure>,
+    /// Whether the export was stopped before it handled every sound.
+    pub cancelled: bool,
 }
 
 impl ExportReport {
@@ -171,7 +185,7 @@ impl ExportReport {
     /// Returns whether every sound was exported and converted as asked.
     #[must_use]
     pub fn is_clean(&self) -> bool {
-        self.failures.is_empty() && self.unconverted_count() == 0
+        !self.cancelled && self.failures.is_empty() && self.unconverted_count() == 0
     }
 }
 
@@ -220,7 +234,7 @@ impl ArchiveAudio<'_> {
             failures: plan.failures,
             ..ExportReport::default()
         };
-        p4kx_guard::ensure_writable(folder)?;
+        ensure_writable(folder)?;
         if plan.jobs.is_empty() {
             return Ok(report);
         }
@@ -234,6 +248,7 @@ impl ArchiveAudio<'_> {
                 Err(failure) => report.failures.push(failure),
             }
         }
+        report.cancelled = watch.is_cancelled() && watch.done() < plan.jobs.len();
         Ok(report)
     }
 }

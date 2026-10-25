@@ -118,7 +118,7 @@ pub use model_textures::{ArchiveTextures, MAX_MODEL_TEXTURE_PIXELS};
 pub use options::{
     AudioConversion, CancelToken, ConflictPolicy, ExtractOptions, Progress, TextureConversion,
 };
-pub use output_file::{write_bytes_replacing, write_replacing};
+pub use output_file::{Replaced, write_bytes_replacing, write_replacing, write_replacing_counted};
 pub use p4kx_archive::{
     Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryIssue,
     EntryReader, KeyCheck, MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES,

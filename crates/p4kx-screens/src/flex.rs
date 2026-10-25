@@ -86,7 +86,7 @@ impl Flex {
     }
 }
 
-fn justify(name: Option<&str>) -> Justify {
+pub(crate) fn justify(name: Option<&str>) -> Justify {
     match name.unwrap_or("Start").to_ascii_lowercase().as_str() {
         "center" => Justify::Center,
         "end" | "flexend" => Justify::End,
@@ -98,7 +98,7 @@ fn justify(name: Option<&str>) -> Justify {
     }
 }
 
-fn align(name: Option<&str>) -> Align {
+pub(crate) fn align(name: Option<&str>) -> Align {
     match name.unwrap_or("Start").to_ascii_lowercase().as_str() {
         "center" => Align::Center,
         "end" | "flexend" => Align::End,

@@ -152,7 +152,9 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
     /// `aegs`), overlaid by the styles each canvas names for itself and its nested canvases; a
     /// canvas with several brand styles uses the one of `brand`, else its first. The style
     /// entries of those canvases and styles, whose selectors the composer evaluates, set the
-    /// colours, borders, alpha and visibility of the widgets at rest.
+    /// colours, borders, alpha, visibility and geometry of the widgets at rest. The bindings of
+    /// each canvas, calculated with every game variable at zero, decide which widgets are
+    /// instantiated and active.
     ///
     /// # Errors
     ///
@@ -189,6 +191,7 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             &mut cx,
             self.limits,
         );
+        walk.survey(&root);
         walk.enter(
             &root,
             Area {

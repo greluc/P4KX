@@ -104,6 +104,21 @@ fn the_vehicle_kind_follows_the_folder_and_the_wheels_of_the_implementation() ->
 }
 
 #[test]
+fn the_code_of_a_vehicle_kind_is_its_serialised_name() -> TestResult {
+    for kind in [VehicleKind::Spaceship, VehicleKind::GroundVehicle] {
+        assert_eq!(serde_json::to_value(kind)?, kind.code());
+    }
+    Ok(())
+}
+
+#[test]
+fn a_mass_basis_serialises_to_the_names_the_catalog_documents() -> TestResult {
+    assert_eq!(serde_json::to_value(MassBasis::Parts)?, "parts");
+    assert_eq!(serde_json::to_value(MassBasis::Physics)?, "physics");
+    Ok(())
+}
+
+#[test]
 fn the_size_comes_from_the_attach_definition_with_its_source() -> TestResult {
     let built = build(None)?;
     let alpha = ship(&built, ALPHA)?;

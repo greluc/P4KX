@@ -5,13 +5,15 @@ use p4kx_extraction::Guid;
 use serde::{Serialize, Serializer};
 
 use crate::digest::Digest;
+use crate::paint_port::VehiclePorts;
 
-/// The base data of a ship with the digest of its vehicle implementation, which the variant
-/// groups compare and the exported base data does not carry.
+/// The base data of a ship with what the catalog derives from its vehicle implementation and the
+/// exported base data does not carry: the digest the variant groups compare and the paint ports.
 #[derive(Debug)]
 pub(crate) struct ShipRead {
     pub(crate) base: ShipBase,
     pub(crate) implementation: Option<Digest>,
+    pub(crate) paint_ports: VehiclePorts,
 }
 
 fn guid<S: Serializer>(value: &Guid, serializer: S) -> Result<S::Ok, S::Error> {
@@ -101,6 +103,7 @@ pub struct PartialPartValue {
 /// What the mass is the sum of.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub enum MassBasis {
     /// The `mass` of the parts of the vehicle implementation.
     Parts,
@@ -247,6 +250,7 @@ pub struct Implementation {
 /// Whether a vehicle is a spaceship or a ground vehicle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub enum VehicleKind {
     /// A vehicle of the folder `entities/spaceships` without wheels or treads.
     Spaceship,

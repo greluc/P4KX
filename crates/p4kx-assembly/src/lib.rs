@@ -88,6 +88,7 @@ mod port;
 mod provider;
 mod read;
 mod resolver;
+mod resolver_vehicle;
 mod spec;
 mod tree;
 mod vehicle;

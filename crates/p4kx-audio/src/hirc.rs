@@ -315,9 +315,10 @@ const fn has_unknown_layout(kind: HircKind, version: u32) -> bool {
 /// storage byte, source ID, with a `cacheID` after the source ID from version 151, then the
 /// in-memory media size), an Action and an Event from version 49 (an Event counts its actions in
 /// 4 bytes up to version 122, in a variable-length integer after), a random, sequence, switch or
-/// blend container and a music segment, track, switch or playlist in version 154 only. The body of such an object in a bank above version 154,
-/// whose layouts changed, is kept raw with [`BankError::UnsupportedObjectLayout`]; below its first
-/// version it is kept raw without a reason. Other objects are never decoded.
+/// blend container and a music segment, track, switch or playlist in version 154 only. The body
+/// of such an object in a bank above version 154, whose layouts changed, is kept raw with
+/// [`BankError::UnsupportedObjectLayout`]; below its first version it is kept raw without a
+/// reason. Other objects are never decoded.
 fn value(
     kind: HircKind,
     version: u32,

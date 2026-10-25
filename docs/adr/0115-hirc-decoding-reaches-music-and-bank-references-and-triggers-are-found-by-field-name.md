@@ -24,9 +24,10 @@ the same rule as for containers. A body that does not is kept raw as
 lose `Eq` and `Hash`.
 
 All counts and offsets are untrusted: a list is never allocated beyond what the remaining body can
-hold, every skip is checked arithmetic, a decision tree is walked with an explicit stack bounded by
-its depth and by one visit per node, and a name that has no terminator ends the object as
-truncated. The Sound `cacheID` rule is `hirc::has_cache_id`, also used for the clips and sources of
+hold, every skip is checked arithmetic, a decision tree is walked with an explicit stack whose
+entries plus the nodes already visited never exceed the number of nodes (a node listed as a child
+twice, or a node listing more children than nodes are left, ends the object as malformed before
+anything is pushed), and a name that has no terminator ends the object as truncated. The Sound `cacheID` rule is `hirc::has_cache_id`, also used for the clips and sources of
 a music track.
 
 ## Resolution
@@ -35,12 +36,18 @@ The walk of ADR-0021 follows a music playlist, switch container and segment to t
 music track to its sources, each a variant whose last path step is the track. Every source counts
 against the object budget. A PlayEvent action is followed to the Event it posts in the same
 soundbank; the path rule cuts an event that posts itself. A Play action that names another
-soundbank as the holder of a target its own soundbank lacks is a broken link `other_soundbank`
-(new kind) instead of `missing`; the walk does not enter that soundbank.
+soundbank as the holder of a target its own soundbank lacks, and a PlayEvent action whose Event
+only other soundbanks hold (found through `AudioIndex::event_soundbanks`), are a broken link
+`other_soundbank` (new kind) instead of `missing`; the walk does not enter that soundbank.
+
+On LIVE the broken links of the trigger events changed from 554 `missing` to 507 `missing` and 236
+`other_soundbank`: the 507 are Play actions whose target is in no soundbank, the 236 are 47 Play
+actions and 189 PlayEvent actions (2 of them inside a posted event). The earlier jump to 696
+`missing` was these PlayEvent targets, which were not followed before and are now reported.
 
 ## Trigger discovery
 
-Entities name triggers through `GlobalResourceAudio.audioTrigger` only. Measured on LIVE over all
+Until now Entities named triggers through `GlobalResourceAudio.audioTrigger` only. Measured on LIVE over all
 117 709 Records: an `audioTrigger` string field outside `GlobalResourceAudio` does not exist (the
 wider rule StarBreaker uses finds nothing more), but 183 further trigger names (180 of them ATL
 triggers) stand in string fields whose name contains `audioTrigger`: 37 names (36 in the ATL) in

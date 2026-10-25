@@ -189,9 +189,6 @@ fn targets(tree: &[u8], depth: u32) -> Result<Vec<u32>, BankError> {
     let mut visited = 0_usize;
     while let Some((index, level)) = pending.pop() {
         visited += 1;
-        if visited > nodes {
-            return Err(invalid("a decision tree reaches a node twice"));
-        }
         let node = tree
             .get(index * TREE_NODE_LEN..)
             .and_then(<[u8]>::first_chunk::<TREE_NODE_LEN>)
@@ -209,6 +206,11 @@ fn targets(tree: &[u8], depth: u32) -> Result<Vec<u32>, BankError> {
         if first.checked_add(count).is_none_or(|end| end > nodes) {
             return Err(invalid(
                 "a decision tree node lists children outside the tree",
+            ));
+        }
+        if pending.len().saturating_add(count) > nodes - visited {
+            return Err(invalid(
+                "a decision tree lists more children than it has nodes left",
             ));
         }
         pending.extend((first..first + count).rev().map(|child| (child, level + 1)));

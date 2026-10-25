@@ -92,9 +92,19 @@ fn the_events_of_every_trigger_are_followed_and_counted() -> TestResult {
                         .or_default()
                         .insert(kind);
                     let object = link.object().map_or("none", |step| step.kind.name());
+                    let nested = if link
+                        .path()
+                        .iter()
+                        .skip(1)
+                        .any(|step| step.kind.name() == "event")
+                    {
+                        "inside a posted event"
+                    } else {
+                        "directly"
+                    };
                     *census
                         .break_counts
-                        .entry(format!("{kind} at {object}"))
+                        .entry(format!("{kind} at {object} {nested}"))
                         .or_default() += 1;
                 }
             }

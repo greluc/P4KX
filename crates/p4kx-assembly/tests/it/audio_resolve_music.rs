@@ -47,6 +47,51 @@ fn music_bank() -> TestBank {
 }
 
 #[test]
+fn a_play_event_action_to_an_event_of_another_soundbank_names_that_soundbank() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    let elsewhere = TestBank::new(wwise_short_id("Elsewhere"))
+        .object(TestHircObject::event(500, &[2]))
+        .object(TestHircObject::action(2, PLAY, 10))
+        .object(TestHircObject::sound(10, 7000, 2, 0));
+    let music = TestBank::new(wwise_short_id("Music"))
+        .object(TestHircObject::event(wwise_short_id("Play_Music"), &[1]))
+        .object(TestHircObject::action(1, PLAY_EVENT, 500))
+        .object(TestHircObject::event(600, &[3]))
+        .object(TestHircObject::action(3, PLAY_EVENT, 501));
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd(
+            "Data\\Libs\\GameAudio\\SC_Music.xml",
+            TestAtl::new("SC_Music")
+                .trigger("Play_Music", &["Play_Music"])
+                .to_cryxml(),
+        ))
+        .entry(TestEntry::zstd(
+            "Data\\Sounds\\wwise\\Music.bnk",
+            music.bytes(),
+        ))
+        .entry(TestEntry::zstd(
+            "Data\\Sounds\\wwise\\Elsewhere.bnk",
+            elsewhere.bytes(),
+        ))
+        .write_to(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::test_key()))?;
+    let audio = ArchiveAudio::new(&archive);
+    let sounds = audio
+        .resolve_trigger("Play_Music")
+        .ok_or("Play_Music resolves")?;
+    let reasons: Vec<_> = sounds.breaks().iter().map(BrokenLink::reason).collect();
+    assert_eq!(
+        reasons,
+        [&BreakReason::OtherSoundbank {
+            id: 500,
+            bank_id: wwise_short_id("Elsewhere")
+        }]
+    );
+    Ok(())
+}
+
+#[test]
 fn a_playlist_leads_through_segments_and_tracks_to_their_sources() -> TestResult {
     let bank = music_bank()
         .object(TestHircObject::music_playlist(10, &[20, 21]))

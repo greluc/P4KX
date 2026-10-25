@@ -255,6 +255,31 @@ fn a_decision_tree_that_lies_outside_the_tree_is_malformed() -> TestResult {
 }
 
 #[test]
+fn a_decision_tree_that_reaches_a_node_twice_or_fans_out_past_its_nodes_is_malformed() -> TestResult
+{
+    for (name, targets, first, count) in [
+        ("a leaf reached twice", vec![40], 1_u16, 2_u16),
+        ("every node listed as a child", vec![40, 41, 42], 0, 4),
+        ("the same children listed again", vec![40, 41, 42], 1, 4),
+    ] {
+        let body = body_of(TestHircObject::music_switch(7, &[40], 0x4000, &targets))?;
+        let tree_start = body.len() - 12 * (targets.len() + 1);
+        let mut cut = body;
+        cut.splice(tree_start + 4..tree_start + 6, first.to_le_bytes());
+        cut.splice(tree_start + 6..tree_start + 8, count.to_le_bytes());
+        let (_, value) = decoded(TestHircObject::raw(12, 7, cut), 154)?;
+        assert!(
+            matches!(
+                value,
+                HircValue::Malformed(BankError::InvalidSection { .. })
+            ),
+            "{name}: {value:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn counts_beyond_the_body_are_malformed_without_allocating_them() -> TestResult {
     let object = TestHircObject::music_playlist(8, &[40]);
     let body = body_of(object)?;

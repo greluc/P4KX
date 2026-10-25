@@ -33,8 +33,8 @@ pub enum BreakReason {
         /// The ID referred to.
         id: u32,
     },
-    /// A Play action names another soundbank as the holder of the object it plays, which this
-    /// walk does not enter.
+    /// A Play action names another soundbank as the holder of the object it plays, or a `PlayEvent`
+    /// action posts an Event that only other soundbanks hold; this walk does not enter them.
     #[error("object {id} lies in soundbank {bank_id}, which the walk does not enter")]
     OtherSoundbank {
         /// The ID referred to.

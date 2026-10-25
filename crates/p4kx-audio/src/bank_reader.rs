@@ -99,7 +99,11 @@ impl<'a> SectionReader<'a> {
             .iter()
             .position(|&byte| byte == 0)
             .ok_or_else(|| self.truncated(rest.len() + 1))?;
-        self.position += len + 1;
+        self.position = self
+            .position
+            .checked_add(len)
+            .and_then(|end| end.checked_add(1))
+            .ok_or_else(|| self.truncated(len))?;
         Ok(rest.get(..len).unwrap_or_default())
     }
 

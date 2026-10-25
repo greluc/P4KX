@@ -472,8 +472,9 @@ read exits with code 2 and writes nothing.
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. The command reads
 every ATL definition below `Data\Libs\GameAudio\` (text XML or CryXml) and every `.bnk`
 soundbank of the Archive once. `triggers` lists the audio triggers the Entity's Record names
-through `GlobalResourceAudio.audioTrigger` fields and string fields of other structs whose name contains `audioTrigger` (ADR-0115), each once (names ignoring ASCII case) in the
-order the Record first names them. `matched` counts the triggers one of whose Wwise events a
+through `GlobalResourceAudio.audioTrigger` fields and string fields of other structs whose name
+contains `audioTrigger` (ADR-0115), each once (names ignoring ASCII case) in the order the Record
+first names them. `matched` counts the triggers one of whose Wwise events a
 soundbank holds; triggers that reach no soundbank do not change the exit code.
 
 A **Trigger**:
@@ -611,7 +612,8 @@ step where the chain breaks, the last of `path`), `target` (for `missing`, `othe
 `cycle`, the ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The kinds are
 `no_soundbank`, `unreadable` (the soundbank cannot be read again), `missing` (the object refers to
 an ID the soundbank does not hold), `other_soundbank` (a Play action names another soundbank as
-the holder of its target, which the walk does not enter), `malformed`, `unknown_layout` (an object
+the holder of its target, or a PlayEvent action posts an Event only another soundbank holds; the
+walk does not enter it), `malformed`, `unknown_layout` (an object
 of a bank version other than 154), `unsupported` (an object kind that is not followed, e.g. an
 actor-mixer), `cycle`,
 `too_deep` (a path of 32 objects), `too_many_children` (only the first 1024 children of a

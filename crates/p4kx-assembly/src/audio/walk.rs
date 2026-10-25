@@ -86,18 +86,22 @@ impl<'w> Walk<'w, '_> {
             self.broke(BreakReason::Cycle { id });
             return;
         }
+        let posted = wanted.is_some();
         let wanted = wanted.or_else(|| self.path.is_empty().then_some(HircKind::Event));
         let Some(object) = self.object(id, wanted) else {
             let own = self.bank.header().id;
-            let reason = match bank {
-                Some(bank) if bank.bank_id != 0 && bank.bank_id != own => {
-                    BreakReason::OtherSoundbank {
-                        id,
-                        bank_id: bank.bank_id,
-                    }
-                }
-                _ => BreakReason::Missing { id },
+            let holder = if posted {
+                self.index
+                    .event_soundbanks(id)
+                    .map(IndexedSoundbank::id)
+                    .find(|&holder| holder != own)
+            } else {
+                bank.map(|bank| bank.bank_id)
+                    .filter(|&named| named != 0 && named != own)
             };
+            let reason = holder.map_or(BreakReason::Missing { id }, |bank_id| {
+                BreakReason::OtherSoundbank { id, bank_id }
+            });
             self.broke(reason);
             return;
         };

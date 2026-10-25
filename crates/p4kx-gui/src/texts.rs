@@ -212,6 +212,9 @@ pub enum Text {
     /// The notice that the open Archive belongs to a test build and its material is confidential;
     /// takes `channel`, the Channel name.
     ArchiveTestBuild,
+    /// The added sentence for the EPTU Channel: its content may be under a non-disclosure
+    /// agreement.
+    ArchiveTestBuildNda,
     /// The action that opens the changed Archive again.
     ActionReload,
     /// Shown instead of the preview of an encrypted Entry while the Archive has no key; takes

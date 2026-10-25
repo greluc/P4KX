@@ -73,7 +73,7 @@ impl TestHircObject {
     }
 }
 
-fn node_base(base: TestNodeBase) -> Vec<u8> {
+pub(crate) fn node_base(base: TestNodeBase) -> Vec<u8> {
     let full = base == TestNodeBase::Full;
     let mut body = Vec::new();
     if full {

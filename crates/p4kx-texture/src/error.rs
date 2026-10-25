@@ -108,6 +108,9 @@ pub enum TextureError {
         /// Bytes given.
         actual: u64,
     },
+    /// The images given for a sheet are none, of different sizes or in no column.
+    #[error("a sheet needs at least one image, all of one size, in at least one column")]
+    SheetMismatch,
     /// The images given for a cubemap cross are not six faces of one size.
     #[error("a cubemap cross needs six faces of one size, got {faces} images")]
     NotACube {

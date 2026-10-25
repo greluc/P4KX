@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::TestNodeBase;
 use crate::bytes::{put_u16, put_u32};
+use crate::hirc_node::node_base;
 
 const DEFAULT_VERSION: u32 = 0x9A;
 const MEDIA_ALIGNMENT: usize = 16;
@@ -59,17 +61,35 @@ impl TestHircObject {
         }
         put_u32(&mut body, in_memory_size);
         body.push(source_bits);
-        body.extend_from_slice(&[0; 12]);
+        if cache_id {
+            body.extend_from_slice(&node_base(TestNodeBase::Plain));
+        } else {
+            body.extend_from_slice(&[0; 12]);
+        }
         Self { kind: 2, id, body }
     }
 
-    /// An Action object of `action_type`, e.g. `0x0403` for Play, aimed at `target_id`.
+    /// An Action object of `action_type`, e.g. `0x0403` for Play, aimed at `target_id`; a Play
+    /// action names no soundbank.
     #[must_use]
     pub fn action(id: u32, action_type: u16, target_id: u32) -> Self {
+        Self::action_in_bank(id, action_type, target_id, 0)
+    }
+
+    /// An Action object like [action](Self::action) whose Play action names the soundbank
+    /// `bank_id`.
+    #[must_use]
+    pub fn action_in_bank(id: u32, action_type: u16, target_id: u32, bank_id: u32) -> Self {
         let mut body = Vec::new();
         put_u16(&mut body, action_type);
         put_u32(&mut body, target_id);
-        body.extend_from_slice(&[0, 0, 0, 0, 0, 4, 0x49, 0x6D]);
+        if action_type >> 8 == 0x04 {
+            body.extend_from_slice(&[0, 0, 0, 0]);
+            put_u32(&mut body, bank_id);
+            put_u32(&mut body, 0);
+        } else {
+            body.extend_from_slice(&[0, 0, 0, 0, 0, 4, 0x49, 0x6D]);
+        }
         Self { kind: 3, id, body }
     }
 

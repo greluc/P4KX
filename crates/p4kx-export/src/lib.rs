@@ -83,6 +83,7 @@ mod item;
 mod item_class;
 mod item_stats;
 mod item_variant;
+mod line_writer;
 mod loadout;
 mod loadout_port;
 mod localization_table;
@@ -143,7 +144,7 @@ pub use crafting_types::{
 pub use crafting_warning::CraftingWarning;
 pub use error::CatalogError;
 pub use failure::CatalogFailure;
-pub use form::{NDJSON_FILE, RecordForm};
+pub use form::{FLAT_CSV_FILE, FLAT_NDJSON_FILE, NDJSON_FILE, RecordForm};
 pub use item_class::{ItemClass, ItemClassSummary};
 pub use localization_table::{TableFormat, write_localization_table};
 pub use options::{CatalogOptions, CatalogProgress};

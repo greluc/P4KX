@@ -46,7 +46,7 @@ fn ship_bank() -> Vec<u8> {
         .object(container(TestContainerKind::Blend, 401, &[403, 404]))
         .object(TestHircObject::raw(5, 402, [1, 2, 3]))
         .object(TestHircObject::plugin_sound(403, 6000))
-        .object(TestHircObject::raw(11, 404, [0; 8]))
+        .object(TestHircObject::raw(7, 404, [0; 8]))
         .object(TestHircObject::event(wwise_short_id("Play_Loop"), &[5]))
         .object(TestHircObject::action(5, PLAY, 500))
         .object(container(TestContainerKind::Random, 500, &[501]))
@@ -277,7 +277,7 @@ fn broken_links_name_the_object_where_the_chain_breaks() -> TestResult {
                 ),
                 (
                     "Play_Broken",
-                    Some(("music_track", 404)),
+                    Some(("actor_mixer", 404)),
                     "objects of this kind are not followed".to_owned()
                 ),
                 (

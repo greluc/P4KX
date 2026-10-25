@@ -6,7 +6,6 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use p4kx_archive::{Archive, Entry};
 use rayon::prelude::*;
 
-use crate::CUBE_FACE_NAMES;
 use crate::sound_job::sound_role;
 use crate::texture_images::IMAGE_EXTENSIONS;
 
@@ -76,7 +75,8 @@ impl Item<'_> {
     }
 
     /// Calls `visit` with the Entry path of each file the item may write below the target, and
-    /// with a trailing separator for a folder it fills with files not known in advance.
+    /// with a trailing separator for a folder it fills with files not known in advance, and with
+    /// a trailing `*` for the names that start with a prefix, as the images of a texture do.
     pub(crate) fn output_paths(&self, mut visit: impl FnMut(&str)) {
         match self {
             Self::Entry((_, entry)) => visit(entry.path()),
@@ -100,10 +100,8 @@ impl Item<'_> {
                     .unwrap_or_default();
                 for extension in IMAGE_EXTENSIONS {
                     visit(&format!("{stem}.{extension}"));
-                    for face in CUBE_FACE_NAMES {
-                        visit(&format!("{stem}_{face}.{extension}"));
-                    }
                 }
+                visit(&format!("{stem}_*"));
                 visit(&format!("{header}.a"));
                 visit(header);
                 for (_, entry) in &job.requested {

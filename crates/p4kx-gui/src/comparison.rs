@@ -115,14 +115,41 @@ pub enum ComparisonStatus<'a> {
     Finished(&'a ComparisonView),
 }
 
-fn test_channels(kinds: [Option<ChannelKind>; 2]) -> Option<String> {
+/// The test Channels the two picked Archives live in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TestChannels {
+    names: String,
+    several: bool,
+}
+
+impl TestChannels {
+    /// Returns the Channel names, such as `PTU` or `PTU, EPTU`.
+    #[must_use]
+    pub fn names(&self) -> &str {
+        &self.names
+    }
+
+    /// Returns whether the two Archives live in different test Channels.
+    #[must_use]
+    pub const fn several(&self) -> bool {
+        self.several
+    }
+}
+
+fn test_channels(kinds: [Option<ChannelKind>; 2]) -> Option<TestChannels> {
     let [old, new] = kinds.map(|kind| kind.filter(|kind| kind.is_test_build()));
     match (
         old.and_then(ChannelKind::name),
         new.and_then(ChannelKind::name),
     ) {
-        (Some(old), Some(new)) if old != new => Some(format!("{old}, {new}")),
-        (Some(name), _) | (None, Some(name)) => Some(name.to_owned()),
+        (Some(old), Some(new)) if old != new => Some(TestChannels {
+            names: format!("{old}, {new}"),
+            several: true,
+        }),
+        (Some(name), _) | (None, Some(name)) => Some(TestChannels {
+            names: name.to_owned(),
+            several: false,
+        }),
         (None, None) => None,
     }
 }
@@ -149,15 +176,15 @@ pub struct ComparisonTab {
     key: Option<ArchiveKey>,
     key_wanted: bool,
     kinds: [Option<ChannelKind>; 2],
-    test_channels: Option<String>,
+    test_channels: Option<TestChannels>,
 }
 
 impl ComparisonTab {
-    /// Returns the names of the test Channels the picked Archives live in, such as `PTU` or
-    /// `PTU, EPTU`, or `None` when neither lives in one.
+    /// Returns the test Channels the picked Archives live in, or `None` when neither lives in
+    /// one.
     #[must_use]
-    pub fn test_channels(&self) -> Option<&str> {
-        self.test_channels.as_deref()
+    pub const fn test_channels(&self) -> Option<&TestChannels> {
+        self.test_channels.as_ref()
     }
 
     /// Sets the key the picked Archives are opened with.

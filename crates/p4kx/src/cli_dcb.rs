@@ -162,12 +162,25 @@ impl QueryFormat {
 
 /// Arguments of `p4kx dcb export`.
 #[derive(Debug, Args)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "one clap flag per option of the export"
+)]
 pub(crate) struct DcbExportArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
-    /// The format of the Records.
-    #[arg(long, value_enum, default_value_t = RecordFormat::Xml)]
-    pub(crate) format: RecordFormat,
+    /// The format of the Records; xml by default, csv with --flat.
+    #[arg(long, value_enum)]
+    pub(crate) format: Option<RecordFormat>,
+    /// Writes one row per leaf value instead of the Records (docs/record-flat.md): the file
+    /// values.csv with --format csv, or values.ndjson with --format ndjson. Not with --combined or
+    /// --tags.
+    #[arg(long)]
+    pub(crate) flat: bool,
+    /// With --flat --format csv: writes the exact values, without the byte order mark and without
+    /// the leading ' that keeps a spreadsheet from running a text as a formula.
+    #[arg(long)]
+    pub(crate) csv_raw: bool,
     /// Exports only the Records whose record path matches, with the rules of `p4kx search`: a
     /// glob with `*` or `?`, otherwise text anywhere in the path; ignores case, `\` and `/` alike.
     #[arg(long, value_name = "FILTER")]
@@ -204,6 +217,8 @@ pub(crate) enum RecordFormat {
     Json,
     /// One file records.ndjson with one Record JSON object per line, in record-path order.
     Ndjson,
+    /// With --flat: the file values.csv with one CSV row per leaf value.
+    Csv,
 }
 
 /// Arguments of `p4kx dcb info`.

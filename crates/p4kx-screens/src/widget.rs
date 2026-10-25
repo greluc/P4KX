@@ -9,6 +9,7 @@ use crate::colour::ColorSpec;
 use crate::corners::Corner;
 use crate::flex::{Flex, parse_flex};
 use crate::geometry::{Bounds, Dim, Edges, Overflow};
+use crate::picture::Picture;
 use crate::reader::{as_struct, child, flag, float, int, items, reference, text};
 use crate::style::{Entry, Modifiers, inline_entries, modifiers};
 use crate::text::TextSpec;
@@ -85,6 +86,7 @@ pub(crate) struct Widget {
     pub(crate) canvas_sizing: CanvasSizing,
     pub(crate) shape: ShapeStyle,
     pub(crate) text: Option<TextSpec>,
+    pub(crate) picture: Picture,
     pub(crate) params: ParamValues,
     pub(crate) assets: WidgetAssets,
     pub(crate) repeat: Repeat,
@@ -218,6 +220,7 @@ impl Widget {
             },
             shape: ShapeStyle::parse(structure),
             text: TextSpec::parse(structure),
+            picture: Picture::parse(structure),
             params: param_values(structure),
             assets: WidgetAssets::scan(structure),
             repeat: Repeat::parse(structure, canvas),

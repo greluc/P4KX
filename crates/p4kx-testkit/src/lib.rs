@@ -79,6 +79,8 @@ mod rig_logic;
 mod screens;
 mod screens_canvas;
 mod screens_geometry;
+mod screens_image;
+mod screens_image_schema;
 mod screens_sample;
 mod screens_style;
 mod screens_text;
@@ -179,6 +181,9 @@ pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
 pub use screens_canvas::{TestCanvas, movie_component, screen_component, tag_record};
 pub use screens_geometry::clone_modifiers;
+pub use screens_image::{
+    SCREEN_IMAGE_CANVAS, screens_image_sample, screens_texture, screens_vector,
+};
 pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
 pub use screens_style::{TestCondition, TestModifier, TestStyle, TestStyleEntry};
 pub use screens_text::{

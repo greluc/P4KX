@@ -34,6 +34,7 @@ mod texture_exr;
 mod texture_groups;
 mod texture_png;
 mod texture_preview;
+mod ui_images;
 mod ui_imports;
 mod ui_movie;
 mod ui_render;

@@ -75,8 +75,7 @@ fn cell_text(value: &Value<'_>) -> String {
     let _infallible = write_short_text(&mut text, value);
     one_line(&text)
 }
-/// Returns `text` on one line: line breaks and tabs escaped, other control characters replaced.
-pub(crate) use p4kx_extraction::one_line;
+pub(crate) use p4kx_extraction::text_line::one_line;
 
 /// Returns the number of characters [`one_line`] makes of `text`.
 fn line_width(text: &str) -> usize {

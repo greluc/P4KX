@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::Model;
+use p4kx_model::{Animation, Model};
 use serde::Serialize;
 
 use crate::text_line::one_line;
@@ -29,19 +29,25 @@ impl AnimationInfo {
         set.animations
             .iter()
             .zip(&set.origins)
-            .map(|(animation, origin)| Self {
-                name: one_line(&animation.name),
-                path: one_line(&animation.path),
-                source: one_line(origin),
-                frames_per_second: animation.frames_per_second,
-                end_frame: animation.end_frame,
-                duration_seconds: animation.duration_seconds(),
-                additive: animation.additive,
-                tracks: animation.tracks.len(),
-                bound_tracks: animation.bind(&model.bones).bound.len(),
-                keys: animation.key_count(),
-            })
+            .map(|(animation, origin)| Self::of(model, animation, origin))
             .collect()
+    }
+
+    /// Describes `animation`, read from `origin`, as it binds to the bones of `model`.
+    #[must_use]
+    pub fn of(model: &Model, animation: &Animation, origin: &str) -> Self {
+        Self {
+            name: one_line(&animation.name),
+            path: one_line(&animation.path),
+            source: one_line(origin),
+            frames_per_second: animation.frames_per_second,
+            end_frame: animation.end_frame,
+            duration_seconds: animation.duration_seconds(),
+            additive: animation.additive,
+            tracks: animation.tracks.len(),
+            bound_tracks: animation.bind(&model.bones).bound.len(),
+            keys: animation.key_count(),
+        }
     }
 }
 

@@ -34,7 +34,7 @@ fn install() -> TestResult<Install> {
     ])
 }
 
-fn all_pages(
+pub(crate) fn all_pages(
     server: &mut Server,
     tool: &str,
     arguments: &Value,

@@ -4,8 +4,9 @@
 use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
+use p4kx_extraction::ModelInfo;
 use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Model};
-use p4kx_extraction::{ModelInfo, file_name, node_name, usage_name};
+use p4kx_extraction::model_info::{file_name, node_name, usage_name};
 
 use crate::json;
 use crate::model::Opened;

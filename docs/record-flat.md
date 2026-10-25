@@ -88,9 +88,9 @@ value.
 - UTF-8 with a byte order mark, a header row with the column names, CRLF after every row, as in RFC
   4180. A cell is quoted with `"` when it holds a comma, a quote, a carriage return or a line feed,
   and a quote inside it is doubled.
-- A `string`, `locale` or `enum` value, and a `text`, that starts with `=`, `+`, `-`, `@`, a tab or
-  a carriage return would be run as a formula by a spreadsheet. It is written with a leading `'`
-  (`'=1+1`). Every localisation key starts with `@`, so every `locale` value of this file starts
+- A `string`, `locale` or `enum` value, a `text` and a `record_tag` that starts with `=`, `+`, `-`,
+  `@`, a tab or a carriage return would be run as a formula by a spreadsheet. It is written with a
+  leading `'` (`'=1+1`). Every localisation key starts with `@`, so every `locale` value of this file starts
   with `'@`. Numbers, booleans, GUIDs and the other columns are never changed, so `-5` stays a
   number.
 - `--csv-raw` writes the exact values: no byte order mark and no leading `'`. Use it for scripts
@@ -103,9 +103,10 @@ value.
 UTF-8 without byte order mark, one compact object per row, ended by a line feed, with the keys
 `record_guid`, `record_name`, `record_path`, then `record_tag` when the Record has a tag (the key
 is left out otherwise), `field_path`, `array_indices` (the text above, `""` outside arrays), `kind`
-and `value`, then `target_path` for a `reference` and `text` for a resolved `locale` value. `value` is typed: a boolean, an exact number, or a string; a number beyond 2^53
-loses precision in readers that use doubles, as in [Record JSON](record-json.md#values). Strings
-are escaped as in Record JSON. Values are never changed for spreadsheets.
+and `value`, then `target_path` for a `reference` and `text` for a resolved `locale` value.
+`value` is typed: a boolean, an exact number, or a string; a number beyond 2^53 loses precision in
+readers that use doubles, as in [Record JSON](record-json.md#values). Strings are escaped as in
+Record JSON. Values are never changed for spreadsheets.
 
 ## Not offered
 

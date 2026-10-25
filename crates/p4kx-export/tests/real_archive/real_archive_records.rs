@@ -225,10 +225,12 @@ fn a_real_ship_record_is_one_flat_row_per_leaf_value_of_its_json() -> TestResult
         rows.iter()
             .all(|row| row["record_guid"] == KNOWN_GUID && row["record_path"] == KNOWN_RECORD)
     );
+    let tag = known["$tag"].as_str().unwrap_or_default();
+    println!("record tag: {tag}");
+    assert!(!tag.is_empty(), "the known Record has a tag");
     assert!(
-        rows.iter()
-            .all(|row| row.get("record_tag") == known.get("$tag")),
-        "the flat Record tag is the `$tag` of the Record JSON, or absent in both"
+        rows.iter().all(|row| row["record_tag"] == tag),
+        "every flat row carries the `$tag` of the Record JSON"
     );
     check_known_rows(&rows)
 }

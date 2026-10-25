@@ -108,6 +108,26 @@ fn the_csv_tag_is_quoted_and_neutralised_like_any_text() -> TestResult {
 }
 
 #[test]
+fn the_csv_tag_is_neutralised_for_every_formula_lead() -> TestResult {
+    for lead in ["=", "+", "-", "@", "\t"] {
+        let tag = format!("{lead}x");
+        let text = flat(8, &tag, FlatFormat::Csv)?;
+        assert!(
+            text.contains(&format!(",int,3,,'{tag}\r\n")),
+            "{lead:?}: {text}"
+        );
+        let raw = flat(8, &tag, FlatFormat::CsvRaw)?;
+        assert!(
+            raw.contains(&format!(",int,3,,{tag}\r\n")),
+            "{lead:?}: {raw}"
+        );
+    }
+    let text = flat(8, "\rx", FlatFormat::Csv)?;
+    assert!(text.contains(",int,3,,\"'\rx\"\r\n"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn with_texts_the_text_stays_ninth_and_the_record_tag_is_tenth() -> TestResult {
     struct Texts;
     impl TextResolver for Texts {

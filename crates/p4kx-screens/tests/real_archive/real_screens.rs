@@ -142,7 +142,7 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
             let composed = screens.compose(&screen.canvas_guid, listing.brand.as_deref())?;
             composed.rasterize(&options)?;
             let report = composed.report();
-            assert!(report.widgets > 0, "{ship} {}: widgets", screen.canvas);
+            assert!(report.canvases > 0, "{ship} {}: canvases", screen.canvas);
             assert!(
                 !report.truncated,
                 "{ship} {}: within the limits",

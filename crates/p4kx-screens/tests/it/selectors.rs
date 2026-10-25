@@ -33,7 +33,7 @@ fn paint(name: &str, colour: p4kx_testkit::TestColour) -> TestStyleEntry {
         .set(TestModifier::Background(colour))
 }
 
-fn square(widget: TestWidget) -> TestWidget {
+const fn square(widget: TestWidget) -> TestWidget {
     widget.size(TestDim::Fixed(10.0), TestDim::Fixed(10.0))
 }
 

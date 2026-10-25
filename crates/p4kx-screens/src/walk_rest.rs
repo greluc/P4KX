@@ -158,6 +158,10 @@ impl Walk<'_, '_, '_, '_> {
     /// Returns what the place of a widget adds to the key of a resolved style: its position among
     /// its siblings where an entry counts them, else nothing.
     pub(crate) const fn position_key(&self, position: usize) -> usize {
-        if self.shape.count { position + 1 } else { 0 }
+        if self.shape.count {
+            position.saturating_add(1)
+        } else {
+            0
+        }
     }
 }

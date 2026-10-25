@@ -43,20 +43,20 @@ fn cell(name: &str, parent: &str) -> TestWidget {
 }
 
 fn sample() -> TestCanvas {
-    let card = |name: &str| {
-        TestWidget::new("BuildingBlocks_WidgetCard", name)
-            .parent("cards")
-            .size(TestDim::Fixed(20.0), TestDim::Fixed(14.0))
-            .background(BLUE)
-    };
-    TestCanvas::new(SCREEN, "sample", 160.0, 100.0)
-        .template(
-            TestWidget::display("tile")
-                .tag(TILE)
-                .size(TestDim::Fixed(20.0), TestDim::Fixed(14.0))
-                .background(LIGHT),
-        )
-        .static_array("tiles", 6)
+    widgets(styles(
+        TestCanvas::new(SCREEN, "sample", 160.0, 100.0)
+            .template(
+                TestWidget::display("tile")
+                    .tag(TILE)
+                    .size(TestDim::Fixed(20.0), TestDim::Fixed(14.0))
+                    .background(LIGHT),
+            )
+            .static_array("tiles", 6),
+    ))
+}
+
+fn styles(canvas: TestCanvas) -> TestCanvas {
+    canvas
         .embedded(
             paint("every second", RED)
                 .when(TestCondition::Tag(TILE))
@@ -83,6 +83,16 @@ fn sample() -> TestCanvas {
                 .when(TestCondition::Tag(SHIFT))
                 .set(TestModifier::Number("MarginLeft", 12.0)),
         )
+}
+
+fn widgets(canvas: TestCanvas) -> TestCanvas {
+    let card = |name: &str| {
+        TestWidget::new("BuildingBlocks_WidgetCard", name)
+            .parent("cards")
+            .size(TestDim::Fixed(20.0), TestDim::Fixed(14.0))
+            .background(BLUE)
+    };
+    canvas
         .operation("flag", TestOp::BoolVar)
         .operation("fade", TestOp::NumFromBool("flag", 1.0, 0.4))
         .widget(TestWidget::display("backdrop").background(GREY))

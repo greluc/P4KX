@@ -22,7 +22,7 @@ fn canvas() -> TestCanvas {
     TestCanvas::new(SCREEN, "rest", 40.0, 10.0)
 }
 
-fn square(widget: TestWidget) -> TestWidget {
+const fn square(widget: TestWidget) -> TestWidget {
     widget.size(TestDim::Fixed(10.0), TestDim::Fixed(10.0))
 }
 

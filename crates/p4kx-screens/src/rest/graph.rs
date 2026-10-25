@@ -131,7 +131,7 @@ pub(crate) enum Node {
         input: Input,
         inputs: [Input; 2],
     },
-    Unsupported(String),
+    Unsupported(usize),
 }
 
 /// The kind of value a field binding sets.
@@ -158,6 +158,7 @@ pub(crate) struct Binding {
 pub(crate) struct Operations {
     pub(crate) nodes: Vec<Node>,
     pub(crate) bindings: Vec<Binding>,
+    pub(crate) kinds: Vec<String>,
 }
 
 fn operation_at(structure: &StructValue<'_>, name: &str) -> Input {
@@ -211,46 +212,47 @@ fn source(short: &str, op: &StructValue<'_>) -> Option<Node> {
     })
 }
 
-fn node(short: &str, op: &StructValue<'_>) -> Node {
+fn whole(value: &Value<'_>) -> Option<f64> {
+    match value {
+        Value::Int32(value) => Some(f64::from(*value)),
+        Value::Int16(value) => Some(f64::from(*value)),
+        Value::Int8(value) => Some(f64::from(*value)),
+        Value::UInt32(value) => Some(f64::from(*value)),
+        Value::UInt16(value) => Some(f64::from(*value)),
+        Value::UInt8(value) => Some(f64::from(*value)),
+        _ => None,
+    }
+}
+
+fn node(short: &str, op: &StructValue<'_>) -> Option<Node> {
     if let Some(source) = source(short, op) {
-        return source;
+        return Some(source);
     }
     let input = || operation_at(op, "input");
-    let unsupported = || Node::Unsupported(short.to_owned());
-    match short {
+    Some(match short {
         "BooleanInvert" => Node::Invert(input()),
         "BooleanEvaluateAnd" => Node::All(operations_at(op, "inputs")),
         "BooleanEvaluateOr" => Node::Any(operations_at(op, "inputs")),
-        "BooleanFromInteger" => {
-            Cmp::parse(text(op, "type")).map_or_else(unsupported, |cmp| Node::Compare {
-                cmp,
-                constant: number(op, "value"),
-                left: operation_at(op, "inputL"),
-                right: operation_at(op, "inputR"),
-            })
-        }
-        "BooleanFromNumber" => {
-            Cmp::parse(text(op, "type")).map_or_else(unsupported, |cmp| Node::Compare {
-                cmp,
-                constant: number(op, "number"),
-                left: input(),
-                right: operation_at(op, "inputB"),
-            })
-        }
+        "BooleanFromInteger" => Node::Compare {
+            cmp: Cmp::parse(text(op, "type"))?,
+            constant: number(op, "value"),
+            left: operation_at(op, "inputL"),
+            right: operation_at(op, "inputR"),
+        },
+        "BooleanFromNumber" => Node::Compare {
+            cmp: Cmp::parse(text(op, "type"))?,
+            constant: number(op, "number"),
+            left: input(),
+            right: operation_at(op, "inputB"),
+        },
         "BooleanFromIntegerSwitch" => Node::Switch {
             default: flag(op, "defaultValue").unwrap_or(false),
-            exceptions: items(op, "exceptions")
-                .iter()
-                .filter_map(|value| match value {
-                    Value::Int32(value) => Some(f64::from(*value)),
-                    _ => None,
-                })
-                .collect(),
+            exceptions: items(op, "exceptions").iter().filter_map(whole).collect(),
             input: input(),
         },
         "BooleanFromStringIsEmpty" => Node::TextEmpty(input()),
-        _ => numeric(short, op).unwrap_or_else(unsupported),
-    }
+        _ => return numeric(short, op),
+    })
 }
 
 fn numeric(short: &str, op: &StructValue<'_>) -> Option<Node> {
@@ -300,7 +302,8 @@ impl Operations {
         let mut found = Self::default();
         for operation in items(root, "operations") {
             let Some(op) = as_struct(operation) else {
-                found.nodes.push(Node::Unsupported("operation".to_owned()));
+                let kind = found.kind("operation");
+                found.nodes.push(Node::Unsupported(kind));
                 continue;
             };
             let name = op.type_name();
@@ -321,11 +324,24 @@ impl Operations {
                         input: operation_at(op, "input"),
                     });
                 }
-                found.nodes.push(Node::Unsupported(short.to_owned()));
+                let kind = found.kind(short);
+                found.nodes.push(Node::Unsupported(kind));
                 continue;
             }
-            found.nodes.push(node(short, op));
+            let node = node(short, op).unwrap_or_else(|| Node::Unsupported(found.kind(short)));
+            found.nodes.push(node);
         }
         found
+    }
+
+    /// Returns the index of the kind of operation `name` among the kinds that are not evaluated.
+    fn kind(&mut self, name: &str) -> usize {
+        self.kinds
+            .iter()
+            .position(|kind| kind == name)
+            .unwrap_or_else(|| {
+                self.kinds.push(name.to_owned());
+                self.kinds.len() - 1
+            })
     }
 }

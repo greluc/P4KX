@@ -20,6 +20,7 @@ enum Memo {
 
 struct Eval<'a> {
     nodes: &'a [Node],
+    kinds: &'a [String],
     inputs: &'a [(String, Rest)],
     memo: Vec<Memo>,
 }
@@ -126,7 +127,10 @@ impl Eval<'_> {
                 Rest::Text(text) => Ok(Rest::Bool(text.is_empty())),
                 _ => Err("a value that is not a text".to_owned()),
             },
-            Node::Unsupported(kind) => Err(format!("{kind} is not evaluated")),
+            Node::Unsupported(kind) => Err(format!(
+                "{} is not evaluated",
+                self.kinds.get(*kind).map_or("an operation", String::as_str)
+            )),
             other => self.maths(other, depth),
         }
     }
@@ -232,6 +236,7 @@ impl AtRest {
         }
         let mut eval = Eval {
             nodes: &operations.nodes,
+            kinds: &operations.kinds,
             inputs,
             memo: operations.nodes.iter().map(|_| Memo::Fresh).collect(),
         };

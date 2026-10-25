@@ -15,7 +15,11 @@ fn binding(field: &str, kind: FieldKind, input: usize) -> Binding {
 }
 
 fn graph(nodes: Vec<Node>, bindings: Vec<Binding>) -> Operations {
-    Operations { nodes, bindings }
+    Operations {
+        nodes,
+        bindings,
+        kinds: vec!["Mystery".to_owned()],
+    }
 }
 
 fn flag() -> Node {
@@ -111,7 +115,7 @@ fn the_deciding_input_of_and_and_or_wins_over_an_unknown_one() {
     let operations = graph(
         vec![
             flag(),
-            Node::Unsupported("Mystery".to_owned()),
+            Node::Unsupported(0),
             Node::All(vec![Some(0), Some(1)]),
             Node::Any(vec![Some(0), Some(1)]),
         ],

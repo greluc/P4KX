@@ -28,6 +28,9 @@ pub enum CatalogError {
         #[source]
         source: LocalizationError,
     },
+    /// The ship store slug data compiled into the tool is invalid.
+    #[error("the ship store slug data is invalid: {0}")]
+    StoreSlugs(String),
     /// The catalog cannot be written as JSON.
     #[error("cannot write the catalog as JSON")]
     Json(#[source] serde_json::Error),

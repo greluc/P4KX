@@ -12,6 +12,7 @@ use p4kx_extraction::Archive;
 use serde::Serialize;
 
 use crate::catalog_json_shops::ShopsJson;
+use crate::catalog_json_slugs::StoreSlugsJson;
 use crate::json;
 
 #[derive(Serialize)]
@@ -34,6 +35,7 @@ pub(super) struct SummaryJson<'a> {
     loadouts: LoadoutsJson,
     starmap: StarmapJson,
     shops: ShopsJson<'a>,
+    store_slugs: StoreSlugsJson<'a>,
     playability: PlayabilityJson,
     variants: VariantsJson,
     texts: Vec<TextJson>,
@@ -298,6 +300,7 @@ pub(super) fn summary_json<'a>(
         loadouts: summary.loadouts().into(),
         starmap: summary.starmap().into(),
         shops: summary.shops().into(),
+        store_slugs: summary.store_slugs().into(),
         playability: PlayabilityJson {
             items: summary.playability().items.into(),
             ships: summary.playability().ships.into(),

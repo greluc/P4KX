@@ -330,6 +330,50 @@ the layer). Each has `kind`, a
 stable code, `path`, `name`, `skipped` (the node is left out of the scene) and `reason`, text for
 people that comes partly from the Archive and is untrusted.
 
+## Size
+
+Textures dominate a package: at the default `--texture-mip 0` they are the full pixels the Archive
+holds. Measured on the LIVE Archive at the time of writing, with the default options unless
+stated:
+
+| Package | Files | Size | Meshes for drawing nodes | Meshes' size against unshared |
+| --- | --- | --- | --- | --- |
+| AEGS_Gladius | 325 | 585 MiB | 35 for 56 | 0.80 |
+| AEGS_Avenger_Titan | 347 | 750 MiB | 26 for 44 | 0.76 |
+| RSI_Polaris | 488 | 1416 MiB | 88 for 297 | 0.65 |
+| RSI_Constellation_Andromeda | 372 | 826 MiB | 45 for 150 | 0.67 |
+| Constellation with `--interior` | 418 | 912 MiB | 63 for 233 | 0.70 |
+| DRAK_Cutlass_Black with `--interior` | 413 | 866 MiB | 53 for 124 | 0.81 |
+| AEGS_Gladius at `--texture-mip 2` | 325 | 83 MiB | 35 for 56 | 0.80 |
+| Character (CHF, armour Loadout, two animations) | 2 | 56 MiB | 1 | 1 |
+
+The bounds a package keeps, asserted by the real-Archive tests
+(`crates/p4kx/tests/real_archive/real_blender_packages.rs`):
+
+- A ship package is at most 2 GiB at the default mip and 128 MiB at `--texture-mip 2`; a ship
+  with its Interior is at most 1.5 GiB; a Character package is at most 128 MiB.
+- The sharing, `1 - meshes / instances` (the sum of `instances` over all meshes is the number of
+  drawing nodes), is at least 0.3, and the meshes take at most 85 % of the bytes they would take
+  if every node had its own file. Every drawing node is an instance of exactly one mesh.
+- A ship package holds at least 100 textures, and every texture of the Archive is written once:
+  no two entries of `textures` have the same `source`.
+
+## Verifying a package in Blender
+
+`blender_addon/tests/import_real_package.py <package folder>...` imports packages in headless
+Blender (the `bpy` 5.2.3 wheel in a virtual environment, or
+`blender --background --factory-startup --python blender_addon/tests/import_real_package.py -- <package folder>...`)
+and prints one JSON line per package: objects, collections, armatures, shape keys, actions,
+materials, node groups, images, warnings and the time. The exit status is 1 when no folder is
+given, a package fails to import, or the instances created differ from the drawing nodes of its
+manifest. The warnings of the real ships are the notes of the material mapping: shaders without
+a mapping get a basic material, and materials with more than 5 layers blend the first 5.
+
+The real-Archive tests write the packages to `p4kx-package-verification` below `TMP` (about
+5.5 GB for all of them) and remove them when the checks pass. Set `P4KX_KEEP_PACKAGES` to any
+value to keep them, for example to import them with the script above; the packages of a test
+are in the folder named after it (`ships`, `coarse`, `interiors`, `character`).
+
 ## Versions
 
 `version` is `<major>.<minor>`. The major version changes when a field changes its meaning or

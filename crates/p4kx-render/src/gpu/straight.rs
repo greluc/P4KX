@@ -29,6 +29,50 @@ fn encode(linear: f32) -> u8 {
     byte
 }
 
+fn decode(channel: u8) -> f32 {
+    DECODED.get(usize::from(channel)).copied().unwrap_or(0.0)
+}
+
+/// Puts the straight `background` under RGBA pixels of sRGB-encoded premultiplied colours, the
+/// alpha linear; the pixels stay premultiplied. A background without alpha changes nothing.
+pub(super) fn under(rgba: &mut [u8], background: [u8; 4]) {
+    let [red, green, blue, alpha] = background;
+    if alpha == 0 {
+        return;
+    }
+    let behind = f32::from(alpha) / 255.0;
+    let weighted = [red, green, blue].map(|channel| decode(channel) * behind);
+    let [clear_red, clear_green, clear_blue] = if alpha == u8::MAX {
+        [red, green, blue]
+    } else {
+        weighted.map(encode)
+    };
+    let (pixels, _) = rgba.as_chunks_mut::<4>();
+    for pixel in pixels {
+        let [pixel_red, pixel_green, pixel_blue, pixel_alpha] = pixel;
+        if *pixel_alpha == 0 {
+            *pixel = [clear_red, clear_green, clear_blue, alpha];
+            continue;
+        }
+        let cover = f32::from(*pixel_alpha) / 255.0;
+        let rest = 1.0 - cover;
+        for (channel, below) in [pixel_red, pixel_green, pixel_blue]
+            .into_iter()
+            .zip(weighted)
+        {
+            *channel = encode(below.mul_add(rest, decode(*channel)).min(1.0));
+        }
+        let total = behind.mul_add(rest, cover);
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "the value is rounded and clamped to 0 to 255 first"
+        )]
+        let byte = total.mul_add(255.0, 0.5).clamp(0.0, 255.0) as u8;
+        *pixel_alpha = byte;
+    }
+}
+
 /// Turns RGBA pixels of sRGB-encoded premultiplied colours, the alpha linear, into straight
 /// alpha: the colour is decoded, divided by the alpha and encoded again. A pixel without alpha
 /// becomes black.
@@ -46,7 +90,7 @@ pub(super) fn straighten(rgba: &mut [u8]) {
             alpha => {
                 let coverage = f32::from(alpha) / 255.0;
                 for channel in [red, green, blue] {
-                    let linear = DECODED.get(usize::from(*channel)).copied().unwrap_or(0.0);
+                    let linear = decode(*channel);
                     *channel = encode((linear / coverage).min(1.0));
                 }
             }

@@ -22,14 +22,12 @@ const NORMALS_2: u32 = 0x38A5_81FE;
 const TANGENTS: u32 = 0xB95E_9A1B;
 const QTANGENTS: u32 = 0xEE05_7252;
 const BEFORE: [(u32, u32); 4] = [(NORMALS_2, 12), (NORMALS, 4), (QTANGENTS, 8), (TANGENTS, 8)];
-const AFTER: [(u32, u32); 7] = [
+const AFTER: [(u32, u32); 5] = [
     (NORMALS_2, 12),
-    (NORMALS_2, 4),
     (NORMALS, 12),
     (NORMALS, 4),
     (QTANGENTS, 8),
     (TANGENTS, 8),
-    (TANGENTS, 16),
 ];
 
 #[derive(Default)]
@@ -217,6 +215,10 @@ fn the_streams_of_every_mesh_chunk_are_counted_by_tag_and_element_size() -> Test
     assert!(survey.chunks > 0, "the Archive holds mesh chunks");
     assert_eq!(survey.without_normals_after, 0, "chunks without a normal");
     assert_eq!(survey.truncated, 0, "streams that overrun their chunk");
+    assert!(
+        !survey.pairs.contains_key(&(TANGENTS, 16)),
+        "the 16-byte tangent layout occurs: ADR-0114 needs a new decision"
+    );
     assert!(
         survey.unreadable.is_empty(),
         "unreadable: {:#?}",

@@ -4,6 +4,6 @@ expression: text.stdout
 ---
 Play_Broken  Data\Libs\GameAudio\SC_Ship.xml
   ! Play_Broken in Ship.bnk: broken at action 3: the soundbank holds no object 999; event 3138548149 > action 3
-  ! Play_Broken in Ship.bnk: broken at music_track 400: objects of this kind are not followed; event 3138548149 > action 4 > music_track 400
+  ! Play_Broken in Ship.bnk: broken at actor_mixer 400: objects of this kind are not followed; event 3138548149 > action 4 > actor_mixer 400
   ! Play_In_No_Bank: broken at event 950752116: no soundbank holds the Wwise event; event 950752116
 0 variants: 0 located, 0 not located, 0 plug-in; 3 broken links

@@ -37,7 +37,7 @@ pub use export::{
 pub use hash::wwise_id;
 pub use index::AudioIndex;
 pub use language::LanguageChoice;
-pub use references::{TriggerReference, trigger_references};
+pub use references::{TriggerReference, TriggerScope, trigger_references, trigger_references_in};
 pub use search::{MAX_SEARCH_PAGE, SearchPage, TriggerHit};
 pub use sounds::{NodeKind, PathStep, SoundVariant, SourceKind, TriggerSounds, WemLocation};
 pub use users::TriggerUsers;

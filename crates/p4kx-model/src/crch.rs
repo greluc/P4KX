@@ -3,14 +3,15 @@
 
 use p4kx_chunks::{ByteOrder, ChunkFile, ChunkType, crch};
 
-use crate::build::{corrupt, root_node, usage};
-use crate::crch_mesh::{physics_chunk_id, read_physics_mesh};
+use crate::build::{root_node, usage};
+use crate::crch_mesh::{physics_slots, read_physics_mesh};
 use crate::crch_node::{CrchNode, read_nodes};
+use crate::error::failure;
 use crate::material::material_library;
 use crate::mtl_load::load;
 use crate::{
     CompanionResolver, CorruptChunk, Lod, LodSelection, MaterialStatus, Mesh, Model, ModelError,
-    ModelFile, ModelIssue,
+    ModelFile, ModelIssue, UnsupportedLayout,
 };
 
 const MESH_VERSION: u32 = 0x801;
@@ -32,12 +33,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     let mut lods = Vec::new();
     let mut issues = Vec::new();
     if selection.wants(0) || selection.is_lenient() {
-        let mut meshes = Vec::new();
-        for (position, node) in crch_nodes.iter().enumerate() {
-            if let Some(mesh) = read_node_mesh(name, file, position, node, &mut read)? {
-                meshes.push(mesh);
-            }
-        }
+        let meshes = read_meshes(name, file, &crch_nodes, &mut read, &mut issues)?;
         let level = match selection {
             LodSelection::OnlyOrBase(level) if level != 0 => {
                 issues.push(ModelIssue::LodFallback {
@@ -90,6 +86,22 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     })
 }
 
+fn read_meshes<B: AsRef<[u8]>>(
+    name: &str,
+    file: &ChunkFile<B>,
+    nodes: &[CrchNode],
+    read: &mut Vec<(ModelFile, usize)>,
+    issues: &mut Vec<ModelIssue>,
+) -> Result<Vec<Mesh>, ModelError> {
+    let mut meshes = Vec::new();
+    for (position, node) in nodes.iter().enumerate() {
+        if let Some(mesh) = read_node_mesh(name, file, position, node, read, issues)? {
+            meshes.push(mesh);
+        }
+    }
+    Ok(meshes)
+}
+
 fn first_of_version<B: AsRef<[u8]>>(
     file: &ChunkFile<B>,
     chunk_type: ChunkType,
@@ -106,38 +118,53 @@ fn read_node_mesh<B: AsRef<[u8]>>(
     position: usize,
     node: &CrchNode,
     read: &mut Vec<(ModelFile, usize)>,
+    issues: &mut Vec<ModelIssue>,
 ) -> Result<Option<Mesh>, ModelError> {
     let Some((mesh_index, mesh_chunk)) = file.chunk_by_id(node.object) else {
         return Ok(None);
     };
-    if mesh_chunk.chunk_type() != crch::MESH || mesh_chunk.version() != MESH_VERSION {
+    if mesh_chunk.chunk_type() != crch::MESH {
         return Ok(None);
     }
-    let fail = corrupt(name, mesh_index, "Mesh");
+    if mesh_chunk.version() != MESH_VERSION {
+        return Err(failure(name, mesh_index, "Mesh")(
+            UnsupportedLayout::MeshVersion(mesh_chunk.version()).into(),
+        ));
+    }
+    let fail = failure(name, mesh_index, "Mesh");
     if mesh_chunk.byte_order() != ByteOrder::Little {
-        return Err(fail(CorruptChunk::BigEndian));
+        return Err(fail(UnsupportedLayout::BigEndian.into()));
     }
     read.push((ModelFile::Model, mesh_index));
-    let Some(physics_id) =
-        physics_chunk_id(file.chunk_data(mesh_index).unwrap_or_default()).map_err(&fail)?
-    else {
+    let slots = physics_slots(file.chunk_data(mesh_index).unwrap_or_default()).map_err(&fail)?;
+    if slots.ignored > 0 {
+        issues.push(ModelIssue::PhysicsSlotsIgnored {
+            node: position,
+            slots: slots.ignored,
+        });
+    }
+    let Some(physics_id) = slots.chunk_id else {
         return Ok(None);
     };
 
-    let physics_index = file
-        .chunk_by_id(physics_id)
-        .filter(|(_, chunk)| {
-            chunk.chunk_type() == crch::MESH_PHYSICS_DATA && chunk.version() == PHYSICS_DATA_VERSION
-        })
-        .map(|(index, _)| index)
-        .ok_or_else(|| fail(CorruptChunk::ReferencedChunk(physics_id)))?;
-    let fail = corrupt(name, physics_index, "MeshPhysicsData");
+    let physics_index = match file.chunk_by_id(physics_id) {
+        Some((index, chunk)) if chunk.chunk_type() == crch::MESH_PHYSICS_DATA => {
+            if chunk.version() != PHYSICS_DATA_VERSION {
+                return Err(failure(name, index, "MeshPhysicsData")(
+                    UnsupportedLayout::PhysicsVersion(chunk.version()).into(),
+                ));
+            }
+            index
+        }
+        _ => return Err(fail(CorruptChunk::ReferencedChunk(physics_id).into())),
+    };
+    let fail = failure(name, physics_index, "MeshPhysicsData");
     if file
         .chunks()
         .get(physics_index)
         .is_none_or(|chunk| chunk.byte_order() != ByteOrder::Little)
     {
-        return Err(fail(CorruptChunk::BigEndian));
+        return Err(fail(UnsupportedLayout::BigEndian.into()));
     }
     read.push((ModelFile::Model, physics_index));
     read_physics_mesh(position, file.chunk_data(physics_index).unwrap_or_default()).map_err(fail)

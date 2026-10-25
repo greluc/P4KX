@@ -9,6 +9,7 @@ mod decode;
 mod decode_bc45;
 mod decode_bc6h;
 mod decode_bc7;
+mod decode_float;
 mod hdr_export;
 mod header;
 mod images;

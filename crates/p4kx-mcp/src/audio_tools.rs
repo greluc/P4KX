@@ -5,7 +5,7 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::{tool, tool_router};
 
 use crate::audio;
-use crate::audio_excerpt::{self, Excerpted};
+use crate::audio_excerpt;
 use crate::audio_params::{
     EntitySoundsParams, ExcerptParams, MAX_NAME_LEN, SearchTriggersParams, SoundbankParams,
     TriggerParams, WemParams,
@@ -17,6 +17,7 @@ use crate::error::capped;
 use crate::noted::Noted;
 use crate::page::Page;
 use crate::params::MAX_PATH_LEN;
+use crate::picture::Sounded;
 use crate::server::Server;
 
 #[tool_router(router = audio_router, vis = "pub(crate)")]
@@ -217,7 +218,7 @@ impl Server {
     async fn get_audio_excerpt(
         &self,
         Parameters(params): Parameters<ExcerptParams>,
-    ) -> Result<Excerpted, String> {
+    ) -> Result<Sounded<ExcerptResult>, String> {
         let permit = self.model_permit().await?;
         let done = self
             .run(move |state| {
@@ -227,7 +228,7 @@ impl Server {
             })
             .await?;
         let (value, wav) = done.value;
-        Ok(Excerpted {
+        Ok(Sounded {
             value,
             wav,
             notice: done.notice,

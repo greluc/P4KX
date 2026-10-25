@@ -8,6 +8,9 @@ use p4kx_model::Influences;
 use crate::axes::to_y_up;
 use crate::skin::{SET_LEN, joint_set, weight_set, y_up_rotation};
 
+/// The influence set a block holds, 0 or 1, and the most bones per vertex it is written with.
+pub(crate) type SetPick = (usize, usize);
+
 /// What one block of the binary chunk holds.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum BlockData<'m> {
@@ -26,10 +29,10 @@ pub(crate) enum BlockData<'m> {
     Short(&'m [u32]),
     /// A submesh's indices as 32-bit values.
     Wide(&'m [u32]),
-    /// The bone indices of influence set `.1` as 16-bit values, four per vertex.
-    Joints(&'m [Influences], usize),
-    /// The weights of influence set `.1` as normalised bytes, four per vertex.
-    Weights(&'m [Influences], usize),
+    /// The bone indices of the influence set, as 16-bit values, four per vertex.
+    Joints(&'m [Influences], SetPick),
+    /// The weights of the influence set as normalised bytes, four per vertex.
+    Weights(&'m [Influences], SetPick),
     /// The inverse bind matrices of the skeleton's bones, column-major.
     InverseBinds(&'m [[f32; 16]]),
     /// The key times of an animation channel in seconds: the frames over the frame rate `.1`.
@@ -205,16 +208,16 @@ impl<'m> BlockData<'m> {
                     out.extend_from_slice(&value.to_le_bytes());
                 }
             }
-            Self::Joints(values, set) => {
+            Self::Joints(values, (set, limit)) => {
                 for influences in *values {
-                    for joint in joint_set(influences, *set) {
+                    for joint in joint_set(influences, *set, *limit) {
                         out.extend_from_slice(&joint.to_le_bytes());
                     }
                 }
             }
-            Self::Weights(values, set) => {
+            Self::Weights(values, (set, limit)) => {
                 for influences in *values {
-                    out.extend_from_slice(&weight_set(influences, *set));
+                    out.extend_from_slice(&weight_set(influences, *set, *limit));
                 }
             }
             Self::InverseBinds(values) => {

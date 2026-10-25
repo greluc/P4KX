@@ -21,7 +21,7 @@ use crate::query_table::one_line;
 /// The output of `p4kx interior glb` is the Archive it reads.
 #[derive(Debug, Error)]
 #[error("{} is the Archive the Interior is read from", .0.display())]
-pub(crate) struct InteriorOutputIsArchive(PathBuf);
+pub(crate) struct InteriorOutputIsArchive(pub(crate) PathBuf);
 
 #[derive(Serialize)]
 struct GlbJson<'a> {
@@ -54,10 +54,10 @@ struct GlbJson<'a> {
 
 /// Opens the Archive and every container of the chain in turn; returns all of them, outermost
 /// first, and the Entry paths of the chain as the Archive and the containers store them.
-fn open(args: &InteriorGlbArgs) -> Result<(Vec<Archive>, Vec<String>)> {
-    let mut layers = vec![crate::key::open(&args.archive)?];
-    let mut chain = Vec::with_capacity(args.containers.len());
-    for path in &args.containers {
+pub(crate) fn open(archive: &Path, containers: &[String]) -> Result<(Vec<Archive>, Vec<String>)> {
+    let mut layers = vec![crate::key::open(archive)?];
+    let mut chain = Vec::with_capacity(containers.len());
+    for path in containers {
         let Some(current) = layers.last() else {
             break;
         };
@@ -77,7 +77,7 @@ pub(crate) fn run(args: &InteriorGlbArgs, as_json: bool) -> Result<()> {
     if is_same_file(&args.out, &args.archive) {
         return Err(InteriorOutputIsArchive(args.out.clone()).into());
     }
-    let (layers, chain) = open(args)?;
+    let (layers, chain) = open(&args.archive, &args.containers)?;
     let refs: Vec<&Archive> = layers.iter().collect();
     let entry = chain.last().map_or("", String::as_str);
     let options = InteriorOptions::default().with_lod(args.lod);

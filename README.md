@@ -81,7 +81,7 @@ Early development (milestone M1). Available today:
   still written, and the summary counts the Records with their error values.
   `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
   tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, a
-  high-range texture (BC6H) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
+  high-range texture (BC6H or floating point) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
   cubemap as six faces `<name>_posx` … `<name>_negz`, a texture array as one PNG per element
   `<name>_layer0` … and a volume as one PNG per slice `<name>_slice0` …:
   `--textures` picks the outputs, by default `merge,png`: `merge` writes one standard DDS under
@@ -197,6 +197,11 @@ Early development (milestone M1). Available today:
   `--lod <n>`, `--materials colours` and `--no-vertex-colours` apply to every model. Containers nested in themselves,
   and containers, files and models that cannot be resolved, are listed; with `--json` the report
   has the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx interior package <archive> <container>... --out <folder>` writes the Interior of a socpak
+  container on its own as a Blender package: the same container, object and light nodes, props
+  and lights as `entity package --interior`, without an Entity around them. `--lod`,
+  `--texture-mip` and `--no-vertex-colours` work as for `entity package`; the folder is written
+  beside the target and moved into place when complete. The Blender add-on imports it.
 - `p4kx armour glb <archive> --piece <entity> --body male|female --out <file>` exports pieces of
   armour and clothing worn on the default body of a variant as one skinned GLB: the body's
   skeleton once as bone nodes, one skin over them, the skin of the body and, for every `--piece`
@@ -305,8 +310,8 @@ Early development (milestone M1). Available today:
   `--cross` as one horizontal cross in `<file>`. A texture array is written as one file per
   element `<stem>_layer0.png` …, a cubemap array per element and face `<stem>_layer0_posx.png` …
   (with `--cross` one cross per element) and a volume as one file per slice of the mip
-  `<stem>_slice0.png` …; the numbers are padded to the width of the last. A high-range BC6H
-  texture is written as OpenEXR
+  `<stem>_slice0.png` …; the numbers are padded to the width of the last. A high-range BC6H or
+  floating-point texture is written as OpenEXR
   with 32-bit float RGB instead, with the extension `.exr`, so its range is not clipped;
   `--tone-map` writes an 8-bit PNG instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010). The
   message names both the requested and the written files, and `--tone-map` on any other texture
@@ -460,7 +465,8 @@ Early development (milestone M1). Available today:
   with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
   the materials of its `.mtl` file;
   `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
-  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  [--texture-mip <n>] [--max-influences <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and
+  in metres (`--max-influences 4` keeps four bones per vertex, for viewers that read one set), with the
   normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the
@@ -547,6 +553,15 @@ change. `p4kx-mcp --version` and `-V` show the legal notice.
 | `list_soundbank_wems` | The WEMs a soundbank (`soundbank`) embeds, paged, as `p4kx bnk list`: ID, size, codec, channels, sample rate, frames, duration, prefetch. No audio |
 | `get_wem_info` | One WEM by `wem_id` or loose Entry `path`: every place that holds it and its codec, channels, sample rate, duration and loop. No audio |
 | `get_audio_excerpt` | A short decoded excerpt of one WEM (`wem_id` or `path`, `start_seconds`, `duration_seconds`) as an `audio/wav` content block next to its metadata; at most 10 seconds and 1 MiB, see [ADR-0131](docs/adr/0131-the-mcp-audio-excerpt-is-a-bounded-wav-and-the-only-tool-that-returns-audio.md) |
+| `image_preview` | A DDS texture (`path`) as one PNG image content block of at most 1 MiB, with its format, size and mip count as structured content: the mip chosen by `mip` or the largest that fits `max_side` (512 by default, at most 2048), a cubemap as a cross or one `face`, an array or volume as a sheet |
+| `mtl_summary` | A `.mtl` Entry (`path`), paged by sub-material: name, shader, surface type, flags, colours, opacity, glow, texture slots, shader parameters and layers |
+| `entity_loadout` | The default Loadout of an Entity (`entity`: class name, record path or GUID) as a list of ports, parents first: path, depth, source, what the port takes, the Entity attached and for each unresolved port the reason; `max_depth` (16 by default, at most 32) and a cursor bound it |
+
+`list_entries`, `search_entries` (with `container`), `read_entry_text`, `read_entry_bytes`,
+`image_preview` and `mtl_summary` open socpak containers with `::`: `outer.socpak::inner.socpak::path`
+reads an Entry of a container inside a container, and `outer.socpak::` lists a container's top level
+([ADR-0129](docs/adr/0129-container-paths-in-mcp-tools-join-containers-with-a-double-colon.md)).
+The paths a listing returns carry their containers and work as they are in the other tools.
 
 Every tool except `list_channels` takes `archive`: a Channel name such as `LIVE` (ignoring case)
 or the absolute path of a `.p4k` file on a local drive. UNC, device, relative and `..` paths, a

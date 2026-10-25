@@ -4,7 +4,7 @@
 use std::io::Write;
 
 use gltf_json as json;
-use p4kx_model::{Animation, Lod, Model};
+use p4kx_model::{Animation, Lod, MAX_INFLUENCES, Model};
 
 use crate::GltfError;
 use crate::animations::AnimationSummary;
@@ -55,6 +55,10 @@ pub struct GlbOptions {
     /// Whether to write the vertex colours of the meshes that have any as `COLOR_0`; viewers
     /// multiply the base colour of the material by them.
     pub vertex_colours: bool,
+    /// The most bones a vertex is weighted to in the skins of the file, 1 to 8: the strongest ones
+    /// are kept and their weights scaled to add up to 1. At most 4 writes `JOINTS_0` and
+    /// `WEIGHTS_0` only, for viewers that ignore the second set.
+    pub max_influences: usize,
 }
 
 impl Default for GlbOptions {
@@ -64,6 +68,7 @@ impl Default for GlbOptions {
             materials: MaterialMode::Colours,
             texture_mip: 0,
             vertex_colours: true,
+            max_influences: MAX_INFLUENCES,
         }
     }
 }
@@ -87,6 +92,13 @@ impl GlbOptions {
     #[must_use]
     pub const fn with_texture_mip(mut self, mip: u32) -> Self {
         self.texture_mip = mip;
+        self
+    }
+
+    /// Returns the options with at most `count` bones per vertex, clamped to 1 to 8.
+    #[must_use]
+    pub fn with_max_influences(mut self, count: usize) -> Self {
+        self.max_influences = count.clamp(1, MAX_INFLUENCES);
         self
     }
 

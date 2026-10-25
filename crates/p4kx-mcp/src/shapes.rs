@@ -115,8 +115,15 @@ pub(crate) struct EntryShape {
 
 impl From<&Entry> for EntryShape {
     fn from(entry: &Entry) -> Self {
+        Self::at(entry, entry.path().to_owned())
+    }
+}
+
+impl EntryShape {
+    /// Describes `entry` under the path `path`, which a tool takes to read it.
+    pub(crate) fn at(entry: &Entry, path: String) -> Self {
         Self {
-            path: entry.path().to_owned(),
+            path,
             compression: entry.compression().to_string(),
             encrypted: entry.is_encrypted(),
             compressed_size: entry.compressed_size(),
@@ -130,8 +137,12 @@ impl From<&Entry> for EntryShape {
 pub(crate) struct FolderResult {
     /// The path of the Archive.
     pub(crate) archive: String,
-    /// The folder listed; empty for the top level.
+    /// The folder listed; empty for the top level. Inside a container it begins with the
+    /// containers, `outer.socpak::folder`.
     pub(crate) folder: String,
+    /// The containers the folder lies in, `outer.socpak::inner.socpak`; absent for the Archive.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) container: Option<String>,
     /// The number of subfolders and Entries in the folder.
     pub(crate) total: usize,
     /// The subfolders and Entries on this page.
@@ -163,6 +174,9 @@ pub(crate) struct SearchResult {
     pub(crate) archive: String,
     /// The Filter.
     pub(crate) filter: String,
+    /// The containers searched, `outer.socpak::inner.socpak`; absent for the Archive.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) container: Option<String>,
     /// The number of matching Entries.
     pub(crate) total: usize,
     /// The matching Entries on this page, in Archive order.

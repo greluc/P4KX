@@ -5,15 +5,13 @@ use p4kx_assembly::audio::MAX_SOUNDBANK_LEN;
 use p4kx_extraction::{AudioError, Bank, ConversionError, EmbeddedWem, Sound, Wem};
 
 use crate::archives::Opened;
-use crate::audio::fill_in;
 use crate::audio_convert as convert;
 use crate::audio_params::{MAX_NAME_LEN, SoundbankParams, WemParams};
 use crate::audio_shapes::LocationShape;
 use crate::audio_wem_shapes::{SoundbankWemsResult, WemInfoResult, WemShape};
 use crate::audio_window::{Kept, Window};
-use crate::budget::json_len;
+use crate::budget::{fill_within, json_len};
 use crate::error::{ToolError, capped};
-use crate::models::converted;
 use crate::page::Page;
 
 const MAX_LOCATIONS: usize = 50;
@@ -145,11 +143,11 @@ pub(crate) fn soundbank_wems(
         wems: Vec::new(),
         next_cursor: None,
     };
-    let (listed, next_cursor) = fill_in(
+    let (listed, next_cursor) = fill_within(
         page,
         wems.len(),
-        items,
         json_len(&result),
+        items.map(Ok),
         |wem: &WemShape| format!("WEM {}", wem.id.unwrap_or_default()),
     )?;
     result.wems = listed;
@@ -168,7 +166,7 @@ fn open_bank(opened: &Opened, path: &str) -> Result<Bank, ToolError> {
         });
     }
     Bank::from_archive(opened.archive(), path)
-        .map_err(|error| converted(path, "a soundbank", error))
+        .map_err(|error| ToolError::converted(path, "a soundbank", error))
 }
 
 /// Where the bytes of a WEM are read from.
@@ -278,7 +276,7 @@ pub(crate) fn read<R>(
     match &candidate.source {
         Source::Entry(path) => {
             let sound = Sound::from_archive(opened.archive(), path)
-                .map_err(|error| converted(path, "a WEM", error))?;
+                .map_err(|error| ToolError::converted(path, "a WEM", error))?;
             visit(Held::Parsed(sound.wem()))
         }
         Source::Embedded { bank, id } => {

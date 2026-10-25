@@ -18,6 +18,7 @@ use crate::theme::tokens::{FS_XS, SPACE_2, SPACE_3, Weight, font};
 use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
+use crate::widgets::placement;
 use crate::widgets::rows::{paint_divider, section_header};
 use crate::widgets::text::paint_left;
 use crate::{
@@ -40,7 +41,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         ExtractionStatus::Running(progress) => {
             let cancelling = extraction.is_cancelled();
             let title = texts.get(T::RunningTitle);
-            let shown = frames::window(&title, Tone::Normal)
+            let shown = placement::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
                 .resizable(false)
@@ -89,6 +90,9 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
 pub(super) fn decorate<R>(ui: &Ui, shown: Option<InnerResponse<R>>, tone: Tone) {
     if let Some(shown) = shown {
         frames::modal_decoration(ui.ctx(), shown.response.layer_id, shown.response.rect, tone);
+        super::regions::record(ui.ctx(), |regions| {
+            regions.dialogs.push(shown.response.rect);
+        });
     }
 }
 
@@ -102,13 +106,14 @@ fn outcome_window(
     let mut close = false;
     let title = texts.get(title);
     let close_dialog = texts.get(crate::Text::CloseDialog);
-    let shown = frames::window(&title, tone)
+    let shown = placement::window(ui.ctx(), &title, tone)
         .id(Id::unique(WINDOW))
         .collapsible(false)
         .default_width(MODAL_WIDE_WIDTH)
         .show(ui.ctx(), |ui| {
             let closed = frames::head(ui, (&title, tone), false, Some(&close_dialog));
-            body(ui);
+            let room = placement::body_room(ui);
+            frames::scrolling_body_in(ui, (WINDOW, room), body);
             close = close_foot(ui, texts) || closed;
         });
     decorate(ui, shown, tone);

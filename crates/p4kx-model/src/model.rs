@@ -34,7 +34,9 @@ pub struct Model {
     pub bones: Vec<Bone>,
     /// The list of material indices of the `NodeMeshCombo` chunk, empty for a model without one.
     pub material_indices: Vec<u16>,
-    /// What a lenient read worked around; always empty for the other selections.
+    /// What a read worked around: the fallbacks of a lenient read
+    /// ([`LodSelection::OnlyOrBase`]) and data a `CrCh` read left out
+    /// ([`ModelIssue::PhysicsSlotsIgnored`]), which every selection reports.
     pub issues: Vec<ModelIssue>,
     /// Every chunk of the model file and its geometry companion, with how the model used it.
     pub chunks: Vec<ModelChunk>,
@@ -141,12 +143,16 @@ pub struct Mesh {
     /// white, the colour of a mesh that stores none.
     pub colours: Option<Vec<[u8; 4]>>,
     /// The bones each vertex is weighted to, one entry per vertex, or `None` for a mesh that is
-    /// not skinned. Every bone with a weight is in [`Model::bones`].
+    /// not skinned. Every bone with a weight is in the skeleton of the level, see
+    /// [`Model::bones_of`].
     pub influences: Option<Vec<Influences>>,
     /// The texture coordinates, one per vertex, or empty when the mesh stores none.
     pub uvs: Vec<[f32; 2]>,
     /// The second texture coordinates, one per vertex, or `None` when the mesh stores none.
     pub second_uvs: Option<Vec<[f32; 2]>>,
+    /// The number of vertices with a texture coordinate, of either set, that was not a finite
+    /// number in the file and reads as 0.
+    pub non_finite_uvs: usize,
     /// The triangle list: three vertex indices per triangle, every one below the vertex count.
     pub indices: Vec<u32>,
     /// The ranges of the triangle list drawn with one material each.
@@ -247,8 +253,9 @@ impl Model {
     ///
     /// Returns [`ModelError::MissingGeometry`], [`ModelError::Companion`] or
     /// [`ModelError::CompanionChunks`] when the companion is missing or unreadable,
-    /// [`ModelError::NoMesh`] when the companion holds no mesh, and [`ModelError::Corrupt`] when a chunk
-    /// the model reads is corrupt.
+    /// [`ModelError::NoMesh`] when the companion holds no mesh, [`ModelError::Corrupt`] when a chunk
+    /// the model reads is corrupt, and [`ModelError::Unsupported`] when it has a layout that is
+    /// not implemented.
     pub fn read<B: AsRef<[u8]>>(
         name: &str,
         file: &ChunkFile<B>,

@@ -32,7 +32,11 @@ page: pass next_cursor back as cursor for the next page. Entry content is read i
 next_offset back as offset for the next range. The DataForge tools (get_record, search_records, \
 list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records; list_structs \
 gives the type and field names a Query uses. The model tools (list_chunks, get_model_info, \
-list_model_items) read the chunk files and models of the Archive. The audio tools \
+list_model_items) read the chunk files and models of the Archive. A path \
+`outer.socpak::inner.socpak::file` reads inside socpak containers in list_entries, \
+search_entries (container), read_entry_text and read_entry_bytes. image_preview returns a \
+texture as a PNG image, mtl_summary the materials of a .mtl and entity_loadout the Loadout \
+tree of an Entity. The audio tools \
 (search_audio_triggers, get_entity_sounds, resolve_audio_trigger, list_soundbank_wems, get_wem_info, \
 get_audio_excerpt) follow the Wwise chain from an Entity's trigger through events and soundbanks to \
 WEMs; only get_audio_excerpt returns audio, a short WAV. P4KX is an unofficial Star Citizen fan \
@@ -82,7 +86,10 @@ impl Server {
                 + Self::model_router()
                 + Self::audio_router()
                 + Self::record_router()
-                + Self::query_router(),
+                + Self::query_router()
+                + Self::image_router()
+                + Self::material_router()
+                + Self::loadout_router(),
         }
     }
 
@@ -91,8 +98,8 @@ impl Server {
         Arc::clone(&self.whole_text)
     }
 
-    /// Waits for one of the two permits to read a chunk file or model, each of which may take
-    /// more than 1 GiB; the permit is held until the returned value is dropped.
+    /// Waits for one of the two permits to read a chunk file, a model or a texture, each of which
+    /// may take more than 1 GiB; the permit is held until the returned value is dropped.
     pub(crate) async fn model_permit(&self) -> Result<OwnedSemaphorePermit, String> {
         Arc::clone(&self.model_reads)
             .acquire_owned()
@@ -233,7 +240,7 @@ impl Server {
     }
 
     #[tool(
-        description = "List one folder of an Archive: its subfolders, then its Entries. Folder paths ignore case and separator kind; omit folder for the top level. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
+        description = "List one folder of an Archive: its subfolders, then its Entries. Folder paths ignore case and separator kind; omit folder for the top level. A folder `outer.socpak::` or `outer.socpak::folder` lists inside that container; the paths returned work as they are in the read tools. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<FolderResult>(),
         annotations(
             title = "List Entries",
@@ -256,13 +263,14 @@ impl Server {
             let opened = state.archive(params.archive.as_deref())?;
             let listing = ("list_entries", opened.version(), folder);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
-            entries::list(&opened, folder, page)
+            let (place, inner) = opened.place(folder)?;
+            entries::list(&place, inner, page)
         })
         .await
     }
 
     #[tool(
-        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
+        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter. container searches inside a socpak container instead. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<SearchResult>(),
         annotations(
             title = "Search Entries",
@@ -278,10 +286,22 @@ impl Server {
     ) -> Result<Noted<SearchResult>, String> {
         self.run(move |state| {
             let filter = capped("filter", &params.filter, MAX_PATH_LEN)?;
+            let container = capped(
+                "container",
+                params.container.as_deref().unwrap_or_default(),
+                MAX_PATH_LEN,
+            )?
+            .trim_end_matches(crate::container::SEPARATOR);
             let opened = state.archive(params.archive.as_deref())?;
-            let listing = ("search_entries", opened.version(), filter);
+            let listing = ("search_entries", opened.version(), filter, container);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
-            entries::search(opened.archive(), filter, page)
+            let place = if container.is_empty() {
+                crate::container::Place::Main(&opened)
+            } else {
+                let rooted = format!("{container}{}", crate::container::SEPARATOR);
+                opened.place(&rooted)?.0
+            };
+            entries::search(&place, filter, page)
         })
         .await
     }

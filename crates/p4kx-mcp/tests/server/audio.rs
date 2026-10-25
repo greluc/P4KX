@@ -257,7 +257,7 @@ fn an_entity_shows_its_trigger_event_soundbank_chain() -> TestResult {
     );
     assert!(by_guid["next_cursor"].is_string(), "more triggers follow");
     let message = server.error("get_entity_sounds", &json!({ "entity": "No_Such_Ship" }))?;
-    assert!(message.contains("no Entity"), "{message}");
+    assert!(message.contains("cannot find the Entity"), "{message}");
     Ok(())
 }
 

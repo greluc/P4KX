@@ -81,6 +81,8 @@ fn entity(
         return Ended::Cancelled;
     }
     shared.enter(AssemblyExportStage::Reading);
+    #[cfg(feature = "test-hooks")]
+    request.pause.wait(|| cancel.is_cancelled());
     let archive_models = ArchiveModels::new(index.archive());
     let assembly = match hull(index, &tree, request.lod, (cancel, &archive_models)) {
         Ok(assembly) => assembly,
@@ -195,6 +197,8 @@ fn container(
     (cancel, shared): (&CancelToken, &Shared),
 ) -> Ended {
     shared.enter(AssemblyExportStage::Interior);
+    #[cfg(feature = "test-hooks")]
+    request.pause.wait(|| cancel.is_cancelled());
     if index.watch().check().is_err() {
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }

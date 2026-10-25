@@ -4,7 +4,10 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use p4kx_testkit::{TestEntry, TestModel};
+use p4kx_testkit::{
+    ArchiveBuilder, SplitDds, TestContainer, TestEntry, TestModel, TestMtl, TestMtlMaterial,
+    TestTextureFormat, sample_ship,
+};
 use serde_json::{Value, json};
 
 use crate::forge::{AVENGER_TEXT, dataforge};
@@ -55,14 +58,38 @@ fn audio_tools_leave_their_archive_untouched() -> TestResult<Vec<&'static str>> 
     Ok(calls.iter().map(|(name, _)| *name).collect())
 }
 
+fn fixture() -> TestResult<(Install, String)> {
+    let install = Install::new(
+        vec![
+            TestEntry::stored("readme.txt", b"hello".to_vec()),
+            TestEntry::zstd("Data\\Game2.dcb", dataforge(1, 16)),
+            TestEntry::zstd(
+                "Data\\Objects\\hull.mtl",
+                TestMtl::single(&TestMtlMaterial::new("m")).cryxml(),
+            ),
+            TestEntry::stored(
+                "Data\\Objects\\pack.socpak",
+                TestContainer::new()
+                    .entry(TestEntry::stored("a.txt", "x"))
+                    .build(),
+            ),
+            TestEntry::zstd("Data\\Objects\\cube.cgf", TestModel::cube().cgf()),
+            TestEntry::zstd("Data\\Objects\\cube.cgfm", TestModel::cube().cgfm()),
+        ]
+        .into_iter()
+        .chain(SplitDds::new(TestTextureFormat::BC7_SRGB, 8, 8).entries("Data\\Objects\\t.dds"))
+        .collect(),
+    )?;
+    let loadouts = install.path().join("loadouts.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd("Data\\Game2.dcb", sample_ship().build()))
+        .write_to(&loadouts)?;
+    Ok((install, loadouts.display().to_string()))
+}
+
 #[test]
 fn every_tool_leaves_the_archive_and_all_folders_untouched() -> TestResult {
-    let install = Install::new(vec![
-        TestEntry::stored("readme.txt", b"hello".to_vec()),
-        TestEntry::zstd("Data\\Game2.dcb", dataforge(1, 16)),
-        TestEntry::zstd("Data\\Objects\\cube.cgf", TestModel::cube().cgf()),
-        TestEntry::zstd("Data\\Objects\\cube.cgfm", TestModel::cube().cgfm()),
-    ])?;
+    let (install, loadouts) = fixture()?;
     let before = snapshot(install.path())?;
     let mut server = install.serve(&["--archive", "LIVE"])?;
     let tools = server.tools()?;
@@ -84,7 +111,17 @@ fn every_tool_leaves_the_archive_and_all_folders_untouched() -> TestResult {
             "list_model_items",
             json!({ "path": "Data/Objects/cube.cgf", "section": "nodes" }),
         ),
+        ("image_preview", json!({ "path": "Data/Objects/t.dds" })),
+        ("mtl_summary", json!({ "path": "Data/Objects/hull.mtl" })),
+        (
+            "entity_loadout",
+            json!({ "archive": loadouts, "entity": "TEST_Ship" }),
+        ),
     ];
+    server.ok(
+        "list_entries",
+        &json!({ "folder": "Data/Objects/pack.socpak::" }),
+    )?;
     for (name, arguments) in &calls {
         server.ok(name, arguments)?;
     }

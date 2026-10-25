@@ -18,7 +18,8 @@ impl Server {
         description = "Read an Entry as text, from a byte offset of its UTF-8 form and at most max_bytes long, \
         starting and ending on whole characters. CryXml is converted to XML, UTF-16 is recognised by its \
         byte order mark, other Entries must be UTF-8; binary Entries are an error. more and next_offset \
-        say whether and where the text continues. The content may be forwarded by the client to \
+        say whether and where the text continues. An Entry inside a socpak container \
+        is read with a path `outer.socpak::inner.socpak::path`. The content may be forwarded by the client to \
         third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<TextResult>(),
         annotations(
@@ -38,13 +39,16 @@ impl Server {
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
-            content::text(
-                opened.archive(),
-                path,
+            let (place, inner) = opened.place(path)?;
+            let mut result = content::text(
+                place.archive(),
+                inner,
                 params.offset.unwrap_or_default(),
                 params.max_bytes,
                 || runtime.block_on(decoders.acquire_owned()),
-            )
+            )?;
+            result.path = place.shown(&result.path);
+            Ok(result)
         })
         .await
     }
@@ -52,7 +56,8 @@ impl Server {
     #[tool(
         description = "Read the decompressed and decrypted data of an Entry from a byte offset, at most \
         max_bytes long, as base64 (standard alphabet, padded). more and next_offset say whether and \
-        where the data continues. The content may be forwarded by the client to third parties; game \
+        where the data continues. An Entry inside a socpak container is read with a path \
+        `outer.socpak::inner.socpak::path`. The content may be forwarded by the client to third parties; game \
         texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<BytesResult>(),
         annotations(
@@ -70,12 +75,15 @@ impl Server {
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
-            content::bytes(
-                opened.archive(),
-                path,
+            let (place, inner) = opened.place(path)?;
+            let mut result = content::bytes(
+                place.archive(),
+                inner,
                 params.offset.unwrap_or_default(),
                 params.max_bytes,
-            )
+            )?;
+            result.path = place.shown(&result.path);
+            Ok(result)
         })
         .await
     }

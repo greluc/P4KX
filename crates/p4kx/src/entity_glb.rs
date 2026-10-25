@@ -311,7 +311,7 @@ fn print_report(
     if let Some(interior) = assembly.interior() {
         writeln!(
             stdout,
-            "Interior: {} containers, {} parts ({} models, {} with geometry, {} lights)",
+            "Interior: {} object containers, {} parts ({} models, {} with geometry, {} lights)",
             interior.containers().len(),
             interior.parts(),
             interior.model_parts(),

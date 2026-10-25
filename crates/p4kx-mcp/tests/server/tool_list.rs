@@ -19,11 +19,13 @@ fn the_tool_list_holds_the_archive_and_dataforge_tools_all_read_only() -> TestRe
         names,
         [
             "archive_info",
+            "entity_loadout",
             "get_audio_excerpt",
             "get_entity_sounds",
             "get_model_info",
             "get_record",
             "get_wem_info",
+            "image_preview",
             "list_channels",
             "list_chunks",
             "list_entries",
@@ -31,6 +33,7 @@ fn the_tool_list_holds_the_archive_and_dataforge_tools_all_read_only() -> TestRe
             "list_model_items",
             "list_soundbank_wems",
             "list_structs",
+            "mtl_summary",
             "read_entry_bytes",
             "read_entry_text",
             "resolve_audio_trigger",
@@ -91,6 +94,9 @@ fn the_tools_that_return_game_content_say_it_may_be_forwarded_and_not_redistribu
         "list_soundbank_wems",
         "get_wem_info",
         "get_audio_excerpt",
+        "image_preview",
+        "mtl_summary",
+        "entity_loadout",
     ] {
         let description = tools
             .iter()

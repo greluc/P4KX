@@ -77,11 +77,15 @@ fn info_lists_every_level_with_its_vertex_and_triangle_counts() -> TestResult {
     let rows: Vec<Vec<&str>> = stdout
         .lines()
         .map(|line| line.split_whitespace().collect::<Vec<_>>())
-        .filter(|fields| fields.len() == 4 && fields.iter().all(|f| f.parse::<u32>().is_ok()))
+        .filter(|fields| {
+            fields.len() == 5
+                && fields.last() == Some(&"-")
+                && fields.iter().take(4).all(|f| f.parse::<u32>().is_ok())
+        })
         .collect();
     assert_eq!(
         rows,
-        [["0", "24", "12", "1"], ["1", "8", "4", "1"]],
+        [["0", "24", "12", "1", "-"], ["1", "8", "4", "1", "-"]],
         "level, vertices, triangles and meshes of each LOD: {stdout}"
     );
     assert!(

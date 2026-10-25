@@ -3,12 +3,7 @@
 
 use std::time::Duration;
 
-use base64::Engine as _;
-use base64::engine::general_purpose::STANDARD;
 use p4kx_extraction::AudioError;
-use rmcp::ErrorData;
-use rmcp::handler::server::tool::IntoCallToolResult;
-use rmcp::model::{CallToolResponse, CallToolResult, ContentBlock};
 
 use crate::archives::Opened;
 use crate::audio_params::ExcerptParams;
@@ -16,7 +11,6 @@ use crate::audio_wem::{Candidate, Facts, Held, MAX_ATTEMPTS, audio_error, candid
 use crate::audio_wem_shapes::ExcerptResult;
 use crate::audio_window::Window;
 use crate::error::ToolError;
-use crate::noted::add_notice;
 
 /// The size cap of the WAV of an excerpt, 1 MiB.
 pub(crate) const MAX_EXCERPT_BYTES: usize = 1 << 20;
@@ -28,27 +22,6 @@ const MAX_EXCERPT: Duration = Duration::from_secs(10);
 const DEFAULT_EXCERPT: Duration = Duration::from_secs(5);
 /// The most bytes the WAV header of an excerpt takes: RIFF, a 48-byte `fmt ` chunk and `data`.
 const MAX_HEAD_LEN: u64 = 12 + 48 + 8;
-
-/// A tool result of structured metadata and one WAV as an audio content block.
-pub(crate) struct Excerpted {
-    pub(crate) value: ExcerptResult,
-    pub(crate) wav: Vec<u8>,
-    pub(crate) notice: Option<String>,
-}
-
-impl IntoCallToolResult for Excerpted {
-    fn into_call_tool_result(self) -> Result<CallToolResponse, ErrorData> {
-        let value = serde_json::to_value(self.value).map_err(|error| {
-            ErrorData::internal_error(format!("Failed to serialize the result: {error}"), None)
-        })?;
-        let mut result = CallToolResult::structured(value);
-        result
-            .content
-            .push(ContentBlock::audio(STANDARD.encode(&self.wav), "audio/wav"));
-        add_notice(&mut result, self.notice);
-        Ok(result.into())
-    }
-}
 
 /// Builds a WAV from the whole `fmt ` chunk (with its header) and the PCM bytes of a window.
 pub(crate) fn assemble(format: &[u8], pcm: &[u8]) -> Result<Vec<u8>, AudioError> {

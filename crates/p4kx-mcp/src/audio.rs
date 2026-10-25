@@ -7,7 +7,6 @@ use std::sync::Arc;
 use p4kx_assembly::Entities;
 use p4kx_assembly::audio::{AudioIndex, LanguageChoice, TriggerUsers};
 use p4kx_extraction::{DataForge, Record};
-use serde::Serialize;
 
 use crate::archives::Opened;
 use crate::audio_convert as convert;
@@ -18,48 +17,12 @@ use crate::audio_shapes::{
     EntitiesShape, EntityRef, EntityShape, EntitySoundsResult, EntityTriggerShape, LanguageShape,
     TriggerHitShape, TriggerSearchResult, TriggerSoundsResult,
 };
-use crate::budget::{Budget, MAX_RESPONSE_LEN, json_len};
+use crate::budget::{fill_within, json_len};
 use crate::error::ToolError;
 use crate::page::Page;
 
 const CLASS_PREFIX: &str = "EntityClassDefinition.";
 const MAX_BREAKS: usize = 25;
-const CURSOR_ROOM: usize = 64;
-
-/// Fills one page like `budget::fill`, after taking `envelope` bytes of the response cap for
-/// everything around the items.
-pub(crate) fn fill_in<T: Serialize>(
-    page: Page,
-    total: usize,
-    items: impl IntoIterator<Item = T>,
-    envelope: usize,
-    describe: impl Fn(&T) -> String,
-) -> Result<(Vec<T>, Option<String>), ToolError> {
-    let mut budget = Budget::new();
-    if !budget.take(envelope.saturating_add(CURSOR_ROOM)) {
-        return Err(ToolError::TooLargeItem {
-            what: "audio result without its items".to_owned(),
-            limit: MAX_RESPONSE_LEN,
-            hint: "ask for it by a narrower search",
-        });
-    }
-    let mut taken = Vec::new();
-    for item in items.into_iter().take(page.limit()) {
-        if !budget.take(json_len(&item)) {
-            if taken.is_empty() {
-                return Err(ToolError::TooLargeItem {
-                    what: describe(&item),
-                    limit: MAX_RESPONSE_LEN,
-                    hint: "ask for it by a narrower search",
-                });
-            }
-            break;
-        }
-        taken.push(item);
-    }
-    let next = page.next_cursor_after(taken.len(), total)?;
-    Ok((taken, next))
-}
 
 /// Returns one page of the audio triggers whose names or whose events' names match the search.
 pub(crate) fn search(
@@ -114,11 +77,11 @@ pub(crate) fn search(
         issues_total,
         next_cursor: None,
     };
-    let (triggers, next_cursor) = fill_in(
+    let (triggers, next_cursor) = fill_within(
         page,
         found.total(),
-        items,
         json_len(&result),
+        items.map(Ok),
         |hit: &TriggerHitShape| format!("audio trigger {}", hit.name),
     )?;
     result.triggers = triggers;
@@ -203,11 +166,11 @@ pub(crate) fn entity_sounds(
         issues_total,
         next_cursor: None,
     };
-    let (listed, next_cursor) = fill_in(
+    let (listed, next_cursor) = fill_within(
         page,
         total,
-        triggers.into_iter().skip(page.offset()),
         json_len(&result),
+        triggers.into_iter().skip(page.offset()).map(Ok),
         |trigger: &EntityTriggerShape| format!("audio trigger {}", trigger.name),
     )?;
     result.triggers = listed;
@@ -296,9 +259,10 @@ pub(crate) fn resolve(
         next_cursor: None,
     };
     let items = page.slice(sounds.variants()).iter().map(convert::variant);
-    let (variants, next_cursor) = fill_in(page, total, items, json_len(&result), |variant| {
-        format!("variant of the sound {}", variant.sound_id)
-    })?;
+    let (variants, next_cursor) =
+        fill_within(page, total, json_len(&result), items.map(Ok), |variant| {
+            format!("variant of the sound {}", variant.sound_id)
+        })?;
     result.variants = variants;
     result.next_cursor = next_cursor;
     Ok(result)
@@ -306,7 +270,7 @@ pub(crate) fn resolve(
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_RESPONSE_LEN, fill_in};
+    use crate::budget::{MAX_RESPONSE_LEN, fill_within};
     use crate::error::ToolError;
     use crate::page::Page;
 
@@ -322,12 +286,12 @@ mod tests {
     fn the_envelope_takes_its_share_of_the_response_cap() -> Result<(), Box<dyn std::error::Error>>
     {
         let page = Page::new(&"audio", None, Some(1000))?;
-        let (plain, _) = fill_in(page, 500, kilobyte_items(), 0, described)?;
-        let (crowded, next) = fill_in(
+        let (plain, _) = fill_within(page, 500, 0, kilobyte_items().map(Ok), described)?;
+        let (crowded, next) = fill_within(
             page,
             500,
-            kilobyte_items(),
             MAX_RESPONSE_LEN - 100 * 1024,
+            kilobyte_items().map(Ok),
             described,
         )?;
         assert!(
@@ -347,7 +311,13 @@ mod tests {
     #[test]
     fn an_envelope_alone_over_the_cap_is_a_clear_error() -> Result<(), Box<dyn std::error::Error>> {
         let page = Page::new(&"audio", None, None)?;
-        let outcome = fill_in(page, 500, kilobyte_items(), MAX_RESPONSE_LEN, described);
+        let outcome = fill_within(
+            page,
+            500,
+            MAX_RESPONSE_LEN,
+            kilobyte_items().map(Ok),
+            described,
+        );
         assert!(
             matches!(outcome, Err(ToolError::TooLargeItem { .. })),
             "refused"

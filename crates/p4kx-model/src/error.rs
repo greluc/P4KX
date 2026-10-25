@@ -61,6 +61,93 @@ pub enum ModelError {
         #[source]
         source: CorruptChunk,
     },
+    /// A chunk the model reads is well-formed but has a layout this reader does not implement.
+    #[error("{file}: chunk {index} ({chunk}) has an unsupported layout")]
+    Unsupported {
+        /// The file holding the chunk.
+        file: String,
+        /// The chunk's position in the file's chunk table.
+        index: usize,
+        /// The chunk type's name.
+        chunk: &'static str,
+        /// Which layout.
+        #[source]
+        source: UnsupportedLayout,
+    },
+}
+
+/// A layout of a chunk a model reads that no file of the Archives uses and the reader does not
+/// implement; the file is not corrupt.
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+#[non_exhaustive]
+pub enum UnsupportedLayout {
+    /// A `CrCh` chunk is big-endian.
+    #[error("its data is big-endian")]
+    BigEndian,
+    /// A `CrCh` mesh stores vertices, indices or subsets in data streams.
+    #[error("it stores {vertices} vertices and {indices} indices in data streams")]
+    StreamedMesh {
+        /// The number of vertices the header declares.
+        vertices: u32,
+        /// The number of indices the header declares.
+        indices: u32,
+    },
+    /// A `CrCh` `Mesh` chunk has a version other than `0x801`.
+    #[error("the mesh version is {0:#X}")]
+    MeshVersion(u32),
+    /// A `CrCh` physics data chunk has a version other than `0x800`.
+    #[error("the physics data version is {0:#X}")]
+    PhysicsVersion(u32),
+    /// A `CrCh` physics mesh holds another primitive than a polyhedron.
+    #[error("the physics data has the primitive type {0}")]
+    PhysicsPrimitive(u32),
+}
+
+/// A failure inside a chunk reader: the chunk is corrupt or has a layout that is not implemented.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ChunkFailure {
+    Corrupt(CorruptChunk),
+    Unsupported(UnsupportedLayout),
+}
+
+pub(crate) fn failure(
+    file: &str,
+    index: usize,
+    chunk: &'static str,
+) -> impl Fn(ChunkFailure) -> ModelError + use<> {
+    let file = file.to_owned();
+    move |failure| match failure {
+        ChunkFailure::Corrupt(source) => ModelError::Corrupt {
+            file: file.clone(),
+            index,
+            chunk,
+            source,
+        },
+        ChunkFailure::Unsupported(source) => ModelError::Unsupported {
+            file: file.clone(),
+            index,
+            chunk,
+            source,
+        },
+    }
+}
+
+impl From<CorruptChunk> for ChunkFailure {
+    fn from(error: CorruptChunk) -> Self {
+        Self::Corrupt(error)
+    }
+}
+
+impl From<ParseError> for ChunkFailure {
+    fn from(error: ParseError) -> Self {
+        Self::Corrupt(CorruptChunk::Truncated(error))
+    }
+}
+
+impl From<UnsupportedLayout> for ChunkFailure {
+    fn from(error: UnsupportedLayout) -> Self {
+        Self::Unsupported(error)
+    }
 }
 
 /// What is wrong with a chunk a model reads.
@@ -176,9 +263,6 @@ pub enum CorruptChunk {
     /// A value is NaN or infinite.
     #[error("a {0} is not finite")]
     NonFinite(&'static str),
-    /// A `CrCh` chunk is big-endian, which no model file of the Archives is.
-    #[error("its data is big-endian, which is not supported")]
-    BigEndian,
     /// Two `CrCh` nodes carry the same chunk ID.
     #[error("the chunk ID {0} belongs to two nodes")]
     RepeatedChunkId(u32),
@@ -193,20 +277,6 @@ pub enum CorruptChunk {
     /// A chunk refers to a chunk ID the file does not hold, or one of the wrong type.
     #[error("it refers to the chunk ID {0}, which is missing or of another type")]
     ReferencedChunk(u32),
-    /// A `CrCh` mesh stores vertices, indices or subsets in data streams, which no model file of
-    /// the Archives does.
-    #[error(
-        "it stores {vertices} vertices and {indices} indices in data streams, which is not supported"
-    )]
-    StreamedMesh {
-        /// The number of vertices the header declares.
-        vertices: u32,
-        /// The number of indices the header declares.
-        indices: u32,
-    },
-    /// A physics mesh chunk holds another primitive than a polyhedron, the one the Archives hold.
-    #[error("its physics data has the primitive type {0}, which is not supported")]
-    PhysicsPrimitive(u32),
     /// A physics mesh declares more vertices or triangles than its data holds.
     #[error(
         "the physics mesh declares {vertices} vertices and {triangles} triangles for {len} bytes"

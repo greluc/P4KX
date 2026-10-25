@@ -33,13 +33,7 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     let mut lods = Vec::new();
     let mut issues = Vec::new();
     if selection.wants(0) || selection.is_lenient() {
-        let mut meshes = Vec::new();
-        for (position, node) in crch_nodes.iter().enumerate() {
-            if let Some(mesh) = read_node_mesh(name, file, position, node, &mut read, &mut issues)?
-            {
-                meshes.push(mesh);
-            }
-        }
+        let meshes = read_meshes(name, file, &crch_nodes, &mut read, &mut issues)?;
         let level = match selection {
             LodSelection::OnlyOrBase(level) if level != 0 => {
                 issues.push(ModelIssue::LodFallback {
@@ -90,6 +84,22 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         issues,
         chunks: usage(file, ModelFile::Model, &read),
     })
+}
+
+fn read_meshes<B: AsRef<[u8]>>(
+    name: &str,
+    file: &ChunkFile<B>,
+    nodes: &[CrchNode],
+    read: &mut Vec<(ModelFile, usize)>,
+    issues: &mut Vec<ModelIssue>,
+) -> Result<Vec<Mesh>, ModelError> {
+    let mut meshes = Vec::new();
+    for (position, node) in nodes.iter().enumerate() {
+        if let Some(mesh) = read_node_mesh(name, file, position, node, read, issues)? {
+            meshes.push(mesh);
+        }
+    }
+    Ok(meshes)
 }
 
 fn first_of_version<B: AsRef<[u8]>>(

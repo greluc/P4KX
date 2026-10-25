@@ -9,7 +9,6 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use crate::entity_picking::{TestResult, opened, opened_sized, select};
-use crate::interior_export::{container_window, select_socpak};
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -18,7 +17,7 @@ use p4kx_gui::{
     AssemblyExport, AssemblyExportForm, AssemblyExportStatus, AssemblyExportSummary, Language,
     Model, PackageProblem,
 };
-use p4kx_testkit::{ENTITY_INTERIOR_CLASS, INTERIOR_ROOT, entity_interior_entries};
+use p4kx_testkit::{ENTITY_INTERIOR_CLASS, entity_interior_entries};
 
 fn start(harness: &mut Harness<'_, Model>, folder: &Path) -> Result<bool, &'static str> {
     harness.state_mut().begin_assembly_export();
@@ -72,7 +71,6 @@ fn the_dialog_offers_the_package_next_to_the_glb_file_for_an_entity() -> TestRes
     harness.state_mut().begin_assembly_export();
     harness.run_steps(3);
     let setup = harness.state().assembly_export_setup().ok_or("no setup")?;
-    assert!(setup.has_package());
     assert_eq!(setup.form(), AssemblyExportForm::Glb, "a GLB file first");
     assert!(harness.query_by_label("GLB file").is_some());
     assert!(
@@ -127,19 +125,6 @@ fn the_german_dialog_names_the_package() -> TestResult {
             .query_by_role_and_label(Role::Button, "Ordner wählen …")
             .is_some()
     );
-    Ok(())
-}
-
-#[test]
-fn a_container_on_its_own_has_only_the_glb_file() -> TestResult {
-    let (_dir, mut harness) = container_window()?;
-    select_socpak(&mut harness, INTERIOR_ROOT)?;
-    harness.state_mut().begin_interior_export();
-    harness.run_steps(3);
-
-    let setup = harness.state().assembly_export_setup().ok_or("no setup")?;
-    assert!(!setup.has_package());
-    assert!(harness.query_by_label("Blender package").is_none());
     Ok(())
 }
 

@@ -92,8 +92,8 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
 /// whose Interior is exported on its own.
 const fn titles(container: bool, form: AssemblyExportForm) -> (T, T) {
     match (container, form) {
-        (true, _) => (T::RunningTitleInterior, T::SummaryTitleInterior),
-        (false, AssemblyExportForm::Package) => (T::RunningTitlePackage, T::SummaryTitlePackage),
+        (_, AssemblyExportForm::Package) => (T::RunningTitlePackage, T::SummaryTitlePackage),
+        (true, AssemblyExportForm::Glb) => (T::RunningTitleInterior, T::SummaryTitleInterior),
         (false, AssemblyExportForm::Glb) => (T::RunningTitle, T::SummaryTitle),
     }
 }

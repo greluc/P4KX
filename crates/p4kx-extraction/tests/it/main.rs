@@ -18,6 +18,7 @@ mod language_texts;
 mod loaded_dataforge;
 mod localization;
 mod model_observed;
+mod model_textures;
 mod non_utf8_paths;
 mod path_index;
 mod query_export;

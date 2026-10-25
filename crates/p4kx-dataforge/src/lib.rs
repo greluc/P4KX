@@ -25,6 +25,7 @@ mod dataforge;
 mod error;
 mod fields;
 mod flat;
+mod flat_cells;
 mod guid;
 mod header;
 mod instance;
@@ -67,7 +68,7 @@ pub use fields::{
     FieldKind, FieldStat, FieldStatistics, FieldStatisticsError, MAX_DISTINCT_VALUES,
     MAX_FIELD_PATHS, Number,
 };
-pub use flat::{FLAT_COLUMNS, FLAT_TEXT_COLUMN, FlatFormat, FlatValues};
+pub use flat::{FLAT_COLUMNS, FLAT_TAG_COLUMN, FLAT_TEXT_COLUMN, FlatFormat, FlatValues};
 pub use guid::{Guid, InvalidGuid};
 pub use header::SUPPORTED_VERSIONS;
 pub use issues::{DataForgeIssue, MAX_DATAFORGE_ISSUES};

@@ -37,6 +37,7 @@ pub(super) struct Built {
     pub(super) scene: Scene,
     pub(super) spans: Vec<Option<MorphSpan>>,
     pub(super) replaced: Vec<Replaced>,
+    pub(super) npc_folder: Option<String>,
 }
 
 pub(super) enum Ended {
@@ -94,13 +95,16 @@ fn failed(reason: impl Into<String>) -> Ended {
     Ended::Failed(ModelExportFailure::Failed(reason.into()))
 }
 
-/// Returns the pieces to wear, the Loadout's with the given ones on top, and the head's, with
-/// the pieces of the Loadout that were replaced.
+/// What a Loadout and the given pieces make: the pieces to wear, the pieces of the Loadout that were
+/// replaced, and the folder of the head the Loadout gives its character.
+type Worn = (Vec<Piece>, Vec<Replaced>, Option<String>);
+
+/// Returns the pieces to wear, the Loadout's with the given ones on top, and the head's.
 fn worn(
     forge: &DataForge<'_>,
     files: &ArchiveFiles<'_>,
     request: &Request,
-) -> Result<(Vec<Piece>, Vec<Replaced>), String> {
+) -> Result<Worn, String> {
     let mut resolver = LoadoutResolver::new(forge).with_files(files);
     let given: Vec<Piece> = request
         .pieces
@@ -115,14 +119,18 @@ fn worn(
             )
         })
         .collect();
-    let (mut pieces, replaced) = match &request.loadout {
+    let (mut pieces, replaced, npc_folder) = match &request.loadout {
         Some(path) => {
             let tree = resolver
                 .resolve_file(path)
                 .map_err(|error| describe(&error))?;
-            Piece::layer(resolver.worn(&tree), given)
+            let folder = resolver
+                .npc_head(&tree)
+                .and_then(|head| head.folder().map(str::to_owned));
+            let (pieces, replaced) = Piece::layer(resolver.worn(&tree), given);
+            (pieces, replaced, folder)
         }
-        None => (given, Vec::new()),
+        None => (given, Vec::new(), None),
     };
     if let Some(character) = &request.character {
         let head = Head::dressed(character, &mut ForgeItems::new(&mut resolver))
@@ -134,7 +142,7 @@ fn worn(
         };
         pieces.extend(head.pieces().iter().cloned());
     }
-    Ok((pieces, replaced))
+    Ok((pieces, replaced, npc_folder))
 }
 
 /// Builds the Armour of `request` from `index` and flattens it into a scene.
@@ -159,7 +167,7 @@ pub(super) fn run(
         Err(error) => return failed(describe(&error)),
     };
     let files = ArchiveFiles::new(index.archive());
-    let (pieces, replaced) = match worn(&forge, &files, request) {
+    let (pieces, replaced, npc_folder) = match worn(&forge, &files, request) {
         Ok(worn) => worn,
         Err(reason) => return failed(reason),
     };
@@ -195,6 +203,7 @@ pub(super) fn run(
             scene,
             spans,
             replaced,
+            npc_folder,
         })),
         Err(SceneError::Empty) => Ended::Empty,
         Err(error) => failed(error.to_string()),

@@ -50,6 +50,25 @@ fn diffuse_normal_and_specular_maps_become_the_pbr_textures() -> TestResult {
 }
 
 #[test]
+fn each_source_texture_is_loaded_once_though_two_images_use_it() -> TestResult {
+    let stub = plate_stub([200, 100, 50, 255], [64, 200, 150, 90], [10, 10, 10, 255])?;
+
+    let (_, summary) = export(&[plain("unused"), plate("plate")], &stub, &textured())?;
+
+    assert_eq!(summary.textures, 3, "three images from three textures");
+    let mut loaded = stub.calls();
+    loaded.sort();
+    let mut distinct = loaded.clone();
+    distinct.dedup();
+    assert_eq!(loaded.len(), 3, "three loads, not five: {loaded:?}");
+    assert_eq!(
+        distinct, loaded,
+        "the normal and the specular map feed two images each but load once"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_material_with_all_its_maps_has_white_factors_and_a_neighbour_without_keeps_its_colours()
 -> TestResult {
     let stub = plate_stub([200, 100, 50, 255], [64, 200, 150, 90], [10, 10, 10, 255])?;

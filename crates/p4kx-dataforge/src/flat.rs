@@ -4,12 +4,13 @@
 use std::fmt::Write as _;
 use std::io::{self, Write};
 
+use crate::flat_cells::{write_cell, write_plain};
 use crate::texts::annotation;
 use crate::value_json::{write_json_string, write_json_value};
-use crate::xml_text::FloatText;
 use crate::{Annotations, Field, Guid, RecordTree, Resolution, Value, ValueError};
 
-/// The columns of a flat value export, in order; the text column follows when texts are on.
+/// The first columns of a flat value export, in order; the text column follows when texts are on,
+/// and the Record tag column is always the last.
 pub const FLAT_COLUMNS: [&str; 8] = [
     "record_guid",
     "record_name",
@@ -20,6 +21,9 @@ pub const FLAT_COLUMNS: [&str; 8] = [
     "value",
     "target_path",
 ];
+
+/// The name of the last column, which holds the Record tag.
+pub const FLAT_TAG_COLUMN: &str = "record_tag";
 
 /// The name of the column that holds the resolved text of a localisation key.
 pub const FLAT_TEXT_COLUMN: &str = "text";
@@ -47,6 +51,7 @@ pub enum FlatFormat {
 pub struct FlatValues {
     format: FlatFormat,
     prefix: Vec<u8>,
+    tag: Vec<u8>,
     path: String,
     indices: Vec<u32>,
     escaped: Vec<bool>,
@@ -73,6 +78,7 @@ impl FlatValues {
         Self {
             format,
             prefix: Vec::new(),
+            tag: Vec::new(),
             path: String::new(),
             indices: Vec::new(),
             escaped: Vec::new(),
@@ -104,6 +110,8 @@ impl FlatValues {
             out.write_all(b",")?;
             out.write_all(FLAT_TEXT_COLUMN.as_bytes())?;
         }
+        out.write_all(b",")?;
+        out.write_all(FLAT_TAG_COLUMN.as_bytes())?;
         out.write_all(b"\r\n")
     }
 
@@ -123,10 +131,14 @@ impl FlatValues {
         self.indices.clear();
         self.escaped.clear();
         self.prefix.clear();
+        self.tag.clear();
         if self.format == FlatFormat::Ndjson {
             write_json_prefix(&mut self.prefix, tree)?;
         } else {
             write_csv_prefix(&mut self.prefix, tree)?;
+            if let Some(tag) = tree.tag() {
+                write_cell(&mut self.tag, tag, self.format == FlatFormat::Csv)?;
+            }
         }
         let mut out = Out { out, annotations };
         self.walk_fields(&mut out, tree.fields())
@@ -259,6 +271,8 @@ impl FlatValues {
                 write_cell(sink, text, neutralise)?;
             }
         }
+        sink.write_all(b",")?;
+        sink.write_all(&self.tag)?;
         sink.write_all(b"\r\n")
     }
 
@@ -312,7 +326,12 @@ fn write_json_prefix(prefix: &mut Vec<u8>, tree: &RecordTree<'_>) -> io::Result<
     )?;
     write_json_string(prefix, tree.name())?;
     prefix.extend_from_slice(b",\"record_path\":");
-    write_json_string(prefix, tree.record_path())
+    write_json_string(prefix, tree.record_path())?;
+    if let Some(tag) = tree.tag() {
+        prefix.extend_from_slice(b",\"record_tag\":");
+        write_json_string(prefix, tag)?;
+    }
+    Ok(())
 }
 
 /// Returns the `kind` column of a leaf value.
@@ -343,60 +362,4 @@ fn write_indices(out: &mut impl Write, indices: &[u32]) -> io::Result<()> {
         write!(out, "{index}")?;
     }
     Ok(())
-}
-
-/// Writes a value that never needs quoting: a number, boolean or GUID.
-fn write_plain(out: &mut impl Write, value: &Value<'_>) -> io::Result<()> {
-    match value {
-        Value::Bool(value) => write!(out, "{value}"),
-        Value::Int8(value) => write!(out, "{value}"),
-        Value::Int16(value) => write!(out, "{value}"),
-        Value::Int32(value) => write!(out, "{value}"),
-        Value::Int64(value) => write!(out, "{value}"),
-        Value::UInt8(value) => write!(out, "{value}"),
-        Value::UInt16(value) => write!(out, "{value}"),
-        Value::UInt32(value) => write!(out, "{value}"),
-        Value::UInt64(value) => write!(out, "{value}"),
-        Value::Single(value) => write!(out, "{}", FloatText(*value)),
-        Value::Double(value) => write!(out, "{}", FloatText(*value)),
-        Value::Guid(guid) => write!(out, "{guid}"),
-        Value::String(_)
-        | Value::Locale(_)
-        | Value::Enum(_)
-        | Value::Struct(_)
-        | Value::Array(_)
-        | Value::Reference(_)
-        | Value::Null
-        | Value::Error(_) => Ok(()),
-    }
-}
-
-/// Writes `text` as one CSV cell: quoted when it holds a comma, quote, CR or LF; with
-/// `neutralise`, a text a spreadsheet would run as a formula starts with `'`.
-fn write_cell(out: &mut impl Write, text: &str, neutralise: bool) -> io::Result<()> {
-    let prefix: &[u8] = if neutralise && text.starts_with(['=', '+', '-', '@', '\t', '\r']) {
-        b"'"
-    } else {
-        b""
-    };
-    let quoted = text
-        .bytes()
-        .any(|byte| matches!(byte, b',' | b'"' | b'\r' | b'\n'));
-    if !quoted {
-        out.write_all(prefix)?;
-        return out.write_all(text.as_bytes());
-    }
-    out.write_all(b"\"")?;
-    out.write_all(prefix)?;
-    let bytes = text.as_bytes();
-    let mut start = 0;
-    for (index, &byte) in bytes.iter().enumerate() {
-        if byte == b'"' {
-            out.write_all(bytes.get(start..=index).unwrap_or_default())?;
-            out.write_all(b"\"")?;
-            start = index.saturating_add(1);
-        }
-    }
-    out.write_all(bytes.get(start..).unwrap_or_default())?;
-    out.write_all(b"\"")
 }

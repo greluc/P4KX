@@ -46,6 +46,14 @@ impl TagPaths {
         }
     }
 
+    /// Returns the tag at `path`, ignoring case.
+    pub(crate) fn guid_of(&self, path: &str) -> Option<Guid> {
+        self.paths
+            .iter()
+            .find(|(_, own)| own.eq_ignore_ascii_case(path))
+            .map(|(guid, _)| *guid)
+    }
+
     fn within(&self, tag: Guid, ancestor: Guid) -> bool {
         if tag == ancestor {
             return true;

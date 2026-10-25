@@ -265,7 +265,10 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let widget = sibling.widget;
         let padding = sibling.geometry.padding;
         let content = area.inset(padding.top, padding.right, padding.bottom, padding.left);
-        let subject = Subject::of(&widget.type_name, &widget.tags);
+        let mut subject = Subject::of(&widget.type_name, &widget.tags);
+        subject
+            .tags
+            .extend(elements::standard_tags(widget, self.tags));
         self.push_chain(&(&subject.kind, &subject.tags));
         self.above.push(subject);
         if sibling.instance {
@@ -289,7 +292,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             alpha,
             depth + 1,
         );
-        if let Some(nested) = elements::nested_canvas(widget) {
+        if let Some(nested) = elements::nested_canvas(widget, self.store.forge()) {
             let params = Rc::clone(&widget.params);
             self.nested(
                 nested,
@@ -298,6 +301,12 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
                 widget.canvas_sizing,
                 alpha,
                 depth + 1,
+            );
+        } else if elements::is_standard(&widget.type_name) {
+            self.cx.report.note(
+                &widget.type_name,
+                "the Archive has no canvas for this standard widget",
+                &widget.name,
             );
         } else if widget.canvas_dangling {
             self.cx.report.missing_canvases.push(format!(

@@ -4,7 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use p4kx_dataforge::{DataForge, Guid, Record, TreeBuilder};
+use p4kx_dataforge::{DataForge, Guid, Record, RecordTree, TreeBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::entities::is_entity;
@@ -117,6 +117,25 @@ impl<'f> LoadoutResolver<'f> {
         let spec = spec.as_ref().as_ref().map_err(Clone::clone)?;
         let mut walk = Walk::new(entity.guid(), None);
         Ok(self.node(spec, None, &mut walk))
+    }
+
+    /// Resolves the default Loadout of `entity` like [`resolve`](Self::resolve), taking the
+    /// Entity's own Record from `tree`, which the caller already built from it, so that the
+    /// Record is not built again.
+    ///
+    /// # Errors
+    ///
+    /// As [`resolve`](Self::resolve).
+    pub fn resolve_tree(
+        &mut self,
+        entity: &Record<'f>,
+        tree: &RecordTree<'f>,
+    ) -> Result<EntityNode, LoadoutError> {
+        if !self.specs.contains_key(&entity.guid()) && is_entity(entity) {
+            self.specs
+                .insert(entity.guid(), Arc::new(Ok(EntitySpec::read(tree))));
+        }
+        self.resolve(entity)
     }
 
     /// Resolves the default Loadout of `entity` with `changes` applied: the ports they exclude

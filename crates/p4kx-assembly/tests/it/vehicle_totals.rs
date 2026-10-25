@@ -23,6 +23,7 @@ const XML: &str = r#"<Vehicle name="TEST_Ship">
         <Part name="odd" class="Animated" mass="97858&#x202C;.0d" damagemax="&#x200E;10f"/>
         <Part name="bad" class="Animated" mass="n/a" damageMax="12,5x"/>
         <Part name="blank" class="Animated" mass=" "/>
+        <Part name="tag" class="Animated" mass="&#xE0020;5&#x110BD;&#xFEFF;"/>
       </Parts>
     </Part>
   </Parts>
@@ -51,13 +52,17 @@ fn read(modification: Option<&str>) -> Result<VehicleImplementation, Box<dyn std
 fn the_base_sums_mass_and_hull_and_leaves_unreadable_values_out() -> TestResult {
     let totals = read(None)?.totals();
     assert!(
-        (totals.mass() - 99_108.0).abs() < 1e-6,
-        "1000 + 200 + 50 + 97858: {}",
+        (totals.mass() - 99_113.0).abs() < 1e-6,
+        "1000 + 200 + 50 + 97858 + 5: {}",
         totals.mass()
     );
-    assert_eq!(totals.mass_parts(), 4, "the blank mass states none");
-    assert_eq!(totals.mass_origins().count(ValueOrigin::Base), 4);
-    assert_eq!(totals.cleaned(), 2, "the mass and the damageMax of odd");
+    assert_eq!(totals.mass_parts(), 5, "the blank mass states none");
+    assert_eq!(totals.mass_origins().count(ValueOrigin::Base), 5);
+    assert_eq!(
+        totals.cleaned(),
+        3,
+        "the mass and the damageMax of odd, the mass of tag"
+    );
     let unreadable: Vec<_> = totals
         .unreadable()
         .iter()
@@ -80,6 +85,16 @@ fn the_hull_sums_the_damage_of_structural_parts_only() -> TestResult {
         totals.health()
     );
     assert_eq!(totals.health_parts(), 4);
+    let partial: Vec<_> = totals
+        .partial()
+        .iter()
+        .map(|value| (value.part(), value.attribute(), value.raw(), value.read()))
+        .collect();
+    assert_eq!(
+        partial,
+        [("bad", "damageMax", "12,5x", 12.0)],
+        "units d and f after a number are no partial read"
+    );
     let destroy = totals.destruction();
     assert_eq!(destroy.len(), 1);
     assert_eq!(destroy[0].part(), "hull");
@@ -110,7 +125,7 @@ fn the_modification_says_where_each_value_comes_from() -> TestResult {
     assert_eq!(wing.origin_of("detachRatio"), ValueOrigin::Base);
     let totals = implementation.totals();
     assert_eq!(totals.mass_origins().count(ValueOrigin::Patch), 1);
-    assert_eq!(totals.mass_origins().count(ValueOrigin::Base), 3);
+    assert_eq!(totals.mass_origins().count(ValueOrigin::Base), 4);
     assert_eq!(totals.health_origins().count(ValueOrigin::Elem), 1);
     assert_eq!(totals.health_origins().total(), 4);
     Ok(())

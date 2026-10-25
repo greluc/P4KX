@@ -132,6 +132,7 @@ impl<'f> LoadoutResolver<'f> {
         let spec = EntitySpec {
             guid: Guid::default(),
             record_path: path.to_owned(),
+            origin: crate::spec::LoadoutOrigin::File(path.into()),
             name: path.to_owned(),
             ports: Vec::new(),
             port_flags: Vec::new(),

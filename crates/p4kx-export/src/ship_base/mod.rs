@@ -28,8 +28,9 @@ use crate::{CatalogFailure, CatalogProgress};
 
 pub(crate) use model::ShipRead;
 pub use model::{
-    Cargo, CargoGrid, Hull, HullThreshold, Implementation, LoadoutPort, Mass, MassBasis, ShipBase,
-    Source, SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
+    Cargo, CargoGrid, Hull, HullThreshold, Implementation, LoadoutPort, Mass, MassBasis,
+    PartialPartValue, ShipBase, Source, SourceKind, SourceShare, Sourced, UnreadablePartValue,
+    VehicleKind,
 };
 pub use read::ShipReader;
 pub use write::ShipBaseError;

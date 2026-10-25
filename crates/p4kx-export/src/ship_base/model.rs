@@ -38,6 +38,8 @@ pub enum SourceKind {
     PatchXml,
     /// An `Elem` of the Modification, which sits in the vehicle implementation XML.
     Modification,
+    /// An XML Loadout file, named by a Record's `loadoutPath` or included by another one.
+    LoadoutXml,
 }
 
 /// Where a value comes from: a file of the Archive and the path of the field in it.
@@ -82,6 +84,20 @@ pub struct UnreadablePartValue {
     pub raw: String,
 }
 
+/// A number attribute of a vehicle part of which only a prefix was read, e.g. `12,5x` as 12; the
+/// number is in the sum.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PartialPartValue {
+    /// The part's name.
+    pub part: String,
+    /// The attribute's name.
+    pub attribute: &'static str,
+    /// The value as stored.
+    pub raw: String,
+    /// The number that was read from it.
+    pub read: f64,
+}
+
 /// What the mass is the sum of.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -106,6 +122,8 @@ pub struct Mass {
     pub sources: Vec<SourceShare>,
     /// Part values that hold text but no number; they are not in the sum.
     pub unreadable: Vec<UnreadablePartValue>,
+    /// Part values of which only a prefix was read; they are in the sum.
+    pub partial: Vec<PartialPartValue>,
     /// How many numbers had invisible format characters dropped before they were read.
     pub cleaned: usize,
 }
@@ -116,7 +134,7 @@ pub struct Mass {
 pub struct HullThreshold {
     /// The part's name.
     pub part: String,
-    /// The part's `damageMax`.
+    /// The part's `damageMax`, rounded to four decimals.
     pub health: f64,
     /// The damage at which it destroys the ship or detaches.
     pub damage: f64,
@@ -140,6 +158,8 @@ pub struct Hull {
     pub detach: Vec<HullThreshold>,
     /// Part `damageMax` and `detachRatio` values that hold text but no number; they are not used.
     pub unreadable: Vec<UnreadablePartValue>,
+    /// Part `damageMax` and `detachRatio` values of which only a prefix was read; they are used.
+    pub partial: Vec<PartialPartValue>,
     /// How many `damageMax` numbers had invisible format characters dropped before they were read.
     pub cleaned: usize,
 }
@@ -195,9 +215,13 @@ pub struct LoadoutPort {
     pub port: String,
     /// The class name of the attached Entity, or the one the Loadout names but no Entity has.
     pub class_name: Option<String>,
-    /// The GUID of the attached Entity's Record.
+    /// The GUID of the attached Entity's Record, or of the Record the Loadout names when the
+    /// attachment cannot be resolved; `null` for a class name only.
     #[serde(serialize_with = "optional_guid")]
     pub guid: Option<Guid>,
+    /// The Record or XML Loadout file that supplied the attachment, `null` for a port nothing
+    /// names. For `port_default` it is the Entity Record that defines the port.
+    pub supplied_by: Option<Source>,
     /// Where the attachment comes from: `loadout`, `override` or `port_default`.
     pub origin: &'static str,
     /// Whether the Entity is a docked vehicle, whose own ports are not listed.
@@ -264,7 +288,8 @@ pub struct ShipBase {
     pub hull: Option<Hull>,
     /// The cargo capacity.
     pub cargo: Cargo,
-    /// Where the default Loadout is read: the Record's loadout component.
+    /// Where the default Loadout is read: the XML Loadout file the Record's loadout component
+    /// names, else that component's field in the Record.
     pub loadout_source: Source,
     /// The default Loadout, stopping at docked vehicles.
     pub loadout: Vec<LoadoutPort>,

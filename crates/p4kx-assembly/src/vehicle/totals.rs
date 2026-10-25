@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use super::read::is_format_character;
+use super::read::{is_format_character, is_partial_number};
 use super::{ValueOrigin, VehicleImplementation, VehiclePart};
 
 /// How many values of a sum came from each [`ValueOrigin`].
@@ -104,6 +104,42 @@ impl UnreadableValue {
     }
 }
 
+/// A number attribute of a part of which only a prefix was read, with its raw text, e.g. `12,5x`
+/// read as 12. The value is in the sums.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PartialValue {
+    part: String,
+    attribute: &'static str,
+    raw: String,
+    read: f64,
+}
+
+impl PartialValue {
+    /// Returns the part's name.
+    #[must_use]
+    pub fn part(&self) -> &str {
+        &self.part
+    }
+
+    /// Returns the attribute's name, e.g. `mass`.
+    #[must_use]
+    pub const fn attribute(&self) -> &'static str {
+        self.attribute
+    }
+
+    /// Returns the value as stored.
+    #[must_use]
+    pub fn raw(&self) -> &str {
+        &self.raw
+    }
+
+    /// Returns the number that was read from it.
+    #[must_use]
+    pub const fn read(&self) -> f64 {
+        self.read
+    }
+}
+
 /// The sums over the parts of a vehicle implementation: mass, hull hit points and the thresholds
 /// at which parts destroy the vehicle or detach (ADR-0061).
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -117,6 +153,7 @@ pub struct VehicleTotals {
     destruction: Vec<PartThreshold>,
     detach: Vec<PartThreshold>,
     unreadable: Vec<UnreadableValue>,
+    partial: Vec<PartialValue>,
     cleaned_mass: usize,
     cleaned_damage: usize,
 }
@@ -178,6 +215,13 @@ impl VehicleTotals {
     #[must_use]
     pub fn unreadable(&self) -> &[UnreadableValue] {
         &self.unreadable
+    }
+
+    /// Returns the `mass`, `damageMax` and `detachRatio` values of which only a numeric prefix
+    /// was read because other text than a unit (`d`, `f`, `kg`) follows it; they are in the sums.
+    #[must_use]
+    pub fn partial(&self) -> &[PartialValue] {
+        &self.partial
     }
 
     /// Returns how many numbers read carried invisible format characters that were dropped.
@@ -263,7 +307,15 @@ fn number_of(
 ) -> Option<f64> {
     let raw = part.attribute(name).filter(|raw| !raw.trim().is_empty())?;
     match parsed {
-        Some(_) => {
+        Some(read) => {
+            if is_partial_number(raw) {
+                totals.partial.push(PartialValue {
+                    part: part.name.clone(),
+                    attribute: name,
+                    raw: raw.to_owned(),
+                    read,
+                });
+            }
             if raw.chars().any(is_format_character) {
                 let counter = if name == "mass" {
                     &mut totals.cleaned_mass

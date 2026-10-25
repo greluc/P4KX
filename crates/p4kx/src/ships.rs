@@ -51,6 +51,7 @@ pub(crate) fn run(args: &ShipsArgs, as_json: bool) -> Result<ExitCode> {
             .ok_or_else(|| InvalidExportTime::of(seconds))?,
     };
     let archive = crate::key::open(&args.archive)?;
+    crate::guard::ensure_writable(&args.out)?;
     let filter = args.filter.as_deref().map(Filter::new);
     let cancel = cancel_on_interrupt()?;
     let line = ProgressLine::new();
@@ -65,7 +66,6 @@ pub(crate) fn run(args: &ShipsArgs, as_json: bool) -> Result<ExitCode> {
     line.finish();
     let built = built.map_err(into_anyhow)?;
     print_failures(built.failures())?;
-    crate::guard::ensure_writable(&args.out)?;
     write(&built, args.format, &args.out)?;
     let printed = if as_json {
         json::print(&summary(&built, args, json::path(archive.path())))

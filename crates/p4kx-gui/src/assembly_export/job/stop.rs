@@ -49,6 +49,10 @@ impl TextureLoader for StoppableTextures<'_> {
         }
         self.textures.load(path, mip)
     }
+
+    fn dimensions(&self, path: &str, mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        self.textures.dimensions(path, mip)
+    }
 }
 
 pub(crate) struct Observed<'a, W> {

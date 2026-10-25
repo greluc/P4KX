@@ -50,7 +50,7 @@ fn a_reference_to_a_missing_record_is_a_reference_row_without_target_path() -> T
 
     assert!(
         text.contains(&format!(
-            "{HEAD}ghost,,reference,00000001-0002-0003-0004-000000000005,\r\n"
+            "{HEAD}ghost,,reference,00000001-0002-0003-0004-000000000005,,\r\n"
         )),
         "{text}"
     );
@@ -81,19 +81,19 @@ fn repeated_names_and_names_with_a_dollar_take_their_position_in_the_path() -> T
     let rows: Vec<&str> = text.split("\r\n").collect();
 
     assert!(
-        rows.contains(&format!("{HEAD}x,,int,1,").as_str()),
+        rows.contains(&format!("{HEAD}x,,int,1,,").as_str()),
         "{rows:#?}"
     );
     assert!(
-        rows.contains(&format!("{HEAD}$1,,int,0,").as_str()),
+        rows.contains(&format!("{HEAD}$1,,int,0,,").as_str()),
         "{rows:#?}"
     );
     assert!(
-        rows.contains(&format!("{HEAD}$2,,int,2,").as_str()),
+        rows.contains(&format!("{HEAD}$2,,int,2,,").as_str()),
         "{rows:#?}"
     );
     assert!(
-        rows.contains(&format!("{HEAD}y,,int,3,").as_str()),
+        rows.contains(&format!("{HEAD}y,,int,3,,").as_str()),
         "{rows:#?}"
     );
     Ok(())

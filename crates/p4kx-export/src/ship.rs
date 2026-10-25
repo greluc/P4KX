@@ -47,7 +47,7 @@ pub(crate) fn ship<'f>(
     texts: &Texts<'f>,
     evidence: &Evidence,
     read: &ShipRead,
-) -> (Ship<'f>, VehicleFacts<'f>) {
+) -> (Ship<'f>, VehicleFacts) {
     let base = &read.base;
     let vehicle = component(tree, "VehicleComponentParams");
     let guid = CatalogGuid(tree.guid());
@@ -74,10 +74,8 @@ pub(crate) fn ship<'f>(
     };
     let facts = VehicleFacts {
         ship: guid,
-        class_name: ship.class_name,
-        definition: ship.vehicle_definition,
-        modification: text(vehicle, "modification"),
         paint_ports: paint_ports(tree),
+        implementation: read.paint_ports.clone(),
         variant_key: ship
             .vehicle_definition
             .zip(read.implementation)

@@ -77,11 +77,11 @@ fn flat_writes_values_csv_by_default() -> TestResult {
     assert!(bytes.starts_with(b"\xEF\xBB\xBFrecord_guid,"));
     let text = String::from_utf8(bytes)?;
     assert!(text.contains(
-        "cbee34fd-6441-4000-b99f-924f7f26e19f,Vehicle.Cart,libs/vehicles/cart,mass,,single,0.1,\r\n"
+        "cbee34fd-6441-4000-b99f-924f7f26e19f,Vehicle.Cart,libs/vehicles/cart,mass,,single,0.1,,\r\n"
     ));
-    assert!(text.contains(",labels,0,string,'=a,\r\n"));
+    assert!(text.contains(",labels,0,string,'=a,,\r\n"));
     assert!(text.contains(
-        ",maker,,reference,50e8a9f6-f956-4000-8ace-7c0ca9a91f5d,libs/vehicles/truck\r\n"
+        ",maker,,reference,50e8a9f6-f956-4000-8ace-7c0ca9a91f5d,libs/vehicles/truck,\r\n"
     ));
     assert!(
         !text.contains("Vehicle.Truck,libs/vehicles/truck,name"),
@@ -96,7 +96,7 @@ fn csv_raw_keeps_the_exact_bytes() -> TestResult {
 
     let text = fs::read_to_string(dir.path().join("out").join("values.csv"))?;
     assert!(text.starts_with("record_guid,"));
-    assert!(text.contains(",labels,0,string,=a,\r\n"));
+    assert!(text.contains(",labels,0,string,=a,,\r\n"));
     Ok(())
 }
 
@@ -117,9 +117,9 @@ fn a_language_adds_the_text_column() -> TestResult {
     let (dir, _) = export(&["--flat", "--lang", "en"], 0)?;
 
     let text = fs::read_to_string(dir.path().join("out").join("values.csv"))?;
-    assert!(text.contains(",target_path,text\r\n"));
+    assert!(text.contains(",target_path,text,record_tag\r\n"));
     assert!(
-        text.contains(",name,,locale,'@vehicle_Cart,,Cart\r\n"),
+        text.contains(",name,,locale,'@vehicle_Cart,,Cart,\r\n"),
         "{text}"
     );
     Ok(())

@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashSet;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
 
-use p4kx_assembly::ArchiveFiles;
+use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Record, RecordTree, TreeBuilder};
 use rayon::prelude::*;
 
@@ -30,19 +30,33 @@ const RESOURCE_TYPE: &str = "ResourceType";
 /// a reader taken for one ship and given back for the next keeps its caches across the splits of
 /// the parallel scan.
 struct ShipPool<'f> {
-    forge: &'f DataForge<'f>,
+    entities: Arc<Entities<'f>>,
     files: &'f ArchiveFiles<'f>,
     idle: Mutex<Vec<ShipReader<'f>>>,
 }
 
 impl<'f> ShipPool<'f> {
-    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipRead, CatalogFailure> {
-        let taken = self.idle.lock().ok().and_then(|mut idle| idle.pop());
-        let mut reader = taken.unwrap_or_else(|| ShipReader::new(self.forge, self.files));
-        let result = reader.read_with_digest(record, tree);
-        if let Ok(mut idle) = self.idle.lock() {
-            idle.push(reader);
+    const fn new(entities: Arc<Entities<'f>>, files: &'f ArchiveFiles<'f>) -> Self {
+        Self {
+            entities,
+            files,
+            idle: Mutex::new(Vec::new()),
         }
+    }
+
+    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipRead, CatalogFailure> {
+        let taken = self
+            .idle
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .pop();
+        let mut reader = taken
+            .unwrap_or_else(|| ShipReader::with_entities(Arc::clone(&self.entities), self.files));
+        let result = reader.read_with_digest(record, tree);
+        self.idle
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(reader);
         result
     }
 }
@@ -66,6 +80,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     pub(crate) fn run(
         forge: &'f DataForge<'f>,
         files: &'f ArchiveFiles<'f>,
+        entities: Arc<Entities<'f>>,
         options: &'o CatalogOptions<'a>,
         texts: &'o Texts<'f>,
         blueprints: &[Blueprint<'f>],
@@ -76,11 +91,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let (evidence, evidence_failures) = Evidence::read(&records);
         let scan = Self {
             forge,
-            ships: ShipPool {
-                forge,
-                files,
-                idle: Mutex::new(Vec::new()),
-            },
+            ships: ShipPool::new(entities, files),
             options,
             texts,
             placements,
@@ -242,13 +253,6 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             Kind::Commodities => self.resource_type(trees, &tree)?,
             _ => None,
         };
-        let ship_base = match kind {
-            Kind::Ships => match self.ships.read(record, &tree) {
-                Ok(base) => Some(base),
-                Err(failure) => return Ok(Some(Picked::Failed(failure))),
-            },
-            _ => None,
-        };
         let mut picked = Picked::entity(
             kind,
             &tree,
@@ -256,7 +260,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             resource_type.as_ref(),
             &self.groups,
             &self.evidence,
-            ship_base.as_ref(),
+            &|| self.ships.read(record, &tree),
         );
         if let Some(Picked::Item(item, _, _)) = &mut picked {
             item.stats = item_stats::read(&tree, self.forge, trees).map(Box::new);

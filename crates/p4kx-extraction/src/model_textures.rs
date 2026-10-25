@@ -30,8 +30,14 @@ impl<'i, 'a> ArchiveTextures<'i, 'a> {
     }
 }
 
-impl TextureLoader for ArchiveTextures<'_, '_> {
-    fn load(&self, path: &str, mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+impl ArchiveTextures<'_, '_> {
+    /// Opens the texture at `path` and returns it with the mip `mip` selects and that mip's
+    /// size, after checking it is one image within the pixel limit.
+    fn open(
+        &self,
+        path: &str,
+        mip: u32,
+    ) -> Result<(Texture<'_>, u32, (u32, u32)), TextureLoadError> {
         let entry = format!("Data\\{}", path.replace('/', "\\"));
         let texture = Texture::from_index(self.index, &entry).map_err(|error| match error {
             ConversionError::UnknownEntry(_) => TextureLoadError::NotFound,
@@ -43,20 +49,52 @@ impl TextureLoader for ArchiveTextures<'_, '_> {
                 "the texture is a cubemap, array or volume, not one image".to_owned(),
             ));
         }
-        let level = mip.min(header.mip_count().saturating_sub(1));
-        let side = |full: u32| (full >> level).max(1);
-        let pixels = u64::from(side(header.width())) * u64::from(side(header.height()));
+        let tail = texture
+            .alpha_tail()
+            .transpose()
+            .map_err(|error| TextureLoadError::Unreadable(describe(&error)))?;
+        let mut last = header.mip_count().saturating_sub(1);
+        if let Some(tail) = &tail {
+            last = last.min(tail.header().mip_count().saturating_sub(1));
+        }
+        let level = mip.min(last);
+        let halved = |full: u32| (full >> level).max(1);
+        let size = (halved(header.width()), halved(header.height()));
+        if let Some(tail) = &tail {
+            let tail_size = (
+                halved(tail.header().width()),
+                halved(tail.header().height()),
+            );
+            if tail_size != size {
+                return Err(TextureLoadError::Unreadable(format!(
+                    "the alpha tail is {}x{} at this mip, the texture {}x{}",
+                    tail_size.0, tail_size.1, size.0, size.1
+                )));
+            }
+        }
+        let pixels = u64::from(size.0) * u64::from(size.1);
         if pixels > MAX_MODEL_TEXTURE_PIXELS {
             return Err(TextureLoadError::Unreadable(format!(
                 "the texture has {pixels} pixels at this mip, more than the limit of \
                  {MAX_MODEL_TEXTURE_PIXELS}; use a higher --texture-mip"
             )));
         }
-        let has_alpha = texture.has_alpha_tail() || format_has_alpha(header.format());
+        Ok((texture, level, size))
+    }
+}
+
+impl TextureLoader for ArchiveTextures<'_, '_> {
+    fn load(&self, path: &str, mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+        let (texture, level, _) = self.open(path, mip)?;
+        let has_alpha = texture.has_alpha_tail() || format_has_alpha(texture.header().format());
         let image = texture
             .decode_mip(level)
             .map_err(|error| TextureLoadError::Unreadable(describe(&error)))?;
         Ok(LoadedTexture::new(image, has_alpha))
+    }
+
+    fn dimensions(&self, path: &str, mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        self.open(path, mip).map(|(_, _, size)| Some(size))
     }
 }
 

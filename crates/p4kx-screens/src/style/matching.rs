@@ -46,12 +46,14 @@ impl TagPaths {
         }
     }
 
-    /// Returns the tag at `path`, ignoring case.
+    /// Returns the tag at `path`, ignoring case: an exact match first, then the lowest GUID.
     pub(crate) fn guid_of(&self, path: &str) -> Option<Guid> {
         self.paths
             .iter()
-            .find(|(_, own)| own.eq_ignore_ascii_case(path))
-            .map(|(guid, _)| *guid)
+            .filter(|(_, own)| own.eq_ignore_ascii_case(path))
+            .map(|(guid, own)| (own.as_str() != path, *guid))
+            .min()
+            .map(|(_, guid)| guid)
     }
 
     fn within(&self, tag: Guid, ancestor: Guid) -> bool {

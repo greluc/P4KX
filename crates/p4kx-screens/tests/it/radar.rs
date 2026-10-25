@@ -290,16 +290,18 @@ fn a_shape_without_a_graphic_is_the_box_its_style_draws() -> TestResult {
         "the plate is drawn"
     );
     let report = composed.report();
-    let note = report
+    let bare = report
         .unsupported
         .iter()
         .find(|entry| entry.reason.contains("names no vector graphic"))
         .ok_or("the shape without a box is not listed")?;
-    assert_eq!(
-        note.examples,
-        ["ghost"],
-        "only the shape that draws nothing"
-    );
-    assert_eq!(report.images_left_out, 1);
+    assert_eq!(bare.examples, ["ghost"], "the shape that draws nothing");
+    let boxed = report
+        .unsupported
+        .iter()
+        .find(|entry| entry.reason.contains("the box is drawn"))
+        .ok_or("the shape with a box is not listed")?;
+    assert_eq!(boxed.examples, ["plate"], "the shape whose box draws");
+    assert_eq!(report.images_left_out, 2);
     Ok(())
 }

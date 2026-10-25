@@ -47,7 +47,6 @@ fn catch_the_interior_stage(window: &mut Window, stage_text: &str) -> Result<boo
                 {
                     return Ok(true);
                 }
-                Some(ViewStage::Interior) => {}
                 Some(_) => std::thread::sleep(std::time::Duration::from_micros(200)),
                 None => break,
             }

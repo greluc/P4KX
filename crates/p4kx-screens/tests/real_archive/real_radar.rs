@@ -9,7 +9,7 @@ use std::error::Error;
 use p4kx_assembly::{ArchiveFiles, LoadoutResolver};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gfx::{Background, CanvasSize, RasterOptions};
-use p4kx_screens::ScreenComposer;
+use p4kx_screens::{Report, ScreenComposer};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -30,6 +30,35 @@ const SHIPS: [&str; 14] = [
     "RSI_Zeus_Mk2_ES",
     "ARGO_MPUV_Cargo",
 ];
+
+const HANDLED: [&str; 11] = [
+    "WidgetSeparator",
+    "WidgetRuntimeImage",
+    "WidgetWindow",
+    "WidgetDustVolume",
+    "GeometryEntityWidget",
+    "VehicleEntityWidget",
+    "WidgetHoloVolume",
+    "WidgetLight",
+    "WidgetLighting",
+    "WidgetLine",
+    "WidgetEditBox",
+];
+
+fn assert_handled(report: &Report, ship: &str, canvas: &str) {
+    let unhandled: Vec<&str> = report
+        .unsupported
+        .iter()
+        .filter(|entry| {
+            entry.reason.contains("no renderer") && HANDLED.contains(&entry.element.as_str())
+        })
+        .map(|entry| entry.element.as_str())
+        .collect();
+    assert!(
+        unhandled.is_empty(),
+        "{ship} {canvas}: handled widget types listed without a renderer: {unhandled:?}"
+    );
+}
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
@@ -73,6 +102,7 @@ fn the_radar_screens_of_real_ships_render() -> TestResult {
                 .filter(|entry| entry.reason.contains("no renderer"))
                 .map(|entry| format!("{} {}", entry.element, entry.count))
                 .collect();
+            assert_handled(report, ship, &screen.canvas);
             println!(
                 "{ship} [{}] {}: {} widgets; no renderer: {}",
                 screen.port,
@@ -82,5 +112,12 @@ fn the_radar_screens_of_real_ships_render() -> TestResult {
             );
         }
     }
+    assert!(!seen.is_empty(), "a radar canvas was rendered");
+    assert!(
+        seen.iter().any(|canvas| canvas
+            .to_lowercase()
+            .contains("components/map/mapdisplaymaster")),
+        "the radar master canvas is among them: {seen:?}"
+    );
     Ok(())
 }

@@ -59,11 +59,18 @@ and from what their names say, and the open ones are listed at the end.
   they are not listed. This is the whole of the radar's dynamic content: contacts, stalks, the
   star field, the planes and the markers belong to 3D scenes and to lists with rows at run time,
   which a still does not show.
-- A custom shape or icon that names no vector graphic is the box its style gives it when that box
-  has a background or a border, and says nothing; it is listed (`names no vector graphic`) only
-  when the box draws nothing either. The separators of the standard canvases are such shapes.
+- A custom shape or icon that names no vector graphic is always listed and counts in
+  `images_left_out`, because the game sets the graphic at run time: `the box is drawn; the game
+  sets the graphic at run time` when its style gives it a background or a border, which is then
+  drawn, and `names no vector graphic; the game sets it at run time` when the box draws nothing
+  either. This amends ADR-0105, which left the first kind unlisted. The separators of the
+  standard canvases are such shapes.
 - No picture of the host plane is drawn: its scale, tilt and material are not in the Records, and
   a still of a made-up plane would be an invented graphic.
+- The large flat boxes of a rendered radar screen (for example the light-blue and violet plates
+  and the dark blocks of the Hornet map canvas) are the boxes of run-time widgets: their style
+  gives them a background or a border and the game fills them (maps, 3D scenes, icons). Only the
+  background and border from the Records are drawn in them; nothing else is drawn.
 
 ## Not drawn, and the questions that stay open
 

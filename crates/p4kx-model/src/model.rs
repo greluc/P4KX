@@ -141,12 +141,16 @@ pub struct Mesh {
     /// white, the colour of a mesh that stores none.
     pub colours: Option<Vec<[u8; 4]>>,
     /// The bones each vertex is weighted to, one entry per vertex, or `None` for a mesh that is
-    /// not skinned. Every bone with a weight is in [`Model::bones`].
+    /// not skinned. Every bone with a weight is in the skeleton of the level, see
+    /// [`Model::bones_of`].
     pub influences: Option<Vec<Influences>>,
     /// The texture coordinates, one per vertex, or empty when the mesh stores none.
     pub uvs: Vec<[f32; 2]>,
     /// The second texture coordinates, one per vertex, or `None` when the mesh stores none.
     pub second_uvs: Option<Vec<[f32; 2]>>,
+    /// The number of vertices with a texture coordinate, of either set, that was not a finite
+    /// number in the file and reads as 0.
+    pub non_finite_uvs: usize,
     /// The triangle list: three vertex indices per triangle, every one below the vertex count.
     pub indices: Vec<u32>,
     /// The ranges of the triangle list drawn with one material each.

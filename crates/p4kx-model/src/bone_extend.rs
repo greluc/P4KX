@@ -22,6 +22,59 @@ impl BoneTransform {
     }
 }
 
+/// Returns the pose of every bone in the model's space, composed from the `relative` poses.
+///
+/// It agrees with the node transforms whatever the stored `world` poses say. A bone whose parent
+/// is missing counts as a root, and so does the first bone met again along a cycle, the one whose
+/// parent is already on the walk.
+#[must_use]
+pub fn chained_world_poses(bones: &[Bone]) -> Vec<BoneTransform> {
+    let mut poses: Vec<Option<BoneTransform>> = vec![None; bones.len()];
+    let mut walking = vec![false; bones.len()];
+    let mut chain = Vec::new();
+    for start in 0..bones.len() {
+        chain.clear();
+        let mut at = Some(start);
+        while let Some(index) = at {
+            if poses.get(index).is_none_or(Option::is_some) {
+                break;
+            }
+            if walking.get(index).copied().unwrap_or(true) {
+                at = None;
+                break;
+            }
+            if let Some(flag) = walking.get_mut(index) {
+                *flag = true;
+            }
+            chain.push(index);
+            at = bones.get(index).and_then(|bone| bone.parent);
+        }
+        for &index in &chain {
+            if let Some(flag) = walking.get_mut(index) {
+                *flag = false;
+            }
+        }
+        let mut parent = at
+            .and_then(|index| poses.get(index).copied().flatten())
+            .unwrap_or(BoneTransform::IDENTITY);
+        for &index in chain.iter().rev() {
+            let Some(bone) = bones.get(index) else {
+                continue;
+            };
+            let pose = parent.then(&bone.relative);
+            parent = pose;
+            if let Some(slot) = poses.get_mut(index) {
+                *slot = Some(pose);
+            }
+        }
+    }
+    poses
+        .into_iter()
+        .zip(bones)
+        .map(|(pose, bone)| pose.unwrap_or(bone.relative))
+        .collect()
+}
+
 /// Returns the product `a * b` of two quaternions `x, y, z, w`: the rotation that turns by `b`
 /// first and then by `a`.
 #[must_use]

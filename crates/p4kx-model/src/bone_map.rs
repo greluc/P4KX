@@ -21,7 +21,7 @@ const WIDE_STRIDE: usize = 24;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Influences {
-    /// The indices of the bones in [`crate::Model::bones`].
+    /// The indices of the bones in the skeleton of the level, see [`crate::Model::bones_of`].
     pub joints: [u16; MAX_INFLUENCES],
     /// The weights, 0 to 255.
     pub weights: [u8; MAX_INFLUENCES],

@@ -84,6 +84,7 @@ mod model_animation_sources;
 mod model_crch;
 mod model_lods;
 mod model_materials;
+mod model_skeleton_info;
 mod model_skin;
 mod model_textures;
 mod read_only;

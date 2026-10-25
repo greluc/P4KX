@@ -8,7 +8,7 @@ use crate::bone_map::BoneMapStream;
 use crate::reader::to_usize;
 use crate::second_uv::SecondUvStream;
 use crate::vector::{
-    dequantise, half, normal_of_quaternion, normal_of_tangent_frame, normalise,
+    dequantise, finite_uv, normal_of_quaternion, normal_of_tangent_frame, normalise,
     tangent_of_quaternion, tangent_of_tangent_frame, unpack_unit_vector,
 };
 
@@ -45,8 +45,9 @@ impl VertexStream<'_> {
         }
     }
 
-    /// Returns the position and texture coordinate of vertex `index`.
-    pub(crate) fn vertex(&self, index: usize) -> Result<([f32; 3], [f32; 2]), CorruptChunk> {
+    /// Returns the position and texture coordinate of vertex `index`, with a non-finite texture
+    /// coordinate read as 0, and whether one was.
+    pub(crate) fn vertex(&self, index: usize) -> Result<([f32; 3], [f32; 2], bool), CorruptChunk> {
         let stride = self.stride();
         let bytes = element(self.data, index, stride, "vertex")?;
         let word = |at: usize| u32_at(bytes, at);
@@ -58,13 +59,11 @@ impl VertexStream<'_> {
             VertexLayout::Float => [0, 4, 8].map(|at| f32::from_bits(word(at))),
         };
         let uv_at = stride - 4;
-        let uv = [uv_at, uv_at + 2]
-            .map(|at| half(u16_at(bytes, at)))
-            .map(|value| if value.is_finite() { value } else { 0.0 });
+        let (uv, repaired) = finite_uv([uv_at, uv_at + 2].map(|at| u16_at(bytes, at)));
         if position.iter().any(|value| !value.is_finite()) {
             return Err(CorruptChunk::NonFinite("vertex position"));
         }
-        Ok((position, uv))
+        Ok((position, uv, repaired))
     }
 
     /// Returns the colour of vertex `index` as red, green, blue and alpha.

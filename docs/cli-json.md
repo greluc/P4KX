@@ -1569,10 +1569,10 @@ companion next to it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …],
             "scale": [1.0, 1.0, 1.0], "geometry_type": 0, "helper": false,
             "properties": [{"key": "class", "value": "AnimatedJoint"}]}],
- "lods": [{"level": 0, "vertices": 24, "triangles": 12,
+ "lods": [{"level": 0, "vertices": 24, "triangles": 12, "skeleton_bones": null,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
                        "normals_computed": false, "tangents": false, "colours": false,
-                       "skinned": false,
+                       "second_uvs": false, "non_finite_uvs": 0, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
@@ -1613,7 +1613,11 @@ read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level 
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
 (`colours` is false for a mesh of opaque white vertices); `normals_computed` says that the mesh
 stores no normals and the smooth ones were computed from its triangles; `first_index` and `index_count` locate a
-submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
+submesh in its mesh's triangle list. `second_uvs` says whether the mesh has a second set of texture
+coordinates, and `non_finite_uvs` counts its vertices that had a texture coordinate, of either
+set, that was not a finite number and reads as 0. `skeleton_bones` of a level is the number of
+bones of the skeleton the level's own file carries when it differs from the model's, `null`
+otherwise. `skinned` says whether the mesh has bone weights.
 `bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
 of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
 bone by; `node` is the index of the node of the model the bone drives (the bones of a static
@@ -1642,7 +1646,10 @@ companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file
 geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
 is `null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--max-influences <n>] [--anim <name>]… [--anim-from <entry>]… --json`
+
+`--max-influences N` (1 to 8, default 8) keeps the strongest N bones of each vertex and scales
+their weights to add up to 1; 4 writes the first set of joints and weights only.
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 

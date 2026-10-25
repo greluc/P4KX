@@ -121,6 +121,7 @@ fn bare_mesh(node: usize, positions: Vec<[f32; 3]>, indices: Vec<u32>) -> Mesh {
         influences: None,
         uvs: Vec::new(),
         second_uvs: None,
+        non_finite_uvs: 0,
         indices,
     }
 }

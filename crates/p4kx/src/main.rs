@@ -11,6 +11,7 @@ mod bnk;
 mod catalog;
 mod catalog_json;
 mod catalog_json_shops;
+mod catalog_json_slugs;
 mod channels;
 mod character_package;
 mod chf;

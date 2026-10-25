@@ -3781,6 +3781,7 @@ dependencies = [
  "p4kx-export",
  "p4kx-extraction",
  "p4kx-render",
+ "p4kx-screens",
  "p4kx-search",
  "p4kx-settings",
  "p4kx-testkit",
@@ -3872,6 +3873,7 @@ dependencies = [
  "p4kx-testkit",
  "png",
  "serde",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

@@ -49,6 +49,7 @@ mod text_cache;
 mod texts;
 pub mod theme;
 pub mod ui;
+mod ui_tab;
 mod viewer;
 mod widgets;
 pub mod window;
@@ -142,13 +143,19 @@ pub use sounds::{
     SoundsStatus, SoundsTab, TriggerList, TriggerRow, Variant,
 };
 pub use tags::{TagRow, TagsStatus, TagsTab, TagsView};
+pub use ui_tab::{
+    ContentRow, FileList, MAX_CONTENT_ROWS, ReportLine, ShipList, ShipPick, UiBackground,
+    UiContents, UiDetail, UiExport, UiExportStatus, UiExportSummary, UiFilesStatus, UiFormat,
+    UiMode, UiRenderFailure, UiRendered, UiReport, UiScreensStatus, UiSettings, UiSize,
+    UiSource, UiTab,
+};
 pub use texts::{
     AboutText, ArchiveKeyText, AssemblyExportText, AudioText, CatalogText, ChangeExtractionText,
     CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText,
     EntityText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
     ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText,
     RecordLanguageText, RecordSearchText, RecordText, SchemaText, ScrollText, SoundsText, TagsText,
-    Text, Texts, XmlText,
+    Text, Texts, UiText, XmlText,
 };
 pub use viewer::{
     AssemblyScene, BuildError, BuildOptions, DrawList, GroupDraw, Hooks, Instance, Left,

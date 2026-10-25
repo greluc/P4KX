@@ -9,6 +9,7 @@ mod layout;
 mod limits;
 mod listing;
 mod render;
+mod still;
 mod support;
 mod text;
 mod text_limits;

@@ -20,6 +20,10 @@
 //! `fonts_en.gfx`: the font style of a widget and the cascade pick the font, size, letter and line
 //! spacing, alignment and case, localisation keys resolve in the language of the caller, and a
 //! character without a glyph is an empty box. Without [`TextSources`] text widgets are listed.
+//!
+//! [`Still::render`] does all of that for a front-end: [`ScreenTexts::load`] reads the fonts and
+//! the `global.ini` of a language from an Archive once, and a [`Still`] holds the PNG pixels or
+//! the SVG document of one canvas with its report, which [`Still::write`] writes to a file.
 
 mod assets;
 mod bindings;
@@ -40,6 +44,7 @@ mod paint;
 mod reader;
 mod report;
 mod screens;
+mod still;
 mod style;
 mod text;
 mod walk;
@@ -52,3 +57,4 @@ pub use inspect::ElementCount;
 pub use limits::Limits;
 pub use report::{Report, Unsupported};
 pub use screens::{EntityScreens, MovieUse, Screen};
+pub use still::{ScreenTexts, Still, StillFormat, StillRequest, StillWriteError};

@@ -185,14 +185,26 @@ fn positions_are_dequantised_with_the_scaling_box_whatever_the_model_box_is() ->
 }
 
 #[test]
-fn a_mesh_without_normal_stream_has_no_normals() -> TestResult {
+fn a_mesh_without_normal_stream_gets_computed_smooth_normals() -> TestResult {
     let model = read(&TestModel::cube().with_normals(TestNormals::None))?;
     let mesh = model
         .lods
         .first()
         .and_then(|lod| lod.meshes.first())
         .ok_or("mesh")?;
-    assert_eq!(mesh.normals, None, "no normals");
+    assert!(mesh.normals_computed, "flagged as computed");
+    let normals = mesh.normals.as_ref().ok_or("computed normals")?;
+    assert_eq!(normals.len(), mesh.positions.len(), "one per vertex");
+    let stored = read(&TestModel::cube())?;
+    let stored = stored
+        .lods
+        .first()
+        .and_then(|lod| lod.meshes.first())
+        .ok_or("mesh")?;
+    assert!(!stored.normals_computed, "stored normals are not flagged");
+    for (computed, expected) in normals.iter().zip(stored.normals.iter().flatten()) {
+        assert_close(*computed, *expected, "computed normal");
+    }
     Ok(())
 }
 

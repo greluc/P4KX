@@ -79,7 +79,7 @@ fn cube_lod0_has_positions_indices_and_one_submesh() -> TestResult {
     }
     assert_eq!(mesh.indices, cube.indices(), "the triangle list");
     assert!(
-        mesh.normals.is_none() && mesh.uvs.is_empty(),
+        mesh.normals_computed && mesh.uvs.is_empty(),
         "the physics mesh stores neither normals nor texture coordinates"
     );
     let [submesh] = mesh.submeshes.as_slice() else {

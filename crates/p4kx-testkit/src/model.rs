@@ -57,6 +57,13 @@ pub struct TestNode {
     pub kind: u16,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct NodeDetails {
+    pub(crate) node: usize,
+    pub(crate) scale: [f32; 3],
+    pub(crate) properties: Vec<(String, String)>,
+}
+
 /// One vertex of a [`TestModel`].
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TestVertex {
@@ -108,6 +115,7 @@ pub struct TestModel {
     pub(crate) tangent_sign: f32,
     pub(crate) second_uvs: Option<Vec<[f32; 2]>>,
     pub(crate) bone_map: Option<BoneMap>,
+    pub(crate) node_details: Vec<NodeDetails>,
     lods: Vec<Self>,
     extra_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
@@ -142,6 +150,7 @@ impl TestModel {
             tangent_sign: 1.0,
             second_uvs: None,
             bone_map: None,
+            node_details: Vec::new(),
             lods: Vec::new(),
             extra_chunks: Vec::new(),
             single_file: false,
@@ -184,6 +193,27 @@ impl TestModel {
     #[must_use]
     pub const fn with_model_box(mut self, min: [f32; 3], max: [f32; 3]) -> Self {
         self.model_box = Some((min, max));
+        self
+    }
+
+    /// Stores `scale` in the `NodeMeshCombo` record of the node `node` and `properties`, as
+    /// `key=value` lines, in its entry of the property table.
+    #[must_use]
+    pub fn with_node_details(
+        mut self,
+        node: usize,
+        scale: [f32; 3],
+        properties: &[(&str, &str)],
+    ) -> Self {
+        let properties = properties
+            .iter()
+            .map(|&(key, value)| (key.to_owned(), value.to_owned()))
+            .collect();
+        self.node_details.push(NodeDetails {
+            node,
+            scale,
+            properties,
+        });
         self
     }
 

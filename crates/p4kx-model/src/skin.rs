@@ -3,9 +3,9 @@
 
 use p4kx_foundation::ByteReader;
 
-use crate::CorruptChunk;
 use crate::reader::{ReadValues, to_usize};
 use crate::streams::{StreamCounts, Streams, read_streams};
+use crate::{CorruptChunk, PositionBox};
 
 const HEADER_PADDING: usize = 88;
 const SUBMESH_LEN: usize = 48;
@@ -32,10 +32,13 @@ pub(crate) struct SkinMesh<'a> {
 /// Reads a mesh chunk: a flags word, the mesh info with counts and bounding boxes, padding, the
 /// submeshes, extra words and the data streams.
 ///
-/// Quantised positions are dequantised with the second, scaling box for every mesh; the first,
-/// model box is skipped. Only static models are quantised in the real Archives; where the face
-/// normals can tell, the second box is the one that fits (docs/mesh-bounding-boxes.md).
-pub(crate) fn read_skin(data: &[u8]) -> Result<SkinMesh<'_>, CorruptChunk> {
+/// Quantised positions are dequantised with the box `position_box` picks: the second, scaling box
+/// by default. Only static models are quantised in the real Archives; where the face normals can
+/// tell, the second box is the one that fits (docs/mesh-bounding-boxes.md).
+pub(crate) fn read_skin(
+    data: &[u8],
+    position_box: PositionBox,
+) -> Result<SkinMesh<'_>, CorruptChunk> {
     let mut reader = ByteReader::new(data);
     reader.read_u32()?;
     reader.read_u32()?;
@@ -43,10 +46,12 @@ pub(crate) fn read_skin(data: &[u8]) -> Result<SkinMesh<'_>, CorruptChunk> {
     let index_count = reader.read_u32()?;
     let submesh_count = to_usize(reader.read_u32()?);
     reader.read_u32()?;
-    reader.read_vec3()?;
-    reader.read_vec3()?;
-    let min = reader.read_vec3()?;
-    let max = reader.read_vec3()?;
+    let model_box = (reader.read_vec3()?, reader.read_vec3()?);
+    let scaling_box = (reader.read_vec3()?, reader.read_vec3()?);
+    let (min, max) = match position_box {
+        PositionBox::Model => model_box,
+        _ => scaling_box,
+    };
     if min.iter().chain(&max).any(|value| !value.is_finite()) {
         return Err(CorruptChunk::NonFinite("bounding box"));
     }

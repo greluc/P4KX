@@ -44,5 +44,8 @@ twentieth of the clear second-box wins.
 
 ## Model box
 
-Positions of interior `.cgf` files placed by `IncludedObjects` (#283) may need the first box; the
-reader skips it today. The placement code that needs it will read it from the chunk.
+Positions of interior `.cgf` files placed by `IncludedObjects` are authored in the model (first)
+box space, after StarBreaker. `Model::read_with_box` takes a `PositionBox`: `Scaling` (the default
+of every other read method) dequantises with the second box, `Model` with the first. The placement
+code chooses; nothing in the model says which a file needs. `tests/real_archive/model_box.rs`
+checks on one interior CGF of LIVE that the two readings differ and that both stay finite.

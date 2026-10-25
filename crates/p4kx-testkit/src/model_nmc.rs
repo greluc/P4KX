@@ -13,9 +13,16 @@ pub(crate) fn nmc_chunk(model: &TestModel) -> Vec<u8> {
     material_ids.sort_unstable();
     material_ids.dedup();
     let mut names = Vec::new();
-    for node in nodes {
+    let mut properties = Vec::new();
+    for (index, node) in nodes.iter().enumerate() {
         names.extend_from_slice(node.name.as_bytes());
         names.push(0);
+        for details in model.node_details.iter().filter(|d| d.node == index) {
+            for (key, value) in &details.properties {
+                properties.extend_from_slice(format!("{key}={value}\r\n").as_bytes());
+            }
+        }
+        properties.push(0);
     }
     let geometry_nodes = nodes.iter().filter(|node| node.kind == 0).count();
 
@@ -27,7 +34,7 @@ pub(crate) fn nmc_chunk(model: &TestModel) -> Vec<u8> {
         0,
         count(material_ids.len()),
         count(names.len()),
-        0,
+        count(properties.len()),
         0,
     ] {
         put_u32(&mut out, value);
@@ -37,6 +44,11 @@ pub(crate) fn nmc_chunk(model: &TestModel) -> Vec<u8> {
         out.resize(start + 32, 0);
         put_matrix(&mut out, &world(nodes, index, nodes.len()));
         put_matrix(&mut out, &node.local);
+        if let Some(details) = model.node_details.iter().find(|d| d.node == index) {
+            for value in details.scale {
+                out.extend_from_slice(&value.to_le_bytes());
+            }
+        }
         out.resize(start + 140, 0);
         put_u32(&mut out, count(index) + 1);
         put_u32(&mut out, u32::from(ROOT));
@@ -49,7 +61,7 @@ pub(crate) fn nmc_chunk(model: &TestModel) -> Vec<u8> {
         put_u16(&mut out, id);
     }
     out.extend_from_slice(&names);
-    out.extend(std::iter::repeat_n(0, nodes.len()));
+    out.extend_from_slice(&properties);
     out
 }
 

@@ -5,7 +5,10 @@ use p4kx_chunks::{ChunkFile, ChunkType, Container, ivo};
 
 use crate::build::build;
 use crate::crch::build as build_crch;
-use crate::{Bone, CompanionResolver, Influences, MaterialStatus, ModelError, Transform};
+use crate::{
+    Bone, CompanionResolver, Influences, MaterialStatus, ModelError, ModelIssue, PositionBox,
+    Transform,
+};
 
 /// A model read from a chunk file and its companions, in `CryEngine` coordinates: Z up, metres.
 #[derive(Debug, Clone, PartialEq)]
@@ -29,6 +32,10 @@ pub struct Model {
     /// skeleton file) or its `CompiledBones` chunk (a static model with animated parts); empty
     /// for a model with neither.
     pub bones: Vec<Bone>,
+    /// The list of material indices of the `NodeMeshCombo` chunk, empty for a model without one.
+    pub material_indices: Vec<u16>,
+    /// What a lenient read worked around; always empty for the other selections.
+    pub issues: Vec<ModelIssue>,
     /// Every chunk of the model file and its geometry companion, with how the model used it.
     pub chunks: Vec<ModelChunk>,
 }
@@ -43,6 +50,42 @@ pub struct Node {
     pub parent: Option<usize>,
     /// The transform from the node's space to its parent's.
     pub transform: Transform,
+    /// The scale the `NodeMeshCombo` record stores; 1 on every axis for a node without one.
+    pub scale: [f32; 3],
+    /// The geometry type the `NodeMeshCombo` record stores: 0 for geometry, 2 or 3 for a helper;
+    /// `None` for a node of a model without that chunk.
+    pub geometry_type: Option<u16>,
+    /// The `key=value` properties of the node's entry in the chunk's property table, e.g.
+    /// `class=AnimatedJoint`, in order.
+    pub properties: Vec<(String, String)>,
+}
+
+impl Node {
+    pub(crate) const fn new(name: String, parent: Option<usize>, transform: Transform) -> Self {
+        Self {
+            name,
+            parent,
+            transform,
+            scale: [1.0; 3],
+            geometry_type: None,
+            properties: Vec::new(),
+        }
+    }
+
+    /// Returns whether the node is a helper: a point, box or dummy without geometry.
+    #[must_use]
+    pub const fn is_helper(&self) -> bool {
+        matches!(self.geometry_type, Some(2 | 3))
+    }
+
+    /// Returns the value of the property `key`, the first when it is stored more than once.
+    #[must_use]
+    pub fn property(&self, key: &str) -> Option<&str> {
+        self.properties
+            .iter()
+            .find(|(name, _)| name == key)
+            .map(|(_, value)| value.as_str())
+    }
 }
 
 /// One level of detail: the meshes of the nodes at that level.
@@ -87,6 +130,9 @@ pub struct Mesh {
     pub source: Vec<u32>,
     /// The unit vertex normals, or `None` when the mesh stores none.
     pub normals: Option<Vec<[f32; 3]>>,
+    /// Whether [`Self::normals`] were computed from the triangles because the mesh stores none:
+    /// smooth normals, the area-weighted mean of the faces around each vertex.
+    pub normals_computed: bool,
     /// The unit vertex tangents with the handedness of their frame in `w`, +1 or −1, or `None`
     /// when the mesh stores no tangent frame. The bitangent is `cross(normal, tangent) * w`.
     pub tangents: Option<Vec<[f32; 4]>>,
@@ -142,6 +188,11 @@ pub enum LodSelection {
     /// Every level up to and including this one that the model has; reading fails when it has
     /// none of them.
     AtMost(u32),
+    /// Only this level, read leniently for a caller that places a model at a distance (ADR-0119):
+    /// a level without companion is replaced by the meshes of level 0 labelled with the
+    /// requested level, and a missing geometry companion leaves the model without meshes; both
+    /// are reported in [`Model::issues`] instead of failing.
+    OnlyOrBase(u32),
 }
 
 impl LodSelection {
@@ -150,9 +201,13 @@ impl LodSelection {
     pub const fn wants(self, level: u32) -> bool {
         match self {
             Self::All => true,
-            Self::Only(only) => only == level,
+            Self::Only(only) | Self::OnlyOrBase(only) => only == level,
             Self::AtMost(most) => level <= most,
         }
+    }
+
+    pub(crate) const fn is_lenient(self) -> bool {
+        matches!(self, Self::OnlyOrBase(_))
     }
 }
 
@@ -215,7 +270,24 @@ impl Model {
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
-        Self::read_selecting(name, file, companions, lods, true)
+        Self::read_selecting(name, file, companions, lods, true, PositionBox::default())
+    }
+
+    /// Reads the levels of detail `lods` like [`Self::read_with`], dequantising quantised vertex
+    /// positions with the box `position_box` of the mesh chunk; the placement code of a CGF that
+    /// a socpak's `IncludedObjects` places chooses [`PositionBox::Model`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::read_with`].
+    pub fn read_with_box<B: AsRef<[u8]>>(
+        name: &str,
+        file: &ChunkFile<B>,
+        companions: &mut dyn CompanionResolver,
+        lods: LodSelection,
+        position_box: PositionBox,
+    ) -> Result<Self, ModelError> {
+        Self::read_selecting(name, file, companions, lods, true, position_box)
     }
 
     /// Reads the levels of detail `lods` of the model `file` like [`Self::read_with`], but leaves
@@ -232,7 +304,7 @@ impl Model {
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
-        Self::read_selecting(name, file, companions, lods, false)
+        Self::read_selecting(name, file, companions, lods, false, PositionBox::default())
     }
 
     fn read_selecting<B: AsRef<[u8]>>(
@@ -241,9 +313,10 @@ impl Model {
         companions: &mut dyn CompanionResolver,
         lods: LodSelection,
         load_materials: bool,
+        position_box: PositionBox,
     ) -> Result<Self, ModelError> {
         match file.container() {
-            Container::Ivo => build(name, file, companions, lods, load_materials),
+            Container::Ivo => build(name, file, companions, lods, load_materials, position_box),
             Container::CrCh => build_crch(name, file, companions, lods, load_materials),
         }
     }

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, TextureLoader};
-use p4kx_model::{LodSelection, MaterialStatus, Model};
+use p4kx_model::{LodSelection, MaterialStatus, Model, PositionBox};
 
 use crate::chunk_source::ChunkSource;
 use crate::model_companions::{ArchiveCompanions, DiskCompanions};
@@ -51,7 +51,23 @@ impl ModelSource {
         path: &str,
         lods: LodSelection,
     ) -> Result<Self, ConversionError> {
-        Self::from_index_selecting(index, path, lods, true)
+        Self::from_index_selecting(index, path, lods, true, PositionBox::default())
+    }
+
+    /// Reads the levels of detail `lods` of the model Entry at `path` like
+    /// [`Self::from_index_with`], dequantising its positions with `position_box`, see
+    /// [`Model::read_with_box`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_index_with`].
+    pub fn from_index_with_box(
+        index: &PathIndex<'_>,
+        path: &str,
+        lods: LodSelection,
+        position_box: PositionBox,
+    ) -> Result<Self, ConversionError> {
+        Self::from_index_selecting(index, path, lods, true, position_box)
     }
 
     /// Reads only the levels of detail `lods` of the model Entry at `path` without its material
@@ -66,7 +82,7 @@ impl ModelSource {
         path: &str,
         lods: LodSelection,
     ) -> Result<Self, ConversionError> {
-        Self::from_index_selecting(index, path, lods, false)
+        Self::from_index_selecting(index, path, lods, false, PositionBox::default())
     }
 
     fn from_index_selecting(
@@ -74,13 +90,20 @@ impl ModelSource {
         path: &str,
         lods: LodSelection,
         load_materials: bool,
+        position_box: PositionBox,
     ) -> Result<Self, ConversionError> {
         let source = ChunkSource::from_index(index, path)?;
         let name = source.name().to_owned();
         let (folder, file_name) = split_entry_path(&name);
         let mut companions = ArchiveCompanions { index, folder };
         let read = if load_materials {
-            Model::read_with(file_name, source.file(), &mut companions, lods)
+            Model::read_with_box(
+                file_name,
+                source.file(),
+                &mut companions,
+                lods,
+                position_box,
+            )
         } else {
             Model::read_without_materials(file_name, source.file(), &mut companions, lods)
         };

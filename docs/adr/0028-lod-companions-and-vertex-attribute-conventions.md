@@ -17,7 +17,9 @@ file: the submeshes of a LOD companion name the nodes of the base `NodeMeshCombo
 - The chunks of a LOD companion are listed in `model info` as `lod<n>-geometry`.
 - A model that holds its mesh itself, or no mesh at all, has level 0 only.
 - There is no fallback from a missing LOD companion to the base companion: `--lod 3` of a model
-  without LOD3 is invalid input (exit code 2), not LOD0 under another name.
+  without LOD3 is invalid input (exit code 2), not LOD0 under another name. ADR-0119 adds the
+  opt-in `LodSelection::OnlyOrBase` for callers that place a model; the strict selections and the
+  CLI keep this rule.
 
 ## Vertex colours
 

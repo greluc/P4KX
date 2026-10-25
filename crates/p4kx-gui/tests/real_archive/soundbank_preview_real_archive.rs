@@ -76,7 +76,10 @@ fn banks_with_sounds(index: &EntryIndex) -> Result<Vec<u32>, Box<dyn Error>> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_soundbanks_of_a_real_archive_list_their_wems_and_play_one() -> TestResult {
-    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?);
     let banks = banks_with_sounds(&index)?;
     assert!(!banks.is_empty(), "the Archive has soundbanks with sounds");
     let step = banks.len().div_ceil(SAMPLES).max(1);

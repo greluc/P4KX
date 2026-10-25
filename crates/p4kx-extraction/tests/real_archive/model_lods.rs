@@ -8,6 +8,7 @@ use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_extraction::model::{Lod, LodSelection, Model, ModelError, Transform};
@@ -23,6 +24,8 @@ const MAX_CHUNK_FILE: u64 = 1 << 28;
 const MIN_DECREASING_SHARE: f64 = 0.9;
 const MIN_FITTING_SHARE: f64 = 0.5;
 const BOX_TOLERANCE: f32 = 0.02;
+
+static NEXT_FILE: AtomicUsize = AtomicUsize::new(0);
 
 fn archives() -> Result<Vec<PathBuf>, Box<dyn Error>> {
     let mut paths = vec![real_archive_path()?];
@@ -116,10 +119,7 @@ fn check_levels(index: &PathIndex<'_>, base: &str, dir: &std::path::Path) -> Lod
         }
     }
     for lod in &model.lods {
-        let out = dir.join(format!(
-            "{}.glb",
-            rayon::current_thread_index().unwrap_or(0)
-        ));
+        let out = dir.join(format!("{}.glb", NEXT_FILE.fetch_add(1, Ordering::Relaxed)));
         let exported = export_level(index, base, lod, &out);
         let _ignored = fs::remove_file(&out);
         if let Err(error) = exported {
@@ -141,7 +141,7 @@ fn check_levels(index: &PathIndex<'_>, base: &str, dir: &std::path::Path) -> Lod
 fn models_with_levels_of_detail_read_and_export_every_level() -> TestResult {
     let out = tempfile::tempdir()?;
     for path in archives()? {
-        let archive = Archive::open(&path)?;
+        let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
         let index = PathIndex::new(&archive);
         let mut bases: Vec<String> = Vec::new();
         for (suffix, base_suffix) in [
@@ -317,7 +317,7 @@ fn hierarchy_fit(index: &PathIndex<'_>, archive: &Archive, entry: &Entry) -> Hie
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_node_chain_places_the_sub_objects_where_the_mesh_info_box_has_them() -> TestResult {
     for path in archives()? {
-        let archive = Archive::open(&path)?;
+        let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
         let index = PathIndex::new(&archive);
         let mut entries = sample(&archive, ".cga", HIERARCHY_SAMPLE);
         entries.extend(sample(&archive, ".cgf", HIERARCHY_SAMPLE));

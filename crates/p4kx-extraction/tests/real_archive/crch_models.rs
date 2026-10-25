@@ -50,7 +50,10 @@ fn read_box(bytes: &[u8]) -> Option<[f32; 6]> {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_crch_models_of_the_archive_export_valid_glb_with_the_vertices_inside_the_mesh_box()
 -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let models: Vec<&Entry> = archive

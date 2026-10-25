@@ -17,6 +17,7 @@ mod assembly_export_progress;
 mod assembly_export_running_tests;
 mod audio_controls;
 mod audio_preview;
+mod browse_panels;
 mod catalog_outcome;
 mod channels;
 mod character_choices;
@@ -119,12 +120,9 @@ mod xml_view;
 
 use std::path::PathBuf;
 
-use egui::{CentralPanel, Margin, Panel, Rect, Ui, pos2};
+use egui::{CentralPanel, Panel, Rect, Ui, pos2};
 
-use crate::theme::desktop::{HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, STATUS_HEIGHT};
-use crate::theme::model_metrics::PREVIEW_MODEL_HEIGHT;
-use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
-use crate::theme::window_metrics::BROWSE_LIST_MIN_HEIGHT;
+use crate::theme::desktop::{HEADER_HEIGHT, STATUS_HEIGHT};
 use crate::widgets::{frames, tab};
 
 pub use regions::{Regions, regions};
@@ -132,7 +130,7 @@ pub use regions::{Regions, regions};
 const RESIZE_GAP: i8 = 6;
 use crate::{
     CharacterText, ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText,
-    Model, PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, UiText, WorkTab,
+    Model, QueryExportFormat, QueryText, SoundsText, TagsText, Text, UiText, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -321,43 +319,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         empty::show(ui, model, dragging, requests);
         return;
     }
-    let soundbank = model.preview_tab() == PreviewTab::Audio
-        && model
-            .browser()
-            .is_some_and(|browser| browser.soundbank().is_some());
-    let (salt, height) = if soundbank {
-        ("preview-soundbank", PREVIEW_SOUNDBANK_HEIGHT)
-    } else if model.preview_tab() == PreviewTab::Model {
-        ("preview-model", PREVIEW_MODEL_HEIGHT)
-    } else {
-        ("preview", PREVIEW_HEIGHT)
-    };
-    let room = ui.available_height() - f32::from(RESIZE_GAP) - BROWSE_LIST_MIN_HEIGHT;
-    let preview = Panel::bottom(salt)
-        .frame(frames::panel().outer_margin(Margin {
-            top: RESIZE_GAP,
-            ..Margin::ZERO
-        }))
-        .resizable(true)
-        .default_size(height)
-        .size_range(PREVIEW_MIN_HEIGHT..=room.max(PREVIEW_MIN_HEIGHT))
-        .show(ui, |ui| {
-            preview::show(ui, model);
-            ui.min_rect()
-        });
-    let preview_rect = preview.response.rect.union(preview.inner);
-    let list = frames::panel().show(ui, |ui| {
-        if model.browser().is_some_and(crate::Browser::shows_records) {
-            record_search::show(ui, model);
-        } else {
-            search::show(ui, model);
-            table::show(ui, model);
-        }
-    });
-    regions::record(ui.ctx(), |regions| {
-        regions.preview = Some(preview_rect);
-        regions.list = Some(list.response.rect);
-    });
+    browse_panels::show(ui, model);
 }
 
 const WORK_TABS: [(WorkTab, Text); 10] = [

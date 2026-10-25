@@ -566,6 +566,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `resourceGroups`."
         },
+        "shipStoreSlugs": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `shipStoreSlugs`."
+        },
         "ships": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `ships`."
@@ -595,6 +599,7 @@
         "qualityDistributions",
         "refiningProcesses",
         "resourceGroups",
+        "shipStoreSlugs",
         "ships",
         "shops",
         "starmapObjects"
@@ -3070,6 +3075,56 @@
       ],
       "type": "object"
     },
+    "ShipStoreSlug": {
+      "description": "An RSI store slug and the ship it stands for.",
+      "properties": {
+        "className": {
+          "description": "The `className` of the ship the slug maps to, `null` for a retired slug.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retired": {
+          "description": "Whether the slug's ship no longer exists in the game data; the slug stays so that a\npledge of it is recognised as retired.",
+          "type": "boolean"
+        },
+        "rsiId": {
+          "description": "The ship id of the RSI store.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "shipGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `guid` of the ship of `ships` the slug maps to, `null` for a retired slug."
+        },
+        "slug": {
+          "description": "The slug of the ship in the RSI store, the last segment of its pledge URL, e.g.\n`Aurora-Mk-I-ES`; entries are ordered by it.",
+          "type": "string"
+        },
+        "storeName": {
+          "description": "The ship name as the RSI store shows it.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "retired",
+        "rsiId",
+        "shipGuid",
+        "slug",
+        "storeName"
+      ],
+      "type": "object"
+    },
     "Shop": {
       "description": "A shop: one `ShopBackup` entry of the shop registry `Data\\Libs\\CosmoTools\\LayerRecovery\\\nLayerBackups.xml`, one placement of an `SCShop` Entity in the world. No prices and no stock; the\nitem GUIDs come only from an inventory file that the shop containers name (ADR-0071).",
       "properties": {
@@ -3790,6 +3845,13 @@
       "minimum": 0,
       "type": "integer"
     },
+    "shipStoreSlugs": {
+      "description": "The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered\nby `slug`. A curated list, not read from the Archive.",
+      "items": {
+        "$ref": "#/$defs/ShipStoreSlug"
+      },
+      "type": "array"
+    },
     "ships": {
       "description": "The ships, ordered by GUID.",
       "items": {
@@ -3835,6 +3897,7 @@
     "refiningProcesses",
     "resourceGroups",
     "schemaVersion",
+    "shipStoreSlugs",
     "ships",
     "shops",
     "source",

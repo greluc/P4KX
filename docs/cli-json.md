@@ -4,6 +4,11 @@ Every `p4kx` command takes `--json` (before or after the subcommand). With it, t
 exactly one line of compact JSON to stdout and nothing else; the exit codes stay the same. Errors
 that end the command (an unreadable Archive, invalid input) are still printed to stderr as
 `error: …` and produce no JSON. Warnings, such as an unreadable build manifest, go to stderr.
+So does the test-build notice: the first time a run opens a given Archive of the `PTU`, `EPTU`,
+`HOTFIX` or `TECH-PREVIEW` Channel, one line `notice: …` on stderr says that the Channel carries
+Star Citizen test builds whose material is confidential (community tests under the Terms of
+Service, `HOTFIX` treated the same way, `EPTU` possibly under a non-disclosure agreement). `LIVE` and
+Archives in other folders get none. The notice never reaches stdout, so the JSON stays as it is.
 
 Paths of files on disk are strings as the operating system displays them. Entry paths are given
 as stored in the Archive, with `\` as separator. Sizes are byte counts. Snapshots of every shape
@@ -83,7 +88,9 @@ when nothing matches.
  "error_values": 1, "records_with_errors": 1, "error": null}
 ```
 
-`format` is `xml`, `json` or `ndjson`. `exported` counts the Record files written, or for
+`format` is `xml`, `json`, `ndjson`, `flat-csv`, `flat-csv-raw` or `flat-ndjson`; the flat forms
+write one file of one row per value ([flat values](record-flat.md)) and count and list like
+`ndjson` with `values.csv` or `values.ndjson` for `records.ndjson`. `exported` counts the Record files written, or for
 `ndjson` the lines of `records.ndjson`. `skipped` lists the files, relative to `target` with `/`
 as separator, whose existing file was kept under `--conflict`; for `ndjson` it can only list
 `records.ndjson`. `failed` lists the Records not written with GUID, record path and the reason
@@ -826,6 +833,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "soc_components": 320, "soc_paths_unattributed": 12, "inventories_unreadable": 1, "inventories_missing": 0, "inventories_named": 57,
  "inventories_in_archive": 119, "item_ids_dropped": 0, "commodity_exchanges": 16,
  "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
+ "store_slugs": {"slugs": 256, "unmapped": 51, "mapped": 205, "resolved": 205, "retired": 0,
+ "exported": 205, "stale": [], "stale_check_skipped": false},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
@@ -835,6 +844,11 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
+
+`store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
+`stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are
+mapped but none resolves, as for an Archive that is not the game's ([basetool-catalog.md](basetool-catalog.md), "Ship store
+slugs").
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)); a name ending in
 `.zst` writes a zstd frame. `size` is the size of the JSON in bytes, uncompressed;

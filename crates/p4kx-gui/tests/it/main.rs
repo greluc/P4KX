@@ -96,6 +96,7 @@ mod query_window;
 mod querying;
 mod read_only;
 mod record_export_model;
+mod record_export_viewport;
 mod record_export_window;
 mod record_incoming;
 mod record_incoming_window;

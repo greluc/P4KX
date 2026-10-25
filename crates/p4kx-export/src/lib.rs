@@ -68,6 +68,7 @@ mod contract_shops;
 mod contract_starmap;
 mod contract_stats;
 mod contract_stats_gear;
+mod contract_store_slugs;
 mod crafting;
 mod crafting_records;
 mod crafting_sources;
@@ -83,6 +84,7 @@ mod item;
 mod item_class;
 mod item_stats;
 mod item_variant;
+mod line_writer;
 mod loadout;
 mod loadout_port;
 mod localization_table;
@@ -107,6 +109,7 @@ mod scan;
 mod selection;
 mod ship;
 mod ship_base;
+mod ship_store_slugs;
 mod shop_container_scan;
 mod shop_containers;
 mod shop_inventories;
@@ -125,6 +128,7 @@ mod starmap_report;
 mod starmap_tests;
 mod starmap_transform;
 mod starmap_xml;
+mod store_slug_summary;
 mod summary;
 mod texts;
 mod variants;
@@ -143,7 +147,7 @@ pub use crafting_types::{
 pub use crafting_warning::CraftingWarning;
 pub use error::CatalogError;
 pub use failure::CatalogFailure;
-pub use form::{NDJSON_FILE, RecordForm};
+pub use form::{FLAT_CSV_FILE, FLAT_NDJSON_FILE, NDJSON_FILE, RecordForm};
 pub use item_class::{ItemClass, ItemClassSummary};
 pub use localization_table::{TableFormat, write_localization_table};
 pub use options::{CatalogOptions, CatalogProgress};
@@ -164,6 +168,7 @@ pub use ship_base::{
 };
 pub use shop_summary::ShopSummary;
 pub use starmap_report::StarmapReport;
+pub use store_slug_summary::StoreSlugSummary;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
     LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,

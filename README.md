@@ -127,6 +127,9 @@ Early development (milestone M1). Available today:
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes. `--combined` writes every selected Record into one file in record-path order,
   named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
+  `--flat --format csv|ndjson` writes one row per leaf value instead
+  ([docs/record-flat.md](docs/record-flat.md)): `values.csv` (UTF-8 with byte order mark, formulas
+  neutralised; `--csv-raw` for the exact values) or `values.ndjson`.
   `--lang` writes the text of every localisation key next to the key, or marks the key missing,
   in the chosen language; without it the output carries no texts. `--tags` writes the tag path
   (`Ship.Series.Avenger`) of the Tag next to every Reference to a Tag; without it the output carries
@@ -515,6 +518,11 @@ What the tools return is the content of the Star Citizen Archive. The AI client 
 third parties, for example the cloud model provider behind the client. Game texts and media must
 not be redistributed. You remain responsible for complying with the Star Citizen EULA and Terms of
 Service.
+
+A tool that reads an Archive of a test Channel (`PTU`, `EPTU`, `HOTFIX`, `TECH-PREVIEW`) adds
+the test-build notice of [ADR-0038](docs/adr/0038-test-build-archives-carry-a-notice.md) to its
+result as one more text content block. The structured content and the output schemas do not
+change. `p4kx-mcp --version` and `-V` show the legal notice.
 
 | Tool | Result |
 |------|--------|

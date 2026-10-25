@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use p4kx_export::{NDJSON_FILE, RecordForm};
+use p4kx_export::RecordForm;
 use p4kx_extraction::RecordFailure;
 
 use crate::model::describe;
@@ -102,12 +102,12 @@ impl RecordExportSummary {
         self.target.as_deref()
     }
 
-    /// Returns the file of an NDJSON export, or `None` for one file per Record or without a
-    /// target.
+    /// Returns the file of a single-file export (NDJSON or flat values), or `None` for one file
+    /// per Record or without a target.
     #[must_use]
     pub fn file(&self) -> Option<PathBuf> {
         let target = self.target.as_deref()?;
-        (self.form == RecordForm::Ndjson).then(|| target.join(NDJSON_FILE))
+        self.form.file().map(|file| target.join(file))
     }
 
     /// Returns the number of Records the export was asked to write.

@@ -6,6 +6,10 @@
 mod cascade;
 mod corners;
 mod errors;
+mod image_limits;
+mod image_reference;
+mod image_work;
+mod images;
 mod instances;
 mod layout;
 mod layout_reference;
@@ -18,3 +22,4 @@ mod text;
 mod text_limits;
 mod text_reference;
 mod transforms;
+mod vectors;

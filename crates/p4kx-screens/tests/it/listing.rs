@@ -86,7 +86,10 @@ fn element_types_are_counted_and_marked_as_drawn_or_not() -> TestResult {
         "a text has a renderer, which needs the fonts"
     );
     let image = find("WidgetImage").ok_or("no image")?;
-    assert!(!image.rendered, "an image is not drawn");
+    assert!(
+        image.rendered,
+        "an image has a renderer, which needs image sources"
+    );
     let shapes = find("WidgetCustomShape").ok_or("no custom shape of the nested canvas")?;
     assert_eq!(shapes.count, 1, "widgets of nested canvases count too");
     Ok(())

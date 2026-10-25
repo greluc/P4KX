@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use super::device::{block_on, guarded};
 use super::limits::check_buffer;
-use super::straight::straighten;
+use super::straight::{straighten, under};
 use super::{Frame, GpuReport, Renderer, Unavailable};
 
 const ALIGNMENT: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
@@ -226,6 +226,7 @@ impl Offscreen {
         buffer.destroy();
         let mut rgba = mapped?;
         if drawn.shading.is_premultiplied() {
+            under(&mut rgba, drawn.colours.background);
             straighten(&mut rgba);
         }
         Picture::from_rgba(width, height, rgba)

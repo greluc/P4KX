@@ -24,9 +24,9 @@ pub type Matrix = [[f32; 4]; 4];
 pub struct Uniforms {
     /// World to clip space.
     pub view_proj: Matrix,
-    /// The position of the eye, `w` unused.
+    /// The position of the eye; `w` is the distance of the near plane.
     pub eye: [f32; 4],
-    /// The direction towards the key light, `w` unused.
+    /// The direction towards the key light; `w` is the distance of the far plane.
     pub key_light: [f32; 4],
 }
 
@@ -271,17 +271,17 @@ impl Camera {
         let eye = self.eye();
         let offset = length(sub(self.target, self.centre));
         let near = (self.distance - self.radius - offset).max(self.radius * 0.005);
-        let far = self.distance + self.radius + offset;
+        let far = (self.distance + self.radius + offset).max(near * 2.0);
         let view = look_at(eye, right, up, back);
-        let projection = perspective(aspect, near, far.max(near * 2.0), self.fov);
+        let projection = perspective(aspect, near, far, self.fov);
         let key = normalise(add(
             add(scale(right, -0.5), scale(up, 0.7)),
             scale(back, 0.5),
         ));
         Uniforms {
             view_proj: multiply(&projection, &view),
-            eye: [eye[0], eye[1], eye[2], 0.0],
-            key_light: [key[0], key[1], key[2], 0.0],
+            eye: [eye[0], eye[1], eye[2], near],
+            key_light: [key[0], key[1], key[2], far],
         }
     }
 

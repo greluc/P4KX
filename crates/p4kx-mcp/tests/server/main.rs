@@ -21,6 +21,7 @@ mod read;
 mod read_only;
 mod read_text;
 mod real_archive;
+mod real_archive_audio;
 mod real_archive_model;
 mod real_archive_query;
 mod records;

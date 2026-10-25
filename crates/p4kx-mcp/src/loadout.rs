@@ -1,0 +1,309 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use p4kx_assembly::{
+    ArchiveFiles, Attachment, EntityNode, LoadoutError, LoadoutResolver, PortDefinition, PortNode,
+    PortVisibility, Target,
+};
+use p4kx_extraction::DataForge;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+use crate::archives::Opened;
+use crate::budget::fill;
+use crate::error::ToolError;
+use crate::page::Page;
+
+/// The deepest port nesting a call returns when it gives no depth.
+pub(crate) const DEFAULT_DEPTH: u32 = 16;
+/// The deepest port nesting a call may ask for.
+pub(crate) const MAX_DEPTH: u32 = 32;
+/// The most characters of a text.
+const MAX_TEXT_CHARS: usize = 2048;
+/// The most item types listed per port.
+const MAX_TYPES: usize = 64;
+
+/// The arguments of `entity_loadout`.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct LoadoutParams {
+    /// A Channel name such as `LIVE`, or the absolute path of a `.p4k` file; omit it for the
+    /// Archive the server was started with.
+    pub(crate) archive: Option<String>,
+    /// The Entity: a class name such as `AEGS_Avenger_Titan`, a record name, a record path or a
+    /// GUID.
+    pub(crate) entity: String,
+    /// The deepest port nesting returned, 16 by default, at most 32; the top level ports are 1.
+    pub(crate) max_depth: Option<u32>,
+    /// Leave the Loadouts of docked vehicles unresolved; they are listed as ports.
+    pub(crate) stop_at_docked_vehicles: Option<bool>,
+    /// The `next_cursor` of the previous page; omit it for the first page.
+    pub(crate) cursor: Option<String>,
+    /// The page size in ports, 100 by default, at most 1000.
+    pub(crate) limit: Option<u32>,
+}
+
+/// The Loadout tree of an Entity as a list of ports, parents before their children.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct LoadoutResult {
+    /// The path of the Archive.
+    pub(crate) archive: String,
+    /// The Entity.
+    pub(crate) entity: EntityShape,
+    /// The ports of the whole tree by what they hold.
+    pub(crate) counts: Counts,
+    /// The number of ports at or above `max_depth`.
+    pub(crate) total: usize,
+    /// The number of ports left out because they lie deeper than `max_depth`.
+    pub(crate) deeper: usize,
+    /// The ports on this page, depth first in port order.
+    pub(crate) ports: Vec<PortShape>,
+    /// The cursor of the next page; absent on the last page.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) next_cursor: Option<String>,
+}
+
+/// An Entity.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct EntityShape {
+    /// The GUID of the Entity's Record.
+    pub(crate) guid: String,
+    /// The record path.
+    pub(crate) record_path: String,
+    /// The Record name.
+    pub(crate) name: String,
+    /// The class name.
+    pub(crate) class_name: String,
+    /// Whether it is a vehicle docked in a port of another.
+    pub(crate) docked_vehicle: bool,
+    /// Whether the Loadout of a docked vehicle is resolved.
+    pub(crate) expanded: bool,
+    /// Why the Entity's own Loadout cannot be read in full.
+    pub(crate) issues: Vec<ErrorShape>,
+}
+
+/// The ports of a tree by what they hold.
+#[derive(Debug, Default, Serialize, JsonSchema)]
+pub(crate) struct Counts {
+    /// All ports.
+    pub(crate) ports: usize,
+    /// Ports with an Entity attached.
+    pub(crate) attached: usize,
+    /// Ports that hold nothing.
+    pub(crate) empty: usize,
+    /// Ports whose attachment cannot be resolved.
+    pub(crate) unresolved: usize,
+}
+
+/// One port.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct PortShape {
+    /// The port names from the root joined by `/`.
+    pub(crate) path: String,
+    /// The nesting: 1 for a port of the root Entity.
+    pub(crate) depth: usize,
+    /// The port name.
+    pub(crate) name: String,
+    /// Where the attachment comes from: `loadout`, `override`, `port_default`, `unset`,
+    /// `excluded` or `replaced`.
+    pub(crate) source: &'static str,
+    /// `visible` or `invisible` when the vehicle implementation states it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) visibility: Option<&'static str>,
+    /// What the port takes, when the Entity Record defines it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) definition: Option<DefinitionShape>,
+    /// The Entity attached; absent for an empty port and an unresolved one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) entity: Option<EntityShape>,
+    /// Why the attachment cannot be resolved.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) unresolved: Option<ErrorShape>,
+}
+
+/// What a port takes.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct DefinitionShape {
+    /// The port's display name as the Record gives it.
+    pub(crate) display_name: String,
+    /// The port flags.
+    pub(crate) flags: String,
+    /// The smallest item size.
+    pub(crate) min_size: Option<u32>,
+    /// The largest item size.
+    pub(crate) max_size: Option<u32>,
+    /// The item types taken, at most 64.
+    pub(crate) types: Vec<TypeShape>,
+    /// The helper of the parent's model the port attaches to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) helper: Option<String>,
+}
+
+/// An item type a port takes.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct TypeShape {
+    /// The type, e.g. `WeaponGun`.
+    pub(crate) name: String,
+    /// The sub-types; empty when every sub-type is taken.
+    pub(crate) sub_types: Vec<String>,
+}
+
+/// A reason a port or an Entity cannot be resolved.
+#[derive(Debug, Serialize, JsonSchema)]
+pub(crate) struct ErrorShape {
+    /// A stable code such as `dangling_reference` or `unknown_class`.
+    pub(crate) kind: &'static str,
+    /// The reason as text.
+    pub(crate) reason: String,
+    /// The GUID the Loadout names, if it names one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) reference: Option<String>,
+    /// The class name the Loadout names, if it names one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) class_name: Option<String>,
+}
+
+/// Resolves the Loadout of the Entity `params` names and returns one page of its ports.
+pub(crate) fn resolve(
+    opened: &Opened,
+    forge: &DataForge<'_>,
+    params: &LoadoutParams,
+    page: Page,
+) -> Result<LoadoutResult, ToolError> {
+    let files = ArchiveFiles::new(opened.archive());
+    let mut resolver = LoadoutResolver::new(forge).with_files(&files);
+    if params.stop_at_docked_vehicles == Some(true) {
+        resolver = resolver.stopping_at_docked_vehicles();
+    }
+    let record = resolver.entities().find(&params.entity)?;
+    let tree = resolver.resolve(&record)?;
+    let max_depth = usize::try_from(
+        params
+            .max_depth
+            .unwrap_or(DEFAULT_DEPTH)
+            .clamp(1, MAX_DEPTH),
+    )
+    .unwrap_or(1);
+    let all = tree.walk();
+    let counts = counts(&all);
+    let near: Vec<(&String, &PortNode)> = all
+        .iter()
+        .filter(|(path, _)| depth(path) <= max_depth)
+        .map(|(path, port)| (path, *port))
+        .collect();
+    let items = page
+        .slice(&near)
+        .iter()
+        .map(|&(path, port)| Ok(port_shape(path, port)));
+    let (ports, next_cursor) = fill(page, near.len(), items, |shape: &PortShape| {
+        format!("port {}", shape.path)
+    })?;
+    Ok(LoadoutResult {
+        archive: opened.archive().path().display().to_string(),
+        entity: entity_shape(&tree),
+        counts,
+        total: near.len(),
+        deeper: all.len() - near.len(),
+        ports,
+        next_cursor,
+    })
+}
+
+fn depth(path: &str) -> usize {
+    path.matches('/').count() + 1
+}
+
+fn counts(all: &[(String, &PortNode)]) -> Counts {
+    let mut counts = Counts {
+        ports: all.len(),
+        ..Counts::default()
+    };
+    for (_, port) in all {
+        match port.attachment() {
+            Attachment::Empty => counts.empty += 1,
+            Attachment::Entity(_) => counts.attached += 1,
+            Attachment::Unresolved(_) => counts.unresolved += 1,
+        }
+    }
+    counts
+}
+
+fn entity_shape(node: &EntityNode) -> EntityShape {
+    EntityShape {
+        guid: node.guid().to_string(),
+        record_path: clip(node.record_path()),
+        name: clip(node.name()),
+        class_name: clip(node.class_name()),
+        docked_vehicle: node.is_docked_vehicle(),
+        expanded: node.is_expanded(),
+        issues: node
+            .issues()
+            .iter()
+            .map(|error| error_shape(error, None))
+            .collect(),
+    }
+}
+
+fn port_shape(path: &str, port: &PortNode) -> PortShape {
+    let (entity, unresolved) = match port.attachment() {
+        Attachment::Empty => (None, None),
+        Attachment::Entity(node) => (Some(entity_shape(node)), None),
+        Attachment::Unresolved(failed) => (
+            None,
+            Some(error_shape(failed.error(), Some(failed.target()))),
+        ),
+    };
+    PortShape {
+        path: clip(path),
+        depth: depth(path),
+        name: clip(port.name()),
+        source: port.source().code(),
+        visibility: match port.visibility() {
+            PortVisibility::Unspecified => None,
+            stated => Some(stated.code()),
+        },
+        definition: port.definition().map(definition_shape),
+        entity,
+        unresolved,
+    }
+}
+
+fn definition_shape(definition: &PortDefinition) -> DefinitionShape {
+    DefinitionShape {
+        display_name: clip(definition.display_name()),
+        flags: clip(definition.flags()),
+        min_size: definition.min_size(),
+        max_size: definition.max_size(),
+        types: definition
+            .types()
+            .iter()
+            .take(MAX_TYPES)
+            .map(|item| TypeShape {
+                name: clip(item.name()),
+                sub_types: item.sub_types().iter().map(|text| clip(text)).collect(),
+            })
+            .collect(),
+        helper: definition
+            .transform()
+            .map(|transform| clip(transform.helper()))
+            .filter(|helper| !helper.is_empty()),
+    }
+}
+
+fn error_shape(error: &LoadoutError, target: Option<&Target>) -> ErrorShape {
+    let (reference, class_name) = match target {
+        Some(Target::Reference(guid)) => (Some(guid.to_string()), None),
+        Some(Target::ClassName(name)) => (None, Some(clip(name))),
+        _ => (None, None),
+    };
+    ErrorShape {
+        kind: error.kind(),
+        reason: clip(&error.to_string()),
+        reference,
+        class_name,
+    }
+}
+
+fn clip(text: &str) -> String {
+    text.chars().take(MAX_TEXT_CHARS).collect()
+}

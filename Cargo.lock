@@ -3821,6 +3821,7 @@ dependencies = [
  "anyhow",
  "base64",
  "clap",
+ "p4kx-assembly",
  "p4kx-channels",
  "p4kx-extraction",
  "p4kx-settings",

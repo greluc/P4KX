@@ -9,7 +9,7 @@ use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
 use rmcp::{ServerHandler, tool, tool_handler, tool_router};
-use tokio::sync::Semaphore;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 
 use crate::archives::{Archives, Opened};
 use crate::entries;
@@ -23,6 +23,7 @@ use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, Sea
 use crate::shapes::{ArchiveInfo, ChannelShape, ChannelsResult, FolderResult, SearchResult};
 
 const WHOLE_TEXT_DECODERS: usize = 4;
+const IMAGE_DECODERS: usize = 2;
 
 const INSTRUCTIONS: &str = "Read-only access to the Data.p4k Archives of Star Citizen. \
 An Archive is named by a Channel name such as LIVE (see list_channels) or by the absolute path \
@@ -31,7 +32,11 @@ page: pass next_cursor back as cursor for the next page. Entry content is read i
 next_offset back as offset for the next range. The DataForge tools (get_record, search_records, \
 list_structs, list_enums, run_query) read the Archive's DataForge, its typed Records; list_structs \
 gives the type and field names a Query uses. The model tools (list_chunks, get_model_info, \
-list_model_items) read the chunk files and models of the Archive. P4KX is an unofficial Star Citizen fan \
+list_model_items) read the chunk files and models of the Archive. A path \
+`outer.socpak::inner.socpak::file` reads inside socpak containers in list_entries, \
+search_entries (container), read_entry_text and read_entry_bytes. image_preview returns a \
+texture as a PNG image, mtl_summary the materials of a .mtl and entity_loadout the Loadout \
+tree of an Entity. P4KX is an unofficial Star Citizen fan \
 project, not affiliated with the Cloud Imperium group of companies. Content these tools return \
 may be forwarded by the MCP client to third parties such as a cloud model provider; game texts \
 and media must not be redistributed.";
@@ -42,6 +47,7 @@ pub(crate) struct Server {
     state: Arc<State>,
     workers: Arc<Semaphore>,
     whole_text: Arc<Semaphore>,
+    image_reads: Arc<Semaphore>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -71,17 +77,30 @@ impl Server {
                 std::thread::available_parallelism().map_or(1, NonZeroUsize::get),
             )),
             whole_text: Arc::new(Semaphore::new(WHOLE_TEXT_DECODERS)),
+            image_reads: Arc::new(Semaphore::new(IMAGE_DECODERS)),
             tool_router: Self::tool_router()
                 + Self::content_router()
                 + Self::model_router()
                 + Self::record_router()
-                + Self::query_router(),
+                + Self::query_router()
+                + Self::image_router()
+                + Self::material_router()
+                + Self::loadout_router(),
         }
     }
 
     /// Returns the permits for decoding an Entry as a whole, at most four at a time.
     pub(crate) fn whole_text(&self) -> Arc<Semaphore> {
         Arc::clone(&self.whole_text)
+    }
+
+    /// Waits for one of the two permits to decode a texture, which holds tens of megabytes of
+    /// pixels; the permit is held until the returned value is dropped.
+    pub(crate) async fn image_permit(&self) -> Result<OwnedSemaphorePermit, String> {
+        Arc::clone(&self.image_reads)
+            .acquire_owned()
+            .await
+            .map_err(|_| ToolError::Stopped.message())
     }
 
     /// Reads the DataForge of the Archive `archive` names if that has not happened yet. It waits
@@ -217,7 +236,7 @@ impl Server {
     }
 
     #[tool(
-        description = "List one folder of an Archive: its subfolders, then its Entries. Folder paths ignore case and separator kind; omit folder for the top level. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
+        description = "List one folder of an Archive: its subfolders, then its Entries. Folder paths ignore case and separator kind; omit folder for the top level. A folder `outer.socpak::` or `outer.socpak::folder` lists inside that container; the paths returned work as they are in the read tools. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<FolderResult>(),
         annotations(
             title = "List Entries",
@@ -240,13 +259,14 @@ impl Server {
             let opened = state.archive(params.archive.as_deref())?;
             let listing = ("list_entries", opened.version(), folder);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
-            entries::list(&opened, folder, page)
+            let (place, inner) = opened.place(folder)?;
+            entries::list(&place, inner, page)
         })
         .await
     }
 
     #[tool(
-        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
+        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter. container searches inside a socpak container instead. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<SearchResult>(),
         annotations(
             title = "Search Entries",
@@ -262,10 +282,21 @@ impl Server {
     ) -> Result<Noted<SearchResult>, String> {
         self.run(move |state| {
             let filter = capped("filter", &params.filter, MAX_PATH_LEN)?;
+            let container = capped(
+                "container",
+                params.container.as_deref().unwrap_or_default(),
+                MAX_PATH_LEN,
+            )?;
             let opened = state.archive(params.archive.as_deref())?;
-            let listing = ("search_entries", opened.version(), filter);
+            let listing = ("search_entries", opened.version(), filter, container);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;
-            entries::search(opened.archive(), filter, page)
+            let place = if container.is_empty() {
+                crate::container::Place::Main(&opened)
+            } else {
+                let rooted = format!("{container}{}", crate::container::SEPARATOR);
+                opened.place(&rooted)?.0
+            };
+            entries::search(&place, filter, page)
         })
         .await
     }

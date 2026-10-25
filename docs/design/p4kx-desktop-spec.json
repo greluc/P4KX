@@ -755,6 +755,8 @@
     "valueFontSize": 12.48,
     "valueFontWeight": "fw-bold",
     "valueColor": "color-white",
+    "valueMinChars": 3,
+    "overflow": "a value that does not fit is cut with an ellipsis; a fact with no room for its key and valueMinChars characters of its value is left out with every fact after it, and the bar ends in an ellipsis in color-gray-2-text",
     "direction": "chevron right between old and new, chevron size 12, color-primary"
   },
   "kpiTile": {

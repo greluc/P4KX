@@ -1,59 +1,21 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! Details of the Characters tab: the facts bar at a narrow width and the status row that is only
-//! there while it has something to say.
+//! Details of the Characters tab: the status row that is only there while it has something to
+//! say.
 
-use egui::epaint::Shape;
-use egui::{Rect, accesskit::Role};
+use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::Language;
 
-use crate::characters::{TestResult, entries, opened_sized, settle};
+use crate::characters::{State, TestResult, entries, opened_sized, settle};
 
-fn text_rights(shape: &Shape, found: &mut Vec<(f32, f32)>) {
-    match shape {
-        Shape::Text(text) => {
-            let rect = text.galley.rect.translate(text.pos.to_vec2());
-            found.push((rect.center().y, rect.right()));
-        }
-        Shape::Vec(shapes) => shapes.iter().for_each(|one| text_rights(one, found)),
-        _ => {}
-    }
-}
-
-#[test]
-fn the_facts_bar_cuts_what_does_not_fit_instead_of_overflowing() -> TestResult {
-    for language in [Language::BritishEnglish, Language::German] {
-        let (_dir, mut harness) = opened_sized(entries(), language, [300.0, 600.0])?;
-        harness.run_steps(3);
-
-        let bar = harness.get_by_label_contains("Vertices").rect();
-
-        let mut rights = Vec::new();
-        for clipped in &harness.output().shapes {
-            text_rights(&clipped.shape, &mut rights);
-        }
-        let inside: Vec<f32> = rights
-            .iter()
-            .filter(|(y, _)| *y > bar.top() && *y < bar.bottom())
-            .map(|(_, right)| *right)
-            .collect();
-        assert!(!inside.is_empty(), "the facts are painted in {language:?}");
-        assert!(
-            inside.iter().all(|right| *right <= bar.right()),
-            "nothing leaves the bar {bar:?} in {language:?}: {inside:?}"
-        );
-    }
-    Ok(())
-}
-
-fn first_content_gap(harness: &egui_kittest::Harness<'_, crate::characters::State>) -> f32 {
-    let bar: Rect = harness.get_by_label_contains("Vertices").rect();
+fn first_content_gap(harness: &egui_kittest::Harness<'_, State>) -> f32 {
+    let bar = harness.get_by_label_contains("Vertices").rect();
     let first = harness
         .query_all_by_role(Role::Label)
         .map(|node| node.rect())
-        .filter(|rect| rect.top() >= bar.bottom())
+        .filter(|rect| rect.top() >= bar.bottom() && bar.x_range().contains(rect.left()))
         .map(|rect| rect.top())
         .fold(f32::INFINITY, f32::min);
     first - bar.bottom()

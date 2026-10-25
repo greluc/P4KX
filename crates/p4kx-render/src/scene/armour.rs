@@ -255,11 +255,29 @@ mod tests {
         }
     }
 
-    fn moved(skinned: bool) -> [f32; 3] {
-        let span = MorphSpan::placed(1, 1, &QUARTER_TURN, skinned);
-        let after = scene().morphed(span, (&[0], &[[1.0, 0.0, 0.0]]), 2.0);
+    const MIRRORED_STRETCH: Rows = [
+        [-2.0, 0.0, 0.0, 7.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 3.0, 0.0],
+    ];
+
+    fn moved_by(world: &Rows, skinned: bool, delta: [f32; 3]) -> [f32; 3] {
+        let span = MorphSpan::placed(1, 1, world, skinned);
+        let after = scene().morphed(span, (&[0], &[delta]), 2.0);
         let [x, y, z, ..] = after.vertices()[1];
         [x, y, z]
+    }
+
+    fn moved(skinned: bool) -> [f32; 3] {
+        moved_by(&QUARTER_TURN, skinned, [1.0, 0.0, 0.0])
+    }
+
+    #[test]
+    fn a_delta_of_a_mirrored_and_stretched_mesh_follows_its_vertices() {
+        assert_eq!(
+            moved_by(&MIRRORED_STRETCH, false, [1.0, 1.0, 1.0]),
+            [-4.0, 2.0, 6.0]
+        );
     }
 
     #[test]

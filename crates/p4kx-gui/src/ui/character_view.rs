@@ -95,13 +95,8 @@ fn line(ui: &mut Ui, text: String, colour: Color32) {
 }
 
 fn status(ui: &mut Ui, texts: &Texts, tab: &CharactersTab) -> Option<Ask> {
-    if tab.progress().is_none() && !tab.is_cancelled() && tab.failure().is_none() {
-        return None;
-    }
-    let mut ask = None;
-    ui.horizontal(|ui| {
-        ui.set_min_height(MODEL_BAR_HEIGHT);
-        if let Some(progress) = tab.progress() {
+    match (tab.progress(), tab.is_cancelled(), tab.failure()) {
+        (Some(progress), _, _) => row(ui, |ui| {
             spinner(ui, SPINNER_INLINE);
             let text = match progress.stage {
                 ViewStage::Reading => texts.format(
@@ -117,22 +112,32 @@ fn status(ui: &mut Ui, texts: &Texts, tab: &CharactersTab) -> Option<Ask> {
                 Label::new(plain(text, FS_XS, Weight::Regular).color(palette::GRAY_1)).truncate(),
             );
             let stop = texts.get(EntityText::ViewStop);
-            if button::button(ui, Kind::Outline, Size::Compact, &stop, true).clicked() {
-                ask = Some(Ask::Stop);
-            }
-        } else if tab.is_cancelled() {
+            button::button(ui, Kind::Outline, Size::Compact, &stop, true)
+                .clicked()
+                .then_some(Ask::Stop)
+        }),
+        (None, true, _) => row(ui, |ui| {
             line(ui, texts.get(EntityText::ViewStopped), palette::GRAY_1);
             let again = texts.get(EntityText::ViewRestart);
-            if button::button(ui, Kind::Outline, Size::Compact, &again, true).clicked() {
-                ask = Some(Ask::Restart);
-            }
-        } else if let Some((colour, text)) =
-            tab.failure().map(|failure| failure_text(texts, failure))
-        {
+            button::button(ui, Kind::Outline, Size::Compact, &again, true)
+                .clicked()
+                .then_some(Ask::Restart)
+        }),
+        (None, false, Some(failure)) => row(ui, |ui| {
+            let (colour, text) = failure_text(texts, failure);
             line(ui, text, colour);
-        }
-    });
-    ask
+            None
+        }),
+        (None, false, None) => None,
+    }
+}
+
+fn row(ui: &mut Ui, content: impl FnOnce(&mut Ui) -> Option<Ask>) -> Option<Ask> {
+    ui.horizontal(|ui| {
+        ui.set_min_height(MODEL_BAR_HEIGHT);
+        content(ui)
+    })
+    .inner
 }
 
 fn failure_text(texts: &Texts, failure: &ViewFailure) -> (Color32, String) {

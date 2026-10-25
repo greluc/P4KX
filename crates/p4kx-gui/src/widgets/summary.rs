@@ -11,13 +11,11 @@ use super::rows::chevron;
 use super::text::{caps, line, paint_left, plain};
 use crate::theme::desktop::{
     ACCENT_BAR, CHEVRON, CHIP_PADDING_Y, FACT_KEY_GAP, FACT_KEY_SIZE, FACT_KEY_TRACKING,
-    FACT_VALUE_SIZE, FACTS_GAP, FACTS_PADDING_X, FACTS_PADDING_Y, KPI_PADDING_X, KPI_PADDING_Y,
-    KPI_VALUE_SIZE,
+    FACT_VALUE_MIN_CHARS, FACT_VALUE_SIZE, FACTS_GAP, FACTS_PADDING_X, FACTS_PADDING_Y,
+    KPI_PADDING_X, KPI_PADDING_Y, KPI_VALUE_SIZE,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{CORNER_SM, RADIUS_SM, SPACE_1, Weight};
-
-const MIN_VALUE_CHARS: f32 = 3.0;
 
 /// One fact of a `.facts-bar`: an upper-case key and a value.
 #[derive(Debug, Clone, Copy)]
@@ -134,7 +132,7 @@ impl FactsStrip {
     /// Shows the facts as a `.facts-bar` across the available width and returns its rectangle.
     ///
     /// A value that does not fit is cut with an ellipsis, and the facts after the last that fits
-    /// are left out, so nothing is painted outside the bar.
+    /// are left out with an ellipsis ending the bar, so nothing is painted outside it.
     pub(crate) fn show(&self, ui: &mut Ui) -> Rect {
         let (rect, response) =
             ui.allocate_exact_size(vec2(ui.available_width(), self.height), Sense::hover());
@@ -146,7 +144,10 @@ impl FactsStrip {
             let key_width = key.size().x;
             let after_key = left + key_width + FACT_KEY_GAP;
             let room = limit - after_key;
-            if room < FACT_VALUE_SIZE * MIN_VALUE_CHARS {
+            if room < FACT_VALUE_SIZE * FACT_VALUE_MIN_CHARS {
+                let more = line(ui, plain("…", FACT_VALUE_SIZE, Weight::Bold), f32::INFINITY);
+                let at = left.min(limit - more.size().x);
+                paint_left(ui, rect.with_min_x(at), more, palette::GRAY_2_TEXT);
                 break;
             }
             paint_left(
@@ -201,4 +202,104 @@ pub(crate) fn kpi_tile(ui: &mut Ui, label: &str, value: &str, tone: Tone, width:
         value_galley,
         palette::WHITE,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use egui::epaint::Shape;
+    use egui_kittest::Harness;
+
+    use super::{FACTS_PADDING_X, Fact, FactsStrip};
+
+    const WIDTH: f32 = 200.0;
+
+    fn texts(shape: &Shape, found: &mut Vec<(String, f32)>) {
+        match shape {
+            Shape::Text(text) => {
+                let rect = text.galley.rect.translate(text.pos.to_vec2());
+                found.push((text.galley.text().to_owned(), rect.right()));
+            }
+            Shape::Vec(shapes) => shapes.iter().for_each(|one| texts(one, found)),
+            _ => {}
+        }
+    }
+
+    fn painted(facts: &[Fact<'_>]) -> Vec<(String, f32)> {
+        let mut harness = Harness::builder()
+            .with_context_setup(crate::theme::apply)
+            .with_size([WIDTH, 60.0])
+            .build_ui(|ui| {
+                FactsStrip::lay_out(ui, facts).show(ui);
+            });
+        harness.run_steps(2);
+        let mut found = Vec::new();
+        for clipped in &harness.output().shapes {
+            texts(&clipped.shape, &mut found);
+        }
+        found
+    }
+
+    #[test]
+    fn a_long_value_is_cut_and_the_facts_after_it_are_left_out_with_an_ellipsis() {
+        let found = painted(&[
+            Fact {
+                key: "Alpha",
+                value: "a value far too long to fit into the narrow bar",
+            },
+            Fact {
+                key: "Beta",
+                value: "1",
+            },
+            Fact {
+                key: "Gamma",
+                value: "2",
+            },
+        ]);
+
+        assert!(
+            found
+                .iter()
+                .any(|(text, right)| text.starts_with("a value") && *right > WIDTH / 2.0),
+            "the value is shown, cut to the room there is: {found:?}"
+        );
+        assert!(
+            found.iter().any(|(text, _)| text == "…"),
+            "the bar ends in an ellipsis: {found:?}"
+        );
+        assert!(
+            found
+                .iter()
+                .all(|(text, _)| !text.contains("BETA") && !text.contains("GAMMA")),
+            "the later facts are left out: {found:?}"
+        );
+        assert!(
+            found
+                .iter()
+                .all(|(_, right)| *right <= WIDTH - FACTS_PADDING_X),
+            "nothing leaves the bar: {found:?}"
+        );
+    }
+
+    #[test]
+    fn facts_that_fit_are_all_shown_without_an_ellipsis() {
+        let found = painted(&[
+            Fact {
+                key: "Alpha",
+                value: "1",
+            },
+            Fact {
+                key: "Beta",
+                value: "2",
+            },
+        ]);
+
+        assert!(
+            found.iter().any(|(text, _)| text.contains("BETA")),
+            "both: {found:?}"
+        );
+        assert!(
+            found.iter().all(|(text, _)| !text.contains('…')),
+            "no ellipsis: {found:?}"
+        );
+    }
 }

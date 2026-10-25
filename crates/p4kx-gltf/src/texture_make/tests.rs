@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use p4kx_texture::RgbaImage;
 use rayon::prelude::*;
 
-use super::{Budget, Outcome, run, run_with};
+use super::{Budget, Outcome, run, run_guarded, run_with};
 use crate::texture_cache::SourceStore;
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_pixels::Tints;

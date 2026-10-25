@@ -24,7 +24,7 @@ Decided for issue #285, on top of ADR-0004 (the canonical Record tree) and ADR-0
 - This is additive: no existing key, attribute or order changes, and readers that ignore unknown
   keys and attributes are not affected. Record XML readers that look for a root without namespace
   declarations see `xmlns:p4kx` on records that had none. The Basetool catalog is not affected.
-- The flat value export (ADR-0112) carries the tag as an appended ninth column `record_tag`
+- The flat value export (ADR-0112) carries the tag as an appended last column `record_tag`
   (amendment of issue #614).
 
 ## Consequences

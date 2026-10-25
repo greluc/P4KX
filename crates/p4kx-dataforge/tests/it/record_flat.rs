@@ -304,11 +304,11 @@ fn texts_add_a_column_filled_for_resolved_locale_values() -> TestResult {
 
     assert!(
         rows.first()
-            .is_some_and(|header| header.ends_with(",target_path,record_tag,text"))
+            .is_some_and(|header| header.ends_with(",target_path,text,record_tag"))
     );
     assert!(
         rows.contains(
-            &format!("{HEAD}label,,locale,'@item_Name,,,\"'=Crate, \"\"big\"\"\"").as_str()
+            &format!("{HEAD}label,,locale,'@item_Name,,\"'=Crate, \"\"big\"\"\",").as_str()
         ),
         "{rows:#?}"
     );

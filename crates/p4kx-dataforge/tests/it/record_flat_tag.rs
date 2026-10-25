@@ -5,7 +5,9 @@
 
 use std::error::Error;
 
-use p4kx_dataforge::{Annotations, DataForge, FlatFormat, FlatValues, TreeBuilder};
+use p4kx_dataforge::{
+    Annotations, DataForge, FlatFormat, FlatValues, Resolution, TextResolver, TreeBuilder,
+};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -102,6 +104,44 @@ fn the_csv_tag_is_quoted_and_neutralised_like_any_text() -> TestResult {
 
     let raw = flat(8, "=a,b", FlatFormat::CsvRaw)?;
     assert!(raw.contains(",int,3,,\"=a,b\"\r\n"), "{raw}");
+    Ok(())
+}
+
+#[test]
+fn with_texts_the_text_stays_ninth_and_the_record_tag_is_tenth() -> TestResult {
+    struct Texts;
+    impl TextResolver for Texts {
+        fn resolve<'a>(&'a self, _key: &str) -> Resolution<'a> {
+            Resolution::Missing
+        }
+    }
+
+    let bytes = bytes(8, "SystemsDesign");
+    let forge = DataForge::open(&bytes)?;
+    let record = forge.records().next().ok_or("no Record")?;
+    let tree = TreeBuilder::new().build(&record)?;
+    let mut writer = FlatValues::new(FlatFormat::CsvRaw);
+    let mut out = Vec::new();
+    writer.write_header(true, &mut out)?;
+    writer.write_annotated(
+        &tree,
+        Annotations::from(Some(&Texts as &dyn TextResolver)),
+        &mut out,
+    )?;
+    let text = String::from_utf8(out)?;
+    let rows: Vec<Vec<&str>> = text
+        .split("\r\n")
+        .filter(|row| !row.is_empty())
+        .map(|row| row.split(',').collect())
+        .collect();
+
+    assert_eq!(rows.first().and_then(|row| row.get(8)), Some(&"text"));
+    assert_eq!(rows.first().and_then(|row| row.get(9)), Some(&"record_tag"));
+    assert_eq!(rows.get(1).and_then(|row| row.get(8)), Some(&""));
+    assert_eq!(
+        rows.get(1).and_then(|row| row.get(9)),
+        Some(&"SystemsDesign")
+    );
     Ok(())
 }
 

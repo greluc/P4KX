@@ -117,9 +117,9 @@ fn a_language_adds_the_text_column() -> TestResult {
     let (dir, _) = export(&["--flat", "--lang", "en"], 0)?;
 
     let text = fs::read_to_string(dir.path().join("out").join("values.csv"))?;
-    assert!(text.contains(",target_path,record_tag,text\r\n"));
+    assert!(text.contains(",target_path,text,record_tag\r\n"));
     assert!(
-        text.contains(",name,,locale,'@vehicle_Cart,,,Cart\r\n"),
+        text.contains(",name,,locale,'@vehicle_Cart,,Cart,\r\n"),
         "{text}"
     );
     Ok(())

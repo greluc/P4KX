@@ -9,8 +9,9 @@ use crate::texts::annotation;
 use crate::value_json::{write_json_string, write_json_value};
 use crate::{Annotations, Field, Guid, RecordTree, Resolution, Value, ValueError};
 
-/// The columns of a flat value export, in order; the text column follows when texts are on.
-pub const FLAT_COLUMNS: [&str; 9] = [
+/// The first columns of a flat value export, in order; the text column follows when texts are on,
+/// and the Record tag column is always the last.
+pub const FLAT_COLUMNS: [&str; 8] = [
     "record_guid",
     "record_name",
     "record_path",
@@ -19,8 +20,10 @@ pub const FLAT_COLUMNS: [&str; 9] = [
     "kind",
     "value",
     "target_path",
-    "record_tag",
 ];
+
+/// The name of the last column, which holds the Record tag.
+pub const FLAT_TAG_COLUMN: &str = "record_tag";
 
 /// The name of the column that holds the resolved text of a localisation key.
 pub const FLAT_TEXT_COLUMN: &str = "text";
@@ -107,6 +110,8 @@ impl FlatValues {
             out.write_all(b",")?;
             out.write_all(FLAT_TEXT_COLUMN.as_bytes())?;
         }
+        out.write_all(b",")?;
+        out.write_all(FLAT_TAG_COLUMN.as_bytes())?;
         out.write_all(b"\r\n")
     }
 
@@ -260,14 +265,14 @@ impl FlatValues {
         if let Some(path) = target {
             write_cell(sink, path, false)?;
         }
-        sink.write_all(b",")?;
-        sink.write_all(&self.tag)?;
         if out.annotations.texts().is_some() {
             sink.write_all(b",")?;
             if let Some(text) = text {
                 write_cell(sink, text, neutralise)?;
             }
         }
+        sink.write_all(b",")?;
+        sink.write_all(&self.tag)?;
         sink.write_all(b"\r\n")
     }
 

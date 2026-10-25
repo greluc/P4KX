@@ -38,11 +38,12 @@ with `--flat`, and so is `--format xml|json`.
 | `kind` | `bool`, `int`, `uint`, `single`, `double`, `string`, `locale`, `enum`, `guid` or `reference` |
 | `value` | The value, see below |
 | `target_path` | For a `reference`, the record path of the target Record; empty for every other kind |
+| `text` | Only with `--lang`: the resolved text of a `locale` value, empty otherwise |
 | `record_tag` | The Record tag of a version 8 DataForge, e.g. `SystemsDesign`; empty for a Record without tag, with an empty tag, and for version 6 |
-| `text` | Only with `--lang`: the resolved text of a `locale` value, empty otherwise; always the last column, so the tenth |
 
-`record_tag` is appended after `target_path`, so the eight columns before it keep their names and
-positions; it is always in the header, whichever DataForge version the Records come from
+`record_tag` is always the last column: the ninth, or the tenth after `text` with `--lang`. It is
+appended, so every column that existed before keeps its name and position; it is always in the
+header, whichever DataForge version the Records come from
 ([ADR-0112](adr/0112-the-flat-value-export-is-csv-and-ndjson-and-offers-no-sqlite-output.md)).
 It is the `$tag` of [Record JSON](record-json.md#record-and-struct-objects) and the `p4kx:tag` of
 [Record XML](record-xml.md), and like them it repeats on every row of the Record.

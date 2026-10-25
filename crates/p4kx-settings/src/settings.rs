@@ -8,7 +8,9 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::profile::profile_folder;
-use crate::{AssemblyExportSettings, ModelExportSettings, RecentArchives, SavedQueries};
+use crate::{
+    AssemblyExportSettings, ModelExportSettings, RecentArchives, SavedQueries, UiRenderSettings,
+};
 
 const FILE_NAME: &str = "settings.toml";
 
@@ -53,6 +55,8 @@ pub struct Settings {
     pub model_export: ModelExportSettings,
     /// The choices of the Export of an Entity as GLB.
     pub assembly_export: AssemblyExportSettings,
+    /// The choices of the UI tab.
+    pub ui: UiRenderSettings,
 }
 
 /// What a Conversion writes for a DDS texture; the outputs combine.

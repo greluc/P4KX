@@ -3,6 +3,7 @@
 
 //! The Reload and Extract selected entries of the Archive menu and their shortcuts, driven headless.
 
+use crate::waiting::{RunQuiet, click_shown_once};
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -47,7 +48,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -55,7 +56,7 @@ fn check_first(harness: &mut Harness<'_, Model>) -> TestResult {
     let browser = harness.state_mut().browser_mut().ok_or("no Archive")?;
     let id = *browser.shown().first().ok_or("no Entry")?;
     browser.set_checked(id, true);
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -75,11 +76,11 @@ fn ctrl_e_opens_the_extraction_of_the_selected_entries() -> TestResult {
     let (_dir, mut harness) = opened()?;
 
     harness.key_press_modifiers(Modifiers::COMMAND, Key::E);
-    harness.run();
+    harness.run_quiet();
     let without_selection = harness.state().extraction_setup().is_some();
     check_first(&mut harness)?;
     harness.key_press_modifiers(Modifiers::COMMAND, Key::E);
-    harness.run();
+    harness.run_quiet();
 
     assert!(!without_selection, "nothing selected, nothing opens");
     assert!(
@@ -95,9 +96,9 @@ fn the_menu_entry_extracts_the_selected_entries() -> TestResult {
     check_first(&mut harness)?;
 
     harness.get_by_label("Archive").click();
-    harness.run();
-    harness.get_by_label_contains("Ctrl+E").click();
-    harness.run();
+    harness.run_quiet();
+    click_shown_once(&mut harness, "Ctrl+E")?;
+    harness.run_quiet();
 
     assert!(
         harness.state().extraction_setup().is_some(),
@@ -124,8 +125,8 @@ fn the_menu_entry_opens_the_archive_again() -> TestResult {
     check_first(&mut harness)?;
 
     harness.get_by_label("Archive").click();
-    harness.run();
-    harness.get_by_label_contains("F5").click();
+    harness.run_quiet();
+    click_shown_once(&mut harness, "F5")?;
     wait_until(&mut harness, reopened)?;
 
     assert_eq!(checked(&harness), 0, "a fresh index");
@@ -137,10 +138,10 @@ fn f5_does_nothing_while_the_extraction_setup_is_open() -> TestResult {
     let (_dir, mut harness) = opened()?;
     check_first(&mut harness)?;
     harness.key_press_modifiers(Modifiers::COMMAND, Key::E);
-    harness.run();
+    harness.run_quiet();
 
     harness.key_press(Key::F5);
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness.state().opening_path().is_none(),

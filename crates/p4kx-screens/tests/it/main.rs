@@ -18,6 +18,7 @@ mod listing;
 mod policies;
 mod radar;
 mod render;
+mod still;
 mod support;
 mod text;
 mod text_limits;

@@ -105,6 +105,11 @@ mod table_name;
 mod tags;
 mod tags_table;
 mod tree;
+mod ui_tab;
+mod ui_tab_detail;
+mod ui_tab_list;
+mod ui_tab_preview;
+mod ui_tab_toolbar;
 mod viewer_input;
 mod xml_preview;
 mod xml_view;
@@ -124,7 +129,7 @@ use crate::widgets::{frames, tab};
 const RESIZE_GAP: i8 = 6;
 use crate::{
     CharacterText, ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText,
-    Model, PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, WorkTab,
+    Model, PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, UiText, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -160,6 +165,8 @@ pub enum Dialog {
     CharacterChf,
     /// Picks the GLB file a Character is exported to.
     CharacterFile,
+    /// Picks the PNG or SVG file a UI picture is exported to.
+    UiFile,
 }
 
 /// What the window asks of its host after a frame.
@@ -278,6 +285,7 @@ fn poll_background(model: &mut Model) {
     model.localization_mut().poll();
     model.tags_mut().poll();
     model.poll_sounds();
+    model.poll_ui();
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -295,6 +303,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         WorkTab::Entities => return entities::show(ui, model),
         WorkTab::Sounds => return sounds::show(ui, model),
         WorkTab::Characters => return characters::show(ui, model, requests),
+        WorkTab::Ui => return ui_tab::show(ui, model, requests),
         WorkTab::Archive => {}
     }
     let dragging = is_dragging_file(ui);
@@ -332,7 +341,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     });
 }
 
-const WORK_TABS: [(WorkTab, Text); 9] = [
+const WORK_TABS: [(WorkTab, Text); 10] = [
     (
         WorkTab::Archive,
         Text::Comparison(ComparisonText::TabArchive),
@@ -351,6 +360,7 @@ const WORK_TABS: [(WorkTab, Text); 9] = [
     (WorkTab::Entities, Text::Entity(EntityText::Tab)),
     (WorkTab::Sounds, Text::Sounds(SoundsText::Tab)),
     (WorkTab::Characters, Text::Character(CharacterText::Tab)),
+    (WorkTab::Ui, Text::Ui(UiText::Tab)),
 ];
 
 fn work_tabs(ui: &mut Ui, model: &mut Model) {

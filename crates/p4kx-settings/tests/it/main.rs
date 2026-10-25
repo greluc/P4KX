@@ -11,5 +11,6 @@ mod profile_migration;
 mod recent_archives;
 mod record_language;
 mod saved_queries;
+mod ui_render;
 mod update_check;
 mod window_and_language;

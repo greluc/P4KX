@@ -3,6 +3,7 @@
 
 //! The Archive key dialog: what it says about a malformed key source and how it checks a key.
 
+use crate::waiting::RunQuiet;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{KeyReason, Language};
 use p4kx_settings::KeyStore;
@@ -22,7 +23,7 @@ fn a_malformed_variable_or_stored_key_is_named_in_the_dialog() -> TestResult {
     })?;
 
     harness.state_mut().open_key_dialog(KeyReason::Menu);
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness

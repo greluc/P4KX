@@ -18,6 +18,7 @@ pub mod sound_metrics;
 pub mod tags_metrics;
 pub mod tokens;
 mod tooltip_metrics;
+pub mod ui_metrics;
 
 #[cfg(test)]
 mod assembly_tests;
@@ -41,6 +42,8 @@ mod tags_tests;
 mod tests;
 #[cfg(test)]
 mod token_tests;
+#[cfg(test)]
+mod ui_tests;
 #[cfg(test)]
 mod xml_tests;
 

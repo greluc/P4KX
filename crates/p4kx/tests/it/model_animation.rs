@@ -6,12 +6,16 @@
 use std::error::Error;
 use std::fs;
 
-use p4kx_testkit::check_glb;
+use p4kx_testkit::{
+    ArchiveBuilder, TestAnimation, TestDba, TestEntry, TestModel, TestTrack, check_glb,
+};
 use serde_json::Value;
 
 use crate::animation_support;
 
-use animation_support::{NOD, PACK, SKIN, animation_names, glb_of, p4kx, write_archive};
+use animation_support::{
+    IDENTITY, NOD, PACK, SKIN, SKIN_GEOMETRY, animation_names, glb_of, p4kx, write_archive,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 #[test]
@@ -51,6 +55,47 @@ fn info_lists_the_animations_with_their_duration() -> TestResult {
         ),
         "additive skipped: {text}"
     );
+    Ok(())
+}
+
+#[test]
+fn info_sums_up_animations_skipped_for_the_same_reason() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let skin = TestModel::two_bone_skin();
+    let mut pack = TestDba::new();
+    for index in 0..5 {
+        pack = pack.animation(
+            TestAnimation::new(&format!("animations/objects/test/add_{index}.caf"), 30)
+                .additive()
+                .track(TestTrack::new(animation_support::tip()).rotations(&[(0, IDENTITY)])),
+        );
+    }
+    let path = dir.path().join("Data.p4k");
+    ArchiveBuilder::new()
+        .entry(TestEntry::zstd(SKIN, skin.cgf()))
+        .entry(TestEntry::zstd(SKIN_GEOMETRY, skin.cgfm()))
+        .entry(TestEntry::zstd(PACK, pack.bytes()))
+        .write_to(&path)?;
+
+    let output = p4kx()?
+        .args(["model", "info"])
+        .arg(&path)
+        .arg(SKIN)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    let text = String::from_utf8(output.stdout)?;
+    let lines: Vec<&str> = text
+        .lines()
+        .filter(|line| line.starts_with("skipped "))
+        .collect();
+    assert_eq!(lines.len(), 1, "one line for one reason: {text}");
+    assert!(
+        lines[0].starts_with("skipped 5 animations: "),
+        "{}",
+        lines[0]
+    );
+    assert!(lines[0].contains("(e.g. "), "{}", lines[0]);
     Ok(())
 }
 

@@ -6,7 +6,7 @@ use std::io::{self, Write};
 use anyhow::Result;
 use p4kx_assembly::{ArchiveModels, BodyVariant};
 use p4kx_extraction::model::Model;
-use p4kx_extraction::{AnimationSet, AnimationSummary, ConversionError};
+use p4kx_extraction::{AnimationSet, AnimationSummary, ConversionError, UnreadAnimation};
 use serde::Serialize;
 
 use crate::model::choice_of;
@@ -162,18 +162,49 @@ pub(crate) fn count_line(set: &AnimationSet) -> String {
     )
 }
 
-/// Writes what could not be read, one line each.
+/// How many names a summarised `skipped` line lists.
+const UNREAD_EXAMPLES: usize = 3;
+
+/// Writes what could not be read: one line for each reason that holds a single animation or
+/// file, and one line with the count and a few names for each reason that holds several.
 pub(crate) fn write_unread(out: &mut impl Write, set: &AnimationSet) -> io::Result<()> {
+    let mut groups: Vec<(bool, &str, Vec<&UnreadAnimation>)> = Vec::new();
     for unread in &set.unread {
-        let name = unread
-            .name
-            .as_deref()
-            .map_or_else(String::new, |name| format!(" animation {}", one_line(name)));
+        let named = unread.name.is_some();
+        match groups
+            .iter_mut()
+            .find(|(kind, reason, _)| *kind == named && *reason == unread.reason)
+        {
+            Some((_, _, members)) => members.push(unread),
+            None => groups.push((named, &unread.reason, vec![unread])),
+        }
+    }
+    for (named, reason, members) in groups {
+        if let [unread] = members.as_slice() {
+            let name = unread
+                .name
+                .as_deref()
+                .map_or_else(String::new, |name| format!(" animation {}", one_line(name)));
+            writeln!(
+                out,
+                "skipped{name} of {}: {}",
+                one_line(&unread.source),
+                one_line(reason)
+            )?;
+            continue;
+        }
+        let what = if named { "animations" } else { "files" };
+        let examples: Vec<String> = members
+            .iter()
+            .take(UNREAD_EXAMPLES)
+            .map(|unread| one_line(unread.name.as_deref().unwrap_or(&unread.source)))
+            .collect();
         writeln!(
             out,
-            "skipped{name} of {}: {}",
-            one_line(&unread.source),
-            one_line(&unread.reason)
+            "skipped {} {what}: {} (e.g. {})",
+            members.len(),
+            one_line(reason),
+            examples.join(", ")
         )?;
     }
     Ok(())

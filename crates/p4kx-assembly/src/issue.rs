@@ -281,12 +281,31 @@ pub enum IssueKind {
         /// Why.
         reason: String,
     },
-    /// No track of an animation fits the Character, so it is not written.
-    #[error("the animation is not written: {reason}")]
+    /// Animations are not written, all for the same reason: no track fits the Character, or the
+    /// budget of values is used up.
+    #[error("{}", animations_left_out(*.count, .reason, .examples))]
     AnimationNotUsed {
         /// Why.
         reason: String,
+        /// How many animations are left out for this reason.
+        count: usize,
+        /// The names of the first few of them.
+        examples: Vec<String>,
     },
+}
+
+fn animations_left_out(count: usize, reason: &str, examples: &[String]) -> String {
+    let mut text = if count == 1 {
+        format!("the animation is not written: {reason}")
+    } else {
+        format!("{count} animations are not written: {reason}")
+    };
+    if count > 1 && !examples.is_empty() {
+        text.push_str(" (e.g. ");
+        text.push_str(&examples.join(", "));
+        text.push(')');
+    }
+    text
 }
 
 impl IssueKind {

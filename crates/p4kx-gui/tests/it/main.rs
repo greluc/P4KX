@@ -122,6 +122,7 @@ mod texture_groups_folders;
 mod theme_render;
 mod update_hint;
 mod viewing;
+mod waiting;
 mod wide_forge;
 mod window;
 mod xml_preview;

@@ -85,6 +85,8 @@ pub use containers::{
     ContainerFailure, ContainerId, ContainerStatus, OPEN_CONTAINERS_BUDGET, Place,
 };
 pub use content_search::{ContentResult, ContentSearchStatus, ContentSearchTab};
+#[cfg(feature = "test-hooks")]
+pub use entities::InteriorHold;
 pub use entities::{AssemblyView, VIEW_LOD, ViewFailure, ViewProgress, ViewStage};
 pub use entities::{
     EntitiesStatus, EntitiesTab, EntityFilter, EntityList, LoadoutRow, LoadoutSession, LoadoutView,

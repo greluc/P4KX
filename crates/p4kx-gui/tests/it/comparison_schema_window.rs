@@ -7,6 +7,7 @@
 //! `P4KX_RENDER_DIR` names a folder the rendered window is written to as a PNG file.
 
 use crate::record_pair;
+use crate::waiting::RunQuiet;
 
 use std::error::Error;
 use std::fs::File;
@@ -57,7 +58,7 @@ fn schema_shown(
     renderer: Option<WgpuTestRenderer>,
 ) -> Result<Harness<'static, Model>, Box<dyn Error>> {
     let mut harness = harness(pair, language, renderer);
-    harness.run();
+    harness.run_quiet();
     let compare = if language == Language::German {
         "Vergleichen"
     } else {
@@ -76,9 +77,9 @@ fn schema_shown(
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     harness.get_by_role_and_label(Role::Tab, "Schema").click();
-    harness.run();
+    harness.run_quiet();
     Ok(harness)
 }
 

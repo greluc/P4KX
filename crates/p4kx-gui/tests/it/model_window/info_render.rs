@@ -7,6 +7,7 @@
 //! The tests need a graphics adapter, a software one is enough, and return early without one.
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
+use crate::waiting::RunQuiet;
 use std::fs::File;
 use std::io::BufWriter;
 use std::panic::catch_unwind;
@@ -78,11 +79,11 @@ fn the_info_tab_and_the_export_windows_render_in_both_languages() -> TestResult 
         select(&mut harness, "extra.cgf")?;
 
         harness.get_by_label(info).click();
-        harness.run();
+        harness.run_quiet();
         save(&format!("model-info-{suffix}.png"), &mut harness)?;
 
         harness.get_by_label(export).click();
-        harness.run();
+        harness.run_quiet();
         save(&format!("model-export-setup-{suffix}.png"), &mut harness)?;
 
         let setup = harness
@@ -90,7 +91,7 @@ fn the_info_tab_and_the_export_windows_render_in_both_languages() -> TestResult 
             .model_export_setup_mut()
             .ok_or("no setup")?;
         setup.set_file(folder.path().join("extra.glb"));
-        harness.run();
+        harness.run_quiet();
         save(&format!("model-export-ready-{suffix}.png"), &mut harness)?;
         assert!(harness.state_mut().submit_model_export(|| {}), "started");
         wait_until(&mut harness, |model| {
@@ -114,7 +115,7 @@ fn the_info_of_a_plain_model_renders_without_the_chunk_table() -> TestResult {
     select(&mut harness, "helpers.cgf")?;
 
     harness.get_by_label("Info").click();
-    harness.run();
+    harness.run_quiet();
 
     save("model-info-helpers-en-GB.png", &mut harness)
 }
@@ -136,18 +137,18 @@ fn the_animation_choice_and_its_summary_render_in_both_languages() -> TestResult
         select(&mut harness, "door.cga")?;
 
         harness.get_by_label("Info").click();
-        harness.run();
+        harness.run_quiet();
         save(&format!("model-info-animations-{suffix}.png"), &mut harness)?;
 
         harness.get_by_label(export).click();
-        harness.run();
+        harness.run_quiet();
         let setup = harness
             .state_mut()
             .model_export_setup_mut()
             .ok_or("no setup")?;
         setup.set_animations(true);
         setup.set_file(folder.path().join("door.glb"));
-        harness.run();
+        harness.run_quiet();
         save(
             &format!("model-export-animations-{suffix}.png"),
             &mut harness,
@@ -211,7 +212,7 @@ fn the_texture_choices_and_the_missing_textures_render_in_both_languages() -> Te
         select(&mut harness, "textured.cgf")?;
 
         harness.get_by_label(info).click();
-        harness.run();
+        harness.run_quiet();
         harness.get_by_label_contains(rows_label(language)).hover();
         harness.event(egui::Event::MouseWheel {
             unit: egui::MouseWheelUnit::Line,
@@ -220,13 +221,13 @@ fn the_texture_choices_and_the_missing_textures_render_in_both_languages() -> Te
             source: egui::MouseWheelSource::Wheel,
             modifiers: egui::Modifiers::NONE,
         });
-        harness.run();
+        harness.run_quiet();
         save(&format!("model-info-long-{suffix}.png"), &mut harness)?;
         harness.set_size(egui::vec2(1600.0, 900.0));
-        harness.run();
+        harness.run_quiet();
 
         harness.get_by_label(export).click();
-        harness.run();
+        harness.run_quiet();
         let setup = harness
             .state_mut()
             .model_export_setup_mut()
@@ -234,7 +235,7 @@ fn the_texture_choices_and_the_missing_textures_render_in_both_languages() -> Te
         setup.set_materials(ModelMaterials::Textures);
         setup.set_texture_mip(1);
         setup.set_file(folder.path().join("textured.glb"));
-        harness.run();
+        harness.run_quiet();
         save(&format!("model-export-textures-{suffix}.png"), &mut harness)?;
 
         assert!(harness.state_mut().submit_model_export(|| {}), "started");

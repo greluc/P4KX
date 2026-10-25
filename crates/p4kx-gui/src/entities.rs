@@ -21,6 +21,8 @@ pub use replace::ReplaceChooser;
 pub use resolve::ResolveFailure;
 pub(crate) use resolve::resolve;
 pub use rows::{LoadoutRow, LoadoutView, RowChange};
+#[cfg(feature = "test-hooks")]
+pub use view::InteriorHold;
 pub use view::{AssemblyView, VIEW_LOD, ViewFailure, ViewProgress, ViewStage};
 
 use crate::EntryIndex;

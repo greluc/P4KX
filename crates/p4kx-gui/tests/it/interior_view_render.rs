@@ -12,6 +12,7 @@ use crate::interior_export::click_settled;
 use crate::rendering::{Window, pixel, render_state, rendered, view_pixels, window_at};
 use crate::tagging::{archive, wait_until};
 use crate::viewing::Site;
+use crate::waiting::wait_for;
 
 use std::sync::Arc;
 
@@ -233,7 +234,16 @@ fn a_socpak_offers_the_export_of_its_interior_beside_copy_and_in_the_setup() -> 
         .ok_or("no container")?;
     browser.select_entry(id, || {});
     window.harness.state_mut().set_preview_tab(PreviewTab::Hex);
-    window.harness.run_steps(6);
+    wait_for(
+        &mut window.harness,
+        "the export of the Interior beside copy",
+        |harness| {
+            harness
+                .query_by_role_and_label(Role::Button, "Export Interior as GLB…")
+                .is_some()
+        },
+    )?;
+    window.harness.run_steps(2);
     rendered(&mut window, "interior-action.png")?;
 
     click_settled(&mut window.harness, "Export Interior as GLB…");

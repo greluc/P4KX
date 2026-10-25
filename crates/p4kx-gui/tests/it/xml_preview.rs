@@ -3,6 +3,7 @@
 
 //! The XML tab of the preview over a synthetic Archive with `CryXml` Entries, driven headless.
 
+use crate::waiting::RunQuiet;
 use crate::xml_previewing;
 
 use std::time::{Duration, Instant};
@@ -76,7 +77,7 @@ fn an_entry_that_fails_to_convert_shows_the_error_and_text_and_hex_still_work() 
         "error in the tab"
     );
     harness.get_by_label("Hex").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_by_label_contains("00000000  43 72 79 58 6D 6C 42 00")
@@ -84,7 +85,7 @@ fn an_entry_that_fails_to_convert_shows_the_error_and_text_and_hex_still_work() 
         "hex shows the signature"
     );
     harness.get_by_label("Text").click();
-    harness.run();
+    harness.run_quiet();
     assert_eq!(harness.state().preview_tab(), PreviewTab::Text, "Text tab");
     assert!(
         harness.query_by_label_contains("CryXmlB").is_some(),

@@ -9,6 +9,7 @@
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
 use crate::rendering::{pixel, pixels, render_state};
+use crate::waiting::RunQuiet;
 use crate::{comparing, entity_picking, entity_sounds, sounding, tagging};
 
 use std::error::Error;
@@ -234,7 +235,7 @@ fn the_comparison_tiles_take_the_bar_fill_inside_the_panel() -> TestResult {
         let tab = harness.state_mut().comparison_mut();
         tab.set_archive(ComparisonSide::Old, pair.old.clone());
         tab.set_archive(ComparisonSide::New, pair.new.clone());
-        harness.run();
+        harness.run_quiet();
         harness.get_by_label(start).click();
         tagging::wait_until(
             &mut harness,

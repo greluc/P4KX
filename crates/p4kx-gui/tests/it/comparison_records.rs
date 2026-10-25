@@ -3,6 +3,7 @@
 
 //! The Record level of the Comparison tab over a pair of Archives with synthetic DataForges.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -167,19 +168,19 @@ fn both_level_switches_work_in_the_window() -> TestResult {
             },
             model,
         );
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Records").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Entries").click();
-    harness.run();
+    harness.run_quiet();
     let records_only = harness.state().comparison().levels();
     let compare_enabled = !harness
         .get_by_label("Compare")
         .accesskit_node()
         .is_disabled();
     harness.get_by_label("Records").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(
         records_only,

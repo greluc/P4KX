@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 mod failure;
+#[cfg(feature = "test-hooks")]
+mod hold;
 mod interior;
 mod job;
 
@@ -12,6 +14,8 @@ use p4kx_assembly::EntityNode;
 use p4kx_settings::ModelMaterials;
 
 pub use failure::ViewFailure;
+#[cfg(feature = "test-hooks")]
+pub use hold::InteriorHold;
 pub use job::{ViewProgress, ViewStage};
 
 use crate::viewer::{AssemblyDraw, hidden_mask};
@@ -60,6 +64,8 @@ pub struct AssemblyView {
     camera: Option<Camera>,
     cancelled: bool,
     counter: u64,
+    #[cfg(feature = "test-hooks")]
+    gate: Option<Arc<hold::Gate>>,
 }
 
 impl std::fmt::Debug for AssemblyView {
@@ -103,7 +109,18 @@ impl AssemblyView {
             camera: None,
             cancelled: false,
             counter: 0,
+            #[cfg(feature = "test-hooks")]
+            gate: None,
         }
+    }
+
+    /// Makes the builds of the view stay in their Interior step until the returned hold is
+    /// dropped.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_interior(&mut self) -> InteriorHold {
+        let gate = Arc::new(hold::Gate::default());
+        self.gate = Some(Arc::clone(&gate));
+        InteriorHold(gate)
     }
 
     /// Returns the level of detail the view is built at.
@@ -320,6 +337,8 @@ impl AssemblyView {
             lod: self.lod,
             materials: self.materials,
             interior: self.interior,
+            #[cfg(feature = "test-hooks")]
+            gate: self.gate.clone(),
         };
         self.cancelled = false;
         match job::start(&self.index, request, Arc::clone(&self.wake)) {

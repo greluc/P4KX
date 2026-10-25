@@ -4,6 +4,7 @@
 //! The Comparison tab drawn and driven headless over a pair of synthetic Archives.
 
 use crate::comparing;
+use crate::waiting::RunQuiet;
 
 use std::error::Error;
 use std::time::{Duration, Instant};
@@ -57,7 +58,7 @@ fn settle(harness: &mut Harness<'_, State>, done: impl Fn(&Model) -> bool) -> Te
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -70,7 +71,7 @@ fn compared(pair: &Pair, language: Language) -> Result<Harness<'static, State>, 
     let tab = harness.state_mut().0.comparison_mut();
     tab.set_archive(ComparisonSide::Old, pair.old.clone());
     tab.set_archive(ComparisonSide::New, pair.new.clone());
-    harness.run();
+    harness.run_quiet();
     let start = if language == Language::German {
         "Vergleichen"
     } else {
@@ -85,7 +86,7 @@ fn compared(pair: &Pair, language: Language) -> Result<Harness<'static, State>, 
 fn the_tab_starts_empty_with_both_pickers_both_levels_and_a_disabled_compare() -> TestResult {
     let pair = pair()?;
     let mut harness = harness(&pair, Language::BritishEnglish);
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness.query_by_label("No Comparison yet").is_some(),
@@ -120,10 +121,10 @@ fn the_tab_starts_empty_with_both_pickers_both_levels_and_a_disabled_compare() -
 fn a_picker_offers_the_channels_the_recent_archives_and_a_file() -> TestResult {
     let pair = pair()?;
     let mut harness = harness(&pair, Language::BritishEnglish);
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Old Archive").click();
-    harness.run();
+    harness.run_quiet();
     let offered = (
         harness.query_by_label("LIVE · Build 4.3.1.10203").is_some(),
         harness.query_by_label("PTU · Build 4.3.2.10400").is_some(),
@@ -132,11 +133,11 @@ fn a_picker_offers_the_channels_the_recent_archives_and_a_file() -> TestResult {
             .is_some(),
     );
     harness.get_by_label("LIVE · Build 4.3.1.10203").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("New Archive").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Choose file…").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(
         offered,
@@ -162,7 +163,7 @@ fn a_finished_comparison_shows_both_builds_the_counts_and_the_changes() -> TestR
 
     let mut harness = compared(&pair, Language::BritishEnglish)?;
     harness.get_by_label("By directory (2)").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness
@@ -196,7 +197,7 @@ fn typing_a_filter_narrows_the_list_and_the_counts() -> TestResult {
     let mut harness = compared(&pair, Language::BritishEnglish)?;
 
     harness.get_by_role(Role::TextInput).click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_role(Role::TextInput).type_text("engine");
     settle(&mut harness, |model| {
         finished(model)
@@ -227,9 +228,9 @@ fn a_click_on_a_column_head_sorts_and_a_second_reverses() -> TestResult {
     let mut harness = compared(&pair, Language::BritishEnglish)?;
 
     harness.get_by_label("Old size").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Old size").click();
-    harness.run();
+    harness.run_quiet();
 
     let sort = harness
         .state()
@@ -251,7 +252,7 @@ fn save_report_asks_for_a_file() -> TestResult {
     let mut harness = compared(&pair, Language::BritishEnglish)?;
 
     harness.get_by_label("Save report…").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(
         harness.state().1.dialog,

@@ -3,6 +3,7 @@
 
 //! The DataForge node in the path tree and the DataForge tab of the preview, driven headless.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -174,7 +175,7 @@ fn an_unknown_version_is_named_on_the_node_and_browsing_goes_on() -> TestResult 
     harness.get_by_label("Expand DataForge").click();
     wait_until(&mut harness, settled)?;
     harness.get_by_role_and_label(Role::Button, "Data").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness
@@ -232,7 +233,7 @@ fn selecting_an_entry_returns_from_the_dataforge_tab_to_its_preview() -> TestRes
     harness
         .get_by_role_and_label(Role::Button, "Data.p4k")
         .click();
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("readme.txt").click();
     wait_until(&mut harness, |model| {
@@ -277,7 +278,7 @@ fn a_change_on_disk_takes_the_records_out_of_the_tree() -> TestResult {
 
     archive_with(large().build()).write_to(&path)?;
     harness.state_mut().check_archive();
-    harness.run();
+    harness.run_quiet();
 
     assert!(harness.query_by_label("libs").is_none(), "dropped");
     assert!(
@@ -342,7 +343,7 @@ fn a_running_load_is_dropped_on_reload_and_on_a_change() -> TestResult {
         window(&archive_with(large().build()), Language::BritishEnglish)?;
     let status_after = |harness: &mut Harness<'_, Model>| {
         std::thread::sleep(Duration::from_millis(500));
-        harness.run();
+        harness.run_quiet();
         harness
             .state()
             .browser()

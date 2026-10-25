@@ -15,6 +15,7 @@ mod nested_diff;
 mod owned;
 mod owned_records;
 mod record_fields;
+mod record_name_tag;
 mod record_nested;
 mod record_references;
 mod records;

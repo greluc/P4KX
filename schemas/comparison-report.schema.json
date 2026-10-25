@@ -288,7 +288,7 @@
         },
         {
           "const": "changed",
-          "description": "Both sides have the GUID at the same record path, with a different name, type or field.",
+          "description": "Both sides have the GUID at the same record path, with a different name, tag, type or field.",
           "type": "string"
         },
         {
@@ -460,6 +460,13 @@
         "record_path": {
           "description": "The record path, without `.xml`.",
           "type": "string"
+        },
+        "tag": {
+          "description": "The Record tag, e.g. `SystemsDesign`; absent in a version 6 DataForge and for a Record\nwithout tag.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "type": {
           "description": "The name of the Record's struct.",

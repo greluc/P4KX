@@ -60,6 +60,7 @@ fn a_record_by_guid_is_its_canonical_record_json() -> TestResult {
             "$type": "Ship",
             "$guid": AVENGER_TEXT,
             "$path": "libs/foundry/records/entities/spaceships/aegs_avenger",
+            "$name": "Ship.Avenger",
             "mass": 1000,
             "size": "Medium",
             "maker": {
@@ -222,7 +223,7 @@ fn record_keys_keep_the_record_xml_order() -> TestResult {
     assert_eq!(
         key_order(record)?,
         [
-            "$type", "$guid", "$path", "mass", "size", "crew", "maker", "tags"
+            "$type", "$guid", "$path", "$name", "mass", "size", "crew", "maker", "tags"
         ],
         "the fields in definition order, not sorted"
     );

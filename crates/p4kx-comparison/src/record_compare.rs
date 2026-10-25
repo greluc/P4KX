@@ -183,6 +183,7 @@ fn diff<'a>(pair: Joined<'a>, options: &CompareOptions<'_>) -> Option<RecordChan
     change.fields = diff_fields(old_tree.fields(), new_tree.fields());
     let differs = !change.fields.is_empty()
         || before.name != after.name
+        || before.tag != after.tag
         || before.type_name != after.type_name
         || change.kind() == RecordChangeKind::Moved;
     differs.then_some(change)
@@ -192,6 +193,7 @@ fn state<'a>(record: Record<'a>, record_path: &'a str) -> Result<RecordState<'a>
     Ok(RecordState {
         record_path,
         name: record.name()?,
+        tag: record.tag()?.filter(|tag| !tag.is_empty()),
         type_name: record.type_name()?,
     })
 }

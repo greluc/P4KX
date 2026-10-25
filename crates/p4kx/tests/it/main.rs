@@ -37,6 +37,7 @@ mod dcb_export;
 mod dcb_export_combined;
 mod dcb_export_flat;
 mod dcb_export_json;
+mod dcb_export_name_tag;
 mod dcb_export_texts;
 mod dcb_fields;
 mod dcb_query;

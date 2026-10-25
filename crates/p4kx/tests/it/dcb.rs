@@ -158,6 +158,32 @@ fn dcb_info_of_an_unknown_version_exits_with_code_5() -> TestResult {
 }
 
 #[test]
+fn dcb_info_of_version_5_and_4_exits_with_code_5_as_unsupported() -> TestResult {
+    for version in [5, 4] {
+        let dir = tempfile::tempdir()?;
+        let archive = write_archive(
+            dir.path(),
+            vec![TestEntry::stored(
+                "Data\\Game2.dcb",
+                database().version(version).build(),
+            )],
+        )?;
+
+        let (stdout, stderr) = run(&archive, false, 5)?;
+
+        assert!(stdout.is_empty(), "nothing is printed: {stdout}");
+        assert_eq!(
+            stderr.trim_end(),
+            format!(
+                "error: DataForge version {version} is not supported; this version of P4KX reads versions 6 and 8"
+            ),
+            "version {version}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn dcb_info_of_a_truncated_database_exits_with_code_5() -> TestResult {
     let dir = tempfile::tempdir()?;
     let mut bytes = database().build();

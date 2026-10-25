@@ -9,6 +9,7 @@ use std::time::SystemTime;
 use p4kx_channels::ChannelKind;
 use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys};
 
+use crate::container::Containers;
 use crate::error::{ToolError, chain};
 use crate::keys::KeyChoice;
 
@@ -48,9 +49,15 @@ pub(crate) struct Opened {
     building: Mutex<()>,
     dataforge: Mutex<Option<Result<Arc<LoadedDataForge>, String>>>,
     selection: Mutex<Selection>,
+    containers: Containers,
 }
 
 impl Opened {
+    /// Returns the containers opened from this Archive.
+    pub(crate) const fn containers(&self) -> &Containers {
+        &self.containers
+    }
+
     fn new(archive: Archive) -> Self {
         Self {
             notice: ChannelKind::of_archive(archive.path()).notice(),
@@ -60,6 +67,7 @@ impl Opened {
             building: Mutex::new(()),
             dataforge: Mutex::new(None),
             selection: Mutex::new(None),
+            containers: Containers::default(),
         }
     }
 

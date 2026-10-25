@@ -69,11 +69,7 @@ pub(crate) fn read_nodes<B: AsRef<[u8]>>(
                 })
             })?)
         };
-        nodes.push(Node {
-            name: record.name.clone(),
-            parent,
-            transform: record.local,
-        });
+        nodes.push(Node::new(record.name.clone(), parent, record.local));
     }
     let first = raw.first().map_or(0, |&(index, _)| index);
     let parents: Vec<Option<usize>> = nodes.iter().map(|node| node.parent).collect();

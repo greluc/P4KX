@@ -163,6 +163,36 @@ fn the_progress_window_of_a_building_catalog_is_drawn_at_both_sizes_in_both_lang
 }
 
 #[test]
+fn the_warnings_of_the_game_data_are_drawn_at_both_sizes_in_both_languages() -> TestResult {
+    for (language, tag) in LANGUAGES {
+        for size in SIZES {
+            let (_dir, mut model, out) = opened(&cataloging::ambiguous())?;
+            model.set_language(language);
+            model.start_catalog(out.join("basetool-catalog.json.zst"), || {});
+            let Some(mut harness) = window(model, size) else {
+                return Ok(());
+            };
+            wait_for(&mut harness, "the catalog to end", |harness| {
+                harness
+                    .state()
+                    .catalog()
+                    .is_some_and(|run| !run.is_running())
+            })?;
+            harness.run_steps(3);
+
+            let (sentence, close) = if tag == "en" {
+                ("2 dismantle processes instead of one", "Close")
+            } else {
+                ("2 Zerlegungsprozesse statt einem", "Schließen")
+            };
+            harness.get_by_label_contains(sentence);
+            shoot(&mut harness, ("warnings", tag, size), close)?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn the_warning_alert_of_a_catalog_near_the_limit_is_drawn_at_both_sizes() -> TestResult {
     for size in SIZES {
         let (_dir, mut model, out) = opened(&cataloging::wordy(30, 1_000_000))?;

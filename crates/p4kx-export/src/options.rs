@@ -6,10 +6,23 @@ use std::time::SystemTime;
 
 use p4kx_extraction::{CancelToken, Filter};
 
+/// The step of a catalog build that a [`CatalogProgress`] reports, in the order the steps run.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
+pub enum CatalogPhase {
+    /// The crafting data is read, the reward sources of the blueprint pools among it.
+    Crafting,
+    /// Every Record is checked for the kinds of the catalog.
+    #[default]
+    Records,
+}
+
 /// How far the build of a catalog has come.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct CatalogProgress {
-    /// Records of the DataForge checked so far.
+    /// The step the counts belong to; they start again at 0 with each step.
+    pub phase: CatalogPhase,
+    /// Records of the DataForge checked so far in this step.
     pub records_done: usize,
     /// Records of the DataForge.
     pub records_total: usize,

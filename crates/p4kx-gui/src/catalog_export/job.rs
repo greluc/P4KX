@@ -247,14 +247,7 @@ impl Job {
         self.shared.enter(CatalogExportStage::Building);
         #[cfg(feature = "test-hooks")]
         self.pause.wait(|| self.cancel.is_cancelled());
-        let progress = |progress: CatalogProgress| {
-            self.shared
-                .total
-                .store(progress.records_total, Ordering::Relaxed);
-            self.shared
-                .done
-                .fetch_max(progress.records_done, Ordering::Relaxed);
-        };
+        let progress = |progress: CatalogProgress| self.shared.report(progress);
         let options = CatalogOptions {
             filter: None,
             exported_at: SystemTime::now(),

@@ -129,9 +129,6 @@ fn every_vertex_and_normal_layout_decodes_to_the_same_cube() -> TestResult {
         TestModel::cube().with_normals(TestNormals::Compressed),
         TestModel::cube().with_normals(TestNormals::FloatOnNormals),
         TestModel::cube().with_normals(TestNormals::PackedOnNormals),
-        TestModel::cube().with_normals(TestNormals::PackedOnNormals2),
-        TestModel::cube().with_normals(TestNormals::Tangents16),
-        TestModel::cube().with_normals(TestNormals::CompressedWithOpposedPacked),
         TestModel::cube().with_wide_indices(),
         TestModel::cube().scaled(0.1),
     ] {

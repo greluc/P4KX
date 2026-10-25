@@ -105,6 +105,7 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
                 colours: Some(Vec::new()),
                 influences: skin.streams.bone_map.map(|_| Vec::new()),
                 uvs: Vec::new(),
+                second_uvs: skin.streams.second_uvs.map(|_| Vec::new()),
                 indices: Vec::with_capacity(indices),
                 submeshes: Vec::with_capacity(group.len()),
             },
@@ -161,6 +162,11 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
             && let Some(tangent) = stream.tangent(vertex)?
         {
             tangents.push(tangent);
+        }
+        if let (Some(stream), Some(second_uvs)) =
+            (&self.skin.streams.second_uvs, &mut self.mesh.second_uvs)
+        {
+            second_uvs.push(stream.uv(vertex)?);
         }
         if let Some(colours) = &mut self.mesh.colours {
             colours.push(self.skin.streams.vertices.colour(vertex)?);

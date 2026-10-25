@@ -37,13 +37,8 @@ pub enum TestNormals {
     FloatOnNormals,
     /// An `IVONORMALS` stream of one packed unit vector per vertex.
     PackedOnNormals,
-    /// An `IVONORMALS2` stream of one packed unit vector per vertex.
-    PackedOnNormals2,
-    /// An `IVOQTANGENTS` stream of the true normals followed by an `IVONORMALS2` stream of packed
-    /// vectors that point the other way.
-    CompressedWithOpposedPacked,
-    /// An `IVOTANGENTS` stream of 16 bytes per vertex: two quaternions of four signed 16-bit
-    /// values, the first rotating the Z axis onto the normal.
+    /// An `IVOTANGENTS` stream of 16 bytes per vertex, a layout no real Archive holds and the
+    /// reader skips.
     Tangents16,
     /// No normal stream.
     None,
@@ -111,6 +106,7 @@ pub struct TestModel {
     pub(crate) repeated_index_streams: usize,
     pub(crate) colours: Option<Vec<[u8; 4]>>,
     pub(crate) tangent_sign: f32,
+    pub(crate) second_uvs: Option<Vec<[f32; 2]>>,
     pub(crate) bone_map: Option<BoneMap>,
     lods: Vec<Self>,
     extra_chunks: Vec<(u32, Vec<u8>)>,
@@ -144,6 +140,7 @@ impl TestModel {
             repeated_index_streams: 0,
             colours: None,
             tangent_sign: 1.0,
+            second_uvs: None,
             bone_map: None,
             lods: Vec::new(),
             extra_chunks: Vec::new(),
@@ -201,6 +198,14 @@ impl TestModel {
     #[must_use]
     pub fn with_colours(mut self, colours: Vec<[u8; 4]>) -> Self {
         self.colours = Some(colours);
+        self
+    }
+
+    /// Stores `uvs`, one texture coordinate per vertex in stream order, as the four-byte
+    /// `IVONORMALS2` stream of the second texture coordinates.
+    #[must_use]
+    pub fn with_second_uvs(mut self, uvs: Vec<[f32; 2]>) -> Self {
+        self.second_uvs = Some(uvs);
         self
     }
 

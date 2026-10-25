@@ -7,8 +7,8 @@ use std::error::Error;
 use std::time::SystemTime;
 
 use p4kx_export::{
-    CatalogOptions, CatalogSummary, DECOMPRESSED_LIMIT, Kind, Language, UPLOAD_LIMIT,
-    build_catalog, catalog_schema,
+    CatalogOptions, CatalogSummary, CraftingWarning, DECOMPRESSED_LIMIT, Kind, Language,
+    UPLOAD_LIMIT, build_catalog, catalog_schema,
 };
 use p4kx_extraction::Archive;
 use p4kx_testkit::real_archive_path;
@@ -80,6 +80,38 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
         "class names without the type"
     );
     Ok(())
+}
+
+const EMPTY_INVENTORY: &str = "inv_shopping_test_featuretest.json";
+
+/// Returns whether `warning` is a known defect of the game data: the Build ships the shop
+/// inventory file `inv_shopping_test_featuretest.json` with no content at all.
+fn is_known_defect(warning: &CraftingWarning) -> bool {
+    match warning {
+        CraftingWarning::UnreadableShopInventories { count, details } => {
+            *count == details.len()
+                && details.iter().all(|detail| {
+                    detail.to_ascii_lowercase().contains(EMPTY_INVENTORY)
+                        && detail.ends_with("the file is empty")
+                })
+        }
+        _ => false,
+    }
+}
+
+/// Returns the warnings of `summary` that are not a known defect of the game data.
+pub(crate) fn unexpected_warnings(summary: &CatalogSummary) -> Vec<&CraftingWarning> {
+    summary
+        .warnings()
+        .iter()
+        .filter(|warning| !is_known_defect(warning))
+        .collect()
+}
+
+/// Returns whether every selected Record of `summary` is readable and its warnings are known
+/// defects of the game data only.
+pub(crate) fn is_complete_but_known_defects(summary: &CatalogSummary) -> bool {
+    summary.failures().is_empty() && unexpected_warnings(summary).is_empty()
 }
 
 #[expect(

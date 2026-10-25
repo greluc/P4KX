@@ -1155,7 +1155,9 @@ agree in length everywhere). The chains have 4 to 9 elements.
 (`unreadable_shop_registry`), when the Archive holds starmap objects but no registry at the known
 path (`missing_shop_registry`, the registry may have moved in the Build) and when shop containers
 cannot be read (`unreadable_shop_containers` with a `count`; their shops may lack kind and brand)
-or inventory files cannot be read (`unreadable_shop_inventories` with a `count` of files), when
+or inventory files cannot be read (`unreadable_shop_inventories` with a `count` of files and
+`details`, the path and the reason of each; a file with no content at all, such as
+`inv_shopping_test_featuretest.json` on LIVE 4.10.197 and the PTU Build, is one of them, ADR-0141), when
 inventory files that containers name are not in the Archive (`missing_shop_inventories` with a
 `count` of distinct files; a Build may have moved or renamed them) and when shop containers name
 shops but no `.soc` holds a shop component (`no_shop_components`; the layout may have changed).

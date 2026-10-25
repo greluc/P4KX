@@ -338,13 +338,14 @@ fn add_contracts<'f>(
 /// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
 fn add_paints(forge: &DataForge<'_>, collected: &mut Collected<'_>) -> PaintSummary {
     let derived = paints(forge, &collected.items, &collected.vehicles);
-    collected.paints = derived.paints;
+    collected.paints = derived.list;
     if derived.summary.unreadable_vehicles > 0 {
         collected
             .warnings
-            .push(CraftingWarning::UnreadableVehicleFiles(
-                derived.summary.unreadable_vehicles,
-            ));
+            .push(CraftingWarning::UnreadableVehicleFiles {
+                count: derived.summary.unreadable_vehicles,
+                details: derived.unreadable_files,
+            });
     }
     derived.summary
 }

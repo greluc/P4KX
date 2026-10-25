@@ -146,10 +146,11 @@ impl<'f> ShipReader<'f> {
             "vehicleDefinition",
         )
         .is_some_and(|definition| !definition.trim().is_empty());
+        let paint_ports = VehiclePorts::of(vehicle, named, &base.issues);
         Ok(ShipRead {
             base,
             implementation: digest,
-            paint_ports: VehiclePorts::of(vehicle, named),
+            paint_ports,
         })
     }
 }

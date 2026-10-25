@@ -44,27 +44,46 @@ pub(crate) struct VehicleFacts {
     pub(crate) variant_key: Option<ShipKey>,
 }
 
-/// The paint ports of a vehicle implementation and whether it was not read in full. A patch file
-/// the Archive lacks is a fact of the game data, not an unread file.
+/// The paint ports of a vehicle implementation and why it was not read in full, if it was not. A
+/// file the Archive lacks is a fact of the game data, not an unread file.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct VehiclePorts {
     pub(crate) ports: Vec<PaintPort>,
-    pub(crate) unreadable: bool,
+    pub(crate) unreadable: Option<String>,
 }
+
+const IMPLEMENTATION_ISSUE: &str = "the vehicle implementation ";
 
 impl VehiclePorts {
     /// Returns the paint ports of `vehicle`, the implementation read for a ship with the
     /// Modification applied: its item ports that take `Paints`, with the required tags the patch
     /// leaves them. `vehicle` is `None` when the ship names no implementation or it could not be
-    /// read; `named` tells which of the two it is.
-    pub(crate) fn of(vehicle: Option<&VehicleImplementation>, named: bool) -> Self {
+    /// read; `named` tells which of the two it is, and `read_issues` are the issues of reading it,
+    /// which tell a file the Archive lacks from one that cannot be read.
+    pub(crate) fn of(
+        vehicle: Option<&VehicleImplementation>,
+        named: bool,
+        read_issues: &[String],
+    ) -> Self {
+        let missing = LoadoutFileError::NotFound.to_string();
         let Some(implementation) = vehicle else {
+            let mut causes = read_issues
+                .iter()
+                .filter(|issue| issue.starts_with(IMPLEMENTATION_ISSUE))
+                .peekable();
+            let lacks_file =
+                causes.peek().is_some() && causes.all(|issue| issue.ends_with(&missing));
             return Self {
                 ports: Vec::new(),
-                unreadable: named,
+                unreadable: (named && !lacks_file).then(|| {
+                    read_issues
+                        .iter()
+                        .find(|issue| issue.starts_with(IMPLEMENTATION_ISSUE))
+                        .cloned()
+                        .unwrap_or_else(|| "the vehicle implementation cannot be read".to_owned())
+                }),
             };
         };
-        let missing = LoadoutFileError::NotFound.to_string();
         Self {
             ports: implementation
                 .item_ports()
@@ -79,7 +98,8 @@ impl VehiclePorts {
             unreadable: implementation
                 .issues()
                 .iter()
-                .any(|issue| !issue.to_string().ends_with(&missing)),
+                .map(ToString::to_string)
+                .find(|issue| !issue.ends_with(&missing)),
         }
     }
 }

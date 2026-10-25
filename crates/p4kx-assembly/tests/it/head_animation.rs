@@ -136,6 +136,37 @@ fn many_unused_animations_are_one_issue_with_a_count_and_a_few_names() -> TestRe
     );
     assert!(issue.kind().to_string().starts_with("2000 animations"));
     assert!(issue.kind().to_string().len() < 300);
+    assert_eq!(issue.name(), "animations");
+    Ok(())
+}
+
+#[test]
+fn a_clip_with_bone_and_face_tracks_over_the_budget_is_counted_once() -> TestResult {
+    let (armour, archive, _dir) = build()?;
+    let models = ArchiveModels::new(&archive);
+    let both = TestAnimation::new("both.caf", 30)
+        .track(
+            TestTrack::new(TestSkeleton::controller_id(2))
+                .rotations(&[(0, [0.0, 0.0, 0.0, 1.0]), (10, [0.0, 0.0, 0.0, 1.0])]),
+        )
+        .track(TestTrack::new(crc32fast::hash(b"CTL_a")).positions(&[
+            (0, [0.0, 0.0, 0.0]),
+            (10, [1.0, 0.0, 0.0]),
+            (20, [0.0, 0.0, 0.0]),
+        ]));
+    let list = [animation(&both)?];
+
+    let animations = armour.animate_within(&list, &models, 5);
+
+    assert!(animations.is_empty());
+    let [issue] = animations.issues() else {
+        return Err(format!("one issue: {:?}", animations.issues()).into());
+    };
+    assert!(
+        matches!(issue.kind(), IssueKind::AnimationNotUsed { count: 1, .. }),
+        "{issue:?}"
+    );
+    assert_eq!(issue.name(), "both");
     Ok(())
 }
 

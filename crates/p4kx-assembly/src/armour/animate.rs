@@ -117,7 +117,8 @@ fn limit(values: usize, remaining: usize) -> String {
     )
 }
 
-/// The Issue for an animation the facial part of which was refused, or that nothing of fits.
+/// The Issue for an animation the facial part of which was refused, or that nothing of fits;
+/// none when the bone part has been reported already.
 fn refused(
     animation: &Animation,
     refusal: Option<Refusal>,
@@ -125,11 +126,12 @@ fn refused(
     has_rig: bool,
 ) -> Option<Issue> {
     match refusal {
+        _ if reported => None,
         Some(Refusal::Limit(reason)) => Some(not_used(animation, reason)),
         Some(Refusal::Failed(reason)) if !used => {
             Some(issue(animation, IssueKind::FaceAnimationFailed { reason }))
         }
-        _ if used || reported => None,
+        _ if used => None,
         _ => {
             let reason = if has_rig {
                 "no track names a bone of the skeleton or a control of the face rig"

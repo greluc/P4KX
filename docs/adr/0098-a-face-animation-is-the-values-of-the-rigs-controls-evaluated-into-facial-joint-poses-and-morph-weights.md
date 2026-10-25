@@ -113,6 +113,9 @@ written and is listed as `animation_not_used`. `p4kx chf glb` and `p4kx armour g
 and `--anim-from`. Additive animations that nothing names are no longer listed one by one when a
 name picks the animations (a character's folders hold hundreds).
 
+Amendment (#584): animations left out for the same reason are one `animation_not_used` issue with
+their count and the names of the first three, not one issue each.
+
 ## Considered options
 
 - Morph weights only: millimetres of motion, the face would not move.

@@ -434,12 +434,12 @@ the body variant's folders on the body skeleton, those of the character's own fo
 `--anim-folder FOLDER` (repeatable) looks only below the named folders; `animations` lists each one written, as in
 `p4kx chf glb`, with `skipped_weights` (a number, only when not 0) for runs of morph weights that
 did not fit. Three Issue kinds belong to animations: `animation_not_used` (no track fits the
-Character, or the animation would exceed the budget of 33,554,432 values for all animations of
-one command, the reason then starting with `limit`; the animations are not written. Animations left out for the
-same reason are one Issue, whose message gives their count and the names of the first three, and
-it counts once in `skipped`), `face_animation_failed` (the rig of the face cannot be read, or gives a pose that is
-not finite, and the animation has no track for a bone) and `face_joints_failed` (see
-`p4kx chf glb`).
+Character, or the animations would exceed the budget of 33,554,432 values for all animations of
+one command, the reason then starting with `limit`; the animations are not written; animations
+left out for the same reason are one Issue, named `animations` when it sums up several, whose
+message gives their count and the names of the first three, and `skipped` counts it once),
+`face_animation_failed` (the rig of the face cannot be read, or gives a pose that is not finite,
+and the animation has no track for a bone) and `face_joints_failed` (see `p4kx chf glb`).
 
 `pieces` counts the pieces: the `--piece` options and, with `--loadout`, the armour and clothing of
 the Loadout that were not replaced, including those that could not be resolved. `loadout` is
@@ -1921,9 +1921,11 @@ controller IDs that fit neither a bone nor a control. An animation that fits not
 written and adds the Issue `animation_not_used`; so does an animation that would exceed the budget
 of 33,554,432 values (floats of key times, poses and weights) that all animations of one command
 share: it adds `animation_not_used` with a reason starting with `limit`, the clips before it in
-the order of the files are kept. Animations left out for the same reason are reported as one
-`animation_not_used` Issue with their count and the names of the first three, so a command with
-thousands of unused animations adds one line to the report (a facial clip of 4,500 samples costs about 7 million values).
+the order of the files are kept (a facial clip of 4,500 samples costs about 7 million values).
+A clip is reported at most once. Animations left out for the same reason are one
+`animation_not_used` Issue, named `animations` when it sums up several, whose message gives their
+count and the names of the first three, so a command with thousands of unused animations adds one
+line to the report. `skipped` counts only the Issues of the Armour, not those of the animations.
 Control values are held to 0 to 1. A facial animation whose rig cannot be read, or whose pose is
 not finite, adds `face_animation_failed` when it has no track for a bone; the rig is read once.
 Facial joints that cannot be placed by the DNA add `face_joints_failed`: the bones are then

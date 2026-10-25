@@ -15,6 +15,7 @@ mod entries;
 mod forge;
 mod image_preview;
 mod legal_notice;
+mod model_animations;
 mod models;
 mod mtl_summary;
 mod query;

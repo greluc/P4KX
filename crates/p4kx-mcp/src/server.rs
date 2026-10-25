@@ -23,7 +23,7 @@ use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, Sea
 use crate::shapes::{ArchiveInfo, ChannelShape, ChannelsResult, FolderResult, SearchResult};
 
 const WHOLE_TEXT_DECODERS: usize = 4;
-const IMAGE_DECODERS: usize = 2;
+const MODEL_READERS: usize = 2;
 
 const INSTRUCTIONS: &str = "Read-only access to the Data.p4k Archives of Star Citizen. \
 An Archive is named by a Channel name such as LIVE (see list_channels) or by the absolute path \
@@ -47,7 +47,7 @@ pub(crate) struct Server {
     state: Arc<State>,
     workers: Arc<Semaphore>,
     whole_text: Arc<Semaphore>,
-    image_reads: Arc<Semaphore>,
+    model_reads: Arc<Semaphore>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -77,7 +77,7 @@ impl Server {
                 std::thread::available_parallelism().map_or(1, NonZeroUsize::get),
             )),
             whole_text: Arc::new(Semaphore::new(WHOLE_TEXT_DECODERS)),
-            image_reads: Arc::new(Semaphore::new(IMAGE_DECODERS)),
+            model_reads: Arc::new(Semaphore::new(MODEL_READERS)),
             tool_router: Self::tool_router()
                 + Self::content_router()
                 + Self::model_router()
@@ -94,10 +94,10 @@ impl Server {
         Arc::clone(&self.whole_text)
     }
 
-    /// Waits for one of the two permits to decode a texture, which holds tens of megabytes of
-    /// pixels; the permit is held until the returned value is dropped.
-    pub(crate) async fn image_permit(&self) -> Result<OwnedSemaphorePermit, String> {
-        Arc::clone(&self.image_reads)
+    /// Waits for one of the two permits to read a chunk file, a model or a texture, each of which
+    /// may take more than 1 GiB; the permit is held until the returned value is dropped.
+    pub(crate) async fn model_permit(&self) -> Result<OwnedSemaphorePermit, String> {
+        Arc::clone(&self.model_reads)
             .acquire_owned()
             .await
             .map_err(|_| ToolError::Stopped.message())

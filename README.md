@@ -227,7 +227,8 @@ Early development (milestone M1). Available today:
   they post by name (a substring or a glob such as `Play_*_Spool`, ignoring case) and lists each
   trigger with its events, their soundbanks and the Entities that name it, in definition order;
   `--limit` and `--offset` page through large results, `--entities` bounds the Entities listed
-  per trigger, `--no-entities` skips the DataForge, and `--json` gives the shape in
+  per trigger, `--no-entities` skips the DataForge (when it cannot be read otherwise, the command
+  warns and exits with 1), and `--json` gives the shape in
   [docs/cli-json.md](docs/cli-json.md).
 - `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
   Wwise events of its ATL definition and the soundbanks holding them, e.g.

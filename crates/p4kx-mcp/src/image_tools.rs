@@ -32,7 +32,7 @@ impl Server {
         &self,
         Parameters(params): Parameters<ImageParams>,
     ) -> Result<Pictured<ImageResult>, String> {
-        let permit = self.image_permit().await?;
+        let permit = self.model_permit().await?;
         let Noted {
             value: (value, png),
             notice,

@@ -4,7 +4,7 @@
 use std::ops::Range;
 
 use crate::bank_parse::{self, MediaRange, SectionRange};
-use crate::{AudioError, BankError, BankWarning, HircObject, SectionId, Wem};
+use crate::{AudioError, BankError, BankWarning, HircObject, MediaClass, SectionId, Wem};
 
 /// The fields of the `BKHD` section this reader decodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -52,6 +52,12 @@ impl<'a> EmbeddedWem<'a> {
     #[must_use]
     pub const fn bytes(&self) -> &'a [u8] {
         self.bytes
+    }
+
+    /// Returns what the media holds: a WEM, MIDI, plug-in data or something unknown.
+    #[must_use]
+    pub fn class(&self) -> MediaClass {
+        MediaClass::of(self.bytes)
     }
 
     /// Returns the length the RIFF or RIFX header declares for the whole WEM, if there is one.

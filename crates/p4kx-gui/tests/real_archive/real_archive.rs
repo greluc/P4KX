@@ -32,7 +32,10 @@ const COLUMNS: [SortColumn; 4] = [
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn sorting_every_entry_of_a_real_archive_takes_milliseconds() -> TestResult {
-    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?);
 
     for column in COLUMNS {
         for direction in [SortDirection::Ascending, SortDirection::Descending] {
@@ -55,12 +58,18 @@ fn sorting_every_entry_of_a_real_archive_takes_milliseconds() -> TestResult {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn split_textures_of_a_real_archive_are_grouped_once_and_stay_consistent() -> TestResult {
     let started = Instant::now();
-    let groups = p4kx_extraction::TextureGroups::build(&Archive::open(real_archive_path()?)?);
+    let groups = p4kx_extraction::TextureGroups::build(&Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?);
     let took = started.elapsed();
     assert!(!groups.is_empty(), "a real Archive holds split textures");
     assert!(took < Duration::from_secs(5), "grouping took {took:?}");
 
-    let index = EntryIndex::build(Archive::open(real_archive_path()?)?);
+    let index = EntryIndex::build(Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?);
     assert!(index.folded_len() > 0, "parts are folded");
     let mut browser = Browser::new(index);
     let header = (0..u32::try_from(browser.index().len())?)
@@ -119,9 +128,12 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn searching_a_real_archive_finds_what_p4kx_search_finds() -> TestResult {
     let path = real_archive_path()?;
-    let archive = Archive::open(&path)?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
     let groups = p4kx_extraction::TextureGroups::build(&archive);
-    let mut browser = Browser::new(EntryIndex::build(Archive::open(&path)?));
+    let mut browser = Browser::new(EntryIndex::build(Archive::open_with_key(
+        &path,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?));
 
     for text in [
         "*.xml",

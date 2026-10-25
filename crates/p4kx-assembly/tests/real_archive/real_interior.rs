@@ -19,7 +19,10 @@ const MAX_BOUNDS: [f32; 3] = [4.17, 15.85, 3.9];
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_mantis_body_places_its_models_inside_the_bounds_the_container_declares() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let found = select_entries(&archive, &[MANTIS_BODY])?;
     let entry = found.first().ok_or("no Mantis body container")?;
     let root = archive.open_container(entry)?;
@@ -56,7 +59,10 @@ fn the_mantis_body_places_its_models_inside_the_bounds_the_container_declares() 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_mantis_body_has_props_and_lights_inside_the_bounds_and_writes_a_clean_glb() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let found = select_entries(&archive, &[MANTIS_BODY])?;
     let entry = found.first().ok_or("no Mantis body container")?;
     let root = archive.open_container(entry)?;

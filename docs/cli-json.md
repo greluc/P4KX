@@ -897,19 +897,19 @@ makes the crafting data incomplete or ambiguous although every Record was read, 
 with a `kind`: `reward_sources_truncated` (the reference index is truncated),
 `unreadable_reference_records` with a `count` (Records the index could not read) and
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
-`unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats) and
+`unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats; the JSON lists every file, stderr the first eight) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
 limits that left starmap objects without a position), `unreadable_shop_registry` (the shop registry exists but
 cannot be read, so `shops` is empty), `missing_shop_registry` (starmap objects but no registry at the known path)
 `unreadable_shop_containers` with a `count` (shop containers that cannot be read) and
-`unreadable_shop_inventories` with a `count` (inventory files that cannot be read) and `details` (the path and the reason of each file, ordered, without repeats),
+`unreadable_shop_inventories` with a `count` (inventory files that cannot be read) and `details` (as above: every file in the JSON),
 `missing_shop_inventories` with a `count` (distinct inventory files that containers name and the Archive lacks) and
 `no_shop_components` (shop containers name shops but no `.soc` holds a shop component); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
 Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description
 (`missing`). `paints` counts the paints (`paints`), those that fit at least one ship (`assigned`) and those that fit
 none (`unassigned`), the ships with at least one paint (`ships`) and the ships whose vehicle
-implementation is not read in full (`unreadable_vehicles`). `loadouts` counts the loadouts of
+implementation is present but cannot be read in full (`unreadable_vehicles`; a file the Archive lacks is not counted). `loadouts` counts the loadouts of
 ships (`ships`) and of items that have ports (`items`), the ports of all loadouts with the nested
 ones (`ports`), the ports that hold an Entity (`attached`), the ports that hold a docked vehicle
 (`docked_vehicles`), the attachments that cannot be resolved (`unresolved`), the distinct attached

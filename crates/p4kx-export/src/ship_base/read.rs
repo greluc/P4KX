@@ -141,12 +141,13 @@ impl<'f> ShipReader<'f> {
             loadout: loadout(&entries),
             issues,
         };
-        let named = text(
+        let definition = text(
             component(tree, "VehicleComponentParams"),
             "vehicleDefinition",
         )
-        .is_some_and(|definition| !definition.trim().is_empty());
-        let paint_ports = VehiclePorts::of(vehicle, named, &base.issues);
+        .map(str::trim)
+        .filter(|definition| !definition.is_empty());
+        let paint_ports = VehiclePorts::of(vehicle, definition, node.issues());
         Ok(ShipRead {
             base,
             implementation: digest,

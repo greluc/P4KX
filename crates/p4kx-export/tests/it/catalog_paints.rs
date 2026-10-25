@@ -15,7 +15,7 @@ use p4kx_export::{
 use p4kx_extraction::Archive;
 use paints_fixture::{
     PAINT_ALPHA_RED, PAINT_ALPHA_VARIANT, PAINT_BETA, PAINT_GAMMA, PAINT_ORPHAN, PAINT_UPPER,
-    SHIP_ALPHA, SHIP_BETA, SHIP_GAMMA, write_archive,
+    SHIP_ALPHA, SHIP_BETA, SHIP_GAMMA, SHIP_MISSING, write_archive,
 };
 use serde_json::Value;
 
@@ -137,6 +137,21 @@ fn the_summary_counts_the_paints_with_and_without_a_ship() -> TestResult {
     assert!(
         detail.to_ascii_lowercase().contains("acas_broken.xml"),
         "the warning names the file: {details:?}"
+    );
+    let missing = guid(SHIP_MISSING);
+    let loadout = catalog["loadouts"]
+        .as_array()
+        .ok_or("loadouts")?
+        .iter()
+        .find(|entry| entry["entityGuid"] == missing.as_str())
+        .ok_or("the loadout of the ship without a vehicle file")?;
+    assert!(
+        loadout["issues"]
+            .as_array()
+            .ok_or("issues")?
+            .iter()
+            .any(|issue| issue == "vehicle_implementation"),
+        "a missing implementation stays reported as a loadout issue: {loadout}"
     );
     let kind = built.summary().kind(Kind::Paints).ok_or("the kind")?;
     assert_eq!((kind.count, kind.complete), (6, true), "the kind summary");

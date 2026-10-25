@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{LoadoutFileError, VehicleImplementation};
+use p4kx_assembly::{LoadoutError, LoadoutFileError, VehicleImplementation};
 
 use crate::guid_text::CatalogGuid;
 use crate::variants::ShipKey;
@@ -52,35 +52,43 @@ pub(crate) struct VehiclePorts {
     pub(crate) unreadable: Option<String>,
 }
 
-const IMPLEMENTATION_ISSUE: &str = "the vehicle implementation ";
+/// Returns whether `issue` only says that the Archive lacks a vehicle implementation file or a
+/// patch file.
+fn is_missing_file(issue: &LoadoutError) -> bool {
+    matches!(issue, LoadoutError::VehicleImplementation { reason, .. }
+        if *reason == LoadoutFileError::NotFound.to_string())
+}
+
+/// Returns the first of `issues` that is more than a file the Archive lacks.
+fn first_unread(issues: &[LoadoutError]) -> Option<&LoadoutError> {
+    issues.iter().find(|issue| !is_missing_file(issue))
+}
 
 impl VehiclePorts {
     /// Returns the paint ports of `vehicle`, the implementation read for a ship with the
     /// Modification applied: its item ports that take `Paints`, with the required tags the patch
     /// leaves them. `vehicle` is `None` when the ship names no implementation or it could not be
-    /// read; `named` tells which of the two it is, and `read_issues` are the issues of reading it,
-    /// which tell a file the Archive lacks from one that cannot be read.
+    /// read; `definition` is the file the ship names, if any, and `read_issues` are the issues of
+    /// reading it, which tell a file the Archive lacks from one that cannot be read.
     pub(crate) fn of(
         vehicle: Option<&VehicleImplementation>,
-        named: bool,
-        read_issues: &[String],
+        definition: Option<&str>,
+        read_issues: &[LoadoutError],
     ) -> Self {
-        let missing = LoadoutFileError::NotFound.to_string();
         let Some(implementation) = vehicle else {
-            let mut causes = read_issues
-                .iter()
-                .filter(|issue| issue.starts_with(IMPLEMENTATION_ISSUE))
-                .peekable();
-            let lacks_file =
-                causes.peek().is_some() && causes.all(|issue| issue.ends_with(&missing));
+            let own = || {
+                read_issues
+                    .iter()
+                    .filter(|issue| matches!(issue, LoadoutError::VehicleImplementation { .. }))
+            };
+            let lacks_file = own().next().is_some() && own().all(is_missing_file);
             return Self {
                 ports: Vec::new(),
-                unreadable: (named && !lacks_file).then(|| {
-                    read_issues
-                        .iter()
-                        .find(|issue| issue.starts_with(IMPLEMENTATION_ISSUE))
-                        .cloned()
-                        .unwrap_or_else(|| "the vehicle implementation cannot be read".to_owned())
+                unreadable: definition.filter(|_| !lacks_file).map(|path| {
+                    own().next().map_or_else(
+                        || format!("the vehicle implementation {path}: it cannot be read"),
+                        ToString::to_string,
+                    )
                 }),
             };
         };
@@ -95,11 +103,7 @@ impl VehiclePorts {
                 })
                 .map(|port| PaintPort::new(Some(port.port_tags()), Some(port.required_tags())))
                 .collect(),
-            unreadable: implementation
-                .issues()
-                .iter()
-                .map(ToString::to_string)
-                .find(|issue| !issue.ends_with(&missing)),
+            unreadable: first_unread(implementation.issues()).map(ToString::to_string),
         }
     }
 }

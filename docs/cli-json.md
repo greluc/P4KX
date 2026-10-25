@@ -1975,8 +1975,10 @@ character's body and head. A track that names a bone of the skeleton moves it by
 track that names a control of the head rig is evaluated through the rig logic into the poses of
 the facial joints and the weights of the head's morph targets, sampled at the frames where a
 control has a key. `animations` lists each animation written with `channels`, `keys` (samples
-times channels for a facial animation), `duration_seconds` and, in `skipped_tracks`, the
-controller IDs that fit neither a bone nor a control. An animation that fits nothing is not
+times channels for a facial animation), `duration_seconds` and, in `skipped_tracks`, controller
+IDs of two kinds, both the CRC-32 of a name and not told apart: those of the animation's tracks
+that fit neither a bone nor a control, and those of the joints of the face rig that move in the
+animation but have no node in the skeleton. An animation that fits nothing is not
 written and adds the Issue `animation_not_used`; so does an animation that would exceed the budget
 of 33,554,432 values (floats of key times, poses and weights) that all animations of one command
 share: it adds `animation_not_used` with a reason starting with `limit`, the clips before it in

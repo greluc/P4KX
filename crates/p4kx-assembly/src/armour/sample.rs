@@ -47,10 +47,11 @@ fn is_finite(pose: &FacePose) -> bool {
         .all(|value| value.is_finite())
 }
 
-/// How far a sample may sit from the line between its neighbours before it is kept: 0.1 mm of a
-/// joint translation or 0.0001 of a rotation component (about 0.01 degrees), 0.001 of a weight.
-const JOINT_TOLERANCE: f32 = 1e-4;
-const WEIGHT_TOLERANCE: f32 = 1e-3;
+/// How far a sample may sit from the line between its neighbours before it is kept: 0.5 mm of a
+/// joint translation, 0.001 of a rotation component (about 0.11 degrees), 0.01 of a weight.
+const TRANSLATION_TOLERANCE: f32 = 5e-4;
+const ROTATION_TOLERANCE: f32 = 1e-3;
+const WEIGHT_TOLERANCE: f32 = 1e-2;
 
 /// The most samples one line of the reduction spans, and the most samples reduced at once.
 const STRETCH: usize = 128;
@@ -60,12 +61,17 @@ const CHUNK: usize = 1024;
 type Features = Vec<(f32, f32)>;
 
 fn features(pose: &FacePose, link: &FaceLink) -> Features {
-    let joints = pose
+    let translations = pose
         .translations
         .iter()
         .flatten()
-        .chain(pose.rotations.iter().flatten())
-        .map(|&value| (value, JOINT_TOLERANCE));
+        .map(|&value| (value, TRANSLATION_TOLERANCE));
+    let rotations = pose
+        .rotations
+        .iter()
+        .flatten()
+        .map(|&value| (value, ROTATION_TOLERANCE));
+    let joints = translations.chain(rotations);
     let weights = link.blendshapes.iter().map(|&at| {
         (
             pose.blendshapes.get(at).copied().unwrap_or_default(),

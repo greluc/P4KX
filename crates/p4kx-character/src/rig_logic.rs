@@ -19,6 +19,7 @@ const JOINTS_AT: usize = 0x44;
 const STARTS_AT: usize = 0x68;
 const STARTS: usize = 8;
 const NAMES_SLOT: usize = 0;
+const HASHES_SLOT: usize = 1;
 const CORRECTIVES_SLOT: usize = 2;
 const JOINTS_SLOT: usize = 5;
 const ROW_LEN: usize = 5;
@@ -113,12 +114,7 @@ impl RigLogic {
             chunk,
             usize::from(u16_at(chunk, JOINTS_AT).unwrap_or_default()),
         )?;
-        let mut hashes: Vec<(u32, usize)> = names
-            .iter()
-            .enumerate()
-            .map(|(control, name)| (crc32fast::hash(name.as_bytes()), control))
-            .collect();
-        hashes.sort_unstable();
+        let hashes = control_hashes(section(chunk, HASHES_SLOT)?, &names)?;
         Ok(Self {
             names,
             hashes,
@@ -261,6 +257,30 @@ fn joint_hashes(chunk: &[u8], count: usize) -> Result<Vec<u32>, RigLogicError> {
         .iter()
         .map(|&hash| u32::from_le_bytes(hash))
         .collect())
+}
+
+/// Returns the hash table of the controls sorted for lookup: the CRC-32 the chunk stores for each
+/// control, which must be that of the control's name.
+fn control_hashes(table: &[u8], names: &[String]) -> Result<Vec<(u32, usize)>, RigLogicError> {
+    let stored = table
+        .get(..names.len() * 4)
+        .ok_or(RigLogicError::Malformed(
+            "the hash table is shorter than its controls",
+        ))?
+        .as_chunks::<4>()
+        .0;
+    let mut hashes = Vec::with_capacity(names.len());
+    for (control, (&bytes, name)) in stored.iter().zip(names).enumerate() {
+        let hash = u32::from_le_bytes(bytes);
+        if hash != crc32fast::hash(name.as_bytes()) {
+            return Err(RigLogicError::Malformed(
+                "a stored control hash is not the CRC-32 of the control's name",
+            ));
+        }
+        hashes.push((hash, control));
+    }
+    hashes.sort_unstable();
+    Ok(hashes)
 }
 
 fn names_of(pool: &[u8]) -> Result<Vec<String>, RigLogicError> {

@@ -35,15 +35,21 @@ fn stage(model: &Model) -> Option<ViewStage> {
 }
 
 /// Holds the Interior step of the next build and asks for the Interior again, then steps the
-/// window until a frame drew the stage that reads it.
-fn hold_the_interior_stage(window: &mut Window) -> Result<Hold, Box<dyn std::error::Error>> {
+/// window until a frame drew the stage that reads it, with `stage_text` in the frame.
+fn hold_the_interior_stage(
+    window: &mut Window,
+    stage_text: &str,
+) -> Result<Hold, Box<dyn std::error::Error>> {
     let hold = view_mut(window)?.hold_interior();
     let next = u32::from(view_mut(window)?.lod() == 0);
     view_mut(window)?.set_lod(next);
     wait_for(
         &mut window.harness,
         "the Interior stage of the build",
-        |harness| stage(harness.state()) == Some(ViewStage::Interior),
+        |harness| {
+            stage(harness.state()) == Some(ViewStage::Interior)
+                && harness.query_by_label_contains(stage_text).is_some()
+        },
     )?;
     window.harness.run_steps(2);
     Ok(hold)
@@ -72,7 +78,7 @@ fn the_building_state_shows_its_stage_and_stop_in_the_whole_width() -> TestResul
         let before = serial(window.harness.state());
         built(&mut window, before)?;
 
-        let hold = hold_the_interior_stage(&mut window)?;
+        let hold = hold_the_interior_stage(&mut window, stage_text)?;
         let text = window.harness.get_by_label_contains(stage_text).rect();
         let button = window
             .harness

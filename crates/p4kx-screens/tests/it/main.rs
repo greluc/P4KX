@@ -16,6 +16,7 @@ mod layout_reference;
 mod limits;
 mod listing;
 mod policies;
+mod radar;
 mod render;
 mod support;
 mod text;

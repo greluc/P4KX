@@ -3,10 +3,10 @@
 
 //! Helpers of the Extraction tests: a small synthetic Archive opened in a headless window.
 
+use crate::waiting::{wait_polling, wait_polling_described};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{ExtractionScope, ExtractionStatus, ExtractionSummary, Language, Model, TargetKind};
 use p4kx_testkit::{ArchiveBuilder, TestEntry, write_build_manifest};
@@ -32,14 +32,15 @@ fn opened(archive: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     model.set_archive_key(Some(p4kx_testkit::test_key()));
     model.open(archive.to_path_buf(), || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", model.failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling_described(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+        |model| format!("failure {:?}", model.failure()),
+    )?;
     Ok(model)
 }
 
@@ -54,17 +55,18 @@ pub(crate) fn setup() -> Result<(TempDir, Model, PathBuf), Box<dyn Error>> {
 
 /// Waits until the Extraction ended and returns its summary.
 pub(crate) fn finished(model: &mut Model) -> Result<&ExtractionSummary, Box<dyn Error>> {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model
-        .extraction()
-        .is_some_and(|extraction| matches!(extraction.status(), ExtractionStatus::Running(_)))
-    {
-        if Instant::now() > deadline {
-            return Err("the Extraction did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll_extraction();
-    }
+    wait_polling(
+        model,
+        "the Extraction to end",
+        |model| {
+            model.poll_extraction();
+        },
+        |model| {
+            !model.extraction().is_some_and(|extraction| {
+                matches!(extraction.status(), ExtractionStatus::Running(_))
+            })
+        },
+    )?;
     match model.extraction().map(p4kx_gui::Extraction::status) {
         Some(ExtractionStatus::Finished(summary)) => Ok(summary),
         other => Err(format!("no summary: {other:?}").into()),

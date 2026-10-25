@@ -3,9 +3,10 @@
 
 //! The window state, driven without drawing: opening, navigating, sorting and checking.
 
+use crate::waiting::wait_polling;
+use std::cell::Cell;
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{Browser, Language, Model, SortColumn, SortDirection};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
@@ -28,13 +29,13 @@ fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
 fn opened(path: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path.to_path_buf(), || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !model.poll() {
-        if Instant::now() > deadline {
-            return Err("the Archive did not open in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-    }
+    let polled = Cell::new(false);
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| polled.set(model.poll()),
+        |_| polled.get(),
+    )?;
     Ok(model)
 }
 

@@ -3,10 +3,11 @@
 
 //! Searching the whole Archive with a Filter, driven without drawing.
 
+use crate::waiting::wait_polling;
+use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use p4kx_extraction::{Archive, Filter};
 use p4kx_gui::{Browser, Language, Model, SortColumn};
@@ -41,27 +42,26 @@ fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
 fn opened(path: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path.to_path_buf(), || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !model.poll() {
-        if Instant::now() > deadline {
-            return Err("the Archive did not open in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-    }
+    let polled = Cell::new(false);
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| polled.set(model.poll()),
+        |_| polled.get(),
+    )?;
     Ok(model)
 }
 
 fn searched(browser: &mut Browser, text: &str) -> TestResult {
     browser.search(text, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while browser.is_searching() {
-        if Instant::now() > deadline {
-            return Err(format!("searching {text:?} did not finish").into());
-        }
-        std::thread::sleep(Duration::from_millis(2));
-        browser.poll();
-    }
-    Ok(())
+    wait_polling(
+        browser,
+        &format!("the search for {text:?} to finish"),
+        |browser| {
+            browser.poll();
+        },
+        |browser| !browser.is_searching(),
+    )
 }
 
 fn shown_paths(browser: &Browser) -> Vec<&str> {

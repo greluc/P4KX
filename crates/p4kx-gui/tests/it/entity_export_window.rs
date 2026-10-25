@@ -5,9 +5,9 @@
 //! tab.
 
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use crate::entity_picking;
+use crate::waiting::wait_for;
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -26,18 +26,12 @@ fn start(harness: &mut Harness<'_, Model>, file: &Path) -> Result<bool, &'static
 }
 
 fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while harness
-        .state()
-        .assembly_export()
-        .is_some_and(AssemblyExport::is_running)
-    {
-        if Instant::now() > deadline {
-            return Err("the export did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the export to end", |harness| {
+        !harness
+            .state()
+            .assembly_export()
+            .is_some_and(AssemblyExport::is_running)
+    })?;
     harness.run_steps(3);
     Ok(())
 }
@@ -201,18 +195,12 @@ fn the_export_reads_the_archive_even_while_a_container_is_open_in_browse() -> Te
         harness.get_by_role_and_label(Role::Button, folder).click();
         harness.run_steps(3);
     }
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !harness
-        .state()
-        .browser()
-        .is_some_and(|browser| matches!(browser.place(), Place::Container(_)))
-    {
-        if Instant::now() > deadline {
-            return Err("the container did not open".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(&mut harness, "the container to open", |harness| {
+        harness
+            .state()
+            .browser()
+            .is_some_and(|browser| matches!(browser.place(), Place::Container(_)))
+    })?;
     harness.state_mut().set_work_tab(WorkTab::Entities);
     harness.run_steps(2);
 

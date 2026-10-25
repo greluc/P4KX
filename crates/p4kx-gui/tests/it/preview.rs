@@ -3,10 +3,9 @@
 
 //! The Text and Hex preview of the selected Entry, driven headless.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for_model};
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 use egui::OutputCommand;
 use egui_kittest::Harness;
@@ -74,15 +73,7 @@ fn opened(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<
 }
 
 fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.run_quiet();
     Ok(())
 }

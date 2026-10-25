@@ -5,9 +5,9 @@
 //! showing a Record, following References, back and forward, and a dangling Reference.
 
 use crate::previewing_records;
+use crate::waiting::wait_for_model;
 
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use egui::accesskit::Role;
 use egui::{Event, Key, Modifiers, PointerButton, pos2};
@@ -34,15 +34,7 @@ fn window(language: Language) -> Result<(TempDir, Harness<'static, Model>), Box<
 }
 
 fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.run_steps(2);
     Ok(())
 }

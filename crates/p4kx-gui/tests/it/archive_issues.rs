@@ -3,8 +3,8 @@
 
 //! An open Archive whose Entries have defects: the window shows a warning notice with their number.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -19,14 +19,14 @@ fn open(builder: &ArchiveBuilder) -> Result<(tempfile::TempDir, Model), Box<dyn 
     builder.write_to(&path)?;
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err("timed out opening the Archive".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+    )?;
     Ok((dir, model))
 }
 

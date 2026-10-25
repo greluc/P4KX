@@ -22,30 +22,38 @@ const MODIFIERS: &str = "CraftingCostContext_ResultGameplayPropertyModifiers";
 const LINEAR: &str = "CraftingGameplayPropertyModifierValueRange_Linear";
 const LINEAR_ADDITIVE: &str = "CraftingGameplayPropertyModifierValueRange_LinearIntegerAdditive";
 
-/// Returns the tiers of the `CraftingBlueprint` `blueprint` in stored order.
-pub(crate) fn tiers<'f>(blueprint: Option<&StructValue<'f>>) -> Vec<Tier<'f>> {
+/// Returns the tiers of the `CraftingBlueprint` `blueprint` in stored order. The struct type of
+/// every modifier range the reader does not know is pushed to `unknown`.
+pub(crate) fn tiers<'f>(
+    blueprint: Option<&StructValue<'f>>,
+    unknown: &mut Vec<&'f str>,
+) -> Vec<Tier<'f>> {
     elements(blueprint, "tiers")
         .iter()
         .filter_map(as_struct)
-        .map(tier)
+        .map(|item| tier(item, unknown))
         .collect()
 }
 
-fn tier<'f>(tier: &StructValue<'f>) -> Tier<'f> {
+fn tier<'f>(tier: &StructValue<'f>, unknown: &mut Vec<&'f str>) -> Tier<'f> {
     let costs = structure(structure(Some(tier), "recipe"), "costs");
     Tier {
         craft_time_seconds: craft_time(structure(costs, "craftTime")),
-        mandatory: structure(costs, "mandatoryCost").and_then(|cost| cost_of(cost, 0)),
+        mandatory: structure(costs, "mandatoryCost").and_then(|cost| cost_of(cost, 0, unknown)),
         optional: elements(costs, "optionalCosts")
             .iter()
             .filter_map(as_struct)
-            .filter_map(|cost| cost_of(cost, 0))
+            .filter_map(|cost| cost_of(cost, 0, unknown))
             .collect(),
     }
 }
 
-fn cost_of<'f>(cost: &StructValue<'f>, depth: usize) -> Option<Cost<'f>> {
-    let context = context(cost);
+fn cost_of<'f>(
+    cost: &StructValue<'f>,
+    depth: usize,
+    unknown: &mut Vec<&'f str>,
+) -> Option<Cost<'f>> {
+    let context = context(cost, unknown);
     match cost.type_name() {
         SELECT if depth < MAX_DEPTH => {
             let info = structure(Some(cost), "nameInfo");
@@ -57,7 +65,7 @@ fn cost_of<'f>(cost: &StructValue<'f>, depth: usize) -> Option<Cost<'f>> {
                 options: elements(Some(cost), "options")
                     .iter()
                     .filter_map(as_struct)
-                    .filter_map(|option| cost_of(option, depth.saturating_add(1)))
+                    .filter_map(|option| cost_of(option, depth.saturating_add(1), unknown))
                     .collect(),
             }))
         }
@@ -77,20 +85,20 @@ fn cost_of<'f>(cost: &StructValue<'f>, depth: usize) -> Option<Cost<'f>> {
     }
 }
 
-fn context<'f>(cost: &StructValue<'f>) -> CostContext<'f> {
+fn context<'f>(cost: &StructValue<'f>, unknown: &mut Vec<&'f str>) -> CostContext<'f> {
     let mut context = CostContext::default();
     for part in elements(Some(cost), "context").iter().filter_map(as_struct) {
         match part.type_name() {
             MULTIPLIER => context.quantity_multiplier = number(Some(part), "multiplier"),
             INCLUSION => context.composition_inclusion = text(Some(part), "option"),
-            MODIFIERS => context.modifiers.extend(modifiers(part)),
+            MODIFIERS => context.modifiers.extend(modifiers(part, unknown)),
             _ => {}
         }
     }
     context
 }
 
-fn modifiers(part: &StructValue<'_>) -> Vec<PropertyModifier> {
+fn modifiers<'f>(part: &StructValue<'f>, unknown: &mut Vec<&'f str>) -> Vec<PropertyModifier> {
     let list = structure(Some(part), "gameplayPropertyModifiers");
     elements(list, "gameplayPropertyModifiers")
         .iter()
@@ -100,13 +108,13 @@ fn modifiers(part: &StructValue<'_>) -> Vec<PropertyModifier> {
             ranges: elements(Some(modifier), "valueRanges")
                 .iter()
                 .filter_map(as_struct)
-                .filter_map(range)
+                .filter_map(|item| range(item, unknown))
                 .collect(),
         })
         .collect()
 }
 
-fn range(range: &StructValue<'_>) -> Option<ValueRange> {
+fn range<'f>(range: &StructValue<'f>, unknown: &mut Vec<&'f str>) -> Option<ValueRange> {
     let (kind, start, end) = match range.type_name() {
         LINEAR => (ModifierKind::Multiplier, "modifierAtStart", "modifierAtEnd"),
         LINEAR_ADDITIVE => (
@@ -114,7 +122,10 @@ fn range(range: &StructValue<'_>) -> Option<ValueRange> {
             "additiveModifierAtStart",
             "additiveModifierAtEnd",
         ),
-        _ => return None,
+        other => {
+            unknown.push(other);
+            return None;
+        }
     };
     Some(ValueRange {
         kind,

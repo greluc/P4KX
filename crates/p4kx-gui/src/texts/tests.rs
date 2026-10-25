@@ -168,6 +168,10 @@ fn both_files_define_exactly_the_texts_of_the_interface() {
 fn every_warning_kind_has_a_sentence_in_both_languages() {
     let warnings = [
         CraftingWarning::UnreadableRewardRecords(1),
+        CraftingWarning::UnknownModifierRanges {
+            count: 1,
+            details: Vec::new(),
+        },
         CraftingWarning::AmbiguousDismantle(2),
         CraftingWarning::UnreadableVehicleFiles {
             count: 1,

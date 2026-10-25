@@ -121,6 +121,7 @@ impl From<StarmapSummary> for StarmapJson {
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum WarningJson {
     UnreadableRewardRecords { count: usize },
+    UnknownModifierRanges { count: usize, details: Vec<String> },
     AmbiguousDismantle { count: usize },
     UnreadableVehicleFiles { count: usize, details: Vec<String> },
     UnplacedStarmapContainers { count: usize },
@@ -138,6 +139,12 @@ impl From<&CraftingWarning> for WarningJson {
         match warning {
             CraftingWarning::UnreadableRewardRecords(count) => {
                 Self::UnreadableRewardRecords { count: *count }
+            }
+            CraftingWarning::UnknownModifierRanges { count, details } => {
+                Self::UnknownModifierRanges {
+                    count: *count,
+                    details: details.clone(),
+                }
             }
             CraftingWarning::AmbiguousDismantle(count) => {
                 Self::AmbiguousDismantle { count: *count }
@@ -338,6 +345,10 @@ mod tests {
     fn the_kind_of_every_warning_in_the_json_is_the_kind_the_library_names() {
         let warnings = [
             CraftingWarning::UnreadableRewardRecords(1),
+            CraftingWarning::UnknownModifierRanges {
+                count: 1,
+                details: vec!["c".to_owned()],
+            },
             CraftingWarning::AmbiguousDismantle(2),
             CraftingWarning::UnreadableVehicleFiles {
                 count: 1,

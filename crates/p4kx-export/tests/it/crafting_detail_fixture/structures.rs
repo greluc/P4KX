@@ -120,6 +120,8 @@ fn cost_structs() -> Vec<TestStruct> {
         range("CraftingGameplayPropertyModifierValueRange_LinearIntegerAdditive")
             .field("additiveModifierAtStart", TestType::Int32)
             .field("additiveModifierAtEnd", TestType::Int32),
+        range("CraftingGameplayPropertyModifierValueRange_Curve"),
+        range("CraftingGameplayPropertyModifierValueRange_Stepped"),
     ]
 }
 

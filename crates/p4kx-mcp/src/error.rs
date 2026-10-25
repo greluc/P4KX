@@ -120,6 +120,9 @@ pub(crate) enum ToolError {
     /// The worker running the call ended without a result.
     #[error("the tool call stopped unexpectedly")]
     Stopped,
+    /// An error several calls received together, such as a container they waited for.
+    #[error(transparent)]
+    Shared(std::sync::Arc<Self>),
     /// The DataForge of the Archive cannot be read; the message holds every cause.
     #[error("cannot read the DataForge: {0}")]
     NoDataForge(String),

@@ -6,8 +6,11 @@ use std::path::Path;
 
 use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry};
 
-use super::{Budget, Containers, ModelGate, SEPARATOR};
+use super::{Budget, Containers, ENTRY_COST, SEPARATOR};
 use crate::archives::Archives;
+use crate::container::Place;
+use crate::error::ToolError;
+use crate::gate::Gate;
 
 const OUTER: &str = "Data\\outer.socpak";
 const BROKEN: &str = "Data\\broken.socpak";
@@ -27,8 +30,48 @@ fn install(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
 fn containers(budget: Budget) -> Containers {
     Containers {
         budget,
-        ..Containers::new(ModelGate::default())
+        ..Containers::new(Gate::container())
     }
+}
+
+fn wait_for_waiters(containers: &Containers, count: usize) -> Result<(), ToolError> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    loop {
+        let waiting = containers.state.lock().is_ok_and(|state| {
+            state.pending.iter().any(|(_, pending)| {
+                pending.waiters.load(std::sync::atomic::Ordering::SeqCst) >= count
+            })
+        });
+        if waiting {
+            return Ok(());
+        }
+        if std::time::Instant::now() > deadline {
+            return Err(ToolError::Refused("no caller waited".to_owned()));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+}
+
+fn weight_of(place: &Place<'_>) -> Result<u64, Box<dyn Error>> {
+    match place {
+        Place::Inner(inner) => Ok(inner.weight),
+        Place::Main(_) => Err("not a container".into()),
+    }
+}
+
+fn nested(dir: &Path, outer_stored: bool) -> Result<std::path::PathBuf, Box<dyn Error>> {
+    let room = TestContainer::new().entry(TestEntry::stored("room\\x.xml", "<x/>"));
+    let outer = TestContainer::new()
+        .entry(TestEntry::stored("outer\\a.xml", "<a/>"))
+        .container("outer\\room.socpak", &room);
+    let path = dir.join("Nested.p4k");
+    let entry = if outer_stored {
+        TestEntry::stored(OUTER, outer.build())
+    } else {
+        TestEntry::zstd(OUTER, outer.build())
+    };
+    ArchiveBuilder::new().entry(entry).write_to(&path)?;
+    Ok(path)
 }
 
 #[test]
@@ -123,14 +166,20 @@ fn calls_at_the_same_time_share_one_container() -> Result<(), Box<dyn Error>> {
         .find(OUTER)
         .ok_or("outer container missing")?;
     let shared = containers(Budget::default());
-    let barrier = std::sync::Barrier::new(4);
+    let decodes = std::sync::atomic::AtomicUsize::new(0);
 
     let all: Vec<_> = std::thread::scope(|scope| {
         let threads: Vec<_> = (0..4)
             .map(|_| {
                 scope.spawn(|| {
-                    barrier.wait();
-                    shared.open(opened.archive(), entry, OUTER)
+                    shared.open_with(OUTER, || {
+                        decodes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        wait_for_waiters(&shared, 3)?;
+                        opened
+                            .archive()
+                            .open_container(entry)
+                            .map_err(|_| ToolError::Stopped)
+                    })
                 })
             })
             .collect();
@@ -149,6 +198,82 @@ fn calls_at_the_same_time_share_one_container() -> Result<(), Box<dyn Error>> {
             .windows(2)
             .all(|pair| std::sync::Arc::ptr_eq(&pair[0], &pair[1]))
     );
+    assert_eq!(
+        decodes.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "three callers waited for the decode of the fourth"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_waiter_gets_the_error_of_the_decode_it_waited_for() -> Result<(), Box<dyn Error>> {
+    let shared = containers(Budget::default());
+    let decodes = std::sync::atomic::AtomicUsize::new(0);
+
+    let results: Vec<_> = std::thread::scope(|scope| {
+        let threads: Vec<_> = (0..2)
+            .map(|_| {
+                scope.spawn(|| {
+                    shared.open_with("broken", || {
+                        decodes.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        wait_for_waiters(&shared, 1)?;
+                        Err(ToolError::Refused("cannot decode".to_owned()))
+                    })
+                })
+            })
+            .collect();
+        threads
+            .into_iter()
+            .map(std::thread::ScopedJoinHandle::join)
+            .collect()
+    });
+
+    for joined in results {
+        let error = joined
+            .map_err(|_| "thread panicked")?
+            .err()
+            .ok_or("no error")?;
+        assert_eq!(error.message(), "cannot decode");
+    }
+    assert_eq!(decodes.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let state = shared.state.lock().map_err(|_| "poisoned")?;
+    assert!(state.pending.is_empty() && state.kept.is_empty());
+    drop(state);
+    Ok(())
+}
+
+#[test]
+fn a_stored_container_of_the_file_is_charged_for_its_entries_only() -> Result<(), Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let archives = Archives::default();
+    let opened = archives.get(&nested(dir.path(), true)?)?;
+
+    let (place, _) = opened.place(&format!("{OUTER}::x"))?;
+
+    assert_eq!(place.archive().resident_len(), 0, "read in place");
+    assert_eq!(
+        weight_of(&place)?,
+        place.archive().entries().len() as u64 * ENTRY_COST
+    );
+    Ok(())
+}
+
+#[test]
+fn a_stored_container_of_a_decoded_one_is_charged_the_buffer_it_keeps_alive()
+-> Result<(), Box<dyn Error>> {
+    let dir = tempfile::tempdir()?;
+    let archives = Archives::default();
+    let opened = archives.get(&nested(dir.path(), false)?)?;
+
+    let (outer, _) = opened.place(&format!("{OUTER}::x"))?;
+    let room = format!("{OUTER}::outer\\room.socpak::x");
+    let (child, _) = opened.place(&room)?;
+
+    let buffer = outer.archive().resident_len();
+    assert!(buffer > 0, "the compressed outer container is decoded");
+    assert_eq!(child.archive().resident_len(), buffer, "shares the buffer");
+    assert!(weight_of(&child)? >= buffer);
     Ok(())
 }
 

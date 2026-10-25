@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex, OnceLock, PoisonError};
 
 use p4kx_extraction::{Archive, Entry, EntryTree, PathKeys};
 
 use crate::error::ToolError;
-use crate::gate::ModelGate;
+use crate::gate::{Gate, model_held};
 
 /// The text between a container and a path inside it, as in `outer.socpak::inner.socpak::file`.
 pub(crate) const SEPARATOR: &str = "::";
@@ -31,19 +32,28 @@ impl Default for Budget {
     }
 }
 
-/// What the path index and the folder tree of a container cost per Entry, in bytes, besides its
-/// decoded data.
+/// What the path index and the folder tree of a container are charged per Entry, in bytes,
+/// besides the decoded bytes it keeps in memory. An estimate of the hashed key, the tree node and
+/// the folder links, not a measurement: it keeps a container of a million small Entries from
+/// weighing nothing.
 const ENTRY_COST: u64 = 256;
 
 /// The containers opened from one Archive: the most recently used ones within a [`Budget`], and
 /// the ones being decoded right now.
 ///
-/// A container is decoded outside every lock and under a permit of the [`ModelGate`]; calls that
-/// need a container being decoded wait for that decode instead of repeating it.
+/// A container is decoded outside every lock and under a permit of the container gate; calls that
+/// need a container being decoded wait for that decode instead of repeating it, and receive its
+/// error if it fails. A container is charged the decoded bytes it keeps in memory
+/// ([`Archive::resident_len`]): nothing when it is read in place from the file, the whole buffer
+/// of its parent when it is stored in a decoded parent, which the buffer keeps alive.
+///
+/// The decodes in flight are bounded by the gate, but a container too large to be kept lives as
+/// long as the calls using it, so the worst case is one chain of at most 512 MiB decoded per
+/// worker.
 #[derive(Debug, Default)]
 pub(crate) struct Containers {
     state: Mutex<State>,
-    model: ModelGate,
+    decoders: Gate,
     budget: Budget,
 }
 
@@ -67,13 +77,14 @@ pub(crate) struct Inner {
 enum Slot {
     Decoding,
     Done(Arc<Inner>),
-    Failed,
+    Failed(Arc<ToolError>),
 }
 
 #[derive(Debug)]
 struct Pending {
     slot: Mutex<Slot>,
     ready: Condvar,
+    waiters: AtomicUsize,
 }
 
 enum Claim {
@@ -82,62 +93,85 @@ enum Claim {
     Lead(Arc<Pending>),
 }
 
+type Outcome<'a> = Result<&'a Arc<Inner>, Arc<ToolError>>;
+
 impl Pending {
-    fn wait(&self) -> Option<Arc<Inner>> {
+    fn wait(&self) -> Result<Arc<Inner>, ToolError> {
         let slot = self.slot.lock().unwrap_or_else(PoisonError::into_inner);
         let slot = self
             .ready
             .wait_while(slot, |slot| matches!(slot, Slot::Decoding))
             .unwrap_or_else(PoisonError::into_inner);
         match &*slot {
-            Slot::Done(inner) => Some(Arc::clone(inner)),
-            Slot::Decoding | Slot::Failed => None,
+            Slot::Done(inner) => Ok(Arc::clone(inner)),
+            Slot::Failed(error) => Err(ToolError::Shared(Arc::clone(error))),
+            Slot::Decoding => Err(ToolError::Stopped),
         }
     }
 
-    fn settle(&self, slot: Slot) {
-        *self.slot.lock().unwrap_or_else(PoisonError::into_inner) = slot;
-        self.ready.notify_all();
+    /// Settles the decode unless it is settled; later calls change nothing.
+    fn settle(&self, outcome: Outcome<'_>) {
+        let mut slot = self.slot.lock().unwrap_or_else(PoisonError::into_inner);
+        if matches!(*slot, Slot::Decoding) {
+            *slot = match outcome {
+                Ok(inner) => Slot::Done(Arc::clone(inner)),
+                Err(error) => Slot::Failed(error),
+            };
+            drop(slot);
+            self.ready.notify_all();
+        }
     }
 }
 
-/// Settles a decode as failed unless it was settled, so that waiting calls never wait for a
-/// decode that ended in an error or a panic.
+/// Settles a decode as stopped unless it was settled, so that waiting calls never wait for a
+/// decode that ended in a panic.
 struct Lead<'a> {
     owner: &'a Containers,
     pending: &'a Arc<Pending>,
     prefix: &'a str,
-    settled: bool,
 }
 
 impl Drop for Lead<'_> {
     fn drop(&mut self) {
-        if !self.settled {
-            self.owner.settle(self.prefix, self.pending, None);
-        }
+        self.owner
+            .settle(self.prefix, self.pending, Err(Arc::new(ToolError::Stopped)));
     }
 }
 
 impl Containers {
-    /// Creates the containers of an Archive; they are decoded under a permit of `model`.
-    pub(crate) fn new(model: ModelGate) -> Self {
+    /// Creates the containers of an Archive; they are decoded under a permit of `decoders`.
+    pub(crate) fn new(decoders: Gate) -> Self {
         Self {
-            model,
+            decoders,
             ..Self::default()
         }
     }
 
     fn open(&self, parent: &Archive, entry: &Entry, prefix: &str) -> Result<Arc<Inner>, ToolError> {
-        loop {
-            match self.claim(prefix) {
-                Claim::Kept(inner) => return Ok(inner),
-                Claim::Wait(pending) => {
-                    if let Some(inner) = pending.wait() {
-                        return Ok(inner);
-                    }
-                }
-                Claim::Lead(pending) => return self.decode(parent, entry, prefix, &pending),
-            }
+        debug_assert!(
+            !model_held(),
+            "a container is opened while a model permit is held"
+        );
+        self.open_with(prefix, || {
+            let _held = self.decoders.hold()?;
+            parent
+                .open_container(entry)
+                .map_err(|source| ToolError::Container {
+                    path: prefix.to_owned(),
+                    source,
+                })
+        })
+    }
+
+    fn open_with(
+        &self,
+        prefix: &str,
+        decode: impl FnOnce() -> Result<Archive, ToolError>,
+    ) -> Result<Arc<Inner>, ToolError> {
+        match self.claim(prefix) {
+            Claim::Kept(inner) => Ok(inner),
+            Claim::Wait(pending) => pending.wait(),
+            Claim::Lead(pending) => self.lead(prefix, &pending, decode),
         }
     }
 
@@ -149,11 +183,13 @@ impl Containers {
             return Claim::Kept(inner);
         }
         if let Some((_, pending)) = state.pending.iter().find(|(known, _)| known == prefix) {
+            pending.waiters.fetch_add(1, Ordering::SeqCst);
             return Claim::Wait(Arc::clone(pending));
         }
         let pending = Arc::new(Pending {
             slot: Mutex::new(Slot::Decoding),
             ready: Condvar::new(),
+            waiters: AtomicUsize::new(0),
         });
         state
             .pending
@@ -162,30 +198,27 @@ impl Containers {
         Claim::Lead(pending)
     }
 
-    fn decode(
+    fn lead(
         &self,
-        parent: &Archive,
-        entry: &Entry,
         prefix: &str,
         pending: &Arc<Pending>,
+        decode: impl FnOnce() -> Result<Archive, ToolError>,
     ) -> Result<Arc<Inner>, ToolError> {
-        let mut lead = Lead {
+        let _lead = Lead {
             owner: self,
             pending,
             prefix,
-            settled: false,
         };
-        let archive = {
-            let _permit = self.model.hold()?;
-            parent
-                .open_container(entry)
-                .map_err(|source| ToolError::Container {
-                    path: prefix.to_owned(),
-                    source,
-                })?
+        let archive = match decode() {
+            Ok(archive) => archive,
+            Err(error) => {
+                let shared = Arc::new(error);
+                self.settle(prefix, pending, Err(Arc::clone(&shared)));
+                return Err(ToolError::Shared(shared));
+            }
         };
-        let weight = entry
-            .uncompressed_size()
+        let weight = archive
+            .resident_len()
             .saturating_add((archive.entries().len() as u64).saturating_mul(ENTRY_COST));
         let inner = Arc::new(Inner {
             prefix: prefix.to_owned(),
@@ -194,21 +227,23 @@ impl Containers {
             tree: OnceLock::new(),
             keys: OnceLock::new(),
         });
-        lead.settled = true;
-        self.settle(prefix, pending, Some(&inner));
+        self.settle(prefix, pending, Ok(&inner));
         Ok(inner)
     }
 
-    fn settle(&self, prefix: &str, pending: &Arc<Pending>, inner: Option<&Arc<Inner>>) {
+    fn settle(&self, prefix: &str, pending: &Arc<Pending>, outcome: Outcome<'_>) {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
+        let listed = state.pending.len();
         state
             .pending
             .retain(|(known, other)| known != prefix || !Arc::ptr_eq(other, pending));
-        if let Some(inner) = inner {
+        if state.pending.len() < listed
+            && let Ok(inner) = &outcome
+        {
             self.keep(&mut state, inner);
         }
         drop(state);
-        pending.settle(inner.map_or(Slot::Failed, |inner| Slot::Done(Arc::clone(inner))));
+        pending.settle(outcome);
     }
 
     fn keep(&self, state: &mut State, inner: &Arc<Inner>) {

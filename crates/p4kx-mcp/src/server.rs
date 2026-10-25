@@ -14,7 +14,7 @@ use tokio::sync::Semaphore;
 use crate::archives::{Archives, Opened};
 use crate::entries;
 use crate::error::{ToolError, capped};
-use crate::gate::ModelGate;
+use crate::gate::Gate;
 use crate::keys::KeyChoice;
 use crate::locate::Locations;
 use crate::noted::{self, Noted};
@@ -57,7 +57,7 @@ pub(crate) struct State {
     locations: Locations,
     default_archive: Option<PathBuf>,
     archives: Archives,
-    model: ModelGate,
+    model: Gate,
 }
 
 impl Server {
@@ -67,13 +67,12 @@ impl Server {
         default_archive: Option<PathBuf>,
         keys: KeyChoice,
     ) -> Self {
-        let model = ModelGate::default();
         Self {
             state: Arc::new(State {
                 locations,
                 default_archive,
-                archives: Archives::new(keys, model.clone()),
-                model,
+                archives: Archives::new(keys, Gate::container()),
+                model: Gate::model(),
             }),
             workers: Arc::new(Semaphore::new(
                 std::thread::available_parallelism().map_or(1, NonZeroUsize::get),
@@ -160,9 +159,10 @@ impl Server {
 }
 
 impl State {
-    /// Returns the permits for the reads that may take more than 1 GiB; take one with
-    /// [`ModelGate::hold`] inside the call, which already holds its worker permit.
-    pub(crate) const fn model(&self) -> &ModelGate {
+    /// Returns the permits for reading chunk files, models and textures, which may take more than
+    /// 1 GiB. Take one with [`Gate::hold`] inside the call, which already holds its worker permit,
+    /// and open no container while holding it: resolve every path first.
+    pub(crate) const fn model(&self) -> &Gate {
         &self.model
     }
 

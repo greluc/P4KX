@@ -50,21 +50,33 @@ to see a texture or to resolve a Loadout.
 ## Amendment (issue #622)
 
 - **The kept containers have a byte budget.** At most four containers and 256 MiB are kept per
-  Archive, each charged its decoded size plus 256 bytes per Entry for its path index and folder
-  tree; the least recently used are dropped first. A container charged more than 128 MiB is not
-  kept: the calls that opened it use it and it is dropped with them. Two Archives are kept, so at
-  most 512 MiB of containers are held.
-- **A container is decoded outside every lock and under a model permit.** Calls that need a
-  container being decoded wait for that decode on their blocking thread and share its result; if
-  it fails, each waiting call tries again. The permit is the one of the chunk file, model and
-  texture reads (two at a time), and a call takes it only on a blocking thread that holds its
-  worker permit, always in the order worker permit, then model permit. `image_preview` therefore
-  takes the permit after its path is resolved, and the model tools inside their call, so that no
-  call waits for a worker while holding a permit a decode needs.
+  Archive; the least recently used are dropped first. A container is charged the decoded bytes it
+  keeps in memory (`Archive::resident_len`) plus 256 bytes per Entry for its path index and folder
+  tree. That per-Entry figure is an estimate, not a measurement. A container read in place from
+  the file is charged no bytes; a stored container inside a decoded parent shares the parent's
+  buffer and is charged all of it, because it keeps that buffer alive after the parent is
+  dropped. A container charged more than 128 MiB is not kept: the calls that opened it use it and
+  it is dropped with them. Two Archives are kept, so at most 512 MiB of kept containers are held.
+- **Peak memory.** The gate bounds the decodes that run at the same time (two), not the memory
+  they leave behind: a container that is too large to be kept lives as long as the calls using
+  it. The worst case is one chain of at most 512 MiB (`MAX_CONTAINER_LEN`) per worker, so
+  workers x 512 MiB besides the kept containers.
+- **A container is decoded outside every lock and under its own permit.** Calls that need a
+  container being decoded wait for that decode on their blocking thread, share its result and,
+  if it fails, its error, so a broken container is decoded once. The permit comes from a gate of
+  container decodes (two at a time) that is separate from the model gate of the chunk file,
+  model and texture reads (two at a time), so long model reads do not keep decodes from running.
+  A permit is taken only on a blocking thread that holds its worker permit, in the order worker
+  permit, then one permit. A call holding a model permit must not open a container, since it
+  would then wait for a decode while keeping a model permit; `image_preview` therefore takes its
+  model permit after its path is resolved, and `Containers::open` asserts in debug builds that
+  the thread holds none.
 - **A path inside a container is found through its path index**, built once per container, not by
   a scan of its Entries per segment.
 - **`entity_loadout` resolves a tree once.** The resolved tree of an Entity is kept per Archive,
-  keyed by the Entity as written and `stop_at_docked_vehicles`; the last four are kept and are
-  dropped with the Archive, which is opened anew when its file changes. Paging, and a changed
+  keyed by the Entity as written and `stop_at_docked_vehicles`. The trees kept hold at most 64Ki
+  ports together (and at most eight trees), the least recently used going first; a tree with
+  more ports is not kept. They are dropped with the Archive, which is opened anew when its file
+  changes. Paging, and a changed
   `max_depth`, walk the kept tree. A page still costs one walk of the tree, but no resolving.
   Calls that miss at the same time each resolve, and the first tree kept wins.

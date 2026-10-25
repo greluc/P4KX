@@ -11,7 +11,7 @@ use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge, PathIndex,
 
 use crate::container::Containers;
 use crate::error::{ToolError, chain};
-use crate::gate::ModelGate;
+use crate::gate::Gate;
 use crate::keys::KeyChoice;
 use crate::loadout_cache::LoadoutCache;
 
@@ -29,7 +29,7 @@ pub(crate) struct Archives {
     kept: Mutex<Kept>,
     opening: Mutex<()>,
     keys: KeyChoice,
-    model: ModelGate,
+    decoders: Gate,
 }
 
 #[derive(Debug, Default)]
@@ -67,7 +67,7 @@ impl Opened {
         &self.loadouts
     }
 
-    fn new(archive: Archive, model: ModelGate) -> Self {
+    fn new(archive: Archive, decoders: Gate) -> Self {
         Self {
             notice: ChannelKind::of_archive(archive.path()).notice(),
             archive,
@@ -76,7 +76,7 @@ impl Opened {
             building: Mutex::new(()),
             dataforge: Mutex::new(None),
             selection: Mutex::new(None),
-            containers: Containers::new(model),
+            containers: Containers::new(decoders),
             loadouts: LoadoutCache::default(),
         }
     }
@@ -201,11 +201,11 @@ impl Opened {
 
 impl Archives {
     /// Creates the cache; Archives are opened with the key `keys` chooses, and their containers
-    /// are decoded under a permit of `model`.
-    pub(crate) fn new(keys: KeyChoice, model: ModelGate) -> Self {
+    /// are decoded under a permit of `decoders`.
+    pub(crate) fn new(keys: KeyChoice, decoders: Gate) -> Self {
         Self {
             keys,
-            model,
+            decoders,
             ..Self::default()
         }
     }
@@ -237,7 +237,7 @@ impl Archives {
             path: path.to_path_buf(),
             source,
         })?;
-        let opened = Arc::new(Opened::new(archive, self.model.clone()));
+        let opened = Arc::new(Opened::new(archive, self.decoders.clone()));
         let mut kept = self.kept.lock().unwrap_or_else(PoisonError::into_inner);
         kept.recent.retain(|(known, _)| *known != key);
         kept.alive.push((key.clone(), Arc::downgrade(&opened)));

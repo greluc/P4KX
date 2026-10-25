@@ -325,25 +325,32 @@ fn list(
         .id_salt(heading.id())
         .max_height(SECTION_LIST_HEIGHT);
     let step = ROW_HEIGHT + ui.spacing().item_spacing.y;
-    scroll_region::show(
-        ui,
-        (id.with("rows"), || {
-            texts.format(ScrollText::List, &[("heading", title.clone().into())])
-        }),
-        step,
-        area,
-        |area, ui| {
-            area.show_rows(ui, ROW_HEIGHT, lines.len(), |ui, rows| {
-                for index in rows {
-                    let Some(text) = lines.get(index) else {
-                        continue;
-                    };
-                    let reason = reasons.and_then(|starts| starts.get(index)).copied();
-                    list_row(ui, text, reason);
-                }
-            })
-        },
-    );
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a list of rows is far below f32 precision"
+    )]
+    let height = (step * lines.len() as f32).min(SECTION_LIST_HEIGHT);
+    ui.allocate_ui(vec2(ui.available_width(), height), |ui| {
+        scroll_region::show(
+            ui,
+            (id.with("rows"), || {
+                texts.format(ScrollText::List, &[("heading", title.clone().into())])
+            }),
+            step,
+            area,
+            |area, ui| {
+                area.show_rows(ui, ROW_HEIGHT, lines.len(), |ui, rows| {
+                    for index in rows {
+                        let Some(text) = lines.get(index) else {
+                            continue;
+                        };
+                        let reason = reasons.and_then(|starts| starts.get(index)).copied();
+                        list_row(ui, text, reason);
+                    }
+                })
+            },
+        );
+    });
 }
 
 pub(super) fn list_row(ui: &mut Ui, text: &str, reason: Option<usize>) {

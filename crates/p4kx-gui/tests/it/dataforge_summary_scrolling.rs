@@ -80,12 +80,12 @@ fn top(harness: &Harness<'_, Model>, label: &str) -> f32 {
 fn the_focused_summary_scrolls_with_the_keyboard() -> TestResult {
     let (_dir, mut harness) = shown([1600.0, 560.0])?;
     let last = name(SUMMARY_RECORDS - 1);
-    let start = top(&harness, &last);
 
     harness
         .get_by_role_and_label(Role::ScrollView, REGION)
         .focus();
     harness.run_quiet();
+    let start = top(&harness, &last);
     harness.key_press(Key::End);
     harness.run_quiet();
     let end = top(&harness, &last);

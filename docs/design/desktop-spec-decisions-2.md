@@ -55,10 +55,11 @@ Bildschirmseite nicht hinaus. Deshalb ist jede lange Fläche eine fokussierbare 
 der Fokusring sitzt innen (−2) um die Fläche, und ihr Barrierefreiheits-Name nennt den Inhalt
 („Textzeilen", „Hexadezimalzeilen", „Bildansicht", „Zeilenunterschiede", „Geänderte Felder",
 „Record-Felder", „Umgewandeltes XML", die Listen der Zusammenfassung der Extraktion unter ihrer
-Überschrift, z. B. „Fehlgeschlagen (30), Zeilen", und „DataForge-Übersicht"). Pfeil auf/ab rollt um eine Zeile (beim Bild um 36 px),
-Pfeil links/rechts ebenso zur Seite, Bild auf/ab um eine Seite weniger eine Zeile, Pos1 und Ende
-zum Anfang und Ende. Solange die Fläche den Fokus hat, gehören ihr die Pfeiltasten; Tab verlässt
-sie. Die Zeilen der Feldänderungen und der Record-Felder bleiben eigene Tabulatorziele.
+Überschrift, z. B. „Fehlgeschlagen (30), Zeilen", und „DataForge-Übersicht"). Pfeil auf/ab rollt um
+eine Zeile (beim Bild um 36 px), Pfeil links/rechts ebenso zur Seite, Bild auf/ab um eine Seite
+weniger eine Zeile, Pos1 und Ende zum Anfang und Ende. Solange die Fläche den Fokus hat, gehören
+ihr die Pfeiltasten; Tab verlässt sie und rollt eine Fläche, die darunter liegt, in Sicht. Die
+Zeilen der Feldänderungen und der Record-Felder bleiben eigene Tabulatorziele.
 
 **D.28 Lokalisierung als vierter Tab im Arbeitsbereich.** „Lokalisierung" folgt auf „Abfrage".
 Sie braucht ein geöffnetes Archiv und liest die `global.ini` aller Sprachen im Hintergrund, sobald

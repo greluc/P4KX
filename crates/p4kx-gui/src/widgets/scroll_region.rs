@@ -47,6 +47,9 @@ pub(crate) fn begin(ui: &Ui, (id, label): (Id, impl Fn() -> String), step: f32) 
     let region = ui.available_rect_before_wrap();
     let focus = ui.interact(region, focus_id, Sense::focusable_noninteractive());
     focus.widget_info(|| WidgetInfo::labeled(Role::ScrollView, true, label()));
+    if focus.gained_focus() {
+        focus.scroll_to_me(None);
+    }
     let requested = if focus.has_focus() {
         let filter = EventFilter {
             horizontal_arrows: true,

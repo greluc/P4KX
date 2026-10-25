@@ -8,7 +8,7 @@ use std::error::Error;
 use egui::accesskit::Role;
 use egui::{Key, Modifiers};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::{Extraction, ExtractionStatus, Language, Model, ui};
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestEntry, TestRecord, TestStruct, TestType, TestValue,
@@ -42,16 +42,35 @@ fn database() -> Vec<u8> {
 }
 
 fn finished(size: [f32; 2]) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
+    run(size, false)
+}
+
+fn run(
+    size: [f32; 2],
+    skipping: bool,
+) -> Result<(TempDir, Harness<'static, Model>), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
-    (0..COUNT)
-        .fold(ArchiveBuilder::new(), |builder, n| {
-            builder.entry(TestEntry::stored(format!("Data\\dir{n:02}\\NUL"), "device"))
-        })
-        .entry(TestEntry::stored("Data\\Game2.dcb", database()))
-        .write_to(&path)?;
     let out = dir.path().join("out");
     std::fs::create_dir(&out)?;
+    if skipping {
+        std::fs::create_dir(out.join("Data"))?;
+        (0..COUNT)
+            .fold(ArchiveBuilder::new(), |builder, n| {
+                builder.entry(TestEntry::stored(format!("Data\\file{n:02}.txt"), "new"))
+            })
+            .write_to(&path)?;
+        for n in 0..COUNT {
+            std::fs::write(out.join(format!("Data/file{n:02}.txt")), "old")?;
+        }
+    } else {
+        (0..COUNT)
+            .fold(ArchiveBuilder::new(), |builder, n| {
+                builder.entry(TestEntry::stored(format!("Data\\dir{n:02}\\NUL"), "device"))
+            })
+            .entry(TestEntry::stored("Data\\Game2.dcb", database()))
+            .write_to(&path)?;
+    }
     let mut model = Model::new(Language::BritishEnglish);
     model.set_extraction_folder(Some(out));
     model.set_extraction_conversion(true);
@@ -72,6 +91,10 @@ fn finished(size: [f32; 2]) -> Result<(TempDir, Harness<'static, Model>), Box<dy
     harness.run_steps(2);
     harness.get_by_label("Existing folder").click();
     harness.run_steps(2);
+    if skipping {
+        harness.get_by_label("Skip").click();
+        harness.run_steps(2);
+    }
     harness.get_by_label("Extract").click();
     harness.run_steps(2);
     harness.get_by_label("Extract whole Archive").click();
@@ -157,6 +180,63 @@ fn the_failed_entries_scroll_with_the_keyboard() -> TestResult {
     let (failed, _) = lines(harness.state())?;
     assert_eq!(failed.len(), usize::try_from(COUNT)?, "every Entry failed");
     scrolls_with_the_keyboard(&mut harness, ("Failed (30), rows", &failed))
+}
+
+#[test]
+fn the_skipped_entries_scroll_with_the_keyboard() -> TestResult {
+    let (_dir, mut harness) = run([1400.0, 900.0], true)?;
+    let Some(ExtractionStatus::Finished(summary)) =
+        harness.state().extraction().map(Extraction::status)
+    else {
+        return Err("no summary".into());
+    };
+    let skipped = summary.skipped().to_vec();
+    assert_eq!(
+        skipped.len(),
+        usize::try_from(COUNT)?,
+        "every Entry skipped"
+    );
+    harness.get_by_label("Skipped (30)").click();
+    harness.run_quiet();
+    scrolls_with_the_keyboard(&mut harness, ("Skipped (30), rows", &skipped))
+}
+
+#[test]
+fn the_regions_have_finite_bounds_that_do_not_overlap() -> TestResult {
+    let (_dir, harness) = finished([1400.0, 900.0])?;
+    let rects: Vec<egui::Rect> = harness
+        .query_all_by_role(Role::ScrollView)
+        .filter(|node| {
+            node.accesskit_node()
+                .label()
+                .is_some_and(|l| l.ends_with(", rows"))
+        })
+        .map(|node| node.rect())
+        .collect();
+    assert_eq!(rects.len(), 2, "both lists");
+    for rect in &rects {
+        assert!(rect.is_finite(), "finite: {rect:?}");
+        assert!(rect.height() <= 181.0, "no taller than the list: {rect:?}");
+    }
+    assert!(!rects[0].intersects(rects[1]), "no overlap: {rects:?}");
+    Ok(())
+}
+
+#[test]
+fn tab_brings_a_list_below_the_fold_into_view() -> TestResult {
+    let (_dir, mut harness) = finished([1400.0, 900.0])?;
+    harness.set_size(egui::vec2(640.0, 400.0));
+    harness.run_steps(3);
+    let name = "Records not written (30), rows";
+    let before = harness.get_by_role_and_label(Role::ScrollView, name).rect();
+    assert!(before.bottom() > 400.0, "below the fold: {before:?}");
+    harness
+        .get_by_role_and_label(Role::ScrollView, name)
+        .focus();
+    harness.run_steps(5);
+    let after = harness.get_by_role_and_label(Role::ScrollView, name).rect();
+    assert!(after.bottom() <= 400.0, "scrolled into view: {after:?}");
+    Ok(())
 }
 
 #[test]

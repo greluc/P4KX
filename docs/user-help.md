@@ -18,8 +18,10 @@ the window stays responsive while it loads.
   number of mips and the cubemap faces. The texture's split parts are read and decoded in the
   background; the first mip shown is the largest that fits the preview, at one texture pixel per
   screen pixel. The **Mip** buttons, labelled with each mip's longer side, switch to another mip;
-  a mip larger than the preview scrolls. A cubemap shows its six faces as a cross, an alpha tail
-  is merged into the alpha channel, and BC6H is tone-mapped. A format the preview cannot decode is
+  a mip larger than the preview scrolls. A cubemap shows its six faces as a cross, the elements
+  of a texture array and the slices of a volume are tiled on one sheet, row by row from the top
+  left (the facts bar then gives their number as **Layers**), an alpha tail is merged into the
+  alpha channel, and BC6H is tone-mapped. A format the preview cannot decode is
   named; the Text and Hex tabs still show the Entry's data.
 - **Info** appears next to Model for a model file and lists what the file holds: the nodes, the
   meshes and levels of detail with their vertices and triangles, the geometry file, the material

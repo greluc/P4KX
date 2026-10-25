@@ -1087,7 +1087,10 @@ header file on disk.
 
 `output` is the `--out` path and `files` the files written: `output` itself, or for a cubemap
 the six faces `<stem>_posx.png`, `_negx`, `_posy`, `_negy`, `_posz` and `_negz` next to it, or
-with `--cross` `output` holding one horizontal cross. `format` is `png` for 8-bit RGBA PNG and
+with `--cross` `output` holding one horizontal cross; a texture array has one file per element
+`<stem>_layerN.png` and a volume one per slice of the mip `<stem>_sliceN.png`, and a cubemap
+array has `<stem>_layerN_posx.png` … or, with `--cross`, one cross `<stem>_layerN.png` per
+element, the numbers padded with zeros to the width of the last. `format` is `png` for 8-bit RGBA PNG and
 `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
 `--tone-map`; `files` then carry the extension `.exr` instead of the one of `output`. `mip` is the
 exported level, 0 being the largest and the default; `width` and `height` are the size of each

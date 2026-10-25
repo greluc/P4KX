@@ -11,8 +11,10 @@ ADR-0026 and ADR-0034.
   does for the `0x5002` encryption block. An all-zero 32-byte digest is still "no digest" and not
   an issue: the synthetic fixtures use it.
 - **The last of several `0x5003` blocks of one record decides**, whether it is well-formed or not.
-  A later malformed block therefore replaces an earlier valid digest with none. An Entry has at
-  most one `HashBlockSize` issue.
+  A later malformed block therefore replaces an earlier valid digest with none. The issue
+  describes the malformed block, not the Entry: an Entry whose malformed block is followed by a
+  valid one has a digest and still carries the issue. An Entry has at most one `HashBlockSize`
+  issue.
 - **The CRC-32C mismatch comes first and ends the check.** When the checksum of the decoded data
   already differs at the last byte, the stored bytes the SHA-256 would still have to read (AES
   padding, a compression trailer) are not read. A failure of that read can no longer replace the
@@ -22,7 +24,8 @@ ADR-0026 and ADR-0034.
   CRC only, so a wrong key stays a wrong key whatever the stored digest says.
 - **v2 digests stay unverified.** No v2 Archive is available to confirm that the 32 bytes after the
   encryption field are the SHA-256 of the stored bytes (ADR-0034). Verification is switched on by
-  setting `sha256_checked` for the v2 records together with a real-Archive test.
+  setting `sha256_checked` for the v2 records together with a real-Archive test; this is tracked
+  in #645. `Entry::is_sha256_verified` tells whether a verified read checks the digest.
 - **Encrypted Entries.** The keyed real-Archive test now asserts that the encrypted samples state a
   SHA-256 and that their verified reads passed. The measurement of ADR-0034 for encrypted Entries
   stays the ciphertext hash; a key-free `p4kx verify` mode is not added, since an Entry cannot be
@@ -32,9 +35,11 @@ ADR-0026 and ADR-0034.
 
 `bench_verification_cost` in `p4kx-archive` and `bench_verify` in `p4kx-extraction` (real
 Archive, LIVE, Ryzen 9 9950X3D, release build, warm file cache) measure what the SHA-256 adds; the
-numbers are in `docs/verify.md`. The SHA-256 adds about 13 % over a single-threaded read that
-computes only the CRC-32C, and a verify of 8.2 GiB on all cores does not differ measurably from
-one without it, so a separate switch is still not needed.
+numbers and how each was measured are in `docs/verify.md`. The SHA-256 adds about 13 % over a
+single-threaded read that computes only the CRC-32C (one process, median of five runs). A verify
+of 8.2 GiB on all cores took 2.03 s with the stored-bytes check switched off by a local,
+uncommitted change and 1.88 s and 2.14 s with it (three runs each, one process per figure), so the
+difference is within the spread and a separate switch is still not needed.
 
 ## Considered Options
 

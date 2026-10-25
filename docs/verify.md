@@ -76,15 +76,27 @@ Measured on LIVE with the file in the cache, so that the disk does not hide the 
 (release build, same machine); the benchmarks are `bench_verification_cost` in `p4kx-archive` and
 `bench_verify` in `p4kx-extraction` (ADR-0137, ADR-0148):
 
-| Measurement | No SHA-256 | With SHA-256 |
-|-------------|------------|--------------|
-| One thread, 300 Entries of 64 KiB to 16 MiB (176 MiB): read without a check | 332 ms | |
-| The same, CRC-32C | 351 ms | |
-| The same, CRC-32C and SHA-256 (`open_entry_verified`) | | 395 ms (+13 % over the CRC-32C) |
-| All cores, `verify` of 76,310 Entries, 8,225 MiB (median of three runs) | 2.03 s | 1.88 s and 2.14 s (two runs) |
+One thread, 300 Entries of 64 KiB to 16 MiB (176 MiB), median of five runs after a warm-up, all
+three in one process (`bench_verification_cost`):
 
-The SHA-256 adds about 0.25 ms per MiB on one core. With all cores the differences lie within the
-spread between runs, so "no separate switch" (ADR-0034) stays.
+| Read | Time |
+|------|------|
+| without a check | 332 ms |
+| CRC-32C | 351 ms |
+| CRC-32C and SHA-256 (`open_entry_verified`) | 395 ms (+13 % over the CRC-32C) |
+
+All cores, `verify` of 76,310 Entries (8,225 MiB), each figure the median of three runs after a
+warm-up in one process (`bench_verify`). The "without" figure comes from a build in which the
+stored-bytes check was switched off locally (one process, not committed); the other two are
+separate processes of the committed build:
+
+| Build | Time |
+|-------|------|
+| without the SHA-256 check | 2.03 s |
+| with the SHA-256 check | 1.88 s and 2.14 s |
+
+The SHA-256 adds about 0.25 ms per MiB on one core. With all cores the difference lies within the
+spread between processes, so "no separate switch" (ADR-0034) stays.
 
 ## Real-Archive tests
 

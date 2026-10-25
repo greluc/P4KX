@@ -128,7 +128,7 @@ fn verified_reads_of_every_compression_and_encryption_state_find_no_mismatch() -
                 entry.path()
             );
             checked += 1;
-            if entry.is_encrypted() && entry.sha256().is_some() {
+            if entry.is_encrypted() && entry.is_sha256_verified() {
                 encrypted_with_sha256 += 1;
             }
         }

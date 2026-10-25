@@ -75,5 +75,10 @@ fn the_last_of_several_hash_blocks_decides() -> TestResult {
             .with_extra_hash_block(&[2; 32]),
     )?;
     assert_eq!(stated(&archive)?, Some([2; 32]), "a later valid block wins");
+    assert_eq!(
+        archive.issues(),
+        [(0, EntryIssue::HashBlockSize { size: 35 })],
+        "the earlier malformed block is still reported"
+    );
     Ok(())
 }

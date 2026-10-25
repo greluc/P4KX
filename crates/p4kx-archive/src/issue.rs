@@ -33,8 +33,9 @@ pub enum EntryIssue {
         /// The block length as stored, header included.
         size: u16,
     },
-    /// A CIG hash block is not 36 bytes long, 4 header and 32 digest; the Entry states no SHA-256.
-    #[error("its hash block is {size} bytes long, not 36; it states no SHA-256")]
+    /// A CIG hash block is not 36 bytes long, 4 header and 32 digest; that block states no
+    /// SHA-256. A later block of the record may still state one.
+    #[error("a hash block is {size} bytes long, not 36; it states no SHA-256")]
     HashBlockSize {
         /// The block length as stored, header included.
         size: u16,

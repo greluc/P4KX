@@ -16,8 +16,7 @@
       "required": [
         "$type",
         "$guid",
-        "$path",
-        "$name"
+        "$path"
       ],
       "properties": {
         "$type": {
@@ -30,7 +29,7 @@
           "type": "string"
         },
         "$name": {
-          "description": "The Record name, e.g. EntityClassDefinition.AEGS_Gladius; empty when the Record has none.",
+          "description": "The Record name, e.g. EntityClassDefinition.AEGS_Gladius; empty when the Record has none. Optional in the schema so that exports from before $name still validate; the writer always writes it.",
           "type": "string"
         },
         "$tag": {

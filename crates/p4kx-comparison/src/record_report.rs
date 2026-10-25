@@ -72,6 +72,7 @@ struct RecordStateReport<'a> {
     /// The Record tag, e.g. `SystemsDesign`; absent in a version 6 DataForge and for a Record
     /// without tag.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "String")]
     tag: Option<&'a str>,
     /// The name of the Record's struct.
     #[serde(rename = "type")]

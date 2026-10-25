@@ -17,7 +17,7 @@ use p4kx_gui::{
 use record_model::{compared, records, records_mut, wait};
 use record_pair::{BOTH, TestResult, pair};
 
-fn fields_of(model: &mut Model, path: &str) -> Result<RecordFields, Box<dyn Error>> {
+pub(crate) fn fields_of(model: &mut Model, path: &str) -> Result<RecordFields, Box<dyn Error>> {
     let list = records(model)?;
     let id = list
         .shown()

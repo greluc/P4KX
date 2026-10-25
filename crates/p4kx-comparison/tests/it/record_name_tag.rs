@@ -71,7 +71,40 @@ fn a_changed_name_alone_is_a_changed_record() -> TestResult {
         &database(8, "Ship.Two", "SystemsDesign"),
     )?;
 
-    assert_eq!(found.len(), 1, "only the name differs: {found:?}");
+    let tag = Some("SystemsDesign".to_owned());
+    assert_eq!(
+        found,
+        [(RecordChangeKind::Changed, tag.clone(), tag)],
+        "only the name differs"
+    );
+    Ok(())
+}
+
+#[test]
+fn version_6_records_have_no_tag_and_equal_ones_are_no_change() -> TestResult {
+    let found = changes(
+        &database(6, "Ship.One", "Ignored"),
+        &database(6, "Ship.One", "Ignored"),
+    )?;
+
+    assert!(found.is_empty(), "nothing differs: {found:?}");
+    Ok(())
+}
+
+#[test]
+fn version_6_against_version_8_differs_only_by_a_tag_the_new_side_has() -> TestResult {
+    let untagged = changes(&database(6, "Ship.One", ""), &database(8, "Ship.One", ""))?;
+    let tagged = changes(
+        &database(6, "Ship.One", ""),
+        &database(8, "Ship.One", "Vehicles"),
+    )?;
+
+    assert!(untagged.is_empty(), "an empty tag is no tag: {untagged:?}");
+    assert_eq!(
+        tagged,
+        [(RecordChangeKind::Changed, None, Some("Vehicles".to_owned()))],
+        "the tag appears"
+    );
     Ok(())
 }
 

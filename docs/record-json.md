@@ -81,6 +81,8 @@ A Record object holds, in this order:
 3. `$path`: the record path without `.xml`, as DataForge stores it.
 4. `$name`: the Record name, e.g. `EntityClassDefinition.AEGS_Gladius`; an empty string for a
    Record without a name. Several Records can share one record path, the name tells them apart.
+   The writer always writes it; the JSON Schema does not require it, so that exports made before
+   `$name` existed still validate.
 5. `$tag`: the Record tag of a version 8 DataForge, e.g. `SystemsDesign`. Version 6 has no tags,
    and a Record without a tag or with an empty one has no `$tag` key.
 6. One key per field, in the order of the Record XML: first the fields Record XML writes as
@@ -96,8 +98,8 @@ A field is written under its name unless the name starts with `$` or an earlier 
 same struct, in declaration order, has the same name. Such a field is written as
 `"$<n>": {"name": "…", "value": …}`, with `n` its position among the struct's fields in
 declaration order, counting from 0, so no value is lost or mistaken for another. No field is ever
-written under its own name when that starts with `$`: `$type`, `$guid`, `$path`, `$name`, `$tag` and `$<n>` are
-the only keys that do.
+written under its own name when that starts with `$`: `$type`, `$guid`, `$path`, `$name`, `$tag`
+and `$<n>` are the only keys that do.
 
 ## Values
 

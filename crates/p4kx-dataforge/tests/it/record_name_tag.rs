@@ -20,14 +20,18 @@ fn sample(version: u32) -> DataForgeBuilder {
             TestStruct::new("Item")
                 .field("name", TestType::String)
                 .field("$name", TestType::String)
-                .field("mass", TestType::Int32),
+                .field("mass", TestType::Int32)
+                .field("tag", TestType::String)
+                .field("$tag", TestType::String),
         )
         .record(
             TestRecord::new(GUID, "Item", "Item.Box", "libs/items/box.xml")
                 .tag("SystemsDesign")
                 .value("name", TestValue::text("Box"))
                 .value("$name", TestValue::text("Dollar"))
-                .value("mass", TestValue::Int32(3)),
+                .value("mass", TestValue::Int32(3))
+                .value("tag", TestValue::text("Field"))
+                .value("$tag", TestValue::text("Dollar tag")),
         )
         .record(TestRecord::new(
             OTHER,
@@ -55,7 +59,7 @@ fn a_version_8_record_has_its_name_and_tag_in_xml_and_json() -> TestResult {
         xml.contains(
             "<Item xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" \
              guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/items/box\" \
-             p4kx:name=\"Item.Box\" p4kx:tag=\"SystemsDesign\" name=\"Box\" mass=\"3\">"
+             p4kx:name=\"Item.Box\" p4kx:tag=\"SystemsDesign\" name=\"Box\" mass=\"3\" tag=\"Field\">"
         ),
         "XML root: {xml}"
     );
@@ -76,7 +80,7 @@ fn a_version_6_record_has_the_name_and_no_tag() -> TestResult {
     assert!(xml.contains("p4kx:name=\"Item.Box\""), "XML name: {xml}");
     assert!(!xml.contains("p4kx:tag"), "XML tag: {xml}");
     assert!(json.contains("\"$name\":\"Item.Box\""), "JSON name: {json}");
-    assert!(!json.contains("\"$tag\""), "JSON tag: {json}");
+    assert!(!json.contains("\"$tag\":\""), "JSON tag: {json}");
     Ok(())
 }
 
@@ -86,7 +90,7 @@ fn a_version_8_record_without_tag_has_no_tag() -> TestResult {
 
     assert!(xml.contains("p4kx:name=\"Item.Crate\""), "XML name: {xml}");
     assert!(!xml.contains("p4kx:tag"), "XML tag: {xml}");
-    assert!(!json.contains("\"$tag\""), "JSON tag: {json}");
+    assert!(!json.contains("\"$tag\":\""), "JSON tag: {json}");
     Ok(())
 }
 
@@ -99,6 +103,16 @@ fn fields_called_name_keep_their_own_place() -> TestResult {
     assert!(
         json.contains("\"$1\":{\"name\":\"$name\",\"value\":\"Dollar\"}"),
         "the field `$name` is escaped: {json}"
+    );
+    assert!(json.contains("\"tag\":\"Field\""), "JSON field tag: {json}");
+    assert!(
+        json.contains("\"$4\":{\"name\":\"$tag\",\"value\":\"Dollar tag\"}"),
+        "the field `$tag` is escaped: {json}"
+    );
+    assert!(xml.contains(" tag=\"Field\""), "XML field tag: {xml}");
+    assert!(
+        xml.contains("<p4kx:field name=\"$tag\" value=\"Dollar tag\"/>"),
+        "XML field `$tag`: {xml}"
     );
     Ok(())
 }

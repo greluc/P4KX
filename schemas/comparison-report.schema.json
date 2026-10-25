@@ -463,10 +463,7 @@
         },
         "tag": {
           "description": "The Record tag, e.g. `SystemsDesign`; absent in a version 6 DataForge and for a Record\nwithout tag.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "type": {
           "description": "The name of the Record's struct.",
@@ -476,6 +473,7 @@
       "required": [
         "record_path",
         "name",
+        "tag",
         "type"
       ],
       "type": "object"

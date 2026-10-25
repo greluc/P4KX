@@ -131,7 +131,7 @@ fn ship_records_of_a_real_archive_are_json_files_under_their_record_paths() -> T
     assert_eq!(known["$guid"], KNOWN_GUID, "the known Record");
     assert_eq!(known["$type"], "EntityClassDefinition", "its type");
     let name = known["$name"].as_str().unwrap_or_default();
-    assert!(name.starts_with("EntityClassDefinition"), "its name");
+    assert!(name.starts_with("EntityClassDefinition."), "its name");
     let vehicle = known["Components"]
         .as_array()
         .and_then(|components| {

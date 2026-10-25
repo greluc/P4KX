@@ -10,7 +10,8 @@ Decided for issue #285, on top of ADR-0004 (the canonical Record tree) and ADR-0
 - Record JSON writes them as `$name` and `$tag` in the Record object, after `$path`. A field whose
   name starts with `$` is already written by position, so no field can collide with them. `$name`
   is always there, an empty string for a Record without a name; `$tag` is left out for version 6,
-  for a Record without tag and for an empty tag.
+  for a Record without tag and for an empty tag. The JSON Schema keeps `$name` optional so that
+  exports from before this change still validate.
 - Record XML writes them as the attributes `p4kx:name` and `p4kx:tag` of the root, after `path`
   and before the fields. They are namespaced because plain `name` is a common field name that
   must stay an attribute of its own field. The root of a document now always declares
@@ -18,7 +19,8 @@ Decided for issue #285, on top of ADR-0004 (the canonical Record tree) and ADR-0
 - An empty tag counts as no tag in the tree, the XML, the JSON and the Comparison, so a version 8
   DataForge whose Records have no tags gives the same output as version 6.
 - The Comparison reports the tag next to the name in `old` and `new` of a Record change and
-  treats a different tag, like a different name, as a change of the Record.
+  treats a different tag, like a different name, as a change of the Record. The Comparison window
+  lists a changed tag as a row of its own next to the name and type.
 - This is additive: no existing key, attribute or order changes, and readers that ignore unknown
   keys and attributes are not affected. Record XML readers that look for a root without namespace
   declarations see `xmlns:p4kx` on records that had none. The Basetool catalog is not affected.

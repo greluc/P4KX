@@ -205,8 +205,14 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
 
     let mut no_guid = valid.clone();
     no_guid.as_object_mut().map(|object| object.remove("$guid"));
-    let mut no_name = valid.clone();
-    no_name.as_object_mut().map(|object| object.remove("$name"));
+    let mut older_export = valid.clone();
+    older_export
+        .as_object_mut()
+        .map(|object| (object.remove("$name"), object.remove("$tag")));
+    assert!(
+        validator.is_valid(&older_export),
+        "an export from before $name and $tag is valid"
+    );
     let mut empty_tag = valid.clone();
     empty_tag["$tag"] = json!("");
     let mut upper_case = valid.clone();
@@ -223,7 +229,6 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
 
     for (name, document) in [
         ("no $guid", no_guid),
-        ("no $name", no_name),
         ("empty $tag", empty_tag),
         ("upper-case GUID", upper_case),
         ("Reference without path and type", half_reference),

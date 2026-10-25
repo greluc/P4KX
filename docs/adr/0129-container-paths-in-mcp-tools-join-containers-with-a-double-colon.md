@@ -46,3 +46,25 @@ to see a texture or to resolve a Loadout.
 - A client reaches every file of a socpak without extracting it.
 - The tools return pixels of game textures to the client, which may forward them; the notice in
   each description and in the server instructions says so.
+
+## Amendment (issue #622)
+
+- **The kept containers have a byte budget.** At most four containers and 256 MiB are kept per
+  Archive, each charged its decoded size plus 256 bytes per Entry for its path index and folder
+  tree; the least recently used are dropped first. A container charged more than 128 MiB is not
+  kept: the calls that opened it use it and it is dropped with them. Two Archives are kept, so at
+  most 512 MiB of containers are held.
+- **A container is decoded outside every lock and under a model permit.** Calls that need a
+  container being decoded wait for that decode on their blocking thread and share its result; if
+  it fails, each waiting call tries again. The permit is the one of the chunk file, model and
+  texture reads (two at a time), and a call takes it only on a blocking thread that holds its
+  worker permit, always in the order worker permit, then model permit. `image_preview` therefore
+  takes the permit after its path is resolved, and the model tools inside their call, so that no
+  call waits for a worker while holding a permit a decode needs.
+- **A path inside a container is found through its path index**, built once per container, not by
+  a scan of its Entries per segment.
+- **`entity_loadout` resolves a tree once.** The resolved tree of an Entity is kept per Archive,
+  keyed by the Entity as written and `stop_at_docked_vehicles`; the last four are kept and are
+  dropped with the Archive, which is opened anew when its file changes. Paging, and a changed
+  `max_depth`, walk the kept tree. A page still costs one walk of the tree, but no resolving.
+  Calls that miss at the same time each resolve, and the first tree kept wins.

@@ -369,7 +369,7 @@ Early development (milestone M1). Available today:
   <colour>] [--view-angle <degrees>] [--elevation <degrees>] [--fov <degrees>] [--distance-scaler
   <factor>] [--tint <colour>] [--opacity <0..1>] [--glow <0..4>] [--lod <n>] [--software]
   [--exclude <port>] [--replace <port>=<entity>]` draws the hologram of a vehicle: the Assembly of
-  the Entity with its Loadout, as a transparent tinted shell that glows along its edges, seen
+  the Entity with its Loadout, as a see-through tinted shell, every layer drawn, that glows along its edges, seen
   through the narrow lens of the game's `UIHoloVehicle_Config` Record (field of view, view angle
   and distance factor, 10, 60 and 1.5 in the current game, each overridable). The picture is
   drawn offscreen without a window, by the same wgpu renderer as the 3D viewer, on the graphics

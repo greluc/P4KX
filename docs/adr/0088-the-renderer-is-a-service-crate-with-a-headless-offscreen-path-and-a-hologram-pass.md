@@ -1,6 +1,6 @@
 # The renderer is a service crate with a headless offscreen path and a hologram pass
 
-Decided for issue #172 (M14.7). It supersedes the part of ADR-0031 that kept the viewer's GPU code
+Decided for issue #172 (M14.7); amended for #573 (the see-through hologram). It supersedes the part of ADR-0031 that kept the viewer's GPU code
 inside `p4kx-gui` and added no renderer crate; the rest of ADR-0031 (the picture drawn offscreen
 and blitted, the slots, the error scopes), ADR-0078 and ADR-0085 stand and now describe
 `p4kx-render`.

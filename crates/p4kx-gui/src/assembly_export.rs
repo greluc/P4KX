@@ -7,18 +7,15 @@ mod target;
 
 use std::path::{Path, PathBuf};
 
+pub(crate) use job::stop::{Observed, Stoppable, StoppableTextures};
+pub use job::{AssemblyExport, AssemblyExportProgress, AssemblyExportStage, AssemblyExportStatus};
+pub(crate) use job::{Request, Subject, Verdict, failure_of, info_of, start, verdict};
 use p4kx_assembly::LoadoutChanges;
 use p4kx_extraction::{Guid, WriteRefused};
 use p4kx_settings::{AssemblyExportSettings, ModelMaterials};
-use target::PackageTarget;
-
-pub(crate) use job::stop::{Observed, Stoppable, StoppableTextures};
-pub use job::{AssemblyExport, AssemblyExportProgress, AssemblyExportStage, AssemblyExportStatus};
-pub(crate) use job::{Request, Subject, failure_of, start};
 pub use summary::{AssemblyExportSummary, InteriorFacts, PartIssue};
+pub(crate) use target::Output;
 pub use target::{AssemblyExportForm, PackageProblem};
-
-use crate::installation::refusal_of;
 
 /// The levels of detail the Export of an Entity as GLB offers.
 pub const ASSEMBLY_LODS: [u32; 4] = [0, 1, 2, 3];
@@ -45,10 +42,7 @@ pub struct AssemblyExportSetup {
     texture_mip: u32,
     vertex_colours: bool,
     folder: Option<PathBuf>,
-    chosen_form: AssemblyExportForm,
-    file: Option<PathBuf>,
-    refusal: Option<WriteRefused>,
-    target: Option<PackageTarget>,
+    output: Output,
 }
 
 impl AssemblyExportSetup {
@@ -96,64 +90,44 @@ impl AssemblyExportSetup {
             texture_mip: nearest(settings.texture_mip, &crate::MODEL_TEXTURE_MIPS),
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
-            chosen_form: if settings.package {
-                AssemblyExportForm::Package
-            } else {
-                AssemblyExportForm::Glb
-            },
-            file: None,
-            refusal: None,
-            target: None,
+            output: Output::new(settings.package),
         }
-    }
-
-    /// Returns whether the setup offers the Blender package: an Entity does, a container on its
-    /// own does not.
-    #[must_use]
-    pub const fn has_package(&self) -> bool {
-        self.entity.is_some()
     }
 
     /// Returns what the export writes.
     #[must_use]
     pub const fn form(&self) -> AssemblyExportForm {
-        if self.entity.is_some() {
-            self.chosen_form
-        } else {
-            AssemblyExportForm::Glb
-        }
+        self.output.form()
     }
 
-    /// Chooses what the export writes; ignored for a container, which only has the GLB file.
+    /// Chooses what the export writes.
     pub const fn set_form(&mut self, form: AssemblyExportForm) {
-        if self.entity.is_some() {
-            self.chosen_form = form;
-        }
+        self.output.set_form(form);
     }
 
     /// Returns the folder the package is written to, or `None` while none is chosen.
     #[must_use]
     pub fn package_folder(&self) -> Option<&Path> {
-        self.target.as_ref().map(PackageTarget::folder)
+        self.output.package_folder()
     }
 
     /// Chooses the folder of the package: it must be new, empty or hold an earlier package.
     pub fn set_package_folder(&mut self, folder: PathBuf) {
-        self.target = Some(PackageTarget::new(folder));
+        self.output.set_package_folder(folder);
     }
 
     /// Returns why the chosen package folder cannot be written, or `None` when it can or none is
     /// chosen.
     #[must_use]
     pub fn package_problem(&self) -> Option<&PackageProblem> {
-        self.target.as_ref().and_then(PackageTarget::problem)
+        self.output.package_problem()
     }
 
     /// Returns whether the chosen package folder holds an earlier package, which the export
     /// replaces once the new one is complete.
     #[must_use]
     pub fn package_replaces(&self) -> bool {
-        self.target.as_ref().is_some_and(PackageTarget::replaces)
+        self.output.package_replaces()
     }
 
     /// Returns the class name of the Entity, or the name of the container.
@@ -258,50 +232,30 @@ impl AssemblyExportSetup {
     /// Returns the chosen file, or `None` while none is chosen.
     #[must_use]
     pub fn file(&self) -> Option<&Path> {
-        self.file.as_deref()
+        self.output.file()
     }
 
     /// Chooses the file to write; a name without extension gets `.glb`.
     pub fn set_file(&mut self, file: PathBuf) {
-        let file = if file.extension().is_none() {
-            file.with_extension("glb")
-        } else {
-            file
-        };
-        self.refusal = refusal_of(file.parent());
-        self.file = Some(file);
+        self.output.set_file(file);
     }
 
     /// Returns why the chosen file or package folder cannot be written, when it lies inside a Star
     /// Citizen installation.
     #[must_use]
     pub fn refusal(&self) -> Option<&WriteRefused> {
-        if self.form() == AssemblyExportForm::Package {
-            match self.package_problem() {
-                Some(PackageProblem::Installation(refused)) => Some(refused),
-                _ => None,
-            }
-        } else {
-            self.refusal.as_ref()
-        }
+        self.output.refusal()
     }
 
     /// Returns whether the setup can start: a file or package folder is chosen that can be
     /// written.
     #[must_use]
     pub fn is_ready(&self) -> bool {
-        match self.form() {
-            AssemblyExportForm::Glb => self.file.is_some() && self.refusal.is_none(),
-            AssemblyExportForm::Package => {
-                self.target.is_some() && self.package_problem().is_none()
-            }
-        }
+        self.output.is_ready()
     }
 
     pub(crate) fn request(&self) -> Option<Request> {
-        if !self.is_ready() {
-            return None;
-        }
+        let file = self.output.path()?;
         let subject = self.entity.map_or_else(
             || Subject::Container {
                 chain: self.container.clone(),
@@ -312,10 +266,6 @@ impl AssemblyExportSetup {
                 interior: self.interior(),
             },
         );
-        let file = match self.form() {
-            AssemblyExportForm::Glb => self.file.clone()?,
-            AssemblyExportForm::Package => self.package_folder()?.to_path_buf(),
-        };
         Some(Request {
             subject,
             name: self.name.clone(),
@@ -337,14 +287,8 @@ impl AssemblyExportSetup {
             texture_mip: self.texture_mip,
             vertex_colours: self.vertex_colours,
             interior: self.interior,
-            package: self.chosen_form == AssemblyExportForm::Package,
-            folder: match self.form() {
-                AssemblyExportForm::Glb => self.file.as_deref(),
-                AssemblyExportForm::Package => self.package_folder(),
-            }
-            .and_then(Path::parent)
-            .map(Path::to_path_buf)
-            .or_else(|| self.folder.clone()),
+            package: self.form() == AssemblyExportForm::Package,
+            folder: self.output.folder_or(self.folder.as_deref()),
         }
     }
 }

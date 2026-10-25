@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{ArchiveModels, Assembly, LoadoutChanges};
-use p4kx_blender::{BuildInfo, PackageError, PackageInfo, Replacement, write_package};
+use p4kx_assembly::{ArchiveModels, Assembly, Interior, LoadoutChanges};
+use p4kx_blender::{
+    BuildInfo, InteriorScene, PackageError, PackageInfo, PackageSummary, Replacement,
+    write_interior_package, write_package,
+};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, CancelToken, WriteRefused};
 
@@ -36,12 +39,56 @@ pub(super) fn write(
         &request.file,
         &|| cancel.is_cancelled(),
     );
-    match written {
-        Ok(summary) => Ended::Written(Box::new(AssemblyExportSummary::of_package(
+    ended(index, cancel, written, |summary| {
+        AssemblyExportSummary::of_package(
             (request.file.clone(), request.name.clone()),
             assembly,
             (summary, changes),
-        ))),
+        )
+    })
+}
+
+/// Writes `interior` as the Blender package of `request`, replacing an earlier package of the
+/// same folder only once the new one is complete.
+pub(super) fn write_interior(
+    index: &EntryIndex,
+    request: &Request,
+    interior: &Interior,
+    (models, cancel): (&ArchiveModels<'_>, &CancelToken),
+) -> Ended {
+    let provider = Stoppable { models, cancel };
+    let loader = models.textures();
+    let textures = StoppableTextures {
+        textures: &loader,
+        cancel,
+    };
+    let info = info_of(index.archive(), &LoadoutChanges::default());
+    let written = write_interior_package(
+        &InteriorScene::new(&request.name, interior),
+        &provider,
+        &textures,
+        &request.options(),
+        &info,
+        &request.file,
+        &|| cancel.is_cancelled(),
+    );
+    ended(index, cancel, written, |summary| {
+        AssemblyExportSummary::of_interior_package(
+            (request.file.clone(), request.name.clone()),
+            interior,
+            summary,
+        )
+    })
+}
+
+fn ended(
+    index: &EntryIndex,
+    cancel: &CancelToken,
+    written: Result<PackageSummary, PackageError>,
+    summary: impl FnOnce(PackageSummary) -> AssemblyExportSummary,
+) -> Ended {
+    match written {
+        Ok(written) => Ended::Written(Box::new(summary(written))),
         Err(error) => match verdict(error, cancel.is_cancelled()) {
             Verdict::Cancelled => Ended::Cancelled,
             Verdict::Refused(refused) => Ended::Failed(ModelExportFailure::Refused(refused)),
@@ -51,7 +98,7 @@ pub(super) fn write(
 }
 
 #[derive(Debug)]
-enum Verdict {
+pub(crate) enum Verdict {
     Cancelled,
     Refused(WriteRefused),
     Failed(PackageError),
@@ -59,7 +106,7 @@ enum Verdict {
 
 /// Decides how a failed package ends: a refusal and a package that could not be moved back are
 /// never taken for a cancel, whatever the token says.
-fn verdict(error: PackageError, cancelled: bool) -> Verdict {
+pub(crate) fn verdict(error: PackageError, cancelled: bool) -> Verdict {
     match error {
         PackageError::Cancelled => Verdict::Cancelled,
         PackageError::Refused(refused) => Verdict::Refused(refused),
@@ -69,7 +116,7 @@ fn verdict(error: PackageError, cancelled: bool) -> Verdict {
     }
 }
 
-fn info_of(archive: &Archive, changes: &LoadoutChanges) -> PackageInfo {
+pub(crate) fn info_of(archive: &Archive, changes: &LoadoutChanges) -> PackageInfo {
     let build = archive.build().map(|build| BuildInfo {
         branch: build.branch().to_owned(),
         version: build.version().to_owned(),

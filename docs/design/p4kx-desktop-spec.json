@@ -1020,7 +1020,8 @@
     "output": "the group Output (GLB file, Blender package) as a segmented--sm control in one row with the level of detail, MODAL_GROUP_GAP between; with the package chosen the hint in color-gray-2-text FS_XS under the row, the Materials group is hidden and the group File becomes Package folder",
     "folder": "the chosen folder is the package; new, empty or an earlier package of P4KX; an earlier package is named in color-warning and replaced as a whole once the new one is complete; anything else, a path without a folder name and an installation are a danger-alert and disable Export",
     "progress": "stage Writing shows the text without a byte count and Cancel; the summary Blender package written lists folder, counts, Interior, textures not written and the issues",
-    "scope": "Entity only; an Interior container on its own and the Character export offer no package until the library writes one",
+    "scope": "an Entity, an Interior container on its own (D.54) and the Character of the Characters tab (D.54)",
+    "character": "D.54: btn-cta Export… in the Characters toolbar opens the modal Export Character with the group Output, the hint without animations in color-gray-2-text FS_XS, the group File or Package folder, the notices of the Entity and the foot Export and Close; detail and materials stay in the toolbar",
     "messages": "replaces color-warning; not a package, no folder name and installation color-gray-1 in a danger-alert"
   },
   "characterBuilder": {
@@ -1032,7 +1033,7 @@
     "expressionRows": 5,
     "reportHeightFrom": "head row + reportRows rows of rowHeight 36",
     "layout": "tab Characters after Sounds: a toolbar like the Entities toolbar on top, left a resizable choices panel between sidebarMinWidth and sidebarMaxWidth, right the facts bar, the status line, the 3D view with the playback bar of modelPreview and below it the report; below stackWidth of the work surface everything stands in one scrolling column: toolbar, choices, view at the height of assemblyView.panelHeight, report",
-    "toolbar": "the eyebrow Detail with a segmented--sm control 0 to 3, the eyebrow Materials with a segmented--sm control Colours and Textures, right a btn-cta Export as GLB; below stackWidth the controls wrap, the export first",
+    "toolbar": "the eyebrow Detail with a segmented--sm control 0 to 3, the eyebrow Materials with a segmented--sm control Colours and Textures, right a btn-cta Export… that opens the export setup (D.54); below stackWidth the controls wrap, the export first",
     "choices": "eyebrow groups Body (segmented--sm Male and Female, locked while a head is chosen), Head (line, btn-outline btn-xs from the Archive and from a file, btn-ghost btn-xs Remove), Armour and clothing (Loadout line with Choose and Remove, pieces as rows with a close icon, btn-outline btn-xs Add), Expressions (checkbox, radio list of expressionRows rows that scrolls, slider Strength)",
     "report": "head row with the count of pieces left out or noted, rows Left out in color-warning and Note in color-gray-1, a row for each piece of the Loadout another piece replaced; with none the line Every piece fits in color-gray-1",
     "messages": "building as assemblyView.bar; stopped and empty color-gray-1; archive changed color-warning; missing key, CHF and failure color-danger-text; graphics problems as modelPreview.messages"

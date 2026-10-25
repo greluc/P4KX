@@ -10,9 +10,9 @@ use p4kx_settings::{Settings, WindowGeometry};
 use crate::ui::Dialog;
 use crate::ui_file_dialog::UiFileDialog;
 use crate::{
-    AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, CharacterText,
-    ComparisonText, HeadSource, Model, ModelExportSetup, ModelExportText, QueryExportFormat,
-    QueryText, Text, ViewerSupport, ui, window,
+    AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, CharacterExportSetup,
+    CharacterText, ComparisonText, HeadSource, Model, ModelExportSetup, ModelExportText,
+    QueryExportFormat, QueryText, Text, ViewerSupport, ui, window,
 };
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
@@ -72,7 +72,9 @@ impl App {
             Dialog::AssemblyFile | Dialog::AssemblyPackage => {
                 ModelFileDialog::of_assembly(&self.model)
             }
-            Dialog::CharacterFile => ModelFileDialog::of_character(&self.model),
+            Dialog::CharacterFile | Dialog::CharacterPackage => {
+                ModelFileDialog::of_character(&self.model)
+            }
             _ => ModelFileDialog::of(&self.model),
         };
         let ctx = ctx.clone();
@@ -149,9 +151,14 @@ impl App {
                     .choose_head(HeadSource::File(path));
             }
             Some((Dialog::CharacterFile, path)) => {
-                let ctx = ui.ctx().clone();
-                self.model
-                    .start_character_export(path, move || ctx.request_repaint());
+                if let Some(setup) = self.model.characters_mut().export_setup_mut() {
+                    setup.set_file(path);
+                }
+            }
+            Some((Dialog::CharacterPackage, path)) => {
+                if let Some(setup) = self.model.characters_mut().export_setup_mut() {
+                    setup.set_package_folder(path);
+                }
             }
             Some((Dialog::UiFile, path)) => {
                 let ctx = ui.ctx().clone();
@@ -261,7 +268,7 @@ fn pick(
             .set_file_name(CATALOG_FILE)
             .save_file(),
         Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => model_file.save(picker),
-        Dialog::AssemblyPackage => model_file.pick_folder(picker),
+        Dialog::AssemblyPackage | Dialog::CharacterPackage => model_file.pick_folder(picker),
         Dialog::UiFile => ui_file.save(picker),
         Dialog::CharacterChf => picker.add_filter(filters.chf, &["chf"]).pick_file(),
         Dialog::QueryExport(format) => {
@@ -309,11 +316,16 @@ impl ModelFileDialog {
     }
 
     fn of_character(model: &Model) -> Self {
-        let characters = model.characters();
+        let setup = model.characters().export_setup();
         Self {
             filter: model.texts().get(AssemblyExportText::FileFilter),
-            name: characters.proposed_name(),
-            folder: characters.folder().map(Path::to_path_buf),
+            name: setup.map_or_else(
+                || "character.glb".to_owned(),
+                CharacterExportSetup::proposed_name,
+            ),
+            folder: setup
+                .and_then(CharacterExportSetup::folder)
+                .map(Path::to_path_buf),
         }
     }
 

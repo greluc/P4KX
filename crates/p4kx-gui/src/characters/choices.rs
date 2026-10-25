@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use p4kx_assembly::{BodyVariant, EntityCatalogue};
@@ -9,11 +8,11 @@ use p4kx_extraction::Guid;
 use p4kx_settings::ModelMaterials;
 
 use super::chooser::{Chooser, ChooserKind, Key};
-use super::export::{self, CharacterExport, Request};
+use super::export::{self, CharacterExport, Origin, Request};
 use super::head::{self, HeadSource};
 use super::task::Task;
-use super::{CHARACTER_LODS, CharactersTab, Pick, SourcesState};
-use crate::installation::refusal_of;
+use super::{CHARACTER_LODS, CharacterExportSetup, CharactersTab, Pick, SourcesState};
+use crate::AssemblyExportForm;
 
 impl CharactersTab {
     /// Chooses the body variant to build on; ignored while a head is chosen, whose body it is.
@@ -159,39 +158,82 @@ impl CharactersTab {
                 .is_some_and(CharacterExport::is_running)
     }
 
-    /// Starts writing the Character as shown to `file`, a name without extension getting `.glb`,
-    /// off the UI thread, calling `wake` from it once it ended; returns whether it started. A file
-    /// inside a Star Citizen installation is refused as a failed export.
-    pub(crate) fn begin_export(
-        &mut self,
-        file: PathBuf,
-        wake: Arc<dyn Fn() + Send + Sync>,
-    ) -> bool {
+    /// Opens the setup of the export of the Character as shown, unless none is available; a
+    /// finished export is dismissed.
+    pub(crate) fn begin_export_setup(&mut self) -> bool {
         if !self.export_available() {
             return false;
         }
-        let (Some(ctx), Some(shown)) = (&self.ctx, &self.shown) else {
+        self.export = None;
+        self.setup = Some(CharacterExportSetup::new(
+            self.name(),
+            self.export_choices.folder.clone(),
+            self.export_choices.package,
+        ));
+        true
+    }
+
+    /// Returns the open setup of the export, or `None` when none is open.
+    #[must_use]
+    pub const fn export_setup(&self) -> Option<&CharacterExportSetup> {
+        self.setup.as_ref()
+    }
+
+    /// Returns the open setup of the export for changes.
+    pub const fn export_setup_mut(&mut self) -> Option<&mut CharacterExportSetup> {
+        self.setup.as_mut()
+    }
+
+    /// Closes the setup of the export without exporting.
+    pub fn close_export_setup(&mut self) {
+        self.setup = None;
+    }
+
+    /// Starts writing the Character as shown, as the open setup chose, off the UI thread, calling
+    /// `wake` from it once it ended; returns whether it started. Nothing starts while the setup is
+    /// not ready.
+    pub(crate) fn submit_export(&mut self, wake: Arc<dyn Fn() + Send + Sync>) -> bool {
+        if !self.export_available() {
+            return false;
+        }
+        let (Some(ctx), Some(shown), Some(setup)) = (&self.ctx, &self.shown, &self.setup) else {
             return false;
         };
-        let file = if file.extension().is_none() {
-            file.with_extension("glb")
-        } else {
-            file
+        let Some(file) = setup.path() else {
+            return false;
         };
-        self.export_choices.folder = file.parent().map(std::path::Path::to_path_buf);
+        self.export_choices.folder = setup.folder_chosen();
+        self.export_choices.package = setup.form() == AssemblyExportForm::Package;
         let request = Request {
             armour: Arc::clone(&shown.armour),
             name: self.name(),
+            form: setup.form(),
             file,
             materials: self.export_choices.materials,
             texture_mip: self.export_choices.texture_mip,
             vertex_colours: self.export_choices.vertex_colours,
+            origin: Origin {
+                chf: self.head.as_ref().map(|head| head.info.name.clone()),
+                loadout: self.loadout.clone(),
+            },
+            #[cfg(feature = "test-hooks")]
+            pause: self
+                .gate
+                .clone()
+                .map_or_else(crate::hold::Pause::default, crate::hold::Pause::at),
         };
-        self.export = Some(match refusal_of(request.file.parent()) {
-            Some(refused) => export::refused(request.file, request.name, refused),
-            None => export::start(&ctx.index, request, wake),
-        });
+        self.export = Some(export::start(&ctx.index, request, wake));
+        self.setup = None;
         true
+    }
+
+    /// Makes the export wait before it writes until the returned hold is dropped or it is
+    /// cancelled.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_export(&mut self) -> crate::Hold {
+        let (hold, gate) = crate::hold::Hold::new();
+        self.gate = Some(gate);
+        hold
     }
 
     /// Asks the running export to stop.

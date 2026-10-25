@@ -6,29 +6,41 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_assembly::{ArchiveModels, Armour};
+use p4kx_blender::PackageSummary;
 use p4kx_extraction::{
-    CancelToken, ConversionError, GlbOptions, GlbSummary, GltfError, MaterialMode, WriteRefused,
-    write_replacing,
+    CancelToken, ConversionError, GlbOptions, GlbSummary, GltfError, MaterialMode, write_replacing,
 };
 use p4kx_settings::ModelMaterials;
 
+use super::package;
 use super::task::{Polled, Task};
 use crate::assembly_export::{Observed, PartIssue, StoppableTextures, failure_of};
-use crate::{EntryIndex, ModelExportFailure};
+use crate::{AssemblyExportForm, EntryIndex, ModelExportFailure};
 
-/// What the Export of a Character as GLB writes and where.
+/// Where the Character comes from, as the manifest of a package records it.
+#[derive(Debug, Clone, Default)]
+pub(super) struct Origin {
+    pub(super) chf: Option<String>,
+    pub(super) loadout: Option<String>,
+}
+
+/// What the Export of a Character writes and where.
 #[derive(Debug, Clone)]
 pub(super) struct Request {
     pub(super) armour: Arc<Armour>,
     pub(super) name: String,
+    pub(super) form: AssemblyExportForm,
     pub(super) file: PathBuf,
     pub(super) materials: ModelMaterials,
     pub(super) texture_mip: u32,
     pub(super) vertex_colours: bool,
+    pub(super) origin: Origin,
+    #[cfg(feature = "test-hooks")]
+    pub(super) pause: crate::hold::Pause,
 }
 
 impl Request {
-    fn options(&self) -> GlbOptions {
+    pub(super) fn options(&self) -> GlbOptions {
         let mode = match self.materials {
             ModelMaterials::Colours => MaterialMode::Colours,
             ModelMaterials::Textures => MaterialMode::Textures,
@@ -45,19 +57,26 @@ impl Request {
     }
 }
 
-/// What a finished Export of a Character as GLB wrote and what it left out.
+/// What a finished Export of a Character wrote and what it left out.
 #[derive(Debug, Clone, PartialEq)]
 pub struct CharacterExportSummary {
-    file: PathBuf,
-    name: String,
-    parts: usize,
-    lod: u32,
-    written: GlbSummary,
-    issues: Vec<PartIssue>,
+    pub(super) file: PathBuf,
+    pub(super) name: String,
+    pub(super) parts: usize,
+    pub(super) lod: u32,
+    pub(super) written: GlbSummary,
+    pub(super) issues: Vec<PartIssue>,
+    pub(super) package: Option<PackageSummary>,
 }
 
 impl CharacterExportSummary {
-    /// Returns the GLB file that was written.
+    /// Returns what the Blender package holds, or `None` when the export wrote a GLB file.
+    #[must_use]
+    pub const fn package(&self) -> Option<&PackageSummary> {
+        self.package.as_ref()
+    }
+
+    /// Returns the GLB file or the package folder that was written.
     #[must_use]
     pub fn file(&self) -> &Path {
         &self.file
@@ -100,20 +119,20 @@ impl CharacterExportSummary {
     }
 }
 
-/// Where an Export of a Character as GLB stands.
+/// Where an Export of a Character stands.
 #[derive(Debug, Clone, Copy)]
 pub enum CharacterExportStatus<'a> {
-    /// The export runs; the bytes written so far.
+    /// The export runs; the bytes written so far, always 0 for a package.
     Running(u64),
-    /// The file was written.
+    /// The file or package was written.
     Finished(&'a CharacterExportSummary),
-    /// The export was cancelled; no file was written.
+    /// The export was cancelled; nothing was written.
     Cancelled,
-    /// No file was written, for the reason given.
+    /// Nothing was written, for the reason given.
     Failed(&'a ModelExportFailure),
 }
 
-enum Ended {
+pub(super) enum Ended {
     Written(Box<CharacterExportSummary>),
     Cancelled,
     Failed(ModelExportFailure),
@@ -127,11 +146,12 @@ enum State {
     Failed(ModelExportFailure),
 }
 
-/// An Export of a Character as GLB running on a background thread, or its outcome.
+/// An Export of a Character running on a background thread, or its outcome.
 pub struct CharacterExport {
     id: u64,
     file: PathBuf,
     name: String,
+    form: AssemblyExportForm,
     written: Arc<AtomicU64>,
     task: Option<Task<Ended>>,
     state: State,
@@ -154,7 +174,13 @@ impl CharacterExport {
         self.id
     }
 
-    /// Returns the GLB file the export writes.
+    /// Returns what the export writes: a GLB file or a Blender package folder.
+    #[must_use]
+    pub const fn form(&self) -> AssemblyExportForm {
+        self.form
+    }
+
+    /// Returns the GLB file the export writes, or the package folder.
     #[must_use]
     pub fn file(&self) -> &Path {
         &self.file
@@ -234,18 +260,6 @@ fn next_id() -> u64 {
     NEXT_ID.fetch_add(1, Ordering::Relaxed)
 }
 
-/// An export that did not start because `file` lies inside a Star Citizen installation.
-pub(super) fn refused(file: PathBuf, name: String, refused: WriteRefused) -> CharacterExport {
-    CharacterExport {
-        id: next_id(),
-        file,
-        name,
-        written: Arc::new(AtomicU64::new(0)),
-        task: None,
-        state: State::Failed(ModelExportFailure::Refused(refused)),
-    }
-}
-
 pub(super) fn start(
     index: &Arc<EntryIndex>,
     request: Request,
@@ -254,6 +268,7 @@ pub(super) fn start(
     let id = next_id();
     let written = Arc::new(AtomicU64::new(0));
     let (file, name) = (request.file.clone(), request.name.clone());
+    let form = request.form;
     let thread_index = Arc::clone(index);
     let thread_written = Arc::clone(&written);
     let spawned = Task::spawn("character-export", wake, move |cancel| {
@@ -267,6 +282,7 @@ pub(super) fn start(
         id,
         file,
         name,
+        form,
         written,
         task,
         state,
@@ -276,6 +292,11 @@ pub(super) fn start(
 fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, written: &AtomicU64) -> Ended {
     if index.watch().check().is_err() {
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
+    }
+    #[cfg(feature = "test-hooks")]
+    request.pause.wait(|| cancel.is_cancelled());
+    if request.form == AssemblyExportForm::Package {
+        return package::write(index, request, cancel);
     }
     let models = ArchiveModels::new(index.archive());
     let archive_textures = models.textures();
@@ -313,6 +334,7 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, written: &At
             lod: request.armour.lod(),
             written: summary,
             issues: request.armour.issues().iter().map(PartIssue::of).collect(),
+            package: None,
         })),
         Err(ConversionError::Cancelled) => Ended::Cancelled,
         Err(error) => Ended::Failed(failure_of(index, &error)),

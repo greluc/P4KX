@@ -289,6 +289,8 @@ pub const FACT_KEY_TRACKING: f32 = 0.08;
 pub const FACT_KEY_GAP: f32 = 5.0;
 /// The font size of a fact's value.
 pub const FACT_VALUE_SIZE: f32 = 0.78 * REM;
+/// The fewest characters of a value a fact needs room for to be shown at all.
+pub const FACT_VALUE_MIN_CHARS: f32 = 3.0;
 
 /// The horizontal padding of a KPI tile.
 pub const KPI_PADDING_X: f32 = 14.0;

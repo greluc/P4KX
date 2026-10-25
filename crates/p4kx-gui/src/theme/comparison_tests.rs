@@ -8,7 +8,7 @@ use super::desktop as d;
 
 const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
 
-const METRICS: [(&str, &str, f32); 23] = [
+const METRICS: [(&str, &str, f32); 24] = [
     ("archivePicker", "height", d::BUTTON_HEIGHT),
     ("archivePicker", "paddingRight", d::PICKER_PADDING_RIGHT),
     ("archivePicker", "fontSize", super::tokens::FS_BODY),
@@ -27,6 +27,7 @@ const METRICS: [(&str, &str, f32); 23] = [
     ("factsBar", "keyLetterSpacingEm", d::FACT_KEY_TRACKING),
     ("factsBar", "keyGap", d::FACT_KEY_GAP),
     ("factsBar", "valueFontSize", d::FACT_VALUE_SIZE),
+    ("factsBar", "valueMinChars", d::FACT_VALUE_MIN_CHARS),
     ("kpiTile", "paddingX", d::KPI_PADDING_X),
     ("kpiTile", "paddingY", d::KPI_PADDING_Y),
     ("kpiTile", "gap", d::TOOLBAR_PADDING),

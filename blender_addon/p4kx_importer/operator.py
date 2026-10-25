@@ -43,11 +43,16 @@ class IMPORT_SCENE_OT_p4kx_package(bpy.types.Operator, ImportHelper):
             return {"CANCELLED"}
         for warning in result.warnings:
             self.report({"WARNING"}, warning)
-        self.report(
-            {"INFO"},
+        summary = (
             f"Imported {result.objects} nodes, {result.meshes} meshes, "
-            f"{result.instances} instances, {result.lights} lights.",
+            f"{result.instances} instances, {result.lights} lights"
         )
+        if result.armatures:
+            summary += (
+                f", {result.armatures} armatures, {result.shape_keys} shape keys, "
+                f"{result.actions} actions"
+            )
+        self.report({"INFO"}, summary + ".")
         return {"FINISHED"}
 
 

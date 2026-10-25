@@ -11,6 +11,7 @@ pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
+use crate::cli_character::CharacterArgs;
 pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfGlbArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_conflict::Conflict;
@@ -124,6 +125,9 @@ pub(crate) enum Command {
     /// skinned GLB.
     #[command(after_help = EXIT_CODES_HELP)]
     Armour(ArmourArgs),
+    /// Writes a Character, its head, armour and animations on a body, as a Blender package.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Character(CharacterArgs),
     /// Compares the Entries and Records of an old and a new Archive, or prints the line diff of
     /// one Entry; exits with 1 when they differ.
     #[command(after_help = EXIT_CODES_HELP)]

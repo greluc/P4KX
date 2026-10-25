@@ -10,21 +10,29 @@ the fields it relies on and every file reference, and never executes anything fr
 from __future__ import annotations
 
 import json
-import math
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .light_model import Light, LightError, parse_light
+from .manifest_fields import (
+    PackageError,
+    PackageTooNewError,
+    Quaternion,
+    Vector3,
+    read_array,
+    read_object,
+    read_text,
+)
 from .material_model import MaterialDesc, Palette, parse_materials, parse_palettes
+from .node_model import Node, parse_nodes
+from .rig_model import Rig, RigError, parse_rig
 
 FORMAT_NAME = "p4kx-blender-package"
 SUPPORTED_MAJOR = 1
-SUPPORTED_MINOR = 2
+SUPPORTED_MINOR = 3
 MANIFEST_NAME = "scene.json"
 MAX_MANIFEST_BYTES = 64 * 1024 * 1024
-MAX_ITEMS = 200_000
 MAX_GLB_JSON_BYTES = 16 * 1024 * 1024
 BLENDER_NAME_BYTES = 63
 
@@ -34,21 +42,8 @@ _TEXTURE_ID = re.compile(r"^t[0-9]{4,}$")
 _MESH_FILE = re.compile(r"^meshes/m[0-9]{4,}\.glb$")
 _TEXTURE_FILE = re.compile(r"^textures/t[0-9]{4,}\.png$")
 _ROLES = ("diffuse", "normal", "specular")
-_KNOWN_NODE_KINDS = frozenset({"entity", "container", "object", "light"})
 _COLOUR_SPACES = frozenset({"srgb", "linear"})
 _ALPHA_MEANINGS = frozenset({"none", "opacity", "smoothness"})
-
-Vector3 = tuple[float, float, float]
-Quaternion = tuple[float, float, float, float]
-
-
-class PackageError(Exception):
-    """The package cannot be read: it is malformed or not a P4KX package."""
-
-
-class PackageTooNewError(PackageError):
-    """The package has a higher major version than this add-on reads."""
-
 
 @dataclass(frozen=True, slots=True)
 class MeshMaterial:
@@ -68,6 +63,7 @@ class Mesh:
     file: str
     materials: tuple[MeshMaterial, ...]
     palette_id: str | None = None
+    rig: Rig | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,21 +74,6 @@ class Texture:
     file: str
     colour_space: str
     alpha: str
-
-
-@dataclass(frozen=True, slots=True)
-class Node:
-    """One node of the scene hierarchy, with its transform in glTF axes."""
-
-    index: int
-    kind: str
-    name: str
-    parent: int | None
-    mesh: str | None
-    translation: Vector3
-    rotation: Quaternion
-    scale: Vector3
-    light: Light | None = None
 
 
 @dataclass(slots=True)
@@ -130,14 +111,16 @@ def load_package(location: Path) -> Package:
 
 def parse_manifest(data: object, root: Path) -> Package:
     """Validates a decoded ``scene.json`` and returns the package, or raises ``PackageError``."""
-    manifest = _object(data, MANIFEST_NAME)
+    manifest = read_object(data, MANIFEST_NAME)
     if manifest.get("format") != FORMAT_NAME:
         raise PackageError(f"Not a P4KX Blender package: format is not {FORMAT_NAME}.")
     version, warnings = _check_version(manifest.get("version"))
-    _check_coordinates(_object(manifest.get("coordinates"), "coordinates"))
-    textures = _parse_textures(_array(manifest.get("textures"), "textures"), warnings)
-    meshes = _parse_meshes(_array(manifest.get("meshes"), "meshes"), textures)
-    nodes = _parse_nodes(_array(manifest.get("nodes"), "nodes"), meshes, warnings)
+    _check_coordinates(read_object(manifest.get("coordinates"), "coordinates"))
+    textures = _parse_textures(read_array(manifest.get("textures"), "textures"), warnings)
+    meshes = _parse_meshes(read_array(manifest.get("meshes"), "meshes"), textures)
+    nodes = parse_nodes(
+        manifest.get("nodes"), {mesh_id: mesh.rig is not None for mesh_id, mesh in meshes.items()}, warnings
+    )
     return Package(
         root=root,
         version=version,
@@ -281,8 +264,8 @@ def _parse_textures(items: list[Any], warnings: list[str]) -> dict[str, Texture]
     textures: dict[str, Texture] = {}
     for position, item in enumerate(items):
         where = f"textures[{position}]"
-        entry = _object(item, where)
-        texture_id = _text(entry, "id", where)
+        entry = read_object(item, where)
+        texture_id = read_text(entry, "id", where)
         if not _TEXTURE_ID.fullmatch(texture_id):
             raise PackageError(f"{where}: id {texture_id!r} is not a texture id.")
         if texture_id in textures:
@@ -290,11 +273,11 @@ def _parse_textures(items: list[Any], warnings: list[str]) -> dict[str, Texture]
         if entry.get("format") != "png":
             warnings.append(f"Texture {texture_id} has a format this add-on does not read.")
             continue
-        file = _text(entry, "file", where)
+        file = read_text(entry, "file", where)
         if not _TEXTURE_FILE.fullmatch(file):
             raise PackageError(f"{where}: file {file!r} is not a package texture path.")
-        colour_space = _text(entry, "colour_space", where)
-        alpha = _text(entry, "alpha", where)
+        colour_space = read_text(entry, "colour_space", where)
+        alpha = read_text(entry, "alpha", where)
         if colour_space not in _COLOUR_SPACES or alpha not in _ALPHA_MEANINGS:
             warnings.append(f"Texture {texture_id} has a colour space or alpha this add-on does not know.")
             continue
@@ -306,32 +289,36 @@ def _parse_meshes(items: list[Any], textures: dict[str, Texture]) -> dict[str, M
     meshes: dict[str, Mesh] = {}
     for position, item in enumerate(items):
         where = f"meshes[{position}]"
-        entry = _object(item, where)
-        mesh_id = _text(entry, "id", where)
+        entry = read_object(item, where)
+        mesh_id = read_text(entry, "id", where)
         if not _MESH_ID.fullmatch(mesh_id):
             raise PackageError(f"{where}: id {mesh_id!r} is not a mesh id.")
         if mesh_id in meshes:
             raise PackageError(f"{where}: duplicate mesh id {mesh_id}.")
-        file = _text(entry, "file", where)
+        file = read_text(entry, "file", where)
         if not _MESH_FILE.fullmatch(file):
             raise PackageError(f"{where}: file {file!r} is not a package mesh path.")
         materials = tuple(
             _parse_material(material, f"{where}.materials[{slot}]", textures)
-            for slot, material in enumerate(_array(entry.get("materials"), f"{where}.materials"))
+            for slot, material in enumerate(read_array(entry.get("materials"), f"{where}.materials"))
         )
         palette_id = entry.get("palette_id")
         meshes[mesh_id] = Mesh(
-            mesh_id, file, materials, palette_id if isinstance(palette_id, str) else None
+            mesh_id,
+            file,
+            materials,
+            palette_id if isinstance(palette_id, str) else None,
+            _rig(entry.get("rig"), f"{where}.rig"),
         )
     return meshes
 
 
 def _parse_material(item: Any, where: str, textures: dict[str, Texture]) -> MeshMaterial:
-    entry = _object(item, where)
+    entry = read_object(item, where)
     index = entry.get("index")
     if not isinstance(index, int) or isinstance(index, bool) or index < 0:
         raise PackageError(f"{where}: index is not a non-negative integer.")
-    named = _object(entry.get("textures"), f"{where}.textures")
+    named = read_object(entry.get("textures"), f"{where}.textures")
     used = {
         role: texture_id
         for role in _ROLES
@@ -340,120 +327,16 @@ def _parse_material(item: Any, where: str, textures: dict[str, Texture]) -> Mesh
     description = entry.get("material")
     return MeshMaterial(
         index,
-        _text(entry, "name", where),
+        read_text(entry, "name", where),
         used,
         description if isinstance(description, str) else None,
     )
 
 
-def _parse_nodes(items: list[Any], meshes: dict[str, Mesh], warnings: list[str]) -> list[Node]:
-    nodes: list[Node] = []
-    skipped: set[int] = set()
-    unknown_kinds: set[str] = set()
-    unknown_lights = False
-    light_children = False
-    light_nodes: set[int] = set()
-    for position, item in enumerate(items):
-        where = f"nodes[{position}]"
-        entry = _object(item, where)
-        parent = entry.get("parent")
-        if parent is not None and (
-            not isinstance(parent, int) or isinstance(parent, bool) or not 0 <= parent < position
-        ):
-            raise PackageError(f"{where}: parent must be the index of an earlier node.")
-        kind = _text(entry, "kind", where)
-        if parent in light_nodes:
-            skipped.add(position)
-            light_children = True
-            continue
-        if kind not in _KNOWN_NODE_KINDS or parent in skipped:
-            skipped.add(position)
-            if kind not in _KNOWN_NODE_KINDS:
-                unknown_kinds.add(kind)
-            continue
-        light = None
-        if kind == "light":
-            light = _light(entry.get("light"), f"{where}.light")
-            if light is None:
-                skipped.add(position)
-                unknown_lights = True
-                continue
-            light_nodes.add(position)
-        mesh = None if kind == "light" else entry.get("mesh")
-        if mesh is not None and (not isinstance(mesh, str) or mesh not in meshes):
-            raise PackageError(f"{where}: mesh {mesh!r} is not a mesh of the package.")
-        nodes.append(
-            Node(
-                index=position,
-                kind=kind,
-                name=_text(entry, "name", where),
-                parent=parent,
-                mesh=mesh,
-                translation=_floats(entry, "translation", 3, where),
-                rotation=_rotation(entry, where),
-                scale=_floats(entry, "scale", 3, where),
-                light=light,
-            )
-        )
-    if unknown_kinds:
-        warnings.append(f"Nodes of kind {', '.join(sorted(unknown_kinds))} are skipped.")
-    if unknown_lights:
-        warnings.append("Lights of a kind this add-on does not know are skipped.")
-    if light_children:
-        warnings.append("Children of light nodes are skipped.")
-    return nodes
-
-
-def _light(value: object, where: str) -> Light | None:
+def _rig(value: object, where: str) -> Rig | None:
+    if value is None:
+        return None
     try:
-        return parse_light(value, where)
-    except LightError as error:
+        return parse_rig(value, where)
+    except RigError as error:
         raise PackageError(str(error)) from error
-
-
-def _rotation(entry: dict[str, Any], where: str) -> Quaternion:
-    x, y, z, w = _floats(entry, "rotation", 4, where)
-    length = math.sqrt(x * x + y * y + z * z + w * w)
-    if length < 1e-6:
-        raise PackageError(f"{where}: rotation is the zero quaternion.")
-    return (x / length, y / length, z / length, w / length)
-
-
-def _floats(entry: dict[str, Any], key: str, count: int, where: str) -> tuple[float, ...]:
-    values = entry.get(key)
-    message = f"{where}: {key} must be {count} finite numbers."
-    if not isinstance(values, list) or len(values) != count:
-        raise PackageError(message)
-    converted: list[float] = []
-    for value in values:
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            raise PackageError(message)
-        try:
-            number = float(value)
-        except OverflowError as error:
-            raise PackageError(message) from error
-        if not math.isfinite(number):
-            raise PackageError(message)
-        converted.append(number)
-    return tuple(converted)
-
-
-def _object(value: object, where: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise PackageError(f"{where} must be an object.")
-    return value
-
-
-def _array(value: object, where: str) -> list[Any]:
-    if not isinstance(value, list):
-        raise PackageError(f"{where} must be an array.")
-    if len(value) > (limit := MAX_ITEMS):
-        raise PackageError(f"{where} has more than {limit} entries.")
-    return value
-
-
-def _text(entry: dict[str, Any], key: str, where: str) -> str:
-    value = entry.get(key)
-    if not isinstance(value, str):
-        raise PackageError(f"{where}: {key} must be a string.")
-    return value

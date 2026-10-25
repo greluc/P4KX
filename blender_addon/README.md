@@ -21,6 +21,11 @@ importer that ships with Blender must be enabled.
   and instances, lights as Blender point, spot and sun lights (mapping in
   [docs/blender-package.md](../docs/blender-package.md#interiors-and-lights)). The import option
   *Light strength* multiplies their energy, because the engine's intensity has no known unit.
+- Imports a Character written by `p4kx character package` (format 1.3) once, not as an instance:
+  the armature with the bones of the body, the skinned meshes below it, the morph targets of the
+  head as shape keys and the animations as actions, all below the empty of the `character` node
+  ([ADR-0107](../docs/adr/0107-a-character-is-written-as-one-rigged-glb-mesh-behind-a-character-node.md)).
+  The materials are those of Blender's glTF importer, with the textures embedded in the GLB.
 - Refuses a package with a newer major version and says to update the add-on; warns about a
   newer minor version.
 

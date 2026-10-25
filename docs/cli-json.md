@@ -306,6 +306,43 @@ kinds are those of `p4kx entity glb`, the texture kinds are `texture` and `textu
 earlier package exits with code 2 and writes nothing; an Archive key that is missing or wrong
 exits with code 7.
 
+## `p4kx character package <archive> --out <folder> --json`
+
+```json
+{"archive": "…", "name": "masculinedefault", "chf": "…/masculinedefault.chf", "body": "male",
+ "rig": "protos_human_male_face_t1_pu", "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…",
+ "lod": 0, "loadout": {"name": "…", "source": "entity", "class_name": "…"},
+ "replaced": [{"name": "…", "by": "…", "item_type": "Char_Armor_Torso"}, …],
+ "parts": [{"name": "body", "origin": "body", "file": "…", "morph_targets": 0}, …],
+ "nodes": 1, "bones": 403, "skinned_meshes": 9, "morph_targets": 399, "materials": 14,
+ "embedded_textures": 30, "vertices": 118540, "triangles": 151601, "files": 2,
+ "bytes": 46406858, "skipped": 0,
+ "animations": [{"name": "…", "duration_seconds": 3.27, "additive": false, "channels": 353,
+                 "keys": 10714, "skipped_tracks": []}],
+ "issues": [Issue, …]}
+```
+
+The inputs are those of `p4kx chf glb` and `p4kx armour glb`: `--chf`, `--body`, `--piece`,
+`--loadout`, `--expression`, `--no-expressions`, `--anim` and `--anim-from`, see
+[docs/blender-package.md](blender-package.md#characters). `name` is the Character's name (`--name`,
+else the CHF's file name without extension, else the body variant). `chf` is the CHF path as
+given and `null` without `--chf`; `rig` is the head rig and `null` without a CHF. `loadout` is
+`null` without `--loadout` and `replaced` lists the pieces of the Loadout that a `--piece` took the
+place of, both as for `p4kx armour glb`. `parts` lists the skins worn on the skeleton, the body
+first (`origin` `body` or `piece`), with the skin `file` and the number of `morph_targets` of the
+part's mesh. `nodes` counts the nodes of `scene.json`, which is 1; `bones`, `skinned_meshes`,
+`morph_targets` and `materials` count what the GLB file holds, `embedded_textures` the PNG images
+embedded in it, and `vertices` and `triangles` its geometry. `files` counts the manifest and the
+mesh and `bytes` their size. `animations` lists each animation written, as in `p4kx chf glb`, with
+`skipped_weights` (a number, only when not 0). `skipped` counts the issues that leave a piece out.
+An **Issue** is an entry of the `issues` of `scene.json`, with `origin` `assembly`: the kinds of
+`p4kx armour glb` and `p4kx chf glb`, among them `animation_not_used`. An `--out` that is the
+Archive, that lies in a Star Citizen installation or that exists and is no earlier package, a
+`--chf` that holds no face DNA or whose DNA belongs to an unknown head rig, and a `--chf` beside
+`--body` exit with code 2 and write nothing; a head that could not be shaped, or expressions that
+could not be made, exit with code 1 after the package is written; an Archive key that is missing
+or wrong exits with code 7.
+
 ## `p4kx interior glb <archive> <container>... --out <file> --json`
 
 ```json

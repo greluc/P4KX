@@ -5,7 +5,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use p4kx_assembly::{
     Attachment, EntityNode, LoadoutError, PortDefinition, PortNode, PortSource, Target,
-    VehicleImplementation, VehicleItemPort,
+    VehicleImplementation, VehicleItemPort, VehiclePart,
 };
 use p4kx_extraction::is_placeholder_key;
 
@@ -43,10 +43,26 @@ impl PortReader {
             .flat_map(VehicleImplementation::item_ports)
             .filter_map(|part| Some((part.name().to_ascii_lowercase(), part.item_port()?)))
             .collect();
+        let named: BTreeSet<String> = node
+            .ports()
+            .iter()
+            .filter(|port| port.source() != PortSource::Empty)
+            .map(|port| port.name().to_ascii_lowercase())
+            .collect();
+        let mut declared = node
+            .vehicle()
+            .into_iter()
+            .flat_map(VehicleImplementation::item_ports)
+            .filter(|part| !named.contains(&part.name().to_ascii_lowercase()))
+            .filter_map(VehiclePart::item_port);
         node.ports()
             .iter()
             .map(|port| {
-                let xml = vehicle.get(&port.name().to_ascii_lowercase()).copied();
+                let xml = if port.source() == PortSource::Empty {
+                    declared.next()
+                } else {
+                    vehicle.get(&port.name().to_ascii_lowercase()).copied()
+                };
                 self.read_port(port, xml)
             })
             .collect()
@@ -58,13 +74,15 @@ impl PortReader {
             (None, Some(xml)) => read_vehicle(xml),
             (None, None) => LoadoutPort::default(),
         };
+        let (source, visibility) = match (port.source(), xml) {
+            (PortSource::Empty, Some(own)) => (VEHICLE_SOURCE, own.visibility().code()),
+            (PortSource::Empty, None) => (VEHICLE_SOURCE, port.visibility().code()),
+            (source, _) => (source.code(), port.visibility().code()),
+        };
         let mut shape = LoadoutPort {
             name: port.name().to_owned(),
-            source: match port.source() {
-                PortSource::Empty => VEHICLE_SOURCE,
-                source => source.code(),
-            },
-            visibility: port.visibility().code(),
+            source,
+            visibility,
             ..shape
         };
         match port.attachment() {

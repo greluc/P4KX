@@ -68,6 +68,7 @@ struct Tally {
     unmatched_children: usize,
     unmatched_elems: usize,
     ports: usize,
+    duplicate_item_ports: usize,
     unspecified_ports: usize,
     deepest: usize,
     largest_file: usize,
@@ -211,6 +212,11 @@ fn collect(
     tally.with_treads_or_wheels +=
         usize::from(ground && vehicle.treads().chain(vehicle.wheels()).next().is_some());
     tally.ports += tree.ports().len();
+    let mut names = std::collections::HashSet::new();
+    tally.duplicate_item_ports += vehicle
+        .item_ports()
+        .filter(|part| !names.insert(part.name().to_ascii_lowercase()))
+        .count();
     tally.unspecified_ports += tree
         .ports()
         .iter()
@@ -237,8 +243,9 @@ fn report(tally: &Tally) {
         tally.unmatched_elems
     );
     println!(
-        "ports {} of which unspecified {}, deepest part nesting {} of {MAX_XML_ELEMENT_DEPTH}, largest file {} of {MAX_XML_LOADOUT_LEN} bytes, issues {}",
+        "ports {} (repeated item port names {}) of which unspecified {}, deepest part nesting {} of {MAX_XML_ELEMENT_DEPTH}, largest file {} of {MAX_XML_LOADOUT_LEN} bytes, issues {}",
         tally.ports,
+        tally.duplicate_item_ports,
         tally.unspecified_ports,
         tally.deepest,
         tally.largest_file,

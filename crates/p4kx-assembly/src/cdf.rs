@@ -57,13 +57,14 @@ pub(crate) fn read(bytes: &[u8]) -> Result<Character, String> {
         .position(|(_, skin, _)| *skin)
         .or_else(|| (!attachments.is_empty()).then_some(0));
     let (model, material) = match chosen.and_then(|at| attachments.get(at)) {
-        Some((binding, _, material)) => ((*binding).to_owned(), material.map(str::to_owned)),
+        Some((binding, _, material)) => (slashes(binding), material.map(slashes)),
         None => (
-            root.child("Model")
-                .and_then(|model| model.attribute("File"))
-                .filter(|file| !file.is_empty())
-                .ok_or("it names no model and no attachment")?
-                .to_owned(),
+            slashes(
+                root.child("Model")
+                    .and_then(|model| model.attribute("File"))
+                    .filter(|file| !file.is_empty())
+                    .ok_or("it names no model and no attachment")?,
+            ),
             None,
         ),
     };
@@ -75,13 +76,18 @@ pub(crate) fn read(bytes: &[u8]) -> Result<Character, String> {
         .enumerate()
         .filter(|(at, _)| Some(*at) != chosen)
         .take(MAX_LEFT_OUT)
-        .map(|(_, (binding, _, _))| (*binding).to_owned())
+        .map(|(_, (binding, _, _))| slashes(binding))
         .collect();
     Ok(Character {
         model,
         material,
         left_out,
     })
+}
+
+/// Returns `path` with `/` as separator, as the other paths of a report are spelled.
+fn slashes(path: &str) -> String {
+    path.replace('\\', "/")
 }
 
 #[cfg(test)]
@@ -99,9 +105,9 @@ mod tests {
     #[test]
     fn the_first_skin_is_drawn_and_the_other_attachments_are_listed() {
         let character = read(THRUSTER.as_bytes()).expect("a character");
-        assert_eq!(character.model, "Objects\\t\\nozzle.skin");
-        assert_eq!(character.material.as_deref(), Some("Objects\\t\\paint.mtl"));
-        assert_eq!(character.left_out, ["Objects\\t\\housing.cga"]);
+        assert_eq!(character.model, "Objects/t/nozzle.skin");
+        assert_eq!(character.material.as_deref(), Some("Objects/t/paint.mtl"));
+        assert_eq!(character.left_out, ["Objects/t/housing.cga"]);
     }
 
     #[test]

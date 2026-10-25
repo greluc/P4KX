@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, ForgePalettes,
-    InteriorOptions, Issue, LoadoutChanges, LoadoutResolver, Placement,
+    InteriorOptions, Issue, LoadoutChanges, LoadoutResolver,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
@@ -18,6 +18,7 @@ use thiserror::Error;
 
 use crate::cli_entity::EntityGlbArgs;
 use crate::cli_entity::EntityMaterialsArg;
+use crate::entity_glb_placements::{PlacementJson, placements_json};
 use crate::json;
 use crate::query_table::one_line;
 
@@ -62,31 +63,6 @@ struct GlbJson<'a> {
     replaced: Vec<ReplacedJson<'a>>,
     placements: Vec<PlacementJson<'a>>,
     issues: Vec<IssueJson<'a>>,
-}
-
-#[derive(Serialize)]
-struct PlacementJson<'a> {
-    path: &'a str,
-    placement: &'static str,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    helper: Option<&'a str>,
-    modelled: bool,
-}
-
-fn placements_json(assembly: &Assembly) -> Vec<PlacementJson<'_>> {
-    assembly
-        .parts()
-        .iter()
-        .map(|part| PlacementJson {
-            path: part.path(),
-            placement: part.placement().code(),
-            helper: match part.placement() {
-                Placement::Helper(helper) => Some(helper),
-                _ => None,
-            },
-            modelled: part.model().is_some(),
-        })
-        .collect()
 }
 
 #[derive(Serialize)]

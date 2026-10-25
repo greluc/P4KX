@@ -3,7 +3,6 @@
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_model::{Lod, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -12,7 +11,8 @@ use crate::build::{file_key, issue};
 use crate::flatten::Draft;
 use crate::{AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider};
 
-/// The most distinct model files read at once before the vertex budget is checked again.
+/// The most distinct model files read at once before the vertex budget is checked again; a wave
+/// is twice the number of threads, at most this many.
 const WAVE: usize = 256;
 
 /// A model read for the Assembly and the file it came from.
@@ -34,9 +34,11 @@ fn vertices(model: &Model) -> usize {
     model.lods.iter().map(Lod::vertex_count).max().unwrap_or(0)
 }
 
-/// Reads every distinct geometry file the parts name, a wave of files at a time in parallel,
-/// and stops when the models read so far already hold `options.max_vertices` vertices, within a
-/// wave as well as between waves.
+/// Reads every distinct geometry file the parts name, in file order a wave of files at a time in
+/// parallel, and stops after the wave in which the distinct models read hold
+/// `options.max_vertices` vertices. The files come in the order of their first part, so a file left
+/// unread belongs to a part that [`choose_models`] refuses anyway, whatever the size of the wave;
+/// the budget is overshot by one wave at most.
 pub(crate) fn read_models(
     drafts: &[Draft<'_>],
     provider: &dyn ModelProvider,
@@ -51,29 +53,29 @@ pub(crate) fn read_models(
         .map(|geometry| (file_key(geometry.path()), geometry.path()))
         .collect();
     let mut models = Models::new();
-    for wave in files.chunks(WAVE) {
-        if budget_spent(drafts, &models, options.max_vertices) {
+    let mut read_vertices = 0_usize;
+    let wave_size = rayon::current_num_threads()
+        .saturating_mul(2)
+        .clamp(1, WAVE);
+    for wave in files.chunks(wave_size) {
+        if read_vertices >= options.max_vertices {
             break;
         }
-        let read_vertices = AtomicUsize::new(0);
         let read: Vec<(String, Result<Loaded, ModelFailure>)> = wave
             .par_iter()
-            .filter_map(|(key, path)| {
-                if read_vertices.load(Ordering::Relaxed) >= options.max_vertices {
-                    return None;
-                }
+            .map(|(key, path)| {
                 let result = provider.model(path, lod).map(|provided| Loaded {
                     entry: provided.entry,
                     model: Arc::new(provided.model),
                     left_out: provided.left_out,
                 });
-                if let Ok(loaded) = &result {
-                    read_vertices.fetch_add(vertices(&loaded.model), Ordering::Relaxed);
-                }
-                Some((key.clone(), result))
+                (key.clone(), result)
             })
             .collect();
         for (key, result) in read {
+            if let Ok(loaded) = &result {
+                read_vertices = read_vertices.saturating_add(vertices(&loaded.model));
+            }
             let outcome = match result {
                 Ok(loaded) => Outcome::Loaded(loaded),
                 Err(ModelFailure::Missing) => Outcome::Failed {
@@ -90,18 +92,6 @@ pub(crate) fn read_models(
         }
     }
     Ok(models)
-}
-
-fn budget_spent(drafts: &[Draft<'_>], models: &Models, max_vertices: usize) -> bool {
-    let total: usize = drafts
-        .iter()
-        .filter_map(|draft| draft.node.geometry())
-        .filter_map(|geometry| match models.get(&file_key(geometry.path())) {
-            Some(Outcome::Loaded(loaded)) => Some(vertices(&loaded.model)),
-            _ => None,
-        })
-        .fold(0, usize::saturating_add);
-    total >= max_vertices
 }
 
 /// Picks the model of each part in order, within the vertex budget, and records why a part has

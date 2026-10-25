@@ -54,10 +54,10 @@ that names a library (ADR-0150).
 
 Everything comes from the Archive and is untrusted. An Assembly holds at most 16,384 parts, at most
 2^25 vertices counted per part, and is built no deeper than 2 × 32 + 2 levels; the Loadout's own
-32-level and 65,536-port limits apply before. Models are read in waves of 256 distinct files in
-parallel, and no file is started once the models read so far hold the vertex budget, within a wave
-as well as between waves; the parts are then taken in order, so the same Archive always gives the
-same Assembly. A part over the
+32-level and 65,536-port limits apply before. Models are read in file order in waves of distinct
+files in parallel, and no further wave is started once the models read so far hold the vertex
+budget (ADR-0150); the parts are then taken in order, so the same Archive always gives the same
+Assembly. A part over the
 limit is left without a model and listed. An Archive key that is missing or wrong is not a part's
 problem: it stops the build (exit code 7) instead of listing every part as unreadable.
 

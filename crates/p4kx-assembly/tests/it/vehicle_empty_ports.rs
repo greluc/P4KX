@@ -6,11 +6,11 @@
 use crate::vehicle_support;
 
 use p4kx_assembly::{
-    Attachment, LoadoutChanges, LoadoutResolver, PortNode, PortSource, PortVisibility,
+    Attachment, ChangeError, LoadoutChanges, LoadoutResolver, PortNode, PortSource, PortVisibility,
 };
 use p4kx_dataforge::DataForge;
 use p4kx_testkit::TestEntity;
-use vehicle_support::{DEFINITION, TestResult, database, resolve, standard_files};
+use vehicle_support::{DEFINITION, TestResult, database, files, resolve, standard_files};
 
 fn port<'a>(ports: &'a [PortNode], name: &str) -> Result<&'a PortNode, String> {
     ports
@@ -80,5 +80,67 @@ fn a_replacement_attaches_an_entity_to_such_a_port() -> TestResult {
     let extra = port(tree.ports(), "hardpoint_extra")?;
     assert_eq!(extra.source(), PortSource::Replaced);
     assert!(matches!(extra.attachment(), Attachment::Entity(_)));
+    Ok(())
+}
+
+const REPEATED: &str = r#"<Vehicle name="TEST_Ship"><Parts>
+  <Part name="body" class="Animated"><Parts>
+    <Part name="hardpoint_twin" class="ItemPort"><ItemPort minSize="1" maxSize="1" flags=""/></Part>
+    <Part name="Hardpoint_Twin" class="ItemPort"><ItemPort minSize="2" maxSize="2" flags=""/></Part>
+  </Parts></Part>
+</Parts></Vehicle>"#;
+
+#[test]
+fn parts_that_share_a_name_are_listed_each_once() -> TestResult {
+    let tree = resolve(DEFINITION, "", Some(&files(&[(DEFINITION, REPEATED)])))?;
+
+    let twins: Vec<&str> = tree
+        .ports()
+        .iter()
+        .filter(|port| port.source() == PortSource::Empty)
+        .map(PortNode::name)
+        .collect();
+    assert_eq!(twins, ["hardpoint_twin", "Hardpoint_Twin"]);
+    Ok(())
+}
+
+const SIZED: &str = r#"<Vehicle name="TEST_Ship"><Parts>
+  <Part name="body" class="Animated">
+    <Parts><Part name="hardpoint_small" class="ItemPort"><ItemPort minSize="1" maxSize="2" flags=""/></Part></Parts>
+  </Part>
+</Parts></Vehicle>"#;
+
+fn replace_in_sized_port(size: i32) -> Result<Result<(), ChangeError>, Box<dyn std::error::Error>> {
+    let item = TestEntity::new(0x2, "TEST_Item", "entities/test_item.xml")
+        .attach_type("WeaponGun")
+        .size(size);
+    let bytes = database(DEFINITION, "").record(item.record()).build();
+    let forge = DataForge::open(&bytes)?;
+    let files = files(&[(DEFINITION, SIZED)]);
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let ship = resolver.entities().find("TEST_Ship")?;
+    let changes = LoadoutChanges::new().replace("hardpoint_small", "TEST_Item");
+    Ok(resolver.resolve_with(&ship, &changes).map(|_| ()))
+}
+
+#[test]
+fn the_vehicle_sizes_of_such_a_port_decide_which_entity_fits() -> TestResult {
+    let tree = resolve(DEFINITION, "", Some(&files(&[(DEFINITION, SIZED)])))?;
+    let small = port(tree.ports(), "hardpoint_small")?;
+    assert_eq!(small.source(), PortSource::Empty);
+    let constraints = small.constraints().ok_or("the vehicle's sizes")?;
+    assert_eq!(
+        (constraints.min_size(), constraints.max_size()),
+        (Some(1), Some(2))
+    );
+
+    assert!(replace_in_sized_port(2)?.is_ok(), "size 2 fits");
+    assert!(
+        matches!(
+            replace_in_sized_port(5)?,
+            Err(ChangeError::Incompatible { .. })
+        ),
+        "size 5 is refused"
+    );
     Ok(())
 }

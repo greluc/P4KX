@@ -70,6 +70,18 @@ fn describe(error: &(dyn Error + 'static)) -> String {
     text
 }
 
+fn read_failure<E: Error + Send + Sync + 'static>(error: E) -> ModelFailure {
+    let key_problem = archive_error_in(&error)
+        .is_some_and(|found| found.is_key_required() || found.is_wrong_key());
+    if key_problem {
+        ModelFailure::Fatal(Box::new(error))
+    } else {
+        ModelFailure::Unreadable {
+            reason: describe(&error),
+        }
+    }
+}
+
 fn failure(error: ConversionError) -> ModelFailure {
     let key_problem = archive_error_in(&error)
         .is_some_and(|found| found.is_key_required() || found.is_wrong_key());
@@ -243,18 +255,12 @@ impl ModelProvider for ArchiveModels<'_> {
                 reason: format!("the file holds {size} bytes, more than the limit of {limit}"),
             });
         }
-        let unreadable = |error: &(dyn Error + 'static)| ModelFailure::Unreadable {
-            reason: describe(error),
-        };
-        let reader = self
-            .archive
-            .open_entry(entry)
-            .map_err(|error| unreadable(&error))?;
+        let reader = self.archive.open_entry(entry).map_err(read_failure)?;
         let mut bytes = Vec::with_capacity(usize::try_from(size).unwrap_or_default());
         reader
             .take(limit)
             .read_to_end(&mut bytes)
-            .map_err(|error| unreadable(&error))?;
+            .map_err(read_failure)?;
         Ok(bytes)
     }
 }

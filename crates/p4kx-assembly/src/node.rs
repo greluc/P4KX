@@ -324,7 +324,8 @@ impl LoadoutResolver<'_> {
 }
 
 /// Returns the ports of an Entity in order: the merged Loadout entries, then the defined ports
-/// no entry names, then the item ports only the vehicle implementation declares.
+/// no entry names, then the item ports only the vehicle implementation declares, each part once
+/// even where several share a name.
 fn pending_ports<'s>(
     spec: &'s EntitySpec,
     entries: &'s [(EntrySpec, PortSource)],
@@ -339,7 +340,7 @@ fn pending_ports<'s>(
     let declared = vehicle
         .into_iter()
         .flat_map(VehicleImplementation::item_ports)
-        .filter(move |part| taken.insert(port_key(part.name())))
+        .filter(move |part| !taken.contains(&port_key(part.name())))
         .map(|part| Pending {
             name: part.name(),
             source: PortSource::Empty,

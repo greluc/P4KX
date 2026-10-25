@@ -41,9 +41,12 @@ is `geometry_unreadable`.
 - **Helper issue.** A port whose helper is searched in a parent without a model no longer
   reports `helper_not_found`; the parent's own `geometry_missing` or `geometry_unreadable` says
   why.
-- **Vertex budget.** The models of a wave of 256 files are read in parallel; a file is not
-  started once the models read so far hold the budget, so hostile data overshoots by the files in
-  flight, not by a wave. The budget is still applied part by part in order.
+- **Vertex budget.** The distinct files are read in the order of their first part, a wave of
+  twice the number of threads (at most 256) at a time in parallel, and no further wave is started
+  once the distinct models read hold the budget. The decision is taken between waves from the
+  models read, never from the timing inside a wave, so the same Archive gives the same Assembly
+  on any number of threads, and hostile data overshoots the budget by one wave of files. A file
+  left unread belongs to a part that the part-by-part check, which stays, would refuse too.
 - **Placement.** `entity glb --json` lists `placements`: per part its path, how it was placed
   (`root`, `helper`, `port_node`, `origin`), the helper and whether it has a model. A port with no
   helper and no node of its name lands at the parent's origin; it is listed there, not as an issue.
@@ -55,5 +58,7 @@ is `geometry_unreadable`.
 - **Equal materials.** The glTF writer writes a material once when its JSON is equal, name
   included, so two libraries with the same colours cost one material only when the materials
   carry the same name.
-- **Shear.** A transform with a shear is written without it; the report says so.
+- **Shear.** A transform with a shear is written without it; `docs/cli-json.md` says so.
+- **Armour.** Armour and clothing read their pieces through the same provider, so they get the
+  level fallback and the reading of character definitions too.
 - **Library issue.** `material_library` is reported for the first part that draws with a library.

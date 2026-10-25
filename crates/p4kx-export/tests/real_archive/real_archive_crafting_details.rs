@@ -5,8 +5,11 @@
 //! `P4KX_DATA_P4K` names one.
 
 use std::error::Error;
+use std::time::{Instant, SystemTime};
 
-use p4kx_export::{BlueprintTiers, Cost, Crafting, ModifierKind, read_crafting};
+use p4kx_export::{
+    BlueprintTiers, CatalogOptions, Cost, Crafting, ModifierKind, build_catalog, read_crafting,
+};
 use p4kx_extraction::{Archive, DataForge, DataForgeEntry, Guid};
 use p4kx_testkit::real_archive_path;
 
@@ -85,6 +88,38 @@ fn reads_the_crafting_data_of_a_real_archive() -> TestResult {
     )?;
     let entry = DataForgeEntry::read(&archive)?;
     verify(&entry.open()?)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stdout,
+    reason = "the times are the measurement the crafting phase is judged by"
+)]
+fn times_the_crafting_phase_of_a_real_archive() -> TestResult {
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let started = Instant::now();
+    let crafting = read_crafting(&forge, None, None)?;
+    println!(
+        "read_crafting: {:?}, {} pools, {} reward sources, warnings {:?}",
+        started.elapsed(),
+        crafting.pools.len(),
+        crafting.reward_sources.len(),
+        crafting.warnings
+    );
+    let started = Instant::now();
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    println!(
+        "build_catalog: {:?}, {} bytes",
+        started.elapsed(),
+        built.json().len()
+    );
+    Ok(())
 }
 
 pub(crate) fn verify(forge: &DataForge<'_>) -> TestResult {

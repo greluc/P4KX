@@ -60,7 +60,9 @@ fn visit<'f>(
     for field in node.fields() {
         match field.value() {
             Value::Reference(reference)
-                if reference.location().is_none() && pools.contains(&reference.guid()) =>
+                if reference.location().is_none()
+                    && reference.guid() != tree.guid()
+                    && pools.contains(&reference.guid()) =>
             {
                 out.push(RewardSource {
                     record: tree.guid(),

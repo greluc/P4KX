@@ -441,6 +441,21 @@ catalog-file-filter-compressed = Basetool-Katalog (JSON, zstd-komprimiert)
 catalog-running-title = Erstelle Basetool-Katalog
 catalog-reading = Lese DataForge …
 catalog-progress = { $done } von { $total } Records geprüft, { $percent } %
+catalog-crafting-progress = Crafting-Daten werden gelesen: { $done } von { $total } Records, { $percent } %
+catalog-warning = { $kind ->
+    [unreadable_reward_records] { $count } Records, die eine Belohnungsquelle enthalten könnten, lassen sich nicht lesen; ihre Belohnungsquellen fehlen.
+    [ambiguous_dismantle] Die DataForge enthält { $count } Zerlegungsprozesse statt einem; keine Zerlegungsausbeute wird verknüpft.
+    [unreadable_vehicle_files] Bei { $count } Schiffen lässt sich eine Fahrzeugdatei nicht lesen; ihre Lackierungen fehlen.
+    [unplaced_starmap_containers] { $count } Systemcontainer oder Platzierungen lassen sich nicht lesen; die Sternenkarten-Objekte darunter haben keine Position.
+    [unreadable_shop_registry] Das Shop-Register lässt sich nicht lesen; der Katalog enthält keine Shops, obwohl der Build welche hat.
+    [missing_shop_registry] Das Archiv enthält kein Shop-Register am bekannten Pfad; der Katalog enthält keine Shops.
+    [unreadable_shop_containers] { $count } Shop-Container lassen sich nicht lesen; den Shops darin können Art und Marke fehlen.
+    [unreadable_shop_inventories] { $count } Inventardateien von Shops lassen sich nicht lesen; die Shops, die sie nutzen, haben keine Artikelliste.
+    [missing_shop_inventories] { $count } Inventardateien, die Shop-Container nennen, fehlen im Archiv; die Shops, die sie nutzen, haben keine Artikelliste.
+    [no_shop_components] In den .soc-Dateien der Shop-Container wurde keine Shop-Komponente gefunden; kein Shop hat eine Artikelliste.
+   *[other] { $message }
+}
+catalog-warning-more = und { $number } weitere
 catalog-writing = Schreibe { $path } …
 catalog-summary-title = Basetool-Katalog erstellt
 catalog-kinds-heading = Arten

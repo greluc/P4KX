@@ -7,7 +7,7 @@ mod name;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 
-use p4kx_export::CatalogSummary;
+use p4kx_export::{CatalogPhase, CatalogProgress, CatalogSummary};
 
 pub use job::{CatalogExport, CatalogExportStatus};
 pub(crate) use job::{refused, refused_gzip, start};
@@ -35,7 +35,9 @@ pub enum CatalogExportStage {
 pub struct CatalogExportProgress {
     /// The step it is at.
     pub stage: CatalogExportStage,
-    /// Records of the DataForge checked so far.
+    /// Whether the Records are being read for the crafting data, the first part of building.
+    pub crafting: bool,
+    /// Records of the DataForge checked so far in the current part.
     pub done: usize,
     /// Records of the DataForge, known once building starts.
     pub total: usize,
@@ -65,6 +67,7 @@ impl CatalogExportSummary {
 #[derive(Debug, Default)]
 struct Shared {
     stage: AtomicU8,
+    phase: AtomicU8,
     done: AtomicUsize,
     total: AtomicUsize,
     gate: ReadGate,
@@ -75,6 +78,22 @@ impl Shared {
         self.stage.store(stage as u8, Ordering::Relaxed);
     }
 
+    /// Takes the progress of the build: a report of an earlier phase that arrives after a later
+    /// one is dropped, and the counts start again at 0 with each phase.
+    fn report(&self, progress: CatalogProgress) {
+        let phase = progress.phase as u8;
+        let before = self.phase.fetch_max(phase, Ordering::Relaxed);
+        if before > phase {
+            return;
+        }
+        if before < phase {
+            self.done.store(0, Ordering::Relaxed);
+        }
+        self.total.store(progress.records_total, Ordering::Relaxed);
+        self.done
+            .fetch_max(progress.records_done, Ordering::Relaxed);
+    }
+
     fn progress(&self) -> CatalogExportProgress {
         let stage = match self.stage.load(Ordering::Relaxed) {
             0 => CatalogExportStage::Reading,
@@ -83,8 +102,39 @@ impl Shared {
         };
         CatalogExportProgress {
             stage,
+            crafting: self.phase.load(Ordering::Relaxed) == CatalogPhase::Crafting as u8,
             done: self.done.load(Ordering::Relaxed),
             total: self.total.load(Ordering::Relaxed),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn at(phase: CatalogPhase, done: usize, total: usize) -> CatalogProgress {
+        CatalogProgress {
+            phase,
+            records_done: done,
+            records_total: total,
+        }
+    }
+
+    #[test]
+    fn the_counts_start_again_with_the_records_phase_and_late_crafting_reports_are_dropped() {
+        let shared = Shared::default();
+        shared.report(at(CatalogPhase::Crafting, 900, 1000));
+        let crafting = shared.progress();
+        assert!(crafting.crafting);
+        assert_eq!((crafting.done, crafting.total), (900, 1000));
+        shared.report(at(CatalogPhase::Records, 10, 1000));
+        let records = shared.progress();
+        assert!(!records.crafting);
+        assert_eq!((records.done, records.total), (10, 1000));
+        shared.report(at(CatalogPhase::Crafting, 1000, 1000));
+        let late = shared.progress();
+        assert!(!late.crafting, "an earlier phase does not return");
+        assert_eq!(late.done, 10);
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{Guid, RecordTree, StructValue, Value, is_placeholder_key};
+use p4kx_extraction::{Guid, RecordTree, StructValue, Value};
 
 use crate::blueprint::{as_struct, craft_time};
 use crate::crafting_tier::tiers;
@@ -70,8 +70,7 @@ pub(crate) fn property<'f>(tree: &RecordTree<'f>) -> GameplayProperty<'f> {
         guid: tree.guid(),
         class_name: class_name(tree),
         record_path: tree.record_path(),
-        name_key: locale_key(Some(tree.root()), "propertyName")
-            .filter(|key| !is_placeholder_key(key)),
+        name_key: locale_key(Some(tree.root()), "propertyName"),
     }
 }
 

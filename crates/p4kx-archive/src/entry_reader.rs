@@ -32,18 +32,15 @@ pub struct EntryReader<'a> {
     inner: ExactSize<DataReader<'a>>,
     encrypted: bool,
     verifier: Option<Verifier>,
-    stored: Option<Box<StoredCheck>>,
 }
 
 impl EntryReader<'_> {
-    /// Checks the data against the checksums of `entry` as it streams by; a mismatch is a
-    /// [`DataError::ChecksumMismatch`](crate::DataError::ChecksumMismatch) from the read that
-    /// reaches the end of the data, which then yields none of its bytes. Only for a reader that
-    /// starts at the beginning of the Entry's data; the SHA-256 of the stored bytes is checked
-    /// when the reader was opened by `open_verified`.
+    /// Checks the decoded data against the checksum of `entry` as it streams by, like
+    /// `open_verified` but without the SHA-256 of the stored bytes. Only for a reader that starts
+    /// at the beginning of the Entry's data.
     #[must_use]
-    pub(crate) fn verified(mut self, entry: &Entry) -> Self {
-        self.verifier = Some(Verifier::new(entry, self.stored.take()));
+    pub(crate) fn crc_checked(mut self, entry: &Entry) -> Self {
+        self.verifier = Some(Verifier::new(entry, None));
         self
     }
 
@@ -143,14 +140,17 @@ pub(crate) fn open_at<'a>(
     open_with(source, entry, offset, key, false)
 }
 
-/// Opens the data of `entry` from its start like `open`, verified: the checksum of the decoded
-/// data and, if the Entry states one, the SHA-256 of its stored bytes are checked as it streams.
+/// Opens the data of `entry` from its start like `open`, verified: the data is checked against
+/// the checksums of `entry` as it streams by, and a mismatch is a
+/// [`DataError::ChecksumMismatch`](crate::DataError::ChecksumMismatch) from the read that reaches
+/// the end of the data, which then yields none of its bytes. The checksum of the decoded data and,
+/// if the Entry states one, the SHA-256 of its stored bytes are checked.
 pub(crate) fn open_verified<'a>(
     source: &'a Source,
     entry: &Entry,
     key: Option<&ArchiveKey>,
 ) -> Result<EntryReader<'a>, FormatError> {
-    open_with(source, entry, 0, key, true).map(|(reader, _)| reader.verified(entry))
+    open_with(source, entry, 0, key, true).map(|(reader, _)| reader)
 }
 
 fn open_with<'a>(
@@ -158,7 +158,7 @@ fn open_with<'a>(
     entry: &Entry,
     offset: u64,
     key: Option<&ArchiveKey>,
-    check_stored: bool,
+    verify: bool,
 ) -> Result<(EntryReader<'a>, u64), FormatError> {
     let key = match (entry.encrypted, key) {
         (true, Some(key)) => Some(key),
@@ -196,7 +196,7 @@ fn open_with<'a>(
         offset: data_offset + start,
         remaining: stored_len,
     };
-    let check = if check_stored && start == 0 {
+    let check = if verify && start == 0 {
         stored_check(source, entry, data_offset)
     } else {
         None
@@ -213,8 +213,7 @@ fn open_with<'a>(
     let reader = EntryReader {
         inner: ExactSize::new(decoded, entry.uncompressed_size.saturating_sub(start)),
         encrypted: entry.encrypted,
-        verifier: None,
-        stored: check,
+        verifier: verify.then(|| Verifier::new(entry, check)),
     };
     Ok((reader, offset.saturating_sub(start)))
 }

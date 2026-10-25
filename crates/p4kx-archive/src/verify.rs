@@ -42,7 +42,8 @@ impl Verifier {
     /// # Errors
     ///
     /// Returns [`DataError::ChecksumMismatch`] for the first check that failed at the end, or the
-    /// error of reading the stored bytes the SHA-256 check still has to hash.
+    /// error of reading the stored bytes the SHA-256 check still has to hash; those bytes are not
+    /// read once the checksum of the data has failed.
     pub(crate) fn feed(&mut self, data: &[u8]) -> io::Result<bool> {
         for check in &mut self.checks {
             check.hasher.update(data);
@@ -58,9 +59,10 @@ impl Verifier {
                 mismatch = Some((check.expected, actual));
             }
         }
-        if let Some(stored) = self.stored.take() {
-            let result = stored.finish()?;
-            mismatch = mismatch.or(result);
+        if let Some(stored) = self.stored.take()
+            && mismatch.is_none()
+        {
+            mismatch = stored.finish()?;
         }
         match mismatch {
             Some((expected, actual)) => Err(DataError::ChecksumMismatch {

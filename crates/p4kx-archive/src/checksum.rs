@@ -58,11 +58,4 @@ impl Checksum {
             }
         }
     }
-
-    /// Returns whether the checksum covers the data as stored in the Archive instead of the
-    /// decoded data.
-    #[must_use]
-    pub const fn covers_stored_data(self) -> bool {
-        matches!(self, Self::Sha256(_))
-    }
 }

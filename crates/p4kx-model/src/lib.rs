@@ -56,6 +56,7 @@ mod nmc;
 mod object_container;
 mod palette;
 mod reader;
+mod second_uv;
 mod skeleton;
 mod skin;
 mod soc_entities;

@@ -82,7 +82,8 @@ Early development (milestone M1). Available today:
   `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
   tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, a
   high-range texture (BC6H) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
-  cubemap as six faces `<name>_posx` … `<name>_negz`:
+  cubemap as six faces `<name>_posx` … `<name>_negz`, a texture array as one PNG per element
+  `<name>_layer0` … and a volume as one PNG per slice `<name>_slice0` …:
   `--textures` picks the outputs, by default `merge,png`: `merge` writes one standard DDS under
   the header's path, `png` the mip `--mip <level>` (0, the largest, by default; a texture with
   fewer levels gives its smallest) as `<name>.png`, and `raw` the Entries unchanged as well, with
@@ -126,6 +127,9 @@ Early development (milestone M1). Available today:
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes. `--combined` writes every selected Record into one file in record-path order,
   named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
+  `--flat --format csv|ndjson` writes one row per leaf value instead
+  ([docs/record-flat.md](docs/record-flat.md)): `values.csv` (UTF-8 with byte order mark, formulas
+  neutralised; `--csv-raw` for the exact values) or `values.ndjson`.
   `--lang` writes the text of every localisation key next to the key, or marks the key missing,
   in the chosen language; without it the output carries no texts. `--tags` writes the tag path
   (`Ship.Series.Avenger`) of the Tag next to every Reference to a Tag; without it the output carries
@@ -297,11 +301,15 @@ Early development (milestone M1). Available today:
   use decode with pure-Rust decoders; any other format fails with a message naming it and exit
   code 1. An alpha or smoothness tail is decoded and merged into the alpha channel. A cubemap is
   written as six face files `<stem>_posx.png` … `<stem>_negz.png` next to `<file>`, or with
-  `--cross` as one horizontal cross in `<file>`. A high-range BC6H texture is written as OpenEXR
+  `--cross` as one horizontal cross in `<file>`. A texture array is written as one file per
+  element `<stem>_layer0.png` …, a cubemap array per element and face `<stem>_layer0_posx.png` …
+  (with `--cross` one cross per element) and a volume as one file per slice of the mip
+  `<stem>_slice0.png` …; the numbers are padded to the width of the last. A high-range BC6H
+  texture is written as OpenEXR
   with 32-bit float RGB instead, with the extension `.exr`, so its range is not clipped;
   `--tone-map` writes an 8-bit PNG instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010). The
   message names both the requested and the written files, and `--tone-map` on any other texture
-  only prints a note. Texture arrays and volumes are not decoded yet.
+  only prints a note.
 - `p4kx compare <old> <new> [--entries] [--records] [--filter <filter>] [--report <file>]`
   compares two Archives, e.g. LIVE against PTU. The Entry level joins both central directories
   by path (ignoring case and separator kind) and lists Entries as added, removed, or changed when
@@ -510,6 +518,11 @@ What the tools return is the content of the Star Citizen Archive. The AI client 
 third parties, for example the cloud model provider behind the client. Game texts and media must
 not be redistributed. You remain responsible for complying with the Star Citizen EULA and Terms of
 Service.
+
+A tool that reads an Archive of a test Channel (`PTU`, `EPTU`, `HOTFIX`, `TECH-PREVIEW`) adds
+the test-build notice of [ADR-0038](docs/adr/0038-test-build-archives-carry-a-notice.md) to its
+result as one more text content block. The structured content and the output schemas do not
+change. `p4kx-mcp --version` and `-V` show the legal notice.
 
 | Tool | Result |
 |------|--------|

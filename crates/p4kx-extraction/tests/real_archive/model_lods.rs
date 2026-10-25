@@ -8,13 +8,15 @@ use std::error::Error;
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_chunks::{ChunkFile, ivo};
 use p4kx_extraction::model::{Lod, LodSelection, Model, ModelError, Transform};
 use p4kx_extraction::{Archive, ConversionError, Entry, GlbOptions, ModelSource, PathIndex};
 use p4kx_testkit::{check_glb, real_archive_b_path, real_archive_path};
 use rayon::prelude::*;
+
+static NEXT_FILE: AtomicU64 = AtomicU64::new(0);
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -24,8 +26,6 @@ const MAX_CHUNK_FILE: u64 = 1 << 28;
 const MIN_DECREASING_SHARE: f64 = 0.9;
 const MIN_FITTING_SHARE: f64 = 0.5;
 const BOX_TOLERANCE: f32 = 0.02;
-
-static NEXT_FILE: AtomicUsize = AtomicUsize::new(0);
 
 fn archives() -> Result<Vec<PathBuf>, Box<dyn Error>> {
     let mut paths = vec![real_archive_path()?];

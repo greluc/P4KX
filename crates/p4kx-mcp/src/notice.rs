@@ -18,5 +18,5 @@ pub(crate) const BEFORE_HELP: &str = concat!(
      and media must not be redistributed."
 );
 
-/// Shown by `--version`: the version, then the legal notice.
-pub(crate) const LONG_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\n", legal_notice!());
+/// Shown by `--version` and `-V`: the version, then the legal notice.
+pub(crate) const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\n", legal_notice!());

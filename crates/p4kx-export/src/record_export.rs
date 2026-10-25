@@ -18,7 +18,10 @@ use crate::{RecordExportSummary, RecordForm, ndjson};
 /// (ADR-0008), in parallel, with the [`ConflictPolicy`](crate::ConflictPolicy) of `options` for
 /// every file. [`RecordForm::Ndjson`] writes [`NDJSON_FILE`](crate::NDJSON_FILE) with one compact
 /// Record JSON object per line in Record order ([`DataForge::path_order`]);
-/// each Record once. Its Records are built in parallel batches and streamed into a temporary file
+/// each Record once. The flat forms ([`RecordForm::FlatCsv`], [`RecordForm::FlatCsvRaw`],
+/// [`RecordForm::FlatNdjson`]) write one file of one row per leaf value in the same Record order
+/// and the same way (`docs/record-flat.md`); with `options.texts` the rows of localisation keys
+/// carry their text. The Records of a single-file form are built in parallel batches and streamed into a temporary file
 /// that replaces the file only once complete; the Conflict policy applies to that file. The same
 /// Records always give the same bytes. A Record whose tree cannot be built, or that belongs to
 /// another DataForge, is a failure and every other Record is still written.
@@ -70,7 +73,10 @@ pub fn write_planned_record_export(
                 export_planned_record_files(forge, plan, records, target, options),
             )
         }
-        RecordForm::Ndjson => ndjson::write(forge, records, target, options),
+        RecordForm::Ndjson
+        | RecordForm::FlatCsv
+        | RecordForm::FlatCsvRaw
+        | RecordForm::FlatNdjson => ndjson::write(forge, records, form, target, options),
     }
 }
 

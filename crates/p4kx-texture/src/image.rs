@@ -124,7 +124,8 @@ impl TextureFormat {
 /// parallel.
 ///
 /// Single-channel formats become grey, alpha-only formats black with that alpha, two-channel
-/// formats red and green; floating-point values are clamped to 0..=1. BC5 is a normal map: X in
+/// formats red and green; floating-point values are clamped to 0..=1 and unsigned integers are
+/// scaled by the largest value of their width. BC5 is a normal map: X in
 /// red, Y in green and the reconstructed Z in blue. BC6H is tone-mapped to opaque sRGB: Reinhard
 /// `v / (1 + v)` per channel, then the sRGB transfer function; [`decode_hdr`](crate::decode_hdr)
 /// keeps its range. A reserved BC6H mode decodes to opaque black, a reserved BC7 mode to

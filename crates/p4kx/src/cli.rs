@@ -35,14 +35,13 @@ pub(crate) use crate::cli_wwise::{
     AudioLanguageArgs, WwiseAction, WwiseArgs, WwiseEventsArgs, WwiseResolveArgs,
 };
 use crate::exit::EXIT_CODES_HELP;
-use crate::notice::{LEGAL_NOTICE, LONG_VERSION};
+use crate::notice::{LEGAL_NOTICE, VERSION};
 
 /// Opens, lists and extracts Star Citizen Data.p4k Archives.
 #[derive(Debug, Parser)]
 #[command(
     name = "p4kx",
-    version,
-    long_version = LONG_VERSION,
+    version = VERSION,
     before_help = LEGAL_NOTICE,
     after_help = EXIT_CODES_HELP
 )]
@@ -198,7 +197,8 @@ pub(crate) enum TextureAction {
         out: PathBuf,
     },
     /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
-    /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
+    /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE, an
+    /// array one file per element <STEM>_layerN and a volume one per slice <STEM>_sliceN.
     /// A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {

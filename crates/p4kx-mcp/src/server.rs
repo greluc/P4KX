@@ -16,7 +16,7 @@ use crate::entries;
 use crate::error::{ToolError, capped};
 use crate::keys::KeyChoice;
 use crate::locate::Locations;
-use crate::noted::{self, Json};
+use crate::noted::{self, Noted};
 use crate::ordered::Ordered;
 use crate::page::Page;
 use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, SearchParams};
@@ -102,14 +102,14 @@ impl Server {
         }
     }
     /// Runs `work` on the blocking pool, at most one call per CPU at a time.
-    pub(crate) async fn run<T, F>(&self, work: F) -> Result<Json<T>, String>
+    pub(crate) async fn run<T, F>(&self, work: F) -> Result<Noted<T>, String>
     where
         T: Send + 'static,
         F: FnOnce(&State) -> Result<T, ToolError> + Send + 'static,
     {
         self.run_plain(work)
             .await
-            .map(|(value, notice)| Json { value, notice })
+            .map(|(value, notice)| Noted { value, notice })
     }
 
     /// Like [`Server::run`], with the key order of the result kept in its text content.
@@ -165,6 +165,7 @@ impl State {
 impl Server {
     #[tool(
         description = "List the installed Channels of Star Citizen (LIVE, PTU, ...) with their Archive path and Build.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<ChannelsResult>(),
         annotations(
             title = "List Channels",
             read_only_hint = true,
@@ -176,7 +177,7 @@ impl Server {
     async fn list_channels(
         &self,
         Parameters(params): Parameters<ChannelsParams>,
-    ) -> Result<Json<ChannelsResult>, String> {
+    ) -> Result<Noted<ChannelsResult>, String> {
         self.run(move |state| {
             let page = Page::new(&"list_channels", params.cursor.as_deref(), params.limit)?;
             let channels = state.locations.channels()?;
@@ -195,6 +196,7 @@ impl Server {
 
     #[tool(
         description = "Summarise an Archive: its Channel, Build, number of Entries, encrypted Entries and sizes.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<ArchiveInfo>(),
         annotations(
             title = "Archive info",
             read_only_hint = true,
@@ -206,7 +208,7 @@ impl Server {
     async fn archive_info(
         &self,
         Parameters(params): Parameters<ArchiveParams>,
-    ) -> Result<Json<ArchiveInfo>, String> {
+    ) -> Result<Noted<ArchiveInfo>, String> {
         self.run(move |state| {
             let opened = state.archive(params.archive.as_deref())?;
             Ok(entries::info(opened.archive()))
@@ -215,7 +217,8 @@ impl Server {
     }
 
     #[tool(
-        description = "List one folder of an Archive: its subfolders, then its Entries. Folder paths ignore case and separator kind; omit folder for the top level.",
+        description = "List one folder of an Archive: its subfolders, then its Entries. Folder paths ignore case and separator kind; omit folder for the top level. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<FolderResult>(),
         annotations(
             title = "List Entries",
             read_only_hint = true,
@@ -227,7 +230,7 @@ impl Server {
     async fn list_entries(
         &self,
         Parameters(params): Parameters<ListParams>,
-    ) -> Result<Json<FolderResult>, String> {
+    ) -> Result<Noted<FolderResult>, String> {
         self.run(move |state| {
             let folder = capped(
                 "folder",
@@ -243,7 +246,8 @@ impl Server {
     }
 
     #[tool(
-        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter.",
+        description = "Search the Entries of an Archive by path. A filter with * or ? is a glob over the whole path (* also matches separators); any other filter matches anywhere in the path. Case and separator kind do not matter. The content may be forwarded by the client to third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<SearchResult>(),
         annotations(
             title = "Search Entries",
             read_only_hint = true,
@@ -255,7 +259,7 @@ impl Server {
     async fn search_entries(
         &self,
         Parameters(params): Parameters<SearchParams>,
-    ) -> Result<Json<SearchResult>, String> {
+    ) -> Result<Noted<SearchResult>, String> {
         self.run(move |state| {
             let filter = capped("filter", &params.filter, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;

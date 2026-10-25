@@ -12,6 +12,8 @@ pub enum AboutText {
     Copyright,
     /// The licence of the program.
     Licence,
+    /// The label before the link to the source code.
+    Source,
     /// The statement that this is an unofficial fan project.
     FanProject,
     /// The statement that no game data ships and only the user's installation is read.
@@ -26,11 +28,12 @@ pub enum AboutText {
 
 impl AboutText {
     /// Every text of the About window.
-    pub(crate) const ALL: [Self; 9] = [
+    pub(crate) const ALL: [Self; 10] = [
         Self::Title,
         Self::Version,
         Self::Copyright,
         Self::Licence,
+        Self::Source,
         Self::FanProject,
         Self::NoGameData,
         Self::Responsibility,
@@ -46,6 +49,7 @@ impl AboutText {
             Self::Version => "about-version",
             Self::Copyright => "about-copyright",
             Self::Licence => "about-licence",
+            Self::Source => "about-source",
             Self::FanProject => "about-fan-project",
             Self::NoGameData => "about-no-game-data",
             Self::Responsibility => "about-responsibility",

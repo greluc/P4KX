@@ -240,18 +240,6 @@ fn every_face_decodes_but_not_as_one_image() -> Result<(), TextureError> {
     Ok(())
 }
 
-#[test]
-fn volumes_are_not_read_as_images_yet() {
-    let volume = SplitDds::new(TestTextureFormat::LegacyBgra8, 8, 8).volume(4);
-
-    let result = read(&volume, 0);
-
-    assert!(
-        matches!(result, Err(TextureError::UnsupportedImage { images: 4 })),
-        "{result:?}"
-    );
-}
-
 fn face(colour: u8, width: u32, height: u32) -> Result<RgbaImage, TextureError> {
     let len = (width * height * 4) as usize;
     RgbaImage::new(width, height, vec![colour; len])

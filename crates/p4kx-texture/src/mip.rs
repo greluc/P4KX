@@ -42,10 +42,11 @@ impl Mip {
         side(self.header.height(), self.level)
     }
 
-    /// Returns the number of images: 6 for a cubemap, more for an array, otherwise 1.
+    /// Returns the number of images: 6 for a cubemap, the array size for an array, the slices of
+    /// this mip for a volume, otherwise 1; the product when a texture is several of these.
     #[must_use]
     pub const fn surfaces(&self) -> u32 {
-        self.header.surfaces()
+        self.header.images(self.level)
     }
 
     /// Returns the mip's data in the texture's format, image after image.
@@ -54,8 +55,9 @@ impl Mip {
         &self.data
     }
 
-    /// Returns the data of image `index`, in DDS order +X, −X, +Y, −Y, +Z, −Z for a cubemap, or
-    /// `None` when there is no such image.
+    /// Returns the data of image `index`: in DDS order +X, −X, +Y, −Y, +Z, −Z for a cubemap,
+    /// element by element for an array, slice by slice for a volume; `None` when there is no
+    /// such image.
     #[must_use]
     pub fn surface(&self, index: u32) -> Option<&[u8]> {
         if index >= self.surfaces() {
@@ -156,15 +158,14 @@ const fn side(full: u32, level: u32) -> u32 {
 /// Reads mip `level`, 0 being the largest, of the header Entry `header` of `header_size` bytes.
 ///
 /// The mip comes from its sibling part when it is split off, otherwise from the header's tail,
-/// with every cubemap face or array element. The 8-byte CryEngine trailer `CExtCEnd` some header
-/// Entries carry after the last mip is verified when the mip comes from the header's tail, by
-/// reading on to the end of the data; when it comes from a part, only the trailer's size is
-/// checked, as verifying it would need an extra read of the header Entry.
+/// with every cubemap face, array element and volume slice. The 8-byte CryEngine trailer
+/// `CExtCEnd` some header Entries carry after the last mip is verified when the mip comes from
+/// the header's tail, by reading on to the end of the data; when it comes from a part, only the
+/// trailer's size is checked, as verifying it would need an extra read of the header Entry.
 ///
 /// # Errors
 ///
-/// Returns [`TextureError::NoSuchMip`] when the level does not exist,
-/// [`TextureError::UnsupportedImage`] when the texture is a volume, the errors of
+/// Returns [`TextureError::NoSuchMip`] when the level does not exist, the errors of
 /// [`DdsHeader::part_count`], [`TextureError::UnknownTrailer`] when the header's tail is read and
 /// the trailer is not `CExtCEnd`, and a part or header error when the mip's data is missing,
 /// truncated, oversized or unreadable.
@@ -188,11 +189,6 @@ where
         return Err(TextureError::NoSuchMip {
             level,
             mip_count: dds.mip_count(),
-        });
-    }
-    if dds.depth() > 1 {
-        return Err(TextureError::UnsupportedImage {
-            images: dds.surfaces().saturating_mul(dds.depth()),
         });
     }
     let entry_size = header_size;

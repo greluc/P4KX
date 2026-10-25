@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use egui::{Align, Layout, Ui};
-use p4kx_export::NDJSON_FILE;
+use p4kx_export::{FLAT_CSV_FILE, FLAT_NDJSON_FILE, NDJSON_FILE};
 
 use super::extraction::{
     POLICIES, folder_field, foot, group_label, new_folder_name, number, refusal_notice,
@@ -70,6 +70,29 @@ fn choices(
     setup: &mut RecordExportSetup,
     new_folder: &str,
 ) -> Option<Action> {
+    let action = frames::scrolling_body(ui, "record-export-body", |ui| {
+        body(ui, texts, setup, new_folder)
+    });
+    let pressed = foot(
+        ui,
+        texts,
+        (T::Start, setup.is_ready()),
+        ExtractionText::Close,
+    );
+    action.or(match pressed {
+        Some(true) => Some(Action::Submit),
+        Some(false) => Some(Action::Close),
+        None => None,
+    })
+}
+
+/// Shows everything above the foot of the setup: the Records, the form and the target.
+fn body(
+    ui: &mut Ui,
+    texts: &Texts,
+    setup: &mut RecordExportSetup,
+    new_folder: &str,
+) -> Option<Action> {
     let mut action = None;
     records(ui, texts, setup);
     ui.add_space(MODAL_GROUP_GAP);
@@ -77,6 +100,11 @@ fn choices(
     for form in crate::RECORD_FORMS {
         let label = match form {
             RecordForm::Ndjson => texts.format(T::FormNdjson, &[("name", NDJSON_FILE.into())]),
+            RecordForm::FlatCsv => texts.format(T::FormFlatCsv, &[("name", FLAT_CSV_FILE.into())]),
+            RecordForm::FlatCsvRaw => texts.get(T::FormFlatCsvRaw),
+            RecordForm::FlatNdjson => {
+                texts.format(T::FormFlatNdjson, &[("name", FLAT_NDJSON_FILE.into())])
+            }
             RecordForm::Json | RecordForm::Xml => texts.get(T::FormJson),
         };
         if toggle::radio(ui, setup.form() == form, &label, true).clicked() {
@@ -106,17 +134,7 @@ fn choices(
     });
     refusal_notice(ui, texts, setup.refusal());
     target_details(ui, texts, setup, new_folder);
-    let pressed = foot(
-        ui,
-        texts,
-        (T::Start, setup.is_ready()),
-        ExtractionText::Close,
-    );
-    action.or(match pressed {
-        Some(true) => Some(Action::Submit),
-        Some(false) => Some(Action::Close),
-        None => None,
-    })
+    action
 }
 
 /// Shows the choice of the Records: the selection of the Record tree or a record-path filter.

@@ -35,6 +35,25 @@ Unsupported textures are counted, never failed:
 
 Every sampled BC1, BC3, BC4, BC5, BC6H and BC7 texture decodes.
 
+### Volumes, arrays and the two formats (#257)
+
+Measured on 2026-10-25 on LIVE and TECH-PREVIEW with `texture_survey.rs` (every volume and
+array is decoded and exported, the other formats are sampled): the Texture of a volume or array
+decodes per image, the preview tiles the images on a sheet and the Extraction writes one PNG per
+element (`_layerN`) or slice (`_sliceN`).
+
+| Channel | Several images per mip | Volumes | Arrays | Decoded and exported per image | Format without decoder |
+| --- | --- | --- | --- | --- | --- |
+| LIVE before | 86 | 81 | 5 | 0 | 28 |
+| LIVE after | 86 | 81 | 5 | 86 | 0 |
+| TECH-PREVIEW after | 461 | 81 | 380 | 461 | 0 |
+
+`R16G16_FLOAT` decodes to red and green and `R32_UINT` to grey scaled by the largest 32-bit
+value, as the other unsigned integer formats are. The array alpha tail mismatch of TECH-PREVIEW
+was the test: a tail in `A8_UNORM` keeps its value in the alpha channel of the decoded tail, and
+`merge_alpha` takes it from there, while the test compared the red channel. With the right
+channel all 91 array and volume textures with an alpha tail on TECH-PREVIEW merge per image.
+
 ### The CryEngine trailer
 
 `Data\Textures\cubemaps\inventory_setup\cm_inventory_probe_cm.dds` is in every Channel and was

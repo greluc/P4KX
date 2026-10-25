@@ -6,6 +6,7 @@
 mod failures;
 mod fixture;
 mod high_range;
+mod layers;
 mod outputs;
 mod run_control;
 mod tails_and_cubes;

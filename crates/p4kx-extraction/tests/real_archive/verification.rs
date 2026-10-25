@@ -105,14 +105,13 @@ fn no_record_file_replaces_an_entry_of_a_real_archive() -> TestResult {
     }
     let (alone, shared): (Vec<_>, Vec<_>) =
         per_path.into_iter().partition(|(_, count)| *count == 1);
-    let files: HashSet<String> = alone
-        .iter()
-        .map(|(path, _)| format!("{folder}{path}.xml"))
-        .collect();
-    let folders: HashSet<String> = shared
-        .iter()
-        .map(|(path, _)| format!("{folder}{path}"))
-        .collect();
+    let below = |records: &[(String, usize)], end: &str| -> HashSet<String> {
+        records
+            .iter()
+            .map(|(path, _)| format!("{folder}{path}{end}"))
+            .collect()
+    };
+    let (files, folders) = (below(&alone, ".xml"), below(&shared, ""));
     let records_folder = format!("{folder}libs/foundry/records/");
 
     let under: Vec<&str> = archive
@@ -128,6 +127,7 @@ fn no_record_file_replaces_an_entry_of_a_real_archive() -> TestResult {
         .filter(|path| {
             let path = normalised(path);
             files.contains(&path)
+                || folders.contains(&path)
                 || path.match_indices('/').any(|(at, _)| {
                     path.get(..at)
                         .is_some_and(|parent| folders.contains(parent))

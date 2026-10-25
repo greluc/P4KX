@@ -15,8 +15,9 @@ const PAINT_TYPE: &str = "Paints";
 
 /// The paints of a catalog and what was counted deriving them.
 pub(crate) struct Paints {
-    pub(crate) paints: Vec<Paint>,
+    pub(crate) list: Vec<Paint>,
     pub(crate) summary: PaintSummary,
+    pub(crate) unreadable_files: Vec<String>,
 }
 
 /// Returns the paints among `items` with the ships of `vehicles` they fit.
@@ -39,11 +40,15 @@ pub(crate) fn paints(
         .collect();
     if candidates.is_empty() {
         return Paints {
-            paints: Vec::new(),
+            list: Vec::new(),
             summary: PaintSummary::default(),
+            unreadable_files: Vec::new(),
         };
     }
-    let (by_ports, unreadable) = group_ships(vehicles);
+    let (by_ports, mut unreadable_files) = group_ships(vehicles);
+    let unreadable = unreadable_files.len();
+    unreadable_files.sort_unstable();
+    unreadable_files.dedup();
     let tags = TagTree::build(forge);
     let index = TagIndex::new(&tags);
     let mut paints: Vec<Paint> = candidates
@@ -64,19 +69,24 @@ pub(crate) fn paints(
         .collect();
     paints.sort_by_cached_key(|paint| paint.item_guid.text());
     let summary = summarise(&paints, unreadable);
-    Paints { paints, summary }
+    Paints {
+        list: paints,
+        summary,
+        unreadable_files,
+    }
 }
 
 type ShipsByPorts = HashMap<Vec<PaintPort>, Vec<CatalogGuid>>;
 
 /// Groups the ships by their paint ports, those of their Record and those of their vehicle
-/// implementation, and counts the ships whose files could not be used.
-fn group_ships(vehicles: &[VehicleFacts]) -> (ShipsByPorts, usize) {
+/// implementation, and returns why the files of the ships that could not be used cannot be read,
+/// one entry per ship.
+fn group_ships(vehicles: &[VehicleFacts]) -> (ShipsByPorts, Vec<String>) {
     let mut by_ports = ShipsByPorts::new();
-    let mut unreadable = 0_usize;
+    let mut unreadable = Vec::new();
     for vehicle in vehicles {
         let mut ports = vehicle.paint_ports.clone();
-        unreadable = unreadable.saturating_add(usize::from(vehicle.implementation.unreadable));
+        unreadable.extend(vehicle.implementation.unreadable.iter().cloned());
         ports.extend(vehicle.implementation.ports.iter().cloned());
         ports.sort_unstable();
         ports.dedup();

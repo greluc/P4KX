@@ -73,7 +73,7 @@ fn attempt(source: &Source, entry: &Entry, key: &ArchiveKey, chunk: &mut [u8]) -
     let Ok((reader, _)) = entry_reader::open_at(source, entry, 0, Some(key)) else {
         return Attempt::Unreadable;
     };
-    let mut reader = reader.verified(entry);
+    let mut reader = reader.crc_checked(entry);
     loop {
         match reader.read(chunk) {
             Ok(0) => return Attempt::Matches,

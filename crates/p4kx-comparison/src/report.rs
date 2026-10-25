@@ -103,9 +103,10 @@ struct EntryChangeReport<'a> {
 struct EntryState {
     /// The uncompressed size in bytes.
     size: u64,
-    /// The checksum of the uncompressed data, keyed by its kind.
+    /// The checksum of the uncompressed data, keyed by its kind; absent for a kind this report does
+    /// not know.
     #[serde(flatten)]
-    checksum: ChecksumReport,
+    checksum: Option<ChecksumReport>,
 }
 
 /// A checksum as one field named by its kind.
@@ -116,13 +117,18 @@ enum ChecksumReport {
     Crc32c(u32),
     /// The plain ZIP CRC-32, which plain ZIP archives store.
     Crc32(u32),
+    /// The SHA-256 as 64 lower-case hex digits; an Entry's checksum is never one, the arm keeps
+    /// the report total.
+    Sha256(String),
 }
 
 impl From<&Entry> for EntryState {
     fn from(entry: &Entry) -> Self {
         let checksum = match entry.checksum() {
-            Checksum::Crc32c(value) => ChecksumReport::Crc32c(value),
-            other => ChecksumReport::Crc32(other.value().unwrap_or_default()),
+            Checksum::Crc32c(value) => Some(ChecksumReport::Crc32c(value)),
+            Checksum::Crc32(value) => Some(ChecksumReport::Crc32(value)),
+            digest @ Checksum::Sha256(_) => Some(ChecksumReport::Sha256(digest.hex())),
+            _ => None,
         };
         Self {
             size: entry.uncompressed_size(),

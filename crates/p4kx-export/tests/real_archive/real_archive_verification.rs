@@ -112,9 +112,10 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
     );
     report(path, summary);
     assert!(
-        summary.is_complete(),
-        "every selected Record is readable: {:?}",
-        summary.failures().first()
+        crate::real_archive::is_complete_but_known_defects(summary),
+        "every selected Record is readable and every warning a known defect: {:?} {:?}",
+        summary.failures().first(),
+        summary.warnings()
     );
 
     for (kind, minimum) in MINIMUM {

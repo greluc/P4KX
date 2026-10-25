@@ -7,8 +7,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{Read, Write};
 
 use p4kx_extraction::{
-    Archive, AudioError, Bank, Entry, HircKind, HircValue, MediaClass, MediaStorage, Soundbank,
-    WemFormat,
+    Archive, AudioError, Bank, EmbeddedWem, Entry, HircKind, HircValue, MediaClass, MediaStorage,
+    SoundSource, Soundbank, WemFormat,
 };
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
@@ -164,25 +164,7 @@ fn tally_bank(archive: &Archive, entry: &Entry) -> Tally {
     tally.banks = 1;
     tally.versions.insert(bank.header().version, 1);
     for wem in bank.wems() {
-        tally.wems += 1;
-        let class = wem.class();
-        *tally.classes.entry(class.name()).or_default() += 1;
-        if wem.is_prefetch() {
-            tally.prefetch += 1;
-            continue;
-        }
-        if class.is_non_sound() {
-            continue;
-        }
-        match wem.parse() {
-            Ok(parsed) => *tally.codecs.entry(parsed.codec().to_string()).or_default() += 1,
-            Err(AudioError::NotWem) if class == MediaClass::Unknown => {}
-            Err(error) => {
-                tally
-                    .failures
-                    .push(format!("{} WEM {}: {error}", entry.path(), wem.id()));
-            }
-        }
+        tally_wem(&mut tally, entry, &wem);
     }
     tally
         .media
@@ -195,21 +177,47 @@ fn tally_bank(archive: &Archive, entry: &Entry) -> Tally {
                 .push(format!("{} object {}: {error}", entry.path(), object.id));
         }
         if let HircValue::Sound(source) = &object.value {
-            for (flag, name) in [
-                (source.is_source_plugin(), "plugin"),
-                (source.is_external_source(), "external"),
-                (source.is_midi(), "midi"),
-            ] {
-                if flag {
-                    *tally.sources_without_file.entry(name).or_default() += 1;
-                }
-            }
+            count_source_plugins(&mut tally, source);
             tally
                 .sources
                 .push((source.storage, source.source_id, source.in_memory_size));
         }
     }
     tally
+}
+
+fn tally_wem(tally: &mut Tally, entry: &Entry, wem: &EmbeddedWem<'_>) {
+    tally.wems += 1;
+    let class = wem.class();
+    *tally.classes.entry(class.name()).or_default() += 1;
+    if wem.is_prefetch() {
+        tally.prefetch += 1;
+        return;
+    }
+    if class.is_non_sound() {
+        return;
+    }
+    match wem.parse() {
+        Ok(parsed) => *tally.codecs.entry(parsed.codec().to_string()).or_default() += 1,
+        Err(AudioError::NotWem) if class == MediaClass::Unknown => {}
+        Err(error) => {
+            tally
+                .failures
+                .push(format!("{} WEM {}: {error}", entry.path(), wem.id()));
+        }
+    }
+}
+
+fn count_source_plugins(tally: &mut Tally, source: &SoundSource) {
+    for (flag, name) in [
+        (source.is_source_plugin(), "plugin"),
+        (source.is_external_source(), "external"),
+        (source.is_midi(), "midi"),
+    ] {
+        if flag {
+            *tally.sources_without_file.entry(name).or_default() += 1;
+        }
+    }
 }
 
 fn kind_name(kind: HircKind) -> String {

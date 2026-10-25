@@ -15,6 +15,7 @@ mod codec;
 mod error;
 mod hirc;
 mod hirc_node;
+mod hirc_plugin;
 mod ima;
 mod loops;
 mod media_class;

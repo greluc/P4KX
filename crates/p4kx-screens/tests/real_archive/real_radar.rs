@@ -25,7 +25,7 @@ const SHIPS: [&str; 14] = [
     "DRAK_Corsair",
     "MISC_Freelancer",
     "ORIG_300i",
-    "RSI_Aurora_ES",
+    "RSI_Aurora_GS_ES",
     "RSI_Constellation_Andromeda",
     "RSI_Zeus_Mk2_ES",
     "ARGO_MPUV_Cargo",

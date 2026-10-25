@@ -16,7 +16,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SHIPS: [&str; 4] = [
     "AEGS_Avenger_Titan",
-    "RSI_Aurora_ES",
+    "RSI_Aurora_GS_ES",
     "ANVL_Hornet_F7A_Mk2",
     "DRAK_Cutlass_Black",
 ];

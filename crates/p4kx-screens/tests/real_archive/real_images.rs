@@ -20,11 +20,13 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SHIPS: [&str; 4] = [
     "AEGS_Avenger_Titan",
-    "RSI_Aurora_ES",
+    "RSI_Aurora_GS_ES",
     "ANVL_Hornet_F7A_Mk2",
     "DRAK_Cutlass_Black",
 ];
-const MAX_NO_RENDERER_SHARE: f64 = 0.15;
+/// The share of widgets listed as without a renderer that fails the test; 0.019 on LIVE, with
+/// room for a changed Archive.
+const MAX_NO_RENDERER_SHARE: f64 = 0.05;
 
 #[derive(Default)]
 struct Tally {
@@ -106,9 +108,7 @@ fn the_images_of_real_ship_screens_are_drawn() -> TestResult {
     };
     let mut tally = Tally::default();
     for ship in SHIPS {
-        let Ok(record) = resolver.entities().find(ship) else {
-            continue;
-        };
+        let record = resolver.entities().find(ship)?;
         let tree = resolver.resolve(&record)?;
         let listing = screens.screens_of(&tree);
         for screen in &listing.screens {

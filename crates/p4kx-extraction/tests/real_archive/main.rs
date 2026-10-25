@@ -54,6 +54,7 @@ mod textured_materials;
 mod ui;
 mod ui_fonts;
 mod ui_render;
+mod ui_sample;
 mod verification;
 mod verify;
 mod vertex_attributes;

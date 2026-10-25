@@ -17,11 +17,13 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SHIPS: [&str; 4] = [
     "AEGS_Avenger_Titan",
-    "RSI_Aurora_ES",
+    "RSI_Aurora_GS_ES",
     "ANVL_Hornet_F7A_Mk2",
     "DRAK_Cutlass_Black",
 ];
-const MAX_NO_RENDERER_SHARE: f64 = 0.5;
+/// The share of widgets listed as without a renderer that fails the test, without image sources;
+/// 0.09 on LIVE, with room for a changed Archive.
+const MAX_NO_RENDERER_SHARE: f64 = 0.15;
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]

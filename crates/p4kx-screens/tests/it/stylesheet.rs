@@ -35,9 +35,10 @@ fn holder(name: &str, style: Option<u128>) -> TestWidget {
         .parent("row")
         .size(TestDim::Fixed(10.0), TestDim::Fixed(10.0))
         .with("canvas", TestValue::Reference(INNER));
-    style.map_or(holder.clone(), |guid| {
-        holder.with("stylesheetOverride", TestValue::Reference(guid))
-    })
+    match style {
+        Some(guid) => holder.with("stylesheetOverride", TestValue::Reference(guid)),
+        None => holder,
+    }
 }
 
 fn outer() -> TestCanvas {

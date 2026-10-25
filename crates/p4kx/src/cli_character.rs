@@ -100,4 +100,10 @@ pub(crate) struct CharacterPackageArgs {
     /// character; repeatable, used with --anim.
     #[arg(long = "anim-from", value_name = "ENTRY")]
     pub(crate) animation_sources: Vec<String>,
+    /// Looks for animations only below this folder of the Archive, a path below `Data` such as
+    /// `Animations/pu/male/eckhart`, instead of the folders of the body; repeatable, used with
+    /// --anim. Without it, a --loadout whose character has a folder of its own animations below
+    /// `Animations/pu/<body>/` looks there first and then in the folders of the body.
+    #[arg(long = "anim-folder", value_name = "FOLDER")]
+    pub(crate) animation_folders: Vec<String>,
 }

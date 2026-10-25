@@ -323,8 +323,16 @@ exits with code 7.
 ```
 
 The inputs are those of `p4kx chf glb` and `p4kx armour glb`: `--chf`, `--body`, `--piece`,
-`--loadout`, `--expression`, `--no-expressions`, `--anim` and `--anim-from`, see
-[docs/blender-package.md](blender-package.md#characters). `name` is the Character's name (`--name`,
+`--loadout`, `--expression`, `--no-expressions`, `--materials colours|textures` (default
+`textures`), `--texture-mip`, `--anim`, `--anim-from` and `--anim-folder`, see
+[docs/blender-package.md](blender-package.md#characters). `--body` is optional with a `--loadout`
+whose Entity has a `Char_Head`: the head decides the body, and the head's own skins replace the
+generic Protos head (ADR-0109); an outfit Loadout of a story character such as Miles Eckhart gives
+its base Loadout and its clothing. With `--chf` beside `--loadout`, the CHF's head is kept and the
+head of the Loadout is dropped. `--anim` looks first in the character's own animation folder
+`Animations/pu/<body>/<name>` for a bespoke head and then in the folders of the body (`--anim all`
+writes the own folder's animations only); `--anim-folder FOLDER` (repeatable) looks only in the
+named folders. `name` is the Character's name (`--name`,
 else the CHF's file name without extension, else the body variant). `chf` is the CHF path as
 given and `null` without `--chf`; `rig` is the head rig and `null` without a CHF. `loadout` is
 `null` without `--loadout` and `replaced` lists the pieces of the Loadout that a `--piece` took the
@@ -389,18 +397,34 @@ file is written even when parts are skipped.
 
 ```json
 {"archive": "…", "body": "male", "skeleton": "Objects/…/bhm_skeleton_v7.chr", "out": "…",
- "lod": 0, "loadout": {"name": "…", "source": "entity", "class_name": "…"}, "pieces": 2,
+ "lod": 0, "loadout": {"name": "…", "source": "entity", "class_name": "…", "files": ["…"]},
+ "head": {"class_name": "eckhart_t2_head", "body": "male", "bespoke_folder": "Objects/…/eckhart",
+          "parts": 6},
+ "pieces": 2,
  "replaced": [{"name": "…", "by": "…", "item_type": "Char_Armor_Torso"}, …],
- "parts": [{"name": "body", "origin": "body", "file": "…"}, …],
+ "parts": [{"name": "body", "origin": "body", "file": "…", "material": "m_body"}, …],
  "nodes": 223, "bones": 220, "meshes": 3, "skinned_meshes": 3, "primitives": 51,
- "materials": 19, "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
+ "materials": 19, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
+ "vertices": 43317, "triangles": 68932, "bytes": 3671144, "skipped": 0,
  "animations": [{"name": "…", "duration_seconds": 3.27, "additive": false, "channels": 233,
                  "keys": 10714, "skipped_tracks": []}],
  "issues": [Issue, …]}
 ```
 
+`--materials textures` (default `colours`) and `--texture-mip N` embed the textures as for
+`p4kx chf glb`, counted in `textured_materials`, `textures` and `texture_pixels`. `files` of
+`loadout` lists the XML Loadout files the Loadout is made of in the order they are laid over each
+other: an Entity whose default Loadout is an outfit gives its base Loadout and the Loadouts of its
+outfits without name tags (ADR-0109). `head` is `null` unless the Loadout has a head (an Entity of
+item type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
+names, which `--body` overrides, `bespoke_folder` the folder of the character's own head skins
+(or `null` when its material library is in no folder of its own) and `parts` the pieces of the
+head. `material` of a part is the material library it is drawn with, `null` when it has none.
+
 `--anim NAME` (repeatable, `all` for every one) and `--anim-from ENTRY` write the animations of
-the body variant's folders on the body skeleton; `animations` lists each one written, as in
+the body variant's folders on the body skeleton, those of the character's own folder
+`Animations/pu/<body>/<name>` first when the head is a bespoke one and the folder exists, and
+`--anim-folder FOLDER` (repeatable) looks only below the named folders; `animations` lists each one written, as in
 `p4kx chf glb`, with `skipped_weights` (a number, only when not 0) for runs of morph weights that
 did not fit. Three Issue kinds belong to animations: `animation_not_used` (no track fits the
 Character, or the animation would exceed the budget of 33,554,432 values for all animations of

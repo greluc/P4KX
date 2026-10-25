@@ -153,11 +153,27 @@ impl Material {
         }
     }
 
-    /// Returns whether the engine draws nothing with the material: its flags or shader say so,
-    /// or it is fully transparent.
+    /// Returns whether the material is an overlay of the `Eye` shader, `EYE_AO_OVERLAY` or
+    /// `EYE_SPECULAR_OVERLAY` in its generation mask: a shell over the eyeball that the engine
+    /// blends in as ambient occlusion or as a specular highlight, which no plain glTF material
+    /// says. Drawn as a surface it would cover the iris.
+    #[must_use]
+    pub fn is_eye_overlay(&self) -> bool {
+        self.shader.eq_ignore_ascii_case("Eye")
+            && ["EYE_AO_OVERLAY", "EYE_SPECULAR_OVERLAY"]
+                .iter()
+                .any(|mask| self.string_gen_mask.contains(mask))
+    }
+
+    /// Returns whether the engine draws nothing with the material, or nothing a plain glTF
+    /// material can draw: its flags or shader say so, it is fully transparent, or it is an
+    /// [`Eye` overlay](Self::is_eye_overlay).
     #[must_use]
     pub fn hidden(&self) -> bool {
-        self.flags.no_draw() || self.shader.eq_ignore_ascii_case("NoDraw") || self.opacity <= 0.0
+        self.flags.no_draw()
+            || self.shader.eq_ignore_ascii_case("NoDraw")
+            || self.opacity <= 0.0
+            || self.is_eye_overlay()
     }
 }
 

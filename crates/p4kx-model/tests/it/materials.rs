@@ -131,6 +131,36 @@ fn mtl_flags_written_as_negative_numbers_keep_their_bits() -> TestResult {
 }
 
 #[test]
+fn the_overlay_materials_of_the_eye_shader_are_hidden_and_the_iris_is_not() -> TestResult {
+    let eye = |name: &str, mask: &str| {
+        TestMtlMaterial::new(name)
+            .shader("Eye")
+            .string_gen_mask(mask)
+            .diffuse([1.0; 3])
+    };
+    let file = TestMtl::multi(&[
+        eye("eyeInner", "%NORMAL_MAP%VERTCOLORS"),
+        eye("eyeWet", "%EYE_SPECULAR_OVERLAY%VERTCOLORS"),
+        eye("eyeAO", "%EYE_AO_OVERLAY%VERTCOLORS"),
+        hull()
+            .shader("HardSurface")
+            .string_gen_mask("%EYE_AO_OVERLAY"),
+    ]);
+
+    let library = parse(&file.cryxml())?;
+
+    let hidden: Vec<bool> = (0..4)
+        .map(|id| library.material(id).map(Material::hidden).ok_or("material"))
+        .collect::<Result<_, _>>()?;
+    assert_eq!(
+        hidden,
+        [false, true, true, false],
+        "an AO or specular overlay covers the iris when drawn, other shaders are never overlays"
+    );
+    Ok(())
+}
+
+#[test]
 fn missing_malformed_and_non_finite_values_read_as_the_defaults() -> TestResult {
     let material = TestMtlMaterial::new("odd")
         .attribute("Diffuse", "1,2")

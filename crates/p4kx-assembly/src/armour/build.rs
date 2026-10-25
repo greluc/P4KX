@@ -69,7 +69,7 @@ impl Armour {
         let mut issues = Vec::new();
         let mut jobs = vec![Job::body(variant.skin())];
         for piece in pieces {
-            gather(piece, variant, &mut jobs, &mut issues);
+            gather(piece, variant, models, &mut jobs, &mut issues);
         }
         if jobs.len() > options.max_parts {
             for job in jobs.split_off(options.max_parts) {
@@ -95,6 +95,9 @@ impl Armour {
                 continue;
             };
             heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
+            if job.bespoke {
+                heads.push(Found::bespoke(parts.len(), &job.path));
+            }
             part_jobs.push(job);
             let materials = drawn_with(
                 job,

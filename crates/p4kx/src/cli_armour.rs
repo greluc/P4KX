@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use clap::{Args, Subcommand, ValueEnum};
 use p4kx_assembly::BodyVariant;
 
+use crate::cli_chf::ChfMaterialsArg;
 use crate::cli_model::lod_range;
 use crate::exit::EXIT_CODES_HELP;
 
@@ -74,9 +75,10 @@ pub(crate) struct ArmourGlbArgs {
     /// invalid input.
     #[arg(long, value_name = "LOADOUT")]
     pub(crate) loadout: Option<String>,
-    /// The body variant to wear the pieces on, see `p4kx armour bodies`.
-    #[arg(long, value_enum, value_name = "VARIANT", default_value_t = BodyArg::Male)]
-    pub(crate) body: BodyArg,
+    /// The body variant to wear the pieces on, see `p4kx armour bodies`. Without it the body of
+    /// the head the --loadout gives its character, else the male body.
+    #[arg(long, value_enum, value_name = "VARIANT")]
+    pub(crate) body: Option<BodyArg>,
     /// The GLB file to write; an existing file is replaced.
     #[arg(long, value_name = "FILE")]
     pub(crate) out: PathBuf,
@@ -84,9 +86,24 @@ pub(crate) struct ArmourGlbArgs {
     /// is written at the nearest lower level it has.
     #[arg(long, value_name = "N", default_value_t = 0, value_parser = lod_range())]
     pub(crate) lod: u32,
+    /// How to write the materials. colours: plain colours without textures. textures: the
+    /// diffuse, normal and specular maps as PNG images, each image once; a texture that cannot
+    /// be read leaves the plain colour and is listed.
+    #[arg(long, value_enum, value_name = "MODE", default_value_t = ChfMaterialsArg::Colours)]
+    pub(crate) materials: ChfMaterialsArg,
+    /// The mip level of the textures with --materials textures: 0 is the largest, each level
+    /// halves the width and height; a texture with fewer mips gives its smallest.
+    #[arg(long, value_name = "N", default_value_t = 1)]
+    pub(crate) texture_mip: u32,
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
+    /// Looks for animations only below this folder of the Archive, a path below `Data` such as
+    /// `Animations/pu/male/eckhart`, instead of the folders of the body; repeatable, used with
+    /// --anim. Without it, a --loadout whose character has a folder of its own animations below
+    /// `Animations/pu/<body>/` looks there first and then in the folders of the body.
+    #[arg(long = "anim-folder", value_name = "FOLDER")]
+    pub(crate) animation_folders: Vec<String>,
     /// Includes an animation of the body; repeat the option for more, or use `all` for every
     /// animation found. NAME is the name of an animation (a .caf file name without extension, or
     /// a name inside a .dba), its file name, or the end of its path, ignoring case; or the path

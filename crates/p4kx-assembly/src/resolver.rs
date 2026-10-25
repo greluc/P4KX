@@ -218,6 +218,7 @@ impl<'f> LoadoutResolver<'f> {
         match loadout {
             None => Ok(Entries::complete(Arc::from([]))),
             Some(LoadoutSpec::Manual(entries)) => Ok(Entries::complete(Arc::clone(entries))),
+            Some(LoadoutSpec::Layered(layers)) => self.layered_entries(layers),
             Some(LoadoutSpec::Xml(path)) => {
                 let Some(files) = self.files else {
                     return Err(LoadoutError::NoLoadoutFiles { path: path.clone() });

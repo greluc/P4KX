@@ -3,10 +3,11 @@
 
 use p4kx_character::Dna;
 
-use super::piece::{Note, Source};
+use super::head::rig_part;
+use super::piece::{Bespoke, Note, Source};
 use super::wearable::Unfit;
 use super::{BodyVariant, Expressions, Look, PartOrigin, Piece};
-use crate::{Issue, IssueKind};
+use crate::{Issue, IssueKind, MaterialVariant, ModelFailure, ModelProvider};
 
 /// One skin to read and wear.
 pub(super) struct Job {
@@ -20,6 +21,7 @@ pub(super) struct Job {
     pub(super) expressions: Expressions,
     pub(super) look: Option<Look>,
     pub(super) follows_head: bool,
+    pub(super) bespoke: bool,
 }
 
 impl Job {
@@ -36,6 +38,7 @@ impl Job {
             expressions: Expressions::None,
             look: None,
             follows_head: false,
+            bespoke: false,
         }
     }
 }
@@ -65,11 +68,31 @@ fn note_kind(note: &Note) -> IssueKind {
     }
 }
 
+/// Returns the skin of the story character's own head that stands for the generic skin at
+/// `path`, if the Archive has one: the file `<prefix>_<part>.skin` in the folder of `bespoke`.
+fn bespoke_path(path: &str, bespoke: &Bespoke, models: &dyn ModelProvider) -> Option<String> {
+    let name = path.rsplit(['/', '\\']).next()?;
+    let (stem, extension) = name.rsplit_once('.')?;
+    if !extension.eq_ignore_ascii_case("skin") {
+        return None;
+    }
+    let part = rig_part(stem)?;
+    let candidate = format!("{}/{}_{part}.skin", bespoke.folder, bespoke.prefix);
+    exists(&candidate, models).then_some(candidate)
+}
+
+/// Returns whether the Archive holds the file at `path`, a path below `Data`; a file that cannot
+/// be read still exists.
+fn exists(path: &str, models: &dyn ModelProvider) -> bool {
+    !matches!(models.file(path, 0), Err(ModelFailure::Missing))
+}
+
 /// Adds the skin `piece` contributes for `variant` to `jobs`, or the reason it contributes none
 /// to `issues`; the notes of the piece go to `issues` in either case.
 pub(super) fn gather(
     piece: &Piece,
     variant: BodyVariant,
+    models: &dyn ModelProvider,
     jobs: &mut Vec<Job>,
     issues: &mut Vec<Issue>,
 ) {
@@ -87,9 +110,12 @@ pub(super) fn gather(
             issues.push(piece_issue(piece, kind));
             return;
         }
-        Source::File { path, material } => (path.as_str(), material.as_deref()),
-        Source::Wearable(wearable) => match wearable.geometry_for(variant) {
-            Ok(geometry) => (geometry.path(), geometry.material()),
+        Source::File { path, material } => (path.clone(), material.clone()),
+        Source::Wearable(wearable) => match wearable.geometry_selected(variant, &piece.selecting) {
+            Ok(geometry) => (
+                geometry.path().to_owned(),
+                chosen_material(piece, wearable, variant, geometry.material()),
+            ),
             Err(Unfit::NoGeometry) => {
                 issues.push(piece_issue(piece, IssueKind::NoWornGeometry));
                 return;
@@ -101,16 +127,70 @@ pub(super) fn gather(
             }
         },
     };
+    let own = piece
+        .bespoke
+        .as_ref()
+        .and_then(|bespoke| bespoke_path(&path, bespoke, models));
+    let bespoke = own.is_some();
+    let material = existing_library(piece, material, bespoke, models, issues);
     jobs.push(Job {
         origin: PartOrigin::Piece,
         part: piece.name.clone(),
         owner: String::new(),
         label: piece.name.clone(),
-        path: path.to_owned(),
-        material: piece.material.as_deref().or(material).map(str::to_owned),
+        path: own.unwrap_or(path),
+        material: piece.material.clone().or(material),
         shape: piece.shape.clone(),
         expressions: piece.expressions.clone(),
         look: piece.look.clone(),
         follows_head: piece.follows_head,
+        bespoke,
     });
+}
+
+/// Returns `material` for a piece of a story character's head, or, when the Archive lacks that
+/// library, the head's own library for a part with a skin of its own, and none otherwise; the
+/// missing library is reported to `issues`. Other pieces keep `material`.
+fn existing_library(
+    piece: &Piece,
+    material: Option<String>,
+    bespoke: bool,
+    models: &dyn ModelProvider,
+    issues: &mut Vec<Issue>,
+) -> Option<String> {
+    let (Some(head), Some(library)) = (&piece.bespoke, &material) else {
+        return material;
+    };
+    if !library.contains(['/', '\\']) || exists(library, models) {
+        return material;
+    }
+    let fallback = head.library.clone().filter(|_| bespoke);
+    let reason = fallback.as_ref().map_or_else(
+        || format!("the material library {library} does not exist"),
+        |head_library| {
+            format!(
+                "the material library {library} does not exist; the library of the head, {head_library}, is used"
+            )
+        },
+    );
+    issues.push(piece_issue(piece, IssueKind::MaterialLibrary { reason }));
+    fallback
+}
+
+/// Returns the material library of a worn Entity: the one its material tree has for the tags of
+/// the piece and the body, else the one of its geometry.
+fn chosen_material(
+    piece: &Piece,
+    wearable: &super::Wearable,
+    variant: BodyVariant,
+    geometry: Option<&str>,
+) -> Option<String> {
+    if piece.variant_tags.is_empty() {
+        return geometry.map(str::to_owned);
+    }
+    let mut tags = piece.variant_tags.clone();
+    tags.push(variant.tag().to_owned());
+    MaterialVariant::resolve(wearable.material_variants(), &tags)
+        .or(geometry)
+        .map(str::to_owned)
 }

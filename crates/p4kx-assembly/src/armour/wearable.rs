@@ -5,7 +5,7 @@ use p4kx_dataforge::Guid;
 
 use super::BodyVariant;
 use crate::spec::EntitySpec;
-use crate::{Geometry, GeometryVariant};
+use crate::{Geometry, GeometryVariant, MaterialVariant};
 
 /// Why a piece has no geometry for a body variant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +26,8 @@ pub struct Wearable {
     pub(crate) item_type: String,
     pub(crate) geometry: Option<Geometry>,
     pub(crate) variants: Vec<GeometryVariant>,
+    pub(crate) tags: Vec<String>,
+    pub(crate) material_variants: Vec<MaterialVariant>,
 }
 
 impl Wearable {
@@ -39,7 +41,36 @@ impl Wearable {
             item_type: spec.attach_type.clone(),
             geometry: spec.geometry.clone(),
             variants: spec.variants.clone(),
+            tags: spec.attach_tags.clone(),
+            material_variants: spec.material_variants.clone(),
         }
+    }
+
+    /// Returns the tags of the Entity's `AttachDef`, e.g. `hairVar_Brown` for a hair colour.
+    #[must_use]
+    pub fn tags(&self) -> &[String] {
+        &self.tags
+    }
+
+    /// Returns the material libraries the Record chooses by tags.
+    #[must_use]
+    pub fn material_variants(&self) -> &[MaterialVariant] {
+        &self.material_variants
+    }
+
+    /// Returns the geometry worn on `body` like [`Self::geometry_for`], but the sub-geometry
+    /// tagged with one of `selecting` comes first: a port's flags select the sub-geometry of the
+    /// item attached to it.
+    pub(crate) fn geometry_selected(
+        &self,
+        body: BodyVariant,
+        selecting: &[String],
+    ) -> Result<&Geometry, Unfit> {
+        let chosen = self
+            .variants
+            .iter()
+            .find(|found| selecting.iter().any(|tag| found.has_tag(tag)));
+        chosen.map_or_else(|| self.geometry_for(body), |found| Ok(&found.geometry))
     }
 
     /// Returns the GUID of the Entity's Record.

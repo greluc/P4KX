@@ -23,11 +23,26 @@ pub(super) struct Face {
 pub(super) struct Found {
     pub(super) part: usize,
     pub(super) skin: String,
-    pub(super) dna: Dna,
+    pub(super) dna: Option<Dna>,
     pub(super) face: Face,
 }
 
 impl Found {
+    /// Returns the part `part` made of the skin at `skin` of a story character's own head: its
+    /// bones join the skeleton at the positions its skin gives, and it has no rig to animate.
+    pub(super) fn bespoke(part: usize, skin: &str) -> Self {
+        Self {
+            part,
+            skin: skin.to_owned(),
+            dna: None,
+            face: Face {
+                facial: None,
+                rig: String::new(),
+                numbers: Vec::new(),
+            },
+        }
+    }
+
     /// Returns the head part `part` made of the skin at `skin` when it was shaped by `dna` and
     /// has a face.
     pub(super) fn of(
@@ -39,7 +54,7 @@ impl Found {
         Some(Self {
             part,
             skin: skin.to_owned(),
-            dna: dna?.clone(),
+            dna: Some(dna?.clone()),
             face: face?,
         })
     }
@@ -68,7 +83,7 @@ pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], 
             .map(|facial| facial.offsets.as_slice())
             .unwrap_or_default();
         skeleton.bones = extend_skeleton(&skeleton.bones, &bones, moves);
-        let Some(facial) = head.face.facial else {
+        let (Some(facial), Some(dna)) = (head.face.facial, head.dna) else {
             continue;
         };
         let mut by_name: HashMap<String, usize> = HashMap::with_capacity(skeleton.bones.len());
@@ -92,7 +107,7 @@ pub(super) fn extend_with_faces(skeleton: &mut Model, parts: &mut [ArmourPart], 
             FaceLink {
                 skin: head.skin,
                 rig: head.face.rig,
-                dna: head.dna,
+                dna,
                 joints,
                 blendshapes: head.face.numbers,
             }

@@ -31,7 +31,7 @@ pub(super) const TABS: [(PreviewTab, Text); 10] = [
 pub(super) enum Export {
     /// Export as GLB, of a model.
     Model,
-    /// Export Interior as GLB, of a socpak container.
+    /// Export Interior, of a socpak container.
     Interior,
 }
 

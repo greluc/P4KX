@@ -34,7 +34,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     } else {
         let toolbar = frames::panel()
             .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
-            .show(ui, |ui| character_toolbar::show(ui, model, requests, true));
+            .show(ui, |ui| character_toolbar::show(ui, model, true));
         hairline_below(ui, toolbar.response.rect);
         side_by_side(ui, model, requests);
     }
@@ -84,7 +84,7 @@ fn stacked(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .show(ui, |ui| {
             frames::panel()
                 .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
-                .show(ui, |ui| character_toolbar::show(ui, model, requests, false));
+                .show(ui, |ui| character_toolbar::show(ui, model, false));
             character_choices::show(ui, model, requests);
             ui.allocate_ui(vec2(ui.available_width(), ASSEMBLY_PANEL_HEIGHT), |ui| {
                 character_view::show(ui, model);

@@ -121,7 +121,7 @@ impl Model {
     }
 
     /// Returns whether the selected Entry is a socpak container, so that the preview and the
-    /// Export menu offer the Export of its Interior as GLB.
+    /// Export menu offer the Export of its Interior.
     #[must_use]
     pub fn interior_export_shown(&self) -> bool {
         self.browser

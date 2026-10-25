@@ -51,6 +51,7 @@ impl CharactersTab {
             scene,
             spans,
             replaced,
+            npc_folder,
         } = built;
         let issues = armour.issues().iter().map(PartIssue::of).collect();
         let kept = self
@@ -84,6 +85,7 @@ impl CharactersTab {
             spans,
             issues,
             replaced,
+            npc_folder,
         });
         self.failure = None;
         self.apply_expression();

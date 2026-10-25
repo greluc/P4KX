@@ -6,7 +6,6 @@
 
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use p4kx_gui::ui::{self, Dialog};
@@ -17,6 +16,7 @@ use p4kx_testkit::{
 use tempfile::TempDir;
 
 use crate::tagging::archive;
+use crate::waiting::wait_for;
 
 pub(crate) type TestResult = Result<(), Box<dyn Error>>;
 
@@ -74,15 +74,9 @@ pub(crate) fn wait_until(
     harness: &mut Harness<'_, State>,
     done: impl Fn(&Model) -> bool,
 ) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    harness.step();
-    while !done(&harness.state().model) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the window to settle", |harness| {
+        done(&harness.state().model)
+    })?;
     harness.run_steps(3);
     Ok(())
 }

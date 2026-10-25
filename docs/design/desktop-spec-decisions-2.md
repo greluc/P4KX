@@ -521,8 +521,8 @@ wird als Ganzes ersetzt. Das Fortschrittsfenster heißt „Blender-Paket wird ex
 Fortschritt) und „Abbrechen"; die Zusammenfassung „Blender-Paket geschrieben" nennt den Ordner, Teile,
 Knoten, Meshes, Texturen, Materialien, Paletten, Dateien, Vertices, Dreiecke und Größe, Interior und die
 nicht geschriebenen Texturen, und listet die Hinweise des Pakets wie den Bericht des GLB-Exports. Der Export
-eines Interior-Containers allein und der Charakter-Export bieten kein Paket an, solange die Bibliothek
-keines schreibt. Neue Maße gibt es nicht.
+eines Interior-Containers allein und der Charakter-Export bieten das Paket ab D.54 an. Neue Maße gibt es
+nicht.
 
 **D.51 Tab „UI" zeichnet GFx-Dateien und Bildschirme.** Hinter „Charaktere" steht der Tab „UI" (ADR-0108).
 Eine Werkzeugleiste (Innenabstand `TOOLBAR_PADDING`) trägt beschriftete Segmentgruppen (`.segmented--sm`,
@@ -580,3 +580,18 @@ Fuß mit „Schließen", wenn der Platz nicht reicht. Die Zusammenfassung eines 
 Container" (Wurzel und verschachtelte); `p4kx entity glb` und `p4kx entity package` sagen ebenfalls „object
 containers". Die Ansicht der Entity zählt Ausdehnung, Meshes und Hinweise nur mit Interior, solange es eingeblendet
 ist. Neue Maße gibt es nicht.
+
+**D.54 Das Blender-Paket für Interior-Container und Charaktere.** Der Export-Dialog eines Interior-Containers
+(Titel „Interior exportieren", Schaltfläche „Interior exportieren …") zeigt die Gruppe „Ausgabe" wie der einer
+Entity (D.50): „GLB-Datei" und „Blender-Paket" neben „Detailstufe", bei „Blender-Paket" mit dem Hinweis, ohne
+Materialien und mit der Gruppe „Paketordner". Fortschritts- und Ergebnisfenster tragen die Titel des Pakets
+(„Blender-Paket wird exportiert", „Blender-Paket geschrieben"); die Zusammenfassung zählt zusätzlich die
+geöffneten Container. Die Schaltfläche der Werkzeugleiste im Tab „Charaktere" heißt „Exportieren …" (`.btn-cta`)
+und öffnet einen Export-Dialog „Charakter exportieren" (`.modal`, hängt wie in D.53): die Zeile „Charakter: …",
+die Gruppe „Ausgabe" mit „GLB-Datei" (Vorgabe) und „Blender-Paket", bei dem Paket der Hinweis in
+`color-gray-2-text` (`FS_XS`), daneben (nur beim Paket) die Gruppe „Animationen" mit „Keine" und „Alle" (Vorgabe „Alle": die Animationen der Animationsordner des Charakters, wie `p4kx character package --anim all`; kein Auswahlfeld für einzelne Clips und kein `--anim-from` im Fenster), dann die Gruppe „Datei" oder „Paketordner" mit
+denselben Meldungen wie bei der Entity, und den Fuß „Exportieren" und „Schließen". Detailstufe und Materialien
+bleiben in der Werkzeugleiste. Das Fortschrittsfenster zeigt beim Paket „Das Paket von … wird geschrieben …"
+ohne Byte-Zähler und „Abbrechen"; die Zusammenfassung nennt Ordner, Teile, Knochen, Skin-Meshes, Shape Keys,
+Animationen, Eckpunkte, Dreiecke, Dateien und Größe. Der Dialog beginnt mit „GLB-Datei", unabhängig vom Entity-Export; Form, Animationen und Ordner merkt sich der Tab bis zum Schließen des
+Fensters. Neue Maße gibt es nicht.

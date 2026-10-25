@@ -74,8 +74,9 @@ pub use catalog_export::{
 };
 pub use channel_list::ChannelList;
 pub use characters::{
-    CHARACTER_LODS, CharacterExport, CharacterExportStatus, CharacterExportSummary, CharactersTab,
-    Chooser, ChooserKind, Expression, HeadInfo, HeadSource, Item, Key, Pick, Sources,
+    CHARACTER_LODS, CharacterExport, CharacterExportSetup, CharacterExportStatus,
+    CharacterExportSummary, CharactersTab, Chooser, ChooserKind, Expression, HeadInfo, HeadSource,
+    Item, Key, Pick, Sources,
 };
 pub use comparison::{
     ChangeColumn, ChangeSort, ComparisonLevels, ComparisonList, ComparisonSide, ComparisonStage,

@@ -11,6 +11,7 @@
 mod browse;
 mod checks;
 mod dialogs;
+mod packages;
 mod tabs;
 
 use std::fs::File;

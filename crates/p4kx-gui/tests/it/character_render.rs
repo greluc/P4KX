@@ -202,13 +202,13 @@ fn the_smallest_window_stacks_the_regions_without_overlap() -> TestResult {
         (
             Language::BritishEnglish,
             "characters-small-en-GB.png",
-            "Export as GLB…",
+            "Export…",
             "Male",
         ),
         (
             Language::German,
             "characters-small-de-DE.png",
-            "Als GLB exportieren …",
+            "Exportieren …",
             "Männlich",
         ),
     ] {
@@ -247,13 +247,13 @@ fn a_tall_narrow_window_stacks_the_toolbar_the_choices_the_view_and_the_report()
         (
             Language::BritishEnglish,
             "characters-stacked-en-GB.png",
-            "Export as GLB…",
+            "Export…",
             "Every piece fits.",
         ),
         (
             Language::German,
             "characters-stacked-de-DE.png",
-            "Als GLB exportieren …",
+            "Exportieren …",
             "Alle Teile passen.",
         ),
     ] {

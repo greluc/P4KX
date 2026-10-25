@@ -4,9 +4,9 @@
 //! The line diff of the selected change, made off the UI thread, without drawing.
 
 use crate::diffing;
+use crate::waiting::wait_polling;
 
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use diffing::{ADDED, BINARY, BROKEN, CRYXML, EQUAL, FAR, Pair, TEXT, TOO_LARGE, TestResult, pair};
 use p4kx_comparison::LineKind;
@@ -17,14 +17,14 @@ use p4kx_gui::{
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(tab) {
-        if Instant::now() > deadline {
-            return Err("the Comparison tab did not settle".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        tab.poll();
-    }
+    wait_polling(
+        tab,
+        "the Comparison tab to settle",
+        |tab| {
+            tab.poll();
+        },
+        done,
+    )?;
     Ok(())
 }
 

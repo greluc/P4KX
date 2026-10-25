@@ -3,8 +3,8 @@
 
 //! Split textures whose parts sit in a folder of another case than their header: one folder.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{Browser, ExtractionScope, Language, Model};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
@@ -23,14 +23,14 @@ fn opened() -> Result<(TempDir, Model), Box<dyn Error>> {
         .write_to(&path)?;
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err("the Archive did not open in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+    )?;
     Ok((folder, model))
 }
 

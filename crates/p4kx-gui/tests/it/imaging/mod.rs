@@ -4,10 +4,9 @@
 //! Helpers of the image preview tests: a synthetic Archive with split textures opened in a
 //! headless window.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for_model};
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -85,15 +84,7 @@ pub(crate) fn wait_until(
     harness: &mut Harness<'_, Model>,
     done: impl Fn(&Model) -> bool,
 ) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.run_quiet();
     Ok(())
 }

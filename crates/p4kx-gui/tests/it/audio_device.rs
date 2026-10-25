@@ -4,6 +4,7 @@
 //! Playing through the system's default audio device: whether one exists or not, the window
 //! stays responsive and either plays or names why it cannot.
 
+use crate::waiting::wait_for_model;
 use std::error::Error;
 use std::time::{Duration, Instant};
 
@@ -23,15 +24,7 @@ fn player(model: &Model) -> Option<&Player> {
 }
 
 fn settle(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + DEVICE_WAIT;
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.step();
     Ok(())
 }

@@ -6,11 +6,10 @@
 
 use crate::diffing;
 use crate::long_diff;
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for};
 
 use std::error::Error;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use diffing::{ADDED, BROKEN, EQUAL, Pair, TOO_LARGE, TestResult, pair};
 use egui::Key;
@@ -52,15 +51,9 @@ fn harness((library, pair): (&Path, &Pair), language: Language) -> Harness<'stat
 }
 
 fn settle(harness: &mut Harness<'_, State>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    harness.step();
-    while !done(&harness.state().0) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the window to settle", |harness| {
+        done(&harness.state().0)
+    })?;
     harness.run_quiet();
     Ok(())
 }

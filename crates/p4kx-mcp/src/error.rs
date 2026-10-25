@@ -120,6 +120,9 @@ pub(crate) enum ToolError {
     /// The worker running the call ended without a result.
     #[error("the tool call stopped unexpectedly")]
     Stopped,
+    /// An error several calls received together, such as a container they waited for.
+    #[error(transparent)]
+    Shared(std::sync::Arc<Self>),
     /// The DataForge of the Archive cannot be read; the message holds every cause.
     #[error("cannot read the DataForge: {0}")]
     NoDataForge(String),
@@ -179,6 +182,56 @@ pub(crate) enum ToolError {
         "selecting the Records was stopped after at most {0} seconds or by the client; narrow the Query with `from`, `at` or `where`"
     )]
     QueryStopped(u64),
+    /// No ATL definition has the audio trigger.
+    #[error("no ATL definition has the audio trigger `{0}`; search_audio_triggers finds triggers")]
+    UnknownTrigger(String),
+    /// The audio language is no language folder of the Archive.
+    #[error(
+        "the Archive holds no audio language `{language}`; its language folders are: {available}"
+    )]
+    UnknownLanguage {
+        /// The language asked for.
+        language: String,
+        /// The language folders of the Archive, comma separated.
+        available: String,
+    },
+    /// The call names neither a WEM ID nor an Entry path, or both.
+    #[error("pass either `wem_id` or `path`")]
+    WemSelector,
+    /// No soundbank embeds the WEM and no loose WEM Entry has its ID.
+    #[error("no soundbank embeds the WEM {0} and no loose WEM Entry has that ID")]
+    UnknownWem(u32),
+    /// Only the prefetched start of the WEM is in the Archive.
+    #[error("the Archive holds only the prefetched start of the WEM {0}, which cannot be decoded")]
+    PrefetchOnly(u32),
+    /// The soundbank Entry is larger than the audio tools read.
+    #[error("the soundbank {path} is larger than the {limit} bytes the audio tools read")]
+    SoundbankTooLarge {
+        /// The Entry path.
+        path: String,
+        /// The cap in bytes.
+        limit: u64,
+    },
+    /// The sound has no frames.
+    #[error("the sound has no audio frames")]
+    EmptySound,
+    /// The excerpt lies beyond the part of a sound that is decoded for one.
+    #[error(
+        "the excerpt lies beyond the first {limit} bytes of decoded audio, too far in for an excerpt"
+    )]
+    ExcerptSource {
+        /// The decoded size cap in bytes.
+        limit: u64,
+    },
+    /// The excerpt starts behind the end of the sound.
+    #[error("the sound is only {seconds:.3} seconds long; start_seconds is behind its end")]
+    ExcerptStart {
+        /// The playing time of the sound.
+        seconds: f64,
+    },
+    /// The excerpt window is not a finite, non-negative number of seconds.
+    #[error("`{0}` must be a finite number of seconds, not negative")]
+    BadSeconds(&'static str),
     /// A result cannot be converted to JSON.
     #[error("cannot convert the result to JSON")]
     Json(#[from] serde_json::Error),

@@ -44,6 +44,7 @@ mod reference_index;
 mod reference_index_links;
 mod reference_index_queries;
 mod references;
+mod references_derived;
 mod ships;
 mod survey;
 mod tag_limits;

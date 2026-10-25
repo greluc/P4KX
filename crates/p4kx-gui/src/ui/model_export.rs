@@ -118,20 +118,24 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) -> Option<A
 }
 
 fn animations(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) {
-    let count = setup.animation_count();
-    if count == 0 {
+    if !setup.animations_offered() {
         return;
     }
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(T::AnimationsHeading));
-    let number = u64::try_from(count).unwrap_or(u64::MAX);
-    let label = texts.format(
-        T::Animations,
-        &[
-            ("count", number.into()),
-            ("number", format::number(number, texts.language()).into()),
-        ],
-    );
+    let count = setup.animation_count();
+    let label = if count == 0 {
+        texts.get(T::AnimationsUnknown)
+    } else {
+        let number = u64::try_from(count).unwrap_or(u64::MAX);
+        texts.format(
+            T::Animations,
+            &[
+                ("count", number.into()),
+                ("number", format::number(number, texts.language()).into()),
+            ],
+        )
+    };
     let mut written = setup.animations();
     if toggle::checkbox(ui, &mut written, &label).changed() {
         setup.set_animations(written);

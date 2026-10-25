@@ -7,7 +7,7 @@ use p4kx_model::Animation;
 
 use crate::animation_load::kind;
 use crate::animation_select::read;
-use crate::{ChunkSource, ConversionError, Entry, PathIndex};
+use crate::{CancelToken, ChunkSource, ConversionError, Entry, PathIndex};
 
 /// The largest `.caf` or `.dba` file read into memory, far above the largest of a real Archive.
 pub const MAX_ANIMATION_FILE_LEN: u64 = 256 << 20;
@@ -24,6 +24,16 @@ pub enum AnimationChoice {
     /// of its path, ignoring case; or the path of a `.caf` or `.dba` Entry or file, which
     /// selects all of its animations.
     Named(Vec<String>),
+}
+
+/// The most animation files and the most bytes of them that [`AnimationSet::from_archive_bounded`]
+/// reads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnimationBounds {
+    /// The most `.caf` and `.dba` files.
+    pub files: usize,
+    /// The most uncompressed bytes of all of them.
+    pub bytes: u64,
 }
 
 /// An animation file or an animation of a database that could not be read.
@@ -96,6 +106,30 @@ fn folders(entry: &str) -> Vec<String> {
     folders
 }
 
+fn folder_entries<'i>(index: &PathIndex<'i>, model_entry: &str) -> Vec<&'i Entry> {
+    let folders = folders(model_entry);
+    index
+        .archive()
+        .entries()
+        .iter()
+        .filter(|entry| {
+            let path = entry.path();
+            kind(path).is_some()
+                && normalised(path)
+                    .rsplit_once('/')
+                    .is_some_and(|(folder, _)| folders.iter().any(|wanted| wanted == folder))
+        })
+        .collect()
+}
+
+fn source_of(entry: &Entry) -> Source {
+    Source {
+        label: entry.path().to_owned(),
+        explicit: false,
+        whole: false,
+    }
+}
+
 impl AnimationSet {
     /// Reads the animations `choice` selects from the `.caf` and `.dba` Entries in the folder of
     /// the model Entry `model_entry`, in the folder at the same place below `Data\Animations`
@@ -118,25 +152,39 @@ impl AnimationSet {
         choice: &AnimationChoice,
         extra: &[String],
     ) -> Result<Self, ConversionError> {
-        let folders = folders(model_entry);
-        let sources: Vec<Source> = index
-            .archive()
-            .entries()
-            .iter()
-            .map(Entry::path)
-            .filter(|path| {
-                kind(path).is_some()
-                    && normalised(path)
-                        .rsplit_once('/')
-                        .is_some_and(|(folder, _)| folders.iter().any(|wanted| wanted == folder))
-            })
-            .map(|path| Source {
-                label: path.to_owned(),
-                explicit: false,
-                whole: false,
-            })
+        let sources = folder_entries(index, model_entry)
+            .into_iter()
+            .map(source_of)
             .collect();
-        Self::from_sources(index, sources, choice, extra)
+        Self::from_sources(index, sources, choice, extra, None)
+    }
+
+    /// Reads every animation of the `.caf` and `.dba` Entries in the folders
+    /// [`Self::from_archive`] looks in, unless they are more files or bytes than `bounds` allow;
+    /// returns `None` then, before any of them is read.
+    ///
+    /// The read stops between files once `cancel` was asked to.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError::Cancelled`] when `cancel` stopped the read, and another
+    /// [`ConversionError`] when an Entry cannot be read.
+    pub fn from_archive_bounded(
+        index: &PathIndex<'_>,
+        model_entry: &str,
+        bounds: AnimationBounds,
+        cancel: &CancelToken,
+    ) -> Result<Option<Self>, ConversionError> {
+        let entries = folder_entries(index, model_entry);
+        let bytes = entries
+            .iter()
+            .map(|entry| entry.uncompressed_size())
+            .try_fold(0u64, u64::checked_add);
+        if entries.len() > bounds.files || bytes.is_none_or(|bytes| bytes > bounds.bytes) {
+            return Ok(None);
+        }
+        let sources = entries.into_iter().map(source_of).collect();
+        Self::from_sources(index, sources, &AnimationChoice::All, &[], Some(cancel)).map(Some)
     }
 
     /// Reads the animations `choice` selects from the `.caf` and `.dba` Entries anywhere below
@@ -163,22 +211,17 @@ impl AnimationSet {
             .archive()
             .entries()
             .iter()
-            .map(Entry::path)
-            .filter(|path| {
-                kind(path).is_some() && {
-                    let path = normalised(path);
+            .filter(|entry| {
+                kind(entry.path()).is_some() && {
+                    let path = normalised(entry.path());
                     prefixes
                         .iter()
                         .any(|prefix| path.starts_with(prefix.as_str()))
                 }
             })
-            .map(|path| Source {
-                label: path.to_owned(),
-                explicit: false,
-                whole: false,
-            })
+            .map(source_of)
             .collect();
-        Self::from_sources(index, sources, choice, extra)
+        Self::from_sources(index, sources, choice, extra, None)
     }
 
     fn from_sources(
@@ -186,6 +229,7 @@ impl AnimationSet {
         mut sources: Vec<Source>,
         choice: &AnimationChoice,
         extra: &[String],
+        cancel: Option<&CancelToken>,
     ) -> Result<Self, ConversionError> {
         for path in extra {
             let entry = index
@@ -218,6 +262,9 @@ impl AnimationSet {
             }
         }
         read(sources, choice, |label| {
+            if cancel.is_some_and(CancelToken::is_cancelled) {
+                return Err(ConversionError::Cancelled);
+            }
             ChunkSource::from_index_limited(index, label, MAX_ANIMATION_FILE_LEN)
         })
     }

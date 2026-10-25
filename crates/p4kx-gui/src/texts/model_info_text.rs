@@ -27,8 +27,11 @@ pub enum ModelInfoText {
     Bones,
     /// The key of the number of animations.
     Animations,
-    /// Shown while the animations of the model are not read.
+    /// Shown while the animations of the model are not read, because they are too many or cannot
+    /// be.
     AnimationsUnread,
+    /// Shown while the animations of the model are being read.
+    AnimationsReading,
     /// The key of the chunks.
     Chunks,
     /// The counts of the chunks; takes `total`, `read`, `skipped` and `unknown`.
@@ -80,7 +83,7 @@ pub enum ModelInfoText {
 
 impl ModelInfoText {
     /// Every text of the Info tab.
-    pub(crate) const ALL: [Self; 35] = [
+    pub(crate) const ALL: [Self; 36] = [
         Self::Tab,
         Self::Geometry,
         Self::GeometryInFile,
@@ -93,6 +96,7 @@ impl ModelInfoText {
         Self::Bones,
         Self::Animations,
         Self::AnimationsUnread,
+        Self::AnimationsReading,
         Self::Chunks,
         Self::ChunksValue,
         Self::MaterialsUnnamed,
@@ -134,6 +138,7 @@ impl ModelInfoText {
             Self::Bones => "model-info-bones",
             Self::Animations => "model-info-animations",
             Self::AnimationsUnread => "model-info-animations-unread",
+            Self::AnimationsReading => "model-info-animations-reading",
             Self::Chunks => "model-info-chunks",
             Self::ChunksValue => "model-info-chunks-value",
             Self::MaterialsUnnamed => "model-info-materials-unnamed",

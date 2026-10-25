@@ -3,18 +3,18 @@
 
 use std::error::Error;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
-use p4kx_extraction::model::{Animation, LodSelection, companion_file_names};
-use p4kx_extraction::{AnimationChoice, AnimationSet, Entry, ModelSource, PathIndex};
+use p4kx_extraction::model::{LodSelection, companion_file_names};
+use p4kx_extraction::{CancelToken, Entry, ModelSource, PathIndex};
 
 use p4kx_render::{Camera, Scene, SceneError, Skeleton};
 
 use super::playback::Playback;
+use super::preview_animations::{Animated, can_animate, read as read_animations};
 use crate::model::describe;
-use crate::{EntryIndex, ModelInfo};
+use crate::{AnimationCount, EntryIndex, ModelInfo};
 
 /// The largest model file or geometry companion, in bytes, the viewer reads.
 pub const MODEL_FILE_LIMIT: u64 = 256 * 1024 * 1024;
@@ -53,18 +53,18 @@ enum Event {
     ArchiveChanged,
     FileTooLarge(u64),
     Read(Box<Loaded>),
+    Animations(Animated),
 }
 
 #[derive(Debug)]
 struct Loaded {
     info: ModelInfo,
     scene: Result<Scene, SceneError>,
-    animations: Vec<Animation>,
 }
 
 #[derive(Debug)]
 enum State {
-    Loading(Receiver<Event>),
+    Loading,
     Failed(Option<String>),
     ArchiveChanged,
     FileTooLarge(u64),
@@ -74,9 +74,13 @@ enum State {
 
 /// The model preview of a model Entry: the model read and flattened on a background thread, and
 /// the camera that looks at it.
+///
+/// The animations next to the model are read after the model: the preview is ready without them,
+/// and [`Self::is_reading_animations`] tells while they are still read.
 #[derive(Debug)]
 pub struct ModelPreview {
-    dropped: Arc<AtomicBool>,
+    stop: CancelToken,
+    events: Option<Receiver<Event>>,
     state: State,
     info: Option<Arc<ModelInfo>>,
     camera: Option<Camera>,
@@ -85,32 +89,33 @@ pub struct ModelPreview {
 
 impl ModelPreview {
     /// Starts reading the model Entry `id` of `index` on a background thread, calling `wake`
-    /// from it once the result is ready.
+    /// from it whenever a result is ready.
     pub(crate) fn start(
         index: &Arc<EntryIndex>,
         id: u32,
         wake: impl Fn() + Send + 'static,
     ) -> Self {
         let (sender, events) = mpsc::channel();
-        let dropped = Arc::new(AtomicBool::new(false));
+        let stop = CancelToken::new();
         let thread_index = Arc::clone(index);
-        let thread_dropped = Arc::clone(&dropped);
+        let thread_stop = stop.clone();
         let spawned = thread::Builder::new()
             .name("model-preview".to_owned())
             .spawn(move || {
-                if let Some(event) = load(&thread_index, id, &thread_dropped)
-                    && !thread_dropped.load(Ordering::Acquire)
-                    && sender.send(event).is_ok()
-                {
-                    wake();
-                }
+                let send = |event| {
+                    if !thread_stop.is_cancelled() && sender.send(event).is_ok() {
+                        wake();
+                    }
+                };
+                load(&thread_index, id, &thread_stop, &send);
             });
-        let state = match spawned {
-            Ok(_handle) => State::Loading(events),
-            Err(_ignored) => State::Failed(None),
+        let (events, state) = match spawned {
+            Ok(_handle) => (Some(events), State::Loading),
+            Err(_ignored) => (None, State::Failed(None)),
         };
         Self {
-            dropped,
+            stop,
+            events,
             state,
             info: None,
             camera: None,
@@ -128,7 +133,7 @@ impl ModelPreview {
     #[must_use]
     pub fn status(&self) -> ModelStatus<'_> {
         match &self.state {
-            State::Loading(_) => ModelStatus::Loading,
+            State::Loading => ModelStatus::Loading,
             State::Failed(reason) => ModelStatus::Failed(reason.as_deref()),
             State::ArchiveChanged => ModelStatus::ArchiveChanged,
             State::FileTooLarge(size) => ModelStatus::FileTooLarge(*size),
@@ -140,7 +145,15 @@ impl ModelPreview {
     /// Returns whether the model is still being read.
     #[must_use]
     pub const fn is_loading(&self) -> bool {
-        matches!(self.state, State::Loading(_))
+        matches!(self.state, State::Loading)
+    }
+
+    /// Returns whether the model was read and the animations next to it are still being read.
+    #[must_use]
+    pub fn is_reading_animations(&self) -> bool {
+        self.info
+            .as_ref()
+            .is_some_and(|info| info.animations == AnimationCount::Reading)
     }
 
     /// Returns the flattened model once it was read.
@@ -175,111 +188,146 @@ impl ModelPreview {
         self.playback.as_mut()
     }
 
-    /// Takes the result the background thread sent; returns whether it arrived.
+    /// Takes the results the background thread sent; returns whether any arrived.
     pub(crate) fn poll(&mut self) -> bool {
-        let State::Loading(events) = &self.state else {
-            return false;
-        };
-        let event = match events.try_recv() {
-            Ok(event) => event,
-            Err(TryRecvError::Empty) => return false,
-            Err(TryRecvError::Disconnected) => Event::Failed(None),
-        };
-        self.state = match event {
-            Event::Failed(reason) => State::Failed(reason),
-            Event::ArchiveChanged => State::ArchiveChanged,
-            Event::FileTooLarge(size) => State::FileTooLarge(size),
+        let mut arrived = false;
+        while let Some(events) = &self.events {
+            match events.try_recv() {
+                Ok(event) => {
+                    self.apply(event);
+                    arrived = true;
+                }
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    self.events = None;
+                    arrived |= self.ended();
+                }
+            }
+        }
+        arrived
+    }
+
+    fn apply(&mut self, event: Event) {
+        match event {
+            Event::Failed(reason) => self.drop_model(State::Failed(reason)),
+            Event::ArchiveChanged => self.drop_model(State::ArchiveChanged),
+            Event::FileTooLarge(size) => self.drop_model(State::FileTooLarge(size)),
             Event::Read(read) => {
-                let Loaded {
-                    info,
-                    scene,
-                    animations,
-                } = *read;
+                let Loaded { info, scene } = *read;
                 self.info = Some(Arc::new(info));
-                match scene {
+                self.state = match scene {
                     Ok(scene) => {
                         self.camera = Some(Camera::framing(scene.bounds()));
                         self.playback = scene
                             .skeleton()
-                            .map(|skeleton| Playback::new(Arc::clone(skeleton), animations));
+                            .map(|skeleton| Playback::new(Arc::clone(skeleton), Vec::new()));
                         State::Ready(Arc::new(scene))
                     }
                     Err(error) => State::Unshowable(error),
+                };
+            }
+            Event::Animations(animated) => {
+                self.set_count(animated.count);
+                if let Some(playback) = &mut self.playback {
+                    playback.set_animations(animated.movers);
                 }
             }
-        };
-        true
+        }
+    }
+
+    fn drop_model(&mut self, state: State) {
+        self.state = state;
+        self.events = None;
+        self.info = None;
+        self.camera = None;
+        self.playback = None;
+    }
+
+    fn set_count(&mut self, count: AnimationCount) {
+        if let Some(info) = self.info.take() {
+            self.info = Some(Arc::new((*info).clone().with_animations(count)));
+        }
+    }
+
+    fn ended(&mut self) -> bool {
+        if self.is_loading() {
+            self.state = State::Failed(None);
+            true
+        } else if self.is_reading_animations() {
+            self.set_count(AnimationCount::Unread);
+            true
+        } else {
+            false
+        }
     }
 }
 
 impl Drop for ModelPreview {
     fn drop(&mut self) {
-        self.dropped.store(true, Ordering::Release);
+        self.stop.cancel();
     }
 }
 
-fn load(index: &EntryIndex, id: u32, stopped: &AtomicBool) -> Option<Event> {
-    let stop = || stopped.load(Ordering::Acquire);
+fn load(index: &EntryIndex, id: u32, stop: &CancelToken, send: &impl Fn(Event)) {
     let Some(entry) = index.entry(id) else {
-        return Some(Event::Failed(None));
+        return send(Event::Failed(None));
     };
     if index.watch().check().is_err() {
-        return Some(Event::ArchiveChanged);
+        return send(Event::ArchiveChanged);
     }
     let paths = index.path_index();
-    let oversized = oversized_file(&paths, entry);
-    if let Some(size) = oversized {
-        return Some(Event::FileTooLarge(size));
+    if let Some(size) = oversized_file(&paths, entry) {
+        return send(Event::FileTooLarge(size));
     }
-    if stop() {
-        return None;
+    if stop.is_cancelled() {
+        return;
     }
     let source = match ModelSource::from_index_with(&paths, entry.path(), LodSelection::All)
         .or_else(|_| ModelSource::from_index_with(&paths, entry.path(), LodSelection::Only(0)))
     {
         Ok(source) => source,
         Err(error) => {
-            return Some(if index.watch().check().is_err() {
+            return send(if index.watch().check().is_err() {
                 Event::ArchiveChanged
             } else {
                 Event::Failed(Some(reason(&error, entry.path())))
             });
         }
     };
-    if stop() {
-        return None;
-    }
-    let set = AnimationSet::from_archive(&paths, entry.path(), &AnimationChoice::All, &[]).ok();
-    let found = set.as_ref().map(|set| set.animations.len());
-    let info = ModelInfo::of(source.model()).with_animations(found);
-    if stop() {
-        return None;
+    if stop.is_cancelled() {
+        return;
     }
     let scene = Scene::from_model(source.model());
-    if stop() {
-        return None;
+    if stop.is_cancelled() {
+        return;
     }
     if index.watch().check().is_err() {
-        return Some(Event::ArchiveChanged);
+        return send(Event::ArchiveChanged);
     }
-    let animations = scene
+    let skinned = scene.as_ref().is_ok_and(|scene| scene.skin().is_some());
+    let skeleton: Option<Arc<Skeleton>> = scene
         .as_ref()
         .ok()
-        .filter(|scene| scene.skin().is_some())
-        .and_then(|scene| scene.skeleton())
-        .zip(set)
-        .map(|(skeleton, set)| movers(skeleton, set.animations))
-        .unwrap_or_default();
-    Some(Event::Read(Box::new(Loaded {
-        info,
-        scene,
-        animations,
-    })))
-}
-
-fn movers(skeleton: &Skeleton, mut animations: Vec<Animation>) -> Vec<Animation> {
-    animations.retain(|animation| skeleton.moves(animation));
-    animations
+        .filter(|_| skinned)
+        .and_then(|scene| scene.skeleton().cloned());
+    let animatable = can_animate(source.model(), skinned);
+    let count = if animatable {
+        AnimationCount::Reading
+    } else {
+        AnimationCount::Counted(0)
+    };
+    let info = ModelInfo::of(source.model()).with_animations(count);
+    send(Event::Read(Box::new(Loaded { info, scene })));
+    if !animatable {
+        return;
+    }
+    let Some(animated) = read_animations(&paths, entry.path(), skeleton.as_ref(), stop) else {
+        return;
+    };
+    if index.watch().check().is_err() {
+        return send(Event::ArchiveChanged);
+    }
+    send(Event::Animations(animated));
 }
 
 fn oversized_file(paths: &PathIndex<'_>, entry: &Entry) -> Option<u64> {

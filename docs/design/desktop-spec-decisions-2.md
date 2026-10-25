@@ -352,8 +352,11 @@ und 2 px `color-primary` darunter, Zeilen 36 px mit Zebra, Hover `control-bg` un
 Spalten zu gleichen Teilen. Die Tabelle der Chunks nennt höchstens 200 Zeilen; die Zahl in der
 Überschrift zählt alle. Die Materialbibliothek steht mit ihrem Zustand („objects/ship, 3
 Teilmaterialien", „… (existiert nicht)", „… (nicht lesbar: …)"); die Animationen stehen als Zahl der
-Animationen, die ein Export ohne Zusatz schreibt (additive nicht mitgezählt), und als „Nicht
-gelesen", wenn sie nicht gelesen werden konnten. Alle Texte sind einmal je Modell,
+Animationen, die ein Export ohne Zusatz schreibt (additive nicht mitgezählt), „Wird gelesen …",
+solange sie nach dem Modell gelesen werden (die Vorschau ist schon fertig), und als „Nicht
+gelesen", wenn sie nicht gelesen werden konnten oder mehr als 64 Dateien oder 64 MiB neben dem
+Modell und im Ordner an derselben Stelle unter `Data\Animations` liegen; ein Modell ohne Knochen
+liest keine. Alle Texte sind einmal je Modell,
 Sprache, Breite und Skalierung gesetzt und liegen im Frame-Speicher von egui; ein Frame setzt
 nichts neu. Meldungen (liest, nicht lesbar, Archiv geändert, zu groß) stehen anstelle der Liste
 wie im Tab „Modell" (D.35); der Tab zeigt die Liste auch für ein Modell, das der Viewer nicht
@@ -362,7 +365,8 @@ gewählt.
 
 **D.41 „Als GLB exportieren …" in der Vorschau-Leiste und im Menü Export.** Für ein Modell steht
 links von „Kopieren" am rechten Ende der Leiste „Als GLB exportieren …" (`.btn-ghost.btn-xs`, eine
-Routineaktion, kein CTA), deaktiviert, solange das Modell nicht gelesen ist oder ein Export läuft;
+Routineaktion, kein CTA), deaktiviert, solange das Modell nicht gelesen ist, seine Animationen noch gezählt werden oder ein
+Export läuft;
 das Menü Export führt denselben Eintrag nach „Record-Export …". Beide öffnen das breite
 Formular-Modal des Record-Exports (`.modal`, D.17) mit Kopf „Als GLB exportieren" und Schließen-Icon und Fuß mit
 „Schließen" und der CTA „Exportieren". Der Körper beginnt mit „Modell: …" in 12,8 / 400
@@ -372,8 +376,9 @@ mit einem Radio je Modus („Einfache Farben, eine kleine und schnelle Datei" un
 größere Datei"), bei „Mit Texturen" darunter die Gruppe „Texturgröße" mit einem Radio je Mip-Stufe
 („Volle Größe", „1/2 der Kantenlänge, Mip-Stufe 1" bis Stufe 3), und der Checkbox
 „Vertex-Farben schreiben"; für ein Modell mit Animationen folgt die Gruppe „Animationen" mit der
-Checkbox „Die n Animationen des Modells schreiben" (aus, bis man sie wählt); und „Datei" mit dem Pfadfeld (schreibgeschützt, Platzhalter „Keine Datei
-gewählt") und der Schaltfläche „Datei wählen …"; sie öffnet den Speichern-Dialog des Systems mit
+Checkbox „Die n Animationen des Modells schreiben" (aus, bis man sie wählt; bei „Nicht gelesen"
+wegen zu vieler Dateien „Die Animationen des Modells schreiben"); und „Datei" mit dem Pfadfeld
+(schreibgeschützt, Platzhalter „Keine Datei gewählt") und der Schaltfläche „Datei wählen …"; sie öffnet den Speichern-Dialog des Systems mit
 `.glb`-Filter, dem Namen des Modells und dem Ordner des letzten Exports. Liegt die Datei in einer
 Star-Citizen-Installation, steht darunter dasselbe `.alert--danger` wie bei der Extraktion (ADR-0036)
 und die CTA bleibt deaktiviert. Die CTA ist deaktiviert, bis eine Datei gewählt ist. Stufe,
@@ -393,13 +398,14 @@ Form (`.modal`) mit der CTA „Schließen": bei Erfolg „Modell exportiert" mit
 Zählern (Knoten, Meshes, Materialien, Vertices, Dreiecke, Größe), bei Knochen deren Zahl, in
 `color-warning` den Hinweisen, dass die Materialbibliothek fehlt oder nicht lesbar ist und das
 Standardmaterial gilt, dass Material-IDs oder Bibliothekseinträge ohne Material darauf
-zurückfallen, und in `color-gray-1`, wie viele Submeshes fehlen, weil ihr Material nichts zeichnet; wurden Animationen
-gewählt, steht in `color-gray-1` „Animationen n, Kanäle m", und die aufklappbare Liste „Nicht
-geschriebene Animationen (n)" nennt je Zeile eine additive Animation oder eine Animationsdatei, die
-nicht lesbar war, mit Grund (höchstens 200 Zeilen);
-darunter die aufklappbare Liste „Nicht exportierte Chunks (n)" mit einer Zeile je übersprungenem
-oder unbekanntem Chunk. Die Zahl in der Überschrift zählt alle übersprungenen und unbekannten Chunks, auch wenn
-die Liste nur 200 nennt. Mit Texturen steht davor die aufklappbare Liste „Fehlende Texturen (n)" mit
+zurückfallen, und in `color-gray-1`, wie viele Submeshes fehlen, weil ihr Material nichts
+zeichnet; wurden Animationen gewählt, steht in `color-gray-1` „Animationen n, Kanäle m", und die
+aufklappbare Liste „Nicht geschriebene Animationen (n)" nennt je Zeile eine additive Animation,
+eine Animationsdatei, die nicht lesbar war, oder eine Animation, deren Spuren zu keinem Knochen
+des Modells passen und die darum keinen Kanal hat, mit Grund (höchstens 200 Zeilen); darunter die
+aufklappbare Liste „Nicht exportierte Chunks (n)" mit einer Zeile je übersprungenem oder
+unbekanntem Chunk. Die Zahl in der Überschrift zählt alle übersprungenen und unbekannten Chunks,
+auch wenn die Liste nur 200 nennt. Mit Texturen steht davor die aufklappbare Liste „Fehlende Texturen (n)" mit
 Material, Rolle (Diffuse, Normal, Specular), Datei und Grund je Zeile; das Material behält dort seine
 Grundfarbe. Bei Abbruch steht „Export abgebrochen" mit einem Satz in `color-warning`, es wurde keine
 Datei geschrieben und keine Teildatei liegt da. Ein Fehler steht in `color-danger-text` im Fenster

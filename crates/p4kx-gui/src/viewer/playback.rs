@@ -47,6 +47,13 @@ pub struct Playback {
     world: Vec<BoneTransform>,
 }
 
+fn names_of(animations: &[Animation]) -> Vec<String> {
+    animations
+        .iter()
+        .map(|animation| printable(&animation.name))
+        .collect()
+}
+
 #[derive(Debug, Clone, Copy)]
 struct Switches {
     looping: bool,
@@ -58,14 +65,10 @@ impl Playback {
     /// is selected, the skeleton is hidden and the animations repeat.
     pub(crate) fn new(skeleton: Arc<Skeleton>, animations: Vec<Animation>) -> Self {
         let bones = skeleton.bone_count();
-        let names = animations
-            .iter()
-            .map(|animation| printable(&animation.name))
-            .collect();
         Self {
             skeleton,
+            names: names_of(&animations),
             animations,
-            names,
             selected: None,
             bindings: Vec::new(),
             duration: 0.0,
@@ -79,6 +82,13 @@ impl Playback {
             pose: Arc::new(Pose::rest(bones)),
             world: Vec::with_capacity(bones),
         }
+    }
+
+    /// Replaces the animations once they were read; none is selected then.
+    pub(crate) fn set_animations(&mut self, animations: Vec<Animation>) {
+        self.names = names_of(&animations);
+        self.animations = animations;
+        self.select(None);
     }
 
     /// Returns the skeleton.

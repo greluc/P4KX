@@ -7,7 +7,10 @@ use crate::headless::{opened, ready, status_is_ready};
 use crate::viewing::{TestResult, model_preview, opened_at, select};
 use crate::waiting::RunQuiet;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{ChunkFile, Language, LodInfo, MaterialsInfo, ModelInfo, ModelPreview, PreviewTab};
+use p4kx_gui::{
+    AnimationCount, ChunkFile, Language, LodInfo, MaterialsInfo, ModelInfo, ModelPreview,
+    PreviewTab,
+};
 
 fn info(harness: &egui_kittest::Harness<'_, p4kx_gui::Model>) -> Result<ModelInfo, &'static str> {
     model_preview(harness.state())
@@ -38,7 +41,11 @@ fn the_info_of_a_model_counts_what_its_files_hold() -> TestResult {
     );
     assert_eq!(info.meshes(), 1, "meshes of the most detailed level");
     assert_eq!(info.bones, 0, "no skeleton");
-    assert_eq!(info.animations, Some(0), "the model has no animations");
+    assert_eq!(
+        info.animations,
+        AnimationCount::Counted(0),
+        "the model has no animations"
+    );
     assert_eq!(
         info.materials,
         MaterialsInfo::Missing,

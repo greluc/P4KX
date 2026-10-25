@@ -863,6 +863,7 @@ model-info-material-ids-none = None
 model-info-bones = Bones
 model-info-animations = Animations
 model-info-animations-unread = Not read
+model-info-animations-reading = Reading…
 model-info-chunks = Chunks
 model-info-chunks-value = { $total } ({ $read } read, { $skipped } skipped, { $unknown } unknown)
 model-info-materials-unnamed = None named
@@ -910,7 +911,8 @@ model-export-animations = { $count ->
     [one] Write the animation of the model
    *[other] Write the { $number } animations of the model
   }
-model-export-vertex-colours = Write the vertex colours
+model-export-animations-unknown = Write the animations of the model
+model-export-vertex-colours =Write the vertex colours
 model-export-file-heading = File
 model-export-choose-file = Choose file…
 model-export-file-none = No file chosen
@@ -953,6 +955,11 @@ model-export-summary-animations = Animations { $written }, channels { $channels 
 model-export-summary-animations-unread = Animations not written ({ $number })
 model-export-summary-animation-unread = { $name } ({ $source }): { $reason }
 model-export-summary-animation-file-unread = { $source }: { $reason }
+model-export-summary-animation-unmatched = { $name } ({ $source }): no track matches a bone, { $tracks ->
+    [0] no track skipped
+    [one] one track skipped
+   *[other] { $number } tracks skipped
+  }
 model-export-failed-title = Export failed
 model-export-failed = { $name } could not be exported: { $reason }
 model-export-stopped = The export of { $name } stopped without a result.

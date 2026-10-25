@@ -3,6 +3,7 @@
 
 //! Integration tests of `p4kx-extraction`, built as one test binary.
 
+mod animation_bounds;
 mod archive_change;
 mod conflict_policy;
 mod conversion;

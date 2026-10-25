@@ -12,11 +12,12 @@ use p4kx_settings::{ModelExportSettings, ModelMaterials};
 pub use job::{ModelExport, ModelExportProgress, ModelExportStage, ModelExportStatus};
 pub(crate) use job::{Request, start};
 pub use summary::{
-    AnimationNote, MaterialProblem, MissingTexture, ModelExportFailure, ModelExportSummary,
+    AnimationNote, AnimationNoteKind, MaterialProblem, MissingTexture, ModelExportFailure,
+    ModelExportSummary,
 };
 
 use crate::installation::refusal_of;
-use crate::{LodInfo, ModelInfo};
+use crate::{AnimationCount, LodInfo, ModelInfo};
 
 /// The material modes the Export as GLB dialog offers.
 pub const MODEL_MATERIALS: [ModelMaterials; 2] =
@@ -37,7 +38,7 @@ pub struct ModelExportSetup {
     materials: ModelMaterials,
     texture_mip: u32,
     animations: bool,
-    animation_count: usize,
+    animation_count: AnimationCount,
     vertex_colours: bool,
     folder: Option<PathBuf>,
     file: Option<PathBuf>,
@@ -65,7 +66,7 @@ impl ModelExportSetup {
             materials: settings.materials,
             texture_mip: nearest_mip(settings.texture_mip),
             animations: settings.animations,
-            animation_count: info.animations.unwrap_or(0),
+            animation_count: info.animations,
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
             file: None,
@@ -128,10 +129,24 @@ impl ModelExportSetup {
         }
     }
 
-    /// Returns how many animations the model has that an export writes by default.
+    /// Returns how many animations the model has that an export writes by default; 0 when the
+    /// count is not known.
     #[must_use]
     pub const fn animation_count(&self) -> usize {
-        self.animation_count
+        match self.animation_count {
+            AnimationCount::Counted(count) => count,
+            _ => 0,
+        }
+    }
+
+    /// Returns whether the setup offers to write the animations: the model has some, or it has
+    /// more files next to it than the preview counts.
+    #[must_use]
+    pub const fn animations_offered(&self) -> bool {
+        matches!(
+            self.animation_count,
+            AnimationCount::Counted(1..) | AnimationCount::TooMany
+        )
     }
 
     /// Returns whether the animations found for the model are written.
@@ -212,9 +227,11 @@ impl ModelExportSetup {
             lod: self.lod,
             materials: self.materials,
             texture_mip: self.texture_mip,
-            animations: (self.animations && self.animation_count > 0)
+            animations: (self.animations && self.animations_offered())
                 .then_some(AnimationChoice::All),
             vertex_colours: self.vertex_colours,
+            #[cfg(feature = "test-hooks")]
+            pause: crate::hold::Pause::default(),
         })
     }
 

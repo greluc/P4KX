@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::{ModelExportSummary, ModelExportText as T, Texts, format};
-
-fn number(texts: &Texts, value: usize) -> String {
-    format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language())
-}
+use super::model_export_notes::number;
+use crate::{AnimationNoteKind, ModelExportSummary, ModelExportText as T, Texts};
 
 /// Returns the line with the animations and channels the file holds, or `None` when the export
 /// was not asked to write animations.
@@ -46,6 +43,20 @@ pub(super) fn unread_lines(texts: &Texts, summary: &ModelExportSummary) -> (Stri
         .map(|note| {
             let source = ("source", note.source.clone().into());
             let reason = ("reason", note.reason.clone().into());
+            if let AnimationNoteKind::NoBoneMatched { skipped_tracks } = note.kind {
+                return texts.format(
+                    T::SummaryAnimationUnmatched,
+                    &[
+                        ("name", note.name.clone().unwrap_or_default().into()),
+                        source,
+                        (
+                            "tracks",
+                            u64::try_from(skipped_tracks).unwrap_or(u64::MAX).into(),
+                        ),
+                        ("number", number(texts, skipped_tracks).into()),
+                    ],
+                );
+            }
             note.name.as_ref().map_or_else(
                 || {
                     texts.format(

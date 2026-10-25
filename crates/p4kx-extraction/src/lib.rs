@@ -91,7 +91,9 @@ mod verify;
 mod watch;
 mod write;
 
-pub use animation_set::{AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation};
+pub use animation_set::{
+    AnimationBounds, AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation,
+};
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};

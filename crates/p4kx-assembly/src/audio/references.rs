@@ -27,33 +27,63 @@ impl TriggerReference {
         &self.name
     }
 
-    /// Returns the location of the first `audioTrigger` field naming it, e.g.
+    /// Returns the location of the first field naming it, e.g.
     /// `Components[3].triggers[0].audioTrigger`.
     #[must_use]
     pub fn location(&self) -> &str {
         &self.location
     }
 
-    /// Returns how many `audioTrigger` fields of the Record name it.
+    /// Returns how many fields of the Record name it.
     #[must_use]
     pub const fn count(&self) -> u32 {
         self.count
     }
 }
 
-/// Returns the audio triggers a Record tree names through `GlobalResourceAudio.audioTrigger`.
+/// Which fields of a Record may name an audio trigger.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum TriggerScope {
+    /// Only the `audioTrigger` field of a `GlobalResourceAudio` struct.
+    GlobalResourceAudio,
+    /// The `audioTrigger` field of a `GlobalResourceAudio` struct and every string field of any
+    /// other struct whose name contains `audioTrigger`, ignoring ASCII case, e.g. the
+    /// `audioTriggerName` of a melee weapon.
+    #[default]
+    AudioTriggerFields,
+}
+
+/// Returns the audio triggers a Record tree names through [`TriggerScope::AudioTriggerFields`]:
+/// see [`trigger_references_in`].
+#[must_use]
+pub fn trigger_references(tree: &RecordTree<'_>) -> Vec<TriggerReference> {
+    trigger_references_in(tree, TriggerScope::AudioTriggerFields)
+}
+
+/// Returns the audio triggers a Record tree names through the structs `scope` allows.
 ///
 /// Each trigger is listed once, in the order it first appears, names matched ignoring ASCII
 /// case; empty trigger names are skipped.
 #[must_use]
-pub fn trigger_references(tree: &RecordTree<'_>) -> Vec<TriggerReference> {
-    let mut walk = Walk::default();
+pub fn trigger_references_in(tree: &RecordTree<'_>, scope: TriggerScope) -> Vec<TriggerReference> {
+    let mut walk = Walk {
+        scope,
+        ..Walk::default()
+    };
     walk.structure(tree.root());
     walk.found
 }
 
+fn names_a_trigger(field: &str) -> bool {
+    field
+        .as_bytes()
+        .windows(TRIGGER_FIELD.len())
+        .any(|window| window.eq_ignore_ascii_case(TRIGGER_FIELD.as_bytes()))
+}
+
 #[derive(Default)]
 struct Walk<'f> {
+    scope: TriggerScope,
     steps: Vec<Step<'f>>,
     found: Vec<TriggerReference>,
     seen: HashMap<Box<str>, usize>,
@@ -61,7 +91,8 @@ struct Walk<'f> {
 
 impl<'f> Walk<'f> {
     fn structure(&mut self, structure: &StructValue<'f>) {
-        if structure.type_name() == AUDIO_STRUCT
+        let audio = structure.type_name() == AUDIO_STRUCT;
+        if audio
             && let Some(Value::String(name)) = structure.field(TRIGGER_FIELD)
             && !name.is_empty()
         {
@@ -69,8 +100,16 @@ impl<'f> Walk<'f> {
             self.add(name);
             self.steps.pop();
         }
+        let anywhere = self.scope == TriggerScope::AudioTriggerFields && !audio;
         for field in structure.fields() {
             self.steps.push(Step::Field(field.name()));
+            if anywhere
+                && names_a_trigger(field.name())
+                && let Value::String(name) = field.value()
+                && !name.is_empty()
+            {
+                self.add(name);
+            }
             self.value(field.value());
             self.steps.pop();
         }

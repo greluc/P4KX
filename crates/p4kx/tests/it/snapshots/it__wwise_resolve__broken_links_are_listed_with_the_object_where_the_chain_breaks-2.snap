@@ -33,7 +33,7 @@ expression: "serde_json::to_string_pretty(&value[\"breaks\"])?"
     "message": "objects of this kind are not followed",
     "object": {
       "id": 400,
-      "kind": "music_track"
+      "kind": "actor_mixer"
     },
     "path": [
       {
@@ -46,7 +46,7 @@ expression: "serde_json::to_string_pretty(&value[\"breaks\"])?"
       },
       {
         "id": 400,
-        "kind": "music_track"
+        "kind": "actor_mixer"
       }
     ],
     "soundbank": {

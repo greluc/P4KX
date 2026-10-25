@@ -49,11 +49,33 @@ pub(crate) fn fill<T: Serialize>(
     items: impl IntoIterator<Item = Result<T, ToolError>>,
     describe: impl Fn(&T) -> String,
 ) -> Result<(Vec<T>, Option<String>), ToolError> {
+    fill_within(page, total, 0, items, describe)
+}
+
+/// The room a cursor and the commas between items take in a response.
+const ENVELOPE_SLACK: usize = 64;
+
+/// Like [`fill`], for a result whose other fields take `reserved` bytes of JSON: the whole
+/// response, not just the items, stays within [`MAX_RESPONSE_LEN`].
+pub(crate) fn fill_within<T: Serialize>(
+    page: Page,
+    total: usize,
+    reserved: usize,
+    items: impl IntoIterator<Item = Result<T, ToolError>>,
+    describe: impl Fn(&T) -> String,
+) -> Result<(Vec<T>, Option<String>), ToolError> {
     let mut budget = Budget::new();
+    if !budget.take(reserved.saturating_add(ENVELOPE_SLACK)) {
+        return Err(ToolError::TooLargeItem {
+            what: "result without its list".to_owned(),
+            limit: MAX_RESPONSE_LEN,
+            hint: "its other fields are too large for one response",
+        });
+    }
     let mut taken = Vec::new();
     for item in items.into_iter().take(page.limit()) {
         let item = item?;
-        if !budget.take(json_len(&item)) {
+        if !budget.take(json_len(&item).saturating_add(1)) {
             if taken.is_empty() {
                 return Err(ToolError::TooLargeItem {
                     what: describe(&item),

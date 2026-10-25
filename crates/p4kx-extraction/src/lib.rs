@@ -71,6 +71,7 @@ mod texture_outputs;
 mod texture_parts;
 mod texture_png;
 mod texture_preview;
+mod texture_preview_png;
 mod texture_siblings;
 mod tracker;
 mod ui_disk_path;
@@ -188,6 +189,7 @@ pub use texture::Texture;
 pub use texture_exr::ExrReport;
 pub use texture_groups::{TextureGroup, TextureGroups};
 pub use texture_png::{CUBE_FACE_NAMES, CubemapLayout, PngReport};
+pub use texture_preview_png::PreviewPng;
 pub use ui_extract::{UiAssetFailure, UiAssetKind, UiExtraction, WrittenUiAsset};
 pub use ui_images::{ArchiveImages, MAX_SCREEN_TEXTURE_PIXELS};
 pub use ui_imports::{

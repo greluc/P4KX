@@ -21,7 +21,7 @@ pub(crate) use gear::gears;
 pub(crate) use locate::load;
 pub use origin::ValueOrigin;
 pub use patch::ModificationReport;
-pub use totals::{OriginTally, PartThreshold, UnreadableValue, VehicleTotals};
+pub use totals::{OriginTally, PartThreshold, PartialValue, UnreadableValue, VehicleTotals};
 
 /// Whether a part of the vehicle implementation shows its item port.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]

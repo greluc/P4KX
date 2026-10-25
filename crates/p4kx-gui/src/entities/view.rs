@@ -25,6 +25,7 @@ struct Shown {
     scene: Arc<AssemblyScene>,
     mask: Vec<bool>,
     issues: usize,
+    interior_issues: usize,
     with_interior: bool,
     list: Option<(ListKey, Arc<DrawList>)>,
     mask_serial: u64,
@@ -205,10 +206,13 @@ impl AssemblyView {
         self.shown.as_ref().map(|shown| &shown.scene)
     }
 
-    /// Returns how many parts of the Loadout the last build could not resolve.
+    /// Returns how many parts the last build could not resolve: those of the Loadout, and those
+    /// of the Interior while it is shown.
     #[must_use]
     pub fn issues(&self) -> usize {
-        self.shown.as_ref().map_or(0, |shown| shown.issues)
+        self.shown.as_ref().map_or(0, |shown| {
+            shown.issues + shown.interior_issues * usize::from(self.interior)
+        })
     }
 
     /// Returns how many parts of the Loadout are hidden, with the hidden branches' parts; the
@@ -373,6 +377,7 @@ impl AssemblyView {
         let job::Built {
             scene,
             issues,
+            interior_issues,
             interior,
         } = built;
         self.counter += 1;
@@ -386,6 +391,7 @@ impl AssemblyView {
             scene: Arc::new(scene),
             mask,
             issues,
+            interior_issues,
             with_interior: interior,
             list: None,
             mask_serial: self.counter,

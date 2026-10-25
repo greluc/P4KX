@@ -34,7 +34,9 @@ pub struct Model {
     pub bones: Vec<Bone>,
     /// The list of material indices of the `NodeMeshCombo` chunk, empty for a model without one.
     pub material_indices: Vec<u16>,
-    /// What a lenient read worked around; always empty for the other selections.
+    /// What a read worked around: the fallbacks of a lenient read
+    /// ([`LodSelection::OnlyOrBase`]) and data a `CrCh` read left out
+    /// ([`ModelIssue::PhysicsSlotsIgnored`]), which every selection reports.
     pub issues: Vec<ModelIssue>,
     /// Every chunk of the model file and its geometry companion, with how the model used it.
     pub chunks: Vec<ModelChunk>,
@@ -251,8 +253,9 @@ impl Model {
     ///
     /// Returns [`ModelError::MissingGeometry`], [`ModelError::Companion`] or
     /// [`ModelError::CompanionChunks`] when the companion is missing or unreadable,
-    /// [`ModelError::NoMesh`] when the companion holds no mesh, and [`ModelError::Corrupt`] when a chunk
-    /// the model reads is corrupt.
+    /// [`ModelError::NoMesh`] when the companion holds no mesh, [`ModelError::Corrupt`] when a chunk
+    /// the model reads is corrupt, and [`ModelError::Unsupported`] when it has a layout that is
+    /// not implemented.
     pub fn read<B: AsRef<[u8]>>(
         name: &str,
         file: &ChunkFile<B>,

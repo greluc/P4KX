@@ -3,14 +3,15 @@
 
 use p4kx_assembly::{
     Attachment, EntityNode, LoadoutEntry, LoadoutFiles, LoadoutResolver, OriginTally,
-    PartThreshold, UnreadableValue, ValueOrigin, VehicleImplementation, VehicleTotals,
+    PartThreshold, PortNode, PortSource, UnreadableValue, ValueOrigin, VehicleImplementation,
+    VehicleTotals,
 };
 use p4kx_extraction::{DataForge, Record, RecordTree, TreeBuilder};
 
 use super::cargo::{CargoReader, rounded};
 use super::model::{
-    Hull, HullThreshold, Implementation, LoadoutPort, Mass, MassBasis, ShipBase, ShipRead, Source,
-    SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
+    Hull, HullThreshold, Implementation, LoadoutPort, Mass, MassBasis, PartialPartValue, ShipBase,
+    ShipRead, Source, SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
 };
 use crate::CatalogFailure;
 use crate::digest::Digest;
@@ -19,6 +20,8 @@ use crate::record_fields::{class_name, component, integer, number, structure};
 const SIZE_FIELD: &str = "Components/SAttachableComponentParams/AttachDef/Size";
 const PHYSICS_MASS_FIELD: &str = "Components/SEntityPhysicsControllerParams/PhysType/Mass";
 const LOADOUT_FIELD: &str = "Components/SEntityComponentDefaultLoadoutParams/loadout";
+const XML_LOADOUT_FIELD: &str = "Loadout/Items";
+const PORT_FIELD: &str = "Components/SItemPortContainerComponentParams/Ports";
 const PARTS_MASS: &str = "Parts//@mass";
 const PARTS_DAMAGE: &str = "Parts//@damageMax";
 
@@ -88,7 +91,7 @@ impl<'f> ShipReader<'f> {
     ) -> Result<ShipRead, CatalogFailure> {
         let node = self
             .resolver
-            .resolve(record)
+            .resolve_tree(record, tree)
             .map_err(|error| CatalogFailure::of(record, &error))?;
         let vehicle = node.vehicle();
         let totals = vehicle.map(VehicleImplementation::totals);
@@ -113,11 +116,14 @@ impl<'f> ShipReader<'f> {
             mass: mass(tree, vehicle, totals.as_ref()),
             hull: vehicle.zip(totals.as_ref()).and_then(|(v, t)| hull(v, t)),
             cargo: self.cargo.read(&entries, &mut self.trees),
-            loadout_source: Source {
-                kind: SourceKind::Record,
-                file: tree.record_path().to_owned(),
-                field: LOADOUT_FIELD.to_owned(),
-            },
+            loadout_source: node.loadout_file().map_or_else(
+                || record_source(tree.record_path(), LOADOUT_FIELD),
+                |path| Source {
+                    kind: SourceKind::LoadoutXml,
+                    file: path.to_owned(),
+                    field: XML_LOADOUT_FIELD.to_owned(),
+                },
+            ),
             loadout: loadout(&entries),
             issues,
         };
@@ -196,6 +202,7 @@ fn mass(
             parts: totals.mass_parts(),
             sources: shares(vehicle, totals.mass_origins(), PARTS_MASS),
             unreadable: unreadable(totals, &["mass"]),
+            partial: partial(totals, &["mass"]),
             cleaned: totals.cleaned_mass(),
         });
     }
@@ -221,6 +228,7 @@ fn mass(
             values: 1,
         }],
         unreadable: totals.map_or_else(Vec::new, |totals| unreadable(totals, &["mass"])),
+        partial: Vec::new(),
         cleaned: 0,
     })
 }
@@ -240,6 +248,7 @@ fn hull(vehicle: &VehicleImplementation, totals: &VehicleTotals) -> Option<Hull>
         destruction: thresholds(totals.destruction()),
         detach: thresholds(totals.detach()),
         unreadable: unreadable(totals, &["damageMax", "detachRatio"]),
+        partial: partial(totals, &["damageMax", "detachRatio"]),
         cleaned: totals.cleaned_damage(),
     })
 }
@@ -249,7 +258,7 @@ fn thresholds(found: &[PartThreshold]) -> Vec<HullThreshold> {
         .iter()
         .map(|threshold| HullThreshold {
             part: threshold.part().to_owned(),
-            health: threshold.health(),
+            health: rounded(threshold.health()),
             damage: rounded(threshold.damage()),
             origin: kind(threshold.origin()),
         })
@@ -267,6 +276,43 @@ fn unreadable(totals: &VehicleTotals, attributes: &[&str]) -> Vec<UnreadablePart
             raw: value.raw().to_owned(),
         })
         .collect()
+}
+
+fn partial(totals: &VehicleTotals, attributes: &[&str]) -> Vec<PartialPartValue> {
+    totals
+        .partial()
+        .iter()
+        .filter(|value| attributes.contains(&value.attribute()))
+        .map(|value| PartialPartValue {
+            part: value.part().to_owned(),
+            attribute: value.attribute(),
+            raw: value.raw().to_owned(),
+            read: value.read(),
+        })
+        .collect()
+}
+
+fn record_source(file: &str, field: &str) -> Source {
+    Source {
+        kind: SourceKind::Record,
+        file: file.to_owned(),
+        field: field.to_owned(),
+    }
+}
+
+fn supplier(port: &PortNode) -> Option<Source> {
+    let origin = port.origin()?;
+    Some(if origin.is_file() {
+        Source {
+            kind: SourceKind::LoadoutXml,
+            file: origin.path().to_owned(),
+            field: XML_LOADOUT_FIELD.to_owned(),
+        }
+    } else if port.source() == PortSource::PortDefault {
+        record_source(origin.path(), PORT_FIELD)
+    } else {
+        record_source(origin.path(), LOADOUT_FIELD)
+    })
 }
 
 const fn kind(origin: ValueOrigin) -> SourceKind {
@@ -318,6 +364,7 @@ fn loadout(entries: &[LoadoutEntry<'_>]) -> Vec<LoadoutPort> {
             port: entry.path().to_owned(),
             class_name: entry.class_name().map(str::to_owned),
             guid: entry.guid(),
+            supplied_by: supplier(entry.port()),
             origin: entry.port().source().code(),
             docked_vehicle: entry.entity().is_some_and(EntityNode::is_docked_vehicle),
             unresolved: match entry.port().attachment() {

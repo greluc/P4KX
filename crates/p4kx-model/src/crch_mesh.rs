@@ -3,9 +3,10 @@
 
 use p4kx_foundation::ByteReader;
 
+use crate::error::ChunkFailure;
 use crate::reader::ReadValues;
 use crate::smooth_normals::smooth_normals;
-use crate::{CorruptChunk, Mesh, Submesh};
+use crate::{CorruptChunk, Mesh, Submesh, UnsupportedLayout};
 
 const STREAM_SLOTS: usize = 16;
 const PHYSICS_SLOTS: usize = 4;
@@ -17,12 +18,21 @@ const VERTICES_AT: usize = 0x5A;
 const VERTEX_LEN: u64 = 12;
 const INDEX_LEN: u64 = 2;
 
-/// Reads the header of a version `0x801` `Mesh` chunk and returns the chunk ID of its physics
-/// data, or `None` when it names none.
+/// The physics data a `Mesh` header names: the first slot that names any, and how many further
+/// slots name some that are not read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct PhysicsSlots {
+    pub(crate) chunk_id: Option<u32>,
+    pub(crate) ignored: usize,
+}
+
+/// Reads the header of a version `0x801` `Mesh` chunk and returns the physics data it names.
 ///
 /// The header declares counts and chunk IDs of data streams; the meshes of the Archives declare
-/// none and keep their geometry in the physics data, so a header that declares any is refused.
-pub(crate) fn physics_chunk_id(data: &[u8]) -> Result<Option<u32>, CorruptChunk> {
+/// none and keep their geometry in the physics data, so a header that declares any is refused as
+/// unsupported. Of the four physics slots (default, no-collide, obstruct, proxy) the first that
+/// names a chunk is read; the Archives fill only the default slot.
+pub(crate) fn physics_slots(data: &[u8]) -> Result<PhysicsSlots, ChunkFailure> {
     let mut reader = ByteReader::new(data);
     reader.skip(8)?;
     let vertices = reader.read_u32()?;
@@ -35,15 +45,24 @@ pub(crate) fn physics_chunk_id(data: &[u8]) -> Result<Option<u32>, CorruptChunk>
         streams |= reader.read_u32()?;
     }
     if (vertices | indices | subsets | subsets_chunk | streams) != 0 {
-        return Err(CorruptChunk::StreamedMesh { vertices, indices });
+        return Err(UnsupportedLayout::StreamedMesh { vertices, indices }.into());
     }
+    let mut slots = PhysicsSlots {
+        chunk_id: None,
+        ignored: 0,
+    };
     for _ in 0..PHYSICS_SLOTS {
         let id = reader.read_u32()?;
-        if id != 0 {
-            return Ok(Some(id));
+        if id == 0 {
+            continue;
+        }
+        if slots.chunk_id.is_none() {
+            slots.chunk_id = Some(id);
+        } else {
+            slots.ignored += 1;
         }
     }
-    Ok(None)
+    Ok(slots)
 }
 
 /// Reads the triangle mesh of a version `0x800` `MeshPhysicsData` chunk as the mesh of `node`,
@@ -55,7 +74,7 @@ pub(crate) fn physics_chunk_id(data: &[u8]) -> Result<Option<u32>, CorruptChunk>
 /// vertices as three `f32` each from byte `0x5A`, then the triangles as three `u16` vertex
 /// indices each. A triangle has no material ID of its own that is read; the mesh is one submesh
 /// of material ID 0, and it has no normals or texture coordinates.
-pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh>, CorruptChunk> {
+pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh>, ChunkFailure> {
     let mut header = ByteReader::new(chunk);
     let len = usize::try_from(header.read_u32()?).unwrap_or(usize::MAX);
     header.skip(PHYSICS_HEADER_LEN - 4)?;
@@ -63,7 +82,7 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
     reader.skip(PRIMITIVE_AT)?;
     let primitive = reader.read_u32()?;
     if primitive != POLYHEDRON {
-        return Err(CorruptChunk::PhysicsPrimitive(primitive));
+        return Err(UnsupportedLayout::PhysicsPrimitive(primitive).into());
     }
     reader.skip(COUNTS_AT - PRIMITIVE_AT - 4)?;
     let vertex_count = reader.read_u32()?;
@@ -75,7 +94,8 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
             vertices: vertex_count,
             triangles: triangle_count,
             len,
-        });
+        }
+        .into());
     }
     if triangle_count == 0 {
         return Ok(None);
@@ -85,7 +105,7 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
     for _ in 0..vertex_count {
         let position = reader.read_vec3()?;
         if position.iter().any(|value| !value.is_finite()) {
-            return Err(CorruptChunk::NonFinite("physics mesh vertex"));
+            return Err(CorruptChunk::NonFinite("physics mesh vertex").into());
         }
         positions.push(position);
     }
@@ -97,7 +117,8 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
             return Err(CorruptChunk::PhysicsIndex {
                 index,
                 vertices: vertex_count,
-            });
+            }
+            .into());
         }
         indices.push(index);
     }

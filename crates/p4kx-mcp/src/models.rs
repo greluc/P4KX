@@ -10,7 +10,7 @@ use p4kx_extraction::{
 use serde::Serialize;
 
 use crate::archives::Opened;
-use crate::budget::{MAX_RESPONSE_LEN, fill, json_len};
+use crate::budget::{MAX_RESPONSE_LEN, fill_within, json_len};
 use crate::error::ToolError;
 use crate::model_params::Section;
 use crate::model_shapes::{
@@ -42,10 +42,7 @@ pub(crate) fn chunks(
         .slice(&listed)
         .iter()
         .map(|&(index, chunk)| Ok(chunk_shape(index, chunk)));
-    let (chunks, next_cursor) = fill(page, listed.len(), items, |shape: &ChunkShape| {
-        format!("chunk {}", shape.chunk.index)
-    })?;
-    Ok(ChunksResult {
+    let mut result = ChunksResult {
         archive: opened.archive().path().display().to_string(),
         path: source.name().to_owned(),
         container: container.name(),
@@ -57,9 +54,19 @@ pub(crate) fn chunks(
             .filter(|chunk| !chunk.chunk_type().is_known())
             .count(),
         total: listed.len(),
-        chunks,
-        next_cursor,
-    })
+        chunks: Vec::new(),
+        next_cursor: None,
+    };
+    let (chunks, next_cursor) = fill_within(
+        page,
+        listed.len(),
+        json_len(&result),
+        items,
+        |shape: &ChunkShape| format!("chunk {}", shape.chunk.index),
+    )?;
+    result.chunks = chunks;
+    result.next_cursor = next_cursor;
+    Ok(result)
 }
 
 fn chunk_shape(index: usize, chunk: &Chunk) -> ChunkShape {
@@ -139,9 +146,18 @@ pub(crate) fn items(
     let (source, animations) = read(opened, path, section.needs_animations())?;
     let model = source.model();
     let what = section.name();
+    let reserved = envelope_len(opened, source.name(), what);
     let (total, items, next_cursor) = match section {
-        Section::Materials => paged(&MaterialInfo::of_model(model), page, what, |item| item)?,
-        Section::Nodes => paged(&NodeInfo::of_model(model), page, what, |item| item)?,
+        Section::Materials => paged(
+            &MaterialInfo::of_model(model),
+            page,
+            what,
+            reserved,
+            |item| item,
+        )?,
+        Section::Nodes => paged(&NodeInfo::of_model(model), page, what, reserved, |item| {
+            item
+        })?,
         Section::Meshes => {
             let lods = LodInfo::of_model(model);
             let meshes: Vec<LodMesh<'_>> = lods
@@ -153,21 +169,27 @@ pub(crate) fn items(
                     })
                 })
                 .collect();
-            paged(&meshes, page, what, |item| item)?
+            paged(&meshes, page, what, reserved, |item| item)?
         }
-        Section::Bones => paged(&BoneInfo::of_model(model), page, what, |item| item)?,
+        Section::Bones => paged(&BoneInfo::of_model(model), page, what, reserved, |item| {
+            item
+        })?,
         Section::Animations => {
             let read: Vec<_> = animations
                 .animations
                 .iter()
                 .zip(&animations.origins)
                 .collect();
-            paged(&read, page, what, |&(animation, origin)| {
+            paged(&read, page, what, reserved, |&(animation, origin)| {
                 AnimationInfo::of(model, animation, origin)
             })?
         }
-        Section::UnreadAnimations => paged(&animations.unread, page, what, UnreadInfo::of)?,
-        Section::Chunks => paged(&ChunkInfo::of_model(model), page, what, |item| item)?,
+        Section::UnreadAnimations => {
+            paged(&animations.unread, page, what, reserved, UnreadInfo::of)?
+        }
+        Section::Chunks => paged(&ChunkInfo::of_model(model), page, what, reserved, |item| {
+            item
+        })?,
     };
     Ok(ModelItemsResult {
         archive: opened.archive().path().display().to_string(),
@@ -177,6 +199,15 @@ pub(crate) fn items(
         items,
         next_cursor,
     })
+}
+
+fn envelope_len(opened: &Opened, model: &str, section: &str) -> usize {
+    json_len(&(
+        opened.archive().path().display().to_string(),
+        model,
+        section,
+    ))
+    .saturating_add(128)
 }
 
 #[derive(Serialize)]
@@ -192,13 +223,16 @@ fn paged<'a, T, U: Serialize>(
     items: &'a [T],
     page: Page,
     what: &str,
+    reserved: usize,
     convert: impl Fn(&'a T) -> U,
 ) -> Result<Paged, ToolError> {
     let values = page
         .slice(items)
         .iter()
         .map(|item| serde_json::to_value(convert(item)).map_err(ToolError::from));
-    let (values, next) = fill(page, items.len(), values, |_| format!("item of {what}"))?;
+    let (values, next) = fill_within(page, items.len(), reserved, values, |_| {
+        format!("item of {what}")
+    })?;
     Ok((items.len(), values, next))
 }
 

@@ -276,7 +276,7 @@ impl AssemblyScene {
                 self.parts.push(info);
                 continue;
             }
-            let Some((centre, radius)) = self.include(&mesh.bounds, &part.world) else {
+            let Some(placed) = self.include(&mesh.bounds, &part.world) else {
                 self.left.parts += 1;
                 self.parts.push(info);
                 continue;
@@ -285,9 +285,11 @@ impl AssemblyScene {
             self.items.extend(pending);
             self.draws.push(PartDraw {
                 part: at,
+                mesh: id,
                 world: part.world,
-                centre,
-                radius,
+                centre: placed.centre(),
+                radius: placed.radius(),
+                bounds: placed,
                 items: u32::try_from(first).unwrap_or(u32::MAX)
                     ..u32::try_from(self.items.len()).unwrap_or(u32::MAX),
             });
@@ -333,7 +335,7 @@ impl AssemblyScene {
         pending
     }
 
-    fn include(&mut self, local: &Bounds, world: &[[f32; 4]; 3]) -> Option<([f32; 3], f32)> {
+    fn include(&mut self, local: &Bounds, world: &[[f32; 4]; 3]) -> Option<Bounds> {
         let mut placed = Bounds::EMPTY;
         for corner in 0..8_usize {
             let pick = |axis: usize| {
@@ -348,7 +350,7 @@ impl AssemblyScene {
         }
         placed.is_valid().then(|| {
             self.bounds.union(&placed);
-            (placed.centre(), placed.radius())
+            placed
         })
     }
 }

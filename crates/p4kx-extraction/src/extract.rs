@@ -8,7 +8,7 @@ use p4kx_archive::{Archive, Entry};
 use crate::buffers::Buffers;
 use crate::dependent::Collisions;
 use crate::sound_job::mark_sounds;
-use crate::sound_workers::run_parallel;
+use crate::sound_workers::{run_parallel, within};
 use crate::texture_job::{Item, group_textures};
 use crate::tracker::Tracker;
 use crate::write::{EntryWriter, Outcome};
@@ -64,12 +64,48 @@ pub(crate) enum Ended {
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
 /// put in place and after the run.
+///
+/// With [`ExtractOptions::threads`] set, the run, the sound workers and all work nested in them
+/// use a rayon pool of at most that many threads, never more than the logical processors. If the
+/// system refuses to start the pool, every Entry fails with [`ExtractionError::ThreadPool`] and
+/// nothing is written.
 #[must_use]
 pub fn extract(
     archive: &Archive,
     entries: &[&Entry],
     target: &Path,
     options: &ExtractOptions<'_>,
+) -> ExtractionReport {
+    let Some(threads) = options.threads else {
+        return run(archive, entries, target, options, None);
+    };
+    let limit = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads.get().min(limit))
+        .thread_name(|number| format!("p4kx-extract-{number}"))
+        .build();
+    match pool {
+        Ok(pool) => run(archive, entries, target, options, Some(&pool)),
+        Err(error) => ExtractionReport {
+            failures: entries
+                .iter()
+                .map(|entry| EntryFailure {
+                    path: entry.path().to_owned(),
+                    error: ExtractionError::ThreadPool(error.to_string()),
+                })
+                .collect(),
+            converted: options.convert.then_some(0),
+            ..ExtractionReport::default()
+        },
+    }
+}
+
+fn run(
+    archive: &Archive,
+    entries: &[&Entry],
+    target: &Path,
+    options: &ExtractOptions<'_>,
+    pool: Option<&rayon::ThreadPool>,
 ) -> ExtractionReport {
     if let Some(report) = not_started(entries, target, options) {
         return report;
@@ -89,7 +125,8 @@ pub fn extract(
         .convert
         .then(|| dataforge_position(archive, entries))
         .flatten();
-    let (independent, dependent) = split_dependent(items(archive, entries, options, dataforge));
+    let (independent, dependent) =
+        split_dependent(within(pool, || items(archive, entries, options, dataforge)));
     let run = |buffers: &mut Buffers, item: Item<'_>| match item {
         Item::Entry((index, entry)) => {
             Ended::Entry((index, entry.path().to_owned(), writer.write(entry, buffers)))
@@ -108,13 +145,19 @@ pub fn extract(
             EntryWriter::try_write_bank,
         ),
     };
-    let mut ended = run_parallel(independent, &run);
+    let mut ended = run_parallel(independent, &run, pool, &|| tracker.should_stop());
     let mut buffers = Buffers::new();
-    ended.extend(dependent.into_iter().map(|item| run(&mut buffers, item)));
+    let later = within(pool, || {
+        dependent
+            .into_iter()
+            .map(|item| run(&mut buffers, item))
+            .collect::<Vec<_>>()
+    });
+    ended.extend(later);
     let records = dataforge
         .and_then(|index| entries.get(index).map(|entry| (index, entry)))
         .and_then(|(index, entry)| {
-            let (outcome, records) = writer.write_dataforge(entry, &mut buffers);
+            let (outcome, records) = within(pool, || writer.write_dataforge(entry, &mut buffers));
             ended.push(Ended::Entry((index, entry.path().to_owned(), outcome)));
             records
         });

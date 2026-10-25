@@ -8,6 +8,7 @@
 //! turns a `CryXml` byte slice of either byte order into a [`Document`] that borrows its strings
 //! from the input; [`read`] does both and passes text XML through unchanged.
 
+mod comparison;
 mod document;
 mod element;
 mod error;
@@ -19,6 +20,7 @@ mod read;
 mod strings;
 mod write;
 
+pub use comparison::{TreeComparison, compare_trees};
 pub use document::{Document, parse};
 pub use element::{Attribute, Attributes, Children, Element};
 pub use error::{CryXmlError, Table};

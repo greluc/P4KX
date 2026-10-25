@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_texture::{RgbaImage, cube_cross};
+use p4kx_texture::{RgbaImage, sheet_columns, tile};
 
 use crate::texture_job::{Member, Role, role};
 use crate::{ConversionError, Texture};
-
-const CUBE_FACES: u32 = 6;
 
 impl Texture<'_> {
     /// Returns whether the Entry at `path` is the header of a texture or of an alpha tail, the
@@ -20,20 +18,23 @@ impl Texture<'_> {
     }
 
     /// Reads and decodes mip `level` as the one image a preview shows: the mip itself with the
-    /// alpha tail merged in, or a cubemap's six faces laid out as a horizontal cross.
+    /// alpha tail merged in, a cubemap's six faces laid out as a horizontal cross, or the images
+    /// of an array, a volume or several cubemaps tiled on a sheet, element by element and slice
+    /// by slice from the top left. The size of the image is
+    /// [`DdsHeader::preview_size`](p4kx_texture::DdsHeader::preview_size).
     ///
     /// # Errors
     ///
     /// Returns the errors of [`Texture::decode_surfaces`], and a [`ConversionError`] wrapping a
-    /// texture error when the texture holds several images that are not one cubemap or the cross
-    /// cannot be laid out.
+    /// texture error when the cross or the sheet cannot be laid out.
     pub fn decode_preview(&self, level: u32) -> Result<RgbaImage, ConversionError> {
-        let header = self.header();
-        if header.faces() == CUBE_FACES && header.array_size() == 1 {
-            let faces = self.decode_surfaces(level)?;
-            return cube_cross(&faces)
-                .map_err(|error| ConversionError::of_texture(self.name(), error));
+        match <[RgbaImage; 1]>::try_from(self.decode_images(level, true)?) {
+            Ok([only]) => Ok(only),
+            Err(units) => {
+                let count = u32::try_from(units.len()).unwrap_or(u32::MAX);
+                tile(&units, sheet_columns(count))
+                    .map_err(|error| ConversionError::of_texture(self.name(), error))
+            }
         }
-        self.decode_mip(level)
     }
 }

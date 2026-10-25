@@ -27,6 +27,12 @@ pub enum RecordExportText {
     FormJson,
     /// One NDJSON file; takes `name`.
     FormNdjson,
+    /// One CSV file with a row per value; takes `name`.
+    FormFlatCsv,
+    /// The same with the exact values.
+    FormFlatCsvRaw,
+    /// One NDJSON file with an object per value; takes `name`.
+    FormFlatNdjson,
     /// The action that starts the Record export.
     Start,
     /// The title of the progress window.
@@ -69,7 +75,7 @@ pub enum RecordExportText {
 
 impl RecordExportText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 33] = [
         Self::Menu,
         Self::Action,
         Self::SetupTitle,
@@ -81,6 +87,9 @@ impl RecordExportText {
         Self::FormHeading,
         Self::FormJson,
         Self::FormNdjson,
+        Self::FormFlatCsv,
+        Self::FormFlatCsvRaw,
+        Self::FormFlatNdjson,
         Self::Start,
         Self::RunningTitle,
         Self::Reading,
@@ -117,6 +126,9 @@ impl RecordExportText {
             Self::FormHeading => "record-export-form-heading",
             Self::FormJson => "record-export-form-json",
             Self::FormNdjson => "record-export-form-ndjson",
+            Self::FormFlatCsv => "record-export-form-flat-csv",
+            Self::FormFlatCsvRaw => "record-export-form-flat-csv-raw",
+            Self::FormFlatNdjson => "record-export-form-flat-ndjson",
             Self::Start => "record-export-start",
             Self::RunningTitle => "record-export-running-title",
             Self::Reading => "record-export-reading",

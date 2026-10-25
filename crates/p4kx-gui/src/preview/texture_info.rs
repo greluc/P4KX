@@ -18,21 +18,29 @@ pub struct TextureInfo {
     height: u32,
     mip_count: u32,
     faces: Option<u32>,
+    layers: Option<u32>,
     decodable: bool,
     mip_labels: Vec<String>,
+    image_sizes: Vec<Option<[u32; 2]>>,
 }
 
 impl TextureInfo {
-    /// Reads the format, size, mips and cubemap faces of `header`.
+    /// Reads the format, size, mips, cubemap faces and layers of `header`.
     pub(crate) fn of(header: &DdsHeader) -> Self {
-        let cubemap = header.faces() == CUBE_FACES && header.array_size() == 1;
-        Self::new(
+        let cubemap = header.faces() == CUBE_FACES;
+        let layers = header.array_size().max(header.depth());
+        let mut info = Self::new(
             header.format().to_string(),
             [header.width(), header.height()],
             header.mip_count(),
             cubemap.then(|| header.faces()),
             header.format().is_decodable(),
-        )
+        );
+        info.layers = (layers > 1).then_some(layers);
+        info.image_sizes = (0..header.mip_count())
+            .map(|level| header.preview_size(level))
+            .collect();
+        info
     }
 
     fn new(
@@ -45,14 +53,28 @@ impl TextureInfo {
         let mip_labels = (0..mip_count)
             .map(|level| side(width.max(height), level).to_string())
             .collect();
+        let image_sizes = (0..mip_count)
+            .map(|level| {
+                let size = [side(width, level), side(height, level)];
+                Some(match faces {
+                    Some(_) => [
+                        size[0].saturating_mul(CROSS_COLUMNS),
+                        size[1].saturating_mul(CROSS_ROWS),
+                    ],
+                    None => size,
+                })
+            })
+            .collect();
         Self {
             format,
             width,
             height,
             mip_count,
             faces,
+            layers: None,
             decodable,
             mip_labels,
+            image_sizes,
         }
     }
 
@@ -86,6 +108,13 @@ impl TextureInfo {
         self.faces
     }
 
+    /// Returns the number of array elements or volume slices of the largest mip, or `None` when
+    /// the texture has only one.
+    #[must_use]
+    pub const fn layers(&self) -> Option<u32> {
+        self.layers
+    }
+
     /// Returns whether the preview decodes the format.
     #[must_use]
     pub const fn is_decodable(&self) -> bool {
@@ -98,22 +127,12 @@ impl TextureInfo {
         &self.mip_labels
     }
 
-    /// Returns the width and height of the image the preview shows for mip `level`: the mip, or
-    /// a cubemap's faces laid out as a cross four faces wide and three high. `None` when the
-    /// level does not exist.
+    /// Returns the width and height of the image the preview shows for mip `level`: the mip, a
+    /// cubemap's faces laid out as a cross four faces wide and three high, or the images of an
+    /// array or volume tiled on a sheet. `None` when the level does not exist.
     #[must_use]
     pub fn image_size(&self, level: u32) -> Option<[u32; 2]> {
-        if level >= self.mip_count {
-            return None;
-        }
-        let size = [side(self.width, level), side(self.height, level)];
-        Some(match self.faces {
-            Some(_) => [
-                size[0].saturating_mul(CROSS_COLUMNS),
-                size[1].saturating_mul(CROSS_ROWS),
-            ],
-            None => size,
-        })
+        self.image_sizes.get(level as usize).copied().flatten()
     }
 
     /// Returns the first level that is showable within `max_side` pixels a side, the largest mip
@@ -153,6 +172,9 @@ fn fits(size: Option<[u32; 2]>, [width, height]: [u32; 2]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use p4kx_extraction::DdsHeader;
+    use p4kx_testkit::{SplitDds, TestTextureFormat};
+
     use super::TextureInfo;
 
     fn texture(size: [u32; 2], mips: u32, faces: Option<u32>) -> TextureInfo {
@@ -214,6 +236,29 @@ mod tests {
 
         assert!(!info.is_showable(0, u32::MAX), "16384 × 16384");
         assert_eq!(info.first_showable_level(u32::MAX), Some(1), "8192 × 8192");
+    }
+
+    #[test]
+    fn an_array_is_measured_as_its_sheet_and_a_volume_halves_per_mip() {
+        let header = |dds: SplitDds| DdsHeader::parse(&dds.header_bytes()).expect("a header");
+        let array = TextureInfo::of(&header(
+            SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).array(5),
+        ));
+        let volume = TextureInfo::of(&header(
+            SplitDds::new(TestTextureFormat::BC7_SRGB, 64, 32).volume(8),
+        ));
+
+        assert_eq!(array.layers(), Some(5), "five elements");
+        assert_eq!(array.image_size(0), Some([192, 64]), "3 × 2 elements");
+        assert_eq!(volume.layers(), Some(8), "eight slices");
+        assert_eq!(volume.image_size(0), Some([192, 96]), "3 × 3 slices");
+        assert_eq!(
+            volume.image_size(1),
+            Some([64, 32]),
+            "2 × 2 slices of 32 × 16"
+        );
+        assert_eq!(volume.image_size(3), Some([8, 4]), "one slice of 8 × 4");
+        assert!(array.is_decodable(), "BC7 decodes");
     }
 
     #[test]

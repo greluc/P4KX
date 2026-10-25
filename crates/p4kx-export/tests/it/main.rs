@@ -33,6 +33,7 @@ mod contracts_fixture;
 mod crafting_detail;
 mod crafting_detail_fixture;
 mod crafting_fixture;
+mod flat_export;
 mod gear_fixture;
 mod item_stats_fixture;
 mod loadouts_fixture;

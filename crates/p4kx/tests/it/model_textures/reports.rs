@@ -67,7 +67,7 @@ fn a_texture_that_cannot_be_decoded_is_listed_too() -> TestResult {
     let dir = tempfile::tempdir()?;
     let broken = SplitDds::new(
         TestTextureFormat::Dx10Pixel {
-            dxgi_format: 42,
+            dxgi_format: 26,
             pixel_bytes: 4,
         },
         SIDE,

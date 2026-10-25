@@ -197,3 +197,66 @@ fn a_bc6h_cubemap_is_exported_as_one_exr_cross() -> TestResult {
     assert_eq!(Some(centre), positive_z, "+Z sits in the centre");
     Ok(())
 }
+
+fn names(report: &ExrReport) -> Vec<String> {
+    report
+        .files
+        .iter()
+        .filter_map(|file| Some(file.file_name()?.to_str()?.to_owned()))
+        .collect()
+}
+
+#[test]
+fn a_bc6h_array_and_volume_are_exported_as_one_exr_per_image() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let array = SplitDds::new(bc6h(95), 8, 8)
+        .array(3)
+        .mips(1)
+        .write_files(dir.path(), "stack.dds")?;
+    let volume = SplitDds::new(bc6h(95), 8, 8)
+        .volume(2)
+        .mips(1)
+        .write_files(dir.path(), "noise.dds")?;
+
+    let layers = Texture::from_file(&array)?.exr_to_file(&dir.path().join("stack.exr"), 0)?;
+    let slices = Texture::from_file(&volume)?.exr_to_file(&dir.path().join("noise.exr"), 0)?;
+
+    assert_eq!(
+        names(&layers),
+        ["stack_layer0.exr", "stack_layer1.exr", "stack_layer2.exr"],
+        "one file per element"
+    );
+    assert_eq!(
+        names(&slices),
+        ["noise_slice0.exr", "noise_slice1.exr"],
+        "one file per slice"
+    );
+    for file in layers.files.iter().chain(&slices.files) {
+        assert!(file.is_file(), "{} is written", file.display());
+    }
+    Ok(())
+}
+
+#[test]
+fn a_bc6h_cubemap_array_is_exported_as_faces_or_as_crosses() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let header = SplitDds::new(bc6h(95), 4, 4)
+        .cubemap()
+        .array(2)
+        .mips(1)
+        .write_files(dir.path(), "sky.dds")?;
+    let texture = Texture::from_file(&header)?;
+
+    let faces = texture.exr_to_file_as(&dir.path().join("f.exr"), 0, CubemapLayout::Faces)?;
+    let crosses = texture.exr_to_file_as(&dir.path().join("c.exr"), 0, CubemapLayout::Cross)?;
+
+    assert_eq!(faces.files.len(), 12, "two elements of six faces");
+    assert_eq!(
+        names(&faces).get(7).map(String::as_str),
+        Some("f_layer1_negx.exr"),
+        "element, then face"
+    );
+    assert_eq!(names(&crosses), ["c_layer0.exr", "c_layer1.exr"], "crosses");
+    assert_eq!((crosses.width, crosses.height), (16, 12), "4 × 3 faces");
+    Ok(())
+}

@@ -8,8 +8,8 @@
 //! Parses legacy and DX10 headers, merges the parts into one standard DDS file through a
 //! [`SiblingReader`] the caller supplies, reads and decodes mips to RGBA, BC5 normal maps with
 //! their Z reconstructed, merges an alpha tail into the alpha channel, lays cubemap faces out as
-//! a cross and writes images as PNG; decodes BC6H to floating-point RGB as well and writes that
-//! as OpenEXR.
+//! a cross and the images of arrays and volumes out as a sheet, and writes images as PNG; decodes
+//! BC6H to floating-point RGB as well and writes that as OpenEXR.
 
 mod alpha;
 mod bc;
@@ -30,6 +30,7 @@ mod mip;
 mod pixels;
 mod png_export;
 mod rgtc;
+mod sheet;
 mod tone_map;
 
 pub use alpha::merge_alpha;
@@ -44,3 +45,4 @@ pub use image::{RgbaImage, decode};
 pub use merge::{MergeReport, SiblingReader, merge};
 pub use mip::{Mip, read_mip};
 pub use png_export::write_png;
+pub use sheet::{sheet_columns, tile};

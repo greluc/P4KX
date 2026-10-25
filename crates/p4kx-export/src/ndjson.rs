@@ -6,12 +6,13 @@ use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 use p4kx_extraction::{
-    Annotations, CancelToken, ConflictPolicy, DataForge, ExtractionError, JsonLayout, Record,
-    RecordExportError, RecordExportOptions, RecordFailure, RecordJson, TreeBuilder,
+    Annotations, CancelToken, ConflictPolicy, DataForge, ExtractionError, Record,
+    RecordExportError, RecordExportOptions, RecordFailure, TreeBuilder,
 };
 use rayon::prelude::*;
 use tempfile::NamedTempFile;
 
+use crate::line_writer::LineWriter;
 use crate::{NDJSON_FILE, RecordExportSummary, RecordForm};
 
 const BATCH_LEN: usize = 4096;
@@ -33,7 +34,7 @@ struct Part<'r, 'f> {
 
 struct Scratch<'f> {
     trees: TreeBuilder<'f>,
-    json: RecordJson,
+    lines: LineWriter,
 }
 
 /// The NDJSON file being written: a temporary file with the size and CRC-32C written so far.
@@ -43,15 +44,16 @@ struct Output {
     crc: u32,
 }
 
-/// Writes the NDJSON form of a Record export, see [`crate::write_record_export`].
+/// Writes a single-file form of a Record export, see [`crate::write_record_export`].
 pub(crate) fn write(
     forge: &DataForge<'_>,
     records: &[Record<'_>],
+    form: RecordForm,
     target: &Path,
     options: &RecordExportOptions<'_>,
 ) -> RecordExportSummary {
     let mut summary = RecordExportSummary {
-        form: RecordForm::Ndjson,
+        form,
         ..RecordExportSummary::default()
     };
     if let Err(error) = run(forge, records, target, options, &mut summary) {
@@ -69,14 +71,20 @@ fn run(
     summary: &mut RecordExportSummary,
 ) -> Result<(), ExtractionError> {
     p4kx_extraction::ensure_writable(target).map_err(ExtractionError::Installation)?;
-    let destination = target.join(NDJSON_FILE);
+    let file = summary.form.file().unwrap_or(NDJSON_FILE);
+    let destination = target.join(file);
     let existing = existing_file(&destination)?;
     if existing.is_some() && options.policy == ConflictPolicy::Skip {
-        summary.skipped.push(NDJSON_FILE.to_owned());
+        summary.skipped.push(file.to_owned());
         return Ok(());
     }
     let lines = ordered_lines(forge, records, summary);
     let mut output = Output::create(target)?;
+    let mut header = Vec::new();
+    LineWriter::new(summary.form)
+        .header(options.texts.is_some(), &mut header)
+        .and_then(|()| output.append(&header))
+        .map_err(|error| write_error(&destination, error))?;
     if !stream(&lines, &mut output, &destination, options, summary)? {
         return Ok(());
     }
@@ -87,12 +95,12 @@ fn run(
         _ => false,
     };
     if kept {
-        summary.skipped.push(NDJSON_FILE.to_owned());
+        summary.skipped.push(file.to_owned());
         summary.written = 0;
         return Ok(());
     }
     if output.persist(&destination, existing.is_some())? {
-        summary.skipped.push(NDJSON_FILE.to_owned());
+        summary.skipped.push(file.to_owned());
         discard(summary);
     }
     Ok(())
@@ -107,6 +115,7 @@ fn stream(
     options: &RecordExportOptions<'_>,
     summary: &mut RecordExportSummary,
 ) -> Result<bool, ExtractionError> {
+    let form = summary.form;
     let mut failed_lines = 0_usize;
     let mut start = 0;
     let mut batch_len = BATCH_LEN;
@@ -124,10 +133,16 @@ fn stream(
             .map_init(
                 || Scratch {
                     trees: TreeBuilder::new(),
-                    json: RecordJson::new(JsonLayout::Compact),
+                    lines: LineWriter::new(form),
                 },
                 |scratch, lines| {
-                    write_part(scratch, lines, options.progress, options.annotations())
+                    write_part(
+                        scratch,
+                        lines,
+                        options.progress,
+                        options.annotations(),
+                        form,
+                    )
                 },
             )
             .collect();
@@ -195,11 +210,13 @@ fn ordered_lines<'r, 'f>(
     lines.extend(selected.into_iter().flatten().map(|record| Line { record }));
     lines
 }
+
 fn write_part<'r, 'f>(
     scratch: &mut Scratch<'f>,
     lines: &[Line<'r, 'f>],
     progress: Option<&(dyn Fn() + Sync)>,
     annotations: Annotations<'_>,
+    form: RecordForm,
 ) -> Part<'r, 'f> {
     let mut part = Part {
         bytes: Vec::new(),
@@ -210,20 +227,14 @@ fn write_part<'r, 'f>(
         match scratch.trees.build(line.record) {
             Ok(tree) => {
                 let start = part.bytes.len();
-                match scratch
-                    .json
-                    .write_annotated(&tree, annotations, &mut part.bytes)
-                {
-                    Ok(()) => {
-                        part.bytes.push(b'\n');
-                        part.error_counts.push(tree.error_count());
-                    }
+                match scratch.lines.write(&tree, annotations, &mut part.bytes) {
+                    Ok(()) => part.error_counts.push(tree.error_count()),
                     Err(error) => {
                         part.bytes.truncate(start);
                         part.failures.push((
                             line.record,
                             ExtractionError::Write {
-                                path: PathBuf::from(NDJSON_FILE),
+                                path: PathBuf::from(form.file().unwrap_or(NDJSON_FILE)),
                                 source: error,
                             }
                             .into(),

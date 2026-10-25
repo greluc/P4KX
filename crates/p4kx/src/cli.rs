@@ -198,7 +198,8 @@ pub(crate) enum TextureAction {
         out: PathBuf,
     },
     /// Decodes one mip of a texture, with its alpha tail in the alpha channel, and writes it as an
-    /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE.
+    /// 8-bit RGBA PNG; a cubemap becomes six face files <STEM>_posx … <STEM>_negz next to FILE, an
+    /// array one file per element <STEM>_layerN and a volume one per slice <STEM>_sliceN.
     /// A high-range BC6H texture is written as OpenEXR with 32-bit float RGB instead.
     #[command(after_help = EXIT_CODES_HELP)]
     Png {

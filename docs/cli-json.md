@@ -83,7 +83,9 @@ when nothing matches.
  "error_values": 1, "records_with_errors": 1, "error": null}
 ```
 
-`format` is `xml`, `json` or `ndjson`. `exported` counts the Record files written, or for
+`format` is `xml`, `json`, `ndjson`, `flat-csv`, `flat-csv-raw` or `flat-ndjson`; the flat forms
+write one file of one row per value ([flat values](record-flat.md)) and count and list like
+`ndjson` with `values.csv` or `values.ndjson` for `records.ndjson`. `exported` counts the Record files written, or for
 `ndjson` the lines of `records.ndjson`. `skipped` lists the files, relative to `target` with `/`
 as separator, whose existing file was kept under `--conflict`; for `ndjson` it can only list
 `records.ndjson`. `failed` lists the Records not written with GUID, record path and the reason
@@ -1093,8 +1095,11 @@ header file on disk.
 
 `output` is the `--out` path and `files` the files written: `output` itself, or for a cubemap
 the six faces `<stem>_posx.png`, `_negx`, `_posy`, `_negy`, `_posz` and `_negz` next to it, or
-with `--cross` `output` holding one horizontal cross. `format` is `png` for 8-bit RGBA PNG and
-`exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
+with `--cross` `output` holding one horizontal cross; a texture array has one file per element
+`<stem>_layerN.png` and a volume one per slice of the mip `<stem>_sliceN.png`, and a cubemap
+array has `<stem>_layerN_posx.png` … or, with `--cross`, one cross `<stem>_layerN.png` per
+element, the numbers padded with zeros to the width of the last. `format` is `png` for 8-bit
+RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
 `--tone-map`; `files` then carry the extension `.exr` instead of the one of `output`. `mip` is the
 exported level, 0 being the largest and the default; `width` and `height` are the size of each
 written image. `alpha_tail` says whether an alpha or smoothness tail was merged into the alpha

@@ -9,6 +9,7 @@ use std::io::{Read, Write};
 
 use p4kx_extraction::{Archive, DdsHeader, Entry, Texture};
 use p4kx_testkit::real_archive_path;
+use p4kx_texture::{DxgiFormat, TextureFormat};
 use rayon::prelude::*;
 
 use crate::TestResult;
@@ -116,10 +117,16 @@ fn real_alpha_tails_are_found_merged_and_decoded_into_alpha() -> TestResult {
         .collect();
     assert!(!tails.is_empty(), "the Archive has alpha tails");
     let stride = (tails.len() / ALPHA_SAMPLE).max(1);
+    let several: Vec<&Entry> = tails
+        .par_iter()
+        .copied()
+        .filter(|tail| holds_several_images(&archive, tail))
+        .collect();
 
     let outcomes: Vec<Result<String, String>> = tails
         .par_iter()
         .step_by(stride)
+        .chain(several.par_iter())
         .map(|tail| check_alpha_tail(&archive, tail).map_err(|error| error.to_string()))
         .collect();
 
@@ -129,8 +136,9 @@ fn real_alpha_tails_are_found_merged_and_decoded_into_alpha() -> TestResult {
     }
     writeln!(
         std::io::stderr(),
-        "{} alpha tails, {} sampled: {summary:#?}",
+        "{} alpha tails, {} of array or volume textures, {} checked: {summary:#?}",
         tails.len(),
+        several.len(),
         outcomes.len()
     )?;
     let failures: Vec<_> = outcomes
@@ -145,8 +153,17 @@ fn real_alpha_tails_are_found_merged_and_decoded_into_alpha() -> TestResult {
     Ok(())
 }
 
+fn holds_several_images(archive: &Archive, tail: &Entry) -> bool {
+    let colour = tail.path().get(..tail.path().len() - 2).unwrap_or_default();
+    Texture::from_archive(archive, colour).is_ok_and(|texture| {
+        let header = texture.header();
+        header.array_size() > 1 || header.depth() > 1
+    })
+}
+
 /// Checks that the tail of `tail` is found, merges on its own, and decodes into the alpha channel
-/// of the colour texture's largest mip, every pixel's alpha being the tail's decoded value.
+/// of the colour texture's largest mip, every image of a cubemap, array or volume included, every
+/// pixel's alpha being the tail's decoded value: its alpha for an `A8_UNORM` tail, else its red.
 fn check_alpha_tail(archive: &Archive, tail: &Entry) -> CheckResult {
     let colour_path = tail
         .path()
@@ -165,13 +182,11 @@ fn check_alpha_tail(archive: &Archive, tail: &Entry) -> CheckResult {
     if report.size != merged.len() as u64 {
         return Err(format!("{}: merged size", tail.path()).into());
     }
-    if colour.depth() > 1 || (colour.surfaces() > 1 && !colour.is_cubemap()) {
-        return Ok(format!(
-            "{} + {}: skipped, volume or array texture",
-            colour.format(),
-            alpha.format()
-        ));
-    }
+    let channel = if alpha.format() == TextureFormat::Dxgi(DxgiFormat(65)) {
+        3
+    } else {
+        0
+    };
     let images = texture
         .decode_surfaces(0)
         .map_err(|error| format!("{colour_path}: {error}"))?;
@@ -188,7 +203,7 @@ fn check_alpha_tail(archive: &Archive, tail: &Entry) -> CheckResult {
             || pixels
                 .iter()
                 .zip(tail_pixels)
-                .any(|(pixel, value)| pixel[3] != value[0])
+                .any(|(pixel, value)| Some(&pixel[3]) != value.get(channel))
         {
             return Err(format!("{colour_path}: the alpha is not the tail's value").into());
         }

@@ -49,6 +49,7 @@ struct Resolved {
     scale: f32,
     height: f32,
     color: Rgba,
+    blank: bool,
 }
 
 impl Composer<'_> {
@@ -205,6 +206,7 @@ impl Composer<'_> {
                 scale,
                 height,
                 color: style.color.or(text.color).unwrap_or(BLACK),
+                blank: kind != Kind::Glyph,
             },
         }
     }
@@ -275,7 +277,7 @@ impl Composer<'_> {
                 if let Some(shape) = shape {
                     self.draw_glyph(placement, context, inner, shape, (at, one.scale));
                 }
-            } else {
+            } else if !one.blank {
                 let shape = self.tofu_shape(one.color);
                 let scale = one.height / fallback_em();
                 self.draw_glyph(placement, context, inner, shape, (at, scale));

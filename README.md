@@ -389,7 +389,8 @@ Early development (milestone M1). Available today:
   bounded, and what lies beyond a limit is listed instead of drawn.
 - `p4kx ui render … --lang <language>` resolves the localisation keys (`@key`, with `,P=`
   parameters) of text fields in the `global.ini` of that language of the Archive; it needs an ENTRY.
-  A key the language does not hold is drawn as it is and listed.
+  A key the language does not hold is drawn as it is and listed. The language is also the
+  localisation folder in which imported fonts are looked for after the folders of the UI.
 - `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
   shapes are written once and placed with their transforms, gradients, strokes, colour transforms
   and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the

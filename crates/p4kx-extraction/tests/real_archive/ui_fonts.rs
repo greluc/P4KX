@@ -26,6 +26,43 @@ struct Tally {
     missing_by_movie: BTreeMap<String, usize>,
     unresolved: BTreeMap<String, usize>,
     errors: Vec<String>,
+    imports: usize,
+    clashing_names: usize,
+    own_export_clashes: usize,
+    budget_hits: usize,
+}
+
+fn count_imports(assets: &Assets<'_>, budget_hits: usize, tally: &mut Tally) {
+    let used: Vec<u16> = assets
+        .static_texts
+        .iter()
+        .flat_map(|text| text.records.iter().filter_map(|record| record.font_id))
+        .chain(assets.edit_texts.iter().filter_map(|text| text.font_id))
+        .collect();
+    let mut urls: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for import in &assets.imports {
+        for asset in import
+            .assets
+            .iter()
+            .filter(|asset| used.contains(&asset.id))
+        {
+            tally.imports += 1;
+            let name = asset.name.to_ascii_lowercase();
+            if assets.fonts.iter().any(|font| {
+                font.export_name
+                    .as_deref()
+                    .is_some_and(|own| own.eq_ignore_ascii_case(&name))
+            }) {
+                tally.own_export_clashes += 1;
+            }
+            let from = urls.entry(name).or_default();
+            if !from.contains(&import.url.as_str()) {
+                from.push(import.url.as_str());
+            }
+        }
+    }
+    tally.clashing_names += urls.values().filter(|from| from.len() > 1).count();
+    tally.budget_hits += budget_hits;
 }
 
 fn is_movie(entry: &Entry) -> bool {
@@ -78,6 +115,13 @@ fn tally_movie(archive: &Archive, entry: &Entry, tally: &mut Tally) -> TestResul
             .or_default() += 1;
     }
     count_fields(&assets, &unresolved, tally);
+    let over_budget = render
+        .imports
+        .unresolved
+        .iter()
+        .filter(|import| import.issue == ImportIssue::OverBudget)
+        .count();
+    count_imports(&assets, over_budget, tally);
     Ok(())
 }
 
@@ -152,6 +196,44 @@ fn the_tags_of_real_ui_movies_that_are_not_read_are_counted_by_code() -> TestRes
     for code in [11, 33, 37, 57, 71, 76, 78] {
         assert!(!unread.contains_key(&code), "tag {code} is read");
     }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stderr,
+    reason = "the counts of the real Archive are the output"
+)]
+fn localisation_folders_that_hold_font_movies_are_counted() -> TestResult {
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
+    let mut folders: BTreeMap<String, (usize, usize)> = BTreeMap::new();
+    for entry in archive.entries().iter().filter(|entry| is_movie(entry)) {
+        let path = entry.path().to_ascii_lowercase().replace('/', "\\");
+        let Some(rest) = path.strip_prefix("data\\localization\\") else {
+            continue;
+        };
+        let Some((folder, _)) = rest.split_once('\\') else {
+            continue;
+        };
+        let movie = UiMovie::from_archive(&archive, entry.path())?;
+        let assets = movie.movie().assets();
+        let counts = folders.entry(folder.to_owned()).or_default();
+        if !assets.fonts.is_empty() {
+            counts.0 += 1;
+        }
+        if assets
+            .fonts
+            .iter()
+            .any(|font| font.glyphs.iter().any(|glyph| !glyph.records.is_empty()))
+        {
+            counts.1 += 1;
+        }
+    }
+    eprintln!("folder: (movies defining fonts, movies with outlines) {folders:#?}");
     Ok(())
 }
 

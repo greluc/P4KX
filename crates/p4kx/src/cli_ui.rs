@@ -99,7 +99,9 @@ pub(crate) enum UiAction {
         /// The language that localisation keys (`@key`) of text fields resolve in: a code such as
         /// `en` or `de`, or the folder name of the Archive. Needs an ENTRY or `--screen`. For a
         /// movie, without it keys are drawn as they are; for a screen the default is English. A
-        /// key the language does not hold is drawn as it is and listed.
+        /// key the language does not hold is drawn as it is and listed. For a movie it also names
+        /// the localisation folder in which fonts the movie imports are looked for after the
+        /// folders of the UI, English by default.
         #[arg(long, value_name = "LANGUAGE", requires = "text_source", value_parser = clap::value_parser!(Language))]
         lang: Option<Language>,
     },

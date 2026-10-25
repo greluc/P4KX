@@ -3,7 +3,7 @@
 
 use crate::GfxError;
 use crate::assets::Assets;
-use crate::header::{Header, read_movie};
+use crate::header::{Header, read_file_header, read_movie};
 use crate::scene::Scene;
 use crate::scene_compose::Composer;
 use crate::text_fonts::TextOptions;
@@ -31,6 +31,18 @@ impl Movie {
     pub fn parse(bytes: Vec<u8>) -> Result<Self, GfxError> {
         let (header, data, tags) = read_movie(bytes)?;
         Ok(Self { header, data, tags })
+    }
+
+    /// Reads the uncompressed length that the file header of `bytes` declares, file header
+    /// included, without decompressing anything.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GfxError::Signature`] when `bytes` is no GFx or SWF movie,
+    /// [`GfxError::DeclaredLength`] when the length is shorter than the file header, and another
+    /// [`GfxError`] when the file header is truncated.
+    pub fn declared_len(bytes: &[u8]) -> Result<u32, GfxError> {
+        read_file_header(bytes).map(|(_, _, declared)| declared)
     }
 
     /// Returns the header.

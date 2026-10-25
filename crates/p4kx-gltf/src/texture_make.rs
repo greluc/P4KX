@@ -63,27 +63,98 @@ impl Outcome {
 /// or unreadable counts for the whole limit. The sources in memory therefore never exceed the
 /// decode limit plus the held cap, whatever the loader allows per texture, unless one job alone
 /// needs more.
+///
+/// `guards[n]` lists the jobs, all numbered below `n`, whose images make job `n` unneeded: job
+/// `n` is skipped, taking no image slot and no decode, when every one of them made an image. A
+/// group ends before a guarded job whose guards are still to be made.
+pub(crate) fn run_guarded(
+    jobs: &[Job],
+    mip: u32,
+    loader: &dyn TextureLoader,
+    budget: Budget,
+    guards: &[Vec<usize>],
+) -> Vec<Outcome> {
+    let store = SourceStore::new(loader, mip, MAX_HELD_PIXELS);
+    run_with_guards(jobs, store, budget, guards)
+}
+
+fn guarded_len(guards: &[Vec<usize>], start: usize, len: usize) -> usize {
+    (1..len)
+        .find(|at| {
+            guards
+                .get(start + at)
+                .is_some_and(|guard| guard.iter().any(|job| *job >= start))
+        })
+        .unwrap_or(len)
+}
+
+#[cfg(test)]
 pub(crate) fn run(
     jobs: &[Job],
     mip: u32,
     loader: &dyn TextureLoader,
     budget: Budget,
 ) -> Vec<Outcome> {
-    let store = SourceStore::new(loader, mip, MAX_HELD_PIXELS);
-    run_with(jobs, store, budget)
+    run_guarded(jobs, mip, loader, budget, &[])
 }
 
-fn run_with(jobs: &[Job], mut store: SourceStore<'_>, budget: Budget) -> Vec<Outcome> {
+#[cfg(test)]
+fn run_with(jobs: &[Job], store: SourceStore<'_>, budget: Budget) -> Vec<Outcome> {
+    run_with_guards(jobs, store, budget, &[])
+}
+
+fn unneeded(guard: Option<&Vec<usize>>, outcomes: &[Outcome]) -> bool {
+    guard.is_some_and(|guard| {
+        !guard.is_empty()
+            && guard
+                .iter()
+                .all(|job| outcomes.get(*job).is_some_and(|o| o.image.is_some()))
+    })
+}
+
+fn settle(job: &Job, outcome: Outcome, tally: &mut Tally) -> Outcome {
+    match outcome.pixels() {
+        Some(size) if !tally.fits(size) => refused(
+            job,
+            if tally.images_spent() {
+                spent_reason()
+            } else {
+                OVER_BUDGET.to_owned()
+            },
+        ),
+        Some(size) => {
+            tally.take(size);
+            outcome
+        }
+        None => outcome,
+    }
+}
+
+fn run_with_guards(
+    jobs: &[Job],
+    mut store: SourceStore<'_>,
+    budget: Budget,
+    guards: &[Vec<usize>],
+) -> Vec<Outcome> {
     let mut tally = Tally::new(budget);
-    let mut outcomes = Vec::with_capacity(jobs.len());
+    let mut outcomes: Vec<Outcome> = Vec::with_capacity(jobs.len());
     let mut rest = jobs;
     while !rest.is_empty() {
-        let (chunk, after) = rest.split_at(store.group_len(rest, PARALLEL_IMAGES));
+        let start = outcomes.len();
+        let len = guarded_len(guards, start, store.group_len(rest, PARALLEL_IMAGES));
+        let (chunk, after) = rest.split_at(len);
         let next = after.get(..PARALLEL_IMAGES).unwrap_or(after);
         rest = after;
         let verdicts: Vec<Verdict> = chunk
             .iter()
-            .map(|job| tally.plan(job, &mut store))
+            .enumerate()
+            .map(|(at, job)| {
+                if unneeded(guards.get(start + at), &outcomes) {
+                    Verdict::Skipped
+                } else {
+                    tally.plan(job, &mut store)
+                }
+            })
             .collect();
         let decoded = store.prepare(
             chunk
@@ -110,25 +181,12 @@ fn run_with(jobs: &[Job], mut store: SourceStore<'_>, budget: Budget) -> Vec<Out
                     failures: vec![failure],
                     ..Outcome::default()
                 },
+                (None, Verdict::Skipped) => Outcome::default(),
                 (None, Verdict::Spent) => refused(job, spent_reason()),
                 (None, Verdict::TooLarge) => refused(job, TOO_LARGE.to_owned()),
                 (None, _) => refused(job, OVER_BUDGET.to_owned()),
             };
-            outcomes.push(match outcome.pixels() {
-                Some(size) if !tally.fits(size) => refused(
-                    job,
-                    if tally.images_spent() {
-                        spent_reason()
-                    } else {
-                        OVER_BUDGET.to_owned()
-                    },
-                ),
-                Some(size) => {
-                    tally.take(size);
-                    outcome
-                }
-                None => outcome,
-            });
+            outcomes.push(settle(job, outcome, &mut tally));
         }
     }
     outcomes

@@ -5,13 +5,13 @@ use std::collections::{BTreeMap, HashMap};
 
 use p4kx_model::Material;
 
-use crate::layer_jobs::{layer_jobs, layer_normals_last};
+use crate::layer_jobs::{fallback_guards, layer_jobs, layer_normals_last};
 use crate::layer_plan::Layered;
 use crate::materials::{MaterialPlan, Slot, display_name, is_hair_cards, uses_alpha};
 use crate::shading::shading;
 use crate::texture_assemble::Wish;
 use crate::texture_loader::TextureLoader;
-use crate::texture_make::{Budget, run};
+use crate::texture_make::{Budget, run_guarded};
 use crate::texture_pixels::Tints;
 use crate::texture_report::{TextureFallback, TextureRole};
 use crate::texture_roles::{Source, Sources, sources_with};
@@ -216,7 +216,8 @@ impl TextureSet {
             }
         }
         let jobs = layer_normals_last(jobs, &mut wanted);
-        let outcomes = run(&jobs, mip, loader, Budget::DEFAULT);
+        let guards = fallback_guards(&wanted, jobs.len());
+        let outcomes = run_guarded(&jobs, mip, loader, Budget::DEFAULT, &guards);
         Self::assemble(&wanted, outcomes)
     }
 

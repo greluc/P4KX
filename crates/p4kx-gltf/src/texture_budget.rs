@@ -36,6 +36,9 @@ pub(crate) enum Verdict {
     Reserved(u64),
     /// The size is not known: the image is checked once it is made.
     Unknown,
+    /// The image is not needed, as the one it stands in for was made: the job does not run and
+    /// takes no image slot.
+    Skipped,
 }
 
 impl Verdict {

@@ -11,10 +11,10 @@ use crate::waiting::{RunQuiet, wait_for_model};
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{
-    AnimationCount, AnimationNoteKind, Language, Model, ModelExport, ModelExportStatus,
-    ModelExportSummary, PREVIEW_ANIMATION_BOUNDS,
+    AnimationCount, AnimationNoteKind, Language, MAX_SKELETON_BONES, Model, ModelExport,
+    ModelExportStatus, ModelExportSummary, PREVIEW_ANIMATION_BOUNDS,
 };
-use p4kx_testkit::{TestAnimation, TestEntry, TestModel, TestSkeleton, TestTrack};
+use p4kx_testkit::{TestAnimation, TestEntry, TestModel, TestPositions, TestSkeleton, TestTrack};
 
 pub(super) fn crowded() -> Site {
     let mut site = site();
@@ -38,6 +38,60 @@ pub(super) fn with_stray() -> Site {
     site.entries
         .push(TestEntry::zstd("Data\\Objects\\stray.caf", stray().caf()));
     site
+}
+
+fn rejected_skin() -> Site {
+    let cube = TestModel::cube()
+        .with_positions(TestPositions::Float)
+        .with_nodes(Vec::new())
+        .with_skeleton(&TestSkeleton::chain(
+            u16::try_from(MAX_SKELETON_BONES + 1).unwrap_or(u16::MAX),
+        ));
+    let weights = (0..24).map(|_| vec![(1, 255)]).collect();
+    let arm = cube.with_bone_map(false, weights);
+    let swing = TestAnimation::new("swing.caf", 30).track(
+        TestTrack::new(TestSkeleton::controller_id(1))
+            .rotations(&[(0, [0.0, 0.0, 0.0, 1.0]), (30, [0.0, 0.0, 0.0, 1.0])]),
+    );
+    Site {
+        entries: vec![
+            TestEntry::zstd("Data\\Objects\\arm.skin", arm.cgf()),
+            TestEntry::zstd("Data\\Objects\\arm.skinm", arm.cgfm()),
+            TestEntry::zstd("Data\\Objects\\swing.caf", swing.caf()),
+        ],
+        installation: false,
+        key: false,
+    }
+}
+
+#[test]
+fn a_skinned_model_the_viewer_rejects_still_counts_and_offers_its_animations() -> TestResult {
+    let (_folder, mut harness) = opened_at(
+        Language::BritishEnglish,
+        crate::headless::ready(),
+        rejected_skin(),
+        |b| b,
+    )?;
+
+    select(&mut harness, "arm.skin")?;
+
+    let preview = model_preview(harness.state()).ok_or("no preview")?;
+    assert!(
+        preview.playback().is_none(),
+        "the viewer rejects the skeleton"
+    );
+    assert_eq!(
+        preview.info().map(|info| info.animations),
+        Some(AnimationCount::Counted(1)),
+        "but its animation is counted"
+    );
+    harness.state_mut().begin_model_export();
+    let setup = harness
+        .state_mut()
+        .model_export_setup_mut()
+        .ok_or("no setup")?;
+    assert!(setup.animations_offered(), "and offered");
+    Ok(())
 }
 
 fn summary(model: &Model) -> Result<ModelExportSummary, String> {

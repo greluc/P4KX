@@ -122,6 +122,13 @@ fn folder_entries<'i>(index: &PathIndex<'i>, model_entry: &str) -> Vec<&'i Entry
         .collect()
 }
 
+fn within(bounds: &AnimationBounds, mut sizes: impl ExactSizeIterator<Item = u64>) -> bool {
+    sizes.len() <= bounds.files
+        && sizes
+            .try_fold(0u64, u64::checked_add)
+            .is_some_and(|bytes| bytes <= bounds.bytes)
+}
+
 fn source_of(entry: &Entry) -> Source {
     Source {
         label: entry.path().to_owned(),
@@ -152,11 +159,27 @@ impl AnimationSet {
         choice: &AnimationChoice,
         extra: &[String],
     ) -> Result<Self, ConversionError> {
+        Self::from_archive_cancellable(index, model_entry, choice, extra, &CancelToken::new())
+    }
+
+    /// As [`Self::from_archive`], stopping between files once `cancel` was asked to.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_archive`], and [`ConversionError::Cancelled`] when `cancel` stopped the
+    /// read.
+    pub fn from_archive_cancellable(
+        index: &PathIndex<'_>,
+        model_entry: &str,
+        choice: &AnimationChoice,
+        extra: &[String],
+        cancel: &CancelToken,
+    ) -> Result<Self, ConversionError> {
         let sources = folder_entries(index, model_entry)
             .into_iter()
             .map(source_of)
             .collect();
-        Self::from_sources(index, sources, choice, extra, None)
+        Self::from_sources(index, sources, choice, extra, Some(cancel))
     }
 
     /// Reads every animation of the `.caf` and `.dba` Entries in the folders
@@ -176,11 +199,10 @@ impl AnimationSet {
         cancel: &CancelToken,
     ) -> Result<Option<Self>, ConversionError> {
         let entries = folder_entries(index, model_entry);
-        let bytes = entries
-            .iter()
-            .map(|entry| entry.uncompressed_size())
-            .try_fold(0u64, u64::checked_add);
-        if entries.len() > bounds.files || bytes.is_none_or(|bytes| bytes > bounds.bytes) {
+        if !within(
+            &bounds,
+            entries.iter().map(|entry| entry.uncompressed_size()),
+        ) {
             return Ok(None);
         }
         let sources = entries.into_iter().map(source_of).collect();
@@ -325,5 +347,35 @@ impl AnimationSet {
         })?;
         set.inputs = set.origins.iter().map(PathBuf::from).collect();
         Ok(set)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AnimationBounds, within};
+
+    const BOUNDS: AnimationBounds = AnimationBounds {
+        files: 2,
+        bytes: 10,
+    };
+
+    #[test]
+    fn sizes_within_both_bounds_pass() {
+        assert!(within(&BOUNDS, [4, 6].into_iter()), "at both bounds");
+    }
+
+    #[test]
+    fn too_many_files_or_bytes_fail() {
+        assert!(!within(&BOUNDS, [1, 1, 1].into_iter()), "three files");
+        assert!(!within(&BOUNDS, [5, 6].into_iter()), "eleven bytes");
+    }
+
+    #[test]
+    fn a_sum_that_overflows_fails_instead_of_wrapping() {
+        let huge = AnimationBounds {
+            files: 2,
+            bytes: u64::MAX,
+        };
+        assert!(!within(&huge, [u64::MAX, 1].into_iter()), "overflow");
     }
 }

@@ -30,6 +30,8 @@ pub enum ModelExportText {
     Animations,
     /// The switch of the animations when the model has more files next to it than are counted.
     AnimationsUnknown,
+    /// The warning under that switch: the animations are read in full.
+    AnimationsLarge,
     /// The switch of the vertex colours.
     VertexColours,
     /// The heading of the file choice.
@@ -109,7 +111,7 @@ pub enum ModelExportText {
 
 impl ModelExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 49] = [
+    pub(crate) const ALL: [Self; 50] = [
         Self::Action,
         Self::SetupTitle,
         Self::Model,
@@ -123,6 +125,7 @@ impl ModelExportText {
         Self::AnimationsHeading,
         Self::Animations,
         Self::AnimationsUnknown,
+        Self::AnimationsLarge,
         Self::VertexColours,
         Self::FileHeading,
         Self::ChooseFile,
@@ -178,6 +181,7 @@ impl ModelExportText {
             Self::AnimationsHeading => "model-export-animations-heading",
             Self::Animations => "model-export-animations",
             Self::AnimationsUnknown => "model-export-animations-unknown",
+            Self::AnimationsLarge => "model-export-animations-large",
             Self::VertexColours => "model-export-vertex-colours",
             Self::FileHeading => "model-export-file-heading",
             Self::ChooseFile => "model-export-choose-file",

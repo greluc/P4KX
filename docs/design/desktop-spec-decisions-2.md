@@ -365,11 +365,10 @@ gewählt.
 
 **D.41 „Als GLB exportieren …" in der Vorschau-Leiste und im Menü Export.** Für ein Modell steht
 links von „Kopieren" am rechten Ende der Leiste „Als GLB exportieren …" (`.btn-ghost.btn-xs`, eine
-Routineaktion, kein CTA), deaktiviert, solange das Modell nicht gelesen ist, seine Animationen noch gezählt werden oder ein
-Export läuft;
-das Menü Export führt denselben Eintrag nach „Record-Export …". Beide öffnen das breite
-Formular-Modal des Record-Exports (`.modal`, D.17) mit Kopf „Als GLB exportieren" und Schließen-Icon und Fuß mit
-„Schließen" und der CTA „Exportieren". Der Körper beginnt mit „Modell: …" in 12,8 / 400
+Routineaktion, kein CTA), deaktiviert, solange das Modell nicht gelesen ist, seine Animationen noch
+gezählt werden oder ein Export läuft; das Menü Export führt denselben Eintrag nach „Record-Export
+…". Beide öffnen das breite Formular-Modal des Record-Exports (`.modal`, D.17) mit Kopf „Als GLB
+exportieren" und Schließen-Icon und Fuß mit „Schließen" und der CTA „Exportieren". Der Körper beginnt mit „Modell: …" in 12,8 / 400
 `color-gray-2-text` und gliedert sich in Gruppen mit Gruppenüberschrift (D.17, Abstand
 `modal-group-gap`): „Detailstufe" mit einem Radio je Stufe („LOD 0, 12 Dreiecke"), „Materialien"
 mit einem Radio je Modus („Einfache Farben, eine kleine und schnelle Datei" und „Mit Texturen, eine
@@ -377,13 +376,15 @@ größere Datei"), bei „Mit Texturen" darunter die Gruppe „Texturgröße" mi
 („Volle Größe", „1/2 der Kantenlänge, Mip-Stufe 1" bis Stufe 3), und der Checkbox
 „Vertex-Farben schreiben"; für ein Modell mit Animationen folgt die Gruppe „Animationen" mit der
 Checkbox „Die n Animationen des Modells schreiben" (aus, bis man sie wählt; bei „Nicht gelesen"
-wegen zu vieler Dateien „Die Animationen des Modells schreiben"); und „Datei" mit dem Pfadfeld
-(schreibgeschützt, Platzhalter „Keine Datei gewählt") und der Schaltfläche „Datei wählen …"; sie öffnet den Speichern-Dialog des Systems mit
-`.glb`-Filter, dem Namen des Modells und dem Ordner des letzten Exports. Liegt die Datei in einer
-Star-Citizen-Installation, steht darunter dasselbe `.alert--danger` wie bei der Extraktion (ADR-0036)
-und die CTA bleibt deaktiviert. Die CTA ist deaktiviert, bis eine Datei gewählt ist. Stufe,
-Materialmodus, Mip-Stufe, Animationen, Vertex-Farben und Ordner werden gemerkt (Einstellungsdatei; ein Modus, den
-diese Version nicht kennt, gilt als „Einfache Farben"); hat das nächste Modell die Stufe nicht,
+wegen zu vieler Dateien „Die Animationen des Modells schreiben" mit einer Zeile in
+`color-warning`: „Sie werden vollständig gelesen, und die Datei kann groß werden."); und „Datei" mit
+dem Pfadfeld (schreibgeschützt, Platzhalter „Keine Datei gewählt") und der Schaltfläche „Datei
+wählen …"; sie öffnet den Speichern-Dialog des Systems mit `.glb`-Filter, dem Namen des Modells und
+dem Ordner des letzten Exports. Liegt die Datei in einer Star-Citizen-Installation, steht darunter
+dasselbe `.alert--danger` wie bei der Extraktion (ADR-0036) und die CTA bleibt deaktiviert. Die CTA
+ist deaktiviert, bis eine Datei gewählt ist. Stufe, Materialmodus, Mip-Stufe, Animationen,
+Vertex-Farben und Ordner werden gemerkt (Einstellungsdatei; ein Modus, den diese Version nicht
+kennt, gilt als „Einfache Farben"); hat das nächste Modell die Stufe nicht,
 steht die feinste gewählt. Die Werte der Info-Zeilen stehen einzeilig in der Wertspalte (Breite des
 Fensters abzüglich Schlüsselspalte, Spaltenabstand und Rollleiste) und enden bei Überlänge mit „…";
 ein Tooltip nennt den ganzen Wert. Namen und Gründe aus dem Archiv erscheinen ohne

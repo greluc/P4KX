@@ -61,6 +61,17 @@ fn render(site: impl Fn() -> Site, stem: &str, summary: bool) -> TestResult {
             setup.set_animations(true);
             setup.set_file(folder.path().join("door.glb"));
             harness.run_quiet();
+            if let Some(line) = harness.query_by_label_contains(": door.cga") {
+                line.hover();
+                harness.event(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Line,
+                    delta: egui::vec2(0.0, -6.0),
+                    phase: egui::TouchPhase::Move,
+                    source: egui::MouseWheelSource::Wheel,
+                    modifiers: egui::Modifiers::NONE,
+                });
+                harness.run_quiet();
+            }
             save(&format!("{tag}-setup.png"), &mut harness)?;
 
             if summary {

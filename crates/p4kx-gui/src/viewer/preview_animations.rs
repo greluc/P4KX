@@ -25,8 +25,13 @@ pub(super) struct Animated {
 
 /// Returns whether an export could write an animation for `model`: it has bones, and they are
 /// written as the nodes of a skeleton or drive nodes of a static model, as `p4kx_gltf` targets
-/// them. `skinned` tells whether a mesh of the model is skinned.
-pub(super) fn can_animate(model: &Model, skinned: bool) -> bool {
+/// them. The model is skinned when a mesh of any level of detail has a bone map, whatever the
+/// viewer makes of the model.
+pub(super) fn can_animate(model: &Model) -> bool {
+    let skinned = model
+        .lods
+        .iter()
+        .any(|lod| lod.meshes.iter().any(|mesh| mesh.influences.is_some()));
     !model.bones.is_empty()
         && (skinned
             || model.lods.iter().all(|lod| lod.meshes.is_empty())

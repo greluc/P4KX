@@ -17,14 +17,17 @@ animations the export could not write.
   folders unless they are more than `AnimationBounds::files` files or `AnimationBounds::bytes`
   uncompressed bytes, checked before any is read. The preview passes 64 files and 64 MiB
   (`PREVIEW_ANIMATION_BOUNDS`). Beyond the bound the count is `AnimationCount::TooMany`, shown as
-  "Not read"; the export setup still offers the animations, and the export reads them without a
-  bound.
+  "Not read"; the export setup still offers the animations with a warning that they are read in
+  full and the file can be large, and the export reads them without a bound but stops between
+  files when it is cancelled (`AnimationSet::from_archive_cancellable`).
 - **Stoppable.** The read takes the preview's `CancelToken` and stops between files with
   `ConversionError::Cancelled`; dropping the preview cancels it. #386 (a header-only count) stays
   the real fix for the cost per file.
 - **Nothing to animate, nothing read.** A model with no bones, or with bones that neither belong
   to a written skeleton nor drive a node, as `p4kx_gltf` targets them, counts `Counted(0)`
-  without reading a file.
+  without reading a file. Whether the model is skinned comes from the model (a bone map in a mesh
+  of any level of detail), never from the viewer's scene, which can reject a model the export
+  writes.
 - **Written is not found.** The export summary lists an animation that was read but has no
   channel, because no track matches a bone of the model, under "Animations not written", with the
   number of tracks left out (`AnimationNoteKind::NoBoneMatched`). The list of not written

@@ -283,8 +283,13 @@ fn read(
         return Err(Ended::Cancelled);
     }
     let animations = match &request.animations {
-        Some(choice) => AnimationSet::from_archive(paths, &request.entry_path, choice, &[])
-            .map_err(|error| failed(index, &error))?,
+        Some(choice) => {
+            AnimationSet::from_archive_cancellable(paths, &request.entry_path, choice, &[], cancel)
+                .map_err(|error| match error {
+                    ConversionError::Cancelled => Ended::Cancelled,
+                    other => failed(index, &other),
+                })?
+        }
         None => AnimationSet::default(),
     };
     Ok(Read { source, animations })
@@ -297,14 +302,14 @@ fn write(
     read: &Read,
     (cancel, shared): (&CancelToken, &Shared),
 ) -> Ended {
+    if index.watch().check().is_err() {
+        return Ended::Failed(ModelExportFailure::ArchiveChanged);
+    }
     shared.stage.store(1, Ordering::Relaxed);
     #[cfg(feature = "test-hooks")]
     request.pause.wait(|| cancel.is_cancelled());
     if cancel.is_cancelled() {
         return Ended::Cancelled;
-    }
-    if index.watch().check().is_err() {
-        return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }
     let progress = |done: u64, total: u64| {
         shared.done.store(done, Ordering::Relaxed);

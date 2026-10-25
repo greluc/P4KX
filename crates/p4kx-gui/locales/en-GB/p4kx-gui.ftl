@@ -912,7 +912,8 @@ model-export-animations = { $count ->
    *[other] Write the { $number } animations of the model
   }
 model-export-animations-unknown = Write the animations of the model
-model-export-vertex-colours =Write the vertex colours
+model-export-animations-large = They are read in full, and the file can be large.
+model-export-vertex-colours = Write the vertex colours
 model-export-file-heading = File
 model-export-choose-file = Choose file…
 model-export-file-none = No file chosen

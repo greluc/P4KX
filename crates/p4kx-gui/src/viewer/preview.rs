@@ -304,13 +304,12 @@ fn load(index: &EntryIndex, id: u32, stop: &CancelToken, send: &impl Fn(Event)) 
     if index.watch().check().is_err() {
         return send(Event::ArchiveChanged);
     }
-    let skinned = scene.as_ref().is_ok_and(|scene| scene.skin().is_some());
     let skeleton: Option<Arc<Skeleton>> = scene
         .as_ref()
         .ok()
-        .filter(|_| skinned)
+        .filter(|scene| scene.skin().is_some())
         .and_then(|scene| scene.skeleton().cloned());
-    let animatable = can_animate(source.model(), skinned);
+    let animatable = can_animate(source.model());
     let count = if animatable {
         AnimationCount::Reading
     } else {
@@ -347,6 +346,9 @@ fn reason(error: &dyn Error, path: &str) -> String {
         .and_then(|rest| rest.strip_prefix(": "))
         .map_or_else(|| described.clone(), str::to_owned)
 }
+
+#[cfg(test)]
+mod events_tests;
 
 #[cfg(test)]
 mod tests {

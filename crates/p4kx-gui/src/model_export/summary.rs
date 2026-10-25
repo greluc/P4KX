@@ -34,17 +34,18 @@ pub struct AnimationNote {
     /// The animation's name when only this animation of a database was left out, and always for
     /// an animation no bone matched.
     pub name: Option<String>,
-    /// Why it was left out; empty when [`Self::kind`] is [`AnimationNoteKind::NoBoneMatched`].
-    pub reason: String,
-    /// What kind of reason it is.
+    /// Why it was left out.
     pub kind: AnimationNoteKind,
 }
 
 /// Why an animation is missing from the file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AnimationNoteKind {
-    /// The file or animation could not be read, or is additive.
-    Unread,
+    /// The file or animation could not be read, or is additive, for the reason given.
+    Unread {
+        /// Why it was left out.
+        reason: String,
+    },
     /// The animation was read, but none of its tracks matches a bone of the model, so it has no
     /// channel in the file.
     NoBoneMatched {
@@ -125,8 +126,9 @@ impl ModelExportSummary {
                 .map(|unread| AnimationNote {
                     source: printable(&unread.source),
                     name: unread.name.as_deref().map(printable),
-                    reason: printable(&unread.reason),
-                    kind: AnimationNoteKind::Unread,
+                    kind: AnimationNoteKind::Unread {
+                        reason: printable(&unread.reason),
+                    },
                 })
                 .chain(unmatched)
                 .take(MAX_LISTED_ANIMATIONS)
@@ -235,7 +237,6 @@ fn unmatched(written: &GlbSummary, animations: &AnimationSet) -> Vec<AnimationNo
         .map(|(animation, origin)| AnimationNote {
             source: printable(origin),
             name: Some(printable(&animation.name)),
-            reason: String::new(),
             kind: AnimationNoteKind::NoBoneMatched {
                 skipped_tracks: animation.skipped_tracks.len(),
             },

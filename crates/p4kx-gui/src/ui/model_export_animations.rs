@@ -42,39 +42,33 @@ pub(super) fn unread_lines(texts: &Texts, summary: &ModelExportSummary) -> (Stri
         .iter()
         .map(|note| {
             let source = ("source", note.source.clone().into());
-            let reason = ("reason", note.reason.clone().into());
-            if let AnimationNoteKind::NoBoneMatched { skipped_tracks } = note.kind {
-                return texts.format(
+            let name = note.name.clone().unwrap_or_default();
+            match (&note.kind, &note.name) {
+                (AnimationNoteKind::NoBoneMatched { skipped_tracks }, _) => texts.format(
                     T::SummaryAnimationUnmatched,
                     &[
-                        ("name", note.name.clone().unwrap_or_default().into()),
+                        ("name", name.into()),
                         source,
                         (
                             "tracks",
-                            u64::try_from(skipped_tracks).unwrap_or(u64::MAX).into(),
+                            u64::try_from(*skipped_tracks).unwrap_or(u64::MAX).into(),
                         ),
-                        ("number", number(texts, skipped_tracks).into()),
+                        ("number", number(texts, *skipped_tracks).into()),
                     ],
-                );
+                ),
+                (AnimationNoteKind::Unread { reason }, None) => texts.format(
+                    T::SummaryAnimationFileUnread,
+                    &[source, ("reason", reason.clone().into())],
+                ),
+                (AnimationNoteKind::Unread { reason }, Some(_)) => texts.format(
+                    T::SummaryAnimationUnread,
+                    &[
+                        ("name", name.into()),
+                        source,
+                        ("reason", reason.clone().into()),
+                    ],
+                ),
             }
-            note.name.as_ref().map_or_else(
-                || {
-                    texts.format(
-                        T::SummaryAnimationFileUnread,
-                        &[source.clone(), reason.clone()],
-                    )
-                },
-                |name| {
-                    texts.format(
-                        T::SummaryAnimationUnread,
-                        &[
-                            ("name", name.clone().into()),
-                            source.clone(),
-                            reason.clone(),
-                        ],
-                    )
-                },
-            )
         })
         .collect();
     (heading, lines)

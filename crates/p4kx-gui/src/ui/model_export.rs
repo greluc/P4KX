@@ -140,6 +140,9 @@ fn animations(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) {
     if toggle::checkbox(ui, &mut written, &label).changed() {
         setup.set_animations(written);
     }
+    if count == 0 {
+        ui.colored_label(palette::WARNING, texts.get(T::AnimationsLarge));
+    }
 }
 
 fn materials(ui: &mut Ui, texts: &Texts, setup: &mut ModelExportSetup) {

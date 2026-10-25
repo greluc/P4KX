@@ -6,6 +6,7 @@ use p4kx_foundation::ByteReader;
 use crate::CorruptChunk;
 use crate::bone_map::BoneMapStream;
 use crate::reader::to_usize;
+use crate::second_uv::SecondUvStream;
 use crate::vector::{
     dequantise, half, normal_of_quaternion, normal_of_tangent_frame, normalise,
     tangent_of_quaternion, tangent_of_tangent_frame, unpack_unit_vector,
@@ -91,21 +92,16 @@ pub(crate) struct NormalStream<'a> {
 enum NormalKind {
     Float,
     Packed,
-    PackedSecond,
     TangentFrame,
     Quaternion,
-    /// Two quaternions per vertex; no real file has this layout, so reading the normal from the
-    /// first one is unverified.
-    QuaternionPair,
 }
 
 impl NormalKind {
     const fn stride(self) -> usize {
         match self {
             Self::Float => 12,
-            Self::Packed | Self::PackedSecond => 4,
+            Self::Packed => 4,
             Self::TangentFrame | Self::Quaternion => 8,
-            Self::QuaternionPair => 16,
         }
     }
 
@@ -114,17 +110,14 @@ impl NormalKind {
         matches!(self, Self::TangentFrame | Self::Quaternion)
     }
 
-    /// The preference between the normal sources of one mesh; the packed vectors of the second
-    /// normal tag come last, as they disagree with the tangent frames of the meshes that hold both.
-    /// Equal ranks keep the stream read first, so a mesh with `QTANGENTS` and 8-byte `TANGENTS`
-    /// takes normal and tangent from the same frame.
+    /// The preference between the normal sources of one mesh. Equal ranks keep the stream read
+    /// first, so a mesh with `QTANGENTS` and 8-byte `TANGENTS` takes normal and tangent from the
+    /// same frame.
     const fn rank(self) -> u8 {
         match self {
-            Self::Float => 5,
-            Self::Packed => 4,
-            Self::TangentFrame | Self::Quaternion => 3,
-            Self::QuaternionPair => 2,
-            Self::PackedSecond => 1,
+            Self::Float => 3,
+            Self::Packed => 2,
+            Self::TangentFrame | Self::Quaternion => 1,
         }
     }
 }
@@ -136,9 +129,9 @@ impl NormalStream<'_> {
         let word = |at: usize| u32_at(bytes, at);
         let normal = match self.kind {
             NormalKind::Float => normalise([0, 4, 8].map(|at| f32::from_bits(word(at)))),
-            NormalKind::Packed | NormalKind::PackedSecond => unpack_unit_vector(word(0)),
+            NormalKind::Packed => unpack_unit_vector(word(0)),
             NormalKind::TangentFrame => normal_of_tangent_frame(word(0), word(4)),
-            NormalKind::Quaternion | NormalKind::QuaternionPair => {
+            NormalKind::Quaternion => {
                 normal_of_quaternion([0, 2, 4, 6].map(|at| i16_at(bytes, at)))
             }
         };
@@ -191,6 +184,7 @@ pub(crate) struct Streams<'a> {
     pub(crate) vertices: VertexStream<'a>,
     pub(crate) normals: Option<NormalStream<'a>>,
     pub(crate) tangents: Option<NormalStream<'a>>,
+    pub(crate) second_uvs: Option<SecondUvStream<'a>>,
     pub(crate) bone_map: Option<BoneMapStream<'a>>,
     pub(crate) indices: IndexStream<'a>,
 }
@@ -213,6 +207,7 @@ pub(crate) fn read_streams<'a>(
     let mut vertices = None;
     let mut normals: Option<NormalStream<'a>> = None;
     let mut tangents: Option<NormalStream<'a>> = None;
+    let mut second_uvs = None;
     let mut bone_map: Option<BoneMapStream<'a>> = None;
     let mut indices = None;
     let mut seen = 0_u16;
@@ -228,20 +223,9 @@ pub(crate) fn read_streams<'a>(
             }
             seen |= bit;
         }
-        let count = if tag == INDICES {
-            counts.indices
-        } else {
-            counts.vertices
-        };
-        let len = to_usize(size).checked_mul(to_usize(count));
-        let known = matches!(tag, INDICES | VERTS_UVS | VERTS_UVS_2 | BONEMAP | BONEMAP32)
-            || normal_kind(tag, size).is_some();
-        let Some(len) = len.filter(|&len| known || len <= reader.remaining()) else {
+        let Some(data) = stream_data(reader, tag, size, counts)? else {
             break;
         };
-        let data = reader.read_bytes(len)?;
-        let padding = len.next_multiple_of(STREAM_ALIGNMENT) - len;
-        reader.skip(padding.min(reader.remaining()))?;
         match classify(tag, size, data, counts)? {
             Some(Found::Indices(stream)) => indices = Some(stream),
             Some(Found::Vertices(stream)) => vertices = Some(stream),
@@ -253,6 +237,7 @@ pub(crate) fn read_streams<'a>(
                     normals = Some(stream);
                 }
             }
+            Some(Found::SecondUvs(stream)) => second_uvs = Some(stream),
             Some(Found::BoneMap(stream))
                 if bone_map.is_none_or(|known| !known.is_wide() && stream.is_wide()) =>
             {
@@ -265,9 +250,36 @@ pub(crate) fn read_streams<'a>(
         vertices: vertices.ok_or(CorruptChunk::MissingStream("vertex"))?,
         normals,
         tangents,
+        second_uvs,
         bone_map,
         indices: indices.ok_or(CorruptChunk::MissingStream("index"))?,
     })
+}
+
+/// Takes the elements and the padding of the stream `tag` off `reader`, or `None` when an
+/// unknown stream claims more than the chunk has left, which ends the walk.
+fn stream_data<'a>(
+    reader: &mut ByteReader<'a>,
+    tag: u32,
+    size: u32,
+    counts: StreamCounts,
+) -> Result<Option<&'a [u8]>, CorruptChunk> {
+    let count = if tag == INDICES {
+        counts.indices
+    } else {
+        counts.vertices
+    };
+    let len = to_usize(size).checked_mul(to_usize(count));
+    let known = matches!(tag, INDICES | VERTS_UVS | VERTS_UVS_2 | BONEMAP | BONEMAP32)
+        || (tag, size) == (NORMALS_2, 4)
+        || normal_kind(tag, size).is_some();
+    let Some(len) = len.filter(|&len| known || len <= reader.remaining()) else {
+        return Ok(None);
+    };
+    let data = reader.read_bytes(len)?;
+    let padding = len.next_multiple_of(STREAM_ALIGNMENT) - len;
+    reader.skip(padding.min(reader.remaining()))?;
+    Ok(Some(data))
 }
 
 const fn read_tag_bit(tag: u32) -> Option<u16> {
@@ -289,6 +301,7 @@ enum Found<'a> {
     Indices(IndexStream<'a>),
     Vertices(VertexStream<'a>),
     Normals(NormalStream<'a>),
+    SecondUvs(SecondUvStream<'a>),
     BoneMap(BoneMapStream<'a>),
 }
 
@@ -312,6 +325,7 @@ fn classify(
             data,
             layout: VertexLayout::Float,
         })),
+        (NORMALS_2, 4) => Some(Found::SecondUvs(SecondUvStream::new(data))),
         (BONEMAP, 12) | (BONEMAP32, 24) => {
             Some(Found::BoneMap(BoneMapStream::new(data, tag == BONEMAP32)))
         }
@@ -328,10 +342,8 @@ const fn normal_kind(tag: u32, size: u32) -> Option<NormalKind> {
     match (tag, size) {
         (NORMALS | NORMALS_2, 12) => Some(NormalKind::Float),
         (NORMALS, 4) => Some(NormalKind::Packed),
-        (NORMALS_2, 4) => Some(NormalKind::PackedSecond),
         (QTANGENTS, 8) => Some(NormalKind::TangentFrame),
         (TANGENTS, 8) => Some(NormalKind::Quaternion),
-        (TANGENTS, 16) => Some(NormalKind::QuaternionPair),
         _ => None,
     }
 }
@@ -357,7 +369,7 @@ pub(crate) fn element<'a>(
         .ok_or(CorruptChunk::MissingStream(stream))
 }
 
-fn u16_at(bytes: &[u8], at: usize) -> u16 {
+pub(crate) fn u16_at(bytes: &[u8], at: usize) -> u16 {
     let pair = bytes
         .get(at..at + 2)
         .and_then(|pair| <[u8; 2]>::try_from(pair).ok());

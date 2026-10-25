@@ -98,6 +98,8 @@ pub struct Mesh {
     pub influences: Option<Vec<Influences>>,
     /// The texture coordinates, one per vertex, or empty when the mesh stores none.
     pub uvs: Vec<[f32; 2]>,
+    /// The second texture coordinates, one per vertex, or `None` when the mesh stores none.
+    pub second_uvs: Option<Vec<[f32; 2]>>,
     /// The triangle list: three vertex indices per triangle, every one below the vertex count.
     pub indices: Vec<u32>,
     /// The ranges of the triangle list drawn with one material each.

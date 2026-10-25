@@ -29,7 +29,10 @@ that a level the model lacks is `NoSuchLod`.
 `QTANGENTS` (370,905 mesh chunks of LIVE) and the 8-byte `TANGENTS` stream (20,131, the skins)
 store a tangent frame per vertex. The tangent is the packed tangent (`QTANGENTS`, the handedness
 is bit 31) or the rotated X axis of the quaternion (`TANGENTS`, the handedness is the sign of W).
-The 16-byte `TANGENTS` layout occurs in no file and gives no tangent.
+A 16-byte `TANGENTS` layout (two quaternions in Cryengine-Converter) occurs in none of the
+391,036 mesh chunks of LIVE (`the_streams_of_every_mesh_chunk_are_counted_by_tag_and_element_size`
+counts every tag and element size), so its layout cannot be confirmed. The reader does not read it
+(ADR-0114); a chunk that holds one has the stream skipped like any unknown tag.
 
 The test derives a tangent from each triangle's positions and texture coordinates
 (`dP/du`, and `dP/dv` for the bitangent) and compares: of the vertex corners with a clear
@@ -65,8 +68,23 @@ the other way round. The test `models_named_after_a_colour_have_it_under_the_bgr
 105, `red` 120 and 38, `orange` 84 and 4, `yellow` 56 and 4). A reader that finds the order wrong swaps one
 function.
 
-The second colour stream (`COLORS2`, `0xD9EED421`) and the second UV set (`NORMALS2` of 4 bytes,
-#343) are not read.
+The second colour stream (`COLORS2`, `0xD9EED421`) is not read.
+
+## The second texture coordinate set
+
+The `NORMALS2` stream (`0x38A581FE`) with an element size of 4 bytes occurs in 17,902 mesh chunks
+of LIVE and PTU (both Archives hold the same chunks), 316,111,502 vertices in all. Read as two
+half floats per vertex, as the first set is, 316,111,489 of them are finite, 97.8 % lie in
+−64…64 and 95.0 % in 0…1 (the first set of the same chunks: 66 %); read as a packed unit vector
+they were uncorrelated with the normals of the tangent frames of the 17,902 chunks. Of the first
+2,000 triangles of each chunk 55 % have an area in this set. So the stream is a second UV set, the
+one lightmaps and detail layers use, and `Mesh::second_uvs` holds it (ADR-0114). It is never the
+only normal source of a chunk, so it is no longer a normal source. The GLB writer does not write
+it: no material the writer emits samples a second set, and `TEXCOORD_1` would grow every such
+mesh by 8 bytes per vertex.
+
+`real_archive/second_uvs.rs` repeats the survey (`the_four_byte_second_normal_stream_holds_half_float_texture_coordinates`)
+and checks the model reader on a sample of models.
 
 ## The node chain
 

@@ -108,6 +108,10 @@ fn info_json_has_the_levels_tangents_and_colours() -> TestResult {
     assert_eq!(info["lods"][1]["vertices"], 8, "LOD1 vertices");
     assert_eq!(info["lods"][1]["triangles"], 4, "LOD1 triangles");
     assert_eq!(info["lods"][0]["meshes"][0]["tangents"], true, "tangents");
+    assert_eq!(
+        info["lods"][0]["meshes"][0]["second_uvs"], false,
+        "no second set"
+    );
     assert_eq!(info["lods"][0]["meshes"][0]["colours"], true, "colours");
     Ok(())
 }

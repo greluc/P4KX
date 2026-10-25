@@ -66,6 +66,7 @@ lzma-rs = "0.3.0"
 opus-pure = "=0.2.2"
 png = "0.18.1"
 predicates = "3.1.4"
+peak_alloc = "0.3.0"
 proptest = "1.12.0"
 raw-window-handle = "0.6.2"
 rayon = "1.12.0"
@@ -88,6 +89,7 @@ tiny-skia = { version = "0.12.0", default-features = false, features = ["std", "
 tokio = "1.53.3"
 toml = "1.1.8"
 unic-langid = "0.9.6"
+unicode-width = "0.2.2"
 ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
 wgpu = { version = "30.0.1", default-features = false, features = ["std", "wgsl", "vulkan", "dx12", "metal"] }
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Graphics_Dwm"] }

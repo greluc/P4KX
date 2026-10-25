@@ -7,7 +7,8 @@ use fluent_bundle::FluentValue;
 use super::hex_view;
 use crate::theme::desktop::HEX_ROW_HEIGHT;
 use crate::theme::palette;
-use crate::widgets::{frames, scroll_region};
+use crate::widgets::frames;
+use crate::widgets::scroll_region::{self, Jump};
 use crate::{
     PREVIEW_SIZE_LIMIT, Preview, PreviewContents, PreviewStatus, PreviewTab, ScrollText, Text,
     Texts, format,
@@ -19,8 +20,9 @@ pub(super) fn status_body(
     texts: &Texts,
     preview: &Preview,
     (path, size): (&str, u64),
-    tab: PreviewTab,
+    (tab, jump): (PreviewTab, Option<Jump>),
 ) {
+    let jump = jump.filter(|_| preview.xml().is_none());
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
     frames::preview_body().show(ui, |ui| match preview.status() {
@@ -55,7 +57,7 @@ pub(super) fn status_body(
         status @ (PreviewStatus::ArchiveChanged
         | PreviewStatus::KeyRequired
         | PreviewStatus::KeyRejected) => note(ui, texts, status, path),
-        PreviewStatus::Ready(contents) => ready(ui, texts, contents, tab),
+        PreviewStatus::Ready(contents) => ready(ui, texts, contents, (tab, jump)),
     });
 }
 
@@ -77,7 +79,12 @@ fn note(ui: &mut Ui, texts: &Texts, status: PreviewStatus<'_>, path: &str) {
     ui.colored_label(colour, text);
 }
 
-fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab) {
+fn ready(
+    ui: &mut Ui,
+    texts: &Texts,
+    contents: &PreviewContents,
+    (tab, jump): (PreviewTab, Option<Jump>),
+) {
     if contents.is_truncated() {
         let language = texts.language();
         let shown = u64::try_from(contents.bytes().len()).unwrap_or(u64::MAX);
@@ -92,21 +99,26 @@ fn ready(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, tab: PreviewTab
     }
     match tab {
         PreviewTab::Hex => hex_view::hex_rows(ui, texts, contents),
-        _ => text_rows(ui, texts, contents),
+        _ => text_rows(ui, texts, contents, jump),
     }
 }
 
-fn text_rows(ui: &mut Ui, texts: &Texts, contents: &PreviewContents) {
+fn text_rows(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, jump: Option<Jump>) {
     let area = ScrollArea::both()
         .id_salt("preview-text")
         .auto_shrink(false);
     let id = ui.scope_id().with("preview-text");
+    let stride = HEX_ROW_HEIGHT + ui.spacing().item_spacing.y;
     scroll_region::show(
         ui,
         (id, || texts.get(ScrollText::Text)),
-        HEX_ROW_HEIGHT + ui.spacing().item_spacing.y,
+        stride,
         area,
         |area, ui| {
+            let area = match Jump::offset(jump, ui, id, stride) {
+                Some(y) => area.vertical_scroll_offset(y),
+                None => area,
+            };
             area.show_rows(ui, HEX_ROW_HEIGHT, contents.line_count(), |ui, rows| {
                 ui.spacing_mut().item_spacing.y = 0.0;
                 for index in rows {

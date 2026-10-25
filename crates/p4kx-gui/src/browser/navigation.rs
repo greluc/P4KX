@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_extraction::Guid;
 
@@ -181,7 +182,11 @@ impl Browser {
     /// Shows the Entry at `path` of the Archive: ends a search, selects the folder that holds it
     /// with the folders above it expanded, and selects the Entry for the preview, which is read
     /// on a background thread calling `wake`. Returns whether the Archive holds the Entry.
-    pub fn reveal_entry(&mut self, path: &str, wake: impl Fn() + Send + Sync + 'static) -> bool {
+    pub fn reveal_entry(
+        &mut self,
+        (path, line): (&str, Option<u64>),
+        wake: impl Fn() + Send + Sync + 'static,
+    ) -> bool {
         let index = Arc::clone(&self.index);
         let Some(id) = index.id_of_path(path) else {
             return false;
@@ -199,6 +204,55 @@ impl Browser {
         }
         self.select_folder(folder);
         self.select_entry(id, wake);
+        self.hit_line = line.map(|line| HitLine::new(id, line));
         true
+    }
+
+    /// Returns the line the preview of the Entry scrolls to once it shows the text, after
+    /// [`reveal_entry`](Self::reveal_entry) was given one.
+    #[must_use]
+    pub const fn hit_line(&self) -> Option<HitLine> {
+        self.hit_line
+    }
+}
+
+static HIT_SERIAL: AtomicU64 = AtomicU64::new(1);
+
+/// The line of a content-search hit in the Entry with id `entry`, one-based as in the hit.
+///
+/// Each one has a serial no other has, so that a view scrolls once for each opened hit, also when
+/// two hits are in the same Entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HitLine {
+    serial: u64,
+    entry: u32,
+    line: u64,
+}
+
+impl HitLine {
+    fn new(entry: u32, line: u64) -> Self {
+        Self {
+            serial: HIT_SERIAL.fetch_add(1, Ordering::Relaxed),
+            entry,
+            line,
+        }
+    }
+
+    /// Returns a number no other hit line of this process has.
+    #[must_use]
+    pub const fn serial(&self) -> u64 {
+        self.serial
+    }
+
+    /// Returns the id of the Entry.
+    #[must_use]
+    pub const fn entry(&self) -> u32 {
+        self.entry
+    }
+
+    /// Returns the zero-based index of the line, `0` for a hit without a line.
+    #[must_use]
+    pub const fn row(&self) -> u64 {
+        self.line.saturating_sub(1)
     }
 }

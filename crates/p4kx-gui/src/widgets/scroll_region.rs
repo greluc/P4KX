@@ -16,6 +16,37 @@ pub(crate) struct Stand {
     pub(crate) content: Vec2,
 }
 
+/// A row a region scrolls to once, however often the region is shown: `serial` tells one request
+/// from the next.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Jump {
+    pub(crate) serial: u64,
+    pub(crate) row: u64,
+}
+
+impl Jump {
+    /// Returns the vertical offset that shows the row second from the top, with `stride` between
+    /// rows, the first time `jump` is asked for in the region named `id`, and `None` afterwards or
+    /// without a jump.
+    pub(crate) fn offset(jump: Option<Self>, ui: &Ui, id: Id, stride: f32) -> Option<f32> {
+        let jump = jump?;
+        let applied_id = id.with("jump-applied");
+        if ui.data(|data| data.get_temp::<u64>(applied_id)) == Some(jump.serial) {
+            return None;
+        }
+        ui.data_mut(|data| data.insert_temp(applied_id, jump.serial));
+        Some(row_offset(jump.row, stride))
+    }
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "a row index fits the precision of a scroll offset"
+)]
+fn row_offset(row: u64, stride: f32) -> f32 {
+    row.saturating_sub(1) as f32 * stride
+}
+
 /// A scroll region between [`begin`] and [`Region::finish`], for content that sets up its own
 /// scroll areas.
 pub(crate) struct Region {
@@ -131,4 +162,20 @@ fn keyboard_offset(ui: &Ui, stand: Stand, step: f32) -> Option<Vec2> {
         }
     });
     offset.map(|offset| offset.clamp(Vec2::ZERO, max))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::row_offset;
+
+    #[test]
+    fn a_row_is_scrolled_to_the_second_line_of_the_view() {
+        assert_eq!(row_offset(10, 20.0), 180.0, "row 10 of 20 px");
+    }
+
+    #[test]
+    fn the_first_rows_stay_at_the_top() {
+        assert_eq!(row_offset(1, 20.0), 0.0, "row 1");
+        assert_eq!(row_offset(0, 20.0), 0.0, "row 0");
+    }
 }

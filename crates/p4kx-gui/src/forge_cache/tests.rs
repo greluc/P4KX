@@ -104,6 +104,71 @@ fn checking_the_archive_does_not_wait_for_a_read_of_dataforge_and_the_read_is_dr
 }
 
 #[test]
+fn a_cancelled_read_leaves_nothing_in_the_cache_and_the_next_read_works() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, false)?;
+    let model = opened(&path)?;
+    let index = std::sync::Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+
+    let cancelled = index
+        .forge()
+        .read_until(&index, || {}, &|| true)
+        .map_err(ReadFailure::into_reason)?;
+    let cached = index.forge().is_read();
+    let read = index.forge().read(&index, || {});
+
+    assert!(cancelled.is_none(), "stopped");
+    assert!(!cached, "nothing cached");
+    assert!(read.is_ok(), "the next read works: {read:?}");
+    Ok(())
+}
+
+#[test]
+fn a_consumer_waiting_for_the_read_of_another_stops_waiting_when_cancelled() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, false)?;
+    let model = opened(&path)?;
+    let index = std::sync::Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+    let (started, running) = mpsc::channel();
+    let (release, released) = mpsc::channel::<()>();
+
+    let waited = thread::scope(|scope| -> Result<_, Box<dyn Error>> {
+        let reader_index = &index;
+        let reader = scope.spawn(move || {
+            reader_index.forge().read(reader_index, || {
+                let _ = started.send(());
+                let _ = released.recv();
+            })
+        });
+        running.recv_timeout(Duration::from_secs(30))?;
+        let begun = Instant::now();
+        let waiting = index
+            .forge()
+            .read_until(&index, || {}, &|| {
+                begun.elapsed() > Duration::from_millis(100)
+            })
+            .map_err(ReadFailure::into_reason)?;
+        let waited = (waiting.is_none(), begun.elapsed());
+        let _ = release.send(());
+        reader
+            .join()
+            .map_err(|_| "the reader panicked")?
+            .map_err(ReadFailure::into_reason)?;
+        Ok(waited)
+    })?;
+
+    assert!(waited.0, "gave up without a DataForge");
+    assert!(
+        waited.1 < Duration::from_secs(5),
+        "did not wait for the other read: {:?}",
+        waited.1
+    );
+    Ok(())
+}
+
+#[test]
 fn a_schema_built_after_the_cache_was_cleared_is_not_stored_for_the_new_state() -> TestResult {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");

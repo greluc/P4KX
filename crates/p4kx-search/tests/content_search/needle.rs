@@ -71,6 +71,41 @@ fn matching_is_unicode_aware() -> TestResult {
 }
 
 #[test]
+fn a_needle_may_end_inside_the_expansion_of_a_character() -> TestResult {
+    assert_eq!(
+        found("i", "\u{130}stanbul")?.as_deref(),
+        Some("\u{130}"),
+        "dotted capital I lower-cases to i and a combining dot"
+    );
+    assert_eq!(
+        found("\u{130}stan", "x \u{130}STAN")?.as_deref(),
+        Some("\u{130}STAN"),
+        "the dotted capital I in the needle"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_final_sigma_matches_the_ordinary_one() -> TestResult {
+    assert_eq!(
+        found("\u{3bf}\u{3c3}", "\u{39f}\u{3a3}")?.as_deref(),
+        Some("\u{39f}\u{3a3}"),
+        "capital sigma"
+    );
+    assert_eq!(
+        found("\u{3bf}\u{3c3}", "\u{3bf}\u{3c2}")?.as_deref(),
+        Some("\u{3bf}\u{3c2}"),
+        "final sigma in the text"
+    );
+    assert_eq!(
+        found("\u{3bf}\u{3c2}", "\u{39f}\u{3a3}")?.as_deref(),
+        Some("\u{39f}\u{3a3}"),
+        "final sigma in the needle"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_empty_needle_is_refused() {
     assert_eq!(Needle::new(""), Err(EmptyNeedle), "empty text");
 }
@@ -84,4 +119,18 @@ fn display_text_removes_what_would_move_the_cursor_or_reorder_text() {
         "escape, override, bell"
     );
     assert_eq!(display_text("a\tb\r\nc"), "a b  c", "tab and line breaks");
+}
+
+#[test]
+fn display_text_also_removes_separators_and_invisible_characters() {
+    assert_eq!(
+        display_text("a\u{2028}b\u{2029}c"),
+        "a\u{fffd}b\u{fffd}c",
+        "line and paragraph separators"
+    );
+    assert_eq!(
+        display_text("a\u{200b}b\u{200c}c\u{200d}d\u{2060}e\u{feff}f"),
+        "a\u{fffd}b\u{fffd}c\u{fffd}d\u{fffd}e\u{fffd}f",
+        "zero-width characters and the byte order mark"
+    );
 }

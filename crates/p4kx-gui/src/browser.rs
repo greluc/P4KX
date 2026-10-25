@@ -9,6 +9,7 @@ mod records;
 mod rows;
 mod tree;
 
+pub use navigation::HitLine;
 pub use rows::{EntryRow, EntryRowKind};
 
 use std::collections::HashSet;
@@ -58,6 +59,7 @@ pub struct Browser {
     navigation: Navigation,
     incoming: IncomingList,
     record_language: Option<TextLanguage>,
+    hit_line: Option<HitLine>,
 }
 
 impl Browser {
@@ -93,6 +95,7 @@ impl Browser {
             navigation: Navigation::default(),
             incoming: IncomingList::default(),
             record_language: None,
+            hit_line: None,
         };
         browser.refresh_tree();
         browser.refresh_shown();

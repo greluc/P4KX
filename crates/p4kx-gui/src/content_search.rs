@@ -8,9 +8,11 @@ use p4kx_search::{
     EntryHit, LocalizationHit, RecordHit, SearchReport, SearchStats, Source, Sources, Unavailable,
 };
 
+mod lane;
 mod run;
 
 use crate::EntryIndex;
+use lane::Lane;
 use run::{Outcome, Run};
 
 /// What a finished content search found.
@@ -125,6 +127,7 @@ pub struct ContentSearchTab {
     shown: Source,
     selected: Option<usize>,
     serial: u64,
+    lane: Arc<Lane>,
 }
 
 impl Default for ContentSearchTab {
@@ -136,6 +139,7 @@ impl Default for ContentSearchTab {
             shown: Source::Records,
             selected: None,
             serial: 0,
+            lane: Arc::default(),
         }
     }
 }
@@ -238,7 +242,7 @@ impl ContentSearchTab {
     /// Searches the open Archive of `index` for the text of the field in the chosen sources off
     /// the UI thread, replacing the last result; `wake` is called from the thread once it ended.
     /// Returns whether it started: nothing starts for an empty text, without a source or while a
-    /// search runs.
+    /// search runs. A search started right after a cancelled one begins when that one has ended.
     pub(crate) fn run(
         &mut self,
         index: &Arc<EntryIndex>,
@@ -247,7 +251,7 @@ impl ContentSearchTab {
         if self.is_running() || self.text.is_empty() || self.sources.is_empty() {
             return false;
         }
-        self.state = match run::start(index, &self.text, self.sources, wake) {
+        self.state = match run::start((index, &self.lane), &self.text, self.sources, wake) {
             Ok(run) => State::Running(run),
             Err(reason) => State::Failed(Some(reason)),
         };

@@ -8,10 +8,10 @@ use std::thread;
 use std::time::Duration;
 
 use p4kx_export::RecordFilePlans;
-use p4kx_extraction::DataForgeEntry;
 use p4kx_extraction::ReferenceIndex;
 use p4kx_extraction::TagTree;
 use p4kx_extraction::query::QuerySchema;
+use p4kx_extraction::{DataForgeEntry, DataForgeLoadError};
 
 use crate::EntryIndex;
 use crate::model::describe;
@@ -220,20 +220,62 @@ impl ForgeCache {
         reading: impl FnOnce(),
     ) -> Result<Arc<ForgeSource>, ReadFailure> {
         let _turn = self.reading.lock().unwrap_or_else(PoisonError::into_inner);
+        self.read_locked(index, reading, &|| false)?
+            .ok_or_else(|| ReadFailure::Unreadable(describe(&DataForgeLoadError::Cancelled)))
+    }
+
+    /// Returns the DataForge of `index` like [`read`](Self::read), or `None` once `stop` returns
+    /// `true`, while waiting for the read of another consumer or while reading. A read that was
+    /// stopped leaves nothing in the cache.
+    ///
+    /// # Errors
+    ///
+    /// Returns why DataForge cannot be read, or that the Archive changed on disk before or while
+    /// it was read.
+    pub(crate) fn read_until(
+        &self,
+        index: &EntryIndex,
+        reading: impl FnOnce(),
+        stop: &dyn Fn() -> bool,
+    ) -> Result<Option<Arc<ForgeSource>>, ReadFailure> {
+        let _turn = loop {
+            match self.reading.try_lock() {
+                Ok(turn) => break turn,
+                Err(TryLockError::Poisoned(poisoned)) => break poisoned.into_inner(),
+                Err(TryLockError::WouldBlock) => {
+                    if stop() {
+                        return Ok(None);
+                    }
+                    thread::sleep(TURN_POLL);
+                }
+            }
+        };
+        self.read_locked(index, reading, stop)
+    }
+
+    fn read_locked(
+        &self,
+        index: &EntryIndex,
+        reading: impl FnOnce(),
+        stop: &dyn Fn() -> bool,
+    ) -> Result<Option<Arc<ForgeSource>>, ReadFailure> {
         if let Some(source) = self.cached() {
-            return Ok(source);
+            return Ok(Some(source));
         }
         self.reads.fetch_add(1, Ordering::Relaxed);
         let generation = self.generation.load(Ordering::Acquire);
         let changed = |error| ReadFailure::ArchiveChanged(describe(&error));
         index.watch().check().map_err(changed)?;
         reading();
-        let entry = DataForgeEntry::read(index.archive())
-            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
+        let entry = match DataForgeEntry::read_until(index.archive(), stop) {
+            Ok(entry) => entry,
+            Err(DataForgeLoadError::Cancelled) => return Ok(None),
+            Err(error) => return Err(ReadFailure::Unreadable(describe(&error))),
+        };
         index.watch().check().map_err(changed)?;
         let read = Arc::new(ForgeSource::new(entry));
         if self.store(generation, &read) {
-            Ok(read)
+            Ok(Some(read))
         } else {
             Err(ReadFailure::ArchiveChanged(
                 "the DataForge cache was cleared while it was read".to_owned(),

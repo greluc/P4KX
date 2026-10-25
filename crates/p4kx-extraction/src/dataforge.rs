@@ -15,6 +15,8 @@ pub const DATAFORGE_ENTRIES: [&str; 2] = ["Data\\Game2.dcb", "Data\\Game.dcb"];
 /// The largest uncompressed DataForge Entry that is read, 2 GiB; larger sizes are rejected.
 pub const MAX_DATAFORGE_SIZE: u64 = 2 << 30;
 
+const READ_CHUNK: u64 = 1 << 20;
+
 /// The bytes of an Archive's DataForge Entry, read into memory.
 #[derive(Debug)]
 pub struct DataForgeEntry {
@@ -32,6 +34,20 @@ impl DataForgeEntry {
     /// [`DataForgeLoadError::TooLarge`] when its size exceeds [`MAX_DATAFORGE_SIZE`], and another
     /// [`DataForgeLoadError`] when the Entry cannot be read.
     pub fn read(archive: &Archive) -> Result<Self, DataForgeLoadError> {
+        Self::read_until(archive, &|| false)
+    }
+
+    /// Reads the DataForge Entry like [`DataForgeEntry::read`], polling `stop` before each
+    /// mebibyte.
+    ///
+    /// # Errors
+    ///
+    /// The same as [`DataForgeEntry::read`], and [`DataForgeLoadError::Cancelled`] once `stop`
+    /// returned `true`.
+    pub fn read_until(
+        archive: &Archive,
+        stop: &dyn Fn() -> bool,
+    ) -> Result<Self, DataForgeLoadError> {
         let entry = Self::locate(archive).ok_or(DataForgeLoadError::Missing)?;
         let path = entry.path().to_owned();
         let size = entry.uncompressed_size();
@@ -51,21 +67,28 @@ impl DataForgeEntry {
                 limit: MAX_DATAFORGE_SIZE,
             });
         }
-        let read = archive
+        let mut reader = archive
             .open_entry(entry)
-            .map_err(DataForgeLoadError::Archive)
-            .and_then(|reader| {
-                reader.take(size).read_to_end(&mut bytes).map_err(|source| {
-                    DataForgeLoadError::Read {
-                        path: path.clone(),
-                        source,
-                    }
-                })
-            });
-        read.map(|_| {
-            bytes.shrink_to_fit();
-            Self { path, bytes }
-        })
+            .map_err(DataForgeLoadError::Archive)?
+            .take(size);
+        loop {
+            if stop() {
+                return Err(DataForgeLoadError::Cancelled);
+            }
+            let before = bytes.len();
+            (&mut reader)
+                .take(READ_CHUNK)
+                .read_to_end(&mut bytes)
+                .map_err(|source| DataForgeLoadError::Read {
+                    path: path.clone(),
+                    source,
+                })?;
+            if bytes.len() == before {
+                break;
+            }
+        }
+        bytes.shrink_to_fit();
+        Ok(Self { path, bytes })
     }
 
     /// Returns the Entry [`DataForgeEntry::read`] reads, or `None` when the Archive holds no
@@ -134,6 +157,9 @@ pub enum DataForgeLoadError {
     /// No thread could be started to hold the DataForge.
     #[error("cannot start the DataForge thread")]
     Thread(#[source] io::Error),
+    /// The read was stopped by the caller before it ended.
+    #[error("the DataForge read was cancelled")]
+    Cancelled,
 }
 
 impl DataForgeLoadError {
@@ -147,7 +173,7 @@ impl DataForgeLoadError {
                 source.kind(),
                 io::ErrorKind::InvalidData | io::ErrorKind::UnexpectedEof
             ),
-            Self::Archive(_) | Self::ArchiveChanged(_) | Self::Thread(_) => true,
+            Self::Archive(_) | Self::ArchiveChanged(_) | Self::Thread(_) | Self::Cancelled => true,
         }
     }
 }

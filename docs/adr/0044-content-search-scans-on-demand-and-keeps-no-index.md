@@ -22,7 +22,8 @@ searched by a parallel scan that streams:
 - **Entries.** The lines of text Entries and of `CryXml` Entries, converted to XML as the preview
   converts them, so that a line number and a byte offset of a hit are those of the preview. Plain
   UTF-8 is streamed through a line sink that holds one line (at most 1 MiB of it); `CryXml` and
-  UTF-16 are read whole, up to 32 MiB, under a budget of 256 MiB for all tasks together. Without
+  UTF-16 are read whole, up to 32 MiB, under a budget of 256 MiB for all tasks together, counting
+  what is derived from them (ADR-0155). Without
   a Filter the Entries with one of 15 text extensions (`xml`, `mtl`, `cdf`, `adb`, `entxml`,
   `chrparams`, `animevents`, `ini`, `cfg`, `json`, `txt`, `lua`, `csv`, `eco`, `tbl`) are searched,
   with a Filter every Entry whose path matches; the `global.ini` files are left to the

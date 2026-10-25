@@ -211,6 +211,23 @@ fn text_without_a_final_line_break_is_searched() -> TestResult {
 }
 
 #[test]
+fn a_lone_carriage_return_ends_a_line_like_a_line_feed() -> TestResult {
+    let builder = ArchiveBuilder::new().entry(TestEntry::stored(
+        "a\\mac.txt",
+        "one\rtwo needle\rthree\r\nfour needle".as_bytes().to_vec(),
+    ));
+    let fixture = fixture(&builder)?;
+    let found = run(&fixture.archive, "needle", &SearchOptions::default())?;
+    let places: Vec<(u64, u64)> = found
+        .hits
+        .iter()
+        .map(|hit| (hit.line, hit.offset))
+        .collect();
+    assert_eq!(places, [(2, 4), (4, 22)], "lines and byte offsets");
+    Ok(())
+}
+
+#[test]
 fn a_stop_function_cancels_the_search() -> TestResult {
     let fixture = fixture(&archive_builder())?;
     let found = search_entries(

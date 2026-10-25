@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::fmt;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -77,6 +78,9 @@ pub struct ExtractOptions<'a> {
     /// parses only in part is read to its end first. An Entry skipped by the Conflict policy is not
     /// read and so not verified.
     pub verify: bool,
+    /// The most worker threads the run uses, on a pool of its own; `None` runs on the current
+    /// rayon pool.
+    pub threads: Option<NonZeroUsize>,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread whenever an Entry ends or a chunk of data is written.
@@ -93,6 +97,7 @@ impl fmt::Debug for ExtractOptions<'_> {
             .field("textures", &self.textures)
             .field("audio", &self.audio)
             .field("verify", &self.verify)
+            .field("threads", &self.threads)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
             .field("watch", &self.watch)

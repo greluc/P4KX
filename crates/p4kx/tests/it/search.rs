@@ -149,9 +149,89 @@ fn extract_with_a_filter_that_matches_nothing_exits_with_code_2() -> TestResult 
         .arg(&out)
         .assert()
         .code(2)
-        .stderr(predicate::str::contains("no Entry matches missing"));
+        .stderr(predicate::str::contains("no Entry matches missing"))
+        .stderr(predicate::str::contains(
+            "hint: a Filter without * or ? matches text anywhere in the path",
+        ));
 
     assert!(!out.exists(), "no target is created for invalid input");
+    Ok(())
+}
+
+#[test]
+fn a_glob_that_matches_nothing_hints_at_the_whole_path_rule() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    p4kx_testkit::p4kx()?
+        .arg("extract")
+        .arg(&archive)
+        .arg("--filter")
+        .arg("Config/*.xml")
+        .arg("--out")
+        .arg(dir.path().join("out"))
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "hint: a glob must match the whole path",
+        ));
+    Ok(())
+}
+
+#[test]
+fn a_filter_with_surrounding_whitespace_hints_at_it() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    p4kx_testkit::p4kx()?
+        .arg("extract")
+        .arg(&archive)
+        .arg("--filter")
+        .arg("readme ")
+        .arg("--out")
+        .arg(dir.path().join("out"))
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("leading or trailing whitespace"));
+    Ok(())
+}
+
+#[test]
+fn extract_with_threads_writes_the_same_files() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("out");
+
+    p4kx_testkit::p4kx()?
+        .arg("extract")
+        .arg(&archive)
+        .args(["--filter", "*.XML", "--threads", "2", "--out"])
+        .arg(&out)
+        .assert()
+        .code(0)
+        .stdout(predicate::str::contains(
+            "extracted 2, skipped 0, failed 0, cancelled 0",
+        ));
+
+    assert_eq!(
+        std::fs::read(out.join("Data/Libs/secret.xml"))?,
+        b"<secret/>",
+        "encrypted match"
+    );
+    Ok(())
+}
+
+#[test]
+fn extract_rejects_zero_threads() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+
+    p4kx_testkit::p4kx()?
+        .arg("extract")
+        .arg(&archive)
+        .args(["--filter", "*.XML", "--threads", "0"])
+        .assert()
+        .code(2);
     Ok(())
 }
 

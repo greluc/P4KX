@@ -63,6 +63,102 @@ fn selecting_an_unknown_path_names_every_unknown_path() -> TestResult {
 }
 
 #[test]
+fn selecting_many_paths_keeps_archive_order_and_finds_entries_that_differ_only_in_case()
+-> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut builder = ArchiveBuilder::new();
+    for index in 0..300 {
+        builder = builder.entry(TestEntry::stored(
+            format!("Data\\Part{index}\\file.bin"),
+            vec![1; 2],
+        ));
+    }
+    let builder = builder
+        .entry(TestEntry::stored("Data\\Twin.txt", b"1".to_vec()))
+        .entry(TestEntry::stored("DATA\\TWIN.TXT", b"2".to_vec()));
+    let archive = open(dir.path(), &builder)?;
+
+    let selected = select_entries(
+        &archive,
+        &[
+            "data/twin.txt",
+            "DATA/PART250/FILE.BIN",
+            "data/part7/file.bin",
+            "data/twin.txt",
+        ],
+    )?;
+
+    let paths: Vec<_> = selected.iter().map(|entry| entry.path()).collect();
+    assert_eq!(
+        paths,
+        vec![
+            "Data\\Part7\\file.bin",
+            "Data\\Part250\\file.bin",
+            "Data\\Twin.txt",
+            "DATA\\TWIN.TXT"
+        ],
+        "every Entry at a requested path, once, in Archive order"
+    );
+    let Err(UnknownEntries(unknown)) = select_entries(&archive, &["data/part300/file.bin"]) else {
+        return Err("a path past the last Entry is unknown".into());
+    };
+    assert_eq!(unknown, vec!["data/part300/file.bin"], "unknown path");
+    Ok(())
+}
+
+#[test]
+fn a_run_limited_to_some_threads_writes_the_same_files_and_report() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut builder = ArchiveBuilder::new();
+    for index in 0..40 {
+        builder = builder.entry(TestEntry::stored(
+            format!("Data\\Dir{}\\file{index}.txt", index % 4),
+            format!("content {index}").into_bytes(),
+        ));
+    }
+    let archive = open(dir.path(), &builder)?;
+    let entries: Vec<_> = archive.entries().iter().collect();
+    for threads in [1, 3] {
+        let target = dir.path().join(format!("out{threads}"));
+        std::fs::create_dir(&target)?;
+        let options = ExtractOptions {
+            threads: std::num::NonZeroUsize::new(threads),
+            ..ExtractOptions::default()
+        };
+
+        let report = extract(&archive, &entries, &target, &options);
+
+        assert_eq!(report.extracted(), 40, "{threads} threads extract all");
+        assert!(report.is_complete(), "{threads} threads: {report:?}");
+        assert_eq!(
+            std::fs::read(target.join("Data").join("Dir3").join("file39.txt"))?,
+            b"content 39",
+            "content with {threads} threads"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_link_in_the_place_of_a_folder_is_refused_for_every_entry_of_that_folder() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let builder = ArchiveBuilder::new()
+        .entry(TestEntry::stored("Data\\Dir\\one.txt", b"1".to_vec()))
+        .entry(TestEntry::stored("Data\\Dir\\two.txt", b"2".to_vec()));
+    let archive = open(dir.path(), &builder)?;
+    let target = dir.path().join("out");
+    std::fs::create_dir(&target)?;
+    std::fs::write(target.join("Data"), b"a file where the folder belongs")?;
+    let entries: Vec<_> = archive.entries().iter().collect();
+
+    let report = extract(&archive, &entries, &target, &ExtractOptions::default());
+
+    assert_eq!(report.extracted(), 0, "nothing is written");
+    assert_eq!(report.failures().len(), 2, "both Entries fail");
+    Ok(())
+}
+
+#[test]
 fn extracts_entries_and_reports_counts_and_failures() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = open(dir.path(), &sample())?;

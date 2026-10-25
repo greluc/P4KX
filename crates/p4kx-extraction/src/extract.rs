@@ -64,8 +64,30 @@ pub(crate) enum Ended {
 /// A change of the Archive seen by the watch of `options` stops the run like a cancel and is
 /// reported. The watch is checked before the run, periodically during it, before each file is
 /// put in place and after the run.
+///
+/// With [`ExtractOptions::threads`] set, the run uses a rayon pool of that many threads; if the
+/// system refuses to start it, the run uses the current pool.
 #[must_use]
 pub fn extract(
+    archive: &Archive,
+    entries: &[&Entry],
+    target: &Path,
+    options: &ExtractOptions<'_>,
+) -> ExtractionReport {
+    let pool = options.threads.and_then(|threads| {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads.get())
+            .thread_name(|number| format!("p4kx-extract-{number}"))
+            .build()
+            .ok()
+    });
+    pool.map_or_else(
+        || run(archive, entries, target, options),
+        |pool| pool.install(|| run(archive, entries, target, options)),
+    )
+}
+
+fn run(
     archive: &Archive,
     entries: &[&Entry],
     target: &Path,

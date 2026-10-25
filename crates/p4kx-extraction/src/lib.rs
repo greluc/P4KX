@@ -27,6 +27,7 @@ mod entry_path;
 mod entry_tree;
 mod extract;
 mod filter;
+mod folder_cache;
 mod loaded_dataforge;
 mod localization;
 mod localization_set;

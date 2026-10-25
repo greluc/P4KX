@@ -52,6 +52,13 @@ impl Entry {
         &self.path
     }
 
+    /// Returns the offset in the Archive file of the Entry's local header, or of its data in the
+    /// v2 layout; Entries read in ascending order of it read the file sequentially.
+    #[must_use]
+    pub const fn data_offset(&self) -> u64 {
+        self.data_offset
+    }
+
     /// Returns the size of the Entry's data in the Archive.
     #[must_use]
     pub const fn compressed_size(&self) -> u64 {

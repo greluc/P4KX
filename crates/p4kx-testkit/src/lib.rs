@@ -98,6 +98,7 @@ mod split_dds;
 mod test_entry;
 mod test_jpeg;
 mod test_key;
+mod timing;
 mod vorbis;
 mod wem;
 
@@ -209,5 +210,6 @@ pub use split_dds::{SplitDds, TestTextureFormat};
 pub use test_entry::TestEntry;
 pub use test_jpeg::{gray_jpeg, progressive_gray_jpeg, sampled_jpeg};
 pub use test_key::{other_test_key, test_key};
+pub use timing::{Timing, bench, bench_once};
 pub use vorbis::{TestCodebook, TestVorbis};
 pub use wem::{TestCodec, TestWem, test_signal};

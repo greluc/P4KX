@@ -4,4 +4,5 @@
 //! Tests of `p4kx-archive` against a real Archive; run with `--ignored` when `P4KX_DATA_P4K` names one.
 
 mod archive;
+mod bench;
 mod containers;

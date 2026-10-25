@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use p4kx_archive::Entry;
 
+use crate::folder_cache::FolderCache;
 use crate::{ArchiveWatch, CancelToken, Progress};
 
 /// Counts the progress of one Extraction across worker threads and reports it in order.
@@ -13,6 +14,7 @@ pub(crate) struct Tracker<'a> {
     watch: Option<&'a ArchiveWatch>,
     on_progress: Option<&'a (dyn Fn(Progress) + Sync)>,
     progress: Mutex<Progress>,
+    pub(crate) folders: FolderCache,
 }
 
 impl<'a> Tracker<'a> {
@@ -31,6 +33,7 @@ impl<'a> Tracker<'a> {
                 bytes_total: entries.iter().map(|entry| entry.uncompressed_size()).sum(),
                 ..Progress::default()
             }),
+            folders: FolderCache::default(),
         }
     }
 

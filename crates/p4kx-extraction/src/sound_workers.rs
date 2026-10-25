@@ -34,6 +34,7 @@ where
     }
     let workers = thread::available_parallelism()
         .map_or(1, NonZero::get)
+        .min(rayon::current_num_threads())
         .clamp(1, MAX_SOUND_WORKERS)
         .min(sounds.len());
     let queue = Mutex::new(sounds.into_iter());

@@ -233,6 +233,12 @@ fn print_paints(out: &mut impl Write, paints: PaintSummary) -> io::Result<()> {
 }
 
 fn print_store_slugs(out: &mut impl Write, slugs: &StoreSlugSummary) -> io::Result<()> {
+    if slugs.stale_check_skipped {
+        return writeln!(
+            out,
+            "ship store slugs: no catalog ship matches a store slug, stale check skipped"
+        );
+    }
     writeln!(
         out,
         "ship store slugs: {} of {} slugs map to a ship, {} resolve, {} retired, {} unmapped, {} stale",

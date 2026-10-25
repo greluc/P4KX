@@ -13,6 +13,7 @@ pub(super) struct StoreSlugsJson<'a> {
     retired: usize,
     exported: usize,
     stale: &'a [String],
+    stale_check_skipped: bool,
 }
 
 impl<'a> From<&'a StoreSlugSummary> for StoreSlugsJson<'a> {
@@ -25,6 +26,7 @@ impl<'a> From<&'a StoreSlugSummary> for StoreSlugsJson<'a> {
             retired: summary.retired,
             exported: summary.exported,
             stale: &summary.stale,
+            stale_check_skipped: summary.stale_check_skipped,
         }
     }
 }

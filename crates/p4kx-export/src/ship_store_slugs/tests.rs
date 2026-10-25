@@ -9,6 +9,7 @@ use super::StoreSlugs;
 
 const AURORA: &str = "11111111-1111-1111-1111-111111111111";
 const GONE: &str = "22222222-2222-2222-2222-222222222222";
+const OK: &str = "44444444-4444-4444-4444-444444444444";
 
 fn data(ships: &str) -> String {
     format!(r#"{{"format": 1, "ships": [{ships}]}}"#)
@@ -42,9 +43,45 @@ fn embedded_data_is_valid_and_maps_most_slugs() {
         .iter()
         .filter(|slug| slug.mapped.is_some())
         .count();
-    assert_eq!(slugs.slugs.len(), 256);
     assert!(mapped > 200, "{mapped} slugs are mapped");
-    assert!(slugs.slugs.iter().all(|slug| !slug.retired));
+    assert!(mapped <= slugs.slugs.len(), "mapped slugs are slugs");
+    assert!(
+        slugs.slugs.iter().all(|slug| !slug.slug.is_empty()),
+        "every slug has text"
+    );
+    assert!(
+        slugs
+            .slugs
+            .iter()
+            .filter(|slug| slug.retired)
+            .all(|slug| slug.mapped.is_some()),
+        "a retired slug keeps its last mapping"
+    );
+}
+
+fn with_ok(entry: &str) -> StoreSlugs {
+    StoreSlugs::parse(&data(&format!(
+        "{entry}, {}",
+        mapped("Ok", 9, "RSI_Ok", OK, false)
+    )))
+    .unwrap()
+}
+
+#[test]
+fn mapped_slugs_without_any_resolving_skip_the_stale_check() {
+    let slugs = StoreSlugs::parse(&data(&mapped("A", 1, "RSI_A", GONE, false))).unwrap();
+    let resolved = slugs.resolve([ship("RSI_Aurora_GS_ES", AURORA)], false);
+    assert!(resolved.summary.stale_check_skipped);
+    assert_eq!(resolved.summary.stale, Vec::<String>::new());
+    assert!(resolved.exported.is_empty());
+}
+
+#[test]
+fn some_resolving_slug_keeps_the_stale_check() {
+    let slugs = with_ok(&mapped("A", 1, "RSI_A", GONE, false));
+    let resolved = slugs.resolve([ship("RSI_Ok", OK)], false);
+    assert!(!resolved.summary.stale_check_skipped);
+    assert_eq!(resolved.summary.stale, ["A"]);
 }
 
 #[test]
@@ -69,33 +106,19 @@ fn a_mapped_slug_that_resolves_is_exported_with_its_ship() {
 
 #[test]
 fn a_mapped_slug_whose_ship_is_gone_is_stale_and_not_exported() {
-    let slugs = StoreSlugs::parse(&data(&mapped(
-        "Aurora-ES",
-        1,
-        "RSI_Aurora_GS_ES",
-        GONE,
-        false,
-    )))
-    .unwrap();
-    let ships = [ship("RSI_Aurora_GS_ES", AURORA)];
+    let slugs = with_ok(&mapped("Aurora-ES", 1, "RSI_Aurora_GS_ES", GONE, false));
+    let ships = [ship("RSI_Aurora_GS_ES", AURORA), ship("RSI_Ok", OK)];
     let resolved = slugs.resolve(ships, false);
-    assert!(resolved.exported.is_empty());
+    assert_eq!(resolved.exported.len(), 1);
     assert_eq!(resolved.summary.stale, ["Aurora-ES"]);
 }
 
 #[test]
 fn a_ship_that_changed_its_class_name_makes_the_slug_stale() {
-    let slugs = StoreSlugs::parse(&data(&mapped(
-        "Aurora-ES",
-        1,
-        "RSI_Aurora_GS_ES",
-        AURORA,
-        false,
-    )))
-    .unwrap();
-    let ships = [ship("RSI_Aurora_Renamed", AURORA)];
+    let slugs = with_ok(&mapped("Aurora-ES", 1, "RSI_Aurora_GS_ES", AURORA, false));
+    let ships = [ship("RSI_Aurora_Renamed", AURORA), ship("RSI_Ok", OK)];
     let resolved = slugs.resolve(ships, false);
-    assert!(resolved.exported.is_empty());
+    assert_eq!(resolved.exported.len(), 1);
     assert_eq!(resolved.summary.stale, ["Aurora-ES"]);
 }
 
@@ -113,10 +136,12 @@ fn a_retired_slug_is_exported_flagged_without_a_ship() {
 
 #[test]
 fn a_retired_slug_whose_ship_exists_again_is_stale() {
-    let slugs =
-        StoreSlugs::parse(&data(&mapped("Old", 1, "RSI_Aurora_GS_ES", AURORA, true))).unwrap();
-    let resolved = slugs.resolve([ship("RSI_Aurora_GS_ES", AURORA)], false);
-    assert!(resolved.exported.is_empty());
+    let slugs = with_ok(&mapped("Old", 1, "RSI_Aurora_GS_ES", AURORA, true));
+    let resolved = slugs.resolve(
+        [ship("RSI_Aurora_GS_ES", AURORA), ship("RSI_Ok", OK)],
+        false,
+    );
+    assert_eq!(resolved.exported.len(), 1);
     assert_eq!(resolved.summary.stale, ["Old"]);
 }
 

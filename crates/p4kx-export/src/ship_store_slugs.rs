@@ -10,7 +10,7 @@ use serde::Deserialize;
 use crate::CatalogError;
 use crate::contract::ShipStoreSlug;
 use crate::guid_text::CatalogGuid;
-use crate::summary::StoreSlugSummary;
+use crate::store_slug_summary::StoreSlugSummary;
 
 const DATA: &str = include_str!("../data/ship-store-slugs.json");
 const FORMAT: u32 = 1;
@@ -126,7 +126,8 @@ impl StoreSlugs {
     /// resolve is stale and listed in the summary, not exported; a `retired` slug is exported
     /// without ship, unless its ship exists again, which makes it stale too. With a Filter
     /// (`filtered`) the ships are a selection, so only resolving slugs are exported and none is
-    /// stale.
+    /// stale. When slugs are mapped and none resolves, the stale check is skipped and the
+    /// summary says so.
     pub(crate) fn resolve<'a>(
         &self,
         ships: impl IntoIterator<Item = (Guid, &'a str)>,
@@ -159,6 +160,10 @@ impl StoreSlugs {
             } else if !filtered {
                 summary.stale.push(slug.slug.clone());
             }
+        }
+        if summary.mapped > 0 && summary.resolved == 0 {
+            summary.stale.clear();
+            summary.stale_check_skipped = !filtered;
         }
         summary.exported = exported.len();
         Resolved { exported, summary }

@@ -1300,7 +1300,9 @@ that no longer resolves and is not retired is *stale*: it is not exported, `p4kx
 it and lists it in `store_slugs.stale` of `--json`, and the real-Archive test
 `every_mapped_store_slug_resolves_to_a_ship_of_the_archive` fails. With a `--filter` the ships are
 a selection, so only the slugs that resolve are exported, no retired one, and none is stale; the
-kind is `partial` then.
+kind is `partial` then. When slugs are mapped but none resolves (an Archive that is not the
+game's, such as a test fixture), every mapping would be stale: the check is skipped, `stale` stays
+empty and `store_slugs.stale_check_skipped` is `true`.
 
 The mapping is made by name, manufacturer and variant against the ships of the `LIVE` Archive whose
 `playability` is `player`, and it never guesses:
@@ -1312,14 +1314,22 @@ The mapping is made by name, manufacturer and variant against the ships of the `
   `_AI_Super`, `_Tutorial`, `_Collector_…`, `_Prison`, `_NoInterior`, `_Hijacked…`, `_Exec_…` and the
   like) is taken; if more than one is left, the slug stays unmapped;
 - a store name that is a part of exactly one catalog name (`M50` for "Origin M50 Interceptor", `C2
-  Hercules`, `Mercury`, `Ares Ion`, `85X`, `C8R Pisces`) is accepted after review of each such slug.
+  Hercules`, `Mercury`, `Ares Ion`, `85X`, `C8R Pisces`) is accepted after review of each such slug,
+  and so is `F7C-M Super Hornet Heartseeker Mk I` for `ANVL_Hornet_F7CM_Heartseeker`, the only ship
+  of that name apart from the word "Super".
 
-On `LIVE` 4.7 the 256 slugs of the store (227 flight-ready, 29 in concept) give 204 mapped slugs
-and 52 unmapped: the 29 concept ships, 5 whose name fits several equal ships (the four Constellation
-Mk IV variants and the Hammerhead, each present once as `_GS` and once without), and 18 flight-ready
+On `LIVE` 4.7 the 256 slugs of the store (227 flight-ready, 29 in concept) give 205 mapped slugs
+and 51 unmapped: the 29 concept ships, 5 whose name fits several equal ships (the four Constellation
+Mk IV variants and the Hammerhead, each present once as `_GS` and once without), and 17 flight-ready
 ones the Archive holds under another name or not at all (e.g. `Mustang Alpha Vindicator`, `Carrack
-w/C8X`, `600i Explorer`, `ATLS`). 120 ships with `playability` `player` have no slug; most are
-event, reward and display variants of a ship that has one.
+w/C8X`, `600i Explorer`, `ATLS`).
+
+Seven of the unmapped slugs have a ship under the store name that the player-only rule excluded,
+because its `playability` is `null` (no rule classifies it): `GAMA_Railen`, `GAMA_Tyilui`,
+`GLSN_Basher`, `KRIG_S65_Stingray`, `RSI_Skylark`, `RSI_Constellation_Mk5_Centaurus` and
+`AEGS_Sabre_Raven_EX`. They can be mapped once their playability is settled. 119 ships with
+`playability` `player` have no slug; most are event, reward and display variants of a ship that
+has one.
 
 To refresh the file, a human fetches the public ship list of the store, reduces it to the
 identifiers above (`id`, name, pledge URL), and adds new slugs to `ship-store-slugs.json` with

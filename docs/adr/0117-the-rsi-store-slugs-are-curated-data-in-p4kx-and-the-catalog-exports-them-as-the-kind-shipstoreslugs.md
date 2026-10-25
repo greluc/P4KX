@@ -42,7 +42,7 @@ had no matching class name. `variantOf` (#325) groups cosmetic variants but does
   every GUID resolves could not run next to the data.
 - **A separate versioned data set next to the catalog:** rejected. One upload, one import run and
   closed GUID references within one file are the reasons ADR-0054 gives for one catalog.
-- **Export every slug, with a `null` ship for the unmapped:** rejected. 52 of 256 entries would only
+- **Export every slug, with a `null` ship for the unmapped:** rejected. 51 of 256 entries would only
   say "unknown", which a missing entry says as well, and every catalog would carry them.
 - **Read the slug from the Archive:** not possible, the Archive holds no store slugs.
 

@@ -4,6 +4,7 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
 use crate::shop_summary::ShopSummary;
+use crate::store_slug_summary::StoreSlugSummary;
 use crate::{
     CatalogFailure, CraftingWarning, ItemClassSummary, Kind, PlayabilitySummary, StarmapReport,
 };
@@ -149,26 +150,6 @@ pub struct StarmapSummary {
     /// The Child elements skipped for a malformed `pos` or `rot`, for a nesting beyond the limit
     /// or beyond the budget of one system; the objects below them have no position.
     pub malformed_children: usize,
-}
-
-/// What a catalog holds of the curated RSI store slugs (ADR-0117).
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct StoreSlugSummary {
-    /// The slugs in the data file.
-    pub slugs: usize,
-    /// The slugs with no ship mapped yet.
-    pub unmapped: usize,
-    /// The slugs with a mapped ship, retired ones included.
-    pub mapped: usize,
-    /// The mapped, not retired slugs whose ship the catalog has.
-    pub resolved: usize,
-    /// The slugs marked retired.
-    pub retired: usize,
-    /// The slugs the catalog lists: the resolved ones and, without a Filter, the retired ones.
-    pub exported: usize,
-    /// The slugs whose mapping no longer holds: the GUID is no ship of the catalog, the ship has
-    /// another class name, or a retired slug's ship exists again. Always empty with a Filter.
-    pub stale: Vec<String>,
 }
 
 /// How the localisation keys of a catalog resolved in one language.

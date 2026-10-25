@@ -826,8 +826,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "soc_components": 320, "soc_paths_unattributed": 12, "inventories_unreadable": 1, "inventories_missing": 0, "inventories_named": 57,
  "inventories_in_archive": 119, "item_ids_dropped": 0, "commodity_exchanges": 16,
  "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
- "store_slugs": {"slugs": 256, "unmapped": 52, "mapped": 204, "resolved": 204, "retired": 0,
- "exported": 204, "stale": []},
+ "store_slugs": {"slugs": 256, "unmapped": 51, "mapped": 205, "resolved": 205, "retired": 0,
+ "exported": 205, "stale": [], "stale_check_skipped": false},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
@@ -839,7 +839,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
 ```
 
 `store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
-`stale` ones whose mapping no longer holds ([basetool-catalog.md](basetool-catalog.md), "Ship store
+`stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are
+mapped but none resolves, as for an Archive that is not the game's ([basetool-catalog.md](basetool-catalog.md), "Ship store
 slugs").
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)); a name ending in

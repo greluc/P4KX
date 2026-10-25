@@ -131,7 +131,7 @@
     {"slug": "Santoky-i", "rsiId": 174, "storeName": "San'tok.yāi", "className": "XNAA_SanTokYai", "guid": "9634b4d6-9f5a-4ad2-8574-431c15e3bc5d", "retired": false},
     {"slug": "Kraken-Privateer", "rsiId": 175, "storeName": "Kraken Privateer", "className": null, "guid": null, "retired": false},
     {"slug": "SRV", "rsiId": 176, "storeName": "SRV", "className": "ARGO_SRV", "guid": "1810d1a7-61e3-4d95-bafb-0f11758c7683", "retired": false},
-    {"slug": "F7C-M-Super-Hornet-Heartseeker-Mk-I", "rsiId": 177, "storeName": "F7C-M Super Hornet Heartseeker Mk I", "className": null, "guid": null, "retired": false},
+    {"slug": "F7C-M-Super-Hornet-Heartseeker-Mk-I", "rsiId": 177, "storeName": "F7C-M Super Hornet Heartseeker Mk I", "className": "ANVL_Hornet_F7CM_Heartseeker", "guid": "b140e32f-a96b-462f-8c7b-e7243577b2f4", "retired": false},
     {"slug": "Corsair", "rsiId": 178, "storeName": "Corsair", "className": "DRAK_Corsair", "guid": "e1afb014-fe71-4da9-89ae-c30fcf9c0782", "retired": false},
     {"slug": "Ursa-Fortuna", "rsiId": 179, "storeName": "Ursa Fortuna", "className": "RSI_Ursa_Rover_Emerald", "guid": "953f8277-43a5-4f88-b139-ee997ee5c482", "retired": false},
     {"slug": "Ranger-RC", "rsiId": 180, "storeName": "Ranger RC", "className": null, "guid": null, "retired": false},

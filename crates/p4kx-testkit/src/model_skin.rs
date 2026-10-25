@@ -52,6 +52,7 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
     put_indices(&mut out, model);
     put_vertices(&mut out, model, min, max);
     put_normals(&mut out, model);
+    put_second_uvs(&mut out, model);
     put_bone_map(&mut out, model);
     stream(&mut out, UNKNOWN_STREAM, 2, |data| {
         for _ in &model.vertices {
@@ -62,6 +63,19 @@ pub(crate) fn skin_chunk(model: &TestModel) -> Vec<u8> {
         put_indices(&mut out, model);
     }
     out
+}
+
+fn put_second_uvs(out: &mut Vec<u8>, model: &TestModel) {
+    let Some(uvs) = &model.second_uvs else {
+        return;
+    };
+    stream(out, NORMALS_2, 4, |data| {
+        for uv in uvs {
+            for value in uv {
+                put_u16(data, f16::from_f32(*value).to_bits());
+            }
+        }
+    });
 }
 
 fn put_bone_map(out: &mut Vec<u8>, model: &TestModel) {
@@ -110,17 +124,8 @@ fn put_normals(out: &mut Vec<u8>, model: &TestModel) {
     match model.normals {
         TestNormals::Float => put_floats(out, NORMALS_2, model),
         TestNormals::Compressed => put_tangent_frames(out, model),
-        TestNormals::CompressedWithOpposedPacked => {
-            put_tangent_frames(out, model);
-            stream(out, NORMALS_2, 4, |data| {
-                for vertex in &model.vertices {
-                    put_u32(data, pack_unit_vector(vertex.normal.map(|value| -value)));
-                }
-            });
-        }
         TestNormals::FloatOnNormals => put_floats(out, NORMALS, model),
         TestNormals::PackedOnNormals => put_packed(out, NORMALS, model),
-        TestNormals::PackedOnNormals2 => put_packed(out, NORMALS_2, model),
         TestNormals::Tangents16 => stream(out, TANGENTS, 16, |data| {
             for vertex in &model.vertices {
                 put_quaternion(data, quaternion_of_normal(vertex.normal));

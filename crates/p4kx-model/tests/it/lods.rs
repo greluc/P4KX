@@ -304,3 +304,75 @@ fn a_mesh_without_tangent_frames_has_no_tangents() -> TestResult {
     }
     Ok(())
 }
+
+fn first_mesh(model: &Model) -> Result<&p4kx_model::Mesh, &'static str> {
+    model
+        .lods
+        .first()
+        .and_then(|lod| lod.meshes.first())
+        .ok_or("a mesh")
+}
+
+#[test]
+fn the_four_byte_second_normal_stream_is_the_second_texture_coordinate_set() -> TestResult {
+    let cube = TestModel::cube().with_normals(TestNormals::Compressed);
+    let uvs: Vec<[f32; 2]> = (0..u8::try_from(cube.vertices().len())?)
+        .map(|at| [f32::from(at) * 0.25, f32::from(at).mul_add(-0.125, 1.0)])
+        .collect();
+    let model = read_with(
+        &cube.clone().with_second_uvs(uvs.clone()),
+        &[],
+        LodSelection::All,
+    )?;
+    let mesh = first_mesh(&model)?;
+    assert_eq!(mesh.second_uvs.as_ref(), Some(&uvs), "the half floats");
+    let plain = read_with(&cube, &[], LodSelection::All)?;
+    let plain = first_mesh(&plain)?;
+    assert_eq!(plain.second_uvs, None, "no stream, no second set");
+    assert_eq!(mesh.normals, plain.normals, "it gives no normals");
+    assert_eq!(mesh.tangents, plain.tangents, "it gives no tangents");
+    assert_eq!(mesh.uvs, plain.uvs, "the first set stays");
+    Ok(())
+}
+
+#[test]
+fn a_second_texture_coordinate_set_is_no_normal_source() -> TestResult {
+    let cube = TestModel::cube().with_normals(TestNormals::None);
+    let uvs = vec![[0.5, 0.5]; cube.vertices().len()];
+    let model = read_with(&cube.with_second_uvs(uvs), &[], LodSelection::All)?;
+    let mesh = first_mesh(&model)?;
+    assert_eq!(mesh.normals, None, "no normals");
+    assert!(mesh.second_uvs.is_some(), "the second set");
+    Ok(())
+}
+
+#[test]
+fn non_finite_second_texture_coordinates_read_as_zero() -> TestResult {
+    let cube = TestModel::cube().with_normals(TestNormals::None);
+    let mut uvs = vec![[0.25, 0.75]; cube.vertices().len()];
+    if let Some(first) = uvs.first_mut() {
+        *first = [f32::NAN, f32::INFINITY];
+    }
+    let model = read_with(&cube.with_second_uvs(uvs), &[], LodSelection::All)?;
+    let second = first_mesh(&model)?.second_uvs.clone().ok_or("second set")?;
+    assert!(
+        second.contains(&[0.0, 0.0]),
+        "a NaN and an infinity are zero"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_sixteen_byte_tangent_stream_is_skipped() -> TestResult {
+    let model = read_with(
+        &TestModel::cube().with_normals(TestNormals::Tangents16),
+        &[],
+        LodSelection::All,
+    )?;
+    let mesh = first_mesh(&model)?;
+    assert_eq!(
+        (mesh.normals.as_ref(), mesh.tangents.as_ref()),
+        (None, None)
+    );
+    Ok(())
+}

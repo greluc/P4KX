@@ -5,6 +5,8 @@ use crate::TestHircObject;
 use crate::bnk::variable_length;
 use crate::bytes::{put_u16, put_u32};
 
+const PLUGIN_TYPE_MASK: u32 = 0x0F;
+const SOURCE_PLUGIN_TYPE: u32 = 2;
 const PARENT_ID: u32 = 0x2C21_1B2E;
 const PLAYLIST_WEIGHT: u32 = 50_000;
 
@@ -62,12 +64,31 @@ impl TestHircObject {
     /// has no WEM.
     #[must_use]
     pub fn plugin_sound(id: u32, source_id: u32) -> Self {
+        Self::sound_of_plugin(id, source_id, 0x0065_0002)
+    }
+
+    /// A Sound object whose source is the External Source plug-in `0x0008_0001`, which the game
+    /// resolves at runtime and no bank holds.
+    #[must_use]
+    pub fn external_sound(id: u32, source_id: u32) -> Self {
+        Self::sound_of_plugin(id, source_id, 0x0008_0001)
+    }
+
+    /// A Sound object whose source is the MIDI plug-in `0x0010_0001`, stored in a bank.
+    #[must_use]
+    pub fn midi_sound(id: u32, source_id: u32) -> Self {
+        Self::sound_of_plugin(id, source_id, 0x0010_0001)
+    }
+
+    fn sound_of_plugin(id: u32, source_id: u32, plugin_id: u32) -> Self {
         let mut body = Vec::new();
-        put_u32(&mut body, 0x0065_0002);
+        put_u32(&mut body, plugin_id);
         body.push(0);
         put_u32(&mut body, source_id);
         body.extend_from_slice(&[0; 9]);
-        put_u32(&mut body, 0);
+        if plugin_id & PLUGIN_TYPE_MASK == SOURCE_PLUGIN_TYPE {
+            put_u32(&mut body, 0);
+        }
         body.extend_from_slice(&node_base(TestNodeBase::Plain));
         Self::raw(2, id, body)
     }

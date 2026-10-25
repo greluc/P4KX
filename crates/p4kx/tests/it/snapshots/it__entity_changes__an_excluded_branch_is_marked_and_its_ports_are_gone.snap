@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/it/entity_changes.rs
+source: crates/p4kx/tests/entity_changes.rs
 expression: run.stdout
 ---
 TEST_Ship  0079c5d5-1678-4f8c-85ba-18ca8f642af6  libs/foundry/records/entities/spaceships/test_ship

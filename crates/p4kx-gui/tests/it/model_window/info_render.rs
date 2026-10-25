@@ -209,6 +209,7 @@ fn the_texture_choices_and_the_missing_textures_render_in_both_languages() -> Te
             builder.renderer(renderer)
         })?;
         harness.set_size(egui::vec2(900.0, 900.0));
+        harness.run_quiet();
         select(&mut harness, "textured.cgf")?;
 
         harness.get_by_label(info).click();

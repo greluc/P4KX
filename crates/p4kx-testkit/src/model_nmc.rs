@@ -7,6 +7,36 @@ use crate::model::{TestModel, TestNode};
 const NODE_LEN: usize = 208;
 const ROOT: u16 = 0xFFFF;
 
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct NodeDetails {
+    pub(crate) node: usize,
+    pub(crate) scale: [f32; 3],
+    pub(crate) properties: Vec<(String, String)>,
+}
+
+impl TestModel {
+    /// Stores `scale` in the `NodeMeshCombo` record of the node `node` and `properties`, as
+    /// `key=value` lines, in its entry of the property table.
+    #[must_use]
+    pub fn with_node_details(
+        mut self,
+        node: usize,
+        scale: [f32; 3],
+        properties: &[(&str, &str)],
+    ) -> Self {
+        let properties = properties
+            .iter()
+            .map(|&(key, value)| (key.to_owned(), value.to_owned()))
+            .collect();
+        self.node_details.push(NodeDetails {
+            node,
+            scale,
+            properties,
+        });
+        self
+    }
+}
+
 pub(crate) fn nmc_chunk(model: &TestModel) -> Vec<u8> {
     let nodes = &model.nodes;
     let mut material_ids: Vec<u16> = model.submeshes.iter().map(|sub| sub.material_id).collect();

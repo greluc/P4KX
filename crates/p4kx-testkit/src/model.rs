@@ -4,7 +4,7 @@
 use crate::TestChunkFile;
 use crate::model_cube::{cube_nodes, cube_submeshes, cube_vertices};
 pub use crate::model_layout::{TestNormals, TestPositions};
-use crate::model_nmc::nmc_chunk;
+use crate::model_nmc::{NodeDetails, nmc_chunk};
 use crate::model_skin::{skin_chunk, tangent_frame};
 
 const EXPORT_FLAGS: u32 = 0xBE5E_493E;
@@ -29,13 +29,6 @@ pub struct TestNode {
     pub local: [[f32; 4]; 3],
     /// The node type: 0 for geometry, 2 or 3 for helpers.
     pub kind: u16,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) struct NodeDetails {
-    pub(crate) node: usize,
-    pub(crate) scale: [f32; 3],
-    pub(crate) properties: Vec<(String, String)>,
 }
 
 /// One vertex of a [`TestModel`].
@@ -167,27 +160,6 @@ impl TestModel {
     #[must_use]
     pub const fn with_model_box(mut self, min: [f32; 3], max: [f32; 3]) -> Self {
         self.model_box = Some((min, max));
-        self
-    }
-
-    /// Stores `scale` in the `NodeMeshCombo` record of the node `node` and `properties`, as
-    /// `key=value` lines, in its entry of the property table.
-    #[must_use]
-    pub fn with_node_details(
-        mut self,
-        node: usize,
-        scale: [f32; 3],
-        properties: &[(&str, &str)],
-    ) -> Self {
-        let properties = properties
-            .iter()
-            .map(|&(key, value)| (key.to_owned(), value.to_owned()))
-            .collect();
-        self.node_details.push(NodeDetails {
-            node,
-            scale,
-            properties,
-        });
         self
     }
 

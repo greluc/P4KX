@@ -370,6 +370,7 @@ image-format = Format
 image-size = Größe
 image-mips = Mips
 image-faces = Cubemap-Seiten
+image-layers = Ebenen
 image-dimensions = { $width } × { $height }
 image-none = –
 image-shown = Mip { $level }: { $width } × { $height } Pixel

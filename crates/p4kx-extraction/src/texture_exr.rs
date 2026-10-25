@@ -7,8 +7,10 @@ use p4kx_texture::{HdrImage, TextureError, cube_cross_hdr, write_exr};
 use rayon::prelude::*;
 
 use crate::output_file::write_replacing;
-use crate::texture_png::{CUBE_FACE_NAMES, face_path, is_cube};
+use crate::texture_names::{image_suffixes, suffixed_path};
 use crate::{ConversionError, CubemapLayout, Texture};
+
+const CUBE_FACES: usize = 6;
 
 /// What an OpenEXR export wrote.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,7 +57,7 @@ impl Texture<'_> {
 
     /// Decodes mip `level`, 0 being the largest, of a high-range texture and writes it to the
     /// file `out` as OpenEXR with 32-bit float RGB, replacing it; a cubemap is written as six
-    /// face files.
+    /// face files, an array as one file per element and a volume as one file per slice.
     ///
     /// # Errors
     ///
@@ -72,34 +74,42 @@ impl Texture<'_> {
     ///
     /// Returns [`ConversionError::OutputIsInput`] when a file to write is the header or one of
     /// the parts, [`ConversionError::Write`] when a file cannot be written, a
-    /// [`ConversionError`] wrapping [`TextureError::UnsupportedImage`] for a volume, a texture
-    /// array or a cubemap array, and the errors of [`Texture::decode_surfaces_hdr`].
+    /// [`ConversionError`] wrapping [`TextureError::NotHighRange`] when the format is not
+    /// high-range, and the errors of [`Texture::decode_surfaces_hdr`].
     pub fn exr_to_file_as(
         &self,
         out: &Path,
         level: u32,
         layout: CubemapLayout,
     ) -> Result<ExrReport, ConversionError> {
-        let cube = is_cube(self.header());
-        let files: Vec<PathBuf> = if cube && layout == CubemapLayout::Faces {
-            CUBE_FACE_NAMES
-                .iter()
-                .map(|face| face_path(out, face))
-                .collect()
-        } else {
-            vec![out.to_path_buf()]
-        };
+        let cross = layout == CubemapLayout::Cross;
+        let files: Vec<PathBuf> = image_suffixes(self.header(), level, cross)
+            .iter()
+            .map(|suffix| suffixed_path(out, suffix))
+            .collect();
         for file in &files {
             self.refuse_input(file)?;
         }
-        let images = match (cube, layout) {
-            (false, _) => vec![self.decode_mip_hdr(level)?],
-            (true, CubemapLayout::Faces) => self.decode_surfaces_hdr(level)?,
-            (true, CubemapLayout::Cross) => vec![
-                cube_cross_hdr(&self.decode_surfaces_hdr(level)?)
-                    .map_err(|error| ConversionError::of_texture(self.name(), error))?,
-            ],
+        let surfaces = self.decode_surfaces_hdr(level)?;
+        let images = if cross && self.header().faces() as usize == CUBE_FACES {
+            surfaces
+                .chunks(CUBE_FACES)
+                .map(|faces| {
+                    cube_cross_hdr(faces)
+                        .map_err(|error| ConversionError::of_texture(self.name(), error))
+                })
+                .collect::<Result<Vec<_>, _>>()?
+        } else {
+            surfaces
         };
+        if images.len() != files.len() {
+            return Err(ConversionError::of_texture(
+                self.name(),
+                TextureError::UnsupportedImage {
+                    images: self.header().images(level),
+                },
+            ));
+        }
         files
             .par_iter()
             .zip(&images)

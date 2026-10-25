@@ -65,6 +65,7 @@ mod texture_exr;
 mod texture_groups;
 mod texture_images;
 mod texture_job;
+mod texture_names;
 mod texture_outputs;
 mod texture_parts;
 mod texture_png;

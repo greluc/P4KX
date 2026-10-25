@@ -9,12 +9,11 @@ use p4kx_texture::{Mip, TextureError, read_mip, write_exr, write_png};
 
 use crate::buffers::Buffers;
 use crate::texture_convert::{Source, Step};
+use crate::texture_names::image_suffixes;
 use crate::texture_outputs::step_of;
 use crate::texture_siblings::Replay;
 use crate::write::{Chunk, Destination, EntryWriter, Outcome, create_temporary, write_error};
-use crate::{CUBE_FACE_NAMES, ConflictPolicy, ExtractionError, Texture};
-
-const CUBE_FACES: u32 = 6;
+use crate::{ConflictPolicy, ExtractionError, Texture};
 
 /// The extensions of the image files a texture is exported to.
 pub(crate) const IMAGE_EXTENSIONS: [&str; 2] = ["png", "exr"];
@@ -48,7 +47,8 @@ impl EntryWriter<'_> {
     /// Decodes mip `level` of `source`, its part taken from `buffers.data` when the merge kept it
     /// there, and writes it next to `header` under the Conflict policy: as `<name>.png` with the
     /// alpha tail in its alpha channel, or for a high-range texture as OpenEXR `<name>.exr`, the
-    /// range kept; a cubemap's six faces as `<name>_posx` … `<name>_negz`.
+    /// range kept; a cubemap's six faces as `<name>_posx` … `<name>_negz`, an array's elements as
+    /// `<name>_layerN` and a volume's slices as `<name>_sliceN`.
     pub(crate) fn write_images(
         &self,
         source: &Source<'_>,
@@ -62,14 +62,10 @@ impl EntryWriter<'_> {
         } else {
             "png"
         };
-        let names: Vec<OsString> = if dds.faces() == CUBE_FACES && dds.array_size() == 1 {
-            CUBE_FACE_NAMES
-                .iter()
-                .map(|face| image_name(header, Some(face), extension))
-                .collect()
-        } else {
-            vec![image_name(header, None, extension)]
-        };
+        let names: Vec<OsString> = image_suffixes(dds, level, false)
+            .iter()
+            .map(|suffix| image_name(header, suffix, extension))
+            .collect();
         let destinations = names
             .iter()
             .map(|name| Destination::new(header.folder.clone(), name))
@@ -84,7 +80,7 @@ impl EntryWriter<'_> {
         let images = Self::decode_level(source, level, &buffers.data)?;
         if images.len() != destinations.len() {
             return Err(source.texture_error(TextureError::UnsupportedImage {
-                images: dds.surfaces(),
+                images: dds.images(level),
             }));
         }
         let mut written = false;
@@ -186,17 +182,14 @@ impl EntryWriter<'_> {
 }
 
 /// Returns the name of an image next to the header: its name with `extension` for `.dds`, and
-/// `_<face>` before it for a cubemap face.
-fn image_name(header: &Destination, face: Option<&str>, extension: &str) -> OsString {
+/// `suffix` before it for one of several images.
+fn image_name(header: &Destination, suffix: &str, extension: &str) -> OsString {
     let mut name = header
         .file
         .file_stem()
         .map(OsString::from)
         .unwrap_or_default();
-    if let Some(face) = face {
-        name.push("_");
-        name.push(face);
-    }
+    name.push(suffix);
     name.push(".");
     name.push(extension);
     name

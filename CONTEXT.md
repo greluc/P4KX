@@ -408,6 +408,11 @@ One of the six images of a cubemap texture, in DDS order +X, −X, +Y, −Y, +Z,
 `posx` … `negz`.
 _Avoid_: side, surface
 
+**Layer**:
+One element of a texture array, or one slice of a volume texture; exported as one PNG
+`<name>_layerN` or `<name>_sliceN`, and previewed tiled on one sheet.
+_Avoid_: frame, page
+
 **Chunk file**:
 A CryEngine file made of typed chunks in the `#ivo` or the older `CrCh` container, e.g. a model
 (`.cgf`, `.cga`, `.skin`, `.chr`), its geometry companion, or an animation (`.caf`, `.dba`).

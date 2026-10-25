@@ -389,7 +389,8 @@ Early development (milestone M1). Available today:
   bounded, and what lies beyond a limit is listed instead of drawn.
 - `p4kx ui render … --lang <language>` resolves the localisation keys (`@key`, with `,P=`
   parameters) of text fields in the `global.ini` of that language of the Archive; it needs an ENTRY.
-  A key the language does not hold is drawn as it is and listed.
+  A key the language does not hold is drawn as it is and listed. The language is also the
+  localisation folder in which imported fonts are looked for after the folders of the UI.
 - `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
   shapes are written once and placed with their transforms, gradients, strokes, colour transforms
   and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
@@ -552,6 +553,12 @@ change. `p4kx-mcp --version` and `-V` show the legal notice.
 | `list_chunks` | The chunks of a chunk file Entry (`path`) as `p4kx chunks list` shows them: index, type, type ID, known, version, chunk ID, byte order, offset and size; `type` (a name or `0x` ID) narrows it. No chunk data is returned |
 | `get_model_info` | A model Entry (`path`) summarised as `p4kx model info --json`: geometry, material library and IDs, levels of detail, and the number of materials, nodes, meshes, bones, animations and chunks |
 | `list_model_items` | One `section` of a model Entry, paged: `materials`, `nodes`, `meshes`, `bones`, `animations`, `unread_animations` or `chunks`, each item shaped as in `p4kx model info --json` |
+| `search_audio_triggers` | The audio triggers whose name or Wwise event names match `search` (a substring or a glob), as `p4kx wwise events`: events, the soundbanks holding them, why a trigger leads to none, and, with `entities` above 0 (the default is 0, because the lookup reads every Entity), the Entities naming it |
+| `get_entity_sounds` | The audio triggers an Entity (`entity`: GUID, record path or class name) names, each with its ATL definition, events and soundbanks, as `p4kx entity audio` |
+| `resolve_audio_trigger` | The sound variants of a trigger (`trigger`, `lang`, `fallback_lang`) as `p4kx wwise resolve`: soundbank, WEM ID, source kind, where the WEM is and the object path; broken links with the first page |
+| `list_soundbank_wems` | The WEMs a soundbank (`soundbank`) embeds, paged, as `p4kx bnk list`: ID, size, codec, channels, sample rate, frames, duration, prefetch. No audio |
+| `get_wem_info` | One WEM by `wem_id` or loose Entry `path`: every place that holds it and its codec, channels, sample rate, duration and loop. No audio |
+| `get_audio_excerpt` | A short decoded excerpt of one WEM (`wem_id` or `path`, `start_seconds`, `duration_seconds`) as an `audio/wav` content block next to its metadata; at most 10 seconds and 1 MiB, see [ADR-0131](docs/adr/0131-the-mcp-audio-excerpt-is-a-bounded-wav-and-the-only-tool-that-returns-audio.md) |
 | `image_preview` | A DDS texture (`path`) as one PNG image content block of at most 1 MiB, with its format, size and mip count as structured content: the mip chosen by `mip` or the largest that fits `max_side` (512 by default, at most 2048), a cubemap as a cross or one `face`, an array or volume as a sheet |
 | `mtl_summary` | A `.mtl` Entry (`path`), paged by sub-material: name, shader, surface type, flags, colours, opacity, glow, texture slots, shader parameters and layers |
 | `entity_loadout` | The default Loadout of an Entity (`entity`: class name, record path or GUID) as a list of ports, parents first: path, depth, source, what the port takes, the Entity attached and for each unresolved port the reason; `max_depth` (16 by default, at most 32) and a cursor bound it |

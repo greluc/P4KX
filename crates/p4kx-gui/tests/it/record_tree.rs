@@ -3,9 +3,9 @@
 
 //! The virtual Record tree of DataForge in the path tree, driven without drawing.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{
     Browser, DataForgeFailure, Language, Model, RecordInfo, RecordNodeKind, RecordTree,
@@ -65,17 +65,17 @@ fn opened(builder: &ArchiveBuilder) -> Result<(TempDir, PathBuf, Model), Box<dyn
 }
 
 fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-        if let Some(browser) = model.browser_mut() {
-            browser.poll();
-        }
-    }
+    wait_polling(
+        model,
+        "the window to settle",
+        |model| {
+            model.poll();
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        done,
+    )?;
     Ok(())
 }
 

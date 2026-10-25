@@ -6,12 +6,15 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock, PoisonError, Weak};
 use std::time::SystemTime;
 
+use p4kx_assembly::audio::{ArchiveAudio, AudioIndex};
 use p4kx_channels::ChannelKind;
 use p4kx_extraction::{Archive, DataForge, EntryTree, LoadedDataForge, PathIndex, PathKeys};
 
 use crate::container::Containers;
 use crate::error::{ToolError, chain};
+use crate::gate::Gate;
 use crate::keys::KeyChoice;
+use crate::loadout_cache::LoadoutCache;
 
 /// How many opened Archives stay in memory.
 const CAPACITY: usize = 2;
@@ -27,6 +30,7 @@ pub(crate) struct Archives {
     kept: Mutex<Kept>,
     opening: Mutex<()>,
     keys: KeyChoice,
+    decoders: Gate,
 }
 
 #[derive(Debug, Default)]
@@ -47,9 +51,12 @@ pub(crate) struct Opened {
     tree: OnceLock<EntryTree>,
     keys: OnceLock<PathKeys>,
     building: Mutex<()>,
+    audio: OnceLock<AudioIndex>,
+    building_audio: Mutex<()>,
     dataforge: Mutex<Option<Result<Arc<LoadedDataForge>, String>>>,
     selection: Mutex<Selection>,
     containers: Containers,
+    loadouts: LoadoutCache,
 }
 
 impl Opened {
@@ -58,16 +65,24 @@ impl Opened {
         &self.containers
     }
 
-    fn new(archive: Archive) -> Self {
+    /// Returns the Loadout trees resolved from this Archive.
+    pub(crate) const fn loadouts(&self) -> &LoadoutCache {
+        &self.loadouts
+    }
+
+    fn new(archive: Archive, decoders: Gate) -> Self {
         Self {
             notice: ChannelKind::of_archive(archive.path()).notice(),
             archive,
             tree: OnceLock::new(),
             keys: OnceLock::new(),
             building: Mutex::new(()),
+            audio: OnceLock::new(),
+            building_audio: Mutex::new(()),
             dataforge: Mutex::new(None),
             selection: Mutex::new(None),
-            containers: Containers::default(),
+            containers: Containers::new(decoders),
+            loadouts: LoadoutCache::default(),
         }
     }
 
@@ -106,6 +121,24 @@ impl Opened {
         }
         let built = EntryTree::build(&self.archive);
         self.tree.get_or_init(|| built)
+    }
+
+    /// Returns the audio index, reading every ATL definition and soundbank on first use; calls
+    /// meanwhile wait for that read.
+    pub(crate) fn audio_index(&self) -> &AudioIndex {
+        if let Some(index) = self.audio.get() {
+            return index;
+        }
+        let _turn = self
+            .building_audio
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        self.audio.get_or_init(|| AudioIndex::build(&self.archive))
+    }
+
+    /// Returns the audio of the Archive over the kept audio index.
+    pub(crate) fn audio(&self) -> ArchiveAudio<'_> {
+        ArchiveAudio::with_index(&self.archive, self.audio_index())
     }
 
     /// Returns the Entries by path, hashing the paths on first use.
@@ -190,10 +223,12 @@ impl Opened {
 }
 
 impl Archives {
-    /// Creates the cache; Archives are opened with the key `keys` chooses.
-    pub(crate) fn new(keys: KeyChoice) -> Self {
+    /// Creates the cache; Archives are opened with the key `keys` chooses, and their containers
+    /// are decoded under a permit of `decoders`.
+    pub(crate) fn new(keys: KeyChoice, decoders: Gate) -> Self {
         Self {
             keys,
+            decoders,
             ..Self::default()
         }
     }
@@ -225,7 +260,7 @@ impl Archives {
             path: path.to_path_buf(),
             source,
         })?;
-        let opened = Arc::new(Opened::new(archive));
+        let opened = Arc::new(Opened::new(archive, self.decoders.clone()));
         let mut kept = self.kept.lock().unwrap_or_else(PoisonError::into_inner);
         kept.recent.retain(|(known, _)| *known != key);
         kept.alive.push((key.clone(), Arc::downgrade(&opened)));

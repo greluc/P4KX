@@ -7,11 +7,13 @@ use p4kx_archive::Archive;
 
 use super::AudioIndex;
 
-/// The audio of one open Archive: its [`AudioIndex`] is built on the first use and kept.
+/// The audio of one open Archive: its [`AudioIndex`] is built on the first use and kept, or is
+/// one the caller built and keeps.
 #[derive(Debug)]
 pub struct ArchiveAudio<'a> {
     archive: &'a Archive,
     index: OnceLock<AudioIndex>,
+    shared: Option<&'a AudioIndex>,
 }
 
 impl<'a> ArchiveAudio<'a> {
@@ -21,6 +23,18 @@ impl<'a> ArchiveAudio<'a> {
         Self {
             archive,
             index: OnceLock::new(),
+            shared: None,
+        }
+    }
+
+    /// Reads audio from `archive` with `index`, which the caller built from that Archive with
+    /// [`AudioIndex::build`] and keeps, so that it is not built again.
+    #[must_use]
+    pub const fn with_index(archive: &'a Archive, index: &'a AudioIndex) -> Self {
+        Self {
+            archive,
+            index: OnceLock::new(),
+            shared: Some(index),
         }
     }
 
@@ -34,6 +48,9 @@ impl<'a> ArchiveAudio<'a> {
     /// return the same index. Callers racing the first call may each build one; the first
     /// stored wins and the others are dropped.
     pub fn index(&self) -> &AudioIndex {
+        if let Some(shared) = self.shared {
+            return shared;
+        }
         if let Some(index) = self.index.get() {
             return index;
         }

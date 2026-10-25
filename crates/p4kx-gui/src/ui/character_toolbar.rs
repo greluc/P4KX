@@ -19,35 +19,25 @@ enum Ask {
 }
 
 /// Shows the toolbar of the Characters tab: the level of detail, how the materials are written
-/// and the export, which opens its setup. In a narrow window the controls wrap instead of standing
-/// apart.
-pub(super) fn show(ui: &mut Ui, model: &mut Model, wide: bool) {
+/// and the export, which opens its setup.
+pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let ask = {
         let (tab, texts) = model.characters_with_texts();
         let tab: &CharactersTab = tab;
         ui.spacing_mut().item_spacing = egui::vec2(AUDIO_CONTROL_GAP, TOOLBAR_PADDING / 2.0);
-        if wide {
-            ui.horizontal(|ui| {
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    let exported = export(ui, tab, texts);
-                    let chosen = ui
-                        .with_layout(Layout::left_to_right(Align::Center), |ui| {
-                            settings(ui, tab, texts)
-                        })
-                        .inner;
-                    exported.or(chosen)
-                })
-                .inner
-            })
-            .inner
-        } else {
-            ui.vertical(|ui| {
+        ui.horizontal(|ui| {
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 let exported = export(ui, tab, texts);
-                let chosen = settings_rows(ui, tab, texts);
+                let chosen = ui
+                    .with_layout(Layout::left_to_right(Align::Center), |ui| {
+                        settings(ui, tab, texts)
+                    })
+                    .inner;
                 exported.or(chosen)
             })
             .inner
-        }
+        })
+        .inner
     };
     match ask {
         Some(Ask::Lod(level)) => model.characters_mut().set_lod(level),
@@ -70,12 +60,6 @@ fn settings(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
     let detail = detail(ui, tab, texts);
     ui.add_space(AUDIO_CONTROL_GAP);
     materials(ui, tab, texts).or(detail)
-}
-
-fn settings_rows(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
-    let detail = ui.horizontal(|ui| detail(ui, tab, texts)).inner;
-    let materials = ui.horizontal(|ui| materials(ui, tab, texts)).inner;
-    materials.or(detail)
 }
 
 fn detail(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {

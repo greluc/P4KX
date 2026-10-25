@@ -115,29 +115,8 @@ pub struct Header {
 /// Returns the header, the whole uncompressed movie with the file header in front, and the
 /// offset of the first tag.
 pub(crate) fn read_movie(bytes: Vec<u8>) -> Result<(Header, Vec<u8>, usize), GfxError> {
-    let Some(file_header) = bytes.get(..FILE_HEADER_LEN) else {
-        return Err(GfxError::Parse(ParseError::UnexpectedEnd {
-            offset: 0,
-            needed: FILE_HEADER_LEN as u64,
-            available: bytes.len() as u64,
-        }));
-    };
-    let signature = file_header
-        .get(..3)
-        .and_then(Signature::parse)
-        .ok_or_else(|| GfxError::Signature {
-            found: file_header.get(..3).unwrap_or_default().to_vec(),
-        })?;
-    let mut reader = TagReader::new(file_header, 0);
-    reader.bytes(3)?;
-    let version = reader.u8()?;
-    let declared_len = reader.u32()?;
+    let (signature, version, declared_len) = read_file_header(&bytes)?;
     let declared = usize::try_from(declared_len).unwrap_or(usize::MAX);
-    if declared < FILE_HEADER_LEN {
-        return Err(GfxError::DeclaredLength {
-            declared: declared_len,
-        });
-    }
     let data = match signature.compression() {
         Compression::None => {
             let mut bytes = bytes;
@@ -161,6 +140,33 @@ pub(crate) fn read_movie(bytes: Vec<u8>) -> Result<(Header, Vec<u8>, usize), Gfx
     };
     let tags = reader.offset();
     Ok((header, data, tags))
+}
+
+/// Reads the signature, the version and the declared uncompressed length of the file header.
+pub(crate) fn read_file_header(bytes: &[u8]) -> Result<(Signature, u8, u32), GfxError> {
+    let Some(file_header) = bytes.get(..FILE_HEADER_LEN) else {
+        return Err(GfxError::Parse(ParseError::UnexpectedEnd {
+            offset: 0,
+            needed: FILE_HEADER_LEN as u64,
+            available: bytes.len() as u64,
+        }));
+    };
+    let signature = file_header
+        .get(..3)
+        .and_then(Signature::parse)
+        .ok_or_else(|| GfxError::Signature {
+            found: file_header.get(..3).unwrap_or_default().to_vec(),
+        })?;
+    let mut reader = TagReader::new(file_header, 0);
+    reader.bytes(3)?;
+    let version = reader.u8()?;
+    let declared_len = reader.u32()?;
+    if usize::try_from(declared_len).unwrap_or(usize::MAX) < FILE_HEADER_LEN {
+        return Err(GfxError::DeclaredLength {
+            declared: declared_len,
+        });
+    }
+    Ok((signature, version, declared_len))
 }
 
 fn decompress(

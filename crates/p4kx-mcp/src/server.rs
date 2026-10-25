@@ -9,11 +9,12 @@ use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
 use rmcp::{ServerHandler, tool, tool_handler, tool_router};
-use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tokio::sync::Semaphore;
 
 use crate::archives::{Archives, Opened};
 use crate::entries;
 use crate::error::{ToolError, capped};
+use crate::gate::Gate;
 use crate::keys::KeyChoice;
 use crate::locate::Locations;
 use crate::noted::{self, Noted};
@@ -23,7 +24,6 @@ use crate::params::{ArchiveParams, ChannelsParams, ListParams, MAX_PATH_LEN, Sea
 use crate::shapes::{ArchiveInfo, ChannelShape, ChannelsResult, FolderResult, SearchResult};
 
 const WHOLE_TEXT_DECODERS: usize = 4;
-const MODEL_READERS: usize = 2;
 
 const INSTRUCTIONS: &str = "Read-only access to the Data.p4k Archives of Star Citizen. \
 An Archive is named by a Channel name such as LIVE (see list_channels) or by the absolute path \
@@ -36,7 +36,10 @@ list_model_items) read the chunk files and models of the Archive. A path \
 `outer.socpak::inner.socpak::file` reads inside socpak containers in list_entries, \
 search_entries (container), read_entry_text and read_entry_bytes. image_preview returns a \
 texture as a PNG image, mtl_summary the materials of a .mtl and entity_loadout the Loadout \
-tree of an Entity. P4KX is an unofficial Star Citizen fan \
+tree of an Entity. The audio tools \
+(search_audio_triggers, get_entity_sounds, resolve_audio_trigger, list_soundbank_wems, get_wem_info, \
+get_audio_excerpt) follow the Wwise chain from an Entity's trigger through events and soundbanks to \
+WEMs; only get_audio_excerpt returns audio, a short WAV. P4KX is an unofficial Star Citizen fan \
 project, not affiliated with the Cloud Imperium group of companies. Content these tools return \
 may be forwarded by the MCP client to third parties such as a cloud model provider; game texts \
 and media must not be redistributed.";
@@ -47,7 +50,6 @@ pub(crate) struct Server {
     state: Arc<State>,
     workers: Arc<Semaphore>,
     whole_text: Arc<Semaphore>,
-    model_reads: Arc<Semaphore>,
     tool_router: ToolRouter<Self>,
 }
 
@@ -58,6 +60,7 @@ pub(crate) struct State {
     locations: Locations,
     default_archive: Option<PathBuf>,
     archives: Archives,
+    model: Gate,
 }
 
 impl Server {
@@ -71,16 +74,17 @@ impl Server {
             state: Arc::new(State {
                 locations,
                 default_archive,
-                archives: Archives::new(keys),
+                archives: Archives::new(keys, Gate::container()),
+                model: Gate::model(),
             }),
             workers: Arc::new(Semaphore::new(
                 std::thread::available_parallelism().map_or(1, NonZeroUsize::get),
             )),
             whole_text: Arc::new(Semaphore::new(WHOLE_TEXT_DECODERS)),
-            model_reads: Arc::new(Semaphore::new(MODEL_READERS)),
             tool_router: Self::tool_router()
                 + Self::content_router()
                 + Self::model_router()
+                + Self::audio_router()
                 + Self::record_router()
                 + Self::query_router()
                 + Self::image_router()
@@ -92,15 +96,6 @@ impl Server {
     /// Returns the permits for decoding an Entry as a whole, at most four at a time.
     pub(crate) fn whole_text(&self) -> Arc<Semaphore> {
         Arc::clone(&self.whole_text)
-    }
-
-    /// Waits for one of the two permits to read a chunk file, a model or a texture, each of which
-    /// may take more than 1 GiB; the permit is held until the returned value is dropped.
-    pub(crate) async fn model_permit(&self) -> Result<OwnedSemaphorePermit, String> {
-        Arc::clone(&self.model_reads)
-            .acquire_owned()
-            .await
-            .map_err(|_| ToolError::Stopped.message())
     }
 
     /// Reads the DataForge of the Archive `archive` names if that has not happened yet. It waits
@@ -168,6 +163,13 @@ impl Server {
 }
 
 impl State {
+    /// Returns the permits for reading chunk files, models and textures, which may take more than
+    /// 1 GiB. Take one with [`Gate::hold`] inside the call, which already holds its worker permit,
+    /// and open no container while holding it: resolve every path first.
+    pub(crate) const fn model(&self) -> &Gate {
+        &self.model
+    }
+
     /// Returns the Archive `archive` names, or the default Archive when it is `None`.
     pub(crate) fn archive(&self, archive: Option<&str>) -> Result<Arc<Opened>, ToolError> {
         let path = match archive {

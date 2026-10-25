@@ -3,7 +3,7 @@
 
 //! The XML tab of the preview over a synthetic Archive with `CryXml` Entries, driven headless.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_polling};
 use crate::xml_previewing;
 
 use std::time::{Duration, Instant};
@@ -99,11 +99,14 @@ fn a_large_entry_is_converted_off_the_window_thread() -> TestResult {
     let (folder, path) = archive()?;
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+    )?;
     let browser = model.browser_mut().ok_or("not opened")?;
     let id = (0..u32::try_from(browser.index().len())?)
         .find(|&id| browser.index().name(id) == "fleet.xml")
@@ -113,21 +116,30 @@ fn a_large_entry_is_converted_off_the_window_thread() -> TestResult {
     browser.select_entry(id, || {});
     let returned = started.elapsed();
     let loading = browser.preview().is_some_and(Preview::is_loading);
-    let deadline = Instant::now() + Duration::from_secs(20);
-    let lines = loop {
-        browser.poll();
-        if let Some(XmlStatus::Ready(text)) = browser
-            .preview()
-            .and_then(Preview::xml)
-            .map(XmlPreview::status)
-        {
-            break text.line_count();
-        }
-        if Instant::now() > deadline {
-            return Err("not converted in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
+    wait_polling(
+        browser,
+        "the Entry to be converted",
+        |browser| {
+            browser.poll();
+        },
+        |browser| {
+            matches!(
+                browser
+                    .preview()
+                    .and_then(Preview::xml)
+                    .map(XmlPreview::status),
+                Some(XmlStatus::Ready(_))
+            )
+        },
+    )?;
+    let Some(XmlStatus::Ready(text)) = browser
+        .preview()
+        .and_then(Preview::xml)
+        .map(XmlPreview::status)
+    else {
+        return Err("the conversion is not ready".into());
     };
+    let lines = text.line_count();
 
     assert!(loading, "the Entry is read and converted in the background");
     assert!(

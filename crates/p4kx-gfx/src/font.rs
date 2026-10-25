@@ -44,6 +44,10 @@ pub struct Font {
     pub full_name: Option<String>,
     /// The name an `ExportAssets` tag of the movie exports the font under.
     pub export_name: Option<String>,
+    /// The URL of the import that a host resolved this font for, as the importing movie states
+    /// it: the font then answers only to that URL and its export name. `None` for a font read
+    /// from a movie.
+    pub import_url: Option<String>,
     /// Whether the font is bold.
     pub bold: bool,
     /// Whether the font is italic.
@@ -152,6 +156,7 @@ pub(crate) fn read_font1(tag: &Tag<'_>, budget: &mut RecordBudget) -> Result<Fon
         name: String::new(),
         full_name: None,
         export_name: None,
+        import_url: None,
         bold: false,
         italic: false,
         small_text: false,
@@ -195,6 +200,7 @@ pub(crate) fn read_font2(
         name,
         full_name: None,
         export_name: None,
+        import_url: None,
         bold: flags & BOLD != 0,
         italic: flags & ITALIC != 0,
         small_text: flags & SMALL_TEXT != 0,
@@ -318,6 +324,7 @@ pub(crate) fn read_compacted_font(tag: &Tag<'_>) -> Result<Font, GfxError> {
         name,
         full_name: None,
         export_name: None,
+        import_url: None,
         bold: false,
         italic: false,
         small_text: false,

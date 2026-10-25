@@ -1,5 +1,7 @@
 # `CrCh` models are read from the layouts the Archives use
 
+Amended by ADR-0133: unimplemented layouts are `ModelError::Unsupported`, not corrupt.
+
 Decided for issue #108. Evidence: docs/crch-models.md.
 
 `Model::read` reads a `CrCh` file the way it reads an `#ivo` file, with its own builder

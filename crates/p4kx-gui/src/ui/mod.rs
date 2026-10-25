@@ -64,6 +64,7 @@ mod localization_table;
 mod menu;
 mod model_export;
 mod model_export_animations;
+mod model_export_notes;
 mod model_export_outcome;
 mod model_info;
 mod model_info_rows;

@@ -6,7 +6,10 @@
 use crate::glb_exporting::{finished, start};
 use crate::viewing::{Site, TestResult, model_preview, opened_at, select};
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, Model, ModelExport, ModelExportStatus, ModelExportSummary, ModelPreview};
+use p4kx_gui::{
+    AnimationCount, Language, Model, ModelExport, ModelExportStatus, ModelExportSummary,
+    ModelPreview,
+};
 use p4kx_testkit::{
     TestAnimation, TestDba, TestEntry, TestModel, TestSkeleton, TestTrack, check_glb,
 };
@@ -23,7 +26,7 @@ fn rotating(name: &str, last_frame: u16) -> TestAnimation {
         .track(TestTrack::new(tip()).rotations(&[(0, IDENTITY), (last_frame, TURN)]))
 }
 
-pub(crate) fn site() -> Site {
+pub(super) fn site() -> Site {
     let door = TestModel::cube().with_compact_skeleton(&TestSkeleton::chain(2));
     let pack = TestDba::new()
         .animation(rotating("animations/objects/slide.caf", 60))
@@ -68,7 +71,7 @@ fn the_info_counts_the_animations_next_to_the_model() -> TestResult {
         .ok_or("no info")?;
     assert_eq!(
         info.animations,
-        Some(3),
+        AnimationCount::Counted(3),
         "two files and one of the database"
     );
     Ok(())

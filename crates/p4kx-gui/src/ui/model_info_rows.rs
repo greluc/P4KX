@@ -10,7 +10,10 @@ use crate::theme::desktop::{
 };
 use crate::theme::tokens::{FS_SM, TRACKING_DISPLAY, Weight};
 use crate::widgets::text::{caps, line, plain};
-use crate::{ChunkFile, ChunkNote, MaterialsInfo, ModelInfo, ModelInfoText as T, Texts, format};
+use crate::{
+    AnimationCount, ChunkFile, ChunkNote, MaterialsInfo, ModelInfo, ModelInfoText as T, Texts,
+    format,
+};
 
 const LISTED_IDS: usize = 24;
 
@@ -67,10 +70,11 @@ pub(super) fn facts(rows: &Rows<'_>, info: &ModelInfo) -> (f32, Vec<(Labelled, L
         .geometry
         .clone()
         .unwrap_or_else(|| texts.get(T::GeometryInFile));
-    let animations = info.animations.map_or_else(
-        || texts.get(T::AnimationsUnread),
-        |count| rows.number(count),
-    );
+    let animations = match info.animations {
+        AnimationCount::Reading => texts.get(T::AnimationsReading),
+        AnimationCount::Counted(count) => rows.number(count),
+        AnimationCount::TooMany | AnimationCount::Unread => texts.get(T::AnimationsUnread),
+    };
     let chunks = texts.format(
         T::ChunksValue,
         &[

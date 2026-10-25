@@ -210,11 +210,19 @@ impl Model {
     /// Replaces the Channels the picker offers.
     pub fn set_channels(&mut self, channels: ChannelList) {
         self.channels = channels;
+        self.protect_manual_entries();
     }
 
     /// Adds `path` as a manual entry; returns whether it was not listed yet.
     pub fn add_manual(&mut self, path: PathBuf) -> bool {
-        self.channels.add(path)
+        let added = self.channels.add(path);
+        self.protect_manual_entries();
+        added
+    }
+
+    fn protect_manual_entries(&self) {
+        let manual = self.channels.manual();
+        p4kx_extraction::protect_manual(&manual.folders, &manual.archives);
     }
 
     /// Returns the recently opened Archives.

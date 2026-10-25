@@ -26,7 +26,7 @@ use p4kx_testkit::{TestEntry, TestModel, TestMtl, TestMtlMaterial};
     clippy::print_stderr,
     reason = "tells the test run why a test checked nothing"
 )]
-fn renderer() -> Option<WgpuTestRenderer> {
+pub(super) fn renderer() -> Option<WgpuTestRenderer> {
     let state =
         catch_unwind(|| create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE))
             .ok();
@@ -36,7 +36,7 @@ fn renderer() -> Option<WgpuTestRenderer> {
     state.map(WgpuTestRenderer::from_render_state)
 }
 
-fn save(name: &str, harness: &mut Harness<'_, Model>) -> TestResult {
+pub(super) fn save(name: &str, harness: &mut Harness<'_, Model>) -> TestResult {
     harness.run_steps(2);
     let image = harness.render()?;
     let (width, height) = (image.width(), image.height());
@@ -169,7 +169,7 @@ fn the_animation_choice_and_its_summary_render_in_both_languages() -> TestResult
 
 const LONG_LIBRARY: &str = "objects/spaceships/ships/aegis/gladius/interior/materials/aegis_gladius_interior_cockpit_panels_and_displays_variant_a";
 
-const fn rows_label(language: Language) -> &'static str {
+pub(super) const fn rows_label(language: Language) -> &'static str {
     match language {
         Language::German => "Knoten",
         Language::BritishEnglish => "Nodes",

@@ -104,7 +104,8 @@ pub(crate) fn model_preview(model: &Model) -> Option<&ModelPreview> {
 }
 
 pub(crate) fn settled(model: &Model) -> bool {
-    model_preview(model).is_some_and(|preview| !preview.is_loading())
+    model_preview(model)
+        .is_some_and(|preview| !preview.is_loading() && !preview.is_reading_animations())
 }
 
 pub(crate) fn select(harness: &mut Harness<'_, Model>, name: &str) -> TestResult {

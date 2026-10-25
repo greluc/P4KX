@@ -91,7 +91,9 @@ mod verify;
 mod watch;
 mod write;
 
-pub use animation_set::{AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation};
+pub use animation_set::{
+    AnimationBounds, AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation,
+};
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
@@ -159,7 +161,7 @@ pub use p4kx_gltf::{
 };
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,
-    protect_libraries,
+    protect_libraries, protect_manual,
 };
 pub use p4kx_localization::{
     GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,

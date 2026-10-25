@@ -106,12 +106,13 @@ pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
 pub use model::{Failure, GAME_CHECK_INTERVAL, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
 pub use model_export::{
-    AnimationNote, MODEL_MATERIALS, MODEL_TEXTURE_MIPS, MaterialProblem, MissingTexture,
-    ModelExport, ModelExportFailure, ModelExportProgress, ModelExportSetup, ModelExportStage,
-    ModelExportStatus, ModelExportSummary,
+    AnimationNote, AnimationNoteKind, MODEL_MATERIALS, MODEL_TEXTURE_MIPS, MaterialProblem,
+    MissingTexture, ModelExport, ModelExportFailure, ModelExportProgress, ModelExportSetup,
+    ModelExportStage, ModelExportStatus, ModelExportSummary,
 };
 pub use model_info::{
-    ChunkCounts, ChunkFile, ChunkNote, LodInfo, MAX_LISTED_CHUNKS, MaterialsInfo, ModelInfo,
+    AnimationCount, ChunkCounts, ChunkFile, ChunkNote, LodInfo, MAX_LISTED_ANIMATIONS,
+    MAX_LISTED_CHUNKS, MaterialsInfo, ModelInfo,
 };
 pub use p4kx_assembly::audio::SoundFormat;
 pub use p4kx_assembly::audio::{SourceKind, Unmatched};
@@ -171,7 +172,7 @@ pub use viewer::{
 pub use viewer::{
     Bounds, Camera, Control, GpuReport, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES,
     MAX_SKELETON_BONES, MAX_TEXTURE_SIDE, MODEL_FILE_LIMIT, Matrix, ModelPreview, ModelStatus,
-    MorphSpan, Playback, Pose, Problem, Rejected, SKIN_STRIDE, Scene, SceneError, Skeleton,
-    SkinVertex, Step, Unavailable, Uniforms, Vertex, ViewerSupport, check_buffer, check_texture,
-    install as install_viewer, is_model_path, target_extent,
+    MorphSpan, PREVIEW_ANIMATION_BOUNDS, Playback, Pose, Problem, Rejected, SKIN_STRIDE, Scene,
+    SceneError, Skeleton, SkinVertex, Step, Unavailable, Uniforms, Vertex, ViewerSupport,
+    check_buffer, check_texture, install as install_viewer, is_model_path, target_extent,
 };

@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
 
 use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Record, RecordTree, TreeBuilder};
@@ -15,7 +15,7 @@ use crate::contract::Blueprint;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
-use crate::ship_base::{ShipRead, ShipReader};
+use crate::ship_pool::ShipPool;
 use crate::starmap::starmap_object;
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
@@ -25,41 +25,6 @@ use crate::{item_stats, item_variant};
 const PROGRESS_STEP: usize = 1024;
 const GROUP_TYPE: &str = "ResourceTypeGroup";
 const RESOURCE_TYPE: &str = "ResourceType";
-
-/// The ship readers not in use. A reader keeps the shared Entities and containers it has read, so
-/// a reader taken for one ship and given back for the next keeps its caches across the splits of
-/// the parallel scan.
-struct ShipPool<'f> {
-    entities: Arc<Entities<'f>>,
-    files: &'f ArchiveFiles<'f>,
-    idle: Mutex<Vec<ShipReader<'f>>>,
-}
-
-impl<'f> ShipPool<'f> {
-    const fn new(entities: Arc<Entities<'f>>, files: &'f ArchiveFiles<'f>) -> Self {
-        Self {
-            entities,
-            files,
-            idle: Mutex::new(Vec::new()),
-        }
-    }
-
-    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipRead, CatalogFailure> {
-        let taken = self
-            .idle
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .pop();
-        let mut reader = taken
-            .unwrap_or_else(|| ShipReader::with_entities(Arc::clone(&self.entities), self.files));
-        let result = reader.read_with_digest(record, tree);
-        self.idle
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(reader);
-        result
-    }
-}
 
 /// The parallel check of every Record, with its progress.
 pub(crate) struct Scan<'o, 'a, 'f> {

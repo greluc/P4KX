@@ -3,6 +3,7 @@
 
 use p4kx_extraction::RecordTree;
 
+use crate::Playability;
 use crate::contract::Item;
 use crate::guid_text::CatalogGuid;
 use crate::item_class::ClassLine;
@@ -11,6 +12,13 @@ use crate::record_fields::{
     class_name, component, integer, locale_key, reference, single, structure, text,
 };
 use crate::texts::Texts;
+
+/// Returns the playability of the item Record tree `tree`.
+pub(crate) fn playability(tree: &RecordTree<'_>) -> Option<Playability> {
+    let definition = structure(component(tree, "SAttachableComponentParams"), "AttachDef");
+    let localization = structure(definition, "Localization");
+    playability_rules::item(tree, locale_key(localization, "Name"))
+}
 
 /// Returns the item the Record tree `tree` describes and the `Class:` line of its English
 /// description, its texts resolved by `texts`.

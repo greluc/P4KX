@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod fold;
 mod list;
 mod load;
 mod loadout;
@@ -15,7 +16,7 @@ use p4kx_assembly::{EntityCatalogue, PortChange};
 use p4kx_extraction::Guid;
 use p4kx_settings::ModelMaterials;
 
-pub use list::{EntityFilter, EntityList};
+pub use list::{EntityFilter, EntityList, EntityRole, EntityRow};
 pub use loadout::LoadoutSession;
 pub use replace::ReplaceChooser;
 pub use resolve::ResolveFailure;
@@ -150,8 +151,8 @@ impl EntitiesTab {
         };
         if let Some(outcome) = load.poll() {
             self.state = match outcome {
-                Outcome::Ready(catalogue) => {
-                    let mut list = EntityList::new(catalogue);
+                Outcome::Ready(catalogue, groups) => {
+                    let mut list = EntityList::new(catalogue, Some(&groups));
                     list.refilter(self.filter, &self.query);
                     State::Ready(Box::new(list))
                 }
@@ -179,6 +180,13 @@ impl EntitiesTab {
     fn refilter(&mut self) {
         if let State::Ready(list) = &mut self.state {
             list.refilter(self.filter, &self.query);
+        }
+    }
+
+    /// Lists the variants of the base at row `position` below it, or folds them away again.
+    pub fn toggle_variants(&mut self, position: usize) {
+        if let State::Ready(list) = &mut self.state {
+            list.toggle(position);
         }
     }
 

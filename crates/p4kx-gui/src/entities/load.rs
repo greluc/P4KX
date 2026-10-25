@@ -7,6 +7,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_assembly::EntityCatalogue;
+use p4kx_export::{VariantGroups, read_variant_groups};
 
 use crate::EntryIndex;
 use crate::forge_cache::ReadFailure;
@@ -15,7 +16,7 @@ use crate::model::describe;
 /// How listing the Entities ended.
 #[derive(Debug)]
 pub(super) enum Outcome {
-    Ready(Arc<EntityCatalogue>),
+    Ready(Arc<EntityCatalogue>, Box<VariantGroups>),
     Failed(Option<String>),
     ArchiveChanged,
 }
@@ -77,9 +78,14 @@ fn read(index: &Arc<EntryIndex>, stop: &AtomicBool) -> Outcome {
         Err(error) => return Outcome::Failed(Some(describe(&error))),
     };
     let stopped = || stop.load(Ordering::Relaxed);
-    match EntityCatalogue::build(&forge, &stopped) {
-        None => Outcome::Failed(None),
-        Some(_) if index.watch().check().is_err() => Outcome::ArchiveChanged,
-        Some(catalogue) => Outcome::Ready(Arc::new(catalogue)),
+    let Some(catalogue) = EntityCatalogue::build(&forge, &stopped) else {
+        return Outcome::Failed(None);
+    };
+    let Some(groups) = read_variant_groups(index.archive(), &forge, &stopped) else {
+        return Outcome::Failed(None);
+    };
+    if index.watch().check().is_err() {
+        return Outcome::ArchiveChanged;
     }
+    Outcome::Ready(Arc::new(catalogue), Box::new(groups))
 }

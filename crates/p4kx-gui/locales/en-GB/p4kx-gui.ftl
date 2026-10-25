@@ -1050,6 +1050,13 @@ entities-status-empty = Empty
 entities-status-unresolved = Unresolved
 entities-expand-port = Expand { $name }
 entities-collapse-port = Collapse { $name }
+entities-variants =
+    { $count ->
+        [one] { $number } variant
+       *[other] { $number } variants
+    }
+entities-show-variants = Show the variants of { $name }
+entities-hide-variants = Hide the variants of { $name }
 entities-replace-title = Replace { $port }
 entities-replace-takes = The port takes { $types }, { $single ->
     [yes] size

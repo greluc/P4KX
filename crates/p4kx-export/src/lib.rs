@@ -33,6 +33,10 @@
 //! the Loadout itself, each value with its source file and field (`docs/ship-base-data.md`);
 //! [`ShipReader`] reads one ship.
 //!
+//! [`read_variant_groups`] finds the variant groups of the ships and items (ADR-0066) with the
+//! rule of the catalog's `variantOf` and without building a catalog, for a front-end that folds
+//! variants under their base.
+//!
 //! [`TagTree::build`] reads the tag tree of a DataForge: tag GUID to tag path, parent and children.
 //! The catalog kinds that match tags (paints, loadouts) use it, and `RecordExportOptions::tags`
 //! adds the tag path to every tag Reference of an exported Record.
@@ -111,6 +115,7 @@ mod scan;
 mod selection;
 mod ship;
 mod ship_base;
+mod ship_pool;
 mod ship_store_slugs;
 mod shop_container_scan;
 mod shop_containers;
@@ -133,6 +138,7 @@ mod starmap_xml;
 mod store_slug_summary;
 mod summary;
 mod texts;
+mod variant_groups;
 mod variants;
 
 pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};
@@ -176,3 +182,4 @@ pub use summary::{
     LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,
     UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
 };
+pub use variant_groups::{VariantGroups, read_variant_groups};

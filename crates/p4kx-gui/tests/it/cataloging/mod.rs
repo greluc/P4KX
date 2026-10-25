@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use p4kx_export::Language as TextLanguage;
-use p4kx_gui::{CatalogExport, CatalogExportStatus, Language, Model};
+use p4kx_gui::{CatalogExport, CatalogExportStage, CatalogExportStatus, Language, Model};
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestInstance, TestRecord,
     TestStruct, TestType, TestValue,
@@ -153,6 +153,19 @@ pub(crate) fn opened(
     let out = dir.path().join("out");
     fs::create_dir(&out)?;
     Ok((dir, model, out))
+}
+
+/// Waits until the Basetool catalog is building, where a hold of the model keeps it.
+pub(crate) fn building(model: &mut Model) -> TestResult {
+    wait_until(model, |model| {
+        model.catalog().is_some_and(|run| {
+            matches!(
+                run.status(),
+                CatalogExportStatus::Running(progress)
+                    if progress.stage == CatalogExportStage::Building
+            )
+        })
+    })
 }
 
 /// Polls `model` until `done` holds.

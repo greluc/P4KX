@@ -13,7 +13,7 @@ use p4kx_export::{
 };
 use serde::Serialize;
 
-use crate::catalog::InvalidExportTime;
+use crate::catalog_input::InvalidExportTime;
 use crate::cli::{ShipsArgs, ShipsFormat};
 use crate::exit;
 use crate::extract::cancel_on_interrupt;

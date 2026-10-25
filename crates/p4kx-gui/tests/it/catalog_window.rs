@@ -5,14 +5,14 @@
 //! `egui_kittest`.
 
 use crate::cataloging;
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for};
 
-use cataloging::{TestResult, ended, files_in, makers, many, opened, wait_until};
+use cataloging::{TestResult, files_in, makers, opened};
 use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::ui::{self, Dialog};
-use p4kx_gui::{CatalogExportStatus, Language, Model};
+use p4kx_gui::{CatalogExportStage, CatalogExportStatus, Language, Model};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 struct Window {
@@ -48,9 +48,12 @@ fn pick(harness: &mut Harness<'_, Window>, menu: &str, entry: &str) {
 }
 
 fn wait_for_the_end(harness: &mut Harness<'_, Window>) -> TestResult {
-    harness.step();
-    wait_until(&mut harness.state_mut().model, |model| {
-        model.catalog().is_some_and(|run| !run.is_running())
+    wait_for(harness, "the catalog to end", |harness| {
+        harness
+            .state()
+            .model
+            .catalog()
+            .is_some_and(|run| !run.is_running())
     })?;
     harness.run_quiet();
     Ok(())
@@ -137,8 +140,22 @@ fn a_compressed_catalog_shows_both_sizes() -> TestResult {
 
     wait_for_the_end(&mut harness)?;
 
-    harness.get_by_label_contains("compressed,");
-    harness.get_by_label_contains("uncompressed, of the upload limit of 64 MB");
+    harness.get_by_label_contains(" compressed (of the upload limit of 64 MB), ");
+    harness.get_by_label_contains(" uncompressed");
+    Ok(())
+}
+
+#[test]
+fn a_compressed_catalog_shows_both_sizes_in_german() -> TestResult {
+    let (_dir, mut model, out) = opened(&makers())?;
+    model.set_language(Language::German);
+    model.start_catalog(out.join("catalog.json.zst"), || {});
+    let mut harness = harness(model);
+
+    wait_for_the_end(&mut harness)?;
+
+    harness.get_by_label_contains(" komprimiert (vom Upload-Limit 64 MB), ");
+    harness.get_by_label_contains(" unkomprimiert");
     Ok(())
 }
 
@@ -238,22 +255,34 @@ fn the_open_archive_as_the_catalog_file_is_explained() -> TestResult {
 
 #[test]
 fn the_running_catalog_can_be_cancelled_from_its_window() -> TestResult {
-    let (_dir, mut model, out) = opened(&many(100_000))?;
+    let (_dir, mut model, out) = opened(&makers())?;
+    let hold = model.hold_catalog();
     model.start_catalog(out.join("basetool-catalog.json"), || {});
     let mut harness = harness(model);
+    wait_for(&mut harness, "the catalog to build", |harness| {
+        harness.state().model.catalog().is_some_and(|run| {
+            matches!(
+                run.status(),
+                CatalogExportStatus::Running(progress)
+                    if progress.stage == CatalogExportStage::Building
+            )
+        })
+    })?;
 
     harness.get_by_label("Creating the Basetool catalog");
     harness
         .get_by_role_and_label(Role::Button, "Cancel")
         .click();
-    harness.step();
-    let cancelled = matches!(
-        ended(&mut harness.state_mut().model)?,
-        CatalogExportStatus::Cancelled
-    );
+    wait_for(&mut harness, "the catalog to be cancelled", |harness| {
+        harness
+            .state()
+            .model
+            .catalog()
+            .is_some_and(|run| matches!(run.status(), CatalogExportStatus::Cancelled))
+    })?;
     harness.run_quiet();
+    drop(hold);
 
-    assert!(cancelled, "cancelled");
     harness.get_by_label("Basetool catalog cancelled");
     harness.get_by_label("The Basetool catalog was cancelled. No file was written.");
     assert!(files_in(&out)?.is_empty(), "no file");

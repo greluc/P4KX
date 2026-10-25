@@ -20,11 +20,13 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SHIPS: [&str; 4] = [
     "AEGS_Avenger_Titan",
-    "RSI_Aurora_ES",
+    "RSI_Aurora_GS_ES",
     "ANVL_Hornet_F7A_Mk2",
     "DRAK_Cutlass_Black",
 ];
-const MAX_NO_RENDERER_SHARE: f64 = 0.15;
+/// The share of widgets listed as without a renderer that fails the test; 0.009 on LIVE, with
+/// room for a changed Archive.
+const MAX_NO_RENDERER_SHARE: f64 = 0.05;
 
 #[derive(Default)]
 struct Tally {
@@ -62,6 +64,7 @@ impl Tally {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 #[expect(
     clippy::print_stdout,
+    clippy::cast_precision_loss,
     clippy::too_many_lines,
     reason = "the summary of the run is for the reader of --nocapture, and one test sets up the whole Archive"
 )]
@@ -106,16 +109,20 @@ fn the_images_of_real_ship_screens_are_drawn() -> TestResult {
     };
     let mut tally = Tally::default();
     for ship in SHIPS {
-        let Ok(record) = resolver.entities().find(ship) else {
-            continue;
-        };
+        let record = resolver.entities().find(ship)?;
         let tree = resolver.resolve(&record)?;
         let listing = screens.screens_of(&tree);
+        let before = (tally.no_renderer, tally.widgets);
         for screen in &listing.screens {
             let drawn = screens.compose(&screen.canvas_guid, listing.brand.as_deref())?;
             drawn.rasterize(&options)?;
             tally.add(drawn.report());
         }
+        let (no_renderer, widgets) = (tally.no_renderer - before.0, tally.widgets - before.1);
+        println!(
+            "{ship}: {no_renderer} of {widgets} widgets without a renderer ({:.3})",
+            no_renderer as f64 / widgets.max(1) as f64
+        );
     }
     println!("without a renderer: {:?}", tally.kinds);
     for path in &tally.unreadable {

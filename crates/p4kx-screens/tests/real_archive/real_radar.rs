@@ -25,10 +25,10 @@ const SHIPS: [&str; 14] = [
     "DRAK_Corsair",
     "MISC_Freelancer",
     "ORIG_300i",
-    "RSI_Aurora_ES",
+    "RSI_Aurora_GS_ES",
     "RSI_Constellation_Andromeda",
-    "RSI_Zeus_Mk2_ES",
-    "ARGO_MPUV_Cargo",
+    "RSI_Zeus_ES",
+    "ARGO_MPUV_1T",
 ];
 
 const HANDLED: [&str; 11] = [
@@ -79,10 +79,7 @@ fn the_radar_screens_of_real_ships_render() -> TestResult {
     };
     let mut seen = BTreeSet::new();
     for ship in SHIPS {
-        let Ok(record) = resolver.entities().find(ship) else {
-            println!("{ship}: not found");
-            continue;
-        };
+        let record = resolver.entities().find(ship)?;
         let tree = resolver.resolve(&record)?;
         let listing = screens.screens_of(&tree);
         for screen in &listing.screens {
@@ -94,7 +91,15 @@ fn the_radar_screens_of_real_ships_render() -> TestResult {
                 continue;
             }
             let composed = screens.compose(&screen.canvas_guid, listing.brand.as_deref())?;
-            composed.rasterize(&options)?;
+            let raster = composed.rasterize(&options)?;
+            if screen.canvas.contains("components/map/mapdisplaymaster") {
+                let visible = raster
+                    .image
+                    .pixels()
+                    .chunks(4)
+                    .any(|pixel| pixel.get(3) != Some(&0));
+                assert!(visible, "{ship}: the radar master canvas draws pixels");
+            }
             let report = composed.report();
             let missing: Vec<String> = report
                 .unsupported

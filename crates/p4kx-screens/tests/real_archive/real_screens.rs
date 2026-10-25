@@ -16,7 +16,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SHIPS: [&str; 4] = [
     "AEGS_Avenger_Titan",
-    "RSI_Aurora_ES",
+    "RSI_Aurora_GS_ES",
     "ANVL_Hornet_F7A_Mk2",
     "DRAK_Cutlass_Black",
 ];
@@ -130,9 +130,8 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
     let mut rendered = BTreeSet::new();
     let mut drawing = 0_usize;
     for ship in SHIPS {
-        let Ok(record) = resolver.entities().find(ship) else {
-            continue;
-        };
+        let record = resolver.entities().find(ship)?;
+
         let tree = resolver.resolve(&record)?;
         let listing = screens.screens_of(&tree);
         assert!(!listing.screens.is_empty(), "{ship} has screens");

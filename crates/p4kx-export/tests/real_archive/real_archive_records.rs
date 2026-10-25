@@ -155,7 +155,13 @@ fn leaves(value: &Value) -> usize {
         Value::Null => 0,
         Value::String(text) => usize::from(!text.is_empty()),
         Value::Array(items) => items.iter().map(leaves).sum(),
-        Value::Object(map) if !map.contains_key("$type") && map.contains_key("error") => 0,
+        Value::Object(map) if !map.contains_key("$type") && map.contains_key("error") => {
+            usize::from(
+                map["error"]
+                    .as_str()
+                    .is_some_and(|text| text.starts_with("the Reference refers to the Record ")),
+            )
+        }
         Value::Object(map) if !map.contains_key("$type") => 1,
         Value::Object(map) => map
             .iter()
@@ -225,10 +231,7 @@ fn check_known_rows(rows: &[Value]) -> TestResult {
         .find(|row| row["field_path"] == "Components.vehicleName")
         .ok_or("the vehicle name row")?;
     assert_eq!(name["kind"], "locale", "a localisation key");
-    assert!(
-        name["value"].as_str().is_some_and(|text| !text.is_empty()),
-        "the key"
-    );
+    assert_eq!(name["value"], "@vehicle_NameAEGS_Avenger_Titan", "the key");
     let crew = rows
         .iter()
         .find(|row| row["field_path"] == "Components.crewSize")
@@ -238,12 +241,18 @@ fn check_known_rows(rows: &[Value]) -> TestResult {
         "an integer"
     );
     assert!(crew["value"].is_number(), "a number");
-    assert!(
-        rows.iter().any(|row| row["kind"] == "reference"
-            && row["target_path"]
-                .as_str()
-                .is_some_and(|path| !path.is_empty())),
-        "a Reference with its target path"
+    let density = rows
+        .iter()
+        .find(|row| row["field_path"] == "entityDensityClass")
+        .ok_or("the density class row")?;
+    assert_eq!(density["kind"], "reference", "a Reference");
+    assert_eq!(
+        density["value"], "b6cc39fd-7c14-4568-b261-197834e51116",
+        "its target GUID"
+    );
+    assert_eq!(
+        density["target_path"], "libs/foundry/records/densityclasses/spaceshipdensityclass",
+        "its target path"
     );
     Ok(())
 }

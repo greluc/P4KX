@@ -42,7 +42,10 @@ with `--flat`, and so is `--format xml|json`.
 
 `field_path` and `array_indices` identify the place: the second element of the `wheels` array of the
 first element of `parts` is `parts.wheels` with `0.1`. A nested struct, an inline class or the
-target of a strong pointer, adds its field names to the path.
+target of a strong pointer, adds its field names to the path. A field whose name starts with `$`,
+or whose name an earlier field of the same struct, in declaration order, already has, is written
+as `$<n>` with `n` its position among the fields of its struct in declaration order, counting from
+0, as in [Record JSON](record-json.md#record-and-struct-objects); so two rows never share a place.
 
 ## Values
 
@@ -66,8 +69,11 @@ key without a text has an empty `text`.
 
 A row is written only for a value that is there. No row is written for an empty string, an empty
 localisation key or enum option, a null pointer, a null Reference, an empty array, or a value that
-cannot be read (an error value, which the report of the export counts). A real `0` or `false` is a
-value and has a row; there is no `0` in the place of an empty value.
+cannot be read (an error value, which the report of the export counts). The one error value that
+keeps its row is a Reference to a Record that does not exist: it is a `reference` row with the
+GUID it names in `value` and an empty `target_path`, as the Record JSON keeps the GUID in the
+error. A real `0` or `false` is a value and has a row; there is no `0` in the place of an empty
+value.
 
 ## CSV
 
@@ -81,6 +87,8 @@ value and has a row; there is no `0` in the place of an empty value.
   number.
 - `--csv-raw` writes the exact values: no byte order mark and no leading `'`. Use it for scripts
   and databases, and never open such a file in a spreadsheet that trusts it.
+- Excel shows a `-INF` value as `#NAME?`, because the text is no number to it; `NaN` and `INF` show
+  as text.
 
 ## NDJSON
 

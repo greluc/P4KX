@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::fmt::Write as _;
 use std::io::{self, Write};
 
 use crate::texts::annotation;
 use crate::value_json::{write_json_string, write_json_value};
 use crate::xml_text::FloatText;
-use crate::{Annotations, Field, RecordTree, Resolution, Value};
+use crate::{Annotations, Field, Guid, RecordTree, Resolution, Value, ValueError};
 
 /// The columns of a flat value export, in order; the text column follows when texts are on.
 pub const FLAT_COLUMNS: [&str; 8] = [
@@ -48,6 +49,15 @@ pub struct FlatValues {
     prefix: Vec<u8>,
     path: String,
     indices: Vec<u32>,
+    escaped: Vec<bool>,
+    order: Vec<usize>,
+}
+
+/// What a row holds: a leaf value, or a Reference to a Record that does not exist.
+#[derive(Clone, Copy)]
+enum Leaf<'v, 'f> {
+    Value(&'v Value<'f>),
+    Dangling(Guid),
 }
 
 /// The output of one Record and what it is written with.
@@ -65,6 +75,8 @@ impl FlatValues {
             prefix: Vec::new(),
             path: String::new(),
             indices: Vec::new(),
+            escaped: Vec::new(),
+            order: Vec::new(),
         }
     }
 
@@ -109,6 +121,7 @@ impl FlatValues {
     ) -> io::Result<()> {
         self.path.clear();
         self.indices.clear();
+        self.escaped.clear();
         self.prefix.clear();
         if self.format == FlatFormat::Ndjson {
             write_json_prefix(&mut self.prefix, tree)?;
@@ -124,17 +137,48 @@ impl FlatValues {
         out: &mut Out<'_, '_, W>,
         fields: &[Field<'_>],
     ) -> io::Result<()> {
-        for field in fields {
+        let base = self.escaped.len();
+        self.mark_escaped(fields);
+        for (index, field) in fields.iter().enumerate() {
             let mark = self.path.len();
             if mark > 0 {
                 self.path.push('.');
             }
-            self.path.push_str(field.name());
+            if self.escaped.get(base + index) == Some(&true) {
+                let _infallible = write!(self.path, "${index}");
+            } else {
+                self.path.push_str(field.name());
+            }
             let walked = self.walk_value(out, field.value());
             self.path.truncate(mark);
-            walked?;
+            if walked.is_err() {
+                self.escaped.truncate(base);
+                return walked;
+            }
         }
+        self.escaped.truncate(base);
         Ok(())
+    }
+
+    /// Pushes for every field whether its name cannot stand in a field path: it starts with `$`
+    /// or an earlier field has it.
+    fn mark_escaped(&mut self, fields: &[Field<'_>]) {
+        let base = self.escaped.len();
+        self.escaped
+            .extend(fields.iter().map(|field| field.name().starts_with('$')));
+        self.order.clear();
+        self.order.extend(0..fields.len());
+        let name = |index: &usize| fields.get(*index).map(Field::name);
+        self.order
+            .sort_unstable_by(|left, right| name(left).cmp(&name(right)).then(left.cmp(right)));
+        for pair in self.order.windows(2) {
+            if let [first, second] = pair
+                && name(first) == name(second)
+                && let Some(flag) = self.escaped.get_mut(base + *second)
+            {
+                *flag = true;
+            }
+        }
     }
 
     fn walk_value<W: Write>(
@@ -153,37 +197,40 @@ impl FlatValues {
                 }
                 Ok(())
             }
+            Value::Error(ValueError::DanglingReference { guid }) => {
+                self.write_row(out, Leaf::Dangling(*guid))
+            }
             Value::Null | Value::Error(_) => Ok(()),
             Value::String(text) | Value::Locale(text) | Value::Enum(text) if text.is_empty() => {
                 Ok(())
             }
-            leaf => self.write_row(out, leaf),
+            leaf => self.write_row(out, Leaf::Value(leaf)),
         }
     }
 
-    fn write_row<W: Write>(&self, out: &mut Out<'_, '_, W>, value: &Value<'_>) -> io::Result<()> {
-        let text = match value {
-            Value::Locale(key) => match annotation(&out.annotations, key) {
+    fn write_row<W: Write>(&self, out: &mut Out<'_, '_, W>, leaf: Leaf<'_, '_>) -> io::Result<()> {
+        let text = match leaf {
+            Leaf::Value(Value::Locale(key)) => match annotation(&out.annotations, key) {
                 Some(Resolution::Text(text)) => Some(text),
                 _ => None,
             },
             _ => None,
         };
-        let target = match value {
-            Value::Reference(reference) => Some(reference.record_path()),
+        let target = match leaf {
+            Leaf::Value(Value::Reference(reference)) => Some(reference.record_path()),
             _ => None,
         };
         if self.format == FlatFormat::Ndjson {
-            self.write_json_row(out, value, target, text.as_deref())
+            self.write_json_row(out, leaf, target, text.as_deref())
         } else {
-            self.write_csv_row(out, value, target, text.as_deref())
+            self.write_csv_row(out, leaf, target, text.as_deref())
         }
     }
 
     fn write_csv_row<W: Write>(
         &self,
         out: &mut Out<'_, '_, W>,
-        value: &Value<'_>,
+        leaf: Leaf<'_, '_>,
         target: Option<&str>,
         text: Option<&str>,
     ) -> io::Result<()> {
@@ -193,13 +240,14 @@ impl FlatValues {
         write_cell(sink, &self.path, false)?;
         sink.write_all(b",")?;
         write_indices(sink, &self.indices)?;
-        write!(sink, ",{},", kind(value))?;
-        match value {
-            Value::String(text) | Value::Locale(text) | Value::Enum(text) => {
+        write!(sink, ",{},", kind(leaf))?;
+        match leaf {
+            Leaf::Value(Value::String(text) | Value::Locale(text) | Value::Enum(text)) => {
                 write_cell(sink, text, neutralise)?;
             }
-            Value::Reference(reference) => write!(sink, "{}", reference.guid())?,
-            scalar => write_plain(sink, scalar)?,
+            Leaf::Value(Value::Reference(reference)) => write!(sink, "{}", reference.guid())?,
+            Leaf::Dangling(guid) => write!(sink, "{guid}")?,
+            Leaf::Value(scalar) => write_plain(sink, scalar)?,
         }
         sink.write_all(b",")?;
         if let Some(path) = target {
@@ -217,7 +265,7 @@ impl FlatValues {
     fn write_json_row<W: Write>(
         &self,
         out: &mut Out<'_, '_, W>,
-        value: &Value<'_>,
+        leaf: Leaf<'_, '_>,
         target: Option<&str>,
         text: Option<&str>,
     ) -> io::Result<()> {
@@ -227,10 +275,13 @@ impl FlatValues {
         write_json_string(sink, &self.path)?;
         sink.write_all(b",\"array_indices\":\"")?;
         write_indices(sink, &self.indices)?;
-        write!(sink, "\",\"kind\":\"{}\",\"value\":", kind(value))?;
-        match value {
-            Value::Reference(reference) => write!(sink, "\"{}\"", reference.guid())?,
-            scalar => write_json_value(sink, scalar)?,
+        write!(sink, "\",\"kind\":\"{}\",\"value\":", kind(leaf))?;
+        match leaf {
+            Leaf::Value(Value::Reference(reference)) => {
+                write!(sink, "\"{}\"", reference.guid())?;
+            }
+            Leaf::Dangling(guid) => write!(sink, "\"{guid}\"")?,
+            Leaf::Value(scalar) => write_json_value(sink, scalar)?,
         }
         if let Some(path) = target {
             sink.write_all(b",\"target_path\":")?;
@@ -265,7 +316,10 @@ fn write_json_prefix(prefix: &mut Vec<u8>, tree: &RecordTree<'_>) -> io::Result<
 }
 
 /// Returns the `kind` column of a leaf value.
-const fn kind(value: &Value<'_>) -> &'static str {
+const fn kind(leaf: Leaf<'_, '_>) -> &'static str {
+    let Leaf::Value(value) = leaf else {
+        return "reference";
+    };
     match value {
         Value::Bool(_) => "bool",
         Value::Int8(_) | Value::Int16(_) | Value::Int32(_) | Value::Int64(_) => "int",
@@ -276,7 +330,8 @@ const fn kind(value: &Value<'_>) -> &'static str {
         Value::Locale(_) => "locale",
         Value::Enum(_) => "enum",
         Value::Guid(_) => "guid",
-        _ => "reference",
+        Value::Reference(_) => "reference",
+        Value::Struct(_) | Value::Array(_) | Value::Null | Value::Error(_) => "",
     }
 }
 
@@ -305,7 +360,14 @@ fn write_plain(out: &mut impl Write, value: &Value<'_>) -> io::Result<()> {
         Value::Single(value) => write!(out, "{}", FloatText(*value)),
         Value::Double(value) => write!(out, "{}", FloatText(*value)),
         Value::Guid(guid) => write!(out, "{guid}"),
-        _ => Ok(()),
+        Value::String(_)
+        | Value::Locale(_)
+        | Value::Enum(_)
+        | Value::Struct(_)
+        | Value::Array(_)
+        | Value::Reference(_)
+        | Value::Null
+        | Value::Error(_) => Ok(()),
     }
 }
 

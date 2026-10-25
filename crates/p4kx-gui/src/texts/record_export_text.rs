@@ -29,7 +29,7 @@ pub enum RecordExportText {
     FormNdjson,
     /// One CSV file with a row per value; takes `name`.
     FormFlatCsv,
-    /// The same with the exact values; takes `name`.
+    /// The same with the exact values.
     FormFlatCsvRaw,
     /// One NDJSON file with an object per value; takes `name`.
     FormFlatNdjson,

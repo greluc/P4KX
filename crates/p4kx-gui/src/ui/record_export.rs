@@ -70,6 +70,29 @@ fn choices(
     setup: &mut RecordExportSetup,
     new_folder: &str,
 ) -> Option<Action> {
+    let action = frames::scrolling_body(ui, "record-export-body", |ui| {
+        body(ui, texts, setup, new_folder)
+    });
+    let pressed = foot(
+        ui,
+        texts,
+        (T::Start, setup.is_ready()),
+        ExtractionText::Close,
+    );
+    action.or(match pressed {
+        Some(true) => Some(Action::Submit),
+        Some(false) => Some(Action::Close),
+        None => None,
+    })
+}
+
+/// Shows everything above the foot of the setup: the Records, the form and the target.
+fn body(
+    ui: &mut Ui,
+    texts: &Texts,
+    setup: &mut RecordExportSetup,
+    new_folder: &str,
+) -> Option<Action> {
     let mut action = None;
     records(ui, texts, setup);
     ui.add_space(MODAL_GROUP_GAP);
@@ -78,9 +101,7 @@ fn choices(
         let label = match form {
             RecordForm::Ndjson => texts.format(T::FormNdjson, &[("name", NDJSON_FILE.into())]),
             RecordForm::FlatCsv => texts.format(T::FormFlatCsv, &[("name", FLAT_CSV_FILE.into())]),
-            RecordForm::FlatCsvRaw => {
-                texts.format(T::FormFlatCsvRaw, &[("name", FLAT_CSV_FILE.into())])
-            }
+            RecordForm::FlatCsvRaw => texts.get(T::FormFlatCsvRaw),
             RecordForm::FlatNdjson => {
                 texts.format(T::FormFlatNdjson, &[("name", FLAT_NDJSON_FILE.into())])
             }
@@ -113,17 +134,7 @@ fn choices(
     });
     refusal_notice(ui, texts, setup.refusal());
     target_details(ui, texts, setup, new_folder);
-    let pressed = foot(
-        ui,
-        texts,
-        (T::Start, setup.is_ready()),
-        ExtractionText::Close,
-    );
-    action.or(match pressed {
-        Some(true) => Some(Action::Submit),
-        Some(false) => Some(Action::Close),
-        None => None,
-    })
+    action
 }
 
 /// Shows the choice of the Records: the selection of the Record tree or a record-path filter.

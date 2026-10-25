@@ -25,7 +25,11 @@ Decided for issue #268, on top of ADR-0004 (the canonical Record tree) and ADR-0
 - A `reference` row carries the GUID of the target in `value` and its record path in an eighth
   column `target_path`; the location a weak pointer has inside the Record is not written.
 - Empty values get no row: an empty string, localisation key or enum option, a null pointer or
-  Reference, an empty array, and a value that cannot be read. A real `0` has a row.
+  Reference, an empty array, and a value that cannot be read. A Reference to a Record that does
+  not exist is the exception: it keeps a `reference` row with the GUID it names and an empty
+  `target_path`, so the link is not lost. A real `0` has a row.
+- A field name that starts with `$` or repeats an earlier name of its struct is written `$<n>` in
+  the field path, `n` being its position among the fields of the struct, as in Record JSON.
 
 ## Consequences
 

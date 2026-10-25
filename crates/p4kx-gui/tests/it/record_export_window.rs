@@ -146,10 +146,8 @@ fn the_flat_forms_are_offered_and_write_the_values_file() -> TestResult {
     let (_dir, out, mut harness) = window(opened(&database())?);
 
     open_dialog(&mut harness, "Export", "Record export…");
-    harness.get_by_label("Values as NDJSON, one file values.ndjson with one object per value");
-    harness.get_by_label(
-        "Values as CSV with the exact values: no byte order mark, no leading ' before text",
-    );
+    harness.get_by_label("Values as NDJSON, values.ndjson, one object per value");
+    harness.get_by_label("Values as CSV, exact: no byte order mark, no ' before text");
     let filter = (Role::TextInput, "Record path filter");
     harness.get_by_role_and_label(filter.0, filter.1).click();
     harness.run_quiet();
@@ -160,7 +158,7 @@ fn the_flat_forms_are_offered_and_write_the_values_file() -> TestResult {
     harness.get_by_label("Existing folder").click();
     harness.run_quiet();
     harness
-        .get_by_label("Values as CSV, one file values.csv with one row per value, for spreadsheets")
+        .get_by_label("Values as CSV, values.csv, one row per value")
         .click();
     harness.run_quiet();
     harness.get_by_label("Start export").click();

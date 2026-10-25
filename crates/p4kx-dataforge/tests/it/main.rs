@@ -30,6 +30,7 @@ mod query_references;
 mod query_run;
 mod query_syntax;
 mod record_flat;
+mod record_flat_names;
 mod record_json;
 mod record_json_nested;
 mod record_json_order;

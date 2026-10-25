@@ -4,7 +4,7 @@
 //! The Comparison tab's state over a pair of synthetic Archives, without drawing.
 
 use crate::comparing;
-use crate::waiting::wait_polling;
+use crate::waiting::wait_polling_described;
 
 use std::error::Error;
 
@@ -26,13 +26,14 @@ pub(crate) fn picked(pair: &Pair, language: Language) -> Model {
 
 /// Polls `tab` until `done` holds.
 pub(crate) fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
-    wait_polling(
+    wait_polling_described(
         tab,
-        "the work to finish",
+        "the Comparison to settle",
         |tab| {
             tab.poll();
         },
         done,
+        |tab| format!("{:?}", tab.status()),
     )?;
     Ok(())
 }

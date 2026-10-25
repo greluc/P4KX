@@ -22,13 +22,24 @@ const PAUSE: Duration = Duration::from_millis(2);
 pub(crate) fn wait_for<S>(
     harness: &mut Harness<'_, S>,
     what: &str,
+    done: impl FnMut(&Harness<'_, S>) -> bool,
+) -> Result<(), Box<dyn Error>> {
+    wait_for_described(harness, what, done, |_| String::new())
+}
+
+/// Like [`wait_for`], and the message carries what `describe` says about the window when
+/// [`PATIENCE`] passed.
+pub(crate) fn wait_for_described<S>(
+    harness: &mut Harness<'_, S>,
+    what: &str,
     mut done: impl FnMut(&Harness<'_, S>) -> bool,
+    describe: impl FnOnce(&Harness<'_, S>) -> String,
 ) -> Result<(), Box<dyn Error>> {
     let started = Instant::now();
     harness.step();
     while !done(harness) {
         if started.elapsed() > PATIENCE {
-            return Err(format!("timed out after {PATIENCE:?} waiting for {what}").into());
+            return Err(timeout(what, &describe(harness)).into());
         }
         std::thread::sleep(PAUSE);
         harness.step();
@@ -36,18 +47,38 @@ pub(crate) fn wait_for<S>(
     Ok(())
 }
 
+fn timeout(what: &str, state: &str) -> String {
+    if state.is_empty() {
+        format!("timed out after {PATIENCE:?} waiting for {what}")
+    } else {
+        format!("timed out after {PATIENCE:?} waiting for {what}; state: {state}")
+    }
+}
+
 /// Polls `subject` with `poll` until `done` holds for it, and fails with a message naming `what`
 /// once [`PATIENCE`] passed. For tests that drive a model without a window.
 pub(crate) fn wait_polling<T>(
     subject: &mut T,
     what: &str,
+    poll: impl FnMut(&mut T),
+    done: impl FnMut(&T) -> bool,
+) -> Result<(), Box<dyn Error>> {
+    wait_polling_described(subject, what, poll, done, |_| String::new())
+}
+
+/// Like [`wait_polling`], and the message carries what `describe` says about `subject` when
+/// [`PATIENCE`] passed.
+pub(crate) fn wait_polling_described<T>(
+    subject: &mut T,
+    what: &str,
     mut poll: impl FnMut(&mut T),
     mut done: impl FnMut(&T) -> bool,
+    describe: impl FnOnce(&T) -> String,
 ) -> Result<(), Box<dyn Error>> {
     let started = Instant::now();
     while !done(subject) {
         if started.elapsed() > PATIENCE {
-            return Err(format!("timed out after {PATIENCE:?} waiting for {what}").into());
+            return Err(timeout(what, &describe(subject)).into());
         }
         std::thread::sleep(PAUSE);
         poll(subject);
@@ -59,9 +90,25 @@ pub(crate) fn wait_polling<T>(
 pub(crate) fn wait_for_model(
     harness: &mut Harness<'_, Model>,
     what: &str,
-    mut done: impl FnMut(&Model) -> bool,
+    done: impl FnMut(&Model) -> bool,
 ) -> Result<(), Box<dyn Error>> {
-    wait_for(harness, what, |harness| done(harness.state()))
+    wait_for_model_described(harness, what, done, |_| String::new())
+}
+
+/// Like [`wait_for_model`], and the message carries what `describe` says about the model when
+/// [`PATIENCE`] passed.
+pub(crate) fn wait_for_model_described(
+    harness: &mut Harness<'_, Model>,
+    what: &str,
+    mut done: impl FnMut(&Model) -> bool,
+    describe: impl FnOnce(&Model) -> String,
+) -> Result<(), Box<dyn Error>> {
+    wait_for_described(
+        harness,
+        what,
+        |harness| done(harness.state()),
+        |harness| describe(harness.state()),
+    )
 }
 
 const ATTEMPTS: u32 = 3;

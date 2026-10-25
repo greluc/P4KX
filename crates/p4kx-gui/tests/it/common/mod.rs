@@ -3,7 +3,7 @@
 
 //! Helpers of the Extraction tests: a small synthetic Archive opened in a headless window.
 
-use crate::waiting::wait_polling;
+use crate::waiting::{wait_polling, wait_polling_described};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -32,13 +32,14 @@ fn opened(archive: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     model.set_archive_key(Some(p4kx_testkit::test_key()));
     model.open(archive.to_path_buf(), || {});
-    wait_polling(
+    wait_polling_described(
         &mut model,
         "the Archive to open",
         |model| {
             model.poll();
         },
         |model| model.browser().is_some(),
+        |model| format!("failure {:?}", model.failure()),
     )?;
     Ok(model)
 }

@@ -12,17 +12,18 @@ use p4kx_gui::{
 };
 
 use crate::record_pair::TestResult;
-use crate::waiting::wait_polling;
+use crate::waiting::wait_polling_described;
 
 /// Polls `tab` until `done` holds.
 pub(crate) fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
-    wait_polling(
+    wait_polling_described(
         tab,
-        "the work to finish",
+        "the Comparison to settle",
         |tab| {
             tab.poll();
         },
         done,
+        |tab| format!("{:?}", tab.status()),
     )?;
     Ok(())
 }

@@ -3,7 +3,7 @@
 
 //! The window driven headless through `egui_kittest`: open, navigate, sort, select.
 
-use crate::waiting::{RunQuiet, click_shown_once, wait_for};
+use crate::waiting::{RunQuiet, click_shown_once, wait_for, wait_for_described};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -58,9 +58,12 @@ fn drop_and_wait(harness: &mut Harness<'_, Model>, path: &Path) -> TestResult {
         .input_mut()
         .dropped_files
         .push(Arc::new(Dropped(path.to_path_buf())));
-    wait_for(harness, "the Archive to open", |harness| {
-        harness.state().browser().is_some()
-    })?;
+    wait_for_described(
+        harness,
+        "the Archive to open",
+        |harness| harness.state().browser().is_some(),
+        |harness| format!("failure {:?}", harness.state().failure()),
+    )?;
     harness.run_quiet();
     Ok(())
 }

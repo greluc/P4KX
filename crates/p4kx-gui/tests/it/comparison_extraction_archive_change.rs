@@ -4,7 +4,7 @@
 //! A change of the browsed Archive on disk next to an Extraction of a Comparison side, without
 //! drawing.
 
-use crate::waiting::wait_polling;
+use crate::waiting::wait_polling_described;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
@@ -20,7 +20,7 @@ const LARGE_LEN: usize = 4 << 20;
 const LARGE_COUNT: usize = 32;
 
 fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    wait_polling(
+    wait_polling_described(
         model,
         "the work to finish",
         |model| {
@@ -29,6 +29,7 @@ fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
             model.poll_extraction();
         },
         done,
+        |model| format!("{model:?}"),
     )?;
     Ok(())
 }

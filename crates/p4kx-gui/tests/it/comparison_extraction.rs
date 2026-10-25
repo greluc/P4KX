@@ -4,7 +4,7 @@
 //! Extracting the added and changed Entries of one side of a Comparison, without drawing.
 
 use crate::comparing;
-use crate::waiting::wait_polling;
+use crate::waiting::wait_polling_described;
 
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -20,7 +20,7 @@ use p4kx_gui::{
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    wait_polling(
+    wait_polling_described(
         model,
         "the work to finish",
         |model| {
@@ -28,6 +28,7 @@ fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
             model.poll_extraction();
         },
         done,
+        |model| format!("{:?}", model.comparison().status()),
     )?;
     Ok(())
 }

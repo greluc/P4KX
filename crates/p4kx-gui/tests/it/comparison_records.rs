@@ -3,7 +3,7 @@
 
 //! The Record level of the Comparison tab over a pair of Archives with synthetic DataForges.
 
-use crate::waiting::{RunQuiet, wait_polling};
+use crate::waiting::{RunQuiet, wait_polling_described};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -53,13 +53,14 @@ fn pair() -> Result<(TempDir, PathBuf, PathBuf), Box<dyn Error>> {
 }
 
 fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
-    wait_polling(
+    wait_polling_described(
         tab,
-        "the work to finish",
+        "the Comparison to settle",
         |tab| {
             tab.poll();
         },
         done,
+        |tab| format!("{:?}", tab.status()),
     )?;
     Ok(())
 }

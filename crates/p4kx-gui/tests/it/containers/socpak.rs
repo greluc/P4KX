@@ -4,7 +4,7 @@
 //! Helpers of the container tests: a synthetic Archive with socpak containers, one nested in
 //! another, one compressed and one corrupt.
 
-use crate::waiting::wait_polling;
+use crate::waiting::wait_polling_described;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
@@ -70,7 +70,7 @@ pub(crate) fn opened(
 
 /// Polls `model` until `done` holds.
 pub(crate) fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    wait_polling(
+    wait_polling_described(
         model,
         "the work to finish",
         |model| {
@@ -81,6 +81,7 @@ pub(crate) fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> Te
             }
         },
         done,
+        |model| format!("{model:?}"),
     )?;
     Ok(())
 }

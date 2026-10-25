@@ -3,7 +3,7 @@
 
 //! A headless window over an Archive of the fixtures, and the helpers to drive it.
 
-use crate::waiting::wait_for_model;
+use crate::waiting::wait_for_model_described;
 use std::error::Error;
 use std::ops::Range;
 use std::path::PathBuf;
@@ -60,7 +60,14 @@ pub(crate) fn wait_until(
     harness: &mut Harness<'_, Model>,
     done: impl Fn(&Model) -> bool,
 ) -> TestResult {
-    wait_for_model(harness, "the window to settle", done)?;
+    wait_for_model_described(harness, "the window to settle", done, |model| {
+        let browser = model.browser();
+        let tree = browser.and_then(Browser::records).map(|tree| tree.status());
+        let record = browser
+            .and_then(Browser::record_preview)
+            .map(|preview| preview.status());
+        format!("tree {tree:?}, preview {record:?}")
+    })?;
     harness.run_steps(2);
     Ok(())
 }

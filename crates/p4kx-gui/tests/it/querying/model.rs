@@ -3,7 +3,7 @@
 
 //! Helpers of the Query model tests: an Archive opened headless and Queries run to the end.
 
-use crate::waiting::wait_polling;
+use crate::waiting::{wait_polling, wait_polling_described};
 use std::error::Error;
 use std::path::Path;
 
@@ -14,13 +14,14 @@ use super::TestResult;
 pub(crate) fn opened(path: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path.to_path_buf(), || {});
-    wait_polling(
+    wait_polling_described(
         &mut model,
         "the Archive to open",
         |model| {
             model.poll();
         },
         |model| model.browser().is_some(),
+        |model| format!("failure {:?}", model.failure()),
     )?;
     Ok(model)
 }

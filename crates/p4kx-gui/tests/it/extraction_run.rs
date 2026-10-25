@@ -4,7 +4,7 @@
 //! A running Extraction from the window driven headless: Conflict policies, cancel, stop and
 //! failures.
 
-use crate::waiting::wait_polling;
+use crate::waiting::{wait_polling, wait_polling_described};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -28,13 +28,14 @@ fn opened(builder: &ArchiveBuilder) -> Result<(TempDir, Model, PathBuf), Box<dyn
     let mut model = Model::new(Language::BritishEnglish);
     model.set_archive_key(Some(p4kx_testkit::test_key()));
     model.open(path, || {});
-    wait_polling(
+    wait_polling_described(
         &mut model,
         "the Archive to open",
         |model| {
             model.poll();
         },
         |model| model.browser().is_some(),
+        |model| format!("failure {:?}", model.failure()),
     )?;
     let out = dir.path().join("out");
     fs::create_dir(&out)?;

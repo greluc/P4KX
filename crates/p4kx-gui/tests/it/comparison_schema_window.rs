@@ -7,7 +7,7 @@
 //! `P4KX_RENDER_DIR` names a folder the rendered window is written to as a PNG file.
 
 use crate::record_pair;
-use crate::waiting::{RunQuiet, wait_for_model};
+use crate::waiting::{RunQuiet, wait_for_model_described};
 
 use std::error::Error;
 use std::fs::File;
@@ -64,9 +64,12 @@ fn schema_shown(
         "Compare"
     };
     harness.get_by_label(compare).click();
-    wait_for_model(&mut harness, "the Comparison to finish", |model| {
-        matches!(model.comparison().status(), ComparisonStatus::Finished(_))
-    })?;
+    wait_for_model_described(
+        &mut harness,
+        "the Comparison to finish",
+        |model| matches!(model.comparison().status(), ComparisonStatus::Finished(_)),
+        |model| format!("{:?}", model.comparison().status()),
+    )?;
     harness.run_quiet();
     harness.get_by_role_and_label(Role::Tab, "Schema").click();
     harness.run_quiet();

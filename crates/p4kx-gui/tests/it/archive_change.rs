@@ -4,7 +4,7 @@
 //! An open Archive that changes on disk: no job reads it, a running Extraction stops, and the
 //! window offers to reload it.
 
-use crate::waiting::wait_polling;
+use crate::waiting::wait_polling_described;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -43,7 +43,7 @@ fn large() -> ArchiveBuilder {
 }
 
 fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    wait_polling(
+    wait_polling_described(
         model,
         "the work to finish",
         |model| {
@@ -54,6 +54,7 @@ fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
             }
         },
         done,
+        |model| format!("{model:?}"),
     )?;
     Ok(())
 }

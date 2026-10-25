@@ -262,3 +262,16 @@ fn values_that_are_not_finite_fall_back_to_the_defaults() {
         "the same distance as the defaults"
     );
 }
+
+#[test]
+fn the_uniform_carries_the_near_and_the_far_plane_in_the_w_of_the_eye_and_the_light() {
+    let uniforms = holographic(&HologramView::default()).uniforms(ASPECT);
+
+    let (near, far) = (uniforms.eye[3], uniforms.key_light[3]);
+
+    assert!(
+        near > 0.0,
+        "the near plane lies in front of the eye: {near}"
+    );
+    assert!(far >= near * 2.0, "the far plane lies behind it: {far}");
+}

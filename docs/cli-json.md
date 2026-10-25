@@ -1375,11 +1375,12 @@ the texts are left out.
 ```json
 {"screen": "libs/foundry/records/ui/buildingblocks/test/test_mfd",
  "target": "…\\mfd.png", "format": "png", "width": 200, "height": 100,
- "widgets": 14, "shapes": 12, "texts_drawn": 1, "texts_left_out": 0, "canvases": 2,
+ "widgets": 14, "shapes": 12, "texts_drawn": 1, "texts_left_out": 0,
+ "images_drawn": 2, "images_left_out": 1, "canvases": 2,
  "unsupported": [{"element": "WidgetText", "reason": "no font style: default font used",
                   "count": 1, "examples": ["label"]},
-                 {"element": "WidgetImage", "reason": "no renderer for this element type",
-                  "count": 1, "examples": ["picture"]}],
+                 {"element": "WidgetImage", "reason": "texture missing or unreadable",
+                  "count": 1, "examples": ["UI/Textures/Test/picture.dds: no Entry named …"]}],
  "missing_canvases": [], "truncated": false,
  "skipped": [{"reason": "fill_budget", "message": "the fills cover more than the budget"}]}
 ```
@@ -1387,7 +1388,9 @@ the texts are left out.
 `width` and `height` are the pixels written. `widgets` counts the widgets visited in every canvas
 composed, `shapes` the shapes drawn (every placed glyph counts), `texts_drawn` and `texts_left_out`
 the text widgets whose text was and was not drawn (empty or run-time texts, a missing font or
-colour, a limit), `canvases` the canvases composed (the screen's own and the
+colour, a limit), `images_drawn` and `images_left_out` the widgets whose texture or vector graphic
+was and was not drawn (a file that is missing, unreadable or beyond a limit, or a graphic the game
+names only at run time), `canvases` the canvases composed (the screen's own and the
 nested ones). `unsupported` lists per element type and reason (`no renderer for this element
 type`, `automatic size taken as the size of the parent`, `<layout> children are laid out as an
 overlay` for spacer containers, `list rows come from run-time data: none drawn at rest`, `list
@@ -1403,8 +1406,13 @@ itself: not repeated`, `clipping stopped at the 24th mask: later content is not 
 evaluated` for a `StyleEntry`, and the reasons of circles, polygons and texts) how many widgets it
 concerns and the names of up to three. `missing_canvases` names nested canvases that cannot be
 read, that no Record answers or that contain themselves; widgets whose parents form a cycle are
-listed in `unsupported` (`not reachable from a root: its parents form a cycle`). `truncated` is
-true when a limit stopped the composition: 2^18 widgets visited or placed (hidden ones included),
+listed in `unsupported` (`not reachable from a root: its parents form a cycle`). Textures and SVG
+files add `texture missing or unreadable` and `vector graphic missing or unreadable` (an example is
+`<path>: <cause>`), `names no vector graphic; the game sets it at run time`, `the texture is chosen
+by the game at run time` and the features an SVG file uses that are left out (`paint servers are
+drawn as their first colour`, `clip paths, masks and filters are not applied`, `image and text
+elements are left out`, `style rules beyond the limit are left out`, ...). `truncated` is true
+when a limit stopped the composition: 2^18 widgets visited or placed (hidden ones included),
 2^26 steps of the style cascade, 2^17 shapes, 2^14 instances of templates, 2^10 rows of one list
 or a depth of 64 widgets and canvases (ADR-0106). `skipped` lists what the renderer
 (raster or SVG writer) skipped of the scene, each with the stable `reason` code of

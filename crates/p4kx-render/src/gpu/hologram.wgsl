@@ -8,6 +8,11 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> frame: Uniforms;
 
+const LAYER_BODY: f32 = 0.09;
+const LAYER_EDGE: f32 = 1.5;
+const BODY_FALLOFF: f32 = 3.5;
+const EDGE_FALLOFF: f32 = 1.2;
+
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
@@ -19,7 +24,7 @@ struct VertexInput {
 }
 
 struct VertexOutput {
-    @invariant @builtin(position) clip: vec4<f32>,
+    @builtin(position) clip: vec4<f32>,
     @location(0) world: vec3<f32>,
     @location(1) normal: vec3<f32>,
 }
@@ -56,19 +61,17 @@ fn fs_main(input: FragmentInput) -> @location(0) vec4<f32> {
     let flat_normal = slope / max(length(slope), 1.0e-20);
     let stored = length(input.normal) > 0.5;
     let normal = select(flat_normal, normalize(input.normal), stored);
-    let to_eye = normalize(frame.eye.xyz - input.world);
-    let facing = abs(dot(normal, to_eye));
+    let to_eye = frame.eye.xyz - input.world;
+    let distance = length(to_eye);
+    let facing = abs(dot(normal, to_eye / max(distance, 1.0e-20)));
     let rim = pow(1.0 - facing, 3.0);
     let lit = 0.5 + 0.5 * abs(dot(normal, frame.key_light.xyz));
-    let glow = frame.tint.a;
-    let body = frame.shading.x * (0.45 + 0.55 * lit);
-    let edge = 1.6 * glow * rim;
+    let span = max(frame.key_light.w - frame.eye.w, 1.0e-6);
+    let depth = clamp((distance - frame.eye.w) / span, 0.0, 1.0);
+    let share = frame.tint.a;
+    let body = frame.shading.x * LAYER_BODY * exp(-BODY_FALLOFF * depth) * (0.45 + 0.55 * lit);
+    let edge = LAYER_EDGE * share * rim * exp(-EDGE_FALLOFF * depth);
     let alpha = clamp(body + 0.9 * edge, 0.0, 1.0);
     let colour = frame.tint.rgb * (body + edge) + vec3<f32>(0.3 * edge * edge);
     return vec4<f32>(clamp(colour, vec3<f32>(0.0), vec3<f32>(1.0)), alpha);
-}
-
-@fragment
-fn fs_depth() -> @location(0) vec4<f32> {
-    return vec4<f32>(0.0);
 }

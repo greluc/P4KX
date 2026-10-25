@@ -28,10 +28,12 @@ fn help_states_the_legal_notice() -> TestResult {
 }
 
 #[test]
-fn version_states_the_legal_notice() -> TestResult {
-    let version = output_of("--version")?;
-    for statement in &STATEMENTS[..4] {
-        assert!(version.contains(statement), "{statement}: {version}");
+fn both_version_flags_state_the_legal_notice() -> TestResult {
+    for flag in ["--version", "-V"] {
+        let version = output_of(flag)?;
+        for statement in &STATEMENTS[..4] {
+            assert!(version.contains(statement), "{flag} {statement}: {version}");
+        }
     }
     Ok(())
 }

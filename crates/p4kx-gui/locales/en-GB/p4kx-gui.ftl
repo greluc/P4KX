@@ -74,7 +74,12 @@ archive-issues =
        *[other] The directory of the Archive has { $count } defects in its Entries. The Entries stay listed, but their data may not be readable; an Extraction reports those that fail, and `p4kx info` names them.
     }
 game-running = Star Citizen is running. Use this tool with the game closed: reading continues, but the Archive changes while the game updates, and the tool never writes into the installation.
-archive-test-build = This Archive belongs to the { $channel } Channel, a Star Citizen test build. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
+archive-test-build =
+    { $kind ->
+        [one] This Archive belongs to the { $channel } Channel, which carries Star Citizen test builds. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
+       *[other] These Archives belong to the { $channel } Channels, which carry Star Citizen test builds. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from them.
+    }
+archive-test-build-nda = The content of EPTU may also be covered by a non-disclosure agreement and must not be shared.
 action-reload = Reload
 extract-selected = Extract selected…
 extract-shown = Extract shown…
@@ -828,7 +833,8 @@ key-note-store = The stored key cannot be used. Enter the key again to replace i
 about-title = About P4KX
 about-version = Version { $version }
 about-copyright = Copyright (c) 2026 the P4KX contributors
-about-licence = Licensed under MIT OR Apache-2.0. Source code: https://github.com/p4kx-org/p4kx
+about-licence = Licensed under MIT OR Apache-2.0.
+about-source = Source code:
 about-fan-project = P4KX is an unofficial Star Citizen fan project, not affiliated with the Cloud Imperium group of companies and not endorsed by it.
 about-no-game-data = It ships no game data and reads only your own Star Citizen installation.
 about-responsibility = You are responsible for complying with the Star Citizen End User Licence Agreement and Terms of Service when you use it.

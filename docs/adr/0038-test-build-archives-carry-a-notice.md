@@ -21,4 +21,15 @@ instead of refusing.
   block. The structured content and the output schemas stay as they are. The note is carried from
   `State::archive` to the result in a thread-local, because the closures of the tools run on one
   blocking thread from opening the Archive to returning the value, and this keeps the signature of
-  all tools unchanged.
+  all tools unchanged. The result type is `Noted<T>`, a name of its own; every tool that returns it
+  names its output schema with `output_schema = schema_for_output::<T>()` and does not rely on the
+  tool macro matching a type called `Json`.
+- Wording (#368): the notice calls the Channel one that carries Star Citizen test builds, not a
+  build. The GUI text has a plural form for the Comparison tab, which names both test Channels when
+  the two Archives live in different ones. The formatted text is cached per language.
+- EPTU (decided by the owner for #368): the Channel of the Evocati test universe. Its notice adds a
+  sentence that the content may also be covered by a non-disclosure agreement
+  (`Geheimhaltungsvereinbarung`) and must not be shared. The GUI holds it as its own Fluent message
+  appended whenever EPTU is among the Channels shown; the CLI and MCP get it from
+  `ChannelKind::notice`. PTU, HOTFIX and TECH-PREVIEW stay as they are. p4kx has no separate
+  Evocati Channel.

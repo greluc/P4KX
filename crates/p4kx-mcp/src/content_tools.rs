@@ -7,7 +7,7 @@ use tokio::runtime::Handle;
 
 use crate::content;
 use crate::error::capped;
-use crate::noted::Json;
+use crate::noted::Noted;
 use crate::params::{BytesParams, MAX_PATH_LEN, TextParams};
 use crate::server::Server;
 use crate::shapes::{BytesResult, TextResult};
@@ -20,6 +20,7 @@ impl Server {
         byte order mark, other Entries must be UTF-8; binary Entries are an error. more and next_offset \
         say whether and where the text continues. The content may be forwarded by the client to \
         third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<TextResult>(),
         annotations(
             title = "Read Entry text",
             read_only_hint = true,
@@ -31,7 +32,7 @@ impl Server {
     async fn read_entry_text(
         &self,
         Parameters(params): Parameters<TextParams>,
-    ) -> Result<Json<TextResult>, String> {
+    ) -> Result<Noted<TextResult>, String> {
         let decoders = self.whole_text();
         let runtime = Handle::current();
         self.run(move |state| {
@@ -53,6 +54,7 @@ impl Server {
         max_bytes long, as base64 (standard alphabet, padded). more and next_offset say whether and \
         where the data continues. The content may be forwarded by the client to third parties; game \
         texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<BytesResult>(),
         annotations(
             title = "Read Entry bytes",
             read_only_hint = true,
@@ -64,7 +66,7 @@ impl Server {
     async fn read_entry_bytes(
         &self,
         Parameters(params): Parameters<BytesParams>,
-    ) -> Result<Json<BytesResult>, String> {
+    ) -> Result<Noted<BytesResult>, String> {
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;

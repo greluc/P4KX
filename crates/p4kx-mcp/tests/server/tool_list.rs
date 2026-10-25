@@ -73,6 +73,12 @@ fn the_tools_that_return_game_content_say_it_may_be_forwarded_and_not_redistribu
         "run_query",
         "get_model_info",
         "list_model_items",
+        "list_entries",
+        "search_entries",
+        "list_chunks",
+        "search_records",
+        "list_structs",
+        "list_enums",
     ] {
         let description = tools
             .iter()

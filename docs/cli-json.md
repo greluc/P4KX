@@ -4,6 +4,11 @@ Every `p4kx` command takes `--json` (before or after the subcommand). With it, t
 exactly one line of compact JSON to stdout and nothing else; the exit codes stay the same. Errors
 that end the command (an unreadable Archive, invalid input) are still printed to stderr as
 `error: …` and produce no JSON. Warnings, such as an unreadable build manifest, go to stderr.
+So does the test-build notice: the first time a run opens a given Archive of the `PTU`, `EPTU`,
+`HOTFIX` or `TECH-PREVIEW` Channel, one line `notice: …` on stderr says that the Channel carries
+Star Citizen test builds whose material is confidential (community tests under the Terms of
+Service, `HOTFIX` treated the same way, `EPTU` possibly under a non-disclosure agreement). `LIVE` and
+Archives in other folders get none. The notice never reaches stdout, so the JSON stays as it is.
 
 Paths of files on disk are strings as the operating system displays them. Entry paths are given
 as stored in the Archive, with `\` as separator. Sizes are byte counts. Snapshots of every shape

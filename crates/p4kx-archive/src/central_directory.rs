@@ -19,6 +19,7 @@ const BLOCK_CIG_ENCRYPTION: u16 = 0x5002;
 const BLOCK_CIG_HASH: u16 = 0x5003;
 const BLOCK_HEADER_LEN: usize = 4;
 const ENCRYPTION_BLOCK_LEN: u16 = 6;
+const SHA256_LEN: usize = 32;
 
 struct FixedFields {
     method: u16,
@@ -145,7 +146,7 @@ fn parse_extra(
             BLOCK_CIG_ENCRYPTION => {
                 fields.encrypted = read_encryption(&mut block, stored_len, index, log);
             }
-            BLOCK_CIG_HASH => fields.sha256 = stated_sha256(data),
+            BLOCK_CIG_HASH => fields.sha256 = read_hash(data, stored_len, index, log),
             _ => {}
         }
     }
@@ -156,6 +157,16 @@ fn parse_extra(
         ));
     }
     Ok(fields)
+}
+
+/// Reads the CIG hash block, whose data is the 32-byte SHA-256. A block of another length is
+/// recorded in `log` and states none. When an Entry carries several, the last one decides.
+fn read_hash(data: &[u8], stored_len: u16, index: usize, log: &mut IssueLog) -> Option<[u8; 32]> {
+    let digest = stated_sha256(data);
+    if digest.is_none() && data.len() != SHA256_LEN {
+        log.record(index, EntryIssue::HashBlockSize { size: stored_len });
+    }
+    digest
 }
 
 /// Reads the CIG encryption block: 0 is plain and 1 encrypted. Any other value and a block of

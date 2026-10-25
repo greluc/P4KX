@@ -116,6 +116,7 @@ fn verified_reads_of_every_compression_and_encryption_state_find_no_mismatch() -
 
     let samples = samples_per_kind(archive.entries());
     let mut checked = 0;
+    let mut encrypted_with_sha256 = 0;
     for entries in samples.values() {
         for entry in entries {
             let size = io::copy(&mut archive.open_entry_verified(entry)?, &mut io::sink())
@@ -127,10 +128,17 @@ fn verified_reads_of_every_compression_and_encryption_state_find_no_mismatch() -
                 entry.path()
             );
             checked += 1;
+            if entry.is_encrypted() && entry.is_sha256_verified() {
+                encrypted_with_sha256 += 1;
+            }
         }
     }
 
     assert!(checked > 0, "the Archive yields samples");
+    assert!(
+        encrypted_with_sha256 > 0,
+        "encrypted samples state a SHA-256 that the verified reads checked"
+    );
     Ok(())
 }
 

@@ -211,12 +211,7 @@ impl AssemblyView {
     #[must_use]
     pub fn issues(&self) -> usize {
         self.shown.as_ref().map_or(0, |shown| {
-            shown.issues
-                + if self.interior {
-                    shown.interior_issues
-                } else {
-                    0
-                }
+            shown.issues + shown.interior_issues * usize::from(self.interior)
         })
     }
 

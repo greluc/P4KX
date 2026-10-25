@@ -14,8 +14,8 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{
-    AssemblyExport, AssemblyExportStage, AssemblyExportStatus, AssemblyExportSummary, Language,
-    Model, PreviewTab, TreeNode, WorkTab,
+    AssemblyExport, AssemblyExportStatus, AssemblyExportSummary, Language, Model, PreviewTab,
+    TreeNode, WorkTab,
 };
 use p4kx_testkit::{
     ENTITY_INTERIOR_CLASS, INTERIOR_ROOT, check_glb, entity_interior_entries, lit_interior_entries,
@@ -53,7 +53,7 @@ pub(crate) fn click_settled(harness: &mut Harness<'_, Model>, label: &str) {
     harness.get_by_role_and_label(Role::Button, label).click();
 }
 
-fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
+pub(crate) fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
     wait_for_model(harness, "the export to end", |model| {
         !model
             .assembly_export()
@@ -368,45 +368,5 @@ fn an_entry_that_is_no_socpak_offers_no_interior_export() -> TestResult {
     assert!(!harness.state().interior_export_shown());
     harness.state_mut().begin_interior_export();
     assert!(harness.state().assembly_export_setup().is_none());
-    Ok(())
-}
-
-#[test]
-fn the_interior_export_can_be_cancelled_and_leaves_no_file() -> TestResult {
-    let (dir, mut harness) = container_window()?;
-    select_socpak(&mut harness, INTERIOR_ROOT)?;
-    harness.state_mut().begin_interior_export();
-    let file = dir.path().join("cancelled.glb");
-    harness
-        .state_mut()
-        .assembly_export_setup_mut()
-        .ok_or("no setup")?
-        .set_file(file.clone());
-    let hold = harness.state_mut().hold_interior_export();
-    assert!(harness.state_mut().submit_assembly_export(|| {}));
-    let running = harness.state().assembly_export().ok_or("no export")?;
-    assert!(running.is_container(), "an Interior export");
-    wait_for_model(&mut harness, "the export to reach the Interior", |model| {
-        matches!(
-            model.assembly_export().map(AssemblyExport::status),
-            Some(AssemblyExportStatus::Running(progress))
-                if progress.stage == AssemblyExportStage::Interior
-        )
-    })?;
-
-    harness.state().cancel_assembly_export();
-    finished(&mut harness)?;
-    drop(hold);
-
-    let status = harness
-        .state()
-        .assembly_export()
-        .map(AssemblyExport::status)
-        .ok_or("no export")?;
-    assert!(
-        matches!(status, AssemblyExportStatus::Cancelled),
-        "cancelled, not {status:?}"
-    );
-    assert!(!file.exists(), "no file");
     Ok(())
 }

@@ -68,6 +68,7 @@ mod image_preview_layers;
 mod image_preview_limits;
 mod imaging;
 mod info_models;
+mod interior_cancel;
 mod interior_export;
 mod interior_view;
 mod interior_view_bar;

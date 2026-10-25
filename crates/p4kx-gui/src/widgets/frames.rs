@@ -3,7 +3,7 @@
 
 use egui::{
     Color32, Context, CornerRadius, Frame, Id, LayerId, Margin, Modal, Painter, Pos2, Rect,
-    ScrollArea, Shape, Stroke, Ui, Vec2, Window, pos2, vec2,
+    ScrollArea, Shape, Stroke, Ui, Vec2, Window, pos2, scroll_area::ScrollAreaOutput, vec2,
 };
 
 use super::text::caps;
@@ -153,7 +153,7 @@ fn alert<R>(ui: &mut Ui, (fill, accent): (Color32, Color32), body: impl FnOnce(&
     response.inner
 }
 
-fn modal_frame(tone: Tone) -> Frame {
+pub(super) fn modal_frame(tone: Tone) -> Frame {
     let glow = if tone == Tone::Danger {
         GLOW_DANGER_LG
     } else {
@@ -177,11 +177,10 @@ pub(crate) fn modal_title(title: &str, tone: Tone) -> egui::RichText {
     caps(title, TITLE_SIZE, Weight::Bold, TITLE_TRACKING).color(colour)
 }
 
-/// Returns a non-modal `.modal` window titled `title`; its head is drawn by [`head`].
-pub(crate) fn window(title: &str, tone: Tone) -> Window<'static> {
-    Window::new(title.to_owned())
-        .title_bar(false)
-        .frame(modal_frame(tone))
+/// Returns a non-modal `.modal` window titled `title` that opens at the top centre of the part of
+/// the window between the header and the status bar; its head is drawn by [`head`].
+pub(crate) fn window(ctx: &Context, title: &str, tone: Tone) -> Window<'static> {
+    super::placement::window(ctx, title, tone)
 }
 
 /// Shows the head of a modal: the upper-case `title` over a hairline, with the close cross named
@@ -261,12 +260,21 @@ pub(crate) fn scrolling_body<R>(
     salt: &'static str,
     body: impl FnOnce(&mut Ui) -> R,
 ) -> R {
+    let room = modal_room(ui);
+    scrolling_body_in(ui, (salt, room), body).inner
+}
+
+/// Shows the body of a modal in a vertical scroll area that never grows taller than `room`.
+pub(crate) fn scrolling_body_in<R>(
+    ui: &mut Ui,
+    (salt, room): (&'static str, f32),
+    body: impl FnOnce(&mut Ui) -> R,
+) -> ScrollAreaOutput<R> {
     ScrollArea::vertical()
         .id_salt(salt)
-        .max_height(modal_room(ui))
+        .max_height(room)
         .auto_shrink([false, true])
         .show(ui, body)
-        .inner
 }
 
 /// Returns a `.modal` on the flat scrim.

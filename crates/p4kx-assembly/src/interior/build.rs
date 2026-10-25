@@ -42,8 +42,9 @@ impl Interior {
         Self::build_watched(layers, entry, options, &InteriorWatch::none())
     }
 
-    /// Builds the Interior like [`Self::build`], asking `watch` between containers and between
-    /// the waves of model files whether to stop, and telling it how far it has come.
+    /// Builds the Interior like [`Self::build`], asking `watch` between containers, for every
+    /// model file and library it reads and between the steps that follow whether to stop, and
+    /// telling it how far it has come.
     ///
     /// # Errors
     ///

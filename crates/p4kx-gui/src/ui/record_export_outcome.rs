@@ -18,6 +18,7 @@ use crate::theme::tokens::{SPACE_2, SPACE_3};
 use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
+use crate::widgets::placement;
 use crate::widgets::rows::section_header;
 use crate::{
     ExtractionText, Language, Model, RecordExportProgress, RecordExportStage, RecordExportStatus,
@@ -40,7 +41,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         RecordExportStatus::Running(progress) => {
             let cancelling = run.is_cancelled();
             let title = texts.get(T::RunningTitle);
-            let shown = frames::window(&title, Tone::Normal)
+            let shown = frames::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
                 .resizable(false)
@@ -100,13 +101,14 @@ pub(super) fn outcome_window(
     let mut close = false;
     let title = texts.get(title);
     let close_dialog = texts.get(Text::CloseDialog);
-    let shown = frames::window(&title, tone)
+    let shown = frames::window(ui.ctx(), &title, tone)
         .id(Id::unique(id))
         .collapsible(false)
         .default_width(MODAL_WIDE_WIDTH)
         .show(ui.ctx(), |ui| {
             let closed = frames::head(ui, (&title, tone), false, Some(&close_dialog));
-            body(ui);
+            let room = placement::body_room(ui);
+            frames::scrolling_body_in(ui, (id, room), body);
             frames::foot_rule(ui);
             let pressed = frames::foot_action(ui, &texts.get(ExtractionText::Close), Kind::Cta);
             close = pressed || closed;

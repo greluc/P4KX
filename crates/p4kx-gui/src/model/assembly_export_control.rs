@@ -6,7 +6,11 @@ use std::sync::Arc;
 use p4kx_settings::AssemblyExportSettings;
 
 use super::Model;
+#[cfg(feature = "test-hooks")]
+use crate::assembly_export::Request;
 use crate::assembly_export::start;
+#[cfg(feature = "test-hooks")]
+use crate::hold::Pause;
 use crate::{AssemblyExport, AssemblyExportSetup, Browser, EntitiesTab, Texts};
 
 /// The Entities tab and the Export of an Entity as GLB of the window: the choices remembered,
@@ -17,6 +21,8 @@ pub(crate) struct AssemblyState {
     settings: AssemblyExportSettings,
     setup: Option<AssemblyExportSetup>,
     run: Option<AssemblyExport>,
+    #[cfg(feature = "test-hooks")]
+    gate: Option<Arc<crate::hold::Gate>>,
 }
 
 impl AssemblyState {
@@ -198,6 +204,15 @@ impl Model {
         else {
             return false;
         };
+        #[cfg(feature = "test-hooks")]
+        let request = Request {
+            pause: self
+                .assembly
+                .gate
+                .clone()
+                .map_or_else(Pause::default, Pause::at),
+            ..request
+        };
         let Some(index) = self
             .browser
             .as_ref()
@@ -211,6 +226,15 @@ impl Model {
         self.assembly.run = Some(start(&index, request, wake));
         self.assembly.setup = None;
         true
+    }
+
+    /// Makes the exports of an Interior container wait in their Interior step until the returned
+    /// hold is dropped or they are cancelled.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_interior_export(&mut self) -> crate::Hold {
+        let (hold, gate) = crate::hold::Hold::new();
+        self.assembly.gate = Some(gate);
+        hold
     }
 
     /// Returns the running or finished export, or `None` when there is none.

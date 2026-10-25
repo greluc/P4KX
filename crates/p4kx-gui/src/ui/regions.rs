@@ -28,6 +28,11 @@ pub struct Regions {
     pub list: Option<Rect>,
     /// The preview of the Browse tab, with everything its tab bar and body drew.
     pub preview: Option<Rect>,
+    /// The modals and windows that stood above the window, the setup of an export and the
+    /// windows that show its progress and outcome among them.
+    pub dialogs: Vec<Rect>,
+    /// Whether the body of the export setup holds more than its scroll area shows.
+    pub scrolls: bool,
 }
 
 /// Returns the regions of the last frame drawn in `ctx`.

@@ -14,8 +14,8 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::{
-    AssemblyExport, AssemblyExportStatus, AssemblyExportSummary, Language, Model, PreviewTab,
-    TreeNode, WorkTab,
+    AssemblyExport, AssemblyExportStage, AssemblyExportStatus, AssemblyExportSummary, Language,
+    Model, PreviewTab, TreeNode, WorkTab,
 };
 use p4kx_testkit::{
     ENTITY_INTERIOR_CLASS, INTERIOR_ROOT, check_glb, entity_interior_entries, lit_interior_entries,
@@ -136,7 +136,7 @@ fn the_entity_export_offers_the_interior_and_writes_it_below_an_interior_node() 
     );
     assert!(
         harness
-            .query_by_label_contains("Interior: containers")
+            .query_by_label_contains("Interior: object containers")
             .is_some(),
         "and it counts the Interior"
     );
@@ -259,6 +259,12 @@ fn a_socpak_entry_offers_the_export_of_its_interior() -> TestResult {
     assert!(has_node(&bytes, "ship_interior")?, "the root container");
     assert!(has_node(&bytes, "cockpit_seat")?, "a model of a nested one");
     assert!(harness.query_by_label("Interior exported").is_some());
+    assert!(
+        harness
+            .query_by_label_contains("Interior: containers opened")
+            .is_some(),
+        "a container on its own counts the containers opened"
+    );
     let remembered = harness.state().assembly_export_settings();
     assert_eq!(remembered.lod, 1, "remembered");
     assert_eq!(remembered.folder.as_deref(), Some(dir.path()));
@@ -376,22 +382,31 @@ fn the_interior_export_can_be_cancelled_and_leaves_no_file() -> TestResult {
         .assembly_export_setup_mut()
         .ok_or("no setup")?
         .set_file(file.clone());
+    let hold = harness.state_mut().hold_interior_export();
     assert!(harness.state_mut().submit_assembly_export(|| {}));
     let running = harness.state().assembly_export().ok_or("no export")?;
     assert!(running.is_container(), "an Interior export");
+    wait_for_model(&mut harness, "the export to reach the Interior", |model| {
+        matches!(
+            model.assembly_export().map(AssemblyExport::status),
+            Some(AssemblyExportStatus::Running(progress))
+                if progress.stage == AssemblyExportStage::Interior
+        )
+    })?;
 
     harness.state().cancel_assembly_export();
     finished(&mut harness)?;
+    drop(hold);
 
     let status = harness
         .state()
         .assembly_export()
         .map(AssemblyExport::status)
         .ok_or("no export")?;
-    match status {
-        AssemblyExportStatus::Cancelled => assert!(!file.exists(), "no file"),
-        AssemblyExportStatus::Finished(_) => assert!(file.exists(), "it ended first"),
-        other => return Err(format!("unexpected: {other:?}").into()),
-    }
+    assert!(
+        matches!(status, AssemblyExportStatus::Cancelled),
+        "cancelled, not {status:?}"
+    );
+    assert!(!file.exists(), "no file");
     Ok(())
 }

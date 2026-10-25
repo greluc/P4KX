@@ -27,13 +27,53 @@ fn info(path: &str, parent: Option<usize>) -> PartInfo {
 }
 
 fn draw(part: usize, world: Rows, radius: f32, items: std::ops::Range<u32>) -> PartDraw {
+    let centre = [world[0][3], world[1][3], world[2][3]];
     PartDraw {
         part,
-        centre: [world[0][3], world[1][3], world[2][3]],
+        mesh: 0,
+        bounds: Bounds {
+            min: centre.map(|value| value - radius),
+            max: centre.map(|value| value + radius),
+        },
+        centre,
         world,
         radius,
         items,
     }
+}
+
+fn with_interior_part(mut scene: AssemblyScene) -> AssemblyScene {
+    let mut part = info("room", Some(0));
+    part.interior = true;
+    scene.parts.push(part);
+    let mut room = draw(4, at(10.0, 0.0, 0.0), 1.0, 4..5);
+    room.mesh = 1;
+    scene.draws.push(room);
+    scene.meshes = 2;
+    scene.bounds.max[0] = 11.0;
+    scene
+}
+
+#[test]
+fn the_facts_leave_the_interior_out_while_it_is_hidden() {
+    let scene = with_interior_part(scene());
+
+    assert_eq!(scene.meshes_of(true), 2);
+    assert_eq!(scene.meshes_of(false), 1, "the room's mesh is not counted");
+    assert_eq!(scene.bounds_of(true), *scene.bounds());
+    let hull = scene.bounds_of(false);
+    assert!((hull.max[0] - 3.0).abs() < f32::EPSILON, "{hull:?}");
+    assert!((hull.min[0] + 1.0).abs() < f32::EPSILON, "{hull:?}");
+}
+
+#[test]
+fn a_scene_of_the_interior_alone_keeps_its_box_when_it_is_hidden() {
+    let mut scene = with_interior_part(scene());
+    for part in &mut scene.parts {
+        part.interior = true;
+    }
+
+    assert_eq!(scene.bounds_of(false), *scene.bounds());
 }
 
 fn group(translucent: bool) -> Group {

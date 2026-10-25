@@ -102,7 +102,7 @@ fn running_window(
     let cancelling = run.is_cancelled();
     let title = texts.get(T::RunningTitle);
     let path = run.shown_file();
-    let shown = frames::window(&title, Tone::Normal)
+    let shown = frames::window(ui.ctx(), &title, Tone::Normal)
         .id(Id::unique(WINDOW))
         .collapsible(false)
         .resizable(false)

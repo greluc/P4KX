@@ -12,6 +12,7 @@ pub(crate) mod frames;
 pub(crate) mod indicator;
 pub(crate) mod number;
 pub(crate) mod pagination;
+pub(crate) mod placement;
 pub(crate) mod rows;
 pub(crate) mod scroll_region;
 pub(crate) mod slider;

@@ -195,6 +195,8 @@ fn container(
     (cancel, shared): (&CancelToken, &Shared),
 ) -> Ended {
     shared.enter(AssemblyExportStage::Interior);
+    #[cfg(feature = "test-hooks")]
+    request.pause.wait(|| cancel.is_cancelled());
     if index.watch().check().is_err() {
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }

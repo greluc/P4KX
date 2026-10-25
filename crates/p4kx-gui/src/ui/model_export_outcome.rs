@@ -40,7 +40,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         ModelExportStatus::Running(progress) => {
             let cancelling = run.is_cancelled();
             let title = texts.get(T::RunningTitle);
-            let shown = frames::window(&title, Tone::Normal)
+            let shown = frames::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
                 .resizable(false)

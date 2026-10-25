@@ -565,3 +565,16 @@ Entry-Tabelle mit den Mindestbreiten ihrer Spalten und die breiteste Werkzeuglei
 Breite eines 1920er Bildschirms (960) startet die Seitenleiste deshalb eingeklappt und öffnet sich mit dem
 Knopf in der Leiste. Neue Maße: `sidebar.collapseWidth`, `sidebar.railWidth`, `workSurface.minWidth`,
 `workSurface.minHeight`, `workSurface.browseListMinHeight`, `workSurface.soundsToolbarMinHeight`.
+
+**D.53 Dialoge stehen zwischen Kopf- und Statusleiste.** Der Export-Dialog einer Entity oder eines
+Interior-Containers (`.modal`) hängt mittig an einer festen Oberkante `SPACE_4` unter der Kopfleiste, statt sich
+nach seiner Höhe neu zu zentrieren: wechselt er zwischen „GLB-Datei" und „Blender-Paket", bewegt sich seine
+Oberkante nicht. Sein Körper rollt, sobald er höher wäre als der Platz zwischen Kopf- und Statusleiste abzüglich
+Kopf, Fuß und je `SPACE_4` Abstand oben und unten; der Dialog des Interior-Containers rollt bei 1280 × 800
+nicht. Die Fenster mit Fortschritt und Ergebnis (`.modal`, nicht modal) öffnen sich oben mittig im selben Bereich
+mit `SPACE_4` Abstand zur Kopfleiste, bleiben darin, wenn der Nutzer sie verschiebt, und rollen ihren Körper über dem
+Fuß mit „Schließen", wenn der Platz nicht reicht. Die Zusammenfassung eines Entity-Exports zählt „Objekt-Container"
+(die Container, die der Record der Entity nennt und die sich öffnen ließen), die eines Interior-Containers „geöffnete
+Container" (Wurzel und verschachtelte); `p4kx entity glb` und `p4kx entity package` sagen ebenfalls „object
+containers". Die Ansicht der Entity zählt Ausdehnung, Meshes und Hinweise nur mit Interior, solange es eingeblendet
+ist. Neue Maße gibt es nicht.

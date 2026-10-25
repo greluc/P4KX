@@ -48,31 +48,35 @@ impl Outcome {
 /// image that would exceed `budget` is dropped and its job fails, like every job after it.
 ///
 /// The budget is checked against the header sizes before a job decodes anything, when the loader
-/// gives them, and against the image made otherwise. The sources of a chunk of jobs are decoded
-/// once however many of its jobs use them, and those the next chunk needs stay in memory up to a
-/// pixel cap.
+/// gives them, and against the image made otherwise. The sources of a group of jobs are decoded
+/// once however many of its jobs use them, and those the next group needs stay in memory up to a
+/// pixel cap. A group is at most four jobs, fewer when the distinct sources of the jobs would
+/// decode more than the decode limit together, by their headers; a source whose size is unknown
+/// or unreadable counts for the whole limit. The sources in memory therefore never exceed the
+/// decode limit plus the held cap, whatever the loader allows per texture, unless one job alone
+/// needs more.
 pub(crate) fn run(
     jobs: &[Job],
     mip: u32,
     loader: &dyn TextureLoader,
     budget: Budget,
 ) -> Vec<Outcome> {
-    run_holding(jobs, mip, loader, budget, MAX_HELD_PIXELS)
+    let store = SourceStore::new(loader, mip, MAX_HELD_PIXELS);
+    run_with(jobs, store, budget)
 }
 
-fn run_holding(
-    jobs: &[Job],
-    mip: u32,
-    loader: &dyn TextureLoader,
-    budget: Budget,
-    held: u64,
-) -> Vec<Outcome> {
-    let mut store = SourceStore::new(loader, mip, held);
+fn run_with(jobs: &[Job], mut store: SourceStore<'_>, budget: Budget) -> Vec<Outcome> {
     let mut tally = Tally::new(budget);
     let mut outcomes = Vec::with_capacity(jobs.len());
-    let mut chunks = jobs.chunks(PARALLEL_IMAGES).peekable();
-    while let Some(chunk) = chunks.next() {
-        let verdicts: Vec<Verdict> = chunk.iter().map(|job| tally.plan(job, &store)).collect();
+    let mut rest = jobs;
+    while !rest.is_empty() {
+        let (chunk, after) = rest.split_at(store.group_len(rest, PARALLEL_IMAGES));
+        let next = after.get(..PARALLEL_IMAGES).unwrap_or(after);
+        rest = after;
+        let verdicts: Vec<Verdict> = chunk
+            .iter()
+            .map(|job| tally.plan(job, &mut store))
+            .collect();
         let decoded = store.prepare(
             chunk
                 .iter()
@@ -85,7 +89,7 @@ fn run_holding(
             .zip(&verdicts)
             .map(|(job, verdict)| verdict.runs().then(|| make(job, &decoded)))
             .collect();
-        store.keep(decoded, chunks.peek().copied().unwrap_or_default());
+        store.keep(decoded, next);
         for verdict in &verdicts {
             if let Verdict::Reserved(size) = verdict {
                 tally.give_back(*size);

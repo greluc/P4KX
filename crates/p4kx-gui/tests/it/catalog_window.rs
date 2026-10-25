@@ -5,6 +5,7 @@
 //! `egui_kittest`.
 
 use crate::cataloging;
+use crate::waiting::RunQuiet;
 
 use cataloging::{TestResult, ended, files_in, makers, many, opened, wait_until};
 use egui::accesskit::Role;
@@ -41,9 +42,9 @@ fn harness(model: Model) -> Harness<'static, Window> {
 
 fn pick(harness: &mut Harness<'_, Window>, menu: &str, entry: &str) {
     harness.get_by_role_and_label(Role::Button, menu).click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label(entry).click();
-    harness.run();
+    harness.run_quiet();
 }
 
 fn wait_for_the_end(harness: &mut Harness<'_, Window>) -> TestResult {
@@ -51,7 +52,7 @@ fn wait_for_the_end(harness: &mut Harness<'_, Window>) -> TestResult {
     wait_until(&mut harness.state_mut().model, |model| {
         model.catalog().is_some_and(|run| !run.is_running())
     })?;
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -104,7 +105,7 @@ fn the_summary_shows_the_kinds_the_texts_the_size_and_the_file() -> TestResult {
         "no empty space under the foot"
     );
     harness.get_by_label("Close").click();
-    harness.run();
+    harness.run_quiet();
     assert!(harness.state().model.catalog().is_none(), "dismissed");
     Ok(())
 }
@@ -199,7 +200,7 @@ fn a_second_catalog_shows_its_own_summary() -> TestResult {
     wait_for_the_end(&mut harness)?;
     harness.get_by_label(&format!("File: {}", first.display()));
     harness.get_by_label("Close").click();
-    harness.run();
+    harness.run_quiet();
 
     let started = harness
         .state_mut()
@@ -225,7 +226,7 @@ fn the_open_archive_as_the_catalog_file_is_explained() -> TestResult {
     model.start_catalog(archive.clone(), || {});
     let mut harness = harness(model);
 
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Basetool catalog failed");
     harness.get_by_label(&format!(
@@ -250,7 +251,7 @@ fn the_running_catalog_can_be_cancelled_from_its_window() -> TestResult {
         ended(&mut harness.state_mut().model)?,
         CatalogExportStatus::Cancelled
     );
-    harness.run();
+    harness.run_quiet();
 
     assert!(cancelled, "cancelled");
     harness.get_by_label("Basetool catalog cancelled");
@@ -268,7 +269,7 @@ fn the_catalog_windows_speak_german() -> TestResult {
     harness
         .get_by_role_and_label(Role::Button, "Export")
         .click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Basetool-Katalog …");
     let started = harness
         .state_mut()

@@ -3,10 +3,10 @@
 
 //! The Channel picker driven headless: detected Channels, manual entries, recent Archives.
 
+use crate::waiting::{RunQuiet, wait_for};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -82,15 +82,10 @@ fn harness(library: &Path) -> Harness<'static, State> {
 }
 
 fn wait_until_open(harness: &mut Harness<'_, State>) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while harness.state().0.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", harness.state().0.failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
-    harness.run();
+    wait_for(harness, "the Archive to open", |harness| {
+        harness.state().0.browser().is_some()
+    })?;
+    harness.run_quiet();
     Ok(())
 }
 
@@ -104,7 +99,7 @@ fn the_detected_channels_are_listed_with_their_build() -> TestResult {
     let library = library()?;
     let mut harness = harness(library.path());
 
-    harness.run();
+    harness.run_quiet();
 
     assert!(harness.query_by_label("LIVE").is_some(), "LIVE is listed");
     assert!(harness.query_by_label("PTU").is_some(), "PTU is listed");
@@ -124,7 +119,7 @@ fn selecting_a_channel_opens_its_archive_and_remembers_it() -> TestResult {
     let library = library()?;
     let live = library.path().join("LIVE").join("Data.p4k");
     let mut harness = harness(library.path());
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("LIVE").click();
     harness.step();
@@ -147,13 +142,13 @@ fn dropping_a_folder_adds_it_as_a_manual_entry() -> TestResult {
     let extra = tempfile::tempdir()?;
     channel(extra.path(), "HOTFIX", Some("4.3.2-hotfix.1"))?;
     let mut harness = harness(library.path());
-    harness.run();
+    harness.run_quiet();
 
     harness
         .input_mut()
         .dropped_files
         .push(Arc::new(Dropped(extra.path().to_path_buf())));
-    harness.run();
+    harness.run_quiet();
 
     let (model, requests) = harness.state();
     assert_eq!(
@@ -179,7 +174,7 @@ fn an_added_archive_is_listed_as_a_channel() -> TestResult {
 
     let added = harness.state_mut().0.add_manual(archive.clone());
     let again = harness.state_mut().0.add_manual(archive.clone());
-    harness.run();
+    harness.run_quiet();
 
     assert!(added, "added");
     assert!(!again, "already added");
@@ -196,12 +191,12 @@ fn an_added_archive_is_listed_as_a_channel() -> TestResult {
 fn the_archive_menu_asks_for_the_add_folder_dialog() -> TestResult {
     let library = library()?;
     let mut harness = harness(library.path());
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Archive").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Add folder…").click();
-    harness.run();
+    harness.run_quiet();
 
     assert_eq!(harness.state().1.dialog, Some(Dialog::AddFolder), "asked");
     Ok(())
@@ -215,12 +210,12 @@ fn a_recent_archive_opens_from_the_archive_menu() -> TestResult {
     let mut recent = RecentArchives::default();
     recent.push(ptu.clone());
     harness.state_mut().0.set_recent(recent);
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("Archive").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label("Recent Archives").click();
-    harness.run();
+    harness.run_quiet();
     harness.get_by_label(&ptu.display().to_string()).click();
     harness.step();
     wait_until_open(&mut harness)?;

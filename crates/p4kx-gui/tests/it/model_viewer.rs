@@ -5,6 +5,7 @@
 
 use crate::headless;
 use crate::viewing;
+use crate::waiting::RunQuiet;
 
 use std::time::{Duration, Instant};
 
@@ -115,7 +116,7 @@ fn a_window_without_a_graphics_device_says_so_and_everything_else_works() -> Tes
     );
     wait_for_contents(&mut harness)?;
     harness.get_by_label("Hex").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label_contains("00000000  ").is_some(),
         "the Hex tab shows the model file"
@@ -190,7 +191,7 @@ fn a_failed_drawing_names_that_model_and_the_next_model_is_drawn_again() -> Test
         .ok_or("no scene")?;
 
     report.fail(serial);
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness
@@ -227,7 +228,7 @@ fn a_model_too_large_for_the_device_is_named() -> TestResult {
         .ok_or("no scene")?;
 
     report.reject(serial);
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         harness

@@ -5,10 +5,10 @@
 //! choices, and the export of a socpak container on its own.
 
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use crate::entity_picking::{TestResult, Window, opened, opened_sized, select};
 use crate::tagging::wait_until;
+use crate::waiting::{act_until, wait_for_model};
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -54,18 +54,11 @@ pub(crate) fn click_settled(harness: &mut Harness<'_, Model>, label: &str) {
 }
 
 fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while harness
-        .state()
-        .assembly_export()
-        .is_some_and(AssemblyExport::is_running)
-    {
-        if Instant::now() > deadline {
-            return Err("the export did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the export to end", |model| {
+        !model
+            .assembly_export()
+            .is_some_and(AssemblyExport::is_running)
+    })?;
     harness.run_steps(3);
     Ok(())
 }
@@ -232,8 +225,12 @@ fn a_socpak_entry_offers_the_export_of_its_interior() -> TestResult {
     select_socpak(&mut harness, INTERIOR_ROOT)?;
     assert!(harness.state().interior_export_shown());
     assert!(harness.state().interior_export_available());
-    click_settled(&mut harness, "Export Interior as GLB…");
-    harness.run_steps(3);
+    act_until(
+        &mut harness,
+        "the click on the Interior export to open the setup",
+        |harness| click_settled(harness, "Export Interior as GLB…"),
+        |model| model.assembly_export_setup().is_some(),
+    )?;
 
     let setup = harness.state().assembly_export_setup().ok_or("no setup")?;
     assert!(setup.is_container(), "the container on its own");

@@ -4,6 +4,7 @@
 //! Split textures grouped in the Entry table: one row per texture, parts reachable, and checks,
 //! search and Extraction that cover all parts.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -245,7 +246,7 @@ fn the_window_shows_one_row_and_expands_the_parts_on_the_chevron() -> TestResult
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     let wall = harness
         .state()
         .browser()
@@ -261,7 +262,7 @@ fn the_window_shows_one_row_and_expands_the_parts_on_the_chevron() -> TestResult
         .browser_mut()
         .ok_or("no Archive")?
         .select_folder(folder);
-    harness.run();
+    harness.run_quiet();
 
     assert!(harness.query_by_label("wall.dds").is_some(), "the texture");
     assert!(
@@ -270,7 +271,7 @@ fn the_window_shows_one_row_and_expands_the_parts_on_the_chevron() -> TestResult
     );
 
     harness.get_by_label("Show the parts of wall.dds").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(harness.query_by_label("wall.dds.1").is_some(), "a part");
     assert!(harness.query_by_label("wall.dds.a").is_some(), "the tail");
@@ -282,7 +283,7 @@ fn the_window_shows_one_row_and_expands_the_parts_on_the_chevron() -> TestResult
         "expanded"
     );
     harness.get_by_label("Hide the parts of wall.dds").click();
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label("wall.dds.1").is_none(), "collapsed");
     Ok(())
 }

@@ -60,6 +60,8 @@ pub struct AssemblyView {
     camera: Option<Camera>,
     cancelled: bool,
     counter: u64,
+    #[cfg(feature = "test-hooks")]
+    gate: Option<Arc<crate::hold::Gate>>,
 }
 
 impl std::fmt::Debug for AssemblyView {
@@ -103,7 +105,18 @@ impl AssemblyView {
             camera: None,
             cancelled: false,
             counter: 0,
+            #[cfg(feature = "test-hooks")]
+            gate: None,
         }
+    }
+
+    /// Makes the builds of the view stay in their Interior step until the returned hold is
+    /// dropped.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_interior(&mut self) -> crate::Hold {
+        let (hold, gate) = crate::hold::Hold::new();
+        self.gate = Some(gate);
+        hold
     }
 
     /// Returns the level of detail the view is built at.
@@ -320,6 +333,8 @@ impl AssemblyView {
             lod: self.lod,
             materials: self.materials,
             interior: self.interior,
+            #[cfg(feature = "test-hooks")]
+            gate: self.gate.clone(),
         };
         self.cancelled = false;
         match job::start(&self.index, request, Arc::clone(&self.wake)) {

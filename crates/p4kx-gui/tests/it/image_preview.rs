@@ -4,6 +4,7 @@
 //! The Image tab of the preview over a synthetic Archive with split textures, driven headless.
 
 use crate::imaging;
+use crate::waiting::RunQuiet;
 
 use std::time::{Duration, Instant};
 
@@ -127,7 +128,7 @@ fn an_unsupported_format_is_named_and_the_text_and_hex_tabs_still_work() -> Test
         "message"
     );
     harness.get_by_label("Hex").click();
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_by_label_contains("00000000  44 44 53 20")
@@ -135,7 +136,7 @@ fn an_unsupported_format_is_named_and_the_text_and_hex_tabs_still_work() -> Test
         "hex shows the DDS magic"
     );
     harness.get_by_label("Text").click();
-    harness.run();
+    harness.run_quiet();
     assert_eq!(harness.state().preview_tab(), PreviewTab::Text, "Text tab");
     Ok(())
 }
@@ -244,18 +245,18 @@ fn the_focused_picture_scrolls_with_the_keyboard() -> TestResult {
     let at_start = top(&harness);
 
     harness.get_by_label("Picture").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     let one_row = top(&harness);
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     let a_page = top(&harness);
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     let at_end = top(&harness);
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
 
     assert!(
         one_row < at_start,

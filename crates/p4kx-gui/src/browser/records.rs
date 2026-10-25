@@ -14,6 +14,12 @@ impl Browser {
         self.records.as_ref()
     }
 
+    /// Makes the load of DataForge stay running until the returned hold is dropped.
+    #[cfg(feature = "test-hooks")]
+    pub fn hold_record_load(&mut self) -> Option<crate::Hold> {
+        self.records.as_mut().map(RecordTree::hold_load)
+    }
+
     /// Expands or collapses the Record tree node `id`; the first time DataForge is needed it is
     /// loaded on a background thread, calling `wake` from it once it is ready.
     pub fn toggle_record_node(&mut self, id: RecordNodeId, wake: impl Fn() + Send + 'static) {

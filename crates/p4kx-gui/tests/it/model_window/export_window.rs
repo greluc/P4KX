@@ -3,6 +3,7 @@
 
 //! The Export as GLB windows over a synthetic Archive with a cube model, driven headless.
 
+use crate::waiting::RunQuiet;
 use std::path::PathBuf;
 
 use crate::glb_exporting::{Window, finished, start};
@@ -34,7 +35,7 @@ fn a_file_that_cannot_be_written_shows_a_message_and_the_window_keeps_working() 
         "the message is shown"
     );
     harness.get_by_label("Close").click();
-    harness.run();
+    harness.run_quiet();
     assert!(harness.state().model_export().is_none(), "dismissed");
     harness.get_by_label("readme.txt").click();
     harness.run_steps(8);
@@ -99,7 +100,7 @@ fn an_export_without_the_key_asks_for_it() -> TestResult {
         Some(KeyReason::Needed),
         "because it was needed"
     );
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness
             .query_all_by_label_contains("Archive key")
@@ -123,7 +124,7 @@ fn the_export_is_offered_in_the_preview_and_opens_the_setup() -> TestResult {
     select(&mut harness, "cube.cgf")?;
 
     harness.get_by_label("Export as GLB…").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(harness.state().model_export_setup().is_some(), "the setup");
     for label in [
@@ -155,7 +156,7 @@ fn the_setup_and_its_outcome_are_in_german_when_the_window_is() -> TestResult {
     select(&mut harness, "cube.cgf")?;
 
     harness.get_by_label("Als GLB exportieren …").click();
-    harness.run();
+    harness.run_quiet();
     for label in [
         "Modell: cube.cgf",
         "Detailstufe",

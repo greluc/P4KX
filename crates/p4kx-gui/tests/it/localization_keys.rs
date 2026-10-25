@@ -5,6 +5,7 @@
 //! scrolling the table, and the heads after another Archive was opened.
 
 use crate::localizing;
+use crate::waiting::RunQuiet;
 
 use egui::accesskit::Role;
 use egui::{Event, Key, Modifiers, PointerButton, pos2};
@@ -147,9 +148,9 @@ fn the_focused_table_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.get_by_label("Localisation rows").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("key_00199").is_some(),
         "End shows the last"
@@ -160,14 +161,14 @@ fn the_focused_table_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("key_00000").is_some(),
         "Home shows the first"
     );
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("key_00000").is_none(),
         "one row down"
@@ -178,12 +179,12 @@ fn the_focused_table_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label("key_00001").is_none(), "a page down");
 
     harness.key_press(Key::PageUp);
     harness.key_press(Key::ArrowUp);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("key_00000").is_some(),
         "back at the top"

@@ -3,6 +3,7 @@
 
 //! The limits, Archive changes and keyboard scrolling of the XML tab, driven headless.
 
+use crate::waiting::RunQuiet;
 use crate::xml_previewing;
 
 use egui::Key;
@@ -90,9 +91,9 @@ fn the_focused_xml_view_scrolls_with_the_keyboard() -> TestResult {
     let declaration = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>";
 
     harness.get_by_label("Converted XML").focus();
-    harness.run();
+    harness.run_quiet();
     harness.key_press(Key::End);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label("</fleet>").is_some(),
         "End shows the last line"
@@ -103,14 +104,14 @@ fn the_focused_xml_view_scrolls_with_the_keyboard() -> TestResult {
     );
 
     harness.key_press(Key::Home);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(first).is_some(),
         "Home shows the first ship"
     );
 
     harness.key_press(Key::ArrowDown);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(declaration).is_none(),
         "one line down"
@@ -118,12 +119,12 @@ fn the_focused_xml_view_scrolls_with_the_keyboard() -> TestResult {
     assert!(harness.query_by_label(first).is_some(), "only one line");
 
     harness.key_press(Key::PageDown);
-    harness.run();
+    harness.run_quiet();
     assert!(harness.query_by_label(first).is_none(), "a page down");
 
     harness.key_press(Key::PageUp);
     harness.key_press(Key::ArrowUp);
-    harness.run();
+    harness.run_quiet();
     assert!(
         harness.query_by_label(declaration).is_some(),
         "back at the top"

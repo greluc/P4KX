@@ -3,6 +3,7 @@
 
 //! The search field, the quick-filter chips and the status bar counters, driven headless.
 
+use crate::waiting::RunQuiet;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -56,7 +57,7 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
         std::thread::sleep(Duration::from_millis(5));
         harness.step();
     }
-    harness.run();
+    harness.run_quiet();
     Ok(())
 }
 
@@ -75,7 +76,7 @@ fn typing_into_the_search_field_filters_the_whole_archive() -> TestResult {
     harness
         .get_by_role(egui::accesskit::Role::TextInput)
         .click();
-    harness.run();
+    harness.run_quiet();
     harness
         .get_by_role(egui::accesskit::Role::TextInput)
         .type_text("HULL");
@@ -137,12 +138,12 @@ fn every_quick_filter_is_offered() -> TestResult {
 fn the_status_bar_counts_selected_entries_outside_the_filter() -> TestResult {
     let (_folder, mut harness) = opened(Language::BritishEnglish)?;
     harness.get_by_label("Select config.xml").click();
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("aurora").click();
     searched(&mut harness)?;
     harness.get_by_label("Select seat.cgf").click();
-    harness.run();
+    harness.run_quiet();
 
     assert!(harness.query_by_label("1 shown").is_some(), "shown");
     assert!(
@@ -156,7 +157,7 @@ fn the_status_bar_counts_selected_entries_outside_the_filter() -> TestResult {
 fn the_german_status_bar_counts_hidden_selections_too() -> TestResult {
     let (_folder, mut harness) = opened(Language::German)?;
     harness.get_by_label("config.xml auswählen").click();
-    harness.run();
+    harness.run_quiet();
 
     harness.get_by_label("*.dds").click();
     searched(&mut harness)?;

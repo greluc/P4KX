@@ -15,6 +15,9 @@ layer = "frontend"
 name = "p4kx-gui"
 path = "src/main.rs"
 
+[features]
+test-hooks = []
+
 [dependencies]
 p4kx-assembly.workspace = true
 p4kx-blender.workspace = true
@@ -48,6 +51,7 @@ windows-sys.workspace = true
 winresource.workspace = true
 
 [dev-dependencies]
+p4kx-gui = { path = ".", features = ["test-hooks"] }
 p4kx-testkit.workspace = true
 egui_kittest = { workspace = true, features = ["wgpu"] }
 fluent-syntax.workspace = true

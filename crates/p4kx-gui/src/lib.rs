@@ -25,6 +25,8 @@ mod entry_index;
 mod extraction;
 mod forge_cache;
 mod format;
+#[cfg(feature = "test-hooks")]
+mod hold;
 mod installation;
 mod language;
 mod localization;
@@ -95,6 +97,8 @@ pub use extraction::{
     Confirmation, Extraction, ExtractionScope, ExtractionSetup, ExtractionStatus,
     ExtractionSummary, FailedEntry, RecordCounts, TargetKind,
 };
+#[cfg(feature = "test-hooks")]
+pub use hold::Hold;
 pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
 pub use model::{Failure, GAME_CHECK_INTERVAL, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};

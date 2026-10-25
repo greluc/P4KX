@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The export of the Character of the Characters tab as GLB, with progress, cancel and the
-//! refusal of a Star Citizen installation.
+//! The export of the Character of the Characters tab as GLB: its setup, with progress, cancel and
+//! the refusal of a Star Citizen installation.
+
+use std::path::Path;
 
 use crate::characters::{
     TestResult, Window, built, opened, opened_in_installation, pick, settle, wait_until,
@@ -10,7 +12,7 @@ use crate::characters::{
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
 use p4kx_gui::ui::Dialog;
-use p4kx_gui::{CharacterExportStatus, ChooserKind, Language, ModelExportFailure};
+use p4kx_gui::{CharacterExportStatus, ChooserKind, Language};
 use p4kx_testkit::check_glb;
 
 fn ended(window: &mut Window) -> TestResult {
@@ -26,7 +28,7 @@ fn composed() -> Result<Window, Box<dyn std::error::Error>> {
     compose(opened(Language::BritishEnglish)?)
 }
 
-fn compose(mut window: Window) -> Result<Window, Box<dyn std::error::Error>> {
+pub(crate) fn compose(mut window: Window) -> Result<Window, Box<dyn std::error::Error>> {
     pick(&mut window.1, ChooserKind::Head, "Runner.chf")?;
     wait_until(&mut window.1, |model| {
         model.characters().head().is_some() && built(model)
@@ -42,13 +44,41 @@ fn compose(mut window: Window) -> Result<Window, Box<dyn std::error::Error>> {
     Ok(window)
 }
 
+fn start(window: &mut Window, file: &Path) -> Result<bool, &'static str> {
+    let model = &mut window.1.state_mut().model;
+    if !model.begin_character_export() {
+        return Err("the setup did not open");
+    }
+    model
+        .characters_mut()
+        .export_setup_mut()
+        .ok_or("no setup")?
+        .set_file(file.to_path_buf());
+    Ok(model.submit_character_export(|| {}))
+}
+
 #[test]
-fn the_export_button_asks_the_host_for_a_file() -> TestResult {
+fn the_export_button_opens_the_setup_which_asks_the_host_for_a_file() -> TestResult {
     let mut window = opened(Language::BritishEnglish)?;
+    window
+        .1
+        .get_by_role_and_label(Role::Button, "Export…")
+        .click();
+    window.1.run_steps(3);
+
+    let setup = window
+        .1
+        .state()
+        .model
+        .characters()
+        .export_setup()
+        .ok_or("no setup")?;
+    assert!(!setup.is_ready(), "no file chosen yet");
+    assert!(window.1.query_by_label("Export Character").is_some());
 
     window
         .1
-        .get_by_role_and_label(Role::Button, "Export as GLB…")
+        .get_by_role_and_label(Role::Button, "Choose file…")
         .click();
     window.1.run_steps(2);
 
@@ -65,14 +95,7 @@ fn the_character_is_written_as_one_skinned_glb_with_its_morph_targets() -> TestR
     let mut window = composed()?;
     let file = window.0.path().join("character");
 
-    assert!(
-        window
-            .1
-            .state_mut()
-            .model
-            .start_character_export(file, || {}),
-        "started"
-    );
+    assert!(start(&mut window, &file)?, "started");
     window.1.run_steps(1);
     ended(&mut window)?;
 
@@ -87,6 +110,7 @@ fn the_character_is_written_as_one_skinned_glb_with_its_morph_targets() -> TestR
         written,
         "a name without extension gets .glb"
     );
+    assert!(summary.package().is_none(), "a GLB file");
     assert_eq!(summary.parts(), 4, "body, torso, head and teeth");
     let checked = check_glb(&std::fs::read(&written)?)?;
     let skin = checked.document.skins().next().ok_or("a skin")?;
@@ -105,11 +129,7 @@ fn the_character_is_written_as_one_skinned_glb_with_its_morph_targets() -> TestR
 fn the_progress_window_shows_while_it_runs_and_the_summary_after() -> TestResult {
     let mut window = composed()?;
     let file = window.0.path().join("seen.glb");
-    window
-        .1
-        .state_mut()
-        .model
-        .start_character_export(file, || {});
+    start(&mut window, &file)?;
 
     ended(&mut window)?;
     window.1.run_steps(3);
@@ -131,11 +151,7 @@ fn the_progress_window_shows_while_it_runs_and_the_summary_after() -> TestResult
 fn a_stopped_export_leaves_no_file() -> TestResult {
     let mut window = composed()?;
     let file = window.0.path().join("stopped.glb");
-    window
-        .1
-        .state_mut()
-        .model
-        .start_character_export(file.clone(), || {});
+    start(&mut window, &file)?;
 
     window.1.state_mut().model.characters_mut().stop_export();
 
@@ -159,34 +175,31 @@ fn a_stopped_export_leaves_no_file() -> TestResult {
 }
 
 #[test]
-fn a_file_inside_an_installation_is_refused() -> TestResult {
+fn a_file_inside_an_installation_is_refused_before_the_export_starts() -> TestResult {
     let (window, channel) = opened_in_installation(Language::BritishEnglish)?;
     let mut window = compose(window)?;
     let file = channel.join("character.glb");
 
+    assert!(window.1.state_mut().model.begin_character_export());
+    let model = &mut window.1.state_mut().model;
+    let setup = model
+        .characters_mut()
+        .export_setup_mut()
+        .ok_or("no setup")?;
+    setup.set_file(file.clone());
+    assert!(setup.refusal().is_some(), "named in the setup");
+    assert!(!setup.is_ready());
+    assert!(!model.submit_character_export(|| {}), "not started");
+    window.1.run_steps(3);
+
     assert!(
         window
             .1
-            .state_mut()
-            .model
-            .start_character_export(file.clone(), || {}),
-        "the attempt is shown"
+            .query_by_label_contains("Star Citizen installation")
+            .is_some(),
+        "the dialog says so"
     );
-
-    let export = window
-        .1
-        .state()
-        .model
-        .characters()
-        .export()
-        .ok_or("no export")?;
-    assert!(
-        matches!(
-            export.status(),
-            CharacterExportStatus::Failed(ModelExportFailure::Refused(_))
-        ),
-        "refused: {export:?}"
-    );
+    assert!(window.1.state().model.characters().export().is_none());
     assert!(!file.exists(), "nothing written");
     Ok(())
 }

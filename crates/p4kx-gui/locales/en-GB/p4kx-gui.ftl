@@ -1108,8 +1108,8 @@ assembly-export-summary-package-textures = { $count ->
     [one] One texture could not be written; its materials keep the plain colours.
    *[other] { $number } textures could not be written; their materials keep the plain colours.
   }
-assembly-export-title-interior = Export Interior as GLB
-assembly-export-action-interior = Export Interior as GLB…
+assembly-export-title-interior = Export Interior
+assembly-export-action-interior = Export Interior…
 assembly-export-entity = Entity: { $name }
 assembly-export-container = Container: { $name }
 assembly-export-interior-heading = Interior
@@ -1197,7 +1197,15 @@ characters-expressions-no-head = Choose a head to load its expressions.
 characters-expressions-none = The head has no expressions.
 characters-expression-neutral = Neutral face
 characters-expression-strength = Strength { $percent } %
-characters-export-action = Export as GLB…
+characters-export-action = Export…
+characters-export-setup-title = Export Character
+characters-export-setup-name = Character: { $name }
+characters-export-package-note = A folder with scene.json and one GLB file of the Character: the skeleton, the shape keys and the materials, with their textures when the textures are chosen, and the animations if you choose them, for the Blender add-on.
+characters-export-animations-heading = Animations
+characters-export-animations-none = None
+characters-export-animations-all = All
+characters-export-busy = The Character is being built again. Export it once that is done.
+characters-export-package-counts = Parts { $parts }, bones { $bones }, skinned meshes { $skinned }, shape keys { $morphs }, animations { $animations }, vertices { $vertices }, triangles { $triangles }, files { $files }, size { $size }
 characters-export-counts = Parts { $parts }, bones { $bones }, vertices { $vertices }, triangles { $triangles }, size { $size }
 characters-view-label = 3D view of the Character { $name }: { $parts } parts, { $triangles } triangles
 characters-report-heading = Pieces that could not be fitted in full ({ $number })

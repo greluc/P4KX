@@ -6,8 +6,8 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant, CharacterAnimations,
-    LoadoutResolver, PartOrigin,
+    AnimationFolders, ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant,
+    CharacterAnimations, LoadoutResolver, PartOrigin, character_animations,
 };
 use p4kx_extraction::{
     AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
@@ -20,7 +20,7 @@ use crate::cli_armour::{ArmourGlbArgs, BodyArg};
 use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
-use crate::model_animations::{AnimationFolders, WrittenJson, character_animations, write_notes};
+use crate::model_animations::{WrittenJson, write_notes};
 use crate::query_table::one_line;
 
 #[derive(Serialize)]

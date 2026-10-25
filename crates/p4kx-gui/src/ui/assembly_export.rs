@@ -105,18 +105,14 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Optio
         loadout_line(ui, texts, setup);
     }
     ui.add_space(MODAL_GROUP_GAP);
-    if setup.has_package() {
-        ui.horizontal_top(|ui| {
-            ui.vertical(|ui| form(ui, texts, setup));
-            ui.add_space(MODAL_GROUP_GAP);
-            ui.vertical(|ui| lod(ui, texts, setup));
-        });
-        if setup.form() == AssemblyExportForm::Package {
-            let note = plain(texts.get(T::FormPackageNote), FS_XS, Weight::Regular);
-            ui.add(egui::Label::new(note.color(palette::GRAY_2_TEXT)).wrap());
-        }
-    } else {
-        lod(ui, texts, setup);
+    ui.horizontal_top(|ui| {
+        ui.vertical(|ui| form(ui, texts, setup));
+        ui.add_space(MODAL_GROUP_GAP);
+        ui.vertical(|ui| lod(ui, texts, setup));
+    });
+    if setup.form() == AssemblyExportForm::Package {
+        let note = plain(texts.get(T::FormPackageNote), FS_XS, Weight::Regular);
+        ui.add(egui::Label::new(note.color(palette::GRAY_2_TEXT)).wrap());
     }
     materials(ui, texts, setup);
     if setup.has_interior() {
@@ -141,7 +137,7 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) -> Optio
     action
 }
 
-fn target_row(
+pub(super) fn target_row(
     ui: &mut Ui,
     texts: &Texts,
     (heading, choose, none): (T, T, T),
@@ -174,19 +170,43 @@ fn lod(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {
 }
 
 fn form(ui: &mut Ui, texts: &Texts, setup: &mut AssemblyExportSetup) {
+    if let Some(chosen) = form_choice(ui, texts, setup.form()) {
+        setup.set_form(chosen);
+    }
+}
+
+/// Shows the choice between the GLB file and the Blender package; returns the form clicked.
+pub(super) fn form_choice(
+    ui: &mut Ui,
+    texts: &Texts,
+    current: AssemblyExportForm,
+) -> Option<AssemblyExportForm> {
     group_label(ui, &texts.get(T::FormHeading));
     let labels = [texts.get(T::FormGlb), texts.get(T::FormPackage)];
-    let active = Some(usize::from(setup.form() == AssemblyExportForm::Package));
+    let active = Some(usize::from(current == AssemblyExportForm::Package));
     let clicked = ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner;
     match clicked {
-        Some(0) => setup.set_form(AssemblyExportForm::Glb),
-        Some(1) => setup.set_form(AssemblyExportForm::Package),
-        _ => {}
+        Some(0) => Some(AssemblyExportForm::Glb),
+        Some(1) => Some(AssemblyExportForm::Package),
+        _ => None,
     }
 }
 
 fn package_notice(ui: &mut Ui, texts: &Texts, setup: &AssemblyExportSetup) {
-    match setup.package_problem() {
+    folder_notice(
+        ui,
+        texts,
+        (setup.package_problem(), setup.package_replaces()),
+    );
+}
+
+/// Tells what is wrong with the chosen package folder, or that it replaces an earlier package.
+pub(super) fn folder_notice(
+    ui: &mut Ui,
+    texts: &Texts,
+    (problem, replaces): (Option<&PackageProblem>, bool),
+) {
+    match problem {
         Some(PackageProblem::NotAPackage) => {
             frames::danger_alert(ui, |ui| {
                 let text = plain(texts.get(T::PackageNotAPackage), FS_SM, Weight::Regular);
@@ -199,7 +219,7 @@ fn package_notice(ui: &mut Ui, texts: &Texts, setup: &AssemblyExportSetup) {
                 ui.add(egui::Label::new(text.color(palette::GRAY_1)).wrap());
             });
         }
-        None if setup.package_replaces() => {
+        None if replaces => {
             let text = plain(texts.get(T::PackageReplaces), FS_SM, Weight::Regular);
             ui.add(egui::Label::new(text.color(palette::WARNING)).wrap());
         }

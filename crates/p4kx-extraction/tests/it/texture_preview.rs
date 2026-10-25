@@ -78,6 +78,75 @@ fn a_cubemap_previews_its_faces_as_a_cross() -> TestResult {
 }
 
 #[test]
+fn an_array_previews_its_elements_on_a_sheet() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let rgba8 = TestTextureFormat::Dx10Pixel {
+        dxgi_format: 28,
+        pixel_bytes: 4,
+    };
+    let dds = SplitDds::new(rgba8, 4, 2).array(3).split(2);
+    let archive = write_archive(dir.path(), &dds)?;
+    let texture = Texture::from_archive(&archive, HEADER)?;
+
+    for level in 0..texture.header().mip_count() {
+        let sheet = texture.decode_preview(level)?;
+        let elements = texture.decode_surfaces(level)?;
+        let (width, height) = (elements[0].width(), elements[0].height());
+
+        assert_eq!(
+            Some([sheet.width(), sheet.height()]),
+            texture.header().preview_size(level),
+            "the announced size at level {level}"
+        );
+        assert_eq!(
+            (sheet.width(), sheet.height()),
+            (width * 2, height * 2),
+            "two by two cells at level {level}"
+        );
+        for (element, (column, row)) in elements.iter().zip([(0, 0), (1, 0), (0, 1)]) {
+            assert_eq!(
+                pixel(sheet.pixels(), sheet.width(), column * width, row * height),
+                pixel(element.pixels(), width, 0, 0),
+                "element in cell {column}, {row} at level {level}"
+            );
+        }
+        assert_eq!(
+            pixel(sheet.pixels(), sheet.width(), width, height),
+            Some([0, 0, 0, 0].as_slice()),
+            "the fourth cell is empty at level {level}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_volume_previews_its_slices_on_a_sheet() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let dds = SplitDds::new(TestTextureFormat::LegacyBgra8, 4, 4)
+        .volume(4)
+        .split(1);
+    let archive = write_archive(dir.path(), &dds)?;
+    let texture = Texture::from_archive(&archive, HEADER)?;
+
+    let sheet = texture.decode_preview(0)?;
+    let slices = texture.decode_surfaces(0)?;
+
+    assert_eq!((sheet.width(), sheet.height()), (8, 8), "two by two slices");
+    assert_eq!(slices.len(), 4, "four slices");
+    assert_eq!(
+        pixel(sheet.pixels(), sheet.width(), 4, 4),
+        pixel(slices[3].pixels(), 4, 0, 0),
+        "the last slice is bottom right"
+    );
+    assert_eq!(
+        texture.decode_preview(2)?.width(),
+        1,
+        "the smallest mip has one slice"
+    );
+    Ok(())
+}
+
+#[test]
 fn texture_headers_and_alpha_tails_are_textures_but_their_parts_are_not() {
     for (path, header) in [
         ("Data\\a.dds", true),

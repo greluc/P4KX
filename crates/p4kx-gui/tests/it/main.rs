@@ -64,6 +64,7 @@ mod extraction_window;
 mod glb_exporting;
 mod headless;
 mod image_preview;
+mod image_preview_layers;
 mod image_preview_limits;
 mod imaging;
 mod info_models;

@@ -14,8 +14,12 @@ mod bank_reader;
 mod codec;
 mod error;
 mod hirc;
+mod hirc_action;
+mod hirc_music;
+mod hirc_music_parse;
 mod hirc_node;
 mod hirc_plugin;
+mod hirc_source;
 mod ima;
 mod loops;
 mod media_class;
@@ -31,7 +35,12 @@ mod wem;
 pub use bank_error::{BankError, BankWarning, SectionId};
 pub use codec::Codec;
 pub use error::AudioError;
-pub use hirc::{ActionTarget, HircKind, HircObject, HircValue, MediaStorage, SoundSource};
+pub use hirc::{HircKind, HircObject, HircValue, MediaStorage, SoundSource};
+pub use hirc_action::{ActionTarget, PlayBank};
+pub use hirc_music::{
+    MusicClip, MusicMarker, MusicMeter, MusicNode, MusicPlaylist, MusicPlaylistItem, MusicSegment,
+    MusicStinger, MusicSwitch, MusicTrack, MusicTrackKind, MusicTrackSwitch,
+};
 pub use hirc_node::{Container, ContainerKind};
 pub use loops::Loop;
 pub use media_class::MediaClass;

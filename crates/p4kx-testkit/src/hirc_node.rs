@@ -84,13 +84,15 @@ impl TestHircObject {
         body.push(0);
         put_u32(&mut body, source_id);
         body.extend_from_slice(&[0; 9]);
-        put_u32(&mut body, 0);
+        if plugin_id & 0x0F == 2 {
+            put_u32(&mut body, 0);
+        }
         body.extend_from_slice(&node_base(TestNodeBase::Plain));
         Self::raw(2, id, body)
     }
 }
 
-fn node_base(base: TestNodeBase) -> Vec<u8> {
+pub(crate) fn node_base(base: TestNodeBase) -> Vec<u8> {
     let full = base == TestNodeBase::Full;
     let mut body = Vec::new();
     if full {

@@ -65,6 +65,7 @@ mod texture_exr;
 mod texture_groups;
 mod texture_images;
 mod texture_job;
+mod texture_names;
 mod texture_outputs;
 mod texture_parts;
 mod texture_png;
@@ -125,7 +126,9 @@ pub use p4kx_archive::{
 };
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
-    HircKind, HircObject, HircValue, MediaStorage, Section, SectionId, SoundSource, Soundbank,
+    HircKind, HircObject, HircValue, MediaStorage, MusicClip, MusicMarker, MusicMeter, MusicNode,
+    MusicPlaylist, MusicPlaylistItem, MusicSegment, MusicStinger, MusicSwitch, MusicTrack,
+    MusicTrackKind, MusicTrackSwitch, PlayBank, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
     AudioError, ByteOrder, Codebooks, Codec, MediaClass, OggReport, OpusError, VorbisError,

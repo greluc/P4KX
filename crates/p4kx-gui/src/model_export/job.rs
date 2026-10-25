@@ -10,7 +10,7 @@ use std::thread;
 use p4kx_extraction::model::LodSelection;
 use p4kx_extraction::{
     AnimationChoice, AnimationSet, ArchiveTextures, CancelToken, ConversionError, GlbOptions,
-    MaterialMode, ModelSource, TextureLoader, archive_error_in,
+    MaterialMode, ModelSource, PathIndex, TextureLoader, archive_error_in,
 };
 use p4kx_settings::ModelMaterials;
 
@@ -28,6 +28,8 @@ pub(crate) struct Request {
     pub(crate) texture_mip: u32,
     pub(crate) animations: Option<AnimationChoice>,
     pub(crate) vertex_colours: bool,
+    #[cfg(feature = "test-hooks")]
+    pub(crate) pause: crate::hold::Pause,
 }
 
 impl Request {
@@ -251,42 +253,72 @@ pub(crate) fn start(
 }
 
 fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Shared) -> Ended {
-    if index.watch().check().is_err() {
-        return Ended::Failed(ModelExportFailure::ArchiveChanged);
-    }
     let paths = index.path_index();
-    let lods = LodSelection::Only(request.lod);
-    let source = match ModelSource::from_index_with(&paths, &request.entry_path, lods) {
-        Ok(source) => source,
-        Err(error) => return failed(index, &error),
+    let read = match read(index, &paths, request, cancel) {
+        Ok(read) => read,
+        Err(ended) => return ended,
     };
+    write(index, &paths, request, &read, (cancel, shared))
+}
+
+/// The model and the animations an export reads before it writes the file.
+struct Read {
+    source: ModelSource,
+    animations: AnimationSet,
+}
+
+fn read(
+    index: &EntryIndex,
+    paths: &PathIndex<'_>,
+    request: &Request,
+    cancel: &CancelToken,
+) -> Result<Read, Ended> {
+    if index.watch().check().is_err() {
+        return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
+    }
+    let lods = LodSelection::Only(request.lod);
+    let source = ModelSource::from_index_with(paths, &request.entry_path, lods)
+        .map_err(|error| failed(index, &error))?;
     if cancel.is_cancelled() {
-        return Ended::Cancelled;
+        return Err(Ended::Cancelled);
     }
     let animations = match &request.animations {
         Some(choice) => {
-            match AnimationSet::from_archive(&paths, &request.entry_path, choice, &[]) {
-                Ok(set) => set,
-                Err(error) => return failed(index, &error),
-            }
+            AnimationSet::from_archive_cancellable(paths, &request.entry_path, choice, &[], cancel)
+                .map_err(|error| match error {
+                    ConversionError::Cancelled => Ended::Cancelled,
+                    other => failed(index, &other),
+                })?
         }
         None => AnimationSet::default(),
     };
-    if cancel.is_cancelled() {
-        return Ended::Cancelled;
-    }
+    Ok(Read { source, animations })
+}
+
+fn write(
+    index: &EntryIndex,
+    paths: &PathIndex<'_>,
+    request: &Request,
+    read: &Read,
+    (cancel, shared): (&CancelToken, &Shared),
+) -> Ended {
     if index.watch().check().is_err() {
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }
     shared.stage.store(1, Ordering::Relaxed);
+    #[cfg(feature = "test-hooks")]
+    request.pause.wait(|| cancel.is_cancelled());
+    if cancel.is_cancelled() {
+        return Ended::Cancelled;
+    }
     let progress = |done: u64, total: u64| {
         shared.done.store(done, Ordering::Relaxed);
         shared.total.store(total, Ordering::Relaxed);
     };
-    let textures = ArchiveTextures::new(&paths);
+    let textures = ArchiveTextures::new(paths);
     let loader = (request.materials == ModelMaterials::Textures).then_some(&textures);
-    let written = source.write_glb_observed(
-        &animations,
+    let written = read.source.write_glb_observed(
+        &read.animations,
         &request.options(),
         &request.file,
         loader.map(|textures| textures as &dyn TextureLoader),
@@ -297,8 +329,8 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         Ok(written) => Ended::Written(Box::new(ModelExportSummary::new(
             request.file.clone(),
             request.lod,
-            source.model(),
-            (written, &animations),
+            read.source.model(),
+            (written, &read.animations),
             request.animations.is_some(),
         ))),
         Err(ConversionError::Cancelled) => Ended::Cancelled,

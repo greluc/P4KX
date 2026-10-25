@@ -3,7 +3,7 @@
 
 //! The Export as GLB windows over a synthetic Archive with a cube model, driven headless.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for_model};
 use std::path::PathBuf;
 
 use crate::glb_exporting::{Window, finished, start};
@@ -38,15 +38,12 @@ fn a_file_that_cannot_be_written_shows_a_message_and_the_window_keeps_working() 
     harness.run_quiet();
     assert!(harness.state().model_export().is_none(), "dismissed");
     harness.get_by_label("readme.txt").click();
-    harness.run_steps(8);
-    assert!(
-        harness
-            .state()
+    wait_for_model(&mut harness, "the text preview", |model| {
+        model
             .browser()
             .and_then(p4kx_gui::Browser::preview)
-            .is_some_and(|preview| preview.model().is_none()),
-        "another Entry can be selected"
-    );
+            .is_some_and(|preview| preview.model().is_none() && !preview.is_loading())
+    })?;
     Ok(())
 }
 

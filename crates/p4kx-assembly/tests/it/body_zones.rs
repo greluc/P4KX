@@ -11,7 +11,9 @@ use p4kx_assembly::{
     Piece,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
-use p4kx_testkit::{TestZoneChunk, ZONE_SHIRT, zone_entries};
+use p4kx_testkit::{
+    TestEntry, TestZoneChunk, ZONE_SHIRT, zone_entries, zone_entries_with_layer_textures,
+};
 
 use crate::assembly_support::{TestResult, fixture};
 
@@ -39,7 +41,11 @@ fn wear_on(
     bodies: &[Vec<[f32; 2]>; 2],
     chunks: &[TestZoneChunk],
 ) -> Result<Armour, Box<dyn Error>> {
-    let fixture = fixture(zone_entries([&bodies[0], &bodies[1]], chunks))?;
+    wear_entries(variant, zone_entries([&bodies[0], &bodies[1]], chunks))
+}
+
+fn wear_entries(variant: BodyVariant, entries: Vec<TestEntry>) -> Result<Armour, Box<dyn Error>> {
+    let fixture = fixture(entries)?;
     let archive = Archive::open(&fixture.path)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -216,6 +222,21 @@ fn layered_materials_without_a_diffuse_map_are_reported_for_each_part() -> TestR
             .issues()
             .iter()
             .all(|issue| !matches!(issue.kind(), IssueKind::LayersWithoutDiffuse(_)))
+    );
+    Ok(())
+}
+
+#[test]
+fn layered_materials_whose_layers_have_a_diffuse_map_are_not_reported() -> TestResult {
+    let bodies = BodyVariant::ALL.map(places);
+    let entries = zone_entries_with_layer_textures([&bodies[0], &bodies[1]], &[]);
+
+    let armour = wear_entries(BodyVariant::Male, entries)?;
+
+    assert!(
+        armour.layer_issues().is_empty(),
+        "{:?}",
+        armour.layer_issues()
     );
     Ok(())
 }

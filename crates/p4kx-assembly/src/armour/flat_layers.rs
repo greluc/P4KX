@@ -3,14 +3,14 @@
 
 use std::collections::BTreeSet;
 
-use p4kx_gltf::diffuse_texture_path;
+use p4kx_gltf::{diffuse_texture_path, draws_layer_diffuse};
 
 use super::ArmourPart;
 use crate::{Issue, IssueKind};
 
 /// Returns the issue that lists the layered materials `part` draws that have no diffuse map: a
 /// shader such as `LayerBlend_V2` takes its colour from the tint palette and the maps of its
-/// layers, which are not drawn, so these materials show the colours of their layers.
+/// layers; those that no layer gives a diffuse map are drawn in the colours of their layers.
 pub(super) fn flat_layers(part: &ArmourPart) -> Option<Issue> {
     let library = part.materials.library()?;
     let used: BTreeSet<u16> = part
@@ -29,6 +29,7 @@ pub(super) fn flat_layers(part: &ArmourPart) -> Option<Issue> {
             !material.hidden()
                 && !material.layers.is_empty()
                 && diffuse_texture_path(material).is_none()
+                && !draws_layer_diffuse(material)
         })
         .count();
     (count > 0).then(|| Issue {

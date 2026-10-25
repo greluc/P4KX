@@ -8,6 +8,9 @@ use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Model, ModelChunk, Mode
 /// The most chunks the model info lists by name; the counts cover all of them.
 pub const MAX_LISTED_CHUNKS: usize = 200;
 
+/// The most animations an export summary lists by name; the count covers all of them.
+pub const MAX_LISTED_ANIMATIONS: usize = 200;
+
 static SERIAL: AtomicU64 = AtomicU64::new(1);
 
 /// One level of detail of a model.
@@ -80,6 +83,20 @@ pub enum MaterialsInfo {
     },
 }
 
+/// How many animations the `.caf` and `.dba` files next to a model and in the folder at the same
+/// place below `Data\Animations` hold that an export writes by default, additive ones left out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnimationCount {
+    /// The files are being read.
+    Reading,
+    /// The files were read and hold this many animations.
+    Counted(usize),
+    /// The files are more than the preview reads, so they were not read.
+    TooMany,
+    /// The files could not be read.
+    Unread,
+}
+
 /// The facts of a model file the Info tab lists: chunks, meshes, levels of detail, materials and
 /// bones.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -105,9 +122,8 @@ pub struct ModelInfo {
     pub material_ids: Vec<u16>,
     /// The number of bones of the skeleton.
     pub bones: usize,
-    /// The number of animations an export writes by default, additive ones left out, or `None`
-    /// while they are not read or cannot be.
-    pub animations: Option<usize>,
+    /// How many animations an export writes by default.
+    pub animations: AnimationCount,
 }
 
 impl ModelInfo {
@@ -148,14 +164,15 @@ impl ModelInfo {
             materials: materials(&model.materials),
             material_ids: model.material_ids(),
             bones: model.bones.len(),
-            animations: None,
+            animations: AnimationCount::Unread,
         }
     }
 
-    /// Sets the number of animations the model carries, or `None` when they could not be read.
+    /// Sets the animation count; the info is a new one then, with its own [`Self::serial`].
     #[must_use]
-    pub const fn with_animations(mut self, animations: Option<usize>) -> Self {
+    pub fn with_animations(mut self, animations: AnimationCount) -> Self {
         self.animations = animations;
+        self.serial = SERIAL.fetch_add(1, Ordering::Relaxed);
         self
     }
 

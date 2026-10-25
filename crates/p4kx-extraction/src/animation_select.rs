@@ -144,7 +144,9 @@ const fn is_fatal(source: &Source, error: &ConversionError) -> bool {
     source.explicit
         || matches!(
             error,
-            ConversionError::UnknownEntry(_) | ConversionError::NoSuchFile { .. }
+            ConversionError::UnknownEntry(_)
+                | ConversionError::NoSuchFile { .. }
+                | ConversionError::Cancelled
         )
 }
 

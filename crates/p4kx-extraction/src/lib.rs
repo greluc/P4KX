@@ -91,7 +91,9 @@ mod verify;
 mod watch;
 mod write;
 
-pub use animation_set::{AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation};
+pub use animation_set::{
+    AnimationBounds, AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation,
+};
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
@@ -155,7 +157,8 @@ pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{
     AnimationSummary, GlbOptions, GlbSummary, GltfError, LoadedTexture, MAX_TEXTURE_IMAGES,
     MAX_TEXTURE_PIXELS, MaterialMode, TextureFallback, TextureLoadError, TextureLoader,
-    TextureRole, base_colour_factor, diffuse_texture_path,
+    TextureRole, base_colour_factor, diffuse_texture_path, draws_layer_diffuse, layered_base_key,
+    layered_base_texture, layered_base_textures,
 };
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,

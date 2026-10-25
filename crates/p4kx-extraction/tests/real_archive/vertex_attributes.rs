@@ -182,7 +182,7 @@ fn survey(archive: &Archive, suffix: &str) -> Tally {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn tangents_run_along_the_u_axis_and_their_handedness_gives_the_v_axis() -> TestResult {
     for path in archives()? {
-        let archive = Archive::open(&path)?;
+        let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
         for suffix in [".cgf", ".cga", ".skin"] {
             let tally = survey(&archive, suffix);
             assert!(
@@ -212,7 +212,7 @@ fn tangents_run_along_the_u_axis_and_their_handedness_gives_the_v_axis() -> Test
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn meshes_with_vertex_colours_hold_more_than_opaque_white() -> TestResult {
     for path in archives()? {
-        let archive = Archive::open(&path)?;
+        let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
         for suffix in [".cgf", ".cga", ".skin"] {
             let tally = survey(&archive, suffix);
             assert!(

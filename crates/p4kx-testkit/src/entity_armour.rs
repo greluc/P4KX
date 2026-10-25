@@ -11,10 +11,10 @@ use crate::{
 const MALE_SKELETON: &str = "Data\\Objects\\Characters\\Human\\male_v7\\export\\bhm_skeleton_v7";
 const FEMALE_SKELETON: &str =
     "Data\\Objects\\Characters\\Human\\female_v2\\export\\bhf_skeleton_v2";
-const MALE_BODY: &str = "Data\\Objects\\Characters\\Human\\male_v7\\body\\m_body";
-const FEMALE_BODY: &str = "Data\\Objects\\Characters\\Human\\female_v2\\body\\f_body";
-const MALE_ARMOUR: &str = "Objects/Characters/Human/male_v7/armor/test";
-const FEMALE_ARMOUR: &str = "Objects/Characters/Human/female_v2/armor/test";
+pub(crate) const MALE_BODY: &str = "Data\\Objects\\Characters\\Human\\male_v7\\body\\m_body";
+pub(crate) const FEMALE_BODY: &str = "Data\\Objects\\Characters\\Human\\female_v2\\body\\f_body";
+pub(crate) const MALE_ARMOUR: &str = "Objects/Characters/Human/male_v7/armor/test";
+pub(crate) const FEMALE_ARMOUR: &str = "Objects/Characters/Human/female_v2/armor/test";
 
 fn bone(name: &str, parent: Option<u16>, z: f32) -> TestBone {
     TestBone {
@@ -46,7 +46,7 @@ pub fn armour_female_skeleton() -> TestSkeleton {
 }
 
 /// Returns the cube as a skin of `skeleton` with every vertex weighted to the bone `bone` alone.
-fn skin(skeleton: &TestSkeleton, bone: u16) -> TestModel {
+pub(crate) fn skin(skeleton: &TestSkeleton, bone: u16) -> TestModel {
     TestModel::cube()
         .with_positions(TestPositions::Float)
         .with_nodes(Vec::new())
@@ -54,7 +54,7 @@ fn skin(skeleton: &TestSkeleton, bone: u16) -> TestModel {
         .with_bone_map(false, vec![vec![(bone, 255)]; 24])
 }
 
-fn skin_entries(path: &str, model: &TestModel) -> [TestEntry; 2] {
+pub(crate) fn skin_entries(path: &str, model: &TestModel) -> [TestEntry; 2] {
     [
         TestEntry::stored(format!("{path}.skin"), model.cgf()),
         TestEntry::stored(format!("{path}.skinm"), model.cgfm()),

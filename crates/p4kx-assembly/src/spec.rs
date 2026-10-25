@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
+use crate::armour::{ZoneList, read_zones};
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
@@ -120,6 +121,7 @@ pub(crate) struct EntitySpec {
     pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
     pub(crate) object_containers: Arc<[ObjectContainerRef]>,
+    pub(crate) zones: ZoneList,
 }
 
 impl EntitySpec {
@@ -165,6 +167,7 @@ impl EntitySpec {
             attach_type: attach_type.to_owned(),
             container,
             object_containers: crate::object_containers::read(&components).into(),
+            zones: read_zones(&components),
             guid: tree.guid(),
             record_path: tree.record_path().to_owned(),
             origin: LoadoutOrigin::Record(record),

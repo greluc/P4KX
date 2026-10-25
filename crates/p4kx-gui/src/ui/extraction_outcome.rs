@@ -20,10 +20,11 @@ use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
 use crate::widgets::placement;
 use crate::widgets::rows::{paint_divider, section_header};
+use crate::widgets::scroll_region;
 use crate::widgets::text::paint_left;
 use crate::{
     ChangeExtractionText, ExtractionStatus, ExtractionSummary, ExtractionText as T, Language,
-    Model, Texts,
+    Model, ScrollText, Texts,
 };
 
 const REFRESH: Duration = Duration::from_millis(100);
@@ -320,18 +321,36 @@ fn list(
     if !section_header(ui, id, &title, open) {
         return;
     }
-    ScrollArea::vertical()
+    let area = ScrollArea::vertical()
         .id_salt(heading.id())
-        .max_height(SECTION_LIST_HEIGHT)
-        .show_rows(ui, ROW_HEIGHT, lines.len(), |ui, rows| {
-            for index in rows {
-                let Some(text) = lines.get(index) else {
-                    continue;
-                };
-                let reason = reasons.and_then(|starts| starts.get(index)).copied();
-                list_row(ui, text, reason);
-            }
-        });
+        .max_height(SECTION_LIST_HEIGHT);
+    let step = ROW_HEIGHT + ui.spacing().item_spacing.y;
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "a list of rows is far below f32 precision"
+    )]
+    let height = (step * lines.len() as f32).min(SECTION_LIST_HEIGHT);
+    ui.allocate_ui(vec2(ui.available_width(), height), |ui| {
+        scroll_region::show(
+            ui,
+            (id.with("rows"), || {
+                texts.format(ScrollText::List, &[("heading", title.clone().into())])
+            }),
+            step,
+            area,
+            |area, ui| {
+                area.show_rows(ui, ROW_HEIGHT, lines.len(), |ui, rows| {
+                    for index in rows {
+                        let Some(text) = lines.get(index) else {
+                            continue;
+                        };
+                        let reason = reasons.and_then(|starts| starts.get(index)).copied();
+                        list_row(ui, text, reason);
+                    }
+                })
+            },
+        );
+    });
 }
 
 pub(super) fn list_row(ui: &mut Ui, text: &str, reason: Option<usize>) {

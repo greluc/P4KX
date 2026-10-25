@@ -9,7 +9,7 @@ use super::{Expressions, Look, Wearable};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Source {
     /// An Entity; its geometry is chosen by the body variant.
-    Wearable(Wearable),
+    Wearable(Box<Wearable>),
     /// A skin file, wherever it comes from.
     File {
         path: String,
@@ -113,7 +113,10 @@ impl Piece {
     /// Wears the Entity `wearable`; the piece is named after its class name.
     #[must_use]
     pub fn wearable(wearable: Wearable) -> Self {
-        Self::from_source(wearable.class_name().to_owned(), Source::Wearable(wearable))
+        Self::from_source(
+            wearable.class_name().to_owned(),
+            Source::Wearable(Box::new(wearable)),
+        )
     }
 
     /// Wears the skin at `path`, a path below `Data`, in the node `name`, drawn with the

@@ -708,6 +708,16 @@
     "metrics": "buttonGhost",
     "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
   },
+  "extractionSummary": {
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses each list of the summary (failed Entries, not converted, Records not written, skipped, cancelled), named as its heading with the suffix rows; up and down arrows, Page Up, Page Down, Home and End scroll"
+  },
+  "dataForgeSummary": {
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the summary of the DataForge tab (name DataForge summary); up and down arrows, Page Up, Page Down, Home and End scroll"
+  },
   "extractionAudio": {
     "decision": "D.32",
     "row": "radio row Sounds as: Ogg, WAV, WEM unchanged, 16 apart, radio to label 12; indented under the texture outputs; shown only while Conversion is on",

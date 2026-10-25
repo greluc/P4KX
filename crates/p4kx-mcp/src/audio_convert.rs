@@ -13,6 +13,11 @@ use crate::audio_shapes::{
 
 /// The most issues one result lists.
 const MAX_ISSUES: usize = 20;
+/// The most soundbanks listed per event; `soundbank_count` says how many there are.
+pub(crate) const MAX_BANKS: usize = 10;
+/// The most events listed per trigger; `events_total` says how many there are.
+pub(crate) const MAX_EVENTS: usize = 25;
+const MAX_NAME_LEN: usize = crate::audio_params::MAX_NAME_LEN;
 
 /// Returns the first issues of the audio index and how many there are.
 pub(crate) fn issues(index: &AudioIndex) -> (Vec<IssueShape>, usize) {
@@ -36,14 +41,39 @@ pub(crate) fn soundbank(bank: &IndexedSoundbank) -> SoundbankRef {
     }
 }
 
+/// Returns `text` cut to the name length cap, at a character boundary.
+pub(crate) fn clip(text: &str) -> String {
+    let end = (0..=MAX_NAME_LEN.min(text.len()))
+        .rev()
+        .find(|end| text.is_char_boundary(*end))
+        .unwrap_or(0);
+    text.get(..end).unwrap_or_default().to_owned()
+}
+
 pub(crate) fn event(event: &EventMatch<'_>, matched: Option<bool>) -> EventShape {
     EventShape {
-        name: event.event().name().to_owned(),
+        name: clip(event.event().name()),
         id: event.event().id(),
         localised: event.event().is_localised(),
         matched,
-        soundbanks: event.soundbanks().map(soundbank).collect(),
+        soundbank_count: event.soundbanks().count(),
+        soundbanks: event.soundbanks().take(MAX_BANKS).map(soundbank).collect(),
     }
+}
+
+/// Returns the first events of a trigger as shapes and how many there are.
+pub(crate) fn events<'i>(
+    all: impl Iterator<Item = (EventMatch<'i>, Option<bool>)>,
+) -> (Vec<EventShape>, usize) {
+    let mut total = 0;
+    let mut listed = Vec::new();
+    for (found, matched) in all {
+        total += 1;
+        if listed.len() < MAX_EVENTS {
+            listed.push(event(&found, matched));
+        }
+    }
+    (listed, total)
 }
 
 pub(crate) fn unmatched(reason: Unmatched) -> UnmatchedShape {
@@ -55,14 +85,16 @@ pub(crate) fn unmatched(reason: Unmatched) -> UnmatchedShape {
 
 pub(crate) fn trigger(sounds: &TriggerSounds<'_>) -> TriggerShape {
     TriggerShape {
-        name: sounds.trigger().name().to_owned(),
+        name: clip(sounds.trigger().name()),
         definition: sounds.definition_path().map(str::to_owned),
+        events_total: sounds.trigger().events().len(),
         events: sounds
             .trigger()
             .events()
             .iter()
+            .take(MAX_EVENTS)
             .map(|event| TriggerEventShape {
-                name: event.name().to_owned(),
+                name: clip(event.name()),
                 id: event.id(),
                 localised: event.is_localised(),
             })
@@ -89,7 +121,7 @@ pub(crate) fn counts(sounds: &TriggerSounds<'_>) -> CountsShape {
 
 pub(crate) fn variant(variant: &SoundVariant<'_>) -> VariantShape {
     VariantShape {
-        event: variant.event().name().to_owned(),
+        event: clip(variant.event().name()),
         soundbank: soundbank(variant.soundbank()),
         sound_id: variant.sound_id(),
         wem_id: variant.wem_id(),
@@ -104,7 +136,7 @@ pub(crate) fn variant(variant: &SoundVariant<'_>) -> VariantShape {
 
 pub(crate) fn broken_link(link: &BrokenLink<'_>) -> BreakShape {
     BreakShape {
-        event: link.event().name().to_owned(),
+        event: clip(link.event().name()),
         soundbank: link.soundbank().map(soundbank),
         object: link.object().map(step),
         target: match link.reason() {

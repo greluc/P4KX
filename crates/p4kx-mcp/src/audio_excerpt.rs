@@ -12,21 +12,22 @@ use rmcp::model::{CallToolResponse, CallToolResult, ContentBlock};
 
 use crate::archives::Opened;
 use crate::audio_params::ExcerptParams;
-use crate::audio_shapes::ExcerptResult;
-use crate::audio_wem::{Candidate, Held, audio_error, candidates, read};
+use crate::audio_wem::{Candidate, Facts, Held, MAX_ATTEMPTS, audio_error, candidates, read};
+use crate::audio_wem_shapes::ExcerptResult;
+use crate::audio_window::Window;
 use crate::error::ToolError;
 use crate::noted::add_notice;
 
 /// The size cap of the WAV of an excerpt, 1 MiB.
 pub(crate) const MAX_EXCERPT_BYTES: usize = 1 << 20;
-/// The size cap of a whole decoded sound, 64 MiB.
+/// How far into a sound an excerpt may reach, in bytes of decoded audio, 64 MiB.
 pub(crate) const MAX_DECODED_BYTES: u64 = 64 << 20;
 /// The longest excerpt.
 const MAX_EXCERPT: Duration = Duration::from_secs(10);
 /// The length of an excerpt when a call gives none.
 const DEFAULT_EXCERPT: Duration = Duration::from_secs(5);
-const WAV_HEAD_LEN: usize = 12;
-const CHUNK_HEAD_LEN: usize = 8;
+/// The most bytes the WAV header of an excerpt takes: RIFF, a 48-byte `fmt ` chunk and `data`.
+const MAX_HEAD_LEN: u64 = 12 + 48 + 8;
 
 /// A tool result of structured metadata and one WAV as an audio content block.
 pub(crate) struct Excerpted {
@@ -49,79 +50,20 @@ impl IntoCallToolResult for Excerpted {
     }
 }
 
-/// A piece of a decoded sound as a WAV.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Cut {
-    pub(crate) wav: Vec<u8>,
-    pub(crate) frames: u64,
-    pub(crate) start: u64,
-    pub(crate) total: u64,
-    pub(crate) truncated: bool,
-}
-
-/// Cuts `frames` frames from frame `start` out of the WAV `whole` a WEM decoded to, to a WAV of
-/// at most `max_bytes`; the `fmt ` chunk is kept as it is.
-pub(crate) fn cut(
-    whole: &[u8],
-    start: u64,
-    frames: u64,
-    max_bytes: usize,
-) -> Result<Cut, AudioError> {
-    let bad = |what| AudioError::InvalidFormat(what);
-    let (format, pcm) = chunks(whole).ok_or_else(|| bad("the decoded WAV has no fmt and data"))?;
-    let channels = format
-        .get(CHUNK_HEAD_LEN + 2..CHUNK_HEAD_LEN + 4)
-        .and_then(|bytes| <[u8; 2]>::try_from(bytes).ok())
-        .map(u16::from_le_bytes)
-        .filter(|channels| *channels > 0)
-        .ok_or_else(|| bad("the decoded WAV has no channels"))?;
-    let frame_len = usize::from(channels) * 2;
-    let total = (pcm.len() / frame_len) as u64;
-    let fixed = WAV_HEAD_LEN + format.len() + CHUNK_HEAD_LEN;
-    let fits = (max_bytes.saturating_sub(fixed) / frame_len) as u64;
-    let available = total.saturating_sub(start);
-    let taken = frames.min(fits).min(available);
-    let from = usize::try_from(start.min(total)).unwrap_or(usize::MAX) * frame_len;
-    let len = usize::try_from(taken).unwrap_or(usize::MAX) * frame_len;
-    let body = pcm
-        .get(from..from + len)
-        .ok_or_else(|| bad("the excerpt lies outside the decoded sound"))?;
+/// Builds a WAV from the whole `fmt ` chunk (with its header) and the PCM bytes of a window.
+pub(crate) fn assemble(format: &[u8], pcm: &[u8]) -> Result<Vec<u8>, AudioError> {
     let riff_len =
-        u32::try_from(fixed - CHUNK_HEAD_LEN + len).map_err(|_| AudioError::WavTooLarge)?;
-    let data_len = u32::try_from(len).map_err(|_| AudioError::WavTooLarge)?;
-    let mut wav = Vec::with_capacity(fixed + len);
+        u32::try_from(4 + format.len() + 8 + pcm.len()).map_err(|_| AudioError::WavTooLarge)?;
+    let data_len = u32::try_from(pcm.len()).map_err(|_| AudioError::WavTooLarge)?;
+    let mut wav = Vec::with_capacity(12 + format.len() + 8 + pcm.len());
     wav.extend_from_slice(b"RIFF");
     wav.extend_from_slice(&riff_len.to_le_bytes());
     wav.extend_from_slice(b"WAVE");
     wav.extend_from_slice(format);
     wav.extend_from_slice(b"data");
     wav.extend_from_slice(&data_len.to_le_bytes());
-    wav.extend_from_slice(body);
-    Ok(Cut {
-        wav,
-        frames: taken,
-        start,
-        total,
-        truncated: taken < frames,
-    })
-}
-
-/// Returns the whole `fmt ` chunk with its header, and the body of the `data` chunk of a WAV.
-fn chunks(wav: &[u8]) -> Option<(&[u8], &[u8])> {
-    let mut at = WAV_HEAD_LEN;
-    let (mut format, mut data) = (None, None);
-    while let Some(head) = wav.get(at..at + CHUNK_HEAD_LEN) {
-        let size = usize::try_from(u32::from_le_bytes(head.get(4..8)?.try_into().ok()?)).ok()?;
-        let end = (at + CHUNK_HEAD_LEN).checked_add(size)?.min(wav.len());
-        let body = wav.get(at + CHUNK_HEAD_LEN..end)?;
-        match head.get(..4)? {
-            b"fmt " => format = wav.get(at..end),
-            b"data" => data = Some(body),
-            _ => {}
-        }
-        at = end + (size & 1);
-    }
-    format.zip(data)
+    wav.extend_from_slice(pcm);
+    Ok(wav)
 }
 
 /// Returns `seconds` as a duration, or the error that names `name`.
@@ -147,19 +89,27 @@ fn seconds_of(frames: u64, rate: u32) -> f64 {
     Duration::new(frames / rate, u32::try_from(nanos).unwrap_or(0)).as_secs_f64()
 }
 
+/// The window an excerpt asks for.
+#[derive(Debug, Clone, Copy)]
+struct Ask {
+    start: Duration,
+    requested: Duration,
+}
+
 /// Decodes the WEM `params` names and returns an excerpt of it as a WAV.
 pub(crate) fn excerpt(
     opened: &Opened,
     params: &ExcerptParams,
 ) -> Result<(ExcerptResult, Vec<u8>), ToolError> {
-    let start = seconds("start_seconds", params.start_seconds, Duration::ZERO)?;
-    let length =
-        seconds("duration_seconds", params.duration_seconds, DEFAULT_EXCERPT)?.min(MAX_EXCERPT);
+    let ask = Ask {
+        start: seconds("start_seconds", params.start_seconds, Duration::ZERO)?,
+        requested: seconds("duration_seconds", params.duration_seconds, DEFAULT_EXCERPT)?,
+    };
     let (id, places) = candidates(opened, params.wem_id, params.path.as_deref())?;
     let mut prefetched = false;
     let mut failure: Option<ToolError> = None;
-    for place in &places {
-        match decode(opened, place, id, (start, length)) {
+    for place in places.iter().take(MAX_ATTEMPTS) {
+        match decode(opened, place, id, ask) {
             Ok(Some(done)) => return Ok(done),
             Ok(None) => prefetched = true,
             Err(error) => {
@@ -174,11 +124,54 @@ pub(crate) fn excerpt(
     }
 }
 
+/// Where an excerpt starts and how long it may be, in frames.
+struct Plan {
+    first: u64,
+    wanted: u64,
+    requested: u64,
+    frame_bytes: u64,
+}
+
+/// Works out the window of an excerpt from what the WEM header states, refusing one that cannot
+/// exist: in an empty sound, behind its end, or too far into the sound to decode.
+fn plan(facts: &Facts, ask: Ask) -> Result<Plan, ToolError> {
+    let rate = facts.sample_rate;
+    let frame_bytes = u64::from(facts.channels).max(1) * 2;
+    let first = frames_of(ask.start, rate);
+    let room = (MAX_EXCERPT_BYTES as u64).saturating_sub(MAX_HEAD_LEN) / frame_bytes;
+    let wanted = frames_of(ask.requested.min(MAX_EXCERPT), rate).min(room);
+    if facts.sample_count == Some(0) {
+        return Err(ToolError::EmptySound);
+    }
+    if let Some(count) = facts.sample_count
+        && first >= count
+    {
+        return Err(ToolError::ExcerptStart {
+            seconds: seconds_of(count, rate),
+        });
+    }
+    let reach = first
+        .saturating_add(wanted)
+        .saturating_mul(frame_bytes)
+        .saturating_add(MAX_HEAD_LEN);
+    if reach > MAX_DECODED_BYTES {
+        return Err(ToolError::ExcerptSource {
+            limit: MAX_DECODED_BYTES,
+        });
+    }
+    Ok(Plan {
+        first,
+        wanted,
+        requested: frames_of(ask.requested, rate),
+        frame_bytes,
+    })
+}
+
 fn decode(
     opened: &Opened,
     place: &Candidate,
     id: Option<u32>,
-    (start, length): (Duration, Duration),
+    ask: Ask,
 ) -> Result<Option<(ExcerptResult, Vec<u8>)>, ToolError> {
     read(opened, place, |held| {
         let wem = match held {
@@ -186,25 +179,37 @@ fn decode(
             Held::Prefetch => return Ok(None),
             Held::Unreadable(error) => return Err(audio_error(&place.location.path, error)),
         };
+        let name = &place.location.path;
         let facts = wem.facts();
-        let frame_bytes = u64::from(facts.channels) * 2;
-        if facts
-            .sample_count
-            .is_some_and(|frames| frames.saturating_mul(frame_bytes) > MAX_DECODED_BYTES)
-        {
-            return Err(ToolError::ExcerptSource {
-                limit: MAX_DECODED_BYTES,
+        let rate = facts.sample_rate;
+        let known = facts.sample_count;
+        let Plan {
+            first,
+            wanted,
+            requested,
+            frame_bytes,
+        } = plan(&facts, ask)?;
+        let window = Window::new(
+            first * frame_bytes,
+            (first + wanted) * frame_bytes,
+            MAX_DECODED_BYTES - MAX_HEAD_LEN,
+            known.is_some(),
+        );
+        let kept = wem.window(name, window, MAX_DECODED_BYTES)?;
+        let got = kept.pcm.len() as u64 / frame_bytes;
+        let seen = kept.seen / frame_bytes;
+        let total = known.map_or(seen, |count| count.max(seen));
+        if total == 0 {
+            return Err(ToolError::EmptySound);
+        }
+        if first >= total || (got == 0 && wanted > 0) {
+            return Err(ToolError::ExcerptStart {
+                seconds: seconds_of(total, rate),
             });
         }
-        let whole = wem.wav(MAX_DECODED_BYTES, &place.location.path)?;
-        let wanted = frames_of(length, facts.sample_rate);
-        let first = frames_of(start, facts.sample_rate);
-        let piece = cut(&whole, first, wanted, MAX_EXCERPT_BYTES)
-            .map_err(|error| audio_error(&place.location.path, error))?;
-        if (piece.start >= piece.total && piece.total > 0) || (piece.frames == 0 && wanted > 0) {
-            return Err(ToolError::ExcerptStart {
-                seconds: seconds_of(piece.total, facts.sample_rate),
-            });
+        let wav = assemble(&kept.format, &kept.pcm).map_err(|error| audio_error(name, error))?;
+        if wav.len() > MAX_EXCERPT_BYTES {
+            return Err(audio_error(name, AudioError::WavTooLarge));
         }
         let result = ExcerptResult {
             archive: opened.archive().path().display().to_string(),
@@ -213,77 +218,38 @@ fn decode(
             codec: facts.codec,
             mime_type: "audio/wav",
             channels: facts.channels,
-            sample_rate: facts.sample_rate,
-            sound_seconds: seconds_of(piece.total, facts.sample_rate),
-            start_seconds: seconds_of(piece.start, facts.sample_rate),
-            duration_seconds: seconds_of(piece.frames, facts.sample_rate),
-            frames: piece.frames,
-            bytes: piece.wav.len(),
+            sample_rate: rate,
+            sound_seconds: seconds_of(total, rate),
+            start_seconds: seconds_of(first, rate),
+            duration_seconds: seconds_of(got, rate),
+            frames: got,
+            bytes: wav.len(),
             max_bytes: MAX_EXCERPT_BYTES,
-            truncated: piece.truncated,
+            truncated: got < requested,
         };
-        Ok(Some((result, piece.wav)))
+        Ok(Some((result, wav)))
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{cut, frames_of, seconds_of};
     use std::time::Duration;
 
-    fn wav(channels: u16, frames: u16) -> Vec<u8> {
-        let data: Vec<u8> = (0..frames * channels).flat_map(u16::to_le_bytes).collect();
-        let mut out = b"RIFF".to_vec();
-        out.extend_from_slice(
-            &(4 + 8 + 16 + 8 + u32::try_from(data.len()).unwrap_or(0)).to_le_bytes(),
-        );
-        out.extend_from_slice(b"WAVEfmt ");
-        out.extend_from_slice(&16_u32.to_le_bytes());
-        out.extend_from_slice(&1_u16.to_le_bytes());
-        out.extend_from_slice(&channels.to_le_bytes());
-        out.extend_from_slice(&1000_u32.to_le_bytes());
-        out.extend_from_slice(&(1000 * u32::from(channels) * 2).to_le_bytes());
-        out.extend_from_slice(&(channels * 2).to_le_bytes());
-        out.extend_from_slice(&16_u16.to_le_bytes());
-        out.extend_from_slice(b"data");
-        out.extend_from_slice(&u32::try_from(data.len()).unwrap_or(0).to_le_bytes());
-        out.extend_from_slice(&data);
-        out
-    }
+    use super::{assemble, frames_of, seconds_of};
 
     #[test]
-    fn a_cut_keeps_the_format_and_the_frames_asked_for() -> Result<(), Box<dyn std::error::Error>> {
-        let piece = cut(&wav(2, 100), 10, 20, 1 << 20)?;
-        assert_eq!(
-            (piece.frames, piece.start, piece.total),
-            (20, 10, 100),
-            "frames"
-        );
-        assert!(!piece.truncated, "as asked");
-        assert_eq!(piece.wav.len(), 44 + 20 * 4, "header and samples");
-        let riff = u32::from_le_bytes(piece.wav.get(4..8).ok_or("riff")?.try_into()?);
-        assert_eq!(usize::try_from(riff)?, piece.wav.len() - 8, "RIFF size");
-        let first = u16::from_le_bytes(piece.wav.get(44..46).ok_or("sample")?.try_into()?);
-        assert_eq!(first, 20, "frame 10 of 2 channels starts at sample 20");
-        Ok(())
-    }
-
-    #[test]
-    fn a_cut_is_shortened_by_the_end_of_the_sound_and_by_the_size_cap()
+    fn an_assembled_wav_keeps_the_format_and_states_its_sizes()
     -> Result<(), Box<dyn std::error::Error>> {
-        let end = cut(&wav(1, 100), 90, 50, 1 << 20)?;
-        assert_eq!(
-            (end.frames, end.truncated),
-            (10, true),
-            "the end of the sound"
-        );
-        let capped = cut(&wav(1, 100), 0, 100, 44 + 2 * 30)?;
-        assert_eq!(
-            (capped.frames, capped.truncated),
-            (30, true),
-            "the size cap"
-        );
-        assert_eq!(capped.wav.len(), 44 + 60, "within the cap");
+        let mut format = b"fmt ".to_vec();
+        format.extend_from_slice(&16_u32.to_le_bytes());
+        format.extend_from_slice(&[1, 0, 2, 0, 0xE8, 3, 0, 0, 0xA0, 0xF, 0, 0, 4, 0, 16, 0]);
+        let wav = assemble(&format, &[7; 40])?;
+        assert_eq!(wav.len(), 12 + 24 + 8 + 40, "header and samples");
+        assert_eq!(wav.get(..4), Some(&b"RIFF"[..]), "RIFF");
+        let riff = u32::from_le_bytes(wav.get(4..8).ok_or("riff")?.try_into()?);
+        assert_eq!(usize::try_from(riff)?, wav.len() - 8, "RIFF size");
+        let data = u32::from_le_bytes(wav.get(40..44).ok_or("data")?.try_into()?);
+        assert_eq!(data, 40, "data size");
         Ok(())
     }
 

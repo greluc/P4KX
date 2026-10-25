@@ -11,7 +11,7 @@ pub(crate) const MAX_NAME_LEN: usize = 256;
 pub(crate) const MAX_ENTITIES: u32 = 100;
 
 /// The Entities listed per trigger when a call gives no number.
-pub(crate) const DEFAULT_ENTITIES: u32 = 3;
+pub(crate) const DEFAULT_ENTITIES: u32 = 0;
 
 /// The arguments of `search_audio_triggers`.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -23,9 +23,9 @@ pub(crate) struct SearchTriggersParams {
     /// Text in a trigger or Wwise event name, or a glob with `*` and `?` such as `Play_*_Spool`;
     /// ignores case. Omit it to list every trigger.
     pub(crate) search: Option<String>,
-    /// The most Entities listed per trigger, 3 by default, at most 100; 0 skips the lookup, which
-    /// otherwise reads the Record of every Entity once. Only Entities whose own Record names the
-    /// trigger count.
+    /// The most Entities listed per trigger, 0 by default, at most 100. 0 skips the lookup; any
+    /// other value reads the Record of every Entity on each call, which takes seconds on a real
+    /// Archive. Only Entities whose own Record names the trigger count.
     pub(crate) entities: Option<u32>,
     /// The `next_cursor` of the previous page; omit it for the first page.
     pub(crate) cursor: Option<String>,

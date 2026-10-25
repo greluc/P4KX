@@ -11,6 +11,8 @@ mod audio_params;
 mod audio_shapes;
 mod audio_tools;
 mod audio_wem;
+mod audio_wem_shapes;
+mod audio_window;
 mod budget;
 mod content;
 mod content_tools;

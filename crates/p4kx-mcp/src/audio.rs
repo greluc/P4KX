@@ -7,6 +7,7 @@ use std::sync::Arc;
 use p4kx_assembly::Entities;
 use p4kx_assembly::audio::{AudioIndex, LanguageChoice, TriggerUsers};
 use p4kx_extraction::{DataForge, Record};
+use serde::Serialize;
 
 use crate::archives::Opened;
 use crate::audio_convert as convert;
@@ -17,12 +18,48 @@ use crate::audio_shapes::{
     EntitiesShape, EntityRef, EntityShape, EntitySoundsResult, EntityTriggerShape, LanguageShape,
     TriggerHitShape, TriggerSearchResult, TriggerSoundsResult,
 };
-use crate::budget::fill;
+use crate::budget::{Budget, MAX_RESPONSE_LEN, json_len};
 use crate::error::ToolError;
 use crate::page::Page;
 
 const CLASS_PREFIX: &str = "EntityClassDefinition.";
-const MAX_BREAKS: usize = 100;
+const MAX_BREAKS: usize = 25;
+const CURSOR_ROOM: usize = 64;
+
+/// Fills one page like `budget::fill`, after taking `envelope` bytes of the response cap for
+/// everything around the items.
+pub(crate) fn fill_in<T: Serialize>(
+    page: Page,
+    total: usize,
+    items: impl IntoIterator<Item = T>,
+    envelope: usize,
+    describe: impl Fn(&T) -> String,
+) -> Result<(Vec<T>, Option<String>), ToolError> {
+    let mut budget = Budget::new();
+    if !budget.take(envelope.saturating_add(CURSOR_ROOM)) {
+        return Err(ToolError::TooLargeItem {
+            what: "audio result without its items".to_owned(),
+            limit: MAX_RESPONSE_LEN,
+            hint: "ask for it by a narrower search",
+        });
+    }
+    let mut taken = Vec::new();
+    for item in items.into_iter().take(page.limit()) {
+        if !budget.take(json_len(&item)) {
+            if taken.is_empty() {
+                return Err(ToolError::TooLargeItem {
+                    what: describe(&item),
+                    limit: MAX_RESPONSE_LEN,
+                    hint: "ask for it by a narrower search",
+                });
+            }
+            break;
+        }
+        taken.push(item);
+    }
+    let next = page.next_cursor_after(taken.len(), total)?;
+    Ok((taken, next))
+}
 
 /// Returns one page of the audio triggers whose names or whose events' names match the search.
 pub(crate) fn search(
@@ -52,34 +89,41 @@ pub(crate) fn search(
     };
     let mut users = users.map(Vec::into_iter);
     let items = found.hits().iter().map(|hit| {
-        Ok(TriggerHitShape {
-            name: hit.trigger().name().to_owned(),
+        let (events, events_total) =
+            convert::events(hit.events().map(|(event, matched)| (event, Some(matched))));
+        TriggerHitShape {
+            name: convert::clip(hit.trigger().name()),
             definition: hit.definition_path().map(str::to_owned),
             matched_trigger: hit.matched_by_trigger(),
-            events: hit
-                .events()
-                .map(|(event, matched)| convert::event(&event, Some(matched)))
-                .collect(),
+            events_total,
+            events,
             unmatched: hit.unmatched().map(convert::unmatched),
             entities: users.as_mut().and_then(Iterator::next),
-        })
+        }
     });
-    let (triggers, next_cursor) = fill(page, found.total(), items, |hit: &TriggerHitShape| {
-        format!("audio trigger {}", hit.name)
-    })?;
     let (issues, issues_total) = convert::issues(index);
-    Ok(TriggerSearchResult {
+    let mut result = TriggerSearchResult {
         archive: opened.archive().path().display().to_string(),
         search: params.search.clone(),
         total: found.total(),
         trigger_count: index.triggers().len(),
-        triggers,
+        triggers: Vec::new(),
         entities_skipped,
         unreadable_records,
         issues,
         issues_total,
-        next_cursor,
-    })
+        next_cursor: None,
+    };
+    let (triggers, next_cursor) = fill_in(
+        page,
+        found.total(),
+        items,
+        json_len(&result),
+        |hit: &TriggerHitShape| format!("audio trigger {}", hit.name),
+    )?;
+    result.triggers = triggers;
+    result.next_cursor = next_cursor;
+    Ok(result)
 }
 
 fn entities_of(
@@ -110,7 +154,7 @@ fn entity_ref(record: &Record<'_>) -> EntityRef {
     EntityRef {
         guid: record.guid().to_string(),
         record_path: record.record_path().unwrap_or_default().to_owned(),
-        class_name: name.strip_prefix(CLASS_PREFIX).unwrap_or(name).to_owned(),
+        class_name: convert::clip(name.strip_prefix(CLASS_PREFIX).unwrap_or(name)),
     }
 }
 
@@ -131,36 +175,44 @@ pub(crate) fn entity_sounds(
         let triggers: Vec<EntityTriggerShape> = audio
             .triggers()
             .iter()
-            .map(|trigger| EntityTriggerShape {
-                name: trigger.name().to_owned(),
-                location: trigger.reference().location().to_owned(),
-                references: trigger.reference().count(),
-                definition: trigger.definition_path().map(str::to_owned),
-                events: trigger
-                    .events()
-                    .map(|event| convert::event(&event, None))
-                    .collect(),
-                unmatched: trigger.unmatched().map(convert::unmatched),
+            .map(|trigger| {
+                let (events, events_total) =
+                    convert::events(trigger.events().map(|event| (event, None)));
+                EntityTriggerShape {
+                    name: convert::clip(trigger.name()),
+                    location: convert::clip(trigger.reference().location()),
+                    references: trigger.reference().count(),
+                    definition: trigger.definition_path().map(str::to_owned),
+                    events_total,
+                    events,
+                    unmatched: trigger.unmatched().map(convert::unmatched),
+                }
             })
             .collect();
         Ok((entity_shape(&record), triggers, audio.matched_count()))
     })?;
     let total = triggers.len();
-    let items = triggers.into_iter().skip(page.offset()).map(Ok);
-    let (listed, next_cursor) = fill(page, total, items, |trigger: &EntityTriggerShape| {
-        format!("audio trigger {}", trigger.name)
-    })?;
     let (issues, issues_total) = convert::issues(opened.audio_index());
-    Ok(EntitySoundsResult {
+    let mut result = EntitySoundsResult {
         archive: opened.archive().path().display().to_string(),
         entity,
         total,
         matched,
-        triggers: listed,
+        triggers: Vec::new(),
         issues,
         issues_total,
-        next_cursor,
-    })
+        next_cursor: None,
+    };
+    let (listed, next_cursor) = fill_in(
+        page,
+        total,
+        triggers.into_iter().skip(page.offset()),
+        json_len(&result),
+        |trigger: &EntityTriggerShape| format!("audio trigger {}", trigger.name),
+    )?;
+    result.triggers = listed;
+    result.next_cursor = next_cursor;
+    Ok(result)
 }
 
 fn entity_shape(record: &Record<'_>) -> EntityShape {
@@ -168,8 +220,8 @@ fn entity_shape(record: &Record<'_>) -> EntityShape {
     EntityShape {
         guid: record.guid().to_string(),
         record_path: record.record_path().unwrap_or_default().to_owned(),
-        name: name.to_owned(),
-        class_name: name.strip_prefix(CLASS_PREFIX).unwrap_or(name).to_owned(),
+        name: convert::clip(name),
+        class_name: convert::clip(name.strip_prefix(CLASS_PREFIX).unwrap_or(name)),
     }
 }
 
@@ -218,13 +270,6 @@ pub(crate) fn resolve(
         .resolve_trigger_in(&params.trigger, &choice)
         .ok_or_else(|| ToolError::UnknownTrigger(params.trigger.clone()))?;
     let total = sounds.variants().len();
-    let items = page
-        .slice(sounds.variants())
-        .iter()
-        .map(|variant| Ok(convert::variant(variant)));
-    let (variants, next_cursor) = fill(page, total, items, |variant| {
-        format!("variant of the sound {}", variant.sound_id)
-    })?;
     let breaks = if page.offset() == 0 {
         sounds
             .breaks()
@@ -236,7 +281,7 @@ pub(crate) fn resolve(
         Vec::new()
     };
     let (issues, issues_total) = convert::issues(index);
-    Ok(TriggerSoundsResult {
+    let mut result = TriggerSoundsResult {
         archive: opened.archive().path().display().to_string(),
         language: LanguageShape {
             requested: choice.preferred().map(str::to_owned),
@@ -244,10 +289,69 @@ pub(crate) fn resolve(
         },
         trigger: convert::trigger(&sounds),
         counts: convert::counts(&sounds),
-        variants,
+        variants: Vec::new(),
         breaks,
         issues,
         issues_total,
-        next_cursor,
-    })
+        next_cursor: None,
+    };
+    let items = page.slice(sounds.variants()).iter().map(convert::variant);
+    let (variants, next_cursor) = fill_in(page, total, items, json_len(&result), |variant| {
+        format!("variant of the sound {}", variant.sound_id)
+    })?;
+    result.variants = variants;
+    result.next_cursor = next_cursor;
+    Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MAX_RESPONSE_LEN, fill_in};
+    use crate::error::ToolError;
+    use crate::page::Page;
+
+    fn kilobyte_items() -> impl Iterator<Item = String> {
+        std::iter::repeat_with(|| "x".repeat(1000)).take(500)
+    }
+
+    fn described<T: AsRef<str>>(item: &T) -> String {
+        format!("item of {} bytes", item.as_ref().len())
+    }
+
+    #[test]
+    fn the_envelope_takes_its_share_of_the_response_cap() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let page = Page::new(&"audio", None, Some(1000))?;
+        let (plain, _) = fill_in(page, 500, kilobyte_items(), 0, described)?;
+        let (crowded, next) = fill_in(
+            page,
+            500,
+            kilobyte_items(),
+            MAX_RESPONSE_LEN - 100 * 1024,
+            described,
+        )?;
+        assert!(
+            plain.len() > 200,
+            "{} items without an envelope",
+            plain.len()
+        );
+        assert!(
+            (80..=102).contains(&crowded.len()),
+            "{} items beside a large envelope",
+            crowded.len()
+        );
+        assert!(next.is_some(), "the rest comes on the next page");
+        Ok(())
+    }
+
+    #[test]
+    fn an_envelope_alone_over_the_cap_is_a_clear_error() -> Result<(), Box<dyn std::error::Error>> {
+        let page = Page::new(&"audio", None, None)?;
+        let outcome = fill_in(page, 500, kilobyte_items(), MAX_RESPONSE_LEN, described);
+        assert!(
+            matches!(outcome, Err(ToolError::TooLargeItem { .. })),
+            "refused"
+        );
+        Ok(())
+    }
 }

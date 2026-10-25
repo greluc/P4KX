@@ -10,11 +10,9 @@ use crate::audio_params::{
     EntitySoundsParams, ExcerptParams, MAX_NAME_LEN, SearchTriggersParams, SoundbankParams,
     TriggerParams, WemParams,
 };
-use crate::audio_shapes::{
-    EntitySoundsResult, ExcerptResult, SoundbankWemsResult, TriggerSearchResult,
-    TriggerSoundsResult, WemInfoResult,
-};
+use crate::audio_shapes::{EntitySoundsResult, TriggerSearchResult, TriggerSoundsResult};
 use crate::audio_wem;
+use crate::audio_wem_shapes::{ExcerptResult, SoundbankWemsResult, WemInfoResult};
 use crate::error::capped;
 use crate::noted::Noted;
 use crate::page::Page;
@@ -27,8 +25,9 @@ impl Server {
         description = "Search the audio triggers and Wwise events of the Archive's ATL definitions by name: search is a \
         substring or a glob with * and ?, ignoring case, matched against trigger and event names; without it every trigger \
         is listed. Each result lists the trigger, the Wwise events it posts with the soundbanks that hold them, why it \
-        leads to no soundbank if so, and the Entities that name it (entities: how many to list, 0 skips the lookup, which \
-        reads the Record of every Entity once). Paged in definition order with a cursor. The first call of a session reads \
+        leads to no soundbank if so, and, only if entities is above 0, the Entities that name it (entities: how many to list; the lookup \
+        reads the Record of every Entity on each call and takes seconds on a real Archive). Events and soundbanks \
+        per trigger are listed up to 25 and 10 with their totals. Paged in definition order with a cursor. The first call of a session reads \
         every ATL definition and soundbank of the Archive. The content may be forwarded by the client to third parties; \
         game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<TriggerSearchResult>(),
@@ -203,8 +202,8 @@ impl Server {
         description = "Decode a short excerpt of one WEM, named by wem_id or by the Entry path of a loose WEM, and return \
         it as a 16-bit PCM WAV in an audio content block (audio/wav, base64) next to the metadata. Starts at start_seconds \
         (0 by default), lasts duration_seconds (5 by default, at most 10) and is cut where the WAV would exceed 1 MiB; \
-        truncated says so. Sounds that decode to more than 64 MiB, plug-in media and the prefetched start of a streamed \
-        sound are refused. The excerpt is for listening and analysis only: audio is game media and must not be \
+        truncated says so whenever the excerpt is shorter than asked for. An excerpt beyond the first 64 MiB of decoded \
+        audio, plug-in media and the prefetched start of a streamed sound are refused. The excerpt is for listening and analysis only: audio is game media and must not be \
         redistributed. The content may be forwarded by the client to third parties.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<ExcerptResult>(),
         annotations(

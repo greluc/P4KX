@@ -1,20 +1,24 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::io::{self, Write};
-
+use p4kx_assembly::audio::MAX_SOUNDBANK_LEN;
 use p4kx_extraction::{AudioError, Bank, ConversionError, EmbeddedWem, Sound, Wem};
 
 use crate::archives::Opened;
+use crate::audio::fill_in;
 use crate::audio_convert as convert;
 use crate::audio_params::{MAX_NAME_LEN, SoundbankParams, WemParams};
-use crate::audio_shapes::{LocationShape, SoundbankWemsResult, WemInfoResult, WemShape};
-use crate::budget::fill;
+use crate::audio_shapes::LocationShape;
+use crate::audio_wem_shapes::{SoundbankWemsResult, WemInfoResult, WemShape};
+use crate::audio_window::{Kept, Window};
+use crate::budget::json_len;
 use crate::error::{ToolError, capped};
 use crate::models::converted;
 use crate::page::Page;
 
 const MAX_LOCATIONS: usize = 50;
+/// The most places read, one after the other, to find one that holds the whole WEM.
+pub(crate) const MAX_ATTEMPTS: usize = 8;
 
 /// What the header of a WEM states about the sound.
 #[derive(Debug, Clone, Copy)]
@@ -31,8 +35,8 @@ pub(crate) trait WemOps {
     fn shape(&self, id: Option<u32>, size: u64) -> WemShape;
     /// Returns what the header states.
     fn facts(&self) -> Facts;
-    /// Decodes the whole sound to a WAV of at most `limit` bytes.
-    fn wav(&self, limit: u64, name: &str) -> Result<Vec<u8>, ToolError>;
+    /// Decodes the sound into `window`, which keeps its frames; `limit` is the cap it was given.
+    fn window(&self, name: &str, window: Window, limit: u64) -> Result<Kept, ToolError>;
 }
 
 impl<B: AsRef<[u8]>> WemOps for Wem<B> {
@@ -62,39 +66,19 @@ impl<B: AsRef<[u8]>> WemOps for Wem<B> {
         }
     }
 
-    fn wav(&self, limit: u64, name: &str) -> Result<Vec<u8>, ToolError> {
-        let mut out = Capped {
-            bytes: Vec::new(),
-            limit: usize::try_from(limit).unwrap_or(usize::MAX),
-            exceeded: false,
-        };
-        match self.write_wav(&mut out) {
-            Ok(_) => Ok(out.bytes),
-            Err(_) if out.exceeded => Err(ToolError::ExcerptSource { limit }),
-            Err(source) => Err(audio_error(name, source)),
+    fn window(&self, name: &str, mut window: Window, limit: u64) -> Result<Kept, ToolError> {
+        match self.write_wav(&mut window) {
+            Ok(_) => {}
+            Err(_) if window.is_full() => {}
+            Err(_) if window.is_exceeded() => return Err(ToolError::ExcerptSource { limit }),
+            Err(source) => return Err(audio_error(name, source)),
         }
-    }
-}
-
-/// A buffer that refuses bytes beyond its limit.
-struct Capped {
-    bytes: Vec<u8>,
-    limit: usize,
-    exceeded: bool,
-}
-
-impl Write for Capped {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        if self.bytes.len().saturating_add(buf.len()) > self.limit {
-            self.exceeded = true;
-            return Err(io::Error::other("the decoded sound exceeds its cap"));
-        }
-        self.bytes.extend_from_slice(buf);
-        Ok(buf.len())
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
+        window.into_kept().ok_or_else(|| {
+            audio_error(
+                name,
+                AudioError::InvalidFormat("the decoded WAV has no fmt chunk"),
+            )
+        })
     }
 }
 
@@ -148,23 +132,43 @@ pub(crate) fn soundbank_wems(
     page: Page,
 ) -> Result<SoundbankWemsResult, ToolError> {
     let path = capped("soundbank", &params.soundbank, MAX_NAME_LEN * 4)?;
-    let bank = Bank::from_archive(opened.archive(), path)
-        .map_err(|error| converted(path, "a soundbank", error))?;
+    let bank = open_bank(opened, path)?;
     let soundbank = bank.soundbank();
     let wems: Vec<EmbeddedWem<'_>> = soundbank.wems().collect();
-    let items = page.slice(&wems).iter().map(|wem| Ok(embedded_shape(wem)));
-    let (listed, next_cursor) = fill(page, wems.len(), items, |wem: &WemShape| {
-        format!("WEM {}", wem.id.unwrap_or_default())
-    })?;
-    Ok(SoundbankWemsResult {
+    let items = page.slice(&wems).iter().map(embedded_shape);
+    let mut result = SoundbankWemsResult {
         archive: opened.archive().path().display().to_string(),
         soundbank: bank.name().to_owned(),
         version: soundbank.header().version,
         bank_id: soundbank.header().id,
         total: wems.len(),
-        wems: listed,
-        next_cursor,
-    })
+        wems: Vec::new(),
+        next_cursor: None,
+    };
+    let (listed, next_cursor) = fill_in(
+        page,
+        wems.len(),
+        items,
+        json_len(&result),
+        |wem: &WemShape| format!("WEM {}", wem.id.unwrap_or_default()),
+    )?;
+    result.wems = listed;
+    result.next_cursor = next_cursor;
+    Ok(result)
+}
+
+/// Reads the soundbank Entry at `path`, refusing one larger than the audio index reads.
+fn open_bank(opened: &Opened, path: &str) -> Result<Bank, ToolError> {
+    if let Some(entry) = opened.index().find(path)
+        && entry.uncompressed_size() > MAX_SOUNDBANK_LEN
+    {
+        return Err(ToolError::SoundbankTooLarge {
+            path: entry.path().to_owned(),
+            limit: MAX_SOUNDBANK_LEN,
+        });
+    }
+    Bank::from_archive(opened.archive(), path)
+        .map_err(|error| converted(path, "a soundbank", error))
 }
 
 /// Where the bytes of a WEM are read from.
@@ -230,8 +234,11 @@ pub(crate) fn candidates(
                 .find(path)
                 .ok_or_else(|| ToolError::UnknownEntry(path.to_owned()))?;
             let stem = entry.path().rsplit(['/', '\\']).next().and_then(|name| {
-                name.strip_suffix(".wem")
-                    .or_else(|| name.strip_suffix(".WEM"))
+                let cut = name.len().checked_sub(".wem".len())?;
+                name.get(cut..)
+                    .is_some_and(|ending| ending.eq_ignore_ascii_case(".wem"))
+                    .then(|| name.get(..cut))
+                    .flatten()
             });
             let location = LocationShape {
                 kind: "entry",
@@ -275,8 +282,7 @@ pub(crate) fn read<R>(
             visit(Held::Parsed(sound.wem()))
         }
         Source::Embedded { bank, id } => {
-            let held = Bank::from_archive(opened.archive(), bank)
-                .map_err(|error| converted(bank, "a soundbank", error))?;
+            let held = open_bank(opened, bank)?;
             let Some(wem) = held.soundbank().wem(*id) else {
                 return Err(ToolError::UnknownWem(*id));
             };
@@ -296,7 +302,7 @@ pub(crate) fn info(opened: &Opened, params: &WemParams) -> Result<WemInfoResult,
     let (id, places) = candidates(opened, params.wem_id, params.path.as_deref())?;
     let mut first: Option<(LocationShape, WemShape)> = None;
     let mut failure: Option<ToolError> = None;
-    for place in &places {
+    for place in places.iter().take(MAX_ATTEMPTS) {
         let size = place.location.len;
         let outcome = read(opened, place, |held| {
             Ok(match held {

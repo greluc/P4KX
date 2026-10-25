@@ -169,8 +169,21 @@ pub(crate) enum ToolError {
     /// Only the prefetched start of the WEM is in the Archive.
     #[error("the Archive holds only the prefetched start of the WEM {0}, which cannot be decoded")]
     PrefetchOnly(u32),
-    /// The sound is too long to decode for an excerpt.
-    #[error("the sound decodes to more than {limit} bytes, too long for an excerpt")]
+    /// The soundbank Entry is larger than the audio tools read.
+    #[error("the soundbank {path} is larger than the {limit} bytes the audio tools read")]
+    SoundbankTooLarge {
+        /// The Entry path.
+        path: String,
+        /// The cap in bytes.
+        limit: u64,
+    },
+    /// The sound has no frames.
+    #[error("the sound has no audio frames")]
+    EmptySound,
+    /// The excerpt lies beyond the part of a sound that is decoded for one.
+    #[error(
+        "the excerpt lies beyond the first {limit} bytes of decoded audio, too far in for an excerpt"
+    )]
     ExcerptSource {
         /// The decoded size cap in bytes.
         limit: u64,

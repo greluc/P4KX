@@ -107,7 +107,16 @@ fn names(value: &Value, key: &str) -> Vec<String> {
 fn a_search_lists_triggers_with_events_soundbanks_and_entities() -> TestResult {
     let install = install()?;
     let mut server = serve(&install)?;
-    let result = server.ok("search_audio_triggers", &json!({ "search": "engine" }))?;
+    let plain = server.ok("search_audio_triggers", &json!({ "search": "engine" }))?;
+    assert_eq!(
+        plain["triggers"][0]["entities"],
+        Value::Null,
+        "the Entities are only looked up when asked for"
+    );
+    let result = server.ok(
+        "search_audio_triggers",
+        &json!({ "search": "engine", "entities": 3 }),
+    )?;
     assert_eq!(result["total"], 1, "one trigger matches");
     assert_eq!(result["trigger_count"], 3, "three triggers are defined");
     let hit = &result["triggers"][0];
@@ -123,6 +132,8 @@ fn a_search_lists_triggers_with_events_soundbanks_and_entities() -> TestResult {
         json!([{ "path": "Data\\Sounds\\wwise\\Ship.bnk", "language": null }]),
         "the soundbank holding the event"
     );
+    assert_eq!(hit["events"][0]["soundbank_count"], 1, "its count");
+    assert_eq!(hit["events_total"], 2, "the events of the trigger");
     assert_eq!(hit["unmatched"], Value::Null, "it leads to a soundbank");
     assert_eq!(hit["entities"]["count"], 1, "one Entity names it");
     assert_eq!(

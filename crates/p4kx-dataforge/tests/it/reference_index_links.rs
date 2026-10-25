@@ -3,7 +3,7 @@
 
 //! Weak pointers, Records that share a file, the order of a limited index and cancelling the build.
 
-use p4kx_dataforge::{DataForge, ReferenceIndex};
+use p4kx_dataforge::{DataForge, MAX_INDEXED_REFERENCES, ReferenceIndex};
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -173,6 +173,10 @@ fn pairs(index: &ReferenceIndex, count: u32) -> Vec<(u32, Option<u32>, String)> 
         .collect()
 }
 
+fn limited(forge: &DataForge<'_>, limit: usize) -> Result<ReferenceIndex, &'static str> {
+    ReferenceIndex::build_with(forge, limit, &|| false).ok_or("an index without a stop")
+}
+
 #[test]
 fn a_limited_index_keeps_the_first_references_in_record_order() -> TestResult {
     let bytes = chain(1_300).build();
@@ -182,7 +186,7 @@ fn a_limited_index_keeps_the_first_references_in_record_order() -> TestResult {
     let all = pairs(&full, count);
     assert_eq!(all.len(), 1_299, "every Record but the last refers on");
     for limit in [0, 1, 511, 512, 513, 700, 1_024, 1_298] {
-        let capped = ReferenceIndex::build_limited(&forge, limit);
+        let capped = limited(&forge, limit)?;
         assert!(capped.is_truncated(), "limit {limit}");
         assert_eq!(
             pairs(&capped, count),
@@ -191,7 +195,7 @@ fn a_limited_index_keeps_the_first_references_in_record_order() -> TestResult {
         );
     }
     assert!(
-        !ReferenceIndex::build_limited(&forge, 1_299).is_truncated(),
+        !limited(&forge, 1_299)?.is_truncated(),
         "a limit equal to the number is no truncation"
     );
     Ok(())
@@ -204,8 +208,8 @@ fn a_limited_index_does_not_depend_on_the_number_of_threads() -> TestResult {
     let count = u32::try_from(forge.record_count())?;
     let single = rayon::ThreadPoolBuilder::new().num_threads(1).build()?;
     let wide = rayon::ThreadPoolBuilder::new().num_threads(8).build()?;
-    let narrow = single.install(|| ReferenceIndex::build_limited(&forge, 2_200));
-    let broad = wide.install(|| ReferenceIndex::build_limited(&forge, 2_200));
+    let narrow = single.install(|| limited(&forge, 2_200))?;
+    let broad = wide.install(|| limited(&forge, 2_200))?;
     assert_eq!(pairs(&narrow, count), pairs(&broad, count), "same cut");
     assert_eq!(narrow.len(), 2_200, "cut at the limit");
     Ok(())
@@ -216,10 +220,10 @@ fn a_cancelled_build_gives_no_index() -> TestResult {
     let bytes = chain(2_600).build();
     let forge = DataForge::open(&bytes)?;
     assert!(
-        ReferenceIndex::build_cancellable(&forge, &|| true).is_none(),
+        ReferenceIndex::build_with(&forge, MAX_INDEXED_REFERENCES, &|| true).is_none(),
         "stopped before the first Record"
     );
-    let built = ReferenceIndex::build_cancellable(&forge, &|| false);
+    let built = ReferenceIndex::build_with(&forge, MAX_INDEXED_REFERENCES, &|| false);
     assert_eq!(built.map(|index| index.len()), Some(2_599), "not stopped");
     Ok(())
 }

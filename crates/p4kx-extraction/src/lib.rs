@@ -91,7 +91,9 @@ mod verify;
 mod watch;
 mod write;
 
-pub use animation_set::{AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation};
+pub use animation_set::{
+    AnimationBounds, AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation,
+};
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
 pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
@@ -123,7 +125,7 @@ pub use output_file::{Replaced, write_bytes_replacing, write_replacing, write_re
 pub use p4kx_archive::{
     Archive, ArchiveError, Build, BuildError, Checksum, Compression, Entry, EntryIssue,
     EntryReader, KeyCheck, MAX_COMPRESSION_RATIO, MAX_CONTAINER_DEPTH, MAX_CONTAINER_ENTRIES,
-    MAX_CONTAINER_LEN,
+    MAX_CONTAINER_LEN, MAX_RECOVERED_ENTRIES, MAX_RECOVERY_SCAN, OpenOptions,
 };
 pub use p4kx_audio::{
     ActionTarget, BankError, BankHeader, BankWarning, Container, ContainerKind, EmbeddedWem,
@@ -155,11 +157,12 @@ pub use p4kx_gfx as gfx;
 pub use p4kx_gltf::{
     AnimationSummary, GlbOptions, GlbSummary, GltfError, LoadedTexture, MAX_TEXTURE_IMAGES,
     MAX_TEXTURE_PIXELS, MaterialMode, TextureFallback, TextureLoadError, TextureLoader,
-    TextureRole, base_colour_factor, diffuse_texture_path,
+    TextureRole, base_colour_factor, diffuse_texture_path, draws_layer_diffuse, layered_base_key,
+    layered_base_texture, layered_base_textures,
 };
 pub use p4kx_guard::{
     Installation, WriteRefused, ensure_writable, game_is_running, protect, protect_archive_folder,
-    protect_libraries,
+    protect_libraries, protect_manual,
 };
 pub use p4kx_localization::{
     GlobalIni, IniEncoding, IniText, Language, LocalizationError, Lookup, MAX_GLOBAL_INI_KEYS,

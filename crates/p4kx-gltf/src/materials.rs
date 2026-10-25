@@ -150,9 +150,9 @@ fn resolve(library: &MaterialLibrary, id: u16) -> Option<Slot> {
 /// The glTF textures a material is drawn with, besides its plain colours.
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct MaterialTextures {
-    /// The base colour texture and whether the material's colours are already in it; if not, the
-    /// diffuse colour multiplies it.
-    pub(crate) base: Option<(Index<json::Texture>, bool)>,
+    /// The base colour texture, whether the material's colours are already in it (if not, the
+    /// diffuse colour multiplies it) and whether it is blended of the layers of a layered material.
+    pub(crate) base: Option<(Index<json::Texture>, bool, bool)>,
     /// The normal texture.
     pub(crate) normal: Option<Index<json::Texture>>,
     /// The metallic-roughness texture and whether it carries the roughness and the metalness; a
@@ -216,7 +216,8 @@ pub(crate) fn uses_alpha(material: &Material) -> bool {
 /// stays. A metal whose base colour image lacks the colours, because it has no specular map, the
 /// map failed to load or it has no diffuse map, keeps the plain metal of the colours mode: its
 /// specular colour is the base colour factor, which a diffuse texture multiplies, and its
-/// metalness is 1.
+/// metalness is 1. The base colour image of a layered material has the colours of its metal
+/// layers in it and the metalness stays 1.
 pub(crate) fn build_material(
     material: &Material,
     fallback_name: &str,
@@ -227,9 +228,10 @@ pub(crate) fn build_material(
         .map_or((false, false), |(_, roughness, metallic)| {
             (roughness, metallic)
         });
-    let tinted = textures.base.is_some_and(|(_, tinted)| tinted);
+    let tinted = textures.base.is_some_and(|(_, tinted, _)| tinted);
+    let layered = textures.base.is_some_and(|(_, _, layered)| layered);
     let shade = shading(material);
-    let plain_metal = shade.metal && !tinted;
+    let plain_metal = shade.metal && (!tinted || layered);
     let colour = if tinted { [1.0; 3] } else { shade.colour };
     let (mode, alpha, cutoff) = alpha_of(material);
     let decal = is_one_of(&material.shader, &DECAL_SHADERS);
@@ -250,7 +252,7 @@ pub(crate) fn build_material(
         double_sided: decal || material.flags.two_sided(),
         pbr_metallic_roughness: PbrMetallicRoughness {
             base_color_factor: PbrBaseColorFactor([colour[0], colour[1], colour[2], alpha]),
-            base_color_texture: textures.base.map(|(index, _)| info(index)),
+            base_color_texture: textures.base.map(|(index, _, _)| info(index)),
             metallic_factor: StrengthFactor(if carries_metalness || plain_metal {
                 1.0
             } else {

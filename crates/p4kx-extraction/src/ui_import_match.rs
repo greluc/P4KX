@@ -4,10 +4,11 @@
 use std::path::PathBuf;
 
 use p4kx_archive::Archive;
+use p4kx_localization::Language;
 use rayon::prelude::*;
 
-const LANGUAGE_FOLDER: &str = "data\\localization\\english\\";
 const UI_FOLDER: &str = "data\\ui\\";
+const ENGLISH_FOLDER: &str = "data\\localization\\english\\";
 
 pub(crate) fn folder_of(path: &str) -> &str {
     path.rfind(['\\', '/']).map_or("", |at| &path[..at])
@@ -57,11 +58,34 @@ pub(super) fn contained(url: &str) -> Option<PathBuf> {
     Some(parts.iter().collect())
 }
 
+/// Returns the folders below `Data\Localization` that hold the movies of `language`: the folder
+/// of its `global.ini` and the shorter name without the region (`german`) that the movie folders
+/// of the Archive use.
+fn language_folders(language: Language) -> Vec<String> {
+    let full = language.folder();
+    let short = full.split_once("_(").map_or(full, |(name, _)| name);
+    let mut folders = vec![format!("data\\localization\\{full}\\")];
+    if short != full {
+        folders.push(format!("data\\localization\\{short}\\"));
+    }
+    folders
+}
+
 /// Returns the indexes of up to `limit` Entries that a movie in `folder` may mean by the import
-/// URL `url`, the best first: the exact path, the same tail below the UI folder or the English
-/// localisation folder, the same file name there, then anywhere. A `.swf` and a `.gfx` of the
-/// same name are alternatives, the one the URL names first.
-pub(crate) fn candidates(archive: &Archive, url: &str, folder: &str, limit: usize) -> Vec<usize> {
+/// URL `url`, the best first: the exact path, the same tail below the UI folder or the
+/// localisation folder of `language` and then of English, the same file name there, then
+/// anywhere below the UI folder, then anywhere. A `.swf` and a
+/// `.gfx` of the same name are alternatives, the one the URL names first; Entries that tie on
+/// all of it keep the order of the Archive.
+pub(crate) fn candidates(
+    archive: &Archive,
+    url: &str,
+    folder: &str,
+    language: Language,
+    limit: usize,
+) -> Vec<usize> {
+    let language_folders = language_folders(language);
+    let fallback = language != Language::English;
     let relative = normalised(&format!("{folder}\\{url}"));
     let file = url.rsplit(['\\', '/']).next().unwrap_or(url);
     let other = swapped(file);
@@ -89,18 +113,27 @@ pub(crate) fn candidates(archive: &Archive, url: &str, folder: &str, limit: usiz
                 0
             } else if suffixed && path.starts_with(UI_FOLDER) {
                 1
-            } else if suffixed && path.starts_with(LANGUAGE_FOLDER) {
+            } else if suffixed && language_folders.iter().any(|dir| path.starts_with(dir)) {
                 2
-            } else if folder_of(&path) == LANGUAGE_FOLDER.trim_end_matches('\\') {
+            } else if language_folders
+                .iter()
+                .any(|dir| folder_of(&path) == dir.trim_end_matches('\\'))
+            {
                 3
-            } else if path.starts_with(UI_FOLDER) {
+            } else if fallback && suffixed && path.starts_with(ENGLISH_FOLDER) {
                 4
-            } else {
+            } else if fallback && folder_of(&path) == ENGLISH_FOLDER.trim_end_matches('\\') {
                 5
+            } else if path.starts_with(UI_FOLDER) {
+                4 + 2 * usize::from(fallback)
+            } else {
+                5 + 2 * usize::from(fallback)
             };
             Some((twin + 2 * place, path, at))
         })
         .collect();
-    found.sort_unstable_by(|left, right| (left.0, &left.1).cmp(&(right.0, &right.1)));
+    found.sort_unstable_by(|left, right| {
+        (left.0, &left.1, left.2).cmp(&(right.0, &right.1, right.2))
+    });
     found.into_iter().take(limit).map(|(_, _, at)| at).collect()
 }

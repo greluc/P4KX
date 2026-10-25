@@ -69,3 +69,9 @@ Layered hulls are flat colours of their layers; their detail (the layer diffuse 
 textures, `UVTiling`, the blend masks) stays undrawn and is the follow-up of #547. Layers whose
 diffuse colour is 1 because a texture carries it are drawn white or in their tint, not in the
 texture's colour. Dark paints stay dark where the palette or tint says so.
+
+## Amendment (issue #551)
+
+The layers' diffuse and normal maps, their tiling and the blend map of the material are drawn in
+the textures mode by ADR-0147; the flat colours of this record remain the colours mode and the
+factors, and the shares by position remain the shares without a blend map.

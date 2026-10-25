@@ -4,7 +4,7 @@
 use crate::format_error::FormatError;
 use crate::issue::Directory;
 use crate::source::Source;
-use crate::{Checksum, central_directory, directory_v2, end_records};
+use crate::{Checksum, central_directory, directory_v2, end_records, recovery};
 
 const LAYOUT_MARKER_LEN: usize = 6;
 const LAYOUT_MAGIC: [u8; 4] = *b"Jiji";
@@ -24,6 +24,25 @@ pub(crate) fn read_entries(
         None => read_v1_entries(source, max_entries),
         Some(LAYOUT_V2) => directory_v2::read_entries(source, max_entries),
         Some(version) => Err(FormatError::UnsupportedLayout { version }),
+    }
+}
+
+/// Reads the Entries like [`read_entries`] and, when the v1 or plain ZIP directory cannot be
+/// read, rebuilds them by scanning for central-directory records. An Archive in the v2 layout, an
+/// unreadable file and a scan that finds no record keep their original error.
+pub(crate) fn read_entries_recovering(source: &Source) -> Result<Directory, FormatError> {
+    match read_entries(source, None) {
+        Err(
+            error @ (FormatError::NotAnArchive
+            | FormatError::Corrupt { .. }
+            | FormatError::Truncated(_)),
+        ) if layout_version(source)?.is_none() => {
+            let hint = end_records::locate_directory(source)
+                .ok()
+                .map(|location| location.offset);
+            recovery::recover(source, hint)?.ok_or(error)
+        }
+        other => other,
     }
 }
 

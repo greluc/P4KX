@@ -79,6 +79,7 @@ pub(crate) fn read_font4(tag: &Tag<'_>) -> Result<Font, GfxError> {
         name: reader.c_string()?.into_owned(),
         full_name: None,
         export_name: None,
+        import_url: None,
         bold: flags & 0x01 != 0,
         italic: flags & 0x02 != 0,
         small_text: false,

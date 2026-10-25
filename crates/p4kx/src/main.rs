@@ -39,6 +39,7 @@ mod cli_interior;
 mod cli_key;
 mod cli_loc;
 mod cli_model;
+mod cli_output;
 mod cli_ships;
 mod cli_socpak;
 mod cli_ui;
@@ -125,7 +126,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let json = cli.json;
     let success = |()| ExitCode::from(exit::SUCCESS);
-    p4kx_extraction::protect_libraries();
+    guard::protect_installations();
     if !matches!(cli.command, Command::Key(_)) {
         guard::start_game_check();
     }

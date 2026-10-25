@@ -75,7 +75,7 @@ archive-issues =
         [one] The directory of the Archive has one defect in an Entry. The Entry stays listed, but its data may not be readable; an Extraction reports it if it fails, and `p4kx info` names it.
        *[other] The directory of the Archive has { $count } defects in its Entries. The Entries stay listed, but their data may not be readable; an Extraction reports those that fail, and `p4kx info` names them.
     }
-game-running = Star Citizen is running. Use this tool with the game closed: reading continues, but the Archive changes while the game updates, and the tool never writes into the installation.
+game-running = Star Citizen is running. Use this tool with the game closed: reading continues, but the RSI Launcher can change the Archive when it updates, and the tool never writes into the installation.
 archive-test-build =
     { $kind ->
         [one] This Archive belongs to the { $channel } Channel, which carries Star Citizen test builds. Material of test builds is confidential under the Star Citizen Terms of Service: do not share or publish anything taken from it.
@@ -441,6 +441,21 @@ catalog-file-filter-compressed = Basetool catalog (JSON, zstd-compressed)
 catalog-running-title = Creating the Basetool catalog
 catalog-reading = Reading DataForge…
 catalog-progress = { $done } of { $total } Records checked, { $percent } %
+catalog-crafting-progress = Reading the crafting data: { $done } of { $total } Records, { $percent } %
+catalog-warning = { $kind ->
+    [unreadable_reward_records] { $count } Records that could hold a reward source cannot be read, so their reward sources are missing.
+    [ambiguous_dismantle] The DataForge holds { $count } dismantle processes instead of one, so no dismantle return is linked.
+    [unreadable_vehicle_files] { $count } ships have a vehicle file that cannot be read, so their paints are missing.
+    [unplaced_starmap_containers] { $count } system containers or placements cannot be read, so the starmap objects below them have no position.
+    [unreadable_shop_registry] The shop registry cannot be read, so the catalog has no shops although the Build has some.
+    [missing_shop_registry] The Archive holds no shop registry at the known path, so the catalog has no shops.
+    [unreadable_shop_containers] { $count } shop containers cannot be read, so the shops in them may lack kind and brand.
+    [unreadable_shop_inventories] { $count } shop inventory files cannot be read, so the shops that use them have no item list.
+    [missing_shop_inventories] { $count } shop inventory files that shop containers name are not in the Archive, so the shops that use them have no item list.
+    [no_shop_components] No shop component was found in the .soc files of the shop containers, so no shop has an item list.
+   *[other] { $message }
+}
+catalog-warning-more = and { $number } more
 catalog-writing = Writing { $path }…
 catalog-summary-title = Basetool catalog created
 catalog-kinds-heading = Kinds
@@ -864,6 +879,7 @@ model-info-material-ids-none = None
 model-info-bones = Bones
 model-info-animations = Animations
 model-info-animations-unread = Not read
+model-info-animations-reading = Reading…
 model-info-chunks = Chunks
 model-info-chunks-value = { $total } ({ $read } read, { $skipped } skipped, { $unknown } unknown)
 model-info-materials-unnamed = None named
@@ -911,6 +927,8 @@ model-export-animations = { $count ->
     [one] Write the animation of the model
    *[other] Write the { $number } animations of the model
   }
+model-export-animations-unknown = Write the animations of the model
+model-export-animations-large = They are read in full, and the file can be large.
 model-export-vertex-colours = Write the vertex colours
 model-export-file-heading = File
 model-export-choose-file = Choose file…
@@ -954,6 +972,11 @@ model-export-summary-animations = Animations { $written }, channels { $channels 
 model-export-summary-animations-unread = Animations not written ({ $number })
 model-export-summary-animation-unread = { $name } ({ $source }): { $reason }
 model-export-summary-animation-file-unread = { $source }: { $reason }
+model-export-summary-animation-unmatched = { $name } ({ $source }): no track matches a bone, { $tracks ->
+    [0] no track skipped
+    [one] one track skipped
+   *[other] { $number } tracks skipped
+  }
 model-export-failed-title = Export failed
 model-export-failed = { $name } could not be exported: { $reason }
 model-export-stopped = The export of { $name } stopped without a result.

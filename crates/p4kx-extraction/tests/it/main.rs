@@ -3,6 +3,7 @@
 
 //! Integration tests of `p4kx-extraction`, built as one test binary.
 
+mod animation_bounds;
 mod archive_change;
 mod conflict_policy;
 mod conversion;
@@ -37,6 +38,11 @@ mod texture_groups;
 mod texture_png;
 mod texture_preview;
 mod ui_images;
+mod ui_import_budget;
+mod ui_import_language;
+mod ui_import_names;
+mod ui_import_ranking;
+mod ui_import_support;
 mod ui_imports;
 mod ui_movie;
 mod ui_render;

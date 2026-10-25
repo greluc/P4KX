@@ -4,7 +4,10 @@
 //! The display list of the first frame: placements, changes and removals with matrices, colour
 //! transforms and the `PlaceObject3` extras.
 
-use p4kx_gfx::{ColorTransform, FilterKind, GfxError, Matrix, Movie, OtherDefinition, Rgba};
+use p4kx_gfx::{
+    ColorTransform, FilterKind, GfxError, MAX_FRAME_PLACEMENTS, Matrix, Movie, OtherDefinition,
+    Rgba,
+};
 use p4kx_testkit::{
     TestMovie, TestPlace, TestSignature, background_body, remove_object2_body, sprite_body,
 };
@@ -188,6 +191,45 @@ fn long_names_over_many_frames_end_in_a_typed_error_and_a_small_result() {
     );
     assert_eq!(
         assets.timeline.frames, 5_000,
+        "all frames are still counted"
+    );
+}
+
+#[test]
+fn frame_lists_stop_at_the_placement_cap_with_one_typed_failure() {
+    const SHOW_FRAME: [u8; 2] = [0x40, 0x00];
+    let frames = MAX_FRAME_PLACEMENTS + 1_000;
+    let builder = TestMovie::new(TestSignature::Gfx).raw(&SHOW_FRAME.repeat(frames));
+    let movie = movie(&builder.bytes());
+    let assets = movie.assets();
+    assert_eq!(
+        assets.timeline.frame_lists.len(),
+        MAX_FRAME_PLACEMENTS,
+        "a frame counts as one placement, and no frame beyond the cap is kept"
+    );
+    let capped: Vec<_> = assets
+        .failures
+        .iter()
+        .filter(|failure| matches!(failure.error, GfxError::TooManyFramePlacements { .. }))
+        .collect();
+    assert_eq!(capped.len(), 1, "{:?}", assets.failures);
+    assert!(matches!(
+        capped[0].error,
+        GfxError::TooManyFramePlacements {
+            limit: MAX_FRAME_PLACEMENTS
+        }
+    ));
+    assert!(
+        !assets
+            .failures
+            .iter()
+            .any(|failure| matches!(failure.error, GfxError::FrameListsTooLarge { .. })),
+        "{:?}",
+        assets.failures
+    );
+    assert_eq!(
+        usize::try_from(assets.timeline.frames),
+        Ok(frames),
         "all frames are still counted"
     );
 }

@@ -120,8 +120,7 @@ impl From<StarmapSummary> for StarmapJson {
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum WarningJson {
-    RewardSourcesTruncated,
-    UnreadableReferenceRecords { count: usize },
+    UnreadableRewardRecords { count: usize },
     AmbiguousDismantle { count: usize },
     UnreadableVehicleFiles { count: usize, details: Vec<String> },
     UnplacedStarmapContainers { count: usize },
@@ -137,9 +136,8 @@ enum WarningJson {
 impl From<&CraftingWarning> for WarningJson {
     fn from(warning: &CraftingWarning) -> Self {
         match warning {
-            CraftingWarning::RewardSourcesTruncated => Self::RewardSourcesTruncated,
-            CraftingWarning::UnreadableReferenceRecords(count) => {
-                Self::UnreadableReferenceRecords { count: *count }
+            CraftingWarning::UnreadableRewardRecords(count) => {
+                Self::UnreadableRewardRecords { count: *count }
             }
             CraftingWarning::AmbiguousDismantle(count) => {
                 Self::AmbiguousDismantle { count: *count }
@@ -329,5 +327,40 @@ pub(super) fn summary_json<'a>(
             })
             .collect(),
         unresolved: summary.unresolved(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_kind_of_every_warning_in_the_json_is_the_kind_the_library_names() {
+        let warnings = [
+            CraftingWarning::UnreadableRewardRecords(1),
+            CraftingWarning::AmbiguousDismantle(2),
+            CraftingWarning::UnreadableVehicleFiles {
+                count: 1,
+                details: vec!["a".to_owned()],
+            },
+            CraftingWarning::UnplacedStarmapContainers(3),
+            CraftingWarning::UnreadableShopRegistry,
+            CraftingWarning::MissingShopRegistry,
+            CraftingWarning::UnreadableShopContainers(4),
+            CraftingWarning::UnreadableShopInventories {
+                count: 1,
+                details: vec!["b".to_owned()],
+            },
+            CraftingWarning::MissingShopInventories(5),
+            CraftingWarning::NoShopComponents,
+        ];
+        for warning in &warnings {
+            let json = serde_json::to_value(WarningJson::from(warning));
+            assert_eq!(
+                json.as_ref().ok().and_then(|json| json["kind"].as_str()),
+                Some(warning.kind()),
+                "{warning:?}"
+            );
+        }
     }
 }

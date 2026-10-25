@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::{ModelExportSummary, ModelExportText as T, Texts, format};
-
-fn number(texts: &Texts, value: usize) -> String {
-    format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language())
-}
+use super::model_export_notes::number;
+use crate::{AnimationNoteKind, ModelExportSummary, ModelExportText as T, Texts};
 
 /// Returns the line with the animations and channels the file holds, or `None` when the export
 /// was not asked to write animations.
@@ -45,25 +42,33 @@ pub(super) fn unread_lines(texts: &Texts, summary: &ModelExportSummary) -> (Stri
         .iter()
         .map(|note| {
             let source = ("source", note.source.clone().into());
-            let reason = ("reason", note.reason.clone().into());
-            note.name.as_ref().map_or_else(
-                || {
-                    texts.format(
-                        T::SummaryAnimationFileUnread,
-                        &[source.clone(), reason.clone()],
-                    )
-                },
-                |name| {
-                    texts.format(
-                        T::SummaryAnimationUnread,
-                        &[
-                            ("name", name.clone().into()),
-                            source.clone(),
-                            reason.clone(),
-                        ],
-                    )
-                },
-            )
+            let name = note.name.clone().unwrap_or_default();
+            match (&note.kind, &note.name) {
+                (AnimationNoteKind::NoBoneMatched { skipped_tracks }, _) => texts.format(
+                    T::SummaryAnimationUnmatched,
+                    &[
+                        ("name", name.into()),
+                        source,
+                        (
+                            "tracks",
+                            u64::try_from(*skipped_tracks).unwrap_or(u64::MAX).into(),
+                        ),
+                        ("number", number(texts, *skipped_tracks).into()),
+                    ],
+                ),
+                (AnimationNoteKind::Unread { reason }, None) => texts.format(
+                    T::SummaryAnimationFileUnread,
+                    &[source, ("reason", reason.clone().into())],
+                ),
+                (AnimationNoteKind::Unread { reason }, Some(_)) => texts.format(
+                    T::SummaryAnimationUnread,
+                    &[
+                        ("name", name.into()),
+                        source,
+                        ("reason", reason.clone().into()),
+                    ],
+                ),
+            }
         })
         .collect();
     (heading, lines)

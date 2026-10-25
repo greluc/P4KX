@@ -89,6 +89,8 @@ mod model_skeleton_info;
 mod model_skin;
 mod model_textures;
 mod read_only;
+mod read_only_commands;
+mod recover;
 mod search;
 mod ships;
 mod socpak;

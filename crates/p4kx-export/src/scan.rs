@@ -6,12 +6,15 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use p4kx_assembly::{ArchiveFiles, Entities};
-use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Record, RecordTree, TreeBuilder};
+use p4kx_extraction::{
+    CancelToken, DataForge, DataForgeError, Guid, Record, RecordTree, TreeBuilder,
+};
 use rayon::prelude::*;
 
 use crate::collected::Picked;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::Blueprint;
+use crate::contract_recipe::CostLine;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::selection::is_leftover;
@@ -19,12 +22,20 @@ use crate::ship_base::{ShipRead, ShipReader};
 use crate::starmap::starmap_object;
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
-use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogProgress, Kind};
+use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogPhase, CatalogProgress, Kind};
 use crate::{item_stats, item_variant};
 
 const PROGRESS_STEP: usize = 1024;
 const GROUP_TYPE: &str = "ResourceTypeGroup";
 const RESOURCE_TYPE: &str = "ResourceType";
+
+/// Appends to `out` the `ResourceType` GUID of every resource line of `line`, selections opened.
+fn resources_of(line: &CostLine<'_>, out: &mut Vec<Guid>) {
+    out.extend(line.resource_guid.map(|guid| guid.0));
+    for option in &line.options {
+        resources_of(option, out);
+    }
+}
 
 /// The ship readers not in use. A reader keeps the shared Entities and containers it has read, so
 /// a reader taken for one ship and given back for the next keeps its caches across the splits of
@@ -157,12 +168,12 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
                 carried.extend(commodity.subtype_guid.map(|guid| guid.0));
             }
         }
-        let mut used: Vec<_> = blueprints
-            .iter()
-            .flat_map(|blueprint| &blueprint.ingredients)
-            .filter_map(|ingredient| ingredient.resource_guid)
-            .map(|guid| guid.0)
-            .collect();
+        let mut used = Vec::new();
+        for tier in blueprints.iter().flat_map(|blueprint| &blueprint.tiers) {
+            for line in tier.mandatory.iter().chain(&tier.optional) {
+                resources_of(line, &mut used);
+            }
+        }
         used.sort_unstable();
         used.dedup();
         let mut trees = TreeBuilder::new();
@@ -289,9 +300,54 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             && (done.is_multiple_of(PROGRESS_STEP) || done == self.total)
         {
             progress(CatalogProgress {
+                phase: CatalogPhase::Records,
                 records_done: done,
                 records_total: self.total,
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::guid_text::CatalogGuid;
+
+    fn line(resource: Option<&str>, options: Vec<CostLine<'static>>) -> CostLine<'static> {
+        CostLine {
+            kind: "select",
+            count: None,
+            slot: None,
+            slot_key: None,
+            options,
+            resource_guid: resource.and_then(|text| text.parse().ok()).map(CatalogGuid),
+            item_guid: None,
+            quantity_scu: None,
+            quantity_units: None,
+            min_quality: None,
+            quantity_multiplier: None,
+            composition_inclusion: None,
+            modifiers: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn the_resources_of_a_line_include_those_inside_selections() {
+        let first = "a1000000-0000-4000-8000-000000000001";
+        let second = "b2000000-0000-4000-8000-000000000002";
+        let nested = line(
+            None,
+            vec![
+                line(Some(first), Vec::new()),
+                line(None, vec![line(Some(second), Vec::new())]),
+            ],
+        );
+        let mut found = Vec::new();
+        resources_of(&nested, &mut found);
+        let expected: Vec<Guid> = [first, second]
+            .iter()
+            .filter_map(|text| text.parse().ok())
+            .collect();
+        assert_eq!(found, expected);
     }
 }

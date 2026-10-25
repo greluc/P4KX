@@ -44,9 +44,25 @@ pub enum EntryIssue {
     /// [`Archive::raw_path`](crate::Archive::raw_path) returns the stored bytes.
     #[error("its path is not UTF-8")]
     PathNotUtf8,
+    /// The Archive was opened with recovery and its Entries come from a scan for central-directory
+    /// records, not from the end records. Listed once, at Entry 0, so the directory may be
+    /// incomplete: Entries whose records are lost are missing.
+    #[error("the Archive was recovered by scanning for directory records; Entries may be missing")]
+    Recovered,
+    /// Recovery stopped at a limit (the Entry count, the signature hits or the work budget), so
+    /// more Entries than the missing ones of [`EntryIssue::Recovered`] may be absent. Listed at
+    /// Entry 0 after it.
+    #[error("recovery stopped at a scan limit; more Entries may be missing")]
+    RecoveryLimit,
 }
 
 impl EntryIssue {
+    /// Returns whether the issue concerns the whole Archive, not the Entry it is listed at.
+    #[must_use]
+    pub const fn is_archive_wide(&self) -> bool {
+        matches!(self, Self::Recovered | Self::RecoveryLimit)
+    }
+
     const fn kind(&self) -> u8 {
         match self {
             Self::DataOutsideFile => 1,
@@ -54,6 +70,8 @@ impl EntryIssue {
             Self::EncryptionBlockSize { .. } => 4,
             Self::PathNotUtf8 => 8,
             Self::HashBlockSize { .. } => 16,
+            Self::Recovered => 32,
+            Self::RecoveryLimit => 64,
         }
     }
 }
@@ -86,6 +104,21 @@ impl IssueLog {
         if self.listed.len() < MAX_ENTRY_ISSUES {
             self.listed.push((index, issue));
         }
+    }
+
+    /// Takes over the defects `other` recorded, which carry the Entry positions they were read at.
+    pub(crate) fn absorb(&mut self, other: Self) {
+        for (index, issue) in other.listed {
+            self.record(index, issue);
+        }
+        self.raw_paths.extend(other.raw_paths);
+    }
+
+    /// Lists `issue` for Entry 0 before all others.
+    pub(crate) fn record_first(&mut self, issue: EntryIssue) {
+        self.count += 1;
+        self.listed.insert(0, (0, issue));
+        self.listed.truncate(MAX_ENTRY_ISSUES);
     }
 
     /// Returns the stored path bytes of the Entry at `index` when its path is not UTF-8.

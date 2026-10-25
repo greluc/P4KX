@@ -110,7 +110,9 @@ impl UiMovie<'_> {
                 .map(|text| decode_line_breaks(text).into_owned())
         };
         let imported = match self.origin() {
-            Origin::Entry(archive) => resolve_fonts(archive, self.name(), &assets),
+            Origin::Entry(archive) => {
+                resolve_fonts(archive, self.name(), &assets, self.font_language())
+            }
             Origin::File(_) => ImportedFonts::default(),
         };
         let text_options = TextOptions {

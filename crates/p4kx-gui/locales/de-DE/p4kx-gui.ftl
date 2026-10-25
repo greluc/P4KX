@@ -75,7 +75,7 @@ archive-issues =
         [one] Das Verzeichnis des Archivs hat einen Fehler in einem Eintrag. Der Eintrag bleibt aufgelistet, seine Daten sind aber womöglich nicht lesbar; eine Extraktion meldet ihn, wenn er scheitert, und `p4kx info` nennt ihn.
        *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
     }
-game-running = Star Citizen läuft. Nutze dieses Werkzeug bei beendetem Spiel: Lesen funktioniert weiter, aber das Archiv ändert sich, wenn das Spiel aktualisiert, und das Werkzeug schreibt nie in die Installation.
+game-running = Star Citizen läuft. Nutze dieses Werkzeug bei beendetem Spiel: Lesen funktioniert weiter, aber der RSI Launcher kann das Archiv beim Aktualisieren ändern, und das Werkzeug schreibt nie in die Installation.
 archive-test-build =
     { $kind ->
         [one] Dieses Archiv gehört zum Channel { $channel }, der Testbuilds von Star Citizen enthält. Material aus Testbuilds ist nach den Nutzungsbedingungen von Star Citizen vertraulich: Gib nichts daraus weiter und veröffentliche nichts davon.
@@ -441,6 +441,21 @@ catalog-file-filter-compressed = Basetool-Katalog (JSON, zstd-komprimiert)
 catalog-running-title = Erstelle Basetool-Katalog
 catalog-reading = Lese DataForge …
 catalog-progress = { $done } von { $total } Records geprüft, { $percent } %
+catalog-crafting-progress = Crafting-Daten werden gelesen: { $done } von { $total } Records, { $percent } %
+catalog-warning = { $kind ->
+    [unreadable_reward_records] { $count } Records, die eine Belohnungsquelle enthalten könnten, lassen sich nicht lesen; ihre Belohnungsquellen fehlen.
+    [ambiguous_dismantle] Die DataForge enthält { $count } Zerlegungsprozesse statt einem; keine Zerlegungsausbeute wird verknüpft.
+    [unreadable_vehicle_files] Bei { $count } Schiffen lässt sich eine Fahrzeugdatei nicht lesen; ihre Lackierungen fehlen.
+    [unplaced_starmap_containers] { $count } Systemcontainer oder Platzierungen lassen sich nicht lesen; die Sternenkarten-Objekte darunter haben keine Position.
+    [unreadable_shop_registry] Das Shop-Register lässt sich nicht lesen; der Katalog enthält keine Shops, obwohl der Build welche hat.
+    [missing_shop_registry] Das Archiv enthält kein Shop-Register am bekannten Pfad; der Katalog enthält keine Shops.
+    [unreadable_shop_containers] { $count } Shop-Container lassen sich nicht lesen; den Shops darin können Art und Marke fehlen.
+    [unreadable_shop_inventories] { $count } Inventardateien von Shops lassen sich nicht lesen; die Shops, die sie nutzen, haben keine Artikelliste.
+    [missing_shop_inventories] { $count } Inventardateien, die Shop-Container nennen, fehlen im Archiv; die Shops, die sie nutzen, haben keine Artikelliste.
+    [no_shop_components] In den .soc-Dateien der Shop-Container wurde keine Shop-Komponente gefunden; kein Shop hat eine Artikelliste.
+   *[other] { $message }
+}
+catalog-warning-more = und { $number } weitere
 catalog-writing = Schreibe { $path } …
 catalog-summary-title = Basetool-Katalog erstellt
 catalog-kinds-heading = Arten
@@ -864,6 +879,7 @@ model-info-material-ids-none = Keine
 model-info-bones = Knochen
 model-info-animations = Animationen
 model-info-animations-unread = Nicht gelesen
+model-info-animations-reading = Wird gelesen …
 model-info-chunks = Chunks
 model-info-chunks-value = { $total } ({ $read } gelesen, { $skipped } übersprungen, { $unknown } unbekannt)
 model-info-materials-unnamed = Keine genannt
@@ -911,6 +927,8 @@ model-export-animations = { $count ->
     [one] Die Animation des Modells schreiben
    *[other] Die { $number } Animationen des Modells schreiben
   }
+model-export-animations-unknown = Die Animationen des Modells schreiben
+model-export-animations-large = Sie werden vollständig gelesen, und die Datei kann groß werden.
 model-export-vertex-colours = Vertex-Farben schreiben
 model-export-file-heading = Datei
 model-export-choose-file = Datei wählen …
@@ -954,6 +972,11 @@ model-export-summary-animations = Animationen { $written }, Kanäle { $channels 
 model-export-summary-animations-unread = Nicht geschriebene Animationen ({ $number })
 model-export-summary-animation-unread = { $name } ({ $source }): { $reason }
 model-export-summary-animation-file-unread = { $source }: { $reason }
+model-export-summary-animation-unmatched = { $name } ({ $source }): keine Spur passt zu einem Knochen, { $tracks ->
+    [0] keine Spur übersprungen
+    [one] eine Spur übersprungen
+   *[other] { $number } Spuren übersprungen
+  }
 model-export-failed-title = Export fehlgeschlagen
 model-export-failed = { $name } konnte nicht exportiert werden: { $reason }
 model-export-stopped = Der Export von { $name } wurde ohne Ergebnis beendet.

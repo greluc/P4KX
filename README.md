@@ -220,9 +220,10 @@ Early development (milestone M1). Available today:
   in the character's own folder `Animations/pu/<body>/<name>`, and `--anim-folder <folder>`
   names the only folders to look in. The zones of the body that the worn clothing covers
   (`SCItemClothingParams`, ADR-0140) are left out of the body skin, as the game does not draw
-  them, and listed as `body_zones_hidden`; with `--materials textures`, layered materials without a diffuse map, such as the
-  `LayerBlend_V2` clothing, are drawn in their layer colours and listed as
-  `layers_without_diffuse`. A piece with no geometry for the variant, one that cannot
+  them, and listed as `body_zones_hidden`; with `--materials textures`, layered materials such as the `LayerBlend_V2`
+  clothing are drawn from the diffuse and normal maps of their layers blended by the blend mask
+  (ADR-0147), and those whose layers have no diffuse map are drawn in their layer colours and
+  listed as `layers_without_diffuse`. A piece with no geometry for the variant, one that cannot
   be resolved, or whose model is missing or unreadable, is skipped and listed; with `--json` the report has
   the shape described in [docs/cli-json.md](docs/cli-json.md). `p4kx armour bodies` lists the
   variants.
@@ -389,7 +390,8 @@ Early development (milestone M1). Available today:
   bounded, and what lies beyond a limit is listed instead of drawn.
 - `p4kx ui render … --lang <language>` resolves the localisation keys (`@key`, with `,P=`
   parameters) of text fields in the `global.ini` of that language of the Archive; it needs an ENTRY.
-  A key the language does not hold is drawn as it is and listed.
+  A key the language does not hold is drawn as it is and listed. The language is also the
+  localisation folder in which imported fonts are looked for after the folders of the UI.
 - `p4kx ui render … --svg` writes the frame as an SVG document instead, which scales without loss:
   shapes are written once and placed with their transforms, gradients, strokes, colour transforms
   and masks become SVG elements, and bitmaps are embedded as PNG data. The same input gives the
@@ -502,6 +504,10 @@ Early development (milestone M1). Available today:
   the last four digits hidden, `p4kx key remove` deletes the stored key. The key never appears in
   logs, error messages or JSON. `--key-file` (or `P4KX_KEY_FILE`) names another file for the stored
   key, for the command line, the window and the MCP server alike.
+- `--recover` on any command rebuilds an Archive whose end of central directory is missing or
+  whose central directory is damaged, by scanning its last 4 GiB for directory records. Entries
+  whose records are lost are missing, and a warning says the Archive was recovered. Without the
+  flag such an Archive does not open.
 - `--json` on any command prints its result as one line of JSON instead of text; the shapes are
   documented in [docs/cli-json.md](docs/cli-json.md).
 

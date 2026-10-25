@@ -17,6 +17,7 @@ mod public_patch;
 mod ranged;
 mod read_only;
 mod reading;
+mod recovery;
 mod robustness;
 mod sha256;
 mod verified;

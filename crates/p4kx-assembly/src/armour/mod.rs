@@ -172,8 +172,9 @@ impl Armour {
         &self.issues
     }
 
-    /// Returns, per part, the layered materials that have no diffuse map and are drawn in the
-    /// colours of their layers; report them when the textures are drawn.
+    /// Returns, per part, the layered materials that have no diffuse map, neither their own nor
+    /// one in a layer, and are drawn in the colours of their layers; report them when the
+    /// textures are drawn.
     #[must_use]
     pub fn layer_issues(&self) -> Vec<Issue> {
         self.parts

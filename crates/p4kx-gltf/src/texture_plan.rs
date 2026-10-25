@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 use p4kx_model::Material;
 
+use crate::layer_jobs::{fallback_guards, layer_jobs, layer_normals_last};
+use crate::layer_plan::Layered;
 use crate::materials::{MaterialPlan, Slot, display_name, is_hair_cards, uses_alpha};
 use crate::shading::shading;
+use crate::texture_assemble::Wish;
 use crate::texture_loader::TextureLoader;
-use crate::texture_make::{Budget, Outcome, run};
+use crate::texture_make::{Budget, run_guarded};
 use crate::texture_pixels::Tints;
 use crate::texture_report::{TextureFallback, TextureRole};
 use crate::texture_roles::{Source, Sources, sources_with};
@@ -41,6 +44,13 @@ pub(crate) enum Key {
         gloss: Option<String>,
         specular: Option<(String, [u8; 3])>,
     },
+    LayerBase {
+        blend: String,
+    },
+    LayerNormal {
+        blend: String,
+        own: Option<String>,
+    },
 }
 
 /// One image to make: its key, its source textures and the material's colours.
@@ -51,14 +61,47 @@ pub(crate) struct Job {
     pub(crate) normal: Option<Source>,
     pub(crate) specular: Option<Source>,
     pub(crate) tints: Tints,
+    pub(crate) layered: Option<Layered>,
 }
 
 impl Job {
+    /// Returns the file `source` is reported by: its name in the material file, and for a layered
+    /// image the image it is the size source of.
+    pub(crate) fn file_of(&self, source: &Source) -> String {
+        let count = self
+            .layered
+            .as_ref()
+            .map_or(0, |layered| layered.layers.len());
+        match &self.key {
+            Key::LayerBase { .. } => {
+                format!(
+                    "{} (layered base colour image of {count} layers)",
+                    source.file
+                )
+            }
+            Key::LayerNormal { .. } => {
+                format!("{} (layered normal image of {count} layers)", source.file)
+            }
+            _ => source.file.clone(),
+        }
+    }
+
     /// The role and file reported when the job cannot run at all.
     pub(crate) fn primary(&self) -> Option<(TextureRole, &Source)> {
         match &self.key {
             Key::Base { .. } => self.diffuse.as_ref().map(|s| (TextureRole::Diffuse, s)),
             Key::Normal { .. } => self.normal.as_ref().map(|s| (TextureRole::Normal, s)),
+            Key::LayerBase { .. } => self
+                .layered
+                .as_ref()
+                .and_then(|layered| layered.sizing(false))
+                .map(|s| (TextureRole::Diffuse, s)),
+            Key::LayerNormal { .. } => self
+                .layered
+                .as_ref()
+                .and_then(|layered| layered.sizing(true))
+                .or(self.normal.as_ref())
+                .map(|s| (TextureRole::Normal, s)),
             Key::MetallicRoughness { gloss, .. } => {
                 if gloss.is_some() {
                     self.normal.as_ref().map(|s| (TextureRole::Normal, s))
@@ -92,6 +135,8 @@ pub(crate) struct BaseImage {
     pub(crate) image: usize,
     /// Whether the material's colours are in the image, so that its factor is white.
     pub(crate) tinted: bool,
+    /// Whether the image is blended of the layers of a layered material.
+    pub(crate) layered: bool,
 }
 
 /// The metallic-roughness image of a material and which channels it carries.
@@ -114,29 +159,18 @@ pub(crate) struct SlotImages {
 #[derive(Debug, Default)]
 pub(crate) struct TextureSet {
     pub(crate) images: Vec<EncodedImage>,
-    slots: BTreeMap<(usize, Slot), SlotImages>,
+    pub(crate) slots: BTreeMap<(usize, Slot), SlotImages>,
     pub(crate) fallbacks: Vec<TextureFallback>,
 }
 
 /// The jobs of a material: its base colour, normal and metallic-roughness images.
-type Wanted = [Option<usize>; 3];
+pub(crate) type Wanted = [Option<usize>; 3];
 
 /// The materials of one model instance whose images are wanted.
 pub(crate) struct PartSlots<'a> {
     pub(crate) part: usize,
     pub(crate) plan: &'a MaterialPlan<'a>,
     pub(crate) slots: Vec<Slot>,
-}
-
-type Reported = HashSet<(String, TextureRole, String, String)>;
-
-/// The images one material of one model instance asks for, with the name it is reported by.
-struct Wish {
-    part: usize,
-    slot: Slot,
-    name: String,
-    jobs: Wanted,
-    refused: Vec<Failure>,
 }
 
 fn quantise(colour: [f32; 3]) -> [u8; 3] {
@@ -170,87 +204,21 @@ impl TextureSet {
                         jobs.len() - 1
                     })
                 };
-                let (images, refused) = jobs_of(material, &mut add);
+                let (images, fallback, refused) = jobs_of(material, &mut add);
                 wanted.push(Wish {
                     part: requested.part,
                     slot,
                     name: display_name(material, slot),
                     jobs: images,
+                    fallback,
                     refused,
                 });
             }
         }
-        let outcomes = run(&jobs, mip, loader, Budget::DEFAULT);
+        let jobs = layer_normals_last(jobs, &mut wanted);
+        let guards = fallback_guards(&wanted, jobs.len());
+        let outcomes = run_guarded(&jobs, mip, loader, Budget::DEFAULT, &guards);
         Self::assemble(&wanted, outcomes)
-    }
-
-    fn assemble(wanted: &[Wish], outcomes: Vec<Outcome>) -> Self {
-        let mut set = Self::default();
-        let mut made: Vec<(Option<usize>, Outcome)> = Vec::with_capacity(outcomes.len());
-        for mut outcome in outcomes {
-            let index = outcome.image.take().map(|image| {
-                set.images.push(image);
-                set.images.len() - 1
-            });
-            made.push((index, outcome));
-        }
-        let mut reported = Reported::new();
-        for Wish {
-            part,
-            slot,
-            name,
-            jobs: [base, normal, packed],
-            refused,
-        } in wanted
-        {
-            let of = |job: &Option<usize>| job.and_then(|job| made.get(job));
-            set.slots.insert(
-                (*part, *slot),
-                SlotImages {
-                    base: of(base).and_then(|(index, outcome)| {
-                        Some(BaseImage {
-                            image: (*index)?,
-                            tinted: outcome.tinted,
-                        })
-                    }),
-                    normal: of(normal).and_then(|(index, _)| *index),
-                    metallic_roughness: of(packed).and_then(|(index, outcome)| {
-                        Some(MetallicRoughnessImage {
-                            image: (*index)?,
-                            roughness: outcome.roughness,
-                            metallic: outcome.metallic,
-                        })
-                    }),
-                },
-            );
-            let made_failures = [base, normal, packed]
-                .into_iter()
-                .flatten()
-                .filter_map(|job| made.get(*job))
-                .flat_map(|(_, outcome)| &outcome.failures);
-            for failure in refused.iter().chain(made_failures) {
-                set.note(&mut reported, name, failure);
-            }
-        }
-        set
-    }
-
-    /// Lists `failure` as a fallback of the material `name` unless `reported` has it already.
-    fn note(&mut self, reported: &mut Reported, name: &str, failure: &Failure) {
-        let key = (
-            name.to_owned(),
-            failure.role,
-            failure.file.clone(),
-            failure.reason.clone(),
-        );
-        if reported.insert(key) {
-            self.fallbacks.push(TextureFallback {
-                material: name.to_owned(),
-                role: failure.role,
-                file: failure.file.clone(),
-                reason: failure.reason.clone(),
-            });
-        }
     }
 
     /// Returns the images the material of `slot` of the model instance `part` is drawn with.
@@ -267,9 +235,8 @@ impl TextureSet {
     }
 }
 
-fn refusals(found: &Sources) -> Vec<Failure> {
-    found
-        .refused
+fn refusals(refused: &[(TextureRole, String)]) -> Vec<Failure> {
+    refused
         .iter()
         .map(|(role, file)| Failure {
             role: *role,
@@ -287,42 +254,62 @@ fn tints_of(material: &Material) -> Tints {
     }
 }
 
+/// Returns the job of the base colour image of the diffuse map `diffuse` of `material`, with the
+/// specular map of `found`, if any.
+fn base_job(
+    material: &Material,
+    (found, diffuse): (&Sources, &Source),
+    specular: Option<(String, [u8; 3])>,
+    tints: Tints,
+) -> Job {
+    let tint = if specular.is_some() {
+        quantise(tints.diffuse)
+    } else {
+        NEUTRAL
+    };
+    Job {
+        key: Key::Base {
+            diffuse: diffuse.identity(),
+            specular,
+            tint,
+            keep_alpha: diffuse.opacity || uses_alpha(material),
+        },
+        diffuse: Some(diffuse.clone()),
+        normal: None,
+        specular: found.specular.clone(),
+        tints,
+        layered: None,
+    }
+}
+
 /// Registers the jobs for the images of `material` with `add`, which returns a job's number, and
 /// returns the jobs with the textures refused for their unsafe paths.
-fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, Vec<Failure>) {
+fn jobs_of(
+    material: &Material,
+    add: &mut impl FnMut(Job) -> usize,
+) -> (Wanted, Option<usize>, Vec<Failure>) {
     let mut found = sources_with(material, is_hair_cards(material));
     if found.diffuse.as_ref().is_none_or(|diffuse| diffuse.opacity) {
         found.specular = None;
     }
-    let by_opacity = found
-        .diffuse
-        .as_ref()
-        .is_some_and(|diffuse| diffuse.opacity);
-    let refused = refusals(&found);
+    let mut refused = refusals(&found.refused);
     let tints = tints_of(material);
     let specular_key = found
         .specular
         .as_ref()
         .map(|specular| (specular.identity(), quantise(tints.specular)));
-    let base = found.diffuse.as_ref().map(|diffuse| {
-        add(Job {
-            key: Key::Base {
-                diffuse: diffuse.identity(),
-                specular: specular_key.clone(),
-                tint: if specular_key.is_some() {
-                    quantise(tints.diffuse)
-                } else {
-                    NEUTRAL
-                },
-                keep_alpha: by_opacity || uses_alpha(material),
-            },
-            diffuse: found.diffuse.clone(),
-            normal: None,
-            specular: found.specular.clone(),
+    let (layer_base, layer_normal, layer_refused) = layer_jobs(material, &found, tints);
+    refused.extend(refusals(&layer_refused));
+    let base = match (&found.diffuse, layer_base) {
+        (Some(diffuse), _) => Some(add(base_job(
+            material,
+            (&found, diffuse),
+            specular_key.clone(),
             tints,
-        })
-    });
-    let normal = found.normal.as_ref().map(|normal| {
+        ))),
+        (None, layered) => layered.map(&mut *add),
+    };
+    let plain_normal = found.normal.as_ref().map(|normal| {
         add(Job {
             key: Key::Normal {
                 normal: normal.identity(),
@@ -331,7 +318,11 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
             normal: found.normal.clone(),
             specular: None,
             tints,
+            layered: None,
         })
+    });
+    let (normal, fallback) = layer_normal.map_or((plain_normal, None), |layered| {
+        (Some(add(layered)), plain_normal)
     });
     let gloss = found.normal.as_ref().filter(|normal| normal.gloss);
     let packed = (gloss.is_some() || specular_key.is_some()).then(|| {
@@ -344,7 +335,8 @@ fn jobs_of(material: &Material, add: &mut impl FnMut(Job) -> usize) -> (Wanted, 
             normal: gloss.cloned(),
             specular: found.specular.clone(),
             tints,
+            layered: None,
         })
     });
-    ([base, normal, packed], refused)
+    ([base, normal, packed], fallback, refused)
 }

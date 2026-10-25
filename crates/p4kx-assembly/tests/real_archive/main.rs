@@ -29,6 +29,7 @@ mod real_head_rotation;
 mod real_hirc_resolution;
 mod real_interior;
 mod real_interior_verification;
+mod real_layer_textures;
 mod real_layered_materials;
 mod real_npc;
 mod real_resolve;

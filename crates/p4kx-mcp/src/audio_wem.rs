@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::audio::MAX_SOUNDBANK_LEN;
+use p4kx_assembly::audio::{AudioIndex, MAX_SOUNDBANK_LEN};
 use p4kx_extraction::{AudioError, Bank, ConversionError, EmbeddedWem, Sound, Wem};
 
 use crate::archives::Opened;
@@ -14,7 +14,6 @@ use crate::budget::{fill_within, json_len};
 use crate::error::{ToolError, capped};
 use crate::page::Page;
 
-const MAX_LOCATIONS: usize = 50;
 /// The most places read, one after the other, to find one that holds the whole WEM.
 pub(crate) const MAX_ATTEMPTS: usize = 8;
 
@@ -241,7 +240,7 @@ pub(crate) fn candidates(
             let location = LocationShape {
                 kind: "entry",
                 path: entry.path().to_owned(),
-                language: None,
+                language: folder_language(opened.audio_index(), entry.path()),
                 offset: None,
                 len: entry.uncompressed_size(),
             };
@@ -255,6 +254,19 @@ pub(crate) fn candidates(
         }
         _ => Err(ToolError::WemSelector),
     }
+}
+
+/// Returns the language folder of the Archive that the Entry `path` lies in below
+/// `Data\Sounds\wwise\`, spelled as the Archive spells it, or `None` for an Entry outside any
+/// language folder.
+fn folder_language(index: &AudioIndex, path: &str) -> Option<String> {
+    let mut folders = path.split(['\\', '/']);
+    folders.find(|folder| folder.eq_ignore_ascii_case("wwise"))?;
+    let mut rest = folders.collect::<Vec<_>>();
+    rest.pop();
+    rest.into_iter()
+        .find_map(|folder| index.language(folder))
+        .map(str::to_owned)
 }
 
 /// What reading a place found.
@@ -296,8 +308,13 @@ pub(crate) fn read<R>(
 }
 
 /// Describes the WEM `params` names from the first place that holds all of it.
-pub(crate) fn info(opened: &Opened, params: &WemParams) -> Result<WemInfoResult, ToolError> {
+pub(crate) fn info(
+    opened: &Opened,
+    params: &WemParams,
+    page: Page,
+) -> Result<WemInfoResult, ToolError> {
     let (id, places) = candidates(opened, params.wem_id, params.path.as_deref())?;
+    page.check(places.len())?;
     let mut first: Option<(LocationShape, WemShape)> = None;
     let mut failure: Option<ToolError> = None;
     for place in places.iter().take(MAX_ATTEMPTS) {
@@ -325,16 +342,27 @@ pub(crate) fn info(opened: &Opened, params: &WemParams) -> Result<WemInfoResult,
     let Some((described, wem)) = first else {
         return Err(failure.unwrap_or(ToolError::WemSelector));
     };
-    Ok(WemInfoResult {
+    let total = places.len();
+    let mut result = WemInfoResult {
         archive: opened.archive().path().display().to_string(),
         wem_id: id,
-        locations_total: places.len(),
-        locations: places
-            .into_iter()
-            .take(MAX_LOCATIONS)
-            .map(|place| place.location)
-            .collect(),
+        locations_total: total,
+        locations: Vec::new(),
+        next_cursor: None,
         described,
         wem,
-    })
+    };
+    let (listed, next_cursor) = fill_within(
+        page,
+        total,
+        json_len(&result),
+        places
+            .into_iter()
+            .skip(page.offset())
+            .map(|place| Ok(place.location)),
+        |location: &LocationShape| format!("location {}", location.path),
+    )?;
+    result.locations = listed;
+    result.next_cursor = next_cursor;
+    Ok(result)
 }

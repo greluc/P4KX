@@ -101,10 +101,11 @@ by `p4kx model info`. Big-endian chunks of the chunks the model reads are refuse
 - One node per `Node` `0x824` chunk, in table order; the parent by chunk ID. Duplicate chunk IDs,
   an unknown parent, a cycle and a singular parent matrix are corrupt chunks.
 - One level of detail, LOD0, without a geometry companion: one mesh for each node whose object is a
-  `Mesh` chunk naming physics data. The mesh has positions and a triangle list, no normals,
-  tangents, colours or texture coordinates, and one submesh of material ID 0 over all indices.
+  `Mesh` chunk naming physics data. The mesh has positions and a triangle list, computed smooth
+  normals (`Mesh::normals_computed`, ADR-0119), no tangents, colours or texture coordinates, and
+  one submesh of material ID 0 over all indices.
 - `material_library` from the first `MtlName` `0x802` chunk; the library is resolved as for `#ivo`.
 - `Model::chunks` lists every chunk with `read`, `skipped` or `unknown`.
 
 The export is a node tree and a mesh like the `#ivo` export. It differs in what the files hold:
-no normals (viewers compute flat ones), no texture coordinates, one material.
+computed instead of stored normals, no texture coordinates, one material.

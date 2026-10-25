@@ -25,6 +25,7 @@ mod collect;
 mod describe;
 mod error;
 mod glb_extras;
+mod interior;
 mod items;
 mod manifest;
 mod manifest_light;
@@ -40,6 +41,7 @@ mod write;
 
 pub use character::{CharacterScene, write_character_package};
 pub use error::PackageError;
+pub use interior::{InteriorScene, write_interior_package};
 pub use manifest::{
     AlphaMeaning, Basis, BuildInfo, CharacterSource, ColourSpace, Coordinates, EntityRef, FORMAT,
     FORMAT_VERSION, Format, Generator, Issue, IssueOrigin, MANIFEST_FILE, MESHES_FOLDER, Manifest,

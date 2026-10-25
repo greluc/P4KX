@@ -59,7 +59,10 @@ impl Tally {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_streamed_sounds_of_documented_ships_are_located_as_loose_entries() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let entities = Entities::new(&forge);
@@ -97,7 +100,10 @@ fn the_streamed_sounds_of_documented_ships_are_located_as_loose_entries() -> Tes
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_localised_sounds_are_located_in_the_chosen_language() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
     let language = index
@@ -128,7 +134,10 @@ fn the_localised_sounds_are_located_in_the_chosen_language() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_languages_are_enumerated_from_the_archive() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let audio = ArchiveAudio::new(&archive);
     let index = audio.index();
     assert_ne!(index.languages().len(), 0);

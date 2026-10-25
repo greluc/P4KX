@@ -159,7 +159,7 @@ pub fn write_rigged_glb_animated_with<'m>(
         .iter()
         .map(|instance| remap(skeleton, instance))
         .collect();
-    let mut layout = Layout::new();
+    let mut layout = Layout::new().limited(options.max_influences);
     for ((part, instance), own) in instances.iter().enumerate().zip(&remapped) {
         if let Some(lod) = instance.lod {
             let rigging = Rigging {

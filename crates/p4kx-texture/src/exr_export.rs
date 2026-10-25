@@ -15,10 +15,13 @@ const ZIP_COMPRESSION: u8 = 3;
 const LINES_PER_CHUNK: usize = 16;
 const FLOAT: i32 = 2;
 const CHANNELS: [&str; 3] = ["B", "G", "R"];
+const ALPHA_CHANNEL: &str = "A";
 const BYTES_PER_VALUE: usize = 4;
 
-/// Writes `image` to `out` as a single-part scanline OpenEXR file with 32-bit float `R`, `G`
-/// and `B` channels, ZIP-compressed in chunks of 16 lines, chunks compressed in parallel.
+/// Writes `image` to `out` as a single-part scanline OpenEXR file with 32-bit float channels.
+///
+/// The channels are `R`, `G` and `B`, and `A` when the image has alpha; ZIP-compressed in chunks
+/// of 16 lines, chunks compressed in parallel.
 ///
 /// # Errors
 ///
@@ -30,13 +33,22 @@ pub fn write_exr<W: Write>(image: &HdrImage, mut out: W) -> Result<(), TextureEr
     let max_x = i32::try_from(image.width()).map_err(|_| too_large())? - 1;
     let max_y = i32::try_from(image.height()).map_err(|_| too_large())? - 1;
     let line_len = width.checked_mul(3).ok_or_else(too_large)?;
-    let chunks: Vec<Vec<u8>> = image
-        .pixels()
-        .par_chunks(line_len.saturating_mul(LINES_PER_CHUNK).max(1))
-        .map(|lines| compress(lines, line_len))
-        .collect::<io::Result<_>>()
-        .map_err(TextureError::Write)?;
-    let header = header(max_x, max_y);
+    let lines_per_chunk = line_len.saturating_mul(LINES_PER_CHUNK).max(1);
+    let alpha_chunks = image
+        .alpha()
+        .map(|alpha| alpha.par_chunks(width.saturating_mul(LINES_PER_CHUNK).max(1)));
+    let rgb_chunks = image.pixels().par_chunks(lines_per_chunk);
+    let chunks: Vec<Vec<u8>> = match alpha_chunks {
+        Some(alpha_chunks) => rgb_chunks
+            .zip(alpha_chunks)
+            .map(|(lines, alpha)| compress(lines, Some(alpha), line_len))
+            .collect::<io::Result<_>>(),
+        None => rgb_chunks
+            .map(|lines| compress(lines, None, line_len))
+            .collect::<io::Result<_>>(),
+    }
+    .map_err(TextureError::Write)?;
+    let header = header(max_x, max_y, image.alpha().is_some());
     let mut offset = u64::try_from(MAGIC.len() + VERSION.len() + header.len())
         .ok()
         .and_then(|start| start.checked_add(8 * u64::try_from(chunks.len()).ok()?))
@@ -60,9 +72,10 @@ pub fn write_exr<W: Write>(image: &HdrImage, mut out: W) -> Result<(), TextureEr
     out.flush().map_err(TextureError::Write)
 }
 
-fn header(max_x: i32, max_y: i32) -> Vec<u8> {
+fn header(max_x: i32, max_y: i32, alpha: bool) -> Vec<u8> {
     let mut channels = Vec::new();
-    for name in CHANNELS {
+    let names = alpha.then_some(ALPHA_CHANNEL).into_iter().chain(CHANNELS);
+    for name in names {
         channels.extend_from_slice(name.as_bytes());
         channels.push(0);
         channels.extend_from_slice(&FLOAT.to_le_bytes());
@@ -96,11 +109,20 @@ fn header(max_x: i32, max_y: i32) -> Vec<u8> {
     header
 }
 
-/// Lays out `lines` of RGB pixels channel by channel per line, splits and predicts the bytes as
+/// Lays out `lines` of RGB pixels and their `alpha` lines channel by channel per line, `A` first,
+/// splits and predicts the bytes as
 /// OpenEXR's ZIP compression does and deflates them; data that does not shrink stays raw.
-fn compress(lines: &[f32], line_len: usize) -> io::Result<Vec<u8>> {
-    let mut raw = Vec::with_capacity(lines.len() * BYTES_PER_VALUE);
+fn compress(lines: &[f32], alpha: Option<&[f32]>, line_len: usize) -> io::Result<Vec<u8>> {
+    let alpha_len = alpha.map_or(0, <[f32]>::len);
+    let mut raw = Vec::with_capacity((lines.len() + alpha_len) * BYTES_PER_VALUE);
+    let alpha_width = line_len / 3;
+    let mut alpha_lines = alpha.map(|alpha| alpha.chunks(alpha_width.max(1)));
     for line in lines.chunks(line_len.max(1)) {
+        if let Some(alpha_line) = alpha_lines.as_mut().and_then(Iterator::next) {
+            for value in alpha_line {
+                raw.extend_from_slice(&value.to_le_bytes());
+            }
+        }
         let (pixels, _) = line.as_chunks::<3>();
         for channel in [2, 1, 0] {
             for pixel in pixels {

@@ -1,7 +1,7 @@
 ---
-source: crates/p4kx/tests/dcb_export.rs
+source: crates/p4kx/tests/it/dcb_export.rs
 expression: tree(&glob)?
 ---
 == libs/foundry/records/ships/avenger.xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Ship guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/ships/avenger" mass="25000.5" size="Large" label="@vehicle_NameAEGS_Avenger" crew="2" name="Avenger &amp; &lt;Titan&gt;" hidden="false"/>
+<Ship xmlns:p4kx="https://github.com/p4kx-org/p4kx/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/ships/avenger" p4kx:name="Ship.Avenger" mass="25000.5" size="Large" label="@vehicle_NameAEGS_Avenger" crew="2" name="Avenger &amp; &lt;Titan&gt;" hidden="false"/>

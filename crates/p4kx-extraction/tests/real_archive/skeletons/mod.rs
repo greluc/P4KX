@@ -16,7 +16,51 @@ use rayon::prelude::*;
 
 mod support;
 
-use support::{Tally, check_bones, check_skin, sample};
+use support::{Tally, bind_difference, check_bones, check_skin, sample};
+
+#[test]
+#[expect(clippy::print_stdout, reason = "the measurements are the output")]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn inverse_binds_from_the_chain_differ_little_from_the_stored_world_poses() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let index = PathIndex::new(&archive);
+    let entries: Vec<&Entry> = archive
+        .entries()
+        .iter()
+        .filter(|entry| {
+            std::path::Path::new(entry.path())
+                .extension()
+                .is_some_and(|ext| {
+                    ext.eq_ignore_ascii_case("skin") || ext.eq_ignore_ascii_case("chr")
+                })
+        })
+        .collect();
+    let (models, translation, rotation) = entries
+        .par_iter()
+        .filter_map(|entry| ModelSource::from_index(&index, entry.path()).ok())
+        .map(|source| {
+            let model = source.model();
+            let mut largest = bind_difference(&model.bones);
+            for lod in &model.lods {
+                if let Some(bones) = &lod.bones {
+                    let own = bind_difference(bones);
+                    largest = (largest.0.max(own.0), largest.1.max(own.1));
+                }
+            }
+            (1_u64, largest.0, largest.1)
+        })
+        .reduce(
+            || (0, 0.0, 0.0),
+            |a, b| (a.0 + b.0, a.1.max(b.1), a.2.max(b.2)),
+        );
+    println!(
+        "{models} of {} skins and skeleton files: largest difference {translation:e} m in the \
+         translation, {rotation:e} in a rotation component",
+        entries.len()
+    );
+    assert!(models > 0, "the Archive holds skins and skeleton files");
+    Ok(())
+}
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -31,7 +75,10 @@ const MIN_NEAR_SHARE: f64 = 0.9;
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn skins_have_consistent_bones_and_weights_that_sit_near_their_bone() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let mut entries = sample(&archive, ".skin", SKIN_SAMPLE);
     entries.extend(sample(&archive, "_head_skel.chr", 20));
@@ -69,7 +116,10 @@ fn skins_have_consistent_bones_and_weights_that_sit_near_their_bone() -> TestRes
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_skin_reads_with_every_level_weighted_to_bones_its_skeleton_has() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let entries: Vec<&Entry> = archive
         .entries()
@@ -111,7 +161,10 @@ fn every_skin_reads_with_every_level_weighted_to_bones_its_skeleton_has() -> Tes
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_skeleton_file_has_bones_and_no_mesh_and_exports_as_nodes() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let entries: Vec<&Entry> = archive
@@ -131,6 +184,11 @@ fn every_skeleton_file_has_bones_and_no_mesh_and_exports_as_nodes() -> TestResul
             let model = source.model();
             if model.bones.is_empty() || model.lods.iter().any(|lod| !lod.meshes.is_empty()) {
                 return Some(format!("{path}: bones {} or a mesh", model.bones.len()));
+            }
+            let mut tally = Tally::default();
+            check_bones(&model.bones, path, &mut tally);
+            if let Some(failure) = tally.failures.into_iter().next() {
+                return Some(failure);
             }
             let file = out.path().join(format!("{position}.glb"));
             let exported = source
@@ -156,7 +214,10 @@ fn every_skeleton_file_has_bones_and_no_mesh_and_exports_as_nodes() -> TestResul
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn skins_export_as_valid_glb_with_every_bone_as_a_joint() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let entries = sample(&archive, ".skin", EXPORT_SAMPLE);
@@ -208,7 +269,10 @@ fn skins_export_as_valid_glb_with_every_bone_as_a_joint() -> TestResult {
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn animated_static_models_have_compact_bones_that_point_at_their_nodes() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let mut entries = sample(&archive, ".cga", ANIMATED_SAMPLE);
     entries.extend(sample(&archive, ".cgf", ANIMATED_SAMPLE));
@@ -217,8 +281,12 @@ fn animated_static_models_have_compact_bones_that_point_at_their_nodes() -> Test
         .map(|entry| {
             let mut tally = Tally::default();
             let path = entry.path();
-            let Ok(source) = ModelSource::from_index(&index, path) else {
-                return tally;
+            let source = match ModelSource::from_index(&index, path) {
+                Ok(source) => source,
+                Err(error) => {
+                    tally.fail(path, format!("not read: {error}"));
+                    return tally;
+                }
             };
             let model = source.model();
             if model.bones.is_empty() {
@@ -248,7 +316,10 @@ fn animated_static_models_have_compact_bones_that_point_at_their_nodes() -> Test
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_vertices_of_every_skin_are_floats_so_the_quantisation_box_does_not_matter() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entries: Vec<&Entry> = archive
         .entries()
         .iter()

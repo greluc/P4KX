@@ -3,6 +3,7 @@
 
 use crate::reader::to_usize;
 use crate::skin::{RawSubmesh, SkinMesh};
+use crate::smooth_normals::smooth_normals;
 use crate::{CorruptChunk, Mesh, Submesh};
 
 const UNUSED: u32 = u32::MAX;
@@ -101,11 +102,13 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
                 positions: Vec::new(),
                 source: Vec::new(),
                 normals: skin.streams.normals.map(|_| Vec::new()),
+                normals_computed: false,
                 tangents: skin.streams.tangents.map(|_| Vec::new()),
                 colours: Some(Vec::new()),
                 influences: skin.streams.bone_map.map(|_| Vec::new()),
                 uvs: Vec::new(),
                 second_uvs: skin.streams.second_uvs.map(|_| Vec::new()),
+                non_finite_uvs: 0,
                 indices: Vec::with_capacity(indices),
                 submeshes: Vec::with_capacity(group.len()),
             },
@@ -147,7 +150,7 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
 
     fn push_vertex(&mut self, vertex: usize) -> Result<u32, CorruptChunk> {
         let local = u32::try_from(self.mesh.positions.len()).unwrap_or(UNUSED);
-        let (position, uv) = self.skin.streams.vertices.vertex(vertex)?;
+        let (position, uv, mut repaired) = self.skin.streams.vertices.vertex(vertex)?;
         self.mesh.positions.push(position);
         self.mesh
             .source
@@ -166,8 +169,11 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
         if let (Some(stream), Some(second_uvs)) =
             (&self.skin.streams.second_uvs, &mut self.mesh.second_uvs)
         {
-            second_uvs.push(stream.uv(vertex)?);
+            let (second, second_repaired) = stream.uv(vertex)?;
+            second_uvs.push(second);
+            repaired |= second_repaired;
         }
+        self.mesh.non_finite_uvs += usize::from(repaired);
         if let Some(colours) = &mut self.mesh.colours {
             colours.push(self.skin.streams.vertices.colour(vertex)?);
         }
@@ -180,6 +186,10 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
     }
 
     fn finish(mut self, remap: &mut [u32]) -> Mesh {
+        if self.mesh.normals.is_none() && !self.mesh.indices.is_empty() {
+            self.mesh.normals = Some(smooth_normals(&self.mesh.positions, &self.mesh.indices));
+            self.mesh.normals_computed = true;
+        }
         if self
             .mesh
             .colours

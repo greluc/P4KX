@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use p4kx_extraction::ChunkJson;
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
@@ -32,27 +33,11 @@ pub(crate) struct ChunksResult {
 /// One chunk of a chunk file.
 #[derive(Debug, Serialize, JsonSchema)]
 pub(crate) struct ChunkShape {
-    /// The position in the chunk table, counted from 0.
-    pub(crate) index: usize,
-    /// The type name, absent for a type not in the table of known types.
-    #[serde(rename = "type")]
-    pub(crate) type_name: Option<&'static str>,
-    /// The numeric type ID.
-    pub(crate) type_id: u32,
+    /// The chunk as `p4kx chunks list --json` shows it.
+    #[serde(flatten)]
+    pub(crate) chunk: ChunkJson,
     /// The type ID in hexadecimal.
     pub(crate) type_id_hex: String,
-    /// Whether the type is in the table of known types.
-    pub(crate) known: bool,
-    /// The chunk version.
-    pub(crate) version: u32,
-    /// The chunk ID, absent in the `#ivo` form.
-    pub(crate) id: Option<u32>,
-    /// The byte order of the chunk's data: `little` or `big`.
-    pub(crate) byte_order: &'static str,
-    /// The offset of the chunk's data in the file.
-    pub(crate) offset: u64,
-    /// The size of the chunk's data in bytes.
-    pub(crate) size: u64,
 }
 
 /// A model summarised: what `p4kx model info --json` says, with the long lists left to

@@ -6,7 +6,7 @@ new Blender versions do not break it; the [Blender add-on](../blender_addon/READ
 ([ADR-0093](adr/0093-the-blender-add-on-is-an-extension-that-reads-and-validates-a-package-without-blender.md)),
 and so can any other tool. `p4kx entity package` writes it ([ADR-0083](adr/0083-a-blender-package-is-a-versioned-manifest-with-shared-glb-meshes-and-png-textures.md)),
 and `p4kx character package` writes a Character in the same format, see
-[Characters](#characters).
+[Characters](#characters), and `p4kx interior package` an Interior on its own.
 
 The JSON Schema of `scene.json` is generated from the Rust types of `p4kx-blender` and checked in
 as [schemas/blender-package.schema.json](../schemas/blender-package.schema.json); a test fails
@@ -40,6 +40,11 @@ glossary); a **mesh** of the package is a GLB file with the geometry of one mode
 every texture and `--no-vertex-colours` leaves the vertex colours out of the meshes.
 `--interior` adds the Entity's Interior as for `entity glb --interior` (ADR-0086), see
 [Interiors and lights](#interiors-and-lights).
+
+`p4kx interior package <archive> <container>... --out <folder>` writes the Interior of a socpak
+container on its own, with `--lod`, `--texture-mip` and `--no-vertex-colours`: the same nodes,
+props and lights as `entity package --interior`, see
+[An Interior on its own](#an-interior-on-its-own).
 
 The desktop window writes the same package: the export dialog of an Entity offers "Blender
 package" next to "GLB file", with the same choices, a folder instead of a file, progress and
@@ -131,6 +136,19 @@ model, material library and palette), and an Interior model has no tint palette:
 plain colours or its textures. Paths and names come from the Archive and are
 untrusted text.
 
+### An Interior on its own
+
+`p4kx interior package` (ADR-0126) writes a container without an Entity around it, in format 1.3
+and without a new field. The root of the scene, a node with no `parent`, is the container's own
+node (kind `container`, `path` its name), at the identity transform; below it hang the `.soc`
+files, the nested containers, the objects and the lights exactly as below a container of an
+Entity's Interior, with paths that start at the root's name instead of `Interior`. There is no node
+of the kind `entity`. `source.entity.class_name` is the file name of the container's Entry without
+its folder and extension, and `guid` is empty, as for a Character. Everything else, the meshes,
+textures, material descriptions and issues, is as for an Entity, with one difference: layer materials and
+textures are looked up in the Archive the container chain starts in, so a texture that exists only
+inside a container is listed among the issues as a texture that could not be written.
+
 A `light` node has a `light` object:
 
 | Field | Meaning |
@@ -187,7 +205,10 @@ A Character package (version 1.3) is the folder above with one mesh and no textu
 | `animations` | The animations in the file: `name`, `duration_seconds`, `additive` (its keys are offsets to a pose, which glTF cannot say), `channels` and `keys`. |
 
 Pieces that cannot be fitted to the body and animations that fit nothing are `issues` with the
-kinds the `armour glb` report uses (`origin` `assembly`).
+kinds the `armour glb` report uses (`origin` `assembly`). Animations left out for the same reason
+(no track fits, or the budget of values is used up) are one `animation_not_used` issue whose
+`reason` gives their count and the names of the first three, so `scene.json` stays small however
+many animations a command is given.
 
 The add-on imports a `character` node's mesh once for that node, not as an instance, so that the
 armature can be posed: the armature, the skinned meshes below it, the shape keys of the head and

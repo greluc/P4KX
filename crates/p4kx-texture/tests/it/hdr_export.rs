@@ -125,3 +125,54 @@ fn an_odd_sized_image_round_trips() -> TestResult {
     assert_eq!(pixels, image.pixels(), "every value");
     Ok(())
 }
+
+fn read_exr_rgba(bytes: Vec<u8>) -> Result<Vec<f32>, Box<dyn Error>> {
+    let image = exr::prelude::read()
+        .no_deep_data()
+        .largest_resolution_level()
+        .rgba_channels(
+            |resolution, _| vec![0.0_f32; resolution.area() * 4],
+            |pixels: &mut Vec<f32>, position: Vec2<usize>, (r, g, b, a): (f32, f32, f32, f32)| {
+                let width = 40;
+                let start = (position.y() * width + position.x()) * 4;
+                if let Some(slot) = pixels.get_mut(start..start + 4) {
+                    slot.copy_from_slice(&<[f32; 4]>::from((r, g, b, a)));
+                }
+            },
+        )
+        .first_valid_layer()
+        .all_attributes()
+        .from_buffered(Cursor::new(bytes))?;
+    Ok(image.layer_data.channel_data.pixels)
+}
+
+#[test]
+fn an_exr_file_holds_the_alpha_channel_of_an_image_exactly() -> TestResult {
+    let (width, height) = (40_u32, 36_u32);
+    let count = (width * height) as usize;
+    let rgb: Vec<f32> = (0..count * 3)
+        .map(|i| f32::from(u16::try_from(i).unwrap_or(0)) - 7.5)
+        .collect();
+    let alpha: Vec<f32> = (0..count)
+        .map(|i| f32::from(u16::try_from(i % 7).unwrap_or(0)) - 0.5)
+        .collect();
+    let image = HdrImage::new(width, height, rgb.clone())?.with_alpha(alpha.clone())?;
+
+    let pixels = read_exr_rgba(exr_bytes(&image)?)?;
+
+    let expected: Vec<f32> = rgb
+        .chunks(3)
+        .zip(&alpha)
+        .flat_map(|(rgb, a)| [rgb[0], rgb[1], rgb[2], *a])
+        .collect();
+    assert_eq!(pixels, expected, "colour and alpha, across several chunks");
+    Ok(())
+}
+
+#[test]
+fn an_alpha_channel_must_hold_one_value_per_pixel() -> TestResult {
+    let image = HdrImage::new(2, 2, vec![0.0; 12])?;
+    assert!(image.clone().with_alpha(vec![0.0; 3]).is_err(), "too short");
+    assert_eq!(image.alpha(), None, "no alpha unless set");
+    Ok(())
+}

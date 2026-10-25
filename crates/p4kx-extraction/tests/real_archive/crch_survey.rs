@@ -156,7 +156,10 @@ fn count_chunks(survey: &mut Survey, entry: &Entry, extension: &str, file: &Chun
 )]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_crch_files_of_the_archive_are_counted_by_container_version_and_chunk() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let survey = archive
         .entries()
         .par_iter()

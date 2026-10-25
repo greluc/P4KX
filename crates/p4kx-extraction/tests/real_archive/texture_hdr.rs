@@ -31,7 +31,7 @@ fn the_real_bc6h_textures_decode_to_finite_high_range_values() -> TestResult {
                 .is_some_and(|extension| extension.eq_ignore_ascii_case(b".dds"))
         })
         .filter_map(|entry| Texture::from_archive(&archive, entry.path()).ok())
-        .filter(|texture| texture.header().format().is_high_range())
+        .filter(|texture| texture.header().format().to_string().starts_with("BC6H"))
         .collect();
     assert!(!high_range.is_empty(), "the Archive has BC6H textures");
     let stride = (high_range.len() / DECODE_LIMIT).max(1);
@@ -81,11 +81,13 @@ fn decode(texture: &Texture<'_>) -> Result<&'static str, String> {
 }
 
 fn check_values(texture: &Texture<'_>, image: &HdrImage) -> Result<(), String> {
-    let signed = texture.header().format().to_string() == "BC6H_SF16";
-    let bad = image
-        .pixels()
-        .iter()
-        .find(|value| value.is_nan() || (!signed && **value < 0.0) || value.abs() > 65504.0);
+    let format = texture.header().format().to_string();
+    let signed = format != "BC6H_UF16";
+    let bad = image.pixels().iter().find(|value| {
+        value.is_nan()
+            || (!signed && **value < 0.0)
+            || (format.starts_with("BC6H") && value.abs() > 65504.0)
+    });
     bad.map_or(Ok(()), |value| {
         Err(format!("{}: value {value}", texture.name()))
     })

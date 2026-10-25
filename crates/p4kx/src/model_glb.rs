@@ -6,9 +6,10 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_extraction::model::{LodSelection, Model};
+use p4kx_extraction::model_info::file_name;
 use p4kx_extraction::{
     AnimationSet, ChunkInfo, GlbOptions, GlbSummary, LibraryInfo, MaterialMode, ModelSource,
-    PathIndex, UnreadInfo, file_name,
+    PathIndex, UnreadInfo,
 };
 use serde::Serialize;
 
@@ -60,6 +61,7 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
         materials,
         texture_mip,
         no_vertex_colours,
+        max_influences,
         animations,
     } = action
     else {
@@ -72,7 +74,8 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
     let mut options = GlbOptions::default()
         .with_lod(*lod)
         .with_materials(mode)
-        .with_texture_mip(*texture_mip);
+        .with_texture_mip(*texture_mip)
+        .with_max_influences(usize::from(*max_influences));
     if *no_vertex_colours {
         options = options.without_vertex_colours();
     }

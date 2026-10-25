@@ -44,6 +44,27 @@ fn read_exr(path: &Path) -> Result<(Vec2<usize>, Vec<f32>), Box<dyn Error>> {
     Ok(image.layer_data.channel_data.pixels)
 }
 
+fn read_exr_alpha(path: &Path) -> Result<Vec<f32>, Box<dyn Error>> {
+    let image = exr::prelude::read()
+        .no_deep_data()
+        .largest_resolution_level()
+        .rgba_channels(
+            |resolution, _| (resolution, vec![0.0_f32; resolution.area()]),
+            |(resolution, alpha): &mut (Vec2<usize>, Vec<f32>),
+             position: Vec2<usize>,
+             (_, _, _, a): (f32, f32, f32, f32)| {
+                if let Some(slot) = alpha.get_mut(position.y() * resolution.width() + position.x())
+                {
+                    *slot = a;
+                }
+            },
+        )
+        .first_valid_layer()
+        .all_attributes()
+        .from_file(path)?;
+    Ok(image.layer_data.channel_data.pixels.1)
+}
+
 #[test]
 fn a_bc6h_mip_is_exported_as_exr_with_its_decoded_values() -> TestResult {
     for format in [95, 96] {
@@ -88,6 +109,84 @@ fn a_bc6h_mip_is_exported_as_tone_mapped_png_on_request() -> TestResult {
 
     assert_eq!((report.width, report.height), (16, 16), "the largest mip");
     assert!(out.exists(), "the PNG is written");
+    Ok(())
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one loop checks the EXR, the alpha and the PNG of nine formats"
+)]
+fn a_floating_point_mip_is_exported_as_exr_and_as_tone_mapped_png() -> TestResult {
+    for (dxgi_format, pixel_bytes) in [
+        (10, 8),
+        (34, 4),
+        (54, 2),
+        (41, 4),
+        (16, 8),
+        (6, 12),
+        (26, 4),
+        (67, 4),
+        (2, 16),
+    ] {
+        let dir = tempfile::tempdir()?;
+        let format = TestTextureFormat::Dx10Pixel {
+            dxgi_format,
+            pixel_bytes,
+        };
+        let header = SplitDds::new(format, 8, 4).write_files(dir.path(), "field.dds")?;
+        let texture = Texture::from_file(&header)?;
+        let out = dir.path().join("field.exr");
+
+        let report = texture.exr_to_file(&out, 0)?;
+
+        assert_eq!(
+            (report.width, report.height),
+            (8, 4),
+            "DXGI format {dxgi_format}"
+        );
+        let (size, pixels) = read_exr(&out)?;
+        assert_eq!(
+            (size.width(), size.height()),
+            (8, 4),
+            "DXGI format {dxgi_format}"
+        );
+        let expected = texture.decode_mip_hdr(0)?;
+        assert!(
+            pixels
+                .iter()
+                .zip(expected.pixels())
+                .all(|(read, decoded)| read.to_bits() == decoded.to_bits()
+                    || (read.is_nan() && decoded.is_nan())),
+            "the decoded values of DXGI format {dxgi_format}"
+        );
+
+        let read = read_exr_alpha(&out)?;
+        let bits = |values: &[f32]| {
+            values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect::<Vec<_>>()
+        };
+        match expected.alpha() {
+            Some(alpha) => assert_eq!(
+                bits(&read),
+                bits(alpha),
+                "the alpha of DXGI format {dxgi_format}"
+            ),
+            None => assert!(
+                read.iter().all(|a| a.to_bits() == 1.0_f32.to_bits()),
+                "no alpha reads as opaque for DXGI format {dxgi_format}"
+            ),
+        }
+
+        let png = dir.path().join("field.png");
+        texture.png_to_file(&png, 0)?;
+        assert!(
+            png.exists(),
+            "DXGI format {dxgi_format} also writes a tone-mapped PNG"
+        );
+    }
     Ok(())
 }
 

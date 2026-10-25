@@ -1,8 +1,8 @@
 ---
-source: crates/p4kx/tests/dcb_export_json.rs
+source: crates/p4kx/tests/it/dcb_export_json.rs
 expression: listing
 ---
 == records.ndjson
-{"$type":"Manufacturer","$guid":"00000001-0002-0003-0004-000000000005","$path":"libs/foundry/records/makers/woodworks","code":"ELM \"oak\""}
-{"$type":"Manufacturer","$guid":"50e8a9f6-f956-4000-8ace-7c0ca9a91f5d","$path":"libs/foundry/records/makers/woodworks","code":"WOOD"}
-{"$type":"Vehicle","$guid":"cbee34fd-6441-4000-b99f-924f7f26e19f","$path":"libs/foundry/records/vehicles/cart","mass":"INF","label":"@vehicle_Cart","maker":{"guid":"50e8a9f6-f956-4000-8ace-7c0ca9a91f5d","path":"libs/foundry/records/makers/woodworks","type":"Manufacturer"},"wheels":[{"$type":"Wheel","size":16},{"$type":"Wheel","size":17}],"spare":{"$type":"Wheel","size":15},"trailer":null,"front":{"guid":"cbee34fd-6441-4000-b99f-924f7f26e19f","path":"libs/foundry/records/vehicles/cart","type":"Wheel","at":"spare"},"tags":["wood","old"],"size":{"error":"offset 4294967295 in the text table is not a valid string"},"lost":{"error":"the Reference refers to the Record 00000000-0000-0000-0000-000000000077, which does not exist"}}
+{"$type":"Manufacturer","$guid":"00000001-0002-0003-0004-000000000005","$path":"libs/foundry/records/makers/woodworks","$name":"Manufacturer.Elm","code":"ELM \"oak\""}
+{"$type":"Manufacturer","$guid":"50e8a9f6-f956-4000-8ace-7c0ca9a91f5d","$path":"libs/foundry/records/makers/woodworks","$name":"Manufacturer.Woodworks","code":"WOOD"}
+{"$type":"Vehicle","$guid":"cbee34fd-6441-4000-b99f-924f7f26e19f","$path":"libs/foundry/records/vehicles/cart","$name":"Vehicle.Cart","mass":"INF","label":"@vehicle_Cart","maker":{"guid":"50e8a9f6-f956-4000-8ace-7c0ca9a91f5d","path":"libs/foundry/records/makers/woodworks","type":"Manufacturer"},"wheels":[{"$type":"Wheel","size":16},{"$type":"Wheel","size":17}],"spare":{"$type":"Wheel","size":15},"trailer":null,"front":{"guid":"cbee34fd-6441-4000-b99f-924f7f26e19f","path":"libs/foundry/records/vehicles/cart","type":"Wheel","at":"spare"},"tags":["wood","old"],"size":{"error":"offset 4294967295 in the text table is not a valid string"},"lost":{"error":"the Reference refers to the Record 00000000-0000-0000-0000-000000000077, which does not exist"}}

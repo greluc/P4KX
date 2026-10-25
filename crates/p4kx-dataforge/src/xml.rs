@@ -200,9 +200,7 @@ impl RecordXml {
         indent(out, depth)?;
         out.write_all(b"<")?;
         out.write_all(if plain { type_name } else { fallback }.as_bytes())?;
-        if let Head::Record(_, true) = head
-            && (!plain || children > 0 || annotations.texts().is_some())
-        {
+        if let Head::Record(_, true) = head {
             attribute(out, "xmlns:p4kx", RECORD_XML_NAMESPACE)?;
         }
         if !plain {
@@ -213,6 +211,10 @@ impl RecordXml {
             write!(out, "{}", tree.guid())?;
             out.write_all(b"\"")?;
             attribute(out, "path", tree.record_path())?;
+            attribute(out, "p4kx:name", tree.name())?;
+            if let Some(tag) = tree.tag() {
+                attribute(out, "p4kx:tag", tag)?;
+            }
         }
         for (field, _) in fields
             .iter()

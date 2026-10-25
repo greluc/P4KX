@@ -330,6 +330,7 @@ fn the_four_byte_second_normal_stream_is_the_second_texture_coordinate_set() -> 
     let plain = first_mesh(&plain)?;
     assert_eq!(plain.second_uvs, None, "no stream, no second set");
     assert_eq!(mesh.normals, plain.normals, "it gives no normals");
+    assert!(!plain.normals_computed, "the cube stores its normals");
     assert_eq!(mesh.tangents, plain.tangents, "it gives no tangents");
     assert_eq!(mesh.uvs, plain.uvs, "the first set stays");
     Ok(())
@@ -341,7 +342,7 @@ fn a_second_texture_coordinate_set_is_no_normal_source() -> TestResult {
     let uvs = vec![[0.5, 0.5]; cube.vertices().len()];
     let model = read_with(&cube.with_second_uvs(uvs), &[], LodSelection::All)?;
     let mesh = first_mesh(&model)?;
-    assert_eq!(mesh.normals, None, "no normals");
+    assert!(mesh.normals_computed, "the normals are computed");
     assert!(mesh.second_uvs.is_some(), "the second set");
     Ok(())
 }
@@ -371,8 +372,8 @@ fn a_sixteen_byte_tangent_stream_is_skipped() -> TestResult {
     )?;
     let mesh = first_mesh(&model)?;
     assert_eq!(
-        (mesh.normals.as_ref(), mesh.tangents.as_ref()),
-        (None, None)
+        (mesh.normals_computed, mesh.tangents.as_ref()),
+        (true, None)
     );
     Ok(())
 }

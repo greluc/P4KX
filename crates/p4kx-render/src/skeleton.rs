@@ -3,7 +3,7 @@
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_extraction::model::{Animation, Bone, BoneTransform, Keys, Track};
+use p4kx_extraction::model::{Animation, Bone, BoneTransform, Keys, Track, chained_world_poses};
 
 use super::rigid::{Flat, IDENTITY_MATRIX, compose, inverse, lerp, matrix, slerp};
 
@@ -21,6 +21,7 @@ pub struct Skeleton {
     bones: Vec<Bone>,
     order: Vec<u32>,
     inverse_bind: Vec<BoneTransform>,
+    world: Vec<BoneTransform>,
 }
 
 /// The matrices that move the bind pose of every bone into the posed one, one per bone, in the
@@ -83,8 +84,10 @@ impl Skeleton {
             return None;
         }
         let order = parent_first(bones)?;
+        let world = chained_world_poses(bones);
         Some(Self {
-            inverse_bind: bones.iter().map(|bone| inverse(&bone.world)).collect(),
+            inverse_bind: world.iter().map(inverse).collect(),
+            world,
             bones: bones.to_vec(),
             order,
         })
@@ -107,8 +110,9 @@ impl Skeleton {
     pub(super) fn static_bones(&self) -> Vec<[u32; 4]> {
         self.bones
             .iter()
-            .map(|bone| {
-                let [x, y, z] = bone.world.translation;
+            .zip(&self.world)
+            .map(|(bone, world)| {
+                let [x, y, z] = world.translation;
                 let parent = bone
                     .parent
                     .and_then(|parent| u32::try_from(parent).ok())

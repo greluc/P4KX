@@ -3,7 +3,7 @@
 
 use super::ExportFailure;
 use super::name::{MAX_STEM_LEN, StemSet, safe_stem};
-use crate::audio::{TriggerSounds, WemLocation};
+use crate::audio::{SoundVariant, SourceKind, TriggerSounds, WemLocation};
 
 const SUFFIX_RESERVE: usize = 11;
 
@@ -37,6 +37,25 @@ fn origin(location: &WemLocation<'_>) -> Option<Origin> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+struct Found {
+    origin: Origin,
+    prefetch_only: bool,
+}
+
+fn prefetch_only(variant: &SoundVariant<'_>) -> bool {
+    variant.source_kind() == SourceKind::PrefetchStreamed
+        && matches!(variant.location(), Some(WemLocation::Soundbank { .. }))
+}
+
+const fn better(candidate: Option<Found>, current: Option<Found>) -> bool {
+    match (candidate, current) {
+        (Some(_), None) => true,
+        (Some(candidate), Some(current)) => current.prefetch_only && !candidate.prefetch_only,
+        (None, _) => false,
+    }
+}
+
 /// Plans the files of `triggers` in order: one per distinct WEM of a trigger, named after the
 /// trigger and, where it has several, the WEM ID.
 pub(super) fn build(triggers: &[&TriggerSounds<'_>]) -> Plan {
@@ -44,23 +63,27 @@ pub(super) fn build(triggers: &[&TriggerSounds<'_>]) -> Plan {
     let mut stems = StemSet::default();
     for sounds in triggers {
         let trigger = sounds.trigger().name();
-        let mut media: Vec<(u32, Option<Origin>)> = Vec::new();
+        let mut media: Vec<(u32, Option<Found>)> = Vec::new();
         for variant in sounds.variants() {
             let Some(wem_id) = variant.wem_id() else {
                 plan.failures.push(ExportFailure {
                     trigger: trigger.to_owned(),
                     wem_id: None,
                     reason: format!(
-                        "plug-in source {} has no WEM to write",
+                        "{} {} has no file to write",
+                        variant.source_kind().label(),
                         variant.source().source_id
                     ),
                 });
                 continue;
             };
-            let found = variant.location().and_then(origin);
+            let found = variant.location().and_then(origin).map(|origin| Found {
+                origin,
+                prefetch_only: prefetch_only(variant),
+            });
             match media.iter_mut().find(|(id, _)| *id == wem_id) {
                 Some((_, slot)) => {
-                    if slot.is_none() {
+                    if better(found, *slot) {
                         *slot = found;
                     }
                 }
@@ -70,7 +93,7 @@ pub(super) fn build(triggers: &[&TriggerSounds<'_>]) -> Plan {
         let several = media.len() > 1;
         let base = safe_stem(trigger);
         for (wem_id, found) in media {
-            let Some(origin) = found else {
+            let Some(Found { origin, .. }) = found else {
                 plan.failures.push(ExportFailure {
                     trigger: trigger.to_owned(),
                     wem_id: Some(wem_id),

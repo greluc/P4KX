@@ -390,6 +390,25 @@ placement), `light_unsupported` (ambient, planar or unknown lights, which glTF c
 ([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.
 
+## `p4kx interior package <archive> <container>... --out <folder> --json`
+
+```json
+{"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\DRAK\\Cutlass\\base_int_body_main.socpak"],
+ "out": "…", "lod": 0, "texture_mip": 0, "containers_opened": 1, "model_parts": 4, "modelled_parts": 4,
+ "props": 4, "nodes": 77, "drawn_nodes": 4, "container_nodes": 2, "objects": 4, "lights": 70,
+ "meshes": 4, "shared_meshes": 0, "materials": 34, "palettes": 0, "textures": 79,
+ "texture_pixels": 5242880, "texture_failures": 0, "files": 84, "bytes": 18847044,
+ "vertices": 229192, "triangles": 246389, "skipped": 0, "issues": [Issue, …]}
+```
+
+`containers`, the exit codes and `containers_opened`, `model_parts`, `modelled_parts` and `props`
+are those of `p4kx interior glb`; a package folder that holds something else than an earlier
+package, or lies inside a Star Citizen installation, is 2. The other counts are those of
+`p4kx entity package`, with `container_nodes` for its `containers`: `nodes` counts the nodes of
+`scene.json`, `drawn_nodes` those with a mesh, `container_nodes`, `objects` and `lights` those of
+the kinds `container`, `object` and `light`. An **Issue** is that of `p4kx entity package`. The
+package is written even when parts are skipped.
+
 ## `p4kx armour bodies --json`
 
 ```json
@@ -434,11 +453,12 @@ the body variant's folders on the body skeleton, those of the character's own fo
 `--anim-folder FOLDER` (repeatable) looks only below the named folders; `animations` lists each one written, as in
 `p4kx chf glb`, with `skipped_weights` (a number, only when not 0) for runs of morph weights that
 did not fit. Three Issue kinds belong to animations: `animation_not_used` (no track fits the
-Character, or the animation would exceed the budget of 33,554,432 values for all animations of
-one command, the reason then starting with `limit`; the animation is not written and counts in
-`skipped`), `face_animation_failed` (the rig of the face cannot be read, or gives a pose that is
-not finite, and the animation has no track for a bone) and `face_joints_failed` (see
-`p4kx chf glb`).
+Character, or the animations would exceed the budget of 33,554,432 values for all animations of
+one command, the reason then starting with `limit`; the animations are not written; animations
+left out for the same reason are one Issue, named `animations` when it sums up several, whose
+message gives their count and the names of the first three, and `skipped` counts it once),
+`face_animation_failed` (the rig of the face cannot be read, or gives a pose that is not finite,
+and the animation has no track for a bone) and `face_joints_failed` (see `p4kx chf glb`).
 
 `pieces` counts the pieces: the `--piece` options and, with `--loadout`, the armour and clothing of
 the Loadout that were not replaced, including those that could not be resolved. `loadout` is
@@ -550,6 +570,7 @@ DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 ```json
 {"archive": "…", "language": {…}, "trigger": {…}, "breaks": 0,
  "target": "…", "format": "ogg", "written": 3, "kept": 0, "unconverted": 1, "failed": 1,
+ "cancelled": false,
  "files": [{"trigger": "Play_Multi", "wem_id": 100, "file": "…\\Play_Multi_100.ogg",
             "format": "ogg", "size": 4096, "kept": false, "unconverted": null}, …],
  "failures": [{"trigger": "Play_Multi", "wem_id": 104, "reason": "…"}, …],
@@ -563,12 +584,14 @@ decoded, which then carries the reason in `unconverted`. A file is named `<trigg
 trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
-sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank or loose Entry
-holds. Exit code 1 when anything is in `failures` or `unconverted`.
+sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
+soundbank or loose Entry holds. `cancelled` is true when Ctrl+C stopped the export before it handled
+every sound; no partial file is left. Exit code 1 when anything is in `failures` or `unconverted`,
+or `cancelled` is true.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
-`failed`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
+`failed`, `cancelled`, `files` and `failures`, as described here; `archive`, `language`, `trigger`, `breaks`
 and `issues` are not repeated in it.
 
 ## `p4kx wwise resolve <archive> <trigger> --json`
@@ -582,7 +605,7 @@ and `issues` are not repeated in it.
  "issues": [Issue, …]}
 ```
 
-`<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
+`counts.plugins` is the number of variants without a file: source plug-ins and external sources. `<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
 ATL definition has exits with code 2. The audio index is built as for `p4kx entity audio`, with
 the same `issues`; each soundbank holding one of the trigger's events is then read again and its
 `HIRC` section followed from the Event object through Play actions (other actions lead to no
@@ -597,8 +620,8 @@ A **Variant**:
 | `event` | string | The Wwise event it is reached from |
 | `soundbank` | object | `path` and `language` of the soundbank whose `HIRC` section leads to it |
 | `sound_id` | number | ID of the Sound object |
-| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in, which has no WEM |
-| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` or `other` |
+| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in or an external source, which have no file |
+| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` (generated, no file), `external` (supplied by the game at runtime, no file), `midi` (a MIDI file, located like a WEM) or `other` |
 | `localised` | boolean | The source is language-specific or its soundbank lies in a language folder |
 | `language` | string or `null` | The language folder the WEM was found in, for a localised variant with a location |
 | `fallback` | boolean | `language` is the fallback language, not `requested` |
@@ -1118,7 +1141,7 @@ with `--cross` `output` holding one horizontal cross; a texture array has one fi
 `<stem>_layerN.png` and a volume one per slice of the mip `<stem>_sliceN.png`, and a cubemap
 array has `<stem>_layerN_posx.png` … or, with `--cross`, one cross `<stem>_layerN.png` per
 element, the numbers padded with zeros to the width of the last. `format` is `png` for 8-bit
-RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
+RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H or floating-point texture is written as without
 `--tone-map`; `files` then carry the extension `.exr` instead of the one of `output`. `mip` is the
 exported level, 0 being the largest and the default; `width` and `height` are the size of each
 written image. `alpha_tail` says whether an alpha or smoothness tail was merged into the alpha
@@ -1178,17 +1201,20 @@ Also `p4kx bnk list <file> --json` for a soundbank file on disk.
 
 ```json
 {"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "version": 154, "bank_id": 3512036681,
- "wems": [{"id": 100, "size": 4852, "codec": "pcm", "codec_name": "PCM", "sample_count": 1200,
-           "duration_seconds": 0.025, "prefetch": false, "error": null},
-          {"id": 400, "size": 120, "codec": null, "codec_name": null, "sample_count": null,
-           "duration_seconds": null, "prefetch": true, "error": null}]}
+ "wems": [{"id": 100, "size": 4852, "class": "wem", "codec": "pcm", "codec_name": "PCM",
+           "sample_count": 1200, "duration_seconds": 0.025, "prefetch": false, "error": null},
+          {"id": 400, "size": 120, "class": "wem", "codec": null, "codec_name": null,
+           "sample_count": null, "duration_seconds": null, "prefetch": true, "error": null}]}
 ```
 
-`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded WEM in
+`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded media item in
 ascending ID order: `size` is its size in the bank, and `codec` to `duration_seconds` are as in
-`p4kx audio info`. `prefetch` is `true` when the bank holds only the start of a streamed WEM, whose
-whole file is the loose WEM of the same ID; its codec is then not read. `error` names why a WEM
-cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
+`p4kx audio info`. `class` tells what the item holds from its first bytes: `wem` (a RIFF or RIFX
+WAVE file), `midi` (a MIDI file), `impulse` (Wwise plug-in data such as a convolution reverb's
+impulse response) or `unknown`. `prefetch` is `true` when the bank holds only the start of a
+streamed WEM, whose whole file is the loose WEM of the same ID; its codec is then not read.
+`error` is the reason an item of class `wem` or `unknown` cannot be read, else `null`; the codec fields are `null` for `midi`,
+`impulse`, prefetched and unreadable items. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
 ## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`
@@ -1201,11 +1227,11 @@ Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on dis
  "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
 ```
 
-`format` is `wem`, `wav` or `ogg`, the extension of the files. `extracted` lists the WEMs written as
+`format` is `wem`, `wav` or `ogg`, the extension of the files (MIDI media written with `wem` has the extension `mid`). `extracted` lists the WEMs written as
 `<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
 both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
-`"prefetch": true`. With `--json`
+`"prefetch": true`, and MIDI media is written as `<id>.mid`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
 ## `p4kx ui assets <archive> <entry> --json`
@@ -1556,11 +1582,16 @@ companion next to it.
                 "emissive": [0.0, 0.0, 0.0], "shininess": 10.0, "opacity": 1.0,
                 "alpha_test": 0.0, "glow": 0.0,
                 "textures": [{"map": "TexSlot1", "file": "Objects/Test/caps_diff.tif"}]}, …],
- "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
-           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
- "lods": [{"level": 0, "vertices": 24, "triangles": 12,
+ "node_material_indices": [1, 2], "issues": [],
+ "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …],
+            "scale": [1.0, 1.0, 1.0], "geometry_type": 2, "helper": true, "properties": []},
+           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …],
+            "scale": [1.0, 1.0, 1.0], "geometry_type": 0, "helper": false,
+            "properties": [{"key": "class", "value": "AnimatedJoint"}]}],
+ "lods": [{"level": 0, "vertices": 24, "triangles": 12, "skeleton_bones": null,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
-                       "tangents": false, "colours": false, "skinned": false,
+                       "normals_computed": false, "tangents": false, "colours": false,
+                       "second_uvs": false, "non_finite_uvs": 0, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
@@ -1588,12 +1619,24 @@ stores them (linear), `flags` the engine's `MtlFlags` and `textures` the slots w
 the file gives them. `nodes` keeps the order of the file;
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
-metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
+metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `scale` is
+the scale the node's record stores (1 on every axis when it stores none), `geometry_type` the
+record's geometry type (0 for geometry, 2 or 3 for a helper; `null` without a `NodeMeshCombo`
+chunk), `helper` whether it is a helper, `properties` the `key=value` lines of the node's entry in
+the chunk's property table in order, e.g. `class=AnimatedJoint`, and `node_material_indices` the
+chunk's list of material indices. A transform or scale whose values are all below 1e-5 is the
+identity or 1. `issues` lists in words what a lenient read worked around; `model info` reads
+strictly, so it is empty there. `lods`
 lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
-absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
-(`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
-submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
+absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
+(`colours` is false for a mesh of opaque white vertices); `normals_computed` says that the mesh
+stores no normals and the smooth ones were computed from its triangles; `first_index` and `index_count` locate a
+submesh in its mesh's triangle list. `second_uvs` says whether the mesh has a second set of texture
+coordinates, and `non_finite_uvs` counts its vertices that had a texture coordinate, of either
+set, that was not a finite number and reads as 0. `skeleton_bones` of a level is the number of
+bones of the skeleton the level's own file carries when it differs from the model's, `null`
+otherwise. `skinned` says whether the mesh has bone weights.
 `bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
 of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
 bone by; `node` is the index of the node of the model the bone drives (the bones of a static
@@ -1619,10 +1662,13 @@ the model was read from it, `skipped` for a known type the model does not read a
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
-geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
-`null` (docs/crch-models.md).
+geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
+is `null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--max-influences <n>] [--anim <name>]… [--anim-from <entry>]… --json`
+
+`--max-influences N` (1 to 8, default 8) keeps the strongest N bones of each vertex and scales
+their weights to add up to 1; 4 writes the first set of joints and weights only.
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 
@@ -1747,7 +1793,7 @@ code is 0 without and 1 with differences on any compared level.
 | `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
 | `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and the checksum for the sides that have it: `crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive |
 | `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
-| `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name` and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
+| `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name`, `tag` (version 8 only, absent without one) and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
 | `records.changes[].fields` | array | One object per changed field or array element, nested ones included: `path` (its location, e.g. `hull.plates[1].armor`), and `old` and `new` values for the sides that have it; empty for an added, removed or unreadable Record |
 | `records.changes[].errors` | array | One object per side whose Record cannot be read: `side` (`old` or `new`) and `reason`; absent for every other Record |
 
@@ -1935,6 +1981,10 @@ written and adds the Issue `animation_not_used`; so does an animation that would
 of 33,554,432 values (floats of key times, poses and weights) that all animations of one command
 share: it adds `animation_not_used` with a reason starting with `limit`, the clips before it in
 the order of the files are kept (a facial clip of 4,500 samples costs about 7 million values).
+A clip is reported at most once. Animations left out for the same reason are one
+`animation_not_used` Issue, named `animations` when it sums up several, whose message gives their
+count and the names of the first three, so a command with thousands of unused animations adds one
+line to the report. `skipped` counts only the Issues of the Armour, not those of the animations.
 Control values are held to 0 to 1. A facial animation whose rig cannot be read, or whose pose is
 not finite, adds `face_animation_failed` when it has no track for a bone; the rig is read once.
 Facial joints that cannot be placed by the DNA add `face_joints_failed`: the bones are then

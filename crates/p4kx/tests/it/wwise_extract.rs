@@ -57,6 +57,11 @@ fn bank() -> Vec<u8> {
         .object(TestHircObject::sound(14, 104, STREAMED, 0))
         .object(TestHircObject::action(6, PLAY, 20))
         .object(TestHircObject::sound(20, 200, EMBEDDED, 0))
+        .object(TestHircObject::event(wwise_short_id("Play_Twice"), &[7, 8]))
+        .object(TestHircObject::action(7, PLAY, 21))
+        .object(TestHircObject::action(8, PLAY, 22))
+        .object(TestHircObject::sound(21, 200, EMBEDDED, 0))
+        .object(TestHircObject::sound(22, 200, EMBEDDED, 0))
         .bytes()
 }
 
@@ -68,9 +73,21 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
     )
     .audio_trigger("Play_Single")
     .audio_trigger("play_single_copy");
-    let database = audio_schema(entity_schema(DataForgeBuilder::new())).record(ship.record());
+    let twin = TestEntity::new(
+        0x0079_c5d5_1678_4f8c_85ba_18ca_8f64_2af7,
+        "TEST_Twin",
+        "libs/foundry/records/entities/spaceships/test_twin.xml",
+    )
+    .audio_trigger("Play:Case")
+    .audio_trigger("Play_CASE");
+    let database = audio_schema(entity_schema(DataForgeBuilder::new()))
+        .record(ship.record())
+        .record(twin.record());
     let definitions = TestAtl::new("SC_Audio")
         .trigger("Play_Multi", &["Play_Multi"])
+        .trigger("Play_Twice", &["Play_Twice"])
+        .trigger("Play:Case", &["Play_Single"])
+        .trigger("Play_CASE", &["Play_Single"])
         .trigger("Play_Single", &["Play_Single"])
         .trigger("PLAY_SINGLE_COPY", &["Play_Single"])
         .trigger("..\\Evil:x", &["Play_Single"]);
@@ -175,6 +192,16 @@ fn a_trigger_with_one_sound_is_named_by_the_trigger() -> TestResult {
 }
 
 #[test]
+fn a_wem_reached_through_several_variants_is_written_once() -> TestResult {
+    let fixture = fixture()?;
+    let report = extract(&fixture, "Play_Twice", &["--format", "wav"], 0)?;
+    assert_eq!(names(&fixture.out)?, ["Play_Twice.wav"]);
+    assert_eq!(count(&report, "written"), Some(1));
+    assert_eq!(report["files"].as_array().map(Vec::len), Some(1));
+    Ok(())
+}
+
+#[test]
 fn raw_keeps_the_wem_bytes() -> TestResult {
     let fixture = fixture()?;
     let report = extract(&fixture, "Play_Single", &["--format", "raw"], 0)?;
@@ -252,5 +279,24 @@ fn entity_audio_extracts_every_trigger_with_distinct_names() -> TestResult {
         names(&fixture.out)?,
         ["PLAY_SINGLE_COPY.wem", "Play_Single.wem"]
     );
+    Ok(())
+}
+
+#[test]
+fn entity_audio_separates_triggers_that_differ_only_in_case() -> TestResult {
+    let fixture = fixture()?;
+    let output = p4kx_testkit::p4kx()?
+        .arg("--json")
+        .args(["entity", "audio"])
+        .arg(&fixture.archive)
+        .arg("TEST_Twin")
+        .arg("--extract")
+        .arg(&fixture.out)
+        .args(["--format", "raw"])
+        .output()?;
+    assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(count(&report["extraction"], "written"), Some(2));
+    assert_eq!(names(&fixture.out)?, ["Play_CASE_2.wem", "Play_Case.wem"]);
     Ok(())
 }

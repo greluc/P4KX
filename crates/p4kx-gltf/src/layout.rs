@@ -3,7 +3,7 @@
 
 use std::io::Write;
 
-use p4kx_model::{Influences, Lod, Mesh};
+use p4kx_model::{Influences, Lod, MAX_INFLUENCES, Mesh};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::axes::to_y_up;
@@ -78,6 +78,7 @@ pub(crate) struct Layout<'m> {
     pub(crate) inverse_binds: Option<usize>,
     pub(crate) len: u64,
     pub(crate) hidden_primitives: usize,
+    pub(crate) max_influences: usize,
 }
 
 impl<'m> Layout<'m> {
@@ -90,7 +91,14 @@ impl<'m> Layout<'m> {
             inverse_binds: None,
             len: 0,
             hidden_primitives: 0,
+            max_influences: MAX_INFLUENCES,
         }
+    }
+
+    /// Returns the layout writing at most `count` bones per vertex.
+    pub(crate) const fn limited(mut self, count: usize) -> Self {
+        self.max_influences = count;
+        self
     }
 
     /// Plans the blocks of every mesh of `lod`, a level of the model instance `part`, that has
@@ -134,9 +142,10 @@ impl<'m> Layout<'m> {
         if self.inverse_binds.is_none() {
             self.inverse_binds = Some(self.push(BlockData::InverseBinds(binds)));
         }
+        let limit = self.max_influences;
         let sets = if influences
             .iter()
-            .any(|influences| influences.count() > SET_LEN)
+            .any(|influences| influences.count().min(limit) > SET_LEN)
         {
             2
         } else {
@@ -145,8 +154,8 @@ impl<'m> Layout<'m> {
         let mut joints = Vec::new();
         let mut weights = Vec::new();
         for set in 0..sets {
-            joints.push(self.push(BlockData::Joints(influences, set)));
-            weights.push(self.push(BlockData::Weights(influences, set)));
+            joints.push(self.push(BlockData::Joints(influences, (set, limit))));
+            weights.push(self.push(BlockData::Weights(influences, (set, limit))));
         }
         (joints, weights)
     }

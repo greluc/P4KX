@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_assembly::{
-    Attachment, EntityNode, LoadoutEntry, LoadoutFiles, LoadoutResolver, OriginTally,
+    Attachment, Entities, EntityNode, LoadoutEntry, LoadoutFiles, LoadoutResolver, OriginTally,
     PartThreshold, PortNode, PortSource, UnreadableValue, ValueOrigin, VehicleImplementation,
     VehicleTotals,
 };
@@ -14,8 +16,11 @@ use super::model::{
     ShipRead, Source, SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
 };
 use crate::CatalogFailure;
+use crate::Kind;
 use crate::digest::Digest;
-use crate::record_fields::{class_name, component, integer, number, structure};
+use crate::paint_port::VehiclePorts;
+use crate::record_fields::{class_name, component, integer, number, structure, text};
+use crate::selection::starts_with_folder;
 
 const SIZE_FIELD: &str = "Components/SAttachableComponentParams/AttachDef/Size";
 const PHYSICS_MASS_FIELD: &str = "Components/SEntityPhysicsControllerParams/PhysType/Mass";
@@ -46,8 +51,17 @@ impl<'f> ShipReader<'f> {
     /// `files`. Docked vehicles in a Loadout stay in their port, marked, and are not expanded.
     #[must_use]
     pub fn new(forge: &'f DataForge<'f>, files: &'f dyn LoadoutFiles) -> Self {
+        Self::with_entities(Arc::new(Entities::new(forge)), files)
+    }
+
+    /// Creates a reader like [`new`](Self::new) over the DataForge of `entities`, sharing its
+    /// index with every reader built from the same `Arc`, so that readers working in parallel
+    /// walk the Records once.
+    #[must_use]
+    pub fn with_entities(entities: Arc<Entities<'f>>, files: &'f dyn LoadoutFiles) -> Self {
+        let forge = entities.forge();
         Self {
-            resolver: LoadoutResolver::new(forge)
+            resolver: LoadoutResolver::with_entities(entities)
                 .with_files(files)
                 .stopping_at_docked_vehicles(),
             trees: TreeBuilder::new(),
@@ -127,9 +141,15 @@ impl<'f> ShipReader<'f> {
             loadout: loadout(&entries),
             issues,
         };
+        let named = text(
+            component(tree, "VehicleComponentParams"),
+            "vehicleDefinition",
+        )
+        .is_some_and(|definition| !definition.trim().is_empty());
         Ok(ShipRead {
             base,
             implementation: digest,
+            paint_ports: VehiclePorts::of(vehicle, named),
         })
     }
 }
@@ -138,27 +158,29 @@ const fn structure_digest(vehicle: &VehicleImplementation) -> Digest {
     Digest::from_bytes(vehicle.structure_digest())
 }
 
-const SPACESHIP_FOLDER: &str = "/entities/spaceships/";
-const GROUND_FOLDER: &str = "/entities/groundvehicles/";
+const SPACESHIP_FOLDER: usize = 0;
+const GROUND_FOLDER: usize = 1;
+
+/// Returns whether `record_path` is under the folder of the `ships` kind at `index` of its rule.
+fn in_folder(record_path: &str, index: usize) -> bool {
+    Kind::Ships
+        .rule()
+        .prefixes
+        .get(index)
+        .is_some_and(|prefix| starts_with_folder(record_path, prefix))
+}
 
 /// Decides the kind from the folder of the record path and the wheels and treads of the vehicle
 /// implementation: a ground vehicle is one in the ground folder, a spaceship one in the spaceship
 /// folder without a wheel or tread; a spaceship folder with wheels or treads is no evidence either
-/// way.
+/// way. The folders are matched like the selection of the `ships` kind matches its prefixes.
 fn vehicle_kind(record_path: &str, vehicle: Option<&VehicleImplementation>) -> Option<VehicleKind> {
-    let in_folder = |folder: &str| {
-        record_path.len() >= folder.len()
-            && record_path
-                .as_bytes()
-                .windows(folder.len())
-                .any(|window| window.eq_ignore_ascii_case(folder.as_bytes()))
-    };
     let rolling = vehicle.is_some_and(|vehicle| {
         vehicle.wheels().next().is_some() || vehicle.treads().next().is_some()
     });
-    if in_folder(GROUND_FOLDER) {
+    if in_folder(record_path, GROUND_FOLDER) {
         Some(VehicleKind::GroundVehicle)
-    } else if in_folder(SPACESHIP_FOLDER) && !rolling {
+    } else if in_folder(record_path, SPACESHIP_FOLDER) && !rolling {
         Some(VehicleKind::Spaceship)
     } else {
         None

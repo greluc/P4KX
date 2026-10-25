@@ -3,11 +3,10 @@
 
 //! The window driven headless through `egui_kittest`: open, navigate, sort, select.
 
-use crate::waiting::{RunQuiet, click_shown_once};
+use crate::waiting::{RunQuiet, click_shown_once, wait_for};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -59,14 +58,9 @@ fn drop_and_wait(harness: &mut Harness<'_, Model>, path: &Path) -> TestResult {
         .input_mut()
         .dropped_files
         .push(Arc::new(Dropped(path.to_path_buf())));
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while harness.state().browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", harness.state().failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the Archive to open", |harness| {
+        harness.state().browser().is_some()
+    })?;
     harness.run_quiet();
     Ok(())
 }
@@ -373,14 +367,9 @@ fn a_file_that_is_no_archive_shows_the_failure() -> TestResult {
         .input_mut()
         .dropped_files
         .push(Arc::new(Dropped(path.clone())));
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while harness.state().failure().is_none() {
-        if Instant::now() > deadline {
-            return Err("no failure reported".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(&mut harness, "the failure to be shown", |harness| {
+        harness.state().failure().is_some()
+    })?;
     harness.run_quiet();
 
     let prefix = format!("Cannot open {}", path.display());

@@ -4,12 +4,12 @@
 //! Extracting the added and changed Entries of one side of a Comparison, without drawing.
 
 use crate::comparing;
+use crate::waiting::wait_polling;
 
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use comparing::{Pair, TestResult, pair};
 use p4kx_extraction::ConflictPolicy;
@@ -20,15 +20,15 @@ use p4kx_gui::{
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err(format!("did not settle: {:?}", model.comparison().status()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.comparison_mut().poll();
-        model.poll_extraction();
-    }
+    wait_polling(
+        model,
+        "the work to finish",
+        |model| {
+            model.comparison_mut().poll();
+            model.poll_extraction();
+        },
+        done,
+    )?;
     Ok(())
 }
 

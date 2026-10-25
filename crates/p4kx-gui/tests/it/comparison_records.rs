@@ -3,11 +3,10 @@
 
 //! The Record level of the Comparison tab over a pair of Archives with synthetic DataForges.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_polling};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::{NodeT, Queryable};
@@ -54,14 +53,14 @@ fn pair() -> Result<(TempDir, PathBuf, PathBuf), Box<dyn Error>> {
 }
 
 fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(tab) {
-        if Instant::now() > deadline {
-            return Err(format!("the Comparison did not settle: {:?}", tab.status()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        tab.poll();
-    }
+    wait_polling(
+        tab,
+        "the work to finish",
+        |tab| {
+            tab.poll();
+        },
+        done,
+    )?;
     Ok(())
 }
 

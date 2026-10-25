@@ -4,9 +4,9 @@
 //! The Comparison tab's state over a pair of synthetic Archives, without drawing.
 
 use crate::comparing;
+use crate::waiting::wait_polling;
 
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use comparing::{Pair, TestResult, pair};
 use p4kx_comparison::{Archive, ChangeKind, CompareOptions, Filter, Levels, compare};
@@ -26,14 +26,14 @@ pub(crate) fn picked(pair: &Pair, language: Language) -> Model {
 
 /// Polls `tab` until `done` holds.
 pub(crate) fn wait(tab: &mut ComparisonTab, done: impl Fn(&ComparisonTab) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(tab) {
-        if Instant::now() > deadline {
-            return Err(format!("the Comparison did not settle: {:?}", tab.status()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        tab.poll();
-    }
+    wait_polling(
+        tab,
+        "the work to finish",
+        |tab| {
+            tab.poll();
+        },
+        done,
+    )?;
     Ok(())
 }
 

@@ -5,10 +5,10 @@
 
 use crate::common;
 
+use crate::waiting::wait_polling;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use common::{TestResult, check, extract_into, files_below, finished, setup};
 use p4kx_gui::{ExtractionScope, Model, TargetKind};
@@ -53,17 +53,16 @@ fn selected_entries_go_into_a_new_sc_export_folder_named_like_the_cli() -> TestR
 }
 
 fn wait_for_search(model: &mut Model) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_some_and(p4kx_gui::Browser::is_searching) {
-        if Instant::now() > deadline {
-            return Err("the search did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        if let Some(browser) = model.browser_mut() {
-            browser.poll();
-        }
-    }
-    Ok(())
+    wait_polling(
+        model,
+        "the search to end",
+        |model| {
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        |model| !model.browser().is_some_and(p4kx_gui::Browser::is_searching),
+    )
 }
 
 #[test]

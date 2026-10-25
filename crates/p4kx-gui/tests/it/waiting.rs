@@ -36,6 +36,25 @@ pub(crate) fn wait_for<S>(
     Ok(())
 }
 
+/// Polls `subject` with `poll` until `done` holds for it, and fails with a message naming `what`
+/// once [`PATIENCE`] passed. For tests that drive a model without a window.
+pub(crate) fn wait_polling<T>(
+    subject: &mut T,
+    what: &str,
+    mut poll: impl FnMut(&mut T),
+    mut done: impl FnMut(&T) -> bool,
+) -> Result<(), Box<dyn Error>> {
+    let started = Instant::now();
+    while !done(subject) {
+        if started.elapsed() > PATIENCE {
+            return Err(format!("timed out after {PATIENCE:?} waiting for {what}").into());
+        }
+        std::thread::sleep(PAUSE);
+        poll(subject);
+    }
+    Ok(())
+}
+
 /// Steps a window of the [`Model`] until `done` holds for the model.
 pub(crate) fn wait_for_model(
     harness: &mut Harness<'_, Model>,

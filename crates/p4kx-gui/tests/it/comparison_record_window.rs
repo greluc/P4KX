@@ -5,11 +5,10 @@
 //! DataForges, in both languages.
 
 use crate::record_pair;
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for_model};
 
 use std::error::Error;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -39,15 +38,7 @@ fn harness((old, new): (&Path, &Path), language: Language) -> Harness<'static, M
 }
 
 fn settle(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.run_quiet();
     Ok(())
 }

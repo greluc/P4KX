@@ -4,9 +4,9 @@
 //! A change of the browsed Archive on disk next to an Extraction of a Comparison side, without
 //! drawing.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{
     ComparisonSide, ComparisonStatus, Extraction, ExtractionScope, ExtractionStatus, Language,
@@ -20,16 +20,16 @@ const LARGE_LEN: usize = 4 << 20;
 const LARGE_COUNT: usize = 32;
 
 fn poll_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err(format!("did not settle: {model:?}").into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-        model.comparison_mut().poll();
-        model.poll_extraction();
-    }
+    wait_polling(
+        model,
+        "the work to finish",
+        |model| {
+            model.poll();
+            model.comparison_mut().poll();
+            model.poll_extraction();
+        },
+        done,
+    )?;
     Ok(())
 }
 

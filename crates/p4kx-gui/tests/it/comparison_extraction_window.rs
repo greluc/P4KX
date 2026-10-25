@@ -5,12 +5,12 @@
 //! a pair of synthetic Archives.
 
 use crate::comparing;
+use crate::waiting::wait_for_model;
 
 use std::collections::BTreeSet;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use comparing::{Pair, TestResult, pair};
 use egui::accesskit::Role;
@@ -37,15 +37,7 @@ fn harness(pair: &Pair, language: Language, out: &Path) -> Harness<'static, Mode
 }
 
 fn settle(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.step();
     harness.step();
     Ok(())

@@ -4,9 +4,9 @@
 //! Helpers of the Record preview model tests: the Archive opened headless, Records selected and
 //! their preview waited for.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{
     Browser, Language, Model, RecordPreview, RecordPreviewStatus, RecordTree, RecordTreeStatus,
@@ -30,18 +30,18 @@ pub(crate) fn opened() -> Result<(TempDir, PathBuf, Model), Box<dyn Error>> {
 
 /// Polls `model` until `done` holds.
 pub(crate) fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err("the model did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-        model.query_mut().poll();
-        if let Some(browser) = model.browser_mut() {
-            browser.poll();
-        }
-    }
+    wait_polling(
+        model,
+        "the model to settle",
+        |model| {
+            model.poll();
+            model.query_mut().poll();
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        done,
+    )?;
     Ok(())
 }
 

@@ -7,14 +7,13 @@
 //! `P4KX_RENDER_DIR` names a folder the rendered window is written to as a PNG file.
 
 use crate::record_pair;
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for_model};
 
 use std::error::Error;
 use std::fs::File;
 use std::io::BufWriter;
 use std::panic::catch_unwind;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use eframe::egui_wgpu::RendererOptions;
 use egui::accesskit::Role;
@@ -65,18 +64,9 @@ fn schema_shown(
         "Compare"
     };
     harness.get_by_label(compare).click();
-    let deadline = Instant::now() + Duration::from_secs(10);
-    harness.step();
-    while !matches!(
-        harness.state().comparison().status(),
-        ComparisonStatus::Finished(_)
-    ) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(&mut harness, "the Comparison to finish", |model| {
+        matches!(model.comparison().status(), ComparisonStatus::Finished(_))
+    })?;
     harness.run_quiet();
     harness.get_by_role_and_label(Role::Tab, "Schema").click();
     harness.run_quiet();

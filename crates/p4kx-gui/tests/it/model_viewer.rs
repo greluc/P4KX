@@ -5,9 +5,7 @@
 
 use crate::headless;
 use crate::viewing;
-use crate::waiting::RunQuiet;
-
-use std::time::{Duration, Instant};
+use crate::waiting::{RunQuiet, wait_polling};
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -70,11 +68,14 @@ fn the_model_is_read_off_the_window_thread() -> TestResult {
         .write_to(&path)?;
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+    )?;
     let browser = model.browser_mut().ok_or("not opened")?;
     let id = (0..u32::try_from(browser.index().len())?)
         .find(|&id| browser.index().name(id) == "cube.cgf")

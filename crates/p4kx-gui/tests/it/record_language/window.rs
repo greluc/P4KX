@@ -3,12 +3,12 @@
 
 //! A headless window over an Archive of the fixtures, and the helpers to drive it.
 
+use crate::waiting::wait_for_model;
 use std::error::Error;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, Instant};
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
@@ -60,23 +60,7 @@ pub(crate) fn wait_until(
     harness: &mut Harness<'_, Model>,
     done: impl Fn(&Model) -> bool,
 ) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            let browser = harness.state().browser();
-            let tree = browser.and_then(Browser::records).map(|tree| tree.status());
-            let record = browser
-                .and_then(Browser::record_preview)
-                .map(|preview| preview.status());
-            return Err(format!(
-                "the window did not settle in time; tree {tree:?}, preview {record:?}"
-            )
-            .into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.run_steps(2);
     Ok(())
 }

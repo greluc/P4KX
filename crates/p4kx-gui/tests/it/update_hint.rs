@@ -3,12 +3,12 @@
 
 //! The optional check for a newer Release and the hint it leaves in the status bar.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for};
 use std::error::Error;
 use std::io::{BufRead, BufReader, ErrorKind, Write};
 use std::net::TcpListener;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -55,14 +55,9 @@ fn harness(model: Model) -> Harness<'static, State> {
 }
 
 fn wait_for_hint(harness: &mut Harness<'_, State>) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while harness.state().0.newer_release().is_none() {
-        if Instant::now() > deadline {
-            return Err("no newer Release arrived".into());
-        }
-        thread::sleep(Duration::from_millis(5));
-        harness.run_quiet();
-    }
+    wait_for(harness, "a newer Release to arrive", |harness| {
+        harness.state().0.newer_release().is_some()
+    })?;
     harness.run_quiet();
     Ok(())
 }

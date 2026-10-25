@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/it/entity_package_materials.rs
+source: crates/p4kx/tests/entity_package_materials.rs
 expression: "pretty(&manifest[\"meshes\"][0], \"materials\")?"
 ---
 [

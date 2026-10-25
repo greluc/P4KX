@@ -525,6 +525,8 @@ audio-prefetched = Vorgeladen
 audio-prefetched-note = WEM { $id } ist in dieser Soundbank nur vorgeladen und kann hier nicht abgespielt werden. Der ganze Ton steht im losen WEM-Eintrag mit derselben ID.
 audio-plugin = Plug-in
 audio-plugin-note = WEM { $id } ist ein Plug-in-Medium, etwa ein Faltungshall-Impuls, und enthält keinen Ton zum Abspielen.
+audio-midi = MIDI
+audio-midi-note = Das Medium { $id } ist eine MIDI-Datei und enthält keinen Ton zum Abspielen.
 audio-bank-summary =
     { $size } · { $count ->
         [one] { $number } WEM
@@ -703,6 +705,8 @@ sounds-source-embedded = Eingebettet
 sounds-source-prefetch = Vorgeladen
 sounds-source-streamed = Gestreamt
 sounds-source-plugin = Plug-in
+sounds-source-external = Extern
+sounds-source-midi = MIDI
 sounds-source-other = Andere
 sounds-language-fallback = { $language } (Ersatz)
 sounds-variant-row = { $name }: { $bank }, WEM { $id }
@@ -710,6 +714,8 @@ sounds-detail = { $path }, WEM { $id }, { $source }
 sounds-select-variant = Wählen Sie einen Sound, um ihn abzuspielen.
 sounds-note-prefetch = Von diesem gestreamten Sound ist nur der Anfang eingebettet und der zugehörige WEM-Eintrag fehlt, deshalb lässt er sich nicht abspielen.
 sounds-note-plugin = Ein Quell-Plug-in erzeugt diesen Sound; kein WEM enthält ihn.
+sounds-note-external = Eine externe Quelle liefert diesen Sound zur Laufzeit; keine Datei enthält ihn.
+sounds-note-midi = Dieser Sound ist eine MIDI-Datei und kann hier nicht abgespielt werden.
 sounds-note-missing = Weder eine Soundbank noch ein loser WEM-Eintrag enthält dieses WEM.
 sounds-export-title = Sounds exportieren
 sounds-export-scope = Trigger

@@ -4,13 +4,14 @@
 use p4kx_dataforge::{Guid, Location, Reference, Step, StructValue, Value};
 
 use crate::assets::WidgetAssets;
-use crate::bindings::{ParamValues, param_values};
+use crate::bindings::{ParamValues, param_values, typed_values};
 use crate::colour::ColorSpec;
 use crate::corners::Corner;
 use crate::flex::{Flex, parse_flex};
 use crate::geometry::{Bounds, Dim, Edges, Overflow};
 use crate::picture::Picture;
 use crate::reader::{as_struct, child, flag, float, int, items, reference, text};
+use crate::rest::RestParams;
 use crate::style::{Entry, Modifiers, inline_entries, modifiers};
 use crate::text::TextSpec;
 
@@ -84,11 +85,13 @@ pub(crate) struct Widget {
     pub(crate) canvas: Option<Guid>,
     pub(crate) canvas_dangling: bool,
     pub(crate) canvas_sizing: CanvasSizing,
+    pub(crate) stylesheet: Option<Guid>,
     pub(crate) shape: ShapeStyle,
     pub(crate) text: Option<TextSpec>,
     pub(crate) picture: Picture,
     pub(crate) kit: Kit,
     pub(crate) params: ParamValues,
+    pub(crate) typed: RestParams,
     pub(crate) assets: WidgetAssets,
     pub(crate) repeat: Repeat,
 }
@@ -231,6 +234,7 @@ impl Widget {
             layer: int(structure, "layer").unwrap_or(0),
             canvas: reference(structure, "canvas").map(Reference::guid),
             canvas_dangling: matches!(structure.field("canvas"), Some(Value::Error(_))),
+            stylesheet: reference(structure, "stylesheetOverride").map(Reference::guid),
             canvas_sizing: if text(structure, "sizingMethod") == Some("Scale") {
                 CanvasSizing::Scale
             } else {
@@ -241,6 +245,7 @@ impl Widget {
             picture: Picture::parse(structure),
             kit: Kit::parse(structure),
             params: param_values(structure),
+            typed: typed_values(structure),
             assets: WidgetAssets::scan(structure),
             repeat: Repeat::parse(structure, canvas),
         }

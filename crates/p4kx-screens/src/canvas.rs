@@ -10,6 +10,7 @@ use crate::bindings::{TextBinding, text_bindings};
 use crate::error::ScreenError;
 use crate::geometry::Dim;
 use crate::reader::{as_struct, child, float, items, reference, text};
+use crate::rest::Operations;
 use crate::statics::static_arrays;
 use crate::style::Entry;
 use crate::style::parse_entries;
@@ -67,6 +68,7 @@ pub(crate) struct Canvas {
     pub(crate) embedded: Rc<[Entry]>,
     pub(crate) unreachable: Vec<usize>,
     pub(crate) text_bindings: HashMap<usize, TextBinding>,
+    pub(crate) operations: Operations,
     pub(crate) arrays: HashMap<String, usize>,
 }
 
@@ -120,6 +122,7 @@ impl Canvas {
         Self {
             unreachable,
             text_bindings: text_bindings(root, scene_len),
+            operations: Operations::read(root, scene_len),
             arrays: static_arrays(root),
             world_root: (coordinates == Coordinates::Raw)
                 .then(|| world_root(&widgets, &roots))

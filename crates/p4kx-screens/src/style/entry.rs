@@ -1,27 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_dataforge::{Guid, StructValue, Value};
+use p4kx_dataforge::{StructValue, Value};
 
 use crate::colour::ColorSpec;
-use crate::reader::{as_struct, child, flag, float, items, reference, text};
+use crate::reader::{as_struct, child, flag, float, items, text};
 use crate::style::{GeometryModifiers, PictureModifiers, TextModifiers};
 
-const PREFIX: &str = "BuildingBlocks_StyleSelectorCondition";
-
-#[derive(Debug, Clone, PartialEq)]
-pub(crate) enum Condition {
-    Tag(Guid),
-    AnyOfTag(Vec<Guid>),
-    AllOfTag(Vec<Guid>),
-    NotTag(Guid),
-    Type(String),
-    Parent(Vec<Self>),
-    Ancestor(Vec<Self>),
-    AllOf(Vec<Self>),
-    AnyOf(Vec<Self>),
-    Unsupported(String),
-}
+use super::condition::{Condition, Uses, collect_unsupported, conditions};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Modifiers {
@@ -44,6 +30,7 @@ pub(crate) struct Entry {
     pub(crate) lists: Vec<Vec<Condition>>,
     pub(crate) modifiers: Modifiers,
     pub(crate) unsupported: Vec<String>,
+    pub(crate) uses: Uses,
 }
 
 pub(crate) fn parse_entries(values: &[Value<'_>]) -> Vec<Entry> {
@@ -65,97 +52,15 @@ fn parse_entry(entry: &StructValue<'_>) -> Entry {
     for condition in lists.iter().flatten() {
         collect_unsupported(condition, &mut unsupported);
     }
+    let uses = lists
+        .iter()
+        .fold(Uses::default(), |found, list| found.or(Uses::of(list)));
     Entry {
         name: text(entry, "name").unwrap_or_default().to_owned(),
+        uses,
         lists,
         modifiers: modifiers(items(entry, "modifiers").iter().filter_map(as_struct)),
         unsupported,
-    }
-}
-
-fn collect_unsupported(condition: &Condition, out: &mut Vec<String>) {
-    match condition {
-        Condition::Unsupported(name) => {
-            if !out.contains(name) {
-                out.push(name.clone());
-            }
-        }
-        Condition::Parent(inner)
-        | Condition::Ancestor(inner)
-        | Condition::AllOf(inner)
-        | Condition::AnyOf(inner) => {
-            for condition in inner {
-                collect_unsupported(condition, out);
-            }
-        }
-        _ => {}
-    }
-}
-
-const MAX_CONDITION_DEPTH: usize = 8;
-const MAX_LINK_DEPTH: usize = 4;
-
-#[derive(Clone, Copy)]
-struct Depth {
-    all: usize,
-    links: usize,
-}
-
-fn conditions(values: &[Value<'_>]) -> Vec<Condition> {
-    conditions_at(values, Depth { all: 0, links: 0 })
-}
-
-fn conditions_at(values: &[Value<'_>], depth: Depth) -> Vec<Condition> {
-    values
-        .iter()
-        .filter_map(as_struct)
-        .map(|structure| condition(structure, depth))
-        .collect()
-}
-
-fn guid_of(structure: &StructValue<'_>, name: &str) -> Option<Guid> {
-    reference(structure, name).map(p4kx_dataforge::Reference::guid)
-}
-
-fn guids_of(structure: &StructValue<'_>, name: &str) -> Vec<Guid> {
-    items(structure, name)
-        .iter()
-        .filter_map(|value| match value {
-            Value::Reference(reference) => Some(reference.guid()),
-            _ => None,
-        })
-        .collect()
-}
-
-fn condition(structure: &StructValue<'_>, depth: Depth) -> Condition {
-    let kind = structure
-        .type_name()
-        .strip_prefix(PREFIX)
-        .unwrap_or_else(|| structure.type_name());
-    let link = matches!(kind, "Parent" | "Ancestor");
-    if depth.all >= MAX_CONDITION_DEPTH || (link && depth.links >= MAX_LINK_DEPTH) {
-        return Condition::Unsupported(format!("{kind} nested too deep"));
-    }
-    let deeper = Depth {
-        all: depth.all + 1,
-        links: depth.links + usize::from(link),
-    };
-    let nested = || conditions_at(items(structure, "conditions"), deeper);
-    match kind {
-        "Tag" => guid_of(structure, "tag")
-            .map_or_else(|| Condition::Unsupported("Tag".to_owned()), Condition::Tag),
-        "NotTag" => guid_of(structure, "tag").map_or_else(
-            || Condition::Unsupported("NotTag".to_owned()),
-            Condition::NotTag,
-        ),
-        "AnyOfTag" => Condition::AnyOfTag(guids_of(structure, "tags")),
-        "AllOfTag" => Condition::AllOfTag(guids_of(structure, "tags")),
-        "Type" => Condition::Type(text(structure, "type").unwrap_or_default().to_owned()),
-        "Parent" => Condition::Parent(nested()),
-        "Ancestor" => Condition::Ancestor(nested()),
-        "AllOfCondition" => Condition::AllOf(nested()),
-        "AnyOfCondition" => Condition::AnyOf(nested()),
-        other => Condition::Unsupported(other.to_owned()),
     }
 }
 
@@ -172,6 +77,7 @@ pub(crate) fn modifiers<'a, 'f: 'a>(
         ) {
             if let Some(inner) = child(modifier, "field") {
                 found.text.typed(inner);
+                found.geometry.typed(inner);
             }
             continue;
         }

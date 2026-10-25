@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use p4kx_dataforge::Guid;
 
 use crate::canvas::Canvas;
 use crate::geometry::{Dim, Geometry};
 use crate::look::Look;
 use crate::paint::Area;
-use crate::style::{Modifiers, Subject};
+use crate::style::Modifiers;
 use crate::walk::Walk;
 use crate::widget::Widget;
 
@@ -25,6 +27,7 @@ pub(crate) struct Probe<'c> {
     pub(crate) kids: &'c [usize],
     pub(crate) own: usize,
     pub(crate) has_children: bool,
+    pub(crate) position: usize,
 }
 
 fn edges(geometry: &Geometry, axis: usize) -> (f32, f32) {
@@ -53,7 +56,11 @@ impl Walk<'_, '_, '_, '_> {
             probe.canvas.guid,
             probe.index,
             self.chain.last().copied().unwrap_or(0),
-            self.override_key(),
+            {
+                let mut hasher = DefaultHasher::new();
+                (self.override_key(), self.position_key(probe.position)).hash(&mut hasher);
+                hasher.finish()
+            },
             [parent.width.to_bits(), parent.height.to_bits()],
             self.pixel.to_bits(),
         );
@@ -103,8 +110,9 @@ impl Walk<'_, '_, '_, '_> {
         parent: Area,
         depth: usize,
     ) -> [Option<f32>; 2] {
-        let subject = Subject::of(&probe.widget.type_name, &probe.widget.tags);
-        self.push_chain(&(&subject.kind, &subject.tags));
+        let subject = self.subject_of(probe.canvas, probe.widget, (probe.position, probe.kids));
+        let place = self.position_key(probe.position);
+        self.push_chain(&(&subject.kind, &subject.tags, place));
         self.above.push(subject);
         let overridden = self.push_override(
             probe.canvas,
@@ -118,7 +126,7 @@ impl Walk<'_, '_, '_, '_> {
             if instance {
                 self.templates.push((probe.canvas.guid, kid));
             }
-            let outer = self.outer_size(probe, kid, parent, depth);
+            let outer = self.outer_size(probe, (kid, position), parent, depth);
             if instance {
                 self.templates.pop();
             }
@@ -168,7 +176,7 @@ impl Walk<'_, '_, '_, '_> {
     fn outer_size(
         &mut self,
         probe: &Probe<'_>,
-        kid: usize,
+        (kid, position): (usize, usize),
         parent: Area,
         depth: usize,
     ) -> Option<[Option<f32>; 2]> {
@@ -176,11 +184,15 @@ impl Walk<'_, '_, '_, '_> {
             .canvas
             .widgets
             .get(kid)
-            .filter(|widget| widget.active && widget.in_flow)?;
-        let style = self.style_of(probe.canvas, kid, widget);
-        let geometry = Geometry::of(widget, &style);
+            .filter(|widget| widget.in_flow && self.instantiated(kid))?;
         let plan = self.plan_kids(probe.canvas, kid, widget);
+        let style = self.style_of(probe.canvas, (kid, widget), (position, &plan.kids));
+        if !self.shown(kid, widget, &style) {
+            return None;
+        }
+        let geometry = Geometry::of(widget, &style);
         let child = Probe {
+            position,
             canvas: probe.canvas,
             index: kid,
             widget,

@@ -82,6 +82,7 @@ mod screens_geometry;
 mod screens_image;
 mod screens_image_schema;
 mod screens_radar_schema;
+mod screens_rest;
 mod screens_sample;
 mod screens_style;
 mod screens_text;
@@ -187,6 +188,7 @@ pub use screens_geometry::clone_modifiers;
 pub use screens_image::{
     SCREEN_IMAGE_CANVAS, screens_image_sample, screens_texture, screens_vector,
 };
+pub use screens_rest::{TestOp, TestParam};
 pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
 pub use screens_style::{TestCondition, TestModifier, TestStyle, TestStyleEntry};
 pub use screens_text::{

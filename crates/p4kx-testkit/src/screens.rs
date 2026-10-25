@@ -4,6 +4,7 @@
 use crate::screens_geometry::{box_structs, instance_structs};
 use crate::screens_image_schema::image_structs;
 use crate::screens_radar_schema::radar_structs;
+use crate::screens_rest::rest_structs;
 use crate::screens_text_schema::text_structs;
 use crate::{DataForgeBuilder, TestStruct, TestType};
 
@@ -42,6 +43,7 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(box_structs())
         .chain(text_structs())
         .chain(image_structs())
+        .chain(rest_structs())
         .chain(radar_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
@@ -111,7 +113,8 @@ fn widget_structs() -> Vec<TestStruct> {
             .array("brandStyles", class("BuildingBlocks_BrandStyles"))
             .array("staticVariables", pointer("BuildingBlocks_StaticVariable"))
             .array("scene", pointer("BuildingBlocks_DisplayWidget"))
-            .array("library", pointer("BuildingBlocks_DisplayWidget")),
+            .array("library", pointer("BuildingBlocks_DisplayWidget"))
+            .array("operations", pointer("BuildingBlocks_BindingsOperation")),
         TestStruct::new("BuildingBlocks_DefaultStyles")
             .field("sharedStyles", reference("BuildingBlocks_Style"))
             .array("entries", pointer("BuildingBlocks_StyleEntry")),
@@ -158,7 +161,12 @@ fn widget_kinds() -> Vec<TestStruct> {
         TestStruct::new("BuildingBlocks_WidgetCanvas")
             .parent("BuildingBlocks_DisplayWidget")
             .field("sizingMethod", TestType::String)
-            .field("canvas", reference("BuildingBlocks_Canvas")),
+            .field("canvas", reference("BuildingBlocks_Canvas"))
+            .field("stylesheetOverride", reference("BuildingBlocks_Style"))
+            .array(
+                "paramInputValues",
+                pointer("BuildingBlocks_ComponentParameterInput"),
+            ),
         TestStruct::new("BuildingBlocks_WidgetText")
             .parent("BuildingBlocks_DisplayWidget")
             .field("locString", TestType::Locale)
@@ -255,8 +263,23 @@ fn condition_structs() -> Vec<TestStruct> {
             .array(
                 "conditions",
                 pointer("BuildingBlocks_StyleSelectorCondition"),
+            )
+            .array(
+                "breakConditions",
+                pointer("BuildingBlocks_StyleSelectorCondition"),
+            ),
+        TestStruct::new("BuildingBlocks_StyleSelectorConditionChild")
+            .parent("BuildingBlocks_StyleSelectorCondition")
+            .array(
+                "conditions",
+                pointer("BuildingBlocks_StyleSelectorCondition"),
             ),
         TestStruct::new("BuildingBlocks_StyleSelectorConditionCount")
+            .parent("BuildingBlocks_StyleSelectorCondition")
+            .field("type", TestType::String)
+            .field("count", TestType::Int32)
+            .field("offset", TestType::Int32),
+        TestStruct::new("BuildingBlocks_StyleSelectorConditionUnknown")
             .parent("BuildingBlocks_StyleSelectorCondition"),
         TestStruct::new("BuildingBlocks_FieldModifier"),
         TestStruct::new("BuildingBlocks_FieldModifierColor")

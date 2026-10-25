@@ -157,22 +157,22 @@ fn modifiers_can_hide_a_subtree_and_set_alpha() -> TestResult {
     ];
     let (composed, _bytes) = compose(&canvas, extra)?;
     let image = composed.rasterize(&stage())?.image;
-    assert_eq!(
-        pixel(&image, 5, 5),
-        [0, 0, 0, 0],
-        "IsActive false hides the widget"
-    );
     assert!(
-        near(pixel(&image, 15, 5), [255, 0, 0, 128], 1),
-        "half alpha"
+        near(pixel(&image, 5, 5), [255, 0, 0, 128], 1),
+        "IsActive false takes the widget out of the layout, and the other has half alpha"
+    );
+    assert_eq!(
+        pixel(&image, 15, 5),
+        [0, 0, 0, 0],
+        "the hidden widget leaves no room"
     );
     Ok(())
 }
 
 #[test]
 fn a_selector_the_reader_does_not_evaluate_is_reported() -> TestResult {
-    let entry = TestStyleEntry::new("counted")
-        .when(TestCondition::Count)
+    let entry = TestStyleEntry::new("mystery")
+        .when(TestCondition::Unknown)
         .set(TestModifier::Active(false));
     let canvas = TestCanvas::new(CANVAS, "cascade", 20.0, 10.0)
         .embedded(entry)
@@ -185,11 +185,11 @@ fn a_selector_the_reader_does_not_evaluate_is_reported() -> TestResult {
         .find(|entry| entry.element == "StyleEntry")
         .ok_or("the entry is not reported")?;
     assert!(
-        note.reason.contains("Count"),
+        note.reason.contains("Unknown"),
         "the selector is named: {}",
         note.reason
     );
-    assert_eq!(note.examples, ["counted"], "the entry is named");
+    assert_eq!(note.examples, ["mystery"], "the entry is named");
     let image = composed.rasterize(&stage())?.image;
     assert!(
         near(pixel(&image, 5, 5), [255, 0, 0, 255], 0),

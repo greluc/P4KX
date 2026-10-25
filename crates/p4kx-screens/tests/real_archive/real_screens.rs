@@ -82,6 +82,40 @@ fn the_layout_gaps_of_the_avenger_screens_are_closed() -> TestResult {
     clippy::print_stdout,
     reason = "the summary of the run is for the reader of --nocapture"
 )]
+fn the_selectors_and_the_state_at_rest_of_the_avenger_screens_are_evaluated() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut screens = ScreenComposer::new(&forge);
+    for canvas in AVENGER_SCREENS {
+        let composed = screens.compose(canvas, Some("aegs"))?;
+        let report = composed.report();
+        assert!(!report.truncated, "{canvas}: within the limits");
+        for entry in &report.unsupported {
+            let selector = entry.element == "StyleEntry"
+                && (entry.reason.contains("Child") || entry.reason.contains("Count"));
+            assert!(!selector, "{canvas}: {} {}", entry.element, entry.reason);
+            if entry.element == "Binding" {
+                println!(
+                    "{canvas}: {} x{}: {}",
+                    entry.element, entry.count, entry.reason
+                );
+            }
+        }
+        println!(
+            "{canvas}: {} widgets in {} canvases, {} shapes",
+            report.widgets, report.canvases, report.shapes
+        );
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stdout,
+    reason = "the summary of the run is for the reader of --nocapture"
+)]
 fn the_screens_of_real_ships_list_and_render() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let entry = DataForgeEntry::read(&archive)?;
@@ -94,6 +128,7 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
         background: Background::Transparent,
     };
     let mut rendered = BTreeSet::new();
+    let mut drawing = 0_usize;
     for ship in SHIPS {
         let record = resolver.entities().find(ship)?;
 
@@ -107,7 +142,8 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
             let composed = screens.compose(&screen.canvas_guid, listing.brand.as_deref())?;
             composed.rasterize(&options)?;
             let report = composed.report();
-            assert!(report.widgets > 0, "{ship} {}: widgets", screen.canvas);
+            assert!(report.canvases > 0, "{ship} {}: canvases", screen.canvas);
+            drawing += usize::from(report.widgets > 0);
             assert!(
                 !report.truncated,
                 "{ship} {}: within the limits",
@@ -124,5 +160,6 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
         }
     }
     assert!(!rendered.is_empty(), "at least one ship rendered");
+    assert!(drawing > 0, "at least one screen draws widgets at rest");
     Ok(())
 }

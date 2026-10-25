@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::rc::Rc;
 
@@ -17,8 +17,8 @@ use crate::layout::{Frame, Sibling, place};
 use crate::limits::Limits;
 use crate::look::Look;
 use crate::paint::Area;
-use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, resolve};
-use crate::text::FontStyleInfo;
+use crate::rest::{AtRest, RestParams};
+use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, Uses, resolve};
 use crate::transform::Placement;
 use crate::walk_instance::Override;
 use crate::walk_measure::{MeasureKey, Probe};
@@ -40,8 +40,15 @@ pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) above: Vec<Subject>,
     pub(crate) chain: Vec<u64>,
     pub(crate) cache: HashMap<Guid, Rc<CanvasStyles>>,
+    pub(crate) pending_sheet: Option<Guid>,
+    pub(crate) noted: HashSet<Guid>,
+    pub(crate) left_out_noted: HashSet<Guid>,
     pub(crate) params: Vec<ParamValues>,
-    pub(crate) resolved: HashMap<(Guid, usize, u64, u64), Rc<Modifiers>>,
+    pub(crate) resolved: HashMap<(Guid, usize, u64, u64, usize), Rc<Modifiers>>,
+    pub(crate) shape: Uses,
+    pub(crate) rests: Vec<Rc<AtRest>>,
+    pub(crate) typed: Vec<RestParams>,
+    pub(crate) at_rest: HashMap<(Guid, u64), Rc<AtRest>>,
     pub(crate) measured: HashMap<MeasureKey, [Option<f32>; 2]>,
     pub(crate) measures: usize,
     pub(crate) instances: usize,
@@ -76,8 +83,15 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             above: Vec::new(),
             chain: Vec::new(),
             cache: HashMap::new(),
+            pending_sheet: None,
+            noted: HashSet::new(),
+            left_out_noted: HashSet::new(),
             params: Vec::new(),
             resolved: HashMap::new(),
+            shape: Uses::default(),
+            rests: Vec::new(),
+            typed: Vec::new(),
+            at_rest: HashMap::new(),
             measured: HashMap::new(),
             measures: 0,
             instances: 0,
@@ -95,25 +109,36 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         self.chain.push(hasher.finish());
     }
 
+    fn push_subject(&mut self, subject: &Subject, position: usize) {
+        let place = self.position_key(position);
+        let mut kids = DefaultHasher::new();
+        for kid in &subject.kids {
+            (&kid.kind, &kid.tags, kid.position).hash(&mut kids);
+        }
+        self.push_chain(&(&subject.kind, &subject.tags, place, kids.finish()));
+    }
+
     pub(crate) fn style_of(
         &mut self,
         canvas: &Canvas,
-        index: usize,
-        widget: &Widget,
+        (index, widget): (usize, &Widget),
+        place: (usize, &[usize]),
     ) -> Rc<Modifiers> {
         let key = (
             canvas.guid,
             index,
             self.chain.last().copied().unwrap_or(0),
             self.override_key(),
+            self.position_key(place.0),
         );
         if let Some(known) = self.resolved.get(&key) {
             return Rc::clone(known);
         }
+        let subject = self.subject_of(canvas, widget, place);
         let mut style = resolve(
             &self.sheets,
             widget,
-            &self.above,
+            (&subject, &self.above),
             self.tags,
             &mut self.budget,
         );
@@ -121,6 +146,57 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let style = Rc::new(style);
         self.resolved.insert(key, Rc::clone(&style));
         style
+    }
+
+    /// Resolves the widget `index`, the child at `position`, of which the first `own` of its
+    /// siblings are not instances; `None` when it takes no part in the layout.
+    fn prepare<'c>(
+        &mut self,
+        canvas: &'c Canvas,
+        (position, index): (usize, usize),
+        (own, content): (usize, Area),
+        depth: usize,
+    ) -> Option<Sibling<'c>> {
+        let widget = canvas.widgets.get(index)?;
+        if !self.instantiated(index) {
+            self.note_gone(canvas, index, widget, "Instantiated");
+            return None;
+        }
+        let mut plan = self.plan_kids(canvas, index, widget);
+        let style = self.style_of(canvas, (index, widget), (position, &plan.kids));
+        if self.budget == 0 || !self.shown(index, widget, &style) {
+            if self.budget > 0 && style.active.is_none() {
+                self.note_gone(canvas, index, widget, "IsActive");
+            }
+            return None;
+        }
+        let geometry = Geometry::of(widget, &style);
+        self.commit_kids(widget, &mut plan);
+        let has_children = !plan.kids.is_empty() || widget.canvas.is_some();
+        let probe = Probe {
+            canvas,
+            index,
+            widget,
+            style: &style,
+            geometry: &geometry,
+            kids: &plan.kids,
+            own: plan.own,
+            has_children,
+            position,
+        };
+        let content = self.content_of(&probe, content, depth);
+        Some(Sibling {
+            widget,
+            index,
+            has_children,
+            content,
+            geometry,
+            style,
+            own_kids: plan.own,
+            kids: plan.kids,
+            instance: position >= own,
+            position,
+        })
     }
 
     pub(crate) fn siblings(
@@ -138,40 +214,14 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         }
         let mut siblings: Vec<Sibling<'_>> = Vec::with_capacity(indices.len());
         for (position, &index) in indices.iter().enumerate() {
-            let Some(widget) = canvas.widgets.get(index).filter(|widget| widget.active) else {
-                continue;
-            };
-            let style = self.style_of(canvas, index, widget);
+            let at = (position, index);
+            if let Some(sibling) = self.prepare(canvas, at, (own, frame.content), depth) {
+                siblings.push(sibling);
+            }
             if self.budget == 0 {
                 self.cx.report.truncated = true;
                 break;
             }
-            let geometry = Geometry::of(widget, &style);
-            let mut plan = self.plan_kids(canvas, index, widget);
-            self.commit_kids(widget, &mut plan);
-            let has_children = !plan.kids.is_empty() || widget.canvas.is_some();
-            let probe = Probe {
-                canvas,
-                index,
-                widget,
-                style: &style,
-                geometry: &geometry,
-                kids: &plan.kids,
-                own: plan.own,
-                has_children,
-            };
-            let content = self.content_of(&probe, frame.content, depth);
-            siblings.push(Sibling {
-                widget,
-                index,
-                has_children,
-                content,
-                geometry,
-                style,
-                own_kids: plan.own,
-                kids: plan.kids,
-                instance: position >= own,
-            });
         }
         let mut placed_all = place(frame, &siblings);
         placed_all.sort_by_key(|placed| siblings.get(placed.at).map_or(0, |s| s.widget.layer));
@@ -209,11 +259,8 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let geometry = &sibling.geometry;
         self.widgets += 1;
         let style = &*sibling.style;
-        if style.active == Some(false) {
-            return;
-        }
         self.cx.report.widgets += 1;
-        let own = style.alpha.unwrap_or(widget.alpha);
+        let own = self.alpha_of(sibling.index, widget, style);
         let alpha = if widget.inherits_alpha {
             alpha * own
         } else {
@@ -265,11 +312,8 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let widget = sibling.widget;
         let padding = sibling.geometry.padding;
         let content = area.inset(padding.top, padding.right, padding.bottom, padding.left);
-        let mut subject = Subject::of(&widget.type_name, &widget.tags);
-        subject
-            .tags
-            .extend(elements::standard_tags(widget, self.tags));
-        self.push_chain(&(&subject.kind, &subject.tags));
+        let subject = self.subject_of(canvas, widget, (sibling.position, &sibling.kids));
+        self.push_subject(&subject, sibling.position);
         self.above.push(subject);
         if sibling.instance {
             self.templates.push((canvas.guid, sibling.index));
@@ -293,10 +337,10 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             depth + 1,
         );
         if let Some(nested) = elements::nested_canvas(widget, self.store.forge()) {
-            let params = Rc::clone(&widget.params);
+            let handover = self.handover(sibling.index, widget);
             self.nested(
                 nested,
-                params,
+                handover,
                 content,
                 widget.canvas_sizing,
                 alpha,
@@ -322,27 +366,6 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         }
         self.above.pop();
         self.chain.pop();
-    }
-
-    pub(crate) fn font_of(
-        &mut self,
-        widget: &Widget,
-        style: &Modifiers,
-    ) -> Option<Rc<FontStyleInfo>> {
-        let spec = widget.text.as_ref()?;
-        let guid = style.text.font_style.or(spec.font_style)?;
-        self.cx.texts.styles.get(self.store.forge(), guid)
-    }
-
-    pub(crate) fn bound_text(&self, canvas: &Canvas, index: usize) -> Option<String> {
-        let binding = canvas.text_bindings.get(&index)?;
-        let given = self.params.last().and_then(|values| {
-            values
-                .iter()
-                .find(|(name, _)| *name == binding.parameter)
-                .map(|(_, value)| value.clone())
-        });
-        given.or_else(|| binding.default.clone())
     }
 
     fn note_approximations(&mut self, widget: &Widget, geometry: &Geometry) {

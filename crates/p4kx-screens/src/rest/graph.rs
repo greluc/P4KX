@@ -1,0 +1,347 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use p4kx_dataforge::{StructValue, Value};
+
+use super::Rest;
+use crate::bindings::index_at;
+use crate::reader::{as_struct, flag, float, items, reference, text};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Cmp {
+    Equal,
+    NotEqual,
+    Greater,
+    GreaterOrEqual,
+    Less,
+    LessOrEqual,
+}
+
+impl Cmp {
+    fn parse(name: Option<&str>) -> Option<Self> {
+        match name? {
+            "Equal" => Some(Self::Equal),
+            "NotEqual" => Some(Self::NotEqual),
+            "Greater" => Some(Self::Greater),
+            "GreaterOrEqual" => Some(Self::GreaterOrEqual),
+            "Less" => Some(Self::Less),
+            "LessOrEqual" => Some(Self::LessOrEqual),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn test(self, left: f64, right: f64) -> bool {
+        let Some(order) = left.partial_cmp(&right) else {
+            return false;
+        };
+        match self {
+            Self::Equal => order.is_eq(),
+            Self::NotEqual => order.is_ne(),
+            Self::Greater => order.is_gt(),
+            Self::GreaterOrEqual => order.is_ge(),
+            Self::Less => order.is_lt(),
+            Self::LessOrEqual => order.is_le(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Arith {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Pow,
+    Min,
+    Max,
+}
+
+impl Arith {
+    fn parse(name: Option<&str>) -> Option<Self> {
+        match name? {
+            "Add" => Some(Self::Add),
+            "Sub" => Some(Self::Sub),
+            "Mul" => Some(Self::Mul),
+            "Div" => Some(Self::Div),
+            "Mod" => Some(Self::Mod),
+            "Pow" => Some(Self::Pow),
+            "Min" => Some(Self::Min),
+            "Max" => Some(Self::Max),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn apply(self, left: f64, right: f64) -> f64 {
+        match self {
+            Self::Add => left + right,
+            Self::Sub => left - right,
+            Self::Mul => left * right,
+            Self::Div => left / right,
+            Self::Mod => left % right,
+            Self::Pow => left.powf(right),
+            Self::Min => left.min(right),
+            Self::Max => left.max(right),
+        }
+    }
+}
+
+/// An input of a node: the node of `operations` it points at, if it is connected.
+pub(crate) type Input = Option<usize>;
+
+/// One entry of `operations`, as far as it can be evaluated at rest.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Node {
+    Zero(Rest),
+    Param {
+        parameter: String,
+        default: Rest,
+    },
+    Invert(Input),
+    All(Vec<Input>),
+    Any(Vec<Input>),
+    Compare {
+        cmp: Cmp,
+        constant: f64,
+        left: Input,
+        right: Input,
+    },
+    Switch {
+        default: bool,
+        exceptions: Vec<f64>,
+        input: Input,
+    },
+    TextEmpty(Input),
+    Choose {
+        numbers: [f64; 2],
+        input: Input,
+        branches: [Input; 2],
+        whole: bool,
+    },
+    Same(Input),
+    Arith {
+        op: Arith,
+        amount: f64,
+        left: Input,
+        right: Input,
+        whole: bool,
+    },
+    Clamp {
+        bounds: [f64; 2],
+        input: Input,
+        inputs: [Input; 2],
+    },
+    Unsupported(usize),
+}
+
+/// The kind of value a field binding sets.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum FieldKind {
+    Boolean,
+    Number,
+    Integer,
+    Text,
+    Other,
+}
+
+/// A `Bindings…Field` operation: the field of a widget that the value of `input` sets.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Binding {
+    pub(crate) widget: usize,
+    pub(crate) field: String,
+    pub(crate) kind: FieldKind,
+    pub(crate) input: Input,
+}
+
+/// The `operations` of a canvas: the nodes by index and the field bindings.
+#[derive(Debug, Default)]
+pub(crate) struct Operations {
+    pub(crate) nodes: Vec<Node>,
+    pub(crate) bindings: Vec<Binding>,
+    pub(crate) kinds: Vec<String>,
+}
+
+fn operation_at(structure: &StructValue<'_>, name: &str) -> Input {
+    index_at(reference(structure, name)?.location(), "operations")
+}
+
+fn operations_at(structure: &StructValue<'_>, name: &str) -> Vec<Input> {
+    items(structure, name)
+        .iter()
+        .map(|value| match value {
+            Value::Reference(reference) => index_at(reference.location(), "operations"),
+            _ => None,
+        })
+        .collect()
+}
+
+fn number(structure: &StructValue<'_>, name: &str) -> f64 {
+    float(structure, name).map_or(0.0, f64::from)
+}
+
+fn field_kind(short: &str) -> Option<FieldKind> {
+    match short {
+        "BooleanField" => Some(FieldKind::Boolean),
+        "NumberField" => Some(FieldKind::Number),
+        "IntegerField" => Some(FieldKind::Integer),
+        "StringField" => Some(FieldKind::Text),
+        "ColorField" => Some(FieldKind::Other),
+        _ => None,
+    }
+}
+
+fn source(short: &str, op: &StructValue<'_>) -> Option<Node> {
+    let parameter = || text(op, "parameter").unwrap_or_default().to_owned();
+    Some(match short {
+        "BooleanVariable" => Node::Zero(Rest::Bool(false)),
+        "NumberVariable" | "IntegerVariable" => Node::Zero(Rest::Num(0.0)),
+        "StringVariable" => Node::Zero(Rest::Text(String::new())),
+        "BooleanComponentParameter" => Node::Param {
+            parameter: parameter(),
+            default: Rest::Bool(flag(op, "defaultValue").unwrap_or(false)),
+        },
+        "NumberComponentParameter" | "IntegerComponentParameter" => Node::Param {
+            parameter: parameter(),
+            default: Rest::Num(number(op, "defaultValue")),
+        },
+        "StringComponentParameter" => Node::Param {
+            parameter: parameter(),
+            default: Rest::Text(text(op, "defaultValue").unwrap_or_default().to_owned()),
+        },
+        _ => return None,
+    })
+}
+
+fn whole(value: &Value<'_>) -> Option<f64> {
+    match value {
+        Value::Int32(value) => Some(f64::from(*value)),
+        Value::Int16(value) => Some(f64::from(*value)),
+        Value::Int8(value) => Some(f64::from(*value)),
+        Value::UInt32(value) => Some(f64::from(*value)),
+        Value::UInt16(value) => Some(f64::from(*value)),
+        Value::UInt8(value) => Some(f64::from(*value)),
+        _ => None,
+    }
+}
+
+fn node(short: &str, op: &StructValue<'_>) -> Option<Node> {
+    if let Some(source) = source(short, op) {
+        return Some(source);
+    }
+    let input = || operation_at(op, "input");
+    Some(match short {
+        "BooleanInvert" => Node::Invert(input()),
+        "BooleanEvaluateAnd" => Node::All(operations_at(op, "inputs")),
+        "BooleanEvaluateOr" => Node::Any(operations_at(op, "inputs")),
+        "BooleanFromInteger" => Node::Compare {
+            cmp: Cmp::parse(text(op, "type"))?,
+            constant: number(op, "value"),
+            left: operation_at(op, "inputL"),
+            right: operation_at(op, "inputR"),
+        },
+        "BooleanFromNumber" => Node::Compare {
+            cmp: Cmp::parse(text(op, "type"))?,
+            constant: number(op, "number"),
+            left: input(),
+            right: operation_at(op, "inputB"),
+        },
+        "BooleanFromIntegerSwitch" => Node::Switch {
+            default: flag(op, "defaultValue").unwrap_or(false),
+            exceptions: items(op, "exceptions").iter().filter_map(whole).collect(),
+            input: input(),
+        },
+        "BooleanFromStringIsEmpty" => Node::TextEmpty(input()),
+        _ => return numeric(short, op),
+    })
+}
+
+fn numeric(short: &str, op: &StructValue<'_>) -> Option<Node> {
+    let input = || operation_at(op, "input");
+    let whole = short.starts_with("Integer");
+    Some(match short {
+        "NumberFromBoolean" | "IntegerFromBoolean" => Node::Choose {
+            numbers: [number(op, "isTrue"), number(op, "isFalse")],
+            input: input(),
+            branches: [
+                operation_at(op, "inputTrue"),
+                operation_at(op, "inputFalse"),
+            ],
+            whole,
+        },
+        "NumberFromInteger" => Node::Same(input()),
+        "NumberArithmatic" | "IntegerArithmatic" => {
+            let arith = Arith::parse(text(op, "type"))?;
+            let (left, right) = if whole {
+                (operation_at(op, "inputL"), operation_at(op, "inputR"))
+            } else {
+                (input(), operation_at(op, "inputB"))
+            };
+            Node::Arith {
+                op: arith,
+                amount: number(op, "amount"),
+                left,
+                right,
+                whole,
+            }
+        }
+        "NumberClamp" => Node::Clamp {
+            bounds: [number(op, "minValue"), number(op, "maxValue")],
+            input: input(),
+            inputs: [
+                operation_at(op, "inputMinValue"),
+                operation_at(op, "inputMaxValue"),
+            ],
+        },
+        _ => return None,
+    })
+}
+
+impl Operations {
+    /// Reads the `operations` of a canvas whose scene has `scene_len` widgets before its library.
+    pub(crate) fn read(root: &StructValue<'_>, scene_len: usize) -> Self {
+        let mut found = Self::default();
+        for operation in items(root, "operations") {
+            let Some(op) = as_struct(operation) else {
+                let kind = found.kind("operation");
+                found.nodes.push(Node::Unsupported(kind));
+                continue;
+            };
+            let name = op.type_name();
+            let short = name.rsplit_once('_').map_or(name, |(_, short)| short);
+            let short = short.strip_prefix("Bindings").unwrap_or(short);
+            if let Some(kind) = field_kind(short) {
+                let widget = reference(op, "widget").and_then(|widget| {
+                    let location = widget.location();
+                    index_at(location, "scene").or_else(|| {
+                        index_at(location, "library").and_then(|at| at.checked_add(scene_len))
+                    })
+                });
+                if let (Some(widget), Some(field)) = (widget, text(op, "field")) {
+                    found.bindings.push(Binding {
+                        widget,
+                        field: field.to_owned(),
+                        kind,
+                        input: operation_at(op, "input"),
+                    });
+                }
+                let kind = found.kind(short);
+                found.nodes.push(Node::Unsupported(kind));
+                continue;
+            }
+            let node = node(short, op).unwrap_or_else(|| Node::Unsupported(found.kind(short)));
+            found.nodes.push(node);
+        }
+        found
+    }
+
+    /// Returns the index of the kind of operation `name` among the kinds that are not evaluated.
+    fn kind(&mut self, name: &str) -> usize {
+        self.kinds
+            .iter()
+            .position(|kind| kind == name)
+            .unwrap_or_else(|| {
+                self.kinds.push(name.to_owned());
+                self.kinds.len() - 1
+            })
+    }
+}

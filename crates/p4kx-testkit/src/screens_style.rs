@@ -18,8 +18,16 @@ pub enum TestCondition {
     Parent(Vec<Self>),
     /// Some ancestor widget meets every condition.
     Ancestor(Vec<Self>),
+    /// Some ancestor widget meets every condition of the first list, looking up from the widget
+    /// and stopping at an ancestor that meets every condition of the second.
+    AncestorUntil(Vec<Self>, Vec<Self>),
+    /// Some child widget meets every condition.
+    Child(Vec<Self>),
+    /// The widget is among the siblings the count selects: `First` or `Every`, the count and the
+    /// offset.
+    Count(&'static str, i32, i32),
     /// A selector the screens reader does not evaluate.
-    Count,
+    Unknown,
 }
 
 impl TestCondition {
@@ -40,7 +48,29 @@ impl TestCondition {
                     TestValue::Array(inner.iter().map(Self::value).collect()),
                 )
             }
-            Self::Count => TestInstance::new("BuildingBlocks_StyleSelectorConditionCount"),
+            Self::AncestorUntil(inner, breaks) => {
+                TestInstance::new("BuildingBlocks_StyleSelectorConditionAncestor")
+                    .value(
+                        "conditions",
+                        TestValue::Array(inner.iter().map(Self::value).collect()),
+                    )
+                    .value(
+                        "breakConditions",
+                        TestValue::Array(breaks.iter().map(Self::value).collect()),
+                    )
+            }
+            Self::Child(inner) => TestInstance::new("BuildingBlocks_StyleSelectorConditionChild")
+                .value(
+                    "conditions",
+                    TestValue::Array(inner.iter().map(Self::value).collect()),
+                ),
+            Self::Count(kind, count, offset) => {
+                TestInstance::new("BuildingBlocks_StyleSelectorConditionCount")
+                    .value("type", TestValue::text(*kind))
+                    .value("count", TestValue::Int32(*count))
+                    .value("offset", TestValue::Int32(*offset))
+            }
+            Self::Unknown => TestInstance::new("BuildingBlocks_StyleSelectorConditionUnknown"),
         })
     }
 }
@@ -86,6 +116,8 @@ pub enum TestModifier {
     ColourOverlay(bool),
     /// Any numeric field by its name, e.g. `AnchorX`, `SizeX` or `OrientationZ`.
     Number(&'static str, f32),
+    /// An enumerated field: the kind, e.g. `WidthBehavior` or `FlexDirection`, and the option.
+    Enumerated(&'static str, &'static str),
 }
 
 impl TestModifier {
@@ -131,6 +163,13 @@ impl TestModifier {
                 return typed(
                     "Enumerated",
                     "EnumeratedTypeCaseModifier",
+                    TestValue::text(name),
+                );
+            }
+            Self::Enumerated(kind, name) => {
+                return typed(
+                    "Enumerated",
+                    &format!("EnumeratedType{kind}"),
                     TestValue::text(name),
                 );
             }

@@ -6,7 +6,8 @@ use std::rc::Rc;
 
 use p4kx_dataforge::{Location, Step, StructValue, Value};
 
-use crate::reader::{as_struct, items, reference, text};
+use crate::reader::{as_struct, flag, float, items, reference, text};
+use crate::rest::{Rest, RestParams};
 
 const PARAMETER: &str = "BuildingBlocks_BindingsLocalizedComponentParameter";
 const FIELD: &str = "BuildingBlocks_BindingsLocalizedField";
@@ -23,7 +24,7 @@ pub(crate) struct TextBinding {
 /// The localised values a `WidgetCanvas` hands to the component parameters of its canvas.
 pub(crate) type ParamValues = Rc<[(String, String)]>;
 
-fn index_at(location: Option<&Location<'_>>, field: &str) -> Option<usize> {
+pub(crate) fn index_at(location: Option<&Location<'_>>, field: &str) -> Option<usize> {
     match location.map(Location::steps) {
         Some([Step::Field(name), Step::Element(index)]) if *name == field => {
             usize::try_from(*index).ok()
@@ -66,6 +67,34 @@ pub(crate) fn text_bindings(
             })?;
             let input = index_at(reference(operation, "input")?.location(), "operations")?;
             Some((widget, parameters.get(&input)?.clone()))
+        })
+        .collect()
+}
+
+/// Reads the boolean, number, integer and text parameter values a widget hands to its nested
+/// canvas.
+pub(crate) fn typed_values(widget: &StructValue<'_>) -> RestParams {
+    items(widget, "paramInputValues")
+        .iter()
+        .filter_map(|value| {
+            let Value::Struct(input) = value else {
+                return None;
+            };
+            let parameter = text(input, "parameter")?.to_owned();
+            let rest = match input.type_name() {
+                "BuildingBlocks_ComponentParameterInputBoolean" => {
+                    Rest::Bool(flag(input, "value")?)
+                }
+                "BuildingBlocks_ComponentParameterInputInteger"
+                | "BuildingBlocks_ComponentParameterInputNumber" => {
+                    Rest::Num(f64::from(float(input, "value").filter(|v| v.is_finite())?))
+                }
+                "BuildingBlocks_ComponentParameterInputString" => {
+                    Rest::Text(text(input, "value")?.to_owned())
+                }
+                _ => return None,
+            };
+            Some((parameter, rest))
         })
         .collect()
 }

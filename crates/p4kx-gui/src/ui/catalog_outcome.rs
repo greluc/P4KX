@@ -17,6 +17,7 @@ use crate::theme::tokens::SPACE_3;
 use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
+use crate::widgets::placement;
 use crate::{
     CatalogExport, CatalogExportProgress, CatalogExportStage, CatalogExportStatus,
     CatalogExportSummary, CatalogText as T, ExtractionText, Language, Model, Texts, format,
@@ -102,7 +103,7 @@ fn running_window(
     let cancelling = run.is_cancelled();
     let title = texts.get(T::RunningTitle);
     let path = run.shown_file();
-    let shown = frames::window(ui.ctx(), &title, Tone::Normal)
+    let shown = placement::window(ui.ctx(),&title, Tone::Normal)
         .id(Id::unique(WINDOW))
         .collapsible(false)
         .resizable(false)

@@ -11,6 +11,8 @@ use std::path::Path;
 
 use egui::Rect;
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
+use p4kx_gui::theme::tokens::SPACE_4;
 use p4kx_gui::{
     AssemblyExport, AssemblyExportForm, AssemblyExportStage, AssemblyExportStatus, Language, Model,
     PreviewTab, WorkTab, ui,
@@ -109,6 +111,20 @@ fn problems(harness: &Harness<'_, Model>, name: &str, size: [f32; 2]) -> Vec<Str
                 ));
             }
         }
+        if let Some(header) = regions.header
+            && dialog.top() - header.bottom() < SPACE_4 - 0.5
+        {
+            found.push(format!(
+                "{name}: the dialog {dialog:?} is less than a gap below the header {header:?}"
+            ));
+        }
+        if let Some(status) = regions.status
+            && status.top() - dialog.bottom() < SPACE_4 - 0.5
+        {
+            found.push(format!(
+                "{name}: the dialog {dialog:?} is less than a gap above the status bar {status:?}"
+            ));
+        }
         if (dialog.center().x - size[0] / 2.0).abs() > 2.0 {
             found.push(format!(
                 "{name}: the dialog {dialog:?} is not in the middle of the {} point wide window",
@@ -196,40 +212,102 @@ fn export_to(harness: &mut Harness<'_, Model>, file: &Path) -> TestResult {
     Ok(())
 }
 
+fn running_and_finished(
+    (dir, mut harness): Window,
+    kind: &str,
+    size: [f32; 2],
+    suffix: &str,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut found = Vec::new();
+    let hold = harness.state_mut().hold_interior_export();
+    export_to(&mut harness, &dir.path().join("placed.glb"))?;
+    wait_for_model(&mut harness, "the export to leave its first step", |model| {
+        matches!(
+            model.assembly_export().map(AssemblyExport::status),
+            Some(AssemblyExportStatus::Running(progress))
+                if progress.stage != AssemblyExportStage::Resolving
+        )
+    })?;
+    harness.run_steps(3);
+    let name = format!("export-{kind}-running-{}x{}-{suffix}", size[0], size[1]);
+    shot(&mut harness, &name)?;
+    found.extend(problems(&harness, &name, size));
+
+    drop(hold);
+    wait_for_model(&mut harness, "the export to end", |model| {
+        !model
+            .assembly_export()
+            .is_some_and(AssemblyExport::is_running)
+    })?;
+    harness.run_steps(4);
+    let name = format!("export-{kind}-summary-{}x{}-{suffix}", size[0], size[1]);
+    shot(&mut harness, &name)?;
+    found.extend(problems(&harness, &name, size));
+    Ok(found)
+}
+
 #[test]
-fn the_windows_of_a_running_and_a_finished_export_stand_in_the_middle_clear_of_the_bars()
--> TestResult {
+fn the_windows_of_a_container_export_stand_in_the_middle_clear_of_the_bars() -> TestResult {
     let mut found = Vec::new();
     for size in [MIN, DEFAULT] {
         for (language, suffix, ..) in LANGUAGES {
-            let Some((dir, mut harness)) = container_window(language, size)? else {
+            let Some(window) = container_window(language, size)? else {
                 return Ok(());
             };
-            let hold = harness.state_mut().hold_interior_export();
-            export_to(&mut harness, &dir.path().join("placed.glb"))?;
-            wait_for_model(&mut harness, "the export to reach the Interior", |model| {
-                matches!(
-                    model.assembly_export().map(AssemblyExport::status),
-                    Some(AssemblyExportStatus::Running(progress))
-                        if progress.stage == AssemblyExportStage::Interior
-                )
-            })?;
-            harness.run_steps(3);
-            let name = format!("export-running-{}x{}-{suffix}", size[0], size[1]);
-            shot(&mut harness, &name)?;
-            found.extend(problems(&harness, &name, size));
-
-            drop(hold);
-            wait_for_model(&mut harness, "the export to end", |model| {
-                !model
-                    .assembly_export()
-                    .is_some_and(AssemblyExport::is_running)
-            })?;
-            harness.run_steps(4);
-            let name = format!("export-summary-{}x{}-{suffix}", size[0], size[1]);
-            shot(&mut harness, &name)?;
-            found.extend(problems(&harness, &name, size));
+            found.extend(running_and_finished(window, "container", size, suffix)?);
         }
+    }
+    assert!(found.is_empty(), "{}", found.join("\n"));
+    Ok(())
+}
+
+#[test]
+fn the_windows_of_an_entity_glb_export_stand_in_the_middle_clear_of_the_bars() -> TestResult {
+    let mut found = Vec::new();
+    for size in [MIN, DEFAULT] {
+        for (language, suffix, ..) in LANGUAGES {
+            let Some(window) = entity_window(language, size)? else {
+                return Ok(());
+            };
+            found.extend(running_and_finished(window, "entity", size, suffix)?);
+        }
+    }
+    assert!(found.is_empty(), "{}", found.join("\n"));
+    Ok(())
+}
+
+#[test]
+fn the_windows_of_an_extraction_stand_in_the_middle_clear_of_the_bars() -> TestResult {
+    let mut found = Vec::new();
+    for size in [MIN, DEFAULT] {
+        let Some((dir, mut harness)) = window(
+            vec![TestEntry::stored("Data\\good.txt", "good")],
+            Language::BritishEnglish,
+            size,
+        )?
+        else {
+            return Ok(());
+        };
+        let out = dir.path().join("out");
+        std::fs::create_dir(&out)?;
+        harness.state_mut().set_extraction_folder(Some(out));
+        harness.run_steps(3);
+        harness.get_by_label("Extract all…").click();
+        harness.run_steps(3);
+        harness.get_by_label("Existing folder").click();
+        harness.run_steps(3);
+        harness.get_by_label("Extract").click();
+        harness.run_steps(3);
+        harness.get_by_label("Extract whole Archive").click();
+        wait_for_model(&mut harness, "the extraction to end", |model| {
+            model
+                .extraction()
+                .is_some_and(|extraction| !extraction.is_running())
+        })?;
+        harness.run_steps(4);
+        let name = format!("extraction-summary-{}x{}-en-GB", size[0], size[1]);
+        shot(&mut harness, &name)?;
+        found.extend(problems(&harness, &name, size));
     }
     assert!(found.is_empty(), "{}", found.join("\n"));
     Ok(())

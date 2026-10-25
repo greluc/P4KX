@@ -228,8 +228,8 @@ impl Model {
         true
     }
 
-    /// Makes the exports of an Interior container wait in their Interior step until the returned
-    /// hold is dropped or they are cancelled.
+    /// Makes the exports wait after their first step, the Interior step of a container export,
+    /// until the returned hold is dropped or they are cancelled.
     #[cfg(feature = "test-hooks")]
     pub fn hold_interior_export(&mut self) -> crate::Hold {
         let (hold, gate) = crate::hold::Hold::new();

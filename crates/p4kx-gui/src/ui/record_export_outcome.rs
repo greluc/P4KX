@@ -41,7 +41,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         RecordExportStatus::Running(progress) => {
             let cancelling = run.is_cancelled();
             let title = texts.get(T::RunningTitle);
-            let shown = frames::window(ui.ctx(), &title, Tone::Normal)
+            let shown = placement::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
                 .resizable(false)
@@ -101,7 +101,7 @@ pub(super) fn outcome_window(
     let mut close = false;
     let title = texts.get(title);
     let close_dialog = texts.get(Text::CloseDialog);
-    let shown = frames::window(ui.ctx(), &title, tone)
+    let shown = placement::window(ui.ctx(), &title, tone)
         .id(Id::unique(id))
         .collapsible(false)
         .default_width(MODAL_WIDE_WIDTH)

@@ -7,9 +7,10 @@ use egui::{Context, Id, Rect, Ui};
 /// intersect.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Regions {
-    /// The header with the menu.
+    /// The header with the menu. Dialogs shown after the panels of a frame also read it to stay
+    /// below the header, so it is recorded before they are drawn.
     pub header: Option<Rect>,
-    /// The status bar.
+    /// The status bar, read by dialogs like the header.
     pub status: Option<Rect>,
     /// The tab bar of the work surface.
     pub tabs: Option<Rect>,

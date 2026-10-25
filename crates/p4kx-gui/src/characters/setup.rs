@@ -16,16 +16,33 @@ use crate::{AssemblyExportForm, PackageProblem};
 pub struct CharacterExportSetup {
     name: String,
     folder: Option<PathBuf>,
+    animations: bool,
     output: Output,
 }
 
 impl CharacterExportSetup {
-    pub(super) fn new(name: String, folder: Option<PathBuf>, package: bool) -> Self {
+    pub(super) fn new(
+        name: String,
+        folder: Option<PathBuf>,
+        (package, animations): (bool, bool),
+    ) -> Self {
         Self {
             name,
             folder,
+            animations,
             output: Output::new(package),
         }
+    }
+
+    /// Returns whether a package carries the animations of the Character's animation folders.
+    #[must_use]
+    pub const fn animations(&self) -> bool {
+        self.animations
+    }
+
+    /// Chooses whether a package carries the animations of the Character's animation folders.
+    pub const fn set_animations(&mut self, animations: bool) {
+        self.animations = animations;
     }
 
     /// Returns the name of the Character.
@@ -109,6 +126,10 @@ impl CharacterExportSetup {
 
     pub(super) fn path(&self) -> Option<PathBuf> {
         self.output.path()
+    }
+
+    pub(super) const fn animations_chosen(&self) -> bool {
+        self.animations
     }
 
     pub(super) fn folder_chosen(&self) -> Option<PathBuf> {

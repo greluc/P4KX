@@ -28,11 +28,7 @@ dialog says about them (`Output`) are one type that the Entity setup and the Cha
 hold; the dialog rows, the notices and the failure handling of a package (`verdict`) are shared.
 Nothing of the Entity flow is copied.
 
-**No animation clips in the Character package.** The tab offers no choice of animation clips and
-its GLB export writes none, so the package is written with no clips: the skeleton, the shape keys
-of the expressions and the materials. The setup says so. Animation clips need the lookup of the
-clips of a Character, which lives in the front-end of the command line; moving it to a service
-crate is a separate decision.
+**The Character package carries the animations of the animation folders, by one choice.** The setup of a package has the group "Animations" with "None" and "All", and "All" is the default. "All" reads every animation of the animation folders the way `p4kx character package` does when it is given `--anim all`: the folder of the story character of the Loadout first (`Animations/pu/<body>/<name>`, found from the head folder of the Loadout, which the tab keeps from its build), then the folders of the body. The lookup (`AnimationFolders`, `character_animations`, `animation_choice`) moved from the command line to `p4kx-assembly` next to `ArchiveModels`, so that the command line and the window share it; it returns `ConversionError` instead of `anyhow`. The clips are read inside the cancellable export job, before the package is written, and a Cancel stops the job before the folder is touched. The GUI has no picker of named clips and no `--anim-from`; the command line keeps both. A CHF head does not change the folder of the story character, as on the command line.
 
 **A Character package has no byte progress.** As for an Entity package, the writer reports none:
 the stage "Writing" shows the name and Cancel.

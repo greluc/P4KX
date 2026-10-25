@@ -23,6 +23,7 @@ mod character_export_window;
 mod character_expression;
 mod character_model;
 mod character_package;
+mod character_package_animations;
 mod character_render;
 mod characters;
 mod common;

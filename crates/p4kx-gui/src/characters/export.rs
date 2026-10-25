@@ -22,6 +22,7 @@ use crate::{AssemblyExportForm, EntryIndex, ModelExportFailure};
 pub(super) struct Origin {
     pub(super) chf: Option<String>,
     pub(super) loadout: Option<String>,
+    pub(super) npc_folder: Option<String>,
 }
 
 /// What the Export of a Character writes and where.
@@ -35,6 +36,7 @@ pub(super) struct Request {
     pub(super) texture_mip: u32,
     pub(super) vertex_colours: bool,
     pub(super) origin: Origin,
+    pub(super) animations: bool,
     #[cfg(feature = "test-hooks")]
     pub(super) pause: crate::hold::Pause,
 }

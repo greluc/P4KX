@@ -49,7 +49,8 @@ props and lights as `entity package --interior`, see
 The desktop window writes the same package: the export dialogs of an Entity, of an Interior
 container and of the Character of the Characters tab offer "Blender package" next to "GLB file",
 with the same choices, a folder instead of a file, progress and Cancel (ADR-0104, ADR-0139). The
-Character package of the window has no animations, because the tab offers no animation clips. The
+Character package of the window carries the animations of the Character's animation folders unless
+"None" is chosen; the window has no choice of single clips. The
 rules below apply to it as well.
 
 - The output is checked before the Archive is opened (`p4kx_blender::check_output`). The folder

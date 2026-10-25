@@ -9,7 +9,7 @@ use p4kx_blender::{
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, CancelToken, WriteRefused};
 
-use super::run::failed;
+use super::run::failure_of;
 use super::stop::{Stoppable, StoppableTextures};
 use super::{Ended, Request};
 use crate::assembly_export::AssemblyExportSummary;
@@ -89,16 +89,26 @@ fn ended(
 ) -> Ended {
     match written {
         Ok(written) => Ended::Written(Box::new(summary(written))),
-        Err(error) => match verdict(error, cancel.is_cancelled()) {
-            Verdict::Cancelled => Ended::Cancelled,
-            Verdict::Refused(refused) => Ended::Failed(ModelExportFailure::Refused(refused)),
-            Verdict::Failed(error) => failed(index, &error),
-        },
+        Err(error) => package_failure(index, error, cancel.is_cancelled())
+            .map_or(Ended::Cancelled, Ended::Failed),
+    }
+}
+
+/// Returns why a package export failed with rror, or None when it was cancelled.
+pub(crate) fn package_failure(
+    index: &EntryIndex,
+    error: PackageError,
+    cancelled: bool,
+) -> Option<ModelExportFailure> {
+    match verdict(error, cancelled) {
+        Verdict::Cancelled => None,
+        Verdict::Refused(refused) => Some(ModelExportFailure::Refused(refused)),
+        Verdict::Failed(error) => Some(failure_of(index, &error)),
     }
 }
 
 #[derive(Debug)]
-pub(crate) enum Verdict {
+enum Verdict {
     Cancelled,
     Refused(WriteRefused),
     Failed(PackageError),
@@ -106,7 +116,7 @@ pub(crate) enum Verdict {
 
 /// Decides how a failed package ends: a refusal and a package that could not be moved back are
 /// never taken for a cancel, whatever the token says.
-pub(crate) fn verdict(error: PackageError, cancelled: bool) -> Verdict {
+fn verdict(error: PackageError, cancelled: bool) -> Verdict {
     match error {
         PackageError::Cancelled => Verdict::Cancelled,
         PackageError::Refused(refused) => Verdict::Refused(refused),

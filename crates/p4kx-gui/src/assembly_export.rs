@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 pub(crate) use job::stop::{Observed, Stoppable, StoppableTextures};
 pub use job::{AssemblyExport, AssemblyExportProgress, AssemblyExportStage, AssemblyExportStatus};
-pub(crate) use job::{Request, Subject, Verdict, failure_of, info_of, start, verdict};
+pub(crate) use job::{Request, Subject, failure_of, info_of, package_failure, start};
 use p4kx_assembly::LoadoutChanges;
 use p4kx_extraction::{Guid, WriteRefused};
 use p4kx_settings::{AssemblyExportSettings, ModelMaterials};

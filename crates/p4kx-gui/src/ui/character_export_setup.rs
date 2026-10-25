@@ -4,13 +4,14 @@
 use egui::Ui;
 
 use super::assembly_export::{folder_notice, form_choice, target_row};
-use super::extraction::{foot, refusal_notice};
+use super::extraction::{foot, group_label, refusal_notice};
 use super::{Dialog, Requests, regions};
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, Weight};
+use crate::theme::tokens::{FS_SM, FS_XS, Weight};
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::placement;
+use crate::widgets::tab;
 use crate::widgets::text::plain;
 use crate::{
     AssemblyExportForm, AssemblyExportText as A, CharacterExportSetup, CharacterText as T,
@@ -26,6 +27,7 @@ enum Action {
 
 /// Shows the export setup of the Character while it is open and applies what the user chose.
 pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
+    let busy = !model.characters().export_available();
     let Some((setup, texts)) = model.character_export_setup_with_texts() else {
         return;
     };
@@ -37,7 +39,7 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
         let room = placement::body_room(ui);
         let body = frames::scrolling_body_in(ui, ("character-export-body", room), |ui| {
-            choices(ui, texts, setup)
+            choices(ui, texts, (setup, busy))
         });
         regions::record(ui.ctx(), |regions| {
             regions.scrolls = body.content_size.y > body.inner_rect.height() + 0.5;
@@ -46,7 +48,7 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
         let pressed = foot(
             ui,
             texts,
-            (A::Start, setup.is_ready()),
+            (A::Start, setup.is_ready() && !busy),
             ExtractionText::Close,
         );
         let chosen = match pressed {
@@ -83,16 +85,28 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     }
 }
 
-fn choices(ui: &mut Ui, texts: &Texts, setup: &mut CharacterExportSetup) -> Option<Action> {
+fn choices(
+    ui: &mut Ui,
+    texts: &Texts,
+    (setup, busy): (&mut CharacterExportSetup, bool),
+) -> Option<Action> {
     let subject = texts.format(
         T::ExportSetupName,
         &[("name", setup.name().to_owned().into())],
     );
     ui.label(plain(subject, FS_XS, Weight::Regular).color(palette::GRAY_2_TEXT));
     ui.add_space(MODAL_GROUP_GAP);
-    if let Some(chosen) = form_choice(ui, texts, setup.form()) {
-        setup.set_form(chosen);
-    }
+    ui.horizontal_top(|ui| {
+        ui.vertical(|ui| {
+            if let Some(chosen) = form_choice(ui, texts, setup.form()) {
+                setup.set_form(chosen);
+            }
+        });
+        if setup.form() == AssemblyExportForm::Package {
+            ui.add_space(MODAL_GROUP_GAP);
+            ui.vertical(|ui| animations(ui, texts, setup));
+        }
+    });
     let package = setup.form() == AssemblyExportForm::Package;
     if package {
         let note = plain(texts.get(T::ExportPackageNote), FS_XS, Weight::Regular);
@@ -113,5 +127,23 @@ fn choices(ui: &mut Ui, texts: &Texts, setup: &mut CharacterExportSetup) -> Opti
         target_row(ui, texts, texts_of, setup.file()).map(|()| Action::ChooseFile)
     };
     refusal_notice(ui, texts, setup.refusal());
+    if busy {
+        let text = plain(texts.get(T::ExportBusy), FS_SM, Weight::Regular);
+        ui.add(egui::Label::new(text.color(palette::WARNING)).wrap());
+    }
     action
+}
+
+fn animations(ui: &mut Ui, texts: &Texts, setup: &mut CharacterExportSetup) {
+    group_label(ui, &texts.get(T::ExportAnimationsHeading));
+    let labels = [
+        texts.get(T::ExportAnimationsNone),
+        texts.get(T::ExportAnimationsAll),
+    ];
+    let active = Some(usize::from(setup.animations()));
+    match ui.horizontal(|ui| tab::segments(ui, &labels, active)).inner {
+        Some(0) => setup.set_animations(false),
+        Some(1) => setup.set_animations(true),
+        _ => {}
+    }
 }

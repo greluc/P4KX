@@ -58,6 +58,7 @@
 //! material choices of the Character ([`Look`]); [`Armour::write_glb_with`] embeds the textures.
 //! [`Head::with_expressions`] adds the head's expression blendshapes as morph targets.
 
+mod animation_folders;
 mod armour;
 mod assembly;
 pub mod audio;
@@ -93,6 +94,7 @@ mod vehicle;
 mod walk;
 mod xml;
 
+pub use animation_folders::{AnimationFolders, animation_choice, character_animations};
 pub use armour::{
     Armour, ArmourPart, BodyVariant, CharacterAnimations, Expressions, ForgeItems, Head, HeadError,
     HeadItems, Look, MAX_ANIMATION_VALUES, MAX_DNA_RIG_LEN, NpcHead, PartOrigin, Piece, Replaced,

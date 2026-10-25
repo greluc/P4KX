@@ -78,6 +78,7 @@ struct Shown {
     spans: Vec<Option<crate::MorphSpan>>,
     issues: Vec<PartIssue>,
     replaced: Vec<p4kx_assembly::Replaced>,
+    npc_folder: Option<String>,
 }
 
 /// The export choices that are not part of the Character.
@@ -88,6 +89,7 @@ struct ExportChoices {
     vertex_colours: bool,
     folder: Option<PathBuf>,
     package: bool,
+    animations: bool,
 }
 
 /// The Characters tab: the body, head, pieces and Loadout a Character is composed of, the 3D view
@@ -154,6 +156,7 @@ impl Default for CharactersTab {
                 vertex_colours: true,
                 folder: None,
                 package: false,
+                animations: true,
             },
             setup: None,
             expressions: expressions::Choice::default(),
@@ -200,7 +203,8 @@ impl CharactersTab {
             texture_mip: settings.texture_mip,
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
-            package: settings.package,
+            package: false,
+            animations: true,
         };
         self.ctx = Some(Context {
             index: Arc::clone(index),

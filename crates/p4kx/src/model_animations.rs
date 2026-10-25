@@ -3,82 +3,11 @@
 
 use std::io::{self, Write};
 
-use anyhow::Result;
-use p4kx_assembly::{ArchiveModels, BodyVariant};
 use p4kx_extraction::model::Model;
-use p4kx_extraction::{AnimationSet, AnimationSummary, ConversionError, UnreadAnimation};
+use p4kx_extraction::{AnimationSet, AnimationSummary, UnreadAnimation};
 use serde::Serialize;
 
-use crate::model::choice_of;
 use crate::query_table::one_line;
-
-/// The folders `--anim` looks in before the folders of the body, and whether it falls back to
-/// those.
-#[derive(Debug, Default)]
-pub(crate) struct AnimationFolders {
-    folders: Vec<String>,
-    fallback: bool,
-}
-
-impl AnimationFolders {
-    /// Looks only in `folders`, the folders `--anim-folder` names; none means the folders of the
-    /// body.
-    pub(crate) fn only(folders: &[String]) -> Self {
-        Self {
-            folders: folders.to_vec(),
-            fallback: false,
-        }
-    }
-
-    /// Looks in the folder of the story character's own animations first, `Animations/pu/<body>/
-    /// <name>`, where `name` is the name of the head's own folder `folder` up to its first
-    /// underscore; a name or path that folder lacks is looked for in the folders of the body.
-    /// Only the folders of the body when the Archive has no such folder.
-    pub(crate) fn of_npc(models: &ArchiveModels<'_>, variant: BodyVariant, folder: &str) -> Self {
-        let name = folder
-            .rsplit(['/', '\\'])
-            .next()
-            .and_then(|last| last.split('_').next())
-            .filter(|name| !name.is_empty());
-        let own = name
-            .map(|name| format!("Animations/pu/{}/{name}", variant.code()))
-            .filter(|own| models.has_folder(own));
-        Self {
-            folders: own.into_iter().collect(),
-            fallback: true,
-        }
-    }
-
-    /// Returns the folder looked in first, if there is one and no `--anim-folder` was given.
-    pub(crate) fn own(&self) -> Option<&str> {
-        self.folders
-            .first()
-            .map(String::as_str)
-            .filter(|_| self.fallback)
-    }
-}
-
-/// Reads the animations the options `--anim` and `--anim-from` name for a Character of `variant`
-/// from the folders `folders` choose, else those of its body and head; none without `--anim`.
-pub(crate) fn character_animations(
-    models: &ArchiveModels<'_>,
-    variant: BodyVariant,
-    (names, sources): (&[String], &[String]),
-    folders: &AnimationFolders,
-) -> Result<AnimationSet> {
-    let Some(choice) = choice_of(names) else {
-        return Ok(AnimationSet::default());
-    };
-    if !folders.folders.is_empty() {
-        let own: Vec<&str> = folders.folders.iter().map(String::as_str).collect();
-        match models.animations(&own, &choice, sources) {
-            Ok(found) => return Ok(found),
-            Err(ConversionError::UnknownAnimations { .. }) if folders.fallback => {}
-            Err(error) => return Err(error.into()),
-        }
-    }
-    Ok(models.animations(&variant.animation_folders(), &choice, sources)?)
-}
 
 /// The JSON shape of an animation of `p4kx model glb`.
 #[derive(Serialize)]

@@ -229,17 +229,27 @@ fn the_package_dialogs_of_a_character_stand_clear_of_the_bars() -> TestResult {
 }
 
 #[test]
-fn the_character_setup_fits_the_default_window_without_a_scroll_bar() -> TestResult {
+fn the_setups_fit_the_default_window_without_a_scroll_bar_in_both_forms() -> TestResult {
     let mut found = Vec::new();
     for (language, suffix, ..) in LANGUAGES {
-        let Some((_dir, mut harness)) = character_window(language, DEFAULT)? else {
-            return Ok(());
-        };
-        set_form(&mut harness, false, AssemblyExportForm::Package);
-        if ui::regions(&harness.ctx).scrolls {
-            found.push(format!(
-                "{suffix}: the body of the setup needs a scroll bar"
-            ));
+        for container in [false, true] {
+            let window = if container {
+                container_window(language, DEFAULT)?
+            } else {
+                character_window(language, DEFAULT)?
+            };
+            let Some((_dir, mut harness)) = window else {
+                return Ok(());
+            };
+            for form in [AssemblyExportForm::Glb, AssemblyExportForm::Package] {
+                set_form(&mut harness, container, form);
+                if ui::regions(&harness.ctx).scrolls {
+                    found.push(format!(
+                        "{suffix}: the setup of the {} as {form:?} needs a scroll bar",
+                        if container { "container" } else { "Character" }
+                    ));
+                }
+            }
         }
     }
     assert!(found.is_empty(), "{}", found.join("\n"));

@@ -168,7 +168,7 @@ impl CharactersTab {
         self.setup = Some(CharacterExportSetup::new(
             self.name(),
             self.export_choices.folder.clone(),
-            self.export_choices.package,
+            (self.export_choices.package, self.export_choices.animations),
         ));
         true
     }
@@ -204,6 +204,7 @@ impl CharactersTab {
         };
         self.export_choices.folder = setup.folder_chosen();
         self.export_choices.package = setup.form() == AssemblyExportForm::Package;
+        self.export_choices.animations = setup.animations_chosen();
         let request = Request {
             armour: Arc::clone(&shown.armour),
             name: self.name(),
@@ -215,7 +216,9 @@ impl CharactersTab {
             origin: Origin {
                 chf: self.head.as_ref().map(|head| head.info.name.clone()),
                 loadout: self.loadout.clone(),
+                npc_folder: shown.npc_folder.clone(),
             },
+            animations: setup.animations_chosen(),
             #[cfg(feature = "test-hooks")]
             pause: self
                 .gate

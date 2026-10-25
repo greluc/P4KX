@@ -19,7 +19,8 @@ enum Ask {
 }
 
 /// Shows the toolbar of the Characters tab: the level of detail, how the materials are written
-/// and the export, which opens its setup. In a narrow window the controls wrap instead of standing apart.
+/// and the export, which opens its setup. In a narrow window the controls wrap instead of standing
+/// apart.
 pub(super) fn show(ui: &mut Ui, model: &mut Model, wide: bool) {
     let ask = {
         let (tab, texts) = model.characters_with_texts();

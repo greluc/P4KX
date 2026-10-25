@@ -588,9 +588,9 @@ Materialien und mit der Gruppe „Paketordner". Fortschritts- und Ergebnisfenste
 geöffneten Container. Die Schaltfläche der Werkzeugleiste im Tab „Charaktere" heißt „Exportieren …" (`.btn-cta`)
 und öffnet einen Export-Dialog „Charakter exportieren" (`.modal`, hängt wie in D.53): die Zeile „Charakter: …",
 die Gruppe „Ausgabe" mit „GLB-Datei" (Vorgabe) und „Blender-Paket", bei dem Paket der Hinweis in
-`color-gray-2-text` (`FS_XS`, „enthält keine Animationen"), dann die Gruppe „Datei" oder „Paketordner" mit
+`color-gray-2-text` (`FS_XS`), daneben (nur beim Paket) die Gruppe „Animationen" mit „Keine" und „Alle" (Vorgabe „Alle": die Animationen der Animationsordner des Charakters, wie `p4kx character package --anim all`; kein Auswahlfeld für einzelne Clips und kein `--anim-from` im Fenster), dann die Gruppe „Datei" oder „Paketordner" mit
 denselben Meldungen wie bei der Entity, und den Fuß „Exportieren" und „Schließen". Detailstufe und Materialien
 bleiben in der Werkzeugleiste. Das Fortschrittsfenster zeigt beim Paket „Das Paket von … wird geschrieben …"
 ohne Byte-Zähler und „Abbrechen"; die Zusammenfassung nennt Ordner, Teile, Knochen, Skin-Meshes, Shape Keys,
-Animationen, Eckpunkte, Dreiecke, Dateien und Größe. Form und Ordner merkt sich der Tab bis zum Schließen des
+Animationen, Eckpunkte, Dreiecke, Dateien und Größe. Der Dialog beginnt mit „GLB-Datei", unabhängig vom Entity-Export; Form, Animationen und Ordner merkt sich der Tab bis zum Schließen des
 Fensters. Neue Maße gibt es nicht.

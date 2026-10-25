@@ -90,7 +90,7 @@ fn the_setup_offers_the_package_next_to_the_glb_file() -> TestResult {
     assert!(
         window
             .1
-            .query_by_label_contains("It carries no animations")
+            .query_by_label_contains("and the animations if you choose them")
             .is_some(),
         "the note says what the package holds"
     );
@@ -129,7 +129,7 @@ fn the_german_setup_names_the_package() -> TestResult {
     assert!(
         window
             .1
-            .query_by_label_contains("enthält keine Animationen")
+            .query_by_label_contains("und die Animationen, wenn du sie wählst")
             .is_some()
     );
     Ok(())

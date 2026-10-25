@@ -398,7 +398,6 @@ pub(crate) struct ExcerptResult {
     pub(crate) bytes: usize,
     /// The size cap of the WAV in bytes.
     pub(crate) max_bytes: usize,
-    /// Whether the excerpt is shorter than asked for: cut by the size cap or by the end of the
-    /// sound.
+    /// Whether the excerpt is shorter than asked for: cut by the size cap or the sound's end.
     pub(crate) truncated: bool,
 }

@@ -45,15 +45,22 @@ pub(super) fn paint(
         return;
     }
     if path.is_empty() {
+        let reason = if draws_box(look) {
+            "the box is drawn; the game sets the graphic at run time"
+        } else {
+            "names no vector graphic; the game sets it at run time"
+        };
         cx.report.images_left_out += 1;
-        cx.report.note(
-            &widget.type_name,
-            "names no vector graphic; the game sets it at run time",
-            &widget.name,
-        );
+        cx.report.note(&widget.type_name, reason, &widget.name);
         return;
     }
     draw(cx, widget, look, area, alpha, path);
+}
+
+/// Returns whether the style gives the shape a background or a border: a shape without a graphic
+/// is then the box that draws.
+fn draws_box(look: &Look<'_>) -> bool {
+    look.background.is_some() || look.borders.iter().any(|(width, _)| *width > 0.0)
 }
 
 fn overlay_colours(

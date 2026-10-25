@@ -45,7 +45,9 @@ pub enum TestColour {
 }
 
 impl TestColour {
-    pub(crate) fn value(self) -> TestValue {
+    /// Returns the colour as the value of a colour field of a widget.
+    #[must_use]
+    pub fn value(self) -> TestValue {
         TestValue::Struct(match self {
             Self::Solid([r, g, b, a]) => TestInstance::new("BuildingBlocks_ColorSolid").value(
                 "color",

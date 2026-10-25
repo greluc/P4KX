@@ -1,6 +1,7 @@
 # Screen images are bitmap fills and a small SVG reader, bounded per screen
 
 Decided for issue #537, on top of ADR-0089 (screens), ADR-0101 (texts) and ADR-0020 (the `Scene`).
+Amended by ADR-0111: a custom shape without a graphic is always listed, also when its box draws.
 
 ## What the Records hold, on LIVE with `p4kx dcb fields` and `dcb export`
 

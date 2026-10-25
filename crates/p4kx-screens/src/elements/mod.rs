@@ -7,11 +7,14 @@ mod display;
 mod image;
 mod overlay;
 mod polygon;
+mod runtime;
+mod standard;
 mod text;
 mod unsupported;
 mod vector;
 
 pub(crate) use canvas::nested as nested_canvas;
+pub(crate) use standard::{is_standard, tags_of as standard_tags};
 
 use crate::context::Context;
 use crate::look::Look;
@@ -35,6 +38,9 @@ pub(crate) const POLYGON: &str = "BuildingBlocks_WidgetPolygon";
 
 pub(crate) fn is_rendered(type_name: &str) -> bool {
     STRUCTURAL.contains(&type_name)
+        || runtime::is_scene(type_name)
+        || runtime::is_silent(type_name)
+        || is_standard(type_name)
         || matches!(
             type_name,
             CIRCLE
@@ -46,6 +52,8 @@ pub(crate) fn is_rendered(type_name: &str) -> bool {
                 | ICON
                 | FOREGROUND_OVERLAY
                 | BODY_BACKGROUND
+                | runtime::RUNTIME_IMAGE
+                | runtime::LINE
         )
 }
 
@@ -64,7 +72,10 @@ pub(crate) fn paint(
         IMAGE => image::paint(cx, widget, look, area, alpha),
         CUSTOM_SHAPE | ICON => vector::paint(cx, widget, look, area, alpha),
         FOREGROUND_OVERLAY | BODY_BACKGROUND => overlay::paint(cx, widget, look, area, alpha),
-        name if STRUCTURAL.contains(&name) => {}
+        runtime::RUNTIME_IMAGE => runtime::image(cx, widget),
+        runtime::LINE => runtime::line(cx, widget),
+        name if runtime::is_scene(name) => runtime::scene(cx, widget),
+        name if STRUCTURAL.contains(&name) || runtime::is_silent(name) || is_standard(name) => {}
         _ => unsupported::note(cx, widget),
     }
 }

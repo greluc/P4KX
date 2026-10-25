@@ -216,6 +216,10 @@ fn the_streams_of_every_mesh_chunk_are_counted_by_tag_and_element_size() -> Test
     assert_eq!(survey.without_normals_after, 0, "chunks without a normal");
     assert_eq!(survey.truncated, 0, "streams that overrun their chunk");
     assert!(
+        !survey.pairs.contains_key(&(TANGENTS, 16)),
+        "the 16-byte tangent layout occurs: ADR-0114 needs a new decision"
+    );
+    assert!(
         survey.unreadable.is_empty(),
         "unreadable: {:#?}",
         survey.unreadable

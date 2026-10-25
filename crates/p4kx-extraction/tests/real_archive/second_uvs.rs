@@ -18,7 +18,7 @@ use rayon::prelude::*;
 type TestResult = Result<(), Box<dyn Error>>;
 type Uv = [f32; 2];
 
-const EXTENSIONS: [&str; 3] = ["cgfm", "cgam", "skinm"];
+const EXTENSIONS: [&str; 4] = ["cgfm", "cgam", "skinm", "chrm"];
 const MODEL_EXTENSIONS: [&str; 3] = ["cgf", "cga", "skin"];
 const MAX_FILE_LEN: u64 = 512 << 20;
 const MODEL_SAMPLE: usize = 600;

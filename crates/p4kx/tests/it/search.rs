@@ -231,7 +231,8 @@ fn extract_rejects_zero_threads() -> TestResult {
         .arg(&archive)
         .args(["--filter", "*.XML", "--threads", "0"])
         .assert()
-        .code(2);
+        .code(2)
+        .stderr(predicate::str::contains("--threads"));
     Ok(())
 }
 

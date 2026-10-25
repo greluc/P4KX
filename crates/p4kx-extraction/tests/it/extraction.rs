@@ -63,6 +63,20 @@ fn selecting_an_unknown_path_names_every_unknown_path() -> TestResult {
 }
 
 #[test]
+fn an_unknown_path_requested_twice_is_reported_twice() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = open(dir.path(), &sample())?;
+
+    let result = select_entries(&archive, &["x", "Data\\b.txt", "x"]);
+
+    let Err(UnknownEntries(unknown)) = result else {
+        return Err(format!("unknown paths are an error: {result:?}").into());
+    };
+    assert_eq!(unknown, vec!["x", "x"], "once per request");
+    Ok(())
+}
+
+#[test]
 fn selecting_many_paths_keeps_archive_order_and_finds_entries_that_differ_only_in_case()
 -> TestResult {
     let dir = tempfile::tempdir()?;

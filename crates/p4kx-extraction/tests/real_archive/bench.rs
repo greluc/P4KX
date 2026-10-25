@@ -16,7 +16,7 @@ use p4kx_testkit::{bench, bench_once, real_archive_path};
 use super::{TestResult, report};
 
 const SAMPLE: usize = 10_000;
-const SCANNED: usize = 50;
+const LINEAR_SCAN_SAMPLE: usize = 50;
 const EXTRACT_FILTER: &str = "objects\\spaceships\\ships\\aegs\\";
 
 fn open() -> Result<Archive, Box<dyn std::error::Error>> {
@@ -49,6 +49,9 @@ fn mib_per_second(bytes: u64, elapsed: Duration) -> u64 {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_path_lookup() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = open()?;
     let paths = sampled_paths(&archive, SAMPLE);
     bench("path_index build", 5, || PathKeys::new(&archive));
@@ -65,7 +68,7 @@ fn bench_path_lookup() -> TestResult {
         .filter(|path| index.find(path).is_some())
         .count();
     assert_eq!(hits, paths.len(), "every sampled path is found");
-    let scanned = paths.get(..SCANNED).unwrap_or_default();
+    let scanned = paths.get(..LINEAR_SCAN_SAMPLE).unwrap_or_default();
     let scan = bench("linear scan find x50", 5, || {
         scanned
             .iter()
@@ -90,6 +93,9 @@ fn bench_path_lookup() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_select_entries() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = open()?;
     for count in [1, 100, 1000] {
         let paths = sampled_paths(&archive, count);
@@ -104,6 +110,9 @@ fn bench_select_entries() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_filter() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = open()?;
     let groups = TextureGroups::build(&archive);
     for text in [EXTRACT_FILTER, "ship", "*.cgf", "objects/*/aegs/*gladius*"] {
@@ -121,6 +130,9 @@ fn bench_filter() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_dataforge_and_record_export() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = open()?;
     bench("dataforge read", 3, || {
         DataForgeEntry::read(&archive).map(|entry| entry.path().len())
@@ -151,41 +163,40 @@ fn bench_dataforge_and_record_export() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_extraction_throughput() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = open()?;
     let selected: Vec<&Entry> = Filter::new(EXTRACT_FILTER).select(&archive);
     let bytes: u64 = selected.iter().map(|entry| entry.uncompressed_size()).sum();
-    let mut by_offset = selected.clone();
-    by_offset.sort_unstable_by_key(|entry| entry.data_offset());
-    let in_order = selected
-        .windows(2)
-        .filter(|pair| {
-            pair.first().map(|entry| entry.data_offset())
-                <= pair.get(1).map(|entry| entry.data_offset())
-        })
-        .count();
     report(&format!(
-        "BENCH extraction set: {} Entries, {} MiB, {in_order} of {} neighbours in offset order",
+        "BENCH extraction set: {} Entries, {} MiB",
         selected.len(),
-        bytes >> 20,
-        selected.len().saturating_sub(1)
+        bytes >> 20
     ));
-    for (label, entries) in [
-        ("archive order", &selected),
-        ("offset order", &by_offset),
-        ("archive order again", &selected),
-    ] {
+    for label in ["first run", "second run, fresh folder"] {
         let target = tempfile::tempdir()?;
         let (done, elapsed) = bench_once(&format!("extract {label}"), || {
-            extract(&archive, entries, target.path(), &ExtractOptions::default())
+            extract(
+                &archive,
+                &selected,
+                target.path(),
+                &ExtractOptions::default(),
+            )
         });
         report(&format!(
             "BENCH extract {label}: {} MiB/s, complete {}",
             mib_per_second(bytes, elapsed),
             done.is_complete()
         ));
-        if label == "archive order" {
+        if label == "first run" {
             bench_once("extract again, every file exists (Skip)", || {
-                extract(&archive, entries, target.path(), &ExtractOptions::default())
+                extract(
+                    &archive,
+                    &selected,
+                    target.path(),
+                    &ExtractOptions::default(),
+                )
             });
         }
     }
@@ -195,6 +206,9 @@ fn bench_extraction_throughput() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_extraction_threads() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = open()?;
     let selected: Vec<&Entry> = Filter::new("*.mtl").select(&archive);
     let bytes: u64 = selected.iter().map(|entry| entry.uncompressed_size()).sum();

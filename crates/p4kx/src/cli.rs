@@ -368,8 +368,9 @@ pub(crate) struct ExtractArgs {
     /// stored CRC-32C.
     #[arg(long)]
     pub(crate) verify: bool,
-    /// The most worker threads the extraction uses; by default one per logical processor. Fewer
-    /// threads leave processors to other programs and ease the load on a slow disk.
+    /// The most threads the extraction uses, sound conversion included; by default one per
+    /// logical processor, and a larger value is capped there. Fewer threads leave processors to
+    /// other programs and ease the load on a slow disk.
     #[arg(long, value_name = "N")]
     pub(crate) threads: Option<NonZeroUsize>,
     /// Cancels the run once this many Entries have ended, as Ctrl+C would.

@@ -12,6 +12,7 @@ mod dataforge_conversion;
 mod entry_tree;
 mod extraction;
 mod filter;
+mod folder_links;
 mod installation;
 mod language_texts;
 mod loaded_dataforge;

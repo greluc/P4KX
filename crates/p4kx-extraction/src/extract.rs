@@ -65,8 +65,10 @@ pub(crate) enum Ended {
 /// reported. The watch is checked before the run, periodically during it, before each file is
 /// put in place and after the run.
 ///
-/// With [`ExtractOptions::threads`] set, the run uses a rayon pool of that many threads; if the
-/// system refuses to start it, the run uses the current pool.
+/// With [`ExtractOptions::threads`] set, the run, the sound workers and all work nested in them
+/// use a rayon pool of at most that many threads, never more than the logical processors. If the
+/// system refuses to start the pool, every Entry fails with [`ExtractionError::ThreadPool`] and
+/// nothing is written.
 #[must_use]
 pub fn extract(
     archive: &Archive,
@@ -74,17 +76,28 @@ pub fn extract(
     target: &Path,
     options: &ExtractOptions<'_>,
 ) -> ExtractionReport {
-    let pool = options.threads.and_then(|threads| {
-        rayon::ThreadPoolBuilder::new()
-            .num_threads(threads.get())
-            .thread_name(|number| format!("p4kx-extract-{number}"))
-            .build()
-            .ok()
-    });
-    pool.map_or_else(
-        || run(archive, entries, target, options),
-        |pool| pool.install(|| run(archive, entries, target, options)),
-    )
+    let Some(threads) = options.threads else {
+        return run(archive, entries, target, options);
+    };
+    let limit = std::thread::available_parallelism().map_or(1, std::num::NonZero::get);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads.get().min(limit))
+        .thread_name(|number| format!("p4kx-extract-{number}"))
+        .build();
+    match pool {
+        Ok(pool) => pool.install(|| run(archive, entries, target, options)),
+        Err(error) => ExtractionReport {
+            failures: entries
+                .iter()
+                .map(|entry| EntryFailure {
+                    path: entry.path().to_owned(),
+                    error: ExtractionError::ThreadPool(error.to_string()),
+                })
+                .collect(),
+            converted: options.convert.then_some(0),
+            ..ExtractionReport::default()
+        },
+    }
 }
 
 fn run(

@@ -78,8 +78,9 @@ pub struct ExtractOptions<'a> {
     /// parses only in part is read to its end first. An Entry skipped by the Conflict policy is not
     /// read and so not verified.
     pub verify: bool,
-    /// The most worker threads the run uses, on a pool of its own; `None` runs on the current
-    /// rayon pool.
+    /// The most threads the whole run uses, sound workers and the work nested in them included,
+    /// on a pool of its own, capped at the logical processors; `None` runs on the current rayon
+    /// pool.
     pub threads: Option<NonZeroUsize>,
     /// Stops the run once cancelled.
     pub cancel: Option<&'a CancelToken>,

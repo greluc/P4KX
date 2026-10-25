@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
 
@@ -9,15 +10,18 @@ use crate::ExtractionError;
 use crate::write::create_folders;
 
 /// The folders below one target that a run created or checked, shared by its worker threads so
-/// each folder costs its file system calls once instead of once per file.
+/// a folder costs one file system call per file instead of one or more per path component.
 #[derive(Debug, Default)]
 pub(crate) struct FolderCache {
     known: RwLock<HashSet<PathBuf>>,
 }
 
 impl FolderCache {
-    /// Returns the folder `relative` below `target`, creating it and refusing links on the way
-    /// unless an earlier call did already.
+    /// Returns the folder `relative` below `target`, created if missing.
+    ///
+    /// A folder seen before is trusted only while it still is a real folder: a single
+    /// `symlink_metadata` of it must say so, otherwise the full creation runs again, which
+    /// recreates a deleted folder and refuses a link.
     pub(crate) fn folder(
         &self,
         target: &Path,
@@ -29,7 +33,10 @@ impl FolderCache {
                 .read()
                 .is_ok_and(|known| known.contains(relative))
         {
-            return Ok(target.join(relative));
+            let folder = target.join(relative);
+            if fs::symlink_metadata(&folder).is_ok_and(|metadata| metadata.is_dir()) {
+                return Ok(folder);
+            }
         }
         let folder = create_folders(target, relative)?;
         if let Some(relative) = relative

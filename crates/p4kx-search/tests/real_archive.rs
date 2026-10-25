@@ -146,6 +146,9 @@ fn every_text_entry_is_scanned_and_unreadable_ones_are_counted() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_content_search() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = Archive::open_with_key(
         real_archive_path()?,
         Some(p4kx_testkit::real_archive_key()?),

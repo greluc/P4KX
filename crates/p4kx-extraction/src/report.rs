@@ -74,6 +74,10 @@ pub enum ExtractionError {
         /// The checksum of the decoded data.
         actual: Checksum,
     },
+    /// The worker threads of a run limited by [`ExtractOptions::threads`](crate::ExtractOptions)
+    /// could not be started; nothing is written.
+    #[error("cannot start the worker threads: {0}")]
+    ThreadPool(String),
 }
 
 impl ExtractionError {

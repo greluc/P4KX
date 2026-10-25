@@ -4,6 +4,28 @@
 use std::io::Write;
 use std::time::{Duration, Instant};
 
+/// The environment variable that switches the `bench_*` tests on; without it, or a test filter
+/// that starts with `bench_`, they return at once.
+pub const BENCH_VAR: &str = "P4KX_BENCH";
+
+/// Returns whether the `bench_*` tests are switched on: [`BENCH_VAR`] is `1`, or a command-line
+/// argument of the test binary is a filter starting with `bench_`. Otherwise writes a line saying
+/// so to stderr.
+#[must_use]
+pub fn bench_enabled() -> bool {
+    let enabled = std::env::var_os(BENCH_VAR).is_some_and(|value| value == "1")
+        || std::env::args()
+            .skip(1)
+            .any(|argument| argument.starts_with("bench_"));
+    if !enabled {
+        let _ignored = writeln!(
+            std::io::stderr().lock(),
+            "skipped: set {BENCH_VAR}=1 or name a bench_ filter to run the timing tests"
+        );
+    }
+    enabled
+}
+
 /// The wall-clock times of the repeated runs of one measured operation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Timing {

@@ -25,6 +25,9 @@ fn open() -> Result<Archive, Box<dyn Error>> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_archive_open() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let path = real_archive_path()?;
     let key = p4kx_testkit::real_archive_key()?;
     bench("archive open", 5, || {
@@ -36,6 +39,9 @@ fn bench_archive_open() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn bench_random_entry_reads() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
     let archive = open()?;
     let candidates: Vec<&Entry> = archive
         .entries()

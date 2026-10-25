@@ -12,7 +12,8 @@ use crate::{
 ///
 /// They are shaped as in the game data: `GlobalResourceAudio` with its `audioTrigger` name, held
 /// by `SAudioTestComponentParams` directly and through the sound trigger effects of its
-/// `triggerEffects`.
+/// `triggerEffects`, and `SMeleeAudioTestParams` with a string field `audioTriggerName` that names
+/// a trigger and a string field `soundTag` that does not.
 #[must_use]
 pub fn audio_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
     [
@@ -27,6 +28,10 @@ pub fn audio_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
                 "triggerEffects",
                 TestType::StrongPointer("SEntityEffectSystem_SoundTriggerEffect".to_owned()),
             ),
+        TestStruct::new("SMeleeAudioTestParams")
+            .parent("DataForgeComponentParams")
+            .field("audioTriggerName", TestType::String)
+            .field("soundTag", TestType::String),
         TestStruct::new("SEntityEffectSystem_SoundTriggerEffect")
             .field("name", TestType::String)
             .field("audio", TestType::Class("GlobalResourceAudio".to_owned())),

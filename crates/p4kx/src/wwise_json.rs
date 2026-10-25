@@ -167,7 +167,9 @@ pub(crate) fn broken_link<'a>(link: &BrokenLink<'a>) -> BreakJson<'a> {
         soundbank: link.soundbank().map(soundbank),
         object: link.object().map(step),
         target: match link.reason() {
-            BreakReason::Missing { id } | BreakReason::Cycle { id } => Some(*id),
+            BreakReason::Missing { id }
+            | BreakReason::OtherSoundbank { id, .. }
+            | BreakReason::Cycle { id } => Some(*id),
             _ => None,
         },
         path: steps(link.path()),

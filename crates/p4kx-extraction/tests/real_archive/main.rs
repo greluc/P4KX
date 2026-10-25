@@ -44,6 +44,7 @@ mod skeletons;
 mod sound;
 mod sound_extraction;
 mod soundbank;
+mod soundbank_hirc;
 mod stream_repeats;
 mod texture;
 mod texture_conversion;

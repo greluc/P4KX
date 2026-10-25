@@ -3,6 +3,7 @@
 
 use crate::TestChunkFile;
 use crate::model_cube::{cube_nodes, cube_submeshes, cube_vertices};
+pub use crate::model_layout::{TestNormals, TestPositions};
 use crate::model_nmc::nmc_chunk;
 use crate::model_skin::{skin_chunk, tangent_frame};
 
@@ -16,38 +17,6 @@ const IVO_VERSION: u32 = 0x900;
 
 /// Whether the stream has eight influences per vertex, and the (bone, weight) pairs of each vertex.
 pub(crate) type BoneMap = (bool, Vec<Vec<(u16, u8)>>);
-
-/// How a [`TestModel`] stores its vertex positions.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TestPositions {
-    /// 16-byte vertices with positions as signed 16-bit values scaled to the mesh's bounding box.
-    Quantized,
-    /// 20-byte vertices with positions as three 32-bit floats.
-    Float,
-}
-
-/// How a [`TestModel`] stores its vertex normals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TestNormals {
-    /// An `IVONORMALS2` stream of three 32-bit floats per vertex.
-    Float,
-    /// An `IVOQTANGENTS` stream of a packed tangent and bitangent per vertex.
-    Compressed,
-    /// An `IVONORMALS` stream of three 32-bit floats per vertex.
-    FloatOnNormals,
-    /// An `IVONORMALS` stream of one packed unit vector per vertex.
-    PackedOnNormals,
-    /// An `IVONORMALS2` stream of one packed unit vector per vertex.
-    PackedOnNormals2,
-    /// An `IVOQTANGENTS` stream of the true normals followed by an `IVONORMALS2` stream of packed
-    /// vectors that point the other way.
-    CompressedWithOpposedPacked,
-    /// An `IVOTANGENTS` stream of 16 bytes per vertex: two quaternions of four signed 16-bit
-    /// values, the first rotating the Z axis onto the normal.
-    Tangents16,
-    /// No normal stream.
-    None,
-}
 
 /// One node of a [`TestModel`]'s `NodeMeshCombo` chunk.
 #[derive(Debug, Clone, PartialEq)]
@@ -111,6 +80,7 @@ pub struct TestModel {
     pub(crate) repeated_index_streams: usize,
     pub(crate) colours: Option<Vec<[u8; 4]>>,
     pub(crate) tangent_sign: f32,
+    pub(crate) second_uvs: Option<Vec<[f32; 2]>>,
     pub(crate) bone_map: Option<BoneMap>,
     lods: Vec<Self>,
     extra_chunks: Vec<(u32, Vec<u8>)>,
@@ -144,6 +114,7 @@ impl TestModel {
             repeated_index_streams: 0,
             colours: None,
             tangent_sign: 1.0,
+            second_uvs: None,
             bone_map: None,
             lods: Vec::new(),
             extra_chunks: Vec::new(),
@@ -201,6 +172,14 @@ impl TestModel {
     #[must_use]
     pub fn with_colours(mut self, colours: Vec<[u8; 4]>) -> Self {
         self.colours = Some(colours);
+        self
+    }
+
+    /// Stores `uvs`, one texture coordinate per vertex in stream order, as the four-byte
+    /// `IVONORMALS2` stream of the second texture coordinates.
+    #[must_use]
+    pub fn with_second_uvs(mut self, uvs: Vec<[f32; 2]>) -> Self {
+        self.second_uvs = Some(uvs);
         self
     }
 

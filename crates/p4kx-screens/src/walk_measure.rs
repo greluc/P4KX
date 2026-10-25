@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use p4kx_dataforge::Guid;
 
 use crate::canvas::Canvas;
@@ -54,8 +56,11 @@ impl Walk<'_, '_, '_, '_> {
             probe.canvas.guid,
             probe.index,
             self.chain.last().copied().unwrap_or(0),
-            self.override_key()
-                .wrapping_add(self.position_key(probe.position) as u64),
+            {
+                let mut hasher = DefaultHasher::new();
+                (self.override_key(), self.position_key(probe.position)).hash(&mut hasher);
+                hasher.finish()
+            },
             [parent.width.to_bits(), parent.height.to_bits()],
             self.pixel.to_bits(),
         );

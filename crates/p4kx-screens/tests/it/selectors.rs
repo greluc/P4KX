@@ -346,7 +346,7 @@ fn the_modifiers_of_clones_in_force_are_capped() -> TestResult {
     ));
 
     let per_clone = Limits {
-        overrides: [32, 1],
+        modifiers_per_clone: 1,
         ..Limits::DEFAULT
     };
     let capped = compose_with(&build(), Vec::new(), per_clone)?;
@@ -357,7 +357,7 @@ fn the_modifiers_of_clones_in_force_are_capped() -> TestResult {
     );
 
     let in_force = Limits {
-        overrides: [0, 256],
+        clones_in_force: 0,
         ..Limits::DEFAULT
     };
     let none = compose_with(&build(), Vec::new(), in_force)?;

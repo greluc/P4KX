@@ -120,7 +120,7 @@ impl Walk<'_, '_, '_, '_> {
         let (false, true, Some(&root)) = (items.is_empty(), kids.len() > own, kids.last()) else {
             return false;
         };
-        let [stack, per_clone] = self.limits.overrides;
+        let (stack, per_clone) = (self.limits.clones_in_force, self.limits.modifiers_per_clone);
         if self.overrides.len() >= stack || items.len() > per_clone {
             self.cx.report.truncated = true;
         }

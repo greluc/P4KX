@@ -94,6 +94,47 @@ fn a_number_that_is_not_finite_is_unknown() {
 }
 
 #[test]
+fn no_number_that_is_not_finite_reaches_an_alpha_or_a_parameter() {
+    let operations = graph(
+        vec![
+            Node::Param {
+                parameter: "ParamInput0".to_owned(),
+                default: Rest::Num(f64::NAN),
+            },
+            Node::Same(Some(0)),
+            Node::Choose {
+                numbers: [0.0, f64::INFINITY],
+                input: Some(3),
+                branches: [None, None],
+                whole: false,
+            },
+            flag(),
+        ],
+        vec![
+            binding("Alpha", FieldKind::Number, 1),
+            binding("ParamInput1", FieldKind::Number, 1),
+            binding("Alpha", FieldKind::Number, 2),
+        ],
+    );
+    let state = AtRest::of(&operations, &[]);
+    assert_eq!(state.alpha(0), None);
+    assert_eq!(state.typed(0), []);
+    assert_eq!(state.unknown().len(), 3);
+    let clamped = graph(
+        vec![
+            Node::Zero(Rest::Num(0.5)),
+            Node::Clamp {
+                bounds: [f64::NEG_INFINITY, f64::INFINITY],
+                input: Some(0),
+                inputs: [None, None],
+            },
+        ],
+        vec![binding("Alpha", FieldKind::Number, 1)],
+    );
+    assert_eq!(AtRest::of(&clamped, &[]).alpha(0), Some(0.5));
+}
+
+#[test]
 fn an_alpha_is_held_between_zero_and_one() {
     let operations = graph(
         vec![

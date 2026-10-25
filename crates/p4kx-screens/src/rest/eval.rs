@@ -9,6 +9,8 @@ use super::graph::{FieldKind, Input, Node, Operations};
 
 const MAX_DEPTH: usize = 128;
 const PARAMETER: &str = "ParamInput";
+const TOO_DEEP: &str = "nested too deep";
+const NOT_FINITE: &str = "a number that is not finite";
 
 type Outcome = Result<Rest, String>;
 
@@ -28,7 +30,7 @@ struct Eval<'a> {
 impl Eval<'_> {
     fn value(&mut self, at: usize, depth: usize) -> Outcome {
         if depth > MAX_DEPTH {
-            return Err("nested too deep".to_owned());
+            return Err(TOO_DEEP.to_owned());
         }
         match self.memo.get(at) {
             None => return Err("an operation that does not exist".to_owned()),
@@ -40,12 +42,21 @@ impl Eval<'_> {
             *slot = Memo::Busy;
         }
         let nodes = self.nodes;
-        let outcome = nodes.get(at).map_or_else(
-            || Err("an operation that does not exist".to_owned()),
-            |node| self.node(node, depth),
-        );
+        let outcome = nodes
+            .get(at)
+            .map_or_else(
+                || Err("an operation that does not exist".to_owned()),
+                |node| self.node(node, depth),
+            )
+            .and_then(|value| match value {
+                Rest::Num(number) if !number.is_finite() => Err(NOT_FINITE.to_owned()),
+                value => Ok(value),
+            });
         if let Some(slot) = self.memo.get_mut(at) {
-            *slot = Memo::Done(outcome.clone());
+            *slot = match &outcome {
+                Err(why) if why == TOO_DEEP => Memo::Fresh,
+                _ => Memo::Done(outcome.clone()),
+            };
         }
         outcome
     }
@@ -159,12 +170,7 @@ impl Eval<'_> {
             } => {
                 let left = self.number(*left, depth)?;
                 let right = self.number_or(*right, *amount, depth)?;
-                let result = op.apply(left, right);
-                if result.is_finite() {
-                    Ok(Rest::Num(whole_if(result, *whole)))
-                } else {
-                    Err("a number that is not finite".to_owned())
-                }
+                Ok(Rest::Num(whole_if(op.apply(left, right), *whole)))
             }
             Node::Clamp {
                 bounds,

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::rc::Rc;
 
@@ -41,6 +41,8 @@ pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) chain: Vec<u64>,
     pub(crate) cache: HashMap<Guid, Rc<CanvasStyles>>,
     pub(crate) pending_sheet: Option<Guid>,
+    pub(crate) noted: HashSet<Guid>,
+    pub(crate) left_out_noted: HashSet<Guid>,
     pub(crate) params: Vec<ParamValues>,
     pub(crate) resolved: HashMap<(Guid, usize, u64, u64, usize), Rc<Modifiers>>,
     pub(crate) shape: Uses,
@@ -82,6 +84,8 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             chain: Vec::new(),
             cache: HashMap::new(),
             pending_sheet: None,
+            noted: HashSet::new(),
+            left_out_noted: HashSet::new(),
             params: Vec::new(),
             resolved: HashMap::new(),
             shape: Uses::default(),
@@ -146,11 +150,15 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
     ) -> Option<Sibling<'c>> {
         let widget = canvas.widgets.get(index)?;
         if !self.instantiated(index) {
+            self.note_gone(canvas, index, widget, "Instantiated");
             return None;
         }
         let mut plan = self.plan_kids(canvas, index, widget);
         let style = self.style_of(canvas, (index, widget), (position, &plan.kids));
         if self.budget == 0 || !self.shown(index, widget, &style) {
+            if self.budget > 0 && style.active.is_none() {
+                self.note_gone(canvas, index, widget, "IsActive");
+            }
             return None;
         }
         let geometry = Geometry::of(widget, &style);
@@ -297,7 +305,11 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let content = area.inset(padding.top, padding.right, padding.bottom, padding.left);
         let subject = self.subject_of(canvas, widget, (sibling.position, &sibling.kids));
         let place = self.position_key(sibling.position);
-        self.push_chain(&(&subject.kind, &subject.tags, place));
+        let mut kids = DefaultHasher::new();
+        for kid in &subject.kids {
+            (&kid.kind, &kid.tags, kid.position).hash(&mut kids);
+        }
+        self.push_chain(&(&subject.kind, &subject.tags, place, kids.finish()));
         self.above.push(subject);
         if sibling.instance {
             self.templates.push((canvas.guid, sibling.index));

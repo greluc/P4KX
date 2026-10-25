@@ -73,9 +73,11 @@ impl Walk<'_, '_, '_, '_> {
                 .get(at)
                 .map_or("", |widget| widget.name.as_str())
         };
-        for (widget, field) in state.left_out() {
-            let reason = left_out_reason(field);
-            self.cx.report.note("Binding", &reason, name(*widget));
+        if self.left_out_noted.insert(canvas.guid) {
+            for (widget, field) in state.left_out() {
+                let reason = left_out_reason(field);
+                self.cx.report.note("Binding", &reason, name(*widget));
+            }
         }
         for (widget, field, why) in state.unknown() {
             let reason = format!("the input of the bound field {field} is not evaluated: {why}");
@@ -94,6 +96,28 @@ impl Walk<'_, '_, '_, '_> {
             .last()
             .and_then(|state| state.instantiated(index))
             .unwrap_or(true)
+    }
+
+    /// Lists the root widget `index` of `canvas` as left out when a binding takes it out of the
+    /// screen, so that an empty picture says why.
+    pub(crate) fn note_gone(
+        &mut self,
+        canvas: &Canvas,
+        index: usize,
+        widget: &Widget,
+        field: &str,
+    ) {
+        let bound_off = field == "Instantiated"
+            || self
+                .rests
+                .last()
+                .is_some_and(|state| state.active(index) == Some(false));
+        if bound_off && canvas.roots.contains(&index) {
+            let reason = format!(
+                "not drawn at rest: {field} is bound to game variables, which are zero at rest"
+            );
+            self.cx.report.note("Binding", &reason, &widget.name);
+        }
     }
 
     /// Returns whether widget `index` is shown: a style entry beats the bound value of

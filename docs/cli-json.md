@@ -1387,8 +1387,26 @@ not undone: they are inherited`, `a number of the geometry is not finite: the de
 `no target that is a widget of the canvas: nothing repeated`, `the template contains a clone of
 itself: not repeated`, `clipping stopped at the 24th mask: later content is not clipped`,
 `colour slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not
-evaluated` for a `StyleEntry`, and the reasons of circles, polygons and texts) how many widgets it
-concerns and the names of up to three. `missing_canvases` names nested canvases that cannot be
+evaluated` for a `StyleEntry` (the selectors of the entries of the canvas, of its styles and of the
+`stylesheetOverride` of a canvas widget, listed when the canvas is first laid out; `Count` of a
+type other than `First` and `Every`, and `Child` that holds a `Parent` or `Ancestor`, are among
+them), the `Binding` reasons below, and the reasons of circles, polygons and texts) how many
+widgets it concerns and the names of up to three.
+
+`Binding` lists what the state at rest of a canvas (ADR-0110) could not decide, per canvas once
+for the fields and per set of parameters for the inputs. The bound fields `Instantiated`,
+`IsActive`, `Alpha` and `ParamInput0` to `ParamInput4` that evaluate to a value are applied and not
+listed. The reasons are `bound state tags are not evaluated at rest`, `bound layout fields (size,
+position, anchor, pivot, scale, turn, spacing, flex) are not evaluated at rest`, `bound field
+<field> is not evaluated at rest` for any other field, and `the input of the bound field <field>
+is not evaluated: <why>` where the graph that feeds a field of those that are evaluated holds a
+node that is not evaluated (`<kind> is not evaluated`), an input that is not connected, a cycle,
+a number that is not finite, an operation that does not exist, a value of the wrong kind, or more
+than 128 nodes in a chain. A root widget that a binding takes out of the screen is listed as `not
+drawn at rest: Instantiated is bound to game variables, which are zero at rest`, or `IsActive` for
+one that is hidden, so that an empty picture says why. Since a list that is not empty makes the
+exit code 1 (below), many screens of the game, whose bindings are not all evaluated, exit with 1
+although they are drawn. `missing_canvases` names nested canvases that cannot be
 read, that no Record answers or that contain themselves; widgets whose parents form a cycle are
 listed in `unsupported` (`not reachable from a root: its parents form a cycle`). Textures and SVG
 files add `texture missing or unreadable` and `vector graphic missing or unreadable` (an example is
@@ -1396,9 +1414,12 @@ files add `texture missing or unreadable` and `vector graphic missing or unreada
 by the game at run time` and the features an SVG file uses that are left out (`paint servers are
 drawn as their first colour`, `clip paths, masks and filters are not applied`, `image and text
 elements are left out`, `style rules beyond the limit are left out`, ...). `truncated` is true
-when a limit stopped the composition: 2^18 widgets visited or placed (hidden ones included),
-2^26 steps of the style cascade, 2^17 shapes, 2^14 instances of templates, 2^10 rows of one list
-or a depth of 64 widgets and canvases (ADR-0106). `skipped` lists what the renderer
+when a limit stopped the composition: 2^18 widgets placed (a list of siblings is refused as a whole
+when it would not fit, counting every sibling in it; widgets that are hidden or not instantiated
+take part in no layout and add nothing to `widgets` or to the limit, except as siblings in that
+check), 2^26 steps of the style cascade, 2^17 shapes, 2^14 instances of templates, 2^10 rows of
+one list, a depth of 64 widgets and canvases (ADR-0106), more than 32 clones whose modifiers are
+in force at once, or a clone with more than 256 modifiers (ADR-0110). `skipped` lists what the renderer
 (raster or SVG writer) skipped of the scene, each with the stable `reason` code of
 `p4kx ui render` and a `message`; it is `[]` when nothing was skipped.
 

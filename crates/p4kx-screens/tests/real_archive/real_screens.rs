@@ -128,6 +128,7 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
         background: Background::Transparent,
     };
     let mut rendered = BTreeSet::new();
+    let mut drawing = 0_usize;
     for ship in SHIPS {
         let Ok(record) = resolver.entities().find(ship) else {
             continue;
@@ -143,6 +144,7 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
             composed.rasterize(&options)?;
             let report = composed.report();
             assert!(report.canvases > 0, "{ship} {}: canvases", screen.canvas);
+            drawing += usize::from(report.widgets > 0);
             assert!(
                 !report.truncated,
                 "{ship} {}: within the limits",
@@ -159,5 +161,6 @@ fn the_screens_of_real_ships_list_and_render() -> TestResult {
         }
     }
     assert!(!rendered.is_empty(), "at least one ship rendered");
+    assert!(drawing > 0, "at least one screen draws widgets at rest");
     Ok(())
 }

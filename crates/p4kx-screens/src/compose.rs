@@ -191,6 +191,7 @@ impl<'a, 'f> ScreenComposer<'a, 'f> {
             &mut cx,
             self.limits,
         );
+        walk.survey(&root);
         walk.enter(
             &root,
             Area {

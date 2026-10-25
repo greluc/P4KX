@@ -74,6 +74,9 @@ listed at the end.
   Other bound fields (state tags, sizes, anchors, colours, `Disabled`, paths, ...) are not
   evaluated and are listed per canvas as `Binding`: state tags and layout fields in one line each,
   any other field by its name.
+- **The shape of the tree is a property of the screen.** Before the first canvas is laid out, every canvas that can be reached from it (and every `stylesheetOverride`) is read, at most 4096 of them, and the screen takes the place of the widgets and the children for `Child` when any of their sheets uses `Count` or `Child`. Resolved styles are told apart by the place and by the children of the widgets above, so a nested canvas whose sheet uses `Ancestor` with `Count`, or `Parent` with `Child`, sees the same tree wherever it is entered from.
+- **Numbers that are not finite** never leave the graph: a node that makes one is unknown, so they reach no `Alpha` and no parameter.
+- **Root widgets that a binding removes** are listed as `Binding` (`not drawn at rest: Instantiated is bound to game variables, which are zero at rest`, likewise `IsActive`), so that an empty picture says why.
 - **Hidden widgets leave the layout.** A widget whose `IsActive` is false is not laid out, whether
   the field, a style entry or a binding says so. Until now a style entry hid a widget but left its
   room; the field always removed it.
@@ -83,7 +86,7 @@ listed at the end.
   same canvas under two widgets takes the look of each. Its palette is not read, and a reference
   that no Record answers adds nothing.
 - **Bounds.** At most 32 clones with modifiers are in force at once and one clone applies at most
-  256 modifiers (`Limits::overrides`); what is beyond is dropped and `truncated` says so. `Count`
+  256 modifiers (`Limits::clones_in_force` and `Limits::modifiers_per_clone`); what is beyond is dropped and `truncated` says so. `Count`
   values, style numbers and the evaluation of the graph are bounded as above, and the evaluation
   of one state costs one visit of each node.
 
@@ -95,7 +98,9 @@ listed at the end.
 | `mapdisplaymaster` | 532 widgets in 58 canvases, 149 shapes; `Child` not evaluated once | 127 widgets in 10 canvases, 28 shapes |
 | `h_eng_annunciator_master_left` | 32 widgets, 24 shapes | 30 widgets, 22 shapes: the grey background, `EnableBackground` being false |
 
-## Still out of scope, and listed in the report
+## Still out of scope
+
+The report lists the bound fields that are not evaluated (as `Binding`), the selectors that are not evaluated (as `StyleEntry`) and the root widgets that a binding takes out of the screen. It does not list the rest of this section: modifiers that no reader knows are dropped without a note, and so are the entries of a `stylesheetOverride` palette, animations, `CanvasReferenceRecord` modifiers, `LayoutPolicy` and the `Min`/`Max` behaviours.
 
 State tags and the entries they select (`PrimaryStateTag` and the others, 3300 bound fields),
 animations and transitions, the bound number fields of layout and colour (`SizeX`, `AnchorY`,
@@ -111,7 +116,7 @@ listed (localisation, timestamps, waveforms, colour and tag switches) and `Integ
 The reading of `Count` (`First`, `Every`, offset and count), the exclusive stop of
 `breakConditions`, the order of a binding between a style entry and the field of the widget, the
 zero value of the variables as the state at rest, and the removal of a hidden widget from the
-layout by a style entry, and the precedence of a `stylesheetOverride` over the styles of the
+layout by a style entry, that `ParamInput0` to `ParamInput4` of a binding name the parameters of the nested canvas by the same names, and the precedence of a `stylesheetOverride` over the styles of the
 canvas.
 
 ## Considered Options

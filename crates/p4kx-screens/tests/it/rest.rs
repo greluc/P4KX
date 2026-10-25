@@ -219,6 +219,33 @@ fn what_is_not_evaluated_is_reported_and_leaves_the_widget_as_it_is() -> TestRes
 }
 
 #[test]
+fn a_root_that_a_binding_takes_out_of_the_screen_is_listed_and_evaluated_bindings_are_not()
+-> TestResult {
+    let composed = compose(
+        &canvas()
+            .operation("flag", TestOp::BoolVar)
+            .widget(square(TestWidget::display("gone").background(RED)))
+            .widget(square(TestWidget::display("dim").background(GREEN)))
+            .operation("hide", TestOp::BoolField("gone", "Instantiated", "flag"))
+            .operation("fade", TestOp::NumFromBool("flag", 1.0, 0.4))
+            .operation("alpha", TestOp::NumField("dim", "Alpha", "fade")),
+    )?;
+    let listed: Vec<(&str, &str)> = composed
+        .report()
+        .unsupported
+        .iter()
+        .map(|entry| (entry.element.as_str(), entry.reason.as_str()))
+        .collect();
+    assert!(
+        listed.iter().any(|(element, reason)| *element == "Binding"
+            && reason.starts_with("not drawn at rest: Instantiated")),
+        "{listed:?}"
+    );
+    assert_eq!(listed.len(), 1, "the evaluated alpha is no gap: {listed:?}");
+    Ok(())
+}
+
+#[test]
 fn and_is_false_and_or_is_true_when_one_input_decides_it() -> TestResult {
     let composed = compose(
         &canvas()

@@ -20,9 +20,10 @@ pub struct Limits {
     pub instances: usize,
     /// The most items one list repeats its template for.
     pub rows: usize,
-    /// The most clones whose modifiers are in force at once, and the most modifiers one clone
-    /// applies.
-    pub overrides: [usize; 2],
+    /// The most clones whose modifiers are in force at once.
+    pub clones_in_force: usize,
+    /// The most modifiers one clone applies.
+    pub modifiers_per_clone: usize,
 }
 
 impl Limits {
@@ -37,7 +38,8 @@ impl Limits {
         vector_commands: 1 << 22,
         instances: 1 << 14,
         rows: 1 << 10,
-        overrides: [32, 256],
+        clones_in_force: 32,
+        modifiers_per_clone: 256,
     };
 }
 

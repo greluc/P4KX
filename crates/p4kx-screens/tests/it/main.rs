@@ -15,6 +15,7 @@ mod layout;
 mod layout_reference;
 mod limits;
 mod listing;
+mod nested_shape;
 mod policies;
 mod render;
 mod rest;

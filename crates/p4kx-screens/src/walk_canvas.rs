@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::collections::HashSet;
 use std::rc::Rc;
 
 use p4kx_dataforge::Guid;
@@ -15,6 +16,8 @@ use crate::walk::Walk;
 use crate::walk_rest::Handover;
 use crate::widget::CanvasSizing;
 
+const MAX_SURVEYED: usize = 4096;
+
 impl Walk<'_, '_, '_, '_> {
     pub(crate) fn enter(
         &mut self,
@@ -27,17 +30,14 @@ impl Walk<'_, '_, '_, '_> {
         self.cx.report.canvases += 1;
         self.stack.push(canvas.guid);
         let sheet = self.sheet(canvas);
+        self.note_unsupported(canvas.guid, &sheet);
         self.sheets.push(sheet);
         let over = self.pending_sheet.take();
         if let Some(guid) = over {
             let sheet = self.override_sheet(guid);
+            self.note_unsupported(guid, &sheet);
             self.sheets.push(sheet);
         }
-        let shape = self.shape;
-        self.shape = self
-            .sheets
-            .iter()
-            .fold(Uses::default(), |found, sheet| found.or(sheet.uses()));
         self.enter_rest(canvas);
         let inherited = std::mem::take(&mut self.cx.palette);
         self.cx.palette = Palette::of_canvas(
@@ -62,7 +62,6 @@ impl Walk<'_, '_, '_, '_> {
         self.chain.pop();
         self.cx.palette = inherited;
         self.rests.pop();
-        self.shape = shape;
         if over.is_some() {
             self.sheets.pop();
         }
@@ -122,9 +121,52 @@ impl Walk<'_, '_, '_, '_> {
             canvas,
             self.brand,
         ));
-        self.note_unsupported(&sheet);
         self.cache.insert(canvas.guid, Rc::clone(&sheet));
         sheet
+    }
+
+    /// Finds out which selectors that need the shape of the tree the sheets of the screen use,
+    /// reading every canvas that can be reached from `root`, so that each widget is made the
+    /// same way wherever it is entered from.
+    pub(crate) fn survey(&mut self, root: &Rc<Canvas>) {
+        let mut seen = HashSet::from([root.guid]);
+        let mut todo = vec![Rc::clone(root)];
+        let mut uses = Uses::default();
+        while let Some(canvas) = todo.pop() {
+            uses = uses.or(self.sheet(&canvas).uses());
+            for widget in &canvas.widgets {
+                if let Some(style) = widget.stylesheet {
+                    uses = uses.or(self.override_sheet(style).uses());
+                }
+                let Some(guid) = widget.canvas else {
+                    continue;
+                };
+                if seen.len() >= MAX_SURVEYED {
+                    uses = Uses {
+                        count: true,
+                        child: true,
+                    };
+                } else if seen.insert(guid)
+                    && let Some(nested) = self.store.get(guid)
+                {
+                    todo.push(nested);
+                }
+            }
+        }
+        self.shape = uses;
+    }
+
+    fn note_unsupported(&mut self, sheet_guid: Guid, sheet: &CanvasStyles) {
+        if !self.noted.insert(sheet_guid) {
+            return;
+        }
+        for (entry, selector) in sheet.unsupported() {
+            self.cx.report.note(
+                "StyleEntry",
+                &format!("selector {selector} is not evaluated"),
+                entry,
+            );
+        }
     }
 
     fn override_sheet(&mut self, style: Guid) -> Rc<CanvasStyles> {
@@ -136,19 +178,8 @@ impl Walk<'_, '_, '_, '_> {
             &mut self.styles,
             style,
         ));
-        self.note_unsupported(&sheet);
         self.cache.insert(style, Rc::clone(&sheet));
         sheet
-    }
-
-    fn note_unsupported(&mut self, sheet: &CanvasStyles) {
-        for (entry, selector) in sheet.unsupported() {
-            self.cx.report.note(
-                "StyleEntry",
-                &format!("selector {selector} is not evaluated"),
-                entry,
-            );
-        }
     }
 
     /// Enters the canvas `guid` that a canvas widget names, in the box `frame`.

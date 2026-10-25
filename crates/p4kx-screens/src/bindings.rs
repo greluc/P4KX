@@ -87,7 +87,7 @@ pub(crate) fn typed_values(widget: &StructValue<'_>) -> RestParams {
                 }
                 "BuildingBlocks_ComponentParameterInputInteger"
                 | "BuildingBlocks_ComponentParameterInputNumber" => {
-                    Rest::Num(f64::from(float(input, "value")?))
+                    Rest::Num(f64::from(float(input, "value").filter(|v| v.is_finite())?))
                 }
                 "BuildingBlocks_ComponentParameterInputString" => {
                     Rest::Text(text(input, "value")?.to_owned())

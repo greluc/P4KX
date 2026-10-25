@@ -113,6 +113,33 @@ fn an_animation_that_fits_nothing_is_listed_and_not_written() -> TestResult {
 }
 
 #[test]
+fn many_unused_animations_are_one_issue_with_a_count_and_a_few_names() -> TestResult {
+    let (armour, archive, _dir) = build()?;
+    let models = ArchiveModels::new(&archive);
+    let stranger = animation(
+        &TestAnimation::new("stranger.caf", 30)
+            .track(TestTrack::new(12345).positions(&[(0, [0.0; 3]), (5, [1.0, 0.0, 0.0])])),
+    )?;
+    let list: Vec<Animation> = (0..2_000).map(|_| stranger.clone()).collect();
+
+    let animations = armour.animate(&list, &models);
+
+    let [issue] = animations.issues() else {
+        return Err("one issue for all animations".into());
+    };
+    assert!(
+        matches!(
+            issue.kind(),
+            IssueKind::AnimationNotUsed { count: 2_000, examples, .. } if examples.len() == 3
+        ),
+        "{issue:?}"
+    );
+    assert!(issue.kind().to_string().starts_with("2000 animations"));
+    assert!(issue.kind().to_string().len() < 300);
+    Ok(())
+}
+
+#[test]
 fn the_facial_joints_of_the_skin_join_the_skeleton() -> TestResult {
     let (armour, _archive, _dir) = build()?;
 
@@ -127,7 +154,7 @@ fn the_facial_joints_of_the_skin_join_the_skeleton() -> TestResult {
 
 fn reason_of(issue: &Issue) -> &str {
     match issue.kind() {
-        IssueKind::AnimationNotUsed { reason } => reason,
+        IssueKind::AnimationNotUsed { reason, .. } => reason,
         _ => "",
     }
 }
@@ -142,10 +169,17 @@ fn animations_over_the_budget_are_listed_with_the_reason_limit_and_not_written()
 
     assert!(animations.is_empty());
     assert_eq!(animations.values(), 0);
-    assert_eq!(animations.issues().len(), 2);
-    for issue in animations.issues() {
-        assert!(reason_of(issue).starts_with("limit"), "{issue:?}");
-    }
+    let [issue] = animations.issues() else {
+        return Err("one issue for both animations".into());
+    };
+    assert!(reason_of(issue).starts_with("limit"), "{issue:?}");
+    assert!(
+        matches!(
+            issue.kind(),
+            IssueKind::AnimationNotUsed { count: 2, examples, .. } if examples == &["blink", "nod"]
+        ),
+        "{issue:?}"
+    );
     let spent = armour.animate_within(&list, &models, 10);
     assert_eq!(spent.len(), 1, "the body animation fits exactly");
     assert_eq!(spent.values(), 10);

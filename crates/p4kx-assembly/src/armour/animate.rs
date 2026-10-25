@@ -15,6 +15,7 @@ use super::expressions::logic_of;
 use super::facial::FaceLink;
 use super::sample::{Control, evaluate, joint_samples, reduction, values_of, weight_samples};
 use super::shape::MAX_DNA_RIG_LEN;
+use super::unused::summarise;
 use super::{Armour, ArmourPart};
 use crate::{Issue, IssueKind, ModelFailure, ModelProvider};
 
@@ -53,7 +54,8 @@ impl CharacterAnimations<'_> {
     }
 
     /// Returns what could not be done: animations that fit nothing of the Character, that would
-    /// exceed the budget, and facial animations whose rig cannot be read.
+    /// exceed the budget, and facial animations whose rig cannot be read. Animations left out for
+    /// the same reason are one `animation_not_used` issue with their count and a few names.
     #[must_use]
     pub fn issues(&self) -> &[Issue] {
         &self.issues
@@ -99,7 +101,14 @@ fn issue(animation: &Animation, kind: IssueKind) -> Issue {
 }
 
 fn not_used(animation: &Animation, reason: String) -> Issue {
-    issue(animation, IssueKind::AnimationNotUsed { reason })
+    issue(
+        animation,
+        IssueKind::AnimationNotUsed {
+            reason,
+            count: 1,
+            examples: Vec::new(),
+        },
+    )
 }
 
 fn limit(values: usize, remaining: usize) -> String {
@@ -233,6 +242,7 @@ impl Armour {
             out.issues
                 .extend(refused(animation, refusal, (used, reported), has_rig));
         }
+        out.issues = summarise(out.issues, budget);
         out
     }
 

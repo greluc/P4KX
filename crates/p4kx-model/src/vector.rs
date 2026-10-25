@@ -91,6 +91,22 @@ pub(crate) fn half(bits: u16) -> f32 {
     f16::from_bits(bits).to_f32()
 }
 
+/// Returns the texture coordinate of the half floats `bits`, with a value that is not finite read
+/// as 0, and whether any was.
+pub(crate) fn finite_uv(bits: [u16; 2]) -> ([f32; 2], bool) {
+    let mut repaired = false;
+    let uv = bits.map(|raw| {
+        let value = half(raw);
+        if value.is_finite() {
+            value
+        } else {
+            repaired = true;
+            0.0
+        }
+    });
+    (uv, repaired)
+}
+
 /// Returns `vector` scaled to unit length, or +Z when it has no length.
 pub(crate) fn normalise(vector: [f32; 3]) -> [f32; 3] {
     let [x, y, z] = vector;

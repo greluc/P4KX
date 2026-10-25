@@ -24,9 +24,11 @@ Decided for issue #106. Evidence: docs/model-skeletons-and-skinning.md.
   as translation and rotation. The helper bones of a static model are not written; its nodes carry
   the hierarchy, and #107 decides what animating them needs.
 - Y up is applied once, as for positions: a vector is `(x, z, −y)`, a quaternion `(x, z, −y, w)`, and
-  an inverse bind matrix is `C · inverse(world) · Cᵀ` with `C` the turn of the axes. The bind pose
-  composes through the node chain to the stored world pose, which the checker of the testkit and the
-  tests verify as global matrix times inverse bind matrix equals identity.
+  an inverse bind matrix is `C · inverse(world) · Cᵀ` with `C` the turn of the axes. `world` is
+  composed from the relative poses along the parents, not read from the stored world pose, so the
+  bind pose always agrees with the node transforms, even for a file whose stored world poses are
+  inconsistent (`chained_world_poses`). The checker of the testkit and the tests verify global matrix
+  times inverse bind matrix equals identity.
 - The skinned meshes share one skin whose joints are all bones in file order, with the inverse bind
   matrices as `MAT4` (floats, no buffer view target). A skin has `skeleton` when it has one root
   bone.
@@ -41,8 +43,13 @@ Decided for issue #106. Evidence: docs/model-skeletons-and-skinning.md.
 
 ## Considered Options
 
-- Cut the heads to four bones and renormalise: loses detail for viewers that read set 1 anyway;
-  rejected, the second set costs nothing for the meshes that need only one.
+- Cut the heads to four bones and renormalise by default: loses detail for viewers that read set 1
+  anyway; rejected as the default, the second set costs nothing for the meshes that need only one.
+  Offered as an opt-in instead (`--max-influences N`, `GlbOptions::max_influences`): the strongest
+  `N` bones of a vertex are kept and their weights scaled to add up to 255 again, so `N` of 4
+  writes set 0 only. The trade-off is lost detail on the 640,854 vertices of the survey with more
+  than four bones (heads) against viewers such as Three.js that read `JOINTS_0` and `WEIGHTS_0`
+  only and would otherwise draw those vertices with weights that do not add up to 1.
 - Remap the bone indices through the nodes of the model file, as Cryengine-Converter describes for
   `#ivo`: the index is the position in the bone list in every vertex of the sample (the strongest bone
   is the near one), and no file has both a bone map and the second skeleton form.

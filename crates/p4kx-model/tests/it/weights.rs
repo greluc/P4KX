@@ -10,7 +10,7 @@ use p4kx_model::{
     CompanionError, CompanionPath, CorruptChunk, Influences, MAX_INFLUENCES, Mesh, Model,
     ModelError,
 };
-use p4kx_testkit::{TestModel, TestSkeleton};
+use p4kx_testkit::{TestModel, TestNormals, TestSkeleton};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -155,6 +155,34 @@ fn a_non_finite_texture_coordinate_reads_as_zero() -> TestResult {
         "a NaN and an infinity read as 0"
     );
     assert_eq!(uvs.get(1), Some(&[1.0, 0.0]), "the others are as stored");
+    assert_eq!(mesh(&model)?.non_finite_uvs, 1, "one vertex is counted");
+    Ok(())
+}
+
+#[test]
+fn a_vertex_with_bad_coordinates_in_both_sets_is_counted_once() -> TestResult {
+    let base = TestModel::two_bone_skin().with_normals(TestNormals::None);
+    let mut second = vec![[0.25, 0.75]; base.vertices().len()];
+    if let Some(first) = second.first_mut() {
+        *first = [f32::NAN, 0.5];
+    }
+    if let Some(other) = second.get_mut(2) {
+        *other = [0.5, f32::NEG_INFINITY];
+    }
+    let skin = base
+        .with_uv(0, [f32::NAN, f32::INFINITY])
+        .with_second_uvs(second);
+    let model = read(&skin)?;
+
+    assert_eq!(mesh(&model)?.non_finite_uvs, 2, "vertices 0 and 2");
+    Ok(())
+}
+
+#[test]
+fn a_mesh_with_finite_coordinates_counts_none() -> TestResult {
+    let model = read(&TestModel::two_bone_skin())?;
+
+    assert_eq!(mesh(&model)?.non_finite_uvs, 0);
     Ok(())
 }
 

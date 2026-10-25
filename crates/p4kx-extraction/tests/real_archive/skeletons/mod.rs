@@ -217,8 +217,12 @@ fn animated_static_models_have_compact_bones_that_point_at_their_nodes() -> Test
         .map(|entry| {
             let mut tally = Tally::default();
             let path = entry.path();
-            let Ok(source) = ModelSource::from_index(&index, path) else {
-                return tally;
+            let source = match ModelSource::from_index(&index, path) {
+                Ok(source) => source,
+                Err(error) => {
+                    tally.fail(path, format!("not read: {error}"));
+                    return tally;
+                }
             };
             let model = source.model();
             if model.bones.is_empty() {

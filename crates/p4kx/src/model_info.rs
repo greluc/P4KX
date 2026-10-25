@@ -50,13 +50,17 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
         out,
-        "{:>4}  {:>10}  {:>10}  {:>6}",
-        "LOD", "Vertices", "Triangles", "Meshes"
+        "{:>4}  {:>10}  {:>10}  {:>6}  {:>8}",
+        "LOD", "Vertices", "Triangles", "Meshes", "Skeleton"
     )?;
     for lod in &model.lods {
+        let skeleton = lod
+            .bones
+            .as_ref()
+            .map_or_else(|| NONE.to_owned(), |bones| format!("{} bones", bones.len()));
         writeln!(
             out,
-            "{:>4}  {:>10}  {:>10}  {:>6}",
+            "{:>4}  {:>10}  {:>10}  {:>6}  {skeleton:>8}",
             lod.level,
             lod.vertex_count(),
             lod.triangle_count(),
@@ -66,8 +70,16 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
         out,
-        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  Material IDs",
-        "LOD", "Node", "Vertices", "Triangles", "Normals", "Tangents", "Colours", "Skinned"
+        "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {:>7}  Material IDs",
+        "LOD",
+        "Node",
+        "Vertices",
+        "Triangles",
+        "Normals",
+        "Tangents",
+        "Colours",
+        "Skinned",
+        "Bad UVs"
     )?;
     for lod in &model.lods {
         for mesh in &lod.meshes {
@@ -78,7 +90,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 .collect();
             writeln!(
                 out,
-                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {}",
+                "{:>4}  {:<24}  {:>10}  {:>10}  {:<7}  {:<8}  {:<7}  {:<7}  {:>7}  {}",
                 lod.level,
                 printable(node_name(model, mesh.node)),
                 mesh.positions.len(),
@@ -87,6 +99,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 yes_no(mesh.tangents.is_some()),
                 yes_no(mesh.colours.is_some()),
                 yes_no(mesh.influences.is_some()),
+                mesh.non_finite_uvs,
                 ids.join(", ")
             )?;
         }

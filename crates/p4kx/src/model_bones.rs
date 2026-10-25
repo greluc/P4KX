@@ -5,6 +5,8 @@ use std::io::{self, Write};
 
 use p4kx_extraction::model::Model;
 
+use crate::model_text::printable;
+
 const NONE: &str = "-";
 
 /// Writes the table of the bones of `model` after a blank line; nothing for a model without bones.
@@ -26,11 +28,11 @@ pub(crate) fn write_bones(out: &mut impl Write, model: &Model) -> io::Result<()>
             .node
             .map_or_else(|| NONE.to_owned(), |node| node.to_string());
         let [x, y, z] = bone.world.translation;
-        let name = if bone.name.is_empty() {
+        let name = printable(if bone.name.is_empty() {
             NONE
         } else {
             &bone.name
-        };
+        });
         writeln!(
             out,
             "{index:>5}  {parent:<6}  {node:<4}  {x:>8.3}  {y:>8.3}  {z:>8.3}  {name}"

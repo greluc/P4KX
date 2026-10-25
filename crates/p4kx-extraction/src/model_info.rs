@@ -61,6 +61,7 @@ impl<'a> ModelInfo<'a> {
                     level: lod.level,
                     vertices: lod.vertex_count(),
                     triangles: lod.triangle_count(),
+                    skeleton_bones: lod.bones.as_ref().map(Vec::len),
                     meshes: lod.meshes.iter().map(MeshInfo::of).collect(),
                 })
                 .collect(),
@@ -101,6 +102,9 @@ pub struct LodInfo {
     pub vertices: usize,
     /// The triangles of all meshes of the level.
     pub triangles: usize,
+    /// The number of bones of the skeleton the level carries of its own, when it differs from the
+    /// model's; `None` for a level that uses the model's skeleton.
+    pub skeleton_bones: Option<usize>,
     /// The meshes of the level.
     pub meshes: Vec<MeshInfo>,
 }
@@ -119,6 +123,7 @@ pub struct MeshInfo {
     tangents: bool,
     colours: bool,
     second_uvs: bool,
+    non_finite_uvs: usize,
     skinned: bool,
     submeshes: Vec<SubmeshInfo>,
 }
@@ -133,6 +138,7 @@ impl MeshInfo {
             tangents: mesh.tangents.is_some(),
             colours: mesh.colours.is_some(),
             second_uvs: mesh.second_uvs.is_some(),
+            non_finite_uvs: mesh.non_finite_uvs,
             skinned: mesh.influences.is_some(),
             submeshes: mesh.submeshes.iter().map(SubmeshInfo::of).collect(),
         }

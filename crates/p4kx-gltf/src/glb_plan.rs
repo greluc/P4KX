@@ -18,7 +18,7 @@ pub(crate) fn plan_layout<'m>(
     options: &GlbOptions,
     binds: Option<&'m [[f32; 16]]>,
 ) -> Layout<'m> {
-    let mut layout = Layout::new();
+    let mut layout = Layout::new().limited(options.max_influences);
     let mut hidden = vec![0; instances.len()];
     for (part, instance) in instances.iter().enumerate() {
         if let Some(twin) = instance.twin {

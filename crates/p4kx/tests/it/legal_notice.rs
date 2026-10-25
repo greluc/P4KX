@@ -10,18 +10,20 @@ use predicates::prelude::predicate;
 type TestResult = Result<(), Box<dyn Error>>;
 
 #[test]
-fn version_names_the_fan_project_and_the_users_responsibility() -> TestResult {
-    p4kx_testkit::p4kx()?
-        .arg("--version")
-        .assert()
-        .success()
-        .stdout(predicate::str::contains(
-            "Unofficial Star Citizen fan project",
-        ))
-        .stdout(predicate::str::contains("Terms of Service"))
-        .stdout(predicate::str::contains(
-            "not affiliated with or endorsed by the Cloud Imperium group",
-        ));
+fn both_version_flags_name_the_fan_project_and_the_users_responsibility() -> TestResult {
+    for flag in ["--version", "-V"] {
+        p4kx_testkit::p4kx()?
+            .arg(flag)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(
+                "Unofficial Star Citizen fan project",
+            ))
+            .stdout(predicate::str::contains("Terms of Service"))
+            .stdout(predicate::str::contains(
+                "not affiliated with or endorsed by the Cloud Imperium group",
+            ));
+    }
     Ok(())
 }
 

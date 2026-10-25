@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_audio::Soundbank;
 use rayon::prelude::*;
 
-use super::read::entry_bytes;
 use super::walk::{self, Found};
+use super::walk_banks::{Loaded, select_holders, soundbank_at};
 use super::{
-    ArchiveAudio, AudioFileError, AudioIndex, BreakReason, BrokenLink, IndexedSoundbank,
-    LanguageChoice, MAX_EVENT_OBJECTS, MAX_SOUNDBANK_LEN, MAX_TRIGGER_OBJECTS, NodeKind, PathStep,
-    TriggerSounds, WwiseEvent,
+    ArchiveAudio, AudioFileError, AudioIndex, BreakReason, BrokenLink, LanguageChoice,
+    MAX_EVENT_OBJECTS, MAX_TRIGGER_OBJECTS, NodeKind, PathStep, TriggerSounds, WwiseEvent,
 };
 
 type BankWalk<'i> = (u32, Result<Vec<(usize, Found<'i>)>, AudioFileError>);
@@ -124,13 +122,7 @@ impl ArchiveAudio<'_> {
         choice: &LanguageChoice,
         budget: usize,
     ) -> Result<Vec<(usize, Found<'i>)>, AudioFileError> {
-        let soundbank = soundbank_at(index, position).ok_or_else(gone)?;
-        let entry = self
-            .archive()
-            .entries()
-            .get(soundbank.entry)
-            .ok_or_else(gone)?;
-        let bank = Soundbank::parse(entry_bytes(self.archive(), entry, MAX_SOUNDBANK_LEN)?)?;
+        let home = Loaded::read(self.archive(), index, position)?;
         Ok(events
             .iter()
             .enumerate()
@@ -142,7 +134,7 @@ impl ArchiveAudio<'_> {
             .map(|(number, event)| {
                 (
                     number,
-                    walk::event(index, &bank, soundbank, event, choice, budget),
+                    walk::event(self.archive(), index, &home, event, choice, budget),
                 )
             })
             .collect())
@@ -165,48 +157,5 @@ fn unselected<'i>(
         soundbank: None,
         path,
         reason,
-    }
-}
-
-/// Returns the soundbanks of `holders` an event is followed in: every soundbank that is not
-/// localised, and of the localised ones those of the first language of `choice` that has any.
-fn select_holders(index: &AudioIndex, holders: &[u32], choice: &LanguageChoice) -> Vec<u32> {
-    if choice.is_any() {
-        return holders.to_vec();
-    }
-    let language_of =
-        |position: u32| soundbank_at(index, position).and_then(IndexedSoundbank::language);
-    let mut selected: Vec<u32> = holders
-        .iter()
-        .copied()
-        .filter(|&position| language_of(position).is_none())
-        .collect();
-    let localised = |wanted: &str| {
-        holders
-            .iter()
-            .copied()
-            .filter(|&position| {
-                language_of(position).is_some_and(|language| language.eq_ignore_ascii_case(wanted))
-            })
-            .collect::<Vec<u32>>()
-    };
-    if let Some(chosen) = choice
-        .candidates()
-        .map(localised)
-        .find(|banks| !banks.is_empty())
-    {
-        selected.extend(chosen);
-        selected.sort_unstable();
-    }
-    selected
-}
-
-fn soundbank_at(index: &AudioIndex, position: u32) -> Option<&IndexedSoundbank> {
-    index.soundbanks().get(usize::try_from(position).ok()?)
-}
-
-fn gone() -> AudioFileError {
-    AudioFileError::Unreadable {
-        reason: "the Archive no longer holds the soundbank Entry".to_owned(),
     }
 }

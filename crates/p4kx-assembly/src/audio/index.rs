@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry as Slot;
 
 use p4kx_archive::{Archive, Entry};
+use p4kx_audio::MusicStinger;
 use rayon::prelude::*;
 
 use super::banks::BankContents;
@@ -13,7 +14,7 @@ use super::media::{Limits, LooseMedia, WemSource};
 use super::read::{entry_bytes, folded_order, has_extension, starts_with_folder};
 use super::{
     ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, DEFAULT_LANGUAGE, IndexedSoundbank,
-    MAX_ATL_LEN, MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, WemLocation, atl, banks,
+    MAX_ATL_LEN, MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, MAX_STINGERS, WemLocation, atl, banks,
 };
 
 type BankRead = Result<BankContents, AudioFileError>;
@@ -32,6 +33,8 @@ pub struct AudioIndex {
     by_name: HashMap<Box<str>, usize>,
     soundbanks: Vec<IndexedSoundbank>,
     events: HashMap<u32, Box<[u32]>>,
+    bank_ids: HashMap<u32, Box<[u32]>>,
+    stingers: HashMap<u32, Box<[Stinger]>>,
     media: HashMap<u32, Box<[MediaSpot]>>,
     loose: LooseMedia,
     issues: Vec<AudioIssue>,
@@ -139,11 +142,18 @@ impl AudioIndex {
     fn add_soundbanks(&mut self, entries: &[(usize, &Entry)], soundbanks: Vec<BankRead>) {
         let mut events: HashMap<u32, Vec<u32>> = HashMap::new();
         let mut media: HashMap<u32, Vec<MediaSpot>> = HashMap::new();
+        let mut bank_ids: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut stingers = StingerList::default();
         for ((_, entry), soundbank) in entries.iter().zip(soundbanks) {
             match soundbank {
                 Ok(contents) => {
                     let position = u32::try_from(self.soundbanks.len()).unwrap_or(u32::MAX);
+                    bank_ids
+                        .entry(contents.soundbank.id())
+                        .or_default()
+                        .push(position);
                     self.soundbanks.push(contents.soundbank);
+                    stingers.add(position, &contents.stingers);
                     for id in contents.events {
                         let holders = events.entry(id).or_default();
                         if holders.last() != Some(&position) {
@@ -164,14 +174,10 @@ impl AudioIndex {
                 }),
             }
         }
-        self.events = events
-            .into_iter()
-            .map(|(id, holders)| (id, holders.into_boxed_slice()))
-            .collect();
-        self.media = media
-            .into_iter()
-            .map(|(id, spots)| (id, spots.into_boxed_slice()))
-            .collect();
+        self.events = boxed(events);
+        self.bank_ids = boxed(bank_ids);
+        self.stingers = boxed(stingers.found);
+        self.media = boxed(media);
     }
 
     /// Returns the trigger called `name`, ignoring ASCII case, or `None` when no ATL definition
@@ -272,6 +278,50 @@ impl AudioIndex {
     pub(crate) fn event_holders(&self, id: u32) -> &[u32] {
         self.events.get(&id).map_or(&[], |holders| holders)
     }
+
+    pub(crate) fn bank_positions(&self, id: u32) -> &[u32] {
+        self.bank_ids.get(&id).map_or(&[], |positions| positions)
+    }
+
+    pub(crate) fn stingers(&self, trigger: u32) -> &[Stinger] {
+        self.stingers.get(&trigger).map_or(&[], |found| found)
+    }
+}
+
+fn boxed<T>(lists: HashMap<u32, Vec<T>>) -> HashMap<u32, Box<[T]>> {
+    lists
+        .into_iter()
+        .map(|(id, list)| (id, list.into_boxed_slice()))
+        .collect()
+}
+
+#[derive(Default)]
+struct StingerList {
+    found: HashMap<u32, Vec<Stinger>>,
+    count: usize,
+}
+
+impl StingerList {
+    fn add(&mut self, bank: u32, stingers: &[MusicStinger]) {
+        for stinger in stingers {
+            let found = Stinger {
+                bank,
+                segment_id: stinger.segment_id,
+            };
+            let known = self.found.entry(stinger.trigger_id).or_default();
+            if self.count < MAX_STINGERS && !known.contains(&found) {
+                known.push(found);
+                self.count += 1;
+            }
+        }
+    }
+}
+
+/// The segment a stinger plays and the soundbank, by position, whose music node declares it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Stinger {
+    pub(crate) bank: u32,
+    pub(crate) segment_id: u32,
 }
 
 /// Where a soundbank embeds a WEM.

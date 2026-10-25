@@ -649,15 +649,19 @@ otherwise the exit code is 2. Step kinds are
 `event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for any other object its
 `HIRC` type, e.g. `music_playlist`, `music_segment` or `music_track`; a music track is the last
 step of a variant, its ID is the variant's `sound` and its WEM one of the track's sources. A Play
-action (`0x04xx`) is followed to its target, a PlayEvent action (`0x21xx`) to the Event it posts.
+action (`0x04xx`) is followed to its target, a PlayEvent action (`0x21xx`) to the Event it posts
+and a Trigger action (`0x1Bxx`) to the segments of the stingers that name its trigger. Where the
+target lies in another soundbank, the walk reads that one soundbank (at most one besides the one
+holding the event, ADR-0158) and the variant's `soundbank` is the one holding the sound.
 
 A **Break** has `event`, `soundbank` (or `null` when no soundbank holds the event), `object` (the
 step where the chain breaks, the last of `path`), `target` (for `missing`, `other_soundbank` and
 `cycle`, the ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The kinds are
 `no_soundbank`, `unreadable` (the soundbank cannot be read again), `missing` (the object refers to
-an ID the soundbank does not hold), `other_soundbank` (a Play action names another soundbank as
-the holder of its target, or a PlayEvent action posts an Event only another soundbank holds; the
-walk does not enter it), `malformed`, `unknown_layout` (an object
+an ID the soundbank does not hold; for a Trigger action, a trigger no stinger names),
+`other_soundbank` (the target lies in a soundbank the walk does not enter: the Archive holds no
+soundbank of the ID a Play action names, or the walk has already read its one other soundbank),
+`chain_too_long` (more than 8 PlayEvent and Trigger actions in a row), `malformed`, `unknown_layout` (an object
 of a bank version other than 154), `unsupported` (an object kind that is not followed, e.g. an
 actor-mixer), `cycle`,
 `too_deep` (a path of 32 objects), `too_many_children` (only the first 1024 children of a

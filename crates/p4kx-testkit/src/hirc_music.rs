@@ -7,13 +7,30 @@ use crate::bytes::{put_u16, put_u32};
 use crate::hirc_node::node_base;
 
 const VORBIS_PLUGIN_ID: u32 = 0x0004_0001;
+const DEFAULT_STINGER: (u32, u32) = (0x5100_0001, 0x5100_0002);
 
 impl TestHircObject {
     /// A music segment object laid out as bank version 154 writes it: `children` are its tracks,
     /// `markers` the names of its markers.
     #[must_use]
     pub fn music_segment(id: u32, children: &[u32], markers: &[&str]) -> Self {
-        let mut body = music_node(children);
+        Self::segment(id, children, markers, DEFAULT_STINGER)
+    }
+
+    /// A music segment object without markers whose one stinger plays the segment `segment_id`
+    /// when the trigger `trigger_id` fires.
+    #[must_use]
+    pub fn music_segment_stinging(
+        id: u32,
+        children: &[u32],
+        trigger_id: u32,
+        segment_id: u32,
+    ) -> Self {
+        Self::segment(id, children, &[], (trigger_id, segment_id))
+    }
+
+    fn segment(id: u32, children: &[u32], markers: &[&str], stinger: (u32, u32)) -> Self {
+        let mut body = music_node(children, stinger);
         body.extend_from_slice(&4000.5_f64.to_le_bytes());
         put_u32(&mut body, len_u32(markers));
         for (id, name) in (0x100_u32..).zip(markers) {
@@ -88,7 +105,7 @@ impl TestHircObject {
     }
 }
 
-fn music_node(children: &[u32]) -> Vec<u8> {
+fn music_node(children: &[u32], stinger: (u32, u32)) -> Vec<u8> {
     let mut body = vec![0];
     body.extend_from_slice(&node_base(TestNodeBase::Full));
     put_u32(&mut body, len_u32(children));
@@ -101,14 +118,14 @@ fn music_node(children: &[u32]) -> Vec<u8> {
     body.extend_from_slice(&[4, 4]);
     body.push(1);
     put_u32(&mut body, 1);
-    put_u32(&mut body, 0x5100_0001);
-    put_u32(&mut body, 0x5100_0002);
+    put_u32(&mut body, stinger.0);
+    put_u32(&mut body, stinger.1);
     body.extend_from_slice(&[0; 16]);
     body
 }
 
 fn transition_node(children: &[u32]) -> Vec<u8> {
-    let mut body = music_node(children);
+    let mut body = music_node(children, DEFAULT_STINGER);
     put_u32(&mut body, 2);
     for with_object in [false, true] {
         put_u32(&mut body, 1);

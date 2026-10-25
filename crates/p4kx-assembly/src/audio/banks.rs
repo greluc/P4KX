@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_audio::{HircKind, Soundbank};
+use p4kx_audio::{HircKind, HircValue, MusicStinger, Soundbank};
 
 use super::AudioFileError;
 use super::language::bank_language;
@@ -69,6 +69,7 @@ pub(crate) struct BankContents {
     pub(crate) soundbank: IndexedSoundbank,
     pub(crate) events: Vec<u32>,
     pub(crate) media: Vec<EmbeddedMedia>,
+    pub(crate) stingers: Vec<MusicStinger>,
 }
 
 /// Parses the soundbank at the Archive position `entry` and returns it with the IDs of its Event
@@ -89,6 +90,18 @@ pub(crate) fn read(path: &str, entry: usize, bytes: &[u8]) -> Result<BankContent
             len: u64::try_from(wem.bytes().len()).unwrap_or(u64::MAX),
         })
         .collect();
+    let stingers = bank
+        .objects()
+        .iter()
+        .flat_map(|object| match &object.value {
+            HircValue::MusicSegment(segment) => &segment.node.stingers[..],
+            HircValue::MusicSwitch(switch) => &switch.node.stingers[..],
+            HircValue::MusicPlaylist(playlist) => &playlist.node.stingers[..],
+            _ => &[],
+        })
+        .filter(|stinger| stinger.segment_id != 0)
+        .copied()
+        .collect();
     let header = bank.header();
     Ok(BankContents {
         soundbank: IndexedSoundbank {
@@ -100,5 +113,6 @@ pub(crate) fn read(path: &str, entry: usize, bytes: &[u8]) -> Result<BankContent
         },
         events,
         media,
+        stingers,
     })
 }

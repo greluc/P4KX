@@ -130,6 +130,13 @@ fn the_events_of_every_trigger_are_followed_and_counted() -> TestResult {
         "broken links by reason and object: {:?}",
         census.break_counts
     );
+    let count = |key: &str| census.break_counts.get(key).copied().unwrap_or(0);
+    assert!(count("variants through music") > 0, "triggers reach music");
+    assert_eq!(
+        count("other_soundbank at action directly"),
+        0,
+        "Play and PlayEvent actions enter the soundbanks they name"
+    );
     let mut unresolved: BTreeMap<String, usize> = BTreeMap::new();
     for event in &census.events_in_a_bank {
         if census.variants.contains_key(event) {

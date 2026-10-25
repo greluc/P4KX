@@ -68,6 +68,7 @@ mod verify;
 mod vertex_attributes;
 mod vertex_colours;
 mod vorbis_cost;
+mod weak_pointers;
 mod wem_survey;
 
 type TestResult = Result<(), Box<dyn Error>>;

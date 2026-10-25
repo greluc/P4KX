@@ -261,6 +261,7 @@ mod tests {
         assert!(gui.may_depend_on(DependencyKind::Dev, "p4kx-gui", Layer::Frontend));
         let chunks = package("p4kx-chunks", Layer::Format, &[], &[]);
         assert!(chunks.may_depend_on(DependencyKind::Dev, "p4kx-chunks", Layer::Format));
+        assert!(!chunks.may_depend_on(DependencyKind::Dev, "p4kx-gui", Layer::Frontend));
     }
 
     #[test]

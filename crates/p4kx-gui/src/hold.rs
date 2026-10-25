@@ -4,17 +4,15 @@
 use std::sync::{Arc, Condvar, Mutex, PoisonError};
 use std::time::Duration;
 
-use p4kx_extraction::CancelToken;
-
 #[derive(Debug, Default)]
-pub(super) struct Gate {
+pub(crate) struct Gate {
     open: Mutex<bool>,
     changed: Condvar,
 }
 
 impl Gate {
-    pub(super) fn wait(&self, cancel: &CancelToken) {
-        while !self.open_within(Duration::from_millis(10)) && !cancel.is_cancelled() {}
+    pub(crate) fn wait(&self, cancelled: impl Fn() -> bool) {
+        while !self.open_within(Duration::from_millis(10)) && !cancelled() {}
     }
 
     fn open_within(&self, pause: Duration) -> bool {
@@ -32,12 +30,19 @@ impl Gate {
     }
 }
 
-/// Keeps the Interior step of the builds of an [`AssemblyView`](super::AssemblyView) from ending
-/// until it is dropped, so that a test can look at the building state for as long as it needs.
+/// Keeps a background job from ending until it is dropped, so that a test can look at the running
+/// state for as long as it needs.
 #[derive(Debug)]
-pub struct InteriorHold(pub(super) Arc<Gate>);
+pub struct Hold(Arc<Gate>);
 
-impl Drop for InteriorHold {
+impl Hold {
+    pub(crate) fn new() -> (Self, Arc<Gate>) {
+        let gate = Arc::new(Gate::default());
+        (Self(Arc::clone(&gate)), gate)
+    }
+}
+
+impl Drop for Hold {
     fn drop(&mut self) {
         self.0.release();
     }

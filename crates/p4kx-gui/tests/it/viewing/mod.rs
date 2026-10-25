@@ -6,7 +6,7 @@
 
 use std::error::Error;
 
-use crate::waiting::wait_for_model;
+use crate::waiting::{RunQuiet, wait_for_model};
 use egui_kittest::kittest::Queryable;
 use egui_kittest::{Harness, HarnessBuilder};
 use p4kx_gui::{Browser, Language, Model, ModelPreview, Preview, ViewerSupport, ui};
@@ -92,7 +92,7 @@ pub(crate) fn wait_until(
     done: impl Fn(&Model) -> bool,
 ) -> TestResult {
     wait_for_model(harness, "the window to settle", done)?;
-    harness.run_steps(3);
+    harness.run_quiet();
     Ok(())
 }
 

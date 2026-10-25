@@ -337,6 +337,14 @@ fn a_hundred_and_twenty_thousand_records_stay_virtual() -> TestResult {
     Ok(())
 }
 
+fn held_load(harness: &mut Harness<'_, Model>) -> Result<p4kx_gui::Hold, Box<dyn Error>> {
+    harness
+        .state_mut()
+        .browser_mut()
+        .and_then(Browser::hold_record_load)
+        .ok_or_else(|| "no DataForge to hold".into())
+}
+
 #[test]
 fn a_running_load_is_dropped_on_reload_and_on_a_change() -> TestResult {
     let (_dir, path, mut harness) =
@@ -351,17 +359,21 @@ fn a_running_load_is_dropped_on_reload_and_on_a_change() -> TestResult {
             .map(|tree| (format!("{:?}", tree.status()), tree.rows().len()))
     };
 
+    let first_hold = held_load(&mut harness)?;
     harness.get_by_label("Expand DataForge").click();
     harness.run_steps(2);
     let first_loading = loading(harness.state());
     harness.state_mut().reload(|| {});
     wait_until(&mut harness, |model| model.opening_path().is_none())?;
+    drop(first_hold);
     let after_reload = status_after(&mut harness);
+    let second_hold = held_load(&mut harness)?;
     harness.get_by_label("Expand DataForge").click();
     harness.run_steps(2);
     let second_loading = loading(harness.state());
     archive_with(database().build()).write_to(&path)?;
     harness.state_mut().check_archive();
+    drop(second_hold);
     let after_change = status_after(&mut harness);
 
     assert!(first_loading && second_loading, "both loads were running");

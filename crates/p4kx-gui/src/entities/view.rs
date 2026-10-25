@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 mod failure;
-#[cfg(feature = "test-hooks")]
-mod hold;
 mod interior;
 mod job;
 
@@ -14,8 +12,6 @@ use p4kx_assembly::EntityNode;
 use p4kx_settings::ModelMaterials;
 
 pub use failure::ViewFailure;
-#[cfg(feature = "test-hooks")]
-pub use hold::InteriorHold;
 pub use job::{ViewProgress, ViewStage};
 
 use crate::viewer::{AssemblyDraw, hidden_mask};
@@ -65,7 +61,7 @@ pub struct AssemblyView {
     cancelled: bool,
     counter: u64,
     #[cfg(feature = "test-hooks")]
-    gate: Option<Arc<hold::Gate>>,
+    gate: Option<Arc<crate::hold::Gate>>,
 }
 
 impl std::fmt::Debug for AssemblyView {
@@ -117,10 +113,10 @@ impl AssemblyView {
     /// Makes the builds of the view stay in their Interior step until the returned hold is
     /// dropped.
     #[cfg(feature = "test-hooks")]
-    pub fn hold_interior(&mut self) -> InteriorHold {
-        let gate = Arc::new(hold::Gate::default());
-        self.gate = Some(Arc::clone(&gate));
-        InteriorHold(gate)
+    pub fn hold_interior(&mut self) -> crate::Hold {
+        let (hold, gate) = crate::hold::Hold::new();
+        self.gate = Some(gate);
+        hold
     }
 
     /// Returns the level of detail the view is built at.

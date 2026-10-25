@@ -105,7 +105,7 @@ pub(super) struct Request {
     pub(super) materials: ModelMaterials,
     pub(super) interior: bool,
     #[cfg(feature = "test-hooks")]
-    pub(super) gate: Option<Arc<super::hold::Gate>>,
+    pub(super) gate: Option<Arc<crate::hold::Gate>>,
 }
 
 /// A built view and the number of parts the Assembly could not resolve.
@@ -240,7 +240,7 @@ fn with_interior(
     shared.set(3, 0, 0);
     #[cfg(feature = "test-hooks")]
     if let Some(gate) = &request.gate {
-        gate.wait(cancel);
+        gate.wait(|| cancel.is_cancelled());
     }
     let watch = InteriorWatch {
         cancelled: &|| cancel.is_cancelled(),

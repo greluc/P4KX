@@ -3,7 +3,7 @@
 
 //! The Reload and Extract selected entries of the Archive menu and their shortcuts, driven headless.
 
-use crate::waiting::{RunQuiet, wait_for};
+use crate::waiting::{RunQuiet, click_shown_once};
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -52,14 +52,6 @@ fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -
     Ok(())
 }
 
-fn click_menu_entry(harness: &mut Harness<'_, Model>, shortcut: &str) -> TestResult {
-    wait_for(harness, "the menu entry to be shown once", |harness| {
-        harness.query_all_by_label_contains(shortcut).count() == 1
-    })?;
-    harness.get_by_label_contains(shortcut).click();
-    Ok(())
-}
-
 fn check_first(harness: &mut Harness<'_, Model>) -> TestResult {
     let browser = harness.state_mut().browser_mut().ok_or("no Archive")?;
     let id = *browser.shown().first().ok_or("no Entry")?;
@@ -105,7 +97,7 @@ fn the_menu_entry_extracts_the_selected_entries() -> TestResult {
 
     harness.get_by_label("Archive").click();
     harness.run_quiet();
-    click_menu_entry(&mut harness, "Ctrl+E")?;
+    click_shown_once(&mut harness, "Ctrl+E")?;
     harness.run_quiet();
 
     assert!(
@@ -134,7 +126,7 @@ fn the_menu_entry_opens_the_archive_again() -> TestResult {
 
     harness.get_by_label("Archive").click();
     harness.run_quiet();
-    click_menu_entry(&mut harness, "F5")?;
+    click_shown_once(&mut harness, "F5")?;
     wait_until(&mut harness, reopened)?;
 
     assert_eq!(checked(&harness), 0, "a fresh index");

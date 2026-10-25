@@ -14,7 +14,7 @@ use crate::waiting::wait_for;
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{AssemblyView, InteriorHold, Language, LoadoutSession, Model, ViewStage};
+use p4kx_gui::{AssemblyView, Hold, Language, LoadoutSession, Model, ViewStage};
 
 const DEFAULT: [f32; 2] = [1280.0, 800.0];
 
@@ -36,9 +36,7 @@ fn stage(model: &Model) -> Option<ViewStage> {
 
 /// Holds the Interior step of the next build and asks for the Interior again, then steps the
 /// window until a frame drew the stage that reads it.
-fn hold_the_interior_stage(
-    window: &mut Window,
-) -> Result<InteriorHold, Box<dyn std::error::Error>> {
+fn hold_the_interior_stage(window: &mut Window) -> Result<Hold, Box<dyn std::error::Error>> {
     let hold = view_mut(window)?.hold_interior();
     let next = u32::from(view_mut(window)?.lod() == 0);
     view_mut(window)?.set_lod(next);

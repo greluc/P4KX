@@ -3,7 +3,7 @@
 
 //! The window driven headless through `egui_kittest`: open, navigate, sort, select.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, click_shown_once};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -277,7 +277,7 @@ fn the_help_menu_shows_the_font_licence() {
 
     harness.get_by_label("Help").click();
     harness.run_quiet();
-    harness.get_by_label("Font licence").click();
+    click_shown_once(&mut harness, "Font licence").expect("the entry is shown once");
     harness.run_quiet();
 
     assert!(harness.state().licence_shown(), "the licence is open");
@@ -312,7 +312,7 @@ fn the_help_menu_shows_the_legal_notices_in_both_languages() {
 
         harness.get_by_label(help).click();
         harness.run_quiet();
-        harness.get_by_label(entry).click();
+        click_shown_once(&mut harness, entry).expect("the entry is shown once");
         harness.run_quiet();
 
         assert!(harness.state().about_shown(), "{language:?}: About is open");

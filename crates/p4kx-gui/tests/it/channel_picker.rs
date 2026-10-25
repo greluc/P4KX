@@ -3,11 +3,10 @@
 
 //! The Channel picker driven headless: detected Channels, manual entries, recent Archives.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for};
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -83,14 +82,9 @@ fn harness(library: &Path) -> Harness<'static, State> {
 }
 
 fn wait_until_open(harness: &mut Harness<'_, State>) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while harness.state().0.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", harness.state().0.failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the Archive to open", |harness| {
+        harness.state().0.browser().is_some()
+    })?;
     harness.run_quiet();
     Ok(())
 }

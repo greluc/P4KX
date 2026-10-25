@@ -8,6 +8,7 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable;
 use p4kx_gui::Model;
 
 /// How long a window may take to reach a state; generous because a software renderer shares the
@@ -16,9 +17,8 @@ pub(crate) const PATIENCE: Duration = Duration::from_secs(60);
 
 const PAUSE: Duration = Duration::from_millis(2);
 
-/// Steps `harness` until `done` holds for it, pausing between the frames, and fails with a message
-/// naming `what` once [`PATIENCE`] passed. `done` is checked after a frame and again before the
-/// time runs out, so a condition that holds at once costs one frame.
+/// Steps `harness` until `done` holds for it, and fails with a message naming `what` once
+/// [`PATIENCE`] passed.
 pub(crate) fn wait_for<S>(
     harness: &mut Harness<'_, S>,
     what: &str,
@@ -45,23 +45,40 @@ pub(crate) fn wait_for_model(
     wait_for(harness, what, |harness| done(harness.state()))
 }
 
-/// Acts on a window of the [`Model`] with `act` until `done` holds for the model, and fails with a
-/// message naming `what` once [`PATIENCE`] passed. A click that lands while the layout still moves
-/// is lost, so it is repeated after a few frames until it took effect.
+const ATTEMPTS: u32 = 3;
+
+/// Runs `act` on a window of the [`Model`] until `done` holds for the model, at most
+/// [`ATTEMPTS`] times, and fails with the attempt count. A click that lands while the layout still
+/// moves is lost, so it is repeated; a control that needs a second click never passes unnoticed.
 pub(crate) fn act_until(
     harness: &mut Harness<'_, Model>,
     what: &str,
     mut act: impl FnMut(&mut Harness<'_, Model>),
     mut done: impl FnMut(&Model) -> bool,
 ) -> Result<(), Box<dyn Error>> {
-    let started = Instant::now();
-    while !done(harness.state()) {
-        if started.elapsed() > PATIENCE {
-            return Err(format!("timed out after {PATIENCE:?} waiting for {what}").into());
+    for _ in 0..ATTEMPTS {
+        if done(harness.state()) {
+            return Ok(());
         }
         act(harness);
         harness.run_steps(3);
     }
+    if done(harness.state()) {
+        return Ok(());
+    }
+    Err(format!("{what} did not happen after {ATTEMPTS} attempts").into())
+}
+
+/// Clicks the one node whose label contains `label`, once only one such node is shown: a menu
+/// that is still opening shows its entry twice for a frame.
+pub(crate) fn click_shown_once<S>(
+    harness: &mut Harness<'_, S>,
+    label: &str,
+) -> Result<(), Box<dyn Error>> {
+    wait_for(harness, &format!("`{label}` to be shown once"), |harness| {
+        harness.query_all_by_label_contains(label).count() == 1
+    })?;
+    harness.get_by_label_contains(label).click();
     Ok(())
 }
 

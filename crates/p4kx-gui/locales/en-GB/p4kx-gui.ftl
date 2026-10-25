@@ -441,6 +441,21 @@ catalog-file-filter-compressed = Basetool catalog (JSON, zstd-compressed)
 catalog-running-title = Creating the Basetool catalog
 catalog-reading = Reading DataForge…
 catalog-progress = { $done } of { $total } Records checked, { $percent } %
+catalog-crafting-progress = Reading the crafting data: { $done } of { $total } Records, { $percent } %
+catalog-warning = { $kind ->
+    [unreadable_reward_records] { $count } Records that could hold a reward source cannot be read, so their reward sources are missing.
+    [ambiguous_dismantle] The DataForge holds { $count } dismantle processes instead of one, so no dismantle return is linked.
+    [unreadable_vehicle_files] { $count } ships have a vehicle file that cannot be read, so their paints are missing.
+    [unplaced_starmap_containers] { $count } system containers or placements cannot be read, so the starmap objects below them have no position.
+    [unreadable_shop_registry] The shop registry cannot be read, so the catalog has no shops although the Build has some.
+    [missing_shop_registry] The Archive holds no shop registry at the known path, so the catalog has no shops.
+    [unreadable_shop_containers] { $count } shop containers cannot be read, so the shops in them may lack kind and brand.
+    [unreadable_shop_inventories] { $count } shop inventory files cannot be read, so the shops that use them have no item list.
+    [missing_shop_inventories] { $count } shop inventory files that shop containers name are not in the Archive, so the shops that use them have no item list.
+    [no_shop_components] No shop component was found in the .soc files of the shop containers, so no shop has an item list.
+   *[other] { $message }
+}
+catalog-warning-more = and { $number } more
 catalog-writing = Writing { $path }…
 catalog-summary-title = Basetool catalog created
 catalog-kinds-heading = Kinds

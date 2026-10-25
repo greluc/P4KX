@@ -7,13 +7,11 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CraftingWarning {
-    /// The DataForge holds more References than the reference index keeps, so
-    /// [`Crafting::reward_sources`](crate::Crafting::reward_sources) may lack places that reward
-    /// a pool.
-    RewardSourcesTruncated,
-    /// This many Records could not be read by the reference index; a reward source in one of
-    /// them is missing from [`Crafting::reward_sources`](crate::Crafting::reward_sources).
-    UnreadableReferenceRecords(usize),
+    /// This many Records could not be read although their struct type is that of a Record with a
+    /// reward source; a source in one of them is missing from
+    /// [`Crafting::reward_sources`](crate::Crafting::reward_sources). A Record of a type that
+    /// holds no source elsewhere is not counted.
+    UnreadableRewardRecords(usize),
     /// The DataForge holds this many dismantle processes instead of one, so
     /// [`Crafting::dismantle_return`](crate::Crafting::dismantle_return) links no blueprint.
     AmbiguousDismantle(usize),
@@ -56,6 +54,53 @@ pub enum CraftingWarning {
     NoShopComponents,
 }
 
+impl CraftingWarning {
+    /// Returns the name of the kind of the warning, as `p4kx catalog --json` states it.
+    #[must_use]
+    pub const fn kind(&self) -> &'static str {
+        match self {
+            Self::UnreadableRewardRecords(_) => "unreadable_reward_records",
+            Self::AmbiguousDismantle(_) => "ambiguous_dismantle",
+            Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
+            Self::UnplacedStarmapContainers(_) => "unplaced_starmap_containers",
+            Self::UnreadableShopRegistry => "unreadable_shop_registry",
+            Self::MissingShopRegistry => "missing_shop_registry",
+            Self::UnreadableShopContainers(_) => "unreadable_shop_containers",
+            Self::UnreadableShopInventories { .. } => "unreadable_shop_inventories",
+            Self::MissingShopInventories(_) => "missing_shop_inventories",
+            Self::NoShopComponents => "no_shop_components",
+        }
+    }
+
+    /// Returns the number the warning counts, `None` for one that counts nothing.
+    #[must_use]
+    pub const fn count(&self) -> Option<usize> {
+        match self {
+            Self::UnreadableRewardRecords(count)
+            | Self::AmbiguousDismantle(count)
+            | Self::UnplacedStarmapContainers(count)
+            | Self::UnreadableShopContainers(count)
+            | Self::MissingShopInventories(count)
+            | Self::UnreadableVehicleFiles { count, .. }
+            | Self::UnreadableShopInventories { count, .. } => Some(*count),
+            Self::UnreadableShopRegistry | Self::MissingShopRegistry | Self::NoShopComponents => {
+                None
+            }
+        }
+    }
+
+    /// Returns the files the warning names and why they cannot be read, empty for a warning
+    /// without.
+    #[must_use]
+    pub fn details(&self) -> &[String] {
+        match self {
+            Self::UnreadableVehicleFiles { details, .. }
+            | Self::UnreadableShopInventories { details, .. } => details,
+            _ => &[],
+        }
+    }
+}
+
 const LISTED_DETAILS: usize = 8;
 
 /// The details of a warning as ` (a; b)`, empty for none; lists at most [`LISTED_DETAILS`].
@@ -80,12 +125,9 @@ impl fmt::Display for Listed<'_> {
 impl fmt::Display for CraftingWarning {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::RewardSourcesTruncated => f.write_str(
-                "the reference index is truncated; the reward sources of the blueprint pools are incomplete",
-            ),
-            Self::UnreadableReferenceRecords(count) => write!(
+            Self::UnreadableRewardRecords(count) => write!(
                 f,
-                "{count} Records cannot be read by the reference index; their reward sources are missing"
+                "{count} Records that could hold a reward source cannot be read; their reward sources are missing"
             ),
             Self::AmbiguousDismantle(count) => write!(
                 f,

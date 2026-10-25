@@ -77,6 +77,7 @@ mod contract_stats_gear;
 mod contract_store_slugs;
 mod crafting;
 mod crafting_records;
+mod crafting_scan;
 mod crafting_sources;
 mod crafting_tier;
 mod crafting_types;
@@ -146,7 +147,7 @@ pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_
 pub use catalog_file::CatalogFile;
 pub use catalog_output::{Compression, ZSTD_LEVEL, ZSTD_WINDOW_LOG};
 pub use contract::{SCHEMA_VERSION, catalog_schema};
-pub use crafting::{Crafting, read_crafting, read_crafting_limited};
+pub use crafting::{Crafting, read_crafting};
 pub use crafting_types::{
     BlueprintPool, BlueprintTiers, Cost, CostContext, DismantleProcess, DismantleReturn,
     GameplayProperty, GlobalParams, ItemCost, LocationOverride, ModifierKind, PoolEntry,
@@ -159,7 +160,7 @@ pub use failure::CatalogFailure;
 pub use form::{FLAT_CSV_FILE, FLAT_NDJSON_FILE, NDJSON_FILE, RecordForm};
 pub use item_class::{ItemClass, ItemClassSummary};
 pub use localization_table::{TableFormat, write_localization_table};
-pub use options::{CatalogOptions, CatalogProgress};
+pub use options::{CatalogOptions, CatalogPhase, CatalogProgress};
 pub use p4kx_extraction::{
     CancelToken, ConflictPolicy, ExtractionError, Filter, Guid, Language, LocalizationNote,
     PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TAG_PATH_SEPARATOR,

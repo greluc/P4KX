@@ -512,7 +512,7 @@ lists them under `playability`. LIVE, 2026-10-21:
 | items | 7,954 | 0 | 522 | 8,570 | 6,234 |
 
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
-an ingredient uses and no commodity Record carries (see below). A commodity Record takes its fields
+a cost of any tier uses and no commodity Record carries (see below). A commodity Record takes its fields
 from the entity:
 
 | Field | Source |
@@ -534,9 +534,9 @@ A name or description that is missing or a placeholder key is taken from the `Re
 or subtype for a commodity; the groups of `ResourceType` Records are the types, the `ResourceType`
 is the subtype.
 
-A `ResourceType` Record that the ingredients of a blueprint use and that no commodity Record
-carries is listed as a commodity as well, so that every resource ingredient points at a catalog
-entry (LIVE: Aslarite, Ouratite, Iron, Stileron, Lindinium, Riccite, Tin, Torite, Savrilium and
+A `ResourceType` Record that the costs of a blueprint use in any tier, selections opened, and that
+no commodity Record carries is listed as a commodity as well, so that every resource of a cost
+points at a catalog entry (LIVE has one tier per blueprint: Aslarite, Ouratite, Iron, Stileron, Lindinium, Riccite, Tin, Torite, Savrilium and
 Pressurized Ice). Its `guid` is the GUID of the `ResourceType`, `className`, `recordPath`, `name`
 and `description` are those of the `ResourceType`, `typeGuid` is its group, `subtypeGuid` is its own
 GUID and `displayType` has no key. With a `--filter`, such an entry is listed only when its record
@@ -649,7 +649,7 @@ the record path and marks the kind partial).
 
 | Kind | Fields |
 |------|--------|
-| `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key leaves `en` and `de` `null`. The target of a modifier's `propertyGuid` |
+| `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key stays as `key` and leaves `en` and `de` `null`, as for `items` and `blueprints`. The target of a modifier's `propertyGuid` |
 | `qualityDistributions` | `distribution`: a normal distribution `kind`, `min`, `max`, `mean`, `stddev` (`null` for an override Record or a value beyond a 32-bit float), and `overrides`: per location a `locationGuid` and its `distribution` (empty for a default Record). Both Record types of `crafting/qualitydistribution` are listed |
 | `blueprintPools` | `entries`: per entry `blueprintGuid` and `weight`; `totalWeight`, the sum of the positive weights; `rewardSources`: every struct of any Record with a Reference to the pool (on LIVE the `BlueprintRewards` result of a contract) with `recordGuid`, `recordPath`, `contractId`, `contractName` (both from the nearest enclosing struct that has an `id`) and `chance`, ordered by `recordGuid` and then in stored order |
 | `dismantleProcesses` | `efficiency` (0.5 on LIVE) and `timeSeconds` (15 on LIVE) of the `GenericCraftingProcess_Dismantle` |
@@ -1234,9 +1234,9 @@ with the status `partial`.
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
 `blueprints` kind and the crafting kinds carry; the catalog is built from it, so library and
-catalog never drift. It reads the DataForge in parallel (0.6 s on LIVE, plus the reference index for
-the reward sources) and leaves out a Record it cannot read, listing it under `failures`. Every
-list is ordered by Record GUID. The values are facts and identifiers only: no description, no
+catalog never drift. It reads the DataForge in parallel (0.3 s on LIVE, the scan for the reward sources included,
+against 14 s for the whole catalog) and leaves out a Record it cannot read, listing it under
+`failures`. Every list is ordered by Record GUID. The values are facts and identifiers only: no description, no
 lore, no media.
 
 The blueprints are selected by the one rule behind the `blueprints` kind (`selects_blueprint`:
@@ -1244,10 +1244,13 @@ prefix, type, Filter, leftover tokens). A `Filter` keeps only the blueprints and
 the other lists are always read, and the catalog then keeps the properties, quality distributions
 and dismantle processes whose record path matches.
 
-A reference index that holds more than 2^23 References, or cannot read a Record, loses reward
-sources, and says so: `Crafting::warnings` holds `RewardSourcesTruncated` or
-`UnreadableReferenceRecords` with the count, and `p4kx catalog` prints the warning and exits with
-code 1 (`CatalogSummary::warnings()`; `is_complete()` is then `false`).
+The reward sources come from one scan of the Record tree of every Record for a Reference to a pool
+(ADR-0154), so nothing is capped. A Record the scan cannot read is no `failures` entry, because it
+is not known to be selected; it could hide a source, so `rewardSources` may be incomplete exactly
+when `Crafting::warnings` holds `UnreadableRewardRecords` with the count. Only an unreadable Record
+whose struct type is that of a Record with a reward source counts, and when no source is found at
+all every unreadable Record counts. `p4kx catalog` prints the warning and exits with code 1
+(`CatalogSummary::warnings()`; `is_complete()` is then `false`); the windows of the GUI list it.
 
 The Rust names of the library:
 

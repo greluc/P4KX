@@ -854,7 +854,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "starmapObjects", "count": 2093, "skipped": 0, "complete": true},
  {"kind": "shops", "count": 1184, "skipped": 0, "complete": true}], "skipped": 1205,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
- "warnings": [{"kind": "unreadable_reference_records", "count": 3}],
+ "warnings": [{"kind": "unreadable_reward_records", "count": 3}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
  "paints": {"paints": 1064, "assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
  "loadouts": {"ships": 1087, "items": 9621, "ports": 293451, "attached": 152081,
@@ -900,8 +900,8 @@ with GUID, record path (empty when it cannot be read) and the reason and its cau
 `: `, ordered by GUID; the example shows one, a healthy Archive has none. The catalog is written
 all the same, and the exit code is 1 when `failed` or `warnings` is not empty. `warnings` lists what
 makes the crafting data incomplete or ambiguous although every Record was read, each as an object
-with a `kind`: `reward_sources_truncated` (the reference index is truncated),
-`unreadable_reference_records` with a `count` (Records the index could not read) and
+with a `kind`: `unreadable_reward_records` with a `count` (Records that cannot be read although
+their struct type is that of a Record with a reward source, so a source may be missing) and
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
 `unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats; the JSON lists every file, stderr the first eight) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk

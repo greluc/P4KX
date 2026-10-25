@@ -3,6 +3,8 @@
 
 //! Stopping and watching the build of an Interior, and writing it with textures.
 
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use p4kx_assembly::{AssemblyError, Interior, InteriorOptions, InteriorProgress, InteriorWatch};
 use p4kx_extraction::{Archive, select_entries};
 use p4kx_gltf::{GlbOptions, LoadedTexture, TextureLoadError, TextureLoader};
@@ -62,6 +64,78 @@ fn building_stops_when_the_watch_asks_and_reports_the_model_files_it_reads() -> 
         sample(&options)?.parts().len(),
         "the same Interior as without a watch"
     );
+    Ok(())
+}
+
+#[test]
+fn building_stops_at_every_point_the_watch_is_asked() -> TestResult {
+    let fixture = fixture(interior_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let found = select_entries(&archive, &[INTERIOR_ROOT])?;
+    let entry = found.first().ok_or("no root container")?;
+    let root = archive.open_container(entry)?;
+    let layers = [&archive, &root];
+    let options = InteriorOptions::default();
+    let asked = AtomicUsize::new(0);
+    let counting = InteriorWatch {
+        cancelled: &|| {
+            asked.fetch_add(1, Ordering::Relaxed);
+            false
+        },
+        progress: &|_| {},
+    };
+    Interior::build_watched(&layers, INTERIOR_ROOT, &options, &counting)?;
+    let total = asked.load(Ordering::Relaxed);
+    assert!(
+        total > 3,
+        "the watch is asked more than once per wave: {total}"
+    );
+
+    for stop_at in 0..total {
+        let calls = AtomicUsize::new(0);
+        let stopping = InteriorWatch {
+            cancelled: &|| calls.fetch_add(1, Ordering::Relaxed) >= stop_at,
+            progress: &|_| {},
+        };
+        let result = Interior::build_watched(&layers, INTERIOR_ROOT, &options, &stopping);
+        assert!(
+            matches!(result, Err(AssemblyError::Cancelled)),
+            "stopped when asked for the {stop_at}th time"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn the_model_progress_ends_at_its_total() -> TestResult {
+    let fixture = fixture(interior_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let found = select_entries(&archive, &[INTERIOR_ROOT])?;
+    let entry = found.first().ok_or("no root container")?;
+    let root = archive.open_container(entry)?;
+    let seen = std::sync::Mutex::new(Vec::new());
+    let watched = InteriorWatch {
+        cancelled: &|| false,
+        progress: &|progress| {
+            if let (Ok(mut seen), InteriorProgress::Models { done, total }) =
+                (seen.lock(), progress)
+            {
+                seen.push((done, total));
+            }
+        },
+    };
+
+    Interior::build_watched(
+        &[&archive, &root],
+        INTERIOR_ROOT,
+        &InteriorOptions::default(),
+        &watched,
+    )?;
+
+    let seen = seen.into_inner()?;
+    let (done, total) = seen.last().copied().ok_or("no progress")?;
+    assert!(total > 0, "files are counted");
+    assert_eq!(done, total, "the last step is the whole: {seen:?}");
     Ok(())
 }
 

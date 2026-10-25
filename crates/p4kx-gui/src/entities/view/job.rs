@@ -108,10 +108,12 @@ pub(super) struct Request {
     pub(super) gate: Option<Arc<crate::hold::Gate>>,
 }
 
-/// A built view and the number of parts the Assembly could not resolve.
+/// A built view and the number of parts the Assembly could not resolve, those of the Loadout and
+/// those of the Interior apart.
 pub(super) struct Built {
     pub(super) scene: AssemblyScene,
     pub(super) issues: usize,
+    pub(super) interior_issues: usize,
     pub(super) interior: bool,
 }
 
@@ -308,12 +310,20 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         return Ended::Failed(ModelExportFailure::ArchiveChanged);
     }
     match built {
-        Ok(scene) => Ended::Built(Box::new(Built {
-            scene,
-            issues: assembly.issues().len(),
-            interior: request.interior,
-        })),
+        Ok(scene) => Ended::Built(Box::new(built_of(scene, &assembly, request.interior))),
         Err(BuildError::Cancelled) => Ended::Cancelled,
         Err(BuildError::Empty) => Ended::Empty,
+    }
+}
+
+fn built_of(scene: AssemblyScene, assembly: &Assembly, interior: bool) -> Built {
+    let interior_issues = assembly
+        .interior()
+        .map_or(0, |interior| interior.issues().len());
+    Built {
+        scene,
+        issues: assembly.issues().len().saturating_sub(interior_issues),
+        interior_issues,
+        interior,
     }
 }

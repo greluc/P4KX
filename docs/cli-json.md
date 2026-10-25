@@ -261,7 +261,9 @@ written even when parts are skipped; an Archive key that is missing or wrong exi
 and writes nothing, an `--out` that is the Archive with code 2.
 
 With `--interior` the report also has `interior`, an object with `containers` (the top-level
-socpak containers of the Entity that were opened, not the containers nested in them), `parts`,
+socpak containers of the Entity that were opened, not the containers nested in them; the text
+and the window call them object containers, while `containers_opened` of `p4kx interior glb`
+counts the nested ones too), `parts`,
 `model_parts` (props included), `modelled_parts` and `lights` (as for
 `p4kx interior glb`, the lights being written with `KHR_lights_punctual`; the models of the containers are not counted in the Entity's `parts`), and
 `issues` lists what the containers could not resolve, with the kinds of `p4kx interior glb` plus
@@ -1625,8 +1627,10 @@ record's geometry type (0 for geometry, 2 or 3 for a helper; `null` without a `N
 chunk), `helper` whether it is a helper, `properties` the `key=value` lines of the node's entry in
 the chunk's property table in order, e.g. `class=AnimatedJoint`, and `node_material_indices` the
 chunk's list of material indices. A transform or scale whose values are all below 1e-5 is the
-identity or 1. `issues` lists in words what a lenient read worked around; `model info` reads
-strictly, so it is empty there. `lods`
+identity or 1. `issues` lists in words what a read worked around: `model info` reads
+strictly, so no fallback of a lenient read appears, but a `CrCh` mesh that names physics data in
+further slots (which are not read) is listed as `node <n> names physics data in <k> further
+slot(s), which are not read`. `lods`
 lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
@@ -1661,7 +1665,10 @@ geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `us
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
-companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
+companion with 3. A `CrCh` model that is well-formed but has a layout the reader does not
+implement (a mesh in data streams, a big-endian chunk, a `Mesh` or physics data chunk of another
+version, a physics primitive other than a polyhedron) exits with code 1, not 3
+(docs/crch-models.md). A `CrCh` model is read like an `#ivo` model, from its own file: it has no
 geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
 is `null` (docs/crch-models.md).
 

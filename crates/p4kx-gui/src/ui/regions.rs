@@ -7,9 +7,10 @@ use egui::{Context, Id, Rect, Ui};
 /// intersect.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Regions {
-    /// The header with the menu.
+    /// The header with the menu. Dialogs shown after the panels of a frame also read it to stay
+    /// below the header, so it is recorded before they are drawn.
     pub header: Option<Rect>,
-    /// The status bar.
+    /// The status bar, read by dialogs like the header.
     pub status: Option<Rect>,
     /// The tab bar of the work surface.
     pub tabs: Option<Rect>,
@@ -28,6 +29,11 @@ pub struct Regions {
     pub list: Option<Rect>,
     /// The preview of the Browse tab, with everything its tab bar and body drew.
     pub preview: Option<Rect>,
+    /// The modals and windows that stood above the window, the setup of an export and the
+    /// windows that show its progress and outcome among them.
+    pub dialogs: Vec<Rect>,
+    /// Whether the body of the export setup holds more than its scroll area shows.
+    pub scrolls: bool,
 }
 
 /// Returns the regions of the last frame drawn in `ctx`.

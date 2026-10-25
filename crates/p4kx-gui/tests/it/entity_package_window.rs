@@ -229,7 +229,7 @@ fn the_interior_goes_into_the_package_when_chosen() -> TestResult {
     assert!(summary.interior().is_some());
     assert!(
         harness
-            .query_by_label_contains("Interior: containers")
+            .query_by_label_contains("Interior: object containers")
             .is_some()
     );
     Ok(())

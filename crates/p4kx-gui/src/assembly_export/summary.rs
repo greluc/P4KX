@@ -46,8 +46,12 @@ impl PartIssue {
 /// What the Interior of an export holds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InteriorFacts {
-    /// The containers that were opened.
+    /// The object containers the Entity names that were opened, or, for a container exported on
+    /// its own, the containers that were opened, the root and every nested one counted.
     pub containers: usize,
+    /// Whether `containers` counts the object containers of an Entity rather than the containers
+    /// opened for a container on its own.
+    pub of_entity: bool,
     /// The parts of the containers: the containers themselves, their `.soc` files, models, props
     /// and lights.
     pub parts: usize,
@@ -106,6 +110,7 @@ impl AssemblyExportSummary {
             replaced: changes.replacements().len(),
             interior: assembly.interior().map(|interior| InteriorFacts {
                 containers: interior.containers().len(),
+                of_entity: true,
                 parts: interior.parts(),
                 model_parts: interior.model_parts(),
                 modelled_parts: interior.modelled_parts(),
@@ -132,6 +137,7 @@ impl AssemblyExportSummary {
             replaced: 0,
             interior: Some(InteriorFacts {
                 containers: interior.containers(),
+                of_entity: false,
                 parts: interior.parts().len(),
                 model_parts: interior.model_parts(),
                 modelled_parts: interior.modelled_parts(),

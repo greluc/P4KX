@@ -81,7 +81,7 @@ pub use bone_extend::{chained_world_poses, extend_skeleton, multiply as multiply
 pub use bone_map::{Influences, MAX_INFLUENCES};
 pub use bone_match::BoneMatch;
 pub use companion::{CompanionError, CompanionPath, CompanionResolver, companion_file_names};
-pub use error::{CorruptChunk, ModelError};
+pub use error::{CorruptChunk, ModelError, UnsupportedLayout};
 pub use included::{
     IncludedObject, IncludedObjects, IncludedObjectsError, MAX_INCLUDED_MODELS,
     MAX_INCLUDED_OBJECTS,

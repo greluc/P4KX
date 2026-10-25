@@ -78,7 +78,12 @@ fn interior_note(texts: &Texts, summary: &AssemblyExportSummary) -> Option<(Stri
         ("lights", number(texts, interior.lights)),
     ]
     .map(|(name, value)| (name, FluentValue::from(value)));
-    Some((texts.format(T::SummaryInterior, &args), palette::GRAY_1))
+    let text = if interior.of_entity {
+        T::SummaryInterior
+    } else {
+        T::SummaryInteriorOpened
+    };
+    Some((texts.format(text, &args), palette::GRAY_1))
 }
 
 /// Returns the lines above the report of a Blender package, each with its colour.

@@ -18,8 +18,9 @@ pub enum PositionBox {
     Model,
 }
 
-/// A problem a lenient read ([`crate::LodSelection::OnlyOrBase`]) worked around instead of
-/// failing.
+/// A problem a read worked around instead of failing: a fallback of a lenient read
+/// ([`crate::LodSelection::OnlyOrBase`]), or data of a `CrCh` model that is left out, which every
+/// selection reports.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
 pub enum ModelIssue {
@@ -47,5 +48,14 @@ pub enum ModelIssue {
         level: u32,
         /// The file the meshes were read from.
         file: String,
+    },
+    /// A `CrCh` mesh names physics data in more than one of its four slots; only the first is
+    /// read.
+    #[error("node {node} names physics data in {slots} further slot(s), which are not read")]
+    PhysicsSlotsIgnored {
+        /// The node's position.
+        node: usize,
+        /// The number of further slots that name physics data.
+        slots: usize,
     },
 }

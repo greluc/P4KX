@@ -53,7 +53,7 @@ pub(crate) fn click_settled(harness: &mut Harness<'_, Model>, label: &str) {
     harness.get_by_role_and_label(Role::Button, label).click();
 }
 
-fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
+pub(crate) fn finished(harness: &mut Harness<'_, Model>) -> TestResult {
     wait_for_model(harness, "the export to end", |model| {
         !model
             .assembly_export()
@@ -136,7 +136,7 @@ fn the_entity_export_offers_the_interior_and_writes_it_below_an_interior_node() 
     );
     assert!(
         harness
-            .query_by_label_contains("Interior: containers")
+            .query_by_label_contains("Interior: object containers")
             .is_some(),
         "and it counts the Interior"
     );
@@ -259,6 +259,12 @@ fn a_socpak_entry_offers_the_export_of_its_interior() -> TestResult {
     assert!(has_node(&bytes, "ship_interior")?, "the root container");
     assert!(has_node(&bytes, "cockpit_seat")?, "a model of a nested one");
     assert!(harness.query_by_label("Interior exported").is_some());
+    assert!(
+        harness
+            .query_by_label_contains("Interior: containers opened")
+            .is_some(),
+        "a container on its own counts the containers opened"
+    );
     let remembered = harness.state().assembly_export_settings();
     assert_eq!(remembered.lod, 1, "remembered");
     assert_eq!(remembered.folder.as_deref(), Some(dir.path()));
@@ -362,36 +368,5 @@ fn an_entry_that_is_no_socpak_offers_no_interior_export() -> TestResult {
     assert!(!harness.state().interior_export_shown());
     harness.state_mut().begin_interior_export();
     assert!(harness.state().assembly_export_setup().is_none());
-    Ok(())
-}
-
-#[test]
-fn the_interior_export_can_be_cancelled_and_leaves_no_file() -> TestResult {
-    let (dir, mut harness) = container_window()?;
-    select_socpak(&mut harness, INTERIOR_ROOT)?;
-    harness.state_mut().begin_interior_export();
-    let file = dir.path().join("cancelled.glb");
-    harness
-        .state_mut()
-        .assembly_export_setup_mut()
-        .ok_or("no setup")?
-        .set_file(file.clone());
-    assert!(harness.state_mut().submit_assembly_export(|| {}));
-    let running = harness.state().assembly_export().ok_or("no export")?;
-    assert!(running.is_container(), "an Interior export");
-
-    harness.state().cancel_assembly_export();
-    finished(&mut harness)?;
-
-    let status = harness
-        .state()
-        .assembly_export()
-        .map(AssemblyExport::status)
-        .ok_or("no export")?;
-    match status {
-        AssemblyExportStatus::Cancelled => assert!(!file.exists(), "no file"),
-        AssemblyExportStatus::Finished(_) => assert!(file.exists(), "it ended first"),
-        other => return Err(format!("unexpected: {other:?}").into()),
-    }
     Ok(())
 }

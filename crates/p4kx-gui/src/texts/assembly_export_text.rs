@@ -96,8 +96,12 @@ pub enum AssemblyExportText {
     SummaryTitle,
     /// The title of the summary of a finished export of an Interior container.
     SummaryTitleInterior,
-    /// What the Interior holds; takes `containers`, `parts`, `models`, `modelled` and `lights`.
+    /// What the Interior of an Entity holds; takes `containers` (its object containers), `parts`,
+    /// `models`, `modelled` and `lights`.
     SummaryInterior,
+    /// What a container exported on its own holds; takes `containers` (opened, nested ones
+    /// included), `parts`, `models`, `modelled` and `lights`.
+    SummaryInteriorOpened,
     /// The title of the summary of a cancelled export.
     SummaryCancelledTitle,
     /// The note that the export was cancelled and wrote no file.
@@ -125,7 +129,7 @@ pub enum AssemblyExportText {
 
 impl AssemblyExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 57] = [
+    pub(crate) const ALL: [Self; 58] = [
         Self::FormHeading,
         Self::FormGlb,
         Self::FormPackage,
@@ -172,6 +176,7 @@ impl AssemblyExportText {
         Self::SummaryTitle,
         Self::SummaryTitleInterior,
         Self::SummaryInterior,
+        Self::SummaryInteriorOpened,
         Self::SummaryCancelledTitle,
         Self::SummaryCancelled,
         Self::SummaryFile,
@@ -235,6 +240,7 @@ impl AssemblyExportText {
             Self::SummaryTitle => "assembly-export-summary-title",
             Self::SummaryTitleInterior => "assembly-export-summary-title-interior",
             Self::SummaryInterior => "assembly-export-summary-interior",
+            Self::SummaryInteriorOpened => "assembly-export-summary-interior-opened",
             Self::SummaryCancelledTitle => "assembly-export-summary-cancelled-title",
             Self::SummaryCancelled => "assembly-export-summary-cancelled",
             Self::SummaryFile => "assembly-export-summary-file",

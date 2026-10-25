@@ -3,7 +3,7 @@
 
 use egui::{
     Color32, Context, CornerRadius, Frame, Id, LayerId, Margin, Modal, Painter, Pos2, Rect,
-    ScrollArea, Shape, Stroke, Ui, Vec2, Window, pos2, vec2,
+    ScrollArea, Shape, Stroke, Ui, Vec2, pos2, scroll_area::ScrollAreaOutput, vec2,
 };
 
 use super::text::caps;
@@ -17,6 +17,10 @@ use crate::theme::tokens::{
     CORNER_SM, GLOW_DANGER_LG, GLOW_PRIMARY_LG, RADIUS_SM, SPACE_3, SPACE_4, Weight,
 };
 
+/// The padding above and below the content of a modal.
+pub(crate) const MODAL_PADDING_Y: f32 = SPACE_3;
+/// The height of the foot of a modal: its gap, the hairline's gap and the action.
+pub(crate) const FOOT_HEIGHT: f32 = SPACE_4 + SPACE_3 + BUTTON_HEIGHT;
 /// The width of the body of a modal.
 pub(crate) const MODAL_BODY_WIDTH: f32 = MODAL_WIDTH - 2.0 * SPACE_4;
 /// The width of the body of a wide modal.
@@ -153,7 +157,7 @@ fn alert<R>(ui: &mut Ui, (fill, accent): (Color32, Color32), body: impl FnOnce(&
     response.inner
 }
 
-fn modal_frame(tone: Tone) -> Frame {
+pub(super) fn modal_frame(tone: Tone) -> Frame {
     let glow = if tone == Tone::Danger {
         GLOW_DANGER_LG
     } else {
@@ -164,7 +168,7 @@ fn modal_frame(tone: Tone) -> Frame {
         .stroke(Stroke::new(1.0, palette::GRAY_3))
         .corner_radius(CORNER_SM)
         .shadow(glow)
-        .inner_margin(margin(SPACE_4, SPACE_3))
+        .inner_margin(margin(SPACE_4, MODAL_PADDING_Y))
 }
 
 /// Returns the title of a modal head in `tone`.
@@ -175,13 +179,6 @@ pub(crate) fn modal_title(title: &str, tone: Tone) -> egui::RichText {
         palette::WHITE
     };
     caps(title, TITLE_SIZE, Weight::Bold, TITLE_TRACKING).color(colour)
-}
-
-/// Returns a non-modal `.modal` window titled `title`; its head is drawn by [`head`].
-pub(crate) fn window(title: &str, tone: Tone) -> Window<'static> {
-    Window::new(title.to_owned())
-        .title_bar(false)
-        .frame(modal_frame(tone))
 }
 
 /// Shows the head of a modal: the upper-case `title` over a hairline, with the close cross named
@@ -248,9 +245,11 @@ pub(crate) fn foot_action(ui: &mut Ui, label: &str, kind: super::button::Kind) -
 /// and the space around the modal.
 pub(crate) fn modal_room(ui: &Ui) -> f32 {
     let above = ui.cursor().top() - ui.min_rect().top();
-    let foot = SPACE_4 + SPACE_3 + BUTTON_HEIGHT;
     4.0f32
-        .mul_add(-SPACE_4, ui.ctx().content_rect().height() - above - foot)
+        .mul_add(
+            -SPACE_4,
+            ui.ctx().content_rect().height() - above - FOOT_HEIGHT,
+        )
         .max(BUTTON_HEIGHT)
 }
 
@@ -261,12 +260,21 @@ pub(crate) fn scrolling_body<R>(
     salt: &'static str,
     body: impl FnOnce(&mut Ui) -> R,
 ) -> R {
+    let room = modal_room(ui);
+    scrolling_body_in(ui, (salt, room), body).inner
+}
+
+/// Shows the body of a modal in a vertical scroll area that never grows taller than `room`.
+pub(crate) fn scrolling_body_in<R>(
+    ui: &mut Ui,
+    (salt, room): (&'static str, f32),
+    body: impl FnOnce(&mut Ui) -> R,
+) -> ScrollAreaOutput<R> {
     ScrollArea::vertical()
         .id_salt(salt)
-        .max_height(modal_room(ui))
+        .max_height(room)
         .auto_shrink([false, true])
         .show(ui, body)
-        .inner
 }
 
 /// Returns a `.modal` on the flat scrim.

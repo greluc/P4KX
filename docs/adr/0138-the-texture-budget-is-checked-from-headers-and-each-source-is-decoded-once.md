@@ -16,14 +16,24 @@ archive loader answers from the header and the alpha tail's header and applies t
 limit of 2^26 pixels there too.
 
 **Decode once.** Normal and specular maps feed two images each (normal and metallic-roughness;
-base colour and metallic-roughness). A per-build cache decodes each source once, however many jobs
-use it, and drops it when the last job that needs it has finished, so its memory stays bounded by
-the jobs in flight and their neighbours. A texture that fails to load fails once, and is still
-reported for every material that needs it.
+base colour and metallic-roughness). The jobs run four at a time. For each such chunk the distinct
+sources of its jobs are decoded first, in parallel and without any job waiting on another, and the
+jobs are then made from that set; a decode that is itself parallel therefore cannot deadlock on a
+shared source. After the chunk only the sources the next chunk uses stay in memory, and only up to
+2^27 pixels together; the rest are dropped and decoded again if a later chunk needs them. The peak
+is the sources of one chunk (at most twelve) plus that cap, and nothing grows with the number of
+materials. A texture that fails to load fails once per chunk and is reported for every material
+that needs it.
+
+**Priority.** Pixels held back for a chunk's jobs are returned before the images are counted in job
+order, so an earlier job is never refused because a later job's image was reserved. A
+metallic-roughness image whose size depends on whether the normal map has smoothness is not
+reserved; it is checked once made.
 
 **Mip and alpha tail.** The archive loader clamps the requested mip to the smaller mip count of the
 colour texture and its alpha tail, so a tail with fewer mips gives a smaller normal map with
-smoothness instead of losing the whole map to `AlphaTailMips`.
+smoothness instead of losing the whole map to `AlphaTailMips`. A tail whose size at the chosen mip
+differs from the colour texture's is refused before anything is decoded.
 
 **JSON report of a model on disk.** `p4kx model glb --materials textures --json` for a model file
 without an Archive reports `texture_fallbacks: []` and one `textures_note`, as the text report
@@ -34,5 +44,7 @@ prints one note, instead of one fallback per texture.
 - Check only the per-texture limit: leaves the per-file budget to the post-decode check; rejected.
 - Make normal and metallic-roughness one job: couples two images with different keys and shares
   nothing for base colour and metallic-roughness; the cache covers both.
-- Keep every decoded source for the build: unbounded for a ship with hundreds of textures;
-  rejected for the release on last use.
+- Keep every decoded source for the build, or until its last user: unbounded for a ship with
+  hundreds of textures; rejected for the chunk-wise hold under a cap.
+- A per-source once-cell shared by the running jobs: a parallel decode waiting inside one can steal
+  a job that needs the same cell and deadlock; rejected.

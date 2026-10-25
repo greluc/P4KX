@@ -1,81 +1,105 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+
+use rayon::prelude::*;
 
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_plan::Job;
 
-type Loaded = Result<Arc<LoadedTexture>, TextureLoadError>;
+/// The most pixels the decoded sources kept for the next chunk of jobs may hold together.
+pub(crate) const MAX_HELD_PIXELS: u64 = 1 << 27;
 
-struct Entry {
-    uses: usize,
-    cell: Arc<OnceLock<Loaded>>,
-}
+/// A decoded source texture, or why it could not be loaded.
+pub(crate) type Loaded = Result<Arc<LoadedTexture>, TextureLoadError>;
 
-/// The decoded source textures of one build, each decoded once however many jobs use it and
-/// dropped when the last job that uses it is done.
-pub(crate) struct DecodedCache<'l> {
-    loader: &'l dyn TextureLoader,
-    mip: u32,
-    entries: Mutex<HashMap<String, Entry>>,
-}
+/// The decoded sources one chunk of jobs is made from, by path.
+pub(crate) type Decoded = HashMap<String, Loaded>;
 
-fn paths(job: &Job) -> impl Iterator<Item = &str> {
+/// Returns the paths of the source textures `job` loads.
+pub(crate) fn paths(job: &Job) -> impl Iterator<Item = &str> {
     [&job.diffuse, &job.normal, &job.specular]
         .into_iter()
         .flatten()
         .map(|source| source.path.as_str())
 }
 
-impl<'l> DecodedCache<'l> {
-    /// Creates a cache for the textures `jobs` use, loaded at mip `mip` by `loader`.
-    pub(crate) fn new(jobs: &[Job], mip: u32, loader: &'l dyn TextureLoader) -> Self {
-        let mut entries: HashMap<String, Entry> = HashMap::new();
-        for path in jobs.iter().flat_map(paths) {
-            entries
-                .entry(path.to_owned())
-                .or_insert_with(|| Entry {
-                    uses: 0,
-                    cell: Arc::new(OnceLock::new()),
-                })
-                .uses += 1;
-        }
+/// Decodes the source textures of a build a chunk of jobs at a time, each once per chunk however
+/// many jobs of it use it, and keeps those the next chunk needs while they fit a pixel cap.
+pub(crate) struct SourceStore<'l> {
+    loader: &'l dyn TextureLoader,
+    mip: u32,
+    cap: u64,
+    held: Decoded,
+}
+
+fn pixels(loaded: &Loaded) -> u64 {
+    loaded.as_ref().map_or(0, |texture| {
+        u64::from(texture.image.width()) * u64::from(texture.image.height())
+    })
+}
+
+impl<'l> SourceStore<'l> {
+    /// Creates a store that loads at mip `mip` with `loader` and holds at most `cap` pixels
+    /// between chunks.
+    pub(crate) fn new(loader: &'l dyn TextureLoader, mip: u32, cap: u64) -> Self {
         Self {
             loader,
             mip,
-            entries: Mutex::new(entries),
+            cap,
+            held: HashMap::new(),
         }
     }
 
-    /// Returns the texture at `path`, decoding it on the first call.
-    pub(crate) fn get(&self, path: &str) -> Loaded {
-        let cell = self
-            .entries
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .get(path)
-            .map(|entry| Arc::clone(&entry.cell));
-        let load = || self.loader.load(path, self.mip).map(Arc::new);
-        cell.map_or_else(load, |cell| cell.get_or_init(load).clone())
+    /// Returns the decoded sources of `jobs`, taking the held ones and decoding the rest in
+    /// parallel.
+    pub(crate) fn prepare<'a>(&mut self, jobs: impl IntoIterator<Item = &'a Job>) -> Decoded {
+        let mut decoded = Decoded::new();
+        let mut missing: Vec<&str> = Vec::new();
+        for path in jobs.into_iter().flat_map(paths) {
+            if decoded.contains_key(path) || missing.contains(&path) {
+                continue;
+            }
+            match self.held.remove_entry(path) {
+                Some((path, held)) => {
+                    decoded.insert(path, held);
+                }
+                None => missing.push(path),
+            }
+        }
+        self.held.clear();
+        let (loader, mip) = (self.loader, self.mip);
+        let loaded: Vec<(String, Loaded)> = missing
+            .par_iter()
+            .map(|path| ((*path).to_owned(), loader.load(path, mip).map(Arc::new)))
+            .collect();
+        decoded.extend(loaded);
+        decoded
+    }
+
+    /// Keeps the sources of `decoded` that `next` uses, as many as fit the cap.
+    pub(crate) fn keep<'a>(&mut self, decoded: Decoded, next: impl IntoIterator<Item = &'a Job>) {
+        let wanted: HashSet<&str> = next.into_iter().flat_map(paths).collect();
+        let mut held_pixels = 0u64;
+        for (path, loaded) in decoded {
+            let size = pixels(&loaded);
+            if wanted.contains(path.as_str()) && held_pixels.saturating_add(size) <= self.cap {
+                held_pixels += size;
+                self.held.insert(path, loaded);
+            }
+        }
+    }
+
+    /// Returns the pixels the held sources hold.
+    #[cfg(test)]
+    pub(crate) fn held_pixels(&self) -> u64 {
+        self.held.values().map(pixels).sum()
     }
 
     /// Returns the size of the texture at `path` without decoding it, when the loader knows.
     pub(crate) fn dimensions(&self, path: &str) -> Result<Option<(u32, u32)>, TextureLoadError> {
         self.loader.dimensions(path, self.mip)
-    }
-
-    /// Notes that `job` is done with its textures, dropping each no other job needs.
-    pub(crate) fn release(&self, job: &Job) {
-        let mut entries = self.entries.lock().unwrap_or_else(PoisonError::into_inner);
-        for path in paths(job) {
-            if let Some(entry) = entries.get_mut(path) {
-                entry.uses = entry.uses.saturating_sub(1);
-                if entry.uses == 0 {
-                    entries.remove(path);
-                }
-            }
-        }
     }
 }

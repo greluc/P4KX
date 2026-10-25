@@ -7,8 +7,8 @@ use p4kx_texture::{RgbaImage, write_png};
 use rayon::prelude::*;
 
 use crate::texture_budget::{Tally, Verdict};
-use crate::texture_cache::DecodedCache;
-use crate::texture_loader::{LoadedTexture, TextureLoader};
+use crate::texture_cache::{Decoded, MAX_HELD_PIXELS, SourceStore};
+use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_pixels::{base_colour, metallic_roughness, normal_map, opacity_colour};
 use crate::texture_plan::{EncodedImage, Failure, Job, Key};
 use crate::texture_report::TextureRole;
@@ -48,33 +48,58 @@ impl Outcome {
 /// image that would exceed `budget` is dropped and its job fails, like every job after it.
 ///
 /// The budget is checked against the header sizes before a job decodes anything, when the loader
-/// gives them, and against the image made otherwise. Each source texture is decoded once, however
-/// many jobs use it.
+/// gives them, and against the image made otherwise. The sources of a chunk of jobs are decoded
+/// once however many of its jobs use them, and those the next chunk needs stay in memory up to a
+/// pixel cap.
 pub(crate) fn run(
     jobs: &[Job],
     mip: u32,
     loader: &dyn TextureLoader,
     budget: Budget,
 ) -> Vec<Outcome> {
-    let cache = DecodedCache::new(jobs, mip, loader);
+    run_holding(jobs, mip, loader, budget, MAX_HELD_PIXELS)
+}
+
+fn run_holding(
+    jobs: &[Job],
+    mip: u32,
+    loader: &dyn TextureLoader,
+    budget: Budget,
+    held: u64,
+) -> Vec<Outcome> {
+    let mut store = SourceStore::new(loader, mip, held);
     let mut tally = Tally::new(budget);
     let mut outcomes = Vec::with_capacity(jobs.len());
-    for chunk in jobs.chunks(PARALLEL_IMAGES) {
-        let verdicts: Vec<Verdict> = chunk.iter().map(|job| tally.plan(job, &cache)).collect();
+    let mut chunks = jobs.chunks(PARALLEL_IMAGES).peekable();
+    while let Some(chunk) = chunks.next() {
+        let verdicts: Vec<Verdict> = chunk.iter().map(|job| tally.plan(job, &store)).collect();
+        let decoded = store.prepare(
+            chunk
+                .iter()
+                .zip(&verdicts)
+                .filter(|(_, verdict)| verdict.runs())
+                .map(|(job, _)| job),
+        );
         let made: Vec<Option<Outcome>> = chunk
             .par_iter()
             .zip(&verdicts)
-            .map(|(job, verdict)| (*verdict != Verdict::Refused).then(|| make(job, &cache)))
+            .map(|(job, verdict)| verdict.runs().then(|| make(job, &decoded)))
             .collect();
-        for ((job, verdict), outcome) in chunk.iter().zip(verdicts).zip(made) {
-            let Some(outcome) = outcome else {
-                cache.release(job);
-                outcomes.push(over_budget(job));
-                continue;
-            };
+        store.keep(decoded, chunks.peek().copied().unwrap_or_default());
+        for verdict in &verdicts {
             if let Verdict::Reserved(size) = verdict {
-                tally.give_back(size);
+                tally.give_back(*size);
             }
+        }
+        for ((job, verdict), outcome) in chunk.iter().zip(verdicts).zip(made) {
+            let outcome = match (outcome, verdict) {
+                (Some(outcome), _) => outcome,
+                (None, Verdict::Failed(failure)) => Outcome {
+                    failures: vec![failure],
+                    ..Outcome::default()
+                },
+                (None, _) => over_budget(job),
+            };
             outcomes.push(match outcome.pixels() {
                 Some(size) if !tally.fits(size) => over_budget(job),
                 Some(size) => {
@@ -104,13 +129,18 @@ fn over_budget(job: &Job) -> Outcome {
 }
 
 fn load(
-    cache: &DecodedCache<'_>,
+    decoded: &Decoded,
     role: TextureRole,
     source: Option<&Source>,
     failures: &mut Vec<Failure>,
 ) -> Option<Arc<LoadedTexture>> {
     let source = source?;
-    match cache.get(&source.path) {
+    let loaded = decoded.get(&source.path).cloned().unwrap_or_else(|| {
+        Err(TextureLoadError::Unreadable(
+            "the texture was not prepared".to_owned(),
+        ))
+    });
+    match loaded {
         Ok(texture) => Some(texture),
         Err(error) => {
             failures.push(Failure {
@@ -137,17 +167,16 @@ fn encode(image: &RgbaImage) -> Result<EncodedImage, String> {
 /// of, because the textures failed to load, which `failures` records.
 type Made = Option<Result<EncodedImage, String>>;
 
-fn make(job: &Job, cache: &DecodedCache<'_>) -> Outcome {
+fn make(job: &Job, decoded: &Decoded) -> Outcome {
     let mut outcome = Outcome::default();
     let mut failures = Vec::new();
     let made = match &job.key {
         Key::Base { keep_alpha, .. } => {
-            make_base(job, *keep_alpha, cache, &mut outcome, &mut failures)
+            make_base(job, *keep_alpha, decoded, &mut outcome, &mut failures)
         }
-        Key::Normal { .. } => make_normal(job, cache, &mut failures),
-        Key::MetallicRoughness { .. } => make_packed(job, cache, &mut outcome, &mut failures),
+        Key::Normal { .. } => make_normal(job, decoded, &mut failures),
+        Key::MetallicRoughness { .. } => make_packed(job, decoded, &mut outcome, &mut failures),
     };
-    cache.release(job);
     match made {
         Some(Ok(image)) => outcome.image = Some(image),
         Some(Err(reason)) => {
@@ -168,13 +197,18 @@ fn make(job: &Job, cache: &DecodedCache<'_>) -> Outcome {
 fn make_base(
     job: &Job,
     keep_alpha: bool,
-    cache: &DecodedCache<'_>,
+    decoded: &Decoded,
     outcome: &mut Outcome,
     failures: &mut Vec<Failure>,
 ) -> Made {
-    let diffuse = load(cache, TextureRole::Diffuse, job.diffuse.as_ref(), failures)?;
+    let diffuse = load(
+        decoded,
+        TextureRole::Diffuse,
+        job.diffuse.as_ref(),
+        failures,
+    )?;
     let specular = load(
-        cache,
+        decoded,
         TextureRole::Specular,
         job.specular.as_ref(),
         failures,
@@ -199,8 +233,8 @@ fn make_base(
     )
 }
 
-fn make_normal(job: &Job, cache: &DecodedCache<'_>, failures: &mut Vec<Failure>) -> Made {
-    let normal = load(cache, TextureRole::Normal, job.normal.as_ref(), failures)?;
+fn make_normal(job: &Job, decoded: &Decoded, failures: &mut Vec<Failure>) -> Made {
+    let normal = load(decoded, TextureRole::Normal, job.normal.as_ref(), failures)?;
     Some(
         normal_map(&normal.image)
             .map_err(|error| error.to_string())
@@ -210,14 +244,14 @@ fn make_normal(job: &Job, cache: &DecodedCache<'_>, failures: &mut Vec<Failure>)
 
 fn make_packed(
     job: &Job,
-    cache: &DecodedCache<'_>,
+    decoded: &Decoded,
     outcome: &mut Outcome,
     failures: &mut Vec<Failure>,
 ) -> Made {
-    let gloss = load(cache, TextureRole::Normal, job.normal.as_ref(), failures)
+    let gloss = load(decoded, TextureRole::Normal, job.normal.as_ref(), failures)
         .filter(|gloss| gloss.has_alpha);
     let specular = load(
-        cache,
+        decoded,
         TextureRole::Specular,
         job.specular.as_ref(),
         failures,

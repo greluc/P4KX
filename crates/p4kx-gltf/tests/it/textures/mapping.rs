@@ -58,10 +58,12 @@ fn each_source_texture_is_loaded_once_though_two_images_use_it() -> TestResult {
     assert_eq!(summary.textures, 3, "three images from three textures");
     let mut loaded = stub.calls();
     loaded.sort();
+    let mut distinct = loaded.clone();
+    distinct.dedup();
+    assert_eq!(loaded.len(), 3, "three loads, not five: {loaded:?}");
     assert_eq!(
-        loaded.len(),
-        3,
-        "the normal and the specular map feed two images each: {loaded:?}"
+        distinct, loaded,
+        "the normal and the specular map feed two images each but load once"
     );
     Ok(())
 }

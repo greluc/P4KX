@@ -38,6 +38,11 @@ The calls that read a WEM or a soundbank (`list_soundbank_wems`, `get_wem_info`,
 fetched, so a minutes-long index build never holds a permit. The trigger and Entity tools only
 read the index and take none.
 
+`get_wem_info` pages its `locations` with a cursor like the other lists and reports the language
+folder of a WEM selected by `path`. A cursor beyond the listing is rejected as soon as the size
+of the listing is known (the places of the WEM, the triggers of the Entity), before any WEM is
+read or any item is built.
+
 Memory per call, stated honestly: the source is read whole before it is parsed. A loose WEM up to
 512 MiB (the cap of `Sound`), a soundbank up to 32 MiB (the cap of the audio index; a larger
 Entry is refused by `list_soundbank_wems` and `get_wem_info`), plus the 1 MiB window and the

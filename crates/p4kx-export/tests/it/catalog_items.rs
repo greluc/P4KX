@@ -321,6 +321,7 @@ fn every_kind_states_its_completeness() -> TestResult {
             "mineableElements": {"status": "complete"},
             "refiningProcesses": {"status": "complete"},
             "shops": {"status": "complete"},
+            "shipStoreSlugs": {"status": "complete"},
         }),
         "complete"
     );

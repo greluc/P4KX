@@ -75,6 +75,7 @@ fn xml_field_order(xml: &str) -> Result<Vec<String>, Box<dyn Error>> {
     let root = document.root_element();
     let mut names: Vec<String> = root
         .attributes()
+        .filter(|attribute| attribute.namespace().is_none())
         .map(|attribute| attribute.name().to_owned())
         .filter(|name| !matches!(name.as_str(), "guid" | "path"))
         .collect();
@@ -102,11 +103,11 @@ fn json_keys_follow_the_record_xml_field_order() -> TestResult {
     let keys = serde_json::Deserializer::from_slice(&json).deserialize_map(Keys)?;
 
     assert_eq!(
-        keys.get(..3),
-        Some(&["$type", "$guid", "$path"].map(str::to_owned)[..]),
+        keys.get(..4),
+        Some(&["$type", "$guid", "$path", "$name"].map(str::to_owned)[..]),
         "the Record first"
     );
-    assert_eq!(keys.get(3..), Some(&expected[..]), "the order of {xml:?}");
+    assert_eq!(keys.get(4..), Some(&expected[..]), "the order of {xml:?}");
     assert_ne!(
         expected.first().map(String::as_str),
         Some("tags"),

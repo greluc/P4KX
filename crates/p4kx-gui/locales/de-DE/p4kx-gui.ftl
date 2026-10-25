@@ -352,6 +352,7 @@ record-change-no-field-changes = Kein Feld unterscheidet sich.
 record-change-unreadable-old = Der alte Record lässt sich nicht lesen: { $reason }
 record-change-unreadable-new = Der neue Record lässt sich nicht lesen: { $reason }
 record-change-record-name = Record-Name
+record-change-record-tag = Record-Tag
 record-change-record-type = Record-Typ
 record-change-value-missing = –
 record-change-value-null = null

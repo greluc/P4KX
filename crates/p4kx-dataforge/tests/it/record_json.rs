@@ -85,7 +85,7 @@ fn a_compact_record_is_one_line_with_type_guid_path_and_every_scalar() -> TestRe
         json,
         concat!(
             "{\"$type\":\"Scalars\",\"$guid\":\"cbee34fd-6441-4000-b99f-924f7f26e19f\",",
-            "\"$path\":\"libs/foundry/records/sample\",\"flag\":true,\"i8\":-8,\"i16\":-1600,",
+            "\"$path\":\"libs/foundry/records/sample\",\"$name\":\"Scalars.Sample\",\"flag\":true,\"i8\":-8,\"i16\":-1600,",
             "\"i32\":-320000,\"i64\":-9223372036854775808,\"u8\":200,\"u16\":65000,",
             "\"u32\":4000000000,\"u64\":18446744073709551615,\"single\":1.5,\"double\":-0.25,",
             "\"text\":\"Hello \\\"World\\\" \\\\ \\u0001\\u0008\\t\\n\",\"label\":\"@item_Name_Sample\",",
@@ -122,6 +122,7 @@ fn a_pretty_record_is_indented_by_two_spaces_and_ends_with_a_line_ending() -> Te
             "  \"$type\": \"Item\",\n",
             "  \"$guid\": \"cbee34fd-6441-4000-b99f-924f7f26e19f\",\n",
             "  \"$path\": \"libs/foundry/records/sample\",\n",
+            "  \"$name\": \"Item.Sample\",\n",
             "  \"mass\": 2.5,\n",
             "  \"tags\": [\n",
             "    \"a\",\n",

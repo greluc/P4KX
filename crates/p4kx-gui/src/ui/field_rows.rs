@@ -37,6 +37,7 @@ const HEADS: [Text; 3] = [
 pub(super) fn field_name(texts: &Texts, row: &FieldRow) -> String {
     match &row.name {
         FieldName::RecordName => texts.get(RecordChangeText::RecordName),
+        FieldName::RecordTag => texts.get(RecordChangeText::RecordTag),
         FieldName::RecordType => texts.get(RecordChangeText::RecordType),
         FieldName::Field(path) => path.to_string(),
     }

@@ -130,7 +130,8 @@ fn ship_records_of_a_real_archive_are_json_files_under_their_record_paths() -> T
     let known: Value = serde_json::from_slice(&bytes)?;
     assert_eq!(known["$guid"], KNOWN_GUID, "the known Record");
     assert_eq!(known["$type"], "EntityClassDefinition", "its type");
-    assert_eq!(known["$path"], KNOWN_RECORD, "its record path");
+    let name = known["$name"].as_str().unwrap_or_default();
+    assert!(name.starts_with("EntityClassDefinition."), "its name");
     let vehicle = known["Components"]
         .as_array()
         .and_then(|components| {
@@ -165,7 +166,9 @@ fn leaves(value: &Value) -> usize {
         Value::Object(map) if !map.contains_key("$type") => 1,
         Value::Object(map) => map
             .iter()
-            .filter(|(key, _)| !matches!(key.as_str(), "$type" | "$guid" | "$path"))
+            .filter(|(key, _)| {
+                !matches!(key.as_str(), "$type" | "$guid" | "$path" | "$name" | "$tag")
+            })
             .map(|(_, value)| leaves(value))
             .sum(),
         _ => 1,

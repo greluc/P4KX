@@ -52,6 +52,8 @@ fn reference(link: &Reference<'_>) -> FieldValue {
 pub enum FieldName {
     /// The name of the Record itself.
     RecordName,
+    /// The tag of the Record itself.
+    RecordTag,
     /// The type of the Record itself.
     RecordType,
     /// A field or array element at this path, e.g. `hull.plates[1].armor`.
@@ -92,14 +94,20 @@ impl RecordFields {
         let mut rows = Vec::with_capacity(change.fields().len().saturating_add(2));
         if let (Some(old), Some(new)) = (change.old_record(), change.new_record()) {
             let identity = [
-                (FieldName::RecordName, old.name(), new.name()),
-                (FieldName::RecordType, old.type_name(), new.type_name()),
+                (FieldName::RecordName, Some(old.name()), Some(new.name())),
+                (FieldName::RecordTag, old.tag(), new.tag()),
+                (
+                    FieldName::RecordType,
+                    Some(old.type_name()),
+                    Some(new.type_name()),
+                ),
             ];
+            let scalar = |text: Option<&str>| text.map(|text| FieldValue::Scalar(text.into()));
             rows.extend(identity.into_iter().filter(|(_, old, new)| old != new).map(
                 |(name, old, new)| FieldRow {
                     name,
-                    old: Some(FieldValue::Scalar(old.into())),
-                    new: Some(FieldValue::Scalar(new.into())),
+                    old: scalar(old),
+                    new: scalar(new),
                 },
             ));
         }

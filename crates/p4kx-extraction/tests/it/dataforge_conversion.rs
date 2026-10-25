@@ -135,8 +135,9 @@ fn conversion_writes_one_record_file_per_record_instead_of_the_dcb() -> TestResu
     assert_eq!(
         xml,
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
-         <Item guid=\"00000000-0000-0000-0000-000000000002\" \
-         path=\"libs/foundry/records/items/n1\" count=\"7\" label=\"fine\"/>\n",
+         <Item xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" \
+         guid=\"00000000-0000-0000-0000-000000000002\" \
+         path=\"libs/foundry/records/items/n1\" p4kx:name=\"Item.N1\" count=\"7\" label=\"fine\"/>\n",
         "Record XML"
     );
     Ok(())

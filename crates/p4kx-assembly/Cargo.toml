@@ -20,7 +20,6 @@ p4kx-cryxml.workspace = true
 p4kx-dataforge.workspace = true
 p4kx-extraction.workspace = true
 p4kx-foundation.workspace = true
-p4kx-guard.workspace = true
 p4kx-gltf.workspace = true
 p4kx-model.workspace = true
 rayon.workspace = true

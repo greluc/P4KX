@@ -55,6 +55,18 @@ enum Action {
     ChooseFolder,
 }
 
+/// Returns whether the three Extraction actions fit in the line of `ui` beside `beside` points of
+/// other controls.
+pub(super) fn fit_beside(ui: &Ui, model: &Model, beside: f32) -> bool {
+    let texts = model.texts();
+    let gap = ui.spacing().item_spacing.x;
+    let actions: f32 = ACTIONS
+        .iter()
+        .map(|(_, text, _)| button::width(ui, Size::Normal, &texts.get(*text)) + gap)
+        .sum();
+    beside + gap + actions <= ui.available_width()
+}
+
 /// Shows the three Extraction actions in a right-to-left layout: no CTA in the main window, the
 /// selected one as outline.
 pub(super) fn actions(ui: &mut Ui, model: &mut Model) {

@@ -90,6 +90,7 @@ mod record_tree;
 mod record_value;
 mod search;
 mod shortcuts;
+mod sidebar;
 mod sound_grid;
 mod soundbank_preview;
 mod soundbank_table;
@@ -111,6 +112,7 @@ mod ui_tab_list;
 mod ui_tab_preview;
 mod ui_tab_toolbar;
 mod viewer_input;
+mod work_scroll;
 mod xml_preview;
 mod xml_view;
 
@@ -118,10 +120,7 @@ use std::path::PathBuf;
 
 use egui::{CentralPanel, Margin, Panel, Ui};
 
-use crate::theme::desktop::{
-    HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH,
-    SIDEBAR_WIDTH, STATUS_HEIGHT,
-};
+use crate::theme::desktop::{HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, STATUS_HEIGHT};
 use crate::theme::model_metrics::PREVIEW_MODEL_HEIGHT;
 use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
 use crate::widgets::{frames, tab};
@@ -212,15 +211,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .frame(frames::footer())
         .exact_size(STATUS_HEIGHT)
         .show(ui, |ui| status::show(ui, model));
-    Panel::left("side")
-        .frame(frames::sidebar())
-        .resizable(true)
-        .default_size(SIDEBAR_WIDTH)
-        .size_range(SIDEBAR_MIN_WIDTH..=SIDEBAR_MAX_WIDTH)
-        .show(ui, |ui| {
-            channels::show(ui, model);
-            tree::show(ui, model);
-        });
+    sidebar::show(ui, model);
     CentralPanel::default()
         .frame(frames::canvas())
         .show(ui, |ui| work_surface(ui, model, &mut requests));
@@ -290,7 +281,9 @@ fn poll_background(model: &mut Model) {
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     work_tabs(ui, model);
-    frames::inset().show(ui, |ui| work_panels(ui, model, requests));
+    work_scroll::show(ui, |ui| {
+        frames::inset().show(ui, |ui| work_panels(ui, model, requests));
+    });
 }
 
 fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {

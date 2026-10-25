@@ -16,6 +16,7 @@ use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
+use p4kx_gui::theme::window_metrics::{SIDEBAR_RAIL_WIDTH, WORK_MIN_WIDTH};
 use p4kx_gui::{Language, ListStatus, Model, SoundsListStatus};
 use tempfile::TempDir;
 
@@ -54,7 +55,7 @@ fn renderer() -> Option<WgpuTestRenderer> {
     state.map(WgpuTestRenderer::from_render_state)
 }
 
-fn rendered(
+pub(crate) fn rendered(
     language: Language,
     renderer: WgpuTestRenderer,
     size: [f32; 2],
@@ -133,8 +134,8 @@ fn a_small_window_keeps_the_toolbar_apart_and_the_whole_tab_reachable() -> TestR
             .ok_or("no Entity field")?
             .rect();
         assert!(
-            field.right() <= 640.0,
-            "the Entity field {field:?} ends inside the window"
+            field.right() <= SIDEBAR_RAIL_WIDTH + WORK_MIN_WIDTH,
+            "the Entity field {field:?} ends inside the scrolling work surface"
         );
         let head = harness
             .get_by_role_and_label(Role::ColumnHeader, "Trigger")

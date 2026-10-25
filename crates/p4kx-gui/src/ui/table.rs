@@ -48,23 +48,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let mut hovered_now = None;
     let mut action = None;
     let left = ui.max_rect().left();
+    let shrunk = shrunk(ui);
     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-    TableBuilder::new(ui)
-        .id_salt("entries")
-        .striped(false)
-        .resizable(true)
-        .auto_shrink(false)
-        .sense(Sense::click())
-        .cell_layout(Layout::left_to_right(Align::Center))
-        .column(Column::exact(CHECK_COLUMN))
-        .column(Column::remainder().at_least(160.0).clip(true))
-        .column(
-            Column::initial(COMPRESSION_COLUMN)
-                .at_least(60.0)
-                .clip(true),
-        )
-        .column(Column::initial(ENCRYPTION_COLUMN).at_least(60.0).clip(true))
-        .column(Column::initial(SIZE_COLUMN).at_least(80.0))
+    let table = entries_table(ui);
+    if shrunk {
+        table.reset();
+    }
+    table
         .header(ROW_HEIGHT, |mut header| {
             header.col(|ui| {
                 head_fill(ui, left);
@@ -99,6 +89,35 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     if let Some(action) = action {
         apply(ui, model, &action);
     }
+}
+
+fn entries_table(ui: &mut Ui) -> TableBuilder<'_> {
+    TableBuilder::new(ui)
+        .id_salt("entries")
+        .striped(false)
+        .resizable(true)
+        .auto_shrink(false)
+        .sense(Sense::click())
+        .cell_layout(Layout::left_to_right(Align::Center))
+        .column(Column::exact(CHECK_COLUMN))
+        .column(Column::remainder().at_least(160.0).clip(true))
+        .column(
+            Column::initial(COMPRESSION_COLUMN)
+                .at_least(60.0)
+                .clip(true),
+        )
+        .column(Column::initial(ENCRYPTION_COLUMN).at_least(60.0).clip(true))
+        .column(Column::initial(SIZE_COLUMN).at_least(80.0))
+}
+
+/// Returns whether the room of the table got narrower since the last frame: the columns then
+/// start from their initial widths again, as the remaining column keeps the width it had.
+fn shrunk(ui: &Ui) -> bool {
+    let id = ui.scope_id().with("entries-width");
+    let width = ui.available_width();
+    let before = ui.data_mut(|data| data.get_temp::<f32>(id));
+    ui.data_mut(|data| data.insert_temp(id, width));
+    before.is_some_and(|before| width < before - 0.5)
 }
 
 fn remember_hovered(ui: &Ui, id: egui::Id, row: Option<usize>) {

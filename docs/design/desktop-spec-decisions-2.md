@@ -546,3 +546,15 @@ Speichern-Dialog des Systems mit dem vorgeschlagenen Namen; das Ergebnis steht u
 Star-Citizen-Installation lehnt der Tab wie die anderen Exporte ab, und hat sich das Archiv während des
 Schreibens geändert, meldet der Tab die geschriebene Datei mit dieser Warnung statt „nichts exportiert".
 Neue Maße: `toolbarMaxShare`.
+
+**D.52 Kleinstes Fenster: Seitenleiste hinter einer Leiste, Arbeitsfläche rollt.** Das Fenster ist
+mindestens 640 × 400 groß. Unter `sidebar.collapseWidth` (1020, die Breite der Seitenleiste plus
+`workSurface.minWidth`) steht statt der Seitenleiste nur eine Leiste der Breite `sidebar.railWidth` (40) im
+Stil der Seitenleiste mit einem `btn-xs btn-icon`-Ghost-Knopf und einem Chevron: „Seitenleiste einblenden"
+zeigt die Seitenleiste in `sidebar.minWidth` rechts neben der Leiste, „Seitenleiste ausblenden" verbirgt sie
+wieder. Die Wahl gilt für die Sitzung des Fensters. Der Raum eines Arbeitstabs unter der Tab-Leiste wird nie
+kleiner als `workSurface.minWidth` (720) mal `workSurface.minHeight` (480): ein kleineres Fenster rollt ihn in
+beide Richtungen, die Tab-Leiste bleibt stehen. Die Werkzeugleiste des Tabs „Durchsuchen" stellt die drei
+Extraktions-Knöpfe in eine eigene rechtsbündige Zeile unter das Suchfeld, sobald sie neben diesem
+(`searchField.flexBasis`) nicht mehr passen. Neue Maße: `sidebar.collapseWidth`, `sidebar.railWidth`,
+`workSurface.minWidth`, `workSurface.minHeight`.

@@ -95,6 +95,10 @@ pub enum Text {
     ChannelsHeading,
     /// Shown in the Channel picker when no Channel was found.
     ChannelsNone,
+    /// The name of the button that shows the sidebar a narrow window hides.
+    SidebarShow,
+    /// The name of the button that hides the sidebar again.
+    SidebarHide,
     /// The language menu.
     MenuLanguage,
     /// The name of a language, in that language.

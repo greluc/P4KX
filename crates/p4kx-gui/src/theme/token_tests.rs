@@ -8,7 +8,7 @@ use egui::epaint::Shadow;
 use serde_json::Value;
 
 use super::categorical::{self as c, ItemClassTint, PlanetTint};
-use super::{desktop, palette as p, tokens as t};
+use super::{desktop, palette as p, tokens as t, window_metrics};
 
 const TOKENS: &str = include_str!("fixtures/tokens.json");
 const DESKTOP: &str = include_str!("../../../../docs/design/p4kx-desktop-spec.json");
@@ -283,7 +283,7 @@ fn glows_and_shadows_match_the_theme() {
     }
 }
 
-const DESKTOP_METRICS: [(&str, &str, f32); 62] = [
+const DESKTOP_METRICS: [(&str, &str, f32); 66] = [
     ("meta", "rowDensity", desktop::ROW_HEIGHT),
     ("header", "height", desktop::HEADER_HEIGHT),
     ("header", "brandMarkSize", desktop::BRAND_MARK),
@@ -294,6 +294,14 @@ const DESKTOP_METRICS: [(&str, &str, f32); 62] = [
     ("sidebar", "defaultWidth", desktop::SIDEBAR_WIDTH),
     ("sidebar", "minWidth", desktop::SIDEBAR_MIN_WIDTH),
     ("sidebar", "maxWidth", desktop::SIDEBAR_MAX_WIDTH),
+    (
+        "sidebar",
+        "collapseWidth",
+        window_metrics::SIDEBAR_COLLAPSE_WIDTH,
+    ),
+    ("sidebar", "railWidth", window_metrics::SIDEBAR_RAIL_WIDTH),
+    ("workSurface", "minWidth", window_metrics::WORK_MIN_WIDTH),
+    ("workSurface", "minHeight", window_metrics::WORK_MIN_HEIGHT),
     ("treeRow", "indentPerLevel", desktop::TREE_INDENT),
     ("treeRow", "paddingLeftBase", desktop::TREE_PADDING_LEFT),
     ("treeRow", "fontSize", desktop::ROW_FONT),

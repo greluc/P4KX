@@ -14,6 +14,7 @@ mod buffers;
 mod chunk_source;
 mod conversion_error;
 mod convert;
+mod counting;
 mod coverage;
 mod coverage_entries;
 mod coverage_forge;

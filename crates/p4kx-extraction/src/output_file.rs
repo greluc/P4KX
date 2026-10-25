@@ -9,9 +9,9 @@ use std::process;
 use p4kx_texture::TextureError;
 
 use crate::ConversionError;
+use crate::counting::{Counting, holds};
 
 const WRITE_BUFFER_LEN: usize = 256 * 1024;
-const READ_CHUNK_LEN: usize = 256 * 1024;
 
 /// Writes the file `out` through `write`, replacing it; the data goes to a temporary file next to
 /// it first, so a failed write leaves nothing behind.
@@ -27,15 +27,20 @@ pub fn write_replacing<T>(
     p4kx_guard::ensure_writable(out)?;
     let (temporary, file) = create_temporary(out)?;
     let mut writer = BufWriter::with_capacity(WRITE_BUFFER_LEN, file);
-    let result = write(&mut writer).and_then(|value| {
-        writer
+    let written = write(&mut writer);
+    let result = match written {
+        Ok(value) => writer
             .into_inner()
             .map_err(io::IntoInnerError::into_error)
             .and_then(|file| file.sync_all())
-            .map_err(|source| write_error(out, source))?;
-        fs::rename(&temporary, out).map_err(|source| write_error(out, source))?;
-        Ok(value)
-    });
+            .map_err(|source| write_error(out, source))
+            .and_then(|()| fs::rename(&temporary, out).map_err(|source| write_error(out, source)))
+            .map(|()| value),
+        Err(error) => {
+            drop(writer);
+            Err(error)
+        }
+    };
     if result.is_err() {
         let _ignored = fs::remove_file(&temporary);
     }
@@ -70,25 +75,6 @@ pub struct Replaced {
     pub changed: bool,
 }
 
-struct Counting<'w> {
-    inner: &'w mut BufWriter<File>,
-    len: u64,
-    crc: u32,
-}
-
-impl Write for Counting<'_> {
-    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
-        let count = self.inner.write(data)?;
-        self.crc = crc32c::crc32c_append(self.crc, data.get(..count).unwrap_or_default());
-        self.len = self.len.saturating_add(count as u64);
-        Ok(count)
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.inner.flush()
-    }
-}
-
 /// Writes the file `out` through `write` like [`write_replacing`], streaming, and reports the
 /// length written.
 ///
@@ -97,8 +83,9 @@ impl Write for Counting<'_> {
 ///
 /// # Errors
 ///
-/// Returns the error of `write`, and [`ConversionError::Write`] when the file cannot be created,
-/// flushed, read for the comparison or moved into place.
+/// Returns the error of `write`, [`ConversionError::Write`] when the file cannot be created,
+/// flushed or moved into place, and [`ConversionError::Read`] when an existing file cannot be read
+/// for the comparison.
 pub fn write_replacing_counted(
     out: &Path,
     if_changed: bool,
@@ -106,53 +93,47 @@ pub fn write_replacing_counted(
 ) -> Result<Replaced, ConversionError> {
     p4kx_guard::ensure_writable(out)?;
     let (temporary, file) = create_temporary(out)?;
-    let mut writer = BufWriter::with_capacity(WRITE_BUFFER_LEN, file);
-    let mut counting = Counting {
-        inner: &mut writer,
-        len: 0,
-        crc: 0,
-    };
+    let mut counting = Counting::new(BufWriter::with_capacity(WRITE_BUFFER_LEN, file));
     let written = write(&mut counting);
-    let (len, crc) = (counting.len, counting.crc);
-    let result = written.and_then(|()| {
-        let file = writer
+    let (len, crc) = (counting.len(), counting.crc());
+    let result = match written {
+        Ok(()) => counting
+            .into_inner()
             .into_inner()
             .map_err(io::IntoInnerError::into_error)
-            .map_err(|source| write_error(out, source))?;
-        if if_changed && holds(out, len, crc).map_err(|source| read_error(out, source))? {
-            return Ok(Replaced {
-                len,
-                changed: false,
-            });
+            .map_err(|source| write_error(out, source))
+            .and_then(|file| place(&temporary, file, out, if_changed, len, crc)),
+        Err(error) => {
+            drop(counting);
+            Err(error)
         }
-        file.sync_all().map_err(|source| write_error(out, source))?;
-        drop(file);
-        fs::rename(&temporary, out).map_err(|source| write_error(out, source))?;
-        Ok(Replaced { len, changed: true })
-    });
+    };
     if result.as_ref().map_or(true, |replaced| !replaced.changed) {
         let _ignored = fs::remove_file(&temporary);
     }
     result
 }
 
-fn holds(path: &Path, len: u64, crc: u32) -> io::Result<bool> {
-    let Ok(metadata) = fs::metadata(path) else {
-        return Ok(false);
-    };
-    if !metadata.is_file() || metadata.len() != len {
-        return Ok(false);
+fn place(
+    temporary: &Path,
+    file: File,
+    out: &Path,
+    if_changed: bool,
+    len: u64,
+    crc: u32,
+) -> Result<Replaced, ConversionError> {
+    if if_changed
+        && holds(out, len, crc, &mut Vec::new()).map_err(|source| read_error(out, source))?
+    {
+        return Ok(Replaced {
+            len,
+            changed: false,
+        });
     }
-    let mut file = File::open(path)?;
-    let mut chunk = vec![0; READ_CHUNK_LEN];
-    let mut seen = 0;
-    loop {
-        let count = io::Read::read(&mut file, &mut chunk)?;
-        if count == 0 {
-            return Ok(crc == seen);
-        }
-        seen = crc32c::crc32c_append(seen, chunk.get(..count).unwrap_or_default());
-    }
+    file.sync_all().map_err(|source| write_error(out, source))?;
+    drop(file);
+    fs::rename(temporary, out).map_err(|source| write_error(out, source))?;
+    Ok(Replaced { len, changed: true })
 }
 
 fn create_temporary(out: &Path) -> Result<(PathBuf, File), ConversionError> {

@@ -10,7 +10,7 @@ use p4kx_dataforge::{
 };
 use rayon::prelude::*;
 
-use crate::record_export::file_crc;
+use crate::counting::{Counting, holds};
 use crate::write::{create_temporary, read_existing_error, write_error};
 use crate::{
     CancelToken, ConflictPolicy, ExtractionError, RecordExportError, RecordExportOptions,
@@ -76,7 +76,10 @@ pub fn export_combined(
             };
             return Ok(false);
         };
-        if existing && options.policy == ConflictPolicy::IfChanged && is_unchanged(file, len, crc)?
+        if existing
+            && options.policy == ConflictPolicy::IfChanged
+            && holds(file, len, crc, &mut Vec::new())
+                .map_err(|source| read_existing_error(file, source))?
         {
             report.skipped.push(name);
             report.written = 0;
@@ -197,20 +200,16 @@ fn build<'f>(
 /// The combined document while it is written: the temporary file, with the size and CRC-32C of
 /// what it holds.
 struct Document<'p> {
-    out: BufWriter<File>,
+    out: Counting<BufWriter<File>>,
     file: &'p Path,
-    len: u64,
-    crc: u32,
     has_records: bool,
 }
 
 impl<'p> Document<'p> {
     fn new(part: File, file: &'p Path) -> Result<Self, ExtractionError> {
         let mut document = Self {
-            out: BufWriter::with_capacity(WRITE_BUFFER_LEN, part),
+            out: Counting::new(BufWriter::with_capacity(WRITE_BUFFER_LEN, part)),
             file,
-            len: 0,
-            crc: 0,
             has_records: false,
         };
         document.put(HEAD)?;
@@ -265,7 +264,7 @@ impl<'p> Document<'p> {
         self.out
             .flush()
             .map_err(|source| write_error(self.file.to_path_buf(), source))?;
-        Ok(Some((self.len, self.crc)))
+        Ok(Some((self.out.len(), self.out.crc())))
     }
 
     /// Writes one built batch; returns `false` when a Record of it was cancelled.
@@ -301,15 +300,6 @@ impl<'p> Document<'p> {
     fn put(&mut self, bytes: &[u8]) -> Result<(), ExtractionError> {
         self.out
             .write_all(bytes)
-            .map_err(|source| write_error(self.file.to_path_buf(), source))?;
-        self.len = self.len.saturating_add(bytes.len() as u64);
-        self.crc = crc32c::crc32c_append(self.crc, bytes);
-        Ok(())
+            .map_err(|source| write_error(self.file.to_path_buf(), source))
     }
-}
-
-/// Returns whether the file at `file` has the size `len` and the CRC-32C `crc`.
-fn is_unchanged(file: &Path, len: u64, crc: u32) -> Result<bool, ExtractionError> {
-    let metadata = fs::metadata(file).map_err(|source| read_existing_error(file, source))?;
-    Ok(metadata.len() == len && file_crc(file, &mut Vec::new())? == crc)
 }

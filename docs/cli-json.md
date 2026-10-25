@@ -906,7 +906,8 @@ mapped but none resolves, as for an Archive that is not the game's ([basetool-ca
 slugs").
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)); a name ending in
-`.zst` writes a zstd frame. `size` is the size of the JSON in bytes, uncompressed;
+`.zst` writes a zstd frame, and a name ending in `.gz` is refused with exit code 2 before anything is
+written. `size` is the size of the JSON in bytes, uncompressed;
 `compressed_size` is the size of the file written when it is compressed and `null` otherwise.
 `size_warning` is `near_limit` from 90 % of `upload_limit`, `over_limit` above it, and `null`
 otherwise; it compares the file written (`compressed_size`, else `size`). `decompressed_warning`
@@ -1795,13 +1796,14 @@ yet written are listed in `cancelled`, and the exit code is 4. Otherwise the exi
 `verified` counts the Entries whose data matched the checksum of the directory. `mismatched`
 lists the Entries whose data did not, with the kind of the checksum (`crc32c` in an Archive,
 `crc32` in a container, `sha256` for the SHA-256 of the stored bytes) and the stored (`expected`)
-and computed (`actual`) value as lower-case hex digits, eight for a CRC and 64 for a SHA-256; `failed` lists the Entries that could not be read or decoded, with the
-reason and its causes joined by `: `; `cancelled` lists the Entries not checked because the run was
-cancelled. The three lists are in Archive order. `archive_changed` is `true` when the Archive
-changed on disk: the run then stops and the exit code is 4. Otherwise the exit code is 1 when
-`mismatched`, `failed` or `cancelled` is not empty. `p4kx socpak verify <archive> <container…>
---json` prints the same document for the Entries of the last container; its `archive` is the
-Archive path followed by the Entry paths of the containers.
+and computed (`actual`) value as lower-case hex digits, eight for a CRC and 64 for a SHA-256;
+`failed` lists the Entries that could not be read or decoded, with the reason and its causes
+joined by `: `; `cancelled` lists the Entries not checked because the run was cancelled. The
+three lists are in Archive order. `archive_changed` is `true` when the Archive changed on disk: the
+run then stops and the exit code is 4. Otherwise the exit code is 1 when `mismatched`, `failed` or
+`cancelled` is not empty. `p4kx socpak verify <archive> <container…> --json` prints the same
+document for the Entries of the last container; its `archive` is the Archive path followed by the
+Entry paths of the containers.
 
 ## `p4kx compare <old> <new> --json`
 
@@ -1821,7 +1823,7 @@ code is 0 without and 1 with differences on any compared level.
 | `filter` | string or `null` | The Filter that selected the Entries by path and the Records by the record path of either side |
 | `entries.counts` | object | `added`, `removed` and `changed` Entry counts |
 | `entries.directories` | array | The same counts per top-level directory (`directory`, empty for the root), ordered ignoring case |
-| `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and the checksum for the sides that have it: `crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive |
+| `entries.changes` | array | One object per Entry: `path` (as the new side stores it, the old side for a removed Entry), `change` (`added`, `removed` or `changed`), and `old` and `new` with `size` and the checksum for the sides that have it: `crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive (a SHA-256 would be `sha256` as 64 hex digits; no Entry states one) |
 | `records.counts` | object | `added`, `removed`, `moved`, `changed` and `unreadable` Record counts |
 | `records.changes` | array | One object per Record: `guid`, `change` (`added`, `removed`, `moved`, `changed` or `unreadable`), `old` and `new` with `record_path`, `name`, `tag` (version 8 only, absent without one) and `type` for the sides that have it and can be read, `fields`, and `errors` for an unreadable Record |
 | `records.changes[].fields` | array | One object per changed field or array element, nested ones included: `path` (its location, e.g. `hull.plates[1].armor`), and `old` and `new` values for the sides that have it; empty for an added, removed or unreadable Record |
@@ -1918,7 +1920,7 @@ The line diff of one Entry, with three unchanged lines of context around each ch
 | `change` | string | `added`, `removed`, `changed` or `unchanged`, by size and checksum from the central directories |
 | `differs` | boolean | Whether the Entry differs: added, removed, changed in size or checksum, or with differing lines; it decides the exit code |
 | `content` | string | `text`; `binary` when a side holds a NUL byte, or starts with a UTF-16 byte order mark but does not decode as UTF-16 without NUL characters; `too_large` when a side, or the XML converted from it, is larger than 128 MiB or has more than 4 194 304 lines |
-| `old`, `new` | object or `null` | `size`, the checksum (`crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive) and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
+| `old`, `new` | object or `null` | `size`, the checksum (`crc32c` for an Archive Entry, `crc32` for an Entry of a plain ZIP archive (a SHA-256 would be `sha256` as 64 hex digits; no Entry states one)) and `encoding` of each side, `null` for a missing side; `encoding` is `text` (compared byte for byte), `utf-16le` or `utf-16be` (decoded after the byte order mark), the CryXml signature (`CryXmlB`, `CryXml`, `CRY3SDK`) the side was converted from, or `null` when it is not text |
 | `hunks` | array | Empty unless `content` is `text`. Each hunk has `old_start` and `new_start` (one-based, as in a unified diff header, the line before for an empty side), `old_lines` and `new_lines` (counts) and `lines`, each with `kind` (`context`, `removed` or `added`) and `text` (the line with its terminator, for display with invalid UTF-8 replaced by U+FFFD; the last line of a side may have none) |
 
 A missing side is diffed as empty text. Lines are compared by their bytes, so a change in bytes

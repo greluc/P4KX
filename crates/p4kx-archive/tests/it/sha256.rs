@@ -197,6 +197,64 @@ fn the_crc_is_reported_first_when_both_checks_fail() -> TestResult {
 }
 
 #[test]
+fn a_crc_mismatch_is_not_replaced_by_a_failed_read_of_the_trailing_bytes() -> TestResult {
+    let entry = TestEntry::stored("Data\\a.bin", DATA).with_crc32c(0x1234_5678);
+    let (_dir, archive) = open_cut_inside_trailer(entry)?;
+
+    let (expected, _) = mismatch(read(&archive, true)?)?;
+
+    assert_eq!(expected, Checksum::Crc32c(0x1234_5678), "the CRC-32C");
+    Ok(())
+}
+
+#[test]
+fn a_failed_read_of_the_trailing_bytes_is_an_error_not_a_pass_when_the_crc_matches() -> TestResult {
+    let entry = TestEntry::stored("Data\\a.bin", DATA);
+    let (_dir, archive) = open_cut_inside_trailer(entry)?;
+
+    let error = read(&archive, true)?.err().ok_or("the read passed")?;
+
+    assert!(
+        error
+            .get_ref()
+            .is_none_or(|inner| inner.downcast_ref::<DataError>().is_none()),
+        "an I/O error, not a checksum mismatch: {error}"
+    );
+    Ok(())
+}
+
+fn open_cut_inside_trailer(
+    entry: TestEntry,
+) -> Result<(tempfile::TempDir, Archive), Box<dyn Error>> {
+    let mut payload = entry.payload().to_vec();
+    payload.resize(payload.len() + 20_000, 0xAA);
+    let entry = entry.with_payload(payload).with_sha256();
+    let (dir, archive) = open(&ArchiveBuilder::new().entry(entry))?;
+    let path = dir.path().join("Data.p4k");
+    let bytes = std::fs::read(&path)?;
+    let start = bytes
+        .windows(DATA.len())
+        .position(|window| window == DATA)
+        .ok_or("the data is not in the file")?;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&path)?
+        .set_len((start + DATA.len() + 100) as u64)?;
+    Ok((dir, archive))
+}
+
+#[test]
+fn only_a_v1_digest_is_verified() -> TestResult {
+    let entry = TestEntry::stored("Data\\a.bin", DATA).with_sha256();
+    let (_dir, v1) = open(&ArchiveBuilder::new().entry(entry.clone()))?;
+    let (_dir2, v2) = open(&ArchiveBuilder::v2().entry(entry))?;
+
+    assert!(v1.entries().first().ok_or("no Entry")?.is_sha256_verified());
+    assert!(!v2.entries().first().ok_or("no Entry")?.is_sha256_verified());
+    Ok(())
+}
+
+#[test]
 fn reading_without_verification_ignores_the_digest() -> TestResult {
     for builder in builders() {
         let entry = TestEntry::deflated("Data\\a.bin", DATA).with_sha256_value([0x5A; 32]);

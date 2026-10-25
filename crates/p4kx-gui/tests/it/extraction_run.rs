@@ -4,10 +4,10 @@
 //! A running Extraction from the window driven headless: Conflict policies, cancel, stop and
 //! failures.
 
+use crate::waiting::{wait_polling, wait_polling_described};
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use p4kx_extraction::ConflictPolicy;
 use p4kx_gui::{
@@ -28,14 +28,15 @@ fn opened(builder: &ArchiveBuilder) -> Result<(TempDir, Model, PathBuf), Box<dyn
     let mut model = Model::new(Language::BritishEnglish);
     model.set_archive_key(Some(p4kx_testkit::test_key()));
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", model.failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling_described(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+        |model| format!("failure {:?}", model.failure()),
+    )?;
     let out = dir.path().join("out");
     fs::create_dir(&out)?;
     Ok((dir, model, out))
@@ -73,14 +74,14 @@ fn extract_everything(model: &mut Model, out: &Path, policy: ConflictPolicy) -> 
 }
 
 fn finished(model: &mut Model) -> Result<ExtractionSummary, Box<dyn Error>> {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.extraction().is_some_and(Extraction::is_running) {
-        if Instant::now() > deadline {
-            return Err("the Extraction did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll_extraction();
-    }
+    wait_polling(
+        model,
+        "the Extraction to end",
+        |model| {
+            model.poll_extraction();
+        },
+        |model| !model.extraction().is_some_and(Extraction::is_running),
+    )?;
     match model.extraction().map(Extraction::status) {
         Some(ExtractionStatus::Finished(summary)) => Ok(summary.clone()),
         other => Err(format!("no summary: {other:?}").into()),

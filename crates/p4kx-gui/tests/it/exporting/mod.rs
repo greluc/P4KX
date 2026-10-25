@@ -3,10 +3,10 @@
 
 //! Helpers of the Record export tests: a synthetic Archive with a DataForge, opened headless.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{Browser, Language, Model, RecordExport, RecordExportStatus, RecordTreeStatus};
 use p4kx_testkit::TestValue;
@@ -115,18 +115,18 @@ pub(crate) fn opened_with(
 
 /// Polls `model` until `done` holds.
 pub(crate) fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-        model.poll_record_export();
-        if let Some(browser) = model.browser_mut() {
-            browser.poll();
-        }
-    }
+    wait_polling(
+        model,
+        "the window to settle",
+        |model| {
+            model.poll();
+            model.poll_record_export();
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        done,
+    )?;
     Ok(())
 }
 

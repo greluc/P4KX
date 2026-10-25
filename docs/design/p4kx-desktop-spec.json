@@ -755,6 +755,8 @@
     "valueFontSize": 12.48,
     "valueFontWeight": "fw-bold",
     "valueColor": "color-white",
+    "valueMinChars": 3,
+    "overflow": "a value that does not fit is cut with an ellipsis; a fact with no room for its key and valueMinChars characters of its value is left out with every fact after it, and the bar ends in an ellipsis in color-gray-2-text",
     "direction": "chevron right between old and new, chevron size 12, color-primary"
   },
   "kpiTile": {
@@ -1037,13 +1039,12 @@
   "characterBuilder": {
     "dsClass": "previewPanel + facts-bar + segmented--sm + btn-ghost btn-xs + btn-outline btn-xs",
     "decision": "D.49",
-    "stackWidth": 560,
     "reportRows": 3,
     "reportHeight": 144,
     "expressionRows": 5,
     "reportHeightFrom": "head row + reportRows rows of rowHeight 36",
-    "layout": "tab Characters after Sounds: a toolbar like the Entities toolbar on top, left a resizable choices panel between sidebarMinWidth and sidebarMaxWidth, right the facts bar, the status line, the 3D view with the playback bar of modelPreview and below it the report; below stackWidth of the work surface everything stands in one scrolling column: toolbar, choices, view at the height of assemblyView.panelHeight, report",
-    "toolbar": "the eyebrow Detail with a segmented--sm control 0 to 3, the eyebrow Materials with a segmented--sm control Colours and Textures, right a btn-cta Export… that opens the export setup (D.54); below stackWidth the controls wrap, the export first",
+    "layout": "tab Characters after Sounds: a toolbar like the Entities toolbar on top, left a resizable choices panel between sidebarMinWidth and sidebarMaxWidth, right the facts bar, the status line, the 3D view with the playback bar of modelPreview and below it the report; the work surface is never narrower than workSurface.minWidth (D.52), so there is no stacked layout (D.55)",
+    "toolbar": "the eyebrow Detail with a segmented--sm control 0 to 3, the eyebrow Materials with a segmented--sm control Colours and Textures, right a btn-cta Export… that opens the export setup (D.54)",
     "choices": "eyebrow groups Body (segmented--sm Male and Female, locked while a head is chosen), Head (line, btn-outline btn-xs from the Archive and from a file, btn-ghost btn-xs Remove), Armour and clothing (Loadout line with Choose and Remove, pieces as rows with a close icon, btn-outline btn-xs Add), Expressions (checkbox, radio list of expressionRows rows that scrolls, slider Strength)",
     "report": "head row with the count of pieces left out or noted, rows Left out in color-warning and Note in color-gray-1, a row for each piece of the Loadout another piece replaced; with none the line Every piece fits in color-gray-1",
     "messages": "building as assemblyView.bar; stopped and empty color-gray-1; archive changed color-warning; missing key, CHF and failure color-danger-text; graphics problems as modelPreview.messages"

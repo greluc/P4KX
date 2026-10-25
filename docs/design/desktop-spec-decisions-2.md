@@ -497,8 +497,7 @@ Zeilen, die rollt, Regler „Stärke"). Rechts davon Faktenleiste, Statuszeile (
 der Bericht der Höhe `reportHeight` (144): „Teile, die nicht vollständig angepasst werden konnten (n)"
 mit „Ausgelassen:" in `color-warning`, „Hinweis:" und ersetzten Teilen des Loadouts in `color-gray-1`,
 sonst „Alle Teile passen.". Auswahl von Teil, Loadout und Kopf öffnet ein Modal wie die Auswahl des Ersatzes im Tab „Entities" mit Suchfeld und
-Liste. Unter `stackWidth` (560) der Arbeitsfläche steht alles in einer rollenden Spalte: Werkzeugleiste (die
-Gruppen untereinander), Auswahl, Ansicht in der Höhe von `assemblyView.panelHeight`, Bericht. Jede
+Liste. Eine einspaltige Anordnung für schmale Fenster gibt es nicht (D.55). Jede
 Änderung baut den Charakter im Hintergrund neu auf, die bisherige Ansicht bleibt bis dahin; ein Ausdruck
 verschiebt nur die Eckpunkte des Kopfes und lädt das Mesh neu. Der Export läuft im Hintergrund mit
 Fortschritt (geschriebene Bytes) und „Abbrechen" und zeigt danach Datei, Zahlen und die Zahl der
@@ -596,3 +595,5 @@ bleiben in der Werkzeugleiste. Das Fortschrittsfenster zeigt beim Paket „Das P
 ohne Byte-Zähler und „Abbrechen"; die Zusammenfassung nennt Ordner, Teile, Knochen, Skin-Meshes, Shape Keys,
 Animationen, Eckpunkte, Dreiecke, Dateien und Größe. Der Dialog beginnt mit „GLB-Datei", unabhängig vom Entity-Export; Form, Animationen und Ordner merkt sich der Tab bis zum Schließen des
 Fensters. Neue Maße gibt es nicht.
+
+**D.55 Der Tab „Charaktere" hat nur die Anordnung nebeneinander.** Die Arbeitsfläche ist nach D.52 nie schmaler als `workSurface.minWidth` (720), die einspaltige Anordnung unter `stackWidth` (560) aus D.49 war deshalb nie erreichbar und entfällt samt Maß. Auswahl, Ansicht und Bericht stehen auch bei 640 × 400 nebeneinander, die Arbeitsfläche rollt (D.52); die Werkzeugleiste bleibt in einer Zeile. Neue Maße gibt es nicht.

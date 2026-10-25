@@ -9,6 +9,7 @@ mod armour_loadout;
 mod audio;
 mod bnk;
 mod catalog;
+mod catalog_input;
 mod catalog_json;
 mod catalog_json_shops;
 mod catalog_json_slugs;

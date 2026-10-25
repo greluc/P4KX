@@ -6,22 +6,22 @@
 
 use crate::querying;
 use crate::querying::model;
+use crate::waiting::wait_polling;
 
 use std::fs;
-use std::time::{Duration, Instant};
 
 use model::{column, finished, opened, run};
 use p4kx_gui::{CellLook, Model, QueryExportFormat, QueryExportStatus, QueryStatus};
 use querying::{REFERENCING, TestResult, archive, database, listed, numbered, referencing};
 fn exported(model: &mut Model) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while model.query().is_exporting() {
-        if Instant::now() > deadline {
-            return Err("the export did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.query_mut().poll();
-    }
+    wait_polling(
+        model,
+        "the export to end",
+        |model| {
+            model.query_mut().poll();
+        },
+        |model| !model.query().is_exporting(),
+    )?;
     Ok(())
 }
 

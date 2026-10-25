@@ -34,9 +34,10 @@ pub(super) fn facts(ui: &mut Ui, texts: &Texts, scene: &Scene) {
     let strip = laid_out_facts(ui, texts, scene);
     let bar = strip.show(ui);
     let hint_text = texts.get(ModelText::Hint);
+    let start = (bar.left() + strip.width()).min(bar.right());
     let area = Rect::from_min_max(
-        pos2(bar.left() + strip.width(), bar.top()),
-        pos2(bar.right() - FACTS_PADDING_X, bar.bottom()),
+        pos2(start, bar.top()),
+        pos2((bar.right() - FACTS_PADDING_X).max(start), bar.bottom()),
     );
     ui.interact(
         area,

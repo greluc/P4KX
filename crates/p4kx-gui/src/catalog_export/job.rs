@@ -30,6 +30,8 @@ pub enum CatalogExportStatus<'a> {
     Cancelled,
     /// The chosen file is the open Archive; nothing was written.
     IsArchive,
+    /// The chosen file ends in `.gz`, which is not written; nothing was written.
+    GzipNotSupported,
     /// The catalog could not be created, for the reason given, or it stopped without a result.
     Failed(Option<&'a str>),
 }
@@ -48,6 +50,7 @@ enum State {
     Finished(Box<CatalogExportSummary>),
     Cancelled,
     IsArchive,
+    GzipNotSupported,
     Failed(Option<String>),
 }
 
@@ -101,6 +104,7 @@ impl CatalogExport {
             State::Finished(summary) => CatalogExportStatus::Finished(summary),
             State::Cancelled => CatalogExportStatus::Cancelled,
             State::IsArchive => CatalogExportStatus::IsArchive,
+            State::GzipNotSupported => CatalogExportStatus::GzipNotSupported,
             State::Failed(reason) => CatalogExportStatus::Failed(reason.as_deref()),
         }
     }
@@ -176,6 +180,7 @@ pub(crate) fn start(
     index: &Arc<EntryIndex>,
     file: PathBuf,
     wake: impl Fn() + Send + 'static,
+    #[cfg(feature = "test-hooks")] pause: crate::hold::Pause,
 ) -> CatalogExport {
     let cancel = CancelToken::new();
     let shared = Arc::new(Shared::default());
@@ -185,6 +190,8 @@ pub(crate) fn start(
         file: file.clone(),
         cancel: cancel.clone(),
         shared: Arc::clone(&shared),
+        #[cfg(feature = "test-hooks")]
+        pause,
     };
     let spawned = thread::Builder::new()
         .name("basetool-catalog".to_owned())
@@ -205,11 +212,23 @@ pub(crate) fn refused(file: PathBuf) -> CatalogExport {
     CatalogExport::new(file, CancelToken::new(), Arc::default(), State::IsArchive)
 }
 
+/// Returns the outcome of a catalog refused because `file` ends in `.gz`.
+pub(crate) fn refused_gzip(file: PathBuf) -> CatalogExport {
+    CatalogExport::new(
+        file,
+        CancelToken::new(),
+        Arc::default(),
+        State::GzipNotSupported,
+    )
+}
+
 struct Job {
     index: Arc<EntryIndex>,
     file: PathBuf,
     cancel: CancelToken,
     shared: Arc<Shared>,
+    #[cfg(feature = "test-hooks")]
+    pause: crate::hold::Pause,
 }
 
 impl Job {
@@ -226,6 +245,8 @@ impl Job {
             return Ok(Outcome::Cancelled);
         }
         self.shared.enter(CatalogExportStage::Building);
+        #[cfg(feature = "test-hooks")]
+        self.pause.wait(|| self.cancel.is_cancelled());
         let progress = |progress: CatalogProgress| {
             self.shared
                 .total

@@ -4,9 +4,9 @@
 //! Helpers of the container tests: a synthetic Archive with socpak containers, one nested in
 //! another, one compressed and one corrupt.
 
+use crate::waiting::wait_polling_described;
 use std::error::Error;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{Browser, ContainerId, ContainerStatus, Language, Model, Place, TreeNode};
 use p4kx_testkit::{ArchiveBuilder, TestContainer, TestEntry};
@@ -70,18 +70,19 @@ pub(crate) fn opened(
 
 /// Polls `model` until `done` holds.
 pub(crate) fn wait_until(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err(format!("timed out: {model:?}").into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-        model.poll_extraction();
-        if let Some(browser) = model.browser_mut() {
-            browser.poll();
-        }
-    }
+    wait_polling_described(
+        model,
+        "the work to finish",
+        |model| {
+            model.poll();
+            model.poll_extraction();
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        done,
+        |model| format!("{model:?}"),
+    )?;
     Ok(())
 }
 

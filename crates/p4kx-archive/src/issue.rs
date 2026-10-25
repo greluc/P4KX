@@ -33,6 +33,13 @@ pub enum EntryIssue {
         /// The block length as stored, header included.
         size: u16,
     },
+    /// A CIG hash block is not 36 bytes long, 4 header and 32 digest; that block states no
+    /// SHA-256. A later block of the record may still state one.
+    #[error("a hash block is {size} bytes long, not 36; it states no SHA-256")]
+    HashBlockSize {
+        /// The block length as stored, header included.
+        size: u16,
+    },
     /// The path is not UTF-8; [`Entry::path`] holds it with invalid bytes replaced, and
     /// [`Archive::raw_path`](crate::Archive::raw_path) returns the stored bytes.
     #[error("its path is not UTF-8")]
@@ -46,6 +53,7 @@ impl EntryIssue {
             Self::UnknownEncryption { .. } => 2,
             Self::EncryptionBlockSize { .. } => 4,
             Self::PathNotUtf8 => 8,
+            Self::HashBlockSize { .. } => 16,
         }
     }
 }

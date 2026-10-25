@@ -51,3 +51,7 @@ python tests/blender_smoke.py
 
 `pytest` runs without Blender. `blender_smoke.py` imports a synthetic package in headless Blender
 (the `bpy` module, or `blender --background --factory-startup --python tests/blender_smoke.py`).
+
+`python tests/import_real_package.py <package folder>...` imports packages written from a real
+Archive and prints what each import created, see
+[docs/blender-package.md](../docs/blender-package.md#verifying-a-package-in-blender).

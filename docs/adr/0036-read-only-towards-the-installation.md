@@ -14,10 +14,14 @@ already said so; the tool now enforces it.
   an Archive are guarded too; opening an Archive adds its folder. `P4KX_PROTECT_FOLDERS`, a path
   list, adds further protected folders; it is a test aid for fake installations in a temp folder
   (no test targets the real game folders) and can only add protection, never remove it. The
-  folders the user enters by hand in the settings are protected as well, as soon as they are loaded
-  or added: a manual folder as a whole, because it is declared a Library or Channel folder, and a
-  manual Archive by the `Bin64` rule. A Channel folder inside a Library folder, or equal to a
-  manual folder, is therefore covered without a rule of its own.
+  folders the user enters by hand in the settings are protected as well, by the same `Bin64` rule:
+  a manual folder as a whole when it holds `Bin64` itself (a Channel folder) or has a child that
+  does (a Library folder), a manual Archive by its own folder. Any other manual folder, such as a
+  workspace, stays writable. The window applies this when it loads the settings and on every added
+  entry; the command line reads the same `settings.toml` (the folder `P4KX_CONFIG_DIR` names, else
+  the platform default) at start. A detected Channel folder lies in a protected Library folder, so
+  it needs no rule of its own. The launcher logs are read again whenever the size or modification
+  time of `log.log` or `log.old.log` changed.
 - **Same folder, other route.** Besides the canonical key, the identity of the folder (volume and
   file index, through `same-file`) of the target's existing ancestors is compared with that of
   every protected folder, so a loopback share such as `\\localhost\D$\...` does not get past the
@@ -44,11 +48,12 @@ already said so; the tool now enforces it.
   when nothing matches), a PowerShell count of the matching processes where Windows Home has no
   `qprocess`, `/proc/*/comm` elsewhere. No handle to the game process is opened and no memory is
   read, which rules out libraries that open every process for its start time. The command line
-  looks once per run, in the
-  background; the window looks when an Archive is opened and then every 20 seconds. Reading goes on
-  while the warning shows. `P4KX_GAME_CHECK=off` switches the look off for the command line; the
-  test suite sets it so that a game on the developer's machine changes no output. Decided for
-  issue #347.
+  looks once per run, in the background; the window looks when an Archive is opened and then every
+  20 seconds. Reading goes on while the warning shows. `P4KX_GAME_CHECK=off` switches the look off
+  for the command line; the test suite sets it so that a game on the developer's machine changes
+  no output. The look only drives the warning, never the write guard. A process snapshot through
+  Toolhelp would name processes without opening them but needs `unsafe`, which ADR-0006 allows only
+  in the DWM module, so it is not done. Decided for issue #347.
 
 ## Considered Options
 

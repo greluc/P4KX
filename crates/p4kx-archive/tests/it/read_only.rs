@@ -23,6 +23,7 @@ fn opens_and_reads_an_archive_that_nothing_may_write_to() -> TestResult {
         ))
         .write_to(&path)?;
     let before = std::fs::read(&path)?;
+    let _writable_again = MakeWritable(&path);
     let mut permissions = std::fs::metadata(&path)?.permissions();
     permissions.set_readonly(true);
     std::fs::set_permissions(&path, permissions)?;
@@ -48,16 +49,21 @@ fn opens_and_reads_an_archive_that_nothing_may_write_to() -> TestResult {
         std::fs::metadata(&path)?.permissions().readonly(),
         "the file is still read-only"
     );
-    make_writable(&path)?;
     Ok(())
 }
 
-#[expect(
-    clippy::permissions_set_readonly_false,
-    reason = "the file lies in a temp folder that is deleted afterwards"
-)]
-fn make_writable(path: &std::path::Path) -> std::io::Result<()> {
-    let mut permissions = std::fs::metadata(path)?.permissions();
-    permissions.set_readonly(false);
-    std::fs::set_permissions(path, permissions)
+struct MakeWritable<'a>(&'a std::path::Path);
+
+impl Drop for MakeWritable<'_> {
+    #[expect(
+        clippy::permissions_set_readonly_false,
+        reason = "the file lies in a temp folder that is deleted afterwards"
+    )]
+    fn drop(&mut self) {
+        if let Ok(metadata) = std::fs::metadata(self.0) {
+            let mut permissions = metadata.permissions();
+            permissions.set_readonly(false);
+            let _ignored = std::fs::set_permissions(self.0, permissions);
+        }
+    }
 }

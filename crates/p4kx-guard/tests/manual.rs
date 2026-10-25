@@ -65,7 +65,14 @@ fn folders_entered_by_hand_are_protected_and_archives_only_with_bin64() -> TestR
     let channel = root.path().join("ManualChannel");
     let installed = root.path().join("Installed");
     let copy = root.path().join("Copy");
-    for folder in [&library, &channel, &installed.join("Bin64"), &copy] {
+    let workspace = root.path().join("Workspace");
+    for folder in [
+        &library.join("LIVE").join("Bin64"),
+        &channel.join("Bin64"),
+        &installed.join("Bin64"),
+        &copy,
+        &workspace.join("notes"),
+    ] {
         fs::create_dir_all(folder)?;
     }
     fs::write(channel.join("Data.p4k"), b"")?;
@@ -73,12 +80,16 @@ fn folders_entered_by_hand_are_protected_and_archives_only_with_bin64() -> TestR
     fs::write(copy.join("Data.p4k"), b"")?;
 
     protect_manual(
-        &[library.clone(), channel.clone()],
+        &[library.clone(), channel.clone(), workspace.clone()],
         &[installed.join("Data.p4k"), copy.join("Data.p4k")],
     );
 
     assert!(ensure_writable(&library.join("LIVE").join("out")).is_err());
     assert!(ensure_writable(&channel.join("export")).is_err());
+    assert!(
+        ensure_writable(&workspace.join("export")).is_ok(),
+        "a manual folder without Bin64 stays writable"
+    );
     assert!(ensure_writable(&installed.join("export")).is_err());
     assert!(
         ensure_writable(&copy.join("export")).is_ok(),

@@ -25,15 +25,31 @@ fn installation(root: &Path) -> Result<PathBuf, Box<dyn Error>> {
     Ok(library)
 }
 
+fn new_output(library: &Path, name: &str) -> PathBuf {
+    library.join("LIVE").join("export").join(name)
+}
+
+fn assert_nothing_created(out: &Path) -> TestResult {
+    assert!(!out.exists(), "no file is created inside the installation");
+    let parent = out.parent().ok_or("no parent")?;
+    assert!(!parent.exists(), "no folder is created inside the installation");
+    Ok(())
+}
+
+fn cryxml_input(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let input = dir.join("vehicle.xml");
+    let bytes =
+        TestElement::new("Vehicle").to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    std::fs::write(&input, bytes)?;
+    Ok(input)
+}
+
 #[test]
 fn cryxml_refuses_an_output_inside_the_installation() -> TestResult {
     let dir = tempfile::tempdir()?;
     let library = installation(dir.path())?;
-    let input = dir.path().join("vehicle.xml");
-    let bytes =
-        TestElement::new("Vehicle").to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
-    std::fs::write(&input, bytes)?;
-    let out = library.join("LIVE").join("vehicle.xml");
+    let input = cryxml_input(dir.path())?;
+    let out = new_output(&library, "vehicle.xml");
 
     p4kx_testkit::p4kx()?
         .env("P4KX_PROTECT_FOLDERS", &library)
@@ -45,8 +61,7 @@ fn cryxml_refuses_an_output_inside_the_installation() -> TestResult {
         .code(2)
         .stderr(predicate::str::contains(REFUSAL));
 
-    assert!(!out.exists(), "no file is created inside the installation");
-    Ok(())
+    assert_nothing_created(&out)
 }
 
 #[test]
@@ -54,7 +69,7 @@ fn catalog_refuses_an_output_inside_the_installation() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
     let library = dir.path().to_path_buf();
-    let out = library.join("LIVE").join("catalog.json");
+    let out = new_output(&library, "catalog.json");
 
     p4kx_testkit::p4kx()?
         .env("P4KX_PROTECT_FOLDERS", &library)
@@ -66,8 +81,7 @@ fn catalog_refuses_an_output_inside_the_installation() -> TestResult {
         .code(2)
         .stderr(predicate::str::contains(REFUSAL));
 
-    assert!(!out.exists(), "no file is created inside the installation");
-    Ok(())
+    assert_nothing_created(&out)
 }
 
 #[test]
@@ -84,7 +98,7 @@ fn a_query_export_refuses_an_output_inside_the_installation() -> TestResult {
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database.build()))
         .write_to(&archive)?;
-    let out = library.join("LIVE").join("items.csv");
+    let out = new_output(&library, "items.csv");
 
     p4kx_testkit::p4kx()?
         .args(["dcb", "query"])
@@ -96,8 +110,7 @@ fn a_query_export_refuses_an_output_inside_the_installation() -> TestResult {
         .code(2)
         .stderr(predicate::str::contains(REFUSAL));
 
-    assert!(!out.exists(), "no file is created inside the installation");
-    Ok(())
+    assert_nothing_created(&out)
 }
 
 #[test]
@@ -114,7 +127,7 @@ fn chf_from_json_refuses_an_output_inside_the_installation() -> TestResult {
         .arg(&json)
         .assert()
         .success();
-    let out = library.join("LIVE").join("character.chf");
+    let out = new_output(&library, "character.chf");
 
     p4kx_testkit::p4kx()?
         .env("P4KX_PROTECT_FOLDERS", &library)
@@ -126,6 +139,49 @@ fn chf_from_json_refuses_an_output_inside_the_installation() -> TestResult {
         .code(2)
         .stderr(predicate::str::contains(REFUSAL));
 
-    assert!(!out.exists(), "no file is created inside the installation");
+    assert_nothing_created(&out)
+}
+
+#[test]
+fn a_folder_added_to_the_settings_is_protected_and_a_plain_one_is_not() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let library = installation(dir.path())?;
+    let workspace = dir.path().join("Workspace");
+    std::fs::create_dir_all(&workspace)?;
+    let config = dir.path().join("config");
+    std::fs::create_dir_all(&config)?;
+    let quoted = |path: &Path| path.display().to_string().replace('\\', "/");
+    std::fs::write(
+        config.join("settings.toml"),
+        format!(
+            "[channels]\nfolders = [\"{}\", \"{}\"]\n",
+            quoted(&library),
+            quoted(&workspace)
+        ),
+    )?;
+    let input = cryxml_input(dir.path())?;
+    let refused = new_output(&library, "vehicle.xml");
+    let allowed = workspace.join("vehicle.xml");
+
+    p4kx_testkit::p4kx()?
+        .env("P4KX_CONFIG_DIR", &config)
+        .arg("cryxml")
+        .arg(&input)
+        .arg("--out")
+        .arg(&refused)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(REFUSAL));
+    p4kx_testkit::p4kx()?
+        .env("P4KX_CONFIG_DIR", &config)
+        .arg("cryxml")
+        .arg(&input)
+        .arg("--out")
+        .arg(&allowed)
+        .assert()
+        .code(0);
+
+    assert_nothing_created(&refused)?;
+    assert!(allowed.is_file(), "a plain manual folder stays writable");
     Ok(())
 }

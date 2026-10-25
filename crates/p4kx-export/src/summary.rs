@@ -4,6 +4,7 @@
 use p4kx_extraction::{Language, LocalizationNote};
 
 use crate::shop_summary::ShopSummary;
+use crate::store_slug_summary::StoreSlugSummary;
 use crate::{
     CatalogFailure, CraftingWarning, ItemClassSummary, Kind, PlayabilitySummary, StarmapReport,
 };
@@ -180,6 +181,7 @@ pub struct CatalogSummary {
     pub(crate) starmap: StarmapSummary,
     pub(crate) starmap_report: Box<StarmapReport>,
     pub(crate) shops: Box<ShopSummary>,
+    pub(crate) store_slugs: Box<StoreSlugSummary>,
     pub(crate) playability: Box<PlayabilitySummary>,
     pub(crate) variants: VariantSummary,
     pub(crate) failures: Vec<CatalogFailure>,
@@ -223,6 +225,13 @@ impl CatalogSummary {
     #[must_use]
     pub fn shops(&self) -> &ShopSummary {
         &self.shops
+    }
+
+    /// Returns how the curated store slugs resolved against the ships of the catalog and which
+    /// mappings are stale.
+    #[must_use]
+    pub fn store_slugs(&self) -> &StoreSlugSummary {
+        &self.store_slugs
     }
 
     /// Returns the selected Records that could not be read and are left out of the catalog,

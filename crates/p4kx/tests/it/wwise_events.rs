@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_testkit::{
     ArchiveBuilder, DataForgeBuilder, TestAtl, TestBank, TestEntity, TestEntry, TestHircObject,
-    audio_schema, entity_schema, wwise_short_id,
+    TestRecord, TestStruct, TestType, audio_schema, entity_schema, wwise_short_id,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -43,8 +43,8 @@ fn ship(guid: u128, class: &str) -> TestEntity {
     )
 }
 
-fn write_archive(dir: &Path, with_database: bool) -> Result<PathBuf, Box<dyn Error>> {
-    let database = audio_schema(entity_schema(DataForgeBuilder::new()))
+fn database() -> Vec<u8> {
+    audio_schema(entity_schema(DataForgeBuilder::new()))
         .record(
             ship(0x1, "TEST_Avenger")
                 .audio_trigger("Play_Engine")
@@ -63,7 +63,28 @@ fn write_archive(dir: &Path, with_database: bool) -> Result<PathBuf, Box<dyn Err
                 .audio_trigger("Play_Engine")
                 .record(),
         )
-        .record(ship(0x4, "TEST_Mute").record());
+        .record(ship(0x4, "TEST_Mute").record())
+        .build()
+}
+
+fn broken_database() -> Vec<u8> {
+    DataForgeBuilder::new()
+        .version(8)
+        .structure(
+            TestStruct::new("EntityClassDefinition")
+                .field("a", TestType::Int8)
+                .declared_size(3),
+        )
+        .record(TestRecord::new(
+            0x9000_0000_0000_4000_8000_0000_0000_0009,
+            "EntityClassDefinition",
+            "EntityClassDefinition.TEST_Broken",
+            "libs/foundry/records/entities/spaceships/test_broken.xml",
+        ))
+        .build()
+}
+
+fn write_archive(dir: &Path, database: Option<Vec<u8>>) -> Result<PathBuf, Box<dyn Error>> {
     let ship_atl = TestAtl::new("SC_Ship")
         .trigger("Play_Engine", &["Play_Engine_Loop", "Play_Engine_Tail"])
         .trigger("Play_Shield", &["Play_Shield_Up"])
@@ -98,8 +119,8 @@ fn write_archive(dir: &Path, with_database: bool) -> Result<PathBuf, Box<dyn Err
             "Data\\Sounds\\wwise\\English(US)\\Voice.bnk",
             bank(&["Play_DX_Hello"]),
         ));
-    if with_database {
-        builder = builder.entry(TestEntry::zstd("Data\\Game2.dcb", database.build()));
+    if let Some(database) = database {
+        builder = builder.entry(TestEntry::zstd("Data\\Game2.dcb", database));
     }
     let path = dir.join("Data.p4k");
     builder.write_to(&path)?;
@@ -112,8 +133,17 @@ fn events(
     with_database: bool,
     code: i32,
 ) -> Result<Run, Box<dyn Error>> {
+    events_over(args, json, with_database.then(database), code)
+}
+
+fn events_over(
+    args: &[&str],
+    json: bool,
+    database: Option<Vec<u8>>,
+    code: i32,
+) -> Result<Run, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path(), with_database)?;
+    let archive = write_archive(dir.path(), database)?;
     let mut command = p4kx_testkit::p4kx()?;
     if json {
         command.arg("--json");
@@ -247,14 +277,53 @@ fn no_entities_skips_the_dataforge() -> TestResult {
 }
 
 #[test]
-fn an_archive_without_a_dataforge_still_lists_the_triggers_with_a_warning() -> TestResult {
-    let run = events(&["--search", "shield"], false, false, 0)?;
+fn an_archive_without_a_dataforge_still_lists_the_triggers_with_a_warning_and_exits_1() -> TestResult
+{
+    let run = events(&["--search", "shield"], false, false, 1)?;
     assert!(
         run.stderr.starts_with("warning: no Entities listed"),
         "{}",
         run.stderr
     );
     assert!(run.stdout.contains("Play_Shield"), "{}", run.stdout);
+    Ok(())
+}
+
+#[test]
+fn a_failed_entity_lookup_is_told_apart_from_no_entities_in_the_json() -> TestResult {
+    let failed = events(&["--search", "shield"], true, false, 1)?;
+    let value: serde_json::Value = serde_json::from_str(&failed.stdout)?;
+    assert!(value["entities_skipped"].is_string(), "{value}");
+    assert!(value["triggers"][0]["entities"].is_null());
+    let off = events(&["--search", "shield", "--no-entities"], true, false, 0)?;
+    let value: serde_json::Value = serde_json::from_str(&off.stdout)?;
+    assert!(value["entities_skipped"].is_null(), "{value}");
+    Ok(())
+}
+
+#[test]
+fn an_empty_page_does_not_read_the_dataforge() -> TestResult {
+    let run = events(&["--search", "nothing_like_this"], true, false, 0)?;
+    assert!(run.stderr.is_empty(), "no warnings: {}", run.stderr);
+    let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    assert!(value["entities_skipped"].is_null(), "{value}");
+    Ok(())
+}
+
+#[test]
+fn unreadable_entity_records_are_warned_about_and_counted() -> TestResult {
+    let run = events_over(&["--search", "shield"], true, Some(broken_database()), 0)?;
+    assert!(
+        run.stderr
+            .contains("1 Entity Records cannot be read and name no trigger"),
+        "{}",
+        run.stderr
+    );
+    let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    assert_eq!(value["unreadable_records"], 1);
+    let clean = events(&["--search", "shield"], true, true, 0)?;
+    let value: serde_json::Value = serde_json::from_str(&clean.stdout)?;
+    assert_eq!(value["unreadable_records"], 0);
     Ok(())
 }
 

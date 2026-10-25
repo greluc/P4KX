@@ -86,7 +86,7 @@ pub(crate) struct WwiseEventsArgs {
     /// Path of the Data.p4k Archive.
     pub(crate) archive: PathBuf,
     /// Text in a trigger or event name, or a glob with `*` and `?` such as `Play_*_Spool`;
-    /// ignores case.
+    /// ignores case, and `/` and `\` match each other.
     #[arg(long, value_name = "TEXT")]
     pub(crate) search: Option<String>,
     /// The most results listed.
@@ -100,7 +100,9 @@ pub(crate) struct WwiseEventsArgs {
     /// The number of results to skip, as the summary line of the previous page gives it.
     #[arg(long, default_value_t = 0, value_name = "COUNT")]
     pub(crate) offset: u32,
-    /// The most Entities listed per trigger, in definition order; the count is always given.
+    /// The most Entities listed per trigger, in definition order; the count is always given. Only
+    /// Entities whose own Record names the trigger are counted, not those that reach it through
+    /// a Loadout or a Reference.
     #[arg(
         long,
         default_value_t = 5,

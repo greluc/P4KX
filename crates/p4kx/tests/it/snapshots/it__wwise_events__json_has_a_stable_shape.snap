@@ -1,9 +1,10 @@
 ---
-source: crates/p4kx/tests/wwise_events.rs
+source: crates/p4kx/tests/it/wwise_events.rs
 expression: "serde_json::to_string_pretty(&value)?"
 ---
 {
   "archive": "<archive>",
+  "entities_skipped": null,
   "issues": [],
   "limit": 100,
   "next_offset": null,
@@ -45,5 +46,6 @@ expression: "serde_json::to_string_pretty(&value)?"
       "name": "Play_Shield",
       "unmatched": null
     }
-  ]
+  ],
+  "unreadable_records": 0
 }

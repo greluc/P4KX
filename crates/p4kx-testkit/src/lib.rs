@@ -68,6 +68,7 @@ mod mesh_streams;
 mod model;
 mod model_crch;
 mod model_cube;
+mod model_layout;
 mod model_nmc;
 mod model_rig;
 mod model_skeleton;

@@ -59,7 +59,6 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
     let len = usize::try_from(header.read_u32()?).unwrap_or(usize::MAX);
     header.skip(PHYSICS_HEADER_LEN - 4)?;
     let mut reader = ByteReader::new(header.read_bytes(len)?);
-
     reader.skip(PRIMITIVE_AT)?;
     let primitive = reader.read_u32()?;
     if primitive != POLYHEDRON {
@@ -101,20 +100,25 @@ pub(crate) fn read_physics_mesh(node: usize, chunk: &[u8]) -> Result<Option<Mesh
         }
         indices.push(index);
     }
-    Ok(Some(Mesh {
+    Ok(Some(bare_mesh(node, positions, indices)))
+}
+
+fn bare_mesh(node: usize, positions: Vec<[f32; 3]>, indices: Vec<u32>) -> Mesh {
+    Mesh {
         node,
-        source: (0..vertex_count).collect(),
+        source: (0..u32::try_from(positions.len()).unwrap_or(u32::MAX)).collect(),
+        submeshes: vec![Submesh {
+            material_id: 0,
+            first_index: 0,
+            index_count: indices.len(),
+        }],
         positions,
         normals: None,
         tangents: None,
         colours: None,
         influences: None,
         uvs: Vec::new(),
+        second_uvs: None,
         indices,
-        submeshes: vec![Submesh {
-            material_id: 0,
-            first_index: 0,
-            index_count,
-        }],
-    }))
+    }
 }

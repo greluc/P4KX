@@ -39,6 +39,7 @@ mod model_lods;
 mod model_verification;
 mod models;
 mod records;
+mod second_uvs;
 mod skeletons;
 mod sound;
 mod sound_extraction;

@@ -12,7 +12,7 @@
 use std::error::Error;
 use std::path::Path;
 
-use p4kx_extraction::model::{LodSelection, ModelIssue, PositionBox};
+use p4kx_extraction::model::{LodSelection, Model, ModelIssue, PositionBox};
 use p4kx_extraction::{Archive, Entry, ModelSource, PathIndex};
 use p4kx_testkit::real_archive_path;
 use rayon::prelude::*;
@@ -24,6 +24,8 @@ const SHIP_SAMPLE: usize = 80;
 const WIDE_SAMPLE: usize = 3000;
 const INTERIOR_SAMPLE: usize = 400;
 const UNIT_TOLERANCE: f32 = 1e-3;
+const CLEAR_MARGIN: f32 = 0.02;
+const TRIANGLES_PER_MESH: usize = 200;
 
 fn sample(archive: &Archive, keep: impl Fn(&str) -> bool, count: usize) -> Vec<&Entry> {
     let candidates: Vec<&Entry> = archive
@@ -289,7 +291,7 @@ fn the_model_box_changes_the_positions_of_a_quantised_interior_cgf() -> TestResu
             && (path.contains("interior") || path.contains("objectcontainers"))
     };
     let mut differing = None;
-    let mut read = 0_u32;
+    let (mut read, mut scaling_clear, mut model_clear) = (0_u32, 0_u32, 0_u32);
     for entry in sample(&archive, interior, INTERIOR_SAMPLE) {
         let path = entry.path();
         let (Ok(scaling), Ok(model_box)) = (
@@ -321,12 +323,77 @@ fn the_model_box_changes_the_positions_of_a_quantised_interior_cgf() -> TestResu
         let (a, b) = (positions(&scaling), positions(&model_box));
         assert_eq!(a.len(), b.len(), "{path}");
         assert!(b.iter().flatten().all(|value| value.is_finite()), "{path}");
-        if a != b && differing.is_none() {
-            differing = Some(path.to_owned());
+        if a != b {
+            differing.get_or_insert_with(|| path.to_owned());
+            let (scaling_fit, model_fit) = (fit(scaling.model()), fit(model_box.model()));
+            if scaling_fit - model_fit > CLEAR_MARGIN {
+                scaling_clear += 1;
+            } else if model_fit - scaling_fit > CLEAR_MARGIN {
+                model_clear += 1;
+            }
         }
     }
-    println!("{read} interior CGFs read both ways; first that differs: {differing:?}");
+    println!(
+        "{read} interior CGFs read both ways; first that differs: {differing:?}; by face-normal \
+         fit the scaling box wins clearly in {scaling_clear}, the model box in {model_clear}"
+    );
     assert!(read > 10, "{read} interior CGFs");
     assert!(differing.is_some(), "no interior CGF changes with the box");
+    assert!(
+        model_clear * 20 <= scaling_clear,
+        "the model box fits clearly better in {model_clear}, the scaling box in {scaling_clear}"
+    );
     Ok(())
+}
+
+fn fit(model: &Model) -> f32 {
+    let (mut sum, mut count) = (0.0_f32, 0.0_f32);
+    for mesh in model.lods.iter().flat_map(|lod| &lod.meshes) {
+        let Some(normals) = mesh.normals.as_ref().filter(|_| !mesh.normals_computed) else {
+            continue;
+        };
+        for triangle in mesh
+            .indices
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .take(TRIANGLES_PER_MESH)
+        {
+            let at = |corner: u32| usize::try_from(corner).ok();
+            let corners = triangle.map(|corner| {
+                at(corner).and_then(|at| Some((*mesh.positions.get(at)?, *normals.get(at)?)))
+            });
+            let [Some(first), Some(second), Some(third)] = corners else {
+                continue;
+            };
+            let edge1 = sub(second.0, first.0);
+            let edge2 = sub(third.0, first.0);
+            let face = [
+                edge1[1].mul_add(edge2[2], -(edge1[2] * edge2[1])),
+                edge1[2].mul_add(edge2[0], -(edge1[0] * edge2[2])),
+                edge1[0].mul_add(edge2[1], -(edge1[1] * edge2[0])),
+            ];
+            let length = dot(face, face).sqrt();
+            let (n1, n2, n3) = (first.1, second.1, third.1);
+            let mean = [
+                n1[0] + n2[0] + n3[0],
+                n1[1] + n2[1] + n3[1],
+                n1[2] + n2[2] + n3[2],
+            ];
+            let mean_length = dot(mean, mean).sqrt();
+            if length > 1e-9 && mean_length > 1e-9 {
+                sum += dot(face, mean) / (length * mean_length);
+                count += 1.0;
+            }
+        }
+    }
+    if count == 0.0 { 0.0 } else { sum / count }
+}
+
+fn sub(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
+    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+}
+
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+    a[0].mul_add(b[0], a[1].mul_add(b[1], a[2] * b[2]))
 }

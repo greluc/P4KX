@@ -4,6 +4,7 @@
 use p4kx_foundation::ByteReader;
 
 use crate::reader::ReadValues;
+use crate::smooth_normals::smooth_normals;
 use crate::{CorruptChunk, Mesh, Submesh};
 
 const STREAM_SLOTS: usize = 16;
@@ -112,8 +113,8 @@ fn bare_mesh(node: usize, positions: Vec<[f32; 3]>, indices: Vec<u32>) -> Mesh {
             first_index: 0,
             index_count: indices.len(),
         }],
-        normals: Some(crate::smooth_normals::smooth_normals(&positions, &indices)),
-        normals_computed: true,
+        normals: (!indices.is_empty()).then(|| smooth_normals(&positions, &indices)),
+        normals_computed: !indices.is_empty(),
         positions,
         tangents: None,
         colours: None,

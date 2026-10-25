@@ -30,8 +30,18 @@ pub enum ModelIssue {
         /// The companion's file name.
         file: String,
     },
-    /// The requested level of detail has no companion; the meshes of level 0 stand in for it.
-    #[error("{file} stands in for the missing LOD{level}")]
+    /// The geometry companion of a level holds visibility areas but no mesh; the level is left
+    /// out.
+    #[error("{file} holds no mesh for LOD{level}")]
+    LodWithoutMesh {
+        /// The level.
+        level: u32,
+        /// The companion's file name.
+        file: String,
+    },
+    /// The requested level of detail has no usable companion; the meshes of level 0 stand in
+    /// for it.
+    #[error("{file} stands in for LOD{level}, which has no usable companion")]
     LodFallback {
         /// The requested level.
         level: u32,

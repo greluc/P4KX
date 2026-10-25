@@ -2,7 +2,8 @@
 
 Decided for issue #103. Evidence: docs/model-lods-and-vertex-attributes.md.
 
-Amended by ADR-0114: the 16-byte tangent layout is no longer read.
+Amended by ADR-0114: the 16-byte tangent layout is no longer read. Amended by ADR-0119: the
+opt-in lenient level `LodSelection::OnlyOrBase` falls back to the base companion.
 
 ## LOD companions
 
@@ -50,7 +51,8 @@ normal maps; `Mesh::tangents` stays as stored.
 ## Considered Options
 
 - Fall back to the base companion for a missing LOD (StarBreaker): hides that the LOD is absent
-  and makes `--lod n` of different n identical; rejected.
+  and makes `--lod n` of different n identical; rejected as the default, and offered only as
+  the opt-in `LodSelection::OnlyOrBase` that reports an issue (ADR-0119).
 - Stop probing at the first missing level: a model of LIVE has only LOD4, and probing is a
   lookup.
 - Read colours as RGBA (Cryengine-Converter): contradicted by the colour words in the file names,

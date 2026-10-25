@@ -4,10 +4,12 @@
 use p4kx_chunks::ivo;
 
 use crate::bone_map::check_joints;
-use crate::build::{MAX_LOD, Rig, corrupt, fetch, first_of, read_meshes, read_skeleton, usage};
+use crate::build::{
+    Geometry, MAX_LOD, Rig, corrupt, fetch, first_of, read_meshes, read_skeleton, usage,
+};
 use crate::companion::lod_file_name;
 use crate::model::MESH_TYPES;
-use crate::{Bone, CompanionResolver, Lod, LodSelection, ModelChunk, ModelError, ModelFile};
+use crate::{Bone, CompanionResolver, Lod, LodSelection, ModelError, ModelFile, ModelIssue};
 
 /// Reads the skeleton of the model file of `level`, which a skinned level's bone indices refer
 /// to; `None` when the file is missing, holds no skeleton or the one `base` already is.
@@ -32,9 +34,8 @@ pub(crate) fn read_lod_companions(
     companions: &mut dyn CompanionResolver,
     selection: LodSelection,
     rig: Rig<'_>,
-    lods: &mut Vec<Lod>,
-    chunks: &mut Vec<ModelChunk>,
     read: &mut Vec<(ModelFile, usize)>,
+    found: &mut Geometry,
 ) -> Result<(), ModelError> {
     for level in (1..=MAX_LOD).filter(|&level| selection.wants(level)) {
         let companion_name = format!("{}m", lod_file_name(name, level));
@@ -43,6 +44,12 @@ pub(crate) fn read_lod_companions(
         };
         let Some(index) = first_of(&companion, &MESH_TYPES) else {
             if companion.chunks_of(ivo::VIS_AREAS).next().is_some() {
+                if selection.is_lenient() {
+                    found.issues.push(ModelIssue::LodWithoutMesh {
+                        level,
+                        file: companion_name,
+                    });
+                }
                 continue;
             }
             return Err(ModelError::NoMesh {
@@ -64,12 +71,14 @@ pub(crate) fn read_lod_companions(
         };
         let count = bones.as_ref().map_or(rig.bones.len(), Vec::len);
         check_joints(&meshes, count).map_err(corrupt(&companion_name, index, "Skin"))?;
-        lods.push(Lod {
+        found.lods.push(Lod {
             level,
             meshes,
             bones,
         });
-        chunks.extend(usage(&companion, ModelFile::LodGeometry(level), read));
+        found
+            .chunks
+            .extend(usage(&companion, ModelFile::LodGeometry(level), read));
     }
     Ok(())
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::vector::normalise;
+use crate::vector::{cross, normalise};
 
 /// Computes smooth unit vertex normals: the area-weighted mean of the face normals of the
 /// triangles around each vertex. A triangle index outside `positions` is ignored, and a vertex
@@ -28,14 +28,6 @@ pub(crate) fn smooth_normals(positions: &[[f32; 3]], indices: &[u32]) -> Vec<[f3
 
 fn sub([ax, ay, az]: [f32; 3], [bx, by, bz]: [f32; 3]) -> [f32; 3] {
     [ax - bx, ay - by, az - bz]
-}
-
-fn cross([ax, ay, az]: [f32; 3], [bx, by, bz]: [f32; 3]) -> [f32; 3] {
-    [
-        ay.mul_add(bz, -(az * by)),
-        az.mul_add(bx, -(ax * bz)),
-        ax.mul_add(by, -(ay * bx)),
-    ]
 }
 
 #[cfg(test)]

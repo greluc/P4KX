@@ -50,7 +50,7 @@ pub(crate) fn read_skin(
     let scaling_box = (reader.read_vec3()?, reader.read_vec3()?);
     let (min, max) = match position_box {
         PositionBox::Model => model_box,
-        _ => scaling_box,
+        PositionBox::Scaling => scaling_box,
     };
     if min.iter().chain(&max).any(|value| !value.is_finite()) {
         return Err(CorruptChunk::NonFinite("bounding box"));

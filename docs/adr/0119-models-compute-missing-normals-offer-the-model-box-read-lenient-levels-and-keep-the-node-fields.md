@@ -25,12 +25,19 @@ Comparison with StarBreaker (MIT) showed model details that p4kx dropped or refu
   `Mesh::normals_computed` flags them, and `model info` shows `computed` (text) and
   `normals_computed` (JSON). The `CrCh` physics meshes are covered, so their GLB carries normals.
 - **Model box.** `PositionBox::{Scaling, Model}` and `Model::read_with_box`. Every other read
-  method keeps `Scaling`. The reader does not decide which box a file needs; the placement code
-  does.
+  method keeps `Scaling`, and `Model::read_without_materials_with_box` and
+  `ModelSource::from_index_without_materials_with_box` give the placement code the same choice.
+  The reader does not decide which box a file needs. The interior assembly (`ArchiveModels`) does
+  not use the model box: by the face-normal fit of docs/mesh-bounding-boxes.md, of 400 interior
+  CGFs of LIVE the scaling box fits clearly better in 12 and the model box in none, so the
+  model box would distort them. StarBreaker's claim that placed CGFs are authored in the model
+  box is therefore not adopted until a file is found that proves it; a follow-up can wire the
+  choice into `ModelProvider` then.
 - **Lenient levels.** `LodSelection::OnlyOrBase(n)` reads level `n` and, when it has no
   companion, the meshes of level 0 labelled with level `n`; when the geometry companion is
   missing too, or announced and absent, the model has no meshes. Either case is a
-  `ModelIssue` in `Model::issues` (`LodFallback`, `MissingGeometry`), not an error. The other
+  `ModelIssue` in `Model::issues` (`LodFallback`, `MissingGeometry`), not an error; a level whose
+  companion holds visibility areas only is reported as `LodWithoutMesh`. The other
   selections stay strict: `--lod n` of the CLI and the GLB export still fail with `NoSuchLod`
   (exit code 2) for a level the model lacks, so `--lod 3` is never LOD0 under another name. The
   nodes of every level come from the base model file, as before.

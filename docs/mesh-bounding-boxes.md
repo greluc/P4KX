@@ -47,5 +47,8 @@ twentieth of the clear second-box wins.
 Positions of interior `.cgf` files placed by `IncludedObjects` are authored in the model (first)
 box space, after StarBreaker. `Model::read_with_box` takes a `PositionBox`: `Scaling` (the default
 of every other read method) dequantises with the second box, `Model` with the first. The placement
-code chooses; nothing in the model says which a file needs. `tests/real_archive/model_box.rs`
-checks on one interior CGF of LIVE that the two readings differ and that both stay finite.
+code chooses; nothing in the model says which a file needs. The placement code of the interiors
+(`ArchiveModels`) keeps the scaling box: of 400 interior CGFs of LIVE read both ways,
+`crates/p4kx-extraction/tests/real_archive/model_details.rs` finds by the face-normal fit above
+the scaling box clearly better in 12 and the model box in none, so the model box would distort
+them. The test also checks that the two readings differ and stay finite.

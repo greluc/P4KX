@@ -1,6 +1,5 @@
 ---
-source: crates/p4kx/tests/it/model.rs
-assertion_line: 64
+source: crates/p4kx/tests/model.rs
 expression: "String::from_utf8(output.stdout)?"
 ---
 Model:       Data\Objects\Test\cube.cgf

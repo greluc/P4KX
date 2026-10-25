@@ -118,11 +118,11 @@ pub(crate) fn build<B: AsRef<[u8]>>(
 /// The meshes of a model, the name of its geometry companion, the chunk usage of every
 /// companion, computed as each was read so that no companion's bytes outlive its reading, and
 /// what a lenient read worked around.
-struct Geometry {
-    lods: Vec<Lod>,
-    base_name: Option<String>,
-    chunks: Vec<ModelChunk>,
-    issues: Vec<ModelIssue>,
+pub(crate) struct Geometry {
+    pub(crate) lods: Vec<Lod>,
+    pub(crate) base_name: Option<String>,
+    pub(crate) chunks: Vec<ModelChunk>,
+    pub(crate) issues: Vec<ModelIssue>,
 }
 
 fn read_geometry<B: AsRef<[u8]>>(
@@ -157,23 +157,15 @@ fn read_geometry<B: AsRef<[u8]>>(
         chunks.extend(usage(&companion, ModelFile::Geometry, read));
         geometry = Some(companion_name);
     }
-    if own_mesh.is_none() && announces_mesh(file) {
-        read_lod_companions(
-            name,
-            companions,
-            selection,
-            rig,
-            &mut lods,
-            &mut chunks,
-            read,
-        )?;
-    }
     let mut found = Geometry {
         lods,
         base_name: geometry,
         chunks,
         issues,
     };
+    if own_mesh.is_none() && announces_mesh(file) {
+        read_lod_companions(name, companions, selection, rig, read, &mut found)?;
+    }
     if let LodSelection::OnlyOrBase(level) = selection
         && found.lods.is_empty()
     {

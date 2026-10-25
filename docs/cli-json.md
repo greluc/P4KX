@@ -1578,10 +1578,10 @@ metres. A model without a `NodeMeshCombo` chunk has one root node named after th
 the scale the node's record stores (1 on every axis when it stores none), `geometry_type` the
 record's geometry type (0 for geometry, 2 or 3 for a helper; `null` without a `NodeMeshCombo`
 chunk), `helper` whether it is a helper, `properties` the `key=value` lines of the node's entry in
-the chunk's property table in order, e.g. `class=AnimatedJoint`, and `node_material_indices` the chunk's list of
-material indices. A transform or scale whose values are all below 1e-5 is the identity or 1.
-`issues` lists in words what a lenient read worked around; `model info` reads strictly, so it is
-empty there. `lods`
+the chunk's property table in order, e.g. `class=AnimatedJoint`, and `node_material_indices` the
+chunk's list of material indices. A transform or scale whose values are all below 1e-5 is the
+identity or 1. `issues` lists in words what a lenient read worked around; `model info` reads
+strictly, so it is empty there. `lods`
 lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
@@ -1613,8 +1613,8 @@ the model was read from it, `skipped` for a known type the model does not read a
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
-geometry companion, one level of detail, computed normals, no texture coordinates and `geometry` is
-`null` (docs/crch-models.md).
+geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
+is `null` (docs/crch-models.md).
 
 ## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
 

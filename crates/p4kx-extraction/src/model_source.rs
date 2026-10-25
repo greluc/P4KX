@@ -85,6 +85,21 @@ impl ModelSource {
         Self::from_index_selecting(index, path, lods, false, PositionBox::default())
     }
 
+    /// Reads the model like [`Self::from_index_without_materials`], dequantising its positions
+    /// with `position_box`, see [`Model::read_with_box`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::from_index_with`].
+    pub fn from_index_without_materials_with_box(
+        index: &PathIndex<'_>,
+        path: &str,
+        lods: LodSelection,
+        position_box: PositionBox,
+    ) -> Result<Self, ConversionError> {
+        Self::from_index_selecting(index, path, lods, false, position_box)
+    }
+
     fn from_index_selecting(
         index: &PathIndex<'_>,
         path: &str,
@@ -105,7 +120,13 @@ impl ModelSource {
                 position_box,
             )
         } else {
-            Model::read_without_materials(file_name, source.file(), &mut companions, lods)
+            Model::read_without_materials_with_box(
+                file_name,
+                source.file(),
+                &mut companions,
+                lods,
+                position_box,
+            )
         };
         let model = read.map_err(|source| ConversionError::Model {
             file: name.clone(),

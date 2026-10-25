@@ -128,7 +128,8 @@ pub struct Mesh {
     /// mesh keeps only the vertices its triangles use, in the order they are first used, so this
     /// is how data stored per stream vertex, such as a DNA rig, is matched to the mesh.
     pub source: Vec<u32>,
-    /// The unit vertex normals, or `None` when the mesh stores none.
+    /// The unit vertex normals: the stored ones, or the computed smooth ones when the mesh
+    /// stores none, see [`Self::normals_computed`]. `None` only for a mesh without triangles.
     pub normals: Option<Vec<[f32; 3]>>,
     /// Whether [`Self::normals`] were computed from the triangles because the mesh stores none:
     /// smooth normals, the area-weighted mean of the faces around each vertex.
@@ -305,6 +306,22 @@ impl Model {
         lods: LodSelection,
     ) -> Result<Self, ModelError> {
         Self::read_selecting(name, file, companions, lods, false, PositionBox::default())
+    }
+
+    /// Reads the model like [`Self::read_without_materials`], dequantising quantised vertex
+    /// positions with the box `position_box`, see [`Self::read_with_box`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::read_with`].
+    pub fn read_without_materials_with_box<B: AsRef<[u8]>>(
+        name: &str,
+        file: &ChunkFile<B>,
+        companions: &mut dyn CompanionResolver,
+        lods: LodSelection,
+        position_box: PositionBox,
+    ) -> Result<Self, ModelError> {
+        Self::read_selecting(name, file, companions, lods, false, position_box)
     }
 
     fn read_selecting<B: AsRef<[u8]>>(

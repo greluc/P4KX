@@ -225,6 +225,23 @@ fn a_clear_shell_with_no_glow_draws_nothing() {
 }
 
 #[test]
+fn the_layers_never_add_up_past_the_cap() {
+    let Some(picture) = drawn(Hologram::default()) else {
+        return;
+    };
+    let Hologram { opacity, glow, .. } = Hologram::default();
+    let cap = 0.2_f32.mul_add(glow, opacity) * 255.0;
+
+    let brightest = pixels(&picture).map(|pixel| pixel[3]).max().unwrap_or(0);
+
+    assert!(
+        f32::from(brightest) <= cap + 2.0,
+        "the most opaque pixel is {brightest}, the cap {cap}"
+    );
+    assert!(brightest > 40, "the shell is visible: {brightest}");
+}
+
+#[test]
 fn an_opaque_background_shows_through_the_body() {
     let Some(mut offscreen) = software("an_opaque_background") else {
         return;

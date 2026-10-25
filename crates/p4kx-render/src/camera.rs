@@ -24,9 +24,9 @@ pub type Matrix = [[f32; 4]; 4];
 pub struct Uniforms {
     /// World to clip space.
     pub view_proj: Matrix,
-    /// The position of the eye, `w` unused.
+    /// The position of the eye; `w` is the distance of the near plane.
     pub eye: [f32; 4],
-    /// The direction towards the key light, `w` unused.
+    /// The direction towards the key light; `w` is the distance of the far plane.
     pub key_light: [f32; 4],
 }
 
@@ -280,8 +280,8 @@ impl Camera {
         ));
         Uniforms {
             view_proj: multiply(&projection, &view),
-            eye: [eye[0], eye[1], eye[2], 0.0],
-            key_light: [key[0], key[1], key[2], 0.0],
+            eye: [eye[0], eye[1], eye[2], near],
+            key_light: [key[0], key[1], key[2], far.max(near * 2.0)],
         }
     }
 

@@ -31,21 +31,26 @@ and blitted, the slots, the error scopes), ADR-0078 and ADR-0085 stand and now d
   beyond the device and a failed read-back are typed errors. The futures of wgpu are run by a
   small `block_on` that parks the thread, so no executor crate is needed.
 - **The hologram is a second shading of the Assembly instances.** `Shading::Hologram` draws the
-  same shared meshes and instances in two passes inside the one render pass: the depth of the
-  nearest surface first, with no colour written, then a tinted shell on exactly that surface
-  (`LessEqual`, no depth write) blended with premultiplied alpha. The shell is two-sided and
-  shaded from the angle between the normal and the eye: the body has the opacity of the look, the
-  silhouette glows and turns opaque. Both passes use one vertex entry point with an
-  invariant position, so the depth matches. Surfaces that lie in one plane, such as a decal on a
-  hull, pass `LessEqual` together and blend twice, so they glow a little brighter; that is
-  accepted. The frame uniform grows from 96 to 128 bytes for the
-  tint, the glow and the opacity; the other shaders read their 96-byte prefix. The pipelines are
-  created inside an error scope: a device that refuses them draws the viewer as before and says
-  `OffscreenError::Shading` for a hologram.
-- **Premultiplied in the picture, straight in the PNG.** The picture is cleared to the background
-  multiplied by its alpha, so the multisample resolve in linear space stays right at the edges;
-  the read-back divides each partly covered pixel by its alpha, in linear space, before it is
-  encoded again.
+  same shared meshes and instances in one pass, every surface of the model with no depth test
+  and no depth write, so the inner structure and the far side show through the near side. The
+  shell is two-sided and shaded from the angle between the normal and the eye. Each layer is
+  weaker the deeper it lies: its body and its edge fade exponentially with the distance of the
+  fragment from the eye between the near and the far plane of the camera (carried in the `w` of
+  the `eye` and `key_light` rows of the frame uniform), the edge more slowly than the body, so
+  the glow stays on the silhouette. The blend is `constant * source + (1 - source alpha) *
+  destination`, with the blend constant the cap `opacity + 0.2 * glow`: the layers add up to that
+  opacity and never past it, however many surfaces overlap, so coplanar overdraw (a decal on a
+  hull, the thousands of parts of an interior) cannot make a hot spot or turn the shell solid.
+  The default opacity is 0.25, which gives a cap of 0.45 at the default glow of 1. The frame
+  uniform grows from 96 to 128 bytes for the tint and the two shares of the cap; the other
+  shaders read their 96-byte prefix. The pipeline is created inside an error scope: a device that
+  refuses it draws the viewer as before and says `OffscreenError::Shading` for a hologram. The
+  earlier design drew the nearest surface only (a depth pass, then the shell with `LessEqual`),
+  which showed a nearly solid hull.
+- **Premultiplied in the picture, straight in the PNG.** The picture is cleared to transparent,
+  so the multisample resolve in linear space stays right at the edges; the read-back puts the
+  background under the layers, then divides each partly covered pixel by its alpha, in linear
+  space, before it is encoded again.
 - **The camera is the one of the game.** `HologramCamera::read` in `p4kx-assembly` reads
   `cameraFOV`, `ownDefaultViewAngle` and `ownCameraDistanceScaler` of the one `UIHoloVehicle_Config`
   Record (10, 60 and 1.5 in the current game; a field it lacks keeps that value, a database
@@ -80,4 +85,10 @@ and blitted, the slots, the error scopes), ADR-0078 and ADR-0085 stand and now d
 - Additive blending of every layer for an X-ray look: order independent, but the interior of a
   ship holds thousands of parts, which turns the picture white.
 - Reading `silhouetteParams` to copy the game's glow: the shader of the game is not known and
-  the parameters (edge width in pixels, brightness 5) have no meaning for another renderer.
+  the parameters (edge width in pixels, brightness 5) have no meaning for another renderer. The
+  Record in the current game holds one `SSilhouetteParamsDef` with `Enable="false"`,
+  `FillIntensity="0"`, `EdgeIntensity="1"`, `EdgeWidth="4"`, `Brightness="5"` and a near-white
+  tint: a disabled screen-space post effect, while the hologram itself is the material
+  `VehicleHologram.mtl`. The look therefore keeps its own defaults (tint `#4DC7FF`, opacity 0.25,
+  glow 1, whose edge intensity happens to equal the game's 1) and the options `--tint`,
+  `--opacity` and `--glow`.

@@ -47,7 +47,7 @@ pub(crate) struct HologramArgs {
     #[arg(long, value_name = "COLOUR", default_value = "#4DC7FF", value_parser = parse_tint)]
     pub(crate) tint: [u8; 3],
     /// How opaque the body of the hologram is, 0 to 1; the edges are more opaque.
-    #[arg(long, value_name = "OPACITY", default_value_t = 0.22, value_parser = parse_opacity)]
+    #[arg(long, value_name = "OPACITY", default_value_t = 0.25, value_parser = parse_opacity)]
     pub(crate) opacity: f32,
     /// How strongly the edges glow, 0 to 4.
     #[arg(long, value_name = "STRENGTH", default_value_t = 1.0, value_parser = parse_glow)]

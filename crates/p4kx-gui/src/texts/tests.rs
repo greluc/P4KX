@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use fluent_bundle::FluentValue;
 use fluent_syntax::ast;
+use p4kx_export::CraftingWarning;
 
 use super::{BRITISH_ENGLISH, GERMAN, Text, Texts};
 use crate::Language;
@@ -161,6 +162,37 @@ fn both_files_define_exactly_the_texts_of_the_interface() {
 
     assert_eq!(message_ids(GERMAN), expected, "de-DE");
     assert_eq!(message_ids(BRITISH_ENGLISH), expected, "en-GB");
+}
+
+#[test]
+fn every_warning_kind_has_a_sentence_in_both_languages() {
+    let warnings = [
+        CraftingWarning::UnreadableRewardRecords(1),
+        CraftingWarning::AmbiguousDismantle(2),
+        CraftingWarning::UnreadableVehicleFiles {
+            count: 1,
+            details: Vec::new(),
+        },
+        CraftingWarning::UnplacedStarmapContainers(1),
+        CraftingWarning::UnreadableShopRegistry,
+        CraftingWarning::MissingShopRegistry,
+        CraftingWarning::UnreadableShopContainers(1),
+        CraftingWarning::UnreadableShopInventories {
+            count: 1,
+            details: Vec::new(),
+        },
+        CraftingWarning::MissingShopInventories(1),
+        CraftingWarning::NoShopComponents,
+    ];
+    for source in [GERMAN, BRITISH_ENGLISH] {
+        for warning in &warnings {
+            assert!(
+                source.contains(&format!("    [{}] ", warning.kind())),
+                "{} has no sentence",
+                warning.kind()
+            );
+        }
+    }
 }
 
 #[test]

@@ -154,7 +154,7 @@ mod tests {
             Scanned::Nothing,
         ]);
         assert_eq!(search.unreadable, 2);
-        assert!(search.sources.is_empty());
+        assert_eq!(search.sources.len(), 0);
     }
 
     #[test]

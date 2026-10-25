@@ -110,7 +110,7 @@ fn when_no_source_is_found_every_unreadable_record_is_a_warning() -> TestResult 
     let bytes = lone_pool().build();
     let forge = DataForge::open(&bytes)?;
     let crafting = read_crafting(&forge, None, None)?;
-    assert!(crafting.reward_sources.is_empty());
+    assert_eq!(crafting.reward_sources.len(), 0);
     assert_eq!(
         crafting.warnings,
         [CraftingWarning::UnreadableRewardRecords(1)]

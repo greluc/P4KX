@@ -17,6 +17,8 @@ pub enum ImageText {
     Mips,
     /// The key of the number of cubemap faces.
     Faces,
+    /// The key of the number of array elements or volume slices.
+    Layers,
     /// The width and height of a mip; takes `width` and `height`.
     Dimensions,
     /// Shown for a value a texture does not have, such as the faces of a plain texture.
@@ -35,13 +37,14 @@ pub enum ImageText {
 
 impl ImageText {
     /// Every text of the image preview.
-    pub(crate) const ALL: [Self; 13] = [
+    pub(crate) const ALL: [Self; 14] = [
         Self::Tab,
         Self::Mip,
         Self::Format,
         Self::Size,
         Self::Mips,
         Self::Faces,
+        Self::Layers,
         Self::Dimensions,
         Self::None,
         Self::Shown,
@@ -61,6 +64,7 @@ impl ImageText {
             Self::Size => "image-size",
             Self::Mips => "image-mips",
             Self::Faces => "image-faces",
+            Self::Layers => "image-layers",
             Self::Dimensions => "image-dimensions",
             Self::None => "image-none",
             Self::Shown => "image-shown",

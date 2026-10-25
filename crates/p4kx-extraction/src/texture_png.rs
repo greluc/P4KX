@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use p4kx_texture::{DdsHeader, RgbaImage, cube_cross, write_png};
+use p4kx_texture::{RgbaImage, TextureError, cube_cross, write_png};
 use rayon::prelude::*;
 
 use crate::output_file::write_replacing;
+use crate::texture_names::{image_suffixes, suffixed_path};
 use crate::{ConversionError, Texture};
 
-const CUBE_FACES: u32 = 6;
+const CUBE_FACES: usize = 6;
 
 /// The names of a cubemap's faces in DDS order +X, −X, +Y, −Y, +Z, −Z, as the face files of
 /// [`CubemapLayout::Faces`] carry them.
@@ -44,11 +44,12 @@ pub struct PngReport {
 
 impl Texture<'_> {
     /// Decodes mip `level`, 0 being the largest, and writes it to the file `out` as an 8-bit RGBA
-    /// PNG, replacing it; a cubemap is written as six face files.
+    /// PNG, replacing it; a cubemap is written as six face files, an array as one file per
+    /// element and a volume as one file per slice.
     ///
     /// Everything is decoded before anything is written, and each file is written under a
-    /// temporary name first, so a failed file leaves no partial file behind; when writing one face
-    /// fails, faces already written stay.
+    /// temporary name first, so a failed file leaves no partial file behind; when writing one
+    /// image fails, images already written stay.
     ///
     /// # Errors
     ///
@@ -58,14 +59,17 @@ impl Texture<'_> {
     }
 
     /// Decodes mip `level`, 0 being the largest, with its alpha tail, and writes it as 8-bit RGBA
-    /// PNG to the file `out`, or a cubemap as `layout` says; existing files are replaced.
+    /// PNG to the file `out`; existing files are replaced.
+    ///
+    /// A texture of several images is written as one file per image next to `out`, its stem
+    /// followed by `_layerN` for an array element, a cubemap face's name or `_faceN`, and
+    /// `_sliceN` for a volume slice, in that order, numbered to the width of the last number.
+    /// With [`CubemapLayout::Cross`], a cubemap's six faces are one cross per array element.
     ///
     /// # Errors
     ///
     /// Returns [`ConversionError::OutputIsInput`] when a file to write is the header or one of
-    /// the parts, [`ConversionError::Write`] when a file cannot be written, a
-    /// [`ConversionError`] wrapping [`p4kx_texture::TextureError::UnsupportedImage`] for a
-    /// volume, a texture array or a cubemap array, and the errors of
+    /// the parts, [`ConversionError::Write`] when a file cannot be written, and the errors of
     /// [`Texture::decode_surfaces`].
     pub fn png_to_file_as(
         &self,
@@ -73,26 +77,23 @@ impl Texture<'_> {
         level: u32,
         layout: CubemapLayout,
     ) -> Result<PngReport, ConversionError> {
-        let cube = is_cube(self.header());
-        let files: Vec<PathBuf> = if cube && layout == CubemapLayout::Faces {
-            CUBE_FACE_NAMES
-                .iter()
-                .map(|face| face_path(out, face))
-                .collect()
-        } else {
-            vec![out.to_path_buf()]
-        };
+        let cross = layout == CubemapLayout::Cross;
+        let files: Vec<PathBuf> = image_suffixes(self.header(), level, cross)
+            .iter()
+            .map(|suffix| suffixed_path(out, suffix))
+            .collect();
         for file in &files {
             self.refuse_input(file)?;
         }
-        let images = match (cube, layout) {
-            (false, _) => vec![self.decode_mip(level)?],
-            (true, CubemapLayout::Faces) => self.decode_surfaces(level)?,
-            (true, CubemapLayout::Cross) => vec![
-                cube_cross(&self.decode_surfaces(level)?)
-                    .map_err(|error| ConversionError::of_texture(self.name(), error))?,
-            ],
-        };
+        let images = self.decode_images(level, cross)?;
+        if images.len() != files.len() {
+            return Err(ConversionError::of_texture(
+                self.name(),
+                TextureError::UnsupportedImage {
+                    images: self.header().images(level),
+                },
+            ));
+        }
         files
             .par_iter()
             .zip(&images)
@@ -117,19 +118,23 @@ impl Texture<'_> {
     }
 }
 
-/// Returns whether header describes one cubemap, not an array of them.
-pub(crate) const fn is_cube(header: &DdsHeader) -> bool {
-    header.faces() == CUBE_FACES && header.array_size() == 1
-}
-
-/// Returns `out` with `_<face>` appended to its file stem.
-pub(crate) fn face_path(out: &Path, face: &str) -> PathBuf {
-    let mut name = OsString::from(out.file_stem().unwrap_or_default());
-    name.push("_");
-    name.push(face);
-    if let Some(extension) = out.extension() {
-        name.push(".");
-        name.push(extension);
+impl Texture<'_> {
+    /// Decodes every image of mip `level` with the alpha tail merged in, in the order of its
+    /// file names: with `cross`, a cubemap's six faces are laid out as one cross.
+    pub(crate) fn decode_images(
+        &self,
+        level: u32,
+        cross: bool,
+    ) -> Result<Vec<RgbaImage>, ConversionError> {
+        let images = self.decode_surfaces(level)?;
+        if !(cross && self.header().faces() as usize == CUBE_FACES) {
+            return Ok(images);
+        }
+        images
+            .chunks(CUBE_FACES)
+            .map(|faces| {
+                cube_cross(faces).map_err(|error| ConversionError::of_texture(self.name(), error))
+            })
+            .collect()
     }
-    out.with_file_name(name)
 }

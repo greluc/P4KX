@@ -15,6 +15,7 @@ pub(crate) enum PixelFormat {
     A8,
     Rg8,
     R16,
+    R32,
     Rg16,
     Rgba16,
     Rgb10A2,
@@ -22,6 +23,7 @@ pub(crate) enum PixelFormat {
     B5G5R5A1,
     B4G4R4A4,
     R16Float,
+    Rg16Float,
     Rgba16Float,
     R32Float,
     Rgba32Float,
@@ -45,6 +47,7 @@ impl PixelFormat {
             65 => Self::A8,
             48..=50 => Self::Rg8,
             53 | 56 | 57 => Self::R16,
+            42 => Self::R32,
             33 | 35 | 36 => Self::Rg16,
             9 | 11 | 12 => Self::Rgba16,
             23..=25 => Self::Rgb10A2,
@@ -52,6 +55,7 @@ impl PixelFormat {
             86 => Self::B5G5R5A1,
             115 => Self::B4G4R4A4,
             54 => Self::R16Float,
+            34 => Self::Rg16Float,
             10 => Self::Rgba16Float,
             41 => Self::R32Float,
             2 => Self::Rgba32Float,
@@ -72,6 +76,10 @@ impl PixelFormat {
             Self::Rg8 => convert(src, dst, |[r, g]| [r, g, 0, 255]),
             Self::R16 => convert(src, dst, |[low, high]| {
                 let r = unorm16(low, high);
+                [r, r, r, 255]
+            }),
+            Self::R32 => convert(src, dst, |bytes: [u8; 4]| {
+                let r = unorm32(u32::from_le_bytes(bytes));
                 [r, r, r, 255]
             }),
             Self::Rg16 => convert(src, dst, |[r0, r1, g0, g1]| {
@@ -95,9 +103,11 @@ impl PixelFormat {
                 ]
             }),
             Self::B5G6R5 | Self::B5G5R5A1 | Self::B4G4R4A4 => self.convert_packed16(src, dst),
-            Self::R16Float | Self::Rgba16Float | Self::R32Float | Self::Rgba32Float => {
-                self.convert_float(src, dst);
-            }
+            Self::R16Float
+            | Self::Rg16Float
+            | Self::Rgba16Float
+            | Self::R32Float
+            | Self::Rgba32Float => self.convert_float(src, dst),
         }
     }
 
@@ -142,6 +152,9 @@ impl PixelFormat {
                 let r = half(low, high);
                 [r, r, r, 255]
             }),
+            Self::Rg16Float => convert(src, dst, |[r0, r1, g0, g1]| {
+                [half(r0, r1), half(g0, g1), 0, 255]
+            }),
             Self::Rgba16Float => convert(src, dst, |[r0, r1, g0, g1, b0, b1, a0, a1]| {
                 [half(r0, r1), half(g0, g1), half(b0, b1), half(a0, a1)]
             }),
@@ -172,6 +185,11 @@ fn convert<const N: usize>(src: &[u8], dst: &mut [u8], pixel: impl Fn([u8; N]) -
 fn unorm(value: u32, bits: u32) -> u8 {
     let max = (1 << bits) - 1;
     u8::try_from(((value & max) * 255 + max / 2) / max).unwrap_or(u8::MAX)
+}
+
+fn unorm32(value: u32) -> u8 {
+    let max = u64::from(u32::MAX);
+    u8::try_from((u64::from(value) * 255 + max / 2) / max).unwrap_or(u8::MAX)
 }
 
 fn unorm16(low: u8, high: u8) -> u8 {

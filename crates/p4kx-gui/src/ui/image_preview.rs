@@ -221,18 +221,26 @@ fn facts(ui: &Ui, texts: &Texts, serial: u64, info: &TextureInfo) -> Arc<FactsSt
     let faces = info
         .cubemap_faces()
         .map_or_else(|| texts.get(ImageText::None), |faces| faces.to_string());
+    let layers = info.layers().map(|layers| layers.to_string());
     let keys = [
         ImageText::Format,
         ImageText::Size,
         ImageText::Mips,
         ImageText::Faces,
+        ImageText::Layers,
     ]
     .map(|text| texts.get(text));
-    let values = [info.format(), &dimensions, &mips, &faces];
+    let values = [
+        Some(info.format()),
+        Some(dimensions.as_str()),
+        Some(mips.as_str()),
+        Some(faces.as_str()),
+        layers.as_deref(),
+    ];
     let laid: Vec<Fact<'_>> = keys
         .iter()
         .zip(values)
-        .map(|(key, value)| Fact { key, value })
+        .filter_map(|(key, value)| Some(Fact { key, value: value? }))
         .collect();
     let strip = Arc::new(FactsStrip::lay_out(ui, &laid));
     ui.data_mut(|data| data.insert_temp(id, (key, Arc::clone(&strip))));

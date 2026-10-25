@@ -5,9 +5,9 @@
 //! driven headless over a synthetic Archive with a DataForge.
 
 use crate::querying;
+use crate::waiting::wait_for;
 
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use egui::accesskit::Role;
 use egui::{Key, Modifiers};
@@ -48,15 +48,9 @@ fn opened(language: Language) -> Result<(TempDir, Harness<'static, Window>), Box
 }
 
 fn wait_until(harness: &mut Harness<'_, Window>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    harness.step();
-    while !done(&harness.state().model) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the window to settle", |harness| {
+        done(&harness.state().model)
+    })?;
     harness.run_steps(3);
     Ok(())
 }

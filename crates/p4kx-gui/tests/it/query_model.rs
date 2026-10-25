@@ -7,7 +7,7 @@
 use crate::querying;
 use crate::querying::model;
 
-use std::time::{Duration, Instant};
+use crate::waiting::wait_polling;
 
 use model::{column, finished, opened, run, settled};
 use p4kx_gui::{Language, Model, QUERY_PAGE_ROWS, QueryStatus, ResultColumn, SortDirection};
@@ -210,11 +210,14 @@ fn opening_another_archive_forgets_the_result_but_keeps_the_query() -> TestResul
     let path = archive(other.path(), &numbered(2))?;
 
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.opening_path().is_some() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.opening_path().is_none(),
+    )?;
     let idle = matches!(model.query().status(), QueryStatus::Idle);
     run(&mut model, "from Item select mass")?;
 

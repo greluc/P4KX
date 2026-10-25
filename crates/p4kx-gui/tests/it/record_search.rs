@@ -3,6 +3,7 @@
 
 //! Searching the Records of a synthetic DataForge by record path and type name.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
 use std::time::{Duration, Instant};
 
@@ -56,20 +57,17 @@ fn opened(bytes: Vec<u8>) -> Result<(TempDir, Model), Box<dyn Error>> {
 }
 
 fn settle(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(60);
-    loop {
-        model.poll();
-        if let Some(browser) = model.browser_mut() {
-            browser.poll();
-        }
-        if done(model) {
-            return Ok(());
-        }
-        if Instant::now() > deadline {
-            return Err("did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-    }
+    wait_polling(
+        model,
+        "the work to finish",
+        |model| {
+            model.poll();
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        done,
+    )
 }
 
 fn search(model: &mut Model, text: &str) -> Result<Vec<String>, Box<dyn Error>> {

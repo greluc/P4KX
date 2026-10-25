@@ -35,6 +35,29 @@ fn snapshot(root: &Path) -> TestResult<Snapshot> {
     Ok(items)
 }
 
+fn audio_tools_leave_their_archive_untouched() -> TestResult<Vec<&'static str>> {
+    let install = crate::audio::install()?;
+    let before = snapshot(install.path())?;
+    let mut server = crate::audio::serve(&install)?;
+    let calls = [
+        ("search_audio_triggers", json!({ "search": "engine" })),
+        ("get_entity_sounds", json!({ "entity": "TEST_Ship" })),
+        ("resolve_audio_trigger", json!({ "trigger": "Play_Engine" })),
+        (
+            "list_soundbank_wems",
+            json!({ "soundbank": "Data/Sounds/wwise/Ship.bnk" }),
+        ),
+        ("get_wem_info", json!({ "wem_id": 5000 })),
+        ("get_audio_excerpt", json!({ "wem_id": 5000 })),
+    ];
+    for (name, arguments) in &calls {
+        server.ok(name, arguments)?;
+    }
+    drop(server);
+    assert_eq!(snapshot(install.path())?, before, "no audio was written");
+    Ok(calls.iter().map(|(name, _)| *name).collect())
+}
+
 fn fixture() -> TestResult<(Install, String)> {
     let install = Install::new(
         vec![
@@ -102,7 +125,8 @@ fn every_tool_leaves_the_archive_and_all_folders_untouched() -> TestResult {
     for (name, arguments) in &calls {
         server.ok(name, arguments)?;
     }
-    let called: Vec<&str> = calls.iter().map(|(name, _)| *name).collect();
+    let mut called: Vec<&str> = calls.iter().map(|(name, _)| *name).collect();
+    called.extend(audio_tools_leave_their_archive_untouched()?);
     for tool in &tools {
         let name = tool.get("name").and_then(Value::as_str).unwrap_or_default();
         assert!(called.contains(&name), "{name} was called");

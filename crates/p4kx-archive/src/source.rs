@@ -61,6 +61,15 @@ impl Source {
         self.len
     }
 
+    /// Returns the length of the decoded bytes this window keeps in memory, whatever its own
+    /// length: the whole buffer for a window of decoded bytes, `0` for a window of the file.
+    pub(crate) fn resident_len(&self) -> u64 {
+        match self.backing.as_ref() {
+            Backing::File(_) => 0,
+            Backing::Memory(bytes) => bytes.len() as u64,
+        }
+    }
+
     /// Returns the modification time of the backing file when it was opened, or `None` for decoded
     /// bytes and platforms that record none.
     pub(crate) fn modified(&self) -> Option<SystemTime> {

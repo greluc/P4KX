@@ -327,7 +327,39 @@ fn the_help_menu_shows_the_legal_notices_in_both_languages() {
                 "{language:?}: {needle}"
             );
         }
+        assert!(
+            harness
+                .query_by_role_and_label(
+                    egui::accesskit::Role::Link,
+                    "https://github.com/p4kx-org/p4kx"
+                )
+                .is_some(),
+            "{language:?}: the project URL is a link"
+        );
     }
+}
+
+#[test]
+fn the_about_window_keeps_its_close_button_in_a_very_small_window() {
+    let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
+        .with_size([700.0, 260.0])
+        .build_ui_state(
+            |ui, model: &mut Model| {
+                ui::show(ui, model);
+            },
+            Model::new(Language::BritishEnglish),
+        );
+    harness.state_mut().set_about_shown(true);
+    harness.run_quiet();
+
+    let close = harness.get_by_label("Close");
+    let screen = harness.ctx.content_rect();
+    assert!(
+        screen.contains_rect(close.rect()),
+        "Close {:?} lies inside the window {screen:?}",
+        close.rect()
+    );
 }
 
 #[test]

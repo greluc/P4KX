@@ -8,7 +8,7 @@ use crate::error::capped;
 use crate::model_params::{ChunksParams, MAX_TYPE_LEN, ModelItemsParams, ModelParams};
 use crate::model_shapes::{ChunksResult, ModelItemsResult, ModelOverview};
 use crate::models;
-use crate::noted::Json;
+use crate::noted::Noted;
 use crate::page::Page;
 use crate::params::MAX_PATH_LEN;
 use crate::server::Server;
@@ -19,7 +19,9 @@ impl Server {
         description = "List the chunks of a CryEngine chunk file Entry (.cgf, .cga, .skin, .chr, .cgfm, .caf, .dba, ...): \
         container form and version, then per chunk its table index, type name and ID, version, chunk ID, byte order, \
         data offset and size. Chunk types not in the table of known types are listed with known false and no name. \
-        type narrows the list to one chunk type. Paged with a cursor; no chunk data is returned.",
+        type narrows the list to one chunk type. Paged with a cursor; no chunk data is returned. The content may be forwarded by the client to \
+        third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<ChunksResult>(),
         annotations(
             title = "List chunks",
             read_only_hint = true,
@@ -31,7 +33,7 @@ impl Server {
     async fn list_chunks(
         &self,
         Parameters(params): Parameters<ChunksParams>,
-    ) -> Result<Json<ChunksResult>, String> {
+    ) -> Result<Noted<ChunksResult>, String> {
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             if let Some(chunk_type) = &params.chunk_type {
@@ -52,6 +54,7 @@ impl Server {
         and chunks. It is `p4kx model info --json` with the long lists left out; list_model_items returns them, \
         page by page. Reading the animations of a large model takes time. The content may be forwarded by the client \
         to third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<ModelOverview>(),
         annotations(
             title = "Get model info",
             read_only_hint = true,
@@ -63,7 +66,7 @@ impl Server {
     async fn get_model_info(
         &self,
         Parameters(params): Parameters<ModelParams>,
-    ) -> Result<Json<ModelOverview>, String> {
+    ) -> Result<Noted<ModelOverview>, String> {
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
@@ -77,6 +80,7 @@ impl Server {
         detail, each with its lod), bones, animations, unread_animations or chunks. Each item is shaped as in \
         `p4kx model info --json`. Use get_model_info first for the counts. The content may be forwarded by the \
         client to third parties; game texts and media must not be redistributed.",
+        output_schema = rmcp::handler::server::tool::schema_for_output::<ModelItemsResult>(),
         annotations(
             title = "List model items",
             read_only_hint = true,
@@ -88,7 +92,7 @@ impl Server {
     async fn list_model_items(
         &self,
         Parameters(params): Parameters<ModelItemsParams>,
-    ) -> Result<Json<ModelItemsResult>, String> {
+    ) -> Result<Noted<ModelItemsResult>, String> {
         self.run(move |state| {
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;

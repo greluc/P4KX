@@ -74,7 +74,12 @@ archive-issues =
        *[other] Das Verzeichnis des Archivs hat { $count } Fehler in seinen Einträgen. Die Einträge bleiben aufgelistet, ihre Daten sind aber womöglich nicht lesbar; eine Extraktion meldet die gescheiterten, und `p4kx info` nennt sie.
     }
 game-running = Star Citizen läuft. Nutze dieses Werkzeug bei beendetem Spiel: Lesen funktioniert weiter, aber das Archiv ändert sich, wenn das Spiel aktualisiert, und das Werkzeug schreibt nie in die Installation.
-archive-test-build = Dieses Archiv gehört zum Channel { $channel }, einem Testbuild von Star Citizen. Material aus Testbuilds ist nach den Nutzungsbedingungen von Star Citizen vertraulich: Gib nichts daraus weiter und veröffentliche nichts davon.
+archive-test-build =
+    { $kind ->
+        [one] Dieses Archiv gehört zum Channel { $channel }, der Testbuilds von Star Citizen enthält. Material aus Testbuilds ist nach den Nutzungsbedingungen von Star Citizen vertraulich: Gib nichts daraus weiter und veröffentliche nichts davon.
+       *[other] Diese Archive gehören zu den Channels { $channel }, die Testbuilds von Star Citizen enthalten. Material aus Testbuilds ist nach den Nutzungsbedingungen von Star Citizen vertraulich: Gib nichts daraus weiter und veröffentliche nichts davon.
+    }
+archive-test-build-nda = Der Inhalt von EPTU kann zusätzlich einer Geheimhaltungsvereinbarung unterliegen und darf nicht weitergegeben werden.
 action-reload = Neu laden
 extract-selected = Ausgewählte extrahieren …
 extract-shown = Angezeigte extrahieren …
@@ -370,6 +375,7 @@ image-format = Format
 image-size = Größe
 image-mips = Mips
 image-faces = Cubemap-Seiten
+image-layers = Ebenen
 image-dimensions = { $width } × { $height }
 image-none = –
 image-shown = Mip { $level }: { $width } × { $height } Pixel
@@ -403,6 +409,9 @@ record-export-filter-hint = Glob mit * oder ?, sonst ein beliebiger Teil des Rec
 record-export-form-heading = Form
 record-export-form-json = JSON, eine Datei je Record unter seinem Record-Pfad
 record-export-form-ndjson = NDJSON, eine Datei { $name } mit einem Record je Zeile
+record-export-form-flat-csv = Werte als CSV, { $name }, eine Zeile je Wert
+record-export-form-flat-csv-raw = Werte als CSV, exakt: ohne Byte-Order-Mark, ohne ' vor Text
+record-export-form-flat-ndjson = Werte als NDJSON, { $name }, ein Objekt je Wert
 record-export-start = Export starten
 record-export-running-title = Exportiere Records
 record-export-reading = Lese DataForge …
@@ -824,7 +833,8 @@ key-note-store = Der gespeicherte Schlüssel kann nicht verwendet werden. Gib de
 about-title = Über P4KX
 about-version = Version { $version }
 about-copyright = Copyright (c) 2026 the P4KX contributors
-about-licence = Lizenziert unter MIT OR Apache-2.0. Quellcode: https://github.com/p4kx-org/p4kx
+about-licence = Lizenziert unter MIT OR Apache-2.0.
+about-source = Quellcode:
 about-fan-project = P4KX ist ein inoffizielles Star-Citizen-Fanprojekt. Es steht in keiner Verbindung zur Cloud-Imperium-Gruppe und wird nicht von ihr unterstützt oder gebilligt.
 about-no-game-data = Es liefert keine Spieldaten mit und liest nur deine eigene Star-Citizen-Installation.
 about-responsibility = Du bist dafür verantwortlich, bei der Nutzung die Endbenutzer-Lizenzvereinbarung (EULA) und die Nutzungsbedingungen (Terms of Service) von Star Citizen einzuhalten.

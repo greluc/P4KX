@@ -31,14 +31,14 @@ pub(crate) fn take() -> Option<String> {
 
 /// A structured result with the notice of the Archive it was read from, if the Archive has one.
 ///
-/// Named like `rmcp::Json` so that the tool macro derives the output schema from `T`. The notice
-/// is one more text content block; the structured content stays the value itself.
-pub(crate) struct Json<T> {
+/// The notice is one more text content block; the structured content stays the value itself. A
+/// tool returning it names its output schema with `output_schema`.
+pub(crate) struct Noted<T> {
     pub(crate) value: T,
     pub(crate) notice: Option<String>,
 }
 
-impl<T: Serialize + 'static> IntoCallToolResult for Json<T> {
+impl<T: Serialize + 'static> IntoCallToolResult for Noted<T> {
     fn into_call_tool_result(self) -> Result<CallToolResponse, ErrorData> {
         let value = serde_json::to_value(self.value).map_err(|error| {
             ErrorData::internal_error(format!("Failed to serialize the result: {error}"), None)

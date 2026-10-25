@@ -14,5 +14,5 @@ macro_rules! legal_notice {
 /// Shown above the usage of `--help`.
 pub(crate) const LEGAL_NOTICE: &str = legal_notice!();
 
-/// Shown by `--version`: the version, then the legal notice.
-pub(crate) const LONG_VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\n", legal_notice!());
+/// Shown by `--version` and `-V`: the version, then the legal notice.
+pub(crate) const VERSION: &str = concat!(env!("CARGO_PKG_VERSION"), "\n", legal_notice!());

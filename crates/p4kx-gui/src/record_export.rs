@@ -22,7 +22,13 @@ use crate::TargetKind;
 use crate::installation::refusal_of;
 
 /// The forms the Record export dialog offers.
-pub const RECORD_FORMS: [RecordForm; 2] = [RecordForm::Json, RecordForm::Ndjson];
+pub const RECORD_FORMS: [RecordForm; 5] = [
+    RecordForm::Json,
+    RecordForm::Ndjson,
+    RecordForm::FlatCsv,
+    RecordForm::FlatCsvRaw,
+    RecordForm::FlatNdjson,
+];
 
 /// Which Records a Record export writes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

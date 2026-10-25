@@ -55,7 +55,7 @@ fn every_test_channel_is_announced_in_british_english() -> TestResult {
 
         harness.step();
 
-        harness.get_by_label_contains("a Star Citizen test build");
+        harness.get_by_label_contains("which carries Star Citizen test builds");
         harness.get_by_label_contains("is confidential under the Star Citizen Terms of Service");
         harness.get_by_label_contains(&format!("belongs to the {channel} Channel"));
     }
@@ -69,7 +69,7 @@ fn the_notice_is_also_shown_in_german() -> TestResult {
 
     harness.step();
 
-    harness.get_by_label_contains("einem Testbuild von Star Citizen");
+    harness.get_by_label_contains("der Testbuilds von Star Citizen enthält");
     harness.get_by_label_contains("vertraulich");
     Ok(())
 }
@@ -141,7 +141,11 @@ fn a_comparison_of_two_test_channels_names_both() -> TestResult {
 
     harness.step();
 
-    harness.get_by_label_contains("belongs to the PTU, EPTU Channel");
+    harness.get_by_label_contains("belong to the PTU, EPTU Channels, which carry");
+    assert!(
+        harness.query_by_label_contains("belongs to").is_none(),
+        "plural form"
+    );
     Ok(())
 }
 

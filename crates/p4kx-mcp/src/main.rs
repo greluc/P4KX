@@ -48,8 +48,7 @@ const KEY_FILE: &str = "archive.key";
 #[derive(Debug, Parser)]
 #[command(
     name = "p4kx-mcp",
-    version,
-    long_version = notice::LONG_VERSION,
+    version = notice::VERSION,
     before_help = notice::BEFORE_HELP
 )]
 struct Args {

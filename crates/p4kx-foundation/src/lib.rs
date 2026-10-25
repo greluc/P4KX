@@ -3,14 +3,16 @@
 
 //! Shared building blocks of the P4KX format crates: a bounds-checked little-endian
 //! reader over byte slices, the parse error it reports, path matching with the rules of a Filter,
-//! and the Archive key type and IV.
+//! the Archive key type and IV, and the tolerant reading of numbers in text data.
 
 mod archive_key;
 mod byte_reader;
 mod parse_error;
 mod path_pattern;
+mod text_number;
 
 pub use archive_key::{ARCHIVE_IV, ArchiveKey, ArchiveKeyError};
 pub use byte_reader::ByteReader;
 pub use parse_error::ParseError;
 pub use path_pattern::PathPattern;
+pub use text_number::{TextNumber, is_format_character, read_text_number};

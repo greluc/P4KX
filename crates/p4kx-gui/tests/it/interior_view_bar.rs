@@ -33,15 +33,20 @@ fn stage(window: &Window) -> Option<ViewStage> {
         .map(|progress| progress.stage)
 }
 
-/// Asks for the Interior again and steps the window until a frame drew the stage that reads it.
-fn catch_the_interior_stage(window: &mut Window) -> Result<bool, &'static str> {
+/// Asks for the Interior again and steps the window until a frame drew the stage that reads it,
+/// with `stage_text` in the frame.
+fn catch_the_interior_stage(window: &mut Window, stage_text: &str) -> Result<bool, &'static str> {
     for _ in 0..20 {
         let next = u32::from(view_mut(window)?.lod() == 0);
         view_mut(window)?.set_lod(next);
         for _ in 0..3000 {
             window.harness.step();
             match stage(window) {
-                Some(ViewStage::Interior) => return Ok(true),
+                Some(ViewStage::Interior)
+                    if window.harness.query_by_label_contains(stage_text).is_some() =>
+                {
+                    return Ok(true);
+                }
                 Some(_) => std::thread::sleep(std::time::Duration::from_micros(200)),
                 None => break,
             }
@@ -77,7 +82,7 @@ fn the_building_state_shows_its_stage_and_stop_in_the_whole_width() -> TestResul
         built(&mut window, before)?;
 
         assert!(
-            catch_the_interior_stage(&mut window)?,
+            catch_the_interior_stage(&mut window, stage_text)?,
             "a frame drew the Interior stage"
         );
         let text = window.harness.get_by_label_contains(stage_text).rect();

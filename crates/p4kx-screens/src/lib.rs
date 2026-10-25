@@ -29,6 +29,10 @@
 //! bounded by [`Limits`]; one that is missing or unreadable is listed and its widget skipped.
 //! Without [`ImageSources`] these widgets are listed.
 //!
+//! A separator draws the `ModularKit` canvas of its direction and style (ADR-0111). What the game
+//! fills at run time, such as a map picture, 3D content or a line to a placed widget, keeps its
+//! box and is listed with its reason.
+//!
 //! [`Still::render`] does all of that for a front-end that hands it the sources: a [`Still`]
 //! holds the PNG pixels or the SVG document of one canvas with its report, which
 //! [`Still::encode`] turns into the bytes of a file.

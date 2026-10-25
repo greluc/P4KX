@@ -87,9 +87,27 @@ pub(crate) struct Widget {
     pub(crate) shape: ShapeStyle,
     pub(crate) text: Option<TextSpec>,
     pub(crate) picture: Picture,
+    pub(crate) kit: Kit,
     pub(crate) params: ParamValues,
     pub(crate) assets: WidgetAssets,
     pub(crate) repeat: Repeat,
+}
+
+/// The direction and the style a `ModularKit` standard widget such as a separator names.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Kit {
+    pub(crate) direction: String,
+    pub(crate) style: String,
+}
+
+impl Kit {
+    fn parse(structure: &StructValue<'_>) -> Self {
+        let own = |name| text(structure, name).unwrap_or_default().to_owned();
+        Self {
+            direction: own("direction"),
+            style: own("style"),
+        }
+    }
 }
 
 /// Where a widget sits in its parent and how it is turned and scaled about its pivot.
@@ -221,6 +239,7 @@ impl Widget {
             shape: ShapeStyle::parse(structure),
             text: TextSpec::parse(structure),
             picture: Picture::parse(structure),
+            kit: Kit::parse(structure),
             params: param_values(structure),
             assets: WidgetAssets::scan(structure),
             repeat: Repeat::parse(structure, canvas),

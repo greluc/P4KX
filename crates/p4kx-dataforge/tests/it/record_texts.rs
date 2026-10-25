@@ -111,7 +111,7 @@ fn xml_annotates_attributes_elements_and_array_values() -> TestResult {
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
             "<Item xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
             "guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/sample\" ",
-            "name=\"@item_Name\" p4kx:text-name=\"Crate &amp; &quot;Co&quot;\" ",
+            "p4kx:name=\"Item.Sample\" name=\"@item_Name\" p4kx:text-name=\"Crate &amp; &quot;Co&quot;\" ",
             "gone=\"@item_Gone\" p4kx:missing-gone=\"true\" ",
             "blank=\"@LOC_EMPTY\" unset=\"\" text=\"@item_Name\">\n",
             "  <p4kx:field name=\"path\" value=\"@item_Desc\" text=\"Line one&#10;Line two\"/>\n",
@@ -135,7 +135,7 @@ fn json_annotates_every_localisation_key_with_an_object() -> TestResult {
         json,
         concat!(
             "{\"$type\":\"Item\",\"$guid\":\"cbee34fd-6441-4000-b99f-924f7f26e19f\",",
-            "\"$path\":\"libs/foundry/records/sample\",",
+            "\"$path\":\"libs/foundry/records/sample\",\"$name\":\"Item.Sample\",",
             "\"name\":{\"key\":\"@item_Name\",\"text\":\"Crate & \\\"Co\\\"\"},",
             "\"gone\":{\"key\":\"@item_Gone\",\"missing\":true},",
             "\"blank\":\"@LOC_EMPTY\",\"unset\":\"\",\"text\":\"@item_Name\",",

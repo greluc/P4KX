@@ -3,7 +3,7 @@
 
 use crate::CorruptChunk;
 use crate::streams::{element, u16_at};
-use crate::vector::half;
+use crate::vector::finite_uv;
 
 /// The second texture coordinates of a mesh: two half floats per vertex in the four-byte
 /// `NORMALS2` stream.
@@ -19,11 +19,10 @@ impl<'a> SecondUvStream<'a> {
         Self { data }
     }
 
-    /// Returns the second texture coordinate of vertex `index`; a non-finite value reads as 0.
-    pub(crate) fn uv(&self, index: usize) -> Result<[f32; 2], CorruptChunk> {
+    /// Returns the second texture coordinate of vertex `index`, with a non-finite value read as 0,
+    /// and whether one was.
+    pub(crate) fn uv(&self, index: usize) -> Result<([f32; 2], bool), CorruptChunk> {
         let bytes = element(self.data, index, Self::STRIDE, "second texture coordinate")?;
-        Ok([0, 2]
-            .map(|at| half(u16_at(bytes, at)))
-            .map(|value| if value.is_finite() { value } else { 0.0 }))
+        Ok(finite_uv([0, 2].map(|at| u16_at(bytes, at))))
     }
 }

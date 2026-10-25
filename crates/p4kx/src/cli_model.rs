@@ -68,6 +68,12 @@ pub(crate) enum ModelAction {
         /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
         #[arg(long)]
         no_vertex_colours: bool,
+        /// The most bones a vertex is weighted to, 1 to 8: the strongest ones are kept and their
+        /// weights scaled to add up to 1. 4 writes the first set of joints and weights only, for
+        /// viewers such as Three.js that ignore the second set; the default keeps all eight and
+        /// writes the rest as the second set.
+        #[arg(long, value_name = "N", default_value_t = 8, value_parser = clap::value_parser!(u8).range(1..=8))]
+        max_influences: u8,
         /// Includes an animation; repeat the option for more, or use `all` for every animation
         /// found. NAME is the name of an animation (a .caf file name without extension, or a
         /// name inside a .dba), its file name, or the end of its path, ignoring case; or the

@@ -136,6 +136,33 @@ pub(crate) fn check_bones(bones: &[Bone], path: &str, tally: &mut Tally) {
     }
 }
 
+/// Returns the largest difference between the inverse bind poses of `bones` made from the stored
+/// world poses and from the chain of relative poses: of the translation in metres, and of the
+/// rotation quaternion components with the sign aligned.
+pub(crate) fn bind_difference(bones: &[Bone]) -> (f32, f32) {
+    let inverse = |rotation: [f32; 4], translation: [f32; 3]| {
+        let [x, y, z, w] = rotation;
+        let back = [-x, -y, -z, w];
+        (back, rotate(back, translation).map(|value| -value))
+    };
+    let chained = p4kx_extraction::model::chained_world_poses(bones);
+    let mut largest = (0.0_f32, 0.0_f32);
+    for (bone, pose) in bones.iter().zip(&chained) {
+        let (stored_rotation, stored_translation) =
+            inverse(bone.world.rotation, bone.world.translation);
+        let (rotation, translation) = inverse(pose.rotation, pose.translation);
+        let sign = dot(stored_rotation, rotation).signum();
+        let turn = stored_rotation
+            .into_iter()
+            .zip(rotation)
+            .map(|(a, b)| sign.mul_add(-b, a).abs())
+            .fold(0.0, f32::max);
+        largest.0 = largest.0.max(distance(stored_translation, translation));
+        largest.1 = largest.1.max(turn);
+    }
+    largest
+}
+
 /// Checks that the weights of every vertex add up to 255 over bones the level's skeleton has, and
 /// counts the vertices that are nearer to their strongest bone than the median bone is.
 pub(crate) fn check_weights(model: &Model, path: &str, tally: &mut Tally) {

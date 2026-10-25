@@ -197,6 +197,11 @@ Early development (milestone M1). Available today:
   `--lod <n>`, `--materials colours` and `--no-vertex-colours` apply to every model. Containers nested in themselves,
   and containers, files and models that cannot be resolved, are listed; with `--json` the report
   has the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx interior package <archive> <container>... --out <folder>` writes the Interior of a socpak
+  container on its own as a Blender package: the same container, object and light nodes, props
+  and lights as `entity package --interior`, without an Entity around them. `--lod`,
+  `--texture-mip` and `--no-vertex-colours` work as for `entity package`; the folder is written
+  beside the target and moved into place when complete. The Blender add-on imports it.
 - `p4kx armour glb <archive> --piece <entity> --body male|female --out <file>` exports pieces of
   armour and clothing worn on the default body of a variant as one skinned GLB: the body's
   skeleton once as bone nodes, one skin over them, the skin of the body and, for every `--piece`
@@ -460,7 +465,8 @@ Early development (milestone M1). Available today:
   with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
   the materials of its `.mtl` file;
   `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
-  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  [--texture-mip <n>] [--max-influences <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and
+  in metres (`--max-influences 4` keeps four bones per vertex, for viewers that read one set), with the
   normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::Assembly;
+use p4kx_assembly::Issue as AssemblyIssue;
 use p4kx_gltf::{DrawnMaterial, GlbOptions, GlbSummary, TextureFile};
 
 use crate::PackageInfo;
@@ -19,7 +19,8 @@ use crate::textures::{Outcome, id_of};
 
 /// Everything the manifest is made of.
 pub(crate) struct Inputs<'a> {
-    pub(crate) assembly: &'a Assembly,
+    pub(crate) entity: EntityRef,
+    pub(crate) assembly_issues: &'a [AssemblyIssue],
     pub(crate) items: &'a [Item<'a>],
     pub(crate) info: &'a PackageInfo,
     pub(crate) options: &'a GlbOptions,
@@ -31,7 +32,6 @@ pub(crate) struct Inputs<'a> {
 
 /// Builds the manifest of a package whose files are written.
 pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
-    let root = inputs.assembly.root();
     Manifest {
         format: Format::P4kxBlenderPackage,
         version: FORMAT_VERSION.to_owned(),
@@ -39,16 +39,7 @@ pub(crate) fn manifest(inputs: &Inputs<'_>) -> Manifest {
         source: Source {
             channel: inputs.info.channel.clone(),
             build: inputs.info.build.clone(),
-            entity: root.map_or_else(
-                || EntityRef {
-                    class_name: String::new(),
-                    guid: String::new(),
-                },
-                |part| EntityRef {
-                    class_name: part.class_name().to_owned(),
-                    guid: part.guid().to_string(),
-                },
-            ),
+            entity: inputs.entity.clone(),
             character: None,
         },
         coordinates: coordinates(),
@@ -265,8 +256,7 @@ fn textures(inputs: &Inputs<'_>) -> Vec<Texture> {
 
 fn issues(inputs: &Inputs<'_>) -> Vec<Issue> {
     let mut issues: Vec<Issue> = inputs
-        .assembly
-        .issues()
+        .assembly_issues
         .iter()
         .map(|issue| Issue {
             origin: IssueOrigin::Assembly,

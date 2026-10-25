@@ -15,7 +15,7 @@ import pytest
 from p4kx_importer import lights, package
 from p4kx_importer.light_model import Light
 from p4kx_importer.package import PackageError, Quaternion, Vector3
-from synthetic import lit_manifest, manifest
+from synthetic import interior_manifest, lit_manifest, manifest
 
 
 def parse(data: dict[str, Any]) -> package.Package:
@@ -211,3 +211,12 @@ def test_the_energy_and_the_strength_are_capped() -> None:
     assert lights.light_settings(one, 1e9).energy == pytest.approx(
         lights.WATTS_PER_UNIT * lights.MAX_STRENGTH
     )
+
+
+def test_an_interior_on_its_own_reads_without_an_entity_node() -> None:
+    loaded = parse(interior_manifest())
+
+    assert loaded.warnings == []
+    assert loaded.entity_name == "ship_interior"
+    assert [node.kind for node in loaded.nodes] == ["container", "container", "object", "light"]
+    assert loaded.nodes[0].parent is None

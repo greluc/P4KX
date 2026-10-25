@@ -7,7 +7,8 @@ use std::error::Error;
 
 use p4kx_chunks::ChunkFile;
 use p4kx_model::{
-    ChunkUsage, CompanionError, CompanionPath, CorruptChunk, Model, ModelError, ModelFile,
+    BoneTransform, ChunkUsage, CompanionError, CompanionPath, CorruptChunk, Model, ModelError,
+    ModelFile, chained_world_poses,
 };
 use p4kx_testkit::{TestBone, TestModel, TestSkeleton};
 use proptest::prelude::*;
@@ -260,6 +261,49 @@ fn a_bone_count_beyond_the_chunk_does_not_allocate_it() -> TestResult {
     assert!(
         matches!(corrupt_source(&error), Some(CorruptChunk::Truncated(_))),
         "{error:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn chained_poses_follow_the_relative_poses_whatever_the_stored_world_poses_say() -> TestResult {
+    let skeleton = TestSkeleton::chain(4);
+    let mut model = read(&TestModel::cube().with_skeleton(&skeleton))?;
+    for bone in &mut model.bones {
+        bone.world = BoneTransform::IDENTITY;
+    }
+
+    let poses = chained_world_poses(&model.bones);
+
+    for (pose, (rotation, position)) in poses.iter().zip(skeleton.world()) {
+        assert_close(&pose.rotation, &rotation, "chained rotation");
+        assert_close(&pose.translation, &position, "chained translation");
+    }
+    Ok(())
+}
+
+#[test]
+fn chained_poses_treat_a_missing_parent_and_a_cycle_as_roots() -> TestResult {
+    let mut model = read(&TestModel::two_bone_skin())?;
+    model.bones[0].parent = Some(1);
+    let cycle = chained_world_poses(&model.bones);
+    assert_eq!(cycle.len(), 2, "a pose per bone");
+    let (first, second) = (model.bones[0].relative, model.bones[1].relative);
+    assert_close(
+        &cycle[1].translation,
+        &second.translation,
+        "the bone that closes the cycle is a root",
+    );
+    let below = second.then(&first);
+    assert_close(&cycle[0].translation, &below.translation, "its child");
+    assert_close(&cycle[0].rotation, &below.rotation, "its child's rotation");
+
+    model.bones[0].parent = Some(99);
+    let missing = chained_world_poses(&model.bones);
+    assert_close(
+        &missing[0].translation,
+        &model.bones[0].relative.translation,
+        "the bone is a root",
     );
     Ok(())
 }

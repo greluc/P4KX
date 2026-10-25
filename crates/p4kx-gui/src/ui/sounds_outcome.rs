@@ -39,7 +39,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             cancelling,
         } => {
             let title = texts.get(T::ExportRunning);
-            let shown = placement::window(ui.ctx(),&title, Tone::Normal)
+            let shown = placement::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique("sounds-export-run"))
                 .collapsible(false)
                 .resizable(false)

@@ -31,7 +31,7 @@ pub(crate) fn dialog_area(ctx: &Context) -> Rect {
 /// Returns whether the window `title` was not drawn in the frame before, so that it opens anew,
 /// and notes that it is drawn in this one.
 fn opens_anew(ctx: &Context, title: &str) -> bool {
-    let key = Id::new(("dialog-window-frame", title));
+    let key = Id::unique("dialog-window-frame").with(title);
     let now = ctx.cumulative_frame_nr();
     let before = ctx.data_mut(|data| data.get_temp::<u64>(key));
     ctx.data_mut(|data| data.insert_temp(key, now));

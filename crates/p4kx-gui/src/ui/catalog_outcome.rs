@@ -103,7 +103,7 @@ fn running_window(
     let cancelling = run.is_cancelled();
     let title = texts.get(T::RunningTitle);
     let path = run.shown_file();
-    let shown = placement::window(ui.ctx(),&title, Tone::Normal)
+    let shown = placement::window(ui.ctx(), &title, Tone::Normal)
         .id(Id::unique(WINDOW))
         .collapsible(false)
         .resizable(false)

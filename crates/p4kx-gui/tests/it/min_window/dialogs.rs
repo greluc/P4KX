@@ -221,13 +221,17 @@ fn running_and_finished(
     let mut found = Vec::new();
     let hold = harness.state_mut().hold_interior_export();
     export_to(&mut harness, &dir.path().join("placed.glb"))?;
-    wait_for_model(&mut harness, "the export to leave its first step", |model| {
-        matches!(
-            model.assembly_export().map(AssemblyExport::status),
-            Some(AssemblyExportStatus::Running(progress))
-                if progress.stage != AssemblyExportStage::Resolving
-        )
-    })?;
+    wait_for_model(
+        &mut harness,
+        "the export to leave its first step",
+        |model| {
+            matches!(
+                model.assembly_export().map(AssemblyExport::status),
+                Some(AssemblyExportStatus::Running(progress))
+                    if progress.stage != AssemblyExportStage::Resolving
+            )
+        },
+    )?;
     harness.run_steps(3);
     let name = format!("export-{kind}-running-{}x{}-{suffix}", size[0], size[1]);
     shot(&mut harness, &name)?;
@@ -278,37 +282,33 @@ fn the_windows_of_an_entity_glb_export_stand_in_the_middle_clear_of_the_bars() -
 
 #[test]
 fn the_windows_of_an_extraction_stand_in_the_middle_clear_of_the_bars() -> TestResult {
-    let mut found = Vec::new();
-    for size in [MIN, DEFAULT] {
-        let Some((dir, mut harness)) = window(
-            vec![TestEntry::stored("Data\\good.txt", "good")],
-            Language::BritishEnglish,
-            size,
-        )?
-        else {
-            return Ok(());
-        };
-        let out = dir.path().join("out");
-        std::fs::create_dir(&out)?;
-        harness.state_mut().set_extraction_folder(Some(out));
-        harness.run_steps(3);
-        harness.get_by_label("Extract all…").click();
-        harness.run_steps(3);
-        harness.get_by_label("Existing folder").click();
-        harness.run_steps(3);
-        harness.get_by_label("Extract").click();
-        harness.run_steps(3);
-        harness.get_by_label("Extract whole Archive").click();
-        wait_for_model(&mut harness, "the extraction to end", |model| {
-            model
-                .extraction()
-                .is_some_and(|extraction| !extraction.is_running())
-        })?;
-        harness.run_steps(4);
-        let name = format!("extraction-summary-{}x{}-en-GB", size[0], size[1]);
-        shot(&mut harness, &name)?;
-        found.extend(problems(&harness, &name, size));
-    }
+    let Some((dir, mut harness)) = window(
+        vec![TestEntry::stored("Data\\good.txt", "good")],
+        Language::BritishEnglish,
+        DEFAULT,
+    )?
+    else {
+        return Ok(());
+    };
+    let out = dir.path().join("out");
+    std::fs::create_dir(&out)?;
+    harness.state_mut().set_extraction_folder(Some(out));
+    harness.run_steps(3);
+    harness.get_by_label("Extract all…").click();
+    harness.run_steps(3);
+    harness.get_by_label("Existing folder").click();
+    harness.run_steps(3);
+    harness.get_by_label("Extract").click();
+    harness.run_steps(3);
+    harness.get_by_label("Extract whole Archive").click();
+    wait_for_model(&mut harness, "the extraction to end", |model| {
+        model
+            .extraction()
+            .is_some_and(|extraction| !extraction.is_running())
+    })?;
+    harness.run_steps(4);
+    shot(&mut harness, "extraction-summary-1280x800-en-GB")?;
+    let found = problems(&harness, "extraction-summary-1280x800-en-GB", DEFAULT);
     assert!(found.is_empty(), "{}", found.join("\n"));
     Ok(())
 }

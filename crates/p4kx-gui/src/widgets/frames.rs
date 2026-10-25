@@ -246,7 +246,10 @@ pub(crate) fn foot_action(ui: &mut Ui, label: &str, kind: super::button::Kind) -
 pub(crate) fn modal_room(ui: &Ui) -> f32 {
     let above = ui.cursor().top() - ui.min_rect().top();
     4.0f32
-        .mul_add(-SPACE_4, ui.ctx().content_rect().height() - above - FOOT_HEIGHT)
+        .mul_add(
+            -SPACE_4,
+            ui.ctx().content_rect().height() - above - FOOT_HEIGHT,
+        )
         .max(BUTTON_HEIGHT)
 }
 

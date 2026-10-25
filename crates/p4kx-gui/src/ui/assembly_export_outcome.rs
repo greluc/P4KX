@@ -42,7 +42,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         AssemblyExportStatus::Running(progress) => {
             let cancelling = run.is_cancelled();
             let title = texts.get(titles(run.is_container(), run.form()).0);
-            let shown = placement::window(ui.ctx(),&title, Tone::Normal)
+            let shown = placement::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
                 .resizable(false)

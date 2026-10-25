@@ -261,7 +261,7 @@ pub(crate) fn warn_open(index: &AudioIndex) -> io::Result<bool> {
     }
 }
 
-fn warn(index: &AudioIndex) -> io::Result<()> {
+pub(crate) fn warn(index: &AudioIndex) -> io::Result<()> {
     let mut err = io::stderr().lock();
     for issue in index.issues() {
         writeln!(

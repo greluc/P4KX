@@ -202,6 +202,16 @@ pub enum IssueKind {
         /// The limit.
         limit: usize,
     },
+    /// Worn clothing covers these zones of the body, so the body's triangles in them are left out.
+    #[error("the body zones {} are covered by the clothing and left out", .0.join(", "))]
+    BodyZonesHidden(Vec<String>),
+    /// The body's submeshes do not fit its zone table, so no body triangles are left out.
+    #[error("the body cannot be cut by zone: {0}")]
+    BodyZonesUnknown(String),
+    /// This many layered materials of the part have no diffuse map and are drawn in the colours
+    /// of their layers.
+    #[error("layered materials without a diffuse map ({0}) are drawn in their layer colours")]
+    LayersWithoutDiffuse(usize),
     /// The piece of armour or clothing cannot be found or read as an Entity, so it is left out.
     #[error("the piece cannot be resolved: {reason}")]
     PieceNotFound {
@@ -337,6 +347,9 @@ impl IssueKind {
             Self::UnsupportedObjects { .. } => "unsupported_objects",
             Self::EntitiesLeftOut { .. } => "entities_left_out",
             Self::LightUnsupported { .. } => "light_unsupported",
+            Self::BodyZonesHidden(_) => "body_zones_hidden",
+            Self::BodyZonesUnknown(_) => "body_zones_unknown",
+            Self::LayersWithoutDiffuse(_) => "layers_without_diffuse",
             Self::PieceNotFound { .. } => "piece_not_found",
             Self::NoWornGeometry => "no_worn_geometry",
             Self::NoVariantGeometry { .. } => "no_variant_geometry",

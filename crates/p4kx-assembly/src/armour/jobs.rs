@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_character::Dna;
 
 use super::head::rig_part;
 use super::piece::{Bespoke, Note, Source};
 use super::wearable::Unfit;
-use super::{BodyVariant, Expressions, Look, PartOrigin, Piece};
+use super::{BodyVariant, Expressions, Look, PartOrigin, Piece, ZoneChunk};
 use crate::{Issue, IssueKind, MaterialVariant, ModelFailure, ModelProvider};
 
 /// One skin to read and wear.
@@ -22,6 +24,7 @@ pub(super) struct Job {
     pub(super) look: Option<Look>,
     pub(super) follows_head: bool,
     pub(super) bespoke: bool,
+    pub(super) zones: Arc<[ZoneChunk]>,
 }
 
 impl Job {
@@ -39,6 +42,7 @@ impl Job {
             look: None,
             follows_head: false,
             bespoke: false,
+            zones: Arc::default(),
         }
     }
 }
@@ -133,7 +137,9 @@ pub(super) fn gather(
         .and_then(|bespoke| bespoke_path(&path, bespoke, models));
     let bespoke = own.is_some();
     let material = existing_library(piece, material, bespoke, models, issues);
+    let zones = covered_zones(piece, issues);
     jobs.push(Job {
+        zones,
         origin: PartOrigin::Piece,
         part: piece.name.clone(),
         owner: String::new(),
@@ -193,4 +199,39 @@ fn chosen_material(
     MaterialVariant::resolve(wearable.material_variants(), &tags)
         .or(geometry)
         .map(str::to_owned)
+}
+
+/// Returns the skins to wear: the body and what each piece contributes, at most `max_parts` of
+/// them; the jobs beyond are listed in `issues`.
+pub(super) fn planned(
+    variant: BodyVariant,
+    pieces: &[Piece],
+    models: &dyn ModelProvider,
+    max_parts: usize,
+    issues: &mut Vec<Issue>,
+) -> Vec<Job> {
+    let mut jobs = vec![Job::body(variant.skin())];
+    for piece in pieces {
+        gather(piece, variant, models, &mut jobs, issues);
+    }
+    if jobs.len() > max_parts {
+        for job in jobs.split_off(max_parts) {
+            let kind = IssueKind::TooManyParts { limit: max_parts };
+            issues.push(issue(&job, kind));
+        }
+    }
+    jobs
+}
+
+/// Returns the body zones the piece covers; a Record with more chunks than are read is reported.
+fn covered_zones(piece: &Piece, issues: &mut Vec<Issue>) -> Arc<[ZoneChunk]> {
+    let Source::Wearable(wearable) = &piece.source else {
+        return Arc::default();
+    };
+    if wearable.zones.truncated {
+        let reason = "the Record lists more body zones than are read; the rest are ignored";
+        let kind = IssueKind::BodyZonesUnknown(reason.to_owned());
+        issues.push(piece_issue(piece, kind));
+    }
+    Arc::clone(&wearable.zones.chunks)
 }

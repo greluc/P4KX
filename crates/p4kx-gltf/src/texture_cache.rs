@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_plan::Job;
 
-/// The most pixels the decoded sources kept for the next chunk of jobs may hold together.
+/// The most pixels the decoded sources kept for the next group of jobs may hold together.
 pub(crate) const MAX_HELD_PIXELS: u64 = 1 << 27;
 
 /// The most pixels the distinct sources of one group of jobs may decode together, measured from
@@ -19,7 +19,7 @@ pub(crate) const MAX_DECODE_PIXELS: u64 = 1 << 27;
 /// A decoded source texture, or why it could not be loaded.
 pub(crate) type Loaded = Result<Arc<LoadedTexture>, TextureLoadError>;
 
-/// The decoded sources one chunk of jobs is made from, by path.
+/// The decoded sources one group of jobs is made from, by path.
 pub(crate) type Decoded = HashMap<String, Loaded>;
 
 /// Returns the paths of the source textures `job` loads.
@@ -39,7 +39,7 @@ pub(crate) struct SourceStore<'l> {
     cap: u64,
     limit: u64,
     held: Decoded,
-    sizes: HashMap<String, Option<(u32, u32)>>,
+    sizes: HashMap<String, Result<Option<(u32, u32)>, TextureLoadError>>,
 }
 
 fn pixels(loaded: &Loaded) -> u64 {
@@ -50,7 +50,7 @@ fn pixels(loaded: &Loaded) -> u64 {
 
 impl<'l> SourceStore<'l> {
     /// Creates a store that loads at mip `mip` with `loader` and holds at most `cap` pixels
-    /// between chunks.
+    /// between groups.
     pub(crate) fn new(loader: &'l dyn TextureLoader, mip: u32, cap: u64) -> Self {
         Self {
             loader,
@@ -114,23 +114,23 @@ impl<'l> SourceStore<'l> {
         self.held.values().map(pixels).sum()
     }
 
-    /// Returns the size of the texture at `path` without decoding it, when the loader knows.
+    /// Returns the size of the texture at `path` without decoding it, when the loader knows; the
+    /// loader is asked once per path, its error included.
     pub(crate) fn dimensions(
         &mut self,
         path: &str,
     ) -> Result<Option<(u32, u32)>, TextureLoadError> {
         if let Some(size) = self.sizes.get(path) {
-            return Ok(*size);
+            return size.clone();
         }
-        let size = self.loader.dimensions(path, self.mip)?;
-        self.sizes.insert(path.to_owned(), size);
-        Ok(size)
+        let size = self.loader.dimensions(path, self.mip);
+        self.sizes.insert(path.to_owned(), size.clone());
+        size
     }
 
     /// Returns how many of the leading `jobs`, at most `most`, may be made together: the
     /// distinct sources they decode stay within the decode limit, but the first job always counts.
-    /// A source of unknown size counts for the whole limit, one that cannot be sized for nothing,
-    /// as the decode reports it.
+    /// A source whose size is unknown or cannot be read counts for the whole limit.
     pub(crate) fn group_len(&mut self, jobs: &[Job], most: usize) -> usize {
         let mut seen: HashSet<&str> = HashSet::new();
         let mut total = 0u64;
@@ -145,8 +145,7 @@ impl<'l> SourceStore<'l> {
                 fresh.push(path);
                 added = added.saturating_add(match self.dimensions(path) {
                     Ok(Some((width, height))) => u64::from(width) * u64::from(height),
-                    Ok(None) => self.limit,
-                    Err(_) => 0,
+                    Ok(None) | Err(_) => self.limit,
                 });
             }
             if count > 0 && total.saturating_add(added) > self.limit {
@@ -156,6 +155,6 @@ impl<'l> SourceStore<'l> {
             seen.extend(fresh);
             count += 1;
         }
-        count.max(usize::from(!jobs.is_empty()))
+        count
     }
 }

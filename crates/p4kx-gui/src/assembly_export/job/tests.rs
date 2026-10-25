@@ -39,9 +39,9 @@ fn a_write_after_the_cancel_fails_instead_of_being_retried_forever() {
     assert_eq!(shared.progress().done, 2, "only the first chunk counted");
 }
 
-struct Sized;
+struct FourByFour;
 
-impl TextureLoader for Sized {
+impl TextureLoader for FourByFour {
     fn load(&self, _path: &str, _mip: u32) -> Result<LoadedTexture, TextureLoadError> {
         Err(TextureLoadError::NotFound)
     }
@@ -54,7 +54,7 @@ impl TextureLoader for Sized {
 #[test]
 fn header_reads_stop_after_the_cancel() {
     let cancel = CancelToken::new();
-    let inner = Sized;
+    let inner = FourByFour;
     let textures = StoppableTextures {
         textures: &inner,
         cancel: &cancel,

@@ -46,10 +46,11 @@ archive loader limits a texture to 2^26 pixels, so twelve of them are about 3 Gi
 other `TextureLoader` has no limit. The bound now lies in `p4kx-gltf`. Jobs still run in groups of
 at most four, but a group ends early when the distinct sources of its jobs, sized by `dimensions`,
 would exceed 2^27 pixels together (`MAX_DECODE_PIXELS`, 512 MiB RGBA). A source counts once
-however many jobs of the group use it. A source whose size the loader does not tell counts for the
-whole limit, so its job runs alone; one that cannot be sized counts for nothing and fails when
-decoded. The first job of a group always runs, so only one job whose own sources exceed the limit
-can pass it. Sizes are read once per source and kept.
+however many jobs of the group use it. A source whose size the loader does not tell, or cannot read,
+counts for the whole limit, so the group ends before it and its job runs alone, and a header error
+still fails that job when it is made. The first job of a group always runs, so only one job whose
+own sources exceed the limit can pass it. The loader is asked for each path's size once; the answer
+or the error is kept for the build.
 
 **Resulting peak.** The decoded sources in memory are those of one group, at most 2^27 pixels (or
 one job's), plus the held sources, at most 2^27 pixels (`MAX_HELD_PIXELS`): 2^28 pixels, 1 GiB
@@ -70,5 +71,7 @@ decode is itself parallel, and fails after a timeout instead of hanging if a job
   nothing for base colour and metallic-roughness; the cache covers both.
 - Keep every decoded source for the build, or until its last user: unbounded for a ship with
   hundreds of textures; rejected for the chunk-wise hold under a cap.
+- A per-source pixel limit in `p4kx-gltf` instead of a per-group one: bounds one texture but not
+  the twelve of a chunk, so the peak would still grow with the group; rejected.
 - A per-source once-cell shared by the running jobs: a parallel decode waiting inside one can steal
   a job that needs the same cell and deadlock; rejected.

@@ -48,12 +48,13 @@ impl Outcome {
 /// image that would exceed `budget` is dropped and its job fails, like every job after it.
 ///
 /// The budget is checked against the header sizes before a job decodes anything, when the loader
-/// gives them, and against the image made otherwise. The sources of a chunk of jobs are decoded
-/// once however many of its jobs use them, and those the next chunk needs stay in memory up to a
+/// gives them, and against the image made otherwise. The sources of a group of jobs are decoded
+/// once however many of its jobs use them, and those the next group needs stay in memory up to a
 /// pixel cap. A group is at most four jobs, fewer when the distinct sources of the jobs would
-/// decode more than the decode limit together, by their headers, so the sources in memory never
-/// exceed that, whatever the loader allows per texture, unless one job alone needs more. A source
-/// whose size the loader does not tell counts for the whole limit.
+/// decode more than the decode limit together, by their headers; a source whose size is unknown
+/// or unreadable counts for the whole limit. The sources in memory therefore never exceed the
+/// decode limit plus the held cap, whatever the loader allows per texture, unless one job alone
+/// needs more.
 pub(crate) fn run(
     jobs: &[Job],
     mip: u32,
@@ -69,10 +70,7 @@ fn run_with(jobs: &[Job], mut store: SourceStore<'_>, budget: Budget) -> Vec<Out
     let mut outcomes = Vec::with_capacity(jobs.len());
     let mut rest = jobs;
     while !rest.is_empty() {
-        let len = store.group_len(rest, PARALLEL_IMAGES);
-        let Some((chunk, after)) = rest.split_at_checked(len) else {
-            break;
-        };
+        let (chunk, after) = rest.split_at(store.group_len(rest, PARALLEL_IMAGES));
         let next = after.get(..PARALLEL_IMAGES).unwrap_or(after);
         rest = after;
         let verdicts: Vec<Verdict> = chunk

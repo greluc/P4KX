@@ -153,37 +153,54 @@
       "type": "object"
     },
     "EntryState": {
-      "description": "What the central directory says about one side of an Entry.",
-      "oneOf": [
+      "anyOf": [
         {
-          "description": "The CRC-32C (Castagnoli), which Archives store.",
-          "properties": {
-            "crc32c": {
-              "format": "uint32",
-              "minimum": 0,
-              "type": "integer"
+          "oneOf": [
+            {
+              "description": "The CRC-32C (Castagnoli), which Archives store.",
+              "properties": {
+                "crc32c": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "crc32c"
+              ],
+              "type": "object"
+            },
+            {
+              "description": "The plain ZIP CRC-32, which plain ZIP archives store.",
+              "properties": {
+                "crc32": {
+                  "format": "uint32",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "crc32"
+              ],
+              "type": "object"
+            },
+            {
+              "description": "The SHA-256 as 64 lower-case hex digits; an Entry's checksum is never one, the arm keeps\nthe report total.",
+              "properties": {
+                "sha256": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "sha256"
+              ],
+              "type": "object"
             }
-          },
-          "required": [
-            "crc32c"
-          ],
-          "type": "object"
+          ]
         },
-        {
-          "description": "The plain ZIP CRC-32, which plain ZIP archives store.",
-          "properties": {
-            "crc32": {
-              "format": "uint32",
-              "minimum": 0,
-              "type": "integer"
-            }
-          },
-          "required": [
-            "crc32"
-          ],
-          "type": "object"
-        }
+        {}
       ],
+      "description": "What the central directory says about one side of an Entry.",
       "properties": {
         "size": {
           "description": "The uncompressed size in bytes.",

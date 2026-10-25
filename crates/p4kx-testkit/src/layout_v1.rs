@@ -92,7 +92,11 @@ fn central_extra(entry: &TestEntry, local_offset: u64) -> Vec<u8> {
             .clone()
             .unwrap_or_else(|| entry.encryption_value().to_le_bytes().to_vec()),
     );
-    put_block(&mut extra, BLOCK_CIG_HASH, &entry.sha256);
+    put_block(
+        &mut extra,
+        BLOCK_CIG_HASH,
+        entry.hash_block.as_deref().unwrap_or(&entry.sha256),
+    );
     extra.extend_from_slice(&entry.extra_blocks);
     extra
 }

@@ -16,7 +16,51 @@ use rayon::prelude::*;
 
 mod support;
 
-use support::{Tally, check_bones, check_skin, sample};
+use support::{Tally, bind_difference, check_bones, check_skin, sample};
+
+#[test]
+#[expect(clippy::print_stdout, reason = "the measurements are the output")]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn inverse_binds_from_the_chain_differ_little_from_the_stored_world_poses() -> TestResult {
+    let archive = Archive::open(real_archive_path()?)?;
+    let index = PathIndex::new(&archive);
+    let entries: Vec<&Entry> = archive
+        .entries()
+        .iter()
+        .filter(|entry| {
+            std::path::Path::new(entry.path())
+                .extension()
+                .is_some_and(|ext| {
+                    ext.eq_ignore_ascii_case("skin") || ext.eq_ignore_ascii_case("chr")
+                })
+        })
+        .collect();
+    let (models, translation, rotation) = entries
+        .par_iter()
+        .filter_map(|entry| ModelSource::from_index(&index, entry.path()).ok())
+        .map(|source| {
+            let model = source.model();
+            let mut largest = bind_difference(&model.bones);
+            for lod in &model.lods {
+                if let Some(bones) = &lod.bones {
+                    let own = bind_difference(bones);
+                    largest = (largest.0.max(own.0), largest.1.max(own.1));
+                }
+            }
+            (1_u64, largest.0, largest.1)
+        })
+        .reduce(
+            || (0, 0.0, 0.0),
+            |a, b| (a.0 + b.0, a.1.max(b.1), a.2.max(b.2)),
+        );
+    println!(
+        "{models} of {} skins and skeleton files: largest difference {translation:e} m in the \
+         translation, {rotation:e} in a rotation component",
+        entries.len()
+    );
+    assert!(models > 0, "the Archive holds skins and skeleton files");
+    Ok(())
+}
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -131,6 +175,11 @@ fn every_skeleton_file_has_bones_and_no_mesh_and_exports_as_nodes() -> TestResul
             let model = source.model();
             if model.bones.is_empty() || model.lods.iter().any(|lod| !lod.meshes.is_empty()) {
                 return Some(format!("{path}: bones {} or a mesh", model.bones.len()));
+            }
+            let mut tally = Tally::default();
+            check_bones(&model.bones, path, &mut tally);
+            if let Some(failure) = tally.failures.into_iter().next() {
+                return Some(failure);
             }
             let file = out.path().join(format!("{position}.glb"));
             let exported = source

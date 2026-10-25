@@ -519,6 +519,7 @@ the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `mes
 
 ```json
 {"archive": "…", "search": "spool", "offset": 0, "limit": 100, "total": 210, "next_offset": 100,
+ "entities_skipped": null, "unreadable_records": 0,
  "triggers": [{"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
                "matched_trigger": true,
                "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false,
@@ -535,8 +536,14 @@ definitions' Entry paths, and `next_offset` is the offset of the next page or `n
 last one. A trigger matches when its name or the name of one of its events does; `matched_trigger`
 and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx entity audio`.
 `entities` counts the Entities that name the trigger through those fields
-and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
-and when the DataForge cannot be read, which is a warning on stderr.
+and lists the first `--entities` of them in definition order; only Entities whose own Record names
+the trigger count, not those that reach it through a Loadout or a Reference. In `--search`, `/`
+and `\` match each other. `entities` is `null` with `--no-entities`. It is
+also `null` when the DataForge cannot be found, decrypted or read: `entities_skipped` then holds
+the reason, a warning goes to stderr and the exit code is 1. Otherwise `entities_skipped` is
+`null`. `unreadable_records` counts the Entity Records that could not be read and so name no
+trigger; above 0 it is also a warning on stderr. A page without triggers does not read the
+DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 
 ## `p4kx wwise extract <archive> <trigger> --out <folder> --json`
 
@@ -833,6 +840,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "soc_components": 320, "soc_paths_unattributed": 12, "inventories_unreadable": 1, "inventories_missing": 0, "inventories_named": 57,
  "inventories_in_archive": 119, "item_ids_dropped": 0, "commodity_exchanges": 16,
  "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
+ "store_slugs": {"slugs": 256, "unmapped": 51, "mapped": 205, "resolved": 205, "retired": 0,
+ "exported": 205, "stale": [], "stale_check_skipped": false},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
@@ -842,6 +851,11 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
+
+`store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
+`stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are
+mapped but none resolves, as for an Archive that is not the game's ([basetool-catalog.md](basetool-catalog.md), "Ship store
+slugs").
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)); a name ending in
 `.zst` writes a zstd frame. `size` is the size of the JSON in bytes, uncompressed;
@@ -1544,9 +1558,10 @@ companion next to it.
                 "textures": [{"map": "TexSlot1", "file": "Objects/Test/caps_diff.tif"}]}, …],
  "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
- "lods": [{"level": 0, "vertices": 24, "triangles": 12,
+ "lods": [{"level": 0, "vertices": 24, "triangles": 12, "skeleton_bones": null,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
-                       "tangents": false, "colours": false, "skinned": false,
+                       "tangents": false, "colours": false, "second_uvs": false,
+                       "non_finite_uvs": 0, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
@@ -1579,7 +1594,11 @@ lists the levels of detail, LOD0 first, each with its meshes, at most one per no
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
 (`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
-submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
+submesh in its mesh's triangle list. `second_uvs` says whether the mesh has a second set of texture
+coordinates, and `non_finite_uvs` counts its vertices that had a texture coordinate, of either
+set, that was not a finite number and reads as 0. `skeleton_bones` of a level is the number of
+bones of the skeleton the level's own file carries when it differs from the model's, `null`
+otherwise. `skinned` says whether the mesh has bone weights.
 `bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
 of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
 bone by; `node` is the index of the node of the model the bone drives (the bones of a static
@@ -1608,7 +1627,10 @@ companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file
 geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
 `null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--max-influences <n>] [--anim <name>]… [--anim-from <entry>]… --json`
+
+`--max-influences N` (1 to 8, default 8) keeps the strongest N bones of each vertex and scales
+their weights to add up to 1; 4 writes the first set of joints and weights only.
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 

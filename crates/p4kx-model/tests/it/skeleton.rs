@@ -288,6 +288,15 @@ fn chained_poses_treat_a_missing_parent_and_a_cycle_as_roots() -> TestResult {
     model.bones[0].parent = Some(1);
     let cycle = chained_world_poses(&model.bones);
     assert_eq!(cycle.len(), 2, "a pose per bone");
+    let (first, second) = (model.bones[0].relative, model.bones[1].relative);
+    assert_close(
+        &cycle[1].translation,
+        &second.translation,
+        "the bone that closes the cycle is a root",
+    );
+    let below = second.then(&first);
+    assert_close(&cycle[0].translation, &below.translation, "its child");
+    assert_close(&cycle[0].rotation, &below.rotation, "its child's rotation");
 
     model.bones[0].parent = Some(99);
     let missing = chained_world_poses(&model.bones);

@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+//! What `p4kx model info --json` and `p4kx chunks list --json` say, as serialisable shapes.
+
 use std::borrow::Cow;
 
+use p4kx_chunks::Chunk;
 use p4kx_model::{
     Bone, BoneTransform, ChunkUsage, Mesh, Model, ModelChunk, ModelFile, Node, Submesh,
 };
+use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::model_info_animations::{AnimationInfo, UnreadInfo};
@@ -53,22 +57,12 @@ impl<'a> ModelInfo<'a> {
             material_ids: model.material_ids(),
             library: LibraryInfo::of(model),
             materials: MaterialInfo::of_model(model),
-            nodes: model.nodes.iter().enumerate().map(NodeInfo::of).collect(),
-            lods: model
-                .lods
-                .iter()
-                .map(|lod| LodInfo {
-                    level: lod.level,
-                    vertices: lod.vertex_count(),
-                    triangles: lod.triangle_count(),
-                    skeleton_bones: lod.bones.as_ref().map(Vec::len),
-                    meshes: lod.meshes.iter().map(MeshInfo::of).collect(),
-                })
-                .collect(),
-            bones: model.bones.iter().enumerate().map(BoneInfo::of).collect(),
+            nodes: NodeInfo::of_model(model),
+            lods: LodInfo::of_model(model),
+            bones: BoneInfo::of_model(model),
             animations: AnimationInfo::of_set(model, animations),
             unread_animations: animations.unread.iter().map(UnreadInfo::of).collect(),
-            chunks: model.chunks.iter().map(ChunkInfo::of).collect(),
+            chunks: ChunkInfo::of_model(model),
         }
     }
 }
@@ -83,6 +77,12 @@ pub struct NodeInfo<'a> {
 }
 
 impl<'a> NodeInfo<'a> {
+    /// Describes the nodes of `model`.
+    #[must_use]
+    pub fn of_model(model: &'a Model) -> Vec<Self> {
+        model.nodes.iter().enumerate().map(Self::of).collect()
+    }
+
     fn of((index, node): (usize, &'a Node)) -> Self {
         Self {
             index,
@@ -107,6 +107,24 @@ pub struct LodInfo {
     pub skeleton_bones: Option<usize>,
     /// The meshes of the level.
     pub meshes: Vec<MeshInfo>,
+}
+
+impl LodInfo {
+    /// Describes the levels of detail of `model` with their meshes.
+    #[must_use]
+    pub fn of_model(model: &Model) -> Vec<Self> {
+        model
+            .lods
+            .iter()
+            .map(|lod| Self {
+                level: lod.level,
+                vertices: lod.vertex_count(),
+                triangles: lod.triangle_count(),
+                skeleton_bones: lod.bones.as_ref().map(Vec::len),
+                meshes: lod.meshes.iter().map(MeshInfo::of).collect(),
+            })
+            .collect()
+    }
 }
 
 /// One mesh of a level of detail.
@@ -175,6 +193,12 @@ pub struct BoneInfo<'a> {
 }
 
 impl<'a> BoneInfo<'a> {
+    /// Describes the bones of `model`.
+    #[must_use]
+    pub fn of_model(model: &'a Model) -> Vec<Self> {
+        model.bones.iter().enumerate().map(Self::of).collect()
+    }
+
     fn of((index, bone): (usize, &'a Bone)) -> Self {
         Self {
             index,
@@ -215,6 +239,12 @@ pub struct ChunkInfo {
 }
 
 impl ChunkInfo {
+    /// Describes the chunks of the files of `model`.
+    #[must_use]
+    pub fn of_model(model: &Model) -> Vec<Self> {
+        model.chunks.iter().map(Self::of).collect()
+    }
+
     /// Describes `chunk`.
     #[must_use]
     pub fn of(chunk: &ModelChunk) -> Self {
@@ -224,6 +254,49 @@ impl ChunkInfo {
             type_name: chunk.chunk_type.name(),
             type_id: chunk.chunk_type.id(),
             usage: usage_name(chunk.usage),
+        }
+    }
+}
+
+/// One entry of the chunk table of a chunk file.
+#[derive(Debug, Serialize, JsonSchema)]
+pub struct ChunkJson {
+    /// The position in the chunk table, counted from 0.
+    pub index: usize,
+    /// The type name, absent for a type not in the table of known types.
+    #[serde(rename = "type")]
+    pub type_name: Option<&'static str>,
+    /// The numeric type ID.
+    pub type_id: u32,
+    /// Whether the type is in the table of known types.
+    pub known: bool,
+    /// The chunk version.
+    pub version: u32,
+    /// The chunk ID, absent in the `#ivo` form.
+    pub id: Option<u32>,
+    /// The byte order of the chunk's data: `little` or `big`.
+    pub byte_order: &'static str,
+    /// The offset of the chunk's data in the file.
+    pub offset: u64,
+    /// The size of the chunk's data in bytes.
+    pub size: u64,
+}
+
+impl ChunkJson {
+    /// Describes `chunk`, the entry `index` of its file's chunk table.
+    #[must_use]
+    pub fn of(index: usize, chunk: &Chunk) -> Self {
+        let chunk_type = chunk.chunk_type();
+        Self {
+            index,
+            type_name: chunk_type.name(),
+            type_id: chunk_type.id(),
+            known: chunk_type.is_known(),
+            version: chunk.version(),
+            id: chunk.id(),
+            byte_order: chunk.byte_order().name(),
+            offset: chunk.offset(),
+            size: chunk.size(),
         }
     }
 }

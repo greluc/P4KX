@@ -4,8 +4,9 @@
 use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
+use p4kx_extraction::ModelInfo;
 use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Model};
-use p4kx_extraction::{ModelInfo, file_name, node_name, usage_name};
+use p4kx_extraction::model_info::{file_name, node_name, usage_name};
 
 use crate::json;
 use crate::model::Opened;
@@ -46,6 +47,14 @@ pub(crate) fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     Ok(())
 }
 
+fn bone_count(bones: Option<&[p4kx_extraction::model::Bone]>) -> String {
+    match bones.map(<[_]>::len) {
+        None => NONE.to_owned(),
+        Some(1) => "1 bone".to_owned(),
+        Some(count) => format!("{count} bones"),
+    }
+}
+
 fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
     writeln!(
@@ -54,10 +63,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
         "LOD", "Vertices", "Triangles", "Meshes", "Skeleton"
     )?;
     for lod in &model.lods {
-        let skeleton = lod
-            .bones
-            .as_ref()
-            .map_or_else(|| NONE.to_owned(), |bones| format!("{} bones", bones.len()));
+        let skeleton = bone_count(lod.bones.as_deref());
         writeln!(
             out,
             "{:>4}  {:>10}  {:>10}  {:>6}  {skeleton:>8}",

@@ -227,7 +227,8 @@ Early development (milestone M1). Available today:
   they post by name (a substring or a glob such as `Play_*_Spool`, ignoring case) and lists each
   trigger with its events, their soundbanks and the Entities that name it, in definition order;
   `--limit` and `--offset` page through large results, `--entities` bounds the Entities listed
-  per trigger, `--no-entities` skips the DataForge, and `--json` gives the shape in
+  per trigger, `--no-entities` skips the DataForge (when it cannot be read otherwise, the command
+  warns and exits with 1), and `--json` gives the shape in
   [docs/cli-json.md](docs/cli-json.md).
 - `p4kx entity audio <archive> <entity>` lists the audio triggers an Entity names, each with the
   Wwise events of its ATL definition and the soundbanks holding them, e.g.
@@ -459,7 +460,8 @@ Early development (milestone M1). Available today:
   with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
   the materials of its `.mtl` file;
   `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
-  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  [--texture-mip <n>] [--max-influences <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and
+  in metres (`--max-influences 4` keeps four bones per vertex, for viewers that read one set), with the
   normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the

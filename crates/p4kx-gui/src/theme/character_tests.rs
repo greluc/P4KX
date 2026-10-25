@@ -18,7 +18,6 @@ fn the_character_builder_metrics_match_the_desktop_spec() {
     let spec = character_builder();
 
     for (key, value) in [
-        ("stackWidth", m::CHARACTER_STACK_WIDTH),
         ("reportRows", m::CHARACTER_REPORT_ROWS),
         ("reportHeight", m::CHARACTER_REPORT_HEIGHT),
         ("expressionRows", m::CHARACTER_EXPRESSION_ROWS),

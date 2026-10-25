@@ -132,7 +132,7 @@ fn physics_data_of_another_version_is_unsupported() -> TestResult {
     let (error, chunk) = unsupported_of(TestCrchModel::cube().with_physics_version(0x801).bytes())?;
     assert_eq!(
         (error, chunk),
-        (UnsupportedLayout::PhysicsVersion(0x801), "Mesh")
+        (UnsupportedLayout::PhysicsVersion(0x801), "MeshPhysicsData")
     );
     Ok(())
 }

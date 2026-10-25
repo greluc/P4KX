@@ -93,7 +93,8 @@ The remaining 68 bytes (a word `0x10`, a word `0x1100` and `0xFF` bytes) are not
 
 ## What is not read
 
-Layouts no file of the three Archives uses are not implemented: `Mesh` `0x800` and `0x802` and
+Layouts no file of the three Archives uses are not implemented: `Mesh` `0x800` and `0x802` (a
+`Mesh` chunk a node refers to fails with `MeshVersion`; one nothing refers to is skipped) and
 `DataStream` and `MeshSubsets` chunks (the streamed meshes of Cryengine-Converter, whose
 `MtlName`, `Node` `0x823` and compiled-bones layouts are likewise unused), the `CryTek`
 container, big-endian chunks, skeletons and morph targets in `CrCh` (`CompiledBones` `0x2000`
@@ -106,7 +107,9 @@ big-endian `Node`, `Mesh` or physics data chunk), `StreamedMesh`, `MeshVersion` 
 that a node refers to and whose version is not `0x801`), `PhysicsVersion` (physics data whose
 version is not `0x800`) and `PhysicsPrimitive`. The CLI exits with code 1 for it, not 3, so a
 script can tell a file this tool cannot read yet from a damaged one (docs/cli-json.md).
-`ModelError::Corrupt` stays for truncation, bad counts and indices, cycles and non-finite values.
+`Node` chunks of a version other than `0x824` and `MtlName` chunks of a version other than
+`0x802` are still skipped silently, without an error (a model with no `0x824` node gets one root
+node named after the file). `ModelError::Corrupt` stays for truncation, bad counts and indices, cycles and non-finite values.
 
 **Render models.** The survey of 2026-10-25 in LIVE found 1 `CrCh` model (the Carrack proxy
 above), 141 `.dst`, 27 `.cigvoxel` and 27 `.cigvoxelheader` files, no big-endian chunk, no

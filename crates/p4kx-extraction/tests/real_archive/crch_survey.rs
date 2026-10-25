@@ -64,8 +64,10 @@ impl Survey {
 
 const MESH_TYPE: u32 = 0x1000;
 const MESH_VERSION: u32 = 0x801;
-const MESH_STREAM_WORDS_AT: usize = 8;
-const MESH_STREAM_WORDS: usize = 4 + 16;
+const MESH_COUNTS_AT: usize = 0x08;
+const MESH_COUNT_WORDS: usize = 4;
+const MESH_STREAMS_AT: usize = 0x1C;
+const MESH_STREAM_WORDS: usize = 16;
 const MESH_SLOTS_AT: usize = 0x5C;
 const MESH_SLOTS: usize = 4;
 
@@ -76,8 +78,11 @@ fn mesh_layout(data: &[u8]) -> Option<String> {
             .map(u32::from_le_bytes)
     };
     let mut declared = 0_u32;
+    for position in 0..MESH_COUNT_WORDS {
+        declared |= word(MESH_COUNTS_AT + position * 4)?;
+    }
     for position in 0..MESH_STREAM_WORDS {
-        declared |= word(MESH_STREAM_WORDS_AT + position * 4)?;
+        declared |= word(MESH_STREAMS_AT + position * 4)?;
     }
     let mut slots = String::new();
     for position in 0..MESH_SLOTS {

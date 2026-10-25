@@ -45,10 +45,10 @@ pub(crate) fn read_nodes<B: AsRef<[u8]>>(
             continue;
         }
         let fail = corrupt(file_name, index, "Node");
-        let unsupported = failure(file_name, index, "Node");
-        let unsupported = |layout: UnsupportedLayout| unsupported(layout.into());
         if chunk.byte_order() != ByteOrder::Little {
-            return Err(unsupported(UnsupportedLayout::BigEndian));
+            return Err(failure(file_name, index, "Node")(
+                UnsupportedLayout::BigEndian.into(),
+            ));
         }
         let chunk_id = chunk.id().unwrap_or_default();
         let record = read_record(file.chunk_data(index).unwrap_or_default()).map_err(&fail)?;

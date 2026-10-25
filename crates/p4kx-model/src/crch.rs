@@ -150,7 +150,7 @@ fn read_node_mesh<B: AsRef<[u8]>>(
     let physics_index = match file.chunk_by_id(physics_id) {
         Some((index, chunk)) if chunk.chunk_type() == crch::MESH_PHYSICS_DATA => {
             if chunk.version() != PHYSICS_DATA_VERSION {
-                return Err(fail(
+                return Err(failure(name, index, "MeshPhysicsData")(
                     UnsupportedLayout::PhysicsVersion(chunk.version()).into(),
                 ));
             }

@@ -134,6 +134,42 @@ fn a_node_name_with_control_characters_is_printed_without_them() -> TestResult {
 }
 
 #[test]
+fn further_physics_slots_are_listed_as_issues_in_text_and_json() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let model = TestCrchModel::cube().with_physics_slot(2, 77);
+    let archive = write_crch_archive(dir.path(), model.bytes())?;
+
+    let text = p4kx()?
+        .args(["model", "info"])
+        .arg(&archive)
+        .arg(CRCH_ENTRY)
+        .output()?;
+    assert_eq!(text.status.code(), Some(0), "text: {text:?}");
+    let stdout = String::from_utf8(text.stdout)?;
+    assert!(
+        stdout.contains("Issue:       node 1 names physics data in 1 further slot(s)"),
+        "text: {stdout}"
+    );
+
+    let json = p4kx()?
+        .args(["--json", "model", "info"])
+        .arg(&archive)
+        .arg(CRCH_ENTRY)
+        .output()?;
+    assert_eq!(json.status.code(), Some(0), "json: {json:?}");
+    let info: Value = serde_json::from_slice(&json.stdout)?;
+    let issues = info["issues"].as_array().ok_or("issues")?;
+    assert_eq!(issues.len(), 1, "one issue: {issues:?}");
+    assert!(
+        issues[0]
+            .as_str()
+            .is_some_and(|issue| issue.contains("node 1 names physics data in 1 further slot(s)")),
+        "issue: {issues:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_unsupported_crch_layout_exits_1_and_writes_nothing() -> TestResult {
     let dir = tempfile::tempdir()?;
     fs::write(

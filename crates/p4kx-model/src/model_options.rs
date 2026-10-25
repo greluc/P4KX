@@ -18,8 +18,9 @@ pub enum PositionBox {
     Model,
 }
 
-/// A problem a lenient read ([`crate::LodSelection::OnlyOrBase`]) worked around instead of
-/// failing.
+/// A problem a read worked around instead of failing: a fallback of a lenient read
+/// ([`crate::LodSelection::OnlyOrBase`]), or data of a `CrCh` model that is left out, which every
+/// selection reports.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]
 pub enum ModelIssue {

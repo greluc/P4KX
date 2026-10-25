@@ -32,3 +32,7 @@ second to fourth slot was dropped without a trace. The survey of 2026-10-25 in L
   `PhysicsPrimitive`; callers that match them exhaustively must change.
 - A `Mesh` chunk of another version that a node refers to is now an error instead of a node
   without a mesh.
+- The line between the two is not sharp: junk in a header field, such as a nonzero stream count
+  or an unknown primitive type, reads as unsupported (exit 1), not corrupt, because one sample
+  cannot tell a new layout from damage.
+- `Node` and `MtlName` chunks of other versions are still skipped silently, as before.

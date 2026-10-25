@@ -1625,8 +1625,10 @@ record's geometry type (0 for geometry, 2 or 3 for a helper; `null` without a `N
 chunk), `helper` whether it is a helper, `properties` the `key=value` lines of the node's entry in
 the chunk's property table in order, e.g. `class=AnimatedJoint`, and `node_material_indices` the
 chunk's list of material indices. A transform or scale whose values are all below 1e-5 is the
-identity or 1. `issues` lists in words what a lenient read worked around; `model info` reads
-strictly, so it is empty there. `lods`
+identity or 1. `issues` lists in words what a read worked around: `model info` reads
+strictly, so no fallback of a lenient read appears, but a `CrCh` mesh that names physics data in
+further slots (which are not read) is listed as `node <n> names physics data in <k> further
+slot(s), which are not read`. `lods`
 lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them

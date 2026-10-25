@@ -95,6 +95,56 @@ pub(crate) fn unreadable() -> ArchiveBuilder {
 
 const BROKEN: u128 = 0x9000_0000_0000_4000_8000_0000_0000_0009;
 
+fn dismantle(number: u128, name: &str) -> TestRecord {
+    TestRecord::new(
+        0xa000_0000_0000_4000_8000_0000_0000_0000 + number,
+        "CraftingBlueprintRecord",
+        format!("CraftingBlueprintRecord.{name}"),
+        format!("libs/foundry/records/crafting/blueprints/dismantle/{name}.xml"),
+    )
+    .value(
+        "blueprint",
+        TestValue::Struct(
+            TestInstance::new("GenericCraftingBlueprint").value(
+                "processSpecificData",
+                TestValue::Struct(
+                    TestInstance::new("GenericCraftingProcess_Dismantle")
+                        .value("efficiency", TestValue::Single(0.5)),
+                ),
+            ),
+        ),
+    )
+}
+
+/// One manufacturer and two dismantle processes, which the catalog reports as ambiguous.
+pub(crate) fn ambiguous() -> ArchiveBuilder {
+    let forge = structures()
+        .structure(TestStruct::new("CraftingBlueprintRecord").field(
+            "blueprint",
+            TestType::StrongPointer("CraftingBlueprintBase".to_owned()),
+        ))
+        .structure(TestStruct::new("CraftingBlueprintBase"))
+        .structure(
+            TestStruct::new("GenericCraftingBlueprint")
+                .parent("CraftingBlueprintBase")
+                .field(
+                    "processSpecificData",
+                    TestType::StrongPointer("CraftingProcess".to_owned()),
+                ),
+        )
+        .structure(TestStruct::new("CraftingProcess"))
+        .structure(
+            TestStruct::new("GenericCraftingProcess_Dismantle")
+                .parent("CraftingProcess")
+                .field("efficiency", TestType::Single),
+        )
+        .record(manufacturer(1, "ACAS", "@manufacturer_Desc"))
+        .record(dismantle(1, "first"))
+        .record(dismantle(2, "second"));
+    let texts = GlobalIniBuilder::new().text("manufacturer_Desc", "Ships.");
+    archive(&forge, &texts, &texts)
+}
+
 /// `count` manufacturers, enough to keep a catalog busy for a while.
 pub(crate) fn many(count: u32) -> ArchiveBuilder {
     let forge = (0..count).fold(structures(), |builder, number| {

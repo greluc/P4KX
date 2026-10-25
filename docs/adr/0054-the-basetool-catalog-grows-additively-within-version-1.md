@@ -13,6 +13,8 @@ release adapts it, even when the import does not use the addition.
 - **Additive changes keep `schemaVersion`:** a new kind (`paints` next to `items`), a
   new field on an entity, on `source` or on an ingredient, a new kind in `completeness`. Example:
   adding `playable` to every ship stays version 1.
+- **A new top-level object that is no kind is additive as well,** like `craftingGlobal` next to the
+  kinds: it is a new field of the catalog, and a reader that does not know it ignores it.
 - **Breaking changes raise `schemaVersion`:** renaming, removing or retyping a field, a changed
   meaning, restructuring a kind, or a changed selection or ordering of an existing kind. Example:
   renaming `crewSize` to `crew`, or turning `tags` from a list into a string, makes version 2.

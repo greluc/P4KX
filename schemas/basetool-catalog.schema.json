@@ -2792,7 +2792,7 @@
       "description": "A place that rewards a blueprint of a pool with a chance: a `BlueprintRewards` result of a\ncontract.",
       "properties": {
         "chance": {
-          "description": "The chance that the reward is given, 0 to 1, `null` when the Record holds none.",
+          "description": "The chance that the reward is given as the Record states it, 0 to 1 on LIVE and not\nclamped, `null` when the Record holds none.",
           "format": "float",
           "type": [
             "number",

@@ -25,7 +25,7 @@ use serde_json::Value;
 
 use crate::build::source;
 use crate::guid_text::CatalogGuid;
-use crate::{CatalogFailure, CatalogProgress};
+use crate::{CatalogFailure, CatalogPhase, CatalogProgress};
 
 pub(crate) use model::ShipRead;
 pub use model::{
@@ -167,6 +167,7 @@ pub fn build_ship_base_from(
                 let finished = done.fetch_add(1, Ordering::Relaxed).saturating_add(1);
                 if let Some(progress) = options.progress {
                     progress(CatalogProgress {
+                        phase: CatalogPhase::Records,
                         records_done: finished,
                         records_total: total,
                     });

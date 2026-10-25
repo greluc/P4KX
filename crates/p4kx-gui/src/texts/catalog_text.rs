@@ -17,6 +17,15 @@ pub enum CatalogText {
     Reading,
     /// The progress while Records are checked; takes `done`, `total` and `percent`.
     Progress,
+    /// The progress while Records are read for the crafting data; takes `done`, `total` and
+    /// `percent`.
+    CraftingProgress,
+    /// A warning of the game data that makes the catalog incomplete; takes `kind` (the name
+    /// `CraftingWarning::kind` gives), `count` and `message`, the English sentence for a kind
+    /// this version does not know.
+    Warning,
+    /// The files a warning names beyond those listed; takes `number`.
+    WarningMore,
     /// Shown while the file is written; takes `path`.
     Writing,
     /// The title of the summary.
@@ -76,13 +85,16 @@ pub enum CatalogText {
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 33] = [
+    pub const ALL: [Self; 36] = [
         Self::Action,
         Self::FileFilter,
         Self::FileFilterCompressed,
         Self::RunningTitle,
         Self::Reading,
         Self::Progress,
+        Self::CraftingProgress,
+        Self::Warning,
+        Self::WarningMore,
         Self::Writing,
         Self::SummaryTitle,
         Self::KindsHeading,
@@ -122,6 +134,9 @@ impl CatalogText {
             Self::RunningTitle => "catalog-running-title",
             Self::Reading => "catalog-reading",
             Self::Progress => "catalog-progress",
+            Self::CraftingProgress => "catalog-crafting-progress",
+            Self::Warning => "catalog-warning",
+            Self::WarningMore => "catalog-warning-more",
             Self::Writing => "catalog-writing",
             Self::SummaryTitle => "catalog-summary-title",
             Self::KindsHeading => "catalog-kinds-heading",

@@ -303,7 +303,7 @@ fn files_refer_to_other_files_ignoring_case_and_separators() -> TestResult {
 fn the_index_stops_at_its_limit_and_says_so() -> TestResult {
     in_both_versions(|forge| {
         let all = ReferenceIndex::build(forge);
-        let capped = ReferenceIndex::build_limited(forge, 3);
+        let capped = ReferenceIndex::build_with(forge, 3, &|| false).ok_or("an index")?;
         assert!(capped.is_truncated(), "more References than the limit");
         assert_eq!(capped.len(), 3, "the first three in Record order");
         assert!(!all.is_truncated(), "the full index is complete");
@@ -314,14 +314,14 @@ fn the_index_stops_at_its_limit_and_says_so() -> TestResult {
 #[test]
 fn a_limited_index_can_be_cancelled() -> TestResult {
     in_both_versions(|forge| {
-        let capped = ReferenceIndex::build_limited_cancellable(forge, 3, &|| false)
-            .ok_or("an index without a stop")?;
+        let capped =
+            ReferenceIndex::build_with(forge, 3, &|| false).ok_or("an index without a stop")?;
         assert!(
             capped.is_truncated() && capped.len() == 3,
             "the limit holds"
         );
         assert!(
-            ReferenceIndex::build_limited_cancellable(forge, 3, &|| true).is_none(),
+            ReferenceIndex::build_with(forge, 3, &|| true).is_none(),
             "a stop gives no index"
         );
         Ok(())

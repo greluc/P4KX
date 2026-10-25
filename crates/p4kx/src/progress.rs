@@ -5,7 +5,7 @@ use std::io::{self, IsTerminal, Write};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use p4kx_export::CatalogProgress;
+use p4kx_export::{CatalogPhase, CatalogProgress};
 use p4kx_extraction::Progress;
 
 const INTERVAL: Duration = Duration::from_millis(100);
@@ -60,8 +60,12 @@ impl ProgressLine {
     /// Redraws the line with the Records checked for a catalog, at most every 100 ms.
     pub(crate) fn show_records(&self, progress: CatalogProgress) {
         self.draw(|| {
+            let step = match progress.phase {
+                CatalogPhase::Crafting => "reading crafting data",
+                _ => "checking",
+            };
             format!(
-                "checking {}/{} Records",
+                "{step} {}/{} Records",
                 progress.records_done, progress.records_total
             )
         });

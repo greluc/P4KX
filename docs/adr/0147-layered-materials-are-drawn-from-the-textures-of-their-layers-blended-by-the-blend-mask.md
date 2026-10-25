@@ -84,6 +84,10 @@ after every other image, so that when the images run out every material has its 
 layered one has its normals. A layered material whose base colour image was refused keeps its
 flat colour; one whose layered normal image was refused is drawn with its own normal map, if it has
 one, which is made after the layered normals, and otherwise without; each refusal is reported.
+Such a fallback is made only when needed (#660): it is skipped, with no decode and no image slot,
+when every layered normal image that has it as its fallback was made, and a group of images ends
+before a fallback whose layered normal images are still to be made. A plain normal image that some
+material draws as its own is not a fallback and is always made.
 A texture path of a layer or of the blend map that is not safe is a `texture_fallbacks` entry too.
 The base colour image of a layered material keeps the metalness factor of its layers.
 

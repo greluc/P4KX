@@ -7,8 +7,7 @@ use p4kx_foundation::ArchiveKey;
 
 use super::Archive;
 use crate::key_check::{self, Verdict};
-use crate::key_slot::KeySlot;
-use crate::{ArchiveError, Entry, KeyCheck};
+use crate::{ArchiveError, Entry, KeyCheck, OpenOptions};
 
 impl Archive {
     /// Opens the Archive at `path` like [`Archive::open`] and sets `key`, when given, as the key
@@ -21,9 +20,7 @@ impl Archive {
         path: impl AsRef<Path>,
         key: Option<ArchiveKey>,
     ) -> Result<Self, ArchiveError> {
-        let mut archive = Self::open(path)?;
-        archive.key = KeySlot::with(key);
-        Ok(archive)
+        Self::open_with(path, OpenOptions::new().key(key))
     }
 
     /// Sets the key that decrypts the Entries of this Archive and of the containers opened from

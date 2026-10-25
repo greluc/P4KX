@@ -17,7 +17,7 @@ use crate::collected::Collected;
 use crate::contract::{
     BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
-use crate::crafting::read_crafting;
+use crate::crafting::read_with_progress;
 use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::missions;
@@ -43,7 +43,7 @@ use crate::{
 /// class is read from the `Class:` line of its English description, a commodity's missing texts
 /// from its `ResourceType` Record, and a blueprint's ingredients from the costs of its first
 /// tier. A ship's and an item's [`Playability`](crate::Playability) is decided by structural
-/// rules (`docs/basetool-catalog.md`). A `ResourceType` Record that an ingredient uses and no
+/// rules (`docs/basetool-catalog.md`). A `ResourceType` Record that a cost of any tier uses and no
 /// commodity Record carries becomes a commodity of its own. A resource group takes its parent from
 /// the group that lists it, a blueprint category only its Record. Entities are ordered by the
 /// text of their GUID, so equal input and export time give byte-identical JSON. A selected
@@ -198,7 +198,7 @@ fn assemble<R>(
     let sources = TextSources::read(archive)?;
     let texts = Texts::parse(&sources)?;
     let crafting = kinds(
-        read_crafting(&forge, options.filter, options.cancel)?,
+        read_with_progress(&forge, options.filter, options.cancel, options.progress)?,
         &texts,
         options.filter,
     );

@@ -18,6 +18,7 @@ mod assembly_export_running_tests;
 mod audio_controls;
 mod audio_preview;
 mod browse_panels;
+mod catalog_lines;
 mod catalog_outcome;
 mod channels;
 mod character_choices;

@@ -64,8 +64,11 @@ pub(crate) struct WemInfoResult {
     pub(crate) wem_id: Option<u32>,
     /// How many places hold the WEM.
     pub(crate) locations_total: usize,
-    /// The places that hold it, loose Entries first, at most 50.
+    /// The places on this page that hold it, loose Entries first.
     pub(crate) locations: Vec<LocationShape>,
+    /// The cursor of the next page of `locations`; absent on the last page.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) next_cursor: Option<String>,
     /// The place the description was read from: the first that holds the whole WEM.
     pub(crate) described: LocationShape,
     /// The WEM as read from `described`.

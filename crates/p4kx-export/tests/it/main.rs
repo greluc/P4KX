@@ -6,6 +6,7 @@
 mod catalog_compression;
 mod catalog_contracts;
 mod catalog_crafting;
+mod catalog_crafting_followups;
 mod catalog_crafting_support;
 mod catalog_crafting_tiers;
 mod catalog_failures;

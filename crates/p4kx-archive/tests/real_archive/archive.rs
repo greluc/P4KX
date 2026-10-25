@@ -8,7 +8,7 @@ use std::error::Error;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
-use p4kx_archive::{Archive, Build, Compression, Entry, KeyCheck};
+use p4kx_archive::{Archive, Build, Compression, Entry, KeyCheck, OpenOptions};
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -218,4 +218,23 @@ impl Write for CrcSink {
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
     }
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn opening_an_intact_real_archive_with_recovery_changes_nothing() -> TestResult {
+    let path = real_archive_path()?;
+    let normal = Archive::open(&path)?;
+    let recovering = Archive::open_with(&path, OpenOptions::new().recover(true))?;
+
+    assert_eq!(recovering.entries().len(), normal.entries().len());
+    assert_eq!(recovering.issue_count(), normal.issue_count());
+    assert!(
+        recovering
+            .issues()
+            .iter()
+            .all(|(_, issue)| !issue.is_archive_wide()),
+        "an intact Archive is not reported as recovered"
+    );
+    Ok(())
 }

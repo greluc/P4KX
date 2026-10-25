@@ -8,10 +8,10 @@ use std::thread;
 use std::time::Duration;
 
 use p4kx_export::RecordFilePlans;
-use p4kx_extraction::ReferenceIndex;
 use p4kx_extraction::TagTree;
 use p4kx_extraction::query::QuerySchema;
 use p4kx_extraction::{DataForgeEntry, DataForgeLoadError};
+use p4kx_extraction::{MAX_INDEXED_REFERENCES, ReferenceIndex};
 
 use crate::EntryIndex;
 use crate::model::describe;
@@ -153,7 +153,7 @@ impl ForgeSource {
             .entry
             .open()
             .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
-        let Some(built) = ReferenceIndex::build_cancellable(&forge, stop) else {
+        let Some(built) = ReferenceIndex::build_with(&forge, MAX_INDEXED_REFERENCES, stop) else {
             return Ok(None);
         };
         self.references_builds.fetch_add(1, Ordering::Relaxed);

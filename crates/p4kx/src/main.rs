@@ -148,7 +148,7 @@ fn main() -> ExitCode {
         Command::Coverage(args) => coverage::run(&args, json),
         Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json),
-        Command::Interior(args) => interior_package::dispatch(args.action, json).map(success),
+        Command::Interior(args) => cli_interior::dispatch(args.action, json).map(success),
         Command::Armour(args) => armour::run(&args, json).map(success),
         Command::Character(args) => character_package::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),

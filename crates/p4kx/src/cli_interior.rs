@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
 
 use crate::cli_model::lod_range;
@@ -13,6 +14,14 @@ use crate::exit::EXIT_CODES_HELP;
 pub(crate) enum InteriorMaterialsArg {
     /// Plain colours without textures.
     Colours,
+}
+
+/// Runs the action of `p4kx interior`.
+pub(crate) fn dispatch(action: InteriorAction, as_json: bool) -> Result<()> {
+    match action {
+        InteriorAction::Glb(args) => crate::interior_glb::run(&args, as_json),
+        InteriorAction::Package(args) => crate::interior_package::run(&args, as_json),
+    }
 }
 
 /// Arguments of `p4kx interior`.
@@ -42,8 +51,9 @@ pub(crate) enum InteriorAction {
     /// lights as `entity package --interior` writes for the container, without an Entity around
     /// them. The container is the root node; containers, files and models that cannot be resolved
     /// are skipped and listed in the manifest. Models are looked for inside the container first,
-    /// then in the Archive. The folder must not exist, or be empty, or hold a package an earlier
-    /// run wrote, which is replaced.
+    /// then in the Archive. Textures that exist only inside a container are listed as failed. The
+    /// folder must not exist, or be empty, or hold a package an earlier run wrote, which is
+    /// replaced.
     #[command(after_help = EXIT_CODES_HELP)]
     Package(InteriorPackageArgs),
 }

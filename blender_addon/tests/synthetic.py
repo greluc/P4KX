@@ -120,7 +120,9 @@ def interior_manifest(**overrides: Any) -> dict[str, Any]:
     """Returns a format 1.3 manifest of an Interior on its own, without a node of the kind entity.
 
     The container ``ship_interior`` is the root; below it are the container ``room`` at (0, 0, -6),
-    a ``stool`` object (mesh m0001) and a point light ``lamp``.
+    a ``stool`` object (mesh m0001) and a point light ``lamp``. It mirrors what
+    ``p4kx interior package`` writes: the container is the root and ``source.entity`` carries its
+    name with an empty ``guid``.
     """
     base = {
         "kind": "container",

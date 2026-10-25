@@ -12,7 +12,7 @@ use p4kx_channels::channel_name;
 use p4kx_extraction::{GlbOptions, is_same_file};
 use serde::Serialize;
 
-use crate::cli_interior::{InteriorAction, InteriorPackageArgs};
+use crate::cli_interior::InteriorPackageArgs;
 use crate::entity_package::build_info;
 use crate::extract::cancel_on_interrupt;
 use crate::interior_glb::{InteriorOutputIsArchive, open};
@@ -48,14 +48,6 @@ struct PackageJson<'a> {
     triangles: usize,
     skipped: usize,
     issues: &'a [Issue],
-}
-
-/// Runs the action of `p4kx interior`.
-pub(crate) fn dispatch(action: InteriorAction, as_json: bool) -> Result<()> {
-    match action {
-        InteriorAction::Glb(args) => crate::interior_glb::run(&args, as_json),
-        InteriorAction::Package(args) => run(&args, as_json),
-    }
 }
 
 /// Runs `p4kx interior package`.
@@ -97,7 +89,7 @@ pub(crate) fn run(args: &InteriorPackageArgs, as_json: bool) -> Result<()> {
         ))?;
         return Ok(());
     }
-    match print_report(&summary, &interior, args, entry) {
+    match print_report(&summary, args, entry) {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
@@ -152,7 +144,6 @@ impl<'a> PackageJson<'a> {
 
 fn print_report(
     summary: &PackageSummary,
-    interior: &Interior,
     args: &InteriorPackageArgs,
     entry: &str,
 ) -> io::Result<()> {
@@ -176,9 +167,7 @@ fn print_report(
     writeln!(
         out,
         "Interior: {} containers, {} objects, {} lights",
-        interior.containers(),
-        summary.objects,
-        summary.lights
+        summary.containers, summary.objects, summary.lights
     )?;
     if summary.shared_meshes > 0 {
         writeln!(

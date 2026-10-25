@@ -145,7 +145,9 @@ files, the nested containers, the objects and the lights exactly as below a cont
 Entity's Interior, with paths that start at the root's name instead of `Interior`. There is no node
 of the kind `entity`. `source.entity.class_name` is the file name of the container's Entry without
 its folder and extension, and `guid` is empty, as for a Character. Everything else, the meshes,
-textures, material descriptions and issues, is as for an Entity.
+textures, material descriptions and issues, is as for an Entity, with one difference: layer materials and
+textures are looked up in the Archive the container chain starts in, so a texture that exists only
+inside a container is listed among the issues as a texture that could not be written.
 
 A `light` node has a `light` object:
 

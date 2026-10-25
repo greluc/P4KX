@@ -59,7 +59,7 @@ fn the_interior_alone_is_a_package_with_containers_objects_and_lights() -> TestR
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert!(
         run.stdout
-            .contains("Interior: 1 containers, 2 objects, 5 lights"),
+            .contains("Interior: 2 containers, 2 objects, 5 lights"),
         "{}",
         run.stdout
     );
@@ -127,7 +127,7 @@ fn a_second_run_replaces_the_package_and_a_foreign_folder_is_kept() -> TestResul
 
     assert_eq!(first.code, Some(0), "{}", first.stderr);
     assert_eq!(second.code, Some(0), "{}", second.stderr);
-    assert_ne!(refused.code, Some(0));
+    assert_eq!(refused.code, Some(2), "{}", refused.stderr);
     assert!(foreign.join("keep.txt").is_file());
     assert!(!foreign.join("scene.json").exists());
     Ok(())
@@ -155,5 +155,35 @@ fn a_container_the_archive_lacks_is_invalid_and_writes_nothing() -> TestResult {
 
     assert_eq!(run.code, Some(2), "{}", run.stderr);
     assert!(!out.exists());
+    Ok(())
+}
+
+#[test]
+fn an_output_inside_a_protected_installation_is_invalid_input_and_writes_nothing() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), lit_room_entries())?;
+    let installation = dir.path().join("StarCitizen");
+    std::fs::create_dir(&installation)?;
+    let out = installation.join("LIVE").join("package");
+
+    let output = p4kx_testkit::p4kx()?
+        .env("P4KX_PROTECT_FOLDERS", &installation)
+        .args(["interior", "package"])
+        .arg(&archive)
+        .arg(LIT_ROOM)
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2), "{output:?}");
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("never writes there"),
+        "{output:?}"
+    );
+    assert_eq!(
+        std::fs::read_dir(&installation)?.count(),
+        0,
+        "nothing was created"
+    );
     Ok(())
 }

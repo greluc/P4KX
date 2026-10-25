@@ -226,6 +226,7 @@ pub(crate) fn write_scene(
     staging.commit()?;
     Ok(summary)
 }
+
 pub(crate) fn write_manifest(path: &Path, manifest: &crate::Manifest) -> PackageResult<u64> {
     let file = File::create_new(path).map_err(|source| PackageError::write(path, source))?;
     let mut writer = BufWriter::new(file);

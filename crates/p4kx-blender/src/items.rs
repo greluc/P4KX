@@ -85,6 +85,7 @@ fn push_parts<'a>(
         items.push(interior_item(part, parent, path, local));
     }
 }
+
 fn part_item(part: &Part) -> Item<'_> {
     Item {
         kind: NodeKind::Entity,

@@ -3,8 +3,11 @@
 
 //! The Info tab and Export as GLB of the model preview over synthetic Archives, driven headless.
 
+mod animation_notes;
+mod animation_render;
 mod animations;
 mod export;
+mod export_cancel;
 mod export_window;
 mod info;
 mod info_render;

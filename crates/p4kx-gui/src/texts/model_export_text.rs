@@ -28,6 +28,10 @@ pub enum ModelExportText {
     AnimationsHeading,
     /// The switch of the animations; takes `count` and `number`.
     Animations,
+    /// The switch of the animations when the model has more files next to it than are counted.
+    AnimationsUnknown,
+    /// The warning under that switch: the animations are read in full.
+    AnimationsLarge,
     /// The switch of the vertex colours.
     VertexColours,
     /// The heading of the file choice.
@@ -88,6 +92,9 @@ pub enum ModelExportText {
     SummaryAnimationUnread,
     /// One animation file that was not written; takes `source` and `reason`.
     SummaryAnimationFileUnread,
+    /// One animation that was read but has no track for a bone of the model; takes `name`,
+    /// `source` and `tracks` with the formatted `number` of tracks left out.
+    SummaryAnimationUnmatched,
     /// The title of the window shown when the export failed.
     FailedTitle,
     /// The model could not be exported; takes `name` and `reason`.
@@ -104,7 +111,7 @@ pub enum ModelExportText {
 
 impl ModelExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 47] = [
+    pub(crate) const ALL: [Self; 50] = [
         Self::Action,
         Self::SetupTitle,
         Self::Model,
@@ -117,6 +124,8 @@ impl ModelExportText {
         Self::TextureMip,
         Self::AnimationsHeading,
         Self::Animations,
+        Self::AnimationsUnknown,
+        Self::AnimationsLarge,
         Self::VertexColours,
         Self::FileHeading,
         Self::ChooseFile,
@@ -146,6 +155,7 @@ impl ModelExportText {
         Self::SummaryAnimationsUnread,
         Self::SummaryAnimationUnread,
         Self::SummaryAnimationFileUnread,
+        Self::SummaryAnimationUnmatched,
         Self::FailedTitle,
         Self::Failed,
         Self::Stopped,
@@ -170,6 +180,8 @@ impl ModelExportText {
             Self::TextureMip => "model-export-texture-mip",
             Self::AnimationsHeading => "model-export-animations-heading",
             Self::Animations => "model-export-animations",
+            Self::AnimationsUnknown => "model-export-animations-unknown",
+            Self::AnimationsLarge => "model-export-animations-large",
             Self::VertexColours => "model-export-vertex-colours",
             Self::FileHeading => "model-export-file-heading",
             Self::ChooseFile => "model-export-choose-file",
@@ -199,6 +211,7 @@ impl ModelExportText {
             Self::SummaryAnimationsUnread => "model-export-summary-animations-unread",
             Self::SummaryAnimationUnread => "model-export-summary-animation-unread",
             Self::SummaryAnimationFileUnread => "model-export-summary-animation-file-unread",
+            Self::SummaryAnimationUnmatched => "model-export-summary-animation-unmatched",
             Self::FailedTitle => "model-export-failed-title",
             Self::Failed => "model-export-failed",
             Self::Stopped => "model-export-stopped",

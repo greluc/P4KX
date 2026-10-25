@@ -17,7 +17,7 @@ pub enum RecordChangeKind {
     Removed,
     /// Both sides have the GUID at different record paths; fields may differ as well.
     Moved,
-    /// Both sides have the GUID at the same record path, with a different name, type or field.
+    /// Both sides have the GUID at the same record path, with a different name, tag, type or field.
     Changed,
     /// The Record cannot be read on at least one side, so it was not compared.
     Unreadable,
@@ -54,11 +54,12 @@ impl RecordError {
     }
 }
 
-/// What identifies a Record on one side: its record path, name and type.
+/// What identifies a Record on one side: its record path, name, tag and type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RecordState<'a> {
     pub(crate) record_path: &'a str,
     pub(crate) name: &'a str,
+    pub(crate) tag: Option<&'a str>,
     pub(crate) type_name: &'a str,
 }
 
@@ -73,6 +74,13 @@ impl<'a> RecordState<'a> {
     #[must_use]
     pub const fn name(&self) -> &'a str {
         self.name
+    }
+
+    /// Returns the Record tag, e.g. `SystemsDesign`; `None` for a version 6 DataForge and for a
+    /// Record with an empty or no tag.
+    #[must_use]
+    pub const fn tag(&self) -> Option<&'a str> {
+        self.tag
     }
 
     /// Returns the name of the Record's struct.

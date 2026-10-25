@@ -147,11 +147,11 @@ fn records_with_resolved_texts_are_valid_and_a_text_cannot_also_be_missing() -> 
             .collect();
         assert!(errors.is_empty(), "{record}: {errors:?}");
     }
-    let valid = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p",
+    let valid = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p", "$name": "A.One",
         "label": {"key": "@a", "text": "T"}, "other": {"key": "@b", "missing": true}});
-    let both = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p",
+    let both = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p", "$name": "A.One",
         "label": {"key": "@a", "text": "T", "missing": true}});
-    let neither = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p",
+    let neither = json!({"$type": "A", "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f", "$path": "p", "$name": "A.One",
         "label": {"key": "@a"}});
     assert!(validator.is_valid(&valid));
     assert!(!validator.is_valid(&both), "text and missing together");
@@ -170,6 +170,7 @@ fn a_tag_reference_may_carry_its_tag_path_as_text() -> TestResult {
             "$type": "Item",
             "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f",
             "$path": "p",
+            "$name": "Item.One",
             "tags": [{
                 "guid": "50e8a9f6-f956-4000-8ace-7c0ca9a91f5d",
                 "path": "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase",
@@ -192,6 +193,8 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
         "$type": "Ship",
         "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f",
         "$path": "libs/foundry/records/ships/avenger",
+        "$name": "Ship.Avenger",
+        "$tag": "SystemsDesign",
         "maker": {"guid": "50e8a9f6-f956-4000-8ace-7c0ca9a91f5d", "path": "p", "type": "Item"},
         "$3": {"name": "count", "value": 1}
     });
@@ -202,6 +205,16 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
 
     let mut no_guid = valid.clone();
     no_guid.as_object_mut().map(|object| object.remove("$guid"));
+    let mut older_export = valid.clone();
+    older_export
+        .as_object_mut()
+        .map(|object| (object.remove("$name"), object.remove("$tag")));
+    assert!(
+        validator.is_valid(&older_export),
+        "an export from before $name and $tag is valid"
+    );
+    let mut empty_tag = valid.clone();
+    empty_tag["$tag"] = json!("");
     let mut upper_case = valid.clone();
     upper_case["$guid"] = json!("CBEE34FD-6441-4000-B99F-924F7F26E19F");
     let mut half_reference = valid.clone();
@@ -216,6 +229,7 @@ fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
 
     for (name, document) in [
         ("no $guid", no_guid),
+        ("empty $tag", empty_tag),
         ("upper-case GUID", upper_case),
         ("Reference without path and type", half_reference),
         ("unknown $ key", unknown_key),

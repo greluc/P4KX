@@ -21,8 +21,8 @@ const PANEL: &str = "Data\\Textures\\panel_diff.dds";
 const PROBE: &str = "Data\\Textures\\probe_cm.dds";
 const ODD: &str = "Data\\Textures\\odd_spec.dds";
 const LOST: &str = "Data\\Textures\\lost_ddna.dds";
-const R11G11B10_FLOAT: TestTextureFormat = TestTextureFormat::Dx10Pixel {
-    dxgi_format: 26,
+const R8G8B8A8_SINT: TestTextureFormat = TestTextureFormat::Dx10Pixel {
+    dxgi_format: 32,
     pixel_bytes: 4,
 };
 
@@ -36,7 +36,7 @@ pub(crate) fn textures() -> Vec<TestEntry> {
             .split(1)
             .entries(PROBE),
     );
-    entries.extend(SplitDds::new(R11G11B10_FLOAT, 8, 8).entries(ODD));
+    entries.extend(SplitDds::new(R8G8B8A8_SINT, 8, 8).entries(ODD));
     let mut lost = SplitDds::new(TestTextureFormat::LegacyBgra8, 64, 64)
         .split(7)
         .entries(LOST);

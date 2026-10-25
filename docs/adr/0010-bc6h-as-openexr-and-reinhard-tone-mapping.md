@@ -19,5 +19,6 @@ function; negative values and NaN become 0, positive infinity 255. Decided for i
 - The `exr` crate as encoder: complete, but pulls SIMD and complex-number crates into a format
   crate for a writer that takes one module; it stays a dev-dependency that reads our files back
   in the tests.
-- Clamping to 0..=1 for 8-bit output, as the uncompressed float formats do: keeps mid-tones
+- Clamping to 0..=1 for 8-bit output, as the uncompressed float formats do (amended by
+  ADR-0123: they are tone-mapped too): keeps mid-tones
   exact but turns every highlight of an environment map white; Reinhard keeps them apart.

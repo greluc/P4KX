@@ -1141,7 +1141,7 @@ with `--cross` `output` holding one horizontal cross; a texture array has one fi
 `<stem>_layerN.png` and a volume one per slice of the mip `<stem>_sliceN.png`, and a cubemap
 array has `<stem>_layerN_posx.png` … or, with `--cross`, one cross `<stem>_layerN.png` per
 element, the numbers padded with zeros to the width of the last. `format` is `png` for 8-bit
-RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
+RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H or floating-point texture is written as without
 `--tone-map`; `files` then carry the extension `.exr` instead of the one of `output`. `mip` is the
 exported level, 0 being the largest and the default; `width` and `height` are the size of each
 written image. `alpha_tail` says whether an alpha or smoothness tail was merged into the alpha

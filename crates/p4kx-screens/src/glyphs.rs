@@ -4,6 +4,7 @@
 use p4kx_gfx::{Affine, ColorTransform, Origin, Rgba, SceneItem, SceneShape};
 
 use crate::paint::{Painter, TWIPS};
+use crate::paint_state::shape_bounds;
 
 /// The font, the glyph (`usize::MAX` for the empty box of a missing glyph) and the colour a
 /// glyph shape was converted for.
@@ -45,18 +46,25 @@ impl Painter {
             return;
         };
         let id = self.shapes.get(shape).map_or(0, |shape| shape.id);
+        let transform = self.state.to_twips().then(&Affine {
+            a: scale,
+            b: 0.0,
+            c: 0.0,
+            d: scale,
+            tx: at.0 * TWIPS,
+            ty: at.1 * TWIPS,
+        });
+        let mask = if self.state.is_clipped() {
+            let bounds = self.shapes.get(shape).and_then(shape_bounds);
+            self.mask_of(bounds.as_ref(), 0.0, &transform)
+        } else {
+            None
+        };
         self.items.push(SceneItem {
             shape,
-            transform: Affine {
-                a: scale,
-                b: 0.0,
-                c: 0.0,
-                d: scale,
-                tx: at.0 * TWIPS,
-                ty: at.1 * TWIPS,
-            },
+            transform,
             color_transform: ColorTransform::IDENTITY,
-            mask: None,
+            mask,
             origin: Origin {
                 id,
                 depth: 0,

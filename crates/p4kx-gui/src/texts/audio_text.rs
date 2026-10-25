@@ -46,8 +46,12 @@ pub enum AudioText {
     PrefetchedNote,
     /// Shown instead of the codec of media that is Wwise plug-in data.
     Plugin,
+    /// Shown instead of the codec of media that is a MIDI file.
+    Midi,
     /// Shown instead of the controls for such media; takes `id`.
     PluginNote,
+    /// Shown instead of the controls for MIDI media; takes `id`.
+    MidiNote,
     /// The path line of a soundbank: its size and the number of WEMs; takes `size`, `count` and
     /// `number`.
     BankSummary,
@@ -66,7 +70,7 @@ pub enum AudioText {
 
 impl AudioText {
     /// Every text of the audio preview.
-    pub(crate) const ALL: [Self; 28] = [
+    pub(crate) const ALL: [Self; 30] = [
         Self::Tab,
         Self::Codec,
         Self::Channels,
@@ -88,7 +92,9 @@ impl AudioText {
         Self::Prefetched,
         Self::PrefetchedNote,
         Self::Plugin,
+        Self::Midi,
         Self::PluginNote,
+        Self::MidiNote,
         Self::BankSummary,
         Self::BankEmpty,
         Self::BankFailed,
@@ -122,7 +128,9 @@ impl AudioText {
             Self::Prefetched => "audio-prefetched",
             Self::PrefetchedNote => "audio-prefetched-note",
             Self::Plugin => "audio-plugin",
+            Self::Midi => "audio-midi",
             Self::PluginNote => "audio-plugin-note",
+            Self::MidiNote => "audio-midi-note",
             Self::BankSummary => "audio-bank-summary",
             Self::BankEmpty => "audio-bank-empty",
             Self::BankFailed => "audio-bank-failed",

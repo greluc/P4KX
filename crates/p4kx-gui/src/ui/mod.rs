@@ -17,6 +17,7 @@ mod assembly_export_progress;
 mod assembly_export_running_tests;
 mod audio_controls;
 mod audio_preview;
+mod browse_panels;
 mod catalog_outcome;
 mod channels;
 mod character_choices;
@@ -88,8 +89,10 @@ mod record_rows;
 mod record_search;
 mod record_tree;
 mod record_value;
+mod regions;
 mod search;
 mod shortcuts;
+mod sidebar;
 mod sound_grid;
 mod soundbank_preview;
 mod soundbank_table;
@@ -111,25 +114,23 @@ mod ui_tab_list;
 mod ui_tab_preview;
 mod ui_tab_toolbar;
 mod viewer_input;
+mod work_scroll;
 mod xml_preview;
 mod xml_view;
 
 use std::path::PathBuf;
 
-use egui::{CentralPanel, Margin, Panel, Ui};
+use egui::{CentralPanel, Panel, Rect, Ui, pos2};
 
-use crate::theme::desktop::{
-    HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH,
-    SIDEBAR_WIDTH, STATUS_HEIGHT,
-};
-use crate::theme::model_metrics::PREVIEW_MODEL_HEIGHT;
-use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
+use crate::theme::desktop::{HEADER_HEIGHT, STATUS_HEIGHT};
 use crate::widgets::{frames, tab};
+
+pub use regions::{Regions, regions};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
     CharacterText, ComparisonSide, ComparisonText, ContentSearchText, EntityText, LocalizationText,
-    Model, PreviewTab, QueryExportFormat, QueryText, SoundsText, TagsText, Text, UiText, WorkTab,
+    Model, QueryExportFormat, QueryText, SoundsText, TagsText, Text, UiText, WorkTab,
 };
 
 /// A dialog the host shows for the window.
@@ -182,6 +183,7 @@ pub struct Requests {
 
 /// Draws the whole window for `model` and applies what the user did to it.
 pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
+    regions::reset(ui.ctx());
     let mut requests = Requests {
         settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
         ..Requests::default()
@@ -204,23 +206,21 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .exact_size(HEADER_HEIGHT)
         .show(ui, |ui| menu::show(ui, model, &mut requests));
     frames::header_rule(ui, header.response.rect);
+    regions::record(ui.ctx(), |regions| {
+        regions.header = Some(header.response.rect);
+    });
     game_running::show(ui, model);
     archive_change::show(ui, model);
     archive_issues::show(ui, model);
     archive_notice::show(ui, model);
-    Panel::bottom("status")
+    let status = Panel::bottom("status")
         .frame(frames::footer())
         .exact_size(STATUS_HEIGHT)
         .show(ui, |ui| status::show(ui, model));
-    Panel::left("side")
-        .frame(frames::sidebar())
-        .resizable(true)
-        .default_size(SIDEBAR_WIDTH)
-        .size_range(SIDEBAR_MIN_WIDTH..=SIDEBAR_MAX_WIDTH)
-        .show(ui, |ui| {
-            channels::show(ui, model);
-            tree::show(ui, model);
-        });
+    regions::record(ui.ctx(), |regions| {
+        regions.status = Some(status.response.rect);
+    });
+    sidebar::show(ui, model);
     CentralPanel::default()
         .frame(frames::canvas())
         .show(ui, |ui| work_surface(ui, model, &mut requests));
@@ -289,8 +289,16 @@ fn poll_background(model: &mut Model) {
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
+    let before = ui.available_rect_before_wrap();
     work_tabs(ui, model);
-    frames::inset().show(ui, |ui| work_panels(ui, model, requests));
+    let tabs = Rect::from_min_max(
+        before.min,
+        pos2(before.max.x, ui.available_rect_before_wrap().min.y),
+    );
+    regions::record(ui.ctx(), |regions| regions.tabs = Some(tabs));
+    work_scroll::show(ui, |ui| {
+        frames::inset().show(ui, |ui| work_panels(ui, model, requests));
+    });
 }
 
 fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
@@ -311,34 +319,7 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         empty::show(ui, model, dragging, requests);
         return;
     }
-    let soundbank = model.preview_tab() == PreviewTab::Audio
-        && model
-            .browser()
-            .is_some_and(|browser| browser.soundbank().is_some());
-    let (salt, height) = if soundbank {
-        ("preview-soundbank", PREVIEW_SOUNDBANK_HEIGHT)
-    } else if model.preview_tab() == PreviewTab::Model {
-        ("preview-model", PREVIEW_MODEL_HEIGHT)
-    } else {
-        ("preview", PREVIEW_HEIGHT)
-    };
-    Panel::bottom(salt)
-        .frame(frames::panel().outer_margin(Margin {
-            top: RESIZE_GAP,
-            ..Margin::ZERO
-        }))
-        .resizable(true)
-        .default_size(height)
-        .min_size(PREVIEW_MIN_HEIGHT)
-        .show(ui, |ui| preview::show(ui, model));
-    frames::panel().show(ui, |ui| {
-        if model.browser().is_some_and(crate::Browser::shows_records) {
-            record_search::show(ui, model);
-        } else {
-            search::show(ui, model);
-            table::show(ui, model);
-        }
-    });
+    browse_panels::show(ui, model);
 }
 
 const WORK_TABS: [(WorkTab, Text); 10] = [

@@ -25,6 +25,8 @@ pub(super) fn source_name(texts: &Texts, kind: SourceKind) -> String {
         SourceKind::PrefetchStreamed => SoundsText::SourcePrefetch,
         SourceKind::Streamed => SoundsText::SourceStreamed,
         SourceKind::Plugin => SoundsText::SourcePlugin,
+        SourceKind::External => SoundsText::SourceExternal,
+        SourceKind::Midi => SoundsText::SourceMidi,
         _ => SoundsText::SourceOther,
     };
     texts.get(text)
@@ -49,7 +51,11 @@ fn lay(texts: &Texts, list: &SoundList) -> Laid {
             let id = variant.wem_id.map(|id| id.to_string()).unwrap_or_default();
             let tint = match variant.playable() {
                 Playable::Yes => Tint::Normal,
-                Playable::PrefetchOnly | Playable::Plugin | Playable::Missing => Tint::Muted,
+                Playable::PrefetchOnly
+                | Playable::Plugin
+                | Playable::External
+                | Playable::Midi
+                | Playable::Missing => Tint::Muted,
             };
             Row {
                 name: texts.format(

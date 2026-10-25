@@ -33,8 +33,14 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
+            let mut stacked = false;
             ui.horizontal(|ui| {
                 let label = ui.label(label);
+                stacked = !extraction::fit_beside(ui, model, SEARCH_WIDTH);
+                if stacked {
+                    changed |= field(ui, &mut text, &hint, label.id);
+                    return;
+                }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     extraction::actions(ui, model);
                     ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
@@ -42,6 +48,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                     });
                 });
             });
+            if stacked {
+                ui.horizontal(|ui| {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        extraction::actions(ui, model);
+                    });
+                });
+            }
             ui.horizontal_wrapped(|ui| {
                 ui.label(filters);
                 let active = QUICK_FILTERS.iter().position(|chip| text == *chip);

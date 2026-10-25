@@ -30,7 +30,10 @@ fn report(source: &str, elapsed: Duration, scanned: u64) -> std::io::Result<()> 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_class_name_is_found_in_the_values_of_the_records() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let needle = Needle::new("aegs_gladius")?;
@@ -59,7 +62,10 @@ fn a_class_name_is_found_in_the_values_of_the_records() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_name_is_found_in_the_english_localisation() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let needle = Needle::new("gladius")?;
     let options = SearchOptions {
         languages: vec![Language::English],
@@ -85,7 +91,10 @@ fn a_name_is_found_in_the_english_localisation() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_class_name_is_found_in_an_xml_entry() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let needle = Needle::new("aegs_gladius_seat")?;
     let options = SearchOptions {
         filter: Some(Filter::new("*\\Mannequin\\ADB\\playerControllerDefs.xml")),
@@ -111,7 +120,10 @@ fn a_class_name_is_found_in_an_xml_entry() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_text_entry_is_scanned_and_unreadable_ones_are_counted() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let needle = Needle::new("zzqqxx-not-in-any-entry")?;
     let options = SearchOptions::default();
 

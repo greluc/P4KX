@@ -7,8 +7,8 @@ Version:     154
 Bank ID:     3512036681
 WEMs:        4
 
-        ID  Codec               Duration
-       100  PCM                  0.100 s
-       200  plug-in media        unknown
-       300  Wwise Vorbis         1.500 s
-       400  prefetch             unknown
+        ID  Class          Codec               Duration
+       100  WEM            PCM                  0.100 s
+       200  plug-in media  -                    unknown
+       300  WEM            Wwise Vorbis         1.500 s
+       400  WEM            prefetch             unknown

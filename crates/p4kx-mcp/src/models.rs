@@ -3,7 +3,9 @@
 
 use p4kx_extraction::chunks::{Chunk, Container, KnownChunkType};
 use p4kx_extraction::{
-    AnimationChoice, AnimationSet, ChunkSource, ConversionError, MeshInfo, ModelInfo, ModelSource,
+    AnimationChoice, AnimationInfo, AnimationSet, BoneInfo, ChunkInfo, ChunkJson, ChunkSource,
+    ConversionError, LibraryInfo, LodInfo, MaterialInfo, MeshInfo, ModelSource, NodeInfo,
+    UnreadInfo,
 };
 use serde::Serialize;
 
@@ -16,9 +18,6 @@ use crate::model_shapes::{
 };
 use crate::page::Page;
 
-/// The largest chunk file read for `list_chunks`, in bytes.
-pub(crate) const MAX_CHUNK_FILE_LEN: u64 = 256 << 20;
-
 /// Returns one page of the chunks of the chunk file Entry at `path`, those of the type `filter`
 /// names if it is given.
 pub(crate) fn chunks(
@@ -28,7 +27,7 @@ pub(crate) fn chunks(
     page: Page,
 ) -> Result<ChunksResult, ToolError> {
     let index = opened.index();
-    let source = ChunkSource::from_index_limited(&index, path, MAX_CHUNK_FILE_LEN)
+    let source = ChunkSource::from_index(&index, path)
         .map_err(|error| converted(path, "a chunk file", error))?;
     let file = source.file();
     let container = file.container();
@@ -44,7 +43,7 @@ pub(crate) fn chunks(
         .iter()
         .map(|&(index, chunk)| Ok(chunk_shape(index, chunk)));
     let (chunks, next_cursor) = fill(page, listed.len(), items, |shape: &ChunkShape| {
-        format!("chunk {}", shape.index)
+        format!("chunk {}", shape.chunk.index)
     })?;
     Ok(ChunksResult {
         archive: opened.archive().path().display().to_string(),
@@ -64,18 +63,9 @@ pub(crate) fn chunks(
 }
 
 fn chunk_shape(index: usize, chunk: &Chunk) -> ChunkShape {
-    let chunk_type = chunk.chunk_type();
     ChunkShape {
-        index,
-        type_name: chunk_type.name(),
-        type_id: chunk_type.id(),
-        type_id_hex: chunk_type.hex_id(),
-        known: chunk_type.is_known(),
-        version: chunk.version(),
-        id: chunk.id(),
-        byte_order: chunk.byte_order().name(),
-        offset: chunk.offset(),
-        size: chunk.size(),
+        chunk: ChunkJson::of(index, chunk),
+        type_id_hex: chunk.chunk_type().hex_id(),
     }
 }
 
@@ -95,32 +85,35 @@ fn type_id(text: &str, container: Container) -> Result<u32, ToolError> {
 /// Returns the summary of the model Entry at `path`.
 pub(crate) fn overview(opened: &Opened, path: &str) -> Result<ModelOverview, ToolError> {
     let (source, animations) = read(opened, path, true)?;
-    let info = ModelInfo::of(&source, &animations);
-    let library = serde_json::to_value(&info.library)?;
+    let model = source.model();
+    let library = serde_json::to_value(LibraryInfo::of(model))?;
     let overview = ModelOverview {
         archive: opened.archive().path().display().to_string(),
-        model: info.model.to_owned(),
-        geometry: info.geometry.map(str::to_owned),
-        material_library: info.material_library.map(str::to_owned),
-        material_ids: info.material_ids,
+        model: source.name().to_owned(),
+        geometry: model.geometry.clone(),
+        material_library: model.material_library.clone(),
+        material_ids: model.material_ids(),
         library,
         counts: ModelCounts {
-            materials: info.materials.len(),
-            nodes: info.nodes.len(),
-            lods: info.lods.len(),
-            meshes: info.lods.iter().map(|lod| lod.meshes.len()).sum(),
-            bones: info.bones.len(),
-            animations: info.animations.len(),
-            unread_animations: info.unread_animations.len(),
-            chunks: info.chunks.len(),
+            materials: model
+                .materials
+                .library()
+                .map_or(0, |library| library.materials.len()),
+            nodes: model.nodes.len(),
+            lods: model.lods.len(),
+            meshes: model.lods.iter().map(|lod| lod.meshes.len()).sum(),
+            bones: model.bones.len(),
+            animations: animations.animations.len(),
+            unread_animations: animations.unread.len(),
+            chunks: model.chunks.len(),
         },
-        lods: info
+        lods: model
             .lods
             .iter()
             .map(|lod| LodShape {
                 level: lod.level,
-                vertices: lod.vertices,
-                triangles: lod.triangles,
+                vertices: lod.vertex_count(),
+                triangles: lod.triangle_count(),
                 meshes: lod.meshes.len(),
             })
             .collect(),
@@ -135,7 +128,8 @@ pub(crate) fn overview(opened: &Opened, path: &str) -> Result<ModelOverview, Too
     Ok(overview)
 }
 
-/// Returns one page of the section `section` of the model Entry at `path`.
+/// Returns one page of the section `section` of the model Entry at `path`; only that section is
+/// built, and the animations are read only for the two sections that list them.
 pub(crate) fn items(
     opened: &Opened,
     path: &str,
@@ -143,14 +137,14 @@ pub(crate) fn items(
     page: Page,
 ) -> Result<ModelItemsResult, ToolError> {
     let (source, animations) = read(opened, path, section.needs_animations())?;
-    let info = ModelInfo::of(&source, &animations);
+    let model = source.model();
     let what = section.name();
     let (total, items, next_cursor) = match section {
-        Section::Materials => paged(&info.materials, page, what)?,
-        Section::Nodes => paged(&info.nodes, page, what)?,
+        Section::Materials => paged(&MaterialInfo::of_model(model), page, what, |item| item)?,
+        Section::Nodes => paged(&NodeInfo::of_model(model), page, what, |item| item)?,
         Section::Meshes => {
-            let meshes: Vec<LodMesh<'_>> = info
-                .lods
+            let lods = LodInfo::of_model(model);
+            let meshes: Vec<LodMesh<'_>> = lods
                 .iter()
                 .flat_map(|lod| {
                     lod.meshes.iter().map(|mesh| LodMesh {
@@ -159,16 +153,25 @@ pub(crate) fn items(
                     })
                 })
                 .collect();
-            paged(&meshes, page, what)?
+            paged(&meshes, page, what, |item| item)?
         }
-        Section::Bones => paged(&info.bones, page, what)?,
-        Section::Animations => paged(&info.animations, page, what)?,
-        Section::UnreadAnimations => paged(&info.unread_animations, page, what)?,
-        Section::Chunks => paged(&info.chunks, page, what)?,
+        Section::Bones => paged(&BoneInfo::of_model(model), page, what, |item| item)?,
+        Section::Animations => {
+            let read: Vec<_> = animations
+                .animations
+                .iter()
+                .zip(&animations.origins)
+                .collect();
+            paged(&read, page, what, |&(animation, origin)| {
+                AnimationInfo::of(model, animation, origin)
+            })?
+        }
+        Section::UnreadAnimations => paged(&animations.unread, page, what, UnreadInfo::of)?,
+        Section::Chunks => paged(&ChunkInfo::of_model(model), page, what, |item| item)?,
     };
     Ok(ModelItemsResult {
         archive: opened.archive().path().display().to_string(),
-        model: info.model.to_owned(),
+        model: source.name().to_owned(),
         section: what,
         total,
         items,
@@ -185,11 +188,16 @@ struct LodMesh<'a> {
 
 type Paged = (usize, Vec<serde_json::Value>, Option<String>);
 
-fn paged<T: Serialize>(items: &[T], page: Page, what: &str) -> Result<Paged, ToolError> {
+fn paged<'a, T, U: Serialize>(
+    items: &'a [T],
+    page: Page,
+    what: &str,
+    convert: impl Fn(&'a T) -> U,
+) -> Result<Paged, ToolError> {
     let values = page
         .slice(items)
         .iter()
-        .map(|item| serde_json::to_value(item).map_err(ToolError::from));
+        .map(|item| serde_json::to_value(convert(item)).map_err(ToolError::from));
     let (values, next) = fill(page, items.len(), values, |_| format!("item of {what}"))?;
     Ok((items.len(), values, next))
 }
@@ -212,13 +220,37 @@ fn read(
 }
 
 fn converted(path: &str, what: &'static str, error: ConversionError) -> ToolError {
-    if matches!(error, ConversionError::UnknownEntry(_)) {
-        ToolError::UnknownEntry(path.to_owned())
-    } else {
-        ToolError::Convert {
+    match error {
+        ConversionError::UnknownEntry(unknown) => ToolError::UnknownEntry(
+            unknown
+                .0
+                .first()
+                .map_or_else(|| path.to_owned(), Clone::clone),
+        ),
+        error => ToolError::Convert {
             path: path.to_owned(),
             what,
             source: Box::new(error),
-        }
+        },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_extraction::{ConversionError, UnknownEntries};
+
+    use super::converted;
+    use crate::error::ToolError;
+
+    #[test]
+    fn an_unknown_entry_error_names_the_path_it_carries() {
+        let error = ConversionError::from(UnknownEntries(vec!["Data/other.cgfm".to_owned()]));
+        assert!(
+            matches!(
+                converted("Data/model.cgf", "a model", error),
+                ToolError::UnknownEntry(path) if path == "Data/other.cgfm"
+            ),
+            "the missing Entry, not the model"
+        );
     }
 }

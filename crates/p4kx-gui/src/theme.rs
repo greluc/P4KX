@@ -19,6 +19,7 @@ pub mod tags_metrics;
 pub mod tokens;
 mod tooltip_metrics;
 pub mod ui_metrics;
+pub mod window_metrics;
 
 #[cfg(test)]
 mod assembly_tests;

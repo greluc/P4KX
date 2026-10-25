@@ -505,6 +505,7 @@ scroll-lines = Record fields
 scroll-localization = Localisation rows
 scroll-saved-queries = Saved Queries
 scroll-soundbank = Embedded WEMs
+scroll-summary = DataForge summary
 
 preview-tab-audio = Audio
 audio-codec = Codec

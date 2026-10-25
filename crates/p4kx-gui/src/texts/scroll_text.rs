@@ -27,11 +27,13 @@ pub enum ScrollText {
     Soundbank,
     /// The hits of the Search tab.
     Hits,
+    /// The summary of the DataForge tab.
+    Summary,
 }
 
 impl ScrollText {
     /// Every accessible name of a scrollable view.
-    pub(crate) const ALL: [Self; 11] = [
+    pub(crate) const ALL: [Self; 12] = [
         Self::Text,
         Self::Hex,
         Self::Image,
@@ -43,6 +45,7 @@ impl ScrollText {
         Self::Incoming,
         Self::Soundbank,
         Self::Hits,
+        Self::Summary,
     ];
 
     /// Returns the Fluent message id.
@@ -60,6 +63,7 @@ impl ScrollText {
             Self::Incoming => "scroll-incoming",
             Self::Soundbank => "scroll-soundbank",
             Self::Hits => "scroll-hits",
+            Self::Summary => "scroll-summary",
         }
     }
 }

@@ -54,7 +54,8 @@ Bildschirmseite nicht hinaus. Deshalb ist jede lange Fläche eine fokussierbare 
 (`widgets::scroll_region`), wie die Zeilenansicht des XML (D.19): die Tabulatortaste erreicht sie,
 der Fokusring sitzt innen (−2) um die Fläche, und ihr Barrierefreiheits-Name nennt den Inhalt
 („Textzeilen", „Hexadezimalzeilen", „Bildansicht", „Zeilenunterschiede", „Geänderte Felder",
-„Record-Felder", „Umgewandeltes XML"). Pfeil auf/ab rollt um eine Zeile (beim Bild um 36 px),
+„Record-Felder", „Umgewandeltes XML", die Listen der Zusammenfassung der Extraktion unter ihrer
+Überschrift, z. B. „Fehlgeschlagen (30)", und „DataForge-Übersicht"). Pfeil auf/ab rollt um eine Zeile (beim Bild um 36 px),
 Pfeil links/rechts ebenso zur Seite, Bild auf/ab um eine Seite weniger eine Zeile, Pos1 und Ende
 zum Anfang und Ende. Solange die Fläche den Fokus hat, gehören ihr die Pfeiltasten; Tab verlässt
 sie. Die Zeilen der Feldänderungen und der Record-Felder bleiben eigene Tabulatorziele.

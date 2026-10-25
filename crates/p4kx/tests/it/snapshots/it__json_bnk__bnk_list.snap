@@ -8,6 +8,7 @@ expression: json
   "version": 154,
   "wems": [
     {
+      "class": "wem",
       "codec": "pcm",
       "codec_name": "PCM",
       "duration_seconds": 0.025,
@@ -18,6 +19,7 @@ expression: json
       "size": 4852
     },
     {
+      "class": "wem",
       "codec": "vorbis",
       "codec_name": "Wwise Vorbis",
       "duration_seconds": 2.0,
@@ -28,6 +30,7 @@ expression: json
       "size": 350
     },
     {
+      "class": "wem",
       "codec": null,
       "codec_name": null,
       "duration_seconds": null,
@@ -38,6 +41,7 @@ expression: json
       "size": 12
     },
     {
+      "class": "wem",
       "codec": null,
       "codec_name": null,
       "duration_seconds": null,

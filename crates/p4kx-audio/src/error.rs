@@ -16,6 +16,9 @@ pub enum AudioError {
     /// The data is Wwise plug-in media, e.g. a convolution reverb's impulse response.
     #[error("not a sound: Wwise plug-in media")]
     PluginMedia,
+    /// The data is a MIDI file, the media of a Wwise MIDI source.
+    #[error("not a sound: MIDI media")]
+    MidiMedia,
     /// The data ends before a header field or a chunk it declares.
     #[error("the WEM is truncated: {len} bytes, {needed} needed")]
     Truncated {

@@ -4,4 +4,4 @@ expression: run.stdout
 ---
 Play_Voice  Data\Libs\GameAudio\SC_Audio.xml
   Play_DX_Hello in Voice.bnk (German): WEM 8000 streamed localised German, at Data\Sounds\wwise\Media\German\8000.wem (22 bytes); event 259184823 > action 1 > sound 10
-1 variants: 1 located, 0 not located, 0 plug-in; 0 broken links
+1 variants: 1 located, 0 not located, 0 without a file; 0 broken links

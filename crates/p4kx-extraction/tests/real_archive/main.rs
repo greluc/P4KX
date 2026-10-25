@@ -35,6 +35,7 @@ mod loc_keys;
 mod localization;
 mod materials;
 mod mesh_streams;
+mod model_details;
 mod model_lods;
 mod model_verification;
 mod models;

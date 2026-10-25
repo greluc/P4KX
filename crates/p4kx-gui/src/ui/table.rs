@@ -48,13 +48,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let mut hovered_now = None;
     let mut action = None;
     let left = ui.max_rect().left();
-    let shrunk = shrunk(ui);
+    let room = Room::enter(ui);
     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
     let table = entries_table(ui);
-    if shrunk {
+    if room.stale {
         table.reset();
     }
-    table
+    let shown = table
         .header(ROW_HEIGHT, |mut header| {
             header.col(|ui| {
                 head_fill(ui, left);
@@ -85,6 +85,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                 }
             });
         });
+    room.leave(ui, shown.content_size.x);
     remember_hovered(ui, hovered_id, hovered_now);
     if let Some(action) = action {
         apply(ui, model, &action);
@@ -97,6 +98,7 @@ fn entries_table(ui: &mut Ui) -> TableBuilder<'_> {
         .striped(false)
         .resizable(true)
         .auto_shrink(false)
+        .min_scrolled_height(ROW_HEIGHT)
         .sense(Sense::click())
         .cell_layout(Layout::left_to_right(Align::Center))
         .column(Column::exact(CHECK_COLUMN))
@@ -110,16 +112,39 @@ fn entries_table(ui: &mut Ui) -> TableBuilder<'_> {
         .column(Column::initial(SIZE_COLUMN).at_least(80.0))
 }
 
-/// Returns whether the room of the table got narrower since the last frame: the columns then
-/// start from their initial widths again, as the remaining column keeps the width it had.
-fn shrunk(ui: &Ui) -> bool {
-    let id = ui.scope_id().with("entries-width");
-    let width = ui.available_width();
-    let before = ui.data_mut(|data| data.get_temp::<f32>(id));
-    ui.data_mut(|data| data.insert_temp(id, width));
-    before.is_some_and(|before| width < before - 0.5)
+/// What the table knew of its room in the last frame: the remaining column keeps the width it had
+/// when the room gets narrower, so the columns start from their initial widths again once they
+/// turned out wider than the room of a window that shrank.
+struct Room {
+    id: egui::Id,
+    width: f32,
+    narrower: bool,
+    stale: bool,
 }
 
+impl Room {
+    fn enter(ui: &Ui) -> Self {
+        let id = ui.scope_id().with("entries-room");
+        let width = ui.available_width();
+        let (before, stale) = ui
+            .data(|data| data.get_temp::<(f32, bool)>(id))
+            .unwrap_or((width, false));
+        Self {
+            id,
+            width,
+            narrower: width < before - 0.5,
+            stale,
+        }
+    }
+
+    fn leave(self, ui: &Ui, columns: f32) {
+        let stale = self.narrower && columns > self.width + 0.5;
+        ui.data_mut(|data| data.insert_temp(self.id, (self.width, stale)));
+        if stale {
+            ui.request_repaint();
+        }
+    }
+}
 fn remember_hovered(ui: &Ui, id: egui::Id, row: Option<usize>) {
     ui.data_mut(|data| {
         if let Some(index) = row {

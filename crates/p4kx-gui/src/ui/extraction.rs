@@ -56,17 +56,23 @@ enum Action {
 }
 
 /// Returns whether the three Extraction actions fit in the line of `ui` beside `beside` points of
-/// other controls.
+/// other controls, with the gaps between them. The widths of the labels are measured once per
+/// language.
 pub(super) fn fit_beside(ui: &Ui, model: &Model, beside: f32) -> bool {
-    let texts = model.texts();
-    let gap = ui.spacing().item_spacing.x;
-    let actions: f32 = ACTIONS
-        .iter()
-        .map(|(_, text, _)| button::width(ui, Size::Normal, &texts.get(*text)) + gap)
-        .sum();
-    beside + gap + actions <= ui.available_width()
+    let id = ui
+        .make_persistent_id("extraction-actions-width")
+        .with(model.texts().language());
+    let widths = ui.data(|data| data.get_temp::<f32>(id)).unwrap_or_else(|| {
+        let texts = model.texts();
+        let widths = ACTIONS
+            .iter()
+            .map(|(_, text, _)| button::width(ui, Size::Normal, &texts.get(*text)))
+            .sum();
+        ui.data_mut(|data| data.insert_temp(id, widths));
+        widths
+    });
+    3.0f32.mul_add(ui.spacing().item_spacing.x, beside) + widths <= ui.available_width()
 }
-
 /// Shows the three Extraction actions in a right-to-left layout: no CTA in the main window, the
 /// selected one as outline.
 pub(super) fn actions(ui: &mut Ui, model: &mut Model) {

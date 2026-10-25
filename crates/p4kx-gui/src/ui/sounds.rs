@@ -13,6 +13,7 @@ use crate::theme::desktop::{
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, Weight};
+use crate::theme::window_metrics::SOUNDS_TOOLBAR_MIN_HEIGHT;
 use crate::widgets::frames::{self, px};
 use crate::widgets::indicator;
 use crate::widgets::text::{hairline_below, plain};
@@ -72,7 +73,7 @@ fn ready(ui: &mut Ui, model: &mut Model, info: IndexInfo) {
         .show(ui, |ui| {
             ScrollArea::vertical()
                 .id_salt("sounds-toolbar-scroll")
-                .max_height(ui.available_height() / 3.0)
+                .max_height((ui.available_height() / 3.0).max(SOUNDS_TOOLBAR_MIN_HEIGHT))
                 .auto_shrink([false, true])
                 .show(ui, |ui| sounds_toolbar::show(ui, model));
         });

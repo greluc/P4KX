@@ -87,6 +87,8 @@
     "decision": "D.52",
     "minWidth": 720,
     "minHeight": 480,
+    "browseListMinHeight": 244,
+    "soundsToolbarMinHeight": 212,
     "scroll": "the room of a work tab below the tab bar is never smaller than minWidth by minHeight: a smaller window scrolls it in both directions, the tab bar stays"
   },
   "sidebarSectionTitle": {

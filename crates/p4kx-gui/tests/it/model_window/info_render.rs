@@ -7,7 +7,7 @@
 //! The tests need a graphics adapter, a software one is enough, and return early without one.
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
-use crate::waiting::{RunQuiet, wait_for};
+use crate::waiting::RunQuiet;
 use std::fs::File;
 use std::io::BufWriter;
 use std::panic::catch_unwind;
@@ -18,7 +18,7 @@ use eframe::egui_wgpu::RendererOptions;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
-use p4kx_gui::{Language, Model, PreviewTab, Unavailable, ViewerSupport};
+use p4kx_gui::{Language, Model, Unavailable, ViewerSupport};
 use p4kx_settings::ModelMaterials;
 use p4kx_testkit::{TestEntry, TestModel, TestMtl, TestMtlMaterial};
 
@@ -197,9 +197,9 @@ fn textured_site() -> Site {
 
 #[test]
 fn the_texture_choices_and_the_missing_textures_render_in_both_languages() -> TestResult {
-    for (language, suffix, export) in [
-        (Language::BritishEnglish, "en-GB", "Export as GLB…"),
-        (Language::German, "de-DE", "Als GLB exportieren …"),
+    for (language, suffix, info, export) in [
+        (Language::BritishEnglish, "en-GB", "Info", "Export as GLB…"),
+        (Language::German, "de-DE", "Info", "Als GLB exportieren …"),
     ] {
         let Some(renderer) = renderer() else {
             return Ok(());
@@ -208,16 +208,11 @@ fn the_texture_choices_and_the_missing_textures_render_in_both_languages() -> Te
         let (folder, mut harness) = opened_at(language, support, textured_site(), |builder| {
             builder.renderer(renderer)
         })?;
-        harness.set_size(egui::vec2(1040.0, 900.0));
+        harness.set_size(egui::vec2(900.0, 900.0));
         harness.run_quiet();
         select(&mut harness, "textured.cgf")?;
 
-        harness.state_mut().set_preview_tab(PreviewTab::ModelInfo);
-        wait_for(&mut harness, "the model info rows", |harness| {
-            harness
-                .query_by_label_contains(rows_label(language))
-                .is_some()
-        })?;
+        harness.get_by_label(info).click();
         harness.run_quiet();
         harness.get_by_label_contains(rows_label(language)).hover();
         harness.event(egui::Event::MouseWheel {

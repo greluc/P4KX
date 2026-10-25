@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use egui::scroll_area::{DragScroll, ScrollSource};
 use egui::{ScrollArea, Sense, Ui, UiBuilder, Vec2, vec2};
 
+use super::regions;
 use crate::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH};
 
 /// Shows `body` in the room below the tab bar. The room never gets smaller than
@@ -11,16 +13,26 @@ use crate::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH};
 /// its room is clipped, as it is without the scrolling.
 pub(super) fn show<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
     let size = room(ui.available_size(), ui.spacing().scroll.allocated_width());
-    ScrollArea::both()
+    let shown = ScrollArea::both()
         .id_salt("work-surface")
         .auto_shrink(false)
+        .scroll_source(ScrollSource {
+            drag: DragScroll::Never,
+            ..ScrollSource::default()
+        })
         .show(ui, |ui| {
             let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
             let mut child = ui.new_child(UiBuilder::new().max_rect(rect));
             child.set_clip_rect(rect.intersect(ui.clip_rect()));
+            let id = child.unique_id();
+            ui.ctx().accesskit_node_builder(id, |node| {
+                node.set_role(egui::accesskit::Role::GenericContainer);
+            });
+            regions::record(ui.ctx(), |regions| regions.work_ui = Some(id));
             body(&mut child)
-        })
-        .inner
+        });
+    regions::record(ui.ctx(), |regions| regions.work = Some(shown.inner_rect));
+    shown.inner
 }
 
 /// Returns the size `body` is laid out in when `available` is what is left below the tab bar and
@@ -63,7 +75,7 @@ mod tests {
     }
 
     #[test]
-    fn a_small_window_keeps_both_minimums_and_needs_no_bar_more_than_the_scrolling_does() {
+    fn a_small_window_keeps_both_minimums() {
         let small = vec2(WORK_MIN_WIDTH - 100.0, WORK_MIN_HEIGHT - 100.0);
 
         assert_eq!(

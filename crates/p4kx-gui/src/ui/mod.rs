@@ -88,6 +88,7 @@ mod record_rows;
 mod record_search;
 mod record_tree;
 mod record_value;
+mod regions;
 mod search;
 mod shortcuts;
 mod sidebar;
@@ -118,12 +119,15 @@ mod xml_view;
 
 use std::path::PathBuf;
 
-use egui::{CentralPanel, Margin, Panel, Ui};
+use egui::{CentralPanel, Margin, Panel, Rect, Ui, pos2};
 
 use crate::theme::desktop::{HEADER_HEIGHT, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, STATUS_HEIGHT};
 use crate::theme::model_metrics::PREVIEW_MODEL_HEIGHT;
 use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
+use crate::theme::window_metrics::BROWSE_LIST_MIN_HEIGHT;
 use crate::widgets::{frames, tab};
+
+pub use regions::{Regions, regions};
 
 const RESIZE_GAP: i8 = 6;
 use crate::{
@@ -181,6 +185,7 @@ pub struct Requests {
 
 /// Draws the whole window for `model` and applies what the user did to it.
 pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
+    regions::reset(ui.ctx());
     let mut requests = Requests {
         settings_changed: model.poll() && model.browser().is_some() && model.failure().is_none(),
         ..Requests::default()
@@ -203,14 +208,20 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
         .exact_size(HEADER_HEIGHT)
         .show(ui, |ui| menu::show(ui, model, &mut requests));
     frames::header_rule(ui, header.response.rect);
+    regions::record(ui.ctx(), |regions| {
+        regions.header = Some(header.response.rect);
+    });
     game_running::show(ui, model);
     archive_change::show(ui, model);
     archive_issues::show(ui, model);
     archive_notice::show(ui, model);
-    Panel::bottom("status")
+    let status = Panel::bottom("status")
         .frame(frames::footer())
         .exact_size(STATUS_HEIGHT)
         .show(ui, |ui| status::show(ui, model));
+    regions::record(ui.ctx(), |regions| {
+        regions.status = Some(status.response.rect);
+    });
     sidebar::show(ui, model);
     CentralPanel::default()
         .frame(frames::canvas())
@@ -280,7 +291,13 @@ fn poll_background(model: &mut Model) {
 }
 
 fn work_surface(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
+    let before = ui.available_rect_before_wrap();
     work_tabs(ui, model);
+    let tabs = Rect::from_min_max(
+        before.min,
+        pos2(before.max.x, ui.available_rect_before_wrap().min.y),
+    );
+    regions::record(ui.ctx(), |regions| regions.tabs = Some(tabs));
     work_scroll::show(ui, |ui| {
         frames::inset().show(ui, |ui| work_panels(ui, model, requests));
     });
@@ -315,22 +332,31 @@ fn work_panels(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     } else {
         ("preview", PREVIEW_HEIGHT)
     };
-    Panel::bottom(salt)
+    let room = ui.available_height() - f32::from(RESIZE_GAP) - BROWSE_LIST_MIN_HEIGHT;
+    let preview = Panel::bottom(salt)
         .frame(frames::panel().outer_margin(Margin {
             top: RESIZE_GAP,
             ..Margin::ZERO
         }))
         .resizable(true)
         .default_size(height)
-        .min_size(PREVIEW_MIN_HEIGHT)
-        .show(ui, |ui| preview::show(ui, model));
-    frames::panel().show(ui, |ui| {
+        .size_range(PREVIEW_MIN_HEIGHT..=room.max(PREVIEW_MIN_HEIGHT))
+        .show(ui, |ui| {
+            preview::show(ui, model);
+            ui.min_rect()
+        });
+    let preview_rect = preview.response.rect.union(preview.inner);
+    let list = frames::panel().show(ui, |ui| {
         if model.browser().is_some_and(crate::Browser::shows_records) {
             record_search::show(ui, model);
         } else {
             search::show(ui, model);
             table::show(ui, model);
         }
+    });
+    regions::record(ui.ctx(), |regions| {
+        regions.preview = Some(preview_rect);
+        regions.list = Some(list.response.rect);
     });
 }
 

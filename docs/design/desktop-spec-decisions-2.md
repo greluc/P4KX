@@ -556,5 +556,12 @@ wieder. Die Wahl gilt für die Sitzung des Fensters. Der Raum eines Arbeitstabs 
 kleiner als `workSurface.minWidth` (720) mal `workSurface.minHeight` (480): ein kleineres Fenster rollt ihn in
 beide Richtungen, die Tab-Leiste bleibt stehen. Die Werkzeugleiste des Tabs „Durchsuchen" stellt die drei
 Extraktions-Knöpfe in eine eigene rechtsbündige Zeile unter das Suchfeld, sobald sie neben diesem
-(`searchField.flexBasis`) nicht mehr passen. Neue Maße: `sidebar.collapseWidth`, `sidebar.railWidth`,
-`workSurface.minWidth`, `workSurface.minHeight`.
+(`searchField.flexBasis`) nicht mehr passen. Die Vorschau dieses Tabs ist höchstens so hoch, dass die Liste
+darüber `workSurface.browseListMinHeight` (244: Werkzeugleiste, Tabellenkopf, eine Zeile und die Haarlinien) behält.
+Die Werkzeugleiste des Tabs „Sounds" rollt erst ab `workSurface.soundsToolbarMinHeight` (212: Entity-Zeile,
+zwei Zeilen Aktionen und Suchzeile).
+Begründung der Maße: Die Arbeitsfläche bekommt immer mindestens 720 Punkte Breite, so viel brauchen die
+Entry-Tabelle mit den Mindestbreiten ihrer Spalten und die breiteste Werkzeugleiste eines Tabs. Bei der halben
+Breite eines 1920er Bildschirms (960) startet die Seitenleiste deshalb eingeklappt und öffnet sich mit dem
+Knopf in der Leiste. Neue Maße: `sidebar.collapseWidth`, `sidebar.railWidth`, `workSurface.minWidth`,
+`workSurface.minHeight`, `workSurface.browseListMinHeight`, `workSurface.soundsToolbarMinHeight`.

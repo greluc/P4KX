@@ -71,7 +71,7 @@ pub(crate) fn read<T: Described + Send>(
     mut sources: Vec<Source>,
     choice: &AnimationChoice,
     open: impl Fn(&str) -> Result<ChunkSource, ConversionError> + Sync,
-    load: impl Fn(&ChunkSource, &str, Kind) -> Result<Loaded<T>, ConversionError> + Sync,
+    load: impl Fn(&ChunkSource, &str, Kind, bool) -> Result<Loaded<T>, ConversionError> + Sync,
 ) -> Result<Gathered<T>, ConversionError> {
     sources.sort_by_cached_key(|source| (normalised(&source.label), !source.whole));
     sources.dedup_by(|later, earlier| {
@@ -86,7 +86,8 @@ pub(crate) fn read<T: Described + Send>(
         .filter_map(|source| {
             let kind = kind(&source.label)?;
             wanted.reads(source, kind).then(|| {
-                let loaded = open(&source.label).and_then(|file| load(&file, &source.label, kind));
+                let loaded = open(&source.label)
+                    .and_then(|file| load(&file, &source.label, kind, source.explicit));
                 (source, loaded)
             })
         })

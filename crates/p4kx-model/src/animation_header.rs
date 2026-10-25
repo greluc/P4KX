@@ -9,7 +9,7 @@ use crate::animation_read::{
     check_budget, chunk_bytes, corrupt, declared_keys, listed_tracks, read_block, read_record,
     stem,
 };
-use crate::{AnimationError, Bone};
+use crate::{Animation, AnimationError, Bone};
 
 /// What the headers of an animation file say about one animation, read without decoding a key.
 ///
@@ -47,10 +47,26 @@ impl AnimationHeader {
         }
     }
 
-    /// Returns the length of the animation in seconds: its end frame over the frame rate.
-    ///
-    /// An animation whose last key lies after its end frame is longer when decoded; the files of
-    /// the Archives have none.
+    /// Describes the decoded `animation`.
+    #[must_use]
+    pub fn of_animation(animation: &Animation) -> Self {
+        Self {
+            name: animation.name.clone(),
+            path: animation.path.clone(),
+            frames_per_second: animation.frames_per_second,
+            end_frame: animation.end_frame,
+            additive: animation.additive,
+            controller_ids: animation
+                .tracks
+                .iter()
+                .map(|track| track.controller_id)
+                .collect(),
+            keys: animation.key_count(),
+        }
+    }
+
+    /// Returns the length of the animation in seconds: its end frame over the frame rate, which
+    /// is shorter than [`Animation::duration_seconds`] when a key lies after the end frame.
     #[must_use]
     pub fn duration_seconds(&self) -> f32 {
         #[expect(

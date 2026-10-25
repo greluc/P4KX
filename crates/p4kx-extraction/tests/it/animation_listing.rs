@@ -23,6 +23,14 @@ fn animation(name: &str) -> TestAnimation {
     )
 }
 
+fn unknown_format() -> TestAnimation {
+    TestAnimation::new("bad.caf", 30).track(
+        TestTrack::new(1)
+            .rotation_code(0x99)
+            .rotations(&[(0, IDENTITY)]),
+    )
+}
+
 fn archive(dir: &tempfile::TempDir) -> Result<Archive, Box<dyn Error>> {
     let path = dir.path().join("Data.p4k");
     let pack = TestDba::new()
@@ -41,6 +49,17 @@ fn archive(dir: &tempfile::TempDir) -> Result<Archive, Box<dyn Error>> {
         .entry(TestEntry::stored(
             "Data\\Objects\\broken.caf",
             vec![1, 2, 3],
+        ))
+        .entry(TestEntry::stored(
+            "Data\\Other\\badkeys.caf",
+            unknown_format().caf(),
+        ))
+        .entry(TestEntry::stored(
+            "Data\\Other\\badpack.dba",
+            TestDba::new()
+                .animation(unknown_format())
+                .animation(animation("good.caf"))
+                .bytes(),
         ))
         .entry(TestEntry::stored(MODEL, vec![0; 4]))
         .write_to(&path)?;
@@ -121,6 +140,49 @@ fn a_source_that_does_not_exist_is_an_error() -> TestResult {
     assert!(
         matches!(result, Err(ConversionError::UnknownEntry(_))),
         "{result:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_caf_named_as_a_source_is_decoded_and_a_refused_key_format_is_an_error() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(&dir)?;
+    let index = PathIndex::new(&archive);
+
+    let result =
+        AnimationListing::from_archive(&index, MODEL, &["Data\\Other\\badkeys.caf".to_owned()]);
+
+    assert!(
+        matches!(result, Err(ConversionError::Animation { .. })),
+        "{result:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_database_named_as_a_source_is_decoded_and_a_refused_animation_is_unread() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(&dir)?;
+    let index = PathIndex::new(&archive);
+
+    let listing =
+        AnimationListing::from_archive(&index, MODEL, &["Data\\Other\\badpack.dba".to_owned()])?;
+
+    let names: Vec<&str> = listing
+        .animations
+        .iter()
+        .filter(|header| header.name == "good" || header.name == "bad")
+        .map(|header| header.name.as_str())
+        .collect();
+    assert_eq!(names, ["good"], "the readable one is listed");
+    assert!(
+        listing
+            .unread
+            .iter()
+            .any(|unread| unread.name.as_deref() == Some("bad")),
+        "the refused one is unread: {:?}",
+        listing.unread
     );
     Ok(())
 }

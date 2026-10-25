@@ -269,7 +269,7 @@ pub enum ConversionError {
         source: ModelError,
     },
     /// An animation file is unsupported or corrupt.
-    #[error("cannot read the animation file")]
+    #[error("{file}")]
     Animation {
         /// The Entry path or file of the animation file.
         file: String,

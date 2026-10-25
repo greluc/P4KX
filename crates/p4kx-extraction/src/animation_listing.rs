@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_model::AnimationHeader;
 
-use crate::animation_load::load_headers;
+use crate::animation_load::load_listed;
 use crate::animation_select::{Gathered, read};
 use crate::animation_set::{folder_entries, source_of};
 use crate::animation_sources::{disk_sources, open_entry, with_extras};
@@ -64,7 +64,7 @@ impl AnimationListing {
             sources,
             &choice,
             |label| open_entry(index, label, None),
-            load_headers,
+            load_listed,
         )
         .map(Self::from)
     }
@@ -82,7 +82,7 @@ impl AnimationListing {
             sources,
             &choice,
             |label| ChunkSource::from_file(Path::new(label)),
-            load_headers,
+            load_listed,
         )
         .map(Self::from)
     }

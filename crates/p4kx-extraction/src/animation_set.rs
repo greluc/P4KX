@@ -109,11 +109,23 @@ fn folders(entry: &str) -> Vec<String> {
 }
 
 fn same_folder(folder: &str, wanted: &str) -> bool {
-    folder.len() == wanted.len()
-        && folder.bytes().zip(wanted.bytes()).all(|(found, wanted)| {
-            let found = if found == b'\\' { b'/' } else { found };
+    same_bytes(folder.as_bytes(), wanted)
+}
+
+fn same_bytes(found: &[u8], wanted: &str) -> bool {
+    found.len() == wanted.len()
+        && found.iter().zip(wanted.bytes()).all(|(found, wanted)| {
+            let found = if *found == b'\\' { b'/' } else { *found };
             found.eq_ignore_ascii_case(&wanted)
         })
+}
+
+fn under_prefixes(path: &str, prefixes: &[String]) -> bool {
+    prefixes.iter().any(|prefix| {
+        path.as_bytes()
+            .get(..prefix.len())
+            .is_some_and(|start| same_bytes(start, prefix))
+    })
 }
 
 fn in_folders(path: &str, folders: &[String]) -> bool {
@@ -245,15 +257,8 @@ impl AnimationSet {
         let sources: Vec<Source> = index
             .archive()
             .entries()
-            .iter()
-            .filter(|entry| {
-                kind(entry.path()).is_some() && {
-                    let path = normalised(entry.path());
-                    prefixes
-                        .iter()
-                        .any(|prefix| path.starts_with(prefix.as_str()))
-                }
-            })
+            .par_iter()
+            .filter(|entry| kind(entry.path()).is_some() && under_prefixes(entry.path(), &prefixes))
             .map(source_of)
             .collect();
         Self::from_sources(index, sources, choice, extra, None)
@@ -271,7 +276,7 @@ impl AnimationSet {
             sources,
             choice,
             |label| open_entry(index, label, cancel),
-            load,
+            |file, label, kind, _| load(file, label, kind),
         )
         .map(Self::from)
     }
@@ -293,7 +298,7 @@ impl AnimationSet {
             sources,
             choice,
             |label| ChunkSource::from_file(Path::new(label)),
-            load,
+            |file, label, kind, _| load(file, label, kind),
         )?);
         set.inputs = set.origins.iter().map(PathBuf::from).collect();
         Ok(set)

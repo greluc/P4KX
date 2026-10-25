@@ -13,7 +13,11 @@ pub(crate) enum Kind {
 
 pub(crate) fn kind(path: &str) -> Option<Kind> {
     let bytes = path.as_bytes();
-    let extension = bytes.len().checked_sub(4).and_then(|at| bytes.get(at..))?;
+    let at = bytes
+        .len()
+        .checked_sub(4)
+        .filter(|&at| at > 0 && !matches!(bytes.get(at - 1), Some(b'/' | b'\\')))?;
+    let extension = bytes.get(at..)?;
     if extension.eq_ignore_ascii_case(b".caf") {
         Some(Kind::Caf)
     } else if extension.eq_ignore_ascii_case(b".dba") {
@@ -121,5 +125,43 @@ pub(crate) fn load_headers(
                 animations: dba.animations,
             })
         }
+    }
+}
+
+pub(crate) fn load_listed(
+    source: &ChunkSource,
+    label: &str,
+    kind: Kind,
+    explicit: bool,
+) -> Result<Loaded<AnimationHeader>, ConversionError> {
+    if !explicit {
+        return load_headers(source, label, kind);
+    }
+    let loaded = load(source, label, kind)?;
+    Ok(Loaded {
+        animations: loaded
+            .animations
+            .iter()
+            .map(AnimationHeader::of_animation)
+            .collect(),
+        unread: loaded.unread,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Kind, kind};
+
+    #[test]
+    fn a_path_ending_in_an_animation_extension_has_a_kind() {
+        assert_eq!(kind("Data\\a\\walk.CAF"), Some(Kind::Caf), "caf");
+        assert_eq!(kind("a/pack.dba"), Some(Kind::Dba), "dba");
+    }
+
+    #[test]
+    fn a_bare_extension_is_no_animation_file() {
+        assert_eq!(kind(".caf"), None, "bare");
+        assert_eq!(kind("Data\\a\\.dba"), None, "bare in a folder");
+        assert_eq!(kind("a/b.caff"), None, "other extension");
     }
 }

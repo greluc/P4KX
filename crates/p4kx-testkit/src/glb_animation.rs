@@ -96,10 +96,11 @@ fn check_times(glb: &CheckedGlb, input: &Accessor<'_>, name: &str) -> Result<(),
             _ => None,
         };
         let matches = match (found, expected) {
-            (Some(found), Some(expected)) => {
-                (found - f64::from(*expected)).abs()
-                    <= f64::from(f32::EPSILON) * f64::from(expected.abs().max(1.0))
-            }
+            #[expect(
+                clippy::float_cmp,
+                reason = "the writer stores the exact first and last time"
+            )]
+            (Some(found), Some(expected)) => found == f64::from(*expected),
             _ => false,
         };
         if !matches {

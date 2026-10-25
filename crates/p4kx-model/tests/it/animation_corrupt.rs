@@ -298,10 +298,21 @@ fn check(bytes: &[u8]) -> Result<(), TestCaseError> {
     if let Ok(file) = ChunkFile::parse(bytes) {
         let caf = Animation::read_caf("a.caf", &file);
         let dba = Dba::read("a.dba", &file);
-        if let Ok(header) = AnimationHeader::read_caf("a.caf", &file) {
-            prop_assert!(header.duration_seconds().is_finite(), "header duration");
+        match AnimationHeader::read_caf("a.caf", &file) {
+            Ok(header) => prop_assert!(header.duration_seconds().is_finite(), "header duration"),
+            Err(error) => prop_assert_eq!(
+                format!("{:?}", caf.as_ref().err()),
+                format!("{:?}", Some(error)),
+                "the decoder refuses what the header reader refuses, with the same error"
+            ),
         }
-        drop(DbaHeaders::read("a.dba", &file));
+        if let Err(error) = DbaHeaders::read("a.dba", &file) {
+            prop_assert_eq!(
+                format!("{:?}", dba.as_ref().err()),
+                format!("{:?}", Some(error)),
+                "the database decoder refuses what the header reader refuses"
+            );
+        }
         if let Ok(animation) = caf {
             prop_assert!(animation.duration_seconds().is_finite(), "duration");
             for track in &animation.tracks {

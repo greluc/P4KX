@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, ForgePalettes,
-    InteriorOptions, Issue, LoadoutChanges, LoadoutResolver,
+    InteriorOptions, Issue, LoadoutChanges, LoadoutResolver, Placement,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
@@ -60,7 +60,33 @@ struct GlbJson<'a> {
     excluded: Vec<&'a str>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     replaced: Vec<ReplacedJson<'a>>,
+    placements: Vec<PlacementJson<'a>>,
     issues: Vec<IssueJson<'a>>,
+}
+
+#[derive(Serialize)]
+struct PlacementJson<'a> {
+    path: &'a str,
+    placement: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    helper: Option<&'a str>,
+    modelled: bool,
+}
+
+fn placements_json(assembly: &Assembly) -> Vec<PlacementJson<'_>> {
+    assembly
+        .parts()
+        .iter()
+        .map(|part| PlacementJson {
+            path: part.path(),
+            placement: part.placement().code(),
+            helper: match part.placement() {
+                Placement::Helper(helper) => Some(helper),
+                _ => None,
+            },
+            modelled: part.model().is_some(),
+        })
+        .collect()
 }
 
 #[derive(Serialize)]
@@ -187,6 +213,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
                 .iter()
                 .map(|(port, entity)| ReplacedJson { port, entity })
                 .collect(),
+            placements: placements_json(&assembly),
             issues: assembly.issues().iter().map(IssueJson::from).collect(),
         })?;
         return Ok(());

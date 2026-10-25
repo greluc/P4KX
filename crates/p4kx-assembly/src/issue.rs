@@ -4,6 +4,7 @@
 use thiserror::Error;
 
 use crate::LoadoutError;
+use crate::issue_text::{animations_left_out, attachments_left_out};
 
 /// Something an Assembly could not do for a part, found while building it.
 ///
@@ -82,6 +83,13 @@ pub enum IssueKind {
     HelperNotFound {
         /// The helper the port names.
         helper: String,
+    },
+    /// The geometry is a character definition (`.cdf`); its skin is drawn and the files of its
+    /// other attachments are not.
+    #[error("{}", attachments_left_out(.files))]
+    AttachmentsLeftOut {
+        /// The files of the attachments that are not drawn.
+        files: Vec<String>,
     },
     /// A container nested in an Interior cannot be found, so it and what is in it are left out.
     #[error("the container {name} does not exist")]
@@ -304,20 +312,6 @@ pub enum IssueKind {
     },
 }
 
-fn animations_left_out(count: usize, reason: &str, examples: &[String]) -> String {
-    let mut text = if count == 1 {
-        format!("the animation is not written: {reason}")
-    } else {
-        format!("{count} animations are not written: {reason}")
-    };
-    if count > 1 && !examples.is_empty() {
-        text.push_str(" (e.g. ");
-        text.push_str(&examples.join(", "));
-        text.push(')');
-    }
-    text
-}
-
 impl IssueKind {
     /// Returns a stable code for the kind, e.g. `geometry_missing`, for scripts; the message is
     /// text for people.
@@ -331,6 +325,7 @@ impl IssueKind {
             Self::MaterialLibrary { .. } => "material_library",
             Self::Palette { .. } => "palette",
             Self::HelperNotFound { .. } => "helper_not_found",
+            Self::AttachmentsLeftOut { .. } => "attachments_left_out",
             Self::TooManyParts { .. } => "too_many_parts",
             Self::TooManyVertices { .. } => "too_many_vertices",
             Self::TooDeep { .. } => "too_deep",

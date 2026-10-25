@@ -4,8 +4,8 @@
 use std::collections::{BTreeSet, HashMap};
 
 use p4kx_assembly::{
-    Attachment, EntityNode, LoadoutError, PortDefinition, PortNode, Target, VehicleImplementation,
-    VehicleItemPort,
+    Attachment, EntityNode, LoadoutError, PortDefinition, PortNode, PortSource, Target,
+    VehicleImplementation, VehicleItemPort,
 };
 use p4kx_extraction::is_placeholder_key;
 
@@ -32,8 +32,8 @@ impl PortReader {
         std::mem::take(&mut self.issues).into_iter().collect()
     }
 
-    /// Returns the ports of `node` as catalog ports: the ports of its tree, then the item ports
-    /// of its vehicle implementation that no port of the tree has.
+    /// Returns the ports of `node` as catalog ports: the ports of its tree, which ends with the
+    /// item ports only its vehicle implementation declares, listed with the source `vehicle`.
     pub(crate) fn ports(&mut self, node: &EntityNode) -> Vec<LoadoutPort> {
         self.issues
             .extend(node.issues().iter().map(LoadoutError::kind));
@@ -43,29 +43,13 @@ impl PortReader {
             .flat_map(VehicleImplementation::item_ports)
             .filter_map(|part| Some((part.name().to_ascii_lowercase(), part.item_port()?)))
             .collect();
-        let mut ports: Vec<LoadoutPort> = node
-            .ports()
+        node.ports()
             .iter()
             .map(|port| {
                 let xml = vehicle.get(&port.name().to_ascii_lowercase()).copied();
                 self.read_port(port, xml)
             })
-            .collect();
-        if let Some(implementation) = node.vehicle() {
-            let named: BTreeSet<String> = node
-                .ports()
-                .iter()
-                .map(|port| port.name().to_ascii_lowercase())
-                .collect();
-            for part in implementation.item_ports() {
-                if let Some(port) = part.item_port()
-                    && !named.contains(&part.name().to_ascii_lowercase())
-                {
-                    ports.push(vehicle_port(part.name(), port));
-                }
-            }
-        }
-        ports
+            .collect()
     }
 
     fn read_port(&mut self, port: &PortNode, xml: Option<&VehicleItemPort>) -> LoadoutPort {
@@ -76,7 +60,10 @@ impl PortReader {
         };
         let mut shape = LoadoutPort {
             name: port.name().to_owned(),
-            source: port.source().code(),
+            source: match port.source() {
+                PortSource::Empty => VEHICLE_SOURCE,
+                source => source.code(),
+            },
             visibility: port.visibility().code(),
             ..shape
         };
@@ -148,15 +135,6 @@ fn read_vehicle(port: &VehicleItemPort) -> LoadoutPort {
         port_tags: tag_words(port.port_tags()),
         required_tags: tag_words(port.required_tags()),
         ..LoadoutPort::default()
-    }
-}
-
-fn vehicle_port(name: &str, port: &VehicleItemPort) -> LoadoutPort {
-    LoadoutPort {
-        name: name.to_owned(),
-        source: VEHICLE_SOURCE,
-        visibility: port.visibility().code(),
-        ..read_vehicle(port)
     }
 }
 

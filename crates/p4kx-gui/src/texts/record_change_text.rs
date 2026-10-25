@@ -39,6 +39,8 @@ pub enum RecordChangeText {
     UnreadableNew,
     /// The row of the Record name.
     RecordName,
+    /// The row of the Record tag.
+    RecordTag,
     /// The row of the Record type.
     RecordType,
     /// A value the side does not have.
@@ -59,7 +61,7 @@ pub enum RecordChangeText {
 
 impl RecordChangeText {
     /// Every text of the Record list and its field changes.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::Progress,
         Self::Moved,
         Self::Unreadable,
@@ -77,6 +79,7 @@ impl RecordChangeText {
         Self::UnreadableOld,
         Self::UnreadableNew,
         Self::RecordName,
+        Self::RecordTag,
         Self::RecordType,
         Self::ValueMissing,
         Self::ValueNull,
@@ -108,6 +111,7 @@ impl RecordChangeText {
             Self::UnreadableOld => "record-change-unreadable-old",
             Self::UnreadableNew => "record-change-unreadable-new",
             Self::RecordName => "record-change-record-name",
+            Self::RecordTag => "record-change-record-tag",
             Self::RecordType => "record-change-record-type",
             Self::ValueMissing => "record-change-value-missing",
             Self::ValueNull => "record-change-value-null",

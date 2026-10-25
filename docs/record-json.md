@@ -20,6 +20,8 @@ The Record of the [Record XML example](record-xml.md#example):
   "$type": "Vehicle",
   "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f",
   "$path": "libs/foundry/records/vehicles/cart",
+  "$name": "Vehicle.Cart",
+  "$tag": "SystemsDesign",
   "mass": 250.5,
   "label": "@vehicle_Cart",
   "maker": {
@@ -77,21 +79,27 @@ A Record object holds, in this order:
 1. `$type`: the Record's type (its struct), e.g. `EntityClassDefinition`.
 2. `$guid`: the Record's GUID, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 3. `$path`: the record path without `.xml`, as DataForge stores it.
-4. One key per field, in the order of the Record XML: first the fields Record XML writes as
+4. `$name`: the Record name, e.g. `EntityClassDefinition.AEGS_Gladius`; an empty string for a
+   Record without a name. Several Records can share one record path, the name tells them apart.
+   The writer always writes it; the JSON Schema does not require it, so that exports made before
+   `$name` existed still validate.
+5. `$tag`: the Record tag of a version 8 DataForge, e.g. `SystemsDesign`. Version 6 has no tags,
+   and a Record without a tag or with an empty one has no `$tag` key.
+6. One key per field, in the order of the Record XML: first the fields Record XML writes as
    attributes, then the others, each group in declaration order (the fields of the root ancestor
    first). A field is an attribute in Record XML when its value is a scalar and its name is an
    attribute name there ([Names](record-xml.md#names)).
 
 A nested struct (an inline class or the struct a strong pointer owns) is an object with `$type`,
-its actual type, followed by its fields under the same rules. `$guid` and `$path` appear only on
-the Record object.
+its actual type, followed by its fields under the same rules. `$guid`, `$path`, `$name` and `$tag`
+appear only on the Record object.
 
 A field is written under its name unless the name starts with `$` or an earlier field of the
 same struct, in declaration order, has the same name. Such a field is written as
 `"$<n>": {"name": "…", "value": …}`, with `n` its position among the struct's fields in
 declaration order, counting from 0, so no value is lost or mistaken for another. No field is ever
-written under its own name when that starts with `$`: `$type`, `$guid`, `$path` and `$<n>` are the only
-keys that do.
+written under its own name when that starts with `$`: `$type`, `$guid`, `$path`, `$name`, `$tag`
+and `$<n>` are the only keys that do.
 
 ## Values
 

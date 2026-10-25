@@ -114,7 +114,7 @@ fn nested_values_are_child_elements_in_declaration_order() -> TestResult {
         xml,
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-            "<Car xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/cars/one\" name=\"Avenger\">\n",
+            "<Car xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/cars/one\" p4kx:name=\"Car.One\" name=\"Avenger\">\n",
             "  <position>\n",
             "    <Vector x=\"1\" y=\"2\"/>\n",
             "  </position>\n",
@@ -191,7 +191,7 @@ fn a_struct_type_that_is_no_plain_name_and_errors_in_arrays_are_written() -> Tes
     assert_eq!(
         xml,
         concat!(
-            "  <Holder xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"holder\">\n",
+            "  <Holder xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"holder\" p4kx:name=\"Holder.One\">\n",
             "    <inner>\n",
             "      <p4kx:struct type=\"Odd Type\" a=\"1\">\n",
             "        <p4kx:field name=\"type\" value=\"3\"/>\n",
@@ -223,7 +223,7 @@ fn a_wrapped_element_leaves_the_namespace_to_its_wrapper() -> TestResult {
     let xml = first_xml(&car(), Mode::Wrapped(1))?;
 
     assert!(
-        xml.starts_with("  <Car guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/cars/one\" name=\"Avenger\">\n"),
+        xml.starts_with("  <Car guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" path=\"libs/foundry/records/cars/one\" p4kx:name=\"Car.One\" name=\"Avenger\">\n"),
         "no xmlns:p4kx: {xml}"
     );
     let wrapped = format!(

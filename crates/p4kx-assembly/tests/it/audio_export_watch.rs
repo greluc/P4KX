@@ -6,7 +6,7 @@
 use std::error::Error;
 
 use p4kx_assembly::audio::{ArchiveAudio, ExportOptions, ExportWatch, SoundFormat, TriggerSounds};
-use p4kx_extraction::{Archive, ConflictPolicy};
+use p4kx_extraction::{Archive, CancelToken, ConflictPolicy};
 use p4kx_testkit::{
     ArchiveBuilder, TestAtl, TestBank, TestCodec, TestEntry, TestHircObject, TestWem, test_signal,
     wwise_short_id,
@@ -69,9 +69,30 @@ fn a_cancelled_export_writes_nothing() -> TestResult {
 
         let report = audio.export_sounds_watched(&triggers, out.path(), OPTIONS, &watch)?;
 
-        assert!(report.sounds.is_empty(), "no file");
+        assert!(
+            report.sounds.is_empty() && report.cancelled,
+            "no file, reported as cancelled"
+        );
         assert_eq!(std::fs::read_dir(out.path())?.count(), 0, "empty folder");
         assert_eq!((watch.done(), watch.total()), (0, 1), "nothing handled");
+        Ok(())
+    })
+}
+
+#[test]
+fn a_cancelled_token_stops_a_linked_export_and_leaves_no_partial_file() -> TestResult {
+    with_sounds(|audio| {
+        let sounds = audio.resolve_trigger("Play_It").ok_or("resolves")?;
+        let out = tempfile::tempdir()?;
+        let token = CancelToken::new();
+        let watch = ExportWatch::linked(token.clone());
+        token.cancel();
+        let triggers: Vec<&TriggerSounds<'_>> = vec![&sounds];
+
+        let report = audio.export_sounds_watched(&triggers, out.path(), OPTIONS, &watch)?;
+
+        assert!(report.cancelled && !report.is_clean(), "cancelled");
+        assert_eq!(std::fs::read_dir(out.path())?.count(), 0, "empty folder");
         Ok(())
     })
 }

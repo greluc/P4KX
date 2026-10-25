@@ -83,8 +83,9 @@ fn scalars_are_attributes_of_the_root_named_after_the_type() -> TestResult {
         xml,
         concat!(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-            "<Scalars guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
-            "path=\"libs/foundry/records/sample\" flag=\"true\" i8=\"-8\" i16=\"-1600\" ",
+            "<Scalars xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
+            "guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
+            "path=\"libs/foundry/records/sample\" p4kx:name=\"Scalars.Sample\" flag=\"true\" i8=\"-8\" i16=\"-1600\" ",
             "i32=\"-320000\" i64=\"-9223372036854775808\" u8=\"200\" u16=\"65000\" ",
             "u32=\"4000000000\" u64=\"18446744073709551615\" single=\"1.5\" double=\"-0.25\" ",
             "text=\"Hello &lt;World&gt; &amp; &quot;friends&quot;\" label=\"@item_Name_Sample\" ",
@@ -136,7 +137,7 @@ fn error_values_are_elements_with_the_field_and_the_reason() -> TestResult {
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
             "<Item xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
             "guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
-            "path=\"libs/foundry/records/sample\" count=\"3\">\n",
+            "path=\"libs/foundry/records/sample\" p4kx:name=\"Item.Sample\" count=\"3\">\n",
             "  <p4kx:error field=\"label\" ",
             "reason=\"offset 4294967295 in the text table is not a valid string\"/>\n",
             "  <p4kx:error field=\"size\" ",
@@ -180,7 +181,7 @@ fn ambiguous_field_names_become_field_elements() -> TestResult {
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
             "<Item xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
             "guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
-            "path=\"libs/foundry/records/sample\" count=\"4\" ok=\"9\">\n",
+            "path=\"libs/foundry/records/sample\" p4kx:name=\"Item.Sample\" count=\"4\" ok=\"9\">\n",
             "  <p4kx:field name=\"guid\" value=\"1\"/>\n",
             "  <p4kx:field name=\"path\" value=\"2\"/>\n",
             "  <p4kx:field name=\"type\" value=\"3\"/>\n",
@@ -210,7 +211,7 @@ fn a_type_name_that_is_no_xml_name_becomes_a_record_element() -> TestResult {
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
             "<p4kx:record xmlns:p4kx=\"https://github.com/p4kx-org/p4kx/record-xml\" ",
             "type=\"Bad Type\" guid=\"cbee34fd-6441-4000-b99f-924f7f26e19f\" ",
-            "path=\"libs/foundry/records/sample\" count=\"1\"/>\n",
+            "path=\"libs/foundry/records/sample\" p4kx:name=\"Bad Type.Sample\" count=\"1\"/>\n",
         ),
         "the type moves into an attribute"
     );

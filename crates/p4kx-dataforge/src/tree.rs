@@ -11,6 +11,7 @@ pub struct RecordTree<'f> {
     pub(crate) guid: Guid,
     pub(crate) record_path: &'f str,
     pub(crate) name: &'f str,
+    pub(crate) tag: Option<&'f str>,
     pub(crate) root: StructValue<'f>,
 }
 
@@ -37,6 +38,13 @@ impl<'f> RecordTree<'f> {
     #[must_use]
     pub const fn name(&self) -> &'f str {
         self.name
+    }
+
+    /// Returns the Record tag, e.g. `SystemsDesign`; `None` for a version 6 DataForge and for a
+    /// Record with an empty or no tag.
+    #[must_use]
+    pub const fn tag(&self) -> Option<&'f str> {
+        self.tag
     }
 
     /// Returns the Record's own struct, to walk it like any nested struct.

@@ -13,7 +13,7 @@ tools.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
-<Vehicle xmlns:p4kx="https://github.com/p4kx-org/p4kx/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" mass="250.5" label="@vehicle_Cart">
+<Vehicle xmlns:p4kx="https://github.com/p4kx-org/p4kx/record-xml" guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" p4kx:name="Vehicle.Cart" p4kx:tag="SystemsDesign" mass="250.5" label="@vehicle_Cart">
   <maker>
     <p4kx:reference guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" type="Manufacturer"/>
   </maker>
@@ -52,12 +52,17 @@ tools.
 
 In this order:
 
-1. `xmlns:p4kx`, only when the root has child elements or is a `p4kx:record`, with the value
-   `https://github.com/p4kx-org/p4kx/record-xml`.
+1. `xmlns:p4kx`, with the value `https://github.com/p4kx-org/p4kx/record-xml`; left out only
+   when a wrapper element around many Records declares it.
 2. `type`, only on a `p4kx:record` root (see [Names](#names)).
 3. `guid`: the Record's GUID, lower case, `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`.
 4. `path`: the record path without `.xml`, as DataForge stores it.
-5. One attribute per scalar field, in declaration order: the fields of the root ancestor first,
+5. `p4kx:name`: the Record name, e.g. `EntityClassDefinition.AEGS_Gladius`; empty for a Record
+   without a name. Several Records can share one record path, the name tells them apart. It is
+   namespaced so that a field called `name` stays an attribute of its own.
+6. `p4kx:tag`: the Record tag of a version 8 DataForge, e.g. `SystemsDesign`. Version 6 has no
+   tags, and a Record without a tag or with an empty one has no `p4kx:tag`.
+7. One attribute per scalar field, in declaration order: the fields of the root ancestor first,
    then those of each struct down to the Record's own type.
 
 Attributes are separated by one space, values are in double quotes.
@@ -201,8 +206,8 @@ named after the DataForge Entry with `.xml`, e.g. `Game2.xml`:
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <p4kx:records xmlns:p4kx="https://github.com/p4kx-org/p4kx/record-xml">
-  <Manufacturer guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" code="WOOD"/>
-  <Vehicle guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" mass="250.5">
+  <Manufacturer guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" p4kx:name="Manufacturer.Woodworks" code="WOOD"/>
+  <Vehicle guid="cbee34fd-6441-4000-b99f-924f7f26e19f" path="libs/foundry/records/vehicles/cart" p4kx:name="Vehicle.Cart" p4kx:tag="SystemsDesign" mass="250.5">
     <maker>
       <p4kx:reference guid="50e8a9f6-f956-4000-8ace-7c0ca9a91f5d" path="libs/foundry/records/makers/woodworks" type="Manufacturer"/>
     </maker>

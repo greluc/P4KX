@@ -11,7 +11,7 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
     },
     "record": {
-      "description": "A Record: its type, GUID and record path, then its fields in the order of the Record XML.",
+      "description": "A Record: its type, GUID, record path, name and, in a version 8 DataForge, tag, then its fields in the order of the Record XML.",
       "type": "object",
       "required": [
         "$type",
@@ -27,6 +27,15 @@
         },
         "$path": {
           "type": "string"
+        },
+        "$name": {
+          "description": "The Record name, e.g. EntityClassDefinition.AEGS_Gladius; empty when the Record has none. Optional in the schema so that exports from before $name still validate; the writer always writes it.",
+          "type": "string"
+        },
+        "$tag": {
+          "description": "The Record tag of a version 8 DataForge, e.g. SystemsDesign; absent in version 6 and for a Record without tag.",
+          "type": "string",
+          "minLength": 1
         }
       },
       "propertyNames": {
@@ -35,7 +44,9 @@
             "enum": [
               "$type",
               "$guid",
-              "$path"
+              "$path",
+              "$name",
+              "$tag"
             ]
           },
           {

@@ -30,6 +30,11 @@ pub struct Report {
     /// The text widgets whose text was not drawn: no fonts were given, the text is empty or filled
     /// in by the game at run time, the font or colour is missing, or a limit was reached.
     pub texts_left_out: usize,
+    /// The widgets whose texture or vector graphic was drawn.
+    pub images_drawn: usize,
+    /// The widgets whose texture or vector graphic was not drawn: no image sources were given,
+    /// the file is missing, unreadable or beyond a limit, or the widget names none.
+    pub images_left_out: usize,
     /// The canvases composed, the screen's own first.
     pub canvases: usize,
     /// The element types and features left out or approximated.

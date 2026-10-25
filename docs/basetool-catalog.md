@@ -649,7 +649,7 @@ the record path and marks the kind partial).
 
 | Kind | Fields |
 |------|--------|
-| `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key stays as `key` and leaves `en` and `de` `null`, as for every other kind. The target of a modifier's `propertyGuid` |
+| `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key stays as `key` and leaves `en` and `de` `null`, as for `items` and `blueprints`. The target of a modifier's `propertyGuid` |
 | `qualityDistributions` | `distribution`: a normal distribution `kind`, `min`, `max`, `mean`, `stddev` (`null` for an override Record or a value beyond a 32-bit float), and `overrides`: per location a `locationGuid` and its `distribution` (empty for a default Record). Both Record types of `crafting/qualitydistribution` are listed |
 | `blueprintPools` | `entries`: per entry `blueprintGuid` and `weight`; `totalWeight`, the sum of the positive weights; `rewardSources`: every struct of any Record with a Reference to the pool (on LIVE the `BlueprintRewards` result of a contract) with `recordGuid`, `recordPath`, `contractId`, `contractName` (both from the nearest enclosing struct that has an `id`) and `chance`, ordered by `recordGuid` and then in stored order |
 | `dismantleProcesses` | `efficiency` (0.5 on LIVE) and `timeSeconds` (15 on LIVE) of the `GenericCraftingProcess_Dismantle` |
@@ -1234,8 +1234,9 @@ with the status `partial`.
 
 `p4kx_export::read_crafting(&forge, filter, cancel)` returns a `Crafting` with everything the
 `blueprints` kind and the crafting kinds carry; the catalog is built from it, so library and
-catalog never drift. It reads the DataForge in parallel (0.3 s on LIVE, the scan for the reward sources included, against 14 s for the whole catalog) and leaves out a Record it cannot read, listing it under `failures`. Every
-list is ordered by Record GUID. The values are facts and identifiers only: no description, no
+catalog never drift. It reads the DataForge in parallel (0.3 s on LIVE, the scan for the reward sources included,
+against 14 s for the whole catalog) and leaves out a Record it cannot read, listing it under
+`failures`. Every list is ordered by Record GUID. The values are facts and identifiers only: no description, no
 lore, no media.
 
 The blueprints are selected by the one rule behind the `blueprints` kind (`selects_blueprint`:
@@ -1244,10 +1245,11 @@ the other lists are always read, and the catalog then keeps the properties, qual
 and dismantle processes whose record path matches.
 
 The reward sources come from one scan of the Record tree of every Record for a Reference to a pool
-(ADR-0154), so nothing is capped and `blueprintPools` is complete. A Record that cannot be read is
-no failure of the catalog unless it could hold a source: only an unreadable Record whose struct type
-is that of a Record with a reward source counts, and `Crafting::warnings` then holds
-`UnreadableRewardRecords` with the count. `p4kx catalog` prints the warning and exits with code 1
+(ADR-0154), so nothing is capped. A Record the scan cannot read is no `failures` entry, because it
+is not known to be selected; it could hide a source, so `rewardSources` may be incomplete exactly
+when `Crafting::warnings` holds `UnreadableRewardRecords` with the count. Only an unreadable Record
+whose struct type is that of a Record with a reward source counts, and when no source is found at
+all every unreadable Record counts. `p4kx catalog` prints the warning and exits with code 1
 (`CatalogSummary::warnings()`; `is_complete()` is then `false`); the windows of the GUI list it.
 
 The Rust names of the library:

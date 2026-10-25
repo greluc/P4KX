@@ -853,7 +853,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "starmapObjects", "count": 2093, "skipped": 0, "complete": true},
  {"kind": "shops", "count": 1184, "skipped": 0, "complete": true}], "skipped": 1205,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
- "warnings": [{"kind": "unreadable_reference_records", "count": 3}],
+ "warnings": [{"kind": "unreadable_reward_records", "count": 3}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
  "paints": {"paints": 1064, "assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
  "loadouts": {"ships": 1087, "items": 9621, "ports": 293451, "attached": 152081,

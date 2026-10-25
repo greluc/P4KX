@@ -10,7 +10,7 @@ use crate::crafting_detail_fixture as fixture;
 use std::error::Error;
 use std::sync::Mutex;
 
-use p4kx_export::{CatalogPhase, CatalogProgress, Filter, read_crafting};
+use p4kx_export::{CatalogPhase, CatalogProgress, CraftingWarning, Filter, read_crafting};
 use p4kx_extraction::{DataForge, ReferenceIndex};
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
 use serde_json::{Value, json};
@@ -18,6 +18,7 @@ use serde_json::{Value, json};
 type TestResult = Result<(), Box<dyn Error>>;
 
 const BROKEN: u128 = 0x9100_0000_0000_4000_8000_0000_0000_0001;
+const POOL_RECORD: u128 = 0x9300_0000_0000_4000_8000_0000_0000_0003;
 const PLACEHOLDER_PROPERTY: u128 = 0x9200_0000_0000_4000_8000_0000_0000_0002;
 
 fn broken_struct(name: &str) -> TestStruct {
@@ -83,6 +84,68 @@ fn an_unreadable_record_of_an_unrelated_type_is_no_warning() -> TestResult {
     assert!(crafting.failures.is_empty(), "{:?}", crafting.failures);
     assert!(!crafting.reward_sources.is_empty(), "the sources are found");
     Ok(())
+}
+
+fn lone_pool() -> DataForgeBuilder {
+    DataForgeBuilder::new()
+        .version(8)
+        .structure(TestStruct::new("BlueprintPoolRecord"))
+        .record(TestRecord::new(
+            POOL_RECORD,
+            "BlueprintPoolRecord",
+            "BlueprintPoolRecord.Lone",
+            "libs/foundry/records/crafting/blueprintrewards/lone.xml",
+        ))
+        .structure(broken_struct("Broken"))
+        .record(TestRecord::new(
+            BROKEN,
+            "Broken",
+            "Broken.one",
+            "libs/foundry/records/broken/one.xml",
+        ))
+}
+
+#[test]
+fn when_no_source_is_found_every_unreadable_record_is_a_warning() -> TestResult {
+    let bytes = lone_pool().build();
+    let forge = DataForge::open(&bytes)?;
+    let crafting = read_crafting(&forge, None, None)?;
+    assert!(crafting.reward_sources.is_empty());
+    assert_eq!(
+        crafting.warnings,
+        [CraftingWarning::UnreadableRewardRecords(1)]
+    );
+    Ok(())
+}
+
+#[test]
+fn a_pool_that_refers_to_itself_is_no_reward_source() -> TestResult {
+    let forge = fixture::database().record(
+        TestRecord::new(
+            POOL_RECORD,
+            "BlueprintPoolRecord",
+            "BlueprintPoolRecord.Selfish",
+            "libs/foundry/records/crafting/blueprintrewards/selfish.xml",
+        )
+        .value("selfLink", TestValue::Reference(POOL_RECORD)),
+    );
+    let bytes = forge.build();
+    let forge = DataForge::open(&bytes)?;
+    let crafting = read_crafting(&forge, None, None)?;
+    assert!(
+        crafting
+            .reward_sources
+            .iter()
+            .all(|source| source.pool != fixture_guid(POOL_RECORD)),
+        "{:?}",
+        crafting.reward_sources
+    );
+    assert_eq!(crafting.reward_sources.len(), 5, "the contracts' own");
+    Ok(())
+}
+
+fn fixture_guid(value: u128) -> p4kx_extraction::Guid {
+    text(value).parse().unwrap_or_default()
 }
 
 #[test]

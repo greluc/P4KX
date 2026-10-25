@@ -64,6 +64,11 @@ impl CatalogExportSummary {
     }
 }
 
+const PHASE_CRAFTING: u8 = 1;
+const PHASE_RECORDS: u8 = 2;
+
+/// The state shared with the build thread; `phase` is 0 until the first report, then the number
+/// of the phase reported, which only grows.
 #[derive(Debug, Default)]
 struct Shared {
     stage: AtomicU8,
@@ -81,7 +86,10 @@ impl Shared {
     /// Takes the progress of the build: a report of an earlier phase that arrives after a later
     /// one is dropped, and the counts start again at 0 with each phase.
     fn report(&self, progress: CatalogProgress) {
-        let phase = progress.phase as u8;
+        let phase = match progress.phase {
+            CatalogPhase::Crafting => PHASE_CRAFTING,
+            _ => PHASE_RECORDS,
+        };
         let before = self.phase.fetch_max(phase, Ordering::Relaxed);
         if before > phase {
             return;
@@ -102,7 +110,7 @@ impl Shared {
         };
         CatalogExportProgress {
             stage,
-            crafting: self.phase.load(Ordering::Relaxed) == CatalogPhase::Crafting as u8,
+            crafting: self.phase.load(Ordering::Relaxed) == PHASE_CRAFTING,
             done: self.done.load(Ordering::Relaxed),
             total: self.total.load(Ordering::Relaxed),
         }
@@ -124,6 +132,10 @@ mod tests {
     #[test]
     fn the_counts_start_again_with_the_records_phase_and_late_crafting_reports_are_dropped() {
         let shared = Shared::default();
+        assert!(
+            !shared.progress().crafting,
+            "nothing is read before the first report"
+        );
         shared.report(at(CatalogPhase::Crafting, 900, 1000));
         let crafting = shared.progress();
         assert!(crafting.crafting);

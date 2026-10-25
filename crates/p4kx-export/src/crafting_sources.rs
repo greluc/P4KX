@@ -35,7 +35,8 @@ impl<'f> Scope<'f> {
 }
 
 /// Appends to `out` every struct of `tree` with a Reference to one of the `pools`, with the
-/// chance the struct states.
+/// chance the struct states. A Reference of a Record to itself, as a pool Record to its own GUID,
+/// is no reward source.
 pub(crate) fn collect<'f>(
     tree: &RecordTree<'f>,
     pools: &HashSet<Guid>,

@@ -62,7 +62,7 @@ impl ProgressLine {
         self.draw(|| {
             let step = match progress.phase {
                 CatalogPhase::Crafting => "reading crafting data",
-                CatalogPhase::Records => "checking",
+                _ => "checking",
             };
             format!(
                 "{step} {}/{} Records",

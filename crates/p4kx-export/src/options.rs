@@ -8,6 +8,7 @@ use p4kx_extraction::{CancelToken, Filter};
 
 /// The step of a catalog build that a [`CatalogProgress`] reports, in the order the steps run.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
 pub enum CatalogPhase {
     /// The crafting data is read, the reward sources of the blueprint pools among it.
     Crafting,

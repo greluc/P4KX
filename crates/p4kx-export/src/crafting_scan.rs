@@ -29,7 +29,8 @@ enum Scanned<'f> {
 /// `pools`, in the order of the Records.
 ///
 /// A Record that cannot be read counts in [`RewardSearch::unreadable`] only when it has the struct
-/// type of a Record in which a source was found; another type is not known to hold one.
+/// type of a Record in which a source was found; another type is not known to hold one. When no
+/// source was found at all, every unreadable Record counts, because any of them may hold them.
 ///
 /// # Errors
 ///
@@ -72,10 +73,14 @@ fn gather(scanned: Vec<Scanned<'_>>) -> RewardSearch<'_> {
             Scanned::Unreadable(type_name) => unreadable.push(type_name),
         }
     }
-    let unreadable = unreadable
-        .into_iter()
-        .filter(|type_name| holding.contains(type_name))
-        .count();
+    let unreadable = if sources.is_empty() {
+        unreadable.len()
+    } else {
+        unreadable
+            .into_iter()
+            .filter(|type_name| !type_name.is_empty() && holding.contains(type_name))
+            .count()
+    };
     RewardSearch {
         sources,
         unreadable,
@@ -142,10 +147,21 @@ mod tests {
     }
 
     #[test]
-    fn without_any_source_no_unreadable_record_counts() {
+    fn without_any_source_every_unreadable_record_counts() {
         let search = gather(vec![
             Scanned::Unreadable("ContractGenerator"),
+            Scanned::Unreadable("ShipLoadout"),
             Scanned::Nothing,
+        ]);
+        assert_eq!(search.unreadable, 2);
+        assert!(search.sources.is_empty());
+    }
+
+    #[test]
+    fn records_without_a_type_name_do_not_match_each_other() {
+        let search = gather(vec![
+            Scanned::Found("", vec![source("a")]),
+            Scanned::Unreadable(""),
         ]);
         assert_eq!(search.unreadable, 0);
     }

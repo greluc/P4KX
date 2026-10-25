@@ -10,7 +10,7 @@ use std::time::{Instant, SystemTime};
 use p4kx_export::{
     BlueprintTiers, CatalogOptions, Cost, Crafting, ModifierKind, build_catalog, read_crafting,
 };
-use p4kx_extraction::{Archive, DataForge, DataForgeEntry, Guid};
+use p4kx_extraction::{Archive, DataForge, DataForgeEntry, Guid, is_placeholder_key};
 use p4kx_testkit::real_archive_path;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -118,6 +118,43 @@ fn times_the_crafting_phase_of_a_real_archive() -> TestResult {
         "build_catalog: {:?}, {} bytes",
         started.elapsed(),
         built.json().len()
+    );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts are what the changelog and ADR-0154 state"
+)]
+fn counts_placeholder_properties_and_pools_without_a_source() -> TestResult {
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let crafting = read_crafting(&forge, None, None)?;
+    let placeholders = crafting
+        .properties
+        .iter()
+        .filter(|property| property.name_key.is_some_and(is_placeholder_key))
+        .count();
+    let sourceless = crafting
+        .pools
+        .iter()
+        .filter(|pool| {
+            !crafting
+                .reward_sources
+                .iter()
+                .any(|source| source.pool == pool.guid)
+        })
+        .count();
+    println!(
+        "properties {} of which placeholder name {placeholders}; pools {} without a source {sourceless}",
+        crafting.properties.len(),
+        crafting.pools.len()
     );
     Ok(())
 }

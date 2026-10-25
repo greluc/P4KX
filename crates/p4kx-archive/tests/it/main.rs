@@ -8,6 +8,7 @@ mod build;
 mod container_limits;
 mod containers;
 mod decoding;
+mod hash_block;
 mod layout_v2;
 mod listing;
 mod malformed;

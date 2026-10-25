@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use super::read::{is_format_character, is_partial_number};
+use p4kx_foundation::read_text_number;
+
 use super::{ValueOrigin, VehicleImplementation, VehiclePart};
 
 /// How many values of a sum came from each [`ValueOrigin`].
@@ -305,7 +306,7 @@ fn add_part(totals: &mut VehicleTotals, part: &VehiclePart) {
 /// the number `read`. Only values that enter a sum or a threshold are recorded.
 fn note_partial(totals: &mut VehicleTotals, part: &VehiclePart, name: &'static str, read: f64) {
     if let Some(raw) = part.attribute(name)
-        && is_partial_number(raw)
+        && read_text_number(raw).is_some_and(|number| number.is_partial())
     {
         totals.partial.push(PartialValue {
             part: part.name.clone(),
@@ -333,7 +334,7 @@ fn number_of(
     let raw = part.attribute(name).filter(|raw| !raw.trim().is_empty())?;
     match parsed {
         Some(_) => {
-            if raw.chars().any(is_format_character) {
+            if read_text_number(raw).is_some_and(|number| number.was_cleaned()) {
                 let counter = if name == "mass" {
                     &mut totals.cleaned_mass
                 } else {

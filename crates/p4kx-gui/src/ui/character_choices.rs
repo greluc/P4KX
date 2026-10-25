@@ -12,7 +12,7 @@ use crate::theme::desktop::{
     TREE_PADDING_LEFT,
 };
 use crate::theme::palette;
-use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
+use crate::theme::tokens::{FS_XS, SPACE_1, SPACE_2, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
@@ -51,7 +51,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         let tab: &CharactersTab = tab;
         frames::preview_body()
             .show(ui, |ui| {
-                ui.spacing_mut().item_spacing.y = ROW_HEIGHT / 6.0;
+                ui.spacing_mut().item_spacing.y = SPACE_1;
                 [
                     body(ui, tab, texts),
                     head(ui, tab, texts),
@@ -216,7 +216,7 @@ fn armour(ui: &mut Ui, tab: &CharactersTab, texts: &Texts, catalogued: bool) -> 
             ask = Some(Ask::PieceRemove(position));
         }
     }
-    ui.spacing_mut().item_spacing.y = ROW_HEIGHT / 6.0;
+    ui.spacing_mut().item_spacing.y = SPACE_1;
     let add = texts.get(T::PieceAdd);
     if button::button(ui, Kind::Outline, Size::Compact, &add, catalogued).clicked() {
         ask = Some(Ask::PieceAdd);

@@ -7,6 +7,7 @@ use std::io::{self, BufWriter, Write};
 use p4kx_archive::Checksum;
 use p4kx_audio::AudioError;
 
+use crate::counting::Counting;
 use crate::texture_convert::Step;
 use crate::texture_outputs::step_of;
 use crate::tracker::Tracker;
@@ -17,10 +18,8 @@ const WRITE_BUFFER_LEN: usize = 256 * 1024;
 
 /// A converted file being written: counts its length and CRC-32C and fails once the run stops.
 pub(crate) struct Sink<'t> {
-    writer: BufWriter<File>,
+    writer: Counting<BufWriter<File>>,
     tracker: &'t Tracker<'t>,
-    len: u64,
-    crc: u32,
 }
 
 impl Write for Sink<'_> {
@@ -28,10 +27,7 @@ impl Write for Sink<'_> {
         if self.tracker.should_stop() {
             return Err(io::Error::other("the Extraction stopped"));
         }
-        let count = self.writer.write(data)?;
-        self.crc = crc32c::crc32c_append(self.crc, data.get(..count).unwrap_or_default());
-        self.len = self.len.saturating_add(count as u64);
-        Ok(count)
+        self.writer.write(data)
     }
 
     fn flush(&mut self) -> io::Result<()> {
@@ -60,14 +56,12 @@ impl EntryWriter<'_> {
         }
         let (temporary, file) = create_temporary(&destination.folder)?;
         let mut sink = Sink {
-            writer: BufWriter::with_capacity(WRITE_BUFFER_LEN, file),
+            writer: Counting::new(BufWriter::with_capacity(WRITE_BUFFER_LEN, file)),
             tracker: self.tracker,
-            len: 0,
-            crc: 0,
         };
         let written =
             write(&mut sink).and_then(|()| sink.writer.flush().map_err(AudioError::Write));
-        let (len, crc) = (sink.len, sink.crc);
+        let (len, crc) = (sink.writer.len(), sink.writer.crc());
         drop(sink);
         let decided = match written {
             Ok(()) => self.decide(destination, || (len, Checksum::Crc32c(crc)), chunk),

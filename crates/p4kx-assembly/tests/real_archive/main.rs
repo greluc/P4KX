@@ -37,6 +37,7 @@ mod real_search;
 mod real_streamed_localised;
 mod real_trigger_discovery;
 mod real_vehicle;
+mod real_vehicle_numbers;
 mod real_vehicle_support;
 mod real_wwise_verification;
 mod real_xml_nested;

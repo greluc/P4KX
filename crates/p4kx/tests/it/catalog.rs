@@ -197,6 +197,28 @@ fn catalog_without_an_output_file_is_invalid_input() -> TestResult {
 }
 
 #[test]
+fn catalog_to_a_gz_name_is_refused_instead_of_writing_plain_json() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("basetool-catalog.json.gz");
+
+    let output = p4kx(&["catalog"])?
+        .arg(&archive)
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(2), "invalid input: {output:?}");
+    let stderr = String::from_utf8(output.stderr)?;
+    assert!(
+        stderr.contains("gzip") && stderr.contains(".json.zst"),
+        "names the cause and the alternative: {stderr}"
+    );
+    assert!(!out.exists(), "nothing is written");
+    Ok(())
+}
+
+#[test]
 fn catalog_without_a_german_global_ini_leaves_german_null_and_counts_it() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive_with(dir.path(), &[english()])?;

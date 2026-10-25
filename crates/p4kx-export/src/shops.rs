@@ -32,6 +32,7 @@ const LISTED_LOCATIONS: usize = 200;
 pub(crate) struct Built {
     pub(crate) shops: Vec<Shop>,
     pub(crate) summary: ShopSummary,
+    pub(crate) unreadable_inventories: Vec<String>,
 }
 
 /// Reads the shop registry and the shop containers into `collected` and returns the counts. With
@@ -66,9 +67,10 @@ pub(crate) fn add_shops(
     if summary.inventories_unreadable > 0 {
         collected
             .warnings
-            .push(CraftingWarning::UnreadableShopInventories(
-                summary.inventories_unreadable,
-            ));
+            .push(CraftingWarning::UnreadableShopInventories {
+                count: summary.inventories_unreadable,
+                details: built.unreadable_inventories,
+            });
     }
     if summary.inventories_missing > 0 {
         collected
@@ -98,6 +100,7 @@ pub(crate) fn shops(
         return Ok(Built {
             shops: Vec::new(),
             summary,
+            unreadable_inventories: Vec::new(),
         });
     };
     if cancel.is_some_and(CancelToken::is_cancelled) {
@@ -129,8 +132,9 @@ pub(crate) fn shops(
     summary.inventories_in_archive = inventories.count();
     summary.inventories_unreadable = lists
         .values()
-        .filter(|list| **list == ItemList::Unreadable)
+        .filter(|list| matches!(list, ItemList::Unreadable(_)))
         .count();
+    let unreadable_inventories = unreadable_details(&lists);
     summary.inventories_missing = lists
         .values()
         .filter(|list| **list == ItemList::Missing)
@@ -139,11 +143,29 @@ pub(crate) fn shops(
         .values()
         .map(|list| match list {
             ItemList::Items { dropped, .. } => *dropped,
-            ItemList::Missing | ItemList::Unreadable => 0,
+            ItemList::Missing | ItemList::Unreadable(_) => 0,
         })
         .sum();
     let shops = list(&registry, &containers, &links, &lists, &mut summary);
-    Ok(Built { shops, summary })
+    Ok(Built {
+        shops,
+        summary,
+        unreadable_inventories,
+    })
+}
+
+/// Returns the reasons of the unreadable lists of `lists`, ordered and without repeats.
+fn unreadable_details(lists: &Lists<'_>) -> Vec<String> {
+    let mut details: Vec<String> = lists
+        .values()
+        .filter_map(|list| match list {
+            ItemList::Unreadable(reason) => Some(reason.clone()),
+            ItemList::Items { .. } | ItemList::Missing => None,
+        })
+        .collect();
+    details.sort_unstable();
+    details.dedup();
+    details
 }
 
 fn read_registry(files: &ArchiveFiles<'_>, summary: &mut ShopSummary) -> Option<Vec<RegistryShop>> {
@@ -215,7 +237,7 @@ fn list(
                 summary.inventory_placeholder += 1;
             }
             (Inventory::One(stem), None) => match lists.get(stem) {
-                Some(ItemList::Unreadable) => summary.inventory_unreadable += 1,
+                Some(ItemList::Unreadable(_)) => summary.inventory_unreadable += 1,
                 _ => summary.inventory_missing += 1,
             },
             (Inventory::Unknown, None) => summary.inventory_unscanned += 1,

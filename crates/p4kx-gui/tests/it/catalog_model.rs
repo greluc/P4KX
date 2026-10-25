@@ -9,9 +9,9 @@ use crate::cataloging;
 use std::fs;
 use std::io::Read;
 
-use cataloging::{TestResult, ended, files_in, makers, many, opened, wait_until};
+use cataloging::{TestResult, building, ended, files_in, makers, many, opened, wait_until};
 use p4kx_export::{Kind, Language as TextLanguage, SizeWarning};
-use p4kx_gui::{Browser, CATALOG_FILE, CatalogExportStage, CatalogExportStatus, Model};
+use p4kx_gui::{Browser, CATALOG_FILE, CatalogExportStatus, Model};
 use p4kx_testkit::{ArchiveBuilder, TestEntry};
 
 #[test]
@@ -98,12 +98,15 @@ fn the_catalog_is_written_and_summarised() -> TestResult {
 
 #[test]
 fn only_one_catalog_runs_at_a_time() -> TestResult {
-    let (_dir, mut model, out) = opened(&many(20_000))?;
+    let (_dir, mut model, out) = opened(&makers())?;
+    let hold = model.hold_catalog();
 
     let first = model.start_catalog(out.join("first.json"), || {});
+    building(&mut model)?;
     let second = model.start_catalog(out.join("second.json"), || {});
     let available = model.catalog_available();
     model.stop_catalog();
+    drop(hold);
 
     assert!(first, "the first starts");
     assert!(!available, "not offered while one runs");
@@ -137,19 +140,14 @@ fn cancelling_while_dataforge_is_read_ends_at_once_and_writes_nothing() -> TestR
 
 #[test]
 fn cancelling_while_records_are_checked_writes_nothing() -> TestResult {
-    let (_dir, mut model, out) = opened(&many(20_000))?;
+    let (_dir, mut model, out) = opened(&makers())?;
+    let hold = model.hold_catalog();
 
     model.start_catalog(out.join("basetool-catalog.json"), || {});
-    wait_until(&mut model, |model| {
-        model.catalog().is_some_and(|run| {
-            !matches!(
-                run.status(),
-                CatalogExportStatus::Running(progress) if progress.stage == CatalogExportStage::Reading
-            )
-        })
-    })?;
+    building(&mut model)?;
     model.cancel_catalog();
     let status = ended(&mut model)?;
+    drop(hold);
 
     assert!(
         matches!(status, CatalogExportStatus::Cancelled),
@@ -227,18 +225,13 @@ fn the_open_archive_is_refused_as_the_catalog_file() -> TestResult {
 
 #[test]
 fn an_archive_change_during_a_catalog_fails_it_and_writes_nothing() -> TestResult {
-    let (dir, mut model, out) = opened(&many(20_000))?;
+    let (dir, mut model, out) = opened(&makers())?;
+    let hold = model.hold_catalog();
 
     model.start_catalog(out.join("basetool-catalog.json"), || {});
-    wait_until(&mut model, |model| {
-        model.catalog().is_some_and(|run| {
-            !matches!(
-                run.status(),
-                CatalogExportStatus::Running(progress) if progress.stage == CatalogExportStage::Reading
-            )
-        })
-    })?;
-    makers().write_to(dir.path().join("Data.p4k"))?;
+    building(&mut model)?;
+    cataloging::wordy(2, 10).write_to(dir.path().join("Data.p4k"))?;
+    drop(hold);
     let status = ended(&mut model)?;
 
     assert!(
@@ -246,6 +239,40 @@ fn an_archive_change_during_a_catalog_fails_it_and_writes_nothing() -> TestResul
         "failed with the reason: {status:?}"
     );
     assert!(files_in(&out)?.is_empty(), "no file and no partial file");
+    Ok(())
+}
+
+#[test]
+fn a_gz_file_name_is_refused_and_nothing_is_written() -> TestResult {
+    let (_dir, mut model, out) = opened(&makers())?;
+
+    let started = model.start_catalog(out.join("basetool-catalog.json.gz"), || {});
+
+    assert!(!started, "nothing starts");
+    assert!(
+        model
+            .catalog()
+            .is_some_and(|run| matches!(run.status(), CatalogExportStatus::GzipNotSupported)),
+        "the outcome says why"
+    );
+    assert!(files_in(&out)?.is_empty(), "no file");
+    Ok(())
+}
+
+#[test]
+fn the_file_name_of_the_dialog_is_normalised_before_the_catalog_is_written() -> TestResult {
+    let (_dir, mut model, out) = opened(&makers())?;
+
+    model.start_catalog(out.join("typed.zst"), || {});
+    ended(&mut model)?;
+    model.start_catalog(out.join("doubled.json.json"), || {});
+    ended(&mut model)?;
+
+    assert_eq!(
+        files_in(&out)?,
+        ["doubled.json", "typed.json.zst"],
+        "the names the catalog contract uses"
+    );
     Ok(())
 }
 

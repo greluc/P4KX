@@ -89,6 +89,13 @@ impl Entry {
         self.sha256
     }
 
+    /// Returns whether a verified read checks [`Entry::sha256`] against the stored bytes, which
+    /// it does for the v1 layout only.
+    #[must_use]
+    pub const fn is_sha256_verified(&self) -> bool {
+        self.sha256.is_some() && self.sha256_checked
+    }
+
     /// Returns the compression method.
     #[must_use]
     pub const fn compression(&self) -> Compression {

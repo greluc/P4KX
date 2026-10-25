@@ -20,11 +20,12 @@ use crate::theme::tokens::{FS_SM, TRACKING_DISPLAY, Weight};
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
 use crate::widgets::rows::paint_divider;
+use crate::widgets::scroll_region;
 use crate::widgets::text::{caps, hairline_below, line, plain};
 use crate::widgets::tooltip;
 use crate::{
     DataForgeFailure, DataForgeSummary, DataForgeText, Language, RecordTree, RecordTreeStatus,
-    Text, Texts, format,
+    ScrollText, Text, Texts, format,
 };
 
 const ROWS: u8 = 3;
@@ -82,10 +83,17 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, tree: &RecordTree) {
         }
         RecordTreeStatus::Ready(summary) => {
             let laid = Laid::get(ui, texts, tree.generation(), summary);
-            ScrollArea::vertical()
+            let area = ScrollArea::vertical()
                 .id_salt("dataforge-summary")
-                .auto_shrink(false)
-                .show(ui, |ui| laid.show(ui));
+                .auto_shrink(false);
+            let id = ui.scope_id().with("dataforge-summary");
+            scroll_region::show(
+                ui,
+                (id, || texts.get(ScrollText::Summary)),
+                ROW_HEIGHT,
+                area,
+                |area, ui| area.show(ui, |ui| laid.show(ui)),
+            );
         }
         status => {
             if let Some((text, colour)) = message(texts, tree.entry_path(), status) {

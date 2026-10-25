@@ -30,7 +30,7 @@ count as invisible format characters.
   `loadoutSource` names the XML file when the ship's Loadout is an XML Loadout. `p4kx-assembly`
   carries the supplier as `PortNode::origin` and `LoadoutOrigin`.
 - **Format characters.** `is_format_character` covers the whole of the general category Cf of
-  Unicode 16. It stays in `p4kx-assembly` until the shared number parser of #304 exists.
+  Unicode 16. It lives in `p4kx-foundation` with the shared number parser (ADR-0145).
 
 ## Consequences
 

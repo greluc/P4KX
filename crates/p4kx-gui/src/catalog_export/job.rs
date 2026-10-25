@@ -30,6 +30,8 @@ pub enum CatalogExportStatus<'a> {
     Cancelled,
     /// The chosen file is the open Archive; nothing was written.
     IsArchive,
+    /// The chosen file ends in `.gz`, which is not written; nothing was written.
+    GzipNotSupported,
     /// The catalog could not be created, for the reason given, or it stopped without a result.
     Failed(Option<&'a str>),
 }
@@ -48,6 +50,7 @@ enum State {
     Finished(Box<CatalogExportSummary>),
     Cancelled,
     IsArchive,
+    GzipNotSupported,
     Failed(Option<String>),
 }
 
@@ -101,6 +104,7 @@ impl CatalogExport {
             State::Finished(summary) => CatalogExportStatus::Finished(summary),
             State::Cancelled => CatalogExportStatus::Cancelled,
             State::IsArchive => CatalogExportStatus::IsArchive,
+            State::GzipNotSupported => CatalogExportStatus::GzipNotSupported,
             State::Failed(reason) => CatalogExportStatus::Failed(reason.as_deref()),
         }
     }
@@ -206,6 +210,16 @@ pub(crate) fn start(
 /// Returns the outcome of a catalog refused because `file` is the open Archive.
 pub(crate) fn refused(file: PathBuf) -> CatalogExport {
     CatalogExport::new(file, CancelToken::new(), Arc::default(), State::IsArchive)
+}
+
+/// Returns the outcome of a catalog refused because `file` ends in `.gz`.
+pub(crate) fn refused_gzip(file: PathBuf) -> CatalogExport {
+    CatalogExport::new(
+        file,
+        CancelToken::new(),
+        Arc::default(),
+        State::GzipNotSupported,
+    )
 }
 
 struct Job {

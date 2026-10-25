@@ -14,9 +14,9 @@ use p4kx_export::{
     write_catalog,
 };
 use p4kx_extraction::Archive;
-use thiserror::Error;
 
 use super::catalog_json::summary_json;
+use crate::catalog_input::{InvalidExportTime, MissingCatalogArgs, refuse_gzip};
 use crate::cli::{CatalogArgs, CatalogCommand};
 use crate::exit;
 use crate::extract::cancel_on_interrupt;
@@ -25,49 +25,6 @@ use crate::loc::print_notes;
 use crate::progress::ProgressLine;
 
 const STALE_SLUGS_SHOWN: usize = 5;
-
-/// An export time that no system time can hold.
-#[derive(Debug, Error)]
-#[error("the export time {0} lies beyond the supported range")]
-pub(crate) struct InvalidExportTime(u64);
-
-impl InvalidExportTime {
-    /// Returns the error for the export time `seconds`.
-    pub(crate) const fn of(seconds: u64) -> Self {
-        Self(seconds)
-    }
-}
-
-/// `p4kx catalog` was given no Archive or no output file.
-#[derive(Debug, Error)]
-#[error("p4kx catalog needs an Archive and --out")]
-pub(crate) struct MissingCatalogArgs;
-
-/// The output file of `p4kx catalog` ends in `.gz`, which would be written as plain JSON.
-#[derive(Debug, Error)]
-#[error(
-    "{0} would be written as plain JSON, because gzip is not supported; use a name ending in .json.zst for a compressed catalog or .json for a plain one"
-)]
-pub(crate) struct GzipNotSupported(String);
-
-/// Returns whether `error` is a command line `p4kx catalog` refuses: a missing Archive or output,
-/// an export time out of range or an output file that would silently be plain JSON.
-pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
-    error.downcast_ref::<InvalidExportTime>().is_some()
-        || error.downcast_ref::<MissingCatalogArgs>().is_some()
-        || error.downcast_ref::<GzipNotSupported>().is_some()
-}
-
-fn refuse_gzip(out: &Path) -> Result<(), GzipNotSupported> {
-    if out
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("gz"))
-    {
-        Err(GzipNotSupported(out.display().to_string()))
-    } else {
-        Ok(())
-    }
-}
 
 /// Writes the Basetool catalog of the Archive to the output file and prints its summary, or
 /// prints the catalog's JSON Schema; the exit code is 1 when a selected Record could not be read.
@@ -84,7 +41,7 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
         None => SystemTime::now(),
         Some(seconds) => UNIX_EPOCH
             .checked_add(Duration::from_secs(seconds))
-            .ok_or(InvalidExportTime(seconds))?,
+            .ok_or_else(|| InvalidExportTime::of(seconds))?,
     };
     let archive = crate::key::open(archive)?;
     let filter = args.filter.as_deref().map(Filter::new);

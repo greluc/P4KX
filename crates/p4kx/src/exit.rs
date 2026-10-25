@@ -92,7 +92,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      the chunk file or a LOD the model does not have, an output that is one of its inputs or
      lies inside a Star Citizen installation (the tool never writes there), a package folder
      that exists and holds something else than an earlier package, --json without --out
-     for cryxml or chf to-json, an invalid Query, --json with another
+     for cryxml or chf to-json, a catalog --out ending in .gz, an invalid Query, --json with another
      --format and without --out for dcb query, --json with --format table for dcb refs or
      grep, --json with another format than json for dcb fields, an empty text for grep, a GUID
      or record path for dcb refs that no Record has, an Entity that no Record or several Records
@@ -186,7 +186,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnknownTrigger>().is_some()
         || error.downcast_ref::<UnknownAudioLanguage>().is_some()
         || error.downcast_ref::<InvalidChfJson>().is_some()
-        || crate::catalog::is_invalid_input(error)
+        || crate::catalog_input::is_invalid_input(error)
         || error.downcast_ref::<LanguageNotInArchive>().is_some()
         || error.downcast_ref::<NoLanguages>().is_some()
         || error.downcast_ref::<InvalidKey>().is_some()

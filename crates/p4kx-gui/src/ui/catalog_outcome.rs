@@ -62,6 +62,10 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             let text = texts.format(T::IsArchive, &[("path", run.shown_file().into())]);
             close = failure_window(ui, texts, text);
         }
+        CatalogExportStatus::GzipNotSupported => {
+            let text = texts.format(T::GzipNotSupported, &[("path", run.shown_file().into())]);
+            close = failure_window(ui, texts, text);
+        }
         CatalogExportStatus::Failed(reason) => {
             let path = ("path", run.shown_file().into());
             let text = match reason {
@@ -128,16 +132,16 @@ fn running(
             waiting(ui, &texts.get(T::Reading));
             ui.add_space(SPACE_3);
         }
+        CatalogExportStage::Building if progress.total == 0 => {
+            waiting(ui, &texts.get(T::Reading));
+            ui.add_space(SPACE_3);
+        }
         CatalogExportStage::Writing => {
             waiting(ui, &texts.format(T::Writing, &[("path", path.into())]));
             ui.add_space(SPACE_3);
         }
         CatalogExportStage::Building => {
-            let fraction = if progress.total > 0 {
-                ratio(progress.done as u64, progress.total as u64)
-            } else {
-                0.0
-            };
+            let fraction = ratio(progress.done as u64, progress.total as u64);
             let percent = (fraction * 100.0).floor();
             ui.label(texts.format(
                 T::Progress,

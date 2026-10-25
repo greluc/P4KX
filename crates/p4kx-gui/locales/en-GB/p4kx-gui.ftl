@@ -488,6 +488,7 @@ catalog-failed-title = Basetool catalog failed
 catalog-failed = The Basetool catalog { $path } could not be created: { $reason }
 catalog-stopped = The Basetool catalog { $path } stopped without a result.
 catalog-output-is-archive = The Basetool catalog cannot be written to { $path }, because that is the open Archive. Choose another file.
+catalog-output-gzip = The Basetool catalog is not written to { $path }, because gzip is not supported. Use a name ending in .json.zst for a compressed catalog or .json for a plain one.
 preview-tab-xml = XML
 xml-converting = Converting { $path } to XML…
 xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } are not converted in the preview; extract it with Conversion on to read it.

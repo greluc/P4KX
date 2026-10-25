@@ -4,19 +4,20 @@
 //! The windows of the Basetool catalog drawn by wgpu at the desktop size and at the smallest
 //! window, in both languages, rendered headless by `egui_kittest`.
 //!
-//! The tests need a graphics adapter, a software one is enough, and fail without one, so they run
-//! only on request (`--ignored`). `P4KX_RENDER_DIR` names a folder the rendered windows are written
-//! to as PNG files.
+//! The tests need a graphics adapter, a software one is enough, and return early without one
+//! unless `P4KX_REQUIRE_SOFTWARE_ADAPTER` is set, which CI does. `P4KX_RENDER_DIR` names a folder
+//! the rendered windows are written to as PNG files.
 
 use crate::cataloging;
 use crate::waiting::wait_for;
 
 use std::fs::File;
 use std::io::BufWriter;
+use std::panic::catch_unwind;
 use std::path::PathBuf;
 
 use cataloging::{TestResult, makers, opened};
-use eframe::egui_wgpu::RendererOptions;
+use eframe::egui_wgpu::{RenderState, RendererOptions};
 use egui::Rect;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -43,22 +44,30 @@ fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
     Ok(())
 }
 
-fn renderer() -> Result<WgpuTestRenderer, Box<dyn std::error::Error>> {
-    let state = std::panic::catch_unwind(|| {
-        create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE)
-    })
-    .map_err(|_| "no graphics adapter")?;
-    Ok(WgpuTestRenderer::from_render_state(state))
+#[expect(
+    clippy::print_stderr,
+    reason = "tells the test run why a test checked nothing"
+)]
+fn adapter() -> Option<RenderState> {
+    let state =
+        catch_unwind(|| create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE))
+            .ok();
+    if state.is_none() {
+        assert!(
+            std::env::var_os("P4KX_REQUIRE_SOFTWARE_ADAPTER").is_none(),
+            "a software adapter is required"
+        );
+        eprintln!("no graphics adapter: the test checks nothing");
+    }
+    state
 }
 
-fn window(
-    model: Model,
-    size: [f32; 2],
-) -> Result<Harness<'static, Model>, Box<dyn std::error::Error>> {
+fn window(model: Model, size: [f32; 2]) -> Option<Harness<'static, Model>> {
+    let state = adapter()?;
     let mut harness = Harness::builder()
         .with_context_setup(p4kx_gui::theme::apply)
         .with_size(size)
-        .renderer(renderer()?)
+        .renderer(WgpuTestRenderer::from_render_state(state))
         .build_ui_state(
             |ui, model: &mut Model| {
                 ui::show(ui, model);
@@ -66,7 +75,7 @@ fn window(
             model,
         );
     harness.run_steps(3);
-    Ok(harness)
+    Some(harness)
 }
 
 fn shoot(
@@ -90,14 +99,15 @@ fn shoot(
 }
 
 #[test]
-#[ignore = "needs a graphics adapter: pass --ignored"]
 fn the_summary_of_a_compressed_catalog_is_drawn_at_both_sizes_in_both_languages() -> TestResult {
     for (language, tag) in LANGUAGES {
         for size in SIZES {
             let (_dir, mut model, out) = opened(&makers())?;
             model.set_language(language);
             model.start_catalog(out.join("basetool-catalog.json.zst"), || {});
-            let mut harness = window(model, size)?;
+            let Some(mut harness) = window(model, size) else {
+                return Ok(());
+            };
             wait_for(&mut harness, "the catalog to end", |harness| {
                 harness
                     .state()
@@ -122,7 +132,6 @@ fn the_summary_of_a_compressed_catalog_is_drawn_at_both_sizes_in_both_languages(
 }
 
 #[test]
-#[ignore = "needs a graphics adapter: pass --ignored"]
 fn the_progress_window_of_a_building_catalog_is_drawn_at_both_sizes_in_both_languages() -> TestResult
 {
     for (language, tag) in LANGUAGES {
@@ -131,7 +140,9 @@ fn the_progress_window_of_a_building_catalog_is_drawn_at_both_sizes_in_both_lang
             model.set_language(language);
             let hold = model.hold_catalog();
             model.start_catalog(out.join("basetool-catalog.json.zst"), || {});
-            let mut harness = window(model, size)?;
+            let Some(mut harness) = window(model, size) else {
+                return Ok(());
+            };
             wait_for(&mut harness, "the catalog to build", |harness| {
                 harness.state().catalog().is_some_and(|run| {
                     matches!(
@@ -152,12 +163,13 @@ fn the_progress_window_of_a_building_catalog_is_drawn_at_both_sizes_in_both_lang
 }
 
 #[test]
-#[ignore = "needs a graphics adapter: pass --ignored"]
 fn the_warning_alert_of_a_catalog_near_the_limit_is_drawn_at_both_sizes() -> TestResult {
     for size in SIZES {
         let (_dir, mut model, out) = opened(&cataloging::wordy(30, 1_000_000))?;
         model.start_catalog(out.join("basetool-catalog.json"), || {});
-        let mut harness = window(model, size)?;
+        let Some(mut harness) = window(model, size) else {
+            return Ok(());
+        };
         wait_for(&mut harness, "the catalog to end", |harness| {
             harness
                 .state()

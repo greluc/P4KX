@@ -188,11 +188,12 @@ partial file.
 the open Archive holds DataForge that did not fail to load, and while no other catalog is being
 created. Choose the file in the save dialog, `basetool-catalog.json.zst` by default; an existing
 file is replaced. The open Archive itself is refused as the target. The file name decides the form,
-not the file type selected in the dialog (some systems leave the typed name as it is when the type
-changes): a name ending in `.zst`, such as `basetool-catalog.json.zst`, writes the catalog as one
-zstd frame, a fraction of the size, which the Basetool accepts as it does plain JSON; a name ending
-in `.json` writes plain JSON for inspection. The summary shows the compressed and the uncompressed
-size, so it tells which form was written.
+not the file type selected in the dialog, which no system reports back: a name ending in `.zst`
+writes the catalog as one zstd frame, a fraction of the size, which the Basetool accepts as it does
+plain JSON; a name ending in `.json` writes plain JSON for inspection. The name is corrected after
+the dialog: `foo.zst` becomes `foo.json.zst`, and a doubled `.json` that a dialog appended is
+collapsed. A name ending in `.gz` is refused with a message, because gzip is not written. The summary
+shows the compressed and the uncompressed size, so it tells which form was written.
 
 The catalog is created in the background with a progress window; DataForge already read for the
 Record tree, a Query or a Record export is reused, and the other way round. **Cancel** stops it at once and writes no file; an

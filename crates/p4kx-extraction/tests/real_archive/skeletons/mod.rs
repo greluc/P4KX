@@ -75,7 +75,10 @@ const MIN_NEAR_SHARE: f64 = 0.9;
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn skins_have_consistent_bones_and_weights_that_sit_near_their_bone() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let mut entries = sample(&archive, ".skin", SKIN_SAMPLE);
     entries.extend(sample(&archive, "_head_skel.chr", 20));
@@ -113,7 +116,10 @@ fn skins_have_consistent_bones_and_weights_that_sit_near_their_bone() -> TestRes
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_skin_reads_with_every_level_weighted_to_bones_its_skeleton_has() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let entries: Vec<&Entry> = archive
         .entries()
@@ -155,7 +161,10 @@ fn every_skin_reads_with_every_level_weighted_to_bones_its_skeleton_has() -> Tes
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_skeleton_file_has_bones_and_no_mesh_and_exports_as_nodes() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let entries: Vec<&Entry> = archive
@@ -205,7 +214,10 @@ fn every_skeleton_file_has_bones_and_no_mesh_and_exports_as_nodes() -> TestResul
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn skins_export_as_valid_glb_with_every_bone_as_a_joint() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let entries = sample(&archive, ".skin", EXPORT_SAMPLE);
@@ -257,7 +269,10 @@ fn skins_export_as_valid_glb_with_every_bone_as_a_joint() -> TestResult {
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn animated_static_models_have_compact_bones_that_point_at_their_nodes() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let mut entries = sample(&archive, ".cga", ANIMATED_SAMPLE);
     entries.extend(sample(&archive, ".cgf", ANIMATED_SAMPLE));
@@ -301,7 +316,10 @@ fn animated_static_models_have_compact_bones_that_point_at_their_nodes() -> Test
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_vertices_of_every_skin_are_floats_so_the_quantisation_box_does_not_matter() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entries: Vec<&Entry> = archive
         .entries()
         .iter()

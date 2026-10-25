@@ -141,7 +141,7 @@ fn check_levels(index: &PathIndex<'_>, base: &str, dir: &std::path::Path) -> Lod
 fn models_with_levels_of_detail_read_and_export_every_level() -> TestResult {
     let out = tempfile::tempdir()?;
     for path in archives()? {
-        let archive = Archive::open(&path)?;
+        let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
         let index = PathIndex::new(&archive);
         let mut bases: Vec<String> = Vec::new();
         for (suffix, base_suffix) in [
@@ -317,7 +317,7 @@ fn hierarchy_fit(index: &PathIndex<'_>, archive: &Archive, entry: &Entry) -> Hie
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_node_chain_places_the_sub_objects_where_the_mesh_info_box_has_them() -> TestResult {
     for path in archives()? {
-        let archive = Archive::open(&path)?;
+        let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
         let index = PathIndex::new(&archive);
         let mut entries = sample(&archive, ".cga", HIERARCHY_SAMPLE);
         entries.extend(sample(&archive, ".cgf", HIERARCHY_SAMPLE));

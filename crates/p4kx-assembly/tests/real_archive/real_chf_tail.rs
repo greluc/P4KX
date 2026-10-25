@@ -16,7 +16,10 @@ type TestResult = Result<(), Box<dyn Error>>;
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 #[expect(clippy::print_stdout, reason = "the counts are the measurement")]
 fn files_with_non_zero_tail_bytes_keep_them_when_the_body_changes() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let (mut files, mut tailed, mut kept, mut refused) = (0_usize, 0_usize, 0_usize, 0_usize);
     let mut examples = Vec::new();
     for entry in archive.entries() {

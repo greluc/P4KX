@@ -69,7 +69,10 @@ fn survey(text: &str) -> Survey<'_> {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 #[expect(clippy::print_stdout, reason = "the counts are the measurement")]
 fn keys_that_exist_plain_and_comma_suffixed_are_listed_per_language() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let set = LocalizationSet::read_all(&archive)?;
     for language in set.languages() {
         let entry = set.entry(language).ok_or("an entry")?;
@@ -92,7 +95,10 @@ fn keys_that_exist_plain_and_comma_suffixed_are_listed_per_language() -> TestRes
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 #[expect(clippy::print_stdout, reason = "the counts are the measurement")]
 fn records_use_blank_space_and_it_is_a_placeholder() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let set = LocalizationSet::read_all(&archive)?;
     let forge = DataForgeEntry::read(&archive)?;
     let forge = forge.open()?;

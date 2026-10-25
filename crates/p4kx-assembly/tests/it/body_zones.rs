@@ -65,7 +65,7 @@ fn hidden_zones(armour: &Armour) -> Vec<String> {
         .issues()
         .iter()
         .find_map(|issue| match issue.kind() {
-            IssueKind::BodyZonesHidden { zones } => Some(zones.clone()),
+            IssueKind::BodyZonesHidden(zones) => Some(zones.clone()),
             _ => None,
         })
         .unwrap_or_default()
@@ -132,7 +132,7 @@ fn a_body_that_does_not_fit_the_zone_table_is_kept_whole_and_reported() -> TestR
     assert_eq!(drawn_nodes(&armour)?.len(), 5);
     assert!(armour.issues().iter().any(|issue| matches!(
         issue.kind(),
-        IssueKind::BodyZonesUnknown { reason } if reason.contains("5 zones")
+        IssueKind::BodyZonesUnknown(reason) if reason.contains("5 zones")
     )));
     Ok(())
 }
@@ -144,7 +144,7 @@ fn layered_materials_without_a_diffuse_map_are_reported_for_each_part() -> TestR
     let reported: Vec<&str> = armour
         .issues()
         .iter()
-        .filter(|issue| matches!(issue.kind(), IssueKind::LayersWithoutDiffuse { count: 1 }))
+        .filter(|issue| matches!(issue.kind(), IssueKind::LayersWithoutDiffuse(1)))
         .map(p4kx_assembly::Issue::name)
         .collect();
     assert_eq!(reported, ["body", "TEST_ZoneShirt"]);

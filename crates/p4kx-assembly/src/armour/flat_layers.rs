@@ -39,6 +39,6 @@ pub(super) fn note_flat_layers(
         })
         .count();
     if count > 0 {
-        issues.push(issue(job, IssueKind::LayersWithoutDiffuse { count }));
+        issues.push(issue(job, IssueKind::LayersWithoutDiffuse(count)));
     }
 }

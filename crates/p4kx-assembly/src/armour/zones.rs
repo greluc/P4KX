@@ -153,11 +153,11 @@ pub(super) fn without_covered(
         Ok(None) => model,
         Ok(Some(done)) => {
             let zones = done.hidden.iter().map(|zone| (*zone).to_owned()).collect();
-            issues.push(issue(job, IssueKind::BodyZonesHidden { zones }));
+            issues.push(issue(job, IssueKind::BodyZonesHidden(zones)));
             Arc::new(done.model)
         }
         Err(reason) => {
-            issues.push(issue(job, IssueKind::BodyZonesUnknown { reason }));
+            issues.push(issue(job, IssueKind::BodyZonesUnknown(reason)));
             model
         }
     }

@@ -166,7 +166,7 @@ fn the_clothing_of_miles_eckhart_covers_his_torso_arms_and_legs_but_not_his_hand
         .issues()
         .iter()
         .find_map(|issue| match issue.kind() {
-            IssueKind::BodyZonesHidden { zones } => Some(zones.clone()),
+            IssueKind::BodyZonesHidden(zones) => Some(zones.clone()),
             _ => None,
         })
         .ok_or("no body zone is hidden")?;
@@ -191,7 +191,7 @@ fn the_clothing_of_miles_eckhart_covers_his_torso_arms_and_legs_but_not_his_hand
         drawn.len() + hidden.len(),
         head.variant().zone_names().len()
     );
-    let unknown = |kind: &IssueKind| matches!(kind, IssueKind::BodyZonesUnknown { .. });
+    let unknown = |kind: &IssueKind| matches!(kind, IssueKind::BodyZonesUnknown(_));
     assert!(!armour.issues().iter().any(|issue| unknown(issue.kind())));
     Ok(())
 }

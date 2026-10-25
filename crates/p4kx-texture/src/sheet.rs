@@ -16,8 +16,8 @@ pub const fn sheet_columns(units: u32) -> u32 {
 }
 
 impl DdsHeader {
-    /// Returns the number of images a preview of mip `level` lays out on one sheet: a full
-    /// cubemap counts as one image, its cross, every other face, array element and slice as one.
+    /// Returns the number of units a preview of mip `level` lays out on one sheet: a full cubemap
+    /// is one unit, its cross; every other face, array element and slice is one unit each.
     #[must_use]
     pub const fn preview_units(&self, level: u32) -> u32 {
         let images = self.images(level);

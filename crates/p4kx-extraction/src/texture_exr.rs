@@ -102,6 +102,14 @@ impl Texture<'_> {
         } else {
             surfaces
         };
+        if images.len() != files.len() {
+            return Err(ConversionError::of_texture(
+                self.name(),
+                TextureError::UnsupportedImage {
+                    images: self.header().images(level),
+                },
+            ));
+        }
         files
             .par_iter()
             .zip(&images)

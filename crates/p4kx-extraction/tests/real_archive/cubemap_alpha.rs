@@ -9,6 +9,7 @@ use std::io::{Read, Write};
 
 use p4kx_extraction::{Archive, DdsHeader, Entry, Texture};
 use p4kx_testkit::real_archive_path;
+use p4kx_texture::{DxgiFormat, TextureFormat};
 use rayon::prelude::*;
 
 use crate::TestResult;
@@ -181,7 +182,7 @@ fn check_alpha_tail(archive: &Archive, tail: &Entry) -> CheckResult {
     if report.size != merged.len() as u64 {
         return Err(format!("{}: merged size", tail.path()).into());
     }
-    let channel = if alpha.format().to_string() == "A8_UNORM" {
+    let channel = if alpha.format() == TextureFormat::Dxgi(DxgiFormat(65)) {
         3
     } else {
         0

@@ -18,6 +18,26 @@ const RGBA8: TestTextureFormat = TestTextureFormat::Dx10Pixel {
 };
 
 #[test]
+fn a_texture_named_like_an_element_of_an_array_is_written_after_it() -> TestResult {
+    let array = SplitDds::new(RGBA8, 8, 8).array(2).mips(1);
+    let plain = SplitDds::new(TestTextureFormat::LegacyBgra8, 4, 4).mips(1);
+    let mut entries = array.entries(HEADER);
+    entries.extend(plain.entries("Data\\Textures\\rock_diff_layer0.dds"));
+    let fixture = Fixture::new(entries)?;
+
+    let report = run(&fixture, ConflictPolicy::Overwrite);
+
+    assert!(report.is_complete(), "{report:?}");
+    let (width, height, _) = read_png(&fixture.target.join("Data/Textures/rock_diff_layer0.png"))?;
+    assert_eq!(
+        (width, height),
+        (4, 4),
+        "the later texture replaces the element, never a mix of both"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_array_is_exported_as_one_png_per_element() -> TestResult {
     let dds = SplitDds::new(RGBA8, 8, 8).array(3).split(2);
     let fixture = Fixture::new(dds.entries(HEADER))?;

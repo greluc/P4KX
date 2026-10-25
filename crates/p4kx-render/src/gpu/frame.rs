@@ -214,7 +214,7 @@ impl Renderer {
                 depth_slice: None,
                 resolve_target: resolve,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(background(
+                    load: wgpu::LoadOp::Clear(clear(
                         frame.colours.background,
                         frame.shading.is_premultiplied(),
                     )),
@@ -294,9 +294,18 @@ pub(super) fn linear(colour: [u8; 3]) -> [f32; 3] {
     })
 }
 
-/// `colour` as the linear value the sRGB picture encodes back to it, with its alpha, the colour
-/// multiplied by it for a picture of premultiplied colours.
-fn background([red, green, blue, alpha]: [u8; 4], premultiplied: bool) -> wgpu::Color {
+/// The colour a frame starts from: the background, or nothing for a picture of premultiplied
+/// colours, whose background the read-back puts under the layers.
+fn clear(colour: [u8; 4], premultiplied: bool) -> wgpu::Color {
+    if premultiplied {
+        wgpu::Color::TRANSPARENT
+    } else {
+        background(colour)
+    }
+}
+
+/// `colour` as the linear value the sRGB picture encodes back to it, with its alpha.
+fn background([red, green, blue, alpha]: [u8; 4]) -> wgpu::Color {
     let linear = |channel: u8| {
         let encoded = f64::from(channel) / 255.0;
         if encoded <= 0.04045 {
@@ -306,11 +315,10 @@ fn background([red, green, blue, alpha]: [u8; 4], premultiplied: bool) -> wgpu::
         }
     };
     let alpha = f64::from(alpha) / 255.0;
-    let weight = if premultiplied { alpha } else { 1.0 };
     wgpu::Color {
-        r: linear(red) * weight,
-        g: linear(green) * weight,
-        b: linear(blue) * weight,
+        r: linear(red),
+        g: linear(green),
+        b: linear(blue),
         a: alpha,
     }
 }

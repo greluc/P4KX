@@ -13,7 +13,7 @@ use crate::entities::is_entity;
 /// Which Entities name which audio triggers, read from the Records of one DataForge.
 ///
 /// [`TriggerUsers::build`] reads the tree of every Entity Record once, in parallel, and keeps
-/// for each wanted trigger the Records that name it through `GlobalResourceAudio.audioTrigger`.
+/// for each wanted trigger the Records that name it, as [`trigger_references`] finds them.
 /// Triggers are looked up ignoring ASCII case; the Entities of a trigger are in definition
 /// order whatever the number of threads.
 #[derive(Debug, Default)]

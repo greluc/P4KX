@@ -70,6 +70,39 @@ impl<'a> SectionReader<'a> {
         Ok(start..end)
     }
 
+    /// Takes the next `len` bytes of the body.
+    pub(crate) fn bytes(&mut self, len: usize) -> Result<&'a [u8], BankError> {
+        let range = self.skip(len)?;
+        Ok(self.body.get(range).unwrap_or_default())
+    }
+
+    pub(crate) fn f64(&mut self) -> Result<f64, BankError> {
+        Ok(f64::from_le_bytes(self.array()?))
+    }
+
+    pub(crate) fn f32(&mut self) -> Result<f32, BankError> {
+        Ok(f32::from_le_bytes(self.array()?))
+    }
+
+    pub(crate) fn i32(&mut self) -> Result<i32, BankError> {
+        Ok(i32::from_le_bytes(self.array()?))
+    }
+
+    pub(crate) fn i16(&mut self) -> Result<i16, BankError> {
+        Ok(i16::from_le_bytes(self.array()?))
+    }
+
+    /// Takes the bytes up to the next zero byte and skips that byte.
+    pub(crate) fn c_string(&mut self) -> Result<&'a [u8], BankError> {
+        let rest = self.body.get(self.position..).unwrap_or_default();
+        let len = rest
+            .iter()
+            .position(|&byte| byte == 0)
+            .ok_or_else(|| self.truncated(rest.len() + 1))?;
+        self.position += len + 1;
+        Ok(rest.get(..len).unwrap_or_default())
+    }
+
     fn array<const N: usize>(&mut self) -> Result<[u8; N], BankError> {
         let field = self
             .body

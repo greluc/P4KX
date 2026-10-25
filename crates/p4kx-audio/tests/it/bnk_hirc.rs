@@ -4,7 +4,7 @@
 //! `HIRC` objects decoded into typed values with their IDs.
 
 use p4kx_audio::{
-    ActionTarget, HircKind, HircValue, MediaStorage, SectionId, SoundSource, Soundbank,
+    ActionTarget, HircKind, HircValue, MediaStorage, PlayBank, SectionId, SoundSource, Soundbank,
 };
 use p4kx_testkit::{TestBank, TestHircObject};
 
@@ -67,6 +67,7 @@ fn sounds_actions_and_events_are_decoded_with_their_ids() -> TestResult {
                     source_id: 617_647_119,
                     in_memory_size: 252_487,
                     source_bits: 0,
+                    parent_id: Some(0x2C21_1B2E),
                 })
             ),
             (
@@ -78,6 +79,7 @@ fn sounds_actions_and_events_are_decoded_with_their_ids() -> TestResult {
                     source_id: 809_049_904,
                     in_memory_size: 0,
                     source_bits: 0,
+                    parent_id: Some(0x2C21_1B2E),
                 })
             ),
             (
@@ -86,6 +88,10 @@ fn sounds_actions_and_events_are_decoded_with_their_ids() -> TestResult {
                 &HircValue::Action(ActionTarget {
                     action_type: PLAY,
                     target_id: 0x07B2_3F35,
+                    bank: Some(PlayBank {
+                        bank_id: 0,
+                        bank_type: 0
+                    }),
                 })
             ),
             (

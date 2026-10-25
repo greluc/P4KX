@@ -33,6 +33,15 @@ pub enum BreakReason {
         /// The ID referred to.
         id: u32,
     },
+    /// A Play action names another soundbank as the holder of the object it plays, which this
+    /// walk does not enter.
+    #[error("object {id} lies in soundbank {bank_id}, which the walk does not enter")]
+    OtherSoundbank {
+        /// The ID referred to.
+        id: u32,
+        /// The ID of the soundbank the action names.
+        bank_id: u32,
+    },
     /// The object's body does not hold its fields.
     #[error("the object cannot be read: {0}")]
     Malformed(BankError),
@@ -43,7 +52,7 @@ pub enum BreakReason {
         /// The bank version.
         version: u32,
     },
-    /// The object is of a kind that is not followed, e.g. a music track.
+    /// The object is of a kind that is not followed, e.g. an actor-mixer.
     #[error("objects of this kind are not followed")]
     Unsupported,
     /// The object refers back to an object on its own path.
@@ -93,6 +102,7 @@ impl BreakReason {
             Self::NoSoundbank => "no_soundbank",
             Self::Unreadable(_) => "unreadable",
             Self::Missing { .. } => "missing",
+            Self::OtherSoundbank { .. } => "other_soundbank",
             Self::Malformed(_) => "malformed",
             Self::UnknownLayout { .. } => "unknown_layout",
             Self::Unsupported => "unsupported",

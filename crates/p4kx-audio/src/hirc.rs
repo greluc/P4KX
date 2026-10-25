@@ -5,12 +5,15 @@ use std::fmt;
 use std::ops::Range;
 
 use crate::bank_reader::SectionReader;
+use crate::hirc_action::{self, ActionTarget};
+use crate::hirc_music::{MusicPlaylist, MusicSegment, MusicSwitch, MusicTrack};
+use crate::hirc_music_parse;
 use crate::hirc_node::{self, Container};
+use crate::hirc_source;
 use crate::{BankError, SectionId};
 
 const OBJECT_HEADER_LEN: usize = 5;
 const ID_LEN: usize = 4;
-const FIRST_SOUND_VERSION: u32 = 150;
 const LAST_SOUND_WITHOUT_CACHE_ID_VERSION: u32 = 150;
 const CONTAINER_VERSION: u32 = 154;
 const LAST_KNOWN_VERSION: u32 = 154;
@@ -18,7 +21,6 @@ const LAST_OLD_TYPE_NUMBERING_VERSION: u32 = 126;
 const PLUGIN_TYPE_MASK: u32 = 0x0F;
 const LANGUAGE_SPECIFIC_BIT: u8 = 0x01;
 const SOURCE_PLUGIN_TYPE: u32 = 2;
-const PLAY_ACTION_GROUP: u16 = 0x04;
 const LAST_FIXED_EVENT_COUNT_VERSION: u32 = 122;
 
 /// The type of a `HIRC` object, from its type byte.
@@ -148,7 +150,7 @@ pub enum MediaStorage {
 }
 
 impl MediaStorage {
-    const fn from_byte(storage: u8) -> Self {
+    pub(crate) const fn from_byte(storage: u8) -> Self {
         match storage {
             0 => Self::Embedded,
             1 => Self::PrefetchStreamed,
@@ -171,6 +173,9 @@ pub struct SoundSource {
     pub in_memory_size: u32,
     /// The source bits after the size: bit 0 marks the media as language-specific.
     pub source_bits: u8,
+    /// The ID of the parent node in the hierarchy, from the node base parameters of a Sound
+    /// object in bank version 154; `None` for a music track source and in other versions.
+    pub parent_id: Option<u32>,
 }
 
 impl SoundSource {
@@ -189,25 +194,8 @@ impl SoundSource {
     }
 }
 
-/// The action of an Action object.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ActionTarget {
-    /// The action type, e.g. `0x0403` for Play.
-    pub action_type: u16,
-    /// The ID of the object the action is aimed at.
-    pub target_id: u32,
-}
-
-impl ActionTarget {
-    /// Returns whether the action plays its target, action types `0x04xx`.
-    #[must_use]
-    pub const fn is_play(&self) -> bool {
-        self.action_type >> 8 == PLAY_ACTION_GROUP
-    }
-}
-
 /// What this reader decodes from the body of a `HIRC` object.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum HircValue {
     /// A Sound object's media source, from bank version 150 on.
     Sound(SoundSource),
@@ -217,15 +205,23 @@ pub enum HircValue {
     Event(Vec<u32>),
     /// A random, sequence, switch or blend container's children, in bank version 154.
     Container(Container),
+    /// A music segment, in bank version 154.
+    MusicSegment(Box<MusicSegment>),
+    /// A music track, in bank version 154.
+    MusicTrack(Box<MusicTrack>),
+    /// A music switch container, in bank version 154.
+    MusicSwitch(Box<MusicSwitch>),
+    /// A music playlist container, in bank version 154.
+    MusicPlaylist(Box<MusicPlaylist>),
     /// Any other object, or a Sound or container of another bank version; its body is kept raw.
     Raw,
-    /// A Sound, Action, Event or container whose body does not hold its fields; its body is kept
-    /// raw.
+    /// A Sound, Action, Event, container or music object whose body does not hold its fields; its
+    /// body is kept raw.
     Malformed(BankError),
 }
 
 /// One object of the `HIRC` section, with its ID and its decoded value.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HircObject {
     /// The type of the object.
     pub kind: HircKind,
@@ -306,6 +302,10 @@ const fn has_unknown_layout(kind: HircKind, version: u32) -> bool {
                 | HircKind::RandomSequenceContainer
                 | HircKind::SwitchContainer
                 | HircKind::LayerContainer
+                | HircKind::MusicSegment
+                | HircKind::MusicTrack
+                | HircKind::MusicSwitch
+                | HircKind::MusicPlaylist
         )
 }
 
@@ -315,7 +315,7 @@ const fn has_unknown_layout(kind: HircKind, version: u32) -> bool {
 /// storage byte, source ID, with a `cacheID` after the source ID from version 151, then the
 /// in-memory media size), an Action and an Event from version 49 (an Event counts its actions in
 /// 4 bytes up to version 122, in a variable-length integer after), a random, sequence, switch or
-/// blend container in version 154 only. The body of such an object in a bank above version 154,
+/// blend container and a music segment, track, switch or playlist in version 154 only. The body of such an object in a bank above version 154,
 /// whose layouts changed, is kept raw with [`BankError::UnsupportedObjectLayout`]; below its first
 /// version it is kept raw without a reason. Other objects are never decoded.
 fn value(
@@ -327,31 +327,10 @@ fn value(
         return Err(BankError::UnsupportedObjectLayout { kind, version });
     }
     Ok(match kind {
-        HircKind::Sound if version >= FIRST_SOUND_VERSION => {
-            let plugin_id = fields.u32()?;
-            let storage = MediaStorage::from_byte(fields.u8()?);
-            let source_id = fields.u32()?;
-            if has_cache_id(version) {
-                fields.u32()?;
-            }
-            let in_memory_size = fields.u32()?;
-            let source_bits = if fields.remaining() > 0 {
-                fields.u8()?
-            } else {
-                0
-            };
-            HircValue::Sound(SoundSource {
-                plugin_id,
-                storage,
-                source_id,
-                in_memory_size,
-                source_bits,
-            })
+        HircKind::Sound if hirc_source::has_sound_layout(version) => {
+            HircValue::Sound(hirc_source::sound(version, fields)?)
         }
-        HircKind::Action => HircValue::Action(ActionTarget {
-            action_type: fields.u16()?,
-            target_id: fields.u32()?,
-        }),
+        HircKind::Action => HircValue::Action(hirc_action::action(version, fields)?),
         HircKind::Event => {
             let count = if version > LAST_FIXED_EVENT_COUNT_VERSION {
                 fields.variable_length()?
@@ -377,6 +356,18 @@ fn value(
             if version == CONTAINER_VERSION =>
         {
             HircValue::Container(hirc_node::container(kind, fields)?)
+        }
+        HircKind::MusicSegment if version == CONTAINER_VERSION => {
+            HircValue::MusicSegment(Box::new(hirc_music_parse::segment(fields)?))
+        }
+        HircKind::MusicTrack if version == CONTAINER_VERSION => {
+            HircValue::MusicTrack(Box::new(hirc_music_parse::track(version, fields)?))
+        }
+        HircKind::MusicSwitch if version == CONTAINER_VERSION => {
+            HircValue::MusicSwitch(Box::new(hirc_music_parse::switch(fields)?))
+        }
+        HircKind::MusicPlaylist if version == CONTAINER_VERSION => {
+            HircValue::MusicPlaylist(Box::new(hirc_music_parse::playlist(fields)?))
         }
         _ => HircValue::Raw,
     })

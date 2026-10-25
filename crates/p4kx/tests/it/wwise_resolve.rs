@@ -57,7 +57,7 @@ fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         ))
         .object(TestHircObject::action(3, PLAY, 999))
         .object(TestHircObject::action(4, PLAY, 400))
-        .object(TestHircObject::raw(11, 400, [0; 8]));
+        .object(TestHircObject::raw(7, 400, [0; 8]));
     let media = TestBank::new(wwise_short_id("Media")).wem(5002, vec![0x5A; 24]);
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()

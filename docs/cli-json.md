@@ -472,7 +472,7 @@ read exits with code 2 and writes nothing.
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. The command reads
 every ATL definition below `Data\Libs\GameAudio\` (text XML or CryXml) and every `.bnk`
 soundbank of the Archive once. `triggers` lists the audio triggers the Entity's Record names
-through `GlobalResourceAudio.audioTrigger` fields, each once (names ignoring ASCII case) in the
+through `GlobalResourceAudio.audioTrigger` fields and string fields of other structs whose name contains `audioTrigger` (ADR-0115), each once (names ignoring ASCII case) in the
 order the Record first names them. `matched` counts the triggers one of whose Wwise events a
 soundbank holds; triggers that reach no soundbank do not change the exit code.
 
@@ -526,7 +526,7 @@ the page from `offset` on, at most `limit` (1 to 10,000) of them, in the order o
 definitions' Entry paths, and `next_offset` is the offset of the next page or `null` after the
 last one. A trigger matches when its name or the name of one of its events does; `matched_trigger`
 and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx entity audio`.
-`entities` counts the Entities that name the trigger through `GlobalResourceAudio.audioTrigger`
+`entities` counts the Entities that name the trigger through those fields
 and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
 and when the DataForge cannot be read, which is a warning on stderr.
 
@@ -601,15 +601,19 @@ where it has none, of the fallback; `requested` and `fallback` are `null` for a 
 named, and the command line fills the fallback with `English(US)` or the first language folder.
 `--lang` and `--fallback-lang` must name a language folder of the Archive (`Data\Sounds\wwise\<folder>`),
 otherwise the exit code is 2. Step kinds are
-`event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for an object that is
-not followed its `HIRC` type, e.g. `music_track`.
+`event`, `action`, `random`, `sequence`, `switch`, `blend` and `sound`, and for any other object its
+`HIRC` type, e.g. `music_playlist`, `music_segment` or `music_track`; a music track is the last
+step of a variant, its ID is the variant's `sound` and its WEM one of the track's sources. A Play
+action (`0x04xx`) is followed to its target, a PlayEvent action (`0x21xx`) to the Event it posts.
 
 A **Break** has `event`, `soundbank` (or `null` when no soundbank holds the event), `object` (the
-step where the chain breaks, the last of `path`), `target` (for `missing` and `cycle`, the
-ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The kinds are
+step where the chain breaks, the last of `path`), `target` (for `missing`, `other_soundbank` and
+`cycle`, the ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The kinds are
 `no_soundbank`, `unreadable` (the soundbank cannot be read again), `missing` (the object refers to
-an ID the soundbank does not hold), `malformed`, `unknown_layout` (a sound or container of a bank
-version other than 154), `unsupported` (an object kind that is not followed, e.g. music), `cycle`,
+an ID the soundbank does not hold), `other_soundbank` (a Play action names another soundbank as
+the holder of its target, which the walk does not enter), `malformed`, `unknown_layout` (an object
+of a bank version other than 154), `unsupported` (an object kind that is not followed, e.g. an
+actor-mixer), `cycle`,
 `too_deep` (a path of 32 objects), `too_many_children` (only the first 1024 children of a
 container are followed), `too_many_objects` (at most 16,384 objects per event and soundbank) and
 `no_localisation` (a localised event or streamed sound has no soundbank or WEM in `requested` nor

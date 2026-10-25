@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_audio::{HircKind, HircObject, HircValue, SoundSource, Soundbank};
+use p4kx_audio::{HircKind, HircObject, HircValue, PlayBank, SoundSource, Soundbank};
 
 use super::locate::locate;
 use super::{
@@ -57,14 +57,25 @@ struct Walk<'w, 'i> {
 
 impl<'w> Walk<'w, '_> {
     fn follow(&mut self, id: u32) {
+        self.reach(id, None, None);
+    }
+
+    fn spend(&mut self) -> bool {
         if self.objects >= self.budget {
             if !self.exhausted {
                 self.exhausted = true;
                 self.broke(BreakReason::TooManyObjects { limit: self.budget });
             }
-            return;
+            return false;
         }
         self.objects += 1;
+        true
+    }
+
+    fn reach(&mut self, id: u32, wanted: Option<HircKind>, bank: Option<PlayBank>) {
+        if !self.spend() {
+            return;
+        }
         if self.path.len() >= MAX_PATH_DEPTH {
             self.broke(BreakReason::TooDeep {
                 limit: MAX_PATH_DEPTH,
@@ -75,8 +86,19 @@ impl<'w> Walk<'w, '_> {
             self.broke(BreakReason::Cycle { id });
             return;
         }
-        let Some(object) = self.object(id) else {
-            self.broke(BreakReason::Missing { id });
+        let wanted = wanted.or_else(|| self.path.is_empty().then_some(HircKind::Event));
+        let Some(object) = self.object(id, wanted) else {
+            let own = self.bank.header().id;
+            let reason = match bank {
+                Some(bank) if bank.bank_id != 0 && bank.bank_id != own => {
+                    BreakReason::OtherSoundbank {
+                        id,
+                        bank_id: bank.bank_id,
+                    }
+                }
+                _ => BreakReason::Missing { id },
+            };
+            self.broke(reason);
             return;
         };
         self.path.push(PathStep {
@@ -87,27 +109,46 @@ impl<'w> Walk<'w, '_> {
         self.path.pop();
     }
 
-    fn object(&self, id: u32) -> Option<&'w HircObject> {
+    fn object(&self, id: u32, wanted: Option<HircKind>) -> Option<&'w HircObject> {
         let bank = self.bank;
         let found = bank.object(id)?;
-        if self.path.is_empty() && found.kind != HircKind::Event {
-            return bank
+        match wanted {
+            Some(kind) if found.kind != kind => bank
                 .objects()
                 .iter()
-                .find(|object| object.kind == HircKind::Event && object.id == id);
+                .find(|object| object.kind == kind && object.id == id),
+            _ => Some(found),
         }
-        Some(found)
     }
 
     fn visit(&mut self, object: &HircObject) {
         match &object.value {
-            HircValue::Event(actions) if self.path.len() == 1 => self.children(actions),
+            HircValue::Event(actions) => self.children(actions),
             HircValue::Action(action) => {
                 if action.is_play() {
-                    self.follow(action.target_id);
+                    self.reach(action.target_id, None, action.bank);
+                } else if action.is_play_event() {
+                    self.reach(action.target_id, Some(HircKind::Event), None);
                 }
             }
             HircValue::Container(container) => self.children(&container.children),
+            HircValue::MusicSegment(segment) => self.children(&segment.node.children),
+            HircValue::MusicSwitch(switch) => self.children(&switch.node.children),
+            HircValue::MusicPlaylist(playlist) => self.children(&playlist.node.children),
+            HircValue::MusicTrack(track) => {
+                for source in track.sources.iter().take(MAX_CONTAINER_CHILDREN) {
+                    if !self.spend() {
+                        break;
+                    }
+                    self.sound(*source);
+                }
+                if track.sources.len() > MAX_CONTAINER_CHILDREN {
+                    self.broke(BreakReason::TooManyChildren {
+                        count: track.sources.len(),
+                        limit: MAX_CONTAINER_CHILDREN,
+                    });
+                }
+            }
             HircValue::Sound(source) => self.sound(*source),
             HircValue::Malformed(error) => self.broke(BreakReason::Malformed(error.clone())),
             HircValue::Raw
@@ -117,13 +158,17 @@ impl<'w> Walk<'w, '_> {
                         | HircKind::RandomSequenceContainer
                         | HircKind::SwitchContainer
                         | HircKind::LayerContainer
+                        | HircKind::MusicSegment
+                        | HircKind::MusicTrack
+                        | HircKind::MusicSwitch
+                        | HircKind::MusicPlaylist
                 ) =>
             {
                 self.broke(BreakReason::UnknownLayout {
                     version: self.bank.header().version,
                 });
             }
-            _ => self.broke(BreakReason::Unsupported),
+            HircValue::Raw => self.broke(BreakReason::Unsupported),
         }
     }
 

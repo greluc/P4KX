@@ -114,6 +114,9 @@ impl RigLogic {
             chunk,
             usize::from(u16_at(chunk, JOINTS_AT).unwrap_or_default()),
         )?;
+        if !names.is_empty() && u64_at(chunk, STARTS_AT + HASHES_SLOT * 8) == Some(0) {
+            return Err(RigLogicError::Malformed("the hash table is missing"));
+        }
         let hashes = control_hashes(section(chunk, HASHES_SLOT)?, &names)?;
         Ok(Self {
             names,

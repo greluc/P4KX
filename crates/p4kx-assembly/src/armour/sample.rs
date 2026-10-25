@@ -48,7 +48,7 @@ fn is_finite(pose: &FacePose) -> bool {
 }
 
 /// How far a sample may sit from the line between its neighbours before it is kept: 0.5 mm of a
-/// joint translation, 0.001 of a rotation component (about 0.11 degrees), 0.01 of a weight.
+/// joint translation, 0.001 per quaternion component (about 0.1 to 0.2 degrees), 0.01 of a weight.
 const TRANSLATION_TOLERANCE: f32 = 5e-4;
 const ROTATION_TOLERANCE: f32 = 1e-3;
 const WEIGHT_TOLERANCE: f32 = 1e-2;
@@ -57,7 +57,9 @@ const WEIGHT_TOLERANCE: f32 = 1e-2;
 const STRETCH: usize = 128;
 const CHUNK: usize = 1024;
 
-/// The values of a pose a viewer interpolates linearly, each with its tolerance.
+/// The values of a pose, each with its tolerance; the reduction measures them against a straight
+/// line, which viewers follow for translations and weights and, for rotations, approximately (they
+/// use spherical interpolation, which differs negligibly between close rotations).
 type Features = Vec<(f32, f32)>;
 
 fn features(pose: &FacePose, link: &FaceLink) -> Features {
@@ -182,7 +184,7 @@ pub(super) fn joint_samples(
             continue;
         }
         let Some(rest) = bones.get(bone) else {
-            skipped.push(hashes.get(joint).copied().unwrap_or(u32::MAX));
+            skipped.extend(hashes.get(joint));
             continue;
         };
         let translations = poses
@@ -277,4 +279,38 @@ pub(super) fn value_at(frames: &[u16], values: &[[f32; 3]], frame: u16) -> f32 {
         }
     };
     value.clamp(0.0, 1.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Features, ROTATION_TOLERANCE, TRANSLATION_TOLERANCE, WEIGHT_TOLERANCE, reduce};
+
+    fn three(tolerance: f32, middle: f32) -> Vec<Features> {
+        [0.0, middle, 0.0]
+            .into_iter()
+            .map(|value| vec![(value, tolerance)])
+            .collect()
+    }
+
+    fn kept(tolerance: f32, middle: f32) -> Vec<usize> {
+        reduce(&[0, 1, 2], &three(tolerance, middle))
+    }
+
+    #[test]
+    fn a_translation_half_a_millimetre_off_the_line_is_kept_and_less_is_dropped() {
+        assert_eq!(kept(TRANSLATION_TOLERANCE, 0.0004), [0, 2]);
+        assert_eq!(kept(TRANSLATION_TOLERANCE, 0.0006), [0, 1, 2]);
+    }
+
+    #[test]
+    fn a_weight_is_kept_from_a_hundredth_off_the_line() {
+        assert_eq!(kept(WEIGHT_TOLERANCE, 0.009), [0, 2]);
+        assert_eq!(kept(WEIGHT_TOLERANCE, 0.011), [0, 1, 2]);
+    }
+
+    #[test]
+    fn a_rotation_component_is_kept_from_a_thousandth_off_the_line() {
+        assert_eq!(kept(ROTATION_TOLERANCE, 0.0009), [0, 2]);
+        assert_eq!(kept(ROTATION_TOLERANCE, 0.0011), [0, 1, 2]);
+    }
 }

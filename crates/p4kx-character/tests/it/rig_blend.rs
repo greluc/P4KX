@@ -161,10 +161,21 @@ fn a_control_is_found_by_its_stored_hash_and_a_table_that_disagrees_with_the_nam
             "a stored control hash is not the CRC-32 of the control's name"
         ))
     );
-    let mut short = good;
+    let mut short = good.clone();
     let names = u64::from_le_bytes(short[0x68..0x70].try_into()?);
     short[0x70..0x78].copy_from_slice(&(names - 2).to_le_bytes());
-    assert!(RigLogic::read(&short).is_err());
+    assert_eq!(
+        RigLogic::read(&short).err(),
+        Some(RigLogicError::Malformed(
+            "the hash table is shorter than its controls"
+        ))
+    );
+    let mut missing = good;
+    missing[0x70..0x78].copy_from_slice(&0_u64.to_le_bytes());
+    assert_eq!(
+        RigLogic::read(&missing).err(),
+        Some(RigLogicError::Malformed("the hash table is missing"))
+    );
     Ok(())
 }
 

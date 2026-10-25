@@ -81,7 +81,7 @@ Early development (milestone M1). Available today:
   still written, and the summary counts the Records with their error values.
   `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
   tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, a
-  high-range texture (BC6H) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
+  high-range texture (BC6H or floating point) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
   cubemap as six faces `<name>_posx` … `<name>_negz`, a texture array as one PNG per element
   `<name>_layer0` … and a volume as one PNG per slice `<name>_slice0` …:
   `--textures` picks the outputs, by default `merge,png`: `merge` writes one standard DDS under
@@ -301,8 +301,8 @@ Early development (milestone M1). Available today:
   `--cross` as one horizontal cross in `<file>`. A texture array is written as one file per
   element `<stem>_layer0.png` …, a cubemap array per element and face `<stem>_layer0_posx.png` …
   (with `--cross` one cross per element) and a volume as one file per slice of the mip
-  `<stem>_slice0.png` …; the numbers are padded to the width of the last. A high-range BC6H
-  texture is written as OpenEXR
+  `<stem>_slice0.png` …; the numbers are padded to the width of the last. A high-range BC6H or
+  floating-point texture is written as OpenEXR
   with 32-bit float RGB instead, with the extension `.exr`, so its range is not clipped;
   `--tone-map` writes an 8-bit PNG instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010). The
   message names both the requested and the written files, and `--tone-map` on any other texture

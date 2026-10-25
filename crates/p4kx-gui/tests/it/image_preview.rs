@@ -121,7 +121,7 @@ fn an_unsupported_format_is_named_and_the_text_and_hex_tabs_still_work() -> Test
     assert!(
         harness
             .query_by_label(
-                "The preview cannot decode R11G11B10_FLOAT textures. The Text and Hex tabs \
+                "The preview cannot decode R8G8B8A8_SINT textures. The Text and Hex tabs \
                  still show the data of Data\\Textures\\odd_spec.dds."
             )
             .is_some(),

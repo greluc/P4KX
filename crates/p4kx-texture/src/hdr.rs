@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::bc6h::{self, HalfTexels};
+use crate::floats::FloatFormat;
 use crate::image::{ImageSize, decode_blocks};
 use crate::pixels::half_to_f32;
 use crate::{TextureError, TextureFormat};
@@ -63,10 +64,10 @@ impl HdrImage {
 
 impl TextureFormat {
     /// Returns whether the format holds values beyond 0..=1 that [`decode_hdr`] keeps: BC6H,
-    /// signed or unsigned.
+    /// signed or unsigned, and the floating-point formats. Alpha is not kept.
     #[must_use]
     pub const fn is_high_range(self) -> bool {
-        half_decoder(self).is_some()
+        half_decoder(self).is_some() || FloatFormat::of(self).is_some()
     }
 }
 
@@ -81,8 +82,9 @@ const fn half_decoder(format: TextureFormat) -> Option<fn([u8; 16]) -> HalfTexel
 /// Decodes one image of `width` × `height` pixels in a high-range `format` to linear
 /// floating-point RGB without clipping its range, block rows in parallel.
 ///
-/// Every value is exactly the half float the format specifies; a reserved BC6H mode decodes to
-/// zero.
+/// Every value is exactly the float the format specifies, a half float widened for BC6H and the
+/// 16-bit formats; a reserved BC6H mode decodes to zero. Channels a format lacks are zero and
+/// alpha is dropped.
 ///
 /// # Errors
 ///
@@ -95,6 +97,16 @@ pub fn decode_hdr(
     height: u32,
     data: &[u8],
 ) -> Result<HdrImage, TextureError> {
+    if let Some(floats) = FloatFormat::of(format) {
+        let size = ImageSize::of(format, width, height, data, RGB)?;
+        let mut pixels = vec![0.0; size.len()];
+        size.for_each_row(data, &mut pixels, |src, dst| floats.rgb_row(src, dst));
+        return Ok(HdrImage {
+            width,
+            height,
+            pixels,
+        });
+    }
     let decode_block = half_decoder(format).ok_or(TextureError::NotHighRange(format))?;
     let size = ImageSize::of(format, width, height, data, RGB)?;
     let mut pixels = vec![0.0; size.len()];

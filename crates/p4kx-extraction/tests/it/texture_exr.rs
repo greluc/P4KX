@@ -92,6 +92,61 @@ fn a_bc6h_mip_is_exported_as_tone_mapped_png_on_request() -> TestResult {
 }
 
 #[test]
+fn a_floating_point_mip_is_exported_as_exr_and_as_tone_mapped_png() -> TestResult {
+    for (dxgi_format, pixel_bytes) in [
+        (10, 8),
+        (34, 4),
+        (54, 2),
+        (41, 4),
+        (16, 8),
+        (6, 12),
+        (26, 4),
+        (67, 4),
+        (2, 16),
+    ] {
+        let dir = tempfile::tempdir()?;
+        let format = TestTextureFormat::Dx10Pixel {
+            dxgi_format,
+            pixel_bytes,
+        };
+        let header = SplitDds::new(format, 8, 4).write_files(dir.path(), "field.dds")?;
+        let texture = Texture::from_file(&header)?;
+        let out = dir.path().join("field.exr");
+
+        let report = texture.exr_to_file(&out, 0)?;
+
+        assert_eq!(
+            (report.width, report.height),
+            (8, 4),
+            "DXGI format {dxgi_format}"
+        );
+        let (size, pixels) = read_exr(&out)?;
+        assert_eq!(
+            (size.width(), size.height()),
+            (8, 4),
+            "DXGI format {dxgi_format}"
+        );
+        let expected = texture.decode_mip_hdr(0)?;
+        assert!(
+            pixels
+                .iter()
+                .zip(expected.pixels())
+                .all(|(read, decoded)| read.to_bits() == decoded.to_bits()
+                    || (read.is_nan() && decoded.is_nan())),
+            "the decoded values of DXGI format {dxgi_format}"
+        );
+
+        let png = dir.path().join("field.png");
+        texture.png_to_file(&png, 0)?;
+        assert!(
+            png.exists(),
+            "DXGI format {dxgi_format} also writes a tone-mapped PNG"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn a_texture_without_high_range_is_not_exported_as_exr() -> TestResult {
     let dir = tempfile::tempdir()?;
     let header =

@@ -54,6 +54,36 @@ was the test: a tail in `A8_UNORM` keeps its value in the alpha channel of the d
 `merge_alpha` takes it from there, while the test compared the red channel. With the right
 channel all 91 array and volume textures with an alpha tail on TECH-PREVIEW merge per image.
 
+### Texture gaps (#280)
+
+Measured on 2026-10-25 on LIVE, PTU and TECH-PREVIEW with `texture_tails.rs`,
+`texture_float.rs` and `texture_cube_order.rs`; the decisions are in ADR-0123.
+
+**Alpha tail layouts.** Every `.dds.a` holds a DDS header, none has the `DDS ` magic:
+
+| Channel | `.dds.a` | Header and numbered parts `.1a` … `.Na` | Header only | Raw, without header | Numbered part without a header |
+| --- | --- | --- | --- | --- | --- |
+| LIVE | 7,430 | 7,428 | 2 | 0 | 0 |
+| PTU | 7,432 | 7,430 | 2 | 0 | 0 |
+| TECH-PREVIEW | 7,772 | 7,770 | 2 | 0 | 0 |
+
+The headerless layouts of StarBreaker do not occur, so none is implemented; the survey fails if
+one appears.
+
+**Floating-point textures.** 107 on LIVE and TECH-PREVIEW alike: `R16G16B16A16_FLOAT` 48
+(vector fields, colour charts, nebula faces), `R16G16_FLOAT` 28 (flow maps), `R16_FLOAT` 26 and
+`R32_FLOAT` 5 (signed distance field volumes). Before, all 107 were written as clamped 8-bit PNG;
+now each is detected as high range and written as OpenEXR, one file per image, 8-bit output
+tone-mapped. None has an alpha tail. The formats `R11G11B10_FLOAT`, `R9G9B9E5_SHAREDEXP`,
+`R32G32_FLOAT`, `R32G32B32_FLOAT` and the signed 8-bit formats occur in no Channel; they decode
+with known-pixel tests. The format survey still reports 0 formats without a decoder.
+
+**Cubemap tail order.** 46 split cubemaps of LIVE hold two or more mips in the header Entry.
+For each mip pair from the last part down, the mean colour of each face of the smaller mip was
+compared with the face of the larger mip it derives from, and with the next face. In all 123
+pairs where the faces differ enough to tell, the own face is closer: the per-image order is
+right.
+
 ### The CryEngine trailer
 
 `Data\Textures\cubemaps\inventory_setup\cm_inventory_probe_cm.dds` is in every Channel and was

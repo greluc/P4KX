@@ -183,28 +183,6 @@ fn uncompressed_formats_in_use_decode_to_rgba() -> Result<(), TextureError> {
 }
 
 #[test]
-fn float_formats_are_clamped_to_eight_bits() -> Result<(), TextureError> {
-    let half = |value: u16| value.to_le_bytes();
-    let mut data = Vec::new();
-    for value in [0x3C00, 0x3800, 0xBC00, 0x4000] {
-        data.extend_from_slice(&half(value));
-    }
-    let image = decode(dxgi(10), 1, 1, &data)?;
-    assert_eq!(pixels(&image), [[255, 128, 0, 255]], "1, 0.5, -1 and 2");
-
-    let mut data = Vec::new();
-    for value in [0.25_f32, 1.5, 0.0, 1.0] {
-        data.extend_from_slice(&value.to_le_bytes());
-    }
-    let image = decode(dxgi(2), 1, 1, &data)?;
-    assert_eq!(pixels(&image), [[64, 255, 0, 255]], "32-bit floats");
-
-    let image = decode(dxgi(54), 1, 1, &half(0x3800))?;
-    assert_eq!(pixels(&image), [[128, 128, 128, 255]], "16-bit float grey");
-    Ok(())
-}
-
-#[test]
 fn rows_of_uncompressed_pixels_follow_each_other() -> Result<(), TextureError> {
     let data = [10, 20, 30, 40, 50, 60];
 
@@ -221,18 +199,18 @@ fn rows_of_uncompressed_pixels_follow_each_other() -> Result<(), TextureError> {
 
 #[test]
 fn a_format_without_a_decoder_is_named_in_the_error() {
-    let result = decode(dxgi(67), 1, 1, &[0; 4]);
+    let result = decode(dxgi(32), 1, 1, &[0; 4]);
 
     let Err(error) = result else {
-        panic!("R9G9B9E5 has no decoder");
+        panic!("R8G8B8A8_SINT has no decoder");
     };
     assert!(
-        matches!(error, TextureError::UnsupportedDecode(format) if format == dxgi(67)),
+        matches!(error, TextureError::UnsupportedDecode(format) if format == dxgi(32)),
         "unsupported decode: {error:?}"
     );
     assert_eq!(
         error.to_string(),
-        "decoding the texture format R9G9B9E5_SHAREDEXP is not supported",
+        "decoding the texture format R8G8B8A8_SINT is not supported",
         "the message names the format"
     );
 }

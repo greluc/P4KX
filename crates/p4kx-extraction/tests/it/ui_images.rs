@@ -35,7 +35,7 @@ fn a_texture_is_read_by_the_path_of_a_record_in_any_case() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
     let images = ArchiveImages::new(&archive);
-    let image = images.texture("ui/textures/TEST/quad.dds", 1000)?;
+    let image = images.texture("ui/textures/TEST/quad.dds", 1000, u64::MAX)?;
     assert_eq!((image.width(), image.height()), (32, 16), "the largest mip");
     Ok(())
 }
@@ -45,9 +45,9 @@ fn the_smallest_mip_that_still_covers_the_screen_is_decoded() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
     let images = ArchiveImages::new(&archive);
-    let image = images.texture("UI/Textures/Test/quad.dds", 8)?;
+    let image = images.texture("UI/Textures/Test/quad.dds", 8, u64::MAX)?;
     assert_eq!((image.width(), image.height()), (8, 4), "two levels down");
-    let tiny = images.texture("UI/Textures/Test/quad.dds", 1)?;
+    let tiny = images.texture("UI/Textures/Test/quad.dds", 1, u64::MAX)?;
     assert!(tiny.width() >= 1 && tiny.height() >= 1, "never empty");
     Ok(())
 }
@@ -56,7 +56,7 @@ fn the_smallest_mip_that_still_covers_the_screen_is_decoded() -> TestResult {
 fn a_texture_the_archive_lacks_is_an_unknown_entry() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path())?;
-    let result = ArchiveImages::new(&archive).texture("UI/Textures/Test/none.dds", 100);
+    let result = ArchiveImages::new(&archive).texture("UI/Textures/Test/none.dds", 100, u64::MAX);
     assert!(
         matches!(result, Err(ConversionError::UnknownEntry(_))),
         "{result:?}"

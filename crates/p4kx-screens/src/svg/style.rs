@@ -191,6 +191,7 @@ pub(super) struct Style {
     pub(super) fill_opacity: f32,
     pub(super) stroke_opacity: f32,
     pub(super) opacity: f32,
+    pub(super) base_opacity: f32,
     pub(super) cap: Cap,
     pub(super) join: Join,
     pub(super) miter_limit: f32,
@@ -210,6 +211,7 @@ impl Default for Style {
             fill_opacity: 1.0,
             stroke_opacity: 1.0,
             opacity: 1.0,
+            base_opacity: 1.0,
             cap: Cap::Butt,
             join: Join::Miter,
             miter_limit: 4.0,
@@ -249,7 +251,7 @@ impl Style {
             "stroke-opacity" => {
                 self.stroke_opacity = opacity(value).unwrap_or(self.stroke_opacity);
             }
-            "opacity" => self.opacity *= opacity(value).unwrap_or(1.0),
+            "opacity" => self.opacity = self.base_opacity * opacity(value).unwrap_or(1.0),
             "stroke-linecap" => {
                 self.cap = match value {
                     "round" => Cap::Round,

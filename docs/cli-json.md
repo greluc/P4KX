@@ -1358,7 +1358,8 @@ files add `texture missing or unreadable` and `vector graphic missing or unreada
 `<path>: <cause>`), `names no vector graphic; the game sets it at run time`, `the texture is chosen
 by the game at run time` and the features an SVG file uses that are left out (`paint servers are
 drawn as their first colour`, `clip paths, masks and filters are not applied`, `image and text
-elements are left out`, ...). `truncated` is true when a limit stopped the composition: 2^18 widgets visited or placed (hidden ones included),
+elements are left out`, `style rules beyond the limit are left out`, ...). `truncated` is true
+when a limit stopped the composition: 2^18 widgets visited or placed (hidden ones included),
 2^26 steps of the style cascade, 2^17 shapes, 2^14 instances of templates, 2^10 rows of one list
 or a depth of 64 widgets and canvases (ADR-0106). `skipped` lists what the renderer
 (raster or SVG writer) skipped of the scene, each with the stable `reason` code of

@@ -19,7 +19,7 @@ const BLUE: [u8; 4] = [0, 0, 255, 255];
 const WHITE: [u8; 4] = [255, 255, 255, 255];
 const CLEAR: [u8; 4] = [0, 0, 0, 0];
 
-pub(crate) fn texture(path: &str, _side: u32) -> Result<RgbaImage, String> {
+pub(crate) fn texture(path: &str, _side: u32, _pixels: u64) -> Result<RgbaImage, String> {
     let (width, height, pixels) = screens_texture(path).ok_or("no such Entry")?;
     RgbaImage::new(width, height, pixels).map_err(|error| error.to_string())
 }
@@ -157,9 +157,9 @@ fn a_missing_texture_is_listed_and_the_widget_skipped() -> TestResult {
 #[test]
 fn a_texture_is_read_once_however_often_it_is_used() -> TestResult {
     let reads = Cell::new(0_usize);
-    let counting = |path: &str, side: u32| {
+    let counting = |path: &str, side: u32, pixels: u64| {
         reads.set(reads.get() + 1);
-        texture(path, side)
+        texture(path, side, pixels)
     };
     let composed = compose_with(ImageSources {
         texture: &counting,
@@ -174,9 +174,9 @@ fn a_texture_is_read_once_however_often_it_is_used() -> TestResult {
 #[test]
 fn the_texture_loader_is_asked_for_the_size_of_the_screen() -> TestResult {
     let asked = Cell::new(0);
-    let recording = |path: &str, side: u32| {
+    let recording = |path: &str, side: u32, pixels: u64| {
         asked.set(side);
-        texture(path, side)
+        texture(path, side, pixels)
     };
     compose_with(ImageSources {
         texture: &recording,

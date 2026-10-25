@@ -194,8 +194,8 @@ fn the_path_budget_of_a_screen_stops_further_graphics() -> TestResult {
 fn use_elements_cannot_multiply_a_document_without_bound() -> TestResult {
     let svg = format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><defs><g id="a">{}</g></defs>{}</svg>"#,
-        "<g/>".repeat(3000),
-        r##"<use href="#a"/>"##.repeat(400)
+        format!(r#"<g style="{}"/>"#, "fill:#f00;".repeat(300)).repeat(100),
+        r##"<use href="#a"/>"##.repeat(100)
     );
     let composed = compose_svg(single(&svg), Limits::DEFAULT)?;
     let examples = unreadable(&composed);
@@ -263,7 +263,7 @@ fn the_pixel_budget_of_a_screen_stops_further_textures() -> TestResult {
 fn a_texture_that_cannot_be_read_names_the_reason() -> TestResult {
     let bytes = screens_image_sample().build();
     let forge = DataForge::open(&bytes)?;
-    let broken = |_: &str, _: u32| Err("the header is truncated".to_owned());
+    let broken = |_: &str, _: u32, _: u64| Err("the header is truncated".to_owned());
     let composed = ScreenComposer::new(&forge)
         .with_images(ImageSources {
             texture: &broken,

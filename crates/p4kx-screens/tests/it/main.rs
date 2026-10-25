@@ -8,6 +8,7 @@ mod corners;
 mod errors;
 mod image_limits;
 mod image_reference;
+mod image_work;
 mod images;
 mod instances;
 mod layout;

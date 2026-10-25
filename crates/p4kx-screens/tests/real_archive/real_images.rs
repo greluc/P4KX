@@ -81,7 +81,11 @@ fn the_images_of_real_ship_screens_are_drawn() -> TestResult {
             .map(|text| decode_line_breaks(text).into_owned())
     };
     let images = ArchiveImages::new(&archive);
-    let texture = |path: &str, side: u32| images.texture(path, side).map_err(|e| e.to_string());
+    let texture = |path: &str, side: u32, pixels: u64| {
+        images
+            .texture(path, side, pixels)
+            .map_err(|e| e.to_string())
+    };
     let vector = |path: &str| {
         images
             .vector(path, MAX_SVG_BYTES as u64)

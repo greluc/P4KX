@@ -40,7 +40,10 @@ Decided for issue #537, on top of ADR-0089 (screens), ADR-0101 (texts) and ADR-0
   over the widget, `Contain` keeps its aspect ratio inside, `Cover` keeps it and crops it to the
   widget; `containPositionX/Y` place the free space; flips mirror the fill; the colour of the
   widget (cascade `FillColor`, else `color`) multiplies the texture through the colour transform
-  of the placed item, with the alpha of the widget. Each texture is decoded once per screen and
+  of the placed item, with the alpha of the widget. A flip mirrors the picture about the centre
+  line of the rectangle it is drawn in (the fitted image, not the box of the widget, so a
+  `Contain` image stays where it is) and a nine-slice about its whole target; the clip is not
+  mirrored, and a value of the cascade replaces the one of the widget. Each texture is decoded once per screen and
   kept by its path; the scene's bitmaps travel with the `Composed`, so the PNG rasteriser and the
   SVG writer both draw them (SVG output embeds them as PNG).
 - An SVG file is read with `roxmltree` into `Scene` layers (fills and strokes, paths with
@@ -58,27 +61,38 @@ Decided for issue #537, on top of ADR-0089 (screens), ADR-0101 (texts) and ADR-0
   and an approximation across a cut line.
 - The SVG reader is bounded because the files are untrusted: at most 2 MiB, 2^16 XML nodes,
   nesting of 32 groups (deeper elements are left out and listed), 2^18 path commands per file
-  and 2^22 per screen, 1024 style rules, 4096 ids, 1024 graphics and 1024 textures per screen;
-  every number must be finite and within 10^7; the elements visited, `use` expansions included,
-  are capped at 2^20, and the copies a nine-slice or a palette slot makes count against the path
-  budget of the screen; an entity declaration in a `DOCTYPE` refuses the
-  file (a `DOCTYPE` without an internal subset is skipped), `use` follows only `#id` links inside
-  the file and counts the commands it expands to, and nothing is fetched. Textures are bounded
-  by `Limits::texture_pixels` (2^26 pixels per screen, 2^25 for one) and their decoder limits;
-  the pixel and path budgets of a screen are in `Limits`.
+  and 2^22 per screen, 1024 style rules, 256 KiB of style text, 4096 ids, 1024 graphics and 1024
+  textures per screen; every number must be finite and within 10^7. Only the direct text of a
+  `<style>` element is read, and the matching rules of an element are found once. The work of a
+  file is one budget of 2^24 units, which every visit of an element pays for, `use` expansions
+  included: the bytes of its presentation attributes and `style` attribute, its matched
+  declarations, and the bytes of its `d` and `points`; a file that runs it out is refused
+  (`TooManyElements`), and a screen has a budget of 2^27 units for all its files together. The
+  commands of a path count once for the fill and once more when a stroke is drawn as well, and the
+  copies a nine-slice or a palette slot makes count against the path budget of the screen. A
+  `use` of a `symbol` draws its children with the `viewBox` fitted to the size of the `use`;
+  a `use` that names itself or its ancestor is cut at the nesting limit and listed. An entity
+  declaration in a `DOCTYPE` refuses the file (a `DOCTYPE` without an internal subset is skipped),
+  `use` follows only `#id` links inside the file, and nothing is fetched. `opacity` applies once
+  per element, not once per place that sets it. Textures are bounded by `Limits::texture_pixels`
+  (2^26 pixels per screen, 2^25 for one) and their decoder limits; the loader is given what is
+  left of the pixel budget and picks a smaller mip to stay within it, so an image is not decoded
+  just to be refused; the pixel and path budgets of a screen are in `Limits`.
 - A texture or graphic that is missing, cannot be read or is beyond a limit lists the widget
   (`texture missing or unreadable`, `vector graphic missing or unreadable`, with the path and the
   cause) and the widget is skipped; an icon preset is the file `<snake_case>.svg` in the folder
   `UI/Textures/Vector/General/ModularKit/Widgets/IconWidget` (a convention seen in the paths of
   the custom shapes, listed as missing when the Archive lacks the file); a graphic a widget names
   only at run time (empty `svgPath`), and the overlays and backgrounds without a URL, are listed
-  with their own reasons. An image widget without a path is a plain box and says nothing. Placements whose
-  alpha is 0 at rest are not drawn. The report counts `images_drawn` and `images_left_out`.
+  with their own reasons and count in `images_left_out`. An image widget without a path is a
+  plain box and says nothing. Placements whose alpha is 0 at rest are not drawn. Images follow
+  the rotation, pivot, anchor and clips of ADR-0106 as every widget does. The report counts
+  `images_drawn` and `images_left_out`.
   Without `ImageSources`, image, custom shape and icon widgets are listed as without a renderer,
   as texts are without fonts.
 - Listed and not drawn: gradients (drawn flat in their first colour, listed), clip paths, masks,
   filters, `<image>` and `<text>` inside an SVG, the nonzero fill rule (the `Scene` fills
-  even-odd), rotation, pivot and anchor (#538), `segmentedFill`, `strokeExtent`,
+  even-odd), `segmentedFill`, `strokeExtent`,
   `playhead` and the animation of overlays.
 
 ## Considered Options

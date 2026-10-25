@@ -8,6 +8,7 @@ mod cubic;
 mod emit;
 mod number;
 mod path;
+mod reference;
 mod style;
 mod transform;
 
@@ -20,6 +21,7 @@ use thiserror::Error;
 use self::css::{Sheet, declarations};
 use self::emit::emit;
 use self::number::number_list;
+use self::reference::reference;
 pub(crate) use self::style::Slot;
 use self::style::{Colour, Style, colour, slot_of};
 
@@ -29,7 +31,21 @@ pub const MAX_SVG_BYTES: usize = 2 << 20;
 const MAX_NODES: u32 = 1 << 16;
 const MAX_DEPTH: usize = 32;
 const MAX_COMMANDS: usize = 1 << 18;
-const MAX_VISITS: usize = 1 << 20;
+const MAX_WORK: usize = 1 << 24;
+const MAX_CSS_BYTES: usize = 1 << 18;
+const PRESENTATION: [&str; 11] = [
+    "fill",
+    "stroke",
+    "stroke-width",
+    "fill-opacity",
+    "stroke-opacity",
+    "opacity",
+    "stroke-linecap",
+    "stroke-linejoin",
+    "stroke-miterlimit",
+    "display",
+    "visibility",
+];
 const MAX_IDS: usize = 1 << 12;
 const DOCTYPE_WINDOW: usize = 4096;
 
@@ -51,7 +67,7 @@ pub(crate) enum SvgError {
     Path,
     #[error("the paths have more than {MAX_COMMANDS} commands")]
     TooManyCommands,
-    #[error("the document draws more than {MAX_VISITS} elements")]
+    #[error("the document draws too many elements: more than {MAX_WORK} units of work")]
     TooManyElements,
 }
 
@@ -63,6 +79,7 @@ pub(crate) struct Vector {
     pub(crate) slots: Vec<Option<Slot>>,
     pub(crate) notes: Vec<&'static str>,
     pub(crate) commands: usize,
+    pub(crate) work: usize,
 }
 
 struct Walk<'a, 'input> {
@@ -72,11 +89,20 @@ struct Walk<'a, 'input> {
     layers: Vec<ShapeLayer>,
     slots: Vec<Option<Slot>>,
     budget: usize,
-    visits: usize,
+    work: usize,
+    matches: HashMap<roxmltree::NodeId, Vec<usize>>,
     notes: Vec<&'static str>,
 }
 
 impl Walk<'_, '_> {
+    fn charge(&mut self, units: usize) -> Result<(), SvgError> {
+        self.work = self
+            .work
+            .checked_sub(units)
+            .ok_or(SvgError::TooManyElements)?;
+        Ok(())
+    }
+
     fn note(&mut self, note: &'static str) {
         if !self.notes.contains(&note) {
             self.notes.push(note);
@@ -136,9 +162,24 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Vector, SvgError> {
         layers: Vec::new(),
         slots: Vec::new(),
         budget: MAX_COMMANDS,
-        visits: MAX_VISITS,
+        work: MAX_WORK,
+        matches: HashMap::new(),
         notes: Vec::new(),
     };
+    index(&document, &mut walk);
+    visit(&mut walk, root, &Style::default(), &Affine::IDENTITY, 0)?;
+    Ok(Vector {
+        view,
+        layers: walk.layers,
+        slots: walk.slots,
+        notes: walk.notes,
+        commands: MAX_COMMANDS - walk.budget,
+        work: MAX_WORK - walk.work,
+    })
+}
+
+fn index<'a, 'input>(document: &'a Document<'input>, walk: &mut Walk<'a, 'input>) {
+    let mut css_bytes = 0;
     for node in document.descendants().filter(Node::is_element) {
         if let Some(id) = node.attribute("id")
             && walk.ids.len() < MAX_IDS
@@ -146,12 +187,16 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Vector, SvgError> {
             walk.ids.insert(id, node);
         }
         match node.tag_name().name() {
-            "style" => walk.sheet.add(
-                &node
-                    .descendants()
-                    .filter_map(|n| n.text())
-                    .collect::<String>(),
-            ),
+            "style" => {
+                for text in node.children().filter_map(|child| child.text()) {
+                    css_bytes += text.len();
+                    if css_bytes > MAX_CSS_BYTES || walk.sheet.is_full() {
+                        walk.note("style rules beyond the limit are left out");
+                        break;
+                    }
+                    walk.sheet.add(text);
+                }
+            }
             "linearGradient" | "radialGradient" => {
                 if let Some(id) = node.attribute("id")
                     && walk.gradients.len() < MAX_IDS
@@ -162,14 +207,6 @@ pub(crate) fn parse(bytes: &[u8]) -> Result<Vector, SvgError> {
             _ => {}
         }
     }
-    visit(&mut walk, root, &Style::default(), &Affine::IDENTITY, 0)?;
-    Ok(Vector {
-        view,
-        layers: walk.layers,
-        slots: walk.slots,
-        notes: walk.notes,
-        commands: MAX_COMMANDS - walk.budget,
-    })
 }
 
 fn view_box(root: Node<'_, '_>) -> Option<[f32; 4]> {
@@ -222,33 +259,65 @@ fn first_stop(walk: &Walk<'_, '_>, id: &str) -> Option<Colour> {
     None
 }
 
-fn element_style(walk: &mut Walk<'_, '_>, node: Node<'_, '_>, inherited: &Style) -> Style {
+fn element_style(
+    walk: &mut Walk<'_, '_>,
+    node: Node<'_, '_>,
+    inherited: &Style,
+) -> Result<Style, SvgError> {
     let mut style = inherited.clone();
+    style.base_opacity = inherited.opacity;
     if let Some(slot) = node.attribute("id").and_then(slot_of) {
         style.slot = Some(slot);
     }
-    let mut declared: Vec<(String, String)> = Vec::new();
-    for attribute in node.attributes() {
-        declared.push((attribute.name().to_owned(), attribute.value().to_owned()));
+    let key = node.id();
+    if !walk.matches.contains_key(&key) {
+        let rules = walk.sheet.matching(
+            node.tag_name().name(),
+            node.attribute("class").unwrap_or_default(),
+            node.attribute("id").unwrap_or_default(),
+        );
+        walk.matches.insert(key, rules);
     }
-    let tag = node.tag_name().name();
-    let class = node.attribute("class").unwrap_or_default();
-    let id = node.attribute("id").unwrap_or_default();
-    declared.extend(walk.sheet.matching(tag, class, id).cloned());
-    declared.extend(
-        node.attribute("style")
-            .map(declarations)
-            .unwrap_or_default(),
-    );
+    let rules = walk.matches.get(&key).map_or(&[][..], Vec::as_slice);
+    let attributes: Vec<(&str, &str)> = PRESENTATION
+        .iter()
+        .filter_map(|name| Some((*name, node.attribute(*name)?)))
+        .collect();
+    let inline = node.attribute("style").unwrap_or_default();
+    let cost = attributes
+        .iter()
+        .map(|(name, value)| name.len() + value.len())
+        .sum::<usize>()
+        + inline.len()
+        + rules
+            .iter()
+            .map(|rule| walk.sheet.declared(*rule).len() * 16)
+            .sum::<usize>()
+        + PRESENTATION.len();
+    walk.work = walk
+        .work
+        .checked_sub(cost)
+        .ok_or(SvgError::TooManyElements)?;
     let mut notes: Vec<&'static str> = Vec::new();
     let gradients = |id: &str| first_stop(walk, id);
-    for (name, value) in &declared {
+    let mut apply = |name: &str, value: &str| {
         style.set(name, value, &gradients, &mut |note| notes.push(note));
+    };
+    for (name, value) in &attributes {
+        apply(name, value);
+    }
+    for rule in rules {
+        for (name, value) in walk.sheet.declared(*rule) {
+            apply(name, value);
+        }
+    }
+    for (name, value) in declarations(inline) {
+        apply(&name, &value);
     }
     for note in notes {
         walk.note(note);
     }
-    style
+    Ok(style)
 }
 
 fn visit(
@@ -262,11 +331,7 @@ fn visit(
         walk.note("elements nested deeper than 32 levels are left out");
         return Ok(());
     }
-    walk.visits = walk
-        .visits
-        .checked_sub(1)
-        .ok_or(SvgError::TooManyElements)?;
-    let style = element_style(walk, node, inherited);
+    let style = element_style(walk, node, inherited)?;
     if style.hidden {
         return Ok(());
     }
@@ -297,42 +362,16 @@ fn visit(
             walk.note("image and text elements are left out");
         }
         _ => {
+            let heavy = ["d", "points"]
+                .iter()
+                .filter_map(|name| node.attribute(*name))
+                .map(str::len)
+                .sum();
+            walk.charge(heavy)?;
             if let Some(commands) = basic::commands(node, &mut walk.budget)? {
-                emit(walk, &commands, &style, &total);
+                emit(walk, &commands, &style, &total)?;
             }
         }
     }
     Ok(())
-}
-
-fn reference(
-    walk: &mut Walk<'_, '_>,
-    node: Node<'_, '_>,
-    style: &Style,
-    total: &Affine,
-    depth: usize,
-) -> Result<(), SvgError> {
-    let target = node
-        .attribute(("http://www.w3.org/1999/xlink", "href"))
-        .or_else(|| node.attribute("href"))
-        .and_then(|link| link.strip_prefix('#'))
-        .and_then(|id| walk.ids.get(id).copied());
-    let Some(target) = target else {
-        walk.note("a use element of another file or of nothing is left out");
-        return Ok(());
-    };
-    let shift = |name: &str| {
-        node.attribute(name)
-            .and_then(number::leading_number)
-            .unwrap_or(0.0)
-    };
-    let moved = total.then(&transform::matrix(
-        1.0,
-        0.0,
-        0.0,
-        1.0,
-        shift("x"),
-        shift("y"),
-    ));
-    visit(walk, target, style, &moved, depth + 1)
 }

@@ -52,20 +52,25 @@ impl<'a> ArchiveImages<'a> {
     /// Reads the texture at `path` as 8-bit RGBA, with its alpha tail merged in.
     ///
     /// The mip chosen is the smallest one whose longer side is at least `wanted_side`, so a
-    /// texture is not decoded larger than the screen it is drawn on, nor larger than
-    /// [`MAX_SCREEN_TEXTURE_PIXELS`] pixels.
+    /// texture is not decoded larger than the screen it is drawn on, and a smaller one when the
+    /// image would have more than `max_pixels` (at most [`MAX_SCREEN_TEXTURE_PIXELS`]) pixels.
     ///
     /// # Errors
     ///
     /// Returns [`ConversionError::UnknownEntry`] when the Archive has no such texture, and
     /// another [`ConversionError`] when it cannot be read, decoded or is too large in every mip
     /// or holds several images.
-    pub fn texture(&self, path: &str, wanted_side: u32) -> Result<RgbaImage, ConversionError> {
+    pub fn texture(
+        &self,
+        path: &str,
+        wanted_side: u32,
+        max_pixels: u64,
+    ) -> Result<RgbaImage, ConversionError> {
         let index = self.index();
         let header_path =
             Self::locate(&index, path).ok_or_else(|| UnknownEntries(vec![path.to_owned()]))?;
         let texture = Texture::from_index(&index, &header_path)?;
-        let level = Self::level(texture.header(), wanted_side).ok_or_else(|| {
+        let level = Self::level(texture.header(), wanted_side, max_pixels).ok_or_else(|| {
             ConversionError::of_texture(
                 &header_path,
                 TextureError::InvalidHeader("the texture is too large for a screen"),
@@ -74,7 +79,7 @@ impl<'a> ArchiveImages<'a> {
         texture.decode_mip(level)
     }
 
-    fn level(header: &DdsHeader, wanted_side: u32) -> Option<u32> {
+    fn level(header: &DdsHeader, wanted_side: u32, max_pixels: u64) -> Option<u32> {
         let side = |level: u32| {
             (
                 header.width().checked_shr(level).unwrap_or(0).max(1),
@@ -92,7 +97,7 @@ impl<'a> ArchiveImages<'a> {
             .unwrap_or(0);
         (level..=last).find(|level| {
             let (width, height) = side(*level);
-            u64::from(width) * u64::from(height) <= MAX_SCREEN_TEXTURE_PIXELS
+            u64::from(width) * u64::from(height) <= max_pixels.min(MAX_SCREEN_TEXTURE_PIXELS)
         })
     }
 

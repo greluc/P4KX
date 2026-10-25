@@ -3,9 +3,9 @@
 
 use p4kx_gfx::{Affine, LayerKind, Paint, PathCommand, Rgba, ScenePath, ShapeLayer, StrokeStyle};
 
-use super::Walk;
 use super::number::MAX_MAGNITUDE;
 use super::style::{Colour, Ink, Style};
+use super::{SvgError, Walk};
 
 fn rgba(colour: Colour, factor: f32) -> Rgba {
     let [red, green, blue] = colour.rgb;
@@ -49,17 +49,24 @@ fn point_ok(p: p4kx_gfx::ScenePoint) -> bool {
     p.x.is_finite() && p.y.is_finite() && p.x.abs() <= MAX_MAGNITUDE && p.y.abs() <= MAX_MAGNITUDE
 }
 
-pub(super) fn emit(walk: &mut Walk<'_, '_>, commands: &[PathCommand], style: &Style, to: &Affine) {
+pub(super) fn emit(
+    walk: &mut Walk<'_, '_>,
+    commands: &[PathCommand],
+    style: &Style,
+    to: &Affine,
+) -> Result<(), SvgError> {
     if commands.is_empty() {
-        return;
+        return Ok(());
     }
     let Some(path) = transformed(commands, to) else {
         walk.note("a path with coordinates out of range is left out");
-        return;
+        return Ok(());
     };
+    let mut drawn = 0;
     if let Ink::Colour(fill) = style.fill {
         let colour = rgba(fill, style.fill_opacity * style.opacity);
         if colour.alpha > 0 {
+            drawn += 1;
             walk.slots.push(style.slot.clone());
             walk.layers.push(ShapeLayer {
                 path: path.clone(),
@@ -73,6 +80,7 @@ pub(super) fn emit(walk: &mut Walk<'_, '_>, commands: &[PathCommand], style: &St
         let scale = to.b.mul_add(-to.c, to.a * to.d).abs().sqrt();
         let width = style.stroke_width * scale;
         if colour.alpha > 0 && width > 0.0 && width.is_finite() {
+            drawn += 1;
             walk.slots.push(style.slot.clone());
             walk.layers.push(ShapeLayer {
                 path,
@@ -86,4 +94,11 @@ pub(super) fn emit(walk: &mut Walk<'_, '_>, commands: &[PathCommand], style: &St
             });
         }
     }
+    if drawn > 1 {
+        walk.budget = walk
+            .budget
+            .checked_sub(commands.len())
+            .ok_or(SvgError::TooManyCommands)?;
+    }
+    Ok(())
 }

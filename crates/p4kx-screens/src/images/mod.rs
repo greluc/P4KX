@@ -20,8 +20,9 @@ use crate::svg::{self, Vector};
 /// Reads and decodes the texture at a path of the Archive.
 ///
 /// The second argument is the side in pixels that the screen is at most drawn at, from which an
-/// implementation can pick a mip level to decode; the result is 8-bit RGBA.
-pub type LoadTexture<'a> = &'a dyn Fn(&str, u32) -> Result<Decoded, String>;
+/// implementation can pick a mip level to decode; the third is the most pixels the image may
+/// have, which the implementation keeps below by picking a smaller mip. The result is 8-bit RGBA.
+pub type LoadTexture<'a> = &'a dyn Fn(&str, u32, u64) -> Result<Decoded, String>;
 
 /// Reads the bytes of a vector graphic at a path of the Archive, at most
 /// [`MAX_SVG_BYTES`](crate::MAX_SVG_BYTES) of them.
@@ -39,6 +40,7 @@ pub struct ImageSources<'a> {
 const MAX_TEXTURES: usize = 1 << 10;
 const MAX_TEXTURE_PIXELS: u64 = 1 << 25;
 const MAX_VECTORS: usize = 1 << 10;
+const MAX_SCREEN_WORK: usize = 1 << 27;
 
 /// A decoded texture of the scene.
 #[derive(Debug)]
@@ -67,6 +69,7 @@ pub(crate) struct Images<'t> {
     pixels: u64,
     vectors: HashMap<String, Result<Rc<VectorEntry>, String>>,
     commands: usize,
+    work: usize,
 }
 
 impl<'t> Images<'t> {
@@ -102,7 +105,13 @@ impl<'t> Images<'t> {
         if self.textures.len() >= MAX_TEXTURES {
             return Err(format!("the screen uses more than {MAX_TEXTURES} textures"));
         }
-        let image = (sources.texture)(path, self.side)?;
+        let allowed = MAX_TEXTURE_PIXELS
+            .min(self.limits.texture_pixels)
+            .min(self.limits.texture_pixels.saturating_sub(self.pixels));
+        if allowed == 0 {
+            return Err("the textures of the screen exceed the pixel budget".to_owned());
+        }
+        let image = (sources.texture)(path, self.side, allowed)?;
         let (width, height) = (image.width(), image.height());
         let pixels = u64::from(width) * u64::from(height);
         if pixels == 0 || pixels > MAX_TEXTURE_PIXELS.min(self.limits.texture_pixels) {
@@ -148,10 +157,14 @@ impl<'t> Images<'t> {
         }
         let bytes = (sources.vector)(path)?;
         let vector = svg::parse(&bytes).map_err(|error| error.to_string())?;
+        if self.work.saturating_add(vector.work) > MAX_SCREEN_WORK {
+            return Err("the vector graphics of the screen exceed the work budget".to_owned());
+        }
         if self.commands.saturating_add(vector.commands) > self.limits.vector_commands {
             return Err("the vector graphics of the screen exceed the path budget".to_owned());
         }
         self.commands += vector.commands;
+        self.work += vector.work;
         Ok(Rc::new(VectorEntry {
             vector,
             shape: Cell::new(None),

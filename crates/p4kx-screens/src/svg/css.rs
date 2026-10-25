@@ -82,24 +82,28 @@ impl Sheet {
         }
     }
 
-    /// Returns the declarations that apply to an element, in the order of the rules.
-    pub(super) fn matching<'s>(
-        &'s self,
-        tag: &str,
-        class: &str,
-        id: &str,
-    ) -> impl Iterator<Item = &'s (String, String)> {
+    pub(super) const fn is_full(&self) -> bool {
+        self.rules.len() >= MAX_RULES
+    }
+
+    /// Returns the numbers of the rules that apply to an element, in order.
+    pub(super) fn matching(&self, tag: &str, class: &str, id: &str) -> Vec<usize> {
         let classes: Vec<&str> = class.split_whitespace().collect();
-        let tag = tag.to_owned();
-        let id = id.to_owned();
         self.rules
             .iter()
-            .filter(move |(selector, _)| match selector {
+            .enumerate()
+            .filter(|(_, (selector, _))| match selector {
                 Selector::All => true,
-                Selector::Tag(name) => *name == tag,
+                Selector::Tag(name) => name == tag,
                 Selector::Class(name) => classes.contains(&name.as_str()),
-                Selector::Id(name) => *name == id,
+                Selector::Id(name) => name == id,
             })
-            .flat_map(|(_, declared)| declared.iter())
+            .map(|(at, _)| at)
+            .collect()
+    }
+
+    /// Returns the declarations of rule `at`.
+    pub(super) fn declared(&self, at: usize) -> &[(String, String)] {
+        self.rules.get(at).map_or(&[][..], |(_, declared)| declared)
     }
 }

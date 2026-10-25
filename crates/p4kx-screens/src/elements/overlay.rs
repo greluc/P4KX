@@ -15,6 +15,7 @@ pub(super) fn paint(
     alpha: f32,
 ) {
     if widget.picture.url.is_empty() {
+        cx.report.images_left_out += 1;
         cx.report.note(
             &widget.type_name,
             "the texture is chosen by the game at run time",

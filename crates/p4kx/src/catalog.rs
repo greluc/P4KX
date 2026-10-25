@@ -14,9 +14,9 @@ use p4kx_export::{
     write_catalog,
 };
 use p4kx_extraction::Archive;
-use thiserror::Error;
 
 use super::catalog_json::summary_json;
+use crate::catalog_input::{InvalidExportTime, MissingCatalogArgs, refuse_gzip};
 use crate::cli::{CatalogArgs, CatalogCommand};
 use crate::exit;
 use crate::extract::cancel_on_interrupt;
@@ -25,23 +25,6 @@ use crate::loc::print_notes;
 use crate::progress::ProgressLine;
 
 const STALE_SLUGS_SHOWN: usize = 5;
-
-/// An export time that no system time can hold.
-#[derive(Debug, Error)]
-#[error("the export time {0} lies beyond the supported range")]
-pub(crate) struct InvalidExportTime(u64);
-
-impl InvalidExportTime {
-    /// Returns the error for the export time `seconds`.
-    pub(crate) const fn of(seconds: u64) -> Self {
-        Self(seconds)
-    }
-}
-
-/// `p4kx catalog` was given no Archive or no output file.
-#[derive(Debug, Error)]
-#[error("p4kx catalog needs an Archive and --out")]
-pub(crate) struct MissingCatalogArgs;
 
 /// Writes the Basetool catalog of the Archive to the output file and prints its summary, or
 /// prints the catalog's JSON Schema; the exit code is 1 when a selected Record could not be read.
@@ -53,11 +36,12 @@ pub(crate) fn run(args: &CatalogArgs, as_json: bool) -> Result<ExitCode> {
     let (Some(archive), Some(out)) = (&args.archive, &args.out) else {
         return Err(MissingCatalogArgs.into());
     };
+    refuse_gzip(out)?;
     let exported_at = match args.exported_at {
         None => SystemTime::now(),
         Some(seconds) => UNIX_EPOCH
             .checked_add(Duration::from_secs(seconds))
-            .ok_or(InvalidExportTime(seconds))?,
+            .ok_or_else(|| InvalidExportTime::of(seconds))?,
     };
     let archive = crate::key::open(archive)?;
     let filter = args.filter.as_deref().map(Filter::new);

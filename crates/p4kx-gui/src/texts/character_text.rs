@@ -101,8 +101,6 @@ pub enum CharacterText {
     ExportRunningTitle,
     /// The title of the window of the finished export.
     ExportDoneTitle,
-    /// The accessible name of the 3D view; takes `name`, `parts` and `triangles`.
-    ViewLabel,
     /// Shown while the models are turned into the scene.
     ViewPreparing,
     /// The heading of the report; takes `number`.
@@ -119,7 +117,7 @@ pub enum CharacterText {
 
 impl CharacterText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 55] = [
+    pub(crate) const ALL: [Self; 54] = [
         Self::Tab,
         Self::EmptyHint,
         Self::BodyHeading,
@@ -168,7 +166,6 @@ impl CharacterText {
         Self::ExportCounts,
         Self::ExportRunningTitle,
         Self::ExportDoneTitle,
-        Self::ViewLabel,
         Self::ViewPreparing,
         Self::ReportHeading,
         Self::ReportAll,
@@ -229,7 +226,6 @@ impl CharacterText {
             Self::ExportCounts => "characters-export-counts",
             Self::ExportRunningTitle => "characters-export-running-title",
             Self::ExportDoneTitle => "characters-export-done-title",
-            Self::ViewLabel => "characters-view-label",
             Self::ViewPreparing => "characters-view-preparing",
             Self::ReportHeading => "characters-report-heading",
             Self::ReportAll => "characters-report-all",

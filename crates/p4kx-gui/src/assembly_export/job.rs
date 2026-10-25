@@ -47,6 +47,8 @@ pub(crate) struct Request {
     pub(crate) materials: ModelMaterials,
     pub(crate) texture_mip: u32,
     pub(crate) vertex_colours: bool,
+    #[cfg(feature = "test-hooks")]
+    pub(crate) pause: crate::hold::Pause,
 }
 
 impl Request {

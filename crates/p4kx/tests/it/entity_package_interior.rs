@@ -40,7 +40,7 @@ fn the_interior_option_adds_containers_objects_and_lights_and_the_schema_accepts
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     assert!(
         run.stdout
-            .contains("Interior: 3 containers, 2 objects, 5 lights"),
+            .contains("Interior: 3 object containers, 2 objects, 5 lights"),
         "{}",
         run.stdout
     );

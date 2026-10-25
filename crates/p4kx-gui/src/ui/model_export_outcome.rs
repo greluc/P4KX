@@ -17,6 +17,7 @@ use crate::theme::tokens::SPACE_3;
 use crate::widgets::button::Kind;
 use crate::widgets::frames::{self, Tone};
 use crate::widgets::indicator;
+use crate::widgets::placement;
 use crate::{
     ExtractionText, Language, MaterialProblem, Model, ModelExportFailure, ModelExportProgress,
     ModelExportStage, ModelExportStatus, ModelExportSummary, ModelExportText as T, ModelInfoText,
@@ -40,7 +41,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
         ModelExportStatus::Running(progress) => {
             let cancelling = run.is_cancelled();
             let title = texts.get(T::RunningTitle);
-            let shown = frames::window(&title, Tone::Normal)
+            let shown = placement::window(ui.ctx(), &title, Tone::Normal)
                 .id(Id::unique(WINDOW))
                 .collapsible(false)
                 .resizable(false)

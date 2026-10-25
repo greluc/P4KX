@@ -5,7 +5,7 @@ use p4kx_extraction::{DataForge, Filter, Guid, JsonLayout, Record, RecordJson, T
 use rayon::prelude::*;
 use serde_json::value::RawValue;
 
-use crate::budget::{Budget, Capped, MAX_RESPONSE_LEN, fill};
+use crate::budget::{Budget, Capped, MAX_RESPONSE_LEN, fill_within, json_len};
 use crate::error::ToolError;
 use crate::forge_shapes::{RecordResult, RecordSearchResult, RecordShape};
 use crate::page::Page;
@@ -41,6 +41,7 @@ pub(crate) fn get(
     let records = select(forge, selector)?;
     let total = records.len();
     let mut budget = Budget::new();
+    budget.take(json_len(&(&archive, total)).saturating_add(128));
     let mut builder = TreeBuilder::new();
     let mut writer = RecordJson::new(JsonLayout::Compact);
     let mut taken = Vec::new();
@@ -121,15 +122,22 @@ pub(crate) fn search(
         .iter()
         .filter_map(|&index| forge.record(index))
         .map(|record| shape(&record));
-    let (records, next_cursor) = fill(page, matches.len(), items, |record| {
-        format!("Record {}", record.name)
-    })?;
-    Ok(RecordSearchResult {
+    let mut result = RecordSearchResult {
         archive,
         total: matches.len(),
-        records,
-        next_cursor,
-    })
+        records: Vec::new(),
+        next_cursor: None,
+    };
+    let (records, next_cursor) = fill_within(
+        page,
+        matches.len(),
+        json_len(&result),
+        items,
+        |record: &RecordShape| format!("Record {}", record.name),
+    )?;
+    result.records = records;
+    result.next_cursor = next_cursor;
+    Ok(result)
 }
 
 fn shape(record: &Record<'_>) -> Result<RecordShape, ToolError> {

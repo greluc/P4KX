@@ -4,7 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use p4kx_dataforge::{DataForge, Guid, Record, TreeBuilder};
+use p4kx_dataforge::{DataForge, Guid, Record, RecordTree, TreeBuilder};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::entities::is_entity;
@@ -119,6 +119,28 @@ impl<'f> LoadoutResolver<'f> {
         Ok(self.node(spec, None, &mut walk))
     }
 
+    /// Resolves the default Loadout of `entity` like [`resolve`](Self::resolve), taking the
+    /// Entity's own Record from `tree`, which the caller already built from it, so that the
+    /// Record is not built again. A `tree` of another Record is ignored.
+    ///
+    /// # Errors
+    ///
+    /// As [`resolve`](Self::resolve).
+    pub fn resolve_tree(
+        &mut self,
+        entity: &Record<'f>,
+        tree: &RecordTree<'f>,
+    ) -> Result<EntityNode, LoadoutError> {
+        if tree.guid() == entity.guid()
+            && !self.specs.contains_key(&entity.guid())
+            && is_entity(entity)
+        {
+            self.specs
+                .insert(entity.guid(), Arc::new(Ok(EntitySpec::read(tree))));
+        }
+        self.resolve(entity)
+    }
+
     /// Resolves the default Loadout of `entity` with `changes` applied: the ports they exclude
     /// hold nothing and have the source [`PortSource::Excluded`](crate::PortSource::Excluded);
     /// the ports they replace hold the replacing Entity with its own Loadout and have the source
@@ -221,7 +243,9 @@ impl<'f> LoadoutResolver<'f> {
             Some(LoadoutSpec::Layered(layers)) => self.layered_entries(layers),
             Some(LoadoutSpec::Xml(path)) => {
                 let Some(files) = self.files else {
-                    return Err(LoadoutError::NoLoadoutFiles { path: path.clone() });
+                    return Err(LoadoutError::NoLoadoutFiles {
+                        path: path.to_string(),
+                    });
                 };
                 self.xml
                     .entry(path.to_ascii_lowercase())

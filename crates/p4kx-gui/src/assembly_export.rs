@@ -6,7 +6,6 @@ mod summary;
 mod target;
 
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
 
 use p4kx_assembly::LoadoutChanges;
 use p4kx_extraction::{Guid, WriteRefused};
@@ -27,8 +26,6 @@ pub const ASSEMBLY_LODS: [u32; 4] = [0, 1, 2, 3];
 /// The material modes the Export of an Entity as GLB offers.
 pub const ASSEMBLY_MATERIALS: [ModelMaterials; 2] =
     [ModelMaterials::Colours, ModelMaterials::Textures];
-
-static NO_CHANGES: LazyLock<LoadoutChanges> = LazyLock::new(LoadoutChanges::default);
 
 /// The choices of an Export as GLB before it starts.
 ///
@@ -173,12 +170,8 @@ impl AssemblyExportSetup {
 
     /// Returns the changes made to the Loadout, which the export applies; none for a container.
     #[must_use]
-    pub fn changes(&self) -> &LoadoutChanges {
-        if self.entity.is_some() {
-            &self.changes
-        } else {
-            &NO_CHANGES
-        }
+    pub const fn changes(&self) -> &LoadoutChanges {
+        &self.changes
     }
 
     /// Returns whether the Entity names object containers, so that the export can carry its
@@ -332,6 +325,8 @@ impl AssemblyExportSetup {
             materials: self.materials,
             texture_mip: self.texture_mip,
             vertex_colours: self.vertex_colours,
+            #[cfg(feature = "test-hooks")]
+            pause: crate::hold::Pause::default(),
         })
     }
 

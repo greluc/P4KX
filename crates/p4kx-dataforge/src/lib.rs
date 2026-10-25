@@ -6,8 +6,9 @@
 //! [`DataForge::open`] reads versions 6 and 8 without copying: the header, the struct, property,
 //! enum, data mapping and Record tables, the value pools and the text and blob tables are checked
 //! once and then read as typed views with explicit little-endian decoding. The versions differ
-//! only in the Record table, whose version 8 rows carry a tag. Any other version is an error,
-//! never a best-effort parse.
+//! only in the Record table, whose version 8 rows carry a tag. Any other version, version 5 and
+//! older included, is [`DataForgeError::UnsupportedVersion`], never a best-effort parse
+//! (ADR-0136).
 //!
 //! [`Record::tree`] builds the canonical [`RecordTree`] of one Record, the single model every
 //! output is made from: owned children nested, References as links (ADR-0004). [`RecordXml`]

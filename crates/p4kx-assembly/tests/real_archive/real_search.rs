@@ -24,7 +24,10 @@ fn report(line: &str) {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_search_is_fast_bounded_and_deterministic() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let built = Instant::now();
     let index = AudioIndex::build(&archive);
     report(&format!("index built in {:?}", built.elapsed()));
@@ -57,7 +60,10 @@ fn a_search_is_fast_bounded_and_deterministic() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_entities_of_the_triggers_of_a_page_are_found() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = AudioIndex::build(&archive);
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;

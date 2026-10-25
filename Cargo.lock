@@ -3709,6 +3709,7 @@ dependencies = [
  "png",
  "rayon",
  "roxmltree",
+ "schemars",
  "serde",
  "serde_json",
  "tempfile",

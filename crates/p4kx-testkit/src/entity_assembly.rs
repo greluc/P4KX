@@ -3,7 +3,8 @@
 
 use crate::{
     DataForgeBuilder, TestEntity, TestEntry, TestLoadout, TestLoadoutEntry, TestModel, TestMtl,
-    TestMtlMaterial, TestNode, TestPort, entity_schema,
+    TestMtlMaterial, TestNode, TestPort, TestRecord, TestStruct, TestType, TestValue,
+    entity_schema,
 };
 
 /// The material library the sample assembly's gun Entity chooses, replacing the one its model
@@ -140,5 +141,34 @@ pub fn assembly_entries() -> Vec<TestEntry> {
         "Data\\Objects\\Test\\cube.mtl",
         library([0.1, 0.1, 0.8]),
     ));
+    entries
+}
+
+/// Returns the Entries of [`assembly_entries`] with the camera of the vehicle hologram.
+///
+/// A `UIHoloVehicle_Config` Record sets the field of view to `camera[0]` degrees, the view angle
+/// to `camera[1]` degrees and the distance scaler to `camera[2]`.
+#[must_use]
+pub fn hologram_entries(camera: [f32; 3]) -> Vec<TestEntry> {
+    let config = TestStruct::new("UIHoloVehicle_Config")
+        .field("cameraFOV", TestType::Single)
+        .field("ownDefaultViewAngle", TestType::Single)
+        .field("ownCameraDistanceScaler", TestType::Single);
+    let record = TestRecord::new(
+        0x7001,
+        "UIHoloVehicle_Config",
+        "UIHoloVehicle_Config.Vehicle",
+        "libs/foundry/records/ui/holo/vehicle_config.xml",
+    )
+    .value("cameraFOV", TestValue::Single(camera[0]))
+    .value("ownDefaultViewAngle", TestValue::Single(camera[1]))
+    .value("ownCameraDistanceScaler", TestValue::Single(camera[2]));
+    let mut entries = assembly_entries();
+    if let Some(first) = entries.first_mut() {
+        *first = TestEntry::zstd(
+            "Data\\Game2.dcb",
+            database().structure(config).record(record).build(),
+        );
+    }
     entries
 }

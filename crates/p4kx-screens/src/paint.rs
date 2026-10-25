@@ -4,11 +4,12 @@
 use std::collections::HashMap;
 
 use p4kx_gfx::{
-    Affine, Cap, ColorTransform, Join, LayerKind, Origin, Paint, PathCommand, Rect, Rgba, Scene,
-    SceneItem, ScenePath, ScenePoint, SceneShape, ShapeLayer, StrokeStyle,
+    Cap, ColorTransform, Join, LayerKind, Origin, Paint, PathCommand, Rect, Rgba, Scene, SceneItem,
+    ScenePath, ScenePoint, SceneShape, ShapeLayer, StrokeStyle,
 };
 
 use crate::glyphs::GlyphKey;
+use crate::paint_state::{PaintState, bounds_of};
 
 pub(crate) const TWIPS: f32 = 20.0;
 const ARC_SEGMENTS: u8 = 16;
@@ -55,6 +56,7 @@ pub(crate) struct Painter {
     pub(crate) shapes: Vec<SceneShape>,
     pub(crate) items: Vec<SceneItem>,
     pub(crate) glyphs: HashMap<GlyphKey, Option<usize>>,
+    pub(crate) state: PaintState,
 }
 
 impl Painter {
@@ -76,6 +78,11 @@ impl Painter {
         if !area.is_empty() {
             self.push(ellipse(area), colour, Mode::Fill);
         }
+    }
+
+    /// Fills the closed contours of `commands` with the even-odd rule.
+    pub(crate) fn fill_outline(&mut self, commands: Vec<PathCommand>, colour: Rgba) {
+        self.push(commands, colour, Mode::Fill);
     }
 
     pub(crate) fn stroke_ellipse(&mut self, area: Area, colour: Rgba, width: f32) {
@@ -100,30 +107,36 @@ impl Painter {
         if colour.alpha == 0 || self.is_full() {
             return;
         }
+        let (kind, reach) = match mode {
+            Mode::Fill => (LayerKind::Fill, 0.0),
+            Mode::Stroke(width) => (
+                LayerKind::Stroke(StrokeStyle {
+                    width: width * TWIPS,
+                    cap: Cap::Butt,
+                    join: Join::Miter,
+                    miter_limit: MITER_LIMIT,
+                }),
+                width * TWIPS,
+            ),
+        };
+        let path = ScenePath { commands };
+        let transform = self.state.to_twips();
+        let mask = self.mask_of(bounds_of(&path).as_ref(), reach, &transform);
         let index = self.shapes.len();
         let id = u16::try_from(index % usize::from(u16::MAX)).unwrap_or(0);
-        let kind = match mode {
-            Mode::Fill => LayerKind::Fill,
-            Mode::Stroke(width) => LayerKind::Stroke(StrokeStyle {
-                width: width * TWIPS,
-                cap: Cap::Butt,
-                join: Join::Miter,
-                miter_limit: MITER_LIMIT,
-            }),
-        };
         self.shapes.push(SceneShape {
             id,
             layers: vec![ShapeLayer {
-                path: ScenePath { commands },
+                path,
                 paint: Paint::Solid(colour),
                 kind,
             }],
         });
         self.items.push(SceneItem {
             shape: index,
-            transform: Affine::IDENTITY,
+            transform,
             color_transform: ColorTransform::IDENTITY,
-            mask: None,
+            mask,
             origin: Origin {
                 id,
                 depth: 0,
@@ -148,7 +161,7 @@ impl Painter {
             background: None,
             shapes: self.shapes,
             items: self.items,
-            masks: Vec::new(),
+            masks: self.state.masks,
             skipped: Vec::new(),
         }
     }
@@ -158,7 +171,7 @@ fn is_sane(value: f32) -> bool {
     value.is_finite() && value.abs() <= MAX_COORDINATE
 }
 
-fn rectangle(area: Area) -> Vec<PathCommand> {
+pub(crate) fn rectangle(area: Area) -> Vec<PathCommand> {
     let (left, top) = (area.x, area.y);
     let (right, bottom) = (area.x + area.width, area.y + area.height);
     vec![
@@ -211,7 +224,7 @@ fn polygon(points: &[(f32, f32)]) -> Option<Vec<PathCommand>> {
     Some(commands)
 }
 
-fn point(x: f32, y: f32) -> ScenePoint {
+pub(crate) fn point(x: f32, y: f32) -> ScenePoint {
     ScenePoint {
         x: x * TWIPS,
         y: y * TWIPS,

@@ -1252,6 +1252,32 @@ first the tags that could not be read (`kind` `tag`, with `code` and
 or `failed` is not empty. A canvas that is empty or larger than 16384 pixels a side or 2^25
 pixels, and a `--out` that is the movie file, print no JSON and fail with exit code 2.
 
+## `p4kx ui hologram <archive> <entity> --out <file.png> [--size …] [--background …] [--view-angle …] [--elevation …] [--fov …] [--distance-scaler …] [--tint …] [--opacity …] [--glow …] [--lod <n>] [--software] --json`
+
+```json
+{"archive": "C:\\…\\LIVE\\Data.p4k", "entity": "AEGS_Avenger_Titan", "guid": "…",
+ "out": "C:\\…\\titan.png", "width": 1600, "height": 900, "bytes": 56408,
+ "parts": 72, "modelled_parts": 44, "drawn_parts": 43, "meshes": 25, "triangles": 589733,
+ "camera": {"source": "record", "fov_degrees": 10.0, "view_angle_degrees": 60.0,
+            "elevation_degrees": 20.0, "distance_scaler": 1.5},
+ "adapter": "NVIDIA GeForce RTX 5090 (Vulkan)",
+ "milliseconds": {"assembly": 1166, "scene": 11, "draw": 484, "write": 11, "total": 1674},
+ "issues": [Issue, …]}
+```
+
+`camera.source` is `record` when the `UIHoloVehicle_Config` Record of the Archive set the camera,
+`defaults` when it has none (a field of view of 10 degrees, a view angle of 60 and a distance
+factor of 1.5), and `… and options` when `--fov`, `--view-angle` or `--distance-scaler` replaced
+a value. The camera values are the ones used: values that are not finite fall back to the
+defaults and the rest are clamped, as the camera does. `drawn_parts` is the number of parts with
+geometry the picture shows, `triangles` the triangles they place, and `issues` the notes and
+skipped parts of the Assembly as `entity glb` lists them. `milliseconds` splits the run into
+reading and assembling, building the scene, drawing and reading the picture back, and writing
+the file. An Entity the Archive lacks, a bad option, a `--out` that is the Archive or lies in a
+Star Citizen installation, a `--size` that is empty or beyond what the device draws and a
+Loadout change that does not fit print no JSON and fail with exit code 2; a machine without a
+graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
+
 ## `p4kx ui screens <archive> <entity> --json`
 
 The `BuildingBlocks` screens of an Entity and of everything attached in its resolved default
@@ -1310,15 +1336,24 @@ composed, `shapes` the shapes drawn (every placed glyph counts), `texts_drawn` a
 the text widgets whose text was and was not drawn (empty or run-time texts, a missing font or
 colour, a limit), `canvases` the canvases composed (the screen's own and the
 nested ones). `unsupported` lists per element type and reason (`no renderer for this element
-type`, `rotation is not applied`, `automatic size taken as the size of the parent`, `wrapping flex
-containers are laid out without wrapping`, `<layout> children are laid out as an overlay`, `colour
-slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not evaluated` for
-a `StyleEntry`, and the reasons of circles and polygons) how many widgets it concerns and the names of
-up to three. `missing_canvases` names nested canvases that cannot be read, that no Record answers
-or that contain themselves; widgets whose parents form a cycle are listed in `unsupported`
-(`not reachable from a root: its parents form a cycle`). `truncated` is true when a limit stopped
-the composition: 2^18 widgets visited or placed (hidden ones included), 2^26 steps of the style
-cascade, 2^17 shapes or a depth of 64 widgets and canvases. `skipped` lists what the renderer
+type`, `automatic size taken as the size of the parent`, `<layout> children are laid out as an
+overlay` for spacer containers, `list rows come from run-time data: none drawn at rest`, `list
+rows repeat the template without the values of their rows`, `fading edges of the overflow are not
+drawn`, `gradient backgrounds are drawn in the plain colour of the background`, `borders that
+differ are drawn straight on a box with rounded corners`, `the turn and scale of the parent are
+not undone: they are inherited`, `a number of the geometry is not finite: the default is used`,
+`transform is not finite: not drawn`, `scale of the canvas is not finite: not drawn` (element
+`Canvas`),
+`no target that is a widget of the canvas: nothing repeated`, `the template contains a clone of
+itself: not repeated`, `clipping stopped at the 24th mask: later content is not clipped`,
+`colour slot <name> is not in the palette`, `colour of kind <type>`, `selector <type> is not
+evaluated` for a `StyleEntry`, and the reasons of circles, polygons and texts) how many widgets it
+concerns and the names of up to three. `missing_canvases` names nested canvases that cannot be
+read, that no Record answers or that contain themselves; widgets whose parents form a cycle are
+listed in `unsupported` (`not reachable from a root: its parents form a cycle`). `truncated` is
+true when a limit stopped the composition: 2^18 widgets visited or placed (hidden ones included),
+2^26 steps of the style cascade, 2^17 shapes, 2^14 instances of templates, 2^10 rows of one list
+or a depth of 64 widgets and canvases (ADR-0106). `skipped` lists what the renderer
 (raster or SVG writer) skipped of the scene, each with the stable `reason` code of
 `p4kx ui render` and a `message`; it is `[]` when nothing was skipped.
 

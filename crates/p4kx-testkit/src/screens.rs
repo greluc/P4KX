@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use crate::screens_geometry::{box_structs, instance_structs};
 use crate::screens_text_schema::text_structs;
 use crate::{DataForgeBuilder, TestStruct, TestType};
 
@@ -35,6 +36,8 @@ pub fn screens_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(style_structs())
         .chain(condition_structs())
         .chain(component_structs())
+        .chain(instance_structs())
+        .chain(box_structs())
         .chain(text_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
@@ -49,8 +52,17 @@ fn layout_structs() -> Vec<TestStruct> {
             .field("value", TestType::Single)
             .field("behavior", TestType::String),
         TestStruct::new("BuildingBlocks_Size")
+            .field("enableMinWidth", TestType::Bool)
+            .field("enableMinHeight", TestType::Bool)
+            .field("enableMaxWidth", TestType::Bool)
+            .field("enableMaxHeight", TestType::Bool)
             .field("width", class("BuildingBlocks_FixedOrRelativeValue"))
-            .field("height", class("BuildingBlocks_FixedOrRelativeValue")),
+            .field("height", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("minWidth", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("minHeight", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("maxWidth", class("BuildingBlocks_FixedOrRelativeValue"))
+            .field("maxHeight", class("BuildingBlocks_FixedOrRelativeValue")),
+        TestStruct::new("BuildingBlocks_Overflow").field("overflow", TestType::String),
         TestStruct::new("BuildingBlocks_TRBL")
             .field("top", TestType::Single)
             .field("right", TestType::Single)
@@ -62,10 +74,21 @@ fn layout_structs() -> Vec<TestStruct> {
             .field("direction", TestType::String)
             .field("wrap", TestType::String)
             .field("axisJustification", TestType::String)
+            .field("crossAxisJustification", TestType::String)
             .field("itemAlignment", TestType::String)
             .field("columnSpacing", TestType::Single)
             .field("rowSpacing", TestType::Single),
-        TestStruct::new("BuildingBlocks_StackContainer").parent("BuildingBlocks_LayoutPolicy"),
+        TestStruct::new("BuildingBlocks_StackContainer")
+            .parent("BuildingBlocks_LayoutPolicy")
+            .field("direction", TestType::String)
+            .field("spacing", TestType::Single),
+        TestStruct::new("BuildingBlocks_GridPackContainer")
+            .parent("BuildingBlocks_LayoutPolicy")
+            .field("direction", TestType::String)
+            .field("gutter", TestType::Single),
+        TestStruct::new("BuildingBlocks_SpacerContainer")
+            .parent("BuildingBlocks_LayoutPolicy")
+            .field("spacing", TestType::Single),
         TestStruct::new("BuildingBlocks_FlexItem")
             .field("growProportion", TestType::Single)
             .field("shrinkProportion", TestType::Single),
@@ -82,7 +105,9 @@ fn widget_structs() -> Vec<TestStruct> {
             .field("defaultStyles", class("BuildingBlocks_DefaultStyles"))
             .field("style", reference("BuildingBlocks_Style"))
             .array("brandStyles", class("BuildingBlocks_BrandStyles"))
-            .array("scene", pointer("BuildingBlocks_DisplayWidget")),
+            .array("staticVariables", pointer("BuildingBlocks_StaticVariable"))
+            .array("scene", pointer("BuildingBlocks_DisplayWidget"))
+            .array("library", pointer("BuildingBlocks_DisplayWidget")),
         TestStruct::new("BuildingBlocks_DefaultStyles")
             .field("sharedStyles", reference("BuildingBlocks_Style"))
             .array("entries", pointer("BuildingBlocks_StyleEntry")),
@@ -102,6 +127,12 @@ fn widget_structs() -> Vec<TestStruct> {
             )
             .field("position", class("Vec3"))
             .field("positionOffset", class("Vec3"))
+            .field("orientation", class("Vec3"))
+            .field("orientationOffset", class("Vec3"))
+            .field("scale", class("Vec3"))
+            .field("pivot", class("Vec3"))
+            .field("anchor", class("Vec3"))
+            .field("overflow", class("BuildingBlocks_Overflow"))
             .field("sizing", class("BuildingBlocks_Size"))
             .field("padding", class("BuildingBlocks_TRBL"))
             .field("margin", class("BuildingBlocks_TRBL"))
@@ -114,17 +145,6 @@ fn widget_structs() -> Vec<TestStruct> {
                 pointer("BuildingBlocks_LayoutItemCommon"),
             )
             .array("inlineStyles", pointer("BuildingBlocks_StyleEntry")),
-        TestStruct::new("BuildingBlocks_Background")
-            .field("enable", TestType::Bool)
-            .field("color", pointer("BuildingBlocks_Color")),
-        TestStruct::new("BuildingBlocks_BorderSide")
-            .field("width", TestType::Single)
-            .field("color", pointer("BuildingBlocks_Color")),
-        TestStruct::new("BuildingBlocks_Border")
-            .field("top", class("BuildingBlocks_BorderSide"))
-            .field("right", class("BuildingBlocks_BorderSide"))
-            .field("bottom", class("BuildingBlocks_BorderSide"))
-            .field("left", class("BuildingBlocks_BorderSide")),
     ]
 }
 
@@ -133,6 +153,7 @@ fn widget_kinds() -> Vec<TestStruct> {
         TestStruct::new("BuildingBlocks_WidgetCard").parent("BuildingBlocks_DisplayWidget"),
         TestStruct::new("BuildingBlocks_WidgetCanvas")
             .parent("BuildingBlocks_DisplayWidget")
+            .field("sizingMethod", TestType::String)
             .field("canvas", reference("BuildingBlocks_Canvas")),
         TestStruct::new("BuildingBlocks_WidgetText")
             .parent("BuildingBlocks_DisplayWidget")

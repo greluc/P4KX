@@ -10,6 +10,7 @@ use p4kx_extraction::{Language, LocalizationEntry, UiMovie};
 use crate::cli::{UiAction, UiArgs};
 use crate::cli_ui::UiSource;
 use crate::ui_extract::extract;
+use crate::ui_hologram;
 use crate::ui_json::{AssetsJson, describe};
 use crate::ui_render::render;
 use crate::{exit, json, ui_screen_render, ui_screens};
@@ -20,6 +21,7 @@ const NONE: &str = "-";
 pub(crate) fn run(args: &UiArgs, as_json: bool) -> Result<ExitCode> {
     match &args.action {
         UiAction::Screens(screens) => ui_screens::run(screens, as_json),
+        UiAction::Hologram(hologram) => ui_hologram::run(hologram, as_json),
         UiAction::Assets(source) => with_movie(source, None, |movie| assets(movie, as_json)),
         UiAction::Extract { source, out } => {
             with_movie(source, None, |movie| extract(movie, out, as_json))

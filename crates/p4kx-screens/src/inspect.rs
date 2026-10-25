@@ -9,7 +9,6 @@ use serde::Serialize;
 use crate::assets::{AssetSet, ScreenAssets};
 use crate::canvas::CanvasStore;
 use crate::elements::is_rendered;
-use crate::widget::Parent;
 
 const MAX_CANVASES: usize = 4096;
 
@@ -42,16 +41,14 @@ pub(crate) fn inspect(
         assets.add_canvas(&canvas.record_path);
         for widget in &canvas.widgets {
             assets.add(&widget.assets);
-            if widget.parent != Parent::Library {
-                let name = widget
-                    .type_name
-                    .strip_prefix("BuildingBlocks_")
-                    .unwrap_or(&widget.type_name);
-                kinds
-                    .entry(name.to_owned())
-                    .or_insert_with(|| (0, is_rendered(&widget.type_name)))
-                    .0 += 1;
-            }
+            let name = widget
+                .type_name
+                .strip_prefix("BuildingBlocks_")
+                .unwrap_or(&widget.type_name);
+            kinds
+                .entry(name.to_owned())
+                .or_insert_with(|| (0, is_rendered(&widget.type_name)))
+                .0 += 1;
             queue.extend(widget.canvas);
         }
     }

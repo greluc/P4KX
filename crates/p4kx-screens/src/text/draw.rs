@@ -84,7 +84,8 @@ impl Texts<'_> {
             letter_spacing: modifiers
                 .letter_spacing
                 .unwrap_or(spec.letter_spacing)
-                .clamp(-MAX_SIZE, MAX_SIZE),
+                .clamp(-MAX_SIZE, MAX_SIZE)
+                * look.pixel,
             kerning: spec.kerning,
         };
         let (cells, size) = shape_fitted(book.face(font.0)?, &limited, how, fit);
@@ -95,7 +96,8 @@ impl Texts<'_> {
             line_spacing: modifiers
                 .line_spacing
                 .unwrap_or(spec.line_spacing)
-                .clamp(-MAX_SIZE, MAX_SIZE),
+                .clamp(-MAX_SIZE, MAX_SIZE)
+                * look.pixel,
             horizontal: modifiers.horizontal.unwrap_or(spec.horizontal),
             vertical: modifiers.vertical.unwrap_or(spec.vertical),
             wrap: modifiers.wrap.unwrap_or(spec.wrap),
@@ -201,16 +203,14 @@ fn pick_font(
 }
 
 fn font_size(look: &Look<'_>, spec: &TextSpec, area: Area, scale: f32, notes: &mut Notes) -> f32 {
-    let size = look
-        .style
-        .text
-        .font_size
-        .or(spec.font_size)
-        .unwrap_or_else(|| {
+    let size = look.style.text.font_size.or(spec.font_size).map_or_else(
+        || {
             notes.push("no font size: taken from the height of the widget".to_owned());
             area.height * FIELD_SIZE_OF_HEIGHT
-        });
-    (size * scale).clamp(MIN_SIZE, MAX_SIZE)
+        },
+        |pixels| pixels * look.pixel,
+    );
+    (size * scale).clamp(MIN_SIZE * look.pixel, MAX_SIZE * look.pixel)
 }
 
 fn line_height(prepared: &Prepared, ascent: f32, descent: f32) -> f32 {

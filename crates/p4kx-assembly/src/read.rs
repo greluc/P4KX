@@ -94,6 +94,6 @@ pub(crate) fn xyz(structure: Option<&StructValue<'_>>) -> [f32; 3] {
     clippy::cast_possible_truncation,
     reason = "a double coordinate is given at single precision"
 )]
-const fn narrow(value: f64) -> f32 {
+pub(crate) const fn narrow(value: f64) -> f32 {
     value as f32
 }

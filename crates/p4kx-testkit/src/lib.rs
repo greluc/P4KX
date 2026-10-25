@@ -78,9 +78,12 @@ mod real_archive;
 mod rig_logic;
 mod screens;
 mod screens_canvas;
+mod screens_geometry;
 mod screens_sample;
+mod screens_style;
 mod screens_text;
 mod screens_text_schema;
+mod screens_value;
 mod screens_widget;
 mod soc;
 mod soc_entities;
@@ -110,7 +113,7 @@ pub use dna::{TestCell, TestControl, TestDeltaRecord, TestDna};
 pub use entity::TestEntity;
 pub use entity_armour::{armour_entries, armour_female_skeleton, armour_male_skeleton};
 pub use entity_armour_loadout::{ARMOUR_XML_LOADOUT, armour_xml_loadout};
-pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries};
+pub use entity_assembly::{ASSEMBLY_GUN_PAINT, assembly_entries, hologram_entries};
 pub use entity_cargo::{TestCapacity, closed_container_record, open_container_record};
 pub use entity_dressed::{
     DRESSED_BROWS, DRESSED_EYES, DRESSED_EYES_MATERIAL, DRESSED_GONE_HAIR, DRESSED_HAIR,
@@ -174,11 +177,10 @@ pub use real_archive::{
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};
-pub use screens_canvas::{
-    TestCanvas, TestCondition, TestModifier, TestStyle, TestStyleEntry, movie_component,
-    screen_component, tag_record,
-};
+pub use screens_canvas::{TestCanvas, movie_component, screen_component, tag_record};
+pub use screens_geometry::clone_modifiers;
 pub use screens_sample::{SCREEN_MFD, SCREEN_PANEL, SCREEN_SHIP, SCREEN_STYLE, screens_sample};
+pub use screens_style::{TestCondition, TestModifier, TestStyle, TestStyleEntry};
 pub use screens_text::{
     SCREEN_TEXT_CANVAS, SCREEN_TEXT_STYLE, screens_font_movie, screens_text_sample,
     text_localisation,

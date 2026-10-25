@@ -90,7 +90,7 @@ pub(crate) fn resolve(
     resolved
 }
 
-fn merge(into: &mut Modifiers, from: &Modifiers) {
+pub(crate) fn merge(into: &mut Modifiers, from: &Modifiers) {
     fn set<T: Clone>(slot: &mut Option<T>, value: Option<&T>) {
         if let Some(value) = value {
             *slot = Some(value.clone());
@@ -103,6 +103,7 @@ fn merge(into: &mut Modifiers, from: &Modifiers) {
     set(&mut into.active, from.active.as_ref());
     set(&mut into.alpha, from.alpha.as_ref());
     into.text.merge(&from.text);
+    into.geometry.merge(&from.geometry);
     for (slot, value) in into.border_colours.iter_mut().zip(&from.border_colours) {
         set(slot, value.as_ref());
     }

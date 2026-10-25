@@ -55,6 +55,8 @@ mod catalog_file;
 mod catalog_output;
 mod catalog_recipe;
 mod collected;
+#[cfg(test)]
+mod collected_tests;
 mod commodity;
 mod contract;
 mod contract_crafting;

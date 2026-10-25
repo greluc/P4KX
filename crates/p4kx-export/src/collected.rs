@@ -77,13 +77,7 @@ impl<'f> Picked<'f> {
                 let (item, line) = item(tree, texts);
                 Self::Item(item, line, carries_ports(tree))
             }
-            Kind::Ships => match ship_base() {
-                Ok(read) => {
-                    let (ship, vehicle) = ship(tree, texts, evidence, &read);
-                    Self::Ship(ship, vehicle)
-                }
-                Err(failure) => Self::Failed(failure),
-            },
+            Kind::Ships => Self::of_ship(ship_base(), |read| ship(tree, texts, evidence, read)),
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
             Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
             Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
@@ -100,6 +94,21 @@ impl<'f> Picked<'f> {
             | Kind::Contracts
             | Kind::Shops => return None,
         })
+    }
+
+    /// Returns the ship `build` makes of the base data `read`, or the failure when the base data
+    /// could not be read: a ship is never left out without a trace.
+    pub(crate) fn of_ship(
+        read: Result<ShipRead, CatalogFailure>,
+        build: impl FnOnce(&ShipRead) -> (Ship<'f>, VehicleFacts),
+    ) -> Self {
+        match read {
+            Ok(read) => {
+                let (ship, vehicle) = build(&read);
+                Self::Ship(ship, vehicle)
+            }
+            Err(failure) => Self::Failed(failure),
+        }
     }
 }
 

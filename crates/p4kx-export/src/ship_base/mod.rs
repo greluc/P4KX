@@ -7,6 +7,7 @@
 //! [`build_ship_base`] reads every ship of an Archive in parallel and returns a
 //! [`BuiltShipBase`] that writes as JSON or NDJSON. [`ShipReader`] reads one ship at a time and is
 //! the library API for catalog kinds built on the same values.
+
 mod cargo;
 mod model;
 mod read;

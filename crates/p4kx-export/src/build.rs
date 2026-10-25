@@ -3,9 +3,10 @@
 
 use std::collections::HashSet;
 use std::io::{self, Write};
+use std::sync::Arc;
 use std::time::SystemTime;
 
-use p4kx_assembly::ArchiveFiles;
+use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_channels::channel_name;
 use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, Guid, utc_rfc3339};
 
@@ -202,9 +203,12 @@ fn assemble<R>(
         options.filter,
     );
     let files = ArchiveFiles::new(archive);
-    let (mut collected, counts, report) = scan(archive, &forge, &files, options, &texts, crafting)?;
+    let entities = Arc::new(Entities::new(&forge));
+    let (mut collected, counts, report) = scan(
+        archive, &forge, &files, &entities, options, &texts, crafting,
+    )?;
     let paint_summary = add_paints(&forge, &mut collected);
-    let loadout_summary = add_loadouts(archive, &forge, &mut collected, options.cancel)?;
+    let loadout_summary = add_loadouts(archive, &entities, &mut collected, options.cancel)?;
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
     add_contracts(&forge, &texts, options, &mut collected)?;
@@ -270,6 +274,7 @@ fn scan<'f>(
     archive: &Archive,
     forge: &'f DataForge<'f>,
     files: &'f ArchiveFiles<'f>,
+    entities: &Arc<Entities<'f>>,
     options: &CatalogOptions<'_>,
     texts: &Texts<'f>,
     crafting: CraftingKinds<'f>,
@@ -288,6 +293,7 @@ fn scan<'f>(
     let picked = Scan::run(
         forge,
         files,
+        Arc::clone(entities),
         options,
         texts,
         &crafting.blueprints,
@@ -347,7 +353,7 @@ fn add_paints(forge: &DataForge<'_>, collected: &mut Collected<'_>) -> PaintSumm
 /// loadouts in `collected` and returns the counts.
 fn add_loadouts(
     archive: &Archive,
-    forge: &DataForge<'_>,
+    entities: &Arc<Entities<'_>>,
     collected: &mut Collected<'_>,
     cancel: Option<&CancelToken>,
 ) -> Result<LoadoutSummary, CatalogError> {
@@ -369,7 +375,7 @@ fn add_loadouts(
         .map(|item| item.guid.0)
         .chain(collected.ships.iter().map(|ship| ship.guid.0))
         .collect();
-    let built = loadouts(archive, forge, &wanted, &known, cancel)?;
+    let built = loadouts(archive, entities, &wanted, &known, cancel)?;
     collected.loadouts = built.entries;
     collected.add_failures(built.failures);
     Ok(built.summary)

@@ -3,7 +3,7 @@
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, PoisonError};
 
 use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Record, RecordTree, TreeBuilder};
@@ -30,27 +30,18 @@ const RESOURCE_TYPE: &str = "ResourceType";
 /// a reader taken for one ship and given back for the next keeps its caches across the splits of
 /// the parallel scan.
 struct ShipPool<'f> {
-    forge: &'f DataForge<'f>,
-    entities: OnceLock<Arc<Entities<'f>>>,
+    entities: Arc<Entities<'f>>,
     files: &'f ArchiveFiles<'f>,
     idle: Mutex<Vec<ShipReader<'f>>>,
 }
 
 impl<'f> ShipPool<'f> {
-    const fn new(forge: &'f DataForge<'f>, files: &'f ArchiveFiles<'f>) -> Self {
+    const fn new(entities: Arc<Entities<'f>>, files: &'f ArchiveFiles<'f>) -> Self {
         Self {
-            forge,
-            entities: OnceLock::new(),
+            entities,
             files,
             idle: Mutex::new(Vec::new()),
         }
-    }
-
-    fn entities(&self) -> Arc<Entities<'f>> {
-        Arc::clone(
-            self.entities
-                .get_or_init(|| Arc::new(Entities::new(self.forge))),
-        )
     }
 
     fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipRead, CatalogFailure> {
@@ -59,8 +50,8 @@ impl<'f> ShipPool<'f> {
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
             .pop();
-        let mut reader =
-            taken.unwrap_or_else(|| ShipReader::with_entities(self.entities(), self.files));
+        let mut reader = taken
+            .unwrap_or_else(|| ShipReader::with_entities(Arc::clone(&self.entities), self.files));
         let result = reader.read_with_digest(record, tree);
         self.idle
             .lock()
@@ -89,6 +80,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     pub(crate) fn run(
         forge: &'f DataForge<'f>,
         files: &'f ArchiveFiles<'f>,
+        entities: Arc<Entities<'f>>,
         options: &'o CatalogOptions<'a>,
         texts: &'o Texts<'f>,
         blueprints: &[Blueprint<'f>],
@@ -99,7 +91,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let (evidence, evidence_failures) = Evidence::read(&records);
         let scan = Self {
             forge,
-            ships: ShipPool::new(forge, files),
+            ships: ShipPool::new(entities, files),
             options,
             texts,
             placements,

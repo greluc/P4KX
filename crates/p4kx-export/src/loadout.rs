@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashSet;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex, PoisonError};
 
-use p4kx_assembly::{ArchiveFiles, LoadoutResolver};
+use p4kx_assembly::{ArchiveFiles, Entities, LoadoutResolver};
 use p4kx_extraction::{Archive, CancelToken, DataForge, Guid, RecordTree, Value};
 use rayon::prelude::*;
 
@@ -42,26 +42,31 @@ pub(crate) fn carries_ports(tree: &RecordTree<'_>) -> bool {
 /// taken for an entity and given back for the next keeps its caches across the splits of the
 /// parallel run.
 struct Pool<'f, 'a> {
-    forge: &'f DataForge<'f>,
+    entities: Arc<Entities<'f>>,
     files: &'a ArchiveFiles<'a>,
     idle: Mutex<Vec<(LoadoutResolver<'f>, PortReader)>>,
 }
 
 impl<'f> Pool<'f, 'f> {
     fn read(&self, want: Wanted) -> Result<Option<Loadout>, CatalogFailure> {
-        let taken = self.idle.lock().ok().and_then(|mut idle| idle.pop());
+        let taken = self
+            .idle
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .pop();
         let (mut resolver, mut reader) = taken.unwrap_or_else(|| {
             (
-                LoadoutResolver::new(self.forge)
+                LoadoutResolver::with_entities(Arc::clone(&self.entities))
                     .with_files(self.files)
                     .stopping_at_docked_vehicles(),
                 PortReader::new(),
             )
         });
-        let result = read_with(&mut resolver, &mut reader, self.forge, want);
-        if let Ok(mut idle) = self.idle.lock() {
-            idle.push((resolver, reader));
-        }
+        let result = read_with(&mut resolver, &mut reader, self.entities.forge(), want);
+        self.idle
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push((resolver, reader));
         result
     }
 }
@@ -90,16 +95,16 @@ pub(crate) struct Loadouts {
 /// # Errors
 ///
 /// Returns [`CatalogError::Cancelled`] once `cancel` is cancelled.
-pub(crate) fn loadouts<'f>(
+pub(crate) fn loadouts(
     archive: &Archive,
-    forge: &'f DataForge<'f>,
+    entities: &Arc<Entities<'_>>,
     wanted: &[Wanted],
     known: &HashSet<Guid>,
     cancel: Option<&CancelToken>,
 ) -> Result<Loadouts, CatalogError> {
     let files = ArchiveFiles::new(archive);
     let pool = Pool {
-        forge,
+        entities: Arc::clone(entities),
         files: &files,
         idle: Mutex::new(Vec::new()),
     };

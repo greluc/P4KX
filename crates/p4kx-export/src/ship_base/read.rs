@@ -15,10 +15,11 @@ use super::model::{
     SourceKind, SourceShare, Sourced, UnreadablePartValue, VehicleKind,
 };
 use crate::CatalogFailure;
+use crate::Kind;
 use crate::digest::Digest;
 use crate::paint_port::VehiclePorts;
 use crate::record_fields::{class_name, component, integer, number, structure, text};
-use crate::selection::KindRule;
+use crate::selection::starts_with_folder;
 
 const SIZE_FIELD: &str = "Components/SAttachableComponentParams/AttachDef/Size";
 const PHYSICS_MASS_FIELD: &str = "Components/SEntityPhysicsControllerParams/PhysType/Mass";
@@ -138,7 +139,7 @@ impl<'f> ShipReader<'f> {
             component(tree, "VehicleComponentParams"),
             "vehicleDefinition",
         )
-        .is_some_and(|definition| !definition.is_empty());
+        .is_some_and(|definition| !definition.trim().is_empty());
         Ok(ShipRead {
             base,
             implementation: digest,
@@ -151,14 +152,17 @@ const fn structure_digest(vehicle: &VehicleImplementation) -> Digest {
     Digest::from_bytes(vehicle.structure_digest())
 }
 
-const SPACESHIP_FOLDER: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/entities/spaceships/"],
-    type_name: "",
-};
-const GROUND_FOLDER: KindRule = KindRule {
-    prefixes: &["libs/foundry/records/entities/groundvehicles/"],
-    type_name: "",
-};
+const SPACESHIP_FOLDER: usize = 0;
+const GROUND_FOLDER: usize = 1;
+
+/// Returns whether `record_path` is under the folder of the `ships` kind at `index` of its rule.
+fn in_folder(record_path: &str, index: usize) -> bool {
+    Kind::Ships
+        .rule()
+        .prefixes
+        .get(index)
+        .is_some_and(|prefix| starts_with_folder(record_path, prefix))
+}
 
 /// Decides the kind from the folder of the record path and the wheels and treads of the vehicle
 /// implementation: a ground vehicle is one in the ground folder, a spaceship one in the spaceship
@@ -168,9 +172,9 @@ fn vehicle_kind(record_path: &str, vehicle: Option<&VehicleImplementation>) -> O
     let rolling = vehicle.is_some_and(|vehicle| {
         vehicle.wheels().next().is_some() || vehicle.treads().next().is_some()
     });
-    if GROUND_FOLDER.matches_path(record_path) {
+    if in_folder(record_path, GROUND_FOLDER) {
         Some(VehicleKind::GroundVehicle)
-    } else if SPACESHIP_FOLDER.matches_path(record_path) && !rolling {
+    } else if in_folder(record_path, SPACESHIP_FOLDER) && !rolling {
         Some(VehicleKind::Spaceship)
     } else {
         None

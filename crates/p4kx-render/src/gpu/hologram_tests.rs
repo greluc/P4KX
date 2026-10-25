@@ -7,14 +7,15 @@ use std::sync::Arc;
 use super::{
     Adapters, AssemblyDraw, Colours, Frame, Hologram, Look, Offscreen, Picture, Shading, Subject,
 };
-use crate::assembly::synthetic::ship;
+use crate::assembly::AssemblyScene;
+use crate::assembly::synthetic::{ship, stacked};
 use crate::{Camera, DrawList, HologramView};
 
 const SIZE: [u32; 2] = [256, 192];
 const DISTANCE_SCALER: f32 = 0.6;
-const ALPHA_FLOOR: u8 = 32;
+const ALPHA_FLOOR: u8 = 8;
 const TRANSPARENT: [u8; 4] = [0, 0, 0, 0];
-const CHANNEL_TOLERANCE: u8 = 24;
+const CHANNEL_TOLERANCE: u8 = 10;
 const DIFFERING_ONE_IN: usize = 20;
 const REQUIRE: &str = "P4KX_REQUIRE_SOFTWARE_ADAPTER";
 const BLESS: &str = "P4KX_BLESS_REFERENCE";
@@ -30,7 +31,16 @@ fn frame(size: [u32; 2], background: [u8; 4], look: Hologram) -> Frame {
 }
 
 fn frame_at(size: [u32; 2], background: [u8; 4], look: Hologram, elevation: f32) -> Frame {
-    let scene = Arc::new(ship());
+    frame_of(Arc::new(ship()), size, background, look, elevation)
+}
+
+fn frame_of(
+    scene: Arc<AssemblyScene>,
+    size: [u32; 2],
+    background: [u8; 4],
+    look: Hologram,
+    elevation: f32,
+) -> Frame {
     let aspect = f64::from(size[0]) / f64::from(size[1]);
     #[expect(
         clippy::cast_possible_truncation,
@@ -221,6 +231,53 @@ fn a_clear_shell_with_no_glow_draws_nothing() {
     assert!(
         pixels(&picture).all(|pixel| pixel == TRANSPARENT),
         "no pixel is covered"
+    );
+}
+
+#[test]
+fn the_layers_never_add_up_past_the_cap() {
+    let Some(picture) = drawn(Hologram::default()) else {
+        return;
+    };
+    let Hologram { opacity, glow, .. } = Hologram::default();
+    let cap = 0.2_f32.mul_add(glow, opacity) * 255.0;
+
+    let brightest = pixels(&picture).map(|pixel| pixel[3]).max().unwrap_or(0);
+
+    assert!(
+        f32::from(brightest) <= cap + 2.0,
+        "the most opaque pixel is {brightest}, the cap {cap}"
+    );
+    assert!(brightest > 40, "the shell is visible: {brightest}");
+}
+
+#[test]
+fn stacked_layers_climb_to_the_cap_and_stop_there() {
+    let capped = Hologram {
+        opacity: 0.5,
+        glow: 0.0,
+        ..Hologram::default()
+    };
+    let Some(mut offscreen) = software("stacked_layers") else {
+        return;
+    };
+    let piled = frame_of(
+        Arc::new(stacked(400)),
+        SIZE,
+        TRANSPARENT,
+        capped,
+        HologramView::default().elevation_degrees,
+    );
+    let picture = offscreen
+        .draw(&piled)
+        .unwrap_or_else(|error| panic!("drawing failed: {error}"));
+    let cap = 0.5_f32 * 255.0;
+
+    let brightest = pixels(&picture).map(|pixel| pixel[3]).max().unwrap_or(0);
+
+    assert!(
+        f32::from(brightest) <= cap + 2.0 && f32::from(brightest) >= cap - 10.0,
+        "the most opaque pixel is {brightest}, the cap {cap}"
     );
 }
 

@@ -71,11 +71,11 @@ impl<'l> SourceStore<'l> {
         }
         self.held.clear();
         let (loader, mip) = (self.loader, self.mip);
-        let loaded: Vec<(String, Loaded)> = missing
+        let fresh: Vec<(String, Loaded)> = missing
             .par_iter()
             .map(|path| ((*path).to_owned(), loader.load(path, mip).map(Arc::new)))
             .collect();
-        decoded.extend(loaded);
+        decoded.extend(fresh);
         decoded
     }
 

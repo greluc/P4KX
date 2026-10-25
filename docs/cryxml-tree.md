@@ -17,6 +17,7 @@ Per file, over every CryXml Entry of the Archive and of the `.socpak` containers
 | other order | a node's child list names the children its parent indices give, in another order |
 | equal copies | a node's child list names a sibling again where the parent indices give an equal one |
 | other nodes | a child list names or misses other nodes, and is not covered by equal copies |
+| child-table tree differs | the tree walked from the root over the child table is not equal to the parent-index tree |
 | range outside the table | `firstChild` and `childCount` lie outside the child table |
 | attributes not sequential | a node's `firstAttribute` is not where the previous node's attributes end |
 
@@ -25,8 +26,14 @@ whole subtree.
 
 ## Counts
 
-Run with `cargo test --release -p p4kx-extraction --test real_archive -- --ignored cryxml_trees`
-on the Archive of `P4KX_DATA_P4K` and, when set, of `P4KX_DATA_P4K_B`:
+Run with the Archive key set (the `tools\real-archive.ps1` wrapper does this), and `TMP` and
+`TEMP` pointing below the worktree folder:
+
+```powershell
+cargo test --release --locked -p p4kx-extraction --test real_archive -- --ignored --nocapture cryxml_trees
+```
+
+It measures `P4KX_DATA_P4K` and, when set, `P4KX_DATA_P4K_B`.
 
 | | LIVE | PTU |
 |---|---:|---:|
@@ -39,10 +46,12 @@ on the Archive of `P4KX_DATA_P4K` and, when set, of `P4KX_DATA_P4K_B`:
 | other order | 0 | 0 |
 | equal copies | 28 516 | 28 516 |
 | other nodes | 39 | 39 |
+| child-table tree differs | 0 | 0 |
 | range outside the table | 0 | 0 |
 | attributes not sequential | 0 | 0 |
 
 All 28 516 files that disagree are `.entxml` Entities. The child table lists the first of two
-equal siblings twice, and in the 39 files that also count under "other nodes" the duplicated node
-has `firstChild` 0, so its child list is the root's. The parent indices give the right tree in
-every one of them (ADR-0142).
+equal siblings twice. In the 39 files that also count under "other nodes" the duplicated node
+has `firstChild` 0, so its own child list is the root's; the walk over the child table never
+reaches that node. In every file of both Archives the tree read from the child table equals the
+parent-index tree, so reading the child table would change no output (ADR-0142).

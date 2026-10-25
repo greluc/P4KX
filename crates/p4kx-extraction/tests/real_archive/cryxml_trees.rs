@@ -26,10 +26,12 @@ struct Stats {
     unreadable: u64,
     containers_opened: u64,
     containers_failed: u64,
-    rejected: BTreeMap<&'static str, (u64, String)>,
+    rejected: BTreeMap<String, (u64, String)>,
     agree: u64,
     other_order: u64,
     equal_copies: u64,
+    tree_differs: u64,
+    other_nodes_tree_equal: u64,
     other_nodes: u64,
     outside_table: u64,
     attributes_not_sequential: u64,
@@ -49,6 +51,8 @@ impl Stats {
         self.agree += other.agree;
         self.other_order += other.other_order;
         self.equal_copies += other.equal_copies;
+        self.tree_differs += other.tree_differs;
+        self.other_nodes_tree_equal += other.other_nodes_tree_equal;
         self.other_nodes += other.other_nodes;
         self.outside_table += other.outside_table;
         self.attributes_not_sequential += other.attributes_not_sequential;
@@ -78,6 +82,10 @@ impl Stats {
                 self.example(kind, path);
             }
         }
+        self.tree_differs += u64::from(!comparison.child_table_tree_equal);
+        self.other_nodes_tree_equal += u64::from(
+            comparison.children_naming_other_nodes > 0 && comparison.child_table_tree_equal,
+        );
         self.other_order += u64::from(comparison.children_in_other_order > 0);
         self.equal_copies += u64::from(comparison.children_naming_equal_copies > 0);
         self.other_nodes += u64::from(comparison.children_naming_other_nodes > 0);
@@ -86,17 +94,13 @@ impl Stats {
     }
 }
 
-const fn kind(error: &CryXmlError) -> &'static str {
-    match error {
-        CryXmlError::NotCryXml => "NotCryXml",
-        CryXmlError::Header(_) => "Header",
-        CryXmlError::Truncated { .. } => "Truncated",
-        CryXmlError::TableOutOfBounds { .. } => "TableOutOfBounds",
-        CryXmlError::BadString { .. } => "BadString",
-        CryXmlError::BadAttributes { .. } => "BadAttributes",
-        CryXmlError::BadParent { .. } => "BadParent",
-        CryXmlError::NoRoot => "NoRoot",
-    }
+fn kind(error: &CryXmlError) -> String {
+    let debug = format!("{error:?}");
+    debug
+        .split(|c: char| !c.is_alphanumeric())
+        .next()
+        .unwrap_or_default()
+        .to_owned()
 }
 
 fn is_cryxml(archive: &Archive, entry: &Entry) -> bool {
@@ -173,12 +177,14 @@ fn print(name: &str, stats: &Stats, seconds: f64) {
         report(&format!("  rejected with {kind}: {count}, e.g. {example}"));
     }
     report(&format!(
-        "  child table agrees: {}; other order: {}; equal copies: {}; other nodes: {}; \
-         range outside the table: {}; attributes not sequential: {}",
+        "  child table agrees: {}; other order: {}; equal copies: {}; other nodes: {} (child-table tree equal: {}); \
+         child-table tree differs: {}; range outside the table: {}; attributes not sequential: {}",
         stats.agree,
         stats.other_order,
         stats.equal_copies,
         stats.other_nodes,
+        stats.other_nodes_tree_equal,
+        stats.tree_differs,
         stats.outside_table,
         stats.attributes_not_sequential,
     ));
@@ -195,7 +201,13 @@ fn measure(name: &str, archive: &Archive) -> Stats {
 }
 
 fn assert_parent_indices_are_sound(stats: &Stats) {
-    assert!(stats.cryxml > 1000, "only {} CryXml files", stats.cryxml);
+    assert!(stats.cryxml > 150_000, "only {} CryXml files", stats.cryxml);
+    assert_eq!(stats.containers_failed, 0, "containers that did not open");
+    assert_eq!(
+        stats.other_nodes, stats.other_nodes_tree_equal,
+        "child lists naming other nodes whose tree differs"
+    );
+    assert_eq!(stats.tree_differs, 0, "child-table tree differs");
     assert!(stats.rejected.is_empty(), "rejected: {:?}", stats.rejected);
     assert_eq!(stats.unreadable, 0, "unreadable files");
     assert_eq!(stats.other_order, 0, "child table in another order");

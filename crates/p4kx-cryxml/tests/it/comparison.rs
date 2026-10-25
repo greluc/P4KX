@@ -57,6 +57,52 @@ fn a_consistent_child_table_agrees() -> TestResult {
     assert_eq!(result.nodes, 3, "nodes");
     assert_eq!(result.child_table_entries, 2, "child table entries");
     assert_eq!(result.attributes_not_sequential, 0, "attributes");
+    assert!(result.child_table_tree_equal, "{result:?}");
+    Ok(())
+}
+
+#[test]
+fn a_child_range_pointing_at_the_wrong_children_makes_the_child_table_tree_differ() -> TestResult {
+    let mut bytes = two_children("1");
+    put_u32(&mut bytes, NODE_TABLE + NODE_LEN + FIRST_CHILD_FIELD, 0)?;
+    put_u32(&mut bytes, NODE_TABLE + NODE_LEN + 10, 2)?;
+
+    let result = comparison(&bytes)?;
+
+    assert!(!result.child_table_tree_equal, "{result:?}");
+    Ok(())
+}
+
+#[test]
+fn many_nodes_declaring_the_largest_child_range_are_compared_quickly() -> TestResult {
+    const CHILDREN: usize = 70_000;
+    let root = (0..CHILDREN).fold(TestElement::new("root"), |root, _| {
+        root.child(TestElement::new("item"))
+    });
+    let mut bytes = root.to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    for node in 1..=CHILDREN {
+        let at = NODE_TABLE + node * NODE_LEN;
+        put_u32(&mut bytes, at + FIRST_CHILD_FIELD, 0)?;
+        bytes
+            .get_mut(at + 10..at + 12)
+            .ok_or("outside the sample")?
+            .copy_from_slice(&u16::MAX.to_le_bytes());
+    }
+    let started = std::time::Instant::now();
+
+    let result = comparison(&bytes)?;
+
+    assert!(
+        started.elapsed().as_secs() < 5,
+        "took {:?}",
+        started.elapsed()
+    );
+    assert_eq!(
+        result.children_naming_other_nodes as usize,
+        CHILDREN + 1,
+        "every node, the root's count saturates"
+    );
+    assert!(!result.child_table_tree_equal, "{result:?}");
     Ok(())
 }
 
@@ -69,6 +115,7 @@ fn a_child_listed_again_for_an_equal_sibling_is_an_equal_copy() -> TestResult {
 
     assert_eq!(result.children_naming_equal_copies, 1, "{result:?}");
     assert_eq!(result.children_naming_other_nodes, 0, "{result:?}");
+    assert!(result.child_table_tree_equal, "{result:?}");
     assert!(!result.child_table_agrees(), "disagrees");
     Ok(())
 }
@@ -82,6 +129,7 @@ fn a_child_listed_again_for_a_different_sibling_names_other_nodes() -> TestResul
 
     assert_eq!(result.children_naming_other_nodes, 1, "{result:?}");
     assert_eq!(result.children_naming_equal_copies, 0, "{result:?}");
+    assert!(!result.child_table_tree_equal, "{result:?}");
     let document = parse(&bytes)?;
     let values: Vec<_> = document
         .root()

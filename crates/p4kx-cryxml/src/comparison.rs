@@ -27,6 +27,10 @@ pub struct TreeComparison {
     /// Nodes whose child table lists a node whose parent index names another node, or misses one
     /// whose parent index names this node, and which `children_naming_equal_copies` does not cover.
     pub children_naming_other_nodes: u32,
+    /// Whether the tree read from the child table, starting at the root, has the same names,
+    /// contents, attributes and shape as the tree the parent indices give. False too when the
+    /// child table loops, lies outside itself or needs more steps than the work bound allows.
+    pub child_table_tree_equal: bool,
     /// Nodes whose first attribute is not where the attributes of the nodes before it end.
     pub attributes_not_sequential: u32,
 }
@@ -59,7 +63,12 @@ pub fn compare_trees(bytes: &[u8]) -> Result<TreeComparison, CryXmlError> {
     };
     let mut reader = Reader::new(header.nodes, header.byte_order);
     let mut next_attribute = 0_u32;
-    let mut scratch: Vec<u32> = Vec::new();
+    let mut ranges: Vec<(u32, u16)> = Vec::with_capacity(document.nodes.len());
+    let mut budget = document
+        .nodes
+        .len()
+        .saturating_mul(STEPS_PER_NODE)
+        .saturating_add(MIN_STEPS);
     for index in 0..document.nodes.len() {
         let _name = reader.u32()?;
         let _content = reader.u32()?;
@@ -75,6 +84,7 @@ pub fn compare_trees(bytes: &[u8]) -> Result<TreeComparison, CryXmlError> {
         }
         next_attribute = first_attribute.saturating_add(u32::from(attribute_count));
 
+        ranges.push((first_child, child_count));
         let declared = usize::try_from(first_child)
             .ok()
             .and_then(|first| table.get(first..first.checked_add(usize::from(child_count))?));
@@ -82,32 +92,89 @@ pub fn compare_trees(bytes: &[u8]) -> Result<TreeComparison, CryXmlError> {
             comparison.child_range_outside_table += 1;
             continue;
         };
-        let expected = derived_children(&document, index);
-        if declared == expected {
-            continue;
-        }
-        scratch.clear();
-        scratch.extend_from_slice(declared);
-        scratch.sort_unstable();
-        let mut sorted = expected.to_vec();
-        sorted.sort_unstable();
-        if scratch == sorted {
-            comparison.children_in_other_order += 1;
-        } else if only_equal_copies(&document, &scratch, &sorted) {
-            comparison.children_naming_equal_copies += 1;
-        } else {
-            comparison.children_naming_other_nodes += 1;
-        }
+        classify(&document, index, declared, &mut budget, &mut comparison);
     }
+    let mut walk = document.nodes.len().saturating_add(1);
+    comparison.child_table_tree_equal =
+        child_table_tree_equal(&document, &table, &ranges, &mut walk);
     Ok(comparison)
 }
 
+/// Counts how the `declared` children of node `index` differ from the ones the parent indices
+/// give. A list of another length is classified without sorting, so the sorting of all nodes
+/// together stays within the node count.
+fn classify(
+    document: &Document<'_>,
+    index: usize,
+    declared: &[u32],
+    budget: &mut usize,
+    comparison: &mut TreeComparison,
+) {
+    let expected = derived_children(document, index);
+    if declared == expected {
+        return;
+    }
+    if declared.len() != expected.len() {
+        comparison.children_naming_other_nodes += 1;
+        return;
+    }
+    let mut listed = declared.to_vec();
+    listed.sort_unstable();
+    let mut sorted = expected.to_vec();
+    sorted.sort_unstable();
+    if listed == sorted {
+        comparison.children_in_other_order += 1;
+    } else if only_equal_copies(document, &listed, &sorted, budget) {
+        comparison.children_naming_equal_copies += 1;
+    } else {
+        comparison.children_naming_other_nodes += 1;
+    }
+}
+
+/// Walks the tree the child table gives from the root together with the tree the parent indices
+/// give, and returns whether every element has the same name, content, attributes and shape.
+/// A child table that loops, lies outside itself or needs more than `budget` steps is not equal.
+fn child_table_tree_equal(
+    document: &Document<'_>,
+    table: &[u32],
+    ranges: &[(u32, u16)],
+    budget: &mut usize,
+) -> bool {
+    let mut stack = vec![(0_u32, 0_u32)];
+    while let Some((listed, parent_tree)) = stack.pop() {
+        let Some(left_over) = budget.checked_sub(1) else {
+            return false;
+        };
+        *budget = left_over;
+        let expected = derived_children(document, parent_tree as usize);
+        let declared = ranges.get(listed as usize).and_then(|&(first, count)| {
+            let first = usize::try_from(first).ok()?;
+            table.get(first..first.checked_add(usize::from(count))?)
+        });
+        let Some(declared) = declared else {
+            return false;
+        };
+        if declared.len() != expected.len() || !equal_elements(document, listed, parent_tree) {
+            return false;
+        }
+        stack.extend(declared.iter().copied().zip(expected.iter().copied()));
+    }
+    true
+}
+
 const MAX_COPIES: usize = 64;
+const STEPS_PER_NODE: usize = 4;
+const MIN_STEPS: usize = 4096;
 
 /// Returns whether every node the sorted `declared` list names too often or wrongly stands in for
 /// a node of the sorted `expected` list whose subtree is equal: same names, contents, attributes
-/// and shape.
-fn only_equal_copies(document: &Document<'_>, declared: &[u32], expected: &[u32]) -> bool {
+/// and shape. Every comparison step is taken from `budget`; once it is spent the answer is no.
+fn only_equal_copies(
+    document: &Document<'_>,
+    declared: &[u32],
+    expected: &[u32],
+    budget: &mut usize,
+) -> bool {
     let (extra, missing) = difference(declared, expected);
     if extra.len() != missing.len() || missing.len() > MAX_COPIES {
         return false;
@@ -115,7 +182,7 @@ fn only_equal_copies(document: &Document<'_>, declared: &[u32], expected: &[u32]
     let mut used = vec![false; extra.len()];
     missing.iter().all(|&wanted| {
         extra.iter().zip(used.iter_mut()).any(|(&listed, taken)| {
-            let equal = !*taken && equal_subtrees(document, listed, wanted);
+            let equal = !*taken && equal_subtrees(document, listed, wanted, budget);
             *taken |= equal;
             equal
         })
@@ -148,21 +215,18 @@ fn difference(declared: &[u32], expected: &[u32]) -> (Vec<u32>, Vec<u32>) {
     }
 }
 
-const MAX_SUBTREE_STEPS: usize = 4096;
-
-fn equal_subtrees(document: &Document<'_>, left: u32, right: u32) -> bool {
+fn equal_subtrees(document: &Document<'_>, left: u32, right: u32, budget: &mut usize) -> bool {
     let mut stack = vec![(left, right)];
-    let mut steps = 0;
     while let Some((a, b)) = stack.pop() {
-        steps += 1;
+        let Some(left_over) = budget.checked_sub(1) else {
+            return false;
+        };
+        *budget = left_over;
         let (a_children, b_children) = (
             derived_children(document, a as usize),
             derived_children(document, b as usize),
         );
-        if steps > MAX_SUBTREE_STEPS
-            || a_children.len() != b_children.len()
-            || !equal_elements(document, a, b)
-        {
+        if a_children.len() != b_children.len() || !equal_elements(document, a, b) {
             return false;
         }
         stack.extend(a_children.iter().copied().zip(b_children.iter().copied()));
@@ -182,7 +246,7 @@ fn equal_elements(document: &Document<'_>, left: u32, right: u32) -> bool {
         let first = node.first_attribute as usize;
         document
             .attributes
-            .get(first..first + usize::from(node.attribute_count))
+            .get(first..first.checked_add(usize::from(node.attribute_count))?)
     };
     let (Some(a_attributes), Some(b_attributes)) = (attributes(a), attributes(b)) else {
         return false;
@@ -200,7 +264,7 @@ fn derived_children<'d>(document: &'d Document<'_>, index: usize) -> &'d [u32] {
     document
         .child_starts
         .get(index)
-        .zip(document.child_starts.get(index + 1))
+        .zip(document.child_starts.get(index.saturating_add(1)))
         .and_then(|(&start, &end)| document.children.get(start as usize..end as usize))
         .unwrap_or_default()
 }

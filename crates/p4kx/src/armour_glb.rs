@@ -10,16 +10,17 @@ use p4kx_assembly::{
     LoadoutResolver, PartOrigin,
 };
 use p4kx_extraction::{
-    AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, is_same_file,
-    write_replacing,
+    AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
+    is_same_file, write_replacing,
 };
 use serde::Serialize;
 
-use crate::armour_loadout::{Files, LoadoutJson, ReplacedJson, Selection};
-use crate::cli_armour::ArmourGlbArgs;
-use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues};
+use crate::armour_loadout::{Files, HeadJson, LoadoutJson, ReplacedJson, Selection};
+use crate::cli_armour::{ArmourGlbArgs, BodyArg};
+use crate::cli_chf::ChfMaterialsArg;
+use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
-use crate::model_animations::{WrittenJson, character_animations, write_notes};
+use crate::model_animations::{AnimationFolders, WrittenJson, character_animations, write_notes};
 use crate::query_table::one_line;
 
 #[derive(Serialize)]
@@ -27,6 +28,7 @@ struct PartJson<'a> {
     name: &'a str,
     origin: &'static str,
     file: &'a str,
+    material: Option<&'a str>,
 }
 
 #[derive(Serialize)]
@@ -37,6 +39,7 @@ struct GlbJson<'a> {
     out: String,
     lod: u32,
     loadout: Option<&'a LoadoutJson<'a>>,
+    head: Option<HeadJson>,
     pieces: usize,
     replaced: Vec<ReplacedJson<'a>>,
     parts: Vec<PartJson<'a>>,
@@ -46,6 +49,9 @@ struct GlbJson<'a> {
     skinned_meshes: usize,
     primitives: usize,
     materials: usize,
+    textured_materials: usize,
+    textures: usize,
+    texture_pixels: u64,
     vertices: usize,
     triangles: usize,
     bytes: u64,
@@ -66,54 +72,118 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
     let names = (args.pieces.as_slice(), args.loadout.as_deref());
     let selection = Selection::gather(&mut resolver, &files, names)?;
-    let variant = BodyVariant::from(args.body);
+    let variant = args
+        .body
+        .map(BodyVariant::from)
+        .or_else(|| selection.variant())
+        .unwrap_or_else(|| BodyVariant::from(BodyArg::Male));
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let armour = Armour::build(variant, &selection.pieces, &models, &options)?;
+    let folders = animation_folders(args, &selection, &models, variant);
     let found = character_animations(
         &models,
         variant,
         (&args.animations, &args.animation_sources),
+        &folders,
     )?;
     let animated = armour.animate(&found.animations, &models);
-    let summary = write(&armour, &animated, args)?;
+    let summary = write(&armour, &animated, args, &models)?;
     if as_json {
-        json::print(&GlbJson {
-            archive: json::path(archive.path()),
-            body: variant.code(),
-            skeleton: armour.skeleton_file(),
-            out: json::path(&args.out),
-            lod: args.lod,
-            loadout: selection.loadout.as_ref(),
-            pieces: selection.pieces.len(),
-            replaced: selection.replaced.iter().map(ReplacedJson::from).collect(),
-            parts: parts_json(&armour),
-            nodes: summary.nodes,
-            bones: summary.bones,
-            meshes: summary.meshes,
-            skinned_meshes: summary.skinned_meshes,
-            primitives: summary.primitives,
-            materials: summary.materials,
-            vertices: summary.vertices,
-            triangles: summary.triangles,
-            bytes: summary.bytes,
-            skipped: skipped(&armour),
-            animations: summary.animations.iter().map(WrittenJson::of).collect(),
-            issues: armour
-                .issues()
-                .iter()
-                .chain(animated.issues())
-                .map(IssueJson::from)
-                .collect(),
-        })?;
+        let done = Done {
+            archive: archive.path(),
+            variant,
+            selection: &selection,
+            armour: &armour,
+            animated: &animated,
+            summary: &summary,
+        };
+        json::print(&report(&done, args))?;
         return Ok(());
     }
-    let report = print_report(&armour, &summary, &selection, &args.out)
-        .and_then(|()| print_animations(&summary, &found, &animated));
-    match report {
+    let own = folders
+        .own()
+        .filter(|_| !args.animations.is_empty())
+        .map(one_line);
+    let printed = print_report(&armour, &summary, &selection, &args.out)
+        .and_then(|()| print_animations(&summary, &found, &animated, own.as_deref()));
+    match printed {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
+}
+
+/// What was built and written.
+struct Done<'a> {
+    archive: &'a Path,
+    variant: BodyVariant,
+    selection: &'a Selection<'a>,
+    armour: &'a Armour,
+    animated: &'a CharacterAnimations<'a>,
+    summary: &'a GlbSummary,
+}
+
+fn report<'a>(done: &Done<'a>, args: &ArmourGlbArgs) -> GlbJson<'a> {
+    let Done {
+        archive,
+        variant,
+        selection,
+        armour,
+        animated,
+        summary,
+    } = *done;
+    GlbJson {
+        archive: json::path(archive),
+        body: variant.code(),
+        skeleton: armour.skeleton_file(),
+        out: json::path(&args.out),
+        lod: args.lod,
+        loadout: selection.loadout.as_ref(),
+        head: selection.head_json(),
+        pieces: selection.pieces.len(),
+        replaced: selection.replaced.iter().map(ReplacedJson::from).collect(),
+        parts: parts_json(armour),
+        nodes: summary.nodes,
+        bones: summary.bones,
+        meshes: summary.meshes,
+        skinned_meshes: summary.skinned_meshes,
+        primitives: summary.primitives,
+        materials: summary.materials,
+        textured_materials: summary.textured_materials,
+        textures: summary.textures,
+        texture_pixels: summary.texture_pixels,
+        vertices: summary.vertices,
+        triangles: summary.triangles,
+        bytes: summary.bytes,
+        skipped: skipped(armour),
+        animations: summary.animations.iter().map(WrittenJson::of).collect(),
+        issues: armour
+            .issues()
+            .iter()
+            .chain(animated.issues())
+            .map(IssueJson::from)
+            .collect(),
+    }
+}
+
+/// Returns the folders `--anim` looks in: those of `--anim-folder`, else the character's own
+/// folder of a Loadout's head, else the folders of the body.
+fn animation_folders(
+    args: &ArmourGlbArgs,
+    selection: &Selection<'_>,
+    models: &ArchiveModels<'_>,
+    variant: BodyVariant,
+) -> AnimationFolders {
+    if !args.animation_folders.is_empty() {
+        return AnimationFolders::only(&args.animation_folders);
+    }
+    selection
+        .head
+        .as_ref()
+        .and_then(|head| head.folder())
+        .map_or_else(AnimationFolders::default, |folder| {
+            AnimationFolders::of_npc(models, variant, folder)
+        })
 }
 
 fn skipped(armour: &Armour) -> usize {
@@ -132,6 +202,10 @@ fn parts_json(armour: &Armour) -> Vec<PartJson<'_>> {
             name: part.name(),
             origin: origin_code(part.origin()),
             file: part.file(),
+            material: part
+                .materials()
+                .library()
+                .map(|library| library.path.as_str()),
         })
         .collect()
 }
@@ -142,8 +216,12 @@ fn print_animations(
     summary: &GlbSummary,
     found: &AnimationSet,
     animated: &CharacterAnimations<'_>,
+    own: Option<&str>,
 ) -> io::Result<()> {
     let mut stdout = BufWriter::new(io::stdout().lock());
+    if let Some(own) = own {
+        writeln!(stdout, "animations are looked for in {own} first")?;
+    }
     write_notes(&mut stdout, &summary.animations, found)?;
     print_issues(&mut stdout, animated.issues())?;
     stdout.flush()
@@ -160,16 +238,25 @@ fn write(
     armour: &Armour,
     animated: &CharacterAnimations<'_>,
     args: &ArmourGlbArgs,
+    models: &ArchiveModels<'_>,
 ) -> Result<GlbSummary> {
-    let mut options = GlbOptions::default().with_lod(args.lod);
+    let mode = match args.materials {
+        ChfMaterialsArg::Colours => MaterialMode::Colours,
+        ChfMaterialsArg::Textures => MaterialMode::Textures,
+    };
+    let mut options = GlbOptions::default()
+        .with_lod(args.lod)
+        .with_materials(mode)
+        .with_texture_mip(args.texture_mip);
     if args.no_vertex_colours {
         options = options.without_vertex_colours();
     }
     let out: &Path = &args.out;
     let name = armour.variant().code().to_owned();
+    let textures = models.textures();
     Ok(write_replacing(out, |writer| {
         armour
-            .write_glb_animated(animated, &options, writer)
+            .write_glb_animated_with(animated, &options, &textures, writer)
             .map_err(|error| match error {
                 GltfError::Write(source) => ConversionError::Write {
                     path: out.to_path_buf(),
@@ -217,6 +304,7 @@ fn print_report(
             one_line(part.file())
         )?;
     }
+    print_textures(&mut stdout, summary)?;
     if summary.lod_fallbacks > 0 {
         writeln!(
             stdout,

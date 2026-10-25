@@ -37,6 +37,12 @@ pub struct TestEntry {
 }
 
 impl TestEntry {
+    /// Returns the path of the Entry as it is stored.
+    #[must_use]
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
     /// Creates an Entry whose data is stored without compression.
     #[must_use]
     pub fn stored(path: impl Into<String>, data: impl Into<Vec<u8>>) -> Self {

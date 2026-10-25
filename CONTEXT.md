@@ -234,6 +234,16 @@ One port of a Loadout as a Record or XML Loadout states it: the port name, the E
 by Reference or Class name, and optionally a Loadout for that Entity.
 _Avoid_: loadout item, fitting
 
+**Outfit**:
+The default Loadout of an Entity that is made of a base Loadout and the Loadouts of its outfits,
+laid over each other per Port; a story character's body, head, hair and clothing (ADR-0109).
+_Avoid_: costume
+
+**Bespoke head**:
+The head skins a story character has in the folder of its own head's material library, used in
+place of the generic Protos skins its Record names (ADR-0109).
+_Avoid_: custom head, NPC head
+
 **Override**:
 The Loadout a Loadout entry gives the Entity it attaches, which replaces the Entity's own entries
 port by port (ADR-0012).

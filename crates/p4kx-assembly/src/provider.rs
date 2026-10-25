@@ -108,6 +108,23 @@ pub trait ModelProvider: Sync {
     }
 }
 
+/// Returns whether `path` starts with `prefix`, ignoring ASCII case and treating `\` as `/`.
+fn starts_with_path(path: &str, prefix: &str) -> bool {
+    let mut own = path.bytes();
+    prefix.bytes().all(|byte| {
+        own.next().is_some_and(|found| {
+            let unify = |value: u8| {
+                if value == b'\\' {
+                    b'/'
+                } else {
+                    value.to_ascii_lowercase()
+                }
+            };
+            unify(found) == unify(byte)
+        })
+    })
+}
+
 /// Reads models and material libraries from the Entries of an Archive below `Data`.
 #[derive(Debug)]
 pub struct ArchiveModels<'a> {
@@ -130,6 +147,17 @@ impl<'a> ArchiveModels<'a> {
     #[must_use]
     pub fn contains(&self, path: &str) -> bool {
         self.entry_of(path).is_some()
+    }
+
+    /// Returns whether the Archive holds a file below the folder `folder`, a path below `Data`,
+    /// ignoring ASCII case and the kind of separator.
+    #[must_use]
+    pub fn has_folder(&self, folder: &str) -> bool {
+        let wanted = format!("data/{}/", folder.trim_matches(['/', '\\']));
+        self.archive
+            .entries()
+            .iter()
+            .any(|entry| starts_with_path(entry.path(), &wanted))
     }
 
     /// Returns a loader for the textures of the materials, reading the Entries the models come

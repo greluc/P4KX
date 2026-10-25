@@ -1,0 +1,182 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use super::{BodyVariant, Piece, Wearable};
+use crate::resolver::LoadoutResolver;
+use crate::{Attachment, EntityNode, PortNode};
+
+const HEAD_TYPE: &str = "Char_Head";
+const HEAD_SUFFIX: &str = "_head";
+
+/// The head of a story character as its Loadout gives it: the head Entity and what sits on its
+/// ports, as pieces to wear on the body.
+///
+/// A head whose material library lives in a folder of its own has a bespoke skin there, see
+/// [`Piece::bespoke_in`]; [`NpcHead::folder`] names that folder.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NpcHead {
+    class_name: String,
+    variant: BodyVariant,
+    folder: Option<String>,
+    pieces: Vec<Piece>,
+}
+
+impl NpcHead {
+    /// Returns the class name of the head Entity, e.g. `eckhart_t2_head`.
+    #[must_use]
+    pub fn class_name(&self) -> &str {
+        &self.class_name
+    }
+
+    /// Returns the body variant the head's sub-type names, `Male` or `Female`.
+    #[must_use]
+    pub const fn variant(&self) -> BodyVariant {
+        self.variant
+    }
+
+    /// Returns the folder below `Data` that holds the character's own head skins, the folder of
+    /// the head's material library, when the head has one of its own.
+    #[must_use]
+    pub fn folder(&self) -> Option<&str> {
+        self.folder.as_deref()
+    }
+
+    /// Returns the pieces to wear: the head, then the Entities on its ports that have geometry.
+    #[must_use]
+    pub fn pieces(&self) -> &[Piece] {
+        &self.pieces
+    }
+}
+
+/// Returns the folder part of `path`, with `/` as separator.
+fn folder_of(path: &str) -> Option<String> {
+    let unified = path.replace('\\', "/");
+    unified
+        .rsplit_once('/')
+        .map(|(folder, _)| folder.to_owned())
+        .filter(|folder| !folder.is_empty())
+}
+
+fn flags_of(port: &PortNode) -> Vec<String> {
+    port.definition()
+        .map(|definition| {
+            definition
+                .flags()
+                .split_whitespace()
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn find_head(ports: &[PortNode]) -> Option<(&PortNode, &EntityNode)> {
+    for port in ports {
+        if let Attachment::Entity(node) = port.attachment()
+            && node.attach_type().eq_ignore_ascii_case(HEAD_TYPE)
+        {
+            return Some((port, node));
+        }
+        if let Attachment::Entity(node) = port.attachment()
+            && let Some(found) = find_head(node.ports())
+        {
+            return Some(found);
+        }
+        if let Some(found) = find_head(port.nested()) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+impl LoadoutResolver<'_> {
+    /// Returns the head a resolved Loadout tree gives its character: the Entity of the item type
+    /// `Char_Head` wherever it hangs in the tree, and the Entities on its ports that have geometry.
+    ///
+    /// The sub-geometry an item takes is the one tagged with a flag of the head's port it sits
+    /// at; the material library of an item is chosen by the tags of the Entities on its own ports,
+    /// e.g. a hair colour. `None` when the tree has no head or its sub-type names no body.
+    pub fn npc_head(&mut self, tree: &EntityNode) -> Option<NpcHead> {
+        let (_, head) = find_head(tree.ports())?;
+        let spec = self.spec(head.guid);
+        let spec = spec.as_ref().as_ref().ok()?;
+        let variant = BodyVariant::from_code(&spec.attach_sub_type)?;
+        let wearable = Wearable::from_spec(spec);
+        let folder = wearable
+            .geometry()
+            .and_then(|geometry| geometry.material())
+            .and_then(folder_of);
+        let prefix = {
+            let class = wearable.class_name();
+            let cut = class.len().checked_sub(HEAD_SUFFIX.len());
+            match cut.and_then(|cut| class.get(cut..).map(|tail| (cut, tail))) {
+                Some((cut, tail)) if tail.eq_ignore_ascii_case(HEAD_SUFFIX) => {
+                    class.get(..cut).unwrap_or(class).to_owned()
+                }
+                _ => class.to_owned(),
+            }
+        };
+        let class_name = wearable.class_name().to_owned();
+        let own = folder.clone().map(|folder| (folder, prefix));
+        let mut pieces = vec![bespoke(
+            Piece::wearable(wearable).named("head"),
+            own.as_ref(),
+        )];
+        for port in head.ports() {
+            if let Some(piece) = self.item_piece(port) {
+                pieces.push(bespoke(piece, own.as_ref()));
+            }
+        }
+        Some(NpcHead {
+            class_name,
+            variant,
+            folder,
+            pieces,
+        })
+    }
+
+    /// Returns the piece for the Entity on a port of the head, `None` for an empty port or an
+    /// Entity without geometry.
+    fn item_piece(&mut self, port: &PortNode) -> Option<Piece> {
+        let Attachment::Entity(item) = port.attachment() else {
+            return None;
+        };
+        let spec = self.spec(item.guid);
+        let spec = match spec.as_ref() {
+            Ok(spec) => spec,
+            Err(error) => return Some(Piece::failed(port.name(), error.to_string())),
+        };
+        let wearable = Wearable::from_spec(spec);
+        if wearable.geometry().is_none() && wearable.variants().is_empty() {
+            return None;
+        }
+        let tags = item
+            .ports()
+            .iter()
+            .filter_map(|nested| match nested.attachment() {
+                Attachment::Entity(variant) => Some(variant.guid),
+                _ => None,
+            })
+            .filter_map(|guid| {
+                self.spec(guid)
+                    .as_ref()
+                    .as_ref()
+                    .ok()
+                    .map(|spec| spec.attach_tags.clone())
+            })
+            .flatten()
+            .collect();
+        Some(
+            Piece::wearable(wearable)
+                .named(port.name())
+                .selected_by(flags_of(port))
+                .with_material_tags(tags),
+        )
+    }
+}
+
+fn bespoke(piece: Piece, own: Option<&(String, String)>) -> Piece {
+    let Some((folder, prefix)) = own else {
+        return piece;
+    };
+    piece.bespoke_in(folder.clone(), prefix.clone())
+}

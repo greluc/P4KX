@@ -7,6 +7,7 @@ mod animation_support;
 mod archive_key;
 mod armour_glb;
 mod armour_loadout;
+mod armour_npc;
 mod audio;
 mod audio_adpcm;
 mod audio_loop;

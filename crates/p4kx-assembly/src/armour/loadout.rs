@@ -93,7 +93,33 @@ impl Piece {
     }
 }
 
-impl LoadoutResolver<'_> {
+fn xml_paths(loadout: &LoadoutSpec, paths: &mut Vec<String>) {
+    match loadout {
+        LoadoutSpec::Xml(path) => paths.push(path.clone()),
+        LoadoutSpec::Layered(layers) => {
+            for layer in layers.iter() {
+                xml_paths(layer, paths);
+            }
+        }
+        LoadoutSpec::Manual(_) => {}
+    }
+}
+
+impl<'f> LoadoutResolver<'f> {
+    /// Returns the paths of the XML Loadouts the default Loadout of `entity` is made of, in the
+    /// order they are laid over each other: for an outfit its base Loadout, then the Loadouts of
+    /// its outfits. Empty when the Entity's Loadout is not made of XML files or it has none.
+    pub fn loadout_files(&mut self, entity: &p4kx_dataforge::Record<'f>) -> Vec<String> {
+        let spec = self.spec(entity.guid());
+        let mut paths = Vec::new();
+        if let Ok(spec) = spec.as_ref()
+            && let Some(loadout) = &spec.loadout
+        {
+            xml_paths(loadout, &mut paths);
+        }
+        paths
+    }
+
     /// Resolves the XML Loadout at `path`, a path as a Record names it, into a tree whose root
     /// is no Entity: its ports are the Loadout's entries, with the Loadouts it includes merged.
     ///
@@ -116,6 +142,8 @@ impl LoadoutResolver<'_> {
             docked_vehicle: false,
             attach_type: String::new(),
             attach_sub_type: String::new(),
+            attach_tags: Vec::new(),
+            material_variants: Vec::new(),
             size: None,
             container: None,
             object_containers: Vec::new().into(),

@@ -6,8 +6,8 @@ use crate::entity_cargo::{container_component, physics_component};
 use crate::entity_loadout::TestLoadout;
 use crate::entity_schema::attachable_component;
 use crate::entity_vehicle::{
-    ContainerPlacement, GeometryVariant, geometry_component, item_container_component,
-    vehicle_component,
+    ContainerPlacement, GeometryVariant, MaterialChoice, geometry_component,
+    item_container_component, vehicle_component,
 };
 use crate::{TestInstance, TestRecord, TestValue};
 
@@ -30,6 +30,7 @@ pub struct TestEntity {
     geometry: Option<(String, Option<String>)>,
     palette: Option<(u128, String)>,
     geometry_variants: Vec<GeometryVariant>,
+    material_choices: Vec<MaterialChoice>,
     vehicle: Option<(String, String)>,
     landing_system: Option<u128>,
     attach_type: Option<String>,
@@ -67,6 +68,7 @@ impl TestEntity {
             geometry: None,
             palette: None,
             geometry_variants: Vec::new(),
+            material_choices: Vec::new(),
             vehicle: None,
             landing_system: None,
             attach_type: None,
@@ -161,6 +163,15 @@ impl TestEntity {
         self
     }
 
+    /// Adds the material library `material` for the node of the material tree tagged `tags`, e.g.
+    /// `hairVar_Brown>Male` for the node `Male` below `hairVar_Brown`; the database needs
+    /// [`entity_schema`](crate::entity_schema).
+    #[must_use]
+    pub fn material_choice(mut self, tags: impl Into<String>, material: impl Into<String>) -> Self {
+        self.material_choices.push((tags.into(), material.into()));
+        self
+    }
+
     /// Adds a reference to the audio trigger `name` in the Entity's audio component; the
     /// database needs [`audio_schema`](crate::audio_schema).
     #[must_use]
@@ -238,6 +249,10 @@ impl TestEntity {
 
     /// Returns the Record.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one component per optional part, in the order of the game data"
+    )]
     pub fn record(&self) -> TestRecord {
         let mut components = Vec::new();
         if let Some(loadout) = &self.loadout {
@@ -257,13 +272,17 @@ impl TestEntity {
         if !self.triggers.is_empty() || !self.sound_effects.is_empty() {
             components.push(self.audio_component());
         }
-        if self.geometry.is_some() || !self.geometry_variants.is_empty() {
+        if self.geometry.is_some()
+            || !self.geometry_variants.is_empty()
+            || !self.material_choices.is_empty()
+        {
             let (path, material) = self.geometry.clone().unwrap_or_default();
             components.push(geometry_component(
                 &path,
                 material.as_deref(),
                 &self.geometry_variants,
                 self.palette.as_ref(),
+                &self.material_choices,
             ));
         }
         if self.vehicle.is_some() || !self.object_containers.is_empty() {

@@ -9,12 +9,14 @@ use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 use crate::merge::port_key;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
-use crate::{Geometry, GeometryVariant, ItemFacts, ObjectContainerRef};
+use crate::{Geometry, GeometryVariant, ItemFacts, MaterialVariant, ObjectContainerRef};
 
 const GEOMETRY_RESOURCE: &str = "SGeometryResourceParams";
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
+const OUTFIT_LOADOUT: &str = "SItemPortLoadoutOutfitParams";
+const MAX_OUTFIT_LAYERS: usize = 16;
 const VEHICLE_PARAMS: &str = "VehicleComponentParams";
 const ATTACHABLE: &str = "SAttachableComponentParams";
 const INVENTORY_CONTAINER: &str = "SCItemInventoryContainerComponentParams";
@@ -40,6 +42,10 @@ pub(crate) enum LoadoutSpec {
     Manual(Arc<[EntrySpec]>),
     /// An XML Loadout file, by the path the Record names.
     Xml(String),
+    /// Loadouts laid over each other in order, an outfit (`SItemPortLoadoutOutfitParams`): its
+    /// base Loadout, then the Loadouts of the outfits that always apply. An entry without an
+    /// Entity adds its nested entries to those of the earlier entry of the same port.
+    Layered(Arc<[Self]>),
 }
 
 /// One entry of a Loadout: a port, what it holds and the Loadout given to that.
@@ -81,6 +87,8 @@ pub(crate) struct EntitySpec {
     pub(crate) docked_vehicle: bool,
     pub(crate) attach_type: String,
     pub(crate) attach_sub_type: String,
+    pub(crate) attach_tags: Vec<String>,
+    pub(crate) material_variants: Vec<MaterialVariant>,
     pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
     pub(crate) object_containers: Arc<[ObjectContainerRef]>,
@@ -128,6 +136,12 @@ impl EntitySpec {
             attach_sub_type: definition
                 .map_or("", |definition| text(definition, "SubType"))
                 .to_owned(),
+            attach_tags: definition
+                .map(|definition| tag_words(text(definition, "Tags")))
+                .unwrap_or_default(),
+            material_variants: geometry_component
+                .map(|component| MaterialVariant::read(component))
+                .unwrap_or_default(),
             size: definition.and_then(|definition| unsigned(definition, "Size")),
             docked_vehicle: attach_type.starts_with(DOCKED_VEHICLE_TYPE),
             attach_type: attach_type.to_owned(),
@@ -244,11 +258,55 @@ fn collect_targets<'s>(entries: &'s [EntrySpec], targets: &mut Vec<&'s TargetSpe
     }
 }
 
-/// Reads a manual or XML Loadout; `None` for any other struct.
+/// Returns the words of a tag list as the game writes it: white space separated, a word such as
+/// `$$hairVar_Brown++` stands for the tag `hairVar_Brown`.
+fn tag_words(tags: &str) -> Vec<String> {
+    tags.split_whitespace()
+        .map(|word| word.trim_matches(['$', '+']))
+        .filter(|word| !word.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+/// Reads an outfit: the base Loadout, then the Loadouts of the outfits without name tags; when
+/// every outfit has name tags, those of the first.
+fn read_outfit(outfit: &StructValue<'_>) -> Option<LoadoutSpec> {
+    let mut layers: Vec<LoadoutSpec> = struct_field(outfit, "BaseLoadout")
+        .and_then(read_loadout)
+        .into_iter()
+        .collect();
+    let outfits: Vec<&StructValue<'_>> = struct_items(outfit, "Outfits").collect();
+    let chosen: Vec<&StructValue<'_>> = {
+        let untagged: Vec<_> = outfits
+            .iter()
+            .copied()
+            .filter(|outfit| !has_items(outfit, "OutfitNameTags"))
+            .collect();
+        if untagged.is_empty() {
+            outfits.first().copied().into_iter().collect()
+        } else {
+            untagged
+        }
+    };
+    for outfit in chosen {
+        layers.extend(struct_items(outfit, "Loadouts").filter_map(read_loadout));
+    }
+    layers.truncate(MAX_OUTFIT_LAYERS);
+    (!layers.is_empty()).then(|| LoadoutSpec::Layered(layers.into()))
+}
+
+fn has_items(structure: &StructValue<'_>, name: &str) -> bool {
+    matches!(structure.field(name), Some(Value::Array(items)) if !items.is_empty())
+}
+
+/// Reads a manual, XML or outfit Loadout; `None` for any other struct.
 fn read_loadout(loadout: &StructValue<'_>) -> Option<LoadoutSpec> {
     if loadout.type_name() == XML_LOADOUT {
         let path = text(loadout, "loadoutPath");
         return (!path.is_empty()).then(|| LoadoutSpec::Xml(path.to_owned()));
+    }
+    if loadout.type_name() == OUTFIT_LOADOUT {
+        return read_outfit(loadout);
     }
     loadout.field("entries")?;
     Some(LoadoutSpec::Manual(

@@ -44,6 +44,16 @@ pub struct Piece {
     pub(crate) material: Option<String>,
     pub(crate) follows_head: bool,
     pub(crate) notes: Vec<Note>,
+    pub(crate) selecting: Vec<String>,
+    pub(crate) variant_tags: Vec<String>,
+    pub(crate) bespoke: Option<Bespoke>,
+}
+
+/// Where the skins of a story character's own head are, see [`Piece::bespoke`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Bespoke {
+    pub(crate) folder: String,
+    pub(crate) prefix: String,
 }
 
 impl Piece {
@@ -57,7 +67,39 @@ impl Piece {
             material: None,
             follows_head: false,
             notes: Vec::new(),
+            selecting: Vec::new(),
+            variant_tags: Vec::new(),
+            bespoke: None,
         }
+    }
+
+    /// Takes the sub-geometry of the Entity that is tagged with one of `flags`, the flags of the
+    /// port the Entity sits at, before the sub-geometry of the body.
+    #[must_use]
+    pub fn selected_by(mut self, flags: Vec<String>) -> Self {
+        self.selecting = flags;
+        self
+    }
+
+    /// Chooses the Entity's material library by `tags`, see [`MaterialVariant::resolve`]; the
+    /// body variant's tag is always among them.
+    #[must_use]
+    pub fn with_material_tags(mut self, tags: Vec<String>) -> Self {
+        self.variant_tags = tags;
+        self
+    }
+
+    /// Wears the skin a story character's own head has for this piece instead of the generic
+    /// Protos skin its Record names: the file `<prefix>_<part>.skin` in `folder`, where `<part>`
+    /// is what the generic file's name adds to its rig's name, e.g. `head` or `eyes`. A skin the
+    /// Archive lacks leaves the Record's.
+    #[must_use]
+    pub fn bespoke_in(mut self, folder: impl Into<String>, prefix: impl Into<String>) -> Self {
+        self.bespoke = Some(Bespoke {
+            folder: folder.into(),
+            prefix: prefix.into(),
+        });
+        self
     }
 
     /// Wears the Entity `wearable`; the piece is named after its class name.

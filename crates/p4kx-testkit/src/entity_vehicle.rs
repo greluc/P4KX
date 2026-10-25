@@ -37,11 +37,46 @@ fn geometry_node(
         .value("Geometry", TestValue::Struct(data))
 }
 
+/// A material library given to the node of the material tree tagged `tags`; tags of the form
+/// `parent>own` name a node tagged `own` nested in a node tagged `parent`.
+pub(crate) type MaterialChoice = (String, String);
+
+fn material_node(tags: &str, material: &str, nested: Vec<TestValue>) -> TestInstance {
+    TestInstance::new("SMaterialNodeParams")
+        .value("Tags", TestValue::text(tags))
+        .value(
+            "Material",
+            TestValue::Struct(
+                TestInstance::new("GlobalResourceMaterial")
+                    .value("path", TestValue::text(material)),
+            ),
+        )
+        .value("materialVariants", TestValue::Array(nested))
+}
+
+fn material_tree(choices: &[MaterialChoice]) -> TestValue {
+    let nodes = choices
+        .iter()
+        .map(|(tags, material)| {
+            TestValue::Struct(match tags.split_once('>') {
+                Some((parent, own)) => material_node(
+                    parent,
+                    "",
+                    vec![TestValue::Struct(material_node(own, material, Vec::new()))],
+                ),
+                None => material_node(tags, material, Vec::new()),
+            })
+        })
+        .collect();
+    TestValue::Struct(material_node("", "", nodes))
+}
+
 pub(crate) fn geometry_component(
     path: &str,
     material: Option<&str>,
     variants: &[GeometryVariant],
     palette: Option<&(u128, String)>,
+    choices: &[MaterialChoice],
 ) -> TestValue {
     let subs = variants
         .iter()
@@ -63,9 +98,12 @@ pub(crate) fn geometry_component(
         .collect();
     let node =
         geometry_node("", path, material, palette).value("SubGeometry", TestValue::Array(subs));
-    TestValue::Struct(
-        TestInstance::new("SGeometryResourceParams").value("Geometry", TestValue::Struct(node)),
-    )
+    let mut component =
+        TestInstance::new("SGeometryResourceParams").value("Geometry", TestValue::Struct(node));
+    if !choices.is_empty() {
+        component = component.value("Material", material_tree(choices));
+    }
+    TestValue::Struct(component)
 }
 
 pub(crate) fn vehicle_structs() -> Vec<TestStruct> {

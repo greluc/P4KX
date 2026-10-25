@@ -7,8 +7,8 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, EntityLookupError, EntityNode, LoadoutFileError, LoadoutFiles, LoadoutResolver,
-    MAX_XML_LOADOUT_LEN, Piece, Replaced,
+    ArchiveFiles, BodyVariant, EntityLookupError, EntityNode, LoadoutFileError, LoadoutFiles,
+    LoadoutResolver, MAX_XML_LOADOUT_LEN, NpcHead, Piece, Replaced,
 };
 use serde::Serialize;
 use thiserror::Error;
@@ -104,14 +104,26 @@ fn read_local(text: &str) -> Result<Vec<u8>> {
 struct Resolved {
     tree: EntityNode,
     source: LoadoutSource,
+    files: Vec<String>,
 }
 
-/// The Loadout `--loadout` named, as the report shows it.
+/// The Loadout `--loadout` named, as the report shows it: where it came from and the XML Loadout
+/// files it is made of, in the order they are laid over each other.
 #[derive(Debug, Serialize)]
 pub(crate) struct LoadoutJson<'a> {
     pub(crate) name: &'a str,
     pub(crate) source: LoadoutSource,
     pub(crate) class_name: Option<String>,
+    pub(crate) files: Vec<String>,
+}
+
+/// The head a Loadout gave its character, as the report shows it.
+#[derive(Debug, Serialize)]
+pub(crate) struct HeadJson {
+    pub(crate) class_name: String,
+    pub(crate) body: &'static str,
+    pub(crate) bespoke_folder: Option<String>,
+    pub(crate) parts: usize,
 }
 
 /// A piece of the Loadout that a `--piece` took the place of, as the report shows it.
@@ -137,6 +149,24 @@ pub(crate) struct Selection<'a> {
     pub(crate) pieces: Vec<Piece>,
     pub(crate) loadout: Option<LoadoutJson<'a>>,
     pub(crate) replaced: Vec<Replaced>,
+    pub(crate) head: Option<NpcHead>,
+}
+
+impl Selection<'_> {
+    /// Returns the body variant the Loadout's head belongs on.
+    pub(crate) fn variant(&self) -> Option<BodyVariant> {
+        self.head.as_ref().map(NpcHead::variant)
+    }
+
+    /// Returns the report of the Loadout's head.
+    pub(crate) fn head_json(&self) -> Option<HeadJson> {
+        self.head.as_ref().map(|head| HeadJson {
+            class_name: head.class_name().to_owned(),
+            body: head.variant().code(),
+            bespoke_folder: head.folder().map(str::to_owned),
+            parts: head.pieces().len(),
+        })
+    }
 }
 
 impl<'a> Selection<'a> {
@@ -155,10 +185,15 @@ impl<'a> Selection<'a> {
                 pieces: given,
                 loadout: None,
                 replaced: Vec::new(),
+                head: None,
             });
         };
         let found = resolve(resolver, files, text)?;
-        let (pieces, replaced) = Piece::layer(resolver.worn(&found.tree), given);
+        let (mut pieces, replaced) = Piece::layer(resolver.worn(&found.tree), given);
+        let head = resolver.npc_head(&found.tree);
+        if let Some(head) = &head {
+            pieces.extend(head.pieces().iter().cloned());
+        }
         Ok(Self {
             pieces,
             loadout: Some(LoadoutJson {
@@ -166,8 +201,10 @@ impl<'a> Selection<'a> {
                 source: found.source,
                 class_name: (found.source == LoadoutSource::Entity)
                     .then(|| found.tree.class_name().to_owned()),
+                files: found.files,
             }),
             replaced,
+            head,
         })
     }
 
@@ -179,6 +216,21 @@ impl<'a> Selection<'a> {
                 "loadout {} ({})",
                 one_line(loadout.name),
                 loadout.source.code()
+            )?;
+            for file in &loadout.files {
+                writeln!(out, "loadout file {}", one_line(file))?;
+            }
+        }
+        if let Some(head) = &self.head {
+            let own = head.folder().map_or_else(String::new, |folder| {
+                format!(", its own skins in {}", one_line(folder))
+            });
+            writeln!(
+                out,
+                "head {} on the {} body, {} parts{own}",
+                one_line(head.class_name()),
+                head.variant().code(),
+                head.pieces().len()
             )?;
         }
         for replaced in &self.replaced {
@@ -216,18 +268,21 @@ fn resolve(resolver: &mut LoadoutResolver<'_>, files: &Files<'_>, text: &str) ->
         return Ok(Resolved {
             tree,
             source: LoadoutSource::File,
+            files: vec![name.to_owned()],
         });
     }
     match resolver.entities().find(text) {
         Ok(record) => Ok(Resolved {
             tree: resolver.resolve(&record)?,
             source: LoadoutSource::Entity,
+            files: resolver.loadout_files(&record),
         }),
         Err(EntityLookupError::NotFound { .. }) if text.to_ascii_lowercase().ends_with(".xml") => {
             let tree = resolver.resolve_file(text).map_err(unreadable)?;
             Ok(Resolved {
                 tree,
                 source: LoadoutSource::Archive,
+                files: vec![text.to_owned()],
             })
         }
         Err(error) => Err(error.into()),

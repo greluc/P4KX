@@ -22,7 +22,7 @@ use crate::cli::ChfGlbArgs;
 use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
-use crate::model_animations::{WrittenJson, character_animations, write_notes};
+use crate::model_animations::{AnimationFolders, WrittenJson, character_animations, write_notes};
 use crate::query_table::one_line;
 
 #[derive(Serialize)]
@@ -152,6 +152,7 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
         &models,
         head.variant(),
         (&args.animations, &args.animation_sources),
+        &AnimationFolders::default(),
     )?;
     let animated = armour.animate(&found.animations, &models);
     let summary = write_replacing(&args.out, |writer| {

@@ -39,7 +39,12 @@ fn geometry_structs() -> Vec<TestStruct> {
     vec![
         TestStruct::new("SGeometryResourceParams")
             .parent("DataForgeComponentParams")
-            .field("Geometry", class("SGeometryNodeParams")),
+            .field("Geometry", class("SGeometryNodeParams"))
+            .field("Material", class("SMaterialNodeParams")),
+        TestStruct::new("SMaterialNodeParams")
+            .field("Tags", TestType::String)
+            .field("Material", class("GlobalResourceMaterial"))
+            .array("materialVariants", class("SMaterialNodeParams")),
         TestStruct::new("SGeometryNodeParams")
             .field("Tags", TestType::String)
             .field("Geometry", class("SGeometryDataParams"))
@@ -143,6 +148,13 @@ fn loadout_structs() -> Vec<TestStruct> {
         TestStruct::new("SItemPortLoadoutXMLParams")
             .parent("SItemPortLoadoutBaseParams")
             .field("loadoutPath", TestType::String),
+        TestStruct::new("SItemPortLoadoutOutfitParams")
+            .parent("SItemPortLoadoutBaseParams")
+            .field("BaseLoadout", pointer("SItemPortLoadoutBaseParams"))
+            .array("Outfits", class("SItemPortLoadoutOutfitTagParams")),
+        TestStruct::new("SItemPortLoadoutOutfitTagParams")
+            .array("OutfitNameTags", TestType::String)
+            .array("Loadouts", pointer("SItemPortLoadoutBaseParams")),
         TestStruct::new("SItemPortLoadoutEntryParams")
             .field("itemPortName", TestType::String)
             .field("entityClassName", TestType::String)

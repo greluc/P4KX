@@ -21,6 +21,19 @@ const RIGS: [(BodyVariant, u32, &str); 2] = [
     ),
 ];
 
+/// Returns what the file name `stem` adds to the name of a stock head rig, e.g. `eyes` for
+/// `protos_human_male_face_t1_pu_eyes`, ignoring ASCII case; `None` for any other name.
+pub(super) fn rig_part(stem: &str) -> Option<&str> {
+    RIGS.iter().find_map(|(_, _, rig)| {
+        let rest = stem.get(rig.len()..)?;
+        let head = stem.get(..rig.len())?;
+        if !head.eq_ignore_ascii_case(rig) {
+            return None;
+        }
+        rest.strip_prefix('_').filter(|part| !part.is_empty())
+    })
+}
+
 /// Why the head of a Character cannot be made.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 #[non_exhaustive]

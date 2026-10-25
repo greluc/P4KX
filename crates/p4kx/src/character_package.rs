@@ -8,7 +8,7 @@ use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant, ForgeItems, Head,
-    LoadoutResolver,
+    LoadoutResolver, Piece,
 };
 use p4kx_blender::{
     CharacterScene, PackageInfo, PackageSummary, check_output, write_character_package,
@@ -25,7 +25,7 @@ use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::GlbOutputIsArchive;
 use crate::entity_package::build_info;
 use crate::extract::cancel_on_interrupt;
-use crate::model_animations::character_animations;
+use crate::model_animations::{AnimationFolders, character_animations};
 
 mod report;
 
@@ -72,21 +72,16 @@ fn package(args: &CharacterPackageArgs, as_json: bool) -> Result<()> {
         .as_ref()
         .map(|chf| dress(args, chf, &mut resolver))
         .transpose()?;
-    let variant = head.as_ref().map_or_else(
-        || BodyVariant::from(args.body.unwrap_or(BodyArg::Male)),
-        Head::variant,
-    );
-    let mut pieces = std::mem::take(&mut selection.pieces);
-    if let Some(head) = &head {
-        pieces.extend(head.pieces().iter().cloned());
-    }
+    let (variant, pieces) = worn(args, &mut selection, head.as_ref());
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let armour = Armour::build(variant, &pieces, &models, &options)?;
+    let folders = animation_folders(args, &selection, &models, variant);
     let found = character_animations(
         &models,
         variant,
         (&args.animations, &args.animation_sources),
+        &folders,
     )?;
     let animated = armour.animate(&found.animations, &models);
 
@@ -112,6 +107,46 @@ fn package(args: &CharacterPackageArgs, as_json: bool) -> Result<()> {
     };
     report::print(&shown, &summary, as_json)?;
     failure(&armour, &args.out).map_or(Ok(()), Err)
+}
+
+/// Returns the body variant and the pieces to wear: the CHF's head decides the body and takes the
+/// place of the head a Loadout gives, else `--body`, else the Loadout's head, else the male body.
+fn worn(
+    args: &CharacterPackageArgs,
+    selection: &mut Selection<'_>,
+    head: Option<&Head>,
+) -> (BodyVariant, Vec<Piece>) {
+    let variant = head
+        .map(Head::variant)
+        .or_else(|| args.body.map(BodyVariant::from))
+        .or_else(|| selection.variant())
+        .unwrap_or_else(|| BodyVariant::from(BodyArg::Male));
+    let mut pieces = std::mem::take(&mut selection.pieces);
+    if let Some(head) = head {
+        if let Some(npc) = &selection.head {
+            pieces.retain(|piece| !npc.pieces().contains(piece));
+        }
+        pieces.extend(head.pieces().iter().cloned());
+    }
+    (variant, pieces)
+}
+
+fn animation_folders(
+    args: &CharacterPackageArgs,
+    selection: &Selection<'_>,
+    models: &ArchiveModels<'_>,
+    variant: BodyVariant,
+) -> AnimationFolders {
+    if !args.animation_folders.is_empty() {
+        return AnimationFolders::only(&args.animation_folders);
+    }
+    selection
+        .head
+        .as_ref()
+        .and_then(|head| head.folder())
+        .map_or_else(AnimationFolders::default, |folder| {
+            AnimationFolders::of_npc(models, variant, folder)
+        })
 }
 
 fn store(

@@ -10,6 +10,13 @@ pub enum TestLoadout {
     Manual(Vec<TestLoadoutEntry>),
     /// An XML Loadout naming the file that holds it.
     Xml(String),
+    /// An outfit: a base Loadout and outfits, each with its name tags and the Loadouts it adds.
+    Outfit {
+        /// The base Loadout.
+        base: Box<Self>,
+        /// The outfits: name tags and Loadouts.
+        outfits: Vec<(Vec<String>, Vec<Self>)>,
+    },
 }
 
 impl TestLoadout {
@@ -21,6 +28,29 @@ impl TestLoadout {
             ),
             Self::Xml(path) => TestInstance::new("SItemPortLoadoutXMLParams")
                 .value("loadoutPath", TestValue::text(path.clone())),
+            Self::Outfit { base, outfits } => {
+                let outfit = |(tags, loadouts): &(Vec<String>, Vec<Self>)| {
+                    TestValue::Struct(
+                        TestInstance::new("SItemPortLoadoutOutfitTagParams")
+                            .value(
+                                "OutfitNameTags",
+                                TestValue::Array(
+                                    tags.iter().cloned().map(TestValue::Text).collect(),
+                                ),
+                            )
+                            .value(
+                                "Loadouts",
+                                TestValue::Array(loadouts.iter().map(Self::value).collect()),
+                            ),
+                    )
+                };
+                TestInstance::new("SItemPortLoadoutOutfitParams")
+                    .value("BaseLoadout", base.value())
+                    .value(
+                        "Outfits",
+                        TestValue::Array(outfits.iter().map(outfit).collect()),
+                    )
+            }
         })
     }
 }

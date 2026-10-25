@@ -71,11 +71,18 @@ impl Page {
         taken: usize,
         total: usize,
     ) -> Result<Option<String>, ToolError> {
+        self.check(total)?;
+        let end = self.offset.saturating_add(taken);
+        Ok((end < total).then(|| self.cursor(end)))
+    }
+
+    /// Rejects an offset beyond a listing of `total` items as a bad cursor; call it as soon as
+    /// `total` is known, before any work for the items.
+    pub(crate) fn check(self, total: usize) -> Result<(), ToolError> {
         if self.offset > total {
             return Err(ToolError::BadCursor(self.cursor(self.offset)));
         }
-        let end = self.offset.saturating_add(taken);
-        Ok((end < total).then(|| self.cursor(end)))
+        Ok(())
     }
 
     /// Returns the position of the first item of the page in the listing.

@@ -243,7 +243,8 @@ pub struct RewardSource<'f> {
     pub contract_name: Option<&'f str>,
     /// The GUID of the `BlueprintPoolRecord` the Reference links to.
     pub pool: Guid,
-    /// The chance that the reward is given, 0 to 1, `None` when the Record holds none.
+    /// The chance that the reward is given as the Record states it, 0 to 1 on LIVE and not
+    /// clamped, `None` when the Record holds none.
     pub chance: Option<f32>,
 }
 

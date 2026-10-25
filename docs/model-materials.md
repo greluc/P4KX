@@ -111,11 +111,12 @@ normal map of the shader families that use layers), so the role comes from the s
 | normal | `TexSlot2`, else `TexSlot3` | `_ddna` (smoothness in the alpha tail) or `_ddn` | 39,267 + 16,021 `Illum`, 17,626 + 13,907 `LayerBlend_V2` |
 | specular | `TexSlot4` | `_spec` | 18,499 `Illum`, 997 `LayerBlend_V2` |
 
-Everything else is not read: the second layer (`TexSlot9` `_diff`, `TexSlot12` `_blend`,
-`TexSlot11` `_wear`, `TexSlot13` `_hal`), detail maps (`TexSlot6`), displacement (`TexSlot8`) and
-the layers and tint palettes of `HardSurface` and `LayerBlend_V2`. They belong to layered
-materials and tints (#127); a `LayerBlend_V2` material gets only what its first slots hold. The
-UV tiling of `MatLayers` is not applied (`KHR_texture_transform` is not written).
+Everything else is not read as a material's own map: the second layer (`TexSlot9` `_diff`,
+`TexSlot11` `_wear`, `TexSlot13` `_hal`), detail maps (`TexSlot6`) and displacement (`TexSlot8`).
+The layers of `HardSurface` and `LayerBlend_V2` are drawn from the `TexSlot1` diffuse and `TexSlot2`
+normal maps of their layer files, blended by the `_blend` map of the material (`TexSlot12`), with
+the tiling of `UVTiling` and `TexMod` baked into the image; a material without layer maps keeps the
+flat colour of its layers (ADR-0097, ADR-0147). `KHR_texture_transform` is not written.
 
 ### How the textures look
 

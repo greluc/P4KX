@@ -6,8 +6,9 @@ use std::time::Duration;
 
 use egui::{Id, Ui};
 use fluent_bundle::FluentValue;
-use p4kx_export::{CatalogSummary, DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
+use p4kx_export::{DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
 
+use super::catalog_lines::{Notice, failure_lines, kinds, languages, notices, sizes};
 use super::extraction::{group_label, number};
 use super::extraction_outcome::{decorate, ratio};
 use super::record_export_outcome::{list, outcome_window};
@@ -143,8 +144,13 @@ fn running(
         CatalogExportStage::Building => {
             let fraction = ratio(progress.done as u64, progress.total as u64);
             let percent = (fraction * 100.0).floor();
+            let line = if progress.crafting {
+                T::CraftingProgress
+            } else {
+                T::Progress
+            };
             ui.label(texts.format(
-                T::Progress,
+                line,
                 &[
                     ("done", number(texts, progress.done.min(progress.total))),
                     ("total", number(texts, progress.total)),
@@ -187,6 +193,7 @@ struct Laid {
     key: (u64, Language),
     headings: [String; 2],
     warnings: Vec<(String, SizeWarning)>,
+    notices: Vec<Notice>,
     kinds: Vec<String>,
     skipped: String,
     failed_heading: String,
@@ -246,6 +253,7 @@ impl Laid {
             key,
             headings: [texts.get(T::KindsHeading), texts.get(T::TextsHeading)],
             warnings,
+            notices: notices(texts, summary),
             kinds: kinds(texts, summary),
             skipped: texts.format(
                 T::SummarySkipped,
@@ -271,91 +279,6 @@ impl Laid {
     }
 }
 
-/// Returns the line with the size of the catalog file against the upload limit, and the
-/// uncompressed size beside it for a compressed catalog.
-fn sizes(texts: &Texts, summary: &CatalogSummary, limit: String) -> String {
-    let size = format::decimal_size(summary.size(), texts.language());
-    match summary.compressed_size() {
-        Some(compressed) => texts.format(
-            T::SummarySizeCompressed,
-            &[
-                (
-                    "compressed",
-                    format::decimal_size(compressed, texts.language()).into(),
-                ),
-                ("size", size.into()),
-                ("limit", limit.into()),
-            ],
-        ),
-        None => texts.format(
-            T::SummarySize,
-            &[("size", size.into()), ("limit", limit.into())],
-        ),
-    }
-}
-
-/// Returns the line of every Record that could not be read and where its reason starts.
-fn failure_lines(texts: &Texts, summary: &CatalogSummary) -> (Vec<String>, Vec<usize>) {
-    summary
-        .failures()
-        .iter()
-        .map(|failure| {
-            let line = texts.format(
-                T::SummaryFailure,
-                &[
-                    ("path", failure.record_path.clone().into()),
-                    ("guid", failure.guid.to_string().into()),
-                    ("reason", failure.reason.clone().into()),
-                ],
-            );
-            let reason = line.len().saturating_sub(failure.reason.len());
-            (line, reason)
-        })
-        .unzip()
-}
-
-fn kinds(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {
-    summary
-        .kinds()
-        .iter()
-        .map(|kind| {
-            texts.format(
-                T::SummaryKind,
-                &[
-                    ("kind", kind.kind.name().into()),
-                    ("written", number(texts, kind.count)),
-                    ("skipped", number(texts, kind.skipped)),
-                    ("complete", if kind.complete { "yes" } else { "no" }.into()),
-                ],
-            )
-        })
-        .collect()
-}
-
-fn languages(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {
-    summary
-        .texts()
-        .iter()
-        .map(|text| {
-            let language = ("language", text.language.code().into());
-            let missing = ("missing", number(texts, text.unresolved));
-            if text.available {
-                texts.format(
-                    T::SummaryTexts,
-                    &[
-                        language,
-                        ("resolved", number(texts, text.resolved)),
-                        missing,
-                        ("placeholders", number(texts, text.placeholder)),
-                    ],
-                )
-            } else {
-                texts.format(T::SummaryTextsUnavailable, &[language, missing])
-            }
-        })
-        .collect()
-}
-
 fn finished(ui: &mut Ui, laid: &Laid) {
     for (warning, level) in &laid.warnings {
         let body = |ui: &mut Ui| {
@@ -365,6 +288,15 @@ fn finished(ui: &mut Ui, laid: &Laid) {
             SizeWarning::NearLimit => frames::warning_alert(ui, body),
             SizeWarning::OverLimit => frames::danger_alert(ui, body),
         }
+        ui.add_space(MODAL_GROUP_GAP);
+    }
+    for notice in &laid.notices {
+        frames::warning_alert(ui, |ui| {
+            ui.colored_label(palette::GRAY_1, &notice.text);
+            for detail in &notice.details {
+                ui.colored_label(palette::GRAY_2_TEXT, detail);
+            }
+        });
         ui.add_space(MODAL_GROUP_GAP);
     }
     group_label(ui, &laid.headings[0]);

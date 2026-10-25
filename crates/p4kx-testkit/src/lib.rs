@@ -155,7 +155,7 @@ pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};
 pub use entity_schema::{entity_schema, tint_palette_record};
 pub use entity_vehicle::landing_system_record;
-pub use entity_zones::{ZONE_SHIRT, zone_entries};
+pub use entity_zones::{ZONE_SHIRT, zone_entries, zone_entries_with_layer_textures};
 pub use frames::assert_steady_frames;
 pub use gfx::{TestMovie, TestSignature, tag_bytes, zlib};
 pub use gfx_import::{

@@ -125,7 +125,9 @@ fn cost_structs() -> Vec<TestStruct> {
 
 fn reward_structs() -> Vec<TestStruct> {
     vec![
-        TestStruct::new("BlueprintPoolRecord").array("blueprintRewards", class("BlueprintReward")),
+        TestStruct::new("BlueprintPoolRecord")
+            .array("blueprintRewards", class("BlueprintReward"))
+            .field("selfLink", TestType::Reference),
         TestStruct::new("BlueprintReward")
             .field("weight", TestType::Single)
             .field("blueprintRecord", TestType::Reference),

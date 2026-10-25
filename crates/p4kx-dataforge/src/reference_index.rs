@@ -61,38 +61,14 @@ impl ReferenceIndex {
     /// [`MAX_INDEXED_REFERENCES`].
     #[must_use]
     pub fn build(forge: &DataForge<'_>) -> Self {
-        Self::build_limited(forge, MAX_INDEXED_REFERENCES)
+        Self::build_with(forge, MAX_INDEXED_REFERENCES, &|| false).unwrap_or_default()
     }
 
-    /// Indexes like [build](Self::build) but keeps at most `limit` References: the first ones in
-    /// the order of the Records, whatever the number of threads.
+    /// Indexes like [build](Self::build) but keeps at most `limit` References, the first ones in
+    /// the order of the Records whatever the number of threads, and gives up with `None` once
+    /// `stop` returns `true`; `stop` is polled from the worker threads between Records.
     #[must_use]
-    pub fn build_limited(forge: &DataForge<'_>, limit: usize) -> Self {
-        Self::build_until(forge, limit, &|| false).unwrap_or_default()
-    }
-
-    /// Indexes like [build](Self::build) but gives up with `None` once `stop` returns `true`;
-    /// `stop` is polled from the worker threads between Records.
-    #[must_use]
-    pub fn build_cancellable(
-        forge: &DataForge<'_>,
-        stop: &(dyn Fn() -> bool + Sync),
-    ) -> Option<Self> {
-        Self::build_until(forge, MAX_INDEXED_REFERENCES, stop)
-    }
-
-    /// Indexes like [`build_limited`](Self::build_limited) but gives up with `None` once `stop`
-    /// returns `true`.
-    #[must_use]
-    pub fn build_limited_cancellable(
-        forge: &DataForge<'_>,
-        limit: usize,
-        stop: &(dyn Fn() -> bool + Sync),
-    ) -> Option<Self> {
-        Self::build_until(forge, limit, stop)
-    }
-
-    fn build_until(
+    pub fn build_with(
         forge: &DataForge<'_>,
         limit: usize,
         stop: &(dyn Fn() -> bool + Sync),

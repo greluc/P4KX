@@ -485,7 +485,8 @@ nearest parent that is), `not_skinned` (the model has no bone weights and is pla
 `body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of
 the body are left out, ADR-0140), `body_zones_unknown` (the submeshes of the body skin do not fit
 the zone table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the reason counts the layered
-materials of the part that have no diffuse map and are drawn in their layer colours) and
+materials of the part that have no diffuse map of their own and none in a layer, and are drawn in their
+layer colours, ADR-0147) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
 class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
 the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when
@@ -853,7 +854,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "starmapObjects", "count": 2093, "skipped": 0, "complete": true},
  {"kind": "shops", "count": 1184, "skipped": 0, "complete": true}], "skipped": 1205,
  "failed": [{"guid": "…", "path": "libs/foundry/records/entities/scitem/odd", "error": "…"}],
- "warnings": [{"kind": "unreadable_reference_records", "count": 3}],
+ "warnings": [{"kind": "unreadable_reward_records", "count": 3}],
  "item_classes": {"classified": 347, "other": 408, "missing": 22525},
  "paints": {"paints": 1064, "assigned": 1039, "unassigned": 25, "ships": 1046, "unreadable_vehicles": 0},
  "loadouts": {"ships": 1087, "items": 9621, "ports": 293451, "attached": 152081,
@@ -899,8 +900,8 @@ with GUID, record path (empty when it cannot be read) and the reason and its cau
 `: `, ordered by GUID; the example shows one, a healthy Archive has none. The catalog is written
 all the same, and the exit code is 1 when `failed` or `warnings` is not empty. `warnings` lists what
 makes the crafting data incomplete or ambiguous although every Record was read, each as an object
-with a `kind`: `reward_sources_truncated` (the reference index is truncated),
-`unreadable_reference_records` with a `count` (Records the index could not read) and
+with a `kind`: `unreadable_reward_records` with a `count` (Records that cannot be read although
+their struct type is that of a Record with a reward source, so a source may be missing) and
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
 `unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats; the JSON lists every file, stderr the first eight) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
@@ -1723,7 +1724,13 @@ pixels and `textured_materials` the materials that use at least one; all are 0 w
 `--materials colours`. `texture_fallbacks` lists, per material, each texture file that is not used
 because it is missing, cannot be decoded, has an unsafe path or would exceed the budget of 256
 images or 2^29 pixels of the file: `role` is `diffuse`, `normal` or `specular`, `file` the name
-the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The
+the `.mtl` file gives and `reason` the cause; the material keeps its plain colour for it. The reason is
+`the images of this export are as many as allowed (256)` when the image cap is spent (a higher mip does not help),
+and `the textures of this layered image would decode more than 2^27 pixels together` for a layered image. For the
+blended image of a layered material `file` names the texture that sizes it, the blend map (`_blend`) or else the
+first layer's map, followed by `(layered base colour image of N layers)` or `(layered normal image of N layers)`;
+the role is `diffuse` for the base colour image and its blend map and `normal` for the normal image. A layered
+material whose layered normal image is refused is drawn with its own normal map, if it has one. The
 names come from the Archive and are untrusted. `unknown_chunks` lists the chunks of unknown type
 that the export skipped, as in `p4kx model info`. `animations` lists the animations asked for with `--anim`, in order (empty without it): `channels` is the number of glTF channels written (a rotation or a
 translation of a bone each; an animation with none is not written), `keys` the keys in them and

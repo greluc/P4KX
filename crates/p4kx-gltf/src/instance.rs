@@ -112,7 +112,7 @@ fn built_material(
     let drawn_with = MaterialTextures {
         base: images
             .base
-            .and_then(|base| Some((texture(base.image)?, base.tinted))),
+            .and_then(|base| Some((texture(base.image)?, base.tinted, base.layered))),
         normal: images.normal.and_then(texture),
         metallic_roughness: images
             .metallic_roughness

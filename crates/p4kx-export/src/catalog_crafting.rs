@@ -84,8 +84,9 @@ pub(crate) fn kinds<'f>(
         },
         |entity| entity.guid,
     );
+    let kept: HashSet<Guid> = dismantle.iter().map(|process| process.guid.0).collect();
     CraftingKinds {
-        blueprints: blueprints(&crafting, texts),
+        blueprints: blueprints(&crafting, texts, &kept),
         properties,
         distributions,
         pools,
@@ -130,13 +131,13 @@ fn entities<T, E>(
     (built, skipped)
 }
 
-fn blueprints<'f>(crafting: &Crafting<'f>, texts: &Texts<'f>) -> Vec<Blueprint<'f>> {
-    let left_out: HashSet<Guid> = crafting
-        .dismantle
-        .iter()
-        .filter(|process| is_leftover(process.record_path, process.class_name))
-        .map(|process| process.guid)
-        .collect();
+/// Returns the blueprints of `crafting`; one links a dismantle process only when that process is
+/// among the `kept` ones, so the link never points at a process the catalog leaves out.
+fn blueprints<'f>(
+    crafting: &Crafting<'f>,
+    texts: &Texts<'f>,
+    kept: &HashSet<Guid>,
+) -> Vec<Blueprint<'f>> {
     let defaults: HashSet<Guid> = crafting.global.default_blueprints.iter().copied().collect();
     let mut blueprints: Vec<Blueprint<'f>> = crafting
         .blueprints
@@ -146,7 +147,7 @@ fn blueprints<'f>(crafting: &Crafting<'f>, texts: &Texts<'f>) -> Vec<Blueprint<'
                 default_available: defaults.contains(&source.guid),
                 dismantle: crafting
                     .dismantle_return(source)
-                    .filter(|link| !left_out.contains(&link.process.guid))
+                    .filter(|link| kept.contains(&link.process.guid))
                     .map(|link| BlueprintDismantle {
                         process_guid: CatalogGuid(link.process.guid),
                         tier_index: link.tier.and_then(|tier| u32::try_from(tier).ok()),

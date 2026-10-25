@@ -17,6 +17,7 @@ fn neighbouring_jobs(count: usize) -> Vec<Job> {
                 normal: Some(source(path, true)),
                 specular: None,
                 tints: TINTS,
+                layered: None,
             }
         })
         .collect()
@@ -31,6 +32,7 @@ fn job_of(path: &str) -> Job {
         normal: Some(source(path.to_owned(), true)),
         specular: None,
         tints: TINTS,
+        layered: None,
     }
 }
 

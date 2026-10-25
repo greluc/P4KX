@@ -79,6 +79,28 @@ def check_interior(folder: Path) -> None:
     )
 
 
+def check_interior_alone(folder: Path) -> None:
+    """Imports ``synthetic.interior_manifest()``: an Interior without an Entity around it."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon_utils.enable("io_scene_gltf2", default_set=False)
+    loaded = package.load_package(synthetic.write_package(folder, synthetic.interior_manifest()))
+    check(not loaded.warnings, f"loaded: {loaded.warnings}")
+    result = importer.import_package(bpy.context, loaded)
+    check(not result.warnings, f"warnings: {result.warnings}")
+    check(result.objects == 4, f"node objects: {result.objects}")
+    check(result.lights == 1, f"lights: {result.lights}")
+    check(result.meshes == 1, f"meshes: {result.meshes}")
+    check(bpy.data.collections.get("ship_interior") is not None, "the collection is named after the Interior")
+    root = bpy.data.objects["ship_interior"]
+    check(root.parent is None, "the container is the root")
+    room = bpy.data.objects["room"]
+    check(room.parent is root, "the room is below the container")
+    check(bpy.data.objects["stool"].instance_collection is not None, "the stool is instanced")
+    check(bpy.data.objects["lamp"].type == "LIGHT", "the lamp is a light")
+    bpy.context.view_layer.update()
+    check(abs(room.matrix_world.translation.y - 6.0) < 1e-4, f"room at {tuple(room.matrix_world.translation)}")
+
+
 def check_character(folder: Path) -> None:
     """Imports ``synthetic_character.character_manifest()`` and checks armature, shapes, actions."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -173,6 +195,7 @@ def main() -> None:
         check(not result.warnings, f"warnings: {result.warnings}")
 
         check_interior(Path(folder) / "lit")
+        check_interior_alone(Path(folder) / "interior_alone")
         check_character(Path(folder) / "character")
 
         bpy.ops.wm.read_factory_settings(use_empty=True)

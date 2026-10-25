@@ -81,7 +81,7 @@ Early development (milestone M1). Available today:
   still written, and the summary counts the Records with their error values.
   `--convert` also converts each texture (`<name>.dds`, its parts `<name>.dds.1` … `.N` and any alpha
   tail `<name>.dds.a` with `.1a` … `.Na`) once; the PNG carries the tail in its alpha channel, a
-  high-range texture (BC6H) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
+  high-range texture (BC6H or floating point) is exported as OpenEXR `<name>.exr` instead, keeping its range, and a
   cubemap as six faces `<name>_posx` … `<name>_negz`, a texture array as one PNG per element
   `<name>_layer0` … and a volume as one PNG per slice `<name>_slice0` …:
   `--textures` picks the outputs, by default `merge,png`: `merge` writes one standard DDS under
@@ -197,6 +197,11 @@ Early development (milestone M1). Available today:
   `--lod <n>`, `--materials colours` and `--no-vertex-colours` apply to every model. Containers nested in themselves,
   and containers, files and models that cannot be resolved, are listed; with `--json` the report
   has the shape described in [docs/cli-json.md](docs/cli-json.md).
+- `p4kx interior package <archive> <container>... --out <folder>` writes the Interior of a socpak
+  container on its own as a Blender package: the same container, object and light nodes, props
+  and lights as `entity package --interior`, without an Entity around them. `--lod`,
+  `--texture-mip` and `--no-vertex-colours` work as for `entity package`; the folder is written
+  beside the target and moved into place when complete. The Blender add-on imports it.
 - `p4kx armour glb <archive> --piece <entity> --body male|female --out <file>` exports pieces of
   armour and clothing worn on the default body of a variant as one skinned GLB: the body's
   skeleton once as bone nodes, one skin over them, the skin of the body and, for every `--piece`
@@ -305,8 +310,8 @@ Early development (milestone M1). Available today:
   `--cross` as one horizontal cross in `<file>`. A texture array is written as one file per
   element `<stem>_layer0.png` …, a cubemap array per element and face `<stem>_layer0_posx.png` …
   (with `--cross` one cross per element) and a volume as one file per slice of the mip
-  `<stem>_slice0.png` …; the numbers are padded to the width of the last. A high-range BC6H
-  texture is written as OpenEXR
+  `<stem>_slice0.png` …; the numbers are padded to the width of the last. A high-range BC6H or
+  floating-point texture is written as OpenEXR
   with 32-bit float RGB instead, with the extension `.exr`, so its range is not clipped;
   `--tone-map` writes an 8-bit PNG instead, Reinhard tone-mapped and sRGB-encoded (ADR-0010). The
   message names both the requested and the written files, and `--tone-map` on any other texture
@@ -460,7 +465,8 @@ Early development (milestone M1). Available today:
   with parent and bind position, and every chunk with whether it was read, skipped or unknown, and
   the materials of its `.mtl` file;
   `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures]
-  [--texture-mip <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and in metres, with the
+  [--texture-mip <n>] [--max-influences <n>]` writes it as one glTF 2.0 binary file (GLB), Y up and
+  in metres (`--max-influences 4` keeps four bones per vertex, for viewers that read one set), with the
   normals, tangents and vertex
   colours the meshes have (`--no-vertex-colours` leaves the colours out), and lists the unknown
   chunks it skipped. `--lod` picks the level of detail, 0 by default; the LODs come from the

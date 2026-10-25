@@ -4,6 +4,7 @@
 use rayon::prelude::*;
 
 use crate::bc::{self, Texels};
+use crate::floats::FloatFormat;
 use crate::pixels::PixelFormat;
 use crate::{TextureError, TextureFormat};
 use crate::{bc6h, bc7, rgtc};
@@ -80,6 +81,7 @@ enum Decoder {
     Block8(fn([u8; 8]) -> Texels),
     Block16(fn([u8; 16]) -> Texels),
     Pixels(PixelFormat),
+    Floats(FloatFormat),
 }
 
 impl Decoder {
@@ -89,11 +91,16 @@ impl Decoder {
         {
             return Some(decoder);
         }
-        match (bc6h::signedness(format), PixelFormat::of(format)) {
-            (Some(true), _) => Some(Self::Block16(bc6h::bc6h_signed_rgba8)),
-            (Some(false), _) => Some(Self::Block16(bc6h::bc6h_unsigned_rgba8)),
-            (None, Some(pixels)) => Some(Self::Pixels(pixels)),
-            (None, None) => None,
+        match (
+            bc6h::signedness(format),
+            PixelFormat::of(format),
+            FloatFormat::of(format),
+        ) {
+            (Some(true), ..) => Some(Self::Block16(bc6h::bc6h_signed_rgba8)),
+            (Some(false), ..) => Some(Self::Block16(bc6h::bc6h_unsigned_rgba8)),
+            (None, Some(pixels), _) => Some(Self::Pixels(pixels)),
+            (None, None, Some(floats)) => Some(Self::Floats(floats)),
+            (None, None, None) => None,
         }
     }
 
@@ -124,8 +131,9 @@ impl TextureFormat {
 /// parallel.
 ///
 /// Single-channel formats become grey, alpha-only formats black with that alpha, two-channel
-/// formats red and green; floating-point values are clamped to 0..=1 and unsigned integers are
-/// scaled by the largest value of their width. BC5 is a normal map: X in
+/// formats red and green; unsigned integers are scaled by the largest value of their width and
+/// signed 8-bit values map -1 to 0 and 1 to 255. Floating-point formats are tone-mapped like
+/// BC6H, their alpha clamped to 0..=1. BC5 is a normal map: X in
 /// red, Y in green and the reconstructed Z in blue. BC6H is tone-mapped to opaque sRGB: Reinhard
 /// `v / (1 + v)` per channel, then the sRGB transfer function; [`decode_hdr`](crate::decode_hdr)
 /// keeps its range. A reserved BC6H mode decodes to opaque black, a reserved BC7 mode to
@@ -152,6 +160,10 @@ pub fn decode(
             .par_chunks_mut(size.out_row)
             .zip(data.par_chunks(size.row_len))
             .for_each(|(dst, src)| format.convert_row(src, dst)),
+        Decoder::Floats(format) => pixels
+            .par_chunks_mut(size.out_row)
+            .zip(data.par_chunks(size.row_len))
+            .for_each(|(dst, src)| format.rgba8_row(src, dst)),
     }
     Ok(RgbaImage {
         width,
@@ -206,6 +218,19 @@ impl ImageSize {
             out_row,
             len,
         })
+    }
+
+    /// Calls `convert` with every input row of `data` and its output row of `out`, rows in
+    /// parallel.
+    pub(crate) fn for_each_row<T: Send>(
+        &self,
+        data: &[u8],
+        out: &mut [T],
+        convert: impl Fn(&[u8], &mut [T]) + Sync,
+    ) {
+        out.par_chunks_mut(self.out_row)
+            .zip(data.par_chunks(self.row_len))
+            .for_each(|(dst, src)| convert(src, dst));
     }
 
     /// Returns the number of output values.

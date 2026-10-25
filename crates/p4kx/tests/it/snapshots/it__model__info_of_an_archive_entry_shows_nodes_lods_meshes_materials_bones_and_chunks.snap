@@ -11,11 +11,11 @@ Bones:       0
 Animations:  0 (from 0 files)
 Chunks:      7 (3 read, 3 skipped, 1 unknown)
 
- LOD    Vertices   Triangles  Meshes
-   0          24          12       1
+ LOD    Vertices   Triangles  Meshes  Skeleton
+   0          24          12       1         -
 
- LOD  Node                        Vertices   Triangles  Normals  Tangents  Colours  Skinned  Material IDs
-   0  cube_mesh                         24          12  yes      no        no       no       1, 2
+ LOD  Node                        Vertices   Triangles  Normals  Tangents  Colours  Skinned  Bad UVs  Material IDs
+   0  cube_mesh                         24          12  yes      no        no       no             0  1, 2
 
  ID  Material                  Shader            Surface             Diffuse               Opacity  Textures
   0  unused                    Illum             -                   1.000 1.000 1.000           1  0

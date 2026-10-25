@@ -27,7 +27,7 @@ pub struct Bone {
     /// The index of the parent bone, or `None` for a root. A bone's parent comes before it in
     /// `CompiledBones2` skeletons of the real Archives, but the reader does not rely on it.
     pub parent: Option<usize>,
-    /// The identifier animations address the bone by (#107).
+    /// The identifier animations address the bone by.
     pub controller_id: u32,
     /// The index of the node of the model's `NodeMeshCombo` the bone drives, from the `CompiledBones`
     /// form that static models with animated parts have; `None` for the skeleton of a skin.

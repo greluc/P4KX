@@ -392,6 +392,25 @@ placement), `light_unsupported` (ambient, planar or unknown lights, which glTF c
 ([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.
 
+## `p4kx interior package <archive> <container>... --out <folder> --json`
+
+```json
+{"archive": "…", "containers": ["Data\\ObjectContainers\\Ships\\DRAK\\Cutlass\\base_int_body_main.socpak"],
+ "out": "…", "lod": 0, "texture_mip": 0, "containers_opened": 1, "model_parts": 4, "modelled_parts": 4,
+ "props": 4, "nodes": 77, "drawn_nodes": 4, "container_nodes": 2, "objects": 4, "lights": 70,
+ "meshes": 4, "shared_meshes": 0, "materials": 34, "palettes": 0, "textures": 79,
+ "texture_pixels": 5242880, "texture_failures": 0, "files": 84, "bytes": 18847044,
+ "vertices": 229192, "triangles": 246389, "skipped": 0, "issues": [Issue, …]}
+```
+
+`containers`, the exit codes and `containers_opened`, `model_parts`, `modelled_parts` and `props`
+are those of `p4kx interior glb`; a package folder that holds something else than an earlier
+package, or lies inside a Star Citizen installation, is 2. The other counts are those of
+`p4kx entity package`, with `container_nodes` for its `containers`: `nodes` counts the nodes of
+`scene.json`, `drawn_nodes` those with a mesh, `container_nodes`, `objects` and `lights` those of
+the kinds `container`, `object` and `light`. An **Issue** is that of `p4kx entity package`. The
+package is written even when parts are skipped.
+
 ## `p4kx armour bodies --json`
 
 ```json
@@ -1124,7 +1143,7 @@ with `--cross` `output` holding one horizontal cross; a texture array has one fi
 `<stem>_layerN.png` and a volume one per slice of the mip `<stem>_sliceN.png`, and a cubemap
 array has `<stem>_layerN_posx.png` … or, with `--cross`, one cross `<stem>_layerN.png` per
 element, the numbers padded with zeros to the width of the last. `format` is `png` for 8-bit
-RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H texture is written as without
+RGBA PNG and `exr` for OpenEXR with 32-bit float RGB, which a high-range BC6H or floating-point texture is written as without
 `--tone-map`; `files` then carry the extension `.exr` instead of the one of `output`. `mip` is the
 exported level, 0 being the largest and the default; `width` and `height` are the size of each
 written image. `alpha_tail` says whether an alpha or smoothness tail was merged into the alpha
@@ -1571,10 +1590,10 @@ companion next to it.
            {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …],
             "scale": [1.0, 1.0, 1.0], "geometry_type": 0, "helper": false,
             "properties": [{"key": "class", "value": "AnimatedJoint"}]}],
- "lods": [{"level": 0, "vertices": 24, "triangles": 12,
+ "lods": [{"level": 0, "vertices": 24, "triangles": 12, "skeleton_bones": null,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
                        "normals_computed": false, "tangents": false, "colours": false,
-                       "skinned": false,
+                       "second_uvs": false, "non_finite_uvs": 0, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
@@ -1615,7 +1634,11 @@ read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level 
 absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
 (`colours` is false for a mesh of opaque white vertices); `normals_computed` says that the mesh
 stores no normals and the smooth ones were computed from its triangles; `first_index` and `index_count` locate a
-submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
+submesh in its mesh's triangle list. `second_uvs` says whether the mesh has a second set of texture
+coordinates, and `non_finite_uvs` counts its vertices that had a texture coordinate, of either
+set, that was not a finite number and reads as 0. `skeleton_bones` of a level is the number of
+bones of the skeleton the level's own file carries when it differs from the model's, `null`
+otherwise. `skinned` says whether the mesh has bone weights.
 `bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
 of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
 bone by; `node` is the index of the node of the model the bone drives (the bones of a static
@@ -1644,7 +1667,10 @@ companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file
 geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
 is `null` (docs/crch-models.md).
 
-## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
+## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--max-influences <n>] [--anim <name>]… [--anim-from <entry>]… --json`
+
+`--max-influences N` (1 to 8, default 8) keeps the strongest N bones of each vertex and scales
+their weights to add up to 1; 4 writes the first set of joints and weights only.
 
 Also `p4kx model glb <file> --out <file> --json` for a model file on disk.
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Bone, BoneTransform, Influences, MAX_INFLUENCES};
+use p4kx_model::{Bone, BoneTransform, Influences, MAX_INFLUENCES, chained_world_poses};
 
 use crate::axes::{Trs, to_y_up};
 
@@ -35,9 +35,13 @@ pub(crate) fn y_up_rotation([x, y, z, w]: [f32; 4]) -> [f32; 4] {
 }
 
 /// Returns the inverse bind matrix of every bone as 16 floats, column-major, in glTF axes: the
-/// inverse of the bone's bind pose in the model's space.
+/// inverse of the bone's bind pose in the model's space, composed from the relative poses along the
+/// parents so it agrees with the node transforms whatever the file stores as world poses.
 pub(crate) fn inverse_binds(bones: &[Bone]) -> Vec<[f32; 16]> {
-    bones.iter().map(|bone| inverse_bind(&bone.world)).collect()
+    chained_world_poses(bones)
+        .iter()
+        .map(inverse_bind)
+        .collect()
 }
 
 fn inverse_bind(world: &BoneTransform) -> [f32; 16] {
@@ -129,11 +133,18 @@ fn apply(matrix: &Mat3, vector: [f64; 3]) -> [f64; 3] {
 /// Returns the bones and weights of `influences` as a glTF writes them: the weights add up to 255
 /// as bytes whatever the file stored, and a weight of 0 has bone 0.
 ///
-/// A vertex without any weight is bound to bone 0 alone.
-pub(crate) fn normalised(influences: &Influences) -> ([u16; MAX_INFLUENCES], [u8; MAX_INFLUENCES]) {
-    let sum = influences.sum();
+/// A vertex without any weight is bound to bone 0 alone. Only the strongest `limit` bones count;
+/// the others are dropped before the weights are scaled.
+pub(crate) fn normalised(
+    influences: &Influences,
+    limit: usize,
+) -> ([u16; MAX_INFLUENCES], [u8; MAX_INFLUENCES]) {
     let mut joints = influences.joints;
     let mut weights = influences.weights;
+    for weight in weights.iter_mut().skip(limit) {
+        *weight = 0;
+    }
+    let sum: u32 = weights.iter().map(|&weight| u32::from(weight)).sum();
     if sum == 0 {
         joints = [0; MAX_INFLUENCES];
         weights = [0; MAX_INFLUENCES];
@@ -162,14 +173,14 @@ pub(crate) fn normalised(influences: &Influences) -> ([u16; MAX_INFLUENCES], [u8
 }
 
 /// Returns the joints of influence set `set` (0 or 1) of `influences`.
-pub(crate) fn joint_set(influences: &Influences, set: usize) -> [u16; SET_LEN] {
-    let (joints, _) = normalised(influences);
+pub(crate) fn joint_set(influences: &Influences, set: usize, limit: usize) -> [u16; SET_LEN] {
+    let (joints, _) = normalised(influences, limit);
     take_set(&joints, set)
 }
 
 /// Returns the weights of influence set `set` (0 or 1) of `influences`.
-pub(crate) fn weight_set(influences: &Influences, set: usize) -> [u8; SET_LEN] {
-    let (_, weights) = normalised(influences);
+pub(crate) fn weight_set(influences: &Influences, set: usize, limit: usize) -> [u8; SET_LEN] {
+    let (_, weights) = normalised(influences, limit);
     take_set(&weights, set)
 }
 

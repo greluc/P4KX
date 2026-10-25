@@ -142,6 +142,7 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
         }
         self.mesh.submeshes.push(Submesh {
             material_id: submesh.material_id,
+            node_id: submesh.node,
             first_index: first,
             index_count: self.mesh.indices.len() - first,
         });

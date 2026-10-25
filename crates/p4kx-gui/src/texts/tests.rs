@@ -131,6 +131,8 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("rig", "protos_human_male_face_t1_pu".into()),
         ("by", "TEST_Plate".into()),
         ("skinned", "1".into()),
+        ("morphs", "4".into()),
+        ("animations", "2".into()),
         ("channels", "12".into()),
         ("source", "Data\\Animations\\ship.caf".into()),
         ("port", "hardpoint_weapon_nose".into()),
@@ -147,6 +149,7 @@ fn sample_args() -> Vec<(&'static str, FluentValue<'static>)> {
         ("models", "300".into()),
         ("of", "1,200".into()),
         ("lights", "12".into()),
+        ("heading", "Failed (3)".into()),
     ]
 }
 

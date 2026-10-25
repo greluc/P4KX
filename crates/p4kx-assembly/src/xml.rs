@@ -7,7 +7,7 @@ use std::sync::Arc;
 use p4kx_cryxml::{Element, Xml};
 
 use crate::merge::merge_by_port;
-use crate::spec::{EntrySpec, LoadoutSpec, TargetSpec};
+use crate::spec::{EntrySpec, LoadoutOrigin, LoadoutSpec, TargetSpec};
 use crate::{LoadoutError, LoadoutFiles, MAX_LOADOUT_DEPTH};
 
 /// The most XML Loadouts one XML Loadout includes through nested `<Loadouts>`.
@@ -119,7 +119,7 @@ impl Loader<'_> {
             .files
             .read(path)
             .map_err(|error| failed(error.to_string()))
-            .and_then(|bytes| parse(&bytes).map_err(failed))
+            .and_then(|bytes| parse(&bytes, &LoadoutOrigin::File(Arc::from(path))).map_err(failed))
         {
             Ok(loadout) => loadout,
             Err(error) => {
@@ -162,20 +162,20 @@ impl Loader<'_> {
 fn merge_into(entries: &mut Vec<EntrySpec>, overrides: Vec<EntrySpec>) {
     merge_by_port(entries, overrides, |entry| &entry.port);
 }
-fn parse(bytes: &[u8]) -> Result<XmlLoadout, String> {
+fn parse(bytes: &[u8], origin: &LoadoutOrigin) -> Result<XmlLoadout, String> {
     match p4kx_cryxml::read(bytes).map_err(|error| error.to_string())? {
-        Xml::CryXml(document) => read_root(document.root()),
+        Xml::CryXml(document) => read_root(document.root(), origin),
         Xml::Text(text) => {
             let text = std::str::from_utf8(text).map_err(|error| error.to_string())?;
             let text = text.trim_start_matches('\u{feff}');
             crate::markup::check_depth(text)?;
             let document = roxmltree::Document::parse(text).map_err(|error| error.to_string())?;
-            read_root(document.root_element())
+            read_root(document.root_element(), origin)
         }
     }
 }
 
-fn read_root<N: Node>(root: N) -> Result<XmlLoadout, String> {
+fn read_root<N: Node>(root: N, origin: &LoadoutOrigin) -> Result<XmlLoadout, String> {
     if root.name() != "Loadout" {
         return Err(format!("its root element is {}, not Loadout", root.name()));
     }
@@ -190,14 +190,18 @@ fn read_root<N: Node>(root: N) -> Result<XmlLoadout, String> {
                     .filter_map(|include| include.attribute("loadout"))
                     .filter(|path| !path.is_empty()),
             ),
-            "Items" => entries.extend(read_items(child, 0)?),
+            "Items" => entries.extend(read_items(child, 0, origin)?),
             _ => {}
         }
     }
     Ok(XmlLoadout { includes, entries })
 }
 
-fn read_items<N: Node>(items: N, depth: usize) -> Result<Vec<EntrySpec>, String> {
+fn read_items<N: Node>(
+    items: N,
+    depth: usize,
+    origin: &LoadoutOrigin,
+) -> Result<Vec<EntrySpec>, String> {
     if depth >= MAX_LOADOUT_DEPTH {
         return Err(format!(
             "its items are nested deeper than {MAX_LOADOUT_DEPTH}"
@@ -212,10 +216,11 @@ fn read_items<N: Node>(items: N, depth: usize) -> Result<Vec<EntrySpec>, String>
         let mut nested = Vec::new();
         for child in item.children() {
             if child.name() == "Items" {
-                nested.extend(read_items(child, depth.saturating_add(1))?);
+                nested.extend(read_items(child, depth.saturating_add(1), origin)?);
             }
         }
         entries.push(EntrySpec {
+            origin: origin.clone(),
             port: item.attribute("portName").unwrap_or_default(),
             target: if class_name.is_empty() {
                 TargetSpec::None

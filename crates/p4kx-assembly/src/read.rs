@@ -59,7 +59,19 @@ pub(crate) fn texts(structure: &StructValue<'_>, name: &str) -> Vec<String> {
 
 /// Returns an integer field as `u32`, or `None` when it holds no integer in range.
 pub(crate) fn unsigned(structure: &StructValue<'_>, name: &str) -> Option<u32> {
-    match structure.field(name)? {
+    unsigned_value(structure.field(name)?)
+}
+
+/// Returns the integers of an array field that are in range as `u32`.
+pub(crate) fn unsigned_list(structure: &StructValue<'_>, name: &str) -> Vec<u32> {
+    match structure.field(name) {
+        Some(Value::Array(items)) => items.iter().filter_map(unsigned_value).collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn unsigned_value(value: &Value<'_>) -> Option<u32> {
+    match value {
         Value::UInt8(value) => Some(u32::from(*value)),
         Value::UInt16(value) => Some(u32::from(*value)),
         Value::UInt32(value) => Some(*value),

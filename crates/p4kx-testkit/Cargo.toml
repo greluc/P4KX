@@ -22,9 +22,9 @@ flate2.workspace = true
 gltf = { workspace = true, features = ["KHR_lights_punctual", "names"] }
 half.workspace = true
 lzma-rs.workspace = true
-png.workspace = true
 opus-pure.workspace = true
 p4kx-foundation.workspace = true
+png.workspace = true
 ruzstd.workspace = true
 sha2.workspace = true
 

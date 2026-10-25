@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::entity_cargo::cargo_structs;
+use crate::entity_clothing::clothing_structs;
 use crate::entity_vehicle::vehicle_structs;
 use crate::{DataForgeBuilder, TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
@@ -19,6 +20,7 @@ pub fn entity_schema(builder: DataForgeBuilder) -> DataForgeBuilder {
         .chain(vehicle_structs())
         .chain(attachable_structs())
         .chain(cargo_structs())
+        .chain(clothing_structs())
         .fold(builder, DataForgeBuilder::structure)
 }
 

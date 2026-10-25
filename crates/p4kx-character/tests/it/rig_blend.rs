@@ -145,6 +145,41 @@ fn the_names_of_the_controls_and_the_correctives_are_read() -> TestResult {
 }
 
 #[test]
+fn a_control_is_found_by_its_stored_hash_and_a_table_that_disagrees_with_the_names_is_refused()
+-> TestResult {
+    let good = TestRigLogic::small().build_rig();
+    let logic = RigLogic::read(&good)?;
+    assert_eq!(logic.control_by_hash(crc32fast::hash(b"CTL_a")), Some(1));
+    assert_eq!(logic.control_by_hash(crc32fast::hash(b"CTL_c")), None);
+
+    let at = usize::try_from(u64::from_le_bytes(good[0x70..0x78].try_into()?))?;
+    let mut wrong = good.clone();
+    wrong[at + 4] ^= 1;
+    assert_eq!(
+        RigLogic::read(&wrong).err(),
+        Some(RigLogicError::Malformed(
+            "a stored control hash is not the CRC-32 of the control's name"
+        ))
+    );
+    let mut short = good.clone();
+    let names = u64::from_le_bytes(short[0x68..0x70].try_into()?);
+    short[0x70..0x78].copy_from_slice(&(names - 2).to_le_bytes());
+    assert_eq!(
+        RigLogic::read(&short).err(),
+        Some(RigLogicError::Malformed(
+            "the hash table is shorter than its controls"
+        ))
+    );
+    let mut missing = good;
+    missing[0x70..0x78].copy_from_slice(&0_u64.to_le_bytes());
+    assert_eq!(
+        RigLogic::read(&missing).err(),
+        Some(RigLogicError::Malformed("the hash table is missing"))
+    );
+    Ok(())
+}
+
+#[test]
 fn a_chunk_that_is_not_a_rig_logic_chunk_is_refused() {
     let good = TestRigLogic::small().build_rig();
 

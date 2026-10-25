@@ -197,18 +197,18 @@ fn the_default_window_draws_the_character_in_both_languages() -> TestResult {
 }
 
 #[test]
-fn the_smallest_window_stacks_the_regions_without_overlap() -> TestResult {
+fn the_smallest_window_keeps_the_regions_apart() -> TestResult {
     for (language, name, export, male) in [
         (
             Language::BritishEnglish,
             "characters-small-en-GB.png",
-            "Export as GLB…",
+            "Export…",
             "Male",
         ),
         (
             Language::German,
             "characters-small-de-DE.png",
-            "Als GLB exportieren …",
+            "Exportieren …",
             "Männlich",
         ),
     ] {
@@ -242,19 +242,21 @@ fn the_smallest_window_stacks_the_regions_without_overlap() -> TestResult {
 }
 
 #[test]
-fn a_tall_narrow_window_stacks_the_toolbar_the_choices_the_view_and_the_report() -> TestResult {
-    for (language, name, export, fits) in [
+fn a_tall_narrow_window_keeps_the_choices_beside_the_view_under_the_toolbar() -> TestResult {
+    for (language, name, export, fits, male) in [
         (
             Language::BritishEnglish,
-            "characters-stacked-en-GB.png",
-            "Export as GLB…",
+            "characters-narrow-en-GB.png",
+            "Export…",
             "Every piece fits.",
+            "Male",
         ),
         (
             Language::German,
-            "characters-stacked-de-DE.png",
-            "Als GLB exportieren …",
+            "characters-narrow-de-DE.png",
+            "Exportieren …",
             "Alle Teile passen.",
+            "Männlich",
         ),
     ] {
         let Some(mut window) = composed(language, [640.0, 1500.0])? else {
@@ -266,7 +268,9 @@ fn a_tall_narrow_window_stacks_the_toolbar_the_choices_the_view_and_the_report()
         let canvas = window.harness.get_by_role(Role::Canvas).rect();
         let toolbar = rect_of(&window.harness, Role::Button, export);
         let report = window.harness.get_by_label(fits).rect();
-        assert!(toolbar.bottom() <= canvas.top(), "toolbar above the view");
+        let body = rect_of(&window.harness, Role::Button, male);
+        assert!(toolbar.bottom() <= body.top(), "toolbar above the choices");
+        assert!(body.right() <= canvas.left(), "the choices beside the view");
         assert!(canvas.bottom() <= report.top(), "the report below the view");
         assert!(
             drawn(&image, pixels(canvas)) > 0,

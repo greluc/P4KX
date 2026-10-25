@@ -142,3 +142,31 @@ fn every_text_entry_is_scanned_and_unreadable_ones_are_counted() -> TestResult {
     assert_eq!(found.stats.entries_unreadable, 0, "{:?}", found.stats);
     Ok(())
 }
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn bench_content_search() -> TestResult {
+    if !p4kx_testkit::bench_enabled() {
+        return Ok(());
+    }
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
+    let needle = Needle::new("zzqqxx-not-in-any-entry")?;
+    for (label, filter) in [
+        ("all text Entries", None),
+        ("xml below objects", Some(Filter::new("*objects/*.xml"))),
+    ] {
+        let options = SearchOptions {
+            filter,
+            ..SearchOptions::default()
+        };
+        let (found, elapsed) = p4kx_testkit::bench_once(&format!("content search {label}"), || {
+            search_entries(&archive, &needle, &options, &|| false)
+        });
+        let scanned = found.ok_or("cancelled")?.stats.entries_scanned;
+        report(label, elapsed, scanned)?;
+    }
+    Ok(())
+}

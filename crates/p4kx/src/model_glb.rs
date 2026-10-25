@@ -5,6 +5,7 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
+use p4kx_assembly::animation_choice;
 use p4kx_extraction::model::{LodSelection, Model};
 use p4kx_extraction::model_info::file_name;
 use p4kx_extraction::{
@@ -15,7 +16,7 @@ use serde::Serialize;
 
 use crate::cli_model::{MaterialsArg, ModelAction};
 use crate::json;
-use crate::model::{archive_animations, choice_of, disk_animations};
+use crate::model::{archive_animations, disk_animations};
 use crate::model_animations::{WrittenJson, write_notes as write_animation_notes};
 use crate::model_text::printable;
 
@@ -31,6 +32,8 @@ struct GlbJson<'a> {
     textures: usize,
     texture_pixels: u64,
     texture_fallbacks: Vec<FallbackJson<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    textures_note: Option<&'static str>,
     default_material_ids: usize,
     hidden_primitives: usize,
     bones: usize,
@@ -43,6 +46,8 @@ struct GlbJson<'a> {
     unread_animations: Vec<UnreadInfo>,
     unknown_chunks: Vec<ChunkInfo>,
 }
+
+const NO_ARCHIVE: &str = "textures are read from an Archive; give the model as ARCHIVE ENTRY. The materials keep their plain colours";
 
 #[derive(Serialize)]
 struct FallbackJson<'a> {
@@ -80,7 +85,7 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
         options = options.without_vertex_colours();
     }
     let lods = LodSelection::Only(*lod);
-    let choice = choice_of(animations);
+    let choice = animation_choice(animations);
     if let Some(entry) = &source.entry {
         let archive = crate::key::open(&source.path)?;
         let index = PathIndex::new(&archive);
@@ -107,7 +112,8 @@ fn report(
 ) -> Result<()> {
     let model = source.model();
     if as_json {
-        json::print(&glb_json(source, animations, out, summary))?;
+        let no_archive = options.materials == MaterialMode::Textures && !from_archive;
+        json::print(&glb_json(source, animations, out, summary, no_archive))?;
         return Ok(());
     }
     let mut stdout = BufWriter::new(io::stdout().lock());
@@ -199,10 +205,7 @@ fn write_textures(
     from_archive: bool,
 ) -> io::Result<()> {
     if !from_archive {
-        return writeln!(
-            out,
-            "textures are read from an Archive; give the model as ARCHIVE ENTRY. The materials keep their plain colours"
-        );
+        return writeln!(out, "{NO_ARCHIVE}");
     }
     writeln!(
         out,
@@ -227,6 +230,7 @@ fn glb_json<'a>(
     animations: &AnimationSet,
     out: &Path,
     summary: &'a GlbSummary,
+    no_archive: bool,
 ) -> GlbJson<'a> {
     GlbJson {
         model: source.name(),
@@ -241,6 +245,7 @@ fn glb_json<'a>(
         texture_fallbacks: summary
             .texture_fallbacks
             .iter()
+            .filter(|_| !no_archive)
             .map(|fallback| FallbackJson {
                 material: &fallback.material,
                 role: fallback.role.name(),
@@ -248,6 +253,7 @@ fn glb_json<'a>(
                 reason: &fallback.reason,
             })
             .collect(),
+        textures_note: no_archive.then_some(NO_ARCHIVE),
         default_material_ids: summary.default_material_ids,
         hidden_primitives: summary.hidden_primitives,
         bones: summary.bones,

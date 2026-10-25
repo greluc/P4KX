@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
-    ArchiveModels, Armour, AssemblyOptions, CharacterAnimations, Expressions, ForgeItems, Head,
-    IssueKind, LoadoutResolver, PartOrigin,
+    AnimationFolders, ArchiveModels, Armour, AssemblyOptions, CharacterAnimations, Expressions,
+    ForgeItems, Head, IssueKind, LoadoutResolver, PartOrigin, character_animations,
 };
 use p4kx_extraction::{
     AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
@@ -22,7 +22,7 @@ use crate::cli::ChfGlbArgs;
 use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
-use crate::model_animations::{AnimationFolders, WrittenJson, character_animations, write_notes};
+use crate::model_animations::{WrittenJson, write_notes};
 use crate::query_table::one_line;
 
 #[derive(Serialize)]

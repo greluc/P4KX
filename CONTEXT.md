@@ -377,6 +377,11 @@ The build a Character's body comes in, male or female: its skeleton, its default
 the tag (`Male`, `Female`) an Entity's Record gives the geometry worn on it.
 _Avoid_: gender, body type (the CHF's field)
 
+**Body zone**:
+A named part of the body skin (`torso01_zone`, `l_arm03_zone`) that worn clothing covers on a
+layer above the body; a Piece's Record lists the zones it covers.
+_Avoid_: body part, region, mask
+
 **Piece**:
 One skin worn on a Character's body: a piece of armour or clothing from an Entity, or a head from
 a CHF, skinned to the body's skeleton by bone name.

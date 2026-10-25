@@ -33,6 +33,7 @@ pub struct TestEntry {
     pub(crate) path_bytes: Option<Vec<u8>>,
     pub(crate) encryption_field: Option<u16>,
     pub(crate) encryption_block: Option<Vec<u8>>,
+    pub(crate) hash_block: Option<Vec<u8>>,
     pub(crate) extra_blocks: Vec<u8>,
 }
 
@@ -168,6 +169,23 @@ impl TestEntry {
         self
     }
 
+    /// Writes `data` as the data of the v1 CIG hash block, whatever length it has.
+    #[must_use]
+    pub fn with_hash_block(mut self, data: impl Into<Vec<u8>>) -> Self {
+        self.hash_block = Some(data.into());
+        self
+    }
+
+    /// Appends one more CIG hash block with `data` to the v1 directory record, after the first.
+    #[must_use]
+    pub fn with_extra_hash_block(mut self, data: &[u8]) -> Self {
+        let len = u16::try_from(data.len() + 4).unwrap_or(u16::MAX);
+        self.extra_blocks.extend_from_slice(&[0x03, 0x50]);
+        self.extra_blocks.extend_from_slice(&len.to_le_bytes());
+        self.extra_blocks.extend_from_slice(data);
+        self
+    }
+
     /// Appends `count` empty CIG encryption blocks, 4 bytes each, to the v1 directory record.
     #[must_use]
     pub fn with_empty_encryption_blocks(mut self, count: usize) -> Self {
@@ -206,6 +224,7 @@ impl TestEntry {
             path_bytes: None,
             encryption_field: None,
             encryption_block: None,
+            hash_block: None,
             extra_blocks: Vec::new(),
         }
     }

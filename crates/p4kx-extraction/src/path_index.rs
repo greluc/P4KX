@@ -97,7 +97,7 @@ impl<'a> PathIndex<'a> {
     }
 }
 
-fn path_key(path: &str) -> u64 {
+pub(crate) fn path_key(path: &str) -> u64 {
     path.bytes().fold(FNV_OFFSET, |hash, byte| {
         let byte = if byte == b'/' {
             b'\\'

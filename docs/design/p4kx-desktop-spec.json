@@ -708,6 +708,16 @@
     "metrics": "buttonGhost",
     "setup": "the Extraction setup modal with the scope as body text and the narrowing Filter in color-gray-2-text"
   },
+  "extractionSummary": {
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses each list of the summary (failed Entries, not converted, Records not written, skipped, cancelled), named as its heading with the suffix rows; up and down arrows, Page Up, Page Down, Home and End scroll"
+  },
+  "dataForgeSummary": {
+    "decision": "D.27",
+    "focusRingOffset": -2,
+    "keyboard": "Tab focuses the summary of the DataForge tab (name DataForge summary); up and down arrows, Page Up, Page Down, Home and End scroll"
+  },
   "extractionAudio": {
     "decision": "D.32",
     "row": "radio row Sounds as: Ogg, WAV, WEM unchanged, 16 apart, radio to label 12; indented under the texture outputs; shown only while Conversion is on",
@@ -745,6 +755,8 @@
     "valueFontSize": 12.48,
     "valueFontWeight": "fw-bold",
     "valueColor": "color-white",
+    "valueMinChars": 3,
+    "overflow": "a value that does not fit is cut with an ellipsis; a fact with no room for its key and valueMinChars characters of its value is left out with every fact after it, and the bar ends in an ellipsis in color-gray-2-text",
     "direction": "chevron right between old and new, chevron size 12, color-primary"
   },
   "kpiTile": {
@@ -1007,7 +1019,7 @@
     "bar": "below the view, overlayGap under it, two rows of barHeight each: the controls row with the eyebrow Detail and a segmented control 0 to 3, the eyebrow Materials with a segmented control Colours and Textures, and the checkbox Interior (disabled for an Entity that names no object containers); under it the status row over the full width, right to left: a btn-ghost btn-xs Show all (n) while branches are hidden, then while building a btn-outline btn-xs Stop, the stage text in color-gray-1 and a spinner, else the issues, failure or stopped message",
     "interiorDecision": "D.48",
     "interior": "the checkbox Interior builds the rooms and props of the object containers off the UI thread, with the progress in the bar and Stop, and draws them with the hull; switching it off hides them without building again, and the facts bar gains an Interior fact while they are shown; a new Loadout or level of detail builds the view with the Interior only while the checkbox is on",
-    "interiorExport": "the export setup of an Entity has the group Interior with a checkbox, remembered with the other choices; the export of a socpak container on its own opens the same setup with the line Container: name instead of the Entity and Loadout lines, from the btn-ghost btn-xs Export Interior as GLB… beside Copy of the preview and from the Export menu, and shows the stage Reading the Interior with the model files read in the progress window",
+    "interiorExport": "the export setup of an Entity has the group Interior with a checkbox, remembered with the other choices; the export of a socpak container on its own opens the same setup with the line Container: name instead of the Entity and Loadout lines, from the btn-ghost btn-xs Export Interior… beside Copy of the preview and from the Export menu, and shows the stage Reading the Interior with the model files read in the progress window",
     "treeActions": "btn-ghost btn-xs Hide or Show per port with an entity, before Replace; a hidden port gets the muted chip Hidden",
     "culling": "parts outside the view or under minPartPixels 0.75 projected radius are not drawn; parts sharing a mesh range and texture are one instanced draw call",
     "minPartPixels": 0.75,
@@ -1020,19 +1032,19 @@
     "output": "the group Output (GLB file, Blender package) as a segmented--sm control in one row with the level of detail, MODAL_GROUP_GAP between; with the package chosen the hint in color-gray-2-text FS_XS under the row, the Materials group is hidden and the group File becomes Package folder",
     "folder": "the chosen folder is the package; new, empty or an earlier package of P4KX; an earlier package is named in color-warning and replaced as a whole once the new one is complete; anything else, a path without a folder name and an installation are a danger-alert and disable Export",
     "progress": "stage Writing shows the text without a byte count and Cancel; the summary Blender package written lists folder, counts, Interior, textures not written and the issues",
-    "scope": "Entity only; an Interior container on its own and the Character export offer no package until the library writes one",
+    "scope": "an Entity, an Interior container on its own (D.54) and the Character of the Characters tab (D.54)",
+    "character": "D.54: btn-cta Export… in the Characters toolbar opens the modal Export Character with the group Output, the hint in color-gray-2-text FS_XS beside the group Animations (None, All; All by default; no picker of named clips, no --anim-from), starting on the GLB file whatever the Entity export chose, the group File or Package folder, the notices of the Entity and the foot Export and Close; detail and materials stay in the toolbar",
     "messages": "replaces color-warning; not a package, no folder name and installation color-gray-1 in a danger-alert"
   },
   "characterBuilder": {
     "dsClass": "previewPanel + facts-bar + segmented--sm + btn-ghost btn-xs + btn-outline btn-xs",
     "decision": "D.49",
-    "stackWidth": 560,
     "reportRows": 3,
     "reportHeight": 144,
     "expressionRows": 5,
     "reportHeightFrom": "head row + reportRows rows of rowHeight 36",
-    "layout": "tab Characters after Sounds: a toolbar like the Entities toolbar on top, left a resizable choices panel between sidebarMinWidth and sidebarMaxWidth, right the facts bar, the status line, the 3D view with the playback bar of modelPreview and below it the report; below stackWidth of the work surface everything stands in one scrolling column: toolbar, choices, view at the height of assemblyView.panelHeight, report",
-    "toolbar": "the eyebrow Detail with a segmented--sm control 0 to 3, the eyebrow Materials with a segmented--sm control Colours and Textures, right a btn-cta Export as GLB; below stackWidth the controls wrap, the export first",
+    "layout": "tab Characters after Sounds: a toolbar like the Entities toolbar on top, left a resizable choices panel between sidebarMinWidth and sidebarMaxWidth, right the facts bar, the status line, the 3D view with the playback bar of modelPreview and below it the report; the work surface is never narrower than workSurface.minWidth (D.52), so there is no stacked layout (D.55)",
+    "toolbar": "the eyebrow Detail with a segmented--sm control 0 to 3, the eyebrow Materials with a segmented--sm control Colours and Textures, right a btn-cta Export… that opens the export setup (D.54)",
     "choices": "eyebrow groups Body (segmented--sm Male and Female, locked while a head is chosen), Head (line, btn-outline btn-xs from the Archive and from a file, btn-ghost btn-xs Remove), Armour and clothing (Loadout line with Choose and Remove, pieces as rows with a close icon, btn-outline btn-xs Add), Expressions (checkbox, radio list of expressionRows rows that scrolls, slider Strength)",
     "report": "head row with the count of pieces left out or noted, rows Left out in color-warning and Note in color-gray-1, a row for each piece of the Loadout another piece replaced; with none the line Every piece fits in color-gray-1",
     "messages": "building as assemblyView.bar; stopped and empty color-gray-1; archive changed color-warning; missing key, CHF and failure color-danger-text; graphics problems as modelPreview.messages"

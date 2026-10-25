@@ -3,6 +3,8 @@
 
 use std::collections::HashMap;
 
+use p4kx_foundation::read_text_number;
+
 use super::{PartKind, PortVisibility, VehicleItemPort, VehiclePart};
 use crate::markup::Element;
 use crate::merge::port_key;
@@ -128,76 +130,12 @@ fn destroy_ratio(part: &Element) -> Option<f64> {
     Some(number(behavior.attribute("damageRatioMin")).unwrap_or(1.0))
 }
 
-/// Returns whether `character` is an invisible Unicode format character (category Cf) that game
-/// data carries inside numbers, e.g. U+202C.
-pub(crate) const fn is_format_character(character: char) -> bool {
-    matches!(
-        character,
-        '\u{00AD}'
-            | '\u{0600}'..='\u{0605}'
-            | '\u{061C}'
-            | '\u{06DD}'
-            | '\u{070F}'
-            | '\u{180E}'
-            | '\u{200B}'..='\u{200F}'
-            | '\u{202A}'..='\u{202E}'
-            | '\u{2060}'..='\u{2064}'
-            | '\u{2066}'..='\u{206F}'
-            | '\u{FEFF}'
-            | '\u{FFF9}'..='\u{FFFB}'
-    )
-}
-
-/// Reads the longest numeric prefix of a value after trimming and dropping format characters,
-/// e.g. `12.5` of `12.5kg` and `97858.0` of `97858.0d` with a U+202C inside; a value that does
-/// not start with a number, such as `v2 1500`, has none.
+/// Reads the number of an attribute value with the shared tolerant reading; a value that is no
+/// number has none.
 pub(crate) fn number(value: Option<&str>) -> Option<f64> {
-    let value = value?;
-    if value.chars().any(is_format_character) {
-        let cleaned: String = value
-            .chars()
-            .filter(|character| !is_format_character(*character))
-            .collect();
-        return numeric_prefix(&cleaned);
-    }
-    numeric_prefix(value)
+    read_text_number(value?).map(|number| number.value())
 }
 
-fn numeric_prefix(value: &str) -> Option<f64> {
-    let text = value.trim();
-    let bytes = text.as_bytes();
-    let digits = |from: usize| {
-        bytes.get(from..).map_or(0, |rest| {
-            rest.iter().take_while(|b| b.is_ascii_digit()).count()
-        })
-    };
-    let mut end = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
-    let whole = digits(end);
-    end = end.saturating_add(whole);
-    let mut fraction = 0;
-    if bytes.get(end) == Some(&b'.') {
-        fraction = digits(end.saturating_add(1));
-        if whole > 0 || fraction > 0 {
-            end = end.saturating_add(1).saturating_add(fraction);
-        }
-    }
-    if whole == 0 && fraction == 0 {
-        return None;
-    }
-    if matches!(bytes.get(end), Some(b'e' | b'E')) {
-        let sign = usize::from(matches!(
-            bytes.get(end.saturating_add(1)),
-            Some(b'+' | b'-')
-        ));
-        let start = end.saturating_add(1).saturating_add(sign);
-        let exponent = digits(start);
-        if exponent > 0 {
-            end = start.saturating_add(exponent);
-        }
-    }
-    let parsed = text.get(..end)?.parse::<f64>().ok()?;
-    parsed.is_finite().then_some(parsed)
-}
 /// Returns the visibility of each item port by lower-case part name; the first part decides.
 pub(super) fn visibility(parts: &[VehiclePart]) -> HashMap<String, PortVisibility> {
     let mut map = HashMap::new();

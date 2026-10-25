@@ -52,7 +52,11 @@ impl TestRigLogic {
     /// Returns the bytes of the rig alone, without the length in front.
     #[must_use]
     pub fn build_rig(&self) -> Vec<u8> {
-        let crcs = vec![0_u8; self.controls.len() * 4];
+        let crcs: Vec<u8> = self
+            .controls
+            .iter()
+            .flat_map(|name| crc32fast::hash(name.as_bytes()).to_le_bytes())
+            .collect();
         let mut names = Vec::new();
         for name in &self.controls {
             names.extend_from_slice(name.as_bytes());

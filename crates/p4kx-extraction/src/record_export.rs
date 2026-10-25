@@ -2,25 +2,25 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashSet;
-use std::fs::{self, File};
-use std::io::{self, Read, Write};
+use std::fs;
+use std::io::{self, Write};
 use std::path::Path;
 
 use p4kx_dataforge::{Annotations, DataForge, Record, RecordXml, TreeBuilder};
 use rayon::prelude::*;
 
+use crate::counting::holds_sized;
 use crate::dependent::split_dependent;
 use crate::entry_path::relative_path;
+use crate::folder_cache::FolderCache;
 use crate::record_files::{RecordFiles, fold};
 use crate::record_format::RecordFileFormat;
 use crate::record_plan::RecordFilePlan;
-use crate::write::{create_folders, create_temporary, read_existing_error, write_error};
+use crate::write::{create_temporary, read_existing_error, write_error};
 use crate::{
     ConflictPolicy, ExtractionError, RecordExportError, RecordExportOptions, RecordExportReport,
     RecordFailure,
 };
-
-const READ_BUFFER_LEN: usize = 64 << 10;
 
 /// Writes `records` of `forge` as Record XML, one file per Record, below the existing folder
 /// `target`; [`export_record_files`] with [`RecordXml`].
@@ -133,6 +133,7 @@ pub(crate) fn write_records<'f, F: RecordFileFormat>(
         policy: run.policy,
         annotations: run.annotations,
         stop: run.stop,
+        folders: FolderCache::default(),
     };
     let ended = run.ended;
     let run = |scratch: &mut Scratch<'f, F>, index: usize| {
@@ -253,6 +254,7 @@ struct Writer<'a> {
     policy: ConflictPolicy,
     annotations: Annotations<'a>,
     stop: &'a (dyn Fn() -> bool + Sync),
+    folders: FolderCache,
 }
 
 impl Writer<'_> {
@@ -281,7 +283,7 @@ impl Writer<'_> {
         let name = relative.file_name().ok_or(ExtractionError::UnsafePath)?;
         let tree = scratch.trees.build(record)?;
         let errors = tree.error_count();
-        let folder = create_folders(self.target, relative.parent())?;
+        let folder = self.folders.folder(self.target, relative.parent())?;
         let destination = folder.join(name);
         scratch.bytes.clear();
         scratch
@@ -332,22 +334,17 @@ impl Writer<'_> {
         match self.policy {
             ConflictPolicy::Skip => Ok(true),
             ConflictPolicy::Overwrite => Ok(false),
-            ConflictPolicy::IfChanged => Ok(metadata.len() == scratch.bytes.len() as u64
-                && file_crc(destination, &mut scratch.read)? == crc32c::crc32c(&scratch.bytes)),
-        }
-    }
-}
-
-pub(crate) fn file_crc(path: &Path, buffer: &mut Vec<u8>) -> Result<u32, ExtractionError> {
-    buffer.resize(READ_BUFFER_LEN, 0);
-    let mut file = File::open(path).map_err(|source| read_existing_error(path, source))?;
-    let mut crc = 0;
-    loop {
-        match file.read(buffer) {
-            Ok(0) => return Ok(crc),
-            Ok(count) => crc = crc32c::crc32c_append(crc, buffer.get(..count).unwrap_or_default()),
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-            Err(source) => return Err(read_existing_error(path, source)),
+            ConflictPolicy::IfChanged => {
+                let bytes = &scratch.bytes;
+                holds_sized(
+                    destination,
+                    metadata.len(),
+                    bytes.len() as u64,
+                    || crc32c::crc32c(bytes),
+                    &mut scratch.read,
+                )
+                .map_err(|source| read_existing_error(destination, source))
+            }
         }
     }
 }

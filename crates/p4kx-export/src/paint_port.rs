@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{ArchiveFiles, LoadoutFileError, VehicleImplementation};
-use p4kx_extraction::Archive;
+use p4kx_assembly::{LoadoutError, LoadoutFileError, VehicleImplementation};
 
 use crate::guid_text::CatalogGuid;
 use crate::variants::ShipKey;
@@ -35,57 +34,65 @@ fn tags(value: Option<&str>) -> Vec<String> {
         .collect()
 }
 
-/// What the paints of a ship are derived from: the paint ports of its Record and the vehicle
-/// implementation and Modification it names.
+/// What the paints of a ship are derived from: the paint ports of its Record and of the vehicle
+/// implementation the ship base data read.
 #[derive(Debug)]
-pub(crate) struct VehicleFacts<'f> {
+pub(crate) struct VehicleFacts {
     pub(crate) ship: CatalogGuid,
-    pub(crate) class_name: &'f str,
-    pub(crate) definition: Option<&'f str>,
-    pub(crate) modification: Option<&'f str>,
     pub(crate) paint_ports: Vec<PaintPort>,
+    pub(crate) implementation: VehiclePorts,
     pub(crate) variant_key: Option<ShipKey>,
 }
 
-/// The paint ports of a vehicle implementation and whether it was not read in full. A patch file
-/// the Archive lacks is a fact of the game data, not an unread file.
+/// The paint ports of a vehicle implementation and why it was not read in full, if it was not. A
+/// file the Archive lacks is a fact of the game data, not an unread file.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct VehiclePorts {
     pub(crate) ports: Vec<PaintPort>,
-    pub(crate) unreadable: bool,
+    pub(crate) unreadable: Option<String>,
 }
 
-/// Reads the vehicle implementations of an Archive with `p4kx-assembly` (ADR-0050).
-pub(crate) struct VehicleFiles<'a> {
-    files: ArchiveFiles<'a>,
+/// Returns whether `issue` only says that the Archive lacks a vehicle implementation file or a
+/// patch file.
+fn is_missing_file(issue: &LoadoutError) -> bool {
+    matches!(issue, LoadoutError::VehicleImplementation { reason, .. }
+        if *reason == LoadoutFileError::NotFound.to_string())
 }
 
-impl<'a> VehicleFiles<'a> {
-    pub(crate) const fn new(archive: &'a Archive) -> Self {
-        Self {
-            files: ArchiveFiles::new(archive),
-        }
-    }
+/// Returns the first of `issues` that is more than a file the Archive lacks.
+fn first_unread(issues: &[LoadoutError]) -> Option<&LoadoutError> {
+    issues.iter().find(|issue| !is_missing_file(issue))
+}
 
-    /// Returns the paint ports of the vehicle implementation `definition` of the Entity
-    /// `class_name` with the Modification `modification` applied: its item ports that take
-    /// `Paints`, with the required tags the patch leaves them.
-    pub(crate) fn paint_ports(
-        &self,
-        class_name: &str,
-        definition: &str,
-        modification: Option<&str>,
-    ) -> VehiclePorts {
-        let Ok(implementation) =
-            VehicleImplementation::read(&self.files, class_name, definition, modification)
-        else {
-            return VehiclePorts {
+impl VehiclePorts {
+    /// Returns the paint ports of `vehicle`, the implementation read for a ship with the
+    /// Modification applied: its item ports that take `Paints`, with the required tags the patch
+    /// leaves them. `vehicle` is `None` when the ship names no implementation or it could not be
+    /// read; `definition` is the file the ship names, if any, and `read_issues` are the issues of
+    /// reading it, which tell a file the Archive lacks from one that cannot be read.
+    pub(crate) fn of(
+        vehicle: Option<&VehicleImplementation>,
+        definition: Option<&str>,
+        read_issues: &[LoadoutError],
+    ) -> Self {
+        let Some(implementation) = vehicle else {
+            let own = || {
+                read_issues
+                    .iter()
+                    .filter(|issue| matches!(issue, LoadoutError::VehicleImplementation { .. }))
+            };
+            let lacks_file = own().next().is_some() && own().all(is_missing_file);
+            return Self {
                 ports: Vec::new(),
-                unreadable: true,
+                unreadable: definition.filter(|_| !lacks_file).map(|path| {
+                    own().next().map_or_else(
+                        || format!("the vehicle implementation {path}: it cannot be read"),
+                        ToString::to_string,
+                    )
+                }),
             };
         };
-        let missing = LoadoutFileError::NotFound.to_string();
-        VehiclePorts {
+        Self {
             ports: implementation
                 .item_ports()
                 .filter_map(|part| part.item_port())
@@ -96,10 +103,7 @@ impl<'a> VehicleFiles<'a> {
                 })
                 .map(|port| PaintPort::new(Some(port.port_tags()), Some(port.required_tags())))
                 .collect(),
-            unreadable: implementation
-                .issues()
-                .iter()
-                .any(|issue| !issue.to_string().ends_with(&missing)),
+            unreadable: first_unread(implementation.issues()).map(ToString::to_string),
         }
     }
 }

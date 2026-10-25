@@ -123,12 +123,12 @@ enum WarningJson {
     RewardSourcesTruncated,
     UnreadableReferenceRecords { count: usize },
     AmbiguousDismantle { count: usize },
-    UnreadableVehicleFiles { count: usize },
+    UnreadableVehicleFiles { count: usize, details: Vec<String> },
     UnplacedStarmapContainers { count: usize },
     UnreadableShopRegistry,
     MissingShopRegistry,
     UnreadableShopContainers { count: usize },
-    UnreadableShopInventories { count: usize },
+    UnreadableShopInventories { count: usize, details: Vec<String> },
     MissingShopInventories { count: usize },
     NoShopComponents,
     Other { message: String },
@@ -136,31 +136,39 @@ enum WarningJson {
 
 impl From<&CraftingWarning> for WarningJson {
     fn from(warning: &CraftingWarning) -> Self {
-        match *warning {
+        match warning {
             CraftingWarning::RewardSourcesTruncated => Self::RewardSourcesTruncated,
             CraftingWarning::UnreadableReferenceRecords(count) => {
-                Self::UnreadableReferenceRecords { count }
+                Self::UnreadableReferenceRecords { count: *count }
             }
-            CraftingWarning::AmbiguousDismantle(count) => Self::AmbiguousDismantle { count },
-            CraftingWarning::UnreadableVehicleFiles(count) => {
-                Self::UnreadableVehicleFiles { count }
+            CraftingWarning::AmbiguousDismantle(count) => {
+                Self::AmbiguousDismantle { count: *count }
+            }
+            CraftingWarning::UnreadableVehicleFiles { count, details } => {
+                Self::UnreadableVehicleFiles {
+                    count: *count,
+                    details: details.clone(),
+                }
             }
             CraftingWarning::UnplacedStarmapContainers(count) => {
-                Self::UnplacedStarmapContainers { count }
+                Self::UnplacedStarmapContainers { count: *count }
             }
             CraftingWarning::UnreadableShopRegistry => Self::UnreadableShopRegistry,
             CraftingWarning::MissingShopRegistry => Self::MissingShopRegistry,
             CraftingWarning::UnreadableShopContainers(count) => {
-                Self::UnreadableShopContainers { count }
+                Self::UnreadableShopContainers { count: *count }
             }
-            CraftingWarning::UnreadableShopInventories(count) => {
-                Self::UnreadableShopInventories { count }
+            CraftingWarning::UnreadableShopInventories { count, details } => {
+                Self::UnreadableShopInventories {
+                    count: *count,
+                    details: details.clone(),
+                }
             }
             CraftingWarning::MissingShopInventories(count) => {
-                Self::MissingShopInventories { count }
+                Self::MissingShopInventories { count: *count }
             }
             CraftingWarning::NoShopComponents => Self::NoShopComponents,
-            ref other => Self::Other {
+            other => Self::Other {
                 message: other.to_string(),
             },
         }

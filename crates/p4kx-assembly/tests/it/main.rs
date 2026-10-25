@@ -23,6 +23,7 @@ mod audio_resolve_music;
 mod audio_search;
 mod audio_streamed_localised;
 mod audio_trigger_fields;
+mod body_zones;
 mod docked_vehicles;
 mod entity_catalogue;
 mod entity_interior;

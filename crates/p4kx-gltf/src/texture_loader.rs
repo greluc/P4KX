@@ -48,6 +48,18 @@ pub trait TextureLoader: Sync {
     /// Returns [`TextureLoadError::NotFound`] when there is no such texture and
     /// [`TextureLoadError::Unreadable`] when it cannot be used.
     fn load(&self, path: &str, mip: u32) -> Result<LoadedTexture, TextureLoadError>;
+
+    /// Returns the width and height [`TextureLoader::load`] would give for mip `mip` of the
+    /// texture at `path`, without decoding it, or `None` when the loader cannot tell that
+    /// cheaply. The writer uses it to leave out an image that would exceed the budget before
+    /// decoding anything.
+    ///
+    /// # Errors
+    ///
+    /// Returns the errors [`TextureLoader::load`] would return for the same texture.
+    fn dimensions(&self, _path: &str, _mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        Ok(None)
+    }
 }
 
 /// A loader without textures: every texture is unreadable.

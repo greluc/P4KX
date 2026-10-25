@@ -13,7 +13,7 @@ use p4kx_export::{
 };
 use serde::Serialize;
 
-use crate::catalog::InvalidExportTime;
+use crate::catalog_input::InvalidExportTime;
 use crate::cli::{ShipsArgs, ShipsFormat};
 use crate::exit;
 use crate::extract::cancel_on_interrupt;
@@ -50,6 +50,7 @@ pub(crate) fn run(args: &ShipsArgs, as_json: bool) -> Result<ExitCode> {
             .checked_add(Duration::from_secs(seconds))
             .ok_or_else(|| InvalidExportTime::of(seconds))?,
     };
+    crate::guard::ensure_writable(&args.out)?;
     let archive = crate::key::open(&args.archive)?;
     let filter = args.filter.as_deref().map(Filter::new);
     let cancel = cancel_on_interrupt()?;
@@ -65,7 +66,6 @@ pub(crate) fn run(args: &ShipsArgs, as_json: bool) -> Result<ExitCode> {
     line.finish();
     let built = built.map_err(into_anyhow)?;
     print_failures(built.failures())?;
-    crate::guard::ensure_writable(&args.out)?;
     write(&built, args.format, &args.out)?;
     let printed = if as_json {
         json::print(&summary(&built, args, json::path(archive.path())))

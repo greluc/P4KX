@@ -104,7 +104,8 @@ Early development (milestone M1). Available today:
   are written unchanged without a report. Every file follows `--conflict`, `if-changed` comparing
   with the converted output. Sounds and soundbanks are converted on a few threads of their own,
   within a memory budget of 1 GiB.
-  `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input.
+  `p4kx extract <archive> --filter <filter>` extracts every Entry the Filter matches instead; a Filter that matches nothing is invalid input and the error says what to try, e.g. that a glob must match the whole path.
+  `--threads <n>` limits the worker threads (default one per logical processor); more than about four rarely help on one disk (docs/performance.md).
 - `p4kx info <archive>` prints the Channel, the Build (branch, version, change number, BuildId)
   from the `build_manifest.id` next to the Archive, and the number, encryption and sizes of its
   Entries, and the number of Entry issues (ADR-0025). An Archive without a readable manifest has
@@ -114,8 +115,8 @@ Early development (milestone M1). Available today:
   lines to stderr for the Entries concerned.
 - `p4kx dcb info <archive>` opens the DataForge of the Archive (`Data\Game2.dcb`, falling back to
   `Data\Game.dcb`) and prints the Entry it was read from, its version and its number of Records,
-  structs and enums. DataForge versions 6 and 8 are read; any other version is reported as not
-  supported, and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
+  structs and enums. DataForge versions 6 and 8 are read; any other version, version 5 and older included, is
+  reported as not supported with exit code 5 (ADR-0136), and a DataForge Entry claiming more than 2 GiB is rejected before it is read.
 - `p4kx dcb export <archive> [--format xml|json|ndjson] [--combined] [--filter <filter>]`
   `[--lang <language>] [--tags] [--out <folder>] [--conflict …]` writes Records as Record XML
   ([docs/record-xml.md](docs/record-xml.md)) or Record JSON
@@ -217,7 +218,11 @@ Early development (milestone M1). Available today:
   `--materials textures` embeds the textures as PNG at the mip `--texture-mip <n>` picks (default
   `colours`), `--anim <name>` (or `all`) and `--anim-from <entry>` add animations, looked for first
   in the character's own folder `Animations/pu/<body>/<name>`, and `--anim-folder <folder>`
-  names the only folders to look in. A piece with no geometry for the variant, one that cannot
+  names the only folders to look in. The zones of the body that the worn clothing covers
+  (`SCItemClothingParams`, ADR-0140) are left out of the body skin, as the game does not draw
+  them, and listed as `body_zones_hidden`; with `--materials textures`, layered materials without a diffuse map, such as the
+  `LayerBlend_V2` clothing, are drawn in their layer colours and listed as
+  `layers_without_diffuse`. A piece with no geometry for the variant, one that cannot
   be resolved, or whose model is missing or unreadable, is skipped and listed; with `--json` the report has
   the shape described in [docs/cli-json.md](docs/cli-json.md). `p4kx armour bodies` lists the
   variants.

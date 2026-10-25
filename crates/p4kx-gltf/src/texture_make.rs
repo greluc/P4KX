@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_texture::{RgbaImage, write_png};
 use rayon::prelude::*;
 
-use crate::texture_loader::{LoadedTexture, TextureLoader};
+use crate::texture_budget::{Tally, Verdict};
+use crate::texture_cache::{Decoded, MAX_HELD_PIXELS, SourceStore};
+use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
 use crate::texture_pixels::{base_colour, metallic_roughness, normal_map, opacity_colour};
-use crate::texture_plan::{
-    EncodedImage, Failure, Job, Key, MAX_TEXTURE_IMAGES, MAX_TEXTURE_PIXELS,
-};
+use crate::texture_plan::{EncodedImage, Failure, Job, Key};
 use crate::texture_report::TextureRole;
 use crate::texture_roles::Source;
+
+pub(crate) use crate::texture_budget::Budget;
+
+#[cfg(test)]
+mod tests;
 
 const PARALLEL_IMAGES: usize = 4;
 const OVER_BUDGET: &str =
@@ -29,54 +36,82 @@ pub(crate) struct Outcome {
     pub(crate) failures: Vec<Failure>,
 }
 
-/// How many images and pixels the images of one export may hold.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct Budget {
-    pub(crate) images: usize,
-    pub(crate) pixels: u64,
-}
-
-impl Budget {
-    pub(crate) const DEFAULT: Self = Self {
-        images: MAX_TEXTURE_IMAGES,
-        pixels: MAX_TEXTURE_PIXELS,
-    };
+impl Outcome {
+    fn pixels(&self) -> Option<u64> {
+        self.image
+            .as_ref()
+            .map(|image| u64::from(image.width) * u64::from(image.height))
+    }
 }
 
 /// Makes the image of every job, a few at a time to bound the memory of decoded textures; an
 /// image that would exceed `budget` is dropped and its job fails, like every job after it.
+///
+/// The budget is checked against the header sizes before a job decodes anything, when the loader
+/// gives them, and against the image made otherwise. The sources of a group of jobs are decoded
+/// once however many of its jobs use them, and those the next group needs stay in memory up to a
+/// pixel cap. A group is at most four jobs, fewer when the distinct sources of the jobs would
+/// decode more than the decode limit together, by their headers; a source whose size is unknown
+/// or unreadable counts for the whole limit. The sources in memory therefore never exceed the
+/// decode limit plus the held cap, whatever the loader allows per texture, unless one job alone
+/// needs more.
 pub(crate) fn run(
     jobs: &[Job],
     mip: u32,
     loader: &dyn TextureLoader,
     budget: Budget,
 ) -> Vec<Outcome> {
+    let store = SourceStore::new(loader, mip, MAX_HELD_PIXELS);
+    run_with(jobs, store, budget)
+}
+
+fn run_with(jobs: &[Job], mut store: SourceStore<'_>, budget: Budget) -> Vec<Outcome> {
+    let mut tally = Tally::new(budget);
     let mut outcomes = Vec::with_capacity(jobs.len());
-    let (mut images, mut pixels) = (0usize, 0u64);
-    for chunk in jobs.chunks(PARALLEL_IMAGES) {
-        if images >= budget.images || pixels >= budget.pixels {
-            outcomes.extend(chunk.iter().map(over_budget));
-            continue;
-        }
-        let made: Vec<Outcome> = chunk.par_iter().map(|job| make(job, mip, loader)).collect();
-        for (job, outcome) in chunk.iter().zip(made) {
-            let size = outcome
-                .image
-                .as_ref()
-                .map(|image| u64::from(image.width) * u64::from(image.height));
-            match size {
-                Some(size)
-                    if images >= budget.images || pixels.saturating_add(size) > budget.pixels =>
-                {
-                    outcomes.push(over_budget(job));
-                }
-                Some(size) => {
-                    images += 1;
-                    pixels += size;
-                    outcomes.push(outcome);
-                }
-                None => outcomes.push(outcome),
+    let mut rest = jobs;
+    while !rest.is_empty() {
+        let (chunk, after) = rest.split_at(store.group_len(rest, PARALLEL_IMAGES));
+        let next = after.get(..PARALLEL_IMAGES).unwrap_or(after);
+        rest = after;
+        let verdicts: Vec<Verdict> = chunk
+            .iter()
+            .map(|job| tally.plan(job, &mut store))
+            .collect();
+        let decoded = store.prepare(
+            chunk
+                .iter()
+                .zip(&verdicts)
+                .filter(|(_, verdict)| verdict.runs())
+                .map(|(job, _)| job),
+        );
+        let made: Vec<Option<Outcome>> = chunk
+            .par_iter()
+            .zip(&verdicts)
+            .map(|(job, verdict)| verdict.runs().then(|| make(job, &decoded)))
+            .collect();
+        store.keep(decoded, next);
+        for verdict in &verdicts {
+            if let Verdict::Reserved(size) = verdict {
+                tally.give_back(*size);
             }
+        }
+        for ((job, verdict), outcome) in chunk.iter().zip(verdicts).zip(made) {
+            let outcome = match (outcome, verdict) {
+                (Some(outcome), _) => outcome,
+                (None, Verdict::Failed(failure)) => Outcome {
+                    failures: vec![failure],
+                    ..Outcome::default()
+                },
+                (None, _) => over_budget(job),
+            };
+            outcomes.push(match outcome.pixels() {
+                Some(size) if !tally.fits(size) => over_budget(job),
+                Some(size) => {
+                    tally.take(size);
+                    outcome
+                }
+                None => outcome,
+            });
         }
     }
     outcomes
@@ -98,14 +133,18 @@ fn over_budget(job: &Job) -> Outcome {
 }
 
 fn load(
-    loader: &dyn TextureLoader,
+    decoded: &Decoded,
     role: TextureRole,
     source: Option<&Source>,
-    mip: u32,
     failures: &mut Vec<Failure>,
-) -> Option<LoadedTexture> {
+) -> Option<Arc<LoadedTexture>> {
     let source = source?;
-    match loader.load(&source.path, mip) {
+    let loaded = decoded.get(&source.path).cloned().unwrap_or_else(|| {
+        Err(TextureLoadError::Unreadable(
+            "the texture was not prepared".to_owned(),
+        ))
+    });
+    match loaded {
         Ok(texture) => Some(texture),
         Err(error) => {
             failures.push(Failure {
@@ -132,17 +171,15 @@ fn encode(image: &RgbaImage) -> Result<EncodedImage, String> {
 /// of, because the textures failed to load, which `failures` records.
 type Made = Option<Result<EncodedImage, String>>;
 
-fn make(job: &Job, mip: u32, loader: &dyn TextureLoader) -> Outcome {
+fn make(job: &Job, decoded: &Decoded) -> Outcome {
     let mut outcome = Outcome::default();
     let mut failures = Vec::new();
     let made = match &job.key {
         Key::Base { keep_alpha, .. } => {
-            make_base(job, *keep_alpha, (mip, loader), &mut outcome, &mut failures)
+            make_base(job, *keep_alpha, decoded, &mut outcome, &mut failures)
         }
-        Key::Normal { .. } => make_normal(job, (mip, loader), &mut failures),
-        Key::MetallicRoughness { .. } => {
-            make_packed(job, (mip, loader), &mut outcome, &mut failures)
-        }
+        Key::Normal { .. } => make_normal(job, decoded, &mut failures),
+        Key::MetallicRoughness { .. } => make_packed(job, decoded, &mut outcome, &mut failures),
     };
     match made {
         Some(Ok(image)) => outcome.image = Some(image),
@@ -164,22 +201,20 @@ fn make(job: &Job, mip: u32, loader: &dyn TextureLoader) -> Outcome {
 fn make_base(
     job: &Job,
     keep_alpha: bool,
-    (mip, loader): (u32, &dyn TextureLoader),
+    decoded: &Decoded,
     outcome: &mut Outcome,
     failures: &mut Vec<Failure>,
 ) -> Made {
     let diffuse = load(
-        loader,
+        decoded,
         TextureRole::Diffuse,
         job.diffuse.as_ref(),
-        mip,
         failures,
     )?;
     let specular = load(
-        loader,
+        decoded,
         TextureRole::Specular,
         job.specular.as_ref(),
-        mip,
         failures,
     );
     outcome.tinted = specular.is_some();
@@ -202,18 +237,8 @@ fn make_base(
     )
 }
 
-fn make_normal(
-    job: &Job,
-    (mip, loader): (u32, &dyn TextureLoader),
-    failures: &mut Vec<Failure>,
-) -> Made {
-    let normal = load(
-        loader,
-        TextureRole::Normal,
-        job.normal.as_ref(),
-        mip,
-        failures,
-    )?;
+fn make_normal(job: &Job, decoded: &Decoded, failures: &mut Vec<Failure>) -> Made {
+    let normal = load(decoded, TextureRole::Normal, job.normal.as_ref(), failures)?;
     Some(
         normal_map(&normal.image)
             .map_err(|error| error.to_string())
@@ -223,23 +248,16 @@ fn make_normal(
 
 fn make_packed(
     job: &Job,
-    (mip, loader): (u32, &dyn TextureLoader),
+    decoded: &Decoded,
     outcome: &mut Outcome,
     failures: &mut Vec<Failure>,
 ) -> Made {
-    let gloss = load(
-        loader,
-        TextureRole::Normal,
-        job.normal.as_ref(),
-        mip,
-        failures,
-    )
-    .filter(|gloss| gloss.has_alpha);
+    let gloss = load(decoded, TextureRole::Normal, job.normal.as_ref(), failures)
+        .filter(|gloss| gloss.has_alpha);
     let specular = load(
-        loader,
+        decoded,
         TextureRole::Specular,
         job.specular.as_ref(),
-        mip,
         failures,
     );
     match metallic_roughness(
@@ -254,109 +272,5 @@ fn make_packed(
         }
         Ok(None) => None,
         Err(error) => Some(Err(error.to_string())),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use p4kx_texture::RgbaImage;
-
-    use super::{Budget, run};
-    use crate::texture_loader::{LoadedTexture, TextureLoadError, TextureLoader};
-    use crate::texture_pixels::Tints;
-    use crate::texture_plan::{Job, Key};
-    use crate::texture_roles::Source;
-
-    struct Squares(u32);
-
-    impl TextureLoader for Squares {
-        fn load(&self, _path: &str, _mip: u32) -> Result<LoadedTexture, TextureLoadError> {
-            let side = self.0;
-            let pixels = vec![128; (side * side * 4) as usize];
-            RgbaImage::new(side, side, pixels)
-                .map(|image| LoadedTexture::new(image, true))
-                .map_err(|error| TextureLoadError::Unreadable(error.to_string()))
-        }
-    }
-
-    fn normal_jobs(count: usize) -> Vec<Job> {
-        (0..count)
-            .map(|number| {
-                let path = format!("objects/n{number}_ddna.dds");
-                Job {
-                    key: Key::Normal {
-                        normal: path.clone(),
-                    },
-                    diffuse: None,
-                    normal: Some(Source {
-                        file: path.clone(),
-                        path,
-                        gloss: true,
-                        opacity: false,
-                    }),
-                    specular: None,
-                    tints: Tints {
-                        diffuse: [1.0; 3],
-                        specular: [1.0; 3],
-                    },
-                }
-            })
-            .collect()
-    }
-
-    fn made(outcomes: &[super::Outcome]) -> usize {
-        outcomes
-            .iter()
-            .filter(|outcome| outcome.image.is_some())
-            .count()
-    }
-
-    #[test]
-    fn images_beyond_the_count_budget_are_left_out_and_reported() {
-        let outcomes = run(
-            &normal_jobs(11),
-            0,
-            &Squares(2),
-            Budget {
-                images: 6,
-                pixels: u64::MAX,
-            },
-        );
-
-        assert_eq!(outcomes.len(), 11, "one outcome per job");
-        assert_eq!(
-            made(&outcomes),
-            6,
-            "exactly the budget, though a chunk has 4"
-        );
-        assert!(
-            outcomes
-                .iter()
-                .skip(6)
-                .all(|outcome| outcome.image.is_none() && outcome.failures.len() == 1),
-            "the rest fail with a reason"
-        );
-    }
-
-    #[test]
-    fn images_beyond_the_pixel_budget_are_left_out_and_reported() {
-        let outcomes = run(
-            &normal_jobs(7),
-            0,
-            &Squares(4),
-            Budget {
-                images: usize::MAX,
-                pixels: 16 * 3,
-            },
-        );
-
-        assert_eq!(made(&outcomes), 3, "three images of 16 pixels fit");
-        assert!(
-            outcomes
-                .iter()
-                .skip(3)
-                .all(|outcome| outcome.failures.iter().all(|f| f.reason.contains("budget"))),
-            "reported as over budget"
-        );
     }
 }

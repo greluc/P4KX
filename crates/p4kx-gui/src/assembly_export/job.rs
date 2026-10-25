@@ -14,6 +14,7 @@ use std::thread;
 use p4kx_assembly::LoadoutChanges;
 use p4kx_extraction::{CancelToken, GlbOptions, Guid, MaterialMode};
 use p4kx_settings::ModelMaterials;
+pub(crate) use package::{info_of, package_failure};
 pub(crate) use run::failure_of;
 #[cfg(test)]
 use stop::Observed;

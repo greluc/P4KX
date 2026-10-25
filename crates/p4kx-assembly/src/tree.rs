@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use p4kx_dataforge::Guid;
 
+use crate::LoadoutEntry;
 use crate::entities::class_name_of;
+use crate::spec::LoadoutOrigin;
 use crate::{
     Geometry, Incompatibility, ItemFacts, LandingGear, LoadoutError, ObjectContainerRef,
     PortConstraints, PortDefinition, PortVisibility, VehicleImplementation,
@@ -23,6 +25,7 @@ pub struct EntityNode {
     pub(crate) vehicle: Option<Arc<VehicleImplementation>>,
     pub(crate) landing_gear: Arc<[LandingGear]>,
     pub(crate) docked_vehicle: bool,
+    pub(crate) loadout_file: Option<Arc<str>>,
     pub(crate) expanded: bool,
     pub(crate) attach_type: String,
     pub(crate) attach_sub_type: String,
@@ -78,6 +81,13 @@ impl EntityNode {
     #[must_use]
     pub const fn is_docked_vehicle(&self) -> bool {
         self.docked_vehicle
+    }
+
+    /// Returns the path of the XML Loadout file the Entity's own Loadout names
+    /// (`SItemPortLoadoutXMLParams.loadoutPath`), or `None` for a Loadout in the Record.
+    #[must_use]
+    pub fn loadout_file(&self) -> Option<&str> {
+        self.loadout_file.as_deref()
     }
 
     /// Returns whether the Entity's ports are built; `false` for a docked vehicle the resolver
@@ -170,64 +180,6 @@ impl EntityNode {
     }
 }
 
-/// One port of the default Loadout that holds something, at its path of port names.
-#[derive(Debug, Clone)]
-pub struct LoadoutEntry<'n> {
-    path: String,
-    port: &'n PortNode,
-}
-
-impl<'n> LoadoutEntry<'n> {
-    /// Returns the path of port names joined by `/`.
-    #[must_use]
-    pub fn path(&self) -> &str {
-        &self.path
-    }
-
-    /// Returns the port.
-    #[must_use]
-    pub const fn port(&self) -> &'n PortNode {
-        self.port
-    }
-
-    /// Returns the Entity attached to the port, or `None` when the attachment cannot be resolved.
-    #[must_use]
-    pub fn entity(&self) -> Option<&'n EntityNode> {
-        match &self.port.attachment {
-            Attachment::Entity(node) => Some(node.as_ref()),
-            _ => None,
-        }
-    }
-
-    /// Returns the class name of the attached Entity, or the class name the Loadout names when
-    /// the attachment cannot be resolved by it.
-    #[must_use]
-    pub fn class_name(&self) -> Option<&'n str> {
-        match &self.port.attachment {
-            Attachment::Entity(node) => Some(node.class_name()),
-            Attachment::Unresolved(unresolved) => match &unresolved.target {
-                Target::ClassName(name) => Some(name),
-                _ => None,
-            },
-            Attachment::Empty => None,
-        }
-    }
-
-    /// Returns the GUID of the attached Entity's Record, or of the Record the Loadout names when
-    /// the attachment cannot be resolved.
-    #[must_use]
-    pub const fn guid(&self) -> Option<Guid> {
-        match &self.port.attachment {
-            Attachment::Entity(node) => Some(node.guid),
-            Attachment::Unresolved(unresolved) => match &unresolved.target {
-                Target::Reference(guid) => Some(*guid),
-                _ => None,
-            },
-            Attachment::Empty => None,
-        }
-    }
-}
-
 fn walk<'n>(node: &'n EntityNode, prefix: &str, ports: &mut Vec<(String, &'n PortNode)>) {
     walk_ports(&node.ports, prefix, ports);
 }
@@ -257,9 +209,18 @@ pub struct PortNode {
     pub(crate) attachment: Attachment,
     pub(crate) nested: Vec<Self>,
     pub(crate) visibility: PortVisibility,
+    pub(crate) origin: Option<LoadoutOrigin>,
 }
 
 impl PortNode {
+    /// Returns what supplied the port's attachment: the Record or XML Loadout file of the
+    /// Loadout entry, or the Record of the port definition for a port default. `None` for a port
+    /// no entry or default names, and for a port the changes excluded or replaced.
+    #[must_use]
+    pub const fn origin(&self) -> Option<&LoadoutOrigin> {
+        self.origin.as_ref()
+    }
+
     /// Returns what the port takes: the types and sizes of its definition in the Entity Record,
     /// else of the item port of the vehicle implementation. `None` when neither states any.
     #[must_use]

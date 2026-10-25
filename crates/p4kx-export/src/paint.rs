@@ -3,20 +3,21 @@
 
 use std::collections::{HashMap, HashSet};
 
-use p4kx_extraction::{Archive, DataForge, TagTree};
+use p4kx_extraction::{DataForge, TagTree};
 use rayon::prelude::*;
 
 use crate::PaintSummary;
 use crate::contract::{Item, Paint};
 use crate::guid_text::CatalogGuid;
-use crate::paint_port::{PaintPort, VehicleFacts, VehicleFiles, VehiclePorts};
+use crate::paint_port::{PaintPort, VehicleFacts};
 
 const PAINT_TYPE: &str = "Paints";
 
 /// The paints of a catalog and what was counted deriving them.
 pub(crate) struct Paints {
-    pub(crate) paints: Vec<Paint>,
+    pub(crate) list: Vec<Paint>,
     pub(crate) summary: PaintSummary,
+    pub(crate) unreadable_files: Vec<String>,
 }
 
 /// Returns the paints among `items` with the ships of `vehicles` they fit.
@@ -26,10 +27,9 @@ pub(crate) struct Paints {
 /// one of them in the tag tree. The ports are the `SItemPortDef` entries of the ship's Record and
 /// the `ItemPort` elements of its vehicle implementation.
 pub(crate) fn paints(
-    archive: &Archive,
     forge: &DataForge<'_>,
     items: &[Item<'_>],
-    vehicles: &[VehicleFacts<'_>],
+    vehicles: &[VehicleFacts],
 ) -> Paints {
     let candidates: Vec<&Item<'_>> = items
         .iter()
@@ -40,12 +40,15 @@ pub(crate) fn paints(
         .collect();
     if candidates.is_empty() {
         return Paints {
-            paints: Vec::new(),
+            list: Vec::new(),
             summary: PaintSummary::default(),
+            unreadable_files: Vec::new(),
         };
     }
-    let files = read_files(archive, vehicles);
-    let (by_ports, unreadable) = group_ships(&files, vehicles);
+    let (by_ports, mut unreadable_files) = group_ships(vehicles);
+    let unreadable = unreadable_files.len();
+    unreadable_files.sort_unstable();
+    unreadable_files.dedup();
     let tags = TagTree::build(forge);
     let index = TagIndex::new(&tags);
     let mut paints: Vec<Paint> = candidates
@@ -66,34 +69,25 @@ pub(crate) fn paints(
         .collect();
     paints.sort_by_cached_key(|paint| paint.item_guid.text());
     let summary = summarise(&paints, unreadable);
-    Paints { paints, summary }
+    Paints {
+        list: paints,
+        summary,
+        unreadable_files,
+    }
 }
 
 type ShipsByPorts = HashMap<Vec<PaintPort>, Vec<CatalogGuid>>;
-type Key<'s> = (&'s str, &'s str, &'s str);
-
-fn key<'s>(vehicle: &VehicleFacts<'s>) -> Option<Key<'s>> {
-    Some((
-        vehicle.class_name,
-        vehicle.definition?,
-        vehicle.modification.unwrap_or_default(),
-    ))
-}
 
 /// Groups the ships by their paint ports, those of their Record and those of their vehicle
-/// implementation, and counts the ships whose files could not be used.
-fn group_ships<'v>(
-    files: &HashMap<Key<'v>, VehiclePorts>,
-    vehicles: &[VehicleFacts<'v>],
-) -> (ShipsByPorts, usize) {
+/// implementation, and returns why the files of the ships that could not be used cannot be read,
+/// one entry per ship.
+fn group_ships(vehicles: &[VehicleFacts]) -> (ShipsByPorts, Vec<String>) {
     let mut by_ports = ShipsByPorts::new();
-    let mut unreadable = 0_usize;
+    let mut unreadable = Vec::new();
     for vehicle in vehicles {
         let mut ports = vehicle.paint_ports.clone();
-        if let Some(found) = key(vehicle).and_then(|key| files.get(&key)) {
-            unreadable = unreadable.saturating_add(usize::from(found.unreadable));
-            ports.extend(found.ports.iter().cloned());
-        }
+        unreadable.extend(vehicle.implementation.unreadable.iter().cloned());
+        ports.extend(vehicle.implementation.ports.iter().cloned());
         ports.sort_unstable();
         ports.dedup();
         if !ports.is_empty() {
@@ -119,26 +113,6 @@ fn summarise(paints: &[Paint], unreadable_vehicles: usize) -> PaintSummary {
         ships: with_paints.len(),
         unreadable_vehicles,
     }
-}
-
-/// Reads the paint ports of every distinct vehicle implementation and Modification of
-/// `vehicles`.
-fn read_files<'s>(
-    archive: &Archive,
-    vehicles: &[VehicleFacts<'s>],
-) -> HashMap<Key<'s>, VehiclePorts> {
-    let wanted: HashSet<Key<'s>> = vehicles.iter().filter_map(key).collect();
-    let files = VehicleFiles::new(archive);
-    wanted
-        .into_par_iter()
-        .map(|(class_name, definition, modification)| {
-            let named = (!modification.is_empty()).then_some(modification);
-            (
-                (class_name, definition, modification),
-                files.paint_ports(class_name, definition, named),
-            )
-        })
-        .collect()
 }
 
 fn lowered(tags: &[&str]) -> Vec<String> {

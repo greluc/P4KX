@@ -272,21 +272,27 @@ impl KindRule {
     /// Returns whether `record_path` starts with one of the prefixes.
     #[must_use]
     pub fn matches_path(&self, record_path: &str) -> bool {
-        let fold = |byte: u8| {
-            if byte == b'\\' {
-                b'/'
-            } else {
-                byte.to_ascii_lowercase()
-            }
-        };
-        self.prefixes.iter().any(|prefix| {
-            record_path.len() >= prefix.len()
-                && record_path
-                    .bytes()
-                    .zip(prefix.bytes())
-                    .all(|(have, want)| fold(have) == fold(want))
-        })
+        self.prefixes
+            .iter()
+            .any(|prefix| starts_with_folder(record_path, prefix))
     }
+}
+
+/// Returns whether `record_path` starts with `prefix`, ignoring ASCII case and the kind of
+/// separator.
+pub(crate) fn starts_with_folder(record_path: &str, prefix: &str) -> bool {
+    let fold = |byte: u8| {
+        if byte == b'\\' {
+            b'/'
+        } else {
+            byte.to_ascii_lowercase()
+        }
+    };
+    record_path.len() >= prefix.len()
+        && record_path
+            .bytes()
+            .zip(prefix.bytes())
+            .all(|(have, want)| fold(have) == fold(want))
 }
 
 /// What the blueprint selection makes of one Record.

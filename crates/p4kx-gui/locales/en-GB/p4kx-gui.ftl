@@ -474,7 +474,7 @@ catalog-summary-texts-unavailable = { $language ->
 }: the Archive holds no global.ini, { $missing } missing
 catalog-summary-missing = Missing texts: { $number }
 catalog-summary-size = Size: { $size } of the upload limit of { $limit }
-catalog-summary-size-compressed = Size: { $compressed } compressed, { $size } uncompressed, of the upload limit of { $limit }
+catalog-summary-size-compressed = Size: { $compressed } compressed (of the upload limit of { $limit }), { $size } uncompressed
 catalog-near-limit = The catalog is close to the basetool upload limit of { $limit }.
 catalog-over-limit = The catalog is over the basetool upload limit of { $limit }; the basetool will reject the upload.
 catalog-near-limit-plain = The plain JSON catalog is close to the basetool upload limit of { $limit }. Write the catalog as .json.zst for the upload; plain .json is for inspection.
@@ -488,6 +488,7 @@ catalog-failed-title = Basetool catalog failed
 catalog-failed = The Basetool catalog { $path } could not be created: { $reason }
 catalog-stopped = The Basetool catalog { $path } stopped without a result.
 catalog-output-is-archive = The Basetool catalog cannot be written to { $path }, because that is the open Archive. Choose another file.
+catalog-output-gzip = The Basetool catalog is not written to { $path }, because gzip is not supported. Use a name ending in .json.zst for a compressed catalog or .json for a plain one.
 preview-tab-xml = XML
 xml-converting = Converting { $path } to XML…
 xml-too-large = { $path } is { $size }. CryXml Entries larger than { $limit } are not converted in the preview; extract it with Conversion on to read it.
@@ -505,6 +506,8 @@ scroll-lines = Record fields
 scroll-localization = Localisation rows
 scroll-saved-queries = Saved Queries
 scroll-soundbank = Embedded WEMs
+scroll-summary = DataForge summary
+scroll-list = { $heading }, rows
 
 preview-tab-audio = Audio
 audio-codec = Codec
@@ -1108,8 +1111,8 @@ assembly-export-summary-package-textures = { $count ->
     [one] One texture could not be written; its materials keep the plain colours.
    *[other] { $number } textures could not be written; their materials keep the plain colours.
   }
-assembly-export-title-interior = Export Interior as GLB
-assembly-export-action-interior = Export Interior as GLB…
+assembly-export-title-interior = Export Interior
+assembly-export-action-interior = Export Interior…
 assembly-export-entity = Entity: { $name }
 assembly-export-container = Container: { $name }
 assembly-export-interior-heading = Interior
@@ -1197,9 +1200,16 @@ characters-expressions-no-head = Choose a head to load its expressions.
 characters-expressions-none = The head has no expressions.
 characters-expression-neutral = Neutral face
 characters-expression-strength = Strength { $percent } %
-characters-export-action = Export as GLB…
+characters-export-action = Export…
+characters-export-setup-title = Export Character
+characters-export-setup-name = Character: { $name }
+characters-export-package-note = A folder with scene.json and one GLB file of the Character: the skeleton, the shape keys and the materials, with their textures when the textures are chosen, and the animations if you choose them, for the Blender add-on.
+characters-export-animations-heading = Animations
+characters-export-animations-none = None
+characters-export-animations-all = All
+characters-export-busy = The Character is being built again. Export it once that is done.
+characters-export-package-counts = Parts { $parts }, bones { $bones }, skinned meshes { $skinned }, shape keys { $morphs }, animations { $animations }, vertices { $vertices }, triangles { $triangles }, files { $files }, size { $size }
 characters-export-counts = Parts { $parts }, bones { $bones }, vertices { $vertices }, triangles { $triangles }, size { $size }
-characters-view-label = 3D view of the Character { $name }: { $parts } parts, { $triangles } triangles
 characters-report-heading = Pieces that could not be fitted in full ({ $number })
 characters-report-all = Every piece fits.
 characters-report-skipped = Left out: { $name }: { $reason }

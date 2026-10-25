@@ -6,8 +6,8 @@ use std::path::Path;
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant, CharacterAnimations,
-    LoadoutResolver, PartOrigin,
+    AnimationFolders, ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant,
+    CharacterAnimations, Issue, LoadoutResolver, PartOrigin, character_animations,
 };
 use p4kx_extraction::{
     AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
@@ -20,7 +20,7 @@ use crate::cli_armour::{ArmourGlbArgs, BodyArg};
 use crate::cli_chf::ChfMaterialsArg;
 use crate::entity_glb::{GlbOutputIsArchive, IssueJson, print_issues, print_textures};
 use crate::json;
-use crate::model_animations::{AnimationFolders, WrittenJson, character_animations, write_notes};
+use crate::model_animations::{WrittenJson, write_notes};
 use crate::query_table::one_line;
 
 #[derive(Serialize)]
@@ -89,6 +89,10 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
     )?;
     let animated = armour.animate(&found.animations, &models);
     let summary = write(&armour, &animated, args, &models)?;
+    let layers = match args.materials {
+        ChfMaterialsArg::Textures => armour.layer_issues(),
+        ChfMaterialsArg::Colours => Vec::new(),
+    };
     if as_json {
         let done = Done {
             archive: archive.path(),
@@ -97,6 +101,7 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
             armour: &armour,
             animated: &animated,
             summary: &summary,
+            layers: &layers,
         };
         json::print(&report(&done, args))?;
         return Ok(());
@@ -105,7 +110,7 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
         .own()
         .filter(|_| !args.animations.is_empty())
         .map(one_line);
-    let printed = print_report(&armour, &summary, &selection, &args.out)
+    let printed = print_report(&armour, &summary, &selection, (&args.out, &layers))
         .and_then(|()| print_animations(&summary, &found, &animated, own.as_deref()));
     match printed {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
@@ -121,6 +126,7 @@ struct Done<'a> {
     armour: &'a Armour,
     animated: &'a CharacterAnimations<'a>,
     summary: &'a GlbSummary,
+    layers: &'a [Issue],
 }
 
 fn report<'a>(done: &Done<'a>, args: &ArmourGlbArgs) -> GlbJson<'a> {
@@ -131,6 +137,7 @@ fn report<'a>(done: &Done<'a>, args: &ArmourGlbArgs) -> GlbJson<'a> {
         armour,
         animated,
         summary,
+        layers,
     } = *done;
     GlbJson {
         archive: json::path(archive),
@@ -160,6 +167,7 @@ fn report<'a>(done: &Done<'a>, args: &ArmourGlbArgs) -> GlbJson<'a> {
         issues: armour
             .issues()
             .iter()
+            .chain(layers)
             .chain(animated.issues())
             .map(IssueJson::from)
             .collect(),
@@ -274,7 +282,7 @@ fn print_report(
     armour: &Armour,
     summary: &GlbSummary,
     selection: &Selection<'_>,
-    out: &Path,
+    (out, layers): (&Path, &[Issue]),
 ) -> io::Result<()> {
     let mut stdout = BufWriter::new(io::stdout().lock());
     selection.print(&mut stdout)?;
@@ -321,5 +329,6 @@ fn print_report(
         )?;
     }
     print_issues(&mut stdout, armour.issues())?;
+    print_issues(&mut stdout, layers)?;
     stdout.flush()
 }

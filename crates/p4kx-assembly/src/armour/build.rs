@@ -10,8 +10,9 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::face_build::{Face, Found, settled};
 use super::follow::follow;
-use super::jobs::{Job, gather, issue};
+use super::jobs::{Job, issue, planned};
 use super::shape::shaped;
+use super::zones::{covered, without_covered};
 use super::{Armour, ArmourPart, BodyVariant, Piece};
 use crate::build::file_key;
 use crate::{
@@ -67,22 +68,17 @@ impl Armour {
     ) -> Result<Self, AssemblyError> {
         let body = load_body(variant, models, options.lod)?;
         let mut issues = Vec::new();
-        let mut jobs = vec![Job::body(variant.skin())];
-        for piece in pieces {
-            gather(piece, variant, models, &mut jobs, &mut issues);
-        }
-        if jobs.len() > options.max_parts {
-            for job in jobs.split_off(options.max_parts) {
-                let kind = IssueKind::TooManyParts {
-                    limit: options.max_parts,
-                };
-                issues.push(issue(&job, kind));
-            }
-        }
+        let jobs = planned(variant, pieces, models, options.max_parts, &mut issues);
         let loaded = read_models(&jobs, models, options)?;
         let chosen = choose(&jobs, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&jobs, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
+        let covering = covered(
+            jobs.iter()
+                .zip(&chosen)
+                .filter(|(_, found)| found.is_some())
+                .flat_map(|(job, _)| job.zones.iter()),
+        );
         let mut reported = HashSet::new();
         let mut parts = Vec::with_capacity(chosen.len());
         let mut head: Option<HeadMove> = None;
@@ -94,6 +90,7 @@ impl Armour {
             else {
                 continue;
             };
+            let model = without_covered(job, model, variant, &covering, &mut issues);
             heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
             if job.bespoke {
                 heads.push(Found::bespoke(parts.len(), &job.path));

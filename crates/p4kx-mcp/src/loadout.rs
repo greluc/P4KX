@@ -182,13 +182,18 @@ pub(crate) fn resolve(
     params: &LoadoutParams,
     page: Page,
 ) -> Result<LoadoutResult, ToolError> {
-    let files = ArchiveFiles::new(opened.archive());
-    let mut resolver = LoadoutResolver::new(forge).with_files(&files);
-    if params.stop_at_docked_vehicles == Some(true) {
-        resolver = resolver.stopping_at_docked_vehicles();
-    }
-    let record = resolver.entities().find(&params.entity)?;
-    let tree = resolver.resolve(&record)?;
+    let stop_at_docked = params.stop_at_docked_vehicles == Some(true);
+    let tree = opened
+        .loadouts()
+        .get_or_resolve(&params.entity, stop_at_docked, || {
+            let files = ArchiveFiles::new(opened.archive());
+            let mut resolver = LoadoutResolver::new(forge).with_files(&files);
+            if stop_at_docked {
+                resolver = resolver.stopping_at_docked_vehicles();
+            }
+            let record = resolver.entities().find(&params.entity)?;
+            Ok(resolver.resolve(&record)?)
+        })?;
     let max_depth = usize::try_from(
         params
             .max_depth

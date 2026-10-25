@@ -64,7 +64,8 @@ pub struct SampledAnimation {
     pub bones: Vec<SampledBone>,
     /// The morph weights.
     pub weights: Vec<SampledWeights>,
-    /// The controller IDs of the tracks of the source that drive nothing, for the summary.
+    /// The controller IDs of the tracks of the source that drive nothing, for the summary; the
+    /// IDs of the bones in [`Self::bones`] that cannot be written are added to them there.
     pub skipped_tracks: Vec<u32>,
 }
 

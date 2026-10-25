@@ -32,7 +32,9 @@ Decided for issue #390, the follow-ups of the review of PR #385. Amends ADR-0048
   other than English the English folder follows the chosen one (the same tail, then the same file
   there) before any other file of the UI or of another language folder, so a font movie the chosen
   language lacks resolves to English and not to whichever folder sorts first. There is no
-  separate flag: a movie drawn with the German texts takes the German fonts for the same reason.
+  separate flag. The movie folders of LIVE are named without the region (`german`, `french`;
+  the Japanese, Korean and Chinese folders keep it), so both the
+  `global.ini` folder name and the name without the region count as the language's folder. A movie drawn with the German texts takes the German fonts for the same reason.
 - **Ties sort by Entry index.** Entries whose normalised paths are equal (they differ only in
   case) sort by their index in the Archive, so the choice does not depend on the sort being stable.
 - **Spaces draw nothing.** A space, a no-break space or a line break of a text field never draws

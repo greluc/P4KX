@@ -11,6 +11,7 @@ use crate::ui_import_support::{CLIENT, TestResult, archive, client, font_movie, 
 
 const ENGLISH: &str = "Data\\Localization\\english\\X.swf";
 const GERMAN: &str = "Data\\Localization\\german_(germany)\\X.swf";
+const GERMAN_SHORT: &str = "Data\\Localization\\german\\X.swf";
 const CHINESE: &str = "Data\\Localization\\chinese_(simplified)\\X.swf";
 const OTHER: &str = "Data\\Other\\X.swf";
 const GERMAN_INI: &str = "Data\\Localization\\german_(germany)\\global.ini";
@@ -40,6 +41,11 @@ fn english_follows_the_chosen_language_before_any_other_folder() -> TestResult {
         (Language::English, vec![CHINESE, ENGLISH], ENGLISH),
         (Language::Japanese, vec![CHINESE, OTHER, ENGLISH], ENGLISH),
         (Language::German, vec![CHINESE], CHINESE),
+        (
+            Language::German,
+            vec![CHINESE, ENGLISH, GERMAN_SHORT],
+            GERMAN_SHORT,
+        ),
     ] {
         let dir = tempfile::tempdir()?;
         let archive = build(dir.path(), &fonts)?;

@@ -58,6 +58,19 @@ pub(super) fn contained(url: &str) -> Option<PathBuf> {
     Some(parts.iter().collect())
 }
 
+/// Returns the folders below `Data\Localization` that hold the movies of `language`: the folder
+/// of its `global.ini` and the shorter name without the region (`german`) that the movie folders
+/// of the Archive use.
+fn language_folders(language: Language) -> Vec<String> {
+    let full = language.folder();
+    let short = full.split_once("_(").map_or(full, |(name, _)| name);
+    let mut folders = vec![format!("data\\localization\\{full}\\")];
+    if short != full {
+        folders.push(format!("data\\localization\\{short}\\"));
+    }
+    folders
+}
+
 /// Returns the indexes of up to `limit` Entries that a movie in `folder` may mean by the import
 /// URL `url`, the best first: the exact path, the same tail below the UI folder or the
 /// localisation folder of `language` and then of English, the same file name there, then
@@ -71,7 +84,7 @@ pub(crate) fn candidates(
     language: Language,
     limit: usize,
 ) -> Vec<usize> {
-    let language_folder = format!("data\\localization\\{}\\", language.folder());
+    let language_folders = language_folders(language);
     let fallback = language != Language::English;
     let relative = normalised(&format!("{folder}\\{url}"));
     let file = url.rsplit(['\\', '/']).next().unwrap_or(url);
@@ -100,9 +113,12 @@ pub(crate) fn candidates(
                 0
             } else if suffixed && path.starts_with(UI_FOLDER) {
                 1
-            } else if suffixed && path.starts_with(&language_folder) {
+            } else if suffixed && language_folders.iter().any(|dir| path.starts_with(dir)) {
                 2
-            } else if folder_of(&path) == language_folder.trim_end_matches('\\') {
+            } else if language_folders
+                .iter()
+                .any(|dir| folder_of(&path) == dir.trim_end_matches('\\'))
+            {
                 3
             } else if fallback && suffixed && path.starts_with(ENGLISH_FOLDER) {
                 4

@@ -17,6 +17,7 @@ mod audio_loose_fallbacks;
 mod audio_resolve;
 mod audio_resolve_banks;
 mod audio_resolve_limits;
+mod audio_resolve_media;
 mod audio_resolve_music;
 mod audio_search;
 mod audio_streamed_localised;

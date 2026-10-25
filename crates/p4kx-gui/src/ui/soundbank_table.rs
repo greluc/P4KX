@@ -52,6 +52,7 @@ impl Laid {
         let unknown = texts.get(AudioText::Unknown);
         let prefetched = texts.get(AudioText::Prefetched);
         let plugin = texts.get(AudioText::Plugin);
+        let midi = texts.get(AudioText::Midi);
         let rows = sounds
             .iter()
             .map(|sound| {
@@ -60,6 +61,8 @@ impl Laid {
                     (prefetched.clone(), true)
                 } else if sound.is_plugin() {
                     (plugin.clone(), true)
+                } else if sound.is_midi() {
+                    (midi.clone(), true)
                 } else {
                     info.map_or_else(
                         || (unknown.clone(), true),

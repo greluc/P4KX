@@ -118,7 +118,7 @@ pub(crate) fn normalise(vector: [f32; 3]) -> [f32; 3] {
     }
 }
 
-fn cross([ax, ay, az]: [f32; 3], [bx, by, bz]: [f32; 3]) -> [f32; 3] {
+pub(crate) fn cross([ax, ay, az]: [f32; 3], [bx, by, bz]: [f32; 3]) -> [f32; 3] {
     [
         ay.mul_add(bz, -(az * by)),
         az.mul_add(bx, -(ax * bz)),

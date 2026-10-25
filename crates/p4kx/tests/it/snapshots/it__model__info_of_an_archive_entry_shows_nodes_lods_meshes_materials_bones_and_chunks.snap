@@ -22,9 +22,10 @@ Chunks:      7 (3 read, 3 skipped, 1 unknown)
   1  caps                      Illum             -                   0.800 0.100 0.100           1  0
   2  sides                     Illum             -                   0.100 0.100 0.800         0.5  0
 
- Node  Parent  Name
-    0  -       cube
-    1  0       cube_mesh
+ Node  Parent  Type      Scale                 Name
+    0  -       helper    1 1 1                 cube
+    1  0       geometry  1 1 1                 cube_mesh
+Material indices: 1, 2
 
 File           Index  Type                         Type ID  Usage
 model              0  ExportFlags               0xBE5E493E  skipped

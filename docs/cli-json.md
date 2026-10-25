@@ -563,8 +563,8 @@ decoded, which then carries the reason in `unconverted`. A file is named `<trigg
 trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
-sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank or loose Entry
-holds. Exit code 1 when anything is in `failures` or `unconverted`.
+sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
+soundbank or loose Entry holds. Exit code 1 when anything is in `failures` or `unconverted`.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
@@ -582,7 +582,7 @@ and `issues` are not repeated in it.
  "issues": [Issue, …]}
 ```
 
-`<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
+`counts.plugins` is the number of variants without a file: source plug-ins and external sources. `<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
 ATL definition has exits with code 2. The audio index is built as for `p4kx entity audio`, with
 the same `issues`; each soundbank holding one of the trigger's events is then read again and its
 `HIRC` section followed from the Event object through Play actions (other actions lead to no
@@ -597,8 +597,8 @@ A **Variant**:
 | `event` | string | The Wwise event it is reached from |
 | `soundbank` | object | `path` and `language` of the soundbank whose `HIRC` section leads to it |
 | `sound_id` | number | ID of the Sound object |
-| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in, which has no WEM |
-| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` or `other` |
+| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in or an external source, which have no file |
+| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` (generated, no file), `external` (supplied by the game at runtime, no file), `midi` (a MIDI file, located like a WEM) or `other` |
 | `localised` | boolean | The source is language-specific or its soundbank lies in a language folder |
 | `language` | string or `null` | The language folder the WEM was found in, for a localised variant with a location |
 | `fallback` | boolean | `language` is the fallback language, not `requested` |
@@ -1178,17 +1178,20 @@ Also `p4kx bnk list <file> --json` for a soundbank file on disk.
 
 ```json
 {"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "version": 154, "bank_id": 3512036681,
- "wems": [{"id": 100, "size": 4852, "codec": "pcm", "codec_name": "PCM", "sample_count": 1200,
-           "duration_seconds": 0.025, "prefetch": false, "error": null},
-          {"id": 400, "size": 120, "codec": null, "codec_name": null, "sample_count": null,
-           "duration_seconds": null, "prefetch": true, "error": null}]}
+ "wems": [{"id": 100, "size": 4852, "class": "wem", "codec": "pcm", "codec_name": "PCM",
+           "sample_count": 1200, "duration_seconds": 0.025, "prefetch": false, "error": null},
+          {"id": 400, "size": 120, "class": "wem", "codec": null, "codec_name": null,
+           "sample_count": null, "duration_seconds": null, "prefetch": true, "error": null}]}
 ```
 
-`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded WEM in
+`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded media item in
 ascending ID order: `size` is its size in the bank, and `codec` to `duration_seconds` are as in
-`p4kx audio info`. `prefetch` is `true` when the bank holds only the start of a streamed WEM, whose
-whole file is the loose WEM of the same ID; its codec is then not read. `error` names why a WEM
-cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
+`p4kx audio info`. `class` tells what the item holds from its first bytes: `wem` (a RIFF or RIFX
+WAVE file), `midi` (a MIDI file), `impulse` (Wwise plug-in data such as a convolution reverb's
+impulse response) or `unknown`. `prefetch` is `true` when the bank holds only the start of a
+streamed WEM, whose whole file is the loose WEM of the same ID; its codec is then not read.
+`error` is the reason an item of class `wem` or `unknown` cannot be read, else `null`; the codec fields are `null` for `midi`,
+`impulse`, prefetched and unreadable items. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
 ## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`
@@ -1201,11 +1204,11 @@ Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on dis
  "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
 ```
 
-`format` is `wem`, `wav` or `ogg`, the extension of the files. `extracted` lists the WEMs written as
+`format` is `wem`, `wav` or `ogg`, the extension of the files (MIDI media written with `wem` has the extension `mid`). `extracted` lists the WEMs written as
 `<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
 both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
-`"prefetch": true`. With `--json`
+`"prefetch": true`, and MIDI media is written as `<id>.mid`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
 ## `p4kx ui assets <archive> <entry> --json`
@@ -1556,12 +1559,16 @@ companion next to it.
                 "emissive": [0.0, 0.0, 0.0], "shininess": 10.0, "opacity": 1.0,
                 "alpha_test": 0.0, "glow": 0.0,
                 "textures": [{"map": "TexSlot1", "file": "Objects/Test/caps_diff.tif"}]}, …],
- "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
-           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
+ "node_material_indices": [1, 2], "issues": [],
+ "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …],
+            "scale": [1.0, 1.0, 1.0], "geometry_type": 2, "helper": true, "properties": []},
+           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …],
+            "scale": [1.0, 1.0, 1.0], "geometry_type": 0, "helper": false,
+            "properties": [{"key": "class", "value": "AnimatedJoint"}]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12, "skeleton_bones": null,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
-                       "tangents": false, "colours": false, "second_uvs": false,
-                       "non_finite_uvs": 0, "skinned": false,
+                       "normals_computed": false, "tangents": false, "colours": false,
+                       "second_uvs": false, "non_finite_uvs": 0, "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
@@ -1589,11 +1596,19 @@ stores them (linear), `flags` the engine's `MtlFlags` and `textures` the slots w
 the file gives them. `nodes` keeps the order of the file;
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
-metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
+metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `scale` is
+the scale the node's record stores (1 on every axis when it stores none), `geometry_type` the
+record's geometry type (0 for geometry, 2 or 3 for a helper; `null` without a `NodeMeshCombo`
+chunk), `helper` whether it is a helper, `properties` the `key=value` lines of the node's entry in
+the chunk's property table in order, e.g. `class=AnimatedJoint`, and `node_material_indices` the
+chunk's list of material indices. A transform or scale whose values are all below 1e-5 is the
+identity or 1. `issues` lists in words what a lenient read worked around; `model info` reads
+strictly, so it is empty there. `lods`
 lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
-absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
-(`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
+absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
+(`colours` is false for a mesh of opaque white vertices); `normals_computed` says that the mesh
+stores no normals and the smooth ones were computed from its triangles; `first_index` and `index_count` locate a
 submesh in its mesh's triangle list. `second_uvs` says whether the mesh has a second set of texture
 coordinates, and `non_finite_uvs` counts its vertices that had a texture coordinate, of either
 set, that was not a finite number and reads as 0. `skeleton_bones` of a level is the number of
@@ -1624,8 +1639,8 @@ the model was read from it, `skipped` for a known type the model does not read a
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
-geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
-`null` (docs/crch-models.md).
+geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
+is `null` (docs/crch-models.md).
 
 ## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--max-influences <n>] [--anim <name>]… [--anim-from <entry>]… --json`
 

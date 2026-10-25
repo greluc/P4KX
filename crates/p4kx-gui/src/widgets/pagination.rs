@@ -147,7 +147,7 @@ fn page_button(ui: &mut Ui, step: Step, name: &str, enabled: bool) -> Response {
 
 /// Paints the theme's chevron icon, `M15 6l-6 6 6 6` or its mirror on a 24 grid
 /// stroked 2, at the icon size with its top left at `at`.
-fn chevron(ui: &Ui, at: Pos2, left: bool, colour: Color32) {
+pub(crate) fn chevron(ui: &Ui, at: Pos2, left: bool, colour: Color32) {
     let unit = PAGE_CHEVRON / 24.0;
     let point = |x: f32, y: f32| pos2(x.mul_add(unit, at.x), y.mul_add(unit, at.y));
     let (outer, tip) = if left { (15.0, 9.0) } else { (9.0, 15.0) };

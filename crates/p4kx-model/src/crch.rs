@@ -10,7 +10,7 @@ use crate::material::material_library;
 use crate::mtl_load::load;
 use crate::{
     CompanionResolver, CorruptChunk, Lod, LodSelection, MaterialStatus, Mesh, Model, ModelError,
-    ModelFile,
+    ModelFile, ModelIssue,
 };
 
 const MESH_VERSION: u32 = 0x801;
@@ -30,15 +30,26 @@ pub(crate) fn build<B: AsRef<[u8]>>(
     let mut read = Vec::new();
     let crch_nodes = read_nodes(name, file, &mut read)?;
     let mut lods = Vec::new();
-    if selection.wants(0) {
+    let mut issues = Vec::new();
+    if selection.wants(0) || selection.is_lenient() {
         let mut meshes = Vec::new();
         for (position, node) in crch_nodes.iter().enumerate() {
             if let Some(mesh) = read_node_mesh(name, file, position, node, &mut read)? {
                 meshes.push(mesh);
             }
         }
+        let level = match selection {
+            LodSelection::OnlyOrBase(level) if level != 0 => {
+                issues.push(ModelIssue::LodFallback {
+                    level,
+                    file: name.to_owned(),
+                });
+                level
+            }
+            _ => 0,
+        };
         lods.push(Lod {
-            level: 0,
+            level,
             meshes,
             bones: None,
         });
@@ -73,6 +84,8 @@ pub(crate) fn build<B: AsRef<[u8]>>(
         material_library: library,
         materials,
         bones: Vec::new(),
+        material_indices: Vec::new(),
+        issues,
         chunks: usage(file, ModelFile::Model, &read),
     })
 }

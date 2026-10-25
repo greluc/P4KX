@@ -3,6 +3,7 @@
 
 use crate::reader::to_usize;
 use crate::skin::{RawSubmesh, SkinMesh};
+use crate::smooth_normals::smooth_normals;
 use crate::{CorruptChunk, Mesh, Submesh};
 
 const UNUSED: u32 = u32::MAX;
@@ -101,6 +102,7 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
                 positions: Vec::new(),
                 source: Vec::new(),
                 normals: skin.streams.normals.map(|_| Vec::new()),
+                normals_computed: false,
                 tangents: skin.streams.tangents.map(|_| Vec::new()),
                 colours: Some(Vec::new()),
                 influences: skin.streams.bone_map.map(|_| Vec::new()),
@@ -184,6 +186,10 @@ impl<'s, 'a> MeshBuilder<'s, 'a> {
     }
 
     fn finish(mut self, remap: &mut [u32]) -> Mesh {
+        if self.mesh.normals.is_none() && !self.mesh.indices.is_empty() {
+            self.mesh.normals = Some(smooth_normals(&self.mesh.positions, &self.mesh.indices));
+            self.mesh.normals_computed = true;
+        }
         if self
             .mesh
             .colours

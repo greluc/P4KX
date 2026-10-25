@@ -9,7 +9,7 @@ use super::extraction;
 use super::record_results::{self, Laid, Note};
 use super::search::field;
 use crate::texts::RecordSearchText;
-use crate::theme::desktop::{SPINNER_INLINE, TOOLBAR_PADDING};
+use crate::theme::desktop::{SEARCH_WIDTH, SPINNER_INLINE, TOOLBAR_PADDING};
 use crate::theme::palette;
 use crate::widgets::frames::{self, px};
 use crate::widgets::indicator::spinner;
@@ -58,11 +58,15 @@ fn toolbar(ui: &mut Ui, model: &mut Model, laid: &Laid) -> Option<String> {
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
         .show(ui, |ui| {
             ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
+            let mut stacked = false;
             ui.horizontal(|ui| {
                 let label = laid.show_label(ui);
                 let hint = laid.hint();
+                stacked = !extraction::fit_beside(ui, model, SEARCH_WIDTH);
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    extraction::actions(ui, model);
+                    if !stacked {
+                        extraction::actions(ui, model);
+                    }
                     let Some(browser) = model.browser() else {
                         return;
                     };
@@ -76,6 +80,13 @@ fn toolbar(ui: &mut Ui, model: &mut Model, laid: &Laid) -> Option<String> {
                     });
                 });
             });
+            if stacked {
+                ui.horizontal(|ui| {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        extraction::actions(ui, model);
+                    });
+                });
+            }
         });
     hairline_below(ui, toolbar.response.rect);
     changed

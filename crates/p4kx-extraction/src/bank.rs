@@ -6,7 +6,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use p4kx_archive::Archive;
-use p4kx_audio::{AudioError, EmbeddedWem, Soundbank};
+use p4kx_audio::{AudioError, EmbeddedWem, MediaClass, Soundbank};
 use rayon::prelude::*;
 
 use crate::entry_content::find_entry;
@@ -195,7 +195,12 @@ impl Bank {
                 id: wem.id(),
             });
         }
-        let path = folder.join(format!("{}.{}", wem.id(), format.extension()));
+        let extension = if format == WemFormat::Wem && wem.class() == MediaClass::Midi {
+            "mid"
+        } else {
+            format.extension()
+        };
+        let path = folder.join(format!("{}.{}", wem.id(), extension));
         let audio_error = |source| match source {
             AudioError::Write(source) => write_error(&path, source),
             source => ConversionError::Audio {

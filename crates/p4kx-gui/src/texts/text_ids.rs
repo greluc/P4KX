@@ -13,7 +13,7 @@ use crate::Language;
 
 impl Text {
     /// Every text outside the Extraction windows.
-    const BASE: [Self; 69] = [
+    const BASE: [Self; 71] = [
         Self::AppTitle,
         Self::MenuArchive,
         Self::ActionOpen,
@@ -23,6 +23,8 @@ impl Text {
         Self::RecentNone,
         Self::ChannelsHeading,
         Self::ChannelsNone,
+        Self::SidebarShow,
+        Self::SidebarHide,
         Self::MenuLanguage,
         Self::LanguageName(Language::German),
         Self::LanguageName(Language::BritishEnglish),
@@ -137,6 +139,8 @@ impl Text {
             Self::RecentNone => "recent-none",
             Self::ChannelsHeading => "channels-heading",
             Self::ChannelsNone => "channels-none",
+            Self::SidebarShow => "sidebar-show",
+            Self::SidebarHide => "sidebar-hide",
             Self::MenuLanguage => "menu-language",
             Self::LanguageName(Language::German) => "language-de-DE",
             Self::LanguageName(Language::BritishEnglish) => "language-en-GB",

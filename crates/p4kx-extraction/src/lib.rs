@@ -129,8 +129,8 @@ pub use p4kx_audio::{
     MusicTrackKind, MusicTrackSwitch, PlayBank, Section, SectionId, SoundSource, Soundbank,
 };
 pub use p4kx_audio::{
-    AudioError, ByteOrder, Codebooks, Codec, OggReport, OpusError, VorbisError, WavReport, Wem,
-    WemChunk,
+    AudioError, ByteOrder, Codebooks, Codec, MediaClass, OggReport, OpusError, VorbisError,
+    WavReport, Wem, WemChunk,
 };
 pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;

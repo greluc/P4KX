@@ -5,7 +5,7 @@ use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
 use p4kx_extraction::ModelInfo;
-use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Model};
+use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Mesh, Model, Node};
 use p4kx_extraction::model_info::{file_name, node_name, usage_name};
 
 use crate::json;
@@ -36,6 +36,9 @@ pub(crate) fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     writeln!(out, "Bones:       {}", model.bones.len())?;
     writeln!(out, "Animations:  {}", count_line(animations))?;
     writeln!(out, "Chunks:      {}", chunk_counts(model))?;
+    for issue in &model.issues {
+        writeln!(out, "Issue:       {}", printable(&issue.to_string()))?;
+    }
     write_lods(&mut out, model)?;
     write_materials(&mut out, model)?;
     write_nodes(&mut out, model)?;
@@ -101,7 +104,7 @@ fn write_lods(out: &mut impl Write, model: &Model) -> io::Result<()> {
                 printable(node_name(model, mesh.node)),
                 mesh.positions.len(),
                 mesh.indices.len() / 3,
-                yes_no(mesh.normals.is_some()),
+                normals(mesh),
                 yes_no(mesh.tangents.is_some()),
                 yes_no(mesh.colours.is_some()),
                 yes_no(mesh.influences.is_some()),
@@ -117,20 +120,58 @@ const fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
 
+const fn normals(mesh: &Mesh) -> &'static str {
+    if mesh.normals_computed {
+        "computed"
+    } else {
+        yes_no(mesh.normals.is_some())
+    }
+}
+
 fn write_nodes(out: &mut impl Write, model: &Model) -> io::Result<()> {
     writeln!(out)?;
-    writeln!(out, "{:>5}  {:<6}  Name", "Node", "Parent")?;
+    writeln!(
+        out,
+        "{:>5}  {:<6}  {:<8}  {:<20}  Name",
+        "Node", "Parent", "Type", "Scale"
+    )?;
     for (index, node) in model.nodes.iter().enumerate() {
         let parent = node
             .parent
             .map_or_else(|| NONE.to_owned(), |parent| parent.to_string());
+        let [x, y, z] = node.scale;
+        let properties: Vec<String> = node
+            .properties
+            .iter()
+            .map(|(key, value)| format!("{key}={value}"))
+            .collect();
+        let properties = if properties.is_empty() {
+            String::new()
+        } else {
+            format!("  [{}]", printable(&properties.join(", ")))
+        };
         writeln!(
             out,
-            "{index:>5}  {parent:<6}  {}",
+            "{index:>5}  {parent:<6}  {:<8}  {:<20}  {}{properties}",
+            node_type(node),
+            format!("{x} {y} {z}"),
             printable(node_name(model, index))
         )?;
     }
+    if !model.material_indices.is_empty() {
+        let indices: Vec<String> = model.material_indices.iter().map(u16::to_string).collect();
+        writeln!(out, "Material indices: {}", indices.join(", "))?;
+    }
     Ok(())
+}
+
+fn node_type(node: &Node) -> String {
+    match node.geometry_type {
+        None => NONE.to_owned(),
+        Some(0) => "geometry".to_owned(),
+        Some(_) if node.is_helper() => "helper".to_owned(),
+        Some(other) => format!("type {other}"),
+    }
 }
 
 fn write_chunks(out: &mut impl Write, model: &Model) -> io::Result<()> {

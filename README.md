@@ -126,6 +126,9 @@ Early development (milestone M1). Available today:
   Record is still written; the summary counts these error values. The same Record always gives
   the same bytes. `--combined` writes every selected Record into one file in record-path order,
   named after the DataForge Entry (`Game2.xml`), under one `p4kx:records` root element.
+  `--flat --format csv|ndjson` writes one row per leaf value instead
+  ([docs/record-flat.md](docs/record-flat.md)): `values.csv` (UTF-8 with byte order mark, formulas
+  neutralised; `--csv-raw` for the exact values) or `values.ndjson`.
   `--lang` writes the text of every localisation key next to the key, or marks the key missing,
   in the chosen language; without it the output carries no texts. `--tags` writes the tag path
   (`Ship.Series.Avenger`) of the Tag next to every Reference to a Tag; without it the output carries

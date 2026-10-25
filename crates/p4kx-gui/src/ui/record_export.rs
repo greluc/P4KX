@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use egui::{Align, Layout, Ui};
-use p4kx_export::NDJSON_FILE;
+use p4kx_export::{FLAT_CSV_FILE, FLAT_NDJSON_FILE, NDJSON_FILE};
 
 use super::extraction::{
     POLICIES, folder_field, foot, group_label, new_folder_name, number, refusal_notice,
@@ -77,6 +77,13 @@ fn choices(
     for form in crate::RECORD_FORMS {
         let label = match form {
             RecordForm::Ndjson => texts.format(T::FormNdjson, &[("name", NDJSON_FILE.into())]),
+            RecordForm::FlatCsv => texts.format(T::FormFlatCsv, &[("name", FLAT_CSV_FILE.into())]),
+            RecordForm::FlatCsvRaw => {
+                texts.format(T::FormFlatCsvRaw, &[("name", FLAT_CSV_FILE.into())])
+            }
+            RecordForm::FlatNdjson => {
+                texts.format(T::FormFlatNdjson, &[("name", FLAT_NDJSON_FILE.into())])
+            }
             RecordForm::Json | RecordForm::Xml => texts.get(T::FormJson),
         };
         if toggle::radio(ui, setup.form() == form, &label, true).clicked() {

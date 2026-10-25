@@ -6,6 +6,9 @@
 
 mod archive_key;
 mod archives;
+mod audio;
+mod audio_limits;
+mod audio_wem;
 mod channel_notice;
 mod containers;
 mod dataforge_cache;
@@ -23,6 +26,7 @@ mod read;
 mod read_only;
 mod read_text;
 mod real_archive;
+mod real_archive_audio;
 mod real_archive_model;
 mod real_archive_query;
 mod records;

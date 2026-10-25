@@ -4,6 +4,15 @@
 //! `p4kx-mcp`: the read-only MCP server of P4KX, spoken to over stdio.
 
 mod archives;
+mod audio;
+mod audio_convert;
+mod audio_excerpt;
+mod audio_params;
+mod audio_shapes;
+mod audio_tools;
+mod audio_wem;
+mod audio_wem_shapes;
+mod audio_window;
 mod budget;
 mod container;
 mod content;

@@ -18,7 +18,7 @@ pub(super) fn show(
     ui: &mut Ui,
     texts: &Texts,
     (path, size): (&str, u64),
-    (xml, jump): (&XmlPreview, Option<Jump>),
+    (xml, jump): (&XmlPreview, Option<Jump<'_>>),
 ) {
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();

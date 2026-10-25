@@ -16,8 +16,25 @@ use p4kx_extraction::{DataForgeEntry, DataForgeLoadError};
 use crate::EntryIndex;
 use crate::model::describe;
 
-/// How often a consumer waiting for the build of the index of References looks at its stop flag.
+/// How often a consumer waiting for its turn to read DataForge or to build the index of References
+/// looks at its stop flag.
 const TURN_POLL: Duration = Duration::from_millis(25);
+
+/// A consumer waiting for the read of DataForge, counted until it is dropped.
+struct Waiting<'a>(&'a AtomicUsize);
+
+impl<'a> Waiting<'a> {
+    fn new(count: &'a AtomicUsize) -> Self {
+        count.fetch_add(1, Ordering::AcqRel);
+        Self(count)
+    }
+}
+
+impl Drop for Waiting<'_> {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
+}
 
 /// The DataForge of one open Archive as every consumer reads it: its Entry, read once, the files
 /// of its Records, planned once per form, and the Query completion schema, built once.
@@ -181,11 +198,15 @@ impl ReadFailure {
 /// Query tab and the Record export.
 ///
 /// The first consumer that needs DataForge reads it; the others wait for that read instead of
-/// reading it again. A read is kept even when the consumer that started it was cancelled, until
-/// the Archive changes on disk. [`clear`](Self::clear) never waits for a read.
+/// reading it again. A read finished by a consumer that did not ask to stop is kept until the
+/// Archive changes on disk. A consumer that reads with [`read_until`](Self::read_until) can stop
+/// the read: it is then thrown away and the next consumer reads again, unless another consumer
+/// already waits for it, in which case the read goes on and is kept.
+/// [`clear`](Self::clear) never waits for a read.
 #[derive(Debug, Default)]
 pub(crate) struct ForgeCache {
     reading: Mutex<()>,
+    waiting: AtomicUsize,
     source: Mutex<Option<Arc<ForgeSource>>>,
     generation: AtomicU64,
     reads: AtomicUsize,
@@ -219,14 +240,16 @@ impl ForgeCache {
         index: &EntryIndex,
         reading: impl FnOnce(),
     ) -> Result<Arc<ForgeSource>, ReadFailure> {
+        let waiting = Waiting::new(&self.waiting);
         let _turn = self.reading.lock().unwrap_or_else(PoisonError::into_inner);
+        drop(waiting);
         self.read_locked(index, reading, &|| false)?
             .ok_or_else(|| ReadFailure::Unreadable(describe(&DataForgeLoadError::Cancelled)))
     }
 
     /// Returns the DataForge of `index` like [`read`](Self::read), or `None` once `stop` returns
     /// `true`, while waiting for the read of another consumer or while reading. A read that was
-    /// stopped leaves nothing in the cache.
+    /// stopped leaves nothing in the cache; one that another consumer waits for is not stopped.
     ///
     /// # Errors
     ///
@@ -238,6 +261,7 @@ impl ForgeCache {
         reading: impl FnOnce(),
         stop: &dyn Fn() -> bool,
     ) -> Result<Option<Arc<ForgeSource>>, ReadFailure> {
+        let waiting = Waiting::new(&self.waiting);
         let _turn = loop {
             match self.reading.try_lock() {
                 Ok(turn) => break turn,
@@ -250,7 +274,9 @@ impl ForgeCache {
                 }
             }
         };
-        self.read_locked(index, reading, stop)
+        drop(waiting);
+        let stop = || stop() && self.waiting.load(Ordering::Acquire) == 0;
+        self.read_locked(index, reading, &stop)
     }
 
     fn read_locked(

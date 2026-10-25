@@ -12,6 +12,7 @@ mod tree;
 pub use navigation::HitLine;
 pub use rows::{EntryRow, EntryRowKind};
 
+use std::cell::Cell;
 use std::collections::HashSet;
 use std::ops::Range;
 use std::sync::Arc;
@@ -60,6 +61,8 @@ pub struct Browser {
     incoming: IncomingList,
     record_language: Option<TextLanguage>,
     hit_line: Option<HitLine>,
+    hit_serial: u64,
+    hit_applied: Cell<u64>,
 }
 
 impl Browser {
@@ -96,6 +99,8 @@ impl Browser {
             incoming: IncomingList::default(),
             record_language: None,
             hit_line: None,
+            hit_serial: 0,
+            hit_applied: Cell::new(0),
         };
         browser.refresh_tree();
         browser.refresh_shown();

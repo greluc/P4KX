@@ -125,6 +125,57 @@ fn a_cancelled_read_leaves_nothing_in_the_cache_and_the_next_read_works() -> Tes
 }
 
 #[test]
+fn a_read_that_another_consumer_waits_for_is_not_stopped() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, false)?;
+    let model = opened(&path)?;
+    let index = std::sync::Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+    let (started, running) = mpsc::channel();
+    let (release, released) = mpsc::channel::<()>();
+
+    let (searched, waited) = thread::scope(|scope| -> Result<_, Box<dyn Error>> {
+        let shared = &index;
+        let searching = scope.spawn(move || {
+            shared.forge().read_until(
+                shared,
+                || {
+                    let _ = started.send(());
+                    let _ = released.recv();
+                },
+                &|| true,
+            )
+        });
+        running.recv_timeout(Duration::from_secs(30))?;
+        let waiting = scope.spawn(move || shared.forge().read(shared, || {}));
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while index
+            .forge()
+            .waiting
+            .load(std::sync::atomic::Ordering::Acquire)
+            == 0
+        {
+            if Instant::now() > deadline {
+                return Err("the second consumer never waited".into());
+            }
+            thread::sleep(Duration::from_millis(5));
+        }
+        let _ = release.send(());
+        let searched = searching.join().map_err(|_| "the search panicked")?;
+        let waited = waiting.join().map_err(|_| "the waiter panicked")?;
+        Ok((searched, waited))
+    })?;
+
+    assert!(
+        matches!(searched, Ok(Some(_))),
+        "the read went on: {searched:?}"
+    );
+    assert!(waited.is_ok(), "the waiter got it: {waited:?}");
+    assert_eq!(index.forge().reads(), 1, "read once");
+    Ok(())
+}
+
+#[test]
 fn a_consumer_waiting_for_the_read_of_another_stops_waiting_when_cancelled() -> TestResult {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");

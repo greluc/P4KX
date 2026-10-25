@@ -59,6 +59,14 @@ pub enum CryXmlError {
         /// Its number of entries, or of bytes for the string data.
         count: u32,
     },
+    /// Two tables share bytes of the file.
+    #[error("corrupt CryXml: the {first} table and the {second} table overlap")]
+    TablesOverlap {
+        /// The earlier table of the header.
+        first: Table,
+        /// The later one.
+        second: Table,
+    },
     /// A string offset lies outside the string data, or its string has no terminating zero.
     #[error(
         "corrupt CryXml: string offset {offset} lies outside the string data or is unterminated"

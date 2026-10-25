@@ -133,4 +133,19 @@ fn display_text_also_removes_separators_and_invisible_characters() {
         "a\u{fffd}b\u{fffd}c\u{fffd}d\u{fffd}e\u{fffd}f",
         "zero-width characters and the byte order mark"
     );
+    assert_eq!(
+        display_text("a\u{ad}b\u{180e}c\u{2061}d\u{2064}e"),
+        "a\u{fffd}b\u{fffd}c\u{fffd}d\u{fffd}e",
+        "soft hyphen, Mongolian vowel separator and invisible operators"
+    );
+}
+
+#[test]
+fn a_decomposed_letter_is_not_found_by_its_composed_needle() -> TestResult {
+    assert_eq!(
+        found("istanbul", "\u{130}stanbul")?,
+        None,
+        "the dotted capital I keeps its combining dot"
+    );
+    Ok(())
 }

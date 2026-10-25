@@ -16,8 +16,8 @@ use egui_kittest::kittest::Queryable;
 use p4kx_gui::{ContentSearchStatus, Language, Model, TextLanguage, WorkTab, ui};
 use p4kx_search::Source;
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestRecord, TestStruct,
-    TestType, TestValue,
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, GlobalIniBuilder,
+    TestElement, TestEntry, TestRecord, TestStruct, TestType, TestValue,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -57,6 +57,19 @@ fn long_text() -> String {
         .collect()
 }
 
+fn wide_cryxml() -> Vec<u8> {
+    (1..=400)
+        .fold(TestElement::new("Root"), |root, row| {
+            let name = if row == 300 {
+                "row 300 xmlneedle".to_owned()
+            } else {
+                format!("row {row}")
+            };
+            root.child(TestElement::new("Item").attribute("name", name.as_str()))
+        })
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
+}
+
 pub(crate) fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()
@@ -75,6 +88,10 @@ pub(crate) fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .entry(TestEntry::deflated(
             "Data\\Scripts\\long.xml",
             long_text().into_bytes(),
+        ))
+        .entry(TestEntry::deflated(
+            "Data\\Scripts\\wide.xml",
+            wide_cryxml(),
         ))
         .entry(TestEntry::stored(
             "Data\\Scripts\\binary.xml",

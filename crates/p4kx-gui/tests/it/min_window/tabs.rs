@@ -5,6 +5,7 @@
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
+use p4kx_gui::theme::window_metrics::{SIDEBAR_RAIL_WIDTH, WORK_MIN_WIDTH};
 use p4kx_gui::{Language, WorkTab, ui};
 
 use super::{every_size, opened, renderer};
@@ -83,7 +84,8 @@ fn the_buttons_of_the_search_and_localization_tabs_fit_the_smallest_work_surface
             let Some(renderer) = renderer() else {
                 return Ok(());
             };
-            let (_dir, harness) = opened(tab, language, [770.0, 500.0], renderer)?;
+            let size = [WORK_MIN_WIDTH + SIDEBAR_RAIL_WIDTH, 900.0];
+            let (_dir, harness) = opened(tab, language, size, renderer)?;
             let work = ui::regions(&harness.ctx).work.ok_or("no work surface")?;
             let button = harness.get_by_role_and_label(Role::Button, label).rect();
             assert!(

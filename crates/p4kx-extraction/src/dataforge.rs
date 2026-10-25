@@ -164,7 +164,8 @@ pub enum DataForgeLoadError {
 
 impl DataForgeLoadError {
     /// Returns whether reading again could succeed: the failure came from the disk, a changed
-    /// file or a missing thread, not from the content of the Entry.
+    /// file, a missing thread or a stop asked for by the caller ([`Cancelled`](Self::Cancelled)),
+    /// not from the content of the Entry.
     #[must_use]
     pub fn is_transient(&self) -> bool {
         match self {

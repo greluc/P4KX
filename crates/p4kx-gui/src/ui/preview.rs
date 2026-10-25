@@ -222,6 +222,7 @@ fn body(
         .map(|hit| Jump {
             serial: hit.serial(),
             row: hit.row(),
+            applied: browser.hit_applied(),
         });
     let typed = typed_tab(
         ui,

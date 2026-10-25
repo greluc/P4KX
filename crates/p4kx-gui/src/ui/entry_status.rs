@@ -20,7 +20,7 @@ pub(super) fn status_body(
     texts: &Texts,
     preview: &Preview,
     (path, size): (&str, u64),
-    (tab, jump): (PreviewTab, Option<Jump>),
+    (tab, jump): (PreviewTab, Option<Jump<'_>>),
 ) {
     let jump = jump.filter(|_| preview.xml().is_none());
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
@@ -83,7 +83,7 @@ fn ready(
     ui: &mut Ui,
     texts: &Texts,
     contents: &PreviewContents,
-    (tab, jump): (PreviewTab, Option<Jump>),
+    (tab, jump): (PreviewTab, Option<Jump<'_>>),
 ) {
     if contents.is_truncated() {
         let language = texts.language();
@@ -103,7 +103,7 @@ fn ready(
     }
 }
 
-fn text_rows(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, jump: Option<Jump>) {
+fn text_rows(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, jump: Option<Jump<'_>>) {
     let area = ScrollArea::both()
         .id_salt("preview-text")
         .auto_shrink(false);
@@ -115,7 +115,7 @@ fn text_rows(ui: &mut Ui, texts: &Texts, contents: &PreviewContents, jump: Optio
         stride,
         area,
         |area, ui| {
-            let area = match Jump::offset(jump, ui, id, stride) {
+            let area = match Jump::offset(jump, stride) {
                 Some(y) => area.vertical_scroll_offset(y),
                 None => area,
             };

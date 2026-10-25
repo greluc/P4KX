@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::cell::Cell;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use p4kx_extraction::Guid;
 
@@ -204,24 +204,29 @@ impl Browser {
         }
         self.select_folder(folder);
         self.select_entry(id, wake);
-        self.hit_line = line.map(|line| HitLine::new(id, line));
+        self.hit_serial += 1;
+        self.hit_line = line.map(|line| HitLine::new(self.hit_serial, id, line));
         true
     }
 
     /// Returns the line the preview of the Entry scrolls to once it shows the text, after
-    /// [`reveal_entry`](Self::reveal_entry) was given one.
+    /// [`reveal_entry`](Self::reveal_entry) was given one. A preview that holds only the start of
+    /// a large Entry has fewer lines than the hit may name, and then scrolls to its end.
     #[must_use]
     pub const fn hit_line(&self) -> Option<HitLine> {
         self.hit_line
     }
-}
 
-static HIT_SERIAL: AtomicU64 = AtomicU64::new(1);
+    /// Returns the serial of the hit line a view scrolled to last, `0` when none did.
+    pub(crate) const fn hit_applied(&self) -> &Cell<u64> {
+        &self.hit_applied
+    }
+}
 
 /// The line of a content-search hit in the Entry with id `entry`, one-based as in the hit.
 ///
-/// Each one has a serial no other has, so that a view scrolls once for each opened hit, also when
-/// two hits are in the same Entry.
+/// Each one has a serial that the browser counts up, so that a view scrolls once for each opened
+/// hit, also when two hits are in the same Entry.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HitLine {
     serial: u64,
@@ -230,15 +235,15 @@ pub struct HitLine {
 }
 
 impl HitLine {
-    fn new(entry: u32, line: u64) -> Self {
+    const fn new(serial: u64, entry: u32, line: u64) -> Self {
         Self {
-            serial: HIT_SERIAL.fetch_add(1, Ordering::Relaxed),
+            serial,
             entry,
             line,
         }
     }
 
-    /// Returns a number no other hit line of this process has.
+    /// Returns the number of the hit among those the browser opened, from 1.
     #[must_use]
     pub const fn serial(&self) -> u64 {
         self.serial

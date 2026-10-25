@@ -8,7 +8,7 @@ use std::error::Error;
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, Model, PreviewStatus, WorkTab, ui};
+use p4kx_gui::{Language, Model, PreviewStatus, PreviewTab, WorkTab, ui};
 use p4kx_search::Source;
 
 use crate::content_search_window::{archive, click_row, finished, save, searched, wait_until};
@@ -38,6 +38,38 @@ fn a_click_on_an_entry_hit_scrolls_the_preview_to_its_line() -> TestResult {
     assert!(
         harness.query_by_label("row 1").is_none(),
         "the start of the file is scrolled away"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_click_on_a_cryxml_hit_scrolls_the_xml_view_to_its_line() -> TestResult {
+    let (_dir, mut harness) = searched(Language::BritishEnglish, "xmlneedle")?;
+
+    click_row(&harness, "Data\\Scripts\\wide.xml")?;
+    wait_until(&mut harness, |model| {
+        model
+            .browser()
+            .and_then(p4kx_gui::Browser::preview)
+            .and_then(p4kx_gui::Preview::xml)
+            .is_some_and(|xml| xml.text().is_some())
+    })?;
+    harness.run_steps(8);
+
+    assert_eq!(
+        harness.state().preview_tab(),
+        PreviewTab::Xml,
+        "the XML tab opened"
+    );
+    assert!(
+        harness
+            .query_by_label_contains("row 300 xmlneedle")
+            .is_some(),
+        "the line of the hit is shown"
+    );
+    assert!(
+        harness.query_by_label_contains("\"row 2\"").is_none(),
+        "the start of the document is scrolled away"
     );
     Ok(())
 }

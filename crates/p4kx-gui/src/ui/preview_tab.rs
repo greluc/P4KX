@@ -35,7 +35,7 @@ pub(super) fn typed_tab(
     preview: &Preview,
     (path, size): (&str, u64),
     (tab, volume, support): (PreviewTab, f32, &ViewerSupport),
-    jump: Option<Jump>,
+    jump: Option<Jump<'_>>,
 ) -> Typed {
     if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
         return Typed::Shown(image_preview::show(ui, texts, path, image).map(Asked::Mip));

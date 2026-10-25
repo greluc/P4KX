@@ -29,7 +29,7 @@ struct RowCache {
 ///
 /// The view takes the keyboard focus with Tab and then scrolls with the arrow keys, Page Up,
 /// Page Down, Home and End. With a `jump` it scrolls to that line once.
-pub(super) fn show(ui: &mut Ui, texts: &Texts, document: &XmlDocument, jump: Option<Jump>) {
+pub(super) fn show(ui: &mut Ui, texts: &Texts, document: &XmlDocument, jump: Option<Jump<'_>>) {
     let cache_id = ui.scope_id().with("xml-view-row-cache");
     let (mut cache, fresh) = RowCache::load(ui, cache_id, document);
     let total = document.line_count();
@@ -40,7 +40,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, document: &XmlDocument, jump: Opt
         XML_ROW_HEIGHT,
         area,
         |area, ui| {
-            let jumped = Jump::offset(jump, ui, cache_id, XML_ROW_HEIGHT);
+            let jumped = Jump::offset(jump, XML_ROW_HEIGHT);
             let area = match jumped {
                 Some(y) => area.scroll_offset(vec2(0.0, y)),
                 None if fresh => area.scroll_offset(Vec2::ZERO),

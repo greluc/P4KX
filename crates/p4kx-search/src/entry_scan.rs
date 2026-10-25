@@ -14,7 +14,7 @@ const READ_LEN: usize = 64 << 10;
 const HEAD_LEN: usize = 16;
 const MAX_WHOLE_LEN: u64 = 32 << 20;
 const DECODE_BUFFER_LEN: u64 = READ_LEN as u64 + 4;
-const CRYXML_MEMORY_FACTOR: u64 = 4;
+const CRYXML_MEMORY_FACTOR: u64 = 6;
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
 /// What the search of one Entry came to.
@@ -59,8 +59,11 @@ impl Form {
     }
 
     /// Returns the bytes held in memory while an Entry of `size` bytes is searched: for UTF-16
-    /// the Entry and the decoding buffer, for `CryXml` the Entry, the node and attribute tables
-    /// parsed from it, which are at most twice its size, and the strings if they are copied.
+    /// the Entry and the decoding buffer, for `CryXml` the Entry and what is derived from it.
+    /// The parser refuses tables that overlap, so every byte of the file belongs to one table: a
+    /// node byte becomes at most 1.5 bytes of nodes and links, an attribute byte 2, and a byte of
+    /// string data at most 5, one for the copy that repairs invalid UTF-8 and four for the offset
+    /// of a terminator.
     const fn memory(&self, size: u64) -> u64 {
         match self {
             Self::Utf8 => 0,

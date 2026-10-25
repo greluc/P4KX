@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::cell::Cell;
+
 use egui::{
     EventFilter, Id, Key, Modifiers, Rect, Response, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo,
     scroll_area::ScrollAreaOutput, vec2,
@@ -16,25 +18,24 @@ pub(crate) struct Stand {
     pub(crate) content: Vec2,
 }
 
-/// A row a region scrolls to once, however often the region is shown: `serial` tells one request
-/// from the next.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct Jump {
+/// A row a region scrolls to once: `serial` tells one request from the next, and `applied` holds
+/// the serial of the one a region scrolled to last.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Jump<'a> {
     pub(crate) serial: u64,
     pub(crate) row: u64,
+    pub(crate) applied: &'a Cell<u64>,
 }
 
-impl Jump {
+impl Jump<'_> {
     /// Returns the vertical offset that shows the row second from the top, with `stride` between
-    /// rows, the first time `jump` is asked for in the region named `id`, and `None` afterwards or
-    /// without a jump.
-    pub(crate) fn offset(jump: Option<Self>, ui: &Ui, id: Id, stride: f32) -> Option<f32> {
+    /// rows, the first time `jump` is asked for, and `None` afterwards or without a jump.
+    pub(crate) fn offset(jump: Option<Self>, stride: f32) -> Option<f32> {
         let jump = jump?;
-        let applied_id = id.with("jump-applied");
-        if ui.data(|data| data.get_temp::<u64>(applied_id)) == Some(jump.serial) {
+        if jump.applied.get() == jump.serial {
             return None;
         }
-        ui.data_mut(|data| data.insert_temp(applied_id, jump.serial));
+        jump.applied.set(jump.serial);
         Some(row_offset(jump.row, stride))
     }
 }

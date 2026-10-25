@@ -1559,11 +1559,16 @@ companion next to it.
                 "emissive": [0.0, 0.0, 0.0], "shininess": 10.0, "opacity": 1.0,
                 "alpha_test": 0.0, "glow": 0.0,
                 "textures": [{"map": "TexSlot1", "file": "Objects/Test/caps_diff.tif"}]}, …],
- "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …]},
-           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …]}],
+ "node_material_indices": [1, 2], "issues": [],
+ "nodes": [{"index": 0, "name": "cube", "parent": null, "transform": [[1.0, 0.0, 0.0, 0.0], …],
+            "scale": [1.0, 1.0, 1.0], "geometry_type": 2, "helper": true, "properties": []},
+           {"index": 1, "name": "cube_mesh", "parent": 0, "transform": [[1.0, 0.0, 0.0, 10.0], …],
+            "scale": [1.0, 1.0, 1.0], "geometry_type": 0, "helper": false,
+            "properties": [{"key": "class", "value": "AnimatedJoint"}]}],
  "lods": [{"level": 0, "vertices": 24, "triangles": 12,
            "meshes": [{"node": 1, "vertices": 24, "triangles": 12, "normals": true,
-                       "tangents": false, "colours": false, "skinned": false,
+                       "normals_computed": false, "tangents": false, "colours": false,
+                       "skinned": false,
                        "submeshes": [{"material_id": 1, "first_index": 0, "index_count": 12},
                                      {"material_id": 2, "first_index": 12, "index_count": 24}]}]}],
  "bones": [{"index": 1, "name": "tip", "parent": 0, "controller_id": 2415919105, "node": null,
@@ -1591,11 +1596,19 @@ stores them (linear), `flags` the engine's `MtlFlags` and `textures` the slots w
 the file gives them. `nodes` keeps the order of the file;
 `parent` is the index of the parent node or `null` for a root, and `transform` the 3×4 row-major
 matrix from the node's space to its parent's, translation last, in CryEngine axes (Z up) and
-metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `lods`
+metres. A model without a `NodeMeshCombo` chunk has one root node named after the file. `scale` is
+the scale the node's record stores (1 on every axis when it stores none), `geometry_type` the
+record's geometry type (0 for geometry, 2 or 3 for a helper; `null` without a `NodeMeshCombo`
+chunk), `helper` whether it is a helper, `properties` the `key=value` lines of the node's entry in
+the chunk's property table in order, e.g. `class=AnimatedJoint`, and `node_material_indices` the
+chunk's list of material indices. A transform or scale whose values are all below 1e-5 is the
+identity or 1. `issues` lists in words what a lenient read worked around; `model info` reads
+strictly, so it is empty there. `lods`
 lists the levels of detail, LOD0 first, each with its meshes, at most one per node; a level is
 read from its own geometry companion, `<stem>_lod<n>.<extension>m`, and a level without one is
-absent from the list. `normals`, `tangents` and `colours` say whether the mesh stores them
-(`colours` is false for a mesh of opaque white vertices); `first_index` and `index_count` locate a
+absent from the list. `normals`, `tangents` and `colours` say whether the mesh has them
+(`colours` is false for a mesh of opaque white vertices); `normals_computed` says that the mesh
+stores no normals and the smooth ones were computed from its triangles; `first_index` and `index_count` locate a
 submesh in its mesh's triangle list. `skinned` says whether the mesh has bone weights.
 `bones` lists the skeleton of the model file, empty for a model without one: `parent` is the index
 of the parent bone or `null` for a root; `controller_id` is the identifier animations address the
@@ -1622,8 +1635,8 @@ the model was read from it, `skipped` for a known type the model does not read a
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
 companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
-geometry companion, one level of detail, no normals or texture coordinates and `geometry` is
-`null` (docs/crch-models.md).
+geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
+is `null` (docs/crch-models.md).
 
 ## `p4kx model glb <archive> <entry> --out <file> [--lod <n>] [--materials colours|textures] [--texture-mip <n>] [--no-vertex-colours] [--anim <name>]… [--anim-from <entry>]… --json`
 

@@ -31,6 +31,10 @@ pub struct ModelInfo<'a> {
     pub library: LibraryInfo<'a>,
     /// The materials of the library.
     pub materials: Vec<MaterialInfo<'a>>,
+    /// The list of material indices of the node table.
+    pub node_material_indices: &'a [u16],
+    /// What a lenient read worked around, as sentences.
+    pub issues: Vec<String>,
     /// The nodes of the model.
     pub nodes: Vec<NodeInfo<'a>>,
     /// The levels of detail with their meshes.
@@ -57,6 +61,8 @@ impl<'a> ModelInfo<'a> {
             material_ids: model.material_ids(),
             library: LibraryInfo::of(model),
             materials: MaterialInfo::of_model(model),
+            node_material_indices: &model.material_indices,
+            issues: model.issues.iter().map(ToString::to_string).collect(),
             nodes: NodeInfo::of_model(model),
             lods: LodInfo::of_model(model),
             bones: BoneInfo::of_model(model),
@@ -74,6 +80,16 @@ pub struct NodeInfo<'a> {
     name: &'a str,
     parent: Option<usize>,
     transform: [[f32; 4]; 3],
+    scale: [f32; 3],
+    geometry_type: Option<u16>,
+    helper: bool,
+    properties: Vec<PropertyInfo<'a>>,
+}
+
+#[derive(Debug, Serialize)]
+struct PropertyInfo<'a> {
+    key: &'a str,
+    value: &'a str,
 }
 
 impl<'a> NodeInfo<'a> {
@@ -89,6 +105,14 @@ impl<'a> NodeInfo<'a> {
             name: &node.name,
             parent: node.parent,
             transform: node.transform.rows,
+            scale: node.scale,
+            geometry_type: node.geometry_type,
+            helper: node.is_helper(),
+            properties: node
+                .properties
+                .iter()
+                .map(|(key, value)| PropertyInfo { key, value })
+                .collect(),
         }
     }
 }
@@ -134,6 +158,7 @@ pub struct MeshInfo {
     vertices: usize,
     triangles: usize,
     normals: bool,
+    normals_computed: bool,
     tangents: bool,
     colours: bool,
     second_uvs: bool,
@@ -148,6 +173,7 @@ impl MeshInfo {
             vertices: mesh.positions.len(),
             triangles: mesh.indices.len() / 3,
             normals: mesh.normals.is_some(),
+            normals_computed: mesh.normals_computed,
             tangents: mesh.tangents.is_some(),
             colours: mesh.colours.is_some(),
             second_uvs: mesh.second_uvs.is_some(),

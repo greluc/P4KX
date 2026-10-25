@@ -10,6 +10,7 @@ mod corrupt;
 mod crch;
 mod crch_corrupt;
 mod cube;
+mod details;
 mod interior;
 mod layer_surfaces;
 mod lods;

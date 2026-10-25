@@ -29,9 +29,9 @@
 //! bounded by [`Limits`]; one that is missing or unreadable is listed and its widget skipped.
 //! Without [`ImageSources`] these widgets are listed.
 //!
-//! [`Still::render`] does all of that for a front-end: [`ScreenTexts::load`] reads the fonts and
-//! the `global.ini` of a language from an Archive once, and a [`Still`] holds the PNG pixels or
-//! the SVG document of one canvas with its report, which [`Still::write`] writes to a file.
+//! [`Still::render`] does all of that for a front-end that hands it the sources: a [`Still`]
+//! holds the PNG pixels or the SVG document of one canvas with its report, which
+//! [`Still::encode`] turns into the bytes of a file.
 
 mod assets;
 mod bindings;
@@ -79,5 +79,5 @@ pub use inspect::ElementCount;
 pub use limits::Limits;
 pub use report::{Report, Unsupported};
 pub use screens::{EntityScreens, MovieUse, Screen};
-pub use still::{ScreenTexts, Still, StillFormat, StillRequest, StillWriteError};
+pub use still::{Still, StillFormat, StillRequest};
 pub use svg::MAX_SVG_BYTES;

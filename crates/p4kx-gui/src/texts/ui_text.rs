@@ -127,6 +127,8 @@ ui_texts! {
     ExportIsArchive = "ui-export-is-archive";
     /// The Archive changed on disk, so nothing was exported.
     ExportArchiveChanged = "ui-export-archive-changed";
+    /// The file was written, but the Archive changed on disk meanwhile; takes `file`.
+    ExportWrittenArchiveChanged = "ui-export-written-archive-changed";
     /// The action that dismisses the outcome of an export.
     ExportDismiss = "ui-export-dismiss";
     /// The name of the PNG file type in the save dialog.
@@ -159,6 +161,18 @@ ui_texts! {
     ReportNone = "ui-report-none";
     /// The note below a report cut short; takes `number`, the lines not shown.
     ReportMore = "ui-report-more";
+    /// A bitmap held as lossless pixels; takes `size`.
+    NoteLossless = "ui-note-lossless";
+    /// A bitmap held as an embedded image.
+    NoteEmbedded = "ui-note-embedded";
+    /// A bitmap loaded from a file; takes `size`.
+    NoteExternal = "ui-note-external";
+    /// A bitmap that is a part of another one.
+    NotePart = "ui-note-part";
+    /// A font; takes `name`, `count` and `number`, the glyphs.
+    NoteFont = "ui-note-font";
+    /// A sprite; takes `count` and `number`, the frames.
+    NoteSprite = "ui-note-sprite";
     /// The format of a movie.
     FactFormat = "ui-fact-format";
     /// The stage of a movie.

@@ -6,9 +6,15 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Skipped};
-use p4kx_extraction::{ArchiveImages, DataForgeEntry, Language};
-use p4kx_screens::{Report, ScreenTexts, Still, StillFormat, StillRequest};
+use p4kx_extraction::gfx::{Background, CanvasSize, Localise, RasterOptions, Skipped};
+use p4kx_extraction::{
+    Archive, ArchiveImages, DataForgeEntry, Language, ScreenTexts, decode_line_breaks,
+    write_bytes_replacing,
+};
+use p4kx_screens::{
+    ImageSources, MAX_SVG_BYTES, Report, ScreenComposer, Still, StillFormat, StillRequest,
+    TextSources,
+};
 use serde::Serialize;
 
 use crate::{exit, json};
@@ -51,20 +57,35 @@ fn skipped_json(skipped: &[Skipped]) -> Vec<SkippedJson> {
         .collect()
 }
 
-/// Runs `p4kx ui render --screen`.
-pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Result<ExitCode> {
-    let archive = crate::key::open(archive)?;
-    let entry = DataForgeEntry::read(&archive)?;
+fn draw(archive: &Archive, options: &Options<'_>) -> Result<Still> {
+    let entry = DataForgeEntry::read(archive)?;
     let forge = entry.open()?;
     let texts = ScreenTexts::load(
-        &archive,
-        &forge,
+        archive,
+        &ScreenComposer::new(&forge).font_file(),
         Some(options.lang.unwrap_or(Language::English)),
     );
-    for warning in texts.warnings() {
+    let mut warnings = texts.warnings().to_vec();
+    let ini = texts.parsed(&mut warnings);
+    for warning in &warnings {
         warn(warning);
     }
-    let images = ArchiveImages::new(&archive);
+    let lookup = |key: &str| {
+        ini.as_ref()?
+            .resolve(key)
+            .map(|text| decode_line_breaks(text).into_owned())
+    };
+    let images = ArchiveImages::new(archive);
+    let read_texture = |path: &str, side: u32, pixels: u64| {
+        images
+            .texture(path, side, pixels)
+            .map_err(|error| describe(&error))
+    };
+    let read_vector = |path: &str| {
+        images
+            .vector(path, MAX_SVG_BYTES as u64)
+            .map_err(|error| describe(&error))
+    };
     let request = StillRequest {
         screen: options.screen,
         brand: options.brand,
@@ -78,11 +99,27 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
             StillFormat::Png
         },
     };
-    let still = Still::render(&forge, (&texts, &images), &request)?;
-    for warning in still.warnings() {
-        warn(warning);
-    }
-    still.write(options.out)?;
+    let text_sources = texts.fonts().map(|fonts| TextSources {
+        fonts,
+        localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
+    });
+    let image_sources = ImageSources {
+        texture: &read_texture,
+        vector: &read_vector,
+    };
+    Ok(Still::render(
+        &forge,
+        text_sources,
+        Some(image_sources),
+        &request,
+    )?)
+}
+
+/// Runs `p4kx ui render --screen`.
+pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Result<ExitCode> {
+    let archive = crate::key::open(archive)?;
+    let still = draw(&archive, options)?;
+    write_bytes_replacing(options.out, &still.encode()?)?;
     let skipped = skipped_json(still.skipped());
     if as_json {
         json::print(&RenderJson {
@@ -102,6 +139,17 @@ pub(crate) fn run(archive: &Path, options: &Options<'_>, as_json: bool) -> Resul
     } else {
         exit::PARTIAL_FAILURE
     }))
+}
+
+fn describe(error: &dyn std::error::Error) -> String {
+    let mut text = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    text
 }
 
 fn warn(error: &impl std::fmt::Display) {

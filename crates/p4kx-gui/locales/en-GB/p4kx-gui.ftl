@@ -1247,11 +1247,16 @@ ui-format-svg = SVG
 ui-export = Export…
 ui-export-running = Writing { $file }…
 ui-export-done = Wrote { $file }: { $width } × { $height } px
-ui-export-done-incomplete = Wrote { $file }: { $width } × { $height } px, with { $number } things left out (see the Left out tab)
+ui-export-done-incomplete =
+    { $count ->
+        [one] Wrote { $file }: { $width } × { $height } px, with { $number } thing left out (see the Left out tab)
+       *[other] Wrote { $file }: { $width } × { $height } px, with { $number } things left out (see the Left out tab)
+    }
 ui-export-failed = The export failed: { $reason }
 ui-export-stopped = The export stopped without a result.
 ui-export-is-archive = The file is the open Archive, which is never overwritten.
 ui-export-archive-changed = The Archive changed on disk. Nothing was exported.
+ui-export-written-archive-changed = Wrote { $file }, but the Archive changed on disk meanwhile. Check the file or export it again.
 ui-export-dismiss = Close
 ui-filter-png = PNG images
 ui-filter-svg = SVG documents
@@ -1268,6 +1273,20 @@ ui-detail-report = Left out
 ui-contents-none = Nothing to show yet.
 ui-report-none = Everything was drawn.
 ui-report-more = { $number } more lines are not shown here.
+ui-note-lossless = lossless, { $size }
+ui-note-embedded = embedded image
+ui-note-external = external image, { $size }
+ui-note-part = part of another bitmap
+ui-note-font =
+    { $count ->
+        [one] { $name }, { $number } glyph
+       *[other] { $name }, { $number } glyphs
+    }
+ui-note-sprite =
+    { $count ->
+        [one] { $number } frame
+       *[other] { $number } frames
+    }
 ui-fact-format = Format
 ui-fact-stage = Stage
 ui-fact-frames = Frames

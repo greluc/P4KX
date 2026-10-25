@@ -4,13 +4,16 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use p4kx_extraction::{ArchiveImages, ensure_writable, is_same_file};
-use p4kx_screens::{ScreenTexts, Still, StillFormat, StillRequest};
+use p4kx_extraction::{
+    CancelToken, ScreenTexts, WriteRefused, ensure_writable, is_same_file, write_bytes_replacing,
+};
+use p4kx_screens::{StillFormat, StillRequest};
 
 use super::job::{Job, Poll};
-use super::render::{Fail, RenderKey, UiSource, open_movie, reason};
+use super::render::{Fail, RenderKey, UiSource, checkpoint, open_movie, reason};
 use super::report::UiReport;
 use super::settings::UiFormat;
+use super::still;
 use crate::EntryIndex;
 use crate::UiText;
 
@@ -34,26 +37,35 @@ pub enum UiExportStatus<'a> {
     Running,
     /// The file was written.
     Done(&'a UiExportSummary),
+    /// The file was written, but the Archive changed on disk meanwhile, so it may mix old and new
+    /// data.
+    DoneArchiveChanged(&'a UiExportSummary),
     /// The file is the open Archive, which is never overwritten.
     IsArchive,
-    /// The Archive changed on disk, so nothing was written.
+    /// The Archive changed on disk before the file was written, so nothing was written.
     ArchiveChanged,
+    /// The file lies inside this Star Citizen installation, where nothing is written.
+    Refused(&'a Path),
     /// Writing failed for the reason given, or stopped without a result.
     Failed(Option<&'a str>),
 }
 
 enum Outcome {
     Done(UiExportSummary),
+    DoneArchiveChanged(UiExportSummary),
     IsArchive,
     ArchiveChanged,
+    Stopped,
     Failed(String),
 }
 
 enum State {
     Running(Job<Outcome>),
     Done(UiExportSummary),
+    DoneArchiveChanged(UiExportSummary),
     IsArchive,
     ArchiveChanged,
+    Refused(PathBuf),
     Failed(Option<String>),
 }
 
@@ -62,8 +74,10 @@ impl std::fmt::Debug for State {
         f.write_str(match self {
             Self::Running(_) => "Running",
             Self::Done(_) => "Done",
+            Self::DoneArchiveChanged(_) => "DoneArchiveChanged",
             Self::IsArchive => "IsArchive",
             Self::ArchiveChanged => "ArchiveChanged",
+            Self::Refused(_) => "Refused",
             Self::Failed(_) => "Failed",
         })
     }
@@ -89,8 +103,10 @@ impl UiExport {
         match &self.state {
             State::Running(_) => UiExportStatus::Running,
             State::Done(summary) => UiExportStatus::Done(summary),
+            State::DoneArchiveChanged(summary) => UiExportStatus::DoneArchiveChanged(summary),
             State::IsArchive => UiExportStatus::IsArchive,
             State::ArchiveChanged => UiExportStatus::ArchiveChanged,
+            State::Refused(installation) => UiExportStatus::Refused(installation),
             State::Failed(reason) => UiExportStatus::Failed(reason.as_deref()),
         }
     }
@@ -109,10 +125,11 @@ impl UiExport {
         self.state = match job.poll() {
             Poll::Pending => return false,
             Poll::Ready(Outcome::Done(summary)) => State::Done(summary),
+            Poll::Ready(Outcome::DoneArchiveChanged(summary)) => State::DoneArchiveChanged(summary),
             Poll::Ready(Outcome::IsArchive) => State::IsArchive,
             Poll::Ready(Outcome::ArchiveChanged) => State::ArchiveChanged,
             Poll::Ready(Outcome::Failed(reason)) => State::Failed(Some(reason)),
-            Poll::Lost => State::Failed(None),
+            Poll::Ready(Outcome::Stopped) | Poll::Lost => State::Failed(None),
         };
         true
     }
@@ -126,6 +143,14 @@ pub(super) struct Request {
     pub(super) texts: Option<Arc<ScreenTexts>>,
 }
 
+/// Returns the export that did not start because `file` lies inside a Star Citizen installation.
+pub(super) fn refused(file: PathBuf, refused: WriteRefused) -> UiExport {
+    UiExport {
+        file,
+        state: State::Refused(refused.installation),
+    }
+}
+
 pub(super) fn start(
     index: &Arc<EntryIndex>,
     request: Request,
@@ -133,14 +158,17 @@ pub(super) fn start(
 ) -> UiExport {
     let file = request.file.clone();
     let index = Arc::clone(index);
-    let state = match Job::spawn("ui-export", wake, move || run(&index, &request)) {
+    let spawned = Job::spawn_stoppable("ui-export", wake, move |cancel| {
+        run(&index, &request, cancel)
+    });
+    let state = match spawned {
         Ok(job) => State::Running(job),
         Err(reason) => State::Failed(Some(reason)),
     };
     UiExport { file, state }
 }
 
-fn run(index: &EntryIndex, request: &Request) -> Outcome {
+fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken) -> Outcome {
     if is_same_file(&request.file, index.archive().path()) {
         return Outcome::IsArchive;
     }
@@ -149,11 +177,12 @@ fn run(index: &EntryIndex, request: &Request) -> Outcome {
     }
     let written = ensure_writable(&request.file)
         .map_err(|error| reason(&error))
-        .and_then(|()| write(index, request));
+        .and_then(|()| write(index, request, cancel));
     match written {
-        Ok(_) if index.watch().check().is_err() => Outcome::ArchiveChanged,
+        Ok(summary) if index.watch().check().is_err() => Outcome::DoneArchiveChanged(summary),
         Ok(summary) => Outcome::Done(summary),
         Err(Fail::ArchiveChanged) => Outcome::ArchiveChanged,
+        Err(Fail::Stopped) => Outcome::Stopped,
         Err(Fail::Reason(reason)) => Outcome::Failed(reason),
     }
 }
@@ -166,11 +195,17 @@ fn counted(report: &UiReport) -> usize {
         .count()
 }
 
-fn write(index: &EntryIndex, request: &Request) -> Result<UiExportSummary, Fail> {
+fn write(
+    index: &EntryIndex,
+    request: &Request,
+    cancel: &CancelToken,
+) -> Result<UiExportSummary, Fail> {
     let (key, file) = (&request.key, &request.file);
+    checkpoint(cancel)?;
     match &key.source {
         UiSource::Movie(path) => {
             let (movie, warnings) = open_movie(index, path, key.language)?;
+            checkpoint(cancel)?;
             let options = key.raster();
             let (width, height, report) = match request.format {
                 UiFormat::Png => {
@@ -206,23 +241,25 @@ fn write(index: &EntryIndex, request: &Request) -> Result<UiExportSummary, Fail>
             })
         }
         UiSource::Screen { canvas, brand } => {
-            write_screen(index, request, (canvas, brand.as_deref()))
+            write_screen(index, (request, cancel), (canvas, brand.as_deref()))
         }
     }
 }
 
 fn write_screen(
     index: &EntryIndex,
-    request: &Request,
+    (request, cancel): (&Request, &CancelToken),
     (canvas, brand): (&str, Option<&str>),
 ) -> Result<UiExportSummary, Fail> {
     let (key, file) = (&request.key, &request.file);
     let source = index.forge().read(index, || {})?;
+    checkpoint(cancel)?;
     let forge = source.entry.open().map_err(|e| reason(&e))?;
     let texts = request
         .texts
         .clone()
-        .unwrap_or_else(|| Arc::new(ScreenTexts::load(index.archive(), &forge, key.language)));
+        .unwrap_or_else(|| Arc::new(still::load_texts(index, &forge, key.language)));
+    checkpoint(cancel)?;
     let asked = StillRequest {
         screen: canvas,
         brand,
@@ -232,13 +269,14 @@ fn write_screen(
             UiFormat::Svg => StillFormat::Svg,
         },
     };
-    let images = ArchiveImages::new(index.archive());
-    let still = Still::render(&forge, (&texts, &images), &asked).map_err(|e| reason(&e))?;
-    still.write(file).map_err(|e| reason(&e))?;
+    let (still, warnings) = still::draw(index, &forge, &texts, &asked, cancel)?;
+    checkpoint(cancel)?;
+    let bytes = still.encode().map_err(|e| reason(&e))?;
+    write_bytes_replacing(file, &bytes).map_err(|e| reason(&e))?;
     Ok(UiExportSummary {
         file: file.clone(),
         width: still.width(),
         height: still.height(),
-        left_out: counted(&UiReport::of_still(&still, texts.warnings())),
+        left_out: counted(&UiReport::of_still(&still, &warnings)),
     })
 }

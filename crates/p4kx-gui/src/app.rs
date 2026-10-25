@@ -389,6 +389,7 @@ fn remember(settings: &mut Settings, model: &Model, chosen: bool, window: Option
     settings.update_check = model.update_check();
     settings.model_export = model.model_export_settings().clone();
     settings.assembly_export = model.assembly_export_settings().clone();
+    settings.ui = model.ui_render_settings();
     settings.channels.merge(model.channels().added());
 }
 

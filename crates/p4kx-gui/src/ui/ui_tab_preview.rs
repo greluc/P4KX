@@ -43,8 +43,8 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     Panel::bottom("ui-detail")
         .frame(frames::panel().inner_margin(Margin::same(px(TOOLBAR_PADDING))))
         .resizable(true)
-        .default_size(PREVIEW_HEIGHT)
-        .min_size(PREVIEW_MIN_HEIGHT)
+        .default_size(PREVIEW_HEIGHT.min(ui.available_height() / 2.0))
+        .min_size(PREVIEW_MIN_HEIGHT.min(ui.available_height() / 3.0))
         .show(ui, |ui| ui_tab_detail::show(ui, model));
     frames::panel().show(ui, |ui| {
         frames::preview_body().show(ui, |ui| picture(ui, model));

@@ -6,7 +6,7 @@
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, ShipPick, UiMode, UiScreensStatus, UiSource, UiText};
+use p4kx_gui::{Language, RowDetail, ShipPick, UiMode, UiScreensStatus, UiSource, UiText};
 
 use crate::tagging::wait_until;
 use crate::ui_tab_files::pixel;
@@ -133,7 +133,7 @@ fn another_screen_is_drawn_when_it_is_picked() -> TestResult {
 }
 
 #[test]
-fn what_no_renderer_draws_is_reported_for_a_screen() -> TestResult {
+fn a_screen_lists_its_widgets_and_reports_what_the_renderer_left_out() -> TestResult {
     let mut window = opened(Language::BritishEnglish, WINDOW)?;
     pick_ship(&mut window)?;
 
@@ -159,14 +159,30 @@ fn what_no_renderer_draws_is_reported_for_a_screen() -> TestResult {
         contents
             .rows()
             .iter()
-            .any(|row| row.kind == UiText::KindElement && row.detail.starts_with("WidgetImage")),
+            .any(|row| row.kind == UiText::KindElement
+                && matches!(&row.detail, RowDetail::Plain(text) if text.starts_with("WidgetImage"))),
         "the screen's own widgets are listed, the image widget as one the renderer draws"
     );
     Ok(())
 }
 
+fn picture(language: Language) -> Result<Vec<egui::Color32>, Box<dyn std::error::Error>> {
+    let mut window = opened(language, WINDOW)?;
+    pick_ship(&mut window)?;
+    let rendered = window.harness.state().ui().rendered().ok_or("no picture")?;
+    Ok(rendered.image().pixels.clone())
+}
+
 #[test]
-fn the_texts_of_a_screen_follow_the_language_of_the_window() -> TestResult {
+fn the_texts_of_a_screen_are_drawn_in_the_language_of_the_window() -> TestResult {
+    let english = picture(Language::BritishEnglish)?;
+    let german = picture(Language::German)?;
+    assert_eq!(english.len(), german.len(), "the same size");
+    assert_ne!(
+        english, german,
+        "the German global.ini holds the other glyph order, so other pixels are drawn"
+    );
+
     let mut window = opened(Language::German, WINDOW)?;
     pick_ship(&mut window)?;
 

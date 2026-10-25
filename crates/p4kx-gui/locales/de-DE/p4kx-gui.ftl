@@ -1247,11 +1247,16 @@ ui-format-svg = SVG
 ui-export = Exportieren …
 ui-export-running = { $file } wird geschrieben …
 ui-export-done = { $file } geschrieben: { $width } × { $height } px
-ui-export-done-incomplete = { $file } geschrieben: { $width } × { $height } px, { $number } Dinge ausgelassen (siehe Reiter „Ausgelassen“)
+ui-export-done-incomplete =
+    { $count ->
+        [one] { $file } geschrieben: { $width } × { $height } px, { $number } Ding ausgelassen (siehe Reiter „Ausgelassen“)
+       *[other] { $file } geschrieben: { $width } × { $height } px, { $number } Dinge ausgelassen (siehe Reiter „Ausgelassen“)
+    }
 ui-export-failed = Der Export ist fehlgeschlagen: { $reason }
 ui-export-stopped = Der Export wurde ohne Ergebnis beendet.
 ui-export-is-archive = Die Datei ist das geöffnete Archiv und wird nie überschrieben.
 ui-export-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Es wurde nichts exportiert.
+ui-export-written-archive-changed = { $file } geschrieben, doch das Archiv hat sich inzwischen auf dem Datenträger geändert. Prüfen Sie die Datei oder exportieren Sie erneut.
 ui-export-dismiss = Schließen
 ui-filter-png = PNG-Bilder
 ui-filter-svg = SVG-Dokumente
@@ -1268,6 +1273,20 @@ ui-detail-report = Ausgelassen
 ui-contents-none = Noch nichts anzuzeigen.
 ui-report-none = Alles wurde gezeichnet.
 ui-report-more = { $number } weitere Zeilen werden hier nicht gezeigt.
+ui-note-lossless = verlustfrei, { $size }
+ui-note-embedded = eingebettetes Bild
+ui-note-external = externes Bild, { $size }
+ui-note-part = Teil einer anderen Bitmap
+ui-note-font =
+    { $count ->
+        [one] { $name }, { $number } Glyphe
+       *[other] { $name }, { $number } Glyphen
+    }
+ui-note-sprite =
+    { $count ->
+        [one] { $number } Frame
+       *[other] { $number } Frames
+    }
 ui-fact-format = Format
 ui-fact-stage = Bühne
 ui-fact-frames = Frames

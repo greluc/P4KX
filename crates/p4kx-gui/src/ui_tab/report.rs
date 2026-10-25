@@ -118,7 +118,6 @@ impl UiReport {
         let report = still.report();
         let mut lines: Vec<ReportLine> = loading
             .iter()
-            .chain(still.warnings())
             .map(|warning| ReportLine {
                 label: UiText::ReportWarning,
                 detail: warning.clone(),

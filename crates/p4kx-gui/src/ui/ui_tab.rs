@@ -108,7 +108,9 @@ fn ships(ui: &mut Ui, model: &mut Model) {
                     .frame(frames::panel())
                     .resizable(true)
                     .default_size(SIDEBAR_WIDTH.min(ui.available_width() / 3.0))
-                    .size_range(SIDEBAR_MIN_WIDTH..=SIDEBAR_MAX_WIDTH)
+                    .size_range(
+                        SIDEBAR_MIN_WIDTH.min(ui.available_width() / 4.0)..=SIDEBAR_MAX_WIDTH,
+                    )
                     .show(ui, |ui| ui_tab_list::screens(ui, model))
                     .inner;
                 if let Some(Picked::Screen(position)) = screen {
@@ -129,7 +131,7 @@ fn list_panel(
         .frame(frames::panel())
         .resizable(true)
         .default_size(SIDEBAR_WIDTH.min(ui.available_width() / 2.0))
-        .size_range(SIDEBAR_MIN_WIDTH..=SIDEBAR_MAX_WIDTH)
+        .size_range(SIDEBAR_MIN_WIDTH.min(ui.available_width() / 3.0)..=SIDEBAR_MAX_WIDTH)
         .show(ui, add)
         .inner
 }

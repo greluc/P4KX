@@ -46,6 +46,9 @@ pub enum ScreenError {
         /// The height in pixels.
         height: f32,
     },
+    /// The caller asked to stop the drawing.
+    #[error("the drawing was stopped")]
+    Stopped,
     /// The DataForge could not be read.
     #[error(transparent)]
     DataForge(#[from] DataForgeError),

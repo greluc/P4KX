@@ -2,8 +2,91 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions, Rgba};
+use p4kx_settings::{UiRenderBackground, UiRenderFormat, UiRenderSettings, UiRenderSize};
 
 use crate::UiText;
+
+impl From<UiRenderSize> for UiSize {
+    fn from(size: UiRenderSize) -> Self {
+        match size {
+            UiRenderSize::Stage => Self::Stage,
+            UiRenderSize::Wide1024 => Self::Wide1024,
+            UiRenderSize::Wide2048 => Self::Wide2048,
+            UiRenderSize::FullHd => Self::FullHd,
+        }
+    }
+}
+
+impl From<UiSize> for UiRenderSize {
+    fn from(size: UiSize) -> Self {
+        match size {
+            UiSize::Stage => Self::Stage,
+            UiSize::Wide1024 => Self::Wide1024,
+            UiSize::Wide2048 => Self::Wide2048,
+            UiSize::FullHd => Self::FullHd,
+        }
+    }
+}
+
+impl From<UiRenderBackground> for UiBackground {
+    fn from(background: UiRenderBackground) -> Self {
+        match background {
+            UiRenderBackground::Transparent => Self::Transparent,
+            UiRenderBackground::Movie => Self::Movie,
+            UiRenderBackground::Black => Self::Black,
+            UiRenderBackground::White => Self::White,
+        }
+    }
+}
+
+impl From<UiBackground> for UiRenderBackground {
+    fn from(background: UiBackground) -> Self {
+        match background {
+            UiBackground::Transparent => Self::Transparent,
+            UiBackground::Movie => Self::Movie,
+            UiBackground::Black => Self::Black,
+            UiBackground::White => Self::White,
+        }
+    }
+}
+
+impl From<UiRenderFormat> for UiFormat {
+    fn from(format: UiRenderFormat) -> Self {
+        match format {
+            UiRenderFormat::Png => Self::Png,
+            UiRenderFormat::Svg => Self::Svg,
+        }
+    }
+}
+
+impl From<UiFormat> for UiRenderFormat {
+    fn from(format: UiFormat) -> Self {
+        match format {
+            UiFormat::Png => Self::Png,
+            UiFormat::Svg => Self::Svg,
+        }
+    }
+}
+
+impl From<UiRenderSettings> for UiSettings {
+    fn from(settings: UiRenderSettings) -> Self {
+        Self {
+            size: settings.size.into(),
+            background: settings.background.into(),
+            format: settings.format.into(),
+        }
+    }
+}
+
+impl From<UiSettings> for UiRenderSettings {
+    fn from(settings: UiSettings) -> Self {
+        Self {
+            size: settings.size.into(),
+            background: settings.background.into(),
+            format: settings.format.into(),
+        }
+    }
+}
 
 /// The size of the picture a UI file or a screen is drawn in.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]

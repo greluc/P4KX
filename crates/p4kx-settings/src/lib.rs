@@ -13,6 +13,7 @@ mod profile;
 mod queries;
 mod recent;
 mod settings;
+mod ui_render;
 
 pub use assembly_export::AssemblyExportSettings;
 pub use key_choice::{ChosenKey, KeyChoiceError, KeySource, choose_key};
@@ -26,3 +27,4 @@ pub use settings::{
     ExtractionAudio, ExtractionTextures, MAX_SETTINGS_SIZE, ManualChannels, Settings,
     SettingsError, WindowGeometry, default_settings_file,
 };
+pub use ui_render::{UiRenderBackground, UiRenderFormat, UiRenderSettings, UiRenderSize};

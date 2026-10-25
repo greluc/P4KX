@@ -6,7 +6,7 @@
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, Model, UiDetail, UiFilesStatus, UiSize, UiText, WorkTab};
+use p4kx_gui::{Fact, Language, Model, UiDetail, UiFilesStatus, UiSize, UiText, WorkTab};
 
 use crate::tagging::{harness, wait_until};
 use crate::ui_tabbing::{PLAIN, TestResult, drawn, listed, opened, pick_file, position_of};
@@ -133,7 +133,8 @@ fn a_picked_movie_is_drawn_off_the_ui_thread_with_its_contents() -> TestResult {
         contents
             .facts()
             .iter()
-            .any(|(key, value)| *key == UiText::FactStage && value == "64 × 32 px"),
+            .any(|(key, value)| *key == UiText::FactStage
+                && *value == Fact::Text("64 × 32 px".to_owned())),
         "the stage: {:?}",
         contents.facts()
     );

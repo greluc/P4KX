@@ -15,7 +15,11 @@ use crate::theme::ui_metrics::UI_REPORT_MAX_LINES as MAX_REPORT_LINES;
 use crate::widgets::frames::px;
 use crate::widgets::tab::{self, SegmentLabel};
 use crate::widgets::text::{line, paint_left, plain};
-use crate::{ContentRow, Model, ReportLine, Texts, UiContents, UiDetail, UiReport, UiText, format};
+use crate::widgets::tooltip;
+use crate::{
+    ContentRow, Fact, Model, Note, ReportLine, RowDetail, Texts, UiContents, UiDetail, UiReport,
+    UiText, format,
+};
 
 /// Shows the choice between what the picture is made of and what it leaves out, and the chosen
 /// part.
@@ -112,24 +116,79 @@ fn content_row(ui: &mut Ui, texts: &Texts, row: &ContentRow, column: f32) {
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), XML_ROW_HEIGHT), Sense::hover());
     let kind = texts.get(row.kind);
-    response.widget_info(|| WidgetInfo::labeled(Role::Row, true, format!("{kind} {}", row.detail)));
+    let text = detail_text(texts, &row.detail);
+    response.widget_info(|| WidgetInfo::labeled(Role::Row, true, format!("{kind} {text}")));
     let left = rect.with_max_x(rect.left() + column);
     let label = line(ui, plain(&kind, ROW_FONT, Weight::Regular), column);
     paint_left(ui, left, label, palette::GRAY_2_TEXT);
     let right = rect.with_min_x(rect.left() + column);
-    let detail = line(
-        ui,
-        plain(&row.detail, ROW_FONT, Weight::Regular),
-        right.width(),
-    );
+    let detail = line(ui, plain(&text, ROW_FONT, Weight::Regular), right.width());
+    let elided = detail.elided;
     paint_left(ui, right, detail, palette::GRAY_1);
-    response.on_hover_text(&row.detail);
+    if elided {
+        tooltip::hover(response, |ui| {
+            tooltip::line(ui, &text);
+        });
+    }
 }
 
-fn facts(ui: &mut Ui, texts: &Texts, facts: &[(UiText, String)]) {
+fn detail_text(texts: &Texts, detail: &RowDetail) -> String {
+    match detail {
+        RowDetail::Plain(text) => text.clone(),
+        RowDetail::Definition { id, note, name } => {
+            let what = note_text(texts, note);
+            name.as_ref().map_or_else(
+                || format!("#{id}  {what}"),
+                |name| format!("#{id}  {what}  {name}"),
+            )
+        }
+    }
+}
+
+fn note_text(texts: &Texts, note: &Note) -> String {
+    let size = |text: &str| [("size", FluentValue::from(text.to_owned()))];
+    let counted = |value: u32| {
+        [
+            ("count", FluentValue::from(u64::from(value))),
+            (
+                "number",
+                FluentValue::from(format::number(u64::from(value), texts.language())),
+            ),
+        ]
+    };
+    match note {
+        Note::Size(text) => text.clone(),
+        Note::Lossless(text) => texts.format(UiText::NoteLossless, &size(text)),
+        Note::Embedded => texts.get(UiText::NoteEmbedded),
+        Note::External(text) => texts.format(UiText::NoteExternal, &size(text)),
+        Note::Part => texts.get(UiText::NotePart),
+        Note::Font { name, glyphs } => {
+            let [count, number] = counted(*glyphs);
+            texts.format(
+                UiText::NoteFont,
+                &[("name", FluentValue::from(name.clone())), count, number],
+            )
+        }
+        Note::Sprite { frames } => texts.format(UiText::NoteSprite, &counted(*frames)),
+    }
+}
+
+fn facts(ui: &mut Ui, texts: &Texts, facts: &[(UiText, Fact)]) {
     if facts.is_empty() {
         return;
     }
+    let shown: Vec<(UiText, String)> = facts
+        .iter()
+        .map(|(key, fact)| {
+            let value = match fact {
+                Fact::Count(count) => {
+                    format::number(u64::try_from(*count).unwrap_or(u64::MAX), texts.language())
+                }
+                Fact::Text(text) => text.clone(),
+            };
+            (*key, value)
+        })
+        .collect();
     Frame::NONE
         .fill(palette::SURFACE_BAR)
         .corner_radius(CORNER_SM)
@@ -138,14 +197,17 @@ fn facts(ui: &mut Ui, texts: &Texts, facts: &[(UiText, String)]) {
             ui.set_width(ui.available_width());
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = FACT_KEY_GAP;
-                for (key, value) in facts {
-                    ui.label(eyebrow(&texts.get(*key)));
-                    ui.add(
-                        Label::new(
-                            plain(value, FACT_VALUE_SIZE, Weight::Bold).color(palette::WHITE),
-                        )
-                        .selectable(true),
-                    );
+                for (key, value) in &shown {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = FACT_KEY_GAP;
+                        ui.label(eyebrow(&texts.get(*key)));
+                        ui.add(
+                            Label::new(
+                                plain(value, FACT_VALUE_SIZE, Weight::Bold).color(palette::WHITE),
+                            )
+                            .selectable(true),
+                        );
+                    });
                     ui.add_space(FACTS_GAP - FACT_KEY_GAP);
                 }
             });
@@ -158,15 +220,10 @@ fn report_body(ui: &mut Ui, texts: &Texts, report: Option<&UiReport>) {
         return;
     };
     if !report.counts().is_empty() {
-        let counts: Vec<(UiText, String)> = report
+        let counts: Vec<(UiText, Fact)> = report
             .counts()
             .iter()
-            .map(|(key, value)| {
-                (
-                    *key,
-                    format::number(u64::try_from(*value).unwrap_or(u64::MAX), texts.language()),
-                )
-            })
+            .map(|(key, value)| (*key, Fact::Count(*value)))
             .collect();
         facts(ui, texts, &counts);
         ui.add_space(SPACE_2);

@@ -153,10 +153,10 @@ pub use texts::{
     Text, Texts, UiText, XmlText,
 };
 pub use ui_tab::{
-    ContentRow, FileList, MAX_CONTENT_ROWS, ReportLine, ShipList, ShipPick, UiBackground,
-    UiContents, UiDetail, UiExport, UiExportStatus, UiExportSummary, UiFilesStatus, UiFormat,
-    UiMode, UiRenderFailure, UiRendered, UiReport, UiScreensStatus, UiSettings, UiSize, UiSource,
-    UiTab,
+    ContentRow, Fact, FileList, MAX_CONTENT_ROWS, Note, ReportLine, RowDetail, ShipList, ShipPick,
+    UiBackground, UiContents, UiDetail, UiExport, UiExportStatus, UiExportSummary, UiFilesStatus,
+    UiFormat, UiMode, UiRenderFailure, UiRendered, UiReport, UiScreensStatus, UiSettings, UiSize,
+    UiSource, UiTab,
 };
 pub use viewer::{
     AssemblyScene, BuildError, BuildOptions, DrawList, GroupDraw, Hooks, Instance, Left,

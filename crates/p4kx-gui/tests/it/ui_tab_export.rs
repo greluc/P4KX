@@ -9,13 +9,16 @@ use std::path::Path;
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
-use p4kx_extraction::gfx::{Background, CanvasSize, RasterOptions};
+use p4kx_extraction::gfx::{Background, CanvasSize, Localise, RasterOptions};
 use p4kx_extraction::{
-    Archive, ArchiveImages, DataForgeEntry, Language as TextLanguage, LocalizationEntry, UiMovie,
+    Archive, ArchiveImages, DataForgeEntry, Language as TextLanguage, LocalizationEntry,
+    ScreenTexts, UiMovie, decode_line_breaks,
 };
 use p4kx_gui::ui::Dialog;
 use p4kx_gui::{Language, UiExportStatus, UiFormat};
-use p4kx_screens::{ScreenTexts, Still, StillFormat, StillRequest};
+use p4kx_screens::{
+    ImageSources, MAX_SVG_BYTES, ScreenComposer, Still, StillFormat, StillRequest, TextSources,
+};
 
 use crate::tagging::wait_until;
 use crate::ui_tabbing::{
@@ -47,15 +50,46 @@ fn screen_by_library(
     let archive = Archive::open(archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
-    let texts = ScreenTexts::load(&archive, &forge, Some(TextLanguage::English));
+    let texts = ScreenTexts::load(
+        &archive,
+        &ScreenComposer::new(&forge).font_file(),
+        Some(TextLanguage::English),
+    );
+    let ini = texts.parsed(&mut Vec::new());
+    let lookup = |key: &str| {
+        ini.as_ref()?
+            .resolve(key)
+            .map(|text| decode_line_breaks(text).into_owned())
+    };
+    let images = ArchiveImages::new(&archive);
+    let read_texture = |path: &str, side: u32, pixels: u64| {
+        images
+            .texture(path, side, pixels)
+            .map_err(|error| error.to_string())
+    };
+    let read_vector = |path: &str| {
+        images
+            .vector(path, MAX_SVG_BYTES as u64)
+            .map_err(|error| error.to_string())
+    };
     let request = StillRequest {
         screen: MFD,
         brand: Some("test"),
         raster: STAGE,
         format,
     };
-    let images = ArchiveImages::new(&archive);
-    let still = Still::render(&forge, (&texts, &images), &request)?;
+    let still = Still::render(
+        &forge,
+        texts.fonts().map(|fonts| TextSources {
+            fonts,
+            localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
+        }),
+        Some(ImageSources {
+            texture: &read_texture,
+            vector: &read_vector,
+        }),
+        &request,
+    )?;
     Ok(still.encode()?.into_owned())
 }
 

@@ -94,8 +94,8 @@ fn drawn_at(size: [f32; 2], tag: &str) -> TestResult {
             &format!("ui-files-contents-{tag}{suffix}.png"),
         )?;
         assert!(
-            tag.is_empty() == (red > 100),
-            "the red half of the movie is on screen at the large size only: {red}"
+            red > 0,
+            "the work area is visible, the red half of the movie is on screen: {red}"
         );
         window
             .harness

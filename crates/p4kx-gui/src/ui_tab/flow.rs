@@ -11,6 +11,7 @@ use super::pick::ShipPick;
 use super::render::{self, Fail, RenderKey, UiRendered, UiSource};
 use super::view::{UiMode, UiRenderFailure};
 use super::{Files, Rendering, UiTab};
+use crate::installation::refusal_of;
 use crate::{EntryIndex, TextLanguage};
 
 impl UiTab {
@@ -45,7 +46,12 @@ impl UiTab {
             self.rendering = Rendering::default();
             return;
         };
+        self.rendering.wanted = Some(key.clone());
         if self.rendering.requested.as_ref() == Some(&key) {
+            return;
+        }
+        if let Some(job) = &self.rendering.job {
+            job.stop();
             return;
         }
         if self
@@ -62,8 +68,8 @@ impl UiTab {
             .filter(|(cached, _)| *cached == key.language)
             .map(|(_, texts)| Arc::clone(texts));
         let (task_index, task_key) = (Arc::clone(index), key.clone());
-        let spawned = Job::spawn("ui-render", wake, move || {
-            render::draw(&task_index, &task_key, cached)
+        let spawned = Job::spawn_stoppable("ui-render", wake, move |cancel| {
+            render::draw(&task_index, &task_key, cached, cancel)
         });
         match spawned {
             Ok(job) => {
@@ -115,9 +121,14 @@ impl UiTab {
             Poll::Lost => Err(Fail::Reason(String::new())),
         };
         self.rendering.job = None;
+        let stale = self.rendering.requested != self.rendering.wanted;
         let Some(key) = self.rendering.requested.clone() else {
             return true;
         };
+        if stale || matches!(outcome, Err(Fail::Stopped)) {
+            self.rendering.requested = None;
+            return true;
+        }
         match outcome {
             Ok(built) => {
                 self.serial += 1;
@@ -137,6 +148,7 @@ impl UiTab {
                 self.rendering.shown = None;
                 self.rendering.failure = Some(match failure {
                     Fail::ArchiveChanged => UiRenderFailure::ArchiveChanged,
+                    Fail::Stopped => UiRenderFailure::Failed(None),
                     Fail::Reason(reason) if reason.is_empty() => UiRenderFailure::Failed(None),
                     Fail::Reason(reason) => UiRenderFailure::Failed(Some(reason)),
                 });
@@ -197,6 +209,10 @@ impl UiTab {
             .as_ref()
             .filter(|(cached, _)| *cached == key.language)
             .map(|(_, texts)| Arc::clone(texts));
+        if let Some(refused) = refusal_of(file.parent()) {
+            self.export = Some(export::refused(file, refused));
+            return true;
+        }
         let request = export::Request {
             key,
             format: self.settings.format,

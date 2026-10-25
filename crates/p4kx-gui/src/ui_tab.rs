@@ -11,14 +11,15 @@ mod render;
 mod report;
 mod settings;
 mod ships;
+mod still;
 mod view;
 
 use std::sync::Arc;
 
 use p4kx_assembly::EntityCatalogue;
-use p4kx_screens::ScreenTexts;
+use p4kx_extraction::ScreenTexts;
 
-pub use contents::{ContentRow, MAX_CONTENT_ROWS, UiContents};
+pub use contents::{ContentRow, Fact, MAX_CONTENT_ROWS, Note, RowDetail, UiContents};
 pub use export::{UiExport, UiExportStatus, UiExportSummary};
 pub use files::FileList;
 pub use pick::{ShipPick, UiScreensStatus};
@@ -36,6 +37,7 @@ type Drawing = Result<Built, Fail>;
 
 #[derive(Debug, Default)]
 struct Rendering {
+    wanted: Option<RenderKey>,
     requested: Option<RenderKey>,
     job: Option<Job<Drawing>>,
     shown: Option<UiRendered>,
@@ -99,6 +101,11 @@ impl UiTab {
     #[must_use]
     pub const fn settings(&self) -> &UiSettings {
         &self.settings
+    }
+
+    /// Replaces the choices of how the tab draws and exports.
+    pub const fn set_settings(&mut self, settings: UiSettings) {
+        self.settings = settings;
     }
 
     /// Draws in `size`.

@@ -9,13 +9,14 @@ use super::{Dialog, Requests};
 use crate::theme::desktop::{SEGMENT_PADDING_X, SPINNER_INLINE, TOOLBAR_PADDING};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, Weight};
+use crate::theme::ui_metrics::UI_TOOLBAR_MAX_SHARE;
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::indicator;
 use crate::widgets::tab;
 use crate::widgets::text::{line, plain};
 use crate::{
-    Model, Texts, UiBackground, UiExport, UiExportStatus, UiFormat, UiMode, UiSettings, UiSize,
-    UiText,
+    ExtractionText, Model, Texts, UiBackground, UiExport, UiExportStatus, UiExportSummary,
+    UiFormat, UiMode, UiSettings, UiSize, UiText, format,
 };
 
 /// A labelled group of segments.
@@ -77,8 +78,9 @@ struct Chosen {
 pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     ui.spacing_mut().item_spacing = vec2(TOOLBAR_PADDING, TOOLBAR_PADDING);
     let width = ui.available_width();
-    let chosen = ScrollArea::horizontal()
+    let chosen = ScrollArea::both()
         .id_salt("ui-toolbar")
+        .max_height(ui.ctx().content_rect().height() * UI_TOOLBAR_MAX_SHARE)
         .auto_shrink([false, true])
         .show(ui, |ui| choices(ui, model, width))
         .inner;
@@ -87,12 +89,15 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
     }
     if let Some(size) = chosen.size {
         model.ui_mut().set_size(size);
+        requests.settings_changed = true;
     }
     if let Some(background) = chosen.background {
         model.ui_mut().set_background(background);
+        requests.settings_changed = true;
     }
     if let Some(format) = chosen.format {
         model.ui_mut().set_format(format);
+        requests.settings_changed = true;
     }
     if chosen.export {
         requests.dialog = Some(Dialog::UiFile);
@@ -216,6 +221,30 @@ fn outcome(ui: &mut Ui, model: &mut Model) {
     }
 }
 
+fn done_line(texts: &Texts, file: &str, summary: &UiExportSummary) -> (String, Color32) {
+    let size = [
+        ("width", FluentValue::from(u64::from(summary.width))),
+        ("height", FluentValue::from(u64::from(summary.height))),
+    ];
+    let mut all = with_file(file, &size);
+    if summary.left_out == 0 {
+        return (
+            texts.format(UiText::ExportDone, &all),
+            palette::SUCCESS_TEXT,
+        );
+    }
+    let count = u64::try_from(summary.left_out).unwrap_or(u64::MAX);
+    all.push(("count", FluentValue::from(count)));
+    all.push((
+        "number",
+        FluentValue::from(format::number(count, texts.language())),
+    ));
+    (
+        texts.format(UiText::ExportDoneIncomplete, &all),
+        palette::WARNING,
+    )
+}
+
 fn status_line(texts: &Texts, export: &UiExport) -> (String, Color32, bool) {
     let file = export.file().display().to_string();
     match export.status() {
@@ -225,28 +254,25 @@ fn status_line(texts: &Texts, export: &UiExport) -> (String, Color32, bool) {
             true,
         ),
         UiExportStatus::Done(summary) => {
-            let size = [
-                ("width", FluentValue::from(u64::from(summary.width))),
-                ("height", FluentValue::from(u64::from(summary.height))),
-            ];
-            if summary.left_out == 0 {
-                (
-                    texts.format(UiText::ExportDone, &with_file(&file, &size)),
-                    palette::SUCCESS_TEXT,
-                    false,
-                )
-            } else {
-                let count = u64::try_from(summary.left_out).unwrap_or(u64::MAX);
-                let mut all = with_file(&file, &size);
-                all.push(("count", FluentValue::from(count)));
-                all.push(("number", FluentValue::from(count.to_string())));
-                (
-                    texts.format(UiText::ExportDoneIncomplete, &all),
-                    palette::WARNING,
-                    false,
-                )
-            }
+            let (text, tone) = done_line(texts, &file, summary);
+            (text, tone, false)
         }
+        UiExportStatus::DoneArchiveChanged(_) => (
+            texts.format(UiText::ExportWrittenArchiveChanged, &with_file(&file, &[])),
+            palette::WARNING,
+            false,
+        ),
+        UiExportStatus::Refused(installation) => (
+            texts.format(
+                ExtractionText::TargetInInstallation,
+                &[(
+                    "installation",
+                    FluentValue::from(installation.display().to_string()),
+                )],
+            ),
+            palette::DANGER_TEXT,
+            false,
+        ),
         UiExportStatus::IsArchive => (
             texts.get(UiText::ExportIsArchive),
             palette::DANGER_TEXT,

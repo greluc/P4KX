@@ -5,12 +5,13 @@ use std::sync::Arc;
 
 use egui::ColorImage;
 use p4kx_extraction::gfx::RasterOptions;
-use p4kx_extraction::{ArchiveImages, LocalizationEntry, UiMovie};
-use p4kx_screens::{ScreenTexts, Still, StillFormat, StillRequest};
+use p4kx_extraction::{CancelToken, LocalizationEntry, ScreenTexts, UiMovie};
+use p4kx_screens::{StillFormat, StillRequest};
 
 use super::contents::UiContents;
 use super::report::UiReport;
 use super::settings::{UiBackground, UiSize};
+use super::still;
 use crate::forge_cache::ReadFailure;
 use crate::model::describe;
 use crate::{EntryIndex, TextLanguage};
@@ -115,7 +116,17 @@ pub(super) struct Built {
 #[derive(Debug)]
 pub(super) enum Fail {
     ArchiveChanged,
+    Stopped,
     Reason(String),
+}
+
+/// Fails with [`Fail::Stopped`] once `cancel` is cancelled.
+pub(super) fn checkpoint(cancel: &CancelToken) -> Result<(), Fail> {
+    if cancel.is_cancelled() {
+        Err(Fail::Stopped)
+    } else {
+        Ok(())
+    }
 }
 
 impl From<ReadFailure> for Fail {
@@ -136,16 +147,19 @@ pub(super) fn draw(
     index: &EntryIndex,
     key: &RenderKey,
     cached: Option<Arc<ScreenTexts>>,
+    cancel: &CancelToken,
 ) -> Result<Built, Fail> {
+    checkpoint(cancel)?;
     if index.watch().check().is_err() {
         return Err(Fail::ArchiveChanged);
     }
     let built = match &key.source {
-        UiSource::Movie(path) => movie(index, path, key)?,
+        UiSource::Movie(path) => movie(index, path, (key, cancel))?,
         UiSource::Screen { canvas, brand } => {
-            screen(index, (canvas, brand.as_deref()), key, cached)?
+            screen(index, (canvas, brand.as_deref()), (key, cancel), cached)?
         }
     };
+    checkpoint(cancel)?;
     if index.watch().check().is_err() {
         return Err(Fail::ArchiveChanged);
     }
@@ -174,9 +188,15 @@ pub(super) fn open_movie<'a>(
     })
 }
 
-fn movie(index: &EntryIndex, path: &str, key: &RenderKey) -> Result<Built, Fail> {
+fn movie(
+    index: &EntryIndex,
+    path: &str,
+    (key, cancel): (&RenderKey, &CancelToken),
+) -> Result<Built, Fail> {
     let (movie, warnings) = open_movie(index, path, key.language)?;
+    checkpoint(cancel)?;
     let render = movie.render(&key.raster()).map_err(|e| reason(&e))?;
+    checkpoint(cancel)?;
     let assets = movie.movie().assets();
     let contents = UiContents::of_movie(&movie, &assets);
     Ok(Built {
@@ -196,27 +216,27 @@ fn movie(index: &EntryIndex, path: &str, key: &RenderKey) -> Result<Built, Fail>
 fn screen(
     index: &EntryIndex,
     (canvas, brand): (&str, Option<&str>),
-    key: &RenderKey,
+    (key, cancel): (&RenderKey, &CancelToken),
     cached: Option<Arc<ScreenTexts>>,
 ) -> Result<Built, Fail> {
     let source = index.forge().read(index, || {})?;
+    checkpoint(cancel)?;
     let forge = source.entry.open().map_err(|e| reason(&e))?;
-    let texts = cached
-        .unwrap_or_else(|| Arc::new(ScreenTexts::load(index.archive(), &forge, key.language)));
+    let texts = cached.unwrap_or_else(|| Arc::new(still::load_texts(index, &forge, key.language)));
+    checkpoint(cancel)?;
     let request = StillRequest {
         screen: canvas,
         brand,
         raster: key.raster(),
         format: StillFormat::Png,
     };
-    let images = ArchiveImages::new(index.archive());
-    let still = Still::render(&forge, (&texts, &images), &request).map_err(|e| reason(&e))?;
+    let (still, warnings) = still::draw(index, &forge, &texts, &request, cancel)?;
     let image = still
         .image()
-        .ok_or_else(|| Fail::Reason("the screen has no pixels".to_owned()))?;
+        .ok_or_else(|| Fail::Reason("no pixels".to_owned()))?;
     Ok(Built {
         image: pixels(image),
-        report: UiReport::of_still(&still, texts.warnings()),
+        report: UiReport::of_still(&still, &warnings),
         contents: None,
         texts: Some(texts),
     })

@@ -18,6 +18,7 @@ fn the_ui_tab_metrics_match_the_desktop_spec() {
     for (key, value) in [
         ("rowHeight", m::UI_ROW_HEIGHT),
         ("pictureMaxScale", m::UI_PICTURE_MAX_SCALE),
+        ("toolbarMaxShare", m::UI_TOOLBAR_MAX_SHARE),
     ] {
         let expected = json["uiTab"][key].as_f64();
         assert!(

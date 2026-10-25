@@ -11,5 +11,8 @@ use super::desktop::{ROW_FONT, ROW_HEIGHT};
 pub const UI_ROW_HEIGHT: f32 = ROW_HEIGHT + ROW_FONT;
 /// The most a picture that is smaller than the room is scaled up to fill it.
 pub const UI_PICTURE_MAX_SCALE: f32 = 4.0;
+/// The share of the window height the toolbar of the UI tab may take before it scrolls, so that
+/// the work area below it stays visible in the smallest window.
+pub const UI_TOOLBAR_MAX_SHARE: f32 = 0.2;
 /// The lines of the report of a render that are laid out; the rest is counted.
 pub const UI_REPORT_MAX_LINES: usize = 2_000;

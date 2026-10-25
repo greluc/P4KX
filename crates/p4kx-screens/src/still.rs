@@ -2,23 +2,14 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::borrow::Cow;
-use std::io::Write;
-use std::path::Path;
 
 use p4kx_dataforge::DataForge;
-use p4kx_extraction::{ArchiveImages, ConversionError, write_replacing};
-use p4kx_gfx::{Localise, RasterOptions, RgbaImage, Skipped};
-use thiserror::Error;
+use p4kx_gfx::{RasterOptions, RgbaImage, Skipped};
 
 use crate::compose::{ScreenComposer, TextSources};
 use crate::error::ScreenError;
 use crate::images::ImageSources;
 use crate::report::Report;
-use crate::svg::MAX_SVG_BYTES;
-
-mod texts;
-
-pub use texts::ScreenTexts;
 
 /// The file format a [`Still`] is written in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -42,28 +33,6 @@ pub struct StillRequest<'a> {
     pub format: StillFormat,
 }
 
-/// A failure to write a [`Still`].
-#[derive(Debug, Error)]
-pub enum StillWriteError {
-    /// The still could not be encoded.
-    #[error(transparent)]
-    Encode(#[from] ScreenError),
-    /// The file could not be written.
-    #[error(transparent)]
-    Write(#[from] ConversionError),
-}
-
-fn describe(error: &dyn std::error::Error) -> String {
-    let mut text = error.to_string();
-    let mut source = error.source();
-    while let Some(cause) = source {
-        text.push_str(": ");
-        text.push_str(&cause.to_string());
-        source = cause.source();
-    }
-    text
-}
-
 #[derive(Debug)]
 enum Picture {
     Png(RgbaImage),
@@ -78,12 +47,13 @@ pub struct Still {
     height: u32,
     report: Report,
     skipped: Vec<Skipped>,
-    warnings: Vec<String>,
 }
 
 impl Still {
     /// Composes the canvas of `request` of `forge` and draws it in the format of the request,
     /// the texts with `texts` and the textures and vector graphics with `images`.
+    ///
+    /// Widgets that need a source that is `None` are listed in the report.
     ///
     /// # Errors
     ///
@@ -91,31 +61,41 @@ impl Still {
     /// of the request cannot be drawn.
     pub fn render(
         forge: &DataForge<'_>,
-        (texts, images): (&ScreenTexts, &ArchiveImages<'_>),
+        texts: Option<TextSources<'_>>,
+        images: Option<ImageSources<'_>>,
         request: &StillRequest<'_>,
     ) -> Result<Self, ScreenError> {
-        let mut warnings = Vec::new();
-        let ini = texts.parsed(&mut warnings);
-        let lookup = |key: &str| ini.as_ref()?.resolve(key).map(texts::decoded);
-        let read_texture = |path: &str, side: u32, pixels: u64| {
-            images.texture(path, side, pixels).map_err(|e| describe(&e))
-        };
-        let read_vector = |path: &str| {
-            images
-                .vector(path, MAX_SVG_BYTES as u64)
-                .map_err(|e| describe(&e))
-        };
-        let mut composer = ScreenComposer::new(forge).with_images(ImageSources {
-            texture: &read_texture,
-            vector: &read_vector,
-        });
-        if let Some(fonts) = texts.fonts() {
-            composer = composer.with_texts(TextSources {
-                fonts,
-                localise: ini.as_ref().map(|_| &lookup as Localise<'_>),
-            });
+        Self::render_while(forge, texts, images, request, &|| false)
+    }
+
+    /// Like [`Still::render`], asking `stopped` before the composition, after it and before the
+    /// rasterisation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ScreenError::Stopped`] when `stopped` returned `true`, and the errors of
+    /// [`Still::render`].
+    pub fn render_while(
+        forge: &DataForge<'_>,
+        texts: Option<TextSources<'_>>,
+        images: Option<ImageSources<'_>>,
+        request: &StillRequest<'_>,
+        stopped: &dyn Fn() -> bool,
+    ) -> Result<Self, ScreenError> {
+        if stopped() {
+            return Err(ScreenError::Stopped);
+        }
+        let mut composer = ScreenComposer::new(forge);
+        if let Some(images) = images {
+            composer = composer.with_images(images);
+        }
+        if let Some(texts) = texts {
+            composer = composer.with_texts(texts);
         }
         let scene = composer.compose(request.screen, request.brand)?;
+        if stopped() {
+            return Err(ScreenError::Stopped);
+        }
         let (picture, width, height, skipped) = match request.format {
             StillFormat::Png => {
                 let raster = scene.rasterize(&request.raster)?;
@@ -139,7 +119,6 @@ impl Still {
             height,
             report: scene.report().clone(),
             skipped,
-            warnings,
         })
     }
 
@@ -185,13 +164,6 @@ impl Still {
         &self.skipped
     }
 
-    /// Returns why texts are drawn without something they need: the texts of the language could
-    /// not be parsed.
-    #[must_use]
-    pub fn warnings(&self) -> &[String] {
-        &self.warnings
-    }
-
     /// Returns whether the whole screen was drawn with every effect.
     #[must_use]
     pub const fn is_complete(&self) -> bool {
@@ -212,24 +184,5 @@ impl Still {
                 Ok(Cow::Owned(bytes))
             }
         }
-    }
-
-    /// Writes the file to `out`, replacing it; it is written whole or not at all.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StillWriteError::Encode`] when the PNG cannot be encoded and
-    /// [`StillWriteError::Write`] when the file cannot be written.
-    pub fn write(&self, out: &Path) -> Result<(), StillWriteError> {
-        let bytes = self.encode()?;
-        write_replacing(out, |writer| {
-            writer
-                .write_all(&bytes)
-                .map_err(|source| ConversionError::Write {
-                    path: out.to_owned(),
-                    source,
-                })
-        })?;
-        Ok(())
     }
 }

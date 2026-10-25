@@ -13,7 +13,6 @@ use p4kx_assembly::{
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli_armour::ArmourGlbArgs;
 use crate::query_table::one_line;
 
 /// A `--loadout` that names no Entity and no XML Loadout file that can be read.
@@ -145,14 +144,13 @@ impl<'a> Selection<'a> {
     pub(crate) fn gather(
         resolver: &mut LoadoutResolver<'_>,
         files: &Files<'_>,
-        args: &'a ArmourGlbArgs,
+        (names, loadout): (&[String], Option<&'a str>),
     ) -> Result<Self> {
-        let given = args
-            .pieces
+        let given = names
             .iter()
             .map(|text| piece(resolver, text))
             .collect::<Result<Vec<_>>>()?;
-        let Some(text) = &args.loadout else {
+        let Some(text) = loadout else {
             return Ok(Self {
                 pieces: given,
                 loadout: None,

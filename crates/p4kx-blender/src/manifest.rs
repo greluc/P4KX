@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::manifest_light::Light;
 use crate::manifest_materials::{MaterialDescription, Palette};
+use crate::manifest_rig::Rig;
 
 /// The value of [`Manifest::format`] as text.
 pub const FORMAT: &str = "p4kx-blender-package";
@@ -14,7 +15,7 @@ pub const FORMAT: &str = "p4kx-blender-package";
 ///
 /// A new minor version only adds fields and values readers may ignore; a new major version changes
 /// the meaning of existing ones.
-pub const FORMAT_VERSION: &str = "1.2";
+pub const FORMAT_VERSION: &str = "1.3";
 
 /// The name of the manifest file in the package folder.
 pub const MANIFEST_FILE: &str = "scene.json";
@@ -92,6 +93,9 @@ pub enum NodeKind {
     Object,
     /// A light an Interior places; `light` describes it.
     Light,
+    /// A Character: the node draws a mesh whose `rig` holds a skeleton, skinned parts, morph
+    /// targets and animations.
+    Character,
 }
 
 /// What reported an issue.
@@ -159,8 +163,27 @@ pub struct Source {
     /// The Build of the Archive; absent when its manifest could not be read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub build: Option<BuildInfo>,
-    /// The Entity the scene was built from.
+    /// The Entity the scene was built from. A Character package puts the Character's name in
+    /// `class_name` and an empty `guid`.
     pub entity: EntityRef,
+    /// What a Character was made from (1.3); present in a Character package only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub character: Option<CharacterSource>,
+}
+
+/// What a Character was made from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct CharacterSource {
+    /// The Character's name, also the name of its node.
+    pub name: String,
+    /// The code of the body variant, e.g. `male`.
+    pub body: String,
+    /// The CHF file the head came from, as a file name without its folder; absent without a CHF.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chf: Option<String>,
+    /// The Loadout the pieces came from, as the user named it; absent without one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub loadout: Option<String>,
 }
 
 /// The Build of the Archive a package was made from, as its build manifest states it.
@@ -179,7 +202,8 @@ pub struct BuildInfo {
     pub build_id: String,
 }
 
-/// An Entity of the Archive.
+/// An Entity of the Archive. In `source.entity` of a Character package, which is made from no
+/// Entity, `class_name` is the Character's name and `guid` is empty.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct EntityRef {
     /// The Entity's class name, e.g. `AEGS_Avenger_Titan`.
@@ -256,7 +280,7 @@ pub struct Node {
 }
 
 /// One GLB mesh: the geometry of a model drawn with one material library and one palette.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Mesh {
     /// The mesh's id, e.g. `m0001`; also the stem of its file.
     pub id: String,
@@ -279,8 +303,13 @@ pub struct Mesh {
     pub vertices: usize,
     /// The number of triangles of the mesh.
     pub triangles: usize,
-    /// The materials the mesh is drawn with, in the order of the glTF materials in its file.
+    /// The materials the mesh is drawn with, in the order of the glTF materials in its file; empty
+    /// for a mesh with a `rig`, whose materials are in the file.
     pub materials: Vec<MeshMaterial>,
+    /// The skeleton, skinned parts, morph targets and animations of the file; present for a
+    /// Character (version 1.3), absent for a static mesh.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rig: Option<Rig>,
 }
 
 /// A material of a mesh and the textures its material file names.

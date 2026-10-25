@@ -4,7 +4,9 @@ A Blender package is a folder that describes an Assembly in files any importer c
 description, shared GLB meshes and PNG textures. It does not depend on Blender's file format, so
 new Blender versions do not break it; the [Blender add-on](../blender_addon/README.md) imports it
 ([ADR-0093](adr/0093-the-blender-add-on-is-an-extension-that-reads-and-validates-a-package-without-blender.md)),
-and so can any other tool. `p4kx entity package` writes it ([ADR-0083](adr/0083-a-blender-package-is-a-versioned-manifest-with-shared-glb-meshes-and-png-textures.md)).
+and so can any other tool. `p4kx entity package` writes it ([ADR-0083](adr/0083-a-blender-package-is-a-versioned-manifest-with-shared-glb-meshes-and-png-textures.md)),
+and `p4kx character package` writes a Character in the same format, see
+[Characters](#characters).
 
 The JSON Schema of `scene.json` is generated from the Rust types of `p4kx-blender` and checked in
 as [schemas/blender-package.schema.json](../schemas/blender-package.schema.json); a test fails
@@ -66,9 +68,9 @@ written (there are no `null`s).
 | Field | Meaning |
 | --- | --- |
 | `format` | Always `p4kx-blender-package`. |
-| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.2` today. |
+| `version` | `<major>.<minor>` of the package format, matching `^[0-9]+\.[0-9]+$`; `1.3` today. |
 | `generator` | `name` (`p4kx`) and `version` of the program that wrote the package. |
-| `source` | `channel` (the Channel folder, e.g. `LIVE`), `build` (`branch`, `version`, `public_patch`, `change_number`, `build_id` of the Archive's build manifest) and `entity` (`class_name`, `guid`). `channel` and `build` are absent when unknown. |
+| `source` | `channel` (the Channel folder, e.g. `LIVE`), `build` (`branch`, `version`, `public_patch`, `change_number`, `build_id` of the Archive's build manifest) and `entity` (`class_name`, `guid`). `channel` and `build` are absent when unknown. A Character package (1.3) also has `character` (`name`, `body`, `chf`, `loadout`), see "Characters", and puts the Character's name in `entity.class_name` with an empty `guid`. |
 | `coordinates` | `basis` is `gltf_y_up` and `unit` is `metre`. A reader refuses a `basis` or `unit` it does not know. |
 | `options` | What the package was made with: `lod`, `texture_mip`, `vertex_colours`, `exclude` (ports) and `replace` (`port`, `entity`). |
 | `nodes` | The scene hierarchy, see below. |
@@ -102,7 +104,7 @@ A shear in the game's transform is not stored.
 
 | Field | Meaning |
 | --- | --- |
-| `kind` | What the node places: `entity`, or in an Interior (version 1.2) `container`, `object` or `light`. Later minor versions add kinds; a reader skips nodes of a kind it does not know, with their children. |
+| `kind` | What the node places: `entity`, or in an Interior (version 1.2) `container`, `object` or `light`, or (version 1.3) `character`. Later minor versions add kinds; a reader skips nodes of a kind it does not know, with their children. |
 | `name` | `<port>/<entity>` (the class name for the root) for an `entity`, the name from the Interior's files for the other kinds; use it as the object name. |
 | `path` | The port names from the root joined by `/`, below `Interior` the names of the nodes joined by `/`; empty for the root. |
 | `parent` | Index of the parent in `nodes`; absent for the root. |
@@ -151,6 +153,47 @@ option *Light strength*; a spot's size is `2 * outer_cone` between 1 and 180 deg
 blend `1 - inner_cone / outer_cone`; a `range` becomes the light's custom distance. The mapping is
 `blender_addon/p4kx_importer/lights.py`.
 
+### Characters
+
+`p4kx character package <archive> --out <folder>` writes a Character: the head of a CHF file
+(`--chf`), pieces of armour and clothing (`--piece`, `--loadout`) on the default body of the CHF's
+or the chosen variant (`--body`), with expressions (`--expression`, `--no-expressions`) and
+animations (`--anim`, `--anim-from`), all as `chf glb` and `armour glb` take them
+([ADR-0107](adr/0107-a-character-is-written-as-one-rigged-glb-mesh-behind-a-character-node.md)).
+`--materials textures` (the default) embeds the textures at `--texture-mip` in the GLB,
+`--materials colours` writes plain colours. The output rules are those of `entity package`.
+
+A Character package (version 1.3) is the folder above with one mesh and no texture files:
+
+- `nodes` has one node of the kind `character`, named after the Character (`--name`, else the
+  CHF's file name, else the body variant), at the identity transform, with `mesh` `m0001`. Its
+  `source.entity` is the required placeholder with the same name as `class_name` and an empty
+  `guid`. `source.character` says what the Character was made from: `name`, `body` (the code of
+  the body variant), `chf` (the CHF's file name without its folder) and `loadout` (as the user
+  named it), the last two absent without a CHF or a Loadout.
+- `meshes/m0001.glb` is the Character as `armour glb` writes it: the bones as nodes, one glTF skin
+  over them, a skinned mesh per part named after it, the sparse morph targets of the head named by
+  `extras.targetNames` and the animations as glTF animations. Its materials are in the file; the
+  mesh lists no `materials` and `textures`, `materials` and `palettes` are empty.
+- The mesh has a `rig` that says what the file holds:
+
+| Field | Meaning |
+| --- | --- |
+| `body` | The body variant, `male` or `female`. |
+| `skeleton` | The skeleton file the bones come from, below `Data`. |
+| `bones`, `skinned_meshes`, `morph_targets` | How many bones, skinned meshes and morph targets the file has. |
+| `embedded_textures` | How many PNG images the GLB embeds. |
+| `parts` | The skins worn on the skeleton, the body first: `name` (the node's name in the file), `origin` (`body` or `piece`), `file` (the skin in the Archive) and `morph_targets`. |
+| `animations` | The animations in the file: `name`, `duration_seconds`, `additive` (its keys are offsets to a pose, which glTF cannot say), `channels` and `keys`. |
+
+Pieces that cannot be fitted to the body and animations that fit nothing are `issues` with the
+kinds the `armour glb` report uses (`origin` `assembly`).
+
+The add-on imports a `character` node's mesh once for that node, not as an instance, so that the
+armature can be posed: the armature, the skinned meshes below it, the shape keys of the head and
+the actions are objects and data of the scene, with the armature below the node's empty. The
+library entry point is `p4kx_blender::write_character_package`.
+
 ### Meshes
 
 A mesh is one GLB file with the geometry of one model. Nodes that draw the same model with the
@@ -167,6 +210,7 @@ objects. The sharing is that of the Assembly ([ADR-0077](adr/0077-scene-meshes-a
 | `palette_id` | The id of that palette in `palettes` (1.1); absent without one. |
 | `instances` | How many nodes draw the mesh. |
 | `bytes`, `vertices`, `triangles` | Size of the file and of its geometry. |
+| `rig` | The skeleton, parts, morph targets and animations of a Character's mesh (1.3), see "Characters"; absent for a static mesh. |
 | `materials` | The materials of the mesh in the order of the glTF materials in its file: `index` is the index in the file's `materials` array, `name` the glTF material's name, and `textures` the ids of the `diffuse`, `normal` and `specular` textures that were written for it, each absent when the material names none or it could not be written, and, from 1.1, `material`, the id of the material's description in `materials`, absent for the engine's default material. Match by `index`; names can repeat. |
 
 The file is a plain GLB: one scene whose root node (named after the Entity's class name) has the
@@ -300,7 +344,8 @@ that a reader can ignore. A reader
 Version history: **1.0** is the first format; **1.1** adds the material descriptions, the palettes
 and the glTF material indices in the meshes; **1.2** adds the node kinds `container`, `object` and
 `light` and the node field `light` (`entity package --interior`). A reader of 1.1 skips such nodes
-with their children.
+with their children. **1.3** adds the node kind `character` and the mesh field `rig`
+(`character package`); a reader of 1.2 skips the node and warns about the minor version.
 
 The schema file is the schema of the version in `FORMAT_VERSION`: a change of the Rust types that
 changes the schema is a change of the format, and the checked-in schema changes with it. A schema
@@ -312,9 +357,10 @@ schema rejects; readers follow the rules above, not the older schema.
 These are the directions later issues take; they add fields and files in minor versions and keep
 the rules above.
 
-- **Skeletons and animations (#162).** A manifest-level `skeletons` array. A skeleton has an id
-  and its bones; a mesh that is skinned and a node that poses a skeleton reference it by that id.
-  Animation clips are lazy sidecar files. Version 1 has no skeletons and no skinned meshes.
+- **Skeletons and animations.** Version 1.3 carries them in the GLB of a Character and lists them
+  in the mesh's `rig` ([ADR-0107](adr/0107-a-character-is-written-as-one-rigged-glb-mesh-behind-a-character-node.md)).
+  A manifest-level `skeletons` array, clips as sidecar files and rigs on the meshes of an Entity
+  (a ship's moving parts) are not decided.
 - **Node trees of the add-on (#160).** Nothing is reserved: the descriptions of 1.1 are the
   inputs it builds from ([ADR-0100](adr/0100-the-add-on-builds-material-node-trees-from-the-package-descriptions-by-a-pure-mapping.md)).
 

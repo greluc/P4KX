@@ -28,6 +28,11 @@ impl Walk<'_, '_, '_, '_> {
         self.stack.push(canvas.guid);
         let sheet = self.sheet(canvas);
         self.sheets.push(sheet);
+        let over = self.pending_sheet.take();
+        if let Some(guid) = over {
+            let sheet = self.override_sheet(guid);
+            self.sheets.push(sheet);
+        }
         let shape = self.shape;
         self.shape = self
             .sheets
@@ -52,10 +57,15 @@ impl Walk<'_, '_, '_, '_> {
                 );
             }
         }
+        self.push_chain(&over);
         self.lay_out(canvas, frame, alpha, depth, sizing);
+        self.chain.pop();
         self.cx.palette = inherited;
         self.rests.pop();
         self.shape = shape;
+        if over.is_some() {
+            self.sheets.pop();
+        }
         self.sheets.pop();
         self.stack.pop();
     }
@@ -112,6 +122,26 @@ impl Walk<'_, '_, '_, '_> {
             canvas,
             self.brand,
         ));
+        self.note_unsupported(&sheet);
+        self.cache.insert(canvas.guid, Rc::clone(&sheet));
+        sheet
+    }
+
+    fn override_sheet(&mut self, style: Guid) -> Rc<CanvasStyles> {
+        if let Some(cached) = self.cache.get(&style) {
+            return Rc::clone(cached);
+        }
+        let sheet = Rc::new(CanvasStyles::of_style(
+            self.store.forge(),
+            &mut self.styles,
+            style,
+        ));
+        self.note_unsupported(&sheet);
+        self.cache.insert(style, Rc::clone(&sheet));
+        sheet
+    }
+
+    fn note_unsupported(&mut self, sheet: &CanvasStyles) {
         for (entry, selector) in sheet.unsupported() {
             self.cx.report.note(
                 "StyleEntry",
@@ -119,8 +149,6 @@ impl Walk<'_, '_, '_, '_> {
                 entry,
             );
         }
-        self.cache.insert(canvas.guid, Rc::clone(&sheet));
-        sheet
     }
 
     /// Enters the canvas `guid` that a canvas widget names, in the box `frame`.
@@ -146,6 +174,7 @@ impl Walk<'_, '_, '_, '_> {
         };
         self.params.push(handover.text);
         self.typed.push(handover.typed);
+        self.pending_sheet = handover.stylesheet;
         self.enter(&canvas, frame, alpha, depth, sizing);
         self.typed.pop();
         self.params.pop();

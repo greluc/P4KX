@@ -85,6 +85,7 @@ pub(crate) struct Widget {
     pub(crate) canvas: Option<Guid>,
     pub(crate) canvas_dangling: bool,
     pub(crate) canvas_sizing: CanvasSizing,
+    pub(crate) stylesheet: Option<Guid>,
     pub(crate) shape: ShapeStyle,
     pub(crate) text: Option<TextSpec>,
     pub(crate) picture: Picture,
@@ -215,6 +216,7 @@ impl Widget {
             layer: int(structure, "layer").unwrap_or(0),
             canvas: reference(structure, "canvas").map(Reference::guid),
             canvas_dangling: matches!(structure.field("canvas"), Some(Value::Error(_))),
+            stylesheet: reference(structure, "stylesheetOverride").map(Reference::guid),
             canvas_sizing: if text(structure, "sizingMethod") == Some("Scale") {
                 CanvasSizing::Scale
             } else {

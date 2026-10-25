@@ -160,6 +160,7 @@ fn widget_kinds() -> Vec<TestStruct> {
             .parent("BuildingBlocks_DisplayWidget")
             .field("sizingMethod", TestType::String)
             .field("canvas", reference("BuildingBlocks_Canvas"))
+            .field("stylesheetOverride", reference("BuildingBlocks_Style"))
             .array(
                 "paramInputValues",
                 pointer("BuildingBlocks_ComponentParameterInput"),

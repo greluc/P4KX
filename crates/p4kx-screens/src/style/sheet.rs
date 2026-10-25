@@ -9,7 +9,7 @@ use p4kx_dataforge::{DataForge, Guid};
 use super::condition::Uses;
 use super::entry::{Entry, Modifiers, parse_entries};
 use super::matching::{Subject, TagPaths, applies};
-use crate::canvas::{Canvas, StyleRef};
+use crate::canvas::Canvas;
 use crate::reader::items;
 use crate::widget::Widget;
 
@@ -30,11 +30,11 @@ impl CanvasStyles {
     ) -> Self {
         let mut groups = Vec::new();
         for style in &canvas.shared {
-            groups.push(style_entries(forge, cache, style));
+            groups.push(style_entries(forge, cache, style.guid));
         }
         groups.push(Rc::clone(&canvas.defaults));
         if let Some(chosen) = canvas.pick_brand(brand) {
-            groups.push(style_entries(forge, cache, &chosen.style));
+            groups.push(style_entries(forge, cache, chosen.style.guid));
             groups.push(Rc::clone(&chosen.entries));
         }
         groups.push(Rc::clone(&canvas.embedded));
@@ -49,6 +49,19 @@ impl CanvasStyles {
             )
             .fold(Uses::default(), |found, entry| found.or(entry.uses));
         Self { groups, uses }
+    }
+
+    /// Returns the sheet of the entries of the style Record `style`, which a canvas widget lays
+    /// over the canvas it holds.
+    pub(crate) fn of_style(forge: &DataForge<'_>, cache: &mut StyleCache, style: Guid) -> Self {
+        let group = style_entries(forge, cache, style);
+        let uses = group
+            .iter()
+            .fold(Uses::default(), |found, entry| found.or(entry.uses));
+        Self {
+            groups: vec![group],
+            uses,
+        }
     }
 
     /// Returns which selectors that need the shape of the tree the styles hold.
@@ -68,17 +81,17 @@ impl CanvasStyles {
     }
 }
 
-fn style_entries(forge: &DataForge<'_>, cache: &mut StyleCache, style: &StyleRef) -> Rc<[Entry]> {
-    if let Some(cached) = cache.get(&style.guid) {
+fn style_entries(forge: &DataForge<'_>, cache: &mut StyleCache, style: Guid) -> Rc<[Entry]> {
+    if let Some(cached) = cache.get(&style) {
         return Rc::clone(cached);
     }
     let entries: Rc<[Entry]> = forge
-        .record_by_guid(style.guid)
+        .record_by_guid(style)
         .and_then(|record| record.tree().ok())
         .map(|tree| parse_entries(items(tree.root(), "entries")))
         .unwrap_or_default()
         .into();
-    cache.insert(style.guid, Rc::clone(&entries));
+    cache.insert(style, Rc::clone(&entries));
     entries
 }
 

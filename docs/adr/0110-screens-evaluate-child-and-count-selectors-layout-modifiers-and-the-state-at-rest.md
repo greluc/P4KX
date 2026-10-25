@@ -77,6 +77,11 @@ listed at the end.
 - **Hidden widgets leave the layout.** A widget whose `IsActive` is false is not laid out, whether
   the field, a style entry or a binding says so. Until now a style entry hid a widget but left its
   room; the field always removed it.
+- **`stylesheetOverride`.** A canvas widget may name a `BuildingBlocks_Style`. Its entries are
+  laid over the sheets of the canvas the widget holds, after them so that they win, and stay in
+  force for the canvases nested below. The resolved styles are told apart by the override, so the
+  same canvas under two widgets takes the look of each. Its palette is not read, and a reference
+  that no Record answers adds nothing.
 - **Bounds.** At most 32 clones with modifiers are in force at once and one clone applies at most
   256 modifiers (`Limits::overrides`); what is beyond is dropped and `truncated` says so. `Count`
   values, style numbers and the evaluation of the graph are bounded as above, and the evaluation
@@ -95,7 +100,8 @@ listed at the end.
 State tags and the entries they select (`PrimaryStateTag` and the others, 3300 bound fields),
 animations and transitions, the bound number fields of layout and colour (`SizeX`, `AnchorY`,
 `FillColor`, ...), `CanvasReferenceRecord` (1022 modifiers and 12 bindings that swap a nested
-canvas), `stylesheetOverride` of canvas widgets (26 set), the modular kit components, `LayoutPolicy`
+canvas), the colour palette of a `stylesheetOverride`, the modular kit as components of their own
+(its widgets are drawn as the Records say, with the styles above), `LayoutPolicy`
 and the `Min`/`Max` behaviours as modifiers, game variables that have a value at rest other than
 zero (the power state of a ship is 0 here, so its MFD is off), the nodes of the graph that are not
 listed (localisation, timestamps, waveforms, colour and tag switches) and `IntegerFromNumber`.
@@ -105,7 +111,8 @@ listed (localisation, timestamps, waveforms, colour and tag switches) and `Integ
 The reading of `Count` (`First`, `Every`, offset and count), the exclusive stop of
 `breakConditions`, the order of a binding between a style entry and the field of the widget, the
 zero value of the variables as the state at rest, and the removal of a hidden widget from the
-layout by a style entry.
+layout by a style entry, and the precedence of a `stylesheetOverride` over the styles of the
+canvas.
 
 ## Considered Options
 

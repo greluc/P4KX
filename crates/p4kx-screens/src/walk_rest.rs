@@ -3,6 +3,8 @@
 
 use std::rc::Rc;
 
+use p4kx_dataforge::Guid;
+
 use crate::bindings::ParamValues;
 use crate::canvas::Canvas;
 use crate::rest::{AtRest, RestParams};
@@ -44,6 +46,7 @@ fn left_out_reason(field: &str) -> String {
 pub(crate) struct Handover {
     pub(crate) text: ParamValues,
     pub(crate) typed: RestParams,
+    pub(crate) stylesheet: Option<Guid>,
 }
 
 impl Walk<'_, '_, '_, '_> {
@@ -131,6 +134,7 @@ impl Walk<'_, '_, '_, '_> {
         Handover {
             text: Rc::clone(&widget.params),
             typed,
+            stylesheet: widget.stylesheet,
         }
     }
 

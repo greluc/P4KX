@@ -20,6 +20,7 @@ mod render;
 mod rest;
 mod selectors;
 mod selectors_reference;
+mod stylesheet;
 mod support;
 mod text;
 mod text_limits;

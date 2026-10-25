@@ -142,6 +142,34 @@ fn a_typed_filter_selects_the_records_by_record_path() -> TestResult {
 }
 
 #[test]
+fn the_flat_forms_are_offered_and_write_the_values_file() -> TestResult {
+    let (_dir, out, mut harness) = window(opened(&database())?);
+
+    open_dialog(&mut harness, "Export", "Record export…");
+    harness.get_by_label("Values as NDJSON, values.ndjson, one object per value");
+    harness.get_by_label("Values as CSV, exact: no byte order mark, no ' before text");
+    let filter = (Role::TextInput, "Record path filter");
+    harness.get_by_role_and_label(filter.0, filter.1).click();
+    harness.run_quiet();
+    harness
+        .get_by_role_and_label(filter.0, filter.1)
+        .type_text("weapons");
+    harness.run_quiet();
+    harness.get_by_label("Existing folder").click();
+    harness.run_quiet();
+    harness
+        .get_by_label("Values as CSV, values.csv, one row per value")
+        .click();
+    harness.run_quiet();
+    harness.get_by_label("Start export").click();
+    wait_for_the_end(&mut harness)?;
+
+    let bytes = fs::read(out.join("values.csv"))?;
+    assert!(bytes.starts_with(b"\xEF\xBB\xBFrecord_guid,"));
+    Ok(())
+}
+
+#[test]
 fn the_running_export_can_be_cancelled_from_its_window() -> TestResult {
     let (_dir, out, mut harness) = window(opened(&many(6000))?);
     open_dialog(&mut harness, "Export", "Record export…");

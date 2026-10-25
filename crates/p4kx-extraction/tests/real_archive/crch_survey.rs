@@ -31,6 +31,7 @@ struct Survey {
     encrypted: BTreeMap<String, u64>,
     signatures: BTreeMap<String, u64>,
     crch: BTreeMap<(u32, u32, u8), Stat>,
+    mesh_layouts: BTreeMap<String, u64>,
     failed: Vec<String>,
 }
 
@@ -53,9 +54,43 @@ impl Survey {
                 *mine.extensions.entry(extension).or_default() += count;
             }
         }
+        for (key, count) in other.mesh_layouts {
+            *self.mesh_layouts.entry(key).or_default() += count;
+        }
         self.failed.extend(other.failed);
         self
     }
+}
+
+const MESH_TYPE: u32 = 0x1000;
+const MESH_VERSION: u32 = 0x801;
+const MESH_STREAM_WORDS_AT: usize = 8;
+const MESH_STREAM_WORDS: usize = 4 + 16;
+const MESH_SLOTS_AT: usize = 0x5C;
+const MESH_SLOTS: usize = 4;
+
+fn mesh_layout(data: &[u8]) -> Option<String> {
+    let word = |at: usize| {
+        data.get(at..at + 4)
+            .and_then(|bytes| <[u8; 4]>::try_from(bytes).ok())
+            .map(u32::from_le_bytes)
+    };
+    let mut declared = 0_u32;
+    for position in 0..MESH_STREAM_WORDS {
+        declared |= word(MESH_STREAM_WORDS_AT + position * 4)?;
+    }
+    let mut slots = String::new();
+    for position in 0..MESH_SLOTS {
+        slots.push(if word(MESH_SLOTS_AT + position * 4)? == 0 {
+            '-'
+        } else {
+            'X'
+        });
+    }
+    Some(format!(
+        "streams {} physics slots [default, no-collide, obstruct, proxy] {slots}",
+        if declared == 0 { "none" } else { "declared" }
+    ))
 }
 
 fn extension_of(entry: &Entry) -> String {
@@ -130,7 +165,13 @@ fn signature_of(head: &[u8; 12]) -> Option<(&'static str, u32)> {
 
 fn count_chunks(survey: &mut Survey, entry: &Entry, extension: &str, file: &ChunkFile<Vec<u8>>) {
     let mut seen = Vec::new();
-    for chunk in file.chunks() {
+    for (index, chunk) in file.chunks().iter().enumerate() {
+        if chunk.chunk_type().id() == MESH_TYPE
+            && chunk.version() == MESH_VERSION
+            && let Some(layout) = file.chunk_data(index).and_then(mesh_layout)
+        {
+            *survey.mesh_layouts.entry(layout).or_default() += 1;
+        }
         let key = (
             chunk.chunk_type().id(),
             chunk.version(),
@@ -186,6 +227,10 @@ fn the_crch_files_of_the_archive_are_counted_by_container_version_and_chunk() ->
             "  0x{id:04X} {name} v0x{version:X} big={big}: {} files, {} chunks, {:?}, {}",
             stat.files, stat.chunks, stat.extensions, stat.example
         );
+    }
+    println!("CrCh Mesh v0x801 header layouts:");
+    for (layout, count) in &survey.mesh_layouts {
+        println!("  {layout}: {count}");
     }
     println!(
         "CrCh files that failed to parse: {} {:?}",

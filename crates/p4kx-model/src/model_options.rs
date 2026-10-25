@@ -48,4 +48,13 @@ pub enum ModelIssue {
         /// The file the meshes were read from.
         file: String,
     },
+    /// A `CrCh` mesh names physics data in more than one of its four slots; only the first is
+    /// read.
+    #[error("node {node} names physics data in {slots} further slot(s), which are not read")]
+    PhysicsSlotsIgnored {
+        /// The node's position.
+        node: usize,
+        /// The number of further slots that name physics data.
+        slots: usize,
+    },
 }

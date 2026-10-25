@@ -6,7 +6,10 @@
 use std::error::Error;
 
 use p4kx_chunks::ChunkFile;
-use p4kx_model::{CompanionError, CompanionPath, CorruptChunk, LodSelection, Model, ModelError};
+use p4kx_model::{
+    CompanionError, CompanionPath, CorruptChunk, LodSelection, Model, ModelError, ModelIssue,
+    UnsupportedLayout,
+};
 use p4kx_testkit::{TestChunkFile, TestCrchModel};
 use proptest::prelude::*;
 
@@ -29,6 +32,19 @@ fn corrupt_of(bytes: Vec<u8>) -> Result<(CorruptChunk, &'static str), Box<dyn Er
             Ok(model_error) => match *model_error {
                 ModelError::Corrupt { source, chunk, .. } => Ok((source, chunk)),
                 other => Err(format!("expected a corrupt chunk, got {other:?}").into()),
+            },
+            Err(other) => Err(other),
+        },
+        Ok(_) => Err("expected an error".into()),
+    }
+}
+
+fn unsupported_of(bytes: Vec<u8>) -> Result<(UnsupportedLayout, &'static str), Box<dyn Error>> {
+    match read_bytes(bytes, LodSelection::All) {
+        Err(error) => match error.downcast::<ModelError>() {
+            Ok(model_error) => match *model_error {
+                ModelError::Unsupported { source, chunk, .. } => Ok((source, chunk)),
+                other => Err(format!("expected an unsupported layout, got {other:?}").into()),
             },
             Err(other) => Err(other),
         },
@@ -81,30 +97,82 @@ fn an_index_beyond_the_vertices_is_rejected() -> TestResult {
 }
 
 #[test]
-fn a_physics_primitive_other_than_a_polyhedron_is_rejected() -> TestResult {
-    let (error, _) = corrupt_of(TestCrchModel::cube().with_physics_primitive(5).bytes())?;
-    assert_eq!(error, CorruptChunk::PhysicsPrimitive(5));
+fn a_physics_primitive_other_than_a_polyhedron_is_unsupported() -> TestResult {
+    let (error, chunk) = unsupported_of(TestCrchModel::cube().with_physics_primitive(5).bytes())?;
+    assert_eq!(
+        (error, chunk),
+        (UnsupportedLayout::PhysicsPrimitive(5), "MeshPhysicsData")
+    );
     Ok(())
 }
 
 #[test]
-fn a_mesh_with_data_streams_is_rejected() -> TestResult {
-    let (error, chunk) = corrupt_of(TestCrchModel::cube().streamed(24).bytes())?;
+fn a_mesh_with_data_streams_is_unsupported() -> TestResult {
+    let (error, chunk) = unsupported_of(TestCrchModel::cube().streamed(24).bytes())?;
     assert_eq!(chunk, "Mesh", "the chunk");
     assert!(
-        matches!(error, CorruptChunk::StreamedMesh { vertices: 24, .. }),
+        matches!(error, UnsupportedLayout::StreamedMesh { vertices: 24, .. }),
         "{error:?}"
     );
     Ok(())
 }
 
 #[test]
-fn a_big_endian_node_is_rejected() -> TestResult {
+fn a_big_endian_node_is_unsupported() -> TestResult {
     let bytes = TestChunkFile::crch()
         .big_endian_chunk(0x100B, 0x824, vec![0; NODE_LEN])
         .bytes();
-    let (error, chunk) = corrupt_of(bytes)?;
-    assert_eq!((error, chunk), (CorruptChunk::BigEndian, "Node"));
+    let (error, chunk) = unsupported_of(bytes)?;
+    assert_eq!((error, chunk), (UnsupportedLayout::BigEndian, "Node"));
+    Ok(())
+}
+
+#[test]
+fn physics_data_of_another_version_is_unsupported() -> TestResult {
+    let (error, chunk) = unsupported_of(TestCrchModel::cube().with_physics_version(0x801).bytes())?;
+    assert_eq!(
+        (error, chunk),
+        (UnsupportedLayout::PhysicsVersion(0x801), "Mesh")
+    );
+    Ok(())
+}
+
+#[test]
+fn a_mesh_of_another_version_is_unsupported() -> TestResult {
+    let (error, chunk) = unsupported_of(TestCrchModel::cube().with_mesh_version(0x802).bytes())?;
+    assert_eq!(
+        (error, chunk),
+        (UnsupportedLayout::MeshVersion(0x802), "Mesh")
+    );
+    Ok(())
+}
+
+#[test]
+fn further_physics_slots_are_reported_and_not_read() -> TestResult {
+    let model = read_bytes(
+        TestCrchModel::cube()
+            .with_physics_slot(1, 77)
+            .with_physics_slot(3, 78)
+            .bytes(),
+        LodSelection::All,
+    )?;
+    assert_eq!(
+        model.issues,
+        [ModelIssue::PhysicsSlotsIgnored { node: 1, slots: 2 }],
+        "the issue"
+    );
+    assert_eq!(
+        model.lods.first().map(|lod| lod.meshes.len()),
+        Some(1),
+        "the first slot is read"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cube_without_further_slots_has_no_issue() -> TestResult {
+    let model = read_bytes(TestCrchModel::cube().bytes(), LodSelection::All)?;
+    assert!(model.issues.is_empty(), "{:?}", model.issues);
     Ok(())
 }
 

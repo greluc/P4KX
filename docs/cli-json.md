@@ -1634,7 +1634,10 @@ geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `us
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for
 an unknown type.
 A geometry companion that does not exist exits with code 2, a corrupt or unreadable model or
-companion with 3. A `CrCh` model is read like an `#ivo` model, from its own file: it has no
+companion with 3. A `CrCh` model that is well-formed but has a layout the reader does not
+implement (a mesh in data streams, a big-endian chunk, a `Mesh` or physics data chunk of another
+version, a physics primitive other than a polyhedron) exits with code 1, not 3
+(docs/crch-models.md). A `CrCh` model is read like an `#ivo` model, from its own file: it has no
 geometry companion, one level of detail, computed normals, no texture coordinates and `geometry`
 is `null` (docs/crch-models.md).
 

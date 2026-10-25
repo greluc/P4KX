@@ -48,6 +48,9 @@ pub struct TestCrchModel {
     declared_vertices: Option<u32>,
     streamed_vertices: u32,
     physics_primitive: u32,
+    physics_version: u32,
+    mesh_version: u32,
+    extra_slots: Vec<(usize, u32)>,
     extra: Vec<(u32, u32, Vec<u8>)>,
 }
 
@@ -63,8 +66,32 @@ impl TestCrchModel {
             declared_vertices: None,
             streamed_vertices: 0,
             physics_primitive: 1,
+            physics_version: 0x800,
+            mesh_version: 0x801,
+            extra_slots: Vec::new(),
             extra: Vec::new(),
         }
+    }
+
+    /// Writes the `MeshPhysicsData` chunk with the version `version`.
+    #[must_use]
+    pub const fn with_physics_version(mut self, version: u32) -> Self {
+        self.physics_version = version;
+        self
+    }
+
+    /// Writes the `Mesh` chunk with the version `version`.
+    #[must_use]
+    pub const fn with_mesh_version(mut self, version: u32) -> Self {
+        self.mesh_version = version;
+        self
+    }
+
+    /// Names the chunk ID `id` in physics slot `slot` (0 to 3) of the `Mesh` header.
+    #[must_use]
+    pub fn with_physics_slot(mut self, slot: usize, id: u32) -> Self {
+        self.extra_slots.push((slot, id));
+        self
     }
 
     /// Returns the vertices, in the geometry node's space.
@@ -129,8 +156,12 @@ impl TestCrchModel {
                 0x824,
                 node_chunk("cube", HELPER_ID, NO_PARENT, [root_x, root_y, root_z]),
             )
-            .chunk(MESH_PHYSICS_DATA, 0x800, self.physics_chunk())
-            .chunk(MESH, 0x801, self.mesh_chunk())
+            .chunk(
+                MESH_PHYSICS_DATA,
+                self.physics_version,
+                self.physics_chunk(),
+            )
+            .chunk(MESH, self.mesh_version, self.mesh_chunk())
             .chunk(
                 NODE,
                 0x824,
@@ -155,6 +186,9 @@ impl TestCrchModel {
         write_u32(&mut out, 4, 0xC);
         write_u32(&mut out, 8, self.streamed_vertices);
         write_u32(&mut out, 0x5C, PHYSICS_ID);
+        for &(slot, id) in &self.extra_slots {
+            write_u32(&mut out, 0x5C + slot * 4, id);
+        }
         out
     }
 

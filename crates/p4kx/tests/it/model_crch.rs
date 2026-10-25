@@ -134,6 +134,24 @@ fn a_node_name_with_control_characters_is_printed_without_them() -> TestResult {
 }
 
 #[test]
+fn an_unsupported_crch_layout_exits_1_and_writes_nothing() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    fs::write(
+        dir.path().join("old.cgf"),
+        TestCrchModel::cube().streamed(24).bytes(),
+    )?;
+
+    let output = p4kx()?
+        .current_dir(dir.path())
+        .args(["model", "glb", "old.cgf", "--out", "old.glb"])
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(1), "unsupported: {output:?}");
+    assert!(!dir.path().join("old.glb").exists(), "nothing is written");
+    Ok(())
+}
+
+#[test]
 fn a_corrupt_crch_model_exits_3_and_writes_nothing() -> TestResult {
     let dir = tempfile::tempdir()?;
     let crch = TestChunkFile::crch().chunk(0x100B, 0x824, *b"node").bytes();

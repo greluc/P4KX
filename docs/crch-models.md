@@ -61,9 +61,14 @@ is a decision (ADR-0041), not a measurement.
 and of subsets, at `0x14` the chunk ID of the subsets, at `0x1C` sixteen chunk IDs of data
 streams, at `0x5C` four chunk IDs of physics data, at `0x6C` the bounding box (minimum, maximum),
 and 30 reserved words. The `Mesh` of the Archives declares no vertices, indices, subsets or
-streams and names the physics data `29` in the first slot. The reader returns the first
-physics data ID; a header that declares streamed data is refused with `StreamedMesh`, because no
-file uses that layout and a reader built only from the specification would be untested.
+streams and names the physics data `29` in the first slot. The four slots are the default, the
+no-collide, the obstruct and the proxy physics (issue #376).
+Surveyed on 2026-10-25 in LIVE: the one `Mesh` fills the first slot only (`X---`), so the other
+three have no sample and their data is not read. The reader reads the first slot that names a
+chunk; every further slot that names one adds the model issue `PhysicsSlotsIgnored` (listed by
+`p4kx model info`), so the data is not dropped silently. A header that declares streamed data
+is refused with `StreamedMesh`, because no file uses that layout and a reader built only from
+the specification would be untested.
 
 **`MeshPhysicsData` `0x800`**: a header of 24 bytes whose first word is the length of the physics
 data, then the data. In the data of the Carrack proxy (offsets from the start of the data):
@@ -71,7 +76,7 @@ data, then the data. In the data of the Carrack proxy (offsets from the start of
 | Offset | Content | Evidence |
 |---|---|---|
 | `0x00` | the first header field, not a version | not read |
-| `0x44` | primitive type `1` (Cryengine-Converter `PhysicsData.cs`: 0 cube, 1 polyhedron, 5 cylinder, 6 other) | read; any other value is refused with `PhysicsPrimitive` |
+| `0x44` | primitive type `1` (Cryengine-Converter `PhysicsData.cs`: 0 cube, 1 polyhedron, 5 cylinder, 6 other) | read; any other value is refused as unsupported (`PhysicsPrimitive`) |
 | `0x48` | number of vertices `913`, number of triangles `474` | read; the vertex table below fills exactly the declared count and its box equals the box in the `Mesh` header (−30.118…30.118, −64.801…57.380, −14.882…8.388) |
 | `0x50` | `8` and `64`: probably the least and most triangles per node of the bounding-volume tree | not read |
 | `0x5A` | 913 vertices of three `f32` | read |
@@ -93,8 +98,22 @@ Layouts no file of the three Archives uses are not implemented: `Mesh` `0x800` a
 `MtlName`, `Node` `0x823` and compiled-bones layouts are likewise unused), the `CryTek`
 container, big-endian chunks, skeletons and morph targets in `CrCh` (`CompiledBones` `0x2000`
 and others), and `CrCh` animations. Their chunks are listed as skipped (known type) or unknown
-by `p4kx model info`. Big-endian chunks of the chunks the model reads are refused with
-`BigEndian`.
+by `p4kx model info`.
+
+**Unsupported is not corrupt.** A well-formed chunk the model reads but whose layout is not
+implemented gives `ModelError::Unsupported` with an `UnsupportedLayout`: `BigEndian` (a
+big-endian `Node`, `Mesh` or physics data chunk), `StreamedMesh`, `MeshVersion` (a `Mesh` chunk
+that a node refers to and whose version is not `0x801`), `PhysicsVersion` (physics data whose
+version is not `0x800`) and `PhysicsPrimitive`. The CLI exits with code 1 for it, not 3, so a
+script can tell a file this tool cannot read yet from a damaged one (docs/cli-json.md).
+`ModelError::Corrupt` stays for truncation, bad counts and indices, cycles and non-finite values.
+
+**Render models.** The survey of 2026-10-25 in LIVE found 1 `CrCh` model (the Carrack proxy
+above), 141 `.dst`, 27 `.cigvoxel` and 27 `.cigvoxelheader` files, no big-endian chunk, no
+`Mesh` with data streams and no `Mesh` or physics data of another version. A `CrCh` render model
+(`DataStream`, `MeshSubsets`, `CompiledBones`, morph targets) and a shared big-endian
+`ByteOrder` reader are therefore not implemented; they wait for a real sample, for instance
+from the `.soc` files of #309.
 
 ## The model the reader builds
 

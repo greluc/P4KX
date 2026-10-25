@@ -5,8 +5,7 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
-use p4kx_extraction::ChunkSource;
-use p4kx_extraction::chunks::Chunk;
+use p4kx_extraction::{ChunkJson, ChunkSource};
 use serde::Serialize;
 
 use crate::cli_chunks::{ChunkFileSource, ChunksAction, ChunksArgs};
@@ -21,37 +20,6 @@ struct ListJson<'a> {
     container: &'static str,
     version: u32,
     chunks: Vec<ChunkJson>,
-}
-
-#[derive(Serialize)]
-struct ChunkJson {
-    index: usize,
-    #[serde(rename = "type")]
-    type_name: Option<&'static str>,
-    type_id: u32,
-    known: bool,
-    version: u32,
-    id: Option<u32>,
-    byte_order: &'static str,
-    offset: u64,
-    size: u64,
-}
-
-impl ChunkJson {
-    fn of(index: usize, chunk: &Chunk) -> Self {
-        let chunk_type = chunk.chunk_type();
-        Self {
-            index,
-            type_name: chunk_type.name(),
-            type_id: chunk_type.id(),
-            known: chunk_type.is_known(),
-            version: chunk.version(),
-            id: chunk.id(),
-            byte_order: chunk.byte_order().name(),
-            offset: chunk.offset(),
-            size: chunk.size(),
-        }
-    }
 }
 
 #[derive(Serialize)]

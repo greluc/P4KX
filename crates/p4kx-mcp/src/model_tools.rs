@@ -34,7 +34,9 @@ impl Server {
         &self,
         Parameters(params): Parameters<ChunksParams>,
     ) -> Result<Noted<ChunksResult>, String> {
+        let permit = self.model_permit().await?;
         self.run(move |state| {
+            let _permit = permit;
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             if let Some(chunk_type) = &params.chunk_type {
                 capped("type", chunk_type, MAX_TYPE_LEN)?;
@@ -67,7 +69,9 @@ impl Server {
         &self,
         Parameters(params): Parameters<ModelParams>,
     ) -> Result<Noted<ModelOverview>, String> {
+        let permit = self.model_permit().await?;
         self.run(move |state| {
+            let _permit = permit;
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
             models::overview(&opened, path)
@@ -93,7 +97,9 @@ impl Server {
         &self,
         Parameters(params): Parameters<ModelItemsParams>,
     ) -> Result<Noted<ModelItemsResult>, String> {
+        let permit = self.model_permit().await?;
         self.run(move |state| {
+            let _permit = permit;
             let path = capped("path", &params.path, MAX_PATH_LEN)?;
             let opened = state.archive(params.archive.as_deref())?;
             let listing = ("list_model_items", opened.version(), path, params.section);

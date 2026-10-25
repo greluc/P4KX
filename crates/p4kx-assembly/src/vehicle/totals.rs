@@ -272,13 +272,13 @@ fn add_part(totals: &mut VehicleTotals, part: &VehiclePart) {
         return;
     };
     let origin = part.origin_of("damageMax");
-    let mut damage_used = false;
-    if counts_as_hull(part) {
+    let in_hull = counts_as_hull(part);
+    if in_hull {
         totals.health += health;
         totals.health_parts = totals.health_parts.saturating_add(1);
         totals.health_origins.add(origin);
-        damage_used = true;
     }
+    let mut damage_used = in_hull;
     let threshold = |damage: f64| PartThreshold {
         part: part.name.clone(),
         health,

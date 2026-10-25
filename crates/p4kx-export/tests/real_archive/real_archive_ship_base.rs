@@ -76,6 +76,34 @@ fn report(built: &BuiltShipBase) {
     println!(
         "numbers cleaned of format characters {cleaned}, unreadable mass values {unreadable}, grids with an issue {grid_issues}"
     );
+    report_provenance(ships);
+    for class_name in [
+        HARBINGER,
+        FREELANCER_MAX,
+        CARRACK,
+        ANDROMEDA,
+        "AEGS_Avenger_Titan",
+    ] {
+        if let Ok(ship) = ship(built, class_name) {
+            println!(
+                "{class_name}: size {:?} mass {:?} hull {:?} cargo {:?} scu in {} grids, {} loadout ports",
+                ship.size.as_ref().map(|s| s.value),
+                ship.mass.as_ref().map(|m| m.kg),
+                ship.hull.as_ref().map(|h| h.health),
+                ship.cargo.scu,
+                ship.cargo.grids.len(),
+                ship.loadout.len()
+            );
+        }
+    }
+}
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts are the result of the verification"
+)]
+fn report_provenance(ships: &[ShipBase]) {
+    let with = |test: fn(&ShipBase) -> bool| ships.iter().filter(|ship| test(ship)).count();
     let partial_mass: usize = ships
         .iter()
         .filter_map(|ship| ship.mass.as_ref())
@@ -111,25 +139,6 @@ fn report(built: &BuiltShipBase) {
         "partial values: mass {partial_mass}, hull {partial_hull}; ships with an XML Loadout {}; suppliers {suppliers:?}",
         with(|s| s.loadout_source.kind == SourceKind::LoadoutXml)
     );
-    for class_name in [
-        HARBINGER,
-        FREELANCER_MAX,
-        CARRACK,
-        ANDROMEDA,
-        "AEGS_Avenger_Titan",
-    ] {
-        if let Ok(ship) = ship(built, class_name) {
-            println!(
-                "{class_name}: size {:?} mass {:?} hull {:?} cargo {:?} scu in {} grids, {} loadout ports",
-                ship.size.as_ref().map(|s| s.value),
-                ship.mass.as_ref().map(|m| m.kg),
-                ship.hull.as_ref().map(|h| h.health),
-                ship.cargo.scu,
-                ship.cargo.grids.len(),
-                ship.loadout.len()
-            );
-        }
-    }
 }
 
 fn built() -> Result<&'static BuiltShipBase, Box<dyn Error>> {
@@ -224,7 +233,11 @@ fn ports_name_the_xml_loadout_file_or_the_record_that_supplied_them() -> TestRes
             source.file
         );
         assert_eq!(source.field, "Loadout/Items");
-        assert!(matches!(port.origin, "loadout" | "override"), "{}", port.port);
+        assert!(
+            matches!(port.origin, "loadout" | "override"),
+            "{}",
+            port.port
+        );
     }
     for ship in built.ships() {
         for port in &ship.loadout {

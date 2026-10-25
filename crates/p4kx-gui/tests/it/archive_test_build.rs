@@ -4,8 +4,8 @@
 //! An open Archive of a test Channel: the window shows a persistent warning notice that the
 //! material is confidential; the Archive stays browsable.
 
+use crate::waiting::wait_polling;
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -24,14 +24,14 @@ fn open(channel: &str, language: Language) -> Result<(tempfile::TempDir, Model),
         .write_to(&path)?;
     let mut model = Model::new(language);
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err("timed out opening the Archive".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+    )?;
     Ok((dir, model))
 }
 

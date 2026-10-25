@@ -4,10 +4,9 @@
 //! Split textures grouped in the Entry table: one row per texture, parts reachable, and checks,
 //! search and Extraction that cover all parts.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for_model, wait_polling};
 use std::error::Error;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
@@ -35,16 +34,19 @@ fn archive() -> Result<(TempDir, PathBuf), Box<dyn Error>> {
     Ok((folder, path))
 }
 
-fn settle(model: &mut Model, mut done: impl FnMut(&mut Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while !done(model) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
-    Ok(())
+fn settle(model: &mut Model, done: impl Fn(&Model) -> bool) -> TestResult {
+    wait_polling(
+        model,
+        "the window to settle",
+        |model| {
+            model.poll();
+            model.poll_extraction();
+            if let Some(browser) = model.browser_mut() {
+                browser.poll();
+            }
+        },
+        done,
+    )
 }
 
 fn opened() -> Result<(TempDir, Model), Box<dyn Error>> {
@@ -153,10 +155,9 @@ fn a_search_matching_one_part_shows_the_texture_with_all_parts() -> TestResult {
     let (_folder, mut model) = opened()?;
     browser(&mut model)?.search("wall.dds.2", || {});
     settle(&mut model, |model| {
-        model.browser_mut().is_some_and(|browser| {
-            browser.poll();
-            !browser.is_searching()
-        })
+        model
+            .browser()
+            .is_some_and(|browser| !browser.is_searching())
     })?;
     let browser = browser(&mut model)?;
 
@@ -214,7 +215,6 @@ fn extracting_a_checked_texture_writes_all_its_parts() -> TestResult {
     setup.set_folder(out.clone());
     assert!(model.submit_extraction(|| {}), "started");
     settle(&mut model, |model| {
-        model.poll_extraction();
         model
             .extraction()
             .is_some_and(|extraction| matches!(extraction.status(), ExtractionStatus::Finished(_)))
@@ -240,12 +240,9 @@ fn the_window_shows_one_row_and_expands_the_parts_on_the_chevron() -> TestResult
             Model::new(Language::BritishEnglish),
         );
     harness.state_mut().open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while harness.state().browser().is_none() {
-        assert!(Instant::now() < deadline, "the Archive did not open");
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(&mut harness, "the Archive to open", |model| {
+        model.browser().is_some()
+    })?;
     harness.run_quiet();
     let wall = harness
         .state()

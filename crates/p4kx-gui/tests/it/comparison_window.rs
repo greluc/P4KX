@@ -4,10 +4,9 @@
 //! The Comparison tab drawn and driven headless over a pair of synthetic Archives.
 
 use crate::comparing;
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for};
 
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use comparing::{Pair, TestResult, pair};
 use egui::accesskit::Role;
@@ -49,15 +48,9 @@ fn harness(pair: &Pair, language: Language) -> Harness<'static, State> {
 }
 
 fn settle(harness: &mut Harness<'_, State>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(10);
-    harness.step();
-    while !done(&harness.state().0) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the window to settle", |harness| {
+        done(&harness.state().0)
+    })?;
     harness.run_quiet();
     Ok(())
 }

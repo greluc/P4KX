@@ -34,7 +34,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "contracts": {"status": "complete"},
             "mineableElements": {"status": "complete"},
             "refiningProcesses": {"status": "complete"},
-            "shops": {"status": "complete"}
+            "shops": {"status": "complete"},
+            "shipStoreSlugs": {"status": "complete"}
         },
         "manufacturers": [{
             "guid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
@@ -237,6 +238,21 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "commodityExchange": true,
             "inventory": "inv_commex_newbabbage",
             "itemGuids": ["d195eb47-24b8-45c0-a4d0-1771d60dc1a8"]
+        }],
+        "shipStoreSlugs": [{
+            "slug": "Aurora-Mk-I-ES",
+            "rsiId": 1,
+            "storeName": "Aurora Mk I ES",
+            "className": "RSI_Aurora_GS_ES",
+            "shipGuid": "cfc0122d-5275-415a-a656-3dcb3346feb5",
+            "retired": false
+        }, {
+            "slug": "Retired-Ship",
+            "rsiId": 2,
+            "storeName": "Retired Ship",
+            "className": null,
+            "shipGuid": null,
+            "retired": true
         }]
     })
 }

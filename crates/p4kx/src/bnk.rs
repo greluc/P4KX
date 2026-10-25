@@ -6,7 +6,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 use anyhow::Result;
-use p4kx_extraction::{AudioError, Bank, BankExtraction, EmbeddedWem, WemFormat};
+use p4kx_extraction::{Bank, BankExtraction, EmbeddedWem, MediaClass, WemFormat};
 use serde::Serialize;
 
 use crate::cli::{BnkAction, BnkArgs, BnkFormat, BnkSource};
@@ -26,6 +26,7 @@ struct ListJson<'a> {
 struct WemJson {
     id: u32,
     size: u64,
+    class: &'static str,
     codec: Option<&'static str>,
     codec_name: Option<String>,
     sample_count: Option<u64>,
@@ -33,7 +34,7 @@ struct WemJson {
     prefetch: bool,
     error: Option<String>,
     #[serde(skip)]
-    plugin_media: bool,
+    media: MediaClass,
 }
 
 #[derive(Serialize)]
@@ -82,18 +83,20 @@ fn open(source: &BnkSource) -> Result<Bank> {
 }
 
 fn describe(wem: &EmbeddedWem<'_>) -> WemJson {
+    let class = wem.class();
     let mut json = WemJson {
         id: wem.id(),
         size: wem.bytes().len() as u64,
+        class: class.name(),
         codec: None,
         codec_name: None,
         sample_count: None,
         duration_seconds: None,
         prefetch: wem.is_prefetch(),
         error: None,
-        plugin_media: false,
+        media: class,
     };
-    if json.prefetch {
+    if json.prefetch || class.is_non_sound() {
         return json;
     }
     match wem.parse() {
@@ -103,10 +106,7 @@ fn describe(wem: &EmbeddedWem<'_>) -> WemJson {
             json.sample_count = parsed.sample_count();
             json.duration_seconds = parsed.duration().map(|duration| duration.as_secs_f64());
         }
-        Err(error) => {
-            json.plugin_media = matches!(error, AudioError::PluginMedia);
-            json.error = Some(error.to_string());
-        }
+        Err(error) => json.error = Some(error.to_string()),
     }
     json
 }
@@ -130,20 +130,28 @@ fn list(bank: &Bank, as_json: bool) -> Result<()> {
     writeln!(out, "WEMs:        {}", wems.len())?;
     if !wems.is_empty() {
         writeln!(out)?;
-        writeln!(out, "{:>10}  {:<16}  {:>10}", "ID", "Codec", "Duration")?;
+        writeln!(
+            out,
+            "{:>10}  {:<13}  {:<16}  {:>10}",
+            "ID", "Class", "Codec", "Duration"
+        )?;
     }
     for wem in &wems {
         let codec = match &wem.codec_name {
             Some(name) => name,
             None if wem.prefetch => "prefetch",
-            None if wem.plugin_media => "plug-in media",
+            None if wem.media.is_non_sound() => "-",
             None => "invalid",
         };
         let duration = wem
             .duration_seconds
             .map_or_else(|| UNKNOWN.to_owned(), |seconds| format!("{seconds:.3} s"));
-        write!(out, "{:>10}  {codec:<16}  {duration:>10}", wem.id)?;
-        if let Some(error) = wem.error.as_ref().filter(|_| !wem.plugin_media) {
+        write!(
+            out,
+            "{:>10}  {:<13}  {codec:<16}  {duration:>10}",
+            wem.id, wem.media
+        )?;
+        if let Some(error) = wem.error.as_ref() {
             write!(out, "  {error}")?;
         }
         writeln!(out)?;

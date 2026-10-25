@@ -78,6 +78,10 @@ pub enum Playable {
     PrefetchOnly,
     /// A source plug-in generates the sound; no WEM holds it.
     Plugin,
+    /// An external source supplies the sound at runtime; no file holds it.
+    External,
+    /// The sound is a MIDI file, which the preview cannot play.
+    Midi,
     /// No soundbank or loose WEM Entry holds the WEM.
     Missing,
 }

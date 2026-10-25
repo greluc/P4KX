@@ -519,6 +519,7 @@ the index already holds 4,194,304 loose WEMs or 1,024 language folders) and `mes
 
 ```json
 {"archive": "…", "search": "spool", "offset": 0, "limit": 100, "total": 210, "next_offset": 100,
+ "entities_skipped": null, "unreadable_records": 0,
  "triggers": [{"name": "Play_QDrive_Spool", "definition": "Data\\Libs\\GameAudio\\SC_SSQD_QDrive.xml",
                "matched_trigger": true,
                "events": [{"name": "Play_QDrive_Spool", "id": 2178236557, "localised": false,
@@ -535,8 +536,14 @@ definitions' Entry paths, and `next_offset` is the offset of the next page or `n
 last one. A trigger matches when its name or the name of one of its events does; `matched_trigger`
 and `matched` say which. `events`, `unmatched` and `issues` are those of `p4kx entity audio`.
 `entities` counts the Entities that name the trigger through those fields
-and lists the first `--entities` of them in definition order; it is `null` with `--no-entities`
-and when the DataForge cannot be read, which is a warning on stderr.
+and lists the first `--entities` of them in definition order; only Entities whose own Record names
+the trigger count, not those that reach it through a Loadout or a Reference. In `--search`, `/`
+and `\` match each other. `entities` is `null` with `--no-entities`. It is
+also `null` when the DataForge cannot be found, decrypted or read: `entities_skipped` then holds
+the reason, a warning goes to stderr and the exit code is 1. Otherwise `entities_skipped` is
+`null`. `unreadable_records` counts the Entity Records that could not be read and so name no
+trigger; above 0 it is also a warning on stderr. A page without triggers does not read the
+DataForge, so `entities_skipped` is `null` and `unreadable_records` is 0 there.
 
 ## `p4kx wwise extract <archive> <trigger> --out <folder> --json`
 
@@ -556,8 +563,8 @@ decoded, which then carries the reason in `unconverted`. A file is named `<trigg
 trigger with one WEM and `<trigger>_<wem_id>.<ext>` for several, cut to ASCII letters, digits, `_`
 and `-`; a name already taken, ignoring case, gets `_2`, `_3`, … `kept` is true for an existing
 file left alone by `--conflict skip` or an identical one under `if-changed`. `failures` lists the
-sounds that got no file: source plug-ins (`wem_id` null) and WEMs no soundbank or loose Entry
-holds. Exit code 1 when anything is in `failures` or `unconverted`.
+sounds that got no file: source plug-ins and external sources (`wem_id` null) and WEMs no
+soundbank or loose Entry holds. Exit code 1 when anything is in `failures` or `unconverted`.
 
 `p4kx entity audio --extract <folder>` writes the same files for every trigger of the Entity and
 adds an `extraction` object with exactly `target`, `format`, `written`, `kept`, `unconverted`,
@@ -575,7 +582,7 @@ and `issues` are not repeated in it.
  "issues": [Issue, …]}
 ```
 
-`<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
+`counts.plugins` is the number of variants without a file: source plug-ins and external sources. `<trigger>` is the trigger name as its ATL definition writes it, ignoring ASCII case; a trigger no
 ATL definition has exits with code 2. The audio index is built as for `p4kx entity audio`, with
 the same `issues`; each soundbank holding one of the trigger's events is then read again and its
 `HIRC` section followed from the Event object through Play actions (other actions lead to no
@@ -590,8 +597,8 @@ A **Variant**:
 | `event` | string | The Wwise event it is reached from |
 | `soundbank` | object | `path` and `language` of the soundbank whose `HIRC` section leads to it |
 | `sound_id` | number | ID of the Sound object |
-| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in, which has no WEM |
-| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` or `other` |
+| `wem_id` | number or `null` | WEM ID of its media; `null` for a source plug-in or an external source, which have no file |
+| `source` | string | `embedded` (held in memory), `prefetch_streamed`, `streamed`, `plugin` (generated, no file), `external` (supplied by the game at runtime, no file), `midi` (a MIDI file, located like a WEM) or `other` |
 | `localised` | boolean | The source is language-specific or its soundbank lies in a language folder |
 | `language` | string or `null` | The language folder the WEM was found in, for a localised variant with a location |
 | `fallback` | boolean | `language` is the fallback language, not `requested` |
@@ -833,6 +840,8 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "soc_components": 320, "soc_paths_unattributed": 12, "inventories_unreadable": 1, "inventories_missing": 0, "inventories_named": 57,
  "inventories_in_archive": 119, "item_ids_dropped": 0, "commodity_exchanges": 16,
  "linked": 1000, "unlinked": 184, "ambiguous_link": 54, "unlinked_locations": ["…"]},
+ "store_slugs": {"slugs": 256, "unmapped": 51, "mapped": 205, "resolved": 205, "retired": 0,
+ "exported": 205, "stale": [], "stale_check_skipped": false},
  "playability": {"items": {"player": 7954, "ai": 0, "mission": 522, "special": 8570,
  "unclassified": 6234}, "ships": {"player": 324, "ai": 690, "mission": 25, "special": 35,
  "unclassified": 13}},
@@ -842,6 +851,11 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
+
+`store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
+`stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are
+mapped but none resolves, as for an Archive that is not the game's ([basetool-catalog.md](basetool-catalog.md), "Ship store
+slugs").
 
 The catalog itself goes to `out` ([basetool-catalog.md](basetool-catalog.md)); a name ending in
 `.zst` writes a zstd frame. `size` is the size of the JSON in bytes, uncompressed;
@@ -1164,17 +1178,20 @@ Also `p4kx bnk list <file> --json` for a soundbank file on disk.
 
 ```json
 {"soundbank": "Data\\Sounds\\wwise\\SSAM_Test.bnk", "version": 154, "bank_id": 3512036681,
- "wems": [{"id": 100, "size": 4852, "codec": "pcm", "codec_name": "PCM", "sample_count": 1200,
-           "duration_seconds": 0.025, "prefetch": false, "error": null},
-          {"id": 400, "size": 120, "codec": null, "codec_name": null, "sample_count": null,
-           "duration_seconds": null, "prefetch": true, "error": null}]}
+ "wems": [{"id": 100, "size": 4852, "class": "wem", "codec": "pcm", "codec_name": "PCM",
+           "sample_count": 1200, "duration_seconds": 0.025, "prefetch": false, "error": null},
+          {"id": 400, "size": 120, "class": "wem", "codec": null, "codec_name": null,
+           "sample_count": null, "duration_seconds": null, "prefetch": true, "error": null}]}
 ```
 
-`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded WEM in
+`version` and `bank_id` come from the `BKHD` section. `wems` lists every embedded media item in
 ascending ID order: `size` is its size in the bank, and `codec` to `duration_seconds` are as in
-`p4kx audio info`. `prefetch` is `true` when the bank holds only the start of a streamed WEM, whose
-whole file is the loose WEM of the same ID; its codec is then not read. `error` names why a WEM
-cannot be read, e.g. Wwise plug-in media; the other fields are then `null`. A corrupt soundbank
+`p4kx audio info`. `class` tells what the item holds from its first bytes: `wem` (a RIFF or RIFX
+WAVE file), `midi` (a MIDI file), `impulse` (Wwise plug-in data such as a convolution reverb's
+impulse response) or `unknown`. `prefetch` is `true` when the bank holds only the start of a
+streamed WEM, whose whole file is the loose WEM of the same ID; its codec is then not read.
+`error` is the reason an item of class `wem` or `unknown` cannot be read, else `null`; the codec fields are `null` for `midi`,
+`impulse`, prefetched and unreadable items. A corrupt soundbank
 prints no JSON; it fails with exit code 1 and an error naming the section.
 
 ## `p4kx bnk extract <archive> <entry> --out <folder> [--format wem|wav|ogg] --json`
@@ -1187,11 +1204,11 @@ Also `p4kx bnk extract <file> --out <folder> --json` for a soundbank file on dis
  "failed": [{"id": 300, "error": "… WEM 300: converting Wwise Vorbis to WAV is not supported"}]}
 ```
 
-`format` is `wem`, `wav` or `ogg`, the extension of the files. `extracted` lists the WEMs written as
+`format` is `wem`, `wav` or `ogg`, the extension of the files (MIDI media written with `wem` has the extension `mid`). `extracted` lists the WEMs written as
 `<id>.<format>`, `failed` the WEMs that were not, with the reason and its causes joined by `: `;
 both in ascending ID order. With `--format wav` a codec without a decoder and a prefetched start
 fail; with `--format wem` a prefetched start is written as the bank holds it and marked with
-`"prefetch": true`. With `--json`
+`"prefetch": true`, and MIDI media is written as `<id>.mid`. With `--json`
 failures are not repeated on stderr. The exit code is 1 when `failed` is not empty.
 
 ## `p4kx ui assets <archive> <entry> --json`

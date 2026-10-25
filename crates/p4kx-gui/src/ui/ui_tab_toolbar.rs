@@ -4,6 +4,7 @@
 use egui::{Color32, Label, ScrollArea, Ui, vec2};
 use fluent_bundle::FluentValue;
 
+use super::regions;
 use super::search::eyebrow;
 use super::{Dialog, Requests};
 use crate::theme::desktop::{SEGMENT_PADDING_X, SPINNER_INLINE, TOOLBAR_PADDING};
@@ -82,7 +83,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model, requests: &mut Requests) {
         .id_salt("ui-toolbar")
         .max_height(ui.ctx().content_rect().height() * UI_TOOLBAR_MAX_SHARE)
         .auto_shrink([false, true])
-        .show(ui, |ui| choices(ui, model, width))
+        .show(ui, |ui| {
+            regions::clip(ui);
+            choices(ui, model, width)
+        })
         .inner;
     if let Some(mode) = chosen.mode {
         model.ui_mut().set_mode(mode);

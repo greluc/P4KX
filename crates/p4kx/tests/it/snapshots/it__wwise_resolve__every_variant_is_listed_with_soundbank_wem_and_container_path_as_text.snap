@@ -7,5 +7,5 @@ Play_Engine  Data\Libs\GameAudio\SC_Ship.xml
   Play_Engine_Start in Ship.bnk: WEM 5002 embedded, in Media.bnk at 0 (24 bytes); event 4072960129 > action 1 > random 100 > sound 201
   Play_Engine_Loop in Ship.bnk: WEM 5003 prefetch_streamed, start in Ship.bnk at 48 (16 bytes); event 2588973845 > action 2 > switch 300 > sequence 301 > sound 203
   Play_Engine_Loop in Ship.bnk: WEM 5004 streamed, not located; event 2588973845 > action 2 > switch 300 > sequence 301 > sound 204
-  Play_Engine_Loop in Ship.bnk: plug-in source 6000, no WEM; event 2588973845 > action 2 > switch 300 > blend 302 > sound 205
-5 variants: 3 located, 1 not located, 1 plug-in; 0 broken links
+  Play_Engine_Loop in Ship.bnk: plug-in source 6000, no file; event 2588973845 > action 2 > switch 300 > blend 302 > sound 205
+5 variants: 3 located, 1 not located, 1 without a file; 0 broken links

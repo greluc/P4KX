@@ -12,12 +12,21 @@ use super::{AtlTrigger, AudioIndex, EventMatch, Unmatched};
 pub const MAX_SEARCH_PAGE: usize = 10_000;
 
 /// An audio trigger a search found, with the part of its names that matched.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TriggerHit<'i> {
     trigger: &'i AtlTrigger,
     index: &'i AudioIndex,
     pattern: Arc<PathPattern>,
     by_trigger: bool,
+}
+
+impl std::fmt::Debug for TriggerHit<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TriggerHit")
+            .field("trigger", &self.trigger)
+            .field("by_trigger", &self.by_trigger)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'i> TriggerHit<'i> {

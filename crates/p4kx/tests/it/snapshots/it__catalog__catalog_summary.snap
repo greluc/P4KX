@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/it/catalog.rs
+source: crates/p4kx/tests/catalog.rs
 expression: summary
 ---
 manufacturers: 2 written, 1 skipped, complete
@@ -25,10 +25,11 @@ paint assignment: 0 of 0 paints fit a ship, 0 fit none, 0 ships have paints, 0 v
 loadouts: 1 ships and 0 items, 0 ports, 0 hold an Entity (0 docked vehicles), 0 unresolved, 0 Entities without an entry in items or ships, 1 loadouts with issues
 starmap placement: 0 of 0 objects have a position, 0 are placed apart, 0 systems, 0 containers unreadable, 0 missing, 0 children malformed
 shops: 0 of 0 registry entries, 0 malformed, 0 repeated, 0 with a kind, 0 linked to a starmap object, 0 not, 0 commodity exchanges, 0 containers unreadable, 0 with an item list (0 ambiguous, 0 unscanned, 0 placeholders, 0 files missing, 0 files unreadable), registry missing
+ship store slugs: no catalog ship matches a store slug, stale check skipped
 items playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 ships playability: 0 player, 0 ai, 0 mission, 0 special, 1 unclassified
 items variants: 0 in 0 groups
 ships variants: 0 in 0 groups
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 2 texts resolved, 11 unresolved, 0 placeholders
-wrote [DIR]/basetool-catalog.json: 5453 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/basetool-catalog.json: 5512 bytes, 1 Records skipped, 0 failed

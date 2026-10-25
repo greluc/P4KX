@@ -6,4 +6,4 @@ Play_Long  Data\Libs\GameAudio\SC_Audio.xml
   Play_Long in Common.bnk: WEM 7000 streamed, at Data\Sounds\wwise\Media\7000.wem (33 bytes); event 4283017120 > action 1 > sound 200
   Play_Long in Common.bnk: WEM 7001 prefetch_streamed, at Data\Sounds\wwise\7001.wem (12 bytes); event 4283017120 > action 2 > sound 201
   Play_Long in Common.bnk: WEM 7002 streamed, not located; event 4283017120 > action 3 > sound 202
-3 variants: 2 located, 1 not located, 0 plug-in; 0 broken links
+3 variants: 2 located, 1 not located, 0 without a file; 0 broken links

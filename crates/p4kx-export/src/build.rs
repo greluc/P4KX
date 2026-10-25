@@ -22,13 +22,14 @@ use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::missions;
 use crate::paint::paints;
 use crate::scan::Scan;
+use crate::ship_store_slugs::StoreSlugs;
 use crate::shops::add_shops;
 use crate::starmap_containers::Placements;
 use crate::starmap_report::{ContainerCounts, StarmapReport};
 use crate::texts::{TextSources, Texts};
 use crate::{
     BuiltCatalog, CatalogError, CatalogFailure, CatalogOptions, CatalogSummary, LoadoutSummary,
-    PaintSummary, ShopSummary, StarmapSummary,
+    PaintSummary, ShopSummary, StarmapSummary, StoreSlugSummary,
 };
 
 /// Builds the Basetool catalog of the DataForge in `archive`.
@@ -148,6 +149,7 @@ pub(crate) struct Parts {
     starmap: StarmapSummary,
     starmap_report: Box<StarmapReport>,
     shops: Box<ShopSummary>,
+    store_slugs: Box<StoreSlugSummary>,
     playability: crate::PlayabilitySummary,
     variants: crate::VariantSummary,
     failures: Vec<CatalogFailure>,
@@ -166,6 +168,7 @@ impl Parts {
             starmap: self.starmap,
             starmap_report: self.starmap_report,
             shops: self.shops,
+            store_slugs: self.store_slugs,
             playability: Box::new(self.playability),
             variants: self.variants,
             failures: self.failures,
@@ -207,6 +210,14 @@ fn assemble<R>(
     add_contracts(&forge, &texts, options, &mut collected)?;
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
     let kinds = collected.summary(options.filter.is_none());
+    let store_slugs = StoreSlugs::embedded()?;
+    let resolved = store_slugs.resolve(
+        collected
+            .ships
+            .iter()
+            .map(|ship| (ship.guid.0, ship.class_name)),
+        options.filter.is_some(),
+    );
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
         source: source(archive, options.exported_at),
@@ -230,6 +241,7 @@ fn assemble<R>(
         mineable_elements: collected.mineable_elements,
         refining_processes: collected.refining_processes,
         shops: collected.shops,
+        ship_store_slugs: resolved.exported,
     };
     let output = emit(&catalog)?;
     Ok((
@@ -243,6 +255,7 @@ fn assemble<R>(
             starmap: starmap_summary,
             starmap_report: Box::new(report),
             shops: Box::new(shop_summary),
+            store_slugs: Box::new(resolved.summary),
             playability: collected.playability,
             variants,
             failures: collected.failures,

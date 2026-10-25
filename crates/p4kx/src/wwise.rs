@@ -40,9 +40,7 @@ pub(crate) struct UnknownAudioLanguage {
 pub(crate) fn run(args: &WwiseArgs, as_json: bool) -> Result<ExitCode> {
     match &args.action {
         WwiseAction::Resolve(args) => resolve(args, as_json).map(|()| ExitCode::SUCCESS),
-        WwiseAction::Events(args) => {
-            crate::wwise_events::run(args, as_json).map(|()| ExitCode::SUCCESS)
-        }
+        WwiseAction::Events(args) => crate::wwise_events::run(args, as_json),
         WwiseAction::Extract(args) => crate::wwise_extract::run(args, as_json),
     }
 }
@@ -120,7 +118,7 @@ fn print_text(sounds: &TriggerSounds<'_>, counts: Counts) -> io::Result<()> {
     }
     writeln!(
         out,
-        "{} variants: {} located, {} not located, {} plug-in; {} broken links",
+        "{} variants: {} located, {} not located, {} without a file; {} broken links",
         counts.variants, counts.located, counts.unlocated, counts.plugins, counts.breaks
     )?;
     out.flush()
@@ -148,7 +146,13 @@ pub(crate) fn variant_line(variant: &SoundVariant<'_>) -> String {
         None => "not located".to_owned(),
     };
     let media = variant.wem_id().map_or_else(
-        || format!("plug-in source {}, no WEM", variant.source().source_id),
+        || {
+            format!(
+                "{} {}, no file",
+                variant.source_kind().label(),
+                variant.source().source_id
+            )
+        },
         |wem| {
             format!(
                 "WEM {wem} {}{}, {location}",

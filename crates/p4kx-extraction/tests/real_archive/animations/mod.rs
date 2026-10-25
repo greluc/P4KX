@@ -39,7 +39,10 @@ const MAX_MEDIAN_DISTANCE: f32 = 0.05;
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn every_caf_and_dba_of_the_archive_reads() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let cafs = entries_ending_with(&archive, ".caf");
     let dbas = entries_ending_with(&archive, ".dba");
@@ -100,7 +103,10 @@ fn every_caf_and_dba_of_the_archive_reads() -> TestResult {
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn controller_ids_are_the_crc32_of_the_bone_names_as_spelled() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let mut paths = entries_ending_with(&archive, ".chr");
     paths.extend(entries_ending_with(&archive, ".cga").into_iter().take(2000));
@@ -132,7 +138,10 @@ fn controller_ids_are_the_crc32_of_the_bone_names_as_spelled() -> TestResult {
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_first_keys_of_a_character_animation_sit_near_the_bind_pose() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let skeleton = ModelSource::from_index(&index, SKELETON)?;
     let bones = &skeleton.model().bones;
@@ -189,7 +198,10 @@ fn the_first_keys_of_a_character_animation_sit_near_the_bind_pose() -> TestResul
 #[expect(clippy::print_stdout, reason = "the measurements are the output")]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn keyframe_offsets_of_databases_reach_past_their_chunk_span() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let dbas = entries_ending_with(&archive, ".dba");
 
@@ -227,7 +239,10 @@ fn keyframe_offsets_of_databases_reach_past_their_chunk_span() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_character_skeleton_exports_with_the_animations_of_a_database() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let skeleton = ModelSource::from_index(&index, SKELETON)?;
     let choice = AnimationChoice::Named(vec![GETUP.to_owned()]);
@@ -273,7 +288,10 @@ fn a_character_skeleton_exports_with_the_animations_of_a_database() -> TestResul
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_static_model_exports_with_the_animation_found_at_the_mirrored_path() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let door = ModelSource::from_index(&index, DOOR)?;
     let choice = AnimationChoice::Named(vec![DOOR_ANIMATION.to_owned()]);
@@ -323,7 +341,10 @@ fn only_the_key_formats_the_reader_knows_are_in_use() -> TestResult {
     const ROTATIONS: [u8; 3] = [0x80, 0x82, 0x83];
     const POSITIONS: [u8; 3] = [0xC0, 0xC1, 0xC2];
     const TIMES: [u8; 3] = [0x40, 0x41, 0x42];
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let paths: Vec<String> = entries_ending_with(&archive, ".caf")
         .into_iter()

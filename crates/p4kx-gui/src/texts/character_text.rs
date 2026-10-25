@@ -74,8 +74,25 @@ pub enum CharacterText {
     ExpressionNeutral,
     /// The label of the slider of the strength; takes `percent`.
     ExpressionStrength,
-    /// The action that exports the Character as GLB.
+    /// The action that opens the export of the Character.
     ExportAction,
+    /// The title of the setup window of the export.
+    ExportSetupTitle,
+    /// The Character that is exported; takes `name`.
+    ExportSetupName,
+    /// What the Blender package of a Character is.
+    ExportPackageNote,
+    /// What the Blender package of a Character holds; takes `parts`, `bones`, `skinned`,
+    /// `morphs`, `animations`, `vertices`, `triangles`, `files` and `size`.
+    ExportPackageCounts,
+    /// The heading of the choice of the animations of a package.
+    ExportAnimationsHeading,
+    /// No animations in the package.
+    ExportAnimationsNone,
+    /// The animations of all the animation folders of the Character in the package.
+    ExportAnimationsAll,
+    /// Shown while the Character is built again, so that it cannot be exported yet.
+    ExportBusy,
     /// How many pieces the export left out; takes `count` and `number`.
     ExportSkipped,
     /// What the export wrote; takes `parts`, `bones`, `vertices`, `triangles` and `size`.
@@ -102,7 +119,7 @@ pub enum CharacterText {
 
 impl CharacterText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 47] = [
+    pub(crate) const ALL: [Self; 55] = [
         Self::Tab,
         Self::EmptyHint,
         Self::BodyHeading,
@@ -139,6 +156,14 @@ impl CharacterText {
         Self::ExpressionNeutral,
         Self::ExpressionStrength,
         Self::ExportAction,
+        Self::ExportSetupTitle,
+        Self::ExportSetupName,
+        Self::ExportPackageNote,
+        Self::ExportPackageCounts,
+        Self::ExportAnimationsHeading,
+        Self::ExportAnimationsNone,
+        Self::ExportAnimationsAll,
+        Self::ExportBusy,
         Self::ExportSkipped,
         Self::ExportCounts,
         Self::ExportRunningTitle,
@@ -192,6 +217,14 @@ impl CharacterText {
             Self::ExpressionNeutral => "characters-expression-neutral",
             Self::ExpressionStrength => "characters-expression-strength",
             Self::ExportAction => "characters-export-action",
+            Self::ExportSetupTitle => "characters-export-setup-title",
+            Self::ExportSetupName => "characters-export-setup-name",
+            Self::ExportPackageNote => "characters-export-package-note",
+            Self::ExportPackageCounts => "characters-export-package-counts",
+            Self::ExportAnimationsHeading => "characters-export-animations-heading",
+            Self::ExportAnimationsNone => "characters-export-animations-none",
+            Self::ExportAnimationsAll => "characters-export-animations-all",
+            Self::ExportBusy => "characters-export-busy",
             Self::ExportSkipped => "characters-export-skipped",
             Self::ExportCounts => "characters-export-counts",
             Self::ExportRunningTitle => "characters-export-running-title",

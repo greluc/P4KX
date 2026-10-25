@@ -27,9 +27,9 @@ use crate::interior_export::select_socpak;
 use crate::tagging::{archive, wait_until};
 use crate::waiting::{RunQuiet, wait_for_model};
 
-type Window = (tempfile::TempDir, Harness<'static, Model>);
+pub(super) type Window = (tempfile::TempDir, Harness<'static, Model>);
 
-fn window(
+pub(super) fn window(
     entries: Vec<TestEntry>,
     language: Language,
     size: [f32; 2],
@@ -70,7 +70,7 @@ fn entity_window(
     Ok(Some((dir, harness)))
 }
 
-fn container_window(
+pub(super) fn container_window(
     language: Language,
     size: [f32; 2],
 ) -> Result<Option<Window>, Box<dyn std::error::Error>> {
@@ -95,7 +95,7 @@ fn overlaps(a: Rect, b: Rect) -> bool {
     shared.width() > 0.5 && shared.height() > 0.5
 }
 
-fn problems(harness: &Harness<'_, Model>, name: &str, size: [f32; 2]) -> Vec<String> {
+pub(super) fn problems(harness: &Harness<'_, Model>, name: &str, size: [f32; 2]) -> Vec<String> {
     let regions = ui::regions(&harness.ctx);
     let mut found = Vec::new();
     if regions.dialogs.is_empty() {
@@ -135,7 +135,7 @@ fn problems(harness: &Harness<'_, Model>, name: &str, size: [f32; 2]) -> Vec<Str
     found
 }
 
-fn top_of(harness: &Harness<'_, Model>) -> Result<f32, &'static str> {
+pub(super) fn top_of(harness: &Harness<'_, Model>) -> Result<f32, &'static str> {
     dialogs(harness)
         .first()
         .map(Rect::top)

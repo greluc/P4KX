@@ -28,11 +28,13 @@ fn hull_window(language: Language) -> Result<Window, Box<dyn std::error::Error>>
 }
 
 pub(crate) fn container_window() -> Result<Window, Box<dyn std::error::Error>> {
-    let (dir, mut harness) = opened_sized(
-        lit_interior_entries(),
-        Language::BritishEnglish,
-        [1400.0, 900.0],
-    )?;
+    container_window_in(Language::BritishEnglish)
+}
+
+pub(crate) fn container_window_in(
+    language: Language,
+) -> Result<Window, Box<dyn std::error::Error>> {
+    let (dir, mut harness) = opened_sized(lit_interior_entries(), language, [1400.0, 900.0])?;
     harness.state_mut().set_work_tab(WorkTab::Archive);
     harness.state_mut().set_preview_tab(PreviewTab::Hex);
     harness.run_steps(2);
@@ -228,7 +230,7 @@ fn a_socpak_entry_offers_the_export_of_its_interior() -> TestResult {
     act_until(
         &mut harness,
         "the click on the Interior export to open the setup",
-        |harness| click_settled(harness, "Export Interior as GLB…"),
+        |harness| click_settled(harness, "Export Interior…"),
         |model| model.assembly_export_setup().is_some(),
     )?;
 

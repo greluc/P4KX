@@ -23,6 +23,7 @@ mod channels;
 mod character_choices;
 mod character_chooser;
 mod character_export;
+mod character_export_setup;
 mod character_report;
 mod character_toolbar;
 mod character_view;
@@ -166,6 +167,8 @@ pub enum Dialog {
     CharacterChf,
     /// Picks the GLB file a Character is exported to.
     CharacterFile,
+    /// Picks the folder a Character is exported to as a Blender package.
+    CharacterPackage,
     /// Picks the PNG or SVG file a UI picture is exported to.
     UiFile,
 }
@@ -232,6 +235,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     model_export_outcome::show(ui, model);
     assembly_export::setup(ui, model, &mut requests);
     assembly_export_outcome::show(ui, model);
+    character_export_setup::setup(ui, model, &mut requests);
     character_export::show(ui, model);
     catalog_outcome::show(ui, model);
     sounds_export::setup(ui, model, &mut requests);

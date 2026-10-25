@@ -5,6 +5,7 @@ use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
 use anyhow::Result;
+use p4kx_assembly::animation_choice;
 use p4kx_extraction::model::{LodSelection, Model};
 use p4kx_extraction::model_info::file_name;
 use p4kx_extraction::{
@@ -15,7 +16,7 @@ use serde::Serialize;
 
 use crate::cli_model::{MaterialsArg, ModelAction};
 use crate::json;
-use crate::model::{archive_animations, choice_of, disk_animations};
+use crate::model::{archive_animations, disk_animations};
 use crate::model_animations::{WrittenJson, write_notes as write_animation_notes};
 use crate::model_text::printable;
 
@@ -84,7 +85,7 @@ pub(crate) fn run(action: &ModelAction, as_json: bool) -> Result<()> {
         options = options.without_vertex_colours();
     }
     let lods = LodSelection::Only(*lod);
-    let choice = choice_of(animations);
+    let choice = animation_choice(animations);
     if let Some(entry) = &source.entry {
         let archive = crate::key::open(&source.path)?;
         let index = PathIndex::new(&archive);

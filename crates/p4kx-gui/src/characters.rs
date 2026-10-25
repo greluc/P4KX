@@ -9,6 +9,8 @@ mod export;
 mod expressions;
 mod head;
 mod install;
+mod package;
+mod setup;
 mod sources;
 mod task;
 
@@ -25,6 +27,7 @@ pub use chooser::{Chooser, ChooserKind, Item, Key};
 pub use export::{CharacterExport, CharacterExportStatus, CharacterExportSummary};
 pub use expressions::Expression;
 pub use head::{HeadInfo, HeadSource};
+pub use setup::CharacterExportSetup;
 pub use sources::Sources;
 use task::{Polled, Task};
 
@@ -75,6 +78,7 @@ struct Shown {
     spans: Vec<Option<crate::MorphSpan>>,
     issues: Vec<PartIssue>,
     replaced: Vec<p4kx_assembly::Replaced>,
+    npc_folder: Option<String>,
 }
 
 /// The export choices that are not part of the Character.
@@ -84,6 +88,8 @@ struct ExportChoices {
     texture_mip: u32,
     vertex_colours: bool,
     folder: Option<PathBuf>,
+    package: bool,
+    animations: bool,
 }
 
 /// The Characters tab: the body, head, pieces and Loadout a Character is composed of, the 3D view
@@ -103,6 +109,7 @@ pub struct CharactersTab {
     chooser: Option<Chooser>,
     lod: u32,
     export_choices: ExportChoices,
+    setup: Option<CharacterExportSetup>,
     expressions: expressions::Choice,
     building: Option<Building>,
     shown: Option<Shown>,
@@ -111,6 +118,8 @@ pub struct CharactersTab {
     camera: Option<Camera>,
     playback: Option<Playback>,
     export: Option<CharacterExport>,
+    #[cfg(feature = "test-hooks")]
+    gate: Option<Arc<crate::hold::Gate>>,
 }
 
 impl std::fmt::Debug for CharactersTab {
@@ -146,7 +155,10 @@ impl Default for CharactersTab {
                 texture_mip: 0,
                 vertex_colours: true,
                 folder: None,
+                package: false,
+                animations: true,
             },
+            setup: None,
             expressions: expressions::Choice::default(),
             building: None,
             shown: None,
@@ -155,6 +167,8 @@ impl Default for CharactersTab {
             camera: None,
             playback: None,
             export: None,
+            #[cfg(feature = "test-hooks")]
+            gate: None,
         }
     }
 }
@@ -189,6 +203,8 @@ impl CharactersTab {
             texture_mip: settings.texture_mip,
             vertex_colours: settings.vertex_colours,
             folder: settings.folder.clone(),
+            package: false,
+            animations: true,
         };
         self.ctx = Some(Context {
             index: Arc::clone(index),

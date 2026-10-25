@@ -10,7 +10,8 @@ use anyhow::{Context, Result};
 use p4kx_export::{
     CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
     CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, PaintSummary, Playability,
-    ShopSummary, SizeWarning, StarmapSummary, UPLOAD_LIMIT, catalog_schema, write_catalog,
+    ShopSummary, SizeWarning, StarmapSummary, StoreSlugSummary, UPLOAD_LIMIT, catalog_schema,
+    write_catalog,
 };
 use p4kx_extraction::Archive;
 use thiserror::Error;
@@ -22,6 +23,8 @@ use crate::extract::cancel_on_interrupt;
 use crate::json;
 use crate::loc::print_notes;
 use crate::progress::ProgressLine;
+
+const STALE_SLUGS_SHOWN: usize = 5;
 
 /// An export time that no system time can hold.
 #[derive(Debug, Error)]
@@ -229,6 +232,41 @@ fn print_paints(out: &mut impl Write, paints: PaintSummary) -> io::Result<()> {
     )
 }
 
+fn print_store_slugs(out: &mut impl Write, slugs: &StoreSlugSummary) -> io::Result<()> {
+    if slugs.stale_check_skipped {
+        return writeln!(
+            out,
+            "ship store slugs: no catalog ship matches a store slug, stale check skipped"
+        );
+    }
+    writeln!(
+        out,
+        "ship store slugs: {} of {} slugs map to a ship, {} resolve, {} retired, {} unmapped, {} stale",
+        slugs.mapped,
+        slugs.slugs,
+        slugs.resolved,
+        slugs.retired,
+        slugs.unmapped,
+        slugs.stale.len()
+    )?;
+    if !slugs.stale.is_empty() {
+        let shown = slugs
+            .stale
+            .iter()
+            .take(STALE_SLUGS_SHOWN)
+            .map(String::as_str)
+            .collect::<Vec<_>>()
+            .join(", ");
+        let more = slugs.stale.len().saturating_sub(STALE_SLUGS_SHOWN);
+        if more == 0 {
+            writeln!(out, "stale ship store slugs: {shown}")?;
+        } else {
+            writeln!(out, "stale ship store slugs: {shown} and {more} more")?;
+        }
+    }
+    Ok(())
+}
+
 fn print_shops(out: &mut impl Write, shops: &ShopSummary) -> io::Result<()> {
     writeln!(
         out,
@@ -280,6 +318,7 @@ fn print_summary(summary: &CatalogSummary, out: &Path) -> io::Result<()> {
     print_loadouts(&mut stdout, summary.loadouts())?;
     print_starmap(&mut stdout, summary.starmap())?;
     print_shops(&mut stdout, summary.shops())?;
+    print_store_slugs(&mut stdout, summary.store_slugs())?;
     print_classification(&mut stdout, summary)?;
     for text in summary.texts() {
         writeln!(

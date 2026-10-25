@@ -20,6 +20,7 @@ pub(crate) use crate::contract_rewards::{
 };
 pub(crate) use crate::contract_shops::Shop;
 pub(crate) use crate::contract_starmap::StarmapObject;
+pub(crate) use crate::contract_store_slugs::ShipStoreSlug;
 
 /// The version of the catalog shape.
 ///
@@ -80,6 +81,9 @@ pub(crate) struct Catalog<'a> {
     pub(crate) refining_processes: Vec<RefiningProcess<'a>>,
     /// The shops of the shop registry with kind, brand and place, ordered by `key`.
     pub(crate) shops: Vec<Shop>,
+    /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
+    /// by `slug`. A curated list, not read from the Archive.
+    pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
 }
 
 /// Where a catalog came from.
@@ -160,6 +164,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) refining_processes: KindCompleteness<'a>,
     /// The completeness of `shops`.
     pub(crate) shops: KindCompleteness<'a>,
+    /// The completeness of `shipStoreSlugs`.
+    pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
 
 impl<'a> Completeness<'a> {
@@ -184,6 +190,7 @@ impl<'a> Completeness<'a> {
             mineable_elements: completeness,
             refining_processes: completeness,
             shops: completeness,
+            ship_store_slugs: completeness,
         }
     }
 }

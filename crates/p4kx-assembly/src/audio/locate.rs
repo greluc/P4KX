@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_audio::SoundSource;
+use p4kx_audio::{MediaStorage, SoundSource};
 
 use super::{AudioIndex, IndexedSoundbank, LanguageChoice, SourceKind, WemLocation};
 
@@ -24,8 +24,16 @@ pub(crate) fn locate<'i>(
     choice: &LanguageChoice,
     source: &SoundSource,
 ) -> Located<'i> {
-    let kind = SourceKind::of(source);
-    if matches!(kind, SourceKind::Plugin | SourceKind::Other(_)) {
+    if !source.has_media_file() {
+        return Located::default();
+    }
+    let kind = match source.storage {
+        MediaStorage::Embedded => SourceKind::Embedded,
+        MediaStorage::PrefetchStreamed => SourceKind::PrefetchStreamed,
+        MediaStorage::Streamed => SourceKind::Streamed,
+        MediaStorage::Other(storage) => SourceKind::Other(storage),
+    };
+    if matches!(kind, SourceKind::Other(_)) {
         return Located::default();
     }
     let localised = source.is_language_specific() || soundbank.language().is_some();

@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/it/catalog.rs
+source: crates/p4kx/tests/catalog.rs
 expression: summary
 ---
 manufacturers: 2 written, 1 skipped, complete

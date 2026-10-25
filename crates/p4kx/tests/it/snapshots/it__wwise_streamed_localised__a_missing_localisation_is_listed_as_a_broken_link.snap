@@ -4,4 +4,4 @@ expression: run.stdout
 ---
 Play_Only  Data\Libs\GameAudio\SC_Audio.xml
   ! Play_DX_Only: broken at event 3248668747: no localisation in the language German; event 3248668747
-0 variants: 0 located, 0 not located, 0 plug-in; 1 broken links
+0 variants: 0 located, 0 not located, 0 without a file; 1 broken links

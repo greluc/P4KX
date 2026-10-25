@@ -109,7 +109,10 @@ fn count_fields(assets: &Assets<'_>, unresolved: &[&str], tally: &mut Tally) {
     reason = "the counts of the real Archive are the output"
 )]
 fn the_tags_of_real_ui_movies_that_are_not_read_are_counted_by_code() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let mut unread: BTreeMap<u16, u32> = BTreeMap::new();
     let (mut movies, mut failures, mut unknown, mut labels, mut lists) = (0_usize, 0, 0, 0, 0);
     let mut compacted = 0_usize;
@@ -159,7 +162,10 @@ fn the_tags_of_real_ui_movies_that_are_not_read_are_counted_by_code() -> TestRes
     reason = "the counts of the real Archive are the output"
 )]
 fn imported_fonts_of_real_ui_movies_resolve() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let mut tally = Tally::default();
     for entry in archive.entries().iter().filter(|entry| is_movie(entry)) {
         if let Err(error) = tally_movie(&archive, entry, &mut tally) {

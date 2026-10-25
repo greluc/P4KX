@@ -3,7 +3,7 @@
 
 use std::ops::Range;
 
-use crate::AudioError;
+use crate::{AudioError, MediaClass};
 
 const HEADER_LEN: usize = 12;
 const CHUNK_HEADER_LEN: usize = 8;
@@ -58,6 +58,9 @@ impl<'a> Chunks<'a> {
             Some(b"RIFF") => ByteOrder::Little,
             Some(b"RIFX") => ByteOrder::Big,
             Some(b"PLUG") => return Err(AudioError::PluginMedia),
+            Some(_) if MediaClass::of(bytes) == MediaClass::Midi => {
+                return Err(AudioError::MidiMedia);
+            }
             Some(_) => return Err(AudioError::NotWem),
             None => return Err(truncated(bytes, HEADER_LEN as u64)),
         };
@@ -66,6 +69,7 @@ impl<'a> Chunks<'a> {
             .ok_or_else(|| truncated(bytes, HEADER_LEN as u64))?;
         match bytes.get(8..HEADER_LEN) {
             Some(b"WAVE") => {}
+            Some(b"RMID") if order == ByteOrder::Little => return Err(AudioError::MidiMedia),
             Some(_) => return Err(AudioError::NotWem),
             None => return Err(truncated(bytes, HEADER_LEN as u64)),
         }

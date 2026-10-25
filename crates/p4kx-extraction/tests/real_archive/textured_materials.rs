@@ -31,7 +31,10 @@ const MIN_NORMAL_MAPS: usize = 200;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn a_sample_of_models_exports_valid_textured_glb() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let out = tempfile::tempdir()?;
     let mut sample: Vec<&Entry> = Vec::new();
@@ -165,7 +168,10 @@ fn curl(image: &RgbaImage) -> Option<f64> {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_normal_maps_of_the_engine_have_green_pointing_down_the_image() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let index = PathIndex::new(&archive);
     let files: BTreeSet<String> = archive
         .entries()

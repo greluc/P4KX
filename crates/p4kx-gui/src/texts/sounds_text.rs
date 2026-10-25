@@ -107,6 +107,10 @@ pub enum SoundsText {
     SourceStreamed,
     /// A source a plug-in generates.
     SourcePlugin,
+    /// A source the game hands in at runtime.
+    SourceExternal,
+    /// A source that is a MIDI file.
+    SourceMidi,
     /// A source of a kind this reader does not know.
     SourceOther,
     /// A language that is the fallback; takes `language`.
@@ -121,6 +125,10 @@ pub enum SoundsText {
     NotePrefetch,
     /// Shown when a source plug-in generates the sound.
     NotePlugin,
+    /// Shown when an external source supplies the sound at runtime.
+    NoteExternal,
+    /// Shown when the sound is a MIDI file.
+    NoteMidi,
     /// Shown when no soundbank or WEM Entry holds the WEM.
     NoteMissing,
     /// The title of the sound export setup.
@@ -173,7 +181,7 @@ pub enum SoundsText {
 
 impl SoundsText {
     /// Every text of the Sounds tab.
-    pub(crate) const ALL: [Self; 82] = [
+    pub(crate) const ALL: [Self; 86] = [
         Self::Tab,
         Self::EntityLabel,
         Self::EntityHint,
@@ -225,6 +233,8 @@ impl SoundsText {
         Self::SourcePrefetch,
         Self::SourceStreamed,
         Self::SourcePlugin,
+        Self::SourceExternal,
+        Self::SourceMidi,
         Self::SourceOther,
         Self::LanguageFallback,
         Self::VariantRow,
@@ -232,6 +242,8 @@ impl SoundsText {
         Self::SelectVariant,
         Self::NotePrefetch,
         Self::NotePlugin,
+        Self::NoteExternal,
+        Self::NoteMidi,
         Self::NoteMissing,
         Self::ExportTitle,
         Self::ExportScope,
@@ -314,6 +326,8 @@ impl SoundsText {
             Self::SourcePrefetch => "sounds-source-prefetch",
             Self::SourceStreamed => "sounds-source-streamed",
             Self::SourcePlugin => "sounds-source-plugin",
+            Self::SourceExternal => "sounds-source-external",
+            Self::SourceMidi => "sounds-source-midi",
             Self::SourceOther => "sounds-source-other",
             Self::LanguageFallback => "sounds-language-fallback",
             Self::VariantRow => "sounds-variant-row",
@@ -321,6 +335,8 @@ impl SoundsText {
             Self::SelectVariant => "sounds-select-variant",
             Self::NotePrefetch => "sounds-note-prefetch",
             Self::NotePlugin => "sounds-note-plugin",
+            Self::NoteExternal => "sounds-note-external",
+            Self::NoteMidi => "sounds-note-midi",
             Self::NoteMissing => "sounds-note-missing",
             Self::ExportTitle => "sounds-export-title",
             Self::ExportScope => "sounds-export-scope",

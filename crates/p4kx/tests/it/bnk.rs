@@ -234,7 +234,9 @@ fn a_malformed_hirc_object_does_not_stop_listing_or_extracting() -> TestResult {
         .arg(&file)
         .assert()
         .code(0)
-        .stdout(predicate::str::is_match(r"(?m)^ +100  PCM +0\.100 s$")?);
+        .stdout(predicate::str::is_match(
+            r"(?m)^ +100  WEM +PCM +0\.100 s$",
+        )?);
     p4kx()?
         .args(["bnk", "extract"])
         .arg(&file)

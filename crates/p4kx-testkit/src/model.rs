@@ -4,7 +4,7 @@
 use crate::TestChunkFile;
 use crate::model_cube::{cube_nodes, cube_submeshes, cube_vertices};
 pub use crate::model_layout::{TestNormals, TestPositions};
-use crate::model_nmc::nmc_chunk;
+use crate::model_nmc::{NodeDetails, nmc_chunk};
 use crate::model_skin::{skin_chunk, tangent_frame};
 
 const EXPORT_FLAGS: u32 = 0xBE5E_493E;
@@ -82,6 +82,7 @@ pub struct TestModel {
     pub(crate) tangent_sign: f32,
     pub(crate) second_uvs: Option<Vec<[f32; 2]>>,
     pub(crate) bone_map: Option<BoneMap>,
+    pub(crate) node_details: Vec<NodeDetails>,
     lods: Vec<Self>,
     extra_chunks: Vec<(u32, Vec<u8>)>,
     single_file: bool,
@@ -116,6 +117,7 @@ impl TestModel {
             tangent_sign: 1.0,
             second_uvs: None,
             bone_map: None,
+            node_details: Vec::new(),
             lods: Vec::new(),
             extra_chunks: Vec::new(),
             single_file: false,

@@ -17,7 +17,10 @@ type TestResult = Result<(), Box<dyn Error>>;
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_human_body_port_shows_its_nested_items() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let files = ArchiveFiles::new(&archive);
@@ -131,7 +134,10 @@ fn nameless_nested<'i>(items: &'i [Item], out: &mut Vec<&'i Item>, total: &mut u
     reason = "the counts and example paths are the measurement"
 )]
 fn count_xml_loadout_items_without_item_name_that_hold_nested_items() -> TestResult {
-    let archive = Archive::open(real_archive_path()?)?;
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
     let (mut files, mut total) = (0_usize, 0_usize);
     let mut by_folder: BTreeMap<String, (usize, usize)> = BTreeMap::new();
     let mut examples = Vec::new();

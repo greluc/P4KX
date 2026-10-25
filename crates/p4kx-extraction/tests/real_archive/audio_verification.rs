@@ -98,7 +98,7 @@ impl Tally {
     fn convert(&mut self, label: &str, bytes: &[u8]) {
         let wem = match Wem::parse(bytes) {
             Ok(wem) => wem,
-            Err(AudioError::PluginMedia) => {
+            Err(AudioError::PluginMedia | AudioError::MidiMedia) => {
                 self.plugin_media += 1;
                 return;
             }
@@ -198,7 +198,7 @@ fn write_outputs(directory: &Path, tally: &Tally) -> TestResult {
 }
 
 fn verify(name: &str, path: &Path) -> TestResult {
-    let archive = Archive::open(path)?;
+    let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
     let entries = archive.entries();
     let loose: Vec<&Entry> = entries
         .iter()
@@ -301,7 +301,7 @@ fn convert_bank(archive: &Archive, entry: &Entry) -> Tally {
 }
 
 fn extract_banks(path: &Path) -> TestResult {
-    let archive = Archive::open(path)?;
+    let archive = Archive::open_with_key(path, Some(p4kx_testkit::real_archive_key()?))?;
     let banks: Vec<&Entry> = archive
         .entries()
         .iter()
@@ -327,7 +327,7 @@ fn extract_banks(path: &Path) -> TestResult {
                     failure.error,
                     ConversionError::PrefetchedWem { .. }
                         | ConversionError::Audio {
-                            source: AudioError::PluginMedia,
+                            source: AudioError::PluginMedia | AudioError::MidiMedia,
                             ..
                         }
                 )

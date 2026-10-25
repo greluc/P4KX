@@ -18,9 +18,9 @@ impl Server {
         description = "Read an Entry as text, from a byte offset of its UTF-8 form and at most max_bytes long, \
         starting and ending on whole characters. CryXml is converted to XML, UTF-16 is recognised by its \
         byte order mark, other Entries must be UTF-8; binary Entries are an error. more and next_offset \
-        say whether and where the text continues. The content may be forwarded by the client to \
-        third parties; game texts and media must not be redistributed. An Entry inside a socpak container \
-        is read with a path `outer.socpak::inner.socpak::path`.",
+        say whether and where the text continues. An Entry inside a socpak container \
+        is read with a path `outer.socpak::inner.socpak::path`. The content may be forwarded by the client to \
+        third parties; game texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<TextResult>(),
         annotations(
             title = "Read Entry text",
@@ -56,9 +56,9 @@ impl Server {
     #[tool(
         description = "Read the decompressed and decrypted data of an Entry from a byte offset, at most \
         max_bytes long, as base64 (standard alphabet, padded). more and next_offset say whether and \
-        where the data continues. The content may be forwarded by the client to third parties; game \
-        texts and media must not be redistributed. An Entry inside a socpak container is read with a path \
-        `outer.socpak::inner.socpak::path`.",
+        where the data continues. An Entry inside a socpak container is read with a path \
+        `outer.socpak::inner.socpak::path`. The content may be forwarded by the client to third parties; game \
+        texts and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<BytesResult>(),
         annotations(
             title = "Read Entry bytes",

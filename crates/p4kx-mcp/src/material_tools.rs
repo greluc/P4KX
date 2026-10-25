@@ -16,8 +16,8 @@ impl Server {
     #[tool(
         description = "Summarise a .mtl material library Entry (text XML or CryXml): whether it is one material or a list of \
         sub-materials, its default tint palette, and per sub-material, page by page, the material ID, name, shader, surface type, \
-        generation mask, flags, colours, shininess, opacity, alpha test, glow, texture slots with their texture paths, shader \
-        parameters (at most 64, values cut at 2048 characters) and material layers (at most 64). It is the file as written; layer \
+        generation mask, flags, colours, shininess, opacity, alpha test, glow, texture slots with their texture paths (at most 64), shader \
+        parameters (at most 64, values cut at 256 characters) and material layers (at most 64). It is the file as written; layer \
         files are not read. Files over 8 MiB are refused. The content may be forwarded by the client to third parties; game texts \
         and media must not be redistributed.",
         output_schema = rmcp::handler::server::tool::schema_for_output::<MaterialsResult>(),

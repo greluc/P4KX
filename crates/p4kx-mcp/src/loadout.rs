@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::archives::Opened;
-use crate::budget::fill;
+use crate::budget::{fill_within, json_len};
 use crate::error::ToolError;
 use crate::page::Page;
 
@@ -19,9 +19,15 @@ pub(crate) const DEFAULT_DEPTH: u32 = 16;
 /// The deepest port nesting a call may ask for.
 pub(crate) const MAX_DEPTH: u32 = 32;
 /// The most characters of a text.
-const MAX_TEXT_CHARS: usize = 2048;
+const MAX_TEXT_CHARS: usize = 256;
+/// The most characters of a port path.
+const MAX_PATH_CHARS: usize = 1024;
+/// The most issues listed per Entity.
+const MAX_ISSUES: usize = 64;
 /// The most item types listed per port.
-const MAX_TYPES: usize = 64;
+const MAX_TYPES: usize = 16;
+/// The most sub-types listed per item type.
+const MAX_SUB_TYPES: usize = 16;
 
 /// The arguments of `entity_loadout`.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -78,8 +84,10 @@ pub(crate) struct EntityShape {
     pub(crate) docked_vehicle: bool,
     /// Whether the Loadout of a docked vehicle is resolved.
     pub(crate) expanded: bool,
-    /// Why the Entity's own Loadout cannot be read in full.
+    /// Why the Entity's own Loadout cannot be read in full, at most 64.
     pub(crate) issues: Vec<ErrorShape>,
+    /// The number of such reasons.
+    pub(crate) issue_count: usize,
 }
 
 /// The ports of a tree by what they hold.
@@ -132,8 +140,10 @@ pub(crate) struct DefinitionShape {
     pub(crate) min_size: Option<u32>,
     /// The largest item size.
     pub(crate) max_size: Option<u32>,
-    /// The item types taken, at most 64.
+    /// The item types taken, at most 16.
     pub(crate) types: Vec<TypeShape>,
+    /// The number of item types taken.
+    pub(crate) type_count: usize,
     /// The helper of the parent's model the port attaches to.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) helper: Option<String>,
@@ -144,8 +154,10 @@ pub(crate) struct DefinitionShape {
 pub(crate) struct TypeShape {
     /// The type, e.g. `WeaponGun`.
     pub(crate) name: String,
-    /// The sub-types; empty when every sub-type is taken.
+    /// The sub-types, at most 16; empty when every sub-type is taken.
     pub(crate) sub_types: Vec<String>,
+    /// The number of sub-types.
+    pub(crate) sub_type_count: usize,
 }
 
 /// A reason a port or an Entity cannot be resolved.
@@ -191,22 +203,29 @@ pub(crate) fn resolve(
         .filter(|(path, _)| depth(path) <= max_depth)
         .map(|(path, port)| (path, *port))
         .collect();
-    let items = page
-        .slice(&near)
-        .iter()
-        .map(|&(path, port)| Ok(port_shape(path, port)));
-    let (ports, next_cursor) = fill(page, near.len(), items, |shape: &PortShape| {
-        format!("port {}", shape.path)
-    })?;
-    Ok(LoadoutResult {
+    let mut result = LoadoutResult {
         archive: opened.archive().path().display().to_string(),
         entity: entity_shape(&tree),
         counts,
         total: near.len(),
         deeper: all.len() - near.len(),
-        ports,
-        next_cursor,
-    })
+        ports: Vec::new(),
+        next_cursor: None,
+    };
+    let items = page
+        .slice(&near)
+        .iter()
+        .map(|&(path, port)| Ok(port_shape(path, port)));
+    let (ports, next_cursor) = fill_within(
+        page,
+        near.len(),
+        json_len(&result),
+        items,
+        |shape: &PortShape| format!("port {}", shape.path),
+    )?;
+    result.ports = ports;
+    result.next_cursor = next_cursor;
+    Ok(result)
 }
 
 fn depth(path: &str) -> usize {
@@ -239,8 +258,10 @@ fn entity_shape(node: &EntityNode) -> EntityShape {
         issues: node
             .issues()
             .iter()
+            .take(MAX_ISSUES)
             .map(|error| error_shape(error, None))
             .collect(),
+        issue_count: node.issues().len(),
     }
 }
 
@@ -254,7 +275,7 @@ fn port_shape(path: &str, port: &PortNode) -> PortShape {
         ),
     };
     PortShape {
-        path: clip(path),
+        path: path.chars().take(MAX_PATH_CHARS).collect(),
         depth: depth(path),
         name: clip(port.name()),
         source: port.source().code(),
@@ -280,9 +301,16 @@ fn definition_shape(definition: &PortDefinition) -> DefinitionShape {
             .take(MAX_TYPES)
             .map(|item| TypeShape {
                 name: clip(item.name()),
-                sub_types: item.sub_types().iter().map(|text| clip(text)).collect(),
+                sub_types: item
+                    .sub_types()
+                    .iter()
+                    .take(MAX_SUB_TYPES)
+                    .map(|text| clip(text))
+                    .collect(),
+                sub_type_count: item.sub_types().len(),
             })
             .collect(),
+        type_count: definition.types().len(),
         helper: definition
             .transform()
             .map(|transform| clip(transform.helper()))

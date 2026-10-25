@@ -136,3 +136,113 @@ fn a_library_inside_a_container_and_bad_files_are_handled() -> TestResult {
     assert!(unknown.contains("holds no Entry"), "{unknown}");
     Ok(())
 }
+
+#[test]
+fn a_library_over_the_size_limit_is_refused() -> TestResult {
+    let install = Install::new(vec![TestEntry::zstd(
+        "Data/Objects/Test/huge.mtl",
+        vec![b' '; (8 << 20) + 1],
+    )])?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let error = server.error(
+        "mtl_summary",
+        &json!({ "path": "Data/Objects/Test/huge.mtl" }),
+    )?;
+
+    assert!(error.contains("more than the 8388608"), "{error}");
+    Ok(())
+}
+
+fn crowded() -> TestMtlMaterial {
+    let material = (0..70).fold(TestMtlMaterial::new("crowded"), |material, number| {
+        let material = if number < 64 {
+            material.texture(
+                &format!("TexSlot{number}"),
+                &format!("objects/test/{number}.dds"),
+            )
+        } else {
+            material
+        };
+        material.public_param(&format!("Param{number}"), "1")
+    });
+    (0..70).fold(material, |material, number| {
+        material.layer(&format!("l{number}"), "0")
+    })
+}
+
+#[test]
+fn lists_inside_a_material_are_capped_and_counted() -> TestResult {
+    let install = Install::new(vec![TestEntry::stored(
+        "Data/Objects/Test/crowded.mtl",
+        TestMtl::multi(&[crowded()]).text_xml(),
+    )])?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let summary = server.ok(
+        "mtl_summary",
+        &json!({ "path": "Data/Objects/Test/crowded.mtl" }),
+    )?;
+
+    let material = summary["materials"][0].clone();
+    assert_eq!(
+        material["textures"].as_array().map(Vec::len),
+        Some(64),
+        "textures capped"
+    );
+    assert_eq!(material["texture_count"], 64, "and counted");
+    assert_eq!(
+        material["public_params"].as_array().map(Vec::len),
+        Some(64),
+        "parameters capped"
+    );
+    assert_eq!(material["public_param_count"], 70, "and counted");
+    assert_eq!(
+        material["layers"].as_array().map(Vec::len),
+        Some(64),
+        "layers capped"
+    );
+    assert_eq!(
+        material["layer_count"], 64,
+        "and counted, as far as the reader keeps them"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_page_of_large_materials_ends_early_and_the_whole_response_fits_the_cap() -> TestResult {
+    let long = "x".repeat(250);
+    let heavy = (0..64).fold(TestMtlMaterial::new("heavy"), |material, number| {
+        material.texture(&format!("TexSlot{number}"), &format!("{long}{number}.dds"))
+    });
+    let library = TestMtl::multi(&vec![heavy; 100]).text_xml();
+    let install = Install::new(vec![TestEntry::zstd(
+        "Data/Objects/Test/heavy.mtl",
+        library,
+    )])?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let text = server.ok_text(
+        "mtl_summary",
+        &json!({ "path": "Data/Objects/Test/heavy.mtl", "limit": 1000 }),
+    )?;
+
+    assert!(
+        text.len() <= 256 << 10,
+        "the response is {} bytes",
+        text.len()
+    );
+    let page: serde_json::Value = serde_json::from_str(&text)?;
+    assert!(page["next_cursor"].is_string(), "the page ended early");
+    let first = page["materials"].as_array().map_or(0, Vec::len);
+    let next = server.ok(
+        "mtl_summary",
+        &json!({
+            "path": "Data/Objects/Test/heavy.mtl",
+            "limit": 1000,
+            "cursor": page["next_cursor"]
+        }),
+    )?;
+    assert_eq!(next["materials"][0]["id"], first, "the next page continues");
+    Ok(())
+}

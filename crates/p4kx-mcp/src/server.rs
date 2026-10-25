@@ -286,7 +286,8 @@ impl Server {
                 "container",
                 params.container.as_deref().unwrap_or_default(),
                 MAX_PATH_LEN,
-            )?;
+            )?
+            .trim_end_matches(crate::container::SEPARATOR);
             let opened = state.archive(params.archive.as_deref())?;
             let listing = ("search_entries", opened.version(), filter, container);
             let page = Page::new(&listing, params.cursor.as_deref(), params.limit)?;

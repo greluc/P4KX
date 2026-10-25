@@ -95,20 +95,7 @@ pub(crate) fn preview(
         .transpose()?;
     let side = params.max_side.unwrap_or(DEFAULT_SIDE).clamp(1, MAX_SIDE);
     let level = level_of(params.mip, side, face.is_some(), header)?;
-    let [width, height] = shown_size(header, level, face.is_some());
-    if u64::from(width) * u64::from(height) > MAX_PIXELS {
-        return Err(refused(format!(
-            "mip {level} of {path} is {width}x{height} pixels, more than the {MAX_PIXELS} a preview shows; ask for a higher mip or a smaller max_side"
-        )));
-    }
-    if header
-        .mip_size(level)
-        .is_some_and(|size| size > MAX_MIP_LEN)
-    {
-        return Err(refused(format!(
-            "mip {level} of {path} holds more than {MAX_MIP_LEN} bytes; ask for a higher mip"
-        )));
-    }
+    check_budget(header, level, face.is_some(), path, MAX_PIXELS, MAX_MIP_LEN)?;
     let shown = texture
         .preview_png(level, face)
         .map_err(|error| ToolError::converted(path, "a texture", error))?;
@@ -137,6 +124,34 @@ pub(crate) fn preview(
         png_bytes: shown.png.len(),
     };
     Ok((result, shown.png))
+}
+
+/// Refuses a mip whose decoded pixels, with every image of the level, or whose texture data
+/// exceed the limits, and one whose data size is unknown.
+fn check_budget(
+    header: &DdsHeader,
+    level: u32,
+    face: bool,
+    path: &str,
+    max_pixels: u64,
+    max_mip_len: u64,
+) -> Result<(), ToolError> {
+    let [width, height] = shown_size(header, level, face);
+    let side = |full: u32| u64::from(full.checked_shr(level).unwrap_or(0).max(1));
+    let decoded = u64::from(header.images(level))
+        .saturating_mul(side(header.width()))
+        .saturating_mul(side(header.height()));
+    if u64::from(width) * u64::from(height) > max_pixels || decoded > max_pixels {
+        return Err(refused(format!(
+            "mip {level} of {path} is {width}x{height} pixels and decodes {decoded} pixels, more than the {max_pixels} a preview takes; ask for a higher mip or a smaller max_side"
+        )));
+    }
+    if header.mip_size(level).is_none_or(|size| size > max_mip_len) {
+        return Err(refused(format!(
+            "mip {level} of {path} has no known size or holds more than {max_mip_len} bytes; ask for a higher mip"
+        )));
+    }
+    Ok(())
 }
 
 const fn refused(message: String) -> ToolError {
@@ -191,4 +206,41 @@ fn level_of(
                 .all(|&size| size <= side)
         })
         .unwrap_or_else(|| count.saturating_sub(1)))
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_extraction::DdsHeader;
+    use p4kx_testkit::{SplitDds, TestTextureFormat};
+
+    use super::check_budget;
+
+    type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    fn header(width: u32, height: u32) -> Result<DdsHeader, Box<dyn std::error::Error>> {
+        let dds = SplitDds::new(TestTextureFormat::BC7_SRGB, width, height);
+        Ok(DdsHeader::parse(&dds.header_bytes())?)
+    }
+
+    #[test]
+    fn a_mip_with_more_pixels_than_the_limit_is_refused() -> TestResult {
+        let header = header(64, 64)?;
+        assert!(check_budget(&header, 0, false, "t.dds", 64 * 64, u64::MAX).is_ok());
+        let refused = check_budget(&header, 0, false, "t.dds", 64 * 64 - 1, u64::MAX);
+        assert!(refused.is_err(), "one pixel too many");
+        assert!(
+            check_budget(&header, 1, false, "t.dds", 64 * 64 - 1, u64::MAX).is_ok(),
+            "a higher mip fits"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_mip_with_more_data_than_the_limit_is_refused() -> TestResult {
+        let header = header(64, 64)?;
+        let size = header.mip_size(0).ok_or("a size")?;
+        assert!(check_budget(&header, 0, false, "t.dds", u64::MAX, size).is_ok());
+        assert!(check_budget(&header, 0, false, "t.dds", u64::MAX, size - 1).is_err());
+        Ok(())
+    }
 }

@@ -161,3 +161,42 @@ fn unknown_and_non_texture_entries_are_errors() -> TestResult {
     assert!(text.contains("cannot read the Entry"), "{text}");
     Ok(())
 }
+
+#[test]
+fn a_mip_with_too_many_pixels_is_refused_and_the_automatic_level_avoids_it() -> TestResult {
+    let big = SplitDds::new(TestTextureFormat::BC7_SRGB, 4096, 4096).entries("Data/big.dds");
+    let install = Install::new(big)?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let error = server.error(
+        "image_preview",
+        &json!({ "path": "Data/big.dds", "mip": 0 }),
+    )?;
+    let (chosen, _) = preview(&mut server, &json!({ "path": "Data/big.dds" }))?;
+
+    assert!(error.contains("pixels"), "{error}");
+    assert_eq!(chosen["mip"], 3, "the level that fits 512");
+    Ok(())
+}
+
+#[test]
+fn the_pixel_limit_counts_every_face_of_a_cubemap_in_face_mode() -> TestResult {
+    let sky = SplitDds::new(TestTextureFormat::BC7_SRGB, 2048, 2048)
+        .cubemap()
+        .entries("Data/sky.dds");
+    let install = Install::new(sky)?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let error = server.error(
+        "image_preview",
+        &json!({ "path": "Data/sky.dds", "face": "posx", "mip": 0 }),
+    )?;
+    let (face, _) = preview(
+        &mut server,
+        &json!({ "path": "Data/sky.dds", "face": "posx" }),
+    )?;
+
+    assert!(error.contains("pixels"), "{error}");
+    assert_eq!(face["width"], 512, "the automatic level fits");
+    Ok(())
+}

@@ -8,8 +8,9 @@ to see a texture or to resolve a Loadout.
 
 ## Decision
 
-- **A container path is `outer.socpak::inner.socpak::path`.** `::` cannot occur in an Entry path of
-  a Windows-style Archive, so it separates the containers from the path inside the last one. Every
+- **A container path is `outer.socpak::inner.socpak::path`.** `::` does not occur in
+  real Archives, so it separates the containers from the path inside the last one; an Entry that
+  has it in its path is unreachable through container paths. Every
   segment before the last names a container Entry, matched ignoring case and separator kind like any
   Entry. `list_entries` takes it as `folder` (`outer.socpak::` is the top level), `search_entries`
   as `container`, and `read_entry_text`, `read_entry_bytes`, `image_preview` and `mtl_summary` as
@@ -21,11 +22,14 @@ to see a texture or to resolve a Loadout.
   `Archive::open_container` (depth 8, 512 MiB decoded, entry count, compression ratio) apply.
 - **`image_preview` returns the image as a PNG image content block** plus structured metadata, not
   only a path, because the client reads the image from the result and the server writes no file. It
-  is bounded: at most 2048x2048 pixels, 128 MiB of texture data, 1 MiB of PNG and two decodes at a
-  time. The description carries the ADR-0038 sentence that media must not be redistributed.
-- **Budgets:** `entity_loadout` lists ports in pages bounded by the 256 KiB response cap and the
-  page size, at most 32 levels deep (16 by default); texts are cut at 2048 characters and lists
-  inside one material at 64 items. No tool runs code or changes state.
+  is bounded: at most 2048x2048 pixels (counting every image of the mip it decodes), 128 MiB of
+  texture data, 1 MiB of PNG and two decodes at a time. The description carries the ADR-0038 sentence that media must not be redistributed.
+- **Budgets:** `entity_loadout` and `mtl_summary` list in pages bounded by the page size and by
+  the 256 KiB cap on the whole response, the fields around the list included. Ports are at most 32
+  levels deep (16 by default). Texts are cut at 256 characters (a port path at 1024); the lists
+  inside one item are capped, with the full count beside them: 64 texture slots, shader parameters,
+  layers and Entity issues, 16 item types per port and 16 sub-types per item type. The caps keep
+  one item far below the response cap, so no item blocks paging. No tool runs code or changes state.
 
 ## Considered Options
 

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_testkit::{SAMPLE_SHIP, TestEntry, sample_ship};
+use p4kx_testkit::{
+    DataForgeBuilder, SAMPLE_SHIP, TestEntity, TestEntry, TestPort, entity_schema, sample_ship,
+};
 use serde_json::{Value, json};
 
 use crate::support::{Install, TestResult};
@@ -161,4 +163,44 @@ fn an_unknown_entity_is_an_error() -> TestResult {
 
     assert!(error.contains("no Entity has the record path"), "{error}");
     Ok(())
+}
+
+#[test]
+fn item_types_and_sub_types_of_a_port_are_capped_and_counted() -> TestResult {
+    let port = (0..20).fold(TestPort::new("hardpoint_many"), |port, number| {
+        port.item_type(
+            format!("Type{number}"),
+            (0..20).map(|sub| format!("Sub{sub}")),
+        )
+    });
+    let entity = TestEntity::new(
+        0x0000_0001_0002_0003_0004_0000_0000_0099,
+        "TEST_Many",
+        "libs/foundry/records/entities/spaceships/test_many.xml",
+    )
+    .port(port);
+    let forge = entity_schema(DataForgeBuilder::new()).record(entity.record());
+    let install = Install::new(vec![TestEntry::zstd("Data/Game2.dcb", forge.build())])?;
+    let mut server = install.serve(&["--archive", "LIVE"])?;
+
+    let loadout = server.ok("entity_loadout", &json!({ "entity": "TEST_Many" }))?;
+
+    let definition = &port_of(&loadout, "hardpoint_many")?["definition"];
+    assert_eq!(
+        definition["types"].as_array().map(Vec::len),
+        Some(16),
+        "types capped"
+    );
+    assert_eq!(definition["type_count"], 20, "and counted");
+    assert_eq!(
+        definition["types"][0]["sub_types"].as_array().map(Vec::len),
+        Some(16),
+        "sub-types capped"
+    );
+    assert_eq!(definition["types"][0]["sub_type_count"], 20, "and counted");
+    Ok(())
+}
+
+fn port_of<'a>(loadout: &'a Value, path: &str) -> TestResult<&'a Value> {
+    port(loadout, path)
 }

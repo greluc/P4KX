@@ -6,17 +6,17 @@ use p4kx_extraction::{Archive, find_entry, read_bytes};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::budget::fill;
+use crate::budget::{fill_within, json_len};
 use crate::container::Place;
 use crate::error::ToolError;
 use crate::page::Page;
 
 /// The largest `.mtl` Entry read, in bytes.
 pub(crate) const MAX_MTL_LEN: u64 = 8 << 20;
-/// The most shader parameters and layers listed per material.
+/// The most texture slots, shader parameters and layers listed per material.
 const MAX_LISTED: usize = 64;
 /// The most characters of a value.
-const MAX_VALUE_CHARS: usize = 2048;
+const MAX_VALUE_CHARS: usize = 256;
 
 /// The arguments of `mtl_summary`.
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -95,8 +95,10 @@ pub(crate) struct MaterialShape {
     /// The palette colour the material takes, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) palette: Option<String>,
-    /// The texture slots in file order.
+    /// The texture slots in file order, at most 64.
     pub(crate) textures: Vec<TextureShape>,
+    /// The number of texture slots in the file.
+    pub(crate) texture_count: usize,
     /// The shader parameters in file order, at most 64.
     pub(crate) public_params: Vec<ParamShape>,
     /// The number of shader parameters in the file.
@@ -121,7 +123,7 @@ pub(crate) struct TextureShape {
 pub(crate) struct ParamShape {
     /// The parameter name.
     pub(crate) name: String,
-    /// The value as written, cut at 2048 characters.
+    /// The value as written, cut at 256 characters.
     pub(crate) value: String,
 }
 
@@ -147,24 +149,31 @@ pub(crate) fn summary(
 ) -> Result<MaterialsResult, ToolError> {
     let archive = place.archive();
     let (name, library) = read(archive, path)?;
-    let items = page
-        .slice(&library.materials)
-        .iter()
-        .enumerate()
-        .map(|(position, material)| Ok(shape(page.offset() + position, material)));
-    let (materials, next_cursor) = fill(page, library.materials.len(), items, |shape| {
-        format!("material {}", shape.id)
-    })?;
-    Ok(MaterialsResult {
+    let mut result = MaterialsResult {
         archive: archive.path().display().to_string(),
         path: place.shown(&name),
         single: library.single,
         default_palette: library.default_palette.as_deref().map(clip),
         unknown_entries: library.unknown_entries,
         total: library.materials.len(),
-        materials,
-        next_cursor,
-    })
+        materials: Vec::new(),
+        next_cursor: None,
+    };
+    let items = page
+        .slice(&library.materials)
+        .iter()
+        .enumerate()
+        .map(|(position, material)| Ok(shape(page.offset() + position, material)));
+    let (materials, next_cursor) = fill_within(
+        page,
+        library.materials.len(),
+        json_len(&result),
+        items,
+        |shape: &MaterialShape| format!("material {}", shape.id),
+    )?;
+    result.materials = materials;
+    result.next_cursor = next_cursor;
+    Ok(result)
 }
 
 fn read(archive: &Archive, path: &str) -> Result<(String, MaterialLibrary), ToolError> {
@@ -214,11 +223,13 @@ fn shape(id: usize, material: &Material) -> MaterialShape {
         textures: material
             .textures
             .iter()
+            .take(MAX_LISTED)
             .map(|texture| TextureShape {
                 map: clip(&texture.map),
                 file: clip(&texture.file),
             })
             .collect(),
+        texture_count: material.textures.len(),
         public_params: material
             .public_params
             .iter()

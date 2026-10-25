@@ -4,9 +4,9 @@
 //! The Image tab of the preview over a synthetic Archive with split textures, driven headless.
 
 use crate::imaging;
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_polling};
 
-use std::time::{Duration, Instant};
+use std::cell::Cell;
 
 use egui::Key;
 use egui::accesskit::Role;
@@ -180,11 +180,14 @@ fn decoding_runs_off_the_window_thread() -> TestResult {
     let (folder, path) = archive(textures())?;
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path, || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+    )?;
     let browser = model.browser_mut().ok_or("not opened")?;
     let id = (0..u32::try_from(browser.index().len())?)
         .find(|&id| browser.index().name(id) == "panel_diff.dds")
@@ -192,13 +195,20 @@ fn decoding_runs_off_the_window_thread() -> TestResult {
 
     browser.select_entry(id, || {});
     let opening = browser.image_mut().map(|image| image.is_busy());
-    while browser
-        .image_mut()
-        .is_some_and(|image| matches!(image.status(), ImageStatus::Opening))
-    {
-        std::thread::sleep(Duration::from_millis(5));
-        browser.poll();
-    }
+    let still_opening = Cell::new(true);
+    wait_polling(
+        browser,
+        "the header to be read",
+        |browser| {
+            browser.poll();
+            still_opening.set(
+                browser
+                    .image_mut()
+                    .is_some_and(|image| matches!(image.status(), ImageStatus::Opening)),
+            );
+        },
+        |_| !still_opening.get(),
+    )?;
     let image = browser.image_mut().ok_or("no image preview")?;
     image.request(0, 2048);
     let decoding = matches!(

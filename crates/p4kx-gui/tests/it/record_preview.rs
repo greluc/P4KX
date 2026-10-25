@@ -6,9 +6,9 @@
 
 use crate::previewing_records;
 use crate::previewing_records::model;
+use crate::waiting::wait_polling;
 
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use model::{opened, previewed, select, selected_path, wait_until};
 use p4kx_gui::{
@@ -252,14 +252,14 @@ fn record_tree_query_and_record_export_share_one_read_of_dataforge() -> TestResu
     setup.set_folder(out.path().to_path_buf());
     setup.set_filter("*items*");
     let started = model.submit_record_export(|| {});
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while model.record_export().is_none_or(RecordExport::is_running) {
-        if Instant::now() > deadline {
-            return Err("the export did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll_record_export();
-    }
+    wait_polling(
+        &mut model,
+        "the export to end",
+        |model| {
+            model.poll_record_export();
+        },
+        |model| !model.record_export().is_none_or(RecordExport::is_running),
+    )?;
     let exported = match model.record_export().map(RecordExport::status) {
         Some(RecordExportStatus::Finished(summary)) => summary.written(),
         other => return Err(format!("the export did not finish: {other:?}").into()),

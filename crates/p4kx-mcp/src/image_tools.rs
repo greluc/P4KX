@@ -32,16 +32,15 @@ impl Server {
         &self,
         Parameters(params): Parameters<ImageParams>,
     ) -> Result<Pictured<ImageResult>, String> {
-        let permit = self.model_permit().await?;
         let Noted {
             value: (value, png),
             notice,
         } = self
             .run(move |state| {
-                let _permit = permit;
                 let path = capped("path", &params.path, MAX_PATH_LEN)?;
                 let opened = state.archive(params.archive.as_deref())?;
                 let (place, inner) = opened.place(path)?;
+                let _permit = state.model().hold()?;
                 image::preview(&place, &params, inner)
             })
             .await?;

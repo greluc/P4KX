@@ -70,11 +70,13 @@ pub enum CatalogText {
     Stopped,
     /// The chosen file is the open Archive; takes `path`.
     IsArchive,
+    /// The chosen file ends in `.gz`, which is not written; takes `path`.
+    GzipNotSupported,
 }
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 32] = [
+    pub const ALL: [Self; 33] = [
         Self::Action,
         Self::FileFilter,
         Self::FileFilterCompressed,
@@ -107,6 +109,7 @@ impl CatalogText {
         Self::Failed,
         Self::Stopped,
         Self::IsArchive,
+        Self::GzipNotSupported,
     ];
 
     /// Returns the Fluent message id.
@@ -145,6 +148,7 @@ impl CatalogText {
             Self::Failed => "catalog-failed",
             Self::Stopped => "catalog-stopped",
             Self::IsArchive => "catalog-output-is-archive",
+            Self::GzipNotSupported => "catalog-output-gzip",
         }
     }
 }

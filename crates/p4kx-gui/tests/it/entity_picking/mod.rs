@@ -5,7 +5,6 @@
 //! shield, opened in a headless window.
 
 use std::error::Error;
-use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
 use p4kx_gui::{EntitiesStatus, Language, Model, WorkTab};
@@ -16,6 +15,7 @@ use p4kx_testkit::{
 use tempfile::TempDir;
 
 use crate::tagging::{archive, harness_sized, wait_until};
+use crate::waiting::wait_for;
 
 pub(crate) type TestResult = Result<(), Box<dyn Error>>;
 pub(crate) type Window = (TempDir, Harness<'static, Model>);
@@ -199,15 +199,9 @@ pub(crate) fn select(harness: &mut Harness<'_, Model>, name: &str) -> TestResult
 
 /// Waits until the Loadout is resolved again after a change.
 pub(crate) fn settle(harness: &mut Harness<'_, Model>) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    harness.run_steps(2);
-    while !resolved(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the Loadout did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for(harness, "the Loadout to settle", |harness| {
+        resolved(harness.state())
+    })?;
     harness.run_steps(3);
     Ok(())
 }

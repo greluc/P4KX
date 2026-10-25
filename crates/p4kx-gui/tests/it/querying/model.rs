@@ -3,9 +3,9 @@
 
 //! Helpers of the Query model tests: an Archive opened headless and Queries run to the end.
 
+use crate::waiting::{wait_polling, wait_polling_described};
 use std::error::Error;
 use std::path::Path;
-use std::time::{Duration, Instant};
 
 use p4kx_gui::{Language, Model, QueryResult, QueryStatus};
 
@@ -14,27 +14,28 @@ use super::TestResult;
 pub(crate) fn opened(path: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path.to_path_buf(), || {});
-    let deadline = Instant::now() + Duration::from_secs(10);
-    while model.browser().is_none() {
-        if Instant::now() > deadline {
-            return Err(format!("not opened: {:?}", model.failure()).into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.poll();
-    }
+    wait_polling_described(
+        &mut model,
+        "the Archive to open",
+        |model| {
+            model.poll();
+        },
+        |model| model.browser().is_some(),
+        |model| format!("failure {:?}", model.failure()),
+    )?;
     Ok(model)
 }
 
 /// Waits until the Query of the tab ended.
 pub(crate) fn settled(model: &mut Model) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(30);
-    while matches!(model.query().status(), QueryStatus::Running(_)) {
-        if Instant::now() > deadline {
-            return Err("the Query did not end in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        model.query_mut().poll();
-    }
+    wait_polling(
+        model,
+        "the Query to end",
+        |model| {
+            model.query_mut().poll();
+        },
+        |model| !matches!(model.query().status(), QueryStatus::Running(_)),
+    )?;
     Ok(())
 }
 

@@ -3,10 +3,8 @@
 
 //! The field list of a Record change scrolls with the keyboard once it takes the focus.
 
-use crate::waiting::RunQuiet;
+use crate::waiting::{RunQuiet, wait_for_model};
 use crate::wide_forge;
-
-use std::time::{Duration, Instant};
 
 use egui::Key;
 use egui::accesskit::Role;
@@ -23,15 +21,7 @@ fn row(index: i32, old: i32, new: i32) -> String {
 }
 
 fn settle(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
-    let deadline = Instant::now() + Duration::from_secs(20);
-    harness.step();
-    while !done(harness.state()) {
-        if Instant::now() > deadline {
-            return Err("the window did not settle in time".into());
-        }
-        std::thread::sleep(Duration::from_millis(5));
-        harness.step();
-    }
+    wait_for_model(harness, "the window to settle", done)?;
     harness.run_quiet();
     Ok(())
 }

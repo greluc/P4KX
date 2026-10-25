@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 mod job;
+mod name;
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
@@ -9,7 +10,8 @@ use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use p4kx_export::CatalogSummary;
 
 pub use job::{CatalogExport, CatalogExportStatus};
-pub(crate) use job::{refused, start};
+pub(crate) use job::{refused, refused_gzip, start};
+pub(crate) use name::{is_gzip, normalised_catalog_file};
 
 use crate::read_gate::ReadGate;
 

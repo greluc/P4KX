@@ -8,10 +8,11 @@ use std::thread;
 use p4kx_settings::{Settings, WindowGeometry};
 
 use crate::ui::Dialog;
+use crate::ui_file_dialog::UiFileDialog;
 use crate::{
     AssemblyExportSetup, AssemblyExportText, CATALOG_FILE, CatalogText, CharacterText,
     ComparisonText, HeadSource, Model, ModelExportSetup, ModelExportText, QueryExportFormat,
-    QueryText, Text, UiFormat, UiText, ViewerSupport, ui, window,
+    QueryText, Text, ViewerSupport, ui, window,
 };
 
 /// The eframe application: a [`Model`] drawn by [`ui::show`], with the open dialog and the
@@ -65,13 +66,8 @@ impl App {
             catalog: texts.get(CatalogText::FileFilter),
             catalog_compressed: texts.get(CatalogText::FileFilterCompressed),
             chf: texts.get(CharacterText::ChfFilter),
-            png: texts.get(UiText::FilterPng),
-            svg: texts.get(UiText::FilterSvg),
         };
-        let ui_file = UiFileDialog {
-            name: self.model.ui().proposed_file_name(),
-            format: self.model.ui().settings().format,
-        };
+        let ui_file = UiFileDialog::of(&self.model);
         let model_file = match dialog {
             Dialog::AssemblyFile | Dialog::AssemblyPackage => {
                 ModelFileDialog::of_assembly(&self.model)
@@ -83,7 +79,12 @@ impl App {
         let spawned = thread::Builder::new()
             .name("file-dialog".to_owned())
             .spawn(move || {
-                let path = pick(dialog, rfd::FileDialog::new(), filters, (model_file, ui_file));
+                let path = pick(
+                    dialog,
+                    rfd::FileDialog::new(),
+                    filters,
+                    (model_file, ui_file),
+                );
                 if sender.send(path).is_ok() {
                     ctx.request_repaint();
                 }
@@ -234,14 +235,6 @@ struct Filters {
     catalog: String,
     catalog_compressed: String,
     chf: String,
-    png: String,
-    svg: String,
-}
-
-/// What the file dialog of the export of a UI picture shows: the proposed name and the format.
-struct UiFileDialog {
-    name: String,
-    format: UiFormat,
 }
 
 fn pick(
@@ -269,16 +262,7 @@ fn pick(
             .save_file(),
         Dialog::ModelFile | Dialog::AssemblyFile | Dialog::CharacterFile => model_file.save(picker),
         Dialog::AssemblyPackage => model_file.pick_folder(picker),
-        Dialog::UiFile => {
-            let (filter, extension) = match ui_file.format {
-                UiFormat::Png => (filters.png, "png"),
-                UiFormat::Svg => (filters.svg, "svg"),
-            };
-            picker
-                .add_filter(filter, &[extension])
-                .set_file_name(ui_file.name)
-                .save_file()
-        }
+        Dialog::UiFile => ui_file.save(picker),
         Dialog::CharacterChf => picker.add_filter(filters.chf, &["chf"]).pick_file(),
         Dialog::QueryExport(format) => {
             let extension = format.extension();

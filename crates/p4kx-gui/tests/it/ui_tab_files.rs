@@ -84,7 +84,10 @@ fn a_search_narrows_the_list_by_path() -> TestResult {
 
     window.harness.get_by_role(Role::TextInput).click();
     window.harness.run_steps(2);
-    window.harness.get_by_role(Role::TextInput).type_text("PLAIN");
+    window
+        .harness
+        .get_by_role(Role::TextInput)
+        .type_text("PLAIN");
     window.harness.run_steps(3);
 
     assert_eq!(
@@ -96,8 +99,14 @@ fn a_search_narrows_the_list_by_path() -> TestResult {
         window.harness.query_by_label("1 of 4 files").is_some(),
         "the footer counts the matches"
     );
-    assert!(window.harness.query_by_label("plain.swf").is_some(), "plain");
-    assert!(window.harness.query_by_label("panel.gfx").is_none(), "panel");
+    assert!(
+        window.harness.query_by_label("plain.swf").is_some(),
+        "plain"
+    );
+    assert!(
+        window.harness.query_by_label("panel.gfx").is_none(),
+        "panel"
+    );
     Ok(())
 }
 
@@ -168,7 +177,10 @@ fn what_the_picture_leaves_out_is_reported_like_the_cli_does() -> TestResult {
         report.lines()
     );
     let count = report.len();
-    assert_eq!(count, 2, "the fill that is skipped and the bitmap behind it");
+    assert_eq!(
+        count, 2,
+        "the fill that is skipped and the bitmap behind it"
+    );
     window
         .harness
         .get_by_role_and_label(Role::Button, &format!("Left out {count}"))
@@ -190,17 +202,29 @@ fn what_the_picture_leaves_out_is_reported_like_the_cli_does() -> TestResult {
 fn a_movie_drawn_completely_says_so() -> TestResult {
     let mut window = listed(Language::BritishEnglish, WINDOW)?;
     pick_file(&mut window, PLAIN)?;
-    window.harness.state_mut().ui_mut().set_detail(UiDetail::Report);
+    window
+        .harness
+        .state_mut()
+        .ui_mut()
+        .set_detail(UiDetail::Report);
     window.harness.run_steps(3);
 
     let model = window.harness.state();
     assert!(
-        model.ui().rendered().ok_or("no picture")?.report().is_empty(),
+        model
+            .ui()
+            .rendered()
+            .ok_or("no picture")?
+            .report()
+            .is_empty(),
         "nothing left out"
     );
     assert_eq!(pixel(model, 4, 4), Some([0, 0, 255, 255]), "blue");
     assert!(
-        window.harness.query_by_label("Everything was drawn.").is_some(),
+        window
+            .harness
+            .query_by_label("Everything was drawn.")
+            .is_some(),
         "said"
     );
     Ok(())
@@ -274,6 +298,9 @@ fn the_labels_are_german_in_the_german_window() -> TestResult {
     for label in ["Bühne", "Schwarz", "Inhalt 3", "Ausgelassen 2"] {
         assert!(window.harness.query_by_label(label).is_some(), "{label}");
     }
-    assert!(window.harness.query_by_label("4 Dateien").is_some(), "count");
+    assert!(
+        window.harness.query_by_label("4 Dateien").is_some(),
+        "count"
+    );
     Ok(())
 }

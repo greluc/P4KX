@@ -14,9 +14,9 @@ use super::ui_tab_detail;
 use crate::theme::desktop::{
     HAIRLINE, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, SPINNER_INLINE, TOOLBAR_PADDING,
 };
-use crate::theme::ui_metrics::UI_PICTURE_MAX_SCALE;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, FS_XS, Weight};
+use crate::theme::ui_metrics::UI_PICTURE_MAX_SCALE;
 use crate::widgets::frames::{self, px};
 use crate::widgets::indicator;
 use crate::widgets::text::plain;

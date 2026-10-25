@@ -24,7 +24,8 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let tab = model.ui();
     let contents = tab.contents();
     let report = tab.rendered().map(crate::UiRendered::report);
-    let count = |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language());
+    let count =
+        |value: usize| format::number(u64::try_from(value).unwrap_or(u64::MAX), texts.language());
     let labels = [
         SegmentLabel::new(
             ui,
@@ -95,9 +96,13 @@ fn column_width(ui: &Ui, texts: &Texts, kinds: &[UiText]) -> f32 {
     let widest = seen
         .iter()
         .map(|kind| {
-            line(ui, plain(texts.get(*kind), ROW_FONT, Weight::Regular), f32::INFINITY)
-                .size()
-                .x
+            line(
+                ui,
+                plain(texts.get(*kind), ROW_FONT, Weight::Regular),
+                f32::INFINITY,
+            )
+            .size()
+            .x
         })
         .fold(0.0, f32::max);
     widest + SPACE_2 + CELL_PADDING_X
@@ -107,9 +112,7 @@ fn content_row(ui: &mut Ui, texts: &Texts, row: &ContentRow, column: f32) {
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), XML_ROW_HEIGHT), Sense::hover());
     let kind = texts.get(row.kind);
-    response.widget_info(|| {
-        WidgetInfo::labeled(Role::Row, true, format!("{kind} {}", row.detail))
-    });
+    response.widget_info(|| WidgetInfo::labeled(Role::Row, true, format!("{kind} {}", row.detail)));
     let left = rect.with_max_x(rect.left() + column);
     let label = line(ui, plain(&kind, ROW_FONT, Weight::Regular), column);
     paint_left(ui, left, label, palette::GRAY_2_TEXT);
@@ -183,7 +186,10 @@ fn report_body(ui: &mut Ui, texts: &Texts, report: Option<&UiReport>) {
             }
             if report.len() > MAX_REPORT_LINES {
                 let more = u64::try_from(report.len() - MAX_REPORT_LINES).unwrap_or(u64::MAX);
-                let args = [("number", FluentValue::from(format::number(more, texts.language())))];
+                let args = [(
+                    "number",
+                    FluentValue::from(format::number(more, texts.language())),
+                )];
                 quiet(ui, texts.format(UiText::ReportMore, &args));
             }
         });
@@ -197,11 +203,15 @@ fn report_line(ui: &mut Ui, texts: &Texts, entry: &ReportLine, column: f32) {
     };
     ui.horizontal_top(|ui| {
         let label = texts.get(entry.label);
-        let (rect, response) =
-            ui.allocate_exact_size(vec2(column, XML_ROW_HEIGHT), Sense::hover());
+        let (rect, response) = ui.allocate_exact_size(vec2(column, XML_ROW_HEIGHT), Sense::hover());
         response.widget_info(|| WidgetInfo::labeled(Role::Label, true, &label));
         let galley = line(ui, plain(&label, ROW_FONT, Weight::Regular), column);
-        paint_left(ui, Rect::from_min_size(rect.min, rect.size()), galley, colour);
+        paint_left(
+            ui,
+            Rect::from_min_size(rect.min, rect.size()),
+            galley,
+            colour,
+        );
         if !entry.detail.is_empty() {
             ui.add(
                 Label::new(plain(&entry.detail, ROW_FONT, Weight::Regular).color(palette::GRAY_1))

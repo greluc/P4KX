@@ -10,9 +10,9 @@ use super::list_footer;
 use super::search::{eyebrow, field};
 use super::ui_tab::{danger, loading, message, warning};
 use crate::theme::desktop::{ROW_FONT, SCROLLBAR_THIN, TOOLBAR_PADDING, TREE_PADDING_LEFT};
-use crate::theme::ui_metrics::UI_ROW_HEIGHT;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, SPACE_2, Weight};
+use crate::theme::ui_metrics::UI_ROW_HEIGHT;
 use crate::widgets::frames::px;
 use crate::widgets::rows::{RowState, focus_inside, paint_row, row_weight};
 use crate::widgets::text::{line, paint_left, plain};
@@ -67,7 +67,11 @@ pub(super) fn files(ui: &mut Ui, model: &mut Model) -> Option<Picked> {
     footer(
         ui,
         texts,
-        ("ui-files-footer", UiText::FilesCount, UiText::FilesCountShown),
+        (
+            "ui-files-footer",
+            UiText::FilesCount,
+            UiText::FilesCountShown,
+        ),
         (list.total(), list.shown_len()),
     );
     if list.shown_len() == 0 {
@@ -96,7 +100,11 @@ pub(super) fn ships(ui: &mut Ui, model: &mut Model) -> Option<Picked> {
     footer(
         ui,
         texts,
-        ("ui-ships-footer", UiText::ShipsCount, UiText::ShipsCountShown),
+        (
+            "ui-ships-footer",
+            UiText::ShipsCount,
+            UiText::ShipsCountShown,
+        ),
         (list.total(), list.shown_len()),
     );
     if list.shown_len() == 0 {
@@ -133,7 +141,10 @@ pub(super) fn screens(ui: &mut Ui, model: &Model) -> Option<Picked> {
         UiScreensStatus::ArchiveChanged => warning(ui, texts.get(UiText::ScreensArchiveChanged)),
         UiScreensStatus::Failed(Some(reason)) => danger(
             ui,
-            texts.format(UiText::ScreensFailed, &[("reason", reason.to_owned().into())]),
+            texts.format(
+                UiText::ScreensFailed,
+                &[("reason", reason.to_owned().into())],
+            ),
         ),
         UiScreensStatus::Failed(None) => danger(ui, texts.get(UiText::ScreensStopped)),
         UiScreensStatus::Ready(listing) if listing.screens.is_empty() => {
@@ -155,7 +166,10 @@ pub(super) fn screens(ui: &mut Ui, model: &Model) -> Option<Picked> {
                         screen.entity,
                         texts.format(
                             UiText::ScreenSize,
-                            &[("width", size(screen.width)), ("height", size(screen.height))]
+                            &[
+                                ("width", size(screen.width)),
+                                ("height", size(screen.height))
+                            ]
                         )
                     )),
                     tip: Cow::Borrowed(&screen.canvas),
@@ -175,7 +189,8 @@ fn footer(
     (total, shown): (usize, usize),
 ) {
     let value = |count: usize| FluentValue::from(u64::try_from(count).unwrap_or(u64::MAX));
-    let numbered = |count: usize| format::number(u64::try_from(count).unwrap_or(u64::MAX), texts.language());
+    let numbered =
+        |count: usize| format::number(u64::try_from(count).unwrap_or(u64::MAX), texts.language());
     let text = if shown == total {
         texts.format(
             all,

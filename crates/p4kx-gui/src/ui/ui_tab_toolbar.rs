@@ -14,7 +14,8 @@ use crate::widgets::indicator;
 use crate::widgets::tab;
 use crate::widgets::text::{line, plain};
 use crate::{
-    Model, Texts, UiBackground, UiExport, UiExportStatus, UiFormat, UiMode, UiSettings, UiSize, UiText,
+    Model, Texts, UiBackground, UiExport, UiExportStatus, UiFormat, UiMode, UiSettings, UiSize,
+    UiText,
 };
 
 /// A labelled group of segments.
@@ -38,7 +39,9 @@ impl Cluster {
     }
 
     fn width(&self, ui: &Ui, texts: &Texts) -> f32 {
-        let label = line(ui, eyebrow(&texts.get(self.label)), f32::INFINITY).size().x;
+        let label = line(ui, eyebrow(&texts.get(self.label)), f32::INFINITY)
+            .size()
+            .x;
         let segments: f32 = self
             .items
             .iter()
@@ -120,7 +123,11 @@ fn choices(ui: &mut Ui, model: &Model, width: f32) -> Chosen {
             (&UiBackground::ALL, background),
             UiBackground::text,
         ),
-        Cluster::of(UiText::FormatLabel, (&UiFormat::ALL, format), UiFormat::text),
+        Cluster::of(
+            UiText::FormatLabel,
+            (&UiFormat::ALL, format),
+            UiFormat::text,
+        ),
     ];
     let export = texts.get(UiText::Export);
     let button_width = button::width(ui, Size::Normal, &export);
@@ -133,8 +140,8 @@ fn choices(ui: &mut Ui, model: &Model, width: f32) -> Chosen {
         ui.horizontal(|ui| {
             for position in row {
                 let Some(cluster) = clusters.get(position) else {
-                    chosen.export = button::button(ui, Kind::Cta, Size::Normal, &export, available)
-                        .clicked();
+                    chosen.export =
+                        button::button(ui, Kind::Cta, Size::Normal, &export, available).clicked();
                     continue;
                 };
                 let picked = cluster.show(ui, texts);
@@ -142,7 +149,8 @@ fn choices(ui: &mut Ui, model: &Model, width: f32) -> Chosen {
                     0 => chosen.mode = picked.and_then(mode_at),
                     1 => chosen.size = picked.and_then(|at| UiSize::ALL.get(at).copied()),
                     2 => {
-                        chosen.background = picked.and_then(|at| UiBackground::ALL.get(at).copied());
+                        chosen.background =
+                            picked.and_then(|at| UiBackground::ALL.get(at).copied());
                     }
                     _ => chosen.format = picked.and_then(|at| UiFormat::ALL.get(at).copied()),
                 }
@@ -161,7 +169,11 @@ fn pack(widths: &[f32], available: f32, gap: f32) -> Vec<std::ops::Range<usize>>
     let mut rows = Vec::new();
     let (mut start, mut used) = (0, 0.0_f32);
     for (position, width) in widths.iter().enumerate() {
-        let needed = if position == start { *width } else { used + gap + width };
+        let needed = if position == start {
+            *width
+        } else {
+            used + gap + width
+        };
         if position > start && needed > available {
             rows.push(start..position);
             (start, used) = (position, *width);
@@ -246,7 +258,10 @@ fn status_line(texts: &Texts, export: &UiExport) -> (String, Color32, bool) {
             false,
         ),
         UiExportStatus::Failed(Some(reason)) => (
-            texts.format(UiText::ExportFailed, &[("reason", reason.to_owned().into())]),
+            texts.format(
+                UiText::ExportFailed,
+                &[("reason", reason.to_owned().into())],
+            ),
             palette::DANGER_TEXT,
             false,
         ),

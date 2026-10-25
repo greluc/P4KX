@@ -142,7 +142,9 @@ pub(super) fn draw(
     }
     let built = match &key.source {
         UiSource::Movie(path) => movie(index, path, key)?,
-        UiSource::Screen { canvas, brand } => screen(index, (canvas, brand.as_deref()), key, cached)?,
+        UiSource::Screen { canvas, brand } => {
+            screen(index, (canvas, brand.as_deref()), key, cached)?
+        }
     };
     if index.watch().check().is_err() {
         return Err(Fail::ArchiveChanged);
@@ -199,9 +201,8 @@ fn screen(
 ) -> Result<Built, Fail> {
     let source = index.forge().read(index, || {})?;
     let forge = source.entry.open().map_err(|e| reason(&e))?;
-    let texts = cached.unwrap_or_else(|| {
-        Arc::new(ScreenTexts::load(index.archive(), &forge, key.language))
-    });
+    let texts = cached
+        .unwrap_or_else(|| Arc::new(ScreenTexts::load(index.archive(), &forge, key.language)));
     let request = StillRequest {
         screen: canvas,
         brand,

@@ -51,7 +51,10 @@ fn renderer() -> Option<WgpuTestRenderer> {
     state.map(WgpuTestRenderer::from_render_state)
 }
 
-fn render(harness: &mut Harness<'_, Model>, name: &str) -> Result<usize, Box<dyn std::error::Error>> {
+fn render(
+    harness: &mut Harness<'_, Model>,
+    name: &str,
+) -> Result<usize, Box<dyn std::error::Error>> {
     harness.run_steps(3);
     let image = harness.render()?;
     let (width, height) = (image.width(), image.height());
@@ -86,20 +89,44 @@ fn drawn_at(size: [f32; 2], tag: &str) -> TestResult {
         let mut window = listed_with(language, size, Some(renderer))?;
         render(&mut window.harness, &format!("ui-empty-{tag}{suffix}.png"))?;
         pick_file(&mut window, "panel.gfx")?;
-        let red = render(&mut window.harness, &format!("ui-files-contents-{tag}{suffix}.png"))?;
+        let red = render(
+            &mut window.harness,
+            &format!("ui-files-contents-{tag}{suffix}.png"),
+        )?;
         assert!(
             tag.is_empty() == (red > 100),
             "the red half of the movie is on screen at the large size only: {red}"
         );
-        window.harness.state_mut().ui_mut().set_detail(UiDetail::Report);
-        render(&mut window.harness, &format!("ui-files-report-{tag}{suffix}.png"))?;
+        window
+            .harness
+            .state_mut()
+            .ui_mut()
+            .set_detail(UiDetail::Report);
+        render(
+            &mut window.harness,
+            &format!("ui-files-report-{tag}{suffix}.png"),
+        )?;
 
         window.harness.state_mut().ui_mut().set_mode(UiMode::Ships);
         pick_ship(&mut window)?;
-        window.harness.state_mut().ui_mut().set_detail(UiDetail::Contents);
-        render(&mut window.harness, &format!("ui-ships-contents-{tag}{suffix}.png"))?;
-        window.harness.state_mut().ui_mut().set_detail(UiDetail::Report);
-        render(&mut window.harness, &format!("ui-ships-report-{tag}{suffix}.png"))?;
+        window
+            .harness
+            .state_mut()
+            .ui_mut()
+            .set_detail(UiDetail::Contents);
+        render(
+            &mut window.harness,
+            &format!("ui-ships-contents-{tag}{suffix}.png"),
+        )?;
+        window
+            .harness
+            .state_mut()
+            .ui_mut()
+            .set_detail(UiDetail::Report);
+        render(
+            &mut window.harness,
+            &format!("ui-ships-report-{tag}{suffix}.png"),
+        )?;
         wait_until(&mut window.harness, drawn)?;
     }
     Ok(())

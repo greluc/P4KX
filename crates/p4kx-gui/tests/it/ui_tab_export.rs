@@ -18,7 +18,9 @@ use p4kx_gui::{Language, UiExportStatus, UiFormat};
 use p4kx_screens::{ScreenTexts, Still, StillFormat, StillRequest};
 
 use crate::tagging::wait_until;
-use crate::ui_tabbing::{PANEL, TestResult, Window, exported, listed, opened, pick_file, pick_ship};
+use crate::ui_tabbing::{
+    PANEL, TestResult, Window, exported, listed, opened, pick_file, pick_ship,
+};
 
 const WINDOW: [f32; 2] = [1280.0, 800.0];
 const MFD: &str = "libs/foundry/records/ui/buildingblocks/test/test_mfd";
@@ -38,7 +40,10 @@ fn export(window: &mut Window, file: &Path) -> TestResult {
 }
 
 /// Draws the screen with the calls `p4kx ui render --screen --lang en` makes.
-fn screen_by_library(archive: &Path, format: StillFormat) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn screen_by_library(
+    archive: &Path,
+    format: StillFormat,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let archive = Archive::open(archive)?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -54,7 +59,13 @@ fn screen_by_library(archive: &Path, format: StillFormat) -> Result<Vec<u8>, Box
 }
 
 fn summary(window: &Window) -> Result<&p4kx_gui::UiExportSummary, Box<dyn std::error::Error>> {
-    match window.harness.state().ui().export().map(p4kx_gui::UiExport::status) {
+    match window
+        .harness
+        .state()
+        .ui()
+        .export()
+        .map(p4kx_gui::UiExport::status)
+    {
         Some(UiExportStatus::Done(summary)) => Ok(summary),
         other => Err(format!("no summary: {other:?}").into()),
     }
@@ -75,7 +86,10 @@ fn a_screen_is_exported_as_the_png_the_cli_writes() -> TestResult {
     );
     let done = summary(&window)?;
     assert_eq!((done.width, done.height), (200, 100), "the size");
-    assert!(done.left_out > 0, "the widgets without a renderer are counted");
+    assert!(
+        done.left_out > 0,
+        "the widgets without a renderer are counted"
+    );
     Ok(())
 }
 
@@ -162,7 +176,12 @@ fn the_open_archive_is_never_overwritten() -> TestResult {
 
     assert!(
         matches!(
-            window.harness.state().ui().export().map(p4kx_gui::UiExport::status),
+            window
+                .harness
+                .state()
+                .ui()
+                .export()
+                .map(p4kx_gui::UiExport::status),
             Some(UiExportStatus::IsArchive)
         ),
         "refused"
@@ -174,7 +193,10 @@ fn the_open_archive_is_never_overwritten() -> TestResult {
 #[test]
 fn the_export_button_asks_for_a_file_once_something_is_picked() -> TestResult {
     let mut window = listed(Language::BritishEnglish, WINDOW)?;
-    assert!(!window.harness.state().ui().export_available(), "nothing yet");
+    assert!(
+        !window.harness.state().ui().export_available(),
+        "nothing yet"
+    );
     window
         .harness
         .get_by_role_and_label(Role::Button, "Export…")

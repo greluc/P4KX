@@ -11,8 +11,8 @@ use super::job::{Job, Poll};
 use super::render::{Fail, RenderKey, UiSource, open_movie, reason};
 use super::report::UiReport;
 use super::settings::UiFormat;
-use crate::UiText;
 use crate::EntryIndex;
+use crate::UiText;
 
 /// What an export wrote.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -174,7 +174,9 @@ fn write(index: &EntryIndex, request: &Request) -> Result<UiExportSummary, Fail>
             let options = key.raster();
             let (width, height, report) = match request.format {
                 UiFormat::Png => {
-                    let done = movie.render_to_file(&options, file).map_err(|e| reason(&e))?;
+                    let done = movie
+                        .render_to_file(&options, file)
+                        .map_err(|e| reason(&e))?;
                     let report = UiReport::of_movie(
                         &done.skipped,
                         &done.bitmap_failures,

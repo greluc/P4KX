@@ -143,7 +143,8 @@ fn what_no_renderer_draws_is_reported_for_a_screen() -> TestResult {
         report
             .lines()
             .iter()
-            .any(|line| line.label == UiText::ReportLeftOut && line.detail.starts_with("WidgetImage")),
+            .any(|line| line.label == UiText::ReportLeftOut
+                && line.detail.starts_with("WidgetImage")),
         "the picture widget: {:?}",
         report.lines()
     );
@@ -158,7 +159,8 @@ fn what_no_renderer_draws_is_reported_for_a_screen() -> TestResult {
         contents
             .rows()
             .iter()
-            .any(|row| row.kind == UiText::KindElementUndrawn && row.detail.starts_with("WidgetImage")),
+            .any(|row| row.kind == UiText::KindElementUndrawn
+                && row.detail.starts_with("WidgetImage")),
         "the screen's own widgets are listed with what is not drawn"
     );
     Ok(())

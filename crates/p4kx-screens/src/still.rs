@@ -100,8 +100,7 @@ impl Still {
             }
             StillFormat::Svg => {
                 let mut bytes = Vec::new();
-                let written =
-                    scene.write_svg(&request.raster, Some(request.screen), &mut bytes)?;
+                let written = scene.write_svg(&request.raster, Some(request.screen), &mut bytes)?;
                 (
                     Picture::Svg(bytes),
                     written.width,

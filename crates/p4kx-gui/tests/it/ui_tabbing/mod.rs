@@ -87,16 +87,18 @@ pub(crate) fn plain_movie() -> Vec<u8> {
 
 /// Returns the Entries of the Archive.
 pub(crate) fn entries() -> Vec<TestEntry> {
-    let texts = |label: &str| {
-        GlobalIniBuilder::new()
-            .text("test_label", label)
-            .build()
-    };
+    let texts = |label: &str| GlobalIniBuilder::new().text("test_label", label).build();
     vec![
         TestEntry::zstd("Data\\Game2.dcb", screens_sample().build()),
-        TestEntry::stored("Data\\UI\\fonts\\Shared\\fonts_en.gfx", screens_font_movie()),
+        TestEntry::stored(
+            "Data\\UI\\fonts\\Shared\\fonts_en.gfx",
+            screens_font_movie(),
+        ),
         TestEntry::stored("Data\\Localization\\english\\global.ini", texts("AB")),
-        TestEntry::stored("Data\\Localization\\german_(germany)\\global.ini", texts("BA")),
+        TestEntry::stored(
+            "Data\\Localization\\german_(germany)\\global.ini",
+            texts("BA"),
+        ),
         TestEntry::stored(PANEL, panel_movie()),
         TestEntry::stored(PLAIN, plain_movie()),
         TestEntry::stored(BROKEN, "this is no movie"),
@@ -133,13 +135,13 @@ pub(crate) fn open_with(
         builder = builder.renderer(renderer);
     }
     let mut harness = builder.build_ui_state(
-            move |ui, model: &mut Model| {
-                if let Some(dialog) = ui::show(ui, model).dialog {
-                    sink.set(Some(dialog));
-                }
-            },
-            Model::new(language),
-        );
+        move |ui, model: &mut Model| {
+            if let Some(dialog) = ui::show(ui, model).dialog {
+                sink.set(Some(dialog));
+            }
+        },
+        Model::new(language),
+    );
     harness.state_mut().open(path.clone(), || {});
     wait_until(&mut harness, |model| model.browser().is_some())?;
     harness.state_mut().set_work_tab(WorkTab::Ui);
@@ -214,6 +216,11 @@ pub(crate) fn pick_ship(window: &mut Window) -> TestResult {
     wait_until(&mut window.harness, |model| model.ui().ships().is_some())?;
     window.harness.state_mut().select_ui_ship(0, || {});
     wait_until(&mut window.harness, |model| {
-        model.ui().ship().and_then(p4kx_gui::ShipPick::screen).is_some() && drawn(model)
+        model
+            .ui()
+            .ship()
+            .and_then(p4kx_gui::ShipPick::screen)
+            .is_some()
+            && drawn(model)
     })
 }

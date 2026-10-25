@@ -84,7 +84,11 @@ impl UiContents {
             contents.push(UiText::KindSprite, detail);
         }
         for import in &assets.imports {
-            let names: Vec<&str> = import.assets.iter().map(|asset| asset.name.as_str()).collect();
+            let names: Vec<&str> = import
+                .assets
+                .iter()
+                .map(|asset| asset.name.as_str())
+                .collect();
             contents.push(
                 UiText::KindImport,
                 format!("{}: {}", import.url, names.join(", ")),

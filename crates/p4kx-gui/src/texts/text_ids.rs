@@ -6,7 +6,8 @@ use super::{
     CharacterText, ComparisonText, ContainerText, ContentSearchText, DataForgeText, DiffText,
     EntityText, ExtractionText, GroupText, ImageText, IncomingText, LocalizationText,
     ModelExportText, ModelInfoText, ModelText, QueryText, RecordChangeText, RecordExportText,
-    RecordLanguageText, RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, UiText, XmlText,
+    RecordLanguageText, RecordText, SchemaText, ScrollText, SoundsText, TagsText, Text, UiText,
+    XmlText,
 };
 use crate::Language;
 

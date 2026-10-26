@@ -3,7 +3,7 @@
 
 use crate::rig_logic::RIG_LOGIC_CHUNK;
 use crate::{
-    TestCell, TestControl, TestDna, TestEntry, TestModel, TestPositions, TestRigLogic,
+    TestCell, TestControl, TestDna, TestEntry, TestModel, TestNormals, TestPositions, TestRigLogic,
     TestSkeleton, armour_entries, armour_male_skeleton,
 };
 
@@ -15,6 +15,14 @@ pub const HEAD_REGIONS: usize = 13;
 pub const MALE_RIG_HASH: u32 = 0xdd6c_67f6;
 /// The `gender_hash` of the female head rig, the CRC-32C of its name.
 pub const FEMALE_RIG_HASH: u32 = 0x9ef4_eb54;
+/// The stored bytes of the body type GUID `25f439d5-146b-4a61-a999-a486dfb68a49` of the male CHFs.
+pub const MALE_BODY_TYPE: [u8; 16] = [
+    0x61, 0x4a, 0x6b, 0x14, 0xd5, 0x39, 0xf4, 0x25, 0x49, 0x8a, 0xb6, 0xdf, 0x86, 0xa4, 0x99, 0xa9,
+];
+/// The stored bytes of the body type GUID `d0794a94-efb0-4cad-ad38-2558b4d3c253` of the female CHFs.
+pub const FEMALE_BODY_TYPE: [u8; 16] = [
+    0xad, 0x4c, 0xb0, 0xef, 0x94, 0x4a, 0x79, 0xd0, 0x53, 0xc2, 0xd3, 0xb4, 0x58, 0x25, 0x38, 0xad,
+];
 /// The folder of the male head rig below `Data`, with `/` as separator.
 pub const MALE_HEAD_FOLDER: &str =
     "Objects/Characters/Human/heads/male/pu/protos_human_male_face_t1_pu";
@@ -24,6 +32,7 @@ pub const MALE_RIG: &str = "protos_human_male_face_t1_pu";
 pub(crate) fn head_skin() -> TestModel {
     TestModel::cube()
         .with_positions(TestPositions::Float)
+        .with_normals(TestNormals::Compressed)
         .with_nodes(Vec::new())
         .with_skeleton(&armour_male_skeleton())
         .with_bone_map(false, vec![vec![(2, 255)]; HEAD_VERTICES])

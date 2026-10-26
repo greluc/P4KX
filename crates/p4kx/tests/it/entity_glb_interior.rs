@@ -94,7 +94,7 @@ fn the_flag_adds_the_interior_below_the_hull_and_lists_what_is_missing() -> Test
     );
     for expected in [
         "the container ObjectContainers\\ships\\test\\absent.socpak does not exist",
-        "the helper hp_nowhere is no node of the parent's model",
+        "the helper hp_nowhere is no node of the Entity's model",
         "is nested in itself and not entered again",
     ] {
         assert!(run.stdout.contains(expected), "{expected}: {}", run.stdout);

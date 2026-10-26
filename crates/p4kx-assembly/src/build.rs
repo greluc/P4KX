@@ -13,7 +13,7 @@ use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
-    PaletteProvider, Part, Placement, PortNode, PortTransform,
+    ObjectContainerRef, PaletteProvider, Part, Placement, PortNode, PortTransform,
 };
 
 type Libraries = HashMap<String, Arc<MaterialStatus>>;
@@ -123,8 +123,17 @@ impl Assembly {
             issues,
             lod: options.lod,
             interior: None,
+            containers: containers_of(&drafts),
         })
     }
+}
+
+/// Returns the object containers each Entity of `drafts` names, shared with its node.
+fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
+    drafts
+        .iter()
+        .map(|draft| Arc::clone(&draft.node.object_containers))
+        .collect()
 }
 
 /// Lists the attachments of a character definition that are not drawn, once per definition.

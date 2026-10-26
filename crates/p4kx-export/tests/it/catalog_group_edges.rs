@@ -242,12 +242,17 @@ fn a_blueprint_whose_category_is_unreadable_has_no_category_guid() -> TestResult
         );
     let (built, catalog) = build_from(&forge, None)?;
     assert_eq!(catalog["blueprints"][0]["categoryGuid"], Value::Null);
-    assert_eq!(built.summary().failures().len(), 1, "the category is listed");
+    assert_eq!(
+        built.summary().failures().len(),
+        1,
+        "the category is listed"
+    );
     Ok(())
 }
 
 #[test]
-fn a_resource_type_listed_only_by_a_leftover_group_gives_its_commodity_no_type_guid() -> TestResult {
+fn a_resource_type_listed_only_by_a_leftover_group_gives_its_commodity_no_type_guid() -> TestResult
+{
     const RESOURCE: u128 = 0x5000_0000_0000_4000_8000_0000_0000_0005;
     let resource = TestRecord::new(
         RESOURCE,

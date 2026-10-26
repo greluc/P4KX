@@ -3,21 +3,48 @@
 
 //! The field statistics of every Record of a real Archive and the memory they take.
 
-use std::process::Command;
-use std::time::Instant;
+use std::path::PathBuf;
+use std::process::{Child, Command, Stdio};
+use std::time::{Duration, Instant};
 
 use p4kx_extraction::{Archive, DataForgeEntry, FieldStatistics};
 use p4kx_testkit::real_archive_path;
 
 use super::{TestResult, report};
 
-fn peak_working_set() -> Option<u64> {
-    let script = format!("(Get-Process -Id {}).PeakWorkingSet64", std::process::id());
-    let output = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &script])
-        .output()
-        .ok()?;
-    String::from_utf8(output.stdout).ok()?.trim().parse().ok()
+/// Samples the working set of this process from a second process while it runs.
+struct Sampler {
+    child: Child,
+    stop: PathBuf,
+}
+
+impl Sampler {
+    fn start() -> std::io::Result<Self> {
+        let stop = std::env::temp_dir().join(format!("field-stats-sampler-{}", std::process::id()));
+        let script = format!(
+            "$p = [Diagnostics.Process]::GetProcessById({}); $first = -1; $max = 0; \
+             while (-not (Test-Path '{}')) {{ $p.Refresh(); $w = $p.WorkingSet64; \
+             if ($first -lt 0) {{ $first = $w }}; if ($w -gt $max) {{ $max = $w }}; \
+             Start-Sleep -Milliseconds 5 }}; \"$first $max\"",
+            std::process::id(),
+            stop.display()
+        );
+        let child = Command::new("powershell")
+            .args(["-NoProfile", "-Command", &script])
+            .stdout(Stdio::piped())
+            .spawn()?;
+        std::thread::sleep(Duration::from_millis(1500));
+        Ok(Self { child, stop })
+    }
+
+    fn finish(self) -> Option<(u64, u64)> {
+        std::fs::write(&self.stop, b"").ok()?;
+        let output = self.child.wait_with_output().ok()?;
+        std::fs::remove_file(&self.stop).ok()?;
+        let text = String::from_utf8(output.stdout).ok()?;
+        let mut numbers = text.split_whitespace().map(str::parse::<u64>);
+        Some((numbers.next()?.ok()?, numbers.next()?.ok()?))
+    }
 }
 
 #[test]
@@ -29,13 +56,13 @@ fn counts_the_field_paths_of_a_real_archive_within_a_bounded_memory() -> TestRes
     )?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
-    let before = peak_working_set();
 
+    let sampler = Sampler::start()?;
     let started = Instant::now();
     let statistics = FieldStatistics::of_all(&forge)?;
     let elapsed = started.elapsed();
+    let sampled = sampler.finish();
 
-    let after = peak_working_set();
     let occurrences: u64 = statistics
         .fields()
         .iter()
@@ -46,15 +73,16 @@ fn counts_the_field_paths_of_a_real_archive_within_a_bounded_memory() -> TestRes
         .iter()
         .map(p4kx_extraction::FieldStat::distinct)
         .sum();
+    let megabytes = |bytes: u64| bytes / (1 << 20);
     report(&format!(
         "{} threads, {} Records, {} paths, {occurrences} values, {distinct} distinct in {elapsed:?}; \
-         peak working set {before:?} before, {after:?} after, {:?} more",
+         working set {:?} MB before, peak {:?} MB during, {:?} MB more",
         rayon::current_num_threads(),
         statistics.records(),
         statistics.fields().len(),
-        before
-            .zip(after)
-            .map(|(before, after)| after.saturating_sub(before)),
+        sampled.map(|(first, _)| megabytes(first)),
+        sampled.map(|(_, max)| megabytes(max)),
+        sampled.map(|(first, max)| megabytes(max.saturating_sub(first))),
     ));
     assert!(
         statistics.fields().len() > 10_000,

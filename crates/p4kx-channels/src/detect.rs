@@ -3,11 +3,10 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::{Channel, ChannelSource, library_folders};
+use crate::launcher_log::{self, LauncherLog, Wanted, launcher_folder, launcher_logs_folder};
+use crate::{Channel, ChannelSource, PublicPatches};
 
 const ARCHIVE_NAME: &str = "Data.p4k";
-const LAUNCHER_FOLDER: &str = "rsilauncher";
-const LAUNCHER_LOGS: &str = "logs";
 const DEFAULT_LIBRARY: Option<&str> = if cfg!(windows) {
     Some(r"C:\Program Files\Roberts Space Industries\StarCitizen")
 } else {
@@ -35,7 +34,7 @@ impl SearchPaths {
     pub fn standard() -> Self {
         Self {
             default_library: DEFAULT_LIBRARY.map(PathBuf::from),
-            launcher: dirs::config_dir().map(|dir| dir.join(LAUNCHER_FOLDER)),
+            launcher: launcher_folder(),
             manual_folders: Vec::new(),
             manual_archives: Vec::new(),
         }
@@ -46,17 +45,29 @@ impl SearchPaths {
 /// launcher library folders, manual folders, manual Archives.
 ///
 /// A Channel folder is a folder holding a `Data.p4k`; a library folder holds Channel folders.
-/// Only directory listings, `build_manifest.id` files and the launcher's log files are read.
+/// Only directory listings, `build_manifest.id` files and the launcher's log files are read; the
+/// log files are read once and also give each Channel's Build its public patch.
 #[must_use]
 pub fn detect(paths: &SearchPaths) -> Vec<Channel> {
-    let mut found = Found::default();
+    detect_with_patches(paths).0
+}
+
+/// Returns the Channels like [`detect`] and the public patches the launcher log names, read in
+/// the same pass, for whoever needs the public patch of a Build outside the Channels.
+#[must_use]
+pub fn detect_with_patches(paths: &SearchPaths) -> (Vec<Channel>, PublicPatches) {
+    let log = paths
+        .launcher
+        .as_ref()
+        .map_or_else(LauncherLog::default, |launcher| {
+            launcher_log::scan(&launcher_logs_folder(launcher), Wanted::BOTH)
+        });
+    let mut found = Found::new(&log.patches);
     if let Some(library) = &paths.default_library {
         found.library(library, ChannelSource::DefaultPath);
     }
-    if let Some(launcher) = &paths.launcher {
-        for library in library_folders(&launcher.join(LAUNCHER_LOGS)) {
-            found.library(&library, ChannelSource::Launcher);
-        }
+    for library in &log.libraries {
+        found.library(library, ChannelSource::Launcher);
     }
     for folder in &paths.manual_folders {
         let archive = folder.join(ARCHIVE_NAME);
@@ -71,7 +82,7 @@ pub fn detect(paths: &SearchPaths) -> Vec<Channel> {
             found.archive(archive.clone(), ChannelSource::Manual);
         }
     }
-    found.channels
+    (found.channels, log.patches)
 }
 
 /// Returns the Library folders known from `paths`: the default one and those the RSI Launcher
@@ -82,7 +93,7 @@ pub fn detect(paths: &SearchPaths) -> Vec<Channel> {
 pub fn known_library_folders(paths: &SearchPaths) -> Vec<PathBuf> {
     let mut folders: Vec<PathBuf> = paths.default_library.iter().cloned().collect();
     if let Some(launcher) = &paths.launcher {
-        for library in library_folders(&launcher.join(LAUNCHER_LOGS)) {
+        for library in launcher_log::library_folders(&launcher_logs_folder(launcher)) {
             if !folders.contains(&library) {
                 folders.push(library);
             }
@@ -91,13 +102,21 @@ pub fn known_library_folders(paths: &SearchPaths) -> Vec<PathBuf> {
     folders
 }
 
-#[derive(Default)]
-struct Found {
+struct Found<'a> {
     channels: Vec<Channel>,
     keys: Vec<PathBuf>,
+    patches: &'a PublicPatches,
 }
 
-impl Found {
+impl<'a> Found<'a> {
+    const fn new(patches: &'a PublicPatches) -> Self {
+        Self {
+            channels: Vec::new(),
+            keys: Vec::new(),
+            patches,
+        }
+    }
+
     fn library(&mut self, library: &Path, source: ChannelSource) {
         let Ok(items) = std::fs::read_dir(library) else {
             return;
@@ -117,7 +136,8 @@ impl Found {
         let key = std::fs::canonicalize(&archive).unwrap_or_else(|_| archive.clone());
         if !self.keys.contains(&key) {
             self.keys.push(key);
-            self.channels.push(Channel::new(archive, source));
+            self.channels
+                .push(Channel::new(archive, source, self.patches));
         }
     }
 }

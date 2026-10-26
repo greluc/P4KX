@@ -11,8 +11,8 @@ use p4kx_assembly::{
 use p4kx_blender::{
     BuildInfo, Issue, PackageInfo, PackageSummary, Replacement, check_output, write_package,
 };
-use p4kx_channels::channel_name;
-use p4kx_extraction::{Archive, Build, DataForgeEntry, GlbOptions, is_same_file};
+use p4kx_channels::{PublicPatches, channel_name};
+use p4kx_extraction::{Archive, DataForgeEntry, GlbOptions, is_same_file};
 use serde::Serialize;
 
 use crate::cli_entity::EntityPackageArgs;
@@ -162,10 +162,12 @@ impl<'a> PackageJson<'a> {
 
 /// Returns the Build of `archive` as a package records it.
 pub(crate) fn build_info(archive: &Archive) -> Option<BuildInfo> {
-    archive.build().map(|build: &Build| BuildInfo {
+    let build = archive.build()?;
+    let patches = PublicPatches::standard();
+    Some(BuildInfo {
         branch: build.branch().to_owned(),
         version: build.version().to_owned(),
-        public_patch: build.public_patch().map(str::to_owned),
+        public_patch: patches.of(build).map(str::to_owned),
         change_number: build.change_number().to_owned(),
         build_id: build.build_id().to_owned(),
     })

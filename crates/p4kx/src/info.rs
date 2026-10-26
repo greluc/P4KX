@@ -4,7 +4,7 @@
 use std::io::{self, Write};
 
 use anyhow::Result;
-use p4kx_channels::channel_name;
+use p4kx_channels::{PublicPatches, channel_name};
 use p4kx_extraction::{Archive, Build, Entry};
 use serde::Serialize;
 
@@ -32,11 +32,13 @@ pub(crate) fn run(args: &InfoArgs, as_json: bool) -> Result<()> {
         warn_about_manifest(&archive)?;
     }
     crate::issues::warn(&archive)?;
+    let patches = PublicPatches::standard();
+    let build = archive.build().map(|build| patches.attach(build));
     let entries = archive.entries();
     let info = Summary {
         archive: json::path(archive.path()),
         channel: channel_name(archive.path()),
-        build: archive.build().map(BuildJson::from),
+        build: build.as_ref().map(BuildJson::from),
         entry_count: entries.len(),
         encrypted_count: entries.iter().filter(|entry| entry.is_encrypted()).count(),
         issue_count: archive.issue_count(),
@@ -46,7 +48,7 @@ pub(crate) fn run(args: &InfoArgs, as_json: bool) -> Result<()> {
     if as_json {
         json::print(&info)?;
     } else {
-        print_lines(&info, archive.build())?;
+        print_lines(&info, build.as_ref())?;
     }
     Ok(())
 }

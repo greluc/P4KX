@@ -53,6 +53,9 @@ pub(crate) struct BuildShape {
     pub(crate) change_number: String,
     /// The `BuildId`.
     pub(crate) build_id: String,
+    /// The public patch version, e.g. `4.7.2`, from the RSI Launcher log; `null` when the log has
+    /// no line for the change number.
+    pub(crate) public_patch: Option<String>,
 }
 
 impl From<&Build> for BuildShape {
@@ -62,6 +65,7 @@ impl From<&Build> for BuildShape {
             version: build.version().to_owned(),
             change_number: build.change_number().to_owned(),
             build_id: build.build_id().to_owned(),
+            public_patch: build.public_patch().map(str::to_owned),
         }
     }
 }

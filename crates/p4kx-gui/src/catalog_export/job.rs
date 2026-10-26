@@ -248,11 +248,13 @@ impl Job {
         #[cfg(feature = "test-hooks")]
         self.pause.wait(|| self.cancel.is_cancelled());
         let progress = |progress: CatalogProgress| self.shared.report(progress);
+        let patches = crate::public_patches::current();
         let options = CatalogOptions {
             filter: None,
             exported_at: SystemTime::now(),
             cancel: Some(&self.cancel),
             progress: Some(&progress),
+            public_patches: Some(&patches),
         };
         let created = write_catalog_from(
             self.index.archive(),

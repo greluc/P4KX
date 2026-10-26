@@ -232,7 +232,10 @@ impl Server {
     ) -> Result<Noted<ArchiveInfo>, String> {
         self.run(move |state| {
             let opened = state.archive(params.archive.as_deref())?;
-            Ok(entries::info(opened.archive()))
+            Ok(entries::info(
+                opened.archive(),
+                &state.locations.public_patches(),
+            ))
         })
         .await
     }

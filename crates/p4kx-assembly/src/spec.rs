@@ -8,7 +8,7 @@ use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
 use crate::armour::{ZoneList, read_zones};
 use crate::merge::port_key;
-use crate::outfit::OutfitInfo;
+use crate::outfit_read::OutfitInfo;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
 use crate::{Geometry, GeometryVariant, ItemFacts, MaterialVariant, ObjectContainerRef};
@@ -130,14 +130,7 @@ impl EntitySpec {
     pub(crate) fn read(tree: &RecordTree<'_>) -> Self {
         let components = components_of(tree);
         let record: Arc<str> = Arc::from(tree.record_path());
-        let default_loadout = components
-            .iter()
-            .find(|component| component.type_name() == DEFAULT_LOADOUT)
-            .and_then(|component| struct_field(component, "loadout"));
-        let loadout = default_loadout.and_then(|loadout| read_loadout(loadout, &record));
-        let outfit = default_loadout
-            .filter(|loadout| loadout.type_name() == OUTFIT_LOADOUT)
-            .map(|loadout| crate::outfit::read_info(loadout, &record));
+        let (loadout, outfit) = read_default_loadout(&components, &record);
         let (ports, port_flags) = read_ports(&components);
         let mut port_index = HashMap::with_capacity(ports.len());
         for (at, port) in ports.iter().enumerate() {
@@ -217,6 +210,25 @@ impl EntitySpec {
             Some(LoadoutSpec::Manual(entries)) => Some(entries),
             _ => None,
         }
+    }
+}
+
+/// Reads the default Loadout among `components` and, when it is an outfit, what the report shows.
+fn read_default_loadout(
+    components: &[&StructValue<'_>],
+    record: &Arc<str>,
+) -> (Option<LoadoutSpec>, Option<OutfitInfo>) {
+    let default_loadout = components
+        .iter()
+        .find(|component| component.type_name() == DEFAULT_LOADOUT)
+        .and_then(|component| struct_field(component, "loadout"));
+    match default_loadout {
+        Some(loadout) if loadout.type_name() == OUTFIT_LOADOUT => {
+            let read = crate::outfit_read::read(loadout, record, true);
+            (read.loadout, read.info)
+        }
+        Some(loadout) => (read_loadout(loadout, record), None),
+        None => (None, None),
     }
 }
 
@@ -330,7 +342,7 @@ pub(crate) fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Opti
         return (!path.is_empty()).then(|| LoadoutSpec::Xml(Arc::from(path)));
     }
     if loadout.type_name() == OUTFIT_LOADOUT {
-        return crate::outfit::read_outfit(loadout, record);
+        return crate::outfit_read::read(loadout, record, false).loadout;
     }
     loadout.field("entries")?;
     Some(LoadoutSpec::Manual(

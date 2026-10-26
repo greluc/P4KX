@@ -7,9 +7,11 @@
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
-use p4kx_testkit::{ArchiveBuilder, NPC_CLASS, npc_entries};
+use p4kx_testkit::{ArchiveBuilder, NPC_CLASS, NPC_FILES_CLASS, npc_entries};
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+const XML: &str = "Scripts/Loadouts/Grunt.xml";
 
 fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
@@ -74,13 +76,49 @@ fn the_json_has_the_outfits_and_an_entity_without_outfit_has_none() -> TestResul
     };
 
     let npc = json(NPC_CLASS)?;
-    let outfits = npc["outfits"]["outfits"].as_array().ok_or("outfits")?;
+    let outfits = npc["outfit"]["outfits"].as_array().ok_or("outfits")?;
     assert_eq!(outfits.len(), 2);
     assert_eq!(outfits[0]["applied"], true);
     assert_eq!(outfits[0]["tags"], serde_json::json!([]));
     assert_eq!(outfits[1]["applied"], false);
     assert_eq!(outfits[1]["tags"], serde_json::json!(["tagged"]));
-    assert!(json("TEST_NpcBody")?.get("outfits").is_none());
+    assert!(json("TEST_NpcBody")?.get("outfit").is_none());
+
+    let files = json(NPC_FILES_CLASS)?;
+    assert_eq!(files["outfit"]["base_files"], serde_json::json!([XML]));
+    let outfits = files["outfit"]["outfits"].as_array().ok_or("outfits")?;
+    assert_eq!(outfits[0]["files"], serde_json::json!([XML]));
+    assert_eq!(outfits[0]["applied"], true);
+    assert_eq!(outfits[1]["files"], serde_json::json!([XML]));
+    assert_eq!(outfits[1]["tags"], serde_json::json!(["night"]));
+    assert_eq!(outfits[1]["applied"], false);
+    Ok(())
+}
+
+#[test]
+fn the_text_shows_the_files_of_the_base_loadout_and_of_each_outfit() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(dir.path())?;
+
+    let run = p4kx_testkit::p4kx()?
+        .args(["entity", "loadout"])
+        .arg(&archive)
+        .arg(NPC_FILES_CLASS)
+        .output()?;
+
+    let stdout = String::from_utf8(run.stdout)?;
+    assert!(
+        stdout.contains(&format!("outfit base: {XML}\n")),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(&format!("outfit 1 worn, no name tags: {XML}\n")),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains(&format!("outfit 2 not worn, name tags night: {XML}\n")),
+        "{stdout}"
+    );
     Ok(())
 }
 
@@ -104,6 +142,6 @@ fn armour_glb_reports_the_outfits_under_the_loadout() -> TestResult {
         String::from_utf8(run.stderr)?
     );
     let json: serde_json::Value = serde_json::from_slice(&run.stdout)?;
-    assert_eq!(json["loadout"]["outfits"]["outfits"][1]["applied"], false);
+    assert_eq!(json["loadout"]["outfit"]["outfits"][1]["applied"], false);
     Ok(())
 }

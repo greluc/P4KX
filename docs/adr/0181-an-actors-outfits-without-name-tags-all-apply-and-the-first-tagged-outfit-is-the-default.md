@@ -39,7 +39,7 @@ makes it visible.
 outfit: the XML Loadouts of the base Loadout and, per outfit, its name tags as tag paths (the
 GUID when the tag database lacks the tag), its XML Loadouts and whether it applies. `p4kx entity
 loadout` prints it as `outfit base:` and `outfit N worn|not worn` lines and in `--json` as
-`outfits`; `p4kx armour glb --loadout` and `p4kx character package --loadout` repeat it in the
+`outfit`; `p4kx armour glb --loadout` and `p4kx character package --loadout` repeat it in the
 `loadout` object of their report. `entity glb` wears what the resolved tree holds, so it follows
 the same rule.
 
@@ -48,5 +48,9 @@ the same rule.
 - An actor with several tagged outfits is dressed in the first; a tag chosen by the caller (an
   `--outfit` option) is not offered. A caller who wants another outfit names its XML Loadout with
   `armour glb --loadout`.
-- Reading an outfit parses it once for the layers and once for the report; only the Entity's own
-  default Loadout is reported, an outfit nested in a Loadout entry is not.
+- An outfit is parsed once, into the layers and, for the Entity's own default Loadout only, the
+  report. Only then are the files of outfits that are not worn read; an outfit nested in a
+  Loadout entry skips them and is not reported. The tag database is built once per resolver, on
+  the first report that names a tag by Reference.
+- A name tag that reads as nothing (a null Reference) is no tag: an outfit whose tags are all such
+  has none and counts as untagged.

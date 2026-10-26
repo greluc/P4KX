@@ -86,6 +86,7 @@ mod merge;
 mod node;
 mod object_containers;
 mod outfit;
+mod outfit_read;
 mod palette;
 mod placement;
 mod plan;

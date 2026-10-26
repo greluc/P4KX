@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::entity_armour::armour_database;
+use crate::entity_armour_loadout::ARMOUR_XML_LOADOUT;
 use crate::entity_head::{MALE_HEAD_FOLDER, MALE_RIG, head_files, head_part, skin_entries};
 use crate::{
     TestEntity, TestEntry, TestLoadout, TestLoadoutEntry, TestMtl, TestMtlMaterial, TestPort,
@@ -9,6 +10,9 @@ use crate::{
 
 /// The class name of the story character of [`npc_entries`].
 pub const NPC_CLASS: &str = "TEST_Npc";
+/// The class name of the actor of [`npc_entries`] whose base Loadout and outfits are all the XML
+/// Loadout `Scripts/Loadouts/Grunt.xml`; its second outfit has the name tag `night`.
+pub const NPC_FILES_CLASS: &str = "TEST_NpcFiles";
 /// The folder of the character's own head skins below `Data`, with `/` as separator.
 pub const NPC_HEAD_FOLDER: &str = "Objects/Characters/Human/heads/male/pu/npc_test";
 /// The class name of the character's head, whose port flags are [`NPC_HEAD_FLAGS`].
@@ -127,7 +131,16 @@ fn entities() -> Vec<TestEntity> {
             ],
         },
     );
-    let mut all = vec![body, shirt, tagged, npc];
+    let xml = || TestLoadout::Xml(ARMOUR_XML_LOADOUT.to_owned());
+    let files = TestEntity::new(0x30a, NPC_FILES_CLASS, "entities/scitem/test_npc_files.xml")
+        .loadout(TestLoadout::Outfit {
+            base: Box::new(xml()),
+            outfits: vec![
+                (Vec::new(), vec![xml()]),
+                (vec!["night".to_owned()], vec![xml()]),
+            ],
+        });
+    let mut all = vec![body, shirt, tagged, npc, files];
     all.extend(head_entities());
     all
 }

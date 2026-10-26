@@ -117,7 +117,7 @@ pub(crate) struct LoadoutJson<'a> {
     pub(crate) source: LoadoutSource,
     pub(crate) class_name: Option<String>,
     pub(crate) files: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "outfit", skip_serializing_if = "Option::is_none")]
     pub(crate) outfits: Option<OutfitsJson>,
 }
 

@@ -12,6 +12,15 @@ pub enum CraftingWarning {
     /// [`Crafting::reward_sources`](crate::Crafting::reward_sources). A Record of a type that
     /// holds no source elsewhere is not counted.
     UnreadableRewardRecords(usize),
+    /// This many modifier ranges of blueprints have a struct type the reader does not know, so
+    /// they are missing from the modifiers of [`Crafting::blueprints`](crate::Crafting::blueprints).
+    /// `details` names the types, ordered and without repeats.
+    UnknownModifierRanges {
+        /// The number of ranges.
+        count: usize,
+        /// One entry per struct type.
+        details: Vec<String>,
+    },
     /// The DataForge holds this many dismantle processes instead of one, so
     /// [`Crafting::dismantle_return`](crate::Crafting::dismantle_return) links no blueprint.
     AmbiguousDismantle(usize),
@@ -60,6 +69,7 @@ impl CraftingWarning {
     pub const fn kind(&self) -> &'static str {
         match self {
             Self::UnreadableRewardRecords(_) => "unreadable_reward_records",
+            Self::UnknownModifierRanges { .. } => "unknown_modifier_ranges",
             Self::AmbiguousDismantle(_) => "ambiguous_dismantle",
             Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
             Self::UnplacedStarmapContainers(_) => "unplaced_starmap_containers",
@@ -81,6 +91,7 @@ impl CraftingWarning {
             | Self::UnplacedStarmapContainers(count)
             | Self::UnreadableShopContainers(count)
             | Self::MissingShopInventories(count)
+            | Self::UnknownModifierRanges { count, .. }
             | Self::UnreadableVehicleFiles { count, .. }
             | Self::UnreadableShopInventories { count, .. } => Some(*count),
             Self::UnreadableShopRegistry | Self::MissingShopRegistry | Self::NoShopComponents => {
@@ -94,7 +105,8 @@ impl CraftingWarning {
     #[must_use]
     pub fn details(&self) -> &[String] {
         match self {
-            Self::UnreadableVehicleFiles { details, .. }
+            Self::UnknownModifierRanges { details, .. }
+            | Self::UnreadableVehicleFiles { details, .. }
             | Self::UnreadableShopInventories { details, .. } => details,
             _ => &[],
         }
@@ -128,6 +140,11 @@ impl fmt::Display for CraftingWarning {
             Self::UnreadableRewardRecords(count) => write!(
                 f,
                 "{count} Records that could hold a reward source cannot be read; their reward sources are missing"
+            ),
+            Self::UnknownModifierRanges { count, details } => write!(
+                f,
+                "{count} modifier ranges have a type P4KX does not know; they are missing from the blueprint modifiers{}",
+                Listed(details)
             ),
             Self::AmbiguousDismantle(count) => write!(
                 f,

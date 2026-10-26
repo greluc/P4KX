@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_audio::{HircKind, HircObject, HircValue, PlayBank, SoundSource, Soundbank};
+use std::rc::Rc;
+
+use p4kx_audio::{HircKind, HircObject, HircValue, SoundSource, Soundbank};
 
 use super::locate::locate;
+use super::walk_banks::{Banks, Loaded, Via, select_holders};
 use super::{
-    AudioIndex, BreakReason, BrokenLink, IndexedSoundbank, LanguageChoice, MAX_CONTAINER_CHILDREN,
-    MAX_PATH_DEPTH, NodeKind, PathStep, SoundVariant, WwiseEvent,
+    AudioIndex, BreakReason, BrokenLink, IndexedSoundbank, LanguageChoice, MAX_ACTION_CHAIN,
+    MAX_CONTAINER_CHILDREN, MAX_PATH_DEPTH, NodeKind, PathStep, SoundVariant, WwiseEvent,
 };
 
 /// The variants and broken links one Wwise event leads to in one soundbank.
@@ -16,25 +19,19 @@ pub(crate) struct Found<'i> {
     pub(crate) breaks: Vec<BrokenLink<'i>>,
 }
 
-/// Follows the Wwise event `event` through the `HIRC` section of `bank`, the parsed soundbank
-/// `soundbank`, to its sounds.
-pub(crate) fn event<'i>(
-    index: &'i AudioIndex,
-    bank: &Soundbank<Vec<u8>>,
-    soundbank: &'i IndexedSoundbank,
-    event: &'i WwiseEvent,
-    choice: &LanguageChoice,
-    budget: usize,
-) -> Found<'i> {
+/// Follows the Wwise event `event` through the `HIRC` section of the start soundbank of `banks`
+/// to its sounds, and from there into at most one other soundbank.
+pub(crate) fn event<'i>(banks: Banks<'_, 'i>, event: &'i WwiseEvent, budget: usize) -> Found<'i> {
     let mut walk = Walk {
-        index,
-        choice,
-        bank,
-        soundbank,
+        index: banks.index,
+        choice: banks.choice,
+        current: banks.home.clone(),
+        banks,
         event,
         path: Vec::new(),
         objects: 0,
         budget,
+        chain: 0,
         exhausted: false,
         found: Found::default(),
     };
@@ -45,19 +42,20 @@ pub(crate) fn event<'i>(
 struct Walk<'w, 'i> {
     index: &'i AudioIndex,
     choice: &'w LanguageChoice,
-    bank: &'w Soundbank<Vec<u8>>,
-    soundbank: &'i IndexedSoundbank,
+    banks: Banks<'w, 'i>,
+    current: Loaded<'i>,
     event: &'i WwiseEvent,
     path: Vec<PathStep>,
     objects: usize,
     budget: usize,
+    chain: usize,
     exhausted: bool,
     found: Found<'i>,
 }
 
-impl<'w> Walk<'w, '_> {
+impl<'i> Walk<'_, 'i> {
     fn follow(&mut self, id: u32) {
-        self.reach(id, None, None);
+        self.reach(id, None, Via::Local);
     }
 
     fn spend(&mut self) -> bool {
@@ -72,7 +70,7 @@ impl<'w> Walk<'w, '_> {
         true
     }
 
-    fn reach(&mut self, id: u32, wanted: Option<HircKind>, bank: Option<PlayBank>) {
+    fn reach(&mut self, id: u32, wanted: Option<HircKind>, via: Via) {
         if !self.spend() {
             return;
         }
@@ -86,42 +84,31 @@ impl<'w> Walk<'w, '_> {
             self.broke(BreakReason::Cycle { id });
             return;
         }
-        let posted = wanted.is_some();
         let wanted = wanted.or_else(|| self.path.is_empty().then_some(HircKind::Event));
-        let Some(object) = self.object(id, wanted) else {
-            let own = self.bank.header().id;
-            let holder = if posted {
-                self.index
-                    .event_soundbanks(id)
-                    .map(IndexedSoundbank::id)
-                    .find(|&holder| holder != own)
-            } else {
-                bank.map(|bank| bank.bank_id)
-                    .filter(|&named| named != 0 && named != own)
-            };
-            let reason = holder.map_or(BreakReason::Missing { id }, |bank_id| {
-                BreakReason::OtherSoundbank { id, bank_id }
-            });
-            self.broke(reason);
+        let (bank, entered) = if find(&self.current.bank, id, wanted).is_some() {
+            (Rc::clone(&self.current.bank), None)
+        } else {
+            match self.banks.enter(self.current.position, id, via) {
+                Ok(next) => (Rc::clone(&next.bank), Some(next)),
+                Err(refused) => {
+                    self.broke_in(refused.bank, refused.reason);
+                    return;
+                }
+            }
+        };
+        let Some(object) = find(&bank, id, wanted) else {
+            self.broke(BreakReason::Missing { id });
             return;
         };
+        let left = entered.map(|next| std::mem::replace(&mut self.current, next));
         self.path.push(PathStep {
             kind: node_kind(object),
             id,
         });
         self.visit(object);
         self.path.pop();
-    }
-
-    fn object(&self, id: u32, wanted: Option<HircKind>) -> Option<&'w HircObject> {
-        let bank = self.bank;
-        let found = bank.object(id)?;
-        match wanted {
-            Some(kind) if found.kind != kind => bank
-                .objects()
-                .iter()
-                .find(|object| object.kind == kind && object.id == id),
-            _ => Some(found),
+        if let Some(left) = left {
+            self.current = left;
         }
     }
 
@@ -130,9 +117,16 @@ impl<'w> Walk<'w, '_> {
             HircValue::Event(actions) => self.children(actions),
             HircValue::Action(action) => {
                 if action.is_play() {
-                    self.reach(action.target_id, None, action.bank);
+                    let via = action
+                        .bank
+                        .map_or(Via::Local, |bank| Via::Bank(bank.bank_id));
+                    self.reach(action.target_id, None, via);
                 } else if action.is_play_event() {
-                    self.reach(action.target_id, Some(HircKind::Event), None);
+                    self.chained(|walk| {
+                        walk.reach(action.target_id, Some(HircKind::Event), Via::PlayEvent);
+                    });
+                } else if action.is_trigger() {
+                    self.chained(|walk| walk.stingers(action.target_id));
                 }
             }
             HircValue::Container(container) => self.children(&container.children),
@@ -169,10 +163,51 @@ impl<'w> Walk<'w, '_> {
                 ) =>
             {
                 self.broke(BreakReason::UnknownLayout {
-                    version: self.bank.header().version,
+                    version: self.current.bank.header().version,
                 });
             }
             HircValue::Raw => self.broke(BreakReason::Unsupported),
+        }
+    }
+
+    fn chained(&mut self, follow: impl FnOnce(&mut Self)) {
+        if self.chain >= MAX_ACTION_CHAIN {
+            self.broke(BreakReason::ChainTooLong {
+                limit: MAX_ACTION_CHAIN,
+            });
+            return;
+        }
+        self.chain += 1;
+        follow(self);
+        self.chain -= 1;
+    }
+
+    fn stingers(&mut self, trigger: u32) {
+        let stingers = self.index.stingers(trigger);
+        if stingers.is_empty() {
+            self.broke(BreakReason::Missing { id: trigger });
+            return;
+        }
+        let mut banks: Vec<u32> = stingers.iter().map(|stinger| stinger.bank).collect();
+        banks.sort_unstable();
+        banks.dedup();
+        let chosen = select_holders(self.index, &banks, self.choice);
+        if chosen.is_empty() {
+            self.broke(self.choice.no_localisation());
+            return;
+        }
+        let wanted: Vec<_> = stingers
+            .iter()
+            .filter(|stinger| chosen.contains(&stinger.bank))
+            .collect();
+        for stinger in wanted.iter().take(MAX_CONTAINER_CHILDREN) {
+            self.reach(stinger.segment_id, None, Via::At(stinger.bank));
+        }
+        if wanted.len() > MAX_CONTAINER_CHILDREN {
+            self.broke(BreakReason::TooManyChildren {
+                count: wanted.len(),
+                limit: MAX_CONTAINER_CHILDREN,
+            });
         }
     }
 
@@ -189,13 +224,13 @@ impl<'w> Walk<'w, '_> {
     }
 
     fn sound(&mut self, source: SoundSource) {
-        let located = locate(self.index, self.soundbank, self.choice, &source);
+        let located = locate(self.index, self.current.soundbank, self.choice, &source);
         if located.missing_localisation {
             self.broke(self.choice.no_localisation());
         }
         self.found.variants.push(SoundVariant {
             event: self.event,
-            soundbank: self.soundbank,
+            soundbank: self.current.soundbank,
             sound_id: self.path.last().map_or(0, |step| step.id),
             path: self.path.as_slice().into(),
             source,
@@ -207,12 +242,27 @@ impl<'w> Walk<'w, '_> {
     }
 
     fn broke(&mut self, reason: BreakReason) {
+        self.broke_in(None, reason);
+    }
+
+    fn broke_in(&mut self, soundbank: Option<&'i IndexedSoundbank>, reason: BreakReason) {
         self.found.breaks.push(BrokenLink {
             event: self.event,
-            soundbank: Some(self.soundbank),
+            soundbank: Some(soundbank.unwrap_or(self.current.soundbank)),
             path: self.path.as_slice().into(),
             reason,
         });
+    }
+}
+
+fn find(bank: &Soundbank<Vec<u8>>, id: u32, wanted: Option<HircKind>) -> Option<&HircObject> {
+    let found = bank.object(id)?;
+    match wanted {
+        Some(kind) if found.kind != kind => bank
+            .objects()
+            .iter()
+            .find(|object| object.kind == kind && object.id == id),
+        _ => Some(found),
     }
 }
 

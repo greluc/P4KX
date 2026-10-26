@@ -84,12 +84,9 @@ fn luminance([red, green, blue]: [f32; 3]) -> f32 {
 
 /// Metals have a bright specular colour, and either a metal surface type or a dark diffuse colour.
 ///
-/// A material that takes a tint palette is paint and never a plain metal, so that a dark tint
-/// with a bright specular colour keeps its tint.
+/// A palette whose entry has a bright specular colour, such as the bare metal of the Prospector,
+/// paints a metal; the usual paints have a specular colour far below the threshold.
 pub(crate) fn is_metal(material: &Material) -> bool {
-    if material.tinted {
-        return false;
-    }
     let named = material
         .surface_type
         .get(..5)

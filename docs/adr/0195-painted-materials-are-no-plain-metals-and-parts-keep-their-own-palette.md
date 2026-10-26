@@ -1,6 +1,8 @@
 # Painted materials are no plain metals and parts keep their own palette
 
-Decided for issue #512. It amends ADR-0080 (palettes of parts) and ADR-0097 (`shading`).
+Decided for issue #512. It amends ADR-0080 (palettes of parts) and ADR-0097 (`shading`). Its rule
+that a tinted material is never a metal is superseded by ADR-0207: a palette entry with a bright
+specular colour paints a metal.
 
 ## Decision
 

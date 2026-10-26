@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use p4kx_channels::PublicPatches;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -24,16 +25,21 @@ pub struct SchemaReport<'a> {
     diff: &'a SchemaDiff,
 }
 
-/// Returns the JSON report of `diff`, the schema drift from the `old` to the `new` Archive.
+/// Returns the JSON report of `diff`, the schema drift from the `old` to the `new` Archive, with
+/// the public patches `patches` knows for their Builds.
 #[must_use]
 pub fn schema_report<'a>(
     old: &'a Archive,
     new: &'a Archive,
     diff: &'a SchemaDiff,
+    patches: Option<&PublicPatches>,
 ) -> SchemaReport<'a> {
     SchemaReport {
         format_version: SCHEMA_REPORT_FORMAT_VERSION,
-        source: sources(&Side::of(old), &Side::of(new)),
+        source: sources(
+            &Side::of(old).with_public_patches(patches),
+            &Side::of(new).with_public_patches(patches),
+        ),
         diff,
     }
 }

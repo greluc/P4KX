@@ -5,6 +5,7 @@ use std::fs::File;
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
 
+use p4kx_channels::PublicPatches;
 use serde::{Serialize, Serializer};
 
 use crate::entry_change::{count, count_by_directory};
@@ -19,17 +20,35 @@ pub struct Side<'a> {
     archive: &'a Path,
     channel: Option<String>,
     build: Option<&'a Build>,
+    public_patch: Option<String>,
 }
 
 impl<'a> Side<'a> {
-    /// Returns the side of `archive`.
+    /// Returns the side of `archive`, whose Build has no public patch yet.
     #[must_use]
     pub fn of(archive: &'a Archive) -> Self {
         Self {
             archive: archive.path(),
             channel: p4kx_channels::channel_name(archive.path()),
             build: archive.build(),
+            public_patch: None,
         }
+    }
+
+    /// Returns the side with the public patch `patches` knows for its Build, if any.
+    #[must_use]
+    pub fn with_public_patches(mut self, patches: Option<&PublicPatches>) -> Self {
+        self.public_patch = self
+            .build
+            .and_then(|build| patches?.of(build))
+            .map(str::to_owned);
+        self
+    }
+
+    /// Returns the public patch version of the Build, e.g. `4.7.2`, or `None` when unknown.
+    #[must_use]
+    pub fn public_patch(&self) -> Option<&str> {
+        self.public_patch.as_deref()
     }
 
     /// Returns the path the Archive was opened from.

@@ -70,6 +70,10 @@ struct BuildReport<'a> {
     change_number: &'a str,
     /// The `BuildId` GUID.
     build_id: &'a str,
+    /// The public patch version, e.g. `4.7.2`, from the RSI Launcher log; `null` when the log has
+    /// no line for the change number.
+    #[schemars(transform = nullable)]
+    public_patch: Option<String>,
 }
 
 /// The Entries added, removed and changed.
@@ -137,13 +141,14 @@ impl From<&Entry> for EntryState {
     }
 }
 
-impl<'a> From<&'a Build> for BuildReport<'a> {
-    fn from(build: &'a Build) -> Self {
+impl<'a> BuildReport<'a> {
+    fn of(build: &'a Build, public_patch: Option<&str>) -> Self {
         Self {
             branch: build.branch(),
             version: build.version(),
             change_number: build.change_number(),
             build_id: build.build_id(),
+            public_patch: public_patch.map(str::to_owned),
         }
     }
 }
@@ -153,7 +158,9 @@ impl<'a> From<&Side<'a>> for SourceSide<'a> {
         Self {
             archive: side.archive().to_string_lossy(),
             channel: side.channel().map(|channel| Cow::Owned(channel.to_owned())),
-            build: side.build().map(BuildReport::from),
+            build: side
+                .build()
+                .map(|build| BuildReport::of(build, side.public_patch())),
         }
     }
 }

@@ -4,6 +4,7 @@
 use std::fmt;
 use std::time::SystemTime;
 
+use p4kx_channels::PublicPatches;
 use p4kx_extraction::{CancelToken, Filter};
 
 /// The step of a catalog build that a [`CatalogProgress`] reports, in the order the steps run.
@@ -39,11 +40,13 @@ pub struct CatalogOptions<'a> {
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread while Records are checked; calls may overtake each other.
     pub progress: Option<&'a (dyn Fn(CatalogProgress) + Sync)>,
+    /// The public patches the catalog's source states for the Build; `None` states none.
+    pub public_patches: Option<&'a PublicPatches>,
 }
 
 impl CatalogOptions<'_> {
-    /// Returns options for a complete catalog exported at `exported_at`, without cancellation or
-    /// progress.
+    /// Returns options for a complete catalog exported at `exported_at`, without cancellation,
+    /// progress or public patches.
     #[must_use]
     pub const fn new(exported_at: SystemTime) -> Self {
         Self {
@@ -51,6 +54,7 @@ impl CatalogOptions<'_> {
             exported_at,
             cancel: None,
             progress: None,
+            public_patches: None,
         }
     }
 }
@@ -62,6 +66,7 @@ impl fmt::Debug for CatalogOptions<'_> {
             .field("exported_at", &self.exported_at)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
+            .field("public_patches", &self.public_patches)
             .finish()
     }
 }

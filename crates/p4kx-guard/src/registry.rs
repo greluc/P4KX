@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError, RwLock};
 use std::time::SystemTime;
 
-use p4kx_channels::{SearchPaths, known_library_folders};
+use p4kx_channels::{LAUNCHER_LOG_FILES, SearchPaths, known_library_folders, launcher_logs_folder};
 
 use crate::{Installation, WriteRefused};
 
@@ -14,7 +14,6 @@ const EXTRA_FOLDERS_VARIABLE: &str = "P4KX_PROTECT_FOLDERS";
 
 static PROTECTED: RwLock<Installation> = RwLock::new(Installation::new());
 static LOG_STAMP: Mutex<Option<LogStamp>> = Mutex::new(None);
-const LOG_FILES: [&str; 2] = ["log.log", "log.old.log"];
 
 /// Protects `folder` and everything below it for the rest of the process.
 pub fn protect(folder: &Path) {
@@ -88,10 +87,10 @@ fn is_installation(folder: &Path) -> bool {
 type LogStamp = Vec<Option<(SystemTime, u64)>>;
 
 fn log_stamp(paths: &SearchPaths) -> LogStamp {
-    LOG_FILES
+    LAUNCHER_LOG_FILES
         .iter()
         .map(|name| {
-            let logs = paths.launcher.as_ref()?.join("logs").join(name);
+            let logs = launcher_logs_folder(paths.launcher.as_ref()?).join(name);
             let metadata = std::fs::metadata(logs).ok()?;
             Some((metadata.modified().ok()?, metadata.len()))
         })

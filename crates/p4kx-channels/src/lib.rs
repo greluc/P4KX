@@ -8,8 +8,11 @@ mod channel;
 mod detect;
 mod kind;
 mod launcher_log;
+mod log_lines;
+mod public_patch;
 
 pub use channel::{Channel, ChannelSource, channel_name};
-pub use detect::{SearchPaths, detect, known_library_folders};
+pub use detect::{SearchPaths, detect, detect_with_patches, known_library_folders};
 pub use kind::ChannelKind;
-pub(crate) use launcher_log::library_folders;
+pub use launcher_log::{LAUNCHER_LOG_FILES, launcher_logs_folder};
+pub use public_patch::PublicPatches;

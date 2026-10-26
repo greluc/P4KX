@@ -1,12 +1,28 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::RecordTree;
+use std::collections::HashSet;
 
-use crate::contract::BlueprintCategory;
+use p4kx_extraction::{Guid, RecordTree};
+
+use crate::contract::{Blueprint, BlueprintCategory};
 use crate::guid_text::CatalogGuid;
 use crate::record_fields::class_name;
 use crate::texts::Texts;
+
+/// Sets the `categoryGuid` of every blueprint of `blueprints` to `null` whose category is in
+/// `missing`, the categories left out as development leftovers or unreadable, so that no
+/// `categoryGuid` points at a category the catalog lacks.
+pub(crate) fn unlink_categories(blueprints: &mut [Blueprint<'_>], missing: &HashSet<Guid>) {
+    for blueprint in blueprints {
+        if blueprint
+            .category_guid
+            .is_some_and(|category| missing.contains(&category.0))
+        {
+            blueprint.category_guid = None;
+        }
+    }
+}
 
 /// Returns the blueprint category the `BlueprintCategoryRecord` tree `tree` describes.
 ///

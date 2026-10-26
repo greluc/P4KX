@@ -24,7 +24,20 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 const SORT_LIMIT: Duration = Duration::from_millis(30);
 const FRAME_LIMIT: Duration = Duration::from_millis(16);
-const SORT_FRAME_LIMIT: Duration = Duration::from_millis(50);
+const SORT_HEADERS: [&str; 12] = [
+    "Size",
+    "Size",
+    "Compression",
+    "Compression",
+    "Encryption",
+    "Encryption",
+    "Name",
+    "Name",
+    "Size",
+    "Compression",
+    "Encryption",
+    "Name",
+];
 const FRAME_CEILING: Duration = Duration::from_millis(100);
 const COLUMNS: [SortColumn; 4] = [
     SortColumn::Name,
@@ -106,7 +119,7 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
     );
 
     let mut sorting = Vec::new();
-    for header in ["Size", "Size", "Compression", "Encryption", "Name"] {
+    for header in SORT_HEADERS {
         harness.get_by_label(header).click();
         step_into(&mut sorting, &mut harness);
     }
@@ -125,7 +138,7 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
     }
     harness.run_steps(2);
     assert_ne!(top_row_name(&harness), first_row, "the table scrolled");
-    assert_steady_frames("sorting", &sorting, SORT_FRAME_LIMIT, FRAME_CEILING);
+    assert_steady_frames("sorting", &sorting, FRAME_LIMIT, FRAME_CEILING);
     assert_steady_frames("scrolling", &frames, FRAME_LIMIT, FRAME_CEILING);
     Ok(())
 }

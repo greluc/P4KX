@@ -93,18 +93,6 @@ impl Piece {
     }
 }
 
-fn xml_paths(loadout: &LoadoutSpec, paths: &mut Vec<String>) {
-    match loadout {
-        LoadoutSpec::Xml(path) => paths.push(path.to_string()),
-        LoadoutSpec::Layered(layers) => {
-            for layer in layers.iter() {
-                xml_paths(layer, paths);
-            }
-        }
-        LoadoutSpec::Manual(_) => {}
-    }
-}
-
 impl<'f> LoadoutResolver<'f> {
     /// Returns the paths of the XML Loadouts the default Loadout of `entity` is made of, in the
     /// order they are laid over each other: for an outfit its base Loadout, then the Loadouts of
@@ -115,7 +103,7 @@ impl<'f> LoadoutResolver<'f> {
         if let Ok(spec) = spec.as_ref()
             && let Some(loadout) = &spec.loadout
         {
-            xml_paths(loadout, &mut paths);
+            loadout.xml_paths(&mut paths);
         }
         paths
     }
@@ -138,6 +126,7 @@ impl<'f> LoadoutResolver<'f> {
             port_flags: Vec::new(),
             port_index: std::collections::HashMap::new(),
             loadout: Some(loadout),
+            outfit: None,
             geometry: None,
             variants: Vec::new(),
             vehicle: None,

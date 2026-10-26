@@ -47,9 +47,8 @@ pub(crate) fn read_models(
     let mut seen = HashSet::new();
     let files: Vec<(String, &str)> = drafts
         .iter()
-        .filter_map(Draft::geometry_path)
-        .filter(|path| seen.insert(file_key(path)))
-        .map(|path| (file_key(path), path))
+        .filter_map(|draft| Some((draft.model_key()?, draft.geometry_path()?)))
+        .filter(|(key, _)| seen.insert(key.clone()))
         .collect();
     let mut models = Models::new();
     read_files(&files, provider, options, &mut models, 0)?;
@@ -161,7 +160,7 @@ pub(crate) fn choose_models<'m>(
                 return None;
             };
             let path = path.to_owned();
-            match models.get(&file_key(&path)) {
+            match draft.model_key().and_then(|key| models.get(&key)) {
                 Some(Outcome::Loaded(loaded)) => {
                     let count = vertices(&loaded.model);
                     if total.saturating_add(count) > max_vertices {

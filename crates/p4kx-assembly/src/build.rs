@@ -7,7 +7,8 @@ use std::sync::Arc;
 use p4kx_model::{MaterialStatus, Model, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::build_models::{Loaded, choose_models, fall_back, read_models};
+use crate::build_gear::load_models;
+use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
 use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
@@ -69,8 +70,7 @@ impl Assembly {
         let flat = flatten(tree, options.max_parts);
         let mut issues = flat.issues;
         let mut drafts = flat.drafts;
-        let mut loaded = read_models(&drafts, models, options)?;
-        fall_back(&mut drafts, &mut loaded, models, options, &mut issues)?;
+        let loaded = load_models(&mut drafts, models, options, &mut issues)?;
         let chosen = choose_models(&drafts, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&drafts, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
@@ -109,6 +109,7 @@ impl Assembly {
                 path: draft.path.clone(),
                 guid: draft.node.guid(),
                 class_name: draft.class_name().to_owned(),
+                landing_gear: draft.gear.is_some(),
                 parent: draft.parent,
                 local,
                 world,
@@ -136,11 +137,10 @@ fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
     drafts
         .iter()
         .map(|draft| {
-            if draft.gear.is_some() || (draft.node.is_docked_vehicle() && !draft.node.is_expanded())
-            {
-                Arc::clone(&none)
-            } else {
+            if draft.names_containers() {
                 Arc::clone(&draft.node.object_containers)
+            } else {
+                Arc::clone(&none)
             }
         })
         .collect()

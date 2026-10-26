@@ -100,6 +100,7 @@ pub struct Part {
     pub(crate) path: String,
     pub(crate) guid: Guid,
     pub(crate) class_name: String,
+    pub(crate) landing_gear: bool,
     pub(crate) parent: Option<usize>,
     pub(crate) local: Transform,
     pub(crate) world: Transform,
@@ -125,16 +126,23 @@ impl Part {
         &self.path
     }
 
-    /// Returns the GUID of the part's Entity.
+    /// Returns the GUID of the part's Entity; for a landing gear, that of the Entity it belongs
+    /// to. Check [`Self::is_landing_gear`] before treating the part as an Entity.
     #[must_use]
     pub const fn guid(&self) -> Guid {
         self.guid
     }
 
-    /// Returns the class name of the part's Entity.
+    /// Returns the class name of the part's Entity; for a landing gear, the name of its bone.
     #[must_use]
     pub fn class_name(&self) -> &str {
         &self.class_name
+    }
+
+    /// Returns whether the part is a landing gear of the Entity it hangs below, not an Entity.
+    #[must_use]
+    pub const fn is_landing_gear(&self) -> bool {
+        self.landing_gear
     }
 
     /// Returns the index of the parent part, or `None` for the root. A parent comes before its

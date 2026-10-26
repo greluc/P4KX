@@ -25,6 +25,23 @@ impl Draft<'_> {
             .map_or_else(|| self.node.class_name(), LandingGear::bone)
     }
 
+    /// Returns whether the part's Entity names object containers of its own: a landing gear does
+    /// not, and neither does a docked vehicle that is not expanded, as its ports are left out too.
+    pub(crate) const fn names_containers(&self) -> bool {
+        self.gear.is_none() && (self.node.is_expanded() || !self.node.is_docked_vehicle())
+    }
+
+    /// Returns the key the part's model is kept under: the file, and for a landing gear a key of
+    /// its own, as the gear is posed and an Entity that names the same file is not.
+    pub(crate) fn model_key(&self) -> Option<String> {
+        let key = crate::build::file_key(self.geometry_path()?);
+        Some(if self.gear.is_some() {
+            format!("gear\\{key}")
+        } else {
+            key
+        })
+    }
+
     /// Returns the path of the model file the part draws.
     pub(crate) fn geometry_path(&self) -> Option<&str> {
         self.gear.map_or_else(

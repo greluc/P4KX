@@ -266,7 +266,8 @@ change to a port below an unexpanded docked vehicle, as `entity loadout` lists i
 and no error; the report lists the ports as `ignored` (absent when empty), as for `entity loadout`.
 A replacement that does not fit its port is written all the same and listed in `incompatible` (absent
 when empty), as for `entity loadout`.
-`parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
+`parts` counts the root Entity, every attached Entity that resolved and every landing gear of those
+Entities ([ADR-0210](adr/0210-landing-gear-are-parts-placed-at-their-bone.md)), `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
 lowest level when they have none up to the requested one;
@@ -309,19 +310,22 @@ Without the flag `interior` is absent.
 
 `placements` has one object per part, the root first and every part after its parent, with
 `path` (as for an Issue), `placement` (`root`, `helper`, `port_node` or `origin`: the part sits at
-the helper its port names in the parent's model, at the node of the parent's model named like the
+the helper its port names in the parent's model, or, for a landing gear, at the node of its
+Entity's model named like the gear's bone; at the node of the parent's model named like the
 port, or at the parent's origin, which is also where a port with no helper and no node of its
-name lands, without an Issue), `helper` (the helper's name, only for `helper`) and `modelled`
-(the part has a model).
+name lands, without an Issue, and where a landing gear lands whose Entity has no model), `helper`
+(the helper's name, or the bone of a landing gear; only for `helper`) and `modelled` (the part has
+a model).
 
 A transform of a part that carries a shear is written without it: the glTF node holds a
 translation, a rotation and a scale only.
 
-An **Issue** has `path` (the port names from the root joined by `/`, empty for the root), `name`
-(the class name, or what the Loadout names for an attachment that cannot be resolved), `kind`, a
+An **Issue** has `path` (the port names from the root joined by `/`, empty for the root; for a
+landing gear `…/landing_gear/<bone>` after the path of its Entity), `name`
+(the class name, the bone for a landing gear, or what the Loadout names for an attachment that cannot be resolved), `kind`, a
 stable code, `skipped` and `reason`, text for people. The kinds are `unresolved` (the Loadout
 names an Entity that cannot be resolved, so the port holds no part), `no_geometry` (the Entity's
-Record names no model; the part stays as an empty node), `geometry_missing` and
+Record, or the landing gear, names no model; the part stays as an empty node), `geometry_missing` and
 `geometry_unreadable` (the model is not in the Archive or cannot be read, or its character
 definition names none; the part stays as an empty node), `sub_geometry_missing` (the
 sub-geometry the port's flags choose is not in the Archive, so the part keeps the main geometry of
@@ -332,8 +336,8 @@ files of the other attachments are not drawn; reported once per definition, `ski
 drawn with the default material; reported once per library, for the first part that draws with
 it), `palette` (a tint palette the Entity or its library names
 cannot be resolved; the part falls back to the library's default palette or to its plain
-colours), `helper_not_found` (the port's helper is no node of the
-Entity's model; the part sits at the parent's origin; not reported when the parent has no model,
+colours), `helper_not_found` (the port's helper, or the bone of a
+landing gear, is no node of the Entity's model; the part sits at the parent's origin; not reported when the parent has no model,
 whose own Issue says why) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.

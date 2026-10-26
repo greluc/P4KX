@@ -315,11 +315,13 @@ impl EntryIndex {
         (!cancelled.load(Ordering::Relaxed)).then_some(matches)
     }
 
+    /// Fills `out` with the ids [`EntryIndex::entries_in`] returns, reusing its allocation.
     pub(crate) fn entries_in_into(&self, folder: FolderId, sort: Sort, out: &mut Vec<u32>) {
         let range = self.folder(folder).entries();
         self.sorted_where_into(sort, |id| range.contains(&id), out);
     }
 
+    /// Fills `out` with the ids [`EntryIndex::entries_matching`] returns, reusing its allocation.
     pub(crate) fn entries_matching_into(&self, matches: &[bool], sort: Sort, out: &mut Vec<u32>) {
         self.sorted_where_into(
             sort,

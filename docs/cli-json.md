@@ -2077,7 +2077,8 @@ exit code 2; copy a CHF file into `CustomCharacters` by hand.
 `to-json` writes, and `from-json` reads, one indented object. `from-json` of an unchanged
 `to-json` output gives back the original file byte for byte (ADR-0014); any other value gives a
 new file with a correct CRC-32C. Unknown fields and values out of range are rejected with exit
-code 2; a JSON file larger than 1 MiB is not read (exit code 3).
+code 2; a JSON file larger than 1 MiB is not read (exit code 3). The hash fields are
+CRC-32 or CRC-32C values of names; [docs/chf-hashes.md](chf-hashes.md) lists the function per field.
 
 | Field | Type | Meaning |
 |-------|------|---------|

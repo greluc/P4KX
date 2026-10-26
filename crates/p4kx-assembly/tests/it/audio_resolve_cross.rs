@@ -335,6 +335,39 @@ fn a_trigger_action_without_a_stinger_breaks_as_missing() -> TestResult {
 }
 
 #[test]
+fn stingers_of_other_languages_do_not_break_the_one_of_the_chosen_language() -> TestResult {
+    let banks = [
+        ("Music", music(&[(TRIGGER, 0x77)])),
+        ("English(US)\\Stingers", stingers(0x77)),
+        ("German\\Stingers", stingers(0x77)),
+    ];
+    for preferred in ["German", "English(US)"] {
+        resolve(
+            &banks,
+            &LanguageChoice::new(Some(preferred), Some("English(US)")),
+            |sounds| {
+                let [variant] = sounds.variants() else {
+                    return Err(format!("one variant: {:?}", sounds.variants()).into());
+                };
+                assert_eq!(variant.soundbank().language(), Some(preferred));
+                assert!(sounds.breaks().is_empty(), "{:?}", sounds.breaks());
+                Ok(())
+            },
+        )?;
+    }
+    resolve(
+        &banks,
+        &LanguageChoice::new(Some("French"), None),
+        |sounds| {
+            assert_eq!(sounds.variants().len(), 0, "no variants");
+            let kinds: Vec<_> = sounds.breaks().iter().map(|b| b.reason().kind()).collect();
+            assert_eq!(kinds, ["no_localisation"]);
+            Ok(())
+        },
+    )
+}
+
+#[test]
 fn a_named_localised_soundbank_is_chosen_by_the_language() -> TestResult {
     let voice = |sound: u32| {
         TestBank::new(wwise_short_id("Voice")).object(TestHircObject::sound(10, sound, 2, 0))

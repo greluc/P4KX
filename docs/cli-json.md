@@ -653,17 +653,17 @@ action (`0x04xx`) is followed to its target, a PlayEvent action (`0x21xx`) to th
 and a Trigger action (`0x1Bxx`) to the segments of the stingers that name its trigger. Where the
 target lies in another soundbank, the walk reads that one soundbank (at most one besides the one
 holding the event, ADR-0158) and the variant's `soundbank` is the one holding the sound.
-
 A **Break** has `event`, `soundbank` (or `null` when no soundbank holds the event), `object` (the
 step where the chain breaks, the last of `path`), `target` (for `missing`, `other_soundbank` and
 `cycle`, the ID the object refers to, otherwise `null`), `path`, `kind` and `message`. The kinds are
-`no_soundbank`, `unreadable` (the soundbank cannot be read again), `missing` (the object refers to
-an ID the soundbank does not hold; for a Trigger action, a trigger no stinger names),
-`other_soundbank` (the target lies in a soundbank the walk does not enter: the Archive holds no
-soundbank of the ID a Play action names, or the walk has already read its one other soundbank),
-`chain_too_long` (more than 8 PlayEvent and Trigger actions in a row), `malformed`, `unknown_layout` (an object
-of a bank version other than 154), `unsupported` (an object kind that is not followed, e.g. an
-actor-mixer), `cycle`,
+`no_soundbank`, `unreadable` (a soundbank cannot be read again; the Break's `soundbank` is the
+one that cannot, which is the other soundbank when the walk was leaving the soundbank of the
+event), `missing` (the object refers to an ID the soundbank does not hold; for a Trigger action,
+a trigger no stinger names), `other_soundbank` (the target lies in a soundbank the walk does not
+enter: the Archive holds no soundbank of the ID a Play action names, or the walk has already read
+its one other soundbank), `chain_too_long` (more than 8 PlayEvent and Trigger actions in a row),
+`malformed`, `unknown_layout` (an object of a bank version other than 154), `unsupported` (an
+object kind that is not followed, e.g. an actor-mixer), `cycle`,
 `too_deep` (a path of 32 objects), `too_many_children` (only the first 1024 children of a
 container are followed), `too_many_objects` (at most 16,384 objects per event and soundbank) and
 `no_localisation` (a localised event or streamed sound has no soundbank or WEM in `requested` nor

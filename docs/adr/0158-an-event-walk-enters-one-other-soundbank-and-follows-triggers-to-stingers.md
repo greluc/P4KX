@@ -6,23 +6,36 @@ Decided for issue #597. Amends the resolution rules of ADR-0115 and builds on AD
 
 - **Play and PlayEvent actions leave the soundbank.** A Play action whose target its own soundbank
   lacks is followed into the soundbank it names; a PlayEvent action whose Event its own soundbank
-  lacks, into a soundbank that holds the Event (`AudioIndex::event_soundbanks`). The soundbank is
+  lacks, into a soundbank that holds the Event (the index keeps the holders by Event ID,
+  `event_holders`, and `AudioIndex::event_soundbanks` lists them). The soundbank is
   chosen by the language rules of ADR-0033 (`select_holders`): soundbanks that are not localised,
   and the localised ones of the first language of the `LanguageChoice` that has any; with no
   language chosen, the first in path order. A soundbank with the named ID in no selected language
   is a `no_localisation` break.
+- **With no language chosen, a reference leaving the soundbank follows the first language only.**
+  This amends ADR-0033, which has `LanguageChoice::any` follow every language: the start
+  soundbank of an event is still followed in every language, but beyond it the walk reads one
+  other soundbank, and following each language would read one soundbank per language and
+  reference. The soundbanks of the other languages are not listed; a caller that needs one asks
+  with `LanguageChoice::new`.
 - **A Trigger action (`0x1Bxx`) fires a music trigger.** It is followed to every stinger that
   names the trigger as its trigger ID, to the segment the stinger plays, and from there as any
   segment. The stingers of all soundbanks are kept in the audio index by trigger ID, with the
   soundbank that declares them, because on LIVE none of the 33 Trigger actions lies in the
-  soundbank that declares the stinger it fires. A stinger without a segment (ID 0) is not kept. A
-  Trigger action whose trigger no stinger names is a `missing` break with the trigger ID.
+  soundbank that declares the stinger it fires. A stinger without a segment (ID 0) is not kept.
+  The index keeps at most `MAX_STINGERS` stingers, each (trigger, soundbank, segment) once, and
+  takes at most that many from one soundbank. The stingers are followed in the soundbanks the
+  language rules select, as for an Event; only when none of them is selected is it a
+  `no_localisation` break. A Trigger action whose trigger no stinger names is a `missing` break
+  with the trigger ID.
 - **One extra soundbank read per event and soundbank.** A walk starts in the soundbank that holds
   its Event and reads at most one other soundbank, on the first reference that leaves the first.
   It then moves between those two without reading again; a reference into a third soundbank is
-  an `other_soundbank` break. A soundbank that cannot be read is an `unreadable` break, once
-  attempted never retried by the same walk. A Play action that names a soundbank the Archive does
-  not hold is an `other_soundbank` break too.
+  an `other_soundbank` break. The events of one start soundbank share the last other soundbank
+  read, so consecutive events that leave to the same soundbank read it once. A soundbank that
+  cannot be read is an `unreadable` break that names that soundbank, once attempted never retried
+  by the same walk. A Play action that names a soundbank the Archive does not hold is an
+  `other_soundbank` break too.
 - **Chains are bounded.** At most `MAX_ACTION_CHAIN` (8) PlayEvent and Trigger actions follow one
   another on a path; the next is a `chain_too_long` break (new kind). The walk keeps the path
   rule of ADR-0021, which cuts a reference back to an object on the path whatever soundbank holds

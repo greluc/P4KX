@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry as Slot;
 
 use p4kx_archive::{Archive, Entry};
@@ -298,27 +298,31 @@ fn boxed<T>(lists: HashMap<u32, Vec<T>>) -> HashMap<u32, Box<[T]>> {
 #[derive(Default)]
 struct StingerList {
     found: HashMap<u32, Vec<Stinger>>,
-    count: usize,
+    seen: HashSet<(u32, Stinger)>,
 }
 
 impl StingerList {
     fn add(&mut self, bank: u32, stingers: &[MusicStinger]) {
         for stinger in stingers {
+            if self.seen.len() >= MAX_STINGERS {
+                return;
+            }
             let found = Stinger {
                 bank,
                 segment_id: stinger.segment_id,
             };
-            let known = self.found.entry(stinger.trigger_id).or_default();
-            if self.count < MAX_STINGERS && !known.contains(&found) {
-                known.push(found);
-                self.count += 1;
+            if self.seen.insert((stinger.trigger_id, found)) {
+                self.found
+                    .entry(stinger.trigger_id)
+                    .or_default()
+                    .push(found);
             }
         }
     }
 }
 
 /// The segment a stinger plays and the soundbank, by position, whose music node declares it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct Stinger {
     pub(crate) bank: u32,
     pub(crate) segment_id: u32,
@@ -330,4 +334,40 @@ struct MediaSpot {
     soundbank: u32,
     offset: u64,
     len: u64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn stinger(trigger_id: u32, segment_id: u32) -> MusicStinger {
+        MusicStinger {
+            trigger_id,
+            segment_id,
+        }
+    }
+
+    #[test]
+    fn a_crafted_bank_cannot_grow_the_stinger_list_past_the_cap() {
+        let crafted: Vec<MusicStinger> = (0..2 * u32::try_from(MAX_STINGERS).unwrap_or(0))
+            .map(|number| stinger(number, 1))
+            .collect();
+        let mut list = StingerList::default();
+        list.add(0, &crafted);
+        list.add(1, &crafted);
+        assert_eq!(list.seen.len(), MAX_STINGERS);
+        assert_eq!(list.found.len(), MAX_STINGERS);
+        assert!(list.found.values().all(|found| found.len() == 1));
+    }
+
+    #[test]
+    fn a_stinger_repeated_in_one_trigger_is_kept_once() {
+        let repeated = vec![stinger(7, 1); 100_000];
+        let mut list = StingerList::default();
+        list.add(3, &repeated);
+        list.add(3, &repeated);
+        list.add(4, &[stinger(7, 1)]);
+        let found = list.found.get(&7).map_or(0, Vec::len);
+        assert_eq!(found, 2);
+    }
 }

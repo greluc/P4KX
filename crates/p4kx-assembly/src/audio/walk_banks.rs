@@ -40,28 +40,65 @@ impl<'i> Loaded<'i> {
 /// How a reference names the soundbank that holds its target.
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Via {
+    /// The reference stays in the soundbank it was found in (a child, a source, a first Event).
     Local,
+    /// A Play action names the soundbank by its ID.
     Bank(u32),
+    /// A PlayEvent action: any soundbank that holds the Event.
     PlayEvent,
+    /// A stinger of the music index: the soundbank at this position of the index.
     At(u32),
 }
 
+/// A reference the walk does not follow, with the soundbank the break is reported in, or `None`
+/// for the soundbank the walk is in.
 #[derive(Debug)]
-enum Extra<'i> {
-    Unused,
-    Loaded(Loaded<'i>),
-    Failed(AudioFileError),
+pub(crate) struct Refused<'i> {
+    pub(crate) reason: BreakReason,
+    pub(crate) bank: Option<&'i IndexedSoundbank>,
 }
 
-/// The soundbanks one event walk may be in: the one it starts in and at most one other, read on
-/// the first reference that leaves the first.
+impl Refused<'_> {
+    const fn here(reason: BreakReason) -> Self {
+        Self { reason, bank: None }
+    }
+}
+
+/// The last other soundbank read by the event walks of one start soundbank, kept for the next
+/// event, whether it could be read or not.
+#[derive(Debug, Default)]
+pub(crate) struct Spare<'i> {
+    slot: Option<(u32, Result<Loaded<'i>, AudioFileError>)>,
+}
+
+impl<'i> Spare<'i> {
+    fn get(
+        &mut self,
+        archive: &Archive,
+        index: &'i AudioIndex,
+        position: u32,
+    ) -> Result<Loaded<'i>, AudioFileError> {
+        if let Some((at, result)) = &self.slot
+            && *at == position
+        {
+            return result.clone();
+        }
+        let result = Loaded::read(archive, index, position);
+        self.slot = Some((position, result.clone()));
+        result
+    }
+}
+
+/// The soundbanks one event walk may be in: the one it starts in and at most one other, taken
+/// on the first reference that leaves the first and read through the shared [`Spare`].
 #[derive(Debug)]
 pub(crate) struct Banks<'w, 'i> {
     archive: &'w Archive,
-    index: &'i AudioIndex,
-    choice: &'w LanguageChoice,
-    home: Loaded<'i>,
-    extra: Extra<'i>,
+    pub(crate) index: &'i AudioIndex,
+    pub(crate) choice: &'w LanguageChoice,
+    pub(crate) home: Loaded<'i>,
+    spare: &'w mut Spare<'i>,
+    other: Option<u32>,
 }
 
 impl<'w, 'i> Banks<'w, 'i> {
@@ -70,67 +107,54 @@ impl<'w, 'i> Banks<'w, 'i> {
         index: &'i AudioIndex,
         choice: &'w LanguageChoice,
         home: Loaded<'i>,
+        spare: &'w mut Spare<'i>,
     ) -> Self {
         Self {
             archive,
             index,
             choice,
             home,
-            extra: Extra::Unused,
+            spare,
+            other: None,
         }
     }
 
     /// Returns the soundbank a reference to `id` leaving the soundbank at `from` goes to: the
-    /// start soundbank or the one other soundbank, read now when it is the first to be needed.
+    /// start soundbank or the one other soundbank, read now unless the spare holds it.
     pub(crate) fn enter(
         &mut self,
         from: u32,
         id: u32,
         via: Via,
-    ) -> Result<Loaded<'i>, BreakReason> {
-        let candidates = self.candidates(id, via)?;
+    ) -> Result<Loaded<'i>, Refused<'i>> {
+        let candidates = self.candidates(id, via).map_err(Refused::here)?;
         if candidates.contains(&from) {
-            return Err(BreakReason::Missing { id });
+            return Err(Refused::here(BreakReason::Missing { id }));
         }
         let Some(&wanted) = candidates.first() else {
-            return Err(match via {
+            return Err(Refused::here(match via {
                 Via::Bank(bank_id) => BreakReason::OtherSoundbank { id, bank_id },
                 Via::Local | Via::PlayEvent | Via::At(_) => BreakReason::Missing { id },
-            });
+            }));
         };
-        if let Some(loaded) = self.loaded(&candidates) {
-            return Ok(loaded);
+        if candidates.contains(&self.home.position) {
+            return Ok(self.home.clone());
         }
-        let bank_id = soundbank_at(self.index, wanted).map_or(0, IndexedSoundbank::id);
-        match &self.extra {
-            Extra::Failed(error) => Err(BreakReason::Unreadable(error.clone())),
-            Extra::Loaded(_) => Err(BreakReason::OtherSoundbank { id, bank_id }),
-            Extra::Unused if from != self.home.position => {
-                Err(BreakReason::OtherSoundbank { id, bank_id })
+        let position = match self.other {
+            Some(taken) if candidates.contains(&taken) => taken,
+            Some(_) => {
+                let bank_id = soundbank_at(self.index, wanted).map_or(0, IndexedSoundbank::id);
+                return Err(Refused::here(BreakReason::OtherSoundbank { id, bank_id }));
             }
-            Extra::Unused => match Loaded::read(self.archive, self.index, wanted) {
-                Ok(loaded) => {
-                    self.extra = Extra::Loaded(loaded.clone());
-                    Ok(loaded)
-                }
-                Err(error) => {
-                    self.extra = Extra::Failed(error.clone());
-                    Err(BreakReason::Unreadable(error))
-                }
-            },
-        }
-    }
-
-    fn loaded(&self, candidates: &[u32]) -> Option<Loaded<'i>> {
-        let extra = match &self.extra {
-            Extra::Loaded(loaded) => Some(loaded),
-            _ => None,
+            None => wanted,
         };
-        [Some(&self.home), extra]
-            .into_iter()
-            .flatten()
-            .find(|loaded| candidates.contains(&loaded.position))
-            .cloned()
+        self.other = Some(position);
+        self.spare
+            .get(self.archive, self.index, position)
+            .map_err(|error| Refused {
+                reason: BreakReason::Unreadable(error),
+                bank: soundbank_at(self.index, position),
+            })
     }
 
     fn candidates(&self, id: u32, via: Via) -> Result<Vec<u32>, BreakReason> {

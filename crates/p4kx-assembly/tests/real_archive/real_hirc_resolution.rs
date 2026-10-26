@@ -77,6 +77,15 @@ fn the_events_of_every_trigger_are_followed_and_counted() -> TestResult {
                             .entry("variants through music".to_owned())
                             .or_default() += 1;
                     }
+                    if kinds
+                        .windows(2)
+                        .any(|pair| pair == ["action", "music_segment"])
+                    {
+                        *census
+                            .break_counts
+                            .entry("variants through a Trigger action".to_owned())
+                            .or_default() += 1;
+                    }
                     if kinds.iter().skip(1).any(|kind| *kind == "event") {
                         *census
                             .break_counts

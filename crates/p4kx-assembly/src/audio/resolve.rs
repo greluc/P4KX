@@ -4,7 +4,7 @@
 use rayon::prelude::*;
 
 use super::walk::{self, Found};
-use super::walk_banks::{Loaded, select_holders, soundbank_at};
+use super::walk_banks::{Banks, Loaded, Spare, select_holders, soundbank_at};
 use super::{
     ArchiveAudio, AudioFileError, AudioIndex, BreakReason, BrokenLink, LanguageChoice,
     MAX_EVENT_OBJECTS, MAX_TRIGGER_OBJECTS, NodeKind, PathStep, TriggerSounds, WwiseEvent,
@@ -30,7 +30,12 @@ impl ArchiveAudio<'_> {
     /// gets a [`BreakReason::NoLocalisation`] break.
     ///
     /// Each soundbank holding one of the events is read again from the Archive, in parallel, and
-    /// dropped once followed. Returns `None` when no ATL definition has the trigger.
+    /// dropped once followed. A walk that leaves its soundbank reads one other soundbank; the
+    /// events of one soundbank share the last other soundbank read. Where a reference names
+    /// several soundbanks, one per language, a walk that has no language chosen follows the first
+    /// in path order, so [`resolve_trigger`](Self::resolve_trigger) lists the first language only
+    /// beyond the soundbank of the event (ADR-0033). Returns `None` when no ATL definition has the
+    /// trigger.
     #[must_use]
     pub fn resolve_trigger_in(
         &self,
@@ -123,6 +128,7 @@ impl ArchiveAudio<'_> {
         budget: usize,
     ) -> Result<Vec<(usize, Found<'i>)>, AudioFileError> {
         let home = Loaded::read(self.archive(), index, position)?;
+        let mut spare = Spare::default();
         Ok(events
             .iter()
             .enumerate()
@@ -132,10 +138,8 @@ impl ArchiveAudio<'_> {
                     .is_some_and(|selected| selected.contains(&position))
             })
             .map(|(number, event)| {
-                (
-                    number,
-                    walk::event(self.archive(), index, &home, event, choice, budget),
-                )
+                let banks = Banks::new(self.archive(), index, choice, home.clone(), &mut spare);
+                (number, walk::event(banks, event, budget))
             })
             .collect())
     }

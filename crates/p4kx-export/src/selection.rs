@@ -12,6 +12,13 @@ use p4kx_extraction::{DataForgeError, Filter, Record};
 /// `contestant` does not.
 pub const EXCLUDED_TOKENS: [&str; 6] = ["test", "template", "dummy", "debug", "deprecated", "dev"];
 
+/// The extra tokens of a leftover ship.
+///
+/// A Record of the ships kind whose record path or name holds one of them as a whole word, ignoring
+/// ASCII case, is left out and counted as skipped, as for [`EXCLUDED_TOKENS`]. The other kinds keep
+/// their `display` and `temp` Records.
+pub const SHIP_EXCLUDED_TOKENS: [&str; 3] = ["temp", "display", "hijacked"];
+
 /// A kind of entity in the Basetool catalog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
@@ -338,43 +345,24 @@ pub(crate) fn selects_blueprint(
     })
 }
 
-/// Returns whether a Record with `record_path` and `name` is a development leftover.
-pub(crate) fn is_leftover(record_path: &str, name: &str) -> bool {
+fn has_word(record_path: &str, name: &str, tokens: &[&str]) -> bool {
     [record_path, name].into_iter().any(|text| {
         text.split(|c: char| !c.is_ascii_alphanumeric())
-            .any(|word| {
-                EXCLUDED_TOKENS
-                    .iter()
-                    .any(|token| word.eq_ignore_ascii_case(token))
-            })
+            .any(|word| tokens.iter().any(|token| word.eq_ignore_ascii_case(token)))
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::is_leftover;
-
-    #[test]
-    fn a_token_is_a_whole_word_of_the_path_or_the_name() {
-        for path in [
-            "libs/foundry/records/entities/scitem/weapons/fps_weapons/dev/vlk_spewgun",
-            "libs/foundry/records/entities/scitem/usables/counter_bar_1m_deprecated",
-            "libs/foundry/records/entities/scitem/carryables/1h/chip_01_debug",
-        ] {
-            assert!(is_leftover(path, "Name"), "{path}");
-        }
-        assert!(is_leftover("libs/foundry/records/x", "Chip_DEBUG"), "name");
-        for path in [
-            "libs/foundry/records/entities/scitem/devices/scanner",
-            "libs/foundry/records/entities/scitem/fps_devices/behr_ltp_01",
-            "libs/foundry/records/entities/scitem/undeveloped",
-            "libs/foundry/records/entities/spaceships/devastator",
-        ] {
-            assert!(!is_leftover(path, "Scanner"), "{path}");
-        }
-        assert!(
-            !is_leftover("libs/foundry/records/entities/spaceships/x", "Devastator"),
-            "a name that starts with the token"
-        );
-    }
+/// Returns whether a Record with `record_path` and `name` is a development leftover.
+pub(crate) fn is_leftover(record_path: &str, name: &str) -> bool {
+    has_word(record_path, name, &EXCLUDED_TOKENS)
 }
+
+/// Returns whether a Record of `kind` with `record_path` and `name` is a development leftover:
+/// one of [`is_leftover`], or a ship with a [`SHIP_EXCLUDED_TOKENS`] word.
+pub(crate) fn is_kind_leftover(kind: Kind, record_path: &str, name: &str) -> bool {
+    is_leftover(record_path, name)
+        || (kind == Kind::Ships && has_word(record_path, name, &SHIP_EXCLUDED_TOKENS))
+}
+
+#[cfg(test)]
+mod tests;

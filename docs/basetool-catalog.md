@@ -494,16 +494,15 @@ For an item the first rule that holds decides:
 
 No item is `ai`: items carry no AI marker the rules can read.
 
-The development-leftover token rule (see "Selection") runs first and is unchanged: a Record it
-leaves out is no entity and has no playability. Known limit: a few leftover-like ships whose names
-the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
-structural marker and read as `player`: their referrers, Tags and record-path folder do not set
-them apart from the ships a player owns (ADR-0167).
+The development-leftover token rule (see "Selection") runs first: a Record it leaves out is no
+entity and has no playability. No structural marker sets the leftover-like ships apart from the
+ships a player owns, so a ship is also left out by name when its record path or name holds the
+whole word `temp`, `display` or `hijacked` (21 ships on LIVE, 15 of them `player`; ADR-0167).
 
 **The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
 means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
 mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
-it: about 20 leftover-like ships on LIVE are `player`, and items carry no AI marker. The Basetool
+it: items carry no AI marker. The Basetool
 matches every other value and `null` against what it knows and seeds none of them. A `null` ship
 (LIVE: Stingray, Skylark, Railen) is added by hand.
 
@@ -1462,7 +1461,11 @@ every kind partial.
 Development leftovers are left out and counted as skipped: a selected Record whose record path or
 name holds one of the tokens `test`, `template`, `dummy`, `debug`, `deprecated` or `dev` as a
 whole word, ignoring case. Words are the runs of ASCII letters and digits, so `paint_test_01` is
-left out while `contestant` stays.
+left out while `contestant` stays. For the ships kind the words `temp`, `display` and `hijacked`
+count as well, so `glsn_shiv_temp_cosa` and `aegs_avenger_stalker_display` are left out; the other
+kinds keep their `display` and `temp` Records (radar displays, shop displays and the like). This
+changed the selection of `ships` for `schemaVersion` 2 (ADR-0167): 21 ships on LIVE are skipped
+that version 1 listed.
 
 A selected Record that cannot be read, such as one whose struct layout is corrupt, does not stop
 the catalog: it is left out, counted as a failure and reported with its record path, GUID and

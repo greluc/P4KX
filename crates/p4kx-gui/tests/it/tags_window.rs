@@ -254,7 +254,9 @@ fn a_change_of_the_archive_on_disk_drops_the_tree_and_says_so() -> TestResult {
         harness.state().tags().status()
     );
     assert!(
-        harness.query_by_label_contains("changed on disk").is_some(),
+        harness
+            .query_by_label("The Archive changed on disk. Reload it to read the tags.")
+            .is_some(),
         "the note is shown"
     );
     Ok(())

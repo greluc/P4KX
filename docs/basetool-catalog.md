@@ -565,7 +565,10 @@ A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
 | `dismantle` | What dismantling the produced item returns, see "Dismantle returns" below; `null` without one |
 
 `craftTimeSeconds` and `ingredients` keep their meaning; they are derived from the first tier, so
-the cost tree is read once.
+the cost tree is read once. A blueprint with a `CraftingCost_Select` nested deeper than 32 levels is
+not cut off silently: it is left out of `blueprints` and listed under `failures`. No blueprint of
+LIVE is that deep, so no catalog of LIVE changes (a change of the selection, folded into the
+unreleased version 2).
 
 An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
 `optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:

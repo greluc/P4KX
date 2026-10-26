@@ -291,6 +291,23 @@ pub(crate) fn unknown_ranges_database() -> DataForgeBuilder {
     ))
 }
 
+pub(crate) const TOO_DEEP: u128 = 0xa600_0000_0000_4000_8000_0000_0000_0006;
+
+/// Returns the DataForge of the fixture with a blueprint whose selections nest 40 levels deep.
+pub(crate) fn too_deep_database() -> DataForgeBuilder {
+    let nested = (0..40).fold(resource(IRON, 1.0, Vec::new()), |inner, level| {
+        select(1, &format!("LEVEL{level}"), vec![inner])
+    });
+    let only = tier(time(1, 0.0), nested, Vec::new());
+    database().record(blueprint(
+        TOO_DEEP,
+        "BP_CRAFT_too_deep",
+        "fps/bp_craft_too_deep",
+        PRODUCT_A,
+        vec![only],
+    ))
+}
+
 pub(crate) const SECOND_DISMANTLE: u128 = 0x1300_0000_0000_4000_8000_0000_0000_0003;
 
 /// Returns the DataForge of the fixture with a second dismantle process.

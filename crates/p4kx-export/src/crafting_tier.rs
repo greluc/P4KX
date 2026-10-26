@@ -22,12 +22,21 @@ const MODIFIERS: &str = "CraftingCostContext_ResultGameplayPropertyModifiers";
 const LINEAR: &str = "CraftingGameplayPropertyModifierValueRange_Linear";
 const LINEAR_ADDITIVE: &str = "CraftingGameplayPropertyModifierValueRange_LinearIntegerAdditive";
 
+/// A `CraftingCost_Select` nested deeper than the reader follows.
+#[derive(Debug, thiserror::Error)]
+#[error("a selection is nested deeper than {MAX_DEPTH} levels")]
+pub(crate) struct TooDeep;
+
 /// Returns the tiers of the `CraftingBlueprint` `blueprint` in stored order. The struct type of
 /// every modifier range the reader does not know is pushed to `unknown`.
+///
+/// # Errors
+///
+/// Returns [`TooDeep`] when a selection is nested deeper than [`MAX_DEPTH`] levels.
 pub(crate) fn tiers<'f>(
     blueprint: Option<&StructValue<'f>>,
     unknown: &mut Vec<&'f str>,
-) -> Vec<Tier<'f>> {
+) -> Result<Vec<Tier<'f>>, TooDeep> {
     elements(blueprint, "tiers")
         .iter()
         .filter_map(as_struct)
@@ -35,27 +44,35 @@ pub(crate) fn tiers<'f>(
         .collect()
 }
 
-fn tier<'f>(tier: &StructValue<'f>, unknown: &mut Vec<&'f str>) -> Tier<'f> {
+fn tier<'f>(tier: &StructValue<'f>, unknown: &mut Vec<&'f str>) -> Result<Tier<'f>, TooDeep> {
     let costs = structure(structure(Some(tier), "recipe"), "costs");
-    Tier {
+    let mandatory = match structure(costs, "mandatoryCost") {
+        Some(cost) => cost_of(cost, 0, unknown)?,
+        None => None,
+    };
+    let optional = elements(costs, "optionalCosts")
+        .iter()
+        .filter_map(as_struct)
+        .filter_map(|cost| cost_of(cost, 0, unknown).transpose())
+        .collect::<Result<_, _>>()?;
+    Ok(Tier {
         craft_time_seconds: craft_time(structure(costs, "craftTime")),
-        mandatory: structure(costs, "mandatoryCost").and_then(|cost| cost_of(cost, 0, unknown)),
-        optional: elements(costs, "optionalCosts")
-            .iter()
-            .filter_map(as_struct)
-            .filter_map(|cost| cost_of(cost, 0, unknown))
-            .collect(),
-    }
+        mandatory,
+        optional,
+    })
 }
 
 fn cost_of<'f>(
     cost: &StructValue<'f>,
     depth: usize,
     unknown: &mut Vec<&'f str>,
-) -> Option<Cost<'f>> {
+) -> Result<Option<Cost<'f>>, TooDeep> {
     let context = context(cost, unknown);
-    match cost.type_name() {
-        SELECT if depth < MAX_DEPTH => {
+    Ok(match cost.type_name() {
+        SELECT => {
+            if depth >= MAX_DEPTH {
+                return Err(TooDeep);
+            }
             let info = structure(Some(cost), "nameInfo");
             Some(Cost::Select(Selection {
                 count: integer(Some(cost), "count"),
@@ -65,8 +82,10 @@ fn cost_of<'f>(
                 options: elements(Some(cost), "options")
                     .iter()
                     .filter_map(as_struct)
-                    .filter_map(|option| cost_of(option, depth.saturating_add(1), unknown))
-                    .collect(),
+                    .filter_map(|option| {
+                        cost_of(option, depth.saturating_add(1), unknown).transpose()
+                    })
+                    .collect::<Result<_, _>>()?,
             }))
         }
         RESOURCE => Some(Cost::Resource(ResourceCost {
@@ -82,7 +101,7 @@ fn cost_of<'f>(
             context,
         })),
         _ => None,
-    }
+    })
 }
 
 fn context<'f>(cost: &StructValue<'f>, unknown: &mut Vec<&'f str>) -> CostContext<'f> {

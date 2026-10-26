@@ -119,6 +119,86 @@ fn a_search_shows_the_matches_with_the_tags_above_them() -> TestResult {
 }
 
 #[test]
+fn a_search_shows_no_chevron_because_it_would_do_nothing() -> TestResult {
+    let (_dir, mut harness) = opened_tags(Language::BritishEnglish)?;
+    harness
+        .get_by_role_and_label(Role::Button, "Expand Weapon")
+        .click();
+    harness.run_steps(3);
+
+    type_search(&mut harness, "GUN");
+
+    for label in ["Expand Weapon", "Collapse Weapon"] {
+        assert!(
+            harness
+                .query_by_role_and_label(Role::Button, label)
+                .is_none(),
+            "no `{label}` while the search filters"
+        );
+    }
+    if let TagsStatus::Ready(view) = harness.state().tags().status() {
+        assert!(
+            (0..view.shown_len())
+                .filter_map(|index| view.row(index))
+                .all(|row| !row.is_expandable() && !row.is_expanded()),
+            "no row can be expanded or is expanded while filtered"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn clearing_the_search_brings_the_chevrons_back_as_they_were() -> TestResult {
+    let (_dir, mut harness) = opened_tags(Language::BritishEnglish)?;
+    harness
+        .get_by_role_and_label(Role::Button, "Expand Weapon")
+        .click();
+    harness.run_steps(3);
+    type_search(&mut harness, "GUN");
+
+    harness.state_mut().tags_mut().set_query("");
+    harness.run_steps(3);
+
+    assert!(
+        harness
+            .query_by_role_and_label(Role::Button, "Collapse Weapon")
+            .is_some(),
+        "the expanded tag shows its chevron again"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_search_ignores_case_beyond_ascii() -> TestResult {
+    let (_dir, mut harness) = opened(
+        vec![TestEntry::zstd(
+            "Data\\Game2.dcb",
+            tagging::forge_named(&["Größe", "Ärmel", "Armour"]),
+        )],
+        Language::BritishEnglish,
+    )?;
+
+    harness.state_mut().tags_mut().set_query("GRÖSSE");
+    harness.run_steps(2);
+    let none = paths(&harness);
+    harness.state_mut().tags_mut().set_query("ÄRMEL");
+    harness.run_steps(2);
+    let upper = paths(&harness);
+    harness.state_mut().tags_mut().set_query("ärmel");
+    harness.run_steps(2);
+    let lower = paths(&harness);
+    harness.state_mut().tags_mut().set_query("grö");
+    harness.run_steps(2);
+    let partial = paths(&harness);
+
+    assert!(none.is_empty(), "ß is not ss: {none:?}");
+    assert_eq!(upper, ["Ärmel"], "upper-case umlaut finds the tag");
+    assert_eq!(lower, ["Ärmel"], "lower-case umlaut finds the tag");
+    assert_eq!(partial, ["Größe"], "a prefix with an umlaut");
+    Ok(())
+}
+
+#[test]
 fn a_selected_tag_can_be_copied_as_path_and_as_guid() -> TestResult {
     let (_dir, mut harness) = opened_tags(Language::BritishEnglish)?;
     harness

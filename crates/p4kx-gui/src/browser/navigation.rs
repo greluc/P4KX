@@ -78,6 +78,13 @@ impl Browser {
         self.index.forge().reference_builds()
     }
 
+    /// Returns how often the tag tree was built for the DataForge of the open Archive; it is built
+    /// once per read of DataForge, when the Tags tab first asks for it.
+    #[must_use]
+    pub fn tag_builds(&self) -> usize {
+        self.index.forge().tag_builds()
+    }
+
     /// Returns the language Record previews resolve localisation keys in, or `None` for the keys
     /// alone.
     #[must_use]

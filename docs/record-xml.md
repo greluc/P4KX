@@ -147,9 +147,9 @@ from the root of the tag tree down, joined by `.`) next to such a Reference in t
 The attribute follows `type` and `at`. Only a Reference of type `Tag` gets it, and every Tag Record
 has a tag path: a Tag that no `TagDatabase` reaches is a root of its own and its path is its name.
 A Reference to a Record that does not exist is an error value and has none. Without `--tags` no
-`tag` attribute is written and the output is byte for byte the output described above. A tag path is not unique (sibling Tags may share a name), so the `guid`
-stays the identity. The same Records and the same tag tree always give the same bytes; `--lang` and
-`--tags` combine.
+`tag` attribute is written and the output is byte for byte the output described above. A tag path
+is not unique (sibling Tags may share a name), so the `guid` stays the identity. The same Records
+and the same tag tree always give the same bytes; `--lang` and `--tags` combine.
 
 ## Errors
 

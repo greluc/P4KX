@@ -51,6 +51,7 @@ mod references_derived;
 mod ships;
 mod survey;
 mod tag_limits;
+mod tag_lookup;
 mod tag_tree;
 mod tree_builder;
 mod unsupported_version;

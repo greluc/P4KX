@@ -128,6 +128,16 @@ impl TagsTab {
         }
     }
 
+    /// Lets `edit` change the search text in place and searches again when it returns `true`;
+    /// returns what `edit` returned.
+    pub(crate) fn edit_query(&mut self, edit: impl FnOnce(&mut String) -> bool) -> bool {
+        let changed = edit(&mut self.query);
+        if changed && let State::Ready(view) = &mut self.state {
+            view.set_query(&self.query);
+        }
+        changed
+    }
+
     /// Expands the tag at `position` of the pre-order, or collapses it when it is expanded.
     pub fn toggle(&mut self, position: usize) {
         if let State::Ready(view) = &mut self.state {

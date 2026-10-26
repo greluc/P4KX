@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::{Arc, Mutex};
+
 use egui::{
-    Align, Color32, CornerRadius, Layout, Rect, Response, Role, ScrollArea, Sense, Ui, Vec2,
-    WidgetInfo, pos2, vec2,
+    Align, Color32, CornerRadius, Galley, Layout, Rect, Response, Role, ScrollArea, Sense, Ui,
+    Vec2, WidgetInfo, pos2, vec2,
 };
 use egui_extras::{Column, TableBuilder, TableRow};
 
 use super::table::head_fill;
+use super::tags_cache::{Cache, HEADS, Laid, RowCells, memo};
 use super::tree::{rails, toggle};
-use crate::theme::desktop::{
-    CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
-};
+use crate::theme::desktop::{CELL_PADDING_X, ROW_FONT, ROW_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tags_metrics::{TAGS_GUID_WIDTH, TAGS_LEGACY_WIDTH, TAGS_NAME_MIN_WIDTH};
 use crate::theme::tokens::Weight;
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
-use crate::widgets::text::{caps, line, paint_left, paint_right, plain};
+use crate::widgets::text::{line, paint_left, paint_right, plain};
 use crate::widgets::tooltip;
 use crate::{TagRow, TagsText, TagsView, Texts};
 
@@ -26,13 +27,6 @@ pub(super) enum Action {
     Select(usize),
     Toggle(usize),
 }
-
-/// The heads of the columns, left to right.
-const HEADS: [TagsText; 3] = [
-    TagsText::ColumnTag,
-    TagsText::ColumnGuid,
-    TagsText::ColumnLegacy,
-];
 
 #[derive(Default)]
 struct Outcome {
@@ -49,11 +43,20 @@ struct Cell<'a, 'v> {
 }
 
 /// Shows the tag tree as a table with the tag, GUID and legacy ID columns, as wide as its columns
-/// need and scrolling sideways when the window is narrower; returns what the user did.
-pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action> {
+/// need and scrolling sideways when the window is narrower; returns what the user did. The heads
+/// and the cells come from `cache`, which lays them out once.
+pub(super) fn show(
+    ui: &mut Ui,
+    texts: &Texts,
+    view: &TagsView,
+    cache: &Mutex<Cache>,
+) -> Option<Action> {
     let hovered_id = ui.scope_id().with("tags-hovered-row");
     let hovered = ui.data(|data| data.get_temp::<usize>(hovered_id));
     let mut outcome = Outcome::default();
+    let mut cache = Cache::lock(cache);
+    let labels = cache.labels();
+    let cells = cache.rows(view.generation(), view.tree().len());
     ScrollArea::horizontal()
         .id_salt("tags")
         .auto_shrink(false)
@@ -71,8 +74,8 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action
                 .column(Column::exact(TAGS_GUID_WIDTH).clip(true))
                 .column(Column::exact(TAGS_LEGACY_WIDTH).clip(true))
                 .header(ROW_HEIGHT, |mut header| {
-                    for (column, text) in HEADS.into_iter().enumerate() {
-                        header.col(|ui| head_cell(ui, texts, (column, text), left));
+                    for (column, (head, laid)) in labels.heads.iter().enumerate() {
+                        header.col(|ui| head_cell(ui, (column, *head, laid), left));
                     }
                 })
                 .body(|body| {
@@ -81,8 +84,10 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action
                         let Some(tag) = view.row(index) else {
                             return;
                         };
+                        let mut scratch = RowCells::default();
+                        let laid = cells.get_mut(tag.tag().position()).unwrap_or(&mut scratch);
                         let (action, is_hovered) =
-                            show_row(row, texts, (&tag, index), hovered == Some(index));
+                            show_row(row, texts, (&tag, index), laid, hovered == Some(index));
                         if action.is_some() {
                             outcome.action = action;
                         }
@@ -92,6 +97,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action
                     });
                 });
         });
+    drop(cache);
     ui.data_mut(|data| {
         if let Some(index) = outcome.hovered {
             data.insert_temp(hovered_id, index);
@@ -104,17 +110,12 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, view: &TagsView) -> Option<Action
 
 /// Paints the head cell of `column`: the fill and the orange rule, the label in capitals; the
 /// legacy ID is a number and its head is right-aligned.
-fn head_cell(ui: &Ui, texts: &Texts, (column, text): (usize, TagsText), table_left: f32) {
+fn head_cell(ui: &Ui, (column, head, laid): (usize, TagsText, &Laid), table_left: f32) {
     let rect = ui.max_rect();
     head_fill(ui, if column == 0 { table_left } else { rect.left() });
-    let name = texts.get(text);
     let inner = rect.shrink2(vec2(CELL_PADDING_X, 0.0));
-    let galley = line(
-        ui,
-        caps(&name, TABLE_HEAD_SIZE, Weight::Bold, TABLE_HEAD_TRACKING),
-        inner.width().max(0.0),
-    );
-    if text == TagsText::ColumnLegacy {
+    let galley = Arc::clone(&laid.galley);
+    if head == TagsText::ColumnLegacy {
         paint_right(ui, inner, galley, palette::GRAY_1);
     } else {
         paint_left(ui, inner, galley, palette::GRAY_1);
@@ -124,13 +125,14 @@ fn head_cell(ui: &Ui, texts: &Texts, (column, text): (usize, TagsText), table_le
         ui.scope_id().with(("tags-head", column)),
         Sense::hover(),
     )
-    .widget_info(|| WidgetInfo::labeled(Role::ColumnHeader, true, &name));
+    .widget_info(|| WidgetInfo::labeled(Role::ColumnHeader, true, &*laid.text));
 }
 
 fn show_row(
     mut row: TableRow<'_, '_>,
     texts: &Texts,
     (tag_row, index): (&TagRow<'_>, usize),
+    cells: &mut RowCells,
     hovered: bool,
 ) -> (Option<Action>, bool) {
     row.set_hovered(false);
@@ -146,7 +148,7 @@ fn show_row(
                 column,
                 state,
             };
-            let (response, toggled) = cell.show(ui, texts);
+            let (response, toggled) = cell.show(ui, texts, cells);
             is_hovered |= response.hovered();
             if toggled || (response.double_clicked() && tag_row.is_expandable()) {
                 action = Some(Action::Toggle(position));
@@ -160,7 +162,7 @@ fn show_row(
 
 impl Cell<'_, '_> {
     /// Shows the cell; returns its response and whether its chevron was clicked.
-    fn show(&self, ui: &Ui, texts: &Texts) -> (Response, bool) {
+    fn show(&self, ui: &Ui, texts: &Texts, cells: &mut RowCells) -> (Response, bool) {
         let tag = self.row.tag();
         let rect = ui.max_rect();
         if self.column == 0 {
@@ -181,17 +183,26 @@ impl Cell<'_, '_> {
             palette::GRAY_2_TEXT
         };
         let toggled = match self.column {
-            0 => self.name(ui, texts, &response, colour),
+            0 => self.name(ui, texts, cells, &response, colour),
             1 => {
-                let text = tag.guid().to_string();
-                number_or_id(ui, &response, text, muted, false);
+                let width = text_width(ui);
+                let laid = memo(&mut cells.guid, width.to_bits(), || {
+                    lay(ui, tag.guid().to_string(), width)
+                });
+                number_or_id(ui, &response, laid, muted, false);
                 false
             }
             _ => {
-                let text = tag
-                    .legacy_id()
-                    .map_or_else(String::new, |id| id.to_string());
-                number_or_id(ui, &response, text, muted, true);
+                let width = text_width(ui);
+                let laid = memo(&mut cells.legacy, width.to_bits(), || {
+                    lay(
+                        ui,
+                        tag.legacy_id()
+                            .map_or_else(String::new, |id| id.to_string()),
+                        width,
+                    )
+                });
+                number_or_id(ui, &response, laid, muted, true);
                 false
             }
         };
@@ -201,7 +212,14 @@ impl Cell<'_, '_> {
 
     /// Shows the chevron, the rails and the name of the first cell; returns whether the chevron
     /// was clicked.
-    fn name(&self, ui: &Ui, texts: &Texts, response: &Response, colour: Color32) -> bool {
+    fn name(
+        &self,
+        ui: &Ui,
+        texts: &Texts,
+        cells: &mut RowCells,
+        response: &Response,
+        colour: Color32,
+    ) -> bool {
         let tag = self.row.tag();
         let rect = ui.max_rect();
         response.widget_info(|| {
@@ -215,12 +233,17 @@ impl Cell<'_, '_> {
             toggle(ui, texts, (id, chevron), self.row.is_expanded(), tag.name())
         };
         let name_rect = Rect::from_min_max(pos2(chevron.right(), rect.top()), rect.max);
-        let galley = line(
-            ui,
-            plain(tag.name(), ROW_FONT, row_weight(self.row.is_selected())),
-            name_rect.width().max(0.0),
-        );
-        paint_left(ui, name_rect, galley, colour);
+        let width = name_rect.width().max(0.0);
+        let selected = self.row.is_selected();
+        let slot = if selected {
+            &mut cells.name_bold
+        } else {
+            &mut cells.name
+        };
+        let galley = memo(slot, width.to_bits(), || {
+            line(ui, plain(tag.name(), ROW_FONT, row_weight(selected)), width)
+        });
+        paint_left(ui, name_rect, Arc::clone(galley), colour);
         tooltip::hover(response.clone(), |ui| {
             tooltip::line(ui, tag.path());
         });
@@ -228,16 +251,26 @@ impl Cell<'_, '_> {
     }
 }
 
-/// Paints `text` in the cell of `ui`, right-aligned when it is a number, and names the cell for
-/// assistive technology.
-fn number_or_id(ui: &Ui, response: &Response, text: String, colour: Color32, right: bool) {
+fn text_width(ui: &Ui) -> f32 {
+    ui.max_rect()
+        .shrink2(vec2(CELL_PADDING_X, 0.0))
+        .width()
+        .max(0.0)
+}
+
+fn lay(ui: &Ui, text: String, width: f32) -> Laid {
+    Laid {
+        galley: line(ui, plain(&text, ROW_FONT, Weight::Regular), width),
+        text: text.into(),
+    }
+}
+
+/// Paints the laid-out `text` in the cell of `ui`, right-aligned when it is a number, and names
+/// the cell for assistive technology.
+fn number_or_id(ui: &Ui, response: &Response, laid: &Laid, colour: Color32, right: bool) {
     let inner = ui.max_rect().shrink2(vec2(CELL_PADDING_X, 0.0));
-    response.widget_info(|| WidgetInfo::labeled(Role::Cell, true, &text));
-    let galley = line(
-        ui,
-        plain(text, ROW_FONT, Weight::Regular),
-        inner.width().max(0.0),
-    );
+    response.widget_info(|| WidgetInfo::labeled(Role::Cell, true, &*laid.text));
+    let galley: Arc<Galley> = Arc::clone(&laid.galley);
     if right {
         paint_right(ui, inner, galley, colour);
     } else {

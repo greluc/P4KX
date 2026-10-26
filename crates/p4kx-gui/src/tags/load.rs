@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
@@ -19,10 +20,11 @@ pub(super) enum Outcome {
     ArchiveChanged,
 }
 
-/// The tree being read on a background thread; dropping it abandons the result.
+/// The tree being read on a background thread; dropping it stops the thread.
 #[derive(Debug)]
 pub(super) struct Load {
     result: Receiver<Outcome>,
+    stop: Arc<AtomicBool>,
 }
 
 impl Load {
@@ -35,36 +37,50 @@ impl Load {
     }
 }
 
+impl Drop for Load {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::Relaxed);
+    }
+}
+
 /// Starts reading the tags of `index`, calling `wake` from the thread once it ended.
 pub(super) fn start(
     index: &Arc<EntryIndex>,
     wake: impl Fn() + Send + 'static,
 ) -> Result<Load, String> {
     let (sender, result) = mpsc::channel();
+    let stop = Arc::new(AtomicBool::new(false));
     let index = Arc::clone(index);
+    let thread_stop = Arc::clone(&stop);
     thread::Builder::new()
         .name("tags".to_owned())
         .spawn(move || {
-            if sender.send(read(&index)).is_ok() {
+            if sender.send(read(&index, &thread_stop)).is_ok() {
                 wake();
             }
         })
         .map_err(|error| describe(&error))?;
-    Ok(Load { result })
+    Ok(Load { result, stop })
 }
 
-fn read(index: &Arc<EntryIndex>) -> Outcome {
+fn read(index: &Arc<EntryIndex>, stop: &AtomicBool) -> Outcome {
     if index.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
-    let tags = match index.forge().read(index, || {}) {
-        Ok(source) => source.tags(),
+    let stopped = || stop.load(Ordering::Relaxed);
+    let tags = match index.forge().read_until(index, || {}, &stopped) {
+        Ok(Some(source)) => source.tags(&stopped),
+        Ok(None) => return Outcome::Failed(None),
         Err(failure) => Err(failure),
     };
     match tags {
-        Ok(_) if index.watch().check().is_err() => Outcome::ArchiveChanged,
-        Ok(tags) => Outcome::Ready(tags),
+        Ok(Some(_)) if index.watch().check().is_err() => Outcome::ArchiveChanged,
+        Ok(Some(tags)) => Outcome::Ready(tags),
+        Ok(None) => Outcome::Failed(None),
         Err(ReadFailure::ArchiveChanged(_)) => Outcome::ArchiveChanged,
         Err(ReadFailure::Unreadable(reason)) => Outcome::Failed(Some(reason)),
     }
 }
+
+#[cfg(test)]
+mod tests;

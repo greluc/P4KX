@@ -272,7 +272,7 @@ wird, die Verantwortung für EULA und Terms of Service, der Eigentumshinweis und
 Markenangabe. Die Urheberzeile und die Markenangabe sind Rechtstext und stehen in beiden Sprachen
 im englischen Wortlaut. Nur Text, kein Fankit-Logo.
 
-**D.39 Tab „Suche" durchsucht die Inhalte des Archivs.** Hinter „Lokalisierung" steht der Tab
+**D.39 Tab „Suche" durchsucht die Inhalte des Archivs.** Hinter „Tags" steht der Tab
 „Suche" (Tab-Leiste wie D.1, Großbuchstaben, orange Unterstreichung). Er liegt neben dem
 Pfad-Filter des Tabs „Durchsuchen": der Filter wählt Einträge nach Pfad, die Suche findet Text in
 den Inhalten (ADR-0044). Kopf: das Suchfeld wie in Durchsuchen und Lokalisierung (Eyebrow „Suche",
@@ -330,7 +330,7 @@ den Wurzeln zugeklappt; Chevron oder Doppelklick klappt auf und zu, ein Klick w�
 Weiß, Bold wie die aktive Zeile), der Tooltip nennt den vollen Tag-Pfad. Die Suche findet den
 Tag-Pfad ohne Beachtung der Groß-/Kleinschreibung bei jedem Tastendruck auf dem UI-Thread (rund
 19 000 Pfade) und zeigt die Treffer mit den Tags darüber, egal was aufgeklappt ist; in diesem Fall
-ändert der Chevron nichts, und verschwindet die gewählte Zeile, ist nichts mehr gewählt. Der Fuß
+zeigt keine Zeile einen Chevron (er würde nichts tun), und verschwindet die gewählte Zeile, ist nichts mehr gewählt. Der Fuß
 (`.list-panel__footer`) nennt „n Tags", bei der Suche „n von m Tags". Weicht der Baum von dem ab,
 was die `TagDatabase` auflistet (Tags ohne Eltern, doppelt aufgelistete, ins Leere zeigende), steht
 darüber ein `.alert-warning` mit der Zahl. Der Tab fügt keine Farbe, Größe oder Form hinzu, bis

@@ -16,7 +16,7 @@ pub const MAX_INHERITANCE_DEPTH: usize = 64;
 pub const MAX_RECORD_FIELDS: usize = 1 << 16;
 
 const ARRAY_LEN: u64 = 8;
-const CACHE_FIELDS: usize = 1 << 20;
+pub(crate) const CACHE_FIELDS: usize = 1 << 20;
 
 /// One field of a struct as it lies in an instance.
 #[derive(Debug, Clone, Copy)]
@@ -38,7 +38,7 @@ pub(crate) struct Layout<'f> {
 
 impl<'f> Layout<'f> {
     /// Reads the layout of the struct at `struct_index`, which must exist.
-    fn of(forge: &'f DataForge<'f>, struct_index: u32) -> Result<Self, DataForgeError> {
+    pub(crate) fn of(forge: &'f DataForge<'f>, struct_index: u32) -> Result<Self, DataForgeError> {
         let chain = chain(forge, struct_index)?;
         let count: usize = chain
             .iter()

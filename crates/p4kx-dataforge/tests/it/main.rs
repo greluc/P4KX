@@ -7,6 +7,8 @@ mod arrays;
 mod common;
 mod field_common;
 mod field_statistics;
+mod field_statistics_edges;
+mod field_statistics_paths;
 mod field_statistics_runs;
 mod fleet;
 mod format_drift;

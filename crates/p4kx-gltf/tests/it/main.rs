@@ -23,5 +23,6 @@ mod scene_textures;
 mod skin;
 mod skin_checker;
 mod skin_limits;
+mod skin_nodes;
 mod skin_skeletons;
 mod textures;

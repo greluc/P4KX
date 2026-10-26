@@ -132,6 +132,10 @@ pub(crate) struct DcbQueryArgs {
     /// --json.
     #[arg(long, value_enum)]
     pub(crate) format: Option<QueryFormat>,
+    /// With --format csv: writes the exact values, without the byte order mark and without the
+    /// leading ' that keeps a spreadsheet from running a text as a formula.
+    #[arg(long)]
+    pub(crate) csv_raw: bool,
     /// Writes the result to FILE instead of stdout and prints a summary; an existing file is
     /// replaced.
     #[arg(long, value_name = "FILE")]
@@ -143,7 +147,7 @@ pub(crate) struct DcbQueryArgs {
 pub(crate) enum QueryFormat {
     /// A table with aligned columns, for reading.
     Table,
-    /// CSV after RFC 4180 with a header row.
+    /// CSV after RFC 4180 with a header row and a UTF-8 byte order mark.
     Csv,
     /// One line of JSON: an array of objects keyed by column.
     Json,

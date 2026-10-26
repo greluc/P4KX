@@ -9,6 +9,7 @@ use p4kx_extraction::query::Query;
 use p4kx_extraction::{DataForge, DataForgeEntry, FieldStat, FieldStatistics, Filter};
 
 use crate::cli::{DcbFieldsArgs, QueryFormat};
+use crate::dcb_export::FlatConflict;
 use crate::dcb_query::{InvalidQuery, compile_error};
 use crate::dcb_refs::JsonWithTable;
 use crate::{dcb_fields_out, exit};
@@ -38,6 +39,9 @@ pub(crate) fn run(args: &DcbFieldsArgs, as_json: bool) -> Result<ExitCode> {
         (true, _) => QueryFormat::Json,
         (false, format) => format.unwrap_or(QueryFormat::Table),
     };
+    if args.csv_raw && format != QueryFormat::Csv {
+        return Err(FlatConflict("--csv-raw needs --format csv").into());
+    }
     let query = args
         .selection
         .as_deref()
@@ -66,7 +70,7 @@ pub(crate) fn run(args: &DcbFieldsArgs, as_json: bool) -> Result<ExitCode> {
     let mut out = BufWriter::new(io::stdout().lock());
     let written = match format {
         QueryFormat::Table => dcb_fields_out::table(&mut out, &listing),
-        QueryFormat::Csv => dcb_fields_out::csv(&mut out, &listing),
+        QueryFormat::Csv => dcb_fields_out::csv(&mut out, &listing, !args.csv_raw),
         QueryFormat::Json => dcb_fields_out::json(&mut out, &args.archive, &listing),
     }
     .and_then(|()| out.flush());
@@ -90,6 +94,10 @@ fn parse_selection(text: &str) -> Result<Selection, InvalidQuery> {
         .any(|word| first.eq_ignore_ascii_case(word))
     {
         text.to_owned()
+    } else if text.contains('`') {
+        return Err(InvalidQuery(format!(
+            "a type name cannot hold a backtick: {text}"
+        )));
     } else {
         format!("from `{text}`")
     };

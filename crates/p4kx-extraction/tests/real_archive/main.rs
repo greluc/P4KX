@@ -32,6 +32,7 @@ mod cubemap_alpha;
 mod dataforge_canary;
 mod dequantisation_boxes;
 mod error_values;
+mod field_statistics;
 mod glb_hashes;
 mod loc_keys;
 mod localization;

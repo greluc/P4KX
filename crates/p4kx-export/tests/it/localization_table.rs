@@ -69,6 +69,39 @@ fn csv_quotes_cells_and_leaves_missing_texts_empty() -> TestResult {
     Ok(())
 }
 
+fn formulas(format: TableFormat) -> Result<String, Box<dyn Error>> {
+    let english = GlobalIniBuilder::new()
+        .text("+key", "=1+1")
+        .text("plain", "-5 items")
+        .text("number", "12")
+        .build();
+    let text = IniText::decode(&english)?;
+    let set = TextSet::new([(Language::English, text.index()?)]);
+    let mut out = Vec::new();
+    write_localization_table(&set, &[Language::English], format, &mut out)?;
+    Ok(String::from_utf8(out)?)
+}
+
+#[test]
+fn csv_neutralises_a_key_or_text_that_a_spreadsheet_would_run_as_a_formula() -> TestResult {
+    assert_eq!(
+        formulas(TableFormat::Csv)?,
+        "\u{feff}key,en\r\n'+key,'=1+1\r\nnumber,12\r\nplain,'-5 items\r\n",
+        "CSV"
+    );
+    Ok(())
+}
+
+#[test]
+fn raw_csv_keeps_the_exact_keys_and_texts() -> TestResult {
+    assert_eq!(
+        formulas(TableFormat::CsvRaw)?,
+        "\u{feff}key,en\r\n+key,=1+1\r\nnumber,12\r\nplain,-5 items\r\n",
+        "raw CSV"
+    );
+    Ok(())
+}
+
 #[test]
 fn keys_without_a_text_in_the_chosen_languages_are_left_out() -> TestResult {
     let (keys, text) = written(TableFormat::Csv, &[Language::German])?;

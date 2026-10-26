@@ -122,19 +122,21 @@ pub(super) fn settled(
     parts: &mut [ArmourPart],
     heads: Vec<Found>,
     jobs: &[&Job],
+    level: u32,
     issues: &mut Vec<Issue>,
 ) -> Model {
     extend_with_faces(&mut skeleton, parts, heads);
     for (job, part) in jobs.iter().zip(parts.iter()) {
-        note_fit(job, part, &skeleton, issues);
+        note_fit(job, part, &skeleton, level, issues);
     }
     skeleton
 }
 
-/// Notes how a part fits the skeleton: bones it lacks, and a model that is not skinned at all.
-fn note_fit(job: &Job, part: &ArmourPart, skeleton: &Model, issues: &mut Vec<Issue>) {
+/// Notes how a part fits the skeleton at the level `level` of detail that is exported: bones it
+/// lacks, and a model that is not skinned at all.
+fn note_fit(job: &Job, part: &ArmourPart, skeleton: &Model, level: u32, issues: &mut Vec<Issue>) {
     let model = &part.model;
-    let Some(lod) = model.lods.first() else {
+    let Some(lod) = model.nearest_lod(level) else {
         return;
     };
     let skinned = lod.meshes.iter().any(|mesh| mesh.influences.is_some());

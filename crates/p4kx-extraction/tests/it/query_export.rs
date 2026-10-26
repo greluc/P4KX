@@ -60,7 +60,7 @@ fn csv_is_written_like_the_cli_writes_it() -> TestResult {
     assert_eq!(written.failed, 0, "failed");
     assert_eq!(
         fs::read_to_string(&out)?,
-        "record path,name,mass\r\nlibs/items/box,\"Box, large\",2.5\r\nlibs/items/crate,Crate,-1\r\n",
+        "\u{feff}record path,name,mass\r\nlibs/items/box,\"Box, large\",2.5\r\nlibs/items/crate,Crate,-1\r\n",
         "CSV"
     );
     Ok(())

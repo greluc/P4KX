@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::io::Write;
 
-use p4kx_model::{Lod, MaterialStatus, Model, TintPalette, Transform};
+use p4kx_model::{MaterialStatus, Model, TintPalette, Transform};
 
 use crate::GltfError;
 use crate::glb::{GlbOptions, GlbSummary, MaterialMode, write_instances};
@@ -238,7 +238,7 @@ fn instances_of<'m>(scene: &Scene<'m>, options: &GlbOptions) -> (Vec<Instance<'m
         let Some(part) = node.part else {
             continue;
         };
-        let lod = nearest_lod(part.model, options.lod);
+        let lod = part.model.nearest_lod(options.lod);
         if lod.is_some_and(|lod| lod.level != options.lod) {
             fallbacks += 1;
         }
@@ -275,15 +275,4 @@ fn instances_of<'m>(scene: &Scene<'m>, options: &GlbOptions) -> (Vec<Instance<'m
         });
     }
     (instances, fallbacks)
-}
-
-/// Returns the level of `model` closest to `level` from below, or its lowest level when all are
-/// above it.
-pub(crate) fn nearest_lod(model: &Model, level: u32) -> Option<&Lod> {
-    model
-        .lods
-        .iter()
-        .filter(|lod| lod.level <= level)
-        .max_by_key(|lod| lod.level)
-        .or_else(|| model.lods.iter().min_by_key(|lod| lod.level))
 }

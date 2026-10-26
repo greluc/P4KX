@@ -57,6 +57,16 @@ impl Seen {
     }
 }
 
+impl Seen {
+    /// Returns what the target `guid` of a Reference adds: a fingerprint and no number.
+    pub(crate) fn reference(guid: &Guid) -> Self {
+        Self::Value {
+            number: None,
+            fingerprint: halves(DataType::Reference as u8, &guid.stored()),
+        }
+    }
+}
+
 fn float(tag: u8, number: Option<Number>) -> Seen {
     Seen::Value {
         number,

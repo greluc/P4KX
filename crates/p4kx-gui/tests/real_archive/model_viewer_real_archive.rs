@@ -254,3 +254,124 @@ fn a_real_model_is_drawn_in_the_window() -> TestResult {
     assert!(report.resident().is_some(), "the model is on the device");
     save_png(image.as_raw(), (image.width(), image.height()))
 }
+
+fn animated_parts(browser: &mut Browser) -> Result<Vec<(u32, String)>, Box<dyn Error>> {
+    let index = browser.index();
+    let wanted: Vec<(u32, String)> = (0..u32::try_from(index.len()).unwrap_or(u32::MAX))
+        .filter_map(|id| {
+            let path = index.entry(id)?.path();
+            let lower = path.to_ascii_lowercase();
+            (is_model_path(&lower)
+                && lower.contains("objects")
+                && ["landing", "gear", "door", "turret"]
+                    .iter()
+                    .any(|word| lower.contains(word)))
+            .then(|| (id, path.to_owned()))
+        })
+        .collect();
+    let mut found = Vec::new();
+    for (id, path) in wanted.into_iter().take(150) {
+        load(browser, id)?;
+        let deadline = Instant::now() + LOAD_LIMIT;
+        while browser
+            .preview()
+            .and_then(Preview::model)
+            .is_some_and(ModelPreview::is_reading_animations)
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(5));
+            browser.poll();
+        }
+        let animated = browser
+            .preview()
+            .and_then(Preview::model)
+            .is_some_and(|preview| {
+                preview.scene().is_some_and(|scene| {
+                    let bounds = scene.bounds();
+                    let size = bounds
+                        .max
+                        .iter()
+                        .zip(&bounds.min)
+                        .map(|(max, min)| max - min)
+                        .fold(0.0_f32, f32::max);
+                    scene.skin().is_some() && scene.triangle_count() >= 100 && size >= 1.0
+                }) && preview
+                    .playback()
+                    .is_some_and(|playback| !playback.animations().is_empty())
+            });
+        if animated {
+            found.push((id, path));
+            if found.len() == 2 {
+                break;
+            }
+        }
+    }
+    Ok(found)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn real_doors_and_gear_are_drawn_at_rest_and_in_motion() -> TestResult {
+    let Ok(state) = std::panic::catch_unwind(|| {
+        create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE)
+    }) else {
+        no_adapter();
+        return Ok(());
+    };
+    let report = install_viewer(&state)?;
+    let mut model = opened(real_archive_path()?)?;
+    model.set_viewer_support(ViewerSupport::Ready(Arc::clone(&report)));
+    let parts = animated_parts(model.browser_mut().ok_or("not opened")?)?;
+    assert!(!parts.is_empty(), "a door or gear with animations exists");
+    model.set_preview_tab(PreviewTab::Model);
+    let mut harness = Harness::builder()
+        .with_context_setup(p4kx_gui::theme::apply)
+        .with_size([1600.0, 900.0])
+        .renderer(WgpuTestRenderer::from_render_state(state))
+        .build_ui_state(
+            |ui, model: &mut Model| {
+                ui::show(ui, model);
+            },
+            model,
+        );
+    for (at, (id, path)) in parts.iter().enumerate() {
+        if let Some(browser) = harness.state_mut().browser_mut() {
+            load(browser, *id)?;
+        }
+        harness.run_steps(5);
+        let rest = harness.render()?;
+        save_named(
+            rest.as_raw(),
+            (rest.width(), rest.height()),
+            &format!("real-part-{at}-rest.png"),
+        )?;
+        let playback = harness
+            .state_mut()
+            .viewer_playback_mut()
+            .ok_or("no playback")?;
+        playback.select(Some(0));
+        playback.apply(p4kx_gui::Control::Toggle);
+        playback.apply(p4kx_gui::Control::Seek(0.5));
+        harness.run_steps(5);
+        let moved = harness.render()?;
+        save_named(
+            moved.as_raw(),
+            (moved.width(), moved.height()),
+            &format!("real-part-{at}-moved.png"),
+        )?;
+        assert_ne!(rest.as_raw(), moved.as_raw(), "{path} moves");
+    }
+    Ok(())
+}
+
+fn save_named(image: &[u8], (width, height): (u32, u32), name: &str) -> TestResult {
+    let folder = std::env::var_os("P4KX_RENDER_DIR")
+        .map_or_else(|| std::env::temp_dir().join("p4kx-render"), PathBuf::from);
+    std::fs::create_dir_all(&folder)?;
+    let file = std::io::BufWriter::new(std::fs::File::create(folder.join(name))?);
+    let mut encoder = png::Encoder::new(file, width, height);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.write_header()?.write_image_data(image)?;
+    Ok(())
+}

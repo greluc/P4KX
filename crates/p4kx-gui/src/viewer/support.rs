@@ -49,6 +49,16 @@ impl ViewerSupport {
         !matches!(self, Self::Pending)
     }
 
+    /// Returns whether the device holds the skeleton of the scene with this `serial`, or `None`
+    /// while that is not known: the scene is not uploaded yet or the device is not ready.
+    #[must_use]
+    pub fn skeleton_held(&self, serial: u64) -> Option<bool> {
+        match self {
+            Self::Ready(report) => report.skeleton_held(serial),
+            Self::Pending | Self::Unavailable(_) => None,
+        }
+    }
+
     /// Returns what keeps the viewer from drawing the scene with this `serial`, or `None` when
     /// it can.
     #[must_use]

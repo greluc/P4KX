@@ -10,8 +10,8 @@ use crate::viewing::{Site, TestResult, model_preview, opened_at, select};
 use std::error::Error;
 
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, Model, ModelPreview, Playback};
+use egui_kittest::kittest::{NodeT, Queryable};
+use p4kx_gui::{Language, Model, ModelPreview, Playback, PreviewTab, ui};
 use p4kx_testkit::{TestAnimation, TestEntry, TestModel, TestSkeleton, TestTrack};
 
 const IDENTITY: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
@@ -162,6 +162,8 @@ fn pause_holds_the_position_and_play_goes_on() -> TestResult {
 fn the_loop_and_skeleton_checkboxes_switch_their_state() -> TestResult {
     let (_folder, mut harness) = shown(Language::BritishEnglish, "arm.skin")?;
     assert!(playback(&harness)?.is_looping(), "repeats at first");
+    harness.get_by_label("slow").click();
+    harness.run_steps(2);
 
     harness.get_by_label("Loop").click();
     harness.run_steps(2);
@@ -173,6 +175,62 @@ fn the_loop_and_skeleton_checkboxes_switch_their_state() -> TestResult {
     harness.get_by_label("Skeleton").click();
     harness.run_steps(2);
     assert!(!playback(&harness)?.shows_skeleton(), "hidden again");
+    Ok(())
+}
+
+#[test]
+fn the_panel_of_a_model_keeps_its_height_on_every_tab() -> TestResult {
+    let (_folder, mut harness) = shown(Language::BritishEnglish, "arm.skin")?;
+    let height = |harness: &Harness<'_, Model>| {
+        ui::regions(&harness.ctx)
+            .preview
+            .map(|preview| preview.height())
+    };
+    let on_model = height(&harness).ok_or("no preview")?;
+
+    for tab in [PreviewTab::ModelInfo, PreviewTab::Text, PreviewTab::Model] {
+        harness.state_mut().set_preview_tab(tab);
+        harness.run_steps(3);
+
+        let now = height(&harness).ok_or("no preview")?;
+        assert!(
+            (now - on_model).abs() < 0.5,
+            "{tab:?}: the panel is {now} points high, on the Model tab {on_model}"
+        );
+    }
+    assert!(
+        on_model >= p4kx_gui::theme::model_metrics::PREVIEW_MODEL_MIN_HEIGHT,
+        "never below the minimum that keeps the bar clear of the view"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_play_loop_and_position_controls_are_disabled_while_nothing_can_play() -> TestResult {
+    let (_folder, mut harness) = shown(Language::BritishEnglish, "arm.skin")?;
+    for label in ["Play", "Loop", "Animation position"] {
+        assert!(
+            harness.get_by_label(label).accesskit_node().is_disabled(),
+            "{label} is disabled in the bind pose"
+        );
+    }
+    assert!(
+        !harness
+            .get_by_label("Skeleton")
+            .accesskit_node()
+            .is_disabled(),
+        "the skeleton can always be switched"
+    );
+
+    harness.get_by_label("slow").click();
+    harness.run_steps(2);
+
+    for label in ["Pause", "Loop", "Animation position"] {
+        assert!(
+            !harness.get_by_label(label).accesskit_node().is_disabled(),
+            "{label} is enabled while an animation plays"
+        );
+    }
     Ok(())
 }
 
@@ -213,19 +271,27 @@ fn choosing_the_bind_pose_stops_the_animation() -> TestResult {
 }
 
 #[test]
-fn a_static_model_with_bones_offers_the_skeleton_alone() -> TestResult {
+fn a_static_model_with_bones_lists_the_animations_that_move_its_helper_bones() -> TestResult {
     let (_folder, mut harness) = shown(Language::BritishEnglish, "door.cga")?;
 
-    assert!(
-        playback(&harness)?.animations().is_empty(),
-        "no skin to animate"
+    let listed = playback(&harness)?;
+    let names: Vec<_> = (0..listed.animations().len())
+        .filter_map(|at| listed.name(at))
+        .collect();
+    assert_eq!(
+        names,
+        ["slow", "swing"],
+        "the nodes the helper bones drive are moved"
     );
-    assert!(
-        exists(&harness, "Skeleton"),
-        "the overlay can be switched on"
-    );
-    for label in ["Play", "Loop", "Animations", "Bind pose"] {
-        assert!(!exists(&harness, label), "{label} is not shown");
+    for label in [
+        "Skeleton",
+        "Play",
+        "Loop",
+        "Animations",
+        "Bind pose",
+        "swing",
+    ] {
+        assert!(exists(&harness, label), "{label} is shown");
     }
     harness.get_by_label("Skeleton").click();
     harness.run_steps(2);

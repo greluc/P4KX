@@ -26,9 +26,14 @@ impl Model {
         self.model_preview_mut().and_then(ModelPreview::camera_mut)
     }
 
-    /// Returns the playback of the skeleton and animations of the model shown in the 3D viewer.
+    /// Returns the playback of the skeleton and animations of the model shown in the 3D viewer,
+    /// or `None` when the model has none or the graphics device cannot pose its skeleton.
     pub fn viewer_playback_mut(&mut self) -> Option<&mut Playback> {
-        self.model_preview_mut()
-            .and_then(ModelPreview::playback_mut)
+        let support = &self.viewer_support;
+        let preview = self.browser.as_mut().and_then(Browser::model_mut)?;
+        if support.skeleton_held(preview.scene()?.serial()) == Some(false) {
+            return None;
+        }
+        preview.playback_mut()
     }
 }

@@ -43,10 +43,19 @@ impl Renderer {
             self.report.reject(serial);
             return Vec::new();
         }
+        let posable = self
+            .mesh
+            .get(serial)
+            .is_some_and(|mesh| mesh.skeleton.is_some());
         let wanted = Drawn {
-            pose: frame.look.pose.as_ref().map_or(0, |pose| pose.serial()),
+            pose: frame
+                .look
+                .pose
+                .as_ref()
+                .filter(|_| posable)
+                .map_or(0, |pose| pose.serial()),
             list: 0,
-            bones: frame.look.bones,
+            bones: frame.look.bones.filter(|_| posable),
             serial,
             uniforms: frame.uniforms,
             size: frame.size,
@@ -97,6 +106,8 @@ impl Renderer {
             .map(|skeleton| &skeleton.layout);
         match MeshBuffers::upload((device, queue), layout, scene, &self.report) {
             Ok(buffers) => {
+                self.report
+                    .skeleton_uploaded(serial, buffers.skeleton.is_some());
                 self.mesh.store(serial, buffers);
                 self.report.uploaded(serial);
             }

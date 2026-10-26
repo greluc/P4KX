@@ -32,18 +32,22 @@ impl Groups {
         let mut prefixes = Vec::new();
         for (index, steps) in walks.iter().enumerate() {
             let Some(steps) = steps else { continue };
-            if group_of[index].is_some() {
+            if group_of.get(index).is_some_and(Option::is_some) {
                 continue;
             }
-            let members: Vec<usize> = (index..walks.len())
-                .filter(|&other| {
-                    group_of[other].is_none()
-                        && walks[other].is_some_and(|others| others.first() == steps.first())
+            let members: Vec<usize> = walks
+                .iter()
+                .enumerate()
+                .skip(index)
+                .filter(|&(other, others)| {
+                    group_of.get(other).is_some_and(Option::is_none)
+                        && others.is_some_and(|others| others.first() == steps.first())
                 })
+                .map(|(other, _)| other)
                 .collect();
             let shared = members
                 .iter()
-                .filter_map(|&member| walks[member])
+                .filter_map(|&member| walks.get(member).copied().flatten())
                 .fold(steps.len(), |shared, others| {
                     steps
                         .iter()
@@ -52,11 +56,13 @@ impl Groups {
                         .take_while(|(left, right)| left == right)
                         .count()
                 });
-            if members.len() < 2 || !steps[..shared].iter().any(fans_out) {
+            if members.len() < 2 || !steps.iter().take(shared).any(fans_out) {
                 continue;
             }
             for member in members {
-                group_of[member] = Some(prefixes.len());
+                if let Some(slot) = group_of.get_mut(member) {
+                    *slot = Some(prefixes.len());
+                }
             }
             prefixes.push(shared);
         }
@@ -120,6 +126,10 @@ mod tests {
         }
     }
 
+    #[expect(
+        clippy::unnecessary_wraps,
+        reason = "the columns of a plan are Options"
+    )]
     fn reader(steps: Vec<Step>) -> Option<Reader> {
         Some(Reader::Walk(Arc::new(Walk {
             steps: steps.into_boxed_slice(),

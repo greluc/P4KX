@@ -142,10 +142,11 @@ impl Reader {
             Self::Column(column) => return column.read(forge, place),
             Self::Walk(walk) => walk,
         };
-        let drive = |state: &mut WalkState,
-                         emit: &mut dyn FnMut(Value<'f>) -> ControlFlow<()>| match prefix {
-            Some((recording, steps)) => walk.replay(forge, recording, steps, state, emit),
-            None => walk.visit(forge, place, state, emit),
+        let drive = |state: &mut WalkState, emit: &mut dyn FnMut(Value<'f>) -> ControlFlow<()>| {
+            match prefix {
+                Some((recording, steps)) => walk.replay(forge, recording, steps, state, emit),
+                None => walk.visit(forge, place, state, emit),
+            }
         };
         if !walk.multi {
             let mut single = Value::Null;

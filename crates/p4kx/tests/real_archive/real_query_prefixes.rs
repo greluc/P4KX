@@ -5,6 +5,8 @@
 //! Archive, with and without the walk of the shared steps, and checks that both give the same
 //! rows.
 
+#![expect(clippy::print_stdout, reason = "the measurements are the output")]
+
 use std::error::Error;
 use std::fmt::Write as _;
 use std::time::{Duration, Instant};
@@ -55,7 +57,12 @@ fn render(compiled: &CompiledQuery<'_>, runs: usize) -> Timing {
     times.sort();
     let mut text = String::new();
     for row in &rows {
-        let _ = write!(text, "{}|{}", row.record_path(), row.unresolved_references());
+        let _ = write!(
+            text,
+            "{}|{}",
+            row.record_path(),
+            row.unresolved_references()
+        );
         match row.cells() {
             Ok(cells) => {
                 for cell in cells {
@@ -77,8 +84,8 @@ fn render(compiled: &CompiledQuery<'_>, runs: usize) -> Timing {
         records: rows.len(),
         text,
         select,
-        rows_median: times[runs / 2],
-        rows_min: times[0],
+        rows_median: times.get(runs / 2).copied().unwrap_or_default(),
+        rows_min: times.first().copied().unwrap_or_default(),
     }
 }
 

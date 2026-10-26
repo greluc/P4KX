@@ -85,7 +85,7 @@ fn the_summary_counts_the_ports_and_the_entities_without_an_entry() -> TestResul
         LoadoutSummary {
             ships: 4,
             items: 3,
-            ports: 16,
+            ports: 17,
             attached: 10,
             docked_vehicles: 1,
             unresolved: 3,

@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 use p4kx_assembly::{
     Attachment, EntityNode, LoadoutError, PortDefinition, PortNode, PortSource, Target,
-    VehicleImplementation, VehicleItemPort, VehiclePart,
+    VehicleItemPort,
 };
 use p4kx_extraction::is_placeholder_key;
 
@@ -34,35 +34,15 @@ impl PortReader {
 
     /// Returns the ports of `node` as catalog ports: the ports of its tree, which ends with the
     /// item ports only its vehicle implementation declares, listed with the source `vehicle`.
+    /// Parts sharing a name all take the item port of the first, as the tree does.
     pub(crate) fn ports(&mut self, node: &EntityNode) -> Vec<LoadoutPort> {
         self.issues
             .extend(node.issues().iter().map(LoadoutError::kind));
-        let vehicle: HashMap<String, &VehicleItemPort> = node
-            .vehicle()
-            .into_iter()
-            .flat_map(VehicleImplementation::item_ports)
-            .filter_map(|part| Some((part.name().to_ascii_lowercase(), part.item_port()?)))
-            .collect();
-        let named: BTreeSet<String> = node
-            .ports()
-            .iter()
-            .filter(|port| port.source() != PortSource::Empty)
-            .map(|port| port.name().to_ascii_lowercase())
-            .collect();
-        let mut declared = node
-            .vehicle()
-            .into_iter()
-            .flat_map(VehicleImplementation::item_ports)
-            .filter(|part| !named.contains(&part.name().to_ascii_lowercase()))
-            .filter_map(VehiclePart::item_port);
+        let vehicle = node.vehicle();
         node.ports()
             .iter()
             .map(|port| {
-                let xml = if port.source() == PortSource::Empty {
-                    declared.next()
-                } else {
-                    vehicle.get(&port.name().to_ascii_lowercase()).copied()
-                };
+                let xml = vehicle.and_then(|vehicle| vehicle.item_port(port.name()));
                 self.read_port(port, xml)
             })
             .collect()

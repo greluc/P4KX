@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The metrics of the 3D view of the Entities tab, taken from the `assemblyView` entry of
+//! The metrics of the Entities tab and the progress of its export.
+//!
+//! They come from the `assemblyView`, `entityReplace` and `progressBar` entries of
 //! `docs/design/p4kx-desktop-spec.json`.
 
-use super::desktop::ROW_HEIGHT;
+use super::desktop::{MODAL_GROUP_GAP, PREVIEW_HEIGHT, ROW_HEIGHT};
 use super::model_metrics::{MODEL_BAR_HEIGHT, MODEL_OVERLAY_GAP, MODEL_VIEW_MIN_HEIGHT};
 use super::sound_metrics::{FACTS_HEIGHT, PANEL_CHROME};
 
@@ -32,3 +34,11 @@ pub const ASSEMBLY_PANEL_MIN_HEIGHT: f32 = FACTS_HEIGHT
     + PANEL_CHROME;
 /// The least height the Loadout tree keeps: its head row and [`ASSEMBLY_TREE_MIN_ROWS`] ports.
 pub const ASSEMBLY_TREE_MIN_HEIGHT: f32 = ROW_HEIGHT * (1.0 + ASSEMBLY_TREE_MIN_ROWS);
+
+/// The tallest the list of Entities to replace a port's with gets before it scrolls.
+pub const REPLACE_LIST_HEIGHT: f32 = PREVIEW_HEIGHT;
+/// The gap between the line of what the port takes and the search field of the replace dialog.
+pub const REPLACE_HEAD_GAP: f32 = MODAL_GROUP_GAP / 2.0;
+
+/// The share of the track a sweeping block of a progress bar without a measure spans.
+pub const PROGRESS_SWEEP_SHARE: f32 = 0.25;

@@ -46,6 +46,8 @@ pub enum EntityText {
     LoadoutResolving,
     /// The Loadout cannot be resolved; takes `reason`.
     LoadoutFailed,
+    /// The DataForge has no Record of the Entity; takes `guid`.
+    LoadoutNoRecord,
     /// Resolving the Loadout stopped without a result.
     LoadoutStopped,
     /// The Archive changed on disk, so the Loadout was not resolved.
@@ -168,7 +170,7 @@ pub enum EntityText {
 
 impl EntityText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 79] = [
+    pub(crate) const ALL: [Self; 80] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -190,6 +192,7 @@ impl EntityText {
         Self::LoadoutNone,
         Self::LoadoutResolving,
         Self::LoadoutFailed,
+        Self::LoadoutNoRecord,
         Self::LoadoutStopped,
         Self::LoadoutArchiveChanged,
         Self::LoadoutNoPorts,
@@ -276,6 +279,7 @@ impl EntityText {
             Self::LoadoutNone => "entities-loadout-none",
             Self::LoadoutResolving => "entities-loadout-resolving",
             Self::LoadoutFailed => "entities-loadout-failed",
+            Self::LoadoutNoRecord => "entities-loadout-no-record",
             Self::LoadoutStopped => "entities-loadout-stopped",
             Self::LoadoutArchiveChanged => "entities-loadout-archive-changed",
             Self::LoadoutNoPorts => "entities-loadout-no-ports",

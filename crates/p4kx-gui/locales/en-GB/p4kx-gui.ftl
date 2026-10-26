@@ -989,6 +989,7 @@ model-export-summary-animation-unmatched = { $name } ({ $source }): no track mat
   }
 model-export-failed-title = Export failed
 model-export-failed = { $name } could not be exported: { $reason }
+model-export-no-record = The DataForge has no Record { $guid }.
 model-export-stopped = The export of { $name } stopped without a result.
 model-export-key-required = { $name } is encrypted and the Archive has no key. Enter the Archive key and export again.
 model-export-key-rejected = The Archive key does not decrypt { $name }. Enter the right key and export again.
@@ -1066,7 +1067,8 @@ entities-loadout-heading = Loadout
 entities-loadout-none = Select an Entity to see its Loadout.
 entities-loadout-resolving = Resolving the Loadout…
 entities-loadout-failed = The Loadout cannot be resolved: { $reason }
-entities-loadout-stopped = Resolving the Loadout stopped without a result.
+entities-loadout-no-record = The Loadout cannot be resolved: the DataForge has no Record { $guid }.
+entities-loadout-stopped =Resolving the Loadout stopped without a result.
 entities-loadout-archive-changed = The Archive changed on disk. Reload it to resolve the Loadout.
 entities-loadout-no-ports = This Entity has no ports.
 entities-changes = { $excluded } left out, { $replaced } replaced

@@ -68,10 +68,14 @@ fn entity(
     (guid, changes, interior): (Guid, &LoadoutChanges, bool),
     (cancel, shared): (&CancelToken, &Shared),
 ) -> Ended {
-    let tree = match resolve(index, guid, changes) {
+    let tree = match resolve(index, guid, changes, &|| cancel.is_cancelled()) {
         Ok(tree) => tree,
+        Err(ResolveFailure::Cancelled) => return Ended::Cancelled,
         Err(ResolveFailure::ArchiveChanged) => {
             return Ended::Failed(ModelExportFailure::ArchiveChanged);
+        }
+        Err(ResolveFailure::NoRecord(guid)) => {
+            return Ended::Failed(ModelExportFailure::NoRecord(guid));
         }
         Err(ResolveFailure::Failed(reason)) => {
             return Ended::Failed(ModelExportFailure::Failed(reason));

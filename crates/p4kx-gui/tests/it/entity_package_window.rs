@@ -162,6 +162,28 @@ fn the_export_writes_the_package_folder_reports_it_and_remembers_the_choices() -
 }
 
 #[test]
+fn a_package_export_keeps_the_stored_texture_choice() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish)?;
+    harness
+        .state_mut()
+        .set_assembly_export_settings(p4kx_settings::AssemblyExportSettings {
+            materials: p4kx_settings::ModelMaterials::Textures,
+            ..p4kx_settings::AssemblyExportSettings::default()
+        });
+    select(&mut harness, "TEST_Ship")?;
+
+    assert!(start(&mut harness, &dir.path().join("ship"))?);
+    finished(&mut harness)?;
+
+    assert_eq!(
+        harness.state().assembly_export_settings().materials,
+        p4kx_settings::ModelMaterials::Textures,
+        "the package does not offer the choice, so it is not overwritten"
+    );
+    Ok(())
+}
+
+#[test]
 fn the_changes_of_the_loadout_reach_the_package() -> TestResult {
     let (dir, mut harness) = opened(Language::BritishEnglish)?;
     select(&mut harness, "TEST_Ship")?;

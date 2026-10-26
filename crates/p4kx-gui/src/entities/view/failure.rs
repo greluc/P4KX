@@ -24,6 +24,7 @@ impl From<ModelExportFailure> for ViewFailure {
             ModelExportFailure::ArchiveChanged => Self::ArchiveChanged,
             ModelExportFailure::KeyRequired | ModelExportFailure::KeyRejected => Self::Key,
             ModelExportFailure::Failed(reason) => Self::Failed(reason),
+            ModelExportFailure::NoRecord(guid) => Self::Failed(guid.to_string()),
             ModelExportFailure::Refused(_) | ModelExportFailure::Stopped => Self::Stopped,
         }
     }

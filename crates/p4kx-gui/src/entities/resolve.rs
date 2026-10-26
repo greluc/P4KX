@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{ArchiveFiles, EntityNode, LoadoutChanges, LoadoutResolver};
-use p4kx_extraction::Guid;
+use std::sync::Arc;
+
+use p4kx_assembly::{ArchiveFiles, ChangeError, EntityNode, LoadoutChanges, LoadoutResolver};
+use p4kx_extraction::{DataForge, Guid};
 
 use crate::EntryIndex;
-use crate::forge_cache::ReadFailure;
+use crate::forge_cache::{ForgeSource, ReadFailure};
 use crate::model::describe;
 
 /// Why a Loadout cannot be resolved.
@@ -13,47 +15,80 @@ use crate::model::describe;
 pub enum ResolveFailure {
     /// The Archive changed on disk before or while the Loadout was resolved.
     ArchiveChanged,
+    /// The DataForge has no Record with this GUID.
+    NoRecord(Guid),
+    /// Resolving was stopped, or ended without a result.
+    Cancelled,
     /// The Loadout cannot be resolved, for the reason given.
     Failed(String),
 }
 
 /// Resolves the default Loadout of the Entity `guid` of `index` with `changes` applied, stopping
-/// at docked vehicles like `entity glb` does.
+/// at docked vehicles like `entity glb` does, and gives up once `stop` returns `true`.
 ///
 /// # Errors
 ///
-/// Returns why the DataForge cannot be read, the Entity is none, or the changes do not apply.
+/// Returns why the DataForge cannot be read, the Entity is none, the changes do not apply, or
+/// that `stop` ended the resolution.
 pub(crate) fn resolve(
     index: &EntryIndex,
     guid: Guid,
     changes: &LoadoutChanges,
+    stop: &(dyn Fn() -> bool + Sync),
+) -> Result<EntityNode, ResolveFailure> {
+    let source = read_source(index)?;
+    let forge = open_forge(&source)?;
+    let files = ArchiveFiles::new(index.archive());
+    let mut resolver = LoadoutResolver::new(&forge)
+        .with_files(&files)
+        .with_stop(stop)
+        .stopping_at_docked_vehicles();
+    resolve_in(index, &mut resolver, &forge, (guid, changes))
+}
+
+/// Resolves the Entity `guid` with `changes` using the resolver of a session.
+pub(super) fn resolve_in<'f>(
+    index: &EntryIndex,
+    resolver: &mut LoadoutResolver<'f>,
+    forge: &'f DataForge<'f>,
+    (guid, changes): (Guid, &LoadoutChanges),
 ) -> Result<EntityNode, ResolveFailure> {
     if index.watch().check().is_err() {
         return Err(ResolveFailure::ArchiveChanged);
     }
-    let source = index
+    let record = forge
+        .record_by_guid(guid)
+        .ok_or(ResolveFailure::NoRecord(guid))?;
+    let tree = resolver
+        .resolve_with(&record, changes)
+        .map_err(|error| match error {
+            ChangeError::Cancelled => ResolveFailure::Cancelled,
+            other => ResolveFailure::Failed(describe(&other)),
+        })?;
+    if index.watch().check().is_err() {
+        return Err(ResolveFailure::ArchiveChanged);
+    }
+    Ok(tree)
+}
+
+/// Returns the DataForge of `index`, reading it unless it was read before.
+pub(super) fn read_source(index: &EntryIndex) -> Result<Arc<ForgeSource>, ResolveFailure> {
+    if index.watch().check().is_err() {
+        return Err(ResolveFailure::ArchiveChanged);
+    }
+    index
         .forge()
         .read(index, || {})
         .map_err(|failure| match failure {
             ReadFailure::ArchiveChanged(_) => ResolveFailure::ArchiveChanged,
             ReadFailure::Unreadable(reason) => ResolveFailure::Failed(reason),
-        })?;
-    let forge = source
+        })
+}
+
+/// Opens the DataForge Entry read.
+pub(super) fn open_forge(source: &ForgeSource) -> Result<DataForge<'_>, ResolveFailure> {
+    source
         .entry
         .open()
-        .map_err(|error| ResolveFailure::Failed(describe(&error)))?;
-    let files = ArchiveFiles::new(index.archive());
-    let mut resolver = LoadoutResolver::new(&forge)
-        .with_files(&files)
-        .stopping_at_docked_vehicles();
-    let record = forge
-        .record_by_guid(guid)
-        .ok_or_else(|| ResolveFailure::Failed(format!("the DataForge has no Record {guid}")))?;
-    let tree = resolver
-        .resolve_with(&record, changes)
-        .map_err(|error| ResolveFailure::Failed(describe(&error)))?;
-    if index.watch().check().is_err() {
-        return Err(ResolveFailure::ArchiveChanged);
-    }
-    Ok(tree)
+        .map_err(|error| ResolveFailure::Failed(describe(&error)))
 }

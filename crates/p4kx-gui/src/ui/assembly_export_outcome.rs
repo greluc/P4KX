@@ -8,8 +8,9 @@ use egui::{Color32, Id, Ui};
 use fluent_bundle::FluentValue;
 
 use super::assembly_export_notes::notes;
-use super::assembly_export_progress::stage_fraction;
+use super::assembly_export_progress::stage_share;
 use super::extraction_outcome::decorate;
+use super::model_export_outcome::no_record;
 use super::record_export_outcome::{list, outcome_window};
 use crate::model_info::printable;
 use crate::theme::desktop::{MODAL_WIDTH, SPINNER_INLINE};
@@ -136,6 +137,14 @@ pub(super) fn failed(
             palette::DANGER_TEXT,
             Tone::Danger,
         ),
+        ModelExportFailure::NoRecord(guid) => (
+            texts.format(
+                M::Failed,
+                &[name, ("reason", no_record(texts, *guid).into())],
+            ),
+            palette::DANGER_TEXT,
+            Tone::Danger,
+        ),
         ModelExportFailure::Stopped => (
             texts.format(M::Stopped, &[name]),
             palette::DANGER_TEXT,
@@ -174,7 +183,10 @@ fn running(
     });
     ui.add_space(SPACE_3);
     let width = ui.available_width().max(frames::MODAL_BODY_WIDTH);
-    indicator::progress(ui, stage_fraction(progress), cancelling, width);
+    match stage_share(progress) {
+        Some(share) => indicator::progress(ui, share, cancelling, width),
+        None => indicator::indeterminate(ui, cancelling, width),
+    }
     frames::foot_rule(ui);
     if cancelling {
         ui.horizontal(|ui| {

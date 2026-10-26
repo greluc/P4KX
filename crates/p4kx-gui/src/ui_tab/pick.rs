@@ -156,7 +156,11 @@ impl ShipPick {
                 self.state = State::Failed(Some(reason));
                 return true;
             }
-            Poll::Lost => {
+            Poll::Ready(Err(ResolveFailure::NoRecord(guid))) => {
+                self.state = State::Failed(Some(guid.to_string()));
+                return true;
+            }
+            Poll::Ready(Err(ResolveFailure::Cancelled)) | Poll::Lost => {
                 self.state = State::Failed(None);
                 return true;
             }

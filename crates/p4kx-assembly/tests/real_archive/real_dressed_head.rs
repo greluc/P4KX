@@ -11,8 +11,8 @@ use std::time::Instant;
 
 use p4kx_assembly::character::Chf;
 use p4kx_assembly::{
-    ArchiveModels, Armour, ArmourPart, AssemblyOptions, ForgeItems, Head, LoadoutResolver,
-    PartOrigin,
+    ArchiveModels, Armour, ArmourPart, AssemblyOptions, Expressions, ForgeItems, Head,
+    LoadoutResolver, PartOrigin,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::{GlbOptions, MaterialMode};
@@ -149,6 +149,56 @@ fn the_default_characters_are_dressed_at_the_most_detailed_level_with_their_text
             "{name}"
         );
         assert!(summary.textured_materials >= 6, "{name}: {summary:?}");
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts and time are the measurement"
+)]
+fn the_hair_of_the_default_characters_follows_their_expressions() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let models = ArchiveModels::new(&archive);
+    let mut resolver = LoadoutResolver::new(&forge);
+    let mut items = ForgeItems::new(&mut resolver);
+    for name in DEFAULTS {
+        let file = archive
+            .entries()
+            .iter()
+            .find(|entry| entry.path().to_ascii_lowercase().ends_with(name))
+            .ok_or_else(|| format!("the Archive ships no {name}"))?;
+        let mut bytes = Vec::new();
+        archive.open_entry(file)?.read_to_end(&mut bytes)?;
+        let chf = Chf::read(&bytes)?;
+
+        let started = Instant::now();
+        let head = Head::dressed(&chf.character, &mut items)?.with_expressions(&Expressions::All);
+        let armour = Armour::build(
+            head.variant(),
+            head.pieces(),
+            &models,
+            &AssemblyOptions::default(),
+        )?;
+        let elapsed = started.elapsed();
+
+        let counts: Vec<(&str, usize)> = armour
+            .parts()
+            .iter()
+            .map(|part| (part.name(), part.morphs().len()))
+            .collect();
+        println!("{name}: {counts:?}, {elapsed:?}");
+        let of = |part: &str| counts.iter().find(|(found, _)| *found == part).map(|c| c.1);
+        assert!(of("head") > Some(0), "{name}: {counts:?}");
+        assert!(of("hair_itemport") > Some(0), "{name}: {counts:?}");
+        assert!(of("hair_itemport") <= of("head"), "{name}: {counts:?}");
+        let mut glb = Vec::new();
+        armour.write_glb(&GlbOptions::default(), &mut glb)?;
+        check_glb(&glb)?;
     }
     Ok(())
 }

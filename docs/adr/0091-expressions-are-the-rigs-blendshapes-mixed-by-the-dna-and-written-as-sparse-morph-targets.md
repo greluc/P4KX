@@ -70,8 +70,8 @@ expressions unless some are named.
 
 ## What is not in it
 
-A dressed head (ADR-0090) gives the expressions to the piece named `head` only: the eyes, teeth,
-hair and beard follow the neutral shaped head and do not move with the expressions.
+A dressed head (ADR-0090) gives the expressions to the piece named `head` only: the eyes and teeth
+have none. The hair, brows, lashes and beard follow them with targets of their own (ADR-0200).
 
 The blendshapes are the correctives of the rig; the large movements of a face (a blink, an open
 jaw) are done by the facial joints, whose deltas are the delta records of the rig (slot 31), and the

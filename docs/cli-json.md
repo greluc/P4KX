@@ -2130,11 +2130,12 @@ geometry for the body variant). Two Issues leave the piece in and are notes only
 its own) and `look_ignored` (the texture choices of a material, such as blemishes, makeup and
 tattoos, are not drawn).
 
-Only the piece named `head` has `morph_targets`: the number of expressions written. They are the
+The piece named `head` has `morph_targets`: the number of expressions written. They are the
 expressions of the head rig that move a vertex of the character's face, all of them by default at
 `--lod 0`, only the ones named by `--expression NAME` (repeatable) otherwise, none with
-`--no-expressions` and at other levels, whose rigs have none. The teeth, eyes, hair and beard have
-none and follow only the neutral shape of the head. A name the rig lacks adds
+`--no-expressions` and at other levels, whose rigs have none. The hair, brows, lashes and beard
+have a target for each expression that moves one of their vertices, named like the head's and
+moved as they follow the neutral shape (ADR-0200); the teeth and eyes have none. A name the rig lacks adds
 `unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that
 cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
 the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code

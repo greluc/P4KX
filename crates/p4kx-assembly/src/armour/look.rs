@@ -147,8 +147,14 @@ fn customise(material: &mut Material, sub: &SubMaterial, takes_dye: bool) -> boo
     } else if is_hair(material) {
         let dye = colour_of(sub, HAIR_DYE_COLOR);
         let tint = colour_of(sub, HAIR_TINT_COLOR);
-        let melanin = name_hash("BaseMelanin");
-        if dye.is_none() && tint.is_none() && sub.floats.iter().all(|param| param.name != melanin) {
+        let natural = [name_hash("BaseMelanin"), name_hash("BaseMelaninRedness")];
+        if dye.is_none()
+            && tint.is_none()
+            && sub
+                .floats
+                .iter()
+                .all(|param| !natural.contains(&param.name))
+        {
             return false;
         }
         material.diffuse = hair_colour(material, sub, dye.filter(|_| takes_dye), tint);

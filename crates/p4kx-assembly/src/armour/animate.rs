@@ -6,8 +6,8 @@ use std::io::Write;
 
 use p4kx_character::{DnaRig, FacePose, FaceRig};
 use p4kx_gltf::{
-    GlbOptions, GlbSummary, GltfError, RigAnimation, RigPiece, SampledAnimation, TextureLoader,
-    write_rigged_glb_animated, write_rigged_glb_animated_with,
+    GlbOptions, GlbSummary, GltfError, RigAnimation, RigPiece, SampledAnimation, SampledWeights,
+    TextureLoader, write_rigged_glb_animated, write_rigged_glb_animated_with,
 };
 use p4kx_model::Animation;
 
@@ -160,6 +160,27 @@ fn load(link: &FaceLink, models: &dyn ModelProvider) -> Result<Loaded, String> {
     Ok(Loaded { face })
 }
 
+/// Returns the times in seconds and the poses of the samples that the reduction keeps of the
+/// `poses` at `frames`, at `rate` frames per second.
+fn reduced(
+    (frames, poses): (&[u16], &[FacePose]),
+    link: &FaceLink,
+    rate: f32,
+) -> (Vec<f32>, Vec<FacePose>) {
+    let kept = reduction(frames, poses, link);
+    let times = kept
+        .iter()
+        .filter_map(|&at| frames.get(at))
+        .map(|&frame| f32::from(frame) / rate)
+        .collect();
+    let poses = kept
+        .iter()
+        .filter_map(|&at| poses.get(at))
+        .cloned()
+        .collect();
+    (times, poses)
+}
+
 impl Armour {
     /// Returns the part with the rig that animates the face, and its index among the parts.
     fn face_part(&self) -> Option<(usize, &ArmourPart, &FaceLink)> {
@@ -167,6 +188,28 @@ impl Armour {
             .iter()
             .enumerate()
             .find_map(|(index, part)| Some((index, part, part.face.as_deref()?)))
+    }
+
+    /// Returns the parts whose morph targets take weights, each with the blendshapes its targets
+    /// stand for: the head part `head` with the link `link`, and the parts that follow its
+    /// expressions.
+    fn weighed(&self, head: usize, link: &FaceLink) -> Vec<(usize, Vec<usize>)> {
+        let followers = self
+            .parts
+            .iter()
+            .enumerate()
+            .filter(|(_, part)| !part.follows.is_empty() && part.follows.len() == part.morphs.len())
+            .map(|(index, part)| {
+                let numbers = part
+                    .follows
+                    .iter()
+                    .filter_map(|&target| link.blendshapes.get(target).copied())
+                    .collect();
+                (index, numbers)
+            });
+        std::iter::once((head, link.blendshapes.clone()))
+            .chain(followers)
+            .collect()
     }
 
     /// Fits `animations` to the Character, within [`MAX_ANIMATION_VALUES`].
@@ -296,35 +339,26 @@ impl Armour {
             .collect();
         frames.sort_unstable();
         frames.dedup();
+        let targets = self.weighed(part, link);
+        let weighed: usize = targets.iter().map(|(_, numbers)| numbers.len()).sum();
         let estimate = frames
             .len()
-            .saturating_mul(rig.face.joints() * 7 + link.blendshapes.len() + 1);
+            .saturating_mul(rig.face.joints() * 7 + weighed + 1);
         if frames.len() > MAX_SAMPLES || estimate > remaining {
             return Err(Refusal::Limit(limit(estimate, remaining)));
         }
         let poses = evaluate(&rig.face, &controls, &frames)
             .ok_or_else(|| Refusal::Failed("the rig gives a pose that is not finite".to_owned()))?;
-        let kept = reduction(&frames, &poses, link);
-        let frames: Vec<u16> = kept
-            .iter()
-            .filter_map(|&at| frames.get(at))
-            .copied()
-            .collect();
-        let poses: Vec<FacePose> = kept
-            .iter()
-            .filter_map(|&at| poses.get(at))
-            .cloned()
-            .collect();
         let rate = f32::from(animation.frames_per_second.max(1));
-        let times = frames
-            .iter()
-            .map(|&frame| f32::from(frame) / rate)
-            .collect();
+        let (times, poses) = reduced((&frames, &poses), link, rate);
         let hashes = (logic.joint_hashes(), &mut skipped);
         let moved = joint_samples(&self.skeleton.bones, &poses, link, hashes);
-        let weights = weight_samples(&poses, link, part);
+        let weights: Vec<SampledWeights> = targets
+            .iter()
+            .flat_map(|(at, numbers)| weight_samples(&poses, numbers, *at))
+            .collect();
         let held: usize = weights.iter().map(|run| run.values.len()).sum();
-        let cost = frames.len() * (1 + moved.len() * 7) + held;
+        let cost = times.len() * (1 + moved.len() * 7) + held;
         Ok(Some(Fitted {
             sampled: SampledAnimation::new(animation.name.clone(), times, moved, weights, skipped),
             driven,

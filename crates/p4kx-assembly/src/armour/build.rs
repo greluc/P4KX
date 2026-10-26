@@ -10,6 +10,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::face_build::{Face, Found, settled};
 use super::follow::follow;
+use super::follow_morphs::{Followed, follow_morphs};
 use super::jobs::{Job, issue, planned};
 use super::shape::shaped;
 use super::zones::{covered, without_covered};
@@ -25,10 +26,21 @@ const WAVE: usize = 64;
 /// The name of the piece the pieces that follow the head follow.
 const HEAD: &str = "head";
 
-/// The head as it was made and as it was shaped, which what follows the head moves with.
+/// The head as it was made and as it was shaped, with its morph targets, which what follows the
+/// head moves with.
 struct HeadMove {
     before: Arc<Model>,
     after: Arc<Model>,
+    morphs: Vec<MorphTarget>,
+}
+
+/// A job as it is worn: its model, its morph targets, the face of a head, and, for what follows
+/// the head, the target of the head each of its morph targets stands for.
+struct Worn {
+    model: Arc<Model>,
+    morphs: Vec<MorphTarget>,
+    face: Option<Face>,
+    follows: Vec<usize>,
 }
 
 struct Loaded {
@@ -81,11 +93,11 @@ impl Armour {
         let mut part_jobs = Vec::new();
         for (job, found) in jobs.iter().zip(&chosen) {
             let Some(found) = found else { continue };
-            let Some((model, morphs, face)) = worn(job, found, models, &mut head, &mut issues)
-            else {
+            let Some(mut dressed) = worn(job, found, models, &mut head, &mut issues) else {
                 continue;
             };
-            let model = without_covered(job, model, variant, &covering, &mut issues);
+            let model = without_covered(job, dressed.model, variant, &covering, &mut issues);
+            let face = dressed.face.take();
             heads.extend(Found::of(parts.len(), &job.path, job.shape.as_ref(), face));
             if job.bespoke {
                 heads.push(Found::bespoke(parts.len(), &job.path));
@@ -104,7 +116,8 @@ impl Armour {
                 file: job.path.clone(),
                 model,
                 materials,
-                morphs,
+                morphs: dressed.morphs,
+                follows: dressed.follows,
                 face: None,
             });
         }
@@ -138,25 +151,32 @@ fn covering<'j>(jobs: &'j [Job], chosen: &[Option<&Loaded>]) -> BTreeSet<&'j str
 }
 
 /// Returns the model of a job as it is worn: shaped by the job's DNA, if it has one, and following
-/// the shaped head, if it follows it, with its morph targets; what follows the head has none. The
-/// first shaped head is remembered in `head`, as it is shaped and without morph targets.
+/// the shaped head, if it follows it, with its morph targets; what follows the head has the
+/// targets of the head moved to its own vertices. The first shaped head is remembered in `head`,
+/// as it is shaped and with its morph targets.
 fn worn(
     job: &Job,
     found: &Loaded,
     models: &dyn ModelProvider,
     head: &mut Option<HeadMove>,
     issues: &mut Vec<Issue>,
-) -> Option<(Arc<Model>, Vec<MorphTarget>, Option<Face>)> {
+) -> Option<Worn> {
     let (model, morphs, face) = fitted(job, found, models, issues)?;
     if job.shape.is_some() && job.part == HEAD && head.is_none() {
         *head = Some(HeadMove {
             before: Arc::clone(&found.model),
             after: Arc::clone(&model),
+            morphs: morphs.clone(),
         });
     }
     Some(match head {
-        Some(moved) if job.follows_head => (followed(&model, moved), Vec::new(), None),
-        _ => (model, morphs, face),
+        Some(moved) if job.follows_head => followed(&model, moved),
+        _ => Worn {
+            model,
+            morphs,
+            face,
+            follows: Vec::new(),
+        },
     })
 }
 
@@ -185,14 +205,24 @@ fn drawn_with(
         .map_or(library, Arc::new)
 }
 
-/// Returns `model` with its vertices following the head as it was shaped.
-fn followed(model: &Arc<Model>, head: &HeadMove) -> Arc<Model> {
+/// Returns `model` with its vertices following the head as it was shaped, and with morph targets
+/// that follow the expression targets of the head.
+fn followed(model: &Arc<Model>, head: &HeadMove) -> Worn {
     fn mesh(model: &Model) -> Option<&Mesh> {
         model.lods.first().and_then(|lod| lod.meshes.first())
     }
-    match (mesh(&head.before), mesh(&head.after)) {
-        (Some(before), Some(after)) => Arc::new(follow(model, before, after)),
-        _ => Arc::clone(model),
+    let (model, moved) = match (mesh(&head.before), mesh(&head.after)) {
+        (Some(before), Some(after)) => (
+            Arc::new(follow(model, before, after)),
+            follow_morphs(model, before, &head.morphs),
+        ),
+        _ => (Arc::clone(model), Followed::none()),
+    };
+    Worn {
+        model,
+        morphs: moved.targets,
+        face: None,
+        follows: moved.of,
     }
 }
 

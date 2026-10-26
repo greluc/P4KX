@@ -214,20 +214,21 @@ pub(super) fn joint_samples(
     out
 }
 
-/// The weights of the head's morph targets, none when no blendshape moves.
+/// The weights of the morph targets of the part `part`, which stand for the blendshapes
+/// `blendshapes`; none when no blendshape moves.
 pub(super) fn weight_samples(
     poses: &[FacePose],
-    link: &FaceLink,
+    blendshapes: &[usize],
     part: usize,
 ) -> Vec<SampledWeights> {
-    let targets = link.blendshapes.len();
+    let targets = blendshapes.len();
     if targets == 0 {
         return Vec::new();
     }
     let mut values = vec![0.0_f32; poses.len() * targets];
     let mut any = false;
     for (frame, pose) in poses.iter().enumerate() {
-        for (target, &blendshape) in link.blendshapes.iter().enumerate() {
+        for (target, &blendshape) in blendshapes.iter().enumerate() {
             let weight = pose
                 .blendshapes
                 .get(blendshape)

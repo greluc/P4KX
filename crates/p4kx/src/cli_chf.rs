@@ -69,9 +69,9 @@ pub(crate) enum ChfAction {
     /// as morph targets of the head, named like the rig's controls, mixed by the character's DNA
     /// and stored sparse; limit them with --expression or leave them out with --no-expressions.
     /// Only the rig of LOD 0 has expressions, so the other levels are written without unless
-    /// --expression names some, which then fails. The eyes, teeth, hair and beard have none and
-    /// follow only the neutral shape of the head. The head rig and the items come from the
-    /// Archive; a character without face DNA or for an unknown head rig is invalid input.
+    /// --expression names some, which then fails. The hair, brows, lashes and beard get the same
+    /// morph targets moved to their own vertices; the eyes and teeth have none. The head rig and
+    /// the items come from the Archive; a character without face DNA or for an unknown head rig is invalid input.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(ChfGlbArgs),
 }

@@ -201,3 +201,64 @@ fn the_shared_walk_stops_where_a_column_alone_would() -> TestResult {
     }
     Ok(())
 }
+
+type Groups = Vec<(Vec<usize>, usize)>;
+
+fn groups_of(forge: &DataForge<'_>, text: &str) -> Result<Groups, Box<dyn Error>> {
+    let compiled = Query::parse(text)?.compile(forge)?;
+    let mut groups: Vec<_> = compiled
+        .shared_prefixes()
+        .into_iter()
+        .map(|prefix| (prefix.columns.to_vec(), prefix.steps))
+        .collect();
+    groups.sort();
+    Ok(groups)
+}
+
+#[test]
+fn a_benchmark_like_query_forms_the_expected_groups() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+
+    let text = "from Ship select Components[*].name, Components[*].modes[*], \
+                Components[*].modes[0], mass, hardpoints[*].x, hardpoints[*].y, tags[*]";
+
+    assert_eq!(
+        groups_of(&forge, text)?,
+        vec![(vec![0, 1, 2], 1), (vec![4, 5], 1)]
+    );
+    assert_same(&forge, text)?;
+    Ok(())
+}
+
+#[test]
+fn the_groups_do_not_depend_on_the_column_order() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+
+    let text = "from Ship select Components[*].modes[*], hardpoints[*].y, Components[*].name, \
+                tags[*], Components[*].modes[0], hardpoints[*].x, mass";
+
+    assert_eq!(
+        groups_of(&forge, text)?,
+        vec![(vec![0, 2, 4], 1), (vec![1, 5], 1)]
+    );
+    assert_same(&forge, text)?;
+    Ok(())
+}
+
+#[test]
+fn a_column_that_leaves_early_does_not_shorten_the_prefix_of_the_others() -> TestResult {
+    let bytes = database();
+    let forge = DataForge::open(&bytes)?;
+
+    let text = "from Ship select Components[*].name, Components[*].modes[*], \
+                Components[*].modes[*], Components[*].modes[0]";
+
+    assert_eq!(
+        groups_of(&forge, text)?,
+        vec![(vec![0, 3], 1), (vec![1, 2], 2)]
+    );
+    assert_same(&forge, text)?;
+    Ok(())
+}

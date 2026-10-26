@@ -3,7 +3,8 @@
 
 use crate::query::operand::{Operand, OperandError};
 use crate::query::reader::Reader;
-use crate::query::walk::{Place, WalkState};
+use crate::query::state::WalkState;
+use crate::query::walk::Place;
 use crate::query::{Comparison, Condition, Operator, QueryError, QueryErrorKind};
 use crate::{DataForge, DataType};
 

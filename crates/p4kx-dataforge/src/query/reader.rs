@@ -5,7 +5,8 @@ use std::ops::ControlFlow;
 use std::sync::Arc;
 
 use crate::query::sink::Recording;
-use crate::query::walk::{Place, WalkState};
+use crate::query::state::WalkState;
+use crate::query::walk::Place;
 use crate::scalar::read_scalar;
 use crate::{DataForge, DataType, Value, ValueKind};
 

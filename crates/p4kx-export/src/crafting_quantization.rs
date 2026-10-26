@@ -38,7 +38,8 @@ pub(crate) enum Malformed {
 pub(crate) fn quantization<'f>(
     tree: &RecordTree<'f>,
 ) -> Result<QualityQuantization<'f>, Malformed> {
-    let body = structure(Some(tree.root()), "qualityQuantization").ok_or(Malformed::NoQuantization)?;
+    let body =
+        structure(Some(tree.root()), "qualityQuantization").ok_or(Malformed::NoQuantization)?;
     let stored = elements(Some(body), "bands");
     if stored.is_empty() {
         return Err(Malformed::NoBands);

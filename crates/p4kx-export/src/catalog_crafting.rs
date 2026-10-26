@@ -41,6 +41,10 @@ pub(crate) struct CraftingKinds<'f> {
 /// properties, quality distributions and dismantle processes, which it reads whatever the Filter,
 /// are kept only when `filter` matches their record path. Development leftovers of these kinds
 /// are left out and counted, like those of every other kind.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one step per kind of the crafting data"
+)]
 pub(crate) fn kinds<'f>(
     mut crafting: Crafting<'f>,
     texts: &Texts<'f>,
@@ -72,20 +76,7 @@ pub(crate) fn kinds<'f>(
         quantization,
         |entity| entity.guid,
     );
-    let mut unlinked: Vec<String> = quantizations
-        .iter()
-        .filter(|entity| entity.resource_type_guids.is_empty())
-        .map(|entity| entity.class_name.to_owned())
-        .collect();
-    unlinked.sort_unstable();
-    if !unlinked.is_empty() {
-        crafting
-            .warnings
-            .push(CraftingWarning::UnlinkedQualityQuantizations {
-                count: unlinked.len(),
-                details: unlinked,
-            });
-    }
+    crafting.warnings.extend(unlinked_warning(&quantizations));
     let sources = sources_by_pool(&crafting.reward_sources);
     let (pools, pools_skipped) = entities(
         &crafting.pools,
@@ -257,6 +248,19 @@ fn distribution<'f>(source: &library::QualityDistribution<'f>) -> QualityDistrib
             })
             .collect(),
     }
+}
+
+fn unlinked_warning(quantizations: &[QualityQuantization<'_>]) -> Option<CraftingWarning> {
+    let mut unlinked: Vec<String> = quantizations
+        .iter()
+        .filter(|entity| entity.resource_type_guids.is_empty())
+        .map(|entity| entity.class_name.to_owned())
+        .collect();
+    unlinked.sort_unstable();
+    (!unlinked.is_empty()).then_some(CraftingWarning::UnlinkedQualityQuantizations {
+        count: unlinked.len(),
+        details: unlinked,
+    })
 }
 
 fn quantization<'f>(source: &library::QualityQuantization<'f>) -> QualityQuantization<'f> {

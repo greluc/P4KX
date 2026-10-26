@@ -112,10 +112,20 @@ fn resource(guid: u128, name: &str, properties: Vec<TestValue>) -> TestRecord {
 }
 
 fn database() -> DataForgeBuilder {
-    let steps = || vec![band(0, 399, 264), band(400, 999, 553), band(1000, 1000, 1000)];
+    let steps = || {
+        vec![
+            band(0, 399, 264),
+            band(400, 999, 553),
+            band(1000, 1000, 1000),
+        ]
+    };
     structures(DataForgeBuilder::new().version(8))
         .record(quantization(GOLD, "Quantization_Gold", steps()))
-        .record(quantization(IRON, "Quantization_Iron", vec![band(0, 1000, 500)]))
+        .record(quantization(
+            IRON,
+            "Quantization_Iron",
+            vec![band(0, 1000, 500)],
+        ))
         .record(quantization(ORPHAN, "Quantization_Orphan", steps()))
         .record(quantization(ANOTHER, "Quantization_Another", steps()))
         .record(quantization(LEFTOVER, "Quantization_TEMPLATE", steps()))

@@ -89,9 +89,7 @@ const EMPTY_INVENTORY: &str = "inv_shopping_test_featuretest.json";
 /// quantization Records that no `ResourceType` uses.
 fn is_known_defect(warning: &CraftingWarning) -> bool {
     match warning {
-        CraftingWarning::UnlinkedQualityQuantizations { count, details } => {
-            *count == details.len()
-        }
+        CraftingWarning::UnlinkedQualityQuantizations { count, details } => *count == details.len(),
         CraftingWarning::UnreadableShopInventories { count, details } => {
             *count == details.len()
                 && details.iter().all(|detail| {

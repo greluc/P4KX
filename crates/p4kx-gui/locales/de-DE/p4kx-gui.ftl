@@ -446,6 +446,7 @@ catalog-warning = { $kind ->
     [unreadable_reward_records] { $count } Records, die eine Belohnungsquelle enthalten könnten, lassen sich nicht lesen; ihre Belohnungsquellen fehlen.
     [unknown_modifier_ranges] { $count } Modifikator-Bereiche haben einen Typ, den P4KX nicht kennt; sie fehlen in den Blueprint-Modifikatoren.
     [ambiguous_dismantle] Die DataForge enthält { $count } Zerlegungsprozesse statt einem; keine Zerlegungsausbeute wird verknüpft.
+    [unlinked_quality_quantizations] { $count } Qualitätsstufen-Records werden von keinem ResourceType verwendet; ihre Ressourcentyp-Liste ist leer.
     [unreadable_vehicle_files] Bei { $count } Schiffen lässt sich eine Fahrzeugdatei nicht lesen; ihre Lackierungen fehlen.
     [unplaced_starmap_containers] { $count } Systemcontainer oder Platzierungen lassen sich nicht lesen; die Sternenkarten-Objekte darunter haben keine Position.
     [unreadable_shop_registry] Das Shop-Register lässt sich nicht lesen; der Katalog enthält keine Shops, obwohl der Build welche hat.

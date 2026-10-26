@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/catalog.rs
+source: crates/p4kx/tests/it/catalog.rs
 expression: summary
 ---
 manufacturers: 2 written, 1 skipped, complete
@@ -11,6 +11,7 @@ resourceGroups: 0 written, 0 skipped, complete
 blueprintCategories: 0 written, 0 skipped, complete
 gameplayProperties: 0 written, 0 skipped, complete
 qualityDistributions: 0 written, 0 skipped, complete
+qualityQuantizations: 0 written, 0 skipped, complete
 blueprintPools: 0 written, 0 skipped, complete
 dismantleProcesses: 0 written, 0 skipped, complete
 paints: 0 written, 0 skipped, complete
@@ -32,4 +33,4 @@ items variants: 0 in 0 groups
 ships variants: 0 in 0 groups
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 0 texts resolved, 13 unresolved, 0 placeholders, the Archive holds no global.ini
-wrote [DIR]/english-only.json: 5490 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/english-only.json: 5561 bytes, 1 Records skipped, 0 failed

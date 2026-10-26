@@ -36,6 +36,8 @@ The rule is ADR-0054 (amending ADR-0002):
   Version 2 also fixes a port whose name several parts of the vehicle file share (#677): the first
   such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
   of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
+  Version 2 has the kind `qualityQuantizations` (#692, ADR-0177); it is not yet released, so it
+  needs no further bump.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -111,6 +113,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `blueprintCategories` | The blueprint categories, the targets of `categoryGuid`, ordered by GUID |
 | `gameplayProperties` | The gameplay properties the quality modifiers refer to, ordered by GUID |
 | `qualityDistributions` | The quality distributions and their location overrides, ordered by GUID |
+| `qualityQuantizations` | The quantised quality steps per `ResourceType`, each linked to its `ResourceType`s by GUID, ordered by GUID |
 | `blueprintPools` | The blueprint pools with the places that reward them, ordered by GUID |
 | `dismantleProcesses` | The dismantle processes, ordered by GUID |
 | `paints` | The paints, each the `itemGuid` of an entry of `items` with the ships it fits, ordered by `itemGuid` |
@@ -663,7 +666,7 @@ multipliers and modifiers.
 
 ### Quality, pools and dismantle
 
-Four kinds hold what a blueprint refers to; each entry has `guid`, `className` and `recordPath`,
+Five kinds hold what a blueprint or a resource refers to; each entry has `guid`, `className` and `recordPath`,
 and the ordering, completeness and leftover rules of every other kind apply (a `--filter` matches
 the record path and marks the kind partial).
 
@@ -671,6 +674,7 @@ the record path and marks the kind partial).
 |------|--------|
 | `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key stays as `key` and leaves `en` and `de` `null`, as for `items` and `blueprints`. The target of a modifier's `propertyGuid` |
 | `qualityDistributions` | `distribution`: a normal distribution `kind`, `min`, `max`, `mean`, `stddev` (`null` for an override Record or a value beyond a 32-bit float), and `overrides`: per location a `locationGuid` and its `distribution` (empty for a default Record). Both Record types of `crafting/qualitydistribution` are listed |
+| `qualityQuantizations` | `bands` and `resourceTypeGuids`, described under "Quality quantizations" below |
 | `blueprintPools` | `entries`: per entry `blueprintGuid` and `weight`; `totalWeight`, the sum of the positive weights; `rewardSources`: every struct of any Record with a Reference to the pool (on LIVE the `BlueprintRewards` result of a contract) with `recordGuid`, `recordPath`, `contractId`, `contractName` (both from the nearest enclosing struct that has an `id`) and `chance`, ordered by `recordGuid` and then in stored order. A `blueprintGuid` may point at a blueprint that is left out of `blueprints` as a failure |
 | `dismantleProcesses` | `efficiency` (0.5 on LIVE) and `timeSeconds` (15 on LIVE) of the `GenericCraftingProcess_Dismantle` |
 
@@ -679,9 +683,23 @@ without a chance or with one outside 0 to 1, a pool without a positive weight an
 weight of zero or less give none. The quality distributions carry no link to a blueprint or source:
 the Records do not hold one, so the catalog lists them as they are.
 
-Not represented: the `qualityquantization` Records (quantised quality steps per `ResourceType`)
-are not read; they are added when the Basetool needs them (#409). Everything else of the issue's
-list is in the catalog.
+#### Quality quantizations
+
+`qualityQuantizations` lists the `CraftingQualityQuantizationRecord` Records under
+`crafting/qualityquantization` (63 on LIVE, 62 after the `Quantization_TEMPLATE` leftover): the
+quantised quality steps of a resource (ADR-0177). Each entry has `guid`, `className`, `recordPath`
+and
+
+| Field | Meaning |
+|-------|---------|
+| `bands` | `qualityQuantization.bands` in stored order: per band `start`, `end` (inclusive) and `mappedValue`, whole numbers. Every quality from `start` to `end` counts as `mappedValue`. LIVE has 8 bands per Record with the same ranges (0-399, 400-599, 600-699, 700-799, 800-899, 900-949, 950-998, 999-1000) that together cover the qualities 0 to 1000; only the `mappedValue`s differ per resource |
+| `resourceTypeGuids` | The GUIDs of the `ResourceType` Records whose crafting data link to the Record, without repeats and ordered by GUID. The link goes from the `ResourceType` (`properties[].qualityQuantization.qualityQuantizationRecord`); the quantization Record holds none. On LIVE 43 links reach 42 Records (`Carinite` and `CarinitePure` share one); 18 of the linked `ResourceType`s are the `subtypeGuid` of a commodity of the catalog, as commodities are backfilled only for the `ResourceType`s a blueprint uses |
+
+The links are read from every `ResourceType` Record whatever the Filter. A Record no `ResourceType`
+uses stays in the kind with an empty `resourceTypeGuids` and is counted in the warning
+`unlinked_quality_quantizations` (20 on LIVE). A Record without bands,
+or with a band that lacks a whole `start`, `end` or `mappedValue` or ends before it starts, cannot
+be read: it is left out and listed in the failures. No description, text or media is exported.
 
 #### Dismantle returns
 
@@ -1443,6 +1461,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `blueprintCategories` | `libs/foundry/records/crafting/blueprintcategories/` | `BlueprintCategoryRecord` |
 | `gameplayProperties` | `libs/foundry/records/crafting/craftedproperties/` | `CraftingGameplayPropertyDef` |
 | `qualityDistributions` | `libs/foundry/records/crafting/qualitydistribution/` | `CraftingQualityDistributionRecord` and `CraftingQualityLocationOverrideRecord` |
+| `qualityQuantizations` | `libs/foundry/records/crafting/qualityquantization/` | `CraftingQualityQuantizationRecord` |
 | `blueprintPools` | `libs/foundry/records/crafting/blueprintrewards/` | `BlueprintPoolRecord` |
 | `dismantleProcesses` | `libs/foundry/records/crafting/blueprints/dismantle/` | `CraftingBlueprintRecord` whose process is a `GenericCraftingProcess_Dismantle` |
 | `paints` | Those of `items`; only the items whose `AttachDef.Type` is `Paints` | `EntityClassDefinition` |
@@ -1453,7 +1472,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `refiningProcesses` | `libs/foundry/records/refiningprocess/` | `RefiningProcess` |
 | `shops` | None: the `ShopBackup` entries of `LayerBackups.xml`, no Records | |
 
-The blueprints and the four crafting kinds below them are read by `read_crafting`, with the one
+The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of
 `qualityDistributions` names the first of its two types.
 

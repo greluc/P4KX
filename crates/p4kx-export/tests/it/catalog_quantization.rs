@@ -196,7 +196,11 @@ fn the_library_reads_the_quantizations_with_their_links() -> TestResult {
             )
         })
         .collect();
-    assert_eq!(names.len(), 5, "the leftover is read, the malformed are not");
+    assert_eq!(
+        names.len(),
+        5,
+        "the leftover is read, the malformed are not"
+    );
     assert!(names.contains(&("Quantization_Gold", 3, 3)));
     assert_eq!(crafting.failures.len(), 2);
     Ok(())

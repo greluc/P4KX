@@ -878,6 +878,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "blueprintCategories", "count": 21, "skipped": 0, "complete": true},
  {"kind": "gameplayProperties", "count": 29, "skipped": 0, "complete": true},
  {"kind": "qualityDistributions", "count": 21, "skipped": 1, "complete": true},
+ {"kind": "qualityQuantizations", "count": 62, "skipped": 1, "complete": true},
  {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
  {"kind": "paints", "count": 1064, "skipped": 68, "complete": true},
@@ -935,6 +936,7 @@ with a `kind`: `unreadable_reward_records` with a `count` (Records that cannot b
 their struct type is that of a Record with a reward source, so a source may be missing) and
 `unknown_modifier_ranges` with a `count` (modifier ranges of blueprints whose struct type the reader does not know, so they are missing from the modifiers) and `details` (the struct types, ordered, without repeats),
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
+`unlinked_quality_quantizations` with a `count` (quality quantization Records of the catalog that no `ResourceType` uses, so their `resourceTypeGuids` are empty) and `details` (their class names, ordered),
 `unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats; the JSON lists every file, stderr the first eight) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
 limits that left starmap objects without a position), `unreadable_shop_registry` (the shop registry exists but

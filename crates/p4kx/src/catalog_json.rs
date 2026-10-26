@@ -123,6 +123,7 @@ enum WarningJson {
     UnreadableRewardRecords { count: usize },
     UnknownModifierRanges { count: usize, details: Vec<String> },
     AmbiguousDismantle { count: usize },
+    UnlinkedQualityQuantizations { count: usize, details: Vec<String> },
     UnreadableVehicleFiles { count: usize, details: Vec<String> },
     UnplacedStarmapContainers { count: usize },
     UnreadableShopRegistry,
@@ -148,6 +149,12 @@ impl From<&CraftingWarning> for WarningJson {
             }
             CraftingWarning::AmbiguousDismantle(count) => {
                 Self::AmbiguousDismantle { count: *count }
+            }
+            CraftingWarning::UnlinkedQualityQuantizations { count, details } => {
+                Self::UnlinkedQualityQuantizations {
+                    count: *count,
+                    details: details.clone(),
+                }
             }
             CraftingWarning::UnreadableVehicleFiles { count, details } => {
                 Self::UnreadableVehicleFiles {

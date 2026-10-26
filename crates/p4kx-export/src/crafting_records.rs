@@ -4,13 +4,13 @@
 use p4kx_extraction::{Guid, RecordTree, StructValue, Value};
 
 use crate::blueprint::{as_struct, craft_time};
-use crate::crafting_tier::tiers;
+use crate::crafting_tier::{TooDeep, tiers};
 use crate::crafting_types::{
     BlueprintPool, BlueprintTiers, DismantleProcess, GameplayProperty, GlobalParams,
     LocationOverride, PoolEntry, QualityCurve, QualityDistribution,
 };
 use crate::record_fields::{class_name, elements, locale_key, number, reference, structure};
-use crate::selection::{Kind, KindRule};
+use crate::selection::{Kind, KindRule, starts_with_folder};
 
 const ROOT: &str = "libs/foundry/records/crafting/";
 const DISMANTLE_PROCESS: &str = "GenericCraftingProcess_Dismantle";
@@ -30,18 +30,19 @@ pub(crate) const GLOBALS: KindRule = KindRule {
 
 /// Returns whether `record_path` can belong to any crafting rule.
 pub(crate) fn is_crafting_path(record_path: &str) -> bool {
-    KindRule {
-        prefixes: &[ROOT],
-        type_name: "",
-    }
-    .matches_path(record_path)
+    starts_with_folder(record_path, ROOT)
 }
 
-pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>) -> BlueprintTiers<'f> {
+/// Returns the blueprint the Record describes.
+///
+/// # Errors
+///
+/// Returns [`TooDeep`] when a selection of a tier is nested deeper than the reader follows.
+pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>) -> Result<BlueprintTiers<'f>, TooDeep> {
     let blueprint = structure(Some(tree.root()), "blueprint");
     let mut unknown_range_types = Vec::new();
-    let tiers = tiers(blueprint, &mut unknown_range_types);
-    BlueprintTiers {
+    let tiers = tiers(blueprint, &mut unknown_range_types)?;
+    Ok(BlueprintTiers {
         guid: tree.guid(),
         class_name: class_name(tree),
         record_path: tree.record_path(),
@@ -51,7 +52,7 @@ pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>) -> BlueprintTiers<'f> {
             .map(|guid| guid.0),
         tiers,
         unknown_range_types,
-    }
+    })
 }
 
 /// Returns the dismantle process the Record describes, `None` for another process.

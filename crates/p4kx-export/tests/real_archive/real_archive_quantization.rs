@@ -105,6 +105,7 @@ fn the_quality_quantizations_of_a_real_archive_link_to_resource_types() -> TestR
         unlinked.len()
     ));
     assert!(links >= 40, "the ResourceTypes link: {links}");
+    assert_eq!(exported, links, "every linked ResourceType is a commodity");
     let summary = built.summary().quantizations();
     assert_eq!(summary.unused, unlinked.len(), "the unused Records");
     assert_eq!(

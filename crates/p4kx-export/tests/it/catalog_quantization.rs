@@ -195,6 +195,49 @@ fn a_filter_selects_by_record_path_but_the_links_stay_complete() -> TestResult {
     Ok(())
 }
 
+fn commodity_subtypes(catalog: &Value) -> Vec<&str> {
+    catalog["commodities"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry["subtypeGuid"].as_str())
+        .collect()
+}
+
+#[test]
+fn every_resource_type_a_quantization_links_to_resolves_to_a_commodity() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let subtypes = commodity_subtypes(&catalog);
+    for entry in entries(&catalog) {
+        for linked in entry["resourceTypeGuids"].as_array().into_iter().flatten() {
+            let linked = linked.as_str().ok_or("a GUID")?;
+            assert!(subtypes.contains(&linked), "{linked} has no commodity");
+        }
+    }
+    let mut expected = vec![
+        guid(ORE_GOLD),
+        guid(SHARED_GOLD),
+        guid(TWO_PROPERTIES),
+        guid(ORE_IRON),
+    ];
+    let mut found: Vec<String> = subtypes.iter().map(|text| (*text).to_owned()).collect();
+    expected.sort();
+    found.sort();
+    assert_eq!(
+        found, expected,
+        "no leftover, unlinked or broken ResourceType"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_filter_lists_a_backfilled_commodity_only_when_its_record_path_matches() -> TestResult {
+    let filter = Filter::new("*/quantization_gold");
+    let (_, catalog) = build(Some(&filter))?;
+    assert_eq!(commodity_subtypes(&catalog), [] as [&str; 0]);
+    Ok(())
+}
+
 #[test]
 fn the_library_reads_the_quantizations_with_their_links() -> TestResult {
     let dir = tempfile::tempdir()?;

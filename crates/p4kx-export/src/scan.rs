@@ -11,9 +11,10 @@ use p4kx_extraction::{
 };
 use rayon::prelude::*;
 
+use crate::catalog_crafting::CraftingKinds;
 use crate::collected::Picked;
 use crate::commodity::{resource_commodity, resource_type_guid};
-use crate::contract::Blueprint;
+use crate::contract::{Blueprint, QualityQuantization};
 use crate::contract_recipe::CostLine;
 use crate::entity_selection::{Selected, select};
 use crate::item::is_paint;
@@ -69,7 +70,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         entities: Arc<Entities<'f>>,
         options: &'o CatalogOptions<'a>,
         texts: &'o Texts<'f>,
-        blueprints: &[Blueprint<'f>],
+        crafting: &CraftingKinds<'f>,
         placements: &'o Placements,
     ) -> Result<Vec<Picked<'f>>, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
@@ -98,7 +99,8 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
                 .chain(evidence_failures)
                 .map(Picked::Failed),
         );
-        let resources = scan.resource_commodities(&picked, blueprints);
+        let resources =
+            scan.resource_commodities(&picked, &crafting.blueprints, &crafting.quantizations);
         picked.extend(resources);
         Ok(picked)
     }
@@ -132,13 +134,14 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         (groups, failures)
     }
 
-    /// Returns a commodity for every `ResourceType` the ingredients of the picked blueprints use
-    /// that no picked commodity carries, those the Filter matches; one that cannot be read
-    /// becomes a failure.
+    /// Returns a commodity for every `ResourceType` the ingredients of the picked blueprints and
+    /// the kept quality quantizations use that no picked commodity carries, those the Filter
+    /// matches; one that cannot be read becomes a failure.
     fn resource_commodities(
         &self,
         picked: &[Picked<'f>],
         blueprints: &[Blueprint<'f>],
+        quantizations: &[QualityQuantization<'f>],
     ) -> Vec<Picked<'f>> {
         let mut carried = HashSet::new();
         for pick in picked {
@@ -152,6 +155,12 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
                 resources_of(line, &mut used);
             }
         }
+        used.extend(
+            quantizations
+                .iter()
+                .flat_map(|quantization| &quantization.resource_type_guids)
+                .map(|guid| guid.0),
+        );
         used.sort_unstable();
         used.dedup();
         let mut trees = TreeBuilder::new();

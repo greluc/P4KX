@@ -298,7 +298,7 @@ fn scan<'f>(
         Arc::clone(entities),
         options,
         texts,
-        &crafting.blueprints,
+        &crafting,
         &placements,
     )?;
     if options.cancel.is_some_and(CancelToken::is_cancelled) {

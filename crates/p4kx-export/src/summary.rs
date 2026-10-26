@@ -3,6 +3,7 @@
 
 use p4kx_extraction::{Language, LocalizationNote};
 
+use crate::quantization_summary::QuantizationSummary;
 use crate::shop_summary::ShopSummary;
 use crate::store_slug_summary::StoreSlugSummary;
 use crate::{
@@ -184,6 +185,7 @@ pub struct CatalogSummary {
     pub(crate) store_slugs: Box<StoreSlugSummary>,
     pub(crate) playability: PlayabilitySummary,
     pub(crate) variants: VariantSummary,
+    pub(crate) quantizations: QuantizationSummary,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) warnings: Vec<CraftingWarning>,
     pub(crate) size: u64,
@@ -269,6 +271,13 @@ impl CatalogSummary {
     #[must_use]
     pub const fn playability(&self) -> PlayabilitySummary {
         self.playability
+    }
+
+    /// Returns how many quality quantizations no `ResourceType` uses and how many links reach no
+    /// quantization of the catalog.
+    #[must_use]
+    pub const fn quantizations(&self) -> QuantizationSummary {
+        self.quantizations
     }
 
     /// Returns how many variant groups and variants the ships and the items have.

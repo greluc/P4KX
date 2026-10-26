@@ -6,10 +6,11 @@ use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use p4kx_assembly::character::{CHF_SIZE, Chf, ChfError, Versions};
+use p4kx_assembly::character::{CHF_SIZE, Chf, ChfError, NameSummary, Versions};
 use serde::Serialize;
 use thiserror::Error;
 
+use crate::chf_names;
 use crate::cli::{ChfAction, ChfArgs};
 use crate::cryxml::JsonNeedsOut;
 use crate::json;
@@ -64,18 +65,29 @@ struct Summary {
     output: String,
     versions: Versions,
     size: u64,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    names: Option<NamesJson>,
+}
+
+#[derive(Serialize)]
+struct NamesJson {
+    named: usize,
+    unresolved: usize,
+    unresolved_hashes: Vec<String>,
 }
 
 /// Runs `p4kx chf to-json` or `p4kx chf from-json`.
 pub(crate) fn run(args: &ChfArgs, as_json: bool) -> Result<()> {
     match &args.action {
-        ChfAction::ToJson { file, out } => to_json(file, out.as_deref(), as_json),
+        ChfAction::ToJson { file, out, archive } => {
+            to_json(file, out.as_deref(), archive.as_deref(), as_json)
+        }
         ChfAction::FromJson { file, out } => from_json(file, out, as_json),
         ChfAction::Glb(args) => crate::chf_glb::run(args, as_json),
     }
 }
 
-fn to_json(file: &Path, out: Option<&Path>, as_json: bool) -> Result<()> {
+fn to_json(file: &Path, out: Option<&Path>, archive: Option<&Path>, as_json: bool) -> Result<()> {
     if as_json && out.is_none() {
         return Err(JsonNeedsOut.into());
     }
@@ -84,13 +96,15 @@ fn to_json(file: &Path, out: Option<&Path>, as_json: bool) -> Result<()> {
         path: file.to_owned(),
         source,
     })?;
-    let mut text = chf.to_json().map_err(|source| InvalidChf {
+    let names = chf_names::names_for(archive, &chf)?;
+    let (mut text, summary) = chf.to_json_named(&names).map_err(|source| InvalidChf {
         path: file.to_owned(),
         source,
     })?;
     text.push('\n');
     let Some(out) = out else {
-        return Ok(io::stdout().lock().write_all(text.as_bytes())?);
+        io::stdout().lock().write_all(text.as_bytes())?;
+        return Ok(chf_names::note(&summary)?);
     };
     write_replacing(out, |writer| writer.write_all(text.as_bytes()))
         .with_context(|| format!("cannot write {}", out.display()))?;
@@ -99,6 +113,7 @@ fn to_json(file: &Path, out: Option<&Path>, as_json: bool) -> Result<()> {
         out,
         chf.character.versions,
         text.len() as u64,
+        Some(&summary),
         as_json,
     )
 }
@@ -118,16 +133,29 @@ fn from_json(file: &Path, out: &Path, as_json: bool) -> Result<()> {
         out,
         chf.character.versions,
         bytes.len() as u64,
+        None,
         as_json,
     )
 }
 
-fn report(input: &Path, output: &Path, versions: Versions, size: u64, as_json: bool) -> Result<()> {
+fn report(
+    input: &Path,
+    output: &Path,
+    versions: Versions,
+    size: u64,
+    names: Option<&NameSummary>,
+    as_json: bool,
+) -> Result<()> {
     let summary = Summary {
         input: json::path(input),
         output: json::path(output),
         versions,
         size,
+        names: names.map(|summary| NamesJson {
+            named: summary.named,
+            unresolved: summary.unresolved,
+            unresolved_hashes: chf_names::hex_list(&summary.unresolved_hashes),
+        }),
     };
     if as_json {
         json::print(&summary)?;
@@ -141,6 +169,9 @@ fn report(input: &Path, output: &Path, versions: Versions, size: u64, as_json: b
             summary.output,
             size
         )?;
+        if let Some(names) = names {
+            writeln!(io::stdout().lock(), "{}", chf_names::sentence(names))?;
+        }
     }
     Ok(())
 }

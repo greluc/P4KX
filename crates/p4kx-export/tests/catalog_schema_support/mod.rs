@@ -26,6 +26,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "blueprintCategories": {"status": "partial", "filter": "*/blueprintcategories/*"},
             "gameplayProperties": {"status": "complete"},
             "qualityDistributions": {"status": "complete"},
+            "qualityQuantizations": {"status": "complete"},
             "blueprintPools": {"status": "complete"},
             "dismantleProcesses": {"status": "complete"},
             "paints": {"status": "complete"},
@@ -164,6 +165,16 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
                     "min": 1.0, "max": 1000.0, "mean": 269.0, "stddev": null
                 }
             }]
+        }],
+        "qualityQuantizations": [{
+            "guid": "e4000000-0000-4000-8000-000000000001",
+            "className": "quantization_gold",
+            "recordPath": "libs/foundry/records/crafting/qualityquantization/quantization_gold",
+            "bands": [
+                {"start": 0, "end": 399, "mappedValue": 264},
+                {"start": 400, "end": 1000, "mappedValue": 553}
+            ],
+            "resourceTypeGuids": ["b1000000-0000-4000-8000-000000000001"]
         }],
         "blueprintPools": pools(),
         "dismantleProcesses": [{

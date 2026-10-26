@@ -5,8 +5,8 @@
 //! input never panics.
 
 use p4kx_character::{
-    Character, Chf, ColorParam, Dna, DnaBlend, FloatParam, Guid, ItemPort, Material, SubMaterial,
-    Texture, Versions,
+    Character, Chf, ColorParam, Dna, DnaBlend, FloatParam, Guid, ItemPort, Label, Material,
+    NameTable, SubMaterial, Texture, Versions,
 };
 use p4kx_testkit::TestChf;
 use proptest::collection::vec;
@@ -30,6 +30,7 @@ fn dna() -> impl Strategy<Value = Dna> {
             .prop_map(
                 move |(gender_hash, variant_hash, header_unknown, max_head_id, face_parts)| Dna {
                     gender_hash,
+                    label: Label,
                     variant_hash,
                     blends_per_part: u16::try_from(per_part).unwrap_or_default(),
                     header_unknown,
@@ -43,6 +44,7 @@ fn dna() -> impl Strategy<Value = Dna> {
 fn item_ports() -> impl Strategy<Value = ItemPort> {
     let leaf = (any::<u32>(), guid(), any::<u32>()).prop_map(|(port, item, tail_count)| ItemPort {
         port,
+        label: Label,
         item,
         tail_count,
         children: Vec::new(),
@@ -51,6 +53,7 @@ fn item_ports() -> impl Strategy<Value = ItemPort> {
         (any::<u32>(), guid(), any::<u32>(), vec(inner, 0..=3)).prop_map(
             |(port, item, tail_count, children)| ItemPort {
                 port,
+                label: Label,
                 item,
                 tail_count,
                 children,
@@ -69,17 +72,23 @@ fn sub_material() -> impl Strategy<Value = SubMaterial> {
         vec(
             (any::<u32>(), any::<u32>()).prop_map(|(name, bits)| FloatParam {
                 name,
+                label: Label,
                 value: f32::from_bits(bits),
             }),
             0..=3,
         ),
         vec(
-            (any::<u32>(), any::<[u8; 4]>()).prop_map(|(name, rgba)| ColorParam { name, rgba }),
+            (any::<u32>(), any::<[u8; 4]>()).prop_map(|(name, rgba)| ColorParam {
+                name,
+                label: Label,
+                rgba,
+            }),
             0..=2,
         ),
     )
         .prop_map(|(name, textures, floats, colors)| SubMaterial {
             name,
+            label: Label,
             textures,
             floats,
             colors,
@@ -96,6 +105,7 @@ fn material() -> impl Strategy<Value = Material> {
         .prop_map(
             |(attachment, base_material, flags, sub_materials)| Material {
                 attachment,
+                label: Label,
                 base_material,
                 flags,
                 sub_materials,
@@ -148,6 +158,20 @@ proptest! {
         let chf = Chf::read(&bytes).map_err(|error| TestCaseError::fail(error.to_string()))?;
 
         let json = chf.to_json().map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let written = Chf::from_json(json.as_bytes()).and_then(|chf| chf.write());
+
+        prop_assert_eq!(written.ok(), Some(bytes));
+    }
+
+    #[test]
+    fn from_json_of_the_named_json_gives_identical_bytes(
+        character in character(),
+    ) {
+        let body = character.write().map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let bytes = TestChf::v7().with_body(&body);
+        let chf = Chf::read(&bytes).map_err(|error| TestCaseError::fail(error.to_string()))?;
+
+        let (json, _) = chf.to_json_named(&NameTable::builtin()).map_err(|error| TestCaseError::fail(error.to_string()))?;
         let written = Chf::from_json(json.as_bytes()).and_then(|chf| chf.write());
 
         prop_assert_eq!(written.ok(), Some(bytes));

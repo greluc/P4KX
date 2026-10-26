@@ -198,6 +198,34 @@ pub struct QualityDistribution<'f> {
     pub overrides: Vec<LocationOverride<'f>>,
 }
 
+/// One band of a quality quantization: the qualities `start` to `end` count as `mapped_value`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct QuantizationBand {
+    /// The lowest quality of the band.
+    pub start: i64,
+    /// The highest quality of the band, inclusive.
+    pub end: i64,
+    /// The quality the game uses for every quality in the band.
+    pub mapped_value: i64,
+}
+
+/// A quality quantization: a `CraftingQualityQuantizationRecord`, the quality steps of the
+/// `ResourceType`s that link to it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct QualityQuantization<'f> {
+    /// The GUID of the Record.
+    pub guid: Guid,
+    /// The Record name without its type.
+    pub class_name: &'f str,
+    /// The record path, without `.xml`.
+    pub record_path: &'f str,
+    /// The bands in stored order.
+    pub bands: Vec<QuantizationBand>,
+    /// The GUIDs of the `ResourceType` Records whose crafting data link to the Record, ordered and
+    /// without repeats; empty for a Record no `ResourceType` uses.
+    pub resource_types: Vec<Guid>,
+}
+
 /// One entry of a blueprint pool.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PoolEntry {

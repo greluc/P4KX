@@ -887,6 +887,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "blueprintCategories", "count": 21, "skipped": 0, "complete": true},
  {"kind": "gameplayProperties", "count": 29, "skipped": 0, "complete": true},
  {"kind": "qualityDistributions", "count": 21, "skipped": 1, "complete": true},
+ {"kind": "qualityQuantizations", "count": 62, "skipped": 1, "complete": true},
  {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
  {"kind": "paints", "count": 1064, "skipped": 68, "complete": true},
@@ -917,10 +918,16 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "unclassified": 13}},
  "variants": {"items": {"groups": 1108, "variants": 4732},
  "ships": {"groups": 196, "variants": 850}},
+ "quantizations": {"unused": 20, "unresolved_links": 0},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
+
+`quantizations` counts two facts of the game data that do not affect the exit code: `unused`, the
+quality quantizations of the catalog that no `ResourceType` uses, and `unresolved_links`, the links
+of `ResourceType` Records to a Record that is no readable quality quantization of the catalog (of
+another type, failed or a development leftover; a Reference to a GUID no Record has reads as null).
 
 `store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
 `stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are
@@ -2072,11 +2079,16 @@ is missing or wrong with code 7, and an `--out` that is the Archive with code 2.
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 
 ```json
-{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934}
+{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934,
+ "named": 14, "unresolved": 2, "unresolved_hashes": ["0x6d6de693"]}
 ```
 
 `versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
-JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
+JSON text for `to-json` and always 4096 for `from-json`. Only `to-json` has `named` (the hashes
+that got a label, counted where they occur), `unresolved` (those that got none) and
+`unresolved_hashes` (the distinct unresolved hashes, ascending, as `0x` and eight hexadecimal
+digits). Without `--out` the same counts are one line on stderr, and the plain text summary ends
+with that line too. `to-json --json` needs `--out`, because
 the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
 An `--out` inside a Star Citizen installation, including a Channel's `user` folder, is refused with
 exit code 2; copy a CHF file into `CustomCharacters` by hand.
@@ -2088,6 +2100,17 @@ exit code 2; copy a CHF file into `CustomCharacters` by hand.
 new file with a correct CRC-32C. Unknown fields and values out of range are rejected with exit
 code 2; a JSON file larger than 1 MiB is not read (exit code 3). The hash fields are
 CRC-32 or CRC-32C values of names; [docs/chf-hashes.md](chf-hashes.md) lists the function per field.
+
+`to-json` writes the name of a hash it can resolve in a key beside it: `gender_hash_label`
+(`character.dna`), `port_label` (item ports), `attachment_label` (materials) and `name_label`
+(sub-materials, floats and colours), each right after the hash it names (ADR-0178). The labels
+are output only: `from-json` accepts each of them in the one kind of object that carries it and
+ignores its text, so the hash stays authoritative, an edited hash with an old label is written as
+the hash, and a label anywhere else or any other unknown field is still refused. Errors point at
+the line and column of the file as given. `--archive <Data.p4k>` adds the item ports of the items
+the character wears and the sub-materials and parameters of the base materials it chooses to the
+names the tool knows itself. A hash with no known name has no label. `BodyColor` and `EyeColor`
+are mapped by hand: their hashes are not the CRC of those names.
 
 | Field | Type | Meaning |
 |-------|------|---------|

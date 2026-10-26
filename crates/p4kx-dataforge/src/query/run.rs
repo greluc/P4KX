@@ -10,8 +10,9 @@ use rayon::prelude::*;
 use crate::dataforge::out_of_range;
 use crate::query::CompiledQuery;
 use crate::query::compile::Plan;
-use crate::query::shared::Groups;
-use crate::query::walk::{Place, WalkState};
+use crate::query::shared::Recordings;
+use crate::query::state::WalkState;
+use crate::query::walk::Place;
 use crate::{DataForgeError, Record, Value};
 
 /// The Records a compiled Query selects, ordered by record path and then by definition order;
@@ -130,12 +131,8 @@ impl<'f> QueryRun<'_, 'f> {
     pub fn rows(&self, range: Range<usize>) -> Vec<Row<'f>> {
         let end = range.end.min(self.records.len());
         let start = range.start.min(end);
-        self.records
-            .get(start..end)
-            .unwrap_or_default()
-            .par_iter()
-            .filter_map(|&record| self.query.row(record))
-            .collect()
+        self.query
+            .rows_of(self.records.get(start..end).unwrap_or_default())
     }
 
     /// Returns the rows in pages of at most `page_size`; each page is built in parallel when it
@@ -161,12 +158,7 @@ impl<'f> Iterator for Pages<'_, 'f> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let chunk = self.chunks.next()?;
-        Some(
-            chunk
-                .par_iter()
-                .filter_map(|&record| self.query.row(record))
-                .collect(),
-        )
+        Some(self.query.rows_of(chunk))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -216,11 +208,36 @@ impl<'f> Row<'f> {
     }
 }
 
+/// What one worker keeps from row to row: the walk state and the buffers of the prefix
+/// recordings.
+struct Scratch<'f> {
+    state: WalkState,
+    recordings: Recordings<'f>,
+}
+
+impl Scratch<'_> {
+    const fn new() -> Self {
+        Self {
+            state: WalkState::new(),
+            recordings: Vec::new(),
+        }
+    }
+}
+
 impl<'f> CompiledQuery<'f> {
-    fn row(&self, index: u32) -> Option<Row<'f>> {
+    fn rows_of(&self, records: &[u32]) -> Vec<Row<'f>> {
+        records
+            .par_iter()
+            .map_init(Scratch::new, |scratch, &record| self.row(record, scratch))
+            .flatten()
+            .collect()
+    }
+
+    fn row(&self, index: u32, scratch: &mut Scratch<'f>) -> Option<Row<'f>> {
         let record = self.forge.record(index)?;
         let record_path = self.forge.path_of(index)?;
-        let mut state = WalkState::new();
+        let Scratch { state, recordings } = scratch;
+        state.reset();
         let cells = match self.plan_of(index)? {
             _ if self.columns.is_empty() && self.predicate.is_none() => Ok(Vec::new()),
             Plan::Broken(error) => Err(error.clone()),
@@ -228,16 +245,18 @@ impl<'f> CompiledQuery<'f> {
                 columns, shared, ..
             } => self.instance_of(index).map(|place| {
                 let groups = self.share_prefixes.then_some(shared);
-                let mut recordings = groups.map(Groups::recordings).unwrap_or_default();
+                if let Some(groups) = groups {
+                    groups.reset(recordings);
+                }
                 columns
                     .iter()
                     .enumerate()
                     .map(|(at, column)| {
                         let reader = column.as_ref()?;
                         let prefix = groups.and_then(|groups| {
-                            groups.prefix_of(at, reader, self.forge, place, &mut recordings)
+                            groups.prefix_of(at, reader, self.forge, place, recordings)
                         });
-                        Some(reader.cell(self.forge, place, &mut state, prefix))
+                        Some(reader.cell(self.forge, place, state, prefix))
                     })
                     .collect()
             }),

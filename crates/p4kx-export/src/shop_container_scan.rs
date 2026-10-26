@@ -100,6 +100,7 @@ fn entities(bytes: &[u8]) -> Option<Vec<String>> {
             let text = std::str::from_utf8(text)
                 .ok()?
                 .trim_start_matches('\u{feff}');
+            cryxml::check_text_depth(text).ok()?;
             let document = roxmltree::Document::parse(text).ok()?;
             Some(guids(document.root_element()))
         }
@@ -126,6 +127,7 @@ fn object_names(container: &Archive) -> Option<HashMap<String, String>> {
             let text = std::str::from_utf8(text)
                 .ok()?
                 .trim_start_matches('\u{feff}');
+            cryxml::check_text_depth(text).ok()?;
             let document = roxmltree::Document::parse(text).ok()?;
             Some(shop_objects(document.root_element()))
         }

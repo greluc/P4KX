@@ -14,68 +14,98 @@ pub(crate) struct Groups {
     group_of: Box<[Option<usize>]>,
 }
 
-/// The prefix walks of one row, made when the first column of a group asks for them.
-pub(crate) type Recordings<'f> = Vec<Option<Recording<'f>>>;
+/// A group being formed: its first column, the steps its columns share and how many they are.
+struct Candidate {
+    first: usize,
+    steps: usize,
+    members: usize,
+}
+
+/// The prefix walks of one row, made when the first column of a group asks for them; kept from row
+/// to row so their buffers are reused.
+pub(crate) type Recordings<'f> = Vec<Recording<'f>>;
 
 impl Groups {
-    /// Groups the columns that begin with the same steps, the longest steps they all share, when
-    /// those steps fan out over the elements of an array.
+    /// Groups the columns by the longest steps each shares with another column, when those steps
+    /// fan out over the elements of an array; the result does not depend on the column order.
     pub(crate) fn of(columns: &[Option<Reader>]) -> Self {
-        let walks: Vec<_> = columns
+        let walks: Vec<Option<&[Step]>> = columns
             .iter()
             .map(|column| match column {
                 Some(Reader::Walk(walk)) => Some(&walk.steps[..]),
                 _ => None,
             })
             .collect();
-        let mut group_of = vec![None; columns.len()];
-        let mut prefixes = Vec::new();
+        let mut group_of: Vec<Option<usize>> = vec![None; columns.len()];
+        let mut found: Vec<Candidate> = Vec::new();
         for (index, steps) in walks.iter().enumerate() {
             let Some(steps) = steps else { continue };
-            if group_of.get(index).is_some_and(Option::is_some) {
-                continue;
-            }
-            let members: Vec<usize> = walks
+            let shared = walks
                 .iter()
                 .enumerate()
-                .skip(index)
-                .filter(|&(other, others)| {
-                    group_of.get(other).is_some_and(Option::is_none)
-                        && others.is_some_and(|others| others.first() == steps.first())
-                })
-                .map(|(other, _)| other)
-                .collect();
-            let shared = members
-                .iter()
-                .filter_map(|&member| walks.get(member).copied().flatten())
-                .fold(steps.len(), |shared, others| {
-                    steps
-                        .iter()
-                        .zip(others)
-                        .take(shared)
-                        .take_while(|(left, right)| left == right)
-                        .count()
-                });
-            if members.len() < 2 || !steps.iter().take(shared).any(fans_out) {
+                .filter(|&(other, _)| other != index)
+                .filter_map(|(_, others)| *others)
+                .map(|others| common(steps, others))
+                .max()
+                .unwrap_or(0);
+            if !steps.iter().take(shared).any(fans_out) {
                 continue;
             }
-            for member in members {
-                if let Some(slot) = group_of.get_mut(member) {
-                    *slot = Some(prefixes.len());
-                }
+            let existing = found.iter().position(|candidate| {
+                candidate.steps == shared
+                    && walks
+                        .get(candidate.first)
+                        .copied()
+                        .flatten()
+                        .is_some_and(|others| others.get(..shared) == steps.get(..shared))
+            });
+            let group = existing.unwrap_or_else(|| {
+                found.push(Candidate {
+                    first: index,
+                    steps: shared,
+                    members: 0,
+                });
+                found.len() - 1
+            });
+            if let Some(entry) = found.get_mut(group) {
+                entry.members += 1;
             }
-            prefixes.push(shared);
+            if let Some(slot) = group_of.get_mut(index) {
+                *slot = Some(group);
+            }
         }
+        let prefixes = keep_groups_of_two(&found, &mut group_of);
         Self {
             prefixes: prefixes.into_boxed_slice(),
             group_of: group_of.into_boxed_slice(),
         }
     }
 
-    /// Returns the cache for the prefix walks of one row, which allocates only for a plan with
-    /// groups.
-    pub(crate) fn recordings<'f>(&self) -> Recordings<'f> {
-        (0..self.prefixes.len()).map(|_| None).collect()
+    /// Returns the columns of each group and the number of steps they share, in the order of the
+    /// groups' first columns.
+    pub(crate) fn groups(&self) -> Vec<(Vec<usize>, usize)> {
+        self.prefixes
+            .iter()
+            .enumerate()
+            .map(|(group, &steps)| {
+                let columns = self
+                    .group_of
+                    .iter()
+                    .enumerate()
+                    .filter(|&(_, of)| *of == Some(group))
+                    .map(|(column, _)| column)
+                    .collect();
+                (columns, steps)
+            })
+            .collect()
+    }
+
+    /// Readies `recordings` for a new row of a plan with these groups, keeping the buffers.
+    pub(crate) fn reset(&self, recordings: &mut Recordings<'_>) {
+        recordings.resize_with(self.prefixes.len(), Recording::default);
+        for recording in recordings.iter_mut() {
+            recording.clear();
+        }
     }
 
     /// Returns the prefix walk the column shares and the number of steps it covers, walked now if
@@ -93,10 +123,36 @@ impl Groups {
             return None;
         };
         let prefix = *self.prefixes.get(group)?;
-        let slot = recordings.get_mut(group)?;
-        let recording = slot.get_or_insert_with(|| Recording::of(walk, forge, place, prefix));
-        Some((recording, prefix))
+        let recording = recordings.get_mut(group)?;
+        if !recording.is_filled() {
+            recording.fill(walk, forge, place, prefix);
+        }
+        Some((&*recording, prefix))
     }
+}
+
+fn keep_groups_of_two(found: &[Candidate], group_of: &mut [Option<usize>]) -> Vec<usize> {
+    let mut renumbered = vec![None; found.len()];
+    let mut prefixes = Vec::new();
+    for (group, candidate) in found.iter().enumerate() {
+        if candidate.members >= 2 {
+            if let Some(slot) = renumbered.get_mut(group) {
+                *slot = Some(prefixes.len());
+            }
+            prefixes.push(candidate.steps);
+        }
+    }
+    for slot in group_of {
+        *slot = slot.and_then(|group| renumbered.get(group).copied().flatten());
+    }
+    prefixes
+}
+
+fn common(left: &[Step], right: &[Step]) -> usize {
+    left.iter()
+        .zip(right)
+        .take_while(|(left, right)| left == right)
+        .count()
 }
 
 const fn fans_out(step: &Step) -> bool {
@@ -204,5 +260,49 @@ mod tests {
             groups(&columns),
             (vec![Some(0), Some(1), Some(0), Some(1)], vec![1, 1])
         );
+    }
+
+    #[test]
+    fn a_column_that_leaves_early_does_not_shorten_the_prefix_of_the_others() {
+        let columns = [
+            reader(vec![array(0, Select::All)]),
+            reader(vec![array(0, Select::All), array(8, Select::All)]),
+            reader(vec![array(0, Select::All), array(8, Select::All)]),
+        ];
+
+        assert_eq!(groups(&columns), (vec![None, Some(0), Some(0)], vec![2]));
+    }
+
+    #[test]
+    fn the_grouping_does_not_depend_on_the_column_order() {
+        let early = || reader(vec![array(0, Select::All)]);
+        let deep = || reader(vec![array(0, Select::All), array(8, Select::All)]);
+        let plain = || reader(vec![array(0, Select::Index(0))]);
+        let named = [
+            ("plain", plain()),
+            ("deep one", deep()),
+            ("deep two", deep()),
+            ("early", early()),
+        ];
+
+        let sets = |order: &[usize]| {
+            let columns: Vec<_> = order.iter().map(|&at| named[at].1.clone()).collect();
+            let mut sets: Vec<_> = Groups::of(&columns)
+                .groups()
+                .into_iter()
+                .map(|(members, steps)| {
+                    let mut labels: Vec<_> = members.iter().map(|&at| named[order[at]].0).collect();
+                    labels.sort_unstable();
+                    (labels, steps)
+                })
+                .collect();
+            sets.sort();
+            sets
+        };
+
+        assert_eq!(sets(&[0, 1, 2, 3]), vec![(vec!["deep one", "deep two"], 2)]);
+        for order in [[3, 2, 1, 0], [1, 3, 0, 2], [2, 0, 3, 1]] {
+            assert_eq!(sets(&order), sets(&[0, 1, 2, 3]));
+        }
     }
 }

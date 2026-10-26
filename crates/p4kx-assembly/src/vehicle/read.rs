@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use p4kx_foundation::read_text_number;
 
-use super::{PartKind, PortVisibility, VehicleItemPort, VehiclePart};
+use super::{PartKind, PortVisibility, VehicleItemPort, VehicleItemType, VehiclePart};
 use crate::markup::Element;
 use crate::merge::port_key;
 
@@ -78,19 +78,42 @@ fn item_port(element: &Element) -> VehicleItemPort {
         max_size: size(element.attribute("maxSize")),
         flags: element.attribute("flags").unwrap_or_default().to_owned(),
         id: element.attribute("id").map(str::to_owned),
+        display_name: element
+            .attribute("display_name")
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned),
         port_tags: element.attribute("portTags").unwrap_or_default().to_owned(),
         required_tags: element
             .attribute("requiredTags")
             .unwrap_or_default()
             .to_owned(),
-        types: element
-            .child("Types")
-            .into_iter()
-            .flat_map(|types| types.children_named("Type"))
+        types: type_elements(element)
             .filter_map(|kind| kind.attribute("type"))
             .map(str::to_owned)
             .collect(),
+        item_types: type_elements(element)
+            .filter_map(|kind| {
+                Some(VehicleItemType {
+                    item_type: kind.attribute("type")?.to_owned(),
+                    subtypes: kind
+                        .attribute("subtypes")
+                        .unwrap_or_default()
+                        .split(',')
+                        .map(str::trim)
+                        .filter(|subtype| !subtype.is_empty())
+                        .map(str::to_owned)
+                        .collect(),
+                })
+            })
+            .collect(),
+        origins: element.origins.clone(),
     }
+}
+
+fn type_elements(port: &Element) -> impl Iterator<Item = &Element> {
+    port.child("Types")
+        .into_iter()
+        .flat_map(|types| types.children_named("Type"))
 }
 
 fn tread_wheels(part: &Element) -> Vec<String> {

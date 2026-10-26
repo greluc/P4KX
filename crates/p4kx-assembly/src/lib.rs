@@ -136,9 +136,9 @@ pub use resolver::LoadoutResolver;
 pub use spec::LoadoutOrigin;
 pub use tree::{Attachment, EntityNode, PortNode, PortSource, Target, Unresolved};
 pub use vehicle::{
-    LandingGear, ModificationReport, OriginTally, PartKind, PartThreshold, PartialValue,
-    PortVisibility, UnreadableValue, ValueOrigin, VehicleImplementation, VehicleItemPort,
-    VehiclePart, VehicleTotals,
+    ElemOverride, LandingGear, ModificationReport, OriginTally, PartKind, PartThreshold,
+    PartialValue, PortVisibility, UnreadableValue, ValueOrigin, VehicleImplementation,
+    VehicleItemPort, VehicleItemType, VehiclePart, VehicleTotals,
 };
 pub use xml::{MAX_XML_INCLUDE_DEPTH, MAX_XML_INCLUDES};
 

@@ -3,24 +3,8 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use super::ValueOrigin;
+use super::{ElemOverride, ValueOrigin};
 use crate::markup::{Budget, Element};
-
-/// One `Elem` of a Modification: the attribute `name` of every element with the `id` `id_ref`
-/// is set to `value`.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Elem {
-    id_ref: String,
-    name: String,
-    value: String,
-}
-
-/// A Modification of the base implementation: the patch file it names and its `Elem` overrides.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Modification {
-    pub(super) patch_file: Option<String>,
-    pub(super) elems: Vec<Elem>,
-}
 
 /// What applying a Modification did, to judge the patch rule of ADR-0050 on real data.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -86,45 +70,6 @@ fn id_of(element: &Element) -> Option<&str> {
     element.attribute("id").filter(|id| !id.is_empty())
 }
 
-/// Finds the Modification `name` below the `Modifications` element of `vehicle`, preferring an
-/// exact name over one that differs in ASCII case.
-pub(super) fn find_modification(vehicle: &Element, name: &str) -> Option<Modification> {
-    let all: Vec<&Element> = vehicle
-        .children_named("Modifications")
-        .flat_map(|modifications| modifications.children_named("Modification"))
-        .collect();
-    let element = all
-        .iter()
-        .find(|element| element.attribute("name") == Some(name))
-        .or_else(|| {
-            all.iter().find(|element| {
-                element
-                    .attribute("name")
-                    .is_some_and(|found| found.eq_ignore_ascii_case(name))
-            })
-        })?;
-    Some(Modification {
-        patch_file: element
-            .attribute("patchFile")
-            .filter(|path| !path.trim().is_empty())
-            .map(str::to_owned),
-        elems: element
-            .children_named("Elems")
-            .flat_map(|elems| elems.children_named("Elem"))
-            .filter_map(|elem| {
-                Some(Elem {
-                    id_ref: elem
-                        .attribute("idRef")
-                        .filter(|id| !id.is_empty())?
-                        .to_owned(),
-                    name: elem.attribute("name")?.to_owned(),
-                    value: elem.attribute("value").unwrap_or_default().to_owned(),
-                })
-            })
-            .collect(),
-    })
-}
-
 /// Applies a patch file to the base implementation `base`.
 ///
 /// The patch root is `Modifications` (or `Vehicle`). A `Vehicle` child, and any child without an
@@ -145,15 +90,16 @@ pub(super) fn apply_patch(
     budget: &mut Budget,
 ) -> Result<ModificationReport, String> {
     let mut report = ModificationReport::default();
+    let mut replaced = HashSet::new();
     if patch.name.eq_ignore_ascii_case("Vehicle") {
-        replace_children(base, patch, &mut report, budget)?;
+        replace_children(base, patch, &mut report, &mut replaced, budget)?;
         return Ok(report);
     }
     for child in &patch.children {
         if child.name.eq_ignore_ascii_case("Vehicle") {
-            replace_children(base, child, &mut report, budget)?;
+            replace_children(base, child, &mut report, &mut replaced, budget)?;
         } else {
-            apply_child(base, child, &mut report, budget)?;
+            apply_child(base, child, &mut report, &mut replaced, budget)?;
         }
     }
     Ok(report)
@@ -167,11 +113,12 @@ fn apply_child(
     base: &mut Element,
     child: &Element,
     report: &mut ModificationReport,
+    replaced: &mut HashSet<String>,
     budget: &mut Budget,
 ) -> Result<(), String> {
     let Some(id) = id_of(child) else {
         report.wholesale_children = report.wholesale_children.saturating_add(1);
-        return replace_child(base, child, report, budget);
+        return replace_child(base, child, report, replaced, budget);
     };
     if merge_by_id(base, id, child, budget)? > 0 {
         report.id_children = report.id_children.saturating_add(1);
@@ -207,7 +154,7 @@ fn apply_child(
     } else {
         report.replaced_ids.push(id.to_owned());
         report.wholesale_children = report.wholesale_children.saturating_add(1);
-        replace_child(base, child, report, budget)?;
+        replace_child(base, child, report, replaced, budget)?;
     }
     Ok(())
 }
@@ -227,37 +174,49 @@ fn replace_children(
     base: &mut Element,
     source: &Element,
     report: &mut ModificationReport,
+    replaced: &mut HashSet<String>,
     budget: &mut Budget,
 ) -> Result<(), String> {
     for child in &source.children {
         report.vehicle_children = report.vehicle_children.saturating_add(1);
-        replace_child(base, child, report, budget)?;
+        replace_child(base, child, report, replaced, budget)?;
     }
     Ok(())
 }
 
+/// Replaces the first base child named like `child` by `child`, leaving further base children of
+/// that name; when the patch has several children of that name, the others follow the last such
+/// child, so that none replaces another.
 fn replace_child(
     base: &mut Element,
     child: &Element,
     report: &mut ModificationReport,
+    replaced: &mut HashSet<String>,
     budget: &mut Budget,
 ) -> Result<(), String> {
     if child.name.eq_ignore_ascii_case("Modifications") {
         return Ok(());
     }
     budget.charge_copy(child)?;
-    if let Some(slot) = base
-        .children
-        .iter_mut()
-        .find(|existing| existing.name.eq_ignore_ascii_case(&child.name))
-    {
-        slot.clone_from(child);
-        slot.mark_all(ValueOrigin::Patch);
+    let same = |existing: &Element| existing.name.eq_ignore_ascii_case(&child.name);
+    let mut added = child.clone();
+    added.mark_all(ValueOrigin::Patch);
+    if replaced.insert(child.name.to_ascii_lowercase()) {
+        if let Some(at) = base.children.iter().position(same) {
+            if let Some(slot) = base.children.get_mut(at) {
+                *slot = added;
+            }
+        } else {
+            report.unmatched_children.push(child.name.clone());
+            base.children.push(added);
+        }
     } else {
-        report.unmatched_children.push(child.name.clone());
-        let mut added = child.clone();
-        added.mark_all(ValueOrigin::Patch);
-        base.children.push(added);
+        let after = base
+            .children
+            .iter()
+            .rposition(same)
+            .map_or(base.children.len(), |last| last + 1);
+        base.children.insert(after, added);
     }
     Ok(())
 }
@@ -352,13 +311,13 @@ fn merge_by_id(
 /// Returns why the budget is spent; `base` is then partly changed and must be discarded.
 pub(super) fn apply_elems(
     base: &mut Element,
-    elems: &[Elem],
+    elems: &[ElemOverride],
     budget: &mut Budget,
 ) -> Result<Vec<String>, String> {
     if elems.is_empty() {
         return Ok(Vec::new());
     }
-    let mut by_id: HashMap<&str, Vec<&Elem>> = HashMap::new();
+    let mut by_id: HashMap<&str, Vec<&ElemOverride>> = HashMap::new();
     for elem in elems {
         by_id.entry(elem.id_ref.as_str()).or_default().push(elem);
     }
@@ -375,7 +334,7 @@ pub(super) fn apply_elems(
 
 fn set_elems<'e>(
     element: &mut Element,
-    by_id: &HashMap<&'e str, Vec<&Elem>>,
+    by_id: &HashMap<&'e str, Vec<&ElemOverride>>,
     seen: &mut HashSet<&'e str>,
     budget: &mut Budget,
 ) -> Result<(), String> {

@@ -14,7 +14,7 @@ use crate::items::Item;
 use crate::manifest::{Issue, IssueOrigin};
 use crate::manifest_materials::MaterialDescription;
 use crate::plan::MeshPlan;
-use crate::roles::{classify, has_smoothness};
+use crate::roles::{classify_in, has_smoothness};
 use crate::textures::Wanted;
 
 /// How many material layers deep a layer's own layers are followed.
@@ -117,7 +117,9 @@ impl Collected {
         models: &dyn ModelProvider,
         depth: usize,
     ) -> Option<usize> {
-        let material = library.materials.get(position)?;
+        let original = library.materials.get(position)?;
+        let adjusted = original.hair_cap_of_body(&library.path);
+        let material = adjusted.as_ref().unwrap_or(original);
         let index = (!library.single).then_some(position);
         let path = library_path(&library.path);
         let identity = if path.contains('/') {
@@ -285,7 +287,7 @@ impl Collected {
                 };
                 let role = drawn
                     .and_then(|drawn| gltf_role(drawn, &path))
-                    .unwrap_or_else(|| classify(&slot.map, &slot.file));
+                    .unwrap_or_else(|| classify_in(material, &slot.map, &slot.file));
                 let gloss = role == TextureUse::Normal && has_smoothness(&slot.file);
                 self.want(&path, &slot.file, role, gloss, &material.name);
                 Some(path)

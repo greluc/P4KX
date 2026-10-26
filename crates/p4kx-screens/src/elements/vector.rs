@@ -46,9 +46,9 @@ pub(super) fn paint(
     }
     if path.is_empty() {
         let reason = if draws_box(look) {
-            "the box is drawn; the game sets the graphic at run time"
+            "the box is drawn; the game sets the graphic at run time, the Record field svgPath is empty"
         } else {
-            "names no vector graphic; the game sets it at run time"
+            "names no vector graphic; the game sets it at run time, the Record field svgPath is empty"
         };
         cx.report.images_left_out += 1;
         cx.report.note(&widget.type_name, reason, &widget.name);

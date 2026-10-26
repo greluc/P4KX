@@ -6,6 +6,7 @@
 mod real_archive;
 mod real_armour;
 mod real_armour_loadout;
+mod real_armour_palettes;
 mod real_armour_sets;
 mod real_assembly;
 mod real_assembly_textures;

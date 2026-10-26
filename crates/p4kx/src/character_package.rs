@@ -8,7 +8,7 @@ use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
     AnimationFolders, ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant,
-    ForgeItems, Head, LoadoutResolver, Piece, character_animations,
+    ForgeItems, ForgePalettes, Head, LoadoutResolver, Piece, character_animations,
 };
 use p4kx_blender::{
     CharacterScene, PackageInfo, PackageSummary, check_output, write_character_package,
@@ -74,7 +74,13 @@ fn package(args: &CharacterPackageArgs, as_json: bool) -> Result<()> {
     let (variant, pieces) = worn(args, &mut selection, head.as_ref());
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
-    let armour = Armour::build(variant, &pieces, &models, &options)?;
+    let armour = Armour::build_with_palettes(
+        variant,
+        &pieces,
+        &models,
+        &ForgePalettes::new(&forge),
+        &options,
+    )?;
     let folders = animation_folders(args, &selection, &models, variant);
     let found = character_animations(
         &models,

@@ -14,6 +14,7 @@ use p4kx_testkit::check_glb;
 
 use crate::character_export_window::compose;
 use crate::characters::{TestResult, Window, opened, opened_in_installation, wait_until};
+use crate::labels::labels_starting_with;
 
 fn composed() -> Result<Window, Box<dyn std::error::Error>> {
     compose(opened(Language::BritishEnglish)?)
@@ -174,7 +175,7 @@ fn the_package_holds_the_skinned_character_and_is_reported() -> TestResult {
         "the summary is the package's"
     );
     assert!(
-        window.1.query_by_label_contains("shape keys").is_some(),
+        labels_starting_with(&window.1, "Parts ") == 1,
         "and it counts what the package holds"
     );
     Ok(())

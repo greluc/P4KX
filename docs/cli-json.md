@@ -1635,7 +1635,7 @@ rows repeat the template without the values of their rows`, `fading edges of the
 drawn`, `gradient backgrounds are drawn in the plain colour of the background`, `borders that
 differ are drawn straight on a box with rounded corners`, `the turn and scale of the parent are
 not undone: they are inherited`, `a number of the geometry is not finite: the default is used`,
-`the image is rendered by the game at run time`, `3D content is drawn by the game at run time`,
+`the image is rendered by the game at run time; the Record field imageSource names it`, `3D content is drawn by the game at run time`,
 `the line ends at a widget the game places at run time`, `the Archive has no canvas for this
 standard widget`, `transform is not finite: not drawn`, `scale of the canvas is not finite: not drawn` (element
 `Canvas`),
@@ -1665,8 +1665,11 @@ although they are drawn. `missing_canvases` names nested canvases that cannot be
 read, that no Record answers or that contain themselves; widgets whose parents form a cycle are
 listed in `unsupported` (`not reachable from a root: its parents form a cycle`). Textures and SVG
 files add `texture missing or unreadable` and `vector graphic missing or unreadable` (an example is
-`<path>: <cause>`), `names no vector graphic; the game sets it at run time`, `the box is drawn; the
-game sets the graphic at run time`, `the texture is chosen by the game at run time` and the features an SVG file uses that are left out (`paint servers are
+`<path>: <cause>`), `names no vector graphic; the game sets it at run time, the Record field
+svgPath is empty`, `the box is drawn; the game sets the graphic at run time, the Record field
+svgPath is empty`, `the texture is chosen by the game at run time, the Record field urlOptional
+is empty` (the example names of widgets are printed as the Records hold them, `<unnamed>`
+included; only an SVG document escapes them) and the features an SVG file uses that are left out (`paint servers are
 drawn as their first colour`, `clip paths, masks and filters are not applied`, `image and text
 elements are left out`, `style rules beyond the limit are left out`, ...). `truncated` is true
 when a limit stopped the composition: 2^18 widgets placed (a list of siblings is refused as a whole

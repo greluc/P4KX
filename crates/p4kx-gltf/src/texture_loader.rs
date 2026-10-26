@@ -73,3 +73,35 @@ impl TextureLoader for NoTextures {
         ))
     }
 }
+
+/// Loads the texture a path is mapped to when the texture at the path does not exist.
+pub(crate) struct WithFallbacks<'a> {
+    pub(crate) inner: &'a dyn TextureLoader,
+    pub(crate) own: &'a std::collections::HashMap<String, String>,
+}
+
+impl TextureLoader for WithFallbacks<'_> {
+    fn load(&self, path: &str, mip: u32) -> Result<LoadedTexture, TextureLoadError> {
+        match self.inner.load(path, mip) {
+            Err(TextureLoadError::NotFound) => self
+                .own
+                .get(path)
+                .map_or(Err(TextureLoadError::NotFound), |own| {
+                    self.inner.load(own, mip)
+                }),
+            other => other,
+        }
+    }
+
+    fn dimensions(&self, path: &str, mip: u32) -> Result<Option<(u32, u32)>, TextureLoadError> {
+        match self.inner.dimensions(path, mip) {
+            Err(TextureLoadError::NotFound) => self
+                .own
+                .get(path)
+                .map_or(Err(TextureLoadError::NotFound), |own| {
+                    self.inner.dimensions(own, mip)
+                }),
+            other => other,
+        }
+    }
+}

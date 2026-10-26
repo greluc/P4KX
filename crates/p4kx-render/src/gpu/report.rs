@@ -30,6 +30,7 @@ pub struct GpuReport {
     failed: AtomicU64,
     rejected: AtomicU64,
     resident: AtomicU64,
+    skeletal: AtomicU64,
     uploads: AtomicU64,
     passes: AtomicU64,
     buffers: AtomicUsize,
@@ -63,6 +64,14 @@ impl GpuReport {
     #[must_use]
     pub fn resident(&self) -> Option<u64> {
         Some(self.resident.load(Ordering::Acquire)).filter(|&serial| serial != 0)
+    }
+
+    /// Returns whether the skeleton of the scene with this `serial` is on the device and can be
+    /// posed and drawn, or `None` while that scene is not uploaded yet.
+    #[must_use]
+    pub fn skeleton_held(&self, serial: u64) -> Option<bool> {
+        (serial != 0 && self.resident.load(Ordering::Acquire) == serial)
+            .then(|| self.skeletal.load(Ordering::Acquire) == serial)
     }
 
     /// Returns how many times a scene was uploaded.
@@ -144,6 +153,10 @@ impl GpuReport {
     pub fn reject(&self, serial: u64) {
         self.rejected.store(serial, Ordering::Release);
         self.resident.store(0, Ordering::Release);
+    }
+
+    pub(super) fn skeleton_uploaded(&self, serial: u64) {
+        self.skeletal.store(serial, Ordering::Release);
     }
 
     pub(super) fn uploaded(&self, serial: u64) {

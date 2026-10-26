@@ -19,6 +19,8 @@ mod report;
 mod resources;
 mod shading;
 mod skeleton;
+#[cfg(test)]
+mod skeleton_tests;
 mod slot;
 mod straight;
 mod target;

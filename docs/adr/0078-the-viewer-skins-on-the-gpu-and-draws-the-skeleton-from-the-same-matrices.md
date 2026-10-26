@@ -25,8 +25,8 @@ and bone weights) and ADR-0046 (animations).
   `boneStroke` points per bone from its parent, instanced over the bones, reading the bone's bind
   position and parent from a static buffer and the matrices from the storage buffer; nothing is
   built on the CPU per frame. It is drawn after the model without a depth test, in
-  `color-primary`. A static model with helper bones (`CompiledBones`) has the overlay but no
-  weights; its animations drive nodes (ADR-0046), not vertices, and the viewer does not play them.
+  `color-primary`. A static model with helper bones (`CompiledBones`) has the overlay; ADR-0187
+  binds its meshes to the bones that drive their nodes, so the viewer plays its animations too.
 - **Only what can move the skeleton is listed.** Animations are read on the loading thread with
   the model, additive ones left out (ADR-0046: their keys are offsets), and only those with a
   track for a bone of the skeleton kept. The list is offered for a skinned model only. A model
@@ -61,5 +61,5 @@ and bone weights) and ADR-0046 (animations).
   characters have more.
 - Controls in the facts bar, to keep the panel at 236 points: the owner preferred a taller panel
   and a bar under the view.
-- Playing the node animations of static models in the viewer: needs a node transform per mesh
-  per frame; left to a follow-up.
+- Playing the node animations of static models in the viewer: left to a follow-up, done in
+  ADR-0187.

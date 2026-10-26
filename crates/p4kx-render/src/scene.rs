@@ -4,13 +4,14 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use p4kx_extraction::model::{Mesh, Model, Node, Transform};
+use p4kx_extraction::model::{Lod, Model, Node, Transform};
 use rayon::prelude::*;
 use thiserror::Error;
 
 pub use super::bounds::Bounds;
-use super::camera::{cross, dot};
 use super::skeleton::Skeleton;
+pub(crate) use part::{Part, apply};
+use part::{rotate, rows3};
 use skin::UNWEIGHTED;
 
 /// The most vertices a [`Scene`] holds; a model with more is refused.
@@ -86,16 +87,7 @@ impl Scene {
             .ok_or(SceneError::Empty)?;
         let (vertices, triangles) = (lod.vertex_count(), lod.triangle_count());
         check_size(vertices, triangles)?;
-        let world = world_transforms(&model.nodes);
-        let skeleton = Skeleton::of(model.bones_of(lod)).map(Arc::new);
-        let bones = skeleton
-            .as_ref()
-            .map_or(0, |skeleton| skeleton.bone_count());
-        let parts: Vec<Part> = lod
-            .meshes
-            .par_iter()
-            .map(|mesh| Part::of(mesh, world.get(mesh.node).unwrap_or(&IDENTITY), bones))
-            .collect();
+        let (skeleton, parts) = parts_of(model, lod);
         let skinned = parts.iter().any(|part| !part.skin.is_empty());
         let mut all_vertices = Vec::with_capacity(vertices);
         let mut all_indices = Vec::with_capacity(triangles.saturating_mul(3));
@@ -144,7 +136,9 @@ impl Scene {
 
     /// Returns, per vertex, the four bones that move it and their weights: four little-endian
     /// `u16` bone indices and four `u8` weights, 12 bytes; `None` for a model without skinned meshes
-    /// or without a usable skeleton. A vertex with all weights zero stays where it is.
+    /// or without a usable skeleton, and for a static model none of whose helper bones drives a
+    /// node of a mesh. In a static model the meshes under a node a helper bone drives are bound
+    /// wholly to that bone. A vertex with all weights zero stays where it is.
     #[must_use]
     pub fn skin(&self) -> Option<&[[u8; SKIN_STRIDE]]> {
         self.skin.as_deref()
@@ -175,6 +169,33 @@ impl Scene {
     }
 }
 
+/// Flattens every mesh of `lod` and returns them with the skeleton they are bound to. A mesh with
+/// bone weights is bound by its weights; in a model without any, the meshes are bound rigidly to
+/// the helper bones that drive their nodes.
+fn parts_of(model: &Model, lod: &Lod) -> (Option<Arc<Skeleton>>, Vec<Part>) {
+    let world = world_transforms(&model.nodes);
+    let skeleton = Skeleton::of(model.bones_of(lod)).map(Arc::new);
+    let bones = skeleton
+        .as_ref()
+        .map_or(0, |skeleton| skeleton.bone_count());
+    let drivers = skeleton
+        .as_ref()
+        .filter(|_| lod.meshes.iter().all(|mesh| mesh.influences.is_none()))
+        .map(|_| skin::drivers(&model.nodes, model.bones_of(lod)));
+    let parts = lod
+        .meshes
+        .par_iter()
+        .map(|mesh| {
+            let placed = world.get(mesh.node).unwrap_or(&IDENTITY);
+            drivers.as_ref().map_or_else(
+                || Part::of(mesh, placed, bones),
+                |drivers| Part::rigid(mesh, placed, drivers.get(mesh.node).copied().flatten()),
+            )
+        })
+        .collect();
+    (skeleton, parts)
+}
+
 /// Checks the counts of a level of detail against the limits of a scene.
 const fn check_size(vertices: usize, triangles: usize) -> Result<(), SceneError> {
     if vertices == 0 || triangles == 0 {
@@ -186,55 +207,6 @@ const fn check_size(vertices: usize, triangles: usize) -> Result<(), SceneError>
         })
     } else {
         Ok(())
-    }
-}
-
-pub(super) struct Part {
-    pub(super) vertices: Vec<Vertex>,
-    pub(super) indices: Vec<u32>,
-    pub(super) skin: Vec<SkinVertex>,
-    pub(super) bounds: Bounds,
-}
-
-impl Part {
-    pub(super) fn of(mesh: &Mesh, world: &Rows, bones: usize) -> Self {
-        Self::with_skin(mesh, world, skin::of_mesh(mesh, bones))
-    }
-
-    pub(super) fn with_skin(mesh: &Mesh, world: &Rows, skin: Vec<SkinVertex>) -> Self {
-        let world = if skin.is_empty() { world } else { &IDENTITY };
-        let normal_rows = normal_matrix(world);
-        let mut bounds = Bounds::EMPTY;
-        let vertices = mesh
-            .positions
-            .iter()
-            .enumerate()
-            .map(|(at, &position)| {
-                let placed = apply(world, position);
-                bounds.include(placed);
-                let normal = mesh
-                    .normals
-                    .as_ref()
-                    .and_then(|normals| normals.get(at))
-                    .map_or([0.0; 3], |&normal| normalised(rotate(&normal_rows, normal)));
-                let uv = mesh.uvs.get(at).copied().unwrap_or([0.0; 2]);
-                [
-                    placed[0], placed[1], placed[2], normal[0], normal[1], normal[2], uv[0], uv[1],
-                ]
-            })
-            .collect();
-        let mut indices = mesh.indices.clone();
-        if determinant(world) < 0.0 {
-            for triangle in indices.as_chunks_mut::<3>().0 {
-                triangle.swap(1, 2);
-            }
-        }
-        Self {
-            vertices,
-            indices,
-            skin,
-            bounds,
-        }
     }
 }
 
@@ -291,57 +263,8 @@ fn cell(rows: &Rows, row: usize, column: usize) -> f32 {
         .unwrap_or(0.0)
 }
 
-pub(super) fn apply(rows: &Rows, [x, y, z]: [f32; 3]) -> [f32; 3] {
-    std::array::from_fn(|row| {
-        cell(rows, row, 0).mul_add(
-            x,
-            cell(rows, row, 1).mul_add(y, cell(rows, row, 2).mul_add(z, cell(rows, row, 3))),
-        )
-    })
-}
-
-fn rotate(rows: &[[f32; 3]; 3], [x, y, z]: [f32; 3]) -> [f32; 3] {
-    std::array::from_fn(|row| {
-        let values = rows.get(row).copied().unwrap_or([0.0; 3]);
-        values[0].mul_add(x, values[1].mul_add(y, values[2] * z))
-    })
-}
-
-fn rows3(rows: &Rows) -> [[f32; 3]; 3] {
-    std::array::from_fn(|row| std::array::from_fn(|column| cell(rows, row, column)))
-}
-
-fn determinant(rows: &Rows) -> f32 {
-    let [first, second, third] = rows3(rows);
-    dot(first, cross(second, third))
-}
-
-fn normal_matrix(rows: &Rows) -> [[f32; 3]; 3] {
-    let [first, second, third] = rows3(rows);
-    let det = determinant(rows);
-    let scale = if det.abs() > f32::EPSILON {
-        1.0 / det
-    } else {
-        1.0
-    };
-    [
-        cross(second, third),
-        cross(third, first),
-        cross(first, second),
-    ]
-    .map(|row| row.map(|value| value * scale))
-}
-
-fn normalised(vector: [f32; 3]) -> [f32; 3] {
-    let length = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
-    if length.is_finite() && length > 0.0 {
-        vector.map(|value| value / length)
-    } else {
-        [0.0; 3]
-    }
-}
-
 mod armour;
+mod part;
 mod skin;
 #[cfg(test)]
 mod tests;

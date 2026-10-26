@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::model::{BoneMatch, Influences, Mesh};
+use p4kx_extraction::model::{Bone, BoneMatch, Influences, Mesh, Node};
 
 use super::SkinVertex;
 
@@ -9,6 +9,44 @@ const JOINTS: usize = 4;
 const WEIGHTS_AT: usize = 8;
 
 pub(super) const UNWEIGHTED: SkinVertex = [0; 12];
+
+/// Returns, for each node, the bone that moves it: the first bone that drives the node itself or
+/// else the nearest ancestor that a bone drives; `None` when no bone does.
+pub(super) fn drivers(nodes: &[Node], bones: &[Bone]) -> Vec<Option<usize>> {
+    let mut direct: Vec<Option<usize>> = vec![None; nodes.len()];
+    for (at, bone) in bones.iter().enumerate() {
+        if let Some(slot) = bone.node.and_then(|node| direct.get_mut(node))
+            && slot.is_none()
+        {
+            *slot = Some(at);
+        }
+    }
+    (0..nodes.len())
+        .map(|start| {
+            let mut at = Some(start);
+            for _ in 0..=nodes.len() {
+                let node = at?;
+                if let Some(Some(bone)) = direct.get(node) {
+                    return Some(*bone);
+                }
+                at = nodes.get(node).and_then(|node| node.parent);
+            }
+            None
+        })
+        .collect()
+}
+
+/// Returns the skin of every vertex of `mesh` bound wholly to `bone`.
+pub(super) fn rigid(mesh: &Mesh, bone: usize) -> Vec<SkinVertex> {
+    let mut packed = UNWEIGHTED;
+    if let (Ok(joint), Some(target)) = (u16::try_from(bone), packed.get_mut(0..2)) {
+        target.copy_from_slice(&joint.to_le_bytes());
+    }
+    if let Some(weight) = packed.get_mut(WEIGHTS_AT) {
+        *weight = u8::MAX;
+    }
+    vec![packed; mesh.positions.len()]
+}
 
 /// Returns the skin of every vertex of `mesh` bound to a skeleton of `bones` bones: its four
 /// strongest influences, a bone outside the skeleton dropped. A mesh without bone weights gives

@@ -988,6 +988,8 @@
     "barHeight": 36,
     "viewHeight": 160,
     "panelHeight": 349,
+    "panelMinHeight": 285,
+    "panelFollows": "the Entry, not the tab: the panel of a model Entry has this height and minimum on every tab, so switching tabs does not move it",
     "panelHeightFrom": "tab bar 44 + path line 32 + facts bar 32 + view 160 + overlayGap 8 + playback bar 36 (rowHeight, the height of a checkbox cell) + panel chrome 37 (resize gap, frame padding and rules, as for the soundbank list)",
     "factsPaddingX": 16,
     "background": "surface-inset",

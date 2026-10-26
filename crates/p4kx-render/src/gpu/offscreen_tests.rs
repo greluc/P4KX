@@ -15,7 +15,7 @@ const SIZE: [u32; 2] = [96, 64];
     clippy::print_stderr,
     reason = "tells the test run why a test checked nothing"
 )]
-fn open(test: &str) -> Option<Offscreen> {
+pub(super) fn open(test: &str) -> Option<Offscreen> {
     match Offscreen::new(Adapters::Best) {
         Ok(offscreen) => Some(offscreen),
         Err(error) => {

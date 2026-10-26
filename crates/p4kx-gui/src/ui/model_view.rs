@@ -126,15 +126,22 @@ pub(super) fn viewport(
 }
 
 /// Shows the 3D view of what `subject` picks for the view's uniforms and height in device
-/// pixels, seen by `camera`, named for assistive technology by `describe`; see [`viewport`].
+/// pixels, seen by `camera`, named for assistive technology by `describe`; see [`viewport`]. The
+/// view is at least [`MODEL_VIEW_MIN_HEIGHT`] high, unless a bar is reserved under it: then it
+/// gives way, so the bar never overlaps it.
 pub(super) fn canvas(
     ui: &mut Ui,
     (texts, describe): (&Texts, &dyn Fn() -> String),
     (subject, camera): (impl FnOnce(&Uniforms, u32) -> Option<Subject>, &Camera),
     (look, reserve): (Look, f32),
 ) -> Option<Camera> {
-    let size = (ui.available_size() - vec2(0.0, reserve))
-        .max(vec2(MODEL_VIEW_MIN_HEIGHT, MODEL_VIEW_MIN_HEIGHT));
+    let shortest = if reserve > 0.0 {
+        1.0
+    } else {
+        MODEL_VIEW_MIN_HEIGHT
+    };
+    let size =
+        (ui.available_size() - vec2(0.0, reserve)).max(vec2(MODEL_VIEW_MIN_HEIGHT, shortest));
     let sense = Sense::click_and_drag().union(Sense::focusable_noninteractive());
     let (rect, response) = ui.allocate_exact_size(size, sense);
     response.widget_info(|| WidgetInfo::labeled(Role::Canvas, true, describe()));

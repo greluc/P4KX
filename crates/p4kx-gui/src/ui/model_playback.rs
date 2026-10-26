@@ -18,9 +18,9 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::viewer::Look;
 use crate::widgets::button::{self, Kind, Size};
-use crate::widgets::slider::{Steps, slider};
+use crate::widgets::slider::{Steps, slider_if};
 use crate::widgets::text::{line, paint_left, plain};
-use crate::widgets::toggle::{checkbox, radio};
+use crate::widgets::toggle::{checkbox, checkbox_if, radio};
 use crate::{Camera, Control, Language, ModelText, Playback, Scene, Texts};
 
 const TENTH: Duration = Duration::from_millis(100);
@@ -140,7 +140,7 @@ pub(super) fn bar(ui: &mut Ui, texts: &Texts, playback: &Playback) -> Option<Con
             } else {
                 &labels.play
             };
-            let enabled = playback.selected().is_some();
+            let enabled = playback.can_play();
             if button::button(ui, Kind::Outline, Size::Compact, toggle, enabled).clicked() {
                 control = Some(Control::Toggle);
             }
@@ -155,14 +155,16 @@ pub(super) fn bar(ui: &mut Ui, texts: &Texts, playback: &Playback) -> Option<Con
                 control = Some(Control::Skeleton(shown));
             }
             if let Some((time, _)) = &timing {
+                let enabled = playback.can_play();
                 let mut looping = playback.is_looping();
-                if checkbox(ui, &mut looping, &labels.looping).changed() {
+                if checkbox_if(ui, &mut looping, &labels.looping, enabled).changed() {
                     control = Some(Control::Loop(looping));
                 }
                 let named = (labels.position.as_ref(), time.text());
                 let steps = steps(playback.duration());
                 let width = ui.available_width();
-                let (_, chosen) = slider(ui, named, playback.fraction(), steps, width);
+                let (_, chosen) =
+                    slider_if(ui, named, playback.fraction(), steps, (width, enabled));
                 if let Some(fraction) = chosen {
                     control = Some(Control::Seek(fraction));
                 }
@@ -249,12 +251,10 @@ fn time(ui: &Ui, texts: &Texts, playback: &Playback) -> (Arc<Galley>, f32) {
 fn list(ui: &mut Ui, texts: &Texts, playback: &Playback) -> Option<Control> {
     let labels = labels(ui, texts);
     let mut control = None;
-    let (rect, response) = ui.allocate_exact_size(
-        vec2(ui.available_width(), SLIDER_HIT_HEIGHT * 0.5),
-        Sense::hover(),
-    );
+    let heading = line(ui, eyebrow(&labels.animations), ui.available_width());
+    let (rect, response) =
+        ui.allocate_exact_size(vec2(ui.available_width(), heading.size().y), Sense::hover());
     response.widget_info(|| WidgetInfo::labeled(Role::Heading, true, labels.animations.as_ref()));
-    let heading = line(ui, eyebrow(&labels.animations), rect.width());
     paint_left(ui, rect, heading, palette::GRAY_2_TEXT);
     let rows = playback.animations().len() + 1;
     ScrollArea::vertical()

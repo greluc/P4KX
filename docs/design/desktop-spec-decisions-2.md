@@ -420,12 +420,15 @@ geändertes Archiv ebenso in `color-warning`.
 des Tabs „Modell" (D.35), `overlayGap` (8) von ihr entfernt, eine Leiste mit den Steuerelementen
 wie bei einem Videoplayer, 36 px hoch (`barHeight`, `rowHeight`: so hoch ist eine Kontrollkästchen-Zelle); die Faktenleiste behält ihre Bedienhinweise.
 Mit Animationen sind das von links nach rechts: „Abspielen" oder
-„Pause" (`.btn-outline.btn-xs`, deaktiviert, solange keine Animation gewählt ist), die Zeit
+„Pause" (`.btn-outline.btn-xs`, deaktiviert, solange keine Animation mit Länge gewählt ist), die Zeit
 „Minuten:Sekunden.Millisekunden / Länge" in 12 / 400 `color-gray-1` (auf Zehntelsekunden gekürzt, in
 der Breite der längsten Zeit der Animation), der Positionsregler (`.slider`, D.27: Klick und Ziehen
 setzen die Position, Pfeile um eine Sekunde, Bild auf und ab um fünf, Pos1 und Ende an die Enden),
-das Kontrollkästchen „Wiederholen" (an) und „Skelett" (aus); ein Modell mit Knochen ohne Animation
-zeigt nur „Skelett". Neben der Ansicht steht, `overlayGap` (8) entfernt und `animationListWidth` (240) breit, die Liste
+das Kontrollkästchen „Wiederholen" (an) und „Skelett" (aus); Regler und „Wiederholen" sind wie
+„Abspielen" gedimmt (`disabledOpacity`) und ohne Bedienung, solange die Ausgangspose steht oder die
+Animation keine Länge hat. Ein Modell mit Knochen ohne Animation
+zeigt nur „Skelett". Kann das Grafikgerät das Skelett nicht aufnehmen (Skinning-Pipelines
+abgelehnt oder Puffer zu groß), fehlen Leiste und Liste ganz, wie bei einem Modell ohne Knochen. Neben der Ansicht steht, `overlayGap` (8) entfernt und `animationListWidth` (240) breit, die Liste
 der Animationen: die Überschrift „Animationen" in der Eyebrow-Schrift (`color-gray-2-text`) über
 einer Rollliste aus Radios (36 px je Zeile, D.1), deren erste „Ausgangspose" ist; sie zeigt nur
 Animationen, die mindestens einen Knochen des Modells bewegen und nicht additiv sind, mit dem Namen
@@ -435,7 +438,9 @@ in `color-primary` über das Modell, ohne Tiefentest. Damit die Ansicht mit der 
 96 px Mindesthöhe bleibt, öffnet das Panel für Modelle 349 hoch statt 236 (Tab-Leiste 44, Pfadzeile 32,
 Faktenleiste 32, Ansicht 160, `overlayGap` 8, Leiste 36 und 37 Panelrand, wie bei der Soundbank-Liste
 D.33) und merkt sich seine Größe getrennt von der der anderen Vorschauen; es bleibt frei
-verstellbar. Die Liste der Animationen zeigt bei dieser Höhe etwa drei Zeilen und rollt.
+verstellbar, mindestens aber `panelMinHeight` (285: die Ansicht behält ihre 96 px, die Leiste
+überdeckt sie nie; lässt die Fenstergröße das nicht zu, gibt die Ansicht nach, nicht die Leiste). Höhe und Mindesthöhe folgen dem Eintrag, nicht dem Tab: ein Modell hat sie auf
+jedem Tab, das Wechseln zwischen „Modell" und „Info" lässt das Panel stehen. Die Liste der Animationen zeigt bei dieser Höhe etwa drei Zeilen und rollt.
 
 **D.47 3D-Ansicht des Loadouts im Tab „Entities".** Rechts neben der Auswahlliste steht über dem
 Loadout-Baum das Ansichts-Panel (`assemblyView` in `p4kx-desktop-spec.json`): oben eine

@@ -36,9 +36,9 @@ fn an_entity_that_holds_itself_is_an_unresolved_cycle_and_is_not_attached() -> T
     assert_eq!(entry["issues"], json!(["cycle"]), "the code is listed");
     let summary = built.summary().loadouts();
     assert_eq!(
-        (summary.unresolved, summary.with_issues),
-        (3, 3),
-        "counted as unresolved"
+        (summary.unresolved, summary.with_issues, summary.attached),
+        (3, 3, 10),
+        "counted as unresolved, and not among the 10 attached"
     );
     Ok(())
 }

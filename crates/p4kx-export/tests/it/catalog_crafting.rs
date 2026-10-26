@@ -383,8 +383,8 @@ fn without_a_filter_both_kinds_are_complete() -> TestResult {
 #[test]
 fn the_blueprint_kind_selects_crafting_blueprint_records() {
     assert_eq!(
-        Kind::Blueprints.rule().type_name,
-        "CraftingBlueprintRecord",
+        Kind::Blueprints.rule().map(|rule| rule.type_name),
+        Some("CraftingBlueprintRecord"),
         "type"
     );
 }

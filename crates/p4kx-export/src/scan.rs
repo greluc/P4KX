@@ -16,6 +16,7 @@ use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::Blueprint;
 use crate::contract_recipe::CostLine;
 use crate::entity_selection::{Selected, select};
+use crate::item::is_paint;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::ship_pool::ShipPool;
@@ -203,6 +204,15 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
         let kind = match select(record, self.options.filter)? {
             None => return Ok(None),
+            Some(Selected::Leftover(Kind::Items)) => {
+                return Ok(Some(
+                    if trees.build(record).is_ok_and(|tree| is_paint(&tree)) {
+                        Picked::SkippedPaint
+                    } else {
+                        Picked::Skipped(Kind::Items)
+                    },
+                ));
+            }
             Some(Selected::Leftover(kind)) => return Ok(Some(Picked::Skipped(kind))),
             Some(Selected::Entity(kind)) => kind,
         };

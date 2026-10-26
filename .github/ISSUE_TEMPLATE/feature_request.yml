@@ -1,0 +1,68 @@
+name: Feature Request
+description: Propose a new feature or an improvement.
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Use Case
+      description: Which problem does this solve, and for whom?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: >-
+        What could it look like? A sketch of the window, a command and its output, an MCP tool;
+        whatever sharpens the picture.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / Workarounds
+      description: How do you work around it today? Which alternatives did you consider?
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Part
+      multiple: true
+      options:
+        - Window (browsing, search, preview, viewer)
+        - Command line
+        - MCP server
+        - Blender add-on
+        - Extraction
+        - Comparison of two Archives
+        - Records (DataForge, XML / JSON)
+        - Models and glTF export
+        - Textures and images
+        - Audio
+        - Localization
+        - Installer / update check
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know it is done?
+      value: |
+        - [ ]
+        - [ ] Tests in place
+        - [ ] Changelog fragment added
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Self-Check
+      options:
+        - label: I have searched open and closed issues for duplicates.
+          required: true

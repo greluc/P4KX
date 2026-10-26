@@ -1,0 +1,139 @@
+name: Bug Report
+description: Report a reproducible bug in P4KX.
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Fill in the fields as completely as you can; incomplete reports
+        delay the fix.
+
+        **Do not report security vulnerabilities here.** Use
+        [Private Vulnerability Reporting](https://github.com/p4kx-org/p4kx/security/advisories/new)
+        instead.
+
+        **Do not attach game files, extracted game assets or the Archive key.** Name the Entry path
+        instead; we can read it from our own installation.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: >-
+        What happens, in one sentence? E.g. "Extracting Data\Libs\Foundry\Records\*.xml stops
+        with 'unexpected end of data'."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Part
+      multiple: true
+      options:
+        - Window (browsing, search, preview, viewer)
+        - Command line
+        - MCP server
+        - Blender add-on
+        - Extraction
+        - Comparison of two Archives
+        - Records (DataForge, XML / JSON)
+        - Models and glTF export
+        - Textures and images
+        - Audio
+        - Localization
+        - Installer / update check
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: P4KX Version
+      description: The version from the About view, or a commit SHA for a build from source.
+      placeholder: "e.g. 0.3.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installed From
+      options:
+        - MSI installer
+        - Portable ZIP
+        - Built from source
+    validations:
+      required: true
+
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Star Citizen Channel
+      description: Which Archive was open?
+      options:
+        - not relevant
+        - LIVE
+        - PTU
+        - EPTU
+        - HOTFIX
+        - TECH-PREVIEW
+
+  - type: input
+    id: build
+    attributes:
+      label: Game Build
+      description: The Build P4KX shows for the Archive, if known.
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      placeholder: "e.g. Windows 11 24H2"
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behaviour
+      description: Error message, screenshot, exit code; whatever helps diagnosis.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: The full output of the command or the error text from the window.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Self-Check
+      options:
+        - label: I have searched open and closed issues for duplicates.
+          required: true
+        - label: I have not attached game files, extracted game assets, the Archive key or personal data.
+          required: true
+        - label: I understand that security vulnerabilities are reported confidentially, not here.
+          required: true

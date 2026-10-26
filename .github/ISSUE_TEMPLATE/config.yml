@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a Security Vulnerability
+    url: https://github.com/p4kx-org/p4kx/security/advisories/new
+    about: >-
+      Never post security-relevant findings publicly as an issue.
+      Report them confidentially as described in the security policy.
+  - name: User Help
+    url: https://github.com/p4kx-org/p4kx/blob/main/docs/user-help.md
+    about: >-
+      How to use the window, the command line and the MCP server.

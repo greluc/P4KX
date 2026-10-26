@@ -159,7 +159,7 @@ fn counts_placeholder_properties_and_pools_without_a_source() -> TestResult {
     Ok(())
 }
 
-pub(crate) fn verify(forge: &DataForge<'_>) -> TestResult {
+fn verify(forge: &DataForge<'_>) -> TestResult {
     let crafting = read_crafting(forge, None, None)?;
     assert!(crafting.failures.is_empty(), "{:?}", crafting.failures);
     assert!(crafting.blueprints.len() >= MIN_BLUEPRINTS, "blueprints");
@@ -247,10 +247,11 @@ fn check_modifiers(crafting: &Crafting<'_>) {
 }
 
 fn check_distributions(crafting: &Crafting<'_>) -> TestResult {
+    let creature_default = guid(CREATURE_DEFAULT)?;
     let default = crafting
         .quality_distributions
         .iter()
-        .find(|item| item.guid == guid(CREATURE_DEFAULT).unwrap_or_default())
+        .find(|item| item.guid == creature_default)
         .ok_or("the default creature distribution")?;
     let curve = default.distribution.as_ref().ok_or("a curve")?;
     assert_eq!(curve.kind, "CraftingQualityDistributionNormal", "kind");
@@ -274,10 +275,11 @@ fn check_distributions(crafting: &Crafting<'_>) -> TestResult {
 fn check_rewards(crafting: &Crafting<'_>) -> TestResult {
     assert!(crafting.pools.len() >= MIN_POOLS, "pools");
     assert!(crafting.reward_sources.len() >= MIN_SOURCES, "sources");
+    let covalex_pool = guid(COVALEX_POOL)?;
     let pool = crafting
         .pools
         .iter()
-        .find(|pool| pool.guid == guid(COVALEX_POOL).unwrap_or_default())
+        .find(|pool| pool.guid == covalex_pool)
         .ok_or("the Covalex pool")?;
     assert!(!pool.entries.is_empty(), "entries");
     #[expect(

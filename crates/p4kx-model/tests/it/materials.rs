@@ -131,6 +131,35 @@ fn mtl_flags_written_as_negative_numbers_keep_their_bits() -> TestResult {
 }
 
 #[test]
+fn decals_that_draw_no_colour_are_hidden() -> TestResult {
+    let library = parse(
+        &TestMtl::multi(&[
+            TestMtlMaterial::new("placeholder").shader("MeshDecal"),
+            TestMtlMaterial::new("stencil")
+                .shader("MeshDecal")
+                .texture("TexSlot1", "decal_diff.tif"),
+            TestMtlMaterial::new("relief")
+                .shader("Illum")
+                .string_gen_mask("%NORMAL_MAP%DECAL%PARALLAX_OCCLUSION_MAPPING")
+                .public_param("DecalDiffuseOpacity", "0")
+                .texture("TexSlot1", "pom_diff.tif"),
+            TestMtlMaterial::new("painted")
+                .shader("Illum")
+                .string_gen_mask("%DECAL")
+                .public_param("DecalDiffuseOpacity", "1")
+                .texture("TexSlot1", "pom_diff.tif"),
+        ])
+        .cryxml(),
+    )?;
+
+    let hidden: Vec<bool> = (0..4)
+        .map(|id| library.material(id).is_some_and(Material::hidden))
+        .collect();
+    assert_eq!(hidden, [true, false, true, false]);
+    Ok(())
+}
+
+#[test]
 fn the_overlay_materials_of_the_eye_shader_are_hidden_and_the_iris_is_not() -> TestResult {
     let eye = |name: &str, mask: &str| {
         TestMtlMaterial::new(name)

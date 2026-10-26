@@ -59,7 +59,7 @@ class _Maker(LayerBlending):
         desc, spec = self.desc, self.builder.spec
         spec.two_sided = desc.two_sided
         spec.properties = self._properties()
-        if desc.no_draw or self.family == "nodraw":
+        if desc.no_draw or self.family == "nodraw" or self._colourless_decal():
             return self._nodraw()
         if self.family == "unknown":
             spec.warnings.append(
@@ -89,6 +89,18 @@ class _Maker(LayerBlending):
                 "with a name too long to keep as a custom property."
             )
         return properties
+
+    def _colourless_decal(self) -> bool:
+        """Returns whether the material is a decal that draws no colour.
+
+        That is a mesh decal without any texture slot, or a ``DECAL`` material whose
+        ``DecalDiffuseOpacity`` is 0 and which only adds relief.
+        """
+        desc = self.desc
+        if self.family == "decal" and not desc.textures:
+            return True
+        opacity = desc.number("DecalDiffuseOpacity")
+        return "DECAL" in desc.gen_mask and opacity is not None and opacity <= 0.0
 
     def _nodraw(self) -> GraphSpec:
         bsdf = self.builder.add("ShaderNodeBsdfTransparent", key="bsdf")

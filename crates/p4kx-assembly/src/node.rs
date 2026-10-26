@@ -114,13 +114,13 @@ impl LoadoutResolver<'_> {
             visibility: PortVisibility::default(),
             origin: pending.origin.cloned(),
         };
-        if self.change(&mut node, walk) {
-            return node;
+        if !self.change(&mut node, walk) {
+            node.attachment = self.attach(pending.target, pending.loadout, walk);
+            if matches!(node.attachment, Attachment::Empty) {
+                node.nested = self.nested_ports(pending.loadout, walk, issues);
+            }
         }
-        node.attachment = self.attach(pending.target, pending.loadout, walk);
-        if matches!(node.attachment, Attachment::Empty) {
-            node.nested = self.nested_ports(pending.loadout, walk, issues);
-        }
+        self.choose_sub_geometry(&mut node, vehicle);
         node
     }
 
@@ -279,6 +279,7 @@ fn shell(spec: &EntitySpec, docked_vehicle: bool, expanded: bool) -> EntityNode 
         ports: Vec::new(),
         issues: Vec::new(),
         geometry: spec.geometry.clone(),
+        fallback: None,
         vehicle: None,
         landing_gear: Arc::from([]),
         docked_vehicle,

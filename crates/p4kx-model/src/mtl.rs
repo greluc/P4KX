@@ -165,6 +165,13 @@ impl Material {
                 .any(|mask| self.string_gen_mask.contains(mask))
     }
 
+    /// Returns whether the material is a `HairPBR` cap: `HAIR_CAP` in its generation mask, a shell
+    /// over the skin that its `TexSlot1` density map blends.
+    #[must_use]
+    pub fn is_hair_cap(&self) -> bool {
+        self.shader.eq_ignore_ascii_case("HairPBR") && self.string_gen_mask.contains("HAIR_CAP")
+    }
+
     /// Returns whether the material is a decal that draws no colour: a `MeshDecal` without any
     /// texture slot, a placeholder a livery fills in, or a decal (`DECAL` in its generation mask)
     /// whose `DecalDiffuseOpacity` is 0, which only adds relief to the surface below.

@@ -14,6 +14,7 @@ const NORMAL_GLOSS_SUFFIX: &str = "ddna";
 const NORMAL_SUFFIX: &str = "ddn";
 const SPECULAR_SUFFIX: &str = "spec";
 const OPACITY_SUFFIX: &str = "opac";
+const SCALP_SUFFIX: &str = "scalp";
 const NOT_DIFFUSE: [&str; 16] = [
     "ao", "blend", "mask", "opac", "id", "scalp", "dir", "dirm", "hal", "wear", "displ", "disp",
     "detail", "gloss", "ddna", "ddn",
@@ -61,12 +62,22 @@ pub(crate) fn sources(material: &Material) -> Sources {
 /// Returns the texture files of `material` like [`sources`]; with `opacity_maps`, a material
 /// without a diffuse map whose `TexSlot1` ends in `_opac`, such as hair cards, has that opacity
 /// map in place of the diffuse map, see [`Source::opacity`].
+///
+/// A hair cap ([`Material::is_hair_cap`]) always has its `_scalp` density map in that place.
 pub(crate) fn sources_with(material: &Material, opacity_maps: bool) -> Sources {
-    sources_of(&material.textures, opacity_maps)
+    if material.is_hair_cap() {
+        collect(&material.textures, Some(SCALP_SUFFIX))
+    } else {
+        sources_of(&material.textures, opacity_maps)
+    }
 }
 
 /// Returns the texture files of the slots `textures` like [`sources_with`].
 pub(crate) fn sources_of(textures: &[TextureSlot], opacity_maps: bool) -> Sources {
+    collect(textures, opacity_maps.then_some(OPACITY_SUFFIX))
+}
+
+fn collect(textures: &[TextureSlot], opacity_suffix: Option<&str>) -> Sources {
     let pick = |slots: &[&str], wanted: &dyn Fn(&str) -> bool| {
         slots.iter().find_map(|slot| {
             textures.iter().find_map(|texture| {
@@ -99,8 +110,9 @@ pub(crate) fn sources_of(textures: &[TextureSlot], opacity_maps: bool) -> Source
     });
     let specular = pick(&[SPECULAR_SLOT], &|name| name == SPECULAR_SUFFIX);
     let gloss = normal.is_some_and(|file| suffix(file) == NORMAL_GLOSS_SUFFIX);
-    let opacity = pick(&[DIFFUSE_SLOT], &|name| name == OPACITY_SUFFIX)
-        .filter(|_| opacity_maps && diffuse.is_none());
+    let opacity = opacity_suffix
+        .and_then(|wanted| pick(&[DIFFUSE_SLOT], &|name| name == wanted))
+        .filter(|_| diffuse.is_none());
     let diffuse = match opacity {
         Some(file) => resolve(TextureRole::Diffuse, Some(file), false, true),
         None => resolve(TextureRole::Diffuse, diffuse, false, false),

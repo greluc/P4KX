@@ -480,7 +480,7 @@ catalog-summary-skipped = Records skipped as development leftovers: { $number }
 catalog-playability-heading = Playability
 catalog-summary-playability = { $kind ->
     [items] Items
-    [ships] Ships and ground vehicles
+    [ships] Ships
    *[other] { $kind }
 }: { $player } player, { $ai } AI, { $mission } mission, { $special } special, { $unclassified } unclassified
 catalog-summary-failed = Records that could not be read and were left out ({ $number })

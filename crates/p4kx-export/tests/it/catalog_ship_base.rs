@@ -4,16 +4,18 @@
 //! The ship base data in the `ships` kind of the Basetool catalog, through the public API.
 
 use crate::ship_base_fixture::{
-    ALPHA, BETA, BROKEN, CAR, GROUND, HUGE, MIXED, ROLLING, UNKNOWN, write_archive,
+    ALPHA, BETA, BROKEN, CAR, DISPLAY, GROUND, GUN_DISPLAY, HUGE, MIXED, ROLLING, TEMP, UNKNOWN,
+    write_archive,
 };
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
 use p4kx_export::{
-    CatalogOptions, ShipBase, ShipBaseOptions, VehicleKind, build_catalog, build_ship_base,
+    CatalogOptions, Guid, SHIP_EXCLUDED_TOKENS, ShipBase, ShipBaseOptions, VehicleKind,
+    build_catalog, build_ship_base, read_variant_groups,
 };
-use p4kx_extraction::Archive;
+use p4kx_extraction::{Archive, DataForgeEntry};
 use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -182,5 +184,70 @@ fn the_kind_uses_the_wheels_of_the_implementation_as_evidence() -> TestResult {
         "wheels under the spaceship folder"
     );
     assert_eq!(VehicleKind::Spaceship.code(), "spaceship");
+    Ok(())
+}
+
+#[test]
+fn a_temp_or_display_ship_is_left_out_everywhere_and_an_item_keeps_its_display_word() -> TestResult
+{
+    assert_eq!(SHIP_EXCLUDED_TOKENS, ["temp", "display", "hijacked"]);
+    let dir = tempfile::tempdir()?;
+    let archive =
+        Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
+    let built = build_catalog(&archive, &CatalogOptions::new(UNIX_EPOCH + EXPORTED_AT))?;
+    let catalog: Value = serde_json::from_slice(built.json())?;
+    let bases = build_ship_base(&archive, &ShipBaseOptions::new(UNIX_EPOCH + EXPORTED_AT))?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let groups = read_variant_groups(&archive, &forge, &|| false).ok_or("stopped")?;
+
+    let classes = |kind: &str| -> Vec<String> {
+        catalog[kind]
+            .as_array()
+            .map(|list| {
+                list.iter()
+                    .filter_map(|entity| entity["className"].as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    let ships = classes("ships");
+    for class in ["ACME_Alpha_Temp", "ACME_Beta_Display"] {
+        assert!(
+            !ships.iter().any(|ship| ship == class),
+            "{class} in the catalog"
+        );
+        assert!(
+            !bases.ships().iter().any(|ship| ship.class_name == class),
+            "{class} in the ship base data"
+        );
+    }
+    assert!(
+        ships.iter().any(|ship| ship == "ACME_Alpha"),
+        "the base hull stays"
+    );
+    assert!(
+        classes("items")
+            .iter()
+            .any(|item| item == "ACME_Gun_Display"),
+        "the item stays"
+    );
+    let skipped = built.summary().skipped();
+    assert!(
+        skipped >= 3,
+        "two ships and the dummy are skipped: {skipped}"
+    );
+    for leftover in [TEMP, DISPLAY] {
+        let guid: Guid = guid(leftover).parse()?;
+        assert_eq!(groups.base_of(guid), None, "no variant group");
+    }
+    let alpha: Guid = guid(ALPHA).parse()?;
+    let temp: Guid = guid(TEMP).parse()?;
+    assert!(
+        !groups.variants_of(alpha).contains(&temp),
+        "not a variant of the base"
+    );
+    let item: Guid = guid(GUN_DISPLAY).parse()?;
+    assert!(groups.base_of(item).is_none());
     Ok(())
 }

@@ -37,7 +37,7 @@ pub use read::ShipReader;
 pub use write::ShipBaseError;
 
 /// The version of the ship base data format, raised for a breaking change.
-pub const SHIP_BASE_VERSION: u32 = 1;
+pub const SHIP_BASE_VERSION: u32 = 2;
 
 /// The settings of one ship base export.
 #[derive(Clone, Copy)]
@@ -117,7 +117,8 @@ impl BuiltShipBase {
 ///
 /// A ship is an Entity Record under `entities/spaceships` or `entities/groundvehicles`, the
 /// selection of the catalog's `ships` kind, without the development leftovers
-/// ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)). Ships are read in parallel by worker-local
+/// ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS), and for ships also
+/// [`SHIP_EXCLUDED_TOKENS`](crate::SHIP_EXCLUDED_TOKENS)). Ships are read in parallel by worker-local
 /// [`ShipReader`]s. A ship that cannot be read is left out and listed in
 /// [`BuiltShipBase::failures`].
 ///

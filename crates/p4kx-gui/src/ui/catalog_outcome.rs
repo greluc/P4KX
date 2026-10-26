@@ -222,7 +222,9 @@ fn size_warnings(
 /// The texts of one summary, formatted once per catalog and language.
 struct Laid {
     key: (u64, Language),
-    headings: [String; 3],
+    kinds_heading: String,
+    playability_heading: String,
+    texts_heading: String,
     warnings: Vec<(String, SizeWarning)>,
     notices: Vec<Notice>,
     kinds: Vec<String>,
@@ -258,11 +260,9 @@ impl Laid {
         let (failures, reasons) = failure_lines(texts, summary);
         Self {
             key,
-            headings: [
-                texts.get(T::KindsHeading),
-                texts.get(T::TextsHeading),
-                texts.get(T::PlayabilityHeading),
-            ],
+            kinds_heading: texts.get(T::KindsHeading),
+            playability_heading: texts.get(T::PlayabilityHeading),
+            texts_heading: texts.get(T::TextsHeading),
             warnings,
             notices: notices(texts, summary),
             kinds: kinds(texts, summary),
@@ -311,11 +311,11 @@ fn finished(ui: &mut Ui, laid: &Laid) {
         });
         ui.add_space(MODAL_GROUP_GAP);
     }
-    group_label(ui, &laid.headings[0]);
+    group_label(ui, &laid.kinds_heading);
     lines(ui, &laid.kinds);
     note(ui, &laid.skipped);
     ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &laid.headings[2]);
+    group_label(ui, &laid.playability_heading);
     lines(ui, &laid.playability);
     list(
         ui,
@@ -325,7 +325,7 @@ fn finished(ui: &mut Ui, laid: &Laid) {
         true,
     );
     ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &laid.headings[1]);
+    group_label(ui, &laid.texts_heading);
     lines(ui, &laid.texts);
     note(ui, &laid.missing);
     ui.add_space(MODAL_GROUP_GAP);

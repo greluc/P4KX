@@ -70,7 +70,7 @@ fn ships_writes_one_json_document() -> TestResult {
         "{printed}"
     );
     let document: Value = serde_json::from_slice(&fs::read(&out)?)?;
-    assert_eq!(document["schemaVersion"], 1);
+    assert_eq!(document["schemaVersion"], 2);
     assert_eq!(
         document["source"]["exportedAt"].as_str().map(str::len),
         Some(20),

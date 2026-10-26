@@ -53,7 +53,11 @@ fn near(left: f64, right: f64) -> bool {
 fn ships_are_the_catalog_ships_without_development_leftovers() -> TestResult {
     let built = build(None)?;
     assert_eq!(built.ships().len(), 9, "failures: {:?}", built.failures());
-    assert_eq!(built.skipped(), 1, "ACME_Dummy_Ship holds the token dummy");
+    assert_eq!(
+        built.skipped(),
+        3,
+        "ACME_Dummy_Ship holds the token dummy, the other two a ship word"
+    );
     assert!(built.is_complete(), "failures: {:?}", built.failures());
     let order: Vec<_> = built
         .ships()
@@ -350,7 +354,7 @@ fn json_and_ndjson_carry_the_same_ships_in_the_same_order() -> TestResult {
     let mut json = Vec::new();
     built.write_json(&mut json)?;
     let document: Value = serde_json::from_slice(&json)?;
-    assert_eq!(document["schemaVersion"], 1);
+    assert_eq!(document["schemaVersion"], 2);
     assert_eq!(document["filter"], Value::Null);
     assert_eq!(
         document["source"]["exportedAt"].as_str().map(str::len),

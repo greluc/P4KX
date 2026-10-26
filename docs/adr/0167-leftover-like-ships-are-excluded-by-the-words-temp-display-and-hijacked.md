@@ -24,6 +24,8 @@ Decided for issue #423. Builds on ADR-0002 and ADR-0054, and on the playability 
   one (`temperature`, `displays`, `hijacker`) stays.
 - **The selection of `ships` changes, so this is a breaking change** that rides on
   `schemaVersion` 2 (ADR-0054, #671).
+- **`p4kx ships` applies the same rule**, because it reads the ships kind. The owner decided to
+  raise the `schemaVersion` of the ship base data to 2 (`SHIP_BASE_VERSION`) for it.
 
 ## Evidence for no structural rule
 

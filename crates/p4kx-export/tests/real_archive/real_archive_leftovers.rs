@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The ship tokens of the development-leftover rule on a real
-//! Archive; runs with `--ignored` when `P4KX_DATA_P4K` names one. Run with `--nocapture` to see
-//! the Records the tokens leave out.
+//! The ship tokens of the development-leftover rule on a real Archive; runs with `--ignored` when
+//! `P4KX_DATA_P4K` names one. Run with `--nocapture` to see the Records the tokens leave out.
 
 use std::error::Error;
 use std::time::SystemTime;
@@ -50,6 +49,17 @@ fn the_ship_tokens_leave_out_leftover_ships_only() -> TestResult {
     }
     newly.sort();
     print_line(&format!("{} ship Records newly left out", newly.len()));
+    assert!(newly.len() >= 21, "{} ships left out", newly.len());
+    for known in [
+        "glsn_shiv_temp_cosa",
+        "aegs_avenger_stalker_display",
+        "orig_890jump_hijacked",
+    ] {
+        assert!(
+            newly.iter().any(|path| path.ends_with(known)),
+            "{known} is left out"
+        );
+    }
     for path in &newly {
         print_line(path);
     }

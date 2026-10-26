@@ -93,9 +93,7 @@ fn the_summary_shows_the_kinds_the_texts_the_size_and_the_file() -> TestResult {
     harness.get_by_label("Records skipped as development leftovers: 1");
     harness.get_by_label("Playability");
     harness.get_by_label("Items: 0 player, 0 AI, 0 mission, 0 special, 0 unclassified");
-    harness.get_by_label(
-        "Ships and ground vehicles: 0 player, 0 AI, 0 mission, 0 special, 0 unclassified",
-    );
+    harness.get_by_label("Ships: 0 player, 0 AI, 0 mission, 0 special, 0 unclassified");
     harness.get_by_label("English: 4 resolved, 0 missing, 0 placeholders");
     harness.get_by_label("German: 3 resolved, 1 missing, 0 placeholders");
     harness.get_by_label("Missing texts: 1");
@@ -317,8 +315,6 @@ fn the_catalog_windows_speak_german() -> TestResult {
     harness.get_by_label("Hersteller: 2 geschrieben, 1 übersprungen, vollständig");
     harness.get_by_label("Deutsch: 3 aufgelöst, 1 fehlen, 0 Platzhalter");
     harness.get_by_label("Spielbarkeit");
-    harness.get_by_label(
-        "Schiffe und Bodenfahrzeuge: 0 Spieler, 0 KI, 0 Mission, 0 Sonder, 0 nicht eingeordnet",
-    );
+    harness.get_by_label("Schiffe: 0 Spieler, 0 KI, 0 Mission, 0 Sonderfall, 0 nicht eingeordnet");
     Ok(())
 }

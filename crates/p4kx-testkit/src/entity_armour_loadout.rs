@@ -70,7 +70,7 @@ fn nested_entities(worn: &impl Fn(u128, &str, &str) -> TestEntity) -> Vec<TestEn
             TestLoadoutEntry::class("pouch", "TEST_Pouch"),
             TestLoadoutEntry::class("spare", "TEST_Missing"),
         ]));
-    let jacket = worn(0x18, "TEST_Jacket", "Char_Armor_Core")
+    let jacket = worn(0x18, "TEST_Jacket", "Char_Armor_Torso")
         .geometry_variant("Male", format!("{MALE_ARMOUR}/m_suit.skin"), None)
         .loadout(TestLoadout::Xml("Scripts/Loadouts/Missing.xml".to_owned()));
     let rifle = worn(0x19, "TEST_Rifle", "WeaponPersonal").loadout(TestLoadout::Manual(vec![

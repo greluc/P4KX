@@ -118,7 +118,7 @@ fn database() -> DataForgeBuilder {
 ///   helmet;
 /// - `TEST_Ranger` holds a rifle (`WeaponPersonal`) whose optic no Entity has, a backpack
 ///   `TEST_Pack` (`Char_Armor_Backpack`) that carries `TEST_Pouch` (`Char_Clothing_Hands`) and a
-///   port for `TEST_Missing`, which no Entity has, and `TEST_Jacket` (`Char_Armor_Core`), whose
+///   port for `TEST_Missing`, which no Entity has, and `TEST_Jacket` (`Char_Armor_Torso`), whose
 ///   XML Loadout the Archive lacks.
 #[must_use]
 pub fn armour_entries() -> Vec<TestEntry> {

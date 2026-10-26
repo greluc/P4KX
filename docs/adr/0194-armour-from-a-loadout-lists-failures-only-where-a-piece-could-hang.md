@@ -10,13 +10,19 @@ counts as worn. A failure is listed as `piece_not_found` when it sits at the roo
 or on the ports below them, including the nested Loadout of an empty port:
 
 - an unresolved attachment on such a port;
-- the Loadout of the root or of a worn Entity that could not be read in full, such as an XML
-  include the Archive lacks. A worn Entity's issues are listed under its piece name, so that a
-  backpack with a missing include is reported, not only the root's issues.
+- the Loadout of the root that could not be read in full, such as an XML include the Archive
+  lacks, as a failed piece named by the root.
+
+The Loadout of a worn Entity that could not be read in full does not make its piece fail: the
+piece is fitted, and the issue is listed as `loadout_unreadable` under the piece's name. It leaves
+nothing out, so it does not count in `skipped`. A `--piece` that replaces the Entity takes the
+issue with it. Issues that only say a class name is ambiguous or that a vehicle implementation
+cannot be read are left out, as for the root.
 
 Nothing below an Entity that is not worn is a failure: an optic the Archive lacks on a rifle is no
 armour. A worn Entity that hangs below a non-worn one is still found and worn, and failures below
-it count again. A head is a non-worn Entity here; its parts are the business of `NpcHead`
+it count again. A `TooManyPorts` issue that lands on a non-worn Entity is not listed, although
+the ports it left out may have held a piece. A head is a non-worn Entity here; its parts are the business of `NpcHead`
 (ADR-0109).
 
 The reason: the failures exist so that the report does not hide a piece that was meant to be worn.
@@ -25,8 +31,9 @@ failed armour piece.
 
 ## Names
 
-Every piece and every failure from a Loadout tree is named `<port>/<class name>`, with the name of
-the port the Entity hangs on, not the path of ports above it. An unresolved attachment that names
+Every piece, every failure of an attachment and every `loadout_unreadable` issue of a Loadout tree
+is named `<port>/<class name>`, with the name of the port the Entity hangs on, not the path of
+ports above it. An unresolved attachment that names
 a Reference instead of a class name is `<port>/<GUID>`, and one whose Reference cannot be read is
 `<port>/unreadable`. The root's own failures are named by its record path or, for an XML Loadout,
 its path.

@@ -3,6 +3,7 @@
 
 use p4kx_dataforge::Guid;
 
+use super::piece::Note;
 use super::{Piece, Wearable, ZoneList};
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, LoadoutSpec};
@@ -171,12 +172,14 @@ impl<'f> LoadoutResolver<'f> {
                         let name = format!("{}/{}", port.name(), node.class_name());
                         let spec = self.spec(node.guid());
                         pieces.push(match spec.as_ref() {
-                            Ok(spec) => {
-                                Piece::wearable(Wearable::from_spec(spec)).named(name.clone())
-                            }
-                            Err(error) => Piece::failed(name.clone(), error.to_string()),
+                            Ok(spec) => relevant_issues(node.issues()).fold(
+                                Piece::wearable(Wearable::from_spec(spec)).named(name),
+                                |piece, issue| {
+                                    piece.noting(Note::LoadoutUnreadable(issue.to_string()))
+                                },
+                            ),
+                            Err(error) => Piece::failed(name, error.to_string()),
                         });
-                        pieces.extend(failures(node.issues(), &name));
                     }
                 }
                 Attachment::Unresolved(unresolved) if relevant => {
@@ -198,17 +201,18 @@ impl<'f> LoadoutResolver<'f> {
     }
 }
 
+fn relevant_issues(issues: &[LoadoutError]) -> impl Iterator<Item = &LoadoutError> {
+    issues.iter().filter(|issue| {
+        !matches!(
+            issue,
+            LoadoutError::AmbiguousClass { .. } | LoadoutError::VehicleImplementation { .. }
+        )
+    })
+}
+
 fn failures<'a>(
     issues: &'a [LoadoutError],
     name: &'a str,
 ) -> impl Iterator<Item = Piece> + use<'a> {
-    issues
-        .iter()
-        .filter(|issue| {
-            !matches!(
-                issue,
-                LoadoutError::AmbiguousClass { .. } | LoadoutError::VehicleImplementation { .. }
-            )
-        })
-        .map(move |issue| Piece::failed(name, issue.to_string()))
+    relevant_issues(issues).map(move |issue| Piece::failed(name, issue.to_string()))
 }

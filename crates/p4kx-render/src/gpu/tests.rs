@@ -1,22 +1,47 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use super::device::{block_on, guarded};
+use std::time::Duration;
+
+use super::device::{block_on_for, guarded};
 use super::resources::filled;
+
+const WAIT: Duration = Duration::from_secs(60);
 
 fn device_limited_to(max_buffer_size: u64) -> Option<(wgpu::Device, wgpu::Queue)> {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-    let adapter =
-        block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).ok()?;
+    let adapter = block_on_for(
+        instance.request_adapter(&wgpu::RequestAdapterOptions::default()),
+        WAIT,
+    )
+    .and_then(Result::ok)?;
     let limits = wgpu::Limits {
         max_buffer_size,
         ..wgpu::Limits::default()
     };
-    block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-        required_limits: limits,
-        ..wgpu::DeviceDescriptor::default()
-    }))
-    .ok()
+    block_on_for(
+        adapter.request_device(&wgpu::DeviceDescriptor {
+            required_limits: limits,
+            ..wgpu::DeviceDescriptor::default()
+        }),
+        WAIT,
+    )
+    .and_then(Result::ok)
+}
+
+#[test]
+fn a_future_that_never_resolves_gives_up_at_the_limit() {
+    let started = std::time::Instant::now();
+
+    let output = block_on_for(std::future::pending::<()>(), Duration::from_millis(50));
+
+    assert!(output.is_none());
+    assert!(started.elapsed() < Duration::from_secs(30));
+}
+
+#[test]
+fn a_ready_future_returns_its_output() {
+    assert_eq!(block_on_for(async { 7 }, Duration::from_secs(1)), Some(7));
 }
 
 #[expect(

@@ -2,7 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use crate::{
-    Attachment, EntityNode, Geometry, Issue, IssueKind, MAX_ASSEMBLY_DEPTH, PortNode, Target,
+    Attachment, EntityNode, Geometry, Issue, IssueKind, MAX_ASSEMBLY_DEPTH, PortNode,
+    PortVisibility, Target,
 };
 
 /// One part of an Assembly before its model is read: an Entity of the Loadout tree with its port.
@@ -13,6 +14,7 @@ pub(crate) struct Draft<'t> {
     pub(crate) node: &'t EntityNode,
     pub(crate) parent: Option<usize>,
     pub(crate) geometry: Option<&'t Geometry>,
+    pub(crate) hidden: bool,
 }
 
 /// The parts of a Loadout tree in order, every part after its parent, and what could not be
@@ -34,6 +36,7 @@ pub(crate) fn flatten(root: &EntityNode, max_parts: usize) -> Flat<'_> {
                 node: root,
                 parent: None,
                 geometry: root.geometry(),
+                hidden: false,
             }],
             issues: Vec::new(),
         },
@@ -111,6 +114,12 @@ impl<'t> Walker<'t> {
             return;
         }
         let index = self.flat.drafts.len();
+        let hidden = port.visibility() == PortVisibility::Invisible
+            || self
+                .flat
+                .drafts
+                .get(owner)
+                .is_some_and(|draft| draft.hidden);
         self.flat.drafts.push(Draft {
             name: format!("{}/{}", port.name(), child.class_name()),
             path: path.to_owned(),
@@ -118,6 +127,7 @@ impl<'t> Walker<'t> {
             node: child,
             parent: Some(owner),
             geometry: child.geometry(),
+            hidden,
         });
         self.ports(child.ports(), index, path, depth + 1);
     }

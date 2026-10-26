@@ -92,13 +92,12 @@ impl Assembly {
                 issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
             }
             note_attachments(draft, *model, &mut characters, &mut issues);
-            let palette = if model.is_some() {
-                let (palette, unresolved) = palettes.of(draft.geometry, &materials);
-                issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
-                palette
-            } else {
-                None
-            };
+            let palette = model
+                .map(|_| palettes.of(draft.geometry, &materials))
+                .and_then(|(palette, unresolved)| {
+                    issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
+                    palette
+                });
             let (local, placement) = place(draft, &parts, *model, &mut issues);
             let world = draft
                 .parent
@@ -117,6 +116,7 @@ impl Assembly {
                 model: model.map(|loaded| Arc::clone(&loaded.model)),
                 materials,
                 palette,
+                hidden: draft.hidden,
             });
         }
         Ok(Self {
@@ -130,13 +130,14 @@ impl Assembly {
 }
 
 /// Returns the object containers each Entity of `drafts` names, shared with its node; a docked
-/// vehicle that is not expanded names none, as its own ports are left out too.
+/// vehicle that is not expanded and a hidden part name none, as their own ports are left out or
+/// not drawn.
 fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
     let none: Arc<[ObjectContainerRef]> = Arc::new([]);
     drafts
         .iter()
         .map(|draft| {
-            if draft.node.is_docked_vehicle() && !draft.node.is_expanded() {
+            if draft.hidden || (draft.node.is_docked_vehicle() && !draft.node.is_expanded()) {
                 Arc::clone(&none)
             } else {
                 Arc::clone(&draft.node.object_containers)
@@ -239,6 +240,12 @@ fn place(
     model: Option<&Loaded>,
     issues: &mut Vec<Issue>,
 ) -> (Transform, Placement) {
+    let mut unreported = Vec::new();
+    let issues = if draft.hidden {
+        &mut unreported
+    } else {
+        issues
+    };
     let Some(parent) = draft.parent.and_then(|parent| parts.get(parent)) else {
         return (Transform::IDENTITY, Placement::Root);
     };

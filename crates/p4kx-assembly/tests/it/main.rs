@@ -62,6 +62,7 @@ mod npc_head;
 mod port_flag_fallback;
 mod port_flag_geometry;
 mod port_flag_sources;
+mod port_invisible;
 mod prefab;
 mod prefab_lookup;
 mod vehicle_api;

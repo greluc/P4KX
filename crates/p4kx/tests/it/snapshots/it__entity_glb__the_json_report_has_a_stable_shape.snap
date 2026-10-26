@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/entity_glb.rs
+source: crates/p4kx/tests/it/entity_glb.rs
 expression: "serde_json::to_string_pretty(&shaped)?"
 ---
 {
@@ -8,6 +8,7 @@ expression: "serde_json::to_string_pretty(&shaped)?"
   "default_material_ids": 0,
   "entity": "TEST_Ship",
   "guid": "00000000-0000-0000-0000-000000000001",
+  "hidden_parts": 0,
   "hidden_primitives": 0,
   "issues": [
     {
@@ -43,33 +44,39 @@ expression: "serde_json::to_string_pretty(&shaped)?"
   "parts": 6,
   "placements": [
     {
+      "hidden": false,
       "modelled": true,
       "path": "",
       "placement": "root"
     },
     {
       "helper": "hp_nose",
+      "hidden": false,
       "modelled": true,
       "path": "hardpoint_weapon_nose",
       "placement": "helper"
     },
     {
       "helper": "hardpoint_class_2",
+      "hidden": false,
       "modelled": true,
       "path": "hardpoint_weapon_nose/hardpoint_class_2",
       "placement": "helper"
     },
     {
+      "hidden": false,
       "modelled": true,
       "path": "hardpoint_relay",
       "placement": "port_node"
     },
     {
+      "hidden": false,
       "modelled": false,
       "path": "hardpoint_seat",
       "placement": "origin"
     },
     {
+      "hidden": false,
       "modelled": false,
       "path": "hardpoint_door",
       "placement": "origin"

@@ -1822,7 +1822,7 @@
           ]
         },
         "visibility": {
-          "description": "Whether the vehicle implementation shows the port: `visible`, `invisible` or\n`unspecified` when it names no part of that name. A closed set the game may extend, so the\nschema keeps a string.",
+          "description": "Whether the port shows its item: `visible` or `invisible` as the vehicle implementation's\npart of that name says; without such a part `invisible` when the port definition carries\nthe flag `invisible`, else `unspecified`. A closed set the game may extend, so the schema\nkeeps a string.",
           "type": "string"
         }
       },

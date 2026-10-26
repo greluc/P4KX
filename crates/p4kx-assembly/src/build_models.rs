@@ -47,6 +47,7 @@ pub(crate) fn read_models(
     let mut seen = HashSet::new();
     let files: Vec<(String, &str)> = drafts
         .iter()
+        .filter(|draft| !draft.hidden)
         .filter_map(|draft| draft.geometry)
         .filter(|geometry| seen.insert(file_key(geometry.path())))
         .map(|geometry| (file_key(geometry.path()), geometry.path()))
@@ -71,6 +72,9 @@ pub(crate) fn fall_back<'t>(
         let (Some(chosen), Some(main)) = (draft.geometry, draft.node.fallback.as_ref()) else {
             continue;
         };
+        if draft.hidden {
+            continue;
+        }
         if !matches!(
             models.get(&file_key(chosen.path())),
             Some(Outcome::Failed { missing: true, .. })
@@ -156,6 +160,9 @@ pub(crate) fn choose_models<'m>(
     drafts
         .iter()
         .map(|draft| {
+            if draft.hidden {
+                return None;
+            }
             let Some(geometry) = draft.geometry else {
                 issues.push(issue(draft, IssueKind::NoGeometry));
                 return None;

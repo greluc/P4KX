@@ -12,6 +12,7 @@ pub(crate) struct PlacementJson<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     helper: Option<&'a str>,
     modelled: bool,
+    hidden: bool,
 }
 
 /// Returns the placement of every part, the root first.
@@ -27,6 +28,7 @@ pub(crate) fn placements_json(assembly: &Assembly) -> Vec<PlacementJson<'_>> {
                 _ => None,
             },
             modelled: part.model().is_some(),
+            hidden: part.is_hidden(),
         })
         .collect()
 }

@@ -37,7 +37,7 @@ pub(super) fn image(cx: &mut Context<'_>, widget: &Widget) {
     cx.report.images_left_out += 1;
     cx.report.note(
         &widget.type_name,
-        "the image is rendered by the game at run time",
+        "the image is rendered by the game at run time; the Record field imageSource names it",
         &widget.name,
     );
 }

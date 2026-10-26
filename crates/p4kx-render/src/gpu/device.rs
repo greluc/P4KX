@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::task::Wake;
 use std::task::{Context, Poll, Waker};
 use std::thread::{self, Thread};
+use std::time::{Duration, Instant};
 
 use super::pipelines::{COLOUR_FORMAT, DEPTH_FORMAT};
 
@@ -53,16 +54,22 @@ impl Wake for Unpark {
     }
 }
 
-/// Runs `future` to completion on the calling thread.
-pub(super) fn block_on<F: Future>(future: F) -> F::Output {
+/// Runs `future` on the calling thread for at most `limit` and returns `None` when it is still
+/// pending by then.
+pub(super) fn block_on_for<F: Future>(future: F, limit: Duration) -> Option<F::Output> {
     let mut future = pin!(future);
     let waker = Waker::from(Arc::new(Unpark(thread::current())));
     let mut context = Context::from_waker(&waker);
+    let deadline = Instant::now().checked_add(limit)?;
     loop {
         if let Poll::Ready(output) = future.as_mut().poll(&mut context) {
-            return output;
+            return Some(output);
         }
-        thread::park();
+        let left = deadline.checked_duration_since(Instant::now())?;
+        if left.is_zero() {
+            return None;
+        }
+        thread::park_timeout(left);
     }
 }
 

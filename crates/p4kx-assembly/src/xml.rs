@@ -168,7 +168,7 @@ fn parse(bytes: &[u8], origin: &LoadoutOrigin) -> Result<XmlLoadout, String> {
         Xml::Text(text) => {
             let text = std::str::from_utf8(text).map_err(|error| error.to_string())?;
             let text = text.trim_start_matches('\u{feff}');
-            crate::markup::check_depth(text)?;
+            p4kx_cryxml::check_text_depth(text).map_err(|error| error.to_string())?;
             let document = roxmltree::Document::parse(text).map_err(|error| error.to_string())?;
             read_root(document.root_element(), origin)
         }

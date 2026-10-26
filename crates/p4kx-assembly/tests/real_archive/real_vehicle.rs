@@ -18,7 +18,7 @@ use p4kx_testkit::{real_archive_key, real_archive_path};
 
 use crate::real_vehicle_support;
 
-use real_vehicle_support::{depth, file_len, flipped_ports, mass, nodes, port_names};
+use real_vehicle_support::{PortFacts, depth, file_len, flipped_ports, mass, nodes, port_names};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -72,6 +72,7 @@ struct Tally {
     unspecified_ports: usize,
     deepest: usize,
     largest_file: usize,
+    facts: PortFacts,
     issues: Vec<String>,
     unexpected: Vec<String>,
     shapes: BTreeMap<String, Shape>,
@@ -222,6 +223,7 @@ fn collect(
         .iter()
         .filter(|port| port.visibility() == PortVisibility::Unspecified)
         .count();
+    tally.facts.note(vehicle);
     tally.deepest = tally.deepest.max(depth(vehicle.parts()));
     tally.largest_file = tally.largest_file.max(file_len(files, vehicle.path()));
     note_patch(tally, files, tree.class_name(), vehicle)
@@ -251,6 +253,7 @@ fn report(tally: &Tally) {
         tally.largest_file,
         tally.issues.len()
     );
+    println!("{}", tally.facts.summary());
     for issue in &tally.issues {
         println!("issue {issue}");
     }
@@ -383,6 +386,7 @@ fn the_vehicle_implementations_of_a_real_archive_read_and_patch_as_decided() -> 
         tally.unspecified_ports,
         tally.ports
     );
+    tally.facts.assert_found();
     assert!(
         tally.with_treads_or_wheels > 0,
         "no ground vehicle has treads or wheels"

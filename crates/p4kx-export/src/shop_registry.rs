@@ -24,6 +24,7 @@ pub(crate) fn read(bytes: &[u8]) -> Option<Vec<RegistryShop>> {
             let text = std::str::from_utf8(text)
                 .ok()?
                 .trim_start_matches('\u{feff}');
+            cryxml::check_text_depth(text).ok()?;
             let document = roxmltree::Document::parse(text).ok()?;
             Some(collect(document.root_element()))
         }

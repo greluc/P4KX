@@ -41,6 +41,48 @@ pub(crate) fn file_len(files: &ArchiveFiles<'_>, path: &str) -> usize {
     files.read(path).map_or(0, |bytes| bytes.len())
 }
 
+/// What the item ports and applied Elems of the vehicle implementations give.
+#[derive(Debug, Default)]
+pub(crate) struct PortFacts {
+    named: usize,
+    typed: usize,
+    subtyped: usize,
+    elems: usize,
+}
+
+impl PortFacts {
+    pub(crate) fn note(&mut self, vehicle: &VehicleImplementation) {
+        for port in vehicle.item_ports().filter_map(VehiclePart::item_port) {
+            self.named += usize::from(port.display_name().is_some());
+            self.typed += usize::from(!port.item_types().is_empty());
+            self.subtyped += usize::from(
+                port.item_types()
+                    .iter()
+                    .any(|kind| !kind.subtypes().is_empty()),
+            );
+        }
+        self.elems += vehicle.elems().len();
+    }
+
+    pub(crate) fn summary(&self) -> String {
+        format!(
+            "item ports with a display name {}, with types {}, with sub-types {}; Elems applied {}",
+            self.named, self.typed, self.subtyped, self.elems
+        )
+    }
+
+    pub(crate) fn assert_found(&self) {
+        assert!(
+            self.typed > 0 && self.subtyped > 0,
+            "no item port gives types with sub-types: {}/{}",
+            self.typed,
+            self.subtyped
+        );
+        assert!(self.elems > 0, "no Elem was applied");
+        assert!(self.named > 0, "no item port has a display name");
+    }
+}
+
 /// Returns the item ports whose visibility the Modification flips between visible and invisible.
 pub(crate) fn flipped_ports<'a>(
     base: &'a VehicleImplementation,

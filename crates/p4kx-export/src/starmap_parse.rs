@@ -164,6 +164,7 @@ fn parse(archive: &Archive, index: &Index<'_>, entry: usize, bounds: &Bounds) ->
             let parsed = std::str::from_utf8(text)
                 .ok()
                 .map(|text| text.trim_start_matches('\u{feff}'))
+                .filter(|text| cryxml::check_text_depth(text).is_ok())
                 .and_then(|text| roxmltree::Document::parse(text).ok());
             match parsed {
                 Some(document) => level(document.root_element(), 0, bounds),

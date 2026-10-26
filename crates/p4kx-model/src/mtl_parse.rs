@@ -17,6 +17,7 @@ pub(crate) fn parse_library(path: &str, bytes: &[u8]) -> Result<MaterialLibrary,
         Xml::CryXml(document) => library(path, document.root()),
         Xml::Text(text) => {
             let text = String::from_utf8_lossy(text);
+            p4kx_cryxml::check_text_depth(&text)?;
             let document = roxmltree::Document::parse(&text)?;
             library(path, document.root_element())
         }

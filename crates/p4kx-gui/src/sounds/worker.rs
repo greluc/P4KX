@@ -7,9 +7,11 @@ use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::thread;
 
 use p4kx_assembly::audio::{
-    ArchiveAudio, ExportOptions, ExportReport, ExportWatch, LanguageChoice, TriggerSounds,
+    ArchiveAudio, AudioIndex, ExportOptions, ExportReport, ExportWatch, LanguageChoice,
+    TriggerSounds,
 };
 use p4kx_assembly::{ENTITY_TYPE, Entities};
+use p4kx_extraction::CancelToken;
 
 use super::resolve::{entity_rows, search_rows, sound_list};
 use super::view::{EntityInfo, IndexInfo, ListSource, SoundList, TriggerList};
@@ -41,6 +43,7 @@ pub(super) struct ExportRequest {
 pub(super) enum Request {
     List(u64, ListRequest),
     Resolve(u64, String),
+    Language(Option<String>),
     Export(ExportRequest),
 }
 
@@ -78,11 +81,18 @@ pub(super) enum Answered {
 }
 
 /// A thread that indexes the audio of one Archive, keeps the index and serves the lists, sounds
-/// and exports asked of it; it ends once this handle is dropped.
+/// and exports asked of it; dropping this handle stops indexing and ends the thread.
 #[derive(Debug)]
 pub(super) struct Worker {
     requests: Sender<Request>,
     answers: Receiver<Answer>,
+    cancel: CancelToken,
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.cancel.cancel();
+    }
 }
 
 impl Worker {
@@ -95,11 +105,22 @@ impl Worker {
         let (requests, waiting) = mpsc::channel();
         let (answer, answers) = mpsc::channel();
         let index = Arc::clone(index);
+        let cancel = CancelToken::new();
+        let stop = cancel.clone();
         thread::Builder::new()
             .name("sounds".to_owned())
-            .spawn(move || run(&index, &waiting, &answer, &*wake))
+            .spawn(move || run(&index, (&waiting, &answer), &stop, &*wake))
             .map_err(|error| describe(&error))?;
-        Ok(Self { requests, answers })
+        Ok(Self {
+            requests,
+            answers,
+            cancel,
+        })
+    }
+
+    #[cfg(test)]
+    pub(super) fn cancel_token(&self) -> CancelToken {
+        self.cancel.clone()
     }
 
     pub(super) fn request(&self, request: Request) -> bool {
@@ -131,18 +152,31 @@ fn send(answers: &Sender<Answer>, wake: Wake<'_>, answer: Answer) -> bool {
     sent
 }
 
-fn run(index: &EntryIndex, waiting: &Receiver<Request>, answers: &Sender<Answer>, wake: Wake<'_>) {
+pub(super) fn run(
+    index: &EntryIndex,
+    (waiting, answers): (&Receiver<Request>, &Sender<Answer>),
+    cancel: &CancelToken,
+    wake: Wake<'_>,
+) {
     if index.watch().check().is_err() {
         send(answers, wake, Answer::Unavailable);
         return;
     }
-    let audio = ArchiveAudio::new(index.archive());
-    let audio_index = audio.index();
-    let choice = LanguageChoice::new(None, audio_index.default_language());
+    let Some(audio_index) = AudioIndex::build_until(index.archive(), cancel) else {
+        return;
+    };
+    let audio = ArchiveAudio::with_index(index.archive(), &audio_index);
+    let default_language = audio_index.default_language();
+    let mut choice = LanguageChoice::new(None, default_language);
     let info = IndexInfo {
         triggers: audio_index.triggers().len(),
         soundbanks: audio_index.soundbanks().len(),
-        languages: audio_index.languages().len(),
+        languages: audio_index
+            .languages()
+            .iter()
+            .map(ToString::to_string)
+            .collect(),
+        default_language: default_language.map(str::to_owned),
         issues: audio_index.issues().len(),
     };
     if !send(answers, wake, Answer::Ready(info)) {
@@ -158,12 +192,17 @@ fn run(index: &EntryIndex, waiting: &Receiver<Request>, answers: &Sender<Answer>
                     Request::Resolve(generation, trigger) => {
                         Answer::Sounds(generation, resolve(&audio, &choice, &trigger))
                     }
+                    Request::Language(name) => {
+                        choice = LanguageChoice::new(name.as_deref(), default_language);
+                        continue;
+                    }
                     Request::Export(export) => {
-                        let (audio, choice) = (&audio, &choice);
+                        let audio = &audio;
+                        let choice = choice.clone();
                         let answers = answers.clone();
                         scope.spawn(move || {
                             let id = export.id;
-                            let result = write(audio, choice, &export);
+                            let result = write(audio, &choice, &export);
                             send(&answers, wake, Answer::Exported(id, result));
                         });
                         continue;
@@ -195,7 +234,7 @@ fn next_batch(waiting: &Receiver<Request>) -> Option<Vec<Request>> {
             .filter(|(position, request)| match request {
                 Request::List(..) => Some(*position) == newest_list,
                 Request::Resolve(..) => Some(*position) == newest_resolve,
-                Request::Export(_) => true,
+                Request::Language(_) | Request::Export(_) => true,
             })
             .map(|(_, request)| request)
             .collect(),

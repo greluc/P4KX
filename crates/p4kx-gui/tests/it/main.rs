@@ -56,6 +56,7 @@ mod entity_picker_window;
 mod entity_picking;
 mod entity_render;
 mod entity_sounds;
+mod entity_sounds_followups;
 mod entity_sounds_render;
 mod entity_sounds_window;
 mod entity_variants;

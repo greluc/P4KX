@@ -101,6 +101,7 @@ mod soundbank_preview;
 mod soundbank_table;
 mod sounds;
 mod sounds_export;
+mod sounds_note;
 mod sounds_outcome;
 mod sounds_toolbar;
 mod sounds_triggers;

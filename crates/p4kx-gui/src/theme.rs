@@ -38,6 +38,8 @@ mod model_tests;
 #[cfg(test)]
 mod query_tests;
 #[cfg(test)]
+mod sound_columns_tests;
+#[cfg(test)]
 mod tags_tests;
 #[cfg(test)]
 mod tests;

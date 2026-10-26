@@ -6,6 +6,7 @@ use std::collections::{HashMap, HashSet};
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_audio::MusicStinger;
+use p4kx_extraction::CancelToken;
 use rayon::prelude::*;
 
 use super::banks::BankContents;
@@ -44,6 +45,14 @@ impl AudioIndex {
     /// Reads the ATL definitions and soundbanks of `archive` into an index.
     #[must_use]
     pub fn build(archive: &Archive) -> Self {
+        Self::build_until(archive, &CancelToken::new()).unwrap_or_default()
+    }
+
+    /// Reads the ATL definitions and soundbanks of `archive` into an index like
+    /// [`build`](Self::build), stopping between Entries once `cancel` is cancelled; returns `None`
+    /// then.
+    #[must_use]
+    pub fn build_until(archive: &Archive, cancel: &CancelToken) -> Option<Self> {
         let mut atl_entries: Vec<&Entry> = archive
             .entries()
             .iter()
@@ -73,21 +82,8 @@ impl AudioIndex {
         atl_entries.sort_by(|a, b| folded_order(a.path(), b.path()));
         bank_entries.sort_by(|(_, a), (_, b)| folded_order(a.path(), b.path()));
         wem_entries.sort_by(|a, b| folded_order(a.path, b.path));
-        let definitions: Vec<_> = atl_entries
-            .par_iter()
-            .enumerate()
-            .map(|(position, entry)| {
-                let file = u32::try_from(position).unwrap_or(u32::MAX);
-                entry_bytes(archive, entry, MAX_ATL_LEN).and_then(|bytes| atl::parse(&bytes, file))
-            })
-            .collect();
-        let soundbanks: Vec<BankRead> = bank_entries
-            .par_iter()
-            .map(|&(position, entry)| {
-                entry_bytes(archive, entry, MAX_SOUNDBANK_LEN)
-                    .and_then(|bytes| banks::read(entry.path(), position, &bytes))
-            })
-            .collect();
+        let definitions = read_definitions(archive, &atl_entries, cancel)?;
+        let soundbanks = read_soundbanks(archive, &bank_entries, cancel)?;
         let mut index = Self::default();
         index.add_definitions(&atl_entries, definitions);
         index.add_soundbanks(&bank_entries, soundbanks);
@@ -102,14 +98,10 @@ impl AudioIndex {
                 .into_iter()
                 .map(|(path, error)| AudioIssue { path, error }),
         );
-        index
+        Some(index)
     }
 
-    fn add_definitions(
-        &mut self,
-        entries: &[&Entry],
-        definitions: Vec<Result<Vec<AtlTrigger>, AudioFileError>>,
-    ) {
+    fn add_definitions(&mut self, entries: &[&Entry], definitions: Vec<DefinitionRead>) {
         self.atl_files = entries.iter().map(|entry| entry.path().into()).collect();
         for (entry, definition) in entries.iter().zip(definitions) {
             let error = match definition {
@@ -286,6 +278,47 @@ impl AudioIndex {
     pub(crate) fn stingers(&self, trigger: u32) -> &[Stinger] {
         self.stingers.get(&trigger).map_or(&[], |found| found)
     }
+}
+
+type DefinitionRead = Result<Vec<AtlTrigger>, AudioFileError>;
+
+fn read_definitions(
+    archive: &Archive,
+    entries: &[&Entry],
+    cancel: &CancelToken,
+) -> Option<Vec<DefinitionRead>> {
+    entries
+        .par_iter()
+        .enumerate()
+        .map(|(position, entry)| {
+            if cancel.is_cancelled() {
+                return None;
+            }
+            let file = u32::try_from(position).unwrap_or(u32::MAX);
+            Some(
+                entry_bytes(archive, entry, MAX_ATL_LEN).and_then(|bytes| atl::parse(&bytes, file)),
+            )
+        })
+        .collect()
+}
+
+fn read_soundbanks(
+    archive: &Archive,
+    entries: &[(usize, &Entry)],
+    cancel: &CancelToken,
+) -> Option<Vec<BankRead>> {
+    entries
+        .par_iter()
+        .map(|&(position, entry)| {
+            if cancel.is_cancelled() {
+                return None;
+            }
+            Some(
+                entry_bytes(archive, entry, MAX_SOUNDBANK_LEN)
+                    .and_then(|bytes| banks::read(entry.path(), position, &bytes)),
+            )
+        })
+        .collect()
 }
 
 fn boxed<T>(lists: HashMap<u32, Vec<T>>) -> HashMap<u32, Box<[T]>> {

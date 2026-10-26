@@ -36,3 +36,17 @@ pub const SOUND_CODEC_COLUMN: f32 = 112.0;
 pub const SOUND_DURATION_COLUMN: f32 = 100.0;
 /// The narrowest a resized column of the list gets.
 pub const SOUND_COLUMN_MIN: f32 = 80.0;
+/// The initial width of the name column of the trigger and sound tables of the Sounds tab.
+///
+/// Room for a trigger or event name of about forty characters at the row font.
+pub const SOUND_NAME_COLUMN: f32 = 320.0;
+/// The initial width of the status column of the trigger table.
+///
+/// The widest status or head in German or British English in bold at the row font, 131.4 with the
+/// cell padding on both sides, rounded up.
+pub const SOUND_STATE_COLUMN: f32 = 132.0;
+/// The initial width of the language column of the sound table.
+///
+/// The default language with the fallback mark, "English(US) (Ersatz)", in bold at the row font,
+/// 155.0 with the cell padding on both sides, rounded up.
+pub const SOUND_LANGUAGE_COLUMN: f32 = 155.0;

@@ -119,12 +119,8 @@ fn languages(ui: &mut Ui, model: &Model) -> Option<Pick> {
         ui.label(label);
         let mut chosen = None;
         for name in &info.languages {
-            let kind = if current == Some(name.as_str()) {
-                Kind::Outline
-            } else {
-                Kind::Ghost
-            };
-            if button::button(ui, kind, Size::Compact, name, true).clicked() {
+            let active = current == Some(name.as_str());
+            if button::choice(ui, Size::Compact, name, active).clicked() {
                 let is_default = info.default_language.as_deref() == Some(name.as_str());
                 chosen = Some(if is_default {
                     Pick::Default

@@ -4,10 +4,12 @@
 //! The language choice, the soundbank kept for playing and the note about a missing player of the
 //! Sounds tab.
 
-use egui::accesskit::Role;
+use egui::accesskit::{Role, Toggled};
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, ListStatus, Model, SoundsListStatus};
+use egui_kittest::kittest::{NodeT, Queryable};
+use p4kx_gui::{
+    Language, ListStatus, Model, SoundFormat, SoundsExport, SoundsExportStatus, SoundsListStatus,
+};
 
 use crate::entity_sounds::{TestResult, opened, wait_until};
 use crate::sounding::FakeOutput;
@@ -81,6 +83,73 @@ fn the_language_buttons_resolve_the_selected_trigger_in_the_chosen_language() ->
         languages(&harness),
         [(Some("English(US)".to_owned()), false)],
         "back in the default language"
+    );
+    Ok(())
+}
+
+fn exported_sizes(harness: &mut Harness<'_, Model>, folder: &std::path::Path) -> Vec<u64> {
+    assert!(harness.state_mut().begin_sounds_export(), "setup opens");
+    let Some(setup) = harness.state_mut().sounds_mut().export_setup_mut() else {
+        return Vec::new();
+    };
+    setup.set_folder(folder.to_path_buf());
+    setup.set_format(SoundFormat::Wav);
+    assert!(harness.state_mut().submit_sounds_export(), "starts");
+    let _ = wait_until(harness, |model| {
+        model
+            .sounds()
+            .export()
+            .is_some_and(|export| !export.is_running())
+    });
+    let sizes = match harness.state().sounds().export().map(SoundsExport::status) {
+        Some(SoundsExportStatus::Finished { report, .. }) => {
+            report.sounds.iter().map(|sound| sound.size).collect()
+        }
+        _ => Vec::new(),
+    };
+    harness.state_mut().sounds_mut().close_export();
+    sizes
+}
+
+#[test]
+fn the_export_uses_the_chosen_language() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish, SIZE, &FakeOutput::default())?;
+    resolved(&mut harness, "play_voice")?;
+
+    let english = exported_sizes(&mut harness, &dir.path().join("english"));
+    choose(&mut harness, "German")?;
+    let german = exported_sizes(&mut harness, &dir.path().join("german"));
+
+    assert_eq!(english.len(), 1, "one sound in English: {english:?}");
+    assert_eq!(german.len(), 1, "one sound in German: {german:?}");
+    assert!(
+        german[0] > english[0],
+        "the longer German line is written: {german:?} against {english:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_chosen_language_is_exposed_as_selected() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish, SIZE, &FakeOutput::default())?;
+    harness.run_steps(2);
+
+    let selected = |harness: &Harness<'_, Model>, label: &str| {
+        harness
+            .get_by_role_and_label(Role::Button, label)
+            .accesskit_node()
+            .toggled()
+    };
+
+    assert_eq!(
+        selected(&harness, "English(US)"),
+        Some(Toggled::True),
+        "the default"
+    );
+    assert_eq!(
+        selected(&harness, "German"),
+        Some(Toggled::False),
+        "the other"
     );
     Ok(())
 }

@@ -28,6 +28,12 @@ fn pcm() -> Vec<u8> {
     TestWem::pcm(TestCodec::WwisePcm, 1, 48_000, &test_signal(4_800, 1)).bytes()
 }
 
+/// The voice line of a language folder; the German one is twice as long as the English one.
+fn voice(folder: &str) -> Vec<u8> {
+    let samples = if folder == "German" { 9_600 } else { 4_800 };
+    TestWem::pcm(TestCodec::WwisePcm, 1, 48_000, &test_signal(samples, 1)).bytes()
+}
+
 fn bank() -> Vec<u8> {
     let mut bank = TestBank::new(wwise_short_id("Test"))
         .wem(100, pcm())
@@ -105,7 +111,7 @@ pub(crate) fn opened_with(
             ))
             .entry(TestEntry::stored(
                 format!("Data\\Sounds\\wwise\\Media\\{folder}\\8000.wem"),
-                pcm(),
+                voice(folder),
             ));
     }
     archive.write_to(&path)?;

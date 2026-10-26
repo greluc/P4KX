@@ -122,7 +122,7 @@ fn the_column_dividers_of_the_trigger_table_end_above_the_list_footer() -> TestR
     };
     let (_dir, mut harness) = rendered(Language::BritishEnglish, renderer, [1280.0, 760.0])?;
     let divider = harness
-        .get_by_role_and_label(Role::ColumnHeader, "Status")
+        .get_by_role_and_label(Role::ColumnHeader, "Wwise events")
         .rect()
         .left();
     let footer = harness

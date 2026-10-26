@@ -153,4 +153,8 @@ fn the_name_column_holds_a_name_of_forty_characters() {
         sound::SOUND_NAME_COLUMN >= required,
         "name {required} does not fit"
     );
+    assert!(
+        sound::SOUND_NAME_COLUMN - required < 1.5,
+        "name {required} is not rounded up"
+    );
 }

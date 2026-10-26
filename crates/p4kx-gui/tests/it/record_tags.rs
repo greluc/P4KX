@@ -96,6 +96,7 @@ fn the_tags_option_applies_to_ndjson_and_not_to_the_flat_forms() -> TestResult {
         "NDJSON: {ndjson}"
     );
     assert!(!flat.contains("Weapon.Gun"), "flat: {flat}");
+    assert!(form_annotates_tags(RecordForm::Xml), "XML");
     assert!(form_annotates_tags(RecordForm::Json), "JSON");
     assert!(form_annotates_tags(RecordForm::Ndjson), "NDJSON");
     assert!(!form_annotates_tags(RecordForm::FlatCsv), "flat CSV");

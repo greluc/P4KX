@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use eframe::egui_wgpu::RendererOptions;
 use egui::accesskit::Role;
 use egui_kittest::Harness;
-use egui_kittest::kittest::Queryable;
+use egui_kittest::kittest::{NodeT, Queryable};
 use egui_kittest::wgpu::{WgpuTestRenderer, create_render_state, default_wgpu_setup};
 use exporting::{TestResult, opened, select_node, wait_until};
 use p4kx_gui::{Browser, Language, Model, PreviewTab, RecordForm, RecordPreviewStatus, ui};
@@ -84,18 +84,17 @@ fn render(harness: &mut Harness<'_, Model>, name: &str) -> TestResult {
 
 #[test]
 fn the_tags_option_is_drawn_in_the_record_export_setup_in_both_languages() -> TestResult {
-    for (language, tag, label, flat) in [
+    let flat = RecordForm::FlatCsv;
+    for (language, tag, label) in [
         (
             Language::BritishEnglish,
             "en-GB",
             "Write the tag path next to every tag Reference (JSON and NDJSON only)",
-            RecordForm::FlatCsv,
         ),
         (
             Language::German,
             "de-DE",
             "Tag-Pfad neben jeder Tag-Referenz schreiben (nur JSON und NDJSON)",
-            RecordForm::FlatCsv,
         ),
     ] {
         let Some(renderer) = renderer() else {
@@ -123,6 +122,20 @@ fn the_tags_option_is_drawn_in_the_record_export_setup_in_both_languages() -> Te
             .ok_or("no setup")?
             .set_form(flat);
         render(&mut harness, &format!("record-export-tags-flat-{tag}.png"))?;
+        let checkbox = harness.get_by_role_and_label(Role::CheckBox, label);
+        assert!(
+            checkbox.accesskit_node().is_disabled(),
+            "{tag}: disabled for a flat form"
+        );
+        checkbox.click();
+        harness.run_steps(3);
+        assert!(
+            harness
+                .state()
+                .record_export_setup()
+                .is_some_and(p4kx_gui::RecordExportSetup::tags),
+            "{tag}: a click on the disabled checkbox changes nothing"
+        );
     }
     Ok(())
 }

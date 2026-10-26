@@ -221,26 +221,20 @@ impl Job<'_> {
         self.shared.enter(RecordExportStage::Selecting);
         let all: Vec<Record<'_>> = forge.records().collect();
         let records = select(&all, &self.request.selection);
-        if records.is_empty() || self.cancel.is_cancelled() {
+        let stop = || self.cancel.is_cancelled();
+        let tags = (self.request.tags && !records.is_empty())
+            .then(|| source.tags(&stop))
+            .transpose()
+            .map_err(ReadFailure::into_reason)?;
+        let stopped = matches!(tags, Some(None));
+        if records.is_empty() || stopped || self.cancel.is_cancelled() {
             return Ok(RecordExportSummary::nothing_written(
                 self.request.form,
                 records.len(),
-                self.cancel.is_cancelled(),
+                stopped || self.cancel.is_cancelled(),
             ));
         }
-        let stop = || self.cancel.is_cancelled();
-        let tags = if self.request.tags {
-            let Some(tags) = source.tags(&stop).map_err(ReadFailure::into_reason)? else {
-                return Ok(RecordExportSummary::nothing_written(
-                    self.request.form,
-                    records.len(),
-                    true,
-                ));
-            };
-            Some(tags)
-        } else {
-            None
-        };
+        let tags = tags.flatten();
         let target = prepare_target(self.index, self.request).map_err(|error| describe(&error))?;
         self.shared.total.store(records.len(), Ordering::Relaxed);
         self.shared.enter(RecordExportStage::Writing);
@@ -318,3 +312,6 @@ fn prepare_target(index: &EntryIndex, request: &Request) -> io::Result<PathBuf> 
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

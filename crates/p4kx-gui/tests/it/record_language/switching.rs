@@ -10,7 +10,9 @@ use std::sync::atomic::Ordering;
 use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use p4kx_extraction::{Archive, DataForgeEntry, LanguageTexts, LocalizationSet, RecordXml};
+use p4kx_extraction::{
+    Annotations, Archive, DataForgeEntry, LanguageTexts, LocalizationSet, RecordXml,
+};
 use p4kx_gui::{
     Browser, KeyText, Model, PreviewTab, RecordPreview, RecordPreviewStatus, RecordTextChoice,
     TextLanguage,
@@ -255,8 +257,8 @@ fn exported(
             let set = LocalizationSet::read(&archive, &[language])?;
             let texts = set.index()?;
             let resolver = LanguageTexts::new(&texts, language);
-            let texts: &dyn p4kx_extraction::TextResolver = &resolver;
-            RecordXml::new().write_annotated(&tree, Some(texts).into(), &mut out)?;
+            let annotations = Annotations::none().with_texts(Some(&resolver));
+            RecordXml::new().write_annotated(&tree, annotations, &mut out)?;
         }
     }
     Ok(out)

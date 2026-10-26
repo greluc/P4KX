@@ -7,7 +7,7 @@ use super::{Piece, Wearable, ZoneList};
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, LoadoutSpec};
 use crate::walk::Walk;
-use crate::{Attachment, EntityNode, LoadoutError, Target};
+use crate::{Attachment, EntityNode, LoadoutError, PortNode, Target};
 
 const WORN_PREFIXES: [&str; 2] = ["Char_Armor_", "Char_Clothing_"];
 
@@ -149,43 +149,66 @@ impl<'f> LoadoutResolver<'f> {
     /// `<port>/<class name>`.
     ///
     /// What cannot be resolved stays a [`Piece::failed`] so that the report lists it: an
-    /// attachment that fails, an Entity whose Record cannot be read, and what the root's own
-    /// Loadout could not read. Other Entities, such as weapons, are not pieces.
+    /// attachment that fails, an Entity whose Record cannot be read, and what the Loadout of the
+    /// root or of a worn Entity could not read. Failed pieces are named `<port>/<class name>`,
+    /// `<port>/<GUID>` or, when the Reference cannot be read, `<port>/unreadable`. Nothing below
+    /// an Entity that is not worn, such as a weapon, is listed as failed, and other Entities are
+    /// not pieces.
     pub fn worn(&mut self, tree: &EntityNode) -> Vec<Piece> {
-        let mut pieces: Vec<Piece> = tree
-            .issues()
-            .iter()
-            .filter(|issue| {
-                !matches!(
-                    issue,
-                    LoadoutError::AmbiguousClass { .. }
-                        | LoadoutError::VehicleImplementation { .. }
-                )
-            })
-            .map(|issue| Piece::failed(tree.record_path(), issue.to_string()))
-            .collect();
-        for (path, port) in tree.walk() {
+        let mut pieces: Vec<Piece> = failures(tree.issues(), tree.record_path()).collect();
+        self.collect_worn(tree.ports(), true, &mut pieces);
+        pieces
+    }
+
+    fn collect_worn(&mut self, ports: &[PortNode], relevant: bool, pieces: &mut Vec<Piece>) {
+        for port in ports {
+            let mut below = None;
             match port.attachment() {
-                Attachment::Entity(node) if is_worn_type(node.attach_type()) => {
-                    let name = format!("{}/{}", port.name(), node.class_name());
-                    let spec = self.spec(node.guid());
-                    pieces.push(match spec.as_ref() {
-                        Ok(spec) => Piece::wearable(Wearable::from_spec(spec)).named(name),
-                        Err(error) => Piece::failed(name, error.to_string()),
-                    });
+                Attachment::Entity(node) => {
+                    let worn = is_worn_type(node.attach_type());
+                    below = Some((node, worn));
+                    if worn {
+                        let name = format!("{}/{}", port.name(), node.class_name());
+                        let spec = self.spec(node.guid());
+                        pieces.push(match spec.as_ref() {
+                            Ok(spec) => {
+                                Piece::wearable(Wearable::from_spec(spec)).named(name.clone())
+                            }
+                            Err(error) => Piece::failed(name.clone(), error.to_string()),
+                        });
+                        pieces.extend(failures(node.issues(), &name));
+                    }
                 }
-                Attachment::Unresolved(unresolved) => {
+                Attachment::Unresolved(unresolved) if relevant => {
                     let named = match unresolved.target() {
                         Target::ClassName(class) => class.clone(),
                         Target::Reference(guid) => guid.to_string(),
-                        Target::Unreadable => path,
+                        Target::Unreadable => "unreadable".to_owned(),
                     };
                     let name = format!("{}/{named}", port.name());
                     pieces.push(Piece::failed(name, unresolved.error().to_string()));
                 }
                 _ => {}
             }
+            self.collect_worn(port.nested(), relevant, pieces);
+            if let Some((node, worn)) = below {
+                self.collect_worn(node.ports(), worn, pieces);
+            }
         }
-        pieces
     }
+}
+
+fn failures<'a>(
+    issues: &'a [LoadoutError],
+    name: &'a str,
+) -> impl Iterator<Item = Piece> + use<'a> {
+    issues
+        .iter()
+        .filter(|issue| {
+            !matches!(
+                issue,
+                LoadoutError::AmbiguousClass { .. } | LoadoutError::VehicleImplementation { .. }
+            )
+        })
+        .map(move |issue| Piece::failed(name, issue.to_string()))
 }

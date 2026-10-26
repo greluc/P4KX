@@ -115,7 +115,11 @@ fn database() -> DataForgeBuilder {
 /// - `TEST_Soldier` holds the torso, the pistol, the helmet, `TEST_Gone`, which no Entity has,
 ///   and the pants in the nested Loadout of an empty port;
 /// - `TEST_Grunt` names the XML Loadout [`ARMOUR_XML_LOADOUT`], which holds the torso and the
-///   helmet.
+///   helmet;
+/// - `TEST_Ranger` holds a rifle (`WeaponPersonal`) whose optic no Entity has, a backpack
+///   `TEST_Pack` (`Char_Armor_Backpack`) that carries `TEST_Pouch` (`Char_Clothing_Hands`) and a
+///   port for `TEST_Missing`, which no Entity has, and `TEST_Jacket` (`Char_Armor_Core`), whose
+///   XML Loadout the Archive lacks.
 #[must_use]
 pub fn armour_entries() -> Vec<TestEntry> {
     let mut entries = vec![TestEntry::zstd("Data\\Game2.dcb", database().build())];

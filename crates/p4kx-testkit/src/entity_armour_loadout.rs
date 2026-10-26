@@ -53,7 +53,37 @@ pub(crate) fn loadout_entities() -> Vec<TestEntity> {
         ]));
     let grunt = TestEntity::new(0x21, "TEST_Grunt", "entities/scitem/test_grunt.xml")
         .loadout(TestLoadout::Xml(ARMOUR_XML_LOADOUT.to_owned()));
-    vec![torso, helmet, plate, pants, cuirass, pistol, soldier, grunt]
+    let mut entities = vec![torso, helmet, plate, pants, cuirass, pistol, soldier, grunt];
+    entities.extend(nested_entities(&worn));
+    entities
+}
+
+fn nested_entities(worn: &impl Fn(u128, &str, &str) -> TestEntity) -> Vec<TestEntity> {
+    let pouch = worn(0x16, "TEST_Pouch", "Char_Clothing_Hands").geometry_variant(
+        "Male",
+        format!("{MALE_ARMOUR}/m_boots.skin"),
+        None,
+    );
+    let pack = worn(0x17, "TEST_Pack", "Char_Armor_Backpack")
+        .geometry_variant("Male", format!("{MALE_ARMOUR}/m_hat.skin"), None)
+        .loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("pouch", "TEST_Pouch"),
+            TestLoadoutEntry::class("spare", "TEST_Missing"),
+        ]));
+    let jacket = worn(0x18, "TEST_Jacket", "Char_Armor_Core")
+        .geometry_variant("Male", format!("{MALE_ARMOUR}/m_suit.skin"), None)
+        .loadout(TestLoadout::Xml("Scripts/Loadouts/Missing.xml".to_owned()));
+    let rifle = worn(0x19, "TEST_Rifle", "WeaponPersonal").loadout(TestLoadout::Manual(vec![
+        TestLoadoutEntry::class("optic", "TEST_NoOptic"),
+    ]));
+    let ranger = TestEntity::new(0x22, "TEST_Ranger", "entities/scitem/test_ranger.xml").loadout(
+        TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("weapon", "TEST_Rifle"),
+            TestLoadoutEntry::class("pack", "TEST_Pack"),
+            TestLoadoutEntry::class("jacket", "TEST_Jacket"),
+        ]),
+    );
+    vec![pouch, pack, jacket, rifle, ranger]
 }
 
 /// Returns the XML Loadout of `TEST_Grunt`, with the path of the file it is stored at.

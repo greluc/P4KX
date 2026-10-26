@@ -103,11 +103,11 @@ impl PortConstraints {
             min_size: port.min_size(),
             max_size: port.max_size(),
             types: port
-                .types()
+                .item_types()
                 .iter()
-                .map(|name| AcceptedType {
-                    name: name.clone(),
-                    sub_types: Vec::new(),
+                .map(|kind| AcceptedType {
+                    name: kind.item_type().to_owned(),
+                    sub_types: kind.subtypes().to_vec(),
                 })
                 .collect(),
         };
@@ -139,12 +139,15 @@ impl PortConstraints {
     /// Checks that an item of `item` fits the port.
     ///
     /// An item type is matched ignoring ASCII case, and a type that names sub-types takes only
-    /// those. An item that gives no size is not held against the sizes.
+    /// those, except that an item whose sub-type is empty or `UNDEFINED` fits any of them. An
+    /// item that gives no size is not held against the sizes.
     ///
     /// # Errors
     ///
     /// Returns the first constraint the item breaks: its type, its sub-type, then its size.
     pub fn check(&self, item: &ItemFacts) -> Result<(), Incompatibility> {
+        let sub_type_open =
+            item.sub_type.is_empty() || item.sub_type.eq_ignore_ascii_case("UNDEFINED");
         if !self.types.is_empty() {
             let named: Vec<&AcceptedType> = self
                 .types
@@ -158,7 +161,8 @@ impl PortConstraints {
                 });
             }
             let fits = named.iter().any(|accepted| {
-                accepted.sub_types.is_empty()
+                sub_type_open
+                    || accepted.sub_types.is_empty()
                     || accepted
                         .sub_types
                         .iter()
@@ -251,4 +255,45 @@ impl Incompatibility {
 
 const fn shown(text: &str) -> &str {
     if text.is_empty() { "none" } else { text }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn gun(sub_type: &str) -> ItemFacts {
+        ItemFacts {
+            class_name: "GUN".to_owned(),
+            item_type: "WeaponGun".to_owned(),
+            sub_type: sub_type.to_owned(),
+            size: None,
+        }
+    }
+
+    fn port() -> PortConstraints {
+        PortConstraints {
+            min_size: None,
+            max_size: None,
+            types: vec![AcceptedType {
+                name: "WeaponGun".to_owned(),
+                sub_types: vec!["Gun".to_owned()],
+            }],
+        }
+    }
+
+    #[test]
+    fn an_empty_or_undefined_sub_type_fits_any_listed_one() {
+        assert_eq!(port().check(&gun("")), Ok(()));
+        assert_eq!(port().check(&gun("UNDEFINED")), Ok(()));
+        assert_eq!(port().check(&gun("undefined")), Ok(()));
+        assert_eq!(port().check(&gun("Gun")), Ok(()));
+    }
+
+    #[test]
+    fn another_sub_type_is_still_rejected() {
+        assert!(matches!(
+            port().check(&gun("Missile")),
+            Err(Incompatibility::SubType { .. })
+        ));
+    }
 }

@@ -142,8 +142,9 @@ them (`hardpoint_weapon_nose/hardpoint_class_2`), ignoring case. An excluded por
 `replaced` and holds the new Entity with its own default Loadout. `excluded` and `replaced` count
 those ports and are absent when 0. A change that is no port path, names a port the tree lacks,
 contradicts another, names an Entity that no Record or several Records match, or attaches an
-Entity that does not fit the port's item types and sizes exits with code 2 and prints the reason;
-a replacement whose Record cannot be read exits with code 5.
+Entity that does not fit the port's item types, sub-types and sizes, or replaces a port with the
+root Entity or an Entity the port lies below, exits with code 2 and prints the reason; a
+replacement whose Record cannot be read exits with code 5.
 
 `<entity>` is a class name such as `AEGS_Avenger_Titan` (also as the Record name
 `EntityClassDefinition.AEGS_Avenger_Titan`), a GUID, or a record path, which is recognised by a
@@ -154,7 +155,11 @@ attached Entities that are docked vehicles. Ports that cannot be resolved do not
 code.
 
 `--stop-at-docked-vehicles` leaves the ports of docked vehicles out: they stay in their port,
-marked, with `expanded` false and no `ports`. Without it they are expanded like any Entity.
+marked, with `expanded` false and no `ports`. Without it they are expanded like any Entity. A
+change to a port below such a docked vehicle is not applied and is no error: the port is not in the
+tree. The ports as given are listed in `ignored` (absent when empty) and warned about on stderr, so
+a typo does not look like a success. The same holds for `entity glb`, `entity package` and `ui
+hologram`, which never expand docked vehicles (`entity glb` unless `--expand-docked-vehicles`).
 
 A **Node** is one Entity:
 
@@ -251,7 +256,9 @@ order is attached. The same Archive always gives the same document.
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. A docked vehicle is
-one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too.
+one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. A
+change to a port below an unexpanded docked vehicle, as `entity loadout` lists it, is not applied
+and no error; the report lists the ports as `ignored` (absent when empty), as for `entity loadout`.
 `parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
@@ -442,6 +449,56 @@ package, or lies inside a Star Citizen installation, is 2. The other counts are 
 `scene.json`, `drawn_nodes` those with a mesh, `container_nodes`, `objects` and `lights` those of
 the kinds `container`, `object` and `light`. An **Issue** is that of `p4kx entity package`. The
 package is written even when parts are skipped.
+
+## `p4kx prefab list <archive> [<library>] --json`
+
+```json
+{"archive": "…", "libraries": ["Constellation_Cargo_Prototype", "pu/derelict/RSI/Constellation", …]}
+{"archive": "…", "library": "pu/derelict/RSI/Constellation", "file": "pu/derelict/rsi/constellation",
+ "prefabs": [{"name": "Spc_Sctd_01", "id": "{AD763CD6-CA16-4F91-AC77-6C520949824F}", "objects": 240,
+              "nested": 3, "left_out": 0}, …]}
+```
+
+The examples are illustrative, with library and prefab names from LIVE and made-up counts. `file` is the library file as `list` and `dump` take it on the command line (`library` is the name the file gives itself and may differ). Without a library, `libraries` are the prefab libraries below `Data\Prefabs`, named like their
+files without `.xml`, sorted ignoring case. With one, `library` is the name the file gives itself
+(its root's `Name`) and the prefabs follow in file order. `objects` counts the objects of the
+prefab with its groups flattened, `nested` those of type `Prefab` that instance another prefab, and
+`left_out` the objects whose transform is not usable. A library the Archive lacks is exit code 2,
+one that cannot be read 3.
+
+## `p4kx prefab dump <archive> <library> <prefab> --json`
+
+```json
+{"archive": "…", "library": "pu/derelict/RSI/Constellation", "file": "pu/derelict/rsi/constellation",
+ "name": "RSI_constellation_001_Plnt_Crsh_01_sand", "prefabs_entered": 17,
+ "objects": [{"name": "personal_flare_1_a-001", "kind": "Entity", "id": "{…}",
+              "class": "personal_flare_1_a", "library": "pu/derelict/components",
+              "prefab": "visual.flare", "container": "Align_Flare_Crsh_01-003", "depth": 1,
+              "model": null, "unexpanded": null, "attached": false,
+              "position": [-3.077, -2.434, 0.019],
+              "transform": [[1, 0, 0, -3.077], [0, 1, 0, -2.434], [0, 0, 1, 0.019]]}, …],
+ "issues": [{"container": "", "name": "…", "kind": "missing", "reason": "…"}, …]}
+```
+
+The prefab with every nested prefab expanded
+([ADR-0182](adr/0182-nested-prefabs-are-resolved-by-guid-with-composed-transforms.md)). `objects`
+are in file order, the objects of a nested prefab in place of the object that instances it. `kind`
+is the object's `Type`, `class` its `EntityClass`, and `model` the geometry file it names, a path
+below `Data`; entities whose geometry comes from their class Record have none. `position` and
+`transform` (a 3×4 row-major matrix) map the object's space to the dumped prefab's, `CryEngine`
+coordinates, Z up, in metres, with the rotation and scale of every group and nested prefab object
+around it applied. `container` is the names of the nested prefab objects the object sits in, joined
+by `/`, `depth` their number, `library` and `prefab` the prefab the object belongs to. An object
+that instances a prefab that was not expanded stays in the list with its `PrefabName` as
+`unexpanded`. `attached` marks an object with another `Parent` than its group or an
+`AttachmentTarget`, whose transform is relative to that attachment and is used as it stands.
+An **Issue** has `container` and `name` (the object; empty for a whole prefab), `kind` and
+`reason`; the kinds are `missing` (no library holds the prefab), `cycle` (the prefab contains
+itself and is not entered again), `too_deep` (nested more than 16 deep), `library_unreadable`,
+`guid_mismatch` (the prefab of the `PrefabName` has another `Id` than the `PrefabGUID` and no
+library holds that one), `objects_left_out`, `attached`, `too_many_issues` (more than 4096 issues; the rest is not listed), `too_many_objects` (more than 524288
+objects) and `too_many_visits` (more than 4194304 objects looked at). A library or prefab the
+Archive lacks is exit code 2, a library that cannot be read 3; issues leave the exit code 0.
 
 ## `p4kx armour bodies --json`
 

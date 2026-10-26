@@ -204,6 +204,12 @@ Early development (milestone M1). Available today:
   and lights as `entity package --interior`, without an Entity around them. `--lod`,
   `--texture-mip` and `--no-vertex-colours` work as for `entity package`; the folder is written
   beside the target and moved into place when complete. The Blender add-on imports it.
+- `p4kx prefab list <archive> [<library>]` lists the prefab libraries below `Data\Prefabs` or the
+  prefabs of one; `p4kx prefab dump <archive> <library> <prefab>` prints a prefab with its nested
+  prefabs expanded: every object with type, class, geometry file and its transform to the prefab's
+  space, the parents' rotation applied. A prefab that is missing, contains itself or is nested more
+  than 16 deep stays unexpanded and is listed; `--json` has the shape in
+  [docs/cli-json.md](docs/cli-json.md).
 - `p4kx armour glb <archive> --piece <entity> --body male|female --out <file>` exports pieces of
   armour and clothing worn on the default body of a variant as one skinned GLB: the body's
   skeleton once as bone nodes, one skin over them, the skin of the body and, for every `--piece`

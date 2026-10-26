@@ -41,20 +41,23 @@ fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
     }
     let changes = args.changes.changes()?;
     let entity = resolver.entities().find(&args.entity)?;
-    let tree = resolver.resolve_with(&entity, &changes)?;
-    let counts = Counts::of(&tree);
+    let applied = resolver.resolve_changed(&entity, &changes)?;
+    crate::entity_ignored::warn(applied.ignored())?;
+    let tree = applied.node();
+    let counts = Counts::of(tree);
     let outfits = resolver.outfits(&entity).as_ref().map(OutfitsJson::from);
     if as_json {
         json::print(&LoadoutJson {
             archive: json::path(archive.path()),
             entry: entry.path(),
-            entity: NodeJson::from(&tree),
+            entity: NodeJson::from(tree),
             outfits,
+            ignored: applied.ignored(),
             counts,
         })?;
         return Ok(());
     }
-    let printed = print_tree(&tree, counts, outfits.as_ref());
+    let printed = print_tree(tree, counts, outfits.as_ref());
     match printed {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),

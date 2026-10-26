@@ -47,6 +47,8 @@ struct PackageJson<'a> {
     triangles: usize,
     skipped: usize,
     #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    ignored: &'a [String],
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
     excluded: &'a [String],
     #[serde(skip_serializing_if = "Vec::is_empty")]
     replaced: Vec<ReplacedJson<'a>>,
@@ -74,14 +76,16 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
         .stopping_at_docked_vehicles();
     let changes = args.changes.changes()?;
     let record = resolver.entities().find(&args.entity)?;
-    let tree = resolver.resolve_with(&record, &changes)?;
+    let applied = resolver.resolve_changed(&record, &changes)?;
+    crate::entity_ignored::warn(applied.ignored())?;
+    let tree = applied.node();
     let models = ArchiveModels::new(&archive);
     let palettes = ForgePalettes::new(&forge);
     let options = AssemblyOptions::default().with_lod(args.lod);
-    let assembly = Assembly::build_with_palettes(&tree, &models, &palettes, &options)?;
+    let assembly = Assembly::build_with_palettes(tree, &models, &palettes, &options)?;
     let assembly = if args.interior {
         let interior_options = InteriorOptions::default().with_lod(args.lod);
-        let interior = EntityInterior::build(&archive, &assembly, &tree, &interior_options)?;
+        let interior = EntityInterior::build(&archive, &assembly, tree, &interior_options)?;
         assembly.with_interior(interior)
     } else {
         assembly
@@ -101,10 +105,10 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
     if as_json {
         json::print(&PackageJson::of(
             &json::path(archive.path()),
-            &tree,
+            tree,
             args,
-            &info,
-            &summary,
+            (&info, &summary),
+            applied.ignored(),
         ))?;
         return Ok(());
     }
@@ -119,8 +123,8 @@ impl<'a> PackageJson<'a> {
         archive: &str,
         tree: &'a EntityNode,
         args: &EntityPackageArgs,
-        info: &'a PackageInfo,
-        summary: &'a PackageSummary,
+        (info, summary): (&'a PackageInfo, &'a PackageSummary),
+        ignored: &'a [String],
     ) -> Self {
         Self {
             archive: archive.to_owned(),
@@ -146,6 +150,7 @@ impl<'a> PackageJson<'a> {
             vertices: summary.vertices,
             triangles: summary.triangles,
             skipped: summary.issues.iter().filter(|issue| issue.skipped).count(),
+            ignored,
             excluded: &info.exclude,
             replaced: info
                 .replace

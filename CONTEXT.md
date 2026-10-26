@@ -302,6 +302,12 @@ containers, counts of a container exported on its own are of the containers open
 included.
 _Avoid_: room container
 
+**Prefab**:
+A reusable group of placed objects (models, entities, markers) in a prefab library, an XML file
+below `Data\Prefabs`. An object of type `Prefab` instances another prefab; resolving a prefab
+expands those into one list of objects with transforms to the prefab's space. Not a UI Template.
+_Avoid_: template, blueprint
+
 **WEM**:
 A Wwise sound file, loose as an Entry or embedded in a soundbank, holding one audio stream in one
 codec (PCM, IMA ADPCM, Wwise Vorbis, Opus, PTADPCM, …).

@@ -12,13 +12,14 @@ use crate::canvas::{Canvas, CanvasStore};
 use crate::colour::Palette;
 use crate::context::Context;
 use crate::elements;
-use crate::geometry::{Geometry, Overflow};
+use crate::geometry::Geometry;
 use crate::layout::{Frame, Sibling, place};
 use crate::limits::Limits;
 use crate::look::Look;
 use crate::paint::Area;
 use crate::rest::{AtRest, RestParams};
 use crate::style::{CanvasStyles, Modifiers, StyleCache, Subject, TagPaths, Uses, resolve};
+use crate::text::Shaped;
 use crate::transform::Placement;
 use crate::walk_instance::Override;
 use crate::walk_measure::{MeasureKey, Probe};
@@ -50,6 +51,7 @@ pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) typed: Vec<RestParams>,
     pub(crate) at_rest: HashMap<(Guid, u64), Rc<AtRest>>,
     pub(crate) measured: HashMap<MeasureKey, [Option<f32>; 2]>,
+    pub(crate) shaped: HashMap<MeasureKey, Shaped>,
     pub(crate) measures: usize,
     pub(crate) instances: usize,
     pub(crate) templates: Vec<(Guid, usize)>,
@@ -93,6 +95,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             typed: Vec::new(),
             at_rest: HashMap::new(),
             measured: HashMap::new(),
+            shaped: HashMap::new(),
             measures: 0,
             instances: 0,
             templates: Vec::new(),
@@ -184,12 +187,16 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             has_children,
             position,
         };
-        let content = self.content_of(&probe, content, depth);
+        let text_key = self
+            .measures_text(&probe)
+            .then(|| self.measure_key(&probe, content));
+        let content = self.content_of(&probe, content, (depth, true));
         Some(Sibling {
             widget,
             index,
             has_children,
             content,
+            text_key,
             geometry,
             style,
             own_kids: plan.own,
@@ -248,6 +255,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         alpha: f32,
         depth: usize,
     ) {
+        let shaped = sibling.text_key.and_then(|key| self.shaped.remove(&key));
         if depth > self.limits.depth
             || self.widgets >= self.limits.widgets
             || self.cx.painter.is_full()
@@ -286,6 +294,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let font = self.font_of(widget, style);
         let mut look = Look::of(widget, style, self.pixel, font);
         look.bound_text = self.bound_text(canvas, sibling.index);
+        look.shaped = shaped;
         elements::paint(self.cx, widget, &look, area, alpha);
         let clipped = widget.overflow.clips();
         if clipped {
@@ -366,37 +375,5 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         }
         self.above.pop();
         self.chain.pop();
-    }
-
-    fn note_approximations(&mut self, widget: &Widget, geometry: &Geometry) {
-        let overlay = widget
-            .other_layout
-            .as_ref()
-            .map(|layout| format!("{layout} children are laid out as an overlay"));
-        let transformed = self.turned > 0;
-        let checks = [
-            (overlay.is_some(), overlay.as_deref().unwrap_or_default()),
-            (
-                matches!(widget.overflow, Overflow::Fade | Overflow::ClipFade),
-                "fading edges of the overflow are not drawn",
-            ),
-            (
-                !widget.inherits_turn && transformed,
-                "the turn and scale of the parent are not undone: they are inherited",
-            ),
-            (
-                widget.gradient && widget.background_enabled,
-                "gradient backgrounds are drawn in the plain colour of the background",
-            ),
-            (
-                geometry.invalid,
-                "a number of the geometry is not finite: the default is used",
-            ),
-        ];
-        for (applies, reason) in checks {
-            if applies {
-                self.cx.report.note(&widget.type_name, reason, &widget.name);
-            }
-        }
     }
 }

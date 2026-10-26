@@ -121,7 +121,7 @@ pub use assembly::{
     Placement,
 };
 pub use catalogue::{EntityCatalogue, EntityKind, EntitySummary};
-pub use changes::{ChangeError, ChangedLoadout, LoadoutChanges, PortChange};
+pub use changes::{ChangeError, ChangedLoadout, LoadoutChanges, PortChange, ReplacementMismatch};
 pub use chf_names::archive_names;
 pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};

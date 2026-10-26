@@ -130,9 +130,9 @@ fn sizes_text(constraints: &PortConstraints) -> String {
     match (constraints.min_size(), constraints.max_size()) {
         (Some(min), Some(max)) if min == max => min.to_string(),
         (Some(min), Some(max)) => format!("{min}\u{2013}{max}"),
+        (Some(0) | None, None) => String::new(),
         (Some(min), None) => format!("\u{2265} {min}"),
         (None, Some(max)) => format!("\u{2264} {max}"),
-        (None, None) => String::new(),
     }
 }
 
@@ -167,7 +167,12 @@ fn list(ui: &mut Ui, texts: &Texts, chooser: &ReplaceChooser) -> Option<Guid> {
             .show_rows(ui, ROW_HEIGHT, chooser.shown_len(), |ui, visible| {
                 for position in visible {
                     if let Some(entity) = chooser.get(position)
-                        && row(ui, texts, entity.class_name(), entity.facts())
+                        && row(
+                            ui,
+                            texts,
+                            entity.class_name(),
+                            (entity.facts(), chooser.fits(position)),
+                        )
                     {
                         picked = Some(entity.guid());
                     }
@@ -177,7 +182,7 @@ fn list(ui: &mut Ui, texts: &Texts, chooser: &ReplaceChooser) -> Option<Guid> {
     picked
 }
 
-fn row(ui: &mut Ui, texts: &Texts, name: &str, facts: &ItemFacts) -> bool {
+fn row(ui: &mut Ui, texts: &Texts, name: &str, (facts, fits): (&ItemFacts, bool)) -> bool {
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
     response.widget_info(|| WidgetInfo::labeled(Role::Button, true, name));
@@ -188,13 +193,26 @@ fn row(ui: &mut Ui, texts: &Texts, name: &str, facts: &ItemFacts) -> bool {
         pos2(rect.left() + TREE_PADDING_LEFT + SPACE_2, rect.top()),
         pos2(rect.right() - SPACE_2, rect.bottom()),
     );
+    let (detail_text, detail_colour, colour) = if fits {
+        (facts_text(texts, facts), palette::GRAY_2_TEXT, colour)
+    } else {
+        (
+            format!(
+                "{}, {}",
+                texts.get(EntityText::ReplaceMisfit),
+                facts_text(texts, facts)
+            ),
+            palette::WARNING,
+            palette::GRAY_2_TEXT,
+        )
+    };
     let detail = line(
         ui,
-        plain(facts_text(texts, facts), ROW_FONT, row_weight(false)),
+        plain(detail_text, ROW_FONT, row_weight(false)),
         inner.width() / 2.0,
     );
     let detail_width = detail.size().x;
-    paint_right(ui, inner, detail, palette::GRAY_2_TEXT);
+    paint_right(ui, inner, detail, detail_colour);
     let name_rect = inner.with_max_x(inner.right() - detail_width - CHANNEL_GAP);
     let galley = line(
         ui,

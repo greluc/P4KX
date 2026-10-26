@@ -106,10 +106,12 @@ pub enum EntityText {
     ReplaceTakesAny,
     /// The hint inside the search field of the choice.
     ReplaceHint,
-    /// How many Entities fit; takes `number` and `total`.
+    /// How many Entities the search leaves and how many of them fit; takes `number` and `total`.
     ReplaceCount,
-    /// Shown when no Entity fits the port and the search.
+    /// Shown when no Entity matches the search.
     ReplaceNone,
+    /// Marks an Entity that does not fit the port; it can be chosen all the same.
+    ReplaceMisfit,
     /// The item type and size of an Entity; takes `type` and `size`.
     FactsSized,
     /// The item type of an Entity that gives no size; takes `type`.
@@ -172,7 +174,7 @@ pub enum EntityText {
 
 impl EntityText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 81] = [
+    pub(crate) const ALL: [Self; 82] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -226,6 +228,7 @@ impl EntityText {
         Self::ReplaceHint,
         Self::ReplaceCount,
         Self::ReplaceNone,
+        Self::ReplaceMisfit,
         Self::FactsSized,
         Self::Facts,
         Self::FactsNone,
@@ -314,6 +317,7 @@ impl EntityText {
             Self::ReplaceHint => "entities-replace-hint",
             Self::ReplaceCount => "entities-replace-count",
             Self::ReplaceNone => "entities-replace-none",
+            Self::ReplaceMisfit => "entities-replace-misfit",
             Self::FactsSized => "entities-facts-sized",
             Self::Facts => "entities-facts",
             Self::FactsNone => "entities-facts-none",

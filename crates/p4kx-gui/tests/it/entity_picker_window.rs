@@ -145,7 +145,7 @@ fn unchecking_a_port_leaves_its_branch_out_and_checking_it_again_takes_that_back
 }
 
 #[test]
-fn a_replacement_offers_only_the_entities_that_fit_the_port() -> TestResult {
+fn a_replacement_offers_the_fitting_entities_first_and_marks_the_others() -> TestResult {
     let (_dir, mut harness) = opened(Language::BritishEnglish)?;
     select(&mut harness, "TEST_Ship")?;
 
@@ -158,6 +158,7 @@ fn a_replacement_offers_only_the_entities_that_fit_the_port() -> TestResult {
 
     let chooser = harness.state().entities().replace().ok_or("no chooser")?;
     let fitting: Vec<&str> = (0..chooser.shown_len())
+        .filter(|at| chooser.fits(*at))
         .filter_map(|at| chooser.get(at))
         .map(p4kx_assembly::EntitySummary::class_name)
         .collect();
@@ -165,6 +166,15 @@ fn a_replacement_offers_only_the_entities_that_fit_the_port() -> TestResult {
         fitting,
         ["TEST_Gun_S1", "TEST_Gun_S2", "TEST_Gun_S3"],
         "no size 4 gun, no shield"
+    );
+    assert_eq!(chooser.shown_len(), 8, "the others are offered too");
+    assert!(
+        (0..chooser.fitting()).all(|at| chooser.fits(at)),
+        "the fitting come first"
+    );
+    assert!(
+        (chooser.fitting()..chooser.shown_len()).all(|at| !chooser.fits(at)),
+        "the others are marked"
     );
     assert!(
         harness
@@ -208,8 +218,8 @@ fn a_port_with_sizes_only_offers_the_entities_without_a_size_or_of_that_size() -
     let chooser = harness.state().entities().replace().ok_or("no chooser")?;
     assert_eq!(
         chooser.fitting(),
-        3,
-        "the ship, the cart and the size 1 gun"
+        4,
+        "the ship, the cart and the relay, which give no size, and the size 1 gun"
     );
     Ok(())
 }

@@ -141,10 +141,15 @@ them (`hardpoint_weapon_nose/hardpoint_class_2`), ignoring case. An excluded por
 `excluded` and holds nothing, so nothing below it is listed; a replaced port has `source`
 `replaced` and holds the new Entity with its own default Loadout. `excluded` and `replaced` count
 those ports and are absent when 0. A change that is no port path, names a port the tree lacks,
-contradicts another, names an Entity that no Record or several Records match, or attaches an
-Entity that does not fit the port's item types, sub-types and sizes, or replaces a port with the
-root Entity or an Entity the port lies below, exits with code 2 and prints the reason; a
+contradicts another, names an Entity that no Record or several Records match, or replaces a port
+with the root Entity or an Entity the port lies below, exits with code 2 and prints the reason; a
 replacement whose Record cannot be read exits with code 5.
+
+An Entity that does not fit the port's item types, sub-types and sizes is attached all the same
+(ADR-0076): the command warns on stderr, exits with code 0, and lists the mismatch in
+`incompatible` (absent when empty): `{"port": "…", "entity": "…", "kind": "item_type" |
+"item_sub_type" | "too_small" | "too_large", "reason": "…"}`. `entity glb`, `entity package` and
+`ui hologram` report it the same way.
 
 `<entity>` is a class name such as `AEGS_Avenger_Titan` (also as the Record name
 `EntityClassDefinition.AEGS_Avenger_Titan`), a GUID, or a record path, which is recognised by a
@@ -1539,8 +1544,8 @@ geometry the picture shows, `triangles` the triangles they place, and `issues` t
 skipped parts of the Assembly as `entity glb` lists them. `milliseconds` splits the run into
 reading and assembling, building the scene, drawing and reading the picture back, and writing
 the file. An Entity the Archive lacks, a bad option, a `--out` that is the Archive or lies in a
-Star Citizen installation, a `--size` that is empty or beyond what the device draws and a
-Loadout change that does not fit print no JSON and fail with exit code 2; a machine without a
+Star Citizen installation and a `--size` that is empty or beyond what the device draws
+print no JSON and fail with exit code 2; a machine without a
 graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
 
 ## `p4kx ui screens <archive> <entity> --json`

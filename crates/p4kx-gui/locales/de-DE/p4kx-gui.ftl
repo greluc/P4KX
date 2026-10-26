@@ -1107,8 +1107,9 @@ entities-replace-takes-sizes = Der Port nimmt { $single ->
   } { $sizes } auf.
 entities-replace-takes-any = Der Port nimmt jede Entity auf.
 entities-replace-hint = Klassenname oder Record-Pfad
-entities-replace-count = { $number } von { $total } passenden Entities
-entities-replace-none = Keine Entity passt zu Port und Suche.
+entities-replace-count = { $number } Entities, davon { $total } passend
+entities-replace-none = Keine Entity passt zur Suche.
+entities-replace-misfit = Passt nicht
 entities-facts-sized = { $type }, Größe { $size }
 entities-facts = { $type }
 entities-facts-none = Kein Item-Typ

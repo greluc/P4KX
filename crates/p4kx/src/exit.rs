@@ -50,7 +50,7 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// earlier package, names an armour `--loadout` that is neither an Entity nor an XML Loadout that
 /// can be read, has an invalid Query or a Query or field-statistics output that does not fit
 /// --json, names a Loadout change (`--exclude`, `--replace`) that is malformed, names a port the
-/// Loadout lacks, contradicts another or attaches an Entity that does not fit its port, names a
+/// Loadout lacks or contradicts another, names a
 /// Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF,
 /// asks loc for a language the Archive holds no global.ini for, or looks up a localisation key
 /// that has no text, asks actionmap export for an Archive without a default profile, or names a
@@ -104,7 +104,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      or record path for dcb refs that no Record has, an Entity that no Record or several Records
      match, an armour --loadout that is neither an Entity nor an XML Loadout that can be read,
      a Loadout change (--exclude, --replace) that is malformed, names a port the
-     Loadout lacks, contradicts another, or attaches an Entity that does not fit the port, an
+     Loadout lacks, or contradicts another, an
      audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
      CHF file cannot store, a CHF file for chf glb or character package that holds no face DNA

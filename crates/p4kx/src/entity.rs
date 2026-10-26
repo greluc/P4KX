@@ -42,7 +42,7 @@ fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
     let changes = args.changes.changes()?;
     let entity = resolver.entities().find(&args.entity)?;
     let applied = resolver.resolve_changed(&entity, &changes)?;
-    crate::entity_ignored::warn(applied.ignored())?;
+    crate::entity_ignored::warn(&applied)?;
     let tree = applied.node();
     let counts = Counts::of(tree);
     let outfits = resolver.outfits(&entity).as_ref().map(OutfitsJson::from);
@@ -53,6 +53,7 @@ fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
             entity: NodeJson::from(tree),
             outfits,
             ignored: applied.ignored(),
+            incompatible: crate::entity_ignored::incompatible(&applied),
             counts,
         })?;
         return Ok(());

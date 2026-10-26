@@ -170,16 +170,17 @@ impl<'f> LoadoutResolver<'f> {
     /// Resolves the default Loadout of `entity` with `changes` applied: the ports they exclude
     /// hold nothing and have the source [`PortSource::Excluded`](crate::PortSource::Excluded);
     /// the ports they replace hold the replacing Entity with its own Loadout and have the source
-    /// [`PortSource::Replaced`](crate::PortSource::Replaced). An Entity is checked against the
-    /// port's [`PortNode::constraints`](crate::PortNode::constraints) before it is attached.
+    /// [`PortSource::Replaced`](crate::PortSource::Replaced). An Entity that does not fit the
+    /// port's [`PortNode::constraints`](crate::PortNode::constraints) is attached all the same;
+    /// [`resolve_changed`](Self::resolve_changed) reports the mismatch.
     ///
     /// # Errors
     ///
     /// Returns the first of: [`ChangeError::Loadout`] when `entity` cannot be resolved, a change
     /// that is no port path or contradicts another, a replacement whose Entity cannot be found
-    /// or read, a replacement that does not fit its port, and a change whose port the Loadout
-    /// does not have, and [`ChangeError::Cancelled`] once the stop of
-    /// [`with_stop`](Self::with_stop) returned `true`.
+    /// or read, and a change whose port the Loadout does not have, and
+    /// [`ChangeError::Cancelled`] once the stop of [`with_stop`](Self::with_stop) returned
+    /// `true`.
     pub fn resolve_with(
         &mut self,
         entity: &Record<'f>,
@@ -192,7 +193,7 @@ impl<'f> LoadoutResolver<'f> {
     /// Resolves like [`resolve_with`](Self::resolve_with) and also returns the changes that lie
     /// below a docked vehicle the resolver does not expand
     /// ([`stopping_at_docked_vehicles`](Self::stopping_at_docked_vehicles)): they are not
-    /// applied and not an error.
+    /// applied and not an error. It also returns the replacements that do not fit their port.
     ///
     /// # Errors
     ///
@@ -227,11 +228,15 @@ impl<'f> LoadoutResolver<'f> {
         let mut walk = Walk::new(entity.guid(), plan);
         walk.cancellable = true;
         let node = self.node(spec, None, &mut walk);
-        let ignored = match walk.plan.take() {
+        let (ignored, mismatches) = match walk.plan.take() {
             Some(plan) => plan.finish()?,
-            None => Vec::new(),
+            None => (Vec::new(), Vec::new()),
         };
-        Ok(ChangedLoadout { node, ignored })
+        Ok(ChangedLoadout {
+            node,
+            ignored,
+            mismatches,
+        })
     }
 
     /// Returns what `entity` offers a port, for [`PortNode::accepts`](crate::PortNode::accepts).

@@ -1107,8 +1107,9 @@ entities-replace-takes-sizes = The port takes { $single ->
   } { $sizes }.
 entities-replace-takes-any = The port takes any Entity.
 entities-replace-hint = Class name or record path
-entities-replace-count = { $number } of { $total } Entities that fit
-entities-replace-none = No Entity fits the port and the search.
+entities-replace-count = { $number } Entities, { $total } of them fit
+entities-replace-none = No Entity matches the search.
+entities-replace-misfit = Does not fit
 entities-facts-sized = { $type }, size { $size }
 entities-facts = { $type }
 entities-facts-none = No item type

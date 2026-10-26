@@ -2,9 +2,9 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
-use p4kx_dataforge::{DataForge, Guid, Record, RecordTree, TreeBuilder};
+use p4kx_dataforge::{DataForge, Guid, Record, RecordTree, TagTree, TreeBuilder};
 
 use crate::entities::is_entity;
 use crate::plan::Plan;
@@ -52,6 +52,7 @@ pub struct LoadoutResolver<'f> {
     pub(crate) builder: TreeBuilder<'f>,
     pub(crate) stop_at_docked: bool,
     serial_reads: usize,
+    pub(crate) tag_tree: OnceLock<TagTree>,
 }
 
 impl std::fmt::Debug for LoadoutResolver<'_> {
@@ -86,6 +87,7 @@ impl<'f> LoadoutResolver<'f> {
             builder: TreeBuilder::new(),
             stop_at_docked: false,
             serial_reads: 0,
+            tag_tree: OnceLock::new(),
         }
     }
 

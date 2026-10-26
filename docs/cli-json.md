@@ -127,6 +127,13 @@ field is absent.
  "empty": 29, "unresolved": 0, "docked_vehicles": 0}
 ```
 
+An Entity whose default Loadout is an outfit (an NPC actor, `SItemPortLoadoutOutfitParams`) also
+has `outfit`: `{"base_files": ["…"], "outfits": [{"tags": ["Outfits.S42.Work"], "files": ["…"],
+"applied": true}, …]}`, the XML Loadouts of the base Loadout and, per outfit in the Record's order,
+its name tags (tag paths), its XML Loadouts and whether it is worn: every outfit without name tags
+is; when all have name tags, the first one is (ADR-0181). The text output lists the same as
+`outfit base:` and `outfit N worn|not worn` lines. The key is absent for any other Entity.
+
 `--exclude <port>` and `--replace <port>=<entity>` (each may be given several times) apply an
 own configuration, see [ADR-0076](adr/0076-loadout-changes-are-applied-while-the-tree-is-resolved-and-checked-against-the-port.md).
 A port is named by its path of port names from the root joined by `/`, as `entity loadout` lists
@@ -468,8 +475,9 @@ package is written even when parts are skipped.
 `p4kx chf glb`, counted in `textured_materials`, `textures` and `texture_pixels`. `files` of
 `loadout` lists the XML Loadout files the Loadout is made of in the order they are laid over each
 other: an Entity whose default Loadout is an outfit gives its base Loadout and the Loadouts of its
-outfits without name tags (ADR-0109). `head` is `null` unless the Loadout has a head (an Entity of
-item type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
+outfits that apply (ADR-0109, ADR-0181), and `outfit` beside `files` (absent for any other
+source) lists every outfit as for `p4kx entity loadout`. `head` is `null` unless the Loadout has a
+head (an Entity of item type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
 names, which `--body` overrides, `bespoke_folder` the folder of the character's own head skins
 (or `null` when its material library is in no folder of its own) and `parts` the pieces of the
 head. `material` of a part is the material library it is drawn with, `null` when it has none.
@@ -491,7 +499,8 @@ and the animation has no track for a bone) and `face_joints_failed` (see `p4kx c
 the Loadout that were not replaced, including those that could not be resolved. `loadout` is
 `null` without `--loadout`, else it has the text given as `name`, the `source` of the Loadout
 (`entity` for an Entity's default Loadout, `archive` for an XML Loadout Entry, `file` for a file
-on disk) and, for an Entity, its `class_name`. `replaced` lists the pieces of the Loadout that a
+on disk), for an Entity its `class_name`, the `files` of the XML Loadouts it is made of and, for
+an outfit, `outfit` as for `p4kx entity loadout`. `replaced` lists the pieces of the Loadout that a
 `--piece` of the same item type took the place of. `parts` lists what was written: the skin of
 the body (`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after
 the piece's class name, or `<port>/<class name>` for a piece of a Loadout, with the model `file`

@@ -85,6 +85,31 @@ fn an_outfit_lays_its_untagged_loadouts_over_the_base_and_keeps_the_body_and_hea
 }
 
 #[test]
+fn the_outfit_report_lists_every_outfit_with_its_tags_and_which_of_them_apply() -> TestResult {
+    let fixture = fixture(npc_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let files = ArchiveFiles::new(&archive);
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let record = resolver.entities().find(NPC_CLASS)?;
+    let report = resolver.outfits(&record).ok_or("the NPC has no outfit")?;
+    assert_eq!(report.base_files(), [] as [String; 0]);
+    let outfits = report.outfits();
+    assert_eq!(outfits.len(), 2);
+    assert_eq!(outfits[0].tags(), [] as [String; 0]);
+    assert!(outfits[0].is_applied());
+    assert_eq!(outfits[1].tags(), ["tagged"]);
+    assert!(!outfits[1].is_applied());
+    let body = resolver.entities().find("TEST_NpcBody")?;
+    assert!(
+        resolver.outfits(&body).is_none(),
+        "its Loadout is no outfit"
+    );
+    Ok(())
+}
+
+#[test]
 fn the_head_and_its_parts_use_the_skins_of_the_characters_own_folder_when_the_archive_has_them()
 -> TestResult {
     let npc = build(npc_entries())?;

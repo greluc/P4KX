@@ -259,6 +259,27 @@ pub enum ConversionError {
         /// The number of chunks.
         count: usize,
     },
+    /// The chunk's type has no text form.
+    #[error("chunk {index} of {file} is of type {chunk_type}, which has no text form")]
+    ChunkNotText {
+        /// The Entry path or file of the chunk file.
+        file: String,
+        /// The index of the chunk.
+        index: usize,
+        /// The type of the chunk as the table names it.
+        chunk_type: String,
+    },
+    /// The data of a chunk is not valid text of its type.
+    #[error("chunk {index} of {file}")]
+    ChunkText {
+        /// The Entry path or file of the chunk file.
+        file: String,
+        /// The index of the chunk.
+        index: usize,
+        /// What is wrong.
+        #[source]
+        source: crate::chunk_source::ChunkTextError,
+    },
     /// The model or one of its companions is missing, unreadable or corrupt.
     #[error("{file}")]
     Model {

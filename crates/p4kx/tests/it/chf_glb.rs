@@ -9,8 +9,8 @@ use std::path::{Path, PathBuf};
 
 use p4kx_testkit::gltf::Semantic;
 use p4kx_testkit::{
-    ArchiveBuilder, HEAD_REGIONS, HEAD_VERTICES, MALE_RIG_HASH, TestChf, TestEntry, check_glb,
-    head_entries, head_rig,
+    ArchiveBuilder, HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE, MALE_RIG_HASH, TestChf, TestEntry,
+    check_glb, head_entries, head_rig,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -36,9 +36,7 @@ fn chf(dir: &Path, name: &str, dna: Option<(u32, u16)>) -> Result<PathBuf, Box<d
         _ => vec![(0, 0), (0, 0)],
     };
     let test = TestChf {
-        body_type: "25f439d5-146b-4a61-a999-a486dfb68a49"
-            .parse::<p4kx_assembly::character::Guid>()?
-            .stored(),
+        body_type: MALE_BODY_TYPE,
         dna_hashes: dna.map(|(hash, _)| (hash, 0)),
         face_parts: (0..HEAD_REGIONS).map(blend).collect(),
         ..TestChf::v8()

@@ -11,7 +11,8 @@ use egui_kittest::Harness;
 use p4kx_gui::ui::{self, Dialog};
 use p4kx_gui::{ChooserKind, Language, Model, WorkTab};
 use p4kx_testkit::{
-    HEAD_REGIONS, HEAD_VERTICES, MALE_RIG_HASH, TestChf, TestEntry, head_entries, head_rig,
+    HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE, MALE_RIG_HASH, TestChf, TestEntry, head_entries,
+    head_rig,
 };
 use tempfile::TempDir;
 
@@ -35,11 +36,8 @@ pub(crate) fn chf_bytes() -> Vec<u8> {
         3 => vec![(65535, 2), (0, 0)],
         _ => vec![(0, 0), (0, 0)],
     };
-    let male_body_type = "25f439d5-146b-4a61-a999-a486dfb68a49"
-        .parse::<p4kx_assembly::character::Guid>()
-        .unwrap_or_default();
     TestChf {
-        body_type: male_body_type.stored(),
+        body_type: MALE_BODY_TYPE,
         dna_hashes: Some((MALE_RIG_HASH, 0)),
         face_parts: (0..HEAD_REGIONS).map(blend).collect(),
         ..TestChf::v8()

@@ -73,14 +73,31 @@ fn turned_between(from: Vec3, to: Vec3, vector: Vec3) -> Option<Vec3> {
 }
 
 /// Returns the unit part of `tangent` perpendicular to the unit `normal` (Gram-Schmidt), or
-/// `None` when the tangent lies along the normal.
+/// `None` when the tangent is zero or lies along the normal, up to a relative residual of 1e-4.
 fn orthogonalised(tangent: Vec3, normal: Vec3) -> Option<Vec3> {
     let along = dot(tangent, normal);
-    unit([
+    let rest = [
         normal[0].mul_add(-along, tangent[0]),
         normal[1].mul_add(-along, tangent[1]),
         normal[2].mul_add(-along, tangent[2]),
-    ])
+    ];
+    let size = dot(tangent, tangent).sqrt();
+    (dot(rest, rest).sqrt() > size * 1e-4)
+        .then(|| unit(rest))
+        .flatten()
+}
+
+/// Returns a unit vector perpendicular to the unit `normal`.
+fn perpendicular_to(normal: Vec3) -> Option<Vec3> {
+    let [x, y, z] = normal.map(f32::abs);
+    let axis = if x <= y && x <= z {
+        [1.0, 0.0, 0.0]
+    } else if y <= z {
+        [0.0, 1.0, 0.0]
+    } else {
+        [0.0, 0.0, 1.0]
+    };
+    unit(cross(normal, axis))
 }
 
 /// Turns the tangent frame of `mesh` with its surface after its vertices moved from `before`:
@@ -115,7 +132,8 @@ pub(super) fn carry_normals(mesh: &mut Mesh, before: &[Vec3]) {
         };
         let [x, y, z, w] = *tangent;
         let moved = turned_between(old, new, [x, y, z]).unwrap_or([x, y, z]);
-        if let Some([x, y, z]) = orthogonalised(moved, turned) {
+        if let Some([x, y, z]) = orthogonalised(moved, turned).or_else(|| perpendicular_to(turned))
+        {
             *tangent = [x, y, z, w];
         }
     }
@@ -123,7 +141,7 @@ pub(super) fn carry_normals(mesh: &mut Mesh, before: &[Vec3]) {
 
 #[cfg(test)]
 mod tests {
-    use super::{cross, dot, orthogonalised, turned_between};
+    use super::{cross, dot, orthogonalised, perpendicular_to, turned_between};
 
     const EPSILON: f32 = 1e-5;
 
@@ -167,5 +185,16 @@ mod tests {
     #[test]
     fn a_tangent_along_the_normal_has_no_perpendicular_part() {
         assert_eq!(orthogonalised([0.0, 0.0, 2.0], [0.0, 0.0, 1.0]), None);
+        assert_eq!(orthogonalised([1e-6, 0.0, 1.0], [0.0, 0.0, 1.0]), None);
+    }
+
+    #[test]
+    fn a_fallback_tangent_is_a_unit_vector_perpendicular_to_the_normal() {
+        for normal in [[0.0, 0.0, 1.0], [0.6, 0.0, 0.8], [0.0, -1.0, 0.0]] {
+            let tangent = perpendicular_to(normal).expect("a tangent");
+
+            assert!(dot(tangent, normal).abs() < EPSILON, "{normal:?}");
+            assert!((dot(tangent, tangent) - 1.0).abs() < EPSILON, "{normal:?}");
+        }
     }
 }

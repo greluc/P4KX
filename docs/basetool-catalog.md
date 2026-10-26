@@ -905,8 +905,8 @@ ports the Record defines in definition order, and the `ItemPort` elements of the
 implementation (the Modification applied, ADR-0050) that no port above names, in file order, with
 the source `vehicle`. The definition of a port is the Record's `SItemPortDef`; a port the Record
 does not define takes it from the `ItemPort` of that name. The visibility comes from the
-vehicle implementation (#289), else from the flags of the port definition (#748). A ship's Loadout overrides the default Loadout of the turrets and
-racks it carries per port, so the nested ports of a ship are the ones that apply to that ship;
+vehicle implementation (#289), else from the flags of the port definition (#748). A ship's
+Loadout overrides the default Loadout of the turrets and racks it carries per port, so the nested ports of a ship are the ones that apply to that ship;
 the entry of the turret itself shows the turret's own defaults. The walk is the one of
 `EntityNode::loadout` (#316).
 

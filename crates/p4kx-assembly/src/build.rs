@@ -130,13 +130,14 @@ impl Assembly {
 }
 
 /// Returns the object containers each Entity of `drafts` names, shared with its node; a docked
-/// vehicle that is not expanded names none, as its own ports are left out too.
+/// vehicle that is not expanded and a hidden part name none, as their own ports are left out or
+/// not drawn.
 fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
     let none: Arc<[ObjectContainerRef]> = Arc::new([]);
     drafts
         .iter()
         .map(|draft| {
-            if draft.node.is_docked_vehicle() && !draft.node.is_expanded() {
+            if draft.hidden || (draft.node.is_docked_vehicle() && !draft.node.is_expanded()) {
                 Arc::clone(&none)
             } else {
                 Arc::clone(&draft.node.object_containers)

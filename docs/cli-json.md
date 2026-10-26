@@ -200,7 +200,7 @@ A **Port**:
 |-------|------|---------|
 | `name` | string | The port name as the Loadout or the port definition spells it |
 | `source` | string | `loadout` (the Entity's own default Loadout), `override` (the Loadout of the entry that attached the Entity, which replaces the Entity's own entry for this port), `port_default` (the default item of the port definition), `unset` (a defined port that nothing names), `empty` (a port only the Entity's vehicle implementation declares: no Loadout entry names it and the Record defines none, so it has no `definition`; `--replace` can attach an Entity to it), `excluded` (left out by `--exclude`) or `replaced` (holds the Entity `--replace` names); new values may be added in later versions |
-| `visibility` | string | Only when the Entity's vehicle implementation has a part of this name (ignoring ASCII case): `visible`, or `invisible` when its item port carries the flag `invisible`; absent otherwise |
+| `visibility` | string | `visible` or `invisible` as the Entity's vehicle implementation says when it has a part of this name (ignoring ASCII case): `invisible` when its item port carries the flag `invisible`. Without such a part, `invisible` when the port definition carries that flag. Absent otherwise |
 | `definition` | object or `null` | The port's `SItemPortDef` in the Entity's Record; `null` when the Record defines no port of this name, e.g. a ship port that only its vehicle definition declares |
 | `entity` | Node or `null` | The attached Entity |
 | `error` | Error or `null` | Why the attachment cannot be resolved |
@@ -252,7 +252,7 @@ order is attached. The same Archive always gives the same document.
 
 ```json
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
- "modelled_parts": 56, "hidden_parts": 0, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
+ "modelled_parts": 55, "hidden_parts": 16, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
  "materials": 204, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
  "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0,
  "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
@@ -266,8 +266,8 @@ change to a port below an unexpanded docked vehicle, as `entity loadout` lists i
 and no error; the report lists the ports as `ignored` (absent when empty), as for `entity loadout`.
 A replacement that does not fit its port is written all the same and listed in `incompatible` (absent
 when empty), as for `entity loadout`.
-`parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, `hidden_parts` those on a port flagged `invisible` or below one (kept, but with no model and not drawn), and
-`nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
+`parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, `hidden_parts` those on a port flagged `invisible` or below
+one (kept, but with no model, no object containers and not drawn), and `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
 lowest level when they have none up to the requested one;
 `shared_meshes` counts the meshes not written again because an earlier part holds the same model
@@ -311,8 +311,9 @@ Without the flag `interior` is absent.
 `path` (as for an Issue), `placement` (`root`, `helper`, `port_node` or `origin`: the part sits at
 the helper its port names in the parent's model, at the node of the parent's model named like the
 port, or at the parent's origin, which is also where a port with no helper and no node of its
-name lands, without an Issue), `helper` (the helper's name, only for `helper`) and `modelled`
-(the part has a model) and `hidden` (the part is hidden, see `hidden_parts`).
+name lands, without an Issue), `helper` (the helper's name, only for `helper`), `modelled`
+(the part has a model) and `hidden` (the part is hidden, see `hidden_parts`; a part below a hidden
+one has no model to anchor to, so its `placement` may read `origin`).
 
 A transform of a part that carries a shear is written without it: the glTF node holds a
 translation, a rotation and a scale only.

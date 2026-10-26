@@ -10,7 +10,7 @@ use p4kx_extraction::Archive;
 use p4kx_testkit::{DataForgeBuilder, TestEntity, TestModel, TestPort, entity_schema};
 
 use crate::assembly_support::{TestResult, fixture};
-use crate::vehicle_support::{DEFINITION, standard_files};
+use crate::vehicle_support::{DEFINITION, files, standard_files};
 
 const SHIP: u128 = 0x1000;
 const SKID: u128 = 0x2000;
@@ -142,5 +142,62 @@ fn the_tree_keeps_the_visibility_of_a_port_the_definition_flags() -> TestResult 
             ("plain", PortVisibility::Unspecified)
         ]
     );
+    Ok(())
+}
+
+const MIXED: &str = "Scripts/Entities/Vehicles/Implementations/Xml/TEST_Mixed.xml";
+
+const MIXED_XML: &str = r#"<Vehicle name="TEST_Mixed"><Parts><Part name="body" class="Animated"><Parts>
+    <Part name="hardpoint_shown" class="ItemPort"><ItemPort flags="$editable"/></Part>
+    <Part name="hardpoint_late" class="ItemPort"><ItemPort id="portLate" flags="$editable"/></Part>
+</Parts></Part></Parts>
+<Modifications><Modification name="Hide">
+    <Elems><Elem idRef="portLate" name="flags" value="invisible $editable"/></Elems>
+</Modification></Modifications></Vehicle>"#;
+
+fn mixed(modification: &str) -> Result<Vec<(String, PortVisibility)>, Box<dyn std::error::Error>> {
+    let bytes = entity_schema(DataForgeBuilder::new())
+        .record(
+            TestEntity::new(SHIP, "TEST_Ship", "entities/test_ship.xml")
+                .vehicle(MIXED, modification)
+                .port(TestPort::new("hardpoint_shown").flags("invisible"))
+                .port(TestPort::new("hardpoint_late"))
+                .port(TestPort::new("hardpoint_dollar").flags("$Invisible $editable"))
+                .record(),
+        )
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let files = files(&[(MIXED, MIXED_XML)]);
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let record = resolver.entities().find("TEST_Ship")?;
+    let tree = resolver.resolve(&record)?;
+    Ok(tree
+        .ports()
+        .iter()
+        .map(|port| (port.name().to_owned(), port.visibility()))
+        .collect())
+}
+
+#[test]
+fn a_vehicle_part_without_the_flag_overrides_a_definition_that_carries_it() -> TestResult {
+    let seen = mixed("")?;
+
+    assert_eq!(
+        seen[0],
+        ("hardpoint_shown".to_owned(), PortVisibility::Visible)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_modification_can_add_the_flag() -> TestResult {
+    assert_eq!(mixed("")?[1].1, PortVisibility::Visible);
+    assert_eq!(mixed("Hide")?[1].1, PortVisibility::Invisible);
+    Ok(())
+}
+
+#[test]
+fn the_flag_is_found_with_a_dollar_and_in_any_case() -> TestResult {
+    assert_eq!(mixed("")?[2].1, PortVisibility::Invisible);
     Ok(())
 }

@@ -85,7 +85,8 @@ impl<'a> From<&'a LandingGear> for LandingGearJson<'a> {
     }
 }
 
-/// Returns the code of a visibility the vehicle implementation states, `None` for none.
+/// Returns the code of a visibility the vehicle implementation or the port definition states,
+/// `None` for none.
 pub(crate) const fn visibility_code(visibility: PortVisibility) -> Option<&'static str> {
     match visibility {
         PortVisibility::Unspecified => None,

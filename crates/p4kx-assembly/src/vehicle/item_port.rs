@@ -3,6 +3,14 @@
 
 use super::{PortVisibility, ValueOrigin};
 
+/// Returns whether `flags`, words separated by white space, contain `flag`, ignoring ASCII case
+/// and a leading `$`.
+pub(crate) fn flags_contain(flags: &str, flag: &str) -> bool {
+    flags
+        .split_ascii_whitespace()
+        .any(|token| token.trim_start_matches('$').eq_ignore_ascii_case(flag))
+}
+
 /// One `Types/Type` element of an item port: an item type and the sub-types of it the port takes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VehicleItemType {
@@ -100,9 +108,7 @@ impl VehicleItemPort {
     /// Returns whether the flags contain `flag`, ignoring ASCII case and a leading `$`.
     #[must_use]
     pub fn has_flag(&self, flag: &str) -> bool {
-        self.flags
-            .split_ascii_whitespace()
-            .any(|token| token.trim_start_matches('$').eq_ignore_ascii_case(flag))
+        flags_contain(&self.flags, flag)
     }
 
     /// Returns [`PortVisibility::Invisible`] when the port carries the flag `invisible`.

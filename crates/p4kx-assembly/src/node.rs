@@ -9,6 +9,7 @@ use crate::merge::{merge_by_port, port_key};
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutOrigin, LoadoutSpec, TargetSpec};
+use crate::vehicle::flags_contain;
 use crate::walk::Walk;
 use crate::{
     Attachment, EntityNode, LoadoutError, PortConstraints, PortNode, PortSource, PortVisibility,
@@ -278,12 +279,10 @@ fn visibility_of(port: &PortNode, vehicle: Option<&VehicleImplementation>) -> Po
     if from_vehicle != PortVisibility::Unspecified {
         return from_vehicle;
     }
-    let flagged = port.definition.as_deref().is_some_and(|definition| {
-        definition.flags().split_whitespace().any(|word| {
-            word.trim_start_matches('$')
-                .eq_ignore_ascii_case("invisible")
-        })
-    });
+    let flagged = port
+        .definition
+        .as_deref()
+        .is_some_and(|definition| flags_contain(definition.flags(), "invisible"));
     if flagged {
         PortVisibility::Invisible
     } else {

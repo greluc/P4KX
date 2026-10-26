@@ -67,7 +67,12 @@ fn weapons() -> Vec<TestStruct> {
         TestStruct::new("AmmoParams")
             .field("speed", TestType::Single)
             .field("lifetime", TestType::Single)
-            .field("projectileParams", pointer("BulletProjectileParams")),
+            .field("projectileParams", pointer("BulletProjectileParams"))
+            .field("trap", pointer("Loop")),
+        TestStruct::new("Loop")
+            .field("left", class("Loop"))
+            .field("right", class("Loop"))
+            .declared_size(0),
         TestStruct::new("BulletProjectileParams")
             .field("damage", class("DamageInfo"))
             .field("detonationParams", pointer("ProjectileDetonationParams")),

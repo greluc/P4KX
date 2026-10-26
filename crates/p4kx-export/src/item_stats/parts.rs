@@ -3,7 +3,7 @@
 
 use p4kx_extraction::{RecordTree, StructValue};
 
-use super::walk::owner_of;
+use super::walk::{owner_of, owner_of_any};
 use crate::contract_stats::{Damage, MissileStats, QuantumDriveStats, ShieldStats};
 use crate::record_fields::{component, number, structure, text};
 
@@ -19,7 +19,7 @@ const DAMAGE_FIELDS: [&str; 6] = [
 /// Returns the damage the first struct below `root` that states a damage type holds.
 pub(super) fn damage(root: Option<&StructValue<'_>>) -> Option<Damage> {
     let root = root?;
-    let owner = DAMAGE_FIELDS.iter().find_map(|name| owner_of(root, name))?;
+    let owner = owner_of_any(root, &DAMAGE_FIELDS)?;
     let value = |name| number(Some(owner), name);
     Some(Damage {
         physical: value("DamagePhysical"),

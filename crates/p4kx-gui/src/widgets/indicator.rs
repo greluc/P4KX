@@ -9,8 +9,8 @@ use egui::{
 };
 
 use crate::theme::desktop::{
-    BRAND_GAP, BRAND_HEIGHT, BRAND_MARK, PROGRESS_HEIGHT, ROW_HEIGHT, SPINNER_INLINE,
-    SPINNER_PERIOD, SPINNER_RING, SPINNER_TRACK, WORDMARK_SIZE,
+    BRAND_GAP, BRAND_HEIGHT, BRAND_MARK, PROGRESS_HEIGHT, PROGRESS_SWEEP_SHARE, ROW_HEIGHT,
+    SPINNER_INLINE, SPINNER_PERIOD, SPINNER_RING, SPINNER_TRACK, WORDMARK_SIZE,
 };
 use crate::theme::tokens::{SPACE_2, TRACKING_DISPLAY, Weight};
 use crate::theme::{logo, palette};
@@ -75,6 +75,40 @@ pub(crate) fn progress(ui: &mut Ui, fraction: f32, cancelling: bool, width: f32)
         palette::PRIMARY
     };
     track(ui, rect, fraction, fill);
+}
+
+/// Shows the `.attendance-meter` progress bar of a step without a measure: a block of
+/// [`PROGRESS_SWEEP_SHARE`] of the track sweeps along it once per [`SPINNER_PERIOD`], grey while
+/// `cancelling`.
+pub(crate) fn indeterminate(ui: &mut Ui, cancelling: bool, width: f32) {
+    let (rect, _) = ui.allocate_exact_size(vec2(width, PROGRESS_HEIGHT), Sense::hover());
+    let fill = if cancelling {
+        palette::GRAY_2
+    } else {
+        palette::PRIMARY
+    };
+    track(ui, rect, 0.0, fill);
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "the phase of one sweep needs no more than f32 precision"
+    )]
+    let phase = (ui.input(|input| input.time) / SPINNER_PERIOD).fract() as f32;
+    let inner = rect.shrink(1.0);
+    let (from, to) = sweep_span(inner.width(), phase);
+    let block = Rect::from_min_max(
+        pos2(inner.left() + from, inner.top()),
+        pos2(inner.left() + to, inner.bottom()),
+    );
+    ui.painter().rect_filled(block, CornerRadius::ZERO, fill);
+    ui.ctx().request_repaint();
+}
+
+/// Returns where the sweeping block lies in a track `width` wide at `phase` of one sweep, from `0.0`
+/// to `1.0`: it enters at the start, crosses the track and leaves at the end, cut to the track.
+fn sweep_span(width: f32, phase: f32) -> (f32, f32) {
+    let block = width * PROGRESS_SWEEP_SHARE;
+    let start = (width + block).mul_add(phase.clamp(0.0, 1.0), -block);
+    (start.max(0.0), (start + block).min(width))
 }
 
 /// Paints the `.attendance-meter` track over `rect`, filled with `fill` up to `fraction`.
@@ -173,4 +207,30 @@ pub(crate) fn search_icon(ui: &Ui, rect: Rect, colour: Color32) {
     let painter = ui.painter();
     painter.circle_stroke(at(0.45, 0.45), rect.width() * 0.3, stroke);
     painter.line_segment([at(0.68, 0.68), at(0.9, 0.9)], stroke);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_block_enters_crosses_and_leaves_the_track() {
+        assert_eq!(sweep_span(100.0, 0.0), (0.0, 0.0), "not yet in");
+        let (from, to) = sweep_span(100.0, 0.5);
+        assert!(from > 0.0 && to < 100.0, "inside: {from} to {to}");
+        let block = 100.0_f32 * PROGRESS_SWEEP_SHARE;
+        assert!((to - from - block).abs() < 1e-3, "the whole block");
+        assert_eq!(sweep_span(100.0, 1.0), (100.0, 100.0), "gone");
+    }
+
+    #[test]
+    fn the_block_never_leaves_the_track_and_only_moves_on() {
+        let mut last = f32::MIN;
+        for step in 0..=100_u8 {
+            let (from, to) = sweep_span(80.0, f32::from(step) / 100.0);
+            assert!((0.0..=80.0).contains(&from) && (0.0..=80.0).contains(&to));
+            assert!(from >= last, "moves on: {last} then {from}");
+            last = from;
+        }
+    }
 }

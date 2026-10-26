@@ -183,6 +183,65 @@ fn leaving_a_port_out_updates_the_view() -> TestResult {
 }
 
 #[test]
+fn quick_changes_end_with_the_last_one() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    built(&mut harness, None)?;
+    let before = serial(harness.state());
+
+    let session = harness
+        .state_mut()
+        .entities_mut()
+        .loadout_mut()
+        .ok_or("no Loadout")?;
+    session.set_excluded("hardpoint_weapon_nose", true)?;
+    session.set_excluded("hardpoint_relay", true)?;
+    session.restore("hardpoint_weapon_nose");
+    session.set_excluded("hardpoint_weapon_nose", true)?;
+    session.restore("hardpoint_weapon_nose");
+    settle(&mut harness)?;
+    built(&mut harness, before)?;
+
+    assert_eq!(
+        paths(harness.state()),
+        vec!["", "hardpoint_weapon_nose"],
+        "only the last state of the changes is shown"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_replacement_below_a_left_out_port_is_refused() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    built(&mut harness, None)?;
+
+    let session = harness
+        .state_mut()
+        .entities_mut()
+        .loadout_mut()
+        .ok_or("no Loadout")?;
+    session.set_excluded("hardpoint_weapon_nose", true)?;
+    let refused = session.set_replacement("hardpoint_weapon_nose/mount", "TEST_Gun_S1");
+
+    assert!(
+        matches!(refused, Err(p4kx_assembly::ChangeError::Conflict { .. })),
+        "{refused:?}"
+    );
+    assert_eq!(session.change_counts(), (1, 0), "nothing was added");
+    settle(&mut harness)?;
+    assert!(
+        harness
+            .state()
+            .entities()
+            .loadout()
+            .is_some_and(|session| session.failure().is_none()),
+        "the Loadout still resolves"
+    );
+    Ok(())
+}
+
+#[test]
 fn replacing_an_entity_updates_the_view() -> TestResult {
     let (_dir, mut harness) = opened(Language::BritishEnglish)?;
     select(&mut harness, "TEST_Ship")?;

@@ -550,7 +550,10 @@
     "fill": "color-primary",
     "fillCancelling": "color-gray-2",
     "labelFontSize": 14.4,
-    "labelTabular": true
+    "labelTabular": true,
+    "indeterminate": "a step without a measure shows the empty track with a block of color-primary (color-gray-2 while cancelling) that sweeps from the start to the end of the track and begins again, once per spinner.periodMs",
+    "sweepShare": 0.25,
+    "sweepPeriodFrom": "spinner.periodMs"
   },
   "spinner": {
     "dsClass": "spinner",
@@ -1036,6 +1039,14 @@
     "character": "D.54: btn-cta Export… in the Characters toolbar opens the modal Export Character with the group Output, the hint in color-gray-2-text FS_XS beside the group Animations (None, All; All by default; no picker of named clips, no --anim-from), starting on the GLB file whatever the Entity export chose, the group File or Package folder, the notices of the Entity and the foot Export and Close; detail and materials stay in the toolbar",
     "messages": "replaces color-warning; not a package, no folder name and installation color-gray-1 in a danger-alert"
   },
+  "entityReplace": {
+    "dsClass": "modal + search-field + master-row",
+    "decision": "D.57",
+    "listHeight": 236,
+    "listHeightFrom": "previewPanel.defaultHeight; the list scrolls inside the room the modal has between the header and the status bar",
+    "headGap": 10,
+    "headGapFrom": "modal.bodyGroupGap / 2, between the line of what the port takes and the search field"
+  },
   "entityVariants": {
     "dsClass": "master-row + tree-row chevron + chip--muted",
     "decision": "D.56",
@@ -1113,7 +1124,7 @@
     "messages": "unreadable bank color-danger-text, empty bank plain text"
   },
   "soundTables": {
-    "decision": "D.57",
+    "decision": "D.58",
     "dsClass": "tableHead + tableRow",
     "columns": {"name": 320, "state": 132, "language": 155},
     "columnsFrom": "name: a name of forty characters at the row font; state: the longest status or head of the trigger table in German or British English, 131.4; language: the default language with the fallback mark in German or British English, 155.0; each in bold at the row font plus the cell padding twice, rounded up",

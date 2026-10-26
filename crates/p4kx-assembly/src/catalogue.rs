@@ -16,7 +16,8 @@ const WEAPON_ATTACHMENTS: &str = "/weapon_attachments/";
 const WEAPON_TYPE: &str = "Weapon";
 const ATTACHMENT_TYPE: &str = "WeaponAttachment";
 
-/// What kind of Entity a Record is, told by its record path.
+/// What kind of Entity a Record is, told by its record path; for a weapon the item type counts
+/// too.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum EntityKind {
@@ -24,7 +25,8 @@ pub enum EntityKind {
     Ship,
     /// A ground vehicle: a Record below `entities/groundvehicles`.
     Vehicle,
-    /// A weapon: a Record below a `weapons` folder of `entities/scitem`, attachments aside.
+    /// A weapon: a Record below a `weapons` folder of `entities/scitem` whose item type starts
+    /// with `Weapon`, attachments aside.
     Weapon,
     /// Any other Entity.
     Other,

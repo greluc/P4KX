@@ -349,6 +349,16 @@ fn failure_text(texts: &Texts, view: &AssemblyView) -> Option<(Color32, String)>
             palette::DANGER_TEXT,
             texts.format(EntityText::ViewFailed, &[("reason", reason.clone().into())]),
         ),
+        ViewFailure::NoRecord(guid) => (
+            palette::DANGER_TEXT,
+            texts.format(
+                EntityText::ViewFailed,
+                &[(
+                    "reason",
+                    super::model_export_outcome::no_record(texts, *guid).into(),
+                )],
+            ),
+        ),
         ViewFailure::Stopped => (palette::GRAY_1, texts.get(EntityText::ViewStopped)),
     })
 }

@@ -89,6 +89,42 @@ fn a_change_drops_the_changes_below_the_port() -> TestResult {
 }
 
 #[test]
+fn a_replacement_below_an_excluded_port_is_refused() -> TestResult {
+    let mut changes = LoadoutChanges::new();
+    changes.set_excluded("Weapon_B")?;
+
+    let refused = changes.set_replacement("weapon_b/mount_gun", "GUN_S1");
+
+    assert_eq!(
+        refused,
+        Err(ChangeError::Conflict {
+            path: "weapon_b/mount_gun".to_owned(),
+            other: "Weapon_B".to_owned(),
+        })
+    );
+    assert_eq!(changes.replacements(), &[] as &[(String, String)]);
+    assert_eq!(changes.exclusions(), ["Weapon_B"]);
+    assert!(applied(&changes).is_ok(), "the changes still apply");
+    Ok(())
+}
+
+#[test]
+fn a_replacement_beside_an_excluded_port_is_accepted() -> TestResult {
+    let mut changes = LoadoutChanges::new();
+    changes.set_excluded("weapon_b/mount_gun")?;
+
+    changes.set_replacement("weapon_b", "MOUNT")?;
+
+    assert_eq!(changes.action_for("weapon_b"), PortChange::Replace("MOUNT"));
+    assert_eq!(
+        changes.action_for("weapon_b/mount_gun"),
+        PortChange::Keep,
+        "the exclusion below the replaced port is dropped"
+    );
+    Ok(())
+}
+
+#[test]
 fn taking_back_a_replacement_drops_the_changes_below_it() -> TestResult {
     let mut changes = LoadoutChanges::new();
     changes.set_replacement("weapon_b", "MOUNT")?;

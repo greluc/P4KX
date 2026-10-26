@@ -72,13 +72,24 @@ impl LoadoutChanges {
     ///
     /// # Errors
     ///
-    /// Returns [`ChangeError::InvalidPort`] when `port` is no port path.
+    /// Returns [`ChangeError::InvalidPort`] when `port` is no port path and
+    /// [`ChangeError::Conflict`] when a port above it is left out; the changes stay as they were.
     pub fn set_replacement(
         &mut self,
         port: &str,
         entity: impl Into<String>,
     ) -> Result<(), ChangeError> {
         let key = checked_key(port)?;
+        if let Some(excluded) = self
+            .exclusions
+            .iter()
+            .find(|path| path_key(path).is_some_and(|ancestor| under(&key, &ancestor)))
+        {
+            return Err(ChangeError::Conflict {
+                path: port.trim().to_owned(),
+                other: excluded.clone(),
+            });
+        }
         self.drop_below(&key);
         self.drop_at(&key);
         self.replacements
@@ -287,4 +298,7 @@ pub enum ChangeError {
     /// The Entity whose Loadout is resolved cannot be.
     #[error(transparent)]
     Loadout(#[from] LoadoutError),
+    /// The resolver was stopped before the Loadout was resolved.
+    #[error("resolving the Loadout was stopped")]
+    Cancelled,
 }

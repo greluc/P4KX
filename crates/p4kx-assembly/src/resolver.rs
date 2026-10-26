@@ -51,6 +51,7 @@ pub struct LoadoutResolver<'f> {
     pub(crate) landing: HashMap<Guid, Result<Arc<[LandingGear]>, LoadoutError>>,
     pub(crate) builder: TreeBuilder<'f>,
     pub(crate) stop_at_docked: bool,
+    stop: Option<&'f (dyn Fn() -> bool + Sync)>,
     serial_reads: usize,
     pub(crate) tag_tree: OnceLock<TagTree>,
 }
@@ -86,6 +87,7 @@ impl<'f> LoadoutResolver<'f> {
             landing: HashMap::new(),
             builder: TreeBuilder::new(),
             stop_at_docked: false,
+            stop: None,
             serial_reads: 0,
             tag_tree: OnceLock::new(),
         }
@@ -98,6 +100,19 @@ impl<'f> LoadoutResolver<'f> {
     pub const fn stopping_at_docked_vehicles(mut self) -> Self {
         self.stop_at_docked = true;
         self
+    }
+
+    /// Polls `stop` while resolving with [`resolve_with`](Self::resolve_with), between the ports
+    /// it builds and the levels it reads ahead; once it returns `true` the resolution ends with
+    /// [`ChangeError::Cancelled`]. Only `resolve_with` ends that way; `resolve` ignores it.
+    #[must_use]
+    pub fn with_stop(mut self, stop: &'f (dyn Fn() -> bool + Sync)) -> Self {
+        self.stop = Some(stop);
+        self
+    }
+
+    pub(crate) fn stopped(&self) -> bool {
+        self.stop.is_some_and(|stop| stop())
     }
 
     /// Reads the XML Loadouts Records name from `files`.
@@ -163,7 +178,8 @@ impl<'f> LoadoutResolver<'f> {
     /// Returns the first of: [`ChangeError::Loadout`] when `entity` cannot be resolved, a change
     /// that is no port path or contradicts another, a replacement whose Entity cannot be found
     /// or read, a replacement that does not fit its port, and a change whose port the Loadout
-    /// does not have.
+    /// does not have, and [`ChangeError::Cancelled`] once the stop of
+    /// [`with_stop`](Self::with_stop) returned `true`.
     pub fn resolve_with(
         &mut self,
         entity: &Record<'f>,
@@ -186,17 +202,30 @@ impl<'f> LoadoutResolver<'f> {
         entity: &Record<'f>,
         changes: &LoadoutChanges,
     ) -> Result<ChangedLoadout, ChangeError> {
-        if changes.is_empty() {
-            return Ok(ChangedLoadout {
-                node: self.resolve(entity)?,
-                ignored: Vec::new(),
-            });
+        let outcome = self.resolve_walk(entity, changes);
+        if self.stopped() {
+            return Err(ChangeError::Cancelled);
         }
-        let plan = Plan::new(changes, |path, text| self.replacement(path, text))?;
+        outcome
+    }
+
+    fn resolve_walk(
+        &mut self,
+        entity: &Record<'f>,
+        changes: &LoadoutChanges,
+    ) -> Result<ChangedLoadout, ChangeError> {
+        let plan = if changes.is_empty() {
+            None
+        } else {
+            Some(Plan::new(changes, |path, text| {
+                self.replacement(path, text)
+            })?)
+        };
         self.prefetch(*entity);
         let spec = self.spec(entity.guid());
         let spec = spec.as_ref().as_ref().map_err(Clone::clone)?;
-        let mut walk = Walk::new(entity.guid(), Some(plan));
+        let mut walk = Walk::new(entity.guid(), plan);
+        walk.cancellable = true;
         let node = self.node(spec, None, &mut walk);
         let ignored = match walk.plan.take() {
             Some(plan) => plan.finish()?,

@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use egui::{Color32, Id, Ui};
 use fluent_bundle::FluentValue;
+use p4kx_extraction::Guid;
 
 use super::extraction_outcome::{decorate, ratio};
 use super::model_export_animations as animations;
@@ -85,6 +86,10 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
     }
 }
 
+pub(super) fn no_record(texts: &Texts, guid: Guid) -> String {
+    texts.format(T::NoRecord, &[("guid", guid.to_string().into())])
+}
+
 fn failed(
     texts: &Texts,
     failure: &ModelExportFailure,
@@ -119,6 +124,14 @@ fn failed(
         ),
         ModelExportFailure::Failed(reason) => (
             texts.format(T::Failed, &[name, ("reason", reason.clone().into())]),
+            palette::DANGER_TEXT,
+            Tone::Danger,
+        ),
+        ModelExportFailure::NoRecord(guid) => (
+            texts.format(
+                T::Failed,
+                &[name, ("reason", no_record(texts, *guid).into())],
+            ),
             palette::DANGER_TEXT,
             Tone::Danger,
         ),

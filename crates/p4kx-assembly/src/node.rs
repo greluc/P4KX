@@ -44,6 +44,9 @@ impl LoadoutResolver<'_> {
         let landing_gear = self.landing_gear_of(spec, &mut issues);
         let entries = self.merged_entries(spec, overrides, &mut issues);
         for pending in pending_ports(spec, &entries, vehicle.as_deref()) {
+            if walk.cancellable && self.stopped() {
+                break;
+            }
             if !walk.reserve() {
                 issues.push(LoadoutError::TooManyPorts);
                 break;

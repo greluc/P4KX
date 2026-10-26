@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use p4kx_extraction::model::{MaterialStatus, Model};
-use p4kx_extraction::{AnimationSet, GlbSummary, TextureRole, WriteRefused};
+use p4kx_extraction::{AnimationSet, GlbSummary, Guid, TextureRole, WriteRefused};
 
 use crate::model_info::{MAX_LISTED_ANIMATIONS, printable};
 use crate::{ChunkNote, ModelInfo};
@@ -255,6 +255,8 @@ pub enum ModelExportFailure {
     ArchiveChanged,
     /// The file lies inside a Star Citizen installation.
     Refused(WriteRefused),
+    /// The DataForge has no Record with this GUID.
+    NoRecord(Guid),
     /// The model could not be read or the file not written, for the reason given.
     Failed(String),
     /// The export stopped without a result.

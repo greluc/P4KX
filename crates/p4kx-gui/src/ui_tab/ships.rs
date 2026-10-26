@@ -99,7 +99,7 @@ pub(super) fn list_screens(
 ) -> Result<Job<Result<EntityScreens, ResolveFailure>>, String> {
     let index = Arc::clone(index);
     Job::spawn("ui-screens", wake, move || {
-        let tree = resolve(&index, guid, &LoadoutChanges::default())?;
+        let tree = resolve(&index, guid, &LoadoutChanges::default(), &|| false)?;
         let source = index
             .forge()
             .read(&index, || {})

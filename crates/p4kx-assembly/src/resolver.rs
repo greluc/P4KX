@@ -280,6 +280,7 @@ impl<'f> LoadoutResolver<'f> {
     }
 
     /// Returns how many Records have been read into specs so far.
+    #[doc(hidden)]
     #[must_use]
     pub fn records_read(&self) -> usize {
         self.specs.len()
@@ -287,6 +288,7 @@ impl<'f> LoadoutResolver<'f> {
 
     /// Returns how many Records were read one at a time while a tree was built, outside the
     /// parallel prefetch.
+    #[doc(hidden)]
     #[must_use]
     pub const fn serial_reads(&self) -> usize {
         self.serial_reads

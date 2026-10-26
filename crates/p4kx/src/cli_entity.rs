@@ -172,8 +172,8 @@ pub(crate) struct EntityGlbArgs {
     #[arg(long)]
     pub(crate) interior: bool,
     /// Expands docked vehicles, the attached Entities whose item type starts with
-    /// `NOITEM_Vehicle`, ignoring case: their own Loadout parts are placed below them. Without it a docked
-    /// vehicle is placed as one part.
+    /// `NOITEM_Vehicle`, ignoring case: their own Loadout parts are placed below them. Without it
+    /// a docked vehicle is placed as one part.
     #[arg(long)]
     pub(crate) expand_docked_vehicles: bool,
     #[command(flatten)]
@@ -189,7 +189,8 @@ pub(crate) struct EntityLoadoutArgs {
     /// `libs/foundry/records/entities/spaceships/aegs_avenger_titan`; ignores case.
     pub(crate) entity: String,
     /// Stops at docked vehicles, the attached Entities whose item type starts with
-    /// `NOITEM_Vehicle`, ignoring case: they stay in their port, marked, but their own ports are not listed.
+    /// `NOITEM_Vehicle`, ignoring case: they stay in their port, marked, but their own ports are
+    /// not listed.
     #[arg(long)]
     pub(crate) stop_at_docked_vehicles: bool,
     #[command(flatten)]

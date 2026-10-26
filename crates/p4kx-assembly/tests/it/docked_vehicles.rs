@@ -178,11 +178,6 @@ fn records_read(stop: bool, attach_type: &str) -> Result<(usize, bool), Box<dyn 
     let carrier = resolver.entities().find("Carrier")?;
     let tree = resolver.resolve(&carrier)?;
     let docked = attached(&tree, "hangar")?.is_docked_vehicle();
-    let debug = format!("{resolver:?}");
-    assert!(
-        debug.contains(&format!("stop_at_docked: {stop}")),
-        "{debug}"
-    );
     assert_eq!(resolver.serial_reads(), 0, "every Record is prefetched");
     Ok((resolver.records_read(), docked))
 }

@@ -26,8 +26,8 @@ pub(crate) struct Commodity<'a> {
     /// `ResourceType` Record of the commodity.
     #[schemars(extend("x-gameText" = true))]
     pub(crate) description: LocalisedText<'a>,
-    /// The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, `null`
-    /// without a `ResourceType` or a group.
+    /// The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, the
+    /// `guid` of a `resourceGroups` entry; `null` without a `ResourceType` or a group.
     pub(crate) type_guid: Option<CatalogGuid>,
     /// The GUID of the `ResourceType` Record the commodity's default composition holds first,
     /// `null` without one. The `resourceGuid` of an ingredient equals the
@@ -62,7 +62,8 @@ pub(crate) struct Blueprint<'a> {
     pub(crate) key: &'a str,
     /// The name, from `CraftingBlueprint.blueprintName`.
     pub(crate) name: LocalisedText<'a>,
-    /// The GUID of the category Record, `null` without one.
+    /// The GUID of the category Record, the `guid` of a `blueprintCategories` entry; `null`
+    /// without a category or when its Record is a left-out leftover or unreadable.
     pub(crate) category_guid: Option<CatalogGuid>,
     /// The GUID of the entity the blueprint produces, `null` without one or for a Reference to
     /// a Record the DataForge lacks.
@@ -119,7 +120,9 @@ pub(crate) struct ResourceGroup<'a> {
     pub(crate) record_path: &'a str,
     /// The name, from `displayName`; a placeholder key leaves `en` and `de` `null`.
     pub(crate) name: LocalisedText<'a>,
-    /// The GUID of the group that lists this group in its `groups`, `null` for a top-level group.
+    /// The GUID of the group that lists this group in its `groups`, the `guid` of another
+    /// `resourceGroups` entry; `null` for a top-level group. It is the direct parent: the groups
+    /// form a forest of unfixed depth, so follow it with a guard against cycles.
     pub(crate) parent_guid: Option<CatalogGuid>,
 }
 

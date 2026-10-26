@@ -42,6 +42,7 @@ pub const HAIR_TINT_COLOR: u32 = 0xa2c7_c909;
 #[cfg(test)]
 mod tests {
     use super::{lowered_hash, name_hash, skin_attachment};
+    use crate::DNA_MAGIC;
 
     #[test]
     fn the_port_and_material_hashes_of_the_default_character_are_reproduced() {
@@ -49,6 +50,29 @@ mod tests {
         assert_eq!(lowered_hash("Hair_ItemPort"), 325_065_365);
         assert_eq!(lowered_hash("shader_eyeInner"), 2_359_193_884);
         assert_eq!(name_hash("DyeAmount"), 1_257_685_338);
+    }
+
+    #[test]
+    fn the_dna_magic_and_the_rig_gender_hashes_are_crc32c_of_their_names() {
+        assert_eq!(crc32c::crc32c(b"dna matrix 1.0"), DNA_MAGIC);
+        assert_eq!(name_hash("protos_human_male_face_t1_pu"), 0xdd6c_67f6);
+        assert_eq!(name_hash("protos_human_female_face_t1_pu"), 0x9ef4_eb54);
+    }
+
+    #[test]
+    fn the_crc32_and_crc32c_of_a_port_name_differ() {
+        assert_ne!(
+            lowered_hash("head_itemport"),
+            crc32fast::hash(b"head_itemport")
+        );
+        assert_eq!(
+            skin_attachment("HAIR_ITEMPORT"),
+            skin_attachment("hair_itemport")
+        );
+        assert_eq!(
+            skin_attachment("hair_itemport"),
+            crc32fast::hash(b"hair_itemport_skinitemport")
+        );
     }
 
     #[test]

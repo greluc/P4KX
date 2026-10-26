@@ -239,6 +239,20 @@ fn a_filter_lists_a_backfilled_commodity_only_when_its_record_path_matches() -> 
 }
 
 #[test]
+fn a_filter_matching_both_paths_lists_the_quantizations_and_their_backfilled_commodities()
+-> TestResult {
+    let filter = Filter::new("libs/foundry/records/*");
+    let (_, catalog) = build(Some(&filter))?;
+    assert_eq!(class_names(&catalog).len(), 4);
+    let mut found = commodity_subtypes(&catalog);
+    found.sort_unstable();
+    let mut expected = [ORE_GOLD, SHARED_GOLD, TWO_PROPERTIES, ORE_IRON].map(guid);
+    expected.sort_unstable();
+    assert_eq!(found, expected);
+    Ok(())
+}
+
+#[test]
 fn the_library_reads_the_quantizations_with_their_links() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive =

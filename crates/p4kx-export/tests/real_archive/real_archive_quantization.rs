@@ -62,6 +62,7 @@ fn the_quality_quantizations_of_a_real_archive_link_to_resource_types() -> TestR
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
     let mut unlinked = Vec::new();
+    let mut linked: HashSet<String> = HashSet::new();
     let (mut links, mut exported) = (0_usize, 0_usize);
     for quantization in entries {
         let name = quantization["className"].as_str().ok_or("a className")?;
@@ -96,6 +97,7 @@ fn the_quality_quantizations_of_a_real_archive_link_to_resource_types() -> TestR
                 .ok_or_else(|| format!("{name}: {text} is no Record"))?;
             assert_eq!(record.type_name()?, "ResourceType", "{name}: {text}");
             links += 1;
+            linked.insert(text.to_owned());
             exported += usize::from(commodities.contains(text));
         }
     }
@@ -106,6 +108,14 @@ fn the_quality_quantizations_of_a_real_archive_link_to_resource_types() -> TestR
     ));
     assert!(links >= 40, "the ResourceTypes link: {links}");
     assert_eq!(exported, links, "every linked ResourceType is a commodity");
+    assert!(
+        built
+            .summary()
+            .failures()
+            .iter()
+            .all(|failure| !linked.contains(&failure.guid.to_string())),
+        "no linked ResourceType is a failure"
+    );
     let summary = built.summary().quantizations();
     assert_eq!(summary.unused, unlinked.len(), "the unused Records");
     assert_eq!(

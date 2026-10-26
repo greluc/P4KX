@@ -41,8 +41,9 @@ use crate::{
 /// class is read from the `Class:` line of its English description, a commodity's missing texts
 /// from its `ResourceType` Record, and a blueprint's ingredients from the costs of its first
 /// tier. A ship's and an item's [`Playability`](crate::Playability) is decided by structural
-/// rules (`docs/basetool-catalog.md`). A `ResourceType` Record that a cost of any tier uses and no
-/// commodity Record carries becomes a commodity of its own. A resource group takes its parent from
+/// rules (`docs/basetool-catalog.md`). A `ResourceType` Record that a cost of any tier or a kept
+/// quality quantization uses and no commodity Record carries becomes a commodity of its own. A
+/// resource group takes its parent from
 /// the group that lists it, a blueprint category only its Record. Entities are ordered by the
 /// text of their GUID, so equal input and export time give byte-identical JSON. A selected
 /// Record that cannot be read is left out and listed in

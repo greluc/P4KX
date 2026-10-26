@@ -102,6 +102,8 @@ mod model_viewer_playback;
 mod model_viewer_render;
 mod model_viewer_skin_render;
 mod model_window;
+#[path = "../support/node_text.rs"]
+mod node_text;
 mod preview;
 mod preview_scrolling;
 mod previewing_records;

@@ -10,7 +10,7 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::Queryable;
 use p4kx_extraction::{Archive, Entry, Filter};
 use p4kx_gui::{
     Browser, EntryIndex, ExtractionScope, Language, Model, RecordTree, RecordTreeStatus, Sort,
@@ -19,6 +19,7 @@ use p4kx_gui::{
 use p4kx_testkit::{assert_steady_frames, real_archive_path};
 
 use crate::frame_steps::step_into;
+use crate::node_text::node_text;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -124,7 +125,7 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
         step_into(&mut sorting, &mut harness);
     }
     harness.hover_at(egui::pos2(800.0, 450.0));
-    let first_row = top_row_name(&harness);
+    let first_row = top_row_name(&harness)?;
     let mut frames = Vec::new();
     for _ in 0..20 {
         harness.event(egui::Event::MouseWheel {
@@ -137,7 +138,7 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
         step_into(&mut frames, &mut harness);
     }
     harness.run_steps(2);
-    assert_ne!(top_row_name(&harness), first_row, "the table scrolled");
+    assert_ne!(top_row_name(&harness)?, first_row, "the table scrolled");
     assert_steady_frames("sorting", &sorting, FRAME_LIMIT, FRAME_CEILING);
     assert_steady_frames("scrolling", &frames, FRAME_LIMIT, FRAME_CEILING);
     Ok(())
@@ -390,9 +391,10 @@ fn opened(with_key: bool) -> Result<Harness<'static, Model>, Box<dyn Error>> {
     Ok(harness)
 }
 
-fn top_row_name(harness: &Harness<'_, Model>) -> Option<String> {
+fn top_row_name(harness: &Harness<'_, Model>) -> Result<String, Box<dyn Error>> {
     harness
-        .get_all_by_label_contains("Select ")
-        .filter_map(|node| node.accesskit_node().label())
-        .find(|label| !label.starts_with("Select all"))
+        .query_all_by_role(egui::accesskit::Role::CheckBox)
+        .filter_map(|node| node_text(&node))
+        .find(|label| label.starts_with("Select ") && !label.starts_with("Select all"))
+        .ok_or_else(|| "no row of the table is shown".into())
 }

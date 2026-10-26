@@ -114,6 +114,23 @@ impl NameTable {
         true
     }
 
+    /// Adds the names of `other` this table lacks, within the limit of [`MAX_NAMES`] a kind.
+    pub fn merge(&mut self, other: &Self) {
+        let join = |into: &mut HashMap<u32, String>, from: &HashMap<u32, String>| {
+            for (hash, name) in from {
+                if into.len() >= MAX_NAMES {
+                    break;
+                }
+                into.entry(*hash).or_insert_with(|| name.clone());
+            }
+        };
+        join(&mut self.ports, &other.ports);
+        join(&mut self.attachments, &other.attachments);
+        join(&mut self.sub_materials, &other.sub_materials);
+        join(&mut self.params, &other.params);
+        join(&mut self.rigs, &other.rigs);
+    }
+
     /// Returns the name of the item port with the hash `hash`.
     #[must_use]
     pub fn port(&self, hash: u32) -> Option<&str> {

@@ -439,6 +439,12 @@ Early development (milestone M1). Available today:
   [docs/chf-hashes.md](docs/chf-hashes.md). A hash that a known name matches gets that name in a
   `*_label` key beside it (`from-json` ignores the keys), `--archive` adds the names the Archive
   knows, and the hashes without a name are counted.
+- `p4kx chf diff <a.chf> <b.chf> [--format text|json] [--archive <Data.p4k>]` lists the fields in
+  which two CHF files differ, by path with the old and the new value: header, DNA by face part and
+  blend, item port tree, and materials down to textures, float and colour parameters. Hashes that
+  a known name matches are shown as names; the raw path keeps them. It finds which field a control
+  of the character customiser changes. Exit code 0 whether or not the files differ; the JSON is
+  described in [docs/cli-json.md](docs/cli-json.md#p4kx-chf-diff-achf-bchf---json).
 - `p4kx chf glb <archive> <file> --out <file>` exports the head of a CHF character as one skinned
   GLB: the head skin of the character's head rig, its vertices moved by the character's face DNA
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by

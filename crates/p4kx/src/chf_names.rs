@@ -28,6 +28,28 @@ pub(crate) fn names_for(archive: Option<&Path>, chf: &Chf) -> Result<NameTable> 
     ))
 }
 
+/// Returns the names of the built-in table, extended with those the Archive at `archive` knows
+/// for the hashes of any of `chfs`; the Archive is opened once.
+pub(crate) fn names_for_all(archive: Option<&Path>, chfs: &[&Chf]) -> Result<NameTable> {
+    let Some(path) = archive else {
+        return Ok(NameTable::builtin());
+    };
+    let archive = crate::key::open(path)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let models = ArchiveModels::new(&archive);
+    let mut table = NameTable::builtin();
+    for chf in chfs {
+        table.merge(&archive_names(
+            &chf.character,
+            &mut ForgeItems::new(&mut resolver),
+            &models,
+        ));
+    }
+    Ok(table)
+}
+
 /// Returns the hashes as `0x` and eight hexadecimal digits each.
 pub(crate) fn hex_list(hashes: &[u32]) -> Vec<String> {
     hashes.iter().map(|hash| format!("{hash:#010x}")).collect()

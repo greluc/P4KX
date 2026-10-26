@@ -83,6 +83,7 @@ pub(crate) fn run(args: &ChfArgs, as_json: bool) -> Result<()> {
             to_json(file, out.as_deref(), archive.as_deref(), as_json)
         }
         ChfAction::FromJson { file, out } => from_json(file, out, as_json),
+        ChfAction::Diff(args) => crate::chf_diff::run(args, as_json),
         ChfAction::Glb(args) => crate::chf_glb::run(args, as_json),
     }
 }

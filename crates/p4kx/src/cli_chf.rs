@@ -47,6 +47,15 @@ pub(crate) enum ChfAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
     },
+    /// Lists the fields in which two CHF character files differ, by path with the old and the new
+    /// value: the header (flags, versions, body type, voice), the face DNA by part and blend, the
+    /// item port tree, and the materials down to textures, float and colour parameters. A hash
+    /// that a known name matches is shown as the name, and `--archive` adds the names the Archive
+    /// knows; the raw path of each change keeps the hashes. Ports, materials and parameters are
+    /// paired by hash, so a different order is no difference, and the compressed container is
+    /// not compared. Exits with code 0 whether or not the files differ.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Diff(ChfDiffArgs),
     /// Writes the head of a CHF character as one skinned glTF 2.0 binary file (GLB): the head
     /// skin of the character's head rig, its vertices moved by the character's face DNA into the
     /// character's neutral face, worn on the default body of the character's body variant (the
@@ -65,6 +74,30 @@ pub(crate) enum ChfAction {
     /// Archive; a character without face DNA or for an unknown head rig is invalid input.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(ChfGlbArgs),
+}
+
+/// The output formats of `p4kx chf diff --format`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub(crate) enum ChfDiffFormat {
+    /// One line per change.
+    Text,
+    /// One line of JSON, as `--json`.
+    Json,
+}
+
+/// Arguments of `p4kx chf diff`.
+#[derive(Debug, Args)]
+pub(crate) struct ChfDiffArgs {
+    /// The first CHF file, the old side.
+    pub(crate) a: PathBuf,
+    /// The second CHF file, the new side.
+    pub(crate) b: PathBuf,
+    /// How to print the changes.
+    #[arg(long, value_enum, value_name = "FORMAT", default_value_t = ChfDiffFormat::Text)]
+    pub(crate) format: ChfDiffFormat,
+    /// Reads more names from this Data.p4k Archive, as `to-json` does.
+    #[arg(long, value_name = "ARCHIVE")]
+    pub(crate) archive: Option<PathBuf>,
 }
 
 /// The material modes of `p4kx chf glb --materials`.

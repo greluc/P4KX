@@ -17,6 +17,7 @@ mod catalog_size;
 mod channels;
 mod character_package;
 mod chf;
+mod chf_diff;
 mod chf_glb;
 mod chf_names;
 mod chunks;

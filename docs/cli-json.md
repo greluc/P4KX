@@ -2107,6 +2107,46 @@ all the same. An unknown NAME exits with code 2. `p4kx armour glb` takes the sam
 with code 2, a file that is no CHF with code 3, a missing skeleton with code 3, an Archive key that
 is missing or wrong with code 7, and an `--out` that is the Archive with code 2.
 
+## `p4kx chf diff <a.chf> <b.chf> --json`
+
+`--json` and `--format json` print the same one line:
+
+```json
+{"a": "…/a.chf", "b": "…/b.chf", "identical": false,
+ "changes": [{"path": "dna.face_parts.neck.blends[2].value",
+              "raw_path": "dna.face_parts.neck.blends[2].value", "old": "12002", "new": "12102"},
+             {"path": "item_ports.head_itemport", "raw_path": "item_ports.0x4705ee39",
+              "old": "item 1f0e…", "new": null}]}
+```
+
+`changes` is empty and `identical` true when the two files hold the same Character, in the same
+order of every list, with the same header flags; the compressed frame and the padding of the
+container are not compared. `identical` false is the exit code 1, true the exit code 0. Each change is
+one field, in the order of the CHF JSON: `container.flags`, `versions`, `body_type`, `voice`,
+`dna` (`gender_hash`, `variant_hash`, `blends_per_part`, `header_unknown`, `max_head_id`, then
+`face_parts.<part>.blends[<n>].value` and `.head_id`), `item_port_tail`, `item_ports` (the root's
+`port`, `item` and `tail_count`, then the children by port) and `materials.<attachment>`
+(`base_material`, `flags`, `sub_materials.<name>` with `textures.<slot>.texture`,
+`floats.<name>.value` and `colors.<name>.rgba`). `path` spells out every hash that a known name
+matches (`--archive` adds names, as for `to-json`); `raw_path` keeps the hashes as `0x` and eight
+hexadecimal digits and does not depend on the names known. A second item with the same hash in
+one list gets `#1`, `#2` and so on behind its hash (for a texture behind its slot); equal items
+are paired first, the rest in order, so `[A(x), A(y)]` against `[A(y)]` is one removal of `A(x)`.
+`old` and `new` are text: numbers in decimal,
+hashes and flags in hexadecimal, GUIDs as DataForge prints them, a colour as `#rrggbbaa`, a float
+as written by Rust (a non-finite one with its bits). A field, item or sub-tree that only one file
+has is one change with `old` or `new` `null`, holding `item <GUID>` and the number of its child
+ports for a port, `base material <GUID>` and the number of sub-materials for a material, the
+counts of textures, floats and colours for a sub-material, the value for a texture, float or
+colour, and `present` for the DNA or a face part. Ports, materials, sub-materials, parameters and
+textures (by slot) are paired by hash, so an insertion is one change, not a shift. Items that both
+files hold in another order give one change `order` at their list (`item_ports.<port>.order`,
+`materials.order`, `materials.<attachment>.sub_materials.order`, and `.textures.order`,
+`.floats.order`, `.colors.order` below a sub-material) with the labels in the old and in the new
+order; the order of face parts and blends is their meaning and is compared by position. The exit
+code is 1 when the files differ (`identical` false) and 0 when not, as for `compare`; a file that
+is no CHF exits with 3.
+
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 
 ```json

@@ -135,7 +135,7 @@ fn interior_item<'a>(
         drawn: part.model().map(|model| Drawn {
             model,
             materials: part.materials(),
-            palette: None,
+            palette: part.palette(),
             label: part.name(),
         }),
         light,

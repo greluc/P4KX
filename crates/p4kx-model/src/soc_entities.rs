@@ -7,6 +7,7 @@ use thiserror::Error;
 
 use crate::Transform;
 use crate::mtl_xml::XmlElement;
+use crate::soc_geometry::{EntityGeometry, read_geometry};
 use crate::soc_light::{SocLight, read_light};
 
 const ENTITIES: ChunkType = ChunkType::new(Container::CrCh, 0x0004);
@@ -58,13 +59,47 @@ pub struct SocProp {
     /// The transform from the prop's space to the container's, in `CryEngine` coordinates, Z up
     /// and in metres.
     pub transform: Transform,
+    /// The material library the entity chooses (`Material` of its geometry), a path below `Data`
+    /// as the file spells it, or `None` when it names none.
+    pub material: Option<String>,
+    /// The tint palette the entity chooses (`Palette` of its geometry), or `None` when it names
+    /// none.
+    pub palette: Option<SocPalette>,
+}
+
+/// The tint palette an entity of a `.soc` file chooses: the `TintPaletteRef` of its geometry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SocPalette {
+    /// The GUID of the `TintPaletteTree` Record as the file spells it.
+    pub root: String,
+    /// The path of the child palette below the Record's root; empty for the root.
+    pub child: String,
+}
+
+/// An entity of a `.soc` file that names the Record of its class (`EntityClassGUID`) and no
+/// geometry of its own: its geometry may come from that Record.
+#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+pub struct SocClassEntity {
+    /// The entity's name.
+    pub name: String,
+    /// The GUID of the entity's class Record as the file spells it.
+    pub class: String,
+    /// The transform from the entity's space to the container's, or `None` when its position,
+    /// rotation or scale is not usable.
+    pub transform: Option<Transform>,
+    /// The material library the entity chooses itself, which replaces that of its class Record.
+    pub material: Option<String>,
+    /// The tint palette the entity chooses itself, which replaces that of its class Record.
+    pub palette: Option<SocPalette>,
 }
 
 /// The props and lights a `.soc` file places: its entity chunk (`CrCh` type `0x0004`, `CryXmlB`).
 ///
-/// Entities that name no geometry of their own and are no lights, e.g. audio triggers, rooms,
-/// and entities whose geometry comes from their class Record, are only counted in
-/// [`other`](Self::other).
+/// Entities that name no geometry of their own and are no lights, e.g. audio triggers and rooms,
+/// are only counted in [`other`](Self::other); those that name a class Record are listed in
+/// [`classed`](Self::classed) for the caller to look the geometry up.
 #[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct SocEntities {
@@ -72,7 +107,9 @@ pub struct SocEntities {
     pub props: Vec<SocProp>,
     /// The lights in file order; the lights of a light group follow the group's position.
     pub lights: Vec<SocLight>,
-    /// The number of entities that are neither a prop nor a light.
+    /// The entities without geometry of their own that name a class Record, lights excluded.
+    pub classed: Vec<SocClassEntity>,
+    /// The number of entities that are neither a prop, a light nor in [`classed`](Self::classed).
     pub other: usize,
     /// The number of props and lights left out because their transform or parameters are not
     /// usable.
@@ -100,6 +137,7 @@ impl SocEntities {
                 Some(mut first) => {
                     first.props.append(&mut chunk.props);
                     first.lights.append(&mut chunk.lights);
+                    first.classed.append(&mut chunk.classed);
                     first.other += chunk.other;
                     first.invalid += chunk.invalid;
                     for (what, count) in
@@ -111,6 +149,12 @@ impl SocEntities {
                                 limit: MAX_SOC_PLACED,
                             });
                         }
+                    }
+                    if first.classed.len() > MAX_SOC_ENTITIES {
+                        return Err(SocEntitiesError::TooMany {
+                            what: "entities",
+                            limit: MAX_SOC_ENTITIES,
+                        });
                     }
                     first
                 }
@@ -208,26 +252,69 @@ fn read_entity<'a>(
     let name = entity.attribute("Name").unwrap_or_default();
     let before = (out.props.len(), out.lights.len(), out.invalid);
     let transform = entity_transform(entity);
-    if let Some(path) = geometry_path(entity) {
-        match transform {
-            Some(transform) => {
-                if out.props.len() >= MAX_SOC_PLACED {
-                    return Err(SocEntitiesError::TooMany {
-                        what: "props",
-                        limit: MAX_SOC_PLACED,
-                    });
-                }
-                out.props.push(SocProp {
-                    name: name.to_owned(),
-                    model: path.to_owned(),
-                    transform,
-                });
-            }
-            None => out.invalid += 1,
-        }
-        return Ok(());
-    }
     let class = entity.attribute("EntityClass").unwrap_or_default();
+    let geometry = read_geometry(entity);
+    let own = geometry
+        .as_ref()
+        .and_then(|found| found.path.map(|path| (path, found)));
+    if let Some((path, found)) = own {
+        push_prop(out, name, path, found, transform)?;
+    }
+    let classed = match entity.attribute("EntityClassGUID") {
+        Some(guid) if own.is_none() && !class.eq_ignore_ascii_case("Light") => {
+            out.classed.push(SocClassEntity {
+                name: name.to_owned(),
+                class: guid.trim().to_owned(),
+                transform,
+                material: geometry
+                    .as_ref()
+                    .and_then(|found| found.material.map(str::to_owned)),
+                palette: geometry.and_then(|found| found.palette),
+            });
+            true
+        }
+        _ => false,
+    };
+    read_lights(entity, (name, class), transform, out)?;
+    if !classed && (out.props.len(), out.lights.len(), out.invalid) == before {
+        out.other += 1;
+    }
+    Ok(())
+}
+
+fn push_prop(
+    out: &mut SocEntities,
+    name: &str,
+    path: &str,
+    geometry: &EntityGeometry<'_>,
+    transform: Option<Transform>,
+) -> Result<(), SocEntitiesError> {
+    let Some(transform) = transform else {
+        out.invalid += 1;
+        return Ok(());
+    };
+    if out.props.len() >= MAX_SOC_PLACED {
+        return Err(SocEntitiesError::TooMany {
+            what: "props",
+            limit: MAX_SOC_PLACED,
+        });
+    }
+    out.props.push(SocProp {
+        name: name.to_owned(),
+        model: path.to_owned(),
+        transform,
+        material: geometry.material.map(str::to_owned),
+        palette: geometry.palette.clone(),
+    });
+    Ok(())
+}
+
+fn read_lights<'a>(
+    entity: impl XmlElement<'a>,
+    (name, class): (&str, &str),
+    transform: Option<Transform>,
+    out: &mut SocEntities,
+) -> Result<(), SocEntitiesError> {
     if class.eq_ignore_ascii_case("Light") {
         if let Some(component) =
             child(entity, "PropertiesDataCore").and_then(|data| child(data, "EntityComponentLight"))
@@ -248,9 +335,6 @@ fn read_entity<'a>(
             let own = light.attribute("Name").unwrap_or(name);
             push_light(out, own, Some(name), transform, component, relative)?;
         }
-    }
-    if (out.props.len(), out.lights.len(), out.invalid) == before {
-        out.other += 1;
     }
     Ok(())
 }
@@ -287,13 +371,4 @@ fn relative_transform<'a>(element: impl XmlElement<'a>) -> Option<Transform> {
     let rotation = numbers::<4>(element.attribute("rotation"))?;
     let translation = numbers::<3>(element.attribute("translation"))?;
     Transform::from_quaternion(rotation, translation)
-}
-
-fn geometry_path<'a, E: XmlElement<'a>>(entity: E) -> Option<&'a str> {
-    let mut node = child(entity, "PropertiesDataCore")?;
-    node = child(node, "EntityGeometryResource")?;
-    for _ in 0..3 {
-        node = child(node, "Geometry")?;
-    }
-    node.attribute("path").filter(|path| !path.is_empty())
 }

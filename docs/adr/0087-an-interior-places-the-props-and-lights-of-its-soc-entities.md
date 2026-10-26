@@ -1,8 +1,10 @@
 # An Interior places the props and lights of its .soc entities
 
-Decided for issue #137. Builds on ADR-0081. Evidence: LIVE socpak of the RSI Mantis body (21 props,
-46 lights written, 6 planar lights reported, 1.3 s) and of the Idris front (1 prop, 12 planar
-lights reported).
+Decided for issue #137. Builds on ADR-0081. Amended by ADR-0199: props from class Records, tint
+palettes, the material a prop names, lights of prop entities and the light frame of a node with
+children; the stored light colour is linear, not sRGB. Evidence: LIVE socpak of the RSI Mantis
+body (21 props, 46 lights written, 6 planar lights reported, 1.3 s) and of the Idris front (1 prop,
+12 planar lights reported).
 
 ## Decision
 

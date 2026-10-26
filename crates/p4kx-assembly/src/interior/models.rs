@@ -7,9 +7,11 @@ use std::sync::Arc;
 use p4kx_model::{Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use super::walk::Walked;
+use super::classes::ClassLookup;
+use super::walk::{Placement, Walked};
 use super::{InteriorOptions, InteriorPart, InteriorProgress, InteriorWatch};
 use crate::build::{file_key, library_key_of};
+use crate::build_palettes::Palettes;
 use crate::{ArchiveModels, AssemblyError, Issue, IssueKind, ModelFailure, ModelProvider};
 
 /// The most distinct model files read at once before the vertex budget is checked again.
@@ -40,6 +42,7 @@ pub(super) fn attach(
     walked: &mut Walked<'_>,
     options: &InteriorOptions,
     watch: &InteriorWatch<'_>,
+    classes: Option<&dyn ClassLookup>,
 ) -> Result<(), AssemblyError> {
     let providers: Vec<ArchiveModels<'_>> = (0..walked.layers.len())
         .filter_map(|layer| walked.layers.get(layer))
@@ -54,11 +57,13 @@ pub(super) fn attach(
         }
     }
     let outcomes = read_models(&files, &providers, (options, watch))?;
-    let libraries = read_libraries(&outcomes, &providers, watch)?;
+    let chosen = chosen_libraries(&walked.placements, &resolved, &outcomes);
+    let libraries = read_libraries(&outcomes, &chosen, &providers, watch)?;
     let mut fill = Fill {
         outcomes,
         libraries,
         unnamed: Arc::new(MaterialStatus::Unnamed),
+        palettes: Palettes::new(classes.map(ClassLookup::palettes)),
         max_vertices: options.max_vertices,
         reported: HashSet::new(),
         issues: Vec::new(),
@@ -68,11 +73,7 @@ pub(super) fn attach(
             return Err(AssemblyError::Cancelled);
         }
         if let Some(part) = walked.parts.get_mut(placement.part) {
-            fill.part(
-                part,
-                &placement.container,
-                found.as_ref().map(|(key, _)| key),
-            );
+            fill.part(part, placement, found.as_ref().map(|(key, _)| key));
         }
     }
     walked.issues.extend(fill.issues);
@@ -80,16 +81,17 @@ pub(super) fn attach(
 }
 
 /// The models and libraries that were read, and the issues found while handing them to parts.
-struct Fill {
+struct Fill<'p> {
     outcomes: HashMap<Key, Outcome>,
     libraries: HashMap<Key, Arc<MaterialStatus>>,
     unnamed: Arc<MaterialStatus>,
+    palettes: Palettes<'p>,
     max_vertices: usize,
     reported: HashSet<(String, String)>,
     issues: Vec<Issue>,
 }
 
-impl Fill {
+impl Fill<'_> {
     fn note(&mut self, container: &str, name: &str, kind: IssueKind) {
         if self
             .reported
@@ -103,7 +105,8 @@ impl Fill {
         }
     }
 
-    fn part(&mut self, part: &mut InteriorPart, container: &str, key: Option<&Key>) {
+    fn part(&mut self, part: &mut InteriorPart, placement: &Placement, key: Option<&Key>) {
+        let container: &str = &placement.container;
         let path = part.model_path.clone().unwrap_or_default();
         let name = part.name.clone();
         let Some(key) = key else {
@@ -113,11 +116,18 @@ impl Fill {
         let kind = match self.outcomes.get(key) {
             Some(Outcome::Loaded(loaded)) => {
                 part.model = Some(Arc::clone(&loaded.model));
-                let library = library_key(key.0, loaded);
+                let library = library_key(key.0, loaded, placement.library.as_deref());
                 part.materials = library
                     .as_ref()
                     .and_then(|key| self.libraries.get(key))
                     .map_or_else(|| Arc::clone(&self.unnamed), Arc::clone);
+                let (palette, palette_issues) = self
+                    .palettes
+                    .of_named(placement.palette.as_ref(), &part.materials);
+                part.palette = palette;
+                for kind in palette_issues {
+                    self.note(container, &name, kind);
+                }
                 let problem = part
                     .materials
                     .problem()
@@ -254,28 +264,59 @@ fn read_models(
     Ok(outcomes)
 }
 
-fn library_key(layer: usize, loaded: &Loaded) -> Option<Key> {
-    let name = loaded.model.material_library.as_deref()?;
+/// Returns the key of the library a part draws with: `chosen`, the one its entity or class Record
+/// names, else the one its model names.
+fn library_key(layer: usize, loaded: &Loaded, chosen: Option<&str>) -> Option<Key> {
+    let name = chosen.or(loaded.model.material_library.as_deref())?;
     Some((layer, library_key_of(name, &loaded.entry)))
+}
+
+/// Returns the libraries the placements choose themselves, for the models that were read.
+fn chosen_libraries<'a>(
+    placements: &'a [Placement],
+    resolved: &[Option<(Key, String)>],
+    outcomes: &'a HashMap<Key, Outcome>,
+) -> Vec<(Key, &'a str, &'a str)> {
+    placements
+        .iter()
+        .zip(resolved)
+        .filter_map(|(placement, found)| {
+            let name = placement.library.as_deref()?;
+            let (key, _) = found.as_ref()?;
+            let Some(Outcome::Loaded(loaded)) = outcomes.get(key) else {
+                return None;
+            };
+            Some((
+                library_key(key.0, loaded, Some(name))?,
+                loaded.entry.as_str(),
+                name,
+            ))
+        })
+        .collect()
 }
 
 fn read_libraries(
     outcomes: &HashMap<Key, Outcome>,
+    chosen: &[(Key, &str, &str)],
     providers: &[ArchiveModels<'_>],
     watch: &InteriorWatch<'_>,
 ) -> Result<HashMap<Key, Arc<MaterialStatus>>, AssemblyError> {
     let mut seen = HashSet::new();
-    let wanted: Vec<(Key, &str, &str)> = outcomes
-        .iter()
-        .filter_map(|(key, outcome)| match outcome {
-            Outcome::Loaded(loaded) => {
-                let library = library_key(key.0, loaded)?;
-                let name = loaded.model.material_library.as_deref()?;
-                seen.insert(library.clone())
-                    .then_some((library, loaded.entry.as_str(), name))
-            }
-            _ => None,
-        })
+    let named = outcomes.iter().filter_map(|(key, outcome)| match outcome {
+        Outcome::Loaded(loaded) => {
+            let library = library_key(key.0, loaded, None)?;
+            let name = loaded.model.material_library.as_deref()?;
+            Some((library, loaded.entry.as_str(), name))
+        }
+        _ => None,
+    });
+    let wanted: Vec<(Key, &str, &str)> = named
+        .chain(
+            chosen
+                .iter()
+                .map(|(key, entry, name)| (key.clone(), *entry, *name)),
+        )
+        .filter(|(key, _, _)| seen.insert(key.clone()))
         .collect();
     let libraries = wanted
         .par_iter()

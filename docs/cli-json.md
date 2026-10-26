@@ -425,8 +425,12 @@ container, the `.soc` files, the nested containers, the placed models, the props
 `containers_opened` the containers that were opened, the root included; `model_parts` the placed
 models and props, `modelled_parts` those whose model was read, `props` the props among the model
 parts and `lights` the lights written with `KHR_lights_punctual`; their intensity is the raw
-engine value and their colour an approximation, not a conversion to photometric units
-([ADR-0087](adr/0087-an-interior-places-the-props-and-lights-of-its-soc-entities.md)). The other
+engine value and their colour the stored linear one (with a colour temperature tinted by a black
+body), not a conversion to photometric units
+([ADR-0087](adr/0087-an-interior-places-the-props-and-lights-of-its-soc-entities.md),
+[ADR-0199](adr/0199-interior-props-from-class-records-and-linear-light-colours.md)). When the
+Archive has a DataForge, `props` also counts the entities whose geometry comes from their class
+Record, and the parts are drawn with their tint palettes. The other
 counts are those of `entity glb`. An
 **Issue** has the fields of the `entity glb` Issue: `path` is the names of the containers from the
 root joined by `/`, `name` the container, `.soc` file or model, and the kinds are
@@ -435,7 +439,8 @@ itself and not entered again), `file_missing`, `file_unreadable`, `invalid_place
 `objects_left_out`, `unsupported_objects`, `entities_left_out` (props or lights without a usable
 placement), `light_unsupported` (ambient, planar or unknown lights, which glTF cannot express; the
 `name` is the `.soc` file and the message gives the type and count), `geometry_missing`,
-`geometry_unreadable`, `material_library`, `too_many_parts`, `too_many_containers`,
+`geometry_unreadable`, `material_library`, `palette` (a tint palette that cannot be used; the
+part keeps the next choice), `too_many_parts`, `too_many_containers`,
 `too_many_vertices` and `too_deep`
 ([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.

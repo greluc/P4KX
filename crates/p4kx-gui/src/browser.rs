@@ -199,7 +199,7 @@ impl Browser {
                 direction: SortDirection::Ascending,
             }
         };
-        self.refresh_shown();
+        self.refresh_sorted();
     }
 
     /// Returns the ids of the shown Entries in table order; a split texture is one Entry, its
@@ -331,19 +331,36 @@ impl Browser {
     }
 
     fn refresh_shown(&mut self) {
-        self.refresh_view();
+        self.refresh_order();
+        self.refresh_counts();
         self.refresh_rows();
     }
 
-    fn refresh_view(&mut self) {
+    fn refresh_sorted(&mut self) {
+        self.refresh_order();
+        self.refresh_rows();
+    }
+
+    fn refresh_order(&mut self) {
         let Some(index) = self.pane().map(Arc::clone) else {
             self.shown.clear();
+            return;
+        };
+        let mut shown = std::mem::take(&mut self.shown);
+        match &self.matches {
+            Some(matches) => index.entries_matching_into(matches.mask(), self.sort, &mut shown),
+            None => index.entries_in_into(self.folder, self.sort, &mut shown),
+        }
+        self.shown = shown;
+    }
+
+    fn refresh_counts(&mut self) {
+        let Some(index) = self.pane().map(Arc::clone) else {
             self.view_len = 0;
             self.shown_checked_count = 0;
             return;
         };
         if let Some(matches) = &self.matches {
-            self.shown = index.entries_matching(matches.mask(), self.sort);
             self.view_len = matches.mask().iter().filter(|&&matched| matched).count();
             self.shown_checked_count = matches
                 .mask()
@@ -352,7 +369,6 @@ impl Browser {
                 .filter(|&(&matched, &checked)| matched && checked)
                 .count();
         } else {
-            self.shown = index.entries_in(self.folder, self.sort);
             let (mut len, mut checked) = (0, 0);
             for &id in &self.shown {
                 let parts = index.texture_parts(id);

@@ -200,6 +200,34 @@ fn sorting_by_size_uses_the_size_of_the_whole_texture() -> TestResult {
 }
 
 #[test]
+fn sorting_keeps_the_counts_and_the_expanded_parts() -> TestResult {
+    let (_folder, mut model) = opened()?;
+    let browser = browser(&mut model)?;
+    let wall = id_of(browser, "Data\\tex\\wall.dds")?;
+    browser.set_checked(wall, true);
+    browser.toggle_texture(wall);
+    let (len, checked, rows) = (
+        browser.view_len(),
+        browser.checked_count(),
+        browser.rows().len(),
+    );
+
+    for column in [SortColumn::Size, SortColumn::Size, SortColumn::Name] {
+        browser.sort_by(column);
+        assert_eq!(browser.view_len(), len);
+        assert_eq!(browser.checked_count(), checked);
+        assert_eq!(browser.hidden_checked_count(), 0);
+        assert_eq!(
+            browser.rows().len(),
+            rows,
+            "the parts stay below the header"
+        );
+        assert!(browser.is_texture_expanded(wall));
+    }
+    Ok(())
+}
+
+#[test]
 fn extracting_a_checked_texture_writes_all_its_parts() -> TestResult {
     let (folder, mut model) = opened()?;
     let wall = id_of(browser(&mut model)?, "Data\\tex\\wall.dds")?;

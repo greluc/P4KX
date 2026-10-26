@@ -6,6 +6,7 @@ use egui::{Align, Key, Layout, Ui, vec2};
 use super::search::{eyebrow, field, field_response};
 use crate::theme::desktop::TOOLBAR_PADDING;
 use crate::widgets::button::{self, Kind, Size};
+use crate::widgets::choice;
 use crate::{ListStatus, Model, SoundsStatus, SoundsText};
 
 enum Action {
@@ -120,7 +121,7 @@ fn languages(ui: &mut Ui, model: &Model) -> Option<Pick> {
         let mut chosen = None;
         for name in &info.languages {
             let active = current == Some(name.as_str());
-            if button::choice(ui, Size::Compact, name, active).clicked() {
+            if choice::choice(ui, Size::Compact, name, active).clicked() {
                 let is_default = info.default_language.as_deref() == Some(name.as_str());
                 chosen = Some(if is_default {
                     Pick::Default

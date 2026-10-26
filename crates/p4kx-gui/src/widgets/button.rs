@@ -251,19 +251,9 @@ pub(crate) fn button_laid(
     button_state(ui, (kind, size), (label, galley), (enabled, None))
 }
 
-/// Shows a ghost button of `size` with `label` that says whether it is `selected`, with the
-/// selected colours of the controls and the selected state for assistive technology.
-pub(crate) fn choice(ui: &mut Ui, size: Size, label: &str, selected: bool) -> Response {
-    let galley = label_galley(ui, size, label);
-    button_state(
-        ui,
-        (Kind::Ghost, size),
-        (label, galley),
-        (true, Some(selected)),
-    )
-}
-
-fn button_state(
+/// Shows a button as [`button_laid`] does; with `selected` it is a choice that says whether it is
+/// chosen: in the selected colours of the controls and as selected for assistive technology.
+pub(super) fn button_state(
     ui: &mut Ui,
     (kind, size): (Kind, Size),
     (label, galley): (&str, std::sync::Arc<egui::Galley>),
@@ -277,9 +267,11 @@ fn button_state(
         Sense::hover()
     };
     let (rect, response) = ui.allocate_exact_size(desired, sense);
-    response.widget_info(|| match selected {
-        Some(active) => WidgetInfo::selected(Role::Button, enabled, active, label),
-        None => WidgetInfo::labeled(Role::Button, enabled, label),
+    response.widget_info(|| {
+        selected.map_or_else(
+            || WidgetInfo::labeled(Role::Button, enabled, label),
+            |active| WidgetInfo::selected(Role::Button, enabled, active, label),
+        )
     });
     if !ui.is_rect_visible(rect) {
         return response;

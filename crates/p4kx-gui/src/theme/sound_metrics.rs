@@ -38,7 +38,7 @@ pub const SOUND_DURATION_COLUMN: f32 = 100.0;
 pub const SOUND_COLUMN_MIN: f32 = 80.0;
 /// The initial width of the name column of the trigger and sound tables of the Sounds tab.
 ///
-/// A name of forty characters, "Play_SC_Ship_Weapon_Ballistic_Fire_Heavy", in bold at the row
+/// A name of forty characters, `Play_SC_Ship_Weapon_Ballistic_Fire_Heavy`, in bold at the row
 /// font, 293.0 with the cell padding on both sides, rounded up. Longer names clip; the column is
 /// resizable.
 pub const SOUND_NAME_COLUMN: f32 = 294.0;

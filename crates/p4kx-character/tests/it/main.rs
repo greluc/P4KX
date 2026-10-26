@@ -7,6 +7,7 @@ mod chf;
 mod face_pose;
 mod json;
 mod limits;
+mod named_json;
 mod rig;
 mod rig_blend;
 mod rig_limits;

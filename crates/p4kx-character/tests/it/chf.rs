@@ -337,6 +337,7 @@ fn a_port_tree_nested_too_deep_is_rejected_on_read_and_write() -> TestResult {
     for _ in 0..40 {
         chf.character.item_ports = Some(ItemPort {
             port: 1,
+            label: p4kx_character::Label,
             item: Guid::default(),
             tail_count: 0,
             children: chf.character.item_ports.into_iter().collect(),

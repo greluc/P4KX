@@ -109,7 +109,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the category Record, `null` without one."
+          "description": "The GUID of the category Record, the `guid` of a `blueprintCategories` entry; `null`\nwithout a category or when its Record is a left-out leftover or unreadable."
         },
         "className": {
           "description": "The Record name without its type, e.g. `BP_CRAFT_behr_lmg_ballistic_01_mag`.",
@@ -486,7 +486,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, `null`\nwithout a `ResourceType` or a group."
+          "description": "The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType`, the\n`guid` of a `resourceGroups` entry; `null` without a `ResourceType` or a group."
         }
       },
       "required": [
@@ -2724,7 +2724,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the group that lists this group in its `groups`, `null` for a top-level group."
+          "description": "The GUID of the group that lists this group in its `groups`, the `guid` of another\n`resourceGroups` entry; `null` for a top-level group. It is the direct parent: the groups\nform a forest of unfixed depth, so follow it with a guard against cycles."
         },
         "recordPath": {
           "description": "The record path, without `.xml`.",

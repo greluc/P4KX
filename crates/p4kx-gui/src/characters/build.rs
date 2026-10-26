@@ -7,7 +7,8 @@ use std::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 use p4kx_assembly::character::Character;
 use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Armour, AssemblyError, AssemblyOptions, BodyVariant, Expressions,
-    ForgeItems, Head, LoadoutResolver, ModelFailure, ModelProvider, Piece, ProvidedModel, Replaced,
+    ForgeItems, ForgePalettes, Head, LoadoutResolver, ModelFailure, ModelProvider, Piece,
+    ProvidedModel, Replaced,
 };
 use p4kx_extraction::DataForge;
 use p4kx_extraction::model::MaterialStatus;
@@ -184,7 +185,9 @@ pub(super) fn run(
         shared,
     };
     let options = AssemblyOptions::default().with_lod(request.lod);
-    let armour = match Armour::build(request.variant, &pieces, &models, &options) {
+    let palettes = ForgePalettes::new(&forge);
+    let built = Armour::build_with_palettes(request.variant, &pieces, &models, &palettes, &options);
+    let armour = match built {
         Ok(armour) => armour,
         Err(_) if cancel.is_cancelled() => return Ended::Cancelled,
         Err(AssemblyError::Provider(error)) => return Ended::Failed(failure_of(index, &*error)),

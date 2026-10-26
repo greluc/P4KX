@@ -8,7 +8,7 @@ use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf};
 use p4kx_assembly::{
     AnimationFolders, ArchiveModels, Armour, AssemblyOptions, CharacterAnimations, Expressions,
-    ForgeItems, Head, IssueKind, LoadoutResolver, PartOrigin, character_animations,
+    ForgeItems, ForgePalettes, Head, IssueKind, LoadoutResolver, PartOrigin, character_animations,
 };
 use p4kx_extraction::{
     AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
@@ -143,7 +143,13 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
         .with_expressions(&expressions_of(args));
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
-    let armour = Armour::build(head.variant(), head.pieces(), &models, &options)?;
+    let armour = Armour::build_with_palettes(
+        head.variant(),
+        head.pieces(),
+        &models,
+        &ForgePalettes::new(&forge),
+        &options,
+    )?;
 
     let glb = glb_options(args);
     let name = head.variant().code().to_owned();

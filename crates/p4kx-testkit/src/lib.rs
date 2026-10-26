@@ -43,6 +43,7 @@ mod entity_livery;
 mod entity_loadout;
 mod entity_module_sample;
 mod entity_npc;
+mod entity_painted;
 mod entity_port;
 mod entity_sample;
 mod entity_schema;
@@ -156,6 +157,9 @@ pub use entity_module_sample::{ENTITY_MODULE_CARRIER, ENTITY_MODULE_CLASS, entit
 pub use entity_npc::{
     NPC_BROW_SKIN, NPC_CLASS, NPC_EYES_MATERIAL, NPC_FILES_CLASS, NPC_HAIR_BLONDE, NPC_HAIR_BROWN,
     NPC_HEAD_CLASS, NPC_HEAD_FLAGS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,
+};
+pub use entity_painted::{
+    PAINTED_LIBRARY_PALETTE, PAINTED_PALETTE_GUID, PAINTED_SUIT, painted_entries,
 };
 pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};

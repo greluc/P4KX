@@ -64,7 +64,7 @@ pub(crate) fn read<'f>(
     filter: Option<&Filter>,
     cancel: Option<&CancelToken>,
 ) -> Result<Missions<'f>, CatalogError> {
-    let rule = Kind::Contracts.rule();
+    let rule = Kind::Contracts.records();
     let records: Vec<Record<'f>> = forge
         .records()
         .filter(|record| {
@@ -142,7 +142,7 @@ fn piece<'f>(
     record: &Record<'f>,
     context: &Context<'_, 'f>,
 ) -> Result<Option<Piece<'f>>, DataForgeError> {
-    let rule = Kind::Contracts.rule();
+    let rule = Kind::Contracts.records();
     let path = record.record_path()?;
     if record.type_name()? != rule.type_name {
         return Ok(None);

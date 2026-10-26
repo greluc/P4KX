@@ -63,6 +63,9 @@ pub(crate) struct Item<'a> {
     #[serde(skip)]
     #[schemars(skip)]
     pub(crate) variant_key: Option<ItemKey<'a>>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) required_tags: Vec<&'a str>,
 }
 
 /// A paint: an item of the type `Paints` and the ships it fits.

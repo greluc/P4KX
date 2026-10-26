@@ -82,7 +82,7 @@ fn the_catalog_is_written_and_summarised() -> TestResult {
     assert_eq!(german.unresolved, 1, "DRAK has no German name");
     assert_eq!(summary.size_warning(), None, "small");
     let json: serde_json::Value = serde_json::from_slice(&fs::read(&file)?)?;
-    assert_eq!(json["schemaVersion"], 1, "a Basetool catalog");
+    assert_eq!(json["schemaVersion"], 2, "a Basetool catalog");
     assert_eq!(
         json["manufacturers"].as_array().map(Vec::len),
         Some(2),

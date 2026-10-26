@@ -51,7 +51,7 @@ fn check(record: &Record<'_>, options: &ShipBaseOptions<'_>) -> Result<Check, Ca
         if Kind::by_path(path) != Some(Kind::Ships) {
             return Ok(Check::Other);
         }
-        if record.type_name()? != Kind::Ships.rule().type_name {
+        if record.type_name()? != Kind::Ships.records().type_name {
             return Ok(Check::Other);
         }
         if options.filter.is_some_and(|filter| !filter.matches(path)) {

@@ -29,6 +29,10 @@ The rule is ADR-0054 (amending ADR-0002):
   handled by compression (`.json.zst`), not by a second Export. The Basetool accepts `.json`,
   `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload, the decompressed
   content is capped at 1 GB. The compressed form is described under "Compressed form" below.
+- **Version 2 (ADR-0161)** is breaking against version 1 in one respect: a paint also needs its own
+  `RequiredTags` offered by the port or the ship (see "Paints"), so `paints[].shipGuids` lists
+  fewer ships than version 1 did (40 fewer on LIVE 4.7). No field changed its name or type. The
+  Basetool import must accept version 2.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -86,7 +90,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 
 | Field | Meaning |
 |-------|---------|
-| `schemaVersion` | The version of the shape, now `1`; an import rejects a version it does not know |
+| `schemaVersion` | The version of the shape, now `2`; an import rejects a version it does not know |
 | `source.channel` | The Channel: the folder holding the Archive, e.g. `LIVE` |
 | `source.build` | `branch`, `version`, `changeNumber` and `buildId` from the build manifest, or `null` |
 | `source.build.publicPatch` | The public patch version, e.g. `4.7.2`, from the RSI Launcher log line `SC <CHANNEL> <version>-<tag>.<change>` (`<version>`: two or three dot-separated numbers, kept as logged) whose change equals `changeNumber`; `null` when the log has no such line (never guessed from a neighbouring one) |
@@ -776,14 +780,23 @@ accepts nothing. The paint ports of a ship are the union of:
   newer ships keep the port (e.g. the Paladin: `Paint_Paladin`);
 - the `ItemPort` elements of its vehicle implementation (`VehicleComponentParams.vehicleDefinition`)
   that take `Paints` (a child `Types/Type` of `type` `Paints`), with the Modification named by
-  `VehicleComponentParams.modification` applied. The implementation is read by`n  `p4kx_assembly::VehicleImplementation` after the rules of ADR-0050 (patch file, `Elem` entries
+  `VehicleComponentParams.modification` applied. The implementation is read by
+  `p4kx_assembly::VehicleImplementation` after the rules of ADR-0050 (patch file, `Elem` entries
   by id, fallback file names); the tags are the `requiredTags` the patched port has (the Omega
   variant of the Mustang requires `Paint_Omega` instead of `Paint_Mustang`).
 
-The `RequiredTags` of a paint and the `portTags` of a port are not compared: the Omega paint
-requires `Paint_Omega` while the port of the Omega still lists `Paint_Mustang`. A ship whose
-`modification` is empty keeps the base port, so the Idris-M fits the paints of the Idris-P (the
-game selects its Military paints elsewhere).
+The paint's own `AttachDef.RequiredTags` must be offered as well (ADR-0161): every tag in them is
+one of the `portTags` or `requiredTags` of the same port, or a tag of the ship Record's
+`AttachDef.Tags`, or has one of those below it in the tag tree. A paint without `RequiredTags`
+passes. The Omega paint requires `Paint_Omega`, which the patched port of the Omega requires while
+it still lists `Paint_Mustang` as its `portTags`. Measured on LIVE (4.7), the check removes 40
+assignments of four paints and no paint loses its last ship: the Hornet F7A Mk II desert paint
+(requires the `ANVL_Hornet_F7A_Mk2` ship tag) no longer fits ten F7C variants, the C8X Pisces
+Expedition paint no longer fits the eight C8 and C8R variants, and the two Cutlass Black paints
+that require `Paint_Cutlass_Black` no longer fit the eleven Red, Blue and Steel variants. A ship
+whose `modification` is empty keeps the base port, so the Idris-M still fits the paints of the
+Idris-P; the check does not change that, as the Idris paints require no tag of their own. The
+game selects the Military paints elsewhere.
 
 `p4kx catalog` counts the paints, those that fit a ship and those that fit none, the ships that
 have at least one paint and the ships whose vehicle implementation cannot be read, or whose patch file or Modification is
@@ -794,6 +807,13 @@ a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballis
 `Paint_Gladius_Default`, `Paint_Carrack_Default`, `Paint_Hurricane_Default`, the Vanguard
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
 both filtered, so a paint lists only ships the filter selected; both kinds are partial.
+
+The development leftovers among the paints (68 on LIVE) are counted as skipped in `paints` and in
+`items`, whose rule they follow; `p4kx catalog` shows the number in both lines, and the total of
+skipped Records adds up the kinds that select Records only, so it counts them once. The catalog build
+takes about 18 s on LIVE; deriving the paints takes well under 0.1 s of it, the ships' vehicle
+files being read once by the record scan for the ship base data and shared through one path
+index (`ArchiveFiles`). A cancelled build stops the derivation between two paints.
 
 ### Loadouts
 

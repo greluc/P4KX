@@ -96,28 +96,73 @@ fn the_glossiness_of_the_palette_gives_the_roughness_of_a_painted_material() -> 
     Ok(())
 }
 
-#[test]
-fn a_dark_tint_with_a_bright_specular_colour_stays_the_tint_and_is_no_plain_metal() -> TestResult {
+type Drawn = (Vec<[f32; 3]>, Vec<f32>);
+
+fn drawn_with(
+    name: &str,
+    tints: [f32; 2],
+    specular: f32,
+) -> Result<Drawn, Box<dyn std::error::Error>> {
     let model = read_cube()?;
     let status = library(&painted());
     let entry = |tint: f32| TintEntry {
         tint: [tint; 3],
-        specular: [0.8; 3],
+        specular: [specular; 3],
         glossiness: 102.0,
     };
-    let palette = TintPalette::new("dark", [entry(0.02), entry(0.03), entry(0.04)], [0.9; 3]);
-    let scene = two_parts(&model, &status, [Some(&palette), Some(&palette)])?;
+    let palette = TintPalette::new(
+        name,
+        [entry(tints[0]), entry(tints[1]), entry(0.04)],
+        [0.9; 3],
+    );
+    let (glb, _) = write(
+        &two_parts(&model, &status, [Some(&palette), Some(&palette)])?,
+        &GlbOptions::default(),
+        &Stub::default(),
+    )?;
+    let metallic = glb
+        .document
+        .materials()
+        .map(|material| material.pbr_metallic_roughness().metallic_factor())
+        .collect();
+    Ok((base_colours(&glb), metallic))
+}
 
-    let (glb, _) = write(&scene, &GlbOptions::default(), &Stub::default())?;
+#[test]
+fn a_palette_with_a_bright_specular_colour_paints_a_metal() -> TestResult {
+    let (colours, metallic) = drawn_with("bare metal", [0.02, 0.03], 0.6)?;
 
-    let colours = base_colours(&glb);
+    assert!(close(colours[0], [0.6; 3]), "primary metal: {colours:?}");
+    assert!(close(colours[1], [0.6; 3]), "secondary metal: {colours:?}");
+    assert!(
+        metallic.iter().all(|factor| *factor > 0.99),
+        "a bright palette specular colour is a metal: {metallic:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_palette_with_a_dull_specular_colour_paints_a_paint() -> TestResult {
+    let (colours, metallic) = drawn_with("dark paint", [0.02, 0.03], 0.05)?;
+
     assert!(close(colours[0], [0.02; 3]), "primary: {colours:?}");
     assert!(close(colours[1], [0.03; 3]), "secondary: {colours:?}");
     assert!(
-        glb.document
-            .materials()
-            .all(|material| material.pbr_metallic_roughness().metallic_factor() == 0.0),
-        "a paint is no metal"
+        metallic.iter().all(|factor| *factor == 0.0),
+        "a paint is no metal: {metallic:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_light_tint_with_a_bright_specular_colour_stays_paint() -> TestResult {
+    let (colours, metallic) = drawn_with("light paint", [0.8, 0.8], 0.6)?;
+
+    assert!(close(colours[0], [0.8; 3]), "light tint: {colours:?}");
+    assert!(close(colours[1], [0.8; 3]), "light tint: {colours:?}");
+    assert!(
+        metallic.iter().all(|factor| *factor == 0.0),
+        "a light tint is paint: {metallic:?}"
     );
     Ok(())
 }

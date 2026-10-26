@@ -107,6 +107,7 @@ def rig_glb() -> bytes:
         struct.pack("<2f", 0.0, 1.0),
         struct.pack("<8f", 0, 0, 0, 1, *QUARTER_TURN_Z),
         struct.pack("<2f", 0.0, 1.0),
+        struct.pack("<12f", *([1.0, 0.0, 1.0, 1.0] * 3)),
     ]
     binary = b"".join(blocks)
     views, offset = [], 0
@@ -128,14 +129,16 @@ def rig_glb() -> bytes:
                 "name": "Hero_mesh",
                 "primitives": [
                     {
-                        "attributes": {"POSITION": 0, "JOINTS_0": 1, "WEIGHTS_0": 2},
+                        "attributes": {"POSITION": 0, "JOINTS_0": 1, "WEIGHTS_0": 2, "COLOR_0": 8},
                         "targets": [{"POSITION": 3}],
+                        "material": 0,
                     }
                 ],
                 "weights": [0.0],
                 "extras": {"targetNames": ["smile"]},
             }
         ],
+        "materials": [{"name": "armour", "pbrMetallicRoughness": {"baseColorFactor": [0.1, 0.1, 0.1, 1.0]}}],
         "skins": [{"joints": [1, 2], "inverseBindMatrices": 4, "skeleton": 1}],
         "animations": [
             {
@@ -166,6 +169,7 @@ def rig_glb() -> bytes:
             },
             {"bufferView": 6, "componentType": 5126, "count": 2, "type": "VEC4"},
             {"bufferView": 7, "componentType": 5126, "count": 2, "type": "SCALAR"},
+            {"bufferView": 8, "componentType": 5126, "count": 3, "type": "VEC4"},
         ],
         "bufferViews": views,
         "buffers": [{"byteLength": len(binary)}],

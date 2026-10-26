@@ -123,8 +123,8 @@ def test_layered_tinted_material_blends_layers_by_the_blend_map() -> None:
 def test_the_second_layer_takes_the_palette_gloss_and_gloss_mult() -> None:
     graph = graph_of(load(), "x0001", "p0001")
     blend = next(n for n in graph.nodes if n.group == LAYER_BLEND)
-    assert blend.inputs["Roughness B"] == pytest.approx(1.0 - (100.0 / 255.0) * 0.8)
-    assert graph.linked(blend.key, "Roughness A") is not None
+    assert blend.inputs["Roughness A"] == pytest.approx(1.0 - (100.0 / 255.0) * 0.8)
+    assert graph.linked(blend.key, "Roughness B") is not None
 
 
 def test_layer_normal_and_smoothness_come_from_the_layer_texture() -> None:

@@ -15,14 +15,14 @@ use crate::selection::{Kind, KindRule};
 const ROOT: &str = "libs/foundry/records/crafting/";
 const DISMANTLE_PROCESS: &str = "GenericCraftingProcess_Dismantle";
 
-pub(crate) const DISMANTLES: KindRule = Kind::DismantleProcesses.rule();
-pub(crate) const PROPERTIES: KindRule = Kind::GameplayProperties.rule();
-pub(crate) const DISTRIBUTIONS: KindRule = Kind::QualityDistributions.rule();
+pub(crate) const DISMANTLES: KindRule = Kind::DismantleProcesses.records();
+pub(crate) const PROPERTIES: KindRule = Kind::GameplayProperties.records();
+pub(crate) const DISTRIBUTIONS: KindRule = Kind::QualityDistributions.records();
 pub(crate) const OVERRIDES: KindRule = KindRule {
     prefixes: DISTRIBUTIONS.prefixes,
     type_name: "CraftingQualityLocationOverrideRecord",
 };
-pub(crate) const POOLS: KindRule = Kind::BlueprintPools.rule();
+pub(crate) const POOLS: KindRule = Kind::BlueprintPools.records();
 pub(crate) const GLOBALS: KindRule = KindRule {
     prefixes: &["libs/foundry/records/crafting/globalparams/"],
     type_name: "CraftingGlobalParams",

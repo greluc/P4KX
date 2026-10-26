@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeSet, HashSet};
 use std::error::Error;
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 
 use p4kx_export::{BuiltCatalog, CatalogOptions, Kind, build_catalog};
 use p4kx_extraction::Archive;
@@ -49,11 +49,21 @@ fn ships_of<'c>(paints: &'c [Value], guid: &str) -> Result<BTreeSet<&'c str>, Bo
     clippy::print_stdout,
     reason = "the counts are the result of the verification"
 )]
-fn report(built: &BuiltCatalog) {
+fn report(built: &BuiltCatalog, elapsed: Duration) {
     let counts = built.summary().paints();
+    let skipped = built
+        .summary()
+        .kind(Kind::Paints)
+        .map_or(0, |kind| kind.skipped);
     println!(
-        "paints: {} assigned {} unassigned {} ships with paints {} unreadable vehicles {}",
-        counts.paints, counts.assigned, counts.unassigned, counts.ships, counts.unreadable_vehicles
+        "paints: {} assigned {} unassigned {} skipped {} ships with paints {} unreadable vehicles {}; catalog built in {:.2?}",
+        counts.paints,
+        counts.assigned,
+        counts.unassigned,
+        skipped,
+        counts.ships,
+        counts.unreadable_vehicles,
+        elapsed
     );
 }
 
@@ -78,6 +88,13 @@ fn check_counts(built: &BuiltCatalog, catalog: &Value) -> TestResult {
         .count();
     assert_eq!(without_ship, counts.unassigned, "the paints without a ship");
     assert_eq!(counts.unreadable_vehicles, 0, "every vehicle file reads");
+    assert!(
+        built
+            .summary()
+            .kind(Kind::Paints)
+            .is_some_and(|kind| kind.skipped > 0),
+        "the leftover paints are counted as skipped"
+    );
     assert_eq!(
         built.summary().kind(Kind::Paints).map(|kind| kind.count),
         Some(paints.len()),
@@ -132,9 +149,11 @@ fn check_known_paints(catalog: &Value) -> TestResult {
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_paints_of_a_real_archive_fit_their_ships() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let started = Instant::now();
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    let elapsed = started.elapsed();
     let catalog: Value = serde_json::from_slice(built.json())?;
-    report(&built);
+    report(&built, elapsed);
     check_counts(&built, &catalog)?;
     check_references(&built, &catalog)?;
     check_known_paints(&catalog)

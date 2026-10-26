@@ -51,6 +51,8 @@ pub(crate) enum Picked<'f> {
     Refining(RefiningProcess<'f>),
     /// A development leftover of the kind.
     Skipped(Kind),
+    /// A development leftover that is an item and a paint.
+    SkippedPaint,
     /// A Record that could not be read.
     Failed(CatalogFailure),
 }
@@ -201,16 +203,22 @@ impl<'f> Collected<'f> {
                 Picked::Starmap(entity) => collected.starmap_objects.push(entity),
                 Picked::Mineable(entity) => collected.mineable_elements.push(entity),
                 Picked::Refining(entity) => collected.refining_processes.push(entity),
-                Picked::Skipped(kind) => {
-                    if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
-                        *skipped = skipped.saturating_add(1);
-                    }
+                Picked::Skipped(kind) => collected.skip(kind),
+                Picked::SkippedPaint => {
+                    collected.skip(Kind::Items);
+                    collected.skip(Kind::Paints);
                 }
                 Picked::Failed(failure) => collected.failures.push(failure),
             }
         }
         collected.order();
         collected
+    }
+
+    fn skip(&mut self, kind: Kind) {
+        if let Some(skipped) = self.skipped.get_mut(kind.index()) {
+            *skipped = skipped.saturating_add(1);
+        }
     }
 
     fn crafting_skipped(crafting: &CraftingKinds<'f>) -> [usize; Kind::ALL.len()] {

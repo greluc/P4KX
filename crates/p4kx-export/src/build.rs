@@ -207,7 +207,7 @@ fn assemble<R>(
     let (mut collected, counts, report) = scan(
         archive, &forge, &files, &entities, options, &texts, crafting,
     )?;
-    let paint_summary = add_paints(&forge, &mut collected);
+    let paint_summary = add_paints(&forge, &mut collected, options.cancel)?;
     let loadout_summary = add_loadouts(archive, &entities, &mut collected, options.cancel)?;
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
@@ -279,7 +279,7 @@ fn scan<'f>(
     texts: &Texts<'f>,
     crafting: CraftingKinds<'f>,
 ) -> Result<(Collected<'f>, ContainerCounts, StarmapReport), CatalogError> {
-    let rule = crate::Kind::StarmapObjects.rule();
+    let rule = crate::Kind::StarmapObjects.records();
     let wanted = forge.records().any(|record| {
         record.record_path().is_ok_and(|path| {
             rule.matches_path(path) && options.filter.is_none_or(|filter| filter.matches(path))
@@ -336,18 +336,20 @@ fn add_contracts<'f>(
 }
 
 /// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
-fn add_paints(forge: &DataForge<'_>, collected: &mut Collected<'_>) -> PaintSummary {
-    let derived = paints(forge, &collected.items, &collected.vehicles);
+fn add_paints(
+    forge: &DataForge<'_>,
+    collected: &mut Collected<'_>,
+    cancel: Option<&CancelToken>,
+) -> Result<PaintSummary, CatalogError> {
+    let derived = paints(forge, &collected.items, &collected.vehicles, cancel)?;
     collected.paints = derived.list;
-    if derived.summary.unreadable_vehicles > 0 {
-        collected
-            .warnings
-            .push(CraftingWarning::UnreadableVehicleFiles {
-                count: derived.summary.unreadable_vehicles,
-                details: derived.unreadable_files,
-            });
+    let count = derived.summary.unreadable_vehicles;
+    if count > 0 {
+        let details = derived.unreadable_files;
+        let warning = CraftingWarning::UnreadableVehicleFiles { count, details };
+        collected.warnings.push(warning);
     }
-    derived.summary
+    Ok(derived.summary)
 }
 
 /// Resolves the Default Loadout of every ship and of every item that may have ports, stores the

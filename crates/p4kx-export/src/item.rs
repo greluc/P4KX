@@ -20,6 +20,12 @@ pub(crate) fn playability(tree: &RecordTree<'_>) -> Option<Playability> {
     playability_rules::item(tree, locale_key(localization, "Name"))
 }
 
+/// Returns whether the item Record tree `tree` has the `AttachDef.Type` of a paint.
+pub(crate) fn is_paint(tree: &RecordTree<'_>) -> bool {
+    let definition = structure(component(tree, "SAttachableComponentParams"), "AttachDef");
+    text(definition, "Type").is_some_and(crate::paint::is_paint_type)
+}
+
 /// Returns the item the Record tree `tree` describes and the `Class:` line of its English
 /// description, its texts resolved by `texts`.
 pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, ClassLine) {
@@ -56,6 +62,23 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
         variant_of: None,
         stats: None,
         variant_key: None,
+        required_tags: Vec::new(),
     };
-    (item, line)
+    (
+        Item {
+            required_tags: if item.r#type.is_some_and(crate::paint::is_paint_type) {
+                words(text(definition, "RequiredTags"))
+            } else {
+                Vec::new()
+            },
+            ..item
+        },
+        line,
+    )
+}
+
+fn words(value: Option<&str>) -> Vec<&str> {
+    value
+        .map(|tags| tags.split_whitespace().collect())
+        .unwrap_or_default()
 }

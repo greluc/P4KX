@@ -201,10 +201,10 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
     );
     assert_eq!(
         (
-            Kind::ResourceGroups.rule().type_name,
-            Kind::BlueprintCategories.rule().type_name
+            Kind::ResourceGroups.rule().map(|rule| rule.type_name),
+            Kind::BlueprintCategories.rule().map(|rule| rule.type_name)
         ),
-        ("ResourceTypeGroup", "BlueprintCategoryRecord"),
+        (Some("ResourceTypeGroup"), Some("BlueprintCategoryRecord")),
         "types"
     );
 }

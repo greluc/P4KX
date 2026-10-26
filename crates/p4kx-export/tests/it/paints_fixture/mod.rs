@@ -17,6 +17,10 @@ pub(crate) const PAINT_BETA: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const PAINT_GAMMA: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0004;
 pub(crate) const PAINT_ORPHAN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0005;
 pub(crate) const PAINT_UPPER: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0006;
+pub(crate) const PAINT_DELTA_MIL: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0007;
+pub(crate) const PAINT_DELTA_PORT: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0008;
+pub(crate) const SHIP_DELTA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0006;
+pub(crate) const SHIP_EPSILON: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0007;
 pub(crate) const SHIP_ALPHA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SHIP_BETA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const SHIP_GAMMA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0003;
@@ -54,6 +58,7 @@ fn builder() -> DataForgeBuilder {
         TestStruct::new("SItemDefinition")
             .field("Type", TestType::Enum("EItemType".to_owned()))
             .field("Tags", TestType::String)
+            .field("RequiredTags", TestType::String)
             .field("Localization", class("SCItemLocalization")),
         component("VehicleComponentParams")
             .field("vehicleDefinition", TestType::String)
@@ -102,7 +107,7 @@ fn entity(guid: u128, class: &str, path: &str, components: Vec<TestValue>) -> Te
     .value("Components", TestValue::Array(components))
 }
 
-fn attach(kind: &str, tags: &str, name: &str) -> TestValue {
+fn attach(kind: &str, tags: &str, required: &str, name: &str) -> TestValue {
     TestValue::Struct(
         TestInstance::new("SAttachableComponentParams").value(
             "AttachDef",
@@ -110,6 +115,7 @@ fn attach(kind: &str, tags: &str, name: &str) -> TestValue {
                 TestInstance::new("SItemDefinition")
                     .value("Type", TestValue::text(kind))
                     .value("Tags", TestValue::text(tags))
+                    .value("RequiredTags", TestValue::text(required))
                     .value(
                         "Localization",
                         TestValue::Struct(
@@ -123,12 +129,17 @@ fn attach(kind: &str, tags: &str, name: &str) -> TestValue {
     )
 }
 
-fn paint(guid: u128, class: &str, path: &str, kind: &str, tags: &str) -> TestRecord {
+fn paint(guid: u128, class: &str, tags: &str, required: &str) -> TestRecord {
     entity(
         guid,
         class,
-        &format!("scitem/ships/paints/{path}"),
-        vec![attach(kind, tags, &format!("@paint_Name{class}"))],
+        &format!("scitem/ships/paints/{class}"),
+        vec![attach(
+            "Paints",
+            tags,
+            required,
+            &format!("@paint_Name{class}"),
+        )],
     )
 }
 
@@ -154,12 +165,26 @@ fn ship(
     modification: &str,
     ports: Vec<TestValue>,
 ) -> TestRecord {
+    tagged_ship(guid, class, definition, modification, ports, "")
+}
+
+fn tagged_ship(
+    guid: u128,
+    class: &str,
+    definition: &str,
+    modification: &str,
+    ports: Vec<TestValue>,
+    tags: &str,
+) -> TestRecord {
     let mut components = vec![TestValue::Struct(
         TestInstance::new("VehicleComponentParams")
             .value("vehicleDefinition", TestValue::text(definition))
             .value("modification", TestValue::text(modification))
             .value("vehicleName", TestValue::text("@vehicle_NameShip")),
     )];
+    if !tags.is_empty() {
+        components.push(attach("PowerPlant", tags, "", "@vehicle_NameShip"));
+    }
     if !ports.is_empty() {
         components.push(TestValue::Struct(
             TestInstance::new("SItemPortContainerComponentParams")
@@ -181,7 +206,7 @@ fn database() -> DataForgeBuilder {
             PLANT,
             "POWR_Test_Plant",
             "scitem/ships/powerplant/powr_plant",
-            vec![attach("PowerPlant", "Paint_Alpha", "@plant_Name")],
+            vec![attach("PowerPlant", "Paint_Alpha", "", "@plant_Name")],
         ));
     paints()
         .into_iter()
@@ -208,7 +233,16 @@ fn paints() -> Vec<TestRecord> {
         (PAINT_TEST, "paint_test", "Paint_Alpha"),
     ]
     .into_iter()
-    .map(|(guid, class, tags)| paint(guid, class, class, "Paints", tags))
+    .map(|(guid, class, tags)| paint(guid, class, tags, ""))
+    .chain([
+        paint(PAINT_DELTA_MIL, "paint_delta_mil", "Paint_Delta", "Mil"),
+        paint(
+            PAINT_DELTA_PORT,
+            "paint_delta_port",
+            "Paint_Delta",
+            "Paint_Delta",
+        ),
+    ])
     .collect()
 }
 
@@ -225,6 +259,22 @@ fn ships() -> Vec<TestRecord> {
                 port("Paint_Gamma", "Paints"),
                 port("Paint_Orphan", "WeaponGun"),
             ],
+        ),
+        tagged_ship(
+            SHIP_DELTA,
+            "ACAS_Delta",
+            "",
+            "",
+            vec![port("Paint_Delta", "Paints")],
+            "Mil",
+        ),
+        tagged_ship(
+            SHIP_EPSILON,
+            "ACAS_Epsilon",
+            "",
+            "",
+            vec![port("Paint_Delta", "Paints")],
+            "Civ",
         ),
         ship(
             SHIP_BROKEN,

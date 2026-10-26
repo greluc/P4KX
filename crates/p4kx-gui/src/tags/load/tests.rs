@@ -30,6 +30,23 @@ fn a_read_that_is_told_to_stop_builds_nothing() -> TestResult {
 }
 
 #[test]
+fn a_read_of_a_changed_archive_ends_as_archive_changed_and_builds_nothing() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = dir.path().join("Data.p4k");
+    write_archive(&path, false)?;
+    let model = opened(&path)?;
+    let index = Arc::clone(model.browser().ok_or("no Archive")?.shared_index());
+    write_archive(&path, true)?;
+    assert!(index.watch().check().is_err(), "the change is seen");
+
+    let changed = read(&index, &AtomicBool::new(false));
+
+    assert!(matches!(changed, Outcome::ArchiveChanged), "{changed:?}");
+    assert_eq!(index.forge().tag_builds(), 0, "no tree was built");
+    Ok(())
+}
+
+#[test]
 fn dropping_the_load_tells_the_thread_to_stop() -> TestResult {
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");

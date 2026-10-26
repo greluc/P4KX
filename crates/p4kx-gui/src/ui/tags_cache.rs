@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::collections::HashMap;
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, LazyLock, Mutex, MutexGuard, PoisonError};
 
 use egui::{Galley, Id, Ui};
 
@@ -29,6 +30,8 @@ pub(super) struct Labels {
     pub(super) heads: [(TagsText, Laid); 3],
 }
 
+static CACHE_ID: LazyLock<Id> = LazyLock::new(|| Id::unique("p4kx-tags-cache"));
+
 /// A value laid out for a cell that was this many points wide, as the bits of the width.
 pub(super) type ForWidth<T> = Option<(u32, T)>;
 
@@ -40,16 +43,25 @@ pub(super) struct RowCells {
     pub(super) name_bold: ForWidth<Arc<Galley>>,
     pub(super) guid: ForWidth<Laid>,
     pub(super) legacy: ForWidth<Laid>,
+    drawn: bool,
+}
+
+impl RowCells {
+    /// Marks the row as drawn in this frame, so that the next frame keeps its cells.
+    pub(super) const fn touch(&mut self) {
+        self.drawn = true;
+    }
 }
 
 /// What the Tags tab keeps from frame to frame: its texts, the footer and warning texts, and the
-/// cells of the rows. Made again when the language or the scale changes; the cells also when
-/// another tree is shown.
+/// cells of the rows drawn last. Made again when the language or the scale changes; the cells
+/// also when another tree is shown.
 pub(super) struct Cache {
     key: u64,
     labels: Labels,
     generation: u64,
-    rows: Vec<RowCells>,
+    fitted: [ForWidth<Arc<Galley>>; 3],
+    rows: Rows,
     pub(super) count: Option<((usize, usize), Laid)>,
     pub(super) irregular: Option<(usize, Arc<str>)>,
 }
@@ -68,7 +80,7 @@ impl Cache {
         texts.language().hash(&mut hasher);
         ui.ctx().pixels_per_point().to_bits().hash(&mut hasher);
         let key = hasher.finish();
-        let id = Id::NULL;
+        let id = *CACHE_ID;
         if let Some(cache) = ui.data(|data| data.get_temp::<Arc<Mutex<Self>>>(id))
             && Self::lock(&cache).key == key
         {
@@ -78,7 +90,8 @@ impl Cache {
             key,
             labels: labels(ui, texts),
             generation: 0,
-            rows: Vec::new(),
+            fitted: [None, None, None],
+            rows: Rows::new(),
             count: None,
             irregular: None,
         }));
@@ -96,17 +109,26 @@ impl Cache {
         self.labels.clone()
     }
 
-    /// Returns the cells of the `len` rows of the tree read as `generation`, forgetting them when
-    /// that is another tree than before.
-    pub(super) fn rows(&mut self, generation: u64, len: usize) -> &mut [RowCells] {
-        if self.generation != generation || self.rows.len() != len {
+    /// Starts a frame of the table of the tree read as `generation`: forgets every cell when that
+    /// is another tree than before and the cells of rows the last frame did not draw. Returns the
+    /// heads that were fitted to their width and the cells by position of their tag; a row marks
+    /// itself with [`RowCells::touch`] when it is drawn.
+    pub(super) fn table(
+        &mut self,
+        generation: u64,
+    ) -> (&mut [ForWidth<Arc<Galley>>; 3], &mut Rows) {
+        if self.generation != generation {
             self.generation = generation;
             self.rows.clear();
-            self.rows.resize_with(len, RowCells::default);
         }
-        &mut self.rows
+        self.rows
+            .retain(|_, cells| std::mem::take(&mut cells.drawn));
+        (&mut self.fitted, &mut self.rows)
     }
 }
+
+/// The cells of the rows drawn in the last frame, by position of their tag.
+pub(super) type Rows = HashMap<usize, RowCells>;
 
 /// Returns the value in `slot` when it was made for `key`, and otherwise makes it with `make`.
 pub(super) fn memo<K: PartialEq, V>(

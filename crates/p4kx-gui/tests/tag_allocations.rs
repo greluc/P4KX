@@ -38,8 +38,7 @@ const DATABASE: u128 = 0x0d;
 const PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
 
 /// The most allocations one steady frame of the Tags tab may make in the larger window beyond a
-/// frame of the empty Search tab, which holds the same window and no table. The tab made about
-/// 525 before its texts, galleys and rows were kept between frames, and makes about 350 now.
+/// frame of the empty Search tab, which holds the same window and no table.
 const TAB_BUDGET: u64 = 450;
 
 const fn guid_of(index: usize) -> u128 {

@@ -235,6 +235,32 @@ fn a_selected_tag_can_be_copied_as_path_and_as_guid() -> TestResult {
 }
 
 #[test]
+fn a_change_of_the_archive_on_disk_drops_the_tree_and_says_so() -> TestResult {
+    let (dir, mut harness) = opened_tags(Language::BritishEnglish)?;
+    archive(
+        dir.path(),
+        vec![TestEntry::zstd(
+            "Data\\Game2.dcb",
+            tagging::forge_named(&["Other"]),
+        )],
+    )?;
+
+    assert!(harness.state_mut().check_archive(), "the change is noticed");
+    harness.run_steps(3);
+
+    assert!(
+        matches!(harness.state().tags().status(), TagsStatus::ArchiveChanged),
+        "{:?}",
+        harness.state().tags().status()
+    );
+    assert!(
+        harness.query_by_label_contains("changed on disk").is_some(),
+        "the note is shown"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_archive_without_a_dataforge_fails_with_the_reason() -> TestResult {
     let (_dir, harness) = opened(
         vec![TestEntry::stored("readme.txt", "readme")],

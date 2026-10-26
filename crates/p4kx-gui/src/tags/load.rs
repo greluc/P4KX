@@ -67,16 +67,23 @@ fn read(index: &Arc<EntryIndex>, stop: &AtomicBool) -> Outcome {
     if index.watch().check().is_err() {
         return Outcome::ArchiveChanged;
     }
-    let stopped = || stop.load(Ordering::Relaxed);
+    let stopped = || stop.load(Ordering::Relaxed) || index.watch().is_changed();
+    let stopped_outcome = || {
+        if index.watch().is_changed() {
+            Outcome::ArchiveChanged
+        } else {
+            Outcome::Failed(None)
+        }
+    };
     let tags = match index.forge().read_until(index, || {}, &stopped) {
         Ok(Some(source)) => source.tags(&stopped),
-        Ok(None) => return Outcome::Failed(None),
+        Ok(None) => return stopped_outcome(),
         Err(failure) => Err(failure),
     };
     match tags {
         Ok(Some(_)) if index.watch().check().is_err() => Outcome::ArchiveChanged,
         Ok(Some(tags)) => Outcome::Ready(tags),
-        Ok(None) => Outcome::Failed(None),
+        Ok(None) => stopped_outcome(),
         Err(ReadFailure::ArchiveChanged(_)) => Outcome::ArchiveChanged,
         Err(ReadFailure::Unreadable(reason)) => Outcome::Failed(Some(reason)),
     }

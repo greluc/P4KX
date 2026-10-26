@@ -158,7 +158,7 @@ impl TagsView {
         let lowered = needle.to_lowercase();
         let mut keep = vec![false; self.tree.len()];
         for tag in self.tree.iter() {
-            if contains_ignoring_case(tag.path(), needle, &lowered) {
+            if contains_ignoring_case(tag.path(), &lowered) {
                 for ancestor in tag.ancestors_and_self() {
                     match keep.get_mut(ancestor.position()) {
                         Some(flag) if !*flag => *flag = true,
@@ -197,15 +197,17 @@ impl TagsView {
     }
 }
 
-/// Returns whether `haystack` holds `needle`, ignoring case; `lowered` is `needle` in lower case.
-fn contains_ignoring_case(haystack: &str, needle: &str, lowered: &str) -> bool {
-    if haystack.is_ascii() && needle.is_ascii() {
-        let needle = needle.as_bytes();
-        needle.is_empty()
-            || haystack
-                .as_bytes()
-                .windows(needle.len())
-                .any(|window| window.eq_ignore_ascii_case(needle))
+/// Returns whether `haystack` holds the search text, ignoring case; `lowered` is the search text
+/// in lower case.
+fn contains_ignoring_case(haystack: &str, lowered: &str) -> bool {
+    if haystack.is_ascii() {
+        let needle = lowered.as_bytes();
+        lowered.is_ascii()
+            && (needle.is_empty()
+                || haystack
+                    .as_bytes()
+                    .windows(needle.len())
+                    .any(|window| window.eq_ignore_ascii_case(needle)))
     } else {
         haystack.to_lowercase().contains(lowered)
     }

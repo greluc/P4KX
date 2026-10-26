@@ -10,14 +10,16 @@ use egui::{
 use egui_extras::{Column, TableBuilder, TableRow};
 
 use super::table::head_fill;
-use super::tags_cache::{Cache, HEADS, Laid, RowCells, memo};
+use super::tags_cache::{Cache, ForWidth, HEADS, Laid, RowCells, memo};
 use super::tree::{rails, toggle};
-use crate::theme::desktop::{CELL_PADDING_X, ROW_FONT, ROW_HEIGHT};
+use crate::theme::desktop::{
+    CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
+};
 use crate::theme::palette;
 use crate::theme::tags_metrics::{TAGS_GUID_WIDTH, TAGS_LEGACY_WIDTH, TAGS_NAME_MIN_WIDTH};
 use crate::theme::tokens::Weight;
 use crate::widgets::rows::{RowState, focus_inside, paint_divider, paint_row, row_weight};
-use crate::widgets::text::{line, paint_left, paint_right, plain};
+use crate::widgets::text::{caps, line, paint_left, paint_right, plain};
 use crate::widgets::tooltip;
 use crate::{TagRow, TagsText, TagsView, Texts};
 
@@ -56,7 +58,7 @@ pub(super) fn show(
     let mut outcome = Outcome::default();
     let mut cache = Cache::lock(cache);
     let labels = cache.labels();
-    let cells = cache.rows(view.generation(), view.tree().len());
+    let (fitted, cells) = cache.table(view.generation());
     ScrollArea::horizontal()
         .id_salt("tags")
         .auto_shrink(false)
@@ -74,8 +76,10 @@ pub(super) fn show(
                 .column(Column::exact(TAGS_GUID_WIDTH).clip(true))
                 .column(Column::exact(TAGS_LEGACY_WIDTH).clip(true))
                 .header(ROW_HEIGHT, |mut header| {
-                    for (column, (head, laid)) in labels.heads.iter().enumerate() {
-                        header.col(|ui| head_cell(ui, (column, *head, laid), left));
+                    for (column, ((head, laid), fit)) in
+                        labels.heads.iter().zip(fitted.iter_mut()).enumerate()
+                    {
+                        header.col(|ui| head_cell(ui, (column, *head, laid, fit), left));
                     }
                 })
                 .body(|body| {
@@ -84,8 +88,8 @@ pub(super) fn show(
                         let Some(tag) = view.row(index) else {
                             return;
                         };
-                        let mut scratch = RowCells::default();
-                        let laid = cells.get_mut(tag.tag().position()).unwrap_or(&mut scratch);
+                        let laid = cells.entry(tag.tag().position()).or_default();
+                        laid.touch();
                         let (action, is_hovered) =
                             show_row(row, texts, (&tag, index), laid, hovered == Some(index));
                         if action.is_some() {
@@ -110,11 +114,26 @@ pub(super) fn show(
 
 /// Paints the head cell of `column`: the fill and the orange rule, the label in capitals; the
 /// legacy ID is a number and its head is right-aligned.
-fn head_cell(ui: &Ui, (column, head, laid): (usize, TagsText, &Laid), table_left: f32) {
+fn head_cell(
+    ui: &Ui,
+    (column, head, laid, fit): (usize, TagsText, &Laid, &mut ForWidth<Arc<Galley>>),
+    table_left: f32,
+) {
     let rect = ui.max_rect();
     head_fill(ui, if column == 0 { table_left } else { rect.left() });
     let inner = rect.shrink2(vec2(CELL_PADDING_X, 0.0));
-    let galley = Arc::clone(&laid.galley);
+    let width = inner.width().max(0.0);
+    let galley = if laid.galley.size().x <= width {
+        Arc::clone(&laid.galley)
+    } else {
+        let head = caps(
+            &laid.text,
+            TABLE_HEAD_SIZE,
+            Weight::Bold,
+            TABLE_HEAD_TRACKING,
+        );
+        Arc::clone(memo(fit, width.to_bits(), || line(ui, head, width)))
+    };
     if head == TagsText::ColumnLegacy {
         paint_right(ui, inner, galley, palette::GRAY_1);
     } else {

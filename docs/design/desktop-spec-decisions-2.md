@@ -330,7 +330,8 @@ den Wurzeln zugeklappt; Chevron oder Doppelklick klappt auf und zu, ein Klick w�
 Weiß, Bold wie die aktive Zeile), der Tooltip nennt den vollen Tag-Pfad. Die Suche findet den
 Tag-Pfad ohne Beachtung der Groß-/Kleinschreibung bei jedem Tastendruck auf dem UI-Thread (rund
 19 000 Pfade) und zeigt die Treffer mit den Tags darüber, egal was aufgeklappt ist; in diesem Fall
-zeigt keine Zeile einen Chevron (er würde nichts tun), und verschwindet die gewählte Zeile, ist nichts mehr gewählt. Der Fuß
+zeigt keine Zeile einen Chevron (er würde nichts tun), und verschwindet die gewählte Zeile, ist
+nichts mehr gewählt. Der Fuß
 (`.list-panel__footer`) nennt „n Tags", bei der Suche „n von m Tags". Weicht der Baum von dem ab,
 was die `TagDatabase` auflistet (Tags ohne Eltern, doppelt aufgelistete, ins Leere zeigende), steht
 darüber ein `.alert-warning` mit der Zahl. Der Tab fügt keine Farbe, Größe oder Form hinzu, bis

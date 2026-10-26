@@ -98,6 +98,14 @@ impl TagsTab {
         self.query.clear();
     }
 
+    /// Stops reading the tree and drops the one that was read, because the Archive changed on disk;
+    /// nothing happens while the tags were not asked for.
+    pub(crate) fn archive_changed(&mut self) {
+        if self.is_started() {
+            self.state = State::ArchiveChanged;
+        }
+    }
+
     /// Takes the tree once it is read; returns whether something changed.
     pub fn poll(&mut self) -> bool {
         let State::Loading(load) = &self.state else {

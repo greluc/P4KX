@@ -52,9 +52,12 @@ fn a_consumer_waiting_for_the_build_of_the_tags_stops_waiting_when_cancelled() -
 
     let (waited, built) = thread::scope(|scope| -> Result<_, Box<dyn Error>> {
         let holder = scope.spawn(|| {
+            let first = std::cell::Cell::new(true);
             source.tags(&move || {
-                let _ = started.send(());
-                let _ = released.recv();
+                if first.replace(false) {
+                    let _ = started.send(());
+                    let _ = released.recv();
+                }
                 false
             })
         });

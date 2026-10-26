@@ -17,6 +17,7 @@ mod real_archive_gear_trace;
 mod real_archive_grade;
 mod real_archive_item_stats;
 mod real_archive_items;
+mod real_archive_leftovers;
 mod real_archive_loadouts;
 mod real_archive_mining;
 mod real_archive_paints;

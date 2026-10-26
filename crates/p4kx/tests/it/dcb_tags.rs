@@ -136,7 +136,7 @@ fn tags_lists_every_tag_with_its_path_in_tree_order() -> TestResult {
             format!("Weapon.Gun {}", text(GUN)),
             format!("Weapon.Missile {} 9", text(MISSILE)),
             format!("Armour {} 4", text(ARMOUR)),
-            "4 tags of 4 tags".to_owned(),
+            "4 of 4 tags".to_owned(),
         ],
         "full tag paths, GUIDs and legacy ids; 4294967295 is no legacy id"
     );
@@ -182,7 +182,7 @@ fn tags_with_a_tag_lists_it_and_everything_below_it() -> TestResult {
             format!("Weapon {} 7", text(WEAPON)),
             format!("Weapon.Gun {}", text(GUN)),
             format!("Weapon.Missile {} 9", text(MISSILE)),
-            "3 tags of 4 tags".to_owned(),
+            "3 of 4 tags".to_owned(),
         ],
         "a tag path is matched ignoring case"
     );
@@ -190,7 +190,7 @@ fn tags_with_a_tag_lists_it_and_everything_below_it() -> TestResult {
         rows(&by_guid),
         [
             format!("Weapon.Missile {} 9", text(MISSILE)),
-            "1 tag of 4 tags".to_owned(),
+            "1 of 4 tags".to_owned(),
         ],
         "a GUID names one tag"
     );

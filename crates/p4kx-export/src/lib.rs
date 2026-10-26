@@ -37,9 +37,10 @@
 //! rule of the catalog's `variantOf` and without building a catalog, for a front-end that folds
 //! variants under their base.
 //!
-//! [`TagTree::build`] reads the tag tree of a DataForge: tag GUID to tag path, parent and children.
-//! The catalog kinds that match tags (paints, loadouts) use it, and `RecordExportOptions::tags`
-//! adds the tag path to every tag Reference of an exported Record.
+//! [`TagTree::build`] reads the tag tree of a [`DataForge`]: tag GUID to tag path, parent and
+//! children, at most [`MAX_TAG_DEPTH`] levels deep. [`TagTree::find_path`] finds the tags with a
+//! tag path. The catalog kinds that match tags (paints, loadouts) use the tree, and
+//! `RecordExportOptions::tags` adds the tag path to every tag Reference of an exported Record.
 //!
 //! [`read_crafting`] reads the complete crafting data of a DataForge as [`Crafting`]: every tier
 //! of every blueprint with its selections ("choose n"), quantity multipliers and
@@ -165,14 +166,14 @@ pub use item_class::{ItemClass, ItemClassSummary};
 pub use localization_table::{TableFormat, write_localization_table};
 pub use options::{CatalogOptions, CatalogPhase, CatalogProgress};
 pub use p4kx_extraction::{
-    CancelToken, ConflictPolicy, ExtractionError, Filter, Guid, Language, LocalizationNote,
-    PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions, RecordFailure, TAG_PATH_SEPARATOR,
-    Tag, TagResolver, TagTree, TagTreeIssues, TextSet,
+    CancelToken, ConflictPolicy, DataForge, ExtractionError, Filter, Guid, Language,
+    LocalizationNote, MAX_TAG_DEPTH, PLACEHOLDER_KEYS, RecordExportError, RecordExportOptions,
+    RecordFailure, TAG_PATH_SEPARATOR, Tag, TagResolver, TagTree, TagTreeIssues, TextSet,
 };
 pub use playability::{Playability, PlayabilityCounts, PlayabilitySummary};
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
-pub use selection::{EXCLUDED_TOKENS, Kind, KindRule};
+pub use selection::{EXCLUDED_TOKENS, Kind, KindRule, SHIP_EXCLUDED_TOKENS};
 pub use ship_base::{
     BuiltShipBase, Cargo, CargoGrid, Hull, HullThreshold, Implementation, LoadoutPort, Mass,
     MassBasis, PartialPartValue, SHIP_BASE_VERSION, ShipBase, ShipBaseError, ShipBaseOptions,

@@ -108,18 +108,12 @@ impl TagsView {
     pub fn row(&self, index: usize) -> Option<TagRow<'_>> {
         let position = *self.shown.get(index)?;
         let tag = self.tree.at(usize::try_from(position).ok()?)?;
-        let children = tag.has_children();
-        let expanded = if self.filtered {
-            self.shown
-                .get(index + 1)
-                .is_some_and(|next| *next > position && *next <= last_below(tag))
-        } else {
-            self.expanded.get(tag.position()) == Some(&true)
-        };
+        let expandable = !self.filtered && tag.has_children();
+        let expanded = expandable && self.expanded.get(tag.position()) == Some(&true);
         Some(TagRow {
             tag,
-            expandable: children,
-            expanded: children && expanded,
+            expandable,
+            expanded,
             selected: self.selected == Some(position),
         })
     }
@@ -161,9 +155,10 @@ impl TagsView {
             self.show_expanded();
             return;
         }
+        let lowered = needle.to_lowercase();
         let mut keep = vec![false; self.tree.len()];
         for tag in self.tree.iter() {
-            if contains_ignoring_case(tag.path(), needle) {
+            if contains_ignoring_case(tag.path(), &lowered) {
                 for ancestor in tag.ancestors_and_self() {
                     match keep.get_mut(ancestor.position()) {
                         Some(flag) if !*flag => *flag = true,
@@ -202,17 +197,18 @@ impl TagsView {
     }
 }
 
-/// Returns the position of the last tag below `tag`, or its own when it has none.
-fn last_below(tag: Tag<'_>) -> u32 {
-    u32::try_from(tag.position() + tag.descendants().len()).unwrap_or(u32::MAX)
-}
-
-/// Returns whether `haystack` holds `needle`, ignoring ASCII case.
-fn contains_ignoring_case(haystack: &str, needle: &str) -> bool {
-    let needle = needle.as_bytes();
-    needle.is_empty()
-        || haystack
-            .as_bytes()
-            .windows(needle.len())
-            .any(|window| window.eq_ignore_ascii_case(needle))
+/// Returns whether `haystack` holds the search text, ignoring case; `lowered` is the search text
+/// in lower case.
+fn contains_ignoring_case(haystack: &str, lowered: &str) -> bool {
+    if haystack.is_ascii() {
+        let needle = lowered.as_bytes();
+        lowered.is_ascii()
+            && (needle.is_empty()
+                || haystack
+                    .as_bytes()
+                    .windows(needle.len())
+                    .any(|window| window.eq_ignore_ascii_case(needle)))
+    } else {
+        haystack.to_lowercase().contains(lowered)
+    }
 }

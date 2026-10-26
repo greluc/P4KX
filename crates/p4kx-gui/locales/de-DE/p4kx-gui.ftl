@@ -477,6 +477,12 @@ catalog-summary-kind = { $kind ->
 }
 catalog-summary-loadouts = Loadouts: { $ports } Ports, { $unresolved } nicht aufgelöst, { $docked } angedockte Fahrzeuge, { $outside } Entities ohne Eintrag in Items oder Schiffen
 catalog-summary-skipped = Als Entwicklungsreste übersprungene Records: { $number }
+catalog-playability-heading = Spielbarkeit
+catalog-summary-playability = { $kind ->
+    [items] Items
+    [ships] Schiffe
+   *[other] { $kind }
+}: { $player } Spieler, { $ai } KI, { $mission } Mission, { $special } Sonderfall, { $unclassified } nicht eingeordnet
 catalog-summary-failed = Nicht lesbare und weggelassene Records ({ $number })
 catalog-summary-failure = { $path } ({ $guid }): { $reason }
 catalog-texts-heading = Texte

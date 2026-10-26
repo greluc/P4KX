@@ -295,11 +295,14 @@ fn check_links(catalog: &Value) -> TestResult {
             assert!(groups.contains(guid), "commodity type {guid}");
         }
     }
+    let mut nested = 0_usize;
     for group in list(catalog, Kind::ResourceGroups)? {
         if let Some(guid) = group["parentGuid"].as_str() {
             assert!(groups.contains(guid), "parent group {guid}");
+            nested += 1;
         }
     }
+    assert!(nested > 0, "at least one nested resource group");
     for blueprint in list(catalog, Kind::Blueprints)? {
         if let Some(guid) = blueprint["categoryGuid"].as_str() {
             assert!(categories.contains(guid), "blueprint category {guid}");

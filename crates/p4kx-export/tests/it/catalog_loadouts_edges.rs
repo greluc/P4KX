@@ -4,7 +4,7 @@
 //! Loadouts of the Basetool catalog through the public API: an Entity that holds itself and an
 //! empty port with a nested Loadout.
 
-use crate::loadouts_fixture::{GUN, LOOP, NESTED};
+use crate::loadouts_fixture::{ALPHA, GUN, LOOP, NESTED};
 use crate::loadouts_support::{build, guid, loadout, names, port};
 
 use std::error::Error;
@@ -62,6 +62,31 @@ fn an_empty_port_lists_the_ports_of_its_nested_loadout() -> TestResult {
         (&seat["itemGuid"], &seat["itemClassName"]),
         (&json!(guid(GUN)), &json!("ACME_Gun")),
         "and what the nested Loadout attaches to it"
+    );
+    Ok(())
+}
+
+#[test]
+fn vehicle_parts_sharing_a_port_name_all_take_the_first_part_as_the_tree_does() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let ports = &loadout(&catalog, ALPHA)?["ports"];
+    let gun = port(ports, "hardpoint_gun")?;
+    assert_eq!(
+        (&gun["minSize"], &gun["maxSize"]),
+        (&json!(1), &json!(3)),
+        "a part named in another case does not replace the first"
+    );
+    let sizes: Vec<_> = ports
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|port| port["name"] == "hardpoint_empty")
+        .map(|port| (port["minSize"].clone(), port["maxSize"].clone()))
+        .collect();
+    assert_eq!(
+        sizes,
+        [(json!(2), json!(2)), (json!(2), json!(2))],
+        "each of the two vehicle-only ports reads the first part"
     );
     Ok(())
 }

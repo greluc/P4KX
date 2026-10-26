@@ -27,13 +27,14 @@ p4kx ships <archive> --out <file> [--format json|ndjson] [--filter <filter>] [--
 
 A ship is an Entity Record under `entities/spaceships` or `entities/groundvehicles`, the selection
 of the catalog's `ships` kind, without the development leftovers (`test`, `template`, `dummy`,
-`debug`, `deprecated`, `dev` as whole words), which are counted as skipped. Ships are ordered by
-the text of their GUID.
+`debug`, `deprecated`, `dev`, and for ships also `temp`, `display`, `hijacked` as whole words),
+which are counted as skipped. Version 2 left out the ships with the three ship words, 21 on LIVE
+(ADR-0167); version 1 listed them. Ships are ordered by the text of their GUID.
 
 ## JSON document
 
 ```json
-{"schemaVersion": 1, "source": {…}, "filter": null, "ships": [ … ]}
+{"schemaVersion": 2, "source": {…}, "filter": null, "ships": [ … ]}
 ```
 
 `source` is the `source` object of the Basetool catalog (Channel, Build, Archive size and time,

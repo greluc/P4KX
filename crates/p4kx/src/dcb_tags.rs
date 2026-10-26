@@ -63,11 +63,7 @@ fn listing<'t>(tags: &'t TagTree, text: Option<&str>) -> Result<Listing<'t>, Unk
         None => tags.roots().collect(),
         Some(text) => {
             let found: Vec<Tag<'t>> = text.parse::<Guid>().map_or_else(
-                |_| {
-                    tags.iter()
-                        .filter(|tag| tag.path().eq_ignore_ascii_case(text))
-                        .collect()
-                },
+                |_| tags.find_path(text).collect(),
                 |guid| tags.get(guid).into_iter().collect(),
             );
             if found.is_empty() {

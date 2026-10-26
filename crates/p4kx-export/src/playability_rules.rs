@@ -43,38 +43,38 @@ impl Evidence {
     /// Reads the crew manifests and tags among `records` in parallel; a Record that cannot be read
     /// is returned as a failure.
     pub(crate) fn read(records: &[Record<'_>]) -> (Self, Vec<CatalogFailure>) {
-        let found: Vec<Result<Option<Found>, CatalogFailure>> = records
+        let found: Vec<Result<Found, CatalogFailure>> = records
             .par_iter()
             .map_init(TreeBuilder::new, |trees, record| {
-                let Ok(type_name) = record.type_name() else {
-                    return Ok(None);
-                };
+                let type_name = record.type_name().ok()?;
                 if type_name != MANIFEST_TYPE && type_name != TAG_TYPE {
-                    return Ok(None);
+                    return None;
                 }
-                let tree = trees
-                    .build(record)
-                    .map_err(|source| CatalogFailure::of(record, &source))?;
+                let tree = match trees.build(record) {
+                    Ok(tree) => tree,
+                    Err(source) => return Some(Err(CatalogFailure::of(record, &source))),
+                };
                 let root = Some(tree.root());
-                Ok(if type_name == MANIFEST_TYPE {
+                let found = if type_name == MANIFEST_TYPE {
                     (!elements(root, "crew").is_empty()).then(|| Found::Crewed(tree.guid()))
                 } else {
                     (text(root, "tagName") == Some(UNMANNED_TAG))
                         .then(|| Found::Unmanned(tree.guid()))
-                })
+                };
+                found.map(Ok)
             })
+            .flatten()
             .collect();
         let mut evidence = Self::default();
         let mut failures = Vec::new();
         for result in found {
             match result {
-                Ok(Some(Found::Crewed(guid))) => {
+                Ok(Found::Crewed(guid)) => {
                     evidence.crewed.insert(guid);
                 }
-                Ok(Some(Found::Unmanned(guid))) => {
+                Ok(Found::Unmanned(guid)) => {
                     evidence.unmanned.insert(guid);
                 }
-                Ok(None) => {}
                 Err(failure) => {
                     evidence.unreadable.insert(failure.guid);
                     failures.push(failure);
@@ -116,7 +116,8 @@ fn explodes_on_death(vehicle: Option<&StructValue<'_>>) -> bool {
     ) == Some(true)
 }
 
-/// Returns the playability of the ship or ground vehicle `tree`, `None` when no rule applies.
+/// Returns the playability of the ship or ground vehicle `tree` with its `VehicleComponentParams`
+/// `vehicle`, `None` when no rule applies.
 ///
 /// The first rule that holds decides:
 ///
@@ -133,7 +134,11 @@ fn explodes_on_death(vehicle: Option<&StructValue<'_>>) -> bool {
 /// Any other `inclusionMode` value matches neither rule 3 nor rule 4. A crew manifest or a tag
 /// the Record links to that could not be read gives `None` before any rule, as its evidence
 /// is missing.
-pub(crate) fn ship(tree: &RecordTree<'_>, evidence: &Evidence) -> Option<Playability> {
+pub(crate) fn ship(
+    tree: &RecordTree<'_>,
+    vehicle: Option<&StructValue<'_>>,
+    evidence: &Evidence,
+) -> Option<Playability> {
     let manifest_link = reference(
         component(tree, "SEntityComponentCrewManifestParams"),
         "crewManifest",
@@ -146,7 +151,6 @@ pub(crate) fn ship(tree: &RecordTree<'_>, evidence: &Evidence) -> Option<Playabi
     if unreadable_link {
         return None;
     }
-    let vehicle = component(tree, "VehicleComponentParams");
     let inclusion = inclusion_mode(tree);
     let ready = inclusion == Some(READY);
     let spaceship = under(tree, SPACESHIPS);

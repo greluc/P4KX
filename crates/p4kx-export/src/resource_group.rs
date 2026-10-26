@@ -10,8 +10,12 @@ use crate::guid_text::CatalogGuid;
 use crate::record_fields::{class_name, elements, locale_key};
 use crate::texts::Texts;
 
-/// What the `ResourceTypeGroup` Records list: the group of each `ResourceType` and the parent of
-/// each group.
+/// What the `ResourceTypeGroup` Records of the `resourceGroups` kind list: the group of each
+/// `ResourceType` and the direct parent of each group.
+///
+/// Only the listings of the groups the kind selects are added, so every group it names is an entry
+/// of `resourceGroups`. The parents form the lists as the game stores them; a cycle is kept, not
+/// broken.
 #[derive(Debug, Default)]
 pub(crate) struct Groups {
     by_resource: HashMap<Guid, CatalogGuid>,
@@ -19,10 +23,6 @@ pub(crate) struct Groups {
 }
 
 impl Groups {
-    pub(crate) fn new() -> Self {
-        Self::default()
-    }
-
     /// Records what `listing` lists; the first group to list a `ResourceType` or a group wins.
     pub(crate) fn add(&mut self, listing: Listing) {
         let group = CatalogGuid(listing.group);

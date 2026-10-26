@@ -33,6 +33,9 @@ The rule is ADR-0054 (amending ADR-0002):
   `RequiredTags` offered by the port or the ship (see "Paints"), so `paints[].shipGuids` lists
   fewer ships than version 1 did (40 fewer on LIVE 4.7). No field changed its name or type. The
   Basetool import must accept version 2.
+  Version 2 also fixes a port whose name several parts of the vehicle file share (#677): the first
+  such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
+  of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -424,7 +427,7 @@ not exist.
 A ship with `cargoGridsWithIssue` above 0 and a `cargoScu` number may carry more than the number
 says.
 
-On LIVE the 1,087 catalog ships split into 1,048 `spaceship` and 39 `groundVehicle`, none `null`:
+On LIVE the 1,066 catalog ships split into 1,027 `spaceship` and 39 `groundVehicle`, none `null`:
 no Record under `entities/spaceships` has a wheel or tread. The folder `entities/groundvehicles`
 holds 40 Records; the 40th, `RSI_Ursa_Rover_Unmanned_Template`, is left out of the catalog as a
 development leftover (the whole word `template`, see "Selection").
@@ -494,15 +497,15 @@ For an item the first rule that holds decides:
 
 No item is `ai`: items carry no AI marker the rules can read.
 
-The development-leftover token rule (see "Selection") runs first and is unchanged: a Record it
-leaves out is no entity and has no playability. Known limit: a few leftover-like ships whose names
-the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
-structural marker and read as `player`.
+The development-leftover token rule (see "Selection") runs first: a Record it leaves out is no
+entity and has no playability. No structural marker sets the leftover-like ships apart from the
+ships a player owns, so a ship is also left out by name when its record path or name holds the
+whole word `temp`, `display` or `hijacked` (21 ships on LIVE, 15 of them `player`; ADR-0167).
 
 **The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
 means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
 mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
-it: about 20 leftover-like ships on LIVE are `player`, and items carry no AI marker. The Basetool
+it: items carry no AI marker. The Basetool
 matches every other value and `null` against what it knows and seeds none of them. A `null` ship
 (LIVE: Stingray, Skylark, Railen) is added by hand.
 
@@ -522,7 +525,7 @@ from the entity:
 |-------|--------|
 | `name` | `SCItemPurchasableParams.displayName` |
 | `description` | `EntityUIDisplayParams.displayDescription` in `StaticEntityClassData` |
-| `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …); `null` without a `ResourceType` or a group |
+| `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …), the `guid` of a `resourceGroups` entry; `null` without a `ResourceType` or a group |
 | `subtypeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to; `null` without one, e.g. `Special_HolidayLetter` |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
 | `densityGramsPerCubicCentimetre` | The number `densityType.densityUnit.gramsPerCubicCentimeter` of the `ResourceType` holds (a fact, no game text); `null` without a `ResourceType`, a density or a density in another unit |
@@ -556,7 +559,7 @@ A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
 |-------|--------|
 | `className`, `key` | The Record name without its type, e.g. `BP_CRAFT_behr_lmg_ballistic_01_mag`; both hold it |
 | `name` | `blueprintName` |
-| `categoryGuid` | The GUID `category` links to |
+| `categoryGuid` | The GUID `category` links to, the `guid` of a `blueprintCategories` entry; `null` without a category or when that Record is a left-out development leftover or unreadable |
 | `producedItemGuid` | The GUID `processSpecificData.entityClass` links to; `null` for a Reference to a Record the DataForge lacks |
 | `craftTimeSeconds` | `costs.craftTime` of the first tier (`days`, `hours`, `minutes`, `seconds`) in whole seconds, rounded |
 | `ingredients` | The costs of the first tier, see below |
@@ -587,7 +590,12 @@ takes its fields from the Record:
 |-------|--------|
 | `className` | The Record name without its type, e.g. `Metal` |
 | `name` | `displayName`, e.g. `@items_commodities_type_metal`; a placeholder key (`@LOC_PLACEHOLDER`, 7 groups on LIVE) leaves `en` and `de` `null`, and the Basetool falls back to `className` |
-| `parentGuid` | The GUID of the group that lists this group in its `groups`, `null` for a top-level group; the first group in Record order wins when several list it |
+| `parentGuid` | The GUID of the group that lists this group in its `groups`, the `guid` of another `resourceGroups` entry; `null` for a top-level group; the first group in Record order wins when several list it. Only the groups of the kind list: a group left out as a development leftover or unreadable names no parent and no `ResourceType` |
+
+The groups form a forest, and `parentGuid` is the direct parent only. The import must not assume
+a fixed depth and must guard against a cycle: the catalog exports the lists as the game stores
+them, so a group that lists itself has no parent and two groups that list each other (A lists B, B
+lists A) are each other's parent, with no root.
 
 Groups nest one level on LIVE: Metal lists Alloy and UnrefinedOres, Mineral lists Raw_Minerals,
 Nonmetal lists Halogen, Organic lists Food, ProcessedGoods lists SyntheticMaterials, Vice and
@@ -608,7 +616,11 @@ Record.
 
 Every `typeGuid` of a commodity and every `categoryGuid` of a blueprint resolves to a `guid` of
 `resourceGroups` or `blueprintCategories` (checked against LIVE; a commodity without a
-`ResourceType` or group, 1 on LIVE, and a blueprint without a category have `null`). With a
+`ResourceType` or group, 1 on LIVE, and a blueprint without a category or whose category is a
+left-out leftover or unreadable have `null`; a commodity whose `ResourceType` only a leftover or
+unreadable group lists has a `null` `typeGuid`). The groups are found whatever the `--filter`; a
+category is only found missing when the `--filter` selects it, so under a `--filter` a
+`categoryGuid` may still name a leftover category outside it. With a
 `--filter`, a kind is partial and the references need not resolve.
 
 ### Tiers
@@ -802,7 +814,7 @@ game selects the Military paints elsewhere.
 have at least one paint and the ships whose vehicle implementation cannot be read, or whose patch file or Modification is
 not applied as it names, except that a patch file the Archive lacks is a fact of the game data; `CatalogSummary::paints()` returns them, and an unreadable vehicle file is also a warning of
 `CatalogSummary::warnings()`. Measured on LIVE (4.7): 1,064 paints, 1,039 assigned, 25 not
-assigned, 1,046 ships with paints. Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
+assigned, 1,025 ships with paints (1,046 before ADR-0167). Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
 a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballista_Base`,
 `Paint_Gladius_Default`, `Paint_Carrack_Default`, `Paint_Hurricane_Default`, the Vanguard
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
@@ -1365,7 +1377,7 @@ w/C8X`, `600i Explorer`, `ATLS`).
 Seven of the unmapped slugs have a ship under the store name that the player-only rule excluded,
 because its `playability` is `null` (no rule classifies it): `GAMA_Railen`, `GAMA_Tyilui`,
 `GLSN_Basher`, `KRIG_S65_Stingray`, `RSI_Skylark`, `RSI_Constellation_Mk5_Centaurus` and
-`AEGS_Sabre_Raven_EX`. They can be mapped once their playability is settled. 119 ships with
+`AEGS_Sabre_Raven_EX`. They can be mapped once their playability is settled. Before ADR-0167, 119 ships with
 `playability` `player` have no slug; most are event, reward and display variants of a ship that
 has one.
 
@@ -1461,7 +1473,11 @@ every kind partial.
 Development leftovers are left out and counted as skipped: a selected Record whose record path or
 name holds one of the tokens `test`, `template`, `dummy`, `debug`, `deprecated` or `dev` as a
 whole word, ignoring case. Words are the runs of ASCII letters and digits, so `paint_test_01` is
-left out while `contestant` stays.
+left out while `contestant` stays. For the ships kind the words `temp`, `display` and `hijacked`
+count as well, so `glsn_shiv_temp_cosa` and `aegs_avenger_stalker_display` are left out; the other
+kinds keep their `display` and `temp` Records (radar displays, shop displays and the like). This
+changed the selection of `ships` for `schemaVersion` 2 (ADR-0167): 21 ships on LIVE are skipped
+that version 1 listed.
 
 A selected Record that cannot be read, such as one whose struct layout is corrupt, does not stop
 the catalog: it is left out, counted as a failure and reported with its record path, GUID and
@@ -1497,9 +1513,9 @@ is the whole catalog, the other kinds are in `p4kx catalog --json`):
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints | Loadouts |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|---------:|
-| LIVE | 152,812,265 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 | 10,708 |
+| LIVE | 152,812,265 | 1,201 | 23,280 | 1,066 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 | 10,687 |
 
-Measured on 2026-10-22, LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports
+Measured on 2026-10-22, LIVE held 10,708 loadouts (1,087 ships, 9,621 items; 10,687 and 1,066 once ADR-0167 leaves 21 ships out) with 293,451 ports
 (nested ports counted for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
 unresolved attachments (`unknown_class` 446, `dangling_reference` 54, `cycle` 5); 61 attached
 Entities have no entry in `items` or `ships` (templates of doors, screens, beds and the like, and
@@ -1536,7 +1552,7 @@ of the ship base fields that gave every split of the parallel scan its own ship 
 10.5 s, because each reader began with empty Entity caches; the scan now keeps the readers in a
 pool, so a reader keeps its caches across splits. Writing the `.json.zst` takes 19 to 22 s per
 Channel in all. Left out as development leftovers on
-LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
+LIVE: 2 manufacturers, 1,145 items, 78 ships (57 before ADR-0167) and 1 quality distribution (1,226 Records).
 
 ### Verification against the live data
 

@@ -219,7 +219,6 @@ fn alpha_test_masks_decals_and_glass_blend_and_two_sided_flags_carry_over() -> T
         .texture("TexSlot1", "decal_diff.tif")
         .flags(TWO_SIDED);
     let file = TestMtl::multi(&[matte("unused"), masked, decal]).cryxml();
-
     let (glb, _) = export(Some(file))?;
 
     let masked = glb

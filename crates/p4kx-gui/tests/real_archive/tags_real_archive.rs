@@ -71,5 +71,11 @@ fn the_tag_tree_of_a_real_archive_is_listed_expanded_and_searched() -> TestResul
         shown.iter().any(|path| path == "Ship.Series"),
         "the parent is shown: {shown:?}"
     );
+    assert!(
+        (0..view.shown_len())
+            .filter_map(|index| view.row(index))
+            .all(|row| !row.is_expandable()),
+        "no row shows a chevron while the search filters"
+    );
     Ok(())
 }

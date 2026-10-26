@@ -3,6 +3,7 @@
 
 //! The tag tree of a real Archive, reached through `p4kx-export`.
 
+use std::cell::Cell;
 use std::error::Error;
 use std::fs;
 
@@ -70,5 +71,44 @@ fn the_tag_tree_of_a_real_archive_resolves_the_tags_of_a_known_ship() -> TestRes
             "the Record carries the tag {path}"
         );
     }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_tags_of_a_real_archive_are_found_by_path_and_the_build_can_be_stopped() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let tags = TagTree::build(&forge);
+
+    let ship = tags.get(SHIP_TAG.parse()?).ok_or("no ship tag")?;
+    let by_path: Vec<_> = tags.find_path("missions.vehicletype.ship").collect();
+    assert!(
+        by_path.iter().any(|tag| tag.guid() == ship.guid()),
+        "the tag path finds the ship tag ignoring case: {by_path:?}"
+    );
+    assert!(
+        by_path
+            .iter()
+            .all(|tag| tag.path().eq_ignore_ascii_case("Missions.VehicleType.Ship")),
+        "and only tags with that path: {by_path:?}"
+    );
+
+    let polls = Cell::new(0_u32);
+    let stopped = TagTree::build_with(&forge, &|| {
+        polls.set(polls.get() + 1);
+        polls.get() > 3
+    });
+    assert!(
+        stopped.is_none(),
+        "a stopped build of the real tree gives up"
+    );
+    assert!(
+        polls.get() > 3,
+        "it polled the stop function while building"
+    );
+    let again = TagTree::build_with(&forge, &|| false).ok_or("not built")?;
+    assert_eq!(again.len(), tags.len(), "a build nobody stops is the build");
     Ok(())
 }

@@ -187,6 +187,43 @@ fn a_tag_reference_may_carry_its_tag_path_as_text() -> TestResult {
 }
 
 #[test]
+fn only_a_reference_of_type_tag_may_carry_a_tag_path() -> TestResult {
+    let validator = jsonschema::draft202012::new(&schema()?)?;
+    let record = |kind: &str, tag: bool| {
+        let mut reference = json!({
+            "guid": "50e8a9f6-f956-4000-8ace-7c0ca9a91f5d",
+            "path": "libs/foundry/records/item.item",
+            "type": kind
+        });
+        if tag {
+            reference["tag"] = json!("Weapon.Gun");
+        }
+        json!({
+            "$type": "Item",
+            "$guid": "cbee34fd-6441-4000-b99f-924f7f26e19f",
+            "$path": "p",
+            "$name": "Item.One",
+            "owner": reference
+        })
+    };
+
+    assert!(
+        validator.is_valid(&record("Tag", true)),
+        "a Tag with a path"
+    );
+    assert!(validator.is_valid(&record("Tag", false)), "a Tag without");
+    assert!(
+        validator.is_valid(&record("Item", false)),
+        "another type has none"
+    );
+    assert!(
+        !validator.is_valid(&record("Item", true)),
+        "another type with a tag path is rejected"
+    );
+    Ok(())
+}
+
+#[test]
 fn the_schema_rejects_what_the_export_never_writes() -> TestResult {
     let validator = jsonschema::draft202012::new(&schema()?)?;
     let valid = json!({

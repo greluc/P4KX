@@ -135,18 +135,25 @@ impl TagTree {
     /// [`TagTree::issues`].
     #[must_use]
     pub fn build(forge: &DataForge<'_>) -> Self {
-        let laid = layout(forge);
+        Self::build_with(forge, &|| false).unwrap_or_default()
+    }
+
+    /// Builds the tag tree like [`build`](Self::build), and gives up with `None` once `stop`
+    /// returns `true`; `stop` is polled between Records and between tags.
+    #[must_use]
+    pub fn build_with(forge: &DataForge<'_>, stop: &dyn Fn() -> bool) -> Option<Self> {
+        let laid = layout(forge, stop)?;
         let mut by_guid: Vec<(Guid, u32)> = (0..)
             .zip(&laid.nodes)
             .map(|(index, node)| (node.guid, index))
             .collect();
         by_guid.sort_unstable();
-        Self {
+        Some(Self {
             nodes: laid.nodes,
             roots: laid.roots,
             by_guid: by_guid.into_boxed_slice(),
             issues: laid.issues,
-        }
+        })
     }
 
     /// Returns the number of tags in the tree.
@@ -193,6 +200,16 @@ impl TagTree {
         let first = self.by_guid.partition_point(|(other, _)| *other < guid);
         let &(found, index) = self.by_guid.get(first)?;
         (found == guid).then_some(Tag { tree: self, index })
+    }
+
+    /// Returns every tag whose tag path is `path`, ignoring ASCII case, in pre-order. A tag path is
+    /// not unique: sibling tags may share a name, so the GUID stays the identity.
+    pub fn find_path<'t, 'p>(
+        &'t self,
+        path: &'p str,
+    ) -> impl Iterator<Item = Tag<'t>> + use<'t, 'p> {
+        self.iter()
+            .filter(move |tag| tag.path().eq_ignore_ascii_case(path))
     }
 
     /// Returns the tag path of the Tag Record `guid`, e.g. `Weapon.Gun`, or `None` when the tree

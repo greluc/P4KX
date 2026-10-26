@@ -17,6 +17,8 @@ use p4kx_gui::{
 };
 use p4kx_testkit::{assert_steady_frames, real_archive_path};
 
+use crate::frame_steps::step_into;
+
 type TestResult = Result<(), Box<dyn Error>>;
 
 const SAMPLES: usize = 300;
@@ -131,15 +133,11 @@ fn the_cryxml_entries_of_a_real_archive_convert_and_frames_stay_short() -> TestR
             Instant::now() < deadline,
             "converting did not finish in time"
         );
-        let started = Instant::now();
-        harness.step();
-        frames.push(started.elapsed());
+        step_into(&mut frames, &mut harness);
         std::thread::sleep(Duration::from_millis(5));
     }
     for _ in 0..3 {
-        let started = Instant::now();
-        harness.step();
-        frames.push(started.elapsed());
+        step_into(&mut frames, &mut harness);
     }
 
     assert_eq!(harness.state().preview_tab(), PreviewTab::Xml, "XML tab");

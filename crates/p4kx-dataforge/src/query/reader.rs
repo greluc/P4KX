@@ -4,6 +4,7 @@
 use std::ops::ControlFlow;
 use std::sync::Arc;
 
+use crate::query::sink::Recording;
 use crate::query::walk::{Place, WalkState};
 use crate::scalar::read_scalar;
 use crate::{DataForge, DataType, Value, ValueKind};
@@ -49,7 +50,7 @@ pub(crate) struct Walk {
 }
 
 /// One step that leaves the bytes reached so far, at the offset `at` in them.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Step {
     /// A strong pointer to an instance of `declared` or of a struct deriving from it.
     Pointer { at: u64, declared: Box<[usize]> },
@@ -77,7 +78,7 @@ pub(crate) enum Link {
 }
 
 /// What the elements of an array are.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Elements {
     /// Values in the pool of their kind.
     Values(ValueKind),
@@ -88,7 +89,7 @@ pub(crate) enum Elements {
 }
 
 /// Which elements of an array a step selects.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Select {
     Index(u32),
     All,
@@ -127,26 +128,35 @@ impl Reader {
     /// Returns the cell of the path in the Record instance at `place`: its value, or for a
     /// multi-valued path every value it reaches as a [`Value::Array`]. Only a multi-valued path
     /// allocates, for its list.
+    ///
+    /// With `prefix`, the recording of the first steps the path shares with other columns and
+    /// their number, the walk takes those steps from the recording; the cell is the same.
     pub(crate) fn cell<'f>(
         &self,
         forge: &'f DataForge<'f>,
         place: Place<'f>,
         state: &mut WalkState,
+        prefix: Option<(&Recording<'f>, usize)>,
     ) -> Value<'f> {
         let walk = match self {
             Self::Column(column) => return column.read(forge, place),
             Self::Walk(walk) => walk,
         };
+        let drive = |state: &mut WalkState,
+                         emit: &mut dyn FnMut(Value<'f>) -> ControlFlow<()>| match prefix {
+            Some((recording, steps)) => walk.replay(forge, recording, steps, state, emit),
+            None => walk.visit(forge, place, state, emit),
+        };
         if !walk.multi {
             let mut single = Value::Null;
-            let reached = walk.visit(forge, place, state, &mut |value| {
+            let reached = drive(state, &mut |value| {
                 single = value;
                 ControlFlow::Break(())
             });
             return reached.map_or_else(Value::Error, |()| single);
         }
         let mut values = Vec::new();
-        let reached = walk.visit(forge, place, state, &mut |value| {
+        let reached = drive(state, &mut |value| {
             values.push(value);
             ControlFlow::Continue(())
         });

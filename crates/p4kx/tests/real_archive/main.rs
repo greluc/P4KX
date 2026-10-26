@@ -7,3 +7,4 @@
 mod package_support;
 mod real_audio_loop;
 mod real_blender_packages;
+mod real_query_prefixes;

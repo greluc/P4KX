@@ -7,6 +7,7 @@ use crate::build::{element_bytes, pointer, reference_guid, words};
 use crate::query::MAX_PATH_VALUES;
 use crate::query::reader::{Elements, Link, Select, Step, Walk};
 use crate::query::schema::ancestors_include;
+use crate::query::sink::{Live, Reached, Sink};
 use crate::{DataForge, Value, ValueError, ValueKind};
 
 /// The bytes a path reads at one point: an instance of a struct or one value of a pool.
@@ -83,18 +84,16 @@ impl WalkState {
         self.unresolved.len()
     }
 
-    /// Counts the link stored in `bytes`, which `->` cannot follow, once however many paths
-    /// meet it, and returns the null it reaches.
-    fn unresolved_link<'f>(&mut self, bytes: &[u8]) -> Reached<'f> {
-        let at = bytes.as_ptr().addr();
+    /// Counts the link stored at the address `at`, which `->` cannot follow, once however many
+    /// paths meet it.
+    pub(crate) fn note_unresolved(&mut self, at: usize) {
         if !self.unresolved.contains(&at) {
             self.unresolved.push(at);
         }
-        Reached::Value(Value::Null)
     }
 
     /// Counts `elements` more array elements against [`MAX_PATH_VALUES`].
-    fn charge(&mut self, elements: usize) -> Result<(), ValueError> {
+    pub(crate) fn charge(&mut self, elements: usize) -> Result<(), ValueError> {
         self.budget = self
             .budget
             .checked_sub(elements)
@@ -103,12 +102,6 @@ impl WalkState {
             })?;
         Ok(())
     }
-}
-
-/// What a step reaches: the place the path continues at, or a value that ends it.
-enum Reached<'f> {
-    Place(Place<'f>),
-    Value(Value<'f>),
 }
 
 /// The bytes of a pointer and of an array header.
@@ -129,19 +122,28 @@ impl Walk {
         state: &mut WalkState,
         emit: &mut dyn FnMut(Value<'f>) -> ControlFlow<()>,
     ) -> Result<(), ValueError> {
-        self.step(forge, 0, place, state, emit).map(|_| ())
+        let mut live = Live {
+            forge,
+            leaf: &self.leaf,
+            state,
+            emit,
+        };
+        self.step(forge, 0, self.steps.len(), place, &mut live)
+            .map(|_| ())
     }
 
-    fn step<'f>(
+    /// Walks the steps from `index` up to `end` and gives the sink what the last of them reaches.
+    pub(super) fn step<'f, S: Sink<'f>>(
         &self,
         forge: &'f DataForge<'f>,
         index: usize,
+        end: usize,
         place: Place<'f>,
-        state: &mut WalkState,
-        emit: &mut dyn FnMut(Value<'f>) -> ControlFlow<()>,
+        sink: &mut S,
     ) -> Result<ControlFlow<()>, ValueError> {
-        let Some(step) = self.steps.get(index) else {
-            return Ok(emit(self.leaf.read(forge, place)));
+        let step = match self.steps.get(index) {
+            Some(step) if index < end => step,
+            _ => return Ok(sink.reached(Reached::Place(place))),
         };
         let next = index.saturating_add(1);
         let (at, elements, select) = match step {
@@ -150,14 +152,14 @@ impl Walk {
                     Ok(bytes) => deref(forge, bytes, declared),
                     Err(error) => Reached::Value(Value::Error(error)),
                 };
-                return self.continue_from(forge, next, reached, state, emit);
+                return self.continue_from(forge, next, end, reached, sink);
             }
             Step::Follow { at, link, declared } => {
                 let reached = match place.field(forge, *at, link.len()) {
-                    Ok(bytes) => follow(forge, *link, bytes, declared, state),
+                    Ok(bytes) => follow(forge, *link, bytes, declared, sink),
                     Err(error) => Reached::Value(Value::Error(error)),
                 };
-                return self.continue_from(forge, next, reached, state, emit);
+                return self.continue_from(forge, next, end, reached, sink);
             }
             Step::Array {
                 at,
@@ -168,21 +170,21 @@ impl Walk {
         let header = place.field(forge, at, HEADER_LEN);
         let [count, first] = match header {
             Ok(bytes) => words(bytes),
-            Err(error) => return Ok(emit(Value::Error(error))),
+            Err(error) => return Ok(sink.reached(Reached::Value(Value::Error(error)))),
         };
         if let Err(error) = check_range(forge, elements, first, count) {
-            return Ok(emit(Value::Error(error)));
+            return Ok(sink.reached(Reached::Value(Value::Error(error))));
         }
         let indices = match select {
             Select::Index(element) if *element < count => *element..element.saturating_add(1),
-            Select::Index(_) => return Ok(emit(Value::Null)),
+            Select::Index(_) => return Ok(sink.reached(Reached::Value(Value::Null))),
             Select::All | Select::Type(_) => 0..count,
         };
-        state.charge(indices.len())?;
+        sink.charge(indices.len())?;
         for element in indices {
             let flow = match element_of(forge, elements, select, first.saturating_add(element)) {
-                Some(Reached::Place(target)) => self.step(forge, next, target, state, emit)?,
-                Some(Reached::Value(value)) => emit(value),
+                Some(Reached::Place(target)) => self.step(forge, next, end, target, sink)?,
+                Some(Reached::Value(value)) => sink.reached(Reached::Value(value)),
                 None => ControlFlow::Continue(()),
             };
             if flow.is_break() {
@@ -193,17 +195,17 @@ impl Walk {
     }
 
     /// Continues at the step `next` from what a pointer or link reached.
-    fn continue_from<'f>(
+    fn continue_from<'f, S: Sink<'f>>(
         &self,
         forge: &'f DataForge<'f>,
         next: usize,
+        end: usize,
         reached: Reached<'f>,
-        state: &mut WalkState,
-        emit: &mut dyn FnMut(Value<'f>) -> ControlFlow<()>,
+        sink: &mut S,
     ) -> Result<ControlFlow<()>, ValueError> {
         match reached {
-            Reached::Place(target) => self.step(forge, next, target, state, emit),
-            Reached::Value(value) => Ok(emit(value)),
+            Reached::Place(target) => self.step(forge, next, end, target, sink),
+            Reached::Value(value) => Ok(sink.reached(Reached::Value(value))),
         }
     }
 }
@@ -226,11 +228,11 @@ fn follow<'f>(
     link: Link,
     bytes: &[u8],
     declared: &[usize],
-    state: &mut WalkState,
+    sink: &mut impl Sink<'f>,
 ) -> Reached<'f> {
     if link == Link::Weak {
         return pointer(bytes).map_or_else(
-            || state.unresolved_link(bytes),
+            || unresolved(sink, bytes),
             |(struct_index, instance_index)| {
                 instance(forge, struct_index, instance_index, declared, |declared| {
                     ValueError::UnexpectedPointerType {
@@ -242,7 +244,7 @@ fn follow<'f>(
         );
     }
     let Some(record) = reference_guid(bytes).and_then(|guid| forge.record_by_guid(guid)) else {
-        return state.unresolved_link(bytes);
+        return unresolved(sink, bytes);
     };
     let struct_index = record.def.struct_index;
     instance(
@@ -256,6 +258,12 @@ fn follow<'f>(
             declared,
         },
     )
+}
+
+/// Counts the link in `bytes` in the sink and returns the null it reaches.
+fn unresolved<'f>(sink: &mut impl Sink<'f>, bytes: &[u8]) -> Reached<'f> {
+    sink.unresolved(bytes);
+    Reached::Value(Value::Null)
 }
 
 /// Follows a strong pointer to an instance of `declared` or of a struct deriving from it.

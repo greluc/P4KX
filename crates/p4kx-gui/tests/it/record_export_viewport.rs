@@ -32,6 +32,7 @@ fn start_is_inside(language: Language, size: [f32; 2], entry: &str, start: &str)
     harness.run_quiet();
     harness.get_by_label(entry).click();
     harness.run_quiet();
+    harness.run_steps(3);
 
     let rect = harness.get_by_label(start).rect();
     let [width, height] = size;

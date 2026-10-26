@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+use std::sync::{Arc, OnceLock};
 use std::thread;
 
-use p4kx_extraction::{DataForge, LanguageTexts, TextResolver};
+use p4kx_extraction::{DataForge, Guid, LanguageTexts, TagResolver, TagTree, TextResolver};
 
 use super::{RecordView, lines};
-use crate::forge_cache::ReadFailure;
+use crate::forge_cache::{ForgeSource, ReadFailure};
 use crate::model::describe;
 use crate::text_cache::TextFailure;
 use crate::{EntryIndex, RecordId, TextLanguage};
@@ -84,8 +84,9 @@ fn run(index: &EntryIndex, waiting: &Receiver<Request>, answer: &Sender<Answer>,
         let reason = match index.forge().read(index, || {}) {
             Ok(source) => match source.entry.open() {
                 Ok(forge) => {
+                    let tags = SourceTags::new(&source);
                     return serve(waiting, answer, wake, first, |request| {
-                        read(index, &forge, request)
+                        read(index, &forge, &tags, request)
                     });
                 }
                 Err(error) => Unread::Failed(describe(&error)),
@@ -107,7 +108,37 @@ fn run(index: &EntryIndex, waiting: &Receiver<Request>, answer: &Sender<Answer>,
     }
 }
 
-fn read(index: &EntryIndex, forge: &DataForge<'_>, request: Request) -> Result<RecordView, Unread> {
+/// The tag paths of the Archive's DataForge, from the tag tree its cache builds on the first
+/// lookup.
+struct SourceTags<'a> {
+    source: &'a ForgeSource,
+    tree: OnceLock<Option<Arc<TagTree>>>,
+}
+
+impl<'a> SourceTags<'a> {
+    const fn new(source: &'a ForgeSource) -> Self {
+        Self {
+            source,
+            tree: OnceLock::new(),
+        }
+    }
+}
+
+impl TagResolver for SourceTags<'_> {
+    fn tag_path(&self, guid: Guid) -> Option<&str> {
+        self.tree
+            .get_or_init(|| self.source.tags(&|| false).ok().flatten())
+            .as_deref()?
+            .tag_path(guid)
+    }
+}
+
+fn read(
+    index: &EntryIndex,
+    forge: &DataForge<'_>,
+    tags: &dyn TagResolver,
+    request: Request,
+) -> Result<RecordView, Unread> {
     let record = forge
         .record(request.id.0)
         .ok_or_else(|| Unread::Failed(format!("the DataForge has no Record {}", request.id.0)))?;
@@ -116,18 +147,19 @@ fn read(index: &EntryIndex, forge: &DataForge<'_>, request: Request) -> Result<R
         .map_err(|error| Unread::Failed(describe(&error)))?;
     let mut failure = None;
     let mut view = match request.language {
-        None => lines::view(forge, &tree, None),
+        None => lines::view(forge, &tree, None, tags),
         Some(language) => match index.texts().load(index, language) {
             Ok(texts) => {
                 let resolver = LanguageTexts::owned(&texts, language);
-                let mut view = lines::view(forge, &tree, Some(&resolver as &dyn TextResolver));
+                let texts = Some(&resolver as &dyn TextResolver);
+                let mut view = lines::view(forge, &tree, texts, tags);
                 view.language = Some(language);
                 view
             }
             Err(TextFailure::ArchiveChanged) => return Err(Unread::ArchiveChanged),
             Err(TextFailure::Unreadable(reason)) => {
                 failure = Some((language, reason.into_boxed_str()));
-                lines::view(forge, &tree, None)
+                lines::view(forge, &tree, None, tags)
             }
         },
     };

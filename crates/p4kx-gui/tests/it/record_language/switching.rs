@@ -250,12 +250,13 @@ fn exported(
     let tree = forge.record_by_guid(guid).ok_or("no such Record")?.tree()?;
     let mut out = Vec::new();
     match language {
-        None => RecordXml::new().write_with(&tree, None, &mut out)?,
+        None => RecordXml::new().write(&tree, &mut out)?,
         Some(language) => {
             let set = LocalizationSet::read(&archive, &[language])?;
             let texts = set.index()?;
             let resolver = LanguageTexts::new(&texts, language);
-            RecordXml::new().write_with(&tree, Some(&resolver), &mut out)?;
+            let texts: &dyn p4kx_extraction::TextResolver = &resolver;
+            RecordXml::new().write_annotated(&tree, Some(texts).into(), &mut out)?;
         }
     }
     Ok(out)

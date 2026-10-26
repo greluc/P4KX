@@ -338,6 +338,7 @@ fn view(forge: &DataForge<'_>, references: &ReferenceIndex, id: RecordId) -> Inc
                 record_path: record.record_path().unwrap_or_default().into(),
                 type_name: record.type_name().unwrap_or_default().into(),
                 at: None,
+                tag: None,
                 target: Some(RecordId(source)),
             }),
         });

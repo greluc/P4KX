@@ -111,6 +111,11 @@ fn body(
             setup.set_form(form);
         }
     }
+    let mut tags = setup.tags();
+    let enabled = crate::form_annotates_tags(setup.form());
+    if toggle::checkbox_if(ui, &mut tags, &texts.get(T::Tags), enabled).clicked() {
+        setup.set_tags(tags);
+    }
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(ExtractionText::TargetHeading));
     for (kind, text) in [

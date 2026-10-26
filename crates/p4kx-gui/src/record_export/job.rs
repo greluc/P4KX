@@ -13,7 +13,7 @@ use std::time::SystemTime;
 use p4kx_export::{
     CancelToken, ConflictPolicy, RecordExportOptions, RecordForm, write_planned_record_export,
 };
-use p4kx_extraction::{Filter, Record, create_default_target};
+use p4kx_extraction::{Filter, Record, TagResolver, create_default_target};
 use rayon::prelude::*;
 
 use super::RecordExportSummary;
@@ -37,6 +37,7 @@ pub(crate) enum Selection {
 pub(crate) struct Request {
     pub(crate) selection: Selection,
     pub(crate) form: RecordForm,
+    pub(crate) tags: bool,
     pub(crate) kind: TargetKind,
     pub(crate) folder: PathBuf,
     pub(crate) policy: ConflictPolicy,
@@ -227,6 +228,19 @@ impl Job<'_> {
                 self.cancel.is_cancelled(),
             ));
         }
+        let stop = || self.cancel.is_cancelled();
+        let tags = if self.request.tags {
+            let Some(tags) = source.tags(&stop).map_err(ReadFailure::into_reason)? else {
+                return Ok(RecordExportSummary::nothing_written(
+                    self.request.form,
+                    records.len(),
+                    true,
+                ));
+            };
+            Some(tags)
+        } else {
+            None
+        };
         let target = prepare_target(self.index, self.request).map_err(|error| describe(&error))?;
         self.shared.total.store(records.len(), Ordering::Relaxed);
         self.shared.enter(RecordExportStage::Writing);
@@ -238,7 +252,7 @@ impl Job<'_> {
             cancel: Some(self.cancel),
             progress: Some(&progress),
             texts: None,
-            tags: None,
+            tags: tags.as_deref().map(|tags| tags as &dyn TagResolver),
         };
         let summary = write_planned_record_export(
             &forge,

@@ -77,10 +77,20 @@ pub struct RecordExportSetup {
     tree: Option<TreeSelection>,
     filter: String,
     form: RecordForm,
+    tags: bool,
     kind: TargetKind,
     folder: Option<PathBuf>,
     refusal: Option<WriteRefused>,
     policy: ConflictPolicy,
+}
+
+/// Returns whether `form` can carry the tag path of a tag Reference.
+#[must_use]
+pub const fn form_annotates_tags(form: RecordForm) -> bool {
+    matches!(
+        form,
+        RecordForm::Xml | RecordForm::Json | RecordForm::Ndjson
+    )
 }
 
 impl RecordExportSetup {
@@ -95,6 +105,7 @@ impl RecordExportSetup {
             tree,
             filter: String::new(),
             form: RecordForm::Json,
+            tags: false,
             kind: TargetKind::NewFolder,
             refusal: refusal_of(folder.as_deref()),
             folder,
@@ -145,6 +156,18 @@ impl RecordExportSetup {
     /// Chooses the form the Records are written in.
     pub const fn set_form(&mut self, form: RecordForm) {
         self.form = form;
+    }
+
+    /// Returns whether the tag path of every tag Reference is written next to it.
+    #[must_use]
+    pub const fn tags(&self) -> bool {
+        self.tags
+    }
+
+    /// Chooses whether the tag path of every tag Reference is written next to it; the flat forms
+    /// ignore the choice, see [`form_annotates_tags`].
+    pub const fn set_tags(&mut self, tags: bool) {
+        self.tags = tags;
     }
 
     /// Returns where the Record export writes.
@@ -210,6 +233,7 @@ impl RecordExportSetup {
         Some(Request {
             selection,
             form: self.form,
+            tags: self.tags && form_annotates_tags(self.form),
             kind: self.kind,
             folder: self.folder.clone()?,
             policy: match self.kind {

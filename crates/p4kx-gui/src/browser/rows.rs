@@ -59,8 +59,10 @@ impl Browser {
     }
 
     pub(super) fn refresh_rows(&mut self) {
+        let mut rows = std::mem::take(&mut self.rows);
+        rows.clear();
+        rows.reserve(self.shown.len());
         let index = self.shown_index();
-        let mut rows = Vec::with_capacity(self.shown.len());
         for &id in &self.shown {
             let parts = index.texture_parts(id);
             if parts.is_empty() {

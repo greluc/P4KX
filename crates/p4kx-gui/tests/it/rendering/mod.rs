@@ -12,7 +12,7 @@ use crate::viewing;
 use std::error::Error;
 use std::fs::File;
 use std::io::BufWriter;
-use std::panic::catch_unwind;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -26,18 +26,40 @@ use viewing::{Site, TestResult, entries, opened_at};
 
 pub(crate) const BACKGROUND: [u8; 3] = [0x0F, 0x0F, 0x0F];
 
+pub(crate) fn render_state() -> Option<RenderState> {
+    render_state_with(default_wgpu_setup())
+}
+
 #[expect(
     clippy::print_stderr,
     reason = "tells the test run why a test checked nothing"
 )]
-pub(crate) fn render_state() -> Option<RenderState> {
-    let state =
-        catch_unwind(|| create_render_state(default_wgpu_setup(), RendererOptions::PREDICTABLE))
-            .ok();
+fn render_state_with(setup: eframe::egui_wgpu::WgpuSetup) -> Option<RenderState> {
+    let state = catch_unwind(AssertUnwindSafe(|| {
+        create_render_state(setup, RendererOptions::PREDICTABLE)
+    }))
+    .ok();
     if state.is_none() {
         eprintln!("no graphics adapter: the test checks nothing");
     }
     state
+}
+
+/// A render state whose device reads no storage buffer in a vertex stage, so it refuses the
+/// pipelines that skin a model and draw its skeleton.
+pub(crate) fn render_state_without_skinning() -> Option<RenderState> {
+    let eframe::egui_wgpu::WgpuSetup::CreateNew(mut setup) = default_wgpu_setup() else {
+        return None;
+    };
+    setup.device_descriptor = Arc::new(|adapter| eframe::egui_wgpu::wgpu::DeviceDescriptor {
+        required_limits: eframe::egui_wgpu::wgpu::Limits {
+            max_storage_buffers_per_shader_stage: 0,
+            ..eframe::egui_wgpu::wgpu::Limits::default()
+        }
+        .using_resolution(adapter.limits()),
+        ..eframe::egui_wgpu::wgpu::DeviceDescriptor::default()
+    });
+    render_state_with(eframe::egui_wgpu::WgpuSetup::CreateNew(setup))
 }
 
 pub(crate) struct Window {
@@ -57,7 +79,15 @@ pub(crate) fn window(language: Language) -> Result<Option<Window>, Box<dyn Error
 }
 
 pub(crate) fn window_at(language: Language, site: Site) -> Result<Option<Window>, Box<dyn Error>> {
-    let Some(state) = render_state() else {
+    window_on(render_state(), language, site)
+}
+
+pub(crate) fn window_on(
+    state: Option<RenderState>,
+    language: Language,
+    site: Site,
+) -> Result<Option<Window>, Box<dyn Error>> {
+    let Some(state) = state else {
         return Ok(None);
     };
     let report = install_viewer(&state)?;

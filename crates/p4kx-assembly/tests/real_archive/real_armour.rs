@@ -6,7 +6,8 @@
 use std::error::Error;
 
 use p4kx_assembly::{
-    ArchiveModels, Armour, AssemblyOptions, BodyVariant, LoadoutResolver, PartOrigin, Piece,
+    ArchiveModels, Armour, AssemblyOptions, BodyVariant, IssueKind, LoadoutResolver, PartOrigin,
+    Piece,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
@@ -20,6 +21,36 @@ const PIECES: [&str; 2] = [
 ];
 
 const LOD: u32 = 2;
+
+fn assert_body_covered(armour: &Armour, variant: BodyVariant) -> TestResult {
+    let hidden = armour
+        .issues()
+        .iter()
+        .find_map(|issue| match issue.kind() {
+            IssueKind::BodyZonesHidden(zones) => Some(zones.len()),
+            _ => None,
+        })
+        .ok_or("the undersuit hides no zone of the body")?;
+    assert_eq!(
+        hidden,
+        variant.zone_names().len(),
+        "{variant:?}: the undersuit covers the whole body"
+    );
+    let body = armour
+        .parts()
+        .iter()
+        .find(|part| part.origin() == PartOrigin::Body)
+        .ok_or("no body part")?;
+    let body_indices: usize = body
+        .model()
+        .lods
+        .iter()
+        .flat_map(|lod| &lod.meshes)
+        .map(|mesh| mesh.indices.len())
+        .sum();
+    assert_eq!(body_indices, 0, "{variant:?}: nothing of the body shows");
+    Ok(())
+}
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
@@ -51,6 +82,7 @@ fn an_undersuit_and_a_helmet_are_worn_on_both_bodies_as_one_valid_glb() -> TestR
             .filter(|issue| issue.kind().skips())
             .collect();
         assert!(skipped.is_empty(), "{variant:?}: {skipped:?}");
+        assert_body_covered(&armour, variant)?;
         assert_eq!(armour.count(PartOrigin::Body), 1, "{variant:?}: the body");
         assert_eq!(
             armour.count(PartOrigin::Piece),
@@ -58,7 +90,10 @@ fn an_undersuit_and_a_helmet_are_worn_on_both_bodies_as_one_valid_glb() -> TestR
             "{variant:?}: the pieces"
         );
         assert!(summary.bones > 100, "{variant:?}: {} bones", summary.bones);
-        assert_eq!(summary.skinned_meshes, 3, "{variant:?}: skinned meshes");
+        assert_eq!(
+            summary.skinned_meshes, 2,
+            "{variant:?}: the body has no triangles left, so only the two pieces are drawn"
+        );
         assert_eq!(glb.document.skins().len(), 1, "{variant:?}: one skin");
     }
     Ok(())

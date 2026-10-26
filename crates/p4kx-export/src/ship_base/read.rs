@@ -166,7 +166,7 @@ const GROUND_FOLDER: usize = 1;
 /// Returns whether `record_path` is under the folder of the `ships` kind at `index` of its rule.
 fn in_folder(record_path: &str, index: usize) -> bool {
     Kind::Ships
-        .rule()
+        .records()
         .prefixes
         .get(index)
         .is_some_and(|prefix| starts_with_folder(record_path, prefix))

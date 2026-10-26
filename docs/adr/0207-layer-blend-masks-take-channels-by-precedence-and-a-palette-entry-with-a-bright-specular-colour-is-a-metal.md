@@ -33,8 +33,25 @@ renders of the Star Citizen Wiki: the ORC-mkV Hurston Edition worn by
 
 **Precedence.** With a blend mask the share of the four base layers at a texel is `r`, `g·(1−r)`,
 `b·(1−r)·(1−g)` and `(1−r)·(1−g)·(1−b)`, normalised over the layers that exist and together
-`1 − w` as in ADR-0147. The add-on builds the same order for `LayerBlend_V2`: the fourth layer at
-the bottom, then the third by blue, the second by green and the first by red.
+`1 − w` as in ADR-0147. The add-on builds the same order: the last base layer at the bottom, then
+the others each by its channel, the first by red on top.
+
+- **Scope.** It applies to every layered material with a blend mask (a texture whose name ends in
+  `_blend`), whatever its shader, in the bake and in the add-on alike.
+- **Positions.** A layer's channel is its position in `MatLayers`, not its index among the layers
+  that could be read. The first four positions are the base layers; a layer after them takes its
+  share by position, as in ADR-0147 (`WearBlendBase` spread over the layers after the first,
+  normalised over the layers present), and the base layers share what is left.
+- **Missing base layers.** The game's fourth layer takes the texels where no channel is set. We
+  have no evidence of what the game draws when that layer is missing, so a missing layer is
+  skipped and the last base layer present takes what no channel of the layers before it claims.
+  The bake (`Layered::shares`) and the add-on (`_by_precedence`) both do this, each with a test.
+  A material with no base layer present is drawn from its own colours in the add-on and by
+  position in the bake.
+- **What the add-on keeps.** Layers after the base layers are blended by their share by position
+  (`_rest_shares`); a layer's wear tint is applied as without a blend mask; the specular level
+  is that of the first base layer; a material with its own diffuse map keeps that map's colour.
+  The wear map (`TexSlot11`) and the `WearLayer`s as such are still not drawn.
 
 **Metal paints.** `p4kx_gltf::shading` applies the ordinary metal test to tinted materials again:
 a palette entry with a bright specular colour (the Prospector's `misc_prospector_default`, 0.62,
@@ -58,5 +75,6 @@ the import fails.
 ## Consequences
 
 The base colour images of `LayerBlend_V2` materials change, also in the viewer, which uses the same
-bake. Clothing whose masks are pure red, green and blue now takes the layers one place later than
-before. The wear map (`TexSlot11`) and the `WearLayer`s are still not drawn.
+bake. Clothing whose masks are pure red, green and blue now takes the layers one place earlier
+than before: red the first (it took the second), green the second, blue the third, and the
+texels with no channel the fourth (they took the first).

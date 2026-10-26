@@ -9,14 +9,11 @@ palette and the alpha meaning of the textures, so all of it is tested without Bl
 
 from __future__ import annotations
 
-from .graph_groups import LAYER_BLEND, WEAR
 from .graph_spec import GraphBuilder, GraphSpec, Ref
+from .material_layers import LayerBlending
 from .package import BLENDER_NAME_BYTES
 from .material_model import WHITE, Colour, Layer, MaterialDesc, PaletteColours, TextureSlot
 from .material_surface import (
-    MASK_PRECEDENCE_SHADERS,
-    MASKED_LAYERS,
-    MAX_BLENDED_LAYERS,
     MAX_PROPERTIES,
     METAL_FROM,
     METAL_TO,
@@ -50,7 +47,7 @@ def build_graph(desc: MaterialDesc, context: BuildContext) -> GraphSpec:
     return _Maker(desc, context).build()
 
 
-class _Maker:
+class _Maker(LayerBlending):
     def __init__(self, desc: MaterialDesc, context: BuildContext) -> None:
         self.desc = desc
         self.context = context
@@ -217,110 +214,6 @@ class _Maker:
         return self._surface(
             desc, factor, smooth, specular, layer.gloss_mult or 1.0, layer.uv_tiling or 1.0, painted
         )
-
-    def _layered(self) -> Surface:
-        desc = self.desc
-        pairs = [
-            (layer, self.context.materials[layer.material])
-            for layer in desc.layers
-            if layer.material in self.context.materials
-        ]
-        if not pairs:
-            return self._base()
-        if desc.shader.strip().lower() in MASK_PRECEDENCE_SHADERS and (
-            desc.slot("blend") or desc.slot("mask")
-        ):
-            return self._by_precedence(pairs[:MASKED_LAYERS])
-        if desc.slot("diffuse"):
-            foundation = self._base()
-        else:
-            foundation = self._layer_surface(*pairs[0])
-            pairs = pairs[1:]
-        if len(pairs) > MAX_BLENDED_LAYERS:
-            self.builder.spec.warnings.append(
-                f"Material {desc.name or desc.id!r} has {len(pairs) + 1} layers: "
-                f"only the first {MAX_BLENDED_LAYERS + 1} are blended."
-            )
-            pairs = pairs[:MAX_BLENDED_LAYERS]
-        if not pairs:
-            return foundation
-        channels = self._blend_channels()
-        wear: Ref | float | None = None
-        wear_read = False
-        current = foundation
-        for channel, (layer, layer_desc) in zip(channels, pairs):
-            surface = self._layer_surface(layer, layer_desc)
-            if layer.wear_tint:
-                if not wear_read:
-                    wear, wear_read = self._wear_factor(), True
-                if wear is not None:
-                    surface = surface._replace(
-                        colour=self._worn(surface.colour, layer.wear_tint, wear)
-                    )
-            current = self._blend(current, surface, channel)
-        return current
-
-    def _by_precedence(self, pairs: list[tuple[Layer, MaterialDesc]]) -> Surface:
-        surfaces = [self._layer_surface(layer, layer_desc) for layer, layer_desc in pairs]
-        if len(surfaces) == 1:
-            return surfaces[0]
-        channels = self._blend_channels()
-        current = surfaces[-1]
-        for at in range(len(surfaces) - 2, -1, -1):
-            current = self._blend(current, surfaces[at], channels[at])
-        return current
-
-    def _blend_channels(self) -> list[Ref]:
-        b = self.builder
-        if slot := self.desc.slot("blend") or self.desc.slot("mask"):
-            source = self._image(slot, 1.0)
-            split = b.add("ShaderNodeSeparateColor")
-            b.link(Ref(source, "Color"), split, "Color")
-            return [Ref(split, "Red"), Ref(split, "Green"), Ref(split, "Blue"), Ref(source, "Alpha")]
-        source = b.add("ShaderNodeVertexColor")
-        split = b.add("ShaderNodeSeparateColor")
-        b.link(Ref(source, "Color"), split, "Color")
-        worn = b.math("SUBTRACT", 1.0, Ref(split, "Red"), clamp=True)
-        if (base := self.desc.number("WearBlendBase")) is not None:
-            worn = b.math("MULTIPLY", worn, base, clamp=True)
-        return [worn, Ref(split, "Green"), Ref(split, "Blue"), Ref(source, "Alpha")]
-
-    def _wear_factor(self) -> Ref | float | None:
-        b = self.builder
-        base = self.desc.number("WearBlendBase")
-        if slot := self.desc.slot("wear"):
-            bw = b.add("ShaderNodeRGBToBW")
-            b.link(Ref(self._image(slot, 1.0), "Color"), bw, "Color")
-            value = Ref(bw, "Val")
-            return value if base is None else b.math("MULTIPLY", value, base)
-        return base
-
-    def _worn(self, colour: Ref | Colour, tint: Colour, factor: Ref | float) -> Ref:
-        b = self.builder
-        node = b.add("ShaderNodeGroup", group=WEAR)
-        b.put(node, "Colour", colour)
-        b.put(node, "Wear Tint", tint)
-        b.put(node, "Wear", factor)
-        return Ref(node, "Colour")
-
-    def _blend(self, below: Surface, above: Surface, factor: Ref) -> Surface:
-        b = self.builder
-        node = b.add("ShaderNodeGroup", group=LAYER_BLEND)
-        b.put(node, "Colour A", below.colour)
-        b.put(node, "Colour B", above.colour)
-        b.put(node, "Roughness A", below.roughness)
-        b.put(node, "Roughness B", above.roughness)
-        b.put(node, "Metallic A", below.metallic)
-        b.put(node, "Metallic B", above.metallic)
-        b.put(node, "Factor", factor)
-        colour, roughness, metallic = Ref(node, "Colour"), Ref(node, "Roughness"), Ref(node, "Metallic")
-        normal_a, normal_b = below.normal, above.normal
-        if normal_a is None and normal_b is None:
-            return Surface(colour, roughness, None, metallic, below.level)
-        geometry = b.add("ShaderNodeNewGeometry")
-        b.put(node, "Normal A", normal_a or Ref(geometry, "Normal"))
-        b.put(node, "Normal B", normal_b or Ref(geometry, "Normal"))
-        return Surface(colour, roughness, Ref(node, "Normal"), metallic, below.level)
 
     def _image(self, slot: TextureSlot, tiling: float) -> str:
         key = (slot.texture or "", tiling, slot.tiling, slot.offset)

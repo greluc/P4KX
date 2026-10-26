@@ -123,16 +123,17 @@ def _import_glb(
     layer = _layer_collection(context.view_layer.layer_collection, template)
     previous = context.view_layer.active_layer_collection
     context.view_layer.active_layer_collection = layer
-    before = set(bpy.data.materials)
+    before = _snapshot()
     try:
         status = _run_gltf(context, path)
     except RuntimeError:
-        return False
+        status = set()
     finally:
         context.view_layer.active_layer_collection = previous
     if "FINISHED" not in status:
+        _discard_new(before)
         return False
-    created = [material for material in bpy.data.materials if material not in before]
+    created = [material for material in bpy.data.materials if material not in before["materials"]]
     apply_materials(created, package, mesh, images)
     return True
 
@@ -158,20 +159,18 @@ def _import_character(
     previous = context.view_layer.active_layer_collection
     if layer is not None:
         context.view_layer.active_layer_collection = layer
-    objects_before = set(bpy.data.objects)
-    actions_before = set(bpy.data.actions)
+    before = _snapshot()
     try:
         status = _run_gltf(context, path)
     except RuntimeError:
         status = set()
     finally:
         context.view_layer.active_layer_collection = previous
-    created = [obj for obj in bpy.data.objects if obj not in objects_before]
     if "FINISHED" not in status:
-        for obj in created:
-            bpy.data.objects.remove(obj, do_unlink=True)
+        _discard_new(before)
         package.warnings.append(f"Mesh {mesh.id} could not be imported.")
         return
+    created = [obj for obj in bpy.data.objects if obj not in before["objects"]]
     for obj in created:
         if obj.parent is None:
             obj.parent = parent
@@ -182,8 +181,24 @@ def _import_character(
             for material in obj.data.materials:
                 if material is not None:
                     _drop_vertex_colour_tint(material)
-    result.actions += len(set(bpy.data.actions) - actions_before)
+    result.actions += len(set(bpy.data.actions) - before["actions"])
     result.meshes += 1
+
+
+_DATA_BLOCKS = ("objects", "meshes", "armatures", "materials", "actions", "images", "cameras", "lights")
+
+
+def _snapshot() -> dict[str, set]:
+    """Returns the datablocks a glTF import may create, to remove them if the import fails."""
+    return {name: set(getattr(bpy.data, name)) for name in _DATA_BLOCKS}
+
+
+def _discard_new(before: dict[str, set]) -> None:
+    """Removes every datablock that is not in ``before``, objects first."""
+    for name in _DATA_BLOCKS:
+        blocks = getattr(bpy.data, name)
+        for block in [block for block in blocks if block not in before[name]]:
+            blocks.remove(block)
 
 
 def _run_gltf(context: bpy.types.Context, path: Path) -> set[str]:
@@ -193,14 +208,14 @@ def _run_gltf(context: bpy.types.Context, path: Path) -> set[str]:
 
 def _gltf_context(context: bpy.types.Context) -> AbstractContextManager[object]:
     """Returns a context with a 3D view when the caller has none, as glTF armatures need one."""
-    if hasattr(bpy.context, "object"):
+    if hasattr(context, "object"):
         return nullcontext()
     window = next(iter(context.window_manager.windows), None)
     area = next((a for a in window.screen.areas if a.type == "VIEW_3D"), None) if window else None
     region = next((r for r in area.regions if r.type == "WINDOW"), None) if area else None
     if window is None or area is None or region is None:
         return nullcontext()
-    return bpy.context.temp_override(window=window, area=area, region=region)
+    return context.temp_override(window=window, area=area, region=region)
 
 
 def _drop_vertex_colour_tint(material: bpy.types.Material) -> None:

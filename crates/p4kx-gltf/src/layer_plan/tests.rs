@@ -86,9 +86,52 @@ fn without_a_mask_the_shares_are_those_by_position() {
 }
 
 #[test]
-fn a_mask_that_chooses_no_layer_that_exists_falls_back_to_the_shares_by_position() {
+fn without_a_fourth_layer_the_last_base_layer_present_takes_what_no_channel_claims() {
     let layered = Layered {
-        layers: vec![layer(0, 0.7), layer(1, 0.3)],
+        layers: (0..3).map(|at| layer(at, 0.0)).collect(),
+        mask: None,
+        refused: Vec::new(),
+    };
+
+    assert!(close(shares_at(&layered, Some([0.0; 3])), &[0.0, 0.0, 1.0]));
+    assert!(close(
+        shares_at(&layered, Some([0.0, 1.0, 0.0])),
+        &[0.0, 1.0, 0.0]
+    ));
+    assert!(close(
+        shares_at(&layered, Some([0.5, 0.0, 0.0])),
+        &[0.5, 0.0, 0.5]
+    ));
+}
+
+#[test]
+fn a_missing_base_layer_is_skipped_and_the_channels_stay_with_the_positions() {
+    let layered = Layered {
+        layers: [0, 2, 3, 4]
+            .map(|at| layer(at, if at == 4 { 0.2 } else { 0.0 }))
+            .to_vec(),
+        mask: None,
+        refused: Vec::new(),
+    };
+
+    assert!(close(
+        shares_at(&layered, Some([0.0, 1.0, 0.0])),
+        &[0.0, 0.0, 0.8, 0.2]
+    ));
+    assert!(close(
+        shares_at(&layered, Some([0.0, 0.0, 1.0])),
+        &[0.0, 0.8, 0.0, 0.2]
+    ));
+    assert!(close(
+        shares_at(&layered, Some([1.0, 1.0, 1.0])),
+        &[0.8, 0.0, 0.0, 0.2]
+    ));
+}
+
+#[test]
+fn a_mask_with_no_base_layer_present_gives_the_shares_by_position() {
+    let layered = Layered {
+        layers: vec![layer(4, 0.7), layer(5, 0.3)],
         mask: None,
         refused: Vec::new(),
     };

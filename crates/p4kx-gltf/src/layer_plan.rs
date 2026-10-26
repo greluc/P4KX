@@ -278,6 +278,8 @@ impl Layered {
     /// Writes the share each layer has at a texel into `shares`, one per layer in order: the
     /// layers' shares by position, or with a mask value `mask` (red, green and blue as 0 to 1)
     /// the base layers by the mask, red over green over blue over none, and the rest by position.
+    /// A base layer the material lacks is skipped, and the last base layer present takes what no
+    /// channel of the layers before it claims.
     pub(crate) fn shares(&self, mask: Option<[f32; 3]>, shares: &mut [f32; MAX_BAKED_LAYERS]) {
         shares.fill(0.0);
         let positional = |layer: &LayerPlan| layer.share;
@@ -288,38 +290,33 @@ impl Layered {
             return;
         };
         let [red, green, blue] = mask.map(|channel| channel.clamp(0.0, 1.0));
-        let channels = [
-            red,
-            green * (1.0 - red),
-            blue * (1.0 - red) * (1.0 - green),
-            (1.0 - red) * (1.0 - green) * (1.0 - blue),
-        ];
-        let masked: f32 = self
-            .layers
-            .iter()
-            .filter(|layer| layer.at < BASE_LAYERS)
-            .map(|layer| channels.get(layer.at).copied().unwrap_or(0.0))
-            .sum();
+        let channels = [red, green, blue, 1.0];
+        let last_base = self.layers.iter().rposition(|layer| layer.at < BASE_LAYERS);
+        let Some(last_base) = last_base else {
+            for (share, layer) in shares.iter_mut().zip(&self.layers) {
+                *share = positional(layer);
+            }
+            return;
+        };
         let rest: f32 = self
             .layers
             .iter()
             .filter(|layer| layer.at >= BASE_LAYERS)
             .map(positional)
             .sum();
-        let by_mask = masked > f32::EPSILON;
-        let base = if by_mask {
-            (1.0 - rest).max(0.0) / masked
-        } else {
-            1.0
-        };
-        for (share, layer) in shares.iter_mut().zip(&self.layers) {
-            *share = if layer.at >= BASE_LAYERS {
-                positional(layer)
-            } else if by_mask {
-                channels.get(layer.at).copied().unwrap_or(0.0) * base
+        let mut remaining = (1.0 - rest).max(0.0);
+        for (index, (share, layer)) in shares.iter_mut().zip(&self.layers).enumerate() {
+            if layer.at >= BASE_LAYERS {
+                *share = positional(layer);
+                continue;
+            }
+            let channel = if index == last_base {
+                1.0
             } else {
-                positional(layer)
+                channels.get(layer.at).copied().unwrap_or(0.0)
             };
+            *share = channel * remaining;
+            remaining *= 1.0 - channel;
         }
     }
 }

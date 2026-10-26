@@ -17,7 +17,6 @@ GLASS_SHADERS = frozenset({"glasspbr", "glass"})
 DECAL_SHADERS = frozenset({"meshdecal"})
 HOLOGRAM_SHADERS = frozenset({"hologram", "hologramcig"})
 NODRAW_SHADERS = frozenset({"nodraw", "nodraw_proxy", "proxy"})
-MASK_PRECEDENCE_SHADERS = frozenset({"layerblend_v2"})
 MAX_BLENDED_LAYERS = 4
 MASKED_LAYERS = 4
 TINT_PALETTE_DECAL = "$TintPaletteDecal"

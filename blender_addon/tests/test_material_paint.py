@@ -118,6 +118,89 @@ def test_vertex_red_is_pristine_paint_and_wear_blend_base_scales_the_wear() -> N
     assert graph.linked(node.key, 1) is not None and graph.linked(node.key, 1).socket == "Red"
 
 
+def masked(shader: str, layers: list[dict], parameters: list[dict] | None = None) -> GraphSpec:
+    raw = [
+        description(
+            "x0001",
+            shader,
+            textures=[slot("TexSlot12", "blend", "t0001")],
+            layers=layers,
+            parameters=parameters or [],
+        ),
+        *(description(f"x{at + 2:04d}", "Layer") for at in range(len(layers))),
+    ]
+    return single(raw)
+
+
+def test_without_a_fourth_layer_the_last_base_layer_takes_what_no_channel_claims() -> None:
+    layers = [layer(f"BaseLayer{at + 1}", f"x{at + 2:04d}", tint_colour=[0.2 * (at + 1)] * 3) for at in range(3)]
+    graph = masked("LayerBlend_V2", layers)
+    blends = [n for n in graph.nodes if n.group == LAYER_BLEND]
+    assert len(blends) == 2
+    top = graph.node(graph.linked("bsdf", "Base Color").key)
+    below = graph.node(graph.linked(top.key, "Colour A").key)
+    assert top.inputs["Colour B"] == pytest.approx((0.2, 0.2, 0.2))
+    assert below.inputs["Colour B"] == pytest.approx((0.4, 0.4, 0.4))
+    assert below.inputs["Colour A"] == pytest.approx((0.6, 0.6, 0.6))
+
+
+def test_a_missing_layer_keeps_the_channels_of_the_positions_of_the_others() -> None:
+    layers = [
+        layer("BaseLayer1", "x0002", tint_colour=[0.2] * 3),
+        layer("BaseLayer2", "x9999", tint_colour=[0.4] * 3),
+        layer("BaseLayer3", "x0004", tint_colour=[0.6] * 3),
+        layer("BaseLayer4", "x0005", tint_colour=[0.8] * 3),
+    ]
+    raw = [
+        description(
+            "x0001", "LayerBlend_V2", textures=[slot("TexSlot12", "blend", "t0001")], layers=layers
+        ),
+        *(description(f"x{at:04d}", "Layer") for at in (2, 4, 5)),
+    ]
+    graph = single(raw)
+    top = graph.node(graph.linked("bsdf", "Base Color").key)
+    factor = graph.linked(top.key, "Factor")
+    below = graph.node(graph.linked(top.key, "Colour A").key)
+    assert factor is not None and factor.socket == "Red"
+    assert below.inputs["Colour B"] == pytest.approx((0.6, 0.6, 0.6))
+    assert graph.linked(below.key, "Factor").socket == "Blue"
+
+
+def test_any_shader_with_a_blend_map_takes_the_channels_by_precedence() -> None:
+    layers = [layer(f"BaseLayer{at + 1}", f"x{at + 2:04d}", tint_colour=[0.2 * (at + 1)] * 3) for at in range(4)]
+    graph = masked("HardSurface", layers)
+    top = graph.node(graph.linked("bsdf", "Base Color").key)
+    assert top.inputs["Colour B"] == pytest.approx((0.2, 0.2, 0.2))
+    assert graph.linked(top.key, "Factor").socket == "Red"
+
+
+def test_the_layers_after_the_base_layers_take_their_share_by_position() -> None:
+    names = ["BaseLayer1", "BaseLayer2", "BaseLayer3", "BaseLayer4", "WearLayer1"]
+    layers = [layer(name, f"x{at + 2:04d}", tint_colour=[0.1 * (at + 1)] * 3) for at, name in enumerate(names)]
+    graph = masked("LayerBlend_V2", layers, [{"name": "WearBlendBase", "value": "0.4"}])
+    top = graph.node(graph.linked("bsdf", "Base Color").key)
+    assert top.inputs["Colour B"] == pytest.approx((0.5, 0.5, 0.5))
+    assert top.inputs["Factor"] == pytest.approx(0.1)
+
+
+def test_the_specular_level_comes_from_the_first_layer() -> None:
+    first = description("x0002", "Layer", textures=[slot("TexSlot1", "specular", "t0002")])
+    raw = [
+        description(
+            "x0001",
+            "LayerBlend_V2",
+            textures=[slot("TexSlot12", "blend", "t0001")],
+            layers=[layer("BaseLayer1", "x0002"), layer("BaseLayer2", "x0003")],
+        ),
+        first,
+        description("x0003", "Layer"),
+    ]
+    graph = single(raw)
+    level = graph.linked("bsdf", "Specular IOR Level")
+    assert level is not None
+    assert graph.node(level.key).kind == "ShaderNodeMath"
+
+
 def test_the_blend_mask_of_layer_blend_v2_takes_red_over_green_over_blue_over_none() -> None:
     names = ["BaseLayer1", "BaseLayer2", "BaseLayer3", "BaseLayer4", "WearLayer1"]
     colours = [[0.9, 0.0, 0.0], [0.0, 0.9, 0.0], [0.0, 0.0, 0.9], [0.1, 0.1, 0.1], [1.0, 1.0, 1.0]]

@@ -264,6 +264,8 @@ order is attached. The same Archive always gives the same document.
 one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. A
 change to a port below an unexpanded docked vehicle, as `entity loadout` lists it, is not applied
 and no error; the report lists the ports as `ignored` (absent when empty), as for `entity loadout`.
+A replacement that does not fit its port is written all the same and listed in `incompatible` (absent
+when empty), as for `entity loadout`.
 `parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
@@ -351,8 +353,8 @@ GLB files written and `shared_meshes` the nodes that draw a mesh another node dr
 and `texture_pixels` count the PNG files written and their pixels, `texture_failures` the
 textures that could not be loaded or encoded (their materials keep plain colours). `files` and
 `bytes` count the manifest, the parts and the textures; `vertices` and `triangles` count each
-mesh once. `excluded` and `replaced` are as for `p4kx entity glb` and absent without the
-options. An **Issue** is an entry of the `issues` of `scene.json` ([docs/blender-package.md](blender-package.md)):
+mesh once. `excluded`, `replaced`, `ignored` and `incompatible` are as for `p4kx entity glb` and
+absent without the options. An **Issue** is an entry of the `issues` of `scene.json` ([docs/blender-package.md](blender-package.md)):
 `origin` (`assembly` or `texture`), `kind`, `path`, `name`, `skipped` and `reason`; the assembly
 kinds are those of `p4kx entity glb`, the texture kinds are `texture` and `texture_path`. An
 `--out` that is the Archive, that lies in a Star Citizen installation or that exists and is no
@@ -1545,8 +1547,9 @@ skipped parts of the Assembly as `entity glb` lists them. `milliseconds` splits 
 reading and assembling, building the scene, drawing and reading the picture back, and writing
 the file. An Entity the Archive lacks, a bad option, a `--out` that is the Archive or lies in a
 Star Citizen installation and a `--size` that is empty or beyond what the device draws
-print no JSON and fail with exit code 2; a machine without a
-graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
+print no JSON and fail with exit code 2. A replacement that does not fit its port is drawn all the
+same and listed in `incompatible` (absent when empty), as for `entity loadout`. A machine without
+a graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
 
 ## `p4kx ui screens <archive> <entity> --json`
 

@@ -56,6 +56,9 @@ pub enum EntityText {
     LoadoutArchiveChanged,
     /// Shown when the Entity has no ports.
     LoadoutNoPorts,
+    /// A replacement applied although its Entity does not fit the port; takes `entity`, `port`
+    /// and `reason`.
+    LoadoutMismatch,
     /// What the changes amount to; takes `excluded` and `replaced`.
     Changes,
     /// Shown while the Loadout has no changes.
@@ -110,7 +113,8 @@ pub enum EntityText {
     ReplaceCount,
     /// Shown when no Entity matches the search.
     ReplaceNone,
-    /// Marks an Entity that does not fit the port; it can be chosen all the same.
+    /// Marks an Entity that does not fit the port, before its facts; takes `facts`. It can be
+    /// chosen all the same.
     ReplaceMisfit,
     /// The item type and size of an Entity; takes `type` and `size`.
     FactsSized,
@@ -174,7 +178,7 @@ pub enum EntityText {
 
 impl EntityText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 82] = [
+    pub(crate) const ALL: [Self; 83] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -201,6 +205,7 @@ impl EntityText {
         Self::LoadoutLost,
         Self::LoadoutArchiveChanged,
         Self::LoadoutNoPorts,
+        Self::LoadoutMismatch,
         Self::Changes,
         Self::NoChanges,
         Self::Reset,
@@ -290,6 +295,7 @@ impl EntityText {
             Self::LoadoutLost => "entities-loadout-lost",
             Self::LoadoutArchiveChanged => "entities-loadout-archive-changed",
             Self::LoadoutNoPorts => "entities-loadout-no-ports",
+            Self::LoadoutMismatch => "entities-loadout-mismatch",
             Self::Changes => "entities-changes",
             Self::NoChanges => "entities-no-changes",
             Self::Reset => "entities-reset",

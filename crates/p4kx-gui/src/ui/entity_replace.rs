@@ -183,29 +183,37 @@ fn list(ui: &mut Ui, texts: &Texts, chooser: &ReplaceChooser) -> Option<Guid> {
 }
 
 fn row(ui: &mut Ui, texts: &Texts, name: &str, (facts, fits): (&ItemFacts, bool)) -> bool {
+    let facts_line = facts_text(texts, facts);
+    let (detail_text, detail_colour) = if fits {
+        (facts_line, palette::GRAY_2_TEXT)
+    } else {
+        (
+            texts.format(EntityText::ReplaceMisfit, &[("facts", facts_line.into())]),
+            palette::WARNING,
+        )
+    };
     let (rect, response) =
         ui.allocate_exact_size(vec2(ui.available_width(), ROW_HEIGHT), Sense::click());
-    response.widget_info(|| WidgetInfo::labeled(Role::Button, true, name));
+    response.widget_info(|| {
+        let label = if fits {
+            name.to_owned()
+        } else {
+            format!("{name}, {detail_text}")
+        };
+        WidgetInfo::labeled(Role::Button, true, label)
+    });
     let state = RowState::of_list(false, response.hovered());
     paint_row(ui.painter(), rect, state);
-    let (_, colour) = state.colours();
+    let (_, hovered) = state.colours();
+    let colour = if fits || response.hovered() {
+        hovered
+    } else {
+        palette::GRAY_2_TEXT
+    };
     let inner = Rect::from_min_max(
         pos2(rect.left() + TREE_PADDING_LEFT + SPACE_2, rect.top()),
         pos2(rect.right() - SPACE_2, rect.bottom()),
     );
-    let (detail_text, detail_colour, colour) = if fits {
-        (facts_text(texts, facts), palette::GRAY_2_TEXT, colour)
-    } else {
-        (
-            format!(
-                "{}, {}",
-                texts.get(EntityText::ReplaceMisfit),
-                facts_text(texts, facts)
-            ),
-            palette::WARNING,
-            palette::GRAY_2_TEXT,
-        )
-    };
     let detail = line(
         ui,
         plain(detail_text, ROW_FONT, row_weight(false)),
@@ -225,7 +233,10 @@ fn row(ui: &mut Ui, texts: &Texts, name: &str, (facts, fits): (&ItemFacts, bool)
 }
 
 fn facts_text(texts: &Texts, facts: &ItemFacts) -> String {
-    match (facts.item_type().is_empty(), facts.size()) {
+    match (
+        facts.item_type().is_empty(),
+        facts.size().filter(|size| *size > 0),
+    ) {
         (true, _) => texts.get(EntityText::FactsNone),
         (false, Some(size)) => texts.format(
             EntityText::FactsSized,

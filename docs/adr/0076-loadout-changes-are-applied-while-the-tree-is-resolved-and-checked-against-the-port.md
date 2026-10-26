@@ -50,10 +50,11 @@ smallest size of 0 or none is the unauthored default and states no largest size
 
 A replacement that does not fit is applied all the same. `LoadoutResolver::resolve_changed`
 returns it in `ChangedLoadout::mismatches` with the port path, the Entity and the `Incompatibility`
-(`kind` and reason). The CLI warns on stderr, lists it as `incompatible` in the JSON (`path`,
+(`kind` and reason). The CLI warns on stderr, lists it as `incompatible` in the JSON (`port`,
 `entity`, `kind`, `reason`) and exits 0; there is no refusal and no exit code for it. The GUI
 replacement chooser lists every Entity, the ones that fit first and the others muted with the
-text "Does not fit".
+text "Does not fit"; the Loadout panel of the Entities tab and the summary of the GUI export
+show the mismatch as a warning, and the export writes the replacement.
 
 The reason is the census of the default Loadouts of all 1144 ships and vehicles of LIVE: of
 155,707 default items on ports with constraints, 1677 break their own port (item types 1326,

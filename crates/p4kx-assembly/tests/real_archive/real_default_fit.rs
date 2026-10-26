@@ -2,8 +2,10 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 //! The default items of every real ship and vehicle against the ports that hold them. The data
-//! does not keep its own port definitions (ADR-0076), so the test measures and holds the counts
-//! per kind of mismatch under ceilings a regression of the check would break.
+//! does not keep its own port definitions (ADR-0076), so the test counts the mismatches per kind
+//! and holds each count under a ceiling. A check that turns stricter, or a reading of the port
+//! definitions that loses information, raises the counts and fails; a check that turns looser, or
+//! a new LIVE build with more mismatches, is for the ceilings to be adjusted.
 
 use std::collections::BTreeMap;
 use std::error::Error;
@@ -16,7 +18,7 @@ use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-/// The counts of LIVE at the time of ADR-0076 plus a margin of about 8 per cent.
+/// The ceilings of the mismatches per kind: the counts ADR-0076 gives with a small margin.
 const CEILINGS: [(&str, usize); 4] = [
     ("item_sub_type", 100),
     ("item_type", 1430),
@@ -83,8 +85,8 @@ fn default_items_stay_within_the_known_mismatches_of_their_ports() -> TestResult
         "{vehicles} ships and vehicles, {} default items checked, rejected by kind {:?}",
         census.checked, census.by_kind
     );
-    assert!(vehicles >= 100, "the fleet was walked");
-    assert!(census.checked > 10_000, "default items were checked");
+    assert!(vehicles >= 1000, "the whole fleet was walked: {vehicles}");
+    assert!(census.checked > 100_000, "default items were checked");
     for kind in census.by_kind.keys() {
         assert!(
             CEILINGS.iter().any(|(known, _)| known == kind),

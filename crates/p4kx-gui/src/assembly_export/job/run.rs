@@ -16,7 +16,7 @@ use crate::assembly_export::{AssemblyExportForm, AssemblyExportSummary};
 use crate::entities::{ResolveFailure, resolve};
 use crate::forge_cache::ReadFailure;
 use crate::model::describe;
-use crate::{EntryIndex, ModelExportFailure};
+use crate::{EntryIndex, ModelExportFailure, PortMismatch};
 
 pub(super) fn run(
     index: &EntryIndex,
@@ -68,8 +68,8 @@ fn entity(
     (guid, changes, interior): (Guid, &LoadoutChanges, bool),
     (cancel, shared): (&CancelToken, &Shared),
 ) -> Ended {
-    let tree = match resolve(index, guid, changes, &|| cancel.is_cancelled()) {
-        Ok(tree) => tree,
+    let applied = match resolve(index, guid, changes, &|| cancel.is_cancelled()) {
+        Ok(applied) => applied,
         Err(ResolveFailure::Cancelled) => return Ended::Cancelled,
         Err(ResolveFailure::Lost) => return Ended::Failed(ModelExportFailure::Stopped),
         Err(ResolveFailure::ArchiveChanged) => {
@@ -82,6 +82,8 @@ fn entity(
             return Ended::Failed(ModelExportFailure::Failed(reason));
         }
     };
+    let mismatches = PortMismatch::all(applied.mismatches());
+    let tree = applied.into_node();
     if cancel.is_cancelled() {
         return Ended::Cancelled;
     }
@@ -110,10 +112,15 @@ fn entity(
     }
     shared.enter(AssemblyExportStage::Writing);
     let models = (&assembly, &archive_models);
-    if request.form == AssemblyExportForm::Package {
-        return package::write(index, request, models, (changes, cancel));
+    let ended = if request.form == AssemblyExportForm::Package {
+        package::write(index, request, models, (changes, cancel))
+    } else {
+        write_glb(index, request, models, (changes, cancel, shared))
+    };
+    match ended {
+        Ended::Written(summary) => Ended::Written(Box::new(summary.with_mismatches(mismatches))),
+        other => other,
     }
-    write_glb(index, request, models, (changes, cancel, shared))
 }
 
 fn write_glb(

@@ -51,27 +51,21 @@ impl ReplaceChooser {
             let Ok(at) = u32::try_from(at) else {
                 break;
             };
+            if !matches(entry, &terms) {
+                continue;
+            }
             let fit = self
                 .constraints
                 .as_ref()
                 .is_none_or(|constraints| constraints.check(entry.facts()).is_ok());
             if fit {
-                fits.push(at);
-            } else if matches(entry, &terms) {
+                fits.push((at, true));
+            } else {
                 misfits.push((at, false));
             }
         }
         self.fitting = fits.len();
-        let mut shown: Vec<(u32, bool)> = fits
-            .into_iter()
-            .filter(|at| {
-                usize::try_from(*at)
-                    .ok()
-                    .and_then(|at| entries.get(at))
-                    .is_some_and(|entry| matches(entry, &terms))
-            })
-            .map(|at| (at, true))
-            .collect();
+        let mut shown = fits;
         shown.append(&mut misfits);
         self.shown = shown;
     }
@@ -106,7 +100,7 @@ impl ReplaceChooser {
         self.refilter();
     }
 
-    /// Returns how many Entities fit the port, whatever the search says.
+    /// Returns how many of the Entities the search leaves fit the port.
     #[must_use]
     pub const fn fitting(&self) -> usize {
         self.fitting

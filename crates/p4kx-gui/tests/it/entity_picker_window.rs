@@ -255,3 +255,65 @@ fn the_tab_is_german_in_the_german_window() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn a_search_counts_only_the_fitting_entities_it_leaves_and_keeps_them_first() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    harness
+        .state_mut()
+        .entities_mut()
+        .begin_replace("hardpoint_weapon_nose");
+    harness.run_steps(3);
+
+    harness
+        .state_mut()
+        .entities_mut()
+        .replace_mut()
+        .ok_or("no chooser")?
+        .set_query("gun");
+    harness.run_steps(3);
+
+    let chooser = harness.state().entities().replace().ok_or("no chooser")?;
+    assert_eq!(chooser.shown_len(), 4, "the four guns");
+    assert_eq!(chooser.fitting(), 3, "three of them fit");
+    assert!(
+        (0..3).all(|at| chooser.fits(at)) && !chooser.fits(3),
+        "the fitting come first"
+    );
+    assert!(
+        harness
+            .query_by_label("4 Entities, 3 of them fit")
+            .is_some()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_replacement_that_does_not_fit_is_applied_and_warned_about() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+
+    harness
+        .state_mut()
+        .entities_mut()
+        .loadout_mut()
+        .ok_or("no session")?
+        .set_replacement("hardpoint_weapon_nose", "TEST_Shield")?;
+    settle(&mut harness)?;
+
+    assert_eq!(
+        ports(harness.state())
+            .iter()
+            .find(|(path, _)| path == "hardpoint_weapon_nose")
+            .map(|(_, change)| *change),
+        Some(RowChange::Replaced)
+    );
+    assert!(
+        harness
+            .query_by_label_contains("TEST_Shield does not fit the port hardpoint_weapon_nose")
+            .is_some(),
+        "the warning is shown"
+    );
+    Ok(())
+}

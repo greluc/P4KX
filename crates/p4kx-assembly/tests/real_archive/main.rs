@@ -17,6 +17,7 @@ mod real_changes;
 mod real_character_defaults;
 mod real_chf;
 mod real_chf_hashes;
+mod real_chf_names;
 mod real_chf_tail;
 mod real_container_census;
 mod real_docked_vehicles;

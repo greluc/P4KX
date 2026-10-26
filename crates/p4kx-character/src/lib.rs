@@ -20,8 +20,11 @@ mod dna;
 mod error;
 mod guid;
 mod item_port;
+mod json_tree;
 mod json_values;
 mod material;
+mod name_table;
+mod named_json;
 mod names;
 mod rig;
 mod rig_blend;
@@ -43,6 +46,8 @@ pub use error::ChfError;
 pub use guid::{Guid, InvalidGuid};
 pub use item_port::{ItemPort, MAX_PORT_DEPTH};
 pub use material::{ColorParam, FloatParam, Material, SubMaterial, Texture};
+pub use name_table::{MAX_NAME_LEN, MAX_NAMES, NameTable};
+pub use named_json::{LABEL_SUFFIX, NameSummary};
 pub use names::{
     BODY_COLOR, EYE_COLOR, HAIR_DYE_COLOR, HAIR_TINT_COLOR, lowered_hash, name_hash,
     skin_attachment,

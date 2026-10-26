@@ -425,7 +425,7 @@ Early development (milestone M1). Available today:
   tag, parent and ancestor selectors at rest). Texts, textures, vector graphics, lists, clones and
   every other widget type without a renderer are left out and listed, with the features the layout
   approximates (exit code 1); no ActionScript is run.
-- `p4kx chf to-json <file> [--out <file>]` converts a CHF character file, e.g. one saved by the
+- `p4kx chf to-json <file> [--out <file>] [--archive <Data.p4k>]` converts a CHF character file, e.g. one saved by the
   character customiser, to indented JSON on stdout or in `--out`: its inner versions (7 and 8
   are read), body type, face DNA with every face part named, item ports and material choices.
   `p4kx chf from-json <file> --out <file>` writes the JSON back as a CHF file: unchanged, it
@@ -436,7 +436,9 @@ Early development (milestone M1). Available today:
   a wrong size, magic or CRC-32C, an unknown version or a corrupt body fails with the reason
   (exit code 3), as does invalid or unwritable JSON (exit code 2). The JSON is described in
   [docs/cli-json.md](docs/cli-json.md#the-chf-json); which hash function names which field is in
-  [docs/chf-hashes.md](docs/chf-hashes.md).
+  [docs/chf-hashes.md](docs/chf-hashes.md). A hash that a known name matches gets that name in a
+  `*_label` key beside it (`from-json` ignores the keys), `--archive` adds the names the Archive
+  knows, and the hashes without a name are counted.
 - `p4kx chf glb <archive> <file> --out <file>` exports the head of a CHF character as one skinned
   GLB: the head skin of the character's head rig, its vertices moved by the character's face DNA
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by

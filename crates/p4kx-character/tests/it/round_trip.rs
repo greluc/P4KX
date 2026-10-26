@@ -5,8 +5,8 @@
 //! input never panics.
 
 use p4kx_character::{
-    Character, Chf, ColorParam, Dna, DnaBlend, FloatParam, Guid, ItemPort, Material, SubMaterial,
-    Texture, Versions,
+    Character, Chf, ColorParam, Dna, DnaBlend, FloatParam, Guid, ItemPort, Material, NameTable,
+    SubMaterial, Texture, Versions,
 };
 use p4kx_testkit::TestChf;
 use proptest::collection::vec;
@@ -148,6 +148,20 @@ proptest! {
         let chf = Chf::read(&bytes).map_err(|error| TestCaseError::fail(error.to_string()))?;
 
         let json = chf.to_json().map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let written = Chf::from_json(json.as_bytes()).and_then(|chf| chf.write());
+
+        prop_assert_eq!(written.ok(), Some(bytes));
+    }
+
+    #[test]
+    fn from_json_of_the_named_json_gives_identical_bytes(
+        character in character(),
+    ) {
+        let body = character.write().map_err(|error| TestCaseError::fail(error.to_string()))?;
+        let bytes = TestChf::v7().with_body(&body);
+        let chf = Chf::read(&bytes).map_err(|error| TestCaseError::fail(error.to_string()))?;
+
+        let (json, _) = chf.to_json_named(&NameTable::builtin()).map_err(|error| TestCaseError::fail(error.to_string()))?;
         let written = Chf::from_json(json.as_bytes()).and_then(|chf| chf.write());
 
         prop_assert_eq!(written.ok(), Some(bytes));

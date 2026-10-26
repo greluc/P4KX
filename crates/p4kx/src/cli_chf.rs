@@ -21,7 +21,8 @@ pub(crate) struct ChfArgs {
 pub(crate) enum ChfAction {
     /// Converts a CHF character file to indented JSON: versions, body type, face DNA, item ports,
     /// materials and the container bytes that `from-json` needs to write the file back
-    /// byte-exactly.
+    /// byte-exactly. A hash that a known name matches gets a `*_label` key with the name beside it;
+    /// `from-json` ignores the labels, and a summary counts the hashes that stay unnamed.
     #[command(name = "to-json", after_help = EXIT_CODES_HELP)]
     ToJson {
         /// The CHF file.
@@ -29,6 +30,10 @@ pub(crate) enum ChfAction {
         /// Writes the JSON to this file instead of stdout; needed with --json.
         #[arg(long, value_name = "FILE")]
         out: Option<PathBuf>,
+        /// Reads more names from this Data.p4k Archive: the item ports of the items the character
+        /// wears, and the sub-materials and parameters of the materials it chooses.
+        #[arg(long, value_name = "ARCHIVE")]
+        archive: Option<PathBuf>,
     },
     /// Converts the JSON that `to-json` writes back to a CHF file; an unchanged JSON gives the
     /// original bytes, an edited one a new file with a correct CRC-32C. The tool never writes into

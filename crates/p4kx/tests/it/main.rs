@@ -25,6 +25,7 @@ mod character_package;
 mod chf;
 mod chf_glb;
 mod chf_glb_dressed;
+mod chf_names;
 mod chunks;
 mod compare;
 mod compare_diff;

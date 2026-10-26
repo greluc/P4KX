@@ -68,6 +68,7 @@ mod build_palettes;
 mod catalogue;
 mod cdf;
 mod changes;
+mod chf_names;
 mod compat;
 mod entities;
 mod entity_interior;
@@ -112,6 +113,7 @@ pub use assembly::{
 };
 pub use catalogue::{EntityCatalogue, EntityKind, EntitySummary};
 pub use changes::{ChangeError, LoadoutChanges, PortChange};
+pub use chf_names::archive_names;
 pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};
 pub use entity_interior::{EntityContainer, EntityInterior, INTERIOR_NODE};

@@ -18,6 +18,7 @@ mod channels;
 mod character_package;
 mod chf;
 mod chf_glb;
+mod chf_names;
 mod chunks;
 mod cli;
 mod cli_armour;

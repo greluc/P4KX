@@ -32,3 +32,18 @@ interchangeable. The helpers live in `p4kx_character` (`names.rs`).
   the LIVE Archive of build 4.10.2 (41 CHF files) all 260 attachment hashes resolve by the CRC-32
   formula, and 306 of 322 item port hashes match a known name by CRC-32C; the other 16 are two
   distinct hashes, `0x6D6DE693` and `0x6958D171`, whose names are not known.
+
+## Names in the JSON
+
+p4kx chf to-json writes the name of every hash it can resolve beside it, in a *_label key
+that rom-json ignores (ADR-0178). NameTable in p4kx_character holds the names per hash
+function: item ports by lowered_hash, the attachments of materials by skin_attachment of the
+port name, sub-materials by lowered_hash, parameters by 
+ame_hash, and the two rigs. The
+built-in table covers the names found by analysing the Characters; p4kx_assembly::archive_names
+adds the Archive's: the ports of the Entity of every worn item, and the sub-materials and public
+parameters of the base material libraries the materials choose. On the LIVE Archive of build 4.10.2
+(41 CHF files, 4345 hashes) the built-in table names 1043 hashes and the Archive names 2855; 64
+distinct hashes stay unresolved, among them the hair dye and tint colour parameters. The ignored
+real-Archive test eal_chf_names measures this and checks the byte-exact round trip of every
+labelled JSON.

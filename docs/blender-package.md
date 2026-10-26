@@ -378,6 +378,13 @@ stated:
 | AEGS_Gladius at `--texture-mip 2` | 325 | 83 MiB | 35 for 56 | 0.80 |
 | Character (CHF, armour Loadout, two animations) | 2 | 56 MiB | 1 | 1 |
 
+What writing every texture slot (1.1) costs against the three maps of 1.0, measured on AEGS_Gladius
+at the default options: 289 textures of 541 MiB, of which the diffuse, normal and specular maps a
+1.0 package held are 133 textures of 217 MiB. With the meshes (43 MiB) and `scene.json`
+(1.3 MiB, about 0.5 MiB of it the material descriptions) the package is 585 MiB at 1.1 against
+about 260 MiB at 1.0, 2.25 times as much, all of it in the blend, mask, detail and wear maps.
+`--texture-mip` bounds it: 83 MiB at mip 2.
+
 The bounds a package keeps, asserted by the real-Archive tests
 (`crates/p4kx/tests/real_archive/real_blender_packages.rs`):
 

@@ -12,6 +12,7 @@ use crate::document::document;
 use crate::glb_plan::{plan_layout, single_animation_plans, summarise, texture_set};
 use crate::instance::{Instance, Wrapper, material_requests};
 use crate::layout::Layout;
+use crate::material_index::index_materials;
 use crate::materials::MaterialPlan;
 use crate::morphs::json_bytes;
 use crate::skin::inverse_binds;
@@ -59,6 +60,10 @@ pub struct GlbOptions {
     /// are kept and their weights scaled to add up to 1. At most 4 writes `JOINTS_0` and
     /// `WEIGHTS_0` only, for viewers that ignore the second set.
     pub max_influences: usize,
+    /// Whether every glTF material gets the `extras` `{"p4kx_index": <index>}`, its index in the
+    /// file; only [`write_scene_glb_with`](crate::write_scene_glb_with) and its siblings that
+    /// write a scene honour it.
+    pub material_indices: bool,
 }
 
 impl Default for GlbOptions {
@@ -69,6 +74,7 @@ impl Default for GlbOptions {
             texture_mip: 0,
             vertex_colours: true,
             max_influences: MAX_INFLUENCES,
+            material_indices: false,
         }
     }
 }
@@ -99,6 +105,13 @@ impl GlbOptions {
     #[must_use]
     pub fn with_max_influences(mut self, count: usize) -> Self {
         self.max_influences = count.clamp(1, MAX_INFLUENCES);
+        self
+    }
+
+    /// Returns the options with the `extras` `p4kx_index` on every material.
+    #[must_use]
+    pub const fn with_material_indices(mut self) -> Self {
+        self.material_indices = true;
         self
     }
 
@@ -280,7 +293,10 @@ pub(crate) fn write_instances(
         single_animation_plans(&mut layout, instance, animations)
     });
     layout.push_images(images.images.iter().map(|image| image.png.len() as u64));
-    let root = document(wrappers, instances, &layout, &images, &animation_plans);
+    let mut root = document(wrappers, instances, &layout, &images, &animation_plans);
+    if options.material_indices {
+        index_materials(&mut root);
+    }
     let total = write_file(&root, &layout, &images, out)?;
     let defaulted = instances
         .iter()

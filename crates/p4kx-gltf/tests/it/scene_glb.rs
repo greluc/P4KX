@@ -107,6 +107,47 @@ fn nodes_keep_their_names_hierarchy_and_transforms() -> TestResult {
     Ok(())
 }
 
+fn json_of(bytes: &[u8]) -> Result<serde_json::Value, Box<dyn Error>> {
+    let length = u32::from_le_bytes(bytes.get(12..16).ok_or("header")?.try_into()?) as usize;
+    let json = bytes.get(20..20 + length).ok_or("JSON chunk")?;
+    Ok(serde_json::from_slice(json)?)
+}
+
+#[test]
+fn material_indices_add_only_the_extras() -> TestResult {
+    let model = read(&TestModel::cube())?;
+    let green = library([0.1, 0.8, 0.1]);
+    let mut scene = Scene::new();
+    scene.push(
+        SceneNode::new("a", None, Transform::IDENTITY).with_part(ScenePart::new(&model, &green)),
+    )?;
+    let mut plain = Vec::new();
+    write_scene_glb(&scene, &GlbOptions::default(), &mut plain)?;
+    let mut indexed = Vec::new();
+    write_scene_glb(
+        &scene,
+        &GlbOptions::default().with_material_indices(),
+        &mut indexed,
+    )?;
+    check_glb(&indexed)?;
+
+    let mut with = json_of(&indexed)?;
+    let without = json_of(&plain)?;
+    let materials = with["materials"].as_array_mut().ok_or("materials")?;
+    assert_ne!(materials.len(), 0);
+    for (index, material) in materials.iter_mut().enumerate() {
+        let object = material.as_object_mut().ok_or("material")?;
+        let extras = object.remove("extras").ok_or("extras")?;
+        assert_eq!(extras["p4kx_index"], index);
+    }
+    assert_eq!(with, without, "nothing but the extras differs");
+    assert!(
+        without["materials"][0].get("extras").is_none(),
+        "the plain file has none"
+    );
+    Ok(())
+}
+
 #[test]
 fn parts_with_equal_materials_share_them() -> TestResult {
     let model = read(&TestModel::cube())?;

@@ -123,7 +123,7 @@ impl SceneLight {
         Light {
             color: clamped.colour,
             extensions: None,
-            extras: gltf_json::extras::Void::default(),
+            extras: gltf_json::extras::Extras::default(),
             intensity: clamped.intensity,
             name: (!name.is_empty()).then(|| name.to_owned()),
             range: clamped.range,

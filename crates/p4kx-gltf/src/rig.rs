@@ -296,7 +296,7 @@ fn document(
             name: None,
             uri: None,
             extensions: None,
-            extras: json::extras::Void::default(),
+            extras: json::extras::Extras::default(),
         })
     });
     let image_textures = buffer

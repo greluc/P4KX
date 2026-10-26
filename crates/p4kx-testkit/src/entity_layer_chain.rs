@@ -26,6 +26,12 @@ fn layer_file(name: &str, next: Option<String>) -> TestEntry {
     )
 }
 
+const LATE_CHAIN_LENGTH: usize = 9;
+
+fn late_path(number: usize) -> String {
+    layer_path(&format!("late_{number}"))
+}
+
 fn library() -> Vec<u8> {
     let layered = |name: &str, path: &str| {
         TestMtlMaterial::new(name)
@@ -34,7 +40,9 @@ fn library() -> Vec<u8> {
     };
     TestMtl::multi(&[
         TestMtlMaterial::new("unused"),
-        layered("cycle", &layer_path("cyc_a")),
+        layered("cycle", &layer_path("cyc_a"))
+            .layer_with(&[("Name", "Long"), ("Path", late_path(0).as_str())])
+            .layer_with(&[("Name", "Short"), ("Path", late_path(7).as_str())]),
         layered("escape", "../outside.mtl"),
         layered("deep", &layer_path("chain_00")),
     ])
@@ -58,9 +66,12 @@ fn model() -> TestModel {
 }
 
 /// Returns the Entries of a synthetic Archive with a ship Entity `TEST_Chain` whose library
-/// `Objects/Test/chain` has three materials with one layer each:
+/// `Objects/Test/chain` has three materials:
 ///
-/// - `cycle` names `cyc_a`, which names `cyc_b`, which names `cyc_a` again;
+/// - `cycle` has three layers: the first names `cyc_a`, which names `cyc_b`, which names `cyc_a`
+///   again; the second names `late_0`, the first of nine layer files that each name the next, so
+///   `late_7` is first reached at the depth limit; the third names `late_7` directly, which is
+///   then reached shallow enough to follow its layer;
 /// - `escape` names `../outside.mtl`, a path that leaves the `Data` folder;
 /// - `deep` names `chain_00`, the first of [`LAYER_CHAIN_LENGTH`] layer files that each name the
 ///   next.
@@ -82,6 +93,10 @@ pub fn layer_chain_entries() -> Vec<TestEntry> {
         let next = (number + 1 < LAYER_CHAIN_LENGTH)
             .then(|| layer_path(&format!("chain_{:02}", number + 1)));
         entries.push(layer_file(&format!("chain_{number:02}"), next));
+    }
+    for number in 0..LATE_CHAIN_LENGTH {
+        let next = (number + 1 < LATE_CHAIN_LENGTH).then(|| late_path(number + 1));
+        entries.push(layer_file(&format!("late_{number}"), next));
     }
     entries
 }

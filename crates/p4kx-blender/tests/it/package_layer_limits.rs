@@ -91,6 +91,41 @@ fn a_layer_path_that_leaves_the_data_folder_is_an_issue() -> TestResult {
 }
 
 #[test]
+fn a_material_first_reached_at_the_limit_is_followed_when_reached_shallower() -> TestResult {
+    let manifest = write()?;
+
+    let cycle = named(&manifest, "cycle")?;
+    let layer_of = |number: usize| -> Result<&MaterialDescription, String> {
+        let id = cycle
+            .layers
+            .get(number)
+            .and_then(|layer| layer.material.as_deref())
+            .ok_or_else(|| format!("no material of layer {number}"))?;
+        manifest
+            .materials
+            .iter()
+            .find(|found| found.id == id)
+            .ok_or_else(|| format!("no material {id}"))
+    };
+    let short = layer_of(2)?;
+    assert_eq!(short.name, "late_7");
+    let last = next(&manifest, short)?.ok_or("late_8 follows late_7")?;
+    assert_eq!(last.name, "late_8");
+    assert!(next(&manifest, last)?.is_none());
+    assert!(
+        manifest.issues.iter().all(|issue| issue.name != "late_7"),
+        "late_7 is followed, so no issue says it was not"
+    );
+
+    let mut reached = layer_of(1)?;
+    while let Some(layer) = next(&manifest, reached)? {
+        reached = layer;
+    }
+    assert_eq!(reached.id, last.id, "the long chain shares the description");
+    Ok(())
+}
+
+#[test]
 fn layer_chains_are_followed_eight_files_deep_and_the_cut_is_an_issue() -> TestResult {
     let manifest = write()?;
 

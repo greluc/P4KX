@@ -25,7 +25,6 @@ mod collect;
 mod describe;
 mod error;
 mod finite;
-mod glb_extras;
 mod interior;
 mod items;
 mod manifest;

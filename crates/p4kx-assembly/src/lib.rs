@@ -37,6 +37,11 @@
 //! ports, treads and wheels, and per port the [`PortVisibility`] that [`PortNode::visibility`]
 //! shows.
 //!
+//! [`PrefabSet`] reads the prefab libraries below `Data\Prefabs` and [`PrefabSet::resolve`] turns
+//! a prefab into its [`ResolvedObject`]s with transforms to the prefab's space, every nested prefab
+//! expanded in place with the parent's rotation applied. Cycles, depth and size are bounded; what
+//! cannot be expanded is listed as [`PrefabIssue`]s.
+//!
 //! [`audio`] indexes the audio of an Archive once: the ATL definitions that map audio trigger
 //! names to Wwise events and the soundbanks whose `HIRC` sections hold those events, matched by
 //! the events' Wwise short IDs ([`audio::wwise_id`]). [`audio::AudioIndex::entity_audio`] lists
@@ -85,6 +90,7 @@ mod loadout_entry;
 mod markup;
 mod merge;
 mod node;
+mod node_nested;
 mod object_containers;
 mod outfit;
 mod outfit_read;
@@ -92,6 +98,7 @@ mod palette;
 mod placement;
 mod plan;
 mod port;
+mod prefab;
 mod provider;
 mod read;
 mod resolver;
@@ -114,7 +121,7 @@ pub use assembly::{
     Placement,
 };
 pub use catalogue::{EntityCatalogue, EntityKind, EntitySummary};
-pub use changes::{ChangeError, LoadoutChanges, PortChange};
+pub use changes::{ChangeError, ChangedLoadout, LoadoutChanges, PortChange};
 pub use chf_names::archive_names;
 pub use compat::{AcceptedType, Incompatibility, ItemFacts, PortConstraints};
 pub use entities::{ENTITY_TYPE, Entities};
@@ -134,6 +141,11 @@ pub use outfit::{Outfit, OutfitReport};
 pub use p4kx_character as character;
 pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
 pub use port::{PortDefinition, PortTransform, PortType};
+pub use prefab::{
+    MAX_PREFAB_DEPTH, MAX_PREFAB_ISSUES, MAX_PREFAB_LIBRARY_LEN, MAX_PREFAB_OBJECTS,
+    MAX_PREFAB_VISITS, PrefabError, PrefabFile, PrefabIssue, PrefabIssueKind, PrefabSet,
+    ResolvedObject, ResolvedPrefab,
+};
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;
 pub use spec::LoadoutOrigin;

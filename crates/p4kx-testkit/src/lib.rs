@@ -81,6 +81,7 @@ mod model_zoned;
 mod mtl;
 mod opus;
 mod opus_encode;
+mod prefab;
 mod real_archive;
 mod rig_logic;
 mod screens;
@@ -189,6 +190,7 @@ pub use model_crch::{CRCH_CUBE_ROOT_OFFSET, TestCrchModel};
 pub use model_skeleton::{TestBone, TestSkeleton};
 pub use mtl::{TestMtl, TestMtlMaterial};
 pub use opus::{TestOpus, TestOpusError, TestOpusFraming, TestOpusPackets, wwise_opus_wem};
+pub use prefab::{TestPrefabLibrary, TestPrefabObject, prefab_guid};
 pub use real_archive::{
     MissingRealArchive, MissingRealKey, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_KEY_FILE_VAR,
     REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR, real_archive_b_path, real_archive_key,

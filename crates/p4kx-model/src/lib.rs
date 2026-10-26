@@ -62,6 +62,7 @@ mod mtl_xml;
 mod nmc;
 mod object_container;
 mod palette;
+mod prefab;
 mod reader;
 mod second_uv;
 mod skeleton;
@@ -104,6 +105,10 @@ pub use object_container::{
     ObjectContainerError,
 };
 pub use palette::{PaletteSlot, TintEntry, TintPalette, srgb8_to_linear};
+pub use prefab::{
+    MAX_GROUP_DEPTH, MAX_LIBRARY_OBJECTS, MAX_LIBRARY_PREFABS, Prefab, PrefabError, PrefabLibrary,
+    PrefabObject, PrefabRef,
+};
 pub use soc_entities::{MAX_SOC_ENTITIES, MAX_SOC_PLACED, SocEntities, SocEntitiesError, SocProp};
 pub use soc_light::{LightState, SocLight};
 pub use transform::Transform;

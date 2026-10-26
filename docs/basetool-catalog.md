@@ -37,7 +37,7 @@ The rule is ADR-0054 (amending ADR-0002):
   such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
   of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
   Version 2 has the kind `qualityQuantizations` (#692, ADR-0177); it is not yet released, so it
-  needs no further bump.
+  needs no further bump. The same holds for the ship field `insurance` (#323, ADR-0218).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -400,6 +400,32 @@ A ship takes its fields from `VehicleComponentParams`:
 | `hullHealth` | The hull hit points, `null` when unknown; see "Ship base data" below |
 | `cargoScu` | The cargo capacity in SCU: 0 without a cargo grid, `null` when unknown; see "Ship base data" below |
 | `cargoGridsWithIssue` | How many cargo grids have no readable capacity; above 0, `cargoScu` is a lower bound |
+| `insurance` | The claim and expedite values of the ship's `SEntityInsuranceProperties`, `null` when the Record has none; see "Ship insurance" below |
+
+#### Ship insurance
+
+The insurance data is part of the ship Record (ADR-0218, #323): the `SEntityInsuranceProperties`
+struct in the `StaticEntityClassData` of the `EntityClassDefinition`, so the source path of a
+ship's insurance is the ship's `recordPath`. There is no `ShipInsuranceRecord` in the Archive any
+more (LIVE); the field is a fact only, no game text, and it is additive within version 2.
+
+| Field of `insurance` | Source |
+|----------------------|--------|
+| `restoreOnClaim` | `restoreOnClaim`, a boolean |
+| `shipEntityClassName` | `shipInsuranceParams.shipEntityClassName`, e.g. `AEGS_Gladius`; `null` when empty |
+| `baseWaitTimeMinutes` | `shipInsuranceParams.baseWaitTimeMinutes`, the claim time in minutes |
+| `mandatoryWaitTimeMinutes` | `shipInsuranceParams.mandatoryWaitTimeMinutes`, the mandatory wait in minutes, the shortest claim time |
+| `baseExpeditingFee` | `shipInsuranceParams.baseExpeditingFee`, the fee in aUEC for expediting a claim |
+
+Every field is `null` when the Record states none. The Record states no claim cost, so the
+catalog has none; the expediting fee is the only price. The numbers are those of the Record,
+unchanged: the Basetool applies any scaling or rule of its own. The `displayParams` of the struct
+(name, role, career, crew size, manufacturer) repeat the ship's own fields, are mostly
+placeholders, and are not exported.
+
+On LIVE all 1,066 catalog ships carry `insurance`, each with a fee; AEGS_Gladius has a claim time
+of 5.83 minutes, a mandatory wait of 1.94 minutes and an expediting fee of 2,335 aUEC (real-Archive
+test `real_archive_insurance`).
 
 #### Ship base data
 

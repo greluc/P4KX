@@ -4,11 +4,13 @@
 use p4kx_extraction::{RecordTree, StructValue, Value};
 
 use crate::contract::Ship;
+use crate::contract_insurance::ShipInsurance;
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::{PaintPort, VehicleFacts};
 use crate::playability_rules::{self, Evidence};
 use crate::record_fields::{
-    class_name, component, elements, integer, locale_key, reference, structure, text,
+    boolean, class_name, component, element, elements, integer, locale_key, reference, single,
+    structure, text,
 };
 use crate::ship_base::ShipRead;
 use crate::texts::Texts;
@@ -83,6 +85,7 @@ pub(crate) fn ship<'f>(
         cargo_scu: base.cargo.scu,
         cargo_grids_with_issue: base.cargo.grids_with_issue,
         variant_of: None,
+        insurance: insurance(tree),
     };
     let facts = VehicleFacts {
         ship: guid,
@@ -92,6 +95,24 @@ pub(crate) fn ship<'f>(
         variant_key: variant_key(tree, read),
     };
     (ship, facts)
+}
+
+/// Returns the insurance data of the ship `tree`: its `SEntityInsuranceProperties`, `None` when
+/// the Record has none.
+fn insurance<'f>(tree: &RecordTree<'f>) -> Option<ShipInsurance<'f>> {
+    let properties = element(
+        Some(tree.root()),
+        "StaticEntityClassData",
+        "SEntityInsuranceProperties",
+    )?;
+    let params = structure(Some(properties), "shipInsuranceParams");
+    Some(ShipInsurance {
+        restore_on_claim: boolean(Some(properties), "restoreOnClaim"),
+        ship_entity_class_name: text(params, "shipEntityClassName"),
+        base_wait_time_minutes: single(params, "baseWaitTimeMinutes"),
+        mandatory_wait_time_minutes: single(params, "mandatoryWaitTimeMinutes"),
+        base_expediting_fee: integer(params, "baseExpeditingFee"),
+    })
 }
 
 /// Returns what the ship `tree` shares with the ships of its variant group: its vehicle

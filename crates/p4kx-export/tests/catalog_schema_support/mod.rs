@@ -84,7 +84,14 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "cargoScu": 18.5,
             "cargoGridsWithIssue": 0,
             "playability": "ai",
-            "variantOf": "a0000000-0000-4000-8000-000000000001"
+            "variantOf": "a0000000-0000-4000-8000-000000000001",
+            "insurance": {
+                "restoreOnClaim": true,
+                "shipEntityClassName": "AEGS_Avenger_Titan",
+                "baseWaitTimeMinutes": 8.5,
+                "mandatoryWaitTimeMinutes": 2.5,
+                "baseExpeditingFee": 3200
+            }
         }],
         "commodities": [{
             "guid": "a1000000-0000-4000-8000-000000000001",

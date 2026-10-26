@@ -77,6 +77,7 @@ mod commodity;
 mod contract;
 mod contract_crafting;
 mod contract_entities;
+mod contract_insurance;
 mod contract_loadout;
 mod contract_mining;
 mod contract_missions;

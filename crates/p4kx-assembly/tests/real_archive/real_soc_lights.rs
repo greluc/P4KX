@@ -25,10 +25,32 @@ struct Census {
     channels: usize,
     as_srgb_bytes: usize,
     as_linear_bytes: usize,
+    resources_without_path: usize,
+    resources_without_path_choosing: usize,
+}
+
+fn data_node(entity: Element<'_>) -> Option<Element<'_>> {
+    let resource = child(
+        child(entity, "PropertiesDataCore")?,
+        "EntityGeometryResource",
+    )?;
+    child(child(resource, "Geometry")?, "Geometry")
+}
+
+fn chooses_material_or_palette(data: Element<'_>) -> bool {
+    let material = child(data, "Material")
+        .and_then(|found| found.attribute("path"))
+        .is_some_and(|path| !path.is_empty());
+    let palette = child(data, "Palette")
+        .and_then(|found| found.attribute("RootRecord"))
+        .is_some_and(|root| root.chars().any(|c| c != '0' && c != '-'));
+    material || palette
 }
 
 impl Census {
     const fn add(&mut self, other: &Self) {
+        self.resources_without_path += other.resources_without_path;
+        self.resources_without_path_choosing += other.resources_without_path_choosing;
         self.entities += other.entities;
         self.props_with_lights += other.props_with_lights;
         self.classed_with_lights += other.classed_with_lights;
@@ -115,6 +137,13 @@ fn read(root: Element<'_>) -> Census {
             .and_then(|group| child(group, "BakedInLights"))
             .inspect(|baked| colours(*baked, &mut census))
             .is_some();
+        if let Some(data) = data_node(entity)
+            && !has_geometry(entity)
+        {
+            census.resources_without_path += 1;
+            census.resources_without_path_choosing +=
+                usize::from(chooses_material_or_palette(data));
+        }
         if entity.attribute("EntityClass") == Some("LightBox") {
             census.light_boxes += 1;
         }

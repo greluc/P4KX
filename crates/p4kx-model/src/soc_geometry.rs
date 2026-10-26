@@ -4,10 +4,11 @@
 use crate::mtl_xml::XmlElement;
 use crate::soc_entities::{SocPalette, child};
 
-/// The geometry an entity names itself: `PropertiesDataCore/EntityGeometryResource` and the three
-/// nested `Geometry` elements.
+/// The geometry resource of an entity: `PropertiesDataCore/EntityGeometryResource` and the three
+/// nested `Geometry` elements; the path is empty for an entity that only chooses a material or a
+/// palette.
 pub(crate) struct EntityGeometry<'a> {
-    pub(crate) path: &'a str,
+    pub(crate) path: Option<&'a str>,
     pub(crate) material: Option<&'a str>,
     pub(crate) palette: Option<SocPalette>,
 }
@@ -17,9 +18,9 @@ pub(crate) fn read_geometry<'a, E: XmlElement<'a>>(entity: E) -> Option<EntityGe
     node = child(node, "EntityGeometryResource")?;
     node = child(node, "Geometry")?;
     let data = child(node, "Geometry")?;
-    let path = child(data, "Geometry")?
-        .attribute("path")
-        .filter(|path| !path.is_empty())?;
+    let path = child(data, "Geometry")
+        .and_then(|found| found.attribute("path"))
+        .filter(|path| !path.is_empty());
     let material = child(data, "Material")
         .and_then(|material| material.attribute("path"))
         .filter(|path| !path.is_empty());

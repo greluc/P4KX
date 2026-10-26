@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::Transform;
 use crate::mtl_xml::XmlElement;
-use crate::soc_geometry::read_geometry;
+use crate::soc_geometry::{EntityGeometry, read_geometry};
 use crate::soc_light::{SocLight, read_light};
 
 const ENTITIES: ChunkType = ChunkType::new(Container::CrCh, 0x0004);
@@ -89,6 +89,10 @@ pub struct SocClassEntity {
     /// The transform from the entity's space to the container's, or `None` when its position,
     /// rotation or scale is not usable.
     pub transform: Option<Transform>,
+    /// The material library the entity chooses itself, which replaces that of its class Record.
+    pub material: Option<String>,
+    /// The tint palette the entity chooses itself, which replaces that of its class Record.
+    pub palette: Option<SocPalette>,
 }
 
 /// The props and lights a `.soc` file places: its entity chunk (`CrCh` type `0x0004`, `CryXmlB`).
@@ -250,32 +254,22 @@ fn read_entity<'a>(
     let transform = entity_transform(entity);
     let class = entity.attribute("EntityClass").unwrap_or_default();
     let geometry = read_geometry(entity);
-    if let Some(geometry) = &geometry {
-        match transform {
-            Some(transform) => {
-                if out.props.len() >= MAX_SOC_PLACED {
-                    return Err(SocEntitiesError::TooMany {
-                        what: "props",
-                        limit: MAX_SOC_PLACED,
-                    });
-                }
-                out.props.push(SocProp {
-                    name: name.to_owned(),
-                    model: geometry.path.to_owned(),
-                    transform,
-                    material: geometry.material.map(str::to_owned),
-                    palette: geometry.palette.clone(),
-                });
-            }
-            None => out.invalid += 1,
-        }
+    let own = geometry
+        .as_ref()
+        .and_then(|found| found.path.map(|path| (path, found)));
+    if let Some((path, found)) = own {
+        push_prop(out, name, path, found, transform)?;
     }
     let classed = match entity.attribute("EntityClassGUID") {
-        Some(guid) if geometry.is_none() && !class.eq_ignore_ascii_case("Light") => {
+        Some(guid) if own.is_none() && !class.eq_ignore_ascii_case("Light") => {
             out.classed.push(SocClassEntity {
                 name: name.to_owned(),
                 class: guid.trim().to_owned(),
                 transform,
+                material: geometry
+                    .as_ref()
+                    .and_then(|found| found.material.map(str::to_owned)),
+                palette: geometry.and_then(|found| found.palette),
             });
             true
         }
@@ -285,6 +279,33 @@ fn read_entity<'a>(
     if !classed && (out.props.len(), out.lights.len(), out.invalid) == before {
         out.other += 1;
     }
+    Ok(())
+}
+
+fn push_prop(
+    out: &mut SocEntities,
+    name: &str,
+    path: &str,
+    geometry: &EntityGeometry<'_>,
+    transform: Option<Transform>,
+) -> Result<(), SocEntitiesError> {
+    let Some(transform) = transform else {
+        out.invalid += 1;
+        return Ok(());
+    };
+    if out.props.len() >= MAX_SOC_PLACED {
+        return Err(SocEntitiesError::TooMany {
+            what: "props",
+            limit: MAX_SOC_PLACED,
+        });
+    }
+    out.props.push(SocProp {
+        name: name.to_owned(),
+        model: path.to_owned(),
+        transform,
+        material: geometry.material.map(str::to_owned),
+        palette: geometry.palette.clone(),
+    });
     Ok(())
 }
 

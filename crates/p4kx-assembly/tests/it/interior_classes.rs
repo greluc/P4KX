@@ -74,8 +74,8 @@ fn entities_that_name_a_class_record_are_placed_with_the_geometry_of_the_record(
     assert!(named(&interior, "bad_door").is_err());
     assert_eq!(
         interior.props(),
-        5,
-        "door, two cabinets, lamp_fixture and own"
+        6,
+        "door, door_own, two cabinets, lamp_fixture and own"
     );
     assert_eq!(interior.modelled_parts(), interior.model_parts());
     let left_out = interior
@@ -112,6 +112,22 @@ fn the_palette_of_a_part_is_the_one_it_names_else_the_default_of_its_library() -
     let interior = build(true)?;
 
     assert_eq!(palette_of(&interior, "door")?, Some("p_door"));
+    assert_eq!(
+        palette_of(&interior, "door_own")?,
+        Some("p_own"),
+        "the palette the entity chooses replaces that of its class Record"
+    );
+    let default_of = |name: &str| -> Result<Option<String>, String> {
+        Ok(named(&interior, name)?
+            .materials()
+            .library()
+            .and_then(|library| library.default_palette.clone()))
+    };
+    assert_eq!(default_of("door")?, None);
+    assert!(
+        default_of("door_own")?.is_some(),
+        "the library the entity chooses replaces that of its class Record"
+    );
     assert_eq!(
         palette_of(&interior, "own")?,
         Some("p_own"),

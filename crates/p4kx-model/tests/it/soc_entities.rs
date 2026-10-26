@@ -288,6 +288,29 @@ fn a_prop_with_geometry_keeps_its_baked_in_lights_and_its_material_and_palette()
 }
 
 #[test]
+fn a_class_entity_keeps_the_material_and_palette_it_chooses_itself() -> TestResult {
+    let palette = "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0";
+    let guid = "9bf38988-1d51-4f37-996a-00139e66420b";
+    let soc = TestSoc::new().entity(
+        TestSocEntity::classed("door", "Door", guid, [0.0; 3], IDENTITY)
+            .choosing(Some("objects/test/door"), Some((palette, ""))),
+    );
+
+    let entities = read(&soc)?;
+
+    let [door] = entities.classed.as_slice() else {
+        return Err("one class entity".into());
+    };
+    assert_eq!(door.material.as_deref(), Some("objects/test/door"));
+    assert_eq!(
+        door.palette.as_ref().map(|found| found.root.as_str()),
+        Some(palette)
+    );
+    assert_eq!(entities.props.len(), 0, "it names no model of its own");
+    Ok(())
+}
+
+#[test]
 fn an_empty_material_and_a_zero_palette_are_none() -> TestResult {
     let soc = TestSoc::new().entity(TestSocEntity::prop_choosing(
         "plain",

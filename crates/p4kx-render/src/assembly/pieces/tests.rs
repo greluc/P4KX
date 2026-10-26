@@ -2,13 +2,19 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_assembly::{
-    ArchiveModels, Assembly, AssemblyOptions, EntityInterior, InteriorOptions, LoadoutResolver,
+    ArchiveModels, Assembly, AssemblyOptions, EntityInterior, InteriorForge, InteriorOptions,
+    InteriorWatch, LoadoutResolver,
 };
 use p4kx_extraction::{Archive, DataForgeEntry, GlbOptions};
+use p4kx_settings::ModelMaterials;
 use p4kx_testkit::gltf::Node;
-use p4kx_testkit::{ArchiveBuilder, ENTITY_INTERIOR_CLASS, check_glb, entity_interior_entries};
+use p4kx_testkit::{
+    ArchiveBuilder, ENTITY_CLASS_ROOM_CLASS, ENTITY_INTERIOR_CLASS, check_glb,
+    entity_class_room_entries, entity_interior_entries,
+};
 
 use super::pieces_of;
+use crate::assembly::{AssemblyScene, BuildOptions, Hooks};
 
 type Matrix = [[f32; 4]; 4];
 
@@ -122,6 +128,86 @@ fn a_piece_of_the_interior_lies_where_the_glb_node_of_its_part_lies() {
             .any(|piece| piece.interior && piece.world[1][3].abs() > 1.0),
         "a placement that moves the rooms away from the hull's origin"
     );
+}
+
+fn class_room(with_forge: bool) -> Assembly {
+    let dir = tempfile::tempdir().expect("a folder");
+    let path = dir.path().join("Data.p4k");
+    entity_class_room_entries()
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&path)
+        .expect("the Archive is written");
+    let archive = Archive::open(&path).expect("the Archive opens");
+    let entry = DataForgeEntry::read(&archive).expect("a DataForge");
+    let forge = entry.open().expect("it opens");
+    let mut resolver = LoadoutResolver::new(&forge);
+    let record = resolver
+        .entities()
+        .find(ENTITY_CLASS_ROOM_CLASS)
+        .expect("the Entity");
+    let tree = resolver.resolve(&record).expect("its Loadout");
+    let models = ArchiveModels::new(&archive);
+    let hull = Assembly::build(&tree, &models, &AssemblyOptions::default()).expect("the hull");
+    let classes = InteriorForge::new(&forge);
+    let interior = EntityInterior::build_with(
+        &archive,
+        &hull,
+        &tree,
+        &InteriorOptions::default(),
+        &InteriorWatch::none(),
+        with_forge.then_some(&classes),
+    )
+    .expect("the Interior");
+    hull.with_interior(interior)
+}
+
+#[test]
+fn the_pieces_and_the_picture_of_the_interior_take_the_palette_of_their_part() {
+    let tinted = class_room(true);
+    let plain = class_room(false);
+
+    let pieces = pieces_of(&tinted);
+    let door = pieces
+        .iter()
+        .find(|piece| piece.name == "Interior/door")
+        .expect("the door");
+    assert_eq!(
+        door.palette.map(|palette| palette.name.as_str()),
+        Some("p_door")
+    );
+    assert!(
+        pieces_of(&plain)
+            .iter()
+            .all(|piece| !piece.interior || piece.palette.is_none())
+    );
+    let red = |scene: &AssemblyScene| {
+        scene.items().iter().any(|item| {
+            item.colour[..3]
+                .iter()
+                .zip([1.0, 0.0, 0.0])
+                .all(|(a, b)| (a - b).abs() < 1e-3)
+        })
+    };
+    let build = |assembly: &Assembly| {
+        AssemblyScene::build(
+            assembly,
+            &BuildOptions {
+                materials: ModelMaterials::Colours,
+                textures: None,
+            },
+            &Hooks {
+                cancelled: &|| false,
+                progress: &|_| {},
+            },
+        )
+        .expect("the scene")
+    };
+    assert!(
+        red(&build(&tinted)),
+        "the door is drawn in the colour of p_door"
+    );
+    assert!(!red(&build(&plain)));
 }
 
 fn compare(piece: &crate::assembly::pieces::Piece<'_>, matrix: &Matrix, name: &str) {

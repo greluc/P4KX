@@ -87,7 +87,7 @@ impl<'m> SceneNode<'m> {
     /// Places `light` at the node; it is written with `KHR_lights_punctual`.
     ///
     /// A node with only a light is turned to glTF's light axis itself; a node that also has a part
-    /// or children keeps its own frame, and the light sits on an extra child node of the same name.
+    /// or children keeps its own frame, and the light sits on an extra child node named `<name> light`.
     #[must_use]
     pub const fn with_light(mut self, light: SceneLight) -> Self {
         self.light = Some(light);
@@ -197,16 +197,12 @@ pub fn write_scene_glb_with(
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
     let nodes = scene.nodes();
-    let mut has_children = vec![false; nodes.len()];
-    for node in nodes {
-        if let Some(slot) = node.parent.and_then(|parent| has_children.get_mut(parent)) {
-            *slot = true;
-        }
-    }
-    let splits: Vec<bool> = nodes
+    let splits = light_splits(nodes);
+    let light_names: Vec<String> = nodes
         .iter()
-        .zip(&has_children)
-        .map(|(node, &children)| node.light.is_some() && (children || node.part.is_some()))
+        .zip(&splits)
+        .filter(|&(_, &split)| split)
+        .map(|(node, _)| format!("{} light", node.name))
         .collect();
     let placed: Vec<Transform> = nodes
         .iter()
@@ -236,8 +232,9 @@ pub fn write_scene_glb_with(
             .enumerate()
             .zip(&splits)
             .filter(|&(_, &split)| split)
-            .map(|((position, node), _)| Wrapper {
-                name: &node.name,
+            .zip(&light_names)
+            .map(|(((position, node), _), name)| Wrapper {
+                name,
                 parent: Some(position),
                 transform: &LIGHT_FRAME,
                 light: node.light.as_ref(),
@@ -253,6 +250,22 @@ pub fn write_scene_glb_with(
         fallbacks,
         out,
     )
+}
+
+/// Returns for each node whether it holds a light and also a model or children, so that the
+/// light's frame goes on a child node of its own.
+fn light_splits(nodes: &[SceneNode<'_>]) -> Vec<bool> {
+    let mut has_children = vec![false; nodes.len()];
+    for node in nodes {
+        if let Some(slot) = node.parent.and_then(|parent| has_children.get_mut(parent)) {
+            *slot = true;
+        }
+    }
+    nodes
+        .iter()
+        .zip(&has_children)
+        .map(|(node, &children)| node.light.is_some() && (children || node.part.is_some()))
+        .collect()
 }
 
 /// Returns the model instances of the nodes that hold a model, and how many are drawn at another

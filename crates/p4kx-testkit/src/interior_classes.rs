@@ -11,6 +11,9 @@ use crate::{
 /// The Entry of the container of [`class_room_entries`].
 pub const CLASS_ROOM: &str = "Data\\ObjectContainers\\ships\\test\\class_room.socpak";
 
+/// The class name of the ship Entity of [`entity_class_room_entries`].
+pub const ENTITY_CLASS_ROOM_CLASS: &str = "TEST_ClassHull";
+
 /// The sRGB bytes of the tint colours A to C of the palette `p_door`.
 pub const CLASS_DOOR_TINTS: [[u8; 3]; 3] = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
 
@@ -43,7 +46,7 @@ const fn at(x: f64, y: f64, z: f64) -> [[f64; 4]; 3] {
     [[1.0, 0.0, 0.0, x], [0.0, 1.0, 0.0, y], [0.0, 0.0, 1.0, z]]
 }
 
-fn database() -> DataForgeBuilder {
+fn database(hull: bool) -> DataForgeBuilder {
     let class = |guid: u128, name: &str| {
         TestEntity::new(
             guid,
@@ -51,7 +54,7 @@ fn database() -> DataForgeBuilder {
             format!("entities/scitem/{}.xml", name.to_ascii_lowercase()),
         )
     };
-    let entities = [
+    let mut entities = vec![
         class(0x41, "TEST_Door")
             .geometry("Objects/Test/cube.cgf", Some("Objects/Test/painted"))
             .palette(0x51, ""),
@@ -62,6 +65,18 @@ fn database() -> DataForgeBuilder {
         class(0x43, "TEST_Marker"),
         class(0x44, "TEST_Fixture").geometry("Objects/Test/cube.cgf", None),
     ];
+    if hull {
+        entities.push(
+            class(0x1, ENTITY_CLASS_ROOM_CLASS)
+                .geometry("Objects/Test/cube.cgf", None)
+                .object_container(
+                    CLASS_ROOM.trim_start_matches("Data\\"),
+                    "",
+                    [0.0; 3],
+                    [0.0; 3],
+                ),
+        );
+    }
     let palettes = [
         tint_palette_record(0x51, "p_door", CLASS_DOOR_TINTS, [255; 3], [51, 102, 153]),
         tint_palette_record(0x52, "p_own", CLASS_OWN_TINTS, [255; 3], [51, 102, 153]),
@@ -125,6 +140,12 @@ fn soc() -> TestSoc {
             CLASS_CABINET_GUID,
             [3.0, 0.0, 0.0],
         ))
+        .entity(
+            classed("door_own", "Door", CLASS_DOOR_GUID, [8.0, 0.0, 0.0]).choosing(
+                Some("Objects/Test/painted_default"),
+                Some((OWN_PALETTE_GUID, "")),
+            ),
+        )
         .entity(classed("marker", "Marker", MARKER_GUID, [0.0; 3]))
         .entity(classed("stranger", "Stranger", UNKNOWN_GUID, [0.0; 3]))
         .entity(classed("bad_door", "Door", CLASS_DOOR_GUID, [0.0; 3]).raw_pos("1,x,3"))
@@ -153,6 +174,8 @@ fn soc() -> TestSoc {
 ///
 /// - `door` (at (1, 0, 0)) of the class `TEST_Door`, whose Record names the cube, the library
 ///   `Objects/Test/painted` and the palette `p_door` ([`CLASS_DOOR_TINTS`]);
+/// - `door_own` (at (8, 0, 0)) of the same class, which chooses the library
+///   `Objects/Test/painted_default` and the palette `p_own` ([`CLASS_OWN_TINTS`]) itself;
 /// - `cabinet_a` and `cabinet_b` (at (2, 0, 0) and (3, 0, 0)) of the class `TEST_Cabinet`, whose
 ///   library `Objects/Test/painted_default` names `p_default` ([`CLASS_DEFAULT_TINTS`]) as its
 ///   default;
@@ -166,12 +189,33 @@ fn soc() -> TestSoc {
 ///   ([`CLASS_ROOM_TINTS`]) and at (5, 0, 0) with a palette path no Record has.
 #[must_use]
 pub fn class_room_entries() -> Vec<TestEntry> {
+    entries(false)
+}
+
+/// Returns the Entries of [`class_room_entries`] and the ship Entity [`ENTITY_CLASS_ROOM_CLASS`],
+/// a cube whose Record names the room as its object container at the origin.
+#[must_use]
+pub fn entity_class_room_entries() -> Vec<TestEntry> {
+    let mut entries = entries(true);
+    let hull = TestModel::cube();
+    entries.push(TestEntry::stored(
+        "Data\\Objects\\Test\\hull.cgf",
+        hull.cgf(),
+    ));
+    entries.push(TestEntry::stored(
+        "Data\\Objects\\Test\\hull.cgfm",
+        hull.cgfm(),
+    ));
+    entries
+}
+
+fn entries(hull: bool) -> Vec<TestEntry> {
     let description = TestObjectContainer::new("class_room").stream("class_room.soc");
     let container = TestContainer::new()
         .entry(TestEntry::stored("class_room.xml", description.cryxml()))
         .entry(TestEntry::deflated("class_room.soc", soc().bytes()));
     let mut entries = model_entries("Data\\Objects\\Test\\cube", &TestModel::cube());
-    entries.push(TestEntry::zstd("Data\\Game2.dcb", database().build()));
+    entries.push(TestEntry::zstd("Data\\Game2.dcb", database(hull).build()));
     entries.push(TestEntry::stored(
         "Data\\Objects\\Test\\painted.mtl",
         library(None),

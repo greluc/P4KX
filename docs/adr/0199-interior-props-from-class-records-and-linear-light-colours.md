@@ -15,9 +15,22 @@ The Record's `SGeometryResourceParams` gives the model, the material library and
 of the main geometry; sub-geometries and material variants (tags) are not used. The entity becomes
 a part of kind `Prop` like a prop with geometry of its own. An entity of a class without
 geometry, or of a class the DataForge lacks, stays unplaced and uncounted; an unusable position is
-counted in `entities_left_out`. Records are looked up once per GUID. Without a DataForge nothing
-changes. The Idris front gains 89 props (142 to 231) and the Mantis body 3 (21 to 24); all lie
-inside the container's bounds.
+counted in `entities_left_out`. Records are looked up once per GUID; `InteriorForge` remembers
+the geometry, so the containers of an Entity read a shared Record once. Without a DataForge
+nothing changes; the CLI and the window then build without classes, and the CLI warns on stderr
+when the Archive has a DataForge it cannot read. The Idris front gains 89 props (142 to 231) and
+the Mantis body 3 (21 to 24); all lie inside the container's bounds.
+
+**What the entity chooses itself.** 275 entities of the LIVE Archive have an
+`EntityGeometryResource` without a model path, 43 of them choose a `Material` or a `Palette`
+(`real_soc_lights`). Such an entity with a class Record uses its own material library and palette
+instead of those of the Record, as a prop with a path does.
+
+**Cost.** Building the Interior of the Idris front takes 93 ms without and 230 ms with the
+DataForge opened beforehand, the Mantis body 71 ms and 193 ms (release, LIVE). The 120 ms or so
+are the first lookup in a DataForge, which indexes its Records once; it is the same for 3 or 89
+props, so the cache of the geometries is not what costs. Callers open the DataForge once per job
+(the window did so twice for an Entity and now does so once).
 
 **Material library.** The library a prop names (`Material` of its geometry, or of its class
 Record) replaces the one its model names, as in the Assembly (ADR-0040); each library is read
@@ -29,8 +42,8 @@ table of the `.soc` file (the Record path is looked up in the DataForge), else t
 palette of its material library. A palette that cannot be used (no Record at the path, no GUID, a
 child path, which is not supported) is a `palette` issue and the part falls back to the next
 choice. Equal palettes are one object, so parts share meshes as in the Assembly. The Blender
-package takes the palette of an Interior part like that of an Entity's part. 2111 of the 3163
-parts of the Idris front have a palette.
+package takes the palette of an Interior part like that of an Entity's part, and so does the 3D
+view. 2111 of the 3163 parts of the Idris front have a palette.
 
 **Lights on prop entities.** An entity with geometry of its own or a class Record keeps the
 `BakedInLights` of its light group; the reader no longer stops after the geometry. The LIVE
@@ -44,8 +57,8 @@ such light, so they are not written and not reported.
 
 **Light frame.** The writer turns a scene node that holds a light by `LIGHT_FRAME` (the engine's
 +X to glTF's -Z) only when the node has neither a model nor children. Otherwise the node keeps
-its transform and the light sits on an extra child node of the same name with `LIGHT_FRAME` as its
-transform, so a public `SceneNode` with a `part` or children is not rotated by a quarter turn.
+its transform and the light sits on an extra child node named `<name> light` with `LIGHT_FRAME`
+as its transform, so a public `SceneNode` with a `part` or children is not rotated by a quarter turn.
 
 **Light semantics.**
 

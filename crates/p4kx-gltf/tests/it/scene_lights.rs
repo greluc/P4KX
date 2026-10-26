@@ -160,16 +160,16 @@ fn a_light_node_with_children_keeps_its_frame_on_a_child_of_its_own() -> TestRes
     let (glb, summary) = write(&scene)?;
 
     assert_eq!(summary.lights, 1);
-    let lamps: Vec<_> = glb
-        .document
-        .nodes()
-        .filter(|node| node.name() == Some("lamp"))
-        .collect();
-    let [plain, framed] = lamps.as_slice() else {
-        return Err("a plain node and a node that carries the light".into());
+    let named = |name: &str| {
+        glb.document
+            .nodes()
+            .find(|node| node.name() == Some(name))
+            .ok_or_else(|| format!("no node {name}"))
     };
+    let (plain, framed) = (named("lamp")?, named("lamp light")?);
     assert_eq!(plain.transform().decomposed().1, [0.0, 0.0, 0.0, 1.0]);
     assert_ne!(framed.transform().decomposed().1, [0.0, 0.0, 0.0, 1.0]);
+    assert!(plain.light().is_none() && framed.light().is_some());
     let child = glb
         .document
         .nodes()

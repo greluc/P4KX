@@ -109,32 +109,10 @@ impl Walker<'_> {
                 return false;
             }
         }
-        if self.classes.is_some() {
-            for entity in &entities.classed {
-                let Some(geometry) = self.class_geometry(&entity.class) else {
-                    continue;
-                };
-                let Some(transform) = entity.transform else {
-                    invalid += 1;
-                    continue;
-                };
-                let name = if entity.name.is_empty() {
-                    stem(geometry.path())
-                } else {
-                    &entity.name
-                };
-                let mut placed = Placed::new(
-                    name.to_owned(),
-                    InteriorPartKind::Prop,
-                    Some(geometry.path()),
-                    transform,
-                );
-                placed.material = geometry.material();
-                placed.palette = geometry.palette().cloned();
-                if !self.add_placed(todo, at, world, placed) {
-                    return false;
-                }
-            }
+        let (room, class_invalid) = self.add_class_props(todo, (at, world), file, entities);
+        invalid += class_invalid;
+        if !room {
+            return false;
         }
         if invalid > 0 {
             self.note(
@@ -144,6 +122,50 @@ impl Walker<'_> {
             );
         }
         self.add_lights(todo, at, world, file, entities)
+    }
+
+    /// Adds the entities whose class Record names geometry; returns whether there was room for
+    /// all of them and how many had no usable transform.
+    fn add_class_props(
+        &mut self,
+        todo: &Todo,
+        (at, world): (usize, Transform),
+        file: &str,
+        entities: &SocEntities,
+    ) -> (bool, usize) {
+        let mut invalid = 0;
+        if self.classes.is_none() {
+            return (true, invalid);
+        }
+        for entity in &entities.classed {
+            let Some(geometry) = self.class_geometry(&entity.class) else {
+                continue;
+            };
+            let Some(transform) = entity.transform else {
+                invalid += 1;
+                continue;
+            };
+            let name = if entity.name.is_empty() {
+                stem(geometry.path())
+            } else {
+                &entity.name
+            };
+            let mut placed = Placed::new(
+                name.to_owned(),
+                InteriorPartKind::Prop,
+                Some(geometry.path()),
+                transform,
+            );
+            placed.material = entity.material.as_deref().or_else(|| geometry.material());
+            placed.palette = entity.palette.as_ref().map_or_else(
+                || geometry.palette().cloned(),
+                |own| self.entity_palette(todo, file, own),
+            );
+            if !self.add_placed(todo, at, world, placed) {
+                return (false, invalid);
+            }
+        }
+        (true, invalid)
     }
 
     fn add_lights(

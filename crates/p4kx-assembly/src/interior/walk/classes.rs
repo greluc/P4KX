@@ -18,8 +18,7 @@ impl Walker<'_> {
         let found = text
             .parse::<Guid>()
             .ok()
-            .and_then(|guid| lookup.geometry(guid))
-            .map(Arc::new);
+            .and_then(|guid| lookup.geometry(guid));
         self.class_geometry.insert(text.to_owned(), found.clone());
         found
     }

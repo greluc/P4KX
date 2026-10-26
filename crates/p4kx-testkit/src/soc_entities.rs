@@ -23,6 +23,24 @@ fn placed(name: &str, class: &str, position: [f64; 3], rotation: [f64; 4]) -> En
     }
 }
 
+fn resource(model: &str, material: Option<&str>, palette: Option<(&str, &str)>) -> TestElement {
+    let mut data =
+        TestElement::new("Geometry").child(TestElement::new("Geometry").attribute("path", model));
+    if let Some(material) = material {
+        data = data.child(TestElement::new("Material").attribute("path", material));
+    }
+    if let Some((root, child)) = palette {
+        data = data.child(
+            TestElement::new("Palette")
+                .attribute("RootRecord", root)
+                .attribute("ChildPath", child),
+        );
+    }
+    let node =
+        TestElement::new("EntityGeometryResource").child(TestElement::new("Geometry").child(data));
+    TestElement::new("PropertiesDataCore").child(node)
+}
+
 #[derive(Debug, Clone)]
 struct Entity {
     name: String,
@@ -198,24 +216,19 @@ impl TestSocEntity {
         material: Option<&str>,
         palette: Option<(&str, &str)>,
     ) -> Self {
-        let mut data = TestElement::new("Geometry")
-            .child(TestElement::new("Geometry").attribute("path", model));
-        if let Some(material) = material {
-            data = data.child(TestElement::new("Material").attribute("path", material));
-        }
-        if let Some((root, child)) = palette {
-            data = data.child(
-                TestElement::new("Palette")
-                    .attribute("RootRecord", root)
-                    .attribute("ChildPath", child),
-            );
-        }
-        let node = TestElement::new("EntityGeometryResource")
-            .child(TestElement::new("Geometry").child(data));
         Self {
             entity: placed(name, "GeomEntity", position, rotation)
-                .child(TestElement::new("PropertiesDataCore").child(node)),
+                .child(resource(model, material, palette)),
         }
+    }
+
+    /// Makes the entity choose the material library `material` and the tint palette Record
+    /// `palette` (GUID text and child path) without naming a model, as an entity does that takes
+    /// its geometry from its class Record.
+    #[must_use]
+    pub fn choosing(mut self, material: Option<&str>, palette: Option<(&str, &str)>) -> Self {
+        self.entity.children.push(resource("", material, palette));
+        self
     }
 
     /// Creates an entity of the class `class` that names the Record `guid` as its class and no

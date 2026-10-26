@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::io::Read;
+use std::time::{Duration, Instant};
 
 use p4kx_assembly::{Interior, InteriorForge, InteriorOptions, InteriorPartKind, InteriorWatch};
 use p4kx_extraction::{Archive, DataForgeEntry, select_entries};
@@ -29,7 +30,9 @@ fn kinds(interior: &Interior) -> BTreeMap<&'static str, usize> {
     counts
 }
 
-fn build_both(path: &str) -> Result<(Interior, Interior, ContainerBounds), Box<dyn Error>> {
+type Built = (Interior, Interior, ContainerBounds, (Duration, Duration));
+
+fn build_both(path: &str) -> Result<Built, Box<dyn Error>> {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let found = select_entries(&archive, &[path])?;
     let entry = found.first().ok_or("no container")?;
@@ -50,10 +53,13 @@ fn build_both(path: &str) -> Result<(Interior, Interior, ContainerBounds), Box<d
         .bounds
         .ok_or("the container declares no bounds")?;
     let options = InteriorOptions::default();
+    let started = Instant::now();
     let plain = Interior::build(&[&archive, &root], entry.path(), &options)?;
+    let without = started.elapsed();
     let forge_entry = DataForgeEntry::read(&archive)?;
     let forge = forge_entry.open()?;
     let classes = InteriorForge::new(&forge);
+    let started = Instant::now();
     let with = Interior::build_with(
         &[&archive, &root],
         entry.path(),
@@ -61,7 +67,7 @@ fn build_both(path: &str) -> Result<(Interior, Interior, ContainerBounds), Box<d
         &InteriorWatch::none(),
         Some(&classes),
     )?;
-    Ok((plain, with, bounds))
+    Ok((plain, with, bounds, (without, started.elapsed())))
 }
 
 #[test]
@@ -69,9 +75,11 @@ fn build_both(path: &str) -> Result<(Interior, Interior, ContainerBounds), Box<d
 #[expect(clippy::print_stdout, reason = "the counts go into the PR body")]
 fn the_class_props_of_the_idris_front_and_the_mantis_body_lie_inside_the_bounds() -> TestResult {
     for path in [MANTIS_BODY, IDRIS_FRONT] {
-        let (plain, with, bounds) = build_both(path)?;
+        let (plain, with, bounds, times) = build_both(path)?;
         println!(
-            "{path}: props {} -> {}, parts {} -> {}, palettes {}, issues {:?} -> {:?}",
+            "{path}: build {:?} without, {:?} with the forge; props {} -> {}, parts {} -> {}, palettes {}, issues {:?} -> {:?}",
+            times.0,
+            times.1,
             plain.props(),
             with.props(),
             plain.parts().len(),

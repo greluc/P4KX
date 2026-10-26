@@ -180,7 +180,8 @@ pub use gltf;
 pub use hirc_node::{TestContainerKind, TestNodeBase};
 pub use interior_classes::{
     CLASS_CABINET_GUID, CLASS_DEFAULT_TINTS, CLASS_DOOR_GUID, CLASS_DOOR_TINTS, CLASS_OWN_TINTS,
-    CLASS_ROOM, CLASS_ROOM_TINTS, class_room_entries,
+    CLASS_ROOM, CLASS_ROOM_TINTS, ENTITY_CLASS_ROOM_CLASS, class_room_entries,
+    entity_class_room_entries,
 };
 pub use interior_lit::{LIT_ROOM, lit_room_entries};
 pub use interior_sample::{

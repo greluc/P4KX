@@ -290,6 +290,38 @@ fn several_dismantle_processes_link_nothing_and_warn() -> TestResult {
 }
 
 #[test]
+fn modifier_ranges_of_an_unknown_type_are_counted_and_named_in_a_warning() -> TestResult {
+    let bytes = fixture::unknown_ranges_database().build();
+    let forge = DataForge::open(&bytes)?;
+    let crafting = read_crafting(&forge, None, None)?;
+    assert_eq!(
+        crafting.warnings,
+        [CraftingWarning::UnknownModifierRanges {
+            count: 3,
+            details: vec![
+                "CraftingGameplayPropertyModifierValueRange_Curve".to_owned(),
+                "CraftingGameplayPropertyModifierValueRange_Stepped".to_owned(),
+            ],
+        }]
+    );
+    let blueprint = crafting
+        .blueprints
+        .iter()
+        .find(|blueprint| blueprint.guid == guid(fixture::UNKNOWN_RANGES))
+        .ok_or("the blueprint with unknown ranges")?;
+    assert_eq!(blueprint.unknown_range_types.len(), 3);
+    Ok(())
+}
+
+#[test]
+fn known_modifier_ranges_give_no_warning() -> TestResult {
+    read(None, |crafting| {
+        assert!(crafting.warnings.is_empty(), "{:?}", crafting.warnings);
+        Ok(())
+    })
+}
+
+#[test]
 fn the_unreadable_count_of_a_warning_is_reported() {
     let warning = CraftingWarning::UnreadableRewardRecords(3);
     assert!(warning.to_string().contains('3'));

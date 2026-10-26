@@ -17,9 +17,10 @@ use crate::collected::Collected;
 use crate::contract::{
     BuildSource, Catalog, Completeness, KindCompleteness, SCHEMA_VERSION, Source,
 };
+use crate::contract_loadout::EntityKind;
 use crate::crafting::read_with_progress;
 use crate::crafting_warning::CraftingWarning;
-use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
+use crate::loadout::{Wanted, loadouts};
 use crate::missions;
 use crate::paint::paints;
 use crate::scan::Scan;
@@ -363,11 +364,11 @@ fn add_loadouts(
         .iter()
         .map(|ship| Wanted {
             guid: ship.guid,
-            kind: SHIP,
+            kind: EntityKind::Ship,
         })
         .chain(collected.port_items.iter().map(|guid| Wanted {
             guid: *guid,
-            kind: ITEM,
+            kind: EntityKind::Item,
         }))
         .collect();
     let known: HashSet<Guid> = collected

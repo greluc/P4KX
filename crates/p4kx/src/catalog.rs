@@ -9,13 +9,13 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{Context, Result};
 use p4kx_export::{
     CatalogError, CatalogFailure, CatalogFile, CatalogOptions, CatalogSummary, Compression,
-    CraftingWarning, DECOMPRESSED_LIMIT, Filter, LoadoutSummary, PaintSummary, Playability,
-    ShopSummary, SizeWarning, StarmapSummary, StoreSlugSummary, UPLOAD_LIMIT, catalog_schema,
-    write_catalog,
+    CraftingWarning, Filter, LoadoutSummary, PaintSummary, Playability, ShopSummary,
+    StarmapSummary, StoreSlugSummary, catalog_schema, write_catalog,
 };
 use p4kx_extraction::Archive;
 
 use super::catalog_json::summary_json;
+use super::catalog_size::warn_about_size;
 use crate::catalog_input::{InvalidExportTime, MissingCatalogArgs, refuse_gzip};
 use crate::cli::{CatalogArgs, CatalogCommand};
 use crate::exit;
@@ -133,40 +133,6 @@ fn into_anyhow(error: CatalogError) -> anyhow::Error {
         CatalogError::LoadTexts(error) => error.into(),
         CatalogError::DataForge(error) => error.into(),
         other => other.into(),
-    }
-}
-
-fn warn_about_size(summary: &CatalogSummary) -> io::Result<()> {
-    let mut err = io::stderr().lock();
-    if let Some(warning) = summary.size_warning() {
-        writeln!(
-            err,
-            "warning: the catalog file is {} bytes, {} the basetool upload limit of {UPLOAD_LIMIT} bytes",
-            summary.upload_size(),
-            relation(warning)
-        )?;
-        if summary.compressed_size().is_none() {
-            writeln!(
-                err,
-                "note: upload the catalog as .json.zst (--out <file>.json.zst); plain .json is for inspection"
-            )?;
-        }
-    }
-    if let Some(warning) = summary.decompressed_warning() {
-        writeln!(
-            err,
-            "warning: the catalog is {} bytes decompressed, {} the basetool limit of {DECOMPRESSED_LIMIT} bytes for decompressed content",
-            summary.size(),
-            relation(warning)
-        )?;
-    }
-    Ok(())
-}
-
-const fn relation(warning: SizeWarning) -> &'static str {
-    match warning {
-        SizeWarning::NearLimit => "close to",
-        SizeWarning::OverLimit => "over",
     }
 }
 

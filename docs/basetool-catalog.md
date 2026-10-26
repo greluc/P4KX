@@ -807,10 +807,13 @@ media: name and record stay on the entry in `ships` or `items`, so no GUID occur
 |-------|--------|
 | `entityGuid` | The `guid` of the entry in `ships` or `items` the ports belong to |
 | `entityKind` | `ship` or `item`; a closed set the game may extend, so the schema keeps a string |
-| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `xml_loadout`, `vehicle_implementation`; empty when all was read. A vehicle implementation or a patch file the Archive lacks is a `vehicle_implementation` issue too, a fact of the game data |
+| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `no_loadout_files`, `xml_loadout`, `vehicle_implementation`; empty when all was read. `no_loadout_files` (an XML Loadout is named but no Archive was given to read it from) cannot occur in a catalog, which always has its Archive. A vehicle implementation or a patch file the Archive lacks is a `vehicle_implementation` issue too, a fact of the game data |
 | `ports` | The ports of the entity, see below |
 
-**Selection.** Every entry of `ships` has a loadout, also one without ports. An entry of `items`
+**Selection.** Every entry of `ships` has a loadout, also one without ports, with one exception: a
+ship whose own Record cannot be resolved stays in `ships` without a loadout and is listed in
+`failures` with a reason that starts with `loadout: `; `completeness.loadouts` is not changed by it.
+An entry of `items`
 has one when its Record defines item ports (`SItemPortContainerComponentParams`) or names a default
 Loadout (`SEntityComponentDefaultLoadoutParams`) and its tree holds at least one port: turrets,
 racks, weapons with attachment ports. With a `--filter` the ships and items are filtered first,
@@ -1467,18 +1470,18 @@ the limit and advise `.json.zst`. The real-Archive tests write the catalog as `.
 that the compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame
 and compare it with the plain catalog, and print both sizes and the time per zstd level.
 
-Measured on 2026-10-22, with the ship base fields and `loadouts`, on every installed Channel (complete catalog of every
-kind, English and German texts); the counts of the other kinds are unchanged:
+Measured on 2026-10-26 on every installed Channel (complete catalog of every kind, English and
+German texts; Bytes is the whole catalog, the other kinds are in `p4kx catalog --json`):
 
-| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
-|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
-| LIVE | 132,117,714 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| PTU | 127,855,466 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
-| EPTU | 126,761,438 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
-| HOTFIX | 132,117,716 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| TECH-PREVIEW | 127,172,638 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints | Loadouts |
+|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|---------:|
+| LIVE | 152,812,265 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 | 10,708 |
+| PTU | 153,118,866 | 1,201 | 23,303 | 1,089 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,060 | 10,729 |
+| EPTU | 147,173,003 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 | 10,487 |
+| HOTFIX | 152,812,267 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 | 10,708 |
+| TECH-PREVIEW | 148,762,814 | 1,203 | 23,756 | 1,036 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 | 9,952 |
 
-LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports (nested ports counted
+Measured on 2026-10-22, LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports (nested ports counted
 for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
 unresolved attachments (`unknown_class` 446, `dangling_reference` 54, `cycle` 5); 61 attached
 Entities have no entry in `items` or `ships` (templates of doors, screens, beds and the like, and

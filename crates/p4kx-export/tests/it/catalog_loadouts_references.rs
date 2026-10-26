@@ -83,14 +83,14 @@ fn the_summary_counts_the_ports_and_the_entities_without_an_entry() -> TestResul
     assert_eq!(
         built.summary().loadouts(),
         LoadoutSummary {
-            ships: 3,
-            items: 2,
-            ports: 13,
-            attached: 9,
+            ships: 4,
+            items: 3,
+            ports: 16,
+            attached: 10,
             docked_vehicles: 1,
-            unresolved: 2,
+            unresolved: 3,
             outside: 1,
-            with_issues: 2,
+            with_issues: 3,
         },
         "the leftover item the ship holds has no entry in items"
     );
@@ -102,7 +102,7 @@ fn the_summary_counts_the_ports_and_the_entities_without_an_entry() -> TestResul
     let held = port(&loadout(&catalog, ALPHA)?["ports"], "hardpoint_old")?;
     assert_eq!(held["itemGuid"], json!(template), "but it stays referenced");
     let kind = built.summary().kind(Kind::Loadouts).ok_or("the kind")?;
-    assert_eq!((kind.count, kind.complete), (5, true), "the kind summary");
+    assert_eq!((kind.count, kind.complete), (7, true), "the kind summary");
     assert_eq!(
         catalog["completeness"]["loadouts"]["status"], "complete",
         "completeness"
@@ -150,7 +150,7 @@ fn a_filter_limits_the_loadouts_to_the_selected_entities_and_marks_the_kind_part
         .iter()
         .filter_map(|entry| entry["entityKind"].as_str())
         .collect();
-    assert_eq!(owners, ["ship", "ship", "ship"], "only the ships");
+    assert_eq!(owners, ["ship", "ship", "ship", "ship"], "only the ships");
     assert_eq!(
         catalog["completeness"]["loadouts"],
         json!({"status": "partial", "filter": "*/spaceships/*"}),

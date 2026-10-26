@@ -17,6 +17,7 @@ mod catalog_groups;
 mod catalog_item_stats;
 mod catalog_items;
 mod catalog_loadouts;
+mod catalog_loadouts_edges;
 mod catalog_loadouts_references;
 mod catalog_mining;
 mod catalog_paints;

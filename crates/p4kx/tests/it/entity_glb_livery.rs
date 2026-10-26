@@ -78,6 +78,23 @@ fn textures_are_embedded_once_at_the_chosen_mip_and_palettes_are_applied() -> Te
 }
 
 #[test]
+fn two_runs_in_textures_mode_write_identical_bytes() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), livery_entries())?;
+    let (first, second) = (dir.path().join("a.glb"), dir.path().join("b.glb"));
+
+    for out in [&first, &second] {
+        let run = glb(&archive, out, &["--materials", "textures"], false)?;
+        assert_eq!(run.code, Some(0), "{}", run.stderr);
+    }
+
+    let bytes = std::fs::read(&first)?;
+    check_glb(&bytes)?;
+    assert!(bytes == std::fs::read(&second)?, "byte-identical");
+    Ok(())
+}
+
+#[test]
 fn colours_mode_applies_palettes_without_textures() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path(), livery_entries())?;

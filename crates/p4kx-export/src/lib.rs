@@ -131,11 +131,13 @@ mod shops;
 mod starmap;
 mod starmap_containers;
 mod starmap_index;
+mod starmap_parse;
 mod starmap_read;
 mod starmap_report;
 #[cfg(test)]
 mod starmap_tests;
 mod starmap_transform;
+mod starmap_walk;
 mod starmap_xml;
 mod store_slug_summary;
 mod summary;

@@ -36,8 +36,12 @@ fn child(position: &str, record: u128) -> TestElement {
 }
 
 fn external(name: &str) -> TestElement {
+    external_at(name, "0,0,0")
+}
+
+fn external_at(name: &str, position: &str) -> TestElement {
     TestElement::new("Child")
-        .attribute("pos", "0,0,0")
+        .attribute("pos", position)
         .attribute("external", "1")
         .attribute(
             "name",
@@ -217,5 +221,71 @@ fn the_report_keeps_a_bounded_number_of_short_lines() {
             .iter()
             .all(|line| line.chars().count() <= 300),
         "and short"
+    );
+}
+
+#[test]
+fn a_container_instanced_several_times_is_composed_at_each_place() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let entries = system(
+        &root(vec![
+            external_at("ring", "10,0,0"),
+            external_at("ring", "10,0,0"),
+            external_at("moved", "10,0,0"),
+            external_at("moved", "30,0,0"),
+        ]),
+        &[
+            ("ring", root(vec![child("1,0,0", 1)])),
+            ("moved", root(vec![child("2,0,0", 2)])),
+        ],
+    );
+    let placements = read(dir.path(), entries, Limits::default());
+    assert_eq!(placed(&placements, 1), Some([11.0, 0.0, 0.0]), "same place");
+    assert_eq!(placed(&placements, 2), None, "two places");
+    assert_eq!(placements.counts.ambiguous, 1, "only the moved one");
+    assert_eq!(placements.counts.unreadable, 0, "read");
+}
+
+#[test]
+fn a_container_without_the_main_xml_name_is_read_and_reported() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let xml = root(vec![child("4,5,6", 1)]);
+    let odd = TestEntry::stored(
+        format!("{FOLDER}odd.socpak"),
+        TestContainer::new()
+            .entry(TestEntry::stored("other.xml", xml.as_bytes()))
+            .build(),
+    );
+    let entries = vec![socpak("tsystem", &root(vec![external("odd")])), odd];
+    let placements = read(dir.path(), entries, Limits::default());
+    assert_eq!(placed(&placements, 1), Some([4.0, 5.0, 6.0]), "placed");
+    assert_eq!(placements.counts.unreadable, 0, "readable");
+    assert!(
+        placements
+            .report
+            .issues
+            .iter()
+            .any(|line| line.contains("no XML named like the container")),
+        "an issue line"
+    );
+}
+
+#[test]
+fn a_second_child_list_is_reported() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let xml = TestElement::new("ObjectContainer")
+        .child(TestElement::new("ChildObjectContainers").child(child("1,0,0", 1)))
+        .child(TestElement::new("ChildObjectContainers").child(child("2,0,0", 2)))
+        .to_xml();
+    let placements = read(dir.path(), system(&xml, &[]), Limits::default());
+    assert!(placed(&placements, 1).is_some(), "the first list is read");
+    assert_eq!(placed(&placements, 2), None, "the second is not");
+    assert!(
+        placements
+            .report
+            .issues
+            .iter()
+            .any(|line| line.contains("more than one ChildObjectContainers")),
+        "an issue line"
     );
 }

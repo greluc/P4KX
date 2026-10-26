@@ -19,7 +19,7 @@ use crate::entity_selection::{Selected, select};
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::ship_pool::ShipPool;
-use crate::starmap::starmap_object;
+use crate::starmap::{TypeNames, starmap_object};
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
 use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogPhase, CatalogProgress, Kind};
@@ -44,6 +44,7 @@ pub(crate) struct Scan<'o, 'a, 'f> {
     options: &'o CatalogOptions<'a>,
     texts: &'o Texts<'f>,
     placements: &'o Placements,
+    types: TypeNames<'f>,
     groups: Groups,
     evidence: Evidence,
     done: AtomicUsize,
@@ -71,6 +72,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             options,
             texts,
             placements,
+            types: TypeNames::default(),
             groups,
             evidence,
             done: AtomicUsize::new(0),
@@ -206,12 +208,15 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         };
         let tree = trees.build(record)?;
         if kind == Kind::StarmapObjects {
-            return Ok(Some(Picked::Starmap(starmap_object(
+            let object = starmap_object(
+                trees,
                 &tree,
                 self.texts,
                 self.forge,
+                &self.types,
                 self.placements,
-            ))));
+            );
+            return Ok(Some(Picked::Starmap(object)));
         }
         let resource_type = match kind {
             Kind::Commodities => self.resource_type(trees, &tree)?,

@@ -4,6 +4,7 @@
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use p4kx_assembly::character::{CHF_SIZE, Chf, ChfError, NameSummary, Versions};
@@ -13,6 +14,7 @@ use thiserror::Error;
 use crate::chf_names;
 use crate::cli::{ChfAction, ChfArgs};
 use crate::cryxml::JsonNeedsOut;
+use crate::exit;
 use crate::json;
 use crate::query_file::write_replacing;
 
@@ -77,13 +79,15 @@ struct NamesJson {
 }
 
 /// Runs `p4kx chf to-json` or `p4kx chf from-json`.
-pub(crate) fn run(args: &ChfArgs, as_json: bool) -> Result<()> {
+pub(crate) fn run(args: &ChfArgs, as_json: bool) -> Result<ExitCode> {
+    let success = |()| ExitCode::from(exit::SUCCESS);
     match &args.action {
         ChfAction::ToJson { file, out, archive } => {
-            to_json(file, out.as_deref(), archive.as_deref(), as_json)
+            to_json(file, out.as_deref(), archive.as_deref(), as_json).map(success)
         }
-        ChfAction::FromJson { file, out } => from_json(file, out, as_json),
-        ChfAction::Glb(args) => crate::chf_glb::run(args, as_json),
+        ChfAction::FromJson { file, out } => from_json(file, out, as_json).map(success),
+        ChfAction::Diff(args) => crate::chf_diff::run(args, as_json),
+        ChfAction::Glb(args) => crate::chf_glb::run(args, as_json).map(success),
     }
 }
 

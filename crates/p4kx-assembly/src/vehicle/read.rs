@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use p4kx_foundation::read_text_number;
 
-use super::{PartKind, PortVisibility, VehicleItemPort, VehicleItemType, VehiclePart};
+use super::{PartKind, VehicleItemPort, VehicleItemType, VehiclePart};
 use crate::markup::Element;
 use crate::merge::port_key;
 
@@ -159,19 +159,27 @@ pub(crate) fn number(value: Option<&str>) -> Option<f64> {
     read_text_number(value?).map(|number| number.value())
 }
 
-/// Returns the visibility of each item port by lower-case part name; the first part decides.
-pub(super) fn visibility(parts: &[VehiclePart]) -> HashMap<String, PortVisibility> {
+/// Returns where each item port sits, by lower-case part name: the child indices from the top
+/// level down to the part. The first part of a name decides.
+pub(super) fn port_paths(parts: &[VehiclePart]) -> HashMap<String, Box<[usize]>> {
     let mut map = HashMap::new();
-    collect_visibility(parts, &mut map);
+    let mut path = Vec::new();
+    collect_paths(parts, &mut path, &mut map);
     map
 }
 
-fn collect_visibility(parts: &[VehiclePart], map: &mut HashMap<String, PortVisibility>) {
-    for part in parts {
-        if let Some(port) = &part.item_port {
+fn collect_paths(
+    parts: &[VehiclePart],
+    path: &mut Vec<usize>,
+    map: &mut HashMap<String, Box<[usize]>>,
+) {
+    for (index, part) in parts.iter().enumerate() {
+        path.push(index);
+        if part.item_port.is_some() {
             map.entry(port_key(&part.name))
-                .or_insert_with(|| port.visibility());
+                .or_insert_with(|| path.as_slice().into());
         }
-        collect_visibility(&part.children, map);
+        collect_paths(&part.children, path, map);
+        path.pop();
     }
 }

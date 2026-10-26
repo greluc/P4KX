@@ -18,6 +18,7 @@ mod catalog_size;
 mod channels;
 mod character_package;
 mod chf;
+mod chf_diff;
 mod chf_glb;
 mod chf_names;
 mod chunks;
@@ -44,6 +45,7 @@ mod cli_key;
 mod cli_loc;
 mod cli_model;
 mod cli_output;
+mod cli_prefab;
 mod cli_ships;
 mod cli_socpak;
 mod cli_ui;
@@ -71,6 +73,7 @@ mod entity;
 mod entity_audio;
 mod entity_glb;
 mod entity_glb_placements;
+mod entity_ignored;
 mod entity_json;
 mod entity_outfit;
 mod entity_package;
@@ -98,6 +101,7 @@ mod model_glb;
 mod model_info;
 mod model_text;
 mod notice;
+mod prefab;
 mod progress;
 mod query_file;
 mod query_rows;
@@ -157,6 +161,7 @@ fn main() -> ExitCode {
         Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json),
         Command::Interior(args) => cli_interior::dispatch(args.action, json).map(success),
+        Command::Prefab(args) => prefab::run(&args, json).map(success),
         Command::Armour(args) => armour::run(&args, json).map(success),
         Command::Character(args) => character_package::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
@@ -173,7 +178,7 @@ fn main() -> ExitCode {
         Command::Bnk(args) => bnk::run(&args, json),
         Command::Ui(args) => ui::run(&args, json),
         Command::Socpak(args) => socpak::run(&args, json),
-        Command::Chf(args) => chf::run(&args, json).map(success),
+        Command::Chf(args) => chf::run(&args, json),
         Command::Chunks(args) => chunks::run(&args, json).map(success),
         Command::Wwise(args) => wwise::run(&args, json),
         Command::Model(args) => model::run(&args, json).map(success),

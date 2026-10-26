@@ -14,7 +14,7 @@ pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 use crate::cli_character::CharacterArgs;
-pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfGlbArgs};
+pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfDiffArgs, ChfDiffFormat, ChfGlbArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_conflict::Conflict;
 pub(crate) use crate::cli_coverage::CoverageArgs;
@@ -129,6 +129,10 @@ pub(crate) enum Command {
     /// Exports the Interior of a socpak container as GLB.
     #[command(after_help = EXIT_CODES_HELP)]
     Interior(crate::cli_interior::InteriorArgs),
+    /// Lists the prefab libraries of an Archive and their prefabs, or prints a prefab with its
+    /// nested prefabs resolved.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Prefab(crate::cli_prefab::PrefabArgs),
     /// Lists the body variants, or writes pieces of armour and clothing worn on a body as one
     /// skinned GLB.
     #[command(after_help = EXIT_CODES_HELP)]

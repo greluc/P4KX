@@ -204,6 +204,12 @@ Early development (milestone M1). Available today:
   and lights as `entity package --interior`, without an Entity around them. `--lod`,
   `--texture-mip` and `--no-vertex-colours` work as for `entity package`; the folder is written
   beside the target and moved into place when complete. The Blender add-on imports it.
+- `p4kx prefab list <archive> [<library>]` lists the prefab libraries below `Data\Prefabs` or the
+  prefabs of one; `p4kx prefab dump <archive> <library> <prefab>` prints a prefab with its nested
+  prefabs expanded: every object with type, class, geometry file and its transform to the prefab's
+  space, the parents' rotation applied. A prefab that is missing, contains itself or is nested more
+  than 16 deep stays unexpanded and is listed; `--json` has the shape in
+  [docs/cli-json.md](docs/cli-json.md).
 - `p4kx armour glb <archive> --piece <entity> --body male|female --out <file>` exports pieces of
   armour and clothing worn on the default body of a variant as one skinned GLB: the body's
   skeleton once as bone nodes, one skin over them, the skin of the body and, for every `--piece`
@@ -445,6 +451,12 @@ Early development (milestone M1). Available today:
   [docs/chf-hashes.md](docs/chf-hashes.md). A hash that a known name matches gets that name in a
   `*_label` key beside it (`from-json` ignores the keys), `--archive` adds the names the Archive
   knows, and the hashes without a name are counted.
+- `p4kx chf diff <a.chf> <b.chf> [--format text|json] [--archive <Data.p4k>]` lists the fields in
+  which two CHF files differ, by path with the old and the new value: header, DNA by face part and
+  blend, item port tree, and materials down to textures, float and colour parameters. Hashes that
+  a known name matches are shown as names; the raw path keeps them. It finds which field a control
+  of the character customiser changes. Exit code 1 when the files differ, 0 when not; the JSON is
+  described in [docs/cli-json.md](docs/cli-json.md#p4kx-chf-diff-achf-bchf---json).
 - `p4kx chf glb <archive> <file> --out <file>` exports the head of a CHF character as one skinned
   GLB: the head skin of the character's head rig, its vertices moved by the character's face DNA
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by
@@ -527,7 +539,7 @@ Early development (milestone M1). Available today:
 | Code | Meaning |
 |------|---------|
 | 0 | Success: every requested Entry was extracted or already existed; `compare`: no differences |
-| 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture cannot be read, merged or written, a tag or definition of a UI movie cannot be read or written, or `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit; for `--screen` also a widget type without a renderer or an approximated layout), or `chf glb` or `character package` could not shape the head by its DNA (the output is written without the head); `compare`: the Archives or the `--diff` Entry differ |
+| 1 | Partial failure: some Entries or Records failed or were cancelled, the data of an Entry does not match its checksum (`verify`, `extract --verify`), the target or the settings cannot be written, a texture cannot be read, merged or written, a tag or definition of a UI movie cannot be read or written, or `ui render` leaves an element out (skipped, drawn without an effect, or beyond a limit; for `--screen` also a widget type without a renderer or an approximated layout), or `chf glb` or `character package` could not shape the head by its DNA (the output is written without the head); `compare`: the Archives or the `--diff` Entry differ; `chf diff`: the CHF files differ |
 | 2 | Invalid input: bad arguments, an Entry path the Archive does not contain (for `compare --diff`: neither Archive contains), a Filter that matches no Entry or Record, a Channel path that does not exist or was never added, a texture or UI movie file that does not exist, a merge output that is one of its inputs, a target or output inside a Star Citizen installation (the tool never writes there), a `ui render` canvas that is empty or larger than 16384 pixels a side or 2^25 pixels, `--json` without `--out` for `cryxml` or `chf to-json`, or CHF JSON that is invalid, has an unknown version or cannot be stored as CHF, a CHF file for `chf glb` or `character package` that holds no face DNA or whose DNA belongs to an unknown head rig, `loc` for a language the Archive holds no `global.ini` for or a key with no text in the language or its fallback, and `loc export` of an Archive without any `global.ini`, a canvas for `ui render --screen` that no Record, several Records or a non-canvas Record names, or whose side is below 1 or above 16384 pixels |
 | 3 | The Archive, a socpak container in it or the input file cannot be read: missing, not an Archive, not CryXml, CHF or a UI movie, corrupt or with a CHF CRC-32C mismatch or unknown CHF version, also a `compare --diff` Entry that cannot be read, does not hold its stated size or holds corrupt CryXml, and a `global.ini` of `catalog` or `loc` that is over 64 MiB, holds more than 1,048,576 keys or cannot be read (invalid bytes and lines without `=` are no error); a missing texture or UI movie file is 2 |
 | 4 | The Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the Extraction stopped, and Entries written before may be stale |

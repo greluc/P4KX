@@ -66,6 +66,8 @@ pub(crate) struct LoadoutJson<'a> {
     pub(crate) entity: NodeJson<'a>,
     #[serde(rename = "outfit", skip_serializing_if = "Option::is_none")]
     pub(crate) outfits: Option<OutfitsJson>,
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    pub(crate) ignored: &'a [String],
     #[serde(flatten)]
     pub(crate) counts: Counts,
 }

@@ -10,6 +10,7 @@ use p4kx_gltf::{AnimationSummary, GlbOptions, TextureLoader};
 
 use crate::build::{Inputs, manifest};
 use crate::collect::Collected;
+use crate::finite::sanitise;
 use crate::items::{Item, items};
 use crate::manifest::{
     BuildInfo, EntityRef, Issue, MANIFEST_FILE, MESHES_FOLDER, NodeKind, Replacement,
@@ -91,6 +92,9 @@ pub struct PackageSummary {
     pub vertices: usize,
     /// The number of triangles of all meshes, each counted once.
     pub triangles: usize,
+    /// The number of meshes whose model lacks the level of detail asked for and is written at the
+    /// nearest lower one.
+    pub lod_fallbacks: usize,
     /// The number of bones of a Character's skeleton; 0 for an Assembly.
     pub bones: usize,
     /// The number of meshes of a Character that carry bone weights.
@@ -209,7 +213,7 @@ pub(crate) fn write_scene(
         &cancelled,
     )?;
     cancelled.check()?;
-    let manifest = manifest(&Inputs {
+    let mut manifest = manifest(&Inputs {
         entity: scene.entity.clone(),
         assembly_issues: scene.issues,
         items,
@@ -220,6 +224,7 @@ pub(crate) fn write_scene(
         outcomes: &outcomes,
         meshes: &written,
     });
+    sanitise(&mut manifest);
     let manifest_len = write_manifest(&staging.path().join(MANIFEST_FILE), &manifest)?;
     let summary = summarise(&manifest, &outcomes, &written, manifest_len);
     cancelled.check()?;
@@ -286,6 +291,7 @@ fn summarise(
         summary.bytes += mesh.bytes;
         summary.vertices += mesh.vertices;
         summary.triangles += mesh.triangles;
+        summary.lod_fallbacks += mesh.lod_fallbacks;
     }
     for outcome in outcomes {
         match outcome {

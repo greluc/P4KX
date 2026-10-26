@@ -334,10 +334,12 @@ was reached). New kinds may be added in later versions.
  "nodes": 83, "drawn_nodes": 56, "containers": 0, "objects": 0, "lights": 0, "meshes": 31,
  "shared_meshes": 25, "materials": 48, "palettes": 3, "textures": 120,
  "texture_pixels": 98304000, "texture_failures": 0, "files": 152, "bytes": 123456789,
- "vertices": 744831, "triangles": 818426, "skipped": 0, "issues": [Issue, …]}
+ "vertices": 744831, "triangles": 818426, "lod_fallbacks": 0, "skipped": 0, "issues": [Issue, …]}
 ```
 
-`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `nodes` counts the
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `lod_fallbacks` counts
+the models that lack the level of detail asked for and are written at the nearest lower one, as
+for `p4kx entity glb`, but a mesh that several nodes draw counts once. `nodes` counts the
 nodes of `scene.json`, `drawn_nodes` those with a mesh. `--interior` adds the Interior as for
 `p4kx entity glb`; `containers`, `objects` and `lights` count its nodes of the kinds `container`,
 `object` and `light` and are 0 without it. `materials` and `palettes` count the material

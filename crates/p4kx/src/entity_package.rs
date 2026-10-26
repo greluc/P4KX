@@ -6,7 +6,7 @@ use std::io::{self, BufWriter, Write};
 use anyhow::Result;
 use p4kx_assembly::{
     ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, EntityNode,
-    ForgePalettes, InteriorOptions, LoadoutResolver,
+    ForgePalettes, InteriorOptions, LoadoutChanges, LoadoutResolver,
 };
 use p4kx_blender::{
     BuildInfo, Issue, PackageInfo, PackageSummary, Replacement, check_output, write_package,
@@ -45,6 +45,7 @@ struct PackageJson<'a> {
     bytes: u64,
     vertices: usize,
     triangles: usize,
+    lod_fallbacks: usize,
     skipped: usize,
     #[serde(skip_serializing_if = "<[String]>::is_empty")]
     ignored: &'a [String],
@@ -97,7 +98,7 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
     if args.no_vertex_colours {
         glb = glb.without_vertex_colours();
     }
-    let info = info_of(&archive, args);
+    let info = info_of(&archive, &changes);
     let loader = models.textures();
     let summary = write_package(&assembly, &models, &loader, &glb, &info, &args.out, &|| {
         cancel.is_cancelled()
@@ -112,7 +113,7 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
         ))?;
         return Ok(());
     }
-    match print_report(&summary, args, tree.class_name()) {
+    match print_report(&summary, args, &info, tree.class_name()) {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
@@ -149,6 +150,7 @@ impl<'a> PackageJson<'a> {
             bytes: summary.bytes,
             vertices: summary.vertices,
             triangles: summary.triangles,
+            lod_fallbacks: summary.lod_fallbacks,
             skipped: summary.issues.iter().filter(|issue| issue.skipped).count(),
             ignored,
             excluded: &info.exclude,
@@ -178,27 +180,39 @@ pub(crate) fn build_info(archive: &Archive) -> Option<BuildInfo> {
     })
 }
 
-fn info_of(archive: &Archive, args: &EntityPackageArgs) -> PackageInfo {
+fn info_of(archive: &Archive, changes: &LoadoutChanges) -> PackageInfo {
     let build = build_info(archive);
-    let replace = args
-        .changes
-        .replace
+    let replace = changes
+        .replacements()
         .iter()
-        .map(|text| {
-            let (port, entity) = text.split_once('=').unwrap_or((text, ""));
-            Replacement {
-                port: port.trim().to_owned(),
-                entity: entity.trim().to_owned(),
-            }
+        .map(|(port, entity)| Replacement {
+            port: port.clone(),
+            entity: entity.clone(),
         })
         .collect();
     PackageInfo::new(channel_name(archive.path()), build)
-        .with_changes(args.changes.exclude.clone(), replace)
+        .with_changes(changes.exclusions().to_vec(), replace)
+}
+
+fn print_changes(out: &mut impl Write, info: &PackageInfo) -> io::Result<()> {
+    for port in &info.exclude {
+        writeln!(out, "excluded {}", one_line(port))?;
+    }
+    for replacement in &info.replace {
+        writeln!(
+            out,
+            "replaced {} by {}",
+            one_line(&replacement.port),
+            one_line(&replacement.entity)
+        )?;
+    }
+    Ok(())
 }
 
 fn print_report(
     summary: &PackageSummary,
     args: &EntityPackageArgs,
+    info: &PackageInfo,
     class_name: &str,
 ) -> io::Result<()> {
     let mut out = BufWriter::new(io::stdout().lock());
@@ -218,13 +232,7 @@ fn print_report(
         summary.triangles,
         summary.bytes
     )?;
-    for port in &args.changes.exclude {
-        writeln!(out, "excluded {}", one_line(port))?;
-    }
-    for text in &args.changes.replace {
-        let (port, entity) = text.split_once('=').unwrap_or((text, ""));
-        writeln!(out, "replaced {} by {}", one_line(port), one_line(entity))?;
-    }
+    print_changes(&mut out, info)?;
     if args.interior {
         writeln!(
             out,
@@ -239,6 +247,13 @@ fn print_report(
             summary.shared_meshes, summary.meshes
         )?;
     }
+    if summary.lod_fallbacks > 0 {
+        writeln!(
+            out,
+            "{} models lack LOD{} and are written at the nearest lower level",
+            summary.lod_fallbacks, args.lod
+        )?;
+    }
     if summary.texture_failures > 0 {
         writeln!(
             out,
@@ -246,7 +261,12 @@ fn print_report(
             summary.texture_failures
         )?;
     }
-    for issue in &summary.issues {
+    print_issues(&mut out, &summary.issues)?;
+    out.flush()
+}
+
+fn print_issues(out: &mut impl Write, issues: &[Issue]) -> io::Result<()> {
+    for issue in issues {
         let what = if issue.skipped { "skipped" } else { "note" };
         let path = if issue.path.is_empty() {
             issue.name.clone()
@@ -260,5 +280,5 @@ fn print_report(
             one_line(&issue.reason)
         )?;
     }
-    out.flush()
+    Ok(())
 }

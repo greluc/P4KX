@@ -4,6 +4,8 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
+use p4kx_dataforge::Guid;
+
 use crate::entities::describe;
 use crate::merge::{merge_by_port, port_key};
 use crate::port::PortDefinition;
@@ -11,8 +13,8 @@ use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutOrigin, LoadoutSpec, TargetSpec};
 use crate::walk::Walk;
 use crate::{
-    Attachment, EntityNode, LoadoutError, PortConstraints, PortNode, PortSource, PortVisibility,
-    Target, Unresolved, VehicleImplementation,
+    Attachment, EntityNode, Geometry, GeometryVariant, LoadoutError, PortConstraints, PortNode,
+    PortSource, PortVisibility, Target, Unresolved, VehicleImplementation, VehicleItemPort,
 };
 
 /// One port of an Entity before it is resolved.
@@ -121,7 +123,36 @@ impl LoadoutResolver<'_> {
         if matches!(node.attachment, Attachment::Empty) {
             node.nested = self.nested_ports(pending.loadout, walk, issues);
         }
+        if let Attachment::Entity(child) = &mut node.attachment {
+            let words = flag_words(node.definition.as_deref(), vehicle, &node.name);
+            if let Some(tagged) = self.tagged_geometry(child.guid, &words) {
+                child.geometry = Some(tagged);
+            }
+        }
         node
+    }
+
+    /// Returns the sub-geometry of the Entity `guid` whose tags are all among `words`, the flags
+    /// of the port it is attached to, such as `left` or `right` for a door; of several, the one
+    /// with the most tags, the first on a tie.
+    fn tagged_geometry(&mut self, guid: Guid, words: &[&str]) -> Option<Geometry> {
+        if words.is_empty() {
+            return None;
+        }
+        let spec = self.spec(guid);
+        let spec = spec.as_ref().as_ref().ok()?;
+        let mut best: Option<&GeometryVariant> = None;
+        for variant in &spec.variants {
+            let tags = variant.tags();
+            let covered = !tags.is_empty()
+                && tags
+                    .iter()
+                    .all(|tag| words.iter().any(|word| word.eq_ignore_ascii_case(tag)));
+            if covered && best.is_none_or(|kept| tags.len() > kept.tags().len()) {
+                best = Some(variant);
+            }
+        }
+        best.map(|variant| variant.geometry().clone())
     }
 
     /// Returns the entries of the Entity's own Loadout, each replaced in place by the entry of
@@ -293,6 +324,26 @@ fn shell(spec: &EntitySpec, docked_vehicle: bool, expanded: bool) -> EntityNode 
         container: spec.container,
         object_containers: Arc::clone(&spec.object_containers),
     }
+}
+
+/// Returns the words of the flags of the port `name`, from its definition in the Entity Record and
+/// from the vehicle implementation's item port, without a leading `$`.
+fn flag_words<'a>(
+    definition: Option<&'a PortDefinition>,
+    vehicle: Option<&'a VehicleImplementation>,
+    name: &str,
+) -> Vec<&'a str> {
+    let defined = definition.map(PortDefinition::flags).unwrap_or_default();
+    let declared = vehicle
+        .and_then(|vehicle| vehicle.item_port(name))
+        .map(VehicleItemPort::flags)
+        .unwrap_or_default();
+    defined
+        .split_whitespace()
+        .chain(declared.split_whitespace())
+        .map(|word| word.trim_start_matches('$'))
+        .filter(|word| !word.is_empty())
+        .collect()
 }
 
 fn class_text(target: &TargetSpec) -> String {

@@ -54,6 +54,7 @@ mod loadout_stop;
 mod loadout_tree;
 mod model_cache;
 mod npc_head;
+mod port_flag_geometry;
 mod prefab;
 mod prefab_lookup;
 mod vehicle_api;

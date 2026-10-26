@@ -56,6 +56,9 @@ pub enum EntityText {
     LoadoutArchiveChanged,
     /// Shown when the Entity has no ports.
     LoadoutNoPorts,
+    /// A replacement applied although its Entity does not fit the port; takes `entity`, `port`
+    /// and `reason`.
+    LoadoutMismatch,
     /// What the changes amount to; takes `excluded` and `replaced`.
     Changes,
     /// Shown while the Loadout has no changes.
@@ -106,10 +109,13 @@ pub enum EntityText {
     ReplaceTakesAny,
     /// The hint inside the search field of the choice.
     ReplaceHint,
-    /// How many Entities fit; takes `number` and `total`.
+    /// How many Entities the search leaves and how many of them fit; takes `number` and `total`.
     ReplaceCount,
-    /// Shown when no Entity fits the port and the search.
+    /// Shown when no Entity matches the search.
     ReplaceNone,
+    /// Marks an Entity that does not fit the port, before its facts; takes `facts`. It can be
+    /// chosen all the same.
+    ReplaceMisfit,
     /// The item type and size of an Entity; takes `type` and `size`.
     FactsSized,
     /// The item type of an Entity that gives no size; takes `type`.
@@ -172,7 +178,7 @@ pub enum EntityText {
 
 impl EntityText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 81] = [
+    pub(crate) const ALL: [Self; 83] = [
         Self::Tab,
         Self::Label,
         Self::Hint,
@@ -199,6 +205,7 @@ impl EntityText {
         Self::LoadoutLost,
         Self::LoadoutArchiveChanged,
         Self::LoadoutNoPorts,
+        Self::LoadoutMismatch,
         Self::Changes,
         Self::NoChanges,
         Self::Reset,
@@ -226,6 +233,7 @@ impl EntityText {
         Self::ReplaceHint,
         Self::ReplaceCount,
         Self::ReplaceNone,
+        Self::ReplaceMisfit,
         Self::FactsSized,
         Self::Facts,
         Self::FactsNone,
@@ -287,6 +295,7 @@ impl EntityText {
             Self::LoadoutLost => "entities-loadout-lost",
             Self::LoadoutArchiveChanged => "entities-loadout-archive-changed",
             Self::LoadoutNoPorts => "entities-loadout-no-ports",
+            Self::LoadoutMismatch => "entities-loadout-mismatch",
             Self::Changes => "entities-changes",
             Self::NoChanges => "entities-no-changes",
             Self::Reset => "entities-reset",
@@ -314,6 +323,7 @@ impl EntityText {
             Self::ReplaceHint => "entities-replace-hint",
             Self::ReplaceCount => "entities-replace-count",
             Self::ReplaceNone => "entities-replace-none",
+            Self::ReplaceMisfit => "entities-replace-misfit",
             Self::FactsSized => "entities-facts-sized",
             Self::Facts => "entities-facts",
             Self::FactsNone => "entities-facts-none",

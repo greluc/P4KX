@@ -123,6 +123,17 @@ fn drawn(size: [f32; 2], tag: &str) -> TestResult {
         harness.run_steps(2);
 
         settle(&mut harness)?;
+        harness
+            .state_mut()
+            .entities_mut()
+            .loadout_mut()
+            .ok_or("no session")?
+            .set_replacement("hardpoint_weapon_nose", "TEST_Shield")?;
+        settle(&mut harness)?;
+        render(
+            &mut harness,
+            &format!("entities-mismatch-{tag}{suffix}.png"),
+        )?;
         harness.state_mut().begin_assembly_export();
         render(&mut harness, &format!("entities-export-{tag}{suffix}.png"))?;
     }

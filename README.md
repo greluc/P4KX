@@ -160,8 +160,8 @@ Early development (milestone M1). Available today:
   `[docked vehicle]`; `--stop-at-docked-vehicles` leaves out its own ports. `--exclude <port>`
   drops a branch of the Loadout and `--replace <port>=<entity>` attaches another Entity, with its
   own Loadout, to a port; a port is its path of port names joined by `/`, and an Entity that does
-  not fit the port's item types and sizes is rejected with the reason. Both can be given several
-  times, here and for `entity glb`.
+  not fit the port's item types and sizes is attached all the same and warned about on stderr.
+  Both can be given several times, here and for `entity glb`.
 - `p4kx entity glb <archive> <entity> --out <file>` exports an Entity as one GLB: its geometry and
   that of every Entity of its default Loadout, each placed at its port as a node named
   `<port>/<entity>` below the node of the Entity it is attached to. `--lod <n>` applies to every

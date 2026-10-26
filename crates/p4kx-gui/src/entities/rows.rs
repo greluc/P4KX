@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_assembly::{Attachment, EntityNode, PortConstraints, PortSource, Target};
+use p4kx_assembly::{Attachment, ChangedLoadout, PortConstraints, PortSource, Target};
 
+use crate::PortMismatch;
 use crate::model::describe;
 
 /// What the changes do to a port of the Loadout.
@@ -91,11 +92,12 @@ impl LoadoutRow {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadoutView {
     rows: Vec<LoadoutRow>,
+    mismatches: Vec<PortMismatch>,
 }
 
 impl LoadoutView {
-    pub(super) fn of(tree: &EntityNode) -> Self {
-        let ports = tree.walk();
+    pub(super) fn of(applied: &ChangedLoadout) -> Self {
+        let ports = applied.node().walk();
         let depth = |path: &str| path.matches('/').count();
         let rows = ports
             .iter()
@@ -135,7 +137,16 @@ impl LoadoutView {
                 }
             })
             .collect();
-        Self { rows }
+        Self {
+            rows,
+            mismatches: PortMismatch::all(applied.mismatches()),
+        }
+    }
+
+    /// Returns the replacements that were applied although their Entity does not fit the port.
+    #[must_use]
+    pub fn mismatches(&self) -> &[PortMismatch] {
+        &self.mismatches
     }
 
     /// Returns every port in tree order.

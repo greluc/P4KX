@@ -11,6 +11,19 @@ use crate::{AssemblyExportSummary, AssemblyExportText as T, Texts, format};
 
 /// Returns the lines above the report, each with its colour.
 pub(super) fn notes(texts: &Texts, summary: &AssemblyExportSummary) -> Vec<(String, Color32)> {
+    let mut notes = file_notes(texts, summary);
+    notes.extend(summary.mismatches().iter().map(|mismatch| {
+        let args = [
+            ("entity", mismatch.entity.clone().into()),
+            ("port", mismatch.path.clone().into()),
+            ("reason", mismatch.reason.clone().into()),
+        ];
+        (texts.format(T::SummaryMismatch, &args), palette::WARNING)
+    }));
+    notes
+}
+
+fn file_notes(texts: &Texts, summary: &AssemblyExportSummary) -> Vec<(String, Color32)> {
     if let Some(package) = summary.package() {
         return package_notes(texts, summary, package);
     }

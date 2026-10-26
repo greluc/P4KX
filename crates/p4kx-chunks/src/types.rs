@@ -187,10 +187,4 @@ pub mod crch {
     pub const MODEL_PATHS: ChunkType = ChunkType::new(Container::CrCh, 0x0013);
     /// The `CryXmlB2` chunk type of a `.soc` file: `CryXmlB` data, version 3.
     pub const CRY_XML_B_2: ChunkType = ChunkType::new(Container::CrCh, 0x0014);
-    /// The `Soc4002` chunk type of a `.soc` file; unverified, in no measured Archive.
-    pub const SOC_4002: ChunkType = ChunkType::new(Container::CrCh, 0x4002);
-    /// The `Soc4007` chunk type of a `.soc` file; unverified, in no measured Archive.
-    pub const SOC_4007: ChunkType = ChunkType::new(Container::CrCh, 0x4007);
-    /// The `Soc5000` chunk type of a `.soc` file; unverified, in no measured Archive.
-    pub const SOC_5000: ChunkType = ChunkType::new(Container::CrCh, 0x5000);
 }

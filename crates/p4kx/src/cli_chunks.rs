@@ -35,8 +35,8 @@ pub(crate) enum ChunksAction {
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
         /// Writes the chunk as UTF-8 text: a CryXmlB chunk (type 0x0004 or 0x0014 of a .soc
-        /// file) as XML, a JSON chunk or a list of model paths (0x0011, 0x0013) as stored. Other chunk
-        /// types have no text form.
+        /// file) as XML, a JSON chunk or a list of model paths (0x0011, 0x0013) as stored. Other
+        /// chunk types have no text form.
         #[arg(long)]
         text: bool,
     },

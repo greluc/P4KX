@@ -3496,7 +3496,6 @@ dependencies = [
  "p4kx-testkit",
  "png",
  "predicates",
- "rayon",
  "roxmltree",
  "rpassword",
  "serde",

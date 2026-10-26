@@ -184,13 +184,20 @@ fn soc_file() -> Vec<u8> {
     let entities = TestElement::new("Entities")
         .child(TestElement::new("Entity").attribute("Name", "door"))
         .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    let utf16_xml: Vec<u8> = std::iter::once(0xFEFF_u16)
+        .chain("<Entities/>".encode_utf16())
+        .flat_map(u16::to_le_bytes)
+        .collect();
     TestChunkFile::crch()
         .chunk(0x0002, 5, [0; 8])
-        .chunk(0x0004, 3, entities)
+        .chunk(0x0004, 3, entities.clone())
         .chunk(0x0011, 1, *b"{\"a\":1}")
         .chunk(0x0013, 1, *b"objects/a.cgf\nobjects/b.cgf\n")
         .chunk(0x000E, 1, [0; 8])
         .chunk(0x0011, 1, [0xFF, 0xFE])
+        .chunk(0x0014, 3, entities)
+        .chunk(0x0004, 1, utf16_xml)
+        .chunk(0x0004, 1, *b"<Entities/>")
         .bytes()
 }
 
@@ -219,8 +226,16 @@ fn dump_text_writes_cryxml_as_xml_and_json_as_stored() -> TestResult {
     let xml = dir.path().join("entities.xml");
     let json = dir.path().join("chunk.json");
     let paths = dir.path().join("paths.txt");
+    let second = dir.path().join("second.xml");
+    let text_xml = dir.path().join("text.xml");
 
-    for (index, out) in [("1", &xml), ("2", &json), ("3", &paths)] {
+    for (index, out) in [
+        ("1", &xml),
+        ("2", &json),
+        ("3", &paths),
+        ("6", &second),
+        ("8", &text_xml),
+    ] {
         p4kx()?
             .args(["chunks", "dump"])
             .arg(&file)
@@ -234,6 +249,15 @@ fn dump_text_writes_cryxml_as_xml_and_json_as_stored() -> TestResult {
     assert!(
         xml.contains("<Entity Name=\"door\""),
         "the entities as XML: {xml}"
+    );
+    assert!(
+        fs::read_to_string(&second)?.contains("<Entity Name=\"door\""),
+        "the 0x0014 chunk as XML"
+    );
+    assert_eq!(
+        fs::read_to_string(&text_xml)?,
+        "<Entities/>",
+        "text XML as stored"
     );
     assert_eq!(fs::read_to_string(&json)?, "{\"a\":1}", "JSON as stored");
     assert_eq!(
@@ -273,15 +297,16 @@ fn dump_text_of_corrupt_text_exits_with_code_3() -> TestResult {
     fs::write(&file, soc_file())?;
     let out = dir.path().join("bad.json");
 
-    p4kx()?
-        .args(["chunks", "dump"])
-        .arg(&file)
-        .args(["--text", "--chunk", "5", "--out"])
-        .arg(&out)
-        .assert()
-        .code(3);
-
-    assert!(!out.exists(), "nothing is written");
+    for index in ["5", "7"] {
+        p4kx()?
+            .args(["chunks", "dump"])
+            .arg(&file)
+            .args(["--text", "--chunk", index, "--out"])
+            .arg(&out)
+            .assert()
+            .code(3);
+        assert!(!out.exists(), "nothing is written for chunk {index}");
+    }
     Ok(())
 }
 

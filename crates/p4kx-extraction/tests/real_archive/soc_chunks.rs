@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 //! Surveys the chunk types of every `.soc` file of a real Archive, nested socpaks included: each
-//! type found is named in the `CrCh` table, and the counts are printed.
+//! type found is named in the `CrCh` table, the text chunks read, and the counts are printed.
 
 #![expect(clippy::print_stdout, reason = "the survey is the output")]
 
@@ -11,9 +11,9 @@ use std::error::Error;
 use std::io::Read;
 use std::sync::Mutex;
 
-use p4kx_extraction::chunks::{ChunkFile, Container};
-use p4kx_extraction::cryxml;
-use p4kx_extraction::{Archive, Entry};
+use p4kx_archive::{Archive, Entry};
+use p4kx_chunks::{ChunkFile, Container, crch};
+use p4kx_cryxml as cryxml;
 use p4kx_testkit::{real_archive_key, real_archive_path};
 use rayon::prelude::*;
 
@@ -26,6 +26,7 @@ const MAX_DEPTH: usize = 4;
 struct Tally {
     files: usize,
     unreadable: usize,
+    skipped: usize,
     bad_text: usize,
     chunks: BTreeMap<u32, TypeCount>,
 }
@@ -41,6 +42,7 @@ struct TypeCount {
 fn is_ending(entry: &Entry, extension: &str) -> bool {
     entry.path().to_ascii_lowercase().ends_with(extension)
 }
+
 impl Tally {
     fn add_file(&mut self, file: &ChunkFile<&[u8]>) {
         self.files += 1;
@@ -50,11 +52,15 @@ impl Tally {
             if kind.container() != Container::CrCh {
                 continue;
             }
-            if matches!(kind.id(), 0x0004 | 0x0014)
-                && file
-                    .chunk_data(index)
-                    .is_none_or(|data| cryxml::read(data).is_err())
-            {
+            let data = file.chunk_data(index);
+            let readable = if kind == crch::CRY_XML_B || kind == crch::CRY_XML_B_2 {
+                data.is_some_and(|data| cryxml::read(data).is_ok())
+            } else if kind == crch::MODEL_PATHS || kind == crch::JSON {
+                data.is_some_and(|data| std::str::from_utf8(data).is_ok())
+            } else {
+                true
+            };
+            if !readable {
                 self.bad_text += 1;
             }
             let count = self.chunks.entry(kind.id()).or_default();
@@ -71,6 +77,7 @@ impl Tally {
     fn merge(&mut self, other: Self) {
         self.files += other.files;
         self.unreadable += other.unreadable;
+        self.skipped += other.skipped;
         self.bad_text += other.bad_text;
         for (id, count) in other.chunks {
             let sum = self.chunks.entry(id).or_default();
@@ -89,18 +96,26 @@ fn survey(container: &Archive, depth: usize, tally: &Mutex<Tally>) {
     let mut nested = Vec::new();
     let mut bytes = Vec::new();
     for entry in container.entries() {
-        if is_ending(entry, ".socpak") && depth < MAX_DEPTH {
-            nested.push(entry);
+        if is_ending(entry, ".socpak") {
+            if depth < MAX_DEPTH {
+                nested.push(entry);
+            } else {
+                local.skipped += 1;
+            }
             continue;
         }
-        if !is_ending(entry, ".soc") || entry.uncompressed_size() > MAX_SOC_LEN {
+        if !is_ending(entry, ".soc") {
+            continue;
+        }
+        if entry.uncompressed_size() > MAX_SOC_LEN {
+            local.skipped += 1;
             continue;
         }
         bytes.clear();
         let read = container
             .open_entry(entry)
             .ok()
-            .and_then(|mut reader| reader.read_to_end(&mut bytes).ok());
+            .and_then(|reader| reader.take(MAX_SOC_LEN).read_to_end(&mut bytes).ok());
         match read.and_then(|_| ChunkFile::parse(bytes.as_slice()).ok()) {
             Some(file) => local.add_file(&file),
             None => local.unreadable += 1,
@@ -110,11 +125,17 @@ fn survey(container: &Archive, depth: usize, tally: &Mutex<Tally>) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .merge(local);
-    nested.par_iter().for_each(|entry| {
-        if let Ok(inner) = container.open_container(entry) {
-            survey(&inner, depth + 1, tally);
-        }
-    });
+    nested
+        .par_iter()
+        .for_each(|entry| match container.open_container(entry) {
+            Ok(inner) => survey(&inner, depth + 1, tally),
+            Err(_) => {
+                tally
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .skipped += 1;
+            }
+        });
 }
 
 #[test]
@@ -127,19 +148,26 @@ fn every_chunk_type_of_the_soc_files_is_named() -> TestResult {
         .iter()
         .filter(|entry| is_ending(entry, ".socpak"))
         .collect();
-    socpaks.par_iter().for_each(|entry| {
-        if let Ok(container) = archive.open_container(entry) {
-            survey(&container, 0, &tally);
-        }
-    });
+    socpaks
+        .par_iter()
+        .for_each(|entry| match archive.open_container(entry) {
+            Ok(container) => survey(&container, 0, &tally),
+            Err(_) => {
+                tally
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .skipped += 1;
+            }
+        });
     let tally = tally
         .into_inner()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     println!(
-        "{} socpaks, {} .soc files, {} unreadable",
+        "{} socpaks, {} .soc files, {} unreadable, {} skipped",
         socpaks.len(),
         tally.files,
-        tally.unreadable
+        tally.unreadable,
+        tally.skipped
     );
     println!(
         "{:>8}  {:<20}  {:>9}  {:>8}  versions",
@@ -159,7 +187,12 @@ fn every_chunk_type_of_the_soc_files_is_named() -> TestResult {
         }
     }
     assert!(tally.files > 0, "the Archive has .soc files");
-    assert_eq!(tally.bad_text, 0, "every CryXmlB chunk reads as XML");
+    assert_eq!(tally.unreadable, 0, "every .soc file reads");
+    assert_eq!(tally.skipped, 0, "no container or file is skipped");
+    assert_eq!(
+        tally.bad_text, 0,
+        "every CryXmlB, Json and ModelPaths chunk reads as text"
+    );
     assert!(
         unnamed.is_empty(),
         "chunk types missing from the CrCh table: {unnamed:04X?}"

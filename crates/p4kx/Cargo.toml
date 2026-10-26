@@ -45,7 +45,6 @@ lewton = { workspace = true, features = ["ogg"] }
 opus-pure.workspace = true
 png.workspace = true
 predicates.workspace = true
-rayon.workspace = true
 roxmltree.workspace = true
 tempfile.workspace = true
 toml.workspace = true

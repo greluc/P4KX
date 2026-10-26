@@ -369,9 +369,6 @@ fn the_soc_chunk_types_are_named_in_the_crch_table() {
         (0x0011, "Json"),
         (0x0013, "ModelPaths"),
         (0x0014, "CryXmlB2"),
-        (0x4002, "Soc4002"),
-        (0x4007, "Soc4007"),
-        (0x5000, "Soc5000"),
     ];
     for (id, name) in expected {
         assert_eq!(

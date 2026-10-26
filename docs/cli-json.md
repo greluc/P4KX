@@ -1607,9 +1607,12 @@ Also `p4kx chunks dump <file> --chunk <index> --out <file> --json` for a chunk f
            "id": null, "byte_order": "little", "offset": 112, "size": 40}}
 ```
 
-`chunk` is the chunk written, as in `p4kx chunks list`; its `size` bytes are written unchanged.
-An index the table does not have, or an output that is the chunk file itself, fails with exit
-code 2.
+`chunk` is the chunk written, as in `p4kx chunks list`; its `size` bytes are written unchanged,
+except with `--text`, which writes the chunk as UTF-8 text instead: a `CryXmlB` or `CryXmlB2`
+chunk (`0x0004`, `0x0014`) as XML, a `Json` or `ModelPaths` chunk (`0x0011`, `0x0013`) as stored.
+`size` stays the size of the chunk. An index the table does not have, an output that is the chunk
+file itself, or `--text` on a chunk of another type fails with exit code 2; `--text` on data that
+is no valid `CryXml` or UTF-8 text fails with exit code 3.
 
 ## `p4kx model info <archive> <entry> [--anim-from <entry>]… --json`
 

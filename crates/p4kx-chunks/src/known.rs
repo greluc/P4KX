@@ -137,7 +137,4 @@ const CRCH: &[KnownChunkType] = &[
         "GlobalAnimationHeaderAim",
     ),
     known(crch::BSP_TREE_DATA, "BspTreeData"),
-    known(crch::SOC_4002, "Soc4002"),
-    known(crch::SOC_4007, "Soc4007"),
-    known(crch::SOC_5000, "Soc5000"),
 ];

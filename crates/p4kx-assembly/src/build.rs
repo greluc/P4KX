@@ -13,7 +13,7 @@ use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
-    PaletteProvider, Part, Placement, PortNode, PortTransform,
+    ObjectContainerRef, PaletteProvider, Part, Placement, PortNode, PortTransform,
 };
 
 type Libraries = HashMap<String, Arc<MaterialStatus>>;
@@ -123,8 +123,25 @@ impl Assembly {
             issues,
             lod: options.lod,
             interior: None,
+            containers: containers_of(&drafts),
         })
     }
+}
+
+/// Returns the object containers each Entity of `drafts` names, shared with its node; a docked
+/// vehicle that is not expanded names none, as its own ports are left out too.
+fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
+    let none: Arc<[ObjectContainerRef]> = Arc::new([]);
+    drafts
+        .iter()
+        .map(|draft| {
+            if draft.node.is_docked_vehicle() && !draft.node.is_expanded() {
+                Arc::clone(&none)
+            } else {
+                Arc::clone(&draft.node.object_containers)
+            }
+        })
+        .collect()
 }
 
 /// Lists the attachments of a character definition that are not drawn, once per definition.

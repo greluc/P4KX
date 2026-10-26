@@ -32,24 +32,36 @@ pub(crate) struct Item<'a> {
 }
 
 /// Lists the nodes of `assembly`, parts first, then its Interior if it has one: a group
-/// `Interior` below the root, below it the containers, below those their `.soc` files, models,
-/// props and lights. A node comes after its parent.
+/// `Interior` below each Entity that names containers, below it the containers, below those their
+/// `.soc` files, models, props and lights. A node comes after its parent.
 pub(crate) fn items(assembly: &Assembly) -> Vec<Item<'_>> {
     let mut items: Vec<Item<'_>> = assembly.parts().iter().map(part_item).collect();
-    if let Some(interior) = assembly.interior()
-        && !items.is_empty()
-        && !interior.containers().is_empty()
-    {
-        let group = items.len();
-        items.push(group_item(INTERIOR_NODE, Some(0), INTERIOR_NODE.to_owned()));
-        for container in interior.containers() {
-            push_parts(
-                &mut items,
-                container.interior(),
-                Some(group),
-                container.placement(),
-            );
-        }
+    let Some(interior) = assembly.interior() else {
+        return items;
+    };
+    let mut group: Option<(usize, usize)> = None;
+    for container in interior.containers() {
+        let node = match group {
+            Some((part, node)) if part == container.part() => node,
+            _ => {
+                let owner = assembly.parts().get(container.part());
+                let path = join(owner.map_or("", Part::path), INTERIOR_NODE);
+                let node = items.len();
+                items.push(group_item(
+                    INTERIOR_NODE,
+                    owner.map(|_| container.part()),
+                    path,
+                ));
+                group = Some((container.part(), node));
+                node
+            }
+        };
+        push_parts(
+            &mut items,
+            container.interior(),
+            Some(node),
+            container.placement(),
+        );
     }
     items
 }

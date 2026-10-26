@@ -3,13 +3,14 @@
 
 mod budget;
 mod build;
+mod lookup;
 
-use p4kx_extraction::PathIndex;
 use p4kx_gltf::{GltfError, Scene, SceneNode};
 use p4kx_model::{Model, Transform};
 
 use crate::placement::{node_transform, offset};
 use crate::{Assembly, Interior, Issue, IssueKind, ObjectContainerRef};
+use lookup::near;
 
 /// The name of the scene node that groups the Interior below the Entity.
 pub const INTERIOR_NODE: &str = "Interior";
@@ -17,21 +18,29 @@ pub const INTERIOR_NODE: &str = "Interior";
 /// One container of an Entity's Interior: the reference, where it sits and what it holds.
 #[derive(Debug, Clone)]
 pub struct EntityContainer {
+    pub(crate) part: usize,
     pub(crate) reference: ObjectContainerRef,
     pub(crate) placement: Transform,
     pub(crate) interior: Interior,
 }
 
 impl EntityContainer {
+    /// Returns the index in [`Assembly::parts`] of the Entity that names the container: 0 for the
+    /// root Entity, otherwise an attached one. The container sits relative to that part.
+    #[must_use]
+    pub const fn part(&self) -> usize {
+        self.part
+    }
+
     /// Returns the object container the Entity's Record names.
     #[must_use]
     pub const fn reference(&self) -> &ObjectContainerRef {
         &self.reference
     }
 
-    /// Returns the transform from the container's space to the Entity's: the bone of the
-    /// Entity's model moved by the Record's offset, or the bone alone when it already carries
-    /// the offset.
+    /// Returns the transform from the container's space to that of its Entity, the part
+    /// [`Self::part`]: the bone of the Entity's model moved by the Record's offset, or the bone
+    /// alone when it already carries the offset.
     #[must_use]
     pub const fn placement(&self) -> &Transform {
         &self.placement
@@ -44,11 +53,12 @@ impl EntityContainer {
     }
 }
 
-/// The rooms of an Entity: its object containers, each placed relative to the Entity.
+/// The rooms of an Assembly: the object containers of the root Entity and of the attached
+/// Entities, each placed relative to the Entity that names it.
 ///
 /// Built by [`EntityInterior::build`] and put into an [`Assembly`] with
-/// [`Assembly::with_interior`], which then writes it below an [`INTERIOR_NODE`] node of the
-/// root Entity.
+/// [`Assembly::with_interior`], which then writes it below an [`INTERIOR_NODE`] node of each
+/// Entity that has containers.
 #[derive(Debug, Clone, Default)]
 pub struct EntityInterior {
     pub(crate) containers: Vec<EntityContainer>,
@@ -97,7 +107,12 @@ impl EntityInterior {
         self.total(Interior::modelled_parts)
     }
 
-    fn place(&mut self, reference: &ObjectContainerRef, root: Option<&Model>) -> Transform {
+    fn place(
+        &mut self,
+        at: &str,
+        reference: &ObjectContainerRef,
+        model: Option<&Model>,
+    ) -> Transform {
         let finite = reference
             .position()
             .iter()
@@ -107,6 +122,7 @@ impl EntityInterior {
             offset(reference.position(), reference.rotation())
         } else {
             self.note(
+                at,
                 reference,
                 IssueKind::InvalidOffset {
                     name: reference.file().to_owned(),
@@ -118,8 +134,9 @@ impl EntityInterior {
         if bone.is_empty() {
             return moved;
         }
-        let Some(anchor) = root.and_then(|model| node_transform(model, bone)) else {
+        let Some(anchor) = model.and_then(|model| node_transform(model, bone)) else {
             self.note(
+                at,
                 reference,
                 IssueKind::HelperNotFound {
                     helper: bone.to_owned(),
@@ -127,12 +144,14 @@ impl EntityInterior {
             );
             return moved;
         };
-        let at = anchor.translation();
-        if near(at, [0.0; 3]) {
+        let anchored = anchor.translation();
+        if near(anchored, [0.0; 3]) {
             return anchor.then(&moved);
         }
-        if finite && !near(reference.position(), [0.0; 3]) && !near(reference.position(), at) {
+        if finite && !near(reference.position(), [0.0; 3]) && !near(reference.position(), anchored)
+        {
             self.note(
+                at,
                 reference,
                 IssueKind::OffsetDiffers {
                     bone: bone.to_owned(),
@@ -142,28 +161,41 @@ impl EntityInterior {
         anchor
     }
 
-    fn add(&mut self, reference: &ObjectContainerRef, placement: Transform, interior: Interior) {
-        let name = interior.root().map_or("", |part| part.name()).to_owned();
+    fn add(
+        &mut self,
+        part: usize,
+        owner_path: &str,
+        reference: &ObjectContainerRef,
+        placement: Transform,
+        interior: Interior,
+    ) {
+        let name = interior.root().map_or("", |part| part.name());
+        let prefix = if owner_path.is_empty() {
+            name.to_owned()
+        } else {
+            format!("{owner_path}/{name}")
+        };
         self.issues
             .extend(interior.issues().iter().map(|issue| Issue {
                 path: if issue.path.is_empty() {
-                    name.clone()
+                    prefix.clone()
                 } else {
-                    format!("{name}/{}", issue.path)
+                    format!("{prefix}/{}", issue.path)
                 },
                 name: issue.name.clone(),
                 kind: issue.kind.clone(),
             }));
         self.containers.push(EntityContainer {
+            part,
             reference: reference.clone(),
             placement,
             interior,
         });
     }
 
-    fn note(&mut self, reference: &ObjectContainerRef, kind: IssueKind) {
+    fn note(&mut self, at: &str, reference: &ObjectContainerRef, kind: IssueKind) {
         self.issues.push(Issue {
-            path: INTERIOR_NODE.to_owned(),
+            path: at.to_owned(),
             name: reference.file().to_owned(),
             kind,
         });
@@ -172,52 +204,39 @@ impl EntityInterior {
     pub(crate) fn add_to_scene<'s>(
         &'s self,
         scene: &mut Scene<'s>,
-        root: usize,
+        parts: usize,
     ) -> Result<(), GltfError> {
-        if self.containers.is_empty() {
-            return Ok(());
-        }
-        let group = scene.push(SceneNode::new(
-            INTERIOR_NODE,
-            Some(root),
-            Transform::IDENTITY,
-        ))?;
+        let mut group: Option<(usize, usize)> = None;
         for container in &self.containers {
+            let node = match group {
+                Some((part, node)) if part == container.part => node,
+                _ => {
+                    let parent = (container.part < parts).then_some(container.part);
+                    let node =
+                        scene.push(SceneNode::new(INTERIOR_NODE, parent, Transform::IDENTITY))?;
+                    group = Some((container.part, node));
+                    node
+                }
+            };
             container
                 .interior
-                .add_to_scene(scene, Some(group), container.placement)?;
+                .add_to_scene(scene, Some(node), container.placement)?;
         }
         Ok(())
     }
 }
 
-/// The largest difference per axis, in metres, between two translations that still counts as
-/// the same place.
-const OFFSET_TOLERANCE: f32 = 0.05;
-
-fn near(a: [f32; 3], b: [f32; 3]) -> bool {
-    a.iter()
-        .zip(b)
-        .all(|(x, y)| (x - y).abs() <= OFFSET_TOLERANCE)
-}
-
-fn find<'a>(index: &PathIndex<'a>, file: &str) -> Option<&'a p4kx_extraction::Entry> {
-    let path = file.trim_start_matches(['/', '\\']);
-    [format!("Data\\{path}"), path.to_owned()]
-        .iter()
-        .find_map(|candidate| index.find(candidate))
-}
-
 impl Assembly {
-    /// Returns the Interior of the Entity, or `None` when none was added.
+    /// Returns the Interior of the Assembly, or `None` when none was added.
     #[must_use]
     pub const fn interior(&self) -> Option<&EntityInterior> {
         self.interior.as_ref()
     }
 
     /// Returns the Assembly with `interior` added: its parts are written below an
-    /// [`INTERIOR_NODE`] node of the root, and its issues are appended to [`Self::issues`]. A
-    /// second call replaces the first Interior and its issues.
+    /// [`INTERIOR_NODE`] node of each Entity that names containers (a root node when the Assembly
+    /// has no parts), and its issues are appended to [`Self::issues`]. A second call replaces the
+    /// first Interior and its issues.
     #[must_use]
     pub fn with_interior(mut self, interior: EntityInterior) -> Self {
         if let Some(before) = self.interior.take() {
@@ -231,25 +250,4 @@ impl Assembly {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ContainerSource;
-
-    #[test]
-    fn a_non_finite_offset_is_the_identity_and_an_issue() {
-        let reference = ObjectContainerRef {
-            file: "a.socpak".to_owned(),
-            bone: String::new(),
-            position: [f32::NAN, 0.0, 0.0],
-            rotation: [0.0; 3],
-            source: ContainerSource::Vehicle,
-        };
-        let mut built = EntityInterior::default();
-
-        let placed = built.place(&reference, None);
-
-        assert!(placed.is_identity());
-        assert_eq!(built.issues.len(), 1);
-        assert_eq!(built.issues[0].kind.code(), "invalid_offset");
-    }
-}
+mod tests;

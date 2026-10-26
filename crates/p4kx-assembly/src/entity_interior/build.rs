@@ -1,32 +1,34 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{Archive, PathIndex};
+use p4kx_extraction::{Archive, Entry, PathIndex};
 
+use super::EntityInterior;
 use super::budget::Budget;
-use super::{EntityInterior, find};
+use super::lookup::{check_tree, find, node_path};
 use crate::{
     Assembly, AssemblyError, EntityNode, Interior, InteriorForge, InteriorOptions,
-    InteriorProgress, InteriorWatch, IssueKind, ModelProvider,
+    InteriorProgress, InteriorWatch, IssueKind, ModelProvider, ObjectContainerRef,
 };
 
 impl EntityInterior {
-    /// Builds the Interior of the Entity `tree` of `assembly`, whose root part carries the model
-    /// the containers' bones are looked up in: each object container the Entity's Record names
-    /// is looked up in `archive`, built like [`Interior::build`] and placed at its bone of the
-    /// root model, moved by the Record's offset.
+    /// Builds the Interior of `assembly`, which was built from the Entity `tree`: each object
+    /// container the Record of the root Entity or of an attached Entity names is looked up in
+    /// `archive`, built like [`Interior::build`] and placed at its bone of that Entity's model,
+    /// moved by the Record's offset.
     ///
-    /// A container that cannot be found or opened, a bone the root model lacks (the container
+    /// A container that cannot be found or opened, a bone the Entity's model lacks (the container
     /// then sits at the Entity's origin) and everything an Interior cannot resolve are listed in
-    /// [`Self::issues`]. The limits of `options` hold for the Entity as a whole: the containers,
-    /// the parts and the vertices of every container are counted together, and the vertices of
-    /// the hull too; when one is used up, the remaining containers are left out with
+    /// [`Self::issues`]. The limits of `options` hold for the Assembly as a whole: the
+    /// containers, the parts and the vertices of every container are counted together, and the
+    /// vertices of the hull too; when one is used up, the remaining containers are left out with
     /// `too_many_containers`, `too_many_parts` or `too_many_vertices`.
     ///
     /// # Errors
     ///
     /// Returns [`AssemblyError::Provider`] when a file cannot be read for every container, e.g.
-    /// because an Archive key is missing.
+    /// because the Archive key is missing or wrong, and [`AssemblyError::TreeMismatch`] when
+    /// `tree` is not the Entity `assembly` was built from.
     pub fn build(
         archive: &Archive,
         assembly: &Assembly,
@@ -70,9 +72,8 @@ impl EntityInterior {
     }
 
     /// Builds the Interior like [`Self::build_with`], reading the models of `archive` through
-    /// `models` when given, e.g. a [`CachedModels`](crate::CachedModels) over the provider the
-    /// Assembly was built with, so that models read before are not read again, see
-    /// [`Interior::build_with_models`].
+    /// `models` when given, e.g. a [`CachedModels`](crate::CachedModels), so that models read
+    /// before are not read again, see [`Interior::build_with_models`].
     ///
     /// `models` must read from the same Archive as `archive`.
     ///
@@ -87,46 +88,32 @@ impl EntityInterior {
         watch: &InteriorWatch<'_>,
         (forge, models): (Option<&InteriorForge<'_>>, Option<&dyn ModelProvider>),
     ) -> Result<Self, AssemblyError> {
+        check_tree(assembly, tree)?;
         let index = PathIndex::new(archive);
-        let root = assembly.root().and_then(|part| part.model());
         let mut built = Self::default();
         let budget = Budget::new(assembly, options);
-        let total = tree.object_containers().len();
-        for (done, reference) in tree.object_containers().iter().enumerate() {
+        let total = assembly.containers.iter().map(|list| list.len()).sum();
+        let named = assembly
+            .containers
+            .iter()
+            .enumerate()
+            .flat_map(|(part, list)| list.iter().map(move |reference| (part, reference)));
+        for (done, (part, reference)) in named.enumerate() {
             if watch.is_cancelled() {
                 return Err(AssemblyError::Cancelled);
             }
             watch.report(InteriorProgress::Container { done, total });
+            let owner = assembly.parts.get(part);
+            let at = node_path(owner.map_or("", |owner| owner.path()));
             if let Some(kind) = budget.exhausted(&built) {
-                built.note(reference, kind);
+                built.note(&at, reference, kind);
                 break;
             }
-            let Some(entry) = find(&index, reference.file()) else {
-                built.note(
-                    reference,
-                    IssueKind::ContainerMissing {
-                        name: reference.file().to_owned(),
-                    },
-                );
+            let Some((entry, opened)) = built.open(archive, &index, &at, reference)? else {
                 continue;
             };
-            let opened = match archive.open_container(entry) {
-                Ok(opened) => opened,
-                Err(error) if error.is_key_required() || error.is_wrong_key() => {
-                    return Err(AssemblyError::Provider(Box::new(error)));
-                }
-                Err(error) => {
-                    built.note(
-                        reference,
-                        IssueKind::ContainerUnreadable {
-                            name: reference.file().to_owned(),
-                            reason: error.to_string(),
-                        },
-                    );
-                    continue;
-                }
-            };
-            let placement = built.place(reference, root);
+            let model = owner.and_then(|owner| owner.model());
+            let placement = built.place(&at, reference, model);
             let limited = budget.options(&built);
             let interior = Interior::build_with_models(
                 &[archive, &opened],
@@ -135,8 +122,45 @@ impl EntityInterior {
                 watch,
                 (forge, models),
             )?;
-            built.add(reference, placement, interior);
+            let owner_path = owner.map_or("", |owner| owner.path());
+            built.add(part, owner_path, reference, placement, interior);
         }
         Ok(built)
+    }
+
+    fn open<'a>(
+        &mut self,
+        archive: &Archive,
+        index: &PathIndex<'a>,
+        at: &str,
+        reference: &ObjectContainerRef,
+    ) -> Result<Option<(&'a Entry, Archive)>, AssemblyError> {
+        let Some(entry) = find(index, reference.file()) else {
+            self.note(
+                at,
+                reference,
+                IssueKind::ContainerMissing {
+                    name: reference.file().to_owned(),
+                },
+            );
+            return Ok(None);
+        };
+        match archive.open_container(entry) {
+            Ok(opened) => Ok(Some((entry, opened))),
+            Err(error) if error.is_key_required() || error.is_wrong_key() => {
+                Err(AssemblyError::Provider(Box::new(error)))
+            }
+            Err(error) => {
+                self.note(
+                    at,
+                    reference,
+                    IssueKind::ContainerUnreadable {
+                        name: reference.file().to_owned(),
+                        reason: error.to_string(),
+                    },
+                );
+                Ok(None)
+            }
+        }
     }
 }

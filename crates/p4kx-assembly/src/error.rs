@@ -140,6 +140,9 @@ pub enum AssemblyError {
     /// Building an Interior was stopped by its [`InteriorWatch`](crate::InteriorWatch).
     #[error("building the Interior was stopped")]
     Cancelled,
+    /// The Loadout tree given with an Assembly is not the Entity the Assembly was built from.
+    #[error("the Loadout tree is not the Entity the Assembly was built from")]
+    TreeMismatch,
 }
 
 /// An Entity named by record path, GUID or class name cannot be found.

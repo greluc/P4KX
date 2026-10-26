@@ -141,6 +141,10 @@ fn the_events_of_every_trigger_are_followed_and_counted() -> TestResult {
     );
     let count = |key: &str| census.break_counts.get(key).copied().unwrap_or(0);
     assert!(count("variants through music") > 0, "triggers reach music");
+    assert!(
+        count("variants through a Trigger action") > 0,
+        "Trigger actions reach stingers"
+    );
     assert_eq!(
         count("other_soundbank at action directly"),
         0,

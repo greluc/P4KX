@@ -12,7 +12,7 @@ use crate::canvas::{Canvas, CanvasStore};
 use crate::colour::Palette;
 use crate::context::Context;
 use crate::elements;
-use crate::geometry::{Dim, Geometry};
+use crate::geometry::Geometry;
 use crate::layout::{Frame, Sibling, place};
 use crate::limits::Limits;
 use crate::look::Look;
@@ -51,7 +51,7 @@ pub(crate) struct Walk<'s, 'a, 'f, 't> {
     pub(crate) typed: Vec<RestParams>,
     pub(crate) at_rest: HashMap<(Guid, u64), Rc<AtRest>>,
     pub(crate) measured: HashMap<MeasureKey, [Option<f32>; 2]>,
-    pub(crate) shaped: HashMap<MeasureKey, Rc<Shaped>>,
+    pub(crate) shaped: HashMap<MeasureKey, Shaped>,
     pub(crate) measures: usize,
     pub(crate) instances: usize,
     pub(crate) templates: Vec<(Guid, usize)>,
@@ -187,10 +187,10 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
             has_children,
             position,
         };
-        let text_key =
-            (widget.text.is_some() && !has_children && geometry.size.contains(&Dim::Auto))
-                .then(|| self.measure_key(&probe, content));
-        let content = self.content_of(&probe, content, depth);
+        let text_key = self
+            .measures_text(&probe)
+            .then(|| self.measure_key(&probe, content));
+        let content = self.content_of(&probe, content, (depth, true));
         Some(Sibling {
             widget,
             index,
@@ -255,6 +255,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         alpha: f32,
         depth: usize,
     ) {
+        let shaped = sibling.text_key.and_then(|key| self.shaped.remove(&key));
         if depth > self.limits.depth
             || self.widgets >= self.limits.widgets
             || self.cx.painter.is_full()
@@ -293,7 +294,7 @@ impl<'s, 'a, 'f, 't> Walk<'s, 'a, 'f, 't> {
         let font = self.font_of(widget, style);
         let mut look = Look::of(widget, style, self.pixel, font);
         look.bound_text = self.bound_text(canvas, sibling.index);
-        look.shaped = sibling.text_key.and_then(|key| self.shaped.remove(&key));
+        look.shaped = shaped;
         elements::paint(self.cx, widget, &look, area, alpha);
         let clipped = widget.overflow.clips();
         if clipped {

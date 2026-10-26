@@ -33,20 +33,6 @@ pub(crate) fn rest_structs() -> Vec<TestStruct> {
             .field("parameter", TestType::String)
             .field("value", value)
     };
-    let enumerated = [
-        "WidthBehavior",
-        "HeightBehavior",
-        "FlexDirection",
-        "FlexAxisJustification",
-        "FlexCrossAxisJustification",
-        "FlexItemAlignment",
-        "FlexWrap",
-    ]
-    .map(|kind| {
-        TestStruct::new(format!("BuildingBlocks_FieldModifierEnumeratedType{kind}"))
-            .parent("BuildingBlocks_FieldModifierEnumeratedType")
-            .field("value", TestType::String)
-    });
     let structs = vec![
         TestStruct::new(OPERATION),
         operation("BooleanVariable").field("binding", TestType::String),
@@ -59,6 +45,10 @@ pub(crate) fn rest_structs() -> Vec<TestStruct> {
         operation("NumberComponentParameter")
             .field("parameter", TestType::String)
             .field("defaultValue", TestType::Single),
+        operation("LocalizedComponentParameter")
+            .field("parameter", TestType::String)
+            .field("defaultValue", TestType::Locale),
+        field_operation("LocalizedField"),
         operation("BooleanInvert").field("input", operation_input()),
         operation("BooleanEvaluateAnd").array("inputs", operation_input()),
         operation("BooleanEvaluateOr").array("inputs", operation_input()),
@@ -82,8 +72,27 @@ pub(crate) fn rest_structs() -> Vec<TestStruct> {
         TestStruct::new("BuildingBlocks_ComponentParameterInput"),
         parameter("Boolean", TestType::Bool),
         parameter("Number", TestType::Single),
+        parameter("Localization", TestType::Locale),
     ];
-    structs.into_iter().chain(enumerated).collect()
+    structs.into_iter().chain(enumerated_structs()).collect()
+}
+
+fn enumerated_structs() -> impl Iterator<Item = TestStruct> {
+    [
+        "WidthBehavior",
+        "HeightBehavior",
+        "FlexDirection",
+        "FlexAxisJustification",
+        "FlexCrossAxisJustification",
+        "FlexItemAlignment",
+        "FlexWrap",
+    ]
+    .into_iter()
+    .map(|kind| {
+        TestStruct::new(format!("BuildingBlocks_FieldModifierEnumeratedType{kind}"))
+            .parent("BuildingBlocks_FieldModifierEnumeratedType")
+            .field("value", TestType::String)
+    })
 }
 
 /// One entry of the `operations` of a synthetic canvas; inputs and targets are named by earlier
@@ -102,6 +111,8 @@ pub enum TestOp {
     BoolParam(&'static str, bool),
     /// A number component parameter with its default.
     NumParam(&'static str, f32),
+    /// A text component parameter with its default.
+    TextParam(&'static str, &'static str),
     /// The negation of the operation.
     Invert(&'static str),
     /// All of the operations.
@@ -120,6 +131,8 @@ pub enum TestOp {
     BoolField(&'static str, &'static str, &'static str),
     /// A number field of the widget that the number operation sets.
     NumField(&'static str, &'static str, &'static str),
+    /// The text of the widget, which the text operation sets.
+    TextOf(&'static str, &'static str),
 }
 
 fn input(name: &str) -> TestValue {
@@ -157,6 +170,7 @@ impl TestOp {
             Self::TextVar => variable("String"),
             Self::BoolParam(name, default) => param("Boolean", name, TestValue::Bool(*default)),
             Self::NumParam(name, default) => param("Number", name, TestValue::Single(*default)),
+            Self::TextParam(name, default) => param("Localized", name, TestValue::text(*default)),
             Self::Invert(source) => TestInstance::new("BuildingBlocks_BindingsBooleanInvert")
                 .value("input", input(source)),
             Self::And(sources) => TestInstance::new("BuildingBlocks_BindingsBooleanEvaluateAnd")
@@ -184,6 +198,7 @@ impl TestOp {
             Self::Other => TestInstance::new("BindingsOperations_AudioEvent"),
             Self::BoolField(widget, name, source) => field("Boolean", widget, name, source),
             Self::NumField(widget, name, source) => field("Number", widget, name, source),
+            Self::TextOf(widget, source) => field("Localized", widget, "Text", source),
         }
     }
 }
@@ -204,6 +219,8 @@ pub enum TestParam {
     Bool(&'static str, bool),
     /// A number value for the parameter.
     Number(&'static str, f32),
+    /// A text value for the parameter.
+    Text(&'static str, &'static str),
 }
 
 impl TestWidget {
@@ -216,6 +233,11 @@ impl TestWidget {
                     TestInstance::new("BuildingBlocks_ComponentParameterInputBoolean")
                         .value("parameter", TestValue::text(name))
                         .value("value", TestValue::Bool(value))
+                }
+                TestParam::Text(name, value) => {
+                    TestInstance::new("BuildingBlocks_ComponentParameterInputLocalization")
+                        .value("parameter", TestValue::text(name))
+                        .value("value", TestValue::text(value))
                 }
                 TestParam::Number(name, value) => {
                     TestInstance::new("BuildingBlocks_ComponentParameterInputNumber")

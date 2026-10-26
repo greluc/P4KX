@@ -67,4 +67,27 @@ fn a_shrunk_text_holds_only_for_the_width_it_was_shrunk_to() {
     );
     assert!(text.holds_for(area(50.0, 1.0)));
     assert!(!text.holds_for(area(90.0, 1.0)));
+    assert!(
+        !text.holds_for(area(40.0, 1.0)),
+        "a narrower width shrinks it more"
+    );
+}
+
+#[test]
+fn the_height_and_the_width_must_both_hold() {
+    let text = prepared(
+        Some(20.0),
+        Some(Fit {
+            width: 100.0,
+            widest: 60.0,
+            shrunk: false,
+        }),
+    );
+    assert!(text.holds_for(area(80.0, 20.0)));
+    assert!(!text.holds_for(area(80.0, 25.0)), "the height differs");
+    assert!(
+        !text.holds_for(area(50.0, 20.0)),
+        "the width no longer holds it"
+    );
+    assert!(!text.holds_for(area(50.0, 25.0)), "neither holds");
 }

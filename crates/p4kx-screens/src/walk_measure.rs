@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::rc::Rc;
 
 use p4kx_dataforge::Guid;
 
@@ -44,11 +43,14 @@ impl Walk<'_, '_, '_, '_> {
     /// Returns the size along each axis that the content of a widget asks for where its size is
     /// automatic: a text as large as its glyphs, a container as large as its children. An axis
     /// without such a size is `None`.
+    ///
+    /// With `keep` the text measured is kept under the key of the widget for its paint pass;
+    /// only the widgets the walk goes on to paint ask for it.
     pub(crate) fn content_of(
         &mut self,
         probe: &Probe<'_>,
         parent: Area,
-        depth: usize,
+        (depth, keep): (usize, bool),
     ) -> [Option<f32>; 2] {
         if !probe.geometry.size.contains(&Dim::Auto) {
             return [None; 2];
@@ -63,10 +65,19 @@ impl Walk<'_, '_, '_, '_> {
             [None; 2]
         } else {
             self.measures += 1;
-            self.intrinsic(probe, parent, depth, key)
+            self.intrinsic(probe, parent, depth, keep.then_some(key))
         };
         self.measured.insert(key, size);
         size
+    }
+
+    /// Returns whether the content size of `probe` is the size of its text, which is shaped to
+    /// measure it.
+    pub(crate) fn measures_text(&self, probe: &Probe<'_>) -> bool {
+        probe.geometry.size.contains(&Dim::Auto)
+            && !probe.has_children
+            && probe.widget.text.is_some()
+            && self.cx.texts.is_enabled()
     }
 
     pub(crate) fn measure_key(&self, probe: &Probe<'_>, parent: Area) -> MeasureKey {
@@ -76,7 +87,12 @@ impl Walk<'_, '_, '_, '_> {
             self.chain.last().copied().unwrap_or(0),
             {
                 let mut hasher = DefaultHasher::new();
-                (self.override_key(), self.position_key(probe.position)).hash(&mut hasher);
+                (
+                    self.override_key(),
+                    self.position_key(probe.position),
+                    self.bound_text(probe.canvas, probe.index),
+                )
+                    .hash(&mut hasher);
                 hasher.finish()
             },
             [parent.width.to_bits(), parent.height.to_bits()],
@@ -89,7 +105,7 @@ impl Walk<'_, '_, '_, '_> {
         probe: &Probe<'_>,
         parent: Area,
         depth: usize,
-        key: MeasureKey,
+        keep: Option<MeasureKey>,
     ) -> [Option<f32>; 2] {
         if probe.has_children {
             return if probe.kids.is_empty() {
@@ -99,7 +115,7 @@ impl Walk<'_, '_, '_, '_> {
             };
         }
         let widget = probe.widget;
-        if widget.text.is_none() || !self.cx.texts.is_enabled() {
+        if !self.measures_text(probe) {
             return [None; 2];
         }
         let font = self.font_of(widget, probe.style);
@@ -113,7 +129,9 @@ impl Walk<'_, '_, '_, '_> {
         else {
             return [None; 2];
         };
-        self.shaped.insert(key, Rc::new(shaped));
+        if let Some(key) = keep {
+            self.shaped.insert(key, shaped);
+        }
         let padding = probe.geometry.padding;
         [
             Some(width + padding.left + padding.right),
@@ -219,7 +237,7 @@ impl Walk<'_, '_, '_, '_> {
             kids: &plan.kids,
             own: plan.own,
         };
-        let content = self.content_of(&child, parent, depth + 1);
+        let content = self.content_of(&child, parent, (depth + 1, false));
         let mut outer = [None; 2];
         for (axis, (slot, (dim, content))) in outer
             .iter_mut()

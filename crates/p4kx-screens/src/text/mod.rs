@@ -5,6 +5,11 @@ mod draw;
 mod fit;
 mod fonts;
 mod layout;
+#[cfg(test)]
+pub(crate) mod probe;
+#[cfg(test)]
+mod reuse_tests;
+mod source;
 mod spec;
 
 use std::fmt;

@@ -33,7 +33,7 @@ pub(crate) struct Look<'a> {
     pub(crate) style: &'a Modifiers,
     pub(crate) font: Option<Rc<FontStyleInfo>>,
     pub(crate) bound_text: Option<String>,
-    pub(crate) shaped: Option<Rc<Shaped>>,
+    pub(crate) shaped: Option<Shaped>,
     pub(crate) pixel: f32,
 }
 

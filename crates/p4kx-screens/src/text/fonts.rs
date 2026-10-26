@@ -219,10 +219,48 @@ fn score(name: &str, style: &FontStyleInfo, font: &Font) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
-    use super::{choice_key, split_weight};
+    use p4kx_gfx::Movie;
+    use p4kx_testkit::screens_font_movie;
+
+    use super::{FontBook, FontStyleInfo, choice_key, normalise, split_weight};
 
     fn names(list: &[&str]) -> Vec<String> {
         list.iter().map(|name| (*name).to_owned()).collect()
+    }
+
+    fn style(name: &str) -> FontStyleInfo {
+        let (family, weight) = split_weight(name);
+        let families = vec!["paintfile".to_owned(), family];
+        FontStyleInfo {
+            name: name.to_owned(),
+            stem: "paintfile".to_owned(),
+            choice: choice_key("paintfile", &families, &weight, false),
+            families,
+            weight,
+            bold: false,
+            scale: 1.0,
+        }
+    }
+
+    #[test]
+    fn two_styles_of_one_paint_file_with_different_names_pick_their_own_fonts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fonts = Movie::parse(screens_font_movie())?.assets().fonts;
+        let mut book = FontBook::new(&fonts);
+        let sans = book.pick(&style("TestSans"));
+        let blender = book.pick(&style("BlenderProMedium"));
+        let name_of = |at: Option<usize>| {
+            at.and_then(|at| fonts.get(at))
+                .map(|font| normalise(&font.name))
+        };
+        assert_eq!(name_of(sans).as_deref(), Some("testsans"));
+        assert_eq!(name_of(blender).as_deref(), Some("blenderpromedium"));
+        assert_eq!(
+            book.pick(&style("TestSans")),
+            sans,
+            "and the choice is kept"
+        );
+        Ok(())
     }
 
     #[test]

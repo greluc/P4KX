@@ -1,15 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::borrow::Cow;
-
-use p4kx_gfx::{
-    FontFace, Localise, Localised, MAX_SCENE_GLYPHS, MAX_TEXT_CHARS, MISSING_GLYPH_EM, Rgba,
-    localise_text, missing_glyph,
-};
+use p4kx_gfx::{FontFace, MAX_SCENE_GLYPHS, MAX_TEXT_CHARS, MISSING_GLYPH_EM, Rgba, missing_glyph};
 
 use super::fit::{Fit, MIN_SIZE, shape_fitted};
 use super::layout::{self, Cell, Shaping};
+use super::source::{is_placeholder, resolve};
 use super::spec::{Horizontal, TextSpec, Vertical};
 use super::{Texts, fonts::FontBook};
 use crate::context::Context;
@@ -18,7 +14,6 @@ use crate::look::Look;
 use crate::paint::{Area, Painter, TWIPS};
 use crate::widget::Widget;
 
-const PLACEHOLDERS: [&str; 3] = ["LOC_EMPTY", "LOC_UNINITIALIZED", "LOC_PLACEHOLDER"];
 const MAX_MISSING_REPORTED: usize = 8;
 const MAX_SIZE: f32 = 1024.0;
 const FIELD_SIZE_OF_HEIGHT: f32 = 0.6;
@@ -40,6 +35,9 @@ pub(crate) struct Prepared {
 }
 
 impl Prepared {
+    /// Returns whether shaping the text again in `area` would give this result: the height is
+    /// the one a size taken from the height was counted from, and the width still holds a fitted
+    /// text.
     fn holds_for(&self, area: Area) -> bool {
         let height = self
             .height_input
@@ -59,13 +57,23 @@ pub(crate) struct Shaped {
     notes: Notes,
 }
 
-fn is_placeholder(text: &str) -> bool {
-    let key = text.strip_prefix('@').unwrap_or(text);
-    key.is_empty() || PLACEHOLDERS.contains(&key)
+#[cfg(test)]
+use super::probe;
+
+#[cfg(test)]
+fn may_reuse() -> bool {
+    probe::reuse()
+}
+
+#[cfg(not(test))]
+const fn may_reuse() -> bool {
+    true
 }
 
 impl Texts<'_> {
     pub(crate) fn shape(&mut self, widget: &Widget, look: &Look<'_>, area: Area) -> Shaped {
+        #[cfg(test)]
+        probe::shaped();
         let mut notes = Notes::new();
         let prepared = self.prepare(widget, look, area, &mut notes);
         Shaped { prepared, notes }
@@ -149,23 +157,6 @@ impl Texts<'_> {
         )]
         let height = lines.len() as f32 * line_height(prepared, ascent, descent);
         Some([widest, height])
-    }
-}
-
-fn resolve<'a>(localise: Option<Localise<'_>>, source: &'a str, notes: &mut Notes) -> Cow<'a, str> {
-    let Some(lookup) = localise else {
-        if source.starts_with('@') {
-            notes.push("localisation key drawn as it is: no language given".to_owned());
-        }
-        return Cow::Borrowed(source);
-    };
-    match localise_text(source, lookup) {
-        Localised::Plain => Cow::Borrowed(source),
-        Localised::Text(text) => Cow::Owned(text),
-        Localised::Missing(_) => {
-            notes.push("localisation key not in the language: drawn as it is".to_owned());
-            Cow::Borrowed(source)
-        }
     }
 }
 
@@ -261,10 +252,9 @@ impl LineDrawer<'_, '_> {
 
 impl Context<'_> {
     pub(crate) fn text(&mut self, widget: &Widget, look: &Look<'_>, area: Area, alpha: f32) {
-        let reused = look
-            .shaped
-            .as_deref()
-            .filter(|shaped| shaped.prepared.as_ref().is_some_and(|p| p.holds_for(area)));
+        let reused = look.shaped.as_ref().filter(|shaped| {
+            may_reuse() && shaped.prepared.as_ref().is_some_and(|p| p.holds_for(area))
+        });
         let fresh;
         let shaped = if let Some(shaped) = reused {
             shaped

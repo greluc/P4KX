@@ -33,8 +33,10 @@ pub(crate) fn run(args: &ActionMapArgs, as_json: bool) -> Result<()> {
 }
 
 fn export(args: &ActionMapExportArgs, as_json: bool) -> Result<()> {
+    let format = args.library_format()?;
     let archive = crate::key::open(&args.archive)?;
     crate::guard::ensure_writable_if(args.out.as_deref())?;
+    let maps = read_action_maps(&archive)?;
     let set = LocalizationSet::read(&archive, &[args.language])?;
     if set.entry(args.language).is_none() {
         return Err(LanguageNotInArchive {
@@ -42,10 +44,8 @@ fn export(args: &ActionMapExportArgs, as_json: bool) -> Result<()> {
         }
         .into());
     }
-    let maps = read_action_maps(&archive)?;
     let texts = set.index()?;
     print_notes(&set.notes(&texts));
-    let format = args.format.into();
     let Some(path) = &args.out else {
         let mut out = BufWriter::new(io::stdout().lock());
         write_action_maps(&maps, &texts, args.language, format, &mut out)?;

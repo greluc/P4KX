@@ -109,18 +109,18 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      CHF file cannot store, a CHF file for chf glb or character package that holds no face DNA
      or whose DNA belongs to an unknown head rig, a language the Archive holds no global.ini
      for, or a localisation key that has no text in the language or its fallback, an Archive
-     without defaultProfile.xml for actionmap export, or a canvas
-     for ui render --screen that no Record, several Records or a Record of another type name,
-     or whose side is below 1 or above 16384 pixels
+     without defaultProfile.xml for actionmap export, --csv-raw with another format for
+     actionmap export, or a canvas for ui render --screen that no Record, several Records or a
+     Record of another type name, or whose side is below 1 or above 16384 pixels
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
      read into memory, or with unreadable Entry data, also a socpak container that cannot be
      opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
-     catalog that is corrupt or cannot be read, a defaultProfile.xml that is no XML or cannot be
-     read, or the skeleton of a body variant (armour glb)
-     that is missing or unreadable; a missing texture, sound, soundbank, chunk
-     file, UI movie file, model or geometry companion is 2
+     catalog that is corrupt or cannot be read, a defaultProfile.xml that is no XML, is too large
+     or cannot be read, or the skeleton of a body variant (armour glb) that is missing or
+     unreadable; a missing texture, sound, soundbank, chunk file, UI movie file, model or
+     geometry companion is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
      Extraction stopped, and Entries written before may be stale
   5  the DataForge cannot be read: the Archive holds none, its version is not supported or it

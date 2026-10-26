@@ -9,21 +9,17 @@ use serde::Serialize;
 
 use crate::action_map::{Action, ActionMap, ActionMaps, Binding, Device};
 
-const DEVICES: [Device; 4] = [
-    Device::Keyboard,
-    Device::Mouse,
-    Device::Gamepad,
-    Device::Joystick,
-];
-
 /// The file format of an action map export.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ActionMapFormat {
-    /// One JSON object: the `language` and the `actionMaps` with their actions and bindings.
+    /// One JSON object: the `language` and the `action_maps` with their actions and bindings.
     Json,
-    /// CSV with a UTF-8 byte order mark and CRLF line ends, one row per action.
+    /// CSV with a UTF-8 byte order mark and CRLF line ends, one row per action; a text cell that
+    /// a spreadsheet would run as a formula starts with `'`.
     Csv,
+    /// As [`Csv`](Self::Csv) with the exact texts and no `'`; the byte order mark stays.
+    CsvRaw,
 }
 
 /// What an action map export wrote.
@@ -63,7 +59,8 @@ pub fn write_action_maps(
     };
     match format {
         ActionMapFormat::Json => write_json(maps, &labels, out)?,
-        ActionMapFormat::Csv => write_csv(maps, &labels, out)?,
+        ActionMapFormat::Csv => write_csv(maps, &labels, out, true)?,
+        ActionMapFormat::CsvRaw => write_csv(maps, &labels, out, false)?,
     }
     Ok(ActionMapCounts {
         action_maps: maps.maps.len(),
@@ -159,63 +156,83 @@ fn write_json(maps: &ActionMaps, labels: &Labels<'_, '_>, out: &mut impl Write) 
     out.write_all(b"\n")
 }
 
-fn write_csv(maps: &ActionMaps, labels: &Labels<'_, '_>, out: &mut impl Write) -> io::Result<()> {
+fn write_csv(
+    maps: &ActionMaps,
+    labels: &Labels<'_, '_>,
+    out: &mut impl Write,
+    neutralise: bool,
+) -> io::Result<()> {
     out.write_all(CSV_BYTE_ORDER_MARK)?;
     out.write_all(b"action_map,action_map_label,action,label,activation_mode")?;
-    for device in DEVICES {
+    for device in Device::ALL {
         out.write_all(b",")?;
         out.write_all(device.name().as_bytes())?;
     }
     out.write_all(b"\r\n")?;
+    let mut cell = String::new();
     for map in &maps.maps {
         let map_label = labels.resolve(map.label_key.as_deref());
         for action in &map.actions {
-            write_row(out, map, map_label.as_deref(), action, labels)?;
+            let row = Row {
+                map,
+                map_label: map_label.as_deref(),
+                action,
+                label: labels.resolve(action.label_key.as_deref()),
+            };
+            write_row(out, &row, &mut cell, neutralise)?;
         }
     }
     Ok(())
 }
 
+struct Row<'a> {
+    map: &'a ActionMap,
+    map_label: Option<&'a str>,
+    action: &'a Action,
+    label: Option<Cow<'a, str>>,
+}
+
 fn write_row(
     out: &mut impl Write,
-    map: &ActionMap,
-    map_label: Option<&str>,
-    action: &Action,
-    labels: &Labels<'_, '_>,
+    row: &Row<'_>,
+    cell: &mut String,
+    neutralise: bool,
 ) -> io::Result<()> {
-    write_csv_cell(out, &map.name, true)?;
-    out.write_all(b",")?;
-    write_csv_cell(out, map_label.unwrap_or_default(), true)?;
-    out.write_all(b",")?;
-    write_csv_cell(out, &action.name, true)?;
-    out.write_all(b",")?;
-    let label = labels.resolve(action.label_key.as_deref());
-    write_csv_cell(out, label.as_deref().unwrap_or_default(), true)?;
-    out.write_all(b",")?;
-    write_csv_cell(
-        out,
+    let action = row.action;
+    let leading = [
+        row.map.name.as_str(),
+        row.map_label.unwrap_or_default(),
+        action.name.as_str(),
+        row.label.as_deref().unwrap_or_default(),
         action.activation_mode.as_deref().unwrap_or_default(),
-        true,
-    )?;
-    for device in DEVICES {
+    ];
+    for (position, text) in leading.into_iter().enumerate() {
+        if position > 0 {
+            out.write_all(b",")?;
+        }
+        write_csv_cell(out, text, neutralise)?;
+    }
+    for device in Device::ALL {
         out.write_all(b",")?;
-        let cell = action
-            .bindings
-            .iter()
-            .filter(|binding| binding.device == device)
-            .map(|binding| binding_text(binding, action))
-            .collect::<Vec<_>>()
-            .join(" | ");
-        write_csv_cell(out, &cell, true)?;
+        cell.clear();
+        for binding in action.bindings.iter().filter(|b| b.device == device) {
+            if !cell.is_empty() {
+                cell.push_str(" | ");
+            }
+            push_binding(cell, binding, action);
+        }
+        write_csv_cell(out, cell, neutralise)?;
     }
     out.write_all(b"\r\n")
 }
 
-fn binding_text(binding: &Binding, action: &Action) -> String {
-    match &binding.activation_mode {
-        Some(mode) if binding.activation_mode != action.activation_mode => {
-            format!("{} ({mode})", binding.input)
-        }
-        _ => binding.input.clone(),
+fn push_binding(cell: &mut String, binding: &Binding, action: &Action) {
+    cell.push_str(&binding.input);
+    if let Some(mode) = &binding.activation_mode
+        && binding.activation_mode != action.activation_mode
+    {
+        cell.push_str(" (");
+        cell.push_str(mode);
+        cell.push(')');
     }
 }

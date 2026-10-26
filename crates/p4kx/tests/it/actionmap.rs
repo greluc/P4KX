@@ -191,3 +191,52 @@ fn a_profile_that_is_no_xml_is_an_archive_error() -> TestResult {
         .stderr(predicate::str::contains("defaultProfile.xml"));
     Ok(())
 }
+
+#[test]
+fn an_encrypted_profile_without_a_key_exits_with_7() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = archive(
+        dir.path(),
+        vec![
+            TestEntry::deflated("Data\\Libs\\Config\\defaultProfile.xml", PROFILE).encrypted(),
+            english(),
+        ],
+    )?;
+    p4kx_testkit::p4kx()?
+        .env_remove("P4KX_ARCHIVE_KEY")
+        .env(
+            "P4KX_KEY_FILE",
+            dir.path().join("profile").join("archive.key"),
+        )
+        .args(["actionmap", "export"])
+        .arg(&path)
+        .assert()
+        .code(7)
+        .stderr(predicate::str::contains("P4KX_ARCHIVE_KEY"));
+    Ok(())
+}
+
+#[test]
+fn csv_raw_writes_the_exact_texts() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = standard(dir.path())?;
+    let csv = export(&path, &["--format", "csv", "--csv-raw"], 0)?;
+    assert!(csv.starts_with('\u{feff}'));
+    assert!(csv.contains(",v_nolabel,,tap,=cmd,"), "{csv}");
+    assert!(!csv.contains("'=cmd"));
+    Ok(())
+}
+
+#[test]
+fn csv_raw_with_json_is_invalid_input() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let path = standard(dir.path())?;
+    p4kx_testkit::p4kx()?
+        .args(["actionmap", "export"])
+        .arg(&path)
+        .arg("--csv-raw")
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("--csv-raw needs --format csv"));
+    Ok(())
+}

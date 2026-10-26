@@ -121,6 +121,18 @@ fn device_children_add_bindings_with_their_own_activation_mode() {
 }
 
 #[test]
+fn an_unnamed_action_map_or_action_is_left_out() {
+    let maps = parse_action_maps(
+        br#"<profile><actionmap UILabel="@x"><action name="a"/></actionmap>
+        <actionmap name="m"><action keyboard="a"/><action name="b"/></actionmap></profile>"#,
+    )
+    .expect("a profile");
+    assert_eq!(maps.maps.len(), 1);
+    assert_eq!(maps.action_count(), 1);
+    assert_eq!(maps.maps[0].actions[0].name, "b");
+}
+
+#[test]
 fn a_binding_given_twice_is_listed_once() {
     let maps = parsed();
     assert_eq!(

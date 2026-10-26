@@ -1115,7 +1115,7 @@ use the JSON format.
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.
 
-## `p4kx actionmap export <archive> [--format json|csv] [--language <language>] [--out <file>]`
+## `p4kx actionmap export <archive> [--format json|csv] [--csv-raw] [--language <language>] [--out <file>]`
 
 Without `--out` the export goes to stdout and `--json` changes nothing. The JSON format is
 
@@ -1137,7 +1137,9 @@ The CSV starts with a UTF-8 byte order mark, has CRLF line ends and the header
 `action_map,action_map_label,action,label,activation_mode,keyboard,mouse,gamepad,joystick`. A
 device cell joins its bindings with ` | `; a binding whose activation mode differs from the
 action's reads `input (mode)`. Text cells follow the rules of ADR-0159: a cell that starts with
-`=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`.
+`=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`. `--csv-raw` writes the exact
+texts without the `'` and keeps the byte order mark; it is invalid input (exit code 2) with
+`--format json`.
 
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "language": "en", "action_maps": 50, "actions": 1103, "unresolved_labels": 1}`;

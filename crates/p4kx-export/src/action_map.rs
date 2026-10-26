@@ -4,7 +4,7 @@
 use std::io::{self, Read};
 
 use p4kx_extraction::cryxml::{self, CryXmlError, Xml};
-use p4kx_extraction::{Archive, find_entry};
+use p4kx_extraction::{Archive, ArchiveError, find_entry};
 use thiserror::Error;
 
 use crate::starmap_xml::{Node, attribute};
@@ -13,12 +13,6 @@ use crate::starmap_xml::{Node, attribute};
 pub const ACTION_MAP_PROFILE_PATH: &str = "Data\\Libs\\Config\\defaultProfile.xml";
 
 const MAX_PROFILE_LEN: u64 = 64 << 20;
-const DEVICES: [Device; 4] = [
-    Device::Keyboard,
-    Device::Mouse,
-    Device::Gamepad,
-    Device::Joystick,
-];
 
 /// An input device a default binding belongs to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -35,6 +29,9 @@ pub enum Device {
 }
 
 impl Device {
+    /// Every device, in the order bindings are listed.
+    pub const ALL: [Self; 4] = [Self::Keyboard, Self::Mouse, Self::Gamepad, Self::Joystick];
+
     /// Returns the name the profile and the exports use for the device.
     #[must_use]
     pub const fn name(self) -> &'static str {
@@ -111,7 +108,11 @@ pub enum ActionMapError {
         /// The size of the Entry in bytes.
         size: u64,
     },
-    /// The default profile cannot be opened or read.
+    /// The default profile cannot be opened, for example because it is encrypted and the key is
+    /// missing or wrong.
+    #[error("cannot open {ACTION_MAP_PROFILE_PATH}")]
+    Open(#[source] ArchiveError),
+    /// The default profile cannot be read.
     #[error("cannot read {ACTION_MAP_PROFILE_PATH}")]
     Read(#[source] io::Error),
     /// The default profile is neither text XML nor `CryXml`.
@@ -136,7 +137,7 @@ pub fn read_action_maps(archive: &Archive) -> Result<ActionMaps, ActionMapError>
     let mut bytes = Vec::new();
     archive
         .open_entry(entry)
-        .map_err(|error| ActionMapError::Read(io::Error::other(error)))?
+        .map_err(ActionMapError::Open)?
         .take(MAX_PROFILE_LEN)
         .read_to_end(&mut bytes)
         .map_err(ActionMapError::Read)?;
@@ -145,7 +146,8 @@ pub fn read_action_maps(archive: &Archive) -> Result<ActionMaps, ActionMapError>
 
 /// Parses the action maps of the profile `bytes`, text XML or `CryXml`.
 ///
-/// Only the actions inside an `actionmap` element count. An input that is empty or blank is no
+/// Only the actions inside an `actionmap` element count; an `actionmap` or an `action` without a
+/// name is left out. An input that is empty or blank is no
 /// binding, and the same device, input and activation mode of one action appear once.
 ///
 /// # Errors
@@ -180,12 +182,14 @@ fn text<'d>(node: impl Node<'d>, name: &str) -> Option<&'d str> {
 
 fn collect<'d, N: Node<'d>>(root: N) -> ActionMaps {
     let maps = named(root, "actionmap")
-        .map(|map| ActionMap {
-            name: text(map, "name").unwrap_or_default().to_owned(),
-            label_key: text(map, "UILabel")
-                .or_else(|| text(map, "UILable"))
-                .map(str::to_owned),
-            actions: named(map, "action").filter_map(read_action).collect(),
+        .filter_map(|map| {
+            Some(ActionMap {
+                name: text(map, "name")?.to_owned(),
+                label_key: text(map, "UILabel")
+                    .or_else(|| text(map, "UILable"))
+                    .map(str::to_owned),
+                actions: named(map, "action").filter_map(read_action).collect(),
+            })
         })
         .collect();
     ActionMaps { maps }
@@ -195,7 +199,7 @@ fn read_action<'d>(action: impl Node<'d>) -> Option<Action> {
     let name = text(action, "name")?.to_owned();
     let activation_mode = text(action, "activationMode");
     let mut bindings = Vec::new();
-    for device in DEVICES {
+    for device in Device::ALL {
         let mut push = |input: &str, mode: Option<&str>| {
             let binding = Binding {
                 device,

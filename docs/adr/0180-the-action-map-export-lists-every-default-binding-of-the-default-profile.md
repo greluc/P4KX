@@ -8,7 +8,8 @@ Decided for issue #314, on top of ADR-0159 (CSV cells) and ADR-0003 (layers).
   `p4kx-export` and writes JSON or CSV. The reader and the writer are library API
   (`read_action_maps`, `write_action_maps`), so the desktop app and the MCP server can use them.
 - Only `action` elements inside an `actionmap` count. The `actiongroup` element lists action names
-  without bindings or labels and is ignored.
+  without bindings or labels and is ignored. An `actionmap` or an `action` without a name is left
+  out.
 - A binding is a device, an input and an activation mode. It comes from the `keyboard`, `mouse`,
   `gamepad` and `joystick` attributes of the action, from a device child element's `input`
   attribute, and from the `inputdata` elements inside a device child. The mode of a child is its
@@ -23,8 +24,9 @@ Decided for issue #314, on top of ADR-0159 (CSV cells) and ADR-0003 (layers).
   lore and stay out of data meant for third parties.
 - JSON is one document with the language and the action maps, in document order. CSV has one row
   per action and a column per device; its text cells use `write_csv_cell` with the neutralisation of
-  ADR-0159. There is no `--csv-raw`: an input or label that starts with `=`, `+`, `-` or `@` is
-  rare, and a script that wants exact values reads the JSON.
+  ADR-0159. `--csv-raw` writes the exact texts without the `'`, keeps the byte order mark, and is
+  invalid input (exit code 2) with another format, like `loc export`.
+- An encrypted profile is opened through the Archive, so a missing or wrong key exits with 7.
 - The command line text is English like every other command; this issue adds no string to the
   Fluent files of the desktop app.
 

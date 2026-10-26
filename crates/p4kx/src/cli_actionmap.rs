@@ -6,6 +6,7 @@ use std::path::PathBuf;
 use clap::{Args, Subcommand, ValueEnum};
 use p4kx_export::{ActionMapFormat, Language};
 
+use crate::dcb_export::FlatConflict;
 use crate::exit::EXIT_CODES_HELP;
 
 /// Arguments of `p4kx actionmap`.
@@ -44,6 +45,10 @@ pub(crate) struct ActionMapExportArgs {
         value_parser = clap::value_parser!(Language)
     )]
     pub(crate) language: Language,
+    /// With --format csv: writes the exact texts, without the leading ' that keeps a spreadsheet
+    /// from running a text as a formula; the byte order mark stays.
+    #[arg(long)]
+    pub(crate) csv_raw: bool,
     /// The file to write; an existing file is replaced. The export goes to stdout without it.
     #[arg(long, value_name = "FILE")]
     pub(crate) out: Option<PathBuf>,
@@ -67,11 +72,14 @@ impl ActionMapOutput {
     }
 }
 
-impl From<ActionMapOutput> for ActionMapFormat {
-    fn from(output: ActionMapOutput) -> Self {
-        match output {
-            ActionMapOutput::Json => Self::Json,
-            ActionMapOutput::Csv => Self::Csv,
+impl ActionMapExportArgs {
+    /// Returns the library format, or the conflict of `--csv-raw` with another format.
+    pub(crate) const fn library_format(&self) -> Result<ActionMapFormat, FlatConflict> {
+        match (self.format, self.csv_raw) {
+            (ActionMapOutput::Csv, true) => Ok(ActionMapFormat::CsvRaw),
+            (ActionMapOutput::Json, true) => Err(FlatConflict("--csv-raw needs --format csv")),
+            (ActionMapOutput::Csv, false) => Ok(ActionMapFormat::Csv),
+            (ActionMapOutput::Json, false) => Ok(ActionMapFormat::Json),
         }
     }
 }

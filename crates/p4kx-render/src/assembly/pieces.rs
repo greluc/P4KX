@@ -56,7 +56,7 @@ pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
                 model: part.model(),
                 world: anchor.then(part.world()).rows,
                 materials: part.materials(),
-                palette: None,
+                palette: part.palette(),
                 interior: true,
             });
         }

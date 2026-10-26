@@ -117,9 +117,9 @@ impl Head {
     }
 
     /// Returns the head with the expression blendshapes `expressions` asks for written as morph
-    /// targets of the mesh of the piece named `head`, see [`Piece::with_expressions`]. The teeth,
-    /// eyes, hair and the rest of what a dressed head wears get none: only the head skin carries
-    /// the expression blendshapes, and what follows the head follows its neutral shape.
+    /// targets of the mesh of the piece named `head`, see [`Piece::with_expressions`]. The teeth
+    /// and eyes get none: only the head skin carries the expression blendshapes. The hair, brows,
+    /// lashes and beard follow the head's targets with morph targets of their own.
     #[must_use]
     pub fn with_expressions(mut self, expressions: &Expressions) -> Self {
         self.pieces = self

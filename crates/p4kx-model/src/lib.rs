@@ -20,7 +20,8 @@
 //! [`ObjectContainer::parse`] reads the description of a socpak's object container, the
 //! containers nested in it and the `.soc` files it streams, and [`IncludedObjects::read`] the
 //! models a `.soc` file places, each with its [`Transform`]; [`SocEntities::read`] reads its
-//! props, which name geometry of their own, and its [`SocLight`]s.
+//! props, which name geometry of their own, the entities that name a class Record, and its
+//! [`SocLight`]s.
 //!
 //! A mesh that stores no normals gets smooth ones computed from its triangles
 //! ([`Mesh::normals_computed`]). Quantised positions are dequantised with the scaling box of the
@@ -69,6 +70,7 @@ mod skeleton;
 mod skin;
 mod smooth_normals;
 mod soc_entities;
+mod soc_geometry;
 mod soc_light;
 mod streams;
 mod transform;
@@ -109,6 +111,9 @@ pub use prefab::{
     MAX_GROUP_DEPTH, MAX_LIBRARY_OBJECTS, MAX_LIBRARY_PREFABS, Prefab, PrefabError, PrefabLibrary,
     PrefabObject, PrefabRef,
 };
-pub use soc_entities::{MAX_SOC_ENTITIES, MAX_SOC_PLACED, SocEntities, SocEntitiesError, SocProp};
+pub use soc_entities::{
+    MAX_SOC_ENTITIES, MAX_SOC_PLACED, SocClassEntity, SocEntities, SocEntitiesError, SocPalette,
+    SocProp,
+};
 pub use soc_light::{LightState, SocLight};
 pub use transform::Transform;

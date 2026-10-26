@@ -18,8 +18,27 @@ fn placed(name: &str, class: &str, position: [f64; 3], rotation: [f64; 4]) -> En
         pos: join(&position),
         rotate: join(&rotation),
         scale: None,
+        class_guid: None,
         children: Vec::new(),
     }
+}
+
+fn resource(model: &str, material: Option<&str>, palette: Option<(&str, &str)>) -> TestElement {
+    let mut data =
+        TestElement::new("Geometry").child(TestElement::new("Geometry").attribute("path", model));
+    if let Some(material) = material {
+        data = data.child(TestElement::new("Material").attribute("path", material));
+    }
+    if let Some((root, child)) = palette {
+        data = data.child(
+            TestElement::new("Palette")
+                .attribute("RootRecord", root)
+                .attribute("ChildPath", child),
+        );
+    }
+    let node =
+        TestElement::new("EntityGeometryResource").child(TestElement::new("Geometry").child(data));
+    TestElement::new("PropertiesDataCore").child(node)
 }
 
 #[derive(Debug, Clone)]
@@ -29,6 +48,7 @@ struct Entity {
     pos: String,
     rotate: String,
     scale: Option<String>,
+    class_guid: Option<String>,
     children: Vec<TestElement>,
 }
 
@@ -46,6 +66,9 @@ impl Entity {
             .attribute("Rotate", &self.rotate);
         if let Some(scale) = &self.scale {
             element = element.attribute("Scale", scale);
+        }
+        if let Some(guid) = &self.class_guid {
+            element = element.attribute("EntityClassGUID", guid);
         }
         self.children
             .iter()
@@ -178,16 +201,58 @@ impl TestSocEntity {
     /// Creates a prop that names its own geometry `model`.
     #[must_use]
     pub fn prop(name: &str, position: [f64; 3], rotation: [f64; 4], model: &str) -> Self {
-        let geometry = TestElement::new("Geometry").attribute("path", model);
-        let nest = |inner: TestElement, tag: &str| TestElement::new(tag).child(inner);
-        let node = nest(
-            nest(nest(geometry, "Geometry"), "Geometry"),
-            "EntityGeometryResource",
-        );
+        Self::prop_choosing(name, position, rotation, model, None, None)
+    }
+
+    /// Creates a prop that names its own geometry `model` and, if given, the material library
+    /// `material` and the tint palette Record `palette` (GUID text and child path) it is drawn
+    /// with.
+    #[must_use]
+    pub fn prop_choosing(
+        name: &str,
+        position: [f64; 3],
+        rotation: [f64; 4],
+        model: &str,
+        material: Option<&str>,
+        palette: Option<(&str, &str)>,
+    ) -> Self {
         Self {
             entity: placed(name, "GeomEntity", position, rotation)
-                .child(TestElement::new("PropertiesDataCore").child(node)),
+                .child(resource(model, material, palette)),
         }
+    }
+
+    /// Makes the entity choose the material library `material` and the tint palette Record
+    /// `palette` (GUID text and child path) without naming a model, as an entity does that takes
+    /// its geometry from its class Record.
+    #[must_use]
+    pub fn choosing(mut self, material: Option<&str>, palette: Option<(&str, &str)>) -> Self {
+        self.entity.children.push(resource("", material, palette));
+        self
+    }
+
+    /// Creates an entity of the class `class` that names the Record `guid` as its class and no
+    /// geometry of its own, such as a door; its geometry comes from the Record.
+    #[must_use]
+    pub fn classed(
+        name: &str,
+        class: &str,
+        guid: &str,
+        position: [f64; 3],
+        rotation: [f64; 4],
+    ) -> Self {
+        let mut entity = placed(name, class, position, rotation);
+        entity.class_guid = Some(guid.to_owned());
+        Self { entity }
+    }
+
+    /// Adds the baked-in lights `lights` of a light group to the entity, as for
+    /// [`Self::light_group`].
+    #[must_use]
+    pub fn with_lights(mut self, lights: &[(&str, TestLight, [f64; 4], [f64; 3])]) -> Self {
+        let group = Self::light_group("", [0.0; 3], [1.0, 0.0, 0.0, 0.0], lights);
+        self.entity.children.extend(group.entity.children);
+        self
     }
 
     /// Creates an entity of the class `class` without geometry or light, such as a room.

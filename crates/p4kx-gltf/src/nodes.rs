@@ -88,7 +88,7 @@ pub(crate) fn push_rig_nodes(
         name: None,
         nodes: roots,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     });
     root.scene = Some(scene);
 }
@@ -108,7 +108,7 @@ fn push_joints(
             _ => None,
         },
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     })
 }
 
@@ -269,7 +269,7 @@ pub(crate) fn push_nodes(
         name: None,
         nodes: roots,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     });
     root.scene = Some(scene);
 }
@@ -334,7 +334,7 @@ fn push_skin(
             _ => None,
         },
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     })
 }
 
@@ -377,7 +377,7 @@ pub(crate) fn push_node(root: &mut Root, part: Part<'_>) {
                 },
             ),
         }),
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     });
 }
 

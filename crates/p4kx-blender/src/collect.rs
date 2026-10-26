@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use p4kx_assembly::ModelProvider;
@@ -25,6 +25,7 @@ const MAX_LAYER_DEPTH: usize = 8;
 pub(crate) struct Described {
     pub(crate) description: MaterialDescription,
     pub(crate) paths: Vec<Option<String>>,
+    followed_at: Option<usize>,
 }
 
 /// A texture file that has no safe path, and the material that names it.
@@ -51,6 +52,7 @@ pub(crate) struct Collected {
     index_of: HashMap<String, usize>,
     keys: HashMap<MaterialKey, usize>,
     layer_files: HashMap<String, Arc<MaterialStatus>>,
+    cut: BTreeMap<usize, (String, String)>,
     folder: String,
 }
 
@@ -93,6 +95,7 @@ impl Collected {
             collected.described.push(described);
             collected.materials.push(drawn);
         }
+        collected.cut_issues();
         collected
     }
 
@@ -124,6 +127,13 @@ impl Collected {
         };
         let key = (identity, index);
         if let Some(&known) = self.keys.get(&key) {
+            let shallower = self
+                .descriptions
+                .get(known)
+                .is_some_and(|known| known.followed_at.is_none_or(|at| depth < at));
+            if shallower && depth < MAX_LAYER_DEPTH {
+                self.follow_layers(known, material, models, depth);
+            }
             return Some(known);
         }
         let at = self.descriptions.len();
@@ -136,7 +146,11 @@ impl Collected {
         );
         let paths = self.want_textures(material, drawn);
         self.keys.insert(key, at);
-        self.descriptions.push(Described { description, paths });
+        self.descriptions.push(Described {
+            description,
+            paths,
+            followed_at: None,
+        });
         for cut in &material.truncated {
             self.issues.push(Issue {
                 origin: IssueOrigin::Material,
@@ -147,27 +161,49 @@ impl Collected {
                 reason: format!("the material file is cut off: {cut}"),
             });
         }
-        if depth >= MAX_LAYER_DEPTH && !material.layers.is_empty() {
-            self.layer_issue(
-                material,
-                &path,
-                &format!("layers are followed {MAX_LAYER_DEPTH} files deep"),
-            );
-        }
         if depth < MAX_LAYER_DEPTH {
-            for (number, layer) in material.layers.iter().enumerate() {
-                let found = self.layer_material(material, layer, models, depth);
-                if let Some(found) = found
-                    && let Some(slot) = self
-                        .descriptions
-                        .get_mut(at)
-                        .and_then(|parent| parent.description.layers.get_mut(number))
-                {
-                    slot.material = Some(id_of(found));
-                }
-            }
+            self.follow_layers(at, material, models, depth);
+        } else if !material.layers.is_empty() {
+            self.cut.insert(at, (path, material.name.clone()));
         }
         Some(at)
+    }
+
+    fn follow_layers(
+        &mut self,
+        at: usize,
+        material: &Material,
+        models: &dyn ModelProvider,
+        depth: usize,
+    ) {
+        if let Some(parent) = self.descriptions.get_mut(at) {
+            parent.followed_at = Some(depth);
+        }
+        self.cut.remove(&at);
+        for (number, layer) in material.layers.iter().enumerate() {
+            let found = self.layer_material(material, layer, models, depth);
+            if let Some(found) = found
+                && let Some(slot) = self
+                    .descriptions
+                    .get_mut(at)
+                    .and_then(|parent| parent.description.layers.get_mut(number))
+            {
+                slot.material = Some(id_of(found));
+            }
+        }
+    }
+
+    fn cut_issues(&mut self) {
+        for (path, name) in std::mem::take(&mut self.cut).into_values() {
+            self.issues.push(Issue {
+                origin: IssueOrigin::Material,
+                kind: "layer_material".to_owned(),
+                path,
+                name,
+                skipped: false,
+                reason: format!("layers are followed {MAX_LAYER_DEPTH} files deep"),
+            });
+        }
     }
 
     fn layer_material(
@@ -210,6 +246,15 @@ impl Collected {
     }
 
     fn layer_issue(&mut self, parent: &Material, path: &str, reason: &str) {
+        let known = self.issues.iter().any(|issue| {
+            issue.kind == "layer_material"
+                && issue.path == path
+                && issue.name == parent.name
+                && issue.reason == reason
+        });
+        if known {
+            return;
+        }
         self.issues.push(Issue {
             origin: IssueOrigin::Material,
             kind: "layer_material".to_owned(),

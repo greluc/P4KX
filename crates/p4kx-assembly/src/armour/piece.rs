@@ -175,7 +175,8 @@ impl Piece {
     }
 
     /// Makes the piece follow the shape of the head piece named `head`: its vertices move as the
-    /// vertices of the shaped head around them did. For hair, brows, lashes and beards.
+    /// vertices of the shaped head around them did, and the first mesh takes a morph target for
+    /// each expression target of the head that moves it. For hair, brows, lashes and beards.
     #[must_use]
     pub const fn following_head(mut self) -> Self {
         self.follows_head = true;

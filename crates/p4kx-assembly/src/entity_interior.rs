@@ -9,8 +9,8 @@ use p4kx_model::{Model, Transform};
 
 use crate::placement::{node_transform, offset};
 use crate::{
-    Assembly, AssemblyError, EntityNode, Interior, InteriorOptions, InteriorProgress,
-    InteriorWatch, Issue, IssueKind, ObjectContainerRef,
+    Assembly, AssemblyError, EntityNode, Interior, InteriorForge, InteriorOptions,
+    InteriorProgress, InteriorWatch, Issue, IssueKind, ObjectContainerRef,
 };
 use budget::Budget;
 
@@ -138,6 +138,23 @@ impl EntityInterior {
         options: &InteriorOptions,
         watch: &InteriorWatch<'_>,
     ) -> Result<Self, AssemblyError> {
+        Self::build_with(archive, assembly, tree, options, watch, None)
+    }
+
+    /// Builds the Interior like [`Self::build_watched`], with the class Records of the
+    /// containers' entities looked up in `forge`, see [`Interior::build_with`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_watched`].
+    pub fn build_with(
+        archive: &Archive,
+        assembly: &Assembly,
+        tree: &EntityNode,
+        options: &InteriorOptions,
+        watch: &InteriorWatch<'_>,
+        forge: Option<&InteriorForge<'_>>,
+    ) -> Result<Self, AssemblyError> {
         let index = PathIndex::new(archive);
         let root = assembly.root().and_then(|part| part.model());
         let mut built = Self::default();
@@ -180,7 +197,7 @@ impl EntityInterior {
             let placement = built.place(reference, root);
             let limited = budget.options(&built);
             let interior =
-                Interior::build_watched(&[archive, &opened], entry.path(), &limited, watch)?;
+                Interior::build_with(&[archive, &opened], entry.path(), &limited, watch, forge)?;
             built.add(reference, placement, interior);
         }
         Ok(built)

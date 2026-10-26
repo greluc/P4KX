@@ -139,9 +139,10 @@ ADR-0087 describe:
 | `light` | A punctual light. | absent | absent |
 
 Objects share meshes with each other and with the Entity's parts as everything else does (same
-model, material library and palette), and an Interior model has no tint palette: it is drawn with
-plain colours or its textures. Paths and names come from the Archive and are
-untrusted text.
+model, material library and palette). An Interior model or prop has a tint palette (ADR-0199) when
+the `.soc` file or the class Record of a prop names one, or its material library names a default;
+the package, which reads the Archive's DataForge for an Interior when it has one, then lists it
+as for an Entity's part. Paths and names come from the Archive and are untrusted text.
 
 ### An Interior on its own
 
@@ -161,7 +162,7 @@ A `light` node has a `light` object:
 | Field | Meaning |
 | --- | --- |
 | `kind` | `point`, `spot` or `directional`. Other engine types (`Ambient`, `Planar`) are no nodes; the issues list them as `light_unsupported`. |
-| `colour` | Linear red, green and blue, each in 0 to 1. The engine's colour is read as sRGB; with a colour temperature it is multiplied by the colour of a black body (ADR-0087). |
+| `colour` | Linear red, green and blue, each in 0 to 1. The engine stores the colour linear and it is written as stored; with a colour temperature it is multiplied by the colour of a black body (ADR-0087, ADR-0199). |
 | `intensity` | The engine's value, not converted: its unit is not documented, so it only compares lights of one package. Never negative. |
 | `range` | Metres beyond which the light has no effect; absent when the engine gives none. |
 | `inner_cone`, `outer_cone` | Radians from the axis, for the kind `spot` only: where the falloff begins (0 today) and where the light ends (half of the projector's opening angle, at most a quarter turn). |
@@ -377,6 +378,15 @@ stated:
 | DRAK_Cutlass_Black with `--interior` | 413 | 866 MiB | 53 for 124 | 0.81 |
 | AEGS_Gladius at `--texture-mip 2` | 325 | 83 MiB | 35 for 56 | 0.80 |
 | Character (CHF, armour Loadout, two animations) | 2 | 56 MiB | 1 | 1 |
+
+What writing every texture slot (1.1) costs against the three maps of 1.0, measured on AEGS_Gladius
+at the default options: 289 textures of 541 MiB, of which the diffuse, normal and specular maps a
+1.0 package held are 133 textures of 217 MiB. With the meshes (43 MiB) and `scene.json`
+(1.3 MiB, about 0.5 MiB of it the material descriptions) the package is 585 MiB at 1.1 against
+about 260 MiB at 1.0, 2.25 times as much, all of it in the blend, mask, detail and wear maps.
+The 1.0 figure is derived from the 1.1 package by selecting the three 1.0 roles, not measured
+from a 1.0 build; it is likely an upper bound for 1.0, so the factor is a lower bound.
+`--texture-mip` bounds it: 83 MiB at mip 2.
 
 The bounds a package keeps, asserted by the real-Archive tests
 (`crates/p4kx/tests/real_archive/real_blender_packages.rs`):

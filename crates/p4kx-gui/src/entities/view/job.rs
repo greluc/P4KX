@@ -8,11 +8,11 @@ use std::thread;
 
 use p4kx_assembly::{
     ArchiveModels, Assembly, AssemblyError, AssemblyOptions, EntityInterior, EntityNode,
-    ForgePalettes, InteriorOptions, InteriorProgress, InteriorWatch, ModelFailure, ModelProvider,
-    ProvidedModel,
+    ForgePalettes, InteriorForge, InteriorOptions, InteriorProgress, InteriorWatch, ModelFailure,
+    ModelProvider, ProvidedModel,
 };
-use p4kx_extraction::CancelToken;
 use p4kx_extraction::model::MaterialStatus;
+use p4kx_extraction::{CancelToken, DataForge};
 use p4kx_settings::ModelMaterials;
 
 use crate::assembly_export::{Stoppable, StoppableTextures, failure_of};
@@ -235,6 +235,7 @@ fn with_interior(
     assembly: Assembly,
     request: &Request,
     (cancel, shared): (&CancelToken, &Shared),
+    forge: &DataForge<'_>,
 ) -> Result<Assembly, Ended> {
     if !request.interior {
         return Ok(assembly);
@@ -249,8 +250,15 @@ fn with_interior(
         progress: &|progress| shared.interior(progress),
     };
     let options = InteriorOptions::default().with_lod(request.lod);
-    match EntityInterior::build_watched(index.archive(), &assembly, &request.tree, &options, &watch)
-    {
+    let classes = InteriorForge::new(forge);
+    match EntityInterior::build_with(
+        index.archive(),
+        &assembly,
+        &request.tree,
+        &options,
+        &watch,
+        Some(&classes),
+    ) {
         Ok(interior) => Ok(assembly.with_interior(interior)),
         Err(AssemblyError::Cancelled) => Err(Ended::Cancelled),
         Err(_) if cancel.is_cancelled() => Err(Ended::Cancelled),
@@ -296,7 +304,7 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         }
         Err(other) => return Ended::Failed(failure_of(index, &other)),
     };
-    let assembly = match with_interior(index, assembly, request, (cancel, shared)) {
+    let assembly = match with_interior(index, assembly, request, (cancel, shared), &forge) {
         Ok(assembly) => assembly,
         Err(ended) => return ended,
     };

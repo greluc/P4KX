@@ -46,6 +46,8 @@ impl IssueKind {
             Self::MaterialChoiceUnknown { .. } => "material_choice_unknown",
             Self::LookIgnored { .. } => "look_ignored",
             Self::BodyTypeMismatch { .. } => "body_type_mismatch",
+            Self::FollowMorphsFirstMeshOnly { .. } => "follow_morphs_first_mesh_only",
+            Self::FollowWeightsSkipped { .. } => "follow_weights_skipped",
             Self::LoadoutUnreadable { .. } => "loadout_unreadable",
             Self::MorphsFailed { .. } => "morphs_failed",
             Self::UnknownExpression { .. } => "unknown_expression",

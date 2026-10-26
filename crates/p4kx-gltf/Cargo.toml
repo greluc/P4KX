@@ -12,11 +12,11 @@ publish.workspace = true
 layer = "service"
 
 [dependencies]
-gltf-json = { workspace = true, features = ["KHR_lights_punctual", "names"] }
+gltf-json = { workspace = true, features = ["KHR_lights_punctual", "extras", "names"] }
 p4kx-model.workspace = true
 p4kx-texture.workspace = true
 rayon.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 thiserror.workspace = true
 
 [dev-dependencies]

@@ -8,11 +8,12 @@ use p4kx_gltf::{
     GlbOptions, GlbSummary, GltfError, Scene, SceneLight, SceneNode, ScenePart, TextureLoader,
     write_scene_glb, write_scene_glb_with,
 };
-use p4kx_model::{Lod, MaterialStatus, Model, SocLight, Transform};
+use p4kx_model::{Lod, MaterialStatus, Model, SocLight, TintPalette, Transform};
 
 use crate::Issue;
 
 mod build;
+mod classes;
 mod files;
 mod layers;
 mod light;
@@ -21,6 +22,7 @@ mod scan;
 mod walk;
 mod watch;
 
+pub use classes::InteriorForge;
 pub use watch::{InteriorProgress, InteriorWatch};
 
 pub(crate) fn model_vertices(model: &Model) -> usize {
@@ -103,7 +105,8 @@ pub enum InteriorPartKind {
     Stream,
     /// A model a `.soc` file places.
     Model,
-    /// A prop: an entity of a `.soc` file that names geometry of its own.
+    /// A prop: an entity of a `.soc` file that names geometry of its own, or whose class Record
+    /// does.
     Prop,
     /// A light of a `.soc` file that glTF can express: point, spot or directional.
     Light,
@@ -140,10 +143,19 @@ pub struct InteriorPart {
     pub(crate) model_path: Option<String>,
     pub(crate) model: Option<Arc<Model>>,
     pub(crate) materials: Arc<MaterialStatus>,
+    pub(crate) palette: Option<Arc<TintPalette>>,
     pub(crate) light: Option<SocLight>,
 }
 
 impl InteriorPart {
+    /// Returns the tint palette the part is drawn with: the one its `.soc` file or class Record
+    /// chooses, else the default of its material library; `None` without an
+    /// [`InteriorForge`] or when there is none.
+    #[must_use]
+    pub fn palette(&self) -> Option<&TintPalette> {
+        self.palette.as_deref()
+    }
+
     /// Returns the light of a [`Light`](InteriorPartKind::Light) part as the `.soc` file states
     /// it.
     #[must_use]
@@ -329,7 +341,11 @@ impl Interior {
             });
             let mut node = SceneNode::new(part.name.clone(), above, local);
             if let Some(model) = &part.model {
-                node = node.with_part(ScenePart::new(model, &part.materials));
+                let mut scene_part = ScenePart::new(model, &part.materials);
+                if let Some(palette) = &part.palette {
+                    scene_part = scene_part.with_palette(palette);
+                }
+                node = node.with_part(scene_part);
             }
             if let Some(light) = part.scene_light() {
                 node = node.with_light(light);

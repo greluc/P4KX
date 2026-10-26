@@ -468,7 +468,8 @@ Early development (milestone M1). Available today:
   its 495 blendshapes, e.g. `CTL_expressions blinkR`) are written as named morph targets of the
   head, mixed by the DNA so that they move the character's own face and stored sparse;
   `--expression NAME` (repeatable) limits them, `--no-expressions` leaves them out. Only LOD 0 has
-  expressions, and hair, eyes and teeth follow only the neutral shape of the head. `--lod N` picks
+  expressions. Hair, brows, lashes and beard get morph targets of their own that follow the head's
+  (on the first mesh of each, at LOD 0 only); eyes and teeth have none. `--lod N` picks
   the level of detail of head and body, `--no-vertex-colours` leaves the vertex colours out. A head
   that cannot be shaped (its rig is missing, belongs to another rig or does not match the skin) is
   listed and left out of the GLB, which is still written, and the exit code is 1; an item or a

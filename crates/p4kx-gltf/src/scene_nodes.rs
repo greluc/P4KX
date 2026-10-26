@@ -81,7 +81,7 @@ pub(crate) fn push_scene_nodes(
         name: None,
         nodes: roots,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     });
     root.scene = Some(scene);
 }

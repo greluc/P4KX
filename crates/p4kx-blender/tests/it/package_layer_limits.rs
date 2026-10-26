@@ -91,6 +91,44 @@ fn a_layer_path_that_leaves_the_data_folder_is_an_issue() -> TestResult {
 }
 
 #[test]
+fn a_material_is_followed_again_when_a_shallower_reach_lets_its_layers_go_further() -> TestResult {
+    let manifest = write()?;
+
+    let cycle = named(&manifest, "cycle")?;
+    let layer_of = |number: usize| -> Result<&MaterialDescription, String> {
+        let id = cycle
+            .layers
+            .get(number)
+            .and_then(|layer| layer.material.as_deref())
+            .ok_or_else(|| format!("no material of layer {number}"))?;
+        manifest
+            .materials
+            .iter()
+            .find(|found| found.id == id)
+            .ok_or_else(|| format!("no material {id}"))
+    };
+    let short = layer_of(2)?;
+    assert_eq!(short.name, "late_4");
+    let mut last = short;
+    for name in ["late_5", "late_6", "late_7", "late_8"] {
+        last = next(&manifest, last)?.ok_or_else(|| format!("{name} follows"))?;
+        assert_eq!(last.name, name);
+    }
+    assert!(next(&manifest, last)?.is_none());
+    assert!(
+        manifest.issues.iter().all(|issue| issue.name != "late_7"),
+        "late_7 is followed, so no issue says it was not"
+    );
+
+    let mut reached = layer_of(1)?;
+    while let Some(layer) = next(&manifest, reached)? {
+        reached = layer;
+    }
+    assert_eq!(reached.id, last.id, "the long chain shares the description");
+    Ok(())
+}
+
+#[test]
 fn layer_chains_are_followed_eight_files_deep_and_the_cut_is_an_issue() -> TestResult {
     let manifest = write()?;
 

@@ -3,9 +3,10 @@
 
 use p4kx_extraction::Archive;
 
+use super::classes::ClassLookup;
 use super::models::attach;
 use super::walk::walk;
-use super::{Interior, InteriorOptions, InteriorWatch};
+use super::{Interior, InteriorForge, InteriorOptions, InteriorWatch};
 use crate::AssemblyError;
 
 impl Interior {
@@ -55,8 +56,32 @@ impl Interior {
         options: &InteriorOptions,
         watch: &InteriorWatch<'_>,
     ) -> Result<Self, AssemblyError> {
-        let mut walked = walk(layers, entry, options, watch)?;
-        attach(&mut walked, options, watch)?;
+        Self::build_with(layers, entry, options, watch, None)
+    }
+
+    /// Builds the Interior like [`Self::build_watched`], looking the class Records of the `.soc`
+    /// files' entities up in `forge`.
+    ///
+    /// An entity that names only a class Record (`EntityClassGUID`), such as a door, a panel or a
+    /// cabinet, is placed as a prop with the model, the material library and the tint palette of
+    /// the Record's `SGeometryResourceParams`; an entity of a class without geometry is left out
+    /// as before. The tint palettes the `.soc` file chooses for its models and props, and the
+    /// material library a prop names, are applied; a part without a palette of its own takes the
+    /// default palette of its material library. Without `forge` none of this happens.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_watched`].
+    pub fn build_with(
+        layers: &[&Archive],
+        entry: &str,
+        options: &InteriorOptions,
+        watch: &InteriorWatch<'_>,
+        forge: Option<&InteriorForge<'_>>,
+    ) -> Result<Self, AssemblyError> {
+        let classes = forge.map(|forge| forge as &dyn ClassLookup);
+        let mut walked = walk(layers, entry, options, watch, classes)?;
+        attach(&mut walked, options, watch, classes)?;
         Ok(Self {
             parts: walked.parts,
             issues: walked.issues,

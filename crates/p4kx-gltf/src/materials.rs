@@ -239,7 +239,7 @@ pub(crate) fn build_material(
         index,
         tex_coord: 0,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     };
     json::Material {
         name: Some(if material.name.is_empty() {
@@ -273,7 +273,7 @@ pub(crate) fn build_material(
             scale: 1.0,
             tex_coord: 0,
             extensions: None,
-            extras: json::extras::Void::default(),
+            extras: json::extras::Extras::default(),
         }),
         emissive_factor: EmissiveFactor(emissive(material)),
         ..json::Material::default()

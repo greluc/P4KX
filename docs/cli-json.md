@@ -425,8 +425,12 @@ container, the `.soc` files, the nested containers, the placed models, the props
 `containers_opened` the containers that were opened, the root included; `model_parts` the placed
 models and props, `modelled_parts` those whose model was read, `props` the props among the model
 parts and `lights` the lights written with `KHR_lights_punctual`; their intensity is the raw
-engine value and their colour an approximation, not a conversion to photometric units
-([ADR-0087](adr/0087-an-interior-places-the-props-and-lights-of-its-soc-entities.md)). The other
+engine value and their colour the stored linear one (with a colour temperature tinted by a black
+body), not a conversion to photometric units
+([ADR-0087](adr/0087-an-interior-places-the-props-and-lights-of-its-soc-entities.md),
+[ADR-0199](adr/0199-interior-props-from-class-records-and-linear-light-colours.md)). When the
+Archive has a DataForge, `props` also counts the entities whose geometry comes from their class
+Record, and the parts are drawn with their tint palettes. The other
 counts are those of `entity glb`. An
 **Issue** has the fields of the `entity glb` Issue: `path` is the names of the containers from the
 root joined by `/`, `name` the container, `.soc` file or model, and the kinds are
@@ -435,7 +439,8 @@ itself and not entered again), `file_missing`, `file_unreadable`, `invalid_place
 `objects_left_out`, `unsupported_objects`, `entities_left_out` (props or lights without a usable
 placement), `light_unsupported` (ambient, planar or unknown lights, which glTF cannot express; the
 `name` is the `.soc` file and the message gives the type and count), `geometry_missing`,
-`geometry_unreadable`, `material_library`, `too_many_parts`, `too_many_containers`,
+`geometry_unreadable`, `material_library`, `palette` (a tint palette that cannot be used; the
+part keeps the next choice), `too_many_parts`, `too_many_containers`,
 `too_many_vertices` and `too_deep`
 ([ADR-0081](adr/0081-an-interior-is-the-socpaks-soc-files-placed-in-nested-containers.md)). The
 file is written even when parts are skipped.
@@ -2102,9 +2107,9 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
            {"name": "head", "origin": "head", "file": "…", "morph_targets": 399},
            {"name": "teeth", "origin": "head", "file": "…", "morph_targets": 0},
            {"name": "eyes_itemport", "origin": "head", "file": "…", "morph_targets": 0},
-           {"name": "hair_itemport", "origin": "head", "file": "…", "morph_targets": 0}],
+           {"name": "hair_itemport", "origin": "head", "file": "…", "morph_targets": 246}],
  "nodes": 412, "bones": 403, "meshes": 9, "skinned_meshes": 9, "primitives": 41,
- "materials": 14, "morph_targets": 399, "textured_materials": 12, "textures": 20,
+ "materials": 14, "morph_targets": 645, "textured_materials": 12, "textures": 20,
  "texture_pixels": 36700160,
  "texture_fallbacks": [{"material": "…", "role": "diffuse", "file": "…", "reason": "…"}],
  "default_material_ids": 0, "vertices": 61582, "triangles": 66225, "bytes": 37236432,
@@ -2140,11 +2145,16 @@ tattoos, are not drawn) and `body_type_mismatch` (the body type of the character
 the head rig its DNA names, on the piece `head`; ADR-0197). The normals and tangents of a shaped
 head are turned with its new surface (ADR-0197).
 
-Only the piece named `head` has `morph_targets`: the number of expressions written. They are the
+The piece named `head` has `morph_targets`: the number of expressions written. They are the
 expressions of the head rig that move a vertex of the character's face, all of them by default at
 `--lod 0`, only the ones named by `--expression NAME` (repeatable) otherwise, none with
-`--no-expressions` and at other levels, whose rigs have none. The teeth, eyes, hair and beard have
-none and follow only the neutral shape of the head. A name the rig lacks adds
+`--no-expressions` and at other levels, whose rigs have none. The hair, brows, lashes and beard
+have a target for each expression that moves one of their vertices by at least a fifth of the
+target's largest move, named like the head's and moved as they follow the neutral shape
+(ADR-0200); the teeth and eyes have none. Only the first mesh of such a piece at LOD 0 gets
+targets: a piece with several meshes adds the note `follow_morphs_first_mesh_only`, and
+`follow_weights_skipped` says that a facial animation sets no weights for a piece whose targets do
+not match the head's. A facial animation's budget counts the hair weights too. A name the rig lacks adds
 `unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that
 cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
 the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code

@@ -285,6 +285,19 @@ pub enum IssueKind {
         /// The name of the head rig the DNA names.
         rig: String,
     },
+    /// A piece that follows the head has several meshes at level 0; only the first follows the
+    /// head's expressions.
+    #[error("{meshes} meshes at level 0: only the first follows the expressions of the head")]
+    FollowMorphsFirstMeshOnly {
+        /// The meshes of the piece at level 0.
+        meshes: usize,
+    },
+    /// The morph targets of a piece that follows the head take no animation weights.
+    #[error("its expression targets are not animated: {reason}")]
+    FollowWeightsSkipped {
+        /// Why.
+        reason: String,
+    },
     /// The Loadout of the piece's Entity could not be read in full; the piece is worn as it is.
     #[error("the Loadout of the Entity cannot be read in full: {reason}")]
     LoadoutUnreadable {

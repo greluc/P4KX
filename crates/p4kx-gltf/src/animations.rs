@@ -203,7 +203,7 @@ pub(crate) fn push_animations(
             let output = push_accessor(root, buffer, values, None);
             samplers.push(Sampler {
                 extensions: None,
-                extras: json::extras::Void::default(),
+                extras: json::extras::Extras::default(),
                 input,
                 interpolation: Valid(if channel.step {
                     Interpolation::Step
@@ -216,7 +216,7 @@ pub(crate) fn push_animations(
                 sampler: Index::new(u32::try_from(position).unwrap_or(u32::MAX)),
                 target: Target {
                     extensions: None,
-                    extras: json::extras::Void::default(),
+                    extras: json::extras::Extras::default(),
                     node: Index::new(u32::try_from(channel.node).unwrap_or(u32::MAX)),
                     path: Valid(match channel.path {
                         ChannelPath::Rotation => Property::Rotation,
@@ -225,12 +225,12 @@ pub(crate) fn push_animations(
                     }),
                 },
                 extensions: None,
-                extras: json::extras::Void::default(),
+                extras: json::extras::Extras::default(),
             });
         }
         root.push(json::Animation {
             extensions: None,
-            extras: json::extras::Void::default(),
+            extras: json::extras::Extras::default(),
             channels,
             name: (!plan.name.is_empty()).then(|| plan.name.clone()),
             samplers,

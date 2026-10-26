@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use p4kx_assembly::{ArchiveFiles, Entities};
-use p4kx_channels::channel_name;
+use p4kx_channels::{PublicPatches, channel_name};
 use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, utc_rfc3339};
 
 use crate::build_derived::{add_contracts, add_loadouts, add_paints};
@@ -222,7 +222,7 @@ fn assemble<R>(
     );
     let catalog = Catalog {
         schema_version: SCHEMA_VERSION,
-        source: source(archive, options.exported_at),
+        source: source(archive, options.exported_at, options.public_patches),
         completeness: Completeness::of_every_kind(completeness_of(options)),
         manufacturers: collected.manufacturers,
         items: collected.items,
@@ -315,7 +315,11 @@ fn completeness_of<'o>(options: &'o CatalogOptions<'_>) -> KindCompleteness<'o> 
     })
 }
 
-pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
+pub(crate) fn source<'a>(
+    archive: &'a Archive,
+    exported_at: SystemTime,
+    patches: Option<&'a PublicPatches>,
+) -> Source<'a> {
     Source {
         channel: channel_name(archive.path()),
         build: archive.build().map(|build| BuildSource {
@@ -323,7 +327,7 @@ pub(crate) fn source(archive: &Archive, exported_at: SystemTime) -> Source<'_> {
             version: build.version(),
             change_number: build.change_number(),
             build_id: build.build_id(),
-            public_patch: build.public_patch(),
+            public_patch: patches.and_then(|patches| patches.of(build)),
         }),
         archive_size: archive.file_len(),
         archive_modified: archive.file_modified().map(utc_rfc3339),

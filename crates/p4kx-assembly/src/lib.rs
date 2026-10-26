@@ -92,6 +92,7 @@ mod port;
 mod provider;
 mod read;
 mod resolver;
+mod resolver_prefetch;
 mod resolver_vehicle;
 mod spec;
 mod tree;

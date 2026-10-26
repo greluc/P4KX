@@ -208,8 +208,31 @@ fn an_entity_whose_record_cannot_be_read_exits_with_code_5() -> TestResult {
 }
 
 #[test]
-fn docked_vehicles_are_marked_and_can_be_left_unexpanded() -> TestResult {
-    let database = [
+fn glb_expands_docked_vehicles_only_on_request() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &docked_database(), Vec::new())?;
+    let glb = |expand: bool| -> Result<serde_json::Value, Box<dyn Error>> {
+        let mut command = p4kx_testkit::p4kx()?;
+        command
+            .args(["--json", "entity", "glb"])
+            .arg(&archive)
+            .arg("Carrier")
+            .arg("--out")
+            .arg(dir.path().join("carrier.glb"));
+        if expand {
+            command.arg("--expand-docked-vehicles");
+        }
+        let output = command.output()?;
+        assert_eq!(output.status.code(), Some(0), "{output:?}");
+        Ok(serde_json::from_slice(&output.stdout)?)
+    };
+    assert_eq!(glb(false)?["parts"], 2, "Carrier and Snub");
+    assert_eq!(glb(true)?["parts"], 3, "with the gun of the Snub");
+    Ok(())
+}
+
+fn docked_database() -> DataForgeBuilder {
+    [
         TestEntity::new(0x1, "Carrier", "entities/carrier.xml").loadout(TestLoadout::Manual(vec![
             TestLoadoutEntry::class("hangar", "Snub"),
         ])),
@@ -223,9 +246,13 @@ fn docked_vehicles_are_marked_and_can_be_left_unexpanded() -> TestResult {
     .iter()
     .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
         builder.record(entity.record())
-    });
+    })
+}
+
+#[test]
+fn docked_vehicles_are_marked_and_can_be_left_unexpanded() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path(), &database, Vec::new())?;
+    let archive = write_archive(dir.path(), &docked_database(), Vec::new())?;
     let run = |json: bool, stop: bool| -> Result<String, Box<dyn Error>> {
         let mut command = p4kx_testkit::p4kx()?;
         if json {
@@ -255,6 +282,7 @@ fn docked_vehicles_are_marked_and_can_be_left_unexpanded() -> TestResult {
     );
     assert!(!stopped.contains("snub_gun"), "{stopped}");
     assert!(stopped.contains("1 ports: 1 attached"), "{stopped}");
+    assert!(stopped.contains("; 1 docked vehicles\n"), "{stopped}");
 
     let json: serde_json::Value = serde_json::from_str(&run(true, true)?)?;
     assert_eq!(json["docked_vehicles"], 1, "count");

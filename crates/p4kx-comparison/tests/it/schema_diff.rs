@@ -305,7 +305,7 @@ fn the_report_names_both_sides_and_carries_the_diff() -> TestResult {
     let (old, new) = (pair.old_entry.open()?, pair.new_entry.open()?);
     let diff = compare_schema(&old, &new);
 
-    let report = serde_json::to_value(schema_report(&pair.old, &pair.new, &diff))?;
+    let report = serde_json::to_value(schema_report(&pair.old, &pair.new, &diff, None))?;
 
     assert_eq!(report.pointer("/format_version"), Some(&1.into()));
     assert_eq!(report.pointer("/source/old/channel"), Some(&"LIVE".into()));

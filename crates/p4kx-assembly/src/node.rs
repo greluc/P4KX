@@ -34,31 +34,16 @@ impl LoadoutResolver<'_> {
         overrides: Option<&LoadoutSpec>,
         walk: &mut Walk,
     ) -> EntityNode {
+        let attached_vehicle = spec.docked_vehicle && !walk.is_root();
+        if self.stop_at_docked && attached_vehicle {
+            return shell(spec, attached_vehicle, false);
+        }
         let mut issues = Vec::new();
         let mut ports = Vec::new();
-        let attached_vehicle = spec.docked_vehicle && !walk.is_root();
-        let expanded = !(self.stop_at_docked && attached_vehicle);
-        let vehicle = if expanded {
-            self.vehicle_with_issues(spec, &mut issues)
-        } else {
-            None
-        };
-        let landing_gear = if expanded {
-            self.landing_gear_of(spec, &mut issues)
-        } else {
-            Arc::from([])
-        };
-        let entries = if expanded {
-            self.merged_entries(spec, overrides, &mut issues)
-        } else {
-            Vec::new()
-        };
-        let pending: Vec<Pending<'_>> = if expanded {
-            pending_ports(spec, &entries, vehicle.as_deref()).collect()
-        } else {
-            Vec::new()
-        };
-        for pending in pending {
+        let vehicle = self.vehicle_with_issues(spec, &mut issues);
+        let landing_gear = self.landing_gear_of(spec, &mut issues);
+        let entries = self.merged_entries(spec, overrides, &mut issues);
+        for pending in pending_ports(spec, &entries, vehicle.as_deref()) {
             if !walk.reserve() {
                 issues.push(LoadoutError::TooManyPorts);
                 break;
@@ -72,25 +57,11 @@ impl LoadoutResolver<'_> {
             ports.push(port);
         }
         EntityNode {
-            guid: spec.guid,
-            record_path: spec.record_path.clone(),
-            name: spec.name.clone(),
             ports,
             issues,
-            geometry: spec.geometry.clone(),
             vehicle,
             landing_gear,
-            docked_vehicle: attached_vehicle,
-            loadout_file: match &spec.loadout {
-                Some(LoadoutSpec::Xml(path)) => Some(Arc::clone(path)),
-                _ => None,
-            },
-            expanded,
-            attach_type: spec.attach_type.clone(),
-            attach_sub_type: spec.attach_sub_type.clone(),
-            size: spec.size,
-            container: spec.container,
-            object_containers: Arc::clone(&spec.object_containers),
+            ..shell(spec, attached_vehicle, true)
         }
     }
 
@@ -376,6 +347,31 @@ fn pending_ports<'s>(
             origin: (port.default_item != TargetSpec::None).then_some(&spec.origin),
         });
     from_entries.chain(defined).chain(declared)
+}
+
+/// Returns the node of `spec` without ports, issues, vehicle implementation and landing gear.
+fn shell(spec: &EntitySpec, docked_vehicle: bool, expanded: bool) -> EntityNode {
+    EntityNode {
+        guid: spec.guid,
+        record_path: spec.record_path.clone(),
+        name: spec.name.clone(),
+        ports: Vec::new(),
+        issues: Vec::new(),
+        geometry: spec.geometry.clone(),
+        vehicle: None,
+        landing_gear: Arc::from([]),
+        docked_vehicle,
+        loadout_file: match &spec.loadout {
+            Some(LoadoutSpec::Xml(path)) => Some(Arc::clone(path)),
+            _ => None,
+        },
+        expanded,
+        attach_type: spec.attach_type.clone(),
+        attach_sub_type: spec.attach_sub_type.clone(),
+        size: spec.size,
+        container: spec.container,
+        object_containers: Arc::clone(&spec.object_containers),
+    }
 }
 
 fn class_text(target: &TargetSpec) -> String {

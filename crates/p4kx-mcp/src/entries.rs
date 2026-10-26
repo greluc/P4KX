@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use p4kx_channels::PublicPatches;
 use p4kx_extraction::{Archive, Filter};
 
 use crate::container::Place;
@@ -12,8 +13,8 @@ use crate::shapes::{
 
 const MAX_SHOWN_ISSUES: usize = 50;
 
-/// Returns the summary of `archive`.
-pub(crate) fn info(archive: &Archive) -> ArchiveInfo {
+/// Returns the summary of `archive`, its Build with the public patch `patches` knows.
+pub(crate) fn info(archive: &Archive, patches: &PublicPatches) -> ArchiveInfo {
     let entries = archive.entries();
     let (encrypted_count, compressed_size, size) =
         entries
@@ -28,7 +29,9 @@ pub(crate) fn info(archive: &Archive) -> ArchiveInfo {
     ArchiveInfo {
         archive: archive.path().display().to_string(),
         channel: p4kx_channels::channel_name(archive.path()),
-        build: archive.build().map(BuildShape::from),
+        build: archive
+            .build()
+            .map(|build| BuildShape::from(&patches.attach(build))),
         entry_count: entries.len(),
         encrypted_count,
         issue_count: archive.issue_count(),

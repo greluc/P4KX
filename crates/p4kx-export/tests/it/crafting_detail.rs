@@ -16,7 +16,7 @@ use p4kx_extraction::{DataForge, Guid};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn guid(value: u128) -> Guid {
+pub(crate) fn guid(value: u128) -> Guid {
     let text = format!(
         "{:08x}-{:04x}-{:04x}-{:04x}-{:012x}",
         value >> 96,

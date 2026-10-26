@@ -79,6 +79,12 @@ impl WalkState {
         }
     }
 
+    /// Readies the state for the next Record, keeping its buffer.
+    pub(crate) fn reset(&mut self) {
+        self.budget = MAX_PATH_VALUES;
+        self.unresolved.clear();
+    }
+
     /// Returns how many distinct null or dangling links `->` met.
     pub(crate) const fn unresolved(&self) -> usize {
         self.unresolved.len()

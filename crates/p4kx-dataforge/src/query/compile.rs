@@ -28,6 +28,17 @@ pub struct CompiledQuery<'f> {
     pub(crate) share_prefixes: bool,
 }
 
+/// Columns of one struct that walk their first `steps` path steps once per Record.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SharedPrefix {
+    /// The index of the struct in the DataForge.
+    pub struct_index: usize,
+    /// The positions of the columns after the record path, in column order.
+    pub columns: Box<[usize]>,
+    /// The number of pointer, array and link steps they share.
+    pub steps: usize,
+}
+
 /// What the cells of one column hold, known before any Record is read.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ColumnKind {
@@ -84,6 +95,30 @@ impl<'f> CompiledQuery<'f> {
     pub const fn without_shared_prefixes(mut self) -> Self {
         self.share_prefixes = false;
         self
+    }
+
+    /// Returns the groups of columns that walk their first steps once per Record, for each struct
+    /// whose plan has any, in struct order.
+    #[must_use]
+    pub fn shared_prefixes(&self) -> Vec<SharedPrefix> {
+        self.plans
+            .iter()
+            .enumerate()
+            .filter_map(|(struct_index, plan)| match plan {
+                Some(Plan::Read { shared, .. }) => Some((struct_index, shared)),
+                _ => None,
+            })
+            .flat_map(|(struct_index, shared)| {
+                shared
+                    .groups()
+                    .into_iter()
+                    .map(move |(columns, steps)| SharedPrefix {
+                        struct_index,
+                        columns: columns.into_boxed_slice(),
+                        steps,
+                    })
+            })
+            .collect()
     }
 
     /// Returns the DataForge the Query was compiled for.

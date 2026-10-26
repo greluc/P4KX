@@ -6,7 +6,8 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use p4kx_archive::{Archive, Entry};
-use p4kx_chunks::{Chunk, ChunkFile};
+use p4kx_chunks::{Chunk, ChunkFile, Container};
+use p4kx_cryxml as cryxml;
 
 use crate::entry_content::find_entry;
 use crate::output_file::{read_error, write_error, write_replacing};
@@ -172,4 +173,84 @@ impl ChunkSource {
         })?;
         Ok(*chunk)
     }
+
+    /// Writes the chunk at `index` as UTF-8 text to `out`, replacing it, and returns the chunk:
+    /// a `CryXmlB` chunk (`CrCh` types `0x0004`, `0x0014`) as XML, a `Json` or `ModelPaths` chunk
+    /// (`0x0011`, `0x0013`) as it is stored after checking that it is UTF-8.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ConversionError::NoSuchChunk`] when the table has no chunk at `index`,
+    /// [`ConversionError::ChunkNotText`] when the chunk's type has no text form,
+    /// [`ConversionError::ChunkText`] when its data is no valid `CryXml` or UTF-8,
+    /// [`ConversionError::OutputIsInput`] when `out` is the chunk file itself, and
+    /// [`ConversionError::Write`] when the file cannot be written.
+    pub fn write_chunk_text_to_file(
+        &self,
+        index: usize,
+        out: &Path,
+    ) -> Result<Chunk, ConversionError> {
+        let chunk_and_data = self
+            .file
+            .chunks()
+            .get(index)
+            .zip(self.file.chunk_data(index));
+        let (chunk, data) = chunk_and_data.ok_or_else(|| ConversionError::NoSuchChunk {
+            file: self.name.clone(),
+            index,
+            count: self.file.chunks().len(),
+        })?;
+        let kind = chunk.chunk_type();
+        let text_error = |source| ConversionError::ChunkText {
+            file: self.name.clone(),
+            index,
+            source,
+        };
+        let text = match (kind.container(), kind.id()) {
+            (Container::CrCh, 0x0004 | 0x0014) => ChunkText::Xml(
+                cryxml::read(data).map_err(|e| text_error(ChunkTextError::CryXml(e)))?,
+            ),
+            (Container::CrCh, 0x0011 | 0x0013) => ChunkText::Utf8(
+                std::str::from_utf8(data).map_err(|e| text_error(ChunkTextError::Utf8(e)))?,
+            ),
+            _ => {
+                return Err(ConversionError::ChunkNotText {
+                    file: self.name.clone(),
+                    index,
+                    chunk_type: kind.to_string(),
+                });
+            }
+        };
+        if let Some(path) = &self.path
+            && is_same_file(out, [path.clone()])
+        {
+            return Err(ConversionError::OutputIsInput {
+                path: out.to_path_buf(),
+            });
+        }
+        write_replacing(out, |writer| {
+            match text {
+                ChunkText::Xml(xml) => xml.write_to(&mut *writer),
+                ChunkText::Utf8(text) => writer.write_all(text.as_bytes()),
+            }
+            .map_err(|source| write_error(out, source))
+        })?;
+        Ok(*chunk)
+    }
+}
+
+enum ChunkText<'a> {
+    Xml(cryxml::Xml<'a>),
+    Utf8(&'a str),
+}
+
+/// Why the data of a chunk has no text form.
+#[derive(Debug, thiserror::Error)]
+pub enum ChunkTextError {
+    /// The data is no readable `CryXml`.
+    #[error("the data is not valid CryXml")]
+    CryXml(#[source] cryxml::CryXmlError),
+    /// The data is no UTF-8 text.
+    #[error("the data is not UTF-8 text")]
+    Utf8(#[source] std::str::Utf8Error),
 }

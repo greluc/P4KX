@@ -166,4 +166,31 @@ pub mod crch {
     pub const GLOBAL_ANIMATION_HEADER_AIM: ChunkType = ChunkType::new(Container::CrCh, 0x3008);
     /// The `BspTreeData` chunk type.
     pub const BSP_TREE_DATA: ChunkType = ChunkType::new(Container::CrCh, 0x3009);
+    /// The `Soc0002` chunk type of a `.soc` file: one per file, version 5; layout not read.
+    pub const SOC_0002: ChunkType = ChunkType::new(Container::CrCh, 0x0002);
+    /// The `CryXmlB` chunk type of a `.soc` file: the entities, as `CryXmlB` data.
+    pub const CRY_XML_B: ChunkType = ChunkType::new(Container::CrCh, 0x0004);
+    /// The `Soc0008` chunk type of a `.soc` file: a table of GUIDs; layout not read.
+    pub const SOC_0008: ChunkType = ChunkType::new(Container::CrCh, 0x0008);
+    /// The `Soc0009` chunk type of a `.soc` file: a 59-byte record that starts with a GUID.
+    pub const SOC_0009: ChunkType = ChunkType::new(Container::CrCh, 0x0009);
+    /// The `Soc000B` chunk type of a `.soc` file; unverified, in no measured Archive.
+    pub const SOC_000B: ChunkType = ChunkType::new(Container::CrCh, 0x000B);
+    /// The `AreaShape` chunk type of a `.soc` file: a named area with its shape.
+    pub const AREA_SHAPE: ChunkType = ChunkType::new(Container::CrCh, 0x000E);
+    /// The `IncludedObjects` chunk type of a `.soc` file: the models it places.
+    pub const INCLUDED_OBJECTS: ChunkType = ChunkType::new(Container::CrCh, 0x0010);
+    /// The `Json` chunk type of a `.soc` file: UTF-8 JSON text; unverified, in no measured
+    /// Archive.
+    pub const JSON: ChunkType = ChunkType::new(Container::CrCh, 0x0011);
+    /// The `ModelPaths` chunk type of a `.soc` file: model paths as UTF-8 text, one per line.
+    pub const MODEL_PATHS: ChunkType = ChunkType::new(Container::CrCh, 0x0013);
+    /// The `CryXmlB2` chunk type of a `.soc` file: `CryXmlB` data, version 3.
+    pub const CRY_XML_B_2: ChunkType = ChunkType::new(Container::CrCh, 0x0014);
+    /// The `Soc4002` chunk type of a `.soc` file; unverified, in no measured Archive.
+    pub const SOC_4002: ChunkType = ChunkType::new(Container::CrCh, 0x4002);
+    /// The `Soc4007` chunk type of a `.soc` file; unverified, in no measured Archive.
+    pub const SOC_4007: ChunkType = ChunkType::new(Container::CrCh, 0x4007);
+    /// The `Soc5000` chunk type of a `.soc` file; unverified, in no measured Archive.
+    pub const SOC_5000: ChunkType = ChunkType::new(Container::CrCh, 0x5000);
 }

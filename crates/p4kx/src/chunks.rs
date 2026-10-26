@@ -33,7 +33,12 @@ struct DumpJson<'a> {
 pub(crate) fn run(args: &ChunksArgs, as_json: bool) -> Result<()> {
     match &args.action {
         ChunksAction::List(source) => list(&open(source)?, as_json),
-        ChunksAction::Dump { source, chunk, out } => dump(&open(source)?, *chunk, out, as_json),
+        ChunksAction::Dump {
+            source,
+            chunk,
+            out,
+            text,
+        } => dump(&open(source)?, *chunk, out, *text, as_json),
     }
 }
 
@@ -101,8 +106,12 @@ fn list(source: &ChunkSource, as_json: bool) -> Result<()> {
     Ok(())
 }
 
-fn dump(source: &ChunkSource, index: usize, out: &Path, as_json: bool) -> Result<()> {
-    let chunk = source.write_chunk_to_file(index, out)?;
+fn dump(source: &ChunkSource, index: usize, out: &Path, text: bool, as_json: bool) -> Result<()> {
+    let chunk = if text {
+        source.write_chunk_text_to_file(index, out)?
+    } else {
+        source.write_chunk_to_file(index, out)?
+    };
     if as_json {
         json::print(&DumpJson {
             file: source.name(),

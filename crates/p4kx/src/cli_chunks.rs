@@ -22,7 +22,7 @@ pub(crate) enum ChunksAction {
     /// version, chunk ID, byte order, offset and size; types not in the table are marked unknown.
     #[command(after_help = EXIT_CODES_HELP)]
     List(ChunkFileSource),
-    /// Writes the bytes of one chunk unchanged to a file.
+    /// Writes the bytes of one chunk unchanged to a file, or with --text as text.
     #[command(after_help = EXIT_CODES_HELP)]
     Dump {
         /// The chunk file.
@@ -34,6 +34,11 @@ pub(crate) enum ChunksAction {
         /// The file to write; an existing file is replaced.
         #[arg(long, value_name = "FILE")]
         out: PathBuf,
+        /// Writes the chunk as UTF-8 text: a CryXmlB chunk (type 0x0004 or 0x0014 of a .soc
+        /// file) as XML, a JSON chunk or a list of model paths (0x0011, 0x0013) as stored. Other chunk
+        /// types have no text form.
+        #[arg(long)]
+        text: bool,
     },
 }
 

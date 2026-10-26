@@ -465,7 +465,8 @@ Early development (milestone M1). Available today:
   `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.dba`) in the `#ivo` or `CrCh`
   container: index, type, type ID, version, chunk ID, byte order, offset and size, with unknown
   types marked; `p4kx chunks dump <archive> <entry> --chunk <index> --out <file>` writes one
-  chunk's bytes unchanged. Both also take a chunk file on disk.
+  chunk's bytes unchanged, or with `--text` as text for the `CryXmlB`, `Json` and `ModelPaths`
+  chunks of a `.soc` file. Both also take a chunk file on disk, e.g. an extracted `.soc`.
 - `p4kx model info <archive> <entry>` shows an `#ivo` model (`.cgf` or `.skin` with its geometry
   companion `.cgfm` or `.skinm`, or a skeleton file `.chr`): its nodes with their hierarchy, its
   LODs and meshes with vertex and triangle counts, the material library and material IDs, its bones

@@ -8,7 +8,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use assert_cmd::Command;
-use p4kx_testkit::{ArchiveBuilder, TestChunkFile, TestEntry};
+use p4kx_testkit::{
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, TestChunkFile, TestElement, TestEntry,
+};
 use predicates::prelude::predicate;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -175,6 +177,111 @@ fn dump_onto_the_chunk_file_itself_exits_with_code_2() -> TestResult {
         .stderr(predicate::str::contains("is one of the inputs"));
 
     assert_eq!(fs::read(&file)?, crch_model(), "the input is unchanged");
+    Ok(())
+}
+
+fn soc_file() -> Vec<u8> {
+    let entities = TestElement::new("Entities")
+        .child(TestElement::new("Entity").attribute("Name", "door"))
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+    TestChunkFile::crch()
+        .chunk(0x0002, 5, [0; 8])
+        .chunk(0x0004, 3, entities)
+        .chunk(0x0011, 1, *b"{\"a\":1}")
+        .chunk(0x0013, 1, *b"objects/a.cgf\nobjects/b.cgf\n")
+        .chunk(0x000E, 1, [0; 8])
+        .chunk(0x0011, 1, [0xFF, 0xFE])
+        .bytes()
+}
+
+#[test]
+fn list_of_a_soc_file_names_its_chunk_types() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("room.soc");
+    fs::write(&file, soc_file())?;
+
+    let output = p4kx()?.args(["chunks", "list"]).arg(&file).output()?;
+
+    assert_eq!(output.status.code(), Some(0), "success: {output:?}");
+    let text = String::from_utf8(output.stdout)?;
+    for name in ["Soc0002", "CryXmlB", "Json", "ModelPaths", "AreaShape"] {
+        assert!(text.contains(name), "{name} in {text}");
+    }
+    assert!(!text.contains("Unknown:"), "no unknown type: {text}");
+    Ok(())
+}
+
+#[test]
+fn dump_text_writes_cryxml_as_xml_and_json_as_stored() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("room.soc");
+    fs::write(&file, soc_file())?;
+    let xml = dir.path().join("entities.xml");
+    let json = dir.path().join("chunk.json");
+    let paths = dir.path().join("paths.txt");
+
+    for (index, out) in [("1", &xml), ("2", &json), ("3", &paths)] {
+        p4kx()?
+            .args(["chunks", "dump"])
+            .arg(&file)
+            .args(["--text", "--chunk", index, "--out"])
+            .arg(out)
+            .assert()
+            .code(0);
+    }
+
+    let xml = fs::read_to_string(&xml)?;
+    assert!(
+        xml.contains("<Entity Name=\"door\""),
+        "the entities as XML: {xml}"
+    );
+    assert_eq!(fs::read_to_string(&json)?, "{\"a\":1}", "JSON as stored");
+    assert_eq!(
+        fs::read_to_string(&paths)?,
+        "objects/a.cgf\nobjects/b.cgf\n",
+        "paths as stored"
+    );
+    Ok(())
+}
+
+#[test]
+fn dump_text_of_a_chunk_without_a_text_form_exits_with_code_2() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("room.soc");
+    fs::write(&file, soc_file())?;
+    let out = dir.path().join("area.txt");
+
+    p4kx()?
+        .args(["chunks", "dump"])
+        .arg(&file)
+        .args(["--text", "--chunk", "4", "--out"])
+        .arg(&out)
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "AreaShape, which has no text form",
+        ));
+
+    assert!(!out.exists(), "nothing is written");
+    Ok(())
+}
+
+#[test]
+fn dump_text_of_corrupt_text_exits_with_code_3() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("room.soc");
+    fs::write(&file, soc_file())?;
+    let out = dir.path().join("bad.json");
+
+    p4kx()?
+        .args(["chunks", "dump"])
+        .arg(&file)
+        .args(["--text", "--chunk", "5", "--out"])
+        .arg(&out)
+        .assert()
+        .code(3);
+
+    assert!(!out.exists(), "nothing is written");
     Ok(())
 }
 

@@ -239,7 +239,8 @@ order is attached. The same Archive always gives the same document.
  "triangles": 818426, "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
 ```
 
-`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. A docked vehicle is
+one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. `parts` counts the
 root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one;

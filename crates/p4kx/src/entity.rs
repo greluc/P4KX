@@ -73,6 +73,9 @@ fn print_tree(tree: &EntityNode, counts: Counts) -> io::Result<()> {
         "{} ports: {} attached, {} empty, {} unresolved",
         counts.ports, counts.attached, counts.empty, counts.unresolved
     )?;
+    if counts.docked_vehicles > 0 {
+        write!(out, "; {} docked vehicles", counts.docked_vehicles)?;
+    }
     if counts.excluded > 0 || counts.replaced > 0 {
         write!(
             out,

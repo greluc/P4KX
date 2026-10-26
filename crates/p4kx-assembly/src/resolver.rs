@@ -60,6 +60,7 @@ impl std::fmt::Debug for LoadoutResolver<'_> {
             .field("entities", &self.entities)
             .field("files", &self.files.is_some())
             .field("records", &self.specs.len())
+            .field("stop_at_docked", &self.stop_at_docked)
             .finish_non_exhaustive()
     }
 }
@@ -309,15 +310,40 @@ impl<'f> LoadoutResolver<'f> {
     }
 
     /// Returns the Records the specs name that are not read yet, each once.
-    fn unread_targets(&self, specs: &[SpecResult]) -> Vec<Record<'f>> {
+    fn unread_targets(&mut self, specs: &[SpecResult]) -> Vec<Record<'f>> {
+        let mut named = Vec::new();
+        for spec in specs.iter().filter_map(|spec| spec.as_ref().as_ref().ok()) {
+            named.extend(spec.default_targets().filter_map(|t| self.record_of(t)));
+            if let Some(entries) = spec.manual_entries() {
+                self.entry_records(entries, &mut named);
+            }
+        }
         let mut seen = HashSet::new();
-        specs
-            .iter()
-            .filter_map(|spec| spec.as_ref().as_ref().ok())
-            .flat_map(EntitySpec::targets)
-            .filter_map(|target| self.record_of(target))
-            .filter(|record| !self.specs.contains_key(&record.guid()) && seen.insert(record.guid()))
-            .collect()
+        named.retain(|record| {
+            !self.specs.contains_key(&record.guid()) && seen.insert(record.guid())
+        });
+        named
+    }
+
+    /// Collects the Records the entries name, nested ones included; when docked vehicles are
+    /// not expanded, the entries nested below a docked vehicle are left out.
+    fn entry_records(&mut self, entries: &[EntrySpec], out: &mut Vec<Record<'f>>) {
+        for entry in entries {
+            let record = self.record_of(&entry.target);
+            out.extend(record);
+            if let Some(LoadoutSpec::Manual(nested)) = &entry.loadout {
+                let docked = self.stop_at_docked
+                    && record.is_some_and(|record| {
+                        self.spec(record.guid())
+                            .as_ref()
+                            .as_ref()
+                            .is_ok_and(|spec| spec.docked_vehicle)
+                    });
+                if !docked {
+                    self.entry_records(nested, out);
+                }
+            }
+        }
     }
 }
 /// Reads the spec of one Record, which must be an Entity.

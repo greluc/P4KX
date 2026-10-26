@@ -148,3 +148,60 @@ fn the_resolved_entity_itself_is_expanded_even_if_it_is_a_vehicle() -> TestResul
     assert_eq!(attached(&tree, "snub_gun")?.class_name(), "SnubGun");
     Ok(())
 }
+
+fn records_read(stop: bool, attach_type: &str) -> Result<(usize, bool), Box<dyn Error>> {
+    let fleet = [
+        entity(0x1, "Carrier").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::class("hangar", "Snub").loadout(TestLoadout::Manual(vec![
+                TestLoadoutEntry::class("snub_gun", "NestedGun"),
+            ])),
+        ])),
+        entity(0x2, "Snub").attach_type(attach_type),
+        entity(0x3, "NestedGun").attach_type("WeaponGun"),
+    ];
+    let bytes = fleet
+        .iter()
+        .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
+            builder.record(entity.record())
+        })
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    if stop {
+        resolver = resolver.stopping_at_docked_vehicles();
+    }
+    let carrier = resolver.entities().find("Carrier")?;
+    let tree = resolver.resolve(&carrier)?;
+    let docked = attached(&tree, "hangar")?.is_docked_vehicle();
+    let debug = format!("{resolver:?}");
+    let records = debug
+        .rsplit("records: ")
+        .next()
+        .and_then(|rest| rest.split(',').next())
+        .ok_or("no record count")?
+        .parse()?;
+    assert!(
+        debug.contains(&format!("stop_at_docked: {stop}")),
+        "{debug}"
+    );
+    Ok((records, docked))
+}
+
+#[test]
+fn the_marker_ignores_the_case_of_the_item_type() -> TestResult {
+    for attach_type in ["noitem_vehicle_snub", "NoItem_VEHICLE", "NOITEM_Vehicle"] {
+        assert!(records_read(false, attach_type)?.1, "{attach_type}");
+    }
+    assert!(!records_read(false, "NOITEM_Vehicl")?.1, "too short");
+    assert!(!records_read(false, "Item_Vehicle")?.1, "other prefix");
+    Ok(())
+}
+
+#[test]
+fn records_below_a_docked_vehicle_are_not_read_ahead_when_stopping() -> TestResult {
+    let (expanded, _) = records_read(false, "NOITEM_Vehicle_Snub")?;
+    let (stopped, docked) = records_read(true, "NOITEM_Vehicle_Snub")?;
+    assert!(docked);
+    assert_eq!(stopped + 1, expanded, "only the nested gun is skipped");
+    Ok(())
+}

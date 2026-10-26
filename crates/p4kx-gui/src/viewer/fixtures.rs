@@ -21,6 +21,15 @@ pub(super) fn skin_model() -> Model {
         .unwrap_or_else(|error| panic!("the skin: {error}"))
 }
 
+pub(super) fn still(name: &str) -> Animation {
+    let tip = TestSkeleton::controller_id(1);
+    let animation =
+        TestAnimation::new(name, 30).track(TestTrack::new(tip).rotations(&[(0, BIND_TIP)]));
+    let file = ChunkFile::parse(animation.caf()).unwrap_or_else(|error| panic!("the caf: {error}"));
+    Animation::read_caf(&format!("{name}.caf"), &file)
+        .unwrap_or_else(|error| panic!("the animation: {error}"))
+}
+
 pub(super) fn swing(name: &str, last_frame: u16) -> Animation {
     let tip = TestSkeleton::controller_id(1);
     let animation = TestAnimation::new(name, 30)

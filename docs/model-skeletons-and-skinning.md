@@ -57,7 +57,9 @@ bones and then the world poses of all bones, 28 bytes each as above. A record:
 | 10 | 4 | unknown (−1, −1) |
 | 14 | 2 | index of the node of the `NodeMeshCombo` chunk the bone drives (`Bone::node`) |
 
-`Bone::node` is for the animations of #107. These bones are listed by `model info` but not written to
+`Bone::node` names the node a bone drives: the GLB export moves that node with the bone's animation
+(#107) and the viewer binds the meshes under the node to the bone (ADR-0187). On LIVE every sampled
+bone sits at the world position of its node and carries its name. These bones are listed by `model info` but not written to
 the GLB of a static model (see ADR-0039).
 
 ## Bone weights

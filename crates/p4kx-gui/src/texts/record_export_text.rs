@@ -33,6 +33,9 @@ pub enum RecordExportText {
     FormFlatCsvRaw,
     /// One NDJSON file with an object per value; takes `name`.
     FormFlatNdjson,
+    /// The choice to write the tag path next to every tag Reference; offered for the forms that
+    /// can carry it.
+    Tags,
     /// The action that starts the Record export.
     Start,
     /// The title of the progress window.
@@ -75,7 +78,7 @@ pub enum RecordExportText {
 
 impl RecordExportText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 33] = [
+    pub const ALL: [Self; 34] = [
         Self::Menu,
         Self::Action,
         Self::SetupTitle,
@@ -90,6 +93,7 @@ impl RecordExportText {
         Self::FormFlatCsv,
         Self::FormFlatCsvRaw,
         Self::FormFlatNdjson,
+        Self::Tags,
         Self::Start,
         Self::RunningTitle,
         Self::Reading,
@@ -129,6 +133,7 @@ impl RecordExportText {
             Self::FormFlatCsv => "record-export-form-flat-csv",
             Self::FormFlatCsvRaw => "record-export-form-flat-csv-raw",
             Self::FormFlatNdjson => "record-export-form-flat-ndjson",
+            Self::Tags => "record-export-tags",
             Self::Start => "record-export-start",
             Self::RunningTitle => "record-export-running-title",
             Self::Reading => "record-export-reading",

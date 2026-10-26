@@ -13,6 +13,7 @@ use p4kx_extraction::DataForgeEntry;
 
 use crate::cli::{EntityAction, EntityArgs, EntityLoadoutArgs};
 use crate::entity_json::{Counts, LoadoutJson, NodeJson};
+use crate::entity_outfit::{self, OutfitsJson};
 use crate::entity_vehicle;
 use crate::query_table::one_line;
 use crate::{entity_audio, entity_glb, entity_package, json};
@@ -42,23 +43,25 @@ fn loadout(args: &EntityLoadoutArgs, as_json: bool) -> Result<()> {
     let entity = resolver.entities().find(&args.entity)?;
     let tree = resolver.resolve_with(&entity, &changes)?;
     let counts = Counts::of(&tree);
+    let outfits = resolver.outfits(&entity).as_ref().map(OutfitsJson::from);
     if as_json {
         json::print(&LoadoutJson {
             archive: json::path(archive.path()),
             entry: entry.path(),
             entity: NodeJson::from(&tree),
+            outfits,
             counts,
         })?;
         return Ok(());
     }
-    let printed = print_tree(&tree, counts);
+    let printed = print_tree(&tree, counts, outfits.as_ref());
     match printed {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
     }
 }
 
-fn print_tree(tree: &EntityNode, counts: Counts) -> io::Result<()> {
+fn print_tree(tree: &EntityNode, counts: Counts, outfits: Option<&OutfitsJson>) -> io::Result<()> {
     let mut out = BufWriter::new(io::stdout().lock());
     let header = format!(
         "{}  {}  {}",
@@ -67,6 +70,9 @@ fn print_tree(tree: &EntityNode, counts: Counts) -> io::Result<()> {
         tree.record_path()
     );
     writeln!(out, "{}", one_line(&header))?;
+    if let Some(outfits) = outfits {
+        entity_outfit::print(&mut out, outfits)?;
+    }
     print_node(&mut out, tree, 1)?;
     write!(
         out,

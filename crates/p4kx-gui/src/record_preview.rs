@@ -24,6 +24,7 @@ pub struct RecordLink {
     record_path: Box<str>,
     type_name: Box<str>,
     at: Option<Box<str>>,
+    tag: Option<Box<str>>,
     target: Option<RecordId>,
 }
 
@@ -51,6 +52,13 @@ impl RecordLink {
     #[must_use]
     pub fn at(&self) -> Option<&str> {
         self.at.as_deref()
+    }
+
+    /// Returns the tag path of the target when it is a Tag Record of the tag tree, e.g.
+    /// `Weapon.Gun`.
+    #[must_use]
+    pub fn tag(&self) -> Option<&str> {
+        self.tag.as_deref()
     }
 
     /// Returns the Record following the link selects, or `None` when the target does not exist.

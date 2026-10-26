@@ -5,6 +5,7 @@
 //! when `P4KX_DATA_P4K` names one.
 
 mod package_support;
+mod real_action_map;
 mod real_audio_loop;
 mod real_blender_packages;
 mod real_query_prefixes;

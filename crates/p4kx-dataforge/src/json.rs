@@ -7,7 +7,7 @@ use crate::json_text::new_line;
 use crate::texts::annotation;
 use crate::value_json::{write_json_string as write_string, write_json_value};
 use crate::xml::classify;
-use crate::{Annotations, Field, RecordTree, Reference, Resolution, TextResolver, Value};
+use crate::{Annotations, Field, RecordTree, Reference, Resolution, Value};
 
 /// How Record JSON is laid out; both layouts hold the same value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -64,28 +64,12 @@ impl RecordJson {
     ///
     /// Returns the I/O error of `out`.
     pub fn write<W: Write>(&mut self, tree: &RecordTree<'_>, out: &mut W) -> io::Result<()> {
-        self.write_with(tree, None, out)
+        self.write_annotated(tree, Annotations::none(), out)
     }
 
-    /// Writes `tree` like [`RecordJson::write`]; with `texts`, every localisation key is an
-    /// object with the key and its resolved text or a mark that it has none, see
-    /// `docs/record-json.md`.
-    ///
-    /// # Errors
-    ///
-    /// Returns the I/O error of `out`.
-    pub fn write_with<W: Write>(
-        &mut self,
-        tree: &RecordTree<'_>,
-        texts: Option<&dyn TextResolver>,
-        out: &mut W,
-    ) -> io::Result<()> {
-        self.write_annotated(tree, texts.into(), out)
-    }
-
-    /// Writes `tree` like [`RecordJson::write`] with the `annotations`: the texts of
-    /// localisation keys, and the tag path of every tag Reference as `tag`, see
-    /// `docs/record-json.md`.
+    /// Writes `tree` like [`RecordJson::write`] with the `annotations`: every localisation key is
+    /// an object with the key and its resolved text or a mark that it has none, and the tag path
+    /// of every tag Reference is `tag`, see `docs/record-json.md`.
     ///
     /// # Errors
     ///

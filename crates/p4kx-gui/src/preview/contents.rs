@@ -174,13 +174,23 @@ fn utf16(bytes: &[u8], unit: fn([u8; 2]) -> u16) -> String {
 }
 
 fn lines(text: &str) -> Vec<Range<usize>> {
+    let bytes = text.as_bytes();
     let mut lines = Vec::new();
     let mut start = 0;
-    for piece in text.split_inclusive('\n') {
-        let line = piece.strip_suffix('\n').unwrap_or(piece);
-        let line = line.strip_suffix('\r').unwrap_or(line);
-        lines.push(start..start + line.len());
-        start += piece.len();
+    while let Some(offset) = bytes
+        .get(start..)
+        .and_then(|rest| rest.iter().position(|&byte| matches!(byte, b'\n' | b'\r')))
+    {
+        let end = start + offset;
+        lines.push(start..end);
+        start = if bytes.get(end..end + 2) == Some(b"\r\n") {
+            end + 2
+        } else {
+            end + 1
+        };
+    }
+    if start < bytes.len() {
+        lines.push(start..bytes.len());
     }
     lines
 }
@@ -198,6 +208,13 @@ mod tests {
     #[test]
     fn lines_end_at_either_kind_of_line_break() {
         let contents = PreviewContents::new(b"one\r\ntwo\n\nthree".to_vec(), 15);
+
+        assert_eq!(lines(&contents), ["one", "two", "", "three"], "lines");
+    }
+
+    #[test]
+    fn a_lone_carriage_return_ends_a_line_too() {
+        let contents = PreviewContents::new(b"one\rtwo\r\r\nthree\r".to_vec(), 16);
 
         assert_eq!(lines(&contents), ["one", "two", "", "three"], "lines");
     }

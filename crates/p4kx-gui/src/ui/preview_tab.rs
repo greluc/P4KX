@@ -8,6 +8,7 @@ use super::model_playback::ViewerAsk;
 use super::record_preview::RecordStep;
 use super::soundbank_preview::{self, BankAction};
 use super::{image_preview, model_info, model_preview, xml_preview};
+use crate::widgets::scroll_region::Jump;
 use crate::{Preview, PreviewTab, Texts, ViewerSupport};
 
 /// What the body of a tab asks for.
@@ -34,6 +35,7 @@ pub(super) fn typed_tab(
     preview: &Preview,
     (path, size): (&str, u64),
     (tab, volume, support): (PreviewTab, f32, &ViewerSupport),
+    jump: Option<Jump<'_>>,
 ) -> Typed {
     if let Some(image) = preview.image().filter(|_| tab == PreviewTab::Image) {
         return Typed::Shown(image_preview::show(ui, texts, path, image).map(Asked::Mip));
@@ -65,7 +67,7 @@ pub(super) fn typed_tab(
         return Typed::Shown(None);
     }
     if let Some(xml) = preview.xml().filter(|_| tab == PreviewTab::Xml) {
-        xml_preview::show(ui, texts, (path, size), xml);
+        xml_preview::show(ui, texts, (path, size), (xml, jump));
         return Typed::Shown(None);
     }
     Typed::Absent

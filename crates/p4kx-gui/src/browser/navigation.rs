@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::cell::Cell;
 use std::sync::Arc;
 
 use p4kx_extraction::Guid;
@@ -181,7 +182,11 @@ impl Browser {
     /// Shows the Entry at `path` of the Archive: ends a search, selects the folder that holds it
     /// with the folders above it expanded, and selects the Entry for the preview, which is read
     /// on a background thread calling `wake`. Returns whether the Archive holds the Entry.
-    pub fn reveal_entry(&mut self, path: &str, wake: impl Fn() + Send + Sync + 'static) -> bool {
+    pub fn reveal_entry(
+        &mut self,
+        (path, line): (&str, Option<u64>),
+        wake: impl Fn() + Send + Sync + 'static,
+    ) -> bool {
         let index = Arc::clone(&self.index);
         let Some(id) = index.id_of_path(path) else {
             return false;
@@ -199,6 +204,60 @@ impl Browser {
         }
         self.select_folder(folder);
         self.select_entry(id, wake);
+        self.hit_serial += 1;
+        self.hit_line = line.map(|line| HitLine::new(self.hit_serial, id, line));
         true
+    }
+
+    /// Returns the line the preview of the Entry scrolls to once it shows the text, after
+    /// [`reveal_entry`](Self::reveal_entry) was given one. A preview that holds only the start of
+    /// a large Entry has fewer lines than the hit may name, and then scrolls to its end.
+    #[must_use]
+    pub const fn hit_line(&self) -> Option<HitLine> {
+        self.hit_line
+    }
+
+    /// Returns the serial of the hit line a view scrolled to last, `0` when none did.
+    pub(crate) const fn hit_applied(&self) -> &Cell<u64> {
+        &self.hit_applied
+    }
+}
+
+/// The line of a content-search hit in the Entry with id `entry`, one-based as in the hit.
+///
+/// Each one has a serial that the browser counts up, so that a view scrolls once for each opened
+/// hit, also when two hits are in the same Entry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HitLine {
+    serial: u64,
+    entry: u32,
+    line: u64,
+}
+
+impl HitLine {
+    const fn new(serial: u64, entry: u32, line: u64) -> Self {
+        Self {
+            serial,
+            entry,
+            line,
+        }
+    }
+
+    /// Returns the number of the hit among those the browser opened, from 1.
+    #[must_use]
+    pub const fn serial(&self) -> u64 {
+        self.serial
+    }
+
+    /// Returns the id of the Entry.
+    #[must_use]
+    pub const fn entry(&self) -> u32 {
+        self.entry
+    }
+
+    /// Returns the zero-based index of the line, `0` for a hit without a line.
+    #[must_use]
+    pub const fn row(&self) -> u64 {
+        self.line.saturating_sub(1)
     }
 }

@@ -39,7 +39,8 @@ const MEMORY_BUDGET: u64 = 256 << 20;
 /// searched, and with one every Entry whose path matches; the `global.ini` files are left to
 /// [`search_localization`](crate::search_localization) when [`SearchOptions::sources`] holds
 /// [`Source::Localization`]. Entries are searched in path order in parallel waves: plain text
-/// is streamed line by line, `CryXml` and UTF-16 are read whole, at most 256 MiB of them at once.
+/// is streamed line by line, `CryXml` and UTF-16 are read whole, holding at most 256 MiB at once
+/// counting the tables parsed from a `CryXml` Entry and the buffer that decodes UTF-16.
 /// A hit names the line, counted in the XML form for `CryXml`; an Entry reports at most
 /// [`SearchOptions::per_item`] hits. An Entry above [`SearchOptions::max_entry_len`], one that
 /// holds binary data, an encrypted one without the Archive key and one that cannot be read are

@@ -153,12 +153,18 @@ fn ready(ui: &mut Ui, model: &mut Model) {
                 message(ui, model.texts().get(EntityText::NoMatch));
                 return None;
             }
-            entity_list::show(ui, list, model.entities().selected())
+            entity_list::show(ui, model.texts(), list, model.entities().selected())
         })
         .inner;
-    if let Some(position) = picked {
-        let ctx = ui.ctx().clone();
-        model.select_entity(position, move || ctx.request_repaint());
+    match picked {
+        Some(entity_list::Action::Select(position)) => {
+            let ctx = ui.ctx().clone();
+            model.select_entity(position, move || ctx.request_repaint());
+        }
+        Some(entity_list::Action::Toggle(position)) => {
+            model.entities_mut().toggle_variants(position);
+        }
+        None => {}
     }
     if model.entities().loadout().is_some() {
         let least = ASSEMBLY_PANEL_MIN_HEIGHT;
@@ -185,7 +191,7 @@ fn ready(ui: &mut Ui, model: &mut Model) {
 
 fn footer(ui: &mut Ui, texts: &Texts, list: &EntityList, (filter, query): (EntityFilter, &str)) {
     let total = list.total(filter);
-    let shown = list.shown_len();
+    let shown = list.matched_len();
     let value = |count: usize| FluentValue::from(u64::try_from(count).unwrap_or(u64::MAX));
     let numbered = |count: usize| number(texts, count);
     let text = if shown == total && query.is_empty() {

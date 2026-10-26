@@ -76,10 +76,17 @@ pub(crate) fn ship<'f>(
         ship: guid,
         paint_ports: paint_ports(tree),
         implementation: read.paint_ports.clone(),
-        variant_key: ship
-            .vehicle_definition
-            .zip(read.implementation)
-            .map(|(definition, implementation)| ShipKey::new(definition, implementation)),
+        variant_key: variant_key(tree, read),
     };
     (ship, facts)
+}
+
+/// Returns what the ship `tree` shares with the ships of its variant group: its vehicle
+/// definition and the digest of its vehicle implementation, `None` when either is missing.
+pub(crate) fn variant_key(tree: &RecordTree<'_>, read: &ShipRead) -> Option<ShipKey> {
+    let definition = text(
+        component(tree, "VehicleComponentParams"),
+        "vehicleDefinition",
+    )?;
+    Some(ShipKey::new(definition, read.implementation?))
 }

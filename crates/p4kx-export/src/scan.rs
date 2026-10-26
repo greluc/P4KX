@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashSet;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
 
 use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{
@@ -15,10 +15,10 @@ use crate::collected::Picked;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::Blueprint;
 use crate::contract_recipe::CostLine;
+use crate::entity_selection::{Selected, select};
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
-use crate::selection::is_leftover;
-use crate::ship_base::{ShipRead, ShipReader};
+use crate::ship_pool::ShipPool;
 use crate::starmap::starmap_object;
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
@@ -34,41 +34,6 @@ fn resources_of(line: &CostLine<'_>, out: &mut Vec<Guid>) {
     out.extend(line.resource_guid.map(|guid| guid.0));
     for option in &line.options {
         resources_of(option, out);
-    }
-}
-
-/// The ship readers not in use. A reader keeps the shared Entities and containers it has read, so
-/// a reader taken for one ship and given back for the next keeps its caches across the splits of
-/// the parallel scan.
-struct ShipPool<'f> {
-    entities: Arc<Entities<'f>>,
-    files: &'f ArchiveFiles<'f>,
-    idle: Mutex<Vec<ShipReader<'f>>>,
-}
-
-impl<'f> ShipPool<'f> {
-    const fn new(entities: Arc<Entities<'f>>, files: &'f ArchiveFiles<'f>) -> Self {
-        Self {
-            entities,
-            files,
-            idle: Mutex::new(Vec::new()),
-        }
-    }
-
-    fn read(&self, record: &Record<'f>, tree: &RecordTree<'f>) -> Result<ShipRead, CatalogFailure> {
-        let taken = self
-            .idle
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .pop();
-        let mut reader = taken
-            .unwrap_or_else(|| ShipReader::with_entities(Arc::clone(&self.entities), self.files));
-        let result = reader.read_with_digest(record, tree);
-        self.idle
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(reader);
-        result
     }
 }
 
@@ -234,23 +199,11 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         trees: &mut TreeBuilder<'f>,
         record: &Record<'f>,
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
-        let path = record.record_path()?;
-        let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
-            return Ok(None);
+        let kind = match select(record, self.options.filter)? {
+            None => return Ok(None),
+            Some(Selected::Leftover(kind)) => return Ok(Some(Picked::Skipped(kind))),
+            Some(Selected::Entity(kind)) => kind,
         };
-        if record.type_name()? != kind.rule().type_name {
-            return Ok(None);
-        }
-        if self
-            .options
-            .filter
-            .is_some_and(|filter| !filter.matches(path))
-        {
-            return Ok(None);
-        }
-        if is_leftover(path, record.name()?) {
-            return Ok(Some(Picked::Skipped(kind)));
-        }
         let tree = trees.build(record)?;
         if kind == Kind::StarmapObjects {
             return Ok(Some(Picked::Starmap(starmap_object(

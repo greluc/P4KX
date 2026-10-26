@@ -24,6 +24,7 @@ mod look;
 mod normals;
 mod npc;
 mod piece;
+mod read_models;
 mod sample;
 mod shape;
 mod uncover;

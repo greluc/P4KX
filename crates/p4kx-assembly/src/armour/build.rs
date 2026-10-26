@@ -5,32 +5,26 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_gltf::MorphTarget;
-use p4kx_model::{Lod, MaterialStatus, Model};
+use p4kx_model::{MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::face_build::{Face, Found, settled};
 use super::head_move::{HeadMove, Worn, check_follows, followed, level_zero_meshes};
 use super::jobs::{Job, issue, planned};
+use super::read_models::{Loaded, choose, read_models};
 use super::shape::shaped;
 use super::zones::{covered, without_covered};
 use super::{Armour, ArmourPart, BodyVariant, Piece};
 use crate::build::file_key;
+use crate::build_palettes::Palettes;
 use crate::{
-    AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider, ProvidedModel,
+    AssemblyError, AssemblyOptions, Issue, IssueKind, ModelFailure, ModelProvider, PaletteProvider,
+    ProvidedModel,
 };
-
-/// The most distinct model files read at once before the vertex budget is checked again.
-const WAVE: usize = 64;
 
 /// The name of the piece the pieces that follow the head follow.
 const HEAD: &str = "head";
 
-struct Loaded {
-    entry: String,
-    model: Arc<Model>,
-}
-
-type Models = HashMap<String, Result<Loaded, ModelFailure>>;
 type Libraries = HashMap<String, Arc<MaterialStatus>>;
 
 struct Body {
@@ -60,6 +54,34 @@ impl Armour {
         models: &dyn ModelProvider,
         options: &AssemblyOptions,
     ) -> Result<Self, AssemblyError> {
+        Self::build_painted(variant, pieces, models, None, options)
+    }
+
+    /// Builds the Armour as [`Self::build`] does, with the materials of each piece drawn with the
+    /// tint palette its worn geometry names, else the default palette of its material library,
+    /// which `palettes` reads. A piece keeps its own palette and takes none from elsewhere. A
+    /// palette that cannot be resolved is listed as an [`Issue`] and the piece is drawn without it.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build`].
+    pub fn build_with_palettes(
+        variant: BodyVariant,
+        pieces: &[Piece],
+        models: &dyn ModelProvider,
+        palettes: &dyn PaletteProvider,
+        options: &AssemblyOptions,
+    ) -> Result<Self, AssemblyError> {
+        Self::build_painted(variant, pieces, models, Some(palettes), options)
+    }
+
+    fn build_painted(
+        variant: BodyVariant,
+        pieces: &[Piece],
+        models: &dyn ModelProvider,
+        palettes: Option<&dyn PaletteProvider>,
+        options: &AssemblyOptions,
+    ) -> Result<Self, AssemblyError> {
         let body = load_body(variant, models, options.lod)?;
         let mut issues = Vec::new();
         let jobs = planned(variant, pieces, models, options.max_parts, &mut issues);
@@ -68,7 +90,7 @@ impl Armour {
         let libraries = read_libraries(&jobs, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
         let covering = covering(&jobs, &chosen);
-        let mut reported = HashSet::new();
+        let (mut reported, mut tints) = (HashSet::new(), Palettes::new(palettes));
         let mut parts = Vec::with_capacity(chosen.len());
         let mut head: Option<HeadMove> = None;
         let mut heads = Vec::new();
@@ -89,7 +111,7 @@ impl Armour {
                 job,
                 found,
                 (&libraries, &unnamed),
-                &mut reported,
+                (&mut reported, &mut tints),
                 &mut issues,
             );
             parts.push(ArmourPart {
@@ -171,12 +193,12 @@ fn worn(
 }
 
 /// Returns the materials a job is drawn with: its library, with the choices of its Character
-/// applied. A library that cannot be read is listed once.
+/// applied and the tint palette of its geometry. A library that cannot be read is listed once.
 fn drawn_with(
     job: &Job,
     found: &Loaded,
     (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
-    reported: &mut HashSet<String>,
+    (reported, tints): (&mut HashSet<String>, &mut Palettes<'_>),
     issues: &mut Vec<Issue>,
 ) -> Arc<MaterialStatus> {
     let key = library_key(job, found);
@@ -189,10 +211,40 @@ fn drawn_with(
     {
         issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
     }
+    let painted = painted(tints, library, job, issues);
     job.look
         .as_ref()
-        .and_then(|look| look.apply(&library))
-        .map_or(library, Arc::new)
+        .and_then(|look| look.apply(&painted))
+        .map_or(painted, Arc::new)
+}
+
+/// Returns `materials` drawn with the tint palette of the job's geometry, else the default
+/// palette of their library, so that layers with a `PaletteTint` take the palette's entries;
+/// unchanged, and no palette resolved, when no material takes one.
+fn painted(
+    tints: &mut Palettes<'_>,
+    materials: Arc<MaterialStatus>,
+    job: &Job,
+    issues: &mut Vec<Issue>,
+) -> Arc<MaterialStatus> {
+    let Some(library) = materials
+        .library()
+        .filter(|library| library.materials.iter().any(|m| m.palette.is_some()))
+    else {
+        return materials;
+    };
+    let (palette, unresolved) = tints.of_named(job.palette.as_ref(), &materials);
+    issues.extend(unresolved.into_iter().map(|kind| issue(job, kind)));
+    let Some(palette) = palette else {
+        return materials;
+    };
+    let mut library = library.clone();
+    for material in &mut library.materials {
+        if let Some(tinted) = palette.apply(material) {
+            *material = tinted;
+        }
+    }
+    Arc::new(MaterialStatus::Loaded(library))
 }
 
 /// Returns the model of a job as it is worn, shaped by the job's DNA if it has one, and its morph
@@ -252,92 +304,6 @@ fn load_body(
         skeleton: model,
         skeleton_file: skeleton_file.to_owned(),
     })
-}
-
-fn vertices(model: &Model) -> usize {
-    model.lods.iter().map(Lod::vertex_count).max().unwrap_or(0)
-}
-
-/// Reads every distinct file the jobs name, a wave of files at a time in parallel, and stops
-/// when the files read so far already hold `options.max_vertices` vertices.
-fn read_models(
-    jobs: &[Job],
-    provider: &dyn ModelProvider,
-    options: &AssemblyOptions,
-) -> Result<Models, AssemblyError> {
-    let mut seen = HashSet::new();
-    let files: Vec<(String, &str)> = jobs
-        .iter()
-        .filter(|job| seen.insert(file_key(&job.path)))
-        .map(|job| (file_key(&job.path), job.path.as_str()))
-        .collect();
-    let mut models = Models::new();
-    let mut total = 0_usize;
-    for wave in files.chunks(WAVE) {
-        if total >= options.max_vertices {
-            break;
-        }
-        let read: Vec<(String, Result<Loaded, ModelFailure>)> = wave
-            .par_iter()
-            .map(|(key, path)| {
-                let result = provider.model(path, options.lod).map(|provided| Loaded {
-                    entry: provided.entry,
-                    model: Arc::new(provided.model),
-                });
-                (key.clone(), result)
-            })
-            .collect();
-        for (key, result) in read {
-            match result {
-                Err(ModelFailure::Fatal(source)) => return Err(AssemblyError::Provider(source)),
-                Ok(loaded) => {
-                    total = total.saturating_add(vertices(&loaded.model));
-                    models.insert(key, Ok(loaded));
-                }
-                Err(other) => {
-                    models.insert(key, Err(other));
-                }
-            }
-        }
-    }
-    Ok(models)
-}
-
-/// Picks the model of each job in order, within the vertex budget, and records why a job has none.
-fn choose<'m>(
-    jobs: &[Job],
-    models: &'m Models,
-    max_vertices: usize,
-    issues: &mut Vec<Issue>,
-) -> Vec<Option<&'m Loaded>> {
-    let mut total = 0_usize;
-    jobs.iter()
-        .map(|job| {
-            let path = job.path.clone();
-            let kind = match models.get(&file_key(&job.path)) {
-                Some(Ok(loaded)) => {
-                    let count = vertices(&loaded.model);
-                    if total.saturating_add(count) <= max_vertices {
-                        total += count;
-                        return Some(loaded);
-                    }
-                    IssueKind::TooManyVertices {
-                        limit: max_vertices,
-                    }
-                }
-                Some(Err(ModelFailure::Missing)) => IssueKind::GeometryMissing { path },
-                Some(Err(other)) => IssueKind::GeometryUnreadable {
-                    path,
-                    reason: other.to_string(),
-                },
-                None => IssueKind::TooManyVertices {
-                    limit: max_vertices,
-                },
-            };
-            issues.push(issue(job, kind));
-            None
-        })
-        .collect()
 }
 
 /// Returns the key under which the library of a job is cached: a bare name is relative to the

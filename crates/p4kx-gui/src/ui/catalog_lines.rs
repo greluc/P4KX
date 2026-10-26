@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_export::{CatalogSummary, Kind};
+use p4kx_export::{CatalogSummary, Kind, Playability};
 
 use super::extraction::number;
 use crate::{CatalogText as T, Texts, format};
@@ -115,6 +115,27 @@ pub(super) fn kinds(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {
         }
     }
     lines
+}
+
+/// Returns the playability line of the items and of the ships.
+pub(super) fn playability(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {
+    let counts = summary.playability();
+    [("items", counts.items), ("ships", counts.ships)]
+        .into_iter()
+        .map(|(kind, counts)| {
+            texts.format(
+                T::SummaryPlayability,
+                &[
+                    ("kind", kind.into()),
+                    ("player", number(texts, counts.of(Playability::Player))),
+                    ("ai", number(texts, counts.of(Playability::Ai))),
+                    ("mission", number(texts, counts.of(Playability::Mission))),
+                    ("special", number(texts, counts.of(Playability::Special))),
+                    ("unclassified", number(texts, counts.unclassified())),
+                ],
+            )
+        })
+        .collect()
 }
 
 pub(super) fn languages(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {

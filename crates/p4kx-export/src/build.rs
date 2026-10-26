@@ -34,7 +34,8 @@ use crate::{
 ///
 /// Every Record is checked in parallel: a kind takes the Records under one of its record-path
 /// prefixes whose struct is its type and, with a Filter, whose record path the Filter matches;
-/// of those, development leftovers ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS)) are counted as
+/// of those, development leftovers ([`EXCLUDED_TOKENS`](crate::EXCLUDED_TOKENS), and for ships
+/// [`SHIP_EXCLUDED_TOKENS`](crate::SHIP_EXCLUDED_TOKENS)) are counted as
 /// skipped. Names and descriptions resolve in the English and German `global.ini`; a key or a
 /// language the Archive lacks leaves that text `null` and is counted in the summary. An item's
 /// class is read from the `Class:` line of its English description, a commodity's missing texts
@@ -167,7 +168,7 @@ impl Parts {
             starmap_report: self.starmap_report,
             shops: self.shops,
             store_slugs: self.store_slugs,
-            playability: Box::new(self.playability),
+            playability: self.playability,
             variants: self.variants,
             failures: self.failures,
             warnings: self.warnings,

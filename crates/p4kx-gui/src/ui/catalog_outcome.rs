@@ -6,9 +6,9 @@ use std::time::Duration;
 
 use egui::{Id, Ui};
 use fluent_bundle::FluentValue;
-use p4kx_export::{DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
+use p4kx_export::{CatalogSummary, DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
 
-use super::catalog_lines::{Notice, failure_lines, kinds, languages, notices, sizes};
+use super::catalog_lines::{Notice, failure_lines, kinds, languages, notices, playability, sizes};
 use super::extraction::{group_label, number};
 use super::extraction_outcome::{decorate, ratio};
 use super::record_export_outcome::{list, outcome_window};
@@ -188,14 +188,48 @@ const fn size_texts(compressed: bool) -> [T; 2] {
     }
 }
 
+/// Returns the sentence of every size warning of `summary`, with the level it has.
+fn size_warnings(
+    texts: &Texts,
+    summary: &CatalogSummary,
+    limit: &str,
+) -> Vec<(String, SizeWarning)> {
+    let decompressed = format::decimal_size(DECOMPRESSED_LIMIT, texts.language());
+    [
+        (
+            summary.size_warning(),
+            size_texts(summary.compressed_size().is_some()),
+            limit,
+        ),
+        (
+            summary.decompressed_warning(),
+            [T::DecompressedNearLimit, T::DecompressedOverLimit],
+            decompressed.as_str(),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(warning, [near, over], shown)| {
+        let warning = warning?;
+        let text = match warning {
+            SizeWarning::NearLimit => near,
+            SizeWarning::OverLimit => over,
+        };
+        Some((texts.format(text, &[("limit", shown.into())]), warning))
+    })
+    .collect()
+}
+
 /// The texts of one summary, formatted once per catalog and language.
 struct Laid {
     key: (u64, Language),
-    headings: [String; 2],
+    kinds_heading: String,
+    playability_heading: String,
+    texts_heading: String,
     warnings: Vec<(String, SizeWarning)>,
     notices: Vec<Notice>,
     kinds: Vec<String>,
     skipped: String,
+    playability: Vec<String>,
     failed_heading: String,
     failures: Vec<String>,
     reasons: Vec<usize>,
@@ -222,36 +256,13 @@ impl Laid {
     fn new(key: (u64, Language), texts: &Texts, outcome: &CatalogExportSummary) -> Self {
         let summary = outcome.summary();
         let limit = format::decimal_size(UPLOAD_LIMIT, texts.language());
-        let decompressed = format::decimal_size(DECOMPRESSED_LIMIT, texts.language());
-        let warnings = [
-            (
-                summary.size_warning(),
-                size_texts(summary.compressed_size().is_some()),
-                &limit,
-            ),
-            (
-                summary.decompressed_warning(),
-                [T::DecompressedNearLimit, T::DecompressedOverLimit],
-                &decompressed,
-            ),
-        ]
-        .into_iter()
-        .filter_map(|(warning, [near, over], shown)| {
-            let warning = warning?;
-            let text = match warning {
-                SizeWarning::NearLimit => near,
-                SizeWarning::OverLimit => over,
-            };
-            Some((
-                texts.format(text, &[("limit", shown.clone().into())]),
-                warning,
-            ))
-        })
-        .collect();
+        let warnings = size_warnings(texts, summary, &limit);
         let (failures, reasons) = failure_lines(texts, summary);
         Self {
             key,
-            headings: [texts.get(T::KindsHeading), texts.get(T::TextsHeading)],
+            kinds_heading: texts.get(T::KindsHeading),
+            playability_heading: texts.get(T::PlayabilityHeading),
+            texts_heading: texts.get(T::TextsHeading),
             warnings,
             notices: notices(texts, summary),
             kinds: kinds(texts, summary),
@@ -265,6 +276,7 @@ impl Laid {
             ),
             failures,
             reasons,
+            playability: playability(texts, summary),
             texts: languages(texts, summary),
             missing: texts.format(
                 T::SummaryMissing,
@@ -299,9 +311,12 @@ fn finished(ui: &mut Ui, laid: &Laid) {
         });
         ui.add_space(MODAL_GROUP_GAP);
     }
-    group_label(ui, &laid.headings[0]);
+    group_label(ui, &laid.kinds_heading);
     lines(ui, &laid.kinds);
     note(ui, &laid.skipped);
+    ui.add_space(MODAL_GROUP_GAP);
+    group_label(ui, &laid.playability_heading);
+    lines(ui, &laid.playability);
     list(
         ui,
         (&laid.failed_heading, "catalog-failed"),
@@ -310,7 +325,7 @@ fn finished(ui: &mut Ui, laid: &Laid) {
         true,
     );
     ui.add_space(MODAL_GROUP_GAP);
-    group_label(ui, &laid.headings[1]);
+    group_label(ui, &laid.texts_heading);
     lines(ui, &laid.texts);
     note(ui, &laid.missing);
     ui.add_space(MODAL_GROUP_GAP);

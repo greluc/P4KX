@@ -4,7 +4,7 @@
 use p4kx_extraction::{DataForgeError, Filter, Record};
 
 use crate::Kind;
-use crate::selection::is_leftover;
+use crate::selection::is_kind_leftover;
 
 /// What the entity kinds make of a Record.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -31,7 +31,7 @@ pub(crate) fn select(
     {
         return Ok(None);
     }
-    Ok(Some(if is_leftover(path, record.name()?) {
+    Ok(Some(if is_kind_leftover(kind, path, record.name()?) {
         Selected::Leftover(kind)
     } else {
         Selected::Entity(kind)

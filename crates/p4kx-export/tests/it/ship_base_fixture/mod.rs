@@ -16,6 +16,9 @@ pub(crate) const BETA: u128 = 0x11;
 pub(crate) const GROUND: u128 = 0x12;
 pub(crate) const BROKEN: u128 = 0x13;
 const DUMMY: u128 = 0x14;
+pub(crate) const TEMP: u128 = 0x1A;
+pub(crate) const DISPLAY: u128 = 0x1B;
+pub(crate) const GUN_DISPLAY: u128 = 0x27;
 pub(crate) const MIXED: u128 = 0x15;
 pub(crate) const UNKNOWN: u128 = 0x16;
 pub(crate) const ROLLING: u128 = 0x17;
@@ -124,6 +127,9 @@ fn entities() -> Vec<TestEntity> {
             .physics_mass(3000.0)
             .vehicle(definition("ACME_Huge"), ""),
         ship(DUMMY, "ACME_Dummy_Ship"),
+        ship(TEMP, "ACME_Alpha_Temp").vehicle(definition("ACME_Alpha"), ""),
+        ship(DISPLAY, "ACME_Beta_Display").vehicle(definition("ACME_Alpha"), "Heavy"),
+        item(GUN_DISPLAY, "ACME_Gun_Display").attach_type("WeaponGun"),
         ship(MIXED, "ACME_Mixed").loadout(TestLoadout::Manual(vec![
             TestLoadoutEntry::class("grid_huge", "ACME_Grid_Huge"),
             TestLoadoutEntry::class("grid_negative", "ACME_Grid_Negative"),

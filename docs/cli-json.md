@@ -156,7 +156,7 @@ A **Node** is one Entity:
 | `record_path` | string | Record path without `.xml` |
 | `name` | string | Record name, e.g. `EntityClassDefinition.AEGS_Avenger_Titan` |
 | `class_name` | string | The Record name after `EntityClassDefinition.` |
-| `docked_vehicle` | bool | The Entity is a docked vehicle: its `AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a ship's hangar; the root Entity is never marked, even if it is a vehicle |
+| `docked_vehicle` | bool | The Entity is a docked vehicle: its `AttachDef.Type` starts with `NOITEM_Vehicle`, ignoring case, e.g. a snub craft in a ship's hangar; the root Entity is never marked, even if it is a vehicle |
 | `expanded` | bool | The Entity's ports are built; false only for a docked vehicle the resolver stopped at (the root Entity is always expanded) |
 | `issues` | array | Errors (without target) that do not stop the Entity: a part of its Loadout that cannot be read, an ambiguous class name, a vehicle implementation or Modification that is not read or applied in full, or the port limit |
 | `vehicle` | Vehicle | Only for an Entity whose Record names a vehicle implementation that was read: the implementation with the Entity's Modification applied |
@@ -243,8 +243,8 @@ order is attached. The same Archive always gives the same document.
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. A docked vehicle is
-one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. `parts` counts the
-root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
+one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too.
+`parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
 lowest level when they have none up to the requested one;

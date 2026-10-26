@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use p4kx_dataforge::{DataForge, Guid, Record, RecordTree, TreeBuilder};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::entities::is_entity;
 use crate::plan::Plan;
@@ -13,7 +12,7 @@ use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::walk::Walk;
 use crate::{
     ChangeError, Entities, EntityNode, ItemFacts, LandingGear, LoadoutChanges, LoadoutError,
-    LoadoutFiles, MAX_LOADOUT_DEPTH, VehicleImplementation, Wearable, xml,
+    LoadoutFiles, VehicleImplementation, Wearable, xml,
 };
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
@@ -46,12 +45,13 @@ impl Entries {
 pub struct LoadoutResolver<'f> {
     pub(crate) entities: Arc<Entities<'f>>,
     pub(crate) files: Option<&'f dyn LoadoutFiles>,
-    specs: HashMap<Guid, SpecResult>,
+    pub(crate) specs: HashMap<Guid, SpecResult>,
     xml: HashMap<String, EntriesResult>,
     pub(crate) vehicles: HashMap<String, VehicleResult>,
     pub(crate) landing: HashMap<Guid, Result<Arc<[LandingGear]>, LoadoutError>>,
     pub(crate) builder: TreeBuilder<'f>,
     pub(crate) stop_at_docked: bool,
+    serial_reads: usize,
 }
 
 impl std::fmt::Debug for LoadoutResolver<'_> {
@@ -85,6 +85,7 @@ impl<'f> LoadoutResolver<'f> {
             landing: HashMap::new(),
             builder: TreeBuilder::new(),
             stop_at_docked: false,
+            serial_reads: 0,
         }
     }
 
@@ -234,6 +235,7 @@ impl<'f> LoadoutResolver<'f> {
         if let Some(spec) = self.specs.get(&guid) {
             return Arc::clone(spec);
         }
+        self.serial_reads = self.serial_reads.saturating_add(1);
         let forge = self.entities.forge();
         let spec = Arc::new(match forge.record_by_guid(guid) {
             Some(record) => read_spec(&mut self.builder, &record),
@@ -277,77 +279,21 @@ impl<'f> LoadoutResolver<'f> {
         }
     }
 
-    /// Reads the specs of the Entities reachable from `root` through Record Loadouts and port
-    /// defaults in parallel, level by level, as deep as a tree is resolved.
-    fn prefetch(&mut self, root: Record<'f>) {
-        let mut frontier = vec![root];
-        for depth in 0..=MAX_LOADOUT_DEPTH {
-            let (cached, missing): (Vec<_>, Vec<_>) = frontier
-                .into_iter()
-                .partition(|record| self.specs.contains_key(&record.guid()));
-            let read: Vec<(Guid, SpecResult)> = missing
-                .into_par_iter()
-                .map_init(TreeBuilder::new, |builder, record| {
-                    (record.guid(), Arc::new(read_spec(builder, &record)))
-                })
-                .collect();
-            let mut level: Vec<SpecResult> = cached
-                .iter()
-                .filter_map(|record| self.specs.get(&record.guid()).cloned())
-                .collect();
-            for (guid, spec) in read {
-                level.push(Arc::clone(&spec));
-                self.specs.insert(guid, spec);
-            }
-            if self.stop_at_docked && depth > 0 {
-                level.retain(|spec| spec.as_ref().as_ref().is_ok_and(|s| !s.docked_vehicle));
-            }
-            frontier = self.unread_targets(&level);
-            if frontier.is_empty() {
-                break;
-            }
-        }
+    /// Returns how many Records have been read into specs so far.
+    #[must_use]
+    pub fn records_read(&self) -> usize {
+        self.specs.len()
     }
 
-    /// Returns the Records the specs name that are not read yet, each once.
-    fn unread_targets(&mut self, specs: &[SpecResult]) -> Vec<Record<'f>> {
-        let mut named = Vec::new();
-        for spec in specs.iter().filter_map(|spec| spec.as_ref().as_ref().ok()) {
-            named.extend(spec.default_targets().filter_map(|t| self.record_of(t)));
-            if let Some(entries) = spec.manual_entries() {
-                self.entry_records(entries, &mut named);
-            }
-        }
-        let mut seen = HashSet::new();
-        named.retain(|record| {
-            !self.specs.contains_key(&record.guid()) && seen.insert(record.guid())
-        });
-        named
-    }
-
-    /// Collects the Records the entries name, nested ones included; when docked vehicles are
-    /// not expanded, the entries nested below a docked vehicle are left out.
-    fn entry_records(&mut self, entries: &[EntrySpec], out: &mut Vec<Record<'f>>) {
-        for entry in entries {
-            let record = self.record_of(&entry.target);
-            out.extend(record);
-            if let Some(LoadoutSpec::Manual(nested)) = &entry.loadout {
-                let docked = self.stop_at_docked
-                    && record.is_some_and(|record| {
-                        self.spec(record.guid())
-                            .as_ref()
-                            .as_ref()
-                            .is_ok_and(|spec| spec.docked_vehicle)
-                    });
-                if !docked {
-                    self.entry_records(nested, out);
-                }
-            }
-        }
+    /// Returns how many Records were read one at a time while a tree was built, outside the
+    /// parallel prefetch.
+    #[must_use]
+    pub const fn serial_reads(&self) -> usize {
+        self.serial_reads
     }
 }
 /// Reads the spec of one Record, which must be an Entity.
-fn read_spec<'f>(
+pub(crate) fn read_spec<'f>(
     builder: &mut TreeBuilder<'f>,
     record: &Record<'f>,
 ) -> Result<EntitySpec, LoadoutError> {

@@ -139,5 +139,5 @@ be resolved, depth first in port order: `port` (names joined by `/`), `className
 or XML Loadout file whose entry supplied the attachment, the Record that defines the port for
 `port_default` (field `Components/SItemPortContainerComponentParams/Ports`), an included XML file as its own file), `unresolved` (the reason, or
 `null`) and `dockedVehicle` (present and `true` for a docked vehicle: its `AttachDef.Type` starts
-with `NOITEM_Vehicle`; it stays in its port and its own ports are not listed or counted). The walk
+with `NOITEM_Vehicle`, ignoring case; it stays in its port and its own ports are not listed or counted). The walk
 is `EntityNode::loadout` of `p4kx-assembly`, which the Basetool catalog's loadout kind shares.

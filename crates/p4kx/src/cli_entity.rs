@@ -80,9 +80,9 @@ pub(crate) enum EntityAction {
     /// the Entity below the node of the Entity it is attached to. Y up, in metres. Parts whose
     /// Entity or geometry cannot be resolved are skipped and listed. With --exclude and
     /// --replace the Loadout is an own configuration: excluded branches and the Entity a
-    /// replacement removes are not written. Reads every model once, in parallel. A docked vehicle (a Merlin in a docking collar, say) is
-    /// placed as one part, without the parts of its own Loadout, unless --expand-docked-vehicles
-    /// is given.
+    /// replacement removes are not written. Reads every model once, in parallel. A docked vehicle
+    /// (a Merlin in a docking collar, say) is placed as one part, without the parts of its own
+    /// Loadout, unless --expand-docked-vehicles is given.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(EntityGlbArgs),
     /// Writes an Entity as a Blender package, a folder that does not depend on Blender's file
@@ -172,7 +172,7 @@ pub(crate) struct EntityGlbArgs {
     #[arg(long)]
     pub(crate) interior: bool,
     /// Expands docked vehicles, the attached Entities whose item type starts with
-    /// `NOITEM_Vehicle`: their own Loadout parts are placed below them. Without it a docked
+    /// `NOITEM_Vehicle`, ignoring case: their own Loadout parts are placed below them. Without it a docked
     /// vehicle is placed as one part.
     #[arg(long)]
     pub(crate) expand_docked_vehicles: bool,
@@ -189,7 +189,7 @@ pub(crate) struct EntityLoadoutArgs {
     /// `libs/foundry/records/entities/spaceships/aegs_avenger_titan`; ignores case.
     pub(crate) entity: String,
     /// Stops at docked vehicles, the attached Entities whose item type starts with
-    /// `NOITEM_Vehicle`: they stay in their port, marked, but their own ports are not listed.
+    /// `NOITEM_Vehicle`, ignoring case: they stay in their port, marked, but their own ports are not listed.
     #[arg(long)]
     pub(crate) stop_at_docked_vehicles: bool,
     #[command(flatten)]

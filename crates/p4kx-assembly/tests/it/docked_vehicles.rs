@@ -155,9 +155,14 @@ fn records_read(stop: bool, attach_type: &str) -> Result<(usize, bool), Box<dyn 
             TestLoadoutEntry::class("hangar", "Snub").loadout(TestLoadout::Manual(vec![
                 TestLoadoutEntry::class("snub_gun", "NestedGun"),
             ])),
+            TestLoadoutEntry::class("pod", "Pod").loadout(TestLoadout::Manual(vec![
+                TestLoadoutEntry::class("pod_gun", "PodGun"),
+            ])),
         ])),
         entity(0x2, "Snub").attach_type(attach_type),
         entity(0x3, "NestedGun").attach_type("WeaponGun"),
+        entity(0x4, "Pod").attach_type("Misc"),
+        entity(0x5, "PodGun").attach_type("WeaponGun"),
     ];
     let bytes = fleet
         .iter()
@@ -174,17 +179,12 @@ fn records_read(stop: bool, attach_type: &str) -> Result<(usize, bool), Box<dyn 
     let tree = resolver.resolve(&carrier)?;
     let docked = attached(&tree, "hangar")?.is_docked_vehicle();
     let debug = format!("{resolver:?}");
-    let records = debug
-        .rsplit("records: ")
-        .next()
-        .and_then(|rest| rest.split(',').next())
-        .ok_or("no record count")?
-        .parse()?;
     assert!(
         debug.contains(&format!("stop_at_docked: {stop}")),
         "{debug}"
     );
-    Ok((records, docked))
+    assert_eq!(resolver.serial_reads(), 0, "every Record is prefetched");
+    Ok((resolver.records_read(), docked))
 }
 
 #[test]

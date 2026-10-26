@@ -33,7 +33,10 @@ Decided for issue #106. Evidence: docs/model-skeletons-and-skinning.md.
   matrices as `MAT4` (floats, no buffer view target). A skin has `skeleton` when it has one root
   bone.
 - The node of a skinned mesh is a root of the scene without transform: the vertices of a skin are in
-  the space of the skeleton, and glTF ignores the transform of such a node.
+  the space of the skeleton, and glTF ignores the transform of such a node. An unskinned node below
+  a skinned node hangs below the nearest ancestor that is not skinned and takes over the transforms
+  of the skinned nodes in between (`local(S_k) · … · local(S_1) · local(C)`), so its world pose is
+  the one the model file gives; a node with no such ancestor becomes a root.
 - `JOINTS_0` is `VEC4` of `u16`, `WEIGHTS_0` `VEC4` of normalised `u8`, both four-byte aligned. A
   vertex with more than four bones is written with its strongest four in set 0 and the rest in set
   1; a mesh with no such vertex has set 0 only. The weights of a vertex always add up to 255: the

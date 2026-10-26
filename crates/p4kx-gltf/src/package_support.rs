@@ -5,7 +5,6 @@ use p4kx_model::{MaterialStatus, Model, Transform};
 
 use crate::axes::decompose;
 use crate::materials::{MaterialPlan, Slot, display_name};
-use crate::scene::nearest_lod;
 use crate::scene_light::LIGHT_FRAME;
 use crate::texture_report::TextureRole;
 use crate::texture_roles::{Source, canonical, sources};
@@ -96,7 +95,7 @@ pub fn drawn_materials(
     materials: &MaterialStatus,
     level: u32,
 ) -> Vec<DrawnMaterial> {
-    let Some(lod) = nearest_lod(model, level) else {
+    let Some(lod) = model.nearest_lod(level) else {
         return Vec::new();
     };
     let plan = MaterialPlan::new(materials.library(), lod);

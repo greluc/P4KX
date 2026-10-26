@@ -13,7 +13,7 @@ use p4kx_testkit::{CheckedGlb, TestModel, TestSkeleton, check_glb};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-type Matrix = [[f32; 4]; 4];
+pub(crate) type Matrix = [[f32; 4]; 4];
 
 fn model(source: &TestModel) -> Result<Model, Box<dyn Error>> {
     let mut companions = |path: CompanionPath<'_>| -> Result<Option<Vec<u8>>, CompanionError> {
@@ -29,7 +29,7 @@ fn model(source: &TestModel) -> Result<Model, Box<dyn Error>> {
     )?)
 }
 
-fn glb(source: &TestModel) -> Result<(CheckedGlb, GlbSummary), Box<dyn Error>> {
+pub(crate) fn glb(source: &TestModel) -> Result<(CheckedGlb, GlbSummary), Box<dyn Error>> {
     let mut bytes = Vec::new();
     let summary = write_glb(&model(source)?, &GlbOptions::default(), &mut bytes)?;
     Ok((check_glb(&bytes)?, summary))
@@ -47,7 +47,7 @@ fn multiply(left: &Matrix, right: &Matrix) -> Matrix {
     })
 }
 
-fn global(glb: &CheckedGlb, node: usize) -> Matrix {
+pub(crate) fn global(glb: &CheckedGlb, node: usize) -> Matrix {
     let nodes: Vec<_> = glb.document.nodes().collect();
     let mut parents = vec![None; nodes.len()];
     for parent in &nodes {

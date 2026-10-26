@@ -87,7 +87,7 @@ are closed until you reload it.
 
 ## Comparing two Archives
 
-The **Comparison** tab next to **Browse** compares two Archives, for example LIVE against PTU.
+The **Comparison** tab next to **Browse** compares two Archives, for example an older against a newer Build.
 
 1. Pick the **Old Archive** and the **New Archive**. Each picker lists the detected Channels with
    their Build, the Recent Archives, and **Choose file…** for any other `Data.p4k`.

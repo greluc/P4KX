@@ -34,8 +34,7 @@ Of the chunks whose boxes differ, in LIVE:
 | `.cgfm` (30,588) | 24 | 3,704 | 26,860 | 7 | 716 |
 | `.cgam` (31,023) | 17 | 2,285 | 28,721 | 0 | 365 |
 
-PTU, TECH-PREVIEW and EPTU give the same counts within a few chunks. Where the test can decide,
-the second box wins in 99 % of the cases and by a clear margin in 716 of 723 and 365 of 365.
+Where the test can decide, the second box wins in 99 % of the cases and by a clear margin in 716 of 723 and 365 of 365.
 Most differing chunks (about 90 %) cannot be decided this way: their faces are axis-aligned
 (rooms, panels), so scaling the axes unevenly leaves the face normals unchanged. For those the
 rule rests on the decidable ones and on Cryengine-Converter. The 24 and 17 chunks where the first

@@ -26,9 +26,9 @@ and ADR-0113.
   signed: -1 maps to 0 and 1 to 255, -128 counting as -127; a signed alpha is clamped at 0 and
   scaled to 255. Grey, red-green and RGBA follow the unsigned formats of the same width; the
   blue of `R8G8_SNORM`, which has none, is the signed zero 128.
-- **Headerless alpha tails do not occur.** A survey of every `.dds.a` of LIVE (7,430), PTU
-  (7,432) and TECH-PREVIEW (7,772) finds that each one holds a DDS header, without the `DDS `
-  magic and with numbered parts `.1a` … `.Na` except two per Channel that hold all mips
+- **Headerless alpha tails do not occur.** A survey of every `.dds.a` of LIVE (7,430) finds
+  that each one holds a DDS header, without the `DDS `
+  magic and with numbered parts `.1a` … `.Na` except two that hold all mips
   themselves; no numbered part exists without its header and no tail lacks a header. The three
   layouts of StarBreaker that carry no header (a raw `.a` split by the exact size sum of R8 or
   BC4, and a single raw payload) therefore have nothing to read, and no code for them is added.

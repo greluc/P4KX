@@ -142,15 +142,14 @@ consumer compares it as a number, never as text.
 - **`buildId` does not order.** It is a random version-4 UUID. It identifies a Build for equality
   only.
 - **`version` does not order well.** The first three parts follow the Builds, but the fourth is a
-  counter of the build farm: a PTU Build had `4.10.196.33342` and the later LIVE Build
-  `4.10.197.2878`. TECH-PREVIEW starts at `1.0`. Use it for display, not for order.
+  counter of the build farm, so a later Build can carry a lower fourth part than an earlier one.
+  Use it for display, not for order.
 
-Evidence for the rule is in the pull request that closed p4kx-org/p4kx#402: 65 launcher
-log lines (`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`)
-over 4.5.0 to 4.8.2 with no inversion in any Channel (LIVE 15 distinct Builds, PTU 25, HOTFIX 6,
-TECH-PREVIEW 3), and the five installed manifests. The logs hold no EPTU line and rotate, so the
-claim covers the Builds the log kept; a rollback of a Channel to an older change would break it and
-would show as a lower number than the last applied one.
+Evidence for the rule is in the pull request that closed p4kx-org/p4kx#402: launcher log lines
+(`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`) with no
+inversion in any Channel, and the installed manifests. The logs rotate, so the claim covers the
+Builds the log kept; a rollback of a Channel to an older change would break it and would show as a
+lower number than the last applied one.
 
 ### Entities
 
@@ -1162,7 +1161,7 @@ path (`missing_shop_registry`, the registry may have moved in the Build) and whe
 cannot be read (`unreadable_shop_containers` with a `count`; their shops may lack kind and brand)
 or inventory files cannot be read (`unreadable_shop_inventories` with a `count` of files and
 `details`, the path and the reason of each; a file with no content at all, such as
-`inv_shopping_test_featuretest.json` on LIVE 4.10.197 and the PTU Build, is one of them, ADR-0141), when
+`inv_shopping_test_featuretest.json` on LIVE 4.10.197, is one of them, ADR-0141), when
 inventory files that containers name are not in the Archive (`missing_shop_inventories` with a
 `count` of distinct files; a Build may have moved or renamed them) and when shop containers name
 shops but no `.soc` holds a shop component (`no_shop_components`; the layout may have changed).

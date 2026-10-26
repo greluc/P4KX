@@ -3,13 +3,13 @@
 
 use egui::Ui;
 
-use super::sound_grid::{self, Cell, Grid, Laid, NAME_COLUMN, Row, Tint, Width};
-use crate::theme::sound_metrics::SOUND_CODEC_COLUMN;
+use super::sound_grid::{self, Cell, Grid, Laid, Row, Tint, Width};
+use crate::theme::sound_metrics::{SOUND_NAME_COLUMN, SOUND_STATE_COLUMN};
 use crate::{Language, SoundsText, Texts, TriggerList, TriggerRow, Unmatched};
 
 const WIDTHS: [Width; 3] = [
-    Width::Initial(NAME_COLUMN),
-    Width::Initial(SOUND_CODEC_COLUMN),
+    Width::Initial(SOUND_NAME_COLUMN),
+    Width::Initial(SOUND_STATE_COLUMN),
     Width::Rest,
 ];
 

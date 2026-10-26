@@ -4,6 +4,9 @@
 #[cfg(test)]
 mod archive_change_tests;
 mod audio;
+mod bank_cache;
+#[cfg(test)]
+mod bank_cache_tests;
 mod contents;
 mod entry_bytes;
 mod image;
@@ -19,6 +22,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use p4kx_extraction::Texture;
 
 pub use audio::{AudioPreview, AudioStatus, SoundInfo, SoundStatus, is_wem_path};
+pub(crate) use bank_cache::BankCache;
 pub use contents::PreviewContents;
 pub(crate) use contents::{HEX_ROW_LEN, printable};
 pub use image::{ImagePreview, ImageStatus, MipStatus};

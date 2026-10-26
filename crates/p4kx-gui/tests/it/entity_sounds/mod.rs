@@ -28,6 +28,12 @@ fn pcm() -> Vec<u8> {
     TestWem::pcm(TestCodec::WwisePcm, 1, 48_000, &test_signal(4_800, 1)).bytes()
 }
 
+/// The voice line of a language folder; the German one is twice as long as the English one.
+fn voice(folder: &str) -> Vec<u8> {
+    let samples = if folder == "German" { 9_600 } else { 4_800 };
+    TestWem::pcm(TestCodec::WwisePcm, 1, 48_000, &test_signal(samples, 1)).bytes()
+}
+
 fn bank() -> Vec<u8> {
     let mut bank = TestBank::new(wwise_short_id("Test"))
         .wem(100, pcm())
@@ -44,6 +50,14 @@ fn bank() -> Vec<u8> {
         .object(TestHircObject::sound(11, 103, STREAMED, 0))
         .object(TestHircObject::sound(12, 104, STREAMED, 0))
         .object(TestHircObject::sound(20, 200, EMBEDDED, 0))
+        .bytes()
+}
+
+fn voice_bank() -> Vec<u8> {
+    TestBank::new(wwise_short_id("Play_DX_Hello"))
+        .object(TestHircObject::event(wwise_short_id("Play_DX_Hello"), &[1]))
+        .object(TestHircObject::action(1, PLAY, 10))
+        .object(TestHircObject::sound(10, 8000, STREAMED, 0))
         .bytes()
 }
 
@@ -74,10 +88,11 @@ pub(crate) fn opened_with(
     let database = audio_schema(entity_schema(DataForgeBuilder::new())).record(ship.record());
     let definitions = TestAtl::new("SC_Audio")
         .trigger("Play_Multi", &["Play_Multi"])
-        .trigger("Play_Single", &["Play_Single"]);
+        .trigger("Play_Single", &["Play_Single"])
+        .localised_trigger("Play_Voice", "Play_DX_Hello");
     let dir = tempfile::tempdir()?;
     let path = dir.path().join("Data.p4k");
-    ArchiveBuilder::new()
+    let mut archive = ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", database.build()))
         .entry(TestEntry::zstd(
             "Data\\Libs\\GameAudio\\SC_Audio.xml",
@@ -87,8 +102,19 @@ pub(crate) fn opened_with(
         .entry(TestEntry::stored(
             "Data\\Sounds\\wwise\\Media\\103.wem",
             pcm(),
-        ))
-        .write_to(&path)?;
+        ));
+    for folder in ["English(US)", "German"] {
+        archive = archive
+            .entry(TestEntry::stored(
+                format!("Data\\Sounds\\wwise\\{folder}\\Voice.bnk"),
+                voice_bank(),
+            ))
+            .entry(TestEntry::stored(
+                format!("Data\\Sounds\\wwise\\Media\\{folder}\\8000.wem"),
+                voice(folder),
+            ));
+    }
+    archive.write_to(&path)?;
     let mut model = Model::new(language);
     model.set_audio_output(output.clone());
     let builder = Harness::builder()

@@ -13,6 +13,7 @@ mod catalog_failures;
 mod catalog_file;
 mod catalog_fixture;
 mod catalog_gear_stats;
+mod catalog_group_edges;
 mod catalog_groups;
 mod catalog_item_stats;
 mod catalog_items;

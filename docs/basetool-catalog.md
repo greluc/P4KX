@@ -519,7 +519,7 @@ from the entity:
 |-------|--------|
 | `name` | `SCItemPurchasableParams.displayName` |
 | `description` | `EntityUIDisplayParams.displayDescription` in `StaticEntityClassData` |
-| `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …); `null` without a `ResourceType` or a group |
+| `typeGuid` | The GUID of the `ResourceTypeGroup` Record that directly lists the `ResourceType` in its `resources` (19 groups on LIVE: Metal, Mineral, Gas, …), the `guid` of a `resourceGroups` entry; `null` without a `ResourceType` or a group |
 | `subtypeGuid` | The GUID of the `ResourceType` Record that the first entry of `ResourceContainer.defaultComposition` links to; `null` without one, e.g. `Special_HolidayLetter` |
 | `displayType` | A text: `SCItemPurchasableParams.displayType`, e.g. `@items_commodities_type_metal` |
 | `densityGramsPerCubicCentimetre` | The number `densityType.densityUnit.gramsPerCubicCentimeter` of the `ResourceType` holds (a fact, no game text); `null` without a `ResourceType`, a density or a density in another unit |
@@ -553,7 +553,7 @@ A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
 |-------|--------|
 | `className`, `key` | The Record name without its type, e.g. `BP_CRAFT_behr_lmg_ballistic_01_mag`; both hold it |
 | `name` | `blueprintName` |
-| `categoryGuid` | The GUID `category` links to |
+| `categoryGuid` | The GUID `category` links to, the `guid` of a `blueprintCategories` entry; `null` without a category or when that Record is a left-out development leftover or unreadable |
 | `producedItemGuid` | The GUID `processSpecificData.entityClass` links to; `null` for a Reference to a Record the DataForge lacks |
 | `craftTimeSeconds` | `costs.craftTime` of the first tier (`days`, `hours`, `minutes`, `seconds`) in whole seconds, rounded |
 | `ingredients` | The costs of the first tier, see below |
@@ -584,7 +584,12 @@ takes its fields from the Record:
 |-------|--------|
 | `className` | The Record name without its type, e.g. `Metal` |
 | `name` | `displayName`, e.g. `@items_commodities_type_metal`; a placeholder key (`@LOC_PLACEHOLDER`, 7 groups on LIVE) leaves `en` and `de` `null`, and the Basetool falls back to `className` |
-| `parentGuid` | The GUID of the group that lists this group in its `groups`, `null` for a top-level group; the first group in Record order wins when several list it |
+| `parentGuid` | The GUID of the group that lists this group in its `groups`, the `guid` of another `resourceGroups` entry; `null` for a top-level group; the first group in Record order wins when several list it. Only the groups of the kind list: a group left out as a development leftover or unreadable names no parent and no `ResourceType` |
+
+The groups form a forest, and `parentGuid` is the direct parent only. The import must not assume
+a fixed depth and must guard against a cycle: the catalog exports the lists as the game stores
+them, so a group that lists itself has no parent and two groups that list each other (A lists B, B
+lists A) are each other's parent, with no root.
 
 Groups nest one level on LIVE: Metal lists Alloy and UnrefinedOres, Mineral lists Raw_Minerals,
 Nonmetal lists Halogen, Organic lists Food, ProcessedGoods lists SyntheticMaterials, Vice and
@@ -605,7 +610,8 @@ Record.
 
 Every `typeGuid` of a commodity and every `categoryGuid` of a blueprint resolves to a `guid` of
 `resourceGroups` or `blueprintCategories` (checked against LIVE; a commodity without a
-`ResourceType` or group, 1 on LIVE, and a blueprint without a category have `null`). With a
+`ResourceType` or group, 1 on LIVE, and a blueprint without a category or whose category is a
+left-out leftover have `null`). With a
 `--filter`, a kind is partial and the references need not resolve.
 
 ### Tiers

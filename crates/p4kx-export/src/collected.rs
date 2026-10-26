@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::RecordTree;
+use std::collections::HashSet;
 
-use crate::blueprint_category::blueprint_category;
+use p4kx_extraction::{Guid, RecordTree};
+
+use crate::blueprint_category::{blueprint_category, unlink_categories};
 use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::commodity;
 use crate::contract::{
@@ -49,8 +51,8 @@ pub(crate) enum Picked<'f> {
     Mineable(MineableElement<'f>),
     /// A refining process.
     Refining(RefiningProcess<'f>),
-    /// A development leftover of the kind.
-    Skipped(Kind),
+    /// A development leftover of the kind, with the GUID of its Record.
+    Skipped(Kind, Guid),
     /// A Record that could not be read.
     Failed(CatalogFailure),
 }
@@ -179,6 +181,7 @@ impl<'f> Collected<'f> {
             warnings: crafting.warnings,
             skipped,
         };
+        let mut missing_categories = HashSet::new();
         for pick in picked {
             match pick {
                 Picked::Manufacturer(entity) => collected.manufacturers.push(entity),
@@ -201,7 +204,10 @@ impl<'f> Collected<'f> {
                 Picked::Starmap(entity) => collected.starmap_objects.push(entity),
                 Picked::Mineable(entity) => collected.mineable_elements.push(entity),
                 Picked::Refining(entity) => collected.refining_processes.push(entity),
-                Picked::Skipped(kind) => {
+                Picked::Skipped(kind, guid) => {
+                    if kind == Kind::BlueprintCategories {
+                        missing_categories.insert(guid);
+                    }
                     if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
                         *skipped = skipped.saturating_add(1);
                     }
@@ -209,6 +215,8 @@ impl<'f> Collected<'f> {
                 Picked::Failed(failure) => collected.failures.push(failure),
             }
         }
+        missing_categories.extend(collected.failures.iter().map(|failure| failure.guid));
+        unlink_categories(&mut collected.blueprints, &missing_categories);
         collected.order();
         collected
     }

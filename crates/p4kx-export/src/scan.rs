@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{
-    CancelToken, DataForge, DataForgeError, Guid, Record, RecordTree, TreeBuilder,
+    CancelToken, DataForge, DataForgeError, Filter, Guid, Record, RecordTree, TreeBuilder,
 };
 use rayon::prelude::*;
 
@@ -26,8 +26,16 @@ use crate::{CatalogError, CatalogFailure, CatalogOptions, CatalogPhase, CatalogP
 use crate::{item_stats, item_variant};
 
 const PROGRESS_STEP: usize = 1024;
-const GROUP_TYPE: &str = "ResourceTypeGroup";
 const RESOURCE_TYPE: &str = "ResourceType";
+
+/// Returns whether the `resourceGroups` kind selects `record` under `filter`; a Record whose path
+/// or type cannot be read is not selected here, the check of the Record reports it.
+fn selects_group(record: &Record<'_>, filter: Option<&Filter>) -> bool {
+    matches!(
+        select(record, filter),
+        Ok(Some(Selected::Entity(Kind::ResourceGroups)))
+    )
+}
 
 /// Appends to `out` the `ResourceType` GUID of every resource line of `line`, selections opened.
 fn resources_of(line: &CostLine<'_>, out: &mut Vec<Guid>) {
@@ -63,7 +71,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         placements: &'o Placements,
     ) -> Result<Vec<Picked<'f>>, CatalogError> {
         let records: Vec<Record<'f>> = forge.records().collect();
-        let (groups, group_failures) = Self::groups(&records);
+        let (groups, group_failures) = Self::groups(&records, options.filter);
         let (evidence, evidence_failures) = Evidence::read(&records);
         let scan = Self {
             forge,
@@ -92,22 +100,24 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         Ok(picked)
     }
 
-    /// Returns what the `ResourceTypeGroup` Records list, the first group in Record order winning a
-    /// `ResourceType` or group several list, and the groups that cannot be read.
-    fn groups(records: &[Record<'f>]) -> (Groups, Vec<CatalogFailure>) {
+    /// Returns what the `ResourceTypeGroup` Records of the `resourceGroups` kind list, the first
+    /// group in Record order winning a `ResourceType` or group several list, and the groups that
+    /// cannot be read and that the kind, under the Filter, does not report itself.
+    fn groups(records: &[Record<'f>], filter: Option<&Filter>) -> (Groups, Vec<CatalogFailure>) {
         let listed: Vec<Result<Option<Listing>, CatalogFailure>> = records
             .par_iter()
             .map_init(TreeBuilder::new, |trees, record| {
-                if !record.type_name().is_ok_and(|name| name == GROUP_TYPE) {
+                if !selects_group(record, None) {
                     return Ok(None);
                 }
-                let tree = trees
-                    .build(record)
-                    .map_err(|source| CatalogFailure::of(record, &source))?;
-                Ok(Some(listing(&tree)))
+                match trees.build(record) {
+                    Ok(tree) => Ok(Some(listing(&tree))),
+                    Err(_) if selects_group(record, filter) => Ok(None),
+                    Err(source) => Err(CatalogFailure::of(record, &source)),
+                }
             })
             .collect();
-        let mut groups = Groups::new();
+        let mut groups = Groups::default();
         let mut failures = Vec::new();
         for result in listed {
             match result {
@@ -201,7 +211,9 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
         let kind = match select(record, self.options.filter)? {
             None => return Ok(None),
-            Some(Selected::Leftover(kind)) => return Ok(Some(Picked::Skipped(kind))),
+            Some(Selected::Leftover(kind)) => {
+                return Ok(Some(Picked::Skipped(kind, record.guid())));
+            }
             Some(Selected::Entity(kind)) => kind,
         };
         let tree = trees.build(record)?;

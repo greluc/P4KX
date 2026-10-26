@@ -163,7 +163,7 @@ impl EntitySpec {
                 .map(|component| MaterialVariant::read(component))
                 .unwrap_or_default(),
             size: definition.and_then(|definition| unsigned(definition, "Size")),
-            docked_vehicle: attach_type.starts_with(DOCKED_VEHICLE_TYPE),
+            docked_vehicle: is_docked_vehicle_type(attach_type),
             attach_type: attach_type.to_owned(),
             container,
             object_containers: crate::object_containers::read(&components).into(),
@@ -201,15 +201,17 @@ impl EntitySpec {
         }
     }
 
-    /// Returns every target the Entity's own Loadout and port defaults name, nested ones
-    /// included.
-    pub(crate) fn targets(&self) -> Vec<&TargetSpec> {
-        let mut targets: Vec<&TargetSpec> =
-            self.ports.iter().map(|port| &port.default_item).collect();
-        if let Some(LoadoutSpec::Manual(entries)) = &self.loadout {
-            collect_targets(entries, &mut targets);
+    /// Returns the targets the port defaults of the Entity name.
+    pub(crate) fn default_targets(&self) -> impl Iterator<Item = &TargetSpec> {
+        self.ports.iter().map(|port| &port.default_item)
+    }
+
+    /// Returns the entries of the Entity's own Loadout when they are written out in the Record.
+    pub(crate) fn manual_entries(&self) -> Option<&[EntrySpec]> {
+        match &self.loadout {
+            Some(LoadoutSpec::Manual(entries)) => Some(entries),
+            _ => None,
         }
-        targets
     }
 }
 
@@ -297,13 +299,13 @@ fn item_facts<'f>(components: &[&StructValue<'f>]) -> (&'f str, Option<Guid>) {
     (attach_type, container)
 }
 
-fn collect_targets<'s>(entries: &'s [EntrySpec], targets: &mut Vec<&'s TargetSpec>) {
-    for entry in entries {
-        targets.push(&entry.target);
-        if let Some(LoadoutSpec::Manual(nested)) = &entry.loadout {
-            collect_targets(nested, targets);
-        }
-    }
+/// Returns whether an `AttachDef.Type` marks a docked vehicle: it starts with `NOITEM_Vehicle`,
+/// ignoring ASCII case.
+fn is_docked_vehicle_type(attach_type: &str) -> bool {
+    attach_type
+        .as_bytes()
+        .get(..DOCKED_VEHICLE_TYPE.len())
+        .is_some_and(|prefix| prefix.eq_ignore_ascii_case(DOCKED_VEHICLE_TYPE.as_bytes()))
 }
 
 /// Returns the words of a tag list as the game writes it: white space separated, a word such as

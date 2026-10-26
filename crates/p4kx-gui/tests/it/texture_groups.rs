@@ -200,6 +200,63 @@ fn sorting_by_size_uses_the_size_of_the_whole_texture() -> TestResult {
 }
 
 #[test]
+fn sorting_keeps_the_counts_and_the_expanded_parts() -> TestResult {
+    let (_folder, mut model) = opened()?;
+    let browser = browser(&mut model)?;
+    let wall = id_of(browser, "Data\\tex\\wall.dds")?;
+    browser.set_checked(wall, true);
+    browser.toggle_texture(wall);
+    let (len, checked, rows) = (
+        browser.view_len(),
+        browser.checked_count(),
+        browser.rows().len(),
+    );
+
+    for column in [SortColumn::Size, SortColumn::Size, SortColumn::Name] {
+        browser.sort_by(column);
+        assert_eq!(browser.view_len(), len);
+        assert_eq!(browser.checked_count(), checked);
+        assert_eq!(browser.hidden_checked_count(), 0);
+        assert_eq!(browser.rows().len(), rows);
+        assert_eq!(row_ids(browser), expected_row_ids(browser, wall));
+        assert!(browser.is_texture_expanded(wall));
+    }
+
+    browser.search("wall.dds", || {});
+    settle(&mut model, |model| {
+        model
+            .browser()
+            .is_some_and(|browser| !browser.is_searching())
+    })?;
+    let browser = self::browser(&mut model)?;
+    let (len, checked) = (browser.view_len(), browser.checked_count());
+    assert_eq!(len, 4, "the search matches the texture with its parts");
+    for column in [SortColumn::Size, SortColumn::Size, SortColumn::Name] {
+        browser.sort_by(column);
+        assert_eq!(browser.view_len(), len);
+        assert_eq!(browser.checked_count(), checked);
+        assert_eq!(browser.hidden_checked_count(), 0);
+        assert_eq!(row_ids(browser), expected_row_ids(browser, wall));
+    }
+    Ok(())
+}
+
+fn row_ids(browser: &Browser) -> Vec<u32> {
+    browser.rows().iter().map(|row| row.id).collect()
+}
+
+fn expected_row_ids(browser: &Browser, expanded: u32) -> Vec<u32> {
+    let mut ids = Vec::new();
+    for &id in browser.shown() {
+        ids.push(id);
+        if id == expanded {
+            ids.extend_from_slice(browser.index().texture_parts(id));
+        }
+    }
+    ids
+}
+
+#[test]
 fn extracting_a_checked_texture_writes_all_its_parts() -> TestResult {
     let (folder, mut model) = opened()?;
     let wall = id_of(browser(&mut model)?, "Data\\tex\\wall.dds")?;

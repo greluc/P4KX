@@ -8,6 +8,7 @@ mod navigation;
 mod records;
 mod rows;
 mod tree;
+mod view;
 
 pub use navigation::HitLine;
 pub use rows::{EntryRow, EntryRowKind};
@@ -199,7 +200,7 @@ impl Browser {
                 direction: SortDirection::Ascending,
             }
         };
-        self.refresh_shown();
+        self.refresh_sorted();
     }
 
     /// Returns the ids of the shown Entries in table order; a split texture is one Entry, its
@@ -331,38 +332,9 @@ impl Browser {
     }
 
     fn refresh_shown(&mut self) {
-        self.refresh_view();
+        self.refresh_order();
+        self.refresh_counts();
         self.refresh_rows();
-    }
-
-    fn refresh_view(&mut self) {
-        let Some(index) = self.pane().map(Arc::clone) else {
-            self.shown.clear();
-            self.view_len = 0;
-            self.shown_checked_count = 0;
-            return;
-        };
-        if let Some(matches) = &self.matches {
-            self.shown = index.entries_matching(matches.mask(), self.sort);
-            self.view_len = matches.mask().iter().filter(|&&matched| matched).count();
-            self.shown_checked_count = matches
-                .mask()
-                .iter()
-                .zip(self.checks.marks())
-                .filter(|&(&matched, &checked)| matched && checked)
-                .count();
-        } else {
-            self.shown = index.entries_in(self.folder, self.sort);
-            let (mut len, mut checked) = (0, 0);
-            for &id in &self.shown {
-                let parts = index.texture_parts(id);
-                len += 1 + parts.len();
-                checked += usize::from(self.is_checked(id))
-                    + parts.iter().filter(|&&part| self.is_checked(part)).count();
-            }
-            self.view_len = len;
-            self.shown_checked_count = checked;
-        }
     }
 
     pub(crate) fn shown_index(&self) -> &Arc<EntryIndex> {

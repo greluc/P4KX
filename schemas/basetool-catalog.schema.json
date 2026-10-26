@@ -419,7 +419,7 @@
       "type": "object"
     },
     "Commodity": {
-      "description": "A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a\n`ResourceType` Record a blueprint ingredient uses that no commodity Record carries.",
+      "description": "A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a\n`ResourceType` Record that a blueprint cost or a quality quantization uses and no commodity\nRecord carries.",
       "properties": {
         "className": {
           "description": "The Record name without its type, e.g. `Gold`.",

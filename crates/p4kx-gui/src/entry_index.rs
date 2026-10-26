@@ -315,12 +315,34 @@ impl EntryIndex {
         (!cancelled.load(Ordering::Relaxed)).then_some(matches)
     }
 
+    /// Fills `out` with the ids [`EntryIndex::entries_in`] returns, reusing its allocation.
+    pub(crate) fn entries_in_into(&self, folder: FolderId, sort: Sort, out: &mut Vec<u32>) {
+        let range = self.folder(folder).entries();
+        self.sorted_where_into(sort, |id| range.contains(&id), out);
+    }
+
+    /// Fills `out` with the ids [`EntryIndex::entries_matching`] returns, reusing its allocation.
+    pub(crate) fn entries_matching_into(&self, matches: &[bool], sort: Sort, out: &mut Vec<u32>) {
+        self.sorted_where_into(
+            sort,
+            |id| matches.get(id as usize).copied().unwrap_or(false),
+            out,
+        );
+    }
+
     fn sorted_where(&self, sort: Sort, keep: impl Fn(u32) -> bool) -> Vec<u32> {
+        let mut out = Vec::new();
+        self.sorted_where_into(sort, keep, &mut out);
+        out
+    }
+
+    fn sorted_where_into(&self, sort: Sort, keep: impl Fn(u32) -> bool, out: &mut Vec<u32>) {
+        out.clear();
         let ascending = self.orders.ascending(sort.column).iter();
         let keep = |id: &&u32| keep(**id) && !self.groups.is_part(**id);
         match sort.direction {
-            SortDirection::Ascending => ascending.filter(keep).copied().collect(),
-            SortDirection::Descending => ascending.rev().filter(keep).copied().collect(),
+            SortDirection::Ascending => out.extend(ascending.filter(keep).copied()),
+            SortDirection::Descending => out.extend(ascending.rev().filter(keep).copied()),
         }
     }
 }

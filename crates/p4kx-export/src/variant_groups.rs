@@ -12,7 +12,7 @@ use crate::entity_selection::{Selected, select};
 use crate::guid_text::CatalogGuid;
 use crate::item_variant::{self, ItemKey};
 use crate::playability_rules::{self, Evidence};
-use crate::record_fields::class_name;
+use crate::record_fields::{class_name, component};
 use crate::ship_pool::ShipPool;
 use crate::variants::{Candidate, ShipKey, group};
 use crate::{Kind, VariantSummary, item, item_stats, ship};
@@ -138,7 +138,11 @@ fn pick<'f>(
             Pick::Ship(Candidate {
                 guid: CatalogGuid(tree.guid()),
                 class_name: class_name(&tree),
-                playability: playability_rules::ship(&tree, evidence),
+                playability: playability_rules::ship(
+                    &tree,
+                    component(&tree, "VehicleComponentParams"),
+                    evidence,
+                ),
                 key: ship::variant_key(&tree, &read),
             })
         }));

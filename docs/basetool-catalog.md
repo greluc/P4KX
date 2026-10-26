@@ -427,7 +427,7 @@ not exist.
 A ship with `cargoGridsWithIssue` above 0 and a `cargoScu` number may carry more than the number
 says.
 
-On LIVE the 1,087 catalog ships split into 1,048 `spaceship` and 39 `groundVehicle`, none `null`:
+On LIVE the 1,066 catalog ships split into 1,027 `spaceship` and 39 `groundVehicle`, none `null`:
 no Record under `entities/spaceships` has a wheel or tread. The folder `entities/groundvehicles`
 holds 40 Records; the 40th, `RSI_Ursa_Rover_Unmanned_Template`, is left out of the catalog as a
 development leftover (the whole word `template`, see "Selection").
@@ -497,15 +497,15 @@ For an item the first rule that holds decides:
 
 No item is `ai`: items carry no AI marker the rules can read.
 
-The development-leftover token rule (see "Selection") runs first and is unchanged: a Record it
-leaves out is no entity and has no playability. Known limit: a few leftover-like ships whose names
-the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
-structural marker and read as `player`.
+The development-leftover token rule (see "Selection") runs first: a Record it leaves out is no
+entity and has no playability. No structural marker sets the leftover-like ships apart from the
+ships a player owns, so a ship is also left out by name when its record path or name holds the
+whole word `temp`, `display` or `hijacked` (21 ships on LIVE, 15 of them `player`; ADR-0167).
 
 **The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
 means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion
 mode and no AI crew or hull; items: a shop display name). It is not proof that a player can obtain
-it: about 20 leftover-like ships on LIVE are `player`, and items carry no AI marker. The Basetool
+it: items carry no AI marker. The Basetool
 matches every other value and `null` against what it knows and seeds none of them. A `null` ship
 (LIVE: Stingray, Skylark, Railen) is added by hand.
 
@@ -817,7 +817,7 @@ game selects the Military paints elsewhere.
 have at least one paint and the ships whose vehicle implementation cannot be read, or whose patch file or Modification is
 not applied as it names, except that a patch file the Archive lacks is a fact of the game data; `CatalogSummary::paints()` returns them, and an unreadable vehicle file is also a warning of
 `CatalogSummary::warnings()`. Measured on LIVE (4.7): 1,064 paints, 1,039 assigned, 25 not
-assigned, 1,046 ships with paints. Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
+assigned, 1,025 ships with paints (1,046 before ADR-0167). Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
 a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballista_Base`,
 `Paint_Gladius_Default`, `Paint_Carrack_Default`, `Paint_Hurricane_Default`, the Vanguard
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
@@ -1380,7 +1380,7 @@ w/C8X`, `600i Explorer`, `ATLS`).
 Seven of the unmapped slugs have a ship under the store name that the player-only rule excluded,
 because its `playability` is `null` (no rule classifies it): `GAMA_Railen`, `GAMA_Tyilui`,
 `GLSN_Basher`, `KRIG_S65_Stingray`, `RSI_Skylark`, `RSI_Constellation_Mk5_Centaurus` and
-`AEGS_Sabre_Raven_EX`. They can be mapped once their playability is settled. 119 ships with
+`AEGS_Sabre_Raven_EX`. They can be mapped once their playability is settled. Before ADR-0167, 119 ships with
 `playability` `player` have no slug; most are event, reward and display variants of a ship that
 has one.
 
@@ -1476,7 +1476,11 @@ every kind partial.
 Development leftovers are left out and counted as skipped: a selected Record whose record path or
 name holds one of the tokens `test`, `template`, `dummy`, `debug`, `deprecated` or `dev` as a
 whole word, ignoring case. Words are the runs of ASCII letters and digits, so `paint_test_01` is
-left out while `contestant` stays.
+left out while `contestant` stays. For the ships kind the words `temp`, `display` and `hijacked`
+count as well, so `glsn_shiv_temp_cosa` and `aegs_avenger_stalker_display` are left out; the other
+kinds keep their `display` and `temp` Records (radar displays, shop displays and the like). This
+changed the selection of `ships` for `schemaVersion` 2 (ADR-0167): 21 ships on LIVE are skipped
+that version 1 listed.
 
 A selected Record that cannot be read, such as one whose struct layout is corrupt, does not stop
 the catalog: it is left out, counted as a failure and reported with its record path, GUID and
@@ -1512,9 +1516,9 @@ is the whole catalog, the other kinds are in `p4kx catalog --json`):
 
 | Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints | Loadouts |
 |---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|---------:|
-| LIVE | 152,812,265 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 | 10,708 |
+| LIVE | 152,812,265 | 1,201 | 23,280 | 1,066 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 | 10,687 |
 
-Measured on 2026-10-22, LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports
+Measured on 2026-10-22, LIVE held 10,708 loadouts (1,087 ships, 9,621 items; 10,687 and 1,066 once ADR-0167 leaves 21 ships out) with 293,451 ports
 (nested ports counted for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
 unresolved attachments (`unknown_class` 446, `dangling_reference` 54, `cycle` 5); 61 attached
 Entities have no entry in `items` or `ships` (templates of doors, screens, beds and the like, and
@@ -1551,7 +1555,7 @@ of the ship base fields that gave every split of the parallel scan its own ship 
 10.5 s, because each reader began with empty Entity caches; the scan now keeps the readers in a
 pool, so a reader keeps its caches across splits. Writing the `.json.zst` takes 19 to 22 s per
 Channel in all. Left out as development leftovers on
-LIVE: 2 manufacturers, 1,145 items, 57 ships and 1 quality distribution (1,205 Records).
+LIVE: 2 manufacturers, 1,145 items, 78 ships (57 before ADR-0167) and 1 quality distribution (1,226 Records).
 
 ### Verification against the live data
 

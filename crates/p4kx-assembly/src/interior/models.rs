@@ -37,12 +37,14 @@ fn vertices(model: &Model) -> usize {
 
 /// Reads the model of every model part and the material library it draws with, each distinct
 /// file once and in parallel, looking in the part's container first and then in the containers
-/// around it; fills the parts in and lists what could not be read.
+/// around it; fills the parts in and lists what could not be read. The models of the first layer,
+/// the game's Archive, are read through `shared` when given.
 pub(super) fn attach(
     walked: &mut Walked<'_>,
     options: &InteriorOptions,
     watch: &InteriorWatch<'_>,
     classes: Option<&dyn ClassLookup>,
+    shared: Option<&dyn ModelProvider>,
 ) -> Result<(), AssemblyError> {
     let providers: Vec<ArchiveModels<'_>> = (0..walked.layers.len())
         .filter_map(|layer| walked.layers.get(layer))
@@ -56,7 +58,7 @@ pub(super) fn attach(
             files.push((key.clone(), path.clone()));
         }
     }
-    let outcomes = read_models(&files, &providers, (options, watch))?;
+    let outcomes = read_models(&files, &providers, (options, watch), shared)?;
     let chosen = chosen_libraries(&walked.placements, &resolved, &outcomes);
     let libraries = read_libraries(&outcomes, &chosen, &providers, watch)?;
     let mut fill = Fill {
@@ -193,17 +195,21 @@ fn read_wave(
     wave: &[(Key, String)],
     providers: &[ArchiveModels<'_>],
     (options, watch): (&InteriorOptions, &InteriorWatch<'_>),
+    shared: Option<&dyn ModelProvider>,
 ) -> Vec<(Key, Read)> {
     wave.par_iter()
         .map(|(key, path)| {
             if watch.is_cancelled() {
                 return (key.clone(), Err(ModelFailure::Missing));
             }
-            let result = providers
-                .get(key.0)
-                .ok_or(ModelFailure::Missing)
-                .and_then(|provider| provider.model(path, options.lod))
-                .map(|provided| (provided.entry, provided.model));
+            let read = match (key.0, shared) {
+                (0, Some(shared)) => shared.model(path, options.lod),
+                _ => providers
+                    .get(key.0)
+                    .ok_or(ModelFailure::Missing)
+                    .and_then(|provider| provider.model(path, options.lod)),
+            };
+            let result = read.map(|provided| (provided.entry, provided.model));
             (key.clone(), result)
         })
         .collect()
@@ -213,6 +219,7 @@ fn read_models(
     files: &[(Key, String)],
     providers: &[ArchiveModels<'_>],
     (options, watch): (&InteriorOptions, &InteriorWatch<'_>),
+    shared: Option<&dyn ModelProvider>,
 ) -> Result<HashMap<Key, Outcome>, AssemblyError> {
     let mut outcomes: HashMap<Key, Outcome> = HashMap::new();
     let mut total = 0_usize;
@@ -227,7 +234,7 @@ fn read_models(
         if total >= options.max_vertices {
             break;
         }
-        for (key, result) in read_wave(wave, providers, (options, watch)) {
+        for (key, result) in read_wave(wave, providers, (options, watch), shared) {
             let outcome = match result {
                 Ok((entry, model)) => {
                     let count = vertices(&model);

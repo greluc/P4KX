@@ -34,6 +34,7 @@ pub(crate) struct Plan {
     errors: Vec<ChangeError>,
     key: String,
     marks: Vec<usize>,
+    stopped: Vec<String>,
 }
 
 /// Returns the key of a port path, or `None` when it is no path.
@@ -109,6 +110,7 @@ impl Plan {
             errors: Vec::new(),
             key: String::new(),
             marks: Vec::new(),
+            stopped: Vec::new(),
         })
     }
 
@@ -157,32 +159,58 @@ impl Plan {
         });
     }
 
-    /// Returns the first problem of the resolution: a rejected replacement, else a change that
-    /// found no port.
-    pub(crate) fn finish(self) -> Option<ChangeError> {
+    /// Records that the Entity at the port entered last is a docked vehicle that is not
+    /// expanded, so that changes below it find no port and are no error.
+    pub(crate) fn stopped_here(&mut self) {
+        self.stopped.push(self.key.clone());
+    }
+
+    /// Records that the replacement of the port entered last is the root or an ancestor of it.
+    pub(crate) fn reject_cycle(&mut self, entity: &str) {
+        self.errors.push(ChangeError::Cycle {
+            path: self.path_of_replacement(),
+            entity: entity.to_owned(),
+        });
+    }
+
+    /// Returns the paths of the changes that lie below a docked vehicle that is not expanded and
+    /// so were not applied, or the first problem of the resolution: a rejected replacement, else
+    /// a change that found no port.
+    pub(crate) fn finish(self) -> Result<Vec<String>, ChangeError> {
         let Self {
             exclusions,
             replacements,
             errors,
+            stopped,
             ..
         } = self;
-        errors.into_iter().next().or_else(|| {
-            let mut unknown: Vec<String> = exclusions
-                .into_values()
-                .filter(|exclusion| !exclusion.matched)
-                .map(|exclusion| exclusion.path)
-                .chain(
-                    replacements
-                        .into_values()
-                        .filter(|replacement| !replacement.matched)
-                        .map(|replacement| replacement.path),
-                )
-                .collect();
-            unknown.sort();
-            unknown
-                .into_iter()
-                .next()
-                .map(|path| ChangeError::UnknownPort { path })
-        })
+        if let Some(error) = errors.into_iter().next() {
+            return Err(error);
+        }
+        let unreachable = |key: &str| stopped.iter().any(|docked| under(key, docked));
+        let unmatched = exclusions
+            .into_iter()
+            .filter(|(_, exclusion)| !exclusion.matched)
+            .map(|(key, exclusion)| (key, exclusion.path))
+            .chain(
+                replacements
+                    .into_iter()
+                    .filter(|(_, replacement)| !replacement.matched)
+                    .map(|(key, replacement)| (key, replacement.path)),
+            );
+        let (mut ignored, mut unknown) = (Vec::new(), Vec::new());
+        for (key, path) in unmatched {
+            if unreachable(&key) {
+                ignored.push(path);
+            } else {
+                unknown.push(path);
+            }
+        }
+        unknown.sort();
+        if let Some(path) = unknown.into_iter().next() {
+            return Err(ChangeError::UnknownPort { path });
+        }
+        ignored.sort();
+        Ok(ignored)
     }
 }

@@ -46,6 +46,7 @@ mod loadout_changes_edit;
 mod loadout_edges;
 mod loadout_entries;
 mod loadout_fit;
+mod loadout_followups;
 mod loadout_nested;
 mod loadout_tree;
 mod npc_head;

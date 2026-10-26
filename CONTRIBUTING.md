@@ -15,7 +15,8 @@ The short version:
    `cargo xtask` and the tests locally before they are pushed.
 5. **Every user-visible change adds a changelog fragment** under
    [`changelog.d/`](changelog.d/README.md) instead of editing [`CHANGELOG.md`](CHANGELOG.md).
-6. **Every commit is signed off** ([DCO](#developer-certificate-of-origin-dco)): `git commit -s`.
+6. **Sign the [Contributor License Agreement](CLA.md) once** before your first pull request, and
+   **sign off every commit** ([DCO](#developer-certificate-of-origin-dco)): `git commit -s`.
 
 ## Table of Contents
 
@@ -28,6 +29,7 @@ The short version:
 - [Game data and the Archive key](#game-data-and-the-archive-key)
 - [Local development setup](#local-development-setup)
 - [Pull requests](#pull-requests)
+- [Contributor License Agreement (CLA)](#contributor-license-agreement-cla)
 - [Developer Certificate of Origin (DCO)](#developer-certificate-of-origin-dco)
 - [Commit messages](#commit-messages)
 - [Style guides](#style-guides)
@@ -127,14 +129,34 @@ The tests against a real Archive are ignored by default; `CLAUDE.md` and the
 4. Fill in the [pull request template](.github/PULL_REQUEST_TEMPLATE.md) and link the issue with
    `Closes #<issue>`.
 5. CI runs the lints, `cargo xtask`, the tests on Windows and Linux, the schema and concurrency
-   tests and the Blender add-on tests. All must pass.
-6. A maintainer reviews and merges with a merge commit.
+   tests, the Blender add-on tests, CodeQL and the DCO check. All must pass.
+6. A maintainer checks your [CLA](#contributor-license-agreement-cla), reviews and merges with a
+   merge commit.
+
+## Contributor License Agreement (CLA)
+
+Before your first contribution is merged, you sign the
+[P4KX Individual Contributor License Agreement](CLA.md) once; it covers all your present and
+future contributions. You keep the copyright in your contributions: the CLA grants the maintainers
+a perpetual copyright and patent licence, in addition to the MIT and Apache-2.0 licences under
+which your contribution is distributed.
+
+To sign, open a pull request titled `CLA: sign — <your-github-handle>` that adds your row to
+[`docs/cla-signatures.md`](docs/cla-signatures.md), with the acceptance sentence from
+[§ 11 of the CLA](CLA.md#11-how-to-sign) in its description. If you contribute on behalf of an
+employer, an Entity CLA is needed as well; ask
+[lucas.greuloch@gmail.com](mailto:lucas.greuloch@gmail.com).
+
+The CLA applies to every contribution that ends up in a commit on `main` under your authorship:
+code, documentation, translations, workflows, typo fixes alike. A pull request from an author
+without a signed CLA waits until it is signed.
 
 ## Developer Certificate of Origin (DCO)
 
-Every commit carries a `Signed-off-by` trailer that certifies the
+In addition to the one-time CLA, every commit carries a `Signed-off-by` trailer that certifies the
 [Developer Certificate of Origin, version 1.1](https://developercertificate.org/): that you wrote
-the change or otherwise have the right to submit it under the project's licence.
+the change or otherwise have the right to submit it under the project's licence. The CLA is the
+lasting licence grant; the sign-off is the per-commit statement of origin.
 
 ```powershell
 git commit -s
@@ -147,6 +169,11 @@ That appends `Signed-off-by: Your Name <you@example.org>`, taken from `git confi
 - every commit since `main`: `git rebase --signoff main`
 
 then update the pull request with `git push --force-with-lease`. Never force-push `main`.
+
+The *DCO sign-off* job of the [Commit Gates](.github/workflows/commit-gates.yml) workflow checks
+every commit of a pull request: its `Signed-off-by` trailer must match the commit's author name and
+e-mail (the e-mail case-insensitively). Merge commits and Dependabot and GitHub Actions commits are
+skipped.
 
 ## Commit messages
 
@@ -198,6 +225,7 @@ Archive are modules of `tests/real_archive/`. See "Test layout" in [`CLAUDE.md`]
 - [ ] `cargo xtask` passes.
 - [ ] The tests pass.
 - [ ] A user-visible change has its `changelog.d/` fragment.
+- [ ] The CLA is signed.
 - [ ] Every commit is signed off.
 - [ ] No game data, extracted assets, Archive key or other secrets in the diff.
 

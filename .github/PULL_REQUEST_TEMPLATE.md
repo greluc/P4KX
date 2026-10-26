@@ -47,6 +47,7 @@ could not be tested, say so explicitly.
 - [ ] The issue is linked (`Closes #...`).
 - [ ] The branch is up to date with `main`.
 - [ ] A user-visible change adds a fragment `changelog.d/<issue>.md` ([form](../changelog.d/README.md)); `CHANGELOG.md` itself is not edited.
+- [ ] I have signed the [Contributor License Agreement](../CLA.md) (once; see [`docs/cla-signatures.md`](../docs/cla-signatures.md)).
 - [ ] Every commit carries a `Signed-off-by:` trailer (`git commit -s`, see [CONTRIBUTING.md](../CONTRIBUTING.md#developer-certificate-of-origin-dco)).
 - [ ] No game files, extracted game assets, the Archive key or other secrets are in the diff.
 

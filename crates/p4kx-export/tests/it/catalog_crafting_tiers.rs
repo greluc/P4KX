@@ -328,6 +328,7 @@ fn a_filter_marks_the_crafting_kinds_partial_and_selects_by_record_path() -> Tes
         "blueprints",
         "gameplayProperties",
         "qualityDistributions",
+        "qualityQuantizations",
         "blueprintPools",
         "dismantleProcesses",
     ] {
@@ -366,6 +367,7 @@ fn the_summary_counts_the_crafting_kinds_and_the_skipped_blueprints() -> TestRes
             (Kind::BlueprintCategories, 0, 0),
             (Kind::GameplayProperties, 1, 0),
             (Kind::QualityDistributions, 2, 0),
+            (Kind::QualityQuantizations, 0, 0),
             (Kind::BlueprintPools, 3, 1),
             (Kind::DismantleProcesses, 1, 0),
         ]

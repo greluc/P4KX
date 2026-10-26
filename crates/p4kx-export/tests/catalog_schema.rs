@@ -142,6 +142,7 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
         "blueprintCategories",
         "gameplayProperties",
         "qualityDistributions",
+        "qualityQuantizations",
         "blueprintPools",
         "dismantleProcesses",
         "paints",

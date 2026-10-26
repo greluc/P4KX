@@ -89,6 +89,29 @@ fn has_fill(records: &[ShapeRecord]) -> bool {
     })
 }
 
+/// Converts the outline `records` of a glyph of font `font` to a shape filled with `color`; an
+/// outline that names no fill is filled on its right.
+pub(crate) fn filled_glyph(
+    font: u16,
+    color: Rgba,
+    records: &[ShapeRecord],
+) -> (SceneShape, Vec<SkipReason>) {
+    let fills = [FillStyle::Solid { color }];
+    if has_fill(records) {
+        return ShapeBuilder::convert(font, &fills, &[], records);
+    }
+    let mut filled = Vec::with_capacity(records.len() + 1);
+    filled.push(ShapeRecord::StyleChange(Box::new(StyleChange {
+        move_to: None,
+        fill_style0: None,
+        fill_style1: Some(1),
+        line_style: None,
+        new_styles: None,
+    })));
+    filled.extend_from_slice(records);
+    ShapeBuilder::convert(font, &fills, &[], &filled)
+}
+
 pub(crate) fn tofu() -> ScenePath {
     let [left, top, right, bottom] = TOFU_OUTER;
     let point = |x, y| ScenePoint { x, y };
@@ -158,21 +181,7 @@ impl Composer<'_> {
         if !self.charge_records(placement, context, records.len() + 1) {
             return None;
         }
-        let fills = [FillStyle::Solid { color }];
-        let (shape, issues) = if has_fill(records) {
-            ShapeBuilder::convert(font.id, &fills, &[], records)
-        } else {
-            let mut filled = Vec::with_capacity(records.len() + 1);
-            filled.push(ShapeRecord::StyleChange(Box::new(StyleChange {
-                move_to: None,
-                fill_style0: None,
-                fill_style1: Some(1),
-                line_style: None,
-                new_styles: None,
-            })));
-            filled.extend_from_slice(records);
-            ShapeBuilder::convert(font.id, &fills, &[], &filled)
-        };
+        let (shape, issues) = filled_glyph(font.id, color, records);
         let index = self.insert_shape(shape, issues);
         self.text.glyph_shapes.insert(key, index);
         Some(index)

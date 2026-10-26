@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::borrow::Cow;
+use p4kx_gfx::{FontFace, MAX_SCENE_GLYPHS, MAX_TEXT_CHARS, MISSING_GLYPH_EM, Rgba, missing_glyph};
 
-use p4kx_gfx::{
-    FontFace, Localise, Localised, MAX_SCENE_GLYPHS, MAX_TEXT_CHARS, MISSING_GLYPH_EM, Rgba,
-    localise_text, missing_glyph,
-};
-
+use super::fit::{Fit, MIN_SIZE, shape_fitted};
 use super::layout::{self, Cell, Shaping};
+use super::source::{is_placeholder, resolve};
 use super::spec::{Horizontal, TextSpec, Vertical};
 use super::{Texts, fonts::FontBook};
 use crate::context::Context;
@@ -17,9 +14,7 @@ use crate::look::Look;
 use crate::paint::{Area, Painter, TWIPS};
 use crate::widget::Widget;
 
-const PLACEHOLDERS: [&str; 3] = ["LOC_EMPTY", "LOC_UNINITIALIZED", "LOC_PLACEHOLDER"];
 const MAX_MISSING_REPORTED: usize = 8;
-const MIN_SIZE: f32 = 1.0;
 const MAX_SIZE: f32 = 1024.0;
 const FIELD_SIZE_OF_HEIGHT: f32 = 0.6;
 const MIN_LINE_OF_SIZE: f32 = 0.1;
@@ -35,15 +30,56 @@ pub(crate) struct Prepared {
     horizontal: Horizontal,
     vertical: Vertical,
     wrap: bool,
+    height_input: Option<f32>,
+    fit: Option<Fit>,
 }
 
-fn is_placeholder(text: &str) -> bool {
-    let key = text.strip_prefix('@').unwrap_or(text);
-    key.is_empty() || PLACEHOLDERS.contains(&key)
+impl Prepared {
+    /// Returns whether shaping the text again in `area` would give this result: the height is
+    /// the one a size taken from the height was counted from, and the width still holds a fitted
+    /// text.
+    fn holds_for(&self, area: Area) -> bool {
+        let height = self
+            .height_input
+            .is_none_or(|height| height.to_bits() == area.height.to_bits());
+        let width = self.fit.as_ref().is_none_or(|fit| {
+            fit.width.to_bits() == area.width.to_bits() || (!fit.shrunk && fit.widest <= area.width)
+        });
+        height && width
+    }
+}
+
+/// A text shaped once, with what the shaping noted; `prepared` is `None` for a text that is not
+/// drawn.
+#[derive(Debug)]
+pub(crate) struct Shaped {
+    pub(crate) prepared: Option<Prepared>,
+    notes: Notes,
+}
+
+#[cfg(test)]
+use super::probe;
+
+#[cfg(test)]
+fn may_reuse() -> bool {
+    probe::reuse()
+}
+
+#[cfg(not(test))]
+const fn may_reuse() -> bool {
+    true
 }
 
 impl Texts<'_> {
-    pub(crate) fn prepare(
+    pub(crate) fn shape(&mut self, widget: &Widget, look: &Look<'_>, area: Area) -> Shaped {
+        #[cfg(test)]
+        probe::shaped();
+        let mut notes = Notes::new();
+        let prepared = self.prepare(widget, look, area, &mut notes);
+        Shaped { prepared, notes }
+    }
+
+    fn prepare(
         &mut self,
         widget: &Widget,
         look: &Look<'_>,
@@ -88,8 +124,10 @@ impl Texts<'_> {
                 * look.pixel,
             kerning: spec.kerning,
         };
-        let (cells, size) = shape_fitted(book.face(font.0)?, &limited, how, fit);
+        let (cells, size, fit) = shape_fitted(book.face(font.0)?, &limited, how, fit);
         Some(Prepared {
+            height_input: (modifiers.font_size.or(spec.font_size).is_none()).then_some(area.height),
+            fit,
             font: font.0,
             size,
             cells,
@@ -104,13 +142,7 @@ impl Texts<'_> {
         })
     }
 
-    pub(crate) fn measure(
-        &mut self,
-        widget: &Widget,
-        look: &Look<'_>,
-        parent: Area,
-    ) -> Option<[f32; 2]> {
-        let prepared = self.prepare(widget, look, parent, &mut Notes::new())?;
+    pub(crate) fn measure(&self, prepared: &Prepared, parent: Area) -> Option<[f32; 2]> {
         let (ascent, descent) = self.book.as_ref()?.face(prepared.font)?.ascent_descent();
         let limit = prepared.wrap.then_some(parent.width);
         let lines = layout::lines(&prepared.cells, limit);
@@ -123,51 +155,9 @@ impl Texts<'_> {
             clippy::cast_precision_loss,
             reason = "a text has at most a few thousand lines"
         )]
-        let height = lines.len() as f32 * line_height(&prepared, ascent, descent);
+        let height = lines.len() as f32 * line_height(prepared, ascent, descent);
         Some([widest, height])
     }
-}
-
-fn resolve<'a>(localise: Option<Localise<'_>>, source: &'a str, notes: &mut Notes) -> Cow<'a, str> {
-    let Some(lookup) = localise else {
-        if source.starts_with('@') {
-            notes.push("localisation key drawn as it is: no language given".to_owned());
-        }
-        return Cow::Borrowed(source);
-    };
-    match localise_text(source, lookup) {
-        Localised::Plain => Cow::Borrowed(source),
-        Localised::Text(text) => Cow::Owned(text),
-        Localised::Missing(_) => {
-            notes.push("localisation key not in the language: drawn as it is".to_owned());
-            Cow::Borrowed(source)
-        }
-    }
-}
-
-fn shape_fitted(
-    face: &FontFace<'_>,
-    text: &str,
-    how: Shaping,
-    fit_width: Option<f32>,
-) -> (Vec<Cell>, f32) {
-    let mut cells = Vec::new();
-    layout::shape(face, text, how, &mut cells);
-    let Some(width) = fit_width.filter(|width| *width > 0.0) else {
-        return (cells, how.size);
-    };
-    let widest = layout::lines(&cells, None)
-        .into_iter()
-        .filter_map(|line| cells.get(line))
-        .map(layout::width)
-        .fold(0.0_f32, f32::max);
-    if widest <= width {
-        return (cells, how.size);
-    }
-    let size = (how.size * width / widest).max(MIN_SIZE);
-    cells.clear();
-    layout::shape(face, text, Shaping { size, ..how }, &mut cells);
-    (cells, size)
 }
 
 fn pick_font(
@@ -262,11 +252,20 @@ impl LineDrawer<'_, '_> {
 
 impl Context<'_> {
     pub(crate) fn text(&mut self, widget: &Widget, look: &Look<'_>, area: Area, alpha: f32) {
-        let mut notes = Notes::new();
-        let prepared = self.texts.prepare(widget, look, area, &mut notes);
-        for reason in &notes {
+        let reused = look.shaped.as_ref().filter(|shaped| {
+            may_reuse() && shaped.prepared.as_ref().is_some_and(|p| p.holds_for(area))
+        });
+        let fresh;
+        let shaped = if let Some(shaped) = reused {
+            shaped
+        } else {
+            fresh = self.texts.shape(widget, look, area);
+            &fresh
+        };
+        for reason in &shaped.notes {
             self.report.note(&widget.type_name, reason, &widget.name);
         }
+        let prepared = shaped.prepared.as_ref();
         let colour_spec = widget
             .text
             .as_ref()
@@ -295,7 +294,7 @@ impl Context<'_> {
             self.report.texts_left_out += 1;
             return;
         }
-        if self.place_text(widget, &prepared, area, colour) {
+        if self.place_text(widget, prepared, area, colour) {
             self.report.texts_drawn += 1;
         } else {
             self.report.texts_left_out += 1;
@@ -377,3 +376,6 @@ impl Context<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,0 +1,49 @@
+name: Task
+description: A technical task without a direct user-visible change (refactor, build, dependency, docs, tests).
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / Motivation
+      description: Why is this worth doing? Link the issue or pull request that led to it.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What exactly should happen, and where? What is explicitly not part of it?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type of Task
+      options:
+        - Refactor
+        - Dependency upgrade
+        - Build / CI / GitHub Actions
+        - Documentation
+        - Tests
+        - Performance
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      value: |
+        - [ ]
+        - [ ] `cargo clippy`, `cargo xtask` and the tests pass
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Self-Check
+      options:
+        - label: I have searched open and closed issues for duplicates.
+          required: true

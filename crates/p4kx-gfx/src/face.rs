@@ -4,17 +4,14 @@
 use crate::font::Font;
 use crate::geometry::Rgba;
 use crate::scene::{LayerKind, Paint, SceneShape, ShapeLayer};
-use crate::scene_shape::ShapeBuilder;
-use crate::scene_text::tofu;
-use crate::shape::{ShapeRecord, StyleChange};
-use crate::style::FillStyle;
-use crate::text_fonts::{FontIndex, em};
+use crate::scene_text::{filled_glyph, tofu};
+use crate::text_fonts::{EM, FontIndex, em};
 
 const ASCENT_FALLBACK: f32 = 0.8;
 const DESCENT_FALLBACK: f32 = 0.2;
 
 /// The units of the em square of the empty box [`missing_glyph`] draws.
-pub const MISSING_GLYPH_EM: f32 = 1024.0;
+pub const MISSING_GLYPH_EM: f32 = EM;
 
 /// A font of a movie prepared to lay out and draw text of a caller, who places glyphs itself.
 ///
@@ -105,30 +102,8 @@ impl<'a> FontFace<'a> {
         if records.is_empty() {
             return None;
         }
-        let fills = [FillStyle::Solid { color }];
-        let shape = if has_fill(records) {
-            ShapeBuilder::convert(self.font.id, &fills, &[], records).0
-        } else {
-            let mut filled = Vec::with_capacity(records.len() + 1);
-            filled.push(ShapeRecord::StyleChange(Box::new(StyleChange {
-                move_to: None,
-                fill_style0: None,
-                fill_style1: Some(1),
-                line_style: None,
-                new_styles: None,
-            })));
-            filled.extend_from_slice(records);
-            ShapeBuilder::convert(self.font.id, &fills, &[], &filled).0
-        };
-        Some(shape)
+        Some(filled_glyph(self.font.id, color, records).0)
     }
-}
-
-fn has_fill(records: &[ShapeRecord]) -> bool {
-    records.iter().any(|record| {
-        matches!(record, ShapeRecord::StyleChange(change)
-            if change.fill_style0.unwrap_or(0) > 0 || change.fill_style1.unwrap_or(0) > 0)
-    })
 }
 
 /// Returns the empty box drawn for a character without a glyph, filled with `color`, in the

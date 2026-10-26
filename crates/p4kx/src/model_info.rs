@@ -4,12 +4,11 @@
 use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
-use p4kx_extraction::ModelInfo;
 use p4kx_extraction::model::{ChunkUsage, MaterialStatus, Mesh, Model, Node};
 use p4kx_extraction::model_info::{file_name, node_name, usage_name};
+use p4kx_extraction::{AnimationInfo, AnimationListing, ModelInfo, ModelSource};
 
 use crate::json;
-use crate::model::Opened;
 use crate::model_animations::{count_line, write_table, write_unread};
 use crate::model_bones::write_bones;
 use crate::model_text::printable;
@@ -17,12 +16,16 @@ use crate::model_text::printable;
 const NONE: &str = "-";
 
 /// Prints the text or JSON of `p4kx model info`.
-pub(crate) fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
+pub(crate) fn info(
+    (source, listing): &(ModelSource, AnimationListing),
+    as_json: bool,
+) -> Result<()> {
     if as_json {
-        json::print(&ModelInfo::of(source, animations))?;
+        json::print(&ModelInfo::of_listing(source, listing))?;
         return Ok(());
     }
     let model = source.model();
+    let animations = AnimationInfo::of_listing(model, listing);
     let mut out = BufWriter::new(io::stdout().lock());
     writeln!(out, "Model:       {}", printable(source.name()))?;
     writeln!(
@@ -34,7 +37,7 @@ pub(crate) fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     writeln!(out, "LODs:        {}", model.lods.len())?;
     writeln!(out, "Materials:   {}", materials(model))?;
     writeln!(out, "Bones:       {}", model.bones.len())?;
-    writeln!(out, "Animations:  {}", count_line(animations))?;
+    writeln!(out, "Animations:  {}", count_line(listing))?;
     writeln!(out, "Chunks:      {}", chunk_counts(model))?;
     for issue in &model.issues {
         writeln!(out, "Issue:       {}", printable(&issue.to_string()))?;
@@ -43,8 +46,8 @@ pub(crate) fn info((source, animations): &Opened, as_json: bool) -> Result<()> {
     write_materials(&mut out, model)?;
     write_nodes(&mut out, model)?;
     write_bones(&mut out, model)?;
-    write_table(&mut out, model, animations)?;
-    write_unread(&mut out, animations)?;
+    write_table(&mut out, &animations)?;
+    write_unread(&mut out, &listing.unread)?;
     write_chunks(&mut out, model)?;
     out.flush()?;
     Ok(())

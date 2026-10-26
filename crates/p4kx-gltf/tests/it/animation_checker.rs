@@ -105,3 +105,25 @@ fn the_checker_rejects_broken_animations() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn the_checker_finds_a_first_time_that_is_not_the_declared_min() -> TestResult {
+    let mut bytes = animated_glb()?;
+    let start = binary_offset(&bytes)?;
+    let checked = check_glb(&bytes)?;
+    let animation = checked.document.animations().next().ok_or("an animation")?;
+    let channel = animation.channels().next().ok_or("a channel")?;
+    let times = start + channel.sampler().input().view().ok_or("a view")?.offset();
+
+    bytes
+        .get_mut(times..times + 4)
+        .ok_or("the first time")?
+        .copy_from_slice(&0.25_f32.to_le_bytes());
+
+    let message = check_glb(&bytes).err().ok_or("an error")?;
+    assert!(
+        message.contains("min"),
+        "the declared min is checked: {message}"
+    );
+    Ok(())
+}

@@ -1673,7 +1673,12 @@ keys together. `unread_animations` lists the files, and the animations of a data
 not be read or that are additive (`reason` is "additive animation — needs a base animation";
 they are written only when named), with the reason; names in both lists have control characters
 replaced. A file `--anim-from` names that is no `.caf` or `.dba` exits with code 2, one that
-cannot be read with 3.
+cannot be read with 3. The animations of the model's folders are described from their headers
+without decoding a key (ADR-0157): one whose key format the reader refuses is listed in
+`animations` instead of `unread_animations`; the files `--anim-from` names are decoded in full,
+so such an animation in them is unread, as before. The `reason` of an unreadable file starts
+with the Entry path or file, then the cause, e.g. `Data\x\a.caf: the CafData chunk is corrupt`;
+the cause no longer repeats the file name.
 `chunks` lists every chunk of the model file and of its
 geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for

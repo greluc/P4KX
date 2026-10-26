@@ -119,28 +119,41 @@ impl Animation {
     /// it; when several bones share a controller ID, the first of them gets the track.
     #[must_use]
     pub fn bind(&self, bones: &[Bone]) -> BoundTracks<'_> {
-        let mut by_controller: HashMap<u32, usize> = HashMap::with_capacity(bones.len());
-        for (index, bone) in bones.iter().enumerate() {
-            by_controller.entry(bone.controller_id).or_insert(index);
-        }
-        let mut taken = vec![false; bones.len()];
+        let matches = bind_controllers(bones, self.tracks.iter().map(|track| track.controller_id));
         let mut bound = Vec::new();
         let mut unbound = Vec::new();
-        for track in &self.tracks {
-            let bone = by_controller
-                .get(&track.controller_id)
-                .copied()
-                .filter(|&bone| taken.get(bone).is_some_and(|taken| !taken));
+        for (track, bone) in self.tracks.iter().zip(matches) {
             match bone {
-                Some(bone) => {
-                    if let Some(slot) = taken.get_mut(bone) {
-                        *slot = true;
-                    }
-                    bound.push((bone, track));
-                }
+                Some(bone) => bound.push((bone, track)),
                 None => unbound.push(track.controller_id),
             }
         }
         BoundTracks { bound, unbound }
     }
+}
+
+/// Matches `controllers`, in order, to the index of the bone of `bones` each animates: the first
+/// bone with that controller ID, and each bone only once.
+pub(crate) fn bind_controllers(
+    bones: &[Bone],
+    controllers: impl IntoIterator<Item = u32>,
+) -> Vec<Option<usize>> {
+    let mut by_controller: HashMap<u32, usize> = HashMap::with_capacity(bones.len());
+    for (index, bone) in bones.iter().enumerate() {
+        by_controller.entry(bone.controller_id).or_insert(index);
+    }
+    let mut taken = vec![false; bones.len()];
+    controllers
+        .into_iter()
+        .map(|controller| {
+            let bone = by_controller
+                .get(&controller)
+                .copied()
+                .filter(|&bone| taken.get(bone).is_some_and(|taken| !taken))?;
+            if let Some(slot) = taken.get_mut(bone) {
+                *slot = true;
+            }
+            Some(bone)
+        })
+        .collect()
 }

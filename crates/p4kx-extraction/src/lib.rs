@@ -4,9 +4,11 @@
 //! Extraction service of P4KX and the Archive, `CryXml`, DataForge, localisation,
 //! texture, audio, chunk file, model and UI movie APIs front-ends use.
 
+mod animation_listing;
 mod animation_load;
 mod animation_select;
 mod animation_set;
+mod animation_sources;
 mod archive_cause;
 mod bank;
 mod budget;
@@ -91,6 +93,7 @@ mod verify;
 mod watch;
 mod write;
 
+pub use animation_listing::AnimationListing;
 pub use animation_set::{
     AnimationBounds, AnimationChoice, AnimationSet, MAX_ANIMATION_FILE_LEN, UnreadAnimation,
 };

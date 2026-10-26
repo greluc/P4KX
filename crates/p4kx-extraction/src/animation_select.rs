@@ -3,12 +3,30 @@
 
 use std::collections::HashSet;
 
-use p4kx_model::Animation;
 use rayon::prelude::*;
 
-use crate::animation_load::{Kind, kind, load};
+use crate::animation_load::{Described, Kind, Loaded, kind};
 use crate::animation_set::{ADDITIVE_REASON, Source, names, normalised, stem};
-use crate::{AnimationChoice, AnimationSet, ChunkSource, ConversionError, UnreadAnimation};
+use crate::{AnimationChoice, ChunkSource, ConversionError, UnreadAnimation};
+
+/// What a read of animation sources found, before it takes the shape of a front-end's type.
+pub(crate) struct Gathered<T> {
+    pub(crate) animations: Vec<T>,
+    pub(crate) origins: Vec<String>,
+    pub(crate) unread: Vec<UnreadAnimation>,
+    pub(crate) files: usize,
+}
+
+impl<T> Default for Gathered<T> {
+    fn default() -> Self {
+        Self {
+            animations: Vec::new(),
+            origins: Vec::new(),
+            unread: Vec::new(),
+            files: 0,
+        }
+    }
+}
 
 /// What the choice asks for: every animation, or the ones the specs name.
 pub(crate) struct Wanted<'a> {
@@ -49,11 +67,12 @@ impl<'a> Wanted<'a> {
 }
 
 /// Sorts and merges `sources`, reads those the choice wants and collects the animations.
-pub(crate) fn read(
+pub(crate) fn read<T: Described + Send>(
     mut sources: Vec<Source>,
     choice: &AnimationChoice,
     open: impl Fn(&str) -> Result<ChunkSource, ConversionError> + Sync,
-) -> Result<AnimationSet, ConversionError> {
+    load: impl Fn(&ChunkSource, &str, Kind, bool) -> Result<Loaded<T>, ConversionError> + Sync,
+) -> Result<Gathered<T>, ConversionError> {
     sources.sort_by_cached_key(|source| (normalised(&source.label), !source.whole));
     sources.dedup_by(|later, earlier| {
         let same = normalised(&later.label) == normalised(&earlier.label);
@@ -67,12 +86,13 @@ pub(crate) fn read(
         .filter_map(|source| {
             let kind = kind(&source.label)?;
             wanted.reads(source, kind).then(|| {
-                let loaded = open(&source.label).and_then(|file| load(&file, &source.label, kind));
+                let loaded = open(&source.label)
+                    .and_then(|file| load(&file, &source.label, kind, source.explicit));
                 (source, loaded)
             })
         })
         .collect();
-    let mut set = AnimationSet::default();
+    let mut set = Gathered::default();
     let mut matched: HashSet<&str> = HashSet::new();
     for (source, result) in results {
         let loaded = match result {
@@ -111,23 +131,23 @@ pub(crate) fn read(
 
 /// Adds the animations of `source` that the choice wants to `set`, and lists the additive ones
 /// nothing names as unread.
-fn keep<'a>(
-    set: &mut AnimationSet,
+fn keep<'a, T: Described>(
+    set: &mut Gathered<T>,
     matched: &mut HashSet<&'a str>,
     wanted: &Wanted<'a>,
     source: &Source,
-    animations: Vec<Animation>,
+    animations: Vec<T>,
 ) {
     let caf_by_caller = source.explicit && kind(&source.label) == Some(Kind::Caf);
     for animation in animations {
-        let hits = wanted.hits(&animation.name, &animation.path);
-        if animation.additive && hits.is_empty() && !caf_by_caller {
+        let hits = wanted.hits(animation.name(), animation.path());
+        if animation.additive() && hits.is_empty() && !caf_by_caller {
             if wanted.by_name && !source.whole {
                 continue;
             }
             set.unread.push(UnreadAnimation {
                 source: source.label.clone(),
-                name: Some(animation.name),
+                name: Some(animation.name().to_owned()),
                 reason: ADDITIVE_REASON.to_owned(),
             });
         } else if source.whole || !wanted.by_name || !hits.is_empty() {

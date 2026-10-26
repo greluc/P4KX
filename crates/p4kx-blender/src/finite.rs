@@ -49,8 +49,9 @@ fn issue(path: &str, name: &str, what: &str) -> Issue {
 /// Replaces every number of `manifest` that is NaN or infinite, which JSON cannot hold, and lists
 /// each replacement among the issues.
 ///
-/// A node transform becomes the identity, colours and factors become 0, optional values are left
-/// out.
+/// Only the non-finite part of a node transform (translation, rotation or scale) becomes the
+/// identity. Colours and factors become 0, except `opacity`, which becomes 1; optional values are
+/// left out.
 pub(crate) fn sanitise(manifest: &mut Manifest) {
     let mut found = Vec::new();
     for node in &mut manifest.nodes {
@@ -72,9 +73,9 @@ fn materials(manifest: &mut Manifest, found: &mut Vec<Issue>) {
         let mut bad = clean_each(&mut material.diffuse)
             | clean_each(&mut material.specular)
             | clean_each(&mut material.emissive);
+        bad |= clean(&mut material.opacity, 1.0);
         for value in [
             &mut material.shininess,
-            &mut material.opacity,
             &mut material.alpha_test,
             &mut material.glow,
         ] {

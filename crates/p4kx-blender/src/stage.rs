@@ -117,7 +117,7 @@ impl Staging {
                     source: restore,
                 });
             }
-            return Err(moving_error(&self.folder, source));
+            return Err(moving_error(&out, source));
         }
         self.committed = true;
         if replaced {
@@ -152,7 +152,9 @@ fn moving_error(path: &Path, source: io::Error) -> PackageError {
 fn missing_ancestors(path: &Path) -> Vec<PathBuf> {
     path.ancestors()
         .take_while(|ancestor| {
-            !ancestor.as_os_str().is_empty() && fs::symlink_metadata(ancestor).is_err()
+            !ancestor.as_os_str().is_empty()
+                && fs::symlink_metadata(ancestor)
+                    .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
         })
         .map(Path::to_path_buf)
         .collect()

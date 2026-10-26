@@ -8,17 +8,27 @@ use std::time::Duration;
 
 const ATTEMPTS: u32 = 6;
 const FIRST_DELAY: Duration = Duration::from_millis(20);
+#[cfg(windows)]
 const ERROR_ACCESS_DENIED: i32 = 5;
+#[cfg(windows)]
 const ERROR_SHARING_VIOLATION: i32 = 32;
 
 /// Returns whether `error` may be a handle another program holds briefly: access denied or a
 /// sharing violation.
+#[cfg(windows)]
 pub(crate) fn is_busy(error: &io::Error) -> bool {
     error.kind() == io::ErrorKind::PermissionDenied
         || matches!(
             error.raw_os_error(),
             Some(ERROR_ACCESS_DENIED | ERROR_SHARING_VIOLATION)
         )
+}
+
+/// Returns whether `error` may be a handle another program holds briefly; never off Windows,
+/// where an open handle does not block a rename.
+#[cfg(not(windows))]
+pub(crate) const fn is_busy(_error: &io::Error) -> bool {
+    false
 }
 
 /// Renames `from` to `to`, trying again a few times with a doubling pause while the error says the
@@ -57,6 +67,7 @@ mod tests {
         io::Error::from(io::ErrorKind::PermissionDenied)
     }
 
+    #[cfg(windows)]
     #[test]
     fn a_busy_folder_is_tried_again_until_it_is_free() {
         let mut calls = 0;
@@ -69,6 +80,7 @@ mod tests {
         assert_eq!(calls, 3);
     }
 
+    #[cfg(windows)]
     #[test]
     fn the_attempts_are_bounded_and_the_last_error_is_returned() {
         let mut calls = 0;
@@ -93,10 +105,19 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[cfg(windows)]
     #[test]
     fn the_windows_codes_for_access_denied_and_a_sharing_violation_are_busy() {
         assert!(is_busy(&io::Error::from_raw_os_error(5)));
         assert!(is_busy(&io::Error::from_raw_os_error(32)));
         assert!(!is_busy(&io::Error::from(io::ErrorKind::NotFound)));
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn off_windows_neither_an_io_error_nor_a_permission_error_is_busy() {
+        assert!(!is_busy(&io::Error::from_raw_os_error(5)));
+        assert!(!is_busy(&io::Error::from_raw_os_error(32)));
+        assert!(!is_busy(&denied()));
     }
 }

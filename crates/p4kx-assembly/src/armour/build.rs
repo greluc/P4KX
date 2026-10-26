@@ -82,7 +82,6 @@ impl Armour {
         palettes: Option<&dyn PaletteProvider>,
         options: &AssemblyOptions,
     ) -> Result<Self, AssemblyError> {
-        let mut tints = Palettes::new(palettes);
         let body = load_body(variant, models, options.lod)?;
         let mut issues = Vec::new();
         let jobs = planned(variant, pieces, models, options.max_parts, &mut issues);
@@ -91,7 +90,7 @@ impl Armour {
         let libraries = read_libraries(&jobs, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
         let covering = covering(&jobs, &chosen);
-        let mut reported = HashSet::new();
+        let (mut reported, mut tints) = (HashSet::new(), Palettes::new(palettes));
         let mut parts = Vec::with_capacity(chosen.len());
         let mut head: Option<HeadMove> = None;
         let mut heads = Vec::new();
@@ -112,10 +111,9 @@ impl Armour {
                 job,
                 found,
                 (&libraries, &unnamed),
-                &mut reported,
+                (&mut reported, &mut tints),
                 &mut issues,
             );
-            let materials = painted(&mut tints, materials, job, &mut issues);
             parts.push(ArmourPart {
                 name: job.part.clone(),
                 origin: job.origin,
@@ -195,12 +193,12 @@ fn worn(
 }
 
 /// Returns the materials a job is drawn with: its library, with the choices of its Character
-/// applied. A library that cannot be read is listed once.
+/// applied and the tint palette of its geometry. A library that cannot be read is listed once.
 fn drawn_with(
     job: &Job,
     found: &Loaded,
     (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
-    reported: &mut HashSet<String>,
+    (reported, tints): (&mut HashSet<String>, &mut Palettes<'_>),
     issues: &mut Vec<Issue>,
 ) -> Arc<MaterialStatus> {
     let key = library_key(job, found);
@@ -213,10 +211,12 @@ fn drawn_with(
     {
         issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
     }
-    job.look
+    let looked = job
+        .look
         .as_ref()
         .and_then(|look| look.apply(&library))
-        .map_or(library, Arc::new)
+        .map_or(library, Arc::new);
+    painted(tints, looked, job, issues)
 }
 
 /// Returns `materials` drawn with the tint palette of the job's geometry, else the default

@@ -7,7 +7,7 @@
 use std::error::Error;
 
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, LoadoutResolver, Part,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, ForgePalettes, LoadoutResolver, Part,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{real_archive_key, real_archive_path};
@@ -24,11 +24,32 @@ fn assemble(archive: &Archive, class_name: &str) -> Result<Assembly, Box<dyn Err
     let record = resolver.entities().find(class_name)?;
     let tree = resolver.resolve(&record)?;
     let models = ArchiveModels::new(archive);
-    Ok(Assembly::build(
+    let palettes = ForgePalettes::new(&forge);
+    Ok(Assembly::build_with_palettes(
         &tree,
         &models,
+        &palettes,
         &AssemblyOptions::default(),
     )?)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn a_chosen_sub_geometry_keeps_the_palette_and_materials_of_its_entity() -> TestResult {
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let assembly = assemble(&archive, "MISC_Prospector")?;
+    let middle = named(&assembly, "hardpoint_thruster_main_rear_middle")?;
+    let right = named(&assembly, "hardpoint_thruster_main_rear_right")?;
+    let retro = named(&assembly, "hardpoint_thruster_retro_right")?;
+    let palette = middle.palette().ok_or("the main thruster has no palette")?;
+    assert_eq!(right.palette(), Some(palette));
+    assert_eq!(retro.palette(), Some(palette));
+    for part in [right, retro] {
+        let library = part.materials().library().ok_or("no material library")?;
+        let count = library.materials.len();
+        assert!(count > 0, "{} has no materials", part.path());
+    }
+    Ok(())
 }
 
 fn world_x(part: &Part) -> Option<(f32, f32)> {

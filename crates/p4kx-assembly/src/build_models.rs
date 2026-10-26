@@ -52,7 +52,7 @@ pub(crate) fn read_models(
         .map(|geometry| (file_key(geometry.path()), geometry.path()))
         .collect();
     let mut models = Models::new();
-    read_files(&files, provider, options, &mut models)?;
+    read_files(&files, provider, options, &mut models, 0)?;
     Ok(models)
 }
 
@@ -85,7 +85,14 @@ pub(crate) fn fall_back<'t>(
             files.push((key, main.path()));
         }
     }
-    read_files(&files, provider, options, models)
+    let read = models
+        .values()
+        .map(|outcome| match outcome {
+            Outcome::Loaded(loaded) => vertices(&loaded.model),
+            Outcome::Failed { .. } => 0,
+        })
+        .fold(0_usize, usize::saturating_add);
+    read_files(&files, provider, options, models, read)
 }
 
 fn read_files(
@@ -93,9 +100,10 @@ fn read_files(
     provider: &dyn ModelProvider,
     options: &AssemblyOptions,
     models: &mut Models,
+    already_read: usize,
 ) -> Result<(), AssemblyError> {
     let lod = options.lod;
-    let mut read_vertices = 0_usize;
+    let mut read_vertices = already_read;
     let wave_size = rayon::current_num_threads()
         .saturating_mul(2)
         .clamp(1, WAVE);

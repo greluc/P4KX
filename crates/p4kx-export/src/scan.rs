@@ -203,11 +203,13 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let kind = match select(record, self.options.filter)? {
             None => return Ok(None),
             Some(Selected::Leftover(Kind::Items)) => {
-                return Ok(Some(if trees.build(record).is_ok_and(|tree| is_paint(&tree)) {
-                    Picked::SkippedPaint
-                } else {
-                    Picked::Skipped(Kind::Items)
-                }));
+                return Ok(Some(
+                    if trees.build(record).is_ok_and(|tree| is_paint(&tree)) {
+                        Picked::SkippedPaint
+                    } else {
+                        Picked::Skipped(Kind::Items)
+                    },
+                ));
             }
             Some(Selected::Leftover(kind)) => return Ok(Some(Picked::Skipped(kind))),
             Some(Selected::Entity(kind)) => kind,

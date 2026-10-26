@@ -125,7 +125,10 @@ fn the_required_tags_of_a_paint_must_be_offered_by_the_port_or_the_ship() -> Tes
 fn a_required_tag_may_be_a_port_tag_a_required_port_tag_or_in_other_case() -> TestResult {
     let (_, catalog) = build(None)?;
     for (paint, why) in [
-        (PAINT_ZETA, "the port tag differs from the required port tag"),
+        (
+            PAINT_ZETA,
+            "the port tag differs from the required port tag",
+        ),
         (PAINT_ZETA_REQ, "the required port tag of the port"),
         (PAINT_ZETA_CASE, "tag names compare ignoring case"),
     ] {

@@ -244,7 +244,12 @@ fn paints() -> Vec<TestRecord> {
     .chain([
         paint(PAINT_ZETA, "paint_zeta", "Paint_Zeta", "Paint_Zeta_Port"),
         paint(PAINT_ZETA_REQ, "paint_zeta_req", "Paint_Zeta", "Paint_Zeta"),
-        paint(PAINT_ZETA_CASE, "paint_zeta_case", "Paint_Zeta", "PAINT_ZETA_PORT"),
+        paint(
+            PAINT_ZETA_CASE,
+            "paint_zeta_case",
+            "Paint_Zeta",
+            "PAINT_ZETA_PORT",
+        ),
         paint(
             PAINT_ZETA_TWO,
             "paint_zeta_two",

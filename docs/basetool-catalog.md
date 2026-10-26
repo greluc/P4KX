@@ -810,7 +810,8 @@ Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` 
 both filtered, so a paint lists only ships the filter selected; both kinds are partial.
 
 The development leftovers among the paints (68 on LIVE) are counted as skipped in `paints` and in
-`items`, whose rule they follow; `p4kx catalog` shows the number in both lines. The catalog build
+`items`, whose rule they follow; `p4kx catalog` shows the number in both lines, and the total of
+skipped Records adds up the kinds that select Records only, so it counts them once. The catalog build
 takes about 18 s on LIVE; deriving the paints takes well under 0.1 s of it, the ships' vehicle
 files being read once by the record scan for the ship base data and shared through one path
 index (`ArchiveFiles`). A cancelled build stops the derivation between two paints.

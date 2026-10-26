@@ -844,7 +844,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
 ## `p4kx catalog <archive> --out <file> --json`
 
 ```json
-{"archive": "…", "out": "…", "schema_version": 1, "size": 131969336, "compressed_size": null,
+{"archive": "…", "out": "…", "schema_version": 2, "size": 131969336, "compressed_size": null,
  "upload_limit": 64000000, "decompressed_limit": 1000000000,
  "size_warning": "over_limit", "decompressed_warning": null, "kinds": [{"kind": "manufacturers", "count": 1201, "skipped": 2,
  "complete": true}, {"kind": "items", "count": 23280, "skipped": 1145, "complete": true},

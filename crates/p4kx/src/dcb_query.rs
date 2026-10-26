@@ -14,6 +14,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 use crate::cli::{DcbQueryArgs, QueryFormat};
+use crate::dcb_export::FlatConflict;
 use crate::query_rows::{Counts, for_each_row, report_failed};
 use crate::{exit, json, query_file, query_table};
 
@@ -52,6 +53,7 @@ struct Output<'a, 'q, 'f> {
     compiled: &'a CompiledQuery<'f>,
     run: &'a QueryRun<'q, 'f>,
     format: QueryFormat,
+    raw: bool,
 }
 
 /// Runs a Query over the Archive's DataForge and writes the result to stdout or `--out`.
@@ -63,6 +65,9 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
     });
     if as_json && args.out.is_none() && format != QueryFormat::Json {
         return Err(JsonNeedsJsonFormat(format).into());
+    }
+    if args.csv_raw && format != QueryFormat::Csv {
+        return Err(FlatConflict("--csv-raw needs --format csv").into());
     }
     if let Some(out) = &args.out
         && is_same_file(out, &args.archive)
@@ -82,6 +87,7 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
         compiled: &compiled,
         run: &run,
         format,
+        raw: args.csv_raw,
     };
     let mut counts = Counts::default();
     match &args.out {
@@ -99,6 +105,14 @@ pub(crate) fn run(args: &DcbQueryArgs, as_json: bool) -> Result<ExitCode> {
 }
 
 impl Output<'_, '_, '_> {
+    const fn csv_format(&self) -> ResultFormat {
+        if self.raw {
+            ResultFormat::CsvRaw
+        } else {
+            ResultFormat::Csv
+        }
+    }
+
     /// Writes the result to the file `out`, replacing it once complete: CSV and JSON through
     /// [`export_query`], the table through its own writer.
     fn to_file(&self, out: &Path, archive: &Path) -> Result<Counts> {
@@ -109,7 +123,7 @@ impl Output<'_, '_, '_> {
                     .with_context(|| format!("cannot write {}", out.display()))?;
                 return Ok(counts);
             }
-            QueryFormat::Csv => ResultFormat::Csv,
+            QueryFormat::Csv => self.csv_format(),
             QueryFormat::Json => ResultFormat::Json,
         };
         let options = QueryExportOptions {
@@ -141,7 +155,7 @@ impl Output<'_, '_, '_> {
             QueryFormat::Table => {
                 return query_table::write(columns, self.run, out, count_line, counts);
             }
-            QueryFormat::Csv => ResultFormat::Csv,
+            QueryFormat::Csv => self.csv_format(),
             QueryFormat::Json => ResultFormat::Json,
         };
         let mut writer = ResultWriter::new(out, format, columns)?;

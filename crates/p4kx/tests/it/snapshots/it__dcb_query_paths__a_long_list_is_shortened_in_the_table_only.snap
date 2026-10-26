@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/dcb_query_paths.rs
+source: crates/p4kx/tests/it/dcb_query_paths.rs
 expression: "format!(\"{}\\n{csv}\", table(text)?)"
 ---
 record path       tags[*]
@@ -7,5 +7,5 @@ record path       tags[*]
 libs/wrecks/hull  [t1, t2, t3, t4, t5, t6, t7, t8, … 4 more]
 1 Record
 
-record path,tags[*]
+﻿record path,tags[*]
 libs/wrecks/hull,"[""t1"",""t2"",""t3"",""t4"",""t5"",""t6"",""t7"",""t8"",""t9"",""t10"",""t11"",""t12""]"

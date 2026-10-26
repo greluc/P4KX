@@ -144,7 +144,7 @@ fn columns_follow_the_select_clause_and_rows_the_record_path() -> TestResult {
     assert_eq!(output.status.code(), Some(0), "exit code: {output:?}");
     assert_eq!(
         String::from_utf8(output.stdout)?,
-        "record path,size,name\r\nlibs/items/box,Small,Box\r\nlibs/items/note,error: offset 4294967295 in the text table is not a valid string,\"two\nlines\"\r\nlibs/ships/avenger,Large,\"Avenger, \"\"Titan\"\"\"\r\n",
+        "\u{feff}record path,size,name\r\nlibs/items/box,Small,Box\r\nlibs/items/note,error: offset 4294967295 in the text table is not a valid string,\"two\nlines\"\r\nlibs/ships/avenger,Large,\"Avenger, \"\"Titan\"\"\"\r\n",
         "select order, record path order"
     );
     Ok(())
@@ -163,7 +163,7 @@ fn a_where_condition_filters_the_csv_and_json_rows() -> TestResult {
     assert_eq!(json.status.code(), Some(0), "json: {json:?}");
     assert_eq!(
         String::from_utf8(csv.stdout)?,
-        "record path,name,mass\r\nlibs/ships/avenger,\"Avenger, \"\"Titan\"\"\",25000.5\r\n",
+        "\u{feff}record path,name,mass\r\nlibs/ships/avenger,\"Avenger, \"\"Titan\"\"\",25000.5\r\n",
         "only the Record that meets the condition"
     );
     assert_eq!(
@@ -226,6 +226,18 @@ fn out_replaces_an_existing_file() -> TestResult {
 }
 
 #[test]
+fn csv_raw_writes_no_byte_order_mark_and_needs_the_csv_format() -> TestResult {
+    let raw = stdout(&["--format", "csv", "--csv-raw"])?;
+    let default = stdout(&["--format", "csv"])?;
+    assert_eq!(default.strip_prefix('\u{feff}'), Some(raw.as_str()), "mark");
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), &database())?;
+    let output = run(&archive, &["--csv-raw"], QUERY)?;
+    assert_eq!(output.status.code(), Some(2), "exit code: {output:?}");
+    Ok(())
+}
+
+#[test]
 fn json_with_out_prints_a_json_summary() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path(), &database())?;
@@ -253,7 +265,7 @@ fn json_with_out_prints_a_json_summary() -> TestResult {
         "summary"
     );
     assert!(
-        fs::read_to_string(&file)?.starts_with("record path,"),
+        fs::read_to_string(&file)?.starts_with("\u{feff}record path,"),
         "CSV in the file"
     );
     Ok(())
@@ -359,7 +371,7 @@ fn a_real_archive_gives_csv_and_json() -> TestResult {
     let rows: serde_json::Value = serde_json::from_slice(&json.stdout)?;
     let rows = rows.as_array().ok_or("an array")?;
     assert!(
-        csv.starts_with("record path,Category,Invisible\r\n"),
+        csv.starts_with("\u{feff}record path,Category,Invisible\r\n"),
         "header: {csv}"
     );
     assert!(rows.len() > 1, "selects Records");

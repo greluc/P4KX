@@ -7,14 +7,15 @@ use std::io::{self, BufWriter, Write};
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use p4kx_export::{Language, write_localization_table};
+use p4kx_export::{Language, TableFormat, write_localization_table};
 use p4kx_extraction::{
     LocalizationEntry, LocalizationNote, LocalizationSet, Lookup, decode_line_breaks,
 };
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::cli_loc::{LocAction, LocArgs, LocExportArgs, LocGetArgs};
+use crate::cli_loc::{LocAction, LocArgs, LocExportArgs, LocGetArgs, TableOutput};
+use crate::dcb_export::FlatConflict;
 use crate::{exit, json};
 
 /// A language the Archive holds no `global.ini` for was asked for.
@@ -187,7 +188,16 @@ struct ExportJson<'a> {
     keys: usize,
 }
 
+fn table_format(args: &LocExportArgs) -> Result<TableFormat, FlatConflict> {
+    match (args.format, args.csv_raw) {
+        (TableOutput::Csv, true) => Ok(TableFormat::CsvRaw),
+        (TableOutput::Json, true) => Err(FlatConflict("--csv-raw needs --format csv")),
+        (format, false) => Ok(format.into()),
+    }
+}
+
 fn export(args: &LocExportArgs, as_json: bool) -> Result<()> {
+    let format = table_format(args)?;
     let archive = crate::key::open(&args.archive)?;
     crate::guard::ensure_writable_if(args.out.as_deref())?;
     let wanted: &[Language] = if args.lang.is_empty() {
@@ -215,7 +225,6 @@ fn export(args: &LocExportArgs, as_json: bool) -> Result<()> {
     };
     let texts = set.index()?;
     print_notes(&set.notes(&texts));
-    let format = args.format.into();
     let Some(path) = &args.out else {
         let mut out = BufWriter::new(io::stdout().lock());
         write_localization_table(&texts, &columns, format, &mut out)?;
@@ -232,8 +241,8 @@ fn export(args: &LocExportArgs, as_json: bool) -> Result<()> {
             archive: json::path(archive.path()),
             out: json::path(path),
             format: match args.format {
-                crate::cli_loc::TableOutput::Json => "json",
-                crate::cli_loc::TableOutput::Csv => "csv",
+                TableOutput::Json => "json",
+                TableOutput::Csv => "csv",
             },
             languages: columns.iter().map(|language| language.code()).collect(),
             keys,

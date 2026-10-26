@@ -107,10 +107,10 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      audio trigger no ATL definition has, an audio language the Archive holds no
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
      CHF file cannot store, a CHF file for chf glb or character package that holds no face DNA
-     or whose DNA belongs to an unknown head rig, a language the Archive holds no global.ini for, or a localisation
-     key that has no text in the language or its fallback, or a canvas for ui render --screen
-     that no Record, several Records or a Record of another type name, or whose side is
-     below 1 or above 16384 pixels
+     or whose DNA belongs to an unknown head rig, a language the Archive holds no global.ini
+     for, or a localisation key that has no text in the language or its fallback, or a canvas
+     for ui render --screen that no Record, several Records or a Record of another type name,
+     or whose side is below 1 or above 16384 pixels
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to

@@ -4,7 +4,7 @@
 use std::fmt::Write as _;
 use std::io::{self, Write};
 
-use crate::flat_cells::{write_cell, write_plain};
+use crate::flat_cells::{CSV_BYTE_ORDER_MARK, write_csv_cell, write_plain};
 use crate::texts::annotation;
 use crate::value_json::{write_json_string, write_json_value};
 use crate::{Annotations, Field, Guid, RecordTree, Resolution, Value, ValueError};
@@ -27,8 +27,6 @@ pub const FLAT_TAG_COLUMN: &str = "record_tag";
 
 /// The name of the column that holds the resolved text of a localisation key.
 pub const FLAT_TEXT_COLUMN: &str = "text";
-
-const BOM: &[u8] = b"\xEF\xBB\xBF";
 
 /// How a flat value export is written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -103,7 +101,7 @@ impl FlatValues {
             return Ok(());
         }
         if self.format == FlatFormat::Csv {
-            out.write_all(BOM)?;
+            out.write_all(CSV_BYTE_ORDER_MARK)?;
         }
         out.write_all(FLAT_COLUMNS.join(",").as_bytes())?;
         if with_text {
@@ -137,7 +135,7 @@ impl FlatValues {
         } else {
             write_csv_prefix(&mut self.prefix, tree)?;
             if let Some(tag) = tree.tag() {
-                write_cell(&mut self.tag, tag, self.format == FlatFormat::Csv)?;
+                write_csv_cell(&mut self.tag, tag, self.format == FlatFormat::Csv)?;
             }
         }
         let mut out = Out { out, annotations };
@@ -249,13 +247,13 @@ impl FlatValues {
         let neutralise = self.format == FlatFormat::Csv;
         let sink = &mut *out.out;
         sink.write_all(&self.prefix)?;
-        write_cell(sink, &self.path, false)?;
+        write_csv_cell(sink, &self.path, false)?;
         sink.write_all(b",")?;
         write_indices(sink, &self.indices)?;
         write!(sink, ",{},", kind(leaf))?;
         match leaf {
             Leaf::Value(Value::String(text) | Value::Locale(text) | Value::Enum(text)) => {
-                write_cell(sink, text, neutralise)?;
+                write_csv_cell(sink, text, neutralise)?;
             }
             Leaf::Value(Value::Reference(reference)) => write!(sink, "{}", reference.guid())?,
             Leaf::Dangling(guid) => write!(sink, "{guid}")?,
@@ -263,12 +261,12 @@ impl FlatValues {
         }
         sink.write_all(b",")?;
         if let Some(path) = target {
-            write_cell(sink, path, false)?;
+            write_csv_cell(sink, path, false)?;
         }
         if out.annotations.texts().is_some() {
             sink.write_all(b",")?;
             if let Some(text) = text {
-                write_cell(sink, text, neutralise)?;
+                write_csv_cell(sink, text, neutralise)?;
             }
         }
         sink.write_all(b",")?;
@@ -311,9 +309,9 @@ impl FlatValues {
 
 fn write_csv_prefix(prefix: &mut Vec<u8>, tree: &RecordTree<'_>) -> io::Result<()> {
     write!(prefix, "{},", tree.guid())?;
-    write_cell(prefix, tree.name(), false)?;
+    write_csv_cell(prefix, tree.name(), false)?;
     prefix.push(b',');
-    write_cell(prefix, tree.record_path(), false)?;
+    write_csv_cell(prefix, tree.record_path(), false)?;
     prefix.push(b',');
     Ok(())
 }

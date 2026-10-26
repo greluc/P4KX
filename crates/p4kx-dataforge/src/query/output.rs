@@ -6,6 +6,7 @@ use std::fmt::Write as _;
 use std::io::{self, Write};
 
 use crate::Value;
+use crate::flat_cells::{CSV_BYTE_ORDER_MARK, write_csv_cell};
 use crate::value_json::{write_json_string, write_json_value};
 
 /// The heading of the first column of every Query result, the record path.
@@ -15,8 +16,12 @@ pub const RECORD_PATH_COLUMN: &str = "record path";
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ResultFormat {
-    /// CSV after RFC 4180: a header row, CRLF after every row, fields quoted where needed.
+    /// CSV for spreadsheets: after RFC 4180 with a header row, CRLF after every row and fields
+    /// quoted where needed, starting with a UTF-8 byte order mark; a text cell that a spreadsheet
+    /// would run as a formula starts with `'`. Numbers are never changed.
     Csv,
+    /// CSV with the exact bytes of the values: no byte order mark and no `'`.
+    CsvRaw,
     /// One line of JSON: an array with one object per row, keyed by column.
     Json,
 }
@@ -49,11 +54,14 @@ impl<W: Write> ResultWriter<W> {
             text: String::new(),
         };
         match format {
-            ResultFormat::Csv => {
-                writer.csv_field(RECORD_PATH_COLUMN)?;
+            ResultFormat::Csv | ResultFormat::CsvRaw => {
+                if format == ResultFormat::Csv {
+                    writer.out.write_all(CSV_BYTE_ORDER_MARK)?;
+                }
+                writer.csv_field(RECORD_PATH_COLUMN, true)?;
                 for column in columns {
                     writer.out.write_all(b",")?;
-                    writer.csv_field(column)?;
+                    writer.csv_field(column, true)?;
                 }
                 writer.out.write_all(b"\r\n")?;
             }
@@ -85,7 +93,7 @@ impl<W: Write> ResultWriter<W> {
     /// Returns the [`io::Error`] of writing to `out`.
     pub fn write_row(&mut self, record_path: &str, cells: &[Option<Value<'_>>]) -> io::Result<()> {
         match self.format {
-            ResultFormat::Csv => self.csv_row(record_path, cells)?,
+            ResultFormat::Csv | ResultFormat::CsvRaw => self.csv_row(record_path, cells)?,
             ResultFormat::Json => self.json_row(record_path, cells)?,
         }
         self.rows = self.rows.saturating_add(1);
@@ -118,7 +126,7 @@ impl<W: Write> ResultWriter<W> {
     }
 
     fn csv_row(&mut self, record_path: &str, cells: &[Option<Value<'_>>]) -> io::Result<()> {
-        self.csv_field(record_path)?;
+        self.csv_field(record_path, true)?;
         for index in 0..self.columns {
             self.out.write_all(b",")?;
             if let Some(Some(value)) = cells.get(index) {
@@ -137,7 +145,8 @@ impl<W: Write> ResultWriter<W> {
                     write!(text, "{value}")
                         .map_err(|_| io::Error::other("a value cannot be formatted"))
                 };
-                let written = formatted.and_then(|()| self.csv_field(&text));
+                let is_text = matches!(value, Value::String(_) | Value::Locale(_) | Value::Enum(_));
+                let written = formatted.and_then(|()| self.csv_field(&text, is_text));
                 self.text = text;
                 written?;
             }
@@ -145,20 +154,12 @@ impl<W: Write> ResultWriter<W> {
         self.out.write_all(b"\r\n")
     }
 
-    fn csv_field(&mut self, text: &str) -> io::Result<()> {
-        if !text.contains([',', '"', '\r', '\n']) {
-            return self.out.write_all(text.as_bytes());
-        }
-        self.out.write_all(b"\"")?;
-        let mut parts = text.split('"');
-        if let Some(first) = parts.next() {
-            self.out.write_all(first.as_bytes())?;
-        }
-        for part in parts {
-            self.out.write_all(b"\"\"")?;
-            self.out.write_all(part.as_bytes())?;
-        }
-        self.out.write_all(b"\"")
+    fn csv_field(&mut self, text: &str, is_text: bool) -> io::Result<()> {
+        write_csv_cell(
+            &mut self.out,
+            text,
+            is_text && self.format == ResultFormat::Csv,
+        )
     }
 
     fn json_row(&mut self, record_path: &str, cells: &[Option<Value<'_>>]) -> io::Result<()> {

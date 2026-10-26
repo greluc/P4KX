@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_testkit::{TestRecord, TestValue};
+use p4kx_testkit::{TestInstance, TestRecord, TestValue};
 
 use super::values::{damage, entity, instance, single};
 use super::{AMMO, MAGAZINE};
@@ -135,4 +135,14 @@ pub(super) fn ammo(guid: u128) -> TestRecord {
             ],
         ),
     )
+}
+
+pub(super) fn unbuildable_ammo(guid: u128) -> TestRecord {
+    TestRecord::new(
+        guid,
+        "AmmoParams",
+        "AmmoParams.Ammo_Unbuildable",
+        "libs/foundry/records/ammoparams/vehicle/ammo_unbuildable.xml",
+    )
+    .value("trap", TestValue::Struct(TestInstance::new("Loop")))
 }

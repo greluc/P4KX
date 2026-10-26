@@ -10,7 +10,7 @@ use std::time::{Duration, UNIX_EPOCH};
 
 use item_stats_fixture::{
     COOLER, DANGLING_GUN, DRIVE, GUN, MISSILE, PERSONAL_GUN, PLAIN, PLANT, SHIELD, UNBOUNDED_DRIVE,
-    WRONG_TYPE_GUN,
+    UNBUILDABLE_AMMO_GUN, WRONG_TYPE_GUN,
 };
 use p4kx_export::{CatalogOptions, build_catalog};
 use p4kx_extraction::Archive;
@@ -114,6 +114,15 @@ fn a_weapon_whose_ammunition_record_is_missing_has_null_ammo() -> TestResult {
 fn a_weapon_with_an_ammunition_record_of_another_struct_keeps_the_item_and_has_null_ammo()
 -> TestResult {
     let gun = item(&catalog()?, WRONG_TYPE_GUN)?;
+    assert!(gun["stats"]["weapon"]["ammo"].is_null());
+    assert_eq!(gun["stats"]["weapon"]["ammoCapacity"], 200);
+    Ok(())
+}
+
+#[test]
+fn a_weapon_whose_ammunition_record_cannot_be_built_keeps_the_item_and_has_null_ammo() -> TestResult
+{
+    let gun = item(&catalog()?, UNBUILDABLE_AMMO_GUN)?;
     assert!(gun["stats"]["weapon"]["ammo"].is_null());
     assert_eq!(gun["stats"]["weapon"]["ammoCapacity"], 200);
     Ok(())

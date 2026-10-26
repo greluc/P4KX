@@ -26,9 +26,10 @@ values, if any, `p4kx` computes.
   `cooler` and `missile`. A block follows from the item's components (`SCItemWeaponComponentParams`,
   `SCItemShieldGeneratorParams`, `SCItemQuantumDriveParams`, `SCItemMissileParams`) or, for the
   power plant and the cooler, from `AttachDef.Type`, because the resource component they share
-  does not tell them apart. No class name or record name enters the rule. A block that is `null`
-  is absent from the item; a field inside a present block is `null` when the Archive does not
-  state it, never 0, and a value that is not a finite number is `null` too.
+  does not tell them apart. No class name or record name enters the rule. Every block is a
+  required key of `stats`; `null` means the item does not have it. A field inside a present block
+  is `null` when the Archive does not state it, never 0, and a value that is not a finite number
+  is `null` too.
 - **Shared fields.** An item with at least one of the six blocks also carries `health`
   (`SHealthComponentParams.Health`) and `resourceStates`: the states of
   `ItemResourceComponentParams` with their EM and IR signatures and their generation and
@@ -37,7 +38,11 @@ values, if any, `p4kx` computes.
   block does not carry them, which keeps doors, props and clothing out of the kind. The separate
   power and heat connection components (5 and 3 Records on LIVE, none of them an item with a
   block) are not exported: version 1 can never remove a field, and `resourceStates` carries the
-  same inputs.
+  same inputs. The cross-section is not a signature of these items: `signatureParams` of a
+  resource state holds `EMSignature` and `IRSignature` only, and `crossSectionParams` of
+  `SSCSignatureSystemParams` is empty on every item with one of the six blocks on LIVE (the
+  radar cross-section is a property of ships and other entities). The one item-level scalar,
+  `signalCrossSection` of `SCItemVehicleArmorParams`, belongs to armour, which has no block.
 - **Ammunition.** `ammoCapacity` is the capacity of the ammo container, that is the magazine, not
   the weapon body. A ship weapon holds the container itself; a personal weapon links its magazine
   entity through `ammoContainerRecord` and the container is read there, one hop. A linked Record

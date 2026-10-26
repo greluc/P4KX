@@ -138,8 +138,8 @@ pub use entity_dressed::{
     DRESSED_HEAD_MATERIAL_FILE, DRESSED_UNKNOWN_MATERIAL, dressed_entries,
 };
 pub use entity_head::{
-    FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
-    head_entries, head_rig,
+    FEMALE_BODY_TYPE, FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE,
+    MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH, head_entries, head_rig,
 };
 pub use entity_interior_sample::{
     ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, ENTITY_LIT_ROOM_CLASS, entity_interior_entries,

@@ -2140,10 +2140,12 @@ left out, `skipped` counts it, the GLB is still written and the command exits wi
 printing the report. Items that cannot be worn leave the item out and count in `skipped`, the exit
 code staying 0: `piece_not_found` (an item whose Entity the Archive does not have),
 `geometry_missing` (its skin is not in the Archive) and `no_variant_geometry` (its Record has no
-geometry for the body variant). Two Issues leave the piece in and are notes only:
+geometry for the body variant). Three Issues leave the piece in and are notes only:
 `material_choice_unknown` (the character's base material is in no lookup table, so the piece keeps
-its own) and `look_ignored` (the texture choices of a material, such as blemishes, makeup and
-tattoos, are not drawn).
+its own), `look_ignored` (the texture choices of a material, such as blemishes, makeup and
+tattoos, are not drawn) and `body_type_mismatch` (the body type of the character is not the one of
+the head rig its DNA names, on the piece `head`; ADR-0197). The normals and tangents of a shaped
+head are turned with its new surface (ADR-0197).
 
 The piece named `head` has `morph_targets`: the number of expressions written. They are the
 expressions of the head rig that move a vertex of the character's face, all of them by default at

@@ -9,9 +9,9 @@ use std::path::{Path, PathBuf};
 use std::process::Output;
 
 use p4kx_testkit::{
-    ArchiveBuilder, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
-    NPC_CLASS, NPC_HEAD_FOLDER, TestAnimation, TestChf, TestEntry, TestSkeleton, TestTrack,
-    check_glb, head_rig, npc_entries,
+    ArchiveBuilder, HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE, MALE_HEAD_FOLDER, MALE_RIG,
+    MALE_RIG_HASH, NPC_CLASS, NPC_HEAD_FOLDER, TestAnimation, TestChf, TestEntry, TestSkeleton,
+    TestTrack, check_glb, head_rig, npc_entries,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -198,6 +198,7 @@ fn hero_chf(path: &Path) -> Result<(), Box<dyn Error>> {
         }
     };
     let chf = TestChf {
+        body_type: MALE_BODY_TYPE,
         dna_hashes: Some((MALE_RIG_HASH, 0)),
         face_parts: (0..HEAD_REGIONS).map(blend).collect(),
         ..TestChf::v8()

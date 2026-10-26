@@ -10,9 +10,9 @@ use std::path::{Path, PathBuf};
 use p4kx_assembly::character::{BODY_COLOR, Guid, lowered_hash, skin_attachment};
 use p4kx_testkit::{
     DRESSED_EYES, DRESSED_GONE_HAIR, DRESSED_HAIR, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE,
-    DRESSED_HEAD_MATERIAL, HEAD_REGIONS, HEAD_VERTICES, MALE_RIG_HASH, SplitDds, TestChf,
-    TestItemPort, TestMaterial, TestSubMaterial, TestTextureFormat, check_glb, dressed_entries,
-    head_rig,
+    DRESSED_HEAD_MATERIAL, HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE, MALE_RIG_HASH, SplitDds,
+    TestChf, TestItemPort, TestMaterial, TestSubMaterial, TestTextureFormat, check_glb,
+    dressed_entries, head_rig,
 };
 
 use crate::chf_glb::{archive, glb};
@@ -56,6 +56,7 @@ fn dressed_chf(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         ],
     )?;
     let test = TestChf {
+        body_type: MALE_BODY_TYPE,
         dna_hashes: Some((MALE_RIG_HASH, 0)),
         face_parts: (0..HEAD_REGIONS).map(|_| vec![(0, 0), (0, 0)]).collect(),
         ports: Some(item("body_itemport", 0x901, vec![head])?),

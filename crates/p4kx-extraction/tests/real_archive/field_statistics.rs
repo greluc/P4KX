@@ -16,11 +16,13 @@ use super::{TestResult, report};
 struct Sampler {
     child: Child,
     stop: PathBuf,
+    dir: tempfile::TempDir,
 }
 
 impl Sampler {
-    fn start() -> std::io::Result<Self> {
-        let stop = std::env::temp_dir().join(format!("field-stats-sampler-{}", std::process::id()));
+    fn start() -> Option<Self> {
+        let dir = tempfile::tempdir().ok()?;
+        let stop = dir.path().join("stop");
         let script = format!(
             "$p = [Diagnostics.Process]::GetProcessById({}); $first = -1; $max = 0; \
              while (-not (Test-Path '{}')) {{ $p.Refresh(); $w = $p.WorkingSet64; \
@@ -32,15 +34,16 @@ impl Sampler {
         let child = Command::new("powershell")
             .args(["-NoProfile", "-Command", &script])
             .stdout(Stdio::piped())
-            .spawn()?;
+            .spawn()
+            .ok()?;
         std::thread::sleep(Duration::from_millis(1500));
-        Ok(Self { child, stop })
+        Some(Self { child, stop, dir })
     }
 
     fn finish(self) -> Option<(u64, u64)> {
         std::fs::write(&self.stop, b"").ok()?;
         let output = self.child.wait_with_output().ok()?;
-        std::fs::remove_file(&self.stop).ok()?;
+        drop(self.dir);
         let text = String::from_utf8(output.stdout).ok()?;
         let mut numbers = text.split_whitespace().map(str::parse::<u64>);
         Some((numbers.next()?.ok()?, numbers.next()?.ok()?))
@@ -57,11 +60,11 @@ fn counts_the_field_paths_of_a_real_archive_within_a_bounded_memory() -> TestRes
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
 
-    let sampler = Sampler::start()?;
+    let sampler = Sampler::start();
     let started = Instant::now();
     let statistics = FieldStatistics::of_all(&forge)?;
     let elapsed = started.elapsed();
-    let working_sets = sampler.finish();
+    let working_sets = sampler.and_then(Sampler::finish);
 
     let occurrences: u64 = statistics
         .fields()

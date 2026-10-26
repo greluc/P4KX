@@ -52,6 +52,15 @@ the fields no Record has a value for.
 - A Record is walked into a list of pending values and counted only when the walk ends: a Record
   with more than `MAX_RECORD_VALUES` values adds nothing, not even the values found before the
   limit, which is what `docs/query.md` says.
+- The pending values of the Record being walked take about 64 bytes each, up to
+  `MAX_RECORD_VALUES` (2^20) values per part, so up to 64 MiB per part and 64 MiB times the threads
+  in all (2 GiB at 32 threads) for a crafted Record at the limit; a real Record has far fewer, and
+  a buffer above 2^16 values is released after the Record. This is a bound on top of the tries, not
+  a growth with the number of Records.
+- The paths a dropped Record made stay in the trie: a Record with too many values adds no counts,
+  but the paths it walked before the limit still count towards `MAX_FIELD_PATHS` and can raise
+  `TooManyPaths`. The walk of a Record is the same on any split, so the outcome does not depend on
+  the number of threads.
 - The values of a Reference are the GUIDs it links to and are fingerprinted like any value;
   strong and weak pointers and inline structs have no value, so their `distinct` is 0.
 - On LIVE (117,709 Records, 87,514 paths, 32 threads) the working set during the count grows by

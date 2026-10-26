@@ -68,8 +68,8 @@ pub(crate) struct LocExportArgs {
     /// The file format.
     #[arg(long, value_enum, default_value_t = TableOutput::Json)]
     pub(crate) format: TableOutput,
-    /// With --format csv: writes the exact values, without the byte order mark and without the
-    /// leading ' that keeps a spreadsheet from running a text as a formula.
+    /// With --format csv: writes the exact keys and texts, without the leading ' that keeps a
+    /// spreadsheet from running a text as a formula; the byte order mark stays.
     #[arg(long)]
     pub(crate) csv_raw: bool,
     /// The file to write; an existing file is replaced. The table goes to stdout without it.

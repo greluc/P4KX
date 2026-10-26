@@ -96,7 +96,7 @@ fn csv_neutralises_a_key_or_text_that_a_spreadsheet_would_run_as_a_formula() -> 
 fn raw_csv_keeps_the_exact_keys_and_texts() -> TestResult {
     assert_eq!(
         formulas(TableFormat::CsvRaw)?,
-        "key,en\r\n+key,=1+1\r\nnumber,12\r\nplain,-5 items\r\n",
+        "\u{feff}key,en\r\n+key,=1+1\r\nnumber,12\r\nplain,-5 items\r\n",
         "raw CSV"
     );
     Ok(())

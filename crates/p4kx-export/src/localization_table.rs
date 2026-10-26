@@ -15,7 +15,7 @@ pub enum TableFormat {
     /// CSV with a UTF-8 byte order mark, CRLF line ends and the header `key` followed by the
     /// language codes; a key or text that a spreadsheet would run as a formula starts with `'`.
     Csv,
-    /// As [`Csv`](Self::Csv) with the exact keys and texts: no byte order mark and no `'`.
+    /// As [`Csv`](Self::Csv) with the exact keys and texts and no `'`; the byte order mark stays.
     CsvRaw,
 }
 
@@ -92,9 +92,7 @@ fn write_csv<'a>(
     out: &mut impl Write,
     neutralise: bool,
 ) -> io::Result<usize> {
-    if neutralise {
-        out.write_all(CSV_BYTE_ORDER_MARK)?;
-    }
+    out.write_all(CSV_BYTE_ORDER_MARK)?;
     out.write_all(b"key")?;
     for language in languages {
         out.write_all(b",")?;

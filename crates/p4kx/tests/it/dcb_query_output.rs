@@ -226,26 +226,13 @@ fn out_replaces_an_existing_file() -> TestResult {
 }
 
 #[test]
-fn csv_raw_writes_no_byte_order_mark() -> TestResult {
+fn csv_raw_writes_no_byte_order_mark_and_needs_the_csv_format() -> TestResult {
     let raw = stdout(&["--format", "csv", "--csv-raw"])?;
     let default = stdout(&["--format", "csv"])?;
-
-    assert!(raw.starts_with("record path,"), "{raw:?}");
-    assert_eq!(
-        default.strip_prefix('\u{feff}'),
-        Some(raw.as_str()),
-        "only the mark differs"
-    );
-    Ok(())
-}
-
-#[test]
-fn csv_raw_needs_the_csv_format() -> TestResult {
+    assert_eq!(default.strip_prefix('\u{feff}'), Some(raw.as_str()), "mark");
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path(), &database())?;
-
     let output = run(&archive, &["--csv-raw"], QUERY)?;
-
     assert_eq!(output.status.code(), Some(2), "exit code: {output:?}");
     Ok(())
 }

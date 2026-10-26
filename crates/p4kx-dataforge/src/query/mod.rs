@@ -28,11 +28,12 @@ mod shared;
 mod short_text;
 mod sink;
 mod span;
+mod state;
 mod suggest;
 mod syntax;
 mod walk;
 
-pub use compile::{ColumnKind, CompiledQuery};
+pub use compile::{ColumnKind, CompiledQuery, SharedPrefix};
 pub use complete::{Candidate, Completion, CompletionKind, MAX_COMPLETIONS, QuerySchema};
 pub use condition::{Comparison, Condition, Literal, LiteralValue, MAX_CONDITION_DEPTH, Operator};
 pub use error::{Marked, QueryError, QueryErrorKind};

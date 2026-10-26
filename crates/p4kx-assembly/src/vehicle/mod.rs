@@ -4,7 +4,9 @@
 //! The vehicle implementation of a ship: the XML file its `VehicleComponentParams` name, with the
 //! Modification the Entity selects applied.
 
+mod elem;
 mod gear;
+mod item_port;
 mod locate;
 mod origin;
 mod patch;
@@ -17,7 +19,9 @@ use std::collections::HashMap;
 use crate::merge::port_key;
 use crate::{LoadoutError, LoadoutFiles};
 
+pub use elem::ElemOverride;
 pub(crate) use gear::gears;
+pub use item_port::{VehicleItemPort, VehicleItemType};
 pub(crate) use locate::load;
 pub use origin::ValueOrigin;
 pub use patch::ModificationReport;
@@ -25,6 +29,7 @@ pub use totals::{OriginTally, PartThreshold, PartialValue, UnreadableValue, Vehi
 
 /// Whether a part of the vehicle implementation shows its item port.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum PortVisibility {
     /// The vehicle implementation names no part of the port.
     #[default]
@@ -49,6 +54,7 @@ impl PortVisibility {
 
 /// What a part of the vehicle implementation is, by its `class`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum PartKind {
     /// A part that holds an item port, `class="ItemPort"`.
     ItemPort,
@@ -58,81 +64,6 @@ pub enum PartKind {
     Wheel,
     /// Any other part, e.g. `Animated`, `AnimatedJoint` or `Static`.
     Other,
-}
-
-/// The item port of a part of the vehicle implementation.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct VehicleItemPort {
-    pub(crate) min_size: Option<u32>,
-    pub(crate) max_size: Option<u32>,
-    pub(crate) flags: String,
-    pub(crate) id: Option<String>,
-    pub(crate) port_tags: String,
-    pub(crate) required_tags: String,
-    pub(crate) types: Vec<String>,
-}
-
-impl VehicleItemPort {
-    /// Returns the tags the port offers, as stored: words separated by white space.
-    #[must_use]
-    pub fn port_tags(&self) -> &str {
-        &self.port_tags
-    }
-
-    /// Returns the tags an item must carry to fit the port, as stored: words separated by white
-    /// space.
-    #[must_use]
-    pub fn required_tags(&self) -> &str {
-        &self.required_tags
-    }
-
-    /// Returns the item types the port takes, the `type` of each `Types/Type` element.
-    #[must_use]
-    pub fn types(&self) -> &[String] {
-        &self.types
-    }
-
-    /// Returns the smallest item size the port takes, or `None` when the XML gives none.
-    #[must_use]
-    pub const fn min_size(&self) -> Option<u32> {
-        self.min_size
-    }
-
-    /// Returns the largest item size the port takes, or `None` when the XML gives none.
-    #[must_use]
-    pub const fn max_size(&self) -> Option<u32> {
-        self.max_size
-    }
-
-    /// Returns the item port's own id, which Modifications address, if it has one.
-    #[must_use]
-    pub fn id(&self) -> Option<&str> {
-        self.id.as_deref()
-    }
-
-    /// Returns the flags as stored, e.g. `invisible $uneditable`.
-    #[must_use]
-    pub fn flags(&self) -> &str {
-        &self.flags
-    }
-
-    /// Returns whether the flags contain `flag`, ignoring ASCII case and a leading `$`.
-    #[must_use]
-    pub fn has_flag(&self, flag: &str) -> bool {
-        self.flags
-            .split_ascii_whitespace()
-            .any(|token| token.trim_start_matches('$').eq_ignore_ascii_case(flag))
-    }
-
-    /// Returns [`PortVisibility::Invisible`] when the port carries the flag `invisible`.
-    #[must_use]
-    pub fn visibility(&self) -> PortVisibility {
-        if self.has_flag("invisible") {
-            PortVisibility::Invisible
-        } else {
-            PortVisibility::Visible
-        }
-    }
 }
 
 /// One part of the vehicle implementation: the hull, a hardpoint, a tread or a wheel.
@@ -271,6 +202,7 @@ pub struct VehicleImplementation {
     pub(crate) patch_path: Option<String>,
     pub(crate) modification: Option<String>,
     pub(crate) report: Option<ModificationReport>,
+    pub(crate) elems: Vec<ElemOverride>,
     pub(crate) name: String,
     pub(crate) parts: Vec<VehiclePart>,
     pub(crate) visibility: HashMap<String, PortVisibility>,
@@ -330,6 +262,36 @@ impl VehicleImplementation {
     #[must_use]
     pub const fn modification_report(&self) -> Option<&ModificationReport> {
         self.report.as_ref()
+    }
+
+    /// Returns the `Elem` overrides of the Modification that were applied, in file order: those
+    /// whose `idRef` some element has. Empty when the Entity selects no Modification.
+    #[must_use]
+    pub fn elems(&self) -> &[ElemOverride] {
+        &self.elems
+    }
+
+    /// Returns the `Elem` that set the attribute `attribute` of the element with the `id` `id`,
+    /// ignoring ASCII case in the attribute; the last one in file order, which is the one whose
+    /// value stands.
+    #[must_use]
+    pub fn elem_overriding(&self, id: &str, attribute: &str) -> Option<&ElemOverride> {
+        self.elems
+            .iter()
+            .rev()
+            .find(|elem| elem.id_ref == id && elem.name.eq_ignore_ascii_case(attribute))
+    }
+
+    /// Returns the path of the file a value with `origin` was read from: the implementation file
+    /// for [`ValueOrigin::Base`] and [`ValueOrigin::Elem`], whose `Elem` it holds, and the patch
+    /// file for [`ValueOrigin::Patch`]. `None` when the origin is `Patch` and no patch file was
+    /// applied.
+    #[must_use]
+    pub fn source_path(&self, origin: ValueOrigin) -> Option<&str> {
+        match origin {
+            ValueOrigin::Patch => self.patch_path(),
+            ValueOrigin::Base | ValueOrigin::Elem => Some(self.path()),
+        }
     }
 
     /// Returns the `name` of the `Vehicle` element.

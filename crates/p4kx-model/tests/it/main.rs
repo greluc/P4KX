@@ -11,6 +11,7 @@ mod corrupt;
 mod crch;
 mod crch_corrupt;
 mod cube;
+mod deep_text;
 mod details;
 mod interior;
 mod layer_surfaces;

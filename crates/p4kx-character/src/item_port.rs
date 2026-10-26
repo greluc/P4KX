@@ -16,7 +16,7 @@ const PORT_LEN: usize = 28;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ItemPort {
-    /// Hash of the port name.
+    /// CRC-32C of the lower-cased port name, e.g. `head_itemport`.
     pub port: u32,
     /// GUID of the item attached to the port.
     pub item: Guid,

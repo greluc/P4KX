@@ -6,4 +6,5 @@
 mod comparison;
 mod corrupt;
 mod parse;
+mod text_depth;
 mod xml;

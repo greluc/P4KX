@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use super::patch::{ModificationReport, apply_elems, apply_patch, find_modification};
-use super::{VehicleImplementation, read};
+use super::elem::find_modification;
+use super::patch::{ModificationReport, apply_elems, apply_patch};
+use super::{ElemOverride, VehicleImplementation, read};
 use crate::markup::{self, Budget, Element, MAX_ELEMENT_DEPTH};
 use crate::{LoadoutError, LoadoutFileError, LoadoutFiles};
 
@@ -42,14 +43,7 @@ pub(crate) fn load(
     modification: &str,
 ) -> Result<VehicleImplementation, LoadoutError> {
     let stem = file_stem(definition);
-    let mut candidates = Vec::new();
-    add_candidate(&mut candidates, definition);
-    if usable_name(stem) {
-        add_candidate(&mut candidates, &format!("{DIRECTORY}/{stem}.xml"));
-    }
-    if usable_name(class_name) {
-        add_candidate(&mut candidates, &format!("{DIRECTORY}/{class_name}.xml"));
-    }
+    let candidates = definition_candidates(class_name, definition, stem);
     let shown = if definition.is_empty() {
         class_name
     } else {
@@ -78,6 +72,7 @@ pub(crate) fn load(
     let mut issues = Vec::new();
     let mut patch_path = None;
     let mut report = None;
+    let mut elems = Vec::new();
     let selected = (!modification.is_empty()).then(|| modification.to_owned());
     if let Some(name) = &selected {
         let selection = Selection {
@@ -86,7 +81,7 @@ pub(crate) fn load(
             class_name,
             modification: name,
         };
-        (patch_path, report) =
+        (patch_path, report, elems) =
             apply_modification(files, &mut root, &selection, &mut budget, &mut issues);
     }
     let parts = read::parts(&root);
@@ -96,6 +91,7 @@ pub(crate) fn load(
         patch_path,
         modification: selected,
         report,
+        elems,
         name: root.attribute("name").unwrap_or_default().to_owned(),
         visibility: read::visibility(&parts),
         parts,
@@ -103,15 +99,34 @@ pub(crate) fn load(
     })
 }
 
+/// Returns the candidates for the implementation file: the definition, the file of its name in
+/// the implementation folder and the file named after the class.
+fn definition_candidates(class_name: &str, definition: &str, stem: &str) -> Vec<String> {
+    let mut candidates = Vec::new();
+    add_candidate(&mut candidates, definition);
+    if usable_name(stem) {
+        add_candidate(&mut candidates, &format!("{DIRECTORY}/{stem}.xml"));
+    }
+    if usable_name(class_name) {
+        add_candidate(&mut candidates, &format!("{DIRECTORY}/{class_name}.xml"));
+    }
+    candidates
+}
+
 /// Applies the patch file and the `Elem` overrides of the Modification; returns the patch file
-/// that was applied and what the Modification did.
+/// that was applied, what the Modification did and the `Elem` overrides that took effect.
 fn apply_modification(
     files: &dyn LoadoutFiles,
     root: &mut Element,
     selection: &Selection<'_>,
     budget: &mut Budget,
     issues: &mut Vec<LoadoutError>,
-) -> (Option<String>, Option<ModificationReport>) {
+) -> (
+    Option<String>,
+    Option<ModificationReport>,
+    Vec<ElemOverride>,
+) {
+    let mut taken = Vec::new();
     let found = find_modification(root, selection.modification);
     let patch_file = found.as_ref().and_then(|found| found.patch_file.as_deref());
     let (candidates, explicit) = patch_candidates(selection, patch_file, issues);
@@ -146,6 +161,12 @@ fn apply_modification(
             apply_elems(root, &found.elems, budget)
         }) {
             Ok(missed) => {
+                taken = found
+                    .elems
+                    .iter()
+                    .filter(|elem| !missed.contains(&elem.id_ref))
+                    .cloned()
+                    .collect();
                 report
                     .get_or_insert_with(ModificationReport::default)
                     .unmatched_elems = missed;
@@ -158,7 +179,7 @@ fn apply_modification(
         )),
         None => {}
     }
-    (applied, report)
+    (applied, report, taken)
 }
 
 /// Returns the candidates for the patch file, and the one the Modification names itself.

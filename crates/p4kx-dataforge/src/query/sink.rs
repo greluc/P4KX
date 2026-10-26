@@ -5,7 +5,8 @@ use std::ops::ControlFlow;
 
 use crate::query::MAX_PATH_VALUES;
 use crate::query::reader::{Column, Walk};
-use crate::query::walk::{Place, WalkState};
+use crate::query::state::WalkState;
+use crate::query::walk::Place;
 use crate::{DataForge, Value, ValueError};
 
 /// What a step reaches: the place the path continues at, or a value that ends it.
@@ -67,21 +68,37 @@ pub(crate) struct Recording<'f> {
     events: Vec<Event<'f>>,
     charged: usize,
     failed: bool,
+    filled: bool,
 }
 
 impl<'f> Recording<'f> {
-    /// Walks the first `prefix` steps of `walk` from `place` and records what they do.
-    pub(crate) fn of(
+    /// Forgets the walk but keeps the buffer for the next one.
+    pub(crate) fn clear(&mut self) {
+        self.events.clear();
+        self.charged = 0;
+        self.failed = false;
+        self.filled = false;
+    }
+
+    /// Returns whether a walk is recorded since the last [`clear`](Self::clear).
+    pub(crate) const fn is_filled(&self) -> bool {
+        self.filled
+    }
+
+    /// Walks the first `prefix` steps of `walk` from `place` and records what they do, replacing
+    /// the earlier recording.
+    pub(crate) fn fill(
+        &mut self,
         walk: &Walk,
         forge: &'f DataForge<'f>,
         place: Place<'f>,
         prefix: usize,
-    ) -> Self {
-        let mut recording = Self::default();
-        if walk.step(forge, 0, prefix, place, &mut recording).is_err() {
-            recording.failed = true;
+    ) {
+        self.clear();
+        self.filled = true;
+        if walk.step(forge, 0, prefix, place, self).is_err() {
+            self.failed = true;
         }
-        recording
     }
 }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Filter, Guid, Record, TreeBuilder};
 use rayon::prelude::*;
@@ -112,6 +112,9 @@ pub(crate) fn read_with_progress<'f>(
                 .warnings
                 .push(CraftingWarning::UnreadableRewardRecords(found.unreadable));
         }
+    }
+    if let Some(warning) = crafting.unknown_ranges_warning() {
+        crafting.warnings.push(warning);
     }
     let processes = crafting.live_dismantle().count();
     if processes > 1 {
@@ -258,6 +261,26 @@ impl<'f> Crafting<'f> {
             }
         }
         chances
+    }
+
+    fn unknown_ranges_warning(&self) -> Option<CraftingWarning> {
+        let count = self
+            .blueprints
+            .iter()
+            .map(|blueprint| blueprint.unknown_range_types.len())
+            .sum();
+        if count == 0 {
+            return None;
+        }
+        let types: BTreeSet<&str> = self
+            .blueprints
+            .iter()
+            .flat_map(|blueprint| blueprint.unknown_range_types.iter().copied())
+            .collect();
+        Some(CraftingWarning::UnknownModifierRanges {
+            count,
+            details: types.into_iter().map(str::to_owned).collect(),
+        })
     }
 
     fn live_dismantle(&self) -> impl Iterator<Item = &DismantleProcess<'f>> {

@@ -9,6 +9,7 @@ use crate::query::path_plan::PathPlan;
 use crate::query::predicate::{self, Predicate, Test};
 use crate::query::reader::Reader;
 use crate::query::schema::{StructFields, ancestors_include};
+use crate::query::shared::Groups;
 use crate::query::suggest::closest;
 use crate::query::syntax::{Name, Query};
 use crate::query::{Comparison, QueryError, QueryErrorKind};
@@ -24,6 +25,7 @@ pub struct CompiledQuery<'f> {
     pub(crate) referrers: Option<Box<[u32]>>,
     pub(crate) predicate: Option<Predicate>,
     pub(crate) plans: Box<[Option<Plan>]>,
+    pub(crate) share_prefixes: bool,
 }
 
 /// What the cells of one column hold, known before any Record is read.
@@ -57,6 +59,7 @@ pub(crate) enum Plan {
     Read {
         columns: Box<[Option<Reader>]>,
         tests: Box<[Option<Test>]>,
+        shared: Groups,
     },
     /// The struct's layout cannot be read, so neither can its Records' values.
     Broken(DataForgeError),
@@ -73,6 +76,14 @@ impl<'f> CompiledQuery<'f> {
     #[must_use]
     pub fn column_kinds(&self) -> &[ColumnKind] {
         &self.kinds
+    }
+
+    /// Returns the Query reading every column on its own, without the walk of the steps that
+    /// several columns share; its rows are the same, only slower for such columns.
+    #[must_use]
+    pub const fn without_shared_prefixes(mut self) -> Self {
+        self.share_prefixes = false;
+        self
     }
 
     /// Returns the DataForge the Query was compiled for.
@@ -182,6 +193,7 @@ impl Query {
             referrers,
             predicate,
             plans,
+            share_prefixes: true,
         })
     }
 }
@@ -247,11 +259,13 @@ fn plan(
         Ok(fields) => fields,
         Err(error) => return Plan::Broken(error.clone()),
     };
+    let columns: Box<[Option<Reader>]> = columns
+        .iter()
+        .map(|column| column.reader(fields).map(|(reader, _)| reader))
+        .collect();
     Plan::Read {
-        columns: columns
-            .iter()
-            .map(|column| column.reader(fields).map(|(reader, _)| reader))
-            .collect(),
+        shared: Groups::of(&columns),
+        columns,
         tests: compared
             .iter()
             .map(|(comparison, path)| Test::of(comparison, path.reader(fields)?))

@@ -33,8 +33,8 @@ pub enum BreakReason {
         /// The ID referred to.
         id: u32,
     },
-    /// A Play action names another soundbank as the holder of the object it plays, or a `PlayEvent`
-    /// action posts an Event that only other soundbanks hold; this walk does not enter them.
+    /// A reference leads into a soundbank the walk does not enter: the Archive holds no soundbank
+    /// of the ID a Play action names, or the walk has already read its one other soundbank.
     #[error("object {id} lies in soundbank {bank_id}, which the walk does not enter")]
     OtherSoundbank {
         /// The ID referred to.
@@ -64,6 +64,13 @@ pub enum BreakReason {
     /// The path is as long as [`MAX_PATH_DEPTH`](super::MAX_PATH_DEPTH) allows.
     #[error("the path is deeper than {limit} objects")]
     TooDeep {
+        /// The limit.
+        limit: usize,
+    },
+    /// `PlayEvent` and `Trigger` actions follow one another more often than
+    /// [`MAX_ACTION_CHAIN`](super::MAX_ACTION_CHAIN) allows.
+    #[error("more than {limit} PlayEvent and Trigger actions follow one another")]
+    ChainTooLong {
         /// The limit.
         limit: usize,
     },
@@ -108,6 +115,7 @@ impl BreakReason {
             Self::Unsupported => "unsupported",
             Self::Cycle { .. } => "cycle",
             Self::TooDeep { .. } => "too_deep",
+            Self::ChainTooLong { .. } => "chain_too_long",
             Self::TooManyChildren { .. } => "too_many_children",
             Self::TooManyObjects { .. } => "too_many_objects",
             Self::NoLocalisation { .. } => "no_localisation",

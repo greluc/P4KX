@@ -56,7 +56,8 @@ A `LanguageChoice` names the language asked for and the fallback:
 - A variant states whether it is localised, the language it was resolved in and whether that is
   the fallback.
 - A choice without languages (`LanguageChoice::any`, what `resolve_trigger` uses) follows every
-  language and takes a Loose WEM from the first language in path order.
+  language of the soundbank an event starts in and takes a Loose WEM from the first language in
+  path order. A reference that leaves that soundbank follows the first language only (ADR-0158).
 
 On the command line `--lang` must be one of the Audio languages (exit code 2 otherwise, listing
 them) and `--fallback-lang` defaults to the default language. Without `--lang` only the fallback

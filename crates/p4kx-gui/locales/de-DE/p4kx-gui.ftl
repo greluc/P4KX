@@ -444,6 +444,7 @@ catalog-progress = { $done } von { $total } Records geprüft, { $percent } %
 catalog-crafting-progress = Crafting-Daten werden gelesen: { $done } von { $total } Records, { $percent } %
 catalog-warning = { $kind ->
     [unreadable_reward_records] { $count } Records, die eine Belohnungsquelle enthalten könnten, lassen sich nicht lesen; ihre Belohnungsquellen fehlen.
+    [unknown_modifier_ranges] { $count } Modifikator-Bereiche haben einen Typ, den P4KX nicht kennt; sie fehlen in den Blueprint-Modifikatoren.
     [ambiguous_dismantle] Die DataForge enthält { $count } Zerlegungsprozesse statt einem; keine Zerlegungsausbeute wird verknüpft.
     [unreadable_vehicle_files] Bei { $count } Schiffen lässt sich eine Fahrzeugdatei nicht lesen; ihre Lackierungen fehlen.
     [unplaced_starmap_containers] { $count } Systemcontainer oder Platzierungen lassen sich nicht lesen; die Sternenkarten-Objekte darunter haben keine Position.

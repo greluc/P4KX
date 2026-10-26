@@ -1252,6 +1252,15 @@ whose struct type is that of a Record with a reward source counts, and when no s
 all every unreadable Record counts. `p4kx catalog` prints the warning and exits with code 1
 (`CatalogSummary::warnings()`; `is_complete()` is then `false`); the windows of the GUI list it.
 
+A modifier range (`valueRanges` of a gameplay-property modifier) is read only for the two types
+`CraftingGameplayPropertyModifierValueRange_Linear` and `..._LinearIntegerAdditive`. A range of any
+other struct type is left out of the modifiers of its tier and counted:
+`Crafting::warnings` then holds `UnknownModifierRanges` with the number of such ranges over all
+selected blueprints and the sorted, distinct struct types in `details`
+(`BlueprintTiers::unknown_range_types` has them per blueprint). A build without such a range has
+no warning. The shape of the catalog does not change, so this follows ADR-0054 as an additive
+extension: only the `warnings` of `p4kx catalog --json` gain the kind `unknown_modifier_ranges`.
+
 The Rust names of the library:
 
 | Field | Source |

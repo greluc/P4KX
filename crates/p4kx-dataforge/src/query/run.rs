@@ -10,6 +10,7 @@ use rayon::prelude::*;
 use crate::dataforge::out_of_range;
 use crate::query::CompiledQuery;
 use crate::query::compile::Plan;
+use crate::query::shared::Groups;
 use crate::query::walk::{Place, WalkState};
 use crate::{DataForgeError, Record, Value};
 
@@ -223,10 +224,21 @@ impl<'f> CompiledQuery<'f> {
         let cells = match self.plan_of(index)? {
             _ if self.columns.is_empty() && self.predicate.is_none() => Ok(Vec::new()),
             Plan::Broken(error) => Err(error.clone()),
-            Plan::Read { columns, .. } => self.instance_of(index).map(|place| {
+            Plan::Read {
+                columns, shared, ..
+            } => self.instance_of(index).map(|place| {
+                let groups = self.share_prefixes.then_some(shared);
+                let mut recordings = groups.map(Groups::recordings).unwrap_or_default();
                 columns
                     .iter()
-                    .map(|column| Some(column.as_ref()?.cell(self.forge, place, &mut state)))
+                    .enumerate()
+                    .map(|(at, column)| {
+                        let reader = column.as_ref()?;
+                        let prefix = groups.and_then(|groups| {
+                            groups.prefix_of(at, reader, self.forge, place, &mut recordings)
+                        });
+                        Some(reader.cell(self.forge, place, &mut state, prefix))
+                    })
                     .collect()
             }),
         };

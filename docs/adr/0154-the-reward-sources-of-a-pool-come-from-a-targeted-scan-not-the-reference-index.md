@@ -30,6 +30,14 @@ the pool Records. Decided for issue #433, the follow-up of the review of #431 (#
   change in a breaking way for a reader of that output: `reward_sources_truncated` is removed and
   `unreadable_reward_records` replaces `unreadable_reference_records`.
 
+- **Unknown modifier ranges (issue #661).** The same rule holds for the other silent loss of the
+  crafting reader: a modifier range of a struct type that is neither `..._Linear` nor
+  `..._LinearIntegerAdditive` is left out of the modifiers. `CraftingWarning::UnknownModifierRanges`
+  counts those ranges over the selected blueprints and names the distinct struct types in
+  `details`, as `kind` `unknown_modifier_ranges` in `p4kx catalog --json`. It appears only when such
+  a range exists, so a Build without one is not made incomplete by it. The catalog data is unchanged; the new
+  kind is an additive extension of `warnings`.
+
 ## Considered Options
 
 - Keep the index and add a flag on the pool when sources are cut: keeps the cap, the 8 million

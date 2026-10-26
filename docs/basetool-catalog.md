@@ -1161,7 +1161,7 @@ A mineable element (`mineableElements`) is a `MineableElement` Record under `min
 `resourceType` links to; `null` for a null or dangling Reference. It equals a commodity's
 `subtypeGuid` only when the catalog has that commodity: commodities are backfilled only for the
 `ResourceType`s that a blueprint ingredient uses or that a kept quality quantization links to, so a
-mined `ResourceType` that neither does has none (LIVE: see the figure in the PR of ADR-0184).
+mined `ResourceType` that neither does has none (LIVE: 25 of the 43 linked `ResourceType`s were backfilled for a quantization alone).
 Several elements may share one `ResourceType` (41 distinct for the 43 entries), so a commodity can
 have several elements with different values; every element is listed and none is picked. The numbers
 are those of the Record, unchanged, and `null` when it states none. The ranges are those of the 43

@@ -40,6 +40,15 @@ impl<'r, 'f> ForgeItems<'r, 'f> {
         }
     }
 
+    /// Returns the names of the item ports the Entity `item` defines, empty when it has no Record.
+    pub fn port_names(&mut self, item: Guid) -> Vec<String> {
+        let spec = self.resolver.spec(item);
+        let Ok(spec) = spec.as_ref() else {
+            return Vec::new();
+        };
+        spec.ports.iter().map(|port| port.name.clone()).collect()
+    }
+
     /// Returns how many material libraries the lookup table lists.
     #[must_use]
     pub fn material_count(&self) -> usize {

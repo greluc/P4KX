@@ -27,7 +27,7 @@ const CREATURE_DEFAULT: &str = "1dcde125-1275-474f-b0d7-d6682e9e521f";
 const PYRO: &str = "286cb603-b4ae-4279-80a1-d4505fee1916";
 const COVALEX_POOL: &str = "907989eb-9ee8-46a8-b794-032da6bd8a5d";
 const COVALEX_BLUEPRINT: &str = "33be7f1a-3f75-4627-bb8b-88e6d6b42f4e";
-const KINDS: [&str; 11] = [
+const KINDS: [&str; 12] = [
     "manufacturers",
     "items",
     "ships",
@@ -37,6 +37,7 @@ const KINDS: [&str; 11] = [
     "blueprintCategories",
     "gameplayProperties",
     "qualityDistributions",
+    "qualityQuantizations",
     "blueprintPools",
     "dismantleProcesses",
 ];

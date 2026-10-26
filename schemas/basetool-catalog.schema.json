@@ -558,6 +558,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `qualityDistributions`."
         },
+        "qualityQuantizations": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `qualityQuantizations`."
+        },
         "refiningProcesses": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `refiningProcesses`."
@@ -597,6 +601,7 @@
         "mineableElements",
         "paints",
         "qualityDistributions",
+        "qualityQuantizations",
         "refiningProcesses",
         "resourceGroups",
         "shipStoreSlugs",
@@ -2378,6 +2383,71 @@
       ],
       "type": "object"
     },
+    "QualityQuantization": {
+      "description": "A quality quantization: a `CraftingQualityQuantizationRecord` under\n`crafting/qualityquantization`, the quantised quality steps of the `ResourceType`s that link to\nit. The Record itself holds no link to a `ResourceType`; the link goes the other way, so\n`resourceTypeGuids` is derived from the `ResourceType` Records.",
+      "properties": {
+        "bands": {
+          "description": "The bands in stored order, 8 on LIVE and the same ranges for every Record.",
+          "items": {
+            "$ref": "#/$defs/QuantizationBand"
+          },
+          "type": "array"
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `Quantization_Gold`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "resourceTypeGuids": {
+          "description": "The GUIDs of the `ResourceType` Records whose crafting data link to the Record, ordered by\nGUID. It equals a commodity's `subtypeGuid` only when the catalog has that commodity.\nEmpty for a Record no `ResourceType` uses.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "bands",
+        "className",
+        "guid",
+        "recordPath",
+        "resourceTypeGuids"
+      ],
+      "type": "object"
+    },
+    "QuantizationBand": {
+      "description": "One band of a quality quantization: every quality from `start` to `end` counts as\n`mappedValue`.",
+      "properties": {
+        "end": {
+          "description": "The highest quality of the band, inclusive, 399 to 1000 on LIVE.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "mappedValue": {
+          "description": "The quality the game uses for every quality in the band, 0 to 1000 on LIVE.",
+          "format": "int64",
+          "type": "integer"
+        },
+        "start": {
+          "description": "The lowest quality of the band, 0 to 999 on LIVE.",
+          "format": "int64",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "end",
+        "mappedValue",
+        "start"
+      ],
+      "type": "object"
+    },
     "QuantumDriveStats": {
       "description": "A quantum drive.",
       "properties": {
@@ -3824,6 +3894,13 @@
       },
       "type": "array"
     },
+    "qualityQuantizations": {
+      "description": "The quality quantizations, the quantised quality steps per `ResourceType`, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/QualityQuantization"
+      },
+      "type": "array"
+    },
     "refiningProcesses": {
       "description": "The refining processes, ordered by GUID.",
       "items": {
@@ -3894,6 +3971,7 @@
     "mineableElements",
     "paints",
     "qualityDistributions",
+    "qualityQuantizations",
     "refiningProcesses",
     "resourceGroups",
     "schemaVersion",

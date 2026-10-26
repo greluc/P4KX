@@ -16,12 +16,29 @@ use p4kx_gui::{
     Browser, EntryIndex, ExtractionScope, Language, Model, RecordTree, RecordTreeStatus, Sort,
     SortColumn, SortDirection, ui,
 };
-use p4kx_testkit::real_archive_path;
+use p4kx_testkit::{assert_steady_frames, real_archive_path};
+
+use crate::frame_steps::step_into;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const SORT_LIMIT: Duration = Duration::from_millis(30);
 const FRAME_LIMIT: Duration = Duration::from_millis(16);
+const SORT_HEADERS: [&str; 12] = [
+    "Size",
+    "Size",
+    "Compression",
+    "Compression",
+    "Encryption",
+    "Encryption",
+    "Name",
+    "Name",
+    "Size",
+    "Compression",
+    "Encryption",
+    "Name",
+];
+const FRAME_CEILING: Duration = Duration::from_millis(100);
 const COLUMNS: [SortColumn; 4] = [
     SortColumn::Name,
     SortColumn::Compression,
@@ -101,13 +118,14 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
         "a large Archive"
     );
 
-    for header in ["Size", "Size", "Compression", "Encryption", "Name"] {
+    let mut sorting = Vec::new();
+    for header in SORT_HEADERS {
         harness.get_by_label(header).click();
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "sorting by {header} took {took:?}");
+        step_into(&mut sorting, &mut harness);
     }
     harness.hover_at(egui::pos2(800.0, 450.0));
     let first_row = top_row_name(&harness);
+    let mut frames = Vec::new();
     for _ in 0..20 {
         harness.event(egui::Event::MouseWheel {
             unit: egui::MouseWheelUnit::Page,
@@ -116,11 +134,12 @@ fn frames_stay_short_while_sorting_and_scrolling_a_real_archive() -> TestResult 
             modifiers: egui::Modifiers::NONE,
             source: egui::MouseWheelSource::Wheel,
         });
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "scrolling took {took:?}");
+        step_into(&mut frames, &mut harness);
     }
     harness.run_steps(2);
     assert_ne!(top_row_name(&harness), first_row, "the table scrolled");
+    assert_steady_frames("sorting", &sorting, FRAME_LIMIT, FRAME_CEILING);
+    assert_steady_frames("scrolling", &frames, FRAME_LIMIT, FRAME_CEILING);
     Ok(())
 }
 
@@ -175,25 +194,23 @@ fn frames_stay_short_while_searching_a_real_archive() -> TestResult {
         .click();
     harness.run_steps(2);
 
+    let mut typing = Vec::new();
     for character in ["a", "u", "r", "o", "r", "a"] {
         harness
             .get_by_role(egui::accesskit::Role::TextInput)
             .type_text(character);
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "typing {character:?} took {took:?}");
+        step_into(&mut typing, &mut harness);
     }
+    let mut polling = Vec::new();
     let deadline = Instant::now() + Duration::from_secs(30);
     while harness.state().browser().is_some_and(Browser::is_searching) {
         assert!(Instant::now() < deadline, "the search did not finish");
         std::thread::sleep(Duration::from_millis(2));
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "a frame while searching took {took:?}");
+        step_into(&mut polling, &mut harness);
     }
-    let took = timed_step(&mut harness);
-    assert!(
-        took < FRAME_LIMIT,
-        "the frame after the search took {took:?}"
-    );
+    step_into(&mut polling, &mut harness);
+    assert_steady_frames("typing", &typing, FRAME_LIMIT, FRAME_CEILING);
+    assert_steady_frames("searching", &polling, FRAME_LIMIT, FRAME_CEILING);
     let shown = harness.state().browser().map_or(0, |b| b.shown().len());
     assert!(shown > 0, "aurora matches Entries");
     Ok(())
@@ -204,9 +221,10 @@ fn frames_stay_short_while_searching_a_real_archive() -> TestResult {
 fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
     let mut harness = opened(true)?;
 
+    let mut interactions = Vec::new();
+    let mut polling = Vec::new();
     harness.get_by_label("Expand DataForge").click();
-    let took = timed_step(&mut harness);
-    assert!(took < FRAME_LIMIT, "the click took {took:?}");
+    step_into(&mut interactions, &mut harness);
     let deadline = Instant::now() + Duration::from_secs(120);
     while !records(&harness).is_some_and(|tree| {
         !matches!(
@@ -216,8 +234,7 @@ fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
     }) {
         assert!(Instant::now() < deadline, "DataForge did not load");
         std::thread::sleep(Duration::from_millis(2));
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "a frame while loading took {took:?}");
+        step_into(&mut polling, &mut harness);
     }
     let Some(RecordTreeStatus::Ready(summary)) = records(&harness).map(RecordTree::status) else {
         return Err(format!("not loaded: {:?}", records(&harness)).into());
@@ -225,8 +242,8 @@ fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
     assert!(summary.record_count() > 50_000, "a real DataForge");
     for folder in ["libs", "foundry", "records"] {
         harness.get_by_label(&format!("Expand {folder}")).click();
-        let took = timed_step(&mut harness).max(timed_step(&mut harness));
-        assert!(took < FRAME_LIMIT, "expanding {folder} took {took:?}");
+        step_into(&mut interactions, &mut harness);
+        step_into(&mut interactions, &mut harness);
     }
     let largest = records(&harness).and_then(|tree| {
         let folder = tree.find("libs/foundry/records")?;
@@ -239,9 +256,9 @@ fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
     if let (Some(browser), Some(largest)) = (harness.state_mut().browser_mut(), largest) {
         browser.toggle_record_node(largest, || {});
     }
-    let took = timed_step(&mut harness);
-    assert!(took < FRAME_LIMIT, "the largest folder took {took:?}");
+    step_into(&mut interactions, &mut harness);
     harness.hover_at(egui::pos2(150.0, 450.0));
+    let mut scrolling = Vec::new();
     for _ in 0..20 {
         harness.event(egui::Event::MouseWheel {
             unit: egui::MouseWheelUnit::Page,
@@ -250,9 +267,16 @@ fn dataforge_of_a_real_archive_loads_while_frames_stay_short() -> TestResult {
             modifiers: egui::Modifiers::NONE,
             source: egui::MouseWheelSource::Wheel,
         });
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "scrolling the Records took {took:?}");
+        step_into(&mut scrolling, &mut harness);
     }
+    assert_steady_frames("expanding", &interactions, FRAME_LIMIT, FRAME_CEILING);
+    assert_steady_frames("loading", &polling, FRAME_LIMIT, FRAME_CEILING);
+    assert_steady_frames(
+        "scrolling the Records",
+        &scrolling,
+        FRAME_LIMIT,
+        FRAME_CEILING,
+    );
     Ok(())
 }
 
@@ -269,14 +293,15 @@ fn searching_the_records_of_a_real_archive_keeps_frames_short() -> TestResult {
         .click();
     harness.run_steps(2);
 
+    let mut interactions = Vec::new();
     for character in ["s", "h", "i", "p", "s", "/"] {
         harness
             .get_by_role(egui::accesskit::Role::TextInput)
             .type_text(character);
-        let took = timed_step(&mut harness);
-        assert!(took < FRAME_LIMIT, "typing {character:?} took {took:?}");
+        step_into(&mut interactions, &mut harness);
     }
-    step_until_records_found(&mut harness);
+    let mut polling = Vec::new();
+    step_until_records_found(&mut harness, &mut polling);
     let browser = harness.state().browser().ok_or("no Archive")?;
     let tree = browser.records().ok_or("no DataForge")?;
     let matches = browser.record_matches().ok_or("no matches")?;
@@ -296,14 +321,26 @@ fn searching_the_records_of_a_real_archive_keeps_frames_short() -> TestResult {
     if let Some(browser) = harness.state_mut().browser_mut() {
         browser.pick_record(first);
     }
-    let took = timed_step(&mut harness).max(timed_step(&mut harness));
-    assert!(took < FRAME_LIMIT, "picking took {took:?}");
+    step_into(&mut interactions, &mut harness);
+    step_into(&mut interactions, &mut harness);
+    assert_steady_frames(
+        "typing and picking",
+        &interactions,
+        FRAME_LIMIT,
+        FRAME_CEILING,
+    );
+    assert_steady_frames(
+        "searching the Records",
+        &polling,
+        FRAME_LIMIT,
+        FRAME_CEILING,
+    );
     let tree = records(&harness).ok_or("no DataForge")?;
     assert_eq!(tree.selected(), tree.record_node(first), "picked");
     Ok(())
 }
 
-fn step_until_records_found(harness: &mut Harness<'_, Model>) {
+fn step_until_records_found(harness: &mut Harness<'_, Model>, frames: &mut Vec<Duration>) {
     let deadline = Instant::now() + Duration::from_secs(120);
     while harness
         .state()
@@ -315,14 +352,9 @@ fn step_until_records_found(harness: &mut Harness<'_, Model>) {
             "the Record search did not finish"
         );
         std::thread::sleep(Duration::from_millis(2));
-        let took = timed_step(harness);
-        assert!(took < FRAME_LIMIT, "a frame while searching took {took:?}");
+        step_into(frames, harness);
     }
-    let took = timed_step(harness);
-    assert!(
-        took < FRAME_LIMIT,
-        "the frame after the search took {took:?}"
-    );
+    step_into(frames, harness);
 }
 
 fn records<'h>(harness: &'h Harness<'_, Model>) -> Option<&'h RecordTree> {
@@ -363,10 +395,4 @@ fn top_row_name(harness: &Harness<'_, Model>) -> Option<String> {
         .get_all_by_label_contains("Select ")
         .filter_map(|node| node.accesskit_node().label())
         .find(|label| !label.starts_with("Select all"))
-}
-
-fn timed_step(harness: &mut Harness<'_, Model>) -> Duration {
-    let started = Instant::now();
-    harness.step();
-    started.elapsed()
 }

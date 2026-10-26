@@ -6,6 +6,9 @@ use std::collections::{BTreeSet, HashMap};
 use p4kx_extraction::{CancelToken, DataForge, DataForgeError, Filter, Guid, Record, TreeBuilder};
 use rayon::prelude::*;
 
+use crate::crafting_quantization::{
+    QUANTIZATIONS, RESOURCE_TYPES, linked_quantizations, quantization,
+};
 use crate::crafting_records::{
     DISMANTLES, DISTRIBUTIONS, GLOBALS, OVERRIDES, POOLS, PROPERTIES, blueprint, dismantle,
     distribution, globals, is_crafting_path, pool, property,
@@ -13,7 +16,7 @@ use crate::crafting_records::{
 use crate::crafting_scan::reward_sources;
 use crate::crafting_types::{
     BlueprintPool, BlueprintTiers, DismantleProcess, DismantleReturn, GameplayProperty,
-    GlobalParams, QualityDistribution, RewardChance, RewardSource,
+    GlobalParams, QualityDistribution, QualityQuantization, RewardChance, RewardSource,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::selection::{BlueprintSelection, KindRule, is_leftover, selects_blueprint};
@@ -33,6 +36,11 @@ pub struct Crafting<'f> {
     pub properties: Vec<GameplayProperty<'f>>,
     /// The quality distributions and their location overrides.
     pub quality_distributions: Vec<QualityDistribution<'f>>,
+    /// The quality quantizations, each with the `ResourceType`s whose crafting data link to it.
+    pub quality_quantizations: Vec<QualityQuantization<'f>>,
+    /// The links of `ResourceType` Records (leftovers excluded) to a Record that is no readable
+    /// quality quantization: a GUID of another type or of no Record, or a Record that failed.
+    pub unresolved_quantization_links: usize,
     /// The blueprint pools.
     pub pools: Vec<BlueprintPool<'f>>,
     /// The places that reward a blueprint of a pool, found through their Reference to it.
@@ -53,6 +61,11 @@ enum Piece<'f> {
     Blueprint(BlueprintTiers<'f>),
     Property(GameplayProperty<'f>),
     Distribution(QualityDistribution<'f>),
+    Quantization(QualityQuantization<'f>),
+    ResourceLinks {
+        resource_type: Guid,
+        quantizations: Vec<Guid>,
+    },
     Pool(BlueprintPool<'f>),
     Dismantle(DismantleProcess<'f>),
     Globals(GlobalParams),
@@ -64,8 +77,8 @@ enum Piece<'f> {
 ///
 /// The Records are read in parallel. A `Filter` keeps only the blueprints and pools whose record
 /// path it matches (the reward sources are then those of the kept pools); the properties,
-/// quality Records, dismantle processes and global parameters are always read. A Record that
-/// cannot be read is left out and listed in [`Crafting::failures`]; a Record outside the `Filter`
+/// quality Records, the `ResourceType` links to the quality quantizations, dismantle processes and
+/// global parameters are always read. A Record that cannot be read is left out and listed in [`Crafting::failures`]; a Record outside the `Filter`
 /// is not listed, except the global parameters. A Record that could hold a reward source and
 /// cannot be read leaves a [`CraftingWarning`].
 ///
@@ -127,11 +140,21 @@ pub(crate) fn read_with_progress<'f>(
 
 fn assemble(pieces: Vec<Piece<'_>>) -> Crafting<'_> {
     let mut crafting = Crafting::default();
+    let mut links: HashMap<Guid, Vec<Guid>> = HashMap::new();
     for piece in pieces {
         match piece {
             Piece::Blueprint(blueprint) => crafting.blueprints.push(blueprint),
             Piece::Property(property) => crafting.properties.push(property),
             Piece::Distribution(distribution) => crafting.quality_distributions.push(distribution),
+            Piece::Quantization(quantization) => crafting.quality_quantizations.push(quantization),
+            Piece::ResourceLinks {
+                resource_type,
+                quantizations,
+            } => {
+                for quantization in quantizations {
+                    links.entry(quantization).or_default().push(resource_type);
+                }
+            }
             Piece::Pool(pool) => crafting.pools.push(pool),
             Piece::Dismantle(process) => crafting.dismantle.push(process),
             Piece::Globals(globals) => {
@@ -157,6 +180,22 @@ fn assemble(pieces: Vec<Piece<'_>>) -> Crafting<'_> {
     crafting.blueprints.sort_by_key(|item| item.guid);
     crafting.properties.sort_by_key(|item| item.guid);
     crafting.quality_distributions.sort_by_key(|item| item.guid);
+    crafting.quality_quantizations.sort_by_key(|item| item.guid);
+    for quantization in &mut crafting.quality_quantizations {
+        if let Some(mut resource_types) = links.remove(&quantization.guid) {
+            resource_types.sort_unstable();
+            resource_types.dedup();
+            quantization.resource_types = resource_types;
+        }
+    }
+    crafting.unresolved_quantization_links = links
+        .into_values()
+        .map(|mut resource_types| {
+            resource_types.sort_unstable();
+            resource_types.dedup();
+            resource_types.len()
+        })
+        .sum();
     crafting.dismantle.sort_by_key(|item| item.guid);
     crafting.pools.sort_by_key(|item| item.guid);
     crafting
@@ -173,9 +212,25 @@ fn outside(record: &Record<'_>, filter: Option<&Filter>) -> bool {
         return false;
     };
     !filter.matches(path)
-        && !record
-            .type_name()
-            .is_ok_and(|type_name| selects(&GLOBALS, path, type_name))
+        && !record.type_name().is_ok_and(|type_name| {
+            selects(&GLOBALS, path, type_name) || selects(&RESOURCE_TYPES, path, type_name)
+        })
+}
+
+fn resource_links<'f>(
+    trees: &mut TreeBuilder<'f>,
+    record: &Record<'f>,
+) -> Result<Option<Piece<'f>>, DataForgeError> {
+    if record.type_name()? != RESOURCE_TYPES.type_name
+        || is_leftover(record.record_path()?, record.name()?)
+    {
+        return Ok(None);
+    }
+    let quantizations = linked_quantizations(&trees.build(record)?);
+    Ok((!quantizations.is_empty()).then(|| Piece::ResourceLinks {
+        resource_type: record.guid(),
+        quantizations,
+    }))
 }
 
 fn piece<'f>(
@@ -184,6 +239,9 @@ fn piece<'f>(
     filter: Option<&Filter>,
 ) -> Result<Option<Piece<'f>>, DataForgeError> {
     let path = record.record_path()?;
+    if RESOURCE_TYPES.matches_path(path) {
+        return resource_links(trees, record);
+    }
     if !is_crafting_path(path) {
         return Ok(None);
     }
@@ -208,6 +266,11 @@ fn piece<'f>(
         Some(Piece::Property(property(&trees.build(record)?)))
     } else if selects(&DISTRIBUTIONS, path, type_name) || selects(&OVERRIDES, path, type_name) {
         Some(Piece::Distribution(distribution(&trees.build(record)?)))
+    } else if selects(&QUANTIZATIONS, path, type_name) {
+        Some(match quantization(&trees.build(record)?) {
+            Ok(quantization) => Piece::Quantization(quantization),
+            Err(malformed) => Piece::Failed(CatalogFailure::of(record, &malformed)),
+        })
     } else if selects(&POOLS, path, type_name) {
         Some(Piece::Pool(pool(&trees.build(record)?)))
     } else if selects(&GLOBALS, path, type_name) {

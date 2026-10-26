@@ -127,6 +127,13 @@ field is absent.
  "empty": 29, "unresolved": 0, "docked_vehicles": 0}
 ```
 
+An Entity whose default Loadout is an outfit (an NPC actor, `SItemPortLoadoutOutfitParams`) also
+has `outfit`: `{"base_files": ["…"], "outfits": [{"tags": ["Outfits.S42.Work"], "files": ["…"],
+"applied": true}, …]}`, the XML Loadouts of the base Loadout and, per outfit in the Record's order,
+its name tags (tag paths), its XML Loadouts and whether it is worn: every outfit without name tags
+is; when all have name tags, the first one is (ADR-0181). The text output lists the same as
+`outfit base:` and `outfit N worn|not worn` lines. The key is absent for any other Entity.
+
 `--exclude <port>` and `--replace <port>=<entity>` (each may be given several times) apply an
 own configuration, see [ADR-0076](adr/0076-loadout-changes-are-applied-while-the-tree-is-resolved-and-checked-against-the-port.md).
 A port is named by its path of port names from the root joined by `/`, as `entity loadout` lists
@@ -518,8 +525,9 @@ Archive lacks is exit code 2, a library that cannot be read 3; issues leave the 
 `p4kx chf glb`, counted in `textured_materials`, `textures` and `texture_pixels`. `files` of
 `loadout` lists the XML Loadout files the Loadout is made of in the order they are laid over each
 other: an Entity whose default Loadout is an outfit gives its base Loadout and the Loadouts of its
-outfits without name tags (ADR-0109). `head` is `null` unless the Loadout has a head (an Entity of
-item type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
+outfits that apply (ADR-0109, ADR-0181), and `outfit` beside `files` (absent for any other
+source) lists every outfit as for `p4kx entity loadout`. `head` is `null` unless the Loadout has a
+head (an Entity of item type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
 names, which `--body` overrides, `bespoke_folder` the folder of the character's own head skins
 (or `null` when its material library is in no folder of its own) and `parts` the pieces of the
 head. `material` of a part is the material library it is drawn with, `null` when it has none.
@@ -541,7 +549,8 @@ and the animation has no track for a bone) and `face_joints_failed` (see `p4kx c
 the Loadout that were not replaced, including those that could not be resolved. `loadout` is
 `null` without `--loadout`, else it has the text given as `name`, the `source` of the Loadout
 (`entity` for an Entity's default Loadout, `archive` for an XML Loadout Entry, `file` for a file
-on disk) and, for an Entity, its `class_name`. `replaced` lists the pieces of the Loadout that a
+on disk), for an Entity its `class_name`, the `files` of the XML Loadouts it is made of and, for
+an outfit, `outfit` as for `p4kx entity loadout`. `replaced` lists the pieces of the Loadout that a
 `--piece` of the same item type took the place of. `parts` lists what was written: the skin of
 the body (`origin` `body`) and one part per piece that was fitted (`origin` `piece`), named after
 the piece's class name, or `<port>/<class name>` for a piece of a Loadout, with the model `file`
@@ -928,6 +937,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "blueprintCategories", "count": 21, "skipped": 0, "complete": true},
  {"kind": "gameplayProperties", "count": 29, "skipped": 0, "complete": true},
  {"kind": "qualityDistributions", "count": 21, "skipped": 1, "complete": true},
+ {"kind": "qualityQuantizations", "count": 62, "skipped": 1, "complete": true},
  {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
  {"kind": "paints", "count": 1064, "skipped": 68, "complete": true},
@@ -958,10 +968,16 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "unclassified": 13}},
  "variants": {"items": {"groups": 1108, "variants": 4732},
  "ships": {"groups": 196, "variants": 850}},
+ "quantizations": {"unused": 20, "unresolved_links": 0},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
+
+`quantizations` counts two facts of the game data that do not affect the exit code: `unused`, the
+quality quantizations of the catalog that no `ResourceType` uses, and `unresolved_links`, the links
+of `ResourceType` Records to a Record that is no readable quality quantization of the catalog (of
+another type, failed or a development leftover; a Reference to a GUID no Record has reads as null).
 
 `store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
 `stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are
@@ -1157,6 +1173,37 @@ use the JSON format.
 
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.
+
+## `p4kx actionmap export <archive> [--format json|csv] [--csv-raw] [--language <language>] [--out <file>]`
+
+Without `--out` the export goes to stdout and `--json` changes nothing. The JSON format is
+
+```json
+{"language": "en", "action_maps": [
+{"name": "seat_general", "label_key": "@ui_CGSeatGeneral", "label": "Vehicles - Seats and Operator Modes",
+ "actions": [{"name": "v_eject", "label_key": "@ui_CIEject", "label": "Eject",
+  "activation_mode": "press",
+  "bindings": [{"device": "keyboard", "input": "ralt+y", "activation_mode": "press"}]}, …]}, …]}
+```
+
+in document order. `label_key` and `activation_mode` are `null` when the profile names none; `label`
+is `null` when there is no key or the language has no text for it, and has `\n` decoded to a line
+feed. `device` is `keyboard`, `mouse`, `gamepad` or `joystick`; `input` is the profile's spelling,
+with `+` between the keys of a combination. A binding's `activation_mode` is its own, else the
+action's. An input that is empty or blank is no binding.
+
+The CSV starts with a UTF-8 byte order mark, has CRLF line ends and the header
+`action_map,action_map_label,action,label,activation_mode,keyboard,mouse,gamepad,joystick`. A
+device cell joins its bindings with ` | `; a binding whose activation mode differs from the
+action's reads `input (mode)`. Text cells follow the rules of ADR-0159: a cell that starts with
+`=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`. `--csv-raw` writes the exact
+texts without the `'` and keeps the byte order mark; it is invalid input (exit code 2) with
+`--format json`.
+
+With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
+"language": "en", "action_maps": 50, "actions": 1103, "unresolved_labels": 1}`;
+`unresolved_labels` counts the label keys, of actions and of action maps, with no text in the
+language.
 
 ## `p4kx key set|show|remove --json`
 
@@ -2113,11 +2160,16 @@ is missing or wrong with code 7, and an `--out` that is the Archive with code 2.
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 
 ```json
-{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934}
+{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934,
+ "named": 14, "unresolved": 2, "unresolved_hashes": ["0x6d6de693"]}
 ```
 
 `versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
-JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
+JSON text for `to-json` and always 4096 for `from-json`. Only `to-json` has `named` (the hashes
+that got a label, counted where they occur), `unresolved` (those that got none) and
+`unresolved_hashes` (the distinct unresolved hashes, ascending, as `0x` and eight hexadecimal
+digits). Without `--out` the same counts are one line on stderr, and the plain text summary ends
+with that line too. `to-json --json` needs `--out`, because
 the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
 An `--out` inside a Star Citizen installation, including a Channel's `user` folder, is refused with
 exit code 2; copy a CHF file into `CustomCharacters` by hand.
@@ -2129,6 +2181,17 @@ exit code 2; copy a CHF file into `CustomCharacters` by hand.
 new file with a correct CRC-32C. Unknown fields and values out of range are rejected with exit
 code 2; a JSON file larger than 1 MiB is not read (exit code 3). The hash fields are
 CRC-32 or CRC-32C values of names; [docs/chf-hashes.md](chf-hashes.md) lists the function per field.
+
+`to-json` writes the name of a hash it can resolve in a key beside it: `gender_hash_label`
+(`character.dna`), `port_label` (item ports), `attachment_label` (materials) and `name_label`
+(sub-materials, floats and colours), each right after the hash it names (ADR-0178). The labels
+are output only: `from-json` accepts each of them in the one kind of object that carries it and
+ignores its text, so the hash stays authoritative, an edited hash with an old label is written as
+the hash, and a label anywhere else or any other unknown field is still refused. Errors point at
+the line and column of the file as given. `--archive <Data.p4k>` adds the item ports of the items
+the character wears and the sub-materials and parameters of the base materials it chooses to the
+names the tool knows itself. A hash with no known name has no label. `BodyColor` and `EyeColor`
+are mapped by hand: their hashes are not the CRC of those names.
 
 | Field | Type | Meaning |
 |-------|------|---------|

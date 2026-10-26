@@ -96,7 +96,8 @@ impl Chf {
     ///
     /// # Errors
     ///
-    /// [`ChfError::Json`] for malformed JSON, unknown fields or out-of-range values.
+    /// [`ChfError::Json`] for malformed JSON, unknown fields or out-of-range values. The labels
+    /// that [`Chf::to_json_named`] adds are ignored.
     pub fn from_json(json: &[u8]) -> Result<Self, ChfError> {
         Ok(serde_json::from_slice(json)?)
     }

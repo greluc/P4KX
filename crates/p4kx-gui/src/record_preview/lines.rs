@@ -4,7 +4,8 @@
 use std::fmt::Write as _;
 
 use p4kx_extraction::{
-    DataForge, Field, RecordTree, RecordXml, Reference, Resolution, TextResolver, Value, ValueError,
+    DataForge, Field, RecordTree, RecordXml, Reference, Resolution, TAG_TYPE, TagResolver,
+    TextResolver, Value, ValueError,
 };
 
 use super::{FieldLine, KeyText, LineValue, RecordLink, RecordView};
@@ -13,22 +14,25 @@ use crate::shown_line::display_text;
 use crate::{RecordId, XmlDocument};
 
 /// Builds the preview of the Record `tree` of `forge`, resolving each Reference to the Record it
-/// selects and, with `texts`, each localisation key to its text.
+/// selects, each tag Reference to its tag path through `tags` and, with `texts`, each
+/// localisation key to its text.
 pub(super) fn view(
     forge: &DataForge<'_>,
     tree: &RecordTree<'_>,
     texts: Option<&dyn TextResolver>,
+    tags: &dyn TagResolver,
 ) -> RecordView {
     let mut lines = Lines {
         forge,
         texts,
+        tags,
         out: Vec::new(),
         text: String::new(),
     };
     lines.fields(tree.fields(), 0);
     let mut xml = Vec::new();
     let xml_error = RecordXml::new()
-        .write_with(tree, texts, &mut xml)
+        .write_annotated(tree, texts.into(), &mut xml)
         .err()
         .map(|error| describe(&error).into_boxed_str());
     if xml_error.is_some() {
@@ -52,6 +56,7 @@ pub(super) fn view(
 struct Lines<'a, 'f> {
     forge: &'a DataForge<'f>,
     texts: Option<&'a dyn TextResolver>,
+    tags: &'a dyn TagResolver,
     out: Vec<FieldLine>,
     text: String,
 }
@@ -136,6 +141,10 @@ impl Lines<'_, '_> {
             record_path: reference.record_path().into(),
             type_name: reference.type_name().into(),
             at: reference.location().map(|at| at.as_str().into()),
+            tag: (reference.type_name() == TAG_TYPE)
+                .then(|| self.tags.tag_path(reference.guid()))
+                .flatten()
+                .map(Into::into),
             target: self
                 .forge
                 .record_by_guid(reference.guid())

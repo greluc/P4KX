@@ -3,6 +3,7 @@
 
 //! Integration tests of `p4kx`, built as one test binary.
 
+mod actionmap;
 mod animation_support;
 mod archive_key;
 mod armour_glb;
@@ -25,6 +26,7 @@ mod character_package;
 mod chf;
 mod chf_glb;
 mod chf_glb_dressed;
+mod chf_names;
 mod chunks;
 mod compare;
 mod compare_diff;
@@ -55,6 +57,7 @@ mod entity_glb;
 mod entity_glb_interior;
 mod entity_glb_livery;
 mod entity_loadout;
+mod entity_outfits;
 mod entity_package;
 mod entity_package_interior;
 mod entity_package_materials;

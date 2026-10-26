@@ -44,13 +44,23 @@
 //!
 //! [`read_crafting`] reads the complete crafting data of a DataForge as [`Crafting`]: every tier
 //! of every blueprint with its selections ("choose n"), quantity multipliers and
-//! quality modifiers, the quality distributions with their location overrides, the blueprint
+//! quality modifiers, the quality distributions with their location overrides, the quality
+//! quantizations with the `ResourceType`s that use them, the blueprint
 //! pools with the contracts that reward them, the dismantle processes and the global
 //! parameters. It is the library API the catalog's crafting fields are built on.
+//!
+//! [`read_action_maps`] reads the action maps of the default profile
+//! (`Data\Libs\Config\defaultProfile.xml`): every action with the localisation key of its label
+//! and its default bindings per [`Device`]; [`write_action_maps`] writes them with the labels in
+//! one language as JSON or CSV.
 //!
 //! [`write_localization_table`] writes every localisation key of a [`TextSet`] with its texts in
 //! the chosen languages as JSON or CSV.
 
+mod action_map;
+#[cfg(test)]
+mod action_map_tests;
+mod action_map_write;
 mod blueprint;
 mod blueprint_category;
 mod build;
@@ -70,6 +80,7 @@ mod contract_entities;
 mod contract_loadout;
 mod contract_mining;
 mod contract_missions;
+mod contract_quantization;
 mod contract_recipe;
 mod contract_rewards;
 mod contract_shops;
@@ -78,6 +89,7 @@ mod contract_stats;
 mod contract_stats_gear;
 mod contract_store_slugs;
 mod crafting;
+mod crafting_quantization;
 mod crafting_records;
 mod crafting_scan;
 mod crafting_sources;
@@ -111,6 +123,7 @@ mod paint;
 mod paint_port;
 mod playability;
 mod playability_rules;
+mod quantization_summary;
 mod record_export;
 mod record_fields;
 mod record_summary;
@@ -147,6 +160,11 @@ mod texts;
 mod variant_groups;
 mod variants;
 
+pub use action_map::{
+    ACTION_MAP_PROFILE_PATH, Action, ActionMap, ActionMapError, ActionMaps, Binding, Device,
+    parse_action_maps, read_action_maps,
+};
+pub use action_map_write::{ActionMapCounts, ActionMapFormat, write_action_maps};
 pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};
 pub use catalog_file::CatalogFile;
 pub use catalog_output::{Compression, ZSTD_LEVEL, ZSTD_WINDOW_LOG};
@@ -155,8 +173,8 @@ pub use crafting::{Crafting, read_crafting};
 pub use crafting_types::{
     BlueprintPool, BlueprintTiers, Cost, CostContext, DismantleProcess, DismantleReturn,
     GameplayProperty, GlobalParams, ItemCost, LocationOverride, ModifierKind, PoolEntry,
-    PropertyModifier, QualityCurve, QualityDistribution, ResourceCost, RewardChance, RewardSource,
-    Selection, Tier, ValueRange,
+    PropertyModifier, QualityCurve, QualityDistribution, QualityQuantization, QuantizationBand,
+    ResourceCost, RewardChance, RewardSource, Selection, Tier, ValueRange,
 };
 pub use crafting_warning::CraftingWarning;
 pub use error::CatalogError;
@@ -171,6 +189,7 @@ pub use p4kx_extraction::{
     RecordFailure, TAG_PATH_SEPARATOR, Tag, TagResolver, TagTree, TagTreeIssues, TextSet,
 };
 pub use playability::{Playability, PlayabilityCounts, PlayabilitySummary};
+pub use quantization_summary::QuantizationSummary;
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule, SHIP_EXCLUDED_TOKENS};

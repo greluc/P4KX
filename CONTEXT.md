@@ -237,6 +237,7 @@ _Avoid_: loadout item, fitting
 **Outfit**:
 The default Loadout of an Entity that is made of a base Loadout and the Loadouts of its outfits,
 laid over each other per Port; a story character's body, head, hair and clothing (ADR-0109).
+Every outfit without name tags is worn; when all have name tags, the first is (ADR-0181).
 _Avoid_: costume
 
 **Bespoke head**:

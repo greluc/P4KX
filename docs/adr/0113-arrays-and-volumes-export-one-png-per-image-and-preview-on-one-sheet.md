@@ -4,8 +4,8 @@ Decided for issue #257. Evidence: `docs/m5-verification.md` (Volumes, arrays and
 formats).
 
 A DDS mip holds one image per cubemap face, array element and volume slice. Until now only a
-plain texture and a single cubemap had a PNG; the 86 volumes and arrays of every Channel (461 on
-TECH-PREVIEW) were counted as unsupported.
+plain texture and a single cubemap had a PNG; the 86 volumes and arrays of LIVE were counted as
+unsupported.
 
 - **One PNG per image.** An Extraction and `p4kx texture png` write one file per image next to
   the requested name: `_layerN` for an array element, a cubemap face's name (`_posx` …) or
@@ -26,8 +26,7 @@ TECH-PREVIEW) were counted as unsupported.
   is still read from the Archive, so no allocation follows a header's claim alone.
 - **Formats.** `R16G16_FLOAT` decodes to red and green like the other two-channel formats.
   `R32_UINT` decodes to grey scaled by `u32::MAX`, as `R16_UINT` and the other unsigned integer
-  formats already are scaled by their largest value; the single texture of that format is on
-  TECH-PREVIEW.
+  formats already are scaled by their largest value.
 - **The array alpha tail.** Merging an alpha tail into an array was right: a tail in `A8_UNORM`
   keeps its value in the alpha channel of the decoded tail, `merge_alpha` takes it from there,
   and the real-Archive test compared the red channel. The test now picks the channel by the

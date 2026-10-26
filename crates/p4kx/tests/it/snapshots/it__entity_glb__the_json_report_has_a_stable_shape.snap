@@ -41,6 +41,40 @@ expression: "serde_json::to_string_pretty(&shaped)?"
   "out": "<out>",
   "palettes": 0,
   "parts": 6,
+  "placements": [
+    {
+      "modelled": true,
+      "path": "",
+      "placement": "root"
+    },
+    {
+      "helper": "hp_nose",
+      "modelled": true,
+      "path": "hardpoint_weapon_nose",
+      "placement": "helper"
+    },
+    {
+      "helper": "hardpoint_class_2",
+      "modelled": true,
+      "path": "hardpoint_weapon_nose/hardpoint_class_2",
+      "placement": "helper"
+    },
+    {
+      "modelled": true,
+      "path": "hardpoint_relay",
+      "placement": "port_node"
+    },
+    {
+      "modelled": false,
+      "path": "hardpoint_seat",
+      "placement": "origin"
+    },
+    {
+      "modelled": false,
+      "path": "hardpoint_door",
+      "placement": "origin"
+    }
+  ],
   "primitives": 6,
   "shared_materials": 2,
   "shared_meshes": 1,

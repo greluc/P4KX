@@ -18,6 +18,7 @@ use thiserror::Error;
 
 use crate::cli_entity::EntityGlbArgs;
 use crate::cli_entity::EntityMaterialsArg;
+use crate::entity_glb_placements::{PlacementJson, placements_json};
 use crate::json;
 use crate::query_table::one_line;
 
@@ -60,6 +61,7 @@ struct GlbJson<'a> {
     excluded: Vec<&'a str>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     replaced: Vec<ReplacedJson<'a>>,
+    placements: Vec<PlacementJson<'a>>,
     issues: Vec<IssueJson<'a>>,
 }
 
@@ -187,6 +189,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
                 .iter()
                 .map(|(port, entity)| ReplacedJson { port, entity })
                 .collect(),
+            placements: placements_json(&assembly),
             issues: assembly.issues().iter().map(IssueJson::from).collect(),
         })?;
         return Ok(());

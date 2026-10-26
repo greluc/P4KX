@@ -5,6 +5,10 @@ ANVL_Hornet_F7C, RSI_Constellation_Andromeda and TMBL_Cyclone of LIVE
 (`crates/p4kx-assembly/tests/real_archive/real_assembly.rs`), where 96% to 99% of the parts found their
 helper or a node named like their port and 0 to 5 parts were skipped.
 
+Amended by ADR-0150: it names ADR-0028 for the level-of-detail fallback, reads character
+definitions, and corrects the sentences on equal materials, the Loadout's libraries, the waves and
+the `.cdf` limit below.
+
 ## Layers
 
 `p4kx-assembly` builds the Assembly and depends on `p4kx-extraction` (the Archive and model
@@ -13,7 +17,8 @@ named nodes with a transform, each optionally holding a model and the material l
 with. The Assembly turns its parts into such a scene. The name is glTF's; the glossary's
 **Assembly** stays the Entity with its parts. Scenes are what #126 (shared meshes and textures)
 and #127 (textures, palettes) extend; the writer already writes equal materials once, comparing
-the glTF material, so two libraries with the same colours cost one material.
+the glTF material including its name, so two libraries with the same colours cost one material
+only when their materials carry the same name.
 
 ## Placement
 
@@ -42,24 +47,25 @@ skins find no library of their own. A named library that is missing is an issue 
 drawn with the default material; the model's own library does not take over. Models are read
 without their library (`Model::read_without_materials`, `MaterialStatus::Skipped`), and each
 distinct library is read once per Assembly, a bare name relative to the model's folder, and shared
-by every part that uses it. The Loadout can later set a library per entry; a `Part` already holds
-its own `MaterialStatus`.
+by every part that uses it. A `Part` holds its own `MaterialStatus`. A Loadout entry has no field
+that names a library (ADR-0150).
 
 ## Limits and failures
 
 Everything comes from the Archive and is untrusted. An Assembly holds at most 16,384 parts, at most
 2^25 vertices counted per part, and is built no deeper than 2 × 32 + 2 levels; the Loadout's own
-32-level and 65,536-port limits apply before. Models are read in waves of 256 distinct files in
-parallel, and the next wave is not started once the parts read so far hold the vertex budget; the
-parts are then taken in order, so the same Archive always gives the same Assembly. A part over the
+32-level and 65,536-port limits apply before. Models are read in file order in waves of distinct
+files in parallel, and no further wave is started once the models read so far hold the vertex
+budget (ADR-0150); the parts are then taken in order, so the same Archive always gives the same
+Assembly. A part over the
 limit is left without a model and listed. An Archive key that is missing or wrong is not a part's
 problem: it stops the build (exit code 7) instead of listing every part as unreadable.
 
 A model that lacks the requested level of detail is read at the nearest lower level, and the
-export counts those models.
+export counts those models. This is an exception to ADR-0028, which rejects a fallback from a
+missing level; a model with no level at or below the request is read at its lowest (ADR-0150).
 
 ## Not decided here
 
-CDF geometries (`.cdf` character definitions, used by thrusters and FPS items), docked vehicles
-(#305), the vehicle implementation XML (#289) and exclusions and replacements (#128) are not read
-or applied; parts whose geometry is a `.cdf` are listed as unreadable.
+Docked vehicles (#305), the vehicle implementation XML (#289) and exclusions and replacements
+(#128) are not read or applied. Character definitions (`.cdf`) are read as ADR-0150 says.

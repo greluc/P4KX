@@ -7,9 +7,8 @@ Archive (`.cgf`, `.cga`, `.skin`, `.chr`, their geometry companions, `.caf`, `.d
 `.img`, `.soc`, and the other extensions it finds by signature) and of every socpak Container, and
 counts the chunk types with version, chunk and file counts, extensions and example paths.
 
-Surveyed on 2026-10-20: LIVE (955,057 chunk files, 9,668 socpaks), PTU (950,473; 9,635) and
-TECH-PREVIEW (990,631; 10,646). No file failed to parse. The three Archives hold the same set of
-`#ivo` IDs, so the table below is valid for all of them; the counts are those of LIVE.
+Surveyed on 2026-10-20: LIVE (955,057 chunk files, 9,668 socpaks). No file failed to parse. The
+counts below are those of LIVE.
 
 ## The four disputed IDs
 
@@ -49,8 +48,8 @@ sizes show each is a real, regular chunk:
 
 `0x57A3BEFD` (`BShapesGpu`), `0x875CCB28` (`BShapes`), `0x8335674E` (`MtlName`), `0x83353533`
 (`MtlNameVariant`), `0x90C66666` (`CompiledPhysicalBones320`), `0x90C687DC`
-(`CompiledPhysicalBones`), `0x9293B9D8` (`Mesh`) and `0xB875B2D9` (`Skin`) occur in none of
-LIVE, PTU and TECH-PREVIEW. All eight are unverified and are kept for files of older builds, with
+(`CompiledPhysicalBones`), `0x9293B9D8` (`Mesh`) and `0xB875B2D9` (`Skin`) occur in
+LIVE. All eight are unverified and are kept for files of older builds, with
 the names of Cryengine-Converter and scdatatools. Three have a later form that the data holds:
 `0x8335674E` became `0x83353333`, `0xB875B2D9` became `0xB8757777`, and `0x57A3BEFD` became
 `0x57A38888`. `0x875CCB28` has the `.aim` form `0xF5C6EB5B` instead. For `0x83353533`,

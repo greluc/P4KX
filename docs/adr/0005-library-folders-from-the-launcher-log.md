@@ -5,7 +5,7 @@ RSI Launcher uses. The launcher keeps that setting in `%APPDATA%\rsilauncher\lau
 which is encrypted and also holds the session data of the signed-in account. The launcher's log
 (`logs\log.log` and `logs\log.old.log`) names every Channel folder it launches, installs or
 verifies, e.g. `Launching Star Citizen LIVE from (…\StarCitizen\LIVE)` and
-`Installing Star Citizen PTU … at …\StarCitizen (force DP: false)`. Detection reads only these two
+`Installing Star Citizen LIVE … at …\StarCitizen (force DP: false)`. Detection reads only these two
 log files and takes each named library folder (the parent of a launched Channel folder, or the
 folder an install names); the settings store, `loginData.json` and every other launcher file are
 never opened. A library folder the launcher has not yet logged is found only after its first

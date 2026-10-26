@@ -3,7 +3,7 @@
 What the reader of `p4kx-model` assumes about the bones of a model and the weights of its
 vertices, and what the real Archives say about it. The tests are
 `crates/p4kx-extraction/tests/real_archive/skeletons/` (`#[ignore]`d, run with `P4KX_DATA_P4K`;
-no entry involved is encrypted, so they need no Archive key; they pass on LIVE and PTU). Surveyed on
+no entry involved is encrypted, so they need no Archive key; they pass on LIVE). Surveyed on
 2026-10-20.
 
 ## Where the bones are
@@ -82,7 +82,7 @@ In all 3,998,013 vertices of the first sample:
 - the weights are in descending order in 99.7 %, not in the rest, and the reader sorts them;
 - the strongest bone of 96 % of the vertices is nearer to the vertex than the median bone is, which
   shows that the vertices and the bind poses are in the same space and that the index is the right
-  one. The test asserts a share of 90 % over its sample (94.4 % on LIVE and PTU); the vertices
+  one. The test asserts a share of 90 % over its sample (94.4 % on LIVE); the vertices
   that are not near are hair, teeth and piercings that hang on one bone.
 
 `Influences` holds eight pairs per vertex whatever the stream, strongest first; a bone listed twice
@@ -93,7 +93,7 @@ is added up (no file does it as far as the survey goes, it is a guard), and the 
 
 The `X_lod<n>.skin` file of a skin has its own `CompiledBones2` chunk, and the bone indices of
 `X_lod<n>.skinm` refer to that one. In most files it equals the one of `X.skin`; in 354 levels of
-LIVE (the same on PTU) it differs: the level `_lod1` of the boots `f_nvy_bridgeofficer_uniform_01_boots`
+LIVE it differs: the level `_lod1` of the boots `f_nvy_bridgeofficer_uniform_01_boots`
 has a skeleton of 13,736 bytes (about 200 bones) where the `.skin` has 960 bytes (14), and its
 weights go up to bone 51. Reading such a level against the model's bones fails (some skins did,
 before the reader looked at the level's file). The model reader therefore reads the

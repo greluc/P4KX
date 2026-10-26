@@ -54,6 +54,7 @@
 mod blueprint;
 mod blueprint_category;
 mod build;
+mod build_derived;
 mod build_starmap;
 mod catalog_crafting;
 mod catalog_file;

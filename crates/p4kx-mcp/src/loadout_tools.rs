@@ -18,7 +18,7 @@ impl Server {
     #[tool(
         description = "Resolve the default Loadout of an Entity (class name, record name, record path or GUID) into its tree \
         of ports, listed depth first with parents before children: per port its path, name, where the attachment comes from \
-        (loadout, override, port_default, unset), the item types and sizes it takes, the Entity attached to it with its class \
+        (loadout, override, port_default, unset, empty for a port only the vehicle implementation declares), the item types and sizes it takes, the Entity attached to it with its class \
         name and GUID, and for every port that cannot be resolved the reason (dangling_reference, unknown_class, cycle, ...) \
         and the reference or class name the Loadout names. Counts cover the whole tree; max_depth (16 by default, at most 32) \
         leaves deeper ports out and deeper says how many. Paged with a cursor. The content may be forwarded by the client to \

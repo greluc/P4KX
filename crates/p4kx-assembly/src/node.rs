@@ -54,7 +54,7 @@ impl LoadoutResolver<'_> {
             Vec::new()
         };
         let pending: Vec<Pending<'_>> = if expanded {
-            pending_ports(spec, &entries).collect()
+            pending_ports(spec, &entries, vehicle.as_deref()).collect()
         } else {
             Vec::new()
         };
@@ -324,15 +324,31 @@ impl LoadoutResolver<'_> {
 }
 
 /// Returns the ports of an Entity in order: the merged Loadout entries, then the defined ports
-/// no entry names.
+/// no entry names, then the item ports only the vehicle implementation declares, each part once
+/// even where several share a name.
 fn pending_ports<'s>(
     spec: &'s EntitySpec,
     entries: &'s [(EntrySpec, PortSource)],
+    vehicle: Option<&'s VehicleImplementation>,
 ) -> impl Iterator<Item = Pending<'s>> {
     let named: HashSet<String> = entries
         .iter()
         .map(|(entry, _)| port_key(&entry.port))
         .collect();
+    let mut taken = named.clone();
+    taken.extend(spec.ports.iter().map(|port| port_key(&port.name)));
+    let declared = vehicle
+        .into_iter()
+        .flat_map(VehicleImplementation::item_ports)
+        .filter(move |part| !taken.contains(&port_key(part.name())))
+        .map(|part| Pending {
+            name: part.name(),
+            source: PortSource::Empty,
+            definition: None,
+            target: &TargetSpec::None,
+            loadout: None,
+            origin: None,
+        });
     let from_entries = entries.iter().map(|(entry, source)| Pending {
         name: &entry.port,
         source: *source,
@@ -359,7 +375,7 @@ fn pending_ports<'s>(
             loadout: None,
             origin: (port.default_item != TargetSpec::None).then_some(&spec.origin),
         });
-    from_entries.chain(defined)
+    from_entries.chain(defined).chain(declared)
 }
 
 fn class_text(target: &TargetSpec) -> String {

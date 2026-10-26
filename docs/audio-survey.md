@@ -1,26 +1,25 @@
 # Survey of the soundbanks and WEMs of real Archives
 
-Measured on 2026-10-20 with the Archives of the LIVE, PTU and TECH-PREVIEW Channels, release
-build, by `real_archive/audio_survey.rs` and `real_archive/vorbis_cost.rs` of `p4kx-extraction`
+Measured on 2026-10-20 with the Archive of the LIVE Channel, release build, by `real_archive/audio_survey.rs` and `real_archive/vorbis_cost.rs` of `p4kx-extraction`
 (`#[ignore]`d; run them as `CLAUDE.md` describes). The survey walks the sections of every `.bnk`
 Entry itself, so its counts do not depend on what the parsers tolerate; it also walks the RIFF
 chunks of every WEM embedded in a bank and of every loose `.wem` Entry.
 
-| | LIVE | PTU | TECH-PREVIEW |
-| --- | --- | --- | --- |
-| Soundbanks | 2,386 | 2,376 | 2,401 |
-| Rejected by `Soundbank::parse` | 0 | 0 | 0 |
-| Largest soundbank | 5,418,378 bytes (`SSAM_CRUS_StarFighter.bnk`) | same | same |
-| Soundbanks above 16 MiB | 0 | 0 | 0 |
-| Bank versions | 154 (2,386) | 154 (2,376) | 154 (2,401) |
-| Bytes after the last `HIRC` object | 0 | 0 | 0 |
-| Repeated `DIDX` IDs | 0 | 0 | 0 |
-| `DIDX` without `DATA` | 0 | 0 | 0 |
-| Non-UTF-8 `STID` names | 0 | 0 | 0 |
-| WEMs surveyed (embedded and loose) | 119,345 | 118,881 | 120,617 |
-| Format tags | `0xFFFF` (all) | `0xFFFF` (all) | `0xFFFF` (all) |
-| Chunks after `data` | 0 | 0 | 0 |
-| Odd-sized chunks before the last | 0 | 0 | 0 |
+| | LIVE |
+| --- | --- |
+| Soundbanks | 2,386 |
+| Rejected by `Soundbank::parse` | 0 |
+| Largest soundbank | 5,418,378 bytes (`SSAM_CRUS_StarFighter.bnk`) |
+| Soundbanks above 16 MiB | 0 |
+| Bank versions | 154 (2,386) |
+| Bytes after the last `HIRC` object | 0 |
+| Repeated `DIDX` IDs | 0 |
+| `DIDX` without `DATA` | 0 |
+| Non-UTF-8 `STID` names | 0 |
+| WEMs surveyed (embedded and loose) | 119,345 |
+| Format tags | `0xFFFF` (all) |
+| Chunks after `data` | 0 |
+| Odd-sized chunks before the last | 0 |
 
 The ten largest soundbanks are between 2.2 and 5.4 MB. Every WEM is Wwise Vorbis, so no real WEM
 exercises the `0x0002` tag (#301) or a pad byte (#300).
@@ -64,7 +63,6 @@ converted files per codec and a `report.txt` under `TMP`, and extracts three who
 | Archive | Codec | Sampled | Ogg | WAV | Errors | Panics |
 | --- | --- | --- | --- | --- | --- | --- |
 | LIVE | Wwise Vorbis | 1,501 | 1,501 (100.0 %) | 1,501 (100.0 %) | 0 | 0 |
-| PTU | Wwise Vorbis | 1,515 | 1,515 (100.0 %) | 1,515 (100.0 %) | 0 | 0 |
 
 Besides these, each sample met 14 plug-in media (reverb impulse responses, `PluginMedia`, not
 audio) and 18 prefetched starts of streamed WEMs; both are reported per WEM and are not counted as

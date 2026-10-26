@@ -4,33 +4,18 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use p4kx_model::{Lod, MaterialStatus, Model, Transform};
+use p4kx_model::{MaterialStatus, Model, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+use crate::build_models::{Loaded, choose_models, read_models};
 use crate::build_palettes::Palettes;
 use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
 use crate::{
-    Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelFailure,
-    ModelProvider, PaletteProvider, Part, Placement, PortNode, PortTransform,
+    Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
+    PaletteProvider, Part, Placement, PortNode, PortTransform,
 };
 
-/// The most distinct model files read at once before the vertex budget is checked again.
-const WAVE: usize = 256;
-
-/// A model read for the Assembly and the file it came from.
-struct Loaded {
-    entry: String,
-    model: Arc<Model>,
-}
-
-/// What reading one distinct geometry file came to.
-enum Outcome {
-    Loaded(Loaded),
-    Failed { missing: bool, reason: String },
-}
-
-type Models = HashMap<String, Outcome>;
 type Libraries = HashMap<String, Arc<MaterialStatus>>;
 
 impl Assembly {
@@ -89,6 +74,7 @@ impl Assembly {
         let libraries = read_libraries(&drafts, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
         let mut reported = HashSet::new();
+        let mut characters = HashSet::new();
         let mut palettes = Palettes::new(palettes);
         let mut parts: Vec<Part> = Vec::with_capacity(drafts.len());
         for (draft, model) in drafts.iter().zip(&chosen) {
@@ -104,6 +90,7 @@ impl Assembly {
             {
                 issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
             }
+            note_attachments(draft, *model, &mut characters, &mut issues);
             let palette = if model.is_some() {
                 let (palette, unresolved) = palettes.of(draft.node.geometry(), &materials);
                 issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
@@ -140,7 +127,23 @@ impl Assembly {
     }
 }
 
-fn issue(draft: &Draft<'_>, kind: IssueKind) -> Issue {
+/// Lists the attachments of a character definition that are not drawn, once per definition.
+fn note_attachments(
+    draft: &Draft<'_>,
+    model: Option<&Loaded>,
+    seen: &mut HashSet<String>,
+    issues: &mut Vec<Issue>,
+) {
+    if let (Some(loaded), Some(geometry)) = (model, draft.node.geometry())
+        && !loaded.left_out.is_empty()
+        && seen.insert(file_key(geometry.path()))
+    {
+        let files = loaded.left_out.clone();
+        issues.push(issue(draft, IssueKind::AttachmentsLeftOut { files }));
+    }
+}
+
+pub(crate) fn issue(draft: &Draft<'_>, kind: IssueKind) -> Issue {
     Issue {
         path: draft.path.clone(),
         name: draft.node.class_name().to_owned(),
@@ -156,119 +159,6 @@ pub(crate) fn file_key(path: &str) -> String {
         .to_ascii_lowercase();
     key.strip_prefix("data\\")
         .map_or_else(|| key.clone(), str::to_owned)
-}
-
-fn vertices(model: &Model) -> usize {
-    model.lods.iter().map(Lod::vertex_count).max().unwrap_or(0)
-}
-
-/// Reads every distinct geometry file the parts name, a wave of files at a time in parallel,
-/// and stops when the parts read so far already hold `options.max_vertices` vertices.
-fn read_models(
-    drafts: &[Draft<'_>],
-    provider: &dyn ModelProvider,
-    options: &AssemblyOptions,
-) -> Result<Models, AssemblyError> {
-    let lod = options.lod;
-    let mut seen = HashSet::new();
-    let files: Vec<(String, &str)> = drafts
-        .iter()
-        .filter_map(|draft| draft.node.geometry())
-        .filter(|geometry| seen.insert(file_key(geometry.path())))
-        .map(|geometry| (file_key(geometry.path()), geometry.path()))
-        .collect();
-    let mut models = Models::new();
-    for wave in files.chunks(WAVE) {
-        if budget_spent(drafts, &models, options.max_vertices) {
-            break;
-        }
-        let read: Vec<(String, Result<Loaded, ModelFailure>)> = wave
-            .par_iter()
-            .map(|(key, path)| {
-                let result = provider.model(path, lod).map(|provided| Loaded {
-                    entry: provided.entry,
-                    model: Arc::new(provided.model),
-                });
-                (key.clone(), result)
-            })
-            .collect();
-        for (key, result) in read {
-            let outcome = match result {
-                Ok(loaded) => Outcome::Loaded(loaded),
-                Err(ModelFailure::Missing) => Outcome::Failed {
-                    missing: true,
-                    reason: String::new(),
-                },
-                Err(ModelFailure::Fatal(source)) => return Err(AssemblyError::Provider(source)),
-                Err(other) => Outcome::Failed {
-                    missing: false,
-                    reason: other.to_string(),
-                },
-            };
-            models.insert(key, outcome);
-        }
-    }
-    Ok(models)
-}
-
-fn budget_spent(drafts: &[Draft<'_>], models: &Models, max_vertices: usize) -> bool {
-    let total: usize = drafts
-        .iter()
-        .filter_map(|draft| draft.node.geometry())
-        .filter_map(|geometry| match models.get(&file_key(geometry.path())) {
-            Some(Outcome::Loaded(loaded)) => Some(vertices(&loaded.model)),
-            _ => None,
-        })
-        .fold(0, usize::saturating_add);
-    total >= max_vertices
-}
-
-/// Picks the model of each part in order, within the vertex budget, and records why a part has
-/// none.
-fn choose_models<'m>(
-    drafts: &[Draft<'_>],
-    models: &'m Models,
-    max_vertices: usize,
-    issues: &mut Vec<Issue>,
-) -> Vec<Option<&'m Loaded>> {
-    let mut total = 0_usize;
-    drafts
-        .iter()
-        .map(|draft| {
-            let Some(geometry) = draft.node.geometry() else {
-                issues.push(issue(draft, IssueKind::NoGeometry));
-                return None;
-            };
-            let path = geometry.path().to_owned();
-            match models.get(&file_key(&path)) {
-                Some(Outcome::Loaded(loaded)) => {
-                    let count = vertices(&loaded.model);
-                    if total.saturating_add(count) > max_vertices {
-                        let limit = max_vertices;
-                        issues.push(issue(draft, IssueKind::TooManyVertices { limit }));
-                        None
-                    } else {
-                        total += count;
-                        Some(loaded)
-                    }
-                }
-                Some(Outcome::Failed { missing: true, .. }) => {
-                    issues.push(issue(draft, IssueKind::GeometryMissing { path }));
-                    None
-                }
-                Some(Outcome::Failed { reason, .. }) => {
-                    let reason = reason.clone();
-                    issues.push(issue(draft, IssueKind::GeometryUnreadable { path, reason }));
-                    None
-                }
-                None => {
-                    let limit = max_vertices;
-                    issues.push(issue(draft, IssueKind::TooManyVertices { limit }));
-                    None
-                }
-            }
-        })
-        .collect()
 }
 
 /// Returns the name of the library a part draws with: the one its Entity chooses, else the one
@@ -347,6 +237,7 @@ fn place(
     let (placement, base) = anchor(parent.model(), helper, port);
     if let Some(helper) = helper
         && placement == Placement::Origin
+        && parent.model().is_some()
     {
         let helper = helper.to_owned();
         issues.push(issue(draft, IssueKind::HelperNotFound { helper }));

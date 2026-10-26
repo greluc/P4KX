@@ -8,8 +8,12 @@
 //! values are, how many are empty, how many distinct values it has (up to a cap), and the
 //! smallest and largest number. The result is the same for every number of threads.
 
+mod layouts;
 mod number;
+mod part;
 mod seen;
+#[cfg(test)]
+mod tests;
 mod trie;
 mod walk;
 
@@ -22,8 +26,9 @@ use thiserror::Error;
 
 use crate::DataForge;
 use crate::DataType;
+use crate::fields::layouts::SharedLayouts;
+use crate::fields::part::Part;
 use crate::fields::trie::ROOT;
-use crate::fields::walk::Part;
 pub use number::{MAX_DISTINCT_VALUES, Number};
 
 /// The most distinct field paths the statistics keep; a DataForge with more is an error, so
@@ -137,10 +142,22 @@ impl FieldStat {
         &self.kinds
     }
 
+    fn holds(&self, data_type: DataType) -> bool {
+        self.kinds
+            .iter()
+            .any(|(kind, _)| kind.data_type() == data_type)
+    }
+
+    fn holds_array(&self) -> bool {
+        self.kinds.iter().any(|(kind, _)| kind.is_array())
+    }
+
     /// Returns how many distinct non-empty values the path has, at most [`MAX_DISTINCT_VALUES`].
+    /// The values of a Reference are the GUIDs it links to; strong and weak pointers and inline
+    /// structs have none, so the count is 0.
     ///
-    /// Values are told apart by a 64-bit fingerprint, so the count is exact up to a chance of
-    /// about 2^-50 per pair of values.
+    /// Values are told apart by a 64-bit fingerprint, so the count is exact up to a collision of
+    /// two fingerprints, which has a chance of about 2^-64 per pair of values.
     #[must_use]
     pub const fn distinct(&self) -> usize {
         self.distinct
@@ -212,11 +229,13 @@ impl FieldStatistics {
         proceed: impl Fn() -> bool + Sync,
     ) -> Result<Option<Self>, FieldStatisticsError> {
         let stopped = AtomicBool::new(false);
+        let layouts = SharedLayouts::new(forge);
         let part = records
             .par_iter()
+            .with_min_len(min_part_len(records.len(), rayon::current_num_threads()))
             .fold(
-                || Ok(Part::new()),
-                |part: Result<Part<'f>, FieldStatisticsError>, &record| {
+                || Ok(Part::new(&layouts)),
+                |part: Result<Part<'_, 'f>, FieldStatisticsError>, &record| {
                     let mut part = part?;
                     if stopped.load(Atomic::Relaxed) {
                         return Ok(part);
@@ -230,13 +249,13 @@ impl FieldStatistics {
                 },
             )
             .reduce(
-                || Ok(Part::new()),
+                || Ok(Part::new(&layouts)),
                 |left, right| left.and_then(|left| left.merge(right?)),
             )?;
         Ok((!stopped.load(Atomic::Relaxed)).then(|| Self::from_part(part)))
     }
 
-    fn from_part(part: Part<'_>) -> Self {
+    fn from_part(part: Part<'_, '_>) -> Self {
         let Part {
             trie,
             examined,
@@ -311,18 +330,87 @@ impl FieldStatistics {
 
     /// Returns the paths one segment below `parent`, in path order; the empty path is the
     /// Record itself. This is what a completion after `parent/` offers, with the kinds of each.
+    ///
+    /// The paths below a path follow it in the sorted list, so they are found by a binary search
+    /// and not by a scan of all paths.
     pub fn children<'s>(&'s self, parent: &'s str) -> impl Iterator<Item = &'s FieldStat> + 's {
-        self.fields.iter().filter(move |field| {
-            let rest = if parent.is_empty() {
-                Some(field.path.as_str())
-            } else {
-                field
-                    .path
-                    .strip_prefix(parent)
-                    .and_then(|rest| rest.strip_prefix('/'))
-            };
-            rest.is_some_and(|rest| !rest.is_empty() && !rest.contains('/'))
-        })
+        let start = if parent.is_empty() {
+            0
+        } else {
+            self.fields
+                .partition_point(|field| order(&field.path, parent) != Ordering::Greater)
+        };
+        self.fields
+            .get(start..)
+            .unwrap_or_default()
+            .iter()
+            .take_while(move |field| {
+                parent.is_empty()
+                    || field
+                        .path
+                        .strip_prefix(parent)
+                        .is_some_and(|rest| rest.starts_with('/'))
+            })
+            .filter(move |field| {
+                let rest = if parent.is_empty() {
+                    Some(field.path.as_str())
+                } else {
+                    field
+                        .path
+                        .strip_prefix(parent)
+                        .and_then(|rest| rest.strip_prefix('/'))
+                };
+                rest.is_some_and(|rest| !rest.is_empty() && !rest.contains('/'))
+            })
+    }
+
+    /// Returns `path` written as a Query path, defined in `docs/query.md`, or `None` when no
+    /// Record has `path`.
+    ///
+    /// The struct a strong pointer owns, a segment of the field path, becomes `[Struct]` behind
+    /// an array of pointers and is left out behind a single pointer; the fields of an array of
+    /// inline structs get `[*]`, and so does a path that ends at an array of scalars. For
+    /// `Components/SCItemWeaponComponentParams/fireActions/SWeaponActionFireRapidParams/fireRate`
+    /// this is
+    /// `Components[SCItemWeaponComponentParams].fireActions[SWeaponActionFireRapidParams].fireRate`.
+    /// Where Records give one path different kinds, a pointer is read as a pointer and an array
+    /// as an array.
+    #[must_use]
+    pub fn query_path(&self, path: &str) -> Option<String> {
+        let mut query = String::with_capacity(path.len() + 8);
+        let mut prefix_end = 0;
+        let mut parent: Option<&FieldStat> = None;
+        for segment in path.split('/') {
+            prefix_end += segment.len();
+            let current = self.get(path.get(..prefix_end)?)?;
+            prefix_end += 1;
+            match parent {
+                Some(owner) if owner.holds(DataType::StrongPointer) => {
+                    if owner.holds_array() {
+                        query.push('[');
+                        query.push_str(segment);
+                        query.push(']');
+                    }
+                }
+                Some(owner) => {
+                    if owner.holds_array() {
+                        query.push_str("[*]");
+                    }
+                    query.push('.');
+                    query.push_str(segment);
+                }
+                None => query.push_str(segment),
+            }
+            parent = Some(current);
+        }
+        let last = parent?;
+        if last.holds_array()
+            && !last.holds(DataType::StrongPointer)
+            && !last.holds(DataType::Class)
+        {
+            query.push_str("[*]");
+        }
+        Some(query)
     }
 
     /// Returns how many Records were examined.
@@ -343,6 +431,13 @@ impl FieldStatistics {
     pub const fn unreadable_values(&self) -> u64 {
         self.unreadable_values
     }
+}
+
+/// Returns how many Records each fold part takes at least, so that `threads` parts at most are
+/// made and each keeps its own trie.
+const fn min_part_len(records: usize, threads: usize) -> usize {
+    let len = records.div_ceil(if threads == 0 { 1 } else { threads });
+    if len == 0 { 1 } else { len }
 }
 
 /// Orders paths segment by segment, ignoring ASCII case and then by bytes.

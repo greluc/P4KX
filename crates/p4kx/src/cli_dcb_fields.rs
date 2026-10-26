@@ -27,4 +27,8 @@ pub(crate) struct DcbFieldsArgs {
     /// --json.
     #[arg(long, value_enum)]
     pub(crate) format: Option<QueryFormat>,
+    /// With --format csv: writes the exact values, without the byte order mark and without the
+    /// leading ' that keeps a spreadsheet from running a text as a formula.
+    #[arg(long)]
+    pub(crate) csv_raw: bool,
 }

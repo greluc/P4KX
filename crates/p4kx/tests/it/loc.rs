@@ -332,6 +332,40 @@ fn export_writes_csv_for_the_chosen_languages_to_stdout() -> TestResult {
 }
 
 #[test]
+fn export_csv_raw_writes_no_byte_order_mark() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = standard(dir.path())?;
+    let csv = stdout_of(
+        p4kx()?.args(["loc", "export"]).arg(&archive).args([
+            "--format",
+            "csv",
+            "--csv-raw",
+            "--lang",
+            "ja",
+        ]),
+        0,
+    )?;
+    assert_eq!(
+        csv, "key,ja\r\nitem_NameRifle,\u{30e9}\u{30a4}\u{30d5}\u{30eb}\r\n",
+        "raw CSV"
+    );
+    Ok(())
+}
+
+#[test]
+fn export_csv_raw_needs_the_csv_format() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = standard(dir.path())?;
+    let output = p4kx()?
+        .args(["loc", "export"])
+        .arg(&archive)
+        .args(["--csv-raw"])
+        .output()?;
+    assert_eq!(output.status.code(), Some(2), "exit code: {output:?}");
+    Ok(())
+}
+
+#[test]
 fn export_json_summary_names_the_columns() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = standard(dir.path())?;

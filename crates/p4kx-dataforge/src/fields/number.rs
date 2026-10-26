@@ -67,9 +67,31 @@ impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Integer(value) => value.fmt(f),
-            Self::Single(value) => value.fmt(f),
-            Self::Double(value) => value.fmt(f),
+            Self::Single(value) => float_text(f, value, f64::from(*value)),
+            Self::Double(value) => float_text(f, value, *value),
         }
+    }
+}
+
+/// The smallest magnitude from which a float prints with an exponent.
+const EXPONENT_FROM: f64 = 1e16;
+/// The magnitude below which a nonzero float prints with an exponent.
+const EXPONENT_BELOW: f64 = 1e-5;
+
+/// Prints a float in full, or with an exponent where it is very large or very small, so that
+/// `1e30` does not print as thirty digits.
+fn float_text<T: fmt::Display + fmt::LowerExp>(
+    f: &mut fmt::Formatter<'_>,
+    value: &T,
+    magnitude: f64,
+) -> fmt::Result {
+    let magnitude = magnitude.abs();
+    if magnitude.is_finite()
+        && (magnitude >= EXPONENT_FROM || (magnitude != 0.0 && magnitude < EXPONENT_BELOW))
+    {
+        fmt::LowerExp::fmt(value, f)
+    } else {
+        fmt::Display::fmt(value, f)
     }
 }
 

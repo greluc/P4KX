@@ -38,7 +38,7 @@ pub(crate) struct NoRecordMatch(String);
 /// meaning.
 #[derive(Debug, Error)]
 #[error("{0}")]
-pub(crate) struct FlatConflict(&'static str);
+pub(crate) struct FlatConflict(pub(crate) &'static str);
 
 /// Returns the form of the export `args` ask for.
 const fn record_form(args: &DcbExportArgs) -> Result<RecordForm, FlatConflict> {

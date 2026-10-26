@@ -40,6 +40,23 @@ at a path and the paths one segment below it, so a completion that wants the pat
 occur in the data needs no second walker. The completion from the schema stays as it is; it knows
 the fields no Record has a value for.
 
+## Amendment: bounded parts, shared layouts and all-or-nothing Records (issue #389)
+
+- The Records are folded in at most as many parts as rayon has threads (`with_min_len` of the
+  Records divided by the threads), and each part keeps one trie. The memory above the DataForge is
+  therefore at most `threads` tries, each at most 1,048,576 paths, and no longer one per task rayon
+  happens to split off.
+- The struct layouts are read once into a cache that all parts share (`SharedLayouts`, bounded by
+  `CACHE_FIELDS` fields in total; further layouts are read again at each use), instead of one cache
+  per part.
+- A Record is walked into a list of pending values and counted only when the walk ends: a Record
+  with more than `MAX_RECORD_VALUES` values adds nothing, not even the values found before the
+  limit, which is what `docs/query.md` says.
+- The values of a Reference are the GUIDs it links to and are fingerprinted like any value;
+  strong and weak pointers and inline structs have no value, so their `distinct` is 0.
+- The fingerprint is 64 bits, so two different values collide with a chance of about 2^-64 per
+  pair; numbers are fingerprinted exactly.
+
 ## Considered Options
 
 - Build the Record tree of every Record and walk it: the tree allocates for every value, and

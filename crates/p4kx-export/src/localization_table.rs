@@ -3,7 +3,7 @@
 
 use std::io::{self, Write};
 
-use p4kx_extraction::{Language, TextSet, decode_line_breaks};
+use p4kx_extraction::{CSV_BYTE_ORDER_MARK, Language, TextSet, decode_line_breaks, write_csv_cell};
 
 /// The file format of a localisation table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -13,8 +13,10 @@ pub enum TableFormat {
     /// object per key with `key` and `texts`, whose members are the language codes.
     Json,
     /// CSV with a UTF-8 byte order mark, CRLF line ends and the header `key` followed by the
-    /// language codes.
+    /// language codes; a key or text that a spreadsheet would run as a formula starts with `'`.
     Csv,
+    /// As [`Csv`](Self::Csv) with the exact keys and texts: no byte order mark and no `'`.
+    CsvRaw,
 }
 
 /// Writes every key of `texts` that has a text in one of `languages`, with its text in each of
@@ -40,7 +42,8 @@ pub fn write_localization_table(
     });
     match format {
         TableFormat::Json => write_json(texts, languages, rows, out),
-        TableFormat::Csv => write_csv(texts, languages, rows, out),
+        TableFormat::Csv => write_csv(texts, languages, rows, out, true),
+        TableFormat::CsvRaw => write_csv(texts, languages, rows, out, false),
     }
 }
 
@@ -87,8 +90,12 @@ fn write_csv<'a>(
     languages: &[Language],
     rows: impl Iterator<Item = &'a str>,
     out: &mut impl Write,
+    neutralise: bool,
 ) -> io::Result<usize> {
-    out.write_all(b"\xef\xbb\xbfkey")?;
+    if neutralise {
+        out.write_all(CSV_BYTE_ORDER_MARK)?;
+    }
+    out.write_all(b"key")?;
     for language in languages {
         out.write_all(b",")?;
         out.write_all(language.code().as_bytes())?;
@@ -96,29 +103,15 @@ fn write_csv<'a>(
     out.write_all(b"\r\n")?;
     let mut count = 0;
     for key in rows {
-        write_csv_cell(out, key)?;
+        write_csv_cell(out, key, neutralise)?;
         for &language in languages {
             out.write_all(b",")?;
             if let Some(text) = texts.text(key, language) {
-                write_csv_cell(out, &decode_line_breaks(text))?;
+                write_csv_cell(out, &decode_line_breaks(text), neutralise)?;
             }
         }
         out.write_all(b"\r\n")?;
         count += 1;
     }
     Ok(count)
-}
-
-fn write_csv_cell(out: &mut impl Write, cell: &str) -> io::Result<()> {
-    if !cell.contains([',', '"', '\n', '\r']) {
-        return out.write_all(cell.as_bytes());
-    }
-    out.write_all(b"\"")?;
-    for (position, part) in cell.split('"').enumerate() {
-        if position > 0 {
-            out.write_all(b"\"\"")?;
-        }
-        out.write_all(part.as_bytes())?;
-    }
-    out.write_all(b"\"")
 }

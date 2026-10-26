@@ -60,7 +60,7 @@ filter.
 
 ## Output formats
 
-`p4kx dcb query <archive> "<query>" [--format table|csv|json] [--out <file>]` writes the result
+`p4kx dcb query <archive> "<query>" [--format table|csv|json] [--csv-raw] [--out <file>]` writes the result
 in one of three formats; the default is `table`, or `json` with `--json`. All three have the
 same columns and rows in the same order. No heading of a `select` path is `record path`,
 because a name with a space is written in backticks.
@@ -93,7 +93,8 @@ use CSV or JSON.
 
 CSV after [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180):
 
-- UTF-8 without byte order mark; every row, the header row included, ends with CRLF.
+- UTF-8 with a byte order mark, so that a spreadsheet reads the encoding right; every row, the
+  header row included, ends with CRLF.
 - The header row holds `record path` and then each `select` path in canonical form.
 - One row per Record with exactly one field per column.
 - A field holding `,`, `"`, CR or LF is enclosed in `"`, and each `"` in it is doubled; every
@@ -104,8 +105,13 @@ CSV after [RFC 4180](https://www.rfc-editor.org/rfc/rfc4180):
   empty string. A list ([Several values](#several-values)) is written as the JSON array the
   JSON format writes for it, in a quoted field, e.g. `"[""fast"",""small""]"` or `[250.5,1200]`,
   so that a value holding `,` or `]` stays unambiguous.
-- Values are written unchanged: a text starting with `=`, `+`, `-` or `@` stays as it is, so a
-  spreadsheet may read it as a formula.
+- A text cell (a string, locale or enum value, or a heading) that starts with `=`, `+`, `-`, `@`,
+  a tab or a carriage return gets a leading `'`, so that a spreadsheet does not run it as a
+  formula ([ADR-0112](adr/0112-the-flat-value-export-is-csv-and-ndjson-and-offers-no-sqlite-output.md)).
+  Numbers, booleans and GUIDs are never changed, so `-0.25` stays a number.
+- `--csv-raw` (with `--format csv`) writes the exact values: no byte order mark and no leading
+  `'`. Use it for scripts that read the file. `p4kx dcb fields` and `p4kx loc export` follow the
+  same rules.
 
 ```text
 record path,name,crew,mass
@@ -398,7 +404,7 @@ dropped, as for `select`.
 
 ## Field statistics
 
-`p4kx dcb fields <archive> [<type or Query>] [--path <glob>] [--format table|csv|json]` and
+`p4kx dcb fields <archive> [<type or Query>] [--path <glob>] [--format table|csv|json] [--csv-raw]` and
 `FieldStatistics` in `p4kx-dataforge` list the **field paths** the Records have, to find the field
 a Query needs. They read every selected Record once, in parallel
 ([ADR-0049](adr/0049-field-statistics-are-counted-per-path-in-one-parallel-pass.md)).
@@ -408,8 +414,8 @@ The target of a strong pointer adds the name of its actual struct as a segment, 
 `Components/SCItemWeaponComponentParams/fireActions/SWeaponActionFireRapidParams/fireRate` is
 the `fireRate` of the rapid-fire action in a weapon component; an inline struct adds no segment.
 It is not a Query path: the same value is
-`Components[SCItemWeaponComponentParams].fireActions[SWeaponActionFireRapidParams].fireRate`. A
-path is listed for every field that holds a value, also for the ones that hold fields (kind
+`Components[SCItemWeaponComponentParams].fireActions[SWeaponActionFireRapidParams].fireRate`;
+`FieldStatistics::query_path` turns the one into the other. A path is listed for every field that holds a value, also for the ones that hold fields (kind
 `Class`) or a pointer, so a path and the paths below it can be followed.
 
 | Column | Meaning |
@@ -419,14 +425,15 @@ path is listed for every field that holds a value, also for the ones that hold f
 | `values` | How many values the path has: one per field, one per array element. An empty array has none. |
 | `records` | In how many Records the path occurs. |
 | `empty` | How many values are empty: a null pointer or Reference, an empty text or a null GUID. |
-| `distinct` | How many distinct values the path has, without the empty ones; `32+` when there are more than 32. |
+| `distinct` | How many distinct values the path has, without the empty ones; `32+` when there are more than 32. The values of a Reference are the GUIDs it links to; a strong or weak pointer and a `Class` have none, so their `distinct` is 0. |
 | `min`, `max` | The smallest and the largest number, for integers and floats; empty for other kinds. |
 
 An empty value is a value of its path, counted in `values` and `empty`, but it adds to no `distinct`,
 `min` or `max`, so a null never reads as a zero. A real zero is a number like any other. `-0.0`
 and `0.0` are one value: they count once in `distinct` and the number prints as `0`. NaN is no
 number. Distinct values are told apart by a 64-bit fingerprint, so the count is exact up to a
-chance of about 2^-50 per pair of values.
+collision of two fingerprints, which has a chance of about 2^-64 per pair of values. A float of
+1e16 or more, or below 1e-5, prints with an exponent.
 
 The selection is a type name, which takes the Records of that type and of the types deriving
 from it, or a Query whose `from`, `at`, `referencing` and `where` clauses select the Records and
@@ -437,10 +444,12 @@ segment by segment ignoring ASCII case, so a path is followed by the paths below
 is the same for every number of threads.
 
 A Record whose layout or instance cannot be read, or that has more than 1,048,576 values, is not
-counted and is reported on stderr with exit code 1. A value that cannot be read (a bad array
+counted at all, not even the values found before the limit, and is reported on stderr with exit
+code 1. A value that cannot be read (a bad array
 range, a pointer to no instance, an instance owned twice, a struct nested deeper than 64) is not
 counted and is reported as a number on stderr and in the JSON. An Archive whose Records have more
-than 1,048,576 distinct paths is an error (exit code 5), which bounds the memory.
+than 1,048,576 distinct paths is an error (exit code 5), which bounds the memory
+([ADR-0049](adr/0049-field-statistics-are-counted-per-path-in-one-parallel-pass.md)).
 
 ## Errors
 

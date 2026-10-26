@@ -34,7 +34,20 @@ fn resolve() -> Result<EntityNode, Box<dyn Error>> {
             None,
         )
         .geometry_variant("left Paint_Test", "objects/test/skid_painted.cga", None);
-    let ship = TestEntity::new(SHIP, "TEST_Ship", "entities/test_ship.xml")
+    let bytes = entity_schema(DataForgeBuilder::new())
+        .record(door.record())
+        .record(thruster.record())
+        .record(skid.record())
+        .record(ship().record())
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let entity = resolver.entities().find("TEST_Ship")?;
+    Ok(resolver.resolve(&entity)?)
+}
+
+fn ship() -> TestEntity {
+    TestEntity::new(SHIP, "TEST_Ship", "entities/test_ship.xml")
         .geometry("objects/test/ship.cga", None)
         .port(
             TestPort::new("door_left")
@@ -68,17 +81,7 @@ fn resolve() -> Result<EntityNode, Box<dyn Error>> {
                 .default_item(SKID),
         )
         .port(TestPort::new("skid_left").flags("left").default_item(SKID))
-        .port(TestPort::new("skid_none").flags("rear").default_item(SKID));
-    let bytes = entity_schema(DataForgeBuilder::new())
-        .record(door.record())
-        .record(thruster.record())
-        .record(skid.record())
-        .record(ship.record())
-        .build();
-    let forge = DataForge::open(&bytes)?;
-    let mut resolver = LoadoutResolver::new(&forge);
-    let entity = resolver.entities().find("TEST_Ship")?;
-    Ok(resolver.resolve(&entity)?)
+        .port(TestPort::new("skid_none").flags("rear").default_item(SKID))
 }
 
 fn geometry_at(node: &EntityNode, port: &str) -> Result<Option<String>, Box<dyn Error>> {

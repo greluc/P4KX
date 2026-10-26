@@ -32,20 +32,18 @@ fn assemble(archive: &Archive, class_name: &str) -> Result<Assembly, Box<dyn Err
 }
 
 fn world_x(part: &Part) -> Option<(f32, f32)> {
-    let bounds = hull_bounds(part.model()?)?;
-    let rows = part.world().rows;
-    let xs = [bounds.0, bounds.1].into_iter().flat_map(|corner_x| {
-        [bounds.0, bounds.1].into_iter().flat_map(move |corner_y| {
-            [bounds.0, bounds.1].into_iter().map(move |corner_z| {
-                let [x, y, z] = [corner_x[0], corner_y[1], corner_z[2]];
-                rows[0][0].mul_add(x, rows[0][1].mul_add(y, rows[0][2].mul_add(z, rows[0][3])))
-            })
-        })
-    });
-    xs.fold(None, |range, x| match range {
-        None => Some((x, x)),
-        Some((low, high)) => Some((low.min(x), high.max(x))),
-    })
+    let ([x0, y0, z0], [x1, y1, z1]) = hull_bounds(part.model()?)?;
+    let [[a, b, c, d], ..] = part.world().rows;
+    let mut range: Option<(f32, f32)> = None;
+    for x in [x0, x1] {
+        for y in [y0, y1] {
+            for z in [z0, z1] {
+                let at = a.mul_add(x, b.mul_add(y, c.mul_add(z, d)));
+                range = Some(range.map_or((at, at), |(low, high)| (low.min(at), high.max(at))));
+            }
+        }
+    }
+    range
 }
 
 fn named<'a>(assembly: &'a Assembly, port: &str) -> Result<&'a Part, Box<dyn Error>> {

@@ -276,6 +276,15 @@ pub enum IssueKind {
         /// What is left out.
         what: String,
     },
+    /// The body type of the Character is not the body type of the head rig its DNA names, so the
+    /// file is inconsistent; the head is shaped by the DNA as it is.
+    #[error("the body type {body_type} does not belong to the head rig {rig} of the DNA")]
+    BodyTypeMismatch {
+        /// The GUID of the Character's body type, as text.
+        body_type: String,
+        /// The name of the head rig the DNA names.
+        rig: String,
+    },
     /// The expression morph targets of a shaped piece cannot be made, so the piece is kept
     /// without them.
     #[error("the expression morph targets cannot be made: {reason}")]

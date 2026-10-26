@@ -36,6 +36,9 @@ fn chf(dir: &Path, name: &str, dna: Option<(u32, u16)>) -> Result<PathBuf, Box<d
         _ => vec![(0, 0), (0, 0)],
     };
     let test = TestChf {
+        body_type: "25f439d5-146b-4a61-a999-a486dfb68a49"
+            .parse::<p4kx_assembly::character::Guid>()?
+            .stored(),
         dna_hashes: dna.map(|(hash, _)| (hash, 0)),
         face_parts: (0..HEAD_REGIONS).map(blend).collect(),
         ..TestChf::v8()

@@ -69,6 +69,10 @@ fn note_kind(note: &Note) -> IssueKind {
             material: material.clone(),
         },
         Note::LookIgnored(what) => IssueKind::LookIgnored { what: what.clone() },
+        Note::BodyTypeMismatch { body_type, rig } => IssueKind::BodyTypeMismatch {
+            body_type: body_type.clone(),
+            rig: (*rig).to_owned(),
+        },
     }
 }
 

@@ -3,7 +3,7 @@
 
 use crate::rig_logic::RIG_LOGIC_CHUNK;
 use crate::{
-    TestCell, TestControl, TestDna, TestEntry, TestModel, TestPositions, TestRigLogic,
+    TestCell, TestControl, TestDna, TestEntry, TestModel, TestNormals, TestPositions, TestRigLogic,
     TestSkeleton, armour_entries, armour_male_skeleton,
 };
 
@@ -24,6 +24,7 @@ pub const MALE_RIG: &str = "protos_human_male_face_t1_pu";
 pub(crate) fn head_skin() -> TestModel {
     TestModel::cube()
         .with_positions(TestPositions::Float)
+        .with_normals(TestNormals::Compressed)
         .with_nodes(Vec::new())
         .with_skeleton(&armour_male_skeleton())
         .with_bone_map(false, vec![vec![(2, 255)]; HEAD_VERTICES])

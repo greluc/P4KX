@@ -109,6 +109,58 @@ fn the_vertices_of_the_head_move_by_the_morphs_of_the_dnas_heads() -> TestResult
 }
 
 #[test]
+fn the_shaped_tangents_follow_the_new_normals_and_keep_their_handedness() -> TestResult {
+    let armour = shaped_armour()?;
+    let fixture = fixture(head_entries(None))?;
+    let archive = Archive::open(&fixture.path)?;
+    let plain = ArchiveModels::new(&archive).model(&head_path(), 0)?;
+    let before = &plain.model.lods[0].meshes[0];
+    let after = &head_part(&armour)?.model().lods[0].meshes[0];
+    let (old_normals, new_normals) = (
+        before.normals.as_ref().ok_or("normals")?,
+        after.normals.as_ref().ok_or("shaped normals")?,
+    );
+    let (old_tangents, new_tangents) = (
+        before.tangents.as_ref().ok_or("tangents")?,
+        after.tangents.as_ref().ok_or("shaped tangents")?,
+    );
+
+    let mut turned = 0;
+    for (index, ((tangent, old), normal)) in new_tangents
+        .iter()
+        .zip(old_tangents)
+        .zip(new_normals)
+        .enumerate()
+    {
+        let along: f32 = tangent.iter().zip(normal).map(|(t, n)| t * n).sum();
+        let length = tangent[..3]
+            .iter()
+            .map(|value| value * value)
+            .sum::<f32>()
+            .sqrt();
+        assert!(
+            along.abs() < 1e-4,
+            "vertex {index}: tangent not perpendicular: {along}"
+        );
+        assert!(
+            (length - 1.0).abs() < 1e-3,
+            "vertex {index}: length {length}"
+        );
+        assert_eq!(tangent[3], old[3], "vertex {index}: handedness");
+        let shift: f32 = tangent.iter().zip(old).map(|(t, o)| (t - o).abs()).sum();
+        turned += usize::from(shift > 1e-3);
+    }
+    assert!(turned > 0, "the tangents of the moved corner turned");
+    let shifted = old_normals.iter().zip(new_normals).any(|(old, new)| {
+        old.iter()
+            .zip(new)
+            .any(|(old, new)| (old - new).abs() > 1e-3)
+    });
+    assert!(shifted, "the normals of the moved corner turned");
+    Ok(())
+}
+
+#[test]
 fn the_shaped_normals_stay_unit_length() -> TestResult {
     let armour = shaped_armour()?;
 

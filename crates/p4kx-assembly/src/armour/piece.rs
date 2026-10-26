@@ -26,6 +26,11 @@ pub(crate) enum Note {
     UnknownMaterial(String),
     /// Parts of the Character's material choice that are not drawn.
     LookIgnored(String),
+    /// The Character's body type is not the one of the head rig its DNA names.
+    BodyTypeMismatch {
+        body_type: String,
+        rig: &'static str,
+    },
 }
 
 /// One piece worn on a body: a piece of armour or clothing, or any skin that belongs on the

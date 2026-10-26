@@ -35,7 +35,11 @@ pub(crate) fn chf_bytes() -> Vec<u8> {
         3 => vec![(65535, 2), (0, 0)],
         _ => vec![(0, 0), (0, 0)],
     };
+    let male_body_type = "25f439d5-146b-4a61-a999-a486dfb68a49"
+        .parse::<p4kx_assembly::character::Guid>()
+        .unwrap_or_default();
     TestChf {
+        body_type: male_body_type.stored(),
         dna_hashes: Some((MALE_RIG_HASH, 0)),
         face_parts: (0..HEAD_REGIONS).map(blend).collect(),
         ..TestChf::v8()

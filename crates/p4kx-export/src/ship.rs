@@ -7,7 +7,9 @@ use crate::contract::Ship;
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::{PaintPort, VehicleFacts};
 use crate::playability_rules::{self, Evidence};
-use crate::record_fields::{class_name, component, elements, integer, locale_key, reference, text};
+use crate::record_fields::{
+    class_name, component, elements, integer, locale_key, reference, structure, text,
+};
 use crate::ship_base::ShipRead;
 use crate::texts::Texts;
 use crate::variants::ShipKey;
@@ -27,6 +29,16 @@ fn paint_ports(tree: &RecordTree<'_>) -> Vec<PaintPort> {
             )),
             _ => None,
         })
+        .collect()
+}
+
+/// Returns the words of the ship Record's `AttachDef.Tags` in lower case.
+fn lowered_tags(tree: &RecordTree<'_>) -> Vec<String> {
+    let definition = structure(component(tree, "SAttachableComponentParams"), "AttachDef");
+    text(definition, "Tags")
+        .unwrap_or_default()
+        .split_whitespace()
+        .map(str::to_ascii_lowercase)
         .collect()
 }
 
@@ -74,6 +86,7 @@ pub(crate) fn ship<'f>(
     };
     let facts = VehicleFacts {
         ship: guid,
+        tags: lowered_tags(tree),
         paint_ports: paint_ports(tree),
         implementation: read.paint_ports.clone(),
         variant_key: variant_key(tree, read),

@@ -204,7 +204,7 @@ fn assemble<R>(
     let (mut collected, counts, report) = scan(
         archive, &forge, &files, &entities, options, &texts, crafting,
     )?;
-    let paint_summary = add_paints(&forge, &mut collected);
+    let paint_summary = add_paints(&forge, &mut collected, options.cancel)?;
     let loadout_summary = add_loadouts(archive, &entities, &mut collected, options.cancel)?;
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, counts);
@@ -276,7 +276,7 @@ fn scan<'f>(
     texts: &Texts<'f>,
     crafting: CraftingKinds<'f>,
 ) -> Result<(Collected<'f>, ContainerCounts, StarmapReport), CatalogError> {
-    let rule = crate::Kind::StarmapObjects.rule();
+    let rule = crate::Kind::StarmapObjects.records();
     let wanted = forge.records().any(|record| {
         record.record_path().is_ok_and(|path| {
             rule.matches_path(path) && options.filter.is_none_or(|filter| filter.matches(path))

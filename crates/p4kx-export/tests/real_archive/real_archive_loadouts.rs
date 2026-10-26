@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::time::{Instant, SystemTime};
 
-use p4kx_assembly::{ArchiveFiles, Attachment, LoadoutResolver, PortNode, PortType};
+use p4kx_assembly::{ArchiveFiles, Attachment, LoadoutResolver, PortNode, PortSource, PortType};
 use p4kx_export::{BuiltCatalog, CatalogOptions, Kind, build_catalog};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{real_archive_key, real_archive_path};
@@ -19,7 +19,8 @@ type TestResult = Result<(), Box<dyn Error>>;
 const MIN_PORTS: usize = 10_000;
 const ORIG_100I: &str = "6135a874-4cb1-4f49-9f29-5781e5991f2b";
 const VEHICLE_ONLY: &str = "vehicle";
-const PINNED_100I_TREE_PORTS: usize = 68;
+const PINNED_100I_TREE_PORTS: usize = 75;
+const PINNED_100I_VEHICLE_ONLY: usize = 7;
 
 fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c [Value], Box<dyn Error>> {
     Ok(catalog[kind].as_array().ok_or("the kind is a list")?)
@@ -142,7 +143,12 @@ fn same(tree: &[PortNode], listed: &[Value], at: &str) {
     for (port, json) in tree.iter().zip(listed) {
         let here = format!("{at}/{}", port.name());
         assert_eq!(json["name"], port.name(), "{here}: name");
-        assert_eq!(json["source"], port.source().code(), "{here}: source");
+        let source = if port.source() == PortSource::Empty {
+            VEHICLE_ONLY
+        } else {
+            port.source().code()
+        };
+        assert_eq!(json["source"], source, "{here}: source");
         assert_eq!(
             json["visibility"],
             port.visibility().code(),
@@ -206,11 +212,29 @@ fn check_known_ship(archive: &Archive, catalog: &Value) -> TestResult {
         .ok_or("the loadout of the 100i")?;
     assert_eq!(listed["entityKind"], "ship", "a ship");
     same(tree.ports(), ports(listed), "100i");
-    for extra in ports(listed).iter().skip(tree.ports().len()) {
-        assert_eq!(extra["source"], VEHICLE_ONLY, "ports beyond the tree");
-        assert!(extra["itemGuid"].is_null(), "a vehicle-only port is empty");
+    assert_eq!(
+        ports(listed).len(),
+        tree.ports().len(),
+        "no port beyond the tree"
+    );
+    let vehicle_only: Vec<&PortNode> = tree
+        .ports()
+        .iter()
+        .filter(|port| port.source() == PortSource::Empty)
+        .collect();
+    assert_eq!(
+        vehicle_only.len(),
+        PINNED_100I_VEHICLE_ONLY,
+        "vehicle-only ports"
+    );
+    for port in &vehicle_only {
+        assert!(matches!(port.attachment(), Attachment::Empty), "empty");
     }
-    assert_eq!(tree.ports().len(), PINNED_100I_TREE_PORTS, "tree ports");
+    assert_eq!(
+        tree.ports().len(),
+        PINNED_100I_TREE_PORTS,
+        "tree ports with the vehicle-only ones"
+    );
     let top = ports(listed);
     let by_name = |name: &str| top.iter().find(|port| port["name"] == name);
     let power = by_name("hardpoint_power_plant").ok_or("the power plant port")?;

@@ -7,9 +7,8 @@ data, the stored data, or something else.
 
 ## What the digest covers
 
-Measured on `Data.p4k` of LIVE 4.10, PTU, EPTU, HOTFIX and TECH-PREVIEW (v1 layout; 1,365,248 to
-1,406,830 Entries each): every Entry states a non-zero 32-byte digest, and on 9 sampled Entries of
-every channel it is the **SHA-256 of the stored bytes**, the `compressed_size` bytes at the start
+Measured on `Data.p4k` of LIVE 4.10 (v1 layout): every Entry states a non-zero 32-byte digest,
+and on 9 sampled Entries it is the **SHA-256 of the stored bytes**, the `compressed_size` bytes at the start
 of the data, exactly as they lie in the file:
 
 | Kind | SHA-256 of the stored bytes | SHA-256 of the decoded data |

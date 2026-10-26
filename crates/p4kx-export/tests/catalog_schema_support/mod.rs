@@ -7,7 +7,7 @@ use serde_json::json;
 
 pub(crate) fn minimal_catalog() -> serde_json::Value {
     json!({
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "source": {
             "channel": null,
             "build": null,

@@ -39,6 +39,7 @@ fn tags(value: Option<&str>) -> Vec<String> {
 #[derive(Debug)]
 pub(crate) struct VehicleFacts {
     pub(crate) ship: CatalogGuid,
+    pub(crate) tags: Vec<String>,
     pub(crate) paint_ports: Vec<PaintPort>,
     pub(crate) implementation: VehiclePorts,
     pub(crate) variant_key: Option<ShipKey>,

@@ -71,8 +71,9 @@ fn a_parts_only_patch_file_replaces_the_part_tree() -> TestResult {
             ("hardpoint_gun".to_owned(), PortVisibility::Unspecified),
             ("hardpoint_seat".to_owned(), PortVisibility::Unspecified),
             ("hardpoint_unnamed".to_owned(), PortVisibility::Unspecified),
+            ("hardpoint_new".to_owned(), PortVisibility::Invisible),
         ],
-        "the patched tree names none of the Loadout's ports"
+        "the patched tree names none of the Loadout's ports, and its own port is listed empty"
     );
     Ok(())
 }

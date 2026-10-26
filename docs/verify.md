@@ -15,7 +15,7 @@ a mismatch there is reported although the Conversion parses only part of it.
 
 ## The SHA-256
 
-Every Entry of the Archives measured (LIVE 4.10, PTU, EPTU, HOTFIX, TECH-PREVIEW) states a 32-byte
+Every Entry of the Archive measured (LIVE 4.10) states a 32-byte
 hash, in the `0x5003` extra block of its v1 directory record. It is the SHA-256 of the **stored
 bytes** of the Entry, the `compressed_size` bytes as they lie in the file: for an encrypted Entry
 the ciphertext with its padding, for a compressed one the compressed data. It is not the SHA-256

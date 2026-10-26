@@ -38,7 +38,7 @@ struct OnDisk {
 fn on_disk(archive: &Archive, elements: &[Value]) -> Result<OnDisk, Box<dyn Error>> {
     let entry = DataForgeEntry::read(archive)?;
     let forge = entry.open()?;
-    let rule = Kind::MineableElements.rule();
+    let rule = Kind::MineableElements.rule().ok_or("a rule")?;
     let mut names = Vec::new();
     for record in forge.records() {
         if rule.matches_path(record.record_path()?) && record.type_name()? == rule.type_name {

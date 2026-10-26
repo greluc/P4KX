@@ -35,23 +35,23 @@ cargo test --release --locked -p p4kx-extraction --test real_archive -- --ignore
 
 It measures `P4KX_DATA_P4K` and, when set, `P4KX_DATA_P4K_B`.
 
-| | LIVE | PTU |
-|---|---:|---:|
-| Entries scanned, containers included | 1 662 092 | 1 662 777 |
-| `.socpak` containers opened (failed) | 9 668 (0) | 9 674 (0) |
-| CryXml files | 169 946 | 170 071 |
-| unreadable | 0 | 0 |
-| rejected | 0 | 0 |
-| child table agrees | 141 430 | 141 555 |
-| other order | 0 | 0 |
-| equal copies | 28 516 | 28 516 |
-| other nodes | 39 | 39 |
-| child-table tree differs | 0 | 0 |
-| range outside the table | 0 | 0 |
-| attributes not sequential | 0 | 0 |
+| | LIVE |
+|---|---:|
+| Entries scanned, containers included | 1 662 092 |
+| `.socpak` containers opened (failed) | 9 668 (0) |
+| CryXml files | 169 946 |
+| unreadable | 0 |
+| rejected | 0 |
+| child table agrees | 141 430 |
+| other order | 0 |
+| equal copies | 28 516 |
+| other nodes | 39 |
+| child-table tree differs | 0 |
+| range outside the table | 0 |
+| attributes not sequential | 0 |
 
 All 28 516 files that disagree are `.entxml` Entities. The child table lists the first of two
 equal siblings twice. In the 39 files that also count under "other nodes" the duplicated node
 has `firstChild` 0, so its own child list is the root's; the walk over the child table never
-reaches that node. In every file of both Archives the tree read from the child table equals the
+reaches that node. In every file the tree read from the child table equals the
 parent-index tree, so reading the child table would change no output (ADR-0142).

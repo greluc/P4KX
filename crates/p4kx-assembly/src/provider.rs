@@ -11,6 +11,8 @@ use p4kx_extraction::{
 };
 use thiserror::Error;
 
+use crate::cdf::{self, MAX_CDF_BYTES, is_character_definition};
+
 /// A model a [`ModelProvider`] read and the Entry it was read from.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -20,6 +22,9 @@ pub struct ProvidedModel {
     pub entry: String,
     /// The model, read without its material library, see [`Model::read_without_materials`].
     pub model: Model,
+    /// The files of the attachments of a character definition (`.cdf`) that are not part of
+    /// `model`; empty for every other file.
+    pub left_out: Vec<String>,
 }
 
 /// Why a [`ModelProvider`] cannot supply a model.
@@ -65,6 +70,18 @@ fn describe(error: &(dyn Error + 'static)) -> String {
     text
 }
 
+fn read_failure<E: Error + Send + Sync + 'static>(error: E) -> ModelFailure {
+    let key_problem = archive_error_in(&error)
+        .is_some_and(|found| found.is_key_required() || found.is_wrong_key());
+    if key_problem {
+        ModelFailure::Fatal(Box::new(error))
+    } else {
+        ModelFailure::Unreadable {
+            reason: describe(&error),
+        }
+    }
+}
+
 fn failure(error: ConversionError) -> ModelFailure {
     let key_problem = archive_error_in(&error)
         .is_some_and(|found| found.is_key_required() || found.is_wrong_key());
@@ -77,13 +94,20 @@ fn failure(error: ConversionError) -> ModelFailure {
     }
 }
 
+/// Keeps the level of `model` that [`Model::nearest_lod`] picks for `level`.
+fn keep_nearest_lod(model: &mut Model, level: u32) {
+    if let Some(nearest) = model.nearest_lod(level).map(|lod| lod.level) {
+        model.lods.retain(|found| found.level == nearest);
+    }
+}
+
 /// Supplies the models and material libraries an Assembly is built from.
 ///
 /// The Assembly calls it from several threads at once, once per distinct file.
 pub trait ModelProvider: Sync {
     /// Reads the model at `path`, a path below `Data` as an Entity Record spells it, at the level
-    /// of detail `lod`, or at the nearest lower level the model has. The model comes without its
-    /// material library.
+    /// of detail `lod`, or at the nearest lower level the model has, or at its lowest level when
+    /// it has none up to `lod`. The model comes without its material library.
     ///
     /// # Errors
     ///
@@ -203,26 +227,12 @@ impl<'a> ArchiveModels<'a> {
 impl ModelProvider for ArchiveModels<'_> {
     fn model(&self, path: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
         let entry = self.entry_of(path).ok_or(ModelFailure::Missing)?;
-        let source = ModelSource::from_index_without_materials(
-            &self.index,
-            &entry,
-            LodSelection::AtMost(lod),
-        )
-        .map_err(|error| match error {
-            ConversionError::Model {
-                source: ModelError::NoSuchLod { .. },
-                ..
-            } => ModelFailure::Unreadable {
-                reason: "the model has no level of detail".to_owned(),
-            },
-            error => failure(error),
-        })?;
-        let mut model = source.into_model();
-        if let Some(nearest) = model.lods.iter().map(|found| found.level).max() {
-            model.lods.retain(|found| found.level == nearest);
+        if is_character_definition(&entry) {
+            return self.character(&entry, lod);
         }
-        Ok(ProvidedModel { entry, model })
+        self.read_model(entry, lod, Vec::new())
     }
+
     fn library(&self, entry: &str, name: &str) -> MaterialStatus {
         ModelSource::material_library(&self.index, entry, name)
     }
@@ -236,18 +246,68 @@ impl ModelProvider for ArchiveModels<'_> {
                 reason: format!("the file holds {size} bytes, more than the limit of {limit}"),
             });
         }
-        let unreadable = |error: &(dyn Error + 'static)| ModelFailure::Unreadable {
-            reason: describe(error),
-        };
-        let reader = self
-            .archive
-            .open_entry(entry)
-            .map_err(|error| unreadable(&error))?;
+        let reader = self.archive.open_entry(entry).map_err(read_failure)?;
         let mut bytes = Vec::with_capacity(usize::try_from(size).unwrap_or_default());
         reader
             .take(limit)
             .read_to_end(&mut bytes)
-            .map_err(|error| unreadable(&error))?;
+            .map_err(read_failure)?;
         Ok(bytes)
+    }
+}
+
+impl ArchiveModels<'_> {
+    fn character(&self, entry: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
+        let bytes = self.file(entry, MAX_CDF_BYTES)?;
+        let unreadable = |reason: String| ModelFailure::Unreadable {
+            reason: format!("{entry}: {reason}"),
+        };
+        let character = cdf::read(&bytes).map_err(unreadable)?;
+        let model_entry = self
+            .entry_of(&character.model)
+            .ok_or_else(|| unreadable(format!("{} does not exist", character.model)))?;
+        let mut provided = self.read_model(model_entry, lod, character.left_out)?;
+        if let Some(material) = &character.material {
+            provided.model.material_library = Some(without_mtl(material).to_owned());
+        }
+        Ok(provided)
+    }
+
+    fn read_model(
+        &self,
+        entry: String,
+        lod: u32,
+        left_out: Vec<String>,
+    ) -> Result<ProvidedModel, ModelFailure> {
+        let read =
+            |selection| ModelSource::from_index_without_materials(&self.index, &entry, selection);
+        let source = match read(LodSelection::AtMost(lod)) {
+            Err(ConversionError::Model {
+                source: ModelError::NoSuchLod { .. },
+                ..
+            }) => read(LodSelection::All),
+            other => other,
+        }
+        .map_err(failure)?;
+        let mut model = source.into_model();
+        keep_nearest_lod(&mut model, lod);
+        if model.lods.is_empty() {
+            return Err(ModelFailure::Unreadable {
+                reason: "the model has no level of detail".to_owned(),
+            });
+        }
+        Ok(ProvidedModel {
+            entry,
+            model,
+            left_out,
+        })
+    }
+}
+
+/// Returns `path` without a trailing `.mtl`, ignoring ASCII case.
+fn without_mtl(path: &str) -> &str {
+    match path.rsplit_once('.') {
+        Some((stem, extension)) if extension.eq_ignore_ascii_case("mtl") => stem,
+        _ => path,
     }
 }

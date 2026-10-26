@@ -15,6 +15,7 @@ use p4kx_testkit::{
 pub(crate) const ALPHA: u128 = 0x10;
 pub(crate) const SNUB: u128 = 0x11;
 pub(crate) const BROKEN: u128 = 0x12;
+pub(crate) const NESTED: u128 = 0x13;
 pub(crate) const TURRET: u128 = 0x20;
 pub(crate) const RACK: u128 = 0x21;
 pub(crate) const GUN: u128 = 0x22;
@@ -22,6 +23,7 @@ pub(crate) const GUN_DEFAULT: u128 = 0x23;
 pub(crate) const GUN_OVERRIDE: u128 = 0x24;
 pub(crate) const GUN_TEMPLATE: u128 = 0x25;
 pub(crate) const EMPTY_LOADOUT: u128 = 0x26;
+pub(crate) const LOOP: u128 = 0x27;
 pub(crate) const MISSING: u128 = 0x99;
 
 const SHIPS: &str = "libs/foundry/records/entities/spaceships";
@@ -102,6 +104,16 @@ fn entities() -> Vec<TestEntity> {
                 "snub_gun", "ACME_Gun",
             )])),
         ship(BROKEN, "ACME_Broken").vehicle(definition("ACME_Broken"), ""),
+        ship(NESTED, "ACME_Nested").loadout(TestLoadout::Manual(vec![
+            TestLoadoutEntry::empty("body").loadout(TestLoadout::Manual(vec![
+                TestLoadoutEntry::class("seat_1", "ACME_Gun"),
+            ])),
+        ])),
+        item(LOOP, "ACME_Loop")
+            .port(gun_port("loop_1"))
+            .loadout(TestLoadout::Manual(vec![TestLoadoutEntry::reference(
+                "loop_1", LOOP,
+            )])),
         item(TURRET, "ACME_Turret")
             .port(gun_port("gun_1"))
             .port(gun_port("gun_2")),

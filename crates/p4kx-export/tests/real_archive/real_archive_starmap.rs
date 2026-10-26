@@ -121,12 +121,13 @@ fn report(built: &BuiltCatalog, catalog: &Value, objects: &[Value]) {
     println!("== summary {:?}", built.summary().starmap());
     println!(
         "== deepest external chain {} (limit 32), reading the system containers took {:?}",
-        seen.deepest_external, seen.elapsed
+        seen.deepest_external(),
+        seen.elapsed()
     );
-    print_lines("containers read", &seen.containers);
-    print_lines("containers that failed", &seen.issues);
-    print_lines("records placed twice", &seen.repeated);
-    print_lines("containers no Child names", &seen.unreferenced);
+    print_lines("containers read", seen.containers());
+    print_lines("containers that failed", seen.issues());
+    print_lines("records placed twice", seen.repeated());
+    print_lines("containers no Child names", seen.unreferenced());
     print_types(objects);
     print_unplaced(objects);
     println!(

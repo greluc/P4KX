@@ -28,7 +28,7 @@ silently incomplete result, and since every partial trie is a part of the union,
 does not depend on the split. A Record is read at most as far as `MAX_RECORD_VALUES` values and
 `MAX_NESTING_DEPTH` levels, like a Record tree, and an instance owned twice is read once. LIVE has
 about 87,500 paths over 118,000 Records; counting them takes about two seconds with the Archive
-opening included and about 230 MB above the memory that opening the DataForge takes.
+opening included; the amendment below gives the memory.
 
 Empty values are values: a null pointer or Reference, an empty text or a null GUID is counted in
 `values` and `empty` and never in `distinct`, `min` or `max`, so absence does not read as zero.
@@ -39,6 +39,37 @@ The same walk serves the completion of #117: `FieldStatistics::get` and `childre
 at a path and the paths one segment below it, so a completion that wants the paths that really
 occur in the data needs no second walker. The completion from the schema stays as it is; it knows
 the fields no Record has a value for.
+
+## Amendment: bounded parts, shared layouts and all-or-nothing Records (issue #389)
+
+- The Records are folded in at most as many parts as rayon has threads (`with_min_len` of the
+  Records divided by the threads), and each part keeps one trie. The memory above the DataForge is
+  therefore at most `threads` tries, each at most 1,048,576 paths, and no longer one per task rayon
+  happens to split off.
+- The struct layouts are read once into a cache that all parts share (`SharedLayouts`, bounded by
+  `CACHE_FIELDS` fields in total; further layouts are read again at each use), instead of one cache
+  per part.
+- A Record is walked into a list of pending values and counted only when the walk ends: a Record
+  with more than `MAX_RECORD_VALUES` values adds nothing, not even the values found before the
+  limit, which is what `docs/query.md` says.
+- The pending values of the Record being walked take about 64 bytes each, up to
+  `MAX_RECORD_VALUES` (2^20) values per part, so up to 64 MiB per part and 64 MiB times the threads
+  in all (2 GiB at 32 threads) for a crafted Record at the limit; a real Record has far fewer, and
+  a buffer above 2^16 values is released after the Record. This is a bound on top of the tries, not
+  a growth with the number of Records.
+- The paths a dropped Record made stay in the trie: a Record with too many values adds no counts,
+  but the paths it walked before the limit still count towards `MAX_FIELD_PATHS` and can raise
+  `TooManyPaths`. The walk of a Record is the same on any split, so the outcome does not depend on
+  the number of threads.
+- The values of a Reference are the GUIDs it links to and are fingerprinted like any value;
+  strong and weak pointers and inline structs have no value, so their `distinct` is 0.
+- On LIVE (117,709 Records, 87,514 paths, 32 threads) the working set during the count grows by
+  about 53 MB above the memory of the opened DataForge, where it grew by about 331 MB with one
+  trie and one layout cache per task. The bound is the number of threads times the paths each
+  trie holds, so a crafted DataForge near the path cap on many cores is bounded by the same rule
+  and no longer by the number of tasks.
+- The fingerprint is 64 bits, so two different values collide with a chance of about 2^-64 per
+  pair; numbers are fingerprinted exactly.
 
 ## Considered Options
 

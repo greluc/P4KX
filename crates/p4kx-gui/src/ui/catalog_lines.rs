@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_export::{CatalogSummary, Playability};
+use p4kx_export::{CatalogSummary, Kind, Playability};
 
 use super::extraction::number;
 use crate::{CatalogText as T, Texts, format};
@@ -88,22 +88,33 @@ pub(super) fn failure_lines(texts: &Texts, summary: &CatalogSummary) -> (Vec<Str
         .unzip()
 }
 
+/// Returns the line of every kind, and below the line of the loadouts what they hold.
 pub(super) fn kinds(texts: &Texts, summary: &CatalogSummary) -> Vec<String> {
-    summary
-        .kinds()
-        .iter()
-        .map(|kind| {
-            texts.format(
-                T::SummaryKind,
+    let mut lines = Vec::with_capacity(summary.kinds().len().saturating_add(1));
+    for kind in summary.kinds() {
+        lines.push(texts.format(
+            T::SummaryKind,
+            &[
+                ("kind", kind.kind.name().into()),
+                ("written", number(texts, kind.count)),
+                ("skipped", number(texts, kind.skipped)),
+                ("complete", if kind.complete { "yes" } else { "no" }.into()),
+            ],
+        ));
+        if kind.kind == Kind::Loadouts {
+            let loadouts = summary.loadouts();
+            lines.push(texts.format(
+                T::SummaryLoadouts,
                 &[
-                    ("kind", kind.kind.name().into()),
-                    ("written", number(texts, kind.count)),
-                    ("skipped", number(texts, kind.skipped)),
-                    ("complete", if kind.complete { "yes" } else { "no" }.into()),
+                    ("ports", number(texts, loadouts.ports)),
+                    ("unresolved", number(texts, loadouts.unresolved)),
+                    ("docked", number(texts, loadouts.docked_vehicles)),
+                    ("outside", number(texts, loadouts.outside)),
                 ],
-            )
-        })
-        .collect()
+            ));
+        }
+    }
+    lines
 }
 
 /// Returns the playability line of the items and of the ships.

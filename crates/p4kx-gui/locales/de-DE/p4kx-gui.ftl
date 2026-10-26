@@ -469,11 +469,13 @@ catalog-summary-kind = { $kind ->
     [resourceGroups] Ressourcengruppen
     [blueprintCategories] Blaupausenkategorien
     [paints] Lackierungen
+    [loadouts] Loadouts
    *[other] { $kind }
 }: { $written } geschrieben, { $skipped } übersprungen, { $complete ->
     [yes] vollständig
    *[no] teilweise
 }
+catalog-summary-loadouts = Loadouts: { $ports } Ports, { $unresolved } nicht aufgelöst, { $docked } angedockte Fahrzeuge, { $outside } Entities ohne Eintrag in Items oder Schiffen
 catalog-summary-skipped = Als Entwicklungsreste übersprungene Records: { $number }
 catalog-playability-heading = Spielbarkeit
 catalog-summary-playability = { $kind ->

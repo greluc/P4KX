@@ -4,7 +4,9 @@
 use std::io::{self, Write};
 use std::path::Path;
 
-use p4kx_extraction::{FieldStat, MAX_DISTINCT_VALUES, Number};
+use p4kx_extraction::{
+    CSV_BYTE_ORDER_MARK, FieldStat, MAX_DISTINCT_VALUES, Number, write_csv_cell,
+};
 use serde::Serialize;
 
 use crate::dcb_fields::Listing;
@@ -13,6 +15,8 @@ use crate::query_table::one_line;
 
 const GAP: &str = "  ";
 const COLUMNS: usize = 8;
+const PATH_COLUMN: usize = 0;
+const KINDS_COLUMN: usize = 1;
 const HEADER: [&str; COLUMNS] = [
     "path", "kinds", "values", "records", "empty", "distinct", "min", "max",
 ];
@@ -41,11 +45,15 @@ pub(crate) fn table(out: &mut impl Write, listing: &Listing<'_>) -> io::Result<(
     )
 }
 
-/// Writes the listing as CSV after RFC 4180 with a header row.
-pub(crate) fn csv(out: &mut impl Write, listing: &Listing<'_>) -> io::Result<()> {
-    write_csv_row(out, &HEADER.map(str::to_owned))?;
+/// Writes the listing as CSV after RFC 4180 with a header row; with `neutralise`, it starts with
+/// a byte order mark and a path or kind that a spreadsheet would run as a formula starts with `'`.
+pub(crate) fn csv(out: &mut impl Write, listing: &Listing<'_>, neutralise: bool) -> io::Result<()> {
+    if neutralise {
+        out.write_all(CSV_BYTE_ORDER_MARK)?;
+    }
+    write_csv_row(out, &HEADER.map(str::to_owned), neutralise)?;
     for field in &listing.fields {
-        write_csv_row(out, &cells(field))?;
+        write_csv_row(out, &cells(field), neutralise)?;
     }
     Ok(())
 }
@@ -196,16 +204,17 @@ fn line(
     writeln!(out, "{}", text.trim_end())
 }
 
-fn write_csv_row(out: &mut impl Write, cells: &[String; COLUMNS]) -> io::Result<()> {
+fn write_csv_row(
+    out: &mut impl Write,
+    cells: &[String; COLUMNS],
+    neutralise: bool,
+) -> io::Result<()> {
     for (index, cell) in cells.iter().enumerate() {
         if index > 0 {
             out.write_all(b",")?;
         }
-        if cell.contains([',', '"', '\r', '\n']) {
-            write!(out, "\"{}\"", cell.replace('"', "\"\""))?;
-        } else {
-            out.write_all(cell.as_bytes())?;
-        }
+        let text = matches!(index, PATH_COLUMN | KINDS_COLUMN);
+        write_csv_cell(out, cell, neutralise && text)?;
     }
     out.write_all(b"\r\n")
 }

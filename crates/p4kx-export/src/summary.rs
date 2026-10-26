@@ -236,6 +236,9 @@ impl CatalogSummary {
 
     /// Returns the Records that could not be read and were left out, the selected ones and those
     /// a rule reads, ordered by GUID.
+    ///
+    /// Their entries are left out of the catalog; a ship whose loadout cannot be resolved stays in
+    /// `ships` without a loadout.
     #[must_use]
     pub fn failures(&self) -> &[CatalogFailure] {
         &self.failures

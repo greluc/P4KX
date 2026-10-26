@@ -7,6 +7,8 @@ use p4kx_extraction::{Archive, Guid};
 use p4kx_testkit::{ArchiveBuilder, TestContainer, TestElement, TestEntry, test_key};
 
 use crate::starmap_containers::{Limits, Placements};
+use crate::starmap_index::Index;
+use crate::starmap_parse::read_all;
 
 const FOLDER: &str = "Data\\ObjectContainers\\PU\\system\\t\\";
 
@@ -36,8 +38,12 @@ fn child(position: &str, record: u128) -> TestElement {
 }
 
 fn external(name: &str) -> TestElement {
+    external_at(name, "0,0,0")
+}
+
+fn external_at(name: &str, position: &str) -> TestElement {
     TestElement::new("Child")
-        .attribute("pos", "0,0,0")
+        .attribute("pos", position)
         .attribute("external", "1")
         .attribute(
             "name",
@@ -63,14 +69,18 @@ fn socpak(name: &str, xml: &str) -> TestEntry {
     )
 }
 
-fn read(dir: &Path, entries: Vec<TestEntry>, limits: Limits) -> Placements {
+fn open(dir: &Path, entries: Vec<TestEntry>) -> Archive {
     let path = dir.join("Data.p4k");
     entries
         .into_iter()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)
         .expect("a written Archive");
-    let archive = Archive::open_with_key(path, Some(test_key())).expect("an opened Archive");
+    Archive::open_with_key(path, Some(test_key())).expect("an opened Archive")
+}
+
+fn read(dir: &Path, entries: Vec<TestEntry>, limits: Limits) -> Placements {
+    let archive = open(dir, entries);
     Placements::read_within(&archive, None, limits).expect("placements")
 }
 
@@ -217,5 +227,101 @@ fn the_report_keeps_a_bounded_number_of_short_lines() {
             .iter()
             .all(|line| line.chars().count() <= 300),
         "and short"
+    );
+}
+
+#[test]
+fn a_container_instanced_several_times_is_composed_at_each_place() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let entries = system(
+        &root(vec![
+            external_at("ring", "10,0,0"),
+            external_at("ring", "10,0,0"),
+            external_at("moved", "10,0,0"),
+            external_at("moved", "30,0,0"),
+        ]),
+        &[
+            ("ring", root(vec![child("1,0,0", 1)])),
+            ("moved", root(vec![child("2,0,0", 2)])),
+        ],
+    );
+    let placements = read(dir.path(), entries, Limits::default());
+    assert_eq!(placed(&placements, 1), Some([11.0, 0.0, 0.0]), "same place");
+    assert_eq!(placed(&placements, 2), None, "two places");
+    assert_eq!(placements.counts.ambiguous, 1, "only the moved one");
+    assert_eq!(placements.counts.unreadable, 0, "read");
+}
+
+#[test]
+fn a_container_instanced_several_times_is_parsed_once() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let entries = system(
+        &root(vec![
+            external_at("ring", "10,0,0"),
+            external_at("ring", "20,0,0"),
+            external_at("ring", "30,0,0"),
+        ]),
+        &[
+            ("ring", root(vec![external("leaf")])),
+            ("leaf", root(vec![])),
+        ],
+    );
+    let archive = open(dir.path(), entries);
+    let index = Index::new(&archive);
+    let roots: Vec<usize> = index.systems().iter().map(|(_, entry)| *entry).collect();
+    let limits = Limits::default();
+    let read = read_all(
+        &archive,
+        &index,
+        &roots,
+        None,
+        limits.external,
+        (limits.depth, limits.children),
+    );
+    assert_eq!(read.parsed, 3, "the system, the ring and the leaf");
+    assert_eq!(read.bodies.len(), 3, "each held once");
+}
+
+#[test]
+fn a_container_without_the_main_xml_name_is_read_and_reported() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let xml = root(vec![child("4,5,6", 1)]);
+    let odd = TestEntry::stored(
+        format!("{FOLDER}odd.socpak"),
+        TestContainer::new()
+            .entry(TestEntry::stored("other.xml", xml.as_bytes()))
+            .build(),
+    );
+    let entries = vec![socpak("tsystem", &root(vec![external("odd")])), odd];
+    let placements = read(dir.path(), entries, Limits::default());
+    assert_eq!(placed(&placements, 1), Some([4.0, 5.0, 6.0]), "placed");
+    assert_eq!(placements.counts.unreadable, 0, "readable");
+    assert!(
+        placements
+            .report
+            .issues
+            .iter()
+            .any(|line| line.contains("no XML named like the container")),
+        "an issue line"
+    );
+}
+
+#[test]
+fn a_second_child_list_is_reported() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let xml = TestElement::new("ObjectContainer")
+        .child(TestElement::new("ChildObjectContainers").child(child("1,0,0", 1)))
+        .child(TestElement::new("ChildObjectContainers").child(child("2,0,0", 2)))
+        .to_xml();
+    let placements = read(dir.path(), system(&xml, &[]), Limits::default());
+    assert!(placed(&placements, 1).is_some(), "the first list is read");
+    assert_eq!(placed(&placements, 2), None, "the second is not");
+    assert!(
+        placements
+            .report
+            .issues
+            .iter()
+            .any(|line| line.contains("more than one ChildObjectContainers")),
+        "an issue line"
     );
 }

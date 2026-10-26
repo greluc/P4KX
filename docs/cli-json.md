@@ -1115,6 +1115,37 @@ use the JSON format.
 With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
 "languages": ["en"], "keys": 101234}`.
 
+## `p4kx actionmap export <archive> [--format json|csv] [--csv-raw] [--language <language>] [--out <file>]`
+
+Without `--out` the export goes to stdout and `--json` changes nothing. The JSON format is
+
+```json
+{"language": "en", "action_maps": [
+{"name": "seat_general", "label_key": "@ui_CGSeatGeneral", "label": "Vehicles - Seats and Operator Modes",
+ "actions": [{"name": "v_eject", "label_key": "@ui_CIEject", "label": "Eject",
+  "activation_mode": "press",
+  "bindings": [{"device": "keyboard", "input": "ralt+y", "activation_mode": "press"}]}, …]}, …]}
+```
+
+in document order. `label_key` and `activation_mode` are `null` when the profile names none; `label`
+is `null` when there is no key or the language has no text for it, and has `\n` decoded to a line
+feed. `device` is `keyboard`, `mouse`, `gamepad` or `joystick`; `input` is the profile's spelling,
+with `+` between the keys of a combination. A binding's `activation_mode` is its own, else the
+action's. An input that is empty or blank is no binding.
+
+The CSV starts with a UTF-8 byte order mark, has CRLF line ends and the header
+`action_map,action_map_label,action,label,activation_mode,keyboard,mouse,gamepad,joystick`. A
+device cell joins its bindings with ` | `; a binding whose activation mode differs from the
+action's reads `input (mode)`. Text cells follow the rules of ADR-0159: a cell that starts with
+`=`, `+`, `-`, `@`, a tab or a carriage return gets a leading `'`. `--csv-raw` writes the exact
+texts without the `'` and keeps the byte order mark; it is invalid input (exit code 2) with
+`--format json`.
+
+With `--out` and `--json` the command prints `{"archive": "…", "out": "…", "format": "csv",
+"language": "en", "action_maps": 50, "actions": 1103, "unresolved_labels": 1}`;
+`unresolved_labels` counts the label keys, of actions and of action maps, with no text in the
+language.
+
 ## `p4kx key set|show|remove --json`
 
 `p4kx key set [<hex>] [--archive <archive>] --json` prints
@@ -2070,11 +2101,16 @@ is missing or wrong with code 7, and an `--out` that is the Archive with code 2.
 ## `p4kx chf to-json <file> --out <file> --json` and `p4kx chf from-json <file> --out <file> --json`
 
 ```json
-{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934}
+{"input": "…", "output": "…", "versions": {"female": 2, "male": 7}, "size": 21934,
+ "named": 14, "unresolved": 2, "unresolved_hashes": ["0x6d6de693"]}
 ```
 
 `versions` are the inner versions of the CHF body; `size` is the number of bytes written, the
-JSON text for `to-json` and always 4096 for `from-json`. `to-json --json` needs `--out`, because
+JSON text for `to-json` and always 4096 for `from-json`. Only `to-json` has `named` (the hashes
+that got a label, counted where they occur), `unresolved` (those that got none) and
+`unresolved_hashes` (the distinct unresolved hashes, ascending, as `0x` and eight hexadecimal
+digits). Without `--out` the same counts are one line on stderr, and the plain text summary ends
+with that line too. `to-json --json` needs `--out`, because
 the converted JSON would otherwise share stdout with the summary; without it the exit code is 2.
 An `--out` inside a Star Citizen installation, including a Channel's `user` folder, is refused with
 exit code 2; copy a CHF file into `CustomCharacters` by hand.
@@ -2086,6 +2122,17 @@ exit code 2; copy a CHF file into `CustomCharacters` by hand.
 new file with a correct CRC-32C. Unknown fields and values out of range are rejected with exit
 code 2; a JSON file larger than 1 MiB is not read (exit code 3). The hash fields are
 CRC-32 or CRC-32C values of names; [docs/chf-hashes.md](chf-hashes.md) lists the function per field.
+
+`to-json` writes the name of a hash it can resolve in a key beside it: `gender_hash_label`
+(`character.dna`), `port_label` (item ports), `attachment_label` (materials) and `name_label`
+(sub-materials, floats and colours), each right after the hash it names (ADR-0178). The labels
+are output only: `from-json` accepts each of them in the one kind of object that carries it and
+ignores its text, so the hash stays authoritative, an edited hash with an old label is written as
+the hash, and a label anywhere else or any other unknown field is still refused. Errors point at
+the line and column of the file as given. `--archive <Data.p4k>` adds the item ports of the items
+the character wears and the sub-materials and parameters of the base materials it chooses to the
+names the tool knows itself. A hash with no known name has no label. `BodyColor` and `EyeColor`
+are mapped by hand: their hashes are not the CRC of those names.
 
 | Field | Type | Meaning |
 |-------|------|---------|

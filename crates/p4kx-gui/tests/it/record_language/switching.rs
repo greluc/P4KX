@@ -10,7 +10,9 @@ use std::sync::atomic::Ordering;
 use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
-use p4kx_extraction::{Archive, DataForgeEntry, LanguageTexts, LocalizationSet, RecordXml};
+use p4kx_extraction::{
+    Annotations, Archive, DataForgeEntry, LanguageTexts, LocalizationSet, RecordXml,
+};
 use p4kx_gui::{
     Browser, KeyText, Model, PreviewTab, RecordPreview, RecordPreviewStatus, RecordTextChoice,
     TextLanguage,
@@ -250,12 +252,13 @@ fn exported(
     let tree = forge.record_by_guid(guid).ok_or("no such Record")?.tree()?;
     let mut out = Vec::new();
     match language {
-        None => RecordXml::new().write_with(&tree, None, &mut out)?,
+        None => RecordXml::new().write(&tree, &mut out)?,
         Some(language) => {
             let set = LocalizationSet::read(&archive, &[language])?;
             let texts = set.index()?;
             let resolver = LanguageTexts::new(&texts, language);
-            RecordXml::new().write_with(&tree, Some(&resolver), &mut out)?;
+            let annotations = Annotations::none().with_texts(Some(&resolver));
+            RecordXml::new().write_annotated(&tree, annotations, &mut out)?;
         }
     }
     Ok(out)

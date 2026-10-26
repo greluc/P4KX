@@ -129,7 +129,10 @@ impl LineCache {
         };
         let room = (width - value.size().x - SPACE_2).max(0.0);
         let trailer = match field.value() {
-            LineValue::Reference(link) => Some(Trailer::type_name(ui, link.type_name(), room)),
+            LineValue::Reference(link) => {
+                let shown = link.tag().unwrap_or_else(|| link.type_name());
+                Some(Trailer::type_name(ui, shown, room))
+            }
             LineValue::Key { text, .. } => Trailer::key(ui, texts, text, room),
             _ => None,
         };

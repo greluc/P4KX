@@ -105,6 +105,7 @@ fn grown(chf: &Chf, colors: u32) -> Result<Chf, Box<dyn Error>> {
         state ^= state << 5;
         sub.colors.push(ColorParam {
             name: state,
+            label: p4kx_character::Label,
             rgba: [0; 4],
         });
     }

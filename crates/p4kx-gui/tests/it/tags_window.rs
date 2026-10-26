@@ -6,8 +6,10 @@
 use crate::tagging;
 
 use egui::accesskit::Role;
+use egui::{Rect, vec2};
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::{Language, Model, TagsStatus, WorkTab};
+use p4kx_gui::theme::window_metrics::WORK_MIN_WIDTH;
+use p4kx_gui::{Language, Model, TagsStatus, WorkTab, ui};
 use p4kx_testkit::TestEntry;
 use tagging::{
     MISSILE, TestResult, archive, copied, harness, opened, opened_tags, read, text, wait_until,
@@ -333,5 +335,29 @@ fn the_tab_is_german_in_the_german_window_and_forgets_the_tree_with_the_archive(
         ) || read(harness.state()),
         "the tree is read again for the new Archive"
     );
+    Ok(())
+}
+
+#[test]
+fn the_copy_buttons_lie_in_the_scrolled_work_surface_of_the_smallest_window() -> TestResult {
+    for (language, guid, path) in [
+        (Language::BritishEnglish, "Copy GUID", "Copy tag path"),
+        (Language::German, "GUID kopieren", "Tag-Pfad kopieren"),
+    ] {
+        let (_dir, harness) = tagging::opened_sized(
+            vec![TestEntry::zstd("Data\\Game2.dcb", tagging::forge())],
+            language,
+            [640.0, 400.0],
+        )?;
+        let work = ui::regions(&harness.ctx).work.ok_or("no work surface")?;
+        let content = Rect::from_min_size(work.min, vec2(WORK_MIN_WIDTH, f32::INFINITY));
+        for label in [guid, path] {
+            let rect = harness.get_by_role_and_label(Role::Button, label).rect();
+            assert!(
+                content.contains_rect(rect),
+                "{language:?}: {label} at {rect:?} lies outside the work surface content {content:?}"
+            );
+        }
+    }
     Ok(())
 }

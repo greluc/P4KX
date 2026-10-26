@@ -28,6 +28,7 @@ pub(crate) fn dna_of_head_two_in_region_three() -> Dna {
     let blends = |value, head_id| vec![DnaBlend { value, head_id }];
     Dna {
         gender_hash: MALE_RIG_HASH,
+        label: p4kx_character::Label,
         variant_hash: 0,
         blends_per_part: 1,
         header_unknown: 0,

@@ -238,7 +238,8 @@ deshalb steht er nicht im Archiv-Menü. „Record-Export …" ist gesperrt, sola
 DataForge hat oder DataForge nicht geladen werden konnte, und während ein Record-Export läuft.
 Der Dialog ist wie „Einträge extrahieren" ein breites Modal (D.3) mit drei Gruppen: Records
 (Auswahl im Record-Baum mit Name und Anzahl, oder Filter nach Record-Pfad im Suchfeld-Muster;
-Tippen in das Feld wählt den Filter), Form (JSON oder NDJSON als Radios) und Ziel (wie bei der
+Tippen in das Feld wählt den Filter), Form (JSON, NDJSON und die Werte-Formen als Radios, darunter das Kästchen „Tag-Pfad neben
+jeder Tag-Referenz schreiben", aus, für die Werte-Formen gesperrt) und Ziel (wie bei der
 Extraktion, mit Konfliktregel für einen vorhandenen Ordner). Die eine CTA heißt „Export
 starten", nicht „Exportieren", damit sie sich vom Menü „Export" unterscheidet, auch für
 Screenreader. Fortschritt und Zusammenfassung sind wie bei der Extraktion nicht modal (D.3, D.7)

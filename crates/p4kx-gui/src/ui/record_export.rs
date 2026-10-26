@@ -8,12 +8,13 @@ use super::extraction::{
     POLICIES, folder_field, foot, group_label, new_folder_name, number, refusal_notice,
 };
 use super::search::field;
-use super::{Dialog, Requests};
+use super::{Dialog, Requests, regions};
 use crate::theme::desktop::MODAL_GROUP_GAP;
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::frames::{self, Tone};
+use crate::widgets::placement;
 use crate::widgets::text::plain;
 use crate::widgets::toggle;
 use crate::{
@@ -38,19 +39,22 @@ pub(super) fn setup(ui: &Ui, model: &mut Model, requests: &mut Requests) {
     };
     let title = texts.get(T::SetupTitle);
     let close_dialog = texts.get(Text::CloseDialog);
-    let shown =
-        frames::modal(frames::modal_id("record-export-setup"), Tone::Normal).show(ui.ctx(), |ui| {
-            ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
-            let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
-            let action = choices(ui, texts, setup, &new_folder);
-            if closed { Some(Action::Close) } else { action }
-        });
+    let id = frames::modal_id("record-export-setup");
+    let shown = placement::hanging_modal(ui.ctx(), id, Tone::Normal).show(ui.ctx(), |ui| {
+        ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
+        let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
+        let action = choices(ui, texts, setup, &new_folder);
+        if closed { Some(Action::Close) } else { action }
+    });
     frames::modal_decoration(
         ui.ctx(),
         shown.response.layer_id,
         shown.response.rect,
         Tone::Normal,
     );
+    regions::record(ui.ctx(), |regions| {
+        regions.dialogs.push(shown.response.rect);
+    });
     let close = shown.should_close();
     match shown.inner {
         Some(Action::Submit) => {
@@ -70,9 +74,14 @@ fn choices(
     setup: &mut RecordExportSetup,
     new_folder: &str,
 ) -> Option<Action> {
-    let action = frames::scrolling_body(ui, "record-export-body", |ui| {
+    let room = placement::body_room(ui);
+    let scrolled = frames::scrolling_body_in(ui, ("record-export-body", room), |ui| {
         body(ui, texts, setup, new_folder)
     });
+    regions::record(ui.ctx(), |regions| {
+        regions.scrolls = scrolled.content_size.y > scrolled.inner_rect.height() + 0.5;
+    });
+    let action = scrolled.inner;
     let pressed = foot(
         ui,
         texts,
@@ -110,6 +119,11 @@ fn body(
         if toggle::radio(ui, setup.form() == form, &label, true).clicked() {
             setup.set_form(form);
         }
+    }
+    let mut tags = setup.tags();
+    let enabled = crate::form_annotates_tags(setup.form());
+    if toggle::checkbox_if(ui, &mut tags, &texts.get(T::Tags), enabled).clicked() {
+        setup.set_tags(tags);
     }
     ui.add_space(MODAL_GROUP_GAP);
     group_label(ui, &texts.get(ExtractionText::TargetHeading));

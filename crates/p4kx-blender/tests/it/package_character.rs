@@ -33,6 +33,7 @@ fn dna() -> Dna {
     let blends = |value, head_id| vec![DnaBlend { value, head_id }];
     Dna {
         gender_hash: MALE_RIG_HASH,
+        label: p4kx_assembly::character::Label,
         variant_hash: 0,
         blends_per_part: 1,
         header_unknown: 0,

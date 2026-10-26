@@ -132,7 +132,17 @@ median distance of the first key from the bind pose of `bhm_skeleton_v7.chr`, th
 0.76. StarBreaker decodes unknown rotation formats as small tree 48 without a word; the reader
 reports them (`CorruptAnimation::UnknownFormat`) instead. A key is normalised, and a key whose
 dot product with the previous one is negative is negated, so interpolating takes the short way
-(`q` and `−q` are the same rotation).
+(`q` and `−q` are the same rotation). About 0.5 % of the consecutive keys of `0x82` rotations jump
+by more than 0.35 rad per frame; these are cuts in the data, not decode errors.
+
+### Headers only
+
+`AnimationHeader::read_caf` and `DbaHeaders::read` read the record, the block headers and the
+controller entries and decode no key (ADR-0157). They give the name, path, frame rate, end frame,
+additive flag, the controller IDs of the tracks with keys and the number of keys they declare;
+`p4kx model info` lists animations with them. On all 70,058 animations of LIVE they agree with the
+decoded animations in every one of these fields and in the duration (end frame over frame rate).
+An unknown key format shows only when the keys are decoded.
 
 ### Translations
 

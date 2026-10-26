@@ -10,7 +10,7 @@ use thiserror::Error;
 #[non_exhaustive]
 pub enum AnimationError {
     /// The file is in a container whose animation chunks are not interpreted.
-    #[error("{file}: animations in the {container} container are not supported")]
+    #[error("animations in the {container} container are not supported")]
     UnsupportedContainer {
         /// The animation file.
         file: String,
@@ -18,7 +18,7 @@ pub enum AnimationError {
         container: Container,
     },
     /// The file lacks a chunk every animation file of its kind has.
-    #[error("{file} holds no {chunk} chunk")]
+    #[error("holds no {chunk} chunk")]
     MissingChunk {
         /// The animation file.
         file: String,
@@ -26,7 +26,7 @@ pub enum AnimationError {
         chunk: &'static str,
     },
     /// A chunk has a version whose layout this reader does not know.
-    #[error("{file}: the {chunk} chunk has version {version:#x}, which is not supported")]
+    #[error("the {chunk} chunk has version {version:#x}, which is not supported")]
     UnsupportedVersion {
         /// The animation file.
         file: String,
@@ -36,7 +36,7 @@ pub enum AnimationError {
         version: u32,
     },
     /// A chunk is corrupt.
-    #[error("{file}: the {chunk} chunk is corrupt")]
+    #[error("the {chunk} chunk is corrupt")]
     Corrupt {
         /// The animation file.
         file: String,

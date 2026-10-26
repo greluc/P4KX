@@ -13,6 +13,7 @@ pub(crate) struct Walk {
     pub(crate) nesting: usize,
     ports: usize,
     pub(crate) plan: Option<Plan>,
+    pub(crate) cancellable: bool,
 }
 
 impl Walk {
@@ -22,6 +23,7 @@ impl Walk {
             nesting: 0,
             ports: 0,
             plan,
+            cancellable: false,
         }
     }
 

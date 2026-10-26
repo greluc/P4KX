@@ -99,6 +99,8 @@ pub enum ModelExportText {
     FailedTitle,
     /// The model could not be exported; takes `name` and `reason`.
     Failed,
+    /// The DataForge has no Record of the Entity; takes `guid`. The reason of [`Self::Failed`].
+    NoRecord,
     /// The export stopped without a result; takes `name`.
     Stopped,
     /// The model is encrypted and the Archive has no key; takes `name`.
@@ -111,7 +113,7 @@ pub enum ModelExportText {
 
 impl ModelExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 50] = [
+    pub(crate) const ALL: [Self; 51] = [
         Self::Action,
         Self::SetupTitle,
         Self::Model,
@@ -158,6 +160,7 @@ impl ModelExportText {
         Self::SummaryAnimationUnmatched,
         Self::FailedTitle,
         Self::Failed,
+        Self::NoRecord,
         Self::Stopped,
         Self::KeyRequired,
         Self::KeyRejected,
@@ -214,6 +217,7 @@ impl ModelExportText {
             Self::SummaryAnimationUnmatched => "model-export-summary-animation-unmatched",
             Self::FailedTitle => "model-export-failed-title",
             Self::Failed => "model-export-failed",
+            Self::NoRecord => "model-export-no-record",
             Self::Stopped => "model-export-stopped",
             Self::KeyRequired => "model-export-key-required",
             Self::KeyRejected => "model-export-key-rejected",

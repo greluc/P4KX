@@ -48,6 +48,7 @@ mod loadout_entries;
 mod loadout_fit;
 mod loadout_followups;
 mod loadout_nested;
+mod loadout_stop;
 mod loadout_tree;
 mod npc_head;
 mod prefab;

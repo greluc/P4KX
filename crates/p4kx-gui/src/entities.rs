@@ -9,6 +9,7 @@ mod replace;
 mod resolve;
 mod rows;
 mod view;
+mod worker;
 
 use std::sync::Arc;
 

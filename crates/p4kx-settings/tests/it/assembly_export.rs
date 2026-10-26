@@ -34,6 +34,27 @@ fn the_export_choices_survive_a_round_trip() -> TestResult {
 }
 
 #[test]
+fn a_material_mode_this_version_does_not_know_reads_as_colours() -> TestResult {
+    let folder = tempfile::tempdir()?;
+    let file = folder.path().join("settings.toml");
+    std::fs::write(
+        &file,
+        "[assembly_export]
+materials = \"pbr-from-the-future\"
+lod = 2
+package = true
+",
+    )?;
+
+    let loaded = Settings::load(&file)?.assembly_export;
+
+    assert_eq!(loaded.materials, ModelMaterials::Colours, "falls back");
+    assert_eq!(loaded.lod, 2, "the other choices are kept");
+    assert!(loaded.package, "the form is kept");
+    Ok(())
+}
+
+#[test]
 fn a_file_without_export_choices_gets_the_defaults() -> TestResult {
     let folder = tempfile::tempdir()?;
     let file = folder.path().join("settings.toml");

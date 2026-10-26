@@ -989,6 +989,7 @@ model-export-summary-animation-unmatched = { $name } ({ $source }): keine Spur p
   }
 model-export-failed-title = Export fehlgeschlagen
 model-export-failed = { $name } konnte nicht exportiert werden: { $reason }
+model-export-no-record = Die DataForge enthält keinen Record { $guid }.
 model-export-stopped = Der Export von { $name } wurde ohne Ergebnis beendet.
 model-export-key-required = { $name } ist verschlüsselt und das Archiv hat keinen Schlüssel. Gib den Archiv-Schlüssel ein und exportiere erneut.
 model-export-key-rejected = Der Archiv-Schlüssel entschlüsselt { $name } nicht. Gib den richtigen Schlüssel ein und exportiere erneut.
@@ -1066,6 +1067,8 @@ entities-loadout-heading = Loadout
 entities-loadout-none = Wählen Sie eine Entity, um ihr Loadout zu sehen.
 entities-loadout-resolving = Das Loadout wird aufgelöst …
 entities-loadout-failed = Das Loadout kann nicht aufgelöst werden: { $reason }
+entities-loadout-no-record = Das Loadout kann nicht aufgelöst werden: Die DataForge enthält keinen Record { $guid }.
+entities-loadout-lost = Das Loadout kann nicht aufgelöst werden: Der Arbeitsthread wurde unerwartet beendet.
 entities-loadout-stopped = Das Auflösen des Loadouts wurde ohne Ergebnis beendet.
 entities-loadout-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um das Loadout aufzulösen.
 entities-loadout-no-ports = Diese Entity hat keine Ports.

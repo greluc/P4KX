@@ -6,9 +6,8 @@ use p4kx_assembly::{ItemFacts, PortConstraints};
 use p4kx_extraction::Guid;
 
 use super::search::{eyebrow, field};
-use crate::theme::desktop::{
-    CHANNEL_GAP, MODAL_GROUP_GAP, PREVIEW_HEIGHT, ROW_FONT, ROW_HEIGHT, TREE_PADDING_LEFT,
-};
+use crate::theme::assembly_metrics::{REPLACE_HEAD_GAP, REPLACE_LIST_HEIGHT};
+use crate::theme::desktop::{CHANNEL_GAP, ROW_FONT, ROW_HEIGHT, TREE_PADDING_LEFT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, SPACE_2, Weight};
 use crate::widgets::frames::{self, Tone};
@@ -40,7 +39,7 @@ pub(super) fn show(ui: &Ui, model: &mut Model) {
             ui.set_width(frames::MODAL_WIDE_BODY_WIDTH);
             let closed = frames::head(ui, (&title, Tone::Normal), true, Some(&close_dialog));
             takes(ui, texts, chooser);
-            ui.add_space(MODAL_GROUP_GAP / 2.0);
+            ui.add_space(REPLACE_HEAD_GAP);
             let hint = texts.get(EntityText::ReplaceHint);
             let label = ui.label(eyebrow(&texts.get(EntityText::Label)));
             changed = field(ui, &mut query, &hint, label.id);
@@ -164,7 +163,7 @@ fn list(ui: &mut Ui, texts: &Texts, chooser: &ReplaceChooser) -> Option<Guid> {
         ui.spacing_mut().item_spacing.y = 0.0;
         ScrollArea::vertical()
             .id_salt("entity-replace-rows")
-            .max_height(PREVIEW_HEIGHT.min(frames::modal_room(ui)))
+            .max_height(REPLACE_LIST_HEIGHT.min(frames::modal_room(ui)))
             .show_rows(ui, ROW_HEIGHT, chooser.shown_len(), |ui, visible| {
                 for position in visible {
                     if let Some(entity) = chooser.get(position)

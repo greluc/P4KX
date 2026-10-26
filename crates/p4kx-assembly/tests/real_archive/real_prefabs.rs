@@ -4,7 +4,7 @@
 //! Prefab libraries of a real Archive: nested prefabs with composed transforms, the library of a
 //! ship interior, and every library resolved within the limits.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 
 use p4kx_assembly::{Interior, InteriorOptions, PrefabIssueKind, PrefabSet};
@@ -13,9 +13,10 @@ use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const BRIDGE: &str = "Data\\ObjectContainers\\Ships\\MISC\\Starfarer\\base_int_bridge_main.socpak";
+const CARGO_DECK: &str =
+    "Data\\ObjectContainers\\Ships\\MISC\\Starfarer\\gemi_int_bdall_main.socpak";
 const STARFARER_LIBRARY: &str = "MISC_Starfarer_Int";
-const DOCKING_COLLAR: &str = "crg_dockingcollar";
+const ACCESS_PREFAB: &str = "crg_access";
 const CONSTELLATION_LIBRARY: &str = "pu/derelict/RSI/Constellation";
 const CRASH_SITE: &str = "RSI_constellation_001_Plnt_Crsh_01_sand";
 
@@ -28,6 +29,16 @@ fn open() -> Result<Archive, Box<dyn Error>> {
 
 fn key(path: &str) -> String {
     path.replace('\\', "/").to_ascii_lowercase()
+}
+
+fn by_model<'a>(
+    items: impl Iterator<Item = (&'a str, [f32; 3])>,
+) -> HashMap<String, Vec<[f32; 3]>> {
+    let mut found: HashMap<String, Vec<[f32; 3]>> = HashMap::new();
+    for (model, at) in items {
+        found.entry(key(model)).or_default().push(at);
+    }
+    found
 }
 
 fn close(a: [[f32; 4]; 3], b: [[f32; 4]; 3]) -> bool {
@@ -93,33 +104,63 @@ fn a_nested_prefab_is_placed_with_its_parents_rotation_applied() -> TestResult {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_library_of_a_ship_interior_names_models_the_interior_places() -> TestResult {
+fn the_library_of_a_ship_interior_places_the_same_models_in_the_same_arrangement() -> TestResult {
     let archive = open()?;
-    let found = select_entries(&archive, &[BRIDGE])?;
-    let entry = found.first().ok_or("no Starfarer bridge container")?;
+    let found = select_entries(&archive, &[CARGO_DECK])?;
+    let entry = found.first().ok_or("no Starfarer container")?;
     let root = archive.open_container(entry)?;
     let interior = Interior::build(
         &[&archive, &root],
         entry.path(),
         &InteriorOptions::default(),
     )?;
-    let placed: HashSet<String> = interior
-        .parts()
+    let placed = by_model(
+        interior
+            .parts()
+            .iter()
+            .filter_map(|part| Some((part.model_path()?, part.world().translation()))),
+    );
+
+    let resolved = PrefabSet::new(&archive).resolve(STARFARER_LIBRARY, ACCESS_PREFAB)?;
+    let in_prefab = by_model(
+        resolved
+            .objects
+            .iter()
+            .filter_map(|object| Some((object.model()?, object.world().translation()))),
+    );
+
+    let pairs: Vec<([f32; 3], [f32; 3])> = in_prefab
         .iter()
-        .filter_map(|part| part.model_path().map(key))
+        .filter_map(
+            |(model, at)| match (at.as_slice(), placed.get(model)?.as_slice()) {
+                ([from], [to]) => Some((*from, *to)),
+                _ => None,
+            },
+        )
         .collect();
-    assert!(!placed.is_empty(), "the interior places no model");
-
-    let resolved = PrefabSet::new(&archive).resolve(STARFARER_LIBRARY, DOCKING_COLLAR)?;
-
-    assert!(resolved.objects.len() > 100, "{}", resolved.objects.len());
-    let shared = resolved
-        .objects
-        .iter()
-        .filter_map(|object| object.model().map(key))
-        .filter(|model| placed.contains(model))
-        .count();
-    assert!(shared > 0, "the prefab and the interior share no model");
+    assert!(
+        pairs.len() >= 5,
+        "{} models placed once in both",
+        pairs.len()
+    );
+    let distance = |a: [f32; 3], b: [f32; 3]| {
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y) * (x - y))
+            .sum::<f32>()
+            .sqrt()
+    };
+    let mut worst = 0.0_f32;
+    for (i, (a_from, a_to)) in pairs.iter().enumerate() {
+        for (b_from, b_to) in pairs.iter().skip(i + 1) {
+            worst = worst.max((distance(*a_from, *b_from) - distance(*a_to, *b_to)).abs());
+        }
+    }
+    assert!(
+        worst < 0.05,
+        "the arrangement differs by {worst} m over {} models",
+        pairs.len()
+    );
     Ok(())
 }
 

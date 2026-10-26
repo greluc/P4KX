@@ -141,8 +141,9 @@ pub use p4kx_character as character;
 pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
 pub use port::{PortDefinition, PortTransform, PortType};
 pub use prefab::{
-    MAX_PREFAB_DEPTH, MAX_PREFAB_LIBRARY_LEN, MAX_PREFAB_OBJECTS, MAX_PREFAB_VISITS, PrefabError,
-    PrefabFile, PrefabIssue, PrefabIssueKind, PrefabSet, ResolvedObject, ResolvedPrefab,
+    MAX_PREFAB_DEPTH, MAX_PREFAB_ISSUES, MAX_PREFAB_LIBRARY_LEN, MAX_PREFAB_OBJECTS,
+    MAX_PREFAB_VISITS, PrefabError, PrefabFile, PrefabIssue, PrefabIssueKind, PrefabSet,
+    ResolvedObject, ResolvedPrefab,
 };
 pub use provider::{ArchiveModels, ModelFailure, ModelProvider, ProvidedModel};
 pub use resolver::LoadoutResolver;

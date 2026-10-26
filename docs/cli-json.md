@@ -447,12 +447,12 @@ package is written even when parts are skipped.
 
 ```json
 {"archive": "…", "libraries": ["Constellation_Cargo_Prototype", "pu/derelict/RSI/Constellation", …]}
-{"archive": "…", "library": "pu/derelict/RSI/Constellation",
+{"archive": "…", "library": "pu/derelict/RSI/Constellation", "file": "pu/derelict/rsi/constellation",
  "prefabs": [{"name": "Spc_Sctd_01", "id": "{AD763CD6-CA16-4F91-AC77-6C520949824F}", "objects": 240,
               "nested": 3, "left_out": 0}, …]}
 ```
 
-Without a library, `libraries` are the prefab libraries below `Data\Prefabs`, named like their
+The examples are illustrative, with library and prefab names from LIVE and made-up counts. `file` is the library file as `list` and `dump` take it on the command line (`library` is the name the file gives itself and may differ). Without a library, `libraries` are the prefab libraries below `Data\Prefabs`, named like their
 files without `.xml`, sorted ignoring case. With one, `library` is the name the file gives itself
 (its root's `Name`) and the prefabs follow in file order. `objects` counts the objects of the
 prefab with its groups flattened, `nested` those of type `Prefab` that instance another prefab, and
@@ -462,7 +462,7 @@ one that cannot be read 3.
 ## `p4kx prefab dump <archive> <library> <prefab> --json`
 
 ```json
-{"archive": "…", "library": "pu/derelict/RSI/Constellation",
+{"archive": "…", "library": "pu/derelict/RSI/Constellation", "file": "pu/derelict/rsi/constellation",
  "name": "RSI_constellation_001_Plnt_Crsh_01_sand", "prefabs_entered": 17,
  "objects": [{"name": "personal_flare_1_a-001", "kind": "Entity", "id": "{…}",
               "class": "personal_flare_1_a", "library": "pu/derelict/components",
@@ -489,7 +489,7 @@ An **Issue** has `container` and `name` (the object; empty for a whole prefab), 
 `reason`; the kinds are `missing` (no library holds the prefab), `cycle` (the prefab contains
 itself and is not entered again), `too_deep` (nested more than 16 deep), `library_unreadable`,
 `guid_mismatch` (the prefab of the `PrefabName` has another `Id` than the `PrefabGUID` and no
-library holds that one), `objects_left_out`, `attached`, `too_many_objects` (more than 524288
+library holds that one), `objects_left_out`, `attached`, `too_many_issues` (more than 4096 issues; the rest is not listed), `too_many_objects` (more than 524288
 objects) and `too_many_visits` (more than 4194304 objects looked at). A library or prefab the
 Archive lacks is exit code 2, a library that cannot be read 3; issues leave the exit code 0.
 

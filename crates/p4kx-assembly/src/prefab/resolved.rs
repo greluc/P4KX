@@ -121,6 +121,9 @@ impl ResolvedObject {
 pub struct ResolvedPrefab {
     /// The library of the prefab.
     pub library: String,
+    /// The library file as `PrefabSet::library` and `resolve` take it: the path below
+    /// `Data\Prefabs` without `.xml`.
+    pub file: String,
     /// The prefab's name.
     pub name: String,
     /// The objects in file order, a nested prefab's objects in place of the object that

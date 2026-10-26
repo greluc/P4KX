@@ -14,15 +14,25 @@ use super::{MAX_PREFAB_LIBRARY_LEN, PrefabError};
 const FOLDER: &str = "data/prefabs/";
 const EXTENSION: &str = ".xml";
 
+const GUID_INDEX_THREADS: usize = 4;
+
 /// A prefab library read from the Archive.
 #[derive(Debug)]
 pub struct PrefabFile {
     slot: usize,
+    name: String,
     library: PrefabLibrary,
     by_name: HashMap<String, usize>,
 }
 
 impl PrefabFile {
+    /// Returns the name of the library file, as `PrefabSet::library` takes it: the path below
+    /// `Data\Prefabs` without `.xml`, with `/` as separator.
+    #[must_use]
+    pub fn file_name(&self) -> &str {
+        &self.name
+    }
+
     /// Returns the library.
     #[must_use]
     pub const fn library(&self) -> &PrefabLibrary {
@@ -59,7 +69,7 @@ type GuidIndex = HashMap<String, Vec<(usize, usize)>>;
 /// found by the `PrefabGUID` of the object that instances it, the `Id` of the prefab, which is
 /// how the editor finds it. The `PrefabName` of the object, the library name and the prefab name
 /// joined by `.`, is tried first because it needs only one library; when it finds no prefab of
-/// that `Id`, the `Id` is looked up in an index of every library, read once in parallel.
+/// that `Id`, the `Id` is looked up in an index of every library, read once, four at a time, each dropped once its `Id`s are indexed.
 #[derive(Debug)]
 pub struct PrefabSet<'a> {
     archive: &'a Archive,
@@ -158,7 +168,7 @@ impl<'a> PrefabSet<'a> {
         self.load(slot)
     }
 
-    fn shown(&self, slot: usize) -> String {
+    pub(super) fn shown(&self, slot: usize) -> String {
         self.slots
             .get(slot)
             .map_or_else(String::new, |found| found.shown.clone())
@@ -176,7 +186,7 @@ impl<'a> PrefabSet<'a> {
         }
         match self.read(slot) {
             Ok(library) => {
-                let file = Arc::new(file_of(slot, library));
+                let file = Arc::new(file_of(slot, self.shown(slot), library));
                 self.loaded.insert(slot, Arc::clone(&file));
                 Ok(file)
             }
@@ -248,14 +258,19 @@ impl<'a> PrefabSet<'a> {
 
     fn guid_index(&mut self) -> Result<&GuidIndex, PrefabError> {
         if self.guids.is_none() {
-            let read: Vec<Result<Vec<String>, Failure>> = (0..self.slots.len())
-                .into_par_iter()
-                .map(|slot| match self.loaded.get(&slot) {
-                    Some(file) => Ok(ids(file.library())),
-                    None if self.failed.contains_key(&slot) => Ok(Vec::new()),
-                    None => self.read(slot).map(|library| ids(&library)),
-                })
-                .collect();
+            let ids_of = |slot: usize| match self.loaded.get(&slot) {
+                Some(file) => Ok(ids(file.library())),
+                None if self.failed.contains_key(&slot) => Ok(Vec::new()),
+                None => self.read(slot).map(|library| ids(&library)),
+            };
+            let count = self.slots.len();
+            let pool = rayon::ThreadPoolBuilder::new()
+                .num_threads(GUID_INDEX_THREADS)
+                .build();
+            let read: Vec<Result<Vec<String>, Failure>> = pool.map_or_else(
+                |_| (0..count).map(ids_of).collect(),
+                |pool| pool.install(|| (0..count).into_par_iter().map(ids_of).collect()),
+            );
             let mut index: GuidIndex = HashMap::new();
             for (slot, result) in read.into_iter().enumerate() {
                 match result {
@@ -303,7 +318,10 @@ impl<'a> PrefabSet<'a> {
                 .find(|(slot, _)| *slot == file.slot()),
             Lookup::Missing(_) => None,
         };
-        for (slot, index) in preferred.into_iter().chain(candidates) {
+        let others = candidates
+            .into_iter()
+            .filter(|candidate| Some(*candidate) != preferred);
+        for (slot, index) in preferred.into_iter().chain(others) {
             if let Ok(file) = self.load(slot) {
                 return Ok(Lookup::Found(file, index));
             }
@@ -320,7 +338,7 @@ fn ids(library: &PrefabLibrary) -> Vec<String> {
         .collect()
 }
 
-fn file_of(slot: usize, library: PrefabLibrary) -> PrefabFile {
+fn file_of(slot: usize, name: String, library: PrefabLibrary) -> PrefabFile {
     let mut by_name = HashMap::with_capacity(library.prefabs.len());
     for (index, prefab) in library.prefabs.iter().enumerate() {
         by_name
@@ -329,6 +347,7 @@ fn file_of(slot: usize, library: PrefabLibrary) -> PrefabFile {
     }
     PrefabFile {
         slot,
+        name,
         library,
         by_name,
     }

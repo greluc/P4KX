@@ -24,9 +24,12 @@ position to the parent's without turning it by the parent's rotation (`prefabs/_
   the library name and the prefab name joined by `.`, and both may hold dots, so every dot is
   tried as the split. When the prefab of that name has the object's GUID, or the object names no
   GUID, it is used. Otherwise the GUID is looked up in an index of every library, built once by
-  reading them in parallel (2.4 s for LIVE, 509 files) and dropped again except for the
+  reading them four at a time (2.4 s for LIVE, 509 files, so memory is at most four libraries and
+  their trees) and dropped again except for the
   libraries already loaded. Without the GUID lookup 6416 of the references in LIVE found no
   prefab; with it 1235 remain, which no library holds under name or GUID.
+  An `Id` held by several libraries (102 in LIVE) resolves to the library of the name when it
+  holds it, else to the first in sorted path order.
   When the name finds a prefab of another `Id` and no library holds the GUID,
   the prefab of the name is used and an issue says so (10 in LIVE).
 - **Resolution is bounded.** A prefab that is being expanded further up the same chain is not
@@ -34,7 +37,7 @@ position to the parent's without turning it by the parent's rotation (`prefabs/_
   result holds at most 524288 objects (`too_many_objects`) and the resolution looks at most at
   4194304 objects (`too_many_visits`), so a fan-out of prefabs that nest each other many times
   ends. A prefab that is not expanded stays in the list as the object that names it, with an
-  issue (`missing`, `cycle`, `too_deep`). A library of 64 MiB or more is refused. Libraries are
+  issue (`missing`, `cycle`, `too_deep`). A library of more than 64 MiB is refused. At most 4096 issues are listed, the last says the rest is left out (`too_many_issues`); a `guid_mismatch` is listed once per prefab and GUID. Libraries are
   untrusted: no offset or length is trusted, nothing panics, every failure is a typed error.
 - **The resolved objects share the library they come from** (`Arc`), so a resolved prefab of
   hundreds of thousands of objects copies no name, path or class.
@@ -45,8 +48,8 @@ position to the parent's without turning it by the parent's rotation (`prefabs/_
 ## Not decided here
 
 - How a socpak Interior refers to the prefab it was built from: compiled socpaks hold no prefab
-  names, the prefabs are baked into their `.soc` files. The real-Archive test shows only that the
-  `crg_dockingcollar` prefab of `MISC_Starfarer_Int` names models the Starfarer bridge places.
+  names, the prefabs are baked into their `.soc` files. The real-Archive test shows that the
+  `crg_access` prefab of `MISC_Starfarer_Int` names models the Starfarer cargo deck places. The real-Archive test takes `crg_access` and `gemi_int_bdall_main` and requires five or more models placed once in both, with the same pairwise distances within 0.05 m.
 - Objects whose geometry comes from their class Record (most `Entity` objects) have no `model`;
   reading it needs the DataForge and stays with the Entity code.
 

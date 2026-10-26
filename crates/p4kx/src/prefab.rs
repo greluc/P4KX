@@ -31,6 +31,7 @@ struct PrefabRowJson<'a> {
 struct PrefabsJson<'a> {
     archive: String,
     library: &'a str,
+    file: &'a str,
     prefabs: Vec<PrefabRowJson<'a>>,
 }
 
@@ -94,6 +95,7 @@ impl<'a> From<&'a PrefabIssue> for IssueJson<'a> {
 struct DumpJson<'a> {
     archive: String,
     library: &'a str,
+    file: &'a str,
     name: &'a str,
     prefabs_entered: usize,
     objects: Vec<ObjectJson<'a>>,
@@ -184,6 +186,7 @@ fn list_command(args: &PrefabListArgs, as_json: bool) -> Result<()> {
         json::print(&PrefabsJson {
             archive: json::path(&args.archive),
             library: &library.name,
+            file: file.file_name(),
             prefabs: rows,
         })?;
         return Ok(());
@@ -220,6 +223,7 @@ fn dump_command(args: &PrefabDumpArgs, as_json: bool) -> Result<()> {
         json::print(&DumpJson {
             archive: json::path(&args.archive),
             library: &resolved.library,
+            file: &resolved.file,
             name: &resolved.name,
             prefabs_entered: resolved.prefabs,
             objects: resolved.objects.iter().map(ObjectJson::from).collect(),

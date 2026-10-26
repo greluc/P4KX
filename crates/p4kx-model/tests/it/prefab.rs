@@ -206,3 +206,30 @@ fn a_file_that_is_no_library_is_refused() {
     ));
     assert!(PrefabLibrary::parse(b"not xml at all").is_err());
 }
+
+#[test]
+fn a_non_uniform_scale_under_a_turned_group_scales_before_it_turns() -> TestResult {
+    let prefab = TestPrefabLibrary::new("s").prefab(
+        "p",
+        vec![TestPrefabObject::group(
+            "grp",
+            [0.0; 3],
+            QUARTER_Z,
+            vec![
+                TestPrefabObject::brush("m", "a.cgf", [1.0, 1.0, 1.0], IDENTITY)
+                    .scaled([1.0, 2.0, 3.0]),
+            ],
+        )],
+    );
+    let library = PrefabLibrary::parse(prefab.xml().as_bytes())?;
+    let object = library
+        .find("p")
+        .and_then(|p| p.objects.first())
+        .ok_or("no object")?;
+    let expected = [[0.0, -2.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 3.0]];
+    for (row, wanted) in object.transform.rows.iter().zip(expected) {
+        assert!(row.iter().zip(wanted).all(|(a, e)| (a - e).abs() < 1e-5));
+    }
+    assert!(near(object.transform.translation(), [-1.0, 1.0, 1.0]));
+    Ok(())
+}

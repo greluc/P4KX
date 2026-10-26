@@ -21,6 +21,9 @@ pub const MAX_PREFAB_OBJECTS: usize = 1 << 19;
 /// entered; the resolution stops there.
 pub const MAX_PREFAB_VISITS: usize = 1 << 22;
 
+/// The most issues one resolution lists; the last one says the rest is left out.
+pub const MAX_PREFAB_ISSUES: usize = 1 << 12;
+
 /// The largest prefab library that is read, 64 MiB.
 pub const MAX_PREFAB_LIBRARY_LEN: u64 = 64 << 20;
 
@@ -122,6 +125,12 @@ pub enum PrefabIssueKind {
         /// The limit.
         limit: usize,
     },
+    /// The resolution found more than [`MAX_PREFAB_ISSUES`] issues; the rest is not listed.
+    #[error("more than {limit} issues; the rest is not listed")]
+    TooManyIssues {
+        /// The limit.
+        limit: usize,
+    },
     /// The resolution looked at more than [`MAX_PREFAB_VISITS`] objects and stopped.
     #[error("the prefab expands to more than {limit} objects; the rest is left out")]
     TooManyVisits {
@@ -157,6 +166,7 @@ impl PrefabIssueKind {
             Self::Attached { .. } => "attached",
             Self::TooManyObjects { .. } => "too_many_objects",
             Self::TooManyVisits { .. } => "too_many_visits",
+            Self::TooManyIssues { .. } => "too_many_issues",
         }
     }
 }

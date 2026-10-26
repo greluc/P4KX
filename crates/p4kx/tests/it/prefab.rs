@@ -87,6 +87,7 @@ fn the_libraries_and_their_prefabs_are_listed() -> TestResult {
     assert_eq!(prefabs.code, Some(0), "{}", prefabs.stderr);
     let json: Value = serde_json::from_str(&prefabs.stdout)?;
     assert_eq!(json["library"], "test/rooms");
+    assert_eq!(json["file"], "test/rooms");
     assert_eq!(json["prefabs"][0]["name"], "hall");
     assert_eq!(json["prefabs"][0]["objects"], 3);
     assert_eq!(json["prefabs"][0]["nested"], 2);
@@ -106,6 +107,7 @@ fn a_prefab_is_dumped_with_its_nested_prefabs_resolved() -> TestResult {
 
     assert_eq!(dump.code, Some(0), "{}", dump.stderr);
     let json: Value = serde_json::from_str(&dump.stdout)?;
+    assert_eq!(json["file"], "test/rooms");
     assert_eq!(json["prefabs_entered"], 2);
     let objects = json["objects"].as_array().ok_or("no objects")?;
     assert_eq!(objects.len(), 3);

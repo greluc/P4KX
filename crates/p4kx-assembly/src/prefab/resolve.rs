@@ -8,8 +8,8 @@ use p4kx_model::Transform;
 
 use super::set::Lookup;
 use super::{
-    MAX_PREFAB_DEPTH, MAX_PREFAB_OBJECTS, MAX_PREFAB_VISITS, PrefabError, PrefabFile, PrefabIssue,
-    PrefabIssueKind, PrefabSet, ResolvedObject, ResolvedPrefab,
+    MAX_PREFAB_DEPTH, MAX_PREFAB_ISSUES, MAX_PREFAB_OBJECTS, MAX_PREFAB_VISITS, PrefabError,
+    PrefabFile, PrefabIssue, PrefabIssueKind, PrefabSet, ResolvedObject, ResolvedPrefab,
 };
 
 impl PrefabSet<'_> {
@@ -40,6 +40,7 @@ impl PrefabSet<'_> {
             prefabs: 0,
             stack: Vec::new(),
             reported: HashSet::new(),
+            mismatched: HashSet::new(),
             stopped: false,
         };
         let root: Arc<str> = Arc::from("");
@@ -50,6 +51,7 @@ impl PrefabSet<'_> {
             .get(index)
             .map_or_else(|| prefab.to_owned(), |found| found.name.clone());
         Ok(ResolvedPrefab {
+            file: walk.set.shown(file.slot()),
             library: file.library().name.clone(),
             name,
             objects: walk.objects,
@@ -67,11 +69,22 @@ struct Walk<'s, 'a> {
     prefabs: usize,
     stack: Vec<(usize, usize)>,
     reported: HashSet<(usize, usize)>,
+    mismatched: HashSet<(usize, usize, String)>,
     stopped: bool,
 }
 
 impl Walk<'_, '_> {
     fn note(&mut self, container: &str, name: &str, kind: PrefabIssueKind) {
+        if self.issues.len() > MAX_PREFAB_ISSUES {
+            return;
+        }
+        let kind = if self.issues.len() == MAX_PREFAB_ISSUES {
+            PrefabIssueKind::TooManyIssues {
+                limit: MAX_PREFAB_ISSUES,
+            }
+        } else {
+            kind
+        };
         self.issues.push(PrefabIssue {
             container: container.to_owned(),
             name: name.to_owned(),
@@ -220,6 +233,9 @@ impl Walk<'_, '_> {
             && !reference.guid.is_empty()
             && !found.id.is_empty()
             && !found.id.eq_ignore_ascii_case(&reference.guid)
+            && self
+                .mismatched
+                .insert((file.slot(), target, reference.guid.to_ascii_lowercase()))
         {
             let kind = PrefabIssueKind::GuidMismatch {
                 prefab: reference.name.clone(),

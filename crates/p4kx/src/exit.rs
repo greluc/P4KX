@@ -165,7 +165,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnreadableChfInput>().is_some()
         || error.downcast_ref::<InvalidChf>().is_some()
         || is_text_or_profile_error(error)
-        || is_missing_skeleton_or_library(error)
+        || is_unreadable_skeleton_or_prefab_library(error)
         || matches!(
             error.downcast_ref::<CatalogError>(),
             Some(CatalogError::Texts { .. })
@@ -229,7 +229,7 @@ fn is_loadout_or_screen_forge_error(error: &anyhow::Error) -> bool {
         || is_screen_error(error, |error| matches!(error, ScreenError::DataForge(_)))
 }
 
-fn is_missing_skeleton_or_library(error: &anyhow::Error) -> bool {
+fn is_unreadable_skeleton_or_prefab_library(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<AssemblyError>(),
         Some(AssemblyError::Body { .. })

@@ -3,7 +3,7 @@
 
 //! Finding prefabs and libraries: dotted names, GUIDs, library names and unreadable libraries.
 
-use p4kx_assembly::{PrefabError, PrefabIssueKind, PrefabSet};
+use p4kx_assembly::{MAX_PREFAB_ISSUES, PrefabError, PrefabIssueKind, PrefabSet};
 use p4kx_testkit::{TestEntry, TestPrefabLibrary, TestPrefabObject, prefab_guid};
 
 use crate::assembly_support::TestResult;
@@ -123,4 +123,57 @@ fn a_library_that_cannot_be_read_is_an_error_and_an_issue_for_its_users() -> Tes
         ));
         Ok(())
     })
+}
+
+#[test]
+fn a_guid_mismatch_is_reported_once_however_often_the_prefab_is_expanded() -> TestResult {
+    let stale = "{00000000-0000-0000-0000-00000000000B}";
+    let library = TestPrefabLibrary::new("test/rooms")
+        .prefab("target", vec![brush("bolt", [0.0; 3])])
+        .prefab(
+            "hall",
+            (0..20)
+                .map(|n| {
+                    nested(&format!("n{n}"), "target", [0.0; 3], IDENTITY)
+                        .attribute("PrefabGUID", stale)
+                })
+                .collect(),
+        )
+        .prefab(
+            "top",
+            (0..20)
+                .map(|n| nested(&format!("h{n}"), "hall", [0.0; 3], IDENTITY))
+                .collect(),
+        );
+    let resolved = resolve(&library, "top")?;
+    assert_eq!(resolved.objects.len(), 400);
+    assert_eq!(kinds(&resolved).len(), 1);
+    Ok(())
+}
+
+#[test]
+fn the_issue_list_is_bounded() -> TestResult {
+    let library = TestPrefabLibrary::new("test/rooms")
+        .prefab(
+            "hall",
+            (0..300)
+                .map(|n| nested(&format!("g{n}"), "nothing", [0.0; 3], IDENTITY))
+                .collect(),
+        )
+        .prefab(
+            "top",
+            (0..20)
+                .map(|n| nested(&format!("h{n}"), "hall", [0.0; 3], IDENTITY))
+                .collect(),
+        );
+    let resolved = resolve(&library, "top")?;
+    assert_eq!(resolved.issues.len(), MAX_PREFAB_ISSUES + 1);
+    assert_eq!(
+        resolved.issues.last().map(|issue| &issue.kind),
+        Some(&PrefabIssueKind::TooManyIssues {
+            limit: MAX_PREFAB_ISSUES
+        })
+    );
+    assert_eq!(resolved.file, "test/rooms");
+    Ok(())
 }

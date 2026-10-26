@@ -146,15 +146,14 @@ consumer compares it as a number, never as text.
 - **`buildId` does not order.** It is a random version-4 UUID. It identifies a Build for equality
   only.
 - **`version` does not order well.** The first three parts follow the Builds, but the fourth is a
-  counter of the build farm: a PTU Build had `4.10.196.33342` and the later LIVE Build
-  `4.10.197.2878`. TECH-PREVIEW starts at `1.0`. Use it for display, not for order.
+  counter of the build farm, so a later Build can carry a lower fourth part than an earlier one.
+  Use it for display, not for order.
 
-Evidence for the rule is in the pull request that closed p4kx-org/p4kx#402: 65 launcher
-log lines (`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`)
-over 4.5.0 to 4.8.2 with no inversion in any Channel (LIVE 15 distinct Builds, PTU 25, HOTFIX 6,
-TECH-PREVIEW 3), and the five installed manifests. The logs hold no EPTU line and rotate, so the
-claim covers the Builds the log kept; a rollback of a Channel to an older change would break it and
-would show as a lower number than the last applied one.
+Evidence for the rule is in the pull request that closed p4kx-org/p4kx#402: launcher log lines
+(`SC <CHANNEL> <version>-<tag>.<change>`, the same lines as for `source.build.publicPatch`) with no
+inversion in any Channel, and the installed manifests. The logs rotate, so the claim covers the
+Builds the log kept; a rollback of a Channel to an older change would break it and would show as a
+lower number than the last applied one.
 
 ### Entities
 
@@ -803,7 +802,7 @@ game selects the Military paints elsewhere.
 have at least one paint and the ships whose vehicle implementation cannot be read, or whose patch file or Modification is
 not applied as it names, except that a patch file the Archive lacks is a fact of the game data; `CatalogSummary::paints()` returns them, and an unreadable vehicle file is also a warning of
 `CatalogSummary::warnings()`. Measured on LIVE (4.7): 1,064 paints, 1,039 assigned, 25 not
-assigned, 1,046 ships with paints (PTU 1,010 of 1,035, EPTU 992 of 1,017, TECH-PREVIEW 1,039 of 1,063). Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
+assigned, 1,046 ships with paints. Of the 25, 16 are paints of the ARGO ATLS, an actor rather than
 a ship, 2 are weapon skins and 7 are the default livery of a ship (`Paint_Ballista_Base`,
 `Paint_Gladius_Default`, `Paint_Carrack_Default`, `Paint_Hurricane_Default`, the Vanguard
 Harbinger, Sentinel and Hoplite) whose tags no port requires. With a `--filter` the paints and the ships are
@@ -827,10 +826,14 @@ media: name and record stay on the entry in `ships` or `items`, so no GUID occur
 |-------|--------|
 | `entityGuid` | The `guid` of the entry in `ships` or `items` the ports belong to |
 | `entityKind` | `ship` or `item`; a closed set the game may extend, so the schema keeps a string |
-| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `xml_loadout`, `vehicle_implementation`; empty when all was read. A vehicle implementation or a patch file the Archive lacks is a `vehicle_implementation` issue too, a fact of the game data |
+| `issues` | The codes of what kept part of the Loadout from being read, sorted, without duplicates: `dangling_reference`, `invalid_reference`, `unknown_class`, `ambiguous_class`, `not_an_entity`, `unreadable_record`, `cycle`, `too_deep`, `too_many_ports`, `no_loadout_files`, `xml_loadout`, `vehicle_implementation`; empty when all was read. `no_loadout_files` (an XML Loadout is named but no Archive was given to read it from) cannot occur in a catalog, which always has its Archive. A vehicle implementation or a patch file the Archive lacks is a `vehicle_implementation` issue too, a fact of the game data |
 | `ports` | The ports of the entity, see below |
 
-**Selection.** Every entry of `ships` has a loadout, also one without ports. An entry of `items`
+**Selection.** Every entry of `ships` has a loadout, also one without ports, with one exception: a
+ship whose own Record cannot be resolved stays in `ships` without a loadout and is listed in
+the failures (printed on stderr by `p4kx catalog`, under `failed` in `--json` and in the summary
+of the window) with a reason that starts with `loadout: `; `completeness.loadouts` is not changed by it.
+An entry of `items`
 has one when its Record defines item ports (`SItemPortContainerComponentParams`) or names a default
 Loadout (`SEntityComponentDefaultLoadoutParams`) and its tree holds at least one port: turrets,
 racks, weapons with attachment ports. With a `--filter` the ships and items are filtered first,
@@ -1178,7 +1181,7 @@ path (`missing_shop_registry`, the registry may have moved in the Build) and whe
 cannot be read (`unreadable_shop_containers` with a `count`; their shops may lack kind and brand)
 or inventory files cannot be read (`unreadable_shop_inventories` with a `count` of files and
 `details`, the path and the reason of each; a file with no content at all, such as
-`inv_shopping_test_featuretest.json` on LIVE 4.10.197 and the PTU Build, is one of them, ADR-0141), when
+`inv_shopping_test_featuretest.json` on LIVE 4.10.197, is one of them, ADR-0141), when
 inventory files that containers name are not in the Archive (`missing_shop_inventories` with a
 `count` of distinct files; a Build may have moved or renamed them) and when shop containers name
 shops but no `.soc` holds a shop component (`no_shop_components`; the layout may have changed).
@@ -1298,7 +1301,7 @@ The Rust names of the library:
 | `global` | `CraftingGlobalParams`: the default blueprints (`defaultBlueprintSelection`), the resources dismantling never returns and the entities that cannot be dismantled |
 | `dismantle_return()` | Links a blueprint to the only dismantle process and to the item it produces, unless the item is on the item blacklist; `None` for none or several processes. It carries the `tier` (the first) and the `excluded_resources` |
 
-LIVE holds exactly one tier per blueprint (also PTU, EPTU, TECH-PREVIEW and HOTFIX); the library
+LIVE holds exactly one tier per blueprint; the library
 reads as many as a Record holds. The dismantle Record is generic, not one per item: the link from
 an item to its returns runs through the blueprint that produces it.
 
@@ -1462,7 +1465,8 @@ left out while `contestant` stays.
 
 A selected Record that cannot be read, such as one whose struct layout is corrupt, does not stop
 the catalog: it is left out, counted as a failure and reported with its record path, GUID and
-reason. `p4kx catalog` prints each failure on stderr, lists them under `failed` in `--json` and
+reason (a ship whose loadout cannot be resolved is the exception: it stays in `ships`, see
+"Loadouts"). `p4kx catalog` prints each failure on stderr, lists them under `failed` in `--json` and
 exits with code 1, with the catalog written; the desktop app lists them in the summary. The
 catalog file itself, its schema and its completeness are not affected.
 
@@ -1481,42 +1485,34 @@ changes, the other changes with it. The owner kept the upload limit at 64 MB aft
 measurement (21.6 MB). The crafting detail (all tiers, quality modifiers, pools and their reward
 sources) grew the largest plain catalog to 26.6 MB, 41 % of the upload limit; compressed it is a
 small fraction of it. The `loadouts` kind (ADR-0064) then grew the plain catalog of LIVE to
-132 MB, which is **over the 64 MB upload limit: the upload must be `.json.zst`** (2.2 MB), and
+132 MB (153 MB by 2026-10-26), which is **over the 64 MB upload limit: the upload must be
+`.json.zst`** (2.7 MB), and
 plain `.json` is for inspection only. `p4kx catalog` and the window warn about a plain file over
 the limit and advise `.json.zst`. The real-Archive tests write the catalog as `.json.zst`, assert
 that the compressed size is within 64 MB and the decompressed size within 1 GB, decode the frame
 and compare it with the plain catalog, and print both sizes and the time per zstd level.
 
-Measured on 2026-10-22, with the ship base fields and `loadouts`, on every installed Channel (complete catalog of every
-kind, English and German texts); the counts of the other kinds are unchanged:
+Measured on LIVE on 2026-10-26 (complete catalog of every kind, English and German texts; Bytes
+is the whole catalog, the other kinds are in `p4kx catalog --json`):
 
-| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints |
-|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|
-| LIVE | 132,117,714 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| PTU | 127,855,466 | 1,172 | 22,945 | 1,054 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,035 |
-| EPTU | 126,761,438 | 1,154 | 22,788 | 1,049 | 145 | 1,607 | 19 | 21 | 29 | 21 | 154 | 1 | 1,017 |
-| HOTFIX | 132,117,716 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 |
-| TECH-PREVIEW | 127,172,638 | 1,203 | 23,635 | 1,035 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,063 |
+| Channel | Bytes | Manufacturers | Items | Ships | Commodities | Blueprints | Resource groups | Blueprint categories | Properties | Distributions | Pools | Dismantle | Paints | Loadouts |
+|---------|------:|--------------:|------:|------:|------------:|-----------:|----------------:|---------------------:|-----------:|--------------:|------:|----------:|-------:|---------:|
+| LIVE | 152,812,265 | 1,201 | 23,280 | 1,087 | 145 | 1,618 | 19 | 21 | 29 | 21 | 160 | 1 | 1,064 | 10,708 |
 
-LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports (nested ports counted
-for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
+Measured on 2026-10-22, LIVE holds 10,708 loadouts (1,087 ships, 9,621 items) with 293,451 ports
+(nested ports counted for every ship that carries them), 152,081 of them holding an Entity, 65 docked vehicles and 505
 unresolved attachments (`unknown_class` 446, `dangling_reference` 54, `cycle` 5); 61 attached
 Entities have no entry in `items` or `ships` (templates of doors, screens, beds and the like, and
 HUD projectors); 193 loadouts list an issue (`unknown_class` 153, `dangling_reference` 30,
 `xml_loadout` 4, `cycle` 3, `vehicle_implementation` 3; a loadout can list several).
 
-Written as `.json.zst` (level 19, window log 27, `--exported-at 1`), measured on 2026-10-22 with
-the ship base fields and the loadouts:
+Written as `.json.zst` (level 19, window log 27), measured on LIVE on 2026-10-26:
 
 | Channel | Uncompressed | Compressed | Ratio |
 |---------|-------------:|-----------:|------:|
-| LIVE | 132,117,714 | 2,242,345 | 58.9 |
-| PTU | 127,855,466 | 2,208,554 | 57.9 |
-| EPTU | 126,761,438 | 2,179,735 | 58.2 |
-| HOTFIX | 132,117,716 | 2,242,683 | 58.9 |
-| TECH-PREVIEW | 127,172,638 | 2,241,272 | 56.7 |
+| LIVE | 152,812,265 | 2,725,280 | 56.1 |
 
-The compressed catalog is 3.5 % of the 64 MB upload limit; the decompressed one is 13.2 % of the
+The compressed catalog is 4.3 % of the 64 MB upload limit; the decompressed one is 15.3 % of the
 1 GB cap. The level trades time for size (measured before the loadouts, LIVE, window log 27; the
 plain build then took 2.1 s):
 
@@ -1533,7 +1529,7 @@ the cost tree, every line with its null fields), the pools 0.43 MB (824 entries,
 sources), the quality distributions 29 kB and the properties 8 kB. The kinds written before are
 unchanged: items 16.9 MB, manufacturers 1.1 MB; the ships grew from 1.4 MB to 1.5 MB.
 
-The loadouts take about 105 MB of the 132 MB of LIVE. A catalog builds on LIVE in 4.7 s with the
+On 2026-10-22 the loadouts took about 105 MB of the 132 MB of LIVE. A catalog builds on LIVE in 4.7 s with the
 ship base fields and the loadouts (5.5 s before both). Without the loadouts, with the ship base fields,
 LIVE builds in 3.2 s in a release test run (the `p4kx ships` export alone: 2.9 s). A first version
 of the ship base fields that gave every split of the parallel scan its own ship reader took

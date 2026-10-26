@@ -292,6 +292,10 @@ pub enum PortSource {
     PortDefault,
     /// Nothing names the port; it is defined but holds nothing.
     Unset,
+    /// Only the Entity's vehicle implementation declares the port: no Loadout entry names it and
+    /// the Record defines no port of that name. It holds nothing and can take an Entity through
+    /// [`LoadoutChanges::replace`](crate::LoadoutChanges::replace).
+    Empty,
     /// The port is left out by [`LoadoutChanges::exclude`](crate::LoadoutChanges::exclude); it
     /// holds nothing.
     Excluded,
@@ -309,6 +313,7 @@ impl PortSource {
             Self::Override => "override",
             Self::PortDefault => "port_default",
             Self::Unset => "unset",
+            Self::Empty => "empty",
             Self::Excluded => "excluded",
             Self::Replaced => "replaced",
         }

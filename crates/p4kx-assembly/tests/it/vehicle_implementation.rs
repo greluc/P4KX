@@ -163,6 +163,14 @@ fn an_unreadable_implementation_is_an_issue_of_the_entity() -> TestResult {
 }
 
 #[test]
+fn an_empty_definition_means_the_entity_has_no_implementation_and_no_issue() -> TestResult {
+    let tree = resolve("", "", Some(&standard_files()))?;
+    assert!(tree.vehicle().is_none());
+    assert!(tree.issues().is_empty(), "issues: {:?}", tree.issues());
+    Ok(())
+}
+
+#[test]
 fn without_files_the_entity_has_no_implementation_and_no_issue() -> TestResult {
     let tree = resolve(DEFINITION, "Open", None)?;
     assert!(tree.vehicle().is_none());

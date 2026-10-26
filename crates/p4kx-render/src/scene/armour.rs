@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use p4kx_assembly::Armour;
-use p4kx_extraction::model::{BoneMatch, Lod, Mesh, Model};
+use p4kx_extraction::model::{BoneMatch, Mesh};
 use rayon::prelude::*;
 
 use super::skin::{UNWEIGHTED, of_mesh_matched};
@@ -64,15 +64,6 @@ struct Gathered<'a> {
     triangles: usize,
 }
 
-fn level_of(model: &Model, level: u32) -> Option<&Lod> {
-    model
-        .lods
-        .iter()
-        .filter(|lod| lod.level <= level)
-        .max_by_key(|lod| lod.level)
-        .or_else(|| model.lods.iter().min_by_key(|lod| lod.level))
-}
-
 fn gather<'a>(
     armour: &'a Armour,
     worlds: &'a [Vec<Rows>],
@@ -85,7 +76,7 @@ fn gather<'a>(
     };
     for (at, part) in armour.parts().iter().enumerate() {
         let (Some(lod), Some(Some(fit)), Some(world)) = (
-            level_of(part.model(), armour.lod()),
+            part.model().nearest_lod(armour.lod()),
             fits.get(at),
             worlds.get(at),
         ) else {
@@ -178,7 +169,8 @@ impl Scene {
             .parts()
             .iter()
             .map(|part| {
-                level_of(part.model(), armour.lod())
+                part.model()
+                    .nearest_lod(armour.lod())
                     .map(|lod| BoneMatch::new(bones, part.model().bones_of(lod)))
             })
             .collect();

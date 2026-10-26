@@ -1,8 +1,8 @@
 ---
-source: crates/p4kx/tests/dcb_query_paths.rs
+source: crates/p4kx/tests/it/dcb_query_paths.rs
 expression: "format!(\"{csv}\\n{json}\")"
 ---
-record path,tags[*],Components[*].name,Components[Shield].hp,tags[0]
+﻿record path,tags[*],Components[*].name,Components[Shield].hp,tags[0]
 libs/ships/aurora,"[""slow""]","[null,""Wall""]",[10],slow
 libs/ships/avenger,"[""fast"",""small""]","[""Laser"",""Bubble"",""Cannon""]",[900],fast
 

@@ -8,7 +8,7 @@ use p4kx_assembly::{ArchiveFiles, Entities, LoadoutResolver};
 use p4kx_extraction::{Archive, CancelToken, DataForge, Guid, RecordTree, Value};
 use rayon::prelude::*;
 
-use crate::contract_loadout::{Loadout, LoadoutPort};
+use crate::contract_loadout::{EntityKind, Loadout, LoadoutPort};
 use crate::guid_text::CatalogGuid;
 use crate::loadout_port::PortReader;
 use crate::record_fields::elements;
@@ -16,11 +16,6 @@ use crate::{CatalogError, CatalogFailure, LoadoutSummary};
 
 const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
-
-/// The `entityKind` of a ship.
-pub(crate) const SHIP: &str = "ship";
-/// The `entityKind` of an item.
-pub(crate) const ITEM: &str = "item";
 
 /// Returns whether the Record tree `tree` may have ports: its Record defines item ports or names a
 /// default Loadout. Only such an item is resolved.
@@ -75,7 +70,7 @@ impl<'f> Pool<'f, 'f> {
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Wanted {
     pub(crate) guid: CatalogGuid,
-    pub(crate) kind: &'static str,
+    pub(crate) kind: EntityKind,
 }
 
 /// The loadouts of a catalog, the Records that could not be resolved and what was counted.
@@ -146,10 +141,10 @@ fn read_with<'f>(
     };
     let node = resolver
         .resolve(&record)
-        .map_err(|error| CatalogFailure::of(&record, &error))?;
+        .map_err(|error| CatalogFailure::of_loadout(&record, &error))?;
     let ports = reader.ports(&node);
     let issues = reader.take_issues();
-    if want.kind == ITEM && ports.is_empty() {
+    if want.kind == EntityKind::Item && ports.is_empty() {
         return Ok(None);
     }
     Ok(Some(Loadout {
@@ -166,11 +161,11 @@ impl LoadoutSummary {
         let mut summary = Self {
             ships: entries
                 .iter()
-                .filter(|entry| entry.entity_kind == SHIP)
+                .filter(|entry| entry.entity_kind == EntityKind::Ship)
                 .count(),
             items: entries
                 .iter()
-                .filter(|entry| entry.entity_kind == ITEM)
+                .filter(|entry| entry.entity_kind == EntityKind::Item)
                 .count(),
             with_issues: entries
                 .iter()

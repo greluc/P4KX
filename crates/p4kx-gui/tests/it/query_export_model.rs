@@ -51,7 +51,7 @@ fn export_writes_csv_like_the_cli() -> TestResult {
     );
     assert_eq!(
         fs::read_to_string(&out)?,
-        "record path,name,crew,mass\r\n\
+        "\u{feff}record path,name,crew,mass\r\n\
          libs/items/box,Box,,-0.25\r\n\
          libs/items/crate,Crate,,100\r\n\
          libs/ships/avenger,\"Avenger, \"\"Titan\"\"\",2,25000.5\r\n",
@@ -178,7 +178,7 @@ fn export_writes_the_values_of_referenced_records() -> TestResult {
 
     assert_eq!(
         fs::read_to_string(&out)?,
-        "record path,name,maker->name,escorts[*]->name\r\n\
+        "\u{feff}record path,name,maker->name,escorts[*]->name\r\n\
          libs/ships/alpha,Alpha,Aegis,\"[\"\"Beta\"\",null]\"\r\n\
          libs/ships/beta,Beta,null,[]\r\n",
         "CSV"

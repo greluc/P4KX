@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::model::{Lod, Model};
+use p4kx_extraction::model::Model;
 
 use super::super::scene::{Bounds, IDENTITY, Part, Vertex, world_transforms};
 use super::super::skeleton::Skeleton;
@@ -23,20 +23,10 @@ pub(super) struct Flat {
     pub(super) bounds: Bounds,
 }
 
-/// Picks the level of `model` nearest below `wanted`, or its most detailed one.
-fn level_of(model: &Model, wanted: u32) -> Option<&Lod> {
-    model
-        .lods
-        .iter()
-        .filter(|lod| lod.level <= wanted)
-        .max_by_key(|lod| lod.level)
-        .or_else(|| model.lods.iter().min_by_key(|lod| lod.level))
-}
-
 /// Flattens the level of `model` that `wanted` selects, or returns `None` for a model without
 /// triangles or with more than `u32` indices.
 pub(super) fn flatten(model: &Model, wanted: u32) -> Option<Flat> {
-    let lod = level_of(model, wanted)?;
+    let lod = model.nearest_lod(wanted)?;
     let world = world_transforms(&model.nodes);
     let skeleton = Skeleton::of(model.bones_of(lod));
     let bones = skeleton.as_ref().map_or(0, Skeleton::bone_count);

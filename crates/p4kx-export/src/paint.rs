@@ -6,9 +6,7 @@ use std::collections::{HashMap, HashSet};
 use p4kx_extraction::{CancelToken, DataForge, TagTree};
 use rayon::prelude::*;
 
-use crate::collected::Collected;
 use crate::contract::{Item, Paint};
-use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::{PaintPort, VehicleFacts};
 use crate::{CatalogError, PaintSummary};
@@ -25,27 +23,6 @@ pub(crate) struct Paints {
     pub(crate) list: Vec<Paint>,
     pub(crate) summary: PaintSummary,
     pub(crate) unreadable_files: Vec<String>,
-}
-
-/// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
-///
-/// # Errors
-///
-/// Returns [`CatalogError::Cancelled`] once `cancel` is cancelled.
-pub(crate) fn add_paints(
-    forge: &DataForge<'_>,
-    collected: &mut Collected<'_>,
-    cancel: Option<&CancelToken>,
-) -> Result<PaintSummary, CatalogError> {
-    let derived = paints(forge, &collected.items, &collected.vehicles, cancel)?;
-    collected.paints = derived.list;
-    let count = derived.summary.unreadable_vehicles;
-    if count > 0 {
-        let details = derived.unreadable_files;
-        let warning = CraftingWarning::UnreadableVehicleFiles { count, details };
-        collected.warnings.push(warning);
-    }
-    Ok(derived.summary)
 }
 
 /// Returns the paints among `items` with the ships of `vehicles` they fit.

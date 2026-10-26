@@ -234,8 +234,10 @@ impl CatalogSummary {
         &self.store_slugs
     }
 
-    /// Returns the selected Records that could not be read and are left out of the catalog,
-    /// ordered by GUID.
+    /// Returns the selected Records that could not be read, ordered by GUID.
+    ///
+    /// Their entries are left out of the catalog; a ship whose loadout cannot be resolved stays in
+    /// `ships` without a loadout.
     #[must_use]
     pub fn failures(&self) -> &[CatalogFailure] {
         &self.failures

@@ -1,8 +1,8 @@
 ---
-source: crates/p4kx/tests/dcb_query_references.rs
+source: crates/p4kx/tests/it/dcb_query_references.rs
 expression: "format!(\"{csv}\\n{json}\")"
 ---
-record path,maker->name,escorts[*]->mass
+﻿record path,maker->name,escorts[*]->mass
 libs/ships/alpha,Aegis,"[50,null,null]"
 libs/ships/beta,null,[100]
 libs/ships/gamma,null,[]

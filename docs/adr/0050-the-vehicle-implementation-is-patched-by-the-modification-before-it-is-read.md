@@ -13,7 +13,9 @@ takes effect before anything is interpreted.
 
 - **Lookup.** The file is the Record's `vehicleDefinition`; if the Archive has none of that path,
   the file of the same name in the implementation folder, then the file named after the Entity's
-  class name. Paths match ignoring case. The patch file is the Modification's `patchFile`, else
+  class name. An Entity whose `vehicleDefinition` is empty has no vehicle implementation and no
+  issue; the class-name fallback is for a definition the Archive lacks. Paths match ignoring
+  case. The patch file is the Modification's `patchFile`, else
   `Modifications/<definition name>_<modification>.xml`, else `Modifications/<class name>.xml`.
 - **Patch file.** The three reference tools disagree on what a patch file is, and the Archive's
   files are encrypted, so the rule is the union that none of them contradicts. A child of the

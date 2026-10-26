@@ -5,7 +5,7 @@
 //! the ports.
 
 use crate::loadouts_fixture::{
-    ALPHA, BROKEN, EMPTY_LOADOUT, GUN, GUN_DEFAULT, GUN_OVERRIDE, RACK, SNUB, TURRET,
+    ALPHA, BROKEN, EMPTY_LOADOUT, GUN, GUN_DEFAULT, GUN_OVERRIDE, LOOP, NESTED, RACK, SNUB, TURRET,
 };
 use crate::loadouts_support::{build, guid, loadout, names, port};
 
@@ -23,16 +23,18 @@ fn every_ship_and_every_item_with_ports_has_a_loadout_ordered_by_guid() -> TestR
         .iter()
         .filter_map(|entry| Some((entry["entityGuid"].as_str()?, entry["entityKind"].as_str()?)))
         .collect();
-    let (alpha, snub, broken) = (guid(ALPHA), guid(SNUB), guid(BROKEN));
-    let (turret, rack) = (guid(TURRET), guid(RACK));
+    let (alpha, snub, broken, nested) = (guid(ALPHA), guid(SNUB), guid(BROKEN), guid(NESTED));
+    let (turret, rack, looped) = (guid(TURRET), guid(RACK), guid(LOOP));
     assert_eq!(
         owners,
         [
             (alpha.as_str(), "ship"),
             (snub.as_str(), "ship"),
             (broken.as_str(), "ship"),
+            (nested.as_str(), "ship"),
             (turret.as_str(), "item"),
             (rack.as_str(), "item"),
+            (looped.as_str(), "item"),
         ],
         "the ships and the items with ports, ordered by GUID"
     );

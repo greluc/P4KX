@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! Writing Query results as CSV and JSON: the header, quoting, escaping and the typed values.
+//! Writing Query results as CSV and JSON: the header, quoting, escaping, the typed values and the
+//! formulas a spreadsheet would run.
 
 use std::error::Error;
 
@@ -29,7 +30,7 @@ fn written(
 #[test]
 fn csv_starts_with_a_header_row_and_ends_every_row_with_crlf() -> TestResult {
     let csv = written(
-        ResultFormat::Csv,
+        ResultFormat::CsvRaw,
         &["mass", "size"],
         &[(
             "libs/a",
@@ -47,7 +48,7 @@ fn csv_starts_with_a_header_row_and_ends_every_row_with_crlf() -> TestResult {
 #[test]
 fn csv_quotes_fields_with_separators_quotes_and_line_breaks() -> TestResult {
     let csv = written(
-        ResultFormat::Csv,
+        ResultFormat::CsvRaw,
         &["a", "b", "c", "d", "e"],
         &[(
             "libs/x,y",
@@ -71,7 +72,7 @@ fn csv_quotes_fields_with_separators_quotes_and_line_breaks() -> TestResult {
 
 #[test]
 fn csv_quotes_a_header_that_needs_it() -> TestResult {
-    let csv = written(ResultFormat::Csv, &["`a,b`", "`say \"x\"`"], &[])?;
+    let csv = written(ResultFormat::CsvRaw, &["`a,b`", "`say \"x\"`"], &[])?;
 
     assert_eq!(
         csv, "record path,\"`a,b`\",\"`say \"\"x\"\"`\"\r\n",
@@ -84,7 +85,7 @@ fn csv_quotes_a_header_that_needs_it() -> TestResult {
 fn csv_writes_values_as_record_xml_does_and_a_missing_value_as_an_empty_field() -> TestResult {
     let guid: Guid = "cbee34fd-6441-4000-b99f-924f7f26e19f".parse()?;
     let csv = written(
-        ResultFormat::Csv,
+        ResultFormat::CsvRaw,
         &["a", "b", "c", "d", "e", "f", "g", "h", "i"],
         &[(
             "libs/r",
@@ -106,6 +107,68 @@ fn csv_writes_values_as_record_xml_does_and_a_missing_value_as_an_empty_field() 
         csv,
         "record path,a,b,c,d,e,f,g,h,i\r\nlibs/r,true,-9223372036854775808,18446744073709551615,1e21,-INF,@item_Name,cbee34fd-6441-4000-b99f-924f7f26e19f,error: the bool byte 7 is neither 0 nor 1,\r\n",
         "Record XML texts"
+    );
+    Ok(())
+}
+
+#[test]
+fn csv_starts_with_a_byte_order_mark_and_the_raw_csv_does_not() -> TestResult {
+    let cells = || vec![Some(Value::Int32(1))];
+
+    let csv = written(ResultFormat::Csv, &["a"], &[("libs/r", cells())])?;
+    let raw = written(ResultFormat::CsvRaw, &["a"], &[("libs/r", cells())])?;
+
+    assert_eq!(csv, "\u{feff}record path,a\r\nlibs/r,1\r\n", "default CSV");
+    assert_eq!(raw, "record path,a\r\nlibs/r,1\r\n", "raw CSV");
+    Ok(())
+}
+
+#[test]
+fn csv_neutralises_text_that_a_spreadsheet_would_run_as_a_formula() -> TestResult {
+    let row = vec![
+        Some(Value::String("=1+1")),
+        Some(Value::String("+a")),
+        Some(Value::String("-a")),
+        Some(Value::String("@SUM(A1)")),
+        Some(Value::String("\tx")),
+        Some(Value::String("\rx")),
+        Some(Value::Locale("@item_Name")),
+        Some(Value::Enum("-Small")),
+        Some(Value::String("=a,\"b\"")),
+        Some(Value::String("a=b")),
+    ];
+    let names = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"];
+
+    let csv = written(ResultFormat::Csv, &names, &[("libs/r", row.clone())])?;
+    let raw = written(ResultFormat::CsvRaw, &names, &[("libs/r", row)])?;
+
+    assert_eq!(
+        csv,
+        "\u{feff}record path,a,b,c,d,e,f,g,h,i,j\r\nlibs/r,'=1+1,'+a,'-a,'@SUM(A1),'\tx,\"'\rx\",'@item_Name,'-Small,\"'=a,\"\"b\"\"\",a=b\r\n",
+        "text cells start with an apostrophe"
+    );
+    assert_eq!(
+        raw,
+        "record path,a,b,c,d,e,f,g,h,i,j\r\nlibs/r,=1+1,+a,-a,@SUM(A1),\tx,\"\rx\",@item_Name,-Small,\"=a,\"\"b\"\"\",a=b\r\n",
+        "raw cells are exact"
+    );
+    Ok(())
+}
+
+#[test]
+fn csv_never_changes_a_number() -> TestResult {
+    let row = vec![
+        Some(Value::Int32(-5)),
+        Some(Value::Double(-1.5)),
+        Some(Value::Single(f32::NEG_INFINITY)),
+        Some(Value::Int64(i64::MIN)),
+    ];
+
+    let csv = written(ResultFormat::Csv, &["a", "b", "c", "d"], &[("libs/r", row)])?;
+
+    assert_eq!(
+        csv, "\u{feff}record path,a,b,c,d\r\nlibs/r,-5,-1.5,-INF,-9223372036854775808\r\n",
+        "numbers keep their sign"
     );
     Ok(())
 }
@@ -217,7 +280,7 @@ fn json_keeps_the_first_of_repeated_columns_and_csv_keeps_all() -> TestResult {
         &["a", "b", "a"],
         &[("libs/r", row.clone())],
     )?;
-    let csv = written(ResultFormat::Csv, &["a", "b", "a"], &[("libs/r", row)])?;
+    let csv = written(ResultFormat::CsvRaw, &["a", "b", "a"], &[("libs/r", row)])?;
 
     assert_eq!(
         json, "[{\"record path\":\"libs/r\",\"a\":1,\"b\":2}]\n",
@@ -229,7 +292,7 @@ fn json_keeps_the_first_of_repeated_columns_and_csv_keeps_all() -> TestResult {
 
 #[test]
 fn every_row_is_written_through_before_the_result_ends() -> TestResult {
-    for format in [ResultFormat::Csv, ResultFormat::Json] {
+    for format in [ResultFormat::Csv, ResultFormat::CsvRaw, ResultFormat::Json] {
         let mut writer = ResultWriter::new(Vec::new(), format, &columns(&["n"]))?;
         let mut sizes = vec![writer.get_ref().len()];
         for index in 0..3 {

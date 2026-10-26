@@ -144,8 +144,8 @@ pub use p4kx_chunks as chunks;
 pub use p4kx_cryxml as cryxml;
 pub use p4kx_dataforge::query;
 pub use p4kx_dataforge::{
-    Annotations, DataForge, DataForgeError, DataForgeIssue, DataType, Enum, FLAT_COLUMNS,
-    FLAT_TAG_COLUMN, FLAT_TEXT_COLUMN, Field, FieldKind, FieldStat, FieldStatistics,
+    Annotations, CSV_BYTE_ORDER_MARK, DataForge, DataForgeError, DataForgeIssue, DataType, Enum,
+    FLAT_COLUMNS, FLAT_TAG_COLUMN, FLAT_TEXT_COLUMN, Field, FieldKind, FieldStat, FieldStatistics,
     FieldStatisticsError, FileGraph, FlatFormat, FlatValues, FormatSurvey, Guid, IndexedReference,
     InvalidGuid, JsonLayout, MAX_DATAFORGE_ISSUES, MAX_DISTINCT_VALUES, MAX_FIELD_PATHS,
     MAX_INDEXED_REFERENCES, MAX_NESTING_DEPTH, MAX_RECORD_VALUES, MAX_TAG_DEPTH,
@@ -153,7 +153,7 @@ pub use p4kx_dataforge::{
     RECORD_XML_NAMESPACE, Record, RecordJson, RecordTree, RecordXml, Reference, ReferenceIndex,
     Resolution, Struct, StructValue, TAG_DATABASE_TYPE, TAG_PATH_SEPARATOR, TAG_TYPE, Tag,
     TagResolver, TagTree, TagTreeIssues, TextResolver, TrailingSurvey, TreeBuilder, Value,
-    ValueError, ValueKind,
+    ValueError, ValueKind, write_csv_cell,
 };
 pub use p4kx_foundation::{ArchiveKey, ArchiveKeyError};
 pub use p4kx_gfx as gfx;

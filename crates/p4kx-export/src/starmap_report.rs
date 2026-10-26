@@ -25,26 +25,61 @@ pub(crate) struct ContainerCounts {
 }
 
 /// What reading the system containers saw, for a person to check the placements by.
+///
+/// The lines are diagnostics: their wording is not a contract and not part of the catalog.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct StarmapReport {
+    pub(crate) containers: Vec<String>,
+    pub(crate) issues: Vec<String>,
+    pub(crate) repeated: Vec<String>,
+    pub(crate) unreferenced: Vec<String>,
+    pub(crate) deepest_external: usize,
+    pub(crate) elapsed: std::time::Duration,
+}
+
+impl StarmapReport {
     /// One line per container read that names starmap records, up to 300 per star system, then
     /// a line with the total: its path, the Child elements below it (nested external containers
     /// included), those naming a starmap record and those naming an external container.
-    pub containers: Vec<String>,
+    #[must_use]
+    pub fn containers(&self) -> &[String] {
+        &self.containers
+    }
+
     /// One line per container, placement or limit that left objects without a position, with
-    /// the reason, up to 300 per star system. A missing or unreadable container is counted once
+    /// the reason, up to 300 per star system; also the containers read from a fallback XML and
+    /// the elements with a second child list. A missing or unreadable container is counted once
     /// per Child that names it, not once per distinct container.
-    pub issues: Vec<String>,
+    #[must_use]
+    pub fn issues(&self) -> &[String] {
+        &self.issues
+    }
+
     /// One line per record that more than one Child element places, up to 100.
-    pub repeated: Vec<String>,
+    #[must_use]
+    pub fn repeated(&self) -> &[String] {
+        &self.repeated
+    }
+
     /// The socpak containers below ObjectContainers/PU/system that no Child names, up to 200,
     /// the last line giving the total.
-    pub unreferenced: Vec<String>,
+    #[must_use]
+    pub fn unreferenced(&self) -> &[String] {
+        &self.unreferenced
+    }
+
     /// The longest chain of external containers the walk followed, counted from the system
     /// container (0); the limit is 32.
-    pub deepest_external: usize,
+    #[must_use]
+    pub const fn deepest_external(&self) -> usize {
+        self.deepest_external
+    }
+
     /// How long reading the system containers took.
-    pub elapsed: std::time::Duration,
+    #[must_use]
+    pub const fn elapsed(&self) -> std::time::Duration {
+        self.elapsed
+    }
 }
 
 /// Placements of one record closer than this, in metres, are one place.

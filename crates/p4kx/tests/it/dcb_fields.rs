@@ -61,17 +61,21 @@ fn database() -> Vec<u8> {
         .build()
 }
 
-fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+fn write_archive(dir: &Path, forge: Vec<u8>) -> Result<PathBuf, Box<dyn Error>> {
     let archive = dir.join("Data.p4k");
     ArchiveBuilder::new()
-        .entry(TestEntry::zstd("Data\\Game2.dcb", database()).encrypted())
+        .entry(TestEntry::zstd("Data\\Game2.dcb", forge).encrypted())
         .write_to(&archive)?;
     Ok(archive)
 }
 
 fn fields(args: &[&str], code: i32) -> Result<(String, String), Box<dyn Error>> {
+    fields_of(database(), args, code)
+}
+
+fn fields_of(forge: Vec<u8>, args: &[&str], code: i32) -> Result<(String, String), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path())?;
+    let archive = write_archive(dir.path(), forge)?;
     let output = p4kx_testkit::p4kx()?
         .args(["dcb", "fields"])
         .arg(&archive)
@@ -134,10 +138,64 @@ fn a_path_glob_keeps_the_matching_paths() -> TestResult {
 fn csv_quotes_like_rfc_4180() -> TestResult {
     let csv = stdout(&["Ship", "--format", "csv"])?;
     assert!(
-        csv.starts_with("path,kinds,values,records,empty,distinct,min,max\r\n"),
+        csv.starts_with("\u{feff}path,kinds,values,records,empty,distinct,min,max\r\n"),
         "{csv}"
     );
     insta::assert_snapshot!(csv);
+    Ok(())
+}
+
+fn formula_database() -> Vec<u8> {
+    DataForgeBuilder::new()
+        .structure(TestStruct::new("Sheet").field("=SUM(A1)", TestType::Int32))
+        .record(
+            TestRecord::new(1, "Sheet", "Sheet.One", "libs/sheet/one.xml")
+                .value("=SUM(A1)", TestValue::Int32(-5)),
+        )
+        .build()
+}
+
+#[test]
+fn csv_starts_with_a_byte_order_mark_and_neutralises_a_formula_path() -> TestResult {
+    let (csv, _) = fields_of(formula_database(), &["--format", "csv"], 0)?;
+    assert!(csv.starts_with('\u{feff}'), "{csv:?}");
+    assert!(
+        csv.contains("\r\n'=SUM(A1),Int32,1,1,0,1,-5,-5\r\n"),
+        "{csv:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn csv_raw_writes_the_exact_paths_without_a_byte_order_mark() -> TestResult {
+    let (csv, _) = fields_of(formula_database(), &["--format", "csv", "--csv-raw"], 0)?;
+    assert!(csv.starts_with("path,"), "{csv:?}");
+    assert!(
+        csv.contains("\r\n=SUM(A1),Int32,1,1,0,1,-5,-5\r\n"),
+        "{csv:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn csv_raw_needs_the_csv_format() -> TestResult {
+    let (_, stderr) = fields(&["--csv-raw"], 2)?;
+    assert!(stderr.contains("--csv-raw"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn a_type_name_with_a_backtick_is_invalid_input() -> TestResult {
+    let (_, stderr) = fields(&["Sh`ip"], 2)?;
+    assert!(stderr.contains("backtick"), "{stderr}");
+    Ok(())
+}
+
+#[test]
+fn more_paths_than_the_limit_exit_with_code_5() -> TestResult {
+    let (stdout, stderr) = fields_of(p4kx_testkit::many_paths_database(33, 1_000), &[], 5)?;
+    assert!(stdout.is_empty(), "nothing is printed: {stdout}");
+    assert!(stderr.contains("paths"), "{stderr}");
     Ok(())
 }
 

@@ -10,11 +10,13 @@ use egui_kittest::Harness;
 use p4kx_gui::{AssemblyView, Camera, DrawList, Language, LoadoutSession, Model, VIEW_LOD};
 use p4kx_settings::{AssemblyExportSettings, ModelMaterials};
 
-fn view(model: &Model) -> Option<&AssemblyView> {
+pub(crate) fn view(model: &Model) -> Option<&AssemblyView> {
     model.entities().loadout().map(LoadoutSession::assembly)
 }
 
-fn view_mut<'a>(harness: &'a mut Harness<'_, Model>) -> Result<&'a mut AssemblyView, &'static str> {
+pub(crate) fn view_mut<'a>(
+    harness: &'a mut Harness<'_, Model>,
+) -> Result<&'a mut AssemblyView, &'static str> {
     harness
         .state_mut()
         .entities_mut()
@@ -23,13 +25,13 @@ fn view_mut<'a>(harness: &'a mut Harness<'_, Model>) -> Result<&'a mut AssemblyV
         .ok_or("no Loadout")
 }
 
-fn serial(model: &Model) -> Option<u64> {
+pub(crate) fn serial(model: &Model) -> Option<u64> {
     view(model)
         .and_then(AssemblyView::scene)
         .map(|scene| scene.serial())
 }
 
-fn built(harness: &mut Harness<'_, Model>, before: Option<u64>) -> TestResult {
+pub(crate) fn built(harness: &mut Harness<'_, Model>, before: Option<u64>) -> TestResult {
     wait_until(harness, |model| {
         view(model).is_some_and(|view| !view.is_building())
             && serial(model).is_some()
@@ -50,7 +52,7 @@ fn paths(model: &Model) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn draw(
+pub(crate) fn draw(
     harness: &mut Harness<'_, Model>,
 ) -> Result<std::sync::Arc<DrawList>, Box<dyn std::error::Error>> {
     let view = view_mut(harness)?;
@@ -108,51 +110,6 @@ fn parts_sharing_a_model_are_one_run_of_instances() -> TestResult {
     assert!(
         list.draws().iter().any(|run| run.count == 2),
         "the two guns are one instanced draw"
-    );
-    Ok(())
-}
-
-#[test]
-fn hiding_a_branch_hides_it_without_building_again() -> TestResult {
-    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
-    select(&mut harness, "TEST_Ship")?;
-    built(&mut harness, None)?;
-    let before = serial(harness.state());
-    let all = draw(&mut harness)?.instances().len();
-
-    view_mut(&mut harness)?.set_hidden("hardpoint_weapon_nose", true);
-    harness.run_steps(2);
-
-    let model = harness.state();
-    let view = view(model).ok_or("no view")?;
-    assert!(view.is_hidden("hardpoint_weapon_nose"), "marked");
-    assert!(!view.is_building(), "nothing is built again");
-    assert_eq!(serial(model), before, "the same scene");
-    assert_eq!(view.hidden_parts(), 1, "one part hidden");
-    let list = draw(&mut harness)?;
-    assert_eq!(list.hidden_parts(), 1, "left out of the frame");
-    assert!(list.instances().len() < all, "its instances are gone");
-
-    view_mut(&mut harness)?.show_all();
-    assert_eq!(draw(&mut harness)?.instances().len(), all, "shown again");
-    Ok(())
-}
-
-#[test]
-fn hiding_the_root_of_a_branch_hides_what_hangs_below() -> TestResult {
-    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
-    select(&mut harness, "TEST_Ship")?;
-    built(&mut harness, None)?;
-
-    for path in ["hardpoint_weapon_nose", "hardpoint_relay"] {
-        view_mut(&mut harness)?.set_hidden(path, true);
-    }
-
-    let list = draw(&mut harness)?;
-    assert_eq!(list.visible_parts(), 1, "only the ship remains");
-    assert_eq!(
-        view(harness.state()).map(AssemblyView::hidden_count),
-        Some(2)
     );
     Ok(())
 }
@@ -236,35 +193,6 @@ fn a_replacement_below_a_left_out_port_is_refused() -> TestResult {
             .loadout()
             .is_some_and(|session| session.failure().is_none()),
         "the Loadout still resolves"
-    );
-    Ok(())
-}
-
-#[test]
-fn a_hidden_port_that_is_left_out_later_is_not_counted_by_show_all() -> TestResult {
-    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
-    select(&mut harness, "TEST_Ship")?;
-    built(&mut harness, None)?;
-    let before = serial(harness.state());
-    view_mut(&mut harness)?.set_hidden("hardpoint_weapon_nose", true);
-    assert_eq!(
-        view(harness.state()).map(AssemblyView::hidden_count),
-        Some(1)
-    );
-
-    harness
-        .state_mut()
-        .entities_mut()
-        .loadout_mut()
-        .ok_or("no Loadout")?
-        .set_excluded("hardpoint_weapon_nose", true)?;
-    settle(&mut harness)?;
-    built(&mut harness, before)?;
-
-    assert_eq!(
-        view(harness.state()).map(AssemblyView::hidden_count),
-        Some(0),
-        "the port is no longer in the view"
     );
     Ok(())
 }

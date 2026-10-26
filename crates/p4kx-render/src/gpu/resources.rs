@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use super::GpuReport;
 use super::limits::{Rejected, check_buffer, check_texture};
-use super::mips::{chain, level_count};
 use super::skeleton::SkeletonBuffers;
+use crate::assembly::{Level, level_count};
 use crate::scene::Scene;
 
 pub(super) const VERTEX_STRIDE: u64 = 32;
@@ -127,15 +127,19 @@ pub(super) struct MaterialTexture {
 }
 
 impl MaterialTexture {
-    /// Uploads `rgba`, four bytes per texel in sRGB, as a `width` × `height` texture with a full
-    /// mip chain built on the CPU, so a minified texture is sampled from a level that fits.
+    /// Uploads `rgba`, four bytes per texel in sRGB, as a `width` × `height` texture followed by
+    /// the levels `mips` of its chain, built beforehand, so a minified texture is sampled from a
+    /// level that fits. Levels beyond a full chain are ignored.
     pub(super) fn upload(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         layout: &wgpu::BindGroupLayout,
         sampler: &wgpu::Sampler,
         (width, height, rgba): (u32, u32, &[u8]),
+        mips: &[Level],
     ) -> Result<Self, Rejected> {
+        let below = (level_count(width, height) as usize).saturating_sub(1);
+        let mips = mips.get(..mips.len().min(below)).unwrap_or_default();
         check_texture(
             width,
             height,
@@ -150,7 +154,7 @@ impl MaterialTexture {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("p4kx-viewer-base-colour"),
             size,
-            mip_level_count: level_count(width, height),
+            mip_level_count: 1 + u32::try_from(mips.len()).unwrap_or(0),
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8UnormSrgb,
@@ -158,7 +162,7 @@ impl MaterialTexture {
             view_formats: &[],
         });
         write_level(queue, &texture, 0, (width, height, rgba));
-        for (at, level) in (1..).zip(chain(width, height, rgba)) {
+        for (at, level) in (1..).zip(mips) {
             write_level(
                 queue,
                 &texture,

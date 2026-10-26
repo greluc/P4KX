@@ -11,7 +11,6 @@ mod hologram;
 #[cfg(test)]
 mod hologram_tests;
 mod limits;
-mod mips;
 mod offscreen;
 #[cfg(test)]
 mod offscreen_tests;
@@ -257,6 +256,7 @@ impl Renderer {
             &pipelines.material_layout,
             &material_sampler,
             (1, 1, &WHITE),
+            &[],
         )
         .map_err(|error| Unavailable::Setup(error.to_string()))?;
         let mut textures = Slot::default();

@@ -19,14 +19,14 @@ static LINEAR: LazyLock<[f32; 256]> = LazyLock::new(|| {
 /// One level of a mip chain: `rgba` holds four bytes per texel, sRGB-encoded colour and linear
 /// alpha.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Level {
-    pub(super) width: u32,
-    pub(super) height: u32,
-    pub(super) rgba: Vec<u8>,
+pub(crate) struct Level {
+    pub(crate) width: u32,
+    pub(crate) height: u32,
+    pub(crate) rgba: Vec<u8>,
 }
 
 /// Returns how many levels a full chain of a `width` × `height` image has, down to one texel.
-pub(super) const fn level_count(width: u32, height: u32) -> u32 {
+pub(crate) const fn level_count(width: u32, height: u32) -> u32 {
     let longest = if width > height { width } else { height };
     longest.bit_width()
 }
@@ -40,20 +40,35 @@ const fn to_byte(value: f32) -> u8 {
     value.round().clamp(0.0, 255.0) as u8
 }
 
+const ENCODE_STEPS: usize = 4096;
+const ENCODE_MAX: f32 = 4095.0;
+
+static ENCODED: LazyLock<[u8; ENCODE_STEPS]> = LazyLock::new(|| {
+    std::array::from_fn(|at| {
+        let linear = f32::from(u16::try_from(at).unwrap_or(u16::MAX)) / ENCODE_MAX;
+        let encoded = if linear <= 0.003_130_8 {
+            linear * 12.92
+        } else {
+            1.055_f32.mul_add(linear.powf(1.0 / 2.4), -0.055)
+        };
+        to_byte(encoded * 255.0)
+    })
+});
+
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "the value is rounded and clamped to the table first"
+)]
 fn encode(linear: f32) -> u8 {
-    let linear = linear.clamp(0.0, 1.0);
-    let encoded = if linear <= 0.003_130_8 {
-        linear * 12.92
-    } else {
-        1.055_f32.mul_add(linear.powf(1.0 / 2.4), -0.055)
-    };
-    to_byte(encoded * 255.0)
+    let at = (linear.clamp(0.0, 1.0) * ENCODE_MAX).round() as usize;
+    ENCODED.get(at).copied().unwrap_or(u8::MAX)
 }
 
 /// Returns the level below `rgba`, a `width` × `height` image: every texel is the average of the
 /// four it covers, taken in linear light, so a minified texture neither darkens nor aliases. An
 /// odd last row or column is dropped.
-pub(super) fn next_level(width: u32, height: u32, rgba: &[u8]) -> Level {
+pub(crate) fn next_level(width: u32, height: u32, rgba: &[u8]) -> Level {
     let (next_width, next_height) = ((width / 2).max(1), (height / 2).max(1));
     let (width, height) = (width as usize, height as usize);
     let (texels, _) = rgba.as_chunks::<4>();
@@ -104,7 +119,7 @@ pub(super) fn next_level(width: u32, height: u32, rgba: &[u8]) -> Level {
 }
 
 /// Returns every level below `rgba`, the `width` × `height` base image, down to one texel.
-pub(super) fn chain(width: u32, height: u32, rgba: &[u8]) -> Vec<Level> {
+pub(crate) fn chain(width: u32, height: u32, rgba: &[u8]) -> Vec<Level> {
     let mut levels: Vec<Level> = Vec::new();
     for _ in 1..level_count(width, height) {
         let level = levels.last().map_or_else(

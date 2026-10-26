@@ -241,22 +241,45 @@ fn names(ui: &Ui, rect: Rect, row: &LoadoutRow) {
 }
 
 fn statuses((texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> Vec<(String, Tone)> {
-    if row.unresolved().is_some() {
-        return vec![(texts.get(EntityText::StatusUnresolved), Tone::Danger)];
-    }
-    let own = match row.change() {
-        RowChange::Excluded => Some((texts.get(EntityText::StatusExcluded), Tone::Warning)),
-        RowChange::Replaced => Some((texts.get(EntityText::StatusReplaced), Tone::Info)),
-        RowChange::Kept if row.is_docked() => {
-            Some((texts.get(EntityText::StatusDocked), Tone::Muted))
-        }
-        RowChange::Kept if row.entity().is_none() && !row.has_children() => {
-            Some((texts.get(EntityText::StatusEmpty), Tone::Muted))
-        }
+    let own = own_status(
+        row.change(),
+        row.is_docked(),
+        row.entity().is_none() && !row.has_children(),
+    );
+    let hidden = session.assembly().is_hidden(row.path());
+    status_kinds(row.unresolved().is_some(), hidden, row.change(), own)
+        .into_iter()
+        .map(|(text, tone)| (texts.get(text), tone))
+        .collect()
+}
+
+const fn own_status(
+    change: RowChange,
+    docked: bool,
+    empty_leaf: bool,
+) -> Option<(EntityText, Tone)> {
+    match change {
+        RowChange::Excluded => Some((EntityText::StatusExcluded, Tone::Warning)),
+        RowChange::Replaced => Some((EntityText::StatusReplaced, Tone::Info)),
+        RowChange::Kept if docked => Some((EntityText::StatusDocked, Tone::Muted)),
+        RowChange::Kept if empty_leaf => Some((EntityText::StatusEmpty, Tone::Muted)),
         RowChange::Kept => None,
-    };
-    let hidden = (session.assembly().is_hidden(row.path()) && row.change() != RowChange::Excluded)
-        .then(|| (texts.get(EntityText::StatusHidden), Tone::Muted));
+    }
+}
+
+/// Returns the chips of a row in the order they are laid out, the hidden chip before the
+/// chip of the row's own state; an unresolved row has that chip alone.
+fn status_kinds(
+    unresolved: bool,
+    hidden: bool,
+    change: RowChange,
+    own: Option<(EntityText, Tone)>,
+) -> Vec<(EntityText, Tone)> {
+    if unresolved {
+        return vec![(EntityText::StatusUnresolved, Tone::Danger)];
+    }
+    let hidden = (hidden && change != RowChange::Excluded)
+        .then_some((EntityText::StatusHidden, Tone::Muted));
     hidden.into_iter().chain(own).collect()
 }
 
@@ -366,4 +389,50 @@ fn expander(
         focus_ring_square(ui, mark, palette::PRIMARY, FOCUS_OFFSET);
     }
     response.clicked()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EntityText, RowChange, Tone, own_status, status_kinds};
+
+    fn kinds(unresolved: bool, hidden: bool, change: RowChange) -> Vec<EntityText> {
+        let own = own_status(change, false, false);
+        status_kinds(unresolved, hidden, change, own)
+            .into_iter()
+            .map(|(text, _)| text)
+            .collect()
+    }
+
+    #[test]
+    fn a_replaced_hidden_port_has_both_chips() {
+        assert_eq!(
+            kinds(false, true, RowChange::Replaced),
+            [EntityText::StatusHidden, EntityText::StatusReplaced]
+        );
+    }
+
+    #[test]
+    fn a_left_out_port_never_shows_hidden() {
+        assert_eq!(
+            kinds(false, true, RowChange::Excluded),
+            [EntityText::StatusExcluded]
+        );
+    }
+
+    #[test]
+    fn an_unresolved_port_has_that_chip_alone() {
+        assert_eq!(
+            kinds(true, true, RowChange::Replaced),
+            [EntityText::StatusUnresolved]
+        );
+    }
+
+    #[test]
+    fn a_kept_visible_port_has_none_and_a_docked_one_has_its_chip() {
+        assert_eq!(kinds(false, false, RowChange::Kept).len(), 0);
+        assert_eq!(
+            own_status(RowChange::Kept, true, false),
+            Some((EntityText::StatusDocked, Tone::Muted))
+        );
+    }
 }

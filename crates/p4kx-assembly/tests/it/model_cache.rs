@@ -91,6 +91,28 @@ fn a_level_the_model_does_not_have_is_answered_from_the_level_it_came_out_at() -
 }
 
 #[test]
+fn a_level_above_the_one_read_is_read_again() -> TestResult {
+    let fixture = fixture(cube())?;
+    let archive = Archive::open(&fixture.path)?;
+    let source = Counting {
+        inner: ArchiveModels::new(&archive),
+        calls: AtomicUsize::new(0),
+    };
+    let cache = ModelCache::default();
+    let provider = CachedModels::new(&source, &cache);
+
+    provider.model(PATH, 0)?;
+    provider.model(PATH, 2)?;
+
+    assert_eq!(
+        source.calls.load(Ordering::SeqCst),
+        2,
+        "the read at 0 says nothing about level 2"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_model_above_the_bound_is_not_kept() -> TestResult {
     let fixture = fixture(cube())?;
     let archive = Archive::open(&fixture.path)?;

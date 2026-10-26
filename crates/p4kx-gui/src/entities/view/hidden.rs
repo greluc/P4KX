@@ -10,8 +10,10 @@ use crate::viewer::hidden_mask;
 pub(super) fn hidden_branches(parts: &[PartInfo], hidden: &HashSet<String>) -> usize {
     parts
         .iter()
-        .filter(|part| !part.path().is_empty() && hidden.contains(part.path()))
-        .count()
+        .map(PartInfo::path)
+        .filter(|path| !path.is_empty() && hidden.contains(*path))
+        .collect::<HashSet<_>>()
+        .len()
 }
 
 impl AssemblyView {

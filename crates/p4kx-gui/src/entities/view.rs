@@ -46,9 +46,9 @@ struct ListKey {
 ///
 /// Every new tree or choice builds the Assembly again off the UI thread, reusing the models
 /// already read within a memory bound; the view built before stays shown until the new one
-/// arrives. The Interior is built once it is switched on; switching
-/// it off hides it without building again, and switching it on again shows it as long as the
-/// view was not built anew without it.
+/// arrives. The Interior is built once it is switched on; switching it off hides it without
+/// building again, and switching it on again shows it as long as the view was not built anew
+/// without it.
 pub struct AssemblyView {
     index: Arc<EntryIndex>,
     wake: Arc<dyn Fn() + Send + Sync>,

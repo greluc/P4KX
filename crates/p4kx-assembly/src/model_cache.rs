@@ -32,6 +32,10 @@ struct State {
 ///
 /// The least recently used models are dropped first. A model larger than the bound is not kept.
 /// The cache may be shared between threads and between builds.
+///
+/// The bound counts the geometry buffers of the models only, not their nodes, names or chunk
+/// lists, so the memory held is somewhat above it. While a build runs, the models of the
+/// Assembly being built and those of the cache are in memory together.
 #[derive(Debug)]
 pub struct ModelCache {
     limit: usize,
@@ -56,6 +60,7 @@ fn key_of(path: &str) -> String {
         .collect()
 }
 
+/// Returns the bytes of the geometry buffers of `model`, its vertex streams and indices only.
 fn bytes_of(model: &Model) -> usize {
     let size = |len: usize, each: usize| len.saturating_mul(each);
     model
@@ -186,7 +191,7 @@ impl State {
                 .min_by_key(|(used, _, _)| *used)
                 .map(|(_, key, at)| (key.clone(), at));
             let Some((key, at)) = oldest else {
-                self.bytes = 0;
+                debug_assert!(false, "the cache counts bytes without holding a model");
                 return;
             };
             if let Some(list) = self.models.get_mut(&key) {

@@ -45,6 +45,7 @@ mod models;
 mod records;
 mod second_uvs;
 mod skeletons;
+mod soc_chunks;
 mod sound;
 mod sound_extraction;
 mod soundbank;

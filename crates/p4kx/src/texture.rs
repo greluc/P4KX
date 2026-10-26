@@ -203,6 +203,7 @@ pub(crate) fn is_invalid_input(error: &anyhow::Error) -> bool {
                 | ConversionError::NoSuchFile { .. }
                 | ConversionError::OutputIsInput { .. }
                 | ConversionError::NoSuchChunk { .. }
+                | ConversionError::ChunkNotText { .. }
                 | ConversionError::UiCanvas { .. }
                 | ConversionError::Texture {
                     source: TextureError::NoSuchMip { .. },
@@ -224,6 +225,7 @@ pub(crate) fn is_archive_error(error: &anyhow::Error) -> bool {
                 | ConversionError::ReadPart { .. }
                 | ConversionError::ChunkFile { .. }
                 | ConversionError::ChunkFileTooLarge { .. }
+                | ConversionError::ChunkText { .. }
                 | ConversionError::SoundTooLarge { .. }
                 | ConversionError::UiMovie { .. }
                 | ConversionError::UiMovieTooLarge { .. }

@@ -9,13 +9,6 @@ use crate::{Chf, ChfError, NameTable};
 /// The suffix of the output-only key that names the hash in the key before it.
 pub const LABEL_SUFFIX: &str = "_label";
 
-const LABELLED: [&str; 4] = [
-    "gender_hash_label",
-    "port_label",
-    "attachment_label",
-    "name_label",
-];
-
 /// How many hashes of a CHF [`Chf::to_json_named`] could name.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct NameSummary {
@@ -95,23 +88,6 @@ fn label_material(material: &mut Node, names: &NameTable, tally: &mut Tally) {
     }
 }
 
-fn strip(node: &mut Node) {
-    match node {
-        Node::Object(fields) => {
-            fields.retain(|(key, _)| !LABELLED.contains(&key.as_str()));
-            for (_, value) in fields {
-                strip(value);
-            }
-        }
-        Node::List(items) => {
-            for item in items {
-                strip(item);
-            }
-        }
-        _ => {}
-    }
-}
-
 impl Chf {
     /// Returns the JSON form of [`Chf::to_json`] with an output-only label next to every hash that
     /// `names` can read: `gender_hash_label`, `port_label`, `attachment_label` and `name_label`
@@ -138,16 +114,4 @@ impl Chf {
         }
         Ok((serde_json::to_string_pretty(&tree)?, tally.finish()))
     }
-
-    pub(crate) fn without_labels(json: &[u8]) -> Result<Vec<u8>, serde_json::Error> {
-        let mut tree: Node = serde_json::from_slice(json)?;
-        strip(&mut tree);
-        serde_json::to_vec(&tree)
-    }
-}
-
-pub(crate) fn has_labels(json: &[u8]) -> bool {
-    let needle = LABEL_SUFFIX.as_bytes();
-    json.windows(needle.len() + 1)
-        .any(|window| window.starts_with(needle) && window.ends_with(b"\""))
 }

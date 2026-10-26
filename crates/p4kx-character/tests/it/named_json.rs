@@ -201,6 +201,66 @@ fn unknown_fields_are_still_rejected_beside_labels() -> TestResult {
 }
 
 #[test]
+fn a_label_is_accepted_only_where_to_json_named_writes_it() -> TestResult {
+    let (_, text, _) = named_json()?;
+    for (pointer, key) in [
+        ("/character", "port_label"),
+        ("/character/dna", "port_label"),
+        ("/character/item_ports", "name_label"),
+        ("/character/materials/0", "port_label"),
+        ("/container", "name_label"),
+    ] {
+        let mut json: Value = serde_json::from_str(&text)?;
+        let object = json
+            .pointer_mut(pointer)
+            .and_then(Value::as_object_mut)
+            .ok_or(pointer)?;
+        object.insert(key.to_owned(), json!("x"));
+
+        let error = Chf::from_json(json.to_string().as_bytes());
+
+        assert!(
+            matches!(error, Err(ChfError::Json(_))),
+            "{pointer} {key}: {error:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn a_label_that_is_no_string_is_rejected() -> TestResult {
+    let (_, text, _) = named_json()?;
+    let mut json: Value = serde_json::from_str(&text)?;
+    if let Some(port) = json.pointer_mut("/character/item_ports/port_label") {
+        *port = json!(7);
+    }
+
+    let error = Chf::from_json(json.to_string().as_bytes());
+
+    assert!(matches!(error, Err(ChfError::Json(_))), "{error:?}");
+    Ok(())
+}
+
+#[test]
+fn an_error_in_a_labelled_file_points_at_the_line_of_the_file() -> TestResult {
+    let (_, text, _) = named_json()?;
+    let broken = text.replacen("\"rgba\": [", "\"rgba\": [999, ", 1);
+    let expected = broken
+        .lines()
+        .position(|line| line.contains("999"))
+        .map(|index| index + 1)
+        .ok_or("no broken line")?;
+
+    let error = Chf::from_json(broken.as_bytes());
+
+    assert!(
+        matches!(&error, Err(ChfError::Json(source)) if source.line() == expected),
+        "line {expected}: {error:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_table_extended_with_a_name_resolves_its_hashes() -> TestResult {
     let chf = Chf::read(&named_sample().to_bytes())?;
     let mut names = NameTable::builtin();

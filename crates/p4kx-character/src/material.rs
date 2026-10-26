@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::body_reader::BodyReader;
 use crate::body_writer::{Put, count_as};
-use crate::{ChfError, Guid};
+use crate::{ChfError, Guid, Label};
 
 /// The value the layout puts in front of every group of sub-materials and between them.
 pub(crate) const GROUP_MARKER: u32 = 5;
@@ -21,6 +21,9 @@ const SUB_MATERIAL_LEN: usize = 24;
 pub struct Material {
     /// CRC-32 (IEEE, not CRC-32C) of the lower-cased item port name followed by `_skinitemport`.
     pub attachment: u32,
+    /// The name of the port, read from `attachment_label` and never written.
+    #[serde(default, rename = "attachment_label", skip_serializing)]
+    pub label: Label,
     /// GUID of the base material.
     pub base_material: Guid,
     /// Material flags, kept as read.
@@ -35,6 +38,9 @@ pub struct Material {
 pub struct SubMaterial {
     /// CRC-32C of the lower-cased sub-material name, e.g. `shader_eyeInner`.
     pub name: u32,
+    /// The name of the sub-material, read from `name_label` and never written.
+    #[serde(default, rename = "name_label", skip_serializing)]
+    pub label: Label,
     /// The textures set by slot.
     pub textures: Vec<Texture>,
     /// The float parameters.
@@ -59,6 +65,9 @@ pub struct Texture {
 pub struct FloatParam {
     /// CRC-32C of the exact parameter name, e.g. `DyeAmount`.
     pub name: u32,
+    /// The name of the parameter, read from `name_label` and never written.
+    #[serde(default, rename = "name_label", skip_serializing)]
+    pub label: Label,
     /// The value, compared and written by its exact bits.
     #[serde(with = "crate::json_values::float")]
     pub value: f32,
@@ -79,6 +88,9 @@ pub struct ColorParam {
     /// CRC-32C of the exact parameter name when known; some, such as `BodyColor`, match no known
     /// name.
     pub name: u32,
+    /// The name of the parameter, read from `name_label` and never written.
+    #[serde(default, rename = "name_label", skip_serializing)]
+    pub label: Label,
     /// Red, green, blue and alpha, 0 to 255 each.
     pub rgba: [u8; 4],
 }
@@ -112,6 +124,7 @@ impl Material {
             }
             materials.push(Self {
                 attachment,
+                label: Label,
                 base_material,
                 flags,
                 sub_materials,
@@ -160,7 +173,11 @@ impl SubMaterial {
             let name = reader.u32()?;
             let value = f32::from_bits(reader.u32()?);
             reader.expect_u32("float parameter reserved field", 0)?;
-            floats.push(FloatParam { name, value });
+            floats.push(FloatParam {
+                name,
+                label: Label,
+                value,
+            });
         }
         let color_count = reader.u64()?;
         let color_count = reader.count(color_count, PARAM_LEN)?;
@@ -170,10 +187,15 @@ impl SubMaterial {
             let mut rgba = [0; 4];
             rgba.copy_from_slice(reader.bytes(4)?);
             reader.expect_u32("colour parameter reserved field", 0)?;
-            colors.push(ColorParam { name, rgba });
+            colors.push(ColorParam {
+                name,
+                label: Label,
+                rgba,
+            });
         }
         Ok(Self {
             name,
+            label: Label,
             textures,
             floats,
             colors,

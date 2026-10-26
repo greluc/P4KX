@@ -23,6 +23,7 @@ fn close(actual: [f32; 3], expected: [f32; 3]) {
 pub(crate) fn dna(parts: &[&[(u16, u16)]]) -> Dna {
     Dna {
         gender_hash: 0xdd6c_67f6,
+        label: p4kx_character::Label,
         variant_hash: 0,
         blends_per_part: 2,
         header_unknown: 0,

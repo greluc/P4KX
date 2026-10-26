@@ -2085,11 +2085,13 @@ CRC-32 or CRC-32C values of names; [docs/chf-hashes.md](chf-hashes.md) lists the
 `to-json` writes the name of a hash it can resolve in a key beside it: `gender_hash_label`
 (`character.dna`), `port_label` (item ports), `attachment_label` (materials) and `name_label`
 (sub-materials, floats and colours), each right after the hash it names (ADR-0178). The labels
-are output only: `from-json` removes them before it reads the file, so the hash stays
-authoritative, an edited hash with an old label is written as the hash, and any other unknown
-field is still refused. `--archive <Data.p4k>` adds the item ports of the items the character
-wears and the sub-materials and parameters of the base materials it chooses to the names the tool
-knows itself. A hash with no known name has no label.
+are output only: `from-json` accepts each of them in the one kind of object that carries it and
+ignores its text, so the hash stays authoritative, an edited hash with an old label is written as
+the hash, and a label anywhere else or any other unknown field is still refused. Errors point at
+the line and column of the file as given. `--archive <Data.p4k>` adds the item ports of the items
+the character wears and the sub-materials and parameters of the base materials it chooses to the
+names the tool knows itself. A hash with no known name has no label. `BodyColor` and `EyeColor`
+are mapped by hand: their hashes are not the CRC of those names.
 
 | Field | Type | Meaning |
 |-------|------|---------|

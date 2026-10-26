@@ -4,17 +4,19 @@
 //! The names of the Archive resolve the hashes of the shipped CHF files, and the labelled JSON
 //! still gives the original bytes.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::error::Error;
 use std::io::Read;
 use std::path::Path;
 
-use p4kx_assembly::character::{Chf, NameTable};
+use p4kx_assembly::character::{Chf, ItemPort, NameTable};
 use p4kx_assembly::{ArchiveModels, ForgeItems, LoadoutResolver, archive_names};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{real_archive_key, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+const PORTS_ONLY_THE_ARCHIVE_NAMES: [u32; 2] = [0x6d6d_e693, 0x6958_d171];
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
@@ -29,6 +31,7 @@ fn the_archive_names_resolve_the_hashes_of_every_shipped_character() -> TestResu
     let builtin = NameTable::builtin();
     let (mut files, mut builtin_named, mut named, mut unresolved) = (0_usize, 0_usize, 0_usize, 0);
     let mut distinct = BTreeSet::new();
+    let mut seen = HashSet::new();
     for file in archive.entries() {
         let is_chf = Path::new(file.path())
             .extension()
@@ -40,6 +43,9 @@ fn the_archive_names_resolve_the_hashes_of_every_shipped_character() -> TestResu
         archive.open_entry(file)?.read_to_end(&mut bytes)?;
         let chf = Chf::read(&bytes)?;
         files += 1;
+        if let Some(root) = &chf.character.item_ports {
+            collect(root, &mut seen);
+        }
         builtin_named += chf.to_json_named(&builtin)?.1.named;
         let table = archive_names(&chf.character, &mut items, &models);
         let (json, summary) = chf.to_json_named(&table)?;
@@ -59,5 +65,16 @@ fn the_archive_names_resolve_the_hashes_of_every_shipped_character() -> TestResu
         distinct.len()
     );
     assert!(files > 0 && named >= builtin_named && named > 0);
+    for hash in PORTS_ONLY_THE_ARCHIVE_NAMES {
+        assert!(seen.contains(&hash), "{hash:#010x} occurs in a shipped CHF");
+        assert!(!distinct.contains(&hash), "{hash:#010x} resolves");
+    }
     Ok(())
+}
+
+fn collect(port: &ItemPort, into: &mut HashSet<u32>) {
+    into.insert(port.port);
+    for child in &port.children {
+        collect(child, into);
+    }
 }

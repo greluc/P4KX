@@ -29,5 +29,5 @@ Decided for issue #692. Builds on ADR-0002, ADR-0004 and ADR-0054.
 ## Consequences
 
 - A `resourceTypeGuids` entry equals a commodity's `subtypeGuid` only when the catalog has that
-  commodity: 18 of the 43 links on LIVE do.
+  commodity: 18 of the 43 links on LIVE do. Superseded by ADR-0184: every link resolves.
 - `p4kx catalog` on LIVE is unaffected: the kind adds no warning.

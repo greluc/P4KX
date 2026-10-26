@@ -521,7 +521,7 @@ lists them under `playability`. LIVE, 2026-10-21:
 | items | 7,954 | 0 | 522 | 8,570 | 6,234 |
 
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
-a cost of any tier uses and no commodity Record carries (see below). A commodity Record takes its fields
+a cost of any tier or a kept quality quantization uses and no commodity Record carries (see below). A commodity Record takes its fields
 from the entity:
 
 | Field | Source |
@@ -543,10 +543,14 @@ A name or description that is missing or a placeholder key is taken from the `Re
 or subtype for a commodity; the groups of `ResourceType` Records are the types, the `ResourceType`
 is the subtype.
 
-A `ResourceType` Record that the costs of a blueprint use in any tier, selections opened, and that
-no commodity Record carries is listed as a commodity as well, so that every resource of a cost
-points at a catalog entry (LIVE has one tier per blueprint: Aslarite, Ouratite, Iron, Stileron, Lindinium, Riccite, Tin, Torite, Savrilium and
-Pressurized Ice). Its `guid` is the GUID of the `ResourceType`, `className`, `recordPath`, `name`
+A `ResourceType` Record that the costs of a blueprint use in any tier (LIVE has one tier per
+blueprint: Aslarite, Ouratite, Iron, Stileron, Lindinium, Riccite, Tin, Torite, Savrilium and
+Pressurized Ice), selections opened, or that a kept quality quantization links to
+(`resourceTypeGuids`), and that no commodity Record carries is listed as a commodity as well, so
+that every resource of a cost and every `resourceTypeGuids` entry points at a catalog entry. A
+development leftover `ResourceType` never links to a quantization, so none is backfilled for one.
+These entries fall under the game-text policy above like every commodity: `name` is a short name,
+`description` is a game text (`x-gameText`). Its `guid` is the GUID of the `ResourceType`, `className`, `recordPath`, `name`
 and `description` are those of the `ResourceType`, `typeGuid` is its group, `subtypeGuid` is its own
 GUID and `displayType` has no key. With a `--filter`, such an entry is listed only when its record
 path matches.
@@ -693,7 +697,7 @@ and
 | Field | Meaning |
 |-------|---------|
 | `bands` | `qualityQuantization.bands` in stored order: per band `start`, `end` (inclusive) and `mappedValue`, whole numbers. Every quality from `start` to `end` counts as `mappedValue`. LIVE has 8 bands per Record with the same ranges (0-399, 400-599, 600-699, 700-799, 800-899, 900-949, 950-998, 999-1000) that together cover the qualities 0 to 1000; only the `mappedValue`s differ per resource |
-| `resourceTypeGuids` | The GUIDs of the `ResourceType` Records whose crafting data link to the Record, without repeats and ordered by GUID. The link goes from the `ResourceType` (`properties[].qualityQuantization.qualityQuantizationRecord`); the quantization Record holds none. On LIVE 43 links reach 42 Records (`Carinite` and `CarinitePure` share one); 18 of the linked `ResourceType`s are the `subtypeGuid` of a commodity of the catalog, as commodities are backfilled only for the `ResourceType`s a blueprint uses |
+| `resourceTypeGuids` | The GUIDs of the `ResourceType` Records whose crafting data link to the Record, without repeats and ordered by GUID. The link goes from the `ResourceType` (`properties[].qualityQuantization.qualityQuantizationRecord`); the quantization Record holds none. On LIVE 43 links reach 42 Records (`Carinite` and `CarinitePure` share one); every linked `ResourceType` is the `subtypeGuid` of a commodity of the catalog, because a `ResourceType` a kept quantization links to is backfilled as a commodity (ADR-0184); with a `--filter`, only those whose record path matches |
 
 The links are read from every `ResourceType` Record whatever the Filter, except those that are
 development leftovers: such a `ResourceType` neither links nor counts. A Record no `ResourceType`
@@ -1156,7 +1160,8 @@ A mineable element (`mineableElements`) is a `MineableElement` Record under `min
 (46 Records on LIVE, 43 entries). `resourceTypeGuid` is the `ResourceType` its Reference
 `resourceType` links to; `null` for a null or dangling Reference. It equals a commodity's
 `subtypeGuid` only when the catalog has that commodity: commodities are backfilled only for the
-`ResourceType`s a blueprint ingredient uses, so 20 of the 41 linked `ResourceType`s have one on LIVE.
+`ResourceType`s that a blueprint ingredient uses or that a kept quality quantization links to, so a
+mined `ResourceType` that neither does has none (LIVE: 25 of the 43 linked `ResourceType`s were backfilled for a quantization alone).
 Several elements may share one `ResourceType` (41 distinct for the 43 entries), so a commodity can
 have several elements with different values; every element is listed and none is picked. The numbers
 are those of the Record, unchanged, and `null` when it states none. The ranges are those of the 43

@@ -12,7 +12,6 @@ use json::material::{
 use json::validation::Checked::Valid;
 use p4kx_model::{Lod, Material, MaterialLibrary, TintPalette};
 
-use crate::hair_cap;
 use crate::shading::shading;
 use crate::texture_roles::sources_with;
 
@@ -37,7 +36,7 @@ pub(crate) struct MaterialPlan<'m> {
     library: Option<&'m MaterialLibrary>,
     slots: BTreeMap<u16, Option<Slot>>,
     default: Material,
-    tinted: BTreeMap<usize, Material>,
+    overrides: BTreeMap<usize, Material>,
 }
 
 impl<'m> MaterialPlan<'m> {
@@ -58,14 +57,16 @@ impl<'m> MaterialPlan<'m> {
                 )
             })
             .collect();
-        let mut tinted = BTreeMap::new();
+        let mut overrides = BTreeMap::new();
         if let Some(library) = library {
             for slot in slots.values().flatten() {
                 if let Slot::Library(position) = *slot
-                    && let Some(material) = library.materials.get(position)
-                    && let Some(corrected) = hair_cap::of_the_body(library, material)
+                    && let Some(corrected) = library
+                        .materials
+                        .get(position)
+                        .and_then(|material| material.hair_cap_of_body(&library.path))
                 {
-                    tinted.insert(position, corrected);
+                    overrides.insert(position, corrected);
                 }
             }
         }
@@ -73,7 +74,7 @@ impl<'m> MaterialPlan<'m> {
             library,
             slots,
             default: Material::engine_default(),
-            tinted,
+            overrides,
         }
     }
 
@@ -83,16 +84,38 @@ impl<'m> MaterialPlan<'m> {
             return self;
         };
         for slot in self.slots.values().flatten() {
-            if let Slot::Library(position) = *slot
-                && let Some(tinted) = library
-                    .materials
-                    .get(position)
-                    .and_then(|material| palette.apply(material))
-            {
-                self.tinted.insert(position, tinted);
+            if let Slot::Library(position) = *slot {
+                let base = self
+                    .overrides
+                    .get(&position)
+                    .or_else(|| library.materials.get(position));
+                if let Some(tinted) = base.and_then(|material| palette.apply(material)) {
+                    self.overrides.insert(position, tinted);
+                }
             }
         }
         self
+    }
+
+    /// Returns, for each hair cap whose scalp map was swapped for its body's, the paths of the
+    /// swapped map and of the map the file names itself, which the swapped one falls back to.
+    pub(crate) fn own_scalp_maps(&self) -> Vec<(String, String)> {
+        let Some(library) = self.library else {
+            return Vec::new();
+        };
+        let path = |material: &Material| {
+            sources_with(material, false)
+                .diffuse
+                .map(|source| source.path)
+        };
+        self.overrides
+            .iter()
+            .filter_map(|(position, corrected)| {
+                let own = library.materials.get(*position)?;
+                let (swapped, own) = (path(corrected)?, path(own)?);
+                (swapped != own).then_some((swapped, own))
+            })
+            .collect()
     }
 
     /// Returns a plan for a model that has no level of detail to draw.
@@ -101,7 +124,7 @@ impl<'m> MaterialPlan<'m> {
             library: None,
             slots: BTreeMap::new(),
             default: Material::engine_default(),
-            tinted: BTreeMap::new(),
+            overrides: BTreeMap::new(),
         }
     }
 
@@ -138,7 +161,7 @@ impl<'m> MaterialPlan<'m> {
     pub(crate) fn material(&self, slot: Slot) -> &Material {
         match slot {
             Slot::Library(position) => self
-                .tinted
+                .overrides
                 .get(&position)
                 .or_else(|| {
                     self.library
@@ -226,7 +249,8 @@ pub(crate) fn uses_alpha(material: &Material) -> bool {
 /// Returns the glTF material that draws `material` with `textures` over its plain colours.
 ///
 /// A hair cap is blended by its density map, which is the alpha of its base colour image; without
-/// that image it is fully transparent, never an opaque shell over the skin.
+/// that image, or in the colours mode, which has none, it is fully transparent, never an opaque
+/// shell over the skin.
 ///
 /// The diffuse colour multiplies a base colour texture that does not hold the colours already (one
 /// made with a specular map does). A normal texture needs no factor. The factors of the
@@ -321,4 +345,53 @@ fn emissive(material: &Material) -> [f32; 3] {
     let scaled = material.emissive.map(|channel| channel.max(0.0) * glow);
     let brightest = scaled.into_iter().fold(1.0_f32, f32::max);
     scaled.map(|channel| channel / brightest)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use p4kx_model::{MaterialLibrary, TintEntry, TintPalette};
+
+    use super::{Material, MaterialPlan, Slot};
+
+    const CAP: &str = r#"<Material><SubMaterials>
+<Material Name="hair_scalp_m" Shader="HairPBR" StringGenMask="%HAIR_CAP" Diffuse="0,0,0">
+<Textures><Texture Map="TexSlot1" File="Objects/t/sc/female/textures/f_hair_scalp.tif"/></Textures>
+<MatLayers><Layer Name="Primary" PaletteTint="1"/></MatLayers>
+</Material></SubMaterials></Material>"#;
+
+    #[test]
+    fn a_palette_tint_keeps_the_scalp_map_of_the_body() -> Result<(), Box<dyn std::error::Error>> {
+        let library = MaterialLibrary::parse("objects/t/sc/male/m_hair", CAP.as_bytes())?;
+        let entry = TintEntry {
+            tint: [0.5; 3],
+            specular: [0.05; 3],
+            glossiness: 100.0,
+        };
+        let palette = TintPalette::new("p", [entry; 3], [1.0; 3]);
+        let mut plan = MaterialPlan {
+            library: Some(&library),
+            slots: BTreeMap::from([(0, Some(Slot::Library(0)))]),
+            default: Material::engine_default(),
+            overrides: BTreeMap::new(),
+        };
+        let corrected = library
+            .materials
+            .first()
+            .and_then(|material| material.hair_cap_of_body(&library.path))
+            .ok_or("a corrected cap")?;
+        plan.overrides.insert(0, corrected);
+
+        let plan = plan.tinted_by(Some(&palette));
+
+        let cap = plan.material(Slot::Library(0));
+        assert!(cap.tinted, "the palette applied");
+        assert!(
+            cap.textures.iter().all(|slot| slot.file.contains("/male/")),
+            "{:?}",
+            cap.textures
+        );
+        Ok(())
+    }
 }

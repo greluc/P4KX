@@ -20,18 +20,21 @@ Decided for issue #739. Evidence: the LIVE Archive, `masculinedefault.chf` (hair
 
 - A cap is drawn `BLEND`. Its base colour image is white with the red channel of the density map as
   alpha, as for the opacity map of hair cards, and the material's colour (the hair dye) is the base
-  colour factor. The Blender package gives such a material the alpha mode `blend` and the `_scalp`
-  file the usage `mask`, so the add-on takes the luminance of the map as alpha.
-- Without its map (not in the Archive, unreadable, or no map at all) a cap is fully transparent
-  and the missing file is listed as a texture fallback; it is never an opaque shell.
-- The map of the wrong body is replaced. The body of a hair is the `male` or `female` folder of its
-  material library; if the cap's map lies in the other body's folder, the folder and the `m_` / `f_`
-  file name prefix are swapped (`sc/female/textures/f_hair_31_scalp` becomes
-  `sc/male/textures/m_hair_31_scalp`). A library or map without such a folder is left as it is. A
-  character wears the hair of its own body, so the library's folder is the Character's body, and the
-  writer needs no further input. If the swapped file is missing, it is the one listed.
-
-## Consequences
-
-- The Blender package describes the materials as the file defines them, so it keeps the map the file
-  names; only the GLB writer swaps the body.
+  colour factor.
+- Without its map (not in the Archive, unreadable, or no map at all, and always in the colours
+  mode, which writes no textures) a cap is fully transparent and the missing file is listed as a
+  texture fallback; it is never an opaque shell.
+- The map of the wrong body is replaced, by one rule in `p4kx-model`
+  (`Material::hair_cap_of_body`) that the GLB writer and the Blender package share. The body of a
+  hair is the `male` or `female` folder of its material library; if the cap's map lies in the other
+  body's folder, the nearest such folder and the `m_` / `f_` file name prefix are swapped
+  (`sc/female/textures/f_hair_31_scalp` becomes `sc/male/textures/m_hair_31_scalp`). A library or
+  map without such a folder is left as it is. A character wears the hair of its own body, so the
+  library's folder is the Character's body. It is a heuristic of the naming of the files, not data.
+- If the swapped file is missing, the GLB writer tries the map the file itself names before the
+  cap goes transparent; the file listed is the swapped one, when both are missing. The package
+  writes the swapped map only.
+- The Blender package gives such a material the alpha mode `blend` and the `_scalp` file of a cap
+  the usage `mask`, so the add-on takes the luminance of the map as alpha; a cap whose mask was
+  not written gets alpha 0 in the add-on.
+- The palette tint of a material is applied to the corrected cap, not to the file's original.

@@ -47,6 +47,7 @@ mod crch;
 mod crch_mesh;
 mod crch_node;
 mod error;
+mod hair_cap;
 mod hierarchy;
 mod included;
 mod material;

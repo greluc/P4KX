@@ -308,9 +308,11 @@ A **texture slot** has `slot` (`TexSlot1`, ...) and `file` (the name in the file
 placeholder such as `$TintPaletteDecal` or `$RenderToTexture`, which has no file), `usage`, and
 `texture`, the id in `textures`, absent for a placeholder and for a texture that could not be
 written. `usage` is derived from the suffix of the file name (`_ddna` and `_ddn` normal, `_spec`
-specular, `_mask`/`_opac`/`_scalp` mask (`_scalp` is the density map of a hair cap, ADR-0213), `_blend` blend, `_detail` detail, `_wear` wear, `_ao` occlusion,
-`_displ`/`_disp` displacement, `_gloss` gloss; `_id`, `_dir`, `_dirm` and `_hal` are
-`other`, even in `TexSlot1`) and, for other files, the slot: `TexSlot1` is `diffuse`, anything
+specular, `_mask`/`_opac` mask, `_blend` blend, `_detail` detail, `_wear` wear, `_ao` occlusion,
+`_displ`/`_disp` displacement, `_gloss` gloss; `_id`, `_scalp`, `_dir`, `_dirm` and `_hal` are
+`other`, even in `TexSlot1`, except that the `_scalp` map of a hair cap, a `HairPBR` material with
+`HAIR_CAP` in its `gen_mask`, is a `mask`; its `file` is the map of the body folder of its library,
+see ADR-0213) and, for other files, the slot: `TexSlot1` is `diffuse`, anything
 else `other`. `attributes` (`TexType`, `Used`, ...) and `elements` (the `TexMod`
 child with the tiling `TileU`/`TileV`, the offset `OffsetU`/`OffsetV` and the rotation of the
 slot's UVs) are as in the file. Which UV set a slot samples is decided by the shader and its

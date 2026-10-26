@@ -219,6 +219,28 @@ fn a_hair_caps_map_of_the_other_body_is_swapped_for_the_bodys_own() -> TestResul
 }
 
 #[test]
+fn a_hair_cap_falls_back_to_the_map_its_file_names_when_the_bodys_is_missing() -> TestResult {
+    let stub = Stub::default().with(
+        "objects/test/hair_v2/sc/female/textures/f_hair_31_scalp.dds",
+        &texture([60, 60, 60, 255], false)?,
+    );
+
+    let (glb, summary) = write(
+        &library_at(MALE_LIBRARY, &hair_cap(FEMALE_SCALP))?,
+        Some(&stub),
+    )?;
+
+    let base = base_image(&glb, &material(&glb, "hair_scalp_m")?)?;
+    assert!(
+        near(base.pixel(0, 0), [255, 255, 255, 60]),
+        "{:?}",
+        base.pixel(0, 0)
+    );
+    assert!(summary.texture_fallbacks.is_empty(), "{summary:?}");
+    Ok(())
+}
+
+#[test]
 fn a_hair_cap_without_its_map_is_transparent_and_listed() -> TestResult {
     let stub = Stub::default();
 

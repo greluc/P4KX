@@ -63,10 +63,10 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         if button::button(ui, Kind::Ghost, Size::Normal, &export_label, can_export).clicked() {
             action = Some(Action::Export);
         }
-        if let Some(name) = languages(ui, model) {
-            action = Some(Action::Language(name));
-        }
     });
+    if let Some(pick) = languages(ui, model) {
+        action = Some(Action::Language(pick));
+    }
     let mut query_changed = false;
     ui.horizontal(|ui| {
         let label = ui.label(search_label);
@@ -114,22 +114,26 @@ fn languages(ui: &mut Ui, model: &Model) -> Option<Pick> {
         .sounds()
         .language()
         .or(info.default_language.as_deref());
-    ui.label(eyebrow(&model.texts().get(SoundsText::LanguageLabel)));
-    let mut chosen = None;
-    for name in &info.languages {
-        let kind = if current == Some(name.as_str()) {
-            Kind::Outline
-        } else {
-            Kind::Ghost
-        };
-        if button::button(ui, kind, Size::Compact, name, true).clicked() {
-            let is_default = info.default_language.as_deref() == Some(name.as_str());
-            chosen = Some(if is_default {
-                Pick::Default
+    let label = eyebrow(&model.texts().get(SoundsText::LanguageLabel));
+    ui.horizontal_wrapped(|ui| {
+        ui.label(label);
+        let mut chosen = None;
+        for name in &info.languages {
+            let kind = if current == Some(name.as_str()) {
+                Kind::Outline
             } else {
-                Pick::Named(name.clone())
-            });
+                Kind::Ghost
+            };
+            if button::button(ui, kind, Size::Compact, name, true).clicked() {
+                let is_default = info.default_language.as_deref() == Some(name.as_str());
+                chosen = Some(if is_default {
+                    Pick::Default
+                } else {
+                    Pick::Named(name.clone())
+                });
+            }
         }
-    }
-    chosen
+        chosen
+    })
+    .inner
 }

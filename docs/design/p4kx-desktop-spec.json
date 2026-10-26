@@ -1119,7 +1119,7 @@
     "columnsFrom": "name: a name of forty characters at the row font; state: the longest status or head of the trigger table in German or British English, 131.4; language: the default language with the fallback mark in German or British English, 155.0; each in bold at the row font plus the cell padding twice, rounded up",
     "columnMin": 80,
     "dividers": "the column dividers of the trigger table end above the list footer, like the tag tree",
-    "languagePicker": "a row of btn-xs buttons below the Entity actions, the chosen language as btn-outline, the others btn-ghost, preceded by the eyebrow label"
+    "languagePicker": "a wrapping row between the Entity actions and the search field, shown only while the Archive holds more than one language folder: the eyebrow label, then one btn-xs per language, the chosen one as btn-outline, the others btn-ghost"
   },
   "xmlPreview": {
     "dsClass": "previewPanel + hexRow",

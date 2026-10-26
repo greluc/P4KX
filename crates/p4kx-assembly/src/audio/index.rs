@@ -7,18 +7,15 @@ use std::collections::{HashMap, HashSet};
 use p4kx_archive::{Archive, Entry};
 use p4kx_audio::MusicStinger;
 use p4kx_extraction::CancelToken;
-use rayon::prelude::*;
 
-use super::banks::BankContents;
+use super::index_read::{BankRead, DefinitionRead, read_definitions, read_soundbanks};
 use super::language::SOUND_FOLDER;
 use super::media::{Limits, LooseMedia, WemSource};
-use super::read::{entry_bytes, folded_order, has_extension, starts_with_folder};
+use super::read::{folded_order, has_extension, starts_with_folder};
 use super::{
     ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, DEFAULT_LANGUAGE, IndexedSoundbank,
-    MAX_ATL_LEN, MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, MAX_STINGERS, WemLocation, atl, banks,
+    MAX_AUDIO_TRIGGERS, MAX_STINGERS, WemLocation,
 };
-
-type BankRead = Result<BankContents, AudioFileError>;
 
 /// The audio data of one Archive: every ATL trigger with its Wwise events, and for every Wwise
 /// event ID the soundbanks whose `HIRC` section holds the event.
@@ -278,47 +275,6 @@ impl AudioIndex {
     pub(crate) fn stingers(&self, trigger: u32) -> &[Stinger] {
         self.stingers.get(&trigger).map_or(&[], |found| found)
     }
-}
-
-type DefinitionRead = Result<Vec<AtlTrigger>, AudioFileError>;
-
-fn read_definitions(
-    archive: &Archive,
-    entries: &[&Entry],
-    cancel: &CancelToken,
-) -> Option<Vec<DefinitionRead>> {
-    entries
-        .par_iter()
-        .enumerate()
-        .map(|(position, entry)| {
-            if cancel.is_cancelled() {
-                return None;
-            }
-            let file = u32::try_from(position).unwrap_or(u32::MAX);
-            Some(
-                entry_bytes(archive, entry, MAX_ATL_LEN).and_then(|bytes| atl::parse(&bytes, file)),
-            )
-        })
-        .collect()
-}
-
-fn read_soundbanks(
-    archive: &Archive,
-    entries: &[(usize, &Entry)],
-    cancel: &CancelToken,
-) -> Option<Vec<BankRead>> {
-    entries
-        .par_iter()
-        .map(|&(position, entry)| {
-            if cancel.is_cancelled() {
-                return None;
-            }
-            Some(
-                entry_bytes(archive, entry, MAX_SOUNDBANK_LEN)
-                    .and_then(|bytes| banks::read(entry.path(), position, &bytes)),
-            )
-        })
-        .collect()
 }
 
 fn boxed<T>(lists: HashMap<u32, Vec<T>>) -> HashMap<u32, Box<[T]>> {

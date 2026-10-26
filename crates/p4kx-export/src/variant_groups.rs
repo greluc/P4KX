@@ -138,7 +138,11 @@ fn pick<'f>(
             Pick::Ship(Candidate {
                 guid: CatalogGuid(tree.guid()),
                 class_name: class_name(&tree),
-                playability: playability_rules::ship(&tree, component(&tree, "VehicleComponentParams"), evidence),
+                playability: playability_rules::ship(
+                    &tree,
+                    component(&tree, "VehicleComponentParams"),
+                    evidence,
+                ),
                 key: ship::variant_key(&tree, &read),
             })
         }));

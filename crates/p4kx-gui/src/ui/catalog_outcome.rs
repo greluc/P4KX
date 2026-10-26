@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use egui::{Id, Ui};
 use fluent_bundle::FluentValue;
-use p4kx_export::{DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
+use p4kx_export::{CatalogSummary, DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
 
 use super::catalog_lines::{Notice, failure_lines, kinds, languages, notices, playability, sizes};
 use super::extraction::{group_label, number};
@@ -188,6 +188,37 @@ const fn size_texts(compressed: bool) -> [T; 2] {
     }
 }
 
+/// Returns the sentence of every size warning of `summary`, with the level it has.
+fn size_warnings(
+    texts: &Texts,
+    summary: &CatalogSummary,
+    limit: &str,
+) -> Vec<(String, SizeWarning)> {
+    let decompressed = format::decimal_size(DECOMPRESSED_LIMIT, texts.language());
+    [
+        (
+            summary.size_warning(),
+            size_texts(summary.compressed_size().is_some()),
+            limit,
+        ),
+        (
+            summary.decompressed_warning(),
+            [T::DecompressedNearLimit, T::DecompressedOverLimit],
+            decompressed.as_str(),
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(warning, [near, over], shown)| {
+        let warning = warning?;
+        let text = match warning {
+            SizeWarning::NearLimit => near,
+            SizeWarning::OverLimit => over,
+        };
+        Some((texts.format(text, &[("limit", shown.into())]), warning))
+    })
+    .collect()
+}
+
 /// The texts of one summary, formatted once per catalog and language.
 struct Laid {
     key: (u64, Language),
@@ -223,32 +254,7 @@ impl Laid {
     fn new(key: (u64, Language), texts: &Texts, outcome: &CatalogExportSummary) -> Self {
         let summary = outcome.summary();
         let limit = format::decimal_size(UPLOAD_LIMIT, texts.language());
-        let decompressed = format::decimal_size(DECOMPRESSED_LIMIT, texts.language());
-        let warnings = [
-            (
-                summary.size_warning(),
-                size_texts(summary.compressed_size().is_some()),
-                &limit,
-            ),
-            (
-                summary.decompressed_warning(),
-                [T::DecompressedNearLimit, T::DecompressedOverLimit],
-                &decompressed,
-            ),
-        ]
-        .into_iter()
-        .filter_map(|(warning, [near, over], shown)| {
-            let warning = warning?;
-            let text = match warning {
-                SizeWarning::NearLimit => near,
-                SizeWarning::OverLimit => over,
-            };
-            Some((
-                texts.format(text, &[("limit", shown.clone().into())]),
-                warning,
-            ))
-        })
-        .collect();
+        let warnings = size_warnings(texts, summary, &limit);
         let (failures, reasons) = failure_lines(texts, summary);
         Self {
             key,

@@ -267,7 +267,7 @@ impl CatalogSummary {
 
     /// Returns how many items and ships carry each playability value.
     #[must_use]
-    pub fn playability(&self) -> PlayabilitySummary {
+    pub const fn playability(&self) -> PlayabilitySummary {
         self.playability
     }
 

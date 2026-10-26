@@ -135,13 +135,7 @@ pub(super) fn canvas(
     (subject, camera): (impl FnOnce(&Uniforms, u32) -> Option<Subject>, &Camera),
     (look, reserve): (Look, f32),
 ) -> Option<Camera> {
-    let shortest = if reserve > 0.0 {
-        1.0
-    } else {
-        MODEL_VIEW_MIN_HEIGHT
-    };
-    let size =
-        (ui.available_size() - vec2(0.0, reserve)).max(vec2(MODEL_VIEW_MIN_HEIGHT, shortest));
+    let size = view_size(ui.available_size(), reserve);
     let sense = Sense::click_and_drag().union(Sense::focusable_noninteractive());
     let (rect, response) = ui.allocate_exact_size(size, sense);
     response.widget_info(|| WidgetInfo::labeled(Role::Canvas, true, describe()));
@@ -231,4 +225,48 @@ fn reset_button(ui: &mut Ui, texts: &Texts, rect: Rect, enabled: bool) -> bool {
         },
     );
     clicked
+}
+
+/// Returns the size of the view in `available` space with `reserve` points of height kept free
+/// under it: at least [`MODEL_VIEW_MIN_HEIGHT`] on each side, except that a view with a bar under
+/// it gives way in height instead of the bar overlapping it.
+fn view_size(available: egui::Vec2, reserve: f32) -> egui::Vec2 {
+    let shortest = if reserve > 0.0 {
+        1.0
+    } else {
+        MODEL_VIEW_MIN_HEIGHT
+    };
+    (available - vec2(0.0, reserve)).max(vec2(MODEL_VIEW_MIN_HEIGHT, shortest))
+}
+
+#[cfg(test)]
+mod tests {
+    use egui::vec2;
+
+    use super::{MODEL_VIEW_MIN_HEIGHT, view_size};
+
+    #[test]
+    fn a_view_without_a_bar_keeps_its_minimum() {
+        let size = view_size(vec2(500.0, 40.0), 0.0);
+
+        assert!(
+            (size.y - MODEL_VIEW_MIN_HEIGHT).abs() < f32::EPSILON,
+            "minimum height"
+        );
+    }
+
+    #[test]
+    fn a_view_with_a_bar_under_it_gives_way_instead_of_the_bar_overlapping_it() {
+        let size = view_size(vec2(500.0, 60.0), 44.0);
+
+        assert!((size.y - 16.0).abs() < f32::EPSILON, "what the bar leaves");
+        assert!(
+            (view_size(vec2(500.0, 10.0), 44.0).y - 1.0).abs() < f32::EPSILON,
+            "never below one point"
+        );
+        assert!(
+            (view_size(vec2(500.0, 300.0), 44.0).y - 256.0).abs() < f32::EPSILON,
+            "room enough"
+        );
+    }
 }

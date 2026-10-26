@@ -18,7 +18,7 @@ use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, Weight};
 use crate::viewer::Look;
 use crate::widgets::button::{self, Kind, Size};
-use crate::widgets::slider::{Steps, slider_if};
+use crate::widgets::slider::{Shape, Steps, slider_if};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::widgets::toggle::{checkbox, checkbox_if, radio};
 use crate::{Camera, Control, Language, ModelText, Playback, Scene, Texts};
@@ -163,8 +163,13 @@ pub(super) fn bar(ui: &mut Ui, texts: &Texts, playback: &Playback) -> Option<Con
                 let named = (labels.position.as_ref(), time.text());
                 let steps = steps(playback.duration());
                 let width = ui.available_width();
-                let (_, chosen) =
-                    slider_if(ui, named, playback.fraction(), steps, (width, enabled));
+                let (_, chosen) = slider_if(
+                    ui,
+                    named,
+                    playback.fraction(),
+                    steps,
+                    Shape { width, enabled },
+                );
                 if let Some(fraction) = chosen {
                     control = Some(Control::Seek(fraction));
                 }

@@ -30,17 +30,33 @@ pub(crate) fn slider(
     steps: Steps,
     width: f32,
 ) -> (Response, Option<f32>) {
-    slider_if(ui, named, fraction, steps, (width, true))
+    slider_if(
+        ui,
+        named,
+        fraction,
+        steps,
+        Shape {
+            width,
+            enabled: true,
+        },
+    )
 }
 
-/// Shows a slider like [`slider`], dimmed and deaf to the pointer and the keys when not
-/// `enabled`; `width` and `enabled` are given together.
+/// How wide a slider is and whether it reacts.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Shape {
+    pub(crate) width: f32,
+    pub(crate) enabled: bool,
+}
+
+/// Shows a slider like [`slider`], dimmed and deaf to the pointer and the keys when `shape` is
+/// not enabled.
 pub(crate) fn slider_if(
     ui: &mut Ui,
     (label, value): (&str, &str),
     fraction: f32,
     steps: Steps,
-    (width, enabled): (f32, bool),
+    Shape { width, enabled }: Shape,
 ) -> (Response, Option<f32>) {
     let sense = if enabled {
         Sense::click_and_drag()

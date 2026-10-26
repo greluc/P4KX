@@ -155,8 +155,9 @@ impl GpuReport {
         self.resident.store(0, Ordering::Release);
     }
 
-    pub(super) fn skeleton_uploaded(&self, serial: u64) {
-        self.skeletal.store(serial, Ordering::Release);
+    pub(super) fn skeleton_uploaded(&self, serial: u64, held: bool) {
+        self.skeletal
+            .store(if held { serial } else { 0 }, Ordering::Release);
     }
 
     pub(super) fn uploaded(&self, serial: u64) {

@@ -453,6 +453,8 @@ von 36 px (`barHeight`) mit der Eyebrow „Detailgrad" und einer Segmentgruppe (
 und „Abbrechen" (`.btn-outline.btn-xs`). Das Panel öffnet 393 hoch (Faktenleiste 32, Ansicht 280,
 `overlayGap` 8, Leiste 36, Panelrand 37), ist am unteren Rand verstellbar zwischen 209 (Ansicht
 auf ihrer Mindesthöhe 96) und der Höhe, die dem Baum noch vier Zeilen (Kopf und `treeMinRows` 3) lässt.
+Wie in D.46 gibt die Ansicht unter ihrer Leiste nach, wenn der Platz nicht reicht (Fenster kleiner
+als der Mindestfall): sie wird niedriger als 96 (nie unter 1 Punkt), statt dass die Leiste sie überdeckt.
 Jede Zeile des Baums mit einer Entity hat vor „Ersetzen …" die Schaltfläche „Ausblenden" oder „Einblenden"
 (`.btn-ghost.btn-xs`); ein ausgeblendeter Port zeigt den gedämpften Chip „Ausgeblendet", der Zweig darunter
 ist mit ausgeblendet. Ausblenden ändert weder das Loadout noch den Export und baut nichts neu auf;

@@ -20,6 +20,12 @@ and builds on ADR-0046 (animations) and ADR-0039 (skeletons and bone weights).
 - **The panel height follows the Entry, not the tab.** The panel of a model Entry opens 349 points
   high on every tab and may not be dragged below 285, where the 3D view keeps its 96 points
   (`modelPreview.panelMinHeight`). Switching between the Model and Info tabs no longer moves it.
+  Where the window leaves less than that, the view gives way in height instead of the bar
+  overlapping it. The same rule applies to every view with a bar reserved under it, so the
+  Entities assembly view (D.47) shrinks below its 96 points in such a window too.
+- **The mapping is checked on LIVE.** An ignored real-Archive test samples the `.cga` models with
+  helper bones (83 models, 1,549 bones) and finds every bone at the world position of the node it
+  drives, with the same name.
 - **No inert controls when the device refuses skinning.** The report of the renderer says per scene
   whether its skeleton is on the device (`GpuReport::skeleton_held`). When it is not, the bar, the
   list and the Skeleton checkbox are left out, the playback does not tick, and a pose no longer

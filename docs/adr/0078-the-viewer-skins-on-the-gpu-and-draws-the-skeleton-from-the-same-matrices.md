@@ -29,7 +29,7 @@ and bone weights) and ADR-0046 (animations).
   binds its meshes to the bones that drive their nodes, so the viewer plays its animations too.
 - **Only what can move the skeleton is listed.** Animations are read on the loading thread with
   the model, additive ones left out (ADR-0046: their keys are offsets), and only those with a
-  track for a bone of the skeleton kept. The list is offered for a skinned model only. A model
+  track for a bone of the skeleton kept. The list is offered for a model whose scene has weights: a skinned model, or a static one bound to its helper bones (ADR-0187). A model
   without bones has no playback and no controls.
 - **Playback is plain state.** `Playback` holds the selected animation, the time, playing,
   looping and the overlay switch; `Control` is what the user asks for (play or pause, select,

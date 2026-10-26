@@ -106,9 +106,8 @@ impl Renderer {
             .map(|skeleton| &skeleton.layout);
         match MeshBuffers::upload((device, queue), layout, scene, &self.report) {
             Ok(buffers) => {
-                if buffers.skeleton.is_some() {
-                    self.report.skeleton_uploaded(serial);
-                }
+                self.report
+                    .skeleton_uploaded(serial, buffers.skeleton.is_some());
                 self.mesh.store(serial, buffers);
                 self.report.uploaded(serial);
             }

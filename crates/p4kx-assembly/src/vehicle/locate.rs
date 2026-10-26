@@ -123,7 +123,9 @@ fn apply_modification(
                 issues.push(issue(wanted, LoadoutFileError::NotFound.to_string()));
             }
             budget.grow(bytes.len());
-            match guarded(root, |root| patch_stage(root, &bytes, budget)) {
+            match guarded(root, budget, |root, budget| {
+                patch_stage(root, &bytes, budget)
+            }) {
                 Ok(done) => {
                     report_issues(&path, &done, issues);
                     applied = Some(path);
@@ -140,7 +142,9 @@ fn apply_modification(
         Err(reason) => issues.push(issue(selection.path, reason)),
     }
     match &found {
-        Some(found) => match guarded(root, |root| apply_elems(root, &found.elems, budget)) {
+        Some(found) => match guarded(root, budget, |root, budget| {
+            apply_elems(root, &found.elems, budget)
+        }) {
             Ok(missed) => {
                 report
                     .get_or_insert_with(ModificationReport::default)
@@ -193,6 +197,8 @@ fn patch_candidates(
     }
     (candidates, explicit)
 }
+
+/// Parses the patch `bytes` and applies it to `root`, within `budget`.
 fn patch_stage(
     root: &mut Element,
     bytes: &[u8],
@@ -206,13 +212,16 @@ fn patch_stage(
     Ok(done)
 }
 
-/// Runs `run` on `root` and restores `root` as it was when `run` fails.
+/// Runs `run` on `root` and restores `root` as it was when `run` fails; the copy that makes this
+/// possible must fit the budget, which it does not spend.
 fn guarded<T>(
     root: &mut Element,
-    run: impl FnOnce(&mut Element) -> Result<T, String>,
+    budget: &mut Budget,
+    run: impl FnOnce(&mut Element, &mut Budget) -> Result<T, String>,
 ) -> Result<T, String> {
+    budget.check_copy(root)?;
     let backup = root.clone();
-    run(&mut *root).inspect_err(|_| *root = backup)
+    run(&mut *root, budget).inspect_err(|_| *root = backup)
 }
 
 fn report_issues(path: &str, report: &ModificationReport, issues: &mut Vec<LoadoutError>) {

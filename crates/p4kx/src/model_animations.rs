@@ -3,8 +3,9 @@
 
 use std::io::{self, Write};
 
-use p4kx_extraction::model::Model;
-use p4kx_extraction::{AnimationSet, AnimationSummary, UnreadAnimation};
+use p4kx_extraction::{
+    AnimationInfo, AnimationListing, AnimationSet, AnimationSummary, UnreadAnimation,
+};
 use serde::Serialize;
 
 use crate::query_table::one_line;
@@ -44,13 +45,9 @@ impl WrittenJson {
     }
 }
 
-/// Writes the table of the animations of `set` after a blank line; nothing without any.
-pub(crate) fn write_table(
-    out: &mut impl Write,
-    model: &Model,
-    set: &AnimationSet,
-) -> io::Result<()> {
-    if set.animations.is_empty() {
+/// Writes the table of `animations` after a blank line; nothing without any.
+pub(crate) fn write_table(out: &mut impl Write, animations: &[AnimationInfo]) -> io::Result<()> {
+    if animations.is_empty() {
         return Ok(());
     }
     writeln!(out)?;
@@ -59,35 +56,35 @@ pub(crate) fn write_table(
         "{:<40}  {:>8}  {:>6}  {:>3}  {:>6}  {:>5}  {:>8}  {:<8}  Source",
         "Animation", "Seconds", "Frames", "FPS", "Tracks", "Bound", "Keys", "Additive"
     )?;
-    for (animation, origin) in set.animations.iter().zip(&set.origins) {
+    for animation in animations {
         writeln!(
             out,
             "{:<40}  {:>8.3}  {:>6}  {:>3}  {:>6}  {:>5}  {:>8}  {:<8}  {}",
-            one_line(&animation.name),
-            animation.duration_seconds(),
+            animation.name,
+            animation.duration_seconds,
             animation.end_frame,
             animation.frames_per_second,
-            animation.tracks.len(),
-            animation.bind(&model.bones).bound.len(),
-            animation.key_count(),
+            animation.tracks,
+            animation.bound_tracks,
+            animation.keys,
             if animation.additive { "yes" } else { "no" },
-            one_line(origin)
+            animation.source
         )?;
     }
     Ok(())
 }
 
 /// Returns the line `Animations:` of `p4kx model info`.
-pub(crate) fn count_line(set: &AnimationSet) -> String {
-    let unread = if set.unread.is_empty() {
+pub(crate) fn count_line(listing: &AnimationListing) -> String {
+    let unread = if listing.unread.is_empty() {
         String::new()
     } else {
-        format!(", {} skipped", set.unread.len())
+        format!(", {} skipped", listing.unread.len())
     };
     format!(
         "{} (from {} files{unread})",
-        set.animations.len(),
-        set.files
+        listing.animations.len(),
+        listing.files
     )
 }
 
@@ -96,9 +93,9 @@ const UNREAD_EXAMPLES: usize = 3;
 
 /// Writes what could not be read: one line for each reason that holds a single animation or
 /// file, and one line with the count and a few names for each reason that holds several.
-pub(crate) fn write_unread(out: &mut impl Write, set: &AnimationSet) -> io::Result<()> {
+pub(crate) fn write_unread(out: &mut impl Write, unread: &[UnreadAnimation]) -> io::Result<()> {
     let mut groups: Vec<(bool, &str, Vec<&UnreadAnimation>)> = Vec::new();
-    for unread in &set.unread {
+    for unread in unread {
         let named = unread.name.is_some();
         match groups
             .iter_mut()
@@ -180,7 +177,7 @@ pub(crate) fn write_notes(
             )?;
         }
     }
-    write_unread(out, set)
+    write_unread(out, &set.unread)
 }
 
 fn list_ids(ids: &[u32]) -> String {

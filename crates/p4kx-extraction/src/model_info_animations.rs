@@ -1,25 +1,36 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Animation, Model};
+use p4kx_model::{Animation, AnimationHeader, Model};
 use serde::Serialize;
 
 use crate::text_line::one_line;
-use crate::{AnimationSet, UnreadAnimation};
+use crate::{AnimationListing, AnimationSet, UnreadAnimation};
 
 /// One animation read for a model.
 #[derive(Debug, Serialize)]
+#[non_exhaustive]
 pub struct AnimationInfo {
-    name: String,
-    path: String,
-    source: String,
-    frames_per_second: u16,
-    end_frame: u32,
-    duration_seconds: f32,
-    additive: bool,
-    tracks: usize,
-    bound_tracks: usize,
-    keys: usize,
+    /// The animation's name, on one line.
+    pub name: String,
+    /// The path the animation is stored under, on one line.
+    pub path: String,
+    /// The Entry path or file it was read from, on one line.
+    pub source: String,
+    /// The number of frames per second.
+    pub frames_per_second: u16,
+    /// The last frame of the animation.
+    pub end_frame: u32,
+    /// The length in seconds.
+    pub duration_seconds: f32,
+    /// Whether the keys are offsets to another animation.
+    pub additive: bool,
+    /// The number of tracks.
+    pub tracks: usize,
+    /// The number of tracks that find a bone of the model.
+    pub bound_tracks: usize,
+    /// The number of keys of all tracks.
+    pub keys: usize,
 }
 
 impl AnimationInfo {
@@ -31,6 +42,35 @@ impl AnimationInfo {
             .zip(&set.origins)
             .map(|(animation, origin)| Self::of(model, animation, origin))
             .collect()
+    }
+
+    /// Describes the animations of `listing` as their tracks bind to the bones of `model`.
+    #[must_use]
+    pub fn of_listing(model: &Model, listing: &AnimationListing) -> Vec<Self> {
+        listing
+            .animations
+            .iter()
+            .zip(&listing.origins)
+            .map(|(header, origin)| Self::of_header(model, header, origin))
+            .collect()
+    }
+
+    /// Describes the animation of `header`, listed from `origin`, as it binds to the bones of
+    /// `model`.
+    #[must_use]
+    pub fn of_header(model: &Model, header: &AnimationHeader, origin: &str) -> Self {
+        Self {
+            name: one_line(&header.name),
+            path: one_line(&header.path),
+            source: one_line(origin),
+            frames_per_second: header.frames_per_second,
+            end_frame: header.end_frame,
+            duration_seconds: header.duration_seconds(),
+            additive: header.additive,
+            tracks: header.controller_ids.len(),
+            bound_tracks: header.bound_tracks(&model.bones),
+            keys: header.keys,
+        }
     }
 
     /// Describes `animation`, read from `origin`, as it binds to the bones of `model`.

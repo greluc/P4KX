@@ -18,6 +18,8 @@ mod audio_limits;
 mod audio_loose_fallbacks;
 mod audio_resolve;
 mod audio_resolve_banks;
+mod audio_resolve_cross;
+mod audio_resolve_cross_language;
 mod audio_resolve_limits;
 mod audio_resolve_media;
 mod audio_resolve_music;

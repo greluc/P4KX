@@ -303,5 +303,41 @@ fn a_shape_without_a_graphic_is_the_box_its_style_draws() -> TestResult {
         .ok_or("the shape with a box is not listed")?;
     assert_eq!(boxed.examples, ["plate"], "the shape whose box draws");
     assert_eq!(report.images_left_out, 2);
+    assert!(
+        bare.reason.contains("svgPath") && boxed.reason.contains("svgPath"),
+        "the field that would name the graphic: {} / {}",
+        bare.reason,
+        boxed.reason
+    );
+    Ok(())
+}
+
+#[test]
+fn a_run_time_image_is_listed_with_the_field_that_names_it() -> TestResult {
+    let composed = compose(&radar(), others())?;
+    let entry = composed
+        .report()
+        .unsupported
+        .iter()
+        .find(|entry| entry.element == "WidgetRuntimeImage")
+        .ok_or("the map is not listed")?;
+    assert!(entry.reason.contains("imageSource"), "{}", entry.reason);
+    Ok(())
+}
+
+#[test]
+fn widget_names_are_listed_as_the_records_hold_them() -> TestResult {
+    let canvas = TestCanvas::new(SCREEN, "names", 20.0, 20.0).raw().widget(
+        TestWidget::new("BuildingBlocks_WidgetRuntimeImage", "<unnamed> & \"co\"")
+            .size(TestDim::Fixed(10.0), TestDim::Fixed(10.0)),
+    );
+    let composed = compose(&canvas, Vec::new())?;
+    let entry = composed
+        .report()
+        .unsupported
+        .iter()
+        .find(|entry| entry.element == "WidgetRuntimeImage")
+        .ok_or("the widget is not listed")?;
+    assert_eq!(entry.examples, ["<unnamed> & \"co\""]);
     Ok(())
 }

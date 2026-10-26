@@ -18,7 +18,7 @@ pub(super) fn paint(
         cx.report.images_left_out += 1;
         cx.report.note(
             &widget.type_name,
-            "the texture is chosen by the game at run time",
+            "the texture is chosen by the game at run time, the Record field urlOptional is empty",
             &widget.name,
         );
         return;

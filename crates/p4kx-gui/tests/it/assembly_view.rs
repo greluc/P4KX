@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The state of the 3D view of the Entities tab: the Assembly built from the Loadout, the
-//! choices of detail and materials, hidden branches, and the changes of the Loadout tree.
+//! The state of the 3D view of the Entities tab: its Assembly, choices, hidden branches, changes.
 
 use crate::entity_picking::{TestResult, opened, select, settle};
 use crate::tagging::wait_until;
@@ -237,6 +236,35 @@ fn a_replacement_below_a_left_out_port_is_refused() -> TestResult {
             .loadout()
             .is_some_and(|session| session.failure().is_none()),
         "the Loadout still resolves"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_hidden_port_that_is_left_out_later_is_not_counted_by_show_all() -> TestResult {
+    let (_dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    built(&mut harness, None)?;
+    let before = serial(harness.state());
+    view_mut(&mut harness)?.set_hidden("hardpoint_weapon_nose", true);
+    assert_eq!(
+        view(harness.state()).map(AssemblyView::hidden_count),
+        Some(1)
+    );
+
+    harness
+        .state_mut()
+        .entities_mut()
+        .loadout_mut()
+        .ok_or("no Loadout")?
+        .set_excluded("hardpoint_weapon_nose", true)?;
+    settle(&mut harness)?;
+    built(&mut harness, before)?;
+
+    assert_eq!(
+        view(harness.state()).map(AssemblyView::hidden_count),
+        Some(0),
+        "the port is no longer in the view"
     );
     Ok(())
 }

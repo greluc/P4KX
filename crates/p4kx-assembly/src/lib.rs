@@ -89,6 +89,7 @@ mod issue_text;
 mod loadout_entry;
 mod markup;
 mod merge;
+mod model_cache;
 mod node;
 mod node_nested;
 mod object_containers;
@@ -136,6 +137,7 @@ pub use interior::{
 };
 pub use issue::{Issue, IssueKind};
 pub use loadout_entry::LoadoutEntry;
+pub use model_cache::{CachedModels, DEFAULT_MODEL_CACHE_BYTES, ModelCache};
 pub use object_containers::{ContainerSource, ObjectContainerRef};
 pub use outfit::{Outfit, OutfitReport};
 pub use p4kx_character as character;

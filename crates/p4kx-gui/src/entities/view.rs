@@ -9,7 +9,7 @@ mod job;
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use p4kx_assembly::EntityNode;
+use p4kx_assembly::{EntityNode, ModelCache};
 use p4kx_settings::ModelMaterials;
 
 pub use failure::ViewFailure;
@@ -25,6 +25,7 @@ pub const VIEW_LOD: u32 = 1;
 struct Shown {
     scene: Arc<AssemblyScene>,
     mask: Vec<bool>,
+    hidden_branches: usize,
     issues: usize,
     interior_issues: usize,
     with_interior: bool,
@@ -43,8 +44,9 @@ struct ListKey {
 /// as it resolved, the choices of detail, materials and Interior, the branches hidden and the
 /// camera.
 ///
-/// Every new tree or choice builds the Assembly again off the UI thread; the view built before
-/// stays shown until the new one arrives. The Interior is built once it is switched on; switching
+/// Every new tree or choice builds the Assembly again off the UI thread, reusing the models
+/// already read within a memory bound; the view built before stays shown until the new one
+/// arrives. The Interior is built once it is switched on; switching
 /// it off hides it without building again, and switching it on again shows it as long as the
 /// view was not built anew without it.
 pub struct AssemblyView {
@@ -55,6 +57,7 @@ pub struct AssemblyView {
     interior: bool,
     chosen: bool,
     hidden: HashSet<String>,
+    models: Arc<ModelCache>,
     tree: Option<Arc<EntityNode>>,
     job: Option<job::Job>,
     shown: Option<Shown>,
@@ -100,6 +103,7 @@ impl AssemblyView {
             interior: false,
             chosen: false,
             hidden: HashSet::new(),
+            models: Arc::new(ModelCache::default()),
             tree: None,
             job: None,
             shown: None,
@@ -296,6 +300,7 @@ impl AssemblyView {
             lod: self.lod,
             materials: self.materials,
             interior: self.interior,
+            models: Arc::clone(&self.models),
             #[cfg(feature = "test-hooks")]
             gate: self.gate.clone(),
         };
@@ -347,6 +352,7 @@ impl AssemblyView {
         }
         self.failure = None;
         self.shown = Some(Shown {
+            hidden_branches: hidden::hidden_branches(scene.parts(), &self.hidden),
             scene: Arc::new(scene),
             mask,
             issues,

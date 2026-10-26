@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::frustum::Frustum;
-use super::{AssemblyScene, MIN_PART_PIXELS};
+use super::{AssemblyScene, Item, MIN_PART_PIXELS, PartDraw};
 use crate::Matrix;
 use crate::scene::next_serial;
 
@@ -20,8 +20,29 @@ pub struct GroupDraw {
     pub count: u32,
 }
 
+struct Blended<'a> {
+    far: f32,
+    at: usize,
+    item: &'a Item,
+}
+
+fn items_of<'a>(scene: &'a AssemblyScene, draw: &PartDraw) -> &'a [Item] {
+    scene
+        .items()
+        .get(draw.items.start as usize..draw.items.end as usize)
+        .unwrap_or_default()
+}
+
+const fn instance(draw: &PartDraw, item: &Item) -> Instance {
+    let [first, second, third] = draw.world;
+    [first, second, third, item.colour]
+}
+
 /// What one frame draws: the parts that are not hidden, inside the view and large enough, as
 /// instances grouped by the mesh range and texture they share.
+///
+/// Opaque groups come first, one run each. Translucent items follow ordered from the part
+/// farthest from the eye to the nearest, neighbours of one group sharing a run.
 ///
 /// The work is one pass over the parts and one over their items, so the cost of a frame follows
 /// the parts the view holds, never the triangles.
@@ -53,6 +74,7 @@ impl DrawList {
         };
         let mut counts = vec![0_u32; scene.groups().len()];
         let mut chosen = Vec::new();
+        let mut blended = Vec::new();
         for (at, draw) in scene.draws().iter().enumerate() {
             if hidden.get(draw.part).copied().unwrap_or(false) {
                 list.hidden += 1;
@@ -63,18 +85,18 @@ impl DrawList {
             } else {
                 list.visible += 1;
                 chosen.push(at);
-                let items = scene
-                    .items()
-                    .get(draw.items.start as usize..draw.items.end as usize)
-                    .unwrap_or_default();
-                for item in items {
-                    if let Some(count) = counts.get_mut(item.group as usize) {
+                let far = frustum.far_key(draw.centre);
+                for item in items_of(scene, draw) {
+                    if scene.is_translucent(item.group) {
+                        blended.push(Blended { far, at, item });
+                    } else if let Some(count) = counts.get_mut(item.group as usize) {
                         *count += 1;
                     }
                 }
             }
         }
         list.fill(scene, &chosen, &counts);
+        list.append_blended(scene, blended);
         list
     }
 
@@ -99,19 +121,42 @@ impl DrawList {
             let Some(draw) = scene.draws().get(*at) else {
                 continue;
             };
-            let items = scene
-                .items()
-                .get(draw.items.start as usize..draw.items.end as usize)
-                .unwrap_or_default();
-            for item in items {
+            for item in items_of(scene, draw) {
+                if scene.is_translucent(item.group) {
+                    continue;
+                }
                 let Some(offset) = offsets.get_mut(item.group as usize) else {
                     continue;
                 };
                 if let Some(slot) = self.instances.get_mut(*offset as usize) {
-                    let [first, second, third] = draw.world;
-                    *slot = [first, second, third, item.colour];
+                    *slot = instance(draw, item);
                 }
                 *offset += 1;
+            }
+        }
+    }
+
+    fn append_blended(&mut self, scene: &AssemblyScene, mut blended: Vec<Blended<'_>>) {
+        blended.sort_by(|a, b| b.far.total_cmp(&a.far));
+        for entry in blended {
+            let Some(draw) = scene.draws().get(entry.at) else {
+                continue;
+            };
+            let first = u32::try_from(self.instances.len()).unwrap_or(u32::MAX);
+            self.instances.push(instance(draw, entry.item));
+            match self.draws.last_mut() {
+                Some(run)
+                    if run.group == entry.item.group
+                        && run.first.saturating_add(run.count) == first
+                        && scene.is_translucent(run.group) =>
+                {
+                    run.count += 1;
+                }
+                _ => self.draws.push(GroupDraw {
+                    group: entry.item.group,
+                    first,
+                    count: 1,
+                }),
             }
         }
     }

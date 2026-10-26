@@ -50,6 +50,7 @@ mod loadout_followups;
 mod loadout_nested;
 mod loadout_stop;
 mod loadout_tree;
+mod model_cache;
 mod npc_head;
 mod prefab;
 mod prefab_lookup;

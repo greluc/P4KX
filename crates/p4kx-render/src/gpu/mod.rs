@@ -11,6 +11,7 @@ mod hologram;
 #[cfg(test)]
 mod hologram_tests;
 mod limits;
+mod mips;
 mod offscreen;
 #[cfg(test)]
 mod offscreen_tests;
@@ -243,6 +244,7 @@ impl Renderer {
             address_mode_v: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             ..wgpu::SamplerDescriptor::default()
         });
         let blit_sampler = device.create_sampler(&wgpu::SamplerDescriptor {

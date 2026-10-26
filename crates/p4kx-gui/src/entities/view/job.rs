@@ -7,12 +7,12 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_assembly::{
-    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, EntityInterior, EntityNode,
-    ForgePalettes, InteriorOptions, InteriorProgress, InteriorWatch, ModelFailure, ModelProvider,
-    ProvidedModel,
+    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, CachedModels, EntityInterior,
+    EntityNode, ForgePalettes, InteriorOptions, InteriorProgress, InteriorWatch, ModelCache,
+    ModelFailure, ModelProvider, ProvidedModel,
 };
-use p4kx_extraction::CancelToken;
 use p4kx_extraction::model::MaterialStatus;
+use p4kx_extraction::{CancelToken, ConversionError};
 use p4kx_settings::ModelMaterials;
 
 use crate::assembly_export::{Stoppable, StoppableTextures, failure_of};
@@ -104,6 +104,7 @@ pub(super) struct Request {
     pub(super) lod: u32,
     pub(super) materials: ModelMaterials,
     pub(super) interior: bool,
+    pub(super) models: Arc<ModelCache>,
     #[cfg(feature = "test-hooks")]
     pub(super) gate: Option<Arc<crate::hold::Gate>>,
 }
@@ -158,10 +159,14 @@ impl Drop for Job {
 struct Counting<'a> {
     inner: &'a dyn ModelProvider,
     shared: &'a Shared,
+    cancel: &'a CancelToken,
 }
 
 impl ModelProvider for Counting<'_> {
     fn model(&self, path: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
+        if self.cancel.is_cancelled() {
+            return Err(ModelFailure::Fatal(Box::new(ConversionError::Cancelled)));
+        }
         let model = self.inner.model(path, lod);
         let done = self.shared.done.fetch_add(1, Ordering::Relaxed) + 1;
         self.shared.total.store(done, Ordering::Relaxed);
@@ -282,9 +287,11 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         models: &archive_models,
         cancel,
     };
+    let cached = CachedModels::new(&stoppable, &request.models);
     let models = Counting {
-        inner: &stoppable,
+        inner: &cached,
         shared,
+        cancel,
     };
     let options = AssemblyOptions::default().with_lod(request.lod);
     let assembly = match Assembly::build_with_palettes(&request.tree, &models, &palettes, &options)

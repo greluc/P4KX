@@ -189,6 +189,12 @@ impl AssemblyScene {
         &self.groups
     }
 
+    pub(crate) fn is_translucent(&self, group: u32) -> bool {
+        self.groups
+            .get(group as usize)
+            .is_some_and(|group| group.translucent)
+    }
+
     pub(crate) fn items(&self) -> &[Item] {
         &self.items
     }

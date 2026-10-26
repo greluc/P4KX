@@ -215,6 +215,39 @@ fn hiding_a_branch_draws_fewer_instances_and_a_new_level_replaces_the_buffers() 
 }
 
 #[test]
+fn a_replaced_port_that_is_hidden_shows_both_chips_in_its_row() -> TestResult {
+    let Some(mut window) = entities_window(Language::BritishEnglish, [1400.0, 900.0])? else {
+        return Ok(());
+    };
+    let before = serial(window.harness.state());
+    let session = window
+        .harness
+        .state_mut()
+        .entities_mut()
+        .loadout_mut()
+        .ok_or("no Loadout")?;
+    session.set_replacement("hardpoint_weapon_nose", "TEST_Gun_S1")?;
+    session
+        .assembly_mut()
+        .set_hidden("hardpoint_weapon_nose", true);
+    built(&mut window, before)?;
+
+    let image = rendered(&mut window, "assembly-replaced-hidden.png")?;
+
+    assert!(image.0 >= 1400, "rendered");
+    assert!(
+        window
+            .harness
+            .state()
+            .entities()
+            .loadout()
+            .is_some_and(|session| session.assembly().is_hidden("hardpoint_weapon_nose")),
+        "hidden and replaced"
+    );
+    Ok(())
+}
+
+#[test]
 fn the_view_and_the_tree_fit_the_smallest_window() -> TestResult {
     let Some(mut window) = entities_window(Language::BritishEnglish, [640.0, 400.0])? else {
         return Ok(());

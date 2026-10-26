@@ -14,7 +14,7 @@ use thiserror::Error;
 use crate::cdf::{self, MAX_CDF_BYTES, is_character_definition};
 
 /// A model a [`ModelProvider`] read and the Entry it was read from.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct ProvidedModel {
     /// The path of the model's file in the source, which companions and bare material library

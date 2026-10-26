@@ -240,14 +240,11 @@ fn names(ui: &Ui, rect: Rect, row: &LoadoutRow) {
     }
 }
 
-fn status((texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> Option<(String, Tone)> {
+fn statuses((texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> Vec<(String, Tone)> {
     if row.unresolved().is_some() {
-        return Some((texts.get(EntityText::StatusUnresolved), Tone::Danger));
+        return vec![(texts.get(EntityText::StatusUnresolved), Tone::Danger)];
     }
-    if session.assembly().is_hidden(row.path()) && row.change() != RowChange::Excluded {
-        return Some((texts.get(EntityText::StatusHidden), Tone::Muted));
-    }
-    match row.change() {
+    let own = match row.change() {
         RowChange::Excluded => Some((texts.get(EntityText::StatusExcluded), Tone::Warning)),
         RowChange::Replaced => Some((texts.get(EntityText::StatusReplaced), Tone::Info)),
         RowChange::Kept if row.is_docked() => {
@@ -257,7 +254,10 @@ fn status((texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> Opti
             Some((texts.get(EntityText::StatusEmpty), Tone::Muted))
         }
         RowChange::Kept => None,
-    }
+    };
+    let hidden = (session.assembly().is_hidden(row.path()) && row.change() != RowChange::Excluded)
+        .then(|| (texts.get(EntityText::StatusHidden), Tone::Muted));
+    hidden.into_iter().chain(own).collect()
 }
 
 fn hide_text(session: &LoadoutSession, row: &LoadoutRow) -> Option<EntityText> {
@@ -272,8 +272,14 @@ fn hide_text(session: &LoadoutSession, row: &LoadoutRow) -> Option<EntityText> {
 }
 
 fn status_width(ui: &Ui, (texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> f32 {
-    let chip = status((texts, session), row)
-        .map_or(0.0, |(label, _)| chip_width(&chip::galley(ui, &label)));
+    let chips = statuses((texts, session), row);
+    let between = u8::try_from(chips.len().saturating_sub(1)).unwrap_or(0);
+    let gaps = f32::from(between) * ui.spacing().item_spacing.x;
+    let chip = gaps
+        + chips
+            .iter()
+            .map(|(label, _)| chip_width(&chip::galley(ui, label)))
+            .sum::<f32>();
     let width = |text| button::width(ui, Size::Compact, &texts.get(text));
     let hide = hide_text(session, row).map_or(0.0, width);
     let replace = if row.change() == RowChange::Excluded {
@@ -320,7 +326,7 @@ fn actions(
             action = Some(Action::Hidden(row.path().to_owned(), hidden));
         }
     }
-    if let Some((label, tone)) = status((texts, session), row) {
+    for (label, tone) in statuses((texts, session), row) {
         let galley = chip::galley(ui, &label);
         let (slot, response) =
             ui.allocate_exact_size(vec2(chip_width(&galley), ROW_HEIGHT), Sense::hover());

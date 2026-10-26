@@ -13,6 +13,7 @@ mod error;
 mod export;
 mod hash;
 mod index;
+mod index_read;
 mod language;
 mod locate;
 mod media;

@@ -97,6 +97,32 @@ fn the_glossiness_of_the_palette_gives_the_roughness_of_a_painted_material() -> 
 }
 
 #[test]
+fn a_dark_tint_with_a_bright_specular_colour_stays_the_tint_and_is_no_plain_metal() -> TestResult {
+    let model = read_cube()?;
+    let status = library(&painted());
+    let entry = |tint: f32| TintEntry {
+        tint: [tint; 3],
+        specular: [0.8; 3],
+        glossiness: 102.0,
+    };
+    let palette = TintPalette::new("dark", [entry(0.02), entry(0.03), entry(0.04)], [0.9; 3]);
+    let scene = two_parts(&model, &status, [Some(&palette), Some(&palette)])?;
+
+    let (glb, _) = write(&scene, &GlbOptions::default(), &Stub::default())?;
+
+    let colours = base_colours(&glb);
+    assert!(close(colours[0], [0.02; 3]), "primary: {colours:?}");
+    assert!(close(colours[1], [0.03; 3]), "secondary: {colours:?}");
+    assert!(
+        glb.document
+            .materials()
+            .all(|material| material.pbr_metallic_roughness().metallic_factor() == 0.0),
+        "a paint is no metal"
+    );
+    Ok(())
+}
+
+#[test]
 fn parts_without_a_palette_keep_the_colours_of_the_library() -> TestResult {
     let model = read_cube()?;
     let status = library(&painted());

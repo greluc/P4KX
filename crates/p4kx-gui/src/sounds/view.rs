@@ -153,14 +153,16 @@ pub struct BreakLine {
 }
 
 /// What the audio index of the Archive holds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IndexInfo {
     /// The audio triggers of the ATL definitions.
     pub triggers: usize,
     /// The soundbanks.
     pub soundbanks: usize,
-    /// The language folders.
-    pub languages: usize,
+    /// The language folders, in name order.
+    pub languages: Vec<String>,
+    /// The language folder the sounds are resolved in unless another is chosen.
+    pub default_language: Option<String>,
     /// The Entries that could not be read.
     pub issues: usize,
 }

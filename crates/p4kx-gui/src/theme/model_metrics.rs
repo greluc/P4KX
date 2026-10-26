@@ -32,3 +32,7 @@ pub const PREVIEW_MODEL_HEIGHT: f32 = TOUCH_TARGET
     + MODEL_OVERLAY_GAP
     + MODEL_BAR_HEIGHT
     + PANEL_CHROME;
+/// The least height of the preview while it shows a model: the default with the 3D view at
+/// [`MODEL_VIEW_MIN_HEIGHT`], so the playback bar never overlaps the view.
+pub const PREVIEW_MODEL_MIN_HEIGHT: f32 =
+    PREVIEW_MODEL_HEIGHT - MODEL_VIEW_HEIGHT + MODEL_VIEW_MIN_HEIGHT;

@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use super::{Control, Playback};
-use crate::viewer::fixtures::{skin_model, swing};
+use crate::viewer::fixtures::{skin_model, still, swing};
 use p4kx_render::Skeleton;
 
 fn playback() -> Playback {
@@ -203,6 +203,37 @@ fn a_playing_animation_computes_a_pose_every_frame_without_new_buffers() {
         before,
         "the same buffer"
     );
+}
+
+#[test]
+fn a_frame_time_that_is_not_finite_does_not_move_the_animation() {
+    let mut playback = playback();
+    playback.select(Some(0));
+    playback.tick(0.25);
+    let held = playback.time();
+
+    for seconds in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        playback.tick(seconds);
+
+        assert!(
+            (playback.time() - held).abs() < f32::EPSILON,
+            "{seconds} counts as zero"
+        );
+    }
+    assert!(playback.is_playing(), "still playing");
+}
+
+#[test]
+fn only_a_selected_animation_with_a_length_can_play() {
+    let mut playback = playback();
+    assert!(!playback.can_play(), "the bind pose");
+
+    playback.select(Some(0));
+    assert!(playback.can_play(), "an animation with a length");
+
+    playback.set_animations(vec![still("still")]);
+    playback.select(Some(0));
+    assert!(!playback.can_play(), "a zero-length animation");
 }
 
 #[test]

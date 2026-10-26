@@ -97,9 +97,12 @@ fn body(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> Option<Action> 
     if let Some(failure) = session.failure() {
         let text = match failure {
             ResolveFailure::ArchiveChanged => texts.get(EntityText::LoadoutArchiveChanged),
-            ResolveFailure::Failed(reason) if reason.is_empty() => {
-                texts.get(EntityText::LoadoutStopped)
-            }
+            ResolveFailure::NoRecord(guid) => texts.format(
+                EntityText::LoadoutNoRecord,
+                &[("guid", guid.to_string().into())],
+            ),
+            ResolveFailure::Cancelled => texts.get(EntityText::LoadoutStopped),
+            ResolveFailure::Lost => texts.get(EntityText::LoadoutLost),
             ResolveFailure::Failed(reason) => texts.format(
                 EntityText::LoadoutFailed,
                 &[("reason", reason.clone().into())],

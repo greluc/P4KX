@@ -3,32 +3,30 @@
 
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::sync::mpsc::{self, Receiver, TryRecvError};
-use std::thread;
+use std::sync::mpsc::{Receiver, TryRecvError};
 
-use p4kx_assembly::{ChangeError, EntityNode, LoadoutChanges, PortChange};
+use p4kx_assembly::{ChangeError, LoadoutChanges, PortChange};
 use p4kx_extraction::Guid;
 use p4kx_settings::ModelMaterials;
 
-use super::resolve::{ResolveFailure, resolve};
+use super::resolve::ResolveFailure;
 use super::rows::LoadoutView;
 use super::view::AssemblyView;
+use super::worker::{Resolved, Worker};
 use crate::EntryIndex;
 use crate::model::describe;
-
-type Resolved = Result<(LoadoutView, EntityNode), ResolveFailure>;
 
 /// The Loadout of the selected Entity: the changes made to it, the ports it resolves to and
 /// which branches are collapsed.
 ///
-/// Every change resolves the Loadout again off the UI thread; the ports resolved before stay
-/// shown until the new ones arrive.
+/// Every change resolves the Loadout again off the UI thread, on one worker that opens the
+/// DataForge once and stops the resolution a newer change supersedes; the ports resolved before
+/// stay shown until the new ones arrive.
 pub struct LoadoutSession {
     guid: Guid,
     name: String,
     record_path: String,
-    index: Arc<EntryIndex>,
-    wake: Arc<dyn Fn() + Send + Sync>,
+    worker: Option<Worker>,
     changes: LoadoutChanges,
     view: Option<LoadoutView>,
     pending: Option<Receiver<Resolved>>,
@@ -57,16 +55,19 @@ impl LoadoutSession {
         wake: Arc<dyn Fn() + Send + Sync>,
         initial: (u32, ModelMaterials),
     ) -> Self {
+        let (worker, failure) = match Worker::spawn(index, guid, Arc::clone(&wake)) {
+            Ok(worker) => (Some(worker), None),
+            Err(error) => (None, Some(ResolveFailure::Failed(describe(&error)))),
+        };
         let mut session = Self {
             guid,
             name: name.to_owned(),
             record_path: record_path.to_owned(),
-            index: Arc::clone(index),
-            wake: Arc::clone(&wake),
+            worker,
             changes: LoadoutChanges::new(),
             view: None,
             pending: None,
-            failure: None,
+            failure,
             collapsed: HashSet::new(),
             shown: Vec::new(),
             assembly: AssemblyView::new(index, wake, initial),
@@ -76,28 +77,9 @@ impl LoadoutSession {
     }
 
     fn resolve_again(&mut self) {
-        let (sender, receiver) = mpsc::channel();
-        let index = Arc::clone(&self.index);
-        let wake = Arc::clone(&self.wake);
-        let (guid, changes) = (self.guid, self.changes.clone());
-        let spawned = thread::Builder::new()
-            .name("loadout".to_owned())
-            .spawn(move || {
-                let view =
-                    resolve(&index, guid, &changes).map(|tree| (LoadoutView::of(&tree), tree));
-                if sender.send(view).is_ok() {
-                    wake();
-                }
-            });
-        match spawned {
-            Ok(_handle) => {
-                self.pending = Some(receiver);
-                self.failure = None;
-            }
-            Err(error) => {
-                self.pending = None;
-                self.failure = Some(ResolveFailure::Failed(describe(&error)));
-            }
+        if let Some(worker) = &self.worker {
+            self.pending = Some(worker.request(self.changes.clone()));
+            self.failure = None;
         }
     }
 
@@ -110,7 +92,7 @@ impl LoadoutSession {
         let outcome = match receiver.try_recv() {
             Ok(outcome) => outcome,
             Err(TryRecvError::Empty) => return built,
-            Err(TryRecvError::Disconnected) => Err(ResolveFailure::Failed(String::new())),
+            Err(TryRecvError::Disconnected) => Err(ResolveFailure::Lost),
         };
         self.pending = None;
         match outcome {

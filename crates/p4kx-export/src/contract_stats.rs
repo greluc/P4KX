@@ -131,11 +131,11 @@ pub(crate) struct FireAction<'a> {
     pub(crate) ammo_cost: Option<i64>,
     /// `heatPerShot`.
     pub(crate) heat_per_shot: Option<f32>,
-    /// `chargeTime`, in seconds.
+    /// `chargeTime` of the fire mode, when stated, in seconds.
     pub(crate) charge_time: Option<f32>,
-    /// `overchargeTime`, in seconds.
+    /// `overchargeTime` of the fire mode, when stated, in seconds.
     pub(crate) overcharge_time: Option<f32>,
-    /// `cooldownTime`, in seconds.
+    /// `cooldownTime` of the fire mode, when stated, in seconds.
     pub(crate) cooldown_time: Option<f32>,
     /// `damagePerSecond`, the damage a beam does each second; `null` for a mode without one.
     pub(crate) damage_per_second: Option<Damage>,

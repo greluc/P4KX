@@ -1,0 +1,6 @@
+### Changed
+
+- 3D viewer: the preview panel of a model keeps its height on every tab and cannot be dragged so
+  small that the playback bar covers the view. Play, the position slider and Loop are dimmed while
+  nothing can play, and a graphics device that cannot skin a model no longer shows playback
+  controls that do nothing.

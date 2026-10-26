@@ -14,6 +14,34 @@ pub(super) fn owner_of<'t, 'f>(
     owner_below(root, name, DEPTH)
 }
 
+/// Returns the first struct, the root first and then depth first in stored order, that holds a
+/// field called any of `names`.
+pub(super) fn owner_of_any<'t, 'f>(
+    root: &'t StructValue<'f>,
+    names: &[&str],
+) -> Option<&'t StructValue<'f>> {
+    any_below(root, names, DEPTH)
+}
+
+fn any_below<'t, 'f>(
+    root: &'t StructValue<'f>,
+    names: &[&str],
+    depth: usize,
+) -> Option<&'t StructValue<'f>> {
+    if names.iter().any(|name| root.field(name).is_some()) {
+        return Some(root);
+    }
+    let depth = depth.checked_sub(1)?;
+    root.fields().iter().find_map(|field| match field.value() {
+        Value::Struct(inner) => any_below(inner, names, depth),
+        Value::Array(items) => items.iter().find_map(|item| match item {
+            Value::Struct(inner) => any_below(inner, names, depth),
+            _ => None,
+        }),
+        _ => None,
+    })
+}
+
 /// Returns the first struct of the type `type_name`, the root first and then depth first in
 /// stored order.
 pub(super) fn struct_named<'t, 'f>(

@@ -128,6 +128,12 @@ impl Playback {
         self.switches.looping
     }
 
+    /// Returns whether there is something to play: an animation is selected and it has a length.
+    #[must_use]
+    pub fn can_play(&self) -> bool {
+        self.selected.is_some() && self.duration > 0.0
+    }
+
     /// Returns whether the skeleton is drawn over the model.
     #[must_use]
     pub const fn shows_skeleton(&self) -> bool {
@@ -210,10 +216,16 @@ impl Playback {
     }
 
     /// Advances the playing animation by `seconds`, computes the pose when it changed and returns
-    /// whether the animation keeps playing, so the window must draw again.
+    /// whether the animation keeps playing, so the window must draw again. A frame time that is
+    /// not finite counts as zero.
     pub fn tick(&mut self, seconds: f32) -> bool {
         if self.playing && self.duration > 0.0 {
-            self.time += seconds.clamp(0.0, MAX_STEP);
+            let step = if seconds.is_finite() {
+                seconds.clamp(0.0, MAX_STEP)
+            } else {
+                0.0
+            };
+            self.time += step;
             if self.switches.looping {
                 if self.time > self.duration {
                     self.time %= self.duration;

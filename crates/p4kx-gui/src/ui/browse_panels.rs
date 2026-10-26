@@ -5,7 +5,7 @@ use egui::{Margin, Panel, Ui};
 
 use super::{RESIZE_GAP, preview, record_search, regions, search, table};
 use crate::theme::desktop::{PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT};
-use crate::theme::model_metrics::PREVIEW_MODEL_HEIGHT;
+use crate::theme::model_metrics::{PREVIEW_MODEL_HEIGHT, PREVIEW_MODEL_MIN_HEIGHT};
 use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
 use crate::theme::window_metrics::BROWSE_LIST_MIN_HEIGHT;
 use crate::widgets::frames;
@@ -18,14 +18,27 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         && model
             .browser()
             .is_some_and(|browser| browser.soundbank().is_some());
-    let (salt, height) = if soundbank {
-        ("preview-soundbank", PREVIEW_SOUNDBANK_HEIGHT)
-    } else if model.preview_tab() == PreviewTab::Model {
-        ("preview-model", PREVIEW_MODEL_HEIGHT)
+    let (salt, height, least) = if soundbank {
+        (
+            "preview-soundbank",
+            PREVIEW_SOUNDBANK_HEIGHT,
+            PREVIEW_MIN_HEIGHT,
+        )
+    } else if model
+        .browser()
+        .and_then(crate::Browser::preview)
+        .is_some_and(|preview| preview.model().is_some())
+    {
+        (
+            "preview-model",
+            PREVIEW_MODEL_HEIGHT,
+            PREVIEW_MODEL_MIN_HEIGHT,
+        )
     } else {
-        ("preview", PREVIEW_HEIGHT)
+        ("preview", PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT)
     };
     let room = ui.available_height() - f32::from(RESIZE_GAP) - BROWSE_LIST_MIN_HEIGHT;
+    let least = least.min(room.max(PREVIEW_MIN_HEIGHT));
     let preview = Panel::bottom(salt)
         .frame(frames::panel().outer_margin(Margin {
             top: RESIZE_GAP,
@@ -33,7 +46,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         }))
         .resizable(true)
         .default_size(height)
-        .size_range(PREVIEW_MIN_HEIGHT..=room.max(PREVIEW_MIN_HEIGHT))
+        .size_range(least..=room.max(least))
         .show(ui, |ui| {
             preview::show(ui, model);
             ui.min_rect()

@@ -15,7 +15,7 @@ use p4kx_testkit::{ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry
 
 use components::{cooler_resources, drive, health, missile, plant_resources, shield};
 use values::entity;
-use weapons::{ammo, container, gun, magazine, personal_gun, weapon_component};
+use weapons::{ammo, container, gun, magazine, personal_gun, unbuildable_ammo, weapon_component};
 
 pub(crate) const GUN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SHIELD: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0002;
@@ -28,13 +28,21 @@ pub(crate) const DANGLING_GUN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0008;
 pub(crate) const PERSONAL_GUN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0009;
 pub(crate) const WRONG_TYPE_GUN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000a;
 pub(crate) const UNBOUNDED_DRIVE: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000b;
+pub(crate) const UNBUILDABLE_AMMO_GUN: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000c;
 const MAGAZINE: u128 = 0x1000_0000_0000_4000_8000_0000_0000_00a0;
 const AMMO: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0001;
+const UNBUILDABLE_AMMO: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0002;
 const MISSING_AMMO: u128 = 0x2000_0000_0000_4000_8000_0000_0000_00ff;
 
 fn database() -> DataForgeBuilder {
     structures::builder()
         .record(ammo(AMMO))
+        .record(unbuildable_ammo(UNBUILDABLE_AMMO))
+        .record(gun(
+            UNBUILDABLE_AMMO_GUN,
+            "unbuildable_ammo_gun",
+            UNBUILDABLE_AMMO,
+        ))
         .record(magazine(MAGAZINE))
         .record(gun(GUN, "gun", AMMO))
         .record(gun(DANGLING_GUN, "dangling_gun", MISSING_AMMO))

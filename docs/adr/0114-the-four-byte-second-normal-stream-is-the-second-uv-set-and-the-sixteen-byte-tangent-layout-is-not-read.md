@@ -12,7 +12,7 @@ attribute) was added for #103.
 The survey of the mesh chunks (docs/model-lods-and-vertex-attributes.md) shows:
 
 - the 16-byte `TANGENTS` layout occurs in no chunk of LIVE;
-- the four-byte `NORMALS2` stream occurs in 17,902 chunks of LIVE and PTU, never as the only
+- the four-byte `NORMALS2` stream occurs in 17,902 chunks of LIVE, never as the only
   normal source, always beside a tangent frame, and its packed vectors disagree with the frame's
   normal. Read as two half floats per vertex it gives finite values for all but 13 of 316 million
   vertices, 95 % of them in 0…1.

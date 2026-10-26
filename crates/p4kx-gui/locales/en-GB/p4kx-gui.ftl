@@ -469,11 +469,13 @@ catalog-summary-kind = { $kind ->
     [resourceGroups] Resource groups
     [blueprintCategories] Blueprint categories
     [paints] Paints
+    [loadouts] Loadouts
    *[other] { $kind }
 }: { $written } written, { $skipped } skipped, { $complete ->
     [yes] complete
    *[no] partial
 }
+catalog-summary-loadouts = Loadouts: { $ports } ports, { $unresolved } unresolved, { $docked } docked vehicles, { $outside } Entities without an entry in items or ships
 catalog-summary-skipped = Records skipped as development leftovers: { $number }
 catalog-summary-failed = Records that could not be read and were left out ({ $number })
 catalog-summary-failure = { $path } ({ $guid }): { $reason }

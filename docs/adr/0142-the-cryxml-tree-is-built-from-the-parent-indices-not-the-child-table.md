@@ -27,10 +27,10 @@ disagreement is reported, never raised:
 
 ## Reasons
 
-- **Reading the child table would change no output.** On LIVE and PTU the tree read from the
+- **Reading the child table would change no output.** On LIVE the tree read from the
   child table, walked from the root, has the same names, contents, attributes and shape as the
-  parent-index tree in every one of the 169 946 and 170 071 CryXml files. The 16.8 per cent of
-  files whose child table disagrees (28 516 of each Archive, all `.entxml` Entities of interiors)
+  parent-index tree in every one of the 169 946 CryXml files. The 16.8 per cent of
+  files whose child table disagrees (28 516, all `.entxml` Entities of interiors)
   all list a sibling a second time where the parent indices give a distinct node, and that sibling
   is an equal copy (same names, contents, attributes and shape of the subtree). In 39 files per
   Channel a duplicated node also has a `firstChild` of 0, which would give it the root's children;

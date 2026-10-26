@@ -1,7 +1,7 @@
 # DataForge format notes
 
 What `p4kx-dataforge` assumes about details of `Data\Game2.dcb` that no tool documents, what it
-tolerates when they drift, and what the installed Channels show. The reader reads versions 6 and
+tolerates when they drift, and what LIVE shows. The reader reads versions 6 and
 8 and rejects every other version, version 5 and older included, with
 `DataForgeError::UnsupportedVersion` (ADR-0136); every byte is untrusted, so a deviation is a typed error, an error value at its place or an
 issue, never a panic and never silently wrong data.
@@ -30,7 +30,7 @@ Any other string offset that is not the start of a terminated UTF-8 string stays
 
 - **Pointer instance index.** A pointer is two little-endian `u32`: the struct and the instance.
   unforge reads `u32 + u16 + u16 padding`, which cannot address the instances beyond 65535 that
-  the installed Channels have (see below). The reader keeps the full
+  LIVE has (see below). The reader keeps the full
   `u32`. A pointer whose target does not exist is `InvalidPointer` at its field, however the index
   came about, so a changed pointer layout cannot yield a wrong target silently.
 - **Instance data fills the input exactly.** unforge only asserts it. A longer or shorter tail
@@ -45,20 +45,20 @@ Any other string offset that is not the start of a terminated UTF-8 string stays
 - The last 16 bits of a Record row, which unforge calls `RecordSize`, are not read for anything;
   the survey compares them with the size of the Record's struct (`TrailingSurvey`).
 
-## Findings on the installed Channels
+## Findings on LIVE
 
-| | LIVE | PTU | EPTU | HOTFIX | TECH-PREVIEW |
-| --- | --- | --- | --- | --- | --- |
-| DataForge version | 8 | 8 | 8 | 8 | 8 |
-| Records | 117,709 | 117,231 | 116,863 | 117,709 | 120,348 |
-| Header words 0x08 / 0x0C | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
-| Records whose trailing `u16` equals the struct size | all | all | all | all | all |
-| Records with name or tag offset `0xFFFFFFFF` | 0 | 0 | 0 | 0 | 0 |
-| Properties with conversion flags | 0 | 0 | 0 | 0 | 0 |
-| Null pointers (both words `0xFFFFFFFF`) | 4,486,071 | 4,429,410 | 4,410,658 | 4,486,071 | 4,614,257 |
-| Pointers to an instance below 65536 | 3,208,390 | 3,185,105 | 3,172,969 | 3,208,390 | 3,332,112 |
-| Pointers to an instance at or above 65536 | 659,270 | 635,441 | 625,245 | 659,270 | 780,894 |
-| Pointers that name no instance | 0 | 0 | 0 | 0 | 0 |
+| | LIVE |
+| --- | --- |
+| DataForge version | 8 |
+| Records | 117,709 |
+| Header words 0x08 / 0x0C | 0 / 0 |
+| Records whose trailing `u16` equals the struct size | all |
+| Records with name or tag offset `0xFFFFFFFF` | 0 |
+| Properties with conversion flags | 0 |
+| Null pointers (both words `0xFFFFFFFF`) | 4,486,071 |
+| Pointers to an instance below 65536 | 3,208,390 |
+| Pointers to an instance at or above 65536 | 659,270 |
+| Pointers that name no instance | 0 |
 
 The pointer row corrects the review the canary was written from: the high 16 bits of the
 instance index are not always zero. Several hundred thousand pointers address instances beyond

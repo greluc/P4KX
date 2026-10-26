@@ -34,6 +34,8 @@ pub enum CatalogText {
     KindsHeading,
     /// The counts of one kind; takes `kind`, `written`, `skipped` and `complete` (`yes` or `no`).
     SummaryKind,
+    /// What the loadouts hold; takes `ports`, `unresolved`, `docked` and `outside`.
+    SummaryLoadouts,
     /// The Records left out as development leftovers over every kind; takes `number`.
     SummarySkipped,
     /// The heading of the Records that could not be read; takes `number`.
@@ -85,7 +87,7 @@ pub enum CatalogText {
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::Action,
         Self::FileFilter,
         Self::FileFilterCompressed,
@@ -99,6 +101,7 @@ impl CatalogText {
         Self::SummaryTitle,
         Self::KindsHeading,
         Self::SummaryKind,
+        Self::SummaryLoadouts,
         Self::SummarySkipped,
         Self::SummaryFailed,
         Self::SummaryFailure,
@@ -141,6 +144,7 @@ impl CatalogText {
             Self::SummaryTitle => "catalog-summary-title",
             Self::KindsHeading => "catalog-kinds-heading",
             Self::SummaryKind => "catalog-summary-kind",
+            Self::SummaryLoadouts => "catalog-summary-loadouts",
             Self::SummarySkipped => "catalog-summary-skipped",
             Self::SummaryFailed => "catalog-summary-failed",
             Self::SummaryFailure => "catalog-summary-failure",

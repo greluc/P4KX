@@ -8,23 +8,22 @@ leaves out are 4,157 `.xml`, 118 `.json` and one `.chf` in LIVE: none of them is
 
 ## What the Archives hold
 
-Surveyed on 2026-10-20 in LIVE, PTU and TECH-PREVIEW. Every `CrCh` file has the container version
+Surveyed on 2026-10-20 in LIVE. Every `CrCh` file has the container version
 `0x746`; no file has the signature `CryTek` or the container versions `0x744` and `0x745`, and
 no chunk has a big-endian flag.
 
-| Extension | `CrCh` files in LIVE | PTU | TECH-PREVIEW | Content |
-|---|---|---|---|---|
-| `.vvg` | 1 | 1 | 1 | the model below |
-| `.dst` | 141 | 141 | 297 | terrain textures, chunk type `0x0000` v`0x8` |
-| `.cigvoxel` | 27 | 27 | 27 | chunk type `0x4000` v`0x6` |
-| `.cigvoxelheader` | 27 | 27 | 27 | chunk type `0x4001` v`0x3` |
+| Extension | `CrCh` files in LIVE | Content |
+|---|---|---|
+| `.vvg` | 1 | the model below |
+| `.dst` | 141 | terrain textures, chunk type `0x0000` v`0x8` |
+| `.cigvoxel` | 27 | chunk type `0x4000` v`0x6` |
+| `.cigvoxelheader` | 27 | chunk type `0x4001` v`0x3` |
 
 Every `.cgf`, `.cga`, `.skin`, `.chr`, geometry companion, `.caf` and `.dba` is `#ivo`. The
 `CrCh` chunk types of the Star Citizen `.soc` files are left to #309 (docs/chunk-types.md).
 
-**The one `CrCh` model of the Archives** is
-`Data\Objects\Spaceships\Ships\ANVL\Carrack\Exterior\ANVL_Carrack_no_colide.vvg`, the same in all
-three Archives:
+**The one `CrCh` model of the Archive** is
+`Data\Objects\Spaceships\Ships\ANVL\Carrack\Exterior\ANVL_Carrack_no_colide.vvg`:
 
 | Index | Chunk | Version | Size | Read as |
 |---|---|---|---|---|
@@ -93,7 +92,7 @@ The remaining 68 bytes (a word `0x10`, a word `0x1100` and `0xFF` bytes) are not
 
 ## What is not read
 
-Layouts no file of the three Archives uses are not implemented: `Mesh` `0x800` and `0x802` (a
+Layouts no file of the Archive uses are not implemented: `Mesh` `0x800` and `0x802` (a
 `Mesh` chunk a node refers to fails with `MeshVersion`; one nothing refers to is skipped) and
 `DataStream` and `MeshSubsets` chunks (the streamed meshes of Cryengine-Converter, whose
 `MtlName`, `Node` `0x823` and compiled-bones layouts are likewise unused), the `CryTek`

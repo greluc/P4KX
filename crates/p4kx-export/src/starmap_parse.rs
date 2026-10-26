@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_extraction::cryxml::{self, Xml};
 use p4kx_extraction::{Archive, CancelToken, Guid};
@@ -16,20 +17,25 @@ use crate::starmap_xml::{Node, attribute, first_below, pose};
 const CHILDREN: &str = "ChildObjectContainers";
 const CHILD: &str = "Child";
 
-/// The position and rotation of a Child, or why it has none.
+/// The position and rotation of a Child, or the clipped attribute texts of one that has none.
 pub(crate) enum Pose {
     Valid {
         position: [f64; 3],
         rotation: Rotation,
     },
-    Malformed(String),
+    Malformed {
+        pos: String,
+        rot: String,
+        entity: String,
+    },
 }
 
 /// One Child element of a container.
 pub(crate) struct Child {
     pub(crate) pose: Pose,
     pub(crate) record: Option<Guid>,
-    /// The `entityName`, kept only for a Child that names a record.
+    /// The `entityName`, kept for a Child that names a record or an external container or has
+    /// Children of its own.
     pub(crate) entity_name: String,
     /// The path of the external container the Child names.
     pub(crate) external: Option<String>,
@@ -44,6 +50,8 @@ pub(crate) struct Level {
     pub(crate) capped: bool,
     /// The element holds more than one `ChildObjectContainers`; only the first was read.
     pub(crate) extra_lists: bool,
+    /// The list holds more Children than the budget of the parse allowed; the rest was not read.
+    pub(crate) truncated: bool,
 }
 
 /// What reading one container found.
@@ -56,10 +64,25 @@ pub(crate) enum Body {
     },
 }
 
-/// Returns the Children of `node`, down to `depth_limit` nested lists; `depth` is the number of
-/// lists above it.
-fn level<'d, N: Node<'d>>(node: N, depth: usize, depth_limit: usize) -> Level {
-    if depth >= depth_limit {
+/// What bounds the parse: the nesting depth and the number of Children kept in all containers.
+struct Bounds {
+    depth: usize,
+    children: AtomicUsize,
+}
+
+impl Bounds {
+    fn take(&self) -> bool {
+        self.children
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |left| {
+                left.checked_sub(1)
+            })
+            .is_ok()
+    }
+}
+
+/// Returns the Children of `node`; `depth` is the number of lists above it.
+fn level<'d, N: Node<'d>>(node: N, depth: usize, bounds: &Bounds) -> Level {
+    if depth >= bounds.depth {
         return Level {
             capped: true,
             ..Level::default()
@@ -73,19 +96,27 @@ fn level<'d, N: Node<'d>>(node: N, depth: usize, depth_limit: usize) -> Level {
         .filter(|sibling| sibling.name().eq_ignore_ascii_case(CHILDREN))
         .nth(1)
         .is_some();
-    let children = list
+    let mut children = Vec::new();
+    let mut truncated = false;
+    for child in list
         .children()
         .filter(|child| child.name().eq_ignore_ascii_case(CHILD))
-        .map(|child| read_child(child, depth, depth_limit))
-        .collect();
+    {
+        if !bounds.take() {
+            truncated = true;
+            break;
+        }
+        children.push(read_child(child, depth, bounds));
+    }
     Level {
         children,
         capped: false,
         extra_lists,
+        truncated,
     }
 }
 
-fn read_child<'d, N: Node<'d>>(child: N, depth: usize, depth_limit: usize) -> Child {
+fn read_child<'d, N: Node<'d>>(child: N, depth: usize, bounds: &Bounds) -> Child {
     let record = attribute(child, "starMapRecord")
         .and_then(|text| text.trim().parse::<Guid>().ok())
         .filter(|guid| guid.stored() != [0; 16]);
@@ -95,16 +126,17 @@ fn read_child<'d, N: Node<'d>>(child: N, depth: usize, depth_limit: usize) -> Ch
         .map(str::to_owned);
     let pose = match pose(child) {
         Some((position, rotation)) => Pose::Valid { position, rotation },
-        None => Pose::Malformed(format!(
-            "malformed or out of range pos {} rot {} of {}",
-            clip(attribute(child, "pos").unwrap_or_default()),
-            clip(attribute(child, "rot").unwrap_or_default()),
-            clip(attribute(child, "entityName").unwrap_or_default())
-        )),
+        None => Pose::Malformed {
+            pos: clip(attribute(child, "pos").unwrap_or_default()),
+            rot: clip(attribute(child, "rot").unwrap_or_default()),
+            entity: clip(attribute(child, "entityName").unwrap_or_default()),
+        },
     };
+    let below = level(child, depth + 1, bounds);
+    let named = record.is_some() || external.is_some() || !below.children.is_empty();
     Child {
         pose,
-        entity_name: if record.is_some() {
+        entity_name: if named {
             attribute(child, "entityName")
                 .unwrap_or_default()
                 .to_owned()
@@ -113,12 +145,12 @@ fn read_child<'d, N: Node<'d>>(child: N, depth: usize, depth_limit: usize) -> Ch
         },
         record,
         external,
-        below: level(child, depth + 1, depth_limit),
+        below,
     }
 }
 
 /// Reads and parses the container at `entry`.
-fn parse(archive: &Archive, index: &Index<'_>, entry: usize, depth_limit: usize) -> Body {
+fn parse(archive: &Archive, index: &Index<'_>, entry: usize, bounds: &Bounds) -> Body {
     let Some(socpak) = index.entries.get(entry) else {
         return Body::Unreadable("no such entry".to_owned());
     };
@@ -127,14 +159,14 @@ fn parse(archive: &Archive, index: &Index<'_>, entry: usize, depth_limit: usize)
         Err(reason) => return Body::Unreadable(reason),
     };
     let root = match cryxml::read(&main.bytes) {
-        Ok(Xml::CryXml(document)) => level(document.root(), 0, depth_limit),
+        Ok(Xml::CryXml(document)) => level(document.root(), 0, bounds),
         Ok(Xml::Text(text)) => {
             let parsed = std::str::from_utf8(text)
                 .ok()
                 .map(|text| text.trim_start_matches('\u{feff}'))
                 .and_then(|text| roxmltree::Document::parse(text).ok());
             match parsed {
-                Some(document) => level(document.root_element(), 0, depth_limit),
+                Some(document) => level(document.root_element(), 0, bounds),
                 None => return Body::Unparsed,
             }
         }
@@ -153,17 +185,33 @@ fn externals<'l>(level: &'l Level, out: &mut Vec<&'l str>) {
     }
 }
 
+/// The containers read, and how many parses that took.
+pub(crate) struct Read {
+    pub(crate) bodies: HashMap<usize, Body>,
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "only the tests count the parses")
+    )]
+    pub(crate) parsed: usize,
+}
+
 /// Reads every container that the containers `roots` name, directly or through other containers
-/// within `chain` steps, once each, the containers of one step in parallel.
+/// within `chain` steps, once each, the containers of one step in parallel. Together the
+/// containers keep at most `children` Children and nest their lists at most `depth` deep.
 pub(crate) fn read_all(
     archive: &Archive,
     index: &Index<'_>,
     roots: &[usize],
     cancel: Option<&CancelToken>,
     chain: usize,
-    depth_limit: usize,
-) -> HashMap<usize, Body> {
+    (depth, children): (usize, usize),
+) -> Read {
+    let bounds = Bounds {
+        depth,
+        children: AtomicUsize::new(children),
+    };
     let mut bodies: HashMap<usize, Body> = HashMap::new();
+    let mut parsed = 0;
     let mut frontier: Vec<usize> = roots
         .iter()
         .copied()
@@ -176,8 +224,10 @@ pub(crate) fn read_all(
         }
         let read: Vec<(usize, Body)> = frontier
             .par_iter()
-            .map(|&entry| (entry, parse(archive, index, entry, depth_limit)))
+            .filter(|_| !cancel.is_some_and(CancelToken::is_cancelled))
+            .map(|&entry| (entry, parse(archive, index, entry, &bounds)))
             .collect();
+        parsed += read.len();
         let mut next: HashSet<usize> = HashSet::new();
         let mut paths = Vec::new();
         for (_, body) in &read {
@@ -193,5 +243,5 @@ pub(crate) fn read_all(
             .filter(|entry| !bodies.contains_key(entry))
             .collect();
     }
-    bodies
+    Read { bodies, parsed }
 }

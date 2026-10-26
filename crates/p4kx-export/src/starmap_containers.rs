@@ -76,8 +76,9 @@ impl Placements {
             &roots,
             cancel,
             limits.external,
-            limits.depth,
-        );
+            (limits.depth, limits.children),
+        )
+        .bodies;
         if cancel.is_some_and(CancelToken::is_cancelled) {
             return Err(CatalogError::Cancelled);
         }

@@ -7,6 +7,8 @@ use p4kx_extraction::{Archive, Guid};
 use p4kx_testkit::{ArchiveBuilder, TestContainer, TestElement, TestEntry, test_key};
 
 use crate::starmap_containers::{Limits, Placements};
+use crate::starmap_index::Index;
+use crate::starmap_parse::read_all;
 
 const FOLDER: &str = "Data\\ObjectContainers\\PU\\system\\t\\";
 
@@ -67,14 +69,18 @@ fn socpak(name: &str, xml: &str) -> TestEntry {
     )
 }
 
-fn read(dir: &Path, entries: Vec<TestEntry>, limits: Limits) -> Placements {
+fn open(dir: &Path, entries: Vec<TestEntry>) -> Archive {
     let path = dir.join("Data.p4k");
     entries
         .into_iter()
         .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
         .write_to(&path)
         .expect("a written Archive");
-    let archive = Archive::open_with_key(path, Some(test_key())).expect("an opened Archive");
+    Archive::open_with_key(path, Some(test_key())).expect("an opened Archive")
+}
+
+fn read(dir: &Path, entries: Vec<TestEntry>, limits: Limits) -> Placements {
+    let archive = open(dir, entries);
     Placements::read_within(&archive, None, limits).expect("placements")
 }
 
@@ -244,6 +250,36 @@ fn a_container_instanced_several_times_is_composed_at_each_place() {
     assert_eq!(placed(&placements, 2), None, "two places");
     assert_eq!(placements.counts.ambiguous, 1, "only the moved one");
     assert_eq!(placements.counts.unreadable, 0, "read");
+}
+
+#[test]
+fn a_container_instanced_several_times_is_parsed_once() {
+    let dir = tempfile::tempdir().expect("a directory");
+    let entries = system(
+        &root(vec![
+            external_at("ring", "10,0,0"),
+            external_at("ring", "20,0,0"),
+            external_at("ring", "30,0,0"),
+        ]),
+        &[
+            ("ring", root(vec![external("leaf")])),
+            ("leaf", root(vec![])),
+        ],
+    );
+    let archive = open(dir.path(), entries);
+    let index = Index::new(&archive);
+    let roots: Vec<usize> = index.systems().iter().map(|(_, entry)| *entry).collect();
+    let limits = Limits::default();
+    let read = read_all(
+        &archive,
+        &index,
+        &roots,
+        None,
+        limits.external,
+        (limits.depth, limits.children),
+    );
+    assert_eq!(read.parsed, 3, "the system, the ring and the leaf");
+    assert_eq!(read.bodies.len(), 3, "each held once");
 }
 
 #[test]

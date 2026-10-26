@@ -176,15 +176,18 @@ impl<'a> System<'a> {
                     let world = parent.place(*position, *rotation);
                     if !world.is_sane() {
                         self.skipped(&format!(
-                            "{label}: malformed or out of range pos {position:?} of {}",
+                            "{label}: out of range: pos {position:?} places {:?} of {}",
+                            world.position,
                             clip(&child.entity_name)
                         ));
                         continue;
                     }
                     world
                 }
-                Pose::Malformed(reason) => {
-                    self.skipped(&format!("{label}: {reason}"));
+                Pose::Malformed { pos, rot, entity } => {
+                    self.skipped(&format!(
+                        "{label}: malformed pos {pos} rot {rot} of {entity}"
+                    ));
                     continue;
                 }
             };
@@ -194,6 +197,12 @@ impl<'a> System<'a> {
                 self.follow(path, world, below, external, label);
             }
             self.children(&child.below, world, below, external, label);
+        }
+        if level.truncated {
+            let limit = self.limits.children;
+            self.skipped(&format!(
+                "{label}: more than {limit} Children in the containers of the Archive"
+            ));
         }
     }
 

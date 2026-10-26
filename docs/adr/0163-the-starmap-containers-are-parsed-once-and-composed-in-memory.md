@@ -16,6 +16,13 @@ container on the chain (up to 128 MiB each) was held at once. Only the systems r
   parse. `starmap_walk` then composes the positions per system, in parallel, over those trees,
   in the same document order, with the same limits and counts as before. The levels are bounded
   by the external chain limit (32); a cycle ends because a container is read once.
+- **Memory bound.** The parse keeps at most `Limits::children` (4,194,304) Children in all
+  containers together, counted by one shared counter, and nests lists at most `Limits::depth`
+  (64) deep. A list cut by the counter is marked and reported as a skipped Child; which
+  container is cut when the bound is hit depends on the thread order, which only matters for an
+  Archive that is already reported as over the limit. The raw XML and its DOM are alive only
+  while one container is parsed, so the peak is the kept Children plus, per rayon thread, one
+  XML of up to 128 MiB and its DOM.
 - **A container whose XML is not named like it is reported.** When no `<stem>.xml` exists and the
   first other XML entry is taken, the report gets an issue line naming it. It is read, not counted
   as unreadable, because the position data is intact.

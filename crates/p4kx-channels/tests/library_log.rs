@@ -102,9 +102,10 @@ fn a_tail_that_starts_on_a_line_start_keeps_that_line() -> TestResult {
 #[test]
 fn only_the_most_recent_changes_are_kept_at_the_cap() -> TestResult {
     let logs = tempfile::tempdir()?;
-    let text: String = (1..=10_000_u32)
+    let lines: Vec<String> = (1..=10_000_u32)
         .map(|change| format!("(SC LIVE 4.7.2-live.{change})\n"))
         .collect();
+    let text = lines.concat();
     std::fs::write(logs.path().join("log.log"), text)?;
 
     let patches = PublicPatches::read_from(logs.path());

@@ -39,6 +39,7 @@ entered. Limits: 16 levels, 1024 containers, 65536 parts, the vertices of the di
 ## Open points
 
 No LIVE ship socpak examined holds `ChildObjectContainers`; the reader follows the StarBreaker
-description and is tested on synthetic data. Record kinds other than 1 (kind 16 occurs in the
-Hammerhead and Javelin) have an unknown length, so the list ends there and
-`unsupported_objects` is reported. Entities of the `.soc` (props, lights) are #137.
+description and is tested on synthetic data. Record kinds other than 1 have an unknown length, so
+the list ends there and `unsupported_objects` is reported. Entities of the `.soc` (props, lights)
+are #137. The record length of 208 bytes holds for one layout only; ADR-0193 corrects it, reads
+the records of kind 16 and finds `ChildObjectContainers` in other socpaks.

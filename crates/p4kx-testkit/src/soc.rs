@@ -6,7 +6,8 @@ use crate::{CryXmlByteOrder, CryXmlSignature, TestChunkFile, TestElement, TestSo
 
 const ENTITIES: u32 = 0x0004;
 const NAME_LEN: usize = 256;
-const OBJECT_LEN: usize = 208;
+const SKIPPED_KIND: u32 = 16;
+const SKIPPED_LEN: usize = 136;
 const MODEL_INDEX_AT: usize = 60;
 const TRANSFORM_AT: usize = 64;
 const PALETTE_AT: usize = 172;
@@ -29,16 +30,56 @@ struct TestSocObject {
 }
 
 /// A synthetic `.soc` file: a `CrCh` chunk file with an `IncludedObjects` chunk in the layout
-/// of real socpaks (a table of 256-byte model paths, one 208-byte record per placed model).
-#[derive(Debug, Clone, Default)]
+/// of real socpaks.
+///
+/// A table of 256-byte model paths, then one record per placed model whose length follows the
+/// layout word (208 bytes for layout 15) and 136 bytes per record of kind 16.
+#[derive(Debug, Clone)]
 pub struct TestSoc {
     models: Vec<String>,
     palettes: Vec<String>,
     objects: Vec<TestSocObject>,
     entities: Vec<TestSocEntity>,
+    layout: u32,
+}
+
+impl Default for TestSoc {
+    fn default() -> Self {
+        Self {
+            models: Vec::new(),
+            palettes: Vec::new(),
+            objects: Vec::new(),
+            entities: Vec::new(),
+            layout: 15,
+        }
+    }
+}
+
+const fn soc_model_record_len(layout: u32) -> usize {
+    match layout {
+        8..=10 => 176,
+        12 => 184,
+        13 => 192,
+        14 => 200,
+        _ => 208,
+    }
 }
 
 impl TestSoc {
+    /// Sets the layout word at the head of the object table, which fixes the record length;
+    /// the default is 15.
+    #[must_use]
+    pub const fn layout(mut self, layout: u32) -> Self {
+        self.layout = layout;
+        self
+    }
+
+    /// Adds a record of kind 16, which places nothing and is 136 bytes long.
+    #[must_use]
+    pub fn skipped_object(self) -> Self {
+        self.object_of_kind(SKIPPED_KIND)
+    }
+
     /// Adds `entity` to the entity chunk (`CryXmlB`, type `0x0004`).
     #[must_use]
     pub fn entity(mut self, entity: TestSocEntity) -> Self {
@@ -127,19 +168,21 @@ impl TestSoc {
         for palette in &self.palettes {
             put_name(&mut out, palette);
         }
-        put_u32(
-            &mut out,
-            u32::try_from(self.objects.len()).unwrap_or(u32::MAX),
-        );
+        put_u32(&mut out, self.layout);
         for bound in [f32::MIN, f32::MIN, f32::MIN, f32::MAX, f32::MAX, f32::MAX] {
             out.extend_from_slice(&bound.to_le_bytes());
         }
+        let records: Vec<Vec<u8>> = self
+            .objects
+            .iter()
+            .map(|object| record(object, soc_model_record_len(self.layout)))
+            .collect();
         put_u32(
             &mut out,
-            u32::try_from(self.objects.len() * OBJECT_LEN).unwrap_or(u32::MAX),
+            u32::try_from(records.iter().map(Vec::len).sum::<usize>()).unwrap_or(u32::MAX),
         );
-        for object in &self.objects {
-            out.extend_from_slice(&record(object));
+        for record in &records {
+            out.extend_from_slice(record);
         }
         out
     }
@@ -164,9 +207,17 @@ pub struct TestObjectContainer {
     name: String,
     children: Vec<TestElement>,
     streams: Vec<String>,
+    bounds: Option<(String, String)>,
 }
 
 impl TestObjectContainer {
+    /// Declares the bounds `minBounds` and `maxBounds` as the texts `min` and `max`.
+    #[must_use]
+    pub fn bounds_text(mut self, min: &str, max: &str) -> Self {
+        self.bounds = Some((min.to_owned(), max.to_owned()));
+        self
+    }
+
     /// Creates a description of the container `name` without nested containers or `.soc` files.
     #[must_use]
     pub fn new(name: impl Into<String>) -> Self {
@@ -221,6 +272,9 @@ impl TestObjectContainer {
 
     fn element(&self) -> TestElement {
         let mut root = TestElement::new("ObjectContainer").attribute("name", &self.name);
+        if let Some((min, max)) = &self.bounds {
+            root = root.attribute("minBounds", min).attribute("maxBounds", max);
+        }
         if !self.children.is_empty() {
             root = root.child(self.children.iter().cloned().fold(
                 TestElement::new("ChildObjectContainers"),
@@ -263,8 +317,13 @@ fn put_name(out: &mut Vec<u8>, name: &str) {
     out.extend_from_slice(&field);
 }
 
-fn record(object: &TestSocObject) -> [u8; OBJECT_LEN] {
-    let mut record = [0_u8; OBJECT_LEN];
+fn record(object: &TestSocObject, model_len: usize) -> Vec<u8> {
+    let len = if object.kind == SKIPPED_KIND {
+        SKIPPED_LEN
+    } else {
+        model_len
+    };
+    let mut record = vec![0_u8; len];
     let mut set = |at: usize, bytes: &[u8]| {
         if let Some(target) = record.get_mut(at..at + bytes.len()) {
             target.copy_from_slice(bytes);

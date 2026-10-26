@@ -80,7 +80,6 @@ fn item_port(element: &Element) -> VehicleItemPort {
         id: element.attribute("id").map(str::to_owned),
         display_name: element
             .attribute("display_name")
-            .or_else(|| element.attribute("displayname"))
             .filter(|name| !name.is_empty())
             .map(str::to_owned),
         port_tags: element.attribute("portTags").unwrap_or_default().to_owned(),

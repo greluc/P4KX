@@ -184,9 +184,9 @@ fn replace_children(
     Ok(())
 }
 
-/// Replaces the base's children named like `child` by `child`; when the patch has several
-/// children of that name, the first replaces them all and the others follow it, so that none
-/// replaces another.
+/// Replaces the first base child named like `child` by `child`, leaving further base children of
+/// that name; when the patch has several children of that name, the others follow the last such
+/// child, so that none replaces another.
 fn replace_child(
     base: &mut Element,
     child: &Element,
@@ -206,11 +206,6 @@ fn replace_child(
             if let Some(slot) = base.children.get_mut(at) {
                 *slot = added;
             }
-            let mut index = 0;
-            base.children.retain(|existing| {
-                index += 1;
-                index == at + 1 || !same(existing)
-            });
         } else {
             report.unmatched_children.push(child.name.clone());
             base.children.push(added);

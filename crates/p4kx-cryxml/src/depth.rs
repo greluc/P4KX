@@ -25,9 +25,10 @@ impl TextTooDeep {
 /// Returns an error when the elements of the text XML `text` nest deeper than
 /// [`MAX_TEXT_DEPTH`], before any parser recurses that deep.
 ///
-/// The scan is linear in `text`, does not allocate and skips comments, CDATA sections, processing
-/// instructions and declarations the way a parser does, so a closing tag hidden in one does not
-/// lower the depth.
+/// The scan is linear in `text`, does not allocate and skips comments, CDATA sections and
+/// processing instructions, so a closing tag hidden in one does not lower the depth. A
+/// declaration is skipped up to its first `>`; documents with a DOCTYPE internal subset are
+/// refused by the parsers that read them, not by this scan.
 ///
 /// # Errors
 ///

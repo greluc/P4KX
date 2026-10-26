@@ -30,8 +30,12 @@ takes effect before anything is interpreted.
   them matches does the wrapper replace that child wholesale, so a mistyped wrapper on a partial
   patch does not drop the other parts; a wrapper with no base child of its name is an unmatched
   `id`. The base's own `Modifications` element is never replaced. When a patch has several
-  children of one name (two `Parts`), the first replaces every base child of that name and the
-  others follow it, so none replaces another.
+  children of one name (two `Parts`), the first replaces the first base child of that name and
+  the others follow, so none replaces another. Only the first base child is replaced; further base
+  children of the same name stay. The keep-both rule is a choice, not tested on real data: no
+  patch of LIVE has such children, and keeping both could count a part twice. Three base files
+  repeat a top-level name (`Helpers` in the Freelancer, `Particles` in the Fortune and the
+  Prospector); no patch replaces those names.
 - **Elems.** After the patch, each `Elem` of the selected Modification sets the attribute `name`
   to `value` on every element whose `id` equals `idRef`, wherever it sits (`Part` or `ItemPort`).
   Attribute names and element names match ignoring ASCII case (`minSize`/`minsize`,

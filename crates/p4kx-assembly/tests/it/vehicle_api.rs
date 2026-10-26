@@ -167,3 +167,19 @@ fn several_children_of_a_name_in_a_patch_all_replace_the_base_child_of_that_name
     assert_eq!(report.unmatched_children(), [] as [String; 0]);
     Ok(())
 }
+
+#[test]
+fn only_the_first_base_child_of_a_name_is_replaced_and_later_duplicates_stay() -> TestResult {
+    let base = r#"<Vehicle name="TEST_Ship">
+      <Parts><Part name="a" class="Animated"/></Parts>
+      <Parts><Part name="b" class="Animated"/></Parts>
+      <Modifications><Modification name="One" patchFile="Modifications/One"/></Modifications>
+    </Vehicle>"#;
+    let patch =
+        r#"<Modifications><Parts><Part name="x" class="Animated"/></Parts></Modifications>"#;
+    let one = "Scripts/Entities/Vehicles/Implementations/Xml/Modifications/One.xml";
+    let files = files(&[(DEFINITION, base), (one, patch)]);
+    let vehicle = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, Some("One"))?;
+    assert_eq!(part_names(vehicle.iter()), ["x", "b"]);
+    Ok(())
+}

@@ -33,6 +33,7 @@ mod real_head_expressions;
 mod real_head_rotation;
 mod real_hirc_resolution;
 mod real_interior;
+mod real_interior_cache;
 mod real_interior_classes;
 mod real_interior_verification;
 mod real_layer_textures;

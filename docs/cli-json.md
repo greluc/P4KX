@@ -334,10 +334,12 @@ was reached). New kinds may be added in later versions.
  "nodes": 83, "drawn_nodes": 56, "containers": 0, "objects": 0, "lights": 0, "meshes": 31,
  "shared_meshes": 25, "materials": 48, "palettes": 3, "textures": 120,
  "texture_pixels": 98304000, "texture_failures": 0, "files": 152, "bytes": 123456789,
- "vertices": 744831, "triangles": 818426, "skipped": 0, "issues": [Issue, …]}
+ "vertices": 744831, "triangles": 818426, "lod_fallbacks": 0, "skipped": 0, "issues": [Issue, …]}
 ```
 
-`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `nodes` counts the
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `lod_fallbacks` counts
+the models that lack the level of detail asked for and are written at the nearest lower one, as
+for `p4kx entity glb`, but a mesh that several nodes draw counts once. `nodes` counts the
 nodes of `scene.json`, `drawn_nodes` those with a mesh. `--interior` adds the Interior as for
 `p4kx entity glb`; `containers`, `objects` and `lights` count its nodes of the kinds `container`,
 `object` and `light` and are 0 without it. `materials` and `palettes` count the material
@@ -576,6 +578,8 @@ An **Issue** is as for `p4kx entity glb`, with the kinds of the pieces: `piece_n
 Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometry), `no_variant_geometry`
 (the Record names geometry per body, but none for this one; the piece is left out),
 `geometry_missing` and `geometry_unreadable` (the model is not in the Archive or cannot be read),
+`loadout_unreadable` (the Loadout of a worn Entity cannot be read in full, such as a missing XML
+include; the piece is fitted and the issue is a note, ADR-0194),
 `main_geometry_worn` (the Record names no geometry per body, so its main geometry, which is not a
 skin, is worn on the body; a note only), `bones_not_in_skeleton` (some bones of the model are not in
 the body skeleton and follow their nearest parent that is) and `not_skinned` (the model has no bone
@@ -587,8 +591,10 @@ materials of the part that have no diffuse map of their own and none in a layer,
 layer colours, ADR-0147) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
 class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
-the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when
-part of it cannot be read. A `--loadout` that is neither an Entity nor an XML Loadout that can be
+`<port>/<class name>` of the Loadout entry that cannot be resolved (`<port>/<GUID>` when it names
+a Reference, `<port>/unreadable` when the Reference cannot be read), or the Loadout itself when
+part of the root's Loadout cannot be read. Only entries at the root or below worn Entities
+count; an entry below a weapon is not listed (ADR-0194). A `--loadout` that is neither an Entity nor an XML Loadout that can be
 read exits with code 2 and writes nothing.
 
 ## `p4kx entity audio <archive> <entity> --json`

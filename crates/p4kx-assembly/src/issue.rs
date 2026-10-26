@@ -276,6 +276,12 @@ pub enum IssueKind {
         /// What is left out.
         what: String,
     },
+    /// The Loadout of the piece's Entity could not be read in full; the piece is worn as it is.
+    #[error("the Loadout of the Entity cannot be read in full: {reason}")]
+    LoadoutUnreadable {
+        /// Why.
+        reason: String,
+    },
     /// The expression morph targets of a shaped piece cannot be made, so the piece is kept
     /// without them.
     #[error("the expression morph targets cannot be made: {reason}")]

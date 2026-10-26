@@ -120,6 +120,20 @@ fn cryxml_nodes_that_share_a_huge_attribute_range_are_refused() -> TestResult {
 }
 
 #[test]
+fn elements_and_attributes_with_tiny_names_still_cost_memory() {
+    for body in ["<a/>".repeat(200_000), r#"<a x=""/>"#.repeat(200_000)] {
+        let text = format!("<Vehicle>{body}</Vehicle>");
+        let files = files(&[(DEFINITION, text.as_str())]);
+        let result = VehicleImplementation::read(&files, "TEST_Ship", DEFINITION, None);
+        assert!(
+            matches!(&result, Err(error) if error.to_string().contains("more bytes")),
+            "{:?}",
+            result.as_ref().map(|_| ())
+        );
+    }
+}
+
+#[test]
 fn a_patch_copied_into_many_elements_with_one_id_is_refused_and_the_base_stays() -> TestResult {
     let parts = repeated(2000, r#"<Part id="x" name="p@@"/>"#);
     let base = patched_base(

@@ -180,9 +180,18 @@ const MAX_ATTRIBUTES: usize = 1 << 22;
 /// The least bytes of names and values a document may be read into.
 const MIN_BYTES: usize = 1 << 16;
 
+/// How many bytes of records, names and values the tree may hold per byte of input: an element
+/// record alone is several times the size of the shortest markup that makes it.
+const INPUT_FACTOR: usize = 16;
+
+const ELEMENT_BYTES: usize = size_of::<Element>();
+
+const ATTRIBUTE_BYTES: usize = size_of::<(String, String)>();
+
 /// What reading and patching one implementation may spend: elements, attributes, and bytes of
-/// names and values copied, the last at four times the input read.
-#[derive(Debug)]
+/// element and attribute records, names and values held, the last at [`INPUT_FACTOR`] times the
+/// input read.
+#[derive(Debug, Clone)]
 pub(crate) struct Budget {
     elements: usize,
     attributes: usize,
@@ -195,13 +204,15 @@ impl Budget {
         Self {
             elements: MAX_ELEMENTS,
             attributes: MAX_ATTRIBUTES,
-            bytes: input.saturating_mul(4).max(MIN_BYTES),
+            bytes: input.saturating_mul(INPUT_FACTOR).max(MIN_BYTES),
         }
     }
 
     /// Adds the allowance for reading `input` more bytes.
     pub(crate) const fn grow(&mut self, input: usize) {
-        self.bytes = self.bytes.saturating_add(input.saturating_mul(4));
+        self.bytes = self
+            .bytes
+            .saturating_add(input.saturating_mul(INPUT_FACTOR));
     }
 
     fn take(left: &mut usize, count: usize, what: &str) -> Result<(), String> {
@@ -213,16 +224,27 @@ impl Budget {
 
     fn element(&mut self, name: &str) -> Result<(), String> {
         Self::take(&mut self.elements, 1, "elements")?;
-        Self::take(&mut self.bytes, name.len(), "bytes of names and values")
+        Self::take(
+            &mut self.bytes,
+            name.len().saturating_add(ELEMENT_BYTES),
+            "bytes of names and values",
+        )
     }
 
     fn attribute(&mut self, name: &str, value: &str) -> Result<(), String> {
         Self::take(&mut self.attributes, 1, "attributes")?;
         Self::take(
             &mut self.bytes,
-            name.len().saturating_add(value.len()),
+            name.len()
+                .saturating_add(value.len())
+                .saturating_add(ATTRIBUTE_BYTES),
             "bytes of names and values",
         )
+    }
+
+    /// Returns why `root` cannot be copied once more within the budget, without spending it.
+    pub(crate) fn check_copy(&self, root: &Element) -> Result<(), String> {
+        self.clone().charge_copy(root)
     }
 
     /// Charges the cost of copying `element` without its children.
@@ -256,7 +278,9 @@ impl Budget {
         Self::take(&mut self.attributes, attributes.max(1), "attributes")?;
         Self::take(
             &mut self.bytes,
-            name.len().saturating_add(value.len()),
+            name.len()
+                .saturating_add(value.len())
+                .saturating_add(ATTRIBUTE_BYTES),
             "bytes of names and values",
         )
     }

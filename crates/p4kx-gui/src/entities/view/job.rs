@@ -240,7 +240,7 @@ fn with_interior(
     assembly: Assembly,
     request: &Request,
     (cancel, shared): (&CancelToken, &Shared),
-    forge: &DataForge<'_>,
+    (forge, models): (&DataForge<'_>, &dyn ModelProvider),
 ) -> Result<Assembly, Ended> {
     if !request.interior {
         return Ok(assembly);
@@ -256,13 +256,13 @@ fn with_interior(
     };
     let options = InteriorOptions::default().with_lod(request.lod);
     let classes = InteriorForge::new(forge);
-    match EntityInterior::build_with(
+    match EntityInterior::build_with_models(
         index.archive(),
         &assembly,
         &request.tree,
         &options,
         &watch,
-        Some(&classes),
+        (Some(&classes), Some(models)),
     ) {
         Ok(interior) => Ok(assembly.with_interior(interior)),
         Err(AssemblyError::Cancelled) => Err(Ended::Cancelled),
@@ -311,7 +311,8 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         }
         Err(other) => return Ended::Failed(failure_of(index, &other)),
     };
-    let assembly = match with_interior(index, assembly, request, (cancel, shared), &forge) {
+    let with = (&forge, &cached as &dyn ModelProvider);
+    let assembly = match with_interior(index, assembly, request, (cancel, shared), with) {
         Ok(assembly) => assembly,
         Err(ended) => return ended,
     };

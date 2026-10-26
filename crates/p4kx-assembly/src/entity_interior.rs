@@ -10,7 +10,7 @@ use p4kx_model::{Model, Transform};
 use crate::placement::{node_transform, offset};
 use crate::{
     Assembly, AssemblyError, EntityNode, Interior, InteriorForge, InteriorOptions,
-    InteriorProgress, InteriorWatch, Issue, IssueKind, ObjectContainerRef,
+    InteriorProgress, InteriorWatch, Issue, IssueKind, ModelProvider, ObjectContainerRef,
 };
 use budget::Budget;
 
@@ -155,6 +155,25 @@ impl EntityInterior {
         watch: &InteriorWatch<'_>,
         forge: Option<&InteriorForge<'_>>,
     ) -> Result<Self, AssemblyError> {
+        Self::build_with_models(archive, assembly, tree, options, watch, (forge, None))
+    }
+
+    /// Builds the Interior like [`Self::build_with`], reading the models of `archive` through
+    /// `models` when given, e.g. a [`CachedModels`](crate::CachedModels) over the provider the
+    /// Assembly was built with, so that models read before are not read again, see
+    /// [`Interior::build_with_models`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_watched`].
+    pub fn build_with_models(
+        archive: &Archive,
+        assembly: &Assembly,
+        tree: &EntityNode,
+        options: &InteriorOptions,
+        watch: &InteriorWatch<'_>,
+        (forge, models): (Option<&InteriorForge<'_>>, Option<&dyn ModelProvider>),
+    ) -> Result<Self, AssemblyError> {
         let index = PathIndex::new(archive);
         let root = assembly.root().and_then(|part| part.model());
         let mut built = Self::default();
@@ -196,8 +215,13 @@ impl EntityInterior {
             };
             let placement = built.place(reference, root);
             let limited = budget.options(&built);
-            let interior =
-                Interior::build_with(&[archive, &opened], entry.path(), &limited, watch, forge)?;
+            let interior = Interior::build_with_models(
+                &[archive, &opened],
+                entry.path(),
+                &limited,
+                watch,
+                (forge, models),
+            )?;
             built.add(reference, placement, interior);
         }
         Ok(built)

@@ -45,6 +45,30 @@ default quantum and jump drives of the ships do, which carry `UNDEFINED` on port
 takes any Entity. The rejection carries the reason
 (`Incompatibility`) and is invalid input in the CLI (exit code 2).
 
+### Default items against their ports on LIVE
+
+A census of the default Loadouts of all 1144 ships and vehicles of LIVE (issue #712) shows that the
+data does not keep its own port definitions: thousands of default items break the type, sub-type
+or size their port lists, so a default item fitting its port is no rule the game keeps. What
+the data explains and what it does not:
+
+- **A largest size of 0.** A port whose `MaxSize` is 0 beside a `MinSize` of 0 holds items of
+  size 0, 1 and even 4 in the default Loadouts (door panels, screens, the engineering buffs, the
+  cargo pods of the Carrack), with and without types. The zeros are the unauthored default, not a
+  limit, so such a port states no largest size. A port with a smallest size above 0 keeps its
+  largest size.
+- **`Turret` on a `WeaponGun` port.** The turrets of the Idris take a gimbal mount (item type
+  `Turret`, sub-type `GunTurret`) on ports their Record defines as `WeaponGun` / `Gun` with the
+  flag `$uneditable`; the ship's vehicle implementation declares no item port for them. The
+  data gives no rule that admits the mount, so the check keeps rejecting it. It affects only
+  ports whose flag says the player cannot change them.
+- **`Display` on a `DockingAnimator` port.** The annunciator screens of the Idris dashboards
+  are attached to ports typed `DockingAnimator`, the type of the port definition they were copied
+  from. The data gives no rule that admits a screen there, so the check keeps rejecting it.
+
+`real_subtype_fit` asserts that the default items of ten ships break nothing beyond the last two
+cases, which it names.
+
 Tags (`PortTags`, `RequiredPortTags`, `AttachDef.Tags`) are not checked: they are References to
 Tag Records whose use in the game is not settled here. That is a narrowing step that can follow
 without changing the API. The `subtypes` of a vehicle implementation's `Types/Type` are read and

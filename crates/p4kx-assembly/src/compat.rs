@@ -140,7 +140,8 @@ impl PortConstraints {
     ///
     /// An item type is matched ignoring ASCII case, and a type that names sub-types takes only
     /// those, except that an item whose sub-type is empty or `UNDEFINED` fits any of them. An
-    /// item that gives no size is not held against the sizes.
+    /// item that gives no size is not held against the sizes, and a largest size of 0 beside a
+    /// smallest size of 0 or none states no limit.
     ///
     /// # Errors
     ///
@@ -183,6 +184,7 @@ impl PortConstraints {
                 return Err(Incompatibility::TooSmall { size, min });
             }
             if let Some(max) = self.max_size
+                && (max > 0 || self.min_size.is_some_and(|min| min > 0))
                 && size > max
             {
                 return Err(Incompatibility::TooLarge { size, max });
@@ -287,6 +289,40 @@ mod tests {
         assert_eq!(port().check(&gun("UNDEFINED")), Ok(()));
         assert_eq!(port().check(&gun("undefined")), Ok(()));
         assert_eq!(port().check(&gun("Gun")), Ok(()));
+    }
+
+    fn sized(min: Option<u32>, max: Option<u32>, size: u32) -> Result<(), Incompatibility> {
+        let mut item = gun("Gun");
+        item.size = Some(size);
+        PortConstraints {
+            min_size: min,
+            max_size: max,
+            types: Vec::new(),
+        }
+        .check(&item)
+    }
+
+    #[test]
+    fn a_largest_size_of_zero_with_no_smallest_size_states_no_limit() {
+        assert_eq!(sized(Some(0), Some(0), 1), Ok(()));
+        assert_eq!(sized(None, Some(0), 4), Ok(()));
+        assert_eq!(sized(Some(0), Some(0), 0), Ok(()));
+    }
+
+    #[test]
+    fn a_stated_range_is_still_enforced() {
+        assert_eq!(
+            sized(Some(1), Some(1), 2),
+            Err(Incompatibility::TooLarge { size: 2, max: 1 })
+        );
+        assert_eq!(
+            sized(Some(2), Some(2), 1),
+            Err(Incompatibility::TooSmall { size: 1, min: 2 })
+        );
+        assert_eq!(
+            sized(Some(0), Some(3), 4),
+            Err(Incompatibility::TooLarge { size: 4, max: 3 })
+        );
     }
 
     #[test]

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! The default items of real ships fit the sub-types of the ports that hold them.
+//! The default items of real ships fit the ports that hold them, except the documented cases.
 
 use std::error::Error;
 
@@ -42,7 +42,8 @@ fn default_items_fit_the_sub_types_of_their_ports() -> TestResult {
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
     let (mut ships, mut checked, mut with_sub_types) = (0_usize, 0_usize, 0_usize);
     let mut sub_type_rejections = Vec::new();
-    let mut other_rejections = 0_usize;
+    let mut other_rejections = Vec::new();
+    let mut documented_rejections = 0_usize;
     for name in SHIPS {
         let Ok(record) = resolver.entities().find(name) else {
             continue;
@@ -74,17 +75,25 @@ fn default_items_fit_the_sub_types_of_their_ports() -> TestResult {
                     sub_type_rejections
                         .push(format!("{name}: {path} = {}: {reason}", child.class_name()));
                 }
+                Err(Incompatibility::Type {
+                    item_type,
+                    accepted,
+                }) if is_documented_type_mismatch(&item_type, &accepted) => {
+                    documented_rejections += 1;
+                }
                 Err(reason) => {
                     println!("other: {name}: {path} = {}: {reason}", child.class_name());
-                    other_rejections += 1;
+                    other_rejections.push(format!("{name}: {path}: {reason}"));
                 }
             }
         }
     }
     println!(
         "{ships} ships, {checked} default items checked, {with_sub_types} on ports with \
-         sub-types, {} sub-type rejections, {other_rejections} other rejections",
-        sub_type_rejections.len()
+         sub-types, {} sub-type rejections, {documented_rejections} documented type \
+         rejections, {} other rejections",
+        sub_type_rejections.len(),
+        other_rejections.len()
     );
     for line in &sub_type_rejections {
         println!("{line}");
@@ -95,5 +104,18 @@ fn default_items_fit_the_sub_types_of_their_ports() -> TestResult {
         sub_type_rejections.is_empty(),
         "default items rejected by sub-type: {sub_type_rejections:#?}"
     );
+    assert!(
+        other_rejections.is_empty(),
+        "default items rejected beyond the cases ADR-0076 documents: {other_rejections:#?}"
+    );
     Ok(())
+}
+
+/// The two item-type mismatches of default items ADR-0076 documents as left to the data: a
+/// gimbal mount (`Turret`) on a `WeaponGun` port and a screen (`Display`) on a `DockingAnimator`
+/// port.
+fn is_documented_type_mismatch(item_type: &str, accepted: &[String]) -> bool {
+    let only = |name: &str| matches!(accepted, [one] if one.eq_ignore_ascii_case(name));
+    (item_type == "Turret" && only("WeaponGun"))
+        || (item_type == "Display" && only("DockingAnimator"))
 }

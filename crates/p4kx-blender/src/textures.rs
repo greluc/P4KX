@@ -108,6 +108,10 @@ fn write_one(
     writer
         .flush()
         .map_err(|source| PackageError::write(&path, source))?;
+    writer
+        .get_ref()
+        .sync_all()
+        .map_err(|source| PackageError::write(&path, source))?;
     let bytes = writer
         .get_ref()
         .metadata()

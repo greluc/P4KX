@@ -1,0 +1,102 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use std::io;
+use std::path::Path;
+use std::thread;
+use std::time::Duration;
+
+const ATTEMPTS: u32 = 6;
+const FIRST_DELAY: Duration = Duration::from_millis(20);
+const ERROR_ACCESS_DENIED: i32 = 5;
+const ERROR_SHARING_VIOLATION: i32 = 32;
+
+/// Returns whether `error` may be a handle another program holds briefly: access denied or a
+/// sharing violation.
+pub(crate) fn is_busy(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::PermissionDenied
+        || matches!(
+            error.raw_os_error(),
+            Some(ERROR_ACCESS_DENIED | ERROR_SHARING_VIOLATION)
+        )
+}
+
+/// Renames `from` to `to`, trying again a few times with a doubling pause while the error says the
+/// folder may only be held briefly; returns the last error.
+pub(crate) fn rename(from: &Path, to: &Path) -> io::Result<()> {
+    retry(ATTEMPTS, FIRST_DELAY, || std::fs::rename(from, to))
+}
+
+fn retry(
+    attempts: u32,
+    first_delay: Duration,
+    mut operation: impl FnMut() -> io::Result<()>,
+) -> io::Result<()> {
+    let mut delay = first_delay;
+    let mut left = attempts;
+    loop {
+        left = left.saturating_sub(1);
+        match operation() {
+            Err(error) if left > 0 && is_busy(&error) => {
+                thread::sleep(delay);
+                delay = delay.saturating_mul(2);
+            }
+            other => return other,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io;
+    use std::time::Duration;
+
+    use super::{is_busy, retry};
+
+    fn denied() -> io::Error {
+        io::Error::from(io::ErrorKind::PermissionDenied)
+    }
+
+    #[test]
+    fn a_busy_folder_is_tried_again_until_it_is_free() {
+        let mut calls = 0;
+        let result = retry(5, Duration::ZERO, || {
+            calls += 1;
+            if calls < 3 { Err(denied()) } else { Ok(()) }
+        });
+
+        assert!(result.is_ok());
+        assert_eq!(calls, 3);
+    }
+
+    #[test]
+    fn the_attempts_are_bounded_and_the_last_error_is_returned() {
+        let mut calls = 0;
+        let result = retry(4, Duration::ZERO, || {
+            calls += 1;
+            Err(denied())
+        });
+
+        assert_eq!(calls, 4);
+        assert!(result.is_err_and(|error| is_busy(&error)));
+    }
+
+    #[test]
+    fn another_error_is_not_tried_again() {
+        let mut calls = 0;
+        let result = retry(5, Duration::ZERO, || {
+            calls += 1;
+            Err(io::Error::from(io::ErrorKind::NotFound))
+        });
+
+        assert_eq!(calls, 1);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn the_windows_codes_for_access_denied_and_a_sharing_violation_are_busy() {
+        assert!(is_busy(&io::Error::from_raw_os_error(5)));
+        assert!(is_busy(&io::Error::from_raw_os_error(32)));
+        assert!(!is_busy(&io::Error::from(io::ErrorKind::NotFound)));
+    }
+}

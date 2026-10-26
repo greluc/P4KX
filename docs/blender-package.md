@@ -63,9 +63,13 @@ rules below apply to it as well.
   target, which replaces the target once the package is complete; the check above is repeated
   just before. The earlier package is moved aside to `<name>.p4kx-<process id>.old` and removed
   after the new one is in place; if the move fails it is moved back, and if that fails too the
-  error names the `.old` folder. After an error or a Ctrl+C the temporary folder is removed and
-  an earlier package is still there. A second Ctrl+C ends the process at once and can leave the
-  temporary folder behind.
+  error names the `.old` folder. Every file is flushed to disk before the move, and on Unix the
+  folders too. A move that fails with access denied or a sharing violation, because a virus
+  scanner, the indexer, an Explorer preview or a shell holds the folder, is tried again for about
+  a second; the error then says that the folder is in use. After an error or a Ctrl+C the
+  temporary folder is removed, so are the parent folders the run created, and an earlier package
+  is still there. A second Ctrl+C ends the process at once and can leave the temporary folder
+  behind.
 
 ## `scene.json`
 
@@ -350,7 +354,9 @@ resolved, as for `p4kx entity glb`), textures that could not be loaded or whose 
 no safe path (`origin` is `texture`, `kind` is `texture` or `texture_path`) and, from 1.1, layers
 whose material file is missing, unreadable or lacks the named sub-material (`origin` is
 `material`, `kind` is `layer_material`, `path` the layer's `Path`, `name` the material that has
-the layer). Each has `kind`, a
+the layer). A number that is NaN or infinite in the source data, which JSON cannot hold, is
+replaced (a transform by the identity, a colour or factor by 0, an optional value is left out) and
+listed with `origin` `assembly` and `kind` `value_not_finite`. Each has `kind`, a
 stable code, `path`, `name`, `skipped` (the node is left out of the scene) and `reason`, text for
 people that comes partly from the Archive and is untrusted.
 

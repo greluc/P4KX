@@ -172,6 +172,31 @@ fn a_cancelled_run_leaves_no_output_and_keeps_an_earlier_package() -> TestResult
 }
 
 #[test]
+fn a_failed_run_removes_the_parent_folders_it_created_and_keeps_the_ones_that_were_there()
+-> TestResult {
+    let fixture = fixture(livery_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let assembly = assemble(&archive, "TEST_Livery")?;
+    let dir = tempfile::tempdir()?;
+    let existing = dir.path().join("existing");
+    std::fs::create_dir(&existing)?;
+
+    for out in [
+        dir.path().join("a").join("b").join("ship"),
+        existing.join("c").join("ship"),
+    ] {
+        let error = write(&assembly, &archive, &out, &|| true)
+            .err()
+            .ok_or("must be cancelled")?;
+        assert!(matches!(error, PackageError::Cancelled), "{error}");
+    }
+
+    assert_eq!(names_in(dir.path())?, ["existing"]);
+    assert_eq!(names_in(&existing)?, Vec::<String>::new());
+    Ok(())
+}
+
+#[test]
 fn a_texture_that_cannot_be_loaded_is_an_issue_not_a_failure() -> TestResult {
     let fixture = fixture(livery_entries())?;
     let archive = Archive::open(&fixture.path)?;

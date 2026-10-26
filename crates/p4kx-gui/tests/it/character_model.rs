@@ -123,8 +123,11 @@ fn the_choice_of_a_piece_lists_only_armour_and_clothing() -> TestResult {
         [
             "TEST_Cuirass",
             "TEST_Helmet",
+            "TEST_Jacket",
+            "TEST_Pack",
             "TEST_Pants",
             "TEST_Plate",
+            "TEST_Pouch",
             "TEST_Torso"
         ],
         "worn item types only, no pistol"

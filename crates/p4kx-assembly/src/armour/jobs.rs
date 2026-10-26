@@ -69,6 +69,9 @@ fn note_kind(note: &Note) -> IssueKind {
             material: material.clone(),
         },
         Note::LookIgnored(what) => IssueKind::LookIgnored { what: what.clone() },
+        Note::LoadoutUnreadable(reason) => IssueKind::LoadoutUnreadable {
+            reason: reason.clone(),
+        },
     }
 }
 

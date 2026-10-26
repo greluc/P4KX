@@ -123,6 +123,51 @@ fn the_tag_tree_is_drawn_with_its_head_rows_and_chevrons() -> TestResult {
 }
 
 #[test]
+fn the_tab_is_drawn_at_the_design_sizes_in_both_languages_with_and_without_a_search() -> TestResult
+{
+    for (language, tag) in [
+        (Language::BritishEnglish, "en-GB"),
+        (Language::German, "de-DE"),
+    ] {
+        for size in [[1280.0, 800.0], [640.0, 400.0]] {
+            let Some(renderer) = renderer() else {
+                return Ok(());
+            };
+            let dir = tempfile::tempdir()?;
+            let mut harness = window(renderer, language, dir.path(), (size, forge()))?;
+            let expand = if language == Language::German {
+                "Weapon aufklappen"
+            } else {
+                "Expand Weapon"
+            };
+            harness.get_by_role_and_label(Role::Button, expand).click();
+            harness.run_steps(3);
+            harness
+                .get_by_role_and_label(Role::Button, "Weapon.Gun")
+                .click();
+            harness.run_steps(3);
+            for (searched, query) in [("", ""), ("-search", "gun")] {
+                harness.state_mut().tags_mut().set_query(query);
+                harness.run_steps(3);
+                let image = harness.render()?;
+                let name = format!("tags-{}x{}-{tag}{searched}.png", size[0], size[1]);
+                let (width, height) = (image.width(), image.height());
+                let data = image.into_raw();
+                save(&name, width, height, &data)?;
+                let orange = data
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .filter(|pixel| pixel.get(..3) == Some(&PRIMARY[..]))
+                    .count();
+                assert!(orange > 300, "{name}: the head rule is orange: {orange}");
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn a_deep_tree_in_a_narrow_window_scrolls_sideways_instead_of_overlapping() -> TestResult {
     let Some(renderer) = renderer() else {
         return Ok(());

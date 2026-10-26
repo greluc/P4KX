@@ -29,9 +29,10 @@ struct Raw<'f> {
 
 /// Lays out the tags of `forge`: the root tags the `TagDatabase` Records list, everything below
 /// them, then the Tag Records nothing lists.
-pub(crate) fn layout(forge: &DataForge<'_>) -> Layout {
+pub(crate) fn layout(forge: &DataForge<'_>, stop: &dyn Fn() -> bool) -> Option<Layout> {
+    let mut ticker = Ticker::new(stop);
     let mut issues = TagTreeIssues::default();
-    let (raws, database_roots) = read(forge, &mut issues);
+    let (raws, database_roots) = read(forge, &mut issues, &mut ticker)?;
     let positions: HashMap<Guid, usize> = raws
         .iter()
         .enumerate()
@@ -45,6 +46,7 @@ pub(crate) fn layout(forge: &DataForge<'_>) -> Layout {
         roots: Vec::new(),
         text_bytes: 0,
         issues,
+        ticker,
     };
     for guid in &database_roots {
         match positions.get(guid) {
@@ -53,6 +55,9 @@ pub(crate) fn layout(forge: &DataForge<'_>) -> Layout {
         }
     }
     walk.unlisted();
+    if walk.ticker.stopped() {
+        return None;
+    }
     let Walk {
         nodes,
         roots,
@@ -60,21 +65,57 @@ pub(crate) fn layout(forge: &DataForge<'_>) -> Layout {
         ..
     } = walk;
     issues.unlisted = nodes.iter().filter(|node| !node.listed).count();
-    Layout {
+    Some(Layout {
         nodes,
         roots,
         issues,
+    })
+}
+
+/// How many steps pass between two polls of the stop function.
+const POLL_EVERY: u32 = 1024;
+
+/// Polls the stop function once in [`POLL_EVERY`] steps, and for good once it said stop.
+struct Ticker<'s> {
+    stop: &'s dyn Fn() -> bool,
+    steps: u32,
+    stopped: bool,
+}
+
+impl<'s> Ticker<'s> {
+    fn new(stop: &'s dyn Fn() -> bool) -> Self {
+        Self {
+            stop,
+            steps: 0,
+            stopped: stop(),
+        }
+    }
+
+    fn stopped(&mut self) -> bool {
+        self.steps += 1;
+        if !self.stopped && self.steps >= POLL_EVERY {
+            self.steps = 0;
+            self.stopped = (self.stop)();
+        }
+        self.stopped
     }
 }
 
 /// Reads the Tag Records and the root tags every `TagDatabase` lists. Of Tag Records that share a
-/// GUID the first counts.
-fn read<'f>(forge: &'f DataForge<'f>, issues: &mut TagTreeIssues) -> (Vec<Raw<'f>>, Vec<Guid>) {
+/// GUID the first counts. Returns `None` once the ticker says stop.
+fn read<'f>(
+    forge: &'f DataForge<'f>,
+    issues: &mut TagTreeIssues,
+    ticker: &mut Ticker<'_>,
+) -> Option<(Vec<Raw<'f>>, Vec<Guid>)> {
     let mut builder = TreeBuilder::new();
     let mut raws = Vec::new();
     let mut seen = HashSet::new();
     let mut roots = Vec::new();
     for record in forge.records() {
+        if ticker.stopped() {
+            return None;
+        }
         let Ok(type_name) = record.type_name() else {
             continue;
         };
@@ -110,7 +151,7 @@ fn read<'f>(forge: &'f DataForge<'f>, issues: &mut TagTreeIssues) -> (Vec<Raw<'f
             children,
         });
     }
-    (raws, roots)
+    Some((raws, roots))
 }
 
 /// Appends the GUIDs of the References in the array `value`; anything else counts as dangling.
@@ -136,6 +177,7 @@ struct Walk<'a, 'f> {
     roots: Vec<u32>,
     text_bytes: usize,
     issues: TagTreeIssues,
+    ticker: Ticker<'a>,
 }
 
 /// A tag on the way down: its node, its Tag Record and the next child to visit.
@@ -162,6 +204,9 @@ impl Walk<'_, '_> {
             next: 0,
         }];
         while let Some(frame) = stack.last_mut() {
+            if self.ticker.stopped() {
+                return;
+            }
             let child = self
                 .raws
                 .get(frame.raw)
@@ -282,6 +327,9 @@ impl Walk<'_, '_> {
         }
         for orphans_first in [true, false] {
             for position in 0..self.raws.len() {
+                if self.ticker.stopped() {
+                    return;
+                }
                 let unvisited = self.visited.get(position) == Some(&false);
                 let parentless = has_parent.get(position) == Some(&false);
                 if unvisited && (parentless || !orphans_first) {

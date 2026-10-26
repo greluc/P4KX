@@ -16,7 +16,7 @@ use crate::{Language, Model};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn write_archive(path: &Path, extra: bool) -> TestResult {
+pub(crate) fn write_archive(path: &Path, extra: bool) -> TestResult {
     let mut forge = DataForgeBuilder::new()
         .structure(TestStruct::new("Maker").field("rank", TestType::Int32))
         .record(
@@ -37,7 +37,7 @@ fn write_archive(path: &Path, extra: bool) -> TestResult {
     Ok(())
 }
 
-fn opened(path: &Path) -> Result<Model, Box<dyn Error>> {
+pub(crate) fn opened(path: &Path) -> Result<Model, Box<dyn Error>> {
     let mut model = Model::new(Language::BritishEnglish);
     model.open(path.to_path_buf(), || {});
     let deadline = Instant::now() + Duration::from_secs(30);

@@ -475,6 +475,12 @@ catalog-summary-kind = { $kind ->
    *[no] teilweise
 }
 catalog-summary-skipped = Als Entwicklungsreste übersprungene Records: { $number }
+catalog-playability-heading = Spielbarkeit
+catalog-summary-playability = { $kind ->
+    [items] Items
+    [ships] Schiffe und Bodenfahrzeuge
+   *[other] { $kind }
+}: { $player } Spieler, { $ai } KI, { $mission } Mission, { $special } Sonder, { $unclassified } nicht eingeordnet
 catalog-summary-failed = Nicht lesbare und weggelassene Records ({ $number })
 catalog-summary-failure = { $path } ({ $guid }): { $reason }
 catalog-texts-heading = Texte

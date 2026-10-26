@@ -170,7 +170,7 @@ impl Parts {
             starmap_report: self.starmap_report,
             shops: self.shops,
             store_slugs: self.store_slugs,
-            playability: Box::new(self.playability),
+            playability: self.playability,
             variants: self.variants,
             failures: self.failures,
             warnings: self.warnings,

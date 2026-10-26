@@ -62,7 +62,7 @@ pub(crate) fn ship<'f>(
         crew_size: integer(vehicle, "crewSize"),
         manufacturer_guid: reference(vehicle, "manufacturer"),
         vehicle_definition: text(vehicle, "vehicleDefinition"),
-        playability: playability_rules::ship(tree, evidence),
+        playability: playability_rules::ship(tree, vehicle, evidence),
         vehicle_kind: base.vehicle_kind,
         size: base.size.as_ref().map(|size| size.value),
         mass: base.mass.as_ref().map(|mass| mass.kg),

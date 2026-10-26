@@ -8,7 +8,7 @@ use egui::{Id, Ui};
 use fluent_bundle::FluentValue;
 use p4kx_export::{DECOMPRESSED_LIMIT, SizeWarning, UPLOAD_LIMIT};
 
-use super::catalog_lines::{Notice, failure_lines, kinds, languages, notices, sizes};
+use super::catalog_lines::{Notice, failure_lines, kinds, languages, notices, playability, sizes};
 use super::extraction::{group_label, number};
 use super::extraction_outcome::{decorate, ratio};
 use super::record_export_outcome::{list, outcome_window};
@@ -191,11 +191,12 @@ const fn size_texts(compressed: bool) -> [T; 2] {
 /// The texts of one summary, formatted once per catalog and language.
 struct Laid {
     key: (u64, Language),
-    headings: [String; 2],
+    headings: [String; 3],
     warnings: Vec<(String, SizeWarning)>,
     notices: Vec<Notice>,
     kinds: Vec<String>,
     skipped: String,
+    playability: Vec<String>,
     failed_heading: String,
     failures: Vec<String>,
     reasons: Vec<usize>,
@@ -251,7 +252,11 @@ impl Laid {
         let (failures, reasons) = failure_lines(texts, summary);
         Self {
             key,
-            headings: [texts.get(T::KindsHeading), texts.get(T::TextsHeading)],
+            headings: [
+                texts.get(T::KindsHeading),
+                texts.get(T::TextsHeading),
+                texts.get(T::PlayabilityHeading),
+            ],
             warnings,
             notices: notices(texts, summary),
             kinds: kinds(texts, summary),
@@ -265,6 +270,7 @@ impl Laid {
             ),
             failures,
             reasons,
+            playability: playability(texts, summary),
             texts: languages(texts, summary),
             missing: texts.format(
                 T::SummaryMissing,
@@ -302,6 +308,9 @@ fn finished(ui: &mut Ui, laid: &Laid) {
     group_label(ui, &laid.headings[0]);
     lines(ui, &laid.kinds);
     note(ui, &laid.skipped);
+    ui.add_space(MODAL_GROUP_GAP);
+    group_label(ui, &laid.headings[2]);
+    lines(ui, &laid.playability);
     list(
         ui,
         (&laid.failed_heading, "catalog-failed"),

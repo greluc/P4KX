@@ -494,7 +494,8 @@ No item is `ai`: items carry no AI marker the rules can read.
 The development-leftover token rule (see "Selection") runs first and is unchanged: a Record it
 leaves out is no entity and has no playability. Known limit: a few leftover-like ships whose names
 the token list does not hold (`temp`, `display`, `hijacked` variants; about 20 on LIVE) carry no
-structural marker and read as `player`.
+structural marker and read as `player`: their referrers, Tags and record-path folder do not set
+them apart from the ships a player owns (ADR-0167).
 
 **The Basetool seeds only `player` ships and items, and treats them as candidates.** `player`
 means the Records carry the structural markers of a player entity (ships: hangar-ready inclusion

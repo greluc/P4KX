@@ -36,6 +36,11 @@ pub enum CatalogText {
     SummaryKind,
     /// The Records left out as development leftovers over every kind; takes `number`.
     SummarySkipped,
+    /// The heading of the playability counts.
+    PlayabilityHeading,
+    /// The playability counts of the items or the ships; takes `kind` (`items` or `ships`),
+    /// `player`, `ai`, `mission`, `special` and `unclassified`.
+    SummaryPlayability,
     /// The heading of the Records that could not be read; takes `number`.
     SummaryFailed,
     /// One Record that could not be read; takes `path`, `guid` and `reason`.
@@ -85,7 +90,7 @@ pub enum CatalogText {
 
 impl CatalogText {
     /// Every text, for checks of the Fluent files.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 38] = [
         Self::Action,
         Self::FileFilter,
         Self::FileFilterCompressed,
@@ -100,6 +105,8 @@ impl CatalogText {
         Self::KindsHeading,
         Self::SummaryKind,
         Self::SummarySkipped,
+        Self::PlayabilityHeading,
+        Self::SummaryPlayability,
         Self::SummaryFailed,
         Self::SummaryFailure,
         Self::TextsHeading,
@@ -142,6 +149,8 @@ impl CatalogText {
             Self::KindsHeading => "catalog-kinds-heading",
             Self::SummaryKind => "catalog-summary-kind",
             Self::SummarySkipped => "catalog-summary-skipped",
+            Self::PlayabilityHeading => "catalog-playability-heading",
+            Self::SummaryPlayability => "catalog-summary-playability",
             Self::SummaryFailed => "catalog-summary-failed",
             Self::SummaryFailure => "catalog-summary-failure",
             Self::TextsHeading => "catalog-texts-heading",

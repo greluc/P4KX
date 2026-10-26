@@ -1,0 +1,108 @@
+name: Commit Gates
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: commit-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dco:
+    name: DCO sign-off
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify each commit carries a Signed-off-by trailer matching its author
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "::error::the base commit ${BASE_SHA} is not in the checkout"
+            exit 1
+          fi
+
+          mapfile -t commits < <(git log --reverse --format='%H' "${BASE_SHA}..${HEAD_SHA}")
+          if [[ ${#commits[@]} -eq 0 ]]; then
+            echo "No commits to check."
+            exit 0
+          fi
+          echo "Checking ${#commits[@]} commit(s) in ${BASE_SHA}..${HEAD_SHA}"
+
+          bot_emails=(
+            'dependabot[bot]@users.noreply.github.com'
+            '49699333+dependabot[bot]@users.noreply.github.com'
+            'github-actions[bot]@users.noreply.github.com'
+            '41898282+github-actions[bot]@users.noreply.github.com'
+          )
+
+          failed=0
+          for sha in "${commits[@]}"; do
+            short=$(git log -1 --format='%h' "$sha")
+            subject=$(git log -1 --format='%s' "$sha")
+            author_name=$(git log -1 --format='%an' "$sha")
+            author_email=$(git log -1 --format='%ae' "$sha")
+            parent_count=$(git log -1 --format='%P' "$sha" | wc -w)
+
+            if [[ $parent_count -ge 2 ]]; then
+              echo "::notice title=DCO::Skipped merge commit ${short}: ${subject}"
+              continue
+            fi
+
+            is_bot=0
+            for bot in "${bot_emails[@]}"; do
+              if [[ "${author_email,,}" == "${bot,,}" ]]; then
+                echo "::notice title=DCO::Skipped bot commit ${short} (${author_email}): ${subject}"
+                is_bot=1
+                break
+              fi
+            done
+            [[ $is_bot -eq 1 ]] && continue
+
+            mapfile -t signoffs < <(git log -1 --format='%(trailers:key=Signed-off-by,valueonly=true)' "$sha" | sed '/^$/d')
+            if [[ ${#signoffs[@]} -eq 0 ]]; then
+              echo "::error title=DCO sign-off missing::Commit ${short} has no Signed-off-by trailer (${author_name} <${author_email}>): ${subject}"
+              failed=1
+              continue
+            fi
+
+            expected="${author_name,,} <${author_email,,}>"
+            matched=0
+            for so in "${signoffs[@]}"; do
+              if [[ "${so,,}" == "${expected}" ]]; then
+                matched=1
+                break
+              fi
+            done
+            if [[ $matched -eq 0 ]]; then
+              echo "::error title=DCO sign-off mismatch::Commit ${short} is signed off, but not by its author ${author_name} <${author_email}>: ${subject}"
+              printf '        found: %s\n' "${signoffs[@]}"
+              failed=1
+            fi
+          done
+
+          if [[ $failed -eq 1 ]]; then
+            echo
+            echo "One or more commits lack a Signed-off-by trailer matching their author."
+            echo "  Last commit only:        git commit --amend --signoff --no-edit"
+            echo "  All commits of the PR:   git rebase --signoff main"
+            echo "Then: git push --force-with-lease"
+            echo "See CONTRIBUTING.md, section Developer Certificate of Origin (DCO)."
+            exit 1
+          fi
+
+          echo "All checked commits carry a matching Signed-off-by trailer."

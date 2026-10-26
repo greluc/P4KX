@@ -43,6 +43,32 @@ fn nested_containers_are_read_from_text_and_from_cryxml() -> TestResult {
 }
 
 #[test]
+fn the_declared_bounds_are_read_and_malformed_ones_are_none() -> TestResult {
+    let declared = TestObjectContainer::new("c").bounds_text("-1.5,-2,-3", "4,5.5,6e0");
+    let container = ObjectContainer::parse(declared.xml().as_bytes())?;
+
+    let bounds = container.bounds.ok_or("no bounds")?;
+    assert_eq!(
+        (bounds.min, bounds.max),
+        ([-1.5, -2.0, -3.0], [4.0, 5.5, 6.0])
+    );
+    assert!(bounds.contains([4.0, 5.5, -3.0], 0.0));
+    assert!(!bounds.contains([4.1, 0.0, 0.0], 0.0));
+    assert!(bounds.contains([4.1, 0.0, 0.0], 0.2));
+
+    for (min, max) in [("1,2", "3,4,5"), ("a,b,c", "3,4,5"), ("inf,0,0", "1,1,1")] {
+        let broken = TestObjectContainer::new("c").bounds_text(min, max);
+        assert_eq!(
+            ObjectContainer::parse(broken.xml().as_bytes())?.bounds,
+            None
+        );
+    }
+    let none = TestObjectContainer::new("c");
+    assert_eq!(ObjectContainer::parse(none.xml().as_bytes())?.bounds, None);
+    Ok(())
+}
+
+#[test]
 fn streamed_files_nest_and_keep_their_order() -> TestResult {
     let xml = r#"<ObjectContainer name="c"><StreamingOCs>
         <OC name="c.soc"><StreamingOCs><OC name="c/a.soc"/><OC name="c/b.soc"/></StreamingOCs></OC>
@@ -150,6 +176,153 @@ fn objects_that_cannot_be_placed_are_counted_and_other_kinds_end_the_list() -> T
         "an unlisted model and a transform that is not finite"
     );
     assert_eq!(objects.unsupported, Some(10));
+    Ok(())
+}
+
+const fn placed_at(x: f64) -> [[f64; 4]; 3] {
+    [
+        [1.0, 0.0, 0.0, x],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ]
+}
+
+#[test]
+fn every_known_layout_reads_all_its_records_at_its_own_length() -> TestResult {
+    for layout in [8, 9, 10, 12, 13, 14, 15] {
+        let soc = TestSoc::new()
+            .layout(layout)
+            .model("objects/a.cgf")
+            .object(0, placed_at(1.0))
+            .object(0, placed_at(2.0))
+            .object(0, placed_at(3.0));
+
+        let objects = IncludedObjects::read(&soc.bytes())?.ok_or("no chunk")?;
+
+        let xs: Vec<f32> = objects
+            .objects
+            .iter()
+            .map(|object| object.transform.translation()[0])
+            .collect();
+        assert_eq!(xs, [1.0, 2.0, 3.0], "layout {layout}");
+        assert_eq!((objects.invalid, objects.unsupported), (0, None));
+    }
+    Ok(())
+}
+
+#[test]
+fn a_layout_that_is_not_known_is_an_error_unless_the_table_is_empty() -> TestResult {
+    let with_object = TestSoc::new()
+        .layout(11)
+        .model("objects/a.cgf")
+        .object(0, SOC_IDENTITY);
+    assert!(matches!(
+        IncludedObjects::read(&with_object.bytes()),
+        Err(IncludedObjectsError::RecordLayout { layout: 11 })
+    ));
+
+    let empty = TestSoc::new().layout(11).model("objects/a.cgf");
+    let objects = IncludedObjects::read(&empty.bytes())?.ok_or("no chunk")?;
+    assert_eq!(objects.objects, []);
+    Ok(())
+}
+
+#[test]
+fn records_of_kind_16_are_skipped_and_the_list_goes_on() -> TestResult {
+    for layout in [8, 15] {
+        let soc = TestSoc::new()
+            .layout(layout)
+            .model("objects/a.cgf")
+            .object(0, placed_at(1.0))
+            .skipped_object()
+            .skipped_object()
+            .object(0, placed_at(2.0));
+
+        let objects = IncludedObjects::read(&soc.bytes())?.ok_or("no chunk")?;
+
+        assert_eq!(objects.objects.len(), 2, "layout {layout}");
+        assert_eq!(objects.objects[1].transform.translation()[0], 2.0);
+        assert_eq!(objects.skipped, 2);
+        assert_eq!((objects.invalid, objects.unsupported), (0, None));
+    }
+    Ok(())
+}
+
+#[test]
+fn a_cut_off_skipped_record_is_counted_not_an_error() -> TestResult {
+    let mut chunk = TestSoc::new()
+        .model("a.cgf")
+        .object(0, SOC_IDENTITY)
+        .skipped_object()
+        .chunk();
+    let at = chunk.len() - 136 - 208 - 4;
+    chunk[at..at + 4].copy_from_slice(&(208_u32 + 100).to_le_bytes());
+    chunk.truncate(chunk.len() - 36);
+    let bytes = TestChunkFile::crch().chunk(0x0010, 1, chunk).bytes();
+
+    let objects = IncludedObjects::read(&bytes)?.ok_or("no chunk")?;
+
+    assert_eq!((objects.objects.len(), objects.skipped), (1, 0));
+    assert_eq!(objects.invalid, 1);
+    Ok(())
+}
+
+#[test]
+fn placements_that_are_no_rotation_with_a_scale_are_invalid() -> TestResult {
+    let scaled = [
+        [0.01, 0.0, 0.0, 5.0],
+        [0.0, 0.02, 0.0, 0.0],
+        [0.0, 0.0, 300.0, 0.0],
+    ];
+    let turned = [
+        [0.0, -2.0, 0.0, 0.0],
+        [2.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, -2.0, 0.0],
+    ];
+    let singular = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+    ];
+    let repeated = [
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ];
+    let sheared = [
+        [1.0, 0.0, 0.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ];
+    let half = std::f64::consts::FRAC_1_SQRT_2;
+    let rotated_scaled = [
+        [half, -3.0 * half, 0.0, 0.0],
+        [half, 3.0 * half, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ];
+    let mirrored = [
+        [-1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ];
+    let soc = TestSoc::new()
+        .model("objects/a.cgf")
+        .object(0, scaled)
+        .object(0, turned)
+        .object(0, singular)
+        .object(0, repeated)
+        .object(0, sheared)
+        .object(0, rotated_scaled)
+        .object(0, mirrored);
+
+    let objects = IncludedObjects::read(&soc.bytes())?.ok_or("no chunk")?;
+
+    assert_eq!(
+        objects.objects.len(),
+        4,
+        "a scale, a turn, both and a mirror"
+    );
+    assert_eq!(objects.invalid, 3);
     Ok(())
 }
 

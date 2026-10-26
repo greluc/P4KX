@@ -245,6 +245,52 @@ fn blueprints(builder: DataForgeBuilder) -> DataForgeBuilder {
         ))
 }
 
+pub(crate) const UNKNOWN_RANGES: u128 = 0xa500_0000_0000_4000_8000_0000_0000_0005;
+
+fn unknown_range(type_name: &str) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new(type_name)
+            .value("startQuality", TestValue::Int32(0))
+            .value("endQuality", TestValue::Int32(1000)),
+    )
+}
+
+/// Returns the DataForge of the fixture with a blueprint whose modifiers hold three ranges of
+/// two types the reader does not know.
+pub(crate) fn unknown_ranges_database() -> DataForgeBuilder {
+    let ranges = vec![
+        unknown_range("CraftingGameplayPropertyModifierValueRange_Stepped"),
+        unknown_range("CraftingGameplayPropertyModifierValueRange_Curve"),
+        unknown_range("CraftingGameplayPropertyModifierValueRange_Stepped"),
+    ];
+    let common = TestInstance::new("CraftingGameplayPropertyModifierCommon")
+        .value("gameplayPropertyRecord", TestValue::Reference(PROPERTY))
+        .value("valueRanges", TestValue::Array(ranges));
+    let context = TestValue::Struct(
+        TestInstance::new("CraftingCostContext_ResultGameplayPropertyModifiers").value(
+            "gameplayPropertyModifiers",
+            TestValue::Struct(
+                TestInstance::new("CraftingGameplayPropertyModifiers_List").value(
+                    "gameplayPropertyModifiers",
+                    TestValue::Array(vec![TestValue::Struct(common)]),
+                ),
+            ),
+        ),
+    );
+    let only = tier(
+        time(1, 0.0),
+        select(1, "ASPECTS", vec![resource(IRON, 1.0, vec![context])]),
+        Vec::new(),
+    );
+    database().record(blueprint(
+        UNKNOWN_RANGES,
+        "BP_CRAFT_unknown_ranges",
+        "fps/bp_craft_unknown_ranges",
+        PRODUCT_A,
+        vec![only],
+    ))
+}
+
 pub(crate) const SECOND_DISMANTLE: u128 = 0x1300_0000_0000_4000_8000_0000_0000_0003;
 
 /// Returns the DataForge of the fixture with a second dismantle process.

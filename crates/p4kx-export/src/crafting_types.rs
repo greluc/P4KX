@@ -140,6 +140,9 @@ pub struct BlueprintTiers<'f> {
     /// The tiers in stored order, the first one being the tier the catalog's `ingredients`
     /// describe.
     pub tiers: Vec<Tier<'f>>,
+    /// The struct type of every modifier range of the blueprint that the reader does not know,
+    /// one entry per range in stored order. Such a range is not in any [`PropertyModifier`].
+    pub unknown_range_types: Vec<&'f str>,
 }
 
 /// A gameplay property definition: a `CraftingGameplayPropertyDef` Record.

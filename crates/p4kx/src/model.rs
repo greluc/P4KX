@@ -6,22 +6,18 @@ use std::path::PathBuf;
 use anyhow::Result;
 use p4kx_extraction::model::{LodSelection, ModelError};
 use p4kx_extraction::{
-    AnimationChoice, AnimationSet, ConversionError, GltfError, ModelSource, PathIndex,
+    AnimationChoice, AnimationListing, AnimationSet, ConversionError, GltfError, ModelSource,
+    PathIndex,
 };
 
 use crate::cli_model::{ModelAction, ModelArgs, ModelFileSource};
 use crate::model_glb;
 use crate::model_info::info;
 
-pub(crate) type Opened = (ModelSource, AnimationSet);
-
 /// Runs `p4kx model info` or `p4kx model glb`.
 pub(crate) fn run(args: &ModelArgs, as_json: bool) -> Result<()> {
     match &args.action {
-        ModelAction::Info(source) => info(
-            &open(source, LodSelection::All, Some(&AnimationChoice::All))?,
-            as_json,
-        ),
+        ModelAction::Info(source) => info(&open_listing(source)?, as_json),
         action @ ModelAction::Glb { .. } => model_glb::run(action, as_json),
     }
 }
@@ -53,21 +49,19 @@ pub(crate) fn disk_animations(
         .unwrap_or_default())
 }
 
-pub(crate) fn open(
-    source: &ModelFileSource,
-    lods: LodSelection,
-    choice: Option<&AnimationChoice>,
-) -> Result<Opened> {
+/// Opens the model `source` names and lists its animations from their headers.
+fn open_listing(source: &ModelFileSource) -> Result<(ModelSource, AnimationListing)> {
     if let Some(entry) = &source.entry {
         let archive = crate::key::open(&source.path)?;
         let index = PathIndex::new(&archive);
-        let model = ModelSource::from_index_with(&index, entry, lods)?;
-        let animations = archive_animations(&index, entry, source, choice)?;
-        return Ok((model, animations));
+        let model = ModelSource::from_index_with(&index, entry, LodSelection::All)?;
+        let listing = AnimationListing::from_archive(&index, entry, &source.animation_sources)?;
+        return Ok((model, listing));
     }
-    let model = ModelSource::from_file_with(&source.path, lods)?;
-    let animations = disk_animations(source, choice)?;
-    Ok((model, animations))
+    let model = ModelSource::from_file_with(&source.path, LodSelection::All)?;
+    let extra: Vec<PathBuf> = source.animation_sources.iter().map(PathBuf::from).collect();
+    let listing = AnimationListing::from_disk(&source.path, &extra)?;
+    Ok((model, listing))
 }
 
 /// Returns whether `error` is a model failure caused by the command line: a geometry companion

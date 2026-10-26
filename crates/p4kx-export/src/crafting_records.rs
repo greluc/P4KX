@@ -39,6 +39,8 @@ pub(crate) fn is_crafting_path(record_path: &str) -> bool {
 
 pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>) -> BlueprintTiers<'f> {
     let blueprint = structure(Some(tree.root()), "blueprint");
+    let mut unknown_range_types = Vec::new();
+    let tiers = tiers(blueprint, &mut unknown_range_types);
     BlueprintTiers {
         guid: tree.guid(),
         class_name: class_name(tree),
@@ -47,7 +49,8 @@ pub(crate) fn blueprint<'f>(tree: &RecordTree<'f>) -> BlueprintTiers<'f> {
         category: reference(blueprint, "category").map(|guid| guid.0),
         produced_item: reference(structure(blueprint, "processSpecificData"), "entityClass")
             .map(|guid| guid.0),
-        tiers: tiers(blueprint),
+        tiers,
+        unknown_range_types,
     }
 }
 

@@ -32,6 +32,7 @@
 mod animation;
 mod animation_dba;
 mod animation_error;
+mod animation_header;
 mod animation_keys;
 mod animation_read;
 mod bone;
@@ -73,8 +74,9 @@ mod transform;
 mod vector;
 
 pub use animation::{Animation, BoundTracks, Keys, Track};
-pub use animation_dba::{Dba, SkippedAnimation};
+pub use animation_dba::{Dba, DbaHeaders, SkippedAnimation};
 pub use animation_error::{AnimationError, CorruptAnimation};
+pub use animation_header::AnimationHeader;
 pub use animation_read::{MAX_ANIMATION_KEYS, MAX_DATABASE_KEYS};
 pub use bone::{Bone, BoneTransform};
 pub use bone_extend::{chained_world_poses, extend_skeleton, multiply as multiply_quaternions};

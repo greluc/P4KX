@@ -7,6 +7,7 @@ use crate::flex::{Flex, Item, Slot, arrange, limit};
 use crate::geometry::{Dim, Geometry};
 use crate::paint::Area;
 use crate::style::Modifiers;
+use crate::walk_measure::MeasureKey;
 use crate::widget::Widget;
 
 pub(crate) struct Sized {
@@ -81,6 +82,7 @@ pub(crate) struct Sibling<'w> {
     pub(crate) index: usize,
     pub(crate) has_children: bool,
     pub(crate) content: [Option<f32>; 2],
+    pub(crate) text_key: Option<MeasureKey>,
     pub(crate) geometry: Geometry,
     pub(crate) style: Rc<Modifiers>,
     pub(crate) kids: Vec<usize>,

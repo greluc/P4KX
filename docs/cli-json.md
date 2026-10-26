@@ -878,6 +878,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "blueprintCategories", "count": 21, "skipped": 0, "complete": true},
  {"kind": "gameplayProperties", "count": 29, "skipped": 0, "complete": true},
  {"kind": "qualityDistributions", "count": 21, "skipped": 1, "complete": true},
+ {"kind": "qualityQuantizations", "count": 62, "skipped": 1, "complete": true},
  {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
  {"kind": "paints", "count": 1064, "skipped": 68, "complete": true},
@@ -908,10 +909,16 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  "unclassified": 13}},
  "variants": {"items": {"groups": 1108, "variants": 4732},
  "ships": {"groups": 196, "variants": 850}},
+ "quantizations": {"unused": 20, "unresolved_links": 0},
  "texts": [{"language": "en", "available": true, "resolved": 37963, "unresolved": 160,
  "placeholder": 23658}, {"language": "de", "available": true, "resolved": 25497,
  "unresolved": 12626, "placeholder": 23658}], "unresolved": 12786}
 ```
+
+`quantizations` counts two facts of the game data that do not affect the exit code: `unused`, the
+quality quantizations of the catalog that no `ResourceType` uses, and `unresolved_links`, the links
+of `ResourceType` Records to a Record that is no readable quality quantization of the catalog (of
+another type, failed or a development leftover; a Reference to a GUID no Record has reads as null).
 
 `store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
 `stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are
@@ -1636,9 +1643,12 @@ Also `p4kx chunks dump <file> --chunk <index> --out <file> --json` for a chunk f
            "id": null, "byte_order": "little", "offset": 112, "size": 40}}
 ```
 
-`chunk` is the chunk written, as in `p4kx chunks list`; its `size` bytes are written unchanged.
-An index the table does not have, or an output that is the chunk file itself, fails with exit
-code 2.
+`chunk` is the chunk written, as in `p4kx chunks list`; its `size` bytes are written unchanged,
+except with `--text`, which writes the chunk as UTF-8 text instead: a `CryXmlB` or `CryXmlB2`
+chunk (`0x0004`, `0x0014`) as XML, a `Json` or `ModelPaths` chunk (`0x0011`, `0x0013`) as stored.
+`size` stays the size of the chunk. An index the table does not have, an output that is the chunk
+file itself, or `--text` on a chunk of another type fails with exit code 2; `--text` on data that
+is no valid `CryXml` or UTF-8 text fails with exit code 3.
 
 ## `p4kx model info <archive> <entry> [--anim-from <entry>]… --json`
 

@@ -45,6 +45,9 @@ pub enum Kind {
     /// Quality distributions: `CraftingQualityDistributionRecord` and
     /// `CraftingQualityLocationOverrideRecord` Records under `crafting/qualitydistribution`.
     QualityDistributions,
+    /// Quality quantizations: `CraftingQualityQuantizationRecord` Records under
+    /// `crafting/qualityquantization`, each linked to the `ResourceType`s that use it.
+    QualityQuantizations,
     /// Blueprint pools: `BlueprintPoolRecord` Records under `crafting/blueprintrewards`.
     BlueprintPools,
     /// Dismantle processes: `CraftingBlueprintRecord` Records under
@@ -74,7 +77,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -84,6 +87,7 @@ impl Kind {
         Self::BlueprintCategories,
         Self::GameplayProperties,
         Self::QualityDistributions,
+        Self::QualityQuantizations,
         Self::BlueprintPools,
         Self::DismantleProcesses,
         Self::Paints,
@@ -108,6 +112,7 @@ impl Kind {
             Self::BlueprintCategories => "blueprintCategories",
             Self::GameplayProperties => "gameplayProperties",
             Self::QualityDistributions => "qualityDistributions",
+            Self::QualityQuantizations => "qualityQuantizations",
             Self::BlueprintPools => "blueprintPools",
             Self::DismantleProcesses => "dismantleProcesses",
             Self::Paints => "paints",
@@ -128,6 +133,7 @@ impl Kind {
             Self::Blueprints
                 | Self::GameplayProperties
                 | Self::QualityDistributions
+                | Self::QualityQuantizations
                 | Self::BlueprintPools
                 | Self::DismantleProcesses
                 | Self::Contracts
@@ -193,6 +199,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/crafting/qualitydistribution/"],
                 type_name: "CraftingQualityDistributionRecord",
             },
+            Self::QualityQuantizations => KindRule {
+                prefixes: &["libs/foundry/records/crafting/qualityquantization/"],
+                type_name: "CraftingQualityQuantizationRecord",
+            },
             Self::BlueprintPools => KindRule {
                 prefixes: &["libs/foundry/records/crafting/blueprintrewards/"],
                 type_name: "BlueprintPoolRecord",
@@ -245,15 +255,16 @@ impl Kind {
             Self::BlueprintCategories => 6,
             Self::GameplayProperties => 7,
             Self::QualityDistributions => 8,
-            Self::BlueprintPools => 9,
-            Self::DismantleProcesses => 10,
-            Self::Paints => 11,
-            Self::Loadouts => 12,
-            Self::StarmapObjects => 13,
-            Self::Contracts => 14,
-            Self::MineableElements => 15,
-            Self::RefiningProcesses => 16,
-            Self::Shops => 17,
+            Self::QualityQuantizations => 9,
+            Self::BlueprintPools => 10,
+            Self::DismantleProcesses => 11,
+            Self::Paints => 12,
+            Self::Loadouts => 13,
+            Self::StarmapObjects => 14,
+            Self::Contracts => 15,
+            Self::MineableElements => 16,
+            Self::RefiningProcesses => 17,
+            Self::Shops => 18,
         }
     }
 

@@ -99,7 +99,7 @@ pub use animation_set::{
 };
 pub use archive_cause::archive_error_in;
 pub use bank::{Bank, BankExtraction, MAX_SOUNDBANK_LEN, WemFailure, WemFormat, WrittenWem};
-pub use chunk_source::{ChunkSource, MAX_CHUNK_FILE_LEN};
+pub use chunk_source::{ChunkSource, ChunkTextError, MAX_CHUNK_FILE_LEN};
 pub use conversion_error::ConversionError;
 pub use coverage::{
     ComponentCoverage, CoverageReport, EntryCoverage, ObjectCoverage, ReferenceError,

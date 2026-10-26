@@ -34,6 +34,7 @@ pub struct EntryIndex {
     containers: Vec<(FolderId, u32)>,
     path_bytes: u64,
     groups: EntryGroups,
+    id_of: Vec<u32>,
     dataforge: Option<usize>,
     forge: ForgeCache,
     paths: OnceLock<PathKeys>,
@@ -84,6 +85,7 @@ impl EntryIndex {
             containers,
             path_bytes,
             groups,
+            id_of,
             dataforge,
             forge: ForgeCache::default(),
             paths: OnceLock::new(),
@@ -115,7 +117,7 @@ impl EntryIndex {
     /// Returns roughly how many bytes the Entries and this index hold in memory, without the
     /// data of a decoded container.
     pub(crate) const fn footprint(&self) -> u64 {
-        let per_entry = size_of::<Entry>() + containers::INDEX_BYTES_PER_ENTRY;
+        let per_entry = size_of::<Entry>() + size_of::<u32>() + containers::INDEX_BYTES_PER_ENTRY;
         (self.len() as u64)
             .saturating_mul(per_entry as u64)
             .saturating_add(self.path_bytes)
@@ -241,9 +243,10 @@ impl EntryIndex {
     #[must_use]
     pub fn id_of_path(&self, path: &str) -> Option<u32> {
         let position = self.path_index().position(path)?;
-        (0..self.len())
-            .filter_map(|id| u32::try_from(id).ok())
-            .find(|&id| self.tree.position(id) == Some(position))
+        self.id_of
+            .get(position)
+            .copied()
+            .filter(|&id| self.tree.position(id) == Some(position))
     }
 
     /// Returns the Entry with id `id`, or `None` when there is none.

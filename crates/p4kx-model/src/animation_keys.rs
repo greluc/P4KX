@@ -184,10 +184,11 @@ pub(crate) fn read_rotations(
     Ok(rotations)
 }
 
-/// Decodes a small-tree quaternion of up to 64 bits: three components of `widths` bits in the low
-/// bits, the index of the omitted component in the two bits above the highest of `bits`. The
-/// components cover ±1/√2 and run in ascending order of the quaternion's `x, y, z, w` without the
-/// omitted one; the bits between the components and the index are unused.
+/// Decodes a small-tree quaternion stored in the low `bits` bits of `bytes`: three components of
+/// `widths` bits from bit 0 up, and the index of the omitted component in the top two of the
+/// `bits` bits. The components cover ±1/√2 and run in ascending order of the quaternion's
+/// `x, y, z, w` without the omitted one; the bits between the components and the index are
+/// unused.
 fn small_tree(bytes: &[u8], widths: [u32; 3], bits: u32) -> [f32; 4] {
     let mut word = [0_u8; 8];
     for (target, source) in word.iter_mut().zip(bytes) {

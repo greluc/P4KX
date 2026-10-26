@@ -13,6 +13,8 @@ use crate::{EntryHit, Needle};
 const READ_LEN: usize = 64 << 10;
 const HEAD_LEN: usize = 16;
 const MAX_WHOLE_LEN: u64 = 32 << 20;
+const DECODE_BUFFER_LEN: u64 = READ_LEN as u64 + 4;
+const CRYXML_MEMORY_FACTOR: u64 = 6;
 const UTF8_BOM: &[u8] = &[0xEF, 0xBB, 0xBF];
 
 /// What the search of one Entry came to.
@@ -55,6 +57,20 @@ impl Form {
     const fn is_whole(&self) -> bool {
         !matches!(self, Self::Utf8)
     }
+
+    /// Returns the bytes held in memory while an Entry of `size` bytes is searched: for UTF-16
+    /// the Entry and the decoding buffer, for `CryXml` the Entry and what is derived from it.
+    /// The parser refuses tables that overlap, so every byte of the file belongs to one table: a
+    /// node byte becomes at most 1.5 bytes of nodes and links, an attribute byte 2, and a byte of
+    /// string data at most 5, one for the copy that repairs invalid UTF-8 and four for the offset
+    /// of a terminator.
+    const fn memory(&self, size: u64) -> u64 {
+        match self {
+            Self::Utf8 => 0,
+            Self::Utf16 { .. } => size.saturating_add(DECODE_BUFFER_LEN),
+            Self::CryXml => size.saturating_mul(CRYXML_MEMORY_FACTOR),
+        }
+    }
 }
 
 /// Searches the lines of `entry`, reading plain text as a stream and `CryXml` and UTF-16 as a
@@ -89,11 +105,11 @@ pub(crate) fn scan(
     let result = match form {
         Form::Utf8 => stream(&mut reader, head, buffer, sink),
         Form::Utf16 { big_endian } => {
-            let _permit = context.gate.acquire(size);
+            let _permit = context.gate.acquire(form.memory(size));
             whole(&mut reader, head, size).and_then(|data| utf16(&data, big_endian, sink))
         }
         Form::CryXml => {
-            let _permit = context.gate.acquire(size);
+            let _permit = context.gate.acquire(form.memory(size));
             whole(&mut reader, head, size).and_then(|data| cryxml_lines(&data, sink))
         }
     };
@@ -205,4 +221,25 @@ fn fill(reader: &mut impl Read, buffer: &mut [u8]) -> io::Result<usize> {
         }
     }
     Ok(filled)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CRYXML_MEMORY_FACTOR, DECODE_BUFFER_LEN, Form};
+
+    #[test]
+    fn the_memory_of_an_entry_counts_what_is_derived_from_its_bytes() {
+        assert_eq!(Form::Utf8.memory(1000), 0, "streamed text holds nothing");
+        assert_eq!(
+            Form::Utf16 { big_endian: false }.memory(1000),
+            1000 + DECODE_BUFFER_LEN,
+            "the Entry and the decoding buffer"
+        );
+        assert_eq!(
+            Form::CryXml.memory(1000),
+            1000 * CRYXML_MEMORY_FACTOR,
+            "the Entry and its tables"
+        );
+        assert_eq!(Form::CryXml.memory(u64::MAX), u64::MAX, "saturates");
+    }
 }

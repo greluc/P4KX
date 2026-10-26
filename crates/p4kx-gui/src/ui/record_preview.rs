@@ -140,7 +140,7 @@ pub(super) fn show_xml(ui: &mut Ui, texts: &Texts, browser: &Browser) {
                 let text = texts.format(RecordText::XmlFailed, &[path, reason]);
                 ui.colored_label(palette::DANGER_TEXT, text);
             }
-            None => xml_view::show(ui, texts, view.xml()),
+            None => xml_view::show(ui, texts, view.xml(), None),
         });
     }
 }

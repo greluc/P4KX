@@ -4,6 +4,7 @@
 use std::io::{self, BufWriter, Write};
 
 use p4kx_search::{SearchReport, display_text};
+use unicode_width::UnicodeWidthStr;
 
 const GAP: &str = "  ";
 
@@ -62,7 +63,8 @@ fn write(out: &mut impl Write, report: &SearchReport) -> io::Result<()> {
     table(out, &mut started, ["ENTRY:LINE", "TEXT"], &entries)
 }
 
-/// Writes a header and the rows, with every column but the last as wide as its widest text; a
+/// Writes a header and the rows, with every column but the last as wide as its widest text in
+/// terminal columns, so that wide characters line up; a
 /// table without rows writes nothing, and a table after another is set off by a blank line.
 fn table<const N: usize>(
     out: &mut impl Write,
@@ -76,10 +78,10 @@ fn table<const N: usize>(
     if std::mem::replace(started, true) {
         writeln!(out)?;
     }
-    let mut widths = header.map(|title| title.chars().count());
+    let mut widths = header.map(UnicodeWidthStr::width);
     for row in rows {
         for (width, text) in widths.iter_mut().zip(row) {
-            *width = (*width).max(text.chars().count());
+            *width = (*width).max(text.width());
         }
     }
     line(out, &widths, header.each_ref().map(|title| *title))?;
@@ -103,11 +105,31 @@ fn line<const N: usize>(
         }
         line.push_str(text);
         if index + 1 < N {
-            line.extend(std::iter::repeat_n(
-                ' ',
-                width.saturating_sub(text.chars().count()),
-            ));
+            line.extend(std::iter::repeat_n(' ', width.saturating_sub(text.width())));
         }
     }
     writeln!(out, "{line}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::table;
+
+    #[test]
+    fn wide_characters_take_two_columns() -> std::io::Result<()> {
+        let mut out = Vec::new();
+        let rows = [
+            ["\u{65e5}\u{672c}".to_owned(), "x".to_owned()],
+            ["ab".to_owned(), "y".to_owned()],
+        ];
+
+        table(&mut out, &mut false, ["A", "B"], &rows)?;
+
+        assert_eq!(
+            String::from_utf8_lossy(&out),
+            "A     B\n----  -\n\u{65e5}\u{672c}  x\nab    y\n",
+            "the second column starts after four columns"
+        );
+        Ok(())
+    }
 }

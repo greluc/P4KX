@@ -65,7 +65,11 @@ when nothing matches.
 ```
 
 `issue_count` is the number of Entry issues found in the directory of the Archive (ADR-0025); `info`,
-`list` and `extract` print the first ten to stderr as `warning: Entry <path>: <issue>`.
+`list`, `extract` and `verify` print the first ten to stderr as `warning: Entry <path>: <issue>`.
+With the global `--recover` flag an Archive whose end records or central directory are damaged is
+rebuilt by a scan for directory records; `issue_count` then counts one more issue, the recovery
+itself (two when a scan limit cut the scan short), which every command prints once on opening as
+`warning: <archive>: <issue>`. The `key` commands ignore `--recover`.
 
 `channel` is the name of the folder holding the Archive, or `null` when there is none; `build` is
 `null` when the Build is unknown.
@@ -807,7 +811,7 @@ empty `<text>`. No match is not an error: the exit code is 0 with empty arrays.
  "loc": [{"language": "en", "key": "vehicle_NameAEGS_Gladius", "text": "Aegis Gladius",
   "match": [6, 11]}],
  "entries": [{"path": "Data\\Scripts\\ship.xml", "line": 2, "offset": 7,
-  "text": "  <Part name=\"AEGS_Gladius\"/>", "match": [16, 21]}],
+  "text": "  <Part name=\"AEGS_Gladius\"/>", "match": [19, 24]}],
  "more": ["records"],
  "unavailable": [{"source": "records", "reason": "…"}],
  "stats": {"records_scanned": 117709, "records_unreadable": 0, "texts_scanned": 90946,
@@ -1669,7 +1673,12 @@ keys together. `unread_animations` lists the files, and the animations of a data
 not be read or that are additive (`reason` is "additive animation — needs a base animation";
 they are written only when named), with the reason; names in both lists have control characters
 replaced. A file `--anim-from` names that is no `.caf` or `.dba` exits with code 2, one that
-cannot be read with 3.
+cannot be read with 3. The animations of the model's folders are described from their headers
+without decoding a key (ADR-0157): one whose key format the reader refuses is listed in
+`animations` instead of `unread_animations`; the files `--anim-from` names are decoded in full,
+so such an animation in them is unread, as before. The `reason` of an unreadable file starts
+with the Entry path or file, then the cause, e.g. `Data\x\a.caf: the CafData chunk is corrupt`;
+the cause no longer repeats the file name.
 `chunks` lists every chunk of the model file and of its
 geometry companion (`file` is `model`, `geometry` or `lod<n>-geometry`) with `usage` `read` when
 the model was read from it, `skipped` for a known type the model does not read and `unknown` for

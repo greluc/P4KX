@@ -83,10 +83,32 @@ fn check_times(glb: &CheckedGlb, input: &Accessor<'_>, name: &str) -> Result<(),
     if input.dimensions() != Dimensions::Scalar || input.data_type() != DataType::F32 {
         return Err(format!("{name}: key times are no SCALAR of floats"));
     }
-    if input.min().is_none() || input.max().is_none() {
-        return Err(format!("{name}: key times lack min or max"));
-    }
     let times = glb.floats(input);
+    for (label, bound, expected) in [
+        ("min", input.min(), times.first()),
+        ("max", input.max(), times.last()),
+    ] {
+        let Some(bound) = bound else {
+            return Err(format!("{name}: key times lack min or max"));
+        };
+        let found = match bound.as_array().map(Vec::as_slice) {
+            Some([value]) => value.as_f64(),
+            _ => None,
+        };
+        let matches = match (found, expected) {
+            #[expect(
+                clippy::float_cmp,
+                reason = "the writer stores the exact first and last time"
+            )]
+            (Some(found), Some(expected)) => found == f64::from(*expected),
+            _ => false,
+        };
+        if !matches {
+            return Err(format!(
+                "{name}: key times have {label} {bound}, not {expected:?}"
+            ));
+        }
+    }
     if times.first().is_some_and(|time| *time < 0.0) {
         return Err(format!("{name}: a key time is negative"));
     }

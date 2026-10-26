@@ -17,6 +17,7 @@ pub(crate) struct Header<'a> {
     pub(crate) attributes: &'a [u8],
     pub(crate) children: &'a [u8],
     pub(crate) strings: &'a [u8],
+    places: [(Table, usize, usize); 4],
 }
 
 impl<'a> Header<'a> {
@@ -28,10 +29,18 @@ impl<'a> Header<'a> {
         let (byte_order, size) = byte_order(size_field, bytes.len())?;
         let data = bytes.get(..size).unwrap_or(bytes);
         let mut fields = Reader { reader, byte_order };
+        let mut places = [(Table::Nodes, 0, 0); 4];
+        let mut next = 0;
         let mut table = |table: Table, entry_len: usize| -> Result<&'a [u8], CryXmlError> {
             let position = fields.u32()?;
             let count = fields.u32()?;
-            slice(data, table, position, count, entry_len)
+            let found = slice(data, table, position, count, entry_len)?;
+            if let Some(place) = places.get_mut(next) {
+                let start = usize::try_from(position).unwrap_or(usize::MAX);
+                *place = (table, start, found.len());
+            }
+            next += 1;
+            Ok(found)
         };
         let nodes = table(Table::Nodes, NODE_LEN)?;
         let attributes = table(Table::Attributes, ATTRIBUTE_LEN)?;
@@ -43,7 +52,29 @@ impl<'a> Header<'a> {
             attributes,
             children,
             strings,
+            places,
         })
+    }
+
+    /// Checks that no two tables share a byte, so that what is derived from them cannot exceed a
+    /// small multiple of the file size.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CryXmlError::TablesOverlap`] for the first two tables that overlap.
+    pub(crate) fn ensure_disjoint(&self) -> Result<(), CryXmlError> {
+        for (index, &(first, start, len)) in self.places.iter().enumerate() {
+            for &(second, other_start, other_len) in self.places.iter().skip(index + 1) {
+                let overlaps = len > 0
+                    && other_len > 0
+                    && start < other_start.saturating_add(other_len)
+                    && other_start < start.saturating_add(len);
+                if overlaps {
+                    return Err(CryXmlError::TablesOverlap { first, second });
+                }
+            }
+        }
+        Ok(())
     }
 }
 

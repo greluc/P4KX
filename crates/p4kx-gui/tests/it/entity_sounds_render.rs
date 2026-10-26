@@ -111,6 +111,45 @@ fn the_sounds_tab_is_drawn_with_triggers_variants_and_player() -> TestResult {
 }
 
 #[test]
+#[expect(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "pixel coordinates of rectangles inside the image"
+)]
+fn the_column_dividers_of_the_trigger_table_end_above_the_list_footer() -> TestResult {
+    let Some(renderer) = renderer() else {
+        return Ok(());
+    };
+    let (_dir, mut harness) = rendered(Language::BritishEnglish, renderer, [1280.0, 760.0])?;
+    let divider = harness
+        .get_by_role_and_label(Role::ColumnHeader, "Wwise events")
+        .rect()
+        .left();
+    let footer = harness
+        .get_by_label("TEST_Ship: 3 audio triggers, 2 with a soundbank")
+        .rect();
+    let image = harness.render()?;
+    let width = image.width() as usize;
+    let data = image.into_raw();
+    let pixel = |x: f32, y: f32| {
+        let at = (y as usize * width + x as usize) * 4;
+        data.get(at..at + 4).map(<[u8]>::to_vec)
+    };
+    let row = footer.center().y;
+    let background = pixel(divider + 10.0, row);
+
+    assert!(background.is_some(), "the footer is in the image");
+    for offset in [-3.0, -2.0, -1.0, 0.0, 1.0] {
+        assert_eq!(
+            pixel(divider + offset, row),
+            background,
+            "no divider through the footer at {offset} from the column edge"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn a_small_window_keeps_the_toolbar_apart_and_the_whole_tab_reachable() -> TestResult {
     for (language, name, show) in [
         (

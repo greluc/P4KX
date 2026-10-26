@@ -276,6 +276,91 @@ fn a_file_on_disk_takes_its_includes_from_the_archive_and_names_itself_by_its_pa
     Ok(())
 }
 
+fn lost_names(value: &serde_json::Value) -> Result<Vec<&str>, Box<dyn Error>> {
+    Ok(value["issues"]
+        .as_array()
+        .ok_or("issues")?
+        .iter()
+        .filter(|issue| issue["kind"] == "piece_not_found")
+        .filter_map(|issue| issue["name"].as_str())
+        .collect())
+}
+
+#[test]
+fn a_worn_piece_below_another_worn_entity_is_worn_and_what_fails_there_is_listed() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("ranger.glb");
+    let run = glb(&archive, &out, &["--loadout", "TEST_Ranger"], true)?;
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    assert_eq!(
+        names(&value)?,
+        [
+            "body",
+            "pack/TEST_Pack",
+            "pouch/TEST_Pouch",
+            "jacket/TEST_Jacket"
+        ],
+        "the pouch hangs on the backpack"
+    );
+    assert_eq!(
+        lost_names(&value)?,
+        ["spare/TEST_Missing"],
+        "the missing optic below the rifle is no armour"
+    );
+    assert_eq!(value["skipped"], 1, "the jacket is worn, not skipped");
+    assert_eq!(value["pieces"], 4);
+    assert_eq!(
+        kinds_of(&value, "jacket/TEST_Jacket")?,
+        ["loadout_unreadable"]
+    );
+    check_glb(&std::fs::read(&out)?)?;
+    Ok(())
+}
+
+fn kinds_of<'a>(value: &'a serde_json::Value, name: &str) -> Result<Vec<&'a str>, Box<dyn Error>> {
+    Ok(value["issues"]
+        .as_array()
+        .ok_or("issues")?
+        .iter()
+        .filter(|issue| issue["name"] == name)
+        .filter_map(|issue| issue["kind"].as_str())
+        .collect())
+}
+
+#[test]
+fn a_piece_that_replaces_a_worn_entity_takes_its_loadout_issues_with_it() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("ranger.glb");
+    let args = ["--loadout", "TEST_Ranger", "--piece", "TEST_Cuirass"];
+    let run = glb(&archive, &out, &args, true)?;
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let value: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    assert!(
+        kinds_of(&value, "jacket/TEST_Jacket")?.is_empty(),
+        "{value}"
+    );
+    assert_eq!(value["replaced"][0]["name"], "jacket/TEST_Jacket");
+    Ok(())
+}
+
+#[test]
+fn a_local_loadout_file_over_the_cap_is_invalid_input_and_writes_nothing() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path())?;
+    let out = dir.path().join("big.glb");
+    let big = dir.path().join("big.xml");
+    std::fs::File::create(&big)?.set_len(p4kx_assembly::MAX_XML_LOADOUT_LEN + 1)?;
+    let big = big.to_str().ok_or("path")?;
+    let run = glb(&archive, &out, &["--loadout", big], false)?;
+    assert_eq!(run.code, Some(2), "{}", run.stderr);
+    assert!(run.stderr.contains("the limit of"), "{}", run.stderr);
+    assert!(!out.exists(), "no output");
+    Ok(())
+}
+
 #[test]
 fn every_loadout_piece_of_the_type_of_a_piece_is_replaced() -> TestResult {
     let dir = tempfile::tempdir()?;

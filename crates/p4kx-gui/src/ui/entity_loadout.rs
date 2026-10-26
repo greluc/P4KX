@@ -21,7 +21,9 @@ use crate::widgets::rows::{RowState, chevron, focus_inside, paint_row};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::widgets::toggle::{self, Check};
 use crate::widgets::tooltip;
-use crate::{EntityText, LoadoutRow, LoadoutSession, Model, ResolveFailure, RowChange, Texts};
+use crate::{
+    EntityText, LoadoutRow, LoadoutSession, Model, PortMismatch, ResolveFailure, RowChange, Texts,
+};
 
 enum Action {
     Toggle(String),
@@ -93,24 +95,28 @@ fn head(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> Option<Action> 
     action
 }
 
+fn failure_alert(ui: &mut Ui, texts: &Texts, failure: &ResolveFailure) {
+    let text = match failure {
+        ResolveFailure::ArchiveChanged => texts.get(EntityText::LoadoutArchiveChanged),
+        ResolveFailure::NoRecord(guid) => texts.format(
+            EntityText::LoadoutNoRecord,
+            &[("guid", guid.to_string().into())],
+        ),
+        ResolveFailure::Cancelled => texts.get(EntityText::LoadoutStopped),
+        ResolveFailure::Lost => texts.get(EntityText::LoadoutLost),
+        ResolveFailure::Failed(reason) => texts.format(
+            EntityText::LoadoutFailed,
+            &[("reason", reason.clone().into())],
+        ),
+    };
+    frames::danger_alert(ui, |ui| {
+        ui.add(Label::new(text).selectable(true));
+    });
+}
+
 fn body(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> Option<Action> {
     if let Some(failure) = session.failure() {
-        let text = match failure {
-            ResolveFailure::ArchiveChanged => texts.get(EntityText::LoadoutArchiveChanged),
-            ResolveFailure::NoRecord(guid) => texts.format(
-                EntityText::LoadoutNoRecord,
-                &[("guid", guid.to_string().into())],
-            ),
-            ResolveFailure::Cancelled => texts.get(EntityText::LoadoutStopped),
-            ResolveFailure::Lost => texts.get(EntityText::LoadoutLost),
-            ResolveFailure::Failed(reason) => texts.format(
-                EntityText::LoadoutFailed,
-                &[("reason", reason.clone().into())],
-            ),
-        };
-        frames::danger_alert(ui, |ui| {
-            ui.add(Label::new(text).selectable(true));
-        });
+        failure_alert(ui, texts, failure);
     }
     let Some(view) = session.view() else {
         if session.is_resolving() {
@@ -126,6 +132,7 @@ fn body(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> Option<Action> 
         }
         return None;
     };
+    mismatches(ui, texts, view.mismatches());
     if view.rows().is_empty() {
         let text = plain(
             texts.get(EntityText::LoadoutNoPorts),
@@ -154,6 +161,26 @@ fn body(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> Option<Action> 
             }
         });
     action
+}
+
+fn mismatches(ui: &mut Ui, texts: &Texts, mismatches: &[PortMismatch]) {
+    if mismatches.is_empty() {
+        return;
+    }
+    frames::warning_alert(ui, |ui| {
+        for mismatch in mismatches {
+            let text = texts.format(
+                EntityText::LoadoutMismatch,
+                &[
+                    ("entity", mismatch.entity.clone().into()),
+                    ("port", mismatch.path.clone().into()),
+                    ("reason", mismatch.reason.clone().into()),
+                ],
+            );
+            ui.add(Label::new(text).selectable(true));
+        }
+    });
+    ui.add_space(SPACE_2);
 }
 
 fn port(ui: &mut Ui, texts: &Texts, session: &LoadoutSession, row: &LoadoutRow) -> Option<Action> {

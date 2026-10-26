@@ -7,6 +7,7 @@ use p4kx_assembly::{
 };
 use serde::Serialize;
 
+use crate::entity_ignored::IncompatibleJson;
 use crate::entity_outfit::OutfitsJson;
 use crate::entity_vehicle::{LandingGearJson, VehicleJson, visibility_code};
 
@@ -68,6 +69,8 @@ pub(crate) struct LoadoutJson<'a> {
     pub(crate) outfits: Option<OutfitsJson>,
     #[serde(skip_serializing_if = "<[String]>::is_empty")]
     pub(crate) ignored: &'a [String],
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub(crate) incompatible: Vec<IncompatibleJson<'a>>,
     #[serde(flatten)]
     pub(crate) counts: Counts,
 }

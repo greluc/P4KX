@@ -6,18 +6,16 @@ use std::collections::{HashMap, HashSet};
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_audio::MusicStinger;
-use rayon::prelude::*;
+use p4kx_extraction::CancelToken;
 
-use super::banks::BankContents;
+use super::index_read::{BankRead, DefinitionRead, read_definitions, read_soundbanks};
 use super::language::SOUND_FOLDER;
 use super::media::{Limits, LooseMedia, WemSource};
-use super::read::{entry_bytes, folded_order, has_extension, starts_with_folder};
+use super::read::{folded_order, has_extension, starts_with_folder};
 use super::{
     ATL_FOLDER, AtlTrigger, AudioFileError, AudioIssue, DEFAULT_LANGUAGE, IndexedSoundbank,
-    MAX_ATL_LEN, MAX_AUDIO_TRIGGERS, MAX_SOUNDBANK_LEN, MAX_STINGERS, WemLocation, atl, banks,
+    MAX_AUDIO_TRIGGERS, MAX_STINGERS, WemLocation,
 };
-
-type BankRead = Result<BankContents, AudioFileError>;
 
 /// The audio data of one Archive: every ATL trigger with its Wwise events, and for every Wwise
 /// event ID the soundbanks whose `HIRC` section holds the event.
@@ -44,6 +42,14 @@ impl AudioIndex {
     /// Reads the ATL definitions and soundbanks of `archive` into an index.
     #[must_use]
     pub fn build(archive: &Archive) -> Self {
+        Self::build_until(archive, &CancelToken::new()).unwrap_or_default()
+    }
+
+    /// Reads the ATL definitions and soundbanks of `archive` into an index like
+    /// [`build`](Self::build), stopping between Entries once `cancel` is cancelled; returns `None`
+    /// then.
+    #[must_use]
+    pub fn build_until(archive: &Archive, cancel: &CancelToken) -> Option<Self> {
         let mut atl_entries: Vec<&Entry> = archive
             .entries()
             .iter()
@@ -73,21 +79,8 @@ impl AudioIndex {
         atl_entries.sort_by(|a, b| folded_order(a.path(), b.path()));
         bank_entries.sort_by(|(_, a), (_, b)| folded_order(a.path(), b.path()));
         wem_entries.sort_by(|a, b| folded_order(a.path, b.path));
-        let definitions: Vec<_> = atl_entries
-            .par_iter()
-            .enumerate()
-            .map(|(position, entry)| {
-                let file = u32::try_from(position).unwrap_or(u32::MAX);
-                entry_bytes(archive, entry, MAX_ATL_LEN).and_then(|bytes| atl::parse(&bytes, file))
-            })
-            .collect();
-        let soundbanks: Vec<BankRead> = bank_entries
-            .par_iter()
-            .map(|&(position, entry)| {
-                entry_bytes(archive, entry, MAX_SOUNDBANK_LEN)
-                    .and_then(|bytes| banks::read(entry.path(), position, &bytes))
-            })
-            .collect();
+        let definitions = read_definitions(archive, &atl_entries, cancel)?;
+        let soundbanks = read_soundbanks(archive, &bank_entries, cancel)?;
         let mut index = Self::default();
         index.add_definitions(&atl_entries, definitions);
         index.add_soundbanks(&bank_entries, soundbanks);
@@ -102,14 +95,10 @@ impl AudioIndex {
                 .into_iter()
                 .map(|(path, error)| AudioIssue { path, error }),
         );
-        index
+        Some(index)
     }
 
-    fn add_definitions(
-        &mut self,
-        entries: &[&Entry],
-        definitions: Vec<Result<Vec<AtlTrigger>, AudioFileError>>,
-    ) {
+    fn add_definitions(&mut self, entries: &[&Entry], definitions: Vec<DefinitionRead>) {
         self.atl_files = entries.iter().map(|entry| entry.path().into()).collect();
         for (entry, definition) in entries.iter().zip(definitions) {
             let error = match definition {

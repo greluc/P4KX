@@ -58,7 +58,13 @@ fn the_audio_is_indexed_off_the_ui_thread_and_an_entity_lists_its_triggers() -> 
     let SoundsStatus::Ready(info) = harness.state().sounds().status() else {
         return Err("not indexed".into());
     };
-    assert_eq!((info.triggers, info.soundbanks), (2, 1), "the index");
+    assert_eq!((info.triggers, info.soundbanks), (3, 3), "the index");
+    assert_eq!(info.languages, ["English(US)", "German"], "the languages");
+    assert_eq!(
+        info.default_language.as_deref(),
+        Some("English(US)"),
+        "the default language"
+    );
 
     harness
         .state_mut()

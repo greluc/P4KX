@@ -99,14 +99,6 @@ fn picture<S>(harness: &mut Harness<'_, S>, name: &str) -> Result<Picture, Box<d
     })
 }
 
-fn last_head<S>(harness: &Harness<'_, S>) -> Result<Rect, Box<dyn Error>> {
-    Ok(harness
-        .query_all_by_role(Role::ColumnHeader)
-        .last()
-        .ok_or("no table head")?
-        .rect())
-}
-
 fn assert_striped(picture: &Picture, head: Rect, tab: &str) {
     let rows = picture.stripe_rows(head);
     assert!(
@@ -197,7 +189,9 @@ fn the_sounds_tab_stripes_its_rows_in_the_table_stripe() -> TestResult {
         })?;
         harness.run_steps(3);
         let picture = picture(&mut harness, &format!("sounds-{suffix}.png"))?;
-        let head = last_head(&harness)?;
+        let head = harness
+            .get_by_role_and_label(Role::ColumnHeader, "Soundbank")
+            .rect();
         assert_striped(&picture, head, &format!("sounds {suffix}"));
     }
     Ok(())

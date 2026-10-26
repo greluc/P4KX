@@ -5,8 +5,12 @@ use std::collections::HashMap;
 
 use p4kx_dataforge::Guid;
 
+use crate::changes::ReplacementMismatch;
 use crate::merge::port_key;
 use crate::{ChangeError, Incompatibility, ItemFacts, LoadoutChanges};
+
+/// The changes not applied below docked vehicles, and the replacements that do not fit.
+pub(crate) type Finished = (Vec<String>, Vec<ReplacementMismatch>);
 
 /// What to do with a port.
 pub(crate) enum Action {
@@ -32,6 +36,7 @@ pub(crate) struct Plan {
     exclusions: HashMap<String, Exclusion>,
     replacements: HashMap<String, Replacement>,
     errors: Vec<ChangeError>,
+    mismatches: Vec<ReplacementMismatch>,
     key: String,
     marks: Vec<usize>,
     stopped: Vec<String>,
@@ -108,6 +113,7 @@ impl Plan {
             exclusions,
             replacements,
             errors: Vec::new(),
+            mismatches: Vec::new(),
             key: String::new(),
             marks: Vec::new(),
             stopped: Vec::new(),
@@ -150,9 +156,10 @@ impl Plan {
             .map_or_else(|| self.key.clone(), |replacement| replacement.path.clone())
     }
 
-    /// Records that the Entity does not fit the port entered last.
-    pub(crate) fn reject(&mut self, entity: &ItemFacts, reason: Incompatibility) {
-        self.errors.push(ChangeError::Incompatible {
+    /// Records that the Entity does not fit the port entered last, which it is attached to all
+    /// the same.
+    pub(crate) fn mismatch(&mut self, entity: &ItemFacts, reason: Incompatibility) {
+        self.mismatches.push(ReplacementMismatch {
             path: self.path_of_replacement(),
             entity: entity.class_name().to_owned(),
             reason,
@@ -174,14 +181,15 @@ impl Plan {
     }
 
     /// Returns the paths of the changes that lie below a docked vehicle that is not expanded and
-    /// so were not applied, or the first problem of the resolution: a rejected replacement, else
-    /// a change that found no port.
-    pub(crate) fn finish(self) -> Result<Vec<String>, ChangeError> {
+    /// so were not applied, with the replacements that do not fit their port, or the first
+    /// problem of the resolution: a cycle, else a change that found no port.
+    pub(crate) fn finish(self) -> Result<Finished, ChangeError> {
         let Self {
             exclusions,
             replacements,
             errors,
             stopped,
+            mismatches,
             ..
         } = self;
         if let Some(error) = errors.into_iter().next() {
@@ -211,6 +219,6 @@ impl Plan {
             return Err(ChangeError::UnknownPort { path });
         }
         ignored.sort();
-        Ok(ignored)
+        Ok((ignored, mismatches))
     }
 }

@@ -11,7 +11,8 @@ use p4kx_assembly::{
     MAX_INTERIOR_CONTAINERS, MAX_INTERIOR_DEPTH,
 };
 use p4kx_extraction::{Archive, select_entries};
-use p4kx_gltf::GlbOptions;
+use p4kx_gltf::{GlbOptions, Scene, SceneNode};
+use p4kx_model::Transform;
 use p4kx_testkit::gltf::Node;
 use p4kx_testkit::{
     INTERIOR_ROOT, SOC_IDENTITY, TestContainer, TestEntry, TestObjectContainer, TestSoc, check_glb,
@@ -123,6 +124,23 @@ fn the_parts_hang_in_the_container_hierarchy() -> TestResult {
     );
     assert_eq!(interior.model_parts(), 6);
     assert_eq!(interior.modelled_parts(), 5, "all but the absent model");
+    Ok(())
+}
+
+#[test]
+fn adding_to_a_scene_returns_the_node_of_the_root_part() -> TestResult {
+    let interior = sample(&InteriorOptions::default())?;
+    let mut scene = Scene::new();
+    let anchor = scene.push(SceneNode::new("anchor", None, Transform::IDENTITY))?;
+
+    let root = interior.add_to_scene(&mut scene, Some(anchor), Transform::IDENTITY)?;
+
+    assert_eq!(root, Some(anchor + 1));
+    assert!(
+        interior
+            .add_to_scene(&mut scene, Some(9999), Transform::IDENTITY)
+            .is_err()
+    );
     Ok(())
 }
 

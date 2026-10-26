@@ -131,6 +131,10 @@ pub enum SoundsText {
     NoteMidi,
     /// Shown when no soundbank or WEM Entry holds the WEM.
     NoteMissing,
+    /// Shown when the Archive has no Entry for the file that holds a sound that should play.
+    NoteNoEntry,
+    /// The label of the language choice.
+    LanguageLabel,
     /// The title of the sound export setup.
     ExportTitle,
     /// The heading of the choice of triggers.
@@ -181,7 +185,7 @@ pub enum SoundsText {
 
 impl SoundsText {
     /// Every text of the Sounds tab.
-    pub(crate) const ALL: [Self; 86] = [
+    pub(crate) const ALL: [Self; 88] = [
         Self::Tab,
         Self::EntityLabel,
         Self::EntityHint,
@@ -245,6 +249,8 @@ impl SoundsText {
         Self::NoteExternal,
         Self::NoteMidi,
         Self::NoteMissing,
+        Self::NoteNoEntry,
+        Self::LanguageLabel,
         Self::ExportTitle,
         Self::ExportScope,
         Self::ExportSelected,
@@ -338,6 +344,8 @@ impl SoundsText {
             Self::NoteExternal => "sounds-note-external",
             Self::NoteMidi => "sounds-note-midi",
             Self::NoteMissing => "sounds-note-missing",
+            Self::NoteNoEntry => "sounds-note-no-entry",
+            Self::LanguageLabel => "sounds-language-label",
             Self::ExportTitle => "sounds-export-title",
             Self::ExportScope => "sounds-export-scope",
             Self::ExportSelected => "sounds-export-selected",

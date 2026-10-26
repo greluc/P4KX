@@ -6,6 +6,7 @@
 
 pub(crate) mod button;
 pub(crate) mod chip;
+pub(crate) mod choice;
 pub(crate) mod field;
 pub(crate) mod focus;
 pub(crate) mod frames;

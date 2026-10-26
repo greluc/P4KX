@@ -7,8 +7,8 @@
 use std::error::Error;
 
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, ChangeError, Incompatibility,
-    LoadoutChanges, LoadoutResolver, Part, PortSource,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, Incompatibility, LoadoutChanges,
+    LoadoutResolver, Part, PortSource,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
@@ -18,7 +18,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn a_shield_is_rejected_for_the_power_plant_by_the_vehicle_implementation() -> TestResult {
+fn a_shield_for_the_power_plant_is_reported_by_the_vehicle_implementation() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let entry = DataForgeEntry::read(&archive)?;
     let forge = entry.open()?;
@@ -26,20 +26,18 @@ fn a_shield_is_rejected_for_the_power_plant_by_the_vehicle_implementation() -> T
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
     let record = resolver.entities().find("AEGS_Gladius")?;
 
-    let rejected = resolver.resolve_with(
+    let applied = resolver.resolve_changed(
         &record,
         &LoadoutChanges::new().replace("hardpoint_power_plant", "SHLD_GODI_S01_AllStop_SCItem"),
-    );
+    )?;
 
     assert!(
         matches!(
-            rejected,
-            Err(ChangeError::Incompatible {
-                reason: Incompatibility::Type { .. },
-                ..
-            })
+            applied.mismatches(),
+            [m] if matches!(m.reason(), Incompatibility::Type { .. })
         ),
-        "{rejected:?}"
+        "{:?}",
+        applied.mismatches()
     );
     Ok(())
 }

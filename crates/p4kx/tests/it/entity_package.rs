@@ -216,6 +216,41 @@ fn the_level_of_detail_and_the_loadout_changes_are_those_of_entity_glb() -> Test
 }
 
 #[test]
+fn the_reports_count_the_models_written_at_a_lower_level_like_entity_glb() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), assembly_entries())?;
+
+    let text = package(
+        &archive,
+        "TEST_Ship",
+        &dir.path().join("text"),
+        &["--lod", "1"],
+        false,
+    )?;
+    let json = package(
+        &archive,
+        "TEST_Ship",
+        &dir.path().join("json"),
+        &["--lod", "1"],
+        true,
+    )?;
+
+    assert_eq!(text.code, Some(0), "{}", text.stderr);
+    assert!(
+        text.stdout
+            .contains("2 models lack LOD1 and are written at the nearest lower level"),
+        "{}",
+        text.stdout
+    );
+    let report: Value = serde_json::from_str(&json.stdout)?;
+    assert_eq!(
+        report["lod_fallbacks"], 2,
+        "the mount and the gun have no LOD1; the relay's gun shares the gun's mesh"
+    );
+    Ok(())
+}
+
+#[test]
 fn an_existing_package_is_replaced_and_any_other_folder_is_refused() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = write_archive(dir.path(), livery_entries())?;

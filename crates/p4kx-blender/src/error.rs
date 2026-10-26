@@ -42,6 +42,16 @@ pub enum PackageError {
         #[source]
         source: io::Error,
     },
+    /// A folder cannot be moved because another program holds it open, e.g. a virus scanner, the
+    /// indexer, an Explorer preview or a shell whose working folder it is.
+    #[error("{} is in use by another program; close it and try again", path.display())]
+    InUse {
+        /// The folder that could not be moved.
+        path: PathBuf,
+        /// The last error of the attempts.
+        #[source]
+        source: io::Error,
+    },
     /// The new package could not be moved into place and the earlier one could not be moved back;
     /// it is at `old`.
     #[error(

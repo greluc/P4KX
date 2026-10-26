@@ -101,8 +101,8 @@ pub use mtl_raw::{
     Attributes, MAX_LAYERS, MAX_RAW_DEPTH, MAX_RAW_ELEMENTS, MaterialLayer, RawElement,
 };
 pub use object_container::{
-    ChildContainer, MAX_CHILD_CONTAINERS, MAX_STREAMED_SOCS, MAX_STREAMING_DEPTH, ObjectContainer,
-    ObjectContainerError,
+    ChildContainer, ContainerBounds, MAX_CHILD_CONTAINERS, MAX_STREAMED_SOCS, MAX_STREAMING_DEPTH,
+    ObjectContainer, ObjectContainerError,
 };
 pub use palette::{PaletteSlot, TintEntry, TintPalette, srgb8_to_linear};
 pub use prefab::{

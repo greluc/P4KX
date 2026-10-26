@@ -141,10 +141,15 @@ them (`hardpoint_weapon_nose/hardpoint_class_2`), ignoring case. An excluded por
 `excluded` and holds nothing, so nothing below it is listed; a replaced port has `source`
 `replaced` and holds the new Entity with its own default Loadout. `excluded` and `replaced` count
 those ports and are absent when 0. A change that is no port path, names a port the tree lacks,
-contradicts another, names an Entity that no Record or several Records match, or attaches an
-Entity that does not fit the port's item types, sub-types and sizes, or replaces a port with the
-root Entity or an Entity the port lies below, exits with code 2 and prints the reason; a
+contradicts another, names an Entity that no Record or several Records match, or replaces a port
+with the root Entity or an Entity the port lies below, exits with code 2 and prints the reason; a
 replacement whose Record cannot be read exits with code 5.
+
+An Entity that does not fit the port's item types, sub-types and sizes is attached all the same
+(ADR-0076): the command warns on stderr, exits with code 0, and lists the mismatch in
+`incompatible` (absent when empty): `{"port": "…", "entity": "…", "kind": "item_type" |
+"item_sub_type" | "too_small" | "too_large", "reason": "…"}`. `entity glb`, `entity package` and
+`ui hologram` report it the same way.
 
 `<entity>` is a class name such as `AEGS_Avenger_Titan` (also as the Record name
 `EntityClassDefinition.AEGS_Avenger_Titan`), a GUID, or a record path, which is recognised by a
@@ -259,6 +264,8 @@ order is attached. The same Archive always gives the same document.
 one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. A
 change to a port below an unexpanded docked vehicle, as `entity loadout` lists it, is not applied
 and no error; the report lists the ports as `ignored` (absent when empty), as for `entity loadout`.
+A replacement that does not fit its port is written all the same and listed in `incompatible` (absent
+when empty), as for `entity loadout`.
 `parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
@@ -334,10 +341,12 @@ was reached). New kinds may be added in later versions.
  "nodes": 83, "drawn_nodes": 56, "containers": 0, "objects": 0, "lights": 0, "meshes": 31,
  "shared_meshes": 25, "materials": 48, "palettes": 3, "textures": 120,
  "texture_pixels": 98304000, "texture_failures": 0, "files": 152, "bytes": 123456789,
- "vertices": 744831, "triangles": 818426, "skipped": 0, "issues": [Issue, …]}
+ "vertices": 744831, "triangles": 818426, "lod_fallbacks": 0, "skipped": 0, "issues": [Issue, …]}
 ```
 
-`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `nodes` counts the
+`<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `lod_fallbacks` counts
+the models that lack the level of detail asked for and are written at the nearest lower one, as
+for `p4kx entity glb`, but a mesh that several nodes draw counts once. `nodes` counts the
 nodes of `scene.json`, `drawn_nodes` those with a mesh. `--interior` adds the Interior as for
 `p4kx entity glb`; `containers`, `objects` and `lights` count its nodes of the kinds `container`,
 `object` and `light` and are 0 without it. `materials` and `palettes` count the material
@@ -346,8 +355,8 @@ GLB files written and `shared_meshes` the nodes that draw a mesh another node dr
 and `texture_pixels` count the PNG files written and their pixels, `texture_failures` the
 textures that could not be loaded or encoded (their materials keep plain colours). `files` and
 `bytes` count the manifest, the parts and the textures; `vertices` and `triangles` count each
-mesh once. `excluded` and `replaced` are as for `p4kx entity glb` and absent without the
-options. An **Issue** is an entry of the `issues` of `scene.json` ([docs/blender-package.md](blender-package.md)):
+mesh once. `excluded`, `replaced`, `ignored` and `incompatible` are as for `p4kx entity glb` and
+absent without the options. An **Issue** is an entry of the `issues` of `scene.json` ([docs/blender-package.md](blender-package.md)):
 `origin` (`assembly` or `texture`), `kind`, `path`, `name`, `skipped` and `reason`; the assembly
 kinds are those of `p4kx entity glb`, the texture kinds are `texture` and `texture_path`. An
 `--out` that is the Archive, that lies in a Star Citizen installation or that exists and is no
@@ -571,6 +580,8 @@ An **Issue** is as for `p4kx entity glb`, with the kinds of the pieces: `piece_n
 Entity's Record cannot be read), `no_worn_geometry` (the Record names no geometry), `no_variant_geometry`
 (the Record names geometry per body, but none for this one; the piece is left out),
 `geometry_missing` and `geometry_unreadable` (the model is not in the Archive or cannot be read),
+`loadout_unreadable` (the Loadout of a worn Entity cannot be read in full, such as a missing XML
+include; the piece is fitted and the issue is a note, ADR-0194),
 `main_geometry_worn` (the Record names no geometry per body, so its main geometry, which is not a
 skin, is worn on the body; a note only), `bones_not_in_skeleton` (some bones of the model are not in
 the body skeleton and follow their nearest parent that is) and `not_skinned` (the model has no bone
@@ -582,8 +593,10 @@ materials of the part that have no diffuse map of their own and none in a layer,
 layer colours, ADR-0147) and
 `material_library`. `path` is empty and `name` is `body` for the body's skin, else the piece's
 class name or `<port>/<class name>`; for `piece_not_found` it is the text given to `--piece`, or
-the port and class name of the Loadout entry that cannot be resolved, or the Loadout itself when
-part of it cannot be read. A `--loadout` that is neither an Entity nor an XML Loadout that can be
+`<port>/<class name>` of the Loadout entry that cannot be resolved (`<port>/<GUID>` when it names
+a Reference, `<port>/unreadable` when the Reference cannot be read), or the Loadout itself when
+part of the root's Loadout cannot be read. Only entries at the root or below worn Entities
+count; an entry below a weapon is not listed (ADR-0194). A `--loadout` that is neither an Entity nor an XML Loadout that can be
 read exits with code 2 and writes nothing.
 
 ## `p4kx entity audio <archive> <entity> --json`
@@ -1539,9 +1552,10 @@ geometry the picture shows, `triangles` the triangles they place, and `issues` t
 skipped parts of the Assembly as `entity glb` lists them. `milliseconds` splits the run into
 reading and assembling, building the scene, drawing and reading the picture back, and writing
 the file. An Entity the Archive lacks, a bad option, a `--out` that is the Archive or lies in a
-Star Citizen installation, a `--size` that is empty or beyond what the device draws and a
-Loadout change that does not fit print no JSON and fail with exit code 2; a machine without a
-graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
+Star Citizen installation and a `--size` that is empty or beyond what the device draws
+print no JSON and fail with exit code 2. A replacement that does not fit its port is drawn all the
+same and listed in `incompatible` (absent when empty), as for `entity loadout`. A machine without
+a graphics adapter fails with `no graphics adapter` on stderr and exit code 1.
 
 ## `p4kx ui screens <archive> <entity> --json`
 

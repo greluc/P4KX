@@ -125,11 +125,12 @@ pub(crate) struct EntityPackageArgs {
     /// Leaves the vertex colours out of the parts.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
-    /// Includes the Interior as for `entity glb --interior`: the socpak containers the Entity's
-    /// Record names, each placed at its bone of the hull, as nodes below an `Interior` node of
-    /// the Entity, with their models and props as nodes that draw meshes and their lights as
-    /// nodes of the kind `light`. Containers and parts that cannot be resolved are skipped and
-    /// listed. Without it only the hull is written.
+    /// Includes the Interior as for `entity glb --interior`: the socpak containers the Records of
+    /// the Entity and of its attached Entities name, each placed at its bone of the Entity that
+    /// names it, as nodes below an `Interior` node of that Entity, with their models and props
+    /// as nodes that draw meshes and their lights as nodes of the kind `light`. A docked vehicle
+    /// brings its containers only when docked vehicles are expanded. Containers and parts that
+    /// cannot be resolved are skipped and listed. Without it only the hull is written.
     #[arg(long)]
     pub(crate) interior: bool,
     #[command(flatten)]
@@ -168,11 +169,13 @@ pub(crate) struct EntityGlbArgs {
     /// Leaves the vertex colours out; viewers multiply the material's base colour by them.
     #[arg(long)]
     pub(crate) no_vertex_colours: bool,
-    /// Includes the Interior: the socpak containers the Entity's Record names
-    /// (`VehicleComponentParams.objectContainers` and `SObjectContainerComponentParams`), each
-    /// placed at its bone of the hull with the Record's offset, as nodes below an `Interior`
-    /// node of the Entity, with the containers nested in them. Containers and parts that cannot
-    /// be resolved are skipped and listed. Without it only the hull is written.
+    /// Includes the Interior: the socpak containers the Records of the Entity and of its attached
+    /// Entities name (`VehicleComponentParams.objectContainers` and
+    /// `SObjectContainerComponentParams`), each placed at its bone of the Entity that names it
+    /// with the Record's offset, as nodes below an `Interior` node of that Entity, with the
+    /// containers nested in them. A docked vehicle brings its containers only with
+    /// `--expand-docked-vehicles`. Containers and parts that cannot be resolved are skipped and
+    /// listed. Without it only the hull is written.
     #[arg(long)]
     pub(crate) interior: bool,
     /// Expands docked vehicles, the attached Entities whose item type starts with

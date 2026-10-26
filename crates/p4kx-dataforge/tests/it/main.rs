@@ -30,6 +30,7 @@ mod query_path_syntax;
 mod query_paths;
 mod query_references;
 mod query_run;
+mod query_shared_prefixes;
 mod query_syntax;
 mod record_flat;
 mod record_flat_names;

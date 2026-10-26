@@ -6,7 +6,7 @@ use std::rc::Rc;
 use crate::colour::ColorSpec;
 use crate::corners::Corner;
 use crate::style::Modifiers;
-use crate::text::FontStyleInfo;
+use crate::text::{FontStyleInfo, Shaped};
 use crate::widget::Widget;
 
 fn corners_of(widget: &Widget, style: &Modifiers) -> [Corner; 4] {
@@ -33,6 +33,7 @@ pub(crate) struct Look<'a> {
     pub(crate) style: &'a Modifiers,
     pub(crate) font: Option<Rc<FontStyleInfo>>,
     pub(crate) bound_text: Option<String>,
+    pub(crate) shaped: Option<Rc<Shaped>>,
     pub(crate) pixel: f32,
 }
 
@@ -75,6 +76,7 @@ impl<'a> Look<'a> {
             style,
             font,
             bound_text: None,
+            shaped: None,
             pixel,
         }
     }

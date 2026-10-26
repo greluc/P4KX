@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::hash::{DefaultHasher, Hash, Hasher};
+use std::rc::Rc;
 
 use p4kx_dataforge::Guid;
 
@@ -52,7 +53,24 @@ impl Walk<'_, '_, '_, '_> {
         if !probe.geometry.size.contains(&Dim::Auto) {
             return [None; 2];
         }
-        let key = (
+        let key = self.measure_key(probe, parent);
+        if let Some(known) = self.measured.get(&key) {
+            return *known;
+        }
+        let exhausted = self.limits.widgets <= self.measures;
+        self.cx.report.truncated |= exhausted;
+        let size = if depth > self.limits.depth || exhausted {
+            [None; 2]
+        } else {
+            self.measures += 1;
+            self.intrinsic(probe, parent, depth, key)
+        };
+        self.measured.insert(key, size);
+        size
+    }
+
+    pub(crate) fn measure_key(&self, probe: &Probe<'_>, parent: Area) -> MeasureKey {
+        (
             probe.canvas.guid,
             probe.index,
             self.chain.last().copied().unwrap_or(0),
@@ -63,23 +81,16 @@ impl Walk<'_, '_, '_, '_> {
             },
             [parent.width.to_bits(), parent.height.to_bits()],
             self.pixel.to_bits(),
-        );
-        if let Some(known) = self.measured.get(&key) {
-            return *known;
-        }
-        let exhausted = self.limits.widgets <= self.measures;
-        self.cx.report.truncated |= exhausted;
-        let size = if depth > self.limits.depth || exhausted {
-            [None; 2]
-        } else {
-            self.measures += 1;
-            self.intrinsic(probe, parent, depth)
-        };
-        self.measured.insert(key, size);
-        size
+        )
     }
 
-    fn intrinsic(&mut self, probe: &Probe<'_>, parent: Area, depth: usize) -> [Option<f32>; 2] {
+    fn intrinsic(
+        &mut self,
+        probe: &Probe<'_>,
+        parent: Area,
+        depth: usize,
+        key: MeasureKey,
+    ) -> [Option<f32>; 2] {
         if probe.has_children {
             return if probe.kids.is_empty() {
                 [None; 2]
@@ -94,9 +105,15 @@ impl Walk<'_, '_, '_, '_> {
         let font = self.font_of(widget, probe.style);
         let mut look = Look::of(widget, probe.style, self.pixel, font);
         look.bound_text = self.bound_text(probe.canvas, probe.index);
-        let Some([width, height]) = self.cx.texts.measure(widget, &look, parent) else {
+        let shaped = self.cx.texts.shape(widget, &look, parent);
+        let Some([width, height]) = shaped
+            .prepared
+            .as_ref()
+            .and_then(|prepared| self.cx.texts.measure(prepared, parent))
+        else {
             return [None; 2];
         };
+        self.shaped.insert(key, Rc::new(shaped));
         let padding = probe.geometry.padding;
         [
             Some(width + padding.left + padding.right),

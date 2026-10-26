@@ -4,10 +4,10 @@
 use std::ops::ControlFlow;
 
 use crate::build::{element_bytes, pointer, reference_guid, words};
-use crate::query::MAX_PATH_VALUES;
 use crate::query::reader::{Elements, Link, Select, Step, Walk};
 use crate::query::schema::ancestors_include;
 use crate::query::sink::{Live, Reached, Sink};
+use crate::query::state::WalkState;
 use crate::{DataForge, Value, ValueError, ValueKind};
 
 /// The bytes a path reads at one point: an instance of a struct or one value of a pool.
@@ -62,54 +62,6 @@ impl<'f> Place<'f> {
     }
 }
 
-/// What paths have used of their limits while they are read in one Record: one shared by every
-/// column of its row, and one for each comparison of its condition.
-#[derive(Debug)]
-pub(crate) struct WalkState {
-    budget: usize,
-    unresolved: Vec<usize>,
-}
-
-impl WalkState {
-    /// Returns the state of a Record no path has read yet.
-    pub(crate) const fn new() -> Self {
-        Self {
-            budget: MAX_PATH_VALUES,
-            unresolved: Vec::new(),
-        }
-    }
-
-    /// Readies the state for the next Record, keeping its buffer.
-    pub(crate) fn reset(&mut self) {
-        self.budget = MAX_PATH_VALUES;
-        self.unresolved.clear();
-    }
-
-    /// Returns how many distinct null or dangling links `->` met.
-    pub(crate) const fn unresolved(&self) -> usize {
-        self.unresolved.len()
-    }
-
-    /// Counts the link stored at the address `at`, which `->` cannot follow, once however many
-    /// paths meet it.
-    pub(crate) fn note_unresolved(&mut self, at: usize) {
-        if !self.unresolved.contains(&at) {
-            self.unresolved.push(at);
-        }
-    }
-
-    /// Counts `elements` more array elements against [`MAX_PATH_VALUES`].
-    pub(crate) fn charge(&mut self, elements: usize) -> Result<(), ValueError> {
-        self.budget = self
-            .budget
-            .checked_sub(elements)
-            .ok_or(ValueError::PathTooWide {
-                limit: MAX_PATH_VALUES,
-            })?;
-        Ok(())
-    }
-}
-
 /// The bytes of a pointer and of an array header.
 const HEADER_LEN: u64 = 8;
 
@@ -120,7 +72,7 @@ impl Walk {
     /// # Errors
     ///
     /// Returns [`ValueError::PathTooWide`] when the paths of the Record reach more than
-    /// [`MAX_PATH_VALUES`] elements together.
+    /// [`MAX_PATH_VALUES`](crate::query::MAX_PATH_VALUES) elements together.
     pub(crate) fn visit<'f>(
         &self,
         forge: &'f DataForge<'f>,

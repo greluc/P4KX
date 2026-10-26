@@ -5,7 +5,8 @@ use std::ops::ControlFlow;
 
 use crate::query::MAX_PATH_VALUES;
 use crate::query::reader::{Column, Walk};
-use crate::query::walk::{Place, WalkState};
+use crate::query::state::WalkState;
+use crate::query::walk::Place;
 use crate::{DataForge, Value, ValueError};
 
 /// What a step reaches: the place the path continues at, or a value that ends it.

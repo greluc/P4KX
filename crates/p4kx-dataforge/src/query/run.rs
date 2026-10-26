@@ -11,7 +11,8 @@ use crate::dataforge::out_of_range;
 use crate::query::CompiledQuery;
 use crate::query::compile::Plan;
 use crate::query::shared::Recordings;
-use crate::query::walk::{Place, WalkState};
+use crate::query::state::WalkState;
+use crate::query::walk::Place;
 use crate::{DataForgeError, Record, Value};
 
 /// The Records a compiled Query selects, ordered by record path and then by definition order;

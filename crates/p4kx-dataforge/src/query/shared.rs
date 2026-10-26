@@ -14,6 +14,13 @@ pub(crate) struct Groups {
     group_of: Box<[Option<usize>]>,
 }
 
+/// A group being formed: its first column, the steps its columns share and how many they are.
+struct Candidate {
+    first: usize,
+    steps: usize,
+    members: usize,
+}
+
 /// The prefix walks of one row, made when the first column of a group asks for them; kept from row
 /// to row so their buffers are reused.
 pub(crate) type Recordings<'f> = Vec<Recording<'f>>;
@@ -30,7 +37,7 @@ impl Groups {
             })
             .collect();
         let mut group_of: Vec<Option<usize>> = vec![None; columns.len()];
-        let mut found: Vec<(usize, usize, usize)> = Vec::new();
+        let mut found: Vec<Candidate> = Vec::new();
         for (index, steps) in walks.iter().enumerate() {
             let Some(steps) = steps else { continue };
             let shared = walks
@@ -44,38 +51,30 @@ impl Groups {
             if !steps.iter().take(shared).any(fans_out) {
                 continue;
             }
-            let existing = found.iter().position(|&(first, length, _)| {
-                length == shared
+            let existing = found.iter().position(|candidate| {
+                candidate.steps == shared
                     && walks
-                        .get(first)
+                        .get(candidate.first)
                         .copied()
                         .flatten()
                         .is_some_and(|others| others.get(..shared) == steps.get(..shared))
             });
             let group = existing.unwrap_or_else(|| {
-                found.push((index, shared, 0));
+                found.push(Candidate {
+                    first: index,
+                    steps: shared,
+                    members: 0,
+                });
                 found.len() - 1
             });
             if let Some(entry) = found.get_mut(group) {
-                entry.2 += 1;
+                entry.members += 1;
             }
             if let Some(slot) = group_of.get_mut(index) {
                 *slot = Some(group);
             }
         }
-        let mut renumbered = vec![None; found.len()];
-        let mut prefixes = Vec::new();
-        for (group, &(_, length, members)) in found.iter().enumerate() {
-            if members >= 2 {
-                if let Some(slot) = renumbered.get_mut(group) {
-                    *slot = Some(prefixes.len());
-                }
-                prefixes.push(length);
-            }
-        }
-        for slot in &mut group_of {
-            *slot = slot.and_then(|group| renumbered.get(group).copied().flatten());
-        }
+        let prefixes = keep_groups_of_two(&found, &mut group_of);
         Self {
             prefixes: prefixes.into_boxed_slice(),
             group_of: group_of.into_boxed_slice(),
@@ -130,6 +129,23 @@ impl Groups {
         }
         Some((&*recording, prefix))
     }
+}
+
+fn keep_groups_of_two(found: &[Candidate], group_of: &mut [Option<usize>]) -> Vec<usize> {
+    let mut renumbered = vec![None; found.len()];
+    let mut prefixes = Vec::new();
+    for (group, candidate) in found.iter().enumerate() {
+        if candidate.members >= 2 {
+            if let Some(slot) = renumbered.get_mut(group) {
+                *slot = Some(prefixes.len());
+            }
+            prefixes.push(candidate.steps);
+        }
+    }
+    for slot in group_of {
+        *slot = slot.and_then(|group| renumbered.get(group).copied().flatten());
+    }
+    prefixes
 }
 
 fn common(left: &[Step], right: &[Step]) -> usize {
@@ -262,20 +278,31 @@ mod tests {
         let early = || reader(vec![array(0, Select::All)]);
         let deep = || reader(vec![array(0, Select::All), array(8, Select::All)]);
         let plain = || reader(vec![array(0, Select::Index(0))]);
-        let first = [plain(), deep(), deep(), early()];
-        let second = [deep(), early(), plain(), deep()];
+        let named = [
+            ("plain", plain()),
+            ("deep one", deep()),
+            ("deep two", deep()),
+            ("early", early()),
+        ];
 
-        let sets = |columns: &[Option<Reader>]| {
-            let mut sets: Vec<_> = Groups::of(columns)
+        let sets = |order: &[usize]| {
+            let columns: Vec<_> = order.iter().map(|&at| named[at].1.clone()).collect();
+            let mut sets: Vec<_> = Groups::of(&columns)
                 .groups()
                 .into_iter()
-                .map(|(members, steps)| (members.len(), steps))
+                .map(|(members, steps)| {
+                    let mut labels: Vec<_> = members.iter().map(|&at| named[order[at]].0).collect();
+                    labels.sort_unstable();
+                    (labels, steps)
+                })
                 .collect();
-            sets.sort_unstable();
+            sets.sort();
             sets
         };
 
-        assert_eq!(sets(&first), vec![(2, 2)]);
-        assert_eq!(sets(&second), sets(&first));
+        assert_eq!(sets(&[0, 1, 2, 3]), vec![(vec!["deep one", "deep two"], 2)]);
+        for order in [[3, 2, 1, 0], [1, 3, 0, 2], [2, 0, 3, 1]] {
+            assert_eq!(sets(&order), sets(&[0, 1, 2, 3]));
+        }
     }
 }

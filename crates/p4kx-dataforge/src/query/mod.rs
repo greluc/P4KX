@@ -28,6 +28,7 @@ mod shared;
 mod short_text;
 mod sink;
 mod span;
+mod state;
 mod suggest;
 mod syntax;
 mod walk;

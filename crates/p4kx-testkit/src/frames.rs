@@ -57,7 +57,8 @@ mod tests {
     }
 
     #[test]
-    fn no_frames_pass() {
+    #[should_panic(expected = "none: no frames were measured")]
+    fn no_frames_fail() {
         assert_steady_frames("none", &[], TYPICAL, CEILING);
     }
 

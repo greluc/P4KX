@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use p4kx_extraction::Guid;
+
 use crate::ModelExportFailure;
 
 /// Why the view shows nothing, or nothing new.
@@ -14,6 +16,8 @@ pub enum ViewFailure {
     Key,
     /// The Assembly could not be read, for the reason given.
     Failed(String),
+    /// The DataForge has no Record of the Entity.
+    NoRecord(Guid),
     /// Building stopped without a result.
     Stopped,
 }
@@ -24,7 +28,7 @@ impl From<ModelExportFailure> for ViewFailure {
             ModelExportFailure::ArchiveChanged => Self::ArchiveChanged,
             ModelExportFailure::KeyRequired | ModelExportFailure::KeyRejected => Self::Key,
             ModelExportFailure::Failed(reason) => Self::Failed(reason),
-            ModelExportFailure::NoRecord(guid) => Self::Failed(guid.to_string()),
+            ModelExportFailure::NoRecord(guid) => Self::NoRecord(guid),
             ModelExportFailure::Refused(_) | ModelExportFailure::Stopped => Self::Stopped,
         }
     }

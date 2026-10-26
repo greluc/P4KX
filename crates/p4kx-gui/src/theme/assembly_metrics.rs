@@ -39,6 +39,3 @@ pub const ASSEMBLY_TREE_MIN_HEIGHT: f32 = ROW_HEIGHT * (1.0 + ASSEMBLY_TREE_MIN_
 pub const REPLACE_LIST_HEIGHT: f32 = PREVIEW_HEIGHT;
 /// The gap between the line of what the port takes and the search field of the replace dialog.
 pub const REPLACE_HEAD_GAP: f32 = MODAL_GROUP_GAP / 2.0;
-
-/// The share of the track a sweeping block of a progress bar without a measure spans.
-pub const PROGRESS_SWEEP_SHARE: f32 = 0.25;

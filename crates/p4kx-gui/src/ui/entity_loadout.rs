@@ -102,6 +102,7 @@ fn body(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> Option<Action> 
                 &[("guid", guid.to_string().into())],
             ),
             ResolveFailure::Cancelled => texts.get(EntityText::LoadoutStopped),
+            ResolveFailure::Lost => texts.get(EntityText::LoadoutLost),
             ResolveFailure::Failed(reason) => texts.format(
                 EntityText::LoadoutFailed,
                 &[("reason", reason.clone().into())],

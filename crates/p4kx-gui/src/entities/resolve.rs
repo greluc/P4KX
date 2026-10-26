@@ -19,6 +19,8 @@ pub enum ResolveFailure {
     NoRecord(Guid),
     /// Resolving was stopped, or ended without a result.
     Cancelled,
+    /// The worker that resolves the Loadout ended unexpectedly.
+    Lost,
     /// The Loadout cannot be resolved, for the reason given.
     Failed(String),
 }

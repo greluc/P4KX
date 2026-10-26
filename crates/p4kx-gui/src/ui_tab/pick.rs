@@ -19,6 +19,8 @@ pub enum UiScreensStatus<'a> {
     ArchiveChanged,
     /// Listing failed for the reason given, or stopped without a result.
     Failed(Option<&'a str>),
+    /// The DataForge has no Record of the ship.
+    NoRecord(Guid),
     /// The screens are listed.
     Ready(&'a EntityScreens),
 }
@@ -27,6 +29,7 @@ enum State {
     Resolving(Job<Listing>),
     ArchiveChanged,
     Failed(Option<String>),
+    NoRecord(Guid),
     Ready {
         listing: Box<EntityScreens>,
         picked: Option<usize>,
@@ -40,6 +43,7 @@ impl std::fmt::Debug for State {
             Self::Resolving(_) => "Resolving",
             Self::ArchiveChanged => "ArchiveChanged",
             Self::Failed(_) => "Failed",
+            Self::NoRecord(_) => "NoRecord",
             Self::Ready { .. } => "Ready",
         })
     }
@@ -84,6 +88,7 @@ impl ShipPick {
             State::Resolving(_) => UiScreensStatus::Resolving,
             State::ArchiveChanged => UiScreensStatus::ArchiveChanged,
             State::Failed(reason) => UiScreensStatus::Failed(reason.as_deref()),
+            State::NoRecord(guid) => UiScreensStatus::NoRecord(*guid),
             State::Ready { listing, .. } => UiScreensStatus::Ready(listing),
         }
     }
@@ -157,10 +162,10 @@ impl ShipPick {
                 return true;
             }
             Poll::Ready(Err(ResolveFailure::NoRecord(guid))) => {
-                self.state = State::Failed(Some(guid.to_string()));
+                self.state = State::NoRecord(guid);
                 return true;
             }
-            Poll::Ready(Err(ResolveFailure::Cancelled)) | Poll::Lost => {
+            Poll::Ready(Err(ResolveFailure::Cancelled | ResolveFailure::Lost)) | Poll::Lost => {
                 self.state = State::Failed(None);
                 return true;
             }

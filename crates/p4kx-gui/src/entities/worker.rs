@@ -3,7 +3,7 @@
 
 use std::io;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 
@@ -30,6 +30,7 @@ struct Job {
 pub(super) struct Worker {
     jobs: Sender<Job>,
     latest: Arc<AtomicU64>,
+    closed: Arc<AtomicBool>,
 }
 
 impl Worker {
@@ -40,11 +41,23 @@ impl Worker {
     ) -> io::Result<Self> {
         let (jobs, requests) = mpsc::channel();
         let latest = Arc::new(AtomicU64::new(0));
-        let (thread_index, thread_latest) = (Arc::clone(index), Arc::clone(&latest));
+        let closed = Arc::new(AtomicBool::new(false));
+        let thread_index = Arc::clone(index);
+        let (thread_latest, thread_closed) = (Arc::clone(&latest), Arc::clone(&closed));
         thread::Builder::new()
             .name("loadout".to_owned())
-            .spawn(move || serve(&thread_index, guid, &requests, &thread_latest, &*wake))?;
-        Ok(Self { jobs, latest })
+            .spawn(move || {
+                let flags = Flags {
+                    latest: &thread_latest,
+                    closed: &thread_closed,
+                };
+                serve(&thread_index, guid, &requests, flags, &*wake);
+            })?;
+        Ok(Self {
+            jobs,
+            latest,
+            closed,
+        })
     }
 
     /// Asks for the Loadout with `changes`, superseding the request before, and returns where the
@@ -63,7 +76,20 @@ impl Worker {
 
 impl Drop for Worker {
     fn drop(&mut self) {
+        self.closed.store(true, Ordering::Release);
         self.latest.fetch_add(1, Ordering::AcqRel);
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Flags<'a> {
+    latest: &'a AtomicU64,
+    closed: &'a AtomicBool,
+}
+
+impl Flags<'_> {
+    fn closed(self) -> bool {
+        self.closed.load(Ordering::Acquire)
     }
 }
 
@@ -71,21 +97,31 @@ fn serve(
     index: &EntryIndex,
     guid: Guid,
     requests: &Receiver<Job>,
-    latest: &AtomicU64,
+    flags: Flags<'_>,
     wake: &(dyn Fn() + Send + Sync),
 ) {
+    let latest = flags.latest;
     let running = AtomicU64::new(0);
     let stop = || latest.load(Ordering::Acquire) != running.load(Ordering::Acquire);
     let source = match read_source(index) {
         Ok(source) => source,
         Err(failure) => return refuse(requests, &failure, wake),
     };
+    if flags.closed() {
+        return;
+    }
     let forge = match open_forge(&source) {
         Ok(forge) => forge,
         Err(failure) => return refuse(requests, &failure, wake),
     };
+    if flags.closed() {
+        return;
+    }
     let files = ArchiveFiles::new(index.archive());
     let entities = Arc::new(Entities::new(&forge));
+    if flags.closed() {
+        return;
+    }
     let mut resolver = LoadoutResolver::with_entities(entities)
         .with_files(&files)
         .with_stop(&stop)

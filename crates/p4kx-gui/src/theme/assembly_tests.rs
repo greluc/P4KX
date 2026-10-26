@@ -43,7 +43,6 @@ fn the_replace_and_progress_metrics_match_the_desktop_spec() {
     for (element, key, value) in [
         ("entityReplace", "listHeight", m::REPLACE_LIST_HEIGHT),
         ("entityReplace", "headGap", m::REPLACE_HEAD_GAP),
-        ("progressBar", "sweepShare", m::PROGRESS_SWEEP_SHARE),
     ] {
         let expected = spec[element][key].as_f64();
         assert!(
@@ -52,8 +51,8 @@ fn the_replace_and_progress_metrics_match_the_desktop_spec() {
         );
     }
     assert_eq!(
-        spec["progressBar"]["sweepPeriodMs"].as_f64(),
-        Some(super::desktop::SPINNER_PERIOD * 1000.0),
+        spec["progressBar"]["sweepPeriodFrom"].as_str(),
+        Some("spinner.periodMs"),
         "a sweep takes one turn of the spinner"
     );
     assert_eq!(

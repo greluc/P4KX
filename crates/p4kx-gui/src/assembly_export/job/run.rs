@@ -71,6 +71,7 @@ fn entity(
     let tree = match resolve(index, guid, changes, &|| cancel.is_cancelled()) {
         Ok(tree) => tree,
         Err(ResolveFailure::Cancelled) => return Ended::Cancelled,
+        Err(ResolveFailure::Lost) => return Ended::Failed(ModelExportFailure::Stopped),
         Err(ResolveFailure::ArchiveChanged) => {
             return Ended::Failed(ModelExportFailure::ArchiveChanged);
         }

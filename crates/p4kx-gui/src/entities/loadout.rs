@@ -92,7 +92,7 @@ impl LoadoutSession {
         let outcome = match receiver.try_recv() {
             Ok(outcome) => outcome,
             Err(TryRecvError::Empty) => return built,
-            Err(TryRecvError::Disconnected) => Err(ResolveFailure::Cancelled),
+            Err(TryRecvError::Disconnected) => Err(ResolveFailure::Lost),
         };
         self.pending = None;
         match outcome {

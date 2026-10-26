@@ -104,7 +104,7 @@ impl<'f> LoadoutResolver<'f> {
 
     /// Polls `stop` while resolving with [`resolve_with`](Self::resolve_with), between the ports
     /// it builds and the levels it reads ahead; once it returns `true` the resolution ends with
-    /// [`ChangeError::Cancelled`].
+    /// [`ChangeError::Cancelled`]. Only `resolve_with` ends that way; `resolve` ignores it.
     #[must_use]
     pub fn with_stop(mut self, stop: &'f (dyn Fn() -> bool + Sync)) -> Self {
         self.stop = Some(stop);

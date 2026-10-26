@@ -553,7 +553,7 @@
     "labelTabular": true,
     "indeterminate": "a step without a measure shows the empty track with a block of color-primary (color-gray-2 while cancelling) that sweeps from the start to the end of the track and begins again, once per spinner.periodMs",
     "sweepShare": 0.25,
-    "sweepPeriodMs": 900
+    "sweepPeriodFrom": "spinner.periodMs"
   },
   "spinner": {
     "dsClass": "spinner",

@@ -8,10 +8,9 @@ use egui::{
     UiBuilder, pos2, vec2,
 };
 
-use crate::theme::assembly_metrics::PROGRESS_SWEEP_SHARE;
 use crate::theme::desktop::{
-    BRAND_GAP, BRAND_HEIGHT, BRAND_MARK, PROGRESS_HEIGHT, ROW_HEIGHT, SPINNER_INLINE,
-    SPINNER_PERIOD, SPINNER_RING, SPINNER_TRACK, WORDMARK_SIZE,
+    BRAND_GAP, BRAND_HEIGHT, BRAND_MARK, PROGRESS_HEIGHT, PROGRESS_SWEEP_SHARE, ROW_HEIGHT,
+    SPINNER_INLINE, SPINNER_PERIOD, SPINNER_RING, SPINNER_TRACK, WORDMARK_SIZE,
 };
 use crate::theme::tokens::{SPACE_2, TRACKING_DISPLAY, Weight};
 use crate::theme::{logo, palette};

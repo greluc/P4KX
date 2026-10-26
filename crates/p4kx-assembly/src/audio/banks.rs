@@ -3,8 +3,8 @@
 
 use p4kx_audio::{HircKind, HircValue, MusicStinger, Soundbank};
 
-use super::{AudioFileError, MAX_STINGERS};
 use super::language::bank_language;
+use super::{AudioFileError, MAX_STINGERS};
 
 /// A soundbank Entry of the audio index.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -44,7 +44,7 @@ pub(crate) enum Via {
     Local,
     /// A Play action names the soundbank by its ID.
     Bank(u32),
-    /// A PlayEvent action: any soundbank that holds the Event.
+    /// A `PlayEvent` action: any soundbank that holds the Event.
     PlayEvent,
     /// A stinger of the music index: the soundbank at this position of the index.
     At(u32),

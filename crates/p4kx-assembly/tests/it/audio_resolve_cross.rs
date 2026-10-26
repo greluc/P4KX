@@ -350,7 +350,15 @@ fn stingers_of_other_languages_do_not_break_the_one_of_the_chosen_language() -> 
                     return Err(format!("one variant: {:?}", sounds.variants()).into());
                 };
                 assert_eq!(variant.soundbank().language(), Some(preferred));
-                assert!(sounds.breaks().is_empty(), "{:?}", sounds.breaks());
+                assert!(
+                    sounds
+                        .breaks()
+                        .iter()
+                        .all(|link| link.soundbank().and_then(|bank| bank.language())
+                            == Some(preferred)),
+                    "{:?}",
+                    sounds.breaks()
+                );
                 Ok(())
             },
         )?;

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry as Slot;
+use std::collections::{HashMap, HashSet};
 
 use p4kx_archive::{Archive, Entry};
 use p4kx_audio::MusicStinger;

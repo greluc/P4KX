@@ -21,11 +21,7 @@ pub(crate) struct Found<'i> {
 
 /// Follows the Wwise event `event` through the `HIRC` section of the start soundbank of `banks`
 /// to its sounds, and from there into at most one other soundbank.
-pub(crate) fn event<'w, 'i>(
-    banks: Banks<'w, 'i>,
-    event: &'i WwiseEvent,
-    budget: usize,
-) -> Found<'i> {
+pub(crate) fn event<'i>(banks: Banks<'_, 'i>, event: &'i WwiseEvent, budget: usize) -> Found<'i> {
     let mut walk = Walk {
         index: banks.index,
         choice: banks.choice,
@@ -57,7 +53,7 @@ struct Walk<'w, 'i> {
     found: Found<'i>,
 }
 
-impl Walk<'_, '_> {
+impl<'i> Walk<'_, 'i> {
     fn follow(&mut self, id: u32) {
         self.reach(id, None, Via::Local);
     }

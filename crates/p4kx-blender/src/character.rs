@@ -9,6 +9,7 @@ use p4kx_assembly::{Armour, CharacterAnimations, Issue as AssemblyIssue, PartOri
 use p4kx_gltf::{GlbOptions, GlbSummary, GltfError, TextureLoader};
 
 use crate::build::{coordinates, generator};
+use crate::finite::sanitise;
 use crate::manifest::{
     CharacterSource, EntityRef, FORMAT_VERSION, Format, Issue, IssueOrigin, MANIFEST_FILE,
     MESHES_FOLDER, Manifest, Mesh, Node, NodeKind, Options, Source,
@@ -132,7 +133,8 @@ pub fn write_character_package(
         .map_err(|source| PackageError::write(&path, source))?;
     drop(file);
     cancelled.check()?;
-    let manifest = manifest(character, info, options, &written);
+    let mut manifest = manifest(character, info, options, &written);
+    sanitise(&mut manifest);
     let manifest_len = write_manifest(&staging.path().join(MANIFEST_FILE), &manifest)?;
     let summary = summarise(&manifest, &written, manifest_len);
     cancelled.check()?;
@@ -300,6 +302,7 @@ fn summarise(manifest: &Manifest, written: &GlbSummary, manifest_len: u64) -> Pa
         bytes: manifest_len + written.bytes,
         vertices: written.vertices,
         triangles: written.triangles,
+        lod_fallbacks: written.lod_fallbacks,
         bones: written.bones,
         skinned_meshes: written.skinned_meshes,
         morph_targets: written.morph_targets,

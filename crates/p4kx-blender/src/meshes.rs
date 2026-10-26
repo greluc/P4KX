@@ -70,6 +70,10 @@ fn write_one(
         .write_all(&glb)
         .and_then(|()| writer.flush())
         .map_err(|source| PackageError::write(&path, source))?;
+    writer
+        .get_ref()
+        .sync_all()
+        .map_err(|source| PackageError::write(&path, source))?;
     Ok(summary)
 }
 

@@ -73,6 +73,9 @@ fn note_kind(note: &Note) -> IssueKind {
             body_type: body_type.clone(),
             rig: (*rig).to_owned(),
         },
+        Note::LoadoutUnreadable(reason) => IssueKind::LoadoutUnreadable {
+            reason: reason.clone(),
+        },
     }
 }
 

@@ -10,6 +10,7 @@ use std::process;
 use serde::Deserialize;
 
 use crate::manifest::{FORMAT, MANIFEST_FILE, MESHES_FOLDER, TEXTURES_FOLDER};
+use crate::rename::{is_busy, rename};
 use crate::{PackageError, PackageResult};
 
 const MAX_MARKER_LEN: u64 = 1 << 30;
@@ -47,23 +48,34 @@ pub fn check_output(out: &Path) -> PackageResult<()> {
 pub(crate) struct Staging {
     folder: PathBuf,
     out: PathBuf,
+    created: Vec<PathBuf>,
     committed: bool,
 }
 
 impl Staging {
-    /// Checks that `out` may be written and creates the temporary folder next to it.
+    /// Checks that `out` may be written and creates the temporary folder next to it; parent
+    /// folders that did not exist are created and are removed again when the staging is dropped
+    /// before it is committed.
     pub(crate) fn create(out: &Path) -> PackageResult<Self> {
         check_output(out)?;
         let name = out.file_name().map(OsStr::to_os_string).unwrap_or_default();
         let parent = parent_of(out);
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(&parent).map_err(|source| PackageError::write(&parent, source))?;
+        let created = missing_ancestors(&parent);
+        if !parent.as_os_str().is_empty()
+            && let Err(source) = fs::create_dir_all(&parent)
+        {
+            remove_empty(&created);
+            return Err(PackageError::write(&parent, source));
         }
         let folder = parent.join(sibling_name(&name, "part"));
-        fs::create_dir(&folder).map_err(|source| PackageError::write(&folder, source))?;
+        if let Err(source) = fs::create_dir(&folder) {
+            remove_empty(&created);
+            return Err(PackageError::write(&folder, source));
+        }
         let staging = Self {
             folder,
             out: out.to_path_buf(),
+            created,
             committed: false,
         };
         for sub in [MESHES_FOLDER, TEXTURES_FOLDER] {
@@ -78,31 +90,40 @@ impl Staging {
         &self.folder
     }
 
-    /// Moves the temporary folder to the output, replacing an earlier package; the earlier
-    /// package stays when the move fails.
+    /// Flushes the temporary folder to disk and moves it to the output, replacing an earlier
+    /// package; the earlier package stays when the move fails. A move that fails because another
+    /// program holds a folder open is tried again for a short while first.
     pub(crate) fn commit(mut self) -> PackageResult<()> {
         let out = self.out.clone();
         check_output(&out)?;
+        for path in [
+            self.folder.join(MESHES_FOLDER),
+            self.folder.join(TEXTURES_FOLDER),
+            self.folder.clone(),
+        ] {
+            sync_folder(&path).map_err(|source| PackageError::write(&path, source))?;
+        }
         let name = out.file_name().map(OsStr::to_os_string).unwrap_or_default();
         let old = parent_of(&out).join(sibling_name(&name, "old"));
         let replaced = fs::symlink_metadata(&out).is_ok();
         if replaced {
-            fs::rename(&out, &old).map_err(|source| PackageError::write(&out, source))?;
+            rename(&out, &old).map_err(|source| moving_error(&out, source))?;
         }
-        if let Err(source) = fs::rename(&self.folder, &out) {
-            if replaced && let Err(restore) = fs::rename(&old, &out) {
+        if let Err(source) = rename(&self.folder, &out) {
+            if replaced && let Err(restore) = rename(&old, &out) {
                 return Err(PackageError::NotRestored {
                     path: out,
                     old,
                     source: restore,
                 });
             }
-            return Err(PackageError::write(&out, source));
+            return Err(moving_error(&out, source));
         }
         self.committed = true;
         if replaced {
             let _ignored = fs::remove_dir_all(&old);
         }
+        let _ignored = sync_folder(&parent_of(&out));
         Ok(())
     }
 }
@@ -111,8 +132,52 @@ impl Drop for Staging {
     fn drop(&mut self) {
         if !self.committed {
             let _ignored = fs::remove_dir_all(&self.folder);
+            remove_empty(&self.created);
         }
     }
+}
+
+fn moving_error(path: &Path, source: io::Error) -> PackageError {
+    if is_busy(&source) {
+        PackageError::InUse {
+            path: path.to_path_buf(),
+            source,
+        }
+    } else {
+        PackageError::write(path, source)
+    }
+}
+
+/// Returns the folders of `path` and above that do not exist yet, the deepest first.
+fn missing_ancestors(path: &Path) -> Vec<PathBuf> {
+    path.ancestors()
+        .take_while(|ancestor| {
+            !ancestor.as_os_str().is_empty()
+                && fs::symlink_metadata(ancestor)
+                    .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
+        })
+        .map(Path::to_path_buf)
+        .collect()
+}
+
+fn remove_empty(folders: &[PathBuf]) {
+    for folder in folders {
+        let _ignored = fs::remove_dir(folder);
+    }
+}
+
+#[cfg(unix)]
+fn sync_folder(folder: &Path) -> io::Result<()> {
+    File::open(folder)?.sync_all()
+}
+
+#[cfg(not(unix))]
+#[expect(
+    clippy::unnecessary_wraps,
+    reason = "same signature as the Unix version; Windows cannot flush a folder"
+)]
+const fn sync_folder(_folder: &Path) -> io::Result<()> {
+    Ok(())
 }
 
 fn parent_of(out: &Path) -> PathBuf {

@@ -46,6 +46,7 @@ impl IssueKind {
             Self::MaterialChoiceUnknown { .. } => "material_choice_unknown",
             Self::LookIgnored { .. } => "look_ignored",
             Self::BodyTypeMismatch { .. } => "body_type_mismatch",
+            Self::LoadoutUnreadable { .. } => "loadout_unreadable",
             Self::MorphsFailed { .. } => "morphs_failed",
             Self::UnknownExpression { .. } => "unknown_expression",
             Self::EmptyExpression { .. } => "empty_expression",

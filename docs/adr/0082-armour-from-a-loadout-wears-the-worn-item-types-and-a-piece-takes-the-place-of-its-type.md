@@ -34,7 +34,7 @@ What cannot be resolved is a `Piece::failed`, so that the report lists it as `pi
 attachment that fails (unknown class name, dangling Reference, cycle), an Entity whose Record
 cannot be read, and what the root Loadout could not read, such as an include that is missing. An
 unresolved attachment is listed whatever it was meant to be, because nothing is known of an Entity
-that cannot be found.
+that cannot be found. ADR-0194 limits this to the places where a worn piece could hang.
 
 ## `--piece` on top of a Loadout
 

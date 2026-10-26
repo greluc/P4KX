@@ -78,6 +78,31 @@ impl ChildContainer {
     }
 }
 
+/// The box that an object container declares around its entities: its `minBounds` and
+/// `maxBounds`, in metres in the container's space.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[non_exhaustive]
+pub struct ContainerBounds {
+    /// The corner with the smallest coordinates.
+    pub min: [f64; 3],
+    /// The corner with the largest coordinates.
+    pub max: [f64; 3],
+}
+
+impl ContainerBounds {
+    /// Returns whether `point` lies in the box grown by `margin` metres on every side.
+    #[must_use]
+    pub fn contains(&self, point: [f32; 3], margin: f64) -> bool {
+        point
+            .iter()
+            .zip(self.min.iter().zip(&self.max))
+            .all(|(value, (low, high))| {
+                let value = f64::from(*value);
+                value >= low - margin && value <= high + margin
+            })
+    }
+}
+
 /// The description of an object container: the `<name>.xml` file of a socpak.
 ///
 /// It names the containers nested in it with their placement (`ChildObjectContainers`) and the
@@ -88,6 +113,9 @@ impl ChildContainer {
 pub struct ObjectContainer {
     /// The container's name.
     pub name: String,
+    /// The declared bounds, `None` when the description gives none or they are not three finite
+    /// numbers each.
+    pub bounds: Option<ContainerBounds>,
     /// The nested containers in file order.
     pub children: Vec<ChildContainer>,
     /// The `.soc` files of the container in file order, parents before the files nested in them,
@@ -123,6 +151,7 @@ fn container<'a>(root: impl XmlElement<'a>) -> Result<ObjectContainer, ObjectCon
     }
     let mut result = ObjectContainer {
         name: root.attribute("name").unwrap_or_default().to_owned(),
+        bounds: declared_bounds(root.attribute("minBounds"), root.attribute("maxBounds")),
         ..ObjectContainer::default()
     };
     for section in root.children() {
@@ -194,6 +223,14 @@ fn child_container<'a>(child: impl XmlElement<'a>) -> ChildContainer {
             .attribute("external")
             .is_some_and(|value| value == "1" || value.eq_ignore_ascii_case("true")),
     }
+}
+
+fn declared_bounds(min: Option<&str>, max: Option<&str>) -> Option<ContainerBounds> {
+    let (min, max) = (numbers::<3>(min)?, numbers::<3>(max)?);
+    min.iter()
+        .chain(&max)
+        .all(|value| value.is_finite())
+        .then_some(ContainerBounds { min, max })
 }
 
 fn numbers<const N: usize>(text: Option<&str>) -> Option<[f64; N]> {

@@ -31,6 +31,8 @@ pub(crate) enum Note {
         body_type: String,
         rig: &'static str,
     },
+    /// The Loadout of the piece's Entity could not be read in full.
+    LoadoutUnreadable(String),
 }
 
 /// One piece worn on a body: a piece of armour or clothing, or any skin that belongs on the

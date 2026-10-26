@@ -255,6 +255,39 @@ def test_glass_decal_hologram_and_nodraw() -> None:
     assert nodraw.kinds() == {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
 
 
+NODRAW_KINDS = {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
+
+
+def test_a_decal_without_any_texture_draws_nothing() -> None:
+    graph = single([description("x0001", "MeshDecal", alpha_mode="mask", alpha_test=0.01)])
+    assert graph.kinds() == NODRAW_KINDS
+
+
+def test_a_relief_decal_without_diffuse_opacity_draws_nothing() -> None:
+    relief = description(
+        "x0001",
+        "Illum",
+        gen_mask=["NORMAL_MAP", "DECAL"],
+        alpha_mode="mask",
+        textures=[slot("TexSlot1", "diffuse", "t0001")],
+        parameters=[{"name": "DecalDiffuseOpacity", "value": "0"}],
+    )
+    assert single([relief]).kinds() == NODRAW_KINDS
+
+
+def test_a_decal_with_diffuse_opacity_or_a_texture_is_still_drawn() -> None:
+    painted = description(
+        "x0001",
+        "Illum",
+        gen_mask=["DECAL"],
+        textures=[slot("TexSlot1", "diffuse", "t0001")],
+        parameters=[{"name": "DecalDiffuseOpacity", "value": "1"}],
+    )
+    assert single([painted]).kinds() != NODRAW_KINDS
+    stencil = description("x0001", "MeshDecal", textures=[slot("TexSlot1", "diffuse", "t0001")])
+    assert single([stencil]).kinds() != NODRAW_KINDS
+
+
 def test_emission_counts_times_glow() -> None:
     lit = single([description("x0001", "Illum", emissive=[1.0, 0.5, 0.0], glow=3.0)])
     assert lit.node("bsdf").inputs["Emission Strength"] == 3.0

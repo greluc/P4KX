@@ -7,7 +7,7 @@ use std::sync::Arc;
 use p4kx_model::{MaterialStatus, Model, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::build_models::{Loaded, choose_models, read_models};
+use crate::build_models::{Loaded, choose_models, fall_back, read_models};
 use crate::build_palettes::Palettes;
 use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
@@ -68,8 +68,9 @@ impl Assembly {
     ) -> Result<Self, AssemblyError> {
         let flat = flatten(tree, options.max_parts);
         let mut issues = flat.issues;
-        let drafts = flat.drafts;
-        let loaded = read_models(&drafts, models, options)?;
+        let mut drafts = flat.drafts;
+        let mut loaded = read_models(&drafts, models, options)?;
+        fall_back(&mut drafts, &mut loaded, models, options, &mut issues)?;
         let chosen = choose_models(&drafts, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&drafts, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
@@ -92,7 +93,7 @@ impl Assembly {
             }
             note_attachments(draft, *model, &mut characters, &mut issues);
             let palette = if model.is_some() {
-                let (palette, unresolved) = palettes.of(draft.node.geometry(), &materials);
+                let (palette, unresolved) = palettes.of(draft.geometry, &materials);
                 issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
                 palette
             } else {
@@ -112,7 +113,7 @@ impl Assembly {
                 local,
                 world,
                 placement,
-                geometry: draft.node.geometry().map(|g| g.path().to_owned()),
+                geometry: draft.geometry.map(|g| g.path().to_owned()),
                 model: model.map(|loaded| Arc::clone(&loaded.model)),
                 materials,
                 palette,
@@ -151,7 +152,7 @@ fn note_attachments(
     seen: &mut HashSet<String>,
     issues: &mut Vec<Issue>,
 ) {
-    if let (Some(loaded), Some(geometry)) = (model, draft.node.geometry())
+    if let (Some(loaded), Some(geometry)) = (model, draft.geometry)
         && !loaded.left_out.is_empty()
         && seen.insert(file_key(geometry.path()))
     {
@@ -182,8 +183,7 @@ pub(crate) fn file_key(path: &str) -> String {
 /// its model names.
 fn library_name<'a>(draft: &'a Draft<'_>, loaded: &'a Loaded) -> Option<&'a str> {
     draft
-        .node
-        .geometry()
+        .geometry
         .and_then(|geometry| geometry.material())
         .or(loaded.model.material_library.as_deref())
 }

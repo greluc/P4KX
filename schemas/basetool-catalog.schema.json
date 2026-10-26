@@ -3160,19 +3160,19 @@
     "ShipInsurance": {
       "description": "The insurance data of a ship: the `SEntityInsuranceProperties` of its\n`StaticEntityClassData`, the numbers of its `ShipInsuranceParams`. The Record states no claim\ncost; the expediting fee is the only price.",
       "properties": {
-        "baseExpeditingFee": {
-          "description": "`baseExpeditingFee`: the fee in aUEC for expediting a claim; `null` when the Record states\nnone.",
-          "format": "int64",
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
         "baseWaitTimeMinutes": {
           "description": "`baseWaitTimeMinutes`: the claim time in minutes; `null` when the Record states none.",
           "format": "float",
           "type": [
             "number",
+            "null"
+          ]
+        },
+        "expediteFee": {
+          "description": "`baseExpeditingFee` of the Record: the fee in aUEC for expediting a claim, the only price\nin the Record; `null` when the Record states none.",
+          "format": "int64",
+          "type": [
+            "integer",
             "null"
           ]
         },
@@ -3200,8 +3200,8 @@
         }
       },
       "required": [
-        "baseExpeditingFee",
         "baseWaitTimeMinutes",
+        "expediteFee",
         "mandatoryWaitTimeMinutes",
         "restoreOnClaim",
         "shipEntityClassName"

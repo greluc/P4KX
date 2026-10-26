@@ -111,7 +111,7 @@ fn insurance<'f>(tree: &RecordTree<'f>) -> Option<ShipInsurance<'f>> {
         ship_entity_class_name: text(params, "shipEntityClassName"),
         base_wait_time_minutes: single(params, "baseWaitTimeMinutes"),
         mandatory_wait_time_minutes: single(params, "mandatoryWaitTimeMinutes"),
-        base_expediting_fee: integer(params, "baseExpeditingFee"),
+        expedite_fee: integer(params, "baseExpeditingFee"),
     })
 }
 

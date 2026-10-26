@@ -415,13 +415,24 @@ more (LIVE); the field is a fact only, no game text, and it is additive within v
 | `shipEntityClassName` | `shipInsuranceParams.shipEntityClassName`, e.g. `AEGS_Gladius`; `null` when empty |
 | `baseWaitTimeMinutes` | `shipInsuranceParams.baseWaitTimeMinutes`, the claim time in minutes |
 | `mandatoryWaitTimeMinutes` | `shipInsuranceParams.mandatoryWaitTimeMinutes`, the mandatory wait in minutes, the shortest claim time |
-| `baseExpeditingFee` | `shipInsuranceParams.baseExpeditingFee`, the fee in aUEC for expediting a claim |
+| `expediteFee` | `shipInsuranceParams.baseExpeditingFee` (renamed), in aUEC as stored; named for what the Record calls it |
 
-Every field is `null` when the Record states none. The Record states no claim cost, so the
-catalog has none; the expediting fee is the only price. The numbers are those of the Record,
-unchanged: the Basetool applies any scaling or rule of its own. The `displayParams` of the struct
+Every field is `null` when the Record states none. The struct has exactly these fields: two times,
+one fee, `restoreOnClaim`, the class name and the `displayParams` below. The numbers are those of
+the Record, unchanged: the Basetool applies any scaling or rule of its own. The `displayParams` of the struct
 (name, role, career, crew size, manufacturer) repeat the ship's own fields, are mostly
 placeholders, and are not exported.
+
+Which field covers which case. The wait times cover claiming; `expediteFee` is the only fee in
+the struct. The owner reports that the game now claims a default Loadout for free and an insured
+Loadout against a fee, and that expediting is gone. The data does not state that fee: for
+AEGS_Idris_M the Record says 150,990 aUEC, while the game shows just under 1,000,000 aUEC, so
+`expediteFee` is not the claim fee, and the catalog does not present it as one (an interpretation
+that the data contradicts). The claim fee is not a stored number. The Archive holds only
+multipliers in the `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery`
+(`economyParams`: `claimCostMultiplier` 0.003, `maxExpeditedClaimCostMultiplier` 0.0003, per class
+overrides, the Idris-M group at 1), which the game applies to values at run time; the catalog does
+not export them or compute the fee.
 
 On LIVE all 1,066 catalog ships carry `insurance`, each with a fee; AEGS_Gladius has a claim time
 of 5.83 minutes, a mandatory wait of 1.94 minutes and an expediting fee of 2,335 aUEC (real-Archive

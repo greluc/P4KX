@@ -24,7 +24,7 @@ pub(crate) struct ShipInsurance<'a> {
     /// `mandatoryWaitTimeMinutes`: the mandatory wait in minutes, the shortest claim time; `null`
     /// when the Record states none.
     pub(crate) mandatory_wait_time_minutes: Option<f32>,
-    /// `baseExpeditingFee`: the fee in aUEC for expediting a claim; `null` when the Record states
-    /// none.
-    pub(crate) base_expediting_fee: Option<i64>,
+    /// `baseExpeditingFee` of the Record: the fee in aUEC for expediting a claim, the only price
+    /// in the Record; `null` when the Record states none.
+    pub(crate) expedite_fee: Option<i64>,
 }

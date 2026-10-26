@@ -90,7 +90,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
                 "shipEntityClassName": "AEGS_Avenger_Titan",
                 "baseWaitTimeMinutes": 8.5,
                 "mandatoryWaitTimeMinutes": 2.5,
-                "baseExpeditingFee": 3200
+                "expediteFee": 3200
             }
         }],
         "commodities": [{

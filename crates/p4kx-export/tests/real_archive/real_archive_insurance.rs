@@ -38,7 +38,7 @@ fn the_ships_of_a_real_archive_carry_their_insurance() -> TestResult {
         .collect();
     let with_fee = insured
         .iter()
-        .filter(|ship| ship["insurance"]["baseExpeditingFee"].is_u64())
+        .filter(|ship| ship["insurance"]["expediteFee"].is_u64())
         .count();
     print_line(&format!(
         "{} ships, {} with insurance, {} with an expediting fee",
@@ -63,7 +63,7 @@ fn the_ships_of_a_real_archive_carry_their_insurance() -> TestResult {
         gladius["insurance"]["mandatoryWaitTimeMinutes"].as_f64(),
         Some(1.94)
     );
-    assert_eq!(gladius["insurance"]["baseExpeditingFee"], 2335);
+    assert_eq!(gladius["insurance"]["expediteFee"], 2335);
     assert_eq!(
         gladius["recordPath"], "libs/foundry/records/entities/spaceships/aegs_gladius",
         "the source path"

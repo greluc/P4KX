@@ -56,7 +56,7 @@ fn a_ship_carries_the_claim_and_expedite_values_of_its_record() -> TestResult {
             "shipEntityClassName": "AEGS_Insured",
             "baseWaitTimeMinutes": 5.83,
             "mandatoryWaitTimeMinutes": 1.94,
-            "baseExpeditingFee": 2335
+            "expediteFee": 2335
         })
     );
     assert_eq!(
@@ -83,7 +83,7 @@ fn empty_values_of_a_ground_vehicle_stay_facts() -> TestResult {
             "shipEntityClassName": null,
             "baseWaitTimeMinutes": 0.0,
             "mandatoryWaitTimeMinutes": 0.0,
-            "baseExpeditingFee": 0
+            "expediteFee": 0
         })
     );
     Ok(())

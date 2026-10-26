@@ -3,10 +3,13 @@
 
 mod export;
 mod exporting;
+mod language;
 mod resolve;
 mod status;
 mod view;
 mod worker;
+#[cfg(test)]
+mod worker_tests;
 
 use std::sync::Arc;
 
@@ -23,6 +26,7 @@ use status::{Sounds, Stage};
 use view::Playback;
 use worker::{Answer, Answered, ListError, ListRequest, Request, Worker};
 
+use crate::preview::BankCache;
 use crate::{AudioPreview, EntryIndex};
 
 /// The Sounds tab: the audio triggers of an Entity or of a search with their sounds, the playback
@@ -45,6 +49,8 @@ pub struct SoundsTab {
     sounds_serial: u64,
     variant: Option<usize>,
     audio: Option<AudioPreview>,
+    banks: BankCache,
+    language: Option<String>,
     setup: Option<SoundsExportSetup>,
     export: Option<SoundsExport>,
     exports: u64,
@@ -187,6 +193,8 @@ impl SoundsTab {
     pub(crate) fn archive_changed(&mut self) {
         self.setup = None;
         self.audio = None;
+        self.variant = None;
+        self.banks.clear();
     }
 
     fn ask_list(&mut self, request: ListRequest) -> bool {
@@ -292,7 +300,7 @@ impl SoundsTab {
                 .map(|id| AudioPreview::start(index, id, wake)),
             Some(Playback::Embedded { bank, wem }) => index
                 .id_of_path(bank)
-                .map(|id| AudioPreview::start_in_bank(index, (id, *wem), wake)),
+                .map(|id| AudioPreview::start_in_bank(index, (id, *wem), &self.banks, wake)),
             None => None,
         };
         self.variant = Some(position);

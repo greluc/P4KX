@@ -9,7 +9,8 @@ use crate::contract_recipe::{BlueprintDismantle, BlueprintTier};
 use crate::guid_text::CatalogGuid;
 
 /// A commodity: an `EntityClassDefinition` Record under `entities/commodities` or a
-/// `ResourceType` Record a blueprint ingredient uses that no commodity Record carries.
+/// `ResourceType` Record that a blueprint cost or a quality quantization uses and no commodity
+/// Record carries.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]

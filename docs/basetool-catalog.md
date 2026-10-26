@@ -568,7 +568,12 @@ A blueprint (`CraftingBlueprintRecord`) takes its fields from `blueprint`:
 | `dismantle` | What dismantling the produced item returns, see "Dismantle returns" below; `null` without one |
 
 `craftTimeSeconds` and `ingredients` keep their meaning; they are derived from the first tier, so
-the cost tree is read once.
+the cost tree is read once. A blueprint with a `CraftingCost_Select` nested deeper than 32 levels is
+not cut off silently: it is left out of `blueprints` and counted as a failure (printed on stderr by
+`p4kx catalog`, under `failed` in `--json` and in the summary; the catalog file has no such field).
+`p4kx catalog` then exits with code 1, where an earlier build wrote the cut tree silently. No
+blueprint of LIVE is that deep, so no catalog of LIVE changes (a change of the selection, folded
+into the unreleased version 2).
 
 An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
 `optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:
@@ -666,7 +671,7 @@ the record path and marks the kind partial).
 |------|--------|
 | `gameplayProperties` | `name`: the localisation key `propertyName` and its texts; a placeholder key stays as `key` and leaves `en` and `de` `null`, as for `items` and `blueprints`. The target of a modifier's `propertyGuid` |
 | `qualityDistributions` | `distribution`: a normal distribution `kind`, `min`, `max`, `mean`, `stddev` (`null` for an override Record or a value beyond a 32-bit float), and `overrides`: per location a `locationGuid` and its `distribution` (empty for a default Record). Both Record types of `crafting/qualitydistribution` are listed |
-| `blueprintPools` | `entries`: per entry `blueprintGuid` and `weight`; `totalWeight`, the sum of the positive weights; `rewardSources`: every struct of any Record with a Reference to the pool (on LIVE the `BlueprintRewards` result of a contract) with `recordGuid`, `recordPath`, `contractId`, `contractName` (both from the nearest enclosing struct that has an `id`) and `chance`, ordered by `recordGuid` and then in stored order |
+| `blueprintPools` | `entries`: per entry `blueprintGuid` and `weight`; `totalWeight`, the sum of the positive weights; `rewardSources`: every struct of any Record with a Reference to the pool (on LIVE the `BlueprintRewards` result of a contract) with `recordGuid`, `recordPath`, `contractId`, `contractName` (both from the nearest enclosing struct that has an `id`) and `chance`, ordered by `recordGuid` and then in stored order. A `blueprintGuid` may point at a blueprint that is left out of `blueprints` as a failure |
 | `dismantleProcesses` | `efficiency` (0.5 on LIVE) and `timeSeconds` (15 on LIVE) of the `GenericCraftingProcess_Dismantle` |
 
 A blueprint's chance from a source is `chance` x the entry's `weight` / `totalWeight`; a source
@@ -865,7 +870,7 @@ so a loadout exists only for the entries the filter selected and the kind is par
 | `visibility` | `visible`, `invisible` or `unspecified`: whether the vehicle implementation's part of that name carries the flag `invisible`; `unspecified` without such a part. Closed set, string |
 | `itemGuid` | The `guid` of the entry in `items` (a docked vehicle: in `ships`) that the port holds by default; `null` for an empty port. For an attachment that cannot be resolved the GUID the Loadout names, or `null` when it names a class name only |
 | `itemClassName` | The class name of the attached entity, or the class name the Loadout names; `null` for an empty port and an unresolved Reference |
-| `dockedVehicle` | `true` when the attached entity is a docked vehicle (`AttachDef.Type` starts with `NOITEM_Vehicle`, e.g. a snub craft in a hangar port). It is a reference to a ship and is not expanded: `ports` stays empty (#305) |
+| `dockedVehicle` | `true` when the attached entity is a docked vehicle (`AttachDef.Type` starts with `NOITEM_Vehicle`, ignoring case, e.g. a snub craft in a hangar port). It is a reference to a ship and is not expanded: `ports` stays empty (#305) |
 | `unresolved` | The code of the error that kept the attachment from being resolved (`issues` lists the codes), otherwise `null` |
 | `ports` | The ports of the attached entity under the Loadout that attached it, or the ports of the nested Loadout of an empty port; empty otherwise |
 

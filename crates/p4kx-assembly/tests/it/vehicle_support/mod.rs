@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-//! Fixtures of the vehicle implementation tests: a ship, its implementation file and the patch files of its Modifications.
+//! Fixtures of the vehicle implementation tests: a ship, its implementation file and the patch
+//! files of its Modifications.
 
 use std::collections::HashMap;
 use std::error::Error;

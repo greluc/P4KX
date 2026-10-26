@@ -87,6 +87,7 @@ fn named(archive: &Archive, entry: &Entry) -> Option<Vec<(String, String)>> {
             let text = std::str::from_utf8(text)
                 .ok()?
                 .trim_start_matches('\u{feff}');
+            cryxml::check_text_depth(text).ok()?;
             let document = roxmltree::Document::parse(text).ok()?;
             Some(pairs(document.root_element()))
         }

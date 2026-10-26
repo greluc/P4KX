@@ -50,6 +50,10 @@ fn bank(bank_id: u32, events: &[&str]) -> Vec<u8> {
         .bytes()
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one archive holds every kind of audio file under test"
+)]
 fn write_archive(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
     let ship = TestAtl::new("SC_Ship")
         .trigger("Play_Engine", &["Play_Engine_Loop"])
@@ -77,6 +81,15 @@ fn write_archive(dir: &Path) -> Result<std::path::PathBuf, Box<dyn Error>> {
         .entry(TestEntry::stored(
             "Data\\Libs\\GameAudio\\Broken.xml",
             b"not xml".to_vec(),
+        ))
+        .entry(TestEntry::stored(
+            "Data\\Libs\\GameAudio\\Deep.xml",
+            format!(
+                "<ATLConfig>{}{}</ATLConfig>",
+                "<a>".repeat(p4kx_cryxml::MAX_TEXT_DEPTH),
+                "</a>".repeat(p4kx_cryxml::MAX_TEXT_DEPTH)
+            )
+            .into_bytes(),
         ))
         .entry(TestEntry::stored(
             "Data\\Libs\\Other\\Ignored.xml",
@@ -270,13 +283,14 @@ fn unreadable_definitions_and_soundbanks_are_reported_and_the_rest_indexed() -> 
             issues,
             [
                 ("Data\\Libs\\GameAudio\\Broken.xml", "atl"),
+                ("Data\\Libs\\GameAudio\\Deep.xml", "atl"),
                 ("Data\\Sounds\\wwise\\Corrupt.bnk", "soundbank"),
             ],
             "issues"
         );
         assert!(
             matches!(
-                index.issues().get(1).map(AudioIssue::error),
+                index.issues().get(2).map(AudioIssue::error),
                 Some(AudioFileError::Soundbank(_))
             ),
             "the parse error is kept"

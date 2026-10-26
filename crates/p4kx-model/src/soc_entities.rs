@@ -30,6 +30,9 @@ pub enum SocEntitiesError {
     /// The entity chunk is no well-formed text XML.
     #[error("the entity chunk is not well-formed XML")]
     Xml(#[from] roxmltree::Error),
+    /// The entity chunk nests its elements too deeply to be read.
+    #[error("the entity chunk is not readable XML: {0}")]
+    TooDeep(#[from] p4kx_cryxml::TextTooDeep),
     /// The entity chunk is flagged big-endian, which is not read.
     #[error("the entity chunk is big-endian")]
     BigEndian,
@@ -128,6 +131,7 @@ impl SocEntities {
             Xml::CryXml(document) => entities(document.root()),
             Xml::Text(text) => {
                 let text = String::from_utf8_lossy(text);
+                p4kx_cryxml::check_text_depth(&text)?;
                 let document = roxmltree::Document::parse(&text)?;
                 entities(document.root_element())
             }

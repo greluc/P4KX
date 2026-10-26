@@ -9,6 +9,7 @@
 //! from the input; [`read`] does both and passes text XML through unchanged.
 
 mod comparison;
+mod depth;
 mod document;
 mod element;
 mod error;
@@ -21,6 +22,7 @@ mod strings;
 mod write;
 
 pub use comparison::{TreeComparison, compare_trees};
+pub use depth::{MAX_TEXT_DEPTH, TextTooDeep, check_text_depth};
 pub use document::{Document, parse};
 pub use element::{Attribute, Attributes, Children, Element};
 pub use error::{CryXmlError, Table};

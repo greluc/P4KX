@@ -102,15 +102,14 @@ pub(crate) fn parse(bytes: &[u8], file: u32) -> Result<Vec<AtlTrigger>, AudioFil
         Xml::CryXml(document) => Ok(triggers(document.root(), file)),
         Xml::Text(text) => {
             let text = std::str::from_utf8(text).map_err(|error| failed(error.to_string()))?;
+            let text = text.trim_start_matches('\u{feff}');
+            p4kx_cryxml::check_text_depth(text).map_err(|error| failed(error.to_string()))?;
             let options = roxmltree::ParsingOptions {
                 nodes_limit: MAX_ATL_NODES,
                 ..roxmltree::ParsingOptions::default()
             };
-            let document = roxmltree::Document::parse_with_options(
-                text.trim_start_matches('\u{feff}'),
-                options,
-            )
-            .map_err(|error| failed(error.to_string()))?;
+            let document = roxmltree::Document::parse_with_options(text, options)
+                .map_err(|error| failed(error.to_string()))?;
             Ok(triggers(document.root_element(), file))
         }
     }

@@ -89,7 +89,7 @@ impl<'a> From<&'a LandingGear> for LandingGearJson<'a> {
 pub(crate) const fn visibility_code(visibility: PortVisibility) -> Option<&'static str> {
     match visibility {
         PortVisibility::Unspecified => None,
-        PortVisibility::Visible | PortVisibility::Invisible => Some(visibility.code()),
+        _ => Some(visibility.code()),
     }
 }
 

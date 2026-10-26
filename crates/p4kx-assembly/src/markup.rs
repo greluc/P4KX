@@ -6,7 +6,7 @@ use p4kx_cryxml::Xml;
 use crate::ValueOrigin;
 
 /// The deepest element nesting that is read.
-pub(crate) const MAX_ELEMENT_DEPTH: usize = 128;
+pub(crate) const MAX_ELEMENT_DEPTH: usize = p4kx_cryxml::MAX_TEXT_DEPTH;
 
 /// The most elements one implementation and its patch may hold.
 pub(crate) const MAX_ELEMENTS: usize = 1 << 21;
@@ -105,73 +105,6 @@ impl Element {
             .iter()
             .filter(move |child| child.name.eq_ignore_ascii_case(name))
     }
-}
-
-/// Returns an error when the elements of the text XML `text` nest deeper than
-/// [`MAX_ELEMENT_DEPTH`], before the parser recurses that deep.
-pub(crate) fn check_depth(text: &str) -> Result<(), String> {
-    let bytes = text.as_bytes();
-    let mut depth = 0_usize;
-    let mut at = 0;
-    while let Some(offset) = bytes
-        .get(at..)
-        .and_then(|rest| rest.iter().position(|b| *b == b'<'))
-    {
-        at = at.saturating_add(offset);
-        let rest = bytes.get(at..).unwrap_or_default();
-        if rest.starts_with(b"<!--") {
-            at = skip_past(bytes, at.saturating_add(4), b"-->");
-        } else if rest.starts_with(b"<![CDATA[") {
-            at = skip_past(bytes, at.saturating_add(9), b"]]>");
-        } else if rest.starts_with(b"<?") {
-            at = skip_past(bytes, at.saturating_add(2), b"?>");
-        } else if rest.starts_with(b"<!") {
-            at = skip_past(bytes, at.saturating_add(2), b">");
-        } else {
-            let end = tag_end(bytes, at);
-            let tag = bytes.get(at..end).unwrap_or_default();
-            if tag.starts_with(b"</") {
-                depth = depth.saturating_sub(1);
-            } else if !tag.ends_with(b"/>") {
-                depth = depth.saturating_add(1);
-                if depth > MAX_ELEMENT_DEPTH {
-                    return Err(format!(
-                        "its elements are nested deeper than {MAX_ELEMENT_DEPTH}"
-                    ));
-                }
-            }
-            at = end;
-        }
-    }
-    Ok(())
-}
-
-/// Returns the offset after the first `needle` at or after `from`, or the end of `bytes`.
-fn skip_past(bytes: &[u8], from: usize, needle: &[u8]) -> usize {
-    bytes
-        .get(from..)
-        .and_then(|rest| {
-            rest.windows(needle.len())
-                .position(|window| window == needle)
-        })
-        .map_or(bytes.len(), |found| {
-            from.saturating_add(found).saturating_add(needle.len())
-        })
-}
-
-/// Returns the offset after the `>` that ends the tag starting at `from`, skipping quoted
-/// attribute values.
-fn tag_end(bytes: &[u8], from: usize) -> usize {
-    let mut quote = None;
-    for (offset, byte) in bytes.iter().enumerate().skip(from.saturating_add(1)) {
-        match (quote, *byte) {
-            (None, b'"' | b'\'') => quote = Some(*byte),
-            (Some(open), b) if b == open => quote = None,
-            (None, b'>') => return offset.saturating_add(1),
-            _ => {}
-        }
-    }
-    bytes.len()
 }
 
 /// The most attributes the elements of one implementation and its patch may hold.
@@ -309,7 +242,7 @@ pub(crate) fn parse(bytes: &[u8], budget: &mut Budget) -> Result<Element, String
         Xml::Text(text) => {
             let text = std::str::from_utf8(text).map_err(|error| error.to_string())?;
             let text = text.trim_start_matches('\u{feff}');
-            check_depth(text)?;
+            p4kx_cryxml::check_text_depth(text).map_err(|error| error.to_string())?;
             let document = roxmltree::Document::parse(text).map_err(|error| error.to_string())?;
             from_text(document.root_element(), 0, budget)
         }
@@ -321,7 +254,7 @@ fn from_cry(
     depth: usize,
     budget: &mut Budget,
 ) -> Result<Element, String> {
-    if depth > MAX_ELEMENT_DEPTH {
+    if depth >= MAX_ELEMENT_DEPTH {
         return Err(too_deep());
     }
     budget.element(element.name())?;
@@ -346,7 +279,7 @@ fn from_text(
     depth: usize,
     budget: &mut Budget,
 ) -> Result<Element, String> {
-    if depth > MAX_ELEMENT_DEPTH {
+    if depth >= MAX_ELEMENT_DEPTH {
         return Err(too_deep());
     }
     budget.element(element.tag_name().name())?;

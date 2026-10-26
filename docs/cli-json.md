@@ -252,7 +252,7 @@ order is attached. The same Archive always gives the same document.
 
 ```json
 {"archive": "…", "entity": "AEGS_Gladius", "guid": "…", "out": "…", "lod": 0, "parts": 83,
- "modelled_parts": 56, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
+ "modelled_parts": 56, "hidden_parts": 0, "palettes": 12, "nodes": 899, "meshes": 249, "primitives": 948,
  "materials": 204, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
  "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0,
  "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
@@ -266,7 +266,7 @@ change to a port below an unexpanded docked vehicle, as `entity loadout` lists i
 and no error; the report lists the ports as `ignored` (absent when empty), as for `entity loadout`.
 A replacement that does not fit its port is written all the same and listed in `incompatible` (absent
 when empty), as for `entity loadout`.
-`parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
+`parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, `hidden_parts` those on a port flagged `invisible` or below one (kept, but with no model and not drawn), and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their
 lowest level when they have none up to the requested one;
@@ -312,7 +312,7 @@ Without the flag `interior` is absent.
 the helper its port names in the parent's model, at the node of the parent's model named like the
 port, or at the parent's origin, which is also where a port with no helper and no node of its
 name lands, without an Issue), `helper` (the helper's name, only for `helper`) and `modelled`
-(the part has a model).
+(the part has a model) and `hidden` (the part is hidden, see `hidden_parts`).
 
 A transform of a part that carries a shear is written without it: the glTF node holds a
 translation, a rotation and a scale only.

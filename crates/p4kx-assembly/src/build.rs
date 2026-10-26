@@ -92,13 +92,12 @@ impl Assembly {
                 issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
             }
             note_attachments(draft, *model, &mut characters, &mut issues);
-            let palette = if model.is_some() {
-                let (palette, unresolved) = palettes.of(draft.geometry, &materials);
-                issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
-                palette
-            } else {
-                None
-            };
+            let palette = model
+                .map(|_| palettes.of(draft.geometry, &materials))
+                .and_then(|(palette, unresolved)| {
+                    issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
+                    palette
+                });
             let (local, placement) = place(draft, &parts, *model, &mut issues);
             let world = draft
                 .parent
@@ -117,6 +116,7 @@ impl Assembly {
                 model: model.map(|loaded| Arc::clone(&loaded.model)),
                 materials,
                 palette,
+                hidden: draft.hidden,
             });
         }
         Ok(Self {
@@ -239,6 +239,12 @@ fn place(
     model: Option<&Loaded>,
     issues: &mut Vec<Issue>,
 ) -> (Transform, Placement) {
+    let mut unreported = Vec::new();
+    let issues = if draft.hidden {
+        &mut unreported
+    } else {
+        issues
+    };
     let Some(parent) = draft.parent.and_then(|parent| parts.get(parent)) else {
         return (Transform::IDENTITY, Placement::Root);
     };

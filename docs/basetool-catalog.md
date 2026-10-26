@@ -893,7 +893,7 @@ so a loadout exists only for the entries the filter selected and the kind is par
 | `flags` | The words of `Flags` as stored, without a leading `$` (`invisible`, `uneditable`) |
 | `portTags`, `requiredTags` | The words of `PortTags` and `RequiredPortTags` of the `SItemPortDef`, or of `portTags` and `requiredTags` of the `ItemPort`: split at white space and otherwise as stored, like `tags` of an item (a leading `$` stays). An item fits a port when it carries the required tags (see "Paints" for the tag tree rule) |
 | `displayNameKey` | `DisplayName` of the `SItemPortDef`, a localisation key; `null` for none and for a placeholder key. The key is exported, not its text |
-| `visibility` | `visible`, `invisible` or `unspecified`: whether the vehicle implementation's part of that name carries the flag `invisible`; `unspecified` without such a part. Closed set, string |
+| `visibility` | `visible`, `invisible` or `unspecified`: whether the vehicle implementation's part of that name carries the flag `invisible`; without such a part `invisible` when the port definition carries that flag, else `unspecified`. Closed set, string |
 | `itemGuid` | The `guid` of the entry in `items` (a docked vehicle: in `ships`) that the port holds by default; `null` for an empty port. For an attachment that cannot be resolved the GUID the Loadout names, or `null` when it names a class name only |
 | `itemClassName` | The class name of the attached entity, or the class name the Loadout names; `null` for an empty port and an unresolved Reference |
 | `dockedVehicle` | `true` when the attached entity is a docked vehicle (`AttachDef.Type` starts with `NOITEM_Vehicle`, ignoring case, e.g. a snub craft in a hangar port). It is a reference to a ship and is not expanded: `ports` stays empty (#305) |
@@ -904,8 +904,8 @@ The ports of an entity are, in this order: those a Loadout names in Loadout orde
 ports the Record defines in definition order, and the `ItemPort` elements of the vehicle
 implementation (the Modification applied, ADR-0050) that no port above names, in file order, with
 the source `vehicle`. The definition of a port is the Record's `SItemPortDef`; a port the Record
-does not define takes it from the `ItemPort` of that name. The visibility always comes from the
-vehicle implementation (#289). A ship's Loadout overrides the default Loadout of the turrets and
+does not define takes it from the `ItemPort` of that name. The visibility comes from the
+vehicle implementation (#289), else from the flags of the port definition (#748). A ship's Loadout overrides the default Loadout of the turrets and
 racks it carries per port, so the nested ports of a ship are the ones that apply to that ship;
 the entry of the turret itself shows the turret's own defaults. The walk is the one of
 `EntityNode::loadout` (#316).

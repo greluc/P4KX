@@ -190,6 +190,33 @@ fn the_overlay_materials_of_the_eye_shader_are_hidden_and_the_iris_is_not() -> T
 }
 
 #[test]
+fn a_hair_cap_is_a_hair_shader_with_the_cap_flag() -> TestResult {
+    let hair = |mask: &str| {
+        TestMtlMaterial::new("hair")
+            .shader("HairPBR")
+            .string_gen_mask(mask)
+    };
+    let file = TestMtl::multi(&[
+        hair("%HAIR_CAP"),
+        hair("%HAIR_CARDS%PIXEL_DEPTH_OFFSET"),
+        hull().shader("HardSurface").string_gen_mask("%HAIR_CAP"),
+    ]);
+
+    let library = parse(&file.cryxml())?;
+
+    let caps: Vec<bool> = (0..3)
+        .map(|id| {
+            library
+                .material(id)
+                .map(Material::is_hair_cap)
+                .ok_or("material")
+        })
+        .collect::<Result<_, _>>()?;
+    assert_eq!(caps, [true, false, false]);
+    Ok(())
+}
+
+#[test]
 fn missing_malformed_and_non_finite_values_read_as_the_defaults() -> TestResult {
     let material = TestMtlMaterial::new("odd")
         .attribute("Diffuse", "1,2")

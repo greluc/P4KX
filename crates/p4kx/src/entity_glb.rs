@@ -36,6 +36,7 @@ struct GlbJson<'a> {
     lod: u32,
     parts: usize,
     modelled_parts: usize,
+    hidden_parts: usize,
     palettes: usize,
     nodes: usize,
     meshes: usize,
@@ -164,6 +165,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
             lod: args.lod,
             parts: assembly.parts().len(),
             modelled_parts: assembly.modelled_parts(),
+            hidden_parts: assembly.hidden_parts(),
             palettes: painted(&assembly),
             nodes: summary.nodes,
             meshes: summary.meshes,
@@ -273,6 +275,13 @@ fn print_changes(out: &mut impl Write, changes: &LoadoutChanges) -> io::Result<(
     Ok(())
 }
 
+fn print_hidden(out: &mut impl Write, assembly: &Assembly) -> io::Result<()> {
+    match assembly.hidden_parts() {
+        0 => Ok(()),
+        hidden => writeln!(out, "{hidden} parts hidden on ports flagged invisible"),
+    }
+}
+
 pub(crate) fn print_textures(out: &mut impl Write, summary: &GlbSummary) -> io::Result<()> {
     if summary.textures > 0 || !summary.texture_fallbacks.is_empty() {
         writeln!(
@@ -318,6 +327,7 @@ fn print_report(
         summary.bytes
     )?;
     print_changes(&mut stdout, changes)?;
+    print_hidden(&mut stdout, assembly)?;
     if let Some(interior) = assembly.interior() {
         writeln!(
             stdout,

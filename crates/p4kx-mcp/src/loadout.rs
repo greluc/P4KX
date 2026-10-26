@@ -116,7 +116,8 @@ pub(crate) struct PortShape {
     /// `empty` (a port only the vehicle implementation declares), `excluded` or `replaced`; new
     /// values may be added.
     pub(crate) source: &'static str,
-    /// `visible` or `invisible` when the vehicle implementation states it.
+    /// `visible` or `invisible` when the vehicle implementation or the port definition's flags
+    /// state it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) visibility: Option<&'static str>,
     /// What the port takes, when the Entity Record defines it.

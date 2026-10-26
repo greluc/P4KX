@@ -3,7 +3,7 @@
 
 use crate::{
     Attachment, EntityNode, Geometry, Issue, IssueKind, LandingGear, MAX_ASSEMBLY_DEPTH, PortNode,
-    Target,
+    PortVisibility, Target,
 };
 
 /// One part of an Assembly before its model is read: an Entity of the Loadout tree with its port,
@@ -16,6 +16,7 @@ pub(crate) struct Draft<'t> {
     pub(crate) node: &'t EntityNode,
     pub(crate) parent: Option<usize>,
     pub(crate) geometry: Option<&'t Geometry>,
+    pub(crate) hidden: bool,
 }
 
 impl Draft<'_> {
@@ -26,9 +27,12 @@ impl Draft<'_> {
     }
 
     /// Returns whether the part's Entity names object containers of its own: a landing gear does
-    /// not, and neither does a docked vehicle that is not expanded, as its ports are left out too.
+    /// not, nor does a hidden part, nor a docked vehicle that is not expanded, as its ports are
+    /// left out too.
     pub(crate) const fn names_containers(&self) -> bool {
-        self.gear.is_none() && (self.node.is_expanded() || !self.node.is_docked_vehicle())
+        self.gear.is_none()
+            && !self.hidden
+            && (self.node.is_expanded() || !self.node.is_docked_vehicle())
     }
 
     /// Returns the key the part's model is kept under: the file, and for a landing gear a key of
@@ -71,6 +75,7 @@ pub(crate) fn flatten(root: &EntityNode, max_parts: usize) -> Flat<'_> {
                 node: root,
                 parent: None,
                 geometry: root.geometry(),
+                hidden: false,
             }],
             issues: Vec::new(),
         },
@@ -149,6 +154,12 @@ impl<'t> Walker<'t> {
             return;
         }
         let index = self.flat.drafts.len();
+        let hidden = port.visibility() == PortVisibility::Invisible
+            || self
+                .flat
+                .drafts
+                .get(owner)
+                .is_some_and(|draft| draft.hidden);
         self.flat.drafts.push(Draft {
             name: format!("{}/{}", port.name(), child.class_name()),
             path: path.to_owned(),
@@ -157,6 +168,7 @@ impl<'t> Walker<'t> {
             node: child,
             parent: Some(owner),
             geometry: child.geometry(),
+            hidden,
         });
         self.gears(child, index, path);
         self.ports(child.ports(), index, path, depth + 1);
@@ -166,6 +178,11 @@ impl<'t> Walker<'t> {
         if node.is_docked_vehicle() && !node.is_expanded() {
             return;
         }
+        let hidden = self
+            .flat
+            .drafts
+            .get(index)
+            .is_some_and(|draft| draft.hidden);
         for gear in node.landing_gear() {
             if self.flat.drafts.len() >= self.max_parts {
                 self.full = true;
@@ -191,6 +208,7 @@ impl<'t> Walker<'t> {
                 node,
                 parent: Some(index),
                 geometry: None,
+                hidden,
             });
         }
     }

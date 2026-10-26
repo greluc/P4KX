@@ -239,10 +239,10 @@ impl PortNode {
             .map_or(Ok(()), |constraints| constraints.check(item))
     }
 
-    /// Returns whether the vehicle implementation shows the port: [`PortVisibility::Invisible`]
-    /// when the part of that name carries the flag `invisible`, and
-    /// [`PortVisibility::Unspecified`] when the Entity has no vehicle implementation or it has
-    /// no part of that name.
+    /// Returns whether the port is shown: what the vehicle implementation's part of that name
+    /// says ([`PortVisibility::Invisible`] when it carries the flag `invisible`), else
+    /// [`PortVisibility::Invisible`] when the port definition carries that flag, else
+    /// [`PortVisibility::Unspecified`].
     #[must_use]
     pub const fn visibility(&self) -> PortVisibility {
         self.visibility

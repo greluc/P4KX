@@ -9,6 +9,8 @@ use p4kx_assembly::{
     ArchiveModels, Assembly, AssemblyOptions, LoadoutResolver, MAX_ASSEMBLY_VERTICES, Part,
     Placement,
 };
+use p4kx_assembly::{ModelFailure, ModelProvider, ProvidedModel};
+use p4kx_extraction::model::{MaterialStatus, Model};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_testkit::{LANDING_GEAR_SHIP, landing_gear_entries};
 
@@ -158,5 +160,111 @@ fn gears_count_against_the_limit_of_parts() -> TestResult {
         .find(|issue| issue.kind().code() == "too_many_parts")
         .ok_or("the limit is reported")?;
     assert_eq!(issue.name(), "hardpoint_gear_missing");
+    Ok(())
+}
+
+struct Deploys<'a> {
+    inner: ArchiveModels<'a>,
+    posed: bool,
+}
+
+impl ModelProvider for Deploys<'_> {
+    fn model(&self, path: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
+        self.inner.model(path, lod)
+    }
+
+    fn library(&self, entry: &str, name: &str) -> MaterialStatus {
+        self.inner.library(entry, name)
+    }
+
+    fn deployed(&self, _path: &str, model: &Model) -> Result<Option<Model>, ModelFailure> {
+        if !self.posed {
+            return Ok(None);
+        }
+        let mut moved = model.clone();
+        for mesh in moved.lods.iter_mut().flat_map(|lod| &mut lod.meshes) {
+            for position in &mut mesh.positions {
+                position[2] += 100.0;
+            }
+        }
+        Ok(Some(moved))
+    }
+}
+
+fn build_deployed(posed: bool) -> Result<Assembly, Box<dyn std::error::Error>> {
+    let fixture = fixture(landing_gear_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let record = resolver.entities().find(LANDING_GEAR_SHIP)?;
+    let tree = resolver.resolve(&record)?;
+    let provider = Deploys {
+        inner: ArchiveModels::new(&archive),
+        posed,
+    };
+    Ok(Assembly::build(
+        &tree,
+        &provider,
+        &AssemblyOptions::default(),
+    )?)
+}
+
+fn height(part: &Part) -> Option<f32> {
+    part.model()?
+        .lods
+        .iter()
+        .flat_map(|lod| &lod.meshes)
+        .flat_map(|mesh| &mesh.positions)
+        .map(|position| position[2])
+        .reduce(f32::max)
+}
+
+#[test]
+fn a_gear_takes_the_model_its_provider_poses_and_an_entity_with_the_same_file_does_not()
+-> TestResult {
+    let assembly = build_deployed(true)?;
+
+    let gear = assembly
+        .part_at("landing_gear/hardpoint_gear_front")
+        .ok_or("the gear")?;
+    assert!(height(gear).is_some_and(|top| top > 90.0), "posed");
+    assert!(
+        assembly
+            .issues()
+            .iter()
+            .all(|issue| issue.kind().code() != "gear_not_deployed"),
+        "{:?}",
+        assembly.issues()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_gear_without_a_deploy_clip_keeps_its_pose_and_is_noted() -> TestResult {
+    let assembly = build_deployed(false)?;
+
+    let gear = assembly
+        .part_at("landing_gear/hardpoint_gear_front")
+        .ok_or("the gear")?;
+    assert!(height(gear).is_some_and(|top| top < 90.0), "not posed");
+    let notes: Vec<&str> = assembly
+        .issues()
+        .iter()
+        .filter(|issue| issue.kind().code() == "gear_not_deployed")
+        .map(p4kx_assembly::Issue::path)
+        .collect();
+    assert!(
+        notes.contains(&"landing_gear/hardpoint_gear_front"),
+        "{notes:?}"
+    );
+    assert!(
+        assembly
+            .issues()
+            .iter()
+            .filter(|issue| issue.kind().code() == "gear_not_deployed")
+            .all(|issue| !issue.kind().skips()),
+        "a note, not a skip"
+    );
     Ok(())
 }

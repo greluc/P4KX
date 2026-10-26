@@ -109,6 +109,7 @@ pub struct Part {
     pub(crate) model: Option<Arc<Model>>,
     pub(crate) materials: Arc<MaterialStatus>,
     pub(crate) palette: Option<Arc<TintPalette>>,
+    pub(crate) hidden: bool,
 }
 
 impl Part {
@@ -184,6 +185,13 @@ impl Part {
         self.model.as_deref()
     }
 
+    /// Returns whether the part is hidden: it sits on a port flagged `invisible`, or below one,
+    /// and has no model, as the game does not draw it.
+    #[must_use]
+    pub const fn is_hidden(&self) -> bool {
+        self.hidden
+    }
+
     /// Returns the material library the part's model is drawn with: the one its Entity chooses,
     /// else the one the model names.
     #[must_use]
@@ -255,6 +263,12 @@ impl Assembly {
             .iter()
             .filter(|part| part.model.is_some())
             .count()
+    }
+
+    /// Returns the number of hidden parts, see [`Part::is_hidden`].
+    #[must_use]
+    pub fn hidden_parts(&self) -> usize {
+        self.parts.iter().filter(|part| part.hidden).count()
     }
 
     /// Writes the Assembly as a GLB file to `out`: a node per part named `<port>/<entity>` below

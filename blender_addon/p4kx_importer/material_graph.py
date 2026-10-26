@@ -254,7 +254,8 @@ class _Maker(LayerBlending):
         if mode not in ("mask", "blend"):
             return None
         source: Ref | None = None
-        if slot := desc.slot("mask"):
+        cap = desc.shader.lower() == "hairpbr" and "HAIR_CAP" in desc.gen_mask
+        if (slot := desc.slot("mask")) and (slot.texture or not cap):
             bw = b.add("ShaderNodeRGBToBW")
             b.link(Ref(self._image(slot, 1.0), "Color"), bw, "Color")
             source = Ref(bw, "Val")
@@ -272,6 +273,8 @@ class _Maker(LayerBlending):
         if self.family == "decal" and (extra := desc.number("DecalDiffuseOpacity")) is not None:
             opacity *= extra
         if source is None:
+            if cap:
+                return 0.0
             return opacity if opacity < 1.0 else None
         return source if opacity == 1.0 else b.math("MULTIPLY", source, opacity)
 

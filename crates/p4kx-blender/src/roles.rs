@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use p4kx_model::Material;
+
 use crate::TextureUse;
 
 const DIFFUSE_SLOT: &str = "TexSlot1";
@@ -24,6 +26,16 @@ pub(crate) fn classify(slot: &str, file: &str) -> TextureUse {
     }
 }
 
+/// Returns what the texture `file` in the slot `slot` of `material` is used for like [`classify`];
+/// the `_scalp` map of a hair cap is its density mask (ADR-0213).
+pub(crate) fn classify_in(material: &Material, slot: &str, file: &str) -> TextureUse {
+    if material.is_hair_cap() && suffix(file) == "scalp" {
+        TextureUse::Mask
+    } else {
+        classify(slot, file)
+    }
+}
+
 /// Returns whether the smoothness is in the alpha channel of the normal map `file`.
 pub(crate) fn has_smoothness(file: &str) -> bool {
     suffix(file) == "ddna"
@@ -38,7 +50,9 @@ fn suffix(file: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{classify, has_smoothness};
+    use p4kx_model::MaterialLibrary;
+
+    use super::{classify, classify_in, has_smoothness};
     use crate::TextureUse;
 
     #[test]
@@ -56,9 +70,32 @@ mod tests {
             ("TexSlot8", "a/b_displ.tif", TextureUse::Displacement),
             ("TexSlot9", "a/b.tif", TextureUse::Other),
             ("TexSlot1", "a/b_id.tif", TextureUse::Other),
+            ("TexSlot1", "a/b_scalp.tif", TextureUse::Other),
         ] {
             assert_eq!(classify(slot, file), expected, "{slot} {file}");
         }
+    }
+
+    #[test]
+    fn a_scalp_map_is_a_mask_only_for_a_hair_cap() -> Result<(), Box<dyn std::error::Error>> {
+        let xml = |mask: &str| {
+            format!(
+                r#"<Material><SubMaterials><Material Name="m" Shader="HairPBR" StringGenMask="{mask}"/></SubMaterials></Material>"#
+            )
+        };
+        for (mask, expected) in [
+            ("%HAIR_CAP", TextureUse::Mask),
+            ("%HAIR_CARDS", TextureUse::Other),
+        ] {
+            let library = MaterialLibrary::parse("a", xml(mask).as_bytes())?;
+            let material = library.materials.first().ok_or("a material")?;
+            assert_eq!(
+                classify_in(material, "TexSlot1", "a/b_scalp.tif"),
+                expected,
+                "{mask}"
+            );
+        }
+        Ok(())
     }
 
     #[test]

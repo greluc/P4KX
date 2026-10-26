@@ -27,9 +27,22 @@ Prospector, `hardpoint_Landing_Gear_Front` on the Cutlass Black), as a port help
   as for a port, nothing more is listed, the owner's own Issue saying why. A gear without a path
   lists `no_geometry`.
 - A docked vehicle that is not expanded gets no gear, as it gets no ports.
-- The gear is written in the bind pose of its model; nothing is animated. Whether that pose is
-  retracted or deployed is not settled by this decision. The deploy clip of the ship's animation
-  database could give a later option to write the gear in the other state.
+- A gear below a hidden Entity is hidden itself: a part with no model, as an Entity on an invisible
+  port.
+- Ships are written with their landing gear deployed, for every ship alike (owner's decision). The
+  bind pose of a gear model is not that pose: the Prospector's front leg is folded into the belly
+  in it, the other legs of the Prospector and the legs of the Cutlass Black and the Arrow are
+  extended. The gear is therefore posed at the end of its deploy clip. The clip is found in the
+  parameter file (`.chrparams`) beside the skeleton (`<Model File>` of the gear's `.cdf`): the
+  first listed animation whose name has `extend`, else `deploy`, and never one that names
+  `retract` or `compress`; its file is read from the tracks database the parameters list. Each
+  bone takes the last key of its track, relative to its parent, and the skin follows by the
+  weights of the vertices (linear blend skinning on the CPU), so the posed model is an ordinary
+  static model for GLB, package and viewer. Models are posed once per distinct file.
+- Where no such clip is found, or it cannot be read or applied (the model is not skinned, the
+  clip moves none of its bones), the gear keeps the pose of its model and the Issue
+  `gear_not_deployed`, a note, says why.
+- The gear is a static mesh; no gear animation is written.
 
 ## Known gap
 

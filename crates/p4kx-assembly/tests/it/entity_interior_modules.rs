@@ -16,8 +16,8 @@ use p4kx_gltf::GlbOptions;
 use p4kx_testkit::gltf::Node;
 use p4kx_testkit::{
     CheckedGlb, DataForgeBuilder, ENTITY_INTERIOR_FILE, ENTITY_MODULE_CARRIER, ENTITY_MODULE_CLASS,
-    TestEntity, TestEntry, TestLoadout, TestLoadoutEntry, check_glb, entity_module_entries,
-    entity_schema, lit_interior_entries,
+    TestEntity, TestEntry, TestLoadout, TestLoadoutEntry, TestPort, check_glb,
+    entity_module_entries, entity_schema, lit_interior_entries,
 };
 
 use crate::assembly_support::{TestResult, fixture};
@@ -239,6 +239,41 @@ fn a_docked_vehicle_that_is_not_expanded_brings_no_interior() -> TestResult {
         .map(EntityContainer::part)
         .collect();
     assert_eq!(owners, [0]);
+    Ok(())
+}
+
+#[test]
+fn a_hidden_part_brings_no_interior() -> TestResult {
+    let entities = [
+        TestEntity::new(0x41, "TEST_Host", "entities/test_host.xml")
+            .object_container(ENTITY_INTERIOR_FILE, "", [0.0; 3], [0.0; 3])
+            .port(
+                TestPort::new("hardpoint_hidden")
+                    .flags("invisible")
+                    .default_item(0x42),
+            ),
+        TestEntity::new(0x42, "TEST_Module", "entities/test_module.xml").object_container(
+            ENTITY_INTERIOR_FILE,
+            "",
+            [0.0; 3],
+            [0.0; 3],
+        ),
+    ];
+
+    let interior = interior_of(&entities, "TEST_Host", false)?;
+
+    let owners: Vec<usize> = interior
+        .containers()
+        .iter()
+        .map(EntityContainer::part)
+        .collect();
+    assert_eq!(owners, [0]);
+    assert!(
+        !interior
+            .issues()
+            .iter()
+            .any(|issue| issue.path().starts_with("hardpoint_hidden"))
+    );
     Ok(())
 }
 

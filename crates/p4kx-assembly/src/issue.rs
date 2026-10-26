@@ -55,6 +55,13 @@ pub enum IssueKind {
         /// The path the Record names.
         path: String,
     },
+    /// The sub-geometry the port's flags choose does not exist, so the part keeps the main
+    /// geometry of its Entity.
+    #[error("the sub-geometry {path} does not exist; the main geometry is used")]
+    SubGeometryMissing {
+        /// The path of the sub-geometry.
+        path: String,
+    },
     /// The geometry file cannot be read as a model, so the part has no model.
     #[error("the geometry {path} cannot be read: {reason}")]
     GeometryUnreadable {

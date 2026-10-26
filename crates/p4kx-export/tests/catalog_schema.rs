@@ -124,9 +124,9 @@ fn the_schema_accepts_unknown_fields_and_kinds_but_not_unknown_versions() -> Tes
     let catalog = minimal_catalog();
     assert!(validator.is_valid(&catalog), "a minimal catalog is valid");
 
-    let mut version_two = catalog.clone();
-    version_two["schemaVersion"] = json!(2);
-    assert!(!validator.is_valid(&version_two), "only version 1");
+    let mut version_one = catalog.clone();
+    version_one["schemaVersion"] = json!(1);
+    assert!(!validator.is_valid(&version_one), "only version 2");
 
     let mut upper_case = catalog.clone();
     upper_case["manufacturers"][0]["guid"] = json!("CFC0122D-5275-415A-A656-3DCB3346FEB5");

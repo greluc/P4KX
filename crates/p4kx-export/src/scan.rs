@@ -203,8 +203,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let kind = match select(record, self.options.filter)? {
             None => return Ok(None),
             Some(Selected::Leftover(Kind::Items)) => {
-                let tree = trees.build(record)?;
-                return Ok(Some(if is_paint(&tree) {
+                return Ok(Some(if trees.build(record).is_ok_and(|tree| is_paint(&tree)) {
                     Picked::SkippedPaint
                 } else {
                     Picked::Skipped(Kind::Items)

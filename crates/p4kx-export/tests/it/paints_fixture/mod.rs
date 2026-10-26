@@ -21,6 +21,13 @@ pub(crate) const PAINT_DELTA_MIL: u128 = 0x1000_0000_0000_4000_8000_0000_0000_00
 pub(crate) const PAINT_DELTA_PORT: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0008;
 pub(crate) const SHIP_DELTA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0006;
 pub(crate) const SHIP_EPSILON: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0007;
+pub(crate) const PAINT_ZETA: u128 = 0x1000_0000_0000_4000_8000_0000_0000_0009;
+pub(crate) const PAINT_ZETA_REQ: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000a;
+pub(crate) const PAINT_ZETA_CASE: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000b;
+pub(crate) const PAINT_ZETA_TWO: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000c;
+pub(crate) const PAINT_ETA_TREE: u128 = 0x1000_0000_0000_4000_8000_0000_0000_000d;
+pub(crate) const SHIP_ZETA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0008;
+pub(crate) const SHIP_ETA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0009;
 pub(crate) const SHIP_ALPHA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const SHIP_BETA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const SHIP_GAMMA: u128 = 0x2000_0000_0000_4000_8000_0000_0000_0003;
@@ -143,12 +150,12 @@ fn paint(guid: u128, class: &str, tags: &str, required: &str) -> TestRecord {
     )
 }
 
-fn port(tags: &str, kind: &str) -> TestValue {
+fn port(port_tags: &str, required: &str, kind: &str) -> TestValue {
     TestValue::Struct(
         TestInstance::new("SItemPortDef")
             .value("Name", TestValue::text("hardpoint_paint"))
-            .value("PortTags", TestValue::text(tags))
-            .value("RequiredPortTags", TestValue::text(tags))
+            .value("PortTags", TestValue::text(port_tags))
+            .value("RequiredPortTags", TestValue::text(required))
             .value(
                 "Types",
                 TestValue::Array(vec![TestValue::Struct(
@@ -235,6 +242,16 @@ fn paints() -> Vec<TestRecord> {
     .into_iter()
     .map(|(guid, class, tags)| paint(guid, class, tags, ""))
     .chain([
+        paint(PAINT_ZETA, "paint_zeta", "Paint_Zeta", "Paint_Zeta_Port"),
+        paint(PAINT_ZETA_REQ, "paint_zeta_req", "Paint_Zeta", "Paint_Zeta"),
+        paint(PAINT_ZETA_CASE, "paint_zeta_case", "Paint_Zeta", "PAINT_ZETA_PORT"),
+        paint(
+            PAINT_ZETA_TWO,
+            "paint_zeta_two",
+            "Paint_Zeta",
+            "Paint_Zeta_Port Mil",
+        ),
+        paint(PAINT_ETA_TREE, "paint_eta_tree", "Paint_Eta", "Paint_Alpha"),
         paint(PAINT_DELTA_MIL, "paint_delta_mil", "Paint_Delta", "Mil"),
         paint(
             PAINT_DELTA_PORT,
@@ -256,8 +273,8 @@ fn ships() -> Vec<TestRecord> {
             "",
             "",
             vec![
-                port("Paint_Gamma", "Paints"),
-                port("Paint_Orphan", "WeaponGun"),
+                port("Paint_Gamma", "Paint_Gamma", "Paints"),
+                port("Paint_Orphan", "Paint_Orphan", "WeaponGun"),
             ],
         ),
         tagged_ship(
@@ -265,7 +282,7 @@ fn ships() -> Vec<TestRecord> {
             "ACAS_Delta",
             "",
             "",
-            vec![port("Paint_Delta", "Paints")],
+            vec![port("Paint_Delta", "Paint_Delta", "Paints")],
             "Mil",
         ),
         tagged_ship(
@@ -273,8 +290,24 @@ fn ships() -> Vec<TestRecord> {
             "ACAS_Epsilon",
             "",
             "",
-            vec![port("Paint_Delta", "Paints")],
+            vec![port("Paint_Delta", "Paint_Delta", "Paints")],
             "Civ",
+        ),
+        tagged_ship(
+            SHIP_ZETA,
+            "ACAS_Zeta",
+            "",
+            "",
+            vec![port("Paint_Zeta_Port", "Paint_Zeta", "Paints")],
+            "",
+        ),
+        tagged_ship(
+            SHIP_ETA,
+            "ACAS_Eta",
+            "",
+            "",
+            vec![port("Paint_Eta", "Paint_Eta", "Paints")],
+            "Paint_Alpha_Variant",
         ),
         ship(
             SHIP_BROKEN,

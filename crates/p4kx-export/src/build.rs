@@ -21,7 +21,7 @@ use crate::crafting::read_with_progress;
 use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{ITEM, SHIP, Wanted, loadouts};
 use crate::missions;
-use crate::paint::paints;
+use crate::paint::add_paints;
 use crate::scan::Scan;
 use crate::ship_store_slugs::StoreSlugs;
 use crate::shops::add_shops;
@@ -333,23 +333,6 @@ fn add_contracts<'f>(
     )?;
     collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
     Ok(())
-}
-
-/// Derives the paints of `collected`, warns about unreadable vehicle files and returns the counts.
-fn add_paints(
-    forge: &DataForge<'_>,
-    collected: &mut Collected<'_>,
-    cancel: Option<&CancelToken>,
-) -> Result<PaintSummary, CatalogError> {
-    let derived = paints(forge, &collected.items, &collected.vehicles, cancel)?;
-    collected.paints = derived.list;
-    let count = derived.summary.unreadable_vehicles;
-    if count > 0 {
-        let details = derived.unreadable_files;
-        let warning = CraftingWarning::UnreadableVehicleFiles { count, details };
-        collected.warnings.push(warning);
-    }
-    Ok(derived.summary)
 }
 
 /// Resolves the Default Loadout of every ship and of every item that may have ports, stores the

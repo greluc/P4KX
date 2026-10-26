@@ -857,7 +857,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
  {"kind": "qualityDistributions", "count": 21, "skipped": 1, "complete": true},
  {"kind": "blueprintPools", "count": 160, "skipped": 0, "complete": true},
  {"kind": "dismantleProcesses", "count": 1, "skipped": 0, "complete": true},
- {"kind": "paints", "count": 1064, "skipped": 0, "complete": true},
+ {"kind": "paints", "count": 1064, "skipped": 68, "complete": true},
  {"kind": "loadouts", "count": 10708, "skipped": 0, "complete": true},
  {"kind": "starmapObjects", "count": 2093, "skipped": 0, "complete": true},
  {"kind": "shops", "count": 1184, "skipped": 0, "complete": true}], "skipped": 1205,

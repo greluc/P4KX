@@ -38,21 +38,20 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
         "PhysType",
     );
     let name_key = locale_key(localization, "Name");
+    let r#type = text(definition, "Type");
     let item = Item {
         guid: CatalogGuid(tree.guid()),
         class_name: class_name(tree),
         record_path: tree.record_path(),
         name: texts.localised(name_key),
         description,
-        r#type: text(definition, "Type"),
+        r#type,
         sub_type: text(definition, "SubType"),
         size: integer(definition, "Size"),
         grade: integer(definition, "Grade"),
         mass: single(physics, "Mass"),
         manufacturer_guid: reference(definition, "Manufacturer"),
-        tags: text(definition, "Tags")
-            .map(|tags| tags.split_whitespace().collect())
-            .unwrap_or_default(),
+        tags: words(text(definition, "Tags")),
         display_type: texts.localised(locale_key(
             component(tree, "SCItemPurchasableParams"),
             "displayType",
@@ -62,19 +61,13 @@ pub(crate) fn item<'f>(tree: &RecordTree<'f>, texts: &Texts<'f>) -> (Item<'f>, C
         variant_of: None,
         stats: None,
         variant_key: None,
-        required_tags: Vec::new(),
-    };
-    (
-        Item {
-            required_tags: if item.r#type.is_some_and(crate::paint::is_paint_type) {
-                words(text(definition, "RequiredTags"))
-            } else {
-                Vec::new()
-            },
-            ..item
+        required_tags: if r#type.is_some_and(crate::paint::is_paint_type) {
+            words(text(definition, "RequiredTags"))
+        } else {
+            Vec::new()
         },
-        line,
-    )
+    };
+    (item, line)
 }
 
 fn words(value: Option<&str>) -> Vec<&str> {

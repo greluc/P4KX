@@ -29,6 +29,10 @@ The rule is ADR-0054 (amending ADR-0002):
   handled by compression (`.json.zst`), not by a second Export. The Basetool accepts `.json`,
   `.json.gz` and `.json.zst`; the 64 MB limit applies to the compressed upload, the decompressed
   content is capped at 1 GB. The compressed form is described under "Compressed form" below.
+- **Version 2 (ADR-0161)** is breaking against version 1 in one respect: a paint also needs its own
+  `RequiredTags` offered by the port or the ship (see "Paints"), so `paints[].shipGuids` lists
+  fewer ships than version 1 did (40 fewer on LIVE 4.7). No field changed its name or type. The
+  Basetool import must accept version 2.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -86,7 +90,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 
 | Field | Meaning |
 |-------|---------|
-| `schemaVersion` | The version of the shape, now `1`; an import rejects a version it does not know |
+| `schemaVersion` | The version of the shape, now `2`; an import rejects a version it does not know |
 | `source.channel` | The Channel: the folder holding the Archive, e.g. `LIVE` |
 | `source.build` | `branch`, `version`, `changeNumber` and `buildId` from the build manifest, or `null` |
 | `source.build.publicPatch` | The public patch version, e.g. `4.7.2`, from the RSI Launcher log line `SC <CHANNEL> <version>-<tag>.<change>` (`<version>`: two or three dot-separated numbers, kept as logged) whose change equals `changeNumber`; `null` when the log has no such line (never guessed from a neighbouring one) |

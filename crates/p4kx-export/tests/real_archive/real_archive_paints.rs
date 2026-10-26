@@ -156,5 +156,28 @@ fn the_paints_of_a_real_archive_fit_their_ships() -> TestResult {
     report(&built, elapsed);
     check_counts(&built, &catalog)?;
     check_references(&built, &catalog)?;
-    check_known_paints(&catalog)
+    check_known_paints(&catalog)?;
+    check_required_tags(&catalog)
+}
+
+fn guid_of<'c>(catalog: &'c Value, kind: &str, class: &str) -> Result<&'c str, Box<dyn Error>> {
+    list(catalog, kind)?
+        .iter()
+        .find(|entry| entry["className"] == class)
+        .and_then(|entry| entry["guid"].as_str())
+        .ok_or_else(|| format!("{class} in {kind}").into())
+}
+
+fn check_required_tags(catalog: &Value) -> TestResult {
+    let paint = guid_of(catalog, "items", "Paint_Hornet_F7A_Mk2_Desert_Camo")?;
+    let ships = ships_of(list(catalog, "paints")?, paint)?;
+    assert!(
+        ships.contains(guid_of(catalog, "ships", "ANVL_Hornet_F7A_Mk2")?),
+        "the F7A paint fits the F7A"
+    );
+    assert!(
+        !ships.contains(guid_of(catalog, "ships", "ANVL_Hornet_F7C_Mk2")?),
+        "the F7A paint requires the F7A ship tag, which the F7C lacks"
+    );
+    Ok(())
 }

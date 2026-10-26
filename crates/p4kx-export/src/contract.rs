@@ -25,8 +25,8 @@ pub(crate) use crate::contract_store_slugs::ShipStoreSlug;
 /// The version of the catalog shape.
 ///
 /// Added kinds and fields keep it; renaming, removing or retyping a field, or restructuring a kind,
-/// raises it (ADR-0054).
-pub const SCHEMA_VERSION: u32 = 1;
+/// raises it (ADR-0054). Version 2 changes which ships a paint fits (ADR-0161).
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// The Basetool catalog: the game data the basetool's P4K import reads.
 #[derive(Debug, Serialize, JsonSchema)]
@@ -35,7 +35,7 @@ pub const SCHEMA_VERSION: u32 = 1;
 #[schemars(title = "P4KX Basetool catalog")]
 pub(crate) struct Catalog<'a> {
     /// The version of the catalog shape; an import rejects a version it does not know.
-    #[schemars(extend("const" = 1))]
+    #[schemars(extend("const" = 2))]
     pub(crate) schema_version: u32,
     /// The Archive and Build the catalog was made from.
     pub(crate) source: Source<'a>,

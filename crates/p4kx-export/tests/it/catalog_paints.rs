@@ -15,8 +15,9 @@ use p4kx_export::{
 use p4kx_extraction::Archive;
 use paints_fixture::{
     PAINT_ALPHA_RED, PAINT_ALPHA_VARIANT, PAINT_BETA, PAINT_DELTA_MIL, PAINT_DELTA_PORT,
-    PAINT_GAMMA, PAINT_ORPHAN, PAINT_UPPER, SHIP_ALPHA, SHIP_BETA, SHIP_DELTA, SHIP_EPSILON,
-    SHIP_GAMMA, SHIP_MISSING, write_archive,
+    PAINT_ETA_TREE, PAINT_GAMMA, PAINT_ORPHAN, PAINT_UPPER, PAINT_ZETA, PAINT_ZETA_CASE,
+    PAINT_ZETA_REQ, PAINT_ZETA_TWO, SHIP_ALPHA, SHIP_BETA, SHIP_DELTA, SHIP_EPSILON, SHIP_ETA,
+    SHIP_GAMMA, SHIP_MISSING, SHIP_ZETA, write_archive,
 };
 use serde_json::Value;
 
@@ -121,6 +122,40 @@ fn the_required_tags_of_a_paint_must_be_offered_by_the_port_or_the_ship() -> Tes
 }
 
 #[test]
+fn a_required_tag_may_be_a_port_tag_a_required_port_tag_or_in_other_case() -> TestResult {
+    let (_, catalog) = build(None)?;
+    for (paint, why) in [
+        (PAINT_ZETA, "the port tag differs from the required port tag"),
+        (PAINT_ZETA_REQ, "the required port tag of the port"),
+        (PAINT_ZETA_CASE, "tag names compare ignoring case"),
+    ] {
+        assert_eq!(ships_of(&catalog, paint)?, set(&[SHIP_ZETA]), "{why}");
+    }
+    Ok(())
+}
+
+#[test]
+fn every_required_tag_of_a_paint_must_be_offered() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert!(
+        ships_of(&catalog, PAINT_ZETA_TWO)?.is_empty(),
+        "the port offers one of the two tags, no ship tag the other"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_offered_tag_below_the_required_tag_in_the_tag_tree_counts() -> TestResult {
+    let (_, catalog) = build(None)?;
+    assert_eq!(
+        ships_of(&catalog, PAINT_ETA_TREE)?,
+        set(&[SHIP_ETA]),
+        "the Record tag Paint_Alpha_Variant lies below the required Paint_Alpha"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_derived_kind_has_no_record_rule() {
     for kind in Kind::ALL {
         assert_eq!(kind.rule().is_none(), kind.is_derived(), "{kind}");
@@ -144,10 +179,10 @@ fn the_summary_counts_the_paints_with_and_without_a_ship() -> TestResult {
     assert_eq!(
         built.summary().paints(),
         PaintSummary {
-            paints: 8,
-            assigned: 7,
-            unassigned: 1,
-            ships: 5,
+            paints: 13,
+            assigned: 11,
+            unassigned: 2,
+            ships: 7,
             unreadable_vehicles: 1,
         },
         "the corrupt vehicle file of one ship is counted, the file the Archive lacks is not"
@@ -181,13 +216,18 @@ fn the_summary_counts_the_paints_with_and_without_a_ship() -> TestResult {
     let kind = built.summary().kind(Kind::Paints).ok_or("the kind")?;
     assert_eq!(
         (kind.count, kind.skipped, kind.complete),
-        (8, 1, true),
+        (13, 1, true),
         "the kind summary counts the leftover paint as skipped"
     );
     let items = built.summary().kind(Kind::Items).ok_or("the items")?;
     assert_eq!(
         items.skipped, 2,
         "the leftover paint is a skipped item too, next to the leftover power plant"
+    );
+    assert_eq!(
+        built.summary().skipped(),
+        2,
+        "the leftover paint is counted once in the total"
     );
     assert_eq!(
         catalog["completeness"]["paints"]["status"], "complete",

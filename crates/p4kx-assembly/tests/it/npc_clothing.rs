@@ -21,6 +21,7 @@ const SHIRT: u128 = 0x3100;
 const BOOTS: u128 = 0x3200;
 const HAT: u128 = 0x3300;
 const HOOD: u128 = 0x3400;
+const GLASS: u128 = 0x3500;
 
 fn character(guid: u128, class: &str, head: u128) -> TestEntity {
     TestEntity::new(guid, class, format!("entities/{class}.xml"))
@@ -30,6 +31,7 @@ fn character(guid: u128, class: &str, head: u128) -> TestEntity {
         .port(TestPort::new("feet").default_item(BOOTS))
         .port(TestPort::new("hat").default_item(HAT))
         .port(TestPort::new("hood").flags("up").default_item(HOOD))
+        .port(TestPort::new("glass").default_item(GLASS))
 }
 
 fn resolve(class: &str) -> Result<EntityNode, Box<dyn Error>> {
@@ -39,21 +41,27 @@ fn resolve(class: &str) -> Result<EntityNode, Box<dyn Error>> {
             .sub_type(sub)
             .geometry("objects/test/head.skin", None)
     };
-    let jacket = TestEntity::new(JACKET, "TEST_Jacket", "entities/test_jacket.xml")
+    let worn = |guid, name: &str, item_type: &str| {
+        TestEntity::new(guid, name, format!("entities/{name}.xml")).attach_type(item_type)
+    };
+    let jacket = worn(JACKET, "TEST_Jacket", "Char_Clothing_Torso_1")
         .geometry("objects/test/box.cgf", None)
         .geometry_variant("Male", "objects/test/jacket_m.skin", None)
         .geometry_variant("Female", "objects/test/jacket_f.skin", None);
-    let shirt = TestEntity::new(SHIRT, "TEST_Shirt", "entities/test_shirt.xml")
+    let shirt = worn(SHIRT, "TEST_Shirt", "Char_Clothing_Torso_0")
         .geometry("objects/test/shirt.skin", None);
-    let boots = TestEntity::new(BOOTS, "TEST_Boots", "entities/test_boots.xml")
+    let boots = worn(BOOTS, "TEST_Boots", "Char_Clothing_Feet")
         .geometry("objects/test/box.cgf", None)
         .geometry_variant("Male", "objects/test/boots_m.skin", None);
-    let hat = TestEntity::new(HAT, "TEST_Hat", "entities/test_hat.xml")
+    let hat = worn(HAT, "TEST_Hat", "Char_Clothing_Hat")
         .geometry_variant("Male", "objects/test/hat_m.skin", None)
         .geometry_variant("Female", "objects/test/hat_f.skin", None);
-    let hood = TestEntity::new(HOOD, "TEST_Hood", "entities/test_hood.xml")
+    let hood = worn(HOOD, "TEST_Hood", "Char_Clothing_Hat")
         .geometry_variant("up", "objects/test/hood_up.skin", None)
         .geometry_variant("Male", "objects/test/hood_m.skin", None);
+    let glass = worn(GLASS, "TEST_Glass", "MobiGlas")
+        .geometry("objects/test/glass_prop.skin", None)
+        .geometry_variant("Male", "objects/test/glass_worn.skin", None);
     let bytes = entity_schema(DataForgeBuilder::new())
         .record(head(HEAD_MALE, "TEST_HeadMale", "Male").record())
         .record(head(HEAD_FEMALE, "TEST_HeadFemale", "Female").record())
@@ -62,6 +70,7 @@ fn resolve(class: &str) -> Result<EntityNode, Box<dyn Error>> {
         .record(boots.record())
         .record(hat.record())
         .record(hood.record())
+        .record(glass.record())
         .record(character(MAN, "TEST_Man", HEAD_MALE).record())
         .record(character(WOMAN, "TEST_Woman", HEAD_FEMALE).record())
         .build();
@@ -137,6 +146,16 @@ fn a_port_flag_keeps_its_priority_over_the_body() -> TestResult {
     assert_eq!(
         geometry_at(&man, "hood")?.as_deref(),
         Some("objects/test/hood_up.skin")
+    );
+    Ok(())
+}
+
+#[test]
+fn an_item_that_is_no_character_item_keeps_its_main_geometry() -> TestResult {
+    let man = resolve("TEST_Man")?;
+    assert_eq!(
+        geometry_at(&man, "glass")?.as_deref(),
+        Some("objects/test/glass_prop.skin")
     );
     Ok(())
 }

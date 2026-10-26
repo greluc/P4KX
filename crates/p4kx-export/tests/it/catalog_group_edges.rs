@@ -200,6 +200,112 @@ fn an_unreadable_group_outside_the_filter_is_still_reported_once() -> TestResult
 }
 
 #[test]
+fn a_blueprint_whose_category_is_unreadable_has_no_category_guid() -> TestResult {
+    let pointer = |name: &str| TestType::StrongPointer(name.to_owned());
+    let forge = DataForgeBuilder::new()
+        .version(8)
+        .structure(
+            TestStruct::new("BlueprintCategoryRecord")
+                .field("a", TestType::Int8)
+                .declared_size(3),
+        )
+        .structure(
+            TestStruct::new("CraftingBlueprintRecord")
+                .field("blueprint", pointer("CraftingBlueprintBase")),
+        )
+        .structure(TestStruct::new("CraftingBlueprintBase"))
+        .structure(
+            TestStruct::new("CraftingBlueprint")
+                .parent("CraftingBlueprintBase")
+                .field("category", TestType::Reference),
+        )
+        .record(TestRecord::new(
+            FIRST,
+            "BlueprintCategoryRecord",
+            "BlueprintCategoryRecord.Broken",
+            "libs/foundry/records/crafting/blueprintcategories/blueprintcategorydatabase.xml",
+        ))
+        .record(
+            TestRecord::new(
+                SECOND,
+                "CraftingBlueprintRecord",
+                "CraftingBlueprintRecord.BP_CRAFT_broken_category",
+                "libs/foundry/records/crafting/blueprints/crafting/bp_craft_broken_category.xml",
+            )
+            .value(
+                "blueprint",
+                TestValue::Struct(
+                    TestInstance::new("CraftingBlueprint")
+                        .value("category", TestValue::Reference(FIRST)),
+                ),
+            ),
+        );
+    let (built, catalog) = build_from(&forge, None)?;
+    assert_eq!(catalog["blueprints"][0]["categoryGuid"], Value::Null);
+    assert_eq!(built.summary().failures().len(), 1, "the category is listed");
+    Ok(())
+}
+
+#[test]
+fn a_resource_type_listed_only_by_a_leftover_group_gives_its_commodity_no_type_guid() -> TestResult {
+    const RESOURCE: u128 = 0x5000_0000_0000_4000_8000_0000_0000_0005;
+    let resource = TestRecord::new(
+        RESOURCE,
+        "ResourceType",
+        "ResourceType.zinc",
+        "libs/foundry/records/resourcetypedatabase/resourcetypedatabase.xml",
+    )
+    .value("displayName", TestValue::text("@items_commodities_zinc"));
+    let commodity = TestRecord::new(
+        0x6000_0000_0000_4000_8000_0000_0000_0006,
+        "EntityClassDefinition",
+        "EntityClassDefinition.zinc",
+        "libs/foundry/records/entities/commodities/metals/zinc.xml",
+    )
+    .value(
+        "Components",
+        TestValue::Array(vec![TestValue::Struct(
+            TestInstance::new("ResourceContainer").value(
+                "defaultComposition",
+                TestValue::Array(vec![TestValue::Struct(
+                    TestInstance::new("ResourceContainerDefaultCompositionEntry")
+                        .value("entry", TestValue::Reference(RESOURCE)),
+                )]),
+            ),
+        )]),
+    );
+    let leftover = TestRecord::new(
+        LEFTOVER_GROUP,
+        "ResourceTypeGroup",
+        "ResourceTypeGroup.Test_Group",
+        GROUP_PATH,
+    )
+    .value("displayName", TestValue::text("@LOC_PLACEHOLDER"))
+    .value("groups", TestValue::Array(Vec::new()))
+    .value(
+        "resources",
+        TestValue::Array(vec![TestValue::Reference(RESOURCE)]),
+    );
+    let forge = crafting_fixture::database()
+        .record(resource)
+        .record(commodity)
+        .record(leftover);
+    let (_, catalog) = build_from(&forge, None)?;
+    let zinc = catalog["commodities"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|commodity| commodity["className"] == "zinc")
+        .ok_or("the zinc commodity")?;
+    assert_eq!(zinc["typeGuid"], Value::Null);
+    assert!(
+        zinc["subtypeGuid"].is_string(),
+        "the ResourceType is still linked"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_blueprint_whose_category_is_a_leftover_has_no_category_guid() -> TestResult {
     let orphan = TestRecord::new(
         ORPHAN_BLUEPRINT,

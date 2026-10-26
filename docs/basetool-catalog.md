@@ -611,7 +611,10 @@ Record.
 Every `typeGuid` of a commodity and every `categoryGuid` of a blueprint resolves to a `guid` of
 `resourceGroups` or `blueprintCategories` (checked against LIVE; a commodity without a
 `ResourceType` or group, 1 on LIVE, and a blueprint without a category or whose category is a
-left-out leftover have `null`). With a
+left-out leftover or unreadable have `null`; a commodity whose `ResourceType` only a leftover or
+unreadable group lists has a `null` `typeGuid`). The groups are found whatever the `--filter`; a
+category is only found missing when the `--filter` selects it, so under a `--filter` a
+`categoryGuid` may still name a leftover category outside it. With a
 `--filter`, a kind is partial and the references need not resolve.
 
 ### Tiers

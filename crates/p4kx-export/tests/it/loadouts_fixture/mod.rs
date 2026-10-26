@@ -40,6 +40,9 @@ const ALPHA_XML: &str = r#"<Vehicle name="ACME_Alpha">
             <Types><Type type="WeaponGun"/></Types>
           </ItemPort>
         </Part>
+        <Part name="Hardpoint_Gun" class="ItemPort">
+          <ItemPort minSize="5" maxSize="6" flags="invisible"/>
+        </Part>
         <Part name="hardpoint_turret" class="ItemPort">
           <ItemPort minSize="9" maxSize="9" flags="invisible"/>
         </Part>
@@ -47,6 +50,9 @@ const ALPHA_XML: &str = r#"<Vehicle name="ACME_Alpha">
           <ItemPort minSize="2" maxSize="2">
             <Types><Type type="Missile"/><Type type="Bomb"/></Types>
           </ItemPort>
+        </Part>
+        <Part name="hardpoint_empty" class="ItemPort">
+          <ItemPort minSize="7" maxSize="8"/>
         </Part>
       </Parts>
     </Part>

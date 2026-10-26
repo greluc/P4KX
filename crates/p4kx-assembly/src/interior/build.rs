@@ -85,7 +85,8 @@ impl Interior {
     /// Builds the Interior like [`Self::build_with`], reading the models that `layers[0]`, the
     /// game's Archive, holds through `models` when given, e.g. a
     /// [`CachedModels`](crate::CachedModels), so that models read before are not read again.
-    /// Models inside a container are always read from the container.
+    /// Models inside a container are always read from the container. `models` must read from the
+    /// same Archive as `layers[0]`.
     ///
     /// # Errors
     ///

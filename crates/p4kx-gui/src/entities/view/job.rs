@@ -105,6 +105,7 @@ pub(super) struct Request {
     pub(super) materials: ModelMaterials,
     pub(super) interior: bool,
     pub(super) models: Arc<ModelCache>,
+    pub(super) interior_models: Arc<ModelCache>,
     #[cfg(feature = "test-hooks")]
     pub(super) gate: Option<Arc<crate::hold::Gate>>,
 }
@@ -311,7 +312,8 @@ fn run(index: &EntryIndex, request: &Request, cancel: &CancelToken, shared: &Sha
         }
         Err(other) => return Ended::Failed(failure_of(index, &other)),
     };
-    let with = (&forge, &cached as &dyn ModelProvider);
+    let interior_cached = CachedModels::new(&stoppable, &request.interior_models);
+    let with = (&forge, &interior_cached as &dyn ModelProvider);
     let assembly = match with_interior(index, assembly, request, (cancel, shared), with) {
         Ok(assembly) => assembly,
         Err(ended) => return ended,

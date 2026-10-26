@@ -129,7 +129,7 @@ fn serve(
     while let Some(job) = next(requests) {
         running.store(job.number, Ordering::Release);
         let outcome = resolve_in(index, &mut resolver, &forge, (guid, &job.changes))
-            .map(|tree| (LoadoutView::of(&tree), tree));
+            .map(|applied| (LoadoutView::of(&applied), applied.into_node()));
         if job.reply.send(outcome).is_ok() {
             wake();
         }

@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use p4kx_assembly::{ArchiveFiles, ChangeError, EntityNode, LoadoutChanges, LoadoutResolver};
+use p4kx_assembly::{ArchiveFiles, ChangeError, ChangedLoadout, LoadoutChanges, LoadoutResolver};
 use p4kx_extraction::{DataForge, Guid};
 
 use crate::EntryIndex;
@@ -37,7 +37,7 @@ pub(crate) fn resolve(
     guid: Guid,
     changes: &LoadoutChanges,
     stop: &(dyn Fn() -> bool + Sync),
-) -> Result<EntityNode, ResolveFailure> {
+) -> Result<ChangedLoadout, ResolveFailure> {
     let source = read_source(index)?;
     let forge = open_forge(&source)?;
     let files = ArchiveFiles::new(index.archive());
@@ -54,15 +54,15 @@ pub(super) fn resolve_in<'f>(
     resolver: &mut LoadoutResolver<'f>,
     forge: &'f DataForge<'f>,
     (guid, changes): (Guid, &LoadoutChanges),
-) -> Result<EntityNode, ResolveFailure> {
+) -> Result<ChangedLoadout, ResolveFailure> {
     if index.watch().check().is_err() {
         return Err(ResolveFailure::ArchiveChanged);
     }
     let record = forge
         .record_by_guid(guid)
         .ok_or(ResolveFailure::NoRecord(guid))?;
-    let tree = resolver
-        .resolve_with(&record, changes)
+    let applied = resolver
+        .resolve_changed(&record, changes)
         .map_err(|error| match error {
             ChangeError::Cancelled => ResolveFailure::Cancelled,
             other => ResolveFailure::Failed(describe(&other)),
@@ -70,7 +70,7 @@ pub(super) fn resolve_in<'f>(
     if index.watch().check().is_err() {
         return Err(ResolveFailure::ArchiveChanged);
     }
-    Ok(tree)
+    Ok(applied)
 }
 
 /// Returns the DataForge of `index`, reading it unless it was read before.

@@ -143,7 +143,7 @@ fn the_json_tree_names_the_source_of_a_changed_port_and_counts_them() -> TestRes
 }
 
 #[test]
-fn an_entity_that_does_not_fit_the_port_is_invalid_input_with_the_reason() -> TestResult {
+fn an_entity_that_does_not_fit_the_port_is_attached_with_a_warning() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = sample_archive(dir.path())?;
 
@@ -155,14 +155,39 @@ fn an_entity_that_does_not_fit_the_port_is_invalid_input_with_the_reason() -> Te
         false,
     )?;
 
-    assert_eq!(run.code, Some(2), "{}", run.stderr);
-    assert!(run.stdout.is_empty(), "{}", run.stdout);
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    assert!(run.stdout.contains("TEST_Seat"), "{}", run.stdout);
     assert!(
         run.stderr
-            .contains("TEST_Seat does not fit the port hardpoint_weapon_nose: its item type is none, the port takes WeaponGun"),
+            .contains("warning: TEST_Seat does not fit the port hardpoint_weapon_nose: its item type is none, the port takes WeaponGun"),
         "{}",
         run.stderr
     );
+    Ok(())
+}
+
+#[test]
+fn the_json_lists_an_entity_that_does_not_fit_the_port() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = sample_archive(dir.path())?;
+
+    let run = run(
+        &archive,
+        "loadout",
+        "TEST_Ship",
+        &["--replace", "hardpoint_weapon_nose=TEST_Seat"],
+        true,
+    )?;
+
+    assert_eq!(run.code, Some(0), "{}", run.stderr);
+    let json: serde_json::Value = serde_json::from_str(&run.stdout)?;
+    let listed = json["incompatible"]
+        .as_array()
+        .ok_or("no incompatible list")?;
+    assert_eq!(listed.len(), 1, "{json}");
+    assert_eq!(listed[0]["port"], "hardpoint_weapon_nose");
+    assert_eq!(listed[0]["entity"], "TEST_Seat");
+    assert_eq!(listed[0]["kind"], "item_type");
     Ok(())
 }
 

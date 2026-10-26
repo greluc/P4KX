@@ -7,6 +7,7 @@ use p4kx_assembly::{Assembly, Interior, Issue, LoadoutChanges};
 use p4kx_blender::{Issue as PackageIssue, PackageSummary};
 use p4kx_extraction::GlbSummary;
 
+use crate::PortMismatch;
 use crate::model_info::printable;
 
 /// A part of the Assembly that could not be resolved or done in full.
@@ -77,6 +78,7 @@ pub struct AssemblyExportSummary {
     replaced: usize,
     interior: Option<InteriorFacts>,
     package: Option<PackageSummary>,
+    mismatches: Vec<PortMismatch>,
 }
 
 impl AssemblyExportSummary {
@@ -117,6 +119,7 @@ impl AssemblyExportSummary {
                 lights: interior.lights(),
             }),
             package: None,
+            mismatches: Vec::new(),
         }
     }
 
@@ -144,6 +147,7 @@ impl AssemblyExportSummary {
                 lights: interior.lights(),
             }),
             package: None,
+            mismatches: Vec::new(),
         }
     }
 
@@ -158,6 +162,17 @@ impl AssemblyExportSummary {
             package: Some(package),
             ..Self::of_interior((folder, name), interior, GlbSummary::default())
         }
+    }
+
+    pub(crate) fn with_mismatches(mut self, mismatches: Vec<PortMismatch>) -> Self {
+        self.mismatches = mismatches;
+        self
+    }
+
+    /// Returns the replacements that were written although their Entity does not fit the port.
+    #[must_use]
+    pub fn mismatches(&self) -> &[PortMismatch] {
+        &self.mismatches
     }
 
     /// Returns what the Blender package holds, or `None` when the export wrote a GLB file.

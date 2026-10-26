@@ -29,8 +29,7 @@ impl LoadoutResolver<'_> {
                 if let Some(constraints) = node.constraints()
                     && let Err(reason) = constraints.check(&facts)
                 {
-                    plan.reject(&facts, reason);
-                    return false;
+                    plan.mismatch(&facts, reason);
                 }
                 node.attachment = self.attach(&TargetSpec::Reference(guid), None, walk);
                 node.source = PortSource::Replaced;

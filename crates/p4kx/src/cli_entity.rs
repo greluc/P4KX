@@ -31,8 +31,9 @@ pub(crate) struct LoadoutChangeArgs {
     /// Attaches another Entity to a port instead of what it holds, as `<port>=<entity>`: the
     /// port as for --exclude and the Entity a class name, GUID or record path. The Entity is
     /// resolved with its own default Loadout, and the Loadout of the Entity it replaces is
-    /// dropped. An Entity that does not fit the port's item types and sizes is invalid input,
-    /// with the reason. May be given several times.
+    /// dropped. An Entity that does not fit the port's item types and sizes is attached all the
+    /// same, with a warning on stderr and in `incompatible` in the JSON. May be given several
+    /// times.
     #[arg(long, value_name = "PORT=ENTITY")]
     pub(crate) replace: Vec<String>,
 }

@@ -11,6 +11,7 @@ use std::error::Error;
 
 use p4kx_assembly::{
     ChangeError, ChangedLoadout, EntityNode, Incompatibility, LoadoutChanges, LoadoutResolver,
+    ReplacementMismatch,
 };
 use p4kx_dataforge::DataForge;
 use p4kx_testkit::{TestEntity, TestLoadout, TestLoadoutEntry, TestPort};
@@ -225,7 +226,7 @@ fn a_typo_beside_a_docked_vehicle_still_fails_when_stopping() {
     );
 }
 
-fn frame_with(subtypes: &str) -> Result<Result<(), ChangeError>, Box<dyn Error>> {
+fn frame_with(subtypes: &str) -> Result<Vec<ReplacementMismatch>, Box<dyn Error>> {
     let frame = format!(
         r#"<Vehicle name="TEST_Frame"><Parts><Part name="body" class="Animated"><Parts>
         <Part name="hardpoint_gun" class="ItemPort">
@@ -250,27 +251,29 @@ fn frame_with(subtypes: &str) -> Result<Result<(), ChangeError>, Box<dyn Error>>
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
     let record = resolver.entities().find("TEST_Frame")?;
     Ok(resolver
-        .resolve_with(
+        .resolve_changed(
             &record,
             &LoadoutChanges::new().replace("hardpoint_gun", "GUN_POINT_DEFENCE"),
-        )
-        .map(|_| ()))
+        )?
+        .mismatches()
+        .to_vec())
 }
 
 #[test]
 fn the_subtypes_of_a_vehicle_item_port_are_checked() -> TestResult {
-    let rejected = frame_with("Gun, Missile")?;
+    let reported = frame_with("Gun, Missile")?;
     assert!(
         matches!(
-            &rejected,
-            Err(ChangeError::Incompatible {
-                reason: Incompatibility::SubType { sub_type, accepted, .. },
-                ..
-            }) if sub_type == "PointDefence" && accepted == &["WeaponGun (Gun, Missile)"]
+            reported.as_slice(),
+            [m] if matches!(
+                m.reason(),
+                Incompatibility::SubType { sub_type, accepted, .. }
+                    if sub_type == "PointDefence" && accepted == &["WeaponGun (Gun, Missile)"]
+            )
         ),
-        "{rejected:?}"
+        "{reported:?}"
     );
-    assert_eq!(frame_with("Missile, PointDefence")?, Ok(()));
-    assert_eq!(frame_with("")?, Ok(()), "no sub-types take every one");
+    assert_eq!(frame_with("Missile, PointDefence")?, []);
+    assert_eq!(frame_with("")?, [], "no sub-types take every one");
     Ok(())
 }

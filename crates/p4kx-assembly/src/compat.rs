@@ -85,7 +85,7 @@ impl PortConstraints {
     pub(crate) fn of_definition(definition: &PortDefinition) -> Option<Self> {
         let constraints = Self {
             min_size: definition.min_size(),
-            max_size: definition.max_size(),
+            max_size: stated_max(definition.min_size(), definition.max_size()),
             types: definition
                 .types()
                 .iter()
@@ -101,7 +101,7 @@ impl PortConstraints {
     pub(crate) fn of_vehicle(port: &VehicleItemPort) -> Option<Self> {
         let constraints = Self {
             min_size: port.min_size(),
-            max_size: port.max_size(),
+            max_size: stated_max(port.min_size(), port.max_size()),
             types: port
                 .item_types()
                 .iter()
@@ -124,7 +124,8 @@ impl PortConstraints {
         self.min_size
     }
 
-    /// Returns the largest item size the port takes, if it states one.
+    /// Returns the largest item size the port takes, if it states one; a largest size of 0 beside
+    /// a smallest size of 0 or none is the unauthored default and counts as none.
     #[must_use]
     pub const fn max_size(&self) -> Option<u32> {
         self.max_size
@@ -140,7 +141,7 @@ impl PortConstraints {
     ///
     /// An item type is matched ignoring ASCII case, and a type that names sub-types takes only
     /// those, except that an item whose sub-type is empty or `UNDEFINED` fits any of them. An
-    /// item that gives no size is not held against the sizes.
+    /// item that gives no size, or size 0, is not held against the sizes.
     ///
     /// # Errors
     ///
@@ -176,7 +177,7 @@ impl PortConstraints {
                 });
             }
         }
-        if let Some(size) = item.size {
+        if let Some(size) = item.size.filter(|size| *size > 0) {
             if let Some(min) = self.min_size
                 && size < min
             {
@@ -253,6 +254,13 @@ impl Incompatibility {
     }
 }
 
+const fn stated_max(min: Option<u32>, max: Option<u32>) -> Option<u32> {
+    match (min, max) {
+        (None | Some(0), Some(0)) => None,
+        _ => max,
+    }
+}
+
 const fn shown(text: &str) -> &str {
     if text.is_empty() { "none" } else { text }
 }
@@ -287,6 +295,48 @@ mod tests {
         assert_eq!(port().check(&gun("UNDEFINED")), Ok(()));
         assert_eq!(port().check(&gun("undefined")), Ok(()));
         assert_eq!(port().check(&gun("Gun")), Ok(()));
+    }
+
+    fn sized(min: Option<u32>, max: Option<u32>, size: u32) -> Result<(), Incompatibility> {
+        let mut item = gun("Gun");
+        item.size = Some(size);
+        PortConstraints {
+            min_size: min,
+            max_size: stated_max(min, max),
+            types: Vec::new(),
+        }
+        .check(&item)
+    }
+
+    #[test]
+    fn a_largest_size_of_zero_with_a_smallest_size_of_zero_or_none_states_no_limit() {
+        assert_eq!(sized(Some(0), Some(0), 1), Ok(()));
+        assert_eq!(sized(None, Some(0), 4), Ok(()));
+        assert_eq!(sized(Some(0), Some(0), 0), Ok(()));
+        assert_eq!(stated_max(Some(0), Some(0)), None);
+        assert_eq!(stated_max(Some(0), Some(3)), Some(3));
+    }
+
+    #[test]
+    fn an_item_of_size_zero_is_not_held_against_the_sizes() {
+        assert_eq!(sized(Some(1), Some(1), 0), Ok(()));
+        assert_eq!(sized(Some(2), Some(3), 0), Ok(()));
+    }
+
+    #[test]
+    fn a_stated_range_is_still_enforced() {
+        assert_eq!(
+            sized(Some(1), Some(1), 2),
+            Err(Incompatibility::TooLarge { size: 2, max: 1 })
+        );
+        assert_eq!(
+            sized(Some(2), Some(2), 1),
+            Err(Incompatibility::TooSmall { size: 1, min: 2 })
+        );
+        assert_eq!(
+            sized(Some(0), Some(3), 4),
+            Err(Incompatibility::TooLarge { size: 4, max: 3 })
+        );
     }
 
     #[test]

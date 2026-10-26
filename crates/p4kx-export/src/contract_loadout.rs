@@ -7,6 +7,16 @@ use serde::Serialize;
 use crate::contract::every_field_required;
 use crate::guid_text::CatalogGuid;
 
+/// Which kind of entry a loadout belongs to; serialised as the strings `ship` and `item`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum EntityKind {
+    /// An entry of `ships`.
+    Ship,
+    /// An entry of `items`.
+    Item,
+}
+
 /// The ports of a ship or of an item that has ports, and what the Default Loadout puts into them.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +27,8 @@ pub(crate) struct Loadout {
     pub(crate) entity_guid: CatalogGuid,
     /// Which kind `entityGuid` is an entry of, `ship` or `item`; a closed set the game may
     /// extend, so the schema keeps a string.
-    pub(crate) entity_kind: &'static str,
+    #[schemars(with = "String")]
+    pub(crate) entity_kind: EntityKind,
     /// The codes of the problems that kept part of the Loadout from being read, e.g.
     /// `xml_loadout`, sorted and without duplicates; empty when everything was read.
     pub(crate) issues: Vec<&'static str>,

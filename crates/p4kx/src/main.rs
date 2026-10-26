@@ -13,6 +13,7 @@ mod catalog_input;
 mod catalog_json;
 mod catalog_json_shops;
 mod catalog_json_slugs;
+mod catalog_size;
 mod channels;
 mod character_package;
 mod chf;

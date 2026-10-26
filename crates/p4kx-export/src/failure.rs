@@ -5,7 +5,10 @@ use std::error::Error;
 
 use p4kx_extraction::{Guid, Record};
 
-/// A Record the catalog build could not read; it is left out of the catalog.
+/// A Record the catalog build could not read; the entry it would have produced is left out.
+///
+/// A ship whose loadout cannot be resolved stays in `ships` without a loadout, and its `reason`
+/// starts with `loadout: `.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CatalogFailure {
     /// The GUID of the Record.
@@ -31,5 +34,13 @@ impl CatalogFailure {
             record_path: record.record_path().map(str::to_owned).unwrap_or_default(),
             reason,
         }
+    }
+
+    /// Returns the failure of the loadout of `record`, which cannot be resolved because of
+    /// `error`.
+    pub(crate) fn of_loadout(record: &Record<'_>, error: &dyn Error) -> Self {
+        let mut failure = Self::of(record, error);
+        failure.reason.insert_str(0, "loadout: ");
+        failure
     }
 }

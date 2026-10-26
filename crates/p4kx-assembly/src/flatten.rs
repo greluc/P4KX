@@ -1,15 +1,45 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::{Attachment, EntityNode, Issue, IssueKind, MAX_ASSEMBLY_DEPTH, PortNode, Target};
+use crate::{
+    Attachment, EntityNode, Geometry, Issue, IssueKind, LandingGear, MAX_ASSEMBLY_DEPTH, PortNode,
+    Target,
+};
 
-/// One part of an Assembly before its model is read: an Entity of the Loadout tree with its port.
+/// One part of an Assembly before its model is read: an Entity of the Loadout tree with its port,
+/// or one landing gear of an Entity, whose `node` is that Entity.
 pub(crate) struct Draft<'t> {
     pub(crate) name: String,
     pub(crate) path: String,
     pub(crate) port: Option<&'t PortNode>,
+    pub(crate) gear: Option<&'t LandingGear>,
     pub(crate) node: &'t EntityNode,
     pub(crate) parent: Option<usize>,
+}
+
+impl Draft<'_> {
+    /// Returns the class name of the Entity part, or the bone of a landing gear.
+    pub(crate) fn class_name(&self) -> &str {
+        self.gear
+            .map_or_else(|| self.node.class_name(), LandingGear::bone)
+    }
+
+    /// Returns the geometry the Entity of an Entity part names; a landing gear names a bare path.
+    pub(crate) const fn geometry(&self) -> Option<&Geometry> {
+        if self.gear.is_some() {
+            None
+        } else {
+            self.node.geometry()
+        }
+    }
+
+    /// Returns the path of the model file the part draws.
+    pub(crate) fn geometry_path(&self) -> Option<&str> {
+        self.gear.map_or_else(
+            || self.node.geometry().map(Geometry::path),
+            |gear| Some(gear.geometry()).filter(|path| !path.is_empty()),
+        )
+    }
 }
 
 /// The parts of a Loadout tree in order, every part after its parent, and what could not be
@@ -28,6 +58,7 @@ pub(crate) fn flatten(root: &EntityNode, max_parts: usize) -> Flat<'_> {
                 name: root.class_name().to_owned(),
                 path: String::new(),
                 port: None,
+                gear: None,
                 node: root,
                 parent: None,
             }],
@@ -36,6 +67,7 @@ pub(crate) fn flatten(root: &EntityNode, max_parts: usize) -> Flat<'_> {
         full: false,
         max_parts,
     };
+    walker.gears(root, 0, "");
     walker.ports(root.ports(), 0, "", 1);
     walker.flat
 }
@@ -111,10 +143,44 @@ impl<'t> Walker<'t> {
             name: format!("{}/{}", port.name(), child.class_name()),
             path: path.to_owned(),
             port: Some(port),
+            gear: None,
             node: child,
             parent: Some(owner),
         });
+        self.gears(child, index, path);
         self.ports(child.ports(), index, path, depth + 1);
+    }
+
+    fn gears(&mut self, node: &'t EntityNode, index: usize, path: &str) {
+        if node.is_docked_vehicle() && !node.is_expanded() {
+            return;
+        }
+        for gear in node.landing_gear() {
+            if self.flat.drafts.len() >= self.max_parts {
+                self.full = true;
+                self.issue(
+                    path,
+                    gear.bone(),
+                    IssueKind::TooManyParts {
+                        limit: self.max_parts,
+                    },
+                );
+                return;
+            }
+            let gear_path = if path.is_empty() {
+                format!("landing_gear/{}", gear.bone())
+            } else {
+                format!("{path}/landing_gear/{}", gear.bone())
+            };
+            self.flat.drafts.push(Draft {
+                name: format!("landing_gear/{}", gear.bone()),
+                path: gear_path,
+                port: None,
+                gear: Some(gear),
+                node,
+                parent: Some(index),
+            });
+        }
     }
 
     fn issue(&mut self, path: &str, name: &str, kind: IssueKind) {

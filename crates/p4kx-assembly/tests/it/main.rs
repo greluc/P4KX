@@ -8,6 +8,7 @@ mod assembly_build;
 mod assembly_changes;
 mod assembly_followups;
 mod assembly_glb;
+mod assembly_landing_gear;
 mod assembly_limits;
 mod assembly_palettes;
 mod assembly_support;

@@ -92,7 +92,7 @@ impl Assembly {
             }
             note_attachments(draft, *model, &mut characters, &mut issues);
             let palette = if model.is_some() {
-                let (palette, unresolved) = palettes.of(draft.node.geometry(), &materials);
+                let (palette, unresolved) = palettes.of(draft.geometry(), &materials);
                 issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
                 palette
             } else {
@@ -107,12 +107,12 @@ impl Assembly {
                 name: draft.name.clone(),
                 path: draft.path.clone(),
                 guid: draft.node.guid(),
-                class_name: draft.node.class_name().to_owned(),
+                class_name: draft.class_name().to_owned(),
                 parent: draft.parent,
                 local,
                 world,
                 placement,
-                geometry: draft.node.geometry().map(|g| g.path().to_owned()),
+                geometry: draft.geometry_path().map(str::to_owned),
                 model: model.map(|loaded| Arc::clone(&loaded.model)),
                 materials,
                 palette,
@@ -135,7 +135,8 @@ fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
     drafts
         .iter()
         .map(|draft| {
-            if draft.node.is_docked_vehicle() && !draft.node.is_expanded() {
+            if draft.gear.is_some() || (draft.node.is_docked_vehicle() && !draft.node.is_expanded())
+            {
                 Arc::clone(&none)
             } else {
                 Arc::clone(&draft.node.object_containers)
@@ -151,9 +152,9 @@ fn note_attachments(
     seen: &mut HashSet<String>,
     issues: &mut Vec<Issue>,
 ) {
-    if let (Some(loaded), Some(geometry)) = (model, draft.node.geometry())
+    if let (Some(loaded), Some(path)) = (model, draft.geometry_path())
         && !loaded.left_out.is_empty()
-        && seen.insert(file_key(geometry.path()))
+        && seen.insert(file_key(path))
     {
         let files = loaded.left_out.clone();
         issues.push(issue(draft, IssueKind::AttachmentsLeftOut { files }));
@@ -163,7 +164,7 @@ fn note_attachments(
 pub(crate) fn issue(draft: &Draft<'_>, kind: IssueKind) -> Issue {
     Issue {
         path: draft.path.clone(),
-        name: draft.node.class_name().to_owned(),
+        name: draft.class_name().to_owned(),
         kind,
     }
 }
@@ -182,7 +183,6 @@ pub(crate) fn file_key(path: &str) -> String {
 /// its model names.
 fn library_name<'a>(draft: &'a Draft<'_>, loaded: &'a Loaded) -> Option<&'a str> {
     draft
-        .node
         .geometry()
         .and_then(|geometry| geometry.material())
         .or(loaded.model.material_library.as_deref())
@@ -242,6 +242,9 @@ fn place(
     let Some(parent) = draft.parent.and_then(|parent| parts.get(parent)) else {
         return (Transform::IDENTITY, Placement::Root);
     };
+    if let Some(gear) = draft.gear {
+        return place_gear(draft, gear.bone(), parent, issues);
+    }
     let Some(port) = draft.port else {
         return (Transform::IDENTITY, Placement::Origin);
     };
@@ -273,6 +276,24 @@ fn place(
         local = local.then(&inner);
     }
     (local, placement)
+}
+
+/// Returns the transform of a landing gear: the node `bone` of its Entity's model.
+fn place_gear(
+    draft: &Draft<'_>,
+    bone: &str,
+    parent: &Part,
+    issues: &mut Vec<Issue>,
+) -> (Transform, Placement) {
+    let Some(parent_model) = parent.model() else {
+        return (Transform::IDENTITY, Placement::Origin);
+    };
+    if let Some(transform) = node_transform(parent_model, bone) {
+        return (transform, Placement::Helper(bone.to_owned()));
+    }
+    let helper = bone.to_owned();
+    issues.push(issue(draft, IssueKind::HelperNotFound { helper }));
+    (Transform::IDENTITY, Placement::Origin)
 }
 
 /// Finds the node of the parent's model a port is anchored to: its helper, else a node named

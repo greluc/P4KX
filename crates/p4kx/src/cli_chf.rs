@@ -53,7 +53,7 @@ pub(crate) enum ChfAction {
     /// that a known name matches is shown as the name, and `--archive` adds the names the Archive
     /// knows; the raw path of each change keeps the hashes. Ports, materials and parameters are
     /// paired by hash, so a different order is no difference, and the compressed container is
-    /// not compared. Exits with code 0 whether or not the files differ.
+    /// not compared. Exits with code 1 when the files differ, as `compare` does, and 0 when not.
     #[command(after_help = EXIT_CODES_HELP)]
     Diff(ChfDiffArgs),
     /// Writes the head of a CHF character as one skinned glTF 2.0 binary file (GLB): the head

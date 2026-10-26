@@ -31,8 +31,11 @@ fn diff(a: &TestChf, b: &TestChf, extra: &[&str]) -> Result<String, Box<dyn Erro
         .arg(b)
         .args(extra)
         .output()?;
-    assert_eq!(output.status.code(), Some(0), "{output:?}");
-    Ok(String::from_utf8(output.stdout)?)
+    let out = String::from_utf8(output.stdout.clone())?;
+    let identical = out == "no differences\n" || out.contains("\"identical\":true");
+    let expected = i32::from(!identical);
+    assert_eq!(output.status.code(), Some(expected), "{output:?}");
+    Ok(out)
 }
 
 fn named() -> TestChf {
@@ -129,6 +132,7 @@ fn global_json_flag_matches_the_json_format() -> TestResult {
         .arg(&a)
         .output()?;
 
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
     let json: Value = serde_json::from_slice(&output.stdout)?;
     assert_eq!(json["identical"], true);
     Ok(())
@@ -163,14 +167,17 @@ fn added_and_removed_ports_and_header_changes_are_listed() -> TestResult {
 }
 
 #[test]
-fn a_different_order_of_materials_is_no_difference() -> TestResult {
+fn a_different_order_of_materials_is_one_order_change_and_exit_code_1() -> TestResult {
     let old = TestChf::v8();
     let mut new = TestChf::v8();
     new.materials.reverse();
 
     let out = diff(&old, &new, &[])?;
 
-    assert_eq!(out, "no differences\n");
+    assert_eq!(
+        out,
+        "materials.order: 0x0badcafe, 0x0deadbee -> 0x0deadbee, 0x0badcafe\n"
+    );
     Ok(())
 }
 

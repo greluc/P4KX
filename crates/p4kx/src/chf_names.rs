@@ -13,19 +13,7 @@ use p4kx_extraction::DataForgeEntry;
 /// Returns the names of the built-in table, extended with those the Archive at `archive` knows
 /// for the hashes of `chf`.
 pub(crate) fn names_for(archive: Option<&Path>, chf: &Chf) -> Result<NameTable> {
-    let Some(path) = archive else {
-        return Ok(NameTable::builtin());
-    };
-    let archive = crate::key::open(path)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
-    let mut resolver = LoadoutResolver::new(&forge);
-    let models = ArchiveModels::new(&archive);
-    Ok(archive_names(
-        &chf.character,
-        &mut ForgeItems::new(&mut resolver),
-        &models,
-    ))
+    names_for_all(archive, &[chf])
 }
 
 /// Returns the names of the built-in table, extended with those the Archive at `archive` knows

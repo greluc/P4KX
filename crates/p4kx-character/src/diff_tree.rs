@@ -4,18 +4,35 @@
 use std::collections::HashMap;
 
 use crate::diff::{Changes, Trail, hex, text};
-use crate::{ItemPort, Material, NameTable, SubMaterial};
+use crate::{ColorParam, FloatParam, ItemPort, Material, NameTable, SubMaterial, Texture};
 
 /// How the items of a list are paired, named and shown when only one file has them.
 struct Kind<T> {
     key: fn(&T) -> u32,
     name: for<'n> fn(&'n NameTable, u32) -> Option<&'n str>,
     value: fn(&T) -> String,
+    numbered: bool,
 }
 
-type Pair<'a, T> = (u32, usize, Option<&'a T>, Option<&'a T>);
+impl<T> Kind<T> {
+    fn label(&self, names: &NameTable, hash: u32) -> String {
+        if self.numbered {
+            hash.to_string()
+        } else {
+            (self.name)(names, hash).map_or_else(|| hex(&hash), str::to_owned)
+        }
+    }
+}
 
-fn ordinals<T>(items: &[T], key: fn(&T) -> u32) -> Vec<((u32, usize), &T)> {
+struct Paired<'a, T> {
+    hash: u32,
+    ordinal: usize,
+    old: Option<&'a T>,
+    new: Option<&'a T>,
+    new_at: Option<usize>,
+}
+
+fn ordinals<T>(items: &[T], key: fn(&T) -> u32) -> Vec<(u32, usize)> {
     let mut seen: HashMap<u32, usize> = HashMap::with_capacity(items.len());
     items
         .iter()
@@ -24,56 +41,139 @@ fn ordinals<T>(items: &[T], key: fn(&T) -> u32) -> Vec<((u32, usize), &T)> {
             let ordinal = seen.entry(hash).or_default();
             let at = *ordinal;
             *ordinal += 1;
-            ((hash, at), item)
+            (hash, at)
         })
         .collect()
 }
 
-/// Pairs the n-th item with a hash in one list with the n-th in the other. The pairs follow the
-/// first list, the items only in the second come last.
-fn pair<'a, T>(old: &'a [T], new: &'a [T], key: fn(&T) -> u32) -> Vec<Pair<'a, T>> {
-    let new_items = ordinals(new, key);
-    let mut unmatched: HashMap<(u32, usize), &T> = new_items.iter().copied().collect();
-    let mut pairs: Vec<_> = ordinals(old, key)
-        .into_iter()
-        .map(|((hash, ordinal), item)| {
-            (
-                hash,
-                ordinal,
-                Some(item),
-                unmatched.remove(&(hash, ordinal)),
-            )
+fn first_free(
+    keys: &[(u32, usize)],
+    taken: &[bool],
+    hash: u32,
+    accept: impl Fn(usize) -> bool,
+) -> Option<usize> {
+    keys.iter()
+        .zip(taken)
+        .enumerate()
+        .find(|(at, ((other, _), taken))| !**taken && *other == hash && accept(*at))
+        .map(|(at, _)| at)
+}
+
+fn claim(mate: Option<usize>, taken: &mut [bool]) -> Option<usize> {
+    if let Some(slot) = mate.and_then(|at| taken.get_mut(at)) {
+        *slot = true;
+    }
+    mate
+}
+
+/// Pairs the items of two lists that have the same hash: first those that are equal, then the
+/// rest in order. The pairs follow the first list, the items only in the second come last.
+fn pair<'a, T: PartialEq>(old: &'a [T], new: &'a [T], key: fn(&T) -> u32) -> Vec<Paired<'a, T>> {
+    let old_keys = ordinals(old, key);
+    let new_keys = ordinals(new, key);
+    let mut taken = vec![false; new.len()];
+    let mut mates: Vec<Option<usize>> = Vec::with_capacity(old.len());
+    for (item, (hash, _)) in old.iter().zip(&old_keys) {
+        let mate = first_free(&new_keys, &taken, *hash, |at| new.get(at) == Some(item));
+        mates.push(claim(mate, &mut taken));
+    }
+    for (mate, (hash, _)) in mates.iter_mut().zip(&old_keys) {
+        if mate.is_none() {
+            let found = first_free(&new_keys, &taken, *hash, |_| true);
+            *mate = claim(found, &mut taken);
+        }
+    }
+    let mut pairs: Vec<_> = old
+        .iter()
+        .zip(&old_keys)
+        .zip(&mates)
+        .map(|((item, (hash, ordinal)), mate)| Paired {
+            hash: *hash,
+            ordinal: *ordinal,
+            old: Some(item),
+            new: mate.and_then(|at| new.get(at)),
+            new_at: *mate,
         })
         .collect();
     pairs.extend(
-        new_items
-            .into_iter()
-            .filter(|(key, _)| unmatched.contains_key(key))
-            .map(|((hash, ordinal), item)| (hash, ordinal, None, Some(item))),
+        new.iter()
+            .zip(&new_keys)
+            .zip(&taken)
+            .filter(|(_, taken)| !**taken)
+            .map(|((item, (hash, ordinal)), _)| Paired {
+                hash: *hash,
+                ordinal: *ordinal,
+                old: None,
+                new: Some(item),
+                new_at: None,
+            }),
     );
     pairs
 }
 
-fn each<T>(
+fn each<T: PartialEq>(
     changes: &mut Changes<'_>,
     trail: &Trail,
     lists: (&[T], &[T]),
     kind: &Kind<T>,
     both: impl Fn(&mut Changes<'_>, &Trail, &T, &T),
 ) {
-    for (hash, ordinal, old, new) in pair(lists.0, lists.1, kind.key) {
-        let at = trail.hashed(hash, ordinal, (kind.name)(changes.names, hash));
-        match (old, new) {
-            (Some(old), Some(new)) => both(changes, &at, old, new),
+    let pairs = pair(lists.0, lists.1, kind.key);
+    for pair in &pairs {
+        let label = kind.label(changes.names, pair.hash);
+        let at = trail.segment(&label, &hex(&pair.hash), pair.ordinal);
+        match (pair.old, pair.new) {
+            (Some(old), Some(new)) if old != new => both(changes, &at, old, new),
             (Some(old), None) => changes.removed(&at, (kind.value)(old)),
             (None, Some(new)) => changes.added(&at, (kind.value)(new)),
-            (None, None) => {}
+            _ => {}
         }
+    }
+    let mut matched: Vec<(usize, &Paired<'_, T>)> = pairs
+        .iter()
+        .filter_map(|pair| pair.new_at.map(|at| (at, pair)))
+        .collect();
+    if matched
+        .iter()
+        .zip(matched.iter().skip(1))
+        .any(|(a, b)| a.0 > b.0)
+    {
+        let names = changes.names;
+        let list = |matched: &[(usize, &Paired<'_, T>)]| {
+            matched
+                .iter()
+                .map(|(_, pair)| {
+                    let label = kind.label(names, pair.hash);
+                    if pair.ordinal == 0 {
+                        label
+                    } else {
+                        format!("{label}#{}", pair.ordinal)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let old = list(&matched);
+        matched.sort_by_key(|(at, _)| *at);
+        changes.replaced(&trail.key("order"), old, list(&matched));
     }
 }
 
+fn plural(count: u64, one: &str, many: &str) -> String {
+    format!("{count} {}", if count == 1 { one } else { many })
+}
+
 fn port_text(port: &ItemPort) -> String {
-    format!("item {}", port.item)
+    let children = port.count().saturating_sub(1);
+    if children == 0 {
+        format!("item {}", port.item)
+    } else {
+        format!(
+            "item {}, {}",
+            port.item,
+            plural(children, "child port", "child ports")
+        )
+    }
 }
 
 pub(crate) fn diff_ports(
@@ -100,6 +200,7 @@ fn port_fields(changes: &mut Changes<'_>, trail: &Trail, old: &ItemPort, new: &I
         key: |port: &ItemPort| port.port,
         name: NameTable::port,
         value: port_text,
+        numbered: false,
     };
     each(
         changes,
@@ -108,6 +209,18 @@ fn port_fields(changes: &mut Changes<'_>, trail: &Trail, old: &ItemPort, new: &I
         &kind,
         port_fields,
     );
+}
+
+fn material_text(material: &Material) -> String {
+    format!(
+        "base material {}, {}",
+        material.base_material,
+        plural(
+            material.sub_materials.len() as u64,
+            "sub-material",
+            "sub-materials"
+        )
+    )
 }
 
 pub(crate) fn diff_materials(
@@ -119,7 +232,8 @@ pub(crate) fn diff_materials(
     let kind = Kind {
         key: |material: &Material| material.attachment,
         name: NameTable::attachment,
-        value: |material| format!("base material {}", material.base_material),
+        value: material_text,
+        numbered: false,
     };
     each(changes, trail, (old, new), &kind, material);
 }
@@ -138,7 +252,15 @@ fn material(changes: &mut Changes<'_>, at: &Trail, old: &Material, new: &Materia
     let kind = Kind {
         key: |sub: &SubMaterial| sub.name,
         name: NameTable::sub_material,
-        value: |_| "present".to_owned(),
+        value: |sub| {
+            format!(
+                "{}, {}, {}",
+                plural(sub.textures.len() as u64, "texture", "textures"),
+                plural(sub.floats.len() as u64, "float", "floats"),
+                plural(sub.colors.len() as u64, "colour", "colours")
+            )
+        },
+        numbered: false,
     };
     each(
         changes,
@@ -150,23 +272,26 @@ fn material(changes: &mut Changes<'_>, at: &Trail, old: &Material, new: &Materia
 }
 
 fn sub_material(changes: &mut Changes<'_>, at: &Trail, old: &SubMaterial, new: &SubMaterial) {
-    let textures = at.key("textures");
-    for slot in sorted_slots(old, new) {
-        let find = |sub: &SubMaterial| sub.textures.iter().find(|t| t.slot == slot).copied();
-        let place = textures.key(&slot.to_string());
-        match (find(old), find(new)) {
-            (Some(old), Some(new)) => {
-                changes.field(&place, "texture", &old.texture, &new.texture, text);
-            }
-            (Some(old), None) => changes.removed(&place, old.texture.to_string()),
-            (None, Some(new)) => changes.added(&place, new.texture.to_string()),
-            (None, None) => {}
-        }
-    }
+    let textures = Kind {
+        key: |texture: &Texture| u32::from(texture.slot),
+        name: |_, _| None,
+        value: |texture| texture.texture.to_string(),
+        numbered: true,
+    };
+    each(
+        changes,
+        &at.key("textures"),
+        (&old.textures, &new.textures),
+        &textures,
+        |changes, at, old, new| {
+            changes.field(at, "texture", &old.texture, &new.texture, text);
+        },
+    );
     let floats = Kind {
-        key: |float: &crate::FloatParam| float.name,
+        key: |float: &FloatParam| float.name,
         name: NameTable::param,
         value: |float| float_text(float.value),
+        numbered: false,
     };
     each(
         changes,
@@ -184,9 +309,10 @@ fn sub_material(changes: &mut Changes<'_>, at: &Trail, old: &SubMaterial, new: &
         },
     );
     let colors = Kind {
-        key: |color: &crate::ColorParam| color.name,
+        key: |color: &ColorParam| color.name,
         name: NameTable::param,
         value: |color| colour_text(color.rgba),
+        numbered: false,
     };
     each(
         changes,
@@ -197,18 +323,6 @@ fn sub_material(changes: &mut Changes<'_>, at: &Trail, old: &SubMaterial, new: &
             changes.field(at, "rgba", &old.rgba, &new.rgba, |rgba| colour_text(*rgba));
         },
     );
-}
-
-fn sorted_slots(old: &SubMaterial, new: &SubMaterial) -> Vec<u8> {
-    let mut slots: Vec<u8> = old
-        .textures
-        .iter()
-        .chain(&new.textures)
-        .map(|texture| texture.slot)
-        .collect();
-    slots.sort_unstable();
-    slots.dedup();
-    slots
 }
 
 fn float_text(value: f32) -> String {

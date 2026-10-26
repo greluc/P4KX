@@ -3,6 +3,7 @@
 
 use std::io::{self, BufWriter, Write};
 use std::path::Path;
+use std::process::ExitCode;
 
 use anyhow::Result;
 use p4kx_assembly::character::{CHF_SIZE, Chf, ChfChange, diff_chf};
@@ -11,6 +12,7 @@ use serde::Serialize;
 use crate::chf::{InvalidChf, read_capped};
 use crate::chf_names;
 use crate::cli::{ChfDiffArgs, ChfDiffFormat};
+use crate::compare::finish;
 use crate::json;
 
 #[derive(Serialize)]
@@ -41,7 +43,7 @@ fn read(path: &Path) -> Result<Chf> {
 }
 
 /// Runs `p4kx chf diff`.
-pub(crate) fn run(args: &ChfDiffArgs, as_json: bool) -> Result<()> {
+pub(crate) fn run(args: &ChfDiffArgs, as_json: bool) -> Result<ExitCode> {
     let (old, new) = (read(&args.a)?, read(&args.b)?);
     let names = chf_names::names_for_all(args.archive.as_deref(), &[&old, &new])?;
     let changes = diff_chf(&old, &new, &names);
@@ -60,9 +62,9 @@ pub(crate) fn run(args: &ChfDiffArgs, as_json: bool) -> Result<()> {
                 })
                 .collect(),
         };
-        return Ok(json::print(&report)?);
+        return finish(json::print(&report), !changes.is_empty());
     }
-    Ok(print_text(&changes)?)
+    finish(print_text(&changes), !changes.is_empty())
 }
 
 fn print_text(changes: &[ChfChange]) -> io::Result<()> {

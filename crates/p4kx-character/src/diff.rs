@@ -32,14 +32,14 @@ impl Trail {
         self.join(key, key)
     }
 
-    pub(crate) fn hashed(&self, hash: u32, ordinal: usize, name: Option<&str>) -> Self {
-        let raw = format!("{hash:#010x}");
-        let mut text = name.map_or_else(|| raw.clone(), str::to_owned);
-        let mut raw = raw;
-        if ordinal > 0 {
-            let _infallible = write!(text, "#{ordinal}");
-            let _infallible = write!(raw, "#{ordinal}");
+    pub(crate) fn segment(&self, text: &str, raw: &str, ordinal: usize) -> Self {
+        if ordinal == 0 {
+            return self.join(text, raw);
         }
+        let mut text = text.to_owned();
+        let mut raw = raw.to_owned();
+        let _infallible = write!(text, "#{ordinal}");
+        let _infallible = write!(raw, "#{ordinal}");
         self.join(&text, &raw)
     }
 
@@ -93,6 +93,10 @@ impl<'n> Changes<'n> {
         self.push(trail, None, Some(value));
     }
 
+    pub(crate) fn replaced(&mut self, trail: &Trail, old: String, new: String) {
+        self.push(trail, Some(old), Some(new));
+    }
+
     fn push(&mut self, trail: &Trail, old: Option<String>, new: Option<String>) {
         self.list.push(ChfChange {
             path: trail.text.clone(),
@@ -118,10 +122,12 @@ pub(crate) fn hex(value: &u32) -> String {
 /// Returns what differs between `old` and `new`, in the order of the JSON form, with the hashes
 /// that `names` knows spelled out in [`ChfChange::path`].
 ///
-/// Item ports, materials, sub-materials and parameters are matched by their hash, textures by
-/// their slot, so a different order is no change. The bytes of the container are not compared
-/// except the header flags: the compressed frame is a coding of the body, not part of the
-/// character.
+/// Item ports, materials, sub-materials, parameters and textures are paired by their hash (the
+/// slot for a texture): equal items first, then the rest in order, a repeat of a hash getting
+/// `#n`. Items that exist in both files in another order give one `order` change at their list
+/// with the labels in either order. The bytes of the container are not compared except the header
+/// flags: the compressed frame is a coding of the body, not part of the character. Both files
+/// must come from [`Chf::read`], which keeps the item port depth within [`crate::MAX_PORT_DEPTH`].
 #[must_use]
 pub fn diff_chf(old: &Chf, new: &Chf, names: &NameTable) -> Vec<ChfChange> {
     let mut changes = Changes::new(names);

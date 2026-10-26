@@ -40,7 +40,7 @@ pub(crate) const SUCCESS: u8 = 0;
 /// definition of a UI movie cannot be read or written, a model cannot be exported or written or has
 /// a layout that is not implemented, or `wwise events` cannot look up the Entities.
 pub(crate) const PARTIAL_FAILURE: u8 = 1;
-/// A Comparison found differences.
+/// A Comparison found differences, or `chf diff` found two CHF files that differ.
 pub(crate) const DIFFERENCES: u8 = 1;
 /// The command line is invalid, names an Entry the Archive does not contain (for a line diff:
 /// neither Archive contains), a file or geometry companion that does not exist, a mip level the
@@ -89,7 +89,7 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      without it) or whose expressions it could not make, or a name given to --expression that
      the rig lacks or that moves no vertex (the GLB is written without them); wwise events: the
      Entities cannot be looked up (the triggers are still listed); compare: the Archives or the
-     --diff Entry differ
+     --diff Entry differ; chf diff: the CHF files differ
   2  invalid input: bad arguments, an Entry path the Archive does not contain (for --diff:
      neither Archive contains), a Filter that matches no Entry or Record, a Channel path that
      does not exist or was never added, a texture, sound, soundbank, chunk file, UI movie

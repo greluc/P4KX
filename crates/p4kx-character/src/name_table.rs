@@ -114,7 +114,8 @@ impl NameTable {
         true
     }
 
-    /// Adds the names of `other` this table lacks, within the limit of [`MAX_NAMES`] a kind.
+    /// Adds the names of `other` this table lacks: existing names win, each kind is merged
+    /// apart, and a kind that holds [`MAX_NAMES`] names takes no more.
     pub fn merge(&mut self, other: &Self) {
         let join = |into: &mut HashMap<u32, String>, from: &HashMap<u32, String>| {
             for (hash, name) in from {

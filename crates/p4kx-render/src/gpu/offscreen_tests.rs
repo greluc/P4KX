@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use super::deadline::arm;
 use super::{
     Adapters, AssemblyDraw, Colours, Frame, Look, Offscreen, OffscreenError, Shading, Subject,
 };
@@ -16,6 +17,7 @@ const SIZE: [u32; 2] = [96, 64];
     reason = "tells the test run why a test checked nothing"
 )]
 pub(super) fn open(test: &str) -> Option<Offscreen> {
+    arm(test);
     match Offscreen::new(Adapters::Best) {
         Ok(offscreen) => Some(offscreen),
         Err(error) => {

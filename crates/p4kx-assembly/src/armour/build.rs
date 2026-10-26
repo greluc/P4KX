@@ -211,41 +211,40 @@ fn drawn_with(
     {
         issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
     }
-    let looked = job
-        .look
+    let painted = painted(tints, library, job, issues);
+    job.look
         .as_ref()
-        .and_then(|look| look.apply(&library))
-        .map_or(library, Arc::new);
-    painted(tints, looked, job, issues)
+        .and_then(|look| look.apply(&painted))
+        .map_or(painted, Arc::new)
 }
 
 /// Returns `materials` drawn with the tint palette of the job's geometry, else the default
 /// palette of their library, so that layers with a `PaletteTint` take the palette's entries;
-/// unchanged without a palette or when no material takes one.
+/// unchanged, and no palette resolved, when no material takes one.
 fn painted(
     tints: &mut Palettes<'_>,
     materials: Arc<MaterialStatus>,
     job: &Job,
     issues: &mut Vec<Issue>,
 ) -> Arc<MaterialStatus> {
+    let Some(library) = materials
+        .library()
+        .filter(|library| library.materials.iter().any(|m| m.palette.is_some()))
+    else {
+        return materials;
+    };
     let (palette, unresolved) = tints.of_named(job.palette.as_ref(), &materials);
     issues.extend(unresolved.into_iter().map(|kind| issue(job, kind)));
-    let (Some(palette), Some(library)) = (palette, materials.library()) else {
+    let Some(palette) = palette else {
         return materials;
     };
     let mut library = library.clone();
-    let mut changed = false;
     for material in &mut library.materials {
         if let Some(tinted) = palette.apply(material) {
             *material = tinted;
-            changed = true;
         }
     }
-    if changed {
-        Arc::new(MaterialStatus::Loaded(library))
-    } else {
-        materials
-    }
+    Arc::new(MaterialStatus::Loaded(library))
 }
 
 /// Returns the model of a job as it is worn, shaped by the job's DNA if it has one, and its morph

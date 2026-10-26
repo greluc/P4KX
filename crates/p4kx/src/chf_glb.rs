@@ -126,7 +126,7 @@ fn glb_options(args: &ChfGlbArgs) -> GlbOptions {
 }
 
 /// Builds the Armour of `head` at the level of detail `lod`, drawn with its tint palettes.
-fn dressed(
+fn armour_of(
     head: &Head,
     models: &ArchiveModels<'_>,
     palettes: ForgePalettes<'_>,
@@ -159,7 +159,7 @@ pub(crate) fn run(args: &ChfGlbArgs, as_json: bool) -> Result<()> {
     let head = Head::dressed(&chf.character, &mut ForgeItems::new(&mut resolver))?
         .with_expressions(&expressions_of(args));
     let models = ArchiveModels::new(&archive);
-    let armour = dressed(&head, &models, ForgePalettes::new(&forge), args.lod)?;
+    let armour = armour_of(&head, &models, ForgePalettes::new(&forge), args.lod)?;
 
     let glb = glb_options(args);
     let name = head.variant().code().to_owned();

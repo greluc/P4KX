@@ -20,8 +20,8 @@ use p4kx_testkit::gltf::material::AlphaMode;
 use p4kx_testkit::{
     DRESSED_BROWS, DRESSED_EYES, DRESSED_GONE_HAIR, DRESSED_HAIR, DRESSED_HAIR_OPACITY,
     DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL, DRESSED_UNKNOWN_MATERIAL, HEAD_REGIONS,
-    HEAD_VERTICES, MALE_RIG_HASH, SplitDds, TestChf, TestEntry, TestItemPort, TestMaterial,
-    TestSubMaterial, TestTextureFormat, check_glb, dressed_entries, head_rig,
+    HEAD_VERTICES, MALE_BODY_TYPE, MALE_RIG_HASH, SplitDds, TestChf, TestEntry, TestItemPort,
+    TestMaterial, TestSubMaterial, TestTextureFormat, check_glb, dressed_entries, head_rig,
 };
 
 use crate::assembly_support::{TestResult, fixture};
@@ -89,6 +89,7 @@ fn character() -> Result<Chf, Box<dyn Error>> {
     let head = port("head_itemport", 0x900, items)?;
     let float = |name: &str, value: f32| (name_hash(name), value.to_bits());
     let test = TestChf {
+        body_type: MALE_BODY_TYPE,
         dna_hashes: Some((MALE_RIG_HASH, 0)),
         face_parts: (0..HEAD_REGIONS)
             .map(|part| {

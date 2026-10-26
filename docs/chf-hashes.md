@@ -7,7 +7,8 @@ interchangeable. The helpers live in `p4kx_character` (`names.rs`).
 |---|---|---|---|
 | DNA magic (`DNA_MAGIC`, `0xFCD09394`) | CRC-32C | `dna matrix 1.0` | `name_hash` |
 | `Dna::gender_hash` | CRC-32C | rig name `protos_human_<male\|female>_face_t1_pu`; male `0xDD6C67F6`, female `0x9EF4EB54` | `name_hash` |
-| `Dna::variant_hash` | unknown | the low half of the rig's identity | none |
+| `Dna::variant_hash` | unknown | the low half of the rig's identity; a build stamp, it differs between CHFs of one body type and is not checked (ADR-0197) | none |
+| `Character::body_type` (a GUID) | none | male `25f439d5-146b-4a61-a999-a486dfb68a49` with the male rig, female `d0794a94-efb0-4cad-ad38-2558b4d3c253` with the female rig; checked against `gender_hash` (ADR-0197) | none |
 | `ItemPort::port` | CRC-32C | lower-cased port name, e.g. `head_itemport` | `lowered_hash` |
 | `Material::attachment` | CRC-32 (IEEE) | lower-cased port name followed by `_skinitemport` | `skin_attachment` |
 | `SubMaterial::name` | CRC-32C | lower-cased sub-material name, e.g. `shader_eyeInner` | `lowered_hash` |

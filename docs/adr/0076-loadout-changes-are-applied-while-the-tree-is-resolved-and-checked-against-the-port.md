@@ -27,7 +27,8 @@ front-end see one tree and the Assembly needs no knowledge of them:
 - A replacement by the root Entity or by an Entity the port lies below would put the tree inside
   itself, and is an error (`ChangeError::Cycle`).
 - Where docked vehicles are not expanded (`entity glb` by default), the ports below one are not
-  in the tree, so a change to such a port, as `entity loadout` lists it, is ignored and no error.
+  in the tree, so a change to such a port, as `entity loadout` lists it, is not applied and no error. The resolver returns such paths (`ChangedLoadout::ignored`) and
+  the front-ends warn about them on stderr and list them as `ignored` in the JSON.
 
 ## Compatibility
 
@@ -38,7 +39,10 @@ Record defines the port, else from the item port of the vehicle implementation (
 `maxSize` and `Types`), which is where most ship hardpoints are declared. Types and sub-types are
 compared ignoring ASCII case; a port that lists no types takes any, an Entity without an item type
 does not fit a port that lists some, and an Entity that gives no size is not held against the
-sizes. A port with no constraints at all takes any Entity. The rejection carries the reason
+sizes. An Entity whose sub-type is empty or `UNDEFINED` fits any sub-type a port lists, as the
+default quantum and jump drives of the ships do, which carry `UNDEFINED` on ports that list
+`QDrive` and `JumpDrive`; both kinds of port share this rule. A port with no constraints at all
+takes any Entity. The rejection carries the reason
 (`Incompatibility`) and is invalid input in the CLI (exit code 2).
 
 Tags (`PortTags`, `RequiredPortTags`, `AttachDef.Tags`) are not checked: they are References to

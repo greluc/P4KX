@@ -83,7 +83,8 @@ pub(crate) enum EntityAction {
     /// replacement removes are not written. Reads every model once, in parallel. A docked vehicle
     /// (a Merlin in a docking collar, say) is placed as one part, without the parts of its own
     /// Loadout, unless --expand-docked-vehicles is given; a change to a port below such a docked
-    /// vehicle is ignored.
+    /// vehicle is not applied, is no error, and is warned about on stderr and listed as `ignored`
+    /// in the JSON.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(EntityGlbArgs),
     /// Writes an Entity as a Blender package, a folder that does not depend on Blender's file
@@ -91,7 +92,8 @@ pub(crate) enum EntityAction {
     /// hierarchy (names, transforms, the mesh each node draws), one GLB file per distinct mesh
     /// (a model drawn with one material library and palette, however many nodes use it) and
     /// the textures of the materials as PNG files, each written once. The Loadout, parts, levels
-    /// of detail and Loadout changes are those of `entity glb`. The folder must not exist or must
+    /// of detail and Loadout changes are those of `entity glb`, docked vehicles are never
+    /// expanded, and a change below one is not applied and warned about. The folder must not exist or must
     /// hold an earlier package; it is written beside the target first and moved into place when
     /// complete, so a failed or cancelled run leaves nothing behind. Y up, in metres. See
     /// docs/blender-package.md.
@@ -191,7 +193,8 @@ pub(crate) struct EntityLoadoutArgs {
     pub(crate) entity: String,
     /// Stops at docked vehicles, the attached Entities whose item type starts with
     /// `NOITEM_Vehicle`, ignoring case: they stay in their port, marked, but their own ports are
-    /// not listed.
+    /// not listed. A change (--exclude, --replace) to a port below one is not applied, is no
+    /// error, and is warned about on stderr and listed as `ignored` in the JSON.
     #[arg(long)]
     pub(crate) stop_at_docked_vehicles: bool,
     #[command(flatten)]

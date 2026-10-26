@@ -9,7 +9,9 @@ use crate::vehicle_support;
 
 use std::error::Error;
 
-use p4kx_assembly::{ChangeError, EntityNode, Incompatibility, LoadoutChanges, LoadoutResolver};
+use p4kx_assembly::{
+    ChangeError, ChangedLoadout, EntityNode, Incompatibility, LoadoutChanges, LoadoutResolver,
+};
 use p4kx_dataforge::DataForge;
 use p4kx_testkit::{TestEntity, TestLoadout, TestLoadoutEntry, TestPort};
 
@@ -25,6 +27,15 @@ fn resolve(
     stop: bool,
     changes: &LoadoutChanges,
 ) -> Result<EntityNode, ChangeError> {
+    changed(all, root, stop, changes).map(ChangedLoadout::into_node)
+}
+
+fn changed(
+    all: &[TestEntity],
+    root: &str,
+    stop: bool,
+    changes: &LoadoutChanges,
+) -> Result<ChangedLoadout, ChangeError> {
     let bytes = database(all).build();
     let forge = DataForge::open(&bytes).map_err(|error| ChangeError::InvalidPort {
         path: error.to_string(),
@@ -39,7 +50,7 @@ fn resolve(
         .map_err(|error| ChangeError::InvalidPort {
             path: error.to_string(),
         })?;
-    resolver.resolve_with(&record, changes)
+    resolver.resolve_changed(&record, changes)
 }
 
 fn nesting() -> Vec<TestEntity> {
@@ -48,9 +59,57 @@ fn nesting() -> Vec<TestEntity> {
             TestLoadoutEntry::class("bay", "HOLDER"),
             TestLoadoutEntry::class("cargo", "CRATE"),
         ])),
-        entity(0x2, "HOLDER").port(TestPort::new("slot")),
+        entity(0x2, "HOLDER")
+            .port(TestPort::new("slot"))
+            .loadout(TestLoadout::Manual(vec![TestLoadoutEntry::class(
+                "slot", "INNER",
+            )])),
         entity(0x3, "CRATE"),
+        entity(0x4, "INNER").port(TestPort::new("deep")),
     ]
+}
+
+#[test]
+fn replacing_a_port_with_a_grandparent_is_an_error() {
+    let result = resolve(
+        &nesting(),
+        "SHIP",
+        false,
+        &LoadoutChanges::new().replace("bay/slot/deep", "HOLDER"),
+    );
+
+    assert!(
+        matches!(&result, Err(ChangeError::Cycle { path, entity }) if path == "bay/slot/deep" && entity == "HOLDER"),
+        "{result:?}"
+    );
+}
+
+#[test]
+fn a_replacement_can_be_replaced_below_but_not_by_itself() -> TestResult {
+    let below = resolve(
+        &nesting(),
+        "SHIP",
+        false,
+        &LoadoutChanges::new()
+            .replace("cargo", "INNER")
+            .replace("cargo/deep", "CRATE"),
+    )?;
+    assert_eq!(held(&below, "cargo")?, Some("INNER"));
+    assert_eq!(held(&below, "cargo/deep")?, Some("CRATE"));
+
+    let itself = resolve(
+        &nesting(),
+        "SHIP",
+        false,
+        &LoadoutChanges::new()
+            .replace("cargo", "INNER")
+            .replace("cargo/deep", "INNER"),
+    );
+    assert!(
+        matches!(&itself, Err(ChangeError::Cycle { path, .. }) if path == "cargo/deep"),
+        "{itself:?}"
+    );
+    Ok(())
 }
 
 #[test]
@@ -115,7 +174,9 @@ fn a_change_below_an_unexpanded_docked_vehicle_is_ignored() -> TestResult {
     let replaced = LoadoutChanges::new().replace("hangar/snub_gun", "CRATE");
 
     for changes in [&excluded, &replaced] {
-        let tree = resolve(&carrier(), "CARRIER", true, changes)?;
+        let result = changed(&carrier(), "CARRIER", true, changes)?;
+        assert_eq!(result.ignored(), ["hangar/snub_gun"]);
+        let tree = result.into_node();
         assert_eq!(held(&tree, "hangar")?, Some("SNUB"));
         assert!(
             tree.walk()

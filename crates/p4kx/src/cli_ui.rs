@@ -109,7 +109,8 @@ pub(crate) enum UiAction {
     /// through the narrow lens of the `UIHoloVehicle_Config` Record of the game and drawn as a
     /// transparent tinted shell whose edges glow. The picture is drawn offscreen on the graphics
     /// card or, with --software, on the software adapter, so no window is needed. Textures and
-    /// interiors are not drawn.
+    /// interiors are not drawn. Docked vehicles are not expanded, and a Loadout change to a port
+    /// below one is not applied and warned about on stderr.
     #[command(after_help = EXIT_CODES_HELP)]
     Hologram(HologramArgs),
 }

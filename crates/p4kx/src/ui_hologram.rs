@@ -59,6 +59,8 @@ struct HologramJson<'a> {
     camera: CameraJson,
     adapter: &'a str,
     milliseconds: TimesJson,
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    ignored: &'a [String],
     issues: Vec<IssueJson<'a>>,
 }
 
@@ -218,11 +220,13 @@ pub(crate) fn run(args: &HologramArgs, as_json: bool) -> Result<ExitCode> {
         .stopping_at_docked_vehicles();
     let changes = args.changes.changes()?;
     let record = resolver.entities().find(&args.entity)?;
-    let tree = resolver.resolve_with(&record, &changes)?;
+    let applied = resolver.resolve_changed(&record, &changes)?;
+    crate::entity_ignored::warn(applied.ignored())?;
+    let tree = applied.node();
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let palettes = ForgePalettes::new(&forge);
-    let assembly = Assembly::build_with_palettes(&tree, &models, &palettes, &options)?;
+    let assembly = Assembly::build_with_palettes(tree, &models, &palettes, &options)?;
     let outcome = draw_picture(
         args,
         (&assembly, tree.class_name()),
@@ -235,6 +239,7 @@ pub(crate) fn run(args: &HologramArgs, as_json: bool) -> Result<ExitCode> {
         picture: &outcome.picture,
         bytes: outcome.bytes,
         assembly: &assembly,
+        ignored: applied.ignored(),
         scene: &outcome.scene,
         adapter: &outcome.adapter,
         camera: outcome.camera,
@@ -256,6 +261,7 @@ struct Summary<'a> {
     picture: &'a Picture,
     bytes: u64,
     assembly: &'a Assembly,
+    ignored: &'a [String],
     scene: &'a AssemblyScene,
     adapter: &'a str,
     camera: (HologramView, &'static str),
@@ -287,6 +293,7 @@ impl<'a> Summary<'a> {
             },
             adapter: self.adapter,
             milliseconds: self.times,
+            ignored: self.ignored,
             issues: self.assembly.issues().iter().map(IssueJson::from).collect(),
         }
     }

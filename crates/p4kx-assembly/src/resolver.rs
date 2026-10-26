@@ -11,8 +11,8 @@ use crate::plan::Plan;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutSpec, TargetSpec};
 use crate::walk::Walk;
 use crate::{
-    ChangeError, Entities, EntityNode, ItemFacts, LandingGear, LoadoutChanges, LoadoutError,
-    LoadoutFiles, VehicleImplementation, Wearable, xml,
+    ChangeError, ChangedLoadout, Entities, EntityNode, ItemFacts, LandingGear, LoadoutChanges,
+    LoadoutError, LoadoutFiles, VehicleImplementation, Wearable, xml,
 };
 
 pub(crate) type SpecResult = Arc<Result<EntitySpec, LoadoutError>>;
@@ -169,8 +169,28 @@ impl<'f> LoadoutResolver<'f> {
         entity: &Record<'f>,
         changes: &LoadoutChanges,
     ) -> Result<EntityNode, ChangeError> {
+        self.resolve_changed(entity, changes)
+            .map(ChangedLoadout::into_node)
+    }
+
+    /// Resolves like [`resolve_with`](Self::resolve_with) and also returns the changes that lie
+    /// below a docked vehicle the resolver does not expand
+    /// ([`stopping_at_docked_vehicles`](Self::stopping_at_docked_vehicles)): they are not
+    /// applied and not an error.
+    ///
+    /// # Errors
+    ///
+    /// As [`resolve_with`](Self::resolve_with).
+    pub fn resolve_changed(
+        &mut self,
+        entity: &Record<'f>,
+        changes: &LoadoutChanges,
+    ) -> Result<ChangedLoadout, ChangeError> {
         if changes.is_empty() {
-            return Ok(self.resolve(entity)?);
+            return Ok(ChangedLoadout {
+                node: self.resolve(entity)?,
+                ignored: Vec::new(),
+            });
         }
         let plan = Plan::new(changes, |path, text| self.replacement(path, text))?;
         self.prefetch(*entity);
@@ -178,10 +198,11 @@ impl<'f> LoadoutResolver<'f> {
         let spec = spec.as_ref().as_ref().map_err(Clone::clone)?;
         let mut walk = Walk::new(entity.guid(), Some(plan));
         let node = self.node(spec, None, &mut walk);
-        walk.plan
-            .take()
-            .and_then(Plan::finish)
-            .map_or(Ok(node), Err)
+        let ignored = match walk.plan.take() {
+            Some(plan) => plan.finish()?,
+            None => Vec::new(),
+        };
+        Ok(ChangedLoadout { node, ignored })
     }
 
     /// Returns what `entity` offers a port, for [`PortNode::accepts`](crate::PortNode::accepts).

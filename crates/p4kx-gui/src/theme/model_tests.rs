@@ -27,6 +27,7 @@ fn the_model_preview_metrics_match_the_desktop_spec() {
         ("barHeight", m::MODEL_BAR_HEIGHT),
         ("viewHeight", m::MODEL_VIEW_HEIGHT),
         ("panelHeight", m::PREVIEW_MODEL_HEIGHT),
+        ("panelMinHeight", m::PREVIEW_MODEL_MIN_HEIGHT),
         ("factsPaddingX", FACTS_PADDING_X),
     ] {
         let expected = spec[key].as_f64();

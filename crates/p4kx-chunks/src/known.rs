@@ -79,6 +79,16 @@ const IVO: &[KnownChunkType] = &[
 ];
 
 const CRCH: &[KnownChunkType] = &[
+    known(crch::SOC_0002, "Soc0002"),
+    known(crch::CRY_XML_B, "CryXmlB"),
+    known(crch::SOC_0008, "Soc0008"),
+    known(crch::SOC_0009, "Soc0009"),
+    known(crch::SOC_000B, "Soc000B"),
+    known(crch::AREA_SHAPE, "AreaShape"),
+    known(crch::INCLUDED_OBJECTS, "IncludedObjects"),
+    known(crch::JSON, "Json"),
+    known(crch::MODEL_PATHS, "ModelPaths"),
+    known(crch::CRY_XML_B_2, "CryXmlB2"),
     known(crch::MESH, "Mesh"),
     known(crch::HELPER, "Helper"),
     known(crch::VERT_ANIM, "VertAnim"),

@@ -1,5 +1,7 @@
 # A head wears the items of its head port with the materials its Character chose
 
+ADR-0200 adds that what follows the head also follows its expressions.
+
 Decided for issue #152, which builds on ADR-0084 (the shaped head), ADR-0079 (armour on the body
 skeleton) and ADR-0080 (textures and palettes). Evidence: `p4kx chf glb` and the real-Archive tests
 (`crates/p4kx-assembly/tests/real_archive/real_dressed_head.rs`) over the 40 CHF files the LIVE
@@ -101,5 +103,5 @@ the textures by default at mip 1, which keeps the default Characters at some 40 
   carry the name of another style's sub-material, so they would never apply.
 - Export the eyes and teeth unshaped: the eyes of a Character with another head shape would sit in
   the base head's sockets.
-- Skin the hair to the facial bones: the body skeleton has none (ADR-0084); following the shaped
-  head is the same for a static export.
+- Skin the hair to the facial bones: the hair follows the shape of the head and, with morph
+  targets, its expressions (ADR-0200); binding it to the facial joints is not done.

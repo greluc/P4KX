@@ -6,9 +6,11 @@ use std::sync::Arc;
 use p4kx_gltf::MorphTarget;
 use p4kx_model::{Mesh, Model};
 
+use super::ArmourPart;
 use super::face_build::Face;
 use super::follow::follow;
 use super::follow_morphs::{Followed, follow_morphs};
+use crate::{Issue, IssueKind};
 
 /// The head as it was made and as it was shaped, with its morph targets, which what follows the
 /// head moves with.
@@ -25,6 +27,44 @@ pub(super) struct Worn {
     pub(super) morphs: Vec<MorphTarget>,
     pub(super) face: Option<Face>,
     pub(super) follows: Vec<usize>,
+}
+
+/// Leaves out of the animation the parts that follow the head whose morph targets do not match the
+/// blendshapes of the head's face link, and lists each in `issues`.
+pub(super) fn check_follows(parts: &mut [ArmourPart], issues: &mut Vec<Issue>) {
+    let Some(known) = parts
+        .iter()
+        .find_map(|part| part.face.as_deref())
+        .map(|link| link.blendshapes.len())
+    else {
+        return;
+    };
+    for part in parts.iter_mut().filter(|part| !part.follows.is_empty()) {
+        let reason = if part.follows.len() != part.morphs.len() {
+            "the targets of the part and of the head do not correspond"
+        } else if part.follows.iter().any(|&target| target >= known) {
+            "a target stands for a blendshape the head lacks"
+        } else {
+            continue;
+        };
+        part.follows.clear();
+        issues.push(Issue {
+            path: String::new(),
+            name: part.name.clone(),
+            kind: IssueKind::FollowWeightsSkipped {
+                reason: reason.to_owned(),
+            },
+        });
+    }
+}
+
+/// Returns the meshes of `model` at level 0.
+pub(super) fn level_zero_meshes(model: &Model) -> usize {
+    model
+        .lods
+        .first()
+        .filter(|lod| lod.level == 0)
+        .map_or(0, |lod| lod.meshes.len())
 }
 
 fn first_mesh(model: &Model) -> Option<&Mesh> {

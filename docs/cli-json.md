@@ -2102,9 +2102,9 @@ because the XML would otherwise share stdout with the JSON; without it the exit 
            {"name": "head", "origin": "head", "file": "…", "morph_targets": 399},
            {"name": "teeth", "origin": "head", "file": "…", "morph_targets": 0},
            {"name": "eyes_itemport", "origin": "head", "file": "…", "morph_targets": 0},
-           {"name": "hair_itemport", "origin": "head", "file": "…", "morph_targets": 0}],
+           {"name": "hair_itemport", "origin": "head", "file": "…", "morph_targets": 246}],
  "nodes": 412, "bones": 403, "meshes": 9, "skinned_meshes": 9, "primitives": 41,
- "materials": 14, "morph_targets": 399, "textured_materials": 12, "textures": 20,
+ "materials": 14, "morph_targets": 645, "textured_materials": 12, "textures": 20,
  "texture_pixels": 36700160,
  "texture_fallbacks": [{"material": "…", "role": "diffuse", "file": "…", "reason": "…"}],
  "default_material_ids": 0, "vertices": 61582, "triangles": 66225, "bytes": 37236432,
@@ -2142,8 +2142,12 @@ The piece named `head` has `morph_targets`: the number of expressions written. T
 expressions of the head rig that move a vertex of the character's face, all of them by default at
 `--lod 0`, only the ones named by `--expression NAME` (repeatable) otherwise, none with
 `--no-expressions` and at other levels, whose rigs have none. The hair, brows, lashes and beard
-have a target for each expression that moves one of their vertices, named like the head's and
-moved as they follow the neutral shape (ADR-0200); the teeth and eyes have none. A name the rig lacks adds
+have a target for each expression that moves one of their vertices by at least a fifth of the
+target's largest move, named like the head's and moved as they follow the neutral shape
+(ADR-0200); the teeth and eyes have none. Only the first mesh of such a piece at LOD 0 gets
+targets: a piece with several meshes adds the note `follow_morphs_first_mesh_only`, and
+`follow_weights_skipped` says that a facial animation sets no weights for a piece whose targets do
+not match the head's. A facial animation's budget counts the hair weights too. A name the rig lacks adds
 `unknown_expression`, a named one that moves no vertex `empty_expression`, and expressions that
 cannot be made (the rig of the level has no expression morphs, the names of the skin do not fit
 the rig) add `morphs_failed`; the head is kept, the GLB is written and the command exits with code

@@ -9,7 +9,7 @@ use p4kx_model::{Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::face_build::{Face, Found, settled};
-use super::head_move::{HeadMove, Worn, followed};
+use super::head_move::{HeadMove, Worn, check_follows, followed, level_zero_meshes};
 use super::jobs::{Job, issue, planned};
 use super::shape::shaped;
 use super::zones::{covered, without_covered};
@@ -111,6 +111,7 @@ impl Armour {
             options.lod,
             &mut issues,
         );
+        check_follows(&mut parts, &mut issues);
         Ok(Self {
             variant,
             skeleton: Arc::new(skeleton),
@@ -152,7 +153,14 @@ fn worn(
         });
     }
     Some(match head {
-        Some(moved) if job.follows_head => followed(&model, moved),
+        Some(moved) if job.follows_head => {
+            let dressed = followed(&model, moved);
+            let meshes = level_zero_meshes(&dressed.model);
+            if meshes > 1 && !dressed.morphs.is_empty() {
+                issues.push(issue(job, IssueKind::FollowMorphsFirstMeshOnly { meshes }));
+            }
+            dressed
+        }
         _ => Worn {
             model,
             morphs,

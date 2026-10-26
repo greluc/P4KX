@@ -8,7 +8,9 @@ use rayon::prelude::*;
 use super::follow::{Grid, Vec3};
 
 /// The smallest move of a vertex, in metres, that a morph target of what follows the head keeps.
-const REST: f32 = 1e-6;
+const REST: f32 = 1e-5;
+/// A move under this fraction of the largest move of its target is left out of the target.
+const RELATIVE_REST: f32 = 0.2;
 
 /// The morph targets of what follows the head, and the target of the head each stands for.
 pub(super) struct Followed {
@@ -97,8 +99,7 @@ impl Spread<'_> {
             }
         }
         near.sort_unstable();
-        let mut vertices = Vec::new();
-        let mut shifts = Vec::new();
+        let mut all: Vec<(u32, Vec3, f32)> = Vec::new();
         for index in near {
             let (Some(&position), Some(&total)) = (
                 self.mesh.positions.get(index as usize),
@@ -108,11 +109,18 @@ impl Spread<'_> {
             };
             let (_, sum) = moved.weigh(&deltas, position);
             let by = sum.map(|value| value / total);
-            if by.iter().all(|value| value.is_finite()) && by.iter().any(|v| v.abs() > REST) {
-                vertices.push(index);
-                shifts.push(by);
+            if by.iter().all(|value| value.is_finite()) {
+                let largest = by.iter().fold(0.0_f32, |peak, value| peak.max(value.abs()));
+                all.push((index, by, largest));
             }
         }
+        let peak = all.iter().fold(0.0_f32, |peak, &(_, _, own)| peak.max(own));
+        let cutoff = REST.max(peak * RELATIVE_REST);
+        let (vertices, shifts): (Vec<u32>, Vec<Vec3>) = all
+            .into_iter()
+            .filter(|&(_, _, own)| own > cutoff)
+            .map(|(index, by, _)| (index, by))
+            .unzip();
         (!vertices.is_empty()).then(|| MorphTarget {
             name: target.name.clone(),
             vertices,

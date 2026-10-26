@@ -118,6 +118,13 @@ impl Wearable {
         &self.variants
     }
 
+    /// Returns whether `geometry` is the main geometry of the Record and not a sub-geometry.
+    pub(crate) fn is_main(&self, geometry: &Geometry) -> bool {
+        self.geometry
+            .as_ref()
+            .is_some_and(|main| std::ptr::eq(main, geometry))
+    }
+
     /// Returns the geometry worn on `body`: the sub-geometry tagged with the variant's tag, else
     /// the main geometry when the Record names no geometry per body at all.
     pub(crate) fn geometry_for(&self, body: BodyVariant) -> Result<&Geometry, Unfit> {

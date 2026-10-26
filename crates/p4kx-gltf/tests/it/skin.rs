@@ -9,7 +9,7 @@ use p4kx_chunks::ChunkFile;
 use p4kx_gltf::{GlbOptions, GlbSummary, write_glb};
 use p4kx_model::{CompanionError, CompanionPath, Model};
 use p4kx_testkit::gltf::Semantic;
-use p4kx_testkit::{CheckedGlb, TestModel, TestSkeleton, check_glb};
+use p4kx_testkit::{CheckedGlb, TestModel, TestNode, TestSkeleton, check_glb};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -270,6 +270,50 @@ fn the_skinned_mesh_is_a_root_without_transform_even_below_a_moved_parent() -> T
         0,
         "it no longer has the mesh node below"
     );
+    Ok(())
+}
+
+#[test]
+fn a_node_below_the_skinned_mesh_keeps_the_transforms_above_it() -> TestResult {
+    let node = |name: &str, parent, x| TestNode {
+        name: name.to_owned(),
+        parent,
+        local: [
+            [1.0, 0.0, 0.0, x],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+        ],
+        kind: 2,
+    };
+    let source = TestModel::cube()
+        .with_nodes(vec![
+            node("cube", None, 5.0),
+            TestNode {
+                kind: 0,
+                ..node("cube_mesh", Some(0), 0.0)
+            },
+            node("tag", Some(1), 0.0),
+        ])
+        .with_skeleton(&TestSkeleton::two_bones())
+        .with_bone_map(false, vec![vec![(1, 255)]; 24]);
+    let (glb, _) = glb(&source)?;
+
+    let tag = glb
+        .document
+        .nodes()
+        .find(|node| node.name() == Some("tag"))
+        .ok_or("the tag node")?;
+    let cube = glb
+        .document
+        .nodes()
+        .find(|node| node.name() == Some("cube"))
+        .ok_or("the cube node")?;
+    assert!(
+        cube.children().any(|child| child.index() == tag.index()),
+        "the tag hangs below the nearest node that is not skinned"
+    );
+    let [_, _, _, [x, _, _, _]] = global(&glb, tag.index());
+    assert!((x - 5.0).abs() < 1e-5, "the tag keeps the move above: {x}");
     Ok(())
 }
 

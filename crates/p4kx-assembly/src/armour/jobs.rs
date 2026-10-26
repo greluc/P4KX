@@ -85,6 +85,11 @@ fn bespoke_path(path: &str, bespoke: &Bespoke, models: &dyn ModelProvider) -> Op
     exists(&candidate, models).then_some(candidate)
 }
 
+fn is_skin(path: &str) -> bool {
+    path.rsplit_once('.')
+        .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("skin"))
+}
+
 /// Returns whether the Archive holds the file at `path`, a path below `Data`; a file that cannot
 /// be read still exists.
 fn exists(path: &str, models: &dyn ModelProvider) -> bool {
@@ -116,10 +121,16 @@ pub(super) fn gather(
         }
         Source::File { path, material } => (path.clone(), material.clone()),
         Source::Wearable(wearable) => match wearable.geometry_selected(variant, &piece.selecting) {
-            Ok(geometry) => (
-                geometry.path().to_owned(),
-                chosen_material(piece, wearable, variant, geometry.material()),
-            ),
+            Ok(geometry) => {
+                if wearable.is_main(geometry) && !is_skin(geometry.path()) {
+                    let body = variant.code().to_owned();
+                    issues.push(piece_issue(piece, IssueKind::MainGeometryWorn { body }));
+                }
+                (
+                    geometry.path().to_owned(),
+                    chosen_material(piece, wearable, variant, geometry.material()),
+                )
+            }
             Err(Unfit::NoGeometry) => {
                 issues.push(piece_issue(piece, IssueKind::NoWornGeometry));
                 return;

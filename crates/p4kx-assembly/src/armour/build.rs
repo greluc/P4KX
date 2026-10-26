@@ -113,7 +113,8 @@ impl Armour {
                 face: None,
             });
         }
-        let skeleton = settled(body.skeleton, &mut parts, heads, &part_jobs, &mut issues);
+        let fit = (part_jobs.as_slice(), options.lod);
+        let skeleton = settled(body.skeleton, &mut parts, heads, fit, &mut issues);
         Ok(Self {
             variant,
             skeleton: Arc::new(skeleton),

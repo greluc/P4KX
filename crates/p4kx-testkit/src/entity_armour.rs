@@ -81,7 +81,9 @@ fn database() -> DataForgeBuilder {
         .geometry_variant("Female", format!("{FEMALE_ARMOUR}/f_hat.skin"), None);
     let plain = TestEntity::new(0x5, "TEST_Plain", "entities/scitem/test_plain.xml")
         .geometry(format!("{MALE_ARMOUR}/plain.skin"), None);
-    [suit, boots, cape, hat, plain]
+    let prop = TestEntity::new(0x6, "TEST_Crate", "entities/scitem/test_crate.xml")
+        .geometry("Objects/Test/crate.cgf", None);
+    [suit, boots, cape, hat, plain, prop]
         .iter()
         .chain(&loadout_entities())
         .fold(entity_schema(DataForgeBuilder::new()), |builder, entity| {
@@ -101,7 +103,8 @@ fn database() -> DataForgeBuilder {
 /// - `TEST_Cape` names no geometry;
 /// - `TEST_Hat` has a skin for `Male` and names one for `Female` that the Archive lacks;
 /// - `TEST_Plain` names one skin as its main geometry, in the male folder, weighted to a bone
-///   `cloth` that no skeleton has, below `spine`.
+///   `cloth` that no skeleton has, below `spine`;
+/// - `TEST_Crate` names only a main geometry that is no skin, a crate the Archive lacks.
 ///
 /// Characters with a Loadout of worn Entities, which have an `AttachDef.Type`:
 ///

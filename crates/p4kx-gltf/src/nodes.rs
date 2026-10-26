@@ -4,7 +4,7 @@
 use gltf_json as json;
 use json::scene::UnitQuaternion;
 use json::{Accessor, Index, Root};
-use p4kx_model::{Bone, Model};
+use p4kx_model::{Bone, Model, Node};
 
 use crate::axes::{Trs, decompose};
 use crate::skin::bone_trs;
@@ -22,7 +22,8 @@ pub(crate) struct RigModel<'a> {
 /// that holds the roots; all skinned meshes share one skin over the bones.
 ///
 /// The node of a skinned mesh is a root with no transform and is named after its model; the other
-/// nodes of a model keep their hierarchy and their transforms.
+/// nodes of a model keep their hierarchy and their transforms, and a node below a skinned node
+/// hangs below the nearest ancestor that is not skinned.
 pub(crate) fn push_rig_nodes(
     root: &mut Root,
     models: &[RigModel<'_>],
@@ -116,11 +117,11 @@ fn rig_forest(models: &[RigModel<'_>], bones: &[Bone], base: usize) -> Forest {
     };
     let mut offset = 0;
     for rig in models {
-        for (position, node) in rig.model.nodes.iter().enumerate() {
+        for position in 0..rig.model.nodes.len() {
             let index = index_of(offset + position);
-            let parent = node
-                .parent
-                .filter(|parent| *parent < rig.model.nodes.len() && !rig_skinned(rig, position))
+            let parent = (!rig_skinned(rig, position))
+                .then(|| unskinned_parent(&rig.model.nodes, position, |at| rig_skinned(rig, at)))
+                .flatten()
                 .map(|parent| offset + parent);
             if let Some(siblings) = parent.and_then(|parent| forest.children.get_mut(parent)) {
                 siblings.push(index);
@@ -141,6 +142,26 @@ fn rig_forest(models: &[RigModel<'_>], bones: &[Bone], base: usize) -> Forest {
         }
     }
     forest
+}
+
+/// Returns the nearest ancestor of the node at `position` that is not skinned, so the node keeps
+/// the transform chain above a skinned ancestor, which is written as a root; `None` when there is
+/// none or the chain is cyclic or out of range.
+fn unskinned_parent(
+    nodes: &[Node],
+    position: usize,
+    is_skinned: impl Fn(usize) -> bool,
+) -> Option<usize> {
+    let mut current = nodes.get(position)?.parent;
+    for _ in 0..nodes.len() {
+        let parent = current?;
+        let node = nodes.get(parent)?;
+        if !is_skinned(parent) {
+            return Some(parent);
+        }
+        current = node.parent;
+    }
+    None
 }
 
 fn rig_skinned(rig: &RigModel<'_>, position: usize) -> bool {
@@ -164,7 +185,8 @@ pub(crate) fn index_of(position: usize) -> Index<json::Node> {
 /// Writes the nodes of `model` and the bones of `skeleton` and the scene that holds their roots.
 ///
 /// The node of a skinned mesh is a root of the scene with no transform: the vertices of a skin are
-/// in the space of the skeleton, and glTF ignores the transform of a skinned mesh's node.
+/// in the space of the skeleton, and glTF ignores the transform of a skinned mesh's node. A node
+/// below a skinned node hangs below the nearest ancestor that is not skinned.
 pub(crate) fn push_nodes(
     root: &mut Root,
     model: &Model,
@@ -235,8 +257,10 @@ fn arrange(model: &Model, skeleton: &Skeleton<'_>) -> Forest {
         roots: Vec::new(),
         bone_roots: Vec::new(),
     };
-    for (position, node) in model.nodes.iter().enumerate() {
-        let parent = node.parent.filter(|_| !skinned(skeleton, position));
+    for position in 0..model.nodes.len() {
+        let parent = (!skinned(skeleton, position))
+            .then(|| unskinned_parent(&model.nodes, position, |at| skinned(skeleton, at)))
+            .flatten();
         if let Some(siblings) = parent.and_then(|parent| forest.children.get_mut(parent)) {
             siblings.push(index_of(position));
         } else {

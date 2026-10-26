@@ -4,8 +4,9 @@
 use crate::{TestInstance, TestRecord, TestStruct, TestType, TestValue};
 
 /// A geometry given to the sub-node tagged `tags`: its model path and material library. Tags of
-/// the form `parent>own` name a sub-node tagged `own` nested in a sub-node tagged `parent`.
-pub(crate) type GeometryVariant = (String, String, Option<String>);
+/// the form `parent>own` name a sub-node tagged `own` nested in a sub-node tagged `parent`. The
+/// tint palette Record and child it names go last.
+pub(crate) type GeometryVariant = (String, String, Option<String>, Option<(u128, String)>);
 
 fn geometry_node(
     tags: &str,
@@ -80,7 +81,7 @@ pub(crate) fn geometry_component(
 ) -> TestValue {
     let subs = variants
         .iter()
-        .map(|(tags, path, material)| {
+        .map(|(tags, path, material, palette)| {
             let node = match tags.split_once('>') {
                 Some((parent, own)) => geometry_node(parent, "", None, None).value(
                     "SubGeometry",
@@ -88,10 +89,10 @@ pub(crate) fn geometry_component(
                         own,
                         path,
                         material.as_deref(),
-                        None,
+                        palette.as_ref(),
                     ))]),
                 ),
-                None => geometry_node(tags, path, material.as_deref(), None),
+                None => geometry_node(tags, path, material.as_deref(), palette.as_ref()),
             };
             TestValue::Struct(node)
         })

@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use p4kx_settings::KeyText;
 
+pub(crate) use crate::cli_actionmap::ActionMapArgs;
 pub(crate) use crate::cli_armour::ArmourArgs;
 pub(crate) use crate::cli_audio::{AudioAction, AudioArgs, AudioSource};
 pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
@@ -143,6 +144,10 @@ pub(crate) enum Command {
     /// keys with their texts.
     #[command(after_help = EXIT_CODES_HELP)]
     Loc(LocArgs),
+    /// Exports the action maps of the default profile: every action with its localised label and
+    /// its default key, mouse, gamepad and joystick bindings.
+    #[command(name = "actionmap", after_help = EXIT_CODES_HELP)]
+    ActionMap(ActionMapArgs),
     /// Converts a CryXml file on disk to UTF-8 XML; text XML is written unchanged.
     #[command(name = "cryxml", after_help = EXIT_CODES_HELP)]
     CryXml(CryXmlArgs),

@@ -3,6 +3,7 @@
 
 //! Integration tests of `p4kx`, built as one test binary.
 
+mod actionmap;
 mod animation_support;
 mod archive_key;
 mod armour_glb;

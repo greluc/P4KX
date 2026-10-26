@@ -11,7 +11,8 @@ use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
     DismantleProcess, GameplayProperty, Item, Loadout, Manufacturer, MineableElement, Paint,
-    QualityDistribution, RefiningProcess, ResourceGroup, Ship, Shop, StarmapObject,
+    QualityDistribution, QualityQuantization, RefiningProcess, ResourceGroup, Ship, Shop,
+    StarmapObject,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -90,6 +91,7 @@ impl<'f> Picked<'f> {
             Kind::Blueprints
             | Kind::GameplayProperties
             | Kind::QualityDistributions
+            | Kind::QualityQuantizations
             | Kind::BlueprintPools
             | Kind::DismantleProcesses
             | Kind::Paints
@@ -127,6 +129,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) blueprint_categories: Vec<BlueprintCategory<'f>>,
     pub(crate) gameplay_properties: Vec<GameplayProperty<'f>>,
     pub(crate) quality_distributions: Vec<QualityDistribution<'f>>,
+    pub(crate) quality_quantizations: Vec<QualityQuantization<'f>>,
     pub(crate) blueprint_pools: Vec<BlueprintPool<'f>>,
     pub(crate) dismantle_processes: Vec<DismantleProcess<'f>>,
     pub(crate) crafting_global: CraftingGlobal,
@@ -165,6 +168,7 @@ impl<'f> Collected<'f> {
             blueprint_categories: Vec::new(),
             gameplay_properties: crafting.properties,
             quality_distributions: crafting.distributions,
+            quality_quantizations: crafting.quantizations,
             blueprint_pools: crafting.pools,
             dismantle_processes: crafting.dismantle,
             crafting_global: crafting.global,
@@ -305,6 +309,7 @@ impl<'f> Collected<'f> {
                     Kind::BlueprintCategories => self.blueprint_categories.len(),
                     Kind::GameplayProperties => self.gameplay_properties.len(),
                     Kind::QualityDistributions => self.quality_distributions.len(),
+                    Kind::QualityQuantizations => self.quality_quantizations.len(),
                     Kind::BlueprintPools => self.blueprint_pools.len(),
                     Kind::DismantleProcesses => self.dismantle_processes.len(),
                     Kind::Paints => self.paints.len(),

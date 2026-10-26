@@ -233,6 +233,7 @@ fn assemble<R>(
         blueprint_categories: collected.blueprint_categories,
         gameplay_properties: collected.gameplay_properties,
         quality_distributions: collected.quality_distributions,
+        quality_quantizations: collected.quality_quantizations,
         blueprint_pools: collected.blueprint_pools,
         dismantle_processes: collected.dismantle_processes,
         crafting_global: collected.crafting_global,

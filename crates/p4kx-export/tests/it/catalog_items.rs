@@ -312,6 +312,7 @@ fn every_kind_states_its_completeness() -> TestResult {
             "blueprintCategories": {"status": "complete"},
             "gameplayProperties": {"status": "complete"},
             "qualityDistributions": {"status": "complete"},
+            "qualityQuantizations": {"status": "complete"},
             "blueprintPools": {"status": "complete"},
             "dismantleProcesses": {"status": "complete"},
             "paints": {"status": "complete"},

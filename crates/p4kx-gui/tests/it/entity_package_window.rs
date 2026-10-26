@@ -8,6 +8,7 @@
 use std::path::Path;
 
 use crate::entity_picking::{TestResult, opened, opened_sized, select};
+use crate::labels::labels_starting_with;
 use crate::waiting::wait_for;
 
 use egui::accesskit::Role;
@@ -144,7 +145,7 @@ fn the_export_writes_the_package_folder_reports_it_and_remembers_the_choices() -
         "the summary is the package's"
     );
     assert!(
-        harness.query_by_label_contains("palettes").is_some(),
+        labels_starting_with(&harness, "Parts 3 (3 with a model), nodes ") == 1,
         "and it counts what the package holds"
     );
     let remembered = harness.state().assembly_export_settings();

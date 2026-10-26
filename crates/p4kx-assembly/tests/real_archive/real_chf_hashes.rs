@@ -63,6 +63,7 @@ fn the_attachment_hashes_of_the_shipped_characters_resolve_to_item_port_names() 
     let (mut files, mut materials, mut resolved) = (0_usize, 0_usize, 0_usize);
     let (mut port_nodes, mut named_ports) = (0_usize, 0_usize);
     let mut unresolved = HashSet::new();
+    let mut unmatched_ports = HashSet::new();
     let mut default_materials = 0_usize;
     for entry in archive.entries() {
         let path = entry.path().to_ascii_lowercase().replace('\\', "/");
@@ -96,12 +97,19 @@ fn the_attachment_hashes_of_the_shipped_characters_resolve_to_item_port_names() 
             collect(root, &mut hashes);
         }
         port_nodes += hashes.len();
-        named_ports += hashes
-            .iter()
-            .filter(|hash| ports.contains_key(hash))
-            .count();
+        for hash in &hashes {
+            if ports.contains_key(hash) {
+                named_ports += 1;
+            } else {
+                unmatched_ports.insert(*hash);
+            }
+        }
+        if default {
+            let dna = chf.character.dna.as_ref();
+            assert!(dna.is_some(), "{path}: no face DNA");
+        }
         if default && let Some(dna) = &chf.character.dna {
-            let gender = if path.contains("masculine") {
+            let gender = if path.ends_with("/masculinedefault.chf") {
                 "male"
             } else {
                 "female"
@@ -113,9 +121,11 @@ fn the_attachment_hashes_of_the_shipped_characters_resolve_to_item_port_names() 
     println!(
         "{files} CHF files: {resolved} of {materials} attachment hashes resolve to a known item \
          port by the CRC-32 formula ({} distinct unresolved: {unresolved:08x?}); {named_ports} of \
-         {port_nodes} item port hashes match a known name by CRC-32C; {default_materials} \
-         attachments in the two default characters, all resolved",
-        unresolved.len()
+         {port_nodes} item port hashes match a known name by CRC-32C ({} distinct unmatched: \
+         {unmatched_ports:08x?}); {default_materials} attachments in the two default characters, \
+         all resolved",
+        unresolved.len(),
+        unmatched_ports.len()
     );
     assert!(
         files > 0 && default_materials > 0,

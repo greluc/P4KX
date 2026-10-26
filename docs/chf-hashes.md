@@ -7,7 +7,7 @@ interchangeable. The helpers live in `p4kx_character` (`names.rs`).
 |---|---|---|---|
 | DNA magic (`DNA_MAGIC`, `0xFCD09394`) | CRC-32C | `dna matrix 1.0` | `name_hash` |
 | `Dna::gender_hash` | CRC-32C | rig name `protos_human_<male\|female>_face_t1_pu`; male `0xDD6C67F6`, female `0x9EF4EB54` | `name_hash` |
-| `Dna::variant_hash` | unknown | per Character; not used to select a rig | none |
+| `Dna::variant_hash` | unknown | the low half of the rig's identity | none |
 | `ItemPort::port` | CRC-32C | lower-cased port name, e.g. `head_itemport` | `lowered_hash` |
 | `Material::attachment` | CRC-32 (IEEE) | lower-cased port name followed by `_skinitemport` | `skin_attachment` |
 | `SubMaterial::name` | CRC-32C | lower-cased sub-material name, e.g. `shader_eyeInner` | `lowered_hash` |
@@ -29,6 +29,6 @@ interchangeable. The helpers live in `p4kx_character` (`names.rs`).
 - Tests: the unit tests in `names.rs` pin the DNA magic, both gender hashes and the slot
   formula. The ignored real-Archive test `real_chf_hashes` resolves the attachment hashes of every
   CHF of the Archive against the known item port names and prints the share that does not. On
-  the LIVE Archive of 2026-10-26 (41 CHF files) all 260 attachment hashes resolve by the CRC-32
-  formula, and 306 of 322 item port hashes match a known name by CRC-32C; the other 16 are ports
-  whose names this list does not hold.
+  the LIVE Archive of build 4.10.2 (41 CHF files) all 260 attachment hashes resolve by the CRC-32
+  formula, and 306 of 322 item port hashes match a known name by CRC-32C; the other 16 are two
+  distinct hashes, `0x6D6DE693` and `0x6958D171`, whose names are not known.

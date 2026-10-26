@@ -435,7 +435,8 @@ Early development (milestone M1). Available today:
   and copy it in by hand. A file with
   a wrong size, magic or CRC-32C, an unknown version or a corrupt body fails with the reason
   (exit code 3), as does invalid or unwritable JSON (exit code 2). The JSON is described in
-  [docs/cli-json.md](docs/cli-json.md#the-chf-json).
+  [docs/cli-json.md](docs/cli-json.md#the-chf-json); which hash function names which field is in
+  [docs/chf-hashes.md](docs/chf-hashes.md).
 - `p4kx chf glb <archive> <file> --out <file>` exports the head of a CHF character as one skinned
   GLB: the head skin of the character's head rig, its vertices moved by the character's face DNA
   into the character's neutral face (the neutral morphs of the DNA rig beside the skin, mixed by

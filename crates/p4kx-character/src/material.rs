@@ -76,7 +76,8 @@ impl Eq for FloatParam {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ColorParam {
-    /// CRC-32C of the exact parameter name; some, such as `BodyColor`, match no known name.
+    /// CRC-32C of the exact parameter name when known; some, such as `BodyColor`, match no known
+    /// name.
     pub name: u32,
     /// Red, green, blue and alpha, 0 to 255 each.
     pub rgba: [u8; 4],

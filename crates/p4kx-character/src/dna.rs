@@ -23,7 +23,7 @@ pub struct Dna {
     /// CRC-32C of the rig name (`protos_human_<gender>_face_t1_pu`), naming the head mesh family
     /// the blends refer to.
     pub gender_hash: u32,
-    /// Hash naming the head variant; per character and not used to select a rig.
+    /// The low half of the rig's identity; its hash function is unknown.
     pub variant_hash: u32,
     /// Number of blends each face part holds.
     pub blends_per_part: u16,

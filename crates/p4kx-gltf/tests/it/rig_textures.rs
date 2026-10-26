@@ -57,13 +57,28 @@ fn piece() -> Result<Model, Box<dyn Error>> {
 }
 
 fn library(material: &TestMtlMaterial) -> Result<MaterialStatus, Box<dyn Error>> {
+    library_at("objects/test/piece", material)
+}
+
+fn library_at(path: &str, material: &TestMtlMaterial) -> Result<MaterialStatus, Box<dyn Error>> {
     let materials = [material.clone(), material.clone(), material.clone()];
     let bytes = TestMtl::multi(&materials).cryxml();
     Ok(MaterialStatus::Loaded(MaterialLibrary::parse(
-        "objects/test/piece",
-        &bytes,
+        path, &bytes,
     )?))
 }
+
+fn hair_cap(file: &str) -> TestMtlMaterial {
+    TestMtlMaterial::new("hair_scalp_m")
+        .shader("HairPBR")
+        .string_gen_mask("%HAIR_CAP")
+        .diffuse([0.0, 0.0, 0.0])
+        .texture("TexSlot1", file)
+}
+
+const MALE_LIBRARY: &str = "objects/test/hair_v2/sc/male/m_hair_31";
+const MALE_SCALP: &str = "Objects/Test/hair_v2/sc/male/textures/m_hair_31_scalp.tif";
+const FEMALE_SCALP: &str = "Objects/Test/hair_v2/sc/female/textures/f_hair_31_scalp.tif";
 
 fn write(
     status: &MaterialStatus,
@@ -153,6 +168,97 @@ fn hair_cards_take_their_opacity_from_the_opacity_map_and_their_colour_from_the_
         [0.2, 0.1, 0.05, 1.0]
     );
     assert!(summary.texture_fallbacks.is_empty(), "{summary:?}");
+    Ok(())
+}
+
+#[test]
+fn a_hair_cap_is_blended_by_its_density_map() -> TestResult {
+    let stub = Stub::default().with(
+        "objects/test/hair_v2/sc/male/textures/m_hair_31_scalp.dds",
+        &texture([100, 100, 100, 255], false)?,
+    );
+
+    let (glb, summary) = write(
+        &library_at(MALE_LIBRARY, &hair_cap(MALE_SCALP))?,
+        Some(&stub),
+    )?;
+
+    let cap = material(&glb, "hair_scalp_m")?;
+    assert_eq!(cap.alpha_mode(), AlphaMode::Blend, "never an opaque shell");
+    let base = base_image(&glb, &cap)?;
+    assert!(
+        near(base.pixel(0, 0), [255, 255, 255, 100]),
+        "the density is the alpha: {:?}",
+        base.pixel(0, 0)
+    );
+    assert_eq!(cap.pbr_metallic_roughness().base_color_factor()[3], 1.0);
+    assert!(summary.texture_fallbacks.is_empty(), "{summary:?}");
+    Ok(())
+}
+
+#[test]
+fn a_hair_caps_map_of_the_other_body_is_swapped_for_the_bodys_own() -> TestResult {
+    let stub = Stub::default().with(
+        "objects/test/hair_v2/sc/male/textures/m_hair_31_scalp.dds",
+        &texture([80, 80, 80, 255], false)?,
+    );
+
+    let (glb, summary) = write(
+        &library_at(MALE_LIBRARY, &hair_cap(FEMALE_SCALP))?,
+        Some(&stub),
+    )?;
+
+    let base = base_image(&glb, &material(&glb, "hair_scalp_m")?)?;
+    assert!(
+        near(base.pixel(0, 0), [255, 255, 255, 80]),
+        "{:?}",
+        base.pixel(0, 0)
+    );
+    assert!(summary.texture_fallbacks.is_empty(), "{summary:?}");
+    Ok(())
+}
+
+#[test]
+fn a_hair_cap_falls_back_to_the_map_its_file_names_when_the_bodys_is_missing() -> TestResult {
+    let stub = Stub::default().with(
+        "objects/test/hair_v2/sc/female/textures/f_hair_31_scalp.dds",
+        &texture([60, 60, 60, 255], false)?,
+    );
+
+    let (glb, summary) = write(
+        &library_at(MALE_LIBRARY, &hair_cap(FEMALE_SCALP))?,
+        Some(&stub),
+    )?;
+
+    let base = base_image(&glb, &material(&glb, "hair_scalp_m")?)?;
+    assert!(
+        near(base.pixel(0, 0), [255, 255, 255, 60]),
+        "{:?}",
+        base.pixel(0, 0)
+    );
+    assert!(summary.texture_fallbacks.is_empty(), "{summary:?}");
+    Ok(())
+}
+
+#[test]
+fn a_hair_cap_without_its_map_is_transparent_and_listed() -> TestResult {
+    let stub = Stub::default();
+
+    let (glb, summary) = write(
+        &library_at(MALE_LIBRARY, &hair_cap(FEMALE_SCALP))?,
+        Some(&stub),
+    )?;
+
+    let cap = material(&glb, "hair_scalp_m")?;
+    assert_eq!(cap.alpha_mode(), AlphaMode::Blend);
+    assert_eq!(cap.pbr_metallic_roughness().base_color_factor()[3], 0.0);
+    assert!(
+        summary
+            .texture_fallbacks
+            .iter()
+            .any(|fallback| fallback.file.contains("m_hair_31_scalp")),
+        "{summary:?}"
+    );
     Ok(())
 }
 

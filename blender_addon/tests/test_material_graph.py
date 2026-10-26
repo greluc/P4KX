@@ -219,6 +219,28 @@ def test_alpha_modes() -> None:
     assert alpha is not None and mask.node(alpha.key).props["operation"] == "GREATER_THAN"
 
 
+def test_a_hair_cap_is_blended_by_its_density_map() -> None:
+    cap = description(
+        "x0001",
+        "HairPBR",
+        alpha_mode="blend",
+        gen_mask=["HAIR_CAP"],
+        textures=[slot("TexSlot1", "mask", "t0001", file="a/m_hair_scalp.tif")],
+    )
+    graph = single([cap])
+    assert graph.alpha_mode == "blend"
+    alpha = graph.linked("bsdf", "Alpha")
+    assert alpha is not None and graph.node(alpha.key).kind == "ShaderNodeRGBToBW"
+
+
+def test_a_hair_cap_without_a_written_map_is_fully_transparent() -> None:
+    for textures in ([], [slot("TexSlot1", "mask", None, file="a/m_hair_scalp.tif")]):
+        cap = description("x0001", "HairPBR", alpha_mode="blend", gen_mask=["HAIR_CAP"], textures=textures)
+        graph = single([cap])
+        assert graph.alpha_mode == "blend"
+        assert graph.node("bsdf").inputs["Alpha"] == 0.0
+
+
 def test_glass_decal_hologram_and_nodraw() -> None:
     glass = single([description("x0001", "GlassPBR", palette="glass")], palette=load().palettes["p0001"])
     assert glass.node("bsdf").inputs["Transmission Weight"] == 1.0

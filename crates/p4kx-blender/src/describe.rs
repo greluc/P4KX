@@ -7,7 +7,7 @@ use crate::manifest_materials::{
     AlphaMode, Element, MaterialDescription, MaterialLayer, MaterialTexture, PaletteEntry,
     Parameter,
 };
-use crate::roles::classify;
+use crate::roles::classify_in;
 
 const DECAL_SHADERS: [&str; 2] = ["MeshDecal", "Decal"];
 const GLASS_SHADERS: [&str; 1] = ["GlassPBR"];
@@ -48,7 +48,11 @@ pub(crate) fn describe(
         alpha_mode: alpha_mode(material),
         palette: material.palette.and_then(entry),
         default_palette: default_palette.map(str::to_owned),
-        textures: material.textures.iter().map(texture).collect(),
+        textures: material
+            .textures
+            .iter()
+            .map(|slot| texture(material, slot))
+            .collect(),
         layers: material.layers.iter().map(layer).collect(),
         parameters: parameters(&material.public_params),
         attributes: parameters(&material.other_attributes),
@@ -98,7 +102,11 @@ fn alpha_mode(material: &Material) -> AlphaMode {
     };
     if material.alpha_test > 0.0 {
         AlphaMode::Mask
-    } else if named(&GLASS_SHADERS) || named(&DECAL_SHADERS) || material.opacity < 1.0 {
+    } else if named(&GLASS_SHADERS)
+        || named(&DECAL_SHADERS)
+        || material.is_hair_cap()
+        || material.opacity < 1.0
+    {
         AlphaMode::Blend
     } else {
         AlphaMode::Opaque
@@ -123,11 +131,11 @@ fn element(raw: &RawElement) -> Element {
     }
 }
 
-fn texture(slot: &TextureSlot) -> MaterialTexture {
+fn texture(material: &Material, slot: &TextureSlot) -> MaterialTexture {
     MaterialTexture {
         slot: slot.map.clone(),
         file: slot.file.clone(),
-        usage: classify(&slot.map, &slot.file),
+        usage: classify_in(material, &slot.map, &slot.file),
         texture: None,
         attributes: parameters(&slot.attributes),
         elements: slot.children.iter().map(element).collect(),

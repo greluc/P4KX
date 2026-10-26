@@ -155,7 +155,8 @@ and `at`:
 The tag path is the names of the Tag and its ancestors in the tag tree from the root down, joined by
 `.`; see [Record XML](record-xml.md#tag-paths) for which References get it. Without `--tags` there
 is no `tag` key and the output is byte for byte the output described above. The
-[JSON Schema](../schemas/record-json.schema.json) allows `tag` as a string on a Reference.
+[JSON Schema](../schemas/record-json.schema.json) allows `tag` as a string on a Reference of type
+`Tag` only.
 
 ## Files
 

@@ -58,6 +58,7 @@ egui_kittest = { workspace = true, features = ["wgpu"] }
 fluent-syntax.workspace = true
 png.workspace = true
 serde_json.workspace = true
+stats_alloc.workspace = true
 tempfile.workspace = true
 zstd.workspace = true
 

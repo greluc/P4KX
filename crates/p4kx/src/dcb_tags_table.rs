@@ -16,7 +16,7 @@ pub(crate) fn write(out: &mut impl Write, listing: &Listing<'_>, tree: bool) -> 
     writeln!(
         out,
         "{} of {}",
-        count(listing.rows.len(), "tag"),
+        listing.rows.len(),
         count(listing.total, "tag")
     )
 }

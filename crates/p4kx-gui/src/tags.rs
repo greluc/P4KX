@@ -98,6 +98,14 @@ impl TagsTab {
         self.query.clear();
     }
 
+    /// Stops reading the tree and drops the one that was read, because the Archive changed on disk;
+    /// nothing happens while the tags were not asked for.
+    pub(crate) fn archive_changed(&mut self) {
+        if self.is_started() {
+            self.state = State::ArchiveChanged;
+        }
+    }
+
     /// Takes the tree once it is read; returns whether something changed.
     pub fn poll(&mut self) -> bool {
         let State::Loading(load) = &self.state else {
@@ -126,6 +134,16 @@ impl TagsTab {
         if let State::Ready(view) = &mut self.state {
             view.set_query(text);
         }
+    }
+
+    /// Lets `edit` change the search text in place and searches again when it returns `true`;
+    /// returns what `edit` returned.
+    pub(crate) fn edit_query(&mut self, edit: impl FnOnce(&mut String) -> bool) -> bool {
+        let changed = edit(&mut self.query);
+        if changed && let State::Ready(view) = &mut self.state {
+            view.set_query(&self.query);
+        }
+        changed
     }
 
     /// Expands the tag at `position` of the pre-order, or collapses it when it is expanded.

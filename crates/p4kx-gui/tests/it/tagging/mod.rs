@@ -73,6 +73,29 @@ pub(crate) fn forge() -> Vec<u8> {
         .build()
 }
 
+/// Returns a DataForge with one root tag for each of `names`, none with children.
+pub(crate) fn forge_named(names: &[&str]) -> Vec<u8> {
+    let guids: Vec<u128> = (0..names.len()).map(many_guid).collect();
+    let mut builder = DataForgeBuilder::new()
+        .structure(
+            TestStruct::new("Tag")
+                .field("tagName", TestType::String)
+                .field("legacyGUID", TestType::UInt32)
+                .array("children", TestType::ReferenceTo("Tag".to_owned())),
+        )
+        .structure(
+            TestStruct::new("TagDatabase").array("tags", TestType::ReferenceTo("Tag".to_owned())),
+        )
+        .record(
+            TestRecord::new(DATABASE, "TagDatabase", "TagDatabase.TagDatabase", PATH)
+                .value("tags", references(&guids)),
+        );
+    for (index, name) in names.iter().enumerate() {
+        builder = builder.record(tag(many_guid(index), name, u32::MAX, &[]));
+    }
+    builder.build()
+}
+
 /// Returns the GUID of tag `index` of [`forge_many`].
 pub(crate) const fn many_guid(index: usize) -> u128 {
     0x00c0_0000_0000_4000_8000_0000_0000_0000 + index as u128

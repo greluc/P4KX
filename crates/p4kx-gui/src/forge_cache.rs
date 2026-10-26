@@ -1,185 +1,22 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::fmt;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError, TryLockError};
+use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
-use std::time::Duration;
 
-use p4kx_export::RecordFilePlans;
-use p4kx_extraction::TagTree;
 use p4kx_extraction::query::QuerySchema;
 use p4kx_extraction::{DataForgeEntry, DataForgeLoadError};
-use p4kx_extraction::{MAX_INDEXED_REFERENCES, ReferenceIndex};
 
 use crate::EntryIndex;
 use crate::model::describe;
+use source::take_turn;
 use waiting::Waiting;
 
+mod source;
 mod waiting;
 
-/// How often a consumer waiting for its turn to read DataForge or to build the index of References
-/// looks at its stop flag.
-const TURN_POLL: Duration = Duration::from_millis(25);
-
-/// The DataForge of one open Archive as every consumer reads it: its Entry, read once, the files
-/// of its Records, planned once per form, and the Query completion schema, built once.
-pub(crate) struct ForgeSource {
-    pub(crate) entry: Arc<DataForgeEntry>,
-    pub(crate) plans: RecordFilePlans,
-    schema: OnceLock<Arc<QuerySchema>>,
-    schema_turn: Mutex<()>,
-    schema_builds: AtomicUsize,
-    references: OnceLock<Arc<ReferenceIndex>>,
-    references_turn: Mutex<()>,
-    references_builds: AtomicUsize,
-    tags: OnceLock<Arc<TagTree>>,
-    tags_turn: Mutex<()>,
-}
-
-impl ForgeSource {
-    fn new(entry: DataForgeEntry) -> Self {
-        Self {
-            entry: Arc::new(entry),
-            plans: RecordFilePlans::default(),
-            schema: OnceLock::new(),
-            schema_turn: Mutex::new(()),
-            schema_builds: AtomicUsize::new(0),
-            references: OnceLock::new(),
-            references_turn: Mutex::new(()),
-            references_builds: AtomicUsize::new(0),
-            tags: OnceLock::new(),
-            tags_turn: Mutex::new(()),
-        }
-    }
-
-    /// Returns the completion schema if it was built.
-    pub(crate) fn schema_if_built(&self) -> Option<Arc<QuerySchema>> {
-        self.schema.get().cloned()
-    }
-
-    /// Returns the completion schema, building it from the DataForge already read unless it was
-    /// built before. The build runs outside the [`OnceLock`], because it uses rayon.
-    ///
-    /// # Errors
-    ///
-    /// Returns why the DataForge cannot be opened.
-    pub(crate) fn schema(&self) -> Result<Arc<QuerySchema>, ReadFailure> {
-        let _turn = self
-            .schema_turn
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if let Some(schema) = self.schema.get() {
-            return Ok(Arc::clone(schema));
-        }
-        let forge = self
-            .entry
-            .open()
-            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
-        self.schema_builds.fetch_add(1, Ordering::Relaxed);
-        let built = Arc::new(QuerySchema::of(&forge));
-        Ok(Arc::clone(self.schema.get_or_init(|| built)))
-    }
-}
-
-impl ForgeSource {
-    /// Returns the tag tree of the DataForge already read, building it unless it was built before.
-    /// The build runs outside the [`OnceLock`], and one at a time, so that it happens once per read.
-    ///
-    /// # Errors
-    ///
-    /// Returns why the DataForge cannot be opened.
-    pub(crate) fn tags(&self) -> Result<Arc<TagTree>, ReadFailure> {
-        let _turn = self
-            .tags_turn
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if let Some(tags) = self.tags.get() {
-            return Ok(Arc::clone(tags));
-        }
-        let forge = self
-            .entry
-            .open()
-            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
-        let built = Arc::new(TagTree::build(&forge));
-        Ok(Arc::clone(self.tags.get_or_init(|| built)))
-    }
-
-    /// Returns the index of the References between the Records, building it from the DataForge
-    /// already read unless it was built before, or `None` once `stop` returns `true`, while
-    /// building or while waiting for the build of another consumer. The build runs outside the
-    /// [`OnceLock`], because it uses rayon, and one at a time, so that it happens once per read.
-    ///
-    /// # Errors
-    ///
-    /// Returns why the DataForge cannot be opened.
-    pub(crate) fn references(
-        &self,
-        stop: &(dyn Fn() -> bool + Sync),
-    ) -> Result<Option<Arc<ReferenceIndex>>, ReadFailure> {
-        if let Some(references) = self.references.get() {
-            return Ok(Some(Arc::clone(references)));
-        }
-        let _turn = loop {
-            match self.references_turn.try_lock() {
-                Ok(turn) => break turn,
-                Err(TryLockError::Poisoned(poisoned)) => break poisoned.into_inner(),
-                Err(TryLockError::WouldBlock) => {
-                    if stop() {
-                        return Ok(None);
-                    }
-                    thread::sleep(TURN_POLL);
-                }
-            }
-        };
-        if let Some(references) = self.references.get() {
-            return Ok(Some(Arc::clone(references)));
-        }
-        let forge = self
-            .entry
-            .open()
-            .map_err(|error| ReadFailure::Unreadable(describe(&error)))?;
-        let Some(built) = ReferenceIndex::build_with(&forge, MAX_INDEXED_REFERENCES, stop) else {
-            return Ok(None);
-        };
-        self.references_builds.fetch_add(1, Ordering::Relaxed);
-        let built = Arc::new(built);
-        Ok(Some(Arc::clone(self.references.get_or_init(|| built))))
-    }
-}
-
-impl fmt::Debug for ForgeSource {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ForgeSource")
-            .field("entry", &self.entry.path())
-            .field("plans", &self.plans)
-            .field("schema", &self.schema.get().is_some())
-            .field("schema_builds", &self.schema_builds)
-            .field("references", &self.references.get().is_some())
-            .field("references_builds", &self.references_builds)
-            .field("tags", &self.tags.get().is_some())
-            .finish_non_exhaustive()
-    }
-}
-
-/// Why the DataForge of an Archive could not be read.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ReadFailure {
-    /// The Archive changed on disk before or while it was read, for the reason given.
-    ArchiveChanged(String),
-    /// The Entry cannot be read, for the reason given.
-    Unreadable(String),
-}
-
-impl ReadFailure {
-    /// Returns the reason.
-    pub(crate) fn into_reason(self) -> String {
-        match self {
-            Self::ArchiveChanged(reason) | Self::Unreadable(reason) => reason,
-        }
-    }
-}
+pub(crate) use source::{ForgeSource, ReadFailure};
 
 /// The one DataForge cache of an open Archive, shared by the Record tree, the Record preview, the
 /// Query tab and the Record export.
@@ -249,17 +86,8 @@ impl ForgeCache {
         stop: &dyn Fn() -> bool,
     ) -> Result<Option<Arc<ForgeSource>>, ReadFailure> {
         let waiting = Waiting::new(&self.waiting);
-        let _turn = loop {
-            match self.reading.try_lock() {
-                Ok(turn) => break turn,
-                Err(TryLockError::Poisoned(poisoned)) => break poisoned.into_inner(),
-                Err(TryLockError::WouldBlock) => {
-                    if stop() {
-                        return Ok(None);
-                    }
-                    thread::sleep(TURN_POLL);
-                }
-            }
+        let Some(_turn) = take_turn(&self.reading, stop) else {
+            return Ok(None);
         };
         drop(waiting);
         let stop = || stop() && self.waiting.load(Ordering::Acquire) == 0;
@@ -303,14 +131,17 @@ impl ForgeCache {
 
     /// Returns how often the index of References was built for the DataForge held now.
     pub(crate) fn reference_builds(&self) -> usize {
-        self.cached()
-            .map_or(0, |source| source.references_builds.load(Ordering::Relaxed))
+        self.cached().map_or(0, |source| source.references_builds())
+    }
+
+    /// Returns how often the tag tree was built for the DataForge held now.
+    pub(crate) fn tag_builds(&self) -> usize {
+        self.cached().map_or(0, |source| source.tags_builds())
     }
 
     /// Returns how often the completion schema was built for the DataForge held now.
     pub(crate) fn schema_builds(&self) -> usize {
-        self.cached()
-            .map_or(0, |source| source.schema_builds.load(Ordering::Relaxed))
+        self.cached().map_or(0, |source| source.schema_builds())
     }
 
     /// Returns whether the completion schema is missing, no build runs and none was started
@@ -390,4 +221,6 @@ impl ForgeCache {
 }
 
 #[cfg(test)]
-mod tests;
+mod tags_tests;
+#[cfg(test)]
+pub(crate) mod tests;

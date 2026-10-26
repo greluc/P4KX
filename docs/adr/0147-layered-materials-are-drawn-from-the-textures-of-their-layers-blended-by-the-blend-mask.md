@@ -47,7 +47,8 @@ failed. At most eight layers are blended; the layers beyond keep out.
 so the image averages to the flat colour. With a blend map (`_blend` in any slot of the material)
 the first four layers have the shares of the map (assumed: the first the rest of 1 less red,
 green and blue, the second red, the third green, the fourth blue, normalised over the layers that
-exist),
+exist; superseded by ADR-0207: red, green and blue take the first three by precedence, the rest
+the fourth),
 taken from the texel of the map, together `1 - w` where `w` is the share of the layers from the
 fifth on; those share `w` by position as before. The wear map is not read; `WearBlendBase` is the
 only wear.

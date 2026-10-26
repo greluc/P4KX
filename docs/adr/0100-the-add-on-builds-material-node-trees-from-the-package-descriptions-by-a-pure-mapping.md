@@ -2,6 +2,12 @@
 
 Decided for issue #160 (M13.4); it reads the descriptions of ADR-0092 in the add-on of ADR-0093.
 
+Amended by ADR-0207: a layer that takes a palette entry or a tint other than white takes its metal
+share from that entry's specular colour, and its specular map only sets the specular level; the
+detail overlay uses the red channel of the packed detail map only; without a blend map the second
+layer is blended by `(1 − vertex red) · WearBlendBase`; with a blend map the layers are blended by
+the precedence of its channels. The mapping of the layers lives in `material_layers.py`.
+
 ## Decision
 
 **Description in, graph description out, nodes last.** `material_graph.build_graph` maps a

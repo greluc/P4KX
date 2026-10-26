@@ -31,6 +31,7 @@ mod character_definitions;
 mod docked_vehicles;
 mod entity_catalogue;
 mod entity_interior;
+mod entity_interior_cache;
 mod entity_interior_modules;
 mod entity_lookup;
 mod head_animation;

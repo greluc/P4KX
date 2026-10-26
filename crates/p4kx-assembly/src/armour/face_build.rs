@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 
 use p4kx_character::Dna;
-use p4kx_model::{Bone, BoneMatch, Lod, Model, extend_skeleton};
+use p4kx_model::{Bone, BoneMatch, Model, extend_skeleton};
 
 use super::ArmourPart;
 use super::facial::{FaceLink, Facial};
@@ -121,7 +121,8 @@ pub(super) fn settled(
     mut skeleton: Model,
     parts: &mut [ArmourPart],
     heads: Vec<Found>,
-    (jobs, level): (&[&Job], u32),
+    jobs: &[&Job],
+    level: u32,
     issues: &mut Vec<Issue>,
 ) -> Model {
     extend_with_faces(&mut skeleton, parts, heads);
@@ -131,21 +132,11 @@ pub(super) fn settled(
     skeleton
 }
 
-/// Returns the level of `model` closest to `level` from below, or its lowest when all are above.
-fn exported_lod(model: &Model, level: u32) -> Option<&Lod> {
-    model
-        .lods
-        .iter()
-        .filter(|lod| lod.level <= level)
-        .max_by_key(|lod| lod.level)
-        .or_else(|| model.lods.iter().min_by_key(|lod| lod.level))
-}
-
 /// Notes how a part fits the skeleton at the level `level` of detail that is exported: bones it
 /// lacks, and a model that is not skinned at all.
 fn note_fit(job: &Job, part: &ArmourPart, skeleton: &Model, level: u32, issues: &mut Vec<Issue>) {
     let model = &part.model;
-    let Some(lod) = exported_lod(model, level) else {
+    let Some(lod) = model.nearest_lod(level) else {
         return;
     };
     let skinned = lod.meshes.iter().any(|mesh| mesh.influences.is_some());

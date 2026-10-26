@@ -18,7 +18,6 @@ use crate::materials::MaterialPlan;
 use crate::morphs::MorphTarget;
 use crate::nodes::{RigModel, push_rig_nodes};
 use crate::rig_animation::{RigAnimation, RigNodes, plan_all};
-use crate::scene::nearest_lod;
 use crate::skin::inverse_binds;
 use crate::texture_loader::{NoTextures, TextureLoader};
 use crate::texture_plan::TextureSet;
@@ -258,7 +257,7 @@ fn instances_of<'m>(pieces: &[RigPiece<'m>], options: &GlbOptions) -> (Vec<Insta
     let instances = pieces
         .iter()
         .map(|piece| {
-            let lod = nearest_lod(piece.model, options.lod);
+            let lod = piece.model.nearest_lod(options.lod);
             if lod.is_some_and(|lod| lod.level != options.lod) {
                 fallbacks += 1;
             }

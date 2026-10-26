@@ -247,6 +247,17 @@ pub struct ModelChunk {
 }
 
 impl Model {
+    /// Returns the level closest to `level` from below, or the lowest level when all are above it;
+    /// `None` for a model without levels.
+    #[must_use]
+    pub fn nearest_lod(&self, level: u32) -> Option<&Lod> {
+        self.lods
+            .iter()
+            .filter(|lod| lod.level <= level)
+            .max_by_key(|lod| lod.level)
+            .or_else(|| self.lods.iter().min_by_key(|lod| lod.level))
+    }
+
     /// Reads the model `file`, named `name`, fetching its geometry companion `<name>m` from
     /// `companions` unless the file holds its mesh itself; a file without `MeshInfo` chunk whose
     /// companion does not exist is read as helper nodes without meshes. A `CrCh` file holds its

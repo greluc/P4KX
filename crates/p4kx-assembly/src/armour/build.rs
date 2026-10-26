@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_gltf::MorphTarget;
@@ -73,12 +73,7 @@ impl Armour {
         let chosen = choose(&jobs, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&jobs, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
-        let covering = covered(
-            jobs.iter()
-                .zip(&chosen)
-                .filter(|(_, found)| found.is_some())
-                .flat_map(|(job, _)| job.zones.iter()),
-        );
+        let covering = covering(&jobs, &chosen);
         let mut reported = HashSet::new();
         let mut parts = Vec::with_capacity(chosen.len());
         let mut head: Option<HeadMove> = None;
@@ -113,8 +108,14 @@ impl Armour {
                 face: None,
             });
         }
-        let fit = (part_jobs.as_slice(), options.lod);
-        let skeleton = settled(body.skeleton, &mut parts, heads, fit, &mut issues);
+        let skeleton = settled(
+            body.skeleton,
+            &mut parts,
+            heads,
+            &part_jobs,
+            options.lod,
+            &mut issues,
+        );
         Ok(Self {
             variant,
             skeleton: Arc::new(skeleton),
@@ -124,6 +125,16 @@ impl Armour {
             lod: options.lod,
         })
     }
+}
+
+/// Returns the body zones the worn clothing of the jobs that have a model covers.
+fn covering<'j>(jobs: &'j [Job], chosen: &[Option<&Loaded>]) -> BTreeSet<&'j str> {
+    covered(
+        jobs.iter()
+            .zip(chosen)
+            .filter(|(_, found)| found.is_some())
+            .flat_map(|(job, _)| job.zones.iter()),
+    )
 }
 
 /// Returns the model of a job as it is worn: shaped by the job's DNA, if it has one, and following

@@ -98,6 +98,7 @@ fn crate_size(
     worn: usize,
 ) -> Option<usize> {
     let vertices = main
+        .filter(|main| !main.to_ascii_lowercase().ends_with(".cdf"))
         .and_then(|main| models.model(main, LOD).ok())
         .map(|provided| {
             provided

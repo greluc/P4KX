@@ -53,6 +53,8 @@ pub(crate) enum Picked<'f> {
     Refining(RefiningProcess<'f>),
     /// A development leftover of the kind, with the GUID of its Record.
     Skipped(Kind, Guid),
+    /// A development leftover that is an item and a paint.
+    SkippedPaint,
     /// A Record that could not be read.
     Failed(CatalogFailure),
 }
@@ -208,9 +210,11 @@ impl<'f> Collected<'f> {
                     if kind == Kind::BlueprintCategories {
                         missing_categories.insert(guid);
                     }
-                    if let Some(skipped) = collected.skipped.get_mut(kind.index()) {
-                        *skipped = skipped.saturating_add(1);
-                    }
+                    collected.skip(kind);
+                }
+                Picked::SkippedPaint => {
+                    collected.skip(Kind::Items);
+                    collected.skip(Kind::Paints);
                 }
                 Picked::Failed(failure) => collected.failures.push(failure),
             }
@@ -219,6 +223,12 @@ impl<'f> Collected<'f> {
         unlink_categories(&mut collected.blueprints, &missing_categories);
         collected.order();
         collected
+    }
+
+    fn skip(&mut self, kind: Kind) {
+        if let Some(skipped) = self.skipped.get_mut(kind.index()) {
+            *skipped = skipped.saturating_add(1);
+        }
     }
 
     fn crafting_skipped(crafting: &CraftingKinds<'f>) -> [usize; Kind::ALL.len()] {

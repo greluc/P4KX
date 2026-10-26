@@ -127,20 +127,28 @@ impl Kind {
         )
     }
 
-    /// Returns the rule that selects the kind's Records. The rule of [`Kind::Paints`] is that of
-    /// [`Kind::Items`]: a Record it selects is a paint when its `AttachDef.Type` is `Paints`.
-    /// [`Kind::Loadouts`] has no rule of its own either: it takes the Records of [`Kind::Ships`]
-    /// and of [`Kind::Items`] and reports the rule of the items. [`Kind::Shops`] reads Archive
-    /// files, not Records, and reports an empty rule.
+    /// Returns the rule that selects the kind's Records, `None` for a [derived](Self::is_derived)
+    /// kind: [`Kind::Paints`] and [`Kind::Loadouts`] are made of the entities of other kinds and
+    /// [`Kind::Shops`] reads Archive files, not Records.
     #[must_use]
+    pub const fn rule(self) -> Option<KindRule> {
+        if self.is_derived() {
+            None
+        } else {
+            Some(self.records())
+        }
+    }
+
+    /// Returns the rule of a kind that selects Records; a derived kind has the empty rule, which
+    /// matches no path.
     #[expect(clippy::too_many_lines, reason = "a table with one entry per kind")]
-    pub const fn rule(self) -> KindRule {
+    pub(crate) const fn records(self) -> KindRule {
         match self {
             Self::Manufacturers => KindRule {
                 prefixes: &["libs/foundry/records/scitemmanufacturer/"],
                 type_name: "SCItemManufacturer",
             },
-            Self::Items | Self::Paints | Self::Loadouts => KindRule {
+            Self::Items => KindRule {
                 prefixes: &[
                     "libs/foundry/records/entities/scitem/",
                     "libs/foundry/records/entities/legacyitems/",
@@ -202,7 +210,7 @@ impl Kind {
                 prefixes: &["libs/foundry/records/refiningprocess/"],
                 type_name: "RefiningProcess",
             },
-            Self::Shops => KindRule {
+            Self::Paints | Self::Loadouts | Self::Shops => KindRule {
                 prefixes: &[],
                 type_name: "",
             },
@@ -210,13 +218,12 @@ impl Kind {
     }
 
     /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
-    /// kinds do not overlap, except that the derived [`Kind::Paints`] and [`Kind::Loadouts`] are
-    /// never returned.
+    /// kinds do not overlap, and a derived kind is never returned.
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .filter(|kind| !kind.is_derived())
-            .find(|kind| kind.rule().matches_path(record_path))
+        Self::ALL.into_iter().find(|kind| {
+            kind.rule()
+                .is_some_and(|rule| rule.matches_path(record_path))
+        })
     }
 
     /// Returns the position of the kind in [`Kind::ALL`].
@@ -316,7 +323,7 @@ pub(crate) fn selects_blueprint(
     record: &Record<'_>,
     filter: Option<&Filter>,
 ) -> Result<BlueprintSelection, DataForgeError> {
-    let rule = Kind::Blueprints.rule();
+    let rule = Kind::Blueprints.records();
     let path = record.record_path()?;
     if !rule.matches_path(path)
         || record.type_name()? != rule.type_name

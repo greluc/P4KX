@@ -16,6 +16,7 @@ impl IssueKind {
             Self::MaterialLibrary { .. } => "material_library",
             Self::Palette { .. } => "palette",
             Self::HelperNotFound { .. } => "helper_not_found",
+            Self::AttachmentsLeftOut { .. } => "attachments_left_out",
             Self::TooManyParts { .. } => "too_many_parts",
             Self::TooManyVertices { .. } => "too_many_vertices",
             Self::TooDeep { .. } => "too_deep",

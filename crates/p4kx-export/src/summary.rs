@@ -318,10 +318,15 @@ impl CatalogSummary {
             .find(|summary| summary.kind == kind)
     }
 
-    /// Returns the Records left out as development leftovers over every kind.
+    /// Returns the Records left out as development leftovers over every kind that selects Records;
+    /// a derived kind counts the leftovers of the kind it is derived from, so it is not added.
     #[must_use]
     pub fn skipped(&self) -> usize {
-        self.kinds.iter().map(|summary| summary.skipped).sum()
+        self.kinds
+            .iter()
+            .filter(|summary| !summary.kind.is_derived())
+            .map(|summary| summary.skipped)
+            .sum()
     }
 
     /// Returns the size of the catalog JSON in bytes, uncompressed.

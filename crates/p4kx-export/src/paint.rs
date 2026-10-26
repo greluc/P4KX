@@ -3,15 +3,20 @@
 
 use std::collections::{HashMap, HashSet};
 
-use p4kx_extraction::{DataForge, TagTree};
+use p4kx_extraction::{CancelToken, DataForge, TagTree};
 use rayon::prelude::*;
 
-use crate::PaintSummary;
 use crate::contract::{Item, Paint};
 use crate::guid_text::CatalogGuid;
 use crate::paint_port::{PaintPort, VehicleFacts};
+use crate::{CatalogError, PaintSummary};
 
 const PAINT_TYPE: &str = "Paints";
+
+/// Returns whether `kind` is the `AttachDef.Type` of a paint, ignoring ASCII case.
+pub(crate) const fn is_paint_type(kind: &str) -> bool {
+    kind.eq_ignore_ascii_case(PAINT_TYPE)
+}
 
 /// The paints of a catalog and what was counted deriving them.
 pub(crate) struct Paints {
@@ -24,28 +29,32 @@ pub(crate) struct Paints {
 ///
 /// A paint is an item whose `AttachDef.Type` is `Paints`. It fits a ship when a paint port of the
 /// ship accepts it: every tag in the port's required tags is among the paint's `Tags` or above
-/// one of them in the tag tree. The ports are the `SItemPortDef` entries of the ship's Record and
-/// the `ItemPort` elements of its vehicle implementation.
+/// one of them in the tag tree, and every tag in the paint's own `RequiredTags` is among the
+/// port's tags and the ship Record's `AttachDef.Tags` or above one of them. The ports are the
+/// `SItemPortDef` entries of the ship's Record and the `ItemPort` elements of its vehicle
+/// implementation.
+///
+/// # Errors
+///
+/// Returns [`CatalogError::Cancelled`] once `cancel` is cancelled.
 pub(crate) fn paints(
     forge: &DataForge<'_>,
     items: &[Item<'_>],
     vehicles: &[VehicleFacts],
-) -> Paints {
+    cancel: Option<&CancelToken>,
+) -> Result<Paints, CatalogError> {
     let candidates: Vec<&Item<'_>> = items
         .iter()
-        .filter(|item| {
-            item.r#type
-                .is_some_and(|kind| kind.eq_ignore_ascii_case(PAINT_TYPE))
-        })
+        .filter(|item| item.r#type.is_some_and(is_paint_type))
         .collect();
     if candidates.is_empty() {
-        return Paints {
+        return Ok(Paints {
             list: Vec::new(),
             summary: PaintSummary::default(),
             unreadable_files: Vec::new(),
-        };
+        });
     }
-    let (by_ports, mut unreadable_files) = group_ships(vehicles);
+    let (groups, mut unreadable_files) = group_ships(vehicles);
     let unreadable = unreadable_files.len();
     unreadable_files.sort_unstable();
     unreadable_files.dedup();
@@ -54,33 +63,60 @@ pub(crate) fn paints(
     let mut paints: Vec<Paint> = candidates
         .par_iter()
         .map(|item| {
+            if cancel.is_some_and(CancelToken::is_cancelled) {
+                return Err(CatalogError::Cancelled);
+            }
             let have = lowered(&item.tags);
-            let mut ship_guids: Vec<CatalogGuid> = by_ports
+            let required = lowered(&item.required_tags);
+            let mut ship_guids: Vec<CatalogGuid> = groups
                 .iter()
-                .filter(|(ports, _)| ports.iter().any(|port| fits(port, &have, &index)))
+                .filter(|(group, _)| group.accepts(&have, &required, &index))
                 .flat_map(|(_, guids)| guids.iter().copied())
                 .collect();
             ship_guids.sort_by_cached_key(|guid| guid.text());
-            Paint {
+            Ok(Paint {
                 item_guid: item.guid,
                 ship_guids,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
     paints.sort_by_cached_key(|paint| paint.item_guid.text());
     let summary = summarise(&paints, unreadable);
-    Paints {
+    Ok(Paints {
         list: paints,
         summary,
         unreadable_files,
+    })
+}
+
+/// What ships share when it comes to the paints they accept: their paint ports and the tags of
+/// their Record.
+#[derive(Debug, PartialEq, Eq, Hash)]
+struct ShipPorts {
+    ports: Vec<PaintPort>,
+    tags: Vec<String>,
+}
+
+impl ShipPorts {
+    fn accepts(&self, have: &[String], required: &[String], index: &TagIndex<'_>) -> bool {
+        self.ports.iter().any(|port| {
+            fits(port, have, index)
+                && required.iter().all(|wanted| {
+                    port.port_tags
+                        .iter()
+                        .chain(&port.required_tags)
+                        .chain(&self.tags)
+                        .any(|offered| index.matches(offered, wanted))
+                })
+        })
     }
 }
 
-type ShipsByPorts = HashMap<Vec<PaintPort>, Vec<CatalogGuid>>;
+type ShipsByPorts = HashMap<ShipPorts, Vec<CatalogGuid>>;
 
 /// Groups the ships by their paint ports, those of their Record and those of their vehicle
-/// implementation, and returns why the files of the ships that could not be used cannot be read,
-/// one entry per ship.
+/// implementation, and the tags of their Record, and returns why the files of the ships that could
+/// not be used cannot be read, one entry per ship.
 fn group_ships(vehicles: &[VehicleFacts]) -> (ShipsByPorts, Vec<String>) {
     let mut by_ports = ShipsByPorts::new();
     let mut unreadable = Vec::new();
@@ -91,7 +127,13 @@ fn group_ships(vehicles: &[VehicleFacts]) -> (ShipsByPorts, Vec<String>) {
         ports.sort_unstable();
         ports.dedup();
         if !ports.is_empty() {
-            by_ports.entry(ports).or_default().push(vehicle.ship);
+            let mut tags = vehicle.tags.clone();
+            tags.sort_unstable();
+            tags.dedup();
+            by_ports
+                .entry(ShipPorts { ports, tags })
+                .or_default()
+                .push(vehicle.ship);
         }
     }
     (by_ports, unreadable)

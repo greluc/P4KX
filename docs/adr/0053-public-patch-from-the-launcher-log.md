@@ -6,7 +6,7 @@ Archive and the files next to `Data.p4k` do not carry the public patch: `Game.lo
 manifest's version and `launcherData.json` holds only the launcher version. The RSI Launcher log
 (`logs\log.log` and `logs\log.old.log`, the two files ADR-0005 already reads) names it in the
 installer lines, e.g. `Delta update applied (SC LIVE 4.7.2-live.11674325) in …\LIVE`, as
-`SC <CHANNEL> <version>-<tag>.<change>`; the technical preview logs `SC TECH-PREVIEW 4.7-tp.11581647`.
+`SC <CHANNEL> <version>-<tag>.<change>`.
 
 `Build::public_patch` is the `<version>` of a log line whose `<change>` equals the Build's change
 number exactly; the newest such line wins and the version is kept as logged. When no line has that

@@ -113,7 +113,8 @@ pub(crate) struct PortShape {
     /// The port name.
     pub(crate) name: String,
     /// Where the attachment comes from: `loadout`, `override`, `port_default`, `unset`,
-    /// `excluded` or `replaced`.
+    /// `empty` (a port only the vehicle implementation declares), `excluded` or `replaced`; new
+    /// values may be added.
     pub(crate) source: &'static str,
     /// `visible` or `invisible` when the vehicle implementation states it.
     #[serde(skip_serializing_if = "Option::is_none")]

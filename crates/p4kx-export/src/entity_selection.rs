@@ -26,7 +26,7 @@ pub(crate) fn select(
     let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
         return Ok(None);
     };
-    if record.type_name()? != kind.rule().type_name
+    if record.type_name()? != kind.records().type_name
         || filter.is_some_and(|filter| !filter.matches(path))
     {
         return Ok(None);

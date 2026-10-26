@@ -323,7 +323,7 @@ Early development (milestone M1). Available today:
   message names both the requested and the written files, and `--tone-map` on any other texture
   only prints a note.
 - `p4kx compare <old> <new> [--entries] [--records] [--filter <filter>] [--report <file>]`
-  compares two Archives, e.g. LIVE against PTU. The Entry level joins both central directories
+  compares two Archives, e.g. an older against a newer Build. The Entry level joins both central directories
   by path (ignoring case and separator kind) and lists Entries as added, removed, or changed when
   their size or CRC-32C differs; nothing is decompressed, so it finishes in seconds. The Record
   level joins the Records of both DataForges by GUID and lists them as added, removed, moved (same
@@ -663,7 +663,7 @@ reading Entries of every compression method and encryption state present (size a
 extracting a small subset, and sorting and scrolling every Entry in the window within one 60 Hz
 frame. It compares two Archives on both levels with plausible counts and a report that is valid
 against `schemas/comparison-report.schema.json`, the Entries in less time than reading both
-Archives at 8 GB/s would take (about 1.5 seconds against 37 for LIVE and PTU), produces the line
+Archives at 8 GB/s would take (about 1.5 seconds against 37 for two Archives of LIVE size), produces the line
 diffs of changed text Entries, and compares one Archive with itself without a difference on
 either level. Its tests are ignored by default, so `cargo test` and CI report them as `ignored`.
 Point `P4KX_DATA_P4K` to an Archive, and `P4KX_DATA_P4K_B` to a second one for the Comparison,

@@ -103,6 +103,25 @@ fn locating_finds_the_entry_read_without_reading_it() -> TestResult {
 }
 
 #[test]
+fn a_read_stops_once_the_stop_function_says_so() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = archive(
+        dir.path(),
+        vec![TestEntry::deflated("Data\\Game2.dcb", database(5))],
+    )?;
+
+    let stopped = DataForgeEntry::read_until(&archive, &|| true);
+    let running = DataForgeEntry::read_until(&archive, &|| false)?;
+
+    assert!(
+        matches!(stopped, Err(DataForgeLoadError::Cancelled)),
+        "stopped: {stopped:?}"
+    );
+    assert_eq!(running.open()?.record_count(), 5, "read to the end");
+    Ok(())
+}
+
+#[test]
 fn an_archive_without_dataforge_is_an_error() -> TestResult {
     let dir = tempfile::tempdir()?;
     let archive = archive(

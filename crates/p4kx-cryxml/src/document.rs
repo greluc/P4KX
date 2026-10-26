@@ -47,6 +47,7 @@ pub(crate) struct Node {
 pub fn parse(bytes: &[u8]) -> Result<Document<'_>, CryXmlError> {
     let signature = Signature::of(bytes).ok_or(CryXmlError::NotCryXml)?;
     let header = Header::read(bytes, signature)?;
+    header.ensure_disjoint()?;
     let strings = Strings::new(header.strings);
     let attributes = read_attributes(header.attributes, header.byte_order, &strings)?;
     let nodes = read_nodes(header.nodes, header.byte_order, &strings, attributes.len())?;

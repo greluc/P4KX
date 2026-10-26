@@ -56,4 +56,5 @@ mod shop_items_rest_fixture;
 mod shops_fixture;
 mod starmap_fixture;
 mod tag_annotation;
+mod variant_groups;
 mod variants_fixture;

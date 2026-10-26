@@ -9,11 +9,17 @@ use crate::theme::desktop::SPINNER_INLINE;
 use crate::theme::palette;
 use crate::widgets::frames;
 use crate::widgets::indicator::spinner;
+use crate::widgets::scroll_region::Jump;
 use crate::{Text, Texts, XML_SIZE_LIMIT, XML_TEXT_LIMIT, XmlPreview, XmlStatus, XmlText, format};
 
 /// Shows the XML tab of the `CryXml` Entry at `path` of `size` bytes: the converted lines, or
 /// where the conversion stands.
-pub(super) fn show(ui: &mut Ui, texts: &Texts, (path, size): (&str, u64), xml: &XmlPreview) {
+pub(super) fn show(
+    ui: &mut Ui,
+    texts: &Texts,
+    (path, size): (&str, u64),
+    (xml, jump): (&XmlPreview, Option<Jump<'_>>),
+) {
     let path_arg = || ("path", FluentValue::from(path.to_owned()));
     let language = texts.language();
     frames::preview_body().show(ui, |ui| match xml.status() {
@@ -59,7 +65,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, (path, size): (&str, u64), xml: &
                 );
                 ui.colored_label(palette::WARNING, note);
             }
-            xml_view::show(ui, texts, document);
+            xml_view::show(ui, texts, document, jump);
         }
     });
 }

@@ -5,6 +5,7 @@ use std::collections::HashSet;
 
 use p4kx_extraction::{Guid, RecordTree, StructValue, Value};
 
+use crate::blueprint::as_struct;
 use crate::crafting_types::RewardSource;
 use crate::record_fields::{guid_value, number, text};
 
@@ -76,7 +77,7 @@ fn visit<'f>(
             }
             Value::Struct(child) => visit(tree, child, scope, pools, next, out),
             Value::Array(items) => {
-                for child in items.iter().filter_map(crate::blueprint::as_struct) {
+                for child in items.iter().filter_map(as_struct) {
                     visit(tree, child, scope, pools, next, out);
                 }
             }

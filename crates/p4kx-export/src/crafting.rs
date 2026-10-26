@@ -235,7 +235,11 @@ fn piece<'f>(
     }
     match selects_blueprint(record, filter)? {
         BlueprintSelection::Kept => {
-            return Ok(Some(Piece::Blueprint(blueprint(&trees.build(record)?))));
+            let piece = match blueprint(&trees.build(record)?) {
+                Ok(blueprint) => Piece::Blueprint(blueprint),
+                Err(error) => Piece::Failed(CatalogFailure::of(record, &error)),
+            };
+            return Ok(Some(piece));
         }
         BlueprintSelection::Leftover => return Ok(Some(Piece::Skipped)),
         BlueprintSelection::Outside => {}

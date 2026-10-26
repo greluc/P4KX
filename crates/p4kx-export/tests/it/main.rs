@@ -34,6 +34,7 @@ mod catalog_texts;
 mod catalog_variants;
 mod common;
 mod contracts_fixture;
+mod crafting_depth;
 mod crafting_detail;
 mod crafting_detail_fixture;
 mod crafting_fixture;

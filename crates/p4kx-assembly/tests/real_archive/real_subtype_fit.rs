@@ -30,6 +30,10 @@ const SHIPS: [&str; 10] = [
     clippy::print_stdout,
     reason = "the counts of checked and rejected items are the measurement"
 )]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pass over the ships that counts and reports"
+)]
 fn default_items_fit_the_sub_types_of_their_ports() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let entry = DataForgeEntry::read(&archive)?;

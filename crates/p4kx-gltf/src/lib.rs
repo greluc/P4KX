@@ -43,6 +43,7 @@ mod layer_make;
 mod layer_plan;
 mod layer_view;
 mod layout;
+mod material_index;
 mod materials;
 mod morphs;
 mod nodes;

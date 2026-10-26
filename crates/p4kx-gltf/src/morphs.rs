@@ -130,20 +130,20 @@ pub(crate) fn push_targets(
                         byte_offset: USize64(0),
                         component_type: Valid(IndexComponentType(component)),
                         extensions: None,
-                        extras: json::extras::Void::default(),
+                        extras: json::extras::Extras::default(),
                     },
                     values: Values {
                         buffer_view: values,
                         byte_offset: USize64(0),
                         extensions: None,
-                        extras: json::extras::Void::default(),
+                        extras: json::extras::Extras::default(),
                     },
                     extensions: None,
-                    extras: json::extras::Void::default(),
+                    extras: json::extras::Extras::default(),
                 }),
                 name: None,
                 extensions: None,
-                extras: json::extras::Void::default(),
+                extras: json::extras::Extras::default(),
             }))
         })
         .collect()
@@ -179,7 +179,7 @@ fn push_view(
         target: None,
         name: None,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     })
 }
 

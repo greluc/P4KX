@@ -50,7 +50,7 @@ pub(crate) fn document(
             name: None,
             uri: None,
             extensions: None,
-            extras: json::extras::Void::default(),
+            extras: json::extras::Extras::default(),
         })
     });
     let image_textures = buffer
@@ -194,7 +194,7 @@ pub(crate) fn push_images(
         wrap_t: Valid(json::texture::WrappingMode::Repeat),
         name: None,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     });
     layout
         .images
@@ -208,7 +208,7 @@ pub(crate) fn push_images(
                 target: None,
                 name: None,
                 extensions: None,
-                extras: json::extras::Void::default(),
+                extras: json::extras::Extras::default(),
             });
             let source = root.push(json::Image {
                 buffer_view: Some(view),
@@ -216,14 +216,14 @@ pub(crate) fn push_images(
                 name: None,
                 uri: None,
                 extensions: None,
-                extras: json::extras::Void::default(),
+                extras: json::extras::Extras::default(),
             });
             root.push(json::Texture {
                 name: None,
                 sampler: Some(sampler),
                 source,
                 extensions: None,
-                extras: json::extras::Void::default(),
+                extras: json::extras::Extras::default(),
             })
         })
         .collect()
@@ -278,7 +278,7 @@ fn push_mesh(
                 mode: Valid(Mode::Triangles),
                 targets: primitive_targets(&targets),
                 extensions: None,
-                extras: json::extras::Void::default(),
+                extras: json::extras::Extras::default(),
             })
         })
         .collect();
@@ -287,7 +287,7 @@ fn push_mesh(
         primitives,
         weights: (!targets.is_empty()).then(|| vec![0.0; targets.len()]),
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     })
 }
 
@@ -329,7 +329,7 @@ pub(crate) fn push_accessor(
         target: target.map(Valid),
         name: None,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     });
     let bound = |values: &[f32]| {
         json::Value::from(values.iter().copied().map(f64::from).collect::<Vec<_>>())
@@ -346,6 +346,6 @@ pub(crate) fn push_accessor(
         sparse: None,
         name: None,
         extensions: None,
-        extras: json::extras::Void::default(),
+        extras: json::extras::Extras::default(),
     })
 }

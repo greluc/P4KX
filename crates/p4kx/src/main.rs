@@ -3,6 +3,7 @@
 
 //! `p4kx`, the command-line interface of P4KX.
 
+mod actionmap;
 mod armour;
 mod armour_glb;
 mod armour_loadout;
@@ -20,6 +21,7 @@ mod chf;
 mod chf_glb;
 mod chunks;
 mod cli;
+mod cli_actionmap;
 mod cli_armour;
 mod cli_audio;
 mod cli_bnk;
@@ -156,6 +158,7 @@ fn main() -> ExitCode {
         Command::Armour(args) => armour::run(&args, json).map(success),
         Command::Character(args) => character_package::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),
+        Command::ActionMap(args) => actionmap::run(&args, json).map(success),
         Command::Compare(args) => {
             return compare::run(&args, json).unwrap_or_else(|error| {
                 report(&error);

@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use p4kx_assembly::{AssemblyError, ChangeError, EntityLookupError, HeadError, LoadoutError};
 use p4kx_blender::PackageError;
 use p4kx_comparison::LineDiffError;
-use p4kx_export::CatalogError;
+use p4kx_export::{ActionMapError, CatalogError};
 use p4kx_extraction::cryxml::CryXmlError;
 use p4kx_extraction::{
     ArchiveError, DataForgeError, DataForgeLoadError, FieldStatisticsError, LocalizationLoadError,
@@ -53,7 +53,7 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// Loadout lacks, contradicts another or attaches an Entity that does not fit its port, names a
 /// Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF,
 /// asks loc for a language the Archive holds no global.ini for, or looks up a localisation key
-/// that has no text.
+/// that has no text, or asks actionmap export for an Archive without a default profile.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.
@@ -108,7 +108,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      folder for, or a CHF JSON file that is invalid, has an unknown version or holds values a
      CHF file cannot store, a CHF file for chf glb or character package that holds no face DNA
      or whose DNA belongs to an unknown head rig, a language the Archive holds no global.ini
-     for, or a localisation key that has no text in the language or its fallback, or a canvas
+     for, or a localisation key that has no text in the language or its fallback, an Archive
+     without defaultProfile.xml for actionmap export, or a canvas
      for ui render --screen that no Record, several Records or a Record of another type name,
      or whose side is below 1 or above 16384 pixels
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
@@ -116,7 +117,8 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
      read into memory, or with unreadable Entry data, also a socpak container that cannot be
      opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
-     catalog that is corrupt or cannot be read, or the skeleton of a body variant (armour glb)
+     catalog that is corrupt or cannot be read, a defaultProfile.xml that is no XML or cannot be
+     read, or the skeleton of a body variant (armour glb)
      that is missing or unreadable; a missing texture, sound, soundbank, chunk
      file, UI movie file, model or geometry companion is 2
   4  the Archive changed on disk while it was open, e.g. updated by the RSI Launcher; the
@@ -160,7 +162,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnreadableInput>().is_some()
         || error.downcast_ref::<UnreadableChfInput>().is_some()
         || error.downcast_ref::<InvalidChf>().is_some()
-        || error.downcast_ref::<LocalizationLoadError>().is_some()
+        || is_text_or_profile_error(error)
         || is_missing_skeleton(error)
         || matches!(
             error.downcast_ref::<CatalogError>(),
@@ -195,6 +197,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || crate::catalog_input::is_invalid_input(error)
         || error.downcast_ref::<LanguageNotInArchive>().is_some()
         || error.downcast_ref::<NoLanguages>().is_some()
+        || is_action_map_error(error, true)
         || error.downcast_ref::<InvalidKey>().is_some()
         || crate::guard::is_refusal(error)
     {
@@ -202,6 +205,16 @@ fn code_for(error: &anyhow::Error) -> u8 {
     } else {
         PARTIAL_FAILURE
     }
+}
+
+fn is_text_or_profile_error(error: &anyhow::Error) -> bool {
+    error.downcast_ref::<LocalizationLoadError>().is_some() || is_action_map_error(error, false)
+}
+
+fn is_action_map_error(error: &anyhow::Error, missing: bool) -> bool {
+    error
+        .downcast_ref::<ActionMapError>()
+        .is_some_and(|error| matches!(error, ActionMapError::NotFound) == missing)
 }
 
 fn is_screen_error(error: &anyhow::Error, which: impl Fn(&ScreenError) -> bool) -> bool {

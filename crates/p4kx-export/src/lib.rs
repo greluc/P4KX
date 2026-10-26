@@ -48,9 +48,18 @@
 //! pools with the contracts that reward them, the dismantle processes and the global
 //! parameters. It is the library API the catalog's crafting fields are built on.
 //!
+//! [`read_action_maps`] reads the action maps of the default profile
+//! (`Data\Libs\Config\defaultProfile.xml`): every action with the localisation key of its label
+//! and its default bindings per [`Device`]; [`write_action_maps`] writes them with the labels in
+//! one language as JSON or CSV.
+//!
 //! [`write_localization_table`] writes every localisation key of a [`TextSet`] with its texts in
 //! the chosen languages as JSON or CSV.
 
+mod action_map;
+#[cfg(test)]
+mod action_map_tests;
+mod action_map_write;
 mod blueprint;
 mod blueprint_category;
 mod build;
@@ -147,6 +156,11 @@ mod texts;
 mod variant_groups;
 mod variants;
 
+pub use action_map::{
+    ACTION_MAP_PROFILE_PATH, Action, ActionMap, ActionMapError, ActionMaps, Binding, Device,
+    parse_action_maps, read_action_maps,
+};
+pub use action_map_write::{ActionMapCounts, ActionMapFormat, write_action_maps};
 pub use build::{build_catalog, build_catalog_from, write_catalog, write_catalog_from};
 pub use catalog_file::CatalogFile;
 pub use catalog_output::{Compression, ZSTD_LEVEL, ZSTD_WINDOW_LOG};

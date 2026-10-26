@@ -20,12 +20,17 @@ lookup and one scan that collects the library folders and the public patches in 
 - `P4KX_LAUNCHER_LOGS` names another log folder only for `PublicPatches::standard()`. Detection reads
   the logs of `SearchPaths::launcher`, so an in-process test that passes explicit paths never reads
   the developer's log.
-- A line is read as bytes with its break stripped; a line over 64 KiB is skipped without being held,
-  and only the last 16 MiB of a file are read (the launcher rotates at 5 MiB), the partial first line
-  of such a tail dropped, so that the newest line still wins in an oversized log. A file that is not
-  a regular file is not opened. A read error that is no interruption ends the file.
+- A line is read as bytes with its break stripped and never held beyond its limit. The tail and the
+  64 KiB bound apply to the public patches only: only the last 16 MiB of a file count (the launcher
+  rotates at 5 MiB) and a line over 64 KiB is skipped, so the newest line wins in an oversized log.
+  The first line of a tail is dropped only when the tail starts mid-line.
+- Library folders, on which the guard depends, are read from the whole file, with lines up to 1 MiB;
+  only a longer line is skipped.
+- A file that is not a regular file is not opened. A read error that is no interruption ends the
+  file.
 - A label counts when its version is non-empty numeric parts separated by dots and its change is
-  1 to 20 digits. The map keeps at most 4096 changes.
+  1 to 20 digits. The map keeps the newest 4096 changes; the old log is folded in before the
+  current one, so the current log wins.
 
 The comparison report and the schema drift report state `public_patch` in `source.<side>.build`, the
 MCP `BuildShape` carries it; both are additive.

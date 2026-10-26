@@ -82,6 +82,47 @@ fn a_library_line_over_64_kib_is_still_found() -> TestResult {
 }
 
 #[test]
+fn a_library_line_over_1_mib_is_skipped() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let paths = install(root.path())?;
+    let log = root.path().join("rsilauncher").join("logs").join("log.log");
+    std::fs::write(
+        log,
+        launch_line(&root.path().join("Library").join("LIVE"), 1100 << 10)?,
+    )?;
+
+    assert!(
+        !known_library_folders(&paths).contains(&root.path().join("Library")),
+        "skipped"
+    );
+    assert_eq!(detect(&paths).len(), 0);
+    Ok(())
+}
+
+#[test]
+fn a_tail_that_starts_mid_line_drops_the_partial_line() -> TestResult {
+    let logs = tempfile::tempdir()?;
+    let label = "(SC LIVE 4.7.2-live.11674325)";
+    let mut cut = " ".repeat(FILLER_LINE - 1 - label.len());
+    cut.push_str(label);
+    cut.push('\n');
+    let mut last = "(SC LIVE 4.7.3-live.22222)".to_owned();
+    last.push_str(&" ".repeat(500 - last.len()));
+    let mut file = std::fs::File::create(logs.path().join("log.log"))?;
+    write_filler(&mut file, 1 << 10)?;
+    file.write_all(cut.as_bytes())?;
+    write_filler(&mut file, (16 << 10) - 1)?;
+    file.write_all(last.as_bytes())?;
+    drop(file);
+
+    let patches = PublicPatches::read_from(logs.path());
+
+    assert_eq!(patches.get("11674325"), None, "the partial line");
+    assert_eq!(patches.get("22222"), Some("4.7.3"));
+    Ok(())
+}
+
+#[test]
 fn a_tail_that_starts_on_a_line_start_keeps_that_line() -> TestResult {
     let logs = tempfile::tempdir()?;
     let mut text = "(SC LIVE 4.7.2-live.11674325)".to_owned();

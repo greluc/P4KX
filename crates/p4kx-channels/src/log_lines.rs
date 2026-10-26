@@ -44,15 +44,15 @@ struct Opened {
 }
 
 fn open(path: &Path, part: Part) -> Option<Opened> {
-    let metadata = std::fs::metadata(path).ok()?;
-    if !metadata.is_file() {
+    if !std::fs::metadata(path).ok()?.is_file() {
         return None;
     }
     let mut file = File::open(path).ok()?;
-    if !file.metadata().is_ok_and(|opened| opened.is_file()) {
+    let opened = file.metadata().ok()?;
+    if !opened.is_file() {
         return None;
     }
-    let length = metadata.len();
+    let length = opened.len();
     let tail_start = length.saturating_sub(PATCH_TAIL_BYTES);
     let (mut start, mut skipping) = (0, false);
     if part == Part::Tail && tail_start > 0 {

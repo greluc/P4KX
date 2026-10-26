@@ -17,11 +17,22 @@ const MAX_CHANGE_LEN: usize = 20;
 ///
 /// Read once from the launcher's log files and handed to whoever needs a [`Build`]'s public
 /// patch; an empty value gives no Build a public patch.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default)]
 pub struct PublicPatches {
     by_change: HashMap<String, (String, u64)>,
     next: u64,
 }
+
+impl PartialEq for PublicPatches {
+    fn eq(&self, other: &Self) -> bool {
+        self.by_change.len() == other.by_change.len()
+            && self.by_change.iter().all(|(change, (version, _))| {
+                other.get(change).is_some_and(|known| known == version)
+            })
+    }
+}
+
+impl Eq for PublicPatches {}
 
 impl PublicPatches {
     /// Reads the public patches from the RSI Launcher's own log folder: `P4KX_LAUNCHER_LOGS`

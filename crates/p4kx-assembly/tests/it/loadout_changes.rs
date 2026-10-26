@@ -7,8 +7,8 @@
 use std::error::Error;
 
 use p4kx_assembly::{
-    Attachment, ChangeError, EntityNode, Incompatibility, LoadoutChanges, LoadoutResolver,
-    PortNode, PortSource,
+    Attachment, ChangeError, ChangedLoadout, EntityNode, Incompatibility, LoadoutChanges,
+    LoadoutResolver, PortNode, PortSource,
 };
 use p4kx_dataforge::DataForge;
 use p4kx_testkit::{
@@ -89,6 +89,10 @@ pub(crate) fn database(entities: &[TestEntity]) -> DataForgeBuilder {
 }
 
 fn apply(changes: &LoadoutChanges) -> Result<EntityNode, ChangeError> {
+    apply_changed(changes).map(ChangedLoadout::into_node)
+}
+
+fn apply_changed(changes: &LoadoutChanges) -> Result<ChangedLoadout, ChangeError> {
     let bytes = database(&entities()).build();
     let forge = DataForge::open(&bytes).map_err(|error| ChangeError::InvalidPort {
         path: error.to_string(),
@@ -100,7 +104,7 @@ fn apply(changes: &LoadoutChanges) -> Result<EntityNode, ChangeError> {
         .map_err(|error| ChangeError::InvalidPort {
             path: error.to_string(),
         })?;
-    resolver.resolve_with(&ship, changes)
+    resolver.resolve_changed(&ship, changes)
 }
 
 pub(crate) fn applied(changes: &LoadoutChanges) -> Result<EntityNode, Box<dyn Error>> {
@@ -269,18 +273,19 @@ fn a_port_below_a_replaced_one_can_be_changed_too() -> TestResult {
 }
 
 fn rejected(changes: &LoadoutChanges) -> Result<(String, String, Incompatibility), Box<dyn Error>> {
-    match apply(changes) {
-        Err(ChangeError::Incompatible {
-            path,
-            entity,
-            reason,
-        }) => Ok((path, entity, reason)),
-        other => Err(format!("expected a rejection: {other:?}").into()),
-    }
+    let applied = apply_changed(changes)?;
+    let [mismatch] = applied.mismatches() else {
+        return Err(format!("expected one mismatch: {:?}", applied.mismatches()).into());
+    };
+    Ok((
+        mismatch.path().to_owned(),
+        mismatch.entity().to_owned(),
+        mismatch.reason().clone(),
+    ))
 }
 
 #[test]
-fn an_entity_of_another_type_is_rejected_with_the_reason() -> TestResult {
+fn an_entity_of_another_type_is_reported_with_the_reason() -> TestResult {
     let (path, entity, reason) = rejected(&LoadoutChanges::new().replace("weapon_a", "SHIELD_S1"))?;
 
     assert_eq!((path.as_str(), entity.as_str()), ("weapon_a", "SHIELD_S1"));
@@ -293,7 +298,7 @@ fn an_entity_of_another_type_is_rejected_with_the_reason() -> TestResult {
 }
 
 #[test]
-fn an_entity_of_another_sub_type_is_rejected() -> TestResult {
+fn an_entity_of_another_sub_type_is_reported() -> TestResult {
     let (_, _, reason) = rejected(&LoadoutChanges::new().replace("weapon_a", "GUN_POINT_DEFENCE"))?;
 
     assert_eq!(reason.kind(), "item_sub_type");
@@ -305,7 +310,7 @@ fn an_entity_of_another_sub_type_is_rejected() -> TestResult {
 }
 
 #[test]
-fn an_entity_beyond_the_sizes_is_rejected() -> TestResult {
+fn an_entity_beyond_the_sizes_is_reported() -> TestResult {
     let (_, _, large) = rejected(&LoadoutChanges::new().replace("weapon_a", "GUN_S3"))?;
     let (_, _, small) = rejected(&LoadoutChanges::new().replace("weapon_b", "GUN_S1"))?;
 

@@ -172,9 +172,45 @@ impl LoadoutChanges {
 pub struct ChangedLoadout {
     pub(crate) node: crate::EntityNode,
     pub(crate) ignored: Vec<String>,
+    pub(crate) mismatches: Vec<ReplacementMismatch>,
+}
+
+/// A replacement that was applied although its Entity does not fit the port.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReplacementMismatch {
+    pub(crate) path: String,
+    pub(crate) entity: String,
+    pub(crate) reason: Incompatibility,
+}
+
+impl ReplacementMismatch {
+    /// Returns the path of the port, as given.
+    #[must_use]
+    pub fn path(&self) -> &str {
+        &self.path
+    }
+
+    /// Returns the class name of the Entity.
+    #[must_use]
+    pub fn entity(&self) -> &str {
+        &self.entity
+    }
+
+    /// Returns what does not fit.
+    #[must_use]
+    pub const fn reason(&self) -> &Incompatibility {
+        &self.reason
+    }
 }
 
 impl ChangedLoadout {
+    /// Returns the replacements that were applied although the Entity does not fit the port's
+    /// types and sizes.
+    #[must_use]
+    pub fn mismatches(&self) -> &[ReplacementMismatch] {
+        &self.mismatches
+    }
+
     /// Returns the tree.
     #[must_use]
     pub const fn node(&self) -> &crate::EntityNode {
@@ -275,16 +311,6 @@ pub enum ChangeError {
         entity: String,
         /// Why it cannot be read.
         source: LoadoutError,
-    },
-    /// The Entity does not fit the port's types and sizes.
-    #[error("{entity} does not fit the port {path}: {reason}")]
-    Incompatible {
-        /// The path of the port.
-        path: String,
-        /// The class name of the Entity.
-        entity: String,
-        /// What does not fit.
-        reason: Incompatibility,
     },
     /// The replacement is the root Entity or an Entity the port lies below, so the tree would
     /// contain itself.

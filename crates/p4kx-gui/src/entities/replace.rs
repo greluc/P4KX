@@ -7,8 +7,8 @@ use p4kx_assembly::{EntityCatalogue, EntitySummary, PortConstraints};
 
 use super::list::matches;
 
-/// The choice of the Entity that replaces what a port holds: the Entities that fit the port,
-/// narrowed by a search.
+/// The choice of the Entity that replaces what a port holds: every Entity the search leaves, the
+/// ones that fit the port first and the others marked.
 #[derive(Debug, Clone)]
 pub struct ReplaceChooser {
     path: String,
@@ -16,7 +16,7 @@ pub struct ReplaceChooser {
     constraints: Option<PortConstraints>,
     catalogue: Arc<EntityCatalogue>,
     query: String,
-    shown: Vec<u32>,
+    shown: Vec<(u32, bool)>,
     fitting: usize,
 }
 
@@ -46,26 +46,28 @@ impl ReplaceChooser {
             .map(str::to_ascii_lowercase)
             .collect();
         let entries = self.catalogue.entries();
-        let fits: Vec<u32> = entries
-            .iter()
-            .enumerate()
-            .filter(|(_, entry)| {
-                self.constraints
-                    .as_ref()
-                    .is_none_or(|constraints| constraints.check(entry.facts()).is_ok())
-            })
-            .filter_map(|(at, _)| u32::try_from(at).ok())
-            .collect();
+        let (mut fits, mut misfits) = (Vec::new(), Vec::new());
+        for (at, entry) in entries.iter().enumerate() {
+            let Ok(at) = u32::try_from(at) else {
+                break;
+            };
+            if !matches(entry, &terms) {
+                continue;
+            }
+            let fit = self
+                .constraints
+                .as_ref()
+                .is_none_or(|constraints| constraints.check(entry.facts()).is_ok());
+            if fit {
+                fits.push((at, true));
+            } else {
+                misfits.push((at, false));
+            }
+        }
         self.fitting = fits.len();
-        self.shown = fits
-            .into_iter()
-            .filter(|at| {
-                usize::try_from(*at)
-                    .ok()
-                    .and_then(|at| entries.get(at))
-                    .is_some_and(|entry| matches(entry, &terms))
-            })
-            .collect();
+        let mut shown = fits;
+        shown.append(&mut misfits);
+        self.shown = shown;
     }
 
     /// Returns the path of the port that gets the Entity.
@@ -92,19 +94,19 @@ impl ReplaceChooser {
         &self.query
     }
 
-    /// Searches the class names and record paths of the Entities that fit.
+    /// Searches the class names and record paths of the Entities.
     pub fn set_query(&mut self, text: &str) {
         text.clone_into(&mut self.query);
         self.refilter();
     }
 
-    /// Returns how many Entities fit the port, whatever the search says.
+    /// Returns how many of the Entities the search leaves fit the port.
     #[must_use]
     pub const fn fitting(&self) -> usize {
         self.fitting
     }
 
-    /// Returns how many of the Entities that fit the search leaves.
+    /// Returns how many Entities the search leaves, the ones that fit first.
     #[must_use]
     pub const fn shown_len(&self) -> usize {
         self.shown.len()
@@ -113,7 +115,13 @@ impl ReplaceChooser {
     /// Returns the Entity at `position` of the ones shown.
     #[must_use]
     pub fn get(&self, position: usize) -> Option<&EntitySummary> {
-        let at = usize::try_from(*self.shown.get(position)?).ok()?;
-        self.catalogue.entries().get(at)
+        let (at, _) = *self.shown.get(position)?;
+        self.catalogue.entries().get(usize::try_from(at).ok()?)
+    }
+
+    /// Returns whether the Entity at `position` of the ones shown fits the port.
+    #[must_use]
+    pub fn fits(&self, position: usize) -> bool {
+        self.shown.get(position).is_some_and(|(_, fit)| *fit)
     }
 }

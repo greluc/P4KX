@@ -91,7 +91,7 @@ fn a_layer_path_that_leaves_the_data_folder_is_an_issue() -> TestResult {
 }
 
 #[test]
-fn a_material_first_reached_at_the_limit_is_followed_when_reached_shallower() -> TestResult {
+fn a_material_is_followed_again_when_a_shallower_reach_lets_its_layers_go_further() -> TestResult {
     let manifest = write()?;
 
     let cycle = named(&manifest, "cycle")?;
@@ -108,9 +108,12 @@ fn a_material_first_reached_at_the_limit_is_followed_when_reached_shallower() ->
             .ok_or_else(|| format!("no material {id}"))
     };
     let short = layer_of(2)?;
-    assert_eq!(short.name, "late_7");
-    let last = next(&manifest, short)?.ok_or("late_8 follows late_7")?;
-    assert_eq!(last.name, "late_8");
+    assert_eq!(short.name, "late_4");
+    let mut last = short;
+    for name in ["late_5", "late_6", "late_7", "late_8"] {
+        last = next(&manifest, last)?.ok_or_else(|| format!("{name} follows"))?;
+        assert_eq!(last.name, name);
+    }
     assert!(next(&manifest, last)?.is_none());
     assert!(
         manifest.issues.iter().all(|issue| issue.name != "late_7"),

@@ -61,8 +61,7 @@ pub struct GlbOptions {
     /// `WEIGHTS_0` only, for viewers that ignore the second set.
     pub max_influences: usize,
     /// Whether every glTF material gets the `extras` `{"p4kx_index": <index>}`, its index in the
-    /// file; only [`write_scene_glb_with`](crate::write_scene_glb_with) and its siblings that
-    /// write a scene honour it.
+    /// file; the rigged writers ignore it.
     pub material_indices: bool,
 }
 

@@ -142,8 +142,8 @@ fn material_indices_add_only_the_extras() -> TestResult {
     }
     assert_eq!(with, without, "nothing but the extras differs");
     assert!(
-        without["materials"][0].get("extras").is_none(),
-        "the plain file has none"
+        !without.to_string().contains("\"extras\""),
+        "the plain file has no extras anywhere"
     );
     Ok(())
 }

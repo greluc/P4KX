@@ -383,6 +383,8 @@ at the default options: 289 textures of 541 MiB, of which the diffuse, normal an
 1.0 package held are 133 textures of 217 MiB. With the meshes (43 MiB) and `scene.json`
 (1.3 MiB, about 0.5 MiB of it the material descriptions) the package is 585 MiB at 1.1 against
 about 260 MiB at 1.0, 2.25 times as much, all of it in the blend, mask, detail and wear maps.
+The 1.0 figure is derived from the 1.1 package by selecting the three 1.0 roles, not measured
+from a 1.0 build; it is likely an upper bound for 1.0, so the factor is a lower bound.
 `--texture-mip` bounds it: 83 MiB at mip 2.
 
 The bounds a package keeps, asserted by the real-Archive tests

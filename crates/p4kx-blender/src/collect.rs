@@ -25,7 +25,7 @@ const MAX_LAYER_DEPTH: usize = 8;
 pub(crate) struct Described {
     pub(crate) description: MaterialDescription,
     pub(crate) paths: Vec<Option<String>>,
-    followed: bool,
+    followed_at: Option<usize>,
 }
 
 /// A texture file that has no safe path, and the material that names it.
@@ -127,11 +127,11 @@ impl Collected {
         };
         let key = (identity, index);
         if let Some(&known) = self.keys.get(&key) {
-            let unfollowed = self
+            let shallower = self
                 .descriptions
                 .get(known)
-                .is_some_and(|known| !known.followed);
-            if unfollowed && depth < MAX_LAYER_DEPTH {
+                .is_some_and(|known| known.followed_at.is_none_or(|at| depth < at));
+            if shallower && depth < MAX_LAYER_DEPTH {
                 self.follow_layers(known, material, models, depth);
             }
             return Some(known);
@@ -149,7 +149,7 @@ impl Collected {
         self.descriptions.push(Described {
             description,
             paths,
-            followed: false,
+            followed_at: None,
         });
         for cut in &material.truncated {
             self.issues.push(Issue {
@@ -177,7 +177,7 @@ impl Collected {
         depth: usize,
     ) {
         if let Some(parent) = self.descriptions.get_mut(at) {
-            parent.followed = true;
+            parent.followed_at = Some(depth);
         }
         self.cut.remove(&at);
         for (number, layer) in material.layers.iter().enumerate() {
@@ -246,6 +246,15 @@ impl Collected {
     }
 
     fn layer_issue(&mut self, parent: &Material, path: &str, reason: &str) {
+        let known = self.issues.iter().any(|issue| {
+            issue.kind == "layer_material"
+                && issue.path == path
+                && issue.name == parent.name
+                && issue.reason == reason
+        });
+        if known {
+            return;
+        }
         self.issues.push(Issue {
             origin: IssueOrigin::Material,
             kind: "layer_material".to_owned(),

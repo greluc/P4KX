@@ -42,7 +42,7 @@ fn library() -> Vec<u8> {
         TestMtlMaterial::new("unused"),
         layered("cycle", &layer_path("cyc_a"))
             .layer_with(&[("Name", "Long"), ("Path", late_path(0).as_str())])
-            .layer_with(&[("Name", "Short"), ("Path", late_path(7).as_str())]),
+            .layer_with(&[("Name", "Short"), ("Path", late_path(4).as_str())]),
         layered("escape", "../outside.mtl"),
         layered("deep", &layer_path("chain_00")),
     ])
@@ -70,8 +70,9 @@ fn model() -> TestModel {
 ///
 /// - `cycle` has three layers: the first names `cyc_a`, which names `cyc_b`, which names `cyc_a`
 ///   again; the second names `late_0`, the first of nine layer files that each name the next, so
-///   `late_7` is first reached at the depth limit; the third names `late_7` directly, which is
-///   then reached shallow enough to follow its layer;
+///   `late_7` is first reached at the depth limit; the third names `late_4` directly, which was
+///   followed deeper before, so it and the files below it are followed again from the shallower
+///   depth;
 /// - `escape` names `../outside.mtl`, a path that leaves the `Data` folder;
 /// - `deep` names `chain_00`, the first of [`LAYER_CHAIN_LENGTH`] layer files that each name the
 ///   next.

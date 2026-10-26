@@ -19,7 +19,7 @@ const SUB_MATERIAL_LEN: usize = 24;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Material {
-    /// Hash of the attachment name.
+    /// CRC-32 (IEEE, not CRC-32C) of the lower-cased item port name followed by `_skinitemport`.
     pub attachment: u32,
     /// GUID of the base material.
     pub base_material: Guid,
@@ -33,7 +33,7 @@ pub struct Material {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SubMaterial {
-    /// Hash of the sub-material name.
+    /// CRC-32C of the lower-cased sub-material name, e.g. `shader_eyeInner`.
     pub name: u32,
     /// The textures set by slot.
     pub textures: Vec<Texture>,
@@ -57,7 +57,7 @@ pub struct Texture {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FloatParam {
-    /// Hash of the parameter name.
+    /// CRC-32C of the exact parameter name, e.g. `DyeAmount`.
     pub name: u32,
     /// The value, compared and written by its exact bits.
     #[serde(with = "crate::json_values::float")]
@@ -76,7 +76,7 @@ impl Eq for FloatParam {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ColorParam {
-    /// Hash of the parameter name.
+    /// CRC-32C of the exact parameter name; some, such as `BodyColor`, match no known name.
     pub name: u32,
     /// Red, green, blue and alpha, 0 to 255 each.
     pub rgba: [u8; 4],

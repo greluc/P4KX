@@ -7,7 +7,7 @@ use crate::ChfError;
 use crate::body_reader::{BodyReader, unexpected};
 use crate::body_writer::{Put, count_as};
 
-/// The value every DNA block starts with.
+/// The value every DNA block starts with: the CRC-32C of `dna matrix 1.0`.
 pub const DNA_MAGIC: u32 = 0xfcd0_9394;
 
 /// The most face parts a DNA block may hold; the game uses 12 or 13.
@@ -20,9 +20,10 @@ const BLEND_LEN: usize = 4;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Dna {
-    /// Hash naming the head mesh family the blends refer to.
+    /// CRC-32C of the rig name (`protos_human_<gender>_face_t1_pu`), naming the head mesh family
+    /// the blends refer to.
     pub gender_hash: u32,
-    /// Hash naming the head variant.
+    /// Hash naming the head variant; per character and not used to select a rig.
     pub variant_hash: u32,
     /// Number of blends each face part holds.
     pub blends_per_part: u16,

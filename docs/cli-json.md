@@ -436,6 +436,56 @@ package, or lies inside a Star Citizen installation, is 2. The other counts are 
 the kinds `container`, `object` and `light`. An **Issue** is that of `p4kx entity package`. The
 package is written even when parts are skipped.
 
+## `p4kx prefab list <archive> [<library>] --json`
+
+```json
+{"archive": "…", "libraries": ["Constellation_Cargo_Prototype", "pu/derelict/RSI/Constellation", …]}
+{"archive": "…", "library": "pu/derelict/RSI/Constellation",
+ "prefabs": [{"name": "Spc_Sctd_01", "id": "{AD763CD6-CA16-4F91-AC77-6C520949824F}", "objects": 240,
+              "nested": 3, "left_out": 0}, …]}
+```
+
+Without a library, `libraries` are the prefab libraries below `Data\Prefabs`, named like their
+files without `.xml`, sorted ignoring case. With one, `library` is the name the file gives itself
+(its root's `Name`) and the prefabs follow in file order. `objects` counts the objects of the
+prefab with its groups flattened, `nested` those of type `Prefab` that instance another prefab, and
+`left_out` the objects whose transform is not usable. A library the Archive lacks is exit code 2,
+one that cannot be read 3.
+
+## `p4kx prefab dump <archive> <library> <prefab> --json`
+
+```json
+{"archive": "…", "library": "pu/derelict/RSI/Constellation",
+ "name": "RSI_constellation_001_Plnt_Crsh_01_sand", "prefabs_entered": 17,
+ "objects": [{"name": "personal_flare_1_a-001", "kind": "Entity", "id": "{…}",
+              "class": "personal_flare_1_a", "library": "pu/derelict/components",
+              "prefab": "visual.flare", "container": "Align_Flare_Crsh_01-003", "depth": 1,
+              "model": null, "unexpanded": null, "attached": false,
+              "position": [-3.077, -2.434, 0.019],
+              "transform": [[1, 0, 0, -3.077], [0, 1, 0, -2.434], [0, 0, 1, 0.019]]}, …],
+ "issues": [{"container": "", "name": "…", "kind": "missing", "reason": "…"}, …]}
+```
+
+The prefab with every nested prefab expanded
+([ADR-0182](adr/0182-nested-prefabs-are-resolved-by-guid-with-composed-transforms.md)). `objects`
+are in file order, the objects of a nested prefab in place of the object that instances it. `kind`
+is the object's `Type`, `class` its `EntityClass`, and `model` the geometry file it names, a path
+below `Data`; entities whose geometry comes from their class Record have none. `position` and
+`transform` (a 3×4 row-major matrix) map the object's space to the dumped prefab's, `CryEngine`
+coordinates, Z up, in metres, with the rotation and scale of every group and nested prefab object
+around it applied. `container` is the names of the nested prefab objects the object sits in, joined
+by `/`, `depth` their number, `library` and `prefab` the prefab the object belongs to. An object
+that instances a prefab that was not expanded stays in the list with its `PrefabName` as
+`unexpanded`. `attached` marks an object with another `Parent` than its group or an
+`AttachmentTarget`, whose transform is relative to that attachment and is used as it stands.
+An **Issue** has `container` and `name` (the object; empty for a whole prefab), `kind` and
+`reason`; the kinds are `missing` (no library holds the prefab), `cycle` (the prefab contains
+itself and is not entered again), `too_deep` (nested more than 16 deep), `library_unreadable`,
+`guid_mismatch` (the prefab of the `PrefabName` has another `Id` than the `PrefabGUID` and no
+library holds that one), `objects_left_out`, `attached`, `too_many_objects` (more than 524288
+objects) and `too_many_visits` (more than 4194304 objects looked at). A library or prefab the
+Archive lacks is exit code 2, a library that cannot be read 3; issues leave the exit code 0.
+
 ## `p4kx armour bodies --json`
 
 ```json

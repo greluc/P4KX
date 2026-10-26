@@ -53,7 +53,7 @@ pub(crate) const DIFFERENCES: u8 = 1;
 /// Loadout lacks, contradicts another or attaches an Entity that does not fit its port, names a
 /// Record dcb refs does not find, or gives CHF JSON that is invalid or cannot be written as CHF,
 /// asks loc for a language the Archive holds no global.ini for, or looks up a localisation key
-/// that has no text.
+/// that has no text, or a prefab library or prefab the Archive lacks.
 pub(crate) const INVALID_INPUT: u8 = 2;
 /// The Archive, a container in it, an Entry's data, the input file or a model companion cannot be
 /// opened or read, is no valid chunk file, model or CHF file, or is too large to read into memory.
@@ -110,12 +110,12 @@ pub(crate) const EXIT_CODES_HELP: &str = "Exit codes:
      or whose DNA belongs to an unknown head rig, a language the Archive holds no global.ini
      for, or a localisation key that has no text in the language or its fallback, or a canvas
      for ui render --screen that no Record, several Records or a Record of another type name,
-     or whose side is below 1 or above 16384 pixels
+     or whose side is below 1 or above 16384 pixels, or a prefab library or prefab the Archive lacks
   3  the Archive or the input file cannot be read: missing, not an Archive, not CryXml, not a
      chunk or CHF file or UI movie, corrupt, a corrupt model or companion, with a CHF CRC-32C
      mismatch or unknown CHF version, a sound, soundbank, chunk file or UI movie too large to
      read into memory, or with unreadable Entry data, also a socpak container that cannot be
-     opened, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
+     opened, a prefab library that cannot be read, a --diff Entry that cannot be read or holds corrupt CryXml, a global.ini of the
      catalog that is corrupt or cannot be read, or the skeleton of a body variant (armour glb)
      that is missing or unreadable; a missing texture, sound, soundbank, chunk
      file, UI movie file, model or geometry companion is 2
@@ -161,7 +161,7 @@ fn code_for(error: &anyhow::Error) -> u8 {
         || error.downcast_ref::<UnreadableChfInput>().is_some()
         || error.downcast_ref::<InvalidChf>().is_some()
         || error.downcast_ref::<LocalizationLoadError>().is_some()
-        || is_missing_skeleton(error)
+        || is_missing_skeleton_or_library(error)
         || matches!(
             error.downcast_ref::<CatalogError>(),
             Some(CatalogError::Texts { .. })
@@ -214,11 +214,11 @@ fn is_loadout_or_screen_forge_error(error: &anyhow::Error) -> bool {
         || is_screen_error(error, |error| matches!(error, ScreenError::DataForge(_)))
 }
 
-fn is_missing_skeleton(error: &anyhow::Error) -> bool {
+fn is_missing_skeleton_or_library(error: &anyhow::Error) -> bool {
     matches!(
         error.downcast_ref::<AssemblyError>(),
         Some(AssemblyError::Body { .. })
-    )
+    ) || crate::prefab::is_archive_error(error)
 }
 
 fn is_export_conflict(error: &anyhow::Error) -> bool {
@@ -234,7 +234,8 @@ fn is_unreadable_change(error: &anyhow::Error) -> bool {
 }
 
 fn is_output_or_query_error(error: &anyhow::Error) -> bool {
-    error.downcast_ref::<ChangeError>().is_some()
+    crate::prefab::is_invalid_input(error)
+        || error.downcast_ref::<ChangeError>().is_some()
         || error.downcast_ref::<JsonNeedsOut>().is_some()
         || error.downcast_ref::<InvalidQuery>().is_some()
         || error.downcast_ref::<JsonNeedsJsonFormat>().is_some()

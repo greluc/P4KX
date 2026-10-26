@@ -88,6 +88,7 @@ mod model_materials;
 mod model_skeleton_info;
 mod model_skin;
 mod model_textures;
+mod prefab;
 mod read_only;
 mod read_only_commands;
 mod recover;

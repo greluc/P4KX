@@ -20,7 +20,8 @@ no chunk has a big-endian flag.
 | `.cigvoxelheader` | 27 | chunk type `0x4001` v`0x3` |
 
 Every `.cgf`, `.cga`, `.skin`, `.chr`, geometry companion, `.caf` and `.dba` is `#ivo`. The
-`CrCh` chunk types of the Star Citizen `.soc` files are left to #309 (docs/chunk-types.md).
+`CrCh` chunk types of the Star Citizen `.soc` files are named in ADR-0176; `0x0000`, `0x300A`,
+`0x4000`, `0x4001`, `0x4003` and `0x4005` stay unknown (docs/chunk-types.md).
 
 **The one `CrCh` model of the Archive** is
 `Data\Objects\Spaceships\Ships\ANVL\Carrack\Exterior\ANVL_Carrack_no_colide.vvg`:
@@ -114,8 +115,8 @@ node named after the file). `ModelError::Corrupt` stays for truncation, bad coun
 above), 141 `.dst`, 27 `.cigvoxel` and 27 `.cigvoxelheader` files, no big-endian chunk, no
 `Mesh` with data streams and no `Mesh` or physics data of another version. A `CrCh` render model
 (`DataStream`, `MeshSubsets`, `CompiledBones`, morph targets) and a shared big-endian
-`ByteOrder` reader are therefore not implemented; they wait for a real sample, for instance
-from the `.soc` files of #309.
+`ByteOrder` reader are therefore not implemented; they wait for a real sample. The `.soc` files
+(ADR-0176) hold none of these chunks.
 
 ## The model the reader builds
 

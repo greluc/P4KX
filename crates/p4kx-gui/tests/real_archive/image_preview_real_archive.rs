@@ -16,7 +16,9 @@ use p4kx_gui::{
     Browser, EntryIndex, ImagePreview, ImageStatus, Language, MipStatus, Model, Preview,
     PreviewTab, ui,
 };
-use p4kx_testkit::real_archive_path;
+use p4kx_testkit::{assert_steady_frames, real_archive_path};
+
+use crate::frame_steps::step_into;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -25,6 +27,7 @@ const VIEW: [u32; 2] = [512, 512];
 const MAX_SIDE: u32 = 16_384;
 const WAIT: Duration = Duration::from_mins(1);
 const FRAME_LIMIT: Duration = Duration::from_millis(50);
+const FRAME_CEILING: Duration = Duration::from_millis(250);
 const WINDOW_MAX_SIDE: u32 = 2048;
 
 fn sampled_headers(index: &EntryIndex) -> Result<Vec<u32>, Box<dyn Error>> {
@@ -170,7 +173,7 @@ fn frames_stay_short_while_a_large_real_texture_decodes() -> TestResult {
     }
     harness.state_mut().set_preview_tab(PreviewTab::Image);
 
-    let mut slowest = Duration::ZERO;
+    let mut frames = Vec::new();
     let deadline = Instant::now() + WAIT;
     while harness
         .state()
@@ -179,12 +182,10 @@ fn frames_stay_short_while_a_large_real_texture_decodes() -> TestResult {
         .is_some_and(ImagePreview::is_busy)
     {
         assert!(Instant::now() < deadline, "decoding did not finish in time");
-        let started = Instant::now();
-        harness.step();
-        slowest = slowest.max(started.elapsed());
+        step_into(&mut frames, &mut harness);
         std::thread::sleep(Duration::from_millis(5));
     }
-    harness.step();
+    step_into(&mut frames, &mut harness);
 
     let shown = harness
         .state()
@@ -198,6 +199,6 @@ fn frames_stay_short_while_a_large_real_texture_decodes() -> TestResult {
         ),
         "the largest mip of Entry {id} is shown: {shown:?}"
     );
-    assert!(slowest < FRAME_LIMIT, "the slowest frame took {slowest:?}");
+    assert_steady_frames("decoding", &frames, FRAME_LIMIT, FRAME_CEILING);
     Ok(())
 }

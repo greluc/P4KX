@@ -355,3 +355,27 @@ fn the_named_constants_match_the_table() {
     );
     assert_eq!(crch::NODE.name(), Some("Node"), "CrCh node name");
 }
+
+#[test]
+fn the_soc_chunk_types_are_named_in_the_crch_table() {
+    let expected = [
+        (0x0002, "Soc0002"),
+        (0x0004, "CryXmlB"),
+        (0x0008, "Soc0008"),
+        (0x0009, "Soc0009"),
+        (0x000B, "Soc000B"),
+        (0x000E, "AreaShape"),
+        (0x0010, "IncludedObjects"),
+        (0x0011, "Json"),
+        (0x0013, "ModelPaths"),
+        (0x0014, "CryXmlB2"),
+    ];
+    for (id, name) in expected {
+        assert_eq!(
+            ChunkType::new(Container::CrCh, id).name(),
+            Some(name),
+            "{id:#06x}"
+        );
+    }
+    assert_eq!(crch::AREA_SHAPE.id(), 0x000E, "constant");
+}

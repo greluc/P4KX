@@ -19,7 +19,8 @@ const MAX_CHANGE_LEN: usize = 20;
 /// patch; an empty value gives no Build a public patch.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PublicPatches {
-    by_change: HashMap<String, String>,
+    by_change: HashMap<String, (String, u64)>,
+    next: u64,
 }
 
 impl PublicPatches {
@@ -36,7 +37,8 @@ impl PublicPatches {
     /// Reads the public patches from the log files in `log_folder`.
     ///
     /// A line of the form `(SC <CHANNEL> <version>-<tag>.<change>)` names the version of that
-    /// change; the newest line wins. At most the last 16 MiB of each file are read.
+    /// change; the newest line wins, and at most 4096 changes are kept, the most recent ones. Only
+    /// the last 16 MiB of each file and lines up to 64 KiB count.
     #[must_use]
     pub fn read_from(log_folder: &Path) -> Self {
         launcher_log::scan(log_folder, Wanted::PATCHES).patches
@@ -46,7 +48,9 @@ impl PublicPatches {
     /// `change_number`, or `None` when no log line names that change.
     #[must_use]
     pub fn get(&self, change_number: &str) -> Option<&str> {
-        self.by_change.get(change_number).map(String::as_str)
+        self.by_change
+            .get(change_number)
+            .map(|(version, _)| version.as_str())
     }
 
     /// Returns `build` with the public patch of its change number, or without one when the log
@@ -78,19 +82,42 @@ impl PublicPatches {
     }
 
     pub(crate) fn record(&mut self, change: &str, version: &str) {
-        if let Some(known) = self.by_change.get_mut(change) {
+        self.next += 1;
+        let stamp = self.next;
+        if let Some((known, seen)) = self.by_change.get_mut(change) {
             version.clone_into(known);
-        } else if self.by_change.len() < MAX_PATCHES {
-            self.by_change.insert(change.to_owned(), version.to_owned());
+            *seen = stamp;
+        } else {
+            self.by_change
+                .insert(change.to_owned(), (version.to_owned(), stamp));
+            if self.by_change.len() >= 2 * MAX_PATCHES {
+                self.trim();
+            }
         }
     }
 
-    pub(crate) fn add_older(&mut self, older: Self) {
-        for (change, version) in older.by_change {
-            if self.by_change.len() >= MAX_PATCHES {
-                break;
-            }
-            self.by_change.entry(change).or_insert(version);
+    pub(crate) fn absorb_newer(&mut self, newer: Self) {
+        let mut items: Vec<(u64, String, String)> = newer
+            .by_change
+            .into_iter()
+            .map(|(change, (version, stamp))| (stamp, change, version))
+            .collect();
+        items.sort_unstable();
+        for (_, change, version) in items {
+            self.record(&change, &version);
+        }
+    }
+
+    /// Keeps the [`MAX_PATCHES`] changes whose newest line is the most recent.
+    pub(crate) fn trim(&mut self) {
+        let excess = self.by_change.len().saturating_sub(MAX_PATCHES);
+        if excess == 0 {
+            return;
+        }
+        let mut stamps: Vec<u64> = self.by_change.values().map(|(_, stamp)| *stamp).collect();
+        stamps.sort_unstable();
+        if let Some(&cutoff) = stamps.get(excess) {
+            self.by_change.retain(|_, (_, stamp)| *stamp >= cutoff);
         }
     }
 }

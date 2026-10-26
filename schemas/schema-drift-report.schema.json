@@ -322,8 +322,7 @@
             "branch",
             "version",
             "change_number",
-            "build_id",
-            "public_patch"
+            "build_id"
           ],
           "type": [
             "object",

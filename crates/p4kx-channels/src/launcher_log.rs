@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::PublicPatches;
-use crate::log_lines::for_each_line;
+use crate::log_lines::{PATCH_LINE_BYTES, Part, for_each_line};
 
 /// The only files read from the RSI Launcher's log folder, the newest first.
 pub const LAUNCHER_LOG_FILES: [&str; 2] = ["log.log", "log.old.log"];
@@ -78,9 +78,15 @@ pub(crate) fn standard_log_folder() -> Option<PathBuf> {
 #[must_use]
 pub(crate) fn scan(log_folder: &Path, wanted: Wanted) -> LauncherLog {
     let mut log = LauncherLog::default();
+    let part = if wanted.libraries {
+        Part::Whole
+    } else {
+        Part::Tail
+    };
+    let mut per_file = Vec::new();
     for name in LAUNCHER_LOG_FILES {
         let mut file_patches = PublicPatches::default();
-        for_each_line(&log_folder.join(name), |line| {
+        for_each_line(&log_folder.join(name), part, |in_tail, line| {
             let text = String::from_utf8_lossy(line);
             if wanted.libraries
                 && let Some(folder) = library_folder(&text)
@@ -88,12 +94,16 @@ pub(crate) fn scan(log_folder: &Path, wanted: Wanted) -> LauncherLog {
             {
                 log.libraries.push(folder);
             }
-            if wanted.patches {
+            if wanted.patches && in_tail && line.len() <= PATCH_LINE_BYTES {
                 file_patches.note_line(&text);
             }
         });
-        log.patches.add_older(file_patches);
+        per_file.push(file_patches);
     }
+    for file_patches in per_file.into_iter().rev() {
+        log.patches.absorb_newer(file_patches);
+    }
+    log.patches.trim();
     log
 }
 

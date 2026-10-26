@@ -2,8 +2,12 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::path::{Component, Path, PathBuf, Prefix};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::SystemTime;
 
-use p4kx_channels::{Channel, PublicPatches, SearchPaths, detect, launcher_logs_folder};
+use p4kx_channels::{
+    Channel, LAUNCHER_LOG_FILES, PublicPatches, SearchPaths, detect, launcher_logs_folder,
+};
 use p4kx_settings::Settings;
 
 use crate::error::{ToolError, capped};
@@ -19,7 +23,11 @@ pub(crate) struct Locations {
     default_library: Option<PathBuf>,
     launcher: Option<PathBuf>,
     settings_file: Option<PathBuf>,
+    patches: Arc<Mutex<Option<CachedPatches>>>,
 }
+
+type Stamp = Vec<Option<(SystemTime, u64)>>;
+type CachedPatches = (Stamp, Arc<PublicPatches>);
 
 impl Locations {
     /// Creates the locations; `None` falls back to the platform default.
@@ -33,6 +41,7 @@ impl Locations {
             default_library: default_library.or(standard.default_library),
             launcher: launcher.or(standard.launcher),
             settings_file,
+            patches: Arc::default(),
         }
     }
 
@@ -53,12 +62,29 @@ impl Locations {
 
     /// Returns the public patches the launcher log in the launcher folder names; empty without a
     /// launcher folder.
-    pub(crate) fn public_patches(&self) -> PublicPatches {
-        self.launcher
-            .as_ref()
-            .map_or_else(PublicPatches::default, |launcher| {
-                PublicPatches::read_from(&launcher_logs_folder(launcher))
+    ///
+    /// The log files are read again only when their size or modification time changed.
+    pub(crate) fn public_patches(&self) -> Arc<PublicPatches> {
+        let Some(launcher) = &self.launcher else {
+            return Arc::default();
+        };
+        let folder = launcher_logs_folder(launcher);
+        let stamp: Stamp = LAUNCHER_LOG_FILES
+            .iter()
+            .map(|name| {
+                let metadata = std::fs::metadata(folder.join(name)).ok()?;
+                Some((metadata.modified().ok()?, metadata.len()))
             })
+            .collect();
+        let mut cache = self.patches.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some((seen, patches)) = cache.as_ref()
+            && *seen == stamp
+        {
+            return Arc::clone(patches);
+        }
+        let patches = Arc::new(PublicPatches::read_from(&folder));
+        *cache = Some((stamp, Arc::clone(&patches)));
+        patches
     }
 
     /// Returns the Archive path `text` names: a detected Channel by name, ignoring ASCII case,

@@ -12,7 +12,9 @@ use crate::test_key::test_key;
 /// The look for a running game is switched off (`P4KX_GAME_CHECK=off`), so that a game on the
 /// developer's machine changes no output. The RSI Launcher log folder (`P4KX_LAUNCHER_LOGS`) is a
 /// folder that does not exist, so that no public patch comes from the developer's own launcher
-/// log; a test that needs log lines sets the variable again.
+/// log; a test that needs log lines sets the variable again. The variable applies to `info`,
+/// `catalog`, `ships`, `compare` and the packages; `channels` reads the launcher folder given by
+/// `P4KX_LAUNCHER_DIR` instead.
 ///
 /// # Errors
 ///

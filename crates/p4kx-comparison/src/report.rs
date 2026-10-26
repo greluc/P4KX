@@ -72,7 +72,7 @@ struct BuildReport<'a> {
     build_id: &'a str,
     /// The public patch version, e.g. `4.7.2`, from the RSI Launcher log; `null` when the log has
     /// no line for the change number.
-    #[schemars(required, transform = nullable)]
+    #[schemars(transform = nullable)]
     public_patch: Option<String>,
 }
 

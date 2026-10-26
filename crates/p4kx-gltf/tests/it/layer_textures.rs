@@ -169,18 +169,18 @@ fn the_blend_mask_chooses_the_layer_of_each_texel() -> TestResult {
 
     assert_eq!((base.width, base.height), (2, 2), "the mask's size");
     assert!(
-        near(base.pixel(0, 0), [200, 50, 0, 255]),
-        "black: the first layer"
+        near(base.pixel(1, 0), [200, 50, 0, 255]),
+        "red: the first layer"
     );
     assert!(
-        near(base.pixel(1, 0), [0, 200, 50, 255]),
-        "red: the second layer"
+        near(base.pixel(0, 1), [0, 200, 50, 255]),
+        "green: the second layer"
     );
     assert!(
-        near(base.pixel(0, 1), [50, 0, 200, 255]),
-        "green: the third layer"
+        near(base.pixel(1, 1), [50, 0, 200, 255]),
+        "blue: the third layer"
     );
-    assert!(near(base.pixel(1, 1), grey(100)), "blue: the fourth layer");
+    assert!(near(base.pixel(0, 0), grey(100)), "black: the fourth layer");
     let [red, green, blue, _] = material(&glb, "hull")?
         .pbr_metallic_roughness()
         .base_color_factor();
@@ -203,19 +203,19 @@ fn the_layer_normal_maps_are_blended_by_the_same_mask() -> TestResult {
     let normal = normal_of(&glb, "hull")?;
 
     assert!(
-        near(normal.pixel(0, 0), [255, 127, 128, 255]),
+        near(normal.pixel(1, 0), [255, 127, 128, 255]),
         "{:?}: a slope along X",
-        normal.pixel(0, 0)
-    );
-    assert!(
-        near(normal.pixel(1, 0), [128, 127, 255, 255]),
-        "{:?}: flat",
         normal.pixel(1, 0)
     );
     assert!(
-        near(normal.pixel(0, 1), [128, 0, 128, 255]),
-        "{:?}: a slope along Y, which glTF flips",
+        near(normal.pixel(0, 1), [128, 127, 255, 255]),
+        "{:?}: flat",
         normal.pixel(0, 1)
+    );
+    assert!(
+        near(normal.pixel(1, 1), [128, 0, 128, 255]),
+        "{:?}: a slope along Y, which glTF flips",
+        normal.pixel(1, 1)
     );
     Ok(())
 }
@@ -269,8 +269,8 @@ fn a_layer_whose_texture_is_missing_keeps_its_plain_colour_and_is_reported() -> 
 
     let base = base_of(&glb, "hull")?;
 
-    assert!(near(base.pixel(0, 0), [200, 50, 0, 255]));
-    assert!(near(base.pixel(1, 0), grey(255)), "{:?}", base.pixel(1, 0));
+    assert!(near(base.pixel(1, 0), [200, 50, 0, 255]));
+    assert!(near(base.pixel(0, 1), grey(255)), "{:?}", base.pixel(0, 1));
     assert!(
         summary.texture_fallbacks.iter().any(|fallback| {
             fallback.role == TextureRole::Diffuse && fallback.file.contains("b_diff")
@@ -355,10 +355,7 @@ fn a_viewer_gets_the_blended_base_image_and_a_key_that_names_it() -> TestResult 
 
     assert!(draws_layer_diffuse(&material));
     assert_eq!(texture.image.width(), 2);
-    assert_eq!(
-        texture.image.pixels().get(..4),
-        Some(&[200, 50, 0, 255][..])
-    );
+    assert_eq!(texture.image.pixels().get(..4), Some(&grey(100)[..]));
     assert_ne!(layered_base_key(&material), layered_base_key(&plain));
     assert!(layered_base_key(&material).is_some());
     Ok(())

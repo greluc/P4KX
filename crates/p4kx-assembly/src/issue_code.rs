@@ -12,6 +12,7 @@ impl IssueKind {
             Self::Unresolved(_) => "unresolved",
             Self::NoGeometry => "no_geometry",
             Self::GeometryMissing { .. } => "geometry_missing",
+            Self::SubGeometryMissing { .. } => "sub_geometry_missing",
             Self::GeometryUnreadable { .. } => "geometry_unreadable",
             Self::MaterialLibrary { .. } => "material_library",
             Self::Palette { .. } => "palette",

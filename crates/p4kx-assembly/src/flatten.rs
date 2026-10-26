@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// One part of an Assembly before its model is read: an Entity of the Loadout tree with its port,
-/// or one landing gear of an Entity, whose `node` is that Entity.
+/// or one landing gear of an Entity, whose `node` is that Entity and whose `geometry` is `None`.
 pub(crate) struct Draft<'t> {
     pub(crate) name: String,
     pub(crate) path: String,
@@ -15,6 +15,7 @@ pub(crate) struct Draft<'t> {
     pub(crate) gear: Option<&'t LandingGear>,
     pub(crate) node: &'t EntityNode,
     pub(crate) parent: Option<usize>,
+    pub(crate) geometry: Option<&'t Geometry>,
 }
 
 impl Draft<'_> {
@@ -24,19 +25,10 @@ impl Draft<'_> {
             .map_or_else(|| self.node.class_name(), LandingGear::bone)
     }
 
-    /// Returns the geometry the Entity of an Entity part names; a landing gear names a bare path.
-    pub(crate) const fn geometry(&self) -> Option<&Geometry> {
-        if self.gear.is_some() {
-            None
-        } else {
-            self.node.geometry()
-        }
-    }
-
     /// Returns the path of the model file the part draws.
     pub(crate) fn geometry_path(&self) -> Option<&str> {
         self.gear.map_or_else(
-            || self.node.geometry().map(Geometry::path),
+            || self.geometry.map(Geometry::path),
             |gear| Some(gear.geometry()).filter(|path| !path.is_empty()),
         )
     }
@@ -61,6 +53,7 @@ pub(crate) fn flatten(root: &EntityNode, max_parts: usize) -> Flat<'_> {
                 gear: None,
                 node: root,
                 parent: None,
+                geometry: root.geometry(),
             }],
             issues: Vec::new(),
         },
@@ -146,6 +139,7 @@ impl<'t> Walker<'t> {
             gear: None,
             node: child,
             parent: Some(owner),
+            geometry: child.geometry(),
         });
         self.gears(child, index, path);
         self.ports(child.ports(), index, path, depth + 1);
@@ -179,6 +173,7 @@ impl<'t> Walker<'t> {
                 gear: Some(gear),
                 node,
                 parent: Some(index),
+                geometry: None,
             });
         }
     }

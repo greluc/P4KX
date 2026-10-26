@@ -2,14 +2,21 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 mod draw;
+mod fit;
 mod fonts;
 mod layout;
+#[cfg(test)]
+pub(crate) mod probe;
+#[cfg(test)]
+mod reuse_tests;
+mod source;
 mod spec;
 
 use std::fmt;
 
 use p4kx_gfx::{Font, Localise};
 
+pub(crate) use draw::Shaped;
 pub(crate) use fonts::{FontStyleInfo, FontStyles};
 pub(crate) use spec::{Case, Horizontal, TEXT, TEXT_FIELD, TextSpec, Vertical};
 

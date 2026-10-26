@@ -26,7 +26,10 @@ pub(crate) struct FontStyleInfo {
     weight: String,
     bold: bool,
     pub(crate) scale: f32,
+    choice: Box<str>,
 }
+
+const SEPARATOR: char = '\u{1f}';
 
 const WEIGHTS: [&str; 8] = [
     "semibold", "regular", "bold", "light", "medium", "book", "thin", "heavy",
@@ -62,17 +65,35 @@ impl FontStyleInfo {
         if !families.contains(&alternative) {
             families.push(alternative);
         }
+        let stem = normalise(stem);
+        let bold = flag(root, "isBold").unwrap_or(false);
+        let choice = choice_key(&stem, &families, &weight, bold);
         Some(Self {
             name: name.to_owned(),
-            stem: normalise(stem),
+            stem,
             families,
             weight,
-            bold: flag(root, "isBold").unwrap_or(false),
+            bold,
             scale: float(root, "scaleModifier")
                 .filter(|scale| scale.is_finite() && *scale > 0.0)
                 .unwrap_or(1.0),
+            choice,
         })
     }
+}
+
+/// Joins everything [`score`] reads of a style, so equal keys choose the same font.
+fn choice_key(stem: &str, families: &[String], weight: &str, bold: bool) -> Box<str> {
+    let mut key = String::with_capacity(stem.len() + weight.len() + 8);
+    key.push(if bold { 'b' } else { 'r' });
+    for part in std::iter::once(stem)
+        .chain(families.iter().map(String::as_str))
+        .chain(std::iter::once(weight))
+    {
+        key.push(SEPARATOR);
+        key.push_str(part);
+    }
+    key.into_boxed_str()
 }
 
 fn normalise(name: &str) -> String {
@@ -103,7 +124,8 @@ pub(crate) struct FontBook<'t> {
     fonts: &'t [Font],
     names: Vec<Vec<String>>,
     faces: Vec<OnceCell<FontFace<'t>>>,
-    chosen: HashMap<(String, bool), Option<usize>>,
+    chosen: HashMap<Box<str>, Option<usize>>,
+    default: OnceCell<Option<usize>>,
 }
 
 impl<'t> FontBook<'t> {
@@ -124,6 +146,7 @@ impl<'t> FontBook<'t> {
             names,
             faces: fonts.iter().map(|_| OnceCell::new()).collect(),
             chosen: HashMap::new(),
+            default: OnceCell::new(),
         }
     }
 
@@ -136,32 +159,32 @@ impl<'t> FontBook<'t> {
         self.face(at).is_some_and(FontFace::is_drawable)
     }
 
-    pub(crate) fn default_font(&mut self) -> Option<usize> {
-        self.best((DEFAULT_FONT.to_owned(), false), |names, _| {
-            names
-                .iter()
-                .any(|name| name == DEFAULT_FONT)
-                .then_some(EXACT)
+    pub(crate) fn default_font(&self) -> Option<usize> {
+        *self.default.get_or_init(|| {
+            self.best(|names, _| {
+                names
+                    .iter()
+                    .any(|name| name == DEFAULT_FONT)
+                    .then_some(EXACT)
+            })
         })
     }
 
     pub(crate) fn pick(&mut self, style: &FontStyleInfo) -> Option<usize> {
-        self.best((style.stem.clone(), style.bold), |names, font| {
+        if let Some(found) = self.chosen.get(&*style.choice) {
+            return *found;
+        }
+        let found = self.best(|names, font| {
             names
                 .iter()
                 .filter_map(|name| score(name, style, font))
                 .max()
-        })
+        });
+        self.chosen.insert(style.choice.clone(), found);
+        found
     }
 
-    fn best(
-        &mut self,
-        key: (String, bool),
-        rate: impl Fn(&[String], &Font) -> Option<u32>,
-    ) -> Option<usize> {
-        if let Some(found) = self.chosen.get(&key) {
-            return *found;
-        }
+    fn best(&self, rate: impl Fn(&[String], &Font) -> Option<u32>) -> Option<usize> {
         let mut best: Option<(u32, usize)> = None;
         for (at, font) in self.fonts.iter().enumerate() {
             let Some(points) = self.names.get(at).and_then(|names| rate(names, font)) else {
@@ -171,9 +194,7 @@ impl<'t> FontBook<'t> {
                 best = Some((points, at));
             }
         }
-        let found = best.map(|(_, at)| at);
-        self.chosen.insert(key, found);
-        found
+        best.map(|(_, at)| at)
     }
 }
 
@@ -198,7 +219,73 @@ fn score(name: &str, style: &FontStyleInfo, font: &Font) -> Option<u32> {
 
 #[cfg(test)]
 mod tests {
-    use super::split_weight;
+    use p4kx_gfx::Movie;
+    use p4kx_testkit::screens_font_movie;
+
+    use super::{FontBook, FontStyleInfo, choice_key, normalise, split_weight};
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|name| (*name).to_owned()).collect()
+    }
+
+    fn style(name: &str) -> FontStyleInfo {
+        let (family, weight) = split_weight(name);
+        let families = vec!["paintfile".to_owned(), family];
+        FontStyleInfo {
+            name: name.to_owned(),
+            stem: "paintfile".to_owned(),
+            choice: choice_key("paintfile", &families, &weight, false),
+            families,
+            weight,
+            bold: false,
+            scale: 1.0,
+        }
+    }
+
+    #[test]
+    fn two_styles_of_one_paint_file_with_different_names_pick_their_own_fonts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let fonts = Movie::parse(screens_font_movie())?.assets().fonts;
+        let mut book = FontBook::new(&fonts);
+        let sans = book.pick(&style("TestSans"));
+        let blender = book.pick(&style("BlenderProMedium"));
+        let name_of = |at: Option<usize>| {
+            at.and_then(|at| fonts.get(at))
+                .map(|font| normalise(&font.name))
+        };
+        assert_eq!(name_of(sans).as_deref(), Some("testsans"));
+        assert_eq!(name_of(blender).as_deref(), Some("blenderpromedium"));
+        assert_eq!(
+            book.pick(&style("TestSans")),
+            sans,
+            "and the choice is kept"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn styles_that_score_differently_get_different_keys() {
+        let base = choice_key("paint", &names(&["paint"]), "bold", false);
+        assert_eq!(base, choice_key("paint", &names(&["paint"]), "bold", false));
+        assert_ne!(base, choice_key("paint", &names(&["paint"]), "bold", true));
+        assert_ne!(
+            base,
+            choice_key("paint", &names(&["paint"]), "light", false)
+        );
+        assert_ne!(
+            base,
+            choice_key("paint", &names(&["paint", "name"]), "bold", false)
+        );
+        assert_ne!(base, choice_key("other", &names(&["paint"]), "bold", false));
+    }
+
+    #[test]
+    fn a_family_is_not_mistaken_for_a_weight() {
+        assert_ne!(
+            choice_key("s", &names(&["a", "b"]), "", false),
+            choice_key("s", &names(&["a"]), "b", false)
+        );
+    }
 
     fn split(name: &str) -> (String, String) {
         split_weight(name)

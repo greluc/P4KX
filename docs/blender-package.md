@@ -377,7 +377,7 @@ stated:
 | Constellation with `--interior` | 418 | 912 MiB | 63 for 233 | 0.70 |
 | DRAK_Cutlass_Black with `--interior` | 413 | 866 MiB | 53 for 124 | 0.81 |
 | AEGS_Gladius at `--texture-mip 2` | 325 | 83 MiB | 35 for 56 | 0.80 |
-| Character (CHF, armour Loadout, two animations) | 2 | 56 MiB | 1 | 1 |
+| Character (CHF, armour Loadout, two animations) | 2 | 198 MiB | 1 | 1 |
 
 What writing every texture slot (1.1) costs against the three maps of 1.0, measured on AEGS_Gladius
 at the default options: 289 textures of 541 MiB, of which the diffuse, normal and specular maps a
@@ -392,12 +392,37 @@ The bounds a package keeps, asserted by the real-Archive tests
 (`crates/p4kx/tests/real_archive/real_blender_packages.rs`):
 
 - A ship package is at most 2 GiB at the default mip and 128 MiB at `--texture-mip 2`; a ship
-  with its Interior is at most 1.5 GiB; a Character package is at most 128 MiB.
+  with its Interior is at most 1.5 GiB; a Character package is at most 256 MiB, see "What a
+  Character package holds".
 - The sharing, `1 - meshes / instances` (the sum of `instances` over all meshes is the number of
   drawing nodes), is at least 0.3, and the meshes take at most 85 % of the bytes they would take
   if every node had its own file. Every drawing node is an instance of exactly one mesh.
 - A ship package holds at least 100 textures, and every texture of the Archive is written once:
   no two entries of `textures` have the same `source`.
+
+### What a Character package holds
+
+The Character of the real-Archive test (`masculinedefault.chf`, the armour Loadout
+`Criminal_Gang_Guard_Heavy_Boss`, two animations, default options) is 207,264,705 bytes (197.7 MiB)
+on LIVE, one GLB of 14 meshes, 403 bones, 15 parts and 1,327 morph targets. Its parts:
+
+| Part of the GLB | Bytes | Share |
+| --- | --- | --- |
+| 116 embedded PNG images (mip 1; 102 of 1024 x 1024, 6 of 2048 x 2048, all different) | 165,641,114 | 79.9 % |
+| Sparse morph targets (values 20.7 MB, indices 3.5 MB) | 24,186,386 | 11.7 % |
+| Vertex attributes (tangent, normal, position, texture coordinate, joints, weights, colour) | 14,647,728 | 7.1 % |
+| Triangle indices (167 primitives) | 1,810,866 | 0.9 % |
+| Skin matrices and 221 animation samplers | 34,336 | 0.02 % |
+
+The buffer views add up to 206,320,430 bytes; the JSON chunk and the header take the other
+944,275. The images dominate because the Loadout wears many pieces and each brings its own diffuse, normal
+and specular maps; no image is written twice. The morph targets are sparse, no target covers
+every vertex of its mesh; the hair, brows, lashes and beard that follow the head's expressions
+([ADR-0200](adr/0200-hair-brows-and-beard-follow-the-expressions-of-the-head-with-morph-targets-of-their-own.md)) take 21.0 MB of the
+24.2 MB; without them the package is about 186 MB, as the head alone and the pieces make it.
+There are no duplicated meshes and no unused levels of detail. The bound is 256 MiB: the measured
+size plus a margin for a Loadout with more pieces; `--texture-mip 2` or `--materials colours`
+makes the package much smaller.
 
 ## Verifying a package in Blender
 

@@ -108,6 +108,22 @@ def check_character(folder: Path) -> None:
     scene = synthetic_character.write_character_package(folder)
     loaded = package.load_package(scene)
     check(not loaded.warnings, f"loaded: {loaded.warnings}")
+    rigged = next(mesh for mesh in loaded.meshes.values() if mesh.rig is not None)
+    before = importer._snapshot()
+    importer._run_gltf(bpy.context, package.resolve_file(loaded.root, rigged.file))
+    plain = [m for m in bpy.data.materials if m not in before["materials"] and m.node_tree]
+    check(plain, "the plain glTF import creates a material")
+    wired = False
+    for material in plain:
+        base = next(n for n in material.node_tree.nodes if n.type == "BSDF_PRINCIPLED").inputs["Base Color"]
+        mix = base.links[0].from_node if base.is_linked else None
+        wired = wired or (
+            mix is not None
+            and mix.type in ("MIX", "MIX_RGB")
+            and any(s.is_linked and s.links[0].from_node.type == "VERTEX_COLOR" for s in mix.inputs)
+        )
+    check(wired, "the glTF importer wires COLOR_0 into the base colour before the add-on drops it")
+    importer._discard_new(before)
     result = importer.import_package(bpy.context, loaded)
     check(not result.warnings, f"warnings: {result.warnings}")
     check(result.armatures == 1, f"armatures: {result.armatures}")
@@ -132,6 +148,11 @@ def check_character(folder: Path) -> None:
     check(keys is not None, "the mesh has shape keys")
     names = [block.name for block in keys.key_blocks]
     check(names == ["Basis", "smile"], f"shape keys: {names}")
+    check(len(body.data.color_attributes) == 1, "the vertex colours are kept as an attribute")
+    bsdf = next(n for n in body.data.materials[0].node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    base = bsdf.inputs["Base Color"]
+    tinting = base.is_linked and base.links[0].from_node.type in ("MIX", "MIX_RGB")
+    check(not tinting, "the vertex colours do not tint the base colour")
 
     waves = [action for action in bpy.data.actions if "wave" in action.name]
     check(len(waves) >= 1, f"actions: {[action.name for action in bpy.data.actions]}")

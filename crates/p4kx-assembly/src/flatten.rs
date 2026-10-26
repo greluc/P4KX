@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use crate::{Attachment, EntityNode, Issue, IssueKind, MAX_ASSEMBLY_DEPTH, PortNode, Target};
+use crate::{
+    Attachment, EntityNode, Geometry, Issue, IssueKind, MAX_ASSEMBLY_DEPTH, PortNode, Target,
+};
 
 /// One part of an Assembly before its model is read: an Entity of the Loadout tree with its port.
 pub(crate) struct Draft<'t> {
@@ -10,6 +12,7 @@ pub(crate) struct Draft<'t> {
     pub(crate) port: Option<&'t PortNode>,
     pub(crate) node: &'t EntityNode,
     pub(crate) parent: Option<usize>,
+    pub(crate) geometry: Option<&'t Geometry>,
 }
 
 /// The parts of a Loadout tree in order, every part after its parent, and what could not be
@@ -30,6 +33,7 @@ pub(crate) fn flatten(root: &EntityNode, max_parts: usize) -> Flat<'_> {
                 port: None,
                 node: root,
                 parent: None,
+                geometry: root.geometry(),
             }],
             issues: Vec::new(),
         },
@@ -113,6 +117,7 @@ impl<'t> Walker<'t> {
             port: Some(port),
             node: child,
             parent: Some(owner),
+            geometry: child.geometry(),
         });
         self.ports(child.ports(), index, path, depth + 1);
     }

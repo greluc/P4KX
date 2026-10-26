@@ -321,7 +321,9 @@ stable code, `skipped` and `reason`, text for people. The kinds are `unresolved`
 names an Entity that cannot be resolved, so the port holds no part), `no_geometry` (the Entity's
 Record names no model; the part stays as an empty node), `geometry_missing` and
 `geometry_unreadable` (the model is not in the Archive or cannot be read, or its character
-definition names none; the part stays as an empty node), `attachments_left_out` (the geometry is
+definition names none; the part stays as an empty node), `sub_geometry_missing` (the
+sub-geometry the port's flags choose is not in the Archive, so the part keeps the main geometry of
+its Entity; a note, `skipped` is false), `attachments_left_out` (the geometry is
 a character definition, `.cdf`: its skin, else its first attachment, is the part's model and the
 files of the other attachments are not drawn; reported once per definition, `skipped` is false),
 `material_library` (the library is missing or unreadable; the part is

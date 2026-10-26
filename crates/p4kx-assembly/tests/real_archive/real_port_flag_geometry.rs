@@ -96,3 +96,26 @@ fn the_prospector_right_thrusters_sit_on_the_right() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_javelin_keeps_its_lower_support_engines_though_their_sub_geometry_is_missing() -> TestResult
+{
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let assembly = assemble(&archive, "AEGS_Javelin")?;
+    let mut checked = 0_usize;
+    for part in assembly
+        .parts()
+        .iter()
+        .filter(|part| part.path().contains("sup_engine_low") && !part.path().contains('/'))
+    {
+        assert!(part.model().is_some(), "{} has no model", part.path());
+        let noted = assembly.issues().iter().any(|issue| {
+            issue.path() == part.path() && issue.kind().code() == "sub_geometry_missing"
+        });
+        assert!(noted, "{} has no sub_geometry_missing note", part.path());
+        checked += 1;
+    }
+    assert!(checked >= 4, "{checked} lower support engines");
+    Ok(())
+}

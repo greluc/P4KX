@@ -126,7 +126,7 @@ impl LoadoutResolver<'_> {
         if let Attachment::Entity(child) = &mut node.attachment {
             let words = flag_words(node.definition.as_deref(), vehicle, &node.name);
             if let Some(tagged) = self.tagged_geometry(child.guid, &words) {
-                child.geometry = Some(tagged);
+                child.fallback = child.geometry.replace(tagged);
             }
         }
         node
@@ -310,6 +310,7 @@ fn shell(spec: &EntitySpec, docked_vehicle: bool, expanded: bool) -> EntityNode 
         ports: Vec::new(),
         issues: Vec::new(),
         geometry: spec.geometry.clone(),
+        fallback: None,
         vehicle: None,
         landing_gear: Arc::from([]),
         docked_vehicle,

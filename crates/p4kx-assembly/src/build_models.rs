@@ -44,15 +44,57 @@ pub(crate) fn read_models(
     provider: &dyn ModelProvider,
     options: &AssemblyOptions,
 ) -> Result<Models, AssemblyError> {
-    let lod = options.lod;
     let mut seen = HashSet::new();
     let files: Vec<(String, &str)> = drafts
         .iter()
-        .filter_map(|draft| draft.node.geometry())
+        .filter_map(|draft| draft.geometry)
         .filter(|geometry| seen.insert(file_key(geometry.path())))
         .map(|geometry| (file_key(geometry.path()), geometry.path()))
         .collect();
     let mut models = Models::new();
+    read_files(&files, provider, options, &mut models)?;
+    Ok(models)
+}
+
+/// Gives a part whose chosen sub-geometry is not in the Archive the main geometry of its Entity
+/// and notes the missing file; the main models are read once each, after the others.
+pub(crate) fn fall_back<'t>(
+    drafts: &mut [Draft<'t>],
+    models: &mut Models,
+    provider: &dyn ModelProvider,
+    options: &AssemblyOptions,
+    issues: &mut Vec<Issue>,
+) -> Result<(), AssemblyError> {
+    let mut seen = HashSet::new();
+    let mut files: Vec<(String, &'t str)> = Vec::new();
+    for draft in drafts.iter_mut() {
+        let (Some(chosen), Some(main)) = (draft.geometry, draft.node.fallback.as_ref()) else {
+            continue;
+        };
+        if !matches!(
+            models.get(&file_key(chosen.path())),
+            Some(Outcome::Failed { missing: true, .. })
+        ) {
+            continue;
+        }
+        let path = chosen.path().to_owned();
+        draft.geometry = Some(main);
+        issues.push(issue(draft, IssueKind::SubGeometryMissing { path }));
+        let key = file_key(main.path());
+        if !models.contains_key(&key) && seen.insert(key.clone()) {
+            files.push((key, main.path()));
+        }
+    }
+    read_files(&files, provider, options, models)
+}
+
+fn read_files(
+    files: &[(String, &str)],
+    provider: &dyn ModelProvider,
+    options: &AssemblyOptions,
+    models: &mut Models,
+) -> Result<(), AssemblyError> {
+    let lod = options.lod;
     let mut read_vertices = 0_usize;
     let wave_size = rayon::current_num_threads()
         .saturating_mul(2)
@@ -91,7 +133,7 @@ pub(crate) fn read_models(
             models.insert(key, outcome);
         }
     }
-    Ok(models)
+    Ok(())
 }
 
 /// Picks the model of each part in order, within the vertex budget, and records why a part has
@@ -106,7 +148,7 @@ pub(crate) fn choose_models<'m>(
     drafts
         .iter()
         .map(|draft| {
-            let Some(geometry) = draft.node.geometry() else {
+            let Some(geometry) = draft.geometry else {
                 issues.push(issue(draft, IssueKind::NoGeometry));
                 return None;
             };

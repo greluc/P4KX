@@ -22,6 +22,7 @@ pub struct EntityNode {
     pub(crate) ports: Vec<PortNode>,
     pub(crate) issues: Vec<LoadoutError>,
     pub(crate) geometry: Option<Geometry>,
+    pub(crate) fallback: Option<Geometry>,
     pub(crate) vehicle: Option<Arc<VehicleImplementation>>,
     pub(crate) landing_gear: Arc<[LandingGear]>,
     pub(crate) docked_vehicle: bool,

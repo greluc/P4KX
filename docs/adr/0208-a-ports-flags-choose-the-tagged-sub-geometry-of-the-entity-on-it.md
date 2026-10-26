@@ -31,8 +31,11 @@ most tags wins, the first on a tie; a sub-geometry without tags never matches. I
 main geometry. A port whose flags cover no sub-geometry keeps the main geometry, or, without one,
 the part has no model and `no_geometry` is listed as before.
 
-A chosen sub-geometry whose file is not in the Archive is listed as `geometry_missing`; the main
-geometry does not stand in for it.
+A chosen sub-geometry whose file is not in the Archive does not cost the part its model: the part
+falls back to the main geometry of its Entity and a note issue `sub_geometry_missing` names the
+missing file (`skipped` is false). Without a main geometry the part has no model and
+`geometry_missing` names the sub-geometry. The Assembly finds the missing file where it reads the
+models, and reads the main models of the parts that fall back once each, after the others.
 
 ## Consequences
 
@@ -41,5 +44,6 @@ thrusters on the right. Other Entities shared by mirrored ports draw the model o
 
 On LIVE 538 of 1144 ships and ground vehicles change at least one model, nearly all by swapping
 the left model for the right one on the right side. Models are gained on the Cutlass family, the
-Redeemer, the Gladiator, the HoverQuad and the X1. The four lower support engines of the Javelin
-lose theirs: the sub-geometry tagged `lower` names a file the Archive does not hold.
+Redeemer, the Gladiator, the HoverQuad and the X1. No ship loses a model. The four lower support
+engines of the Javelin name a sub-geometry tagged `lower` that the Archive does not hold; they keep
+the main geometry and carry the note `sub_geometry_missing`.

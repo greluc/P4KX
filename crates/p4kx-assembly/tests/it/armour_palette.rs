@@ -91,7 +91,7 @@ fn caps(armour: &Armour) -> Result<Material, &'static str> {
     caps_of(armour, PartOrigin::Piece)
 }
 
-fn known() -> Stub {
+const fn known() -> Stub {
     Stub {
         geometry_exists: true,
     }

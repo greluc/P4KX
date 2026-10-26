@@ -35,6 +35,7 @@ mod real_layer_textures;
 mod real_layered_materials;
 mod real_npc;
 mod real_npc_outfits;
+mod real_prefabs;
 mod real_resolve;
 mod real_rig_logic;
 mod real_search;

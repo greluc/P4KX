@@ -20,6 +20,7 @@ mod material_library_lookup;
 mod material_raw;
 mod materials;
 mod palettes;
+mod prefab;
 mod skeleton;
 mod skin_levels;
 mod soc_entities;

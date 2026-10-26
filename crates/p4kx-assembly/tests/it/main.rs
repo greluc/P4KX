@@ -50,6 +50,8 @@ mod loadout_followups;
 mod loadout_nested;
 mod loadout_tree;
 mod npc_head;
+mod prefab;
+mod prefab_lookup;
 mod vehicle_api;
 mod vehicle_depth;
 mod vehicle_empty_ports;

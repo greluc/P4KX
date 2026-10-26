@@ -3,7 +3,7 @@
 What the reader of `p4kx-model` assumes about these four, and what the real Archives say about it.
 The tests are `crates/p4kx-extraction/tests/real_archive/model_lods.rs` and
 `real_archive/vertex_attributes.rs` (`#[ignore]`d, run with `P4KX_DATA_P4K`, and with
-`P4KX_DATA_P4K_B` for a second Archive; both pass on LIVE and PTU). Surveyed on 2026-10-20.
+`P4KX_DATA_P4K_B` for a second Archive; they pass on LIVE). Surveyed on 2026-10-20.
 
 ## Levels of detail
 
@@ -73,7 +73,7 @@ The second colour stream (`COLORS2`, `0xD9EED421`) is not read.
 ## The second texture coordinate set
 
 The `NORMALS2` stream (`0x38A581FE`) with an element size of 4 bytes occurs in 17,902 mesh chunks
-of LIVE and PTU (both Archives hold the same chunks), 316,111,502 vertices in all. Read as two
+of LIVE, 316,111,502 vertices in all. Read as two
 half floats per vertex, as the first set is, 316,111,489 of them are finite, 97.8 % lie in
 −64…64 and 95.0 % in 0…1 (the first set of the same chunks: 66 %); read as a packed unit vector
 they were uncorrelated with the normals of the tangent frames of the 17,902 chunks. Of the first

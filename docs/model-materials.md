@@ -3,7 +3,7 @@
 What the reader of `p4kx-model` assumes about `.mtl` files, and how `p4kx-gltf` turns them into
 plain colours. Surveyed on 2026-10-20 over all 26,083 `.mtl` Entries of LIVE. The tests are
 `crates/p4kx-extraction/tests/real_archive/materials.rs` (`#[ignore]`d, run with `P4KX_DATA_P4K`;
-both pass on LIVE and PTU) and the API tests of `p4kx-model` and `p4kx-gltf`.
+they pass on LIVE) and the API tests of `p4kx-model` and `p4kx-gltf`.
 
 ## The file
 
@@ -50,7 +50,7 @@ The `MtlName` chunk names the library. The name is
 Of 150 sampled `.skin` files per Archive, 104 find their library; character skins often name a
 library that lives in another folder and is chosen by the item's Entity, not by the skin (for
 example `m_cds_legacy_medium_helmet_01_01_hd_sec`). Of the static models with a library name,
-66 of 69 (LIVE) and 65 of 67 (PTU) find it; the rest name libraries the Archive does not hold
+66 of 69 (LIVE) find it; the rest name libraries the Archive does not hold
 (`Objects_default_grid_blue`, `kbar_s1-3_bas_1`). A library that is missing is a status of the
 model, not an error: the model reads and exports with the default material.
 

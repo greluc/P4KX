@@ -18,7 +18,7 @@ stream keeps its own `OpusHead` and `OpusTags`; a looping WEM gets its `LOOPSTAR
 `LOOPLENGTH` comments added to that `OpusTags` after its own, and the packet is left untouched if
 its comment list is malformed. Packets are capped at 64 KiB, a multistream
 packet is split by its self-delimited framing with every length checked, and the decoder runs
-inside `catch_unwind` like lewton (ADR-0013). Star Citizen's LIVE and PTU Archives hold no Opus
+inside `catch_unwind` like lewton (ADR-0013). Star Citizen's LIVE Archive holds no Opus
 WEM, so the synthetic WEMs of the testkit, encoded with the same crate, are the only test data.
 Its notice lives in `THIRD-PARTY-NOTICES`. Decided for issue #94.
 

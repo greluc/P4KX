@@ -230,7 +230,7 @@ impl EntityInterior {
         &mut self,
         at: &str,
         reference: &ObjectContainerRef,
-        root: Option<&Model>,
+        model: Option<&Model>,
     ) -> Transform {
         let finite = reference
             .position()
@@ -253,7 +253,7 @@ impl EntityInterior {
         if bone.is_empty() {
             return moved;
         }
-        let Some(anchor) = root.and_then(|model| node_transform(model, bone)) else {
+        let Some(anchor) = model.and_then(|model| node_transform(model, bone)) else {
             self.note(
                 at,
                 reference,

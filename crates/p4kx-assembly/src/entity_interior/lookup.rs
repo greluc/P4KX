@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::sync::Arc;
+
 use p4kx_extraction::{Entry, PathIndex};
 
 use super::INTERIOR_NODE;
-use crate::{Assembly, AssemblyError, EntityNode};
+use crate::{Assembly, AssemblyError, EntityNode, ObjectContainerRef};
 
 /// The largest difference per axis, in metres, between two translations that still counts as
 /// the same place.
@@ -37,10 +39,24 @@ pub(super) fn node_path(owner_path: &str) -> String {
 pub(super) fn check_tree(assembly: &Assembly, tree: &EntityNode) -> Result<(), AssemblyError> {
     match (assembly.parts.first(), assembly.containers.first()) {
         (Some(root), Some(containers))
-            if root.guid() != tree.guid() || **containers != *tree.object_containers() =>
+            if root.guid() != tree.guid()
+                || !(Arc::ptr_eq(containers, &tree.object_containers)
+                    || same_containers(containers, tree.object_containers())) =>
         {
             Err(AssemblyError::TreeMismatch)
         }
         _ => Ok(()),
     }
+}
+
+fn same_containers(a: &[ObjectContainerRef], b: &[ObjectContainerRef]) -> bool {
+    let bits = |values: [f32; 3]| values.map(f32::to_bits);
+    a.len() == b.len()
+        && a.iter().zip(b).all(|(a, b)| {
+            a.file == b.file
+                && a.bone == b.bone
+                && a.source == b.source
+                && bits(a.position) == bits(b.position)
+                && bits(a.rotation) == bits(b.rotation)
+        })
 }

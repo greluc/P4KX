@@ -50,9 +50,13 @@ pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
             |owner| owner.world().then(container.placement()),
         );
         let owner_index = owner.map(|_| container.part());
+        let prefix = match owner.map_or("", |owner| owner.path()) {
+            "" => INTERIOR_NODE.to_owned(),
+            port => format!("{port}/{INTERIOR_NODE}"),
+        };
         for part in container.interior().parts() {
             pieces.push(Piece {
-                name: format!("{INTERIOR_NODE}/{}", part.name()),
+                name: format!("{prefix}/{}", part.name()),
                 path: "",
                 parent: part
                     .parent()

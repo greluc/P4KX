@@ -30,8 +30,15 @@ hull.
 
 **API safety.** `build`, `build_watched` and `build_with` still take the Loadout tree, but they
 compare it with the one the Assembly was built from (the root's GUID and its containers) and
-return `AssemblyError::TreeMismatch` for another. The parameter can be dropped once nothing passes
-a tree of its own; the containers are read from the Assembly.
+return `AssemblyError::TreeMismatch` for another. The containers compare by their text and the bit
+patterns of their offsets, so a non-finite offset, which is an `invalid_offset` issue, does not
+make the right tree a mismatch. The parameter can be dropped once nothing passes a tree of its
+own; the containers are read from the Assembly.
+
+**Docked vehicles.** Consistent with `--expand-docked-vehicles` (#418), a docked vehicle that is
+not expanded does not bring its Interior: the Assembly records no containers for it. When docked
+vehicles are expanded they bring theirs. Modules and other attached items always keep theirs. The
+README and the help of `entity glb` and `entity package` say so.
 
 ## Consequences
 

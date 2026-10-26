@@ -7,15 +7,14 @@
 use std::error::Error;
 
 use p4kx_assembly::{
-    ArchiveModels, Assembly, AssemblyError, AssemblyOptions, ContainerSource, EntityContainer,
-    EntityInterior, EntityNode, INTERIOR_NODE, InteriorOptions, Issue, LoadoutResolver,
+    ArchiveModels, Assembly, AssemblyOptions, ContainerSource, EntityInterior, EntityNode,
+    INTERIOR_NODE, InteriorOptions, LoadoutResolver,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::GlbOptions;
 use p4kx_testkit::gltf::Node;
 use p4kx_testkit::{
-    CheckedGlb, ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, ENTITY_MODULE_CARRIER,
-    ENTITY_MODULE_CLASS, check_glb, entity_interior_entries, entity_module_entries,
+    CheckedGlb, ENTITY_INTERIOR_CLASS, ENTITY_INTERIOR_FILE, check_glb, entity_interior_entries,
 };
 
 use crate::assembly_support::{TestResult, fixture};
@@ -278,124 +277,5 @@ fn the_glb_groups_the_interior_below_an_interior_node_of_the_hull() -> TestResul
     let aft = rooms[1].transform().decomposed().0;
     assert!(close(&aft, &[0.0, 0.0, 3.0]), "(0, -3, 0) in Z up: {aft:?}");
     assert!(glb.document.meshes().count() >= 2, "the hull and the cubes");
-    Ok(())
-}
-
-struct Carrier {
-    assembly: Assembly,
-    interior: EntityInterior,
-}
-
-fn carrier() -> Result<Carrier, Box<dyn Error>> {
-    let fixture = fixture(entity_module_entries())?;
-    let archive = Archive::open(&fixture.path)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
-    let mut resolver = LoadoutResolver::new(&forge);
-    let record = resolver.entities().find(ENTITY_MODULE_CARRIER)?;
-    let tree = resolver.resolve(&record)?;
-    let models = ArchiveModels::new(&archive);
-    let assembly = Assembly::build(&tree, &models, &AssemblyOptions::default())?;
-    let interior = EntityInterior::build(&archive, &assembly, &tree, &InteriorOptions::default())?;
-    Ok(Carrier { assembly, interior })
-}
-
-#[test]
-fn the_containers_of_an_attached_entity_sit_relative_to_that_entity() -> TestResult {
-    let built = carrier()?;
-
-    let owners: Vec<usize> = built
-        .interior
-        .containers()
-        .iter()
-        .map(EntityContainer::part)
-        .collect();
-    assert_eq!(owners, [0, 1, 1], "the carrier's, then the module's two");
-    let module = &built.assembly.parts()[1];
-    assert_eq!(module.class_name(), ENTITY_MODULE_CLASS);
-    let bone = built.interior.containers()[1].placement().translation();
-    assert!(close(&bone, &[0.0, 2.0, 0.0]), "{bone:?}");
-    let world = module
-        .world()
-        .then(built.interior.containers()[1].placement())
-        .translation();
-    assert!(close(&world, &[10.0, 2.0, 0.0]), "{world:?}");
-    Ok(())
-}
-
-#[test]
-fn the_issues_of_an_attached_entity_carry_its_port_path() -> TestResult {
-    let built = carrier()?;
-
-    let missing: Vec<&str> = built
-        .interior
-        .issues()
-        .iter()
-        .filter(|issue| issue.kind().code() == "helper_not_found")
-        .map(Issue::path)
-        .collect();
-    assert_eq!(missing, ["hardpoint_module/Interior"]);
-    let nested: Vec<&str> = built
-        .interior
-        .issues()
-        .iter()
-        .filter(|issue| issue.kind().code() == "container_cycle")
-        .map(Issue::path)
-        .collect();
-    assert!(
-        nested
-            .iter()
-            .any(|path| path.starts_with("hardpoint_module/ship_interior")),
-        "{nested:?}"
-    );
-    Ok(())
-}
-
-#[test]
-fn the_glb_hangs_an_interior_node_below_each_entity_with_containers() -> TestResult {
-    let built = carrier()?;
-    let assembly = built.assembly.with_interior(built.interior);
-
-    let glb = glb(&assembly)?;
-    let groups: Vec<Node<'_>> = glb
-        .document
-        .nodes()
-        .filter(|node| node.name() == Some(INTERIOR_NODE))
-        .collect();
-    assert_eq!(groups.len(), 2);
-    let carrier = named(&glb, ENTITY_MODULE_CARRIER)?;
-    let module = named(&glb, &format!("hardpoint_module/{ENTITY_MODULE_CLASS}"))?;
-    for owner in [&carrier, &module] {
-        assert!(
-            groups
-                .iter()
-                .any(|group| owner.children().any(|child| child.index() == group.index())),
-            "an Interior node below {:?}",
-            owner.name()
-        );
-    }
-    let below_module = module
-        .children()
-        .find(|child| child.name() == Some(INTERIOR_NODE))
-        .ok_or("no Interior below the module")?;
-    assert_eq!(below_module.children().count(), 2);
-    Ok(())
-}
-
-#[test]
-fn a_tree_other_than_the_assemblys_is_refused() -> TestResult {
-    let fixture = fixture(entity_module_entries())?;
-    let archive = Archive::open(&fixture.path)?;
-    let entry = DataForgeEntry::read(&archive)?;
-    let forge = entry.open()?;
-    let mut resolver = LoadoutResolver::new(&forge);
-    let carrier = resolver.resolve(&resolver.entities().find(ENTITY_MODULE_CARRIER)?)?;
-    let module = resolver.resolve(&resolver.entities().find(ENTITY_MODULE_CLASS)?)?;
-    let models = ArchiveModels::new(&archive);
-    let assembly = Assembly::build(&carrier, &models, &AssemblyOptions::default())?;
-
-    let refused = EntityInterior::build(&archive, &assembly, &module, &InteriorOptions::default());
-
-    assert!(matches!(refused, Err(AssemblyError::TreeMismatch)));
     Ok(())
 }

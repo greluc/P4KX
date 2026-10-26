@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-const MAX_ROW_SKEW: f64 = 0.05;
-const MIN_VOLUME_RATIO: f64 = 0.5;
+const MAX_COLUMN_SKEW: f64 = 0.05;
 
 /// An affine transform as a 3×4 row-major matrix: three rows of rotation and scale with the
 /// translation in the last column.
@@ -119,24 +118,21 @@ impl Transform {
             .then_some(Self { rows })
     }
 
-    /// Returns whether the 3×3 part of the matrix is a plausible placement: no row has zero or
-    /// non-finite length, the cosine between two rows is at most 0.05 and the determinant is at
-    /// least half the product of the row lengths. A rotation with any scale along the axes
-    /// passes.
+    /// Returns whether the 3×3 part of the matrix is a rotation, mirrored or not, followed by a
+    /// scale along its axes (`R·S`, as [`Self::scaled`] builds it): no column has zero or
+    /// non-finite length and the cosine between two columns is at most 0.05.
     #[must_use]
     pub fn is_plausible_placement(&self) -> bool {
-        let [a, b, c] = self
-            .rows
-            .map(|[x, y, z, _]| [f64::from(x), f64::from(y), f64::from(z)]);
+        let [[ax, bx, cx, _], [ay, by, cy, _], [az, bz, cz, _]] =
+            self.rows.map(|row| row.map(f64::from));
+        let [a, b, c] = [[ax, ay, az], [bx, by, bz], [cx, cy, cz]];
         let (la, lb, lc) = (dot(a, a).sqrt(), dot(b, b).sqrt(), dot(c, c).sqrt());
         if ![la, lb, lc].iter().all(|l| l.is_finite() && *l > 0.0) {
             return false;
         }
-        let skewed = [(a, b, la * lb), (a, c, la * lc), (b, c, lb * lc)]
+        [(a, b, la * lb), (a, c, la * lc), (b, c, lb * lc)]
             .iter()
-            .any(|&(p, q, lengths)| (dot(p, q) / lengths).abs() > MAX_ROW_SKEW);
-        let determinant = dot(a, cross(b, c));
-        !skewed && determinant.abs() >= MIN_VOLUME_RATIO * la * lb * lc
+            .all(|&(p, q, lengths)| (dot(p, q) / lengths).abs() <= MAX_COLUMN_SKEW)
     }
 
     /// Returns the transform that applies `inner` first and this transform after it: the matrix
@@ -192,14 +188,6 @@ impl Transform {
 
 fn dot([ax, ay, az]: [f64; 3], [bx, by, bz]: [f64; 3]) -> f64 {
     ax.mul_add(bx, ay.mul_add(by, az * bz))
-}
-
-fn cross([ax, ay, az]: [f64; 3], [bx, by, bz]: [f64; 3]) -> [f64; 3] {
-    [
-        ay.mul_add(bz, -(az * by)),
-        az.mul_add(bx, -(ax * bz)),
-        ax.mul_add(by, -(ay * bx)),
-    ]
 }
 
 fn at(rows: &[[f64; 4]; 3], row: usize, column: usize) -> f64 {

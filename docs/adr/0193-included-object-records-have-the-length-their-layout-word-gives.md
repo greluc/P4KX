@@ -2,7 +2,7 @@
 
 Decided for issue #516, which follows up the Interior tracer (ADR-0081). Evidence: every `.soc`
 file of every socpak of the LIVE Archive of build 4.10.2 (9860 files, 7678 `IncludedObjects`
-chunks, 3.2 million placed models); the PTU Archive reads the same.
+chunks, 3.2 million placed models).
 
 ## Decision
 
@@ -32,11 +32,14 @@ when `unknown3` is 0) match no table: no layout word gives 168.
 Kinds 9 (5 chunks) and 26 (7 chunks) occur with no known length; they still end the list and are
 reported as `unsupported_objects`. No other kind occurs.
 
-A placement whose 3×3 part is not a rotation with a scale along the axes counts as `invalid`:
-a row with zero or non-finite length, a cosine above 0.05 between two rows, or a determinant
-below half the product of the row lengths. The LIVE Archive has no such placement (the cosine is
-below 1e-14 in 3.2 million), so the check only guards against a wrong layout. The 601 invalid
-objects of the Archive name a model the table does not list.
+A placement whose 3×3 part is not a rotation, mirrored or not, followed by a scale along its
+axes (`R·S`, as `Transform::scaled` builds it) counts as `invalid`: a column with zero or
+non-finite length, or a cosine above 0.05 between two columns. The LIVE Archive has no such
+placement (the cosine is below 1e-14 in 3.2 million), so the check only guards against a wrong
+layout. The 601 invalid objects of the Archive name a model the table does not list.
+
+The palette byte at 172 is in range of the palette list, 0 or 255 in every record of every layout
+(`real_soc_palette`); 255 reads as no palette.
 
 Containers declare their box in `minBounds` and `maxBounds` of the description
 (`ObjectContainer::bounds`). The models and props of the Mantis body and of the Idris front

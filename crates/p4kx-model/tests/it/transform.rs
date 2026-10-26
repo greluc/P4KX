@@ -75,3 +75,36 @@ fn a_singular_matrix_has_no_inverse() {
 
     assert!(flat.inverse().is_none());
 }
+
+#[test]
+fn a_rotation_with_a_scale_along_its_axes_is_a_plausible_placement() {
+    let turned = Transform::from_quaternion([0.9, 0.3, -0.2, 0.1], [1.0, 2.0, 3.0]);
+    let turned = turned.expect("a quaternion with a length");
+
+    assert!(turned.is_plausible_placement());
+    for scale in [[1.0, 2.0, 3.0], [0.01, 5.0, 300.0], [-1.0, 2.0, 1.0]] {
+        let scaled = turned.scaled(scale).expect("a finite scale");
+        assert!(scaled.is_plausible_placement(), "{scale:?}");
+    }
+}
+
+#[test]
+fn a_sheared_or_flat_matrix_is_no_plausible_placement() {
+    let sheared = Transform {
+        rows: [
+            [1.0, 1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+        ],
+    };
+    let flat = Transform {
+        rows: [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0],
+        ],
+    };
+
+    assert!(!sheared.is_plausible_placement());
+    assert!(!flat.is_plausible_placement());
+}

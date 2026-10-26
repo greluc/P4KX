@@ -40,6 +40,7 @@ mod real_prefabs;
 mod real_resolve;
 mod real_rig_logic;
 mod real_search;
+mod real_soc_palette;
 mod real_soc_survey;
 mod real_streamed_localised;
 mod real_subtype_fit;

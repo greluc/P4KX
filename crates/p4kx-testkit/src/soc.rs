@@ -55,6 +55,8 @@ impl Default for TestSoc {
     }
 }
 
+/// Returns the length of a record of a placed model for `layout`; a layout that is not known
+/// falls back to 208 bytes.
 const fn soc_model_record_len(layout: u32) -> usize {
     match layout {
         8..=10 => 176,

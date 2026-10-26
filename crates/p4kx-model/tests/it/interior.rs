@@ -294,10 +294,16 @@ fn placements_that_are_no_rotation_with_a_scale_are_invalid() -> TestResult {
         [1.0, 1.0, 0.0, 0.0],
         [0.0, 0.0, 1.0, 0.0],
     ];
-    let nearly_flat = [
-        [1.0, 0.0, 0.0, 0.0],
+    let half = std::f64::consts::FRAC_1_SQRT_2;
+    let rotated_scaled = [
+        [half, -3.0 * half, 0.0, 0.0],
+        [half, 3.0 * half, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+    ];
+    let mirrored = [
+        [-1.0, 0.0, 0.0, 0.0],
         [0.0, 1.0, 0.0, 0.0],
-        [0.04, 0.0, 0.0001, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
     ];
     let soc = TestSoc::new()
         .model("objects/a.cgf")
@@ -306,12 +312,17 @@ fn placements_that_are_no_rotation_with_a_scale_are_invalid() -> TestResult {
         .object(0, singular)
         .object(0, repeated)
         .object(0, sheared)
-        .object(0, nearly_flat);
+        .object(0, rotated_scaled)
+        .object(0, mirrored);
 
     let objects = IncludedObjects::read(&soc.bytes())?.ok_or("no chunk")?;
 
-    assert_eq!(objects.objects.len(), 2, "any scale along the axes passes");
-    assert_eq!(objects.invalid, 4);
+    assert_eq!(
+        objects.objects.len(),
+        4,
+        "a scale, a turn, both and a mirror"
+    );
+    assert_eq!(objects.invalid, 3);
     Ok(())
 }
 

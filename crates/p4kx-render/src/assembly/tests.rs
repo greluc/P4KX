@@ -143,6 +143,49 @@ fn parts_sharing_a_mesh_range_become_one_run_of_instances() {
 }
 
 #[test]
+fn translucent_items_are_drawn_from_the_far_part_to_the_near_one() {
+    let mut scene = scene();
+    scene.groups.push(group(true));
+    scene.draws.clear();
+    let item = |group| Item {
+        group,
+        colour: [0.5; 4],
+    };
+    scene.items = vec![item(1), item(2), item(1), item(0)];
+    for (part, (x, depth)) in [(0.1, 10.0), (0.2, 20.0), (0.3, 5.0)]
+        .into_iter()
+        .enumerate()
+    {
+        let first = u32::try_from(part).unwrap_or(0);
+        scene
+            .draws
+            .push(draw(part, at(x, 0.0, depth), 1.0, first..first + 1));
+    }
+    scene.draws.push(draw(3, at(0.4, 0.0, 8.0), 1.0, 3..4));
+    let perspective: Matrix = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.01, 1.0],
+        [0.0, 0.0, 0.0, 0.0],
+    ];
+
+    let list = DrawList::of(&scene, &[false; 4], &perspective, HEIGHT);
+
+    let xs: Vec<f32> = list.instances().iter().map(|rows| rows[0][3]).collect();
+    assert_eq!(xs, vec![0.4, 0.2, 0.1, 0.3], "opaque, then far to near");
+    let runs: Vec<(u32, u32)> = list
+        .draws()
+        .iter()
+        .map(|run| (run.group, run.count))
+        .collect();
+    assert_eq!(
+        runs,
+        vec![(0, 1), (2, 1), (1, 2)],
+        "neighbours of a group merge"
+    );
+}
+
+#[test]
 fn a_hidden_branch_hides_its_parts_and_their_descendants() {
     let scene = scene();
     let hidden: HashSet<String> = ["a".to_owned()].into();

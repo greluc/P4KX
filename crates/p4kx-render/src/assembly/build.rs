@@ -16,7 +16,7 @@ use super::pieces::{Piece, pieces_of};
 use super::surface::{SceneSurfaces, Surface, SurfaceKey, surface_key, surfaces_of};
 use super::{
     AssemblyScene, Group, Item, Left, MAX_VIEW_ITEMS, MAX_VIEW_TEXTURE_BYTES, MAX_VIEW_TRIANGLES,
-    MAX_VIEW_VERTICES, PartDraw, PartInfo, VIEW_TEXTURE_MIP, ViewTexture,
+    MAX_VIEW_VERTICES, PartDraw, PartInfo, VIEW_TEXTURE_MIP, ViewTexture, chain,
 };
 use crate::scene::{Bounds, apply, next_serial};
 
@@ -223,10 +223,12 @@ impl AssemblyScene {
                     path.clone(),
                     u32::try_from(self.textures.len()).unwrap_or(0),
                 );
+                let mips = chain(image.width(), image.height(), image.pixels());
                 self.textures.push(ViewTexture::new(
                     image.width(),
                     image.height(),
                     image.into_pixels(),
+                    mips,
                 ));
             }
             (hooks.progress)(Progress::Textures {

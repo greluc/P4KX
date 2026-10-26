@@ -243,6 +243,7 @@ impl Renderer {
             address_mode_v: wgpu::AddressMode::Repeat,
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Linear,
             ..wgpu::SamplerDescriptor::default()
         });
         let blit_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -255,6 +256,7 @@ impl Renderer {
             &pipelines.material_layout,
             &material_sampler,
             (1, 1, &WHITE),
+            &[],
         )
         .map_err(|error| Unavailable::Setup(error.to_string()))?;
         let mut textures = Slot::default();

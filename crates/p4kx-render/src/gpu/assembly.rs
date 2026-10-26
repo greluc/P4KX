@@ -172,13 +172,14 @@ impl AssemblyBuffers {
             .textures()
             .iter()
             .map(|texture| {
-                let pixels = texture.take_pixels();
+                let (pixels, mips) = texture.take_pixels();
                 MaterialTexture::upload(
                     device,
                     queue,
                     layout,
                     sampler,
                     (texture.width, texture.height, &pixels),
+                    &mips,
                 )
                 .ok()
             })

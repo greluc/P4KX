@@ -149,6 +149,34 @@ fn hair_goes_from_blond_over_brown_to_black_with_the_melanin() {
     assert!(blond[0] > blond[2], "blond is warm");
 }
 
+fn redness_only(value: f32) -> [f32; 3] {
+    let choice = look(
+        "hair_m",
+        Vec::new(),
+        vec![FloatParam {
+            name: name_hash("BaseMelaninRedness"),
+            label: Label,
+            value,
+        }],
+    );
+    let status = choice
+        .apply(&library(DYEABLE))
+        .expect("a choice that sets only the redness is applied");
+    diffuse(&status, 0)
+}
+
+#[test]
+fn a_choice_that_only_sets_the_redness_is_applied() {
+    let plain = redness_only(0.0);
+    let red = redness_only(1.0);
+
+    assert_ne!(
+        plain, [1.0; 3],
+        "the natural colour replaces the card's white"
+    );
+    assert!(red[0] > plain[0] && red[2] < plain[2], "{plain:?} {red:?}");
+}
+
 #[test]
 fn a_full_dye_replaces_the_natural_colour() {
     let dyed = hair(1.0, 1.0, [0, 0, 255, 255]);

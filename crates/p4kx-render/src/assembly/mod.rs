@@ -9,6 +9,7 @@ mod build;
 mod draw;
 mod flatten;
 mod frustum;
+mod mips;
 mod pieces;
 mod surface;
 #[cfg(test)]
@@ -23,6 +24,7 @@ use super::scene::{Bounds, Rows, Vertex};
 
 pub use build::{BuildError, BuildOptions, Hooks, Progress};
 pub use draw::{DrawList, GroupDraw, Instance};
+pub(crate) use mips::{Level, chain, level_count};
 pub use visibility::hidden_mask;
 
 /// The most vertices the shared meshes of a [`AssemblyScene`] hold; models that would pass it are
@@ -122,21 +124,23 @@ pub(crate) struct PartDraw {
 pub(crate) struct ViewTexture {
     pub(crate) width: u32,
     pub(crate) height: u32,
-    rgba: std::sync::Mutex<Vec<u8>>,
+    pixels: std::sync::Mutex<(Vec<u8>, Vec<Level>)>,
 }
 
 impl ViewTexture {
-    pub(crate) const fn new(width: u32, height: u32, rgba: Vec<u8>) -> Self {
+    /// Keeps `rgba` and the levels `mips` of its chain, built beforehand.
+    pub(crate) const fn new(width: u32, height: u32, rgba: Vec<u8>, mips: Vec<Level>) -> Self {
         Self {
             width,
             height,
-            rgba: std::sync::Mutex::new(rgba),
+            pixels: std::sync::Mutex::new((rgba, mips)),
         }
     }
 
-    /// Hands the pixels over for the upload, leaving none on the CPU; later calls get none.
-    pub(crate) fn take_pixels(&self) -> Vec<u8> {
-        self.rgba
+    /// Hands the pixels and the mip levels over for the upload, leaving none on the CPU; later
+    /// calls get none.
+    pub(crate) fn take_pixels(&self) -> (Vec<u8>, Vec<Level>) {
+        self.pixels
             .lock()
             .map(|mut pixels| std::mem::take(&mut *pixels))
             .unwrap_or_default()
@@ -187,6 +191,12 @@ impl AssemblyScene {
 
     pub(crate) fn groups(&self) -> &[Group] {
         &self.groups
+    }
+
+    pub(crate) fn is_translucent(&self, group: u32) -> bool {
+        self.groups
+            .get(group as usize)
+            .is_some_and(|group| group.translucent)
     }
 
     pub(crate) fn items(&self) -> &[Item] {

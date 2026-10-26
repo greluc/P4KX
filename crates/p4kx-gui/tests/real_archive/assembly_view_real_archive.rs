@@ -281,7 +281,9 @@ fn textured(harness: &mut Harness<'_, Model>, report: &GpuReport, class: &str) -
         std::thread::sleep(Duration::from_millis(20));
     }
     harness.run_steps(3);
+    let started = Instant::now();
     let picture = harness.render()?;
+    let first = started.elapsed();
     let images = view(harness.state())
         .and_then(AssemblyView::scene)
         .map_or(0, |scene| scene.texture_count());
@@ -290,8 +292,29 @@ fn textured(harness: &mut Harness<'_, Model>, report: &GpuReport, class: &str) -
         (picture.width(), picture.height()),
         &format!("real-{class}-textures.png"),
     )?;
+    harness
+        .state_mut()
+        .entities_mut()
+        .loadout_mut()
+        .and_then(|session| {
+            session
+                .assembly_mut()
+                .camera_mut()
+                .map(|camera| camera.zoom(6.0))
+        })
+        .ok_or("no camera")?;
+    harness.run_steps(3);
+    let started = Instant::now();
+    let close = harness.render()?;
+    let closer = started.elapsed();
+    save_png(
+        close.as_raw(),
+        (close.width(), close.height()),
+        &format!("real-{class}-textures-close.png"),
+    )?;
     note(&format!(
-        "{class}: {images} textures, {resident} on the device",
+        "{class}: {images} textures, {resident} on the device; first textured render {first:.1?}, \
+         close-up render {closer:.1?}",
         resident = report.textures()
     ));
     assert!(images > 0, "the materials of a ship have textures");

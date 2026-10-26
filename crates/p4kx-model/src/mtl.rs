@@ -165,15 +165,30 @@ impl Material {
                 .any(|mask| self.string_gen_mask.contains(mask))
     }
 
+    /// Returns whether the material is a decal that draws no colour: a `MeshDecal` without any
+    /// texture slot, a placeholder a livery fills in, or a decal (`DECAL` in its generation mask)
+    /// whose `DecalDiffuseOpacity` is 0, which only adds relief to the surface below.
+    #[must_use]
+    pub fn is_colourless_decal(&self) -> bool {
+        let empty_mesh_decal =
+            self.shader.eq_ignore_ascii_case("MeshDecal") && self.textures.is_empty();
+        let relief_only = self.string_gen_mask.split('%').any(|flag| flag == "DECAL")
+            && self
+                .public_param("DecalDiffuseOpacity")
+                .is_some_and(|opacity| opacity[0] <= 0.0);
+        empty_mesh_decal || relief_only
+    }
+
     /// Returns whether the engine draws nothing with the material, or nothing a plain glTF
-    /// material can draw: its flags or shader say so, it is fully transparent, or it is an
-    /// [`Eye` overlay](Self::is_eye_overlay).
+    /// material can draw: its flags or shader say so, it is fully transparent, it is an
+    /// [`Eye` overlay](Self::is_eye_overlay) or a [colourless decal](Self::is_colourless_decal).
     #[must_use]
     pub fn hidden(&self) -> bool {
         self.flags.no_draw()
             || self.shader.eq_ignore_ascii_case("NoDraw")
             || self.opacity <= 0.0
             || self.is_eye_overlay()
+            || self.is_colourless_decal()
     }
 }
 

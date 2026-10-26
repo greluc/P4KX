@@ -11,10 +11,10 @@ const MAX_KELVIN: f32 = 40_000.0;
 /// lights (global illumination proxies), `Planar` area lights and any type not known.
 ///
 /// `Omni` and `SoftOmni` are point lights, `Projector` is a spot light of half the projector's
-/// opening angle, `Directional` is a directional light. The stored colour is taken as sRGB and
-/// made linear; with `useTemperature` it is multiplied by the colour of a black body at the
-/// state's temperature. The intensity is the engine's own value, unchanged, and the range is
-/// `lightRadius`.
+/// opening angle, `Directional` is a directional light. The stored colour is linear already and
+/// is written as it is; with `useTemperature` it is multiplied by the linear colour of a black
+/// body at the state's temperature. The intensity is the engine's own value, unchanged, and the
+/// range is `lightRadius`.
 pub(super) fn scene_light(light: &SocLight) -> Option<SceneLight> {
     let kind = match light.light_type.to_ascii_lowercase().as_str() {
         "omni" | "softomni" => SceneLightKind::Point,
@@ -32,7 +32,7 @@ pub(super) fn scene_light(light: &SocLight) -> Option<SceneLight> {
         "directional" => SceneLightKind::Directional,
         _ => return None,
     };
-    let mut colour = light.colour.map(srgb_to_linear);
+    let mut colour = light.colour;
     if light.use_temperature {
         let tint = black_body(light.temperature);
         for (channel, factor) in colour.iter_mut().zip(tint) {

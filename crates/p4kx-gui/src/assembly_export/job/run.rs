@@ -3,7 +3,8 @@
 
 use p4kx_assembly::{
     ArchiveModels, Assembly, AssemblyError, AssemblyOptions, EntityInterior, EntityNode,
-    ForgePalettes, Interior, InteriorOptions, InteriorProgress, InteriorWatch, LoadoutChanges,
+    ForgePalettes, Interior, InteriorForge, InteriorOptions, InteriorProgress, InteriorWatch,
+    LoadoutChanges,
 };
 use p4kx_extraction::{
     Archive, CancelToken, ConversionError, GlbSummary, GltfError, Guid, PathIndex,
@@ -189,9 +190,46 @@ fn interior_of(
     state: (&CancelToken, &Shared),
 ) -> Result<EntityInterior, Ended> {
     let options = InteriorOptions::default().with_lod(lod);
-    with_watch(state, |watch| {
-        EntityInterior::build_watched(index.archive(), assembly, tree, &options, watch)
-    })
+    with_classes(index, |classes| {
+        with_watch(state, |watch| {
+            EntityInterior::build_with(index.archive(), assembly, tree, &options, watch, classes)
+        })
+    })?
+    .map_err(|error| interior_ended(index, state.0, error))
+}
+
+/// Runs `build` with the class Records of the Archive's DataForge, or without them when the
+/// Archive has no readable one; fails when the Archive changed on disk.
+fn with_classes<T>(
+    index: &EntryIndex,
+    build: impl FnOnce(Option<&InteriorForge<'_>>) -> T,
+) -> Result<T, Ended> {
+    let source = match index.forge().read(index, || {}) {
+        Ok(source) => source,
+        Err(ReadFailure::ArchiveChanged(_)) => {
+            return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
+        }
+        Err(ReadFailure::Unreadable(_)) => return Ok(build(None)),
+    };
+    let Ok(forge) = source.entry.open() else {
+        return Ok(build(None));
+    };
+    let classes = InteriorForge::new(&forge);
+    Ok(build(Some(&classes)))
+}
+
+fn container_interior(
+    index: &EntryIndex,
+    (layers, entry): (&[&Archive], &str),
+    lod: u32,
+    state: (&CancelToken, &Shared),
+) -> Result<Interior, Ended> {
+    let options = InteriorOptions::default().with_lod(lod);
+    with_classes(index, |classes| {
+        with_watch(state, |watch| {
+            Interior::build_with(layers, entry, &options, watch, classes)
+        })
+    })?
     .map_err(|error| interior_ended(index, state.0, error))
 }
 
@@ -215,13 +253,10 @@ fn container(
         .chain(opened.iter())
         .collect();
     let entry = chain.last().map_or("", String::as_str);
-    let options = InteriorOptions::default().with_lod(request.lod);
-    let built = with_watch((cancel, shared), |watch| {
-        Interior::build_watched(&layers, entry, &options, watch)
-    });
-    let interior = match built {
+    let interior = match container_interior(index, (&layers, entry), request.lod, (cancel, shared))
+    {
         Ok(interior) => interior,
-        Err(error) => return interior_ended(index, cancel, error),
+        Err(ended) => return ended,
     };
     if cancel.is_cancelled() {
         return Ended::Cancelled;

@@ -78,10 +78,9 @@ pub(crate) fn run(args: &InteriorGlbArgs, as_json: bool) -> Result<()> {
         return Err(InteriorOutputIsArchive(args.out.clone()).into());
     }
     let (layers, chain) = open(&args.archive, &args.containers)?;
-    let refs: Vec<&Archive> = layers.iter().collect();
     let entry = chain.last().map_or("", String::as_str);
     let options = InteriorOptions::default().with_lod(args.lod);
-    let interior = Interior::build(&refs, entry, &options)?;
+    let interior = crate::interior_forge::build(&layers, entry, &options)?;
     let summary = write(&interior, args, entry)?;
     let skipped = interior
         .issues()

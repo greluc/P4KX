@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, ForgePalettes,
-    InteriorOptions, Issue, LoadoutChanges, LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, ForgePalettes, Issue, LoadoutChanges,
+    LoadoutResolver,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
@@ -148,9 +148,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     let palettes = ForgePalettes::new(&forge);
     let assembly = Assembly::build_with_palettes(tree, &models, &palettes, &options)?;
     let assembly = if args.interior {
-        let interior_options = InteriorOptions::default().with_lod(args.lod);
-        let interior = EntityInterior::build(&archive, &assembly, tree, &interior_options)?;
-        assembly.with_interior(interior)
+        crate::interior_forge::with_interior(assembly, (&archive, &forge), tree, args.lod)?
     } else {
         assembly
     };

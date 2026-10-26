@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use p4kx_extraction::Archive;
 use p4kx_model::{ChildContainer, MaterialStatus, Transform};
 
+use super::classes::ClassLookup;
 use super::files::{child_candidates, file_name, find_first, is_plain, path_key, stem};
 use super::layers::Layers;
 use super::scan::{Scan, StreamScan, scan_container};
@@ -13,8 +15,9 @@ use super::{
     InteriorOptions, InteriorPart, InteriorPartKind, InteriorWatch, MAX_INTERIOR_CONTAINERS,
     MAX_INTERIOR_DEPTH,
 };
-use crate::{AssemblyError, Issue, IssueKind};
+use crate::{AssemblyError, Geometry, Issue, IssueKind, PaletteRef};
 
+mod classes;
 mod entities;
 
 use entities::Placed;
@@ -24,6 +27,8 @@ pub(super) struct Placement {
     pub(super) part: usize,
     pub(super) chain: Arc<[usize]>,
     pub(super) container: Arc<str>,
+    pub(super) library: Option<String>,
+    pub(super) palette: Option<PaletteRef>,
 }
 
 /// What the walk found, before any model is read.
@@ -64,6 +69,7 @@ fn container_part(
         model_path: None,
         model: None,
         materials: Arc::new(MaterialStatus::Unnamed),
+        palette: None,
         light: None,
     }
 }
@@ -75,6 +81,7 @@ pub(super) fn walk<'a>(
     entry: &str,
     options: &InteriorOptions,
     watch: &InteriorWatch<'_>,
+    classes: Option<&'a dyn ClassLookup>,
 ) -> Result<Walked<'a>, AssemblyError> {
     let mut walker = Walker {
         layers: Layers::new(given),
@@ -84,6 +91,9 @@ pub(super) fn walk<'a>(
         full: false,
         max_parts: options.max_parts,
         max_containers: options.max_containers.min(MAX_INTERIOR_CONTAINERS),
+        classes,
+        class_geometry: HashMap::new(),
+        palette_paths: HashMap::new(),
     };
     let Some(root_layer) = given.len().checked_sub(1) else {
         return Ok(walker.finish());
@@ -130,6 +140,9 @@ struct Walker<'a> {
     full: bool,
     max_parts: usize,
     max_containers: usize,
+    classes: Option<&'a dyn ClassLookup>,
+    class_geometry: HashMap<String, Option<Arc<Geometry>>>,
+    palette_paths: HashMap<String, Option<PaletteRef>>,
 }
 
 impl<'a> Walker<'a> {
@@ -217,12 +230,12 @@ impl<'a> Walker<'a> {
                         continue;
                     };
                     let name = stem(path).to_owned();
-                    let placed = Placed {
-                        name,
-                        kind: InteriorPartKind::Model,
-                        path: Some(path),
-                        transform: object.transform,
-                    };
+                    let mut placed =
+                        Placed::new(name, InteriorPartKind::Model, Some(path), object.transform);
+                    placed.palette = object
+                        .palette
+                        .and_then(|index| objects.palettes.get(index))
+                        .and_then(|palette| self.palette_at(todo, file, palette));
                     if !self.add_placed(todo, at, world, placed) {
                         return;
                     }

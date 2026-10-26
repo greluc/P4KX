@@ -135,9 +135,10 @@ ADR-0087 describe:
 | `light` | A punctual light. | absent | absent |
 
 Objects share meshes with each other and with the Entity's parts as everything else does (same
-model, material library and palette), and an Interior model has no tint palette: it is drawn with
-plain colours or its textures. Paths and names come from the Archive and are
-untrusted text.
+model, material library and palette). An Interior model or prop has a tint palette (ADR-0199) when
+the `.soc` file or the class Record of a prop names one, or its material library names a default;
+the package, which reads the Archive's DataForge for an Interior when it has one, then lists it
+as for an Entity's part. Paths and names come from the Archive and are untrusted text.
 
 ### An Interior on its own
 
@@ -157,7 +158,7 @@ A `light` node has a `light` object:
 | Field | Meaning |
 | --- | --- |
 | `kind` | `point`, `spot` or `directional`. Other engine types (`Ambient`, `Planar`) are no nodes; the issues list them as `light_unsupported`. |
-| `colour` | Linear red, green and blue, each in 0 to 1. The engine's colour is read as sRGB; with a colour temperature it is multiplied by the colour of a black body (ADR-0087). |
+| `colour` | Linear red, green and blue, each in 0 to 1. The engine stores the colour linear and it is written as stored; with a colour temperature it is multiplied by the colour of a black body (ADR-0087, ADR-0199). |
 | `intensity` | The engine's value, not converted: its unit is not documented, so it only compares lights of one package. Never negative. |
 | `range` | Metres beyond which the light has no effect; absent when the engine gives none. |
 | `inner_cone`, `outer_cone` | Radians from the axis, for the kind `spot` only: where the falloff begins (0 today) and where the light ends (half of the projector's opening angle, at most a quarter turn). |

@@ -85,6 +85,9 @@ impl<'m> SceneNode<'m> {
     }
 
     /// Places `light` at the node; it is written with `KHR_lights_punctual`.
+    ///
+    /// A node with only a light is turned to glTF's light axis itself; a node that also has a part
+    /// or children keeps its own frame, and the light sits on an extra child node of the same name.
     #[must_use]
     pub const fn with_light(mut self, light: SceneLight) -> Self {
         self.light = Some(light);
@@ -193,28 +196,53 @@ pub fn write_scene_glb_with(
     textures: &dyn TextureLoader,
     out: &mut impl Write,
 ) -> Result<GlbSummary, GltfError> {
-    let placed: Vec<Transform> = scene
-        .nodes()
+    let nodes = scene.nodes();
+    let mut has_children = vec![false; nodes.len()];
+    for node in nodes {
+        if let Some(slot) = node.parent.and_then(|parent| has_children.get_mut(parent)) {
+            *slot = true;
+        }
+    }
+    let splits: Vec<bool> = nodes
         .iter()
-        .map(|node| {
-            if node.light.is_some() {
+        .zip(&has_children)
+        .map(|(node, &children)| node.light.is_some() && (children || node.part.is_some()))
+        .collect();
+    let placed: Vec<Transform> = nodes
+        .iter()
+        .zip(&splits)
+        .map(|(node, &split)| {
+            if node.light.is_some() && !split {
                 node.transform.then(&LIGHT_FRAME)
             } else {
                 node.transform
             }
         })
         .collect();
-    let wrappers: Vec<Wrapper<'_>> = scene
-        .nodes()
+    let mut wrappers: Vec<Wrapper<'_>> = nodes
         .iter()
         .zip(&placed)
-        .map(|(node, transform)| Wrapper {
+        .zip(&splits)
+        .map(|((node, transform), &split)| Wrapper {
             name: &node.name,
             parent: node.parent,
             transform,
-            light: node.light.as_ref(),
+            light: node.light.as_ref().filter(|_| !split),
         })
         .collect();
+    wrappers.extend(
+        nodes
+            .iter()
+            .enumerate()
+            .zip(&splits)
+            .filter(|&(_, &split)| split)
+            .map(|((position, node), _)| Wrapper {
+                name: &node.name,
+                parent: Some(position),
+                transform: &LIGHT_FRAME,
+                light: node.light.as_ref(),
+            }),
+    );
     let (instances, fallbacks) = instances_of(scene, options);
     write_instances(
         &wrappers,

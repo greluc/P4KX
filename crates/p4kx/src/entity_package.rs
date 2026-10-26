@@ -5,8 +5,8 @@ use std::io::{self, BufWriter, Write};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityInterior, EntityNode,
-    ForgePalettes, InteriorOptions, LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityNode, ForgePalettes,
+    LoadoutResolver,
 };
 use p4kx_blender::{
     BuildInfo, Issue, PackageInfo, PackageSummary, Replacement, check_output, write_package,
@@ -84,9 +84,7 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
     let options = AssemblyOptions::default().with_lod(args.lod);
     let assembly = Assembly::build_with_palettes(tree, &models, &palettes, &options)?;
     let assembly = if args.interior {
-        let interior_options = InteriorOptions::default().with_lod(args.lod);
-        let interior = EntityInterior::build(&archive, &assembly, tree, &interior_options)?;
-        assembly.with_interior(interior)
+        crate::interior_forge::with_interior(assembly, (&archive, &forge), tree, args.lod)?
     } else {
         assembly
     };

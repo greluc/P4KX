@@ -87,6 +87,7 @@ mod grep_json;
 mod grep_table;
 mod guard;
 mod info;
+mod interior_forge;
 mod interior_glb;
 mod interior_package;
 mod issues;

@@ -197,6 +197,115 @@ fn entities_with_unusable_transforms_are_left_out_and_counted() -> TestResult {
 }
 
 #[test]
+fn entities_that_name_a_class_record_and_no_geometry_are_listed_for_the_caller() -> TestResult {
+    let guid = "9bf38988-1d51-4f37-996a-00139e66420b";
+    let soc = TestSoc::new()
+        .entity(TestSocEntity::classed(
+            "door",
+            "Door",
+            guid,
+            [1.0, 2.0, 3.0],
+            IDENTITY,
+        ))
+        .entity(TestSocEntity::classed("bad", "Door", guid, [0.0; 3], IDENTITY).raw_pos("1,x,3"))
+        .entity(TestSocEntity::classed(
+            "lamp", "Light", guid, [0.0; 3], IDENTITY,
+        ))
+        .entity(TestSocEntity::plain("room", "Room_RN", [0.0; 3]));
+
+    let entities = read(&soc)?;
+
+    let [door, bad] = entities.classed.as_slice() else {
+        return Err("the door and the door with a bad position".into());
+    };
+    assert_eq!((door.name.as_str(), door.class.as_str()), ("door", guid));
+    assert_eq!(
+        door.transform.ok_or("no transform")?.translation(),
+        [1.0, 2.0, 3.0]
+    );
+    assert!(bad.transform.is_none());
+    assert_eq!(
+        entities.other, 2,
+        "the room and the light without component"
+    );
+    assert_eq!(entities.invalid, 0, "the caller counts a bad class entity");
+    Ok(())
+}
+
+#[test]
+fn an_entity_with_a_class_record_keeps_its_baked_in_lights() -> TestResult {
+    let soc = TestSoc::new().entity(
+        TestSocEntity::classed(
+            "lamp_fixture",
+            "LightGroupPoweredItem",
+            "7fe31d04-bcf0-4013-8b27-b48fef8cd5e6",
+            [4.0, 0.0, 0.0],
+            IDENTITY,
+        )
+        .with_lights(&[("Light-1", TestLight::new("Omni"), IDENTITY, [0.0, 0.0, 1.0])]),
+    );
+
+    let entities = read(&soc)?;
+
+    assert_eq!(entities.classed.len(), 1);
+    let [light] = entities.lights.as_slice() else {
+        return Err("one light".into());
+    };
+    assert_eq!(light.group.as_deref(), Some("lamp_fixture"));
+    assert_eq!(light.transform.translation(), [4.0, 0.0, 1.0]);
+    Ok(())
+}
+
+#[test]
+fn a_prop_with_geometry_keeps_its_baked_in_lights_and_its_material_and_palette() -> TestResult {
+    let palette = "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0";
+    let soc = TestSoc::new().entity(
+        TestSocEntity::prop_choosing(
+            "fixture",
+            [0.0; 3],
+            IDENTITY,
+            "objects/test/lamp.cgf",
+            Some("objects/test/lamp"),
+            Some((palette, "left")),
+        )
+        .with_lights(&[("Light-1", TestLight::new("Omni"), IDENTITY, [0.0; 3])]),
+    );
+
+    let entities = read(&soc)?;
+
+    let [prop] = entities.props.as_slice() else {
+        return Err("one prop".into());
+    };
+    assert_eq!(prop.material.as_deref(), Some("objects/test/lamp"));
+    let named = prop.palette.as_ref().ok_or("no palette")?;
+    assert_eq!(
+        (named.root.as_str(), named.child.as_str()),
+        (palette, "left")
+    );
+    assert_eq!(entities.lights.len(), 1);
+    assert_eq!(entities.classed.len(), 0);
+    Ok(())
+}
+
+#[test]
+fn an_empty_material_and_a_zero_palette_are_none() -> TestResult {
+    let soc = TestSoc::new().entity(TestSocEntity::prop_choosing(
+        "plain",
+        [0.0; 3],
+        IDENTITY,
+        "objects/test/a.cgf",
+        Some(""),
+        Some(("00000000-0000-0000-0000-000000000000", "")),
+    ));
+
+    let entities = read(&soc)?;
+
+    assert_eq!(entities.props[0].material, None);
+    assert_eq!(entities.props[0].palette, None);
+    Ok(())
+}
+
+#[test]
 fn a_file_without_an_entity_chunk_yields_none_and_garbage_is_an_error() -> TestResult {
     assert!(SocEntities::read(&TestSoc::new().bytes())?.is_none());
     assert!(SocEntities::read(b"not a chunk file").is_err());

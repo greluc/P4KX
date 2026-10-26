@@ -128,9 +128,15 @@ fn the_glb_writes_the_lights_with_the_lights_extension() -> TestResult {
     let lamp = light_of("lamp")?;
     assert!(matches!(lamp.kind(), Kind::Point));
     let [red, green, blue] = lamp.color();
-    assert!((red - 1.0).abs() < 1e-5, "sRGB 1 stays 1 in linear");
-    assert!((green - 0.2140).abs() < 1e-3, "sRGB 0.5 is 0.214 linear");
-    assert!((blue - 0.0509).abs() < 1e-3, "sRGB 0.25 is 0.051 linear");
+    assert!((red - 1.0).abs() < 1e-5);
+    assert!(
+        (green - 0.5).abs() < 1e-5,
+        "the stored colour is linear already"
+    );
+    assert!(
+        (blue - 0.25).abs() < 1e-5,
+        "the stored colour is linear already"
+    );
     assert!((lamp.intensity() - 3.0).abs() < 1e-6);
     assert_eq!(lamp.range(), Some(6.0));
     let beam = light_of("beam")?;

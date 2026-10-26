@@ -151,6 +151,35 @@ fn a_light_in_a_turned_container_shines_along_the_turned_x_axis() -> TestResult 
 }
 
 #[test]
+fn a_light_node_with_children_keeps_its_frame_on_a_child_of_its_own() -> TestResult {
+    let light = SceneLight::new(SceneLightKind::Directional, [1.0; 3], 1.0);
+    let mut scene = Scene::new();
+    let lamp = scene.push(SceneNode::new("lamp", None, Transform::IDENTITY).with_light(light))?;
+    scene.push(SceneNode::new("child", Some(lamp), at(1.0, 0.0, 0.0)))?;
+
+    let (glb, summary) = write(&scene)?;
+
+    assert_eq!(summary.lights, 1);
+    let lamps: Vec<_> = glb
+        .document
+        .nodes()
+        .filter(|node| node.name() == Some("lamp"))
+        .collect();
+    let [plain, framed] = lamps.as_slice() else {
+        return Err("a plain node and a node that carries the light".into());
+    };
+    assert_eq!(plain.transform().decomposed().1, [0.0, 0.0, 0.0, 1.0]);
+    assert_ne!(framed.transform().decomposed().1, [0.0, 0.0, 0.0, 1.0]);
+    let child = glb
+        .document
+        .nodes()
+        .find(|node| node.name() == Some("child"))
+        .ok_or("no child")?;
+    assert_eq!(child.transform().decomposed().0, [1.0, 0.0, 0.0]);
+    Ok(())
+}
+
+#[test]
 fn values_gltf_cannot_hold_are_made_valid() -> TestResult {
     let mut scene = Scene::new();
     scene.push(

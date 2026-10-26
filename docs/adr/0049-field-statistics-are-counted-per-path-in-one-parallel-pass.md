@@ -28,7 +28,7 @@ silently incomplete result, and since every partial trie is a part of the union,
 does not depend on the split. A Record is read at most as far as `MAX_RECORD_VALUES` values and
 `MAX_NESTING_DEPTH` levels, like a Record tree, and an instance owned twice is read once. LIVE has
 about 87,500 paths over 118,000 Records; counting them takes about two seconds with the Archive
-opening included and about 230 MB above the memory that opening the DataForge takes.
+opening included; the amendment below gives the memory.
 
 Empty values are values: a null pointer or Reference, an empty text or a null GUID is counted in
 `values` and `empty` and never in `distinct`, `min` or `max`, so absence does not read as zero.
@@ -54,6 +54,11 @@ the fields no Record has a value for.
   limit, which is what `docs/query.md` says.
 - The values of a Reference are the GUIDs it links to and are fingerprinted like any value;
   strong and weak pointers and inline structs have no value, so their `distinct` is 0.
+- On LIVE (117,709 Records, 87,514 paths, 32 threads) the working set during the count grows by
+  about 53 MB above the memory of the opened DataForge, where it grew by about 331 MB with one
+  trie and one layout cache per task. The bound is the number of threads times the paths each
+  trie holds, so a crafted DataForge near the path cap on many cores is bounded by the same rule
+  and no longer by the number of tasks.
 - The fingerprint is 64 bits, so two different values collide with a chance of about 2^-64 per
   pair; numbers are fingerprinted exactly.
 

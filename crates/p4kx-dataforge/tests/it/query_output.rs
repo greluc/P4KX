@@ -105,7 +105,7 @@ fn csv_writes_values_as_record_xml_does_and_a_missing_value_as_an_empty_field() 
 
     assert_eq!(
         csv,
-        "\u{feff}record path,a,b,c,d,e,f,g,h,i\r\nlibs/r,true,-9223372036854775808,18446744073709551615,1e21,-INF,'@item_Name,cbee34fd-6441-4000-b99f-924f7f26e19f,error: the bool byte 7 is neither 0 nor 1,\r\n",
+        "record path,a,b,c,d,e,f,g,h,i\r\nlibs/r,true,-9223372036854775808,18446744073709551615,1e21,-INF,@item_Name,cbee34fd-6441-4000-b99f-924f7f26e19f,error: the bool byte 7 is neither 0 nor 1,\r\n",
         "Record XML texts"
     );
     Ok(())
@@ -144,12 +144,12 @@ fn csv_neutralises_text_that_a_spreadsheet_would_run_as_a_formula() -> TestResul
 
     assert_eq!(
         csv,
-        "\u{feff}record path,a,b,c,d,e,f,g,h,i,j\r\nlibs/r,'=1+1,'+a,'-a,'@SUM(A1),\"'\tx\",\"'\rx\",'@item_Name,'-Small,\"'=a,\"\"b\"\"\",a=b\r\n",
+        "\u{feff}record path,a,b,c,d,e,f,g,h,i,j\r\nlibs/r,'=1+1,'+a,'-a,'@SUM(A1),'\tx,\"'\rx\",'@item_Name,'-Small,\"'=a,\"\"b\"\"\",a=b\r\n",
         "text cells start with an apostrophe"
     );
     assert_eq!(
         raw,
-        "record path,a,b,c,d,e,f,g,h,i,j\r\nlibs/r,=1+1,+a,-a,@SUM(A1),\"\tx\",\"\rx\",@item_Name,-Small,\"=a,\"\"b\"\"\",a=b\r\n",
+        "record path,a,b,c,d,e,f,g,h,i,j\r\nlibs/r,=1+1,+a,-a,@SUM(A1),\tx,\"\rx\",@item_Name,-Small,\"=a,\"\"b\"\"\",a=b\r\n",
         "raw cells are exact"
     );
     Ok(())

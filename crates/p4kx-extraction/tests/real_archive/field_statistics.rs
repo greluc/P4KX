@@ -61,7 +61,7 @@ fn counts_the_field_paths_of_a_real_archive_within_a_bounded_memory() -> TestRes
     let started = Instant::now();
     let statistics = FieldStatistics::of_all(&forge)?;
     let elapsed = started.elapsed();
-    let sampled = sampler.finish();
+    let working_sets = sampler.finish();
 
     let occurrences: u64 = statistics
         .fields()
@@ -80,9 +80,9 @@ fn counts_the_field_paths_of_a_real_archive_within_a_bounded_memory() -> TestRes
         rayon::current_num_threads(),
         statistics.records(),
         statistics.fields().len(),
-        sampled.map(|(first, _)| megabytes(first)),
-        sampled.map(|(_, max)| megabytes(max)),
-        sampled.map(|(first, max)| megabytes(max.saturating_sub(first))),
+        working_sets.map(|(first, _)| megabytes(first)),
+        working_sets.map(|(_, max)| megabytes(max)),
+        working_sets.map(|(first, max)| megabytes(max.saturating_sub(first))),
     ));
     assert!(
         statistics.fields().len() > 10_000,

@@ -38,6 +38,9 @@ pub struct Crafting<'f> {
     pub quality_distributions: Vec<QualityDistribution<'f>>,
     /// The quality quantizations, each with the `ResourceType`s whose crafting data link to it.
     pub quality_quantizations: Vec<QualityQuantization<'f>>,
+    /// The links of `ResourceType` Records (leftovers excluded) to a Record that is no readable
+    /// quality quantization: a GUID of another type or of no Record, or a Record that failed.
+    pub unresolved_quantization_links: usize,
     /// The blueprint pools.
     pub pools: Vec<BlueprintPool<'f>>,
     /// The places that reward a blueprint of a pool, found through their Reference to it.
@@ -75,8 +78,7 @@ enum Piece<'f> {
 /// The Records are read in parallel. A `Filter` keeps only the blueprints and pools whose record
 /// path it matches (the reward sources are then those of the kept pools); the properties,
 /// quality Records, the `ResourceType` links to the quality quantizations, dismantle processes and
-/// global parameters are always read. A Record that
-/// cannot be read is left out and listed in [`Crafting::failures`]; a Record outside the `Filter`
+/// global parameters are always read. A Record that cannot be read is left out and listed in [`Crafting::failures`]; a Record outside the `Filter`
 /// is not listed, except the global parameters. A Record that could hold a reward source and
 /// cannot be read leaves a [`CraftingWarning`].
 ///
@@ -186,6 +188,14 @@ fn assemble(pieces: Vec<Piece<'_>>) -> Crafting<'_> {
             quantization.resource_types = resource_types;
         }
     }
+    crafting.unresolved_quantization_links = links
+        .into_values()
+        .map(|mut resource_types| {
+            resource_types.sort_unstable();
+            resource_types.dedup();
+            resource_types.len()
+        })
+        .sum();
     crafting.dismantle.sort_by_key(|item| item.guid);
     crafting.pools.sort_by_key(|item| item.guid);
     crafting
@@ -211,7 +221,9 @@ fn resource_links<'f>(
     trees: &mut TreeBuilder<'f>,
     record: &Record<'f>,
 ) -> Result<Option<Piece<'f>>, DataForgeError> {
-    if record.type_name()? != RESOURCE_TYPES.type_name {
+    if record.type_name()? != RESOURCE_TYPES.type_name
+        || is_leftover(record.record_path()?, record.name()?)
+    {
         return Ok(None);
     }
     let quantizations = linked_quantizations(&trees.build(record)?);

@@ -13,9 +13,14 @@ Decided for issue #692. Builds on ADR-0002, ADR-0004 and ADR-0054.
   `properties[].qualityQuantization.qualityQuantizationRecord`. The reader collects those links
   from every `ResourceType` Record whatever the Filter and stores them as GUIDs, never embedded
   (ADR-0004). One Record may serve several `ResourceType`s (`Carinite`, `CarinitePure`).
-- **An unlinked Record stays in the kind** with an empty `resourceTypeGuids` and is counted in the
-  warning `unlinked_quality_quantizations` (20 on LIVE). It is a fact of the game data, not a
-  defect of the export, so the real-Archive tests treat the warning as known.
+- **An unused Record stays in the kind** with an empty `resourceTypeGuids` (20 on LIVE). It is
+  ordinary game data, not a defect, so it is only counted in `CatalogSummary::quantizations()`
+  (`unused`) and in the `quantizations` object of `p4kx catalog --json`, like `paints.unassigned`;
+  it raises no warning and does not change the exit code.
+- **Links that reach no quantization are counted, not dropped silently:** a link of a
+  `ResourceType` to a GUID of another type or of no Record, to a Record that failed, or to a
+  development leftover counts in `unresolved_links` (0 on LIVE). A `ResourceType` that is itself a
+  development leftover neither links nor counts.
 - **A Record that cannot be read is a failure and left out:** no bands, a band without whole
   `start`, `end` or `mappedValue`, or a band that ends before it starts.
 - **Only identifiers and numbers are exported.** No text, description or media.
@@ -24,5 +29,4 @@ Decided for issue #692. Builds on ADR-0002, ADR-0004 and ADR-0054.
 
 - A `resourceTypeGuids` entry equals a commodity's `subtypeGuid` only when the catalog has that
   commodity: 18 of the 43 links on LIVE do.
-- `p4kx catalog` on LIVE exits with code 1 because of the warning, as it already does for the
-  empty shop inventory file.
+- `p4kx catalog` on LIVE is unaffected: the kind adds no warning.

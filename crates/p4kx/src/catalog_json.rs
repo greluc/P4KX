@@ -38,6 +38,7 @@ pub(super) struct SummaryJson<'a> {
     store_slugs: StoreSlugsJson<'a>,
     playability: PlayabilityJson,
     variants: VariantsJson,
+    quantizations: QuantizationsJson,
     texts: Vec<TextJson>,
     unresolved: usize,
 }
@@ -123,7 +124,6 @@ enum WarningJson {
     UnreadableRewardRecords { count: usize },
     UnknownModifierRanges { count: usize, details: Vec<String> },
     AmbiguousDismantle { count: usize },
-    UnlinkedQualityQuantizations { count: usize, details: Vec<String> },
     UnreadableVehicleFiles { count: usize, details: Vec<String> },
     UnplacedStarmapContainers { count: usize },
     UnreadableShopRegistry,
@@ -149,12 +149,6 @@ impl From<&CraftingWarning> for WarningJson {
             }
             CraftingWarning::AmbiguousDismantle(count) => {
                 Self::AmbiguousDismantle { count: *count }
-            }
-            CraftingWarning::UnlinkedQualityQuantizations { count, details } => {
-                Self::UnlinkedQualityQuantizations {
-                    count: *count,
-                    details: details.clone(),
-                }
             }
             CraftingWarning::UnreadableVehicleFiles { count, details } => {
                 Self::UnreadableVehicleFiles {
@@ -211,6 +205,12 @@ struct PlayabilityJson {
 struct VariantsJson {
     items: VariantCountsJson,
     ships: VariantCountsJson,
+}
+
+#[derive(Serialize)]
+struct QuantizationsJson {
+    unused: usize,
+    unresolved_links: usize,
 }
 
 #[derive(Serialize)]
@@ -328,6 +328,10 @@ pub(super) fn summary_json<'a>(
         variants: VariantsJson {
             items: summary.variants().items.into(),
             ships: summary.variants().ships.into(),
+        },
+        quantizations: QuantizationsJson {
+            unused: summary.quantizations().unused,
+            unresolved_links: summary.quantizations().unresolved_links,
         },
         texts: summary
             .texts()

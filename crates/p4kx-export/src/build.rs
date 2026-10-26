@@ -151,6 +151,7 @@ pub(crate) struct Parts {
     store_slugs: Box<StoreSlugSummary>,
     playability: crate::PlayabilitySummary,
     variants: crate::VariantSummary,
+    quantizations: crate::QuantizationSummary,
     failures: Vec<CatalogFailure>,
     warnings: Vec<CraftingWarning>,
 }
@@ -170,6 +171,7 @@ impl Parts {
             store_slugs: self.store_slugs,
             playability: self.playability,
             variants: self.variants,
+            quantizations: self.quantizations,
             failures: self.failures,
             warnings: self.warnings,
             size,
@@ -261,6 +263,7 @@ fn assemble<R>(
             store_slugs: Box::new(resolved.summary),
             playability: collected.playability,
             variants,
+            quantizations: collected.quantization_summary,
             failures: collected.failures,
             warnings: collected.warnings,
         },

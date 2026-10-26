@@ -128,6 +128,19 @@ pub struct VariantSummary {
     pub items: VariantCounts,
 }
 
+/// What the quality quantizations of a catalog link to. Both counts are facts of the game data and
+/// change nothing about the completeness of the catalog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct QuantizationSummary {
+    /// The quantizations of the catalog that no `ResourceType` uses; their `resourceTypeGuids`
+    /// are empty.
+    pub unused: usize,
+    /// The links of `ResourceType` Records to a Record that is no readable quality quantization
+    /// of the catalog: a GUID of another type or of no Record, a Record that failed and one left
+    /// out as a development leftover.
+    pub unresolved_links: usize,
+}
+
 /// What a catalog holds of starmap objects and where the system containers place them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct StarmapSummary {
@@ -184,6 +197,7 @@ pub struct CatalogSummary {
     pub(crate) store_slugs: Box<StoreSlugSummary>,
     pub(crate) playability: PlayabilitySummary,
     pub(crate) variants: VariantSummary,
+    pub(crate) quantizations: QuantizationSummary,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) warnings: Vec<CraftingWarning>,
     pub(crate) size: u64,
@@ -269,6 +283,13 @@ impl CatalogSummary {
     #[must_use]
     pub const fn playability(&self) -> PlayabilitySummary {
         self.playability
+    }
+
+    /// Returns how many quality quantizations no `ResourceType` uses and how many links reach no
+    /// quantization of the catalog.
+    #[must_use]
+    pub const fn quantizations(&self) -> QuantizationSummary {
+        self.quantizations
     }
 
     /// Returns how many variant groups and variants the ships and the items have.

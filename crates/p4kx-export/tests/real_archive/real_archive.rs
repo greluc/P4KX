@@ -85,11 +85,9 @@ fn builds_a_valid_catalog_of_a_real_archive() -> TestResult {
 const EMPTY_INVENTORY: &str = "inv_shopping_test_featuretest.json";
 
 /// Returns whether `warning` is a known defect of the game data: the Build ships the shop
-/// inventory file `inv_shopping_test_featuretest.json` with no content at all, and quality
-/// quantization Records that no `ResourceType` uses.
+/// inventory file `inv_shopping_test_featuretest.json` with no content at all.
 fn is_known_defect(warning: &CraftingWarning) -> bool {
     match warning {
-        CraftingWarning::UnlinkedQualityQuantizations { count, details } => *count == details.len(),
         CraftingWarning::UnreadableShopInventories { count, details } => {
             *count == details.len()
                 && details.iter().all(|detail| {

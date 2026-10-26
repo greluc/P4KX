@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::error::Error;
 use std::time::SystemTime;
 
-use p4kx_export::{CatalogOptions, CraftingWarning, build_catalog};
+use p4kx_export::{CatalogOptions, build_catalog};
 use p4kx_extraction::{Archive, DataForgeEntry, Guid};
 use p4kx_testkit::real_archive_path;
 use serde_json::Value;
@@ -105,19 +105,11 @@ fn the_quality_quantizations_of_a_real_archive_link_to_resource_types() -> TestR
         unlinked.len()
     ));
     assert!(links >= 40, "the ResourceTypes link: {links}");
-    let warned: Vec<&str> = built
-        .summary()
-        .warnings()
-        .iter()
-        .filter_map(|warning| match warning {
-            CraftingWarning::UnlinkedQualityQuantizations { details, .. } => Some(details),
-            _ => None,
-        })
-        .flatten()
-        .map(String::as_str)
-        .collect();
-    let mut expected = unlinked;
-    expected.sort_unstable();
-    assert_eq!(warned, expected, "every unlinked Record is reported");
+    let summary = built.summary().quantizations();
+    assert_eq!(summary.unused, unlinked.len(), "the unused Records");
+    assert_eq!(
+        summary.unresolved_links, 0,
+        "every link of a ResourceType reaches a quantization of the catalog"
+    );
     Ok(())
 }

@@ -12,7 +12,7 @@ use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
 use p4kx_export::{
-    BuiltCatalog, CatalogOptions, CraftingWarning, Filter, Kind, build_catalog, read_crafting,
+    BuiltCatalog, CatalogOptions, Filter, Kind, build_catalog, read_crafting,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use serde_json::{Value, json};
@@ -109,7 +109,7 @@ fn the_entries_are_ordered_by_guid_and_a_leftover_is_counted_as_skipped() -> Tes
 }
 
 #[test]
-fn an_unlinked_quantization_is_kept_with_no_resource_types_and_reported() -> TestResult {
+fn an_unused_quantization_is_kept_with_no_resource_types_and_only_counted() -> TestResult {
     let (built, catalog) = build(None)?;
     for unlinked in [ORPHAN, ANOTHER] {
         let entry = entries(&catalog)
@@ -119,12 +119,32 @@ fn an_unlinked_quantization_is_kept_with_no_resource_types_and_reported() -> Tes
         assert_eq!(entry["resourceTypeGuids"], json!([]));
         assert_eq!(entry["bands"].as_array().map(Vec::len), Some(3));
     }
+    assert_eq!(built.summary().quantizations().unused, 2);
+    assert!(
+        built.summary().warnings().is_empty(),
+        "unused Records are plain data: {:?}",
+        built.summary().warnings()
+    );
+    Ok(())
+}
+
+#[test]
+fn links_to_no_kept_quantization_are_counted_and_a_leftover_resource_type_does_not_link()
+-> TestResult {
+    let (built, catalog) = build(None)?;
     assert_eq!(
-        built.summary().warnings(),
-        [CraftingWarning::UnlinkedQualityQuantizations {
-            count: 2,
-            details: vec!["Quantization_Another".into(), "Quantization_Orphan".into()],
-        }]
+        built.summary().quantizations().unresolved_links,
+        4,
+        "a GUID of no Record, one of a ResourceType, a failed Record and a leftover Record"
+    );
+    let iron = entries(&catalog)
+        .into_iter()
+        .find(|entry| entry["guid"] == guid(IRON).as_str())
+        .ok_or("the iron quantization")?;
+    assert_eq!(
+        iron["resourceTypeGuids"],
+        json!([guid(ORE_IRON)]),
+        "Ore_Test is a leftover and neither links nor counts"
     );
     Ok(())
 }

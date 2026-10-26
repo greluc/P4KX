@@ -23,6 +23,12 @@ pub(crate) const SHARED_GOLD: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const TWO_PROPERTIES: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const ORE_IRON: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0004;
 const PLAIN: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0005;
+const DEV_RESOURCE: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0006;
+const DANGLING_LINK: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0007;
+const WRONG_TYPE_LINK: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0008;
+const BROKEN_LINK: u128 = 0xb200_0000_0000_4000_8000_0000_0000_0009;
+const LEFTOVER_LINK: u128 = 0xb200_0000_0000_4000_8000_0000_0000_000a;
+const NO_RECORD: u128 = 0xa100_0000_0000_4000_8000_0000_0000_00ff;
 
 const QUANTIZATIONS: &str = "libs/foundry/records/crafting/qualityquantization/";
 const RESOURCES: &str = "libs/foundry/records/resourcetypedatabase/resourcetypedatabase";
@@ -134,6 +140,27 @@ fn database() -> DataForgeBuilder {
             REVERSED,
             "Quantization_Reversed",
             vec![band(0, 399, 264), band(800, 400, 553)],
+        ))
+        .record(resource(DEV_RESOURCE, "Ore_Test", vec![data(Some(IRON))]))
+        .record(resource(
+            DANGLING_LINK,
+            "Ore_Dangling",
+            vec![data(Some(NO_RECORD))],
+        ))
+        .record(resource(
+            WRONG_TYPE_LINK,
+            "Ore_Wrong",
+            vec![data(Some(ORE_IRON))],
+        ))
+        .record(resource(
+            BROKEN_LINK,
+            "Ore_Broken",
+            vec![data(Some(NO_BANDS))],
+        ))
+        .record(resource(
+            LEFTOVER_LINK,
+            "Ore_Quartz",
+            vec![data(Some(LEFTOVER))],
         ))
         .record(resource(ORE_GOLD, "Ore_Gold", vec![data(Some(GOLD))]))
         .record(resource(

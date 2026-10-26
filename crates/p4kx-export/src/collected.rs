@@ -28,7 +28,7 @@ use crate::resource_group::{Groups, resource_group};
 use crate::ship::ship;
 use crate::ship_base::ShipRead;
 use crate::texts::Texts;
-use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary};
+use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary, QuantizationSummary};
 
 /// A Record a kind selected: its entity, or a development leftover of the kind.
 ///
@@ -130,6 +130,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) gameplay_properties: Vec<GameplayProperty<'f>>,
     pub(crate) quality_distributions: Vec<QualityDistribution<'f>>,
     pub(crate) quality_quantizations: Vec<QualityQuantization<'f>>,
+    pub(crate) quantization_summary: QuantizationSummary,
     pub(crate) blueprint_pools: Vec<BlueprintPool<'f>>,
     pub(crate) dismantle_processes: Vec<DismantleProcess<'f>>,
     pub(crate) crafting_global: CraftingGlobal,
@@ -169,6 +170,7 @@ impl<'f> Collected<'f> {
             gameplay_properties: crafting.properties,
             quality_distributions: crafting.distributions,
             quality_quantizations: crafting.quantizations,
+            quantization_summary: crafting.quantization_summary,
             blueprint_pools: crafting.pools,
             dismantle_processes: crafting.dismantle,
             crafting_global: crafting.global,

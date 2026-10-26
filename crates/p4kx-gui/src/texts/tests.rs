@@ -183,10 +183,6 @@ fn every_warning_kind_has_a_sentence_in_both_languages() {
             details: Vec::new(),
         },
         CraftingWarning::AmbiguousDismantle(2),
-        CraftingWarning::UnlinkedQualityQuantizations {
-            count: 1,
-            details: Vec::new(),
-        },
         CraftingWarning::UnreadableVehicleFiles {
             count: 1,
             details: Vec::new(),

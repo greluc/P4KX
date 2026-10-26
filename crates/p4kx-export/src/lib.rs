@@ -188,7 +188,7 @@ pub use starmap_report::StarmapReport;
 pub use store_slug_summary::StoreSlugSummary;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
-    LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,
-    UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
+    LoadoutSummary, PaintSummary, QuantizationSummary, SizeWarning, StarmapSummary, TextSummary,
+    UPLOAD_LIMIT, UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
 };
 pub use variant_groups::{VariantGroups, read_variant_groups};

@@ -24,15 +24,6 @@ pub enum CraftingWarning {
     /// The DataForge holds this many dismantle processes instead of one, so
     /// [`Crafting::dismantle_return`](crate::Crafting::dismantle_return) links no blueprint.
     AmbiguousDismantle(usize),
-    /// This many quality quantization Records of the catalog are used by no `ResourceType`, so
-    /// their `resourceTypeGuids` are empty. `details` names the Records, ordered and without
-    /// repeats.
-    UnlinkedQualityQuantizations {
-        /// The number of Records.
-        count: usize,
-        /// One entry per Record: its class name.
-        details: Vec<String>,
-    },
     /// This many ships have a vehicle implementation file or Modification patch file that exists
     /// but cannot be read, so no paint is assigned through it. `details` names the files and why
     /// they cannot be read, ordered and without repeats. A file the Archive lacks is no such ship.
@@ -79,9 +70,7 @@ impl CraftingWarning {
         match self {
             Self::UnreadableRewardRecords(_) => "unreadable_reward_records",
             Self::UnknownModifierRanges { .. } => "unknown_modifier_ranges",
-            Self::AmbiguousDismantle(_) => "ambiguous_dismantle",
-            Self::UnlinkedQualityQuantizations { .. } => "unlinked_quality_quantizations",
-            Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
+            Self::AmbiguousDismantle(_) => "ambiguous_dismantle",            Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
             Self::UnplacedStarmapContainers(_) => "unplaced_starmap_containers",
             Self::UnreadableShopRegistry => "unreadable_shop_registry",
             Self::MissingShopRegistry => "missing_shop_registry",
@@ -101,9 +90,7 @@ impl CraftingWarning {
             | Self::UnplacedStarmapContainers(count)
             | Self::UnreadableShopContainers(count)
             | Self::MissingShopInventories(count)
-            | Self::UnknownModifierRanges { count, .. }
-            | Self::UnlinkedQualityQuantizations { count, .. }
-            | Self::UnreadableVehicleFiles { count, .. }
+            | Self::UnknownModifierRanges { count, .. }            | Self::UnreadableVehicleFiles { count, .. }
             | Self::UnreadableShopInventories { count, .. } => Some(*count),
             Self::UnreadableShopRegistry | Self::MissingShopRegistry | Self::NoShopComponents => {
                 None
@@ -116,9 +103,7 @@ impl CraftingWarning {
     #[must_use]
     pub fn details(&self) -> &[String] {
         match self {
-            Self::UnknownModifierRanges { details, .. }
-            | Self::UnlinkedQualityQuantizations { details, .. }
-            | Self::UnreadableVehicleFiles { details, .. }
+            Self::UnknownModifierRanges { details, .. }            | Self::UnreadableVehicleFiles { details, .. }
             | Self::UnreadableShopInventories { details, .. } => details,
             _ => &[],
         }
@@ -161,11 +146,6 @@ impl fmt::Display for CraftingWarning {
             Self::AmbiguousDismantle(count) => write!(
                 f,
                 "the DataForge holds {count} dismantle processes instead of one; no dismantle return is linked"
-            ),
-            Self::UnlinkedQualityQuantizations { count, details } => write!(
-                f,
-                "{count} quality quantization Records are used by no ResourceType; their resourceTypeGuids are empty{}",
-                Listed(details)
             ),
             Self::UnreadableVehicleFiles { count, details } => write!(
                 f,

@@ -31,7 +31,7 @@ pub(crate) struct QuantizationBand {
 pub(crate) struct QualityQuantization<'a> {
     /// The GUID of the Record.
     pub(crate) guid: CatalogGuid,
-    /// The Record name without its type, e.g. `quantization_gold`.
+    /// The Record name without its type, e.g. `Quantization_Gold`.
     pub(crate) class_name: &'a str,
     /// The record path, without `.xml`.
     pub(crate) record_path: &'a str,
@@ -39,6 +39,6 @@ pub(crate) struct QualityQuantization<'a> {
     pub(crate) bands: Vec<QuantizationBand>,
     /// The GUIDs of the `ResourceType` Records whose crafting data link to the Record, ordered by
     /// GUID. It equals a commodity's `subtypeGuid` only when the catalog has that commodity.
-    /// Empty for a Record no `ResourceType` uses; a warning then tells.
+    /// Empty for a Record no `ResourceType` uses.
     pub(crate) resource_type_guids: Vec<CatalogGuid>,
 }

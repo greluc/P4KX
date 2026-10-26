@@ -666,8 +666,8 @@ multipliers and modifiers.
 
 ### Quality, pools and dismantle
 
-Five kinds hold what a blueprint or a resource refers to; each entry has `guid`, `className` and `recordPath`,
-and the ordering, completeness and leftover rules of every other kind apply (a `--filter` matches
+Five kinds hold what a blueprint or a resource refers to; each entry has `guid`, `className` and
+`recordPath`, and the ordering, completeness and leftover rules of every other kind apply (a `--filter` matches
 the record path and marks the kind partial).
 
 | Kind | Fields |
@@ -695,11 +695,15 @@ and
 | `bands` | `qualityQuantization.bands` in stored order: per band `start`, `end` (inclusive) and `mappedValue`, whole numbers. Every quality from `start` to `end` counts as `mappedValue`. LIVE has 8 bands per Record with the same ranges (0-399, 400-599, 600-699, 700-799, 800-899, 900-949, 950-998, 999-1000) that together cover the qualities 0 to 1000; only the `mappedValue`s differ per resource |
 | `resourceTypeGuids` | The GUIDs of the `ResourceType` Records whose crafting data link to the Record, without repeats and ordered by GUID. The link goes from the `ResourceType` (`properties[].qualityQuantization.qualityQuantizationRecord`); the quantization Record holds none. On LIVE 43 links reach 42 Records (`Carinite` and `CarinitePure` share one); 18 of the linked `ResourceType`s are the `subtypeGuid` of a commodity of the catalog, as commodities are backfilled only for the `ResourceType`s a blueprint uses |
 
-The links are read from every `ResourceType` Record whatever the Filter. A Record no `ResourceType`
-uses stays in the kind with an empty `resourceTypeGuids` and is counted in the warning
-`unlinked_quality_quantizations` (20 on LIVE). A Record without bands,
-or with a band that lacks a whole `start`, `end` or `mappedValue` or ends before it starts, cannot
-be read: it is left out and listed in the failures. No description, text or media is exported.
+The links are read from every `ResourceType` Record whatever the Filter, except those that are
+development leftovers: such a `ResourceType` neither links nor counts. A Record no `ResourceType`
+uses is ordinary game data and stays in the kind with an empty `resourceTypeGuids` (20 on LIVE);
+`CatalogSummary::quantizations().unused` and `quantizations.unused` of `p4kx catalog --json` count
+them, with no effect on the exit code. The same summary counts `unresolved_links`, the links to a
+Record that is no readable quantization of the catalog (another type, no Record, a failed Record
+or a leftover); it is 0 on LIVE. A Record without bands, or with a band that lacks a whole
+`start`, `end` or `mappedValue` or ends before it starts, cannot be read: it is left out and
+listed in the failures. No description, text or media is exported.
 
 #### Dismantle returns
 

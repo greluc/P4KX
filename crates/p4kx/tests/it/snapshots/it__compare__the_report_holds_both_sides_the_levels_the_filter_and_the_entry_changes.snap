@@ -1,5 +1,5 @@
 ---
-source: crates/p4kx/tests/compare.rs
+source: crates/p4kx/tests/it/compare.rs
 expression: report
 ---
 {
@@ -17,7 +17,8 @@ expression: report
         "branch": "sc-alpha-4.11.0",
         "version": "4.11.42.1234",
         "change_number": "12999999",
-        "build_id": "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0"
+        "build_id": "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0",
+        "public_patch": null
       }
     }
   },

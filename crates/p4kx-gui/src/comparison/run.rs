@@ -171,11 +171,13 @@ fn run(
             total: progress.entries_total,
         });
     };
+    let patches = crate::public_patches::current();
     let options = CompareOptions {
         levels,
         filter: None,
         cancel: Some(cancel),
         progress: Some(&on_progress),
+        public_patches: Some(&patches),
     };
     let comparison = match OwnedComparison::compare(old, new, forges, &options) {
         Ok(comparison) => comparison,

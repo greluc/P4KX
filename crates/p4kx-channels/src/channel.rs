@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use p4kx_archive::Build;
 
-use crate::ChannelKind;
+use crate::{ChannelKind, PublicPatches};
 
 const UNKNOWN: &str = "unknown";
 
@@ -41,12 +41,15 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub(crate) fn new(archive: PathBuf, source: ChannelSource) -> Self {
+    pub(crate) fn new(archive: PathBuf, source: ChannelSource, patches: &PublicPatches) -> Self {
         let name = channel_name(&archive).unwrap_or_else(|| UNKNOWN.to_owned());
         let build = archive
             .parent()
             .and_then(|folder| Build::read_from(folder).ok().flatten())
-            .map(Build::with_public_patch);
+            .map(|build| {
+                let patch = patches.of(&build).map(str::to_owned);
+                build.with_public_patch(patch)
+            });
         Self {
             name,
             archive,

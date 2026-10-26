@@ -7,8 +7,6 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::public_patch;
-
 const MANIFEST: &str = "build_manifest.id";
 
 /// The Build of an Archive as stated in its Channel's `build_manifest.id`.
@@ -86,28 +84,16 @@ impl Build {
         }))
     }
 
-    /// Returns the Build with the public patch the RSI Launcher logged for its change number
-    /// in the log files of `log_folder`, or unchanged when no log line names that change number.
+    /// Returns the Build with `public_patch` as its public patch, replacing any earlier one.
     ///
-    /// Only `log.log` and `log.old.log` are read; a missing or unreadable file is skipped.
+    /// Nothing is read: the caller takes the value from the RSI Launcher log.
     #[must_use]
-    pub fn with_public_patch_from(mut self, log_folder: &Path) -> Self {
-        self.public_patch = public_patch::find(log_folder, &self.change_number);
+    pub fn with_public_patch(mut self, public_patch: Option<String>) -> Self {
+        self.public_patch = public_patch;
         self
     }
 
-    /// Returns the Build with the public patch from the RSI Launcher's own log folder, see
-    /// [`Build::with_public_patch_from`]; `P4KX_LAUNCHER_LOGS` names another log folder.
-    #[must_use]
-    pub fn with_public_patch(self) -> Self {
-        match public_patch::standard_log_folder() {
-            Some(folder) => self.with_public_patch_from(&folder),
-            None => self,
-        }
-    }
-
-    /// Returns the public patch version, e.g. `4.7.2`, or `None` when the launcher log has no
-    /// line for this Build's change number.
+    /// Returns the public patch version, e.g. `4.7.2`, or `None` when none was set.
     #[must_use]
     pub fn public_patch(&self) -> Option<&str> {
         self.public_patch.as_deref()

@@ -75,8 +75,8 @@ pub fn compare<'a>(
         None => Vec::new(),
     };
     Ok(Comparison {
-        old: Side::of(old),
-        new: Side::of(new),
+        old: Side::of(old).with_public_patches(options.public_patches),
+        new: Side::of(new).with_public_patches(options.public_patches),
         levels: options.levels,
         filter: options.filter.map(|filter| filter.as_str().to_owned()),
         entries: joined

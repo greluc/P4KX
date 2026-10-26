@@ -7,6 +7,7 @@ use p4kx_assembly::{
 };
 use serde::Serialize;
 
+use crate::entity_outfit::OutfitsJson;
 use crate::entity_vehicle::{LandingGearJson, VehicleJson, visibility_code};
 
 /// The counts of a Loadout tree's ports by what they hold.
@@ -63,6 +64,8 @@ pub(crate) struct LoadoutJson<'a> {
     pub(crate) archive: String,
     pub(crate) entry: &'a str,
     pub(crate) entity: NodeJson<'a>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) outfits: Option<OutfitsJson>,
     #[serde(flatten)]
     pub(crate) counts: Counts,
 }

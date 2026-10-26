@@ -127,6 +127,13 @@ field is absent.
  "empty": 29, "unresolved": 0, "docked_vehicles": 0}
 ```
 
+An Entity whose default Loadout is an outfit (an NPC actor, `SItemPortLoadoutOutfitParams`) also
+has `outfits`: `{"base_files": ["…"], "outfits": [{"tags": ["Outfits.S42.Work"], "files": ["…"],
+"applied": true}, …]}`, the XML Loadouts of the base Loadout and, per outfit in the Record's order,
+its name tags (tag paths), its XML Loadouts and whether it is worn: every outfit without name tags
+is; when all have name tags, the first one is (ADR-0181). The text output lists the same as
+`outfit base:` and `outfit N worn|not worn` lines. The key is absent for any other Entity.
+
 `--exclude <port>` and `--replace <port>=<entity>` (each may be given several times) apply an
 own configuration, see [ADR-0076](adr/0076-loadout-changes-are-applied-while-the-tree-is-resolved-and-checked-against-the-port.md).
 A port is named by its path of port names from the root joined by `/`, as `entity loadout` lists
@@ -468,7 +475,8 @@ package is written even when parts are skipped.
 `p4kx chf glb`, counted in `textured_materials`, `textures` and `texture_pixels`. `files` of
 `loadout` lists the XML Loadout files the Loadout is made of in the order they are laid over each
 other: an Entity whose default Loadout is an outfit gives its base Loadout and the Loadouts of its
-outfits without name tags (ADR-0109). `head` is `null` unless the Loadout has a head (an Entity of
+outfits that apply (ADR-0109, ADR-0181), and `outfits` beside `files` (absent for any other source)
+lists every outfit as for `p4kx entity loadout`. `head` is `null` unless the Loadout has a head (an Entity of
 item type `Char_Head`); then `class_name` is the head Entity, `body` the variant its sub-type
 names, which `--body` overrides, `bespoke_folder` the folder of the character's own head skins
 (or `null` when its material library is in no folder of its own) and `parts` the pieces of the

@@ -85,6 +85,7 @@ mod markup;
 mod merge;
 mod node;
 mod object_containers;
+mod outfit;
 mod palette;
 mod placement;
 mod plan;
@@ -126,6 +127,7 @@ pub use interior::{
 pub use issue::{Issue, IssueKind};
 pub use loadout_entry::LoadoutEntry;
 pub use object_containers::{ContainerSource, ObjectContainerRef};
+pub use outfit::{Outfit, OutfitReport};
 pub use p4kx_character as character;
 pub use palette::{ForgePalettes, PaletteFailure, PaletteProvider};
 pub use port::{PortDefinition, PortTransform, PortType};

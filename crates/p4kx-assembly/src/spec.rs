@@ -8,6 +8,7 @@ use p4kx_dataforge::{Guid, RecordTree, StructValue, Value, ValueError};
 
 use crate::armour::{ZoneList, read_zones};
 use crate::merge::port_key;
+use crate::outfit::OutfitInfo;
 use crate::port::{PortDefinition, read_definition};
 use crate::read::{as_struct, struct_field, struct_items, text, unsigned};
 use crate::{Geometry, GeometryVariant, ItemFacts, MaterialVariant, ObjectContainerRef};
@@ -17,7 +18,6 @@ const DEFAULT_LOADOUT: &str = "SEntityComponentDefaultLoadoutParams";
 const PORT_CONTAINER: &str = "SItemPortContainerComponentParams";
 const XML_LOADOUT: &str = "SItemPortLoadoutXMLParams";
 const OUTFIT_LOADOUT: &str = "SItemPortLoadoutOutfitParams";
-const MAX_OUTFIT_LAYERS: usize = 16;
 const VEHICLE_PARAMS: &str = "VehicleComponentParams";
 const ATTACHABLE: &str = "SAttachableComponentParams";
 const INVENTORY_CONTAINER: &str = "SCItemInventoryContainerComponentParams";
@@ -110,6 +110,7 @@ pub(crate) struct EntitySpec {
     pub(crate) port_flags: Vec<String>,
     pub(crate) port_index: HashMap<String, usize>,
     pub(crate) loadout: Option<LoadoutSpec>,
+    pub(crate) outfit: Option<OutfitInfo>,
     pub(crate) geometry: Option<Geometry>,
     pub(crate) variants: Vec<GeometryVariant>,
     pub(crate) vehicle: Option<VehicleSpec>,
@@ -129,11 +130,14 @@ impl EntitySpec {
     pub(crate) fn read(tree: &RecordTree<'_>) -> Self {
         let components = components_of(tree);
         let record: Arc<str> = Arc::from(tree.record_path());
-        let loadout = components
+        let default_loadout = components
             .iter()
             .find(|component| component.type_name() == DEFAULT_LOADOUT)
-            .and_then(|component| struct_field(component, "loadout"))
-            .and_then(|loadout| read_loadout(loadout, &record));
+            .and_then(|component| struct_field(component, "loadout"));
+        let loadout = default_loadout.and_then(|loadout| read_loadout(loadout, &record));
+        let outfit = default_loadout
+            .filter(|loadout| loadout.type_name() == OUTFIT_LOADOUT)
+            .map(|loadout| crate::outfit::read_info(loadout, &record));
         let (ports, port_flags) = read_ports(&components);
         let mut port_index = HashMap::with_capacity(ports.len());
         for (at, port) in ports.iter().enumerate() {
@@ -176,6 +180,7 @@ impl EntitySpec {
             port_flags,
             port_index,
             loadout,
+            outfit,
             geometry,
             variants,
             vehicle,
@@ -318,49 +323,14 @@ fn tag_words(tags: &str) -> Vec<String> {
         .collect()
 }
 
-/// Reads an outfit: the base Loadout, then the Loadouts of the outfits without name tags; when
-/// every outfit has name tags, those of the first.
-fn read_outfit(outfit: &StructValue<'_>, record: &Arc<str>) -> Option<LoadoutSpec> {
-    let base =
-        struct_field(outfit, "BaseLoadout").and_then(|loadout| read_loadout(loadout, record));
-    let outfits: Vec<&StructValue<'_>> = struct_items(outfit, "Outfits").collect();
-    let chosen: Vec<&StructValue<'_>> = {
-        let untagged: Vec<_> = outfits
-            .iter()
-            .copied()
-            .filter(|outfit| !has_items(outfit, "OutfitNameTags"))
-            .collect();
-        if untagged.is_empty() {
-            outfits.first().copied().into_iter().collect()
-        } else {
-            untagged
-        }
-    };
-    let layers: Vec<LoadoutSpec> = base
-        .into_iter()
-        .chain(
-            chosen
-                .into_iter()
-                .flat_map(|outfit| struct_items(outfit, "Loadouts"))
-                .filter_map(|loadout| read_loadout(loadout, record)),
-        )
-        .take(MAX_OUTFIT_LAYERS)
-        .collect();
-    (!layers.is_empty()).then(|| LoadoutSpec::Layered(layers.into()))
-}
-
-fn has_items(structure: &StructValue<'_>, name: &str) -> bool {
-    matches!(structure.field(name), Some(Value::Array(items)) if !items.is_empty())
-}
-
 /// Reads a manual, XML or outfit Loadout; `None` for any other struct.
-fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Option<LoadoutSpec> {
+pub(crate) fn read_loadout(loadout: &StructValue<'_>, record: &Arc<str>) -> Option<LoadoutSpec> {
     if loadout.type_name() == XML_LOADOUT {
         let path = text(loadout, "loadoutPath");
         return (!path.is_empty()).then(|| LoadoutSpec::Xml(Arc::from(path)));
     }
     if loadout.type_name() == OUTFIT_LOADOUT {
-        return read_outfit(loadout, record);
+        return crate::outfit::read_outfit(loadout, record);
     }
     loadout.field("entries")?;
     Some(LoadoutSpec::Manual(

@@ -8,11 +8,12 @@ use std::path::Path;
 use anyhow::Result;
 use p4kx_assembly::{
     ArchiveFiles, BodyVariant, EntityLookupError, EntityNode, LoadoutFileError, LoadoutFiles,
-    LoadoutResolver, MAX_XML_LOADOUT_LEN, NpcHead, Piece, Replaced,
+    LoadoutResolver, MAX_XML_LOADOUT_LEN, NpcHead, OutfitReport, Piece, Replaced,
 };
 use serde::Serialize;
 use thiserror::Error;
 
+use crate::entity_outfit::{self, OutfitsJson};
 use crate::query_table::one_line;
 
 /// A `--loadout` that names no Entity and no XML Loadout file that can be read.
@@ -105,6 +106,7 @@ struct Resolved {
     tree: EntityNode,
     source: LoadoutSource,
     files: Vec<String>,
+    outfits: Option<OutfitReport>,
 }
 
 /// The Loadout `--loadout` named, as the report shows it: where it came from and the XML Loadout
@@ -115,6 +117,8 @@ pub(crate) struct LoadoutJson<'a> {
     pub(crate) source: LoadoutSource,
     pub(crate) class_name: Option<String>,
     pub(crate) files: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) outfits: Option<OutfitsJson>,
 }
 
 /// The head a Loadout gave its character, as the report shows it.
@@ -202,6 +206,7 @@ impl<'a> Selection<'a> {
                 class_name: (found.source == LoadoutSource::Entity)
                     .then(|| found.tree.class_name().to_owned()),
                 files: found.files,
+                outfits: found.outfits.as_ref().map(OutfitsJson::from),
             }),
             replaced,
             head,
@@ -219,6 +224,9 @@ impl<'a> Selection<'a> {
             )?;
             for file in &loadout.files {
                 writeln!(out, "loadout file {}", one_line(file))?;
+            }
+            if let Some(outfits) = &loadout.outfits {
+                entity_outfit::print(out, outfits)?;
             }
         }
         if let Some(head) = &self.head {
@@ -269,6 +277,7 @@ fn resolve(resolver: &mut LoadoutResolver<'_>, files: &Files<'_>, text: &str) ->
             tree,
             source: LoadoutSource::File,
             files: vec![name.to_owned()],
+            outfits: None,
         });
     }
     match resolver.entities().find(text) {
@@ -276,6 +285,7 @@ fn resolve(resolver: &mut LoadoutResolver<'_>, files: &Files<'_>, text: &str) ->
             tree: resolver.resolve(&record)?,
             source: LoadoutSource::Entity,
             files: resolver.loadout_files(&record),
+            outfits: resolver.outfits(&record),
         }),
         Err(EntityLookupError::NotFound { .. }) if text.to_ascii_lowercase().ends_with(".xml") => {
             let tree = resolver.resolve_file(text).map_err(unreadable)?;
@@ -283,6 +293,7 @@ fn resolve(resolver: &mut LoadoutResolver<'_>, files: &Files<'_>, text: &str) ->
                 tree,
                 source: LoadoutSource::Archive,
                 files: vec![text.to_owned()],
+                outfits: None,
             })
         }
         Err(error) => Err(error.into()),

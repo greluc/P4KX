@@ -11,9 +11,7 @@ use crate::quantization_fixture::{
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
 
-use p4kx_export::{
-    BuiltCatalog, CatalogOptions, Filter, Kind, build_catalog, read_crafting,
-};
+use p4kx_export::{BuiltCatalog, CatalogOptions, Filter, Kind, build_catalog, read_crafting};
 use p4kx_extraction::{Archive, DataForgeEntry};
 use serde_json::{Value, json};
 
@@ -134,8 +132,8 @@ fn links_to_no_kept_quantization_are_counted_and_a_leftover_resource_type_does_n
     let (built, catalog) = build(None)?;
     assert_eq!(
         built.summary().quantizations().unresolved_links,
-        4,
-        "a GUID of no Record, one of a ResourceType, a failed Record and a leftover Record"
+        3,
+        "a Record of another type, a failed Record and a leftover Record; a dangling Reference reads as null"
     );
     let iron = entries(&catalog)
         .into_iter()

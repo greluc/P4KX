@@ -3,6 +3,7 @@
 
 use p4kx_extraction::{Language, LocalizationNote};
 
+use crate::quantization_summary::QuantizationSummary;
 use crate::shop_summary::ShopSummary;
 use crate::store_slug_summary::StoreSlugSummary;
 use crate::{
@@ -126,19 +127,6 @@ pub struct VariantSummary {
     pub ships: VariantCounts,
     /// The items.
     pub items: VariantCounts,
-}
-
-/// What the quality quantizations of a catalog link to. Both counts are facts of the game data and
-/// change nothing about the completeness of the catalog.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct QuantizationSummary {
-    /// The quantizations of the catalog that no `ResourceType` uses; their `resourceTypeGuids`
-    /// are empty.
-    pub unused: usize,
-    /// The links of `ResourceType` Records to a Record that is no readable quality quantization
-    /// of the catalog: a GUID of another type or of no Record, a Record that failed and one left
-    /// out as a development leftover.
-    pub unresolved_links: usize,
 }
 
 /// What a catalog holds of starmap objects and where the system containers place them.

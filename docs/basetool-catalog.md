@@ -700,8 +700,8 @@ development leftovers: such a `ResourceType` neither links nor counts. A Record 
 uses is ordinary game data and stays in the kind with an empty `resourceTypeGuids` (20 on LIVE);
 `CatalogSummary::quantizations().unused` and `quantizations.unused` of `p4kx catalog --json` count
 them, with no effect on the exit code. The same summary counts `unresolved_links`, the links to a
-Record that is no readable quantization of the catalog (another type, no Record, a failed Record
-or a leftover); it is 0 on LIVE. A Record without bands, or with a band that lacks a whole
+Record that is no readable quantization of the catalog (another type, a failed Record or a
+leftover; a Reference to a GUID no Record has reads as null); it is 0 on LIVE. A Record without bands, or with a band that lacks a whole
 `start`, `end` or `mappedValue` or ends before it starts, cannot be read: it is left out and
 listed in the failures. No description, text or media is exported.
 

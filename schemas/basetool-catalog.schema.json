@@ -2394,7 +2394,7 @@
           "type": "array"
         },
         "className": {
-          "description": "The Record name without its type, e.g. `quantization_gold`.",
+          "description": "The Record name without its type, e.g. `Quantization_Gold`.",
           "type": "string"
         },
         "guid": {
@@ -2406,7 +2406,7 @@
           "type": "string"
         },
         "resourceTypeGuids": {
-          "description": "The GUIDs of the `ResourceType` Records whose crafting data link to the Record, ordered by\nGUID. It equals a commodity's `subtypeGuid` only when the catalog has that commodity.\nEmpty for a Record no `ResourceType` uses; a warning then tells.",
+          "description": "The GUIDs of the `ResourceType` Records whose crafting data link to the Record, ordered by\nGUID. It equals a commodity's `subtypeGuid` only when the catalog has that commodity.\nEmpty for a Record no `ResourceType` uses.",
           "items": {
             "$ref": "#/$defs/Guid"
           },

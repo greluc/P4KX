@@ -918,7 +918,7 @@ printed as a note on stderr. An encrypted DataForge without the key is exit code
 `quantizations` counts two facts of the game data that do not affect the exit code: `unused`, the
 quality quantizations of the catalog that no `ResourceType` uses, and `unresolved_links`, the links
 of `ResourceType` Records to a Record that is no readable quality quantization of the catalog (of
-another type, of no Record, failed or a development leftover).
+another type, failed or a development leftover; a Reference to a GUID no Record has reads as null).
 
 `store_slugs` counts the curated RSI store slugs against the ships of the catalog and lists the
 `stale` ones whose mapping no longer holds; `stale_check_skipped` is `true` and `stale` empty when slugs are

@@ -18,8 +18,9 @@ Decided for issue #692. Builds on ADR-0002, ADR-0004 and ADR-0054.
   (`unused`) and in the `quantizations` object of `p4kx catalog --json`, like `paints.unassigned`;
   it raises no warning and does not change the exit code.
 - **Links that reach no quantization are counted, not dropped silently:** a link of a
-  `ResourceType` to a GUID of another type or of no Record, to a Record that failed, or to a
-  development leftover counts in `unresolved_links` (0 on LIVE). A `ResourceType` that is itself a
+  `ResourceType` to a Record of another type, to a Record that failed, or to a development
+  leftover counts in `unresolved_links` (0 on LIVE); a Reference to a GUID no Record has reads as
+  null and cannot be told from a null one. A `ResourceType` that is itself a
   development leftover neither links nor counts.
 - **A Record that cannot be read is a failure and left out:** no bands, a band without whole
   `start`, `end` or `mappedValue`, or a band that ends before it starts.

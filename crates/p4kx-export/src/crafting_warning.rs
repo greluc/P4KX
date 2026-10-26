@@ -70,7 +70,8 @@ impl CraftingWarning {
         match self {
             Self::UnreadableRewardRecords(_) => "unreadable_reward_records",
             Self::UnknownModifierRanges { .. } => "unknown_modifier_ranges",
-            Self::AmbiguousDismantle(_) => "ambiguous_dismantle",            Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
+            Self::AmbiguousDismantle(_) => "ambiguous_dismantle",
+            Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
             Self::UnplacedStarmapContainers(_) => "unplaced_starmap_containers",
             Self::UnreadableShopRegistry => "unreadable_shop_registry",
             Self::MissingShopRegistry => "missing_shop_registry",
@@ -90,7 +91,8 @@ impl CraftingWarning {
             | Self::UnplacedStarmapContainers(count)
             | Self::UnreadableShopContainers(count)
             | Self::MissingShopInventories(count)
-            | Self::UnknownModifierRanges { count, .. }            | Self::UnreadableVehicleFiles { count, .. }
+            | Self::UnknownModifierRanges { count, .. }
+            | Self::UnreadableVehicleFiles { count, .. }
             | Self::UnreadableShopInventories { count, .. } => Some(*count),
             Self::UnreadableShopRegistry | Self::MissingShopRegistry | Self::NoShopComponents => {
                 None
@@ -103,7 +105,8 @@ impl CraftingWarning {
     #[must_use]
     pub fn details(&self) -> &[String] {
         match self {
-            Self::UnknownModifierRanges { details, .. }            | Self::UnreadableVehicleFiles { details, .. }
+            Self::UnknownModifierRanges { details, .. }
+            | Self::UnreadableVehicleFiles { details, .. }
             | Self::UnreadableShopInventories { details, .. } => details,
             _ => &[],
         }

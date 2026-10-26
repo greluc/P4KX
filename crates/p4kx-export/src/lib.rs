@@ -114,6 +114,7 @@ mod paint;
 mod paint_port;
 mod playability;
 mod playability_rules;
+mod quantization_summary;
 mod record_export;
 mod record_fields;
 mod record_summary;
@@ -174,6 +175,7 @@ pub use p4kx_extraction::{
     RecordFailure, TAG_PATH_SEPARATOR, Tag, TagResolver, TagTree, TagTreeIssues, TextSet,
 };
 pub use playability::{Playability, PlayabilityCounts, PlayabilitySummary};
+pub use quantization_summary::QuantizationSummary;
 pub use record_export::{RecordFilePlans, write_planned_record_export, write_record_export};
 pub use record_summary::RecordExportSummary;
 pub use selection::{EXCLUDED_TOKENS, Kind, KindRule, SHIP_EXCLUDED_TOKENS};
@@ -188,7 +190,7 @@ pub use starmap_report::StarmapReport;
 pub use store_slug_summary::StoreSlugSummary;
 pub use summary::{
     BuiltCatalog, CatalogSummary, DECOMPRESSED_LIMIT, DECOMPRESSED_WARNING_SIZE, KindSummary,
-    LoadoutSummary, PaintSummary, QuantizationSummary, SizeWarning, StarmapSummary, TextSummary,
-    UPLOAD_LIMIT, UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
+    LoadoutSummary, PaintSummary, SizeWarning, StarmapSummary, TextSummary, UPLOAD_LIMIT,
+    UPLOAD_WARNING_SIZE, VariantCounts, VariantSummary,
 };
 pub use variant_groups::{VariantGroups, read_variant_groups};

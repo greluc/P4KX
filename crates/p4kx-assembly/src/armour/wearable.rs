@@ -16,6 +16,13 @@ pub(crate) enum Unfit {
     NoVariant,
 }
 
+/// The geometry worn on a body and whether it is the Record's main geometry, not a sub-geometry.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Worn<'a> {
+    pub(crate) geometry: &'a Geometry,
+    pub(crate) main: bool,
+}
+
 /// An Entity worn on a body, with the geometry its Record names: the main geometry and the
 /// sub-geometry per body tag.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,12 +81,20 @@ impl Wearable {
         &self,
         body: BodyVariant,
         selecting: &[String],
-    ) -> Result<&Geometry, Unfit> {
+    ) -> Result<Worn<'_>, Unfit> {
         let chosen = self
             .variants
             .iter()
             .find(|found| selecting.iter().any(|tag| found.has_tag(tag)));
-        chosen.map_or_else(|| self.geometry_for(body), |found| Ok(&found.geometry))
+        chosen.map_or_else(
+            || self.geometry_for(body),
+            |found| {
+                Ok(Worn {
+                    geometry: &found.geometry,
+                    main: false,
+                })
+            },
+        )
     }
 
     /// Returns the GUID of the Entity's Record.
@@ -120,9 +135,12 @@ impl Wearable {
 
     /// Returns the geometry worn on `body`: the sub-geometry tagged with the variant's tag, else
     /// the main geometry when the Record names no geometry per body at all.
-    pub(crate) fn geometry_for(&self, body: BodyVariant) -> Result<&Geometry, Unfit> {
+    pub(crate) fn geometry_for(&self, body: BodyVariant) -> Result<Worn<'_>, Unfit> {
         if let Some(found) = self.variants.iter().find(|found| found.has_tag(body.tag())) {
-            return Ok(&found.geometry);
+            return Ok(Worn {
+                geometry: &found.geometry,
+                main: false,
+            });
         }
         let per_body = self.variants.iter().any(|found| {
             BodyVariant::ALL
@@ -132,6 +150,12 @@ impl Wearable {
         if per_body {
             return Err(Unfit::NoVariant);
         }
-        self.geometry.as_ref().ok_or(Unfit::NoGeometry)
+        self.geometry
+            .as_ref()
+            .map(|geometry| Worn {
+                geometry,
+                main: true,
+            })
+            .ok_or(Unfit::NoGeometry)
     }
 }

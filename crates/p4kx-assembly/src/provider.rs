@@ -94,20 +94,11 @@ fn failure(error: ConversionError) -> ModelFailure {
     }
 }
 
-/// Keeps the level of `model` closest to `level` from below, or its lowest level when all are
-/// above it; the choice `p4kx-gltf` makes when it draws a model.
+/// Keeps the level of `model` that [`Model::nearest_lod`] picks for `level`.
 fn keep_nearest_lod(model: &mut Model, level: u32) {
-    if let Some(nearest) = nearest_level(model.lods.iter().map(|found| found.level), level) {
+    if let Some(nearest) = model.nearest_lod(level).map(|lod| lod.level) {
         model.lods.retain(|found| found.level == nearest);
     }
-}
-
-fn nearest_level(levels: impl Iterator<Item = u32> + Clone, wanted: u32) -> Option<u32> {
-    levels
-        .clone()
-        .filter(|found| *found <= wanted)
-        .max()
-        .or_else(|| levels.min())
 }
 
 /// Supplies the models and material libraries an Assembly is built from.
@@ -318,27 +309,5 @@ fn without_mtl(path: &str) -> &str {
     match path.rsplit_once('.') {
         Some((stem, extension)) if extension.eq_ignore_ascii_case("mtl") => stem,
         _ => path,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::nearest_level;
-
-    #[test]
-    fn the_nearest_level_below_the_request_wins() {
-        assert_eq!(nearest_level([0, 2, 4].into_iter(), 3), Some(2));
-        assert_eq!(nearest_level([0, 2, 4].into_iter(), 2), Some(2));
-    }
-
-    #[test]
-    fn a_model_with_only_levels_above_the_request_gives_its_lowest() {
-        assert_eq!(nearest_level([4].into_iter(), 0), Some(4));
-        assert_eq!(nearest_level([3, 5].into_iter(), 1), Some(3));
-    }
-
-    #[test]
-    fn a_model_without_levels_gives_none() {
-        assert_eq!(nearest_level(std::iter::empty(), 0), None);
     }
 }

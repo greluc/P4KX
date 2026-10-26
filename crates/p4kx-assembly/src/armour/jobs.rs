@@ -7,7 +7,7 @@ use p4kx_character::Dna;
 
 use super::head::rig_part;
 use super::piece::{Bespoke, Note, Source};
-use super::wearable::Unfit;
+use super::wearable::{Unfit, Worn};
 use super::{BodyVariant, Expressions, Look, PartOrigin, Piece, ZoneChunk};
 use crate::{Issue, IssueKind, MaterialVariant, ModelFailure, ModelProvider};
 
@@ -85,6 +85,12 @@ fn bespoke_path(path: &str, bespoke: &Bespoke, models: &dyn ModelProvider) -> Op
     exists(&candidate, models).then_some(candidate)
 }
 
+fn is_skinned_file(path: &str) -> bool {
+    path.rsplit_once('.').is_some_and(|(_, extension)| {
+        extension.eq_ignore_ascii_case("skin") || extension.eq_ignore_ascii_case("chr")
+    })
+}
+
 /// Returns whether the Archive holds the file at `path`, a path below `Data`; a file that cannot
 /// be read still exists.
 fn exists(path: &str, models: &dyn ModelProvider) -> bool {
@@ -116,10 +122,16 @@ pub(super) fn gather(
         }
         Source::File { path, material } => (path.clone(), material.clone()),
         Source::Wearable(wearable) => match wearable.geometry_selected(variant, &piece.selecting) {
-            Ok(geometry) => (
-                geometry.path().to_owned(),
-                chosen_material(piece, wearable, variant, geometry.material()),
-            ),
+            Ok(Worn { geometry, main }) => {
+                if main && !is_skinned_file(geometry.path()) {
+                    let body = variant.code().to_owned();
+                    issues.push(piece_issue(piece, IssueKind::MainGeometryWorn { body }));
+                }
+                (
+                    geometry.path().to_owned(),
+                    chosen_material(piece, wearable, variant, geometry.material()),
+                )
+            }
             Err(Unfit::NoGeometry) => {
                 issues.push(piece_issue(piece, IssueKind::NoWornGeometry));
                 return;

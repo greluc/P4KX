@@ -8,10 +8,11 @@ use std::error::Error;
 
 use p4kx_assembly::{
     ArchiveModels, Armour, AssemblyError, AssemblyOptions, BodyVariant, IssueKind, LoadoutResolver,
-    PartOrigin, Piece,
+    ModelFailure, ModelProvider, PartOrigin, Piece, ProvidedModel,
 };
 use p4kx_extraction::{Archive, DataForgeEntry};
 use p4kx_gltf::{GlbOptions, GlbSummary};
+use p4kx_model::MaterialStatus;
 use p4kx_testkit::gltf::Semantic;
 use p4kx_testkit::{CheckedGlb, armour_entries, check_glb};
 
@@ -225,6 +226,84 @@ fn pieces_are_skinned_to_the_body_skeleton_in_one_glb() -> TestResult {
         .map(|issue| (issue.name(), issue.kind().code()))
         .collect();
     assert_eq!(notes, [("TEST_Plain", "bones_not_in_skeleton")]);
+    Ok(())
+}
+
+struct UnskinnedFirst<'a>(ArchiveModels<'a>);
+
+impl ModelProvider for UnskinnedFirst<'_> {
+    fn model(&self, path: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
+        let mut provided = self.0.model(path, lod)?;
+        if path.ends_with("plain.skin")
+            && let Some(skinned) = provided.model.lods.first().cloned()
+        {
+            let mut bare = skinned.clone();
+            for mesh in &mut bare.meshes {
+                mesh.influences = None;
+            }
+            let mut detailed = skinned;
+            detailed.level = 1;
+            provided.model.lods = vec![bare, detailed];
+        }
+        Ok(provided)
+    }
+
+    fn library(&self, entry: &str, name: &str) -> MaterialStatus {
+        self.0.library(entry, name)
+    }
+
+    fn file(&self, path: &str, limit: u64) -> Result<Vec<u8>, ModelFailure> {
+        self.0.file(path, limit)
+    }
+}
+
+#[test]
+fn the_notes_describe_the_level_that_is_exported() -> TestResult {
+    let fixture = fixture(armour_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+    let entry = DataForgeEntry::read(&archive)?;
+    let forge = entry.open()?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let record = resolver.entities().find("TEST_Plain")?;
+    let pieces = [Piece::wearable(resolver.wearable(&record)?)];
+    let models = UnskinnedFirst(ArchiveModels::new(&archive));
+    let options = AssemblyOptions::default().with_lod(1);
+
+    let armour = Armour::build(BodyVariant::Male, &pieces, &models, &options)?;
+
+    let notes: Vec<&str> = armour
+        .issues()
+        .iter()
+        .map(|issue| issue.kind().code())
+        .collect();
+    assert_eq!(notes, ["bones_not_in_skeleton"]);
+    Ok(())
+}
+
+#[test]
+fn main_geometry_that_is_no_skin_is_worn_with_a_note() -> TestResult {
+    let armour = wear(BodyVariant::Male, &["TEST_Crate"], armour_entries())?;
+
+    let notes: Vec<(&str, &str)> = armour
+        .issues()
+        .iter()
+        .map(|issue| (issue.name(), issue.kind().code()))
+        .collect();
+    assert_eq!(
+        notes,
+        [
+            ("TEST_Crate", "main_geometry_worn"),
+            ("TEST_Crate", "geometry_missing")
+        ]
+    );
+    let plain = wear(BodyVariant::Male, &["TEST_Plain"], armour_entries())?;
+    assert!(
+        plain
+            .issues()
+            .iter()
+            .all(|issue| issue.kind().code() != "main_geometry_worn"),
+        "a skin as the main geometry needs no note"
+    );
     Ok(())
 }
 

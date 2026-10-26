@@ -78,6 +78,7 @@ mod geometry;
 mod hologram;
 mod interior;
 mod issue;
+mod issue_code;
 mod issue_text;
 mod loadout_entry;
 mod markup;

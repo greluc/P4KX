@@ -97,19 +97,44 @@ fn the_glossiness_of_the_palette_gives_the_roughness_of_a_painted_material() -> 
 }
 
 #[test]
-fn a_dark_tint_with_a_bright_specular_colour_stays_the_tint_and_is_no_plain_metal() -> TestResult {
+fn a_palette_with_a_bright_specular_colour_paints_a_metal_and_a_dull_one_a_paint() -> TestResult {
     let model = read_cube()?;
     let status = library(&painted());
-    let entry = |tint: f32| TintEntry {
+    let entry = |tint: f32, specular: f32| TintEntry {
         tint: [tint; 3],
-        specular: [0.8; 3],
+        specular: [specular; 3],
         glossiness: 102.0,
     };
-    let palette = TintPalette::new("dark", [entry(0.02), entry(0.03), entry(0.04)], [0.9; 3]);
-    let scene = two_parts(&model, &status, [Some(&palette), Some(&palette)])?;
+    let metal = TintPalette::new(
+        "bare metal",
+        [entry(0.02, 0.6), entry(0.03, 0.6), entry(0.04, 0.6)],
+        [0.9; 3],
+    );
+    let paint = TintPalette::new(
+        "dark paint",
+        [entry(0.02, 0.05), entry(0.03, 0.05), entry(0.04, 0.05)],
+        [0.9; 3],
+    );
 
-    let (glb, _) = write(&scene, &GlbOptions::default(), &Stub::default())?;
+    let (glb, _) = write(
+        &two_parts(&model, &status, [Some(&metal), Some(&metal)])?,
+        &GlbOptions::default(),
+        &Stub::default(),
+    )?;
+    let colours = base_colours(&glb);
+    assert!(close(colours[0], [0.6; 3]), "metal: {colours:?}");
+    assert!(
+        glb.document
+            .materials()
+            .any(|material| material.pbr_metallic_roughness().metallic_factor() > 0.99),
+        "a bright palette specular colour is a metal"
+    );
 
+    let (glb, _) = write(
+        &two_parts(&model, &status, [Some(&paint), Some(&paint)])?,
+        &GlbOptions::default(),
+        &Stub::default(),
+    )?;
     let colours = base_colours(&glb);
     assert!(close(colours[0], [0.02; 3]), "primary: {colours:?}");
     assert!(close(colours[1], [0.03; 3]), "secondary: {colours:?}");

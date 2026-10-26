@@ -9,73 +9,40 @@ palette and the alpha meaning of the textures, so all of it is tested without Bl
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import dataclass
-from typing import NamedTuple
-
 from .graph_groups import LAYER_BLEND, WEAR
 from .graph_spec import GraphBuilder, GraphSpec, Ref
 from .package import BLENDER_NAME_BYTES
-from .material_model import WHITE, Colour, Layer, MaterialDesc, Palette, PaletteColours, TextureSlot
+from .material_model import WHITE, Colour, Layer, MaterialDesc, PaletteColours, TextureSlot
+from .material_surface import (
+    MASK_PRECEDENCE_SHADERS,
+    MASKED_LAYERS,
+    MAX_BLENDED_LAYERS,
+    MAX_PROPERTIES,
+    METAL_FROM,
+    METAL_TO,
+    NEUTRAL_SMOOTHNESS,
+    NEUTRAL_SMOOTHNESS_SHADERS,
+    PARAM_PREFIX,
+    SPECULAR_LEVEL_PER_F0,
+    TINT_PALETTE_DECAL,
+    BuildContext,
+    Surface,
+    family_of,
+    luminance,
+    metal_share,
+    multiply,
+)
 
-SURFACE_SHADERS = frozenset({"hardsurface", "illum", "layerblend", "layerblend_v2", "layer", "simple"})
-GLASS_SHADERS = frozenset({"glasspbr", "glass"})
-DECAL_SHADERS = frozenset({"meshdecal"})
-HOLOGRAM_SHADERS = frozenset({"hologram", "hologramcig"})
-NODRAW_SHADERS = frozenset({"nodraw", "nodraw_proxy", "proxy"})
-MAX_BLENDED_LAYERS = 4
-TINT_PALETTE_DECAL = "$TintPaletteDecal"
-MAX_PROPERTIES = 64
-METAL_FROM = 0.15
-METAL_TO = 0.5
-SPECULAR_LEVEL_PER_F0 = 12.5
-PARAM_PREFIX = "p4kx_param_"
-NEUTRAL_SMOOTHNESS = 0.5
-NEUTRAL_SMOOTHNESS_SHADERS = frozenset({"hardsurface", "layerblend_v2", "layer"})
-
-
-@dataclass(frozen=True, slots=True)
-class BuildContext:
-    """What a graph needs besides the description: layer files, the mesh's palette, alphas."""
-
-    materials: Mapping[str, MaterialDesc]
-    palette: Palette | None
-    texture_alpha: Mapping[str, str]
-
-
-class Surface(NamedTuple):
-    """The colour, roughness, metallic and normal of a surface.
-
-    ``normal`` and ``level`` (the Specular IOR Level) are ``None`` without a map.
-    """
-
-    colour: Ref | Colour
-    roughness: Ref | float
-    normal: Ref | None
-    metallic: Ref | float = 0.0
-    level: Ref | None = None
-
-
-def metal_share(specular: Colour) -> float:
-    """Returns how metallic a specular colour is: a ramp over its luminance from 0.15 to 0.5."""
-    luminance = 0.2126 * specular[0] + 0.7152 * specular[1] + 0.0722 * specular[2]
-    return min(max((luminance - METAL_FROM) / (METAL_TO - METAL_FROM), 0.0), 1.0)
-
-
-def family_of(shader: str) -> str:
-    """Returns ``surface``, ``glass``, ``decal``, ``hologram``, ``nodraw`` or ``unknown``."""
-    name = shader.strip().lower()
-    if name in SURFACE_SHADERS:
-        return "surface"
-    if name in GLASS_SHADERS:
-        return "glass"
-    if name in DECAL_SHADERS:
-        return "decal"
-    if name in HOLOGRAM_SHADERS:
-        return "hologram"
-    if name in NODRAW_SHADERS:
-        return "nodraw"
-    return "unknown"
+__all__ = [
+    "METAL_FROM",
+    "METAL_TO",
+    "SPECULAR_LEVEL_PER_F0",
+    "BuildContext",
+    "Surface",
+    "build_graph",
+    "family_of",
+    "metal_share",
+]
 
 
 def build_graph(desc: MaterialDesc, context: BuildContext) -> GraphSpec:
@@ -155,7 +122,7 @@ class _Maker:
         else:
             smooth = self.desc.shininess / 255.0
         specular = entry.specular if entry else self.desc.specular
-        return self._surface(self.desc, factor, smooth, specular, 1.0, 1.0)
+        return self._surface(self.desc, factor, smooth, specular, 1.0, 1.0, entry is not None)
 
     def _surface(
         self,
@@ -165,6 +132,7 @@ class _Maker:
         specular: Colour,
         gloss_mult: float,
         tiling: float,
+        painted: bool,
     ) -> Surface:
         b = self.builder
         diffuse: Ref | Colour = factor
@@ -174,8 +142,10 @@ class _Maker:
         if slot := desc.slot("occlusion"):
             diffuse = b.mix(diffuse, Ref(self._image(slot, tiling), "Color"), 1.0, blend="MULTIPLY")
         if slot := desc.slot("detail"):
-            diffuse = b.mix(diffuse, Ref(self._image(slot, tiling), "Color"), 0.5, blend="OVERLAY")
-        colour, metallic, level = self._metal(desc, diffuse, specular, tiling)
+            split = b.add("ShaderNodeSeparateColor")
+            b.link(Ref(self._image(slot, tiling), "Color"), split, "Color")
+            diffuse = b.mix(diffuse, Ref(split, "Red"), 0.5, blend="OVERLAY")
+        colour, metallic, level = self._metal(desc, diffuse, specular, tiling, painted)
         normal: Ref | None = None
         smoothness: Ref | float | None = None
         if slot := desc.slot("normal"):
@@ -196,42 +166,56 @@ class _Maker:
         return Surface(colour, b.math("SUBTRACT", 1.0, scaled, clamp=True), normal, metallic, level)
 
     def _metal(
-        self, desc: MaterialDesc, diffuse: Ref | Colour, specular: Colour, tiling: float
+        self,
+        desc: MaterialDesc,
+        diffuse: Ref | Colour,
+        specular: Colour,
+        tiling: float,
+        painted: bool,
     ) -> tuple[Ref | Colour, Ref | float, Ref | None]:
         b = self.builder
         if slot := desc.slot("specular"):
             texture = Ref(self._image(slot, tiling), "Color")
             grey = b.add("ShaderNodeRGBToBW")
             b.link(texture, grey, "Color")
-            luminance = Ref(grey, "Val")
+            texel = Ref(grey, "Val")
+            if painted:
+                scale = SPECULAR_LEVEL_PER_F0 * luminance(specular)
+                colour, share = self._by_share(diffuse, specular)
+                return colour, share, b.math("MULTIPLY", texel, scale, clamp=True)
             ramp = b.add("ShaderNodeMapRange", props={"data_type": "FLOAT", "clamp": True})
-            b.put(ramp, "Value", luminance)
+            b.put(ramp, "Value", texel)
             b.put(ramp, "From Min", METAL_FROM)
             b.put(ramp, "From Max", METAL_TO)
             metallic = Ref(ramp, "Result")
-            level = b.math("MULTIPLY", luminance, SPECULAR_LEVEL_PER_F0, clamp=True)
+            level = b.math("MULTIPLY", texel, SPECULAR_LEVEL_PER_F0, clamp=True)
             return b.mix(diffuse, texture, metallic), metallic, level
+        colour, share = self._by_share(diffuse, specular)
+        return colour, share, None
+
+    def _by_share(self, diffuse: Ref | Colour, specular: Colour) -> tuple[Ref | Colour, float]:
         share = metal_share(specular)
         if share == 0.0:
-            return diffuse, 0.0, None
+            return diffuse, 0.0
         if share == 1.0:
-            return specular, 1.0, None
-        return b.mix(diffuse, specular, share), share, None
+            return specular, 1.0
+        return self.builder.mix(diffuse, specular, share), share
 
     def _layer_surface(self, layer: Layer, desc: MaterialDesc) -> Surface:
         palette = self.context.palette
         entry = palette.entry(layer.palette) if palette else None
         tint = layer.tint_colour
         if entry:
-            factor = _multiply(entry.tint, tint or WHITE)
+            factor = multiply(entry.tint, tint or WHITE)
             smooth = entry.glossiness / 255.0
             specular = entry.specular
         else:
             factor = tint or desc.diffuse
             smooth = NEUTRAL_SMOOTHNESS
             specular = desc.specular
+        painted = entry is not None or (tint is not None and tint != WHITE)
         return self._surface(
-            desc, factor, smooth, specular, layer.gloss_mult or 1.0, layer.uv_tiling or 1.0
+            desc, factor, smooth, specular, layer.gloss_mult or 1.0, layer.uv_tiling or 1.0, painted
         )
 
     def _layered(self) -> Surface:
@@ -243,6 +227,10 @@ class _Maker:
         ]
         if not pairs:
             return self._base()
+        if desc.shader.strip().lower() in MASK_PRECEDENCE_SHADERS and (
+            desc.slot("blend") or desc.slot("mask")
+        ):
+            return self._by_precedence(pairs[:MASKED_LAYERS])
         if desc.slot("diffuse"):
             foundation = self._base()
         else:
@@ -272,15 +260,30 @@ class _Maker:
             current = self._blend(current, surface, channel)
         return current
 
+    def _by_precedence(self, pairs: list[tuple[Layer, MaterialDesc]]) -> Surface:
+        surfaces = [self._layer_surface(layer, layer_desc) for layer, layer_desc in pairs]
+        if len(surfaces) == 1:
+            return surfaces[0]
+        channels = self._blend_channels()
+        current = surfaces[-1]
+        for at in range(len(surfaces) - 2, -1, -1):
+            current = self._blend(current, surfaces[at], channels[at])
+        return current
+
     def _blend_channels(self) -> list[Ref]:
         b = self.builder
         if slot := self.desc.slot("blend") or self.desc.slot("mask"):
             source = self._image(slot, 1.0)
-        else:
-            source = b.add("ShaderNodeVertexColor")
+            split = b.add("ShaderNodeSeparateColor")
+            b.link(Ref(source, "Color"), split, "Color")
+            return [Ref(split, "Red"), Ref(split, "Green"), Ref(split, "Blue"), Ref(source, "Alpha")]
+        source = b.add("ShaderNodeVertexColor")
         split = b.add("ShaderNodeSeparateColor")
         b.link(Ref(source, "Color"), split, "Color")
-        return [Ref(split, "Red"), Ref(split, "Green"), Ref(split, "Blue"), Ref(source, "Alpha")]
+        worn = b.math("SUBTRACT", 1.0, Ref(split, "Red"), clamp=True)
+        if (base := self.desc.number("WearBlendBase")) is not None:
+            worn = b.math("MULTIPLY", worn, base, clamp=True)
+        return [worn, Ref(split, "Green"), Ref(split, "Blue"), Ref(source, "Alpha")]
 
     def _wear_factor(self) -> Ref | float | None:
         b = self.builder
@@ -395,7 +398,3 @@ class _Maker:
         alpha = self._alpha()
         if alpha is not None:
             b.put(bsdf, "Alpha", alpha)
-
-
-def _multiply(a: Colour, b: Colour) -> Colour:
-    return (a[0] * b[0], a[1] * b[1], a[2] * b[2])

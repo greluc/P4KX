@@ -132,6 +132,11 @@ def check_character(folder: Path) -> None:
     check(keys is not None, "the mesh has shape keys")
     names = [block.name for block in keys.key_blocks]
     check(names == ["Basis", "smile"], f"shape keys: {names}")
+    check(len(body.data.color_attributes) == 1, "the vertex colours are kept as an attribute")
+    bsdf = next(n for n in body.data.materials[0].node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    base = bsdf.inputs["Base Color"]
+    tinting = base.is_linked and base.links[0].from_node.type in ("MIX", "MIX_RGB")
+    check(not tinting, "the vertex colours do not tint the base colour")
 
     waves = [action for action in bpy.data.actions if "wave" in action.name]
     check(len(waves) >= 1, f"actions: {[action.name for action in bpy.data.actions]}")

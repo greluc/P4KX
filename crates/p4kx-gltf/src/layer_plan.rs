@@ -12,8 +12,9 @@ use crate::texture_roles::{Source, canonical, sources_of, suffix};
 /// The most layers one baked image blends; the others keep out of it.
 pub(crate) const MAX_BAKED_LAYERS: usize = 8;
 
-/// The layers at the front of a material that its blend mask chooses between, the first by the
-/// rest of the mask and the others by its red, green and blue channel.
+/// The layers at the front of a material that its blend mask chooses between: the first by its
+/// red, the second by its green and the third by its blue channel, each above the ones after it,
+/// and the fourth where no channel is set.
 pub(crate) const BASE_LAYERS: usize = 4;
 
 const MAX_TILING: f32 = 4096.0;
@@ -44,8 +45,8 @@ pub(crate) struct LayerPlan {
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct Layered {
     pub(crate) layers: Vec<LayerPlan>,
-    /// The blend mask of the material: its red, green and blue channel choose the layers after
-    /// the first of the [`BASE_LAYERS`], the rest the first.
+    /// The blend mask of the material: its red, green and blue channel choose the first three of
+    /// the [`BASE_LAYERS`] in that order of precedence, the rest the fourth.
     pub(crate) mask: Option<Source>,
     /// The texture files of the blend mask and the layers that have no safe path, with their role.
     pub(crate) refused: Vec<(TextureRole, String)>,
@@ -276,17 +277,23 @@ impl Layered {
 
     /// Writes the share each layer has at a texel into `shares`, one per layer in order: the
     /// layers' shares by position, or with a mask value `mask` (red, green and blue as 0 to 1)
-    /// the first base layers by the mask and the rest by position.
+    /// the base layers by the mask, red over green over blue over none, and the rest by position.
     pub(crate) fn shares(&self, mask: Option<[f32; 3]>, shares: &mut [f32; MAX_BAKED_LAYERS]) {
         shares.fill(0.0);
         let positional = |layer: &LayerPlan| layer.share;
-        let Some([red, green, blue]) = mask else {
+        let Some(mask) = mask else {
             for (share, layer) in shares.iter_mut().zip(&self.layers) {
                 *share = positional(layer);
             }
             return;
         };
-        let channels = [(1.0 - red - green - blue).max(0.0), red, green, blue];
+        let [red, green, blue] = mask.map(|channel| channel.clamp(0.0, 1.0));
+        let channels = [
+            red,
+            green * (1.0 - red),
+            blue * (1.0 - red) * (1.0 - green),
+            (1.0 - red) * (1.0 - green) * (1.0 - blue),
+        ];
         let masked: f32 = self
             .layers
             .iter()
@@ -318,80 +325,4 @@ impl Layered {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::{LayerPlan, Layered, MAX_BAKED_LAYERS};
-
-    fn layer(at: usize, share: f32) -> LayerPlan {
-        LayerPlan {
-            at,
-            share,
-            diffuse: None,
-            normal: None,
-            colour: [1.0; 3],
-            specular: [0.0; 3],
-            metal: 0.0,
-        }
-    }
-
-    fn shares_at(layered: &Layered, mask: Option<[f32; 3]>) -> [f32; MAX_BAKED_LAYERS] {
-        let mut shares = [0.0; MAX_BAKED_LAYERS];
-        layered.shares(mask, &mut shares);
-        shares
-    }
-
-    fn close(found: [f32; MAX_BAKED_LAYERS], wanted: &[f32]) -> bool {
-        found
-            .iter()
-            .zip(wanted.iter().chain(std::iter::repeat(&0.0)))
-            .all(|(found, wanted)| (found - wanted).abs() < 1e-6)
-    }
-
-    #[test]
-    fn the_mask_channels_choose_the_base_layers_and_the_wear_share_stays() {
-        let layered = Layered {
-            layers: (0..5)
-                .map(|at| layer(at, if at == 4 { 0.2 } else { 0.0 }))
-                .collect(),
-            mask: None,
-            refused: Vec::new(),
-        };
-
-        assert!(close(
-            shares_at(&layered, Some([0.5, 0.0, 0.0])),
-            &[0.4, 0.4, 0.0, 0.0, 0.2]
-        ));
-        assert!(close(
-            shares_at(&layered, Some([0.0, 0.0, 1.0])),
-            &[0.0, 0.0, 0.0, 0.8, 0.2]
-        ));
-        assert!(close(
-            shares_at(&layered, Some([0.0; 3])),
-            &[0.8, 0.0, 0.0, 0.0, 0.2]
-        ));
-    }
-
-    #[test]
-    fn without_a_mask_the_shares_are_those_by_position() {
-        let layered = Layered {
-            layers: vec![layer(0, 0.75), layer(1, 0.25)],
-            mask: None,
-            refused: Vec::new(),
-        };
-
-        assert!(close(shares_at(&layered, None), &[0.75, 0.25]));
-    }
-
-    #[test]
-    fn a_mask_that_chooses_no_layer_that_exists_falls_back_to_the_shares_by_position() {
-        let layered = Layered {
-            layers: vec![layer(0, 0.7), layer(1, 0.3)],
-            mask: None,
-            refused: Vec::new(),
-        };
-
-        assert!(close(
-            shares_at(&layered, Some([0.0, 1.0, 0.0])),
-            &[0.7, 0.3]
-        ));
-    }
-}
+mod tests;

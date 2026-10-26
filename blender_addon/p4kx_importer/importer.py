@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import bpy
 from mathutils import Quaternion, Vector
@@ -123,7 +125,7 @@ def _import_glb(
     context.view_layer.active_layer_collection = layer
     before = set(bpy.data.materials)
     try:
-        status = bpy.ops.import_scene.gltf(filepath=str(path))
+        status = _run_gltf(context, path)
     except RuntimeError:
         return False
     finally:
@@ -159,23 +161,71 @@ def _import_character(
     objects_before = set(bpy.data.objects)
     actions_before = set(bpy.data.actions)
     try:
-        status = bpy.ops.import_scene.gltf(filepath=str(path))
+        status = _run_gltf(context, path)
     except RuntimeError:
         status = set()
     finally:
         context.view_layer.active_layer_collection = previous
+    created = [obj for obj in bpy.data.objects if obj not in objects_before]
     if "FINISHED" not in status:
+        for obj in created:
+            bpy.data.objects.remove(obj, do_unlink=True)
         package.warnings.append(f"Mesh {mesh.id} could not be imported.")
         return
-    created = [obj for obj in bpy.data.objects if obj not in objects_before]
     for obj in created:
         if obj.parent is None:
             obj.parent = parent
         result.armatures += obj.type == "ARMATURE"
         keys = obj.data.shape_keys if obj.type == "MESH" else None
         result.shape_keys += max(len(keys.key_blocks) - 1, 0) if keys is not None else 0
+        if obj.type == "MESH":
+            for material in obj.data.materials:
+                if material is not None:
+                    _drop_vertex_colour_tint(material)
     result.actions += len(set(bpy.data.actions) - actions_before)
     result.meshes += 1
+
+
+def _run_gltf(context: bpy.types.Context, path: Path) -> set[str]:
+    with _gltf_context(context):
+        return bpy.ops.import_scene.gltf(filepath=str(path))
+
+
+def _gltf_context(context: bpy.types.Context) -> AbstractContextManager[object]:
+    """Returns a context with a 3D view when the caller has none, as glTF armatures need one."""
+    if hasattr(bpy.context, "object"):
+        return nullcontext()
+    window = next(iter(context.window_manager.windows), None)
+    area = next((a for a in window.screen.areas if a.type == "VIEW_3D"), None) if window else None
+    region = next((r for r in area.regions if r.type == "WINDOW"), None) if area else None
+    if window is None or area is None or region is None:
+        return nullcontext()
+    return bpy.context.temp_override(window=window, area=area, region=region)
+
+
+def _drop_vertex_colour_tint(material: bpy.types.Material) -> None:
+    """Takes the vertex colours, which are the engine's masks, out of the base colour."""
+    tree = material.node_tree
+    if tree is None:
+        return
+    for link in list(tree.links):
+        mix = link.from_node
+        if link.to_socket.name != "Base Color" or mix.bl_idname != "ShaderNodeMix":
+            continue
+        colours = [s for s in mix.inputs if s.enabled and s.type == "RGBA"]
+        tinted = [
+            s
+            for s in colours
+            if s.is_linked and s.links[0].from_node.bl_idname == "ShaderNodeVertexColor"
+        ]
+        if len(colours) != 2 or len(tinted) != 1:
+            continue
+        other = colours[1] if tinted[0] == colours[0] else colours[0]
+        if other.is_linked:
+            tree.links.new(other.links[0].from_socket, link.to_socket)
+        else:
+            link.to_socket.default_value = other.default_value
+            tree.links.remove(link)
 
 
 def _create_object(

@@ -6,11 +6,12 @@ use std::time::Duration;
 /// Checks that the measured frame times of a test stay short without failing on one stall.
 ///
 /// A machine under load delays single frames, so the check asks for the 90th percentile to stay
-/// below `typical` and the slowest frame below `ceiling`.
+/// below `typical` and the slowest frame below `ceiling`. With fewer than 10 frames the 90th
+/// percentile is the slowest frame.
 ///
 /// # Panics
 ///
-/// Panics, naming `label`, when either bound is exceeded.
+/// Panics, naming `label`, when `frames` is empty or either bound is exceeded.
 pub fn assert_steady_frames(
     label: &str,
     frames: &[Duration],
@@ -19,9 +20,8 @@ pub fn assert_steady_frames(
 ) {
     let mut sorted = frames.to_vec();
     sorted.sort_unstable();
-    let Some(&slowest) = sorted.last() else {
-        return;
-    };
+    assert!(!sorted.is_empty(), "{label}: no frames were measured");
+    let slowest = sorted.last().copied().unwrap_or_default();
     let rank = (sorted.len() * 9).div_ceil(10).saturating_sub(1);
     let percentile = sorted.get(rank).copied().unwrap_or(slowest);
     assert!(
@@ -57,7 +57,8 @@ mod tests {
     }
 
     #[test]
-    fn no_frames_pass() {
+    #[should_panic(expected = "none: no frames were measured")]
+    fn no_frames_fail() {
         assert_steady_frames("none", &[], TYPICAL, CEILING);
     }
 

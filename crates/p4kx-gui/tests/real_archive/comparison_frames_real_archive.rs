@@ -3,9 +3,6 @@
 
 //! Frames of the Comparison tab over every Entry of a real Archive as a change; runs with
 //! `--ignored` when `P4KX_DATA_P4K` names an Archive.
-//!
-//! This binary holds this one test only, so that no other test of the suite competes for the
-//! cores while it measures frames.
 
 use std::error::Error;
 use std::time::{Duration, Instant};

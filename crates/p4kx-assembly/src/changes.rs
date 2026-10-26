@@ -247,6 +247,15 @@ pub enum ChangeError {
         /// What does not fit.
         reason: Incompatibility,
     },
+    /// The replacement is the root Entity or an Entity the port lies below, so the tree would
+    /// contain itself.
+    #[error("{entity} cannot replace the port {path}: the port lies below it")]
+    Cycle {
+        /// The path of the port.
+        path: String,
+        /// The class name of the Entity.
+        entity: String,
+    },
     /// The Entity whose Loadout is resolved cannot be.
     #[error(transparent)]
     Loadout(#[from] LoadoutError),

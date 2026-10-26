@@ -34,6 +34,7 @@ pub(crate) struct Plan {
     errors: Vec<ChangeError>,
     key: String,
     marks: Vec<usize>,
+    stopped: Vec<String>,
 }
 
 /// Returns the key of a port path, or `None` when it is no path.
@@ -109,6 +110,7 @@ impl Plan {
             errors: Vec::new(),
             key: String::new(),
             marks: Vec::new(),
+            stopped: Vec::new(),
         })
     }
 
@@ -157,6 +159,20 @@ impl Plan {
         });
     }
 
+    /// Records that the Entity at the port entered last is a docked vehicle that is not
+    /// expanded, so that changes below it find no port and are no error.
+    pub(crate) fn stopped_here(&mut self) {
+        self.stopped.push(self.key.clone());
+    }
+
+    /// Records that the replacement of the port entered last is the root or an ancestor of it.
+    pub(crate) fn reject_cycle(&mut self, entity: &str) {
+        self.errors.push(ChangeError::Cycle {
+            path: self.path_of_replacement(),
+            entity: entity.to_owned(),
+        });
+    }
+
     /// Returns the first problem of the resolution: a rejected replacement, else a change that
     /// found no port.
     pub(crate) fn finish(self) -> Option<ChangeError> {
@@ -164,18 +180,20 @@ impl Plan {
             exclusions,
             replacements,
             errors,
+            stopped,
             ..
         } = self;
         errors.into_iter().next().or_else(|| {
+            let unreachable = |key: &str| stopped.iter().any(|docked| under(key, docked));
             let mut unknown: Vec<String> = exclusions
-                .into_values()
-                .filter(|exclusion| !exclusion.matched)
-                .map(|exclusion| exclusion.path)
+                .into_iter()
+                .filter(|(key, exclusion)| !exclusion.matched && !unreachable(key))
+                .map(|(_, exclusion)| exclusion.path)
                 .chain(
                     replacements
-                        .into_values()
-                        .filter(|replacement| !replacement.matched)
-                        .map(|replacement| replacement.path),
+                        .into_iter()
+                        .filter(|(key, replacement)| !replacement.matched && !unreachable(key))
+                        .map(|(_, replacement)| replacement.path),
                 )
                 .collect();
             unknown.sort();

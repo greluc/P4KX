@@ -142,8 +142,8 @@ them (`hardpoint_weapon_nose/hardpoint_class_2`), ignoring case. An excluded por
 `replaced` and holds the new Entity with its own default Loadout. `excluded` and `replaced` count
 those ports and are absent when 0. A change that is no port path, names a port the tree lacks,
 contradicts another, names an Entity that no Record or several Records match, or attaches an
-Entity that does not fit the port's item types and sizes exits with code 2 and prints the reason;
-a replacement whose Record cannot be read exits with code 5.
+Entity that does not fit the port's item types, sub-types and sizes, or replaces a port with the
+root Entity or an Entity the port lies below, exits with code 2 and prints the reason; a replacement whose Record cannot be read exits with code 5.
 
 `<entity>` is a class name such as `AEGS_Avenger_Titan` (also as the Record name
 `EntityClassDefinition.AEGS_Avenger_Titan`), a GUID, or a record path, which is recognised by a
@@ -251,7 +251,9 @@ order is attached. The same Archive always gives the same document.
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. A docked vehicle is
-one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too.
+one part without the parts of its own Loadout; `--expand-docked-vehicles` places those too. A
+change to a port below an unexpanded docked vehicle, as `entity loadout` lists it, is ignored and
+no error.
 `parts` counts the root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
 models that lack the requested level and are written at the nearest lower one, or at their

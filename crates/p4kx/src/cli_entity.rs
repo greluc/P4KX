@@ -82,7 +82,8 @@ pub(crate) enum EntityAction {
     /// --replace the Loadout is an own configuration: excluded branches and the Entity a
     /// replacement removes are not written. Reads every model once, in parallel. A docked vehicle
     /// (a Merlin in a docking collar, say) is placed as one part, without the parts of its own
-    /// Loadout, unless --expand-docked-vehicles is given.
+    /// Loadout, unless --expand-docked-vehicles is given; a change to a port below such a docked
+    /// vehicle is ignored.
     #[command(after_help = EXIT_CODES_HELP)]
     Glb(EntityGlbArgs),
     /// Writes an Entity as a Blender package, a folder that does not depend on Blender's file

@@ -103,11 +103,11 @@ impl PortConstraints {
             min_size: port.min_size(),
             max_size: port.max_size(),
             types: port
-                .types()
+                .item_types()
                 .iter()
-                .map(|name| AcceptedType {
-                    name: name.clone(),
-                    sub_types: Vec::new(),
+                .map(|kind| AcceptedType {
+                    name: kind.item_type().to_owned(),
+                    sub_types: kind.subtypes().to_vec(),
                 })
                 .collect(),
         };

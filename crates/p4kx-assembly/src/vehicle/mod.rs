@@ -205,7 +205,7 @@ pub struct VehicleImplementation {
     pub(crate) elems: Vec<ElemOverride>,
     pub(crate) name: String,
     pub(crate) parts: Vec<VehiclePart>,
-    pub(crate) visibility: HashMap<String, PortVisibility>,
+    pub(crate) port_paths: HashMap<String, Box<[usize]>>,
     pub(crate) issues: Vec<LoadoutError>,
     pub(crate) structure: [u8; 16],
 }
@@ -350,9 +350,19 @@ impl VehicleImplementation {
     /// the first part of that name decides.
     #[must_use]
     pub fn port_visibility(&self, name: &str) -> PortVisibility {
-        self.visibility
-            .get(&port_key(name))
-            .copied()
+        self.port_part(name)
+            .and_then(|part| part.item_port.as_ref())
+            .map(VehicleItemPort::visibility)
             .unwrap_or_default()
+    }
+
+    /// Returns the first part named `name` that holds an item port, ignoring ASCII case.
+    pub(crate) fn port_part(&self, name: &str) -> Option<&VehiclePart> {
+        let (first, rest) = self.port_paths.get(&port_key(name))?.split_first()?;
+        let mut part = self.parts.get(*first)?;
+        for index in rest {
+            part = part.children.get(*index)?;
+        }
+        Some(part)
     }
 }

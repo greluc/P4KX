@@ -14,8 +14,7 @@ impl VehicleImplementation {
     /// Returns the item port of the first part named `name`, ignoring ASCII case.
     #[must_use]
     pub fn item_port(&self, name: &str) -> Option<&super::VehicleItemPort> {
-        self.item_ports()
-            .find(|part| part.name.eq_ignore_ascii_case(name))
+        self.port_part(name)
             .and_then(|part| part.item_port.as_ref())
     }
 

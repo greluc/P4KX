@@ -93,7 +93,7 @@ pub(crate) fn load(
         report,
         elems,
         name: root.attribute("name").unwrap_or_default().to_owned(),
-        visibility: read::visibility(&parts),
+        port_paths: read::port_paths(&parts),
         parts,
         issues,
     })

@@ -36,6 +36,7 @@ impl LoadoutResolver<'_> {
     ) -> EntityNode {
         let attached_vehicle = spec.docked_vehicle && !walk.is_root();
         if self.stop_at_docked && attached_vehicle {
+            walk.stopped_here();
             return shell(spec, attached_vehicle, false);
         }
         let mut issues = Vec::new();
@@ -135,6 +136,10 @@ impl LoadoutResolver<'_> {
                 true
             }
             Action::Replace(guid, facts) => {
+                if walk.ancestors.contains(&guid) {
+                    plan.reject_cycle(facts.class_name());
+                    return false;
+                }
                 if let Some(constraints) = node.constraints()
                     && let Err(reason) = constraints.check(&facts)
                 {

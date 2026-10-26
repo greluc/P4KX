@@ -18,6 +18,7 @@ mod catalog_size;
 mod channels;
 mod character_package;
 mod chf;
+mod chf_diff;
 mod chf_glb;
 mod chf_names;
 mod chunks;
@@ -71,6 +72,7 @@ mod entity;
 mod entity_audio;
 mod entity_glb;
 mod entity_glb_placements;
+mod entity_ignored;
 mod entity_json;
 mod entity_outfit;
 mod entity_package;
@@ -173,7 +175,7 @@ fn main() -> ExitCode {
         Command::Bnk(args) => bnk::run(&args, json),
         Command::Ui(args) => ui::run(&args, json),
         Command::Socpak(args) => socpak::run(&args, json),
-        Command::Chf(args) => chf::run(&args, json).map(success),
+        Command::Chf(args) => chf::run(&args, json),
         Command::Chunks(args) => chunks::run(&args, json).map(success),
         Command::Wwise(args) => wwise::run(&args, json),
         Command::Model(args) => model::run(&args, json).map(success),

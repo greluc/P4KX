@@ -57,6 +57,8 @@ struct GlbJson<'a> {
     skipped: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     interior: Option<InteriorJson>,
+    #[serde(skip_serializing_if = "<[String]>::is_empty")]
+    ignored: &'a [String],
     #[serde(skip_serializing_if = "Vec::is_empty")]
     excluded: Vec<&'a str>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -138,14 +140,16 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
     }
     let changes = args.changes.changes()?;
     let record = resolver.entities().find(&args.entity)?;
-    let tree = resolver.resolve_with(&record, &changes)?;
+    let applied = resolver.resolve_changed(&record, &changes)?;
+    crate::entity_ignored::warn(applied.ignored())?;
+    let tree = applied.node();
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
     let palettes = ForgePalettes::new(&forge);
-    let assembly = Assembly::build_with_palettes(&tree, &models, &palettes, &options)?;
+    let assembly = Assembly::build_with_palettes(tree, &models, &palettes, &options)?;
     let assembly = if args.interior {
         let interior_options = InteriorOptions::default().with_lod(args.lod);
-        let interior = EntityInterior::build(&archive, &assembly, &tree, &interior_options)?;
+        let interior = EntityInterior::build(&archive, &assembly, tree, &interior_options)?;
         assembly.with_interior(interior)
     } else {
         assembly
@@ -184,6 +188,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
                 .filter(|issue| issue.kind().skips())
                 .count(),
             interior: interior_json(&assembly),
+            ignored: applied.ignored(),
             excluded: changes.exclusions().iter().map(String::as_str).collect(),
             replaced: changes
                 .replacements()

@@ -39,6 +39,7 @@ mod real_resolve;
 mod real_rig_logic;
 mod real_search;
 mod real_streamed_localised;
+mod real_subtype_fit;
 mod real_trigger_discovery;
 mod real_vehicle;
 mod real_vehicle_numbers;

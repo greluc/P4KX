@@ -14,7 +14,7 @@ pub(crate) use crate::cli_bnk::{BnkAction, BnkArgs, BnkFormat, BnkSource};
 pub(crate) use crate::cli_catalog::{CatalogArgs, CatalogCommand};
 pub(crate) use crate::cli_channels::{ChannelsAction, ChannelsArgs};
 use crate::cli_character::CharacterArgs;
-pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfGlbArgs};
+pub(crate) use crate::cli_chf::{ChfAction, ChfArgs, ChfDiffArgs, ChfDiffFormat, ChfGlbArgs};
 use crate::cli_chunks::ChunksArgs;
 pub(crate) use crate::cli_conflict::Conflict;
 pub(crate) use crate::cli_coverage::CoverageArgs;

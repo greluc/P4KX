@@ -156,6 +156,34 @@ impl LoadoutChanges {
     }
 }
 
+/// A Loadout tree with the changes applied, and the changes that could not be.
+#[derive(Debug, Clone)]
+pub struct ChangedLoadout {
+    pub(crate) node: crate::EntityNode,
+    pub(crate) ignored: Vec<String>,
+}
+
+impl ChangedLoadout {
+    /// Returns the tree.
+    #[must_use]
+    pub const fn node(&self) -> &crate::EntityNode {
+        &self.node
+    }
+
+    /// Returns the tree, dropping the ignored changes.
+    #[must_use]
+    pub fn into_node(self) -> crate::EntityNode {
+        self.node
+    }
+
+    /// Returns the paths, as given, of the changes to ports below a docked vehicle that is not
+    /// expanded: the tree has no such port, so they were not applied and are no error.
+    #[must_use]
+    pub fn ignored(&self) -> &[String] {
+        &self.ignored
+    }
+}
+
 /// What [`LoadoutChanges`] do to one port.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PortChange<'c> {
@@ -246,6 +274,15 @@ pub enum ChangeError {
         entity: String,
         /// What does not fit.
         reason: Incompatibility,
+    },
+    /// The replacement is the root Entity or an Entity the port lies below, so the tree would
+    /// contain itself.
+    #[error("{entity} cannot replace the port {path}: the port lies below it")]
+    Cycle {
+        /// The path of the port.
+        path: String,
+        /// The class name of the Entity.
+        entity: String,
     },
     /// The Entity whose Loadout is resolved cannot be.
     #[error(transparent)]

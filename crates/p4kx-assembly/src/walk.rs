@@ -39,6 +39,13 @@ impl Walk {
         }
     }
 
+    /// Tells the changes that the Entity at the port entered last is not expanded.
+    pub(crate) fn stopped_here(&mut self) {
+        if let Some(plan) = self.plan.as_mut() {
+            plan.stopped_here();
+        }
+    }
+
     /// Returns whether the Entity being built is the root of the tree.
     pub(crate) const fn is_root(&self) -> bool {
         self.ancestors.len() == 1

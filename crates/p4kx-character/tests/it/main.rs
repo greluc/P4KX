@@ -4,6 +4,7 @@
 //! Integration tests of `p4kx-character`, built as one test binary.
 
 mod chf;
+mod diff;
 mod face_pose;
 mod json;
 mod limits;

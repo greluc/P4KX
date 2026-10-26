@@ -3,9 +3,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ChfError;
 use crate::body_reader::{BodyReader, unexpected};
 use crate::body_writer::{Put, count_as};
+use crate::{ChfError, Label};
 
 /// The value every DNA block starts with: the CRC-32C of `dna matrix 1.0`.
 pub const DNA_MAGIC: u32 = 0xfcd0_9394;
@@ -23,6 +23,9 @@ pub struct Dna {
     /// CRC-32C of the rig name (`protos_human_<gender>_face_t1_pu`), naming the head mesh family
     /// the blends refer to.
     pub gender_hash: u32,
+    /// The name of the rig, read from `gender_hash_label` and never written.
+    #[serde(default, rename = "gender_hash_label", skip_serializing)]
+    pub label: Label,
     /// The low half of the rig's identity; its hash function is unknown.
     pub variant_hash: u32,
     /// Number of blends each face part holds.
@@ -124,6 +127,7 @@ impl Dna {
         }
         Ok(Some(Self {
             gender_hash,
+            label: Label,
             variant_hash,
             blends_per_part,
             header_unknown,

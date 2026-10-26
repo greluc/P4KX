@@ -7,7 +7,7 @@ use crate::xml_text::{is_plain_name, write_display, write_escaped};
 use crate::xml_write::{
     attribute, indent, write_annotation, write_attribute_field, write_reference, write_scalar,
 };
-use crate::{Annotations, Field, RecordTree, TextResolver, Value};
+use crate::{Annotations, Field, RecordTree, Value};
 
 /// The namespace of the `p4kx:` elements of Record XML.
 pub const RECORD_XML_NAMESPACE: &str = "https://github.com/p4kx-org/p4kx/record-xml";
@@ -46,27 +46,12 @@ impl RecordXml {
     ///
     /// Returns the I/O error of `out`.
     pub fn write<W: Write>(&mut self, tree: &RecordTree<'_>, out: &mut W) -> io::Result<()> {
-        self.write_with(tree, None, out)
-    }
-
-    /// Writes `tree` like [`RecordXml::write`]; with `texts`, every localisation key also carries
-    /// its resolved text or a mark that it has none, see `docs/record-xml.md`.
-    ///
-    /// # Errors
-    ///
-    /// Returns the I/O error of `out`.
-    pub fn write_with<W: Write>(
-        &mut self,
-        tree: &RecordTree<'_>,
-        texts: Option<&dyn TextResolver>,
-        out: &mut W,
-    ) -> io::Result<()> {
-        self.write_annotated(tree, texts.into(), out)
+        self.write_annotated(tree, Annotations::none(), out)
     }
 
     /// Writes `tree` like [`RecordXml::write`] with the `annotations`: the texts of localisation
-    /// keys, and the tag path of every tag Reference in a `tag` attribute, see
-    /// `docs/record-xml.md`.
+    /// keys, each with its resolved text or a mark that it has none, and the tag path of every
+    /// tag Reference in a `tag` attribute, see `docs/record-xml.md`.
     ///
     /// # Errors
     ///
@@ -93,23 +78,7 @@ impl RecordXml {
         depth: usize,
         out: &mut W,
     ) -> io::Result<()> {
-        self.write_element_with(tree, None, depth, out)
-    }
-
-    /// Writes the root element like [`RecordXml::write_element`], with the texts of
-    /// [`RecordXml::write_with`].
-    ///
-    /// # Errors
-    ///
-    /// Returns the I/O error of `out`.
-    pub fn write_element_with<W: Write>(
-        &mut self,
-        tree: &RecordTree<'_>,
-        texts: Option<&dyn TextResolver>,
-        depth: usize,
-        out: &mut W,
-    ) -> io::Result<()> {
-        self.write_element_annotated(tree, texts.into(), depth, out)
+        self.write_element_annotated(tree, Annotations::none(), depth, out)
     }
 
     /// Writes the root element like [`RecordXml::write_element`], with the `annotations` of
@@ -143,23 +112,7 @@ impl RecordXml {
         depth: usize,
         out: &mut W,
     ) -> io::Result<()> {
-        self.write_wrapped_element_with(tree, None, depth, out)
-    }
-
-    /// Writes the wrapped root element like [`RecordXml::write_wrapped_element`], with the texts
-    /// of [`RecordXml::write_with`]; the wrapper declares the namespace.
-    ///
-    /// # Errors
-    ///
-    /// Returns the I/O error of `out`.
-    pub fn write_wrapped_element_with<W: Write>(
-        &mut self,
-        tree: &RecordTree<'_>,
-        texts: Option<&dyn TextResolver>,
-        depth: usize,
-        out: &mut W,
-    ) -> io::Result<()> {
-        self.write_wrapped_element_annotated(tree, texts.into(), depth, out)
+        self.write_wrapped_element_annotated(tree, Annotations::none(), depth, out)
     }
 
     /// Writes the wrapped root element like [`RecordXml::write_wrapped_element`], with the

@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_character::{
-    BODY_COLOR, ColorParam, EYE_COLOR, FloatParam, Guid, HAIR_DYE_COLOR, Material as Choice,
+    BODY_COLOR, ColorParam, EYE_COLOR, FloatParam, Guid, HAIR_DYE_COLOR, Label, Material as Choice,
     SubMaterial, lowered_hash, name_hash,
 };
 use p4kx_model::{MaterialLibrary, MaterialStatus};
@@ -16,10 +16,12 @@ fn library(xml: &str) -> MaterialStatus {
 fn look(name: &str, colors: Vec<ColorParam>, floats: Vec<FloatParam>) -> Look {
     Look::new(&Choice {
         attachment: 1,
+        label: Label,
         base_material: Guid::default(),
         flags: 0,
         sub_materials: vec![SubMaterial {
             name: lowered_hash(name),
+            label: Label,
             textures: Vec::new(),
             floats,
             colors,
@@ -28,7 +30,11 @@ fn look(name: &str, colors: Vec<ColorParam>, floats: Vec<FloatParam>) -> Look {
 }
 
 const fn colour(name: u32, rgba: [u8; 4]) -> ColorParam {
-    ColorParam { name, rgba }
+    ColorParam {
+        name,
+        label: Label,
+        rgba,
+    }
 }
 
 fn diffuse(status: &MaterialStatus, at: usize) -> [f32; 3] {
@@ -118,10 +124,12 @@ fn hair_of(xml: &str, melanin: f32, dye_amount: f32, dye: [u8; 4]) -> [f32; 3] {
         vec![
             FloatParam {
                 name: name_hash("BaseMelanin"),
+                label: Label,
                 value: melanin,
             },
             FloatParam {
                 name: name_hash("DyeAmount"),
+                label: Label,
                 value: dye_amount,
             },
         ],
@@ -163,6 +171,7 @@ fn a_hair_takes_the_first_choice_when_no_sub_material_name_matches() {
         vec![colour(HAIR_DYE_COLOR, [0, 255, 0, 255])],
         vec![FloatParam {
             name: name_hash("DyeAmount"),
+            label: Label,
             value: 1.0,
         }],
     );

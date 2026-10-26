@@ -34,7 +34,7 @@ match tags.
   resolver of `--lang` and the new `TagResolver`, and add `tag="…"` or `"tag": "…"` to a Reference of
   type `Tag` when asked (`dcb export --tags`, `RecordExportOptions::tags`). Without it the bytes are
   those of before; the Comparison and the Record JSON Schema see the same tree, and the schema
-  allows the one new optional key. The older `write_with` of the writers stays.
+  allows the one new optional key. The older `write_with` of the writers stayed until ADR-0179 removed it.
 - **Legacy IDs** are kept as stored; 4294967295 means none.
 
 ## Considered Options

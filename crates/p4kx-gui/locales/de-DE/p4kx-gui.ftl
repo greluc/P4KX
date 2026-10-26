@@ -415,6 +415,7 @@ record-export-form-ndjson = NDJSON, eine Datei { $name } mit einem Record je Zei
 record-export-form-flat-csv = Werte als CSV, { $name }, eine Zeile je Wert
 record-export-form-flat-csv-raw = Werte als CSV, exakt: ohne Byte-Order-Mark, ohne ' vor Text
 record-export-form-flat-ndjson = Werte als NDJSON, { $name }, ein Objekt je Wert
+record-export-tags = Tag-Pfad neben jeder Tag-Referenz schreiben (nur JSON und NDJSON)
 record-export-start = Export starten
 record-export-running-title = Exportiere Records
 record-export-reading = Lese DataForge …

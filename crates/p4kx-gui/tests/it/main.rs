@@ -122,6 +122,8 @@ mod record_preview_scrolling;
 mod record_preview_window;
 mod record_search;
 mod record_search_window;
+mod record_tags;
+mod record_tags_render;
 mod record_tree;
 mod record_tree_window;
 mod rendering;

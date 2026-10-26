@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::body_reader::{BodyReader, unexpected};
 use crate::body_writer::{Put, count_as};
-use crate::{ChfError, Guid};
+use crate::{ChfError, Guid, Label};
 
 /// The deepest item port nesting read or written; the root is level 1.
 pub const MAX_PORT_DEPTH: usize = 32;
@@ -18,6 +18,9 @@ const PORT_LEN: usize = 28;
 pub struct ItemPort {
     /// CRC-32C of the lower-cased port name, e.g. `head_itemport`.
     pub port: u32,
+    /// The name of the port, read from `port_label` and never written.
+    #[serde(default, rename = "port_label", skip_serializing)]
+    pub label: Label,
     /// GUID of the item attached to the port.
     pub item: Guid,
     /// A count the binary layout keeps on the last port of each level, kept as read.
@@ -67,6 +70,7 @@ impl ItemPort {
         }
         Ok(Self {
             port,
+            label: Label,
             item,
             tail_count,
             children,

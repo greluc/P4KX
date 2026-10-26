@@ -19,7 +19,8 @@ lesbarer Wert „Fehler: Grund" in `color-danger-text` an seinem Feld; der Rest 
 weiter da. Eine Reference ist ein Link nach der DS-Regel für `a` (12,8 / 700, `color-primary`,
 Hover `color-accent-light` mit Unterstrich, Fokusring 2 / +2) mit dem Record-Pfad des Ziels, eine
 Reference auf eine Stelle im Record als „Pfad · Stelle" wie in D.16; der Typ des Ziels folgt 8 px
-dahinter in `color-gray-2-text`. Der Link wählt das Ziel im Record-Baum (Ordner klappen auf, der
+dahinter in `color-gray-2-text`; bei einer Reference auf einen Tag steht dort statt des Typs der
+Tag-Pfad, z. B. `Weapon.Gun`. Der Link wählt das Ziel im Record-Baum (Ordner klappen auf, der
 Baum rollt hin) und in der Vorschau. Eine Reference auf einen fehlenden Record ist ein Fehlerwert,
 bleibt aber als Link in `color-danger-text` anklickbar; statt zu navigieren erscheint über der
 Faktenleiste ein `.alert.alert-danger` mit der GUID, bis ein anderer Record gewählt wird.

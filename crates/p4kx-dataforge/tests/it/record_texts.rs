@@ -66,7 +66,7 @@ fn xml(texts: Option<&dyn TextResolver>) -> Result<String, Box<dyn Error>> {
     let forge = DataForge::open(&bytes)?;
     let tree = forge.records().next().ok_or("no Record")?.tree()?;
     let mut out = Vec::new();
-    RecordXml::new().write_with(&tree, texts, &mut out)?;
+    RecordXml::new().write_annotated(&tree, texts.into(), &mut out)?;
     Ok(String::from_utf8(out)?)
 }
 
@@ -75,7 +75,7 @@ fn json(texts: Option<&dyn TextResolver>) -> Result<String, Box<dyn Error>> {
     let forge = DataForge::open(&bytes)?;
     let tree = forge.records().next().ok_or("no Record")?.tree()?;
     let mut out = Vec::new();
-    RecordJson::new(JsonLayout::Compact).write_with(&tree, texts, &mut out)?;
+    RecordJson::new(JsonLayout::Compact).write_annotated(&tree, texts.into(), &mut out)?;
     Ok(String::from_utf8(out)?)
 }
 

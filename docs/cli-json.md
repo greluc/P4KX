@@ -811,7 +811,7 @@ empty `<text>`. No match is not an error: the exit code is 0 with empty arrays.
  "loc": [{"language": "en", "key": "vehicle_NameAEGS_Gladius", "text": "Aegis Gladius",
   "match": [6, 11]}],
  "entries": [{"path": "Data\\Scripts\\ship.xml", "line": 2, "offset": 7,
-  "text": "  <Part name=\"AEGS_Gladius\"/>", "match": [16, 21]}],
+  "text": "  <Part name=\"AEGS_Gladius\"/>", "match": [19, 24]}],
  "more": ["records"],
  "unavailable": [{"source": "records", "reason": "…"}],
  "stats": {"records_scanned": 117709, "records_unreadable": 0, "texts_scanned": 90946,

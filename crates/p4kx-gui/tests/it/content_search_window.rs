@@ -16,8 +16,8 @@ use egui_kittest::kittest::Queryable;
 use p4kx_gui::{ContentSearchStatus, Language, Model, TextLanguage, WorkTab, ui};
 use p4kx_search::Source;
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, GlobalIniBuilder, TestEntry, TestRecord, TestStruct,
-    TestType, TestValue,
+    ArchiveBuilder, CryXmlByteOrder, CryXmlSignature, DataForgeBuilder, GlobalIniBuilder,
+    TestElement, TestEntry, TestRecord, TestStruct, TestType, TestValue,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -45,7 +45,32 @@ fn forge() -> Vec<u8> {
         .build()
 }
 
-fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+fn long_text() -> String {
+    (1..=400)
+        .map(|row| {
+            if row == 300 {
+                "row 300 needleword\n".to_owned()
+            } else {
+                format!("row {row}\n")
+            }
+        })
+        .collect()
+}
+
+fn wide_cryxml() -> Vec<u8> {
+    (1..=400)
+        .fold(TestElement::new("Root"), |root, row| {
+            let name = if row == 300 {
+                "row 300 xmlneedle".to_owned()
+            } else {
+                format!("row {row}")
+            };
+            root.child(TestElement::new("Item").attribute("name", name.as_str()))
+        })
+        .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little)
+}
+
+pub(crate) fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()
         .entry(TestEntry::zstd("Data\\Game2.dcb", forge()))
@@ -59,6 +84,14 @@ fn archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
         .entry(TestEntry::deflated(
             "Data\\Scripts\\ship.xml",
             b"<Ship>\n  <Part name=\"AEGS_Gladius\"/>\n</Ship>\n".to_vec(),
+        ))
+        .entry(TestEntry::deflated(
+            "Data\\Scripts\\long.xml",
+            long_text().into_bytes(),
+        ))
+        .entry(TestEntry::deflated(
+            "Data\\Scripts\\wide.xml",
+            wide_cryxml(),
         ))
         .entry(TestEntry::stored(
             "Data\\Scripts\\binary.xml",
@@ -81,20 +114,23 @@ fn harness(model: Model) -> Harness<'static, Model> {
         )
 }
 
-fn wait_until(harness: &mut Harness<'_, Model>, done: impl Fn(&Model) -> bool) -> TestResult {
+pub(crate) fn wait_until(
+    harness: &mut Harness<'_, Model>,
+    done: impl Fn(&Model) -> bool,
+) -> TestResult {
     wait_for_model(harness, "the window to settle", done)?;
     harness.run_steps(3);
     Ok(())
 }
 
-fn finished(model: &Model) -> bool {
+pub(crate) fn finished(model: &Model) -> bool {
     !matches!(
         model.content_search().status(),
         ContentSearchStatus::Idle | ContentSearchStatus::Running
     )
 }
 
-fn click_row(harness: &Harness<'_, Model>, text: &str) -> TestResult {
+pub(crate) fn click_row(harness: &Harness<'_, Model>, text: &str) -> TestResult {
     harness
         .get_all_by_label_contains(text)
         .next()
@@ -103,7 +139,7 @@ fn click_row(harness: &Harness<'_, Model>, text: &str) -> TestResult {
     Ok(())
 }
 
-fn searched(
+pub(crate) fn searched(
     language: Language,
     text: &str,
 ) -> Result<(tempfile::TempDir, Harness<'static, Model>), Box<dyn Error>> {
@@ -320,7 +356,7 @@ fn a_source_without_a_hit_says_so() -> TestResult {
     Ok(())
 }
 
-fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
+pub(crate) fn save(name: &str, width: u32, height: u32, image: &[u8]) -> TestResult {
     let Some(folder) = std::env::var_os("P4KX_RENDER_DIR").map(PathBuf::from) else {
         return Ok(());
     };

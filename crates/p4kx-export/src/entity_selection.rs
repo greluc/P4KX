@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+use p4kx_extraction::{DataForgeError, Filter, Record};
+
+use crate::Kind;
+use crate::selection::is_leftover;
+
+/// What the entity kinds make of a Record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Selected {
+    /// The Record is an entity of the kind.
+    Entity(Kind),
+    /// The Record is a development leftover of the kind.
+    Leftover(Kind),
+}
+
+/// Returns what the kind of `record` makes of it: the kinds that
+/// [`read_crafting`](crate::read_crafting) fills do not select, and a Record is selected when its
+/// struct is the type of its kind and, with a `filter`, its record path matches.
+pub(crate) fn select(
+    record: &Record<'_>,
+    filter: Option<&Filter>,
+) -> Result<Option<Selected>, DataForgeError> {
+    let path = record.record_path()?;
+    let Some(kind) = Kind::by_path(path).filter(|kind| !kind.is_crafting()) else {
+        return Ok(None);
+    };
+    if record.type_name()? != kind.rule().type_name
+        || filter.is_some_and(|filter| !filter.matches(path))
+    {
+        return Ok(None);
+    }
+    Ok(Some(if is_leftover(path, record.name()?) {
+        Selected::Leftover(kind)
+    } else {
+        Selected::Entity(kind)
+    }))
+}

@@ -211,6 +211,39 @@ fn text_without_a_final_line_break_is_searched() -> TestResult {
 }
 
 #[test]
+fn a_cryxml_entry_whose_tables_overlap_is_counted_as_unreadable() -> TestResult {
+    let mut bytes = crate::common::cry_xml();
+    let nodes: [u8; 4] = bytes.get(12..16).ok_or("no header")?.try_into()?;
+    bytes
+        .get_mut(36..40)
+        .ok_or("no header")?
+        .copy_from_slice(&nodes);
+    let builder = ArchiveBuilder::new().entry(TestEntry::deflated("a\\crafted.mtl", bytes));
+    let fixture = fixture(&builder)?;
+    let found = run(&fixture.archive, "gladius", &SearchOptions::default())?;
+    assert!(found.hits.is_empty(), "no hit: {:?}", found.hits);
+    assert_eq!(found.stats.entries_unreadable, 1, "{:?}", found.stats);
+    Ok(())
+}
+
+#[test]
+fn a_lone_carriage_return_ends_a_line_like_a_line_feed() -> TestResult {
+    let builder = ArchiveBuilder::new().entry(TestEntry::stored(
+        "a\\mac.txt",
+        "one\rtwo needle\rthree\r\nfour needle".as_bytes().to_vec(),
+    ));
+    let fixture = fixture(&builder)?;
+    let found = run(&fixture.archive, "needle", &SearchOptions::default())?;
+    let places: Vec<(u64, u64)> = found
+        .hits
+        .iter()
+        .map(|hit| (hit.line, hit.offset))
+        .collect();
+    assert_eq!(places, [(2, 4), (4, 22)], "lines and byte offsets");
+    Ok(())
+}
+
+#[test]
 fn a_stop_function_cancels_the_search() -> TestResult {
     let fixture = fixture(&archive_builder())?;
     let found = search_entries(

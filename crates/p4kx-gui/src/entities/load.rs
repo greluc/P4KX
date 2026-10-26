@@ -7,6 +7,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread;
 
 use p4kx_assembly::EntityCatalogue;
+use p4kx_export::{VariantGroups, read_variant_groups};
 
 use crate::EntryIndex;
 use crate::forge_cache::ReadFailure;
@@ -15,12 +16,14 @@ use crate::model::describe;
 /// How listing the Entities ended.
 #[derive(Debug)]
 pub(super) enum Outcome {
-    Ready(Arc<EntityCatalogue>),
+    Catalogue(Arc<EntityCatalogue>),
+    Groups(Box<VariantGroups>),
     Failed(Option<String>),
     ArchiveChanged,
 }
 
-/// The Entities being listed on a background thread; dropping it stops the listing.
+/// The Entities being listed on a background thread, then their variant groups; dropping it stops
+/// the thread.
 #[derive(Debug)]
 pub(super) struct Load {
     result: Receiver<Outcome>,
@@ -55,31 +58,49 @@ pub(super) fn start(
     thread::Builder::new()
         .name("entities".to_owned())
         .spawn(move || {
-            if sender.send(read(&index, &thread_stop)).is_ok() {
-                wake();
-            }
+            let send = |outcome| {
+                let sent = sender.send(outcome).is_ok();
+                if sent {
+                    wake();
+                }
+                sent
+            };
+            read(&index, &thread_stop, &send);
         })
         .map_err(|error| describe(&error))?;
     Ok(Load { result, stop })
 }
 
-fn read(index: &Arc<EntryIndex>, stop: &AtomicBool) -> Outcome {
+/// Reads the Entities, sending the catalogue as soon as it is there and the variant groups when
+/// they are read; returns whether the last outcome was received.
+fn read(index: &Arc<EntryIndex>, stop: &AtomicBool, send: &dyn Fn(Outcome) -> bool) -> bool {
     if index.watch().check().is_err() {
-        return Outcome::ArchiveChanged;
+        return send(Outcome::ArchiveChanged);
     }
     let source = match index.forge().read(index, || {}) {
         Ok(source) => source,
-        Err(ReadFailure::ArchiveChanged(_)) => return Outcome::ArchiveChanged,
-        Err(ReadFailure::Unreadable(reason)) => return Outcome::Failed(Some(reason)),
+        Err(ReadFailure::ArchiveChanged(_)) => return send(Outcome::ArchiveChanged),
+        Err(ReadFailure::Unreadable(reason)) => return send(Outcome::Failed(Some(reason))),
     };
     let forge = match source.entry.open() {
         Ok(forge) => forge,
-        Err(error) => return Outcome::Failed(Some(describe(&error))),
+        Err(error) => return send(Outcome::Failed(Some(describe(&error)))),
     };
     let stopped = || stop.load(Ordering::Relaxed);
-    match EntityCatalogue::build(&forge, &stopped) {
-        None => Outcome::Failed(None),
-        Some(_) if index.watch().check().is_err() => Outcome::ArchiveChanged,
-        Some(catalogue) => Outcome::Ready(Arc::new(catalogue)),
+    let Some(catalogue) = EntityCatalogue::build(&forge, &stopped) else {
+        return send(Outcome::Failed(None));
+    };
+    if index.watch().check().is_err() {
+        return send(Outcome::ArchiveChanged);
     }
+    if !send(Outcome::Catalogue(Arc::new(catalogue))) {
+        return false;
+    }
+    let Some(groups) = read_variant_groups(index.archive(), &forge, &stopped) else {
+        return send(Outcome::Failed(None));
+    };
+    if index.watch().check().is_err() {
+        return send(Outcome::ArchiveChanged);
+    }
+    send(Outcome::Groups(Box::new(groups)))
 }

@@ -8,6 +8,7 @@ use super::super::camera::Matrix;
 pub(super) struct Frustum {
     planes: [[f32; 4]; 6],
     depth_row: [f32; 4],
+    clip_z_row: [f32; 4],
     pixels_per_unit: f32,
 }
 
@@ -63,6 +64,7 @@ impl Frustum {
         Self {
             planes,
             depth_row: w,
+            clip_z_row: z,
             pixels_per_unit: 0.5 * focal * height.max(1.0),
         }
     }
@@ -75,6 +77,23 @@ impl Frustum {
                 plane[1].mul_add(centre[1], plane[2].mul_add(centre[2], plane[3])),
             ) >= -radius
         })
+    }
+
+    /// Returns a number that grows with the distance of `centre` from the eye: the depth along the
+    /// view for a perspective projection, the clip depth for an orthographic one.
+    pub(super) fn far_key(&self, centre: [f32; 3]) -> f32 {
+        let row = if self.depth_row[..3]
+            .iter()
+            .all(|value| value.abs() < f32::EPSILON)
+        {
+            &self.clip_z_row
+        } else {
+            &self.depth_row
+        };
+        row[0].mul_add(
+            centre[0],
+            row[1].mul_add(centre[1], row[2].mul_add(centre[2], row[3])),
+        )
     }
 
     /// Returns the radius in pixels the sphere covers on screen, 0 when it is behind the eye.

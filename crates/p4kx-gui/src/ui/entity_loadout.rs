@@ -5,6 +5,7 @@ use egui::{
     Align, Label, Layout, Rect, Role, ScrollArea, Sense, Ui, UiBuilder, WidgetInfo, pos2, vec2,
 };
 
+use super::entity_status::{own_status, status_kinds};
 use super::tree::rails;
 use crate::theme::desktop::{
     CHEVRON, CHIP_PADDING_X, FOCUS_OFFSET, ROW_FONT, ROW_HEIGHT, SCROLLBAR_THIN, SPINNER,
@@ -267,24 +268,17 @@ fn names(ui: &Ui, rect: Rect, row: &LoadoutRow) {
     }
 }
 
-fn status((texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> Option<(String, Tone)> {
-    if row.unresolved().is_some() {
-        return Some((texts.get(EntityText::StatusUnresolved), Tone::Danger));
-    }
-    if session.assembly().is_hidden(row.path()) && row.change() != RowChange::Excluded {
-        return Some((texts.get(EntityText::StatusHidden), Tone::Muted));
-    }
-    match row.change() {
-        RowChange::Excluded => Some((texts.get(EntityText::StatusExcluded), Tone::Warning)),
-        RowChange::Replaced => Some((texts.get(EntityText::StatusReplaced), Tone::Info)),
-        RowChange::Kept if row.is_docked() => {
-            Some((texts.get(EntityText::StatusDocked), Tone::Muted))
-        }
-        RowChange::Kept if row.entity().is_none() && !row.has_children() => {
-            Some((texts.get(EntityText::StatusEmpty), Tone::Muted))
-        }
-        RowChange::Kept => None,
-    }
+fn statuses((texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> Vec<(String, Tone)> {
+    let own = own_status(
+        row.change(),
+        row.is_docked(),
+        row.entity().is_none() && !row.has_children(),
+    );
+    let hidden = session.assembly().is_hidden(row.path());
+    status_kinds(row.unresolved().is_some(), hidden, row.change(), own)
+        .into_iter()
+        .map(|(text, tone)| (texts.get(text), tone))
+        .collect()
 }
 
 fn hide_text(session: &LoadoutSession, row: &LoadoutRow) -> Option<EntityText> {
@@ -299,8 +293,14 @@ fn hide_text(session: &LoadoutSession, row: &LoadoutRow) -> Option<EntityText> {
 }
 
 fn status_width(ui: &Ui, (texts, session): (&Texts, &LoadoutSession), row: &LoadoutRow) -> f32 {
-    let chip = status((texts, session), row)
-        .map_or(0.0, |(label, _)| chip_width(&chip::galley(ui, &label)));
+    let chips = statuses((texts, session), row);
+    let between = u8::try_from(chips.len().saturating_sub(1)).unwrap_or(0);
+    let gaps = f32::from(between) * ui.spacing().item_spacing.x;
+    let chip = gaps
+        + chips
+            .iter()
+            .map(|(label, _)| chip_width(&chip::galley(ui, label)))
+            .sum::<f32>();
     let width = |text| button::width(ui, Size::Compact, &texts.get(text));
     let hide = hide_text(session, row).map_or(0.0, width);
     let replace = if row.change() == RowChange::Excluded {
@@ -347,7 +347,7 @@ fn actions(
             action = Some(Action::Hidden(row.path().to_owned(), hidden));
         }
     }
-    if let Some((label, tone)) = status((texts, session), row) {
+    for (label, tone) in statuses((texts, session), row) {
         let galley = chip::galley(ui, &label);
         let (slot, response) =
             ui.allocate_exact_size(vec2(chip_width(&galley), ROW_HEIGHT), Sense::hover());

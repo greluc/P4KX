@@ -22,7 +22,7 @@ textures of Assemblies).
   `draw_indexed` with that many instances. The colour is per instance, so liveries of one mesh
   share a group. Opaque groups are drawn first with depth writes, translucent ones (glass,
   materials with opacity below 1) after them with alpha blending and without depth writes,
-  unsorted.
+  ordered far to near by part since ADR-0196.
 - **The frame is picked on the CPU, bounded by the parts.** `DrawList::of` makes one pass over the
   placed parts: hidden ones are skipped, then those whose bounding sphere is outside the six planes
   of the view-projection matrix, then those whose projected radius is below 0.75 pixels. The

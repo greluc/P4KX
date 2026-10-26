@@ -9,6 +9,7 @@ mod archive_key;
 mod archive_menu;
 mod archive_test_build;
 mod assembly_view;
+mod assembly_view_hidden;
 mod assembly_view_render;
 mod audio_device;
 mod audio_playback;

@@ -31,7 +31,6 @@ mod key_check;
 mod key_slot;
 mod layout;
 mod open_options;
-mod public_patch;
 mod recovery;
 mod source;
 mod stored_hash;

@@ -56,7 +56,7 @@ fn schema_drift_of_two_real_archives_is_deterministic_and_matches_the_schema() -
         .join("../../schemas/schema-drift-report.schema.json");
     let schema: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)?;
     let validator = jsonschema::draft202012::new(&schema)?;
-    let report = serde_json::to_value(schema_report(&old, &new, &first))?;
+    let report = serde_json::to_value(schema_report(&old, &new, &first, None))?;
     let violations: Vec<String> = validator
         .iter_errors(&report)
         .take(5)

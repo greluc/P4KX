@@ -173,7 +173,8 @@ Early development (milestone M1). Available today:
   whose Entity or geometry cannot be resolved are skipped and listed, and so are palettes and
   textures that cannot be resolved; with `--json` the report has the shape described in
   [docs/cli-json.md](docs/cli-json.md). A docked vehicle such as a Merlin or an Archimedes is
-  placed as one part, without the parts of its own Loadout. `--interior` adds the ship's rooms:
+  placed as one part, without the parts of its own Loadout, unless `--expand-docked-vehicles`
+  places those parts too. `--interior` adds the ship's rooms:
   the socpak containers its Record names, each at its bone of the hull, below an `Interior` node
   of the Entity; what cannot be resolved is listed, and without the flag only the hull is written.
 - `p4kx entity package <archive> <entity> --out <folder>` writes an Entity as a Blender package,

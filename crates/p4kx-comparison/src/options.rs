@@ -3,6 +3,7 @@
 
 use std::fmt;
 
+use p4kx_channels::PublicPatches;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -114,6 +115,8 @@ pub struct CompareOptions<'a> {
     pub cancel: Option<&'a CancelToken>,
     /// Called as the Comparison advances.
     pub progress: Option<&'a (dyn Fn(ComparisonProgress) + Sync)>,
+    /// The public patches the report states for the Builds of both sides; `None` states none.
+    pub public_patches: Option<&'a PublicPatches>,
 }
 
 impl fmt::Debug for CompareOptions<'_> {
@@ -123,6 +126,7 @@ impl fmt::Debug for CompareOptions<'_> {
             .field("filter", &self.filter)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
+            .field("public_patches", &self.public_patches)
             .finish()
     }
 }

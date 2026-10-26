@@ -34,6 +34,7 @@ mod model;
 mod model_export;
 mod model_info;
 mod preview;
+mod public_patches;
 mod query;
 mod read_gate;
 mod record_export;

@@ -65,9 +65,12 @@ impl Model {
                 }
             }
             Source::Entries => {
-                let path = result.entries().get(position).map(|hit| hit.path.clone());
-                if let Some(path) = path {
-                    self.open_entry(&path, wake);
+                let hit = result
+                    .entries()
+                    .get(position)
+                    .map(|hit| (hit.path.clone(), hit.line));
+                if let Some((path, line)) = hit {
+                    self.open_entry((&path, line), wake);
                 }
             }
         }
@@ -82,11 +85,14 @@ impl Model {
         self.pending_hit = Some(PendingHit::Record(id));
     }
 
-    fn open_entry(&mut self, path: &str, wake: impl Fn() + Send + Sync + 'static) {
+    fn open_entry(&mut self, (path, line): (&str, u64), wake: impl Fn() + Send + Sync + 'static) {
         self.set_work_tab(WorkTab::Archive);
+        if !matches!(self.preview_tab(), PreviewTab::Text | PreviewTab::Xml) {
+            self.set_preview_tab(PreviewTab::Text);
+        }
         self.pending_hit = None;
         if let Some(browser) = &mut self.browser {
-            browser.reveal_entry(path, wake);
+            browser.reveal_entry((path, Some(line)), wake);
         }
     }
 

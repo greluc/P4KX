@@ -67,7 +67,7 @@ pub use audio::{
     AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
     StreamGuard,
 };
-pub use browser::{Browser, EntryRow, EntryRowKind, TreeNode, TreeRow};
+pub use browser::{Browser, EntryRow, EntryRowKind, HitLine, TreeNode, TreeRow};
 pub use catalog_export::{
     CATALOG_FILE, CatalogExport, CatalogExportProgress, CatalogExportStage, CatalogExportStatus,
     CatalogExportSummary,

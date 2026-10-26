@@ -15,6 +15,11 @@ use p4kx_extraction::{Archive, DataForgeEntry, Filter, Language};
 use p4kx_search::{Needle, SearchOptions, search_entries, search_localization, search_records};
 use p4kx_testkit::real_archive_path;
 
+use peak_alloc::PeakAlloc;
+
+#[global_allocator]
+static ALLOCATOR: PeakAlloc = PeakAlloc;
+
 type TestResult = Result<(), Box<dyn Error>>;
 
 const BUDGET: Duration = Duration::from_secs(120);
@@ -162,11 +167,19 @@ fn bench_content_search() -> TestResult {
             filter,
             ..SearchOptions::default()
         };
+        let before = ALLOCATOR.current_usage();
+        ALLOCATOR.reset_peak_usage();
         let (found, elapsed) = p4kx_testkit::bench_once(&format!("content search {label}"), || {
             search_entries(&archive, &needle, &options, &|| false)
         });
+        let peak = ALLOCATOR.peak_usage().saturating_sub(before);
         let scanned = found.ok_or("cancelled")?.stats.entries_scanned;
         report(label, elapsed, scanned)?;
+        writeln!(
+            std::io::stderr().lock(),
+            "BENCH content search {label}: peak heap above the Archive {} MiB",
+            peak >> 20
+        )?;
     }
     Ok(())
 }

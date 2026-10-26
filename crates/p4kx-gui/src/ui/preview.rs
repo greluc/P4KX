@@ -15,6 +15,7 @@ use crate::theme::desktop::{PREVIEW_PADDING_X, PREVIEW_PATH_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{FS_XS, SPACE_2, Weight};
 use crate::widgets::frames;
+use crate::widgets::scroll_region::Jump;
 use crate::widgets::text::{hairline_below, line, paint_left, plain};
 use crate::{
     Browser, Model, Preview, PreviewTab, Text, Texts, ViewerSupport, format, is_bank_path,
@@ -215,11 +216,26 @@ fn body(
         .and_then(|bank| soundbank_preview::summary(texts, bank, size))
         .unwrap_or_else(|| format::size(size, texts.language()));
     path_line(ui, path, &size_line);
-    if let Typed::Shown(asked) = typed_tab(ui, texts, preview, (path, size), (tab, volume, support))
-    {
+    let jump = browser
+        .hit_line()
+        .filter(|hit| hit.entry() == preview.entry())
+        .map(|hit| Jump {
+            serial: hit.serial(),
+            row: hit.row(),
+            applied: browser.hit_applied(),
+        });
+    let typed = typed_tab(
+        ui,
+        texts,
+        preview,
+        (path, size),
+        (tab, volume, support),
+        jump,
+    );
+    if let Typed::Shown(asked) = typed {
         return asked;
     }
-    status_body(ui, texts, preview, (path, size), tab);
+    status_body(ui, texts, preview, (path, size), (tab, jump));
     None
 }
 

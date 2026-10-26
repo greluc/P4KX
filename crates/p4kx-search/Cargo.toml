@@ -17,6 +17,7 @@ rayon.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+peak_alloc.workspace = true
 p4kx-testkit.workspace = true
 rayon.workspace = true
 tempfile.workspace = true

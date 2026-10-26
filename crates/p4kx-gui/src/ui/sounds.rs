@@ -6,6 +6,7 @@ use fluent_bundle::FluentValue;
 
 use super::audio_preview::{self, AudioAction, Named};
 use super::record_export_outcome;
+use super::sounds_note::player_note;
 use super::{RESIZE_GAP, empty, list_footer, sounds_toolbar, sounds_triggers, sounds_variants};
 use crate::theme::desktop::{
     CELL_PADDING_X, PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT, ROW_HEIGHT, SPINNER, SPINNER_INLINE,
@@ -18,8 +19,8 @@ use crate::widgets::frames::{self, px};
 use crate::widgets::indicator;
 use crate::widgets::text::{hairline_below, plain};
 use crate::{
-    IndexInfo, ListSource, ListStatus, Model, Playable, SoundList, SoundsListStatus, SoundsStatus,
-    SoundsText, Texts, TriggerList, format,
+    ListSource, ListStatus, Model, SoundList, SoundsListStatus, SoundsStatus, SoundsText, Texts,
+    TriggerList, format,
 };
 
 /// Shows the Sounds tab: the Entity and search fields, the audio triggers they list and, below,
@@ -61,13 +62,13 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             });
         }
         SoundsStatus::Ready(info) => {
-            let info = *info;
-            ready(ui, model, info);
+            let issues = info.issues;
+            ready(ui, model, issues);
         }
     }
 }
 
-fn ready(ui: &mut Ui, model: &mut Model, info: IndexInfo) {
+fn ready(ui: &mut Ui, model: &mut Model, issues: usize) {
     let toolbar = frames::panel()
         .inner_margin(Margin::same(px(TOOLBAR_PADDING)))
         .show(ui, |ui| {
@@ -78,8 +79,8 @@ fn ready(ui: &mut Ui, model: &mut Model, info: IndexInfo) {
                 .show(ui, |ui| sounds_toolbar::show(ui, model));
         });
     hairline_below(ui, toolbar.response.rect);
-    if info.issues > 0 {
-        issues(ui, model.texts(), info.issues);
+    if issues > 0 {
+        self::issues(ui, model.texts(), issues);
     }
     let room = ROW_HEIGHT.mul_add(-4.0, ui.available_height()).max(0.0);
     let action = Panel::bottom("sounds-detail")
@@ -326,19 +327,12 @@ fn selected(ui: &mut Ui, model: &Model, list: &SoundList) -> Option<AudioAction>
         ui,
         plain(detail, FS_SM, Weight::Regular).color(palette::GRAY_2_TEXT),
     );
-    let note = match variant.playable() {
-        Playable::Yes => None,
-        Playable::PrefetchOnly => Some(SoundsText::NotePrefetch),
-        Playable::Plugin => Some(SoundsText::NotePlugin),
-        Playable::External => Some(SoundsText::NoteExternal),
-        Playable::Midi => Some(SoundsText::NoteMidi),
-        Playable::Missing => Some(SoundsText::NoteMissing),
-    };
-    if let Some(note) = note {
+    let audio = tab.audio();
+    if let Some(note) = player_note(variant.playable(), audio.is_some()) {
         message(ui, texts.get(note), palette::WARNING);
         return None;
     }
-    let audio = tab.audio()?;
+    let audio = audio?;
     let name = texts.format(
         crate::AudioText::WemName,
         &[

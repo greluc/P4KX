@@ -10,12 +10,29 @@ use crate::reader::to_usize;
 
 const INCLUDED_OBJECTS: ChunkType = ChunkType::new(Container::CrCh, 0x0010);
 const NAME_LEN: usize = 256;
-const OBJECT_LEN: usize = 208;
 const MODEL_INDEX_AT: usize = 60;
 const TRANSFORM_AT: usize = 64;
 const PALETTE_AT: usize = 172;
 const MODEL_OBJECT: u32 = 1;
+const SKIPPED_OBJECT: u32 = 16;
+const SKIPPED_LEN: usize = 136;
 const HEADER_WORDS_LEN: usize = 28;
+
+/// The length of a record of a placed model for the layout word at the head of the object table,
+/// or `None` for a layout that is not known.
+///
+/// The layouts 8, 9, 10, 12, 13, 14 and 15 occur in the LIVE Archive; the transform, the model
+/// index and the palette sit at the same offsets in all of them.
+const fn model_record_len(layout: u32) -> Option<usize> {
+    match layout {
+        8..=10 => Some(176),
+        12 => Some(184),
+        13 => Some(192),
+        14 => Some(200),
+        15 => Some(208),
+        _ => None,
+    }
+}
 
 /// The most model paths one `.soc` file lists.
 pub const MAX_INCLUDED_MODELS: usize = 1 << 16;
@@ -52,6 +69,12 @@ pub enum IncludedObjectsError {
         /// The bytes left in the chunk.
         available: u64,
     },
+    /// The object table has a record layout that is not read.
+    #[error("the object table has the record layout {layout}, which is not read")]
+    RecordLayout {
+        /// The layout word at the head of the table.
+        layout: u32,
+    },
 }
 
 /// One model placed by a `.soc` file.
@@ -70,8 +93,10 @@ pub struct IncludedObject {
 /// The models a `.soc` file places: the `IncludedObjects` chunk (`CrCh` type `0x0010`) with the
 /// model paths and tint palettes it lists and one [`IncludedObject`] per placement.
 ///
-/// Objects of a kind that is not read end the list; objects that name no listed model or have a
-/// transform that is not finite are left out and counted.
+/// The record length depends on the layout word of the object table. Records of kind 16 are
+/// skipped and counted; records of a kind whose length is not known end the list. Objects that
+/// name no listed model or have a transform that is not finite or not
+/// [plausible](Transform::is_plausible_placement) are left out and counted.
 #[derive(Debug, Clone, Default, PartialEq)]
 #[non_exhaustive]
 pub struct IncludedObjects {
@@ -81,10 +106,13 @@ pub struct IncludedObjects {
     pub palettes: Vec<String>,
     /// The placed models in file order.
     pub objects: Vec<IncludedObject>,
-    /// The number of objects left out because they name no listed model or have no usable
-    /// transform.
+    /// The number of objects left out because they name no listed model, have no plausible
+    /// transform or are cut off.
     pub invalid: usize,
-    /// The kind of the first object that is not a placed model, which ends the list.
+    /// The number of records of kind 16, which place no model and are skipped.
+    pub skipped: usize,
+    /// The kind of the first record that is neither a placed model nor skipped, whose length is
+    /// not known and which therefore ends the list.
     pub unsupported: Option<u32>,
 }
 
@@ -125,6 +153,7 @@ impl IncludedObjects {
                 ..object
             }));
         self.invalid += other.invalid;
+        self.skipped += other.skipped;
         self.unsupported = self.unsupported.or(other.unsupported);
         self
     }
@@ -140,7 +169,8 @@ fn read_chunk(data: &[u8]) -> Result<IncludedObjects, IncludedObjectsError> {
     let palette_count = usize::from(reader.read_u16()?);
     reader.skip(material_count.saturating_mul(NAME_LEN))?;
     let palettes = names(&mut reader, palette_count)?;
-    reader.skip(HEADER_WORDS_LEN)?;
+    let layout = reader.read_u32()?;
+    reader.skip(HEADER_WORDS_LEN - 4)?;
     let declared = reader.read_u32()?;
     let available = reader.remaining() as u64;
     if u64::from(declared) > available {
@@ -150,30 +180,55 @@ fn read_chunk(data: &[u8]) -> Result<IncludedObjects, IncludedObjectsError> {
         });
     }
     let table = reader.read_bytes(to_usize(declared))?;
-    check(table.len() / OBJECT_LEN, MAX_INCLUDED_OBJECTS, "objects")?;
-    let mut objects = Vec::new();
-    let mut invalid = 0;
-    let mut unsupported = None;
-    let (records, rest) = table.as_chunks::<OBJECT_LEN>();
-    invalid += usize::from(!rest.is_empty());
-    for record in records {
-        let kind = ByteReader::new(record).read_u32()?;
-        if kind != MODEL_OBJECT {
-            unsupported = Some(kind);
-            break;
-        }
-        match read_object(record, models.len(), palettes.len()) {
-            Some(object) => objects.push(object),
-            None => invalid += 1,
-        }
-    }
-    Ok(IncludedObjects {
+    let mut result = IncludedObjects {
         models,
         palettes,
-        objects,
-        invalid,
-        unsupported,
-    })
+        ..IncludedObjects::default()
+    };
+    if !table.is_empty() {
+        let stride =
+            model_record_len(layout).ok_or(IncludedObjectsError::RecordLayout { layout })?;
+        check(
+            table.len() / stride.min(SKIPPED_LEN),
+            MAX_INCLUDED_OBJECTS,
+            "objects",
+        )?;
+        walk(table, stride, &mut result);
+    }
+    Ok(result)
+}
+
+fn walk(mut rest: &[u8], stride: usize, out: &mut IncludedObjects) {
+    let shortest = stride.min(SKIPPED_LEN);
+    while !rest.is_empty() {
+        let kind = match rest.first_chunk::<4>() {
+            Some(bytes) if rest.len() >= shortest => u32::from_le_bytes(*bytes),
+            _ => {
+                out.invalid += 1;
+                return;
+            }
+        };
+        let len = match kind {
+            MODEL_OBJECT => stride,
+            SKIPPED_OBJECT => SKIPPED_LEN,
+            other => {
+                out.unsupported = Some(other);
+                return;
+            }
+        };
+        let Some((record, tail)) = rest.split_at_checked(len) else {
+            out.invalid += 1;
+            return;
+        };
+        rest = tail;
+        if kind == SKIPPED_OBJECT {
+            out.skipped += 1;
+        } else if let Some(object) = read_object(record, out.models.len(), out.palettes.len()) {
+            out.objects.push(object);
+        } else {
+            out.invalid += 1;
+        }
+    }
 }
 
 const fn check(count: usize, limit: usize, what: &'static str) -> Result<(), IncludedObjectsError> {
@@ -211,7 +266,7 @@ fn read_object(record: &[u8], models: usize, palettes: usize) -> Option<Included
     for value in rows.iter_mut().flatten() {
         *value = f64::from_bits(reader.read_u64().ok()?);
     }
-    let transform = Transform::from_rows_f64(rows)?;
+    let transform = Transform::from_rows_f64(rows).filter(Transform::is_plausible_placement)?;
     let palette = record
         .get(PALETTE_AT)
         .map(|&index| usize::from(index))

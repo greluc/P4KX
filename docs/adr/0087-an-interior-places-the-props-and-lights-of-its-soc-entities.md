@@ -62,4 +62,4 @@ scale, then rotation, then position. Entities that are neither are only counted.
 - Props whose geometry comes from the class Record, and the tint palette of a prop
   (`IncludedObjects` palettes, the entity's `Material`): they need the DataForge.
 - Light states beyond the one chosen, animation, and the gobo and projector textures.
-- Records of kind 16 in the `IncludedObjects` (#516) are untouched.
+- Records of kind 16 in the `IncludedObjects` are skipped (ADR-0193).

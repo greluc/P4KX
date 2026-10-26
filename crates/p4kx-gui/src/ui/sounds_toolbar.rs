@@ -6,12 +6,19 @@ use egui::{Align, Key, Layout, Ui, vec2};
 use super::search::{eyebrow, field, field_response};
 use crate::theme::desktop::TOOLBAR_PADDING;
 use crate::widgets::button::{self, Kind, Size};
-use crate::{ListStatus, Model, SoundsText};
+use crate::widgets::choice;
+use crate::{ListStatus, Model, SoundsStatus, SoundsText};
 
 enum Action {
     Show,
     UseRecord,
     Export,
+    Language(Pick),
+}
+
+enum Pick {
+    Default,
+    Named(String),
 }
 
 /// Shows the Entity and search fields with their actions and applies what the user did.
@@ -58,6 +65,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             action = Some(Action::Export);
         }
     });
+    if let Some(pick) = languages(ui, model) {
+        action = Some(Action::Language(pick));
+    }
     let mut query_changed = false;
     ui.horizontal(|ui| {
         let label = ui.label(search_label);
@@ -81,6 +91,46 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         Some(Action::Export) => {
             model.begin_sounds_export();
         }
+        Some(Action::Language(pick)) => {
+            let name = match &pick {
+                Pick::Default => None,
+                Pick::Named(name) => Some(name.as_str()),
+            };
+            model.sounds_mut().set_language(name);
+        }
         None => {}
     }
+}
+
+/// Shows the label and one button per language folder of the Archive, the language the sounds are
+/// resolved in marked; returns what the user chose.
+fn languages(ui: &mut Ui, model: &Model) -> Option<Pick> {
+    let SoundsStatus::Ready(info) = model.sounds().status() else {
+        return None;
+    };
+    if info.languages.len() < 2 {
+        return None;
+    }
+    let current = model
+        .sounds()
+        .language()
+        .or(info.default_language.as_deref());
+    let label = eyebrow(&model.texts().get(SoundsText::LanguageLabel));
+    ui.horizontal_wrapped(|ui| {
+        ui.label(label);
+        let mut chosen = None;
+        for name in &info.languages {
+            let active = current == Some(name.as_str());
+            if choice::choice(ui, Size::Compact, name, active).clicked() {
+                let is_default = info.default_language.as_deref() == Some(name.as_str());
+                chosen = Some(if is_default {
+                    Pick::Default
+                } else {
+                    Pick::Named(name.clone())
+                });
+            }
+        }
+        chosen
+    })
+    .inner
 }

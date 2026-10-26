@@ -3,18 +3,19 @@
 
 use egui::Ui;
 
-use super::sound_grid::{self, Cell, Grid, Laid, NAME_COLUMN, Row, Tint, Width};
+use super::sound_grid::{self, Cell, Grid, Laid, Row, Tint, Width};
 use crate::theme::desktop::ROW_HEIGHT;
 use crate::theme::sound_metrics::{
-    SOUND_CODEC_COLUMN, SOUND_DURATION_COLUMN, SOUND_ID_COLUMN, SOUNDBANK_VISIBLE_ROWS,
+    SOUND_CODEC_COLUMN, SOUND_ID_COLUMN, SOUND_LANGUAGE_COLUMN, SOUND_NAME_COLUMN,
+    SOUNDBANK_VISIBLE_ROWS,
 };
 use crate::{Language, Playable, SoundList, SoundsText, SourceKind, Texts, Variant};
 
 const WIDTHS: [Width; 5] = [
-    Width::Initial(NAME_COLUMN),
+    Width::Initial(SOUND_NAME_COLUMN),
     Width::Initial(SOUND_ID_COLUMN),
     Width::Initial(SOUND_CODEC_COLUMN),
-    Width::Initial(SOUND_DURATION_COLUMN),
+    Width::Initial(SOUND_LANGUAGE_COLUMN),
     Width::Rest,
 ];
 

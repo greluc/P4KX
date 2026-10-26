@@ -420,12 +420,15 @@ geändertes Archiv ebenso in `color-warning`.
 des Tabs „Modell" (D.35), `overlayGap` (8) von ihr entfernt, eine Leiste mit den Steuerelementen
 wie bei einem Videoplayer, 36 px hoch (`barHeight`, `rowHeight`: so hoch ist eine Kontrollkästchen-Zelle); die Faktenleiste behält ihre Bedienhinweise.
 Mit Animationen sind das von links nach rechts: „Abspielen" oder
-„Pause" (`.btn-outline.btn-xs`, deaktiviert, solange keine Animation gewählt ist), die Zeit
+„Pause" (`.btn-outline.btn-xs`, deaktiviert, solange keine Animation mit Länge gewählt ist), die Zeit
 „Minuten:Sekunden.Millisekunden / Länge" in 12 / 400 `color-gray-1` (auf Zehntelsekunden gekürzt, in
 der Breite der längsten Zeit der Animation), der Positionsregler (`.slider`, D.27: Klick und Ziehen
 setzen die Position, Pfeile um eine Sekunde, Bild auf und ab um fünf, Pos1 und Ende an die Enden),
-das Kontrollkästchen „Wiederholen" (an) und „Skelett" (aus); ein Modell mit Knochen ohne Animation
-zeigt nur „Skelett". Neben der Ansicht steht, `overlayGap` (8) entfernt und `animationListWidth` (240) breit, die Liste
+das Kontrollkästchen „Wiederholen" (an) und „Skelett" (aus); Regler und „Wiederholen" sind wie
+„Abspielen" gedimmt (`disabledOpacity`) und ohne Bedienung, solange die Ausgangspose steht oder die
+Animation keine Länge hat. Ein Modell mit Knochen ohne Animation
+zeigt nur „Skelett". Kann das Grafikgerät das Skelett nicht aufnehmen (Skinning-Pipelines
+abgelehnt oder Puffer zu groß), fehlen Leiste und Liste ganz, wie bei einem Modell ohne Knochen. Neben der Ansicht steht, `overlayGap` (8) entfernt und `animationListWidth` (240) breit, die Liste
 der Animationen: die Überschrift „Animationen" in der Eyebrow-Schrift (`color-gray-2-text`) über
 einer Rollliste aus Radios (36 px je Zeile, D.1), deren erste „Ausgangspose" ist; sie zeigt nur
 Animationen, die mindestens einen Knochen des Modells bewegen und nicht additiv sind, mit dem Namen
@@ -435,7 +438,9 @@ in `color-primary` über das Modell, ohne Tiefentest. Damit die Ansicht mit der 
 96 px Mindesthöhe bleibt, öffnet das Panel für Modelle 349 hoch statt 236 (Tab-Leiste 44, Pfadzeile 32,
 Faktenleiste 32, Ansicht 160, `overlayGap` 8, Leiste 36 und 37 Panelrand, wie bei der Soundbank-Liste
 D.33) und merkt sich seine Größe getrennt von der der anderen Vorschauen; es bleibt frei
-verstellbar. Die Liste der Animationen zeigt bei dieser Höhe etwa drei Zeilen und rollt.
+verstellbar, mindestens aber `panelMinHeight` (285: die Ansicht behält ihre 96 px, die Leiste
+überdeckt sie nie; lässt die Fenstergröße das nicht zu, gibt die Ansicht nach, nicht die Leiste). Höhe und Mindesthöhe folgen dem Eintrag, nicht dem Tab: ein Modell hat sie auf
+jedem Tab, das Wechseln zwischen „Modell" und „Info" lässt das Panel stehen. Die Liste der Animationen zeigt bei dieser Höhe etwa drei Zeilen und rollt.
 
 **D.47 3D-Ansicht des Loadouts im Tab „Entities".** Rechts neben der Auswahlliste steht über dem
 Loadout-Baum das Ansichts-Panel (`assemblyView` in `p4kx-desktop-spec.json`): oben eine
@@ -448,6 +453,8 @@ von 36 px (`barHeight`) mit der Eyebrow „Detailgrad" und einer Segmentgruppe (
 und „Abbrechen" (`.btn-outline.btn-xs`). Das Panel öffnet 393 hoch (Faktenleiste 32, Ansicht 280,
 `overlayGap` 8, Leiste 36, Panelrand 37), ist am unteren Rand verstellbar zwischen 209 (Ansicht
 auf ihrer Mindesthöhe 96) und der Höhe, die dem Baum noch vier Zeilen (Kopf und `treeMinRows` 3) lässt.
+Wie in D.46 gibt die Ansicht unter ihrer Leiste nach, wenn der Platz nicht reicht (Fenster kleiner
+als der Mindestfall): sie wird niedriger als 96 (nie unter 1 Punkt), statt dass die Leiste sie überdeckt.
 Jede Zeile des Baums mit einer Entity hat vor „Ersetzen …" die Schaltfläche „Ausblenden" oder „Einblenden"
 (`.btn-ghost.btn-xs`); ein ausgeblendeter Port zeigt den gedämpften Chip „Ausgeblendet", der Zweig darunter
 ist mit ausgeblendet. Ausblenden ändert weder das Loadout noch den Export und baut nichts neu auf;
@@ -610,3 +617,5 @@ Fensters. Neue Maße gibt es nicht.
 **D.56 Varianten stehen in der Auswahlliste des Tabs „Entities" unter ihrer Basis.** Die Auswahlliste, die schon Schiffe, Fahrzeuge und Waffen zeigt, klappt kosmetische Varianten unter ihre Basis (`entityVariants` in `p4kx-desktop-spec.json`, Ticket #457). Es gibt keine neue Katalogansicht, und die Record-Liste und der Record-Baum des DataForge bleiben unverändert. Die Gruppen sind die von `variantOf` (ADR-0066): `p4kx_export::read_variant_groups` liest sie mit derselben Regel aus den Records, ohne den Katalog zu bauen, und die Auswahlliste lädt sie mit der Entity-Liste. Die Basis ist eine Listenzeile mit dem primären Chevron der Baumzeilen (Ebene 0) und am rechten Rand einem gedämpften Chip („1 Variante", „n Varianten"); aufgeklappt stehen die Varianten als Zeilen der Ebene 1 mit der Schiene des Baums darunter und sind wie jede Entity wählbar. Der Chevron ist ein Knopf in der Tab-Reihenfolge („Varianten von … anzeigen" und „ausblenden"), Enter und Leertaste klappen auf und zu. Die Suche listet eine Basis, wenn sie oder eine ihrer Varianten passt, und darunter die passenden Varianten; sie öffnet solche Gruppen, der Chevron klappt sie bis zur nächsten Änderung des Suchtexts von Hand zu. Passt nur die Basis, zeigt eine von Hand geöffnete Gruppe alle Varianten und bleibt nach der Suche offen. Eine Gruppe, die die gewählte Variante enthält, bleibt offen. Die Liste erscheint, sobald die Entities gelesen sind; die Varianten klappen unter ihre Basis, sobald ihre Gruppen gelesen sind. Eine Variante steht nur unter ihrer Basis, solange die Art-Auswahl die Basis zeigt, sonst steht sie für sich. Die Fußzeile zählt die passenden Entities samt der eingeklappten. Neue Farben, Maße und Bauteile gibt es nicht.
 
 **D.57 Fortschritt ohne Messwert läuft unbestimmt, und die Ersetzen-Liste hat benannte Maße.** Das Fortschrittsfenster des Entity-Exports (D.47, D.50) zeigt für jeden Schritt, was er misst, und erfindet keine Anteile: Nur das Lesen des Interiors zählt Container und Modelldateien und füllt die Leiste (`attendance-meter`) von 0 bis 100 %; „Loadout wird aufgelöst", „Modelle werden gelesen" und „Datei wird geschrieben" haben keine bekannte Größe, die Leiste zeigt dort die leere Bahn, über die ein Block in `color-primary` (beim Abbrechen `color-gray-2`) von Anfang bis Ende läuft und neu beginnt (`progressBar.sweepShare` 0,25 der Bahn, `progressBar.sweepPeriodMs` 900, wie eine Drehung des Spinners). Der Dialog „Entity ersetzen" (`entityReplace`) benennt seine zwei bisher eingebauten Maße: `listHeight` 236 (die Höhe der Vorschau, `previewPanel.defaultHeight`; die Liste rollt darin und im Platz des Dialogs) und `headGap` 10 (`modal.bodyGroupGap` / 2, zwischen der Zeile, was der Port aufnimmt, und dem Suchfeld). Neue Farben und Bauteile gibt es nicht.
+
+**D.58 Tabellen des Tabs „Sounds": benannte Spaltenmaße, Trennlinien und Sprachwahl.** Die Spalten der Trigger- und der Sound-Tabelle haben eigene Maße (`soundTables` in `p4kx-desktop-spec.json`, `theme::sound_metrics`) statt geliehener: `SOUND_NAME_COLUMN` (294, gemessen 293,0 für den Beispielnamen von vierzig Zeichen, längere Namen werden abgeschnitten), `SOUND_STATE_COLUMN` (132, gemessen 131,4, der längste Status oder Kopf in Deutsch und Britischem Englisch) und `SOUND_LANGUAGE_COLUMN` (155, gemessen 155,0, `English(US)` mit der Ersatz-Marke; die Namen der Sprachordner sind Daten des Archivs, andere Namen können abgeschnitten werden, die Spalte ist verstellbar); der Test `sound_columns_tests` misst sie wie `audio_tests` die Spalten der Soundbank-Liste. Die Spaltentrenner der Trigger-Tabelle enden über der Fußzeile der Liste wie im Tab „Tags", weil die Tabelle in einem eigenen Bereich steht. Hat das Archiv mehr als einen Sprachordner, steht zwischen den Aktionen und dem Suchfeld der Werkzeugleiste eine umbrechende Zeile mit der Beschriftung „Sprache" und je Sprachordner einem `btn-xs`-Knopf; die gewählte Sprache trägt die gewählten Farben der Steuerelemente (`control-selected-bg`, `-border`, `-fg`) und ist für Hilfstechnik als gewählt ausgewiesen, die übrigen sind `btn-ghost`; `btn-outline` bleibt der Hauptaktion „Sounds anzeigen" vorbehalten. Die Wahl gilt wie `--lang` für die Auflösung und den Export; die Standardsprache bleibt `English(US)` oder der erste Ordner. Neue Farben und Bauteile gibt es nicht; die Maße folgen aus den Zeilenmaßen und der Zellenpolsterung.

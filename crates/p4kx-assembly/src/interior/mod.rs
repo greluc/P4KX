@@ -310,7 +310,8 @@ impl Interior {
     }
 
     /// Adds the parts to `scene`, the root container below the node `parent` placed by
-    /// `placement`, every other part below its own parent; returns the index of the root's node.
+    /// `placement`, every other part below its own parent; returns the index of the root's node,
+    /// or `None` when the Interior has no parts and nothing was added.
     ///
     /// # Errors
     ///
@@ -320,7 +321,7 @@ impl Interior {
         scene: &mut Scene<'s>,
         parent: Option<usize>,
         placement: Transform,
-    ) -> Result<usize, GltfError> {
+    ) -> Result<Option<usize>, GltfError> {
         let mut nodes = Vec::with_capacity(self.parts.len());
         for part in &self.parts {
             let (above, local) = part.parent.map_or((parent, placement), |index| {
@@ -335,7 +336,7 @@ impl Interior {
             }
             nodes.push(scene.push(node)?);
         }
-        Ok(nodes.first().copied().unwrap_or_default())
+        Ok(nodes.first().copied())
     }
 
     /// Writes the Interior as a GLB file to `out`: a node per part below the node of its parent,

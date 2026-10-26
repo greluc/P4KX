@@ -991,7 +991,9 @@
     "barHeight": 36,
     "viewHeight": 160,
     "panelHeight": 349,
-    "panelHeightFrom": "tab bar 44 + path line 32 + facts bar 32 + view 160 + overlayGap 8 + playback bar 36 (rowHeight, the height of a checkbox cell) + panel chrome 37 (resize gap, frame padding and rules, as for the soundbank list)",
+    "panelMinHeight": 285,
+    "panelFollows": "the Entry, not the tab: the panel of a model Entry has this height and minimum on every tab, so switching tabs does not move it",
+    "panelHeightFrom": "tab bar 44 + path line 32 + facts bar 32 + view 160 + overlayGap 8 + playback bar 36 (rowHeight, the height of a checkbox cell) + panel chrome 37 (resize gap, frame padding and rules, as for the soundbank list); panelMinHeight 285 is the same with the view at viewMinHeight 96 instead of viewHeight 160, so the playback bar never overlaps the view",
     "factsPaddingX": 16,
     "background": "surface-inset",
     "border": "color-gray-3",
@@ -1017,7 +1019,7 @@
     "panelShare": 0.55,
     "panelMinHeight": 245,
     "treeMinHeight": 144,
-    "panelHeightFrom": "facts bar 32 + view 280 + overlayGap 8 + barRows 2 x bar 36 (rowHeight) + panel chrome 37; the minimum has the view at modelPreview.viewMinHeight 96",
+    "panelHeightFrom": "facts bar 32 + view 280 + overlayGap 8 + barRows 2 x bar 36 (rowHeight) + panel chrome 37; the minimum has the view at modelPreview.viewMinHeight 96; where the window leaves less, the view gives way in height (at least 1 point) instead of the bar overlapping it, as in modelPreview",
     "layout": "in the Entities tab, right of the picker: the view panel on top, resizable at its lower edge between panelMinHeight and the height that leaves treeMinHeight to the Loadout tree, then the Loadout tree",
     "bar": "below the view, overlayGap under it, two rows of barHeight each: the controls row with the eyebrow Detail and a segmented control 0 to 3, the eyebrow Materials with a segmented control Colours and Textures, and the checkbox Interior (disabled for an Entity that names no object containers); under it the status row over the full width, right to left: a btn-ghost btn-xs Show all (n) while branches are hidden, then while building a btn-outline btn-xs Stop, the stage text in color-gray-1 and a spinner, else the issues, failure or stopped message",
     "interiorDecision": "D.48",
@@ -1122,7 +1124,17 @@
     "focusRing": {"width": 2, "offset": -2, "color": "color-primary"},
     "keys": "Tab focuses the rows and the list; Enter or a click selects; arrows, Page Up, Page Down, Home and End scroll",
     "messages": "unreadable bank color-danger-text, empty bank plain text"
-  },  "xmlPreview": {
+  },
+  "soundTables": {
+    "decision": "D.58",
+    "dsClass": "tableHead + tableRow",
+    "columns": {"name": 294, "state": 132, "language": 155},
+    "columnsFrom": "name: the sample name of forty characters Play_SC_Ship_Weapon_Ballistic_Fire_Heavy, 293.0, longer names clip; state: the longest status or head of the trigger table in German or British English, 131.4; language: the default language English(US) with the fallback mark in German or British English, 155.0; language folder names are Archive data, so other names may clip and the column is resizable; each in bold at the row font plus the cell padding twice, rounded up",
+    "columnMin": 80,
+    "dividers": "the column dividers of the trigger table end above the list footer, like the tag tree",
+    "languagePicker": "a wrapping row between the Entity actions and the search field, shown only while the Archive holds more than one language folder: the eyebrow label, then one btn-xs per language, the chosen one in the selected colours of the controls (control-selected-bg, control-selected-border, control-selected-fg) and exposed as selected, the others btn-ghost; btn-outline stays the primary action"
+  },
+  "xmlPreview": {
     "dsClass": "previewPanel + hexRow",
     "rowHeight": 20,
     "fontSize": 12.8,

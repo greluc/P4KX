@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use super::part::{determinant, normal_matrix};
 use super::{
     IDENTITY, MAX_SCENE_TRIANGLES, MAX_SCENE_VERTICES, Rows, Scene, SceneError, apply, check_size,
-    determinant, multiply, normal_matrix, rotate,
+    multiply, rotate,
 };
 use crate::fixtures::{door_model, skin_model};
 
@@ -110,8 +111,60 @@ fn a_skin_keeps_the_bones_and_weights_of_every_vertex() {
 }
 
 #[test]
-fn a_static_model_with_bones_has_a_rig_and_no_skin() {
+fn a_skinned_mesh_without_a_usable_skeleton_keeps_its_node_transform() {
+    let plain = Scene::from_model(&skin_model()).unwrap_or_else(|error| panic!("{error}"));
+    let mut cyclic = skin_model();
+    cyclic.bones[0].parent = Some(1);
+    cyclic.bones[1].parent = Some(0);
+    for node in &mut cyclic.nodes {
+        node.transform.rows = SHIFT;
+    }
+
+    let scene = Scene::from_model(&cyclic).unwrap_or_else(|error| panic!("{error}"));
+
+    assert!(scene.skeleton().is_none(), "a cycle gives no skeleton");
+    assert!(scene.skin().is_none(), "nothing to skin with");
+    for (moved, before) in scene.vertices().iter().zip(plain.vertices()) {
+        assert!(
+            (moved[0] - before[0] - 5.0).abs() < 1.0e-4,
+            "the node transform moved the vertex by five metres: {moved:?} {before:?}"
+        );
+    }
+}
+
+#[test]
+fn the_meshes_under_a_node_a_helper_bone_drives_are_bound_wholly_to_that_bone() {
     let scene = Scene::from_model(&door_model()).unwrap_or_else(|error| panic!("{error}"));
+
+    let skin = scene.skin().unwrap_or_else(|| panic!("a skin"));
+    assert_eq!(skin.len(), scene.vertices().len(), "one skin per vertex");
+    assert!(
+        skin.iter().all(|one| one[0] == 1 && one[8] == 255),
+        "bone 1 drives the geometry node of the cube and moves all of it"
+    );
+}
+
+#[test]
+fn a_mesh_under_a_node_no_bone_drives_follows_the_bone_of_its_nearest_ancestor() {
+    let mut door = door_model();
+    door.bones[1].node = None;
+
+    let scene = Scene::from_model(&door).unwrap_or_else(|error| panic!("{error}"));
+
+    let skin = scene.skin().unwrap_or_else(|| panic!("a skin"));
+    assert!(
+        skin.iter().all(|one| one[0] == 0 && one[8] == 255),
+        "bone 0 drives the root node, the parent of the geometry node"
+    );
+}
+
+#[test]
+fn a_static_model_that_no_bone_drives_has_a_rig_and_no_skin() {
+    let mut door = door_model();
+    for bone in &mut door.bones {
+        bone.node = None;
+    }
+    let scene = Scene::from_model(&door).unwrap_or_else(|error| panic!("{error}"));
 
     assert!(scene.skin().is_none(), "nothing is weighted");
     let skeleton = scene.skeleton().unwrap_or_else(|| panic!("a skeleton"));

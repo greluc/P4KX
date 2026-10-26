@@ -9,15 +9,11 @@ use super::table::{cell_text, head_fill};
 use crate::theme::desktop::{CELL_PADDING_X, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING};
 use crate::theme::palette;
 use crate::theme::sound_metrics::SOUND_COLUMN_MIN;
-use crate::theme::tags_metrics::TAGS_NAME_MIN_WIDTH;
 use crate::theme::tokens::Weight;
 use crate::widgets::rows::{RowState, focus_inside, row_weight};
 use crate::widgets::scroll_region::{self, Stand};
 use crate::widgets::table_row::RowSlots;
 use crate::widgets::text::{caps, line};
-
-/// The width of a column that holds names, the same as the name column of the tag tree.
-pub(super) const NAME_COLUMN: f32 = TAGS_NAME_MIN_WIDTH;
 
 /// How wide a column starts.
 #[derive(Debug, Clone, Copy)]
@@ -88,8 +84,13 @@ const fn colour(tint: Tint, normal: Color32) -> Color32 {
 }
 
 /// Shows the rows of `grid` as a virtual table; returns the position of the row that was
-/// clicked.
+/// clicked. The table has a scope of its own, so that its column dividers end with its rows and
+/// do not run on through the footer of the list above it.
 pub(super) fn show(ui: &mut Ui, grid: &Grid<'_>) -> Option<usize> {
+    ui.scope(|ui| show_table(ui, grid)).inner
+}
+
+fn show_table(ui: &mut Ui, grid: &Grid<'_>) -> Option<usize> {
     let region = scroll_region::begin(
         ui,
         (ui.scope_id().with((grid.salt, "region")), || {

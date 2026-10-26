@@ -7,7 +7,9 @@
 //! `P4KX_RENDER_DIR` names a folder the rendered windows are written to as PNG files.
 
 use crate::model_viewer_playback::site;
-use crate::rendering::{Window, pixel, rendered, view_pixels, window_at};
+use crate::rendering::{
+    Window, pixel, render_state_without_skinning, rendered, view_pixels, window_at, window_on,
+};
 use crate::viewing::{TestResult, model_preview, select};
 
 use egui_kittest::kittest::Queryable;
@@ -175,7 +177,83 @@ fn the_skeleton_buffers_are_released_with_the_model() -> TestResult {
 }
 
 #[test]
-fn a_static_model_with_bones_draws_its_skeleton_without_weights() -> TestResult {
+fn a_device_that_refuses_skinning_shows_the_model_without_inert_controls() -> TestResult {
+    let Some(mut window) = window_on(
+        render_state_without_skinning(),
+        Language::BritishEnglish,
+        site(),
+    )?
+    else {
+        return Ok(());
+    };
+    select(&mut window.harness, "arm.skin")?;
+    window.harness.run_steps(4);
+    rendered(&mut window, "skin-refused.png")?;
+    window.harness.run_steps(3);
+    let image = rendered(&mut window, "skin-refused.png")?;
+    let view = view_pixels(&window.harness);
+
+    let serial = model_preview(window.harness.state())
+        .and_then(ModelPreview::scene)
+        .map(|scene| scene.serial())
+        .ok_or("no scene")?;
+    assert_eq!(
+        window.report.skeleton_held(serial),
+        Some(false),
+        "the device holds no skeleton"
+    );
+    for label in ["Skeleton", "Play", "Loop", "Animations", "Bind pose"] {
+        assert!(
+            window.harness.query_by_label(label).is_none(),
+            "{label} is not shown"
+        );
+    }
+    assert!(
+        window.harness.state_mut().viewer_playback_mut().is_none(),
+        "nothing advances the playback"
+    );
+    assert_eq!(orange(&image, view), 0, "no overlay");
+    let passes = window.report.passes();
+    for _ in 0..4 {
+        rendered(&mut window, "skin-refused.png")?;
+    }
+    assert_eq!(window.report.passes(), passes, "the picture is drawn once");
+    Ok(())
+}
+
+#[test]
+fn the_parts_of_a_static_model_move_with_the_helper_bones_that_drive_them() -> TestResult {
+    let Some(mut window) = window_at(Language::BritishEnglish, site())? else {
+        return Ok(());
+    };
+    select(&mut window.harness, "door.cga")?;
+    window.harness.run_steps(3);
+    let bound = rendered(&mut window, "door-bind-pose.png")?;
+    let view = view_pixels(&window.harness);
+
+    window.harness.get_by_label("slow").click();
+    window.harness.run_steps(2);
+    window.harness.get_by_label("Pause").click();
+    window.harness.run_steps(2);
+    window
+        .harness
+        .state_mut()
+        .viewer_playback_mut()
+        .ok_or("no playback")?
+        .apply(p4kx_gui::Control::Seek(1.0));
+    window.harness.run_steps(2);
+    let posed = rendered(&mut window, "door-posed.png")?;
+
+    assert!(
+        differing(&bound, &posed, view) > 200,
+        "the door swung on the GPU: {} pixels differ",
+        differing(&bound, &posed, view)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_static_model_with_bones_draws_its_skeleton_with_the_weights_of_its_parts() -> TestResult {
     let Some(mut window) = window_at(Language::BritishEnglish, site())? else {
         return Ok(());
     };
@@ -189,8 +267,8 @@ fn a_static_model_with_bones_draws_its_skeleton_without_weights() -> TestResult 
 
     assert_eq!(
         window.report.buffers(),
-        5,
-        "no weights to upload for a model that is not skinned"
+        6,
+        "vertices, indices, bone matrices, bones, overlay look and the weights of the part"
     );
     assert!(orange(&image, view) > 3, "the helper bones are drawn");
     Ok(())

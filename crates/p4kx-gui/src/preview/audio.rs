@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use p4kx_extraction::{Codec, Soundbank, Wem};
 
+use super::bank_cache::BankCache;
 use super::entry_bytes::{Unreadable, read_whole};
 use crate::EntryIndex;
 use crate::audio::{self, Pcm, Player, Undecoded};
@@ -140,14 +141,17 @@ impl AudioPreview {
         Self::spawn(Source::Embedded(Arc::clone(bank), id), wake)
     }
 
-    /// Starts reading the soundbank Entry `bank` of `index` and decoding the WEM `id` it embeds
-    /// on a background thread, calling `wake` from it whenever a result is ready.
+    /// Starts reading the soundbank Entry `bank` of `index`, unless `cache` keeps it, and decoding
+    /// the WEM `id` it embeds on a background thread, calling `wake` from it whenever a result is
+    /// ready. A soundbank that was read is kept in `cache`.
     pub(crate) fn start_in_bank(
         index: &Arc<EntryIndex>,
         (bank, id): (u32, u32),
+        cache: &BankCache,
         wake: impl Fn() + Send + 'static,
     ) -> Self {
-        Self::spawn(Source::InBank(Arc::clone(index), bank, id), wake)
+        let source = Source::InBank(Arc::clone(index), (bank, id), cache.clone());
+        Self::spawn(source, wake)
     }
 
     fn spawn(source: Source, wake: impl Fn() + Send + 'static) -> Self {
@@ -285,7 +289,7 @@ fn sound_status(sound: &Sound) -> SoundStatus<'_> {
 enum Source {
     Entry(Arc<EntryIndex>, u32),
     Embedded(Arc<Soundbank<Vec<u8>>>, u32),
-    InBank(Arc<EntryIndex>, u32, u32),
+    InBank(Arc<EntryIndex>, (u32, u32), BankCache),
 }
 
 /// What the background thread of one audio preview works with.
@@ -308,7 +312,7 @@ impl Worker {
         let event = match &self.source {
             Source::Entry(index, id) => self.run_entry(index, *id, wake),
             Source::Embedded(bank, id) => self.run_embedded(bank, *id, wake),
-            Source::InBank(index, bank, id) => self.run_in_bank(index, (*bank, *id), wake),
+            Source::InBank(index, ids, cache) => self.run_in_bank(index, (*ids, cache), wake),
         };
         if let Some(event) = event {
             self.send(event, wake);
@@ -336,15 +340,22 @@ impl Worker {
     fn run_in_bank(
         &self,
         index: &EntryIndex,
-        (bank, id): (u32, u32),
+        ((bank, id), cache): ((u32, u32), &BankCache),
         wake: &impl Fn(),
     ) -> Option<Event> {
-        let bank = match read_whole(index, bank, &self.dropped) {
-            Ok(bytes) => match Soundbank::parse(bytes) {
-                Ok(bank) => bank,
-                Err(error) => return Some(Event::Failed(Some(describe(&error)))),
+        let bank = match cache.get(bank) {
+            Some(kept) => kept,
+            None => match read_whole(index, bank, &self.dropped) {
+                Ok(bytes) => match Soundbank::parse(bytes) {
+                    Ok(parsed) => {
+                        let parsed = Arc::new(parsed);
+                        cache.keep(bank, &parsed);
+                        parsed
+                    }
+                    Err(error) => return Some(Event::Failed(Some(describe(&error)))),
+                },
+                Err(unread) => return Some(Event::from(unread)),
             },
-            Err(unread) => return Some(Event::from(unread)),
         };
         let event = self.run_embedded(&bank, id, wake)?;
         Some(match event {

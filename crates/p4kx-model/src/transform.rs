@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+const MAX_COLUMN_SKEW: f64 = 0.05;
+
 /// An affine transform as a 3×4 row-major matrix: three rows of rotation and scale with the
 /// translation in the last column.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -116,6 +118,23 @@ impl Transform {
             .then_some(Self { rows })
     }
 
+    /// Returns whether the 3×3 part of the matrix is a rotation, mirrored or not, followed by a
+    /// scale along its axes (`R·S`, as [`Self::scaled`] builds it): no column has zero or
+    /// non-finite length and the cosine between two columns is at most 0.05.
+    #[must_use]
+    pub fn is_plausible_placement(&self) -> bool {
+        let [[ax, bx, cx, _], [ay, by, cy, _], [az, bz, cz, _]] =
+            self.rows.map(|row| row.map(f64::from));
+        let [a, b, c] = [[ax, ay, az], [bx, by, bz], [cx, cy, cz]];
+        let (la, lb, lc) = (dot(a, a).sqrt(), dot(b, b).sqrt(), dot(c, c).sqrt());
+        if ![la, lb, lc].iter().all(|l| l.is_finite() && *l > 0.0) {
+            return false;
+        }
+        [(a, b, la * lb), (a, c, la * lc), (b, c, lb * lc)]
+            .iter()
+            .all(|&(p, q, lengths)| (dot(p, q) / lengths).abs() <= MAX_COLUMN_SKEW)
+    }
+
     /// Returns the transform that applies `inner` first and this transform after it: the matrix
     /// product `self * inner`, so `parent.then(&child)` places a child in its parent's parent.
     #[must_use]
@@ -165,6 +184,10 @@ impl Transform {
             .all(|v| v.is_finite())
             .then_some(inverse)
     }
+}
+
+fn dot([ax, ay, az]: [f64; 3], [bx, by, bz]: [f64; 3]) -> f64 {
+    ax.mul_add(bx, ay.mul_add(by, az * bz))
 }
 
 fn at(rows: &[[f64; 4]; 3], row: usize, column: usize) -> f64 {

@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use egui::{Color32, Ui};
+use egui::{Color32, Id, Ui};
 use fluent_bundle::FluentValue;
 
 use super::model_playback::{self, ViewerAsk};
@@ -129,6 +129,15 @@ fn ready(
     support: &ViewerSupport,
 ) -> ViewerAsk {
     let problem = support.problem(scene.serial());
+    let held = support.skeleton_held(scene.serial());
+    if problem.is_none() && playback.is_some() && held.is_none() {
+        let asked = Id::unique("p4kx-model-skeleton-held");
+        if ui.data(|data| data.get_temp::<u64>(asked)) != Some(scene.serial()) {
+            ui.data_mut(|data| data.insert_temp(asked, scene.serial()));
+            ui.ctx().request_repaint();
+        }
+    }
+    let playback = playback.filter(|_| held != Some(false));
     ui.scope(|ui| {
         ui.spacing_mut().item_spacing.y = 0.0;
         model_view::facts(ui, texts, scene);

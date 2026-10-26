@@ -104,6 +104,18 @@ pub(crate) const fn look(kind: Kind, phase: Phase) -> Look {
     }
 }
 
+/// Returns the colours of a chosen button: the selected background, border and text of the
+/// controls.
+const fn chosen_look() -> Look {
+    Look {
+        fill: palette::CONTROL_SELECTED_BG,
+        tint: Color32::TRANSPARENT,
+        border: palette::CONTROL_SELECTED_BORDER,
+        text: palette::CONTROL_SELECTED_FG,
+        glow: None,
+    }
+}
+
 /// Returns the colours of `.btn-cta` in `phase`.
 const fn cta(phase: Phase) -> Look {
     let (fill, glow) = match phase {
@@ -236,6 +248,17 @@ pub(crate) fn button_laid(
     (label, galley): (&str, std::sync::Arc<egui::Galley>),
     enabled: bool,
 ) -> Response {
+    button_state(ui, (kind, size), (label, galley), (enabled, None))
+}
+
+/// Shows a button as [`button_laid`] does; with `selected` it is a choice that says whether it is
+/// chosen: in the selected colours of the controls and as selected for assistive technology.
+pub(super) fn button_state(
+    ui: &mut Ui,
+    (kind, size): (Kind, Size),
+    (label, galley): (&str, std::sync::Arc<egui::Galley>),
+    (enabled, selected): (bool, Option<bool>),
+) -> Response {
     let (height, padding, _) = metrics(size);
     let desired = vec2(padding.mul_add(2.0, galley.size().x), height);
     let sense = if enabled {
@@ -244,7 +267,12 @@ pub(crate) fn button_laid(
         Sense::hover()
     };
     let (rect, response) = ui.allocate_exact_size(desired, sense);
-    response.widget_info(|| WidgetInfo::labeled(Role::Button, enabled, label));
+    response.widget_info(|| {
+        selected.map_or_else(
+            || WidgetInfo::labeled(Role::Button, enabled, label),
+            |active| WidgetInfo::selected(Role::Button, enabled, active, label),
+        )
+    });
     if !ui.is_rect_visible(rect) {
         return response;
     }
@@ -253,6 +281,8 @@ pub(crate) fn button_laid(
             .animate_bool_with_time(response.id, enabled && response.hovered(), TRANSITION);
     let mut colours = if enabled && response.is_pointer_button_down_on() {
         look(kind, Phase::Pressed)
+    } else if selected == Some(true) {
+        chosen_look()
     } else {
         look(kind, Phase::Rest).blend(look(kind, Phase::Hover), hover)
     };

@@ -39,11 +39,21 @@ impl<'p> Palettes<'p> {
         geometry: Option<&Geometry>,
         library: &MaterialStatus,
     ) -> (Option<Arc<TintPalette>>, Vec<IssueKind>) {
+        self.of_named(geometry.and_then(Geometry::palette), library)
+    }
+
+    /// Returns the palette of a part drawn with `library` that names the palette `named`, and what
+    /// could not be resolved on the way.
+    pub(crate) fn of_named(
+        &mut self,
+        named: Option<&crate::PaletteRef>,
+        library: &MaterialStatus,
+    ) -> (Option<Arc<TintPalette>>, Vec<IssueKind>) {
         let mut issues = Vec::new();
         let Some(provider) = self.provider else {
             return (None, issues);
         };
-        if let Some(named) = geometry.and_then(Geometry::palette) {
+        if let Some(named) = named {
             let guid = named.guid();
             let what = format!("the tint palette {guid}");
             let found = if named.child_path().is_empty() {

@@ -264,6 +264,14 @@ fn components_of<'v, 'f>(tree: &'v RecordTree<'f>) -> Vec<&'v StructValue<'f>> {
     }
 }
 
+/// Reads the main geometry an Entity Record names, without its ports and Loadout.
+pub(crate) fn read_geometry(tree: &RecordTree<'_>) -> Option<Geometry> {
+    components_of(tree)
+        .into_iter()
+        .find(|component| component.type_name() == GEOMETRY_RESOURCE)
+        .and_then(|component| Geometry::read(component))
+}
+
 /// Reads what an Entity Record offers a port, with its class name taken from `name`.
 pub(crate) fn read_item_facts(tree: &RecordTree<'_>) -> ItemFacts {
     let components = components_of(tree);

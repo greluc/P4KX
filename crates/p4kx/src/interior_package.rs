@@ -57,9 +57,9 @@ pub(crate) fn run(args: &InteriorPackageArgs, as_json: bool) -> Result<()> {
     }
     check_output(&args.out)?;
     let (layers, chain) = open(&args.archive, &args.containers)?;
-    let refs: Vec<&_> = layers.iter().collect();
     let entry = chain.last().map_or("", String::as_str);
-    let interior = Interior::build(&refs, entry, &InteriorOptions::default().with_lod(args.lod))?;
+    let options = InteriorOptions::default().with_lod(args.lod);
+    let interior = crate::interior_forge::build(&layers, entry, &options)?;
     let outer = layers
         .first()
         .ok_or_else(|| anyhow!("the Archive was not opened"))?;

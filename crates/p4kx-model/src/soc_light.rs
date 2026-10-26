@@ -59,7 +59,7 @@ pub struct SocLight {
     pub light_type: String,
     /// The state the values are those of.
     pub state: LightState,
-    /// The colour of the state as stored, red, green and blue in 0 to 1.
+    /// The colour of the state as stored, linear red, green and blue in 0 to 1.
     pub colour: [f32; 3],
     /// The intensity of the state as stored, in the engine's own unit.
     pub intensity: f32,
@@ -72,7 +72,7 @@ pub struct SocLight {
     pub radius: f32,
     /// The full opening angle of a projector in degrees (`FOV`); zero when the file gives none.
     pub fov: f32,
-    /// The `focusedBeam` value of a projector.
+    /// The `focusedBeam` value of the light; every light type carries it and it is not used.
     pub focused_beam: f32,
 }
 

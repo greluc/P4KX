@@ -3,10 +3,11 @@
 
 use p4kx_assembly::{
     ArchiveModels, Assembly, AssemblyError, AssemblyOptions, EntityInterior, EntityNode,
-    ForgePalettes, Interior, InteriorOptions, InteriorProgress, InteriorWatch, LoadoutChanges,
+    ForgePalettes, Interior, InteriorForge, InteriorOptions, InteriorProgress, InteriorWatch,
+    LoadoutChanges,
 };
 use p4kx_extraction::{
-    Archive, CancelToken, ConversionError, GlbSummary, GltfError, Guid, PathIndex,
+    Archive, CancelToken, ConversionError, DataForge, GlbSummary, GltfError, Guid, PathIndex,
     archive_error_in, write_replacing,
 };
 
@@ -91,18 +92,14 @@ fn entity(
     #[cfg(feature = "test-hooks")]
     request.pause.wait(|| cancel.is_cancelled());
     let archive_models = ArchiveModels::new(index.archive());
-    let assembly = match hull(index, &tree, request.lod, (cancel, &archive_models)) {
+    let assembly = match assembled(
+        index,
+        (&tree, interior),
+        (request.lod, &archive_models),
+        (cancel, shared),
+    ) {
         Ok(assembly) => assembly,
         Err(ended) => return ended,
-    };
-    let assembly = if interior {
-        shared.enter(AssemblyExportStage::Interior);
-        match interior_of(index, &assembly, &tree, request.lod, (cancel, shared)) {
-            Ok(built) => assembly.with_interior(built),
-            Err(ended) => return ended,
-        }
-    } else {
-        assembly
     };
     if cancel.is_cancelled() {
         return Ended::Cancelled;
@@ -121,6 +118,39 @@ fn entity(
         Ended::Written(summary) => Ended::Written(Box::new(summary.with_mismatches(mismatches))),
         other => other,
     }
+}
+
+/// Places the parts of `tree` and, when `interior` is set, its Interior, reading the DataForge of
+/// the Archive once for both.
+fn assembled(
+    index: &EntryIndex,
+    (tree, interior): (&EntityNode, bool),
+    (lod, archive_models): (u32, &ArchiveModels<'_>),
+    (cancel, shared): (&CancelToken, &Shared),
+) -> Result<Assembly, Ended> {
+    let source = match index.forge().read(index, || {}) {
+        Ok(source) => source,
+        Err(ReadFailure::ArchiveChanged(_)) => {
+            return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
+        }
+        Err(ReadFailure::Unreadable(reason)) => {
+            return Err(Ended::Failed(ModelExportFailure::Failed(reason)));
+        }
+    };
+    let forge = match source.entry.open() {
+        Ok(forge) => forge,
+        Err(error) => {
+            return Err(Ended::Failed(ModelExportFailure::Failed(describe(&error))));
+        }
+    };
+    let assembly = hull(index, (&forge, tree), lod, (cancel, archive_models))?;
+    if !interior {
+        return Ok(assembly);
+    }
+    shared.enter(AssemblyExportStage::Interior);
+    let classes = InteriorForge::new(&forge);
+    let built = interior_of(index, (&assembly, tree), (lod, &classes), (cancel, shared))?;
+    Ok(assembly.with_interior(built))
 }
 
 fn write_glb(
@@ -156,26 +186,11 @@ fn write_glb(
 /// Reads the models of the parts of `tree` and places them.
 fn hull(
     index: &EntryIndex,
-    tree: &EntityNode,
+    (forge, tree): (&DataForge<'_>, &EntityNode),
     lod: u32,
     (cancel, archive_models): (&CancelToken, &ArchiveModels<'_>),
 ) -> Result<Assembly, Ended> {
-    let source = match index.forge().read(index, || {}) {
-        Ok(source) => source,
-        Err(ReadFailure::ArchiveChanged(_)) => {
-            return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
-        }
-        Err(ReadFailure::Unreadable(reason)) => {
-            return Err(Ended::Failed(ModelExportFailure::Failed(reason)));
-        }
-    };
-    let forge = match source.entry.open() {
-        Ok(forge) => forge,
-        Err(error) => {
-            return Err(Ended::Failed(ModelExportFailure::Failed(describe(&error))));
-        }
-    };
-    let palettes = ForgePalettes::new(&forge);
+    let palettes = ForgePalettes::new(forge);
     let models = Stoppable {
         models: archive_models,
         cancel,
@@ -190,15 +205,56 @@ fn hull(
 
 fn interior_of(
     index: &EntryIndex,
-    assembly: &Assembly,
-    tree: &EntityNode,
-    lod: u32,
+    (assembly, tree): (&Assembly, &EntityNode),
+    (lod, classes): (u32, &InteriorForge<'_>),
     state: (&CancelToken, &Shared),
 ) -> Result<EntityInterior, Ended> {
     let options = InteriorOptions::default().with_lod(lod);
     with_watch(state, |watch| {
-        EntityInterior::build_watched(index.archive(), assembly, tree, &options, watch)
+        EntityInterior::build_with(
+            index.archive(),
+            assembly,
+            tree,
+            &options,
+            watch,
+            Some(classes),
+        )
     })
+    .map_err(|error| interior_ended(index, state.0, error))
+}
+
+/// Runs `build` with the class Records of the Archive's DataForge, or without them when the
+/// Archive has no readable one; fails when the Archive changed on disk.
+fn with_classes<T>(
+    index: &EntryIndex,
+    build: impl FnOnce(Option<&InteriorForge<'_>>) -> T,
+) -> Result<T, Ended> {
+    let source = match index.forge().read(index, || {}) {
+        Ok(source) => source,
+        Err(ReadFailure::ArchiveChanged(_)) => {
+            return Err(Ended::Failed(ModelExportFailure::ArchiveChanged));
+        }
+        Err(ReadFailure::Unreadable(_)) => return Ok(build(None)),
+    };
+    let Ok(forge) = source.entry.open() else {
+        return Ok(build(None));
+    };
+    let classes = InteriorForge::new(&forge);
+    Ok(build(Some(&classes)))
+}
+
+fn container_interior(
+    index: &EntryIndex,
+    (layers, entry): (&[&Archive], &str),
+    lod: u32,
+    state: (&CancelToken, &Shared),
+) -> Result<Interior, Ended> {
+    let options = InteriorOptions::default().with_lod(lod);
+    with_classes(index, |classes| {
+        with_watch(state, |watch| {
+            Interior::build_with(layers, entry, &options, watch, classes)
+        })
+    })?
     .map_err(|error| interior_ended(index, state.0, error))
 }
 
@@ -222,13 +278,10 @@ fn container(
         .chain(opened.iter())
         .collect();
     let entry = chain.last().map_or("", String::as_str);
-    let options = InteriorOptions::default().with_lod(request.lod);
-    let built = with_watch((cancel, shared), |watch| {
-        Interior::build_watched(&layers, entry, &options, watch)
-    });
-    let interior = match built {
+    let interior = match container_interior(index, (&layers, entry), request.lod, (cancel, shared))
+    {
         Ok(interior) => interior,
-        Err(error) => return interior_ended(index, cancel, error),
+        Err(ended) => return ended,
     };
     if cancel.is_cancelled() {
         return Ended::Cancelled;

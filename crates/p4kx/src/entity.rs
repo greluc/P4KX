@@ -125,6 +125,7 @@ fn port_line(port: &PortNode) -> String {
         PortSource::Override => line.push_str(" (override)"),
         PortSource::PortDefault => line.push_str(" (port default)"),
         PortSource::Unset => line.push_str(" (unset)"),
+        PortSource::Empty => line.push_str(" (empty)"),
         PortSource::Excluded => line.push_str(" (excluded)"),
         PortSource::Replaced => line.push_str(" (replaced)"),
     }

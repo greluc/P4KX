@@ -181,7 +181,7 @@ A **Port**:
 | Field | Type | Meaning |
 |-------|------|---------|
 | `name` | string | The port name as the Loadout or the port definition spells it |
-| `source` | string | `loadout` (the Entity's own default Loadout), `override` (the Loadout of the entry that attached the Entity, which replaces the Entity's own entry for this port), `port_default` (the default item of the port definition), `unset` (a defined port that nothing names), `excluded` (left out by `--exclude`) or `replaced` (holds the Entity `--replace` names) |
+| `source` | string | `loadout` (the Entity's own default Loadout), `override` (the Loadout of the entry that attached the Entity, which replaces the Entity's own entry for this port), `port_default` (the default item of the port definition), `unset` (a defined port that nothing names), `empty` (a port only the Entity's vehicle implementation declares: no Loadout entry names it and the Record defines none, so it has no `definition`; `--replace` can attach an Entity to it), `excluded` (left out by `--exclude`) or `replaced` (holds the Entity `--replace` names); new values may be added in later versions |
 | `visibility` | string | Only when the Entity's vehicle implementation has a part of this name (ignoring ASCII case): `visible`, or `invisible` when its item port carries the flag `invisible`; absent otherwise |
 | `definition` | object or `null` | The port's `SItemPortDef` in the Entity's Record; `null` when the Record defines no port of this name, e.g. a ship port that only its vehicle definition declares |
 | `entity` | Node or `null` | The attached Entity |
@@ -224,7 +224,9 @@ Entity's ports are the entries of its default Loadout
 the Archive with the Loadouts it includes) in Loadout order, each replaced in place by the entry
 of the same port, ignoring case, in the Loadout given by the entry that attached the Entity, with
 that Loadout's other entries appended; then the ports its `SItemPortContainerComponentParams`
-defines and no Loadout names, in definition order. An entry names its Entity by Reference, or by
+defines and no Loadout names, in definition order; then the item ports only its vehicle
+implementation declares, in file order, with the source `empty`. They count in `ports` and
+`empty` of the report like every port. An entry names its Entity by Reference, or by
 class name when it has none; of several Entities with one class name, the first in definition
 order is attached. The same Archive always gives the same document.
 
@@ -236,13 +238,15 @@ order is attached. The same Archive always gives the same document.
  "materials": 204, "textured_materials": 0, "textures": 0, "texture_pixels": 0,
  "texture_fallbacks": [], "default_material_ids": 0, "hidden_primitives": 0, "lod_fallbacks": 0,
  "shared_meshes": 33, "shared_materials": 103, "shared_textures": 0, "vertices": 744831,
- "triangles": 818426, "bytes": 44750744, "skipped": 0, "issues": [Issue, …]}
+ "triangles": 818426, "bytes": 44750744, "skipped": 0, "placements": [Placement, …],
+ "issues": [Issue, …]}
 ```
 
 `<entity>` is named as for `p4kx entity loadout`, with the same exit codes. `parts` counts the
 root Entity and every attached Entity that resolved, `modelled_parts` those with a model, and
 `nodes` the glTF nodes: one per part and the nodes of each model. `lod_fallbacks` counts the
-models that lack the requested level and are written at the nearest lower one;
+models that lack the requested level and are written at the nearest lower one, or at their
+lowest level when they have none up to the requested one;
 `shared_meshes` counts the meshes not written again because an earlier part holds the same model
 at the same level with the same material library and the same palette (their nodes reference one glTF mesh); `meshes`, `primitives`, `vertices` and `triangles` count
 stored geometry once, so `meshes` can be lower than the number of mesh-bearing nodes;
@@ -278,17 +282,32 @@ its bone and `invalid_offset` for one that is not finite, and the limits `too_ma
 followed by the path inside it ([ADR-0086](adr/0086-an-entity-places-its-object-containers-at-its-bones.md)).
 Without the flag `interior` is absent.
 
+`placements` has one object per part, the root first and every part after its parent, with
+`path` (as for an Issue), `placement` (`root`, `helper`, `port_node` or `origin`: the part sits at
+the helper its port names in the parent's model, at the node of the parent's model named like the
+port, or at the parent's origin, which is also where a port with no helper and no node of its
+name lands, without an Issue), `helper` (the helper's name, only for `helper`) and `modelled`
+(the part has a model).
+
+A transform of a part that carries a shear is written without it: the glTF node holds a
+translation, a rotation and a scale only.
+
 An **Issue** has `path` (the port names from the root joined by `/`, empty for the root), `name`
 (the class name, or what the Loadout names for an attachment that cannot be resolved), `kind`, a
 stable code, `skipped` and `reason`, text for people. The kinds are `unresolved` (the Loadout
 names an Entity that cannot be resolved, so the port holds no part), `no_geometry` (the Entity's
 Record names no model; the part stays as an empty node), `geometry_missing` and
-`geometry_unreadable` (the model is not in the Archive or cannot be read, e.g. a `.cdf`; the part
-stays as an empty node), `material_library` (the library is missing or unreadable; the part is
-drawn with the default material), `palette` (a tint palette the Entity or its library names
+`geometry_unreadable` (the model is not in the Archive or cannot be read, or its character
+definition names none; the part stays as an empty node), `attachments_left_out` (the geometry is
+a character definition, `.cdf`: its skin, else its first attachment, is the part's model and the
+files of the other attachments are not drawn; reported once per definition, `skipped` is false),
+`material_library` (the library is missing or unreadable; the part is
+drawn with the default material; reported once per library, for the first part that draws with
+it), `palette` (a tint palette the Entity or its library names
 cannot be resolved; the part falls back to the library's default palette or to its plain
 colours), `helper_not_found` (the port's helper is no node of the
-parent's model; the part sits at the parent's origin) and `too_many_parts`, `too_many_vertices`
+parent's model; the part sits at the parent's origin; not reported when the parent has no model,
+whose own Issue says why) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.
 

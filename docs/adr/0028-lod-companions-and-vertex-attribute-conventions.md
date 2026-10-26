@@ -3,7 +3,8 @@
 Decided for issue #103. Evidence: docs/model-lods-and-vertex-attributes.md.
 
 Amended by ADR-0114: the 16-byte tangent layout is no longer read. Amended by ADR-0119: the
-opt-in lenient level `LodSelection::OnlyOrBase` falls back to the base companion.
+opt-in lenient level `LodSelection::OnlyOrBase` falls back to the base companion. Amended by
+ADR-0150: an Assembly reads a model that has no level at or below the request at its lowest level.
 
 ## LOD companions
 

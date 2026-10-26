@@ -67,6 +67,7 @@ mod diff;
 mod entity;
 mod entity_audio;
 mod entity_glb;
+mod entity_glb_placements;
 mod entity_json;
 mod entity_package;
 mod entity_vehicle;

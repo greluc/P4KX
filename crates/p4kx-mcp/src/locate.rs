@@ -3,7 +3,7 @@
 
 use std::path::{Component, Path, PathBuf, Prefix};
 
-use p4kx_channels::{Channel, SearchPaths, detect};
+use p4kx_channels::{Channel, PublicPatches, SearchPaths, detect, launcher_logs_folder};
 use p4kx_settings::Settings;
 
 use crate::error::{ToolError, capped};
@@ -49,6 +49,16 @@ impl Locations {
             manual_folders: settings.channels.folders,
             manual_archives: settings.channels.archives,
         }))
+    }
+
+    /// Returns the public patches the launcher log in the launcher folder names; empty without a
+    /// launcher folder.
+    pub(crate) fn public_patches(&self) -> PublicPatches {
+        self.launcher
+            .as_ref()
+            .map_or_else(PublicPatches::default, |launcher| {
+                PublicPatches::read_from(&launcher_logs_folder(launcher))
+            })
     }
 
     /// Returns the Archive path `text` names: a detected Channel by name, ignoring ASCII case,

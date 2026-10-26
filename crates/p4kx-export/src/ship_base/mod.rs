@@ -19,6 +19,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::SystemTime;
 
 use p4kx_assembly::{ArchiveFiles, Entities};
+use p4kx_channels::PublicPatches;
 use p4kx_extraction::{Archive, CancelToken, DataForgeEntry, Filter, Record};
 use rayon::prelude::*;
 use serde_json::Value;
@@ -50,11 +51,13 @@ pub struct ShipBaseOptions<'a> {
     pub cancel: Option<&'a CancelToken>,
     /// Called from any worker thread while ships are read; calls may overtake each other.
     pub progress: Option<&'a (dyn Fn(CatalogProgress) + Sync)>,
+    /// The public patches the file's source states for the Build; `None` states none.
+    pub public_patches: Option<&'a PublicPatches>,
 }
 
 impl ShipBaseOptions<'_> {
-    /// Returns options for every ship, exported at `exported_at`, without cancellation or
-    /// progress.
+    /// Returns options for every ship, exported at `exported_at`, without cancellation, progress
+    /// or public patches.
     #[must_use]
     pub const fn new(exported_at: SystemTime) -> Self {
         Self {
@@ -62,6 +65,7 @@ impl ShipBaseOptions<'_> {
             exported_at,
             cancel: None,
             progress: None,
+            public_patches: None,
         }
     }
 }
@@ -73,6 +77,7 @@ impl std::fmt::Debug for ShipBaseOptions<'_> {
             .field("exported_at", &self.exported_at)
             .field("cancel", &self.cancel)
             .field("progress", &self.progress.is_some())
+            .field("public_patches", &self.public_patches)
             .finish()
     }
 }
@@ -186,7 +191,8 @@ pub fn build_ship_base_from(
     }
     ships.sort_by_key(|ship| CatalogGuid(ship.guid).text());
     failures.sort_by(|a, b| a.record_path.cmp(&b.record_path).then(a.guid.cmp(&b.guid)));
-    let source = serde_json::to_value(source(archive, options.exported_at))?;
+    let source =
+        serde_json::to_value(source(archive, options.exported_at, options.public_patches))?;
     Ok(BuiltShipBase {
         ships,
         failures,

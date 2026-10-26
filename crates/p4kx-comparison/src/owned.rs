@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use p4kx_channels::PublicPatches;
 use thiserror::Error;
 
 use crate::compare::{Joined, check_levels, join};
@@ -61,6 +62,7 @@ pub struct OwnedComparison {
     levels: Levels,
     filter: Option<String>,
     changes: Vec<Joined>,
+    public_patches: Option<PublicPatches>,
 }
 
 impl OwnedComparison {
@@ -87,6 +89,7 @@ impl OwnedComparison {
             levels: options.levels,
             filter: options.filter.map(|filter| filter.as_str().to_owned()),
             changes,
+            public_patches: options.public_patches.cloned(),
         })
     }
 
@@ -105,13 +108,13 @@ impl OwnedComparison {
     /// Returns the old side.
     #[must_use]
     pub fn old_side(&self) -> Side<'_> {
-        Side::of(&self.old)
+        Side::of(&self.old).with_public_patches(self.public_patches.as_ref())
     }
 
     /// Returns the new side.
     #[must_use]
     pub fn new_side(&self) -> Side<'_> {
-        Side::of(&self.new)
+        Side::of(&self.new).with_public_patches(self.public_patches.as_ref())
     }
 
     /// Returns the levels that were compared.
@@ -190,6 +193,7 @@ impl OwnedComparison {
             filter,
             cancel,
             progress: None,
+            public_patches: self.public_patches.as_ref(),
         };
         let both = forges.as_ref().map(|(old, new)| DataForges { old, new });
         let comparison = compare(&self.old, &self.new, both, &options)?;
@@ -221,6 +225,7 @@ impl OwnedComparison {
             filter,
             cancel,
             progress,
+            public_patches: None,
         };
         let forges = DataForges {
             old: &old,

@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use p4kx_channels::{Channel, SearchPaths, detect};
+use p4kx_channels::{Channel, SearchPaths, detect_with_patches};
 use p4kx_settings::ManualChannels;
 
 /// The Channels the picker offers: detected in the standard places and the manual entries.
@@ -70,10 +70,12 @@ impl ChannelList {
     }
 
     fn detect(&mut self) {
-        self.detected = detect(&SearchPaths {
+        let (detected, patches) = detect_with_patches(&SearchPaths {
             manual_folders: self.manual.folders.clone(),
             manual_archives: self.manual.archives.clone(),
             ..self.base.clone()
         });
+        self.detected = detected;
+        crate::public_patches::publish(patches);
     }
 }

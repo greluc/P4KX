@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::Result;
+use p4kx_channels::PublicPatches;
 use p4kx_comparison::{
     Archive, ArchiveError, CompareOptions, Comparison, DEFAULT_CONTEXT, DataForges,
     DirectoryCounts, Filter, Levels, Side, compare, line_diff,
@@ -43,9 +44,11 @@ pub(crate) fn run(args: &CompareArgs, as_json: bool) -> Result<ExitCode> {
         return schema::run(&old, &new, as_json);
     }
     let filter = args.filter.as_deref().map(Filter::new);
+    let patches = (as_json || args.report.is_some()).then(PublicPatches::standard);
     let options = CompareOptions {
         levels: levels(args),
         filter: filter.as_ref(),
+        public_patches: patches.as_ref(),
         ..CompareOptions::default()
     };
     let forge_entries = if options.levels.records {

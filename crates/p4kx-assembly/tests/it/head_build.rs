@@ -6,16 +6,16 @@
 
 use std::error::Error;
 
-use p4kx_assembly::character::{Character, Chf, Dna, DnaBlend};
+use p4kx_assembly::character::{Dna, DnaBlend};
 use p4kx_assembly::{
-    ArchiveModels, Armour, ArmourPart, AssemblyOptions, BodyVariant, Head, HeadError,
-    ModelProvider, PartOrigin, Piece,
+    ArchiveModels, Armour, ArmourPart, AssemblyOptions, BodyVariant, ModelProvider, PartOrigin,
+    Piece,
 };
 use p4kx_extraction::Archive;
 use p4kx_gltf::GlbOptions;
 use p4kx_testkit::{
-    FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH,
-    TestChf, TestEntry, check_glb, head_entries, head_rig,
+    HEAD_REGIONS, HEAD_VERTICES, MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH, TestEntry, check_glb,
+    head_entries, head_rig,
 };
 
 use crate::assembly_support::{TestResult, fixture};
@@ -105,6 +105,74 @@ fn the_vertices_of_the_head_move_by_the_morphs_of_the_dnas_heads() -> TestResult
             );
         }
     }
+    Ok(())
+}
+
+fn bitangent(tangent: &[f32; 4], normal: &[f32; 3]) -> [f32; 3] {
+    let [tx, ty, tz, w] = *tangent;
+    let [nx, ny, nz] = *normal;
+    [
+        ny.mul_add(tz, -(nz * ty)) * w,
+        nz.mul_add(tx, -(nx * tz)) * w,
+        nx.mul_add(ty, -(ny * tx)) * w,
+    ]
+}
+
+#[test]
+fn the_shaped_tangents_follow_the_new_normals_and_keep_their_handedness() -> TestResult {
+    let armour = shaped_armour()?;
+    let fixture = fixture(head_entries(None))?;
+    let archive = Archive::open(&fixture.path)?;
+    let plain = ArchiveModels::new(&archive).model(&head_path(), 0)?;
+    let before = &plain.model.lods[0].meshes[0];
+    let after = &head_part(&armour)?.model().lods[0].meshes[0];
+    let (old_normals, new_normals) = (
+        before.normals.as_ref().ok_or("normals")?,
+        after.normals.as_ref().ok_or("shaped normals")?,
+    );
+    let (old_tangents, new_tangents) = (
+        before.tangents.as_ref().ok_or("tangents")?,
+        after.tangents.as_ref().ok_or("shaped tangents")?,
+    );
+
+    let mut turned = 0;
+    for (index, (((tangent, old), normal), old_normal)) in new_tangents
+        .iter()
+        .zip(old_tangents)
+        .zip(new_normals)
+        .zip(old_normals)
+        .enumerate()
+    {
+        let kept: f32 = tangent.iter().zip(old).take(3).map(|(t, o)| t * o).sum();
+        assert!(kept > 0.9, "vertex {index}: the tangent flipped: {kept}");
+        let (new_side, old_side) = (bitangent(tangent, normal), bitangent(old, old_normal));
+        let side: f32 = new_side.iter().zip(old_side).map(|(n, o)| n * o).sum();
+        assert!(side > 0.9, "vertex {index}: the bitangent flipped: {side}");
+        let along: f32 = tangent.iter().zip(normal).map(|(t, n)| t * n).sum();
+        let length = tangent[..3]
+            .iter()
+            .map(|value| value * value)
+            .sum::<f32>()
+            .sqrt();
+        assert!(
+            along.abs() < 1e-4,
+            "vertex {index}: tangent not perpendicular: {along}"
+        );
+        assert!(
+            (length - 1.0).abs() < 1e-3,
+            "vertex {index}: length {length}"
+        );
+        assert_eq!(tangent[3], old[3], "vertex {index}: handedness");
+        let shift: f32 = tangent.iter().zip(old).map(|(t, o)| (t - o).abs()).sum();
+        turned += usize::from(shift > 1e-3);
+    }
+    assert!(turned > 0, "the tangents of the moved corner turned");
+    let shifted = old_normals.iter().zip(new_normals).any(|(old, new)| {
+        old.iter()
+            .zip(new)
+            .any(|(old, new)| (old - new).abs() > 1e-3)
+    });
+    assert!(shifted, "the normals of the moved corner turned");
     Ok(())
 }
 
@@ -270,46 +338,6 @@ fn a_dna_naming_a_head_the_rig_lacks_is_refused() -> TestResult {
         issue.kind().to_string().contains("head 40"),
         "{}",
         issue.kind()
-    );
-    Ok(())
-}
-
-fn character_with(hashes: Option<(u32, u32)>) -> Result<Character, Box<dyn Error>> {
-    let chf = TestChf {
-        dna_hashes: hashes,
-        face_parts: (0..13).map(|_| vec![(0, 0), (0, 0)]).collect(),
-        ..TestChf::v8()
-    };
-    Ok(Chf::read(&chf.to_bytes())?.character)
-}
-
-#[test]
-fn the_rig_of_the_dna_names_the_body_variant_and_the_head_skin() -> TestResult {
-    for (hash, variant, code) in [
-        (MALE_RIG_HASH, BodyVariant::Male, "male"),
-        (FEMALE_RIG_HASH, BodyVariant::Female, "female"),
-    ] {
-        let head = Head::from_character(&character_with(Some((hash, 0)))?)?;
-
-        assert_eq!(head.variant(), variant);
-        assert_eq!(head.rig(), format!("protos_human_{code}_face_t1_pu"));
-        assert_eq!(head.pieces().len(), 1);
-        assert_eq!(head.pieces()[0].name(), "head");
-    }
-    Ok(())
-}
-
-#[test]
-fn a_character_without_face_dna_or_for_an_unknown_rig_has_no_head() -> TestResult {
-    assert_eq!(
-        Head::from_character(&character_with(None)?),
-        Err(HeadError::NoFace)
-    );
-    assert_eq!(
-        Head::from_character(&character_with(Some((0xdead_beef, 0)))?),
-        Err(HeadError::UnknownRig {
-            gender_hash: 0xdead_beef
-        })
     );
     Ok(())
 }

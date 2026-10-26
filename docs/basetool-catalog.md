@@ -33,6 +33,9 @@ The rule is ADR-0054 (amending ADR-0002):
   `RequiredTags` offered by the port or the ship (see "Paints"), so `paints[].shipGuids` lists
   fewer ships than version 1 did (40 fewer on LIVE 4.7). No field changed its name or type. The
   Basetool import must accept version 2.
+  Version 2 also fixes a port whose name several parts of the vehicle file share (#677): the first
+  such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
+  of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 

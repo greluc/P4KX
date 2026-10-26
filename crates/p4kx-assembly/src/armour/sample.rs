@@ -6,6 +6,7 @@ use p4kx_gltf::{SampledBone, SampledWeights};
 use p4kx_model::{Bone, Track, multiply_quaternions};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
+use super::Armour;
 use super::facial::FaceLink;
 
 /// A joint offset, rotation component or weight under this is nothing: 0.1 micrometre for a
@@ -212,6 +213,51 @@ pub(super) fn joint_samples(
         out.push(SampledBone::new(bone, translations, rotations));
     }
     out
+}
+
+/// Returns the times in seconds and the poses of the samples that the reduction keeps of the
+/// `poses` at `frames`, at `rate` frames per second.
+pub(super) fn reduced(
+    (frames, poses): (&[u16], &[FacePose]),
+    link: &FaceLink,
+    rate: f32,
+) -> (Vec<f32>, Vec<FacePose>) {
+    let kept = reduction(frames, poses, link);
+    let times = kept
+        .iter()
+        .filter_map(|&at| frames.get(at))
+        .map(|&frame| f32::from(frame) / rate)
+        .collect();
+    let poses = kept
+        .iter()
+        .filter_map(|&at| poses.get(at))
+        .cloned()
+        .collect();
+    (times, poses)
+}
+
+impl Armour {
+    /// Returns the parts whose morph targets take weights, each with the blendshapes its targets
+    /// stand for: the head part `head` with the link `link`, and the parts that follow its
+    /// expressions.
+    pub(super) fn weighed(&self, head: usize, link: &FaceLink) -> Vec<(usize, Vec<usize>)> {
+        let followers = self
+            .parts
+            .iter()
+            .enumerate()
+            .filter(|(_, part)| !part.follows.is_empty() && part.follows.len() == part.morphs.len())
+            .map(|(index, part)| {
+                let numbers = part
+                    .follows
+                    .iter()
+                    .filter_map(|&target| link.blendshapes.get(target).copied())
+                    .collect();
+                (index, numbers)
+            });
+        std::iter::once((head, link.blendshapes.clone()))
+            .chain(followers)
+            .collect()
+    }
 }
 
 /// The weights of the morph targets of the part `part`, which stand for the blendshapes

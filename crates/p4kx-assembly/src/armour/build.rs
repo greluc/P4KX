@@ -5,12 +5,11 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 
 use p4kx_gltf::MorphTarget;
-use p4kx_model::{Lod, MaterialStatus, Mesh, Model};
+use p4kx_model::{Lod, MaterialStatus, Model};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use super::face_build::{Face, Found, settled};
-use super::follow::follow;
-use super::follow_morphs::{Followed, follow_morphs};
+use super::head_move::{HeadMove, Worn, followed};
 use super::jobs::{Job, issue, planned};
 use super::shape::shaped;
 use super::zones::{covered, without_covered};
@@ -25,23 +24,6 @@ const WAVE: usize = 64;
 
 /// The name of the piece the pieces that follow the head follow.
 const HEAD: &str = "head";
-
-/// The head as it was made and as it was shaped, with its morph targets, which what follows the
-/// head moves with.
-struct HeadMove {
-    before: Arc<Model>,
-    after: Arc<Model>,
-    morphs: Vec<MorphTarget>,
-}
-
-/// A job as it is worn: its model, its morph targets, the face of a head, and, for what follows
-/// the head, the target of the head each of its morph targets stands for.
-struct Worn {
-    model: Arc<Model>,
-    morphs: Vec<MorphTarget>,
-    face: Option<Face>,
-    follows: Vec<usize>,
-}
 
 struct Loaded {
     entry: String,
@@ -203,27 +185,6 @@ fn drawn_with(
         .as_ref()
         .and_then(|look| look.apply(&library))
         .map_or(library, Arc::new)
-}
-
-/// Returns `model` with its vertices following the head as it was shaped, and with morph targets
-/// that follow the expression targets of the head.
-fn followed(model: &Arc<Model>, head: &HeadMove) -> Worn {
-    fn mesh(model: &Model) -> Option<&Mesh> {
-        model.lods.first().and_then(|lod| lod.meshes.first())
-    }
-    let (model, moved) = match (mesh(&head.before), mesh(&head.after)) {
-        (Some(before), Some(after)) => (
-            Arc::new(follow(model, before, after)),
-            follow_morphs(model, before, &head.morphs),
-        ),
-        _ => (Arc::clone(model), Followed::none()),
-    };
-    Worn {
-        model,
-        morphs: moved.targets,
-        face: None,
-        follows: moved.of,
-    }
 }
 
 /// Returns the model of a job as it is worn, shaped by the job's DNA if it has one, and its morph

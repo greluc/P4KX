@@ -4,7 +4,7 @@
 use std::collections::HashSet;
 use std::io::Write;
 
-use p4kx_character::{DnaRig, FacePose, FaceRig};
+use p4kx_character::{DnaRig, FaceRig};
 use p4kx_gltf::{
     GlbOptions, GlbSummary, GltfError, RigAnimation, RigPiece, SampledAnimation, SampledWeights,
     TextureLoader, write_rigged_glb_animated, write_rigged_glb_animated_with,
@@ -13,7 +13,7 @@ use p4kx_model::Animation;
 
 use super::expressions::logic_of;
 use super::facial::FaceLink;
-use super::sample::{Control, evaluate, joint_samples, reduction, values_of, weight_samples};
+use super::sample::{Control, evaluate, joint_samples, reduced, values_of, weight_samples};
 use super::shape::MAX_DNA_RIG_LEN;
 use super::unused::summarise;
 use super::{Armour, ArmourPart};
@@ -160,27 +160,6 @@ fn load(link: &FaceLink, models: &dyn ModelProvider) -> Result<Loaded, String> {
     Ok(Loaded { face })
 }
 
-/// Returns the times in seconds and the poses of the samples that the reduction keeps of the
-/// `poses` at `frames`, at `rate` frames per second.
-fn reduced(
-    (frames, poses): (&[u16], &[FacePose]),
-    link: &FaceLink,
-    rate: f32,
-) -> (Vec<f32>, Vec<FacePose>) {
-    let kept = reduction(frames, poses, link);
-    let times = kept
-        .iter()
-        .filter_map(|&at| frames.get(at))
-        .map(|&frame| f32::from(frame) / rate)
-        .collect();
-    let poses = kept
-        .iter()
-        .filter_map(|&at| poses.get(at))
-        .cloned()
-        .collect();
-    (times, poses)
-}
-
 impl Armour {
     /// Returns the part with the rig that animates the face, and its index among the parts.
     fn face_part(&self) -> Option<(usize, &ArmourPart, &FaceLink)> {
@@ -188,28 +167,6 @@ impl Armour {
             .iter()
             .enumerate()
             .find_map(|(index, part)| Some((index, part, part.face.as_deref()?)))
-    }
-
-    /// Returns the parts whose morph targets take weights, each with the blendshapes its targets
-    /// stand for: the head part `head` with the link `link`, and the parts that follow its
-    /// expressions.
-    fn weighed(&self, head: usize, link: &FaceLink) -> Vec<(usize, Vec<usize>)> {
-        let followers = self
-            .parts
-            .iter()
-            .enumerate()
-            .filter(|(_, part)| !part.follows.is_empty() && part.follows.len() == part.morphs.len())
-            .map(|(index, part)| {
-                let numbers = part
-                    .follows
-                    .iter()
-                    .filter_map(|&target| link.blendshapes.get(target).copied())
-                    .collect();
-                (index, numbers)
-            });
-        std::iter::once((head, link.blendshapes.clone()))
-            .chain(followers)
-            .collect()
     }
 
     /// Fits `animations` to the Character, within [`MAX_ANIMATION_VALUES`].

@@ -60,9 +60,10 @@ fn the_ports_list_the_loadout_ports_then_the_vehicle_only_ports() -> TestResult 
             "lost",
             "hardpoint_old",
             "hardpoint_ref",
+            "hardpoint_empty",
             "hardpoint_empty"
         ],
-        "Loadout order, then the port only the vehicle implementation knows"
+        "Loadout order, then the ports only the vehicle implementation knows, one per part"
     );
     let empty = port(&alpha["ports"], "hardpoint_empty")?;
     assert_eq!(

@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! Tag paths in the Record export and the Record preview, over a synthetic DataForge whose Gear
+//! Record refers to the tag Weapon.Gun.
+
+use crate::exporting;
+
+use exporting::{TestResult, ended, files_below, opened, select_node, wait_until};
+use p4kx_gui::{
+    Browser, LineValue, Model, RecordExportStatus, RecordForm, RecordPreviewStatus, RecordView,
+    TargetKind, form_annotates_tags,
+};
+use p4kx_testkit::{DataForgeBuilder, TestRecord, TestStruct, TestType, TestValue};
+
+const DATABASE: u128 = 0x0d;
+const WEAPON: u128 = 0xa0;
+const GUN: u128 = 0xa1;
+const GEAR: u128 = 0xc0;
+const TAG_PATH: &str = "libs/foundry/records/tagdatabase/tagdatabase.tagdatabase.xml";
+pub(crate) const GEAR_NODE: &str = "libs/gear/kit";
+
+fn tag(guid: u128, name: &str, children: &[u128]) -> TestRecord {
+    let children = children.iter().map(|g| TestValue::Reference(*g)).collect();
+    TestRecord::new(guid, "Tag", format!("Tag.{name}"), TAG_PATH)
+        .value("tagName", TestValue::text(name))
+        .value("legacyGUID", TestValue::UInt32(u32::MAX))
+        .value("children", TestValue::Array(children))
+}
+
+pub(crate) fn forge() -> DataForgeBuilder {
+    let tag_reference = || TestType::ReferenceTo("Tag".to_owned());
+    DataForgeBuilder::new()
+        .structure(
+            TestStruct::new("Tag")
+                .field("tagName", TestType::String)
+                .field("legacyGUID", TestType::UInt32)
+                .array("children", tag_reference()),
+        )
+        .structure(TestStruct::new("TagDatabase").array("tags", tag_reference()))
+        .structure(TestStruct::new("Gear").field("mount", TestType::Reference))
+        .record(
+            TestRecord::new(DATABASE, "TagDatabase", "TagDatabase.TagDatabase", TAG_PATH)
+                .value("tags", TestValue::Array(vec![TestValue::Reference(WEAPON)])),
+        )
+        .record(tag(WEAPON, "Weapon", &[GUN]))
+        .record(tag(GUN, "Gun", &[]))
+        .record(
+            TestRecord::new(GEAR, "Gear", "Gear.Kit", "libs/gear/kit.xml")
+                .value("mount", TestValue::Reference(GUN)),
+        )
+}
+
+fn exported(form: RecordForm, tags: bool) -> Result<String, Box<dyn std::error::Error>> {
+    let (_dir, mut model, out) = opened(&forge())?;
+    select_node(&mut model, GEAR_NODE)?;
+    model.begin_record_export();
+    let setup = model.record_export_setup_mut().ok_or("no setup")?;
+    setup.set_form(form);
+    setup.set_tags(tags);
+    setup.set_kind(TargetKind::ExistingFolder);
+    setup.set_folder(out.clone());
+    assert!(model.submit_record_export(|| {}), "started");
+    let RecordExportStatus::Finished(summary) = ended(&mut model)? else {
+        return Err("no summary".into());
+    };
+    assert_eq!(summary.written(), 1, "the Gear Record");
+    let files = files_below(&out)?;
+    let [file] = files.as_slice() else {
+        return Err(format!("not one file: {files:?}").into());
+    };
+    Ok(std::fs::read_to_string(out.join(file))?)
+}
+
+#[test]
+fn the_tags_option_writes_the_tag_path_of_a_tag_reference() -> TestResult {
+    let with = exported(RecordForm::Json, true)?;
+    let without = exported(RecordForm::Json, false)?;
+
+    let tag = |text: &str| -> Result<Option<String>, serde_json::Error> {
+        let value: serde_json::Value = serde_json::from_str(text)?;
+        Ok(value["mount"]["tag"].as_str().map(str::to_owned))
+    };
+    assert_eq!(tag(&with)?.as_deref(), Some("Weapon.Gun"), "with tags");
+    assert_eq!(tag(&without)?, None, "without tags the GUID alone");
+    Ok(())
+}
+
+#[test]
+fn the_tags_option_applies_to_ndjson_and_not_to_the_flat_forms() -> TestResult {
+    let ndjson = exported(RecordForm::Ndjson, true)?;
+    let flat = exported(RecordForm::FlatNdjson, true)?;
+
+    assert!(
+        ndjson.contains("\"tag\":\"Weapon.Gun\""),
+        "NDJSON: {ndjson}"
+    );
+    assert!(!flat.contains("Weapon.Gun"), "flat: {flat}");
+    assert!(form_annotates_tags(RecordForm::Xml), "XML");
+    assert!(form_annotates_tags(RecordForm::Json), "JSON");
+    assert!(form_annotates_tags(RecordForm::Ndjson), "NDJSON");
+    assert!(!form_annotates_tags(RecordForm::FlatCsv), "flat CSV");
+    assert!(!form_annotates_tags(RecordForm::FlatNdjson), "flat NDJSON");
+    Ok(())
+}
+
+fn previewed(model: &mut Model) -> Result<&RecordView, Box<dyn std::error::Error>> {
+    model
+        .browser_mut()
+        .ok_or("no Archive")?
+        .load_record_preview(|| {});
+    wait_until(model, |model| {
+        model
+            .browser()
+            .and_then(Browser::record_preview)
+            .is_some_and(|preview| !matches!(preview.status(), RecordPreviewStatus::Loading))
+    })?;
+    match model
+        .browser()
+        .and_then(Browser::record_preview)
+        .ok_or("no Record preview")?
+        .status()
+    {
+        RecordPreviewStatus::Ready(view) => Ok(view),
+        other => Err(format!("not read: {other:?}").into()),
+    }
+}
+
+#[test]
+fn the_preview_shows_the_tag_path_of_a_tag_reference() -> TestResult {
+    let (_dir, mut model, _) = opened(&forge())?;
+    select_node(&mut model, GEAR_NODE)?;
+
+    let view = previewed(&mut model)?;
+
+    let link = view
+        .lines()
+        .iter()
+        .find_map(|line| match line.value() {
+            LineValue::Reference(link) if line.name() == "mount" => Some(link),
+            _ => None,
+        })
+        .ok_or("no mount line")?;
+    assert_eq!(link.tag(), Some("Weapon.Gun"));
+    assert_eq!(link.type_name(), "Tag");
+    Ok(())
+}

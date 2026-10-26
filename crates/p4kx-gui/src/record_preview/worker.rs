@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+use std::sync::{Arc, OnceLock};
 use std::thread;
 
-use p4kx_extraction::{DataForge, LanguageTexts, TextResolver};
+use p4kx_extraction::{DataForge, Guid, LanguageTexts, TagResolver, TagTree, TextResolver};
 
 use super::{RecordView, lines};
-use crate::forge_cache::ReadFailure;
+use crate::forge_cache::{ForgeSource, ReadFailure};
 use crate::model::describe;
 use crate::text_cache::TextFailure;
 use crate::{EntryIndex, RecordId, TextLanguage};
@@ -37,6 +38,13 @@ pub(super) type Answer = (u64, Result<RecordView, Unread>);
 pub(super) struct Worker {
     requests: Sender<Request>,
     answers: Receiver<Answer>,
+    dropped: Arc<AtomicBool>,
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.dropped.store(true, Ordering::Relaxed);
+    }
 }
 
 /// What the worker answered since the last poll.
@@ -56,11 +64,17 @@ impl Worker {
         let (requests, waiting) = mpsc::channel();
         let (answer, answers) = mpsc::channel();
         let index = Arc::clone(index);
+        let dropped = Arc::new(AtomicBool::new(false));
+        let thread_dropped = Arc::clone(&dropped);
         thread::Builder::new()
             .name("record-preview".to_owned())
-            .spawn(move || run(&index, &waiting, &answer, &*wake))
+            .spawn(move || run(&index, &waiting, &answer, &*wake, &thread_dropped))
             .map_err(|error| describe(&error))?;
-        Ok(Self { requests, answers })
+        Ok(Self {
+            requests,
+            answers,
+            dropped,
+        })
     }
 
     /// Asks for a Record; returns whether the worker still runs.
@@ -78,14 +92,21 @@ impl Worker {
     }
 }
 
-fn run(index: &EntryIndex, waiting: &Receiver<Request>, answer: &Sender<Answer>, wake: &dyn Fn()) {
+fn run(
+    index: &EntryIndex,
+    waiting: &Receiver<Request>,
+    answer: &Sender<Answer>,
+    wake: &dyn Fn(),
+    dropped: &AtomicBool,
+) {
     let mut first = None;
     loop {
         let reason = match index.forge().read(index, || {}) {
             Ok(source) => match source.entry.open() {
                 Ok(forge) => {
+                    let tags = SourceTags::new(&source, index, dropped);
                     return serve(waiting, answer, wake, first, |request| {
-                        read(index, &forge, request)
+                        read(index, &forge, &tags, request)
                     });
                 }
                 Err(error) => Unread::Failed(describe(&error)),
@@ -107,7 +128,48 @@ fn run(index: &EntryIndex, waiting: &Receiver<Request>, answer: &Sender<Answer>,
     }
 }
 
-fn read(index: &EntryIndex, forge: &DataForge<'_>, request: Request) -> Result<RecordView, Unread> {
+/// The tag paths of the Archive's DataForge, from the tag tree its cache builds on the first
+/// lookup. The build stops once the Archive changed or the worker was dropped, and a build that
+/// stopped or failed is tried again by the next lookup.
+struct SourceTags<'a> {
+    source: &'a ForgeSource,
+    index: &'a EntryIndex,
+    dropped: &'a AtomicBool,
+    tree: OnceLock<Arc<TagTree>>,
+}
+
+impl<'a> SourceTags<'a> {
+    const fn new(source: &'a ForgeSource, index: &'a EntryIndex, dropped: &'a AtomicBool) -> Self {
+        Self {
+            source,
+            index,
+            dropped,
+            tree: OnceLock::new(),
+        }
+    }
+
+    fn tree(&self) -> Option<&TagTree> {
+        if let Some(tree) = self.tree.get() {
+            return Some(tree);
+        }
+        let stop = || self.dropped.load(Ordering::Relaxed) || self.index.watch().is_changed();
+        let built = self.source.tags(&stop).ok().flatten()?;
+        Some(self.tree.get_or_init(|| built))
+    }
+}
+
+impl TagResolver for SourceTags<'_> {
+    fn tag_path(&self, guid: Guid) -> Option<&str> {
+        self.tree()?.tag_path(guid)
+    }
+}
+
+fn read(
+    index: &EntryIndex,
+    forge: &DataForge<'_>,
+    tags: &dyn TagResolver,
+    request: Request,
+) -> Result<RecordView, Unread> {
     let record = forge
         .record(request.id.0)
         .ok_or_else(|| Unread::Failed(format!("the DataForge has no Record {}", request.id.0)))?;
@@ -116,18 +178,19 @@ fn read(index: &EntryIndex, forge: &DataForge<'_>, request: Request) -> Result<R
         .map_err(|error| Unread::Failed(describe(&error)))?;
     let mut failure = None;
     let mut view = match request.language {
-        None => lines::view(forge, &tree, None),
+        None => lines::view(forge, &tree, None, tags),
         Some(language) => match index.texts().load(index, language) {
             Ok(texts) => {
                 let resolver = LanguageTexts::owned(&texts, language);
-                let mut view = lines::view(forge, &tree, Some(&resolver as &dyn TextResolver));
+                let texts = Some(&resolver as &dyn TextResolver);
+                let mut view = lines::view(forge, &tree, texts, tags);
                 view.language = Some(language);
                 view
             }
             Err(TextFailure::ArchiveChanged) => return Err(Unread::ArchiveChanged),
             Err(TextFailure::Unreadable(reason)) => {
                 failure = Some((language, reason.into_boxed_str()));
-                lines::view(forge, &tree, None)
+                lines::view(forge, &tree, None, tags)
             }
         },
     };

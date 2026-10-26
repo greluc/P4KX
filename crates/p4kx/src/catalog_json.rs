@@ -38,6 +38,7 @@ pub(super) struct SummaryJson<'a> {
     store_slugs: StoreSlugsJson<'a>,
     playability: PlayabilityJson,
     variants: VariantsJson,
+    quantizations: QuantizationsJson,
     texts: Vec<TextJson>,
     unresolved: usize,
 }
@@ -207,6 +208,12 @@ struct VariantsJson {
 }
 
 #[derive(Serialize)]
+struct QuantizationsJson {
+    unused: usize,
+    unresolved_links: usize,
+}
+
+#[derive(Serialize)]
 struct VariantCountsJson {
     groups: usize,
     variants: usize,
@@ -321,6 +328,10 @@ pub(super) fn summary_json<'a>(
         variants: VariantsJson {
             items: summary.variants().items.into(),
             ships: summary.variants().ships.into(),
+        },
+        quantizations: QuantizationsJson {
+            unused: summary.quantizations().unused,
+            unresolved_links: summary.quantizations().unresolved_links,
         },
         texts: summary
             .texts()

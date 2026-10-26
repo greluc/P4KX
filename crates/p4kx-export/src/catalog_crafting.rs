@@ -8,8 +8,9 @@ use p4kx_extraction::{Filter, Guid};
 use crate::blueprint::{Links, blueprint};
 use crate::contract::{
     Blueprint, BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty,
-    QualityDistribution,
+    QualityDistribution, QualityQuantization,
 };
+use crate::contract_quantization::QuantizationBand;
 use crate::contract_recipe::BlueprintDismantle;
 use crate::contract_rewards::{LocationOverride, PoolEntry, QualityCurve, RewardSource};
 use crate::crafting::Crafting;
@@ -18,13 +19,15 @@ use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::selection::is_leftover;
 use crate::texts::Texts;
-use crate::{CatalogFailure, Kind};
+use crate::{CatalogFailure, Kind, QuantizationSummary};
 
 /// The kinds of the catalog that [`Crafting`] fills, each ordered by the text of the GUID.
 pub(crate) struct CraftingKinds<'f> {
     pub(crate) blueprints: Vec<Blueprint<'f>>,
     pub(crate) properties: Vec<GameplayProperty<'f>>,
     pub(crate) distributions: Vec<QualityDistribution<'f>>,
+    pub(crate) quantizations: Vec<QualityQuantization<'f>>,
+    pub(crate) quantization_summary: QuantizationSummary,
     pub(crate) pools: Vec<BlueprintPool<'f>>,
     pub(crate) dismantle: Vec<DismantleProcess<'f>>,
     pub(crate) global: CraftingGlobal,
@@ -44,7 +47,54 @@ pub(crate) fn kinds<'f>(
     texts: &Texts<'f>,
     filter: Option<&Filter>,
 ) -> CraftingKinds<'f> {
-    let (properties, properties_skipped) = entities(
+    let (properties, properties_skipped) = properties(&crafting, texts, filter);
+    let (distributions, distributions_skipped) = entities(
+        &crafting.quality_distributions,
+        filter,
+        |item| (item.record_path, item.class_name),
+        distribution,
+        |entity| entity.guid,
+    );
+    let (quantizations, quantizations_skipped, quantization_summary) =
+        quantizations(&crafting, filter);
+    let sources = sources_by_pool(&crafting.reward_sources);
+    let (pools, pools_skipped) = entities(
+        &crafting.pools,
+        filter,
+        |item| (item.record_path, item.class_name),
+        |source| pool(source, &sources),
+        |entity| entity.guid,
+    );
+    let (dismantle, dismantle_skipped) = dismantle(&crafting, filter);
+    let kept: HashSet<Guid> = dismantle.iter().map(|process| process.guid.0).collect();
+    CraftingKinds {
+        blueprints: blueprints(&crafting, texts, &kept),
+        properties,
+        distributions,
+        quantizations,
+        quantization_summary,
+        pools,
+        dismantle,
+        global: global(&crafting.global),
+        skipped: vec![
+            (Kind::Blueprints, crafting.skipped_blueprints),
+            (Kind::GameplayProperties, properties_skipped),
+            (Kind::QualityDistributions, distributions_skipped),
+            (Kind::QualityQuantizations, quantizations_skipped),
+            (Kind::BlueprintPools, pools_skipped),
+            (Kind::DismantleProcesses, dismantle_skipped),
+        ],
+        failures: crafting.failures,
+        warnings: crafting.warnings,
+    }
+}
+
+fn properties<'f>(
+    crafting: &Crafting<'f>,
+    texts: &Texts<'f>,
+    filter: Option<&Filter>,
+) -> (Vec<GameplayProperty<'f>>, usize) {
+    entities(
         &crafting.properties,
         filter,
         |item| (item.record_path, item.class_name),
@@ -55,23 +105,14 @@ pub(crate) fn kinds<'f>(
             name: texts.localised(source.name_key),
         },
         |entity| entity.guid,
-    );
-    let (distributions, distributions_skipped) = entities(
-        &crafting.quality_distributions,
-        filter,
-        |item| (item.record_path, item.class_name),
-        distribution,
-        |entity| entity.guid,
-    );
-    let sources = sources_by_pool(&crafting.reward_sources);
-    let (pools, pools_skipped) = entities(
-        &crafting.pools,
-        filter,
-        |item| (item.record_path, item.class_name),
-        |source| pool(source, &sources),
-        |entity| entity.guid,
-    );
-    let (dismantle, dismantle_skipped) = entities(
+    )
+}
+
+fn dismantle<'f>(
+    crafting: &Crafting<'f>,
+    filter: Option<&Filter>,
+) -> (Vec<DismantleProcess<'f>>, usize) {
+    entities(
         &crafting.dismantle,
         filter,
         |item| (item.record_path, item.class_name),
@@ -83,25 +124,39 @@ pub(crate) fn kinds<'f>(
             time_seconds: source.time_seconds,
         },
         |entity| entity.guid,
+    )
+}
+
+/// Returns the quality quantizations the Filter keeps, the number of leftovers, and the counts of
+/// the Records no `ResourceType` uses and of the links that reach no kept Record.
+fn quantizations<'f>(
+    crafting: &Crafting<'f>,
+    filter: Option<&Filter>,
+) -> (Vec<QualityQuantization<'f>>, usize, QuantizationSummary) {
+    let (kept, skipped) = entities(
+        &crafting.quality_quantizations,
+        filter,
+        |item| (item.record_path, item.class_name),
+        quantization,
+        |entity| entity.guid,
     );
-    let kept: HashSet<Guid> = dismantle.iter().map(|process| process.guid.0).collect();
-    CraftingKinds {
-        blueprints: blueprints(&crafting, texts, &kept),
-        properties,
-        distributions,
-        pools,
-        dismantle,
-        global: global(&crafting.global),
-        skipped: vec![
-            (Kind::Blueprints, crafting.skipped_blueprints),
-            (Kind::GameplayProperties, properties_skipped),
-            (Kind::QualityDistributions, distributions_skipped),
-            (Kind::BlueprintPools, pools_skipped),
-            (Kind::DismantleProcesses, dismantle_skipped),
-        ],
-        failures: crafting.failures,
-        warnings: crafting.warnings,
-    }
+    let leftover_links: usize = crafting
+        .quality_quantizations
+        .iter()
+        .filter(|item| filter.is_none_or(|filter| filter.matches(item.record_path)))
+        .filter(|item| is_leftover(item.record_path, item.class_name))
+        .map(|item| item.resource_types.len())
+        .sum();
+    let summary = QuantizationSummary {
+        unused: kept
+            .iter()
+            .filter(|entity| entity.resource_type_guids.is_empty())
+            .count(),
+        unresolved_links: crafting
+            .unresolved_quantization_links
+            .saturating_add(leftover_links),
+    };
+    (kept, skipped, summary)
 }
 
 /// Returns the entities `make` builds from the `items` whose record path `filter` matches and
@@ -231,6 +286,31 @@ fn distribution<'f>(source: &library::QualityDistribution<'f>) -> QualityDistrib
                 distribution: over.distribution.as_ref().map(curve),
             })
             .collect(),
+    }
+}
+
+fn quantization<'f>(source: &library::QualityQuantization<'f>) -> QualityQuantization<'f> {
+    let mut resource_type_guids: Vec<CatalogGuid> = source
+        .resource_types
+        .iter()
+        .copied()
+        .map(CatalogGuid)
+        .collect();
+    resource_type_guids.sort_by_cached_key(|guid| guid.text());
+    QualityQuantization {
+        guid: CatalogGuid(source.guid),
+        class_name: source.class_name,
+        record_path: source.record_path,
+        bands: source
+            .bands
+            .iter()
+            .map(|band| QuantizationBand {
+                start: band.start,
+                end: band.end,
+                mapped_value: band.mapped_value,
+            })
+            .collect(),
+        resource_type_guids,
     }
 }
 

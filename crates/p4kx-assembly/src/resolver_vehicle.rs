@@ -9,7 +9,9 @@ use crate::{LandingGear, LoadoutError, LoadoutResolver, vehicle};
 
 impl LoadoutResolver<'_> {
     /// Returns the vehicle implementation `spec` names with its Modification, read once per
-    /// resolver, or `None` when the Entity names none or no files were given.
+    /// resolver, or `None` when the Entity names none, its `vehicleDefinition` is empty, or no
+    /// files were given. The class-name fallback applies to a definition the Archive lacks, not
+    /// to an empty one.
     pub(crate) fn vehicle_of(&mut self, spec: &EntitySpec) -> Option<VehicleResult> {
         let vehicle_spec = spec.vehicle.as_ref()?;
         let files = self.files?;

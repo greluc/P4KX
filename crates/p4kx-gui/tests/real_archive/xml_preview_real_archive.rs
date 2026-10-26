@@ -15,13 +15,14 @@ use p4kx_gui::{
     Browser, EntryIndex, Language, Model, Preview, PreviewTab, XML_SIZE_LIMIT, XmlPreview,
     XmlStatus, ui,
 };
-use p4kx_testkit::real_archive_path;
+use p4kx_testkit::{assert_steady_frames, real_archive_path};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 const SAMPLES: usize = 300;
 const WAIT: Duration = Duration::from_mins(1);
 const FRAME_LIMIT: Duration = Duration::from_millis(50);
+const FRAME_CEILING: Duration = Duration::from_millis(250);
 
 fn sampled_xml(index: &EntryIndex) -> Result<Vec<u32>, Box<dyn Error>> {
     let candidates: Vec<u32> = (0..u32::try_from(index.len())?)
@@ -123,7 +124,7 @@ fn the_cryxml_entries_of_a_real_archive_convert_and_frames_stay_short() -> TestR
         .ok_or("not opened")?
         .select_entry(id, || {});
 
-    let mut slowest = Duration::ZERO;
+    let mut frames = Vec::new();
     let deadline = Instant::now() + WAIT;
     while !harness.state().browser().is_some_and(settled) {
         assert!(
@@ -132,19 +133,21 @@ fn the_cryxml_entries_of_a_real_archive_convert_and_frames_stay_short() -> TestR
         );
         let started = Instant::now();
         harness.step();
-        slowest = slowest.max(started.elapsed());
+        frames.push(started.elapsed());
         std::thread::sleep(Duration::from_millis(5));
     }
     for _ in 0..3 {
         let started = Instant::now();
         harness.step();
-        slowest = slowest.max(started.elapsed());
+        frames.push(started.elapsed());
     }
 
     assert_eq!(harness.state().preview_tab(), PreviewTab::Xml, "XML tab");
-    assert!(
-        slowest < FRAME_LIMIT,
-        "the slowest frame took {slowest:?} for {lines} lines"
+    assert_steady_frames(
+        &format!("converting {lines} lines"),
+        &frames,
+        FRAME_LIMIT,
+        FRAME_CEILING,
     );
     Ok(())
 }

@@ -43,27 +43,19 @@ impl Walk<'_, '_, '_, '_> {
     /// Returns the size along each axis that the content of a widget asks for where its size is
     /// automatic: a text as large as its glyphs, a container as large as its children. An axis
     /// without such a size is `None`.
+    ///
+    /// With `keep` the text measured is kept under the key of the widget for its paint pass;
+    /// only the widgets the walk goes on to paint ask for it.
     pub(crate) fn content_of(
         &mut self,
         probe: &Probe<'_>,
         parent: Area,
-        depth: usize,
+        (depth, keep): (usize, bool),
     ) -> [Option<f32>; 2] {
         if !probe.geometry.size.contains(&Dim::Auto) {
             return [None; 2];
         }
-        let key = (
-            probe.canvas.guid,
-            probe.index,
-            self.chain.last().copied().unwrap_or(0),
-            {
-                let mut hasher = DefaultHasher::new();
-                (self.override_key(), self.position_key(probe.position)).hash(&mut hasher);
-                hasher.finish()
-            },
-            [parent.width.to_bits(), parent.height.to_bits()],
-            self.pixel.to_bits(),
-        );
+        let key = self.measure_key(probe, parent);
         if let Some(known) = self.measured.get(&key) {
             return *known;
         }
@@ -73,13 +65,48 @@ impl Walk<'_, '_, '_, '_> {
             [None; 2]
         } else {
             self.measures += 1;
-            self.intrinsic(probe, parent, depth)
+            self.intrinsic(probe, parent, depth, keep.then_some(key))
         };
         self.measured.insert(key, size);
         size
     }
 
-    fn intrinsic(&mut self, probe: &Probe<'_>, parent: Area, depth: usize) -> [Option<f32>; 2] {
+    /// Returns whether the content size of `probe` is the size of its text, which is shaped to
+    /// measure it.
+    pub(crate) fn measures_text(&self, probe: &Probe<'_>) -> bool {
+        probe.geometry.size.contains(&Dim::Auto)
+            && !probe.has_children
+            && probe.widget.text.is_some()
+            && self.cx.texts.is_enabled()
+    }
+
+    pub(crate) fn measure_key(&self, probe: &Probe<'_>, parent: Area) -> MeasureKey {
+        (
+            probe.canvas.guid,
+            probe.index,
+            self.chain.last().copied().unwrap_or(0),
+            {
+                let mut hasher = DefaultHasher::new();
+                (
+                    self.override_key(),
+                    self.position_key(probe.position),
+                    self.bound_text(probe.canvas, probe.index),
+                )
+                    .hash(&mut hasher);
+                hasher.finish()
+            },
+            [parent.width.to_bits(), parent.height.to_bits()],
+            self.pixel.to_bits(),
+        )
+    }
+
+    fn intrinsic(
+        &mut self,
+        probe: &Probe<'_>,
+        parent: Area,
+        depth: usize,
+        keep: Option<MeasureKey>,
+    ) -> [Option<f32>; 2] {
         if probe.has_children {
             return if probe.kids.is_empty() {
                 [None; 2]
@@ -88,15 +115,23 @@ impl Walk<'_, '_, '_, '_> {
             };
         }
         let widget = probe.widget;
-        if widget.text.is_none() || !self.cx.texts.is_enabled() {
+        if !self.measures_text(probe) {
             return [None; 2];
         }
         let font = self.font_of(widget, probe.style);
         let mut look = Look::of(widget, probe.style, self.pixel, font);
         look.bound_text = self.bound_text(probe.canvas, probe.index);
-        let Some([width, height]) = self.cx.texts.measure(widget, &look, parent) else {
+        let shaped = self.cx.texts.shape(widget, &look, parent);
+        let Some([width, height]) = shaped
+            .prepared
+            .as_ref()
+            .and_then(|prepared| self.cx.texts.measure(prepared, parent))
+        else {
             return [None; 2];
         };
+        if let Some(key) = keep {
+            self.shaped.insert(key, shaped);
+        }
         let padding = probe.geometry.padding;
         [
             Some(width + padding.left + padding.right),
@@ -202,7 +237,7 @@ impl Walk<'_, '_, '_, '_> {
             kids: &plan.kids,
             own: plan.own,
         };
-        let content = self.content_of(&child, parent, depth + 1);
+        let content = self.content_of(&child, parent, (depth + 1, false));
         let mut outer = [None; 2];
         for (axis, (slot, (dim, content))) in outer
             .iter_mut()

@@ -8,7 +8,7 @@ use std::fmt;
 use crate::font::{Font, FontFormat};
 use crate::import::Import;
 
-const EM: f32 = 1024.0;
+pub(crate) const EM: f32 = 1024.0;
 const EM_FONT3: f32 = 20_480.0;
 const ASCENT_FALLBACK: f32 = 0.8;
 const DESCENT_FALLBACK: f32 = 0.2;

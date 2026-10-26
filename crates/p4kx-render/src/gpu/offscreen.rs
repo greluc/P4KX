@@ -4,13 +4,16 @@
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::mpsc;
+use std::time::Duration;
 
 use thiserror::Error;
 
-use super::device::{block_on, guarded};
+use super::device::{block_on_for, guarded};
 use super::limits::check_buffer;
 use super::straight::{straighten, under};
 use super::{Frame, GpuReport, Renderer, Unavailable};
+
+const DEVICE_WAIT: Duration = Duration::from_secs(60);
 
 const ALIGNMENT: u32 = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
 const BYTES_PER_PIXEL: u32 = 4;
@@ -65,6 +68,9 @@ pub enum OffscreenError {
     /// The finished picture could not be read back.
     #[error("the picture could not be read back")]
     Readback(#[source] Box<dyn std::error::Error + Send + Sync>),
+    /// The graphics driver did not answer within the time limit.
+    #[error("the graphics driver did not answer within {} seconds", DEVICE_WAIT.as_secs())]
+    TimedOut,
 }
 
 /// A finished picture: straight-alpha RGBA, eight bits a channel, the top row first.
@@ -139,11 +145,15 @@ impl Offscreen {
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
         let adapter = request(&instance, adapters)?;
         let info = adapter.get_info();
-        let (device, queue) = block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("p4kx-offscreen"),
-            required_limits: adapter.limits(),
-            ..wgpu::DeviceDescriptor::default()
-        }))
+        let (device, queue) = block_on_for(
+            adapter.request_device(&wgpu::DeviceDescriptor {
+                label: Some("p4kx-offscreen"),
+                required_limits: adapter.limits(),
+                ..wgpu::DeviceDescriptor::default()
+            }),
+            DEVICE_WAIT,
+        )
+        .ok_or(OffscreenError::TimedOut)?
         .map_err(OffscreenError::Device)?;
         let renderer = Renderer::new(
             &device,
@@ -298,10 +308,13 @@ impl Offscreen {
                 drop(sender.send(result));
             });
         self.device
-            .poll(wgpu::PollType::wait_indefinitely())
+            .poll(wgpu::PollType::Wait {
+                submission_index: None,
+                timeout: Some(DEVICE_WAIT),
+            })
             .map_err(|error| readback(&error))?;
         receiver
-            .recv()
+            .recv_timeout(DEVICE_WAIT)
             .map_err(|error| readback(&error))?
             .map_err(|error| readback(&error))?;
         let view = buffer
@@ -320,16 +333,23 @@ impl Offscreen {
 
 fn request(instance: &wgpu::Instance, adapters: Adapters) -> Result<wgpu::Adapter, OffscreenError> {
     let ask = |fallback| {
-        block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            force_fallback_adapter: fallback,
-            compatible_surface: None,
-            ..wgpu::RequestAdapterOptions::default()
-        }))
+        block_on_for(
+            instance.request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                force_fallback_adapter: fallback,
+                compatible_surface: None,
+                ..wgpu::RequestAdapterOptions::default()
+            }),
+            DEVICE_WAIT,
+        )
+        .ok_or(OffscreenError::TimedOut)
     };
     match adapters {
-        Adapters::Software => ask(true),
-        Adapters::Best => ask(false).or_else(|_| ask(true)),
+        Adapters::Software => ask(true)?,
+        Adapters::Best => match ask(false)? {
+            Ok(adapter) => Ok(adapter),
+            Err(_) => ask(true)?,
+        },
     }
     .map_err(OffscreenError::NoAdapter)
 }

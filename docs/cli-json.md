@@ -292,17 +292,19 @@ written even when parts are skipped; an Archive key that is missing or wrong exi
 and writes nothing, an `--out` that is the Archive with code 2.
 
 With `--interior` the report also has `interior`, an object with `containers` (the top-level
-socpak containers of the Entity that were opened, not the containers nested in them; the text
+socpak containers of the root Entity and of every attached Entity that were opened, not the
+containers nested in them; each sits relative to the Entity that names it; the text
 and the window call them object containers, while `containers_opened` of `p4kx interior glb`
 counts the nested ones too), `parts`,
 `model_parts` (props included), `modelled_parts` and `lights` (as for
 `p4kx interior glb`, the lights being written with `KHR_lights_punctual`; the models of the containers are not counted in the Entity's `parts`), and
 `issues` lists what the containers could not resolve, with the kinds of `p4kx interior glb` plus
 `container_missing` for a container the Entity's Record names and the Archive lacks,
-`helper_not_found` for its bone the hull lacks, `offset_differs` for an offset that disagrees with
+`helper_not_found` for its bone the Entity's model lacks, `offset_differs` for an offset that disagrees with
 its bone and `invalid_offset` for one that is not finite, and the limits `too_many_containers`,
-`too_many_parts` and `too_many_vertices`, which hold for the Entity as a whole; their `path` is `Interior`, or the container's name
-followed by the path inside it ([ADR-0086](adr/0086-an-entity-places-its-object-containers-at-its-bones.md)).
+`too_many_parts` and `too_many_vertices`, which hold for the Assembly as a whole; their `path` is `Interior` for the root Entity and
+`<port path>/Interior` for an attached one, or the container's name (prefixed by the port path
+for an attached Entity) followed by the path inside it ([ADR-0086](adr/0086-an-entity-places-its-object-containers-at-its-bones.md)).
 Without the flag `interior` is absent.
 
 `placements` has one object per part, the root first and every part after its parent, with
@@ -331,7 +333,7 @@ drawn with the default material; reported once per library, for the first part t
 it), `palette` (a tint palette the Entity or its library names
 cannot be resolved; the part falls back to the library's default palette or to its plain
 colours), `helper_not_found` (the port's helper is no node of the
-parent's model; the part sits at the parent's origin; not reported when the parent has no model,
+Entity's model; the part sits at the parent's origin; not reported when the parent has no model,
 whose own Issue says why) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)
 was reached). New kinds may be added in later versions.

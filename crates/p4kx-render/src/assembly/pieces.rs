@@ -23,7 +23,7 @@ pub(super) struct Piece<'a> {
 }
 
 /// Lists the pieces of `assembly`: its parts, then the parts of the containers of its Interior,
-/// each container's root below the root part.
+/// each container's root below the part of the Entity that names it.
 pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
     let mut pieces: Vec<Piece<'_>> = assembly
         .parts()
@@ -42,17 +42,25 @@ pub(super) fn pieces_of(assembly: &Assembly) -> Vec<Piece<'_>> {
     let Some(interior) = assembly.interior() else {
         return pieces;
     };
-    let Some(root) = assembly.root() else {
-        return pieces;
-    };
     for container in interior.containers() {
         let base = pieces.len();
-        let anchor = root.world().then(container.placement());
+        let owner = assembly.parts().get(container.part());
+        let anchor = owner.map_or_else(
+            || *container.placement(),
+            |owner| owner.world().then(container.placement()),
+        );
+        let owner_index = owner.map(|_| container.part());
+        let prefix = match owner.map_or("", |owner| owner.path()) {
+            "" => INTERIOR_NODE.to_owned(),
+            port => format!("{port}/{INTERIOR_NODE}"),
+        };
         for part in container.interior().parts() {
             pieces.push(Piece {
-                name: format!("{INTERIOR_NODE}/{}", part.name()),
+                name: format!("{prefix}/{}", part.name()),
                 path: "",
-                parent: part.parent().map_or(Some(0), |parent| Some(base + parent)),
+                parent: part
+                    .parent()
+                    .map_or(owner_index, |parent| Some(base + parent)),
                 model: part.model(),
                 world: anchor.then(part.world()).rows,
                 materials: part.materials(),

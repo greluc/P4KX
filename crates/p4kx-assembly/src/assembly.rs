@@ -203,6 +203,7 @@ pub struct Assembly {
     pub(crate) issues: Vec<Issue>,
     pub(crate) lod: u32,
     pub(crate) interior: Option<crate::EntityInterior>,
+    pub(crate) containers: Vec<Arc<[crate::ObjectContainerRef]>>,
 }
 
 impl Assembly {
@@ -300,10 +301,8 @@ impl Assembly {
             }
             scene.push(node)?;
         }
-        if let Some(interior) = &self.interior
-            && !self.parts.is_empty()
-        {
-            interior.add_to_scene(&mut scene, 0)?;
+        if let Some(interior) = &self.interior {
+            interior.add_to_scene(&mut scene, self.parts.len())?;
         }
         Ok(scene)
     }

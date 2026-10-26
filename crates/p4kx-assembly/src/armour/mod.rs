@@ -14,8 +14,10 @@ mod face_build;
 mod facial;
 mod flat_layers;
 mod follow;
+mod follow_morphs;
 mod forge_items;
 mod head;
+mod head_move;
 mod jobs;
 mod loadout;
 mod look;
@@ -74,6 +76,7 @@ pub struct ArmourPart {
     pub(crate) model: Arc<Model>,
     pub(crate) materials: Arc<MaterialStatus>,
     pub(crate) morphs: Vec<MorphTarget>,
+    pub(crate) follows: Vec<usize>,
     pub(crate) face: Option<Arc<facial::FaceLink>>,
 }
 

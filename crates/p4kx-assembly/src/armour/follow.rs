@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use p4kx_model::{Mesh, Model};
 use rayon::prelude::*;
 
-type Vec3 = [f32; 3];
+pub(super) type Vec3 = [f32; 3];
 
 /// The distance beyond which a head vertex no longer moves a vertex of hair, in metres.
 const RANGE: f32 = 0.1;
@@ -14,6 +14,8 @@ const RANGE: f32 = 0.1;
 const HALF: f32 = 0.05;
 /// Keeps the weight of a vertex that lies on the head finite, in metres.
 const SOFTEN: f32 = 0.004;
+/// The weight of the anchor that does not move.
+const ANCHOR: f32 = 1.0 / (HALF * HALF);
 
 type Cell = [i32; 3];
 
@@ -29,11 +31,91 @@ fn cell_of(position: Vec3) -> Option<Cell> {
     Some([at(position[0])?, at(position[1])?, at(position[2])?])
 }
 
-/// The vertices of the unshaped head in a grid of cells of [`RANGE`], and the move of each.
-struct Field<'a> {
-    before: &'a [Vec3],
-    moves: Vec<Vec3>,
+/// Returns the cells around `cell` and `cell` itself.
+fn around([cx, cy, cz]: Cell) -> impl Iterator<Item = Cell> {
+    (cx - 1..=cx + 1).flat_map(move |x| {
+        (cy - 1..=cy + 1).flat_map(move |y| (cz - 1..=cz + 1).map(move |z| [x, y, z]))
+    })
+}
+
+/// The vertices of a mesh in a grid of cells of [`RANGE`].
+pub(super) struct Grid<'a> {
+    positions: &'a [Vec3],
     cells: HashMap<Cell, Vec<u32>>,
+}
+
+impl<'a> Grid<'a> {
+    pub(super) fn new(positions: &'a [Vec3]) -> Self {
+        let mut cells: HashMap<Cell, Vec<u32>> = HashMap::new();
+        for (index, &position) in positions.iter().enumerate() {
+            if let (Some(cell), Ok(index)) = (cell_of(position), u32::try_from(index)) {
+                cells.entry(cell).or_default().push(index);
+            }
+        }
+        Self { positions, cells }
+    }
+
+    /// Returns the move of `position` given the move `moves` of each vertex of the grid: the
+    /// average of the moves of the vertices within [`RANGE`], weighted by the inverse square of
+    /// their distance, against an anchor that does not move; a position far from the mesh stays
+    /// where it is.
+    pub(super) fn at(&self, moves: &[Vec3], position: Vec3) -> Vec3 {
+        let (weights, sum) = self.weigh(moves, position);
+        sum.map(|value| value / weights)
+    }
+
+    /// Returns the weight of the anchor and of all vertices within [`RANGE`] of `position`, and
+    /// the sum of the moves `moves` of those vertices times their weights; a vertex without a move
+    /// counts to the weight only.
+    pub(super) fn weigh(&self, moves: &[Vec3], position: Vec3) -> (f32, Vec3) {
+        let mut weights = ANCHOR;
+        let mut sum = [0.0_f32; 3];
+        let Some(cell) = cell_of(position) else {
+            return (weights, sum);
+        };
+        for near in around(cell) {
+            let Some(list) = self.cells.get(&near) else {
+                continue;
+            };
+            for &index in list {
+                let at = index as usize;
+                let Some(head) = self.positions.get(at) else {
+                    continue;
+                };
+                let squared: f32 = head
+                    .iter()
+                    .zip(&position)
+                    .map(|(at, from)| (at - from).powi(2))
+                    .sum();
+                if squared > RANGE * RANGE {
+                    continue;
+                }
+                let fade = 1.0 - squared / (RANGE * RANGE);
+                let weight = fade * fade / SOFTEN.mul_add(SOFTEN, squared);
+                weights += weight;
+                if let Some(by) = moves.get(at) {
+                    for (total, value) in sum.iter_mut().zip(by) {
+                        *total += weight * value;
+                    }
+                }
+            }
+        }
+        (weights, sum)
+    }
+
+    /// Returns the cells of the grid within one cell of `position`.
+    pub(super) fn near(&self, position: Vec3) -> impl Iterator<Item = &[u32]> {
+        cell_of(position)
+            .into_iter()
+            .flat_map(around)
+            .filter_map(|cell| self.cells.get(&cell).map(Vec::as_slice))
+    }
+}
+
+/// The vertices of the unshaped head in a [`Grid`], and the move of each.
+struct Field<'a> {
+    grid: Grid<'a>,
+    moves: Vec<Vec3>,
 }
 
 impl<'a> Field<'a> {
@@ -43,59 +125,14 @@ impl<'a> Field<'a> {
             .zip(after)
             .map(|(was, now)| [now[0] - was[0], now[1] - was[1], now[2] - was[2]])
             .collect();
-        let mut cells: HashMap<Cell, Vec<u32>> = HashMap::new();
-        for (index, &position) in before.iter().enumerate() {
-            if let (Some(cell), Ok(index)) = (cell_of(position), u32::try_from(index)) {
-                cells.entry(cell).or_default().push(index);
-            }
-        }
         Self {
-            before,
+            grid: Grid::new(before),
             moves,
-            cells,
         }
     }
 
-    /// Returns the move of `position`: the average of the moves of the head vertices within
-    /// [`RANGE`], weighted by the inverse square of their distance, against an anchor that does
-    /// not move; a vertex far from the head stays where it is.
     fn at(&self, position: Vec3) -> Vec3 {
-        let Some([cx, cy, cz]) = cell_of(position) else {
-            return [0.0; 3];
-        };
-        let mut weights = 1.0 / (HALF * HALF);
-        let mut sum = [0.0_f32; 3];
-        for x in cx - 1..=cx + 1 {
-            for y in cy - 1..=cy + 1 {
-                for z in cz - 1..=cz + 1 {
-                    let Some(list) = self.cells.get(&[x, y, z]) else {
-                        continue;
-                    };
-                    for &index in list {
-                        let at = index as usize;
-                        let (Some(head), Some(by)) = (self.before.get(at), self.moves.get(at))
-                        else {
-                            continue;
-                        };
-                        let squared: f32 = head
-                            .iter()
-                            .zip(&position)
-                            .map(|(at, from)| (at - from).powi(2))
-                            .sum();
-                        if squared > RANGE * RANGE {
-                            continue;
-                        }
-                        let fade = 1.0 - squared / (RANGE * RANGE);
-                        let weight = fade * fade / SOFTEN.mul_add(SOFTEN, squared);
-                        weights += weight;
-                        for (total, value) in sum.iter_mut().zip(by) {
-                            *total += weight * value;
-                        }
-                    }
-                }
-            }
-        }
-        sum.map(|value| value / weights)
+        self.grid.at(&self.moves, position)
     }
 }
 

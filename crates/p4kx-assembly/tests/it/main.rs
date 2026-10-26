@@ -35,6 +35,7 @@ mod entity_lookup;
 mod head_animation;
 mod head_build;
 mod head_dress;
+mod head_dress_follow;
 mod head_expressions;
 mod hologram_camera;
 mod interior;

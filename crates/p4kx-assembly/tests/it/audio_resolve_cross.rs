@@ -7,19 +7,18 @@
 use std::error::Error;
 
 use p4kx_assembly::audio::{
-    ArchiveAudio, BreakReason, BrokenLink, LanguageChoice, MAX_ACTION_CHAIN, SoundVariant,
-    TriggerSounds,
+    ArchiveAudio, BreakReason, BrokenLink, LanguageChoice, MAX_ACTION_CHAIN, TriggerSounds,
 };
 use p4kx_extraction::Archive;
 use p4kx_testkit::{ArchiveBuilder, TestAtl, TestBank, TestEntry, TestHircObject, wwise_short_id};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const PLAY: u16 = 0x0403;
+pub(crate) const PLAY: u16 = 0x0403;
 const PLAY_EVENT: u16 = 0x2103;
-const TRIGGER: u16 = 0x1B03;
+pub(crate) const TRIGGER: u16 = 0x1B03;
 
-fn resolve(
+pub(crate) fn resolve(
     banks: &[(&str, TestBank)],
     choice: &LanguageChoice,
     check: impl FnOnce(TriggerSounds<'_>) -> TestResult,
@@ -47,7 +46,7 @@ fn resolve(
     check(sounds)
 }
 
-fn music(actions: &[(u16, u32)]) -> TestBank {
+pub(crate) fn music(actions: &[(u16, u32)]) -> TestBank {
     let ids: Vec<u32> = (1..).take(actions.len()).collect();
     let mut bank = TestBank::new(wwise_short_id("Music"))
         .object(TestHircObject::event(wwise_short_id("Play_Music"), &ids));
@@ -282,7 +281,7 @@ fn chained(hops: u32) -> TestBank {
         .object(TestHircObject::sound(300, 7000, 2, 0))
 }
 
-fn stingers(trigger: u32) -> TestBank {
+pub(crate) fn stingers(trigger: u32) -> TestBank {
     TestBank::new(wwise_short_id("Stingers"))
         .object(TestHircObject::music_segment_stinging(20, &[], trigger, 21))
         .object(TestHircObject::music_segment(21, &[31], &[]))
@@ -332,83 +331,4 @@ fn a_trigger_action_without_a_stinger_breaks_as_missing() -> TestResult {
             Ok(())
         },
     )
-}
-
-#[test]
-fn stingers_of_other_languages_do_not_break_the_one_of_the_chosen_language() -> TestResult {
-    let banks = [
-        ("Music", music(&[(TRIGGER, 0x77)])),
-        ("English(US)\\Stingers", stingers(0x77)),
-        ("German\\Stingers", stingers(0x77)),
-    ];
-    for preferred in ["German", "English(US)"] {
-        resolve(
-            &banks,
-            &LanguageChoice::new(Some(preferred), Some("English(US)")),
-            |sounds| {
-                let [variant] = sounds.variants() else {
-                    return Err(format!("one variant: {:?}", sounds.variants()).into());
-                };
-                assert_eq!(variant.soundbank().language(), Some(preferred));
-                assert!(
-                    sounds
-                        .breaks()
-                        .iter()
-                        .all(|link| link.soundbank().and_then(|bank| bank.language())
-                            == Some(preferred)),
-                    "{:?}",
-                    sounds.breaks()
-                );
-                Ok(())
-            },
-        )?;
-    }
-    resolve(
-        &banks,
-        &LanguageChoice::new(Some("French"), None),
-        |sounds| {
-            assert_eq!(sounds.variants().len(), 0, "no variants");
-            let kinds: Vec<_> = sounds.breaks().iter().map(|b| b.reason().kind()).collect();
-            assert_eq!(kinds, ["no_localisation"]);
-            Ok(())
-        },
-    )
-}
-
-#[test]
-fn a_named_localised_soundbank_is_chosen_by_the_language() -> TestResult {
-    let voice = |sound: u32| {
-        TestBank::new(wwise_short_id("Voice")).object(TestHircObject::sound(10, sound, 2, 0))
-    };
-    let music = TestBank::new(wwise_short_id("Music"))
-        .object(TestHircObject::event(wwise_short_id("Play_Music"), &[1]))
-        .object(TestHircObject::action_in_bank(
-            1,
-            PLAY,
-            10,
-            wwise_short_id("Voice"),
-        ));
-    let banks = [
-        ("Music", music),
-        ("English(US)\\Voice", voice(7000)),
-        ("German\\Voice", voice(7001)),
-    ];
-    for (preferred, expected) in [("German", 7001), ("English(US)", 7000)] {
-        resolve(
-            &banks,
-            &LanguageChoice::new(Some(preferred), Some("English(US)")),
-            |sounds| {
-                assert_eq!(
-                    sounds
-                        .variants()
-                        .iter()
-                        .map(SoundVariant::wem_id)
-                        .collect::<Vec<_>>(),
-                    [Some(expected)]
-                );
-                Ok(())
-            },
-        )?;
-    }
-    Ok(())
 }

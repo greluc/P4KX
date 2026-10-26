@@ -444,7 +444,7 @@ catalog-progress = { $done } of { $total } Records checked, { $percent } %
 catalog-crafting-progress = Reading the crafting data: { $done } of { $total } Records, { $percent } %
 catalog-warning = { $kind ->
     [unreadable_reward_records] { $count } Records that could hold a reward source cannot be read, so their reward sources are missing.
-    [unknown_modifier_ranges] { $count } modifier ranges have a type the reader does not know, so they are missing from the blueprint modifiers.
+    [unknown_modifier_ranges] { $count } modifier ranges have a type P4KX does not know, so they are missing from the blueprint modifiers.
     [ambiguous_dismantle] The DataForge holds { $count } dismantle processes instead of one, so no dismantle return is linked.
     [unreadable_vehicle_files] { $count } ships have a vehicle file that cannot be read, so their paints are missing.
     [unplaced_starmap_containers] { $count } system containers or placements cannot be read, so the starmap objects below them have no position.

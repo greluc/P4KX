@@ -35,7 +35,7 @@ the pool Records. Decided for issue #433, the follow-up of the review of #431 (#
   `..._LinearIntegerAdditive` is left out of the modifiers. `CraftingWarning::UnknownModifierRanges`
   counts those ranges over the selected blueprints and names the distinct struct types in
   `details`, as `kind` `unknown_modifier_ranges` in `p4kx catalog --json`. It appears only when such
-  a range exists, so a Build without one still exits 0. The catalog data is unchanged; the new
+  a range exists, so a Build without one is not made incomplete by it. The catalog data is unchanged; the new
   kind is an additive extension of `warnings`.
 
 ## Considered Options

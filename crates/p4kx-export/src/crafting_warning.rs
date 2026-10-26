@@ -143,7 +143,7 @@ impl fmt::Display for CraftingWarning {
             ),
             Self::UnknownModifierRanges { count, details } => write!(
                 f,
-                "{count} modifier ranges have a type the reader does not know; they are missing from the blueprint modifiers{}",
+                "{count} modifier ranges have a type P4KX does not know; they are missing from the blueprint modifiers{}",
                 Listed(details)
             ),
             Self::AmbiguousDismantle(count) => write!(

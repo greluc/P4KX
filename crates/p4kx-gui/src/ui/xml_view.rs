@@ -10,7 +10,7 @@ use crate::shown_line::display;
 use crate::theme::desktop::{XML_FONT, XML_GUTTER_PADDING_X, XML_ROW_HEIGHT};
 use crate::theme::palette;
 use crate::theme::tokens::{Weight, font};
-use crate::widgets::scroll_region;
+use crate::widgets::scroll_region::{self, Jump};
 use crate::{Texts, XmlDocument, XmlText};
 
 const MAX_ROWS: usize = 512;
@@ -28,8 +28,8 @@ struct RowCache {
 /// Shows the virtual, numbered lines of `document`; only the visible lines are laid out, once.
 ///
 /// The view takes the keyboard focus with Tab and then scrolls with the arrow keys, Page Up,
-/// Page Down, Home and End.
-pub(super) fn show(ui: &mut Ui, texts: &Texts, document: &XmlDocument) {
+/// Page Down, Home and End. With a `jump` it scrolls to that line once.
+pub(super) fn show(ui: &mut Ui, texts: &Texts, document: &XmlDocument, jump: Option<Jump<'_>>) {
     let cache_id = ui.scope_id().with("xml-view-row-cache");
     let (mut cache, fresh) = RowCache::load(ui, cache_id, document);
     let total = document.line_count();
@@ -40,10 +40,11 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, document: &XmlDocument) {
         XML_ROW_HEIGHT,
         area,
         |area, ui| {
-            let area = if fresh {
-                area.scroll_offset(Vec2::ZERO)
-            } else {
-                area
+            let jumped = Jump::offset(jump, XML_ROW_HEIGHT);
+            let area = match jumped {
+                Some(y) => area.scroll_offset(vec2(0.0, y)),
+                None if fresh => area.scroll_offset(Vec2::ZERO),
+                None => area,
             };
             area.show_viewport(ui, |ui, viewport| {
                 let origin = ui.max_rect().min;

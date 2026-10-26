@@ -101,6 +101,26 @@ fn a_huge_node_count_is_rejected_before_allocating() -> TestResult {
 }
 
 #[test]
+fn tables_that_share_bytes_are_an_error() -> TestResult {
+    let mut bytes = sample();
+    put_u32(&mut bytes, 36, u32::try_from(NODE_TABLE)?)?;
+
+    let error = parse(&bytes).err();
+
+    assert!(
+        matches!(
+            error,
+            Some(CryXmlError::TablesOverlap {
+                first: Table::Nodes,
+                second: Table::Strings,
+            })
+        ),
+        "{error:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn a_string_offset_outside_the_string_data_is_an_error() -> TestResult {
     let mut bytes = sample();
     put_u32(&mut bytes, NODE_TABLE, 0x7FFF_FFFF)?;

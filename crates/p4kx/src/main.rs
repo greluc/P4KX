@@ -39,6 +39,7 @@ mod cli_interior;
 mod cli_key;
 mod cli_loc;
 mod cli_model;
+mod cli_output;
 mod cli_ships;
 mod cli_socpak;
 mod cli_ui;

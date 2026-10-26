@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+use std::cell::Cell;
+
 use egui::{
     EventFilter, Id, Key, Modifiers, Rect, Response, Role, ScrollArea, Sense, Ui, Vec2, WidgetInfo,
     scroll_area::ScrollAreaOutput, vec2,
@@ -14,6 +16,36 @@ pub(crate) struct Stand {
     pub(crate) offset: Vec2,
     pub(crate) view: Vec2,
     pub(crate) content: Vec2,
+}
+
+/// A row a region scrolls to once: `serial` tells one request from the next, and `applied` holds
+/// the serial of the one a region scrolled to last.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Jump<'a> {
+    pub(crate) serial: u64,
+    pub(crate) row: u64,
+    pub(crate) applied: &'a Cell<u64>,
+}
+
+impl Jump<'_> {
+    /// Returns the vertical offset that shows the row second from the top, with `stride` between
+    /// rows, the first time `jump` is asked for, and `None` afterwards or without a jump.
+    pub(crate) fn offset(jump: Option<Self>, stride: f32) -> Option<f32> {
+        let jump = jump?;
+        if jump.applied.get() == jump.serial {
+            return None;
+        }
+        jump.applied.set(jump.serial);
+        Some(row_offset(jump.row, stride))
+    }
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "a row index fits the precision of a scroll offset"
+)]
+fn row_offset(row: u64, stride: f32) -> f32 {
+    row.saturating_sub(1) as f32 * stride
 }
 
 /// A scroll region between [`begin`] and [`Region::finish`], for content that sets up its own
@@ -131,4 +163,20 @@ fn keyboard_offset(ui: &Ui, stand: Stand, step: f32) -> Option<Vec2> {
         }
     });
     offset.map(|offset| offset.clamp(Vec2::ZERO, max))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::row_offset;
+
+    #[test]
+    fn a_row_is_scrolled_to_the_second_line_of_the_view() {
+        assert_eq!(row_offset(10, 20.0), 180.0, "row 10 of 20 px");
+    }
+
+    #[test]
+    fn the_first_rows_stay_at_the_top() {
+        assert_eq!(row_offset(1, 20.0), 0.0, "row 1");
+        assert_eq!(row_offset(0, 20.0), 0.0, "row 0");
+    }
 }

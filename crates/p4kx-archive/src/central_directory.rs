@@ -38,6 +38,7 @@ struct ExtraFields {
     local_header_offset: u64,
     encrypted: bool,
     sha256: Option<[u8; 32]>,
+    zip64_block: bool,
 }
 
 /// Parses `count` Entries from the central directory bytes, which start at file offset `base`.
@@ -55,11 +56,46 @@ pub(crate) fn parse_entries(bytes: &[u8], base: u64, count: u64) -> Result<Direc
     Ok(Directory { entries, log })
 }
 
+/// One central-directory header read on its own.
+pub(crate) struct ParsedHeader<'a> {
+    pub(crate) entry: Entry,
+    pub(crate) name: &'a [u8],
+    pub(crate) len: usize,
+    pub(crate) zip64_block: bool,
+}
+
+/// Parses the single header at the start of `bytes`, which lies at file offset `base`, as the
+/// Entry at `index`.
+pub(crate) fn parse_header<'a>(
+    bytes: &'a [u8],
+    base: u64,
+    index: usize,
+    log: &mut IssueLog,
+) -> Result<ParsedHeader<'a>, FormatError> {
+    let mut reader = ByteReader::with_base(bytes, base);
+    let (entry, name, zip64_block) = parse_entry_parts(&mut reader, index, log)?;
+    let len = bytes.len() - reader.remaining();
+    Ok(ParsedHeader {
+        entry,
+        name,
+        len,
+        zip64_block,
+    })
+}
+
 fn parse_entry(
     reader: &mut ByteReader<'_>,
     index: usize,
     log: &mut IssueLog,
 ) -> Result<Entry, FormatError> {
+    parse_entry_parts(reader, index, log).map(|(entry, _, _)| entry)
+}
+
+fn parse_entry_parts<'a>(
+    reader: &mut ByteReader<'a>,
+    index: usize,
+    log: &mut IssueLog,
+) -> Result<(Entry, &'a [u8], bool), FormatError> {
     let offset = reader.offset();
     let fixed = read_fixed_fields(reader, offset)?;
     let name = reader.read_bytes(fixed.name_len)?;
@@ -68,7 +104,8 @@ fn parse_entry(
     let extra = reader.read_bytes(fixed.extra_len)?;
     reader.skip(fixed.comment_len)?;
     let extra = parse_extra(extra, extra_offset, &fixed, index, log)?;
-    Ok(Entry {
+    let zip64_block = extra.zip64_block;
+    let entry = Entry {
         path,
         compressed_size: extra.compressed_size,
         uncompressed_size: extra.uncompressed_size,
@@ -80,7 +117,8 @@ fn parse_entry(
         index: u32::try_from(index).unwrap_or(u32::MAX),
         encrypted: extra.encrypted,
         local_header: true,
-    })
+    };
+    Ok((entry, name, zip64_block))
 }
 
 fn read_fixed_fields(reader: &mut ByteReader<'_>, offset: u64) -> Result<FixedFields, FormatError> {
@@ -126,6 +164,7 @@ fn parse_extra(
         local_header_offset: u64::from(fixed.local_header_offset),
         encrypted: false,
         sha256: None,
+        zip64_block: false,
     };
     let mut reader = ByteReader::with_base(extra, base);
     while reader.remaining() >= BLOCK_HEADER_LEN {
@@ -142,11 +181,16 @@ fn parse_extra(
         let data = reader.read_bytes(data_len)?;
         let mut block = ByteReader::with_base(data, block_offset + BLOCK_HEADER_LEN as u64);
         match id {
-            BLOCK_ZIP64 => read_zip64(&mut block, fixed, &mut fields)?,
+            BLOCK_ZIP64 => {
+                fields.zip64_block = true;
+                read_zip64(&mut block, fixed, &mut fields)?;
+            }
             BLOCK_CIG_ENCRYPTION => {
                 fields.encrypted = read_encryption(&mut block, stored_len, index, log);
             }
-            BLOCK_CIG_HASH => fields.sha256 = read_hash(data, stored_len, index, log),
+            BLOCK_CIG_HASH => {
+                fields.sha256 = read_hash(data, stored_len, index, log);
+            }
             _ => {}
         }
     }

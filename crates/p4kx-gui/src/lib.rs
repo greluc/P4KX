@@ -67,7 +67,7 @@ pub use audio::{
     AudioOutput, DeviceOutput, FailureReporter, MAX_PREVIEW_PCM, Pcm, Player, SoundSource,
     StreamGuard,
 };
-pub use browser::{Browser, EntryRow, EntryRowKind, TreeNode, TreeRow};
+pub use browser::{Browser, EntryRow, EntryRowKind, HitLine, TreeNode, TreeRow};
 pub use catalog_export::{
     CATALOG_FILE, CatalogExport, CatalogExportProgress, CatalogExportStage, CatalogExportStatus,
     CatalogExportSummary,
@@ -92,8 +92,8 @@ pub use containers::{
 pub use content_search::{ContentResult, ContentSearchStatus, ContentSearchTab};
 pub use entities::{AssemblyView, VIEW_LOD, ViewFailure, ViewProgress, ViewStage};
 pub use entities::{
-    EntitiesStatus, EntitiesTab, EntityFilter, EntityList, LoadoutRow, LoadoutSession, LoadoutView,
-    ReplaceChooser, ResolveFailure, RowChange,
+    EntitiesStatus, EntitiesTab, EntityFilter, EntityList, EntityRole, EntityRow, LoadoutRow,
+    LoadoutSession, LoadoutView, ReplaceChooser, ResolveFailure, RowChange,
 };
 pub use entry_index::EntryIndex;
 pub use extraction::{

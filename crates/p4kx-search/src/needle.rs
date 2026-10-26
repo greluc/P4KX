@@ -12,9 +12,10 @@ pub struct EmptyNeedle;
 
 /// A text searched for as a substring, ignoring case.
 ///
-/// Case is folded with Unicode lower-casing, character by character, so `GLADI` finds
-/// `AEGS_Gladius` and `STRASSE` does not find `Straße`. Matching allocates nothing; text that is
-/// ASCII on both sides takes a byte loop.
+/// Case is folded with Unicode lower-casing, character by character, and the final sigma `ς` is
+/// folded to `σ`, so `GLADI` finds `AEGS_Gladius` and `STRASSE` does not find `Straße`. A needle
+/// may end inside the expansion of a character: `i` finds `İ`. Matching allocates nothing; text
+/// that is ASCII on both sides takes a byte loop.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Needle {
     folded: Vec<char>,
@@ -35,7 +36,7 @@ impl Needle {
             .is_ascii()
             .then(|| text.bytes().map(|byte| byte.to_ascii_lowercase()).collect());
         Ok(Self {
-            folded: text.chars().flat_map(char::to_lowercase).collect(),
+            folded: text.chars().flat_map(fold).collect(),
             ascii,
         })
     }
@@ -58,7 +59,7 @@ impl Needle {
     fn find_folded(&self, haystack: &str) -> Option<Range<usize>> {
         let first = *self.folded.first()?;
         haystack.char_indices().find_map(|(start, c)| {
-            if c.to_lowercase().next() != Some(first) {
+            if fold(c).next() != Some(first) {
                 return None;
             }
             self.ends_at(haystack, start).map(|end| start..end)
@@ -69,18 +70,25 @@ impl Needle {
         let mut wanted = self.folded.iter();
         let mut end = start;
         for c in haystack.get(start..)?.chars() {
-            for lower in c.to_lowercase() {
-                if wanted.next() != Some(&lower) {
-                    return None;
+            end += c.len_utf8();
+            for lower in fold(c) {
+                match wanted.next() {
+                    Some(&expected) if expected == lower => {}
+                    Some(_) => return None,
+                    None => return Some(end),
                 }
             }
-            end += c.len_utf8();
             if wanted.as_slice().is_empty() {
                 return Some(end);
             }
         }
         None
     }
+}
+
+fn fold(c: char) -> impl Iterator<Item = char> {
+    c.to_lowercase()
+        .map(|lower| if lower == '\u{3c2}' { '\u{3c3}' } else { lower })
 }
 
 fn find_ascii(haystack: &[u8], needle: &[u8]) -> Option<Range<usize>> {

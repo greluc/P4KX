@@ -65,7 +65,11 @@ when nothing matches.
 ```
 
 `issue_count` is the number of Entry issues found in the directory of the Archive (ADR-0025); `info`,
-`list` and `extract` print the first ten to stderr as `warning: Entry <path>: <issue>`.
+`list`, `extract` and `verify` print the first ten to stderr as `warning: Entry <path>: <issue>`.
+With the global `--recover` flag an Archive whose end records or central directory are damaged is
+rebuilt by a scan for directory records; `issue_count` then counts one more issue, the recovery
+itself (two when a scan limit cut the scan short), which every command prints once on opening as
+`warning: <archive>: <issue>`. The `key` commands ignore `--recover`.
 
 `channel` is the name of the folder holding the Archive, or `null` when there is none; `build` is
 `null` when the Build is unknown.
@@ -811,7 +815,7 @@ empty `<text>`. No match is not an error: the exit code is 0 with empty arrays.
  "loc": [{"language": "en", "key": "vehicle_NameAEGS_Gladius", "text": "Aegis Gladius",
   "match": [6, 11]}],
  "entries": [{"path": "Data\\Scripts\\ship.xml", "line": 2, "offset": 7,
-  "text": "  <Part name=\"AEGS_Gladius\"/>", "match": [16, 21]}],
+  "text": "  <Part name=\"AEGS_Gladius\"/>", "match": [19, 24]}],
  "more": ["records"],
  "unavailable": [{"source": "records", "reason": "…"}],
  "stats": {"records_scanned": 117709, "records_unreadable": 0, "texts_scanned": 90946,

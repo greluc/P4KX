@@ -1036,6 +1036,16 @@
     "character": "D.54: btn-cta Export… in the Characters toolbar opens the modal Export Character with the group Output, the hint in color-gray-2-text FS_XS beside the group Animations (None, All; All by default; no picker of named clips, no --anim-from), starting on the GLB file whatever the Entity export chose, the group File or Package folder, the notices of the Entity and the foot Export and Close; detail and materials stay in the toolbar",
     "messages": "replaces color-warning; not a package, no folder name and installation color-gray-1 in a danger-alert"
   },
+  "entityVariants": {
+    "dsClass": "master-row + tree-row chevron + chip--muted",
+    "decision": "D.56",
+    "rule": "the groups of ADR-0066 (variantOf), read from the Records without a catalog build; a variant is listed under its base only while its base is listed by the kind filter",
+    "base": "the list row of the Entity with, at the tree level 0 chevron cell, the primary chevron that lists or folds the variants, and at the right edge a muted chip with the number of variants (one Variant, n Variants)",
+    "variant": "a list row at tree level 1 with the rail of the tree, selectable like any Entity",
+    "keyboard": "the chevron is a button in the tab order named Show the variants of or Hide the variants of the class name; Enter and Space list or fold",
+    "search": "a base is listed when it or one of its variants matches, with the matching variants listed below it; a search opens such a group, the chevron folds it by hand until the search text changes",
+    "footer": "counts the Entities that match, those folded under a base included"
+  },
   "characterBuilder": {
     "dsClass": "previewPanel + facts-bar + segmented--sm + btn-ghost btn-xs + btn-outline btn-xs",
     "decision": "D.49",

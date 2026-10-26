@@ -15,6 +15,7 @@ pub(crate) use crate::contract_entities::{Item, Paint, Ship};
 pub(crate) use crate::contract_loadout::Loadout;
 pub(crate) use crate::contract_mining::{MineableElement, RefiningProcess};
 pub(crate) use crate::contract_missions::ContractEntry;
+pub(crate) use crate::contract_quantization::QualityQuantization;
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
@@ -25,7 +26,8 @@ pub(crate) use crate::contract_store_slugs::ShipStoreSlug;
 /// The version of the catalog shape.
 ///
 /// Added kinds and fields keep it; renaming, removing or retyping a field, or restructuring a kind,
-/// raises it (ADR-0054). Version 2 changes which ships a paint fits (ADR-0161).
+/// raises it (ADR-0054). Version 2 changes which ships a paint fits (ADR-0161) and has the
+/// `qualityQuantizations` kind (ADR-0177).
 pub const SCHEMA_VERSION: u32 = 2;
 
 /// The Basetool catalog: the game data the basetool's P4K import reads.
@@ -59,6 +61,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) gameplay_properties: Vec<GameplayProperty<'a>>,
     /// The quality distributions and their location overrides, ordered by GUID.
     pub(crate) quality_distributions: Vec<QualityDistribution<'a>>,
+    /// The quality quantizations, the quantised quality steps per `ResourceType`, ordered by GUID.
+    pub(crate) quality_quantizations: Vec<QualityQuantization<'a>>,
     /// The blueprint pools with the places that reward them, ordered by GUID.
     pub(crate) blueprint_pools: Vec<BlueprintPool<'a>>,
     /// The dismantle processes, ordered by GUID.
@@ -146,6 +150,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) gameplay_properties: KindCompleteness<'a>,
     /// The completeness of `qualityDistributions`.
     pub(crate) quality_distributions: KindCompleteness<'a>,
+    /// The completeness of `qualityQuantizations`.
+    pub(crate) quality_quantizations: KindCompleteness<'a>,
     /// The completeness of `blueprintPools`.
     pub(crate) blueprint_pools: KindCompleteness<'a>,
     /// The completeness of `dismantleProcesses`.
@@ -181,6 +187,7 @@ impl<'a> Completeness<'a> {
             blueprint_categories: completeness,
             gameplay_properties: completeness,
             quality_distributions: completeness,
+            quality_quantizations: completeness,
             blueprint_pools: completeness,
             dismantle_processes: completeness,
             paints: completeness,

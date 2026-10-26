@@ -160,6 +160,12 @@ fn print_classification(stdout: &mut impl Write, summary: &CatalogSummary) -> io
             counts.variants, counts.groups
         )?;
     }
+    let quantizations = summary.quantizations();
+    writeln!(
+        stdout,
+        "quality quantizations: {} used by no ResourceType, {} links reach no quantization",
+        quantizations.unused, quantizations.unresolved_links
+    )?;
     Ok(())
 }
 

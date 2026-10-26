@@ -199,6 +199,8 @@ pub const ACTIVE_BAR: f32 = 3.0;
 
 /// The height of the progress bar.
 pub const PROGRESS_HEIGHT: f32 = 8.0;
+/// The share of the track a sweeping block of a progress bar without a measure spans.
+pub const PROGRESS_SWEEP_SHARE: f32 = 0.25;
 /// The size of a spinner.
 pub const SPINNER: f32 = 20.0;
 /// The size of an inline spinner.

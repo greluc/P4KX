@@ -7,6 +7,7 @@ use egui::{Label, Margin, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, v
 use fluent_bundle::FluentValue;
 
 use super::list_footer;
+use super::model_export_outcome::no_record;
 use super::search::{eyebrow, field};
 use super::ui_tab::{danger, loading, message, warning};
 use crate::theme::desktop::{ROW_FONT, SCROLLBAR_THIN, TOOLBAR_PADDING, TREE_PADDING_LEFT};
@@ -144,6 +145,13 @@ pub(super) fn screens(ui: &mut Ui, model: &Model) -> Option<Picked> {
             texts.format(
                 UiText::ScreensFailed,
                 &[("reason", reason.to_owned().into())],
+            ),
+        ),
+        UiScreensStatus::NoRecord(guid) => danger(
+            ui,
+            texts.format(
+                UiText::ScreensFailed,
+                &[("reason", no_record(texts, guid).into())],
             ),
         ),
         UiScreensStatus::Failed(None) => danger(ui, texts.get(UiText::ScreensStopped)),

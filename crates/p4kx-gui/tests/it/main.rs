@@ -54,6 +54,7 @@ mod entity_package_render;
 mod entity_package_window;
 mod entity_picker_window;
 mod entity_picking;
+mod entity_progress_render;
 mod entity_render;
 mod entity_sounds;
 mod entity_sounds_render;

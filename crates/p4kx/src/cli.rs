@@ -129,6 +129,10 @@ pub(crate) enum Command {
     /// Exports the Interior of a socpak container as GLB.
     #[command(after_help = EXIT_CODES_HELP)]
     Interior(crate::cli_interior::InteriorArgs),
+    /// Lists the prefab libraries of an Archive and their prefabs, or prints a prefab with its
+    /// nested prefabs resolved.
+    #[command(after_help = EXIT_CODES_HELP)]
+    Prefab(crate::cli_prefab::PrefabArgs),
     /// Lists the body variants, or writes pieces of armour and clothing worn on a body as one
     /// skinned GLB.
     #[command(after_help = EXIT_CODES_HELP)]

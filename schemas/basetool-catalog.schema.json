@@ -1146,7 +1146,7 @@
           ]
         },
         "chargeTime": {
-          "description": "`chargeTime`, in seconds.",
+          "description": "`chargeTime` of the fire mode, when stated, in seconds.",
           "format": "float",
           "type": [
             "number",
@@ -1154,7 +1154,7 @@
           ]
         },
         "cooldownTime": {
-          "description": "`cooldownTime`, in seconds.",
+          "description": "`cooldownTime` of the fire mode, when stated, in seconds.",
           "format": "float",
           "type": [
             "number",
@@ -1200,7 +1200,7 @@
           ]
         },
         "overchargeTime": {
-          "description": "`overchargeTime`, in seconds.",
+          "description": "`overchargeTime` of the fire mode, when stated, in seconds.",
           "format": "float",
           "type": [
             "number",

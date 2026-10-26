@@ -36,6 +36,33 @@ fn the_assembly_view_metrics_match_the_desktop_spec() {
 }
 
 #[test]
+fn the_replace_and_progress_metrics_match_the_desktop_spec() {
+    let spec: Value =
+        serde_json::from_str(DESKTOP).unwrap_or_else(|error| panic!("the desktop spec: {error}"));
+
+    for (element, key, value) in [
+        ("entityReplace", "listHeight", m::REPLACE_LIST_HEIGHT),
+        ("entityReplace", "headGap", m::REPLACE_HEAD_GAP),
+    ] {
+        let expected = spec[element][key].as_f64();
+        assert!(
+            expected.is_some_and(|want| (want - f64::from(value)).abs() < 0.01),
+            "{element}.{key} is {expected:?}, the theme has {value}"
+        );
+    }
+    assert_eq!(
+        spec["progressBar"]["sweepPeriodFrom"].as_str(),
+        Some("spinner.periodMs"),
+        "a sweep takes one turn of the spinner"
+    );
+    assert_eq!(
+        spec["entityReplace"]["decision"].as_str(),
+        Some("D.57"),
+        "decision"
+    );
+}
+
+#[test]
 fn the_assembly_view_names_its_decision_and_parts() {
     let spec = assembly_view();
 

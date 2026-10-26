@@ -45,6 +45,7 @@ mod cli_key;
 mod cli_loc;
 mod cli_model;
 mod cli_output;
+mod cli_prefab;
 mod cli_ships;
 mod cli_socpak;
 mod cli_ui;
@@ -100,6 +101,7 @@ mod model_glb;
 mod model_info;
 mod model_text;
 mod notice;
+mod prefab;
 mod progress;
 mod query_file;
 mod query_rows;
@@ -159,6 +161,7 @@ fn main() -> ExitCode {
         Command::Ships(args) => ships::run(&args, json),
         Command::Entity(args) => entity::run(&args, json),
         Command::Interior(args) => cli_interior::dispatch(args.action, json).map(success),
+        Command::Prefab(args) => prefab::run(&args, json).map(success),
         Command::Armour(args) => armour::run(&args, json).map(success),
         Command::Character(args) => character_package::run(&args, json).map(success),
         Command::Loc(args) => loc::run(&args, json),

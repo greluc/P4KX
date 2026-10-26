@@ -21,6 +21,9 @@ impl<'f> LoadoutResolver<'f> {
         let mut frontier = vec![root];
         let mut deferred = Vec::new();
         for depth in 0..=MAX_LOADOUT_DEPTH {
+            if self.stopped() {
+                break;
+            }
             let (cached, missing): (Vec<_>, Vec<_>) = frontier
                 .into_iter()
                 .partition(|record| self.specs.contains_key(&record.guid()));

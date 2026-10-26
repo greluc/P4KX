@@ -6,7 +6,8 @@
 use crate::vehicle_support;
 
 use p4kx_assembly::{
-    Attachment, ChangeError, LoadoutChanges, LoadoutResolver, PortNode, PortSource, PortVisibility,
+    Attachment, LoadoutChanges, LoadoutResolver, PortNode, PortSource, PortVisibility,
+    ReplacementMismatch,
 };
 use p4kx_dataforge::DataForge;
 use p4kx_testkit::TestEntity;
@@ -110,7 +111,9 @@ const SIZED: &str = r#"<Vehicle name="TEST_Ship"><Parts>
   </Part>
 </Parts></Vehicle>"#;
 
-fn replace_in_sized_port(size: i32) -> Result<Result<(), ChangeError>, Box<dyn std::error::Error>> {
+fn replace_in_sized_port(
+    size: i32,
+) -> Result<Vec<ReplacementMismatch>, Box<dyn std::error::Error>> {
     let item = TestEntity::new(0x2, "TEST_Item", "entities/test_item.xml")
         .attach_type("WeaponGun")
         .size(size);
@@ -120,7 +123,10 @@ fn replace_in_sized_port(size: i32) -> Result<Result<(), ChangeError>, Box<dyn s
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
     let ship = resolver.entities().find("TEST_Ship")?;
     let changes = LoadoutChanges::new().replace("hardpoint_small", "TEST_Item");
-    Ok(resolver.resolve_with(&ship, &changes).map(|_| ()))
+    Ok(resolver
+        .resolve_changed(&ship, &changes)?
+        .mismatches()
+        .to_vec())
 }
 
 #[test]
@@ -134,13 +140,11 @@ fn the_vehicle_sizes_of_such_a_port_decide_which_entity_fits() -> TestResult {
         (Some(1), Some(2))
     );
 
-    assert!(replace_in_sized_port(2)?.is_ok(), "size 2 fits");
-    assert!(
-        matches!(
-            replace_in_sized_port(5)?,
-            Err(ChangeError::Incompatible { .. })
-        ),
-        "size 5 is refused"
+    assert!(replace_in_sized_port(2)?.is_empty(), "size 2 fits");
+    assert_eq!(
+        replace_in_sized_port(5)?.len(),
+        1,
+        "size 5 is applied and reported"
     );
     Ok(())
 }

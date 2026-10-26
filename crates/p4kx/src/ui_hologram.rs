@@ -61,6 +61,8 @@ struct HologramJson<'a> {
     milliseconds: TimesJson,
     #[serde(skip_serializing_if = "<[String]>::is_empty")]
     ignored: &'a [String],
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    incompatible: Vec<crate::entity_ignored::IncompatibleJson<'a>>,
     issues: Vec<IssueJson<'a>>,
 }
 
@@ -221,7 +223,7 @@ pub(crate) fn run(args: &HologramArgs, as_json: bool) -> Result<ExitCode> {
     let changes = args.changes.changes()?;
     let record = resolver.entities().find(&args.entity)?;
     let applied = resolver.resolve_changed(&record, &changes)?;
-    crate::entity_ignored::warn(applied.ignored())?;
+    crate::entity_ignored::warn(&applied)?;
     let tree = applied.node();
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
@@ -239,7 +241,7 @@ pub(crate) fn run(args: &HologramArgs, as_json: bool) -> Result<ExitCode> {
         picture: &outcome.picture,
         bytes: outcome.bytes,
         assembly: &assembly,
-        ignored: applied.ignored(),
+        applied: &applied,
         scene: &outcome.scene,
         adapter: &outcome.adapter,
         camera: outcome.camera,
@@ -261,7 +263,7 @@ struct Summary<'a> {
     picture: &'a Picture,
     bytes: u64,
     assembly: &'a Assembly,
-    ignored: &'a [String],
+    applied: &'a p4kx_assembly::ChangedLoadout,
     scene: &'a AssemblyScene,
     adapter: &'a str,
     camera: (HologramView, &'static str),
@@ -293,7 +295,8 @@ impl<'a> Summary<'a> {
             },
             adapter: self.adapter,
             milliseconds: self.times,
-            ignored: self.ignored,
+            ignored: self.applied.ignored(),
+            incompatible: crate::entity_ignored::incompatible(self.applied),
             issues: self.assembly.issues().iter().map(IssueJson::from).collect(),
         }
     }

@@ -49,6 +49,8 @@ struct PackageJson<'a> {
     skipped: usize,
     #[serde(skip_serializing_if = "<[String]>::is_empty")]
     ignored: &'a [String],
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    incompatible: Vec<crate::entity_ignored::IncompatibleJson<'a>>,
     #[serde(skip_serializing_if = "<[String]>::is_empty")]
     excluded: &'a [String],
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -78,7 +80,7 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
     let changes = args.changes.changes()?;
     let record = resolver.entities().find(&args.entity)?;
     let applied = resolver.resolve_changed(&record, &changes)?;
-    crate::entity_ignored::warn(applied.ignored())?;
+    crate::entity_ignored::warn(&applied)?;
     let tree = applied.node();
     let models = ArchiveModels::new(&archive);
     let palettes = ForgePalettes::new(&forge);
@@ -109,7 +111,7 @@ pub(crate) fn run(args: &EntityPackageArgs, as_json: bool) -> Result<()> {
             tree,
             args,
             (&info, &summary),
-            applied.ignored(),
+            &applied,
         ))?;
         return Ok(());
     }
@@ -125,7 +127,7 @@ impl<'a> PackageJson<'a> {
         tree: &'a EntityNode,
         args: &EntityPackageArgs,
         (info, summary): (&'a PackageInfo, &'a PackageSummary),
-        ignored: &'a [String],
+        applied: &'a p4kx_assembly::ChangedLoadout,
     ) -> Self {
         Self {
             archive: archive.to_owned(),
@@ -152,7 +154,8 @@ impl<'a> PackageJson<'a> {
             triangles: summary.triangles,
             lod_fallbacks: summary.lod_fallbacks,
             skipped: summary.issues.iter().filter(|issue| issue.skipped).count(),
-            ignored,
+            ignored: applied.ignored(),
+            incompatible: crate::entity_ignored::incompatible(applied),
             excluded: &info.exclude,
             replaced: info
                 .replace

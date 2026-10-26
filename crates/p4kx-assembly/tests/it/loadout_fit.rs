@@ -8,7 +8,7 @@ use crate::vehicle_support;
 
 use std::error::Error;
 
-use p4kx_assembly::{ChangeError, Incompatibility, LoadoutChanges, LoadoutResolver};
+use p4kx_assembly::{Incompatibility, LoadoutChanges, LoadoutResolver};
 use p4kx_dataforge::DataForge;
 use p4kx_testkit::{TestEntity, TestLoadout, TestLoadoutEntry};
 
@@ -67,14 +67,14 @@ fn ports_of_the_vehicle_implementation_are_checked_against_its_item_ports() -> T
     let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
     let frame = resolver.entities().find("TEST_Frame")?;
 
-    let small = resolver.resolve_with(
+    let small = resolver.resolve_changed(
         &frame,
         &LoadoutChanges::new().replace("hardpoint_gun", "GUN_S1"),
-    );
-    let shield = resolver.resolve_with(
+    )?;
+    let shield = resolver.resolve_changed(
         &frame,
         &LoadoutChanges::new().replace("hardpoint_gun", "SHIELD_S1"),
-    );
+    )?;
     let fitting = resolver.resolve_with(
         &frame,
         &LoadoutChanges::new().replace("hardpoint_gun", "GUN_S3"),
@@ -82,24 +82,22 @@ fn ports_of_the_vehicle_implementation_are_checked_against_its_item_ports() -> T
 
     assert!(
         matches!(
-            small,
-            Err(ChangeError::Incompatible {
-                reason: Incompatibility::TooSmall { size: 1, min: 2 },
-                ..
-            })
+            small.mismatches(),
+            [m] if *m.reason() == Incompatibility::TooSmall { size: 1, min: 2 }
         ),
-        "{small:?}"
+        "{:?}",
+        small.mismatches()
     );
     assert!(
         matches!(
-            shield,
-            Err(ChangeError::Incompatible {
-                reason: Incompatibility::Type { .. },
-                ..
-            })
+            shield.mismatches(),
+            [m] if matches!(m.reason(), Incompatibility::Type { .. })
         ),
-        "{shield:?}"
+        "{:?}",
+        shield.mismatches()
     );
+    assert_eq!(held(small.node(), "hardpoint_gun")?, Some("GUN_S1"));
+    assert_eq!(held(shield.node(), "hardpoint_gun")?, Some("SHIELD_S1"));
     assert_eq!(held(&fitting, "hardpoint_gun")?, Some("GUN_S3"));
     let constraints = port(&fitting, "hardpoint_gun")?
         .constraints()

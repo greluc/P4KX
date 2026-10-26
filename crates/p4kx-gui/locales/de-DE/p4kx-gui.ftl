@@ -1074,6 +1074,7 @@ entities-loadout-lost = Das Loadout kann nicht aufgelöst werden: Der Arbeitsthr
 entities-loadout-stopped = Das Auflösen des Loadouts wurde ohne Ergebnis beendet.
 entities-loadout-archive-changed = Das Archiv hat sich auf dem Datenträger geändert. Laden Sie es neu, um das Loadout aufzulösen.
 entities-loadout-no-ports = Diese Entity hat keine Ports.
+entities-loadout-mismatch = { $entity } passt nicht zum Port { $port } und wurde trotzdem eingesetzt: { $reason }
 entities-changes = { $excluded } ausgelassen, { $replaced } ersetzt
 entities-no-changes = Das Standard-Loadout
 entities-reset = Änderungen zurücksetzen
@@ -1109,8 +1110,9 @@ entities-replace-takes-sizes = Der Port nimmt { $single ->
   } { $sizes } auf.
 entities-replace-takes-any = Der Port nimmt jede Entity auf.
 entities-replace-hint = Klassenname oder Record-Pfad
-entities-replace-count = { $number } von { $total } passenden Entities
-entities-replace-none = Keine Entity passt zu Port und Suche.
+entities-replace-count = { $number } Entities, davon { $total } passend
+entities-replace-none = Keine Entity passt zur Suche.
+entities-replace-misfit = Passt nicht, { $facts }
 entities-facts-sized = { $type }, Größe { $size }
 entities-facts = { $type }
 entities-facts-none = Kein Item-Typ
@@ -1195,6 +1197,7 @@ assembly-export-summary-interior = Interior: Objekt-Container { $containers }, T
 assembly-export-summary-cancelled-title = Export abgebrochen
 assembly-export-summary-cancelled = Der Export wurde abgebrochen. Es wurde keine Datei geschrieben.
 assembly-export-summary-file = Geschrieben nach { $path }
+assembly-export-summary-mismatch = { $entity } passt nicht zum Port { $port } und wurde trotzdem geschrieben: { $reason }
 assembly-export-summary-counts = Teile { $parts } ({ $modelled } mit Modell), Knoten { $nodes }, Meshes { $meshes }, Materialien { $materials }, Vertices { $vertices }, Dreiecke { $triangles }, Größe { $size }
 assembly-export-summary-images = { $images ->
     [0] Es werden keine Texturen geschrieben; jedes Material behält seine einfache Farbe.

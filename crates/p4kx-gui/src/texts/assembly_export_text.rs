@@ -108,6 +108,9 @@ pub enum AssemblyExportText {
     SummaryCancelled,
     /// The file that was written; takes `path`.
     SummaryFile,
+    /// A replacement written although its Entity does not fit the port; takes `entity`, `port`
+    /// and `reason`.
+    SummaryMismatch,
     /// What the file holds; takes `parts`, `modelled`, `nodes`, `meshes`, `materials`,
     /// `vertices`, `triangles` and `size`.
     SummaryCounts,
@@ -129,7 +132,7 @@ pub enum AssemblyExportText {
 
 impl AssemblyExportText {
     /// Every text, for checks of the Fluent files.
-    pub(crate) const ALL: [Self; 58] = [
+    pub(crate) const ALL: [Self; 59] = [
         Self::FormHeading,
         Self::FormGlb,
         Self::FormPackage,
@@ -180,6 +183,7 @@ impl AssemblyExportText {
         Self::SummaryCancelledTitle,
         Self::SummaryCancelled,
         Self::SummaryFile,
+        Self::SummaryMismatch,
         Self::SummaryCounts,
         Self::SummaryImages,
         Self::SummaryFallbacks,
@@ -192,6 +196,7 @@ impl AssemblyExportText {
 
     /// Returns the Fluent message id.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one arm per text")]
     pub const fn id(self) -> &'static str {
         match self {
             Self::FormHeading => "assembly-export-form-heading",
@@ -244,6 +249,7 @@ impl AssemblyExportText {
             Self::SummaryCancelledTitle => "assembly-export-summary-cancelled-title",
             Self::SummaryCancelled => "assembly-export-summary-cancelled",
             Self::SummaryFile => "assembly-export-summary-file",
+            Self::SummaryMismatch => "assembly-export-summary-mismatch",
             Self::SummaryCounts => "assembly-export-summary-counts",
             Self::SummaryImages => "assembly-export-summary-images",
             Self::SummaryFallbacks => "assembly-export-summary-fallbacks",

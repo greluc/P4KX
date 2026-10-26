@@ -129,6 +129,34 @@ fn the_changes_of_the_loadout_apply_to_the_file() -> TestResult {
 }
 
 #[test]
+fn a_replacement_that_does_not_fit_is_written_and_noted_in_the_summary() -> TestResult {
+    let (dir, mut harness) = opened(Language::BritishEnglish)?;
+    select(&mut harness, "TEST_Ship")?;
+    harness
+        .state_mut()
+        .entities_mut()
+        .loadout_mut()
+        .ok_or("no session")?
+        .set_replacement("hardpoint_weapon_nose", "TEST_Shield")?;
+    settle(&mut harness)?;
+
+    assert!(start(&mut harness, &dir.path().join("ship.glb"))?);
+    finished(&mut harness)?;
+
+    let summary = summary(&harness)?;
+    assert_eq!(summary.replaced(), 1);
+    assert_eq!(summary.mismatches().len(), 1, "{:?}", summary.mismatches());
+    assert!(
+        harness
+            .query_all_by_label_contains("written all the same")
+            .count()
+            == 1,
+        "the summary notes it"
+    );
+    Ok(())
+}
+
+#[test]
 fn parts_that_cannot_be_resolved_are_listed_in_the_report() -> TestResult {
     let (dir, mut harness) = opened(Language::BritishEnglish)?;
     select(&mut harness, "TEST_Cart")?;

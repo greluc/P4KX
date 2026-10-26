@@ -30,6 +30,7 @@ mod hold;
 mod installation;
 mod language;
 mod localization;
+mod mismatch;
 mod model;
 mod model_export;
 mod model_info;
@@ -105,6 +106,7 @@ pub use extraction::{
 pub use hold::Hold;
 pub use language::Language;
 pub use localization::{LocalizationStatus, LocalizationTab, LocalizationTable};
+pub use mismatch::PortMismatch;
 pub use model::{Failure, GAME_CHECK_INTERVAL, KeyDialog, KeyProblem, KeyReason, Model, WorkTab};
 pub use model_export::{
     AnimationNote, AnimationNoteKind, MODEL_MATERIALS, MODEL_TEXTURE_MIPS, MaterialProblem,

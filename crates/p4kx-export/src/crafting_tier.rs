@@ -67,12 +67,13 @@ fn cost_of<'f>(
     depth: usize,
     unknown: &mut Vec<&'f str>,
 ) -> Result<Option<Cost<'f>>, TooDeep> {
+    let kind = cost.type_name();
+    if kind == SELECT && depth >= MAX_DEPTH {
+        return Err(TooDeep);
+    }
     let context = context(cost, unknown);
-    Ok(match cost.type_name() {
+    Ok(match kind {
         SELECT => {
-            if depth >= MAX_DEPTH {
-                return Err(TooDeep);
-            }
             let info = structure(Some(cost), "nameInfo");
             Some(Cost::Select(Selection {
                 count: integer(Some(cost), "count"),

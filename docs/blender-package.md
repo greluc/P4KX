@@ -308,8 +308,8 @@ A **texture slot** has `slot` (`TexSlot1`, ...) and `file` (the name in the file
 placeholder such as `$TintPaletteDecal` or `$RenderToTexture`, which has no file), `usage`, and
 `texture`, the id in `textures`, absent for a placeholder and for a texture that could not be
 written. `usage` is derived from the suffix of the file name (`_ddna` and `_ddn` normal, `_spec`
-specular, `_mask`/`_opac` mask, `_blend` blend, `_detail` detail, `_wear` wear, `_ao` occlusion,
-`_displ`/`_disp` displacement, `_gloss` gloss; `_id`, `_scalp`, `_dir`, `_dirm` and `_hal` are
+specular, `_mask`/`_opac`/`_scalp` mask (`_scalp` is the density map of a hair cap, ADR-0213), `_blend` blend, `_detail` detail, `_wear` wear, `_ao` occlusion,
+`_displ`/`_disp` displacement, `_gloss` gloss; `_id`, `_dir`, `_dirm` and `_hal` are
 `other`, even in `TexSlot1`) and, for other files, the slot: `TexSlot1` is `diffuse`, anything
 else `other`. `attributes` (`TexType`, `Used`, ...) and `elements` (the `TexMod`
 child with the tiling `TileU`/`TileV`, the offset `OffsetU`/`OffsetV` and the rotation of the

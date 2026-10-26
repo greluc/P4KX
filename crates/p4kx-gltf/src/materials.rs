@@ -12,6 +12,7 @@ use json::material::{
 use json::validation::Checked::Valid;
 use p4kx_model::{Lod, Material, MaterialLibrary, TintPalette};
 
+use crate::hair_cap;
 use crate::shading::shading;
 use crate::texture_roles::sources_with;
 
@@ -48,7 +49,7 @@ impl<'m> MaterialPlan<'m> {
             .flat_map(|mesh| &mesh.submeshes)
             .map(|submesh| submesh.material_id)
             .collect();
-        let slots = ids
+        let slots: BTreeMap<u16, Option<Slot>> = ids
             .into_iter()
             .map(|id| {
                 (
@@ -57,11 +58,22 @@ impl<'m> MaterialPlan<'m> {
                 )
             })
             .collect();
+        let mut tinted = BTreeMap::new();
+        if let Some(library) = library {
+            for slot in slots.values().flatten() {
+                if let Slot::Library(position) = *slot
+                    && let Some(material) = library.materials.get(position)
+                    && let Some(corrected) = hair_cap::of_the_body(library, material)
+                {
+                    tinted.insert(position, corrected);
+                }
+            }
+        }
         Self {
             library,
             slots,
             default: Material::engine_default(),
-            tinted: BTreeMap::new(),
+            tinted,
         }
     }
 
@@ -182,6 +194,8 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
             1.0,
             Some(material.alpha_test.clamp(0.0, 1.0)),
         )
+    } else if material.is_hair_cap() {
+        (AlphaMode::Blend, 1.0, None)
     } else if is_hair_cards(material) {
         (AlphaMode::Mask, 1.0, Some(HAIR_CARD_CUTOFF))
     } else if glass {
@@ -197,6 +211,7 @@ fn alpha_of(material: &Material) -> (AlphaMode, f32, Option<f32>) {
 /// `TexSlot1` is an opacity map, which cuts the cards out.
 pub(crate) fn is_hair_cards(material: &Material) -> bool {
     is_one_of(&material.shader, &HAIR_CARD_SHADERS)
+        && !material.is_hair_cap()
         && sources_with(material, true)
             .diffuse
             .is_some_and(|source| source.opacity)
@@ -209,6 +224,9 @@ pub(crate) fn uses_alpha(material: &Material) -> bool {
 }
 
 /// Returns the glTF material that draws `material` with `textures` over its plain colours.
+///
+/// A hair cap is blended by its density map, which is the alpha of its base colour image; without
+/// that image it is fully transparent, never an opaque shell over the skin.
 ///
 /// The diffuse colour multiplies a base colour texture that does not hold the colours already (one
 /// made with a specular map does). A normal texture needs no factor. The factors of the
@@ -233,7 +251,10 @@ pub(crate) fn build_material(
     let shade = shading(material);
     let plain_metal = shade.metal && (!tinted || layered);
     let colour = if tinted { [1.0; 3] } else { shade.colour };
-    let (mode, alpha, cutoff) = alpha_of(material);
+    let (mode, mut alpha, cutoff) = alpha_of(material);
+    if material.is_hair_cap() && textures.base.is_none() {
+        alpha = 0.0;
+    }
     let decal = is_one_of(&material.shader, &DECAL_SHADERS);
     let info = |index: Index<json::Texture>| json::texture::Info {
         index,

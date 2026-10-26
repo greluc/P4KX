@@ -36,6 +36,7 @@ mod document;
 mod error;
 mod glb;
 mod glb_plan;
+mod hair_cap;
 mod instance;
 mod layer_bake;
 mod layer_jobs;

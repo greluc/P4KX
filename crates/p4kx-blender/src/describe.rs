@@ -98,7 +98,11 @@ fn alpha_mode(material: &Material) -> AlphaMode {
     };
     if material.alpha_test > 0.0 {
         AlphaMode::Mask
-    } else if named(&GLASS_SHADERS) || named(&DECAL_SHADERS) || material.opacity < 1.0 {
+    } else if named(&GLASS_SHADERS)
+        || named(&DECAL_SHADERS)
+        || material.is_hair_cap()
+        || material.opacity < 1.0
+    {
         AlphaMode::Blend
     } else {
         AlphaMode::Opaque

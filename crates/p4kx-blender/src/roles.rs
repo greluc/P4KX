@@ -11,14 +11,14 @@ pub(crate) fn classify(slot: &str, file: &str) -> TextureUse {
     match suffix(file).as_str() {
         "ddna" | "ddn" => TextureUse::Normal,
         "spec" => TextureUse::Specular,
-        "mask" | "opac" => TextureUse::Mask,
+        "mask" | "opac" | "scalp" => TextureUse::Mask,
         "blend" => TextureUse::Blend,
         "detail" => TextureUse::Detail,
         "wear" => TextureUse::Wear,
         "ao" => TextureUse::Occlusion,
         "displ" | "disp" => TextureUse::Displacement,
         "gloss" => TextureUse::Gloss,
-        "id" | "scalp" | "dir" | "dirm" | "hal" => TextureUse::Other,
+        "id" | "dir" | "dirm" | "hal" => TextureUse::Other,
         _ if slot.eq_ignore_ascii_case(DIFFUSE_SLOT) => TextureUse::Diffuse,
         _ => TextureUse::Other,
     }
@@ -56,6 +56,7 @@ mod tests {
             ("TexSlot8", "a/b_displ.tif", TextureUse::Displacement),
             ("TexSlot9", "a/b.tif", TextureUse::Other),
             ("TexSlot1", "a/b_id.tif", TextureUse::Other),
+            ("TexSlot1", "a/b_scalp.tif", TextureUse::Mask),
         ] {
             assert_eq!(classify(slot, file), expected, "{slot} {file}");
         }

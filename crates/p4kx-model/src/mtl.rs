@@ -165,6 +165,14 @@ impl Material {
                 .any(|mask| self.string_gen_mask.contains(mask))
     }
 
+    /// Returns whether the material is a `HairPBR` cap, `HAIR_CAP` in its generation mask: a thin
+    /// shell over the skin (scalp, stubble) that the engine blends in by the density map of its
+    /// `TexSlot1`. Drawn opaque it would paint the skin.
+    #[must_use]
+    pub fn is_hair_cap(&self) -> bool {
+        self.shader.eq_ignore_ascii_case("HairPBR") && self.string_gen_mask.contains("HAIR_CAP")
+    }
+
     /// Returns whether the engine draws nothing with the material, or nothing a plain glTF
     /// material can draw: its flags or shader say so, it is fully transparent, or it is an
     /// [`Eye` overlay](Self::is_eye_overlay).

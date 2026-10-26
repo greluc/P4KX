@@ -111,6 +111,11 @@ normal map of the shader families that use layers), so the role comes from the s
 | normal | `TexSlot2`, else `TexSlot3` | `_ddna` (smoothness in the alpha tail) or `_ddn` | 39,267 + 16,021 `Illum`, 17,626 + 13,907 `LayerBlend_V2` |
 | specular | `TexSlot4` | `_spec` | 18,499 `Illum`, 997 `LayerBlend_V2` |
 
+A hair cap (`HairPBR` with `%HAIR_CAP` in its generation mask) has its `_scalp` density map in
+`TexSlot1`; it is written like an opacity map (white, the red channel as alpha) and the material is
+`BLEND`, transparent without the map. The map of the other body is swapped for the one of the
+body folder (`male` / `female`) of the material library (ADR-0213).
+
 Everything else is not read as a material's own map: the second layer (`TexSlot9` `_diff`,
 `TexSlot11` `_wear`, `TexSlot13` `_hal`), detail maps (`TexSlot6`) and displacement (`TexSlot8`).
 The layers of `HardSurface` and `LayerBlend_V2` are drawn from the `TexSlot1` diffuse and `TexSlot2`

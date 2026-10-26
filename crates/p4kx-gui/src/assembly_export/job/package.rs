@@ -127,10 +127,11 @@ fn verdict(error: PackageError, cancelled: bool) -> Verdict {
 }
 
 pub(crate) fn info_of(archive: &Archive, changes: &LoadoutChanges) -> PackageInfo {
+    let patches = crate::public_patches::current();
     let build = archive.build().map(|build| BuildInfo {
         branch: build.branch().to_owned(),
         version: build.version().to_owned(),
-        public_patch: build.public_patch().map(str::to_owned),
+        public_patch: patches.of(build).map(str::to_owned),
         change_number: build.change_number().to_owned(),
         build_id: build.build_id().to_owned(),
     });

@@ -12,9 +12,18 @@ fn text(path: &Path) -> String {
     path.display().to_string()
 }
 
+fn write_launcher_log(install: &Install) -> TestResult {
+    std::fs::write(
+        install.launcher().join("logs").join("log.log"),
+        "Delta update applied (SC LIVE 4.3.1-live.10000001) in LIVE\n",
+    )?;
+    Ok(())
+}
+
 #[test]
 fn list_channels_names_each_channel_with_archive_and_build() -> TestResult {
     let install = Install::standard()?;
+    write_launcher_log(&install)?;
     let mut server = install.serve(&[])?;
     let channels = server.ok("list_channels", &json!({}))?;
     assert_eq!(
@@ -29,7 +38,8 @@ fn list_channels_names_each_channel_with_archive_and_build() -> TestResult {
                     "branch": "sc-alpha-4.3.1",
                     "version": "4.3.1-live.10000001",
                     "change_number": "10000001",
-                    "build_id": "9001"
+                    "build_id": "9001",
+                    "public_patch": "4.3.1"
                 }
             }]
         }),
@@ -75,6 +85,7 @@ fn toml_string(path: &Path) -> String {
 #[test]
 fn archive_info_by_channel_name_summarises_the_archive() -> TestResult {
     let install = Install::standard()?;
+    write_launcher_log(&install)?;
     let mut server = install.serve(&[])?;
     let info = server.ok("archive_info", &json!({ "archive": "live" }))?;
     assert_eq!(
@@ -86,7 +97,8 @@ fn archive_info_by_channel_name_summarises_the_archive() -> TestResult {
                 "branch": "sc-alpha-4.3.1",
                 "version": "4.3.1-live.10000001",
                 "change_number": "10000001",
-                "build_id": "9001"
+                "build_id": "9001",
+                "public_patch": "4.3.1"
             },
             "entry_count": 6,
             "encrypted_count": 1,

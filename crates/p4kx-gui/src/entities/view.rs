@@ -21,6 +21,11 @@ use crate::{ASSEMBLY_LODS, AssemblyScene, Camera, DrawList, EntryIndex, Matrix};
 /// The level of detail the view opens with: light enough for a capital ship.
 pub const VIEW_LOD: u32 = 1;
 
+/// The bytes of Interior models the view keeps, apart from the cache of the Assembly's own
+/// models: a capital ship's Interior alone takes more than the default bound of a cache, and
+/// models read in a cycle larger than the bound are all evicted before they are used again.
+const INTERIOR_MODEL_CACHE_BYTES: usize = 512 * 1024 * 1024;
+
 #[derive(Debug)]
 struct Shown {
     scene: Arc<AssemblyScene>,
@@ -58,6 +63,7 @@ pub struct AssemblyView {
     chosen: bool,
     hidden: HashSet<String>,
     models: Arc<ModelCache>,
+    interior_models: Arc<ModelCache>,
     tree: Option<Arc<EntityNode>>,
     job: Option<job::Job>,
     shown: Option<Shown>,
@@ -104,6 +110,7 @@ impl AssemblyView {
             chosen: false,
             hidden: HashSet::new(),
             models: Arc::new(ModelCache::default()),
+            interior_models: Arc::new(ModelCache::new(INTERIOR_MODEL_CACHE_BYTES)),
             tree: None,
             job: None,
             shown: None,
@@ -301,6 +308,7 @@ impl AssemblyView {
             materials: self.materials,
             interior: self.interior,
             models: Arc::clone(&self.models),
+            interior_models: Arc::clone(&self.interior_models),
             #[cfg(feature = "test-hooks")]
             gate: self.gate.clone(),
         };

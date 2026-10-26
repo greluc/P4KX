@@ -7,7 +7,7 @@ use super::classes::ClassLookup;
 use super::models::attach;
 use super::walk::walk;
 use super::{Interior, InteriorForge, InteriorOptions, InteriorWatch};
-use crate::AssemblyError;
+use crate::{AssemblyError, ModelProvider};
 
 impl Interior {
     /// Builds the Interior of the socpak container `layers.last()`, which was opened from the
@@ -79,9 +79,28 @@ impl Interior {
         watch: &InteriorWatch<'_>,
         forge: Option<&InteriorForge<'_>>,
     ) -> Result<Self, AssemblyError> {
+        Self::build_with_models(layers, entry, options, watch, (forge, None))
+    }
+
+    /// Builds the Interior like [`Self::build_with`], reading the models that `layers[0]`, the
+    /// game's Archive, holds through `models` when given, e.g. a
+    /// [`CachedModels`](crate::CachedModels), so that models read before are not read again.
+    /// Models inside a container are always read from the container. `models` must read from the
+    /// same Archive as `layers[0]`.
+    ///
+    /// # Errors
+    ///
+    /// As [`Self::build_watched`].
+    pub fn build_with_models(
+        layers: &[&Archive],
+        entry: &str,
+        options: &InteriorOptions,
+        watch: &InteriorWatch<'_>,
+        (forge, models): (Option<&InteriorForge<'_>>, Option<&dyn ModelProvider>),
+    ) -> Result<Self, AssemblyError> {
         let classes = forge.map(|forge| forge as &dyn ClassLookup);
         let mut walked = walk(layers, entry, options, watch, classes)?;
-        attach(&mut walked, options, watch, classes)?;
+        attach(&mut walked, options, watch, classes, models)?;
         Ok(Self {
             parts: walked.parts,
             issues: walked.issues,

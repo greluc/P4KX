@@ -5,7 +5,7 @@ use p4kx_extraction::{DataForgeError, Record};
 use rayon::prelude::*;
 
 use super::ShipBaseOptions;
-use crate::selection::is_leftover;
+use crate::selection::is_kind_leftover;
 use crate::{CatalogFailure, Kind};
 
 /// The ship Records to read, the development leftovers counted and the Records that cannot be
@@ -57,7 +57,7 @@ fn check(record: &Record<'_>, options: &ShipBaseOptions<'_>) -> Result<Check, Ca
         if options.filter.is_some_and(|filter| !filter.matches(path)) {
             return Ok(Check::Other);
         }
-        Ok(if is_leftover(path, record.name()?) {
+        Ok(if is_kind_leftover(Kind::Ships, path, record.name()?) {
             Check::Skipped
         } else {
             Check::Ship

@@ -182,7 +182,7 @@ pub struct CatalogSummary {
     pub(crate) starmap_report: Box<StarmapReport>,
     pub(crate) shops: Box<ShopSummary>,
     pub(crate) store_slugs: Box<StoreSlugSummary>,
-    pub(crate) playability: Box<PlayabilitySummary>,
+    pub(crate) playability: PlayabilitySummary,
     pub(crate) variants: VariantSummary,
     pub(crate) failures: Vec<CatalogFailure>,
     pub(crate) warnings: Vec<CraftingWarning>,
@@ -234,7 +234,8 @@ impl CatalogSummary {
         &self.store_slugs
     }
 
-    /// Returns the selected Records that could not be read, ordered by GUID.
+    /// Returns the Records that could not be read and were left out, the selected ones and those
+    /// a rule reads, ordered by GUID.
     ///
     /// Their entries are left out of the catalog; a ship whose loadout cannot be resolved stays in
     /// `ships` without a loadout.
@@ -266,8 +267,8 @@ impl CatalogSummary {
 
     /// Returns how many items and ships carry each playability value.
     #[must_use]
-    pub fn playability(&self) -> PlayabilitySummary {
-        *self.playability
+    pub const fn playability(&self) -> PlayabilitySummary {
+        self.playability
     }
 
     /// Returns how many variant groups and variants the ships and the items have.

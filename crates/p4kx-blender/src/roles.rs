@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Material, texture_suffix};
+use p4kx_model::{Material, texture_suffix_lowercase as suffix};
 
 use crate::TextureUse;
 
@@ -39,12 +39,6 @@ pub(crate) fn classify_in(material: &Material, slot: &str, file: &str) -> Textur
 /// Returns whether the smoothness is in the alpha channel of the normal map `file`.
 pub(crate) fn has_smoothness(file: &str) -> bool {
     suffix(file) == "ddna"
-}
-
-/// Returns the last `_` part of a texture file's name without extension that is not a plain number,
-/// folded to lower case.
-fn suffix(file: &str) -> String {
-    texture_suffix(file).to_ascii_lowercase()
 }
 
 #[cfg(test)]

@@ -25,6 +25,7 @@ pub(crate) fn load(name: Option<&str>, companions: &mut dyn CompanionResolver) -
         Ok(Some(bytes)) => match MaterialLibrary::parse(name, &bytes) {
             Ok(mut library) => {
                 crate::mtl_layers::resolve(&mut library, companions);
+                crate::mtl_relief::check_diffuse_maps(&mut library, companions);
                 MaterialStatus::Loaded(library)
             }
             Err(error) => MaterialStatus::Unreadable {

@@ -73,6 +73,71 @@ impl RgbaImage {
     pub fn into_pixels(self) -> Vec<u8> {
         self.pixels
     }
+
+    /// Returns the mean saturation of the pixels from 0 to 1, each weighted by its alpha: 0 for a
+    /// grey image, an image without any opaque pixel and an empty one.
+    ///
+    /// The saturation of a pixel is its largest channel minus its smallest, over its largest.
+    #[must_use]
+    #[expect(clippy::cast_possible_truncation, reason = "the mean lies in 0 to 1")]
+    pub fn mean_saturation(&self) -> f32 {
+        let (texels, _) = self.pixels.as_chunks::<RGBA>();
+        let (saturation, weight) = texels.iter().fold(
+            (0.0_f64, 0.0_f64),
+            |(sum, total), &[red, green, blue, alpha]| {
+                let high = red.max(green).max(blue);
+                let low = red.min(green).min(blue);
+                let pixel = if high == 0 {
+                    0.0
+                } else {
+                    f64::from(high - low) / f64::from(high)
+                };
+                let alpha = f64::from(alpha);
+                (pixel.mul_add(alpha, sum), total + alpha)
+            },
+        );
+        if weight == 0.0 {
+            0.0
+        } else {
+            (saturation / weight) as f32
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RgbaImage;
+
+    fn image(pixels: &[[u8; 4]]) -> Result<RgbaImage, crate::TextureError> {
+        RgbaImage::new(
+            pixels.len().try_into().unwrap_or_default(),
+            1,
+            pixels.concat(),
+        )
+    }
+
+    #[test]
+    fn a_grey_image_has_no_saturation() -> Result<(), crate::TextureError> {
+        let grey = image(&[[0, 0, 0, 255], [128, 128, 128, 255], [255, 255, 255, 255]])?;
+        assert!(grey.mean_saturation().abs() < f32::EPSILON);
+        Ok(())
+    }
+
+    #[test]
+    fn the_saturation_is_the_alpha_weighted_mean() -> Result<(), crate::TextureError> {
+        let mixed = image(&[[255, 0, 0, 255], [128, 128, 128, 255]])?;
+        assert!((mixed.mean_saturation() - 0.5).abs() < 1e-6);
+        let hidden_colour = image(&[[255, 0, 0, 0], [128, 128, 128, 255]])?;
+        assert!(hidden_colour.mean_saturation().abs() < 1e-6);
+        Ok(())
+    }
+
+    #[test]
+    fn an_empty_or_fully_transparent_image_has_no_saturation() -> Result<(), crate::TextureError> {
+        assert!(image(&[])?.mean_saturation().abs() < f32::EPSILON);
+        assert!(image(&[[255, 0, 0, 0]])?.mean_saturation().abs() < f32::EPSILON);
+        Ok(())
+    }
 }
 
 /// How one format is decoded: block by block for 8- or 16-byte blocks, or row by row.

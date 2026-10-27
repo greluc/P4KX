@@ -288,34 +288,6 @@ def test_a_decal_with_diffuse_opacity_or_a_texture_is_still_drawn() -> None:
     assert single([stencil]).kinds() != NODRAW_KINDS
 
 
-def pom_decal(**fields: object) -> dict[str, object]:
-    base: dict[str, object] = {
-        "gen_mask": ["DIFFUSE_MAP", "VERTDATA", "PARALLAX_OCCLUSION_MAPPING"],
-        "alpha_mode": "mask",
-        "alpha_test": 0.17,
-        "textures": [
-            slot("TexSlot1", "diffuse", "t0001"),
-            slot("TexSlot4", "displacement", "t0002"),
-        ],
-        "parameters": [{"name": "ETintModeType", "value": "0"}],
-    }
-    return description("x0001", "MeshDecal", **{**base, **fields})
-
-
-def test_a_white_parallax_relief_decal_draws_nothing() -> None:
-    assert single([pom_decal()]).kinds() == NODRAW_KINDS
-
-
-def test_a_coloured_or_tinted_parallax_decal_is_still_drawn() -> None:
-    for fields in (
-        {"diffuse": [0.06, 0.06, 0.06]},
-        {"parameters": [{"name": "ETintModeType", "value": "6"}]},
-        {"gen_mask": ["DIFFUSE_MAP"]},
-        {"textures": [slot("TexSlot1", "diffuse", "t0001")]},
-    ):
-        assert single([pom_decal(**fields)]).kinds() != NODRAW_KINDS, fields
-
-
 def test_emission_counts_times_glow() -> None:
     lit = single([description("x0001", "Illum", emissive=[1.0, 0.5, 0.0], glow=3.0)])
     assert lit.node("bsdf").inputs["Emission Strength"] == 3.0

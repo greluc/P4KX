@@ -212,7 +212,11 @@ fn parts_of_one_model_library_and_palette_share_one_mesh() -> TestResult {
             .get(index)
             .and_then(|node| node.mesh.as_deref())
     };
-    assert_eq!(manifest.meshes.len(), 4, "ship, painted, default, plain");
+    assert_eq!(
+        manifest.meshes.len(),
+        4,
+        "ship, painted, default, the parts that inherited"
+    );
     assert_eq!(mesh_of(1), mesh_of(2), "the two painted guns share a mesh");
     assert_eq!(mesh_of(4), mesh_of(5), "lost and child fall back to none");
     assert_eq!(mesh_of(4), mesh_of(6), "and so does the plain one");
@@ -229,7 +233,12 @@ fn parts_of_one_model_library_and_palette_share_one_mesh() -> TestResult {
         .collect();
     assert_eq!(
         palettes,
-        [Some("p_ship"), Some("p_gun"), Some("p_default"), None]
+        [
+            Some("p_ship"),
+            Some("p_gun"),
+            Some("p_ship"),
+            Some("p_ship")
+        ]
     );
     Ok(())
 }

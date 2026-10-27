@@ -32,15 +32,15 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> bool
     let name = plain(session.name(), FS_SM, Weight::Bold).color(palette::WHITE);
     let note = plain(changes, FS_SM, Weight::Regular).color(palette::GRAY_2_TEXT);
     let gap = ui.spacing().item_spacing.x;
-    let spinner = if session.is_resolving() {
-        SPINNER_INLINE + gap
-    } else {
-        0.0
-    };
-    let needed = 2.0f32.mul_add(gap, spinner)
-        + line(ui, name.clone(), f32::INFINITY).size().x
-        + line(ui, note.clone(), f32::INFINITY).size().x
-        + button::width(ui, Size::Compact, &reset);
+    let needed = needed_width(
+        gap,
+        session.is_resolving(),
+        [
+            line(ui, name.clone(), f32::INFINITY).size().x,
+            line(ui, note.clone(), f32::INFINITY).size().x,
+            button::width(ui, Size::Compact, &reset),
+        ],
+    );
     let mut clicked = false;
     let titled = |ui: &mut Ui| {
         ui.label(name);
@@ -65,4 +65,30 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> bool
     }
     ui.add_space(SPACE_2);
     clicked
+}
+
+/// Returns the width of the head on one line: two gaps, the spinner with its gap while
+/// `resolving`, and the widths of the name, the note and the button.
+fn needed_width(gap: f32, resolving: bool, widths: [f32; 3]) -> f32 {
+    let spinner = if resolving { SPINNER_INLINE + gap } else { 0.0 };
+    2.0f32.mul_add(gap, spinner) + widths.iter().sum::<f32>()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const WIDTHS: [f32; 3] = [100.0, 50.0, 30.0];
+
+    #[test]
+    fn two_gaps_and_the_three_widths_make_the_line() {
+        assert!((needed_width(8.0, false, WIDTHS) - 196.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn the_spinner_adds_itself_and_its_gap() {
+        let without = needed_width(8.0, false, WIDTHS);
+        let with = needed_width(8.0, true, WIDTHS);
+        assert!((with - without - (SPINNER_INLINE + 8.0)).abs() < f32::EPSILON);
+    }
 }

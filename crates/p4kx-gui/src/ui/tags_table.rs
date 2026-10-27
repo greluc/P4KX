@@ -71,6 +71,7 @@ pub(super) fn show(
                 .striped(false)
                 .resizable(false)
                 .auto_shrink(false)
+                .min_scrolled_height(0.0)
                 .sense(Sense::hover())
                 .cell_layout(Layout::left_to_right(Align::Center))
                 .column(Column::remainder().at_least(TAGS_NAME_MIN_WIDTH).clip(true))

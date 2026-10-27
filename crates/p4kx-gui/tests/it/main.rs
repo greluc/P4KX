@@ -50,6 +50,7 @@ mod content_search_window;
 mod dataforge_summary_scrolling;
 mod diffing;
 mod entity_export_window;
+mod entity_loadout_head;
 mod entity_package_choices;
 mod entity_package_render;
 mod entity_package_window;

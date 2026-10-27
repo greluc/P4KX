@@ -161,6 +161,7 @@ fn builder(ui: &mut Ui, columns: usize) -> TableBuilder<'_> {
         .striped(false)
         .resizable(true)
         .auto_shrink(false)
+        .min_scrolled_height(0.0)
         .sense(Sense::hover())
         .cell_layout(Layout::left_to_right(Align::Center))
         .column(

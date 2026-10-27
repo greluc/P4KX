@@ -24,9 +24,8 @@ pub(crate) struct Resolved {
 ///
 /// A part takes the palette its Entity's geometry names; when that cannot be resolved, or the
 /// Entity names none, the palette of its nearest ancestor, else the default palette of its
-/// material library. Palettes are cached by the
-/// GUID of the Record, however it was named, so one Record is one palette. Each failure message
-/// is reported for the first part that meets it.
+/// material library. Palettes are cached by the GUID of the Record, however it was named, so one
+/// Record is one palette. Each failure message is reported for the first part that meets it.
 pub(crate) struct Palettes<'p> {
     provider: Option<&'p dyn PaletteProvider>,
     cache: HashMap<Guid, Cached>,

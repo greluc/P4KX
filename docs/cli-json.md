@@ -340,8 +340,8 @@ files of the other attachments are not drawn; reported once per definition, `ski
 `material_library` (the library is missing or unreadable; the part is
 drawn with the default material; reported once per library, for the first part that draws with
 it), `palette` (a tint palette the Entity or its library names
-cannot be resolved; the part falls back to the library's default palette or to its plain
-colours), `helper_not_found` (the port's helper, or the bone of a
+cannot be resolved; the part falls back to the palette of its nearest ancestor, else to the
+library's default palette, else to its plain colours), `helper_not_found` (the port's helper, or the bone of a
 landing gear, is no node of the Entity's model; the part sits at the parent's origin; not reported when the parent has no model,
 whose own Issue says why) and `too_many_parts`, `too_many_vertices`
 and `too_deep` (a limit of [ADR-0040](adr/0040-the-assembly-places-parts-at-port-helpers-and-owns-their-material-libraries.md)

@@ -14,7 +14,7 @@ a dark tint (linear 0.02 to 0.05) with the palette's bright specular colour pass
 and was drawn in the specular colour. Untinted materials, and the layers of layered materials with
 their own metal share (ADR-0097), are unchanged.
 
-**Palettes along the Loadout.** A part keeps taking only the palette its own Entity's geometry names,
+**Palettes along the Loadout (superseded by ADR-0223).** A part keeps taking only the palette its own Entity's geometry names,
 else the default palette of its material library (ADR-0080). The palette of the root ship is not
 passed down to the parts attached to it, and a part without a palette of its own stays unpainted.
 This is the rule as built and tested (`hardpoint_plain` in the synthetic ship `TEST_Livery`), and

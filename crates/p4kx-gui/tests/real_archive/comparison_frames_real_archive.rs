@@ -8,9 +8,11 @@ use std::error::Error;
 use std::time::{Duration, Instant};
 
 use egui_kittest::Harness;
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::Queryable;
 use p4kx_gui::{ComparisonSide, ComparisonTab, Language, Model, WorkTab, ui};
 use p4kx_testkit::{ArchiveBuilder, assert_steady_frames, real_archive_path};
+
+use crate::node_text::node_text;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -36,14 +38,15 @@ fn timed_step(harness: &mut Harness<'_, Model>) -> Duration {
     started.elapsed()
 }
 
-fn top_row(harness: &Harness<'_, Model>) -> Option<String> {
+fn top_row(harness: &Harness<'_, Model>) -> Result<String, Box<dyn Error>> {
     ["Added: ", "Removed: ", "Changed: "]
         .into_iter()
         .find_map(|kind| {
             harness
                 .query_all_by_label_contains(kind)
-                .find_map(|node| node.accesskit_node().label())
+                .find_map(|node| node_text(&node))
         })
+        .ok_or_else(|| "no row of the Comparison list is shown".into())
 }
 
 #[test]
@@ -78,7 +81,7 @@ fn frames_stay_short_while_sorting_and_scrolling_every_entry_as_a_change() -> Te
     }
     assert_steady_frames("sorting", &sorting, FRAME_LIMIT, FRAME_CEILING);
     harness.hover_at(egui::pos2(800.0, 800.0));
-    let first_row = top_row(&harness);
+    let first_row = top_row(&harness)?;
     let mut scrolling = Vec::new();
     for _ in 0..20 {
         harness.event(egui::Event::MouseWheel {
@@ -101,6 +104,6 @@ fn frames_stay_short_while_sorting_and_scrolling_every_entry_as_a_change() -> Te
         changes > 100_000,
         "every Entry of a large Archive is removed"
     );
-    assert_ne!(top_row(&harness), first_row, "the list scrolled");
+    assert_ne!(top_row(&harness)?, first_row, "the list scrolled");
     Ok(())
 }

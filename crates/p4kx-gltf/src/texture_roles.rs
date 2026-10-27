@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Material, TextureSlot};
+use p4kx_model::{Material, TextureSlot, texture_suffix};
 
 use crate::texture_report::TextureRole;
 
@@ -133,12 +133,10 @@ pub fn diffuse_texture_path(material: &Material) -> Option<String> {
     sources(material).diffuse.map(|source| source.path)
 }
 
-/// Returns the last `_` part of a texture file's name without extension, folded to lower case:
-/// `ddna` for `a/b_ddna.tif`.
+/// Returns the last `_` part of a texture file's name without extension that is not a plain number,
+/// folded to lower case: `ddna` for `a/b_ddna.tif`, `detail` for `a/b_detail_01.tif`.
 pub(crate) fn suffix(file: &str) -> String {
-    let name = file.rsplit(['/', '\\']).next().unwrap_or(file);
-    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
-    stem.rsplit('_').next().unwrap_or(stem).to_ascii_lowercase()
+    texture_suffix(file).to_ascii_lowercase()
 }
 
 /// Returns the path of the texture `file` as a loader takes it, or `None` for a placeholder such
@@ -192,7 +190,31 @@ pub(crate) fn canonical(file: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::canonical;
+    use p4kx_model::MaterialLibrary;
+
+    use super::{canonical, sources};
+
+    #[test]
+    fn a_packed_detail_map_in_the_diffuse_slot_is_no_diffuse_map()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let xml = |file: &str| {
+            format!(
+                r#"<Material><SubMaterials><Material Name="m" Shader="HardSurface"><Textures><Texture Map="TexSlot1" File="{file}"/></Textures></Material></SubMaterials></Material>"#
+            )
+        };
+        for (file, expected) in [
+            ("a/aegs_ext_detail_01.tif", None),
+            ("a/hull_detail.tif", None),
+            ("a/hull_diff_01.tif", Some("a/hull_diff_01.dds")),
+            ("a/hull.tif", Some("a/hull.dds")),
+        ] {
+            let library = MaterialLibrary::parse("a", xml(file).as_bytes())?;
+            let material = library.materials.first().ok_or("a material")?;
+            let found = sources(material).diffuse.map(|source| source.path);
+            assert_eq!(found.as_deref(), expected, "{file}");
+        }
+        Ok(())
+    }
 
     #[test]
     fn source_images_become_dds_below_data() {

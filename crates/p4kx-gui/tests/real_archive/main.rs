@@ -17,6 +17,8 @@ mod image_preview_real_archive;
 mod localization_real_archive;
 mod model_export_real_archive;
 mod model_viewer_real_archive;
+#[path = "../support/node_text.rs"]
+mod node_text;
 mod query_completion_real_archive;
 mod real_archive;
 mod record_export_real_archive;

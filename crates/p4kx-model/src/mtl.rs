@@ -3,7 +3,10 @@
 
 use crate::mtl_parse::parse_library;
 use crate::mtl_raw::Attributes;
+use crate::mtl_texture::texture_suffix;
 use crate::{MaterialError, MaterialLayer, PaletteSlot, RawElement};
+
+const WHITE_FROM: f32 = 0.99;
 
 /// The most sub-materials a material library may hold; the engine allows 128.
 pub const MAX_SUB_MATERIALS: usize = 1024;
@@ -173,8 +176,9 @@ impl Material {
     }
 
     /// Returns whether the material is a decal that draws no colour: a `MeshDecal` without any
-    /// texture slot, a placeholder a livery fills in, or a decal (`DECAL` in its generation mask)
-    /// whose `DecalDiffuseOpacity` is 0, which only adds relief to the surface below.
+    /// texture slot, a placeholder a livery fills in, a decal (`DECAL` in its generation mask)
+    /// whose `DecalDiffuseOpacity` is 0, which only adds relief to the surface below, or a
+    /// [relief decal](Self::is_relief_decal).
     #[must_use]
     pub fn is_colourless_decal(&self) -> bool {
         let empty_mesh_decal =
@@ -183,7 +187,30 @@ impl Material {
             && self
                 .public_param("DecalDiffuseOpacity")
                 .is_some_and(|opacity| opacity[0] <= 0.0);
-        empty_mesh_decal || relief_only
+        empty_mesh_decal || relief_only || self.is_relief_decal()
+    }
+
+    /// Returns whether the material is a parallax relief decal: a `MeshDecal` with
+    /// `PARALLAX_OCCLUSION_MAPPING` in its generation mask and a displacement map (`_displ`),
+    /// whose diffuse colour is white and which no tint mode colours (`ETintModeType` 0 or
+    /// missing). Its diffuse map is the white mask of the groove the displacement map cuts, so
+    /// drawn as colour it paints contour lines the game shows as recesses. A decal with a colour
+    /// of its own or a tint mode keeps its colour.
+    #[must_use]
+    pub fn is_relief_decal(&self) -> bool {
+        self.shader.eq_ignore_ascii_case("MeshDecal")
+            && self
+                .string_gen_mask
+                .split('%')
+                .any(|flag| flag == "PARALLAX_OCCLUSION_MAPPING")
+            && self.diffuse.iter().all(|channel| *channel >= WHITE_FROM)
+            && self
+                .public_param("ETintModeType")
+                .is_none_or(|mode| mode[0] == 0.0)
+            && self.textures.iter().any(|texture| {
+                let suffix = texture_suffix(&texture.file);
+                suffix.eq_ignore_ascii_case("displ") || suffix.eq_ignore_ascii_case("disp")
+            })
     }
 
     /// Returns whether the engine draws nothing with the material, or nothing a plain glTF

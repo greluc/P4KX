@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::Material;
+use p4kx_model::{Material, texture_suffix};
 
 use crate::TextureUse;
 
@@ -41,11 +41,10 @@ pub(crate) fn has_smoothness(file: &str) -> bool {
     suffix(file) == "ddna"
 }
 
-/// Returns the last `_` part of a texture file's name without extension, folded to lower case.
+/// Returns the last `_` part of a texture file's name without extension that is not a plain number,
+/// folded to lower case.
 fn suffix(file: &str) -> String {
-    let name = file.rsplit(['/', '\\']).next().unwrap_or(file);
-    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
-    stem.rsplit('_').next().unwrap_or(stem).to_ascii_lowercase()
+    texture_suffix(file).to_ascii_lowercase()
 }
 
 #[cfg(test)]
@@ -65,6 +64,8 @@ mod tests {
             ("TexSlot6", "a/b_spec.tif", TextureUse::Specular),
             ("TexSlot8", "a/b_blend.tif", TextureUse::Blend),
             ("TexSlot7", "a/b_detail.tif", TextureUse::Detail),
+            ("TexSlot1", "a/aegs_ext_detail_01.tif", TextureUse::Detail),
+            ("TexSlot1", "a/b_diff_01.tif", TextureUse::Diffuse),
             ("TexSlot6", "a/b_wear.tif", TextureUse::Wear),
             ("TexSlot1", "a/b_wear.tif", TextureUse::Wear),
             ("TexSlot8", "a/b_displ.tif", TextureUse::Displacement),

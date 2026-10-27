@@ -55,7 +55,7 @@ could not be tested, say so explicitly.
 
 - [ ] `cargo fmt --all`, `cargo clippy --workspace --all-targets --locked -- -D warnings` and `cargo xtask` pass.
 - [ ] `cargo nextest run --workspace --locked` (or `cargo test --workspace --locked`) passes.
-- [ ] No comments besides `///` and `//!` doc comments; lint suppressions use `#[expect(lint, reason = "...")]`.
+- [ ] Comments are doc comments or short technical comments of the current state, with no history; lint suppressions use `#[expect(lint, reason = "...")]`.
 - [ ] No `unwrap` / `expect` outside tests; `thiserror` in libraries, `anyhow` only in binaries.
 - [ ] Crate dependencies follow the layer direction (ADR-0003); source files stay below about 400 lines.
 - [ ] Every new `.rs` file starts with the SPDX header.

@@ -60,6 +60,7 @@ mod mtl_layers;
 mod mtl_load;
 mod mtl_parse;
 mod mtl_raw;
+mod mtl_texture;
 mod mtl_xml;
 mod nmc;
 mod object_container;
@@ -103,6 +104,7 @@ pub use mtl_layers::{LayerSurface, MAX_LAYER_FILES};
 pub use mtl_raw::{
     Attributes, MAX_LAYERS, MAX_RAW_DEPTH, MAX_RAW_ELEMENTS, MaterialLayer, RawElement,
 };
+pub use mtl_texture::texture_suffix;
 pub use object_container::{
     ChildContainer, ContainerBounds, MAX_CHILD_CONTAINERS, MAX_STREAMED_SOCS, MAX_STREAMING_DEPTH,
     ObjectContainer, ObjectContainerError,

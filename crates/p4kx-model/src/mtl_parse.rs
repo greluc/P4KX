@@ -128,6 +128,7 @@ fn material<'a>(
         layers,
         elements,
         truncated: budget.cut(),
+        diffuse_map_is_grey: None,
     })
 }
 

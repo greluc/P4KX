@@ -52,6 +52,12 @@ pub trait CompanionResolver {
     ///
     /// Returns the failure to read a companion that exists.
     fn resolve(&mut self, path: CompanionPath<'_>) -> Result<Option<Vec<u8>>, CompanionError>;
+
+    /// Returns whether the texture `file`, as a material file names it, holds no colour of its own,
+    /// or `None` when the resolver cannot tell, as the default does.
+    fn texture_is_grey(&mut self, _file: &str) -> Option<bool> {
+        None
+    }
 }
 
 impl<F> CompanionResolver for F

@@ -259,6 +259,9 @@ fn place(
     let definition = port
         .definition()
         .and_then(|definition| definition.transform());
+    if definition.is_some_and(PortTransform::is_skin) {
+        return (Transform::IDENTITY, Placement::Skin);
+    }
     let helper = definition
         .map(PortTransform::helper)
         .filter(|helper| !helper.is_empty());

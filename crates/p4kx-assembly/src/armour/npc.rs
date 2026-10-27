@@ -5,7 +5,6 @@ use super::{BodyVariant, Piece, Wearable};
 use crate::resolver::LoadoutResolver;
 use crate::{Attachment, EntityNode, PortNode};
 
-const HEAD_TYPE: &str = "Char_Head";
 const HEAD_SUFFIX: &str = "_head";
 
 /// The head of a story character as its Loadout gives it: the head Entity and what sits on its
@@ -69,25 +68,6 @@ fn flags_of(port: &PortNode) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn find_head(ports: &[PortNode]) -> Option<(&PortNode, &EntityNode)> {
-    for port in ports {
-        if let Attachment::Entity(node) = port.attachment()
-            && node.attach_type().eq_ignore_ascii_case(HEAD_TYPE)
-        {
-            return Some((port, node));
-        }
-        if let Attachment::Entity(node) = port.attachment()
-            && let Some(found) = find_head(node.ports())
-        {
-            return Some(found);
-        }
-        if let Some(found) = find_head(port.nested()) {
-            return Some(found);
-        }
-    }
-    None
-}
-
 impl LoadoutResolver<'_> {
     /// Returns the head a resolved Loadout tree gives its character: the Entity of the item type
     /// `Char_Head` wherever it hangs in the tree, and the Entities on its ports that have geometry.
@@ -96,10 +76,10 @@ impl LoadoutResolver<'_> {
     /// at; the material library of an item is chosen by the tags of the Entities on its own ports,
     /// e.g. a hair colour. `None` when the tree has no head or its sub-type names no body.
     pub fn npc_head(&mut self, tree: &EntityNode) -> Option<NpcHead> {
-        let (_, head) = find_head(tree.ports())?;
+        let body = tree.character_body()?;
+        let (head, variant) = (body.head(), body.variant());
         let spec = self.spec(head.guid);
         let spec = spec.as_ref().as_ref().ok()?;
-        let variant = BodyVariant::from_code(&spec.attach_sub_type)?;
         let wearable = Wearable::from_spec(spec);
         let library = wearable
             .geometry()

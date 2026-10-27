@@ -9,6 +9,7 @@ use crate::merge::{merge_by_port, port_key};
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutOrigin, LoadoutSpec, TargetSpec};
+use crate::tree::GeometryChoice;
 use crate::vehicle::flags_contain;
 use crate::walk::Walk;
 use crate::{
@@ -300,6 +301,7 @@ fn shell(spec: &EntitySpec, docked_vehicle: bool, expanded: bool) -> EntityNode 
         issues: Vec::new(),
         geometry: spec.geometry.clone(),
         fallback: None,
+        choice: GeometryChoice::Main,
         vehicle: None,
         landing_gear: Arc::from([]),
         docked_vehicle,

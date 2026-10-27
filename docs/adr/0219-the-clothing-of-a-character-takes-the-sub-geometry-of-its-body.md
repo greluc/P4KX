@@ -26,10 +26,19 @@ For every Entity of the tree whose item type starts with `Char_` (armour, clothi
 whose Record names geometry per body, that is, has a sub-geometry tagged `Male` or `Female`, and
 that no port flag gave a sub-geometry (ADR-0208 keeps its priority):
 
-- it takes the sub-geometry tagged for the body, with the material library and tint palette of the
-  main geometry where the sub-geometry names none;
+- it takes the sub-geometry tagged for the body, with its own material library and tint palette,
+  as armour does: where the sub-geometry names no library, the one the Record's material tree
+  chooses for the body tag, else none; the library of the main geometry, a placeholder, never
+  lands on real clothing;
 - with no sub-geometry for the body it has no geometry and `no_geometry` is listed; the main
-  geometry, a placeholder, is never drawn instead.
+  geometry, a placeholder, is never drawn instead;
+- when the file of the chosen sub-geometry is not in the Archive, the part has no model and
+  `body_geometry_missing` names the body and the path.
+
+The node records how its geometry was chosen (main, by a port flag, by the body), instead of
+comparing paths: a flag choice whose sub-geometry has the path of the main geometry keeps ADR-0208's
+priority. The head is found by one function, used by the resolver, `npc_head` and the body zones;
+`EntityNode::character_body` gives the body and its head, and `entity glb` reports both.
 
 Items of other types keep their main geometry: the mobiGlas has a prop model with the helpers its
 screens attach to and a `Male` variant without them. Armour, `character package` and `armour glb`

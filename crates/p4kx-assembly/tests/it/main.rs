@@ -61,6 +61,7 @@ mod loadout_nested;
 mod loadout_stop;
 mod loadout_tree;
 mod model_cache;
+mod npc_body_followups;
 mod npc_body_zones;
 mod npc_clothing;
 mod npc_head;

@@ -94,6 +94,7 @@ mod markup;
 mod merge;
 mod model_cache;
 mod node;
+mod node_body;
 mod node_geometry;
 mod node_nested;
 mod object_containers;

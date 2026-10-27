@@ -132,6 +132,9 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 - **No code smells, no tech debt:** no duplication, dead code, oversized functions, magic numbers,
   needless clones or allocations, swallowed errors or "fix later" shortcuts. A clean fix out of
   scope becomes a follow-up issue, never a `TODO`.
+- **Small and modular:** small modules with one responsibility each, behind narrow interfaces, so
+  that a single module or part can be replaced without touching the rest. Keep changes and PRs
+  small and focused.
 - **Every `.rs` file starts with the SPDX header**, two lines and a blank line, before any `//!`
   docs: `// SPDX-License-Identifier: MIT OR Apache-2.0` and `// SPDX-FileCopyrightText: 2026 the
   P4KX contributors`. It is an allowed licence header, not a code comment under the rule above;

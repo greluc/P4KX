@@ -1480,14 +1480,14 @@ data name of the `economyParams` field, as the Record states it, `null` when it 
 | `overrides` | 7 groups, see below |
 
 An override (`overrides[]`, an `ItemRecoveryOverrideGroupDef`) holds `classGuids`, the `guid` of
-each `EntityClassDefinition` in the group's `classes` (a ship is an entry of `ships`; 99 classes in
-the 7 groups on LIVE), and the group's multipliers `claimCooldownMultiplier`,
+each `EntityClassDefinition` in the group's `classes` (a ship is an entry of `ships`; on LIVE the 7
+groups hold 27, 7, 9, 29, 7, 10 and 10 classes, 99 in all, every one a ship of the catalog), and the group's multipliers `claimCooldownMultiplier`,
 `claimCostMultiplier`, `deliveryTimeMultiplier`, `maxExpediteCostMultiplier`,
 `expeditedDeliveryTimeMultiplier`, `flatMinimumDeliveryTimerSecondsMultiplier`,
 `escalationTimerMultiplier`, `escalatingClaimCostMultiplier` and
 `escalatingDeliveryTimerMultiplier`. The groups keep the order of the Record. A class that is in
-no group uses the defaults of `economyParams`; the Idris-M, for one, is in a group whose
-multipliers are all 1.
+no group presumably uses the defaults of `economyParams` (an inference, the Record does not say
+so); the Idris-M, for one, is in a group whose multipliers are all 1.
 
 How this relates to the fee, as far as the data shows. The Record holds multipliers and rates,
 and no fee in aUEC. The only fee in the Archive is `insurance.expediteFee`, the

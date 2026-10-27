@@ -125,6 +125,13 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 - **No comments in code** besides the language's documentation comments (Rust: `///` and `//!`),
   short and without history. Lint suppressions use `#[expect(lint, reason = "…")]`. The reasoning
   goes into the commit message and the PR body.
+- **Rust follows the [Google Rust Style Guide](https://google.github.io/styleguide/rustguide.html)**,
+  read fresh from that page. Deviations only with the owner's explicit approval, recorded in an ADR.
+  The rules marked `[chrome]` are Chromium-only and do not apply. The comment rule above stays.
+  Apply it to what you write and touch; restyling existing code is its own change.
+- **No code smells, no tech debt:** no duplication, dead code, oversized functions, magic numbers,
+  needless clones or allocations, swallowed errors or "fix later" shortcuts. A clean fix out of
+  scope becomes a follow-up issue, never a `TODO`.
 - **Every `.rs` file starts with the SPDX header**, two lines and a blank line, before any `//!`
   docs: `// SPDX-License-Identifier: MIT OR Apache-2.0` and `// SPDX-FileCopyrightText: 2026 the
   P4KX contributors`. It is an allowed licence header, not a code comment under the rule above;

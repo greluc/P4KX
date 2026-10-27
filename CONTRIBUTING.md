@@ -180,8 +180,8 @@ skipped.
 - The subject is one imperative sentence, starting with a capital letter, without a trailing full
   stop, at most about 72 characters. A prefix naming the area is welcome:
   `Assembly: choose the sub-geometry on replaced ports too`.
-- The body explains *why*. The reasoning belongs here and in the pull request, not in code
-  comments.
+- The body explains *why*. The story of the change belongs here and in the pull request, not in
+  code comments.
 - Use the terms of [`CONTEXT.md`](CONTEXT.md) and British spelling.
 - The footer carries the `Signed-off-by:` trailer.
 
@@ -199,8 +199,11 @@ skipped.
 
 ### Comments
 
-No comments in code besides doc comments (`///` and `//!`), and those are short and without
-history. Lint suppressions use `#[expect(lint, reason = "...")]`.
+Doc comments (`///` and `//!`) and short technical comments (`//`) are welcome where they document
+what the code cannot say itself: a non-obvious invariant, a format detail, a unit or coordinate
+convention, the spec section an algorithm implements. Both stay short and describe only the
+current state: no history, no dates or issue numbers, no comments that restate the code, no
+commented-out code and no `TODO`. Lint suppressions use `#[expect(lint, reason = "...")]`.
 
 ### Window
 

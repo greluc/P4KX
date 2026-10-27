@@ -10,11 +10,12 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::build_gear::load_models;
 use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
+use crate::build_zones::BodyCut;
 use crate::flatten::{Draft, flatten};
-use crate::placement::{node_transform, offset};
+use crate::placement::{bone_transform, node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
-    ObjectContainerRef, PaletteProvider, Part, Placement, PortNode, PortTransform,
+    ObjectContainerRef, PaletteProvider, Part, Placement, PortDefinition, PortNode, PortTransform,
 };
 
 type Libraries = HashMap<String, Arc<MaterialStatus>>;
@@ -79,20 +80,16 @@ impl Assembly {
         let mut reported = HashSet::new();
         let mut characters = HashSet::new();
         let mut palettes = Palettes::new(palettes);
+        let cut = BodyCut::of(tree, &drafts, &chosen);
         let mut parts: Vec<Part> = Vec::with_capacity(drafts.len());
         for (draft, model) in drafts.iter().zip(&chosen) {
-            let key = model.and_then(|loaded| library_key(draft, loaded));
-            let materials = key
-                .as_ref()
-                .and_then(|key| libraries.get(key))
-                .map_or_else(|| Arc::clone(&unnamed), Arc::clone);
-            if let (Some(key), Some(reason)) = (
-                key,
-                materials.problem().or_else(|| materials.layer_problem()),
-            ) && reported.insert(key)
-            {
-                issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
-            }
+            let materials = materials_of(
+                draft,
+                *model,
+                (&libraries, &unnamed),
+                &mut reported,
+                &mut issues,
+            );
             note_attachments(draft, *model, &mut characters, &mut issues);
             let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
             issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
@@ -112,7 +109,12 @@ impl Assembly {
                 world,
                 placement,
                 geometry: draft.geometry_path().map(str::to_owned),
-                model: model.map(|loaded| Arc::clone(&loaded.model)),
+                model: model.map(|loaded| {
+                    cut.as_ref().map_or_else(
+                        || Arc::clone(&loaded.model),
+                        |cut| cut.model_of(draft, loaded, &mut issues),
+                    )
+                }),
                 materials,
                 palette,
                 hidden: draft.hidden,
@@ -126,6 +128,29 @@ impl Assembly {
             containers: containers_of(&drafts),
         })
     }
+}
+
+/// Returns the materials a part draws with, noting a library that has a problem once.
+fn materials_of(
+    draft: &Draft<'_>,
+    model: Option<&Loaded>,
+    (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
+    reported: &mut HashSet<String>,
+    issues: &mut Vec<Issue>,
+) -> Arc<MaterialStatus> {
+    let key = model.and_then(|loaded| library_key(draft, loaded));
+    let materials = key
+        .as_ref()
+        .and_then(|key| libraries.get(key))
+        .map_or_else(|| Arc::clone(unnamed), Arc::clone);
+    if let (Some(key), Some(reason)) = (
+        key,
+        materials.problem().or_else(|| materials.layer_problem()),
+    ) && reported.insert(key)
+    {
+        issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
+    }
+    materials
 }
 
 /// Returns the object containers each Entity of `drafts` names, shared with its node; a docked
@@ -254,12 +279,11 @@ fn place(
     let Some(port) = draft.port else {
         return (Transform::IDENTITY, Placement::Origin);
     };
-    let definition = port
-        .definition()
-        .and_then(|definition| definition.transform());
-    if definition.is_some_and(PortTransform::is_skin) {
+    let port_definition = port.definition();
+    if port_definition.is_some_and(PortDefinition::is_skin) {
         return (Transform::IDENTITY, Placement::Skin);
     }
+    let definition = port_definition.and_then(PortDefinition::transform);
     let helper = definition
         .map(PortTransform::helper)
         .filter(|helper| !helper.is_empty());
@@ -305,14 +329,15 @@ fn place_gear(
     (Transform::IDENTITY, Placement::Origin)
 }
 
-/// Finds the node of the parent's model a port is anchored to: its helper, else a node named
-/// like the port.
+/// Finds the node of the parent's model a port is anchored to: its helper as a node or as a bone
+/// of the skeleton, else a node named like the port.
 fn anchor(parent: Option<&Model>, helper: Option<&str>, port: &PortNode) -> (Placement, Transform) {
     let Some(parent) = parent else {
         return (Placement::Origin, Transform::IDENTITY);
     };
     if let Some(helper) = helper
-        && let Some(transform) = node_transform(parent, helper)
+        && let Some(transform) =
+            node_transform(parent, helper).or_else(|| bone_transform(parent, helper))
     {
         return (Placement::Helper(helper.to_owned()), transform);
     }

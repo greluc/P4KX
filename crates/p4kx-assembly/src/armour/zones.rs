@@ -112,17 +112,28 @@ pub(super) fn without_covered(
     if job.origin != PartOrigin::Body {
         return model;
     }
+    let (model, kind) = uncovered(model, variant, covered);
+    issues.extend(kind.map(|kind| issue(job, kind)));
+    model
+}
+
+/// Returns the body `model` without the zones in `covered`, with the issue that says which were
+/// hidden or why none could be; the model as it is when no zone is covered.
+pub(crate) fn uncovered(
+    model: Arc<Model>,
+    variant: BodyVariant,
+    covered: &BTreeSet<&str>,
+) -> (Arc<Model>, Option<IssueKind>) {
     match uncover(&model, variant, covered) {
-        Ok(None) => model,
+        Ok(None) => (model, None),
         Ok(Some(done)) => {
             let zones = done.hidden.iter().map(|zone| (*zone).to_owned()).collect();
-            issues.push(issue(job, IssueKind::BodyZonesHidden(zones)));
-            Arc::new(done.model)
+            (
+                Arc::new(done.model),
+                Some(IssueKind::BodyZonesHidden(zones)),
+            )
         }
-        Err(misfit) => {
-            issues.push(issue(job, IssueKind::BodyZonesUnknown(misfit.to_string())));
-            model
-        }
+        Err(misfit) => (model, Some(IssueKind::BodyZonesUnknown(misfit.to_string()))),
     }
 }
 

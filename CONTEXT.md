@@ -398,7 +398,8 @@ _Avoid_: item (an Entity), attachment
 The material choices a CHF makes for one Piece of its head: a base material, and colours and numbers
 that replace parameters of its shaders (skin tone, iris colour, hair melanin and dye). The export
 draws them as one colour per material.
-_Avoid_: skin (a skin is a model), theme
+_Avoid_: skin (a skin is a model; "skin" also names the game's port attachment type, whose parts are
+drawn in the bind pose, ADR-0224), theme
 
 **CHF**:
 A 4096-byte character file holding a Character's body type, face DNA, worn item ports and

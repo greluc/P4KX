@@ -70,7 +70,8 @@ impl AssemblyOptions {
 pub enum Placement {
     /// The part is the root of the Assembly.
     Root,
-    /// The part sits at the helper its port names in the parent's model.
+    /// The part sits at the helper its port names in the parent's model: a node, else a bone of
+    /// its skeleton in bind pose.
     Helper(String),
     /// The part sits at the node of the parent's model named like its port.
     PortNode,

@@ -20,6 +20,7 @@ pub struct PortDefinition {
     pub(crate) port_tags: String,
     pub(crate) required_tags: String,
     pub(crate) transform: Option<PortTransform>,
+    pub(crate) skin: bool,
 }
 
 impl PortDefinition {
@@ -64,6 +65,13 @@ impl PortDefinition {
     #[must_use]
     pub fn types(&self) -> &[PortType] {
         &self.types
+    }
+
+    /// Returns whether the item is a skin, drawn in the parent's bind pose whatever the helper and
+    /// the offset say; independent of whether the Record gives a helper.
+    #[must_use]
+    pub const fn is_skin(&self) -> bool {
+        self.skin
     }
 
     /// Returns where the port sits, or `None` when the Record gives no attachment helper.
@@ -111,13 +119,6 @@ impl PortTransform {
         &self.attachment
     }
 
-    /// Returns whether the item is a skin, drawn in the parent's bind pose whatever the helper and
-    /// the offset say.
-    #[must_use]
-    pub fn is_skin(&self) -> bool {
-        self.attachment == SKIN_ATTACHMENT
-    }
-
     /// Returns the name of the helper in the parent's geometry; empty when it gives none.
     #[must_use]
     pub fn helper(&self) -> &str {
@@ -145,6 +146,7 @@ impl PortTransform {
 
 /// Reads one `SItemPortDef`.
 pub(crate) fn read_definition(port: &StructValue<'_>) -> PortDefinition {
+    let attachment = struct_field(port, "AttachmentImplementation");
     PortDefinition {
         display_name: text(port, "DisplayName").to_owned(),
         flags: text(port, "Flags").to_owned(),
@@ -158,20 +160,22 @@ pub(crate) fn read_definition(port: &StructValue<'_>) -> PortDefinition {
             .collect(),
         port_tags: text(port, "PortTags").to_owned(),
         required_tags: text(port, "RequiredPortTags").to_owned(),
-        transform: struct_field(port, "AttachmentImplementation").and_then(read_transform),
+        transform: attachment.and_then(read_transform),
+        skin: attachment.is_some_and(|attachment| attachment_kind(attachment) == SKIN_ATTACHMENT),
     }
+}
+
+fn attachment_kind<'a>(attachment: &StructValue<'a>) -> &'a str {
+    let kind = attachment.type_name();
+    kind.strip_prefix(ATTACHMENT_PREFIX).unwrap_or(kind)
 }
 
 fn read_transform(attachment: &StructValue<'_>) -> Option<PortTransform> {
     let helper =
         struct_field(attachment, "Helper").and_then(|node| struct_field(node, "Helper"))?;
     let offset = struct_field(helper, "Offset");
-    let kind = attachment.type_name();
     Some(PortTransform {
-        attachment: kind
-            .strip_prefix(ATTACHMENT_PREFIX)
-            .unwrap_or(kind)
-            .to_owned(),
+        attachment: attachment_kind(attachment).to_owned(),
         helper: text(helper, "Name").to_owned(),
         offset_helper: text(helper, "ItemOffsetHelperName").to_owned(),
         position: xyz(offset.and_then(|offset| struct_field(offset, "Position"))),

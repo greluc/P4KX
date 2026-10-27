@@ -10,6 +10,7 @@ pub struct TestPort {
     sizes: (u32, u32),
     types: Vec<(String, Vec<String>)>,
     helper: Option<(String, [f32; 3], [f32; 3])>,
+    attachment: &'static str,
     default_item: Option<u128>,
     flags: String,
     tags: (String, String),
@@ -24,6 +25,7 @@ impl TestPort {
             sizes: (1, 1),
             types: Vec::new(),
             helper: None,
+            attachment: "Bone",
             default_item: None,
             flags: String::new(),
             tags: (String::new(), String::new()),
@@ -73,6 +75,19 @@ impl TestPort {
         rotation: [f32; 3],
     ) -> Self {
         self.helper = Some((name.into(), position, rotation));
+        self
+    }
+
+    /// Attaches the port as a skin to the helper `name`, offset by `position` and `rotation`.
+    #[must_use]
+    pub fn skin_helper(
+        mut self,
+        name: impl Into<String>,
+        position: [f32; 3],
+        rotation: [f32; 3],
+    ) -> Self {
+        self.helper = Some((name.into(), position, rotation));
+        self.attachment = "Skin";
         self
     }
 
@@ -128,14 +143,14 @@ impl TestPort {
         if let Some((name, position, rotation)) = &self.helper {
             instance = instance.value(
                 "AttachmentImplementation",
-                helper(name, *position, *rotation),
+                helper(self.attachment, name, *position, *rotation),
             );
         }
         TestValue::Struct(instance)
     }
 }
 
-fn helper(name: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue {
+fn helper(attachment: &str, name: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue {
     let xyz = |type_name: &str, [x, y, z]: [f32; 3]| {
         TestValue::Struct(
             TestInstance::new(type_name)
@@ -154,7 +169,7 @@ fn helper(name: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue {
     let node =
         TestInstance::new("SItemPortDefHelperNode").value("Helper", TestValue::Struct(helper));
     TestValue::Struct(
-        TestInstance::new("SItemPortDefAttachmentImplementationBone")
+        TestInstance::new(format!("SItemPortDefAttachmentImplementation{attachment}"))
             .value("Helper", TestValue::Struct(node)),
     )
 }

@@ -90,6 +90,7 @@ mod opus;
 mod opus_encode;
 mod prefab;
 mod real_archive;
+mod reference_output;
 mod rig_logic;
 mod screens;
 mod screens_canvas;
@@ -218,6 +219,10 @@ pub use real_archive::{
     MissingRealArchive, MissingRealKey, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_KEY_FILE_VAR,
     REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR, real_archive_b_path, real_archive_key,
     real_archive_pair, real_archive_path,
+};
+pub use reference_output::{
+    REFERENCE_STARBREAKER_VAR, REFERENCE_UNFORGE_VAR, REFERENCE_UNP4K_VAR,
+    reference_starbreaker_path, reference_unforge_path, reference_unp4k_path,
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};

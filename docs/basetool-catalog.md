@@ -430,9 +430,9 @@ placeholders, and are not exported.
 claims are in `itemRecovery` (see "Item recovery rules"), which also states what the data does and
 does not say about a claim fee.
 
-On LIVE all 1,066 catalog ships carry `insurance`, each with a fee; AEGS_Gladius has a baseWaitTimeMinutes
-of 5.83, a mandatoryWaitTimeMinutes of 1.94 and an expediteFee of 2,335 (real-Archive test
-`real_archive_insurance`).
+On LIVE all 1,066 catalog ships carry `insurance`, each with a fee;
+AEGS_Gladius has a `baseWaitTimeMinutes` of 5.83, a `mandatoryWaitTimeMinutes` of 1.94 and an
+`expediteFee` of 2,335 (real-Archive test `real_archive_insurance`).
 
 #### Ship base data
 
@@ -1490,11 +1490,10 @@ Reference that links to no Record is left out), and the group's multipliers
 of the Record. That a class in no group uses the defaults of `economyParams` is an inference; the
 Record does not say so.
 
-No fee in aUEC. The Record holds multipliers and rates and no fee in aUEC, and the `EntityClassDefinition`
-Records of ships and items hold no price the multipliers could apply to. The only fee in aUEC next
-to it is `insurance.expediteFee`. The catalog therefore exports no claim fee, and no formula over
-the exported facts is documented as one (ADR-0218). The Basetool computes what it needs from these
-multipliers and the values it has.
+No fee in aUEC. The Record holds multipliers and rates and no fee in aUEC, and no field named
+like a price was found in the `EntityClassDefinition` Records of ships and items. The only fee in
+aUEC next to it is `insurance.expediteFee`. The catalog therefore exports no claim fee, and no
+formula over the exported facts is documented as one (ADR-0218).
 
 ### Texts
 

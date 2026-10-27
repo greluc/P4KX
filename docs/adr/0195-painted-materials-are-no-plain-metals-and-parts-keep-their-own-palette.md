@@ -2,7 +2,8 @@
 
 Decided for issue #512. It amends ADR-0080 (palettes of parts) and ADR-0097 (`shading`). Its rule
 that a tinted material is never a metal is superseded by ADR-0207: a palette entry with a bright
-specular colour paints a metal.
+specular colour paints a metal. Its rule that attached parts inherit nothing from the ship is
+superseded by ADR-0223: a part without a palette of its own takes the palette of its ancestor.
 
 ## Decision
 
@@ -13,7 +14,7 @@ a dark tint (linear 0.02 to 0.05) with the palette's bright specular colour pass
 and was drawn in the specular colour. Untinted materials, and the layers of layered materials with
 their own metal share (ADR-0097), are unchanged.
 
-**Palettes along the Loadout.** A part keeps taking only the palette its own Entity's geometry names,
+**Palettes along the Loadout (superseded by ADR-0223).** A part keeps taking only the palette its own Entity's geometry names,
 else the default palette of its material library (ADR-0080). The palette of the root ship is not
 passed down to the parts attached to it, and a part without a palette of its own stays unpainted.
 This is the rule as built and tested (`hardpoint_plain` in the synthetic ship `TEST_Livery`), and

@@ -64,7 +64,7 @@ fn textures_are_embedded_once_at_the_chosen_mip_and_palettes_are_applied() -> Te
     assert_eq!(report["textures"], 1, "{report}");
     assert_eq!(report["texture_pixels"], 4, "2 by 2 at mip 2: {report}");
     assert_eq!(report["texture_fallbacks"], serde_json::json!([]));
-    assert_eq!(report["palettes"], 4, "ship, two painted guns, the default");
+    assert_eq!(report["palettes"], 7, "every part draws with a palette");
     let kinds: Vec<&str> = report["issues"]
         .as_array()
         .ok_or("issues")?
@@ -105,7 +105,7 @@ fn colours_mode_applies_palettes_without_textures() -> TestResult {
     assert_eq!(run.code, Some(0), "{}", run.stderr);
     let report: Value = serde_json::from_str(&run.stdout)?;
     assert_eq!(report["textures"], 0);
-    assert_eq!(report["palettes"], 4);
+    assert_eq!(report["palettes"], 7);
     let checked = check_glb(&std::fs::read(&out)?)?;
     let red = checked.document.materials().any(|material| {
         let [r, g, b, _] = material.pbr_metallic_roughness().base_color_factor();
@@ -137,7 +137,7 @@ fn a_missing_texture_falls_back_to_the_colour_and_is_listed() -> TestResult {
         run.stdout
     );
     assert!(
-        run.stdout.contains("4 parts drawn with a tint palette"),
+        run.stdout.contains("7 parts drawn with a tint palette"),
         "{}",
         run.stdout
     );

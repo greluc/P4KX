@@ -4,7 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use p4kx_model::{MaterialStatus, Model, TintPalette, Transform};
+use p4kx_model::{MaterialStatus, Model, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
 use crate::build_gear::load_models;
@@ -44,11 +44,13 @@ impl Assembly {
     }
 
     /// Builds the Assembly like [`Self::build`] and resolves the tint palette of each part with
-    /// `palettes`: the one its Entity's geometry names, else the default of its material
-    /// library. Each distinct palette is read once and shared by the parts that use it.
+    /// `palettes`: the one its Entity's geometry names, else the one of its nearest ancestor, else
+    /// the default of its material library. Each distinct palette is read once and shared by the
+    /// parts that use it.
     ///
     /// A palette that cannot be resolved is an [`Issue`] of the first part that names it; the
-    /// part falls back to the library's default palette, or keeps the colours of its library.
+    /// part falls back to the palette of its nearest ancestor, else the library's default
+    /// palette, else it keeps the colours of its library.
     ///
     /// # Errors
     ///
@@ -89,8 +91,8 @@ impl Assembly {
                 &mut issues,
             );
             note_attachments(draft, *model, &mut characters, &mut issues);
-            let palette =
-                model.and_then(|_| palette_of(draft, &materials, &mut palettes, &mut issues));
+            let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
+            issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
             let (local, placement) = place(draft, &parts, *model, &mut issues);
             let world = draft
                 .parent
@@ -126,18 +128,6 @@ impl Assembly {
             containers: containers_of(&drafts),
         })
     }
-}
-
-/// Returns the tint palette of a part, noting the palettes that cannot be resolved.
-fn palette_of(
-    draft: &Draft<'_>,
-    materials: &Arc<MaterialStatus>,
-    palettes: &mut Palettes<'_>,
-    issues: &mut Vec<Issue>,
-) -> Option<Arc<TintPalette>> {
-    let (palette, unresolved) = palettes.of(draft.geometry, materials);
-    issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
-    palette
 }
 
 /// Returns the materials a part draws with, noting a library that has a problem once.

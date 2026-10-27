@@ -108,7 +108,7 @@ fn the_package_has_the_documented_layout_and_validates_against_the_schema() -> T
     }
     assert!(
         run.stdout
-            .contains("7 nodes (7 drawn), 4 meshes, 4 materials, 3 palettes, 1 textures"),
+            .contains("7 nodes (7 drawn), 4 meshes, 4 materials, 2 palettes, 1 textures"),
         "{}",
         run.stdout
     );

@@ -44,12 +44,10 @@ Prospector, `hardpoint_Landing_Gear_Front` on the Cutlass Black), as a port help
   `gear_not_deployed`, a note, says why.
 - The gear is a static mesh; no gear animation is written.
 
-## Known gap
+## Palette
 
-A gear draws with the plain colours of its material library. It names no Geometry of its own, so
-it takes neither the tint palette of the ship nor a material library chosen by the Entity. Issue
-#752 closes this by letting a part without its own Geometry inherit the palette of its parent
-through `draft.parent`; this decision does not.
+A gear names no Geometry of its own, so it takes the tint palette of its parent (ADR-0223), the
+ship's, and no material library chosen by an Entity.
 
 ## Consequences
 

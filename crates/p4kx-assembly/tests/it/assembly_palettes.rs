@@ -21,10 +21,18 @@ fn linear(bytes: [u8; 3]) -> [f32; 3] {
 }
 
 fn assemble(archive: &Archive, palettes: bool) -> Result<Assembly, Box<dyn std::error::Error>> {
+    assemble_ship(archive, "TEST_Livery", palettes)
+}
+
+fn assemble_ship(
+    archive: &Archive,
+    class: &str,
+    palettes: bool,
+) -> Result<Assembly, Box<dyn std::error::Error>> {
     let entry = DataForgeEntry::read(archive)?;
     let forge = entry.open()?;
     let mut resolver = LoadoutResolver::new(&forge);
-    let record = resolver.entities().find("TEST_Livery")?;
+    let record = resolver.entities().find(class)?;
     let tree = resolver.resolve(&record)?;
     let models = ArchiveModels::new(archive);
     let options = AssemblyOptions::default();
@@ -59,7 +67,7 @@ fn has_colour(colours: &[[f32; 3]], wanted: [f32; 3]) -> bool {
 }
 
 #[test]
-fn each_part_takes_the_palette_its_entity_names_else_the_default_of_its_library() -> TestResult {
+fn each_part_takes_the_palette_its_entity_names_else_the_one_of_its_ancestor() -> TestResult {
     let fixture = fixture(livery_entries())?;
     let archive = Archive::open(&fixture.path)?;
 
@@ -77,15 +85,62 @@ fn each_part_takes_the_palette_its_entity_names_else_the_default_of_its_library(
     assert_eq!(names("hardpoint_twin").as_deref(), Some("p_gun"));
     assert_eq!(
         names("hardpoint_default").as_deref(),
-        Some("p_default"),
-        "the library's default palette"
+        Some("p_ship"),
+        "the ship's palette beats the library's default"
     );
-    assert_eq!(names("hardpoint_plain"), None, "no palette anywhere");
+    assert_eq!(names("hardpoint_plain").as_deref(), Some("p_ship"));
     let primary = assembly
         .root()
         .and_then(|root| root.palette())
         .map(|palette| palette.primary.tint);
     assert_eq!(primary, Some(linear(LIVERY_SHIP_TINTS[0])));
+    Ok(())
+}
+
+#[test]
+fn without_a_palette_of_the_ancestors_a_part_keeps_the_default_of_its_library() -> TestResult {
+    let fixture = fixture(livery_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+
+    let assembly = assemble_ship(&archive, "TEST_Bare", true)?;
+
+    let names = |path: &str| palette_name(&assembly, path);
+    assert_eq!(names(""), None);
+    assert_eq!(names("hardpoint_painted").as_deref(), Some("p_gun"));
+    assert_eq!(names("hardpoint_default").as_deref(), Some("p_default"));
+    let default = assembly
+        .part_at("hardpoint_default")
+        .and_then(|part| part.palette())
+        .map(|palette| palette.primary.tint);
+    assert_eq!(default, Some(linear(LIVERY_DEFAULT_TINTS[0])));
+    assert_eq!(names("hardpoint_plain"), None, "no palette anywhere");
+    Ok(())
+}
+
+#[test]
+fn a_palette_is_inherited_through_parts_that_have_none_and_a_part_of_its_own_keeps_it() -> TestResult
+{
+    let fixture = fixture(livery_entries())?;
+    let archive = Archive::open(&fixture.path)?;
+
+    let assembly = assemble_ship(&archive, "TEST_Carrier", true)?;
+
+    let names = |path: &str| palette_name(&assembly, path);
+    assert_eq!(
+        names("hardpoint_mount").as_deref(),
+        Some("p_ship"),
+        "inherited over the library default"
+    );
+    assert_eq!(
+        names("hardpoint_mount/hardpoint_inner").as_deref(),
+        Some("p_ship"),
+        "inherited through the mount"
+    );
+    assert_eq!(
+        names("hardpoint_mount/hardpoint_gun").as_deref(),
+        Some("p_gun"),
+        "its own palette is kept"
+    );
     Ok(())
 }
 
@@ -107,8 +162,8 @@ fn the_parts_of_one_palette_share_it() -> TestResult {
 }
 
 #[test]
-fn a_palette_that_cannot_be_resolved_is_listed_and_the_part_keeps_the_library_colours() -> TestResult
-{
+fn a_palette_that_cannot_be_resolved_is_listed_and_the_part_takes_the_one_of_its_ancestor()
+-> TestResult {
     let fixture = fixture(livery_entries())?;
     let archive = Archive::open(&fixture.path)?;
 
@@ -131,8 +186,13 @@ fn a_palette_that_cannot_be_resolved_is_listed_and_the_part_keeps_the_library_co
         .find(|(path, _)| *path == "hardpoint_child")
         .ok_or("the child palette")?;
     assert!(child.1.contains("left"), "{child:?}");
-    assert_eq!(palette_name(&assembly, "hardpoint_lost"), None);
-    assert_eq!(palette_name(&assembly, "hardpoint_child"), None);
+    for path in ["hardpoint_lost", "hardpoint_child"] {
+        assert_eq!(
+            palette_name(&assembly, path).as_deref(),
+            Some("p_ship"),
+            "the part falls back to the palette of the ship"
+        );
+    }
     assert!(
         assembly
             .issues()
@@ -179,7 +239,7 @@ fn the_materials_are_drawn_with_the_colours_of_the_palette_of_their_part() -> Te
     let (glb, summary) = export(true, &GlbOptions::default())?;
 
     let colours = colours(&glb);
-    for tints in [LIVERY_SHIP_TINTS, LIVERY_GUN_TINTS, LIVERY_DEFAULT_TINTS] {
+    for tints in [LIVERY_SHIP_TINTS, LIVERY_GUN_TINTS] {
         for tint in &tints[..2] {
             assert!(
                 has_colour(&colours, linear(*tint)),
@@ -187,14 +247,10 @@ fn the_materials_are_drawn_with_the_colours_of_the_palette_of_their_part() -> Te
             );
         }
     }
-    assert!(
-        has_colour(&colours, [0.5; 3]),
-        "the plain parts keep the library: {colours:?}"
-    );
     assert_eq!(
         summary.shared_meshes, 3,
-        "the second painted gun and the two parts without a palette, but not the guns of \
-         other palettes: {summary:?}"
+        "the second painted gun and the parts that inherited the ship's palette, but not \
+         the guns of other palettes: {summary:?}"
     );
     Ok(())
 }
@@ -222,7 +278,7 @@ fn textures_are_embedded_once_for_all_parts_and_palettes() -> TestResult {
         "one diffuse image for every part: {summary:?}"
     );
     assert_eq!(glb.document.images().len(), 1);
-    assert!(summary.textured_materials >= 6, "{summary:?}");
+    assert!(summary.textured_materials >= 4, "{summary:?}");
     assert!(
         summary.texture_fallbacks.is_empty(),
         "{:?}",

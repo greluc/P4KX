@@ -122,12 +122,16 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ## Rules
 
-- **No comments in code** besides the language's documentation comments (Rust: `///` and `//!`),
-  short and without history. Lint suppressions use `#[expect(lint, reason = "…")]`. The reasoning
-  goes into the commit message and the PR body.
+- **Comments state the current state only.** Documentation comments (Rust: `///` and `//!`) and,
+  where they help, short technical comments (`//`) that document what the code cannot say itself:
+  a non-obvious invariant, a format detail, a unit or coordinate convention, the spec section an
+  algorithm implements. Both stay short and precise. No history (dates, PR or issue numbers,
+  "previously" / "now"), no comments that restate the code, no commented-out code and no `TODO`.
+  Lint suppressions use `#[expect(lint, reason = "…")]`. The story of a change goes into the commit
+  message and the PR body, decisions into an ADR.
 - **Rust follows the [Google Rust Style Guide](https://google.github.io/styleguide/rustguide.html)**,
   read fresh from that page. Deviations only with the owner's explicit approval, recorded in an ADR.
-  The rules marked `[chrome]` are Chromium-only and do not apply. The comment rule above stays.
+  The rules marked `[chrome]` are Chromium-only and do not apply. The comment rule above applies.
   Apply it to what you write and touch; restyling existing code is its own change.
 - **No code smells, no tech debt:** no duplication, dead code, oversized functions, magic numbers,
   needless clones or allocations, swallowed errors or "fix later" shortcuts. A clean fix out of
@@ -137,7 +141,7 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
   small and focused.
 - **Every `.rs` file starts with the SPDX header**, two lines and a blank line, before any `//!`
   docs: `// SPDX-License-Identifier: MIT OR Apache-2.0` and `// SPDX-FileCopyrightText: 2026 the
-  P4KX contributors`. It is an allowed licence header, not a code comment under the rule above;
+  P4KX contributors`. It is a licence header, not a code comment under the rule above;
   `cargo xtask spdx` (part of plain `cargo xtask`) fails on a tracked file without it.
 - A user-visible change adds a fragment `changelog.d/<issue>.md` (form in
   `changelog.d/README.md`, ADR-0035) instead of editing `CHANGELOG.md`; `cargo xtask changelog

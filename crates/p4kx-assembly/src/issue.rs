@@ -62,6 +62,15 @@ pub enum IssueKind {
         /// The path of the sub-geometry.
         path: String,
     },
+    /// The sub-geometry tagged for the body of the character does not exist, so the part has no
+    /// model; the main geometry, a placeholder, is not drawn instead.
+    #[error("the {body} sub-geometry {path} does not exist")]
+    BodyGeometryMissing {
+        /// The body variant the sub-geometry is tagged for, e.g. `Male`.
+        body: String,
+        /// The path of the sub-geometry.
+        path: String,
+    },
     /// The geometry file cannot be read as a model, so the part has no model.
     #[error("the geometry {path} cannot be read: {reason}")]
     GeometryUnreadable {

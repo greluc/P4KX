@@ -6,8 +6,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 use p4kx_assembly::{
-    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, ForgePalettes, Issue, LoadoutChanges,
-    LoadoutResolver,
+    ArchiveFiles, ArchiveModels, Assembly, AssemblyOptions, EntityNode, ForgePalettes, Issue,
+    LoadoutChanges, LoadoutResolver,
 };
 use p4kx_extraction::{
     ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode, is_same_file,
@@ -18,6 +18,7 @@ use thiserror::Error;
 
 use crate::cli_entity::EntityGlbArgs;
 use crate::cli_entity::EntityMaterialsArg;
+use crate::entity_glb_body::{BodyJson, body_json, print_body};
 use crate::entity_glb_placements::{PlacementJson, placements_json};
 use crate::json;
 use crate::query_table::one_line;
@@ -58,6 +59,8 @@ struct GlbJson<'a> {
     skipped: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     interior: Option<InteriorJson>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    body: Option<BodyJson<'a>>,
     #[serde(skip_serializing_if = "<[String]>::is_empty")]
     ignored: &'a [String],
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -190,6 +193,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
                 .filter(|issue| issue.kind().skips())
                 .count(),
             interior: interior_json(&assembly),
+            body: body_json(tree),
             ignored: applied.ignored(),
             incompatible: crate::entity_ignored::incompatible(&applied),
             excluded: changes.exclusions().iter().map(String::as_str).collect(),
@@ -203,7 +207,7 @@ pub(crate) fn run(args: &EntityGlbArgs, as_json: bool) -> Result<()> {
         })?;
         return Ok(());
     }
-    let printed = print_report(&assembly, &summary, &args.out, tree.class_name(), &changes);
+    let printed = print_report(&assembly, &summary, &args.out, tree, &changes);
     match printed {
         Err(error) if error.kind() != io::ErrorKind::BrokenPipe => Err(error.into()),
         _ => Ok(()),
@@ -307,7 +311,7 @@ fn print_report(
     assembly: &Assembly,
     summary: &GlbSummary,
     out: &Path,
-    class_name: &str,
+    tree: &EntityNode,
     changes: &LoadoutChanges,
 ) -> io::Result<()> {
     let mut stdout = BufWriter::new(io::stdout().lock());
@@ -315,7 +319,7 @@ fn print_report(
         stdout,
         "wrote {} of {}: {} parts ({} with models), {} nodes, {} meshes, {} primitives, {} materials, {} vertices, {} triangles, {} bytes",
         out.display(),
-        one_line(class_name),
+        one_line(tree.class_name()),
         assembly.parts().len(),
         assembly.modelled_parts(),
         summary.nodes,
@@ -327,6 +331,7 @@ fn print_report(
         summary.bytes
     )?;
     print_changes(&mut stdout, changes)?;
+    print_body(&mut stdout, tree)?;
     print_hidden(&mut stdout, assembly)?;
     if let Some(interior) = assembly.interior() {
         writeln!(

@@ -6,6 +6,7 @@ use p4kx_dataforge::StructValue;
 use crate::read::{struct_field, struct_items, text, texts, unsigned, xyz};
 
 const ATTACHMENT_PREFIX: &str = "SItemPortDefAttachmentImplementation";
+const SKIN_ATTACHMENT: &str = "Skin";
 
 /// The definition of an item port in an Entity Record (`SItemPortDef`): what it takes and where
 /// it sits.
@@ -108,6 +109,13 @@ impl PortTransform {
     #[must_use]
     pub fn attachment(&self) -> &str {
         &self.attachment
+    }
+
+    /// Returns whether the item is a skin, drawn in the parent's bind pose whatever the helper and
+    /// the offset say.
+    #[must_use]
+    pub fn is_skin(&self) -> bool {
+        self.attachment == SKIN_ATTACHMENT
     }
 
     /// Returns the name of the helper in the parent's geometry; empty when it gives none.

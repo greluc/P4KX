@@ -12,7 +12,7 @@ use std::path::Path;
 
 use egui::accesskit::Role;
 use egui_kittest::Harness;
-use egui_kittest::kittest::{NodeT, Queryable};
+use egui_kittest::kittest::Queryable;
 use p4kx_gui::{
     ComparisonList, ComparisonSide, ComparisonStatus, ComparisonView, Language, Model,
     RecordChangeView, RecordDetailStatus, WorkTab, ui,
@@ -151,7 +151,7 @@ fn a_changed_record_opens_its_field_changes_below_the_list() -> TestResult {
     }
     let label = harness
         .query_by_label_contains("hull.label: Hull to Error: ")
-        .map(|node| node.accesskit_node().label().unwrap_or_default());
+        .and_then(|node| crate::node_text::node_text(&node));
     assert!(
         label
             .as_deref()

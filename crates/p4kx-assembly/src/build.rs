@@ -11,7 +11,7 @@ use crate::build_gear::load_models;
 use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
 use crate::flatten::{Draft, flatten};
-use crate::placement::{node_transform, offset};
+use crate::placement::{bone_transform, node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
     ObjectContainerRef, PaletteProvider, Part, Placement, PortNode, PortTransform,
@@ -307,14 +307,15 @@ fn place_gear(
     (Transform::IDENTITY, Placement::Origin)
 }
 
-/// Finds the node of the parent's model a port is anchored to: its helper, else a node named
-/// like the port.
+/// Finds the node of the parent's model a port is anchored to: its helper as a node or as a bone
+/// of the skeleton, else a node named like the port.
 fn anchor(parent: Option<&Model>, helper: Option<&str>, port: &PortNode) -> (Placement, Transform) {
     let Some(parent) = parent else {
         return (Placement::Origin, Transform::IDENTITY);
     };
     if let Some(helper) = helper
-        && let Some(transform) = node_transform(parent, helper)
+        && let Some(transform) =
+            node_transform(parent, helper).or_else(|| bone_transform(parent, helper))
     {
         return (Placement::Helper(helper.to_owned()), transform);
     }

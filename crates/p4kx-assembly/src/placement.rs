@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_model::{Model, Transform};
+use p4kx_model::{BoneTransform, Model, Transform};
 
 /// Returns the transform of a port's offset from its helper: the rotation `rotation` in degrees,
 /// about X first, then Y, then Z, and the translation `position` in metres.
@@ -52,6 +52,30 @@ pub(crate) fn node_transform(model: &Model, name: &str) -> Option<Transform> {
             Some(parent) => at = parent,
             None => return Some(transform),
         }
+    }
+    None
+}
+
+/// Returns the transform from the bind-pose space of the bone of `model` named `name`, ignoring
+/// ASCII case, to the model's space, or `None` when the model has no such bone or its parents do
+/// not lead to a root.
+pub(crate) fn bone_transform(model: &Model, name: &str) -> Option<Transform> {
+    let bones = model
+        .lods
+        .first()
+        .map_or(model.bones.as_slice(), |lod| model.bones_of(lod));
+    let mut at = bones
+        .iter()
+        .position(|bone| bone.name.eq_ignore_ascii_case(name))?;
+    let mut pose = BoneTransform::IDENTITY;
+    for _ in 0..bones.len() {
+        let bone = bones.get(at)?;
+        pose = bone.relative.then(&pose);
+        let Some(parent) = bone.parent else {
+            let [x, y, z, w] = pose.rotation.map(f64::from);
+            return Transform::from_quaternion([w, x, y, z], pose.translation.map(f64::from));
+        };
+        at = parent;
     }
     None
 }

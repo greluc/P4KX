@@ -57,6 +57,7 @@ mod entity_changes;
 mod entity_glb;
 mod entity_glb_interior;
 mod entity_glb_livery;
+mod entity_glb_skin;
 mod entity_loadout;
 mod entity_outfits;
 mod entity_package;

@@ -34,12 +34,22 @@ fn body_model() -> TestModel {
 fn database() -> DataForgeBuilder {
     let body = TestEntity::new(0x1, SKIN_BODY, "entities/Skin_Body.xml")
         .geometry("Objects/Test/body.cgf", None)
-        .port(TestPort::new("legs").skin_helper("Hips", [0.05, 0.0, 0.0], [0.0; 3]))
-        .port(TestPort::new("gone").skin_helper("Missing", [0.0; 3], [0.0; 3]))
+        .port(
+            TestPort::new("legs")
+                .helper("Hips", [0.05, 0.0, 0.0], [0.0; 3])
+                .skin(),
+        )
+        .port(
+            TestPort::new("gone")
+                .helper("Missing", [0.0; 3], [0.0; 3])
+                .skin(),
+        )
+        .port(TestPort::new("bare").skin())
         .port(TestPort::new("hand").helper("Hips", [0.0, 1.0, 0.0], [0.0; 3]))
         .loadout(TestLoadout::Manual(vec![
             TestLoadoutEntry::class("legs", "Skin_Pants"),
             TestLoadoutEntry::class("gone", "Skin_Pants"),
+            TestLoadoutEntry::class("bare", "Skin_Pants"),
             TestLoadoutEntry::class("hand", "Skin_Pants"),
         ]));
     let pants = TestEntity::new(0x2, "Skin_Pants", "entities/Skin_Pants.xml")
@@ -53,10 +63,10 @@ fn database() -> DataForgeBuilder {
 
 /// Returns the Entries of a synthetic Archive that holds a body with skin attachments.
 ///
-/// `Skin_Body` has a model with the node `Hips` at (7, 0, 0) and three ports that each hold
+/// `Skin_Body` has a model with the node `Hips` at (7, 0, 0) and four ports that each hold
 /// `Skin_Pants`: `legs`, a skin attachment to `Hips` offset by (0.05, 0, 0), `gone`, a skin
-/// attachment to a helper the model lacks, and `hand`, a bone attachment to `Hips` offset by
-/// (0, 1, 0).
+/// attachment to a helper the model lacks, `bare`, a skin attachment without a helper, and
+/// `hand`, a bone attachment to `Hips` offset by (0, 1, 0).
 #[must_use]
 pub fn skin_attachment_entries() -> Vec<TestEntry> {
     let body = body_model();

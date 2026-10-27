@@ -135,7 +135,7 @@ fn a_body_that_does_not_fit_the_zone_table_is_kept_whole_and_reported() -> TestR
     let assembly = wear_on(&[few.clone(), few], &chunks, NpcZoneOptions::default())?;
 
     assert_eq!(drawn_nodes(&assembly)?.len(), 5);
-    assert!(hidden_zones(&assembly).is_empty());
+    assert_eq!(hidden_zones(&assembly), Vec::<Vec<String>>::new());
     let reasons: Vec<&str> = assembly
         .issues()
         .iter()

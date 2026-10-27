@@ -10,6 +10,7 @@ pub struct TestPort {
     sizes: (u32, u32),
     types: Vec<(String, Vec<String>)>,
     helper: Option<(String, [f32; 3], [f32; 3])>,
+    item_helper: String,
     attachment: &'static str,
     default_item: Option<u128>,
     flags: String,
@@ -25,6 +26,7 @@ impl TestPort {
             sizes: (1, 1),
             types: Vec::new(),
             helper: None,
+            item_helper: String::new(),
             attachment: "Bone",
             default_item: None,
             flags: String::new(),
@@ -75,6 +77,13 @@ impl TestPort {
         rotation: [f32; 3],
     ) -> Self {
         self.helper = Some((name.into(), position, rotation));
+        self
+    }
+
+    /// Places the helper `name` of the attached item's own model at the port's helper.
+    #[must_use]
+    pub fn item_helper(mut self, name: impl Into<String>) -> Self {
+        self.item_helper = name.into();
         self
     }
 
@@ -143,14 +152,22 @@ impl TestPort {
         if let Some((name, position, rotation)) = &self.helper {
             instance = instance.value(
                 "AttachmentImplementation",
-                helper(self.attachment, name, *position, *rotation),
+                helper(
+                    (self.attachment, name, &self.item_helper),
+                    *position,
+                    *rotation,
+                ),
             );
         }
         TestValue::Struct(instance)
     }
 }
 
-fn helper(attachment: &str, name: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue {
+fn helper(
+    (attachment, name, item_helper): (&str, &str, &str),
+    position: [f32; 3],
+    rotation: [f32; 3],
+) -> TestValue {
     let xyz = |type_name: &str, [x, y, z]: [f32; 3]| {
         TestValue::Struct(
             TestInstance::new(type_name)
@@ -164,7 +181,7 @@ fn helper(attachment: &str, name: &str, position: [f32; 3], rotation: [f32; 3]) 
         .value("Position", xyz("Vec3", position));
     let helper = TestInstance::new("SItemPortDefHelper")
         .value("Name", TestValue::text(name))
-        .value("ItemOffsetHelperName", TestValue::text(""))
+        .value("ItemOffsetHelperName", TestValue::text(item_helper))
         .value("Offset", TestValue::Struct(offset));
     let node =
         TestInstance::new("SItemPortDefHelperNode").value("Helper", TestValue::Struct(helper));

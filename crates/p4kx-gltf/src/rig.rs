@@ -18,6 +18,7 @@ use crate::materials::MaterialPlan;
 use crate::morphs::MorphTarget;
 use crate::nodes::{RigModel, push_rig_nodes};
 use crate::rig_animation::{RigAnimation, RigNodes, plan_all};
+use crate::rig_mount::RigMount;
 use crate::skin::inverse_binds;
 use crate::texture_loader::{NoTextures, TextureLoader};
 use crate::texture_plan::TextureSet;
@@ -37,6 +38,8 @@ pub struct RigPiece<'m> {
     pub materials: &'m MaterialStatus,
     /// The morph targets of the piece's first mesh, see [`RigPiece::with_morphs`].
     pub morphs: &'m [MorphTarget],
+    /// The bone an unskinned piece hangs on, see [`RigPiece::mounted`].
+    pub mount: Option<RigMount>,
 }
 
 impl<'m> RigPiece<'m> {
@@ -48,7 +51,17 @@ impl<'m> RigPiece<'m> {
             model,
             materials,
             morphs: &[],
+            mount: None,
         }
+    }
+
+    /// Hangs the piece, whose model has no skinned mesh, below the bone of `mount`, so that it
+    /// follows the bone. The root nodes of the model become children of the bone node and take
+    /// the transform of the mount; a bone the skeleton lacks leaves the piece a root.
+    #[must_use]
+    pub const fn mounted(mut self, mount: Option<RigMount>) -> Self {
+        self.mount = mount;
+        self
     }
 
     /// Gives the piece's first mesh the morph targets `morphs`, as sparse `POSITION` targets named
@@ -325,17 +338,7 @@ fn document(
         )
         .map(|(buffer, block)| push_accessor(&mut root, buffer, block, None));
     let any_skinned = skinned.iter().flatten().any(|&skinned| skinned);
-    let models: Vec<RigModel<'_>> = pieces
-        .iter()
-        .zip(&node_meshes)
-        .zip(&skinned)
-        .map(|((piece, meshes), skinned)| RigModel {
-            name: piece.name,
-            model: piece.model,
-            meshes,
-            skinned,
-        })
-        .collect();
+    let models = rig_models(pieces, &node_meshes, &skinned);
     let bones: &[Bone] = if any_skinned && bind_accessor.is_some() {
         skeleton
     } else {
@@ -343,6 +346,26 @@ fn document(
     };
     push_rig_nodes(&mut root, &models, bones, bind_accessor);
     root
+}
+
+/// Returns the models to write the nodes of: each piece with its meshes and skinned nodes.
+fn rig_models<'a>(
+    pieces: &'a [RigPiece<'_>],
+    node_meshes: &'a NodeMeshes,
+    skinned: &'a [Vec<bool>],
+) -> Vec<RigModel<'a>> {
+    pieces
+        .iter()
+        .zip(node_meshes)
+        .zip(skinned)
+        .map(|((piece, meshes), skinned)| RigModel {
+            name: piece.name,
+            model: piece.model,
+            meshes,
+            skinned,
+            mount: piece.mount,
+        })
+        .collect()
 }
 
 /// Returns the influences of each mesh of the instance's level with the bones of `skeleton`.

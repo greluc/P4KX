@@ -43,6 +43,7 @@ mod entity_layered;
 mod entity_livery;
 mod entity_loadout;
 mod entity_module_sample;
+mod entity_mount;
 mod entity_npc;
 mod entity_painted;
 mod entity_port;
@@ -157,6 +158,9 @@ pub use entity_livery::{
 };
 pub use entity_loadout::{TestLoadout, TestLoadoutEntry};
 pub use entity_module_sample::{ENTITY_MODULE_CARRIER, ENTITY_MODULE_CLASS, entity_module_entries};
+pub use entity_mount::{
+    MOUNT_BONE, MOUNT_COURIER, MOUNT_DRIFTER, SATCHEL_HELPER_Z, mounted_item_entries,
+};
 pub use entity_npc::{
     NPC_BROW_SKIN, NPC_CLASS, NPC_EYES_MATERIAL, NPC_FILES_CLASS, NPC_HAIR_BLONDE, NPC_HAIR_BROWN,
     NPC_HEAD_CLASS, NPC_HEAD_FLAGS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,

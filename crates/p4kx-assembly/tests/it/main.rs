@@ -4,6 +4,7 @@
 //! Integration tests of `p4kx-assembly`, built as one test binary.
 
 mod armour_build;
+mod armour_mount;
 mod armour_palette;
 mod assembly_build;
 mod assembly_changes;

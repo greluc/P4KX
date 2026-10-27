@@ -4,6 +4,41 @@
 use p4kx_character::Dna;
 
 use super::{Expressions, Look, Wearable};
+use crate::PortTransform;
+
+/// The port an unskinned piece hangs on: the helper of the holder it is placed at, the offset from
+/// it and the helper of the piece that goes there. The offset is kept as the bits of its numbers
+/// so that equal pieces compare equal.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Mount {
+    /// The name of the piece whose model holds the helper; `None` for the body.
+    pub(crate) holder: Option<String>,
+    pub(crate) helper: String,
+    pub(crate) offset_helper: String,
+    position: [u32; 3],
+    rotation: [u32; 3],
+}
+
+impl Mount {
+    /// Returns the mount of an item at the port `port` of `holder`.
+    pub(crate) fn new(holder: Option<String>, port: &PortTransform) -> Self {
+        Self {
+            holder,
+            helper: port.helper().to_owned(),
+            offset_helper: port.offset_helper().to_owned(),
+            position: port.position().map(f32::to_bits),
+            rotation: port.rotation().map(f32::to_bits),
+        }
+    }
+
+    pub(crate) fn position(&self) -> [f32; 3] {
+        self.position.map(f32::from_bits)
+    }
+
+    pub(crate) fn rotation(&self) -> [f32; 3] {
+        self.rotation.map(f32::from_bits)
+    }
+}
 
 /// Where the geometry of a [`Piece`] comes from.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -54,6 +89,7 @@ pub struct Piece {
     pub(crate) selecting: Vec<String>,
     pub(crate) variant_tags: Vec<String>,
     pub(crate) bespoke: Option<Bespoke>,
+    pub(crate) mount: Option<Mount>,
 }
 
 /// Where the skins of a story character's own head are, see [`Piece::bespoke`].
@@ -78,7 +114,13 @@ impl Piece {
             selecting: Vec::new(),
             variant_tags: Vec::new(),
             bespoke: None,
+            mount: None,
         }
+    }
+
+    pub(crate) fn mounted(mut self, mount: Mount) -> Self {
+        self.mount = Some(mount);
+        self
     }
 
     /// Takes the sub-geometry of the Entity that is tagged with one of `flags`, the flags of the

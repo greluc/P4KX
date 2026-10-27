@@ -21,6 +21,7 @@ mod head_move;
 mod jobs;
 mod loadout;
 mod look;
+mod mount;
 mod normals;
 mod npc;
 mod piece;
@@ -36,8 +37,8 @@ use std::io::Write;
 use std::sync::Arc;
 
 use p4kx_gltf::{
-    GlbOptions, GlbSummary, GltfError, MorphTarget, RigPiece, TextureLoader, write_rigged_glb,
-    write_rigged_glb_with,
+    GlbOptions, GlbSummary, GltfError, MorphTarget, RigMount, RigPiece, TextureLoader,
+    write_rigged_glb, write_rigged_glb_with,
 };
 use p4kx_model::{MaterialStatus, Model};
 
@@ -79,9 +80,16 @@ pub struct ArmourPart {
     pub(crate) morphs: Vec<MorphTarget>,
     pub(crate) follows: Vec<usize>,
     pub(crate) face: Option<Arc<facial::FaceLink>>,
+    pub(crate) mount: Option<RigMount>,
 }
 
 impl ArmourPart {
+    pub(crate) fn rig_piece(&self) -> RigPiece<'_> {
+        RigPiece::new(&self.name, &self.model, &self.materials)
+            .with_morphs(&self.morphs)
+            .mounted(self.mount)
+    }
+
     /// Returns the name of the part's node: `body` for the skin of the body, else the name of
     /// the piece.
     #[must_use]
@@ -206,13 +214,7 @@ impl Armour {
         options: &GlbOptions,
         out: &mut impl Write,
     ) -> Result<GlbSummary, GltfError> {
-        let pieces: Vec<RigPiece<'_>> = self
-            .parts
-            .iter()
-            .map(|part| {
-                RigPiece::new(&part.name, &part.model, &part.materials).with_morphs(&part.morphs)
-            })
-            .collect();
+        let pieces: Vec<RigPiece<'_>> = self.parts.iter().map(ArmourPart::rig_piece).collect();
         write_rigged_glb(&self.skeleton.bones, &pieces, options, out)
     }
 
@@ -228,13 +230,7 @@ impl Armour {
         textures: &dyn TextureLoader,
         out: &mut impl Write,
     ) -> Result<GlbSummary, GltfError> {
-        let pieces: Vec<RigPiece<'_>> = self
-            .parts
-            .iter()
-            .map(|part| {
-                RigPiece::new(&part.name, &part.model, &part.materials).with_morphs(&part.morphs)
-            })
-            .collect();
+        let pieces: Vec<RigPiece<'_>> = self.parts.iter().map(ArmourPart::rig_piece).collect();
         write_rigged_glb_with(&self.skeleton.bones, &pieces, options, textures, out)
     }
 }

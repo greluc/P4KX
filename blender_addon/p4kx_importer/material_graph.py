@@ -30,8 +30,6 @@ from .material_surface import (
     multiply,
 )
 
-WHITE_FROM = 0.99
-
 __all__ = [
     "METAL_FROM",
     "METAL_TO",
@@ -96,32 +94,13 @@ class _Maker(LayerBlending):
         """Returns whether the material is a decal that draws no colour.
 
         That is a mesh decal without any texture slot, a ``DECAL`` material whose
-        ``DecalDiffuseOpacity`` is 0 and which only adds relief, or a relief decal.
+        ``DecalDiffuseOpacity`` is 0 and which only adds relief.
         """
         desc = self.desc
         if self.family == "decal" and not desc.textures:
             return True
         opacity = desc.number("DecalDiffuseOpacity")
-        if "DECAL" in desc.gen_mask and opacity is not None and opacity <= 0.0:
-            return True
-        return self._relief_decal()
-
-    def _relief_decal(self) -> bool:
-        """Returns whether the material is a white parallax decal that only adds relief.
-
-        That is a ``MeshDecal`` with ``PARALLAX_OCCLUSION_MAPPING`` and a displacement map, a
-        white diffuse colour and no tint mode: its diffuse map is the mask of the groove and
-        drawn as colour it paints contour lines. A coloured or tinted one keeps its colour.
-        """
-        desc = self.desc
-        tint_mode = desc.number("ETintModeType")
-        return (
-            desc.shader.lower() == "meshdecal"
-            and "PARALLAX_OCCLUSION_MAPPING" in desc.gen_mask
-            and all(channel >= WHITE_FROM for channel in desc.diffuse)
-            and (tint_mode is None or tint_mode == 0.0)
-            and any(s.usage == "displacement" for s in desc.textures)
-        )
+        return "DECAL" in desc.gen_mask and opacity is not None and opacity <= 0.0
 
     def _nodraw(self) -> GraphSpec:
         bsdf = self.builder.add("ShaderNodeBsdfTransparent", key="bsdf")

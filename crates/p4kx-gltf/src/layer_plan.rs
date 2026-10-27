@@ -3,11 +3,11 @@
 
 use std::fmt::Write as _;
 
-use p4kx_model::{Material, MaterialLayer, TextureSlot};
+use p4kx_model::{Material, MaterialLayer, TextureSlot, texture_suffix_lowercase as suffix};
 
 use crate::shading::{Shaded, shaded_layers};
 use crate::texture_report::TextureRole;
-use crate::texture_roles::{Source, canonical, sources_of, suffix};
+use crate::texture_roles::{Source, canonical, sources_of};
 
 /// The most layers one baked image blends; the others keep out of it.
 pub(crate) const MAX_BAKED_LAYERS: usize = 8;

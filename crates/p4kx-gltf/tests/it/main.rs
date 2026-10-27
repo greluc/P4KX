@@ -11,6 +11,7 @@ mod layer_textures;
 mod lods_attributes;
 mod materials;
 mod morphs;
+mod relief_decals;
 mod rig;
 mod rig_animation;
 mod rig_textures;

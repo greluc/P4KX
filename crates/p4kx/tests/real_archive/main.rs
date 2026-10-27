@@ -10,3 +10,4 @@ mod real_audio_loop;
 mod real_blender_packages;
 mod real_query_prefixes;
 mod real_relief_decals;
+mod real_render_to_texture;

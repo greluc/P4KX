@@ -101,9 +101,12 @@ fn a_bone_below_a_rotated_chain_composes_every_parent() -> TestResult {
     let assembly = assemble(&archive, ARM, 0)?;
 
     let laser = assembly.part_at("on_last").ok_or("the part")?;
-    let (sin, cos) = 30.0_f32.to_radians().sin_cos();
-    let (sin2, cos2) = 60.0_f32.to_radians().sin_cos();
-    assert_near(laser.world().translation(), [cos + cos2, sin + sin2, 0.0]);
+    let (first_y, first_x) = 30.0_f32.to_radians().sin_cos();
+    let (second_y, second_x) = 60.0_f32.to_radians().sin_cos();
+    assert_near(
+        laser.world().translation(),
+        [first_x + second_x, first_y + second_y, 0.0],
+    );
     Ok(())
 }
 

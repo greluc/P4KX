@@ -14,7 +14,7 @@ use super::jobs::{Job, issue, planned};
 use super::read_models::{Loaded, choose, read_models};
 use super::shape::shaped;
 use super::zones::{covered, without_covered};
-use super::{Armour, ArmourPart, BodyVariant, Piece};
+use super::{Armour, ArmourPart, BodyVariant, Look, Piece};
 use crate::build::file_key;
 use crate::build_palettes::Palettes;
 use crate::{
@@ -212,9 +212,11 @@ fn drawn_with(
         issues.push(issue(job, IssueKind::MaterialLibrary { reason }));
     }
     let painted = painted(tints, library, job, issues);
+    let natural = Look::natural();
     job.look
         .as_ref()
-        .and_then(|look| look.apply(&painted))
+        .unwrap_or(&natural)
+        .apply(&painted)
         .map_or(painted, Arc::new)
 }
 

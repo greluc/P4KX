@@ -9,7 +9,7 @@ use crate::guid_text::CatalogGuid;
 use crate::paint_port::{PaintPort, VehicleFacts};
 use crate::playability_rules::{self, Evidence};
 use crate::record_fields::{
-    boolean, class_name, component, element, elements, integer, locale_key, reference, single,
+    boolean, class_name, component, element, elements, integer, locale_key, number, reference,
     structure, text,
 };
 use crate::ship_base::ShipRead;
@@ -109,8 +109,8 @@ fn insurance<'f>(tree: &RecordTree<'f>) -> Option<ShipInsurance<'f>> {
     Some(ShipInsurance {
         restore_on_claim: boolean(Some(properties), "restoreOnClaim"),
         ship_entity_class_name: text(params, "shipEntityClassName"),
-        base_wait_time_minutes: single(params, "baseWaitTimeMinutes"),
-        mandatory_wait_time_minutes: single(params, "mandatoryWaitTimeMinutes"),
+        base_wait_time_minutes: number(params, "baseWaitTimeMinutes"),
+        mandatory_wait_time_minutes: number(params, "mandatoryWaitTimeMinutes"),
         expedite_fee: integer(params, "baseExpeditingFee"),
     })
 }

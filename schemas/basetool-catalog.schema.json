@@ -1539,7 +1539,7 @@
       "type": "object"
     },
     "ItemRecovery": {
-      "description": "The item recovery rules: an `ItemRecoveryConfigurationParams` Record, its `economyParams`.\n\nThe multipliers and rates the game applies at run time to claim, expedite and deliver a ship\nand its insured items; the Record holds no fee in aUEC, so the catalog states none. Every\nnumber is that of the Record, `null` when the Record states none.",
+      "description": "The item recovery rules: an `ItemRecoveryConfigurationParams` Record, its `economyParams`.\n\nThe multipliers and rates of the Record under their data names. The Record holds no fee in\naUEC, so the catalog states none. Every number is that of the Record, `null` when the Record\nstates none or a value that is no number.",
       "properties": {
         "aUECperSecond": {
           "description": "`aUECperSecond`.",
@@ -3486,10 +3486,10 @@
       "type": "object"
     },
     "ShipInsurance": {
-      "description": "The insurance data of a ship: the `SEntityInsuranceProperties` of its\n`StaticEntityClassData`, the numbers of its `ShipInsuranceParams`. The Record states no claim\ncost; the expediting fee is the only price.",
+      "description": "The insurance data of a ship: the `SEntityInsuranceProperties` of its\n`StaticEntityClassData`, the numbers of its `ShipInsuranceParams`. The Record states no claim\ncost; `expediteFee` is the only fee in aUEC.",
       "properties": {
         "baseWaitTimeMinutes": {
-          "description": "`baseWaitTimeMinutes`: the claim time in minutes; `null` when the Record states none.",
+          "description": "`baseWaitTimeMinutes` in minutes; inferred meaning: the claim time. `null` when the Record\nstates none.",
           "format": "float",
           "type": [
             "number",
@@ -3497,7 +3497,7 @@
           ]
         },
         "expediteFee": {
-          "description": "`baseExpeditingFee` of the Record: the fee in aUEC for expediting a claim, the only price\nin the Record; `null` when the Record states none.",
+          "description": "`baseExpeditingFee` of the Record in aUEC, the only fee in the Record; `null` when the\nRecord states none.",
           "format": "int64",
           "type": [
             "integer",
@@ -3505,7 +3505,7 @@
           ]
         },
         "mandatoryWaitTimeMinutes": {
-          "description": "`mandatoryWaitTimeMinutes`: the mandatory wait in minutes, the shortest claim time; `null`\nwhen the Record states none.",
+          "description": "`mandatoryWaitTimeMinutes` in minutes; inferred meaning: the shortest claim time. `null`\nwhen the Record states none.",
           "format": "float",
           "type": [
             "number",
@@ -3513,7 +3513,7 @@
           ]
         },
         "restoreOnClaim": {
-          "description": "`restoreOnClaim`: whether a claim restores the ship with its Loadout; `null` when the\nRecord states none.",
+          "description": "`restoreOnClaim`, a boolean; inferred meaning: whether a claim restores the ship with its\nLoadout. `null` when the Record states none.",
           "type": [
             "boolean",
             "null"

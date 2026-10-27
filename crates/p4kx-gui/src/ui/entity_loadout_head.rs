@@ -32,7 +32,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> bool
     let name = plain(session.name(), FS_SM, Weight::Bold).color(palette::WHITE);
     let note = plain(changes, FS_SM, Weight::Regular).color(palette::GRAY_2_TEXT);
     let gap = ui.spacing().item_spacing.x;
-    let needed = needed_width(
+    let one_line = fits_on_one_line(
         gap,
         session.is_resolving(),
         [
@@ -40,6 +40,7 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> bool
             line(ui, note.clone(), f32::INFINITY).size().x,
             button::width(ui, Size::Compact, &reset),
         ],
+        ui.available_width(),
     );
     let mut clicked = false;
     let titled = |ui: &mut Ui| {
@@ -54,17 +55,22 @@ pub(super) fn show(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> bool
             ui.label(note);
         });
     };
-    if needed > ui.available_width() {
-        ui.horizontal(titled);
-        ui.horizontal(controls);
-    } else {
+    if one_line {
         ui.horizontal(|ui| {
             titled(ui);
             controls(ui);
         });
+    } else {
+        ui.horizontal(titled);
+        ui.horizontal(controls);
     }
     ui.add_space(SPACE_2);
     clicked
+}
+
+/// Returns whether the head fits on one line of `available` width; see [`needed_width`].
+fn fits_on_one_line(gap: f32, resolving: bool, widths: [f32; 3], available: f32) -> bool {
+    needed_width(gap, resolving, widths) <= available
 }
 
 /// Returns the width of the head on one line: two gaps, the spinner with its gap while
@@ -90,5 +96,24 @@ mod tests {
         let without = needed_width(8.0, false, WIDTHS);
         let with = needed_width(8.0, true, WIDTHS);
         assert!((with - without - (SPINNER_INLINE + 8.0)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn a_line_that_just_fits_stays_on_one_line() {
+        assert!(fits_on_one_line(8.0, false, WIDTHS, 196.0));
+        assert!(!fits_on_one_line(8.0, false, WIDTHS, 195.0));
+    }
+
+    #[test]
+    fn the_spinner_can_push_a_fitting_line_onto_two() {
+        let available = needed_width(8.0, false, WIDTHS);
+        assert!(fits_on_one_line(8.0, false, WIDTHS, available));
+        assert!(!fits_on_one_line(8.0, true, WIDTHS, available));
+        assert!(fits_on_one_line(
+            8.0,
+            true,
+            WIDTHS,
+            available + SPINNER_INLINE + 8.0
+        ));
     }
 }

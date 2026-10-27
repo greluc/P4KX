@@ -11,6 +11,8 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH};
 use p4kx_gui::{Model, ui};
 
+use crate::node_text::node_text;
+
 const WIDGETS: [Role; 7] = [
     Role::Button,
     Role::TextInput,
@@ -35,6 +37,8 @@ fn widgets(harness: &Harness<'_, Model>) -> Vec<Found> {
     let regions = ui::regions(&harness.ctx);
     let named = |id: Id| format!("{:?})", id.accesskit_id());
     let work = regions.work_ui.map(named);
+    let work_shown = regions.work;
+    let scrolls = work_scrolls(work_shown);
     let clips: Vec<(String, Rect)> = regions
         .clips
         .iter()
@@ -61,9 +65,12 @@ fn widgets(harness: &Harness<'_, Model>) -> Vec<Found> {
                     }
                     up = parent.parent();
                 }
+                if let (true, Some(shown)) = (in_work && scrolls, work_shown) {
+                    seen = seen.intersect(shown);
+                }
                 Found {
                     role: *role,
-                    label: node.accesskit_node().label().unwrap_or_default(),
+                    label: node_text(&node).unwrap_or_default(),
                     rect: node.rect(),
                     seen,
                     in_work,
@@ -170,21 +177,33 @@ fn overlap_problems(found: &Placed<'_>, name: &str) -> Vec<String> {
     problems
 }
 
+fn work_scrolls(work: Option<Rect>) -> bool {
+    work.is_some_and(|work| work.width() < WORK_MIN_WIDTH || work.height() < WORK_MIN_HEIGHT)
+}
+
 fn clip_problems(found: &Placed<'_>, regions: &ui::Regions, name: &str) -> Vec<String> {
+    let work = regions.work.filter(|_| !work_scrolls(regions.work));
+    clipped(found, [regions.list, regions.preview], work, name)
+}
+
+fn clipped(
+    found: &Placed<'_>,
+    shown_in: [Option<Rect>; 2],
+    whole_in: Option<Rect>,
+    name: &str,
+) -> Vec<String> {
     let mut problems = Vec::new();
-    let scrolls = regions
-        .work
-        .is_some_and(|work| work.width() < WORK_MIN_WIDTH || work.height() < WORK_MIN_HEIGHT);
-    let containers = [
-        regions.list,
-        regions.preview,
-        regions.work.filter(|_| !scrolls),
-    ];
-    for (_, _, one) in found.iter().filter(|(_, _, one)| one.in_work) {
-        for container in containers.iter().flatten() {
-            if container.contains(one.rect.center())
-                && !container.expand(1.0).contains_rect(one.rect)
-            {
+    for (_, _, one) in found
+        .iter()
+        .filter(|(_, _, one)| one.in_work && one.seen.width() > 0.0 && one.seen.height() > 0.0)
+    {
+        let checks = shown_in
+            .iter()
+            .flatten()
+            .map(|container| (container, one.seen))
+            .chain(whole_in.iter().map(|container| (container, one.rect)));
+        for (container, shape) in checks {
+            if container.contains(shape.center()) && !container.expand(1.0).contains_rect(shape) {
                 problems.push(format!(
                     "{name}: `{}` {:?} is clipped by its region {container:?}",
                     one.label, one.rect
@@ -193,4 +212,111 @@ fn clip_problems(found: &Placed<'_>, regions: &ui::Regions, name: &str) -> Vec<S
         }
     }
     problems
+}
+
+#[cfg(test)]
+mod tests {
+    use egui::{Rect, pos2};
+
+    use super::*;
+
+    fn rect(x0: f32, y0: f32, x1: f32, y1: f32) -> Rect {
+        Rect::from_min_max(pos2(x0, y0), pos2(x1, y1))
+    }
+
+    fn widget(label: &str, rect: Rect, seen: Rect) -> Placed<'static> {
+        vec![(
+            "work surface",
+            rect,
+            Found {
+                role: Role::Button,
+                label: label.to_owned(),
+                rect,
+                seen,
+                in_work: true,
+            },
+        )]
+    }
+
+    #[test]
+    fn a_visible_widget_that_overflows_a_work_surface_that_does_not_scroll_is_reported() {
+        let work = rect(0.0, 0.0, 100.0, 100.0);
+        let button = rect(80.0, 10.0, 120.0, 30.0);
+        let found = widget("Overflowing", button, button);
+
+        let problems = clipped(&found, [None, None], Some(work), "w");
+
+        assert_eq!(problems.len(), 1, "{problems:?}");
+    }
+
+    #[test]
+    fn a_widget_inside_the_work_surface_is_not_reported() {
+        let work = rect(0.0, 0.0, 100.0, 100.0);
+        let button = rect(10.0, 10.0, 50.0, 30.0);
+        let found = widget("Inside", button, button);
+
+        assert_eq!(
+            clipped(&found, [None, None], Some(work), "w"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_work_surface_that_scrolls_is_told_by_its_size() {
+        assert!(work_scrolls(Some(rect(0.0, 0.0, 10.0, 10.0))));
+        assert!(!work_scrolls(Some(rect(
+            0.0,
+            0.0,
+            WORK_MIN_WIDTH,
+            WORK_MIN_HEIGHT
+        ))));
+        assert!(!work_scrolls(None));
+    }
+
+    #[test]
+    fn a_widget_scrolled_out_of_a_marked_table_is_skipped() {
+        let list = rect(0.0, 0.0, 100.0, 50.0);
+        let row = rect(10.0, 60.0, 50.0, 80.0);
+        let hidden = rect(10.0, 60.0, 10.0, 50.0);
+        let found = widget("Row", row, hidden);
+
+        assert_eq!(
+            clipped(&found, [Some(list), None], None, "w"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_partly_scrolled_row_is_judged_by_the_part_that_shows() {
+        let list = rect(0.0, 0.0, 100.0, 50.0);
+        let row = rect(10.0, 45.0, 50.0, 65.0);
+        let shown = rect(10.0, 45.0, 50.0, 50.0);
+        let found = widget("Row", row, shown);
+
+        assert_eq!(
+            clipped(&found, [Some(list), None], None, "w"),
+            Vec::<String>::new()
+        );
+    }
+
+    #[test]
+    fn a_visible_overlap_is_still_reported() {
+        let one = rect(0.0, 0.0, 50.0, 20.0);
+        let other = rect(40.0, 0.0, 90.0, 20.0);
+        let mut found = widget("One", one, one);
+        found.extend(widget("Other", other, other));
+
+        assert_eq!(overlap_problems(&found, "w").len(), 1);
+    }
+
+    #[test]
+    fn a_widget_hidden_behind_another_is_not_an_overlap() {
+        let one = rect(0.0, 0.0, 50.0, 20.0);
+        let other = rect(40.0, 0.0, 90.0, 20.0);
+        let hidden = rect(40.0, 0.0, 40.0, 0.0);
+        let mut found = widget("One", one, one);
+        found.extend(widget("Other", other, hidden));
+
+        assert_eq!(overlap_problems(&found, "w"), Vec::<String>::new());
+    }
 }

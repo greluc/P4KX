@@ -180,7 +180,8 @@ impl Material {
     /// Returns whether the material is a decal that draws no colour: a `MeshDecal` without any
     /// texture slot, a placeholder a livery fills in, a decal (`DECAL` in its generation mask)
     /// whose `DecalDiffuseOpacity` is 0, which only adds relief to the surface below, or a
-    /// [relief decal](Self::is_relief_decal).
+    /// [relief decal](Self::is_relief_decal), or a
+    /// [render-to-texture decal](Self::is_render_to_texture_decal).
     #[must_use]
     pub fn is_colourless_decal(&self) -> bool {
         let empty_mesh_decal =
@@ -189,7 +190,10 @@ impl Material {
             && self
                 .public_param("DecalDiffuseOpacity")
                 .is_some_and(|opacity| opacity[0] <= 0.0);
-        empty_mesh_decal || relief_only || self.is_relief_decal()
+        empty_mesh_decal
+            || relief_only
+            || self.is_relief_decal()
+            || self.is_render_to_texture_decal()
     }
 
     /// Returns whether the engine draws nothing with the material, or nothing a plain glTF

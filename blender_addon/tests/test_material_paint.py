@@ -40,17 +40,27 @@ def bright_specular_layer(material_id: str) -> dict:
     return description(material_id, "Layer", textures=[slot("TexSlot1", "specular", "t0001")])
 
 
-def test_a_tinted_layer_with_a_bright_specular_map_keeps_its_tint() -> None:
+def test_a_tinted_layer_without_a_palette_entry_takes_the_specular_map_path() -> None:
     raw = [
         description("x0001", "HardSurface", layers=[layer("Primary", "x0002", tint_colour=DARK)]),
         bright_specular_layer("x0002"),
     ]
     graph = single(raw)
-    assert graph.node("bsdf").inputs["Base Color"] == pytest.approx(tuple(DARK))
-    assert graph.node("bsdf").inputs["Metallic"] == 0.0
+    assert graph.linked("bsdf", "Metallic") is not None
+    colour = graph.linked("bsdf", "Base Color")
+    assert colour is not None and graph.node(colour.key).kind == "ShaderNodeMix"
+    assert graph.node(colour.key).inputs["A"] == pytest.approx(tuple(DARK))
     level = graph.linked("bsdf", "Specular IOR Level")
     assert level is not None
-    assert graph.node(level.key).inputs[1] == pytest.approx(12.5 * 0.04)
+    assert graph.node(level.key).inputs[1] == pytest.approx(12.5)
+
+
+def test_a_tinted_layer_next_to_a_palette_that_skips_it_takes_the_specular_map_path() -> None:
+    raw = [
+        description("x0001", "HardSurface", layers=[layer("Primary", "x0002", tint_colour=DARK)]),
+        bright_specular_layer("x0002"),
+    ]
+    assert single(raw, paint()).linked("bsdf", "Metallic") is not None
 
 
 def test_a_palette_layer_with_a_bright_specular_map_keeps_the_palette_tint() -> None:

@@ -222,9 +222,14 @@ class _Maker(LayerBlending):
             factor = tint or desc.diffuse
             smooth = NEUTRAL_SMOOTHNESS
             specular = desc.specular
-        painted = entry is not None or (tint is not None and tint != WHITE)
         return self._surface(
-            desc, factor, smooth, specular, layer.gloss_mult or 1.0, layer.uv_tiling or 1.0, painted
+            desc,
+            factor,
+            smooth,
+            specular,
+            layer.gloss_mult or 1.0,
+            layer.uv_tiling or 1.0,
+            entry is not None,
         )
 
     def _image(self, slot: TextureSlot, tiling: float) -> str:

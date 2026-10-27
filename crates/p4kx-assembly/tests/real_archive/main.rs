@@ -5,6 +5,7 @@
 
 mod real_archive;
 mod real_armour;
+mod real_armour_backpack;
 mod real_armour_loadout;
 mod real_armour_palettes;
 mod real_armour_sets;

@@ -309,6 +309,11 @@ its bone and `invalid_offset` for one that is not finite, and the limits `too_ma
 for an attached Entity) followed by the path inside it ([ADR-0086](adr/0086-an-entity-places-its-object-containers-at-its-bones.md)).
 Without the flag `interior` is absent.
 
+When the tree has a `Char_Head` Entity whose sub-type names a body, the report has `body`, an
+object with `variant` (`male` or `female`), the body the clothing of the character was chosen for,
+and `head`, the class name of the head Entity that names it ([ADR-0219](adr/0219-the-clothing-of-a-character-takes-the-sub-geometry-of-its-body.md));
+otherwise `body` is absent. The text report has the line `body <variant>, named by the head <class name>`.
+
 `placements` has one object per part, the root first and every part after its parent, with
 `path` (as for an Issue), `placement` (`root`, `helper`, `port_node`, `skin` or `origin`). A `skin`
 is a part on a skin port, with or without a helper: it is drawn in the parent's bind pose with its
@@ -334,7 +339,9 @@ Record, or the landing gear, names no model; the part stays as an empty node), `
 `geometry_unreadable` (the model is not in the Archive or cannot be read, or its character
 definition names none; the part stays as an empty node), `sub_geometry_missing` (the
 sub-geometry the port's flags choose is not in the Archive, so the part keeps the main geometry of
-its Entity; a note, `skipped` is false), `gear_not_deployed` (a landing gear has no clip that
+its Entity; a note, `skipped` is false), `body_geometry_missing` (the sub-geometry tagged for the
+body of the character is not in the Archive; the part has no model, the placeholder main geometry
+is not drawn instead; `reason` names the body and the path), `gear_not_deployed` (a landing gear has no clip that
 deploys it, or the clip cannot be read or applied to its model; the gear keeps the pose of its
 model; a note, `skipped` is false), `attachments_left_out` (the geometry is
 a character definition, `.cdf`: its skin, else its first attachment, is the part's model and the
@@ -605,7 +612,8 @@ include; the piece is fitted and the issue is a note, ADR-0194),
 `main_geometry_worn` (the Record names no geometry per body, so its main geometry, which is not a
 skin, is worn on the body; a note only), `bones_not_in_skeleton` (some bones of the model are not in
 the body skeleton and follow their nearest parent that is) and `not_skinned` (the model has no bone
-weights and is placed as it is), both described at the exported level of detail,
+weights and its port names no bone to hang it on, so it is placed as it is; one that hangs on
+the bone of its port is not listed, ADR-0231), both described at the exported level of detail,
 `body_zones_hidden` (the reason lists the body zones the worn clothing covers, whose triangles of
 the body are left out, ADR-0140), `body_zones_unknown` (the submeshes of the body skin do not fit
 the zone table, so nothing is left out), `layers_without_diffuse` (only with `--materials textures`; the reason counts the layered

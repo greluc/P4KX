@@ -145,6 +145,7 @@ pub use interior::{
 pub use issue::{Issue, IssueKind};
 pub use loadout_entry::LoadoutEntry;
 pub use model_cache::{CachedModels, DEFAULT_MODEL_CACHE_BYTES, ModelCache};
+pub use node_body::CharacterBody;
 pub use object_containers::{ContainerSource, ObjectContainerRef};
 pub use outfit::{Outfit, OutfitReport};
 pub use p4kx_character as character;

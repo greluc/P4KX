@@ -10,7 +10,6 @@ use crate::armour::{covered, uncovered};
 use crate::build::{file_key, issue};
 use crate::build_models::Loaded;
 use crate::flatten::Draft;
-use crate::node_body::body_of;
 use crate::{BodyVariant, EntityNode, Issue};
 
 /// The cut of a character's body: the zones its worn clothing covers, by the rule of the
@@ -29,7 +28,7 @@ impl<'t> BodyCut<'t> {
         drafts: &[Draft<'t>],
         chosen: &[Option<&Loaded>],
     ) -> Option<Self> {
-        let variant = body_of(tree.ports())?;
+        let variant = tree.character_body()?.variant();
         let covered = covered(
             drafts
                 .iter()

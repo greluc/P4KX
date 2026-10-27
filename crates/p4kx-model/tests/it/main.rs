@@ -22,6 +22,7 @@ mod materials;
 mod palettes;
 mod prefab;
 mod relief_decals;
+mod render_to_texture;
 mod skeleton;
 mod skin_levels;
 mod soc_entities;

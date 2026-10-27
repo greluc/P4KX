@@ -5,6 +5,7 @@ use p4kx_dataforge::Guid;
 
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
+use crate::tree::GeometryChoice;
 use crate::{Attachment, Geometry, GeometryVariant, PortNode, VehicleImplementation};
 
 impl LoadoutResolver<'_> {
@@ -31,9 +32,11 @@ impl LoadoutResolver<'_> {
             }
             if tagged.path.eq_ignore_ascii_case(&main.path) {
                 child.geometry = Some(tagged);
+                child.choice = GeometryChoice::Flag;
                 return;
             }
         }
+        child.choice = GeometryChoice::Flag;
         child.fallback = child.geometry.replace(tagged);
     }
 

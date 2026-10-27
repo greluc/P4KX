@@ -412,32 +412,27 @@ more (LIVE); the field is a fact only, no game text, and it is additive within v
 
 | Field of `insurance` | Source |
 |----------------------|--------|
-| `restoreOnClaim` | `restoreOnClaim`, a boolean |
+| `restoreOnClaim` | `restoreOnClaim`, a boolean (inferred meaning: a claim restores the ship with its Loadout) |
 | `shipEntityClassName` | `shipInsuranceParams.shipEntityClassName`, e.g. `AEGS_Gladius`; `null` when empty |
-| `baseWaitTimeMinutes` | `shipInsuranceParams.baseWaitTimeMinutes`, the claim time in minutes |
-| `mandatoryWaitTimeMinutes` | `shipInsuranceParams.mandatoryWaitTimeMinutes`, the mandatory wait in minutes, the shortest claim time |
-| `expediteFee` | `shipInsuranceParams.baseExpeditingFee` (renamed), in aUEC as stored; named for what the Record calls it |
+| `baseWaitTimeMinutes` | `shipInsuranceParams.baseWaitTimeMinutes`, in minutes (inferred meaning: the claim time) |
+| `mandatoryWaitTimeMinutes` | `shipInsuranceParams.mandatoryWaitTimeMinutes`, in minutes (inferred meaning: the shortest claim time) |
+| `expediteFee` | `shipInsuranceParams.baseExpeditingFee` (renamed), in aUEC as stored |
 
-Every field is `null` when the Record states none. The struct has exactly these fields: two times,
-one fee, `restoreOnClaim`, the class name and the `displayParams` below. The numbers are those of
-the Record, unchanged: the Basetool applies any scaling or rule of its own. The `displayParams` of the struct
+The meanings marked inferred come from the field names; the Archive states none. Every field is
+`null` when the Record states none, including every field of a ship whose
+`SEntityInsuranceProperties` has no `shipInsuranceParams`. The struct has exactly these fields: two
+times, one fee, `restoreOnClaim`, the class name and the `displayParams`. The numbers are those of
+the Record, unchanged; the Basetool applies any scaling or rule of its own. The `displayParams`
 (name, role, career, crew size, manufacturer) repeat the ship's own fields, are mostly
 placeholders, and are not exported.
 
-Which field covers which case. The wait times cover claiming; `expediteFee` is the only fee in
-the struct. The owner reports that the game now claims a default Loadout for free and an insured
-Loadout against a fee, and that expediting is gone. The data does not state that fee: for
-AEGS_Idris_M the Record says 150,990 aUEC, while the game shows just under 1,000,000 aUEC, so
-`expediteFee` is not the claim fee, and the catalog does not present it as one (an interpretation
-that the data contradicts). The claim fee is not a stored number. The Archive holds only
-multipliers in the `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery`
-(`economyParams`: `claimCostMultiplier` 0.003, `maxExpeditedClaimCostMultiplier` 0.0003, per class
-overrides, the Idris-M group at 1), which the game applies to values at run time. The catalog
-exports them as `itemRecovery` (see "Item recovery rules") and computes no fee.
+`expediteFee` is the only fee in aUEC the Archive holds for a ship; the multipliers that relate to
+claims are in `itemRecovery` (see "Item recovery rules"), which also states what the data does and
+does not say about a claim fee.
 
-On LIVE all 1,066 catalog ships carry `insurance`, each with a fee; AEGS_Gladius has a claim time
-of 5.83 minutes, a mandatory wait of 1.94 minutes and an expediting fee of 2,335 aUEC (real-Archive
-test `real_archive_insurance`).
+On LIVE all 1,066 catalog ships carry `insurance`, each with a fee;
+AEGS_Gladius has a `baseWaitTimeMinutes` of 5.83, a `mandatoryWaitTimeMinutes` of 1.94 and an
+`expediteFee` of 2,335 (real-Archive test `real_archive_insurance`).
 
 #### Ship base data
 
@@ -1463,10 +1458,15 @@ committed.
 
 `itemRecovery` is one object, not a kind and not in `completeness`: the
 `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery` (LIVE has
-exactly one), its `economyParams` (ADR-0218, #323). It is `null` when the Archive has no such
-Record, or none that a Filter matches. With several Records the one with the smallest record path
-is taken. `guid`, `className` and `recordPath` name the Record. Every other field carries the
-data name of the `economyParams` field, as the Record states it, `null` when it states none:
+exactly one), its `economyParams` (ADR-0218, #323). The Record is selected by the rule of a kind:
+the type `ItemRecoveryConfigurationParams` under `libs/foundry/records/entitlementpolicies/`, and,
+with a Filter, a record path the Filter matches. `itemRecovery` is `null` when no Record is
+selected or none can be read. With several readable Records the one with the smallest record path
+is taken. A selected Record that cannot be read is left out and listed in the failures of the
+summary, like any other Record, so `null` with a failure means an unreadable Record and `null`
+without one means there is none. `guid`, `className` and `recordPath` name the Record. Every other
+field carries the data name of the `economyParams` field, as the Record states it, as a number;
+it is `null` when the Record states none or states a value that is no number:
 
 | Field | LIVE |
 |-------|------|
@@ -1481,24 +1481,19 @@ data name of the `economyParams` field, as the Record states it, `null` when it 
 
 An override (`overrides[]`, an `ItemRecoveryOverrideGroupDef`) holds `classGuids`, the `guid` of
 each `EntityClassDefinition` in the group's `classes` (a ship is an entry of `ships`; on LIVE the 7
-groups hold 27, 7, 9, 29, 7, 10 and 10 classes, 99 in all, every one a ship of the catalog), and the group's multipliers `claimCooldownMultiplier`,
-`claimCostMultiplier`, `deliveryTimeMultiplier`, `maxExpediteCostMultiplier`,
-`expeditedDeliveryTimeMultiplier`, `flatMinimumDeliveryTimerSecondsMultiplier`,
-`escalationTimerMultiplier`, `escalatingClaimCostMultiplier` and
-`escalatingDeliveryTimerMultiplier`. The groups keep the order of the Record. A class that is in
-no group presumably uses the defaults of `economyParams` (an inference, the Record does not say
-so); the Idris-M, for one, is in a group whose multipliers are all 1.
+groups hold 27, 7, 9, 29, 7, 10 and 10 classes, 99 in all, every one a ship of the catalog; a
+Reference that links to no Record is left out), and the group's multipliers
+`claimCooldownMultiplier`, `claimCostMultiplier`, `deliveryTimeMultiplier`,
+`maxExpediteCostMultiplier`, `expeditedDeliveryTimeMultiplier`,
+`flatMinimumDeliveryTimerSecondsMultiplier`, `escalationTimerMultiplier`,
+`escalatingClaimCostMultiplier` and `escalatingDeliveryTimerMultiplier`. The groups keep the order
+of the Record. That a class in no group uses the defaults of `economyParams` is an inference; the
+Record does not say so.
 
-How this relates to the fee, as far as the data shows. The Record holds multipliers and rates,
-and no fee in aUEC. The only fee in the Archive is `insurance.expediteFee`, the
-`baseExpeditingFee` of the ship (150,990 for the Idris-M). The owner reports that the game now
-claims a default Loadout for free, claims an insured Loadout against a fee, and no longer offers
-expediting; the fee shown for an Idris-M is just under 1,000,000 aUEC. That fee is therefore
-computed by the game at run time, apparently from `claimCostMultiplier` (times the group's
-`claimCostMultiplier`) and the value of the insured items, which the catalog does not state; how
-exactly the multipliers combine is not in the data and is not asserted here. The Basetool
-computes the fee itself from these multipliers and the item values it has, and checks the result
-against the fee the game shows. `insurance.expediteFee` is not shown to be that fee.
+No fee in aUEC. The Record holds multipliers and rates and no fee in aUEC, and no field named
+like a price was found in the `EntityClassDefinition` Records of ships and items. The only fee in
+aUEC next to it is `insurance.expediteFee`. The catalog therefore exports no claim fee, and no
+formula over the exported facts is documented as one (ADR-0218).
 
 ### Texts
 

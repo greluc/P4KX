@@ -43,6 +43,7 @@ mod entity_layered;
 mod entity_livery;
 mod entity_loadout;
 mod entity_module_sample;
+mod entity_mount;
 mod entity_npc;
 mod entity_npc_zones;
 mod entity_painted;
@@ -89,6 +90,7 @@ mod opus;
 mod opus_encode;
 mod prefab;
 mod real_archive;
+mod reference_output;
 mod rig_logic;
 mod screens;
 mod screens_canvas;
@@ -158,6 +160,9 @@ pub use entity_livery::{
 };
 pub use entity_loadout::{TestLoadout, TestLoadoutEntry};
 pub use entity_module_sample::{ENTITY_MODULE_CARRIER, ENTITY_MODULE_CLASS, entity_module_entries};
+pub use entity_mount::{
+    MOUNT_BONE, MOUNT_COURIER, MOUNT_DRIFTER, SATCHEL_HELPER_Z, mounted_item_entries,
+};
 pub use entity_npc::{
     NPC_BROW_SKIN, NPC_CLASS, NPC_EYES_MATERIAL, NPC_FILES_CLASS, NPC_HAIR_BLONDE, NPC_HAIR_BROWN,
     NPC_HEAD_CLASS, NPC_HEAD_FLAGS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,
@@ -214,6 +219,10 @@ pub use real_archive::{
     MissingRealArchive, MissingRealKey, REAL_ARCHIVE_B_VAR, REAL_ARCHIVE_KEY_FILE_VAR,
     REAL_ARCHIVE_KEY_VAR, REAL_ARCHIVE_VAR, real_archive_b_path, real_archive_key,
     real_archive_pair, real_archive_path,
+};
+pub use reference_output::{
+    REFERENCE_STARBREAKER_VAR, REFERENCE_UNFORGE_VAR, REFERENCE_UNP4K_VAR,
+    reference_starbreaker_path, reference_unforge_path, reference_unp4k_path,
 };
 pub use rig_logic::{RIG_LOGIC_CHUNK, TestRigLogic};
 pub use screens::{SCREEN_COLOUR_SLOTS, screens_schema};

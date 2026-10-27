@@ -50,6 +50,7 @@ mod nodes;
 mod package_support;
 mod rig;
 mod rig_animation;
+mod rig_mount;
 mod scene;
 mod scene_light;
 mod scene_nodes;
@@ -84,6 +85,7 @@ pub use rig::{
     write_rigged_glb_with,
 };
 pub use rig_animation::{RigAnimation, SampledAnimation, SampledBone, SampledWeights};
+pub use rig_mount::RigMount;
 pub use scene::{Scene, SceneNode, ScenePart, write_scene_glb, write_scene_glb_with};
 pub use scene_light::{SceneLight, SceneLightKind};
 pub use shading::{Shading, shading};

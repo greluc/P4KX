@@ -25,6 +25,7 @@ mod catalog_mining;
 mod catalog_paints;
 mod catalog_playability;
 mod catalog_quantization;
+mod catalog_recovery;
 mod catalog_selection;
 mod catalog_ship_base;
 mod catalog_shop_items;

@@ -19,7 +19,7 @@ use crate::contract::{
 };
 use crate::crafting::read_with_progress;
 use crate::crafting_warning::CraftingWarning;
-use crate::recovery::item_recovery;
+use crate::recovery::{Recovery, read_recovery};
 use crate::scan::Scan;
 use crate::ship_store_slugs::StoreSlugs;
 use crate::shops::add_shops;
@@ -215,6 +215,8 @@ fn assemble<R>(
     let starmap_summary = add_starmap(&mut collected, counts);
     add_contracts(&forge, &texts, options, &mut collected)?;
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
+    let Recovery { rules, failures } = read_recovery(&forge, options.filter);
+    collected.add_failures(failures);
     let kinds = collected.summary(options.filter.is_none());
     let store_slugs = StoreSlugs::embedded()?;
     let resolved = store_slugs.resolve(
@@ -249,7 +251,7 @@ fn assemble<R>(
         refining_processes: collected.refining_processes,
         shops: collected.shops,
         ship_store_slugs: resolved.exported,
-        item_recovery: item_recovery(&forge, options.filter),
+        item_recovery: rules,
     };
     let output = emit(&catalog)?;
     Ok((

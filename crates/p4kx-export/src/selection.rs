@@ -301,6 +301,11 @@ impl KindRule {
             .iter()
             .any(|prefix| starts_with_folder(record_path, prefix))
     }
+
+    /// Returns whether a Record with `record_path` and the struct `type_name` is selected.
+    pub(crate) fn selects(&self, record_path: &str, type_name: &str) -> bool {
+        self.type_name == type_name && self.matches_path(record_path)
+    }
 }
 
 /// Returns whether `record_path` starts with `prefix`, ignoring ASCII case and the kind of

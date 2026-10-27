@@ -9,21 +9,31 @@ Decided for issue #323. Builds on ADR-0002, ADR-0054 and ADR-0065.
   type any more (LIVE). The data sits in the ship's own `EntityClassDefinition`, in the
   `SEntityInsuranceProperties` of its `StaticEntityClassData`, so the ship's `recordPath` is the
   source path and no second Record, link or ordering is needed.
-- **The object holds the raw facts:** `restoreOnClaim`, `shipEntityClassName`,
-  `baseWaitTimeMinutes`, `mandatoryWaitTimeMinutes` and `expediteFee` (the Record's `baseExpeditingFee`), each `null` when the
-  Record states none. The object is `null` when the Record has no `SEntityInsuranceProperties`.
-  The Record states no claim cost, so none is exported (ADR-0065: facts, no derived values).
+- **The object holds the raw facts under their data names:** `restoreOnClaim`,
+  `shipEntityClassName`, `baseWaitTimeMinutes`, `mandatoryWaitTimeMinutes` and `expediteFee` (the
+  Record's `baseExpeditingFee`), each `null` when the Record states none. The object is `null`
+  when the Record has no `SEntityInsuranceProperties`. What the names mean (claim time, shortest
+  claim time, restore with the Loadout) is inferred from them; the Archive states no meaning.
 - **`displayParams` stay out:** they repeat the ship's name, role, career, crew size and
   manufacturer, mostly as placeholders, and are game text.
-- **The fee stays `expediteFee`, not a claim fee.** For the Idris-M the Record says 150,990 aUEC
-  while the game shows just under 1,000,000 for a claim, so the number is not shown to be the
-  claim fee. The claim fee of an insured Loadout is not stored.
+- **No claim fee is exported.** The Records hold multipliers (`itemRecovery`) and one fee in
+  aUEC per ship (`baseExpeditingFee`, exported as `expediteFee`), and the `EntityClassDefinition`
+  Records of ships and items hold no price the multipliers could apply to. A formula over the
+  exported facts (the ship's fee, wait times and base data, and the multipliers) was tried against
+  the two in-game claim fees the owner gave, a ship with an insured Loadout and the largest
+  ship; none reproduces both, so none is documented, and ADR-0065 forbids exporting a value that
+  the data does not hold.
 - **The recovery multipliers are the object `itemRecovery`,** not a kind: the
-  `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery`, its
-  `economyParams` under their data names, with the override groups and the GUIDs of their entity
-  classes. The Basetool computes the fee itself; the catalog computes none.
+  `ItemRecoveryConfigurationParams` Record under `entitlementpolicies/`, its `economyParams`
+  under their data names, with the override groups and the GUIDs of their entity classes. The
+  Record is selected by a `KindRule` like the crafting global parameters, honours the Filter, and
+  with several readable Records the smallest record path wins. A Record that cannot be read is
+  left out and listed in the failures of the build, so `null` with a failure differs from
+  `null` without one.
 - **It is part of the unreleased `schemaVersion` 2,** with no bump.
 
 ## Consequences
 
 - On LIVE all 1,066 catalog ships carry `insurance` with a fee.
+- The Record is optional: an Archive without it gives `itemRecovery` `null`, and the choice
+  follows ADR-0065, which exports what a Record states and nothing it does not.

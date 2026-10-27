@@ -136,7 +136,13 @@ pub(crate) fn guid_value(parent: Option<&StructValue<'_>>, name: &str) -> Option
 
 /// Returns the GUID of the Record the Reference in the field `name` of `parent` links to.
 pub(crate) fn reference(parent: Option<&StructValue<'_>>, name: &str) -> Option<CatalogGuid> {
-    match parent?.field(name)? {
+    record_reference(parent?.field(name)?)
+}
+
+/// Returns the GUID of the Record `value` links to, `None` for a value that is no Reference or
+/// links into a Record rather than to it.
+pub(crate) fn record_reference(value: &Value<'_>) -> Option<CatalogGuid> {
+    match value {
         Value::Reference(reference) if reference.location().is_none() => {
             Some(CatalogGuid(reference.guid()))
         }

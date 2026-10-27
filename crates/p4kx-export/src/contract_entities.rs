@@ -5,6 +5,7 @@ use schemars::JsonSchema;
 use serde::Serialize;
 
 use crate::contract::{LocalisedText, every_field_required};
+use crate::contract_insurance::ShipInsurance;
 use crate::contract_stats::ItemStats;
 use crate::guid_text::CatalogGuid;
 use crate::item_variant::ItemKey;
@@ -143,4 +144,7 @@ pub(crate) struct Ship<'a> {
     /// vehicle definition and the vehicle implementation after the Modification. `null` for a base
     /// and for a ship that is alone in its group. It is the `guid` of an entry of `ships`.
     pub(crate) variant_of: Option<CatalogGuid>,
+    /// The claim and expedite values of the ship's `SEntityInsuranceProperties`; `null` when the
+    /// Record has none.
+    pub(crate) insurance: Option<ShipInsurance<'a>>,
 }

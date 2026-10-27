@@ -5,6 +5,7 @@ use egui::{Align, Layout, Pos2, Rect, Response, Role, Sense, Ui, Vec2, WidgetInf
 use egui_extras::{Column, TableBuilder, TableRow};
 
 use super::record_rows::{Cell, RecordRowCache, kind_look, shown_path, shown_row};
+use super::regions;
 use super::table::{head_fill, sort_header};
 use crate::theme::desktop::{CELL_PADDING_X, CHANGE_COLUMN, RECORD_TYPE_COLUMN, ROW_HEIGHT};
 use crate::theme::palette;
@@ -75,7 +76,7 @@ pub(super) fn show(
             }
         })
         .body(|body| {
-            body.rows(ROW_HEIGHT, view.shown().len(), |row| {
+            regions::rows(body, ROW_HEIGHT, view.shown().len(), |row| {
                 let index = row.index();
                 let (clicked, is_hovered) =
                     show_row(row, (texts, view), &mut cache, hovered == Some(index));

@@ -8,6 +8,7 @@ use egui::{Align, Id, Label, Layout, Role, Sense, Ui, Vec2, WidgetInfo, pos2, ve
 use egui_extras::{Column, TableBuilder, TableRow};
 
 use super::audio_controls::clock;
+use super::regions;
 use super::table::{cell_text, head_fill};
 use crate::theme::desktop::{
     CELL_PADDING_X, ROW_FONT, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING,
@@ -205,7 +206,7 @@ fn grid(table: TableBuilder<'_>, rows: &Rows<'_>, outcome: &mut Outcome) -> Scro
             }
         })
         .body(|body| {
-            body.rows(ROW_HEIGHT, rows.sounds.len(), |row| {
+            regions::rows(body, ROW_HEIGHT, rows.sounds.len(), |row| {
                 let index = row.index();
                 let (Some(sound), Some(texts)) =
                     (rows.sounds.get(index), rows.laid.rows.get(index))

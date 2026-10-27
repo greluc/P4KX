@@ -291,6 +291,7 @@ fn a_ship_carries_names_role_career_crew_manufacturer_and_vehicle_definition() -
             "hullHealth": null,
             "cargoScu": 0.0,
             "cargoGridsWithIssue": 0,
+            "insurance": null,
         }),
         "the ship fields"
     );

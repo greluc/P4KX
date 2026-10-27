@@ -19,6 +19,7 @@ use crate::contract::{
 };
 use crate::crafting::read_with_progress;
 use crate::crafting_warning::CraftingWarning;
+use crate::recovery::item_recovery;
 use crate::scan::Scan;
 use crate::ship_store_slugs::StoreSlugs;
 use crate::shops::add_shops;
@@ -248,6 +249,7 @@ fn assemble<R>(
         refining_processes: collected.refining_processes,
         shops: collected.shops,
         ship_store_slugs: resolved.exported,
+        item_recovery: item_recovery(&forge, options.filter),
     };
     let output = emit(&catalog)?;
     Ok((

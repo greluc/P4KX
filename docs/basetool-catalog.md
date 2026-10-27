@@ -37,7 +37,7 @@ The rule is ADR-0054 (amending ADR-0002):
   such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
   of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
   Version 2 has the kind `qualityQuantizations` (#692, ADR-0177); it is not yet released, so it
-  needs no further bump.
+  needs no further bump. The same holds for the ship field `insurance` (#323, ADR-0218).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -125,6 +125,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `shops` | The shops of the shop registry with kind, brand, location and the link to a starmap object, ordered by `key` |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
+| `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
 
 A complete kind lists every Record of its kind in the Build, so the import may treat a Record it
 knows but no longer finds as removed. A partial kind lists only what the Filter selected.
@@ -400,6 +401,43 @@ A ship takes its fields from `VehicleComponentParams`:
 | `hullHealth` | The hull hit points, `null` when unknown; see "Ship base data" below |
 | `cargoScu` | The cargo capacity in SCU: 0 without a cargo grid, `null` when unknown; see "Ship base data" below |
 | `cargoGridsWithIssue` | How many cargo grids have no readable capacity; above 0, `cargoScu` is a lower bound |
+| `insurance` | The claim and expedite values of the ship's `SEntityInsuranceProperties`, `null` when the Record has none; see "Ship insurance" below |
+
+#### Ship insurance
+
+The insurance data is part of the ship Record (ADR-0218, #323): the `SEntityInsuranceProperties`
+struct in the `StaticEntityClassData` of the `EntityClassDefinition`, so the source path of a
+ship's insurance is the ship's `recordPath`. There is no `ShipInsuranceRecord` in the Archive any
+more (LIVE); the field is a fact only, no game text, and it is additive within version 2.
+
+| Field of `insurance` | Source |
+|----------------------|--------|
+| `restoreOnClaim` | `restoreOnClaim`, a boolean |
+| `shipEntityClassName` | `shipInsuranceParams.shipEntityClassName`, e.g. `AEGS_Gladius`; `null` when empty |
+| `baseWaitTimeMinutes` | `shipInsuranceParams.baseWaitTimeMinutes`, the claim time in minutes |
+| `mandatoryWaitTimeMinutes` | `shipInsuranceParams.mandatoryWaitTimeMinutes`, the mandatory wait in minutes, the shortest claim time |
+| `expediteFee` | `shipInsuranceParams.baseExpeditingFee` (renamed), in aUEC as stored; named for what the Record calls it |
+
+Every field is `null` when the Record states none. The struct has exactly these fields: two times,
+one fee, `restoreOnClaim`, the class name and the `displayParams` below. The numbers are those of
+the Record, unchanged: the Basetool applies any scaling or rule of its own. The `displayParams` of the struct
+(name, role, career, crew size, manufacturer) repeat the ship's own fields, are mostly
+placeholders, and are not exported.
+
+Which field covers which case. The wait times cover claiming; `expediteFee` is the only fee in
+the struct. The owner reports that the game now claims a default Loadout for free and an insured
+Loadout against a fee, and that expediting is gone. The data does not state that fee: for
+AEGS_Idris_M the Record says 150,990 aUEC, while the game shows just under 1,000,000 aUEC, so
+`expediteFee` is not the claim fee, and the catalog does not present it as one (an interpretation
+that the data contradicts). The claim fee is not a stored number. The Archive holds only
+multipliers in the `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery`
+(`economyParams`: `claimCostMultiplier` 0.003, `maxExpeditedClaimCostMultiplier` 0.0003, per class
+overrides, the Idris-M group at 1), which the game applies to values at run time. The catalog
+exports them as `itemRecovery` (see "Item recovery rules") and computes no fee.
+
+On LIVE all 1,066 catalog ships carry `insurance`, each with a fee; AEGS_Gladius has a claim time
+of 5.83 minutes, a mandatory wait of 1.94 minutes and an expediting fee of 2,335 aUEC (real-Archive
+test `real_archive_insurance`).
 
 #### Ship base data
 
@@ -1420,6 +1458,47 @@ current `LIVE` Archive and its `store_slugs.stale` and `unmapped` lists show wha
 new ship is mapped by the rules above, a mapping that went stale is corrected, or marked
 `"retired": true` when the ship is gone. The real-Archive test must pass before the file is
 committed.
+
+### Item recovery rules
+
+`itemRecovery` is one object, not a kind and not in `completeness`: the
+`ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery` (LIVE has
+exactly one), its `economyParams` (ADR-0218, #323). It is `null` when the Archive has no such
+Record, or none that a Filter matches. With several Records the one with the smallest record path
+is taken. `guid`, `className` and `recordPath` name the Record. Every other field carries the
+data name of the `economyParams` field, as the Record states it, `null` when it states none:
+
+| Field | LIVE |
+|-------|------|
+| `globalBrickTimer`, `baseReclaimTime`, `baseDeliveryTime`, `scalingPriceFloor` | 10, 0, 0, 0 |
+| `aUECperSecond`, `deliverySecondsPerAUEC`, `expeditedDeliverySecondsPerAUEC` | 1e-6, 1e-6, 5e-7 |
+| `claimCostMultiplier`, `maxExpeditedClaimCostMultiplier` | 0.003, 0.0003 |
+| `defaultLoadoutCooldownMultiplier`, `defaultLoadoutDeliveryTimeMultiplier`, `defaultLoadoutExpeditedDeliveryTimeMultiplier` | 200, 200, 100 |
+| `vehicleChassisRepairCostMultiplier`, `vehicleComponentRepairCostMultiplier`, `vehicleRepairMissingItemCostMultiplier` | 1, 1, 1 |
+| `flatMinimumDeliveryTimerSeconds` | 10 |
+| `escalatingClaimsParams` | `escalatingClaimChainLimit` 1 and the multipliers `escalationTimerMultiplier`, `escalatingClaimCostMultiplier`, `escalatingDeliveryTimerMultiplier`, all 1 |
+| `overrides` | 7 groups, see below |
+
+An override (`overrides[]`, an `ItemRecoveryOverrideGroupDef`) holds `classGuids`, the `guid` of
+each `EntityClassDefinition` in the group's `classes` (a ship is an entry of `ships`; on LIVE the 7
+groups hold 27, 7, 9, 29, 7, 10 and 10 classes, 99 in all, every one a ship of the catalog), and the group's multipliers `claimCooldownMultiplier`,
+`claimCostMultiplier`, `deliveryTimeMultiplier`, `maxExpediteCostMultiplier`,
+`expeditedDeliveryTimeMultiplier`, `flatMinimumDeliveryTimerSecondsMultiplier`,
+`escalationTimerMultiplier`, `escalatingClaimCostMultiplier` and
+`escalatingDeliveryTimerMultiplier`. The groups keep the order of the Record. A class that is in
+no group presumably uses the defaults of `economyParams` (an inference, the Record does not say
+so); the Idris-M, for one, is in a group whose multipliers are all 1.
+
+How this relates to the fee, as far as the data shows. The Record holds multipliers and rates,
+and no fee in aUEC. The only fee in the Archive is `insurance.expediteFee`, the
+`baseExpeditingFee` of the ship (150,990 for the Idris-M). The owner reports that the game now
+claims a default Loadout for free, claims an insured Loadout against a fee, and no longer offers
+expediting; the fee shown for an Idris-M is just under 1,000,000 aUEC. That fee is therefore
+computed by the game at run time, apparently from `claimCostMultiplier` (times the group's
+`claimCostMultiplier`) and the value of the insured items, which the catalog does not state; how
+exactly the multipliers combine is not in the data and is not asserted here. The Basetool
+computes the fee itself from these multipliers and the item values it has, and checks the result
+against the fee the game shows. `insurance.expediteFee` is not shown to be that fee.
 
 ### Texts
 

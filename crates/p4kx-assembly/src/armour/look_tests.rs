@@ -211,6 +211,33 @@ fn a_hair_takes_the_first_choice_when_no_sub_material_name_matches() {
     assert_eq!(diffuse(&status, 0), [0.0, 1.0, 0.0]);
 }
 
+const LASHES: &str = r#"<Material><SubMaterials>
+    <Material Name="male_lash_up_m" Shader="HairPBR" Diffuse="1,1,1">
+      <PublicParams BaseMelanin="0.8" BaseMelaninRedness="0" DyeAmount="0" DyeColor="0,0,1" BaseTintColor="1,1,1"/>
+    </Material>
+    <Material Name="teeth" Shader="Illum" Diffuse="1,1,1"/>
+    </SubMaterials></Material>"#;
+
+#[test]
+fn a_hair_the_character_chose_nothing_for_takes_the_colour_of_its_own_parameters() {
+    let status = Look::natural()
+        .apply(&library(LASHES))
+        .expect("the lashes change");
+
+    let [red, green, blue] = diffuse(&status, 0);
+    assert!(
+        red < 0.05 && green < 0.05 && blue < 0.05,
+        "dark: {red} {green} {blue}"
+    );
+    assert!(red >= blue, "not blue: the dye amount is 0");
+    assert_eq!(diffuse(&status, 1), [1.0; 3], "other shaders stay");
+}
+
+#[test]
+fn a_natural_look_leaves_a_library_without_hair_alone() {
+    assert!(Look::natural().apply(&library(SKIN)).is_none());
+}
+
 #[test]
 fn a_choice_that_names_no_material_changes_nothing() {
     let skin = look(

@@ -1,0 +1,235 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! Items on ports the vehicle implementation or the port definition marks `invisible` are kept as
+//! hidden parts that are not drawn.
+
+use p4kx_assembly::{ArchiveModels, Assembly, AssemblyOptions, LoadoutResolver, PortVisibility};
+use p4kx_dataforge::DataForge;
+use p4kx_extraction::Archive;
+use p4kx_testkit::{
+    DataForgeBuilder, TestEntity, TestModel, TestPort, entity_schema, landing_system_record,
+};
+
+use crate::assembly_support::{TestResult, fixture};
+use crate::vehicle_support::{DEFINITION, files, standard_files};
+
+const SHIP: u128 = 0x1000;
+const SKID: u128 = 0x2000;
+const BOLT: u128 = 0x3000;
+const GEAR: u128 = 0x4000;
+
+fn build(modification: &str) -> Result<Assembly, Box<dyn std::error::Error>> {
+    build_with(modification, false)
+}
+
+fn build_with(modification: &str, gear: bool) -> Result<Assembly, Box<dyn std::error::Error>> {
+    let bolt = TestEntity::new(BOLT, "TEST_Bolt", "entities/test_bolt.xml")
+        .geometry("Objects/Test/cube.cgf", None);
+    let mut skid = TestEntity::new(SKID, "TEST_Skid", "entities/test_skid.xml")
+        .geometry("Objects/Test/cube.cgf", None)
+        .port(TestPort::new("inner").default_item(BOLT));
+    if gear {
+        skid = skid.vehicle("", "").landing_system(GEAR);
+    }
+    let ship = TestEntity::new(SHIP, "TEST_Ship", "entities/test_ship.xml")
+        .geometry("Objects/Test/cube.cgf", None)
+        .vehicle(DEFINITION, modification)
+        .port(TestPort::new("hardpoint_gun").default_item(SKID))
+        .port(TestPort::new("hardpoint_seat").default_item(SKID))
+        .port(
+            TestPort::new("hardpoint_def")
+                .flags("invisible $editable")
+                .default_item(SKID),
+        );
+    let mut builder = entity_schema(DataForgeBuilder::new())
+        .record(bolt.record())
+        .record(skid.record())
+        .record(ship.record());
+    if gear {
+        builder = builder.record(landing_system_record(
+            GEAR,
+            "TEST_Skid_LandingSystem",
+            &[("skid_bone", "Objects/Test/cube.cgf", 1.0)],
+        ));
+    }
+    let bytes = builder.build();
+    let model = TestModel::cube();
+    let fixture = fixture(vec![
+        p4kx_testkit::TestEntry::zstd("Data\\Game2.dcb", bytes.clone()),
+        p4kx_testkit::TestEntry::stored("Data\\Objects\\Test\\cube.cgf", model.cgf()),
+        p4kx_testkit::TestEntry::stored("Data\\Objects\\Test\\cube.cgfm", model.cgfm()),
+    ])?;
+    let archive = Archive::open(&fixture.path)?;
+    let forge = DataForge::open(&bytes)?;
+    let files = standard_files();
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let record = resolver.entities().find("TEST_Ship")?;
+    let tree = resolver.resolve(&record)?;
+    let models = ArchiveModels::new(&archive);
+    Ok(Assembly::build(
+        &tree,
+        &models,
+        &AssemblyOptions::default(),
+    )?)
+}
+
+#[test]
+fn items_on_invisible_ports_are_kept_but_not_drawn() -> TestResult {
+    let assembly = build("")?;
+
+    assert_eq!(assembly.parts().len(), 7, "every part stays in the list");
+    let drawn: Vec<&str> = assembly
+        .parts()
+        .iter()
+        .filter(|part| part.model().is_some())
+        .map(p4kx_assembly::Part::path)
+        .collect();
+    assert_eq!(
+        drawn,
+        ["", "hardpoint_seat", "hardpoint_seat/inner"],
+        "only the root and the visible port are drawn"
+    );
+    let hidden: Vec<&str> = assembly
+        .parts()
+        .iter()
+        .filter(|part| part.is_hidden())
+        .map(p4kx_assembly::Part::path)
+        .collect();
+    assert_eq!(
+        hidden,
+        [
+            "hardpoint_gun",
+            "hardpoint_gun/inner",
+            "hardpoint_def",
+            "hardpoint_def/inner"
+        ],
+        "the items below a hidden item are hidden with it"
+    );
+    assert_eq!(assembly.hidden_parts(), 4);
+    assert!(
+        assembly
+            .issues()
+            .iter()
+            .all(|issue| issue.kind().code() == "material_library"),
+        "hiding raises no issue: {:?}",
+        assembly.issues()
+    );
+    Ok(())
+}
+
+#[test]
+fn a_modification_that_clears_the_flag_draws_the_item_again() -> TestResult {
+    let assembly = build("Open")?;
+
+    let gun = assembly.part_at("hardpoint_gun").ok_or("the gun part")?;
+    assert!(!gun.is_hidden() && gun.model().is_some());
+    assert!(
+        assembly
+            .part_at("hardpoint_gun/inner")
+            .is_some_and(|part| part.model().is_some())
+    );
+    assert_eq!(assembly.hidden_parts(), 2, "the definition's flag remains");
+    Ok(())
+}
+
+#[test]
+fn the_tree_keeps_the_visibility_of_a_port_the_definition_flags() -> TestResult {
+    let bytes = entity_schema(DataForgeBuilder::new())
+        .record(
+            TestEntity::new(SHIP, "TEST_Ship", "entities/test_ship.xml")
+                .port(TestPort::new("relay").flags("invisible"))
+                .port(TestPort::new("plain"))
+                .record(),
+        )
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let mut resolver = LoadoutResolver::new(&forge);
+    let record = resolver.entities().find("TEST_Ship")?;
+    let tree = resolver.resolve(&record)?;
+    let seen: Vec<(&str, PortVisibility)> = tree
+        .ports()
+        .iter()
+        .map(|port| (port.name(), port.visibility()))
+        .collect();
+    assert_eq!(
+        seen,
+        [
+            ("relay", PortVisibility::Invisible),
+            ("plain", PortVisibility::Unspecified)
+        ]
+    );
+    Ok(())
+}
+
+const MIXED: &str = "Scripts/Entities/Vehicles/Implementations/Xml/TEST_Mixed.xml";
+
+const MIXED_XML: &str = r#"<Vehicle name="TEST_Mixed"><Parts><Part name="body" class="Animated"><Parts>
+    <Part name="hardpoint_shown" class="ItemPort"><ItemPort flags="$editable"/></Part>
+    <Part name="hardpoint_late" class="ItemPort"><ItemPort id="portLate" flags="$editable"/></Part>
+</Parts></Part></Parts>
+<Modifications><Modification name="Hide">
+    <Elems><Elem idRef="portLate" name="flags" value="invisible $editable"/></Elems>
+</Modification></Modifications></Vehicle>"#;
+
+fn mixed(modification: &str) -> Result<Vec<(String, PortVisibility)>, Box<dyn std::error::Error>> {
+    let bytes = entity_schema(DataForgeBuilder::new())
+        .record(
+            TestEntity::new(SHIP, "TEST_Ship", "entities/test_ship.xml")
+                .vehicle(MIXED, modification)
+                .port(TestPort::new("hardpoint_shown").flags("invisible"))
+                .port(TestPort::new("hardpoint_late"))
+                .port(TestPort::new("hardpoint_dollar").flags("$Invisible $editable"))
+                .record(),
+        )
+        .build();
+    let forge = DataForge::open(&bytes)?;
+    let files = files(&[(MIXED, MIXED_XML)]);
+    let mut resolver = LoadoutResolver::new(&forge).with_files(&files);
+    let record = resolver.entities().find("TEST_Ship")?;
+    let tree = resolver.resolve(&record)?;
+    Ok(tree
+        .ports()
+        .iter()
+        .map(|port| (port.name().to_owned(), port.visibility()))
+        .collect())
+}
+
+#[test]
+fn a_vehicle_part_without_the_flag_overrides_a_definition_that_carries_it() -> TestResult {
+    let seen = mixed("")?;
+
+    assert_eq!(
+        seen[0],
+        ("hardpoint_shown".to_owned(), PortVisibility::Visible)
+    );
+    Ok(())
+}
+
+#[test]
+fn a_modification_can_add_the_flag() -> TestResult {
+    assert_eq!(mixed("")?[1].1, PortVisibility::Visible);
+    assert_eq!(mixed("Hide")?[1].1, PortVisibility::Invisible);
+    Ok(())
+}
+
+#[test]
+fn the_flag_is_found_with_a_dollar_and_in_any_case() -> TestResult {
+    assert_eq!(mixed("")?[2].1, PortVisibility::Invisible);
+    Ok(())
+}
+
+#[test]
+fn a_landing_gear_of_a_hidden_entity_is_hidden_with_it() -> TestResult {
+    let assembly = build_with("", true)?;
+
+    let hidden = assembly
+        .part_at("hardpoint_gun/landing_gear/skid_bone")
+        .ok_or("the hidden gear")?;
+    assert!(hidden.is_landing_gear() && hidden.is_hidden() && hidden.model().is_none());
+    let shown = assembly
+        .part_at("hardpoint_seat/landing_gear/skid_bone")
+        .ok_or("the visible gear")?;
+    assert!(shown.is_landing_gear() && !shown.is_hidden() && shown.model().is_some());
+    Ok(())
+}

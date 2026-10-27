@@ -5,6 +5,7 @@
 
 mod package_character;
 mod package_interior;
+mod package_landing_gear;
 mod package_layer_limits;
 mod package_layout;
 mod package_materials;

@@ -16,6 +16,7 @@ pub(crate) struct Character {
     pub(crate) model: String,
     pub(crate) material: Option<String>,
     pub(crate) left_out: Vec<String>,
+    pub(crate) skeleton: Option<String>,
 }
 
 /// Returns whether `path` names a character definition.
@@ -78,10 +79,16 @@ pub(crate) fn read(bytes: &[u8]) -> Result<Character, String> {
         .take(MAX_LEFT_OUT)
         .map(|(_, (binding, _, _))| slashes(binding))
         .collect();
+    let skeleton = root
+        .child("Model")
+        .and_then(|model| model.attribute("File"))
+        .filter(|file| !file.is_empty())
+        .map(slashes);
     Ok(Character {
         model,
         material,
         left_out,
+        skeleton,
     })
 }
 

@@ -21,22 +21,24 @@ use crate::{LoadoutError, LoadoutFiles};
 
 pub use elem::ElemOverride;
 pub(crate) use gear::gears;
+pub(crate) use item_port::flags_contain;
 pub use item_port::{VehicleItemPort, VehicleItemType};
 pub(crate) use locate::load;
 pub use origin::ValueOrigin;
 pub use patch::ModificationReport;
 pub use totals::{OriginTally, PartThreshold, PartialValue, UnreadableValue, VehicleTotals};
 
-/// Whether a part of the vehicle implementation shows its item port.
+/// Whether a port shows its item: the vehicle implementation's part of that name decides, else
+/// the flags of the port definition.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[non_exhaustive]
 pub enum PortVisibility {
-    /// The vehicle implementation names no part of the port.
+    /// Neither the vehicle implementation nor the port definition states it.
     #[default]
     Unspecified,
     /// The part's item port is shown.
     Visible,
-    /// The part's item port carries the flag `invisible`.
+    /// The part's item port, or else the port definition, carries the flag `invisible`.
     Invisible,
 }
 

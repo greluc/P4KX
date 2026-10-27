@@ -98,6 +98,13 @@ pub enum IssueKind {
         /// The files of the attachments that are not drawn.
         files: Vec<String>,
     },
+    /// The landing gear could not be posed at the end of its deploy clip, so it keeps the pose of
+    /// its model.
+    #[error("the landing gear keeps the pose of its model: {reason}")]
+    GearNotDeployed {
+        /// Why the gear was not posed.
+        reason: String,
+    },
     /// A container nested in an Interior cannot be found, so it and what is in it are left out.
     #[error("the container {name} does not exist")]
     ContainerMissing {

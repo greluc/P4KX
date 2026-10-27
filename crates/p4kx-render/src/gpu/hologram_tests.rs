@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use super::deadline::arm;
 use super::{
     Adapters, AssemblyDraw, Colours, Frame, Hologram, Look, Offscreen, Picture, Shading, Subject,
 };
@@ -82,6 +83,7 @@ fn frame_of(
     reason = "tells the test run why a test checked nothing"
 )]
 fn software(test: &str) -> Option<Offscreen> {
+    arm(test);
     match Offscreen::new(Adapters::Software) {
         Ok(offscreen) => Some(offscreen),
         Err(error) => {

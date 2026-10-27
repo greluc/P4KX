@@ -130,6 +130,19 @@ pub trait ModelProvider: Sync {
         let _ = (path, limit);
         Err(ModelFailure::Missing)
     }
+
+    /// Poses `model`, read from the landing gear's geometry `path`, at the end of the clip that
+    /// deploys the gear, and returns the posed copy; `None` when the source has no such clip. The
+    /// default has none.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ModelFailure::Unreadable`] when a clip is found but cannot be read or applied
+    /// to `model`.
+    fn deployed(&self, path: &str, model: &Model) -> Result<Option<Model>, ModelFailure> {
+        let _ = (path, model);
+        Ok(None)
+    }
 }
 
 /// Returns whether `path` starts with `prefix`, ignoring ASCII case and treating `\` as `/`.
@@ -212,7 +225,7 @@ impl<'a> ArchiveModels<'a> {
         AnimationSet::from_folders(&self.index, &folders, choice, extra)
     }
 
-    fn entry_of(&self, path: &str) -> Option<String> {
+    pub(crate) fn entry_of(&self, path: &str) -> Option<String> {
         let path = path.trim_start_matches(['/', '\\']);
         [format!("Data\\{path}"), path.to_owned()]
             .into_iter()
@@ -254,9 +267,21 @@ impl ModelProvider for ArchiveModels<'_> {
             .map_err(read_failure)?;
         Ok(bytes)
     }
+
+    fn deployed(&self, path: &str, model: &Model) -> Result<Option<Model>, ModelFailure> {
+        self.pose_gear(path, model)
+    }
 }
 
 impl ArchiveModels<'_> {
+    pub(crate) fn animations_of(
+        &self,
+        extra: &[String],
+        choice: &AnimationChoice,
+    ) -> Result<AnimationSet, ConversionError> {
+        AnimationSet::from_folders(&self.index, &[], choice, extra)
+    }
+
     fn character(&self, entry: &str, lod: u32) -> Result<ProvidedModel, ModelFailure> {
         let bytes = self.file(entry, MAX_CDF_BYTES)?;
         let unreadable = |reason: String| ModelFailure::Unreadable {

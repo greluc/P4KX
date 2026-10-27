@@ -68,9 +68,10 @@ pub(crate) struct LoadoutPort {
     pub(crate) required_tags: Vec<String>,
     /// The localisation key of the port's display name; `null` for none or a placeholder key.
     pub(crate) display_name_key: Option<String>,
-    /// Whether the vehicle implementation shows the port: `visible`, `invisible` or
-    /// `unspecified` when it names no part of that name. A closed set the game may extend, so the
-    /// schema keeps a string.
+    /// Whether the port shows its item: `visible` or `invisible` as the vehicle implementation's
+    /// part of that name says; without such a part `invisible` when the port definition carries
+    /// the flag `invisible`, else `unspecified`. A closed set the game may extend, so the schema
+    /// keeps a string.
     pub(crate) visibility: &'static str,
     /// The `guid` of the entry in `items` (or, for a docked vehicle, in `ships`) the port holds
     /// by default; `null` for an empty port. For an attachment that cannot be resolved it is the

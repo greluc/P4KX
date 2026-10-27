@@ -3,6 +3,8 @@
 
 use crate::{TestInstance, TestValue};
 
+const DEFAULT_ATTACHMENT: &str = "Bone";
+
 /// An item port definition of a synthetic Entity.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TestPort {
@@ -27,7 +29,7 @@ impl TestPort {
             types: Vec::new(),
             helper: None,
             item_helper: String::new(),
-            attachment: "Bone",
+            attachment: DEFAULT_ATTACHMENT,
             default_item: None,
             flags: String::new(),
             tags: (String::new(), String::new()),
@@ -80,22 +82,16 @@ impl TestPort {
         self
     }
 
-    /// Places the helper `name` of the attached item's own model at the port's helper.
+    /// Places the helper `name` of the attached Entity's own model at the port's helper.
     #[must_use]
     pub fn item_helper(mut self, name: impl Into<String>) -> Self {
         self.item_helper = name.into();
         self
     }
 
-    /// Attaches the port as a skin to the helper `name`, offset by `position` and `rotation`.
+    /// Makes the attachment of the port a skin, with or without a helper.
     #[must_use]
-    pub fn skin_helper(
-        mut self,
-        name: impl Into<String>,
-        position: [f32; 3],
-        rotation: [f32; 3],
-    ) -> Self {
-        self.helper = Some((name.into(), position, rotation));
+    pub const fn skin(mut self) -> Self {
         self.attachment = "Skin";
         self
     }
@@ -149,25 +145,32 @@ impl TestPort {
                 ),
             );
         }
-        if let Some((name, position, rotation)) = &self.helper {
+        if self.helper.is_some() || self.attachment != DEFAULT_ATTACHMENT {
             instance = instance.value(
                 "AttachmentImplementation",
-                helper(
-                    (self.attachment, name, &self.item_helper),
-                    *position,
-                    *rotation,
-                ),
+                attachment(self.attachment, self.helper.as_ref(), &self.item_helper),
             );
         }
         TestValue::Struct(instance)
     }
 }
 
-fn helper(
-    (attachment, name, item_helper): (&str, &str, &str),
-    position: [f32; 3],
-    rotation: [f32; 3],
+fn attachment(
+    kind: &str,
+    helper: Option<&(String, [f32; 3], [f32; 3])>,
+    item_helper: &str,
 ) -> TestValue {
+    let mut instance = TestInstance::new(format!("SItemPortDefAttachmentImplementation{kind}"));
+    if let Some((name, position, rotation)) = helper {
+        instance = instance.value(
+            "Helper",
+            helper_node(name, item_helper, *position, *rotation),
+        );
+    }
+    TestValue::Struct(instance)
+}
+
+fn helper_node(name: &str, item_helper: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue {
     let xyz = |type_name: &str, [x, y, z]: [f32; 3]| {
         TestValue::Struct(
             TestInstance::new(type_name)
@@ -183,10 +186,7 @@ fn helper(
         .value("Name", TestValue::text(name))
         .value("ItemOffsetHelperName", TestValue::text(item_helper))
         .value("Offset", TestValue::Struct(offset));
-    let node =
-        TestInstance::new("SItemPortDefHelperNode").value("Helper", TestValue::Struct(helper));
     TestValue::Struct(
-        TestInstance::new(format!("SItemPortDefAttachmentImplementation{attachment}"))
-            .value("Helper", TestValue::Struct(node)),
+        TestInstance::new("SItemPortDefHelperNode").value("Helper", TestValue::Struct(helper)),
     )
 }

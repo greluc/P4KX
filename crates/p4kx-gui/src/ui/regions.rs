@@ -52,8 +52,8 @@ pub(super) fn record(ctx: &Context, set: impl FnOnce(&mut Regions)) {
     ctx.data_mut(|data| set(data.get_temp_mut_or_default::<Regions>(Id::NULL)));
 }
 
-/// Shows the `total` rows of `body` of `height` each like [`TableBody::rows`], after marking the
-/// scroll area of the table with [`clip`].
+/// Shows the `total` rows of `body` of `height` each like [`TableBody::rows`], after recording the
+/// scroll content with [`clip`] for the layout tests.
 pub(super) fn rows(
     mut body: TableBody<'_>,
     height: f32,

@@ -45,6 +45,7 @@ mod entity_loadout;
 mod entity_module_sample;
 mod entity_mount;
 mod entity_npc;
+mod entity_npc_zones;
 mod entity_painted;
 mod entity_port;
 mod entity_sample;
@@ -165,6 +166,7 @@ pub use entity_npc::{
     NPC_BROW_SKIN, NPC_CLASS, NPC_EYES_MATERIAL, NPC_FILES_CLASS, NPC_HAIR_BLONDE, NPC_HAIR_BROWN,
     NPC_HEAD_CLASS, NPC_HEAD_FLAGS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,
 };
+pub use entity_npc_zones::{NPC_ZONE_CLASS, NpcZoneOptions, npc_zone_entries};
 pub use entity_painted::{
     PAINTED_FEMALE_PALETTE_GUID, PAINTED_LIBRARY_PALETTE, PAINTED_PALETTE_GUID, PAINTED_SUIT,
     painted_entries,

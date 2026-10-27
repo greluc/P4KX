@@ -71,6 +71,7 @@ mod build;
 mod build_gear;
 mod build_models;
 mod build_palettes;
+mod build_zones;
 mod catalogue;
 mod cdf;
 mod changes;

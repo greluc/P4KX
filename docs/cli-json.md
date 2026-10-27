@@ -310,12 +310,13 @@ for an attached Entity) followed by the path inside it ([ADR-0086](adr/0086-an-e
 Without the flag `interior` is absent.
 
 `placements` has one object per part, the root first and every part after its parent, with
-`path` (as for an Issue), `placement` (`root`, `helper`, `port_node`, `skin` or `origin`: a `skin`
-is a part on a skin port, drawn in the parent's bind pose with its helper and offset ignored and
-no Issue; otherwise the part sits at the helper its port names in the parent's model, or, for a landing gear, at the node of its
-Entity's model named like the gear's bone; at the node of the parent's model named like the
-port, or at the parent's origin, which is also where a port with no helper and no node of its
-name lands, without an Issue, and where a landing gear lands whose Entity has no model), `helper`
+`path` (as for an Issue), `placement` (`root`, `helper`, `port_node`, `skin` or `origin`). A `skin`
+is a part on a skin port, with or without a helper: it is drawn in the parent's bind pose with its
+helper and offset ignored, and without an Issue. Otherwise the part sits at the helper its port
+names in the parent's model, or, for a landing gear, at the node of its Entity's model named like
+the gear's bone; at the node of the parent's model named like the port, or at the parent's origin,
+which is also where a port with no helper and no node of its name lands, without an Issue, and
+where a landing gear lands whose Entity has no model. `helper`
 (the helper's name, or the bone of a landing gear; only for `helper`), `modelled`
 (the part has a model) and `hidden` (the part is hidden, see `hidden_parts`; a part below a hidden
 one has no model to anchor to, so its `placement` may read `origin`; so is a landing gear of a

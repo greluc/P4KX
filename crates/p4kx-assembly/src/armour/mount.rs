@@ -2,12 +2,12 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use p4kx_gltf::RigMount;
-use p4kx_model::{Bone, BoneMatch, BoneTransform, Model, Transform, chained_world_poses};
+use p4kx_model::{Bone, BoneMatch, Model};
 
 use super::ArmourPart;
 use super::jobs::{Job, issue};
 use super::piece::Mount;
-use crate::placement::{node_transform, offset};
+use crate::placement::{bone_transform, node_transform, offset};
 use crate::{Issue, IssueKind};
 
 /// The turn about X in degrees from the frame of a bone, which has Z up, to the frame of the
@@ -39,7 +39,7 @@ pub(super) fn place(
         {
             continue;
         }
-        match mounted(parts, index, mount, skeleton, level) {
+        match mounted(parts, index, mount, skeleton) {
             Ok(placed) => {
                 if let Some(part) = parts.get_mut(index) {
                     part.mount = Some(placed);
@@ -50,28 +50,24 @@ pub(super) fn place(
     }
 }
 
-/// Returns the bones of `model` at the level `level` of detail.
-fn bones_at(model: &Model, level: u32) -> &[Bone] {
+/// Returns the bones of the first level of `model`, the ones [`bone_transform`] looks in.
+fn bones_of(model: &Model) -> &[Bone] {
     model
-        .nearest_lod(level)
-        .map_or(&[], |lod| model.bones_of(lod))
+        .lods
+        .first()
+        .map_or(model.bones.as_slice(), |lod| model.bones_of(lod))
 }
 
-/// Returns the bones that hold the helper of `mount`: those of the body, or of the piece it names,
-/// none when that piece is not worn.
-fn holder_bones<'a>(
-    parts: &'a [ArmourPart],
-    mount: &Mount,
-    skeleton: &'a Model,
-    level: u32,
-) -> &'a [Bone] {
+/// Returns the model that holds the helper of `mount`: the skeleton of the body, or the piece it
+/// names; `None` when that piece is not worn.
+fn holder<'a>(parts: &'a [ArmourPart], mount: &Mount, skeleton: &'a Model) -> Option<&'a Model> {
     let Some(name) = &mount.holder else {
-        return &skeleton.bones;
+        return Some(skeleton);
     };
     parts
         .iter()
         .find(|part| part.name == *name)
-        .map_or(&[], |part| bones_at(&part.model, level))
+        .map(|part| &*part.model)
 }
 
 /// Returns the bone of the skeleton the part `index` hangs on and where it sits below it: the
@@ -86,10 +82,10 @@ fn mounted(
     index: usize,
     mount: &Mount,
     skeleton: &Model,
-    level: u32,
 ) -> Result<RigMount, String> {
     let missing = || mount.helper.clone();
-    let held = holder_bones(parts, mount, skeleton, level);
+    let holder = holder(parts, mount, skeleton).ok_or_else(missing)?;
+    let held = bones_of(holder);
     let at = held
         .iter()
         .position(|bone| bone.name.eq_ignore_ascii_case(&mount.helper))
@@ -97,12 +93,12 @@ fn mounted(
     let bone = usize::from(
         BoneMatch::new(&skeleton.bones, held).target(u16::try_from(at).map_err(|_| missing())?),
     );
-    let held_pose = chained_world_poses(held).get(at).and_then(transform_of);
-    let anchor_pose = chained_world_poses(&skeleton.bones)
+    let anchor = skeleton
+        .bones
         .get(bone)
-        .and_then(transform_of)
+        .and_then(|anchor| bone_transform(skeleton, &anchor.name))
         .and_then(|pose| pose.inverse());
-    let (Some(held_pose), Some(anchor)) = (held_pose, anchor_pose) else {
+    let (Some(held_pose), Some(anchor)) = (bone_transform(holder, &mount.helper), anchor) else {
         return Err(missing());
     };
     let own = parts.get(index).and_then(|part| {
@@ -119,10 +115,4 @@ fn mounted(
         bone,
         own.map_or(at_port, |inner| at_port.then(&inner)),
     ))
-}
-
-/// Returns the transform a bone pose stands for.
-fn transform_of(pose: &BoneTransform) -> Option<Transform> {
-    let [x, y, z, w] = pose.rotation.map(f64::from);
-    Transform::from_quaternion([w, x, y, z], pose.translation.map(f64::from))
 }

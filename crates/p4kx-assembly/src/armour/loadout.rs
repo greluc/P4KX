@@ -32,8 +32,9 @@ impl Holder<'_> {
             Self::Piece(name) => Some(name.to_owned()),
             Self::Other => return None,
         };
-        let transform = port.definition()?.transform()?;
-        (!transform.is_skin() && !transform.helper().is_empty())
+        let definition = port.definition()?;
+        let transform = definition.transform()?;
+        (!definition.is_skin() && !transform.helper().is_empty())
             .then(|| Mount::new(holder, transform))
     }
 }

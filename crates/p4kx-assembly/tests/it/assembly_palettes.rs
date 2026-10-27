@@ -249,8 +249,8 @@ fn the_materials_are_drawn_with_the_colours_of_the_palette_of_their_part() -> Te
     }
     assert_eq!(
         summary.shared_meshes, 3,
-        "the second painted gun and the two parts without a palette, but not the guns of \
-         other palettes: {summary:?}"
+        "the second painted gun and the parts that inherited the ship's palette, but not \
+         the guns of other palettes: {summary:?}"
     );
     Ok(())
 }

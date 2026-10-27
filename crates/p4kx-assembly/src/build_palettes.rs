@@ -7,20 +7,30 @@ use std::sync::Arc;
 use p4kx_dataforge::Guid;
 use p4kx_model::{MaterialStatus, TintPalette};
 
+use crate::build_models::Loaded;
+use crate::flatten::Draft;
 use crate::{Geometry, IssueKind, PaletteFailure, PaletteProvider};
 
 type Cached = Result<Arc<TintPalette>, PaletteFailure>;
 
+/// The palette of a part and the one it hands down to its attachments.
+#[derive(Default)]
+pub(crate) struct Resolved {
+    pub(crate) palette: Option<Arc<TintPalette>>,
+    pub(crate) handed_down: Option<Arc<TintPalette>>,
+}
+
 /// Resolves the tint palette of each part, reading every distinct palette Record once.
 ///
 /// A part takes the palette its Entity's geometry names; when that cannot be resolved, or the
-/// Entity names none, the default palette of its material library. Palettes are cached by the
-/// GUID of the Record, however it was named, so one Record is one palette. Each failure message
-/// is reported for the first part that meets it.
+/// Entity names none, the palette of its nearest ancestor, else the default palette of its
+/// material library. Palettes are cached by the GUID of the Record, however it was named, so one
+/// Record is one palette. Each failure message is reported for the first part that meets it.
 pub(crate) struct Palettes<'p> {
     provider: Option<&'p dyn PaletteProvider>,
     cache: HashMap<Guid, Cached>,
     reported: HashSet<String>,
+    handed_down: Vec<Option<Arc<TintPalette>>>,
 }
 
 impl<'p> Palettes<'p> {
@@ -29,17 +39,62 @@ impl<'p> Palettes<'p> {
             provider,
             cache: HashMap::new(),
             reported: HashSet::new(),
+            handed_down: Vec::new(),
         }
     }
 
-    /// Returns the palette of a part drawn with `library`, and what could not be resolved on the
-    /// way.
+    /// Returns the palette of the next part `draft`, in the order of the drafts, and what could not
+    /// be resolved on the way. A part without a model has no palette and hands its parent's down.
+    pub(crate) fn of_part(
+        &mut self,
+        draft: &Draft<'_>,
+        model: Option<&Loaded>,
+        library: &MaterialStatus,
+    ) -> (Option<Arc<TintPalette>>, Vec<IssueKind>) {
+        let inherited = draft
+            .parent
+            .and_then(|parent| self.handed_down.get(parent))
+            .and_then(Option::as_ref)
+            .cloned();
+        if model.is_none() {
+            self.handed_down.push(inherited);
+            return (None, Vec::new());
+        }
+        let (resolved, issues) = self.of(draft.geometry, inherited.as_ref(), library);
+        self.handed_down.push(resolved.handed_down);
+        (resolved.palette, issues)
+    }
+
+    /// Returns the palette of a part drawn with `library` and the one its attachments inherit,
+    /// and what could not be resolved on the way.
+    ///
+    /// The part takes the palette its Entity's geometry names; else `inherited`, the one of its
+    /// nearest ancestor; else the default palette of `library`. Only the first two are handed
+    /// down: a library default is no palette of the part's own.
     pub(crate) fn of(
         &mut self,
         geometry: Option<&Geometry>,
+        inherited: Option<&Arc<TintPalette>>,
         library: &MaterialStatus,
-    ) -> (Option<Arc<TintPalette>>, Vec<IssueKind>) {
-        self.of_named(geometry.and_then(Geometry::palette), library)
+    ) -> (Resolved, Vec<IssueKind>) {
+        let mut issues = Vec::new();
+        let Some(provider) = self.provider else {
+            return (Resolved::default(), issues);
+        };
+        let own = geometry
+            .and_then(Geometry::palette)
+            .and_then(|named| self.named(provider, named, &mut issues));
+        let handed_down = own.or_else(|| inherited.cloned());
+        let palette = handed_down
+            .clone()
+            .or_else(|| self.library_default(provider, library, &mut issues));
+        (
+            Resolved {
+                palette,
+                handed_down,
+            },
+            issues,
+        )
     }
 
     /// Returns the palette of a part drawn with `library` that names the palette `named`, and what
@@ -53,35 +108,56 @@ impl<'p> Palettes<'p> {
         let Some(provider) = self.provider else {
             return (None, issues);
         };
-        if let Some(named) = named {
-            let guid = named.guid();
-            let what = format!("the tint palette {guid}");
-            let found = if named.child_path().is_empty() {
-                self.read(provider, guid)
-            } else {
-                Err(PaletteFailure::Unreadable {
-                    reason: format!("the child {} is not supported", named.child_path()),
-                })
-            };
-            match found {
-                Ok(palette) => return (Some(palette), issues),
-                Err(failure) => self.note(&mut issues, &what, &failure),
+        let palette = named
+            .and_then(|named| self.named(provider, named, &mut issues))
+            .or_else(|| self.library_default(provider, library, &mut issues));
+        (palette, issues)
+    }
+
+    fn named(
+        &mut self,
+        provider: &dyn PaletteProvider,
+        named: &crate::PaletteRef,
+        issues: &mut Vec<IssueKind>,
+    ) -> Option<Arc<TintPalette>> {
+        let guid = named.guid();
+        let what = format!("the tint palette {guid}");
+        let found = if named.child_path().is_empty() {
+            self.read(provider, guid)
+        } else {
+            Err(PaletteFailure::Unreadable {
+                reason: format!("the child {} is not supported", named.child_path()),
+            })
+        };
+        match found {
+            Ok(palette) => Some(palette),
+            Err(failure) => {
+                self.note(issues, &what, &failure);
+                None
             }
         }
-        let default = library
+    }
+
+    fn library_default(
+        &mut self,
+        provider: &dyn PaletteProvider,
+        library: &MaterialStatus,
+        issues: &mut Vec<IssueKind>,
+    ) -> Option<Arc<TintPalette>> {
+        let path = library
             .library()
-            .and_then(|library| library.default_palette.as_deref());
-        if let Some(path) = default {
-            let what = format!("the default tint palette {path} of the material library");
-            match provider
-                .guid_at(path)
-                .and_then(|guid| self.read(provider, guid))
-            {
-                Ok(palette) => return (Some(palette), issues),
-                Err(failure) => self.note(&mut issues, &what, &failure),
+            .and_then(|library| library.default_palette.as_deref())?;
+        let what = format!("the default tint palette {path} of the material library");
+        match provider
+            .guid_at(path)
+            .and_then(|guid| self.read(provider, guid))
+        {
+            Ok(palette) => Some(palette),
+            Err(failure) => {
+                self.note(issues, &what, &failure);
+                None
             }
         }
-        (None, issues)
     }
 
     fn read(&mut self, provider: &dyn PaletteProvider, guid: Guid) -> Cached {

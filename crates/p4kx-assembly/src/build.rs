@@ -43,11 +43,13 @@ impl Assembly {
     }
 
     /// Builds the Assembly like [`Self::build`] and resolves the tint palette of each part with
-    /// `palettes`: the one its Entity's geometry names, else the default of its material
-    /// library. Each distinct palette is read once and shared by the parts that use it.
+    /// `palettes`: the one its Entity's geometry names, else the one of its nearest ancestor, else
+    /// the default of its material library. Each distinct palette is read once and shared by the
+    /// parts that use it.
     ///
     /// A palette that cannot be resolved is an [`Issue`] of the first part that names it; the
-    /// part falls back to the library's default palette, or keeps the colours of its library.
+    /// part falls back to the palette of its nearest ancestor, else the library's default
+    /// palette, else it keeps the colours of its library.
     ///
     /// # Errors
     ///
@@ -92,12 +94,8 @@ impl Assembly {
                 issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
             }
             note_attachments(draft, *model, &mut characters, &mut issues);
-            let palette = model
-                .map(|_| palettes.of(draft.geometry, &materials))
-                .and_then(|(palette, unresolved)| {
-                    issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
-                    palette
-                });
+            let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
+            issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
             let (local, placement) = place(draft, &parts, *model, &mut issues);
             let world = draft
                 .parent

@@ -9,6 +9,7 @@ use egui::{
 };
 use egui_extras::{Column, TableBuilder, TableRow};
 
+use super::regions;
 use super::table::head_fill;
 use super::tags_cache::{Cache, ForWidth, HEADS, Laid, RowCells, memo};
 use super::tree::{rails, toggle};
@@ -83,7 +84,7 @@ pub(super) fn show(
                     }
                 })
                 .body(|body| {
-                    body.rows(ROW_HEIGHT, view.shown_len(), |row| {
+                    regions::rows(body, ROW_HEIGHT, view.shown_len(), |row| {
                         let index = row.index();
                         let Some(tag) = view.row(index) else {
                             return;

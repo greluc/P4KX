@@ -11,6 +11,8 @@ const SKIN_SHADER: &str = "HumanSkin_V2";
 const EYE_SHADER: &str = "Eye";
 const HAIR_SHADERS: [&str; 1] = ["HairPBR"];
 const DIFFUSE_SLOT: &str = "TexSlot1";
+const HAIR_TINT_PARAM: &str = "BaseTintColor";
+const HAIR_DYE_PARAM: &str = "DyeColor";
 
 const BLOND: [f32; 3] = [0.45, 0.28, 0.10];
 const BROWN: [f32; 3] = [0.08, 0.045, 0.02];
@@ -25,7 +27,7 @@ const AUBURN: [f32; 3] = [0.25, 0.06, 0.02];
 /// iris, and the melanin and dye of a hair give its colour.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Look {
-    choice: Choice,
+    choice: Option<Choice>,
 }
 
 impl Look {
@@ -33,18 +35,27 @@ impl Look {
     #[must_use]
     pub fn new(choice: &Choice) -> Self {
         Self {
-            choice: choice.clone(),
+            choice: Some(choice.clone()),
         }
+    }
+
+    /// Returns the look of a piece the Character made no choice for: a hair material takes the
+    /// colour its own shader parameters give, such as the lashes' melanin.
+    #[must_use]
+    pub const fn natural() -> Self {
+        Self { choice: None }
     }
 
     /// Returns how many textures the choice sets, which the export does not draw.
     #[must_use]
     pub fn texture_choices(&self) -> usize {
-        self.choice
-            .sub_materials
-            .iter()
-            .map(|sub| sub.textures.len())
-            .sum()
+        self.choice.as_ref().map_or(0, |choice| {
+            choice
+                .sub_materials
+                .iter()
+                .map(|sub| sub.textures.len())
+                .sum()
+        })
     }
 
     /// Returns the sub-material choice that `material` takes: the one named by the hash of its
@@ -52,15 +63,16 @@ impl Look {
     /// named so, because the choice of a beard or brow keeps the name of the sub-material of the
     /// style chosen before.
     fn sub_for(&self, material: &Material) -> Option<&SubMaterial> {
+        let choice = self.choice.as_ref()?;
         let hash = lowered_hash(&material.name);
-        self.choice
+        choice
             .sub_materials
             .iter()
             .find(|sub| sub.name == hash)
             .or_else(|| {
                 is_hair(material)
                     .then(|| {
-                        self.choice
+                        choice
                             .sub_materials
                             .iter()
                             .find(|sub| !sub.colors.is_empty() || !sub.floats.is_empty())
@@ -74,6 +86,9 @@ impl Look {
     #[must_use]
     pub fn apply(&self, status: &MaterialStatus) -> Option<MaterialStatus> {
         let library = status.library()?;
+        if self.choice.is_none() && !library.materials.iter().any(is_hair) {
+            return None;
+        }
         let mut changed = false;
         let dyes = library
             .materials
@@ -83,6 +98,9 @@ impl Look {
         for material in &mut materials {
             if let Some(sub) = self.sub_for(material) {
                 changed |= customise(material, sub, dyes);
+            } else if self.choice.is_none() && is_hair(material) {
+                own_hair(material, dyes);
+                changed = true;
             }
         }
         changed.then(|| {
@@ -110,11 +128,9 @@ fn colour_of(sub: &SubMaterial, name: u32) -> Option<[f32; 3]> {
         .map(|colour| linear(colour.rgba))
 }
 
-fn number(sub: &SubMaterial, material: &Material, name: &str) -> f32 {
+fn number(sub: Option<&SubMaterial>, material: &Material, name: &str) -> f32 {
     let hash = name_hash(name);
-    sub.floats
-        .iter()
-        .find(|param| param.name == hash)
+    sub.and_then(|sub| sub.floats.iter().find(|param| param.name == hash))
         .map(|param| param.value)
         .or_else(|| material.public_param(name).map(|value| value[0]))
         .filter(|value| value.is_finite())
@@ -157,11 +173,19 @@ fn customise(material: &mut Material, sub: &SubMaterial, takes_dye: bool) -> boo
         {
             return false;
         }
-        material.diffuse = hair_colour(material, sub, dye.filter(|_| takes_dye), tint);
+        material.diffuse = hair_colour(material, Some(sub), dye.filter(|_| takes_dye), tint);
         true
     } else {
         false
     }
+}
+
+/// Gives a hair material the colour its own shader parameters describe, as when the Character
+/// chose nothing for it.
+fn own_hair(material: &mut Material, takes_dye: bool) {
+    let tint = material.public_param(HAIR_TINT_PARAM);
+    let dye = material.public_param(HAIR_DYE_PARAM).filter(|_| takes_dye);
+    material.diffuse = hair_colour(material, None, dye, tint);
 }
 
 /// Moves the diffuse colour of `material` from the colour its shader parameter `source` names to
@@ -185,7 +209,7 @@ fn rebase(material: &mut Material, target: [f32; 3], source: &str) {
 /// tint, mixed with the dye, if there is one, by the dye amount.
 fn hair_colour(
     material: &Material,
-    sub: &SubMaterial,
+    sub: Option<&SubMaterial>,
     dyed: Option<[f32; 3]>,
     tint: Option<[f32; 3]>,
 ) -> [f32; 3] {

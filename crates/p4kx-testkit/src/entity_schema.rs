@@ -205,6 +205,9 @@ fn port_structs() -> Vec<TestStruct> {
         TestStruct::new("SItemPortDefAttachmentImplementationBone")
             .parent("SItemPortDefAttachmentImplementationBase")
             .field("Helper", class("SItemPortDefHelperNode")),
+        TestStruct::new("SItemPortDefAttachmentImplementationSkin")
+            .parent("SItemPortDefAttachmentImplementationBase")
+            .field("Helper", class("SItemPortDefHelperNode")),
         TestStruct::new("SItemPortDefHelperNode").field("Helper", class("SItemPortDefHelper")),
         TestStruct::new("SItemPortDefHelper")
             .field("Name", TestType::String)

@@ -5,6 +5,10 @@
 
 use serde_json::json;
 
+mod recovery;
+
+use recovery::item_recovery;
+
 pub(crate) fn minimal_catalog() -> serde_json::Value {
     json!({
         "schemaVersion": 2,
@@ -84,7 +88,14 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "cargoScu": 18.5,
             "cargoGridsWithIssue": 0,
             "playability": "ai",
-            "variantOf": "a0000000-0000-4000-8000-000000000001"
+            "variantOf": "a0000000-0000-4000-8000-000000000001",
+            "insurance": {
+                "restoreOnClaim": true,
+                "shipEntityClassName": "AEGS_Avenger_Titan",
+                "baseWaitTimeMinutes": 8.5,
+                "mandatoryWaitTimeMinutes": 2.5,
+                "expediteFee": 3200
+            }
         }],
         "commodities": [{
             "guid": "a1000000-0000-4000-8000-000000000001",
@@ -264,7 +275,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "className": null,
             "shipGuid": null,
             "retired": true
-        }]
+        }],
+        "itemRecovery": item_recovery()
     })
 }
 

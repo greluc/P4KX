@@ -74,6 +74,9 @@ pub enum Placement {
     Helper(String),
     /// The part sits at the node of the parent's model named like its port.
     PortNode,
+    /// The part is a skin: it is drawn in the parent's bind pose and follows the skeleton by its
+    /// weights, so its port's helper and offset do not move it.
+    Skin,
     /// The part sits at the parent's origin: its port names no helper or the model lacks it,
     /// or the parent has no model.
     Origin,
@@ -87,6 +90,7 @@ impl Placement {
             Self::Root => "root",
             Self::Helper(_) => "helper",
             Self::PortNode => "port_node",
+            Self::Skin => "skin",
             Self::Origin => "origin",
         }
     }

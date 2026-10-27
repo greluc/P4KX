@@ -12,6 +12,7 @@ mod assembly_glb;
 mod assembly_landing_gear;
 mod assembly_limits;
 mod assembly_palettes;
+mod assembly_skin;
 mod assembly_support;
 mod audio_export_dedup;
 mod audio_export_watch;

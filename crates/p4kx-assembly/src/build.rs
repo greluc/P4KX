@@ -7,7 +7,8 @@ use std::sync::Arc;
 use p4kx_model::{MaterialStatus, Model, Transform};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 
-use crate::build_models::{Loaded, choose_models, fall_back, read_models};
+use crate::build_gear::load_models;
+use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
 use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
@@ -69,8 +70,7 @@ impl Assembly {
         let flat = flatten(tree, options.max_parts);
         let mut issues = flat.issues;
         let mut drafts = flat.drafts;
-        let mut loaded = read_models(&drafts, models, options)?;
-        fall_back(&mut drafts, &mut loaded, models, options, &mut issues)?;
+        let loaded = load_models(&mut drafts, models, options, &mut issues)?;
         let chosen = choose_models(&drafts, &loaded, options.max_vertices, &mut issues);
         let libraries = read_libraries(&drafts, &chosen, models);
         let unnamed = Arc::new(MaterialStatus::Unnamed);
@@ -107,12 +107,13 @@ impl Assembly {
                 name: draft.name.clone(),
                 path: draft.path.clone(),
                 guid: draft.node.guid(),
-                class_name: draft.node.class_name().to_owned(),
+                class_name: draft.class_name().to_owned(),
+                landing_gear: draft.gear.is_some(),
                 parent: draft.parent,
                 local,
                 world,
                 placement,
-                geometry: draft.geometry.map(|g| g.path().to_owned()),
+                geometry: draft.geometry_path().map(str::to_owned),
                 model: model.map(|loaded| Arc::clone(&loaded.model)),
                 materials,
                 palette,
@@ -137,10 +138,10 @@ fn containers_of(drafts: &[Draft<'_>]) -> Vec<Arc<[ObjectContainerRef]>> {
     drafts
         .iter()
         .map(|draft| {
-            if draft.hidden || (draft.node.is_docked_vehicle() && !draft.node.is_expanded()) {
-                Arc::clone(&none)
-            } else {
+            if draft.names_containers() {
                 Arc::clone(&draft.node.object_containers)
+            } else {
+                Arc::clone(&none)
             }
         })
         .collect()
@@ -153,9 +154,9 @@ fn note_attachments(
     seen: &mut HashSet<String>,
     issues: &mut Vec<Issue>,
 ) {
-    if let (Some(loaded), Some(geometry)) = (model, draft.geometry)
+    if let (Some(loaded), Some(path)) = (model, draft.geometry_path())
         && !loaded.left_out.is_empty()
-        && seen.insert(file_key(geometry.path()))
+        && seen.insert(file_key(path))
     {
         let files = loaded.left_out.clone();
         issues.push(issue(draft, IssueKind::AttachmentsLeftOut { files }));
@@ -165,7 +166,7 @@ fn note_attachments(
 pub(crate) fn issue(draft: &Draft<'_>, kind: IssueKind) -> Issue {
     Issue {
         path: draft.path.clone(),
-        name: draft.node.class_name().to_owned(),
+        name: draft.class_name().to_owned(),
         kind,
     }
 }
@@ -249,6 +250,9 @@ fn place(
     let Some(parent) = draft.parent.and_then(|parent| parts.get(parent)) else {
         return (Transform::IDENTITY, Placement::Root);
     };
+    if let Some(gear) = draft.gear {
+        return place_gear(draft, gear.bone(), parent, issues);
+    }
     let Some(port) = draft.port else {
         return (Transform::IDENTITY, Placement::Origin);
     };
@@ -280,6 +284,24 @@ fn place(
         local = local.then(&inner);
     }
     (local, placement)
+}
+
+/// Returns the transform of a landing gear: the node `bone` of its Entity's model.
+fn place_gear(
+    draft: &Draft<'_>,
+    bone: &str,
+    parent: &Part,
+    issues: &mut Vec<Issue>,
+) -> (Transform, Placement) {
+    let Some(parent_model) = parent.model() else {
+        return (Transform::IDENTITY, Placement::Origin);
+    };
+    if let Some(transform) = node_transform(parent_model, bone) {
+        return (transform, Placement::Helper(bone.to_owned()));
+    }
+    let helper = bone.to_owned();
+    issues.push(issue(draft, IssueKind::HelperNotFound { helper }));
+    (Transform::IDENTITY, Placement::Origin)
 }
 
 /// Finds the node of the parent's model a port is anchored to: its helper, else a node named

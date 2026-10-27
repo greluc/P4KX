@@ -7,7 +7,9 @@
 use p4kx_assembly::{ArchiveModels, Assembly, AssemblyOptions, LoadoutResolver, PortVisibility};
 use p4kx_dataforge::DataForge;
 use p4kx_extraction::Archive;
-use p4kx_testkit::{DataForgeBuilder, TestEntity, TestModel, TestPort, entity_schema};
+use p4kx_testkit::{
+    DataForgeBuilder, TestEntity, TestModel, TestPort, entity_schema, landing_system_record,
+};
 
 use crate::assembly_support::{TestResult, fixture};
 use crate::vehicle_support::{DEFINITION, files, standard_files};
@@ -15,13 +17,21 @@ use crate::vehicle_support::{DEFINITION, files, standard_files};
 const SHIP: u128 = 0x1000;
 const SKID: u128 = 0x2000;
 const BOLT: u128 = 0x3000;
+const GEAR: u128 = 0x4000;
 
 fn build(modification: &str) -> Result<Assembly, Box<dyn std::error::Error>> {
+    build_with(modification, false)
+}
+
+fn build_with(modification: &str, gear: bool) -> Result<Assembly, Box<dyn std::error::Error>> {
     let bolt = TestEntity::new(BOLT, "TEST_Bolt", "entities/test_bolt.xml")
         .geometry("Objects/Test/cube.cgf", None);
-    let skid = TestEntity::new(SKID, "TEST_Skid", "entities/test_skid.xml")
+    let mut skid = TestEntity::new(SKID, "TEST_Skid", "entities/test_skid.xml")
         .geometry("Objects/Test/cube.cgf", None)
         .port(TestPort::new("inner").default_item(BOLT));
+    if gear {
+        skid = skid.vehicle("", "").landing_system(GEAR);
+    }
     let ship = TestEntity::new(SHIP, "TEST_Ship", "entities/test_ship.xml")
         .geometry("Objects/Test/cube.cgf", None)
         .vehicle(DEFINITION, modification)
@@ -32,11 +42,18 @@ fn build(modification: &str) -> Result<Assembly, Box<dyn std::error::Error>> {
                 .flags("invisible $editable")
                 .default_item(SKID),
         );
-    let bytes = entity_schema(DataForgeBuilder::new())
+    let mut builder = entity_schema(DataForgeBuilder::new())
         .record(bolt.record())
         .record(skid.record())
-        .record(ship.record())
-        .build();
+        .record(ship.record());
+    if gear {
+        builder = builder.record(landing_system_record(
+            GEAR,
+            "TEST_Skid_LandingSystem",
+            &[("skid_bone", "Objects/Test/cube.cgf", 1.0)],
+        ));
+    }
+    let bytes = builder.build();
     let model = TestModel::cube();
     let fixture = fixture(vec![
         p4kx_testkit::TestEntry::zstd("Data\\Game2.dcb", bytes.clone()),
@@ -199,5 +216,20 @@ fn a_modification_can_add_the_flag() -> TestResult {
 #[test]
 fn the_flag_is_found_with_a_dollar_and_in_any_case() -> TestResult {
     assert_eq!(mixed("")?[2].1, PortVisibility::Invisible);
+    Ok(())
+}
+
+#[test]
+fn a_landing_gear_of_a_hidden_entity_is_hidden_with_it() -> TestResult {
+    let assembly = build_with("", true)?;
+
+    let hidden = assembly
+        .part_at("hardpoint_gun/landing_gear/skid_bone")
+        .ok_or("the hidden gear")?;
+    assert!(hidden.is_landing_gear() && hidden.is_hidden() && hidden.model().is_none());
+    let shown = assembly
+        .part_at("hardpoint_seat/landing_gear/skid_bone")
+        .ok_or("the visible gear")?;
+    assert!(shown.is_landing_gear() && !shown.is_hidden() && shown.model().is_some());
     Ok(())
 }

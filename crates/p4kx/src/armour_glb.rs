@@ -7,7 +7,7 @@ use std::path::Path;
 use anyhow::Result;
 use p4kx_assembly::{
     AnimationFolders, ArchiveFiles, ArchiveModels, Armour, AssemblyOptions, BodyVariant,
-    CharacterAnimations, Issue, LoadoutResolver, PartOrigin, character_animations,
+    CharacterAnimations, ForgePalettes, Issue, LoadoutResolver, PartOrigin, character_animations,
 };
 use p4kx_extraction::{
     AnimationSet, ConversionError, DataForgeEntry, GlbOptions, GlbSummary, GltfError, MaterialMode,
@@ -79,7 +79,13 @@ pub(crate) fn run(args: &ArmourGlbArgs, as_json: bool) -> Result<()> {
         .unwrap_or_else(|| BodyVariant::from(BodyArg::Male));
     let models = ArchiveModels::new(&archive);
     let options = AssemblyOptions::default().with_lod(args.lod);
-    let armour = Armour::build(variant, &selection.pieces, &models, &options)?;
+    let armour = Armour::build_with_palettes(
+        variant,
+        &selection.pieces,
+        &models,
+        &ForgePalettes::new(&forge),
+        &options,
+    )?;
     let folders = animation_folders(args, &selection, &models, variant);
     let found = character_animations(
         &models,

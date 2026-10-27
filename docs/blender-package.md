@@ -117,10 +117,10 @@ A shear in the game's transform is not stored.
 | Field | Meaning |
 | --- | --- |
 | `kind` | What the node places: `entity`, or in an Interior (version 1.2) `container`, `object` or `light`, or (version 1.3) `character`. Later minor versions add kinds; a reader skips nodes of a kind it does not know, with their children. |
-| `name` | `<port>/<entity>` (the class name for the root) for an `entity`, the name from the Interior's files for the other kinds; use it as the object name. |
-| `path` | The port names from the root joined by `/`, below `Interior` the names of the nodes joined by `/`; empty for the root. |
+| `name` | `<port>/<entity>` (the class name for the root) for an `entity`, `landing_gear/<bone>` for a landing gear, the name from the Interior's files for the other kinds; use it as the object name. |
+| `path` | The port names from the root joined by `/`, with `landing_gear/<bone>` for a landing gear of the Entity at that path, below `Interior` the names of the nodes joined by `/`; empty for the root. |
 | `parent` | Index of the parent in `nodes`; absent for the root. |
-| `entity` | `class_name` and `guid` of the Entity; present for the kind `entity`, absent for the others. |
+| `entity` | `class_name` and `guid` of the Entity; present for the kind `entity`, absent for the others, a landing gear included. |
 | `light` | The light, see below; present for the kind `light`. |
 | `mesh` | Id of the mesh drawn at the node; absent when the node draws nothing. |
 | `translation`, `rotation`, `scale` | The local transform in glTF axes: a vector, a unit quaternion `[x, y, z, w]` and a vector. |
@@ -135,7 +135,7 @@ ADR-0087 describe:
 | Kind | What it is | `mesh` | `entity` |
 | --- | --- | --- | --- |
 | `container` | The group `Interior`, a container, or a `.soc` file a container streams. It draws nothing and only gives its children a place. | absent | absent |
-| `object` | A model a `.soc` file places, or a prop. The mesh is absent when the model could not be read; the issue says why. | the mesh drawn | absent |
+| `object` | A model a `.soc` file places, or a prop; also, in any package, a landing gear of an Entity (ADR-0210), a child of that Entity's node. The mesh is absent when the model could not be read; the issue says why. | the mesh drawn | absent |
 | `light` | A punctual light. | absent | absent |
 
 Objects share meshes with each other and with the Entity's parts as everything else does (same
@@ -310,7 +310,9 @@ placeholder such as `$TintPaletteDecal` or `$RenderToTexture`, which has no file
 written. `usage` is derived from the suffix of the file name (`_ddna` and `_ddn` normal, `_spec`
 specular, `_mask`/`_opac` mask, `_blend` blend, `_detail` detail, `_wear` wear, `_ao` occlusion,
 `_displ`/`_disp` displacement, `_gloss` gloss; `_id`, `_scalp`, `_dir`, `_dirm` and `_hal` are
-`other`, even in `TexSlot1`) and, for other files, the slot: `TexSlot1` is `diffuse`, anything
+`other`, even in `TexSlot1`, except that the `_scalp` map of a hair cap, a `HairPBR` material with
+`HAIR_CAP` in its `gen_mask`, is a `mask`; its `file` is the map of the body folder of its library,
+see ADR-0213) and, for other files, the slot: `TexSlot1` is `diffuse`, anything
 else `other`. `attributes` (`TexType`, `Used`, ...) and `elements` (the `TexMod`
 child with the tiling `TileU`/`TileV`, the offset `OffsetU`/`OffsetV` and the rotation of the
 slot's UVs) are as in the file. Which UV set a slot samples is decided by the shader and its

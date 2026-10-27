@@ -142,7 +142,9 @@ impl<'f> LoadoutResolver<'f> {
         let spec = self.spec(entity.guid());
         let spec = spec.as_ref().as_ref().map_err(Clone::clone)?;
         let mut walk = Walk::new(entity.guid(), None);
-        Ok(self.node(spec, None, &mut walk))
+        let mut node = self.node(spec, None, &mut walk);
+        self.dress_body(&mut node);
+        Ok(node)
     }
 
     /// Resolves the default Loadout of `entity` like [`resolve`](Self::resolve), taking the
@@ -227,7 +229,8 @@ impl<'f> LoadoutResolver<'f> {
         let spec = spec.as_ref().as_ref().map_err(Clone::clone)?;
         let mut walk = Walk::new(entity.guid(), plan);
         walk.cancellable = true;
-        let node = self.node(spec, None, &mut walk);
+        let mut node = self.node(spec, None, &mut walk);
+        self.dress_body(&mut node);
         let (ignored, mismatches) = match walk.plan.take() {
             Some(plan) => plan.finish()?,
             None => (Vec::new(), Vec::new()),

@@ -99,13 +99,18 @@ fn push_parts<'a>(
 }
 
 fn part_item(part: &Part) -> Item<'_> {
+    let gear = part.is_landing_gear();
     Item {
-        kind: NodeKind::Entity,
+        kind: if gear {
+            NodeKind::Object
+        } else {
+            NodeKind::Entity
+        },
         name: part.name(),
         path: part.path().to_owned(),
         parent: part.parent(),
         transform: node_transform(part.local()),
-        entity: Some(EntityRef {
+        entity: (!gear).then(|| EntityRef {
             class_name: part.class_name().to_owned(),
             guid: part.guid().to_string(),
         }),

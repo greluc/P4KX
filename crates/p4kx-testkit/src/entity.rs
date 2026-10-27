@@ -161,7 +161,17 @@ impl TestEntity {
         material: Option<&str>,
     ) -> Self {
         self.geometry_variants
-            .push((tags.into(), path.into(), material.map(str::to_owned)));
+            .push((tags.into(), path.into(), material.map(str::to_owned), None));
+        self
+    }
+
+    /// Makes the sub-geometry added last name the tint palette Record `guid` and its child
+    /// `child`; needs [`Self::geometry_variant`].
+    #[must_use]
+    pub fn variant_palette(mut self, guid: u128, child: impl Into<String>) -> Self {
+        if let Some(last) = self.geometry_variants.last_mut() {
+            last.3 = Some((guid, child.into()));
+        }
         self
     }
 

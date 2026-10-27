@@ -9,7 +9,7 @@ use super::head::rig_part;
 use super::piece::{Bespoke, Note, Source};
 use super::wearable::{Unfit, Worn};
 use super::{BodyVariant, Expressions, Look, PartOrigin, Piece, ZoneChunk};
-use crate::{Issue, IssueKind, MaterialVariant, ModelFailure, ModelProvider};
+use crate::{Issue, IssueKind, MaterialVariant, ModelFailure, ModelProvider, PaletteRef};
 
 /// One skin to read and wear.
 pub(super) struct Job {
@@ -19,6 +19,7 @@ pub(super) struct Job {
     pub(super) label: String,
     pub(super) path: String,
     pub(super) material: Option<String>,
+    pub(super) palette: Option<PaletteRef>,
     pub(super) shape: Option<Dna>,
     pub(super) expressions: Expressions,
     pub(super) look: Option<Look>,
@@ -37,6 +38,7 @@ impl Job {
             label: "body".to_owned(),
             path: path.to_owned(),
             material: None,
+            palette: None,
             shape: None,
             expressions: Expressions::None,
             look: None,
@@ -119,7 +121,7 @@ pub(super) fn gather(
             .iter()
             .map(|note| piece_issue(piece, note_kind(note))),
     );
-    let (path, material) = match &piece.source {
+    let (path, material, palette) = match &piece.source {
         Source::Failed(reason) => {
             let kind = IssueKind::PieceNotFound {
                 reason: reason.clone(),
@@ -127,7 +129,7 @@ pub(super) fn gather(
             issues.push(piece_issue(piece, kind));
             return;
         }
-        Source::File { path, material } => (path.clone(), material.clone()),
+        Source::File { path, material } => (path.clone(), material.clone(), None),
         Source::Wearable(wearable) => match wearable.geometry_selected(variant, &piece.selecting) {
             Ok(Worn { geometry, main }) => {
                 if main && !is_skinned_file(geometry.path()) {
@@ -137,6 +139,7 @@ pub(super) fn gather(
                 (
                     geometry.path().to_owned(),
                     chosen_material(piece, wearable, variant, geometry.material()),
+                    geometry.palette().cloned(),
                 )
             }
             Err(Unfit::NoGeometry) => {
@@ -165,6 +168,7 @@ pub(super) fn gather(
         label: piece.name.clone(),
         path: own.unwrap_or(path),
         material: piece.material.clone().or(material),
+        palette,
         shape: piece.shape.clone(),
         expressions: piece.expressions.clone(),
         look: piece.look.clone(),

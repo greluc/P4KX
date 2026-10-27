@@ -9,6 +9,7 @@ use crate::merge::{merge_by_port, port_key};
 use crate::port::PortDefinition;
 use crate::resolver::LoadoutResolver;
 use crate::spec::{EntitySpec, EntrySpec, LoadoutOrigin, LoadoutSpec, TargetSpec};
+use crate::vehicle::flags_contain;
 use crate::walk::Walk;
 use crate::{
     Attachment, EntityNode, LoadoutError, PortConstraints, PortNode, PortSource, PortVisibility,
@@ -54,9 +55,7 @@ impl LoadoutResolver<'_> {
             walk.enter(pending.name);
             let mut port = self.port_node(pending, walk, &mut issues, vehicle.as_deref());
             walk.leave();
-            if let Some(vehicle) = &vehicle {
-                port.visibility = vehicle.port_visibility(&port.name);
-            }
+            port.visibility = visibility_of(&port, vehicle.as_deref());
             ports.push(port);
         }
         EntityNode {
@@ -268,6 +267,27 @@ fn pending_ports<'s>(
             origin: (port.default_item != TargetSpec::None).then_some(&spec.origin),
         });
     from_entries.chain(defined).chain(declared)
+}
+
+/// Returns the visibility of `port`: the verdict of the vehicle implementation's part of that
+/// name, else [`PortVisibility::Invisible`] when the port's own definition carries the flag
+/// `invisible`.
+fn visibility_of(port: &PortNode, vehicle: Option<&VehicleImplementation>) -> PortVisibility {
+    let from_vehicle = vehicle.map_or(PortVisibility::Unspecified, |vehicle| {
+        vehicle.port_visibility(&port.name)
+    });
+    if from_vehicle != PortVisibility::Unspecified {
+        return from_vehicle;
+    }
+    let flagged = port
+        .definition
+        .as_deref()
+        .is_some_and(|definition| flags_contain(definition.flags(), "invisible"));
+    if flagged {
+        PortVisibility::Invisible
+    } else {
+        PortVisibility::Unspecified
+    }
 }
 
 /// Returns the node of `spec` without ports, issues, vehicle implementation and landing gear.

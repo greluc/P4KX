@@ -10,7 +10,7 @@ use crate::layer_plan::Layered;
 use crate::materials::{MaterialPlan, Slot, display_name, is_hair_cards, uses_alpha};
 use crate::shading::shading;
 use crate::texture_assemble::Wish;
-use crate::texture_loader::TextureLoader;
+use crate::texture_loader::{TextureLoader, WithFallbacks};
 use crate::texture_make::{Budget, run_guarded};
 use crate::texture_pixels::Tints;
 use crate::texture_report::{TextureFallback, TextureRole};
@@ -217,7 +217,19 @@ impl TextureSet {
         }
         let jobs = layer_normals_last(jobs, &mut wanted);
         let guards = fallback_guards(&wanted, jobs.len());
-        let outcomes = run_guarded(&jobs, mip, loader, Budget::DEFAULT, &guards);
+        let own: HashMap<String, String> = parts
+            .iter()
+            .flat_map(|requested| requested.plan.own_scalp_maps())
+            .collect();
+        let outcomes = if own.is_empty() {
+            run_guarded(&jobs, mip, loader, Budget::DEFAULT, &guards)
+        } else {
+            let loader = WithFallbacks {
+                inner: loader,
+                own: &own,
+            };
+            run_guarded(&jobs, mip, &loader, Budget::DEFAULT, &guards)
+        };
         Self::assemble(&wanted, outcomes)
     }
 

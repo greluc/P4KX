@@ -4,10 +4,12 @@
 //! Integration tests of `p4kx-assembly`, built as one test binary.
 
 mod armour_build;
+mod armour_palette;
 mod assembly_build;
 mod assembly_changes;
 mod assembly_followups;
 mod assembly_glb;
+mod assembly_landing_gear;
 mod assembly_limits;
 mod assembly_palettes;
 mod assembly_support;
@@ -34,6 +36,7 @@ mod entity_interior;
 mod entity_interior_cache;
 mod entity_interior_modules;
 mod entity_lookup;
+mod gear_deploy_clip;
 mod head_animation;
 mod head_body_type;
 mod head_build;
@@ -57,10 +60,12 @@ mod loadout_nested;
 mod loadout_stop;
 mod loadout_tree;
 mod model_cache;
+mod npc_clothing;
 mod npc_head;
 mod port_flag_fallback;
 mod port_flag_geometry;
 mod port_flag_sources;
+mod port_invisible;
 mod prefab;
 mod prefab_lookup;
 mod vehicle_api;

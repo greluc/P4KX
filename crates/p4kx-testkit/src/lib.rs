@@ -35,6 +35,7 @@ mod entity_assembly;
 mod entity_cargo;
 mod entity_clothing;
 mod entity_dressed;
+mod entity_gear;
 mod entity_head;
 mod entity_interior_sample;
 mod entity_layer_chain;
@@ -43,6 +44,7 @@ mod entity_livery;
 mod entity_loadout;
 mod entity_module_sample;
 mod entity_npc;
+mod entity_painted;
 mod entity_port;
 mod entity_sample;
 mod entity_schema;
@@ -137,6 +139,7 @@ pub use entity_dressed::{
     DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,
     DRESSED_HEAD_MATERIAL_FILE, DRESSED_UNKNOWN_MATERIAL, dressed_entries,
 };
+pub use entity_gear::{LANDING_GEAR_SHIP, landing_gear_entries};
 pub use entity_head::{
     FEMALE_BODY_TYPE, FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE,
     MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH, head_entries, head_rig,
@@ -156,6 +159,10 @@ pub use entity_module_sample::{ENTITY_MODULE_CARRIER, ENTITY_MODULE_CLASS, entit
 pub use entity_npc::{
     NPC_BROW_SKIN, NPC_CLASS, NPC_EYES_MATERIAL, NPC_FILES_CLASS, NPC_HAIR_BLONDE, NPC_HAIR_BROWN,
     NPC_HEAD_CLASS, NPC_HEAD_FLAGS, NPC_HEAD_FOLDER, NPC_HEAD_MATERIAL, npc_entries,
+};
+pub use entity_painted::{
+    PAINTED_FEMALE_PALETTE_GUID, PAINTED_LIBRARY_PALETTE, PAINTED_PALETTE_GUID, PAINTED_SUIT,
+    painted_entries,
 };
 pub use entity_port::TestPort;
 pub use entity_sample::{SAMPLE_GUN, SAMPLE_MISSING, SAMPLE_MOUNT, SAMPLE_SHIP, sample_ship};

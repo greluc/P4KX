@@ -3,7 +3,7 @@
 
 //! The insurance data of the ships in the Basetool catalog, through the public API.
 
-use crate::insurance_fixture::{BARE, INSURED, ITEM, UNINSURED, write_archive};
+use crate::insurance_fixture::{BARE, INSURED, ITEM, RECOVERY, UNINSURED, write_archive};
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
@@ -86,6 +86,42 @@ fn empty_values_of_a_ground_vehicle_stay_facts() -> TestResult {
             "expediteFee": 0
         })
     );
+    Ok(())
+}
+
+#[test]
+fn the_recovery_multipliers_are_exported_with_the_classes_they_apply_to() -> TestResult {
+    let catalog = build()?;
+    let recovery = &catalog["itemRecovery"];
+    assert_eq!(
+        recovery["recordPath"],
+        "libs/foundry/records/entitlementpolicies/globalitemrecovery"
+    );
+    assert_eq!(recovery["className"], "GlobalItemRecovery");
+    assert_eq!(recovery["guid"], guid(RECOVERY).as_str());
+    assert_eq!(recovery["claimCostMultiplier"].as_f64(), Some(0.003));
+    assert_eq!(
+        recovery["maxExpeditedClaimCostMultiplier"].as_f64(),
+        Some(0.0003)
+    );
+    assert_eq!(
+        recovery["expeditedDeliverySecondsPerAUEC"].as_f64(),
+        Some(5e-7)
+    );
+    assert_eq!(recovery["globalBrickTimer"], Value::Null);
+    assert_eq!(
+        recovery["escalatingClaimsParams"]["escalatingClaimChainLimit"],
+        1
+    );
+    let overrides = recovery["overrides"].as_array().ok_or("no overrides")?;
+    assert_eq!(overrides.len(), 2);
+    assert_eq!(
+        overrides[0]["classGuids"],
+        json!([guid(INSURED), guid(BARE)])
+    );
+    assert_eq!(overrides[0]["claimCostMultiplier"].as_f64(), Some(1.0));
+    assert_eq!(overrides[1]["classGuids"], json!([]));
+    assert_eq!(overrides[1]["claimCostMultiplier"].as_f64(), Some(0.6));
     Ok(())
 }
 

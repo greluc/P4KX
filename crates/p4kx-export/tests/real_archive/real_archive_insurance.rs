@@ -68,5 +68,38 @@ fn the_ships_of_a_real_archive_carry_their_insurance() -> TestResult {
         gladius["recordPath"], "libs/foundry/records/entities/spaceships/aegs_gladius",
         "the source path"
     );
+    let idris = ships
+        .iter()
+        .find(|ship| ship["className"] == "AEGS_Idris_M")
+        .ok_or("the catalog has no AEGS_Idris_M")?;
+    print_line(&format!("AEGS_Idris_M: {}", idris["insurance"]));
+    assert_eq!(idris["insurance"]["expediteFee"], 150_990);
+    let recovery = &catalog["itemRecovery"];
+    print_line(&format!(
+        "item recovery: claim {} expedite {} overrides {}",
+        recovery["claimCostMultiplier"],
+        recovery["maxExpeditedClaimCostMultiplier"],
+        recovery["overrides"].as_array().map_or(0, Vec::len)
+    ));
+    assert_eq!(
+        recovery["recordPath"],
+        "libs/foundry/records/entitlementpolicies/globalitemrecovery"
+    );
+    assert_eq!(recovery["claimCostMultiplier"].as_f64(), Some(0.003));
+    assert_eq!(
+        recovery["maxExpeditedClaimCostMultiplier"].as_f64(),
+        Some(0.0003)
+    );
+    let group = recovery["overrides"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|group| {
+            group["classGuids"]
+                .as_array()
+                .is_some_and(|guids| guids.contains(&idris["guid"]))
+        })
+        .ok_or("no override group names AEGS_Idris_M")?;
+    assert_eq!(group["claimCostMultiplier"].as_f64(), Some(1.0));
     Ok(())
 }

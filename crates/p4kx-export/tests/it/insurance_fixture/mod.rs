@@ -15,6 +15,7 @@ pub(crate) const INSURED: u128 = 0x6000_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const UNINSURED: u128 = 0x6000_0000_0000_4000_8000_0000_0000_0002;
 pub(crate) const BARE: u128 = 0x6000_0000_0000_4000_8000_0000_0000_0003;
 pub(crate) const ITEM: u128 = 0x6000_0000_0000_4000_8000_0000_0000_0004;
+pub(crate) const RECOVERY: u128 = 0x6000_0000_0000_4000_8000_0000_0000_0005;
 
 fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
     builder
@@ -39,6 +40,74 @@ fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
             "StaticEntityClassData",
             TestType::StrongPointer("StaticEntityClassData".to_owned()),
         ))
+        .structure(
+            TestStruct::new("ItemRecoveryEscalatingClaimsParams")
+                .field("escalatingClaimChainLimit", TestType::Int32)
+                .field("escalationTimerMultiplier", TestType::Single),
+        )
+        .structure(
+            TestStruct::new("ItemRecoveryOverrideGroupDef")
+                .field("claimCostMultiplier", TestType::Single)
+                .array("classes", TestType::Reference),
+        )
+        .structure(
+            TestStruct::new("ItemRecoveryEconomyParams")
+                .field("claimCostMultiplier", TestType::Single)
+                .field("maxExpeditedClaimCostMultiplier", TestType::Single)
+                .field("expeditedDeliverySecondsPerAUEC", TestType::Single)
+                .field(
+                    "escalatingClaimsParams",
+                    TestType::Class("ItemRecoveryEscalatingClaimsParams".to_owned()),
+                )
+                .array(
+                    "overrides",
+                    TestType::Class("ItemRecoveryOverrideGroupDef".to_owned()),
+                ),
+        )
+        .structure(TestStruct::new("ItemRecoveryConfigurationParams").field(
+            "economyParams",
+            TestType::Class("ItemRecoveryEconomyParams".to_owned()),
+        ))
+}
+
+fn recovery() -> TestRecord {
+    let group = |multiplier: f32, classes: Vec<u128>| {
+        TestValue::Struct(
+            TestInstance::new("ItemRecoveryOverrideGroupDef")
+                .value("claimCostMultiplier", TestValue::Single(multiplier))
+                .value(
+                    "classes",
+                    TestValue::Array(classes.into_iter().map(TestValue::Reference).collect()),
+                ),
+        )
+    };
+    TestRecord::new(
+        RECOVERY,
+        "ItemRecoveryConfigurationParams",
+        "ItemRecoveryConfigurationParams.GlobalItemRecovery",
+        "libs/foundry/records/entitlementpolicies/globalitemrecovery.xml",
+    )
+    .value(
+        "economyParams",
+        TestValue::Struct(
+            TestInstance::new("ItemRecoveryEconomyParams")
+                .value("claimCostMultiplier", TestValue::Single(0.003))
+                .value("maxExpeditedClaimCostMultiplier", TestValue::Single(0.0003))
+                .value("expeditedDeliverySecondsPerAUEC", TestValue::Single(5e-7))
+                .value(
+                    "escalatingClaimsParams",
+                    TestValue::Struct(
+                        TestInstance::new("ItemRecoveryEscalatingClaimsParams")
+                            .value("escalatingClaimChainLimit", TestValue::Int32(1))
+                            .value("escalationTimerMultiplier", TestValue::Single(1.0)),
+                    ),
+                )
+                .value(
+                    "overrides",
+                    TestValue::Array(vec![group(1.0, vec![INSURED, BARE]), group(0.6, vec![])]),
+                ),
+        ),
+    )
 }
 
 fn params(class: &str, claim: f32, mandatory: f32, fee: u32) -> TestValue {
@@ -95,6 +164,7 @@ fn database() -> DataForgeBuilder {
             "scitem/misc/item_with_insurance",
             vec![insurance(true, params("Item", 1.0, 1.0, 1))],
         ))
+        .record(recovery())
 }
 
 /// Writes the fixture Archive into `dir` and returns its path.

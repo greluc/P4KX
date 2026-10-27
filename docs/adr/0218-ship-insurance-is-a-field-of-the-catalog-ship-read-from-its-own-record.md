@@ -15,6 +15,13 @@ Decided for issue #323. Builds on ADR-0002, ADR-0054 and ADR-0065.
   The Record states no claim cost, so none is exported (ADR-0065: facts, no derived values).
 - **`displayParams` stay out:** they repeat the ship's name, role, career, crew size and
   manufacturer, mostly as placeholders, and are game text.
+- **The fee stays `expediteFee`, not a claim fee.** For the Idris-M the Record says 150,990 aUEC
+  while the game shows just under 1,000,000 for a claim, so the number is not shown to be the
+  claim fee. The claim fee of an insured Loadout is not stored.
+- **The recovery multipliers are the object `itemRecovery`,** not a kind: the
+  `ItemRecoveryConfigurationParams` Record `entitlementpolicies/globalitemrecovery`, its
+  `economyParams` under their data names, with the override groups and the GUIDs of their entity
+  classes. The Basetool computes the fee itself; the catalog computes none.
 - **It is part of the unreleased `schemaVersion` 2,** with no bump.
 
 ## Consequences

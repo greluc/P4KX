@@ -1134,6 +1134,50 @@
       ],
       "type": "object"
     },
+    "EscalatingClaims": {
+      "description": "The `escalatingClaimsParams` of the item recovery rules.",
+      "properties": {
+        "escalatingClaimChainLimit": {
+          "description": "`escalatingClaimChainLimit`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "escalatingClaimCostMultiplier": {
+          "description": "`escalatingClaimCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "escalatingDeliveryTimerMultiplier": {
+          "description": "`escalatingDeliveryTimerMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "escalationTimerMultiplier": {
+          "description": "`escalationTimerMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "escalatingClaimChainLimit",
+        "escalatingClaimCostMultiplier",
+        "escalatingDeliveryTimerMultiplier",
+        "escalationTimerMultiplier"
+      ],
+      "type": "object"
+    },
     "FireAction": {
       "description": "One fire mode of a weapon.",
       "properties": {
@@ -1491,6 +1535,193 @@
         "tags",
         "type",
         "variantOf"
+      ],
+      "type": "object"
+    },
+    "ItemRecovery": {
+      "description": "The item recovery rules: an `ItemRecoveryConfigurationParams` Record, its `economyParams`.\n\nThe multipliers and rates the game applies at run time to claim, expedite and deliver a ship\nand its insured items; the Record holds no fee in aUEC, so the catalog states none. Every\nnumber is that of the Record, `null` when the Record states none.",
+      "properties": {
+        "aUECperSecond": {
+          "description": "`aUECperSecond`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "baseDeliveryTime": {
+          "description": "`baseDeliveryTime`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "baseReclaimTime": {
+          "description": "`baseReclaimTime`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "claimCostMultiplier": {
+          "description": "`claimCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `GlobalItemRecovery`.",
+          "type": "string"
+        },
+        "defaultLoadoutCooldownMultiplier": {
+          "description": "`defaultLoadoutCooldownMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "defaultLoadoutDeliveryTimeMultiplier": {
+          "description": "`defaultLoadoutDeliveryTimeMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "defaultLoadoutExpeditedDeliveryTimeMultiplier": {
+          "description": "`defaultLoadoutExpeditedDeliveryTimeMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "deliverySecondsPerAUEC": {
+          "description": "`deliverySecondsPerAUEC`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "escalatingClaimsParams": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EscalatingClaims"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`escalatingClaimsParams`, `null` when the Record has none."
+        },
+        "expeditedDeliverySecondsPerAUEC": {
+          "description": "`expeditedDeliverySecondsPerAUEC`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "flatMinimumDeliveryTimerSeconds": {
+          "description": "`flatMinimumDeliveryTimerSeconds`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "globalBrickTimer": {
+          "description": "`globalBrickTimer`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "maxExpeditedClaimCostMultiplier": {
+          "description": "`maxExpeditedClaimCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "overrides": {
+          "description": "The `overrides`: groups of entity classes whose multipliers replace the defaults, in the\norder of the Record.",
+          "items": {
+            "$ref": "#/$defs/RecoveryOverride"
+          },
+          "type": "array"
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "scalingPriceFloor": {
+          "description": "`scalingPriceFloor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "vehicleChassisRepairCostMultiplier": {
+          "description": "`vehicleChassisRepairCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "vehicleComponentRepairCostMultiplier": {
+          "description": "`vehicleComponentRepairCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "vehicleRepairMissingItemCostMultiplier": {
+          "description": "`vehicleRepairMissingItemCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "aUECperSecond",
+        "baseDeliveryTime",
+        "baseReclaimTime",
+        "claimCostMultiplier",
+        "className",
+        "defaultLoadoutCooldownMultiplier",
+        "defaultLoadoutDeliveryTimeMultiplier",
+        "defaultLoadoutExpeditedDeliveryTimeMultiplier",
+        "deliverySecondsPerAUEC",
+        "escalatingClaimsParams",
+        "expeditedDeliverySecondsPerAUEC",
+        "flatMinimumDeliveryTimerSeconds",
+        "globalBrickTimer",
+        "guid",
+        "maxExpeditedClaimCostMultiplier",
+        "overrides",
+        "recordPath",
+        "scalingPriceFloor",
+        "vehicleChassisRepairCostMultiplier",
+        "vehicleComponentRepairCostMultiplier",
+        "vehicleRepairMissingItemCostMultiplier"
       ],
       "type": "object"
     },
@@ -2578,6 +2809,103 @@
         "aimAssistDistanceMin",
         "aimAssistOutsideRangeBuffer",
         "pingCooldownTime"
+      ],
+      "type": "object"
+    },
+    "RecoveryOverride": {
+      "description": "An `ItemRecoveryOverrideGroupDef`: the multipliers of a group of entity classes.",
+      "properties": {
+        "claimCooldownMultiplier": {
+          "description": "`claimCooldownMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "claimCostMultiplier": {
+          "description": "`claimCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "classGuids": {
+          "description": "The GUIDs of the entity classes the group applies to (`classes`), in the order of the\nRecord. Each is the GUID of an `EntityClassDefinition` Record, an entry of `ships` for a\nship; a Reference to no Record reads as null and is left out.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "deliveryTimeMultiplier": {
+          "description": "`deliveryTimeMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "escalatingClaimCostMultiplier": {
+          "description": "`escalatingClaimCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "escalatingDeliveryTimerMultiplier": {
+          "description": "`escalatingDeliveryTimerMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "escalationTimerMultiplier": {
+          "description": "`escalationTimerMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "expeditedDeliveryTimeMultiplier": {
+          "description": "`expeditedDeliveryTimeMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "flatMinimumDeliveryTimerSecondsMultiplier": {
+          "description": "`flatMinimumDeliveryTimerSecondsMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxExpediteCostMultiplier": {
+          "description": "`maxExpediteCostMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "claimCooldownMultiplier",
+        "claimCostMultiplier",
+        "classGuids",
+        "deliveryTimeMultiplier",
+        "escalatingClaimCostMultiplier",
+        "escalatingDeliveryTimerMultiplier",
+        "escalationTimerMultiplier",
+        "expeditedDeliveryTimeMultiplier",
+        "flatMinimumDeliveryTimerSecondsMultiplier",
+        "maxExpediteCostMultiplier"
       ],
       "type": "object"
     },
@@ -3915,6 +4243,17 @@
       },
       "type": "array"
     },
+    "itemRecovery": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ItemRecovery"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The item recovery rules, the multipliers the game applies to claims, `null` when the\nArchive has no such Record. Not a kind."
+    },
     "items": {
       "description": "The items, ordered by GUID.",
       "items": {
@@ -4028,6 +4367,7 @@
     "craftingGlobal",
     "dismantleProcesses",
     "gameplayProperties",
+    "itemRecovery",
     "items",
     "loadouts",
     "manufacturers",

@@ -14,7 +14,7 @@ use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
 use crate::{
     Assembly, AssemblyError, AssemblyOptions, EntityNode, Issue, IssueKind, ModelProvider,
-    ObjectContainerRef, PaletteProvider, Part, Placement, PortNode, PortTransform,
+    ObjectContainerRef, PaletteProvider, Part, Placement, PortDefinition, PortNode, PortTransform,
 };
 
 type Libraries = HashMap<String, Arc<MaterialStatus>>;
@@ -254,12 +254,11 @@ fn place(
     let Some(port) = draft.port else {
         return (Transform::IDENTITY, Placement::Origin);
     };
-    let definition = port
-        .definition()
-        .and_then(|definition| definition.transform());
-    if definition.is_some_and(PortTransform::is_skin) {
+    let port_definition = port.definition();
+    if port_definition.is_some_and(PortDefinition::is_skin) {
         return (Transform::IDENTITY, Placement::Skin);
     }
+    let definition = port_definition.and_then(PortDefinition::transform);
     let helper = definition
         .map(PortTransform::helper)
         .filter(|helper| !helper.is_empty());

@@ -48,6 +48,7 @@ mod empty;
 mod entities;
 mod entity_list;
 mod entity_loadout;
+mod entity_loadout_head;
 mod entity_replace;
 mod entity_status;
 mod entity_view;

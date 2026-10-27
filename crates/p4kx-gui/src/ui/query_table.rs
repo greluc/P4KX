@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use egui::{Align, Galley, Id, Layout, Role, ScrollArea, Sense, Ui, WidgetInfo, vec2};
 use egui_extras::{Column, TableBuilder, TableRow};
 
+use super::regions;
 use super::table::{head_fill, sort_head};
 use crate::theme::desktop::{
     CELL_PADDING_X, QUERY_COLUMN_MIN_WIDTH, QUERY_COLUMN_WIDTH, ROW_FONT, ROW_HEIGHT,
@@ -147,7 +148,7 @@ pub(super) fn show(ui: &mut Ui, result: &QueryResult, laid: &Laid) -> Option<usi
                     }
                 })
                 .body(|body| {
-                    body.rows(ROW_HEIGHT, page.len(), |row| {
+                    regions::rows(body, ROW_HEIGHT, page.len(), |row| {
                         let index = row.index();
                         let position = page.start + index;
                         if show_row(row, (result, laid), position, hovered == Some(index)) {
@@ -172,6 +173,7 @@ fn builder(ui: &mut Ui, columns: usize) -> TableBuilder<'_> {
         .striped(false)
         .resizable(true)
         .auto_shrink(false)
+        .min_scrolled_height(0.0)
         .sense(Sense::hover())
         .cell_layout(Layout::left_to_right(Align::Center));
     for _ in 1..columns {

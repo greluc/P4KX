@@ -9,6 +9,7 @@ use egui::{
 use egui_extras::{Column, TableBuilder, TableRow};
 use p4kx_extraction::{Compression, Entry};
 
+use super::regions;
 use super::table_name;
 use crate::theme::desktop::{
     CELL_PADDING_X, CHECK_COLUMN, CHEVRON, COMPRESSION_COLUMN, ENCRYPTION_COLUMN, ROW_FONT,
@@ -74,7 +75,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
             }
         })
         .body(|body| {
-            body.rows(ROW_HEIGHT, browser.rows().len(), |row| {
+            regions::rows(body, ROW_HEIGHT, browser.rows().len(), |row| {
                 let index = row.index();
                 let (clicked, is_hovered) = show_row(row, texts, browser, hovered == Some(index));
                 if clicked.is_some() {

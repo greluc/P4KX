@@ -8,6 +8,7 @@ use egui::{Align, Layout, Rect, Role, ScrollArea, Sense, Ui, WidgetInfo, pos2, v
 use egui_extras::{Column, TableBuilder, TableRow};
 
 use super::localization_laid::{Cell, Laid};
+use super::regions;
 use super::table::head_fill;
 use crate::theme::desktop::{
     CELL_PADDING_X, LOCALIZATION_KEY_WIDTH, LOCALIZATION_TEXT_WIDTH, QUERY_COLUMN_MIN_WIDTH,
@@ -123,7 +124,7 @@ fn grid(
         }
     })
     .body(|body| {
-        body.rows(ROW_HEIGHT, tab.shown_len(), |row| {
+        regions::rows(body, ROW_HEIGHT, tab.shown_len(), |row| {
             let index = row.index();
             let Some(id) = tab.row_at(index) else {
                 return;

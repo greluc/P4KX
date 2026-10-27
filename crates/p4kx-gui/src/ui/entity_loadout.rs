@@ -5,11 +5,12 @@ use egui::{
     Align, Label, Layout, Rect, Role, ScrollArea, Sense, Ui, UiBuilder, WidgetInfo, pos2, vec2,
 };
 
+use super::entity_loadout_head;
 use super::entity_status::{own_status, status_kinds};
 use super::tree::rails;
 use crate::theme::desktop::{
     CHEVRON, CHIP_PADDING_X, FOCUS_OFFSET, ROW_FONT, ROW_HEIGHT, SCROLLBAR_THIN, SPINNER,
-    SPINNER_INLINE, TOGGLE_SIZE,
+    TOGGLE_SIZE,
 };
 use crate::theme::palette;
 use crate::theme::tokens::{FS_SM, SPACE_2, SPACE_3, Weight};
@@ -17,7 +18,6 @@ use crate::widgets::button::{self, Kind, Size};
 use crate::widgets::chip::{self, Tone};
 use crate::widgets::focus::focus_ring_square;
 use crate::widgets::frames;
-use crate::widgets::indicator;
 use crate::widgets::rows::{RowState, chevron, focus_inside, paint_row};
 use crate::widgets::text::{line, paint_left, plain};
 use crate::widgets::toggle::{self, Check};
@@ -45,7 +45,9 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         ui.add(Label::new(text));
         return;
     };
-    let action = head(ui, texts, session).or_else(|| body(ui, texts, session));
+    let action = entity_loadout_head::show(ui, texts, session)
+        .then_some(Action::Reset)
+        .or_else(|| body(ui, texts, session));
     let Some(action) = action else {
         return;
     };
@@ -62,38 +64,6 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         Action::Reset => session.reset(),
         Action::Replace(path) => model.entities_mut().begin_replace(&path),
     }
-}
-
-fn head(ui: &mut Ui, texts: &Texts, session: &LoadoutSession) -> Option<Action> {
-    let mut action = None;
-    let (excluded, replaced) = session.change_counts();
-    let changes = if excluded + replaced == 0 {
-        texts.get(EntityText::NoChanges)
-    } else {
-        texts.format(
-            EntityText::Changes,
-            &[
-                ("excluded", excluded.to_string().into()),
-                ("replaced", replaced.to_string().into()),
-            ],
-        )
-    };
-    ui.horizontal(|ui| {
-        ui.label(plain(session.name(), FS_SM, Weight::Bold).color(palette::WHITE));
-        if session.is_resolving() {
-            indicator::spinner(ui, SPINNER_INLINE);
-        }
-        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-            let reset = texts.get(EntityText::Reset);
-            let any = excluded + replaced > 0;
-            if button::button(ui, Kind::Ghost, Size::Compact, &reset, any).clicked() {
-                action = Some(Action::Reset);
-            }
-            ui.label(plain(changes, FS_SM, Weight::Regular).color(palette::GRAY_2_TEXT));
-        });
-    });
-    ui.add_space(SPACE_2);
-    action
 }
 
 fn failure_alert(ui: &mut Ui, texts: &Texts, failure: &ResolveFailure) {

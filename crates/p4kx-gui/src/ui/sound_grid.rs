@@ -5,6 +5,7 @@ use egui::scroll_area::ScrollAreaOutput;
 use egui::{Align, Color32, Layout, Role, Sense, Ui, Vec2, WidgetInfo, pos2, vec2};
 use egui_extras::{Column, TableBuilder, TableRow};
 
+use super::regions;
 use super::table::{cell_text, head_fill};
 use crate::theme::desktop::{CELL_PADDING_X, ROW_HEIGHT, TABLE_HEAD_SIZE, TABLE_HEAD_TRACKING};
 use crate::theme::palette;
@@ -166,7 +167,7 @@ fn body(
             }
         })
         .body(|body| {
-            body.rows(ROW_HEIGHT, grid.laid.rows.len(), |row| {
+            regions::rows(body, ROW_HEIGHT, grid.laid.rows.len(), |row| {
                 let index = row.index();
                 let Some(texts) = grid.laid.rows.get(index) else {
                     return;

@@ -76,7 +76,8 @@ fn is_character_item(item_type: &str) -> bool {
         .is_some_and(|start| start.eq_ignore_ascii_case(CHARACTER_PREFIX))
 }
 
-fn body_of(ports: &[PortNode]) -> Option<BodyVariant> {
+/// Returns the body the sub-type of the `Char_Head` Entity below `ports` names.
+pub(crate) fn body_of(ports: &[PortNode]) -> Option<BodyVariant> {
     ports.iter().find_map(|port| {
         if let Attachment::Entity(node) = port.attachment() {
             if node.attach_type().eq_ignore_ascii_case(HEAD_TYPE) {

@@ -10,6 +10,7 @@ use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use crate::build_gear::load_models;
 use crate::build_models::{Loaded, choose_models};
 use crate::build_palettes::Palettes;
+use crate::build_zones::BodyCut;
 use crate::flatten::{Draft, flatten};
 use crate::placement::{node_transform, offset};
 use crate::{
@@ -79,20 +80,16 @@ impl Assembly {
         let mut reported = HashSet::new();
         let mut characters = HashSet::new();
         let mut palettes = Palettes::new(palettes);
+        let cut = BodyCut::of(tree, &drafts, &chosen);
         let mut parts: Vec<Part> = Vec::with_capacity(drafts.len());
         for (draft, model) in drafts.iter().zip(&chosen) {
-            let key = model.and_then(|loaded| library_key(draft, loaded));
-            let materials = key
-                .as_ref()
-                .and_then(|key| libraries.get(key))
-                .map_or_else(|| Arc::clone(&unnamed), Arc::clone);
-            if let (Some(key), Some(reason)) = (
-                key,
-                materials.problem().or_else(|| materials.layer_problem()),
-            ) && reported.insert(key)
-            {
-                issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
-            }
+            let materials = materials_of(
+                draft,
+                *model,
+                (&libraries, &unnamed),
+                &mut reported,
+                &mut issues,
+            );
             note_attachments(draft, *model, &mut characters, &mut issues);
             let (palette, unresolved) = palettes.of_part(draft, *model, &materials);
             issues.extend(unresolved.into_iter().map(|kind| issue(draft, kind)));
@@ -112,7 +109,12 @@ impl Assembly {
                 world,
                 placement,
                 geometry: draft.geometry_path().map(str::to_owned),
-                model: model.map(|loaded| Arc::clone(&loaded.model)),
+                model: model.map(|loaded| {
+                    cut.as_ref().map_or_else(
+                        || Arc::clone(&loaded.model),
+                        |cut| cut.model_of(draft, loaded, &mut issues),
+                    )
+                }),
                 materials,
                 palette,
                 hidden: draft.hidden,
@@ -126,6 +128,29 @@ impl Assembly {
             containers: containers_of(&drafts),
         })
     }
+}
+
+/// Returns the materials a part draws with, noting a library that has a problem once.
+fn materials_of(
+    draft: &Draft<'_>,
+    model: Option<&Loaded>,
+    (libraries, unnamed): (&Libraries, &Arc<MaterialStatus>),
+    reported: &mut HashSet<String>,
+    issues: &mut Vec<Issue>,
+) -> Arc<MaterialStatus> {
+    let key = model.and_then(|loaded| library_key(draft, loaded));
+    let materials = key
+        .as_ref()
+        .and_then(|key| libraries.get(key))
+        .map_or_else(|| Arc::clone(unnamed), Arc::clone);
+    if let (Some(key), Some(reason)) = (
+        key,
+        materials.problem().or_else(|| materials.layer_problem()),
+    ) && reported.insert(key)
+    {
+        issues.push(issue(draft, IssueKind::MaterialLibrary { reason }));
+    }
+    materials
 }
 
 /// Returns the object containers each Entity of `drafts` names, shared with its node; a docked

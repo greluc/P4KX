@@ -10,7 +10,7 @@ use crate::entities::class_name_of;
 use crate::spec::LoadoutOrigin;
 use crate::{
     Geometry, Incompatibility, ItemFacts, LandingGear, LoadoutError, ObjectContainerRef,
-    PortConstraints, PortDefinition, PortVisibility, VehicleImplementation,
+    PortConstraints, PortDefinition, PortVisibility, VehicleImplementation, ZoneChunk,
 };
 
 /// One Entity in a Loadout tree: its Record and its ports with what they hold.
@@ -33,6 +33,7 @@ pub struct EntityNode {
     pub(crate) size: Option<u32>,
     pub(crate) container: Option<Guid>,
     pub(crate) object_containers: Arc<[ObjectContainerRef]>,
+    pub(crate) zones: Arc<[ZoneChunk]>,
 }
 
 impl EntityNode {

@@ -13,6 +13,14 @@ const LIBRARY: &str = "Data\\objects\\test\\cube";
 /// The class name of the shirt of [`zone_entries`].
 pub const ZONE_SHIRT: &str = "TEST_ZoneShirt";
 
+pub(crate) fn zone_shirt(chunks: &[TestZoneChunk]) -> TestEntity {
+    TestEntity::new(0x30, ZONE_SHIRT, "entities/scitem/test_zone_shirt.xml")
+        .attach_type("Char_Clothing_Torso_0")
+        .geometry_variant("Male", format!("{MALE_ARMOUR}/m_suit.skin"), None)
+        .geometry_variant("Female", format!("{FEMALE_ARMOUR}/f_suit.skin"), None)
+        .component(clothing_component(chunks))
+}
+
 /// Returns the Entries of an Archive of [`armour_entries`](crate::armour_entries) with zoned
 /// bodies.
 ///
@@ -21,12 +29,9 @@ pub const ZONE_SHIRT: &str = "TEST_ZoneShirt";
 /// material of the zones is layered and has no diffuse map.
 #[must_use]
 pub fn zone_entries(bodies: [&[[f32; 2]]; 2], chunks: &[TestZoneChunk]) -> Vec<TestEntry> {
-    let shirt = TestEntity::new(0x30, ZONE_SHIRT, "entities/scitem/test_zone_shirt.xml")
-        .attach_type("Char_Clothing_Torso_0")
-        .geometry_variant("Male", format!("{MALE_ARMOUR}/m_suit.skin"), None)
-        .geometry_variant("Female", format!("{FEMALE_ARMOUR}/f_suit.skin"), None)
-        .component(clothing_component(chunks));
-    let database = armour_database().record(shirt.record()).build();
+    let database = armour_database()
+        .record(zone_shirt(chunks).record())
+        .build();
     let mut entries = vec![TestEntry::zstd("Data\\Game2.dcb", database)];
     let replaced = [MALE_BODY, FEMALE_BODY, LIBRARY].map(str::to_ascii_lowercase);
     entries.extend(armour_files().into_iter().filter(|entry| {

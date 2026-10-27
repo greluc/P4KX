@@ -54,7 +54,7 @@ pub use piece::Piece;
 pub use shape::MAX_DNA_RIG_LEN;
 pub use wearable::Wearable;
 pub use zones::ZoneChunk;
-pub(crate) use zones::{ZoneList, read_zones};
+pub(crate) use zones::{ZoneList, covered, read_zones, uncovered};
 
 use crate::Issue;
 

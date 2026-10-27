@@ -313,6 +313,7 @@ fn shell(spec: &EntitySpec, docked_vehicle: bool, expanded: bool) -> EntityNode 
         size: spec.size,
         container: spec.container,
         object_containers: Arc::clone(&spec.object_containers),
+        zones: Arc::clone(&spec.zones.chunks),
     }
 }
 

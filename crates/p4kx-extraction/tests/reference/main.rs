@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+// SPDX-FileCopyrightText: 2026 the P4KX contributors
+
+//! Differential verification of P4KX against the output of unp4k, unforge and `StarBreaker`.
+//!
+//! The ignored tests read a folder of reference output the owner produced beforehand, named by
+//! `P4KX_REF_UNP4K`, `P4KX_REF_UNFORGE` or `P4KX_REF_STARBREAKER`, next to the real Archive of
+//! `P4KX_DATA_P4K`; they never run a foreign tool. The mutation self-tests run everywhere.
+
+use std::error::Error;
+
+mod bytes;
+mod mutation_bytes;
+mod mutation_value;
+mod mutation_xml;
+mod samples;
+mod starbreaker;
+mod starbreaker_json;
+mod tally;
+mod unforge;
+mod unp4k;
+mod value_tree;
+mod value_tree_compare;
+mod walk;
+mod xml_tree;
+
+type TestResult = Result<(), Box<dyn Error>>;
+
+#[expect(
+    clippy::print_stdout,
+    reason = "the counts and timings of a differential run are what the verification reports"
+)]
+fn report(line: &str) {
+    println!("{line}");
+}

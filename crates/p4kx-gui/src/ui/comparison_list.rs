@@ -6,6 +6,7 @@ use egui_extras::{Column, TableBuilder, TableRow};
 
 use super::comparison_rows::{RowCache, RowGalleys};
 use super::comparison_summary::kind_look;
+use super::regions;
 use super::table::{head_fill, sort_header};
 use crate::theme::desktop::{CELL_PADDING_X, CHANGE_COLUMN, CHANGE_SIZE_COLUMN, ROW_HEIGHT};
 use crate::theme::palette;
@@ -82,7 +83,7 @@ pub(super) fn show(
             }
         })
         .body(|body| {
-            body.rows(ROW_HEIGHT, view.shown().len(), |row| {
+            regions::rows(body, ROW_HEIGHT, view.shown().len(), |row| {
                 let index = row.index();
                 let (clicked, is_hovered) =
                     show_row(row, (texts, view), &mut cache, hovered == Some(index));

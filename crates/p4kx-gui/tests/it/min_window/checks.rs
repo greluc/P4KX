@@ -11,6 +11,8 @@ use egui_kittest::kittest::{NodeT, Queryable};
 use p4kx_gui::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH};
 use p4kx_gui::{Model, ui};
 
+use crate::node_text::node_text;
+
 const WIDGETS: [Role; 7] = [
     Role::Button,
     Role::TextInput,
@@ -35,6 +37,7 @@ fn widgets(harness: &Harness<'_, Model>) -> Vec<Found> {
     let regions = ui::regions(&harness.ctx);
     let named = |id: Id| format!("{:?})", id.accesskit_id());
     let work = regions.work_ui.map(named);
+    let work_shown = regions.work;
     let clips: Vec<(String, Rect)> = regions
         .clips
         .iter()
@@ -61,9 +64,12 @@ fn widgets(harness: &Harness<'_, Model>) -> Vec<Found> {
                     }
                     up = parent.parent();
                 }
+                if let (true, Some(shown)) = (in_work, work_shown) {
+                    seen = seen.intersect(shown);
+                }
                 Found {
                     role: *role,
-                    label: node.accesskit_node().label().unwrap_or_default(),
+                    label: node_text(&node).unwrap_or_default(),
                     rect: node.rect(),
                     seen,
                     in_work,
@@ -180,10 +186,13 @@ fn clip_problems(found: &Placed<'_>, regions: &ui::Regions, name: &str) -> Vec<S
         regions.preview,
         regions.work.filter(|_| !scrolls),
     ];
-    for (_, _, one) in found.iter().filter(|(_, _, one)| one.in_work) {
+    for (_, _, one) in found
+        .iter()
+        .filter(|(_, _, one)| one.in_work && one.seen.width() > 0.0 && one.seen.height() > 0.0)
+    {
         for container in containers.iter().flatten() {
-            if container.contains(one.rect.center())
-                && !container.expand(1.0).contains_rect(one.rect)
+            if container.contains(one.seen.center())
+                && !container.expand(1.0).contains_rect(one.seen)
             {
                 problems.push(format!(
                     "{name}: `{}` {:?} is clipped by its region {container:?}",

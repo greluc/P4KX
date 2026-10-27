@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use egui::{Context, Id, Rect, Ui};
+use egui_extras::{TableBody, TableRow};
 
 /// Where the main regions of the window stood in the last frame, for tests that check they do not
 /// intersect.
@@ -49,6 +50,18 @@ pub(super) fn reset(ctx: &Context) {
 
 pub(super) fn record(ctx: &Context, set: impl FnOnce(&mut Regions)) {
     ctx.data_mut(|data| set(data.get_temp_mut_or_default::<Regions>(Id::NULL)));
+}
+
+/// Shows the `total` rows of `body` of `height` each like [`TableBody::rows`], after marking the
+/// scroll area of the table with [`clip`].
+pub(super) fn rows(
+    mut body: TableBody<'_>,
+    height: f32,
+    total: usize,
+    add_row: impl FnMut(TableRow<'_, '_>),
+) {
+    clip(body.ui_mut());
+    body.rows(height, total, add_row);
 }
 
 /// Marks `ui`, the content of a scroll area, so that tests can tell what of it shows.

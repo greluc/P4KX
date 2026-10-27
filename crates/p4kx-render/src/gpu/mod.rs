@@ -5,6 +5,8 @@
 //! its surface, or reads back.
 
 mod assembly;
+#[cfg(test)]
+mod deadline;
 mod device;
 mod frame;
 mod hologram;

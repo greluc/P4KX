@@ -35,6 +35,7 @@ mod entity_assembly;
 mod entity_cargo;
 mod entity_clothing;
 mod entity_dressed;
+mod entity_gear;
 mod entity_head;
 mod entity_interior_sample;
 mod entity_layer_chain;
@@ -138,6 +139,7 @@ pub use entity_dressed::{
     DRESSED_HAIR_MATERIAL, DRESSED_HAIR_OPACITY, DRESSED_HEAD_DIFFUSE, DRESSED_HEAD_MATERIAL,
     DRESSED_HEAD_MATERIAL_FILE, DRESSED_UNKNOWN_MATERIAL, dressed_entries,
 };
+pub use entity_gear::{LANDING_GEAR_SHIP, landing_gear_entries};
 pub use entity_head::{
     FEMALE_BODY_TYPE, FEMALE_RIG_HASH, HEAD_REGIONS, HEAD_VERTICES, MALE_BODY_TYPE,
     MALE_HEAD_FOLDER, MALE_RIG, MALE_RIG_HASH, head_entries, head_rig,

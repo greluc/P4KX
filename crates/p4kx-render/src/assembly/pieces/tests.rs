@@ -9,8 +9,8 @@ use p4kx_extraction::{Archive, DataForgeEntry, GlbOptions};
 use p4kx_settings::ModelMaterials;
 use p4kx_testkit::gltf::Node;
 use p4kx_testkit::{
-    ArchiveBuilder, ENTITY_CLASS_ROOM_CLASS, ENTITY_INTERIOR_CLASS, check_glb,
-    entity_class_room_entries, entity_interior_entries,
+    ArchiveBuilder, ENTITY_CLASS_ROOM_CLASS, ENTITY_INTERIOR_CLASS, LANDING_GEAR_SHIP, check_glb,
+    entity_class_room_entries, entity_interior_entries, landing_gear_entries,
 };
 
 use super::pieces_of;
@@ -225,4 +225,37 @@ fn compare(piece: &crate::assembly::pieces::Piece<'_>, matrix: &Matrix, name: &s
             y_up(viewer)
         );
     }
+}
+
+#[test]
+fn a_landing_gear_is_a_piece_below_its_entity_at_the_world_of_its_bone() {
+    let dir = tempfile::tempdir().expect("a folder");
+    let path = dir.path().join("Data.p4k");
+    landing_gear_entries()
+        .into_iter()
+        .fold(ArchiveBuilder::new(), ArchiveBuilder::entry)
+        .write_to(&path)
+        .expect("the Archive is written");
+    let archive = Archive::open(&path).expect("the Archive opens");
+    let entry = DataForgeEntry::read(&archive).expect("a DataForge");
+    let forge = entry.open().expect("it opens");
+    let mut resolver = LoadoutResolver::new(&forge);
+    let record = resolver
+        .entities()
+        .find(LANDING_GEAR_SHIP)
+        .expect("the Entity");
+    let tree = resolver.resolve(&record).expect("its Loadout");
+    let models = ArchiveModels::new(&archive);
+    let assembly =
+        Assembly::build(&tree, &models, &AssemblyOptions::default()).expect("the Assembly");
+
+    let pieces = pieces_of(&assembly);
+
+    let gear = pieces
+        .iter()
+        .find(|piece| piece.name == "landing_gear/hardpoint_gear_front")
+        .expect("the gear piece");
+    assert_eq!(gear.parent, Some(0));
+    assert!(gear.model.is_some(), "the gear is drawn");
+    assert_eq!(gear.world[0][3], 5.0, "at the bone of the ship's model");
 }

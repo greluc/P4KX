@@ -114,16 +114,12 @@ impl Armour {
                 (&mut reported, &mut tints),
                 &mut issues,
             );
-            parts.push(ArmourPart {
-                name: job.part.clone(),
-                origin: job.origin,
-                file: job.path.clone(),
-                model,
-                materials,
-                morphs: dressed.morphs,
-                follows: dressed.follows,
-                face: None,
-            });
+            parts.push(part_of(
+                job,
+                (model, materials),
+                dressed.morphs,
+                dressed.follows,
+            ));
         }
         let skeleton = settled(
             body.skeleton,
@@ -142,6 +138,27 @@ impl Armour {
             issues,
             lod: options.lod,
         })
+    }
+}
+
+/// Returns the part a job is worn as, with its model and materials, the morph targets it was built
+/// with and the vertices that follow the head.
+fn part_of(
+    job: &Job,
+    (model, materials): (Arc<Model>, Arc<MaterialStatus>),
+    morphs: Vec<MorphTarget>,
+    follows: Vec<usize>,
+) -> ArmourPart {
+    ArmourPart {
+        name: job.part.clone(),
+        origin: job.origin,
+        file: job.path.clone(),
+        model,
+        materials,
+        morphs,
+        follows,
+        face: None,
+        mount: None,
     }
 }
 

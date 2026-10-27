@@ -12,6 +12,7 @@ pub struct TestPort {
     sizes: (u32, u32),
     types: Vec<(String, Vec<String>)>,
     helper: Option<(String, [f32; 3], [f32; 3])>,
+    item_helper: String,
     attachment: &'static str,
     default_item: Option<u128>,
     flags: String,
@@ -27,6 +28,7 @@ impl TestPort {
             sizes: (1, 1),
             types: Vec::new(),
             helper: None,
+            item_helper: String::new(),
             attachment: DEFAULT_ATTACHMENT,
             default_item: None,
             flags: String::new(),
@@ -77,6 +79,13 @@ impl TestPort {
         rotation: [f32; 3],
     ) -> Self {
         self.helper = Some((name.into(), position, rotation));
+        self
+    }
+
+    /// Places the helper `name` of the attached Entity's own model at the port's helper.
+    #[must_use]
+    pub fn item_helper(mut self, name: impl Into<String>) -> Self {
+        self.item_helper = name.into();
         self
     }
 
@@ -139,22 +148,29 @@ impl TestPort {
         if self.helper.is_some() || self.attachment != DEFAULT_ATTACHMENT {
             instance = instance.value(
                 "AttachmentImplementation",
-                attachment(self.attachment, self.helper.as_ref()),
+                attachment(self.attachment, self.helper.as_ref(), &self.item_helper),
             );
         }
         TestValue::Struct(instance)
     }
 }
 
-fn attachment(kind: &str, helper: Option<&(String, [f32; 3], [f32; 3])>) -> TestValue {
+fn attachment(
+    kind: &str,
+    helper: Option<&(String, [f32; 3], [f32; 3])>,
+    item_helper: &str,
+) -> TestValue {
     let mut instance = TestInstance::new(format!("SItemPortDefAttachmentImplementation{kind}"));
     if let Some((name, position, rotation)) = helper {
-        instance = instance.value("Helper", helper_node(name, *position, *rotation));
+        instance = instance.value(
+            "Helper",
+            helper_node(name, item_helper, *position, *rotation),
+        );
     }
     TestValue::Struct(instance)
 }
 
-fn helper_node(name: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue {
+fn helper_node(name: &str, item_helper: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue {
     let xyz = |type_name: &str, [x, y, z]: [f32; 3]| {
         TestValue::Struct(
             TestInstance::new(type_name)
@@ -168,7 +184,7 @@ fn helper_node(name: &str, position: [f32; 3], rotation: [f32; 3]) -> TestValue 
         .value("Position", xyz("Vec3", position));
     let helper = TestInstance::new("SItemPortDefHelper")
         .value("Name", TestValue::text(name))
-        .value("ItemOffsetHelperName", TestValue::text(""))
+        .value("ItemOffsetHelperName", TestValue::text(item_helper))
         .value("Offset", TestValue::Struct(offset));
     TestValue::Struct(
         TestInstance::new("SItemPortDefHelperNode").value("Helper", TestValue::Struct(helper)),

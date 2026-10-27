@@ -361,13 +361,7 @@ impl Armour {
         textures: Option<&dyn TextureLoader>,
         out: &mut impl Write,
     ) -> Result<GlbSummary, GltfError> {
-        let pieces: Vec<RigPiece<'_>> = self
-            .parts
-            .iter()
-            .map(|part| {
-                RigPiece::new(&part.name, &part.model, &part.materials).with_morphs(&part.morphs)
-            })
-            .collect();
+        let pieces: Vec<RigPiece<'_>> = self.parts.iter().map(ArmourPart::rig_piece).collect();
         let list: Vec<RigAnimation<'_>> = animations
             .keys
             .iter()

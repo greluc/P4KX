@@ -10,9 +10,11 @@ use super::desktop::{
 use super::tokens::SPACE_1;
 
 /// The width the room of a work tab below the tab bar keeps; a narrower window scrolls it.
-pub const WORK_MIN_WIDTH: f32 = 720.0;
+///
+/// The smallest window of 640 points less the rail and the scrollbar a low window shows.
+pub const WORK_MIN_WIDTH: f32 = 580.0;
 /// The height the room of a work tab below the tab bar keeps; a lower window scrolls it.
-pub const WORK_MIN_HEIGHT: f32 = 480.0;
+pub const WORK_MIN_HEIGHT: f32 = 536.0;
 /// The window width below which the sidebar hides behind its rail until the rail button shows it:
 /// the sidebar and the smallest room of a work tab no longer fit side by side.
 pub const SIDEBAR_COLLAPSE_WIDTH: f32 = SIDEBAR_WIDTH + WORK_MIN_WIDTH;
@@ -21,10 +23,10 @@ pub const SIDEBAR_COLLAPSE_WIDTH: f32 = SIDEBAR_WIDTH + WORK_MIN_WIDTH;
 pub const SIDEBAR_RAIL_WIDTH: f32 = BUTTON_XS_HEIGHT + 2.0 * SPACE_1;
 /// The height the Entry list of the Browse tab keeps above the preview.
 ///
-/// Its toolbar with the search row, the stacked actions and the quick filters, the table head and
-/// one row, and the two hairlines of its frame.
+/// Its toolbar with the search row, the actions in up to two rows and the quick filters, the table
+/// head and one row, and the two hairlines of its frame.
 pub const BROWSE_LIST_MIN_HEIGHT: f32 =
-    4.0 * TOOLBAR_PADDING + 2.0 * BUTTON_HEIGHT + SEGMENT_HEIGHT + 2.0 * ROW_HEIGHT + 2.0;
+    5.0 * TOOLBAR_PADDING + 3.0 * BUTTON_HEIGHT + SEGMENT_HEIGHT + 2.0 * ROW_HEIGHT + 2.0;
 /// The height the toolbar of the Sounds tab keeps before it scrolls.
 ///
 /// The Entity row, two rows of actions and the search row.

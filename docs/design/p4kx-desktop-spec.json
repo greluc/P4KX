@@ -77,17 +77,17 @@
     "defaultWidth": 300,
     "minWidth": 240,
     "maxWidth": 480,
-    "collapseWidth": 1020,
+    "collapseWidth": 880,
     "railWidth": 40,
     "collapse": "decision D.52: below collapseWidth of the window the sidebar hides behind a rail of railWidth whose btn-xs btn-icon ghost button with a chevron shows it at minWidth and hides it again",
     "background": "surface-panel",
     "borderRight": {"width": 1, "color": "color-gray-3"}
   },
   "workSurface": {
-    "decision": "D.52",
-    "minWidth": 720,
-    "minHeight": 480,
-    "browseListMinHeight": 244,
+    "decision": "D.59",
+    "minWidth": 580,
+    "minHeight": 536,
+    "browseListMinHeight": 300,
     "soundsToolbarMinHeight": 212,
     "scroll": "the room of a work tab below the tab bar is never smaller than minWidth by minHeight: a smaller window scrolls it in both directions, the tab bar stays"
   },

@@ -12,7 +12,7 @@ use egui_kittest::kittest::Queryable;
 use p4kx_gui::{Language, Model};
 
 const WIDE: f32 = 1600.0;
-const NARROW: f32 = 700.0;
+const NARROW: f32 = 760.0;
 const ENTITY: &str = "TEST_Ship";
 
 const fn reset_label(language: Language) -> &'static str {

@@ -13,7 +13,7 @@ use p4kx_gui::{Model, PreviewTab, WorkTab, ui};
 use super::{DEFAULT, LANGUAGES, MID, MIN, entity_entries, opened, problems, renderer, shot};
 use crate::entity_picking::TestResult;
 use crate::tagging::{archive, harness_sized, wait_until};
-use crate::waiting::{RunQuiet, wait_for_model};
+use crate::waiting::{RunQuiet, reveal, wait_for_model};
 
 fn with_model_selected(harness: &mut Harness<'_, Model>) -> TestResult {
     let browser = harness.state_mut().browser_mut().ok_or("no Archive")?;
@@ -24,6 +24,7 @@ fn with_model_selected(harness: &mut Harness<'_, Model>) -> TestResult {
             .is_some_and(|browser| !browser.is_searching())
     })?;
     harness.run_quiet();
+    reveal(harness, "gun.cgf");
     harness.get_by_label("gun.cgf").click();
     wait_for_model(harness, "the model preview", |model| {
         model.preview_tab() == PreviewTab::Model
@@ -127,7 +128,7 @@ fn the_sidebar_hides_behind_a_rail_below_the_collapse_width() -> TestResult {
     for (language, _, show, hide) in LANGUAGES {
         let dir = tempfile::tempdir()?;
         let path = archive(dir.path(), entity_entries())?;
-        let mut narrow = harness_sized(Model::new(language), [1000.0, 600.0]);
+        let mut narrow = harness_sized(Model::new(language), [860.0, 600.0]);
         narrow.state_mut().open(path.clone(), || {});
         wait_until(&mut narrow, |model| model.browser().is_some())?;
         assert!(

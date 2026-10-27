@@ -33,7 +33,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     if narrow {
         let rail = Panel::left("side-rail")
             .frame(frames::sidebar().inner_margin(Margin::same(px(SPACE_1))))
-            .exact_size(SIDEBAR_RAIL_WIDTH)
+            .exact_size(SIDEBAR_RAIL_WIDTH - 2.0 * SPACE_1)
             .show(ui, |ui| {
                 if toggle(ui, model, open) {
                     open = !open;

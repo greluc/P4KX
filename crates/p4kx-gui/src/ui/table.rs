@@ -51,7 +51,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     let left = ui.max_rect().left();
     let room = Room::enter(ui);
     ui.spacing_mut().item_spacing = egui::Vec2::ZERO;
-    let table = entries_table(ui);
+    let table = entries_table(ui, room.width);
     if room.stale {
         table.reset();
     }
@@ -93,7 +93,17 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     }
 }
 
-fn entries_table(ui: &mut Ui) -> TableBuilder<'_> {
+const NAME_COLUMN_MIN: f32 = 160.0;
+
+/// Returns the factor the initial widths of the compression, encryption and size columns shrink
+/// by so that, with the check column and the least width of the name, they fit `room`.
+fn column_scale(room: f32) -> f32 {
+    let initial = COMPRESSION_COLUMN + ENCRYPTION_COLUMN + SIZE_COLUMN;
+    ((room - CHECK_COLUMN - NAME_COLUMN_MIN) / initial).clamp(0.0, 1.0)
+}
+
+fn entries_table(ui: &mut Ui, room: f32) -> TableBuilder<'_> {
+    let scale = column_scale(room - ui.spacing().scroll.allocated_width());
     TableBuilder::new(ui)
         .id_salt("entries")
         .striped(false)
@@ -103,14 +113,18 @@ fn entries_table(ui: &mut Ui) -> TableBuilder<'_> {
         .sense(Sense::click())
         .cell_layout(Layout::left_to_right(Align::Center))
         .column(Column::exact(CHECK_COLUMN))
-        .column(Column::remainder().at_least(160.0).clip(true))
+        .column(Column::remainder().at_least(NAME_COLUMN_MIN).clip(true))
         .column(
-            Column::initial(COMPRESSION_COLUMN)
+            Column::initial(COMPRESSION_COLUMN * scale)
                 .at_least(60.0)
                 .clip(true),
         )
-        .column(Column::initial(ENCRYPTION_COLUMN).at_least(60.0).clip(true))
-        .column(Column::initial(SIZE_COLUMN).at_least(80.0))
+        .column(
+            Column::initial(ENCRYPTION_COLUMN * scale)
+                .at_least(60.0)
+                .clip(true),
+        )
+        .column(Column::initial(SIZE_COLUMN * scale).at_least(80.0))
 }
 
 /// What the table knew of its room in the last frame: the remaining column keeps the width it had

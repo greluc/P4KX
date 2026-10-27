@@ -25,19 +25,38 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         let (tab, texts) = model.characters_with_texts();
         let tab: &CharactersTab = tab;
         ui.spacing_mut().item_spacing = egui::vec2(AUDIO_CONTROL_GAP, TOOLBAR_PADDING / 2.0);
-        ui.horizontal(|ui| {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let exported = export(ui, tab, texts);
-                let chosen = ui
-                    .with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        settings(ui, tab, texts)
-                    })
-                    .inner;
-                exported.or(chosen)
+        let id = ui
+            .make_persistent_id("character-toolbar-settings")
+            .with(texts.language());
+        let settings_width = ui.data(|data| data.get_temp::<f32>(id)).unwrap_or(0.0);
+        let export_width = button::width(ui, Size::Normal, &texts.get(T::ExportAction));
+        let beside = settings_width + export_width + ui.spacing().item_spacing.x;
+        if beside <= ui.available_width() {
+            ui.horizontal(|ui| {
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    let exported = export(ui, tab, texts);
+                    let chosen = ui
+                        .with_layout(Layout::left_to_right(Align::Center), |ui| {
+                            measured(ui, id, tab, texts)
+                        })
+                        .inner;
+                    exported.or(chosen)
+                })
+                .inner
             })
             .inner
-        })
-        .inner
+        } else {
+            let chosen = measured(ui, id, tab, texts);
+            let exported = ui
+                .horizontal(|ui| {
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        export(ui, tab, texts)
+                    })
+                    .inner
+                })
+                .inner;
+            exported.or(chosen)
+        }
     };
     match ask {
         Some(Ask::Lod(level)) => model.characters_mut().set_lod(level),
@@ -54,6 +73,13 @@ fn export(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
     button::button(ui, Kind::Cta, Size::Normal, &action, tab.export_available())
         .clicked()
         .then_some(Ask::Export)
+}
+
+/// Shows the settings in one line and remembers the width they take under `id`.
+fn measured(ui: &mut Ui, id: egui::Id, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
+    let shown = ui.horizontal(|ui| settings(ui, tab, texts));
+    ui.data_mut(|data| data.insert_temp(id, shown.response.rect.width()));
+    shown.inner
 }
 
 fn settings(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {

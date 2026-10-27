@@ -49,11 +49,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
                 });
             });
             if stacked {
-                ui.horizontal(|ui| {
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        extraction::actions(ui, model);
-                    });
-                });
+                extraction::stacked_actions(ui, model);
             }
             ui.horizontal_wrapped(|ui| {
                 ui.label(filters);

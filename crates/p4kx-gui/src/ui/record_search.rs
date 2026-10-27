@@ -81,11 +81,7 @@ fn toolbar(ui: &mut Ui, model: &mut Model, laid: &Laid) -> Option<String> {
                 });
             });
             if stacked {
-                ui.horizontal(|ui| {
-                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        extraction::actions(ui, model);
-                    });
-                });
+                extraction::stacked_actions(ui, model);
             }
         });
     hairline_below(ui, toolbar.response.rect);

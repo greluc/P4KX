@@ -86,6 +86,30 @@ pub(crate) fn wait_polling_described<T>(
     Ok(())
 }
 
+const REVEAL_STEPS: u32 = 8;
+
+/// Scrolls the work surface of a window with the wheel until the node labelled `label` shows in
+/// it; a low window keeps its tab taller than the room it has.
+pub(crate) fn reveal(harness: &mut Harness<'_, Model>, label: &str) {
+    let Some(work) = p4kx_gui::ui::regions(&harness.ctx).work else {
+        return;
+    };
+    for _ in 0..REVEAL_STEPS {
+        if work.contains(harness.get_by_label(label).rect().center()) {
+            return;
+        }
+        harness.event(egui::Event::PointerMoved(work.center()));
+        harness.event(egui::Event::MouseWheel {
+            unit: egui::MouseWheelUnit::Line,
+            delta: egui::vec2(0.0, -3.0),
+            phase: egui::TouchPhase::Move,
+            source: egui::MouseWheelSource::Wheel,
+            modifiers: egui::Modifiers::NONE,
+        });
+        harness.run_steps(2);
+    }
+}
+
 /// Steps a window of the [`Model`] until `done` holds for the model.
 pub(crate) fn wait_for_model(
     harness: &mut Harness<'_, Model>,

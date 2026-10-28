@@ -118,22 +118,8 @@ fn a_loot_table_of_a_real_archive_keeps_its_weights_and_links() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_loot_kinds_and_the_containers_of_a_real_archive_are_linked() -> TestResult {
-    let (catalog, warnings) = built()?;
-    for warning in &warnings {
-        print_line(warning);
-    }
+    let catalog = catalog()?;
     let tables = guids(&catalog, "lootTables")?;
-    let legacy_tables = guids(&catalog, "legacyLootTables")?;
-    let legacy_archetypes = guids(&catalog, "legacyLootArchetypes")?;
-    for table in list(&catalog, "legacyLootTables")? {
-        assert_resolve(
-            "the archetypes of an older table",
-            array(table, "entries")
-                .iter()
-                .filter_map(|entry| entry["archetypeGuid"].as_str()),
-            &legacy_archetypes,
-        );
-    }
     let archetypes = guids(&catalog, "lootArchetypes")?;
     let filters = guids(&catalog, "lootPoolFilters")?;
     let configs = guids(&catalog, "subHarvestableMultiConfigs")?;
@@ -173,11 +159,6 @@ fn the_loot_kinds_and_the_containers_of_a_real_archive_are_linked() -> TestResul
                     &tables,
                 );
                 assert_resolve(
-                    "the older table of a slot",
-                    loot["lootTableGuid"].as_str(),
-                    &legacy_tables,
-                );
-                assert_resolve(
                     "the filter of a slot",
                     loot["poolFilterGuid"].as_str(),
                     &filters,
@@ -195,5 +176,42 @@ fn the_loot_kinds_and_the_containers_of_a_real_archive_are_linked() -> TestResul
             .filter_map(|row| row["multiConfigGuid"].as_str()),
         &configs,
     );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_older_loot_records_of_a_real_archive_resolve_and_the_scan_warns_of_nothing() -> TestResult {
+    let (catalog, warnings) = built()?;
+    for warning in &warnings {
+        print_line(warning);
+    }
+    let tables = guids(&catalog, "legacyLootTables")?;
+    let archetypes = guids(&catalog, "legacyLootArchetypes")?;
+    print_line(&format!(
+        "legacyLootTables {}, legacyLootArchetypes {}",
+        tables.len(),
+        archetypes.len()
+    ));
+    for table in list(&catalog, "legacyLootTables")? {
+        assert_resolve(
+            "the archetypes of an older table",
+            array(table, "entries")
+                .iter()
+                .filter_map(|entry| entry["archetypeGuid"].as_str()),
+            &archetypes,
+        );
+    }
+    for config in list(&catalog, "subHarvestableMultiConfigs")? {
+        for tagged in array(config, "taggedConfigs") {
+            for slot in array(tagged, "subHarvestables") {
+                assert_resolve(
+                    "the older table of a slot",
+                    slot["lootConfig"]["lootTableGuid"].as_str(),
+                    &tables,
+                );
+            }
+        }
+    }
     Ok(())
 }

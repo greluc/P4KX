@@ -168,6 +168,7 @@ mod resource_group;
 mod scan;
 mod scan_signature;
 mod selection;
+mod selection_index;
 mod selection_rules;
 mod ship;
 mod ship_base;

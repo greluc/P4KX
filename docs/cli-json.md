@@ -1051,7 +1051,11 @@ their struct type is that of a Record with a reward source, so a source may be m
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
 `unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats; the JSON lists every file, stderr the first eight) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
-limits that left starmap objects without a position), `unreadable_shop_registry` (the shop registry exists but
+limits that left starmap objects without a position), `unreadable_harvest_containers` with a `count` and `details` (system containers that cannot be opened or whose `.soc` cannot be read, so a provider preset may be missing from `harvestableLocations`; the path and the reason of each, ordered),
+`unreadable_loot_containers` with a `count` and `details` (containers or entity files that cannot be read, so a multi config may be missing from `lootContainers`; as above),
+`unreadable_harvestables` with a `count` and `details` (`HarvestablePreset` or entity Records that are missing or cannot be built, so the harvestables that name them lack their entity and composition; the role, GUID and reason of each, ordered),
+`harvest_locations_without_object` with a `count` and `details` (harvestable locations with no starmap object although one is recorded above their container: the object is not in the starmap objects, 64 or more mining claim markers lie above, or a marker has no object above it; one line per reason with its number; a container with no object recorded above is the normal case and is not counted),
+`unreadable_shop_registry` (the shop registry exists but
 cannot be read, so `shops` is empty), `missing_shop_registry` (starmap objects but no registry at the known path)
 `unreadable_shop_containers` with a `count` (shop containers that cannot be read) and
 `unreadable_shop_inventories` with a `count` (inventory files that cannot be read) and `details` (as above: every file in the JSON),

@@ -46,6 +46,16 @@ pub enum CraftingWarning {
         /// One entry per container: its path and the reason.
         details: Vec<String>,
     },
+    /// This many harvestable locations have no starmap object although one is recorded above
+    /// their container: it is not in the starmap objects, 64 or more mining claim markers lie
+    /// above, or a marker has no object above it. A container with no object recorded above is
+    /// the normal case and not counted. `details` gives each reason with its number, ordered.
+    HarvestLocationsWithoutObject {
+        /// The number of locations.
+        count: usize,
+        /// One entry per reason: the number and the reason.
+        details: Vec<String>,
+    },
     /// This many containers or their entity files cannot be read, so a multi config they carry
     /// may be missing from `lootContainers`. `details` names the containers and why, ordered.
     UnreadableLootContainers {
@@ -103,6 +113,7 @@ impl CraftingWarning {
             Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
             Self::UnplacedStarmapContainers(_) => "unplaced_starmap_containers",
             Self::UnreadableHarvestContainers { .. } => "unreadable_harvest_containers",
+            Self::HarvestLocationsWithoutObject { .. } => "harvest_locations_without_object",
             Self::UnreadableLootContainers { .. } => "unreadable_loot_containers",
             Self::UnreadableHarvestables { .. } => "unreadable_harvestables",
             Self::UnreadableShopRegistry => "unreadable_shop_registry",
@@ -126,6 +137,7 @@ impl CraftingWarning {
             | Self::MissingShopInventories(count)
             | Self::UnknownModifierRanges { count, .. }
             | Self::UnreadableHarvestContainers { count, .. }
+            | Self::HarvestLocationsWithoutObject { count, .. }
             | Self::UnreadableLootContainers { count, .. }
             | Self::UnreadableHarvestables { count, .. }
             | Self::UnreadableVehicleFiles { count, .. }
@@ -144,6 +156,7 @@ impl CraftingWarning {
         match self {
             Self::UnknownModifierRanges { details, .. }
             | Self::UnreadableHarvestContainers { details, .. }
+            | Self::HarvestLocationsWithoutObject { details, .. }
             | Self::UnreadableLootContainers { details, .. }
             | Self::UnreadableHarvestables { details, .. }
             | Self::UnreadableVehicleFiles { details, .. }
@@ -203,6 +216,11 @@ impl fmt::Display for CraftingWarning {
             Self::UnreadableHarvestContainers { count, details } => write!(
                 f,
                 "{count} system containers cannot be read for a provider preset; the preset may be missing from the harvestable locations{}",
+                Listed(details)
+            ),
+            Self::HarvestLocationsWithoutObject { count, details } => write!(
+                f,
+                "{count} harvestable locations have no starmap object although one is recorded above their container{}",
                 Listed(details)
             ),
             Self::UnreadableLootContainers { count, details } => write!(

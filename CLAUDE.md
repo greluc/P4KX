@@ -62,6 +62,10 @@ read it from `P4KX_REF_UNP4K`, `P4KX_REF_UNFORGE` and `P4KX_REF_STARBREAKER`
 `docs/differential-verification.md` says how to produce the folders and holds the results of the
 first run; a difference not on its allow-list fails the test.
 
+The ship matrix check of `p4kx-export` (ADR-0245) reads the JSON the owner saved by hand as
+`local-data/ship-matrix/ship-matrix.json` (excluded from git locally; nothing fetches it) from
+`P4KX_REF_SHIP_MATRIX` (`p4kx_testkit::reference_ship_matrix_path`) and skips when it is unset.
+
 The same run includes the RFC 8251 Opus decoder vectors test of `p4kx-audio`. It reads the folder
 of the official `testvectorNN.bit` and `.dec` files from `P4KX_OPUS_VECTORS` and skips with a note
 when the variable is unset.

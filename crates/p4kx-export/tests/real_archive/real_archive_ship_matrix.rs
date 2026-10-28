@@ -63,17 +63,13 @@ fn playability_of_the_ships_is_compared_with_the_ship_matrix() -> Result<(), Box
         ("ships", ships.len(), ship_entries.len()),
         ("store slugs", slugs.len(), slug_entries.len()),
     ] {
-        if read != all {
-            print_line(&format!(
-                "WARNING: only {read} of {all} catalog {kind} are readable"
-            ));
-        }
+        assert_eq!(read, all, "catalog {kind} that are readable");
     }
-    for class in supplement_gaps(&ships) {
-        print_line(&format!(
-            "WARNING: NAME_SUPPLEMENT class {class} is not a catalog ship"
-        ));
-    }
+    let gaps = supplement_gaps(&ships);
+    assert!(
+        gaps.is_empty(),
+        "NAME_SUPPLEMENT classes that are no catalog ship: {gaps:?}"
+    );
     print_line(&format!(
         "{} matrix entries, {} catalog ships, {} store slugs",
         matrix.len(),

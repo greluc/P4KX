@@ -55,7 +55,9 @@ never fetches the ship matrix.
   none of the 307 other `player` ships has it. A Record tag is Record data like the folder of the
   record path, so rule 1 of the ship rule takes it as an AI marker. The tag names the authoring
   team, not a behaviour, so the rule stays a marker found on LIVE and is re-checked with each
-  comparison.
+  comparison; the real-Archive test `no_player_ship_carries_the_ai_record_tag` fails then. Failure
+  modes: a `player` ship that gains the tag is demoted to `ai`, an `AI_Super` ship that loses it
+  becomes `player` again, and in a version 6 DataForge (no Record tag) the rule does nothing.
 - The seven `null` base ships the matrix calls flight ready (Basher, Sabre Raven EX, Skylark,
   Railen, S-65 Stingray, Tyilui, Constellation Mk V Centaurus) share no component, field, tag,
   Reference or folder that is rare elsewhere, but they do not need one: the only ships `null`

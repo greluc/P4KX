@@ -7,7 +7,7 @@
 //! A matrix entry maps to a catalog ship through the curated `shipStoreSlugs`: first by the RSI
 //! ship id, then by the last segment of the entry's `url` against the slug, ignoring case.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -198,14 +198,14 @@ fn class_of<'a>(
 /// The classes of `NAME_SUPPLEMENT` that are not among the catalog `ships`: their matrix names
 /// would silently count as unmapped.
 #[must_use]
-pub(crate) fn supplement_gaps<'a>(ships: &[CatalogShip<'_>]) -> Vec<&'a str> {
-    let mut gaps: Vec<&str> = NAME_SUPPLEMENT
+pub(crate) fn supplement_gaps(ships: &[CatalogShip<'_>]) -> Vec<&'static str> {
+    NAME_SUPPLEMENT
         .iter()
         .map(|(_, class)| *class)
         .filter(|class| ships.iter().all(|ship| ship.class_name != *class))
-        .collect();
-    gaps.dedup();
-    gaps
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
 }
 
 /// Compares the catalog `ships` with the `matrix`, mapping through `slugs`.

@@ -32,7 +32,13 @@ const PLAIN: ShipSpec = ShipSpec {
     record_tag: "",
 };
 
-pub(super) const SHIPS: [ShipSpec; 19] = [
+pub(super) const SHIPS: [ShipSpec; 20] = [
+    ShipSpec {
+        class: "Rover_Systems_Design",
+        folder: "groundvehicles",
+        record_tag: "SystemsDesign",
+        ..PLAIN
+    },
     ShipSpec {
         class: "Ship_Player",
         ..PLAIN

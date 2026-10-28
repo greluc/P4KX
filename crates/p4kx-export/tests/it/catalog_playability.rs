@@ -100,6 +100,7 @@ fn a_systems_design_record_tag_makes_a_ship_ai_whatever_else_it_carries() -> Tes
             ("Ship_Systems_Design_Not_Shipped", Some("ai")),
             ("Ship_Systems_Design_Salvage", Some("ai")),
             ("Ship_Other_Record_Tag", Some("player")),
+            ("Rover_Systems_Design", Some("ai")),
         ],
     )
 }
@@ -181,7 +182,7 @@ fn the_summary_counts_every_value_and_the_unclassified() -> TestResult {
         assert_eq!(actual, values, "player, ai, mission, special");
         assert_eq!(counts.unclassified(), unclassified, "unclassified");
     };
-    expect(summary.ships, [5, 8, 3, 1], 2);
+    expect(summary.ships, [5, 9, 3, 1], 2);
     expect(summary.items, [3, 0, 2, 2], 1);
     Ok(())
 }

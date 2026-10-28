@@ -1188,6 +1188,13 @@
           "$ref": "#/$defs/Guid",
           "description": "The GUID of the Record."
         },
+        "hostGuids": {
+          "description": "The GUIDs of the ships whose Default Loadout mounts the crafter in any port, ordered by\nGUID; empty for a crafter no ship mounts, e.g. a station.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
         "maxJobsInHistory": {
           "description": "`maxJobsInHistory`: how many finished jobs the station lists.",
           "format": "int64",
@@ -1211,6 +1218,7 @@
       "required": [
         "className",
         "guid",
+        "hostGuids",
         "maxJobsInHistory",
         "queues",
         "recordPath"

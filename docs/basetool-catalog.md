@@ -1458,6 +1458,7 @@ leftover, left out and counted as skipped. The kind is facts only: identifiers a
 | `guid`, `className`, `recordPath` | The entity Record |
 | `maxJobsInHistory` | `maxJobsInHistory`: how many finished jobs the station lists (10); `null` when the value is not a number |
 | `queues` | `queues` in stored order (two on every station of LIVE), `[]` without any |
+| `hostGuids` | The `ships` entries whose Default Loadout mounts the crafter in any port, at any depth, ordered by GUID; `[]` for a crafter no ship mounts, such as a station. Derived from `loadouts`, so a crafter of a building part has no host |
 
 A queue has `name` (`debugName`), `maxJobsInProgress` (how many jobs it crafts at once, 2 and 4 on
 LIVE) and `maxJobsWaiting` (how many further jobs it holds, 4 on LIVE); each is `null` when the
@@ -1466,7 +1467,8 @@ Record stores no number or text. The categories and process types a queue accept
 
 The Records are selected from every entity Record: an item, a ship or a commodity that has the
 component is a crafter as well and stays what it is, and any other `EntityClassDefinition` under
-`entities` is a crafter when it has the component.
+`entities` is a crafter when it has the component. The selection is structural, never by name or
+by folder, so a crafter fitted to a ship or vehicle or part of a building is found like a station.
 
 ### Shops
 

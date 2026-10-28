@@ -28,6 +28,7 @@ pub(crate) fn crafter<'f>(tree: &RecordTree<'f>) -> Option<Crafter<'f>> {
                 }
             })
             .collect(),
+        host_guids: Vec::new(),
     })
 }
 

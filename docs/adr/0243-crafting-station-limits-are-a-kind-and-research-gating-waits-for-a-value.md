@@ -23,6 +23,12 @@ every tier.
   commodity as well (`Picked::Crafted`). Development leftovers follow the project rule: the
   `_template` bench of LIVE is skipped and counted, and only a leftover that holds the component
   is counted.
+- Crafters are not limited to stations: ships, vehicles and buildings may carry them. The
+  selection stays structural (the component, never a name or a station folder). For a crafter
+  mounted as an item, the host is findable from the crafter: `hostGuids` lists the `ships` whose
+  Default Loadout mounts it at any depth of the port tree, derived from `loadouts`. The data
+  supports this link, whereas a link on the ship entry would add a field to a kind that other
+  work extends. A crafter that is a building part has no loadout host and an empty list.
 - The categories and process types a queue accepts are not exported; they are not limits.
 - The tier field `research` is left out. Neither pointer holds a value on any tier, so the
   Archive does not show the type they point to, and a field typed without a value to read would

@@ -103,6 +103,7 @@ mod contract_stats;
 mod contract_stats_gear;
 mod contract_store_slugs;
 mod crafter;
+mod crafter_hosts;
 mod crafting;
 mod crafting_quantization;
 mod crafting_records;

@@ -91,6 +91,7 @@ fn a_crafter_carries_the_limits_of_its_component_as_stored() -> TestResult {
                 {"name": "Fabricator", "maxJobsInProgress": 2, "maxJobsWaiting": 4},
                 {"name": "Workbench", "maxJobsInProgress": 4, "maxJobsWaiting": 3},
             ],
+            "hostGuids": [],
         })
     );
     Ok(())

@@ -22,6 +22,9 @@ pub(crate) struct Crafter<'a> {
     pub(crate) max_jobs_in_history: Option<i64>,
     /// The job queues, from `queues` in stored order.
     pub(crate) queues: Vec<CrafterQueue<'a>>,
+    /// The GUIDs of the ships whose Default Loadout mounts the crafter in any port, ordered by
+    /// GUID; empty for a crafter no ship mounts, e.g. a station.
+    pub(crate) host_guids: Vec<CatalogGuid>,
 }
 
 /// One job queue of a [`Crafter`].

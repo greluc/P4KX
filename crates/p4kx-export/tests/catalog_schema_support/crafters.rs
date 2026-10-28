@@ -19,12 +19,14 @@ pub(super) fn crafters() -> serde_json::Value {
             "name": null,
             "maxJobsInProgress": null,
             "maxJobsWaiting": null
-        }]
+        }],
+        "hostGuids": ["7000f0f0-0000-4000-8000-0000000000aa"]
     }, {
         "guid": "7000f0f0-0000-4000-8000-000000000002",
         "className": "bare_crafter",
         "recordPath": "libs/foundry/records/entities/basebuilding/bare_crafter",
         "maxJobsInHistory": null,
-        "queues": []
+        "queues": [],
+        "hostGuids": []
     }])
 }

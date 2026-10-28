@@ -102,11 +102,21 @@ pub enum Kind {
     MissionLocalities,
     /// Contract scenarios: `ScenarioProgress` Records under `contracts/contractscenarios`.
     ContractScenarios,
+    /// Loot tables: `LootTableV3Record` Records under `lootgeneration/loottables`.
+    LootTables,
+    /// Loot archetypes: `LootArchetypeV3Record` Records under `lootgeneration/lootarchetypes`.
+    LootArchetypes,
+    /// Loot pool filters: `PoolFilterRecord` Records under `lootgeneration/filters`.
+    LootPoolFilters,
+    /// Loot containers: the containers whose placing entity carries a multi config, read from the
+    /// entity files of the containers below the system containers. Derived from Archive files, so
+    /// no record-path rule of its own.
+    LootContainers,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 35] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -138,6 +148,10 @@ impl Kind {
         Self::MissionTypes,
         Self::MissionLocalities,
         Self::ContractScenarios,
+        Self::LootTables,
+        Self::LootArchetypes,
+        Self::LootPoolFilters,
+        Self::LootContainers,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -175,6 +189,10 @@ impl Kind {
             Self::MissionTypes => "missionTypes",
             Self::MissionLocalities => "missionLocalities",
             Self::ContractScenarios => "contractScenarios",
+            Self::LootTables => "lootTables",
+            Self::LootArchetypes => "lootArchetypes",
+            Self::LootPoolFilters => "lootPoolFilters",
+            Self::LootContainers => "lootContainers",
         }
     }
 
@@ -248,6 +266,10 @@ impl Kind {
             Self::MissionTypes => 28,
             Self::MissionLocalities => 29,
             Self::ContractScenarios => 30,
+            Self::LootTables => 31,
+            Self::LootArchetypes => 32,
+            Self::LootPoolFilters => 33,
+            Self::LootContainers => 34,
         }
     }
 
@@ -257,7 +279,11 @@ impl Kind {
     pub const fn is_derived(self) -> bool {
         matches!(
             self,
-            Self::Paints | Self::Loadouts | Self::HarvestableLocations | Self::Shops
+            Self::Paints
+                | Self::Loadouts
+                | Self::HarvestableLocations
+                | Self::Shops
+                | Self::LootContainers
         )
     }
 }

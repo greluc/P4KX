@@ -79,7 +79,16 @@ pub(super) fn multi_configs() -> serde_json::Value {
                 "respawnTimeMultiplier": 1.0,
                 "relativeProbability": 2.0,
                 "relativeProbabilityDeepest": null,
-                "geometryTagGuids": []
+                "geometryTagGuids": [],
+                "lootConfig": {
+                    "lootTableGuid": "a9000000-0000-4000-8000-000000000005",
+                    "lootTableV3Guid": "a9000000-0000-4000-8000-000000000001",
+                    "poolFilterGuid": "a9000000-0000-4000-8000-000000000003",
+                    "totalResultsLimit": 4,
+                    "chanceToGenerate": 1.0,
+                    "chanceToGenerateAdditionalInventories": 0.5,
+                    "fullness": {"min": 0.2, "max": 0.8}
+                }
             }]
         }]
     }])

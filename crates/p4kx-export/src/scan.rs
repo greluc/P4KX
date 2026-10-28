@@ -12,7 +12,6 @@ use p4kx_extraction::{
 use rayon::prelude::*;
 
 use crate::catalog_crafting::CraftingKinds;
-use crate::collected::Picked;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{Blueprint, QualityQuantization};
 use crate::contract_recipe::CostLine;
@@ -21,6 +20,7 @@ use crate::harvest_config::multi_config;
 use crate::harvest_link::Links;
 use crate::harvest_preset::provider_preset;
 use crate::item::is_paint;
+use crate::picked::Picked;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
 use crate::ship_pool::ShipPool;

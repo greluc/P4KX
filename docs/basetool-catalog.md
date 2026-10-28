@@ -42,7 +42,9 @@ The rule is ADR-0054 (amending ADR-0002):
   `subHarvestableMultiConfigs` and `harvestableLocations` (#320, ADR-0236), and for the kinds
   `factionReputations`, `reputationScopes`, `reputationStandings`, `reputationContexts`,
   `missionTypes`, `missionLocalities` and `contractScenarios` and the contract fields
-  `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319, ADR-0237).
+  `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319, ADR-0237), and for the
+  kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers` and the field
+  `lootConfig` of a sub harvestable (#322, ADR-0238).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -142,6 +144,10 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `missionTypes` | The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID |
 | `missionLocalities` | The mission localities, named sets of starmap objects, ordered by GUID |
 | `contractScenarios` | The contract scenarios with the reward tiers of each faction, ordered by GUID |
+| `lootTables` | The loot tables (`LootTableV3Record`) with the weighted archetypes of each, ordered by GUID |
+| `lootArchetypes` | The loot archetypes (`LootArchetypeV3Record`) with the weighted selectors of each, ordered by GUID |
+| `lootPoolFilters` | The pool filters of the loot generation, ordered by GUID |
+| `lootContainers` | The containers placed with a multi config, with the starmap object each hangs below, ordered by config, container, system and object |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 | `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
@@ -1307,7 +1313,7 @@ The 46 element Records of LIVE give 43 entries: the development-leftover rule le
 ### Mining deposits and harvestable locations
 
 Facts only (ADR-0236): numbers, GUIDs, names of Records and paths. Texts other than `depositName`
-are not exported, no media, and loot configs stay out (they belong to the loot kind).
+are not exported and no media. The loot of a slot is its `lootConfig` (see "Loot").
 
 **Compositions (`mineableCompositions`).** A `MineableComposition` Record under
 `mining/rockcompositionpresets` (249 on LIVE 4.10, 231 entries; the leftover rule skips the rest).
@@ -1341,7 +1347,7 @@ under `harvestable/slotpresets` (103 on LIVE). `defaultConfigGuid` is the Refere
 config that is a reference, `taggedConfigs` keep `name`, the tag GUIDs, `configGuid` for a config
 that is a reference, and for a config written out `respawnTimeMultiplier`,
 `initialSlotsProbability` and the `subHarvestables` (`harvestable` as above, `setupGuid`, multiplier,
-`relativeProbability`, `relativeProbabilityDeepest` and geometry tags).
+`relativeProbability`, `relativeProbabilityDeepest`, geometry tags and `lootConfig`).
 
 **Locations (`harvestableLocations`).** ScDataDumper's `SocpakMappingGenerator` finds the preset
 of a container in the first `.soc` file of the container: the GUID in the string that follows the
@@ -1367,6 +1373,69 @@ the Archive links them to a place by no `.soc`. `HPP_Pyro_AkiroCluster` is named
 which no Child reaches (ScDataDumper pins it to `Pyro_AkiroCluster` by hand; the catalog states no
 object). `HPP_Stanton2c_Belt` is named by `stanton2c.socpak` and, a copy in the data, by
 `pyro6.socpak`.
+
+### Loot
+
+Facts only (ADR-0238): GUIDs, Record names, weights, counts and tag links. The `name` of an entry
+is the designer's label, not a text the game shows; no field of these kinds is a game text.
+
+**Tables (`lootTables`).** A `LootTableV3Record` under `lootgeneration/loottables` (59 on LIVE
+4.10, 54 entries; the leftover rule skips five). The folder also holds the older `LootTable`
+Records (161), which are no kind. `entries` follow `lootTable.lootArchetypes` in stored order, each
+with `name`, `weight` and the archetype it draws from: `archetypeGuid`, an entry of
+`lootArchetypes`, for a `LootArchetypeV3_RecordRef`, else `archetype`, the entries of an archetype
+written out in place (as in "Archetypes"); the other one is `null`. The `optionalData` of an entry
+gives `priorityCount`, `choiceLimit`, `dupeLimit` and `chanceToExist` (0 to 1), each `null` when the
+entry has no such data. An entry is drawn with the probability `weight` over the sum of the weights
+of the table; the Archive does not state how `priorityCount` and `choiceLimit` change that, and the
+catalog does not decide it.
+
+**Archetypes (`lootArchetypes`).** A `LootArchetypeV3Record` under `lootgeneration/lootarchetypes`
+(34 on LIVE, all entries; the older `LootArchetype` Records, 233, are no kind). An entry has `name`,
+`weight` and a `selector`, and the optional data `stackSize` (`min` and `max`) and `spawnWith`:
+items spawned with it, each with `name`, `chance`, `mode`, `amount` and a selector. A selector
+selects either by tags or by entity classes, read by its fields and not by the name of its
+struct: `positiveTagGuids` and `negativeTagGuids` (`Tag` Records of the `TagsDNFTerm`; an item
+fits when it carries every positive and no negative tag) or `entityClassGuids` (the classes of a
+manual list). `selectorType` states the struct as stored. The tags are the `Tag` Records of the
+tag tree, not the free item tags of "Matching tags".
+
+**Pool filters (`lootPoolFilters`).** A `PoolFilterRecord` under `lootgeneration/filters` (15 on
+LIVE). `filter` is a node with the struct as stored in `nodeType`: a `PoolFilter_Sequence` holds
+`filters`, each an instance with `name`, `mode` (`Cumulative` or `Additive`) and a `filter` node
+(`null` for none); a `PoolFilter_RecordRef` names another Record in `filterGuid`; a
+`PoolFilter_Tags` holds `positiveTagGuids` and `negativeTagGuids`. Nodes nest at most 16 deep. The
+secondary choices Records (manufacturer weights, 25 on LIVE) are not exported.
+
+**Slots (`lootConfig`).** A sub harvestable of a multi config has `lootConfig` when its Record
+states one (1,958 of 2,896 on LIVE): `lootTableV3Guid` (an entry of `lootTables`; 1,321 slots),
+`lootTableGuid` (an older `LootTable` Record, which is no kind and left unresolved; 635 slots; a
+slot names one of the two), `poolFilterGuid` (an entry of `lootPoolFilters`), `totalResultsLimit`,
+`chanceToGenerate`, `chanceToGenerateAdditionalInventories` and the `fullness` range of
+`fullnessFactorRange`.
+
+**Placed containers (`lootContainers`).** A container below `ObjectContainers/PU/system`, or one
+it places, holds the property file of an entity (`entdata/<n>.entxml`) that names the container it
+places (`objectContainer`) and a `multiConfigRef`, a `SubHarvestableMultiConfigRecord`. The placed
+container holds tag points, entities that carry tags, in its first `.soc`. The tags of those points
+are the `tagGuids` of the tagged configs of the multi config (the 13 points of a Stanton derelict
+carry the Rare, Common, Uncommon and Reward tags of `LootGeneration_MultiSlotPreset_Derelict` 4, 4,
+2 and 3 times); the slots of a tagged config carry the `lootConfig`. The catalog states these
+facts and not how the game picks a slot for a point. A row is one placed container with the
+`multiConfigGuid`, `container` (the Archive path, else the path as written when the Archive lacks
+it), `system`, `starmapObjectGuid`, `entityCount` and `tagCounts`: how many of the entities carry
+each tag. A container without a `.soc` has `entityCount` 0; one whose `.soc` cannot be read, or
+that the Archive lacks, has `null` and no counts.
+
+The walk starts at every container below `ObjectContainers/PU/system` and follows the containers
+the entity files place, each container read once. The location is that of the container the walk
+started in: `starmapObjectGuid` is the object the Child that reaches it hangs below (as for
+"Locations" above, with `null` for a container no Child reaches or an object the catalog lacks). A
+container placed under several roots gives a row for each. A container or entity file that cannot
+be read is warned about (`unreadable_loot_containers`).
+
+On LIVE 4.10 (2026-10-28) 3,004 rows name 41 multi configs and 189 containers in 3 systems, 2,797
+of them with an object.
 
 ### Shops
 
@@ -1713,6 +1782,10 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `missionTypes` | `libs/foundry/records/missiontype/` | `MissionType` |
 | `missionLocalities` | `libs/foundry/records/missiondata/pu_missionlocality/` | `MissionLocality` |
 | `contractScenarios` | `libs/foundry/records/contracts/contractscenarios/` | `ScenarioProgress` |
+| `lootTables` | `libs/foundry/records/lootgeneration/loottables/` | `LootTableV3Record` |
+| `lootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetypeV3Record` |
+| `lootPoolFilters` | `libs/foundry/records/lootgeneration/filters/` | `PoolFilterRecord` |
+| `lootContainers` | None: the `entdata` files of the containers below `ObjectContainers/PU/system` and the containers they place, no Records | |
 
 The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

@@ -22,7 +22,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 29] = [
+const MINIMUM: [(Kind, usize); 33] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -52,6 +52,10 @@ const MINIMUM: [(Kind, usize); 29] = [
     (Kind::MissionTypes, 30),
     (Kind::MissionLocalities, 15),
     (Kind::ContractScenarios, 2),
+    (Kind::LootTables, 50),
+    (Kind::LootArchetypes, 30),
+    (Kind::LootPoolFilters, 10),
+    (Kind::LootContainers, 1_000),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -144,7 +148,7 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         assert!(counts.complete, "{kind} complete without a Filter");
         let entities = list(&catalog, kind)?;
         assert_eq!(entities.len(), counts.count, "{kind} written");
-        if kind == Kind::HarvestableLocations {
+        if matches!(kind, Kind::HarvestableLocations | Kind::LootContainers) {
             continue;
         }
         let own = match kind {

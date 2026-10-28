@@ -46,6 +46,14 @@ pub enum CraftingWarning {
         /// One entry per container: its path and the reason.
         details: Vec<String>,
     },
+    /// This many containers or their entity files cannot be read, so a multi config they carry
+    /// may be missing from `lootContainers`. `details` names the containers and why, ordered.
+    UnreadableLootContainers {
+        /// The number of containers.
+        count: usize,
+        /// One entry per container: its path and the reason.
+        details: Vec<String>,
+    },
     /// This many `HarvestablePreset` or entity Records that provider presets and multi configs
     /// name are missing or cannot be built, so the harvestables that name them lack their entity
     /// and composition. `details` names the Records and why, ordered.
@@ -92,6 +100,7 @@ impl CraftingWarning {
             Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
             Self::UnplacedStarmapContainers(_) => "unplaced_starmap_containers",
             Self::UnreadableHarvestContainers { .. } => "unreadable_harvest_containers",
+            Self::UnreadableLootContainers { .. } => "unreadable_loot_containers",
             Self::UnreadableHarvestables { .. } => "unreadable_harvestables",
             Self::UnreadableShopRegistry => "unreadable_shop_registry",
             Self::MissingShopRegistry => "missing_shop_registry",
@@ -113,6 +122,7 @@ impl CraftingWarning {
             | Self::MissingShopInventories(count)
             | Self::UnknownModifierRanges { count, .. }
             | Self::UnreadableHarvestContainers { count, .. }
+            | Self::UnreadableLootContainers { count, .. }
             | Self::UnreadableHarvestables { count, .. }
             | Self::UnreadableVehicleFiles { count, .. }
             | Self::UnreadableShopInventories { count, .. } => Some(*count),
@@ -129,6 +139,7 @@ impl CraftingWarning {
         match self {
             Self::UnknownModifierRanges { details, .. }
             | Self::UnreadableHarvestContainers { details, .. }
+            | Self::UnreadableLootContainers { details, .. }
             | Self::UnreadableHarvestables { details, .. }
             | Self::UnreadableVehicleFiles { details, .. }
             | Self::UnreadableShopInventories { details, .. } => details,
@@ -159,6 +170,7 @@ impl fmt::Display for Listed<'_> {
 }
 
 impl fmt::Display for CraftingWarning {
+    #[expect(clippy::too_many_lines, reason = "one arm per warning")]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnreadableRewardRecords(count) => write!(
@@ -186,6 +198,11 @@ impl fmt::Display for CraftingWarning {
             Self::UnreadableHarvestContainers { count, details } => write!(
                 f,
                 "{count} system containers cannot be read for a provider preset; the preset may be missing from the harvestable locations{}",
+                Listed(details)
+            ),
+            Self::UnreadableLootContainers { count, details } => write!(
+                f,
+                "{count} containers cannot be read for a multi config; the config may be missing from the loot containers{}",
                 Listed(details)
             ),
             Self::UnreadableHarvestables { count, details } => write!(

@@ -58,7 +58,7 @@ impl Objects {
 
     /// Returns the object a container hangs below: `under`, else the object above it while it is
     /// a mining claim marker; `None` for no object, or one the catalog lacks.
-    fn location(&self, under: Option<Guid>) -> Option<CatalogGuid> {
+    pub(crate) fn location(&self, under: Option<Guid>) -> Option<CatalogGuid> {
         let mut at = under?;
         for _ in 0..MAX_CHAIN {
             let &(mining_claim, above) = self.by_guid.get(&at)?;

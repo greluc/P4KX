@@ -4,7 +4,7 @@
 use p4kx_extraction::Guid;
 
 use crate::CatalogFailure;
-use crate::collected::Picked;
+use crate::picked::Picked;
 
 #[test]
 fn a_ship_whose_base_data_cannot_be_read_becomes_a_failure() {

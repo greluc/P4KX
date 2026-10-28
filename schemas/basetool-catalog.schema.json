@@ -603,6 +603,22 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `loadouts`."
         },
+        "lootArchetypes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootArchetypes`."
+        },
+        "lootContainers": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootContainers`."
+        },
+        "lootPoolFilters": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootPoolFilters`."
+        },
+        "lootTables": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `lootTables`."
+        },
         "manufacturers": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
@@ -694,6 +710,10 @@
         "harvestableProviderPresets",
         "items",
         "loadouts",
+        "lootArchetypes",
+        "lootContainers",
+        "lootPoolFilters",
+        "lootTables",
         "manufacturers",
         "mineableCompositions",
         "mineableElements",
@@ -2866,6 +2886,413 @@
       ],
       "type": "object"
     },
+    "LootArchetype": {
+      "description": "A loot archetype: a `LootArchetypeV3Record` Record under `lootgeneration/lootarchetypes`, the\nweighted kinds of item a table entry stands for.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `V3LootArchetype_Antiques`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `lootArchetype.entries` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LootArchetypeEntry"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LootArchetypeEntry": {
+      "description": "One entry of a loot archetype: which items it selects and the odds it is drawn.",
+      "properties": {
+        "name": {
+          "description": "The designer's label of the entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "selector": {
+          "$ref": "#/$defs/LootSelector",
+          "description": "Which items the entry selects."
+        },
+        "spawnWith": {
+          "description": "The `ArchetypeOptionalDataV3_SpawnWith` items spawned along with the entry, in stored\norder.",
+          "items": {
+            "$ref": "#/$defs/SpawnWith"
+          },
+          "type": "array"
+        },
+        "stackSize": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `stackSize` of the `ArchetypeOptionalDataV3_StackSize` of the entry."
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the archetype.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "selector",
+        "spawnWith",
+        "stackSize",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LootConfig": {
+      "description": "The loot a slot of a harvestable generates (`lootConfig`).",
+      "properties": {
+        "chanceToGenerate": {
+          "description": "`chanceToGenerate`, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "chanceToGenerateAdditionalInventories": {
+          "description": "`chanceToGenerateAdditionalAttachedInventories`, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "fullness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `fullnessFactorRange` of the constraints: how full the container is filled."
+        },
+        "lootTableGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootTable` Record the config links to, an older table the catalog does not list."
+        },
+        "lootTableV3Guid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootTableV3Record` the config links to, an entry of `lootTables`."
+        },
+        "poolFilterGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `PoolFilterRecord` of the constraints, an entry of `lootPoolFilters`."
+        },
+        "totalResultsLimit": {
+          "description": "`totalResultsLimit`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "chanceToGenerate",
+        "chanceToGenerateAdditionalInventories",
+        "fullness",
+        "lootTableGuid",
+        "lootTableV3Guid",
+        "poolFilterGuid",
+        "totalResultsLimit"
+      ],
+      "type": "object"
+    },
+    "LootContainer": {
+      "description": "A container placed with a multi config: an entity that places an object container and carries\na `SubHarvestableMultiConfigRecord`, whose tag points the config fills with harvestables and\ntheir loot. One entry per container, system and starmap object it hangs below.",
+      "properties": {
+        "container": {
+          "description": "The path of the object container the entity places.",
+          "type": "string"
+        },
+        "entityCount": {
+          "description": "The number of entities in the first `.soc` of the placed container; `null` when it cannot\nbe read.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "multiConfigGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `SubHarvestableMultiConfigRecord` the placing entity carries (`multiConfigRef`), an\nentry of `subHarvestableMultiConfigs`."
+        },
+        "starmapObjectGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `guid` of the `starmapObjects` entry the walk's root container hangs below; `null` for\nnone or an object the catalog lacks."
+        },
+        "system": {
+          "description": "The star system folder of the system container the walk started in.",
+          "type": "string"
+        },
+        "tagCounts": {
+          "description": "How many entities of the placed container carry each tag, ordered by GUID; empty when the\n`.soc` cannot be read. The tags of `tagGuids` of the tagged configs select the slots.",
+          "items": {
+            "$ref": "#/$defs/TagCount"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "container",
+        "entityCount",
+        "multiConfigGuid",
+        "starmapObjectGuid",
+        "system",
+        "tagCounts"
+      ],
+      "type": "object"
+    },
+    "LootPoolFilter": {
+      "description": "A pool filter: a `PoolFilterRecord` Record under `lootgeneration/filters`, which items a\ncontainer may draw.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `V3PoolFilter_ASDDelving`.",
+          "type": "string"
+        },
+        "filter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PoolFilterNode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The filter of the Record; `null` when it has none."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "filter",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LootSelector": {
+      "description": "Which items a loot entry selects: the items that carry every positive tag and none of the\nnegative ones, or the listed entity classes.",
+      "properties": {
+        "entityClassGuids": {
+          "description": "The GUIDs of the entity classes of a manual entity class list, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "negativeTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `negativeTags`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "positiveTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `positiveTags`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "selectorType": {
+          "description": "The struct of the selector as stored, e.g. `LootArchetypeV3Selector_Tags`; `null` when the\nentry has none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "entityClassGuids",
+        "negativeTagGuids",
+        "positiveTagGuids",
+        "selectorType"
+      ],
+      "type": "object"
+    },
+    "LootTable": {
+      "description": "A loot table: a `LootTableV3Record` Record under `lootgeneration/loottables`, the weighted\narchetypes a container draws from.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `V3LootTable_Actor_CQC`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `lootTable.lootArchetypes` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LootTableEntry"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LootTableEntry": {
+      "description": "One entry of a loot table: an archetype and the odds it is drawn.",
+      "properties": {
+        "archetype": {
+          "description": "The entries of an archetype written out in place; `null` for a linked one.",
+          "items": {
+            "$ref": "#/$defs/LootArchetypeEntry"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "archetypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootArchetypeV3Record` the entry links to; `null` for an archetype written out in\nplace."
+        },
+        "chanceToExist": {
+          "description": "`chanceToExist` of the `LootTableOptionalDataV3_ChanceToExist` of the entry, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "choiceLimit": {
+          "description": "`choiceLimit` of the `LootTableOptionalDataV3_ChoiceLimit` of the entry.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "dupeLimit": {
+          "description": "`dupeLimit` of the `LootTableOptionalDataV3_DupeLimit` of the entry.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label of the entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "priorityCount": {
+          "description": "`priorityCount` of the `LootTableOptionalDataV3_PriorityChoice` of the entry.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the table.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "archetype",
+        "archetypeGuid",
+        "chanceToExist",
+        "choiceLimit",
+        "dupeLimit",
+        "name",
+        "priorityCount",
+        "weight"
+      ],
+      "type": "object"
+    },
     "Manufacturer": {
       "description": "A manufacturer: an `SCItemManufacturer` Record.",
       "properties": {
@@ -3555,6 +3982,91 @@
       ],
       "type": "object"
     },
+    "PoolFilterInstance": {
+      "description": "One filter of a sequence and how it combines with the ones before it.",
+      "properties": {
+        "filter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PoolFilterNode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The filter; `null` when the instance has none."
+        },
+        "mode": {
+          "description": "`mode`, e.g. `Cumulative` or `Additive`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "filter",
+        "mode",
+        "name"
+      ],
+      "type": "object"
+    },
+    "PoolFilterNode": {
+      "description": "One node of a pool filter: a sequence of filters, a link to another filter Record, or a tag\nterm.",
+      "properties": {
+        "filterGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `PoolFilterRecord` a `PoolFilter_RecordRef` links to."
+        },
+        "filters": {
+          "description": "The filters of a `PoolFilter_Sequence`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/PoolFilterInstance"
+          },
+          "type": "array"
+        },
+        "negativeTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `negativeTags` of a `PoolFilter_Tags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "nodeType": {
+          "description": "The struct of the node as stored, e.g. `PoolFilter_Sequence`.",
+          "type": "string"
+        },
+        "positiveTagGuids": {
+          "description": "The GUIDs of the `Tag` Records in `positiveTags` of a `PoolFilter_Tags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "filterGuid",
+        "filters",
+        "negativeTagGuids",
+        "nodeType",
+        "positiveTagGuids"
+      ],
+      "type": "object"
+    },
     "PortType": {
       "description": "An item type a port takes.",
       "properties": {
@@ -3757,6 +4269,32 @@
         "guid",
         "recordPath",
         "resourceTypeGuids"
+      ],
+      "type": "object"
+    },
+    "QuantityRange": {
+      "description": "A range of amounts, both ends included.",
+      "properties": {
+        "max": {
+          "description": "`max`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "`min`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "max",
+        "min"
       ],
       "type": "object"
     },
@@ -5237,6 +5775,56 @@
       ],
       "type": "object"
     },
+    "SpawnWith": {
+      "description": "Items an entry spawns along with its own (`ArchetypeOptionalDataV3_SpawnWith`).",
+      "properties": {
+        "amount": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "`amountToSpawn`."
+        },
+        "chance": {
+          "description": "`chanceToSpawnWith`, from 0 to 1.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "`mode`, e.g. `MostSimilar`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "selector": {
+          "$ref": "#/$defs/LootSelector",
+          "description": "Which items are spawned."
+        }
+      },
+      "required": [
+        "amount",
+        "chance",
+        "mode",
+        "name",
+        "selector"
+      ],
+      "type": "object"
+    },
     "Spread": {
       "description": "The spread of a fire mode, as stored in `SSpreadParams`.",
       "properties": {
@@ -5511,6 +6099,17 @@
           ],
           "description": "What the sub harvestable spawns; `null` when it names neither a harvestable nor an entity."
         },
+        "lootConfig": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LootConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The loot the slot generates (`lootConfig`); `null` when the slot has none."
+        },
         "relativeProbability": {
           "description": "`relativeProbability`.",
           "format": "float",
@@ -5550,6 +6149,7 @@
       "required": [
         "geometryTagGuids",
         "harvestable",
+        "lootConfig",
         "relativeProbability",
         "relativeProbabilityDeepest",
         "respawnTimeMultiplier",
@@ -5558,7 +6158,7 @@
       "type": "object"
     },
     "SubHarvestableMultiConfig": {
-      "description": "A sub harvestable multi config: a `SubHarvestableMultiConfigRecord` Record under\n`harvestable/slotpresets`, what the slots of an object can hold by tag. Loot configs are not\nexported.",
+      "description": "A sub harvestable multi config: a `SubHarvestableMultiConfigRecord` Record under\n`harvestable/slotpresets`, what the slots of an object can hold by tag.",
       "properties": {
         "className": {
           "description": "The Record name without its type.",
@@ -5605,6 +6205,26 @@
         "ignoreAttachableTags",
         "recordPath",
         "taggedConfigs"
+      ],
+      "type": "object"
+    },
+    "TagCount": {
+      "description": "How many entities carry one tag.",
+      "properties": {
+        "entities": {
+          "description": "The number of entities that carry the tag.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tagGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The `Tag` Record."
+        }
+      },
+      "required": [
+        "entities",
+        "tagGuid"
       ],
       "type": "object"
     },
@@ -6017,6 +6637,34 @@
       },
       "type": "array"
     },
+    "lootArchetypes": {
+      "description": "The loot archetypes with the weighted selectors of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LootArchetype"
+      },
+      "type": "array"
+    },
+    "lootContainers": {
+      "description": "The containers placed with a multi config, with the starmap object each hangs below,\nordered by config, container, system and object.",
+      "items": {
+        "$ref": "#/$defs/LootContainer"
+      },
+      "type": "array"
+    },
+    "lootPoolFilters": {
+      "description": "The loot pool filters, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LootPoolFilter"
+      },
+      "type": "array"
+    },
+    "lootTables": {
+      "description": "The loot tables with the weighted archetypes of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LootTable"
+      },
+      "type": "array"
+    },
     "manufacturers": {
       "description": "The manufacturers, ordered by GUID.",
       "items": {
@@ -6179,6 +6827,10 @@
     "itemRecovery",
     "items",
     "loadouts",
+    "lootArchetypes",
+    "lootContainers",
+    "lootPoolFilters",
+    "lootTables",
     "manufacturers",
     "mineableCompositions",
     "mineableElements",

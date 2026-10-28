@@ -66,7 +66,7 @@ fn rows(
     let mut reached: HashMap<usize, Vec<&Placed>> = HashMap::new();
     let mut containers = Vec::new();
     for root in opened {
-        let location = objects.location(root.under);
+        let location = objects.location(root.under).ok();
         let placed = reached
             .entry(root.entry)
             .or_insert_with(|| below(root.entry, summaries));

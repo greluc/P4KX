@@ -9,6 +9,7 @@ use p4kx_extraction::{Archive, CancelToken, DataForge, Guid};
 
 use crate::collected::Collected;
 use crate::contract_loadout::EntityKind;
+use crate::crafter_hosts::link_hosts;
 use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{Wanted, loadouts};
 use crate::missions;
@@ -83,6 +84,7 @@ pub(crate) fn add_loadouts(
         .collect();
     let built = loadouts(archive, entities, &wanted, &known, cancel)?;
     collected.loadouts = built.entries;
+    link_hosts(&mut collected.crafters, &collected.loadouts);
     collected.add_failures(built.failures);
     Ok(built.summary)
 }

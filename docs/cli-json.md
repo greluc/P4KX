@@ -1051,14 +1051,17 @@ their struct type is that of a Record with a reward source, so a source may be m
 `ambiguous_dismantle` with a `count` (several dismantle processes, so no blueprint links one),
 `unreadable_vehicle_files` with a `count` (ships whose vehicle file exists and cannot be read, so they have no paints; a file the Archive lacks is no such ship) and `details` (the path and the reason of each file, ordered, without repeats; the JSON lists every file, stderr the first eight) and
 `unplaced_starmap_containers` with a `count` (unreadable containers, malformed or out-of-range Children and walk
-limits that left starmap objects without a position), `unreadable_shop_registry` (the shop registry exists but
+limits that left starmap objects without a position), `unreadable_harvest_containers` with a `count` and `details` (system containers that cannot be opened or whose `.soc` cannot be read, so a provider preset may be missing from `harvestableLocations`; the path and the reason of each, ordered),
+`unreadable_loot_containers` with a `count` and `details` (containers or entity files that cannot be read, a `.soc` that cannot be counted, a placed container the Archive lacks, and the containers beyond the limit of the walk, so a multi config may be missing from `lootContainers` or a container has no counts; as above),
+`ambiguous_loot_entity_files` with a `count` and `details` (entity files of containers that name several different containers or multi configs, of which only the first of each is used; the container and file of each, ordered),
+`unreadable_harvestables` with a `count` and `details` (`HarvestablePreset` or entity Records that are missing or cannot be built, so the harvestables that name them lack their entity and composition; the role, GUID and reason of each, ordered),
+`harvest_locations_without_object` with a `count` and `details` (harvestable locations with no starmap object although one is recorded above their container: the object is not in the starmap objects, 64 or more mining claim markers lie above, or a marker has no object above it; one line per reason with its number; a container with no object recorded above is the normal case and is not counted),
+`unreadable_shop_registry` (the shop registry exists but
 cannot be read, so `shops` is empty), `missing_shop_registry` (starmap objects but no registry at the known path)
 `unreadable_shop_containers` with a `count` (shop containers that cannot be read) and
 `unreadable_shop_inventories` with a `count` (inventory files that cannot be read) and `details` (as above: every file in the JSON),
 `missing_shop_inventories` with a `count` (distinct inventory files that containers name and the Archive lacks) and
 `no_shop_components` (shop containers name shops but no `.soc` holds a shop component) and
-`unreadable_loot_containers` with a `count` and `details` (as above: every entry in the JSON; the containers and entity files that cannot be read, a `.soc` that cannot be counted, a placed container the Archive lacks, and the containers beyond the limit of the walk, so a multi config may be missing from `lootContainers` or a container has no counts) and
-`ambiguous_loot_entity_files` with a `count` and `details` (entity files of containers that name several different containers or multi configs, of which only the first of each is used) and
 `unknown_scan_signature_slot` (the radar parameters do not name the scan signature slot, so `scanSignature` of the mineable entities is null; no `count`); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
 Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description

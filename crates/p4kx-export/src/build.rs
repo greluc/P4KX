@@ -275,6 +275,7 @@ fn assemble<R>(
         legacy_loot_tables: collected.loot_kinds.legacy_tables,
         legacy_loot_archetypes: collected.loot_kinds.legacy_archetypes,
         mineable_entities: collected.mineable_entities,
+        crafters: collected.crafters,
         ship_store_slugs: resolved.exported,
         item_recovery: rules,
     };

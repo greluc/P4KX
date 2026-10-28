@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::guid_text::CatalogGuid;
 
+pub(crate) use crate::contract_crafter::Crafter;
 pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
 };
@@ -137,6 +138,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) legacy_loot_archetypes: Vec<LegacyLootArchetype<'a>>,
     /// The mineable entities with the scan signature of each, ordered by GUID.
     pub(crate) mineable_entities: Vec<MineableEntity<'a>>,
+    /// The crafting stations with the limits of their job queues, ordered by GUID.
+    pub(crate) crafters: Vec<Crafter<'a>>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
     /// by `slug`. A curated list, not read from the Archive.
     pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
@@ -263,6 +266,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) legacy_loot_archetypes: KindCompleteness<'a>,
     /// The completeness of `mineableEntities`.
     pub(crate) mineable_entities: KindCompleteness<'a>,
+    /// The completeness of `crafters`.
+    pub(crate) crafters: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
     pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
@@ -309,6 +314,7 @@ impl<'a> Completeness<'a> {
             legacy_loot_tables: completeness,
             legacy_loot_archetypes: completeness,
             mineable_entities: completeness,
+            crafters: completeness,
             ship_store_slugs: completeness,
         }
     }

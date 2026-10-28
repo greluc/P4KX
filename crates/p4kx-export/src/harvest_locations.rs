@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::Path;
 
@@ -25,11 +25,48 @@ enum Soc {
     Unreadable(&'static str),
 }
 
-/// The container locations found, and the containers that could not be read, each as its path and
-/// the reason, ordered by path.
+/// Why a container has no starmap object.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum NoObject {
+    /// No object is recorded above the container: no Child reaches it, or it is reached with no
+    /// object above, as a system root.
+    NoneAbove,
+    /// The object the container hangs below is not in the starmap objects.
+    NotInCatalog,
+    /// [`MAX_CHAIN`] or more mining claim markers lie between the container and the first object
+    /// that is none.
+    ChainTooLong,
+    /// A mining claim marker is the top of the chain, with no object above it.
+    MarkerWithoutParent,
+}
+
+impl NoObject {
+    /// Returns the reason as the warning words it.
+    pub(crate) const fn reason(self) -> &'static str {
+        match self {
+            Self::NoneAbove => "no object is recorded above the container",
+            Self::NotInCatalog => {
+                "the object the container hangs below is not in the starmap objects"
+            }
+            Self::ChainTooLong => "64 or more mining claim markers lie above the container",
+            Self::MarkerWithoutParent => "a mining claim marker has no object above it",
+        }
+    }
+
+    /// Whether the reason is a loss the caller should hear of: a container with no object above
+    /// it is the normal case and stays silent.
+    pub(crate) const fn is_loss(self) -> bool {
+        !matches!(self, Self::NoneAbove)
+    }
+}
+
+/// The container locations found, the containers that could not be read, each as its path and
+/// the reason, ordered by path, and how many locations lack an object for each reason that is a
+/// loss, ordered by reason.
 pub(crate) struct Located {
     pub(crate) locations: Vec<HarvestableLocation>,
     pub(crate) unreadable: Vec<String>,
+    pub(crate) without_object: Vec<(NoObject, usize)>,
 }
 
 /// The starmap objects a container can hang below, by GUID: whether the object is a mining claim
@@ -57,17 +94,17 @@ impl Objects {
     }
 
     /// Returns the object a container hangs below: `under`, else the object above it while it is
-    /// a mining claim marker; `None` for no object, or one the catalog lacks.
-    pub(crate) fn location(&self, under: Option<Guid>) -> Option<CatalogGuid> {
-        let mut at = under?;
+    /// a mining claim marker; the reason when there is none.
+    pub(crate) fn location(&self, under: Option<Guid>) -> Result<CatalogGuid, NoObject> {
+        let mut at = under.ok_or(NoObject::NoneAbove)?;
         for _ in 0..MAX_CHAIN {
-            let &(mining_claim, above) = self.by_guid.get(&at)?;
+            let &(mining_claim, above) = self.by_guid.get(&at).ok_or(NoObject::NotInCatalog)?;
             if !mining_claim {
-                return Some(CatalogGuid(at));
+                return Ok(CatalogGuid(at));
             }
-            at = above?;
+            at = above.ok_or(NoObject::MarkerWithoutParent)?;
         }
-        None
+        Err(NoObject::ChainTooLong)
     }
 }
 
@@ -97,38 +134,71 @@ pub(crate) fn locate(
         })
         .collect();
     unreadable.sort_unstable();
-    let mut locations: Vec<HarvestableLocation> = opened
+    let mut rows: Vec<Row> = opened
         .iter()
         .filter_map(|container| {
             let Some(Soc::Preset(preset)) = read.get(&container.entry) else {
                 return None;
             };
-            presets.contains(preset).then(|| HarvestableLocation {
-                preset_guid: CatalogGuid(*preset),
-                starmap_object_guid: objects.location(container.under),
-                system: container.system.to_string(),
-                container: path_of(archive, container.entry).to_owned(),
+            let object = objects.location(container.under);
+            presets.contains(preset).then(|| {
+                (
+                    HarvestableLocation {
+                        preset_guid: CatalogGuid(*preset),
+                        starmap_object_guid: object.ok(),
+                        system: container.system.to_string(),
+                        container: path_of(archive, container.entry).to_owned(),
+                    },
+                    object.err(),
+                )
             })
         })
         .collect();
-    locations.sort_by_cached_key(|location| {
-        (
-            location.preset_guid.text(),
-            location.container.clone(),
-            location.system.clone(),
-            location.starmap_object_guid.map(CatalogGuid::text),
-        )
+    sort_unique(&mut rows);
+    Located {
+        without_object: losses(&rows),
+        locations: rows.into_iter().map(|(location, _)| location).collect(),
+        unreadable,
+    }
+}
+
+/// A location and why it has no object, `None` when it has one.
+type Row = (HarvestableLocation, Option<NoObject>);
+
+/// Orders `rows` by preset, container, system and object, and drops the repeats.
+fn sort_unique(rows: &mut Vec<Row>) {
+    rows.sort_by(|(a, _), (b, _)| {
+        a.preset_guid
+            .text()
+            .cmp(&b.preset_guid.text())
+            .then_with(|| a.container.cmp(&b.container))
+            .then_with(|| a.system.cmp(&b.system))
+            .then_with(|| {
+                let text = |location: &HarvestableLocation| {
+                    location.starmap_object_guid.map(CatalogGuid::text)
+                };
+                text(a).cmp(&text(b))
+            })
     });
-    locations.dedup_by(|later, earlier| {
+    rows.dedup_by(|(later, _), (earlier, _)| {
         later.preset_guid == earlier.preset_guid
             && later.container == earlier.container
             && later.system == earlier.system
             && later.starmap_object_guid == earlier.starmap_object_guid
     });
-    Located {
-        locations,
-        unreadable,
+}
+
+/// Counts the rows without an object for each reason that is a loss, ordered by reason.
+fn losses(rows: &[Row]) -> Vec<(NoObject, usize)> {
+    let mut counts: BTreeMap<NoObject, usize> = BTreeMap::new();
+    for reason in rows
+        .iter()
+        .filter_map(|(_, reason)| *reason)
+        .filter(|reason| reason.is_loss())
+    {
+        *counts.entry(reason).or_default() += 1;
     }
+    counts.into_iter().collect()
 }
 
 fn path_of(archive: &Archive, entry: usize) -> &str {
@@ -161,5 +231,106 @@ fn soc_of(archive: &Archive, entry: usize) -> Soc {
             Soc::Unreadable("its .soc is over the scan limit")
         }
         Err(_) => Soc::Unreadable("its .soc cannot be read"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn guid(number: u8) -> Guid {
+        format!("00000000-0000-0000-0000-0000000000{number:02x}")
+            .parse()
+            .expect("a GUID")
+    }
+
+    fn objects(entries: &[(u8, bool, Option<u8>)]) -> Objects {
+        Objects {
+            by_guid: entries
+                .iter()
+                .map(|&(own, claim, above)| (guid(own), (claim, above.map(guid))))
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn a_plain_object_is_the_location() {
+        let objects = objects(&[(1, false, None)]);
+        assert_eq!(objects.location(Some(guid(1))), Ok(CatalogGuid(guid(1))));
+    }
+
+    #[test]
+    fn a_marker_gives_way_to_the_object_above() {
+        let objects = objects(&[(1, false, None), (2, true, Some(1))]);
+        assert_eq!(objects.location(Some(guid(2))), Ok(CatalogGuid(guid(1))));
+    }
+
+    #[test]
+    fn each_missing_object_says_why() {
+        let objects = objects(&[(2, true, None)]);
+        assert_eq!(objects.location(None), Err(NoObject::NoneAbove));
+        assert_eq!(objects.location(Some(guid(9))), Err(NoObject::NotInCatalog));
+        assert_eq!(
+            objects.location(Some(guid(2))),
+            Err(NoObject::MarkerWithoutParent)
+        );
+    }
+
+    /// `count` markers, each hanging below the next, then a plain object.
+    fn markers_then_plain(count: u8) -> Objects {
+        let entries: Vec<(u8, bool, Option<u8>)> = (1..=count)
+            .map(|number| (number, true, Some(number + 1)))
+            .chain([(count + 1, false, None)])
+            .collect();
+        objects(&entries)
+    }
+
+    #[test]
+    fn sixty_three_markers_still_reach_the_object_above() {
+        let objects = markers_then_plain(63);
+        assert_eq!(objects.location(Some(guid(1))), Ok(CatalogGuid(guid(64))));
+    }
+
+    #[test]
+    fn sixty_four_markers_are_too_long() {
+        let objects = markers_then_plain(64);
+        assert_eq!(objects.location(Some(guid(1))), Err(NoObject::ChainTooLong));
+        assert_eq!(objects.location(Some(guid(2))), Ok(CatalogGuid(guid(65))));
+    }
+
+    #[test]
+    fn a_container_with_no_object_above_is_no_loss() {
+        assert!(!NoObject::NoneAbove.is_loss());
+        assert!(NoObject::NotInCatalog.is_loss());
+    }
+
+    #[test]
+    fn the_losses_count_every_reason_but_none_above() {
+        let row = |reason| {
+            (
+                HarvestableLocation {
+                    preset_guid: CatalogGuid(guid(1)),
+                    starmap_object_guid: None,
+                    system: String::new(),
+                    container: String::new(),
+                },
+                reason,
+            )
+        };
+        let rows = [
+            row(None),
+            row(Some(NoObject::NoneAbove)),
+            row(Some(NoObject::NoneAbove)),
+            row(Some(NoObject::NotInCatalog)),
+            row(Some(NoObject::NotInCatalog)),
+            row(Some(NoObject::MarkerWithoutParent)),
+        ];
+        assert_eq!(
+            losses(&rows),
+            vec![
+                (NoObject::NotInCatalog, 2),
+                (NoObject::MarkerWithoutParent, 1)
+            ]
+        );
     }
 }

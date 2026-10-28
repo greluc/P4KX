@@ -45,6 +45,7 @@ impl Kind {
             Self::MineableEntities => 35,
             Self::LegacyLootTables => 36,
             Self::LegacyLootArchetypes => 37,
+            Self::Crafters => 38,
         }
     }
 }

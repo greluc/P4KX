@@ -44,10 +44,11 @@ The rule is ADR-0054 (amending ADR-0002):
   contract fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319,
   ADR-0237), and the kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers`
   and the field `lootConfig` of a sub harvestable (#322, ADR-0238), the kind `mineableEntities`
-  (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), and
-  the contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
+  (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
+  contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
-  (#832, ADR-0244). Later additions keep version 2 as long as they are additive.
+  (#832, ADR-0244) and the kind `crafters` (#831, ADR-0243). Later additions keep version 2 as
+  long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -154,6 +155,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `legacyLootArchetypes` | The older loot archetypes (`LootArchetype`) with the weighted tags of each, ordered by GUID |
 | `lootContainers` | The containers placed with a multi config, with the starmap object each hangs below, ordered by config, container, system and object |
 | `mineableEntities` | The mineable rocks and deposits (`EntityClassDefinition` under `entities/mineable`) with their composition, mining parameters and scan signature, ordered by GUID |
+| `crafters` | The crafting stations (entities with a `CrafterComponentParams`) with the limits of their job queues, ordered by GUID |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 | `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
@@ -743,6 +745,13 @@ category is only found missing when the `--filter` selects it, so under a `--fil
 | `craftTimeSeconds` | `costs.craftTime` of the tier in whole seconds, rounded; `null` without one |
 | `mandatory` | The mandatory cost as a cost line, `null` without one |
 | `optional` | The optional costs as cost lines in stored order |
+
+The stored `research` of a tier (`CraftingResearch` with `researchCosts` and `unlockRequirements`,
+both strong pointers) is not exported: on LIVE 4.10 it exists on 926 of the 1,618 tiers and both
+pointers are empty on every one of them, so the Archive shows neither the type nor a field of what
+they would point to. A field typed without ever seeing a value would be a guess, and the type could
+not change later (ADR-0054). The field joins the tier as an additive change once a Build fills it
+(ADR-0243).
 
 A cost line is a selection, a resource line or an item line. The tree keeps what `ingredients`
 flattens, so a selection stays a selection:
@@ -1417,7 +1426,8 @@ has both `null`. `areas` keep `debugGroupName` as `name`, `globalModifier`, the 
 of the area type and the `modifiers`, whose weak pointer gives `groupIndex` and `harvestableIndex`
 into `groups` (`null` for a pointer into another Record). The surface presets of the planets and
 moons (`HPP_Stanton1a`, `HPP_Pyro5b`, 25 of the 49) are tied to a place by these object preset
-paths (they name the star system and the body) and by no container.
+paths (for Hurston they name the star system and the body, for the others no body) and by no
+container.
 
 **Multi configs (`subHarvestableMultiConfigs`).** The `SubHarvestableMultiConfigRecord` Records
 under `harvestable/slotpresets` (103 on LIVE). `defaultConfigGuid` is the Reference of a default
@@ -1450,6 +1460,14 @@ the Archive links them to a place by no `.soc`. `HPP_Pyro_AkiroCluster` is named
 which no Child reaches (ScDataDumper pins it to `Pyro_AkiroCluster` by hand; the catalog states no
 object). `HPP_Stanton2c_Belt` is named by `stanton2c.socpak` and, a copy in the data, by
 `pyro6.socpak`.
+
+No Record or container links the surface presets to a body: the Archive holds no planet container,
+and only the Hurston presets name a body in the folder of their `objectPresetPaths`, so they stay
+without a location (ADR-0236). When an object is recorded above a container but no object results
+(it is not in `starmapObjects`, 64 or more mining claim markers lie above, or a marker has no
+object above it) the warning `harvest_locations_without_object` counts the rows with a line per
+reason. A container with no object recorded above it (no Child reaches it, or it is reached with
+no object above, as a system root) is the normal case and deliberately silent.
 
 ### Loot
 
@@ -1531,6 +1549,31 @@ each distinct root; it is not memoised, as it is negligible on LIVE.
 
 On LIVE 4.10 (2026-10-28) 3,004 rows name 41 multi configs and 189 containers in 3 systems, 2,797
 of them with an object.
+
+### Crafters
+
+A crafter (`crafters`) is an entity whose `Components` hold a `CrafterComponentParams` (ADR-0243):
+a crafting station. The Archive holds no per-player blueprint cap; the only limits of crafting
+are the ones these components state. LIVE 4.10 has three, all below
+`entities/basebuilding/interactables`; one of them is a `_template` and, like every development
+leftover, left out and counted as skipped. The kind is facts only: identifiers and numbers.
+
+| Field | Source |
+|-------|--------|
+| `guid`, `className`, `recordPath` | The entity Record |
+| `maxJobsInHistory` | `maxJobsInHistory`: how many finished jobs the station lists (10); `null` when the value is not a number |
+| `queues` | `queues` in stored order (two on every station of LIVE), `[]` without any |
+| `hostGuids` | The `ships` entries whose Default Loadout mounts the crafter in any port, at any depth, ordered by GUID; `[]` for a crafter no ship mounts, such as a station. Derived from `loadouts`, so a crafter of a building part has no host |
+
+A queue has `name` (`debugName`), `maxJobsInProgress` (how many jobs it crafts at once, 2 and 4 on
+LIVE) and `maxJobsWaiting` (how many further jobs it holds, 4 on LIVE); each is `null` when the
+Record stores no number or text. The categories and process types a queue accepts
+(`blueprintCategoryAvailability`, `processTypeAvailability`) are not exported.
+
+The Records are selected from every entity Record: an item, a ship or a commodity that has the
+component is a crafter as well and stays what it is, and any other `EntityClassDefinition` under
+`entities` is a crafter when it has the component. The selection is structural, never by name or
+by folder, so a crafter fitted to a ship or vehicle or part of a building is found like a station.
 
 ### Shops
 
@@ -1884,6 +1927,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `legacyLootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetype` |
 | `lootContainers` | None: the `entdata` files of the containers below `ObjectContainers/PU/system` and the containers they place, no Records | |
 | `mineableEntities` | `libs/foundry/records/entities/mineable/` | `EntityClassDefinition` |
+| `crafters` | `libs/foundry/records/entities/`, after the kinds above that take their own entities; only an entity with a `CrafterComponentParams` | `EntityClassDefinition` |
 
 The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of
@@ -1999,7 +2043,8 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 - The record-path prefixes and types match the live DataForge: of 29,693 `EntityClassDefinition`
   Records on LIVE, 25,704 lie under the item, ship and commodity prefixes (1,202 of them are left
   out as leftovers); the rest are actors, mineables, job boards, interiors, audio, decorations,
-  lights and the like and are no catalog kind. All 1,203 `SCItemManufacturer` and 1,619
+  lights and the like and are no catalog kind unless they carry a `CrafterComponentParams`, which
+  makes them a `crafters` entry. All 1,203 `SCItemManufacturer` and 1,619
   `CraftingBlueprintRecord` Records are selected or left out as leftovers.
 - The token list gained `debug`, `deprecated` and `dev`, which mark 20 further items on LIVE (the
   Vlk spewgun test weapons under `fps_weapons/dev`, `*_deprecated` bar counters, a debug hacking

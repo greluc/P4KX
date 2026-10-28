@@ -11,6 +11,13 @@ const PRESET_KEY: &[u8] = b"preset";
 /// The length of a GUID in text form.
 const GUID_LEN: usize = 36;
 
+/// The tail kept of a string holds the last [`GUID_LEN`] bytes, which must also hold the whole of
+/// [`PRESET_KEY`] for the test of its end.
+const _: () = assert!(
+    PRESET_KEY.len() <= GUID_LEN,
+    "the tail must hold the whole preset key"
+);
+
 /// The size of the pieces a `.soc` is read in.
 const CHUNK_LEN: usize = 64 << 10;
 

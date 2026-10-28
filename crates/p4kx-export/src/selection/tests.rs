@@ -36,9 +36,11 @@ fn a_wrong_struct_under_a_prefix_or_a_path_outside_every_prefix_is_no_kind() {
 }
 
 #[test]
-fn every_kind_but_the_older_loot_kinds_is_found_alike_by_path_and_by_record() {
+fn every_kind_but_the_older_loot_kinds_and_the_crafters_is_found_alike_by_path_and_by_record() {
     for kind in Kind::ALL {
-        let Some(rule) = kind.rule() else { continue };
+        let Some(rule) = kind.rule().filter(|_| kind != Kind::Crafters) else {
+            continue;
+        };
         for prefix in rule.prefixes {
             let path = format!("{prefix}x");
             let by_record = Kind::by_record(&path, rule.type_name);

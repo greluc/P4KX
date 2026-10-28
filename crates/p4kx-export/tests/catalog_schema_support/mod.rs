@@ -60,6 +60,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "lootArchetypes": {"status": "complete"},
             "lootPoolFilters": {"status": "complete"},
             "lootContainers": {"status": "complete"},
+            "mineableEntities": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
         },
         "manufacturers": [{
@@ -297,6 +298,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "lootArchetypes": loot::archetypes(),
         "lootPoolFilters": loot::filters(),
         "lootContainers": loot::containers(),
+        "mineableEntities": harvest::mineable_entities(),
         "shipStoreSlugs": [{
             "slug": "Aurora-Mk-I-ES",
             "rsiId": 1,

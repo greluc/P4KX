@@ -49,6 +49,25 @@ pub(super) fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
             .parent("DataForgeComponentParams")
             .field("composition", TestType::Reference)
             .field("globalParams", TestType::Reference),
+        TestStruct::new("SSCSignatureSystemBaseSignatureParams")
+            .array("signatures", TestType::Single),
+        TestStruct::new("SSCRadarContactProperites")
+            .field("contactType", TestType::Reference)
+            .field(
+                "baseSignatureParams",
+                class("SSCSignatureSystemBaseSignatureParams"),
+            ),
+        TestStruct::new("SSCSignatureSystemParams")
+            .parent("DataForgeComponentParams")
+            .field("radarProperties", class("SSCRadarContactProperites")),
+        TestStruct::new("RadarContactTypeEntry"),
+        TestStruct::new("SignatureTypeGlobalParams").field("displayName", TestType::Locale),
+        TestStruct::new("SignatureSystemGlobalParams")
+            .array("signatureTypeParams", class("SignatureTypeGlobalParams")),
+        TestStruct::new("RadarSystemGlobalParams").field(
+            "signatureSystemParams",
+            class("SignatureSystemGlobalParams"),
+        ),
         TestStruct::new("HarvestablePreset").field("entityClass", TestType::Reference),
         TestStruct::new("HarvestableGeometry").field("tag", TestType::Reference),
         element_struct(),

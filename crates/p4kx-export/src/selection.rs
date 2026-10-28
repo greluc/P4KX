@@ -112,11 +112,14 @@ pub enum Kind {
     /// entity files of the containers below the system containers. Derived from Archive files, so
     /// no record-path rule of its own.
     LootContainers,
+    /// Mineable entities: `EntityClassDefinition` Records under `entities/mineable`, the rocks and
+    /// deposits with their scan signature.
+    MineableEntities,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 35] = [
+    pub const ALL: [Self; 36] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -152,6 +155,7 @@ impl Kind {
         Self::LootArchetypes,
         Self::LootPoolFilters,
         Self::LootContainers,
+        Self::MineableEntities,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -193,6 +197,7 @@ impl Kind {
             Self::LootArchetypes => "lootArchetypes",
             Self::LootPoolFilters => "lootPoolFilters",
             Self::LootContainers => "lootContainers",
+            Self::MineableEntities => "mineableEntities",
         }
     }
 
@@ -270,6 +275,7 @@ impl Kind {
             Self::LootArchetypes => 32,
             Self::LootPoolFilters => 33,
             Self::LootContainers => 34,
+            Self::MineableEntities => 35,
         }
     }
 

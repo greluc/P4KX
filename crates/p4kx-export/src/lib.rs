@@ -160,6 +160,7 @@ mod recovery;
 mod reputation;
 mod resource_group;
 mod scan;
+mod scan_signature;
 mod selection;
 mod selection_rules;
 mod ship;

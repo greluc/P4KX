@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Writes SHA256SUMS and SHA3-512SUMS for the assets of a release and assembles its notes.
+Writes SHA256SUMS.txt and SHA3-512SUMS.txt for the assets of a release and assembles its notes.
 
 .DESCRIPTION
 Hashes every file in -AssetDirectory (the release assets: ZIPs, MSI, SBOM and attestation
@@ -40,8 +40,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$sha256Name = 'SHA256SUMS'
-$sha3Name = 'SHA3-512SUMS'
+$sha256Name = 'SHA256SUMS.txt'
+$sha3Name = 'SHA3-512SUMS.txt'
 
 if (-not [System.Security.Cryptography.SHA3_512]::IsSupported) {
     throw 'This platform does not support SHA3-512.'
@@ -87,7 +87,7 @@ $checksums = @"
 ## Checksums
 
 ``$sha256Name`` and ``$sha3Name`` list every other asset of this release, one
-``<hash>  <file>`` line per file.
+``<hash>  <file>`` line per file. They are plain text files and open in any text editor.
 
 Windows (PowerShell):
 

@@ -300,7 +300,7 @@ jobs:
           pattern: "{changelog-notes,virustotal-note}"
           path: notes
           merge-multiple: true
-      - name: SHA256SUMS, SHA3-512SUMS and release notes
+      - name: SHA256SUMS.txt, SHA3-512SUMS.txt and release notes
         env:
           REPOSITORY: ${{ github.repository }}
           SCAN_RESULT: ${{ needs.scan.result }}

@@ -64,7 +64,7 @@ pub(super) const SHIPS: [ShipSpec; 19] = [
         ..PLAIN
     },
     ShipSpec {
-        class: "Ship_Ambiguous",
+        class: "Ship_Ready_Explosive_Hull",
         hull_explodes: true,
         ..PLAIN
     },

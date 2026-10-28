@@ -60,6 +60,7 @@ fn a_ship_without_ai_evidence_that_the_game_ships_is_a_player_ship() -> TestResu
         &[
             ("Ship_Player", Some("player")),
             ("Ship_Empty_Manifest", Some("player")),
+            ("Ship_Ready_Explosive_Hull", Some("player")),
         ],
     )
 }
@@ -108,7 +109,7 @@ fn a_ship_the_rules_cannot_place_has_no_playability() -> TestResult {
     let (_, catalog) = catalog()?;
     assert_ships(
         &catalog,
-        &[("Ship_Ambiguous", None), ("Ship_No_Inclusion", None)],
+        &[("Ship_No_Inclusion", None)],
     )
 }
 
@@ -183,7 +184,7 @@ fn the_summary_counts_every_value_and_the_unclassified() -> TestResult {
         assert_eq!(actual, values, "player, ai, mission, special");
         assert_eq!(counts.unclassified(), unclassified, "unclassified");
     };
-    expect(summary.ships, [4, 8, 3, 1], 3);
+    expect(summary.ships, [5, 8, 3, 1], 2);
     expect(summary.items, [3, 0, 2, 2], 1);
     Ok(())
 }

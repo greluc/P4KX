@@ -57,9 +57,14 @@ never fetches the ship matrix.
   team, not a behaviour, so the rule stays a marker found on LIVE and is re-checked with each
   comparison.
 - The seven `null` base ships the matrix calls flight ready (Basher, Sabre Raven EX, Skylark,
-  Railen, S-65 Stingray, Tyilui, Constellation Mk V Centaurus) show no signal that separates them
-  cleanly from the ships the rule must keep out of `player`: no component, field, tag, Reference
-  or record-path folder is common to them and absent from at least 31 other ships. They stay `null`.
+  Railen, S-65 Stingray, Tyilui, Constellation Mk V Centaurus) share no component, field, tag,
+  Reference or folder that is rare elsewhere, but they do not need one: the only ships `null`
+  was left for were `ReadyToInclude` ships with `powerPlantsCanExplodeOnDeath` and no other AI
+  marker (crew manifest, critical-part explosion, `SystemsDesign`), exactly these seven and
+  `KRIG_S65_Stingray_BALLISTIC`, whose Record has the same fields as the Stingray. The owner
+  confirmed all seven flyable. Rule 4 therefore no longer reads the hull: `ReadyToInclude` alone
+  gives `player`. No ship but these eight changes; the hull value stays an AI marker for ships
+  that are not `ReadyToInclude`.
 - The check warns when a `NAME_SUPPLEMENT` class is no catalog ship and when a catalog ship or
   store slug entry cannot be read. A catalog class counts as flight ready when any of its matrix
   entries is, so a flight-ready variant mapped to the same class (Mole editions, Carrack w/C8X)

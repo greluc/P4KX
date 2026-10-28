@@ -51,6 +51,9 @@ fn known_ships_and_items_of_a_real_archive_have_the_expected_playability() -> Te
         ("ships", "RSI_Perseus", "player"),
         ("ships", "RSI_Perseus_AI_Super", "ai"),
         ("ships", "DRAK_Corsair_AI_Super", "ai"),
+        ("ships", "RSI_Skylark", "player"),
+        ("ships", "GAMA_Railen", "player"),
+        ("ships", "KRIG_S65_Stingray", "player"),
         ("items", "POWR_ACOM_S01_LumaCore_SCItem", "player"),
         ("items", "POWR_PyroOutpost", "special"),
     ] {

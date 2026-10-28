@@ -12,7 +12,7 @@ use p4kx_extraction::Archive;
 use p4kx_testkit::{real_archive_path, reference_ship_matrix_path};
 use serde_json::Value;
 
-use super::ship_matrix_compare::{CatalogShip, StoreSlug, compare, parse_matrix};
+use super::ship_matrix_compare::{CatalogShip, StoreSlug, compare, parse_matrix, supplement_gaps};
 
 #[expect(
     clippy::print_stdout,
@@ -35,9 +35,11 @@ fn playability_of_the_ships_is_compared_with_the_ship_matrix() -> Result<(), Box
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
     let catalog: Value = serde_json::from_slice(built.json())?;
 
-    let ships: Vec<CatalogShip<'_>> = catalog["ships"]
+    let ship_entries = catalog["ships"].as_array().ok_or("ships")?;
+    let slug_entries = catalog["shipStoreSlugs"]
         .as_array()
-        .ok_or("ships")?
+        .ok_or("shipStoreSlugs")?;
+    let ships: Vec<CatalogShip<'_>> = ship_entries
         .iter()
         .filter_map(|ship| {
             Some(CatalogShip {
@@ -46,9 +48,7 @@ fn playability_of_the_ships_is_compared_with_the_ship_matrix() -> Result<(), Box
             })
         })
         .collect();
-    let slugs: Vec<StoreSlug<'_>> = catalog["shipStoreSlugs"]
-        .as_array()
-        .ok_or("shipStoreSlugs")?
+    let slugs: Vec<StoreSlug<'_>> = slug_entries
         .iter()
         .filter_map(|entry| {
             Some(StoreSlug {
@@ -59,6 +59,17 @@ fn playability_of_the_ships_is_compared_with_the_ship_matrix() -> Result<(), Box
         })
         .collect();
 
+    for (kind, read, all) in [
+        ("ships", ships.len(), ship_entries.len()),
+        ("store slugs", slugs.len(), slug_entries.len()),
+    ] {
+        assert_eq!(read, all, "catalog {kind} that are readable");
+    }
+    let gaps = supplement_gaps(&ships);
+    assert!(
+        gaps.is_empty(),
+        "NAME_SUPPLEMENT classes that are no catalog ship: {gaps:?}"
+    );
     print_line(&format!(
         "{} matrix entries, {} catalog ships, {} store slugs",
         matrix.len(),

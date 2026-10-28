@@ -60,6 +60,7 @@ fn a_ship_without_ai_evidence_that_the_game_ships_is_a_player_ship() -> TestResu
         &[
             ("Ship_Player", Some("player")),
             ("Ship_Empty_Manifest", Some("player")),
+            ("Ship_Ready_Explosive_Hull", Some("player")),
         ],
     )
 }
@@ -90,12 +91,24 @@ fn an_unmanned_tag_makes_a_ship_a_mission_ship_and_an_unshipped_one_special() ->
 }
 
 #[test]
-fn a_ship_the_rules_cannot_place_has_no_playability() -> TestResult {
+fn a_systems_design_record_tag_makes_a_ship_ai_whatever_else_it_carries() -> TestResult {
     let (_, catalog) = catalog()?;
     assert_ships(
         &catalog,
-        &[("Ship_Ambiguous", None), ("Ship_No_Inclusion", None)],
+        &[
+            ("Ship_Systems_Design", Some("ai")),
+            ("Ship_Systems_Design_Not_Shipped", Some("ai")),
+            ("Ship_Systems_Design_Salvage", Some("ai")),
+            ("Ship_Other_Record_Tag", Some("player")),
+            ("Rover_Systems_Design", Some("ai")),
+        ],
     )
+}
+
+#[test]
+fn a_ship_the_rules_cannot_place_has_no_playability() -> TestResult {
+    let (_, catalog) = catalog()?;
+    assert_ships(&catalog, &[("Ship_No_Inclusion", None)])
 }
 
 #[test]
@@ -169,7 +182,7 @@ fn the_summary_counts_every_value_and_the_unclassified() -> TestResult {
         assert_eq!(actual, values, "player, ai, mission, special");
         assert_eq!(counts.unclassified(), unclassified, "unclassified");
     };
-    expect(summary.ships, [3, 5, 3, 1], 3);
+    expect(summary.ships, [5, 9, 3, 1], 2);
     expect(summary.items, [3, 0, 2, 2], 1);
     Ok(())
 }

@@ -137,7 +137,7 @@ fn handler(
                 .value("abandonedCooldownTime", TestValue::Single(30.0))
                 .value("abandonedCooldownTimeVariation", TestValue::Single(0.5)),
         ),
-        "Event_Career" => (
+        "Copy_Career" => (
             "ContractGeneratorHandler_PVPBountyDef",
             TestInstance::new("ContractAvailabilityPartial")
                 .value("prerequisites", prerequisites)

@@ -34,8 +34,8 @@ fn a_handler_that_states_some_fields_gives_null_for_the_rest_and_for_a_wrong_typ
         .as_array()
         .ok_or("contracts")?
         .iter()
-        .find(|entry| entry["handler"] == "Event_Career")
-        .ok_or("Event_Career")?;
+        .find(|entry| entry["handler"] == "Copy_Career")
+        .ok_or("Copy_Career")?;
     assert_eq!(event["cooldownLayer"], "handler");
     assert_eq!(event["hasPersonalCooldown"], false);
     for field in [

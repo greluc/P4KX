@@ -273,6 +273,7 @@ fn assemble<R>(
         loot_archetypes: collected.loot_kinds.archetypes,
         loot_pool_filters: collected.loot_kinds.filters,
         mineable_entities: collected.mineable_entities,
+        crafters: collected.crafters,
         ship_store_slugs: resolved.exported,
         item_recovery: rules,
     };

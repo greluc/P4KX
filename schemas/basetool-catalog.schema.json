@@ -575,6 +575,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `contracts`."
         },
+        "crafters": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `crafters`."
+        },
         "dismantleProcesses": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `dismantleProcesses`."
@@ -707,6 +711,7 @@
         "commodities",
         "contractScenarios",
         "contracts",
+        "crafters",
         "dismantleProcesses",
         "factionReputations",
         "gameplayProperties",
@@ -1240,6 +1245,88 @@
         "resourceGuid",
         "slot",
         "slotKey"
+      ],
+      "type": "object"
+    },
+    "Crafter": {
+      "description": "A crafting station: an entity whose `Components` hold a `CrafterComponentParams`.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "hostGuids": {
+          "description": "The GUIDs of the ships whose Default Loadout mounts the crafter in any port, ordered by\nGUID; empty for a crafter no ship mounts, e.g. a station.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "maxJobsInHistory": {
+          "description": "`maxJobsInHistory`: how many finished jobs the station lists.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "queues": {
+          "description": "The job queues, from `queues` in stored order.",
+          "items": {
+            "$ref": "#/$defs/CrafterQueue"
+          },
+          "type": "array"
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "hostGuids",
+        "maxJobsInHistory",
+        "queues",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "CrafterQueue": {
+      "description": "One job queue of a [`Crafter`].",
+      "properties": {
+        "maxJobsInProgress": {
+          "description": "`maxJobsInProgress`: how many jobs the queue crafts at once.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "maxJobsWaiting": {
+          "description": "`maxJobsWaiting`: how many further jobs the queue holds.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "`debugName`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "maxJobsInProgress",
+        "maxJobsWaiting",
+        "name"
       ],
       "type": "object"
     },
@@ -6721,6 +6808,13 @@
       },
       "type": "array"
     },
+    "crafters": {
+      "description": "The crafting stations with the limits of their job queues, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/Crafter"
+      },
+      "type": "array"
+    },
     "craftingGlobal": {
       "$ref": "#/$defs/CraftingGlobal",
       "description": "The global crafting parameters that apply to every dismantle."
@@ -6973,6 +7067,7 @@
     "completeness",
     "contractScenarios",
     "contracts",
+    "crafters",
     "craftingGlobal",
     "dismantleProcesses",
     "factionReputations",

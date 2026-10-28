@@ -5,6 +5,9 @@ use std::fmt;
 
 use p4kx_extraction::{DataForgeError, Filter, Record};
 
+pub use crate::selection_rules::KindRule;
+pub(crate) use crate::selection_rules::starts_with_folder;
+
 /// The tokens that mark a development leftover: a Record whose record path or name holds one of
 /// them as a whole word, ignoring ASCII case, is left out and counted as skipped.
 ///
@@ -115,11 +118,16 @@ pub enum Kind {
     /// Mineable entities: `EntityClassDefinition` Records under `entities/mineable`, the rocks and
     /// deposits with their scan signature.
     MineableEntities,
+    /// Crafters: the entities whose `Components` hold a `CrafterComponentParams`. The rule takes
+    /// the `EntityClassDefinition` Records under `entities` that no earlier kind takes, so it
+    /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
+    /// [`Kind::rule`] alone does not select a crafter: the Record must also hold the component.
+    Crafters,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -156,6 +164,7 @@ impl Kind {
         Self::LootPoolFilters,
         Self::LootContainers,
         Self::MineableEntities,
+        Self::Crafters,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -198,6 +207,7 @@ impl Kind {
             Self::LootPoolFilters => "lootPoolFilters",
             Self::LootContainers => "lootContainers",
             Self::MineableEntities => "mineableEntities",
+            Self::Crafters => "crafters",
         }
     }
 
@@ -228,8 +238,9 @@ impl Kind {
         }
     }
 
-    /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
-    /// kinds do not overlap, and a derived kind is never returned.
+    /// Returns the first kind in [`Kind::ALL`] one of whose prefixes `record_path` starts with,
+    /// and never a derived kind. The prefixes of [`Kind::Crafters`] overlap those of the entity
+    /// kinds; only the order of [`Kind::ALL`] resolves it.
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|kind| {
             kind.rule()
@@ -276,6 +287,7 @@ impl Kind {
             Self::LootPoolFilters => 33,
             Self::LootContainers => 34,
             Self::MineableEntities => 35,
+            Self::Crafters => 36,
         }
     }
 
@@ -298,49 +310,6 @@ impl fmt::Display for Kind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.name())
     }
-}
-
-/// How the Records of one kind are selected: by record-path prefix and by type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct KindRule {
-    /// The starts of the record path of which one must match, ignoring ASCII case and the kind
-    /// of separator.
-    pub prefixes: &'static [&'static str],
-    /// The name of the Records' struct, matched exactly.
-    pub type_name: &'static str,
-}
-
-impl KindRule {
-    /// Returns whether `record_path` starts with one of the prefixes.
-    #[must_use]
-    pub fn matches_path(&self, record_path: &str) -> bool {
-        self.prefixes
-            .iter()
-            .any(|prefix| starts_with_folder(record_path, prefix))
-    }
-
-    /// Returns whether a Record with `record_path` and the struct `type_name` is selected.
-    pub(crate) fn selects(&self, record_path: &str, type_name: &str) -> bool {
-        self.type_name == type_name && self.matches_path(record_path)
-    }
-}
-
-/// Returns whether `record_path` starts with `prefix`, ignoring ASCII case and the kind of
-/// separator.
-pub(crate) fn starts_with_folder(record_path: &str, prefix: &str) -> bool {
-    let fold = |byte: u8| {
-        if byte == b'\\' {
-            b'/'
-        } else {
-            byte.to_ascii_lowercase()
-        }
-    };
-    record_path.len() >= prefix.len()
-        && record_path
-            .bytes()
-            .zip(prefix.bytes())
-            .all(|(have, want)| fold(have) == fold(want))
 }
 
 /// What the blueprint selection makes of one Record.

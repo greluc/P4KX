@@ -6,6 +6,7 @@
 use serde_json::json;
 
 mod contracts;
+mod crafters;
 mod harvest;
 mod loot;
 mod recovery;
@@ -61,6 +62,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "lootPoolFilters": {"status": "complete"},
             "lootContainers": {"status": "complete"},
             "mineableEntities": {"status": "complete"},
+            "crafters": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
         },
         "manufacturers": [{
@@ -299,6 +301,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "lootPoolFilters": loot::filters(),
         "lootContainers": loot::containers(),
         "mineableEntities": harvest::mineable_entities(),
+        "crafters": crafters::crafters(),
         "shipStoreSlugs": [{
             "slug": "Aurora-Mk-I-ES",
             "rsiId": 1,

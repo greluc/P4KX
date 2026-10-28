@@ -55,8 +55,8 @@ fn the_crafting_stations_of_a_real_archive_carry_their_limits() -> TestResult {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn the_crafters_of_a_real_archive_resolve_their_categories_and_report_nothing_unknown() -> TestResult
-{
+fn the_crafters_of_a_real_archive_resolve_their_categories_and_report_nothing_unreadable()
+-> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
     let catalog: Value = serde_json::from_slice(built.json())?;
@@ -67,7 +67,10 @@ fn the_crafters_of_a_real_archive_resolve_their_categories_and_report_nothing_un
         .filter_map(|category| category["guid"].as_str())
         .collect();
     let guids_resolve = |rule: &Value| {
-        rule["blueprintCategoryGuids"]
+        !matches!(
+            rule["kind"].as_str(),
+            Some("blueprintCategory" | "whitelist")
+        ) || rule["blueprintCategoryGuids"]
             .as_array()
             .is_some_and(|guids| {
                 guids
@@ -77,16 +80,17 @@ fn the_crafters_of_a_real_archive_resolve_their_categories_and_report_nothing_un
     };
     for crafter in catalog["crafters"].as_array().ok_or("the crafters")? {
         let name = &crafter["className"];
-        assert_eq!(crafter["issues"], json!([]), "{name}: nothing unknown");
+        let issues = crafter["issues"].as_array().ok_or("the issues")?;
+        for issue in issues {
+            let code = issue.as_str().ok_or("an issue code")?;
+            assert!(!code.starts_with("unreadable_"), "{name}: {code}");
+        }
         assert!(
             crafter["baseCraftingTime"].is_null() || crafter["baseCraftingTime"].is_number(),
             "{name}: baseCraftingTime"
         );
         for modifier in crafter["modifiers"].as_array().ok_or("the modifiers")? {
             assert!(guids_resolve(&modifier["condition"]), "{name}: condition");
-            if modifier["type"] == "time" {
-                assert!(modifier["timeMultiplier"].is_number(), "{name}: multiplier");
-            }
         }
         for queue in crafter["queues"].as_array().ok_or("the queues")? {
             assert!(

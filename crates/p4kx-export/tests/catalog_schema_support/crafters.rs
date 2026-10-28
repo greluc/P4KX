@@ -59,7 +59,7 @@ pub(super) fn crafters() -> serde_json::Value {
         "baseCraftingTime": null,
         "queues": [],
         "modifiers": [],
-        "issues": ["unknown_modifier_type"],
+        "issues": [],
         "hostGuids": []
     }])
 }

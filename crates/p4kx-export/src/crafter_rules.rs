@@ -7,18 +7,18 @@
 //! recognised by their struct name; a struct that is not known is kept with its name and no
 //! values, and every deviation is reported as an issue code.
 
-use std::collections::BTreeSet;
-
 use p4kx_extraction::{StructValue, Value};
 
 use crate::contract_crafter::{CategoryRule, CrafterModifier};
-use crate::record_fields::{elements, number, references};
+use crate::crafter_fields::{Issues, array};
+use crate::record_fields::{number, references};
 
 const TIME_TYPE: &str = "CraftingModifierType_Time";
 const CATEGORY_CONDITION: &str = "CraftingModifierCondition_BlueprintCategory";
 const WHITELIST: &str = "BlueprintCategoryAvailability_Whitelist";
 
 const UNREADABLE_MODIFIER: &str = "unreadable_modifier";
+const UNREADABLE_MODIFIERS: &str = "unreadable_modifiers";
 const UNREADABLE_PROCESS_TYPES: &str = "unreadable_process_types";
 const MISSING_MODIFIER_TYPE: &str = "missing_modifier_type";
 const UNKNOWN_MODIFIER_TYPE: &str = "unknown_modifier_type";
@@ -26,9 +26,6 @@ const UNREADABLE_TIME_MULTIPLIER: &str = "unreadable_time_multiplier";
 const UNKNOWN_MODIFIER_CONDITION: &str = "unknown_modifier_condition";
 const UNKNOWN_CATEGORY_AVAILABILITY: &str = "unknown_category_availability";
 const UNREADABLE_CATEGORY: &str = "unreadable_category";
-
-/// The codes of the problems found while reading, sorted and without duplicates.
-pub(crate) type Issues = BTreeSet<&'static str>;
 
 /// What a polymorphic struct field holds.
 enum Pointer<'t, 'f> {
@@ -53,7 +50,7 @@ pub(crate) fn modifiers<'f>(
     params: &StructValue<'f>,
     issues: &mut Issues,
 ) -> Vec<CrafterModifier<'f>> {
-    elements(Some(params), "modifiers")
+    array(Some(params), "modifiers", UNREADABLE_MODIFIERS, issues)
         .iter()
         .map(|element| read_modifier(element, issues))
         .collect()
@@ -118,20 +115,25 @@ pub(crate) fn availability<'f>(queue: &StructValue<'f>, issues: &mut Issues) -> 
 /// Returns the booleans of `processTypeAvailability`. The list is empty, with an issue, when an
 /// element is no boolean, because a lost position would shift every later process type.
 pub(crate) fn process_types(queue: &StructValue<'_>, issues: &mut Issues) -> Vec<bool> {
-    let flags: Option<Vec<bool>> = elements(Some(queue), "processTypeAvailability")
-        .iter()
-        .map(|flag| match flag {
-            Value::Bool(flag) => Some(*flag),
-            _ => None,
-        })
-        .collect();
+    let flags: Option<Vec<bool>> = array(
+        Some(queue),
+        "processTypeAvailability",
+        UNREADABLE_PROCESS_TYPES,
+        issues,
+    )
+    .iter()
+    .map(|flag| match flag {
+        Value::Bool(flag) => Some(*flag),
+        _ => None,
+    })
+    .collect();
     flags.unwrap_or_else(|| {
         issues.insert(UNREADABLE_PROCESS_TYPES);
         Vec::new()
     })
 }
 
-const fn no_rule<'f>() -> CategoryRule<'f> {
+pub(crate) const fn no_rule<'f>() -> CategoryRule<'f> {
     CategoryRule {
         kind: "none",
         struct_name: None,
@@ -153,7 +155,7 @@ fn rule<'f>(
         Pointer::Null => no_rule(),
         Pointer::Struct(value) if value.type_name() == known.0 => {
             let guids = references(Some(value), "categories");
-            if guids.len() != elements(Some(value), "categories").len() {
+            if guids.len() != array(Some(value), "categories", UNREADABLE_CATEGORY, issues).len() {
                 issues.insert(UNREADABLE_CATEGORY);
             }
             CategoryRule {

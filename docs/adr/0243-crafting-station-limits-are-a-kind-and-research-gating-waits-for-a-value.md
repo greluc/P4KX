@@ -54,9 +54,9 @@ every tier.
 
 ## Amendment (#842)
 
-Evidence: the next game version adds crafting modifiers and the queue rules to the data; LIVE 4.10
-has the queue rules, but no modifiers and no `baseCraftingTime`. The amendment replaces the
-decision that the accepted categories and process types are not exported.
+Evidence: the structure of the modifiers was observed in a test build, not in LIVE 4.10, which has
+the queue rules but no modifiers and no `baseCraftingTime`. The amendment replaces the decision
+that the accepted categories and process types are not exported.
 
 - A `crafters` entry gets `type`, `subType` and `size` (the `AttachDef` of the entity),
   `baseCraftingTime`, `modifiers` and `issues`; a queue gets `blueprintCategoryAvailability` and
@@ -70,8 +70,16 @@ decision that the accepted categories and process types are not exported.
 - A struct this export does not know is kept with its name, `unknown` and no values. An unreadable
   value (a missing type, a non-finite number, a category Reference to no Record, a
   `processTypeAvailability` entry that is no boolean) is kept as null or empty and reported as a
-  code in the crafter's `issues`. Nothing is dropped and nothing panics. A modifier is exported
-  with its `condition` of kind `none` when the Record stores none; no meaning is guessed.
+  code in the crafter's `issues`, a per-crafter summary. Nothing is dropped and nothing panics. A
+  modifier is exported with its `condition` of kind `none` when the Record stores none; no
+  meaning is guessed.
+- A field that is absent (or a null pointer) differs from one that is stored with the wrong type:
+  the first reads as `null` or `[]` with no issue, so the data before the modifiers exist stays
+  clean; the second reads the same and sets an `unreadable_*` code (`baseCraftingTime`, the
+  `AttachDef` fields, `queues`, a queue, `modifiers`, `processTypeAvailability`, `categories`).
+- `unreadable_category` means a Reference that links to no Record. Whether the Record is a
+  blueprint category is not checked by the export, because a Filter may leave it out of
+  `blueprintCategories`; the real-Archive test checks that on an unfiltered catalog.
 - `processTypeAvailability` is the list of booleans as stored. The Archive does not name the
   process types, so the export does not map positions to names; a name would be a guess.
 - Ports for crafters: a crafter that is not an item (a fabricator below `basebuilding`) is not in

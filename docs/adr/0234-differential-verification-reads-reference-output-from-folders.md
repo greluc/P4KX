@@ -4,6 +4,8 @@ Decided for issue #264. Evidence: LIVE 4.10 against unp4k and unforge 4.0.87 and
 
 Amended for issue #804: each allow-list entry is narrowed to one case and counted per value.
 
+Amended for issue #807: embedded Records are compared by content.
+
 ## Decision
 
 - P4KX is compared with unp4k, unforge and StarBreaker by `#[ignore]`d tests in
@@ -22,8 +24,10 @@ Amended for issue #804: each allow-list entry is narrowed to one case and counte
   for a non-finite number. An entry matches one kind of P4KX value against one kind of reference
   value; every other error kind or unmapped value kind is a difference. A difference beside an
   allowed one still fails.
-- Names, GUIDs and Record paths are compared case-sensitively; embedded Records StarBreaker
-  writes for a Reference of the same file are compared by GUID and counted.
+- Names, GUIDs and Record paths are compared case-sensitively. A Record StarBreaker embeds where
+  it is referenced is compared by content with the Record P4KX holds under that GUID, under the
+  same allow-list, recursively, and counted; the count is a lower bound for a Record that
+  differs, as the comparison stops at the first difference.
 - Every comparison has a mutation self-test on synthetic data that changes a copy of the
   reference by +1 and by the smallest step, swaps texts, flips booleans, deletes and invents
   rows, fields, attributes and children, and requires each change to be detected.

@@ -30,7 +30,7 @@ pub(crate) enum Node {
     Reference {
         guid: String,
         path: String,
-        embedded: bool,
+        embedded: Option<Box<Embedded>>,
     },
     WeakPointer,
     Struct {
@@ -49,6 +49,13 @@ pub(crate) enum Node {
 }
 
 pub(crate) type Field = (String, Node);
+
+/// The content of a Record a reference tool wrote where the Record is referenced.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct Embedded {
+    pub(crate) name: String,
+    pub(crate) root: Node,
+}
 
 /// A Record: its identity and its root struct.
 #[derive(Debug, Clone, PartialEq)]
@@ -101,7 +108,7 @@ fn from_value(value: &Value<'_>) -> Node {
         Value::Reference(reference) => Node::Reference {
             guid: reference.guid().to_string(),
             path: reference.record_path().to_owned(),
-            embedded: false,
+            embedded: None,
         },
         Value::Null => Node::Null,
         Value::Error(ValueError::DanglingReference { .. }) => Node::Dangling,

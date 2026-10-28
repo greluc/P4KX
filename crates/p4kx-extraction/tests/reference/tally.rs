@@ -41,7 +41,7 @@ pub(crate) struct Tally {
     pub(crate) different: u64,
     pub(crate) allowed_items: u64,
     pub(crate) allowed: BTreeMap<&'static str, u64>,
-    pub(crate) embedded_references: u64,
+    pub(crate) embedded_records: u64,
     pub(crate) missing_in_reference: u64,
     pub(crate) missing_in_archive: u64,
     examples: Vec<String>,
@@ -96,7 +96,7 @@ impl Tally {
         self.equal += other.equal;
         self.different += other.different;
         self.allowed_items += other.allowed_items;
-        self.embedded_references += other.embedded_references;
+        self.embedded_records += other.embedded_records;
         self.missing_in_reference += other.missing_in_reference;
         self.missing_in_archive += other.missing_in_archive;
         for (reason, count) in other.allowed {
@@ -133,10 +133,10 @@ impl Tally {
             .allowed
             .iter()
             .map(|(reason, count)| format!("  allowed {count} values: {reason}"));
-        let embedded = (self.embedded_references > 0).then(|| {
+        let embedded = (self.embedded_records > 0).then(|| {
             format!(
-                "  {} embedded Records compared as a Reference by GUID",
-                self.embedded_references
+                "  {} embedded Records compared by content (a lower bound when a Record differs)",
+                self.embedded_records
             )
         });
         let examples = self.examples.iter().map(|example| format!("  {example}"));

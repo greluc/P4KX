@@ -4,10 +4,22 @@ P4KX opens, browses, compares and extracts Star Citizen Archives and converts th
 formats. It replaces the owner's earlier reference tool and covers the functionality of unp4k and StarBreaker with
 an own Rust core (ADR-0001). Terms follow [CONTEXT.md](../CONTEXT.md).
 
-Every milestone ends in a usable release: SemVer `0.x`, one minor version per milestone, built by
-GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe` and
-`p4kx-mcp.exe`, a per-user MSI (ADR-0007) and the Blender add-on ZIP, with notes from
-`CHANGELOG.md`.
+Every Release is usable: SemVer `0.x`, built by GitHub Actions from a `v*` tag as a portable ZIP
+with `p4kx-gui.exe`, `p4kx.exe` and `p4kx-mcp.exe`, a per-user MSI (ADR-0007) and the Blender
+add-on ZIP, with notes from `CHANGELOG.md`.
+
+## Status
+
+| Release | State | Content |
+|---|---|---|
+| 0.1.0 | Released | Archive, browsing, Extraction and the command line |
+| 0.2.0 | Released | Readable game data: CryXml and DataForge as XML and JSON, the Basetool catalog, the Comparison, textures, localisation and first commands for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP server |
+| 0.3.0 | Released | The first Release as P4KX; the Basetool catalog as a full game-data export, `.json.zst` for the upload, `p4kx coverage` |
+| 0.4.0 | [Released](https://github.com/p4kx-org/p4kx/releases/tag/v0.4.0) | The 3D side: Assemblies, interiors, characters and armour, the Blender package and add-on, MFD screens and holograms, Wwise resolution; more Basetool catalog kinds with `schemaVersion` 2; P4KX's own theme and the smallest-window layout. Milestones M1 to M14 are complete |
+| 0.4.1 | Next, GitHub milestone `v0.4.1` | The follow-ups of the 3D, render, texture, material, character and Assembly work, further Basetool catalog kinds and documentation |
+| 0.5.0 | After 0.4.1, GitHub milestone `v0.5.0` | Not scoped yet; issues join the milestone when they are planned |
+
+The open work of a release is its GitHub milestone, not this document.
 
 ## Product decisions
 
@@ -17,7 +29,7 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 | Front-ends | `p4kx` (CLI), `p4kx-gui` ("P4KX", egui/eframe), `p4kx-mcp` (MCP server, stdio, read-only) |
 | Platforms | Windows is shipped; the code stays platform-neutral and CI also builds on Linux; no macOS |
 | Distribution | Portable ZIP and MSI (WiX Toolset 7, per-user install to `%LOCALAPPDATA%`, no admin rights, Start menu entry, stable UpgradeCode) from M1 |
-| Licence | `MIT OR Apache-2.0`; the repository becomes public later |
+| Licence | `MIT OR Apache-2.0`; the repository `p4kx-org/p4kx` is public |
 | UI languages | German (`de-DE`) and British English (`en-GB`) via Fluent, chosen from the system locale, switchable |
 | Look | P4KX theme (colours, Lato) in egui, dark only (ADR-0006); native window frame tinted via DWM |
 | State | `%APPDATA%\P4KX\` (TOML): detected Channels, recent Archives, target folder, language, window |
@@ -26,6 +38,9 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 | Live changes | Archives are opened read-only with shared access; a changed size, timestamp or Build cancels running jobs and offers a reload |
 
 ## Milestones
+
+M1 to M14 are all done and their GitHub milestones closed; each description states what the
+milestone delivered.
 
 ### M1 — Archive, browsing, Extraction, CLI
 
@@ -120,10 +135,13 @@ GitHub Actions from a `v*` tag as a portable ZIP with `p4kx-gui.exe`, `p4kx.exe`
 ## Engineering
 
 - Workspace of `p4kx-*` crates in three layers with enforced direction (ADR-0003, ADR-0019):
-  - formats: `foundation`, `archive`, `cryxml`, `dataforge`, `localization`, `texture`, `audio`,
-    `chunks`, `model`, `character`, `gfx`
-  - services: `assembly`, `gltf`, `blender`, `comparison`, `export`, `extraction`, `screens`
+  - foundation: `p4kx-foundation`
+  - formats: `archive`, `cryxml`, `dataforge`, `localization`, `texture`, `audio`, `chunks`,
+    `model`, `character`, `gfx`
+  - services: `assembly`, `blender`, `channels`, `comparison`, `export`, `extraction`, `gltf`,
+    `guard`, `render`, `screens`, `search`, `settings`, `update`
   - front-ends: `p4kx`, `p4kx-gui`, `p4kx-mcp`
+  - `p4kx-testkit` (synthetic fixtures and real-Archive helpers) belongs to no layer
 - Libraries are synchronous and parallelise with rayon; tokio only in `p4kx-mcp`.
 - Rust edition 2024, `rustfmt`, clippy `all`, `pedantic`, `nursery` and selected `restriction`
   lints as errors, `missing_docs`; suppressions only as `#[expect(lint, reason = "…")]`.

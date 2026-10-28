@@ -1,4 +1,4 @@
-# P4K-Extractor · Desktop-Vorgaben, Entscheidungen ab D.22
+# P4KX · Desktop-Vorgaben, Entscheidungen ab D.22
 
 Fortsetzung von [desktop-spec.md](desktop-spec.md), das die Grundregeln, die Komponententabelle und die
 Entscheidungen D.1 bis D.20 enthält; Maße und Farben stehen dort und in
@@ -244,7 +244,7 @@ gekürzt; unter 120 px Breite entfallen sie, der volle Text bleibt im Zugänglic
 liegt die 3D-Ansicht, mindestens 96 px hoch und so breit und hoch wie der Rest des Panels, auf
 `surface-inset` mit einer Haarlinie 1 `color-gray-3` innen. Die Ecken sind quadratisch, weil sich
 ein egui-Paint-Callback nur auf ein Rechteck beschneiden lässt (Abweichung, ADR-0031); alles um die
-Ansicht folgt dem Designsystem. Das Modell ist Spielinhalt, kein Teil des Designs: es ist neutral
+Ansicht folgt dem P4KX-Theme. Das Modell ist Spielinhalt, kein Teil des Designs: es ist neutral
 grau und mit einem Kopf- und einem Schräglicht beleuchtet, damit Flächen lesbar bleiben, und von
 den Farbregeln ausgenommen. „Ansicht zurücksetzen" ist `.btn-ghost.btn-xs` (eine Routineaktion,
 kein CTA), liegt 8 px vom Rand oben rechts über der Ansicht und ist deaktiviert, solange die
@@ -259,8 +259,8 @@ Zeichnen in `color-danger-text`; zu groß, ohne Dreiecke und zu groß für das G
 Panel öffnet für Modelle höher als sonst (D.46) und ist frei verstellbar; wer mehr vom Modell sehen
 will, zieht den Griff darüber.
 
-**D.37 Fenster „Über P4K-Extractor" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
-P4K-Extractor" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
+**D.37 Fenster „Über P4KX" im Menü Hilfe.** Das Menü Hilfe führt als ersten Eintrag „Über
+P4KX" (14,4 / 400 wie die Dropdown-Einträge, D.1) und öffnet ein Modal im Aufbau der
 Schriftlizenz: Kopf mit Titel und Schließen-Icon, Fuß mit der CTA „Schließen". Das Modal hat die
 normale Breite (`.modal`), nicht die breite, die dem Formular-Modal vorbehalten ist. Der Körper
 steht in 14,4 / 400 `color-gray-1`, also über der Mindestgröße von 10 pt der Fankit-Richtlinien,

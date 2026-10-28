@@ -34,6 +34,7 @@ The short version:
 - [Commit messages](#commit-messages)
 - [Style guides](#style-guides)
 - [Before-you-push checklist](#before-you-push-checklist)
+- [Releasing](#releasing)
 - [Licence](#licence)
 
 ## Code of Conduct
@@ -254,6 +255,53 @@ Archive are modules of `tests/real_archive/`. See "Test layout" in [`CLAUDE.md`]
 - [ ] The CLA is signed.
 - [ ] Every commit is signed off.
 - [ ] No game data, extracted assets, Archive key or other secrets in the diff.
+
+## Releasing
+
+Maintainers only. The [Release workflow](.github/workflows/release.yml) builds and publishes
+everything; nobody uploads assets by hand.
+
+1. Fold the `changelog.d/` fragments into `CHANGELOG.md` (`cargo xtask changelog --release
+   <version>`) and merge that pull request. The version of `p4kx-gui` is the Release version.
+2. Push the tag `vMAJOR.MINOR.PATCH[-suffix]` on the merge commit. The workflow refuses any other
+   tag name.
+3. The workflow builds the portable ZIP, the MSI and the Blender add-on ZIP, tests install,
+   upgrade and uninstall of the MSI, and generates a CycloneDX SBOM per shipped binary
+   (`p4kx-gui`, `p4kx`, `p4kx-mcp`). The add-on is Python without bundled third-party packages
+   and has no SBOM of its own.
+4. The ZIP and the MSI are scanned on VirusTotal. A failed or missing scan never blocks the
+   Release; the notes then say the scan did not run.
+5. The build provenance of every asset and the SBOMs of the ZIP and the MSI are attested
+   (Sigstore, via GitHub Artifact Attestations). The bundles become Release assets.
+6. `SHA256SUMS` and `SHA3-512SUMS` list every other asset. The Release notes are the
+   `CHANGELOG.md` section, the VirusTotal result, the verification commands, and GitHub's generated
+   "What's Changed" list.
+
+A pull request that changes the workflow, its scripts, the installer or the add-on runs the same
+jobs as a dry run: everything is built, but nothing is scanned, attested or published.
+The `workflow_dispatch` trigger adds the VirusTotal scan to such a run.
+
+Secret: the owner sets the repository secret `VIRUSTOTAL_API_KEY` (Settings, Secrets and
+variables, Actions). Without it the scan is skipped.
+
+### Verifying a download
+
+Replace `<file>` with the name of the downloaded asset.
+
+- Hashes, Windows PowerShell: `Get-FileHash <file> -Algorithm SHA256`; Linux:
+  `sha256sum --check --ignore-missing SHA256SUMS`. SHA3-512 on Linux: `openssl dgst -sha3-512
+  <file>`. On Windows `openssl` is usually not installed and `Get-FileHash` has no SHA3-512; use
+  PowerShell 7 on an operating system with SHA3 support (Windows 11 24H2 or newer):
+  `[Convert]::ToHexString([Security.Cryptography.SHA3_512]::HashData([IO.File]::ReadAllBytes("<full
+  path>")))`, which prints upper-case hex. Compare the output with the line of the file in
+  `SHA256SUMS` or `SHA3-512SUMS`, ignoring case.
+- Attestation: `gh attestation verify <file> --repo p4kx-org/p4kx`.
+- Attestation offline, with the bundle from the Release:
+  `gh attestation verify <file> --bundle P4KX-<version>-provenance.sigstore.json --repo
+  p4kx-org/p4kx`. The bundle of an SBOM is named after it (`<sbom>.cdx.json.sigstore.json`) and
+  needs `--predicate-type https://cyclonedx.org/bom`.
+- SBOM: the `P4KX-<version>-<binary>.cdx.json` assets are CycloneDX 1.5 JSON. Their attestation
+  ties them to the ZIP and the MSI, and the provenance bundle covers the SBOM files themselves.
 
 ## Licence
 

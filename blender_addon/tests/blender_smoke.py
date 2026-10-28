@@ -20,11 +20,10 @@ from mathutils import Vector
 HERE = Path(__file__).resolve().parent
 sys.path[:0] = [str(HERE), str(HERE.parent)]
 
-import p4kx_importer  # noqa: E402
 import synthetic  # noqa: E402
 import synthetic_character  # noqa: E402
 import synthetic_materials  # noqa: E402
-from p4kx_importer import importer, lights, package  # noqa: E402
+from p4kx_importer import importer, lights, package, register, unregister  # noqa: E402
 
 
 def check(condition: bool, message: str) -> None:
@@ -221,7 +220,7 @@ def main() -> None:
 
         bpy.ops.wm.read_factory_settings(use_empty=True)
         addon_utils.enable("io_scene_gltf2", default_set=False)
-        p4kx_importer.register()
+        register()
         status = bpy.ops.import_scene.p4kx_package(filepath=str(scene))
         check(status == {"FINISHED"}, f"operator: {status}")
         check(len([o for o in bpy.data.objects if o.type == "MESH"]) == 2, "operator import")
@@ -234,7 +233,7 @@ def main() -> None:
             check("Update the P4KX Blender add-on" in str(error), f"message: {error}")
         else:
             check(False, "a newer package must be refused")
-        p4kx_importer.unregister()
+        unregister()
 
         check_layered_material(Path(folder) / "layered")
 

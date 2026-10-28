@@ -273,7 +273,8 @@ everything; nobody uploads assets by hand.
    Release; the notes then say the scan did not run.
 5. The build provenance of every asset and the SBOMs of the ZIP and the MSI are attested
    (Sigstore, via GitHub Artifact Attestations). The bundles become Release assets.
-6. `SHA256SUMS` and `SHA3-512SUMS` list every other asset. The Release notes are the
+6. `SHA256SUMS.txt` and `SHA3-512SUMS.txt` list every other asset, as plain text files that open
+   in any text editor. The Release notes are the
    `CHANGELOG.md` section, the VirusTotal result, the verification commands, and GitHub's generated
    "What's Changed" list.
 
@@ -289,12 +290,12 @@ variables, Actions). Without it the scan is skipped.
 Replace `<file>` with the name of the downloaded asset.
 
 - Hashes, Windows PowerShell: `Get-FileHash <file> -Algorithm SHA256`; Linux:
-  `sha256sum --check --ignore-missing SHA256SUMS`. SHA3-512 on Linux: `openssl dgst -sha3-512
+  `sha256sum --check --ignore-missing SHA256SUMS.txt`. SHA3-512 on Linux: `openssl dgst -sha3-512
   <file>`. On Windows `openssl` is usually not installed and `Get-FileHash` has no SHA3-512; use
   PowerShell 7 on an operating system with SHA3 support (Windows 11 24H2 or newer):
   `[Convert]::ToHexString([Security.Cryptography.SHA3_512]::HashData([IO.File]::ReadAllBytes("<full
   path>")))`, which prints upper-case hex. Compare the output with the line of the file in
-  `SHA256SUMS` or `SHA3-512SUMS`, ignoring case.
+  `SHA256SUMS.txt` or `SHA3-512SUMS.txt`, ignoring case.
 - Attestation: `gh attestation verify <file> --repo p4kx-org/p4kx`.
 - Attestation offline, with the bundle from the Release:
   `gh attestation verify <file> --bundle P4KX-<version>-provenance.sigstore.json --repo

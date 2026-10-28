@@ -19,7 +19,8 @@ Decided for issue #822.
   attests each SBOM against the portable ZIP and the MSI. The Sigstore bundles are Release assets,
   named `P4KX-<version>-provenance.sigstore.json` and `<sbom>.cdx.json.sigstore.json`, so a
   download verifies offline with `gh attestation verify <file> --bundle <bundle>`.
-- `SHA256SUMS` and `SHA3-512SUMS` list every other asset, bundles and SBOMs included. SHA3-512 is
+- `SHA256SUMS.txt` and `SHA3-512SUMS.txt` list every other asset, bundles and SBOMs included. The
+  `.txt` extension lets users open them with a double click. SHA3-512 is
   computed with .NET on an Ubuntu runner, whose OpenSSL supports it.
 - The VirusTotal scan covers the MSI and the portable ZIP, never runs on a pull request, and never
   blocks a Release; the notes state when it did not run, also when the script crashes, times out

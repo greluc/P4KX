@@ -1384,7 +1384,8 @@ has both `null`. `areas` keep `debugGroupName` as `name`, `globalModifier`, the 
 of the area type and the `modifiers`, whose weak pointer gives `groupIndex` and `harvestableIndex`
 into `groups` (`null` for a pointer into another Record). The surface presets of the planets and
 moons (`HPP_Stanton1a`, `HPP_Pyro5b`, 25 of the 49) are tied to a place by these object preset
-paths (they name the star system and the body) and by no container.
+paths (for Hurston they name the star system and the body, for the others no body) and by no
+container.
 
 **Multi configs (`subHarvestableMultiConfigs`).** The `SubHarvestableMultiConfigRecord` Records
 under `harvestable/slotpresets` (103 on LIVE). `defaultConfigGuid` is the Reference of a default
@@ -1417,6 +1418,13 @@ the Archive links them to a place by no `.soc`. `HPP_Pyro_AkiroCluster` is named
 which no Child reaches (ScDataDumper pins it to `Pyro_AkiroCluster` by hand; the catalog states no
 object). `HPP_Stanton2c_Belt` is named by `stanton2c.socpak` and, a copy in the data, by
 `pyro6.socpak`.
+
+No Record or container links the surface presets to a body: the Archive holds no planet container,
+and only the Hurston presets name a body in the folder of their `objectPresetPaths`, so they stay
+without a location (ADR-0236). When a Child element reaches a container but no object results
+(the object is not in `starmapObjects`, the chain above is longer than 64, or a mining claim
+marker has no object above it) the warning `harvest_locations_without_object` counts the rows with
+a line per reason.
 
 ### Loot
 

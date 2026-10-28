@@ -50,6 +50,19 @@ pub(crate) fn add_harvest_locations(
                 details: located.unreadable,
             });
     }
+    let lost: usize = located.without_object.iter().map(|&(_, count)| count).sum();
+    if lost > 0 {
+        collected
+            .warnings
+            .push(CraftingWarning::HarvestLocationsWithoutObject {
+                count: lost,
+                details: located
+                    .without_object
+                    .iter()
+                    .map(|&(reason, count)| format!("{count}: {}", reason.reason()))
+                    .collect(),
+            });
+    }
     collected.harvestable_locations = located.locations;
     Ok(())
 }

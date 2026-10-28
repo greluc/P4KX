@@ -67,7 +67,7 @@ pub(crate) fn locate(
     let tags = read_tags(archive, &summaries, cancel);
     let mut containers = Vec::new();
     for root in opened {
-        let location = objects.location(root.under);
+        let location = objects.location(root.under).ok();
         for placed in below(root.entry, &summaries) {
             containers.push(row(
                 placed,

@@ -10,6 +10,69 @@ the entries under `## [Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-28
+
+A catalog and release-process update. The Basetool catalog gains these kinds and fields; all are
+additive, so the catalog stays `schemaVersion` 2:
+- the scan signature of mineable rocks;
+- the crafting stations with their queue limits, crafting-time modifiers and the ships that mount
+  them;
+- contract cooldowns;
+- the older loot Records;
+- a more precise `playability`, checked against the RSI ship matrix.
+
+Every Release from now on carries a VirusTotal report, build provenance with attestation bundles,
+CycloneDX SBOMs and SHA-256 and SHA3-512 checksums.
+
+The third-party notices and P4KX's own licences ship as Markdown. The README and the documentation
+are brought up to date, and every GitHub Action is pinned to a commit. There are no breaking
+changes.
+
+### Added
+
+- Basetool catalog: the new warning `harvest_locations_without_object` counts the harvestable
+  locations that have no starmap object although one is recorded above their container, with one
+  line per reason: the object is not in the starmap objects, 64 or more mining claim markers lie
+  above, or a marker has no object above it.
+- Basetool catalog: the kinds `legacyLootTables` and `legacyLootArchetypes` with the older loot
+  Records, so that `lootConfig.lootTableGuid` of a slot resolves. The loot container scan sums all
+  `.soc` files of a container and warns about placed containers the Archive lacks and about entity
+  files that name several containers or multi configs.
+- Releases: every Release now carries `SHA256SUMS` and `SHA3-512SUMS`, a CycloneDX SBOM per
+  binary, Sigstore attestation bundles for offline verification with `gh attestation verify`, a
+  VirusTotal report of the MSI and the portable ZIP, and GitHub's list of merged pull requests.
+- Basetool catalog: the new kind `mineableEntities` lists the mineable rocks and deposits with
+  their composition, mining parameters, radar contact type and scan signature. The slot of the
+  scan signature is the one the radar parameters name; the raw `signatures` are exported too.
+- Basetool catalog: the new kind `crafters` lists every crafting station with `maxJobsInHistory`
+  and, per queue, `maxJobsInProgress` and `maxJobsWaiting`. The Archive holds no per-player
+  blueprint cap; these are its only crafting limits.
+- Basetool catalog: each contract carries its cooldowns (`hasPersonalCooldown`,
+  `personalCooldownTime`, `personalCooldownTimeVariation`, `abandonedCooldownTime`,
+  `abandonedCooldownTimeVariation`) and `cooldownLayer`, the level that states them. The numbers
+  are as stored; the Archive does not state their unit.
+- Basetool catalog: the `crafters` kind carries `baseCraftingTime` and the crafting `modifiers`
+  (type, `timeMultiplier` and the blueprint categories a modifier applies to), per queue the
+  accepted blueprint categories and process types, and the `type`, `subType` and `size` of the
+  crafter, which a ship's crafter port is matched against. A modifier type, condition or queue
+  rule the export does not know is kept by name and reported in `issues`.
+
+### Changed
+
+- The third-party notices are now `THIRD-PARTY-NOTICES.md`, a Markdown document with a table of
+  every Rust crate (version, licence, link) and the licence texts in fenced blocks. P4KX's own
+  licences also ship as `LICENSE-MIT.md` and `LICENSE-APACHE.md`. The portable ZIP and the MSI
+  carry the Markdown files next to the plain licence files.
+
+### Fixed
+
+- Catalog: the `AI_Super` ships of Anvil Hornet F7C Mk II and RSI Perseus are `ai` instead of
+  `player`, and those of Drake Corsair, RSI Polaris and MISC Fury are `ai` instead of `null`. The
+  `playability` rule reads the Record tag `SystemsDesign` as an AI marker.
+- Catalog: Basher, Sabre Raven EX, Skylark, Railen, S-65 Stingray, Tyilui and Constellation Mk V
+  Centaurus are `player` instead of `null`; an exploding hull no longer keeps a `ReadyToInclude`
+  ship out of `player`.
+
 ## [0.4.0] - 2026-10-28
 
 The fourth Release brings the 3D side of the tool:

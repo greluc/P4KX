@@ -6,7 +6,7 @@
 
 use std::error::Error;
 
-use crate::waiting::{RunQuiet, wait_for_model};
+use crate::waiting::{RunQuiet, reveal, wait_for_model};
 use egui_kittest::kittest::Queryable;
 use egui_kittest::{Harness, HarnessBuilder};
 use p4kx_gui::{Browser, Language, Model, ModelPreview, Preview, ViewerSupport, ui};
@@ -109,6 +109,7 @@ pub(crate) fn settled(model: &Model) -> bool {
 }
 
 pub(crate) fn select(harness: &mut Harness<'_, Model>, name: &str) -> TestResult {
+    reveal(harness, name);
     harness.get_by_label(name).click();
     wait_until(harness, settled)
 }

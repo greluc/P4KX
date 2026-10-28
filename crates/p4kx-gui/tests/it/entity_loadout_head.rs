@@ -9,10 +9,14 @@ use crate::entity_picking::{TestResult, entries, opened_sized, select, settle};
 use egui::accesskit::Role;
 use egui_kittest::Harness;
 use egui_kittest::kittest::Queryable;
+use p4kx_gui::theme::window_metrics::SIDEBAR_RAIL_WIDTH;
 use p4kx_gui::{Language, Model};
 
 const WIDE: f32 = 1600.0;
-const NARROW: f32 = 700.0;
+/// A work surface width at which the English head fits one line and the German one does not; the
+/// English head does not fit the smallest work surface.
+const NARROW_WORK_WIDTH: f32 = 720.0;
+const NARROW: f32 = NARROW_WORK_WIDTH + SIDEBAR_RAIL_WIDTH;
 const ENTITY: &str = "TEST_Ship";
 
 const fn reset_label(language: Language) -> &'static str {

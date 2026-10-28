@@ -9,7 +9,7 @@ use fluent_bundle::FluentValue;
 use p4kx_extraction::{ConflictPolicy, WriteRefused, default_target_name};
 use p4kx_settings::{ExtractionAudio, ExtractionTextures};
 
-use super::{Dialog, Requests, comparison_extraction};
+use super::{Dialog, Requests, comparison_extraction, wrapped_actions};
 use crate::extraction::target_naming;
 use crate::theme::desktop::{BUTTON_HEIGHT, MODAL_GROUP_GAP};
 use crate::theme::palette;
@@ -73,6 +73,16 @@ pub(super) fn fit_beside(ui: &Ui, model: &Model, beside: f32) -> bool {
     });
     3.0f32.mul_add(ui.spacing().item_spacing.x, beside) + widths <= ui.available_width()
 }
+
+/// Shows the three Extraction actions in a line of their own, right-aligned; a line too narrow
+/// for all three wraps the rest into the next one, which the room of the work surface is told.
+pub(super) fn stacked_actions(ui: &mut Ui, model: &mut Model) {
+    let size = vec2(ui.available_width(), ui.spacing().interact_size.y);
+    let layout = Layout::right_to_left(Align::Center).with_main_wrap(true);
+    let shown = ui.allocate_ui_with_layout(size, layout, |ui| actions(ui, model));
+    wrapped_actions::record(ui.ctx(), shown.response.rect.height() > BUTTON_HEIGHT);
+}
+
 /// Shows the three Extraction actions in a right-to-left layout: no CTA in the main window, the
 /// selected one as outline.
 pub(super) fn actions(ui: &mut Ui, model: &mut Model) {

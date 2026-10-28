@@ -182,7 +182,18 @@ fn work_scrolls(work: Option<Rect>) -> bool {
 }
 
 fn clip_problems(found: &Placed<'_>, regions: &ui::Regions, name: &str) -> Vec<String> {
-    let work = regions.work.filter(|_| !work_scrolls(regions.work));
+    let work = regions.work.and_then(|work| {
+        if !work_scrolls(regions.work) {
+            Some(work)
+        } else if work.width() >= WORK_MIN_WIDTH {
+            Some(Rect::from_x_y_ranges(
+                work.x_range(),
+                f32::NEG_INFINITY..=f32::INFINITY,
+            ))
+        } else {
+            None
+        }
+    });
     clipped(found, [regions.list, regions.preview], work, name)
 }
 

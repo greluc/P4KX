@@ -283,7 +283,7 @@ fn glows_and_shadows_match_the_theme() {
     }
 }
 
-const DESKTOP_METRICS: [(&str, &str, f32); 69] = [
+const DESKTOP_METRICS: [(&str, &str, f32); 70] = [
     ("meta", "rowDensity", desktop::ROW_HEIGHT),
     ("header", "height", desktop::HEADER_HEIGHT),
     ("header", "brandMarkSize", desktop::BRAND_MARK),
@@ -306,6 +306,11 @@ const DESKTOP_METRICS: [(&str, &str, f32); 69] = [
         "workSurface",
         "browseListMinHeight",
         window_metrics::BROWSE_LIST_MIN_HEIGHT,
+    ),
+    (
+        "workSurface",
+        "wrappedActionsHeight",
+        window_metrics::WRAPPED_ACTIONS_HEIGHT,
     ),
     (
         "workSurface",

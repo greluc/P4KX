@@ -12,7 +12,7 @@ use crate::guid_text::CatalogGuid;
 use crate::memo::Memo;
 use crate::record_fields::{class_name, component, reference};
 
-const MINEABLE_PARAMS: &str = "MineableParams";
+pub(crate) const MINEABLE_PARAMS: &str = "MineableParams";
 
 /// What a `HarvestablePreset` Record says: its name and the entity it spawns.
 #[derive(Clone, Copy)]

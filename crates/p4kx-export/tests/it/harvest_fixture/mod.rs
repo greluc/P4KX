@@ -14,6 +14,7 @@ use p4kx_testkit::{
 
 use crate::starmap_fixture::{child, children, guid_text};
 
+mod mineables;
 mod structures;
 
 use structures::structures;
@@ -31,6 +32,10 @@ pub(crate) const PRESET_PRIVATE: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000
 pub(crate) const PRESET_UNREACHED: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000b;
 pub(crate) const PRESET_NOWHERE: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000c;
 pub(crate) const MULTI_CONFIG: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000d;
+pub(crate) const ENTITY_SILENT: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000e;
+pub(crate) const ENTITY_BARE: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000f;
+pub(crate) const RADAR_GLOBAL: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0010;
+pub(crate) const CONTACT_TYPE: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0011;
 pub(crate) const PLANET: u128 = 0x7100_0000_0000_4000_8000_0000_0000_0001;
 pub(crate) const PRIVATE_POINT: u128 = 0x7100_0000_0000_4000_8000_0000_0000_0002;
 
@@ -219,9 +224,8 @@ fn multi_config() -> TestRecord {
     )
 }
 
-#[expect(clippy::too_many_lines, reason = "one entry per struct of the fixture")]
 fn database() -> DataForgeBuilder {
-    structures(DataForgeBuilder::new().version(8))
+    mineables::add(structures(DataForgeBuilder::new().version(8)))
         .record(record(
             RESOURCE,
             "ResourceType",
@@ -241,22 +245,6 @@ fn database() -> DataForgeBuilder {
         .record(composition(COMPOSITION_TEST, "Composition_Test"))
         .record(params(PARAMS, "MiningGlobalParamsShip", 100.0))
         .record(params(PARAMS_TEST, "MiningGlobalParams_Test", 1.0))
-        .record(
-            record(
-                ENTITY,
-                "EntityClassDefinition",
-                "MineableRock_Iron",
-                "libs/foundry/records/entities/mineable/mineablerock_iron",
-            )
-            .value(
-                "Components",
-                TestValue::Array(vec![TestValue::Struct(
-                    TestInstance::new("MineableParams")
-                        .value("composition", TestValue::Reference(COMPOSITION))
-                        .value("globalParams", TestValue::Reference(PARAMS)),
-                )]),
-            ),
-        )
         .record(
             record(
                 HARVESTABLE,

@@ -20,9 +20,11 @@ use crate::harvest_config::multi_config;
 use crate::harvest_link::Links;
 use crate::harvest_preset::provider_preset;
 use crate::item::is_paint;
+use crate::mining::mineable_entity;
 use crate::picked::Picked;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
+use crate::scan_signature::SignatureSlot;
 use crate::ship_pool::ShipPool;
 use crate::starmap::{TypeNames, starmap_object};
 use crate::starmap_containers::Placements;
@@ -61,6 +63,7 @@ pub(crate) struct Scan<'o, 'a, 'f> {
     links: Links<'f>,
     groups: Groups,
     evidence: Evidence,
+    signature_slot: SignatureSlot,
     done: AtomicUsize,
     total: usize,
 }
@@ -80,6 +83,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records, options.filter);
         let (evidence, evidence_failures) = Evidence::read(&records);
+        let (signature_slot, slot_failures) = SignatureSlot::read(&records);
         let scan = Self {
             forge,
             ships: ShipPool::new(entities, files),
@@ -90,6 +94,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             links: Links::default(),
             groups,
             evidence,
+            signature_slot,
             done: AtomicUsize::new(0),
             total: records.len(),
         };
@@ -102,6 +107,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             group_failures
                 .into_iter()
                 .chain(evidence_failures)
+                .chain(slot_failures)
                 .map(Picked::Failed),
         );
         let resources =
@@ -246,6 +252,12 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let tree = trees.build(record)?;
         if let Some(picked) = self.harvestable(kind, trees, &tree) {
             return Ok(Some(picked));
+        }
+        if kind == Kind::MineableEntities {
+            return Ok(Some(Picked::MineableEntity(mineable_entity(
+                &tree,
+                self.signature_slot,
+            ))));
         }
         if kind == Kind::StarmapObjects {
             let object = starmap_object(

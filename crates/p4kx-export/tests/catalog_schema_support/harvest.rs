@@ -23,6 +23,19 @@ pub(super) fn compositions() -> serde_json::Value {
     }])
 }
 
+pub(super) fn mineable_entities() -> serde_json::Value {
+    json!([{
+        "guid": "a6000000-0000-4000-8000-000000000003",
+        "className": "MineableRock_AsteroidLegendary_Quantainium",
+        "recordPath": "libs/foundry/records/entities/mineable/mineablerock_asteroidlegendary_quantainium",
+        "mineableCompositionGuid": "a5000000-0000-4000-8000-000000000001",
+        "miningGlobalParamsGuid": "a6000000-0000-4000-8000-000000000004",
+        "scanSignature": 3170.0,
+        "signatures": [0.0, 0.0, 0.0, 0.0, 3170.0, 0.0, 0.0, 0.0],
+        "radarContactTypeGuid": "a6000000-0000-4000-8000-000000000007"
+    }])
+}
+
 pub(super) fn presets() -> serde_json::Value {
     let harvestable = json!({
         "presetGuid": "a6000000-0000-4000-8000-000000000002",

@@ -74,7 +74,7 @@ jobs:
           $name = "P4KX-$env:VERSION-x86_64"
           $folder = "target\package\$name"
           New-Item -ItemType Directory -Force $folder | Out-Null
-          Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, target\release\p4kx-mcp.exe, LICENSE-MIT, LICENSE-APACHE, THIRD-PARTY-NOTICES, CHANGELOG.md $folder
+          Copy-Item target\release\p4kx-gui.exe, target\release\p4kx.exe, target\release\p4kx-mcp.exe, LICENSE-MIT, LICENSE-MIT.md, LICENSE-APACHE, LICENSE-APACHE.md, THIRD-PARTY-NOTICES.md, CHANGELOG.md $folder
           Compress-Archive -Path $folder -DestinationPath "target\package\$name-portable.zip"
       - name: Blender add-on version equals the Release version
         run: cargo xtask addon

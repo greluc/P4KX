@@ -30,7 +30,7 @@ catalog encoder is the exception. Decided for issue #443, the follow-up of #407.
 - **Dev builds stay fast.** `[profile.dev.package.zstd-sys]` sets `opt-level = 3`, because an
   unoptimised libzstd would turn the level 19 encoder of every test and local run into minutes.
 - **Licence.** libzstd is used under its BSD-3-Clause licence; the notice is part of
-  `THIRD-PARTY-NOTICES`, checked by `cargo xtask notices`.
+  `THIRD-PARTY-NOTICES.md`, checked by `cargo xtask notices`.
 
 ## Considered Options
 

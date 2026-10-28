@@ -189,7 +189,7 @@ described in [.github/SECURITY.md](.github/SECURITY.md). Everyone taking part is
 ## Third-party licences
 
 The licence texts of the Rust crates P4KX uses are in
-[THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES), which ships with every Release. The Vorbis codebook
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which ships with every Release. The Vorbis codebook
 libraries embedded in `p4kx-audio` come from [ww2ogg](https://github.com/hcs64/ww2ogg), and the
 Opus decoder [opus-pure](https://github.com/stephenberry/opus-pure) is a port of libopus; both
 are licensed under the BSD 3-Clause licence.

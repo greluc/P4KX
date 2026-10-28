@@ -118,6 +118,11 @@ pub enum Kind {
     /// Mineable entities: `EntityClassDefinition` Records under `entities/mineable`, the rocks and
     /// deposits with their scan signature.
     MineableEntities,
+    /// Older loot tables: `LootTable` Records under `lootgeneration/loottables`, which the
+    /// `lootTable` of a slot's `lootConfig` links to.
+    LegacyLootTables,
+    /// Older loot archetypes: `LootArchetype` Records under `lootgeneration/lootarchetypes`.
+    LegacyLootArchetypes,
     /// Crafters: the entities whose `Components` hold a `CrafterComponentParams`. The rule takes
     /// the `EntityClassDefinition` Records under `entities` that no earlier kind takes, so it
     /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
@@ -127,7 +132,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 39] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -164,6 +169,8 @@ impl Kind {
         Self::LootPoolFilters,
         Self::LootContainers,
         Self::MineableEntities,
+        Self::LegacyLootTables,
+        Self::LegacyLootArchetypes,
         Self::Crafters,
     ];
 
@@ -207,6 +214,8 @@ impl Kind {
             Self::LootPoolFilters => "lootPoolFilters",
             Self::LootContainers => "lootContainers",
             Self::MineableEntities => "mineableEntities",
+            Self::LegacyLootTables => "legacyLootTables",
+            Self::LegacyLootArchetypes => "legacyLootArchetypes",
             Self::Crafters => "crafters",
         }
     }
@@ -240,7 +249,8 @@ impl Kind {
 
     /// Returns the first kind in [`Kind::ALL`] one of whose prefixes `record_path` starts with,
     /// and never a derived kind. The prefixes of [`Kind::Crafters`] overlap those of the entity
-    /// kinds; only the order of [`Kind::ALL`] resolves it.
+    /// kinds; only the order of [`Kind::ALL`] resolves it. Kinds that share a folder are told
+    /// apart by [`Self::by_record`].
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|kind| {
             kind.rule()
@@ -248,47 +258,13 @@ impl Kind {
         })
     }
 
-    /// Returns the position of the kind in [`Kind::ALL`].
-    pub(crate) const fn index(self) -> usize {
-        match self {
-            Self::Manufacturers => 0,
-            Self::Items => 1,
-            Self::Ships => 2,
-            Self::Commodities => 3,
-            Self::Blueprints => 4,
-            Self::ResourceGroups => 5,
-            Self::BlueprintCategories => 6,
-            Self::GameplayProperties => 7,
-            Self::QualityDistributions => 8,
-            Self::QualityQuantizations => 9,
-            Self::BlueprintPools => 10,
-            Self::DismantleProcesses => 11,
-            Self::Paints => 12,
-            Self::Loadouts => 13,
-            Self::StarmapObjects => 14,
-            Self::Contracts => 15,
-            Self::MineableElements => 16,
-            Self::RefiningProcesses => 17,
-            Self::MineableCompositions => 18,
-            Self::MiningGlobalParams => 19,
-            Self::HarvestableProviderPresets => 20,
-            Self::SubHarvestableMultiConfigs => 21,
-            Self::HarvestableLocations => 22,
-            Self::Shops => 23,
-            Self::FactionReputations => 24,
-            Self::ReputationScopes => 25,
-            Self::ReputationStandings => 26,
-            Self::ReputationContexts => 27,
-            Self::MissionTypes => 28,
-            Self::MissionLocalities => 29,
-            Self::ContractScenarios => 30,
-            Self::LootTables => 31,
-            Self::LootArchetypes => 32,
-            Self::LootPoolFilters => 33,
-            Self::LootContainers => 34,
-            Self::MineableEntities => 35,
-            Self::Crafters => 36,
-        }
+    /// Returns the kind that selects a Record with `record_path` and the struct `type_name`; the
+    /// kinds that share a folder (the V3 and the older loot Records) differ by the struct.
+    pub(crate) fn by_record(record_path: &str, type_name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|kind| {
+            kind.rule()
+                .is_some_and(|rule| rule.selects(record_path, type_name))
+        })
     }
 
     /// Returns whether the kind is derived from the entities of other kinds and selects no Records

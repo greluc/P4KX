@@ -5,78 +5,92 @@ use std::collections::HashMap;
 
 use p4kx_extraction::Guid;
 use p4kx_extraction::chunks::{ChunkFile, ChunkType, Container};
-use p4kx_extraction::cryxml::{self, Xml};
 
-use crate::starmap_xml::{Node, attribute};
+use crate::starmap_xml::{Document, Node, XmlError, attribute};
 
 /// The chunk of a `.soc` file that holds its entities as `CryXmlB`.
 const ENTITIES: ChunkType = ChunkType::new(Container::CrCh, 0x0004);
 
-/// The most entities of one `.soc` file that are counted.
-const MAX_ENTITIES: usize = 1 << 20;
+/// The most entities that are counted over all `.soc` files of one container.
+const MAX_ENTITIES: u32 = 1 << 20;
 
-/// How many entities of a `.soc` file there are and how many carry each tag.
+/// The most distinct tags that are counted over all `.soc` files of one container.
+const MAX_TAGS: usize = 1 << 16;
+
+/// Why a `.soc` file cannot be counted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub(crate) enum SocError {
+    /// The bytes are no chunk file.
+    #[error("its .soc is no chunk file")]
+    NotChunkFile,
+    /// The chunk table lists a chunk whose data lies outside the file.
+    #[error("a chunk of its .soc lies outside the file")]
+    ChunkOutOfRange,
+    /// An entity chunk is no XML document.
+    #[error("an entity chunk of its .soc {0}")]
+    Xml(#[from] XmlError),
+    /// The container lists more entities than [`MAX_ENTITIES`].
+    #[error("its .soc files list too many entities")]
+    TooManyEntities,
+    /// The container carries more distinct tags than [`MAX_TAGS`].
+    #[error("its .soc files carry too many distinct tags")]
+    TooManyTags,
+}
+
+/// How many entities there are and how many carry each tag.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct EntityTags {
     pub(crate) entities: u32,
     pub(crate) by_tag: HashMap<Guid, u32>,
 }
 
-/// Counts the entities of the `.soc` file `bytes` and the tags they carry: the `TagId` of every
-/// `Tag` below the `Tags` of an `Entity`.
-///
-/// # Errors
-///
-/// Returns why the file cannot be read: it is no chunk file, a chunk holds no XML, it lists more
-/// than [`MAX_ENTITIES`] entities.
-pub(crate) fn tag_counts(bytes: &[u8]) -> Result<EntityTags, &'static str> {
-    let file = ChunkFile::parse(bytes).map_err(|_| "its .soc is no chunk file")?;
-    let mut counts = EntityTags::default();
-    for (index, _) in file.chunks_of(ENTITIES) {
-        let data = file.chunk_data(index).unwrap_or_default();
-        count_xml(data, &mut counts)?;
-    }
-    Ok(counts)
-}
-
-/// Adds the entities of the XML document `bytes`, `CryXml` or text, to `counts`.
-fn count_xml(bytes: &[u8], counts: &mut EntityTags) -> Result<(), &'static str> {
-    match cryxml::read(bytes).map_err(|_| "its entity chunk is no XML")? {
-        Xml::CryXml(document) => count_entities(document.root(), counts),
-        Xml::Text(text) => {
-            let text = std::str::from_utf8(text).map_err(|_| "its entity chunk is no UTF-8")?;
-            cryxml::check_text_depth(text).map_err(|_| "its entity chunk nests too deep")?;
-            let document =
-                roxmltree::Document::parse(text).map_err(|_| "its entity chunk is no XML")?;
-            count_entities(document.root_element(), counts)
+impl EntityTags {
+    /// Adds the entities of the `.soc` file `bytes` and the tags they carry: the `TagId` of every
+    /// `Tag` below the `Tags` of an `Entity`. The limits apply to the sum over all files added.
+    ///
+    /// # Errors
+    ///
+    /// Returns why the file cannot be read; the counts then hold a part of the file.
+    pub(crate) fn add_soc(&mut self, bytes: &[u8]) -> Result<(), SocError> {
+        let file = ChunkFile::parse(bytes).map_err(|_| SocError::NotChunkFile)?;
+        for (index, _) in file.chunks_of(ENTITIES) {
+            let data = file.chunk_data(index).ok_or(SocError::ChunkOutOfRange)?;
+            self.add_xml(data)?;
         }
+        Ok(())
     }
-}
 
-fn count_entities<'d, N: Node<'d>>(root: N, counts: &mut EntityTags) -> Result<(), &'static str> {
-    for entity in root
-        .children()
-        .filter(|child| child.name().eq_ignore_ascii_case("Entity"))
-    {
-        if usize::try_from(counts.entities).map_or(true, |seen| seen >= MAX_ENTITIES) {
-            return Err("its .soc lists too many entities");
-        }
-        counts.entities += 1;
-        for tags in entity
+    /// Adds the entities of the XML document `bytes`, `CryXml` or text.
+    fn add_xml(&mut self, bytes: &[u8]) -> Result<(), SocError> {
+        self.add_entities(Document::parse(bytes)?.root())
+    }
+
+    fn add_entities<'d, N: Node<'d>>(&mut self, root: N) -> Result<(), SocError> {
+        for entity in root
             .children()
-            .filter(|child| child.name().eq_ignore_ascii_case("Tags"))
+            .filter(|child| child.name().eq_ignore_ascii_case("Entity"))
         {
-            for id in tags
+            if self.entities >= MAX_ENTITIES {
+                return Err(SocError::TooManyEntities);
+            }
+            self.entities += 1;
+            for id in entity
                 .children()
+                .filter(|child| child.name().eq_ignore_ascii_case("Tags"))
+                .flat_map(Node::children)
                 .filter(|child| child.name().eq_ignore_ascii_case("Tag"))
                 .filter_map(|tag| attribute(tag, "TagId"))
                 .filter_map(|id| id.trim().parse::<Guid>().ok())
             {
-                *counts.by_tag.entry(id).or_default() += 1;
+                if self.by_tag.len() >= MAX_TAGS && !self.by_tag.contains_key(&id) {
+                    return Err(SocError::TooManyTags);
+                }
+                let count = self.by_tag.entry(id).or_default();
+                *count = count.saturating_add(1);
             }
         }
+        Ok(())
     }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -92,7 +106,7 @@ mod tests {
 
     fn counted(xml: &str) -> EntityTags {
         let mut counts = EntityTags::default();
-        count_xml(xml.as_bytes(), &mut counts).expect("counts");
+        counts.add_xml(xml.as_bytes()).expect("counts");
         counts
     }
 
@@ -121,8 +135,72 @@ mod tests {
     }
 
     #[test]
+    fn counts_add_up_over_several_documents() {
+        let mut counts = EntityTags::default();
+        let one =
+            format!(r#"<Entities><Entity><Tags><Tag TagId="{TAG_A}"/></Tags></Entity></Entities>"#);
+        counts.add_xml(one.as_bytes()).expect("first");
+        counts.add_xml(one.as_bytes()).expect("second");
+        assert_eq!(counts.entities, 2);
+        assert_eq!(counts.by_tag.get(&guid(TAG_A)), Some(&2));
+    }
+
+    #[test]
     fn bytes_that_are_no_chunk_file_are_an_error() {
-        assert!(tag_counts(b"<Entities/>").is_err());
-        assert!(tag_counts(b"").is_err());
+        let mut counts = EntityTags::default();
+        assert_eq!(counts.add_soc(b"<Entities/>"), Err(SocError::NotChunkFile));
+        assert_eq!(counts.add_soc(b""), Err(SocError::NotChunkFile));
+    }
+
+    #[test]
+    fn a_chunk_table_that_points_outside_the_file_is_an_error() {
+        use p4kx_testkit::TestChunkFile;
+
+        let whole = TestChunkFile::crch()
+            .chunk(0x0004, 3, b"<Entities><Entity/></Entities>".to_vec())
+            .bytes();
+        let mut counts = EntityTags::default();
+        assert_eq!(counts.add_soc(&whole), Ok(()), "the whole file counts");
+        let cut = whole.get(..whole.len() - 4).expect("a shorter file");
+        let mut counts = EntityTags::default();
+        assert!(counts.add_soc(cut).is_err(), "the cut file does not");
+        assert_eq!(counts, EntityTags::default(), "and adds nothing");
+    }
+
+    #[test]
+    fn a_chunk_that_is_no_xml_is_an_error() {
+        let mut counts = EntityTags::default();
+        assert_eq!(
+            counts.add_xml(b"\x00\x01 not xml"),
+            Err(SocError::Xml(XmlError::Malformed))
+        );
+    }
+
+    #[test]
+    fn the_entity_limit_holds_over_everything_added() {
+        let mut counts = EntityTags {
+            entities: MAX_ENTITIES,
+            ..EntityTags::default()
+        };
+        assert_eq!(
+            counts.add_xml(b"<Entities><Entity/></Entities>"),
+            Err(SocError::TooManyEntities)
+        );
+    }
+
+    #[test]
+    fn the_tag_limit_holds_over_everything_added() {
+        let mut counts = EntityTags::default();
+        for at in 1..=MAX_TAGS {
+            let bytes = u128::try_from(at).expect("fits").to_le_bytes();
+            counts.by_tag.insert(Guid::from_stored(bytes), 1);
+        }
+        let known = counts.by_tag.keys().next().copied().expect("a tag");
+        let known =
+            format!(r#"<Entities><Entity><Tags><Tag TagId="{known}"/></Tags></Entity></Entities>"#);
+        counts.add_xml(known.as_bytes()).expect("a known tag fits");
+        let new =
+            format!(r#"<Entities><Entity><Tags><Tag TagId="{TAG_A}"/></Tags></Entity></Entities>"#);
+        assert_eq!(counts.add_xml(new.as_bytes()), Err(SocError::TooManyTags));
     }
 }

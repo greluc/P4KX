@@ -214,6 +214,8 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "lootPoolFilters",
             "lootContainers",
             "mineableEntities",
+            "legacyLootTables",
+            "legacyLootArchetypes",
             "crafters",
         ],
         "order of the catalog"

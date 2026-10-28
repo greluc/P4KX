@@ -64,6 +64,14 @@ pub enum CraftingWarning {
         /// One entry per container: its path and the reason.
         details: Vec<String>,
     },
+    /// This many entity files of containers name several different containers or multi configs;
+    /// only the first of each, in document order, is used. `details` names the files, ordered.
+    AmbiguousLootEntityFiles {
+        /// The number of entity files.
+        count: usize,
+        /// One entry per file: its container and path.
+        details: Vec<String>,
+    },
     /// This many `HarvestablePreset` or entity Records that provider presets and multi configs
     /// name are missing or cannot be built, so the harvestables that name them lack their entity
     /// and composition. `details` names the Records and why, ordered.
@@ -115,6 +123,7 @@ impl CraftingWarning {
             Self::UnreadableHarvestContainers { .. } => "unreadable_harvest_containers",
             Self::HarvestLocationsWithoutObject { .. } => "harvest_locations_without_object",
             Self::UnreadableLootContainers { .. } => "unreadable_loot_containers",
+            Self::AmbiguousLootEntityFiles { .. } => "ambiguous_loot_entity_files",
             Self::UnreadableHarvestables { .. } => "unreadable_harvestables",
             Self::UnreadableShopRegistry => "unreadable_shop_registry",
             Self::MissingShopRegistry => "missing_shop_registry",
@@ -139,6 +148,7 @@ impl CraftingWarning {
             | Self::UnreadableHarvestContainers { count, .. }
             | Self::HarvestLocationsWithoutObject { count, .. }
             | Self::UnreadableLootContainers { count, .. }
+            | Self::AmbiguousLootEntityFiles { count, .. }
             | Self::UnreadableHarvestables { count, .. }
             | Self::UnreadableVehicleFiles { count, .. }
             | Self::UnreadableShopInventories { count, .. } => Some(*count),
@@ -158,6 +168,7 @@ impl CraftingWarning {
             | Self::UnreadableHarvestContainers { details, .. }
             | Self::HarvestLocationsWithoutObject { details, .. }
             | Self::UnreadableLootContainers { details, .. }
+            | Self::AmbiguousLootEntityFiles { details, .. }
             | Self::UnreadableHarvestables { details, .. }
             | Self::UnreadableVehicleFiles { details, .. }
             | Self::UnreadableShopInventories { details, .. } => details,
@@ -226,6 +237,11 @@ impl fmt::Display for CraftingWarning {
             Self::UnreadableLootContainers { count, details } => write!(
                 f,
                 "{count} containers cannot be read for a multi config; the config may be missing from the loot containers{}",
+                Listed(details)
+            ),
+            Self::AmbiguousLootEntityFiles { count, details } => write!(
+                f,
+                "{count} entity files name several containers or multi configs; only the first of each is used{}",
                 Listed(details)
             ),
             Self::UnreadableHarvestables { count, details } => write!(

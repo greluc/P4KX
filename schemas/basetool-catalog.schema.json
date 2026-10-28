@@ -603,6 +603,14 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `items`."
         },
+        "legacyLootArchetypes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `legacyLootArchetypes`."
+        },
+        "legacyLootTables": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `legacyLootTables`."
+        },
         "loadouts": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `loadouts`."
@@ -718,6 +726,8 @@
         "harvestableLocations",
         "harvestableProviderPresets",
         "items",
+        "legacyLootArchetypes",
+        "legacyLootTables",
         "loadouts",
         "lootArchetypes",
         "lootContainers",
@@ -2822,6 +2832,315 @@
         }
       ]
     },
+    "LegacyLootArchetype": {
+      "description": "An older loot archetype: a `LootArchetype` Record under `lootgeneration/lootarchetypes`, the\nweighted tags of item a table entry stands for.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `LootArchetype_Antiques_Common`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `primaryOrGroup` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacyLootEntry"
+          },
+          "type": "array"
+        },
+        "excludedTagGuids": {
+          "description": "The `Tag` Records in `excludedTags`: items that carry one are never drawn.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "secondaryGroups": {
+          "description": "The groups of `secondaryOrGroups` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacySecondaryGroup"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "excludedTagGuids",
+        "guid",
+        "recordPath",
+        "secondaryGroups"
+      ],
+      "type": "object"
+    },
+    "LegacyLootEntry": {
+      "description": "One entry of the primary group of an older archetype.",
+      "properties": {
+        "additionalNegativeTagGuids": {
+          "description": "The `Tag` Records in `negativeTags` of `additionalTags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "additionalPositiveTagGuids": {
+          "description": "The `Tag` Records in `positiveTags` of `additionalTags`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "The designer's label of the entry.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "spawnWith": {
+          "description": "The `EntryOptionalData_SpawnWith` items spawned along with the entry, in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacySpawnWith"
+          },
+          "type": "array"
+        },
+        "stackSize": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuantityRange"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `EntryOptionalData_StackSize` of the entry."
+        },
+        "tagGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `Tag` Record the entry draws items by."
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the group.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "additionalNegativeTagGuids",
+        "additionalPositiveTagGuids",
+        "name",
+        "spawnWith",
+        "stackSize",
+        "tagGuid",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LegacyLootTable": {
+      "description": "An older loot table: a `LootTable` Record under `lootgeneration/loottables`. The `lootTable`\nof a slot's `lootConfig` links to one.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `Ammo`.",
+          "type": "string"
+        },
+        "entries": {
+          "description": "The entries of `lootArchetypes` in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacyLootTableEntry"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "entries",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "LegacyLootTableEntry": {
+      "description": "One entry of an older loot table: an archetype and the odds it is drawn.",
+      "properties": {
+        "archetypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `LootArchetype` Record the entry links to, an entry of `legacyLootArchetypes`."
+        },
+        "maxResults": {
+          "description": "`maxResults` of `numberOfResultsConstraints`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "minResults": {
+          "description": "`minResults` of `numberOfResultsConstraints`.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the table.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "archetypeGuid",
+        "maxResults",
+        "minResults",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LegacySecondaryEntry": {
+      "description": "One entry of a secondary group.",
+      "properties": {
+        "tagGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `Tag` Record of the entry."
+        },
+        "weight": {
+          "description": "The `weight` of the entry among the entries of the group.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "tagGuid",
+        "weight"
+      ],
+      "type": "object"
+    },
+    "LegacySecondaryGroup": {
+      "description": "A secondary group of an older archetype (`LootArchetypeOrGroup_Secondary`).",
+      "properties": {
+        "entries": {
+          "description": "The entries of the group in stored order.",
+          "items": {
+            "$ref": "#/$defs/LegacySecondaryEntry"
+          },
+          "type": "array"
+        },
+        "groupName": {
+          "description": "`groupName`, the designer's label, e.g. `Rarity`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "entries",
+        "groupName"
+      ],
+      "type": "object"
+    },
+    "LegacySpawnWith": {
+      "description": "Items an older entry spawns along with its own (`EntryOptionalData_SpawnWith`).",
+      "properties": {
+        "max": {
+          "description": "`max`, how many are spawned at most.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "description": "`min`, how many are spawned at least.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mode": {
+          "description": "`mode`, e.g. `MostSimilar`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "The designer's label.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "negativeTagGuids": {
+          "description": "The `Tag` Records in `negativeTags` of `tagsToMatch`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "positiveTagGuids": {
+          "description": "The `Tag` Records in `positiveTags` of `tagsToMatch`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "max",
+        "min",
+        "mode",
+        "name",
+        "negativeTagGuids",
+        "positiveTagGuids"
+      ],
+      "type": "object"
+    },
     "Loadout": {
       "description": "The ports of a ship or of an item that has ports, and what the Default Loadout puts into them.",
       "properties": {
@@ -3164,7 +3483,7 @@
               "type": "null"
             }
           ],
-          "description": "The `LootTable` Record the config links to, an older table the catalog does not list."
+          "description": "The `LootTable` Record the config links to, an entry of `legacyLootTables`."
         },
         "lootTableV3Guid": {
           "anyOf": [
@@ -3216,7 +3535,7 @@
           "type": "string"
         },
         "entityCount": {
-          "description": "The number of entities in the first `.soc` of the placed container; `null` when it cannot\nbe read.",
+          "description": "The number of entities in all `.soc` files of the placed container, 0 for none; `null`\nwhen a file cannot be read or the Archive lacks the container.",
           "format": "uint32",
           "minimum": 0,
           "type": [
@@ -3244,7 +3563,7 @@
           "type": "string"
         },
         "tagCounts": {
-          "description": "How many entities of the placed container carry each tag, ordered by GUID; empty when the\n`.soc` cannot be read. The tags of `tagGuids` of the tagged configs select the slots.",
+          "description": "How many entities of the placed container carry each tag, summed over its `.soc` files and\nordered by GUID; empty when `entityCount` is `null`. The tags of `tagGuids` of the tagged\nconfigs select the slots.",
           "items": {
             "$ref": "#/$defs/TagCount"
           },
@@ -3321,7 +3640,7 @@
           "type": "array"
         },
         "selectorType": {
-          "description": "The struct of the selector as stored, e.g. `LootArchetypeV3Selector_Tags`; `null` when the\nentry has none.",
+          "description": "The struct of the selector as stored, e.g. `LootArchetypeV3Selector_Tags`; informational,\nnot a selector; `null` when the entry has none.",
           "type": [
             "string",
             "null"
@@ -4282,7 +4601,7 @@
           "type": "array"
         },
         "nodeType": {
-          "description": "The struct of the node as stored, e.g. `PoolFilter_Sequence`.",
+          "description": "The struct of the node as stored, e.g. `PoolFilter_Sequence`; informational, not a\nselector: the other fields tell what the node holds.",
           "type": "string"
         },
         "positiveTagGuids": {
@@ -6872,6 +7191,20 @@
       },
       "type": "array"
     },
+    "legacyLootArchetypes": {
+      "description": "The older loot archetypes the older tables draw from, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LegacyLootArchetype"
+      },
+      "type": "array"
+    },
+    "legacyLootTables": {
+      "description": "The older loot tables, the targets of `lootConfig.lootTableGuid`, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/LegacyLootTable"
+      },
+      "type": "array"
+    },
     "loadouts": {
       "description": "The ports of every ship and of every item that has ports, with what the Default Loadout\nattaches to each, ordered by the GUID of the entity.",
       "items": {
@@ -7076,6 +7409,8 @@
     "harvestableProviderPresets",
     "itemRecovery",
     "items",
+    "legacyLootArchetypes",
+    "legacyLootTables",
     "loadouts",
     "lootArchetypes",
     "lootContainers",

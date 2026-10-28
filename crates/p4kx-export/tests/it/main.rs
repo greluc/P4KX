@@ -3,6 +3,8 @@
 
 //! Integration tests of `p4kx-export`, built as one test binary.
 
+#![recursion_limit = "256"]
+
 mod catalog_compression;
 mod catalog_contracts;
 mod catalog_contracts_cooldown;
@@ -26,6 +28,7 @@ mod catalog_loadouts;
 mod catalog_loadouts_edges;
 mod catalog_loadouts_references;
 mod catalog_loot;
+mod catalog_loot_followups;
 mod catalog_mining;
 mod catalog_paints;
 mod catalog_playability;

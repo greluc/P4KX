@@ -118,7 +118,11 @@ impl<'f> Picked<'f> {
             | Kind::ContractScenarios => {
                 return MissionPick::entity(kind, tree, texts).map(Self::Mission);
             }
-            Kind::LootTables | Kind::LootArchetypes | Kind::LootPoolFilters => {
+            Kind::LootTables
+            | Kind::LootArchetypes
+            | Kind::LootPoolFilters
+            | Kind::LegacyLootTables
+            | Kind::LegacyLootArchetypes => {
                 return LootPick::entity(kind, tree).map(Self::Loot);
             }
             Kind::Blueprints

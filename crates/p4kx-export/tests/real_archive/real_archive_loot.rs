@@ -23,10 +23,21 @@ fn print_line(line: &str) {
     println!("{line}");
 }
 
-fn catalog() -> Result<Value, Box<dyn Error>> {
+fn built() -> Result<(Value, Vec<String>), Box<dyn Error>> {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
-    Ok(serde_json::from_slice(built.json())?)
+    let warnings = built
+        .summary()
+        .warnings()
+        .iter()
+        .filter(|warning| warning.kind().contains("loot"))
+        .map(|warning| format!("{warning}"))
+        .collect();
+    Ok((serde_json::from_slice(built.json())?, warnings))
+}
+
+fn catalog() -> Result<Value, Box<dyn Error>> {
+    Ok(built()?.0)
 }
 
 fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c Vec<Value>, String> {
@@ -165,5 +176,42 @@ fn the_loot_kinds_and_the_containers_of_a_real_archive_are_linked() -> TestResul
             .filter_map(|row| row["multiConfigGuid"].as_str()),
         &configs,
     );
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_older_loot_records_of_a_real_archive_resolve_and_the_scan_warns_of_nothing() -> TestResult {
+    let (catalog, warnings) = built()?;
+    for warning in &warnings {
+        print_line(warning);
+    }
+    let tables = guids(&catalog, "legacyLootTables")?;
+    let archetypes = guids(&catalog, "legacyLootArchetypes")?;
+    print_line(&format!(
+        "legacyLootTables {}, legacyLootArchetypes {}",
+        tables.len(),
+        archetypes.len()
+    ));
+    for table in list(&catalog, "legacyLootTables")? {
+        assert_resolve(
+            "the archetypes of an older table",
+            array(table, "entries")
+                .iter()
+                .filter_map(|entry| entry["archetypeGuid"].as_str()),
+            &archetypes,
+        );
+    }
+    for config in list(&catalog, "subHarvestableMultiConfigs")? {
+        for tagged in array(config, "taggedConfigs") {
+            for slot in array(tagged, "subHarvestables") {
+                assert_resolve(
+                    "the older table of a slot",
+                    slot["lootConfig"]["lootTableGuid"].as_str(),
+                    &tables,
+                );
+            }
+        }
+    }
     Ok(())
 }

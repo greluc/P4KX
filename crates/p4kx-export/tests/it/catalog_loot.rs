@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn build() -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
+pub(crate) fn build() -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive =
         Archive::open_with_key(write_archive(dir.path())?, Some(p4kx_testkit::test_key()))?;
@@ -29,7 +29,11 @@ fn build() -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     Ok((built, json))
 }
 
-fn entry<'a>(catalog: &'a Value, kind: &str, record: u128) -> Result<&'a Value, Box<dyn Error>> {
+pub(crate) fn entry<'a>(
+    catalog: &'a Value,
+    kind: &str,
+    record: u128,
+) -> Result<&'a Value, Box<dyn Error>> {
     catalog[kind]
         .as_array()
         .into_iter()
@@ -226,15 +230,15 @@ fn a_container_placed_with_a_config_is_listed_for_each_root_it_hangs_below() -> 
         })
     };
     let tags = json!([
-        {"tagGuid": guid_text(TAG_RARE), "entities": 1},
+        {"tagGuid": guid_text(TAG_RARE), "entities": 2},
         {"tagGuid": guid_text(TAG_COMMON), "entities": 3}
     ]);
     let planet = json!(guid_text(PLANET));
     assert_eq!(
         catalog["lootContainers"],
         json!([
-            area(Value::Null, json!(4), tags.clone()),
-            area(planet.clone(), json!(4), tags),
+            area(Value::Null, json!(5), tags.clone()),
+            area(planet.clone(), json!(5), tags),
             nested(Value::Null),
             nested(planet.clone()),
             {

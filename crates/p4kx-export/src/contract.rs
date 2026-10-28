@@ -17,6 +17,7 @@ pub(crate) use crate::contract_harvest::{HarvestableLocation, HarvestableProvide
 pub(crate) use crate::contract_harvest_config::SubHarvestableMultiConfig;
 pub(crate) use crate::contract_loadout::Loadout;
 pub(crate) use crate::contract_loot::{LootArchetype, LootContainer, LootPoolFilter, LootTable};
+pub(crate) use crate::contract_loot_legacy::{LegacyLootArchetype, LegacyLootTable};
 pub(crate) use crate::contract_mining::{
     CompositionPart, MineableComposition, MineableElement, MineableEntity, RefiningProcess,
 };
@@ -131,6 +132,10 @@ pub(crate) struct Catalog<'a> {
     pub(crate) loot_archetypes: Vec<LootArchetype<'a>>,
     /// The loot pool filters, ordered by GUID.
     pub(crate) loot_pool_filters: Vec<LootPoolFilter<'a>>,
+    /// The older loot tables, the targets of `lootConfig.lootTableGuid`, ordered by GUID.
+    pub(crate) legacy_loot_tables: Vec<LegacyLootTable<'a>>,
+    /// The older loot archetypes the older tables draw from, ordered by GUID.
+    pub(crate) legacy_loot_archetypes: Vec<LegacyLootArchetype<'a>>,
     /// The mineable entities with the scan signature of each, ordered by GUID.
     pub(crate) mineable_entities: Vec<MineableEntity<'a>>,
     /// The crafting stations with the limits of their job queues, ordered by GUID.
@@ -255,6 +260,10 @@ pub(crate) struct Completeness<'a> {
     pub(crate) loot_archetypes: KindCompleteness<'a>,
     /// The completeness of `lootPoolFilters`.
     pub(crate) loot_pool_filters: KindCompleteness<'a>,
+    /// The completeness of `legacyLootTables`.
+    pub(crate) legacy_loot_tables: KindCompleteness<'a>,
+    /// The completeness of `legacyLootArchetypes`.
+    pub(crate) legacy_loot_archetypes: KindCompleteness<'a>,
     /// The completeness of `mineableEntities`.
     pub(crate) mineable_entities: KindCompleteness<'a>,
     /// The completeness of `crafters`.
@@ -302,6 +311,8 @@ impl<'a> Completeness<'a> {
             loot_tables: completeness,
             loot_archetypes: completeness,
             loot_pool_filters: completeness,
+            legacy_loot_tables: completeness,
+            legacy_loot_archetypes: completeness,
             mineable_entities: completeness,
             crafters: completeness,
             ship_store_slugs: completeness,

@@ -338,6 +338,8 @@ fn every_kind_states_its_completeness() -> TestResult {
             "lootTables": {"status": "complete"},
             "lootArchetypes": {"status": "complete"},
             "lootPoolFilters": {"status": "complete"},
+            "legacyLootTables": {"status": "complete"},
+            "legacyLootArchetypes": {"status": "complete"},
             "lootContainers": {"status": "complete"},
             "mineableEntities": {"status": "complete"},
             "crafters": {"status": "complete"},

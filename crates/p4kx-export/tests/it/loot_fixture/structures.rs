@@ -92,7 +92,50 @@ fn table_structs() -> Vec<TestStruct> {
             .array("optionalData", pointer("LootTableOptionalDataV3")),
         TestStruct::new("LootTableV3").array("lootArchetypes", class("LootTableV3Entry")),
         TestStruct::new("LootTableV3Record").field("lootTable", class("LootTableV3")),
-        TestStruct::new("LootTable"),
+    ]
+}
+
+fn legacy_structs() -> Vec<TestStruct> {
+    vec![
+        TestStruct::new("NumResultsConstraints")
+            .field("minResults", TestType::Int32)
+            .field("maxResults", TestType::Int32),
+        TestStruct::new("WeightedLootArchetype")
+            .field("weight", TestType::Single)
+            .field("archetype", TestType::Reference)
+            .field("numberOfResultsConstraints", class("NumResultsConstraints")),
+        TestStruct::new("LootTable").array("lootArchetypes", class("WeightedLootArchetype")),
+        TestStruct::new("TagList").array("tags", TestType::Reference),
+        TestStruct::new("EntryOptionalData"),
+        TestStruct::new("EntryOptionalData_StackSize")
+            .parent("EntryOptionalData")
+            .field("min", TestType::Int32)
+            .field("max", TestType::Int32),
+        TestStruct::new("EntryOptionalData_SpawnWith")
+            .parent("EntryOptionalData")
+            .field("name", TestType::String)
+            .field("mode", TestType::String)
+            .field("min", TestType::Int32)
+            .field("max", TestType::Int32)
+            .field("tagsToMatch", class("TagsDNFTerm")),
+        TestStruct::new("LootArchetypeEntry_Primary")
+            .field("name", TestType::String)
+            .field("weight", TestType::Single)
+            .field("tag", TestType::Reference)
+            .field("additionalTags", class("TagsDNFTerm"))
+            .array("optionalData", pointer("EntryOptionalData")),
+        TestStruct::new("LootArchetypeOrGroup_Primary")
+            .array("entries", class("LootArchetypeEntry_Primary")),
+        TestStruct::new("LootArchetypeEntry_Secondary")
+            .field("weight", TestType::Single)
+            .field("tag", TestType::Reference),
+        TestStruct::new("LootArchetypeOrGroup_Secondary")
+            .field("groupName", TestType::String)
+            .array("entries", class("LootArchetypeEntry_Secondary")),
+        TestStruct::new("LootArchetype")
+            .field("excludedTags", class("TagList"))
+            .field("primaryOrGroup", class("LootArchetypeOrGroup_Primary"))
+            .array("secondaryOrGroups", class("LootArchetypeOrGroup_Secondary")),
     ]
 }
 
@@ -163,6 +206,7 @@ pub(super) fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
         selector_structs(),
         archetype_structs(),
         table_structs(),
+        legacy_structs(),
         filter_structs(),
         slot_structs(),
     ]

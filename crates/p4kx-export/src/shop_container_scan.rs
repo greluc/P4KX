@@ -2,22 +2,19 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::HashMap;
-use std::io::Read;
-use std::path::Path;
 
-use p4kx_extraction::cryxml::{self, Xml};
 use p4kx_extraction::{Archive, Entry};
 
+use crate::container_read::{MAX_SOC_LEN, read_limited, soc_entries};
 use crate::shop_containers::{Component, Inventory, verdict};
 use crate::shop_soc::{self, Anchors};
 use crate::starmap_index::key;
-use crate::starmap_xml::{Node, attribute};
+use crate::starmap_xml::{Document, Node, attribute};
 
 const SHOP_METADATA: &str = "\\metadata\\entitycomponentshop.xml";
 const EDITOR_SUFFIX: &str = "_editor.xml";
 const SHOP_TYPE: &str = "SCShop";
 const MAX_METADATA_LEN: u64 = 1 << 20;
-pub(crate) const MAX_SOC_LEN: u64 = 64 << 20;
 const MAX_EDITOR_LEN: u64 = 256 << 20;
 
 /// The `CryGUID`s of a container with what its `.soc` files say of each one's component.
@@ -40,11 +37,7 @@ pub(crate) fn shop_entities(archive: &Archive, socpak: &Entry) -> Option<(Shops,
     let anchors = Anchors::new(&guids, object_names(&container).unwrap_or_default());
     let mut found: HashMap<String, Vec<Component>> = HashMap::new();
     let mut rejected = 0;
-    for inner in container.entries().iter().filter(|inner| {
-        Path::new(inner.path())
-            .extension()
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("soc"))
-    }) {
+    for inner in soc_entries(&container) {
         let Some(bytes) = read_limited(&container, inner, MAX_SOC_LEN) else {
             continue;
         };
@@ -79,32 +72,8 @@ fn combined(states: &[Component]) -> Component {
     }
 }
 
-pub(crate) fn read_limited(container: &Archive, entry: &Entry, limit: u64) -> Option<Vec<u8>> {
-    if entry.uncompressed_size() > limit {
-        return None;
-    }
-    let mut bytes = Vec::new();
-    container
-        .open_entry(entry)
-        .ok()?
-        .take(limit)
-        .read_to_end(&mut bytes)
-        .ok()?;
-    Some(bytes)
-}
-
 fn entities(bytes: &[u8]) -> Option<Vec<String>> {
-    match cryxml::read(bytes).ok()? {
-        Xml::CryXml(document) => Some(guids(document.root())),
-        Xml::Text(text) => {
-            let text = std::str::from_utf8(text)
-                .ok()?
-                .trim_start_matches('\u{feff}');
-            cryxml::check_text_depth(text).ok()?;
-            let document = roxmltree::Document::parse(text).ok()?;
-            Some(guids(document.root_element()))
-        }
-    }
+    Some(guids(Document::parse(bytes).ok()?.root()))
 }
 
 fn guids<'d, N: Node<'d>>(root: N) -> Vec<String> {
@@ -121,17 +90,7 @@ fn object_names(container: &Archive) -> Option<HashMap<String, String>> {
         !path.contains(['\\', '/']) && key(path).ends_with(EDITOR_SUFFIX)
     })?;
     let bytes = read_limited(container, editor, MAX_EDITOR_LEN)?;
-    match cryxml::read(&bytes).ok()? {
-        Xml::CryXml(document) => Some(shop_objects(document.root())),
-        Xml::Text(text) => {
-            let text = std::str::from_utf8(text)
-                .ok()?
-                .trim_start_matches('\u{feff}');
-            cryxml::check_text_depth(text).ok()?;
-            let document = roxmltree::Document::parse(text).ok()?;
-            Some(shop_objects(document.root_element()))
-        }
-    }
+    Some(shop_objects(Document::parse(&bytes).ok()?.root()))
 }
 
 fn shop_objects<'d, N: Node<'d>>(root: N) -> HashMap<String, String> {
@@ -158,4 +117,49 @@ fn shop_objects<'d, N: Node<'d>>(root: N) -> HashMap<String, String> {
         .into_iter()
         .filter_map(|(name, guid)| guid.map(|guid| (name.to_owned(), guid)))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use p4kx_testkit::{CryXmlByteOrder, CryXmlSignature, TestElement};
+
+    use super::*;
+
+    const METADATA: &str =
+        r#"<Entities><Entity CryGUID="AB-1"/><Other/><Entity CryGUID="cd-2"/></Entities>"#;
+
+    #[test]
+    fn the_shop_entities_are_read_from_text_xml_with_or_without_a_byte_order_mark() {
+        let expected = Some(vec!["ab-1".to_owned(), "cd-2".to_owned()]);
+        assert_eq!(entities(METADATA.as_bytes()), expected);
+        assert_eq!(entities(format!("\u{feff}{METADATA}").as_bytes()), expected);
+    }
+
+    #[test]
+    fn the_shop_entities_are_read_from_cryxml() {
+        let cry = TestElement::new("Entities")
+            .child(TestElement::new("Entity").attribute("CryGUID", "AB-1"))
+            .to_cryxml(CryXmlSignature::CryXmlB, CryXmlByteOrder::Little);
+        assert_eq!(entities(&cry), Some(vec!["ab-1".to_owned()]));
+    }
+
+    #[test]
+    fn bytes_that_are_no_xml_give_no_shop_entities() {
+        assert_eq!(entities(b"not xml"), None);
+        assert_eq!(entities(b"<a b=\"\xff\"/>"), None);
+        assert_eq!(entities(b"<a><b></a>"), None);
+    }
+
+    #[test]
+    fn a_shop_object_name_that_two_guids_claim_is_dropped_in_text_xml_with_a_mark() {
+        let editor = "\u{feff}<Root><Object type=\"SCShop\" name=\"one\" guid=\"A\"/>\
+            <Object type=\"SCShop\" name=\"two\" guid=\"B\"/>\
+            <Object type=\"SCShop\" name=\"two\" guid=\"C\"/>\
+            <Object type=\"Other\" name=\"three\" guid=\"D\"/></Root>";
+        let document = Document::parse(editor.as_bytes()).expect("text XML");
+        let named = shop_objects(document.root());
+        assert_eq!(named.get("one").map(String::as_str), Some("a"));
+        assert!(!named.contains_key("two"), "ambiguous");
+        assert!(!named.contains_key("three"), "not a shop");
+    }
 }

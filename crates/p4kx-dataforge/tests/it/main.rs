@@ -17,6 +17,7 @@ mod invalid_values;
 mod nested;
 mod nested_xml;
 mod open;
+mod probe;
 mod query_completion;
 mod query_completion_links;
 mod query_condition_fuzz;

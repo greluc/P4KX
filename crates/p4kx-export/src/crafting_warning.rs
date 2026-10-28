@@ -46,10 +46,10 @@ pub enum CraftingWarning {
         /// One entry per container: its path and the reason.
         details: Vec<String>,
     },
-    /// This many harvestable locations have no starmap object although a Child element reaches
-    /// their container: the object is not in the catalog, the chain of objects above is longer
-    /// than 64, or a mining claim marker has no object above it. `details` gives each reason with
-    /// its number, ordered.
+    /// This many harvestable locations have no starmap object although one is recorded above
+    /// their container: it is not in the starmap objects, 64 or more mining claim markers lie
+    /// above, or a marker has no object above it. A container with no object recorded above is
+    /// the normal case and not counted. `details` gives each reason with its number, ordered.
     HarvestLocationsWithoutObject {
         /// The number of locations.
         count: usize,
@@ -220,7 +220,7 @@ impl fmt::Display for CraftingWarning {
             ),
             Self::HarvestLocationsWithoutObject { count, details } => write!(
                 f,
-                "{count} harvestable locations have no starmap object although a Child element reaches their container{}",
+                "{count} harvestable locations have no starmap object although one is recorded above their container{}",
                 Listed(details)
             ),
             Self::UnreadableLootContainers { count, details } => write!(

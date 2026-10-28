@@ -28,11 +28,13 @@ enum Soc {
 /// Why a container has no starmap object.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum NoObject {
-    /// No Child element of the walk reaches the container.
-    Unreached,
-    /// The object the container hangs below is not in the catalog, for it was left out.
+    /// No object is recorded above the container: no Child reaches it, or it is reached with no
+    /// object above, as a system root.
+    NoneAbove,
+    /// The object the container hangs below is not in the starmap objects.
     NotInCatalog,
-    /// More than [`MAX_CHAIN`] objects lie between the container and an object that is no marker.
+    /// [`MAX_CHAIN`] or more mining claim markers lie between the container and the first object
+    /// that is none.
     ChainTooLong,
     /// A mining claim marker is the top of the chain, with no object above it.
     MarkerWithoutParent,
@@ -42,17 +44,19 @@ impl NoObject {
     /// Returns the reason as the warning words it.
     pub(crate) const fn reason(self) -> &'static str {
         match self {
-            Self::Unreached => "no Child element reaches the container",
-            Self::NotInCatalog => "the object the container hangs below is not in the catalog",
-            Self::ChainTooLong => "the objects above the container are chained deeper than 64",
+            Self::NoneAbove => "no object is recorded above the container",
+            Self::NotInCatalog => {
+                "the object the container hangs below is not in the starmap objects"
+            }
+            Self::ChainTooLong => "64 or more mining claim markers lie above the container",
             Self::MarkerWithoutParent => "a mining claim marker has no object above it",
         }
     }
 
-    /// Whether the reason is a loss the caller should hear of: an unreached container is the
-    /// normal case of a container the walk never opens.
+    /// Whether the reason is a loss the caller should hear of: a container with no object above
+    /// it is the normal case and stays silent.
     pub(crate) const fn is_loss(self) -> bool {
-        !matches!(self, Self::Unreached)
+        !matches!(self, Self::NoneAbove)
     }
 }
 
@@ -92,7 +96,7 @@ impl Objects {
     /// Returns the object a container hangs below: `under`, else the object above it while it is
     /// a mining claim marker; the reason when there is none.
     pub(crate) fn location(&self, under: Option<Guid>) -> Result<CatalogGuid, NoObject> {
-        let mut at = under.ok_or(NoObject::Unreached)?;
+        let mut at = under.ok_or(NoObject::NoneAbove)?;
         for _ in 0..MAX_CHAIN {
             let &(mining_claim, above) = self.by_guid.get(&at).ok_or(NoObject::NotInCatalog)?;
             if !mining_claim {
@@ -264,7 +268,7 @@ mod tests {
     #[test]
     fn each_missing_object_says_why() {
         let objects = objects(&[(2, true, None)]);
-        assert_eq!(objects.location(None), Err(NoObject::Unreached));
+        assert_eq!(objects.location(None), Err(NoObject::NoneAbove));
         assert_eq!(objects.location(Some(guid(9))), Err(NoObject::NotInCatalog));
         assert_eq!(
             objects.location(Some(guid(2))),
@@ -272,20 +276,61 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_chain_of_markers_longer_than_the_limit_is_too_long() {
-        let entries: Vec<(u8, bool, Option<u8>)> = (1..=70)
+    /// `count` markers, each hanging below the next, then a plain object.
+    fn markers_then_plain(count: u8) -> Objects {
+        let entries: Vec<(u8, bool, Option<u8>)> = (1..=count)
             .map(|number| (number, true, Some(number + 1)))
-            .chain([(71, false, None)])
+            .chain([(count + 1, false, None)])
             .collect();
-        let objects = objects(&entries);
-        assert_eq!(objects.location(Some(guid(1))), Err(NoObject::ChainTooLong));
-        assert_eq!(objects.location(Some(guid(10))), Ok(CatalogGuid(guid(71))));
+        objects(&entries)
     }
 
     #[test]
-    fn only_an_unreached_container_is_no_loss() {
-        assert!(!NoObject::Unreached.is_loss());
+    fn sixty_three_markers_still_reach_the_object_above() {
+        let objects = markers_then_plain(63);
+        assert_eq!(objects.location(Some(guid(1))), Ok(CatalogGuid(guid(64))));
+    }
+
+    #[test]
+    fn sixty_four_markers_are_too_long() {
+        let objects = markers_then_plain(64);
+        assert_eq!(objects.location(Some(guid(1))), Err(NoObject::ChainTooLong));
+        assert_eq!(objects.location(Some(guid(2))), Ok(CatalogGuid(guid(65))));
+    }
+
+    #[test]
+    fn a_container_with_no_object_above_is_no_loss() {
+        assert!(!NoObject::NoneAbove.is_loss());
         assert!(NoObject::NotInCatalog.is_loss());
+    }
+
+    #[test]
+    fn the_losses_count_every_reason_but_none_above() {
+        let row = |reason| {
+            (
+                HarvestableLocation {
+                    preset_guid: CatalogGuid(guid(1)),
+                    starmap_object_guid: None,
+                    system: String::new(),
+                    container: String::new(),
+                },
+                reason,
+            )
+        };
+        let rows = [
+            row(None),
+            row(Some(NoObject::NoneAbove)),
+            row(Some(NoObject::NoneAbove)),
+            row(Some(NoObject::NotInCatalog)),
+            row(Some(NoObject::NotInCatalog)),
+            row(Some(NoObject::MarkerWithoutParent)),
+        ];
+        assert_eq!(
+            losses(&rows),
+            vec![
+                (NoObject::NotInCatalog, 2),
+                (NoObject::MarkerWithoutParent, 1)
+            ]
+        );
     }
 }

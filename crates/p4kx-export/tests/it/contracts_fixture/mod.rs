@@ -5,6 +5,7 @@
 //! organisation with tagged string variants and reputation rewards.
 
 mod lookups;
+mod prerequisites;
 mod records;
 mod referenced;
 mod structures;

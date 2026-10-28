@@ -25,6 +25,7 @@ mod real_archive_paints;
 mod real_archive_playability;
 mod real_archive_quantization;
 mod real_archive_records;
+mod real_archive_reputation;
 mod real_archive_ship_base;
 mod real_archive_shop_items;
 mod real_archive_shops;

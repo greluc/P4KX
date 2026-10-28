@@ -14,6 +14,7 @@ use crate::guid_text::CatalogGuid;
 use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_layers::{Layer, Prop, Property, items, one};
 use crate::mission_places::{Places, Where};
+use crate::mission_standing::Standing;
 use crate::mission_title::{Token, title};
 use crate::record_fields::{boolean, guid_value, reference, text};
 use crate::selection::{Kind, is_leftover};
@@ -204,7 +205,10 @@ impl<'f> Parent<'_, 'f> {
         let contract_layer = Layer::read(one(Some(self.contract), "paramOverrides"));
         let broker = reference(Some(self.contract), "missionBrokerEntry")
             .and_then(|guid| index.broker(guid.0));
-        let gains = gains(self.contract, index);
+        let shared = Shared {
+            gains: gains(self.contract, index),
+            standing: Standing::read(self.handler, self.contract),
+        };
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
                 sub.map(|sub| Layer::read(one(Some(sub), "paramOverrides").or(Some(sub))));
@@ -233,7 +237,7 @@ impl<'f> Parent<'_, 'f> {
                 &levels,
                 template,
                 (template_data, broker),
-                (&gains, pickup),
+                (&shared, pickup),
                 context,
             )
         };
@@ -259,7 +263,7 @@ impl<'f> Parent<'_, 'f> {
         levels: &[&Layer<'f>],
         template: Option<p4kx_extraction::Guid>,
         (template_data, broker): (Option<&Template<'f>>, Option<&Broker<'f>>),
-        (gains, pickup): (&[ReputationGain<'f>], Vec<PickupPlace<'f>>),
+        (shared, pickup): (&Shared<'f>, Vec<PickupPlace<'f>>),
         context: &Context<'_, 'f>,
     ) -> ContractEntry<'f> {
         let (index, texts) = (context.index, context.texts);
@@ -313,9 +317,18 @@ impl<'f> Parent<'_, 'f> {
             contractor: texts.localised(levels.iter().find_map(|level| level.contractor)),
             faction,
             pickup_places: pickup,
-            reputation_gains: gains.to_vec(),
+            reputation_gains: shared.gains.clone(),
+            min_standing_guid: shared.standing.min,
+            max_standing_guid: shared.standing.max,
+            standing_requirements: shared.standing.requirements_of(sub),
         }
     }
+}
+
+/// What the entries of one contract share: the reputation it grants and requires.
+struct Shared<'f> {
+    gains: Vec<ReputationGain<'f>>,
+    standing: Standing,
 }
 
 fn identity(structure: &StructValue<'_>) -> Option<p4kx_extraction::Guid> {

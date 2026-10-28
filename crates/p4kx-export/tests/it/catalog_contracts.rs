@@ -12,9 +12,9 @@ use p4kx_export::{BuiltCatalog, CatalogOptions, Filter, Kind, build_catalog};
 use p4kx_extraction::Archive;
 use serde_json::{Value, json};
 
-type TestResult = Result<(), Box<dyn Error>>;
+pub(crate) type TestResult = Result<(), Box<dyn Error>>;
 
-fn build(filter: Option<&Filter>) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
+pub(crate) fn build(filter: Option<&Filter>) -> Result<(BuiltCatalog, Value), Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = Archive::open_with_key(
         contracts_fixture::write_archive(dir.path())?,
@@ -27,7 +27,11 @@ fn build(filter: Option<&Filter>) -> Result<(BuiltCatalog, Value), Box<dyn Error
     Ok((built, json))
 }
 
-fn entry<'a>(catalog: &'a Value, contract: &str, sub: Option<&str>) -> Result<&'a Value, String> {
+pub(crate) fn entry<'a>(
+    catalog: &'a Value,
+    contract: &str,
+    sub: Option<&str>,
+) -> Result<&'a Value, String> {
     catalog["contracts"]
         .as_array()
         .into_iter()
@@ -39,15 +43,15 @@ fn entry<'a>(catalog: &'a Value, contract: &str, sub: Option<&str>) -> Result<&'
         .ok_or_else(|| format!("{contract} {sub:?}"))
 }
 
-const A: &str = "20000000-0000-4000-8000-000000000001";
-const B: &str = "20000000-0000-4000-8000-000000000002";
+pub(crate) const A: &str = "20000000-0000-4000-8000-000000000001";
+pub(crate) const B: &str = "20000000-0000-4000-8000-000000000002";
 const C: &str = "20000000-0000-4000-8000-000000000003";
 const D: &str = "20000000-0000-4000-8000-000000000005";
 const E: &str = "20000000-0000-4000-8000-000000000006";
 const G: &str = "20000000-0000-4000-8000-000000000008";
 const H: &str = "20000000-0000-4000-8000-000000000009";
 const I: &str = "20000000-0000-4000-8000-00000000000a";
-const SUB_ONE: &str = "30000000-0000-4000-8000-000000000001";
+pub(crate) const SUB_ONE: &str = "30000000-0000-4000-8000-000000000001";
 const SUB_TWO: &str = "30000000-0000-4000-8000-000000000002";
 
 #[test]

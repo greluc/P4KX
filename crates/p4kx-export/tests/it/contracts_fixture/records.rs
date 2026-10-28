@@ -4,6 +4,7 @@
 use p4kx_testkit::{DataForgeBuilder, TestInstance, TestRecord, TestValue};
 
 use super::lookups::legacy;
+use super::prerequisites::{locality, location, standing_prerequisite};
 use super::{
     AFFINITY, BOUNTY, BROKER, CONTRACT_A, CONTRACT_B, CONTRACT_C, CONTRACT_D, CONTRACT_DEV,
     CONTRACT_E, CONTRACT_F, CONTRACT_G, CONTRACT_H, CONTRACT_I, ESCORT, FACTION, FACTION_SCOPE,
@@ -116,31 +117,25 @@ fn sub(id: u128, params: TestValue, prerequisites: Vec<TestValue>) -> TestValue 
     )
 }
 
-fn locality(guid: u128) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("ContractPrerequisite_Locality")
-            .value("localityAvailable", reference(guid)),
-    )
-}
-
-fn location(guid: u128) -> TestValue {
-    TestValue::Struct(
-        TestInstance::new("ContractPrerequisite_Location")
-            .value("locationAvailable", reference(guid)),
-    )
-}
-
 fn handler(
     name: &str,
     params: TestValue,
     contracts: Vec<TestValue>,
     intro: Vec<TestValue>,
     faction: u128,
+    prerequisites: Vec<TestValue>,
 ) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ContractGeneratorHandler_Career")
             .value("debugName", TestValue::text(name))
             .value("factionReputation", reference(faction))
+            .value(
+                "defaultAvailability",
+                TestValue::Struct(
+                    TestInstance::new("ContractAvailability")
+                        .value("prerequisites", TestValue::Array(prerequisites)),
+                ),
+            )
             .value("contractParams", params)
             .value("contracts", TestValue::Array(contracts))
             .value("introContracts", TestValue::Array(intro)),
@@ -164,15 +159,23 @@ fn delivery_contract() -> TestInstance {
             sub(
                 SUB_ONE,
                 overrides(Some("@title_sub"), Some(ESCORT), Vec::new()),
-                vec![location(OBJ_PLANET)],
+                vec![
+                    location(OBJ_PLANET),
+                    standing_prerequisite(true, Some((RANK_TWO_HUNDRED, RANK_FIFTY))),
+                ],
             ),
             sub(SUB_TWO, overrides(None, None, Vec::new()), Vec::new()),
         ]),
     )
     .value(
         "additionalPrerequisites",
-        TestValue::Array(vec![locality(LOC_A)]),
+        TestValue::Array(vec![
+            locality(LOC_A),
+            standing_prerequisite(false, Some((RANK_FIFTY, RANK_TWO_HUNDRED))),
+        ]),
     )
+    .value("minStanding", reference(RANK_FIFTY))
+    .value("maxStanding", reference(RANK_TWO_HUNDRED))
     .value(
         "contractResults",
         results(vec![
@@ -221,6 +224,7 @@ fn bounty_handler() -> TestValue {
         vec![TestValue::Struct(bounty)],
         vec![TestValue::Struct(leftover), TestValue::Struct(without_id)],
         0,
+        Vec::new(),
     )
 }
 
@@ -272,6 +276,7 @@ fn delivery_handler() -> TestValue {
         ],
         Vec::new(),
         FACTION,
+        vec![standing_prerequisite(false, None)],
     )
 }
 
@@ -326,6 +331,7 @@ fn copy_handler() -> TestValue {
         ],
         Vec::new(),
         0,
+        Vec::new(),
     )
 }
 
@@ -342,6 +348,7 @@ fn event_handler() -> TestValue {
         vec![TestValue::Struct(event)],
         Vec::new(),
         0,
+        Vec::new(),
     )
 }
 

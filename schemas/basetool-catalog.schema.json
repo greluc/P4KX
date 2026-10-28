@@ -567,6 +567,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `commodities`."
         },
+        "contractScenarios": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `contractScenarios`."
+        },
         "contracts": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `contracts`."
@@ -574,6 +578,10 @@
         "dismantleProcesses": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `dismantleProcesses`."
+        },
+        "factionReputations": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `factionReputations`."
         },
         "gameplayProperties": {
           "$ref": "#/$defs/KindCompleteness",
@@ -611,6 +619,14 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `miningGlobalParams`."
         },
+        "missionLocalities": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `missionLocalities`."
+        },
+        "missionTypes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `missionTypes`."
+        },
         "paints": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `paints`."
@@ -626,6 +642,18 @@
         "refiningProcesses": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `refiningProcesses`."
+        },
+        "reputationContexts": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `reputationContexts`."
+        },
+        "reputationScopes": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `reputationScopes`."
+        },
+        "reputationStandings": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `reputationStandings`."
         },
         "resourceGroups": {
           "$ref": "#/$defs/KindCompleteness",
@@ -657,8 +685,10 @@
         "blueprintPools",
         "blueprints",
         "commodities",
+        "contractScenarios",
         "contracts",
         "dismantleProcesses",
+        "factionReputations",
         "gameplayProperties",
         "harvestableLocations",
         "harvestableProviderPresets",
@@ -668,10 +698,15 @@
         "mineableCompositions",
         "mineableElements",
         "miningGlobalParams",
+        "missionLocalities",
+        "missionTypes",
         "paints",
         "qualityDistributions",
         "qualityQuantizations",
         "refiningProcesses",
+        "reputationContexts",
+        "reputationScopes",
+        "reputationStandings",
         "resourceGroups",
         "shipStoreSlugs",
         "ships",
@@ -783,6 +818,28 @@
             "null"
           ]
         },
+        "maxStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `maxStanding` of the contract: the highest standing that is offered it; `null` when\nthe contract states none. A sub contract shares the contract's value."
+        },
+        "minStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `minStanding` of the contract: the lowest standing that is offered it, the `guid` of an\nentry of `reputationStandings`; `null` when the contract states none. A sub contract\nshares the contract's value."
+        },
         "missionType": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The localised name of the mission type.",
@@ -828,6 +885,13 @@
           },
           "type": "array"
         },
+        "standingRequirements": {
+          "description": "The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the\nsub contract, in that order and as stored. The catalog does not decide how they combine.",
+          "items": {
+            "$ref": "#/$defs/StandingRequirement"
+          },
+          "type": "array"
+        },
         "subContractGuid": {
           "anyOf": [
             {
@@ -869,6 +933,8 @@
         "faction",
         "guid",
         "handler",
+        "maxStandingGuid",
+        "minStandingGuid",
         "missionType",
         "missionTypeGuid",
         "notForRelease",
@@ -876,6 +942,7 @@
         "recordGuid",
         "recordPath",
         "reputationGains",
+        "standingRequirements",
         "subContractGuid",
         "templateGuid",
         "title",
@@ -904,6 +971,37 @@
         "displayName",
         "guid",
         "name"
+      ],
+      "type": "object"
+    },
+    "ContractScenario": {
+      "description": "A contract scenario: a `ScenarioProgress` Record under `contracts/contractscenarios`, the\nrewards a community progression hands out.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ORS_ScenarioProgress`.",
+          "type": "string"
+        },
+        "factionRewardTiers": {
+          "description": "The reward tiers per faction (`factionRewardTiers`), in the stored order.",
+          "items": {
+            "$ref": "#/$defs/ScenarioFactionTiers"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "factionRewardTiers",
+        "guid",
+        "recordPath"
       ],
       "type": "object"
     },
@@ -1336,6 +1434,103 @@
       "required": [
         "dangerPoolFactor",
         "defaultVolume"
+      ],
+      "type": "object"
+    },
+    "FactionReputation": {
+      "description": "A faction: a `FactionReputation` Record under `factions/factionreputation`.",
+      "properties": {
+        "allied": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationStanding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The scope and standing a member of the faction holds towards an allied faction\n(`alliedParams`), `null` when the Record has none."
+        },
+        "allyGuids": {
+          "description": "The factions it counts as allies, as stored.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `FactionReputation_Wikelo`.",
+          "type": "string"
+        },
+        "contextGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `SReputationContextUI` Record the faction is shown with (`reputationContextPropertiesUI`),\n`null` when it names none."
+        },
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `displayName`.",
+          "x-gameText": true
+        },
+        "enemyGuids": {
+          "description": "The factions it counts as enemies, as stored.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "hostility": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RelationStanding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The scope and standing a member of the faction holds towards a hostile faction\n(`hostilityParams`), `null` when the Record has none."
+        },
+        "isNpc": {
+          "description": "The `isNPC` flag.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "lawful": {
+          "description": "Whether the faction is lawful: the value of the boolean `entityLawful` property of its\n`propertiesBB`, `null` when it has none.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "allied",
+        "allyGuids",
+        "className",
+        "contextGuid",
+        "displayName",
+        "enemyGuids",
+        "guid",
+        "hostility",
+        "isNpc",
+        "lawful",
+        "recordPath"
       ],
       "type": "object"
     },
@@ -3223,6 +3418,66 @@
       ],
       "type": "object"
     },
+    "MissionLocality": {
+      "description": "A mission locality: a `MissionLocality` Record under `missiondata/pu_missionlocality`, a named\nset of starmap objects. The game does not localise its name.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `pyro`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "starmapObjectGuids": {
+          "description": "The `availableLocations`, the `guid`s of entries of `starmapObjects`, in the stored order.\nA Reference to no Record is left out; a GUID missing from `starmapObjects` is kept.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "recordPath",
+        "starmapObjectGuids"
+      ],
+      "type": "object"
+    },
+    "MissionType": {
+      "description": "A mission type: a `MissionType` Record under `missiontype`.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `missiontype.job`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record, the target of `contracts[].missionTypeGuid`."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "typeName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The localised name of the type (`LocalisedTypeName`).",
+          "x-gameText": true
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "recordPath",
+        "typeName"
+      ],
+      "type": "object"
+    },
     "Paint": {
       "description": "A paint: an item of the type `Paints` and the ships it fits.",
       "properties": {
@@ -3806,6 +4061,81 @@
       ],
       "type": "object"
     },
+    "RelationStanding": {
+      "description": "The scope and standing a faction relation assigns.",
+      "properties": {
+        "scopeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `SReputationScopeParams` Record, `null` when the relation names none."
+        },
+        "standingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `SReputationStandingParams` Record, `null` when the relation names none."
+        }
+      },
+      "required": [
+        "scopeGuid",
+        "standingGuid"
+      ],
+      "type": "object"
+    },
+    "ReputationContext": {
+      "description": "A reputation context: an `SReputationContextUI` Record under `reputation/contexts`, the scopes a\nfaction is shown with.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ReputationContext_Transport`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "primaryScopeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The scope of the `primaryScopeContext`, `null` when it names none."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "scopeGuids": {
+          "description": "The scopes of the `scopeContextList`, in the stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "primaryScopeGuid",
+        "recordPath",
+        "scopeGuids"
+      ],
+      "type": "object"
+    },
     "ReputationGain": {
       "description": "One reputation amount a contract grants on success.",
       "properties": {
@@ -3860,6 +4190,133 @@
         "factionReputationName",
         "scopeGuid",
         "scopeName"
+      ],
+      "type": "object"
+    },
+    "ReputationScope": {
+      "description": "A reputation scope: an `SReputationScopeParams` Record under `reputation/scopes`, the ladder of\nstandings one kind of reputation climbs.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ReputationScope_Affinity`.",
+          "type": "string"
+        },
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `displayName`.",
+          "x-gameText": true
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "initialReputation": {
+          "description": "The reputation a player starts with (`initialReputation`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "reputationCeiling": {
+          "description": "The highest reputation of the scope (`reputationCeiling`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "scopeName": {
+          "description": "The `scopeName`, e.g. `Affinity`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "standingGuids": {
+          "description": "The standings of the scope, in the stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "displayName",
+        "guid",
+        "initialReputation",
+        "recordPath",
+        "reputationCeiling",
+        "scopeName",
+        "standingGuids"
+      ],
+      "type": "object"
+    },
+    "ReputationStanding": {
+      "description": "A reputation standing: an `SReputationStandingParams` Record under `reputation/standings`, one\nrank of a scope.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `ReputationStanding_Faction_B2_00`.",
+          "type": "string"
+        },
+        "displayName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The `displayName`, the name of the rank.",
+          "x-gameText": true
+        },
+        "driftReputation": {
+          "description": "The reputation the standing drifts back by (`driftReputation`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "driftTimeHours": {
+          "description": "The hours between two drifts (`driftTimeHours`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "gated": {
+          "description": "Whether the standing is gated (`gated`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "minReputation": {
+          "description": "The reputation from which the standing applies (`minReputation`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "displayName",
+        "driftReputation",
+        "driftTimeHours",
+        "gated",
+        "guid",
+        "minReputation",
+        "recordPath"
       ],
       "type": "object"
     },
@@ -4117,6 +4574,149 @@
         "extractionEfficiency",
         "radiusMultiplier",
         "salvageSpeedMultiplier"
+      ],
+      "type": "object"
+    },
+    "ScenarioFactionTiers": {
+      "description": "The reward tiers of one faction in a scenario.",
+      "properties": {
+        "factionGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `Faction` Record, `null` for a null or dangling Reference. No kind lists\n`Faction` Records; `factionReputationGuid` is the link into the catalog."
+        },
+        "factionName": {
+          "description": "The Record name of the faction, the last part of its record path, e.g.\n`faction_lawful_crusaderindustries`; `null` for no Reference.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "factionReputationGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `factionReputationRef` of the `Faction` Record, an entry of `factionReputations`;\n`null` when the Record is missing, unreadable or names none."
+        },
+        "pointsAsPercent": {
+          "description": "Whether the tier points count as percent (`convertTiersPointsToPercent`).",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "progressions": {
+          "description": "The progressions (`tierProgressions`), in the stored order.",
+          "items": {
+            "$ref": "#/$defs/ScenarioProgression"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "factionGuid",
+        "factionName",
+        "factionReputationGuid",
+        "pointsAsPercent",
+        "progressions"
+      ],
+      "type": "object"
+    },
+    "ScenarioProgression": {
+      "description": "One progression of a scenario: a ladder of tiers.",
+      "properties": {
+        "completionType": {
+          "description": "The struct name of the `completionType`, e.g. `CompletionType_GlobalProgression`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "minMultiplierThreshold": {
+          "description": "The `minMultiplierThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "periodScenarioGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `periodMissionScenario` Record, `null` when it names none."
+        },
+        "tiers": {
+          "description": "The tiers (`tierRewards`), in the stored order.",
+          "items": {
+            "$ref": "#/$defs/ScenarioTier"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "completionType",
+        "minMultiplierThreshold",
+        "periodScenarioGuid",
+        "tiers"
+      ],
+      "type": "object"
+    },
+    "ScenarioTier": {
+      "description": "A reward tier of a scenario progression.",
+      "properties": {
+        "badgeToAward": {
+          "description": "The identifier of the badge the tier awards (`badgeToAward`), `null` for none; the game\nstores the text `None` for a tier without a badge.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "blueprintPoolGuids": {
+          "description": "The blueprint pools the tier rewards (`blueprintPool`), the `guid`s of entries of\n`blueprintPools`, in the stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "globalPointsMultiplier": {
+          "description": "The `globalPointsMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minPoints": {
+          "description": "The points from which the tier is reached (`minPoints`).",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "badgeToAward",
+        "blueprintPoolGuids",
+        "globalPointsMultiplier",
+        "minPoints"
       ],
       "type": "object"
     },
@@ -4690,6 +5290,95 @@
       ],
       "type": "object"
     },
+    "StandingLevel": {
+      "description": "The level at which a reputation prerequisite is stated.",
+      "oneOf": [
+        {
+          "const": "handler",
+          "description": "The `defaultAvailability` of the handler.",
+          "type": "string"
+        },
+        {
+          "const": "contract",
+          "description": "The `additionalPrerequisites` of the contract.",
+          "type": "string"
+        },
+        {
+          "const": "subContract",
+          "description": "The `additionalPrerequisites` of the sub contract.",
+          "type": "string"
+        }
+      ]
+    },
+    "StandingRequirement": {
+      "description": "A reputation prerequisite of a contract.",
+      "properties": {
+        "exclude": {
+          "description": "The `exclude` flag as stored, `null` when absent.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "factionReputationGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `factionReputation` the prerequisite is about, `null` when it names none."
+        },
+        "level": {
+          "$ref": "#/$defs/StandingLevel",
+          "description": "Where the prerequisite is stated."
+        },
+        "maxStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `maxStanding`, `null` when the prerequisite names none."
+        },
+        "minStandingGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `minStanding`, `null` when the prerequisite names none."
+        },
+        "scopeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `scope`, `null` when the prerequisite names none."
+        }
+      },
+      "required": [
+        "exclude",
+        "factionReputationGuid",
+        "level",
+        "maxStandingGuid",
+        "minStandingGuid",
+        "scopeGuid"
+      ],
+      "type": "object"
+    },
     "StarmapObject": {
       "description": "A starmap object: a `StarMapObject` Record under `starmap/pu`, a star system, planet, moon,\nstation, jump point or other place, with its world position when a system container places it.",
       "properties": {
@@ -5250,6 +5939,13 @@
       "$ref": "#/$defs/Completeness",
       "description": "Whether each kind is a complete snapshot of the Build."
     },
+    "contractScenarios": {
+      "description": "The contract scenarios with their reward tiers, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ContractScenario"
+      },
+      "type": "array"
+    },
     "contracts": {
       "description": "The contracts and sub contracts with resolved titles, mission types and the reputation they\ngrant on success, ordered by the GUID of the contract and then of the sub contract.",
       "items": {
@@ -5265,6 +5961,13 @@
       "description": "The dismantle processes, ordered by GUID.",
       "items": {
         "$ref": "#/$defs/DismantleProcess"
+      },
+      "type": "array"
+    },
+    "factionReputations": {
+      "description": "The factions with their reputation links, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/FactionReputation"
       },
       "type": "array"
     },
@@ -5342,6 +6045,20 @@
       },
       "type": "array"
     },
+    "missionLocalities": {
+      "description": "The mission localities, sets of starmap objects, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MissionLocality"
+      },
+      "type": "array"
+    },
+    "missionTypes": {
+      "description": "The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MissionType"
+      },
+      "type": "array"
+    },
     "paints": {
       "description": "The paints with the ships they fit, ordered by the GUID of the item.",
       "items": {
@@ -5367,6 +6084,27 @@
       "description": "The refining processes, ordered by GUID.",
       "items": {
         "$ref": "#/$defs/RefiningProcess"
+      },
+      "type": "array"
+    },
+    "reputationContexts": {
+      "description": "The reputation contexts, the scopes a faction is shown with, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ReputationContext"
+      },
+      "type": "array"
+    },
+    "reputationScopes": {
+      "description": "The reputation scopes with the standings of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ReputationScope"
+      },
+      "type": "array"
+    },
+    "reputationStandings": {
+      "description": "The reputation standings, the ranks of the scopes, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/ReputationStanding"
       },
       "type": "array"
     },
@@ -5430,9 +6168,11 @@
     "blueprints",
     "commodities",
     "completeness",
+    "contractScenarios",
     "contracts",
     "craftingGlobal",
     "dismantleProcesses",
+    "factionReputations",
     "gameplayProperties",
     "harvestableLocations",
     "harvestableProviderPresets",
@@ -5443,10 +6183,15 @@
     "mineableCompositions",
     "mineableElements",
     "miningGlobalParams",
+    "missionLocalities",
+    "missionTypes",
     "paints",
     "qualityDistributions",
     "qualityQuantizations",
     "refiningProcesses",
+    "reputationContexts",
+    "reputationScopes",
+    "reputationStandings",
     "resourceGroups",
     "schemaVersion",
     "shipStoreSlugs",

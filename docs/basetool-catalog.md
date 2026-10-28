@@ -39,7 +39,10 @@ The rule is ADR-0054 (amending ADR-0002):
   Version 2 has the kind `qualityQuantizations` (#692, ADR-0177); it is not yet released, so it
   needs no further bump. The same holds for the ship field `insurance` (#323, ADR-0218) and the
   kinds `mineableCompositions`, `miningGlobalParams`, `harvestableProviderPresets`,
-  `subHarvestableMultiConfigs` and `harvestableLocations` (#320, ADR-0236).
+  `subHarvestableMultiConfigs` and `harvestableLocations` (#320, ADR-0236), and for the kinds
+  `factionReputations`, `reputationScopes`, `reputationStandings`, `reputationContexts`,
+  `missionTypes`, `missionLocalities` and `contractScenarios` and the contract fields
+  `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319, ADR-0237).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -50,7 +53,8 @@ The game texts of the catalog are every `description` and every `displayType`, t
 starmap object (a place name that comes from localisation, by the owner's decision for #321), and
 the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
 of a pickup place of a contract, the `processName` of a refining process and the `depositName`
-of a mineable composition, each with
+of a mineable composition, the `displayName` of a faction, a reputation scope and a reputation
+standing and the `typeName` of a mission type, each with
 its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
 identifiers, short names or fact values. The catalog keeps the `description` fields for the
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
@@ -131,6 +135,13 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `subHarvestableMultiConfigs` | What the slots of an object can hold by tag, ordered by GUID |
 | `harvestableLocations` | The containers whose `.soc` names a provider preset, with the starmap object each hangs below, ordered by preset, container, system and object |
 | `shops` | The shops of the shop registry with kind, brand, location and the link to a starmap object, ordered by `key` |
+| `factionReputations` | The factions of the reputation system with their allies, enemies and relation standings, ordered by GUID |
+| `reputationScopes` | The reputation scopes, each the ladder of standings one kind of reputation climbs, ordered by GUID |
+| `reputationStandings` | The reputation standings, the ranks of the scopes with their thresholds, ordered by GUID |
+| `reputationContexts` | The reputation contexts, the scopes a faction is shown with, ordered by GUID |
+| `missionTypes` | The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID |
+| `missionLocalities` | The mission localities, named sets of starmap objects, ordered by GUID |
+| `contractScenarios` | The contract scenarios with the reward tiers of each faction, ordered by GUID |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 | `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
@@ -1001,6 +1012,8 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `pickupPlaces` | Up to five starmap objects the contract is offered at, each `starmapObjectGuid`, `objectType`, `place` (game text) |
 | `faction` | The `factionReputation` of the handler as stored: `guid`, Record `name` and `displayName` (game text), `null` when the handler names none |
 | `reputationGains` | The reputation granted on success; an amount may be negative |
+| `minStandingGuid`, `maxStandingGuid` | The `minStanding` and `maxStanding` of the contract: the standings between which it is offered, entries of `reputationStandings`; `null` when absent. A sub contract shares the contract's |
+| `standingRequirements` | The reputation prerequisites (see "Standing") |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1098,6 +1111,67 @@ elsewhere in the Archive:
 
 Not exported: a computed reward (`ContractResult_CalculatedReward` holds no value, ADR-0065) and
 descriptions.
+
+**Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
+`maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none
+of its own and shares the contract's. `standingRequirements` lists the
+`ContractPrerequisite_Reputation` prerequisites, each with `level` (`handler`, `contract` or `subContract`; `handler`: the
+`defaultAvailability` of the handler; `contract` and `subContract`: their
+`additionalPrerequisites`; in that order and as stored), `exclude` as stored, the faction, the scope
+and the standings it names (`null` for what it leaves out). The catalog does not decide how the
+levels combine or what `exclude` inverts. On LIVE 4.10 (2026-10-28) 3,976 of the 5,175 entries
+have a range, always both ends; 638 entries have requirements (607 at the contract, 306 at a sub
+contract, 21 at a handler; 145 with `exclude`). The Wikelo contracts have a requirement and no
+range.
+
+### Factions, reputation and missions
+
+Seven kinds (ADR-0237, schema version 2, no bump) hold what the contracts refer to. Each is the
+Records of one type under one folder (see "Selection"), ordered by GUID, with `guid`, `className`
+(the Record name without its type) and `recordPath`. Facts only: identifiers, short names, numbers
+and links. A Reference to no Record is left out (`null`, or missing from the list); a GUID of an existing Record that the catalog does not list is kept, so `missionLocalities[].starmapObjectGuids` may name an object missing from `starmapObjects` under a Filter.
+Descriptions, perk texts, logos, icons and the faction property texts (headquarters, founding,
+leadership, focus) are not exported.
+
+On LIVE 4.10 (2026-10-28) the kinds hold 39 factions, 46 scopes, 380 standings, 27 contexts, 42
+mission types, 20 localities and 2 scenarios, none skipped.
+
+**Factions (`factionReputations`).** `displayName` is a game text (37 of 39 have an English text).
+`isNpc` is the Record's flag (false for all 39). `lawful` is the value of the boolean property
+`entityLawful` among the `propertiesBB` of the Record, `null` for a faction without it
+(`FactionReputation_IASI`): 29 are lawful, 9 not. It is a field and not the class name, so
+`FactionReputation_Wikelo` is lawful and `FactionReputation_Ruto` is not although neither name says
+so. `contextGuid` is the `reputationContextPropertiesUI`; `allyGuids` and `enemyGuids` are the
+References as stored (two factions have enemies on LIVE, none has allies); `hostility` and
+`allied` hold the `scopeGuid` and `standingGuid` of the `hostilityParams` and `alliedParams`, `null`
+when both are absent.
+
+**Scopes, standings and contexts.** A scope (`reputationScopes`) has `scopeName`, `displayName` (a
+game text), `reputationCeiling`, `initialReputation` and `standingGuids`, its standings in stored
+order. A standing (`reputationStandings`) has `displayName` (the rank's name, a game text; 196 of
+380 have a text, the rest are placeholders), `minReputation`, `driftReputation`, `driftTimeHours`
+and `gated` (47 standings). A context (`reputationContexts`) has `primaryScopeGuid` and `scopeGuids`
+(the `scopeContextList`). The scope of a gain in `reputationGains` is an entry of
+`reputationScopes` (10 of the 46 are used by a contract).
+
+**Mission types (`missionTypes`).** `typeName` is the `LocalisedTypeName`, a game text (41 of 42
+have an English one). Every `missionTypeGuid` of `contracts` (26 types on LIVE) is an entry.
+
+**Mission localities (`missionLocalities`).** `starmapObjectGuids` are the `availableLocations` in
+stored order (218 on LIVE, all in `starmapObjects`). The game does not localise the name of a
+locality; the `className` (`Pyro`) is the only name.
+
+**Contract scenarios (`contractScenarios`).** A `ScenarioProgress` Record. `factionRewardTiers`
+hold, per `Faction` Record (`factionGuid`, `factionName` the last part of its record path),
+`factionReputationGuid` (the `factionReputationRef` of that `Faction` Record, an entry of `factionReputations`; no kind lists the `Faction` Records themselves), `pointsAsPercent` and the `progressions` (`minMultiplierThreshold`, `completionType` the name of
+the struct, `periodScenarioGuid`), each with `tiers`: `minPoints`, `badgeToAward` (an identifier;
+`null` for a tier without a badge, which the game stores as the text `None`), `globalPointsMultiplier` and
+`blueprintPoolGuids`, entries of `blueprintPools`. The progression texts and the multiplier rewards
+(empty on LIVE) are not exported.
+
+Not exported, for want of a consumer: contract templates, mission broker entries, hauling orders,
+NPC and ship spawns, `MissionLocationTemplate` and the sandbox triggers and perks of the reputation
+Records.
 
 ### Starmap objects
 
@@ -1632,6 +1706,13 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `subHarvestableMultiConfigs` | `libs/foundry/records/harvestable/slotpresets/` | `SubHarvestableMultiConfigRecord` |
 | `harvestableLocations` | None: the `.soc` files of the containers below `ObjectContainers/PU/system`, no Records | |
 | `shops` | None: the `ShopBackup` entries of `LayerBackups.xml`, no Records | |
+| `factionReputations` | `libs/foundry/records/factions/factionreputation/` | `FactionReputation` |
+| `reputationScopes` | `libs/foundry/records/reputation/scopes/` | `SReputationScopeParams` |
+| `reputationStandings` | `libs/foundry/records/reputation/standings/` | `SReputationStandingParams` |
+| `reputationContexts` | `libs/foundry/records/reputation/contexts/` | `SReputationContextUI` |
+| `missionTypes` | `libs/foundry/records/missiontype/` | `MissionType` |
+| `missionLocalities` | `libs/foundry/records/missiondata/pu_missionlocality/` | `MissionLocality` |
+| `contractScenarios` | `libs/foundry/records/contracts/contractscenarios/` | `ScenarioProgress` |
 
 The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

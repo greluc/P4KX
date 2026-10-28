@@ -8,6 +8,7 @@ use serde_json::json;
 mod contracts;
 mod harvest;
 mod recovery;
+mod reputation;
 
 use recovery::item_recovery;
 
@@ -47,6 +48,13 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "subHarvestableMultiConfigs": {"status": "complete"},
             "harvestableLocations": {"status": "complete"},
             "shops": {"status": "complete"},
+            "factionReputations": {"status": "complete"},
+            "reputationScopes": {"status": "complete"},
+            "reputationStandings": {"status": "complete"},
+            "reputationContexts": {"status": "complete"},
+            "missionTypes": {"status": "complete"},
+            "missionLocalities": {"status": "complete"},
+            "contractScenarios": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
         },
         "manufacturers": [{
@@ -273,6 +281,13 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "inventory": "inv_commex_newbabbage",
             "itemGuids": ["d195eb47-24b8-45c0-a4d0-1771d60dc1a8"]
         }],
+        "factionReputations": reputation::factions(),
+        "reputationScopes": reputation::scopes(),
+        "reputationStandings": reputation::standings(),
+        "reputationContexts": reputation::contexts(),
+        "missionTypes": reputation::mission_types(),
+        "missionLocalities": reputation::localities(),
+        "contractScenarios": reputation::scenarios(),
         "shipStoreSlugs": [{
             "slug": "Aurora-Mk-I-ES",
             "rsiId": 1,

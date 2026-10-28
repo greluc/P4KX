@@ -5,6 +5,7 @@
 
 mod catalog_compression;
 mod catalog_contracts;
+mod catalog_contracts_standing;
 mod catalog_crafting;
 mod catalog_crafting_followups;
 mod catalog_crafting_support;
@@ -27,6 +28,7 @@ mod catalog_paints;
 mod catalog_playability;
 mod catalog_quantization;
 mod catalog_recovery;
+mod catalog_reputation;
 mod catalog_selection;
 mod catalog_ship_base;
 mod catalog_shop_items;
@@ -57,6 +59,7 @@ mod playability_fixture;
 mod quantization_fixture;
 mod record_export;
 mod record_export_plans;
+mod reputation_fixture;
 mod ship_base;
 mod ship_base_fixture;
 mod ship_followups;

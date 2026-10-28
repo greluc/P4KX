@@ -17,6 +17,7 @@ use crate::record_fields::{
 const MANIFEST_TYPE: &str = "CrewManifest";
 const TAG_TYPE: &str = "Tag";
 const UNMANNED_TAG: &str = "Unmanned";
+const AI_RECORD_TAG: &str = "SystemsDesign";
 const READY: &str = "ReadyToInclude";
 const NOT_INCLUDED: &str = "DoNotInclude";
 const SPACESHIPS: &str = "libs/foundry/records/entities/spaceships/";
@@ -125,7 +126,8 @@ fn explodes_on_death(vehicle: Option<&StructValue<'_>>) -> bool {
 ///    a crew; or, for a record path under `entities/spaceships/`, either
 ///    `VehicleComponentParams.criticalPartExplosionChance` is above zero or
 ///    `VehicleComponentParams.aiEngineeringOptions.powerPlantsCanExplodeOnDeath` is true while
-///    `EAEntityDataParams.inclusionMode` is not `ReadyToInclude`.
+///    `EAEntityDataParams.inclusionMode` is not `ReadyToInclude`; or the Record tag (`$tag`) is
+///    `SystemsDesign`.
 /// 2. `mission`: the Record carries a `Tag` named `Unmanned`.
 /// 3. `special`: `inclusionMode` is `DoNotInclude`.
 /// 4. `player`: `inclusionMode` is `ReadyToInclude` and, for a spaceship,
@@ -158,7 +160,8 @@ pub(crate) fn ship(
     let crewed = manifest_link.is_some_and(|manifest| evidence.crewed.contains(&manifest.0));
     let critical = spaceship
         && number(vehicle, "criticalPartExplosionChance").is_some_and(|chance| chance > 0.0);
-    if crewed || critical || (hull_explodes && !ready) {
+    let ai_authored = tree.tag() == Some(AI_RECORD_TAG);
+    if crewed || critical || ai_authored || (hull_explodes && !ready) {
         Some(Playability::Ai)
     } else if has_tag(tree, &evidence.unmanned) {
         Some(Playability::Mission)

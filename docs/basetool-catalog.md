@@ -532,7 +532,9 @@ ships; it is used as evidence, not as a definition. Any value other than `ReadyT
    `Components[VehicleComponentParams].criticalPartExplosionChance` is above zero, or when
    `Components[VehicleComponentParams].aiEngineeringOptions.powerPlantsCanExplodeOnDeath` is true
    while `inclusionMode` is not `ReadyToInclude`. Ground vehicles all carry these two hull values,
-   so they are not read there.
+   so they are not read there. Also, for every vehicle, when the Record tag (`$tag` of the Record
+   JSON) is `SystemsDesign`: on LIVE all 15 ships with it are AI variants (the `AI_Super` classes),
+   and no `player` ship carries it (ADR-0245).
 2. `mission` when one of the Record's `tags` links to a `Tag` Record whose `tagName` is `Unmanned`
    (the salvage, derelict and wreck targets of missions).
 3. `special` when `inclusionMode` is `DoNotInclude` (templates, wrecks, sentries, event props).
@@ -590,15 +592,27 @@ The `#[ignore]`d test `real_archive_ship_matrix` in `p4kx-export` reads the file
 | Question | Result |
 |----------|--------|
 | Flight ready in the matrix, but not `player` | 0 ships |
-| `player` ships the matrix does not call flight ready | 97 of 309, all unknown to the matrix and none called not ready: store-less variants such as Collector, Exec, Teach, BIS2950, Showdown and unmanned editions, plus the `AI_Super` classes of `ANVL_Hornet_F7C_Mk2` and `RSI_Perseus` |
-| `null` ships | 11 of 1,066: 7 are `flight-ready` in the matrix (Basher, Sabre Raven EX, Skylark, Railen, S-65 Stingray, Tyilui, Constellation Mk V Centaurus), 4 are unknown to it (`KRIG_S65_Stingray_BALLISTIC` and the `AI_Super` classes of Corsair, Polaris and Fury) |
+| `player` ships the matrix does not call flight ready | 95 of 307, all unknown to the matrix and none called not ready: store-less variants such as Collector, Exec, Teach, BIS2950, Showdown and unmanned editions |
+| `null` ships | 8 of 1,066: 7 are `flight-ready` in the matrix (Basher, Sabre Raven EX, Skylark, Railen, S-65 Stingray, Tyilui, Constellation Mk V Centaurus), 1 is unknown to it (`KRIG_S65_Stingray_BALLISTIC`) |
 | Flight ready in the matrix, no class mapped | 4 (Mustang Alpha Vindicator and three ATLS entries) |
 
+Before rule 1 took the Record tag, the `AI_Super` classes of `ANVL_Hornet_F7C_Mk2` and
+`RSI_Perseus` were `player` and those of Corsair, Polaris and Fury `null`; the matrix knows none of
+them. Ships by `playability`, LIVE 2026-10-28:
+
+| State | `player` | `ai` | `mission` | `special` | `null` |
+|-------|---------:|-----:|----------:|----------:|-------:|
+| Before | 309 | 689 | 22 | 35 | 11 |
+| After | 307 | 694 | 22 | 35 | 8 |
+
 A matrix entry maps to a ship through the `shipStoreSlugs` (RSI id, then the slug of the `url`);
-18 matrix names the slugs do not map are mapped by an explicit name table in the test. The fields
-of the catalog ships show no structural signal that separates the seven flight-ready `null` ships
-from the other four: the only difference is variant membership (`variantOf`), which says nothing
-about flight readiness. The rule is therefore unchanged and the seven stay `null`.
+18 matrix names the slugs do not map are mapped by an explicit name table in the test. A catalog
+class counts as flight ready when any of its matrix entries is, so a flight-ready variant mapped
+to the same class (Mole editions, Carrack w/C8X) hides a base entry that is not. The test warns
+when a name-table class is no catalog ship and when a catalog ship or store slug entry cannot be
+read. No component, field, tag, Reference or record-path folder separates the seven flight-ready
+`null` ships cleanly from the ships kept out of `player`; the only difference is variant
+membership (`variantOf`), which says nothing about flight readiness. They stay `null`.
 
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
 a cost of any tier or a kept quality quantization uses and no commodity Record carries (see below). A commodity Record takes its fields

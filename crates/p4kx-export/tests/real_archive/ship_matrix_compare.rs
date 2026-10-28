@@ -18,7 +18,8 @@ pub(crate) const FLIGHT_READY: &str = "flight-ready";
 /// One entry of the ship matrix; only the fields the check reads.
 #[derive(Debug, Deserialize)]
 pub(crate) struct MatrixShip {
-    id: Value,
+    #[serde(default)]
+    id: Option<Value>,
     pub(crate) name: String,
     #[serde(default)]
     production_status: Option<String>,
@@ -35,13 +36,14 @@ enum Matrix {
 
 impl MatrixShip {
     fn rsi_id(&self) -> Option<u32> {
-        match &self.id {
+        match self.id.as_ref()? {
             Value::Number(number) => number.as_u64().and_then(|id| u32::try_from(id).ok()),
             Value::String(text) => text.trim().parse().ok(),
             _ => None,
         }
     }
 
+    /// The last path segment of `url`, without a trailing slash.
     fn slug(&self) -> Option<&str> {
         self.url
             .as_deref()?
@@ -193,7 +195,23 @@ fn class_of<'a>(
     })
 }
 
+/// The classes of `NAME_SUPPLEMENT` that are not among the catalog `ships`: their matrix names
+/// would silently count as unmapped.
+#[must_use]
+pub(crate) fn supplement_gaps<'a>(ships: &[CatalogShip<'_>]) -> Vec<&'a str> {
+    let mut gaps: Vec<&str> = NAME_SUPPLEMENT
+        .iter()
+        .map(|(_, class)| *class)
+        .filter(|class| ships.iter().all(|ship| ship.class_name != *class))
+        .collect();
+    gaps.dedup();
+    gaps
+}
+
 /// Compares the catalog `ships` with the `matrix`, mapping through `slugs`.
+///
+/// A catalog class counts as flight ready when any of its matrix entries is, so a flight-ready
+/// variant mapped to the same class (Mole editions, Carrack w/C8X) hides a base entry that is not.
 #[must_use]
 pub(crate) fn compare(
     ships: &[CatalogShip<'_>],
@@ -321,6 +339,74 @@ mod tests {
         assert_eq!(report.flight_ready_unmapped, ["Delta", "Epsilon"]);
         assert!(report.lines().iter().any(|line| line.contains("G [null]")));
         Ok(())
+    }
+
+    #[test]
+    fn a_slug_that_differs_only_in_case_maps() -> Result<(), serde_json::Error> {
+        let matrix = parse_matrix(MATRIX)?;
+        let report = compare(
+            &[ship("A_One", None)],
+            &[slug("aLpHa-oNe", 100, Some("A_One"))],
+            &matrix,
+        );
+        assert_eq!(report.null_ships[0].matrix, "Alpha (flight-ready)");
+        Ok(())
+    }
+
+    #[test]
+    fn a_trailing_slash_in_the_url_is_ignored() -> Result<(), serde_json::Error> {
+        let matrix = parse_matrix(MATRIX)?;
+        let delta = matrix.iter().find(|entry| entry.name == "Delta");
+        assert_eq!(delta.and_then(MatrixShip::slug), Some("Delta"));
+        let report = compare(
+            &[ship("D", None)],
+            &[slug("Delta", 100, Some("D"))],
+            &matrix,
+        );
+        assert_eq!(report.null_ships[0].matrix, "Delta (flight-ready)");
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_text_is_an_error() {
+        for text in ["", "not json", r#"{"data": 3}"#, r#"[{"id":1}]"#] {
+            assert!(parse_matrix(text).is_err(), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn an_entry_without_an_id_does_not_fail_the_parse() -> Result<(), serde_json::Error> {
+        let matrix = parse_matrix(r#"[{"name":"A"},{"id":null,"name":"B"}]"#)?;
+        assert_eq!(matrix.len(), 2);
+        assert!(matrix.iter().all(|entry| entry.rsi_id().is_none()));
+        Ok(())
+    }
+
+    #[test]
+    fn a_ready_variant_hides_a_base_entry_that_is_not_ready() -> Result<(), serde_json::Error> {
+        let matrix = parse_matrix(
+            r#"[{"id":1,"name":"Base","production_status":"in-concept"},
+                {"id":2,"name":"Base Edition","production_status":"flight-ready"}]"#,
+        )?;
+        let slugs = [slug("a", 1, Some("B")), slug("b", 2, Some("B"))];
+        let report = compare(&[ship("B", Some("player"))], &slugs, &matrix);
+        assert_eq!(report.player_not_flight_ready, []);
+        Ok(())
+    }
+
+    #[test]
+    fn a_supplement_class_missing_from_the_catalog_is_reported() {
+        let ships = [ship("ARGO_MOLE", Some("player"))];
+        let gaps = supplement_gaps(&ships);
+        assert!(!gaps.contains(&"ARGO_MOLE"));
+        assert!(gaps.contains(&"GLSN_Basher"));
+        assert_eq!(
+            supplement_gaps(&[])
+                .iter()
+                .filter(|c| **c == "ARGO_MOLE")
+                .count(),
+            1
+        );
     }
 
     #[test]

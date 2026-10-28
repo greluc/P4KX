@@ -18,6 +18,7 @@ pub(super) struct ShipSpec {
     pub(super) explosion: f32,
     pub(super) hull_explodes: bool,
     pub(super) tags: &'static [u128],
+    pub(super) record_tag: &'static str,
 }
 
 const PLAIN: ShipSpec = ShipSpec {
@@ -28,9 +29,10 @@ const PLAIN: ShipSpec = ShipSpec {
     explosion: 0.0,
     hull_explodes: false,
     tags: &[OTHER_TAG],
+    record_tag: "",
 };
 
-pub(super) const SHIPS: [ShipSpec; 15] = [
+pub(super) const SHIPS: [ShipSpec; 19] = [
     ShipSpec {
         class: "Ship_Player",
         ..PLAIN
@@ -110,6 +112,28 @@ pub(super) const SHIPS: [ShipSpec; 15] = [
     ShipSpec {
         class: "Ship_Other_Inclusion",
         inclusion: Some("SomethingNew"),
+        ..PLAIN
+    },
+    ShipSpec {
+        class: "Ship_Systems_Design",
+        record_tag: "SystemsDesign",
+        ..PLAIN
+    },
+    ShipSpec {
+        class: "Ship_Systems_Design_Not_Shipped",
+        inclusion: Some("DoNotInclude"),
+        record_tag: "SystemsDesign",
+        ..PLAIN
+    },
+    ShipSpec {
+        class: "Ship_Systems_Design_Salvage",
+        tags: &[UNMANNED_TAG],
+        record_tag: "SystemsDesign",
+        ..PLAIN
+    },
+    ShipSpec {
+        class: "Ship_Other_Record_Tag",
+        record_tag: "Design",
         ..PLAIN
     },
 ];

@@ -46,6 +46,11 @@ fn known_ships_and_items_of_a_real_archive_have_the_expected_playability() -> Te
     for (kind, class, expected) in [
         ("ships", "AEGS_Avenger_Titan", "player"),
         ("ships", "AEGS_Avenger_Titan_PU_AI_CIV", "ai"),
+        ("ships", "ANVL_Hornet_F7C_Mk2", "player"),
+        ("ships", "ANVL_Hornet_F7C_Mk2_AI_Super", "ai"),
+        ("ships", "RSI_Perseus", "player"),
+        ("ships", "RSI_Perseus_AI_Super", "ai"),
+        ("ships", "DRAK_Corsair_AI_Super", "ai"),
         ("items", "POWR_ACOM_S01_LumaCore_SCItem", "player"),
         ("items", "POWR_PyroOutpost", "special"),
     ] {

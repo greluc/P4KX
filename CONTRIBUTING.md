@@ -289,8 +289,12 @@ variables, Actions). Without it the scan is skipped.
 Replace `<file>` with the name of the downloaded asset.
 
 - Hashes, Windows PowerShell: `Get-FileHash <file> -Algorithm SHA256`; Linux:
-  `sha256sum --check --ignore-missing SHA256SUMS`. SHA3-512 on both: `openssl dgst -sha3-512
-  <file>`. Compare the output with the line of the file in `SHA256SUMS` or `SHA3-512SUMS`.
+  `sha256sum --check --ignore-missing SHA256SUMS`. SHA3-512 on Linux: `openssl dgst -sha3-512
+  <file>`. On Windows `openssl` is usually not installed and `Get-FileHash` has no SHA3-512; use
+  PowerShell 7 on an operating system with SHA3 support (Windows 11 24H2 or newer):
+  `[Convert]::ToHexString([Security.Cryptography.SHA3_512]::HashData([IO.File]::ReadAllBytes("<full
+  path>")))`, which prints upper-case hex. Compare the output with the line of the file in
+  `SHA256SUMS` or `SHA3-512SUMS`, ignoring case.
 - Attestation: `gh attestation verify <file> --repo p4kx-org/p4kx`.
 - Attestation offline, with the bundle from the Release:
   `gh attestation verify <file> --bundle P4KX-<version>-provenance.sigstore.json --repo

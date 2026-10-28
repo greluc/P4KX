@@ -93,8 +93,12 @@ Windows (PowerShell):
 
 ``````
 Get-FileHash <file> -Algorithm SHA256
-openssl dgst -sha3-512 <file>
+[Convert]::ToHexString([Security.Cryptography.SHA3_512]::HashData([IO.File]::ReadAllBytes("<full path of file>")))
 ``````
+
+``Get-FileHash`` has no SHA3-512. The second command needs PowerShell 7 and an operating system
+with SHA3 support (Windows 11 24H2 or newer); ``openssl`` is usually not installed on Windows.
+It prints upper-case hex, so compare ignoring case.
 
 Linux:
 

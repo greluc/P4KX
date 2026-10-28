@@ -20,7 +20,13 @@ Decided for issue #822.
 - `SHA256SUMS` and `SHA3-512SUMS` list every other asset, bundles and SBOMs included. SHA3-512 is
   computed with .NET on an Ubuntu runner, whose OpenSSL supports it.
 - The VirusTotal scan covers the MSI and the portable ZIP, never runs on a pull request, and never
-  blocks a Release; the notes state when it did not run.
+  blocks a Release; the notes state when it did not run, also when the script crashes, times out
+  or the job fails. Its worst case (two files, 5 minutes upload and 10 minutes polling each) stays
+  below the 55-minute step timeout, and messages that reach the public notes are sanitised and
+  capped.
+- The `rust-cache` steps carry `zizmor: ignore[cache-poisoning]`. This is acceptable because
+  `lookup-only` is true on tags: a Release build never restores a cache and never saves one, so
+  a cache poisoned from a pull request cannot reach a published asset.
 - Release notes: the `CHANGELOG.md` section, the scan result, the verification commands, then
   GitHub's generated "What's Changed" list.
 

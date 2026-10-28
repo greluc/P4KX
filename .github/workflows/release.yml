@@ -293,7 +293,12 @@ jobs:
       - name: SHA256SUMS, SHA3-512SUMS and release notes
         env:
           REPOSITORY: ${{ github.repository }}
+          SCAN_RESULT: ${{ needs.scan.result }}
         run: |
+          if ($env:SCAN_RESULT -ne 'skipped' -and -not (Test-Path notes/virustotal.md)) {
+            New-Item -ItemType Directory -Force notes | Out-Null
+            Set-Content notes/virustotal.md -Encoding utf8NoBOM -Value "## Security check`n`nThe VirusTotal scan did not run for this release (the scan job ended without a result)."
+          }
           $scan = if (Test-Path notes/virustotal.md) { 'notes/virustotal.md' }
           ./.github/scripts/assemble-release.ps1 -AssetDirectory assets -NotesPath notes/release-notes.md `
             -OutputNotesPath notes/final-notes.md -VirusTotalNotePath $scan -Repository $env:REPOSITORY

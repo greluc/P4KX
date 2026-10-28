@@ -33,7 +33,7 @@ param(
     [Parameter(Mandatory)][string[]]$Path,
     [Parameter(Mandatory)][string]$NotePath,
     [string]$ApiKey = $env:VIRUSTOTAL_API_KEY,
-    [int]$TimeoutMinutes = 20,
+    [int]$TimeoutMinutes = 10,
     [int]$PollSeconds = 30
 )
 
@@ -41,17 +41,30 @@ $ErrorActionPreference = 'Stop'
 
 $api = 'https://www.virustotal.com/api/v3'
 $directUploadLimit = 32MB
+$uploadTimeoutSeconds = 300
+$maxReasonLength = 120
 $heading = '## Security check'
 
 function Write-Note([string]$Body) {
     Set-Content -LiteralPath $NotePath -Value $Body -Encoding utf8NoBOM
 }
 
+# Keeps a message safe for public release notes: plain characters only, no key, capped length.
+function Get-SafeText([string]$Text) {
+    if ($ApiKey) { $Text = $Text.Replace($ApiKey, '') }
+    $plain = ($Text -replace '[^A-Za-z0-9 .,:;()/_-]', ' ' -replace '\s+', ' ').Trim()
+    if ($plain.Length -gt $maxReasonLength) { $plain = $plain.Substring(0, $maxReasonLength) + '...' }
+    $plain
+}
+
 function Write-Unavailable([string]$Reason) {
-    Write-Host "::warning title=VirusTotal::$Reason - the release notes say the scan did not run."
-    Write-Note "$heading`n`nThe VirusTotal scan did not run for this release ($Reason)."
+    $safe = Get-SafeText $Reason
+    Write-Host "::warning title=VirusTotal::$safe - the release notes say the scan did not run."
+    Write-Note "$heading`n`nThe VirusTotal scan did not run for this release ($safe)."
     exit 0
 }
+
+trap { Write-Unavailable "unexpected error: $($_.Exception.Message)" }
 
 function Invoke-Vt {
     param([string]$Uri, [int]$TimeoutSec = 120)
@@ -70,7 +83,7 @@ function Send-MultipartFile([string]$Uri, [System.IO.FileInfo]$File) {
     $keyConfig = 'header = "x-apikey: {0}"' -f $ApiKey
     $lines = $keyConfig | & curl --config - `
         --silent --show-error --fail-with-body `
-        --max-time 900 `
+        --max-time $uploadTimeoutSeconds `
         --header 'accept: application/json' `
         --form "file=@$($File.FullName)" `
         --write-out '\n%{http_code}' `
@@ -129,18 +142,18 @@ $rows = foreach ($item in $Path) {
         $status = Get-HttpStatus $_
         $hint = if ($status -eq 401) { 'the API key was rejected' }
                 elseif ($status -eq 429) { 'the API quota is exhausted' }
-                else { $_.Exception.Message }
+                else { Get-SafeText $_.Exception.Message }
         Write-Host "::warning title=VirusTotal::$($file.Name): $hint"
         "| ``$($file.Name)`` | not scanned ($hint) | $link |"
         continue
     }
-    if (-not $stats) {
-        Write-Host "::warning title=VirusTotal::$($file.Name): analysis still running after $TimeoutMinutes min."
+    $flagged = [int]$stats.malicious + [int]$stats.suspicious
+    $engines = $flagged + [int]$stats.undetected + [int]$stats.harmless
+    if (-not $stats -or $engines -eq 0) {
+        Write-Host "::warning title=VirusTotal::$($file.Name): no analysis result yet."
         "| ``$($file.Name)`` | analysis pending | $link |"
         continue
     }
-    $flagged = [int]$stats.malicious + [int]$stats.suspicious
-    $engines = $flagged + [int]$stats.undetected + [int]$stats.harmless
     Write-Host "$($file.Name): $flagged / $engines engines flagged the file."
     "| ``$($file.Name)`` | $flagged of $engines engines | $link |"
 }

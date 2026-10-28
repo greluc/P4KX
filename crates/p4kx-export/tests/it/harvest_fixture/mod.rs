@@ -17,6 +17,7 @@ use crate::starmap_fixture::{child, children, guid_text};
 mod mineables;
 mod structures;
 
+pub(crate) use mineables::Radar;
 use structures::structures;
 
 pub(crate) const RESOURCE: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0001;
@@ -224,8 +225,8 @@ fn multi_config() -> TestRecord {
     )
 }
 
-fn database() -> DataForgeBuilder {
-    mineables::add(structures(DataForgeBuilder::new().version(8)))
+fn database(radar: Radar) -> DataForgeBuilder {
+    mineables::add(structures(DataForgeBuilder::new().version(8)), radar)
         .record(record(
             RESOURCE,
             "ResourceType",
@@ -320,9 +321,14 @@ fn xml(list: Vec<TestElement>) -> String {
 
 /// Writes the fixture Archive into `dir` and returns its path.
 pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    write_archive_with(dir, Radar::Named)
+}
+
+/// Writes the fixture Archive whose radar parameters are `radar` into `dir`.
+pub(crate) fn write_archive_with(dir: &Path, radar: Radar) -> Result<PathBuf, Box<dyn Error>> {
     let path = dir.join("Data.p4k");
     ArchiveBuilder::new()
-        .entry(TestEntry::zstd("Data\\Game2.dcb", database().build()).encrypted())
+        .entry(TestEntry::zstd("Data\\Game2.dcb", database(radar).build()).encrypted())
         .entry(TestEntry::zstd(
             "Data\\Localization\\english\\global.ini",
             GlobalIniBuilder::new()

@@ -48,37 +48,72 @@ fn mineable_entity(guid: u128, name: &str, components: Vec<TestValue>) -> TestRe
     .value("Components", TestValue::Array(components))
 }
 
-/// The radar parameters whose third signature type is the scan signature.
-fn radar_global_params() -> TestRecord {
-    let types = [
-        "@hud_scanning_info_ir_signature",
-        "@hud_scanning_info_em_signature",
-        "@hud_scanning_info_rs_signature",
-        "@hud_scanning_info_db_signature",
-    ]
-    .map(|key| {
+/// How the radar parameters of the fixture name the scan signature.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum Radar {
+    /// The third of four signature types is the scan signature.
+    Named,
+    /// There is no `RadarSystemGlobalParams` Record.
+    Missing,
+    /// No signature type has the scan signature key.
+    Renamed,
+    /// Two signature types have the scan signature key.
+    Duplicate,
+}
+
+/// Returns the radar parameters of `radar`, `None` for a missing Record.
+fn radar_global_params(radar: Radar) -> Option<TestRecord> {
+    let keys: [&str; 4] = match radar {
+        Radar::Named => [
+            "@hud_scanning_info_ir_signature",
+            "@hud_scanning_info_em_signature",
+            "@hud_scanning_info_rs_signature",
+            "@hud_scanning_info_db_signature",
+        ],
+        Radar::Missing => return None,
+        Radar::Renamed => [
+            "@hud_scanning_info_ir_signature",
+            "@hud_scanning_info_em_signature",
+            "@hud_scanning_info_scan_signature",
+            "@hud_scanning_info_db_signature",
+        ],
+        Radar::Duplicate => [
+            "@hud_scanning_info_rs_signature",
+            "@hud_scanning_info_em_signature",
+            "@hud_scanning_info_rs_signature",
+            "@hud_scanning_info_db_signature",
+        ],
+    };
+    let types = keys.map(|key| {
         TestValue::Struct(
             TestInstance::new("SignatureTypeGlobalParams")
                 .value("displayName", TestValue::text(key)),
         )
     });
-    record(
-        RADAR_GLOBAL,
-        "RadarSystemGlobalParams",
-        "RadarSystemGlobalParams",
-        "libs/foundry/records/radarsystem/radarsystemglobalparams",
-    )
-    .value(
-        "signatureSystemParams",
-        TestValue::Struct(
-            TestInstance::new("SignatureSystemGlobalParams")
-                .value("signatureTypeParams", TestValue::Array(types.to_vec())),
+    Some(
+        record(
+            RADAR_GLOBAL,
+            "RadarSystemGlobalParams",
+            "RadarSystemGlobalParams",
+            "libs/foundry/records/radarsystem/radarsystemglobalparams",
+        )
+        .value(
+            "signatureSystemParams",
+            TestValue::Struct(
+                TestInstance::new("SignatureSystemGlobalParams")
+                    .value("signatureTypeParams", TestValue::Array(types.to_vec())),
+            ),
         ),
     )
 }
 
-/// Adds the mineable entities, the radar parameters and the contact type to `builder`.
-pub(super) fn add(builder: DataForgeBuilder) -> DataForgeBuilder {
+/// Adds the mineable entities, the radar parameters of `radar` and the contact type to
+/// `builder`.
+pub(super) fn add(builder: DataForgeBuilder, radar: Radar) -> DataForgeBuilder {
+    let builder = match radar_global_params(radar) {
+        Some(params) => builder.record(params),
+        None => builder,
+    };
     builder
         .record(mineable_entity(
             ENTITY,
@@ -98,7 +133,6 @@ pub(super) fn add(builder: DataForgeBuilder) -> DataForgeBuilder {
             "MineableRock_Bare",
             Vec::new(),
         ))
-        .record(radar_global_params())
         .record(record(
             CONTACT_TYPE,
             "RadarContactTypeEntry",

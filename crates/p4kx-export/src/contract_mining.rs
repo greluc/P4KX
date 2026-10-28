@@ -87,7 +87,8 @@ pub(crate) struct MineableComposition<'a> {
 
 /// A mineable entity: an `EntityClassDefinition` Record under `entities/mineable`, one kind of
 /// rock or deposit. Many entities share a composition; a provider preset reaches an entity through
-/// the `entityGuid` of its harvestables.
+/// the `entityGuid` of its harvestables. Entities are selected by record path and type alone, so
+/// one without the components below has `null` and empty fields.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -105,10 +106,12 @@ pub(crate) struct MineableEntity<'a> {
     /// The scan signature the mining scanner shows, from 3000 to 4900 on LIVE: the slot of
     /// `signatures` that `signatureTypeParams` of the `RadarSystemGlobalParams` Record names
     /// `@hud_scanning_info_rs_signature`. `null` when the Record states no signatures, all of them
-    /// are zero, or the Archive names no such slot.
+    /// are zero, `signatures` has not one number per signature type, or the Archive names no
+    /// such slot (a catalog warning says so).
     pub(crate) scan_signature: Option<f32>,
     /// `radarProperties.baseSignatureParams.signatures` of `Components[SSCSignatureSystemParams]`
-    /// as stored, one number per signature type; empty when the Record states none.
+    /// in stored order, one number per signature type; a value that is not a finite 32-bit float
+    /// is exported as 0. Empty when the Record states none.
     pub(crate) signatures: Vec<f32>,
     /// The GUID of the `RadarContactTypeEntry` Record `radarProperties.contactType` links to.
     pub(crate) radar_contact_type_guid: Option<CatalogGuid>,

@@ -83,7 +83,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records, options.filter);
         let (evidence, evidence_failures) = Evidence::read(&records);
-        let (signature_slot, slot_failures) = SignatureSlot::read(&records);
+        let (signature_slot, slot_failures, slot_problem) = SignatureSlot::read(&records);
         let scan = Self {
             forge,
             ships: ShipPool::new(entities, files),
@@ -114,6 +114,12 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             scan.resource_commodities(&picked, &crafting.blueprints, &crafting.quantizations);
         picked.extend(resources);
         picked.extend(scan.links.warning().map(Picked::Warned));
+        let has_signatures = picked.iter().any(
+            |pick| matches!(pick, Picked::MineableEntity(entity) if !entity.signatures.is_empty()),
+        );
+        if options.filter.is_none() && has_signatures {
+            picked.extend(slot_problem.map(|problem| Picked::Warned(problem.warning())));
+        }
         Ok(picked)
     }
 

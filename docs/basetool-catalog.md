@@ -1343,7 +1343,12 @@ value the mining scanner shows, from 3000 to 4900 on LIVE. The slot is named by 
 `signatures`, and the slot whose `displayName` is `@hud_scanning_info_rs_signature` is the scan
 signature (index 4 on LIVE 4.10, after IR, EM, CS and DB). `scanSignature` is `null`
 when the Record states no signatures, every signature is zero (the FPS blockers and the pearls,
-7 of the 231) or the Archive names no such slot; a consumer that wants another slot reads
+7 of the 231), `signatures` has not as many numbers as the radar parameters have signature
+types, or the Archive names no such slot (no radar parameters, no entry with the key, or the key
+on several entries): an unfiltered build then warns (`unknown_scan_signature_slot`) when any
+entity states signatures. A consumer that wants another slot reads `signatures`, in stored
+order; a number that is not a finite 32-bit float is exported as 0. Entities are selected by
+record path and type alone, so one without the components has `null` links and empty
 `signatures`.
 
 **Provider presets (`harvestableProviderPresets`).** The `HarvestableProviderPreset` Records under

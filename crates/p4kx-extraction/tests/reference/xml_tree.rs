@@ -81,11 +81,12 @@ impl XmlNode {
 /// Compares `ours` with the tree a reference tool `reference` wrote.
 #[must_use]
 pub(crate) fn compare(ours: &XmlNode, reference: &XmlNode) -> Compared {
-    let mut allowed = None;
-    walk(ours, reference, &mut String::new(), &mut allowed).map_or_else(
-        || allowed.map_or(Compared::Equal, Compared::Allowed),
-        Compared::Different,
-    )
+    let mut allowed = Vec::new();
+    match walk(ours, reference, &mut String::new(), &mut allowed) {
+        Some(difference) => Compared::Different(difference),
+        None if allowed.is_empty() => Compared::Equal,
+        None => Compared::Allowed(allowed),
+    }
 }
 
 fn mojibake(text: &str) -> String {
@@ -93,7 +94,7 @@ fn mojibake(text: &str) -> String {
 }
 
 fn allowance(ours: &str, reference: &str) -> Option<&'static str> {
-    if reference == "BUGGED" {
+    if reference == "BUGGED" && !ours.is_empty() {
         Some(UNFORGE_BUGGED)
     } else if !ours.is_ascii() && mojibake(ours) == reference {
         Some(UNFORGE_MOJIBAKE)
@@ -106,7 +107,7 @@ fn walk(
     ours: &XmlNode,
     reference: &XmlNode,
     path: &mut String,
-    allowed: &mut Option<&'static str>,
+    allowed: &mut Vec<&'static str>,
 ) -> Option<String> {
     let length = path.len();
     path.push('/');
@@ -120,7 +121,7 @@ fn element_difference(
     ours: &XmlNode,
     reference: &XmlNode,
     path: &mut String,
-    allowed: &mut Option<&'static str>,
+    allowed: &mut Vec<&'static str>,
 ) -> Option<String> {
     if ours.name != reference.name {
         return Some(format!(
@@ -143,7 +144,7 @@ fn element_difference(
         }
         if value != other_value {
             match allowance(value, other_value) {
-                Some(reason) => *allowed = allowed.or(Some(reason)),
+                Some(reason) => allowed.push(reason),
                 None => {
                     return Some(format!("{path}@{name}: {value:?} against {other_value:?}"));
                 }
@@ -152,7 +153,7 @@ fn element_difference(
     }
     if ours.text != reference.text {
         match allowance(&ours.text, &reference.text) {
-            Some(reason) => *allowed = allowed.or(Some(reason)),
+            Some(reason) => allowed.push(reason),
             None => {
                 return Some(format!(
                     "{path}: text {:?} against {:?}",

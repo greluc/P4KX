@@ -107,10 +107,7 @@ fn a_systems_design_record_tag_makes_a_ship_ai_whatever_else_it_carries() -> Tes
 #[test]
 fn a_ship_the_rules_cannot_place_has_no_playability() -> TestResult {
     let (_, catalog) = catalog()?;
-    assert_ships(
-        &catalog,
-        &[("Ship_No_Inclusion", None)],
-    )
+    assert_ships(&catalog, &[("Ship_No_Inclusion", None)])
 }
 
 #[test]

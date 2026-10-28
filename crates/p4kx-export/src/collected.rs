@@ -10,9 +10,9 @@ use crate::catalog_crafting::CraftingKinds;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, Crafter, CraftingGlobal,
     DismantleProcess, GameplayProperty, HarvestableLocation, HarvestableProviderPreset, Item,
-    Loadout, LootContainer, Manufacturer, MineableComposition, MineableElement, MiningGlobalParams,
-    Paint, QualityDistribution, QualityQuantization, RefiningProcess, ResourceGroup, Ship, Shop,
-    StarmapObject, SubHarvestableMultiConfig,
+    Loadout, LootContainer, Manufacturer, MineableComposition, MineableElement, MineableEntity,
+    MiningGlobalParams, Paint, QualityDistribution, QualityQuantization, RefiningProcess,
+    ResourceGroup, Ship, Shop, StarmapObject, SubHarvestableMultiConfig,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::{CatalogGuid, sort_by_guid};
@@ -48,6 +48,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) refining_processes: Vec<RefiningProcess<'f>>,
     pub(crate) mineable_compositions: Vec<MineableComposition<'f>>,
     pub(crate) mining_global_params: Vec<MiningGlobalParams<'f>>,
+    pub(crate) mineable_entities: Vec<MineableEntity<'f>>,
     pub(crate) harvestable_provider_presets: Vec<HarvestableProviderPreset<'f>>,
     pub(crate) sub_harvestable_multi_configs: Vec<SubHarvestableMultiConfig<'f>>,
     pub(crate) harvestable_locations: Vec<HarvestableLocation>,
@@ -93,6 +94,7 @@ impl<'f> Collected<'f> {
             refining_processes: Vec::new(),
             mineable_compositions: Vec::new(),
             mining_global_params: Vec::new(),
+            mineable_entities: Vec::new(),
             harvestable_provider_presets: Vec::new(),
             sub_harvestable_multi_configs: Vec::new(),
             harvestable_locations: Vec::new(),
@@ -144,6 +146,7 @@ impl<'f> Collected<'f> {
             Picked::Refining(entity) => self.refining_processes.push(entity),
             Picked::Composition(entity) => self.mineable_compositions.push(entity),
             Picked::MiningParams(entity) => self.mining_global_params.push(entity),
+            Picked::MineableEntity(entity) => self.mineable_entities.push(entity),
             Picked::Provider(entity) => self.harvestable_provider_presets.push(entity),
             Picked::MultiConfig(entity) => self.sub_harvestable_multi_configs.push(entity),
             Picked::Mission(entity) => self.mission_kinds.push(entity),
@@ -225,6 +228,7 @@ impl<'f> Collected<'f> {
         sort_by_guid(&mut self.refining_processes, |entity| entity.guid);
         sort_by_guid(&mut self.mineable_compositions, |entity| entity.guid);
         sort_by_guid(&mut self.mining_global_params, |entity| entity.guid);
+        sort_by_guid(&mut self.mineable_entities, |entity| entity.guid);
         sort_by_guid(&mut self.crafters, |entity| entity.guid);
         sort_by_guid(&mut self.harvestable_provider_presets, |entity| entity.guid);
         sort_by_guid(&mut self.sub_harvestable_multi_configs, |entity| {
@@ -261,6 +265,7 @@ impl<'f> Collected<'f> {
                     Kind::RefiningProcesses => self.refining_processes.len(),
                     Kind::MineableCompositions => self.mineable_compositions.len(),
                     Kind::MiningGlobalParams => self.mining_global_params.len(),
+                    Kind::MineableEntities => self.mineable_entities.len(),
                     Kind::HarvestableProviderPresets => self.harvestable_provider_presets.len(),
                     Kind::SubHarvestableMultiConfigs => self.sub_harvestable_multi_configs.len(),
                     Kind::HarvestableLocations => self.harvestable_locations.len(),

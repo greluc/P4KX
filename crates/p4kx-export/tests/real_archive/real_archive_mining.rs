@@ -195,6 +195,105 @@ fn guids<'c>(catalog: &'c Value, kind: &str) -> Result<HashSet<&'c str>, Box<dyn
         .collect())
 }
 
+fn at_path<'c>(catalog: &'c Value, kind: &str, name: &str) -> Result<&'c Value, Box<dyn Error>> {
+    let suffix = format!("/{name}");
+    list(catalog, kind)?
+        .iter()
+        .find(|entry| {
+            entry["recordPath"]
+                .as_str()
+                .is_some_and(|path| path.to_ascii_lowercase().ends_with(&suffix))
+        })
+        .ok_or_else(|| format!("{kind} has no {name}").into())
+}
+
+fn real_catalog() -> Result<Value, Box<dyn Error>> {
+    let archive = Archive::open_with_key(
+        real_archive_path()?,
+        Some(p4kx_testkit::real_archive_key()?),
+    )?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    Ok(serde_json::from_slice(built.json())?)
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_scan_signature_of_an_asteroid_and_a_surface_rock_of_a_real_archive_is_the_named_slot()
+-> TestResult {
+    let catalog = real_catalog()?;
+    for (name, signature) in [
+        ("mineablerock_asteroidlegendary_quantainium", 3170.0),
+        ("mineablerock_asteroidcommon_iron", 4270.0),
+        ("mineablerock_surfacerare_gold", 3585.0),
+    ] {
+        let rock = at_path(&catalog, "mineableEntities", name)?;
+        print_line(&format!("mineable entity sample: {rock}"));
+        assert_eq!(rock["scanSignature"], signature, "{name}");
+        assert_eq!(rock["signatures"].as_array().map(Vec::len), Some(8));
+        assert_eq!(rock["signatures"][4], signature, "{name}: slot 4 on LIVE");
+        assert!(rock["radarContactTypeGuid"].is_string(), "{name}");
+    }
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_mineable_entities_of_a_real_archive_are_plausible_and_linked() -> TestResult {
+    let catalog = real_catalog()?;
+    let compositions = guids(&catalog, "mineableCompositions")?;
+    let entities = list(&catalog, "mineableEntities")?;
+    let signatures: Vec<f64> = entities
+        .iter()
+        .filter_map(|entity| entity["scanSignature"].as_f64())
+        .collect();
+    print_line(&format!(
+        "{} mineable entities, {} with a scan signature",
+        entities.len(),
+        signatures.len()
+    ));
+    assert!(
+        entities.len() >= 200,
+        "mineable entities: {}",
+        entities.len()
+    );
+    assert!(
+        signatures.len() >= 200,
+        "with a signature: {}",
+        signatures.len()
+    );
+    assert!(
+        signatures
+            .iter()
+            .all(|value| (3000.0..=4900.0).contains(value)),
+        "rock signatures from 3000 to 4900"
+    );
+    for entity in entities {
+        if let Some(composition) = entity["mineableCompositionGuid"].as_str() {
+            assert!(compositions.contains(composition), "{composition}");
+        }
+    }
+    let known = guids(&catalog, "mineableEntities")?;
+    let mut linked = 0_usize;
+    for harvestable in list(&catalog, "harvestableProviderPresets")?
+        .iter()
+        .flat_map(|preset| preset["groups"].as_array().into_iter().flatten())
+        .flat_map(|group| group["harvestables"].as_array().into_iter().flatten())
+    {
+        if harvestable["harvestable"]["mineableCompositionGuid"].is_string() {
+            let entity = harvestable["harvestable"]["entityGuid"]
+                .as_str()
+                .ok_or("an entity")?;
+            assert!(known.contains(entity), "{entity} is a mineable entity");
+            linked += 1;
+        }
+    }
+    assert!(
+        linked > 100,
+        "harvestables reach mineable entities: {linked}"
+    );
+    Ok(())
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 #[expect(

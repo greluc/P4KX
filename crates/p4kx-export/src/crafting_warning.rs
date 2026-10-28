@@ -87,6 +87,9 @@ pub enum CraftingWarning {
     /// Shop containers name shops, but no `.soc` holds a shop component, so no shop has an item
     /// list; the component layout may have changed in this Build.
     NoShopComponents,
+    /// The radar parameters do not name the slot of the scan signature, so `scanSignature` of
+    /// `mineableEntities` is `null` everywhere; the text says why. `signatures` is still exported.
+    UnknownScanSignatureSlot(&'static str),
 }
 
 impl CraftingWarning {
@@ -108,6 +111,7 @@ impl CraftingWarning {
             Self::UnreadableShopInventories { .. } => "unreadable_shop_inventories",
             Self::MissingShopInventories(_) => "missing_shop_inventories",
             Self::NoShopComponents => "no_shop_components",
+            Self::UnknownScanSignatureSlot(_) => "unknown_scan_signature_slot",
         }
     }
 
@@ -126,9 +130,10 @@ impl CraftingWarning {
             | Self::UnreadableHarvestables { count, .. }
             | Self::UnreadableVehicleFiles { count, .. }
             | Self::UnreadableShopInventories { count, .. } => Some(*count),
-            Self::UnreadableShopRegistry | Self::MissingShopRegistry | Self::NoShopComponents => {
-                None
-            }
+            Self::UnreadableShopRegistry
+            | Self::MissingShopRegistry
+            | Self::NoShopComponents
+            | Self::UnknownScanSignatureSlot(_) => None,
         }
     }
 
@@ -228,6 +233,10 @@ impl fmt::Display for CraftingWarning {
             Self::MissingShopInventories(count) => write!(
                 f,
                 "{count} shop inventory files that shop containers name are not in the Archive; the shops that use them have no item list"
+            ),
+            Self::UnknownScanSignatureSlot(reason) => write!(
+                f,
+                "{reason}; the scan signature of the mineable entities is null"
             ),
             Self::NoShopComponents => f.write_str(
                 "no shop component was found in the .soc files of the shop containers; no shop has an item list",

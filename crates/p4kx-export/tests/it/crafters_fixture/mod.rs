@@ -90,8 +90,8 @@ fn mounted_loadout() -> TestLoadout {
     )])
 }
 
-fn database() -> DataForgeBuilder {
-    structures()
+fn carriers(builder: DataForgeBuilder) -> DataForgeBuilder {
+    builder
         .record(
             TestEntity::new(
                 MOUNTED,
@@ -112,6 +112,10 @@ fn database() -> DataForgeBuilder {
                 .record(),
         )
         .record(ship_entity(EMPTY_SHIP, "acme_empty").record())
+}
+
+fn database() -> DataForgeBuilder {
+    carriers(structures())
         .record(entity(
             BENCH,
             "bench",

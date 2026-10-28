@@ -635,6 +635,10 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `mineableElements`."
         },
+        "mineableEntities": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `mineableEntities`."
+        },
         "miningGlobalParams": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `miningGlobalParams`."
@@ -722,6 +726,7 @@
         "manufacturers",
         "mineableCompositions",
         "mineableElements",
+        "mineableEntities",
         "miningGlobalParams",
         "missionLocalities",
         "missionTypes",
@@ -3563,6 +3568,83 @@
         "recordPath",
         "resistance",
         "resourceTypeGuid"
+      ],
+      "type": "object"
+    },
+    "MineableEntity": {
+      "description": "A mineable entity: an `EntityClassDefinition` Record under `entities/mineable`, one kind of\nrock or deposit. Many entities share a composition; a provider preset reaches an entity through\nthe `entityGuid` of its harvestables. Entities are selected by record path and type alone, so\none without the components below has `null` and empty fields.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `MineableRock_AsteroidLegendary_Quantainium`.",
+          "type": "string"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "mineableCompositionGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MineableComposition` Record `Components[MineableParams]` links to."
+        },
+        "miningGlobalParamsGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MiningGlobalParams` Record `Components[MineableParams]` links to."
+        },
+        "radarContactTypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `RadarContactTypeEntry` Record `radarProperties.contactType` links to."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "scanSignature": {
+          "description": "The scan signature the mining scanner shows, from 3000 to 4900 on LIVE: the slot of\n`signatures` that `signatureTypeParams` of the `RadarSystemGlobalParams` Record names\n`@hud_scanning_info_rs_signature`. `null` when the Record states no signatures, all of them\nare zero, `signatures` has not one number per signature type, or the Archive names no\nsuch slot (a catalog warning says so).",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "signatures": {
+          "description": "`radarProperties.baseSignatureParams.signatures` of `Components[SSCSignatureSystemParams]`\nin stored order, one number per signature type; a value that is not a finite 32-bit float\nis exported as 0. Empty when the Record states none.",
+          "items": {
+            "format": "float",
+            "type": "number"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "guid",
+        "mineableCompositionGuid",
+        "miningGlobalParamsGuid",
+        "radarContactTypeGuid",
+        "recordPath",
+        "scanSignature",
+        "signatures"
       ],
       "type": "object"
     },
@@ -6780,6 +6862,13 @@
       },
       "type": "array"
     },
+    "mineableEntities": {
+      "description": "The mineable entities with the scan signature of each, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MineableEntity"
+      },
+      "type": "array"
+    },
     "miningGlobalParams": {
       "description": "The mining parameters of each kind of miner, ordered by GUID.",
       "items": {
@@ -6929,6 +7018,7 @@
     "manufacturers",
     "mineableCompositions",
     "mineableElements",
+    "mineableEntities",
     "miningGlobalParams",
     "missionLocalities",
     "missionTypes",

@@ -7,8 +7,8 @@ use crate::blueprint_category::blueprint_category;
 use crate::commodity::commodity;
 use crate::contract::{
     BlueprintCategory, Commodity, Crafter, HarvestableProviderPreset, Item, Manufacturer,
-    MineableComposition, MineableElement, MiningGlobalParams, RefiningProcess, ResourceGroup, Ship,
-    StarmapObject, SubHarvestableMultiConfig,
+    MineableComposition, MineableElement, MineableEntity, MiningGlobalParams, RefiningProcess,
+    ResourceGroup, Ship, StarmapObject, SubHarvestableMultiConfig,
 };
 use crate::crafter::crafter;
 use crate::crafting_warning::CraftingWarning;
@@ -54,6 +54,8 @@ pub(crate) enum Picked<'f> {
     Composition(MineableComposition<'f>),
     /// The mining parameters of a kind of miner.
     MiningParams(MiningGlobalParams<'f>),
+    /// A mineable entity.
+    MineableEntity(MineableEntity<'f>),
     /// A harvestable provider preset.
     Provider(HarvestableProviderPreset<'f>),
     /// A sub harvestable multi config.
@@ -133,6 +135,7 @@ impl<'f> Picked<'f> {
             | Kind::SubHarvestableMultiConfigs
             | Kind::HarvestableLocations
             | Kind::LootContainers
+            | Kind::MineableEntities
             | Kind::Shops => return None,
         })
     }
@@ -140,7 +143,10 @@ impl<'f> Picked<'f> {
     /// Returns `self` joined with the crafting station `tree` describes when `self` is an item,
     /// ship or commodity and the entity has a `CrafterComponentParams`.
     pub(crate) fn crafted(self, tree: &RecordTree<'f>) -> Self {
-        if !matches!(self, Self::Item(..) | Self::Ship(..) | Self::Commodity(_)) {
+        if !matches!(
+            self,
+            Self::Item(..) | Self::Ship(..) | Self::Commodity(_) | Self::MineableEntity(_)
+        ) {
             return self;
         }
         match crafter(tree) {

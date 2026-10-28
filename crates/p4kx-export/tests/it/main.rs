@@ -31,6 +31,7 @@ mod catalog_playability;
 mod catalog_quantization;
 mod catalog_recovery;
 mod catalog_reputation;
+mod catalog_scan_signature;
 mod catalog_selection;
 mod catalog_ship_base;
 mod catalog_shop_items;

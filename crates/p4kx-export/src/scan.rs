@@ -21,9 +21,11 @@ use crate::harvest_config::multi_config;
 use crate::harvest_link::Links;
 use crate::harvest_preset::provider_preset;
 use crate::item::is_paint;
+use crate::mining::mineable_entity;
 use crate::picked::Picked;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
+use crate::scan_signature::SignatureSlot;
 use crate::ship_pool::ShipPool;
 use crate::starmap::{TypeNames, starmap_object};
 use crate::starmap_containers::Placements;
@@ -65,6 +67,7 @@ pub(crate) struct Scan<'o, 'a, 'f> {
     crafters: Option<PointerProbe<'f>>,
     groups: Groups,
     evidence: Evidence,
+    signature_slot: SignatureSlot,
     done: AtomicUsize,
     total: usize,
 }
@@ -84,6 +87,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let records: Vec<Record<'f>> = forge.records().collect();
         let (groups, group_failures) = Self::groups(&records, options.filter);
         let (evidence, evidence_failures) = Evidence::read(&records);
+        let (signature_slot, slot_failures, slot_problem) = SignatureSlot::read(&records);
         let scan = Self {
             forge,
             ships: ShipPool::new(entities, files),
@@ -95,6 +99,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             crafters: forge.pointer_probe(CRAFTER_FIELD, CRAFTER_STRUCT),
             groups,
             evidence,
+            signature_slot,
             done: AtomicUsize::new(0),
             total: records.len(),
         };
@@ -107,12 +112,19 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             group_failures
                 .into_iter()
                 .chain(evidence_failures)
+                .chain(slot_failures)
                 .map(Picked::Failed),
         );
         let resources =
             scan.resource_commodities(&picked, &crafting.blueprints, &crafting.quantizations);
         picked.extend(resources);
         picked.extend(scan.links.warning().map(Picked::Warned));
+        let has_signatures = picked.iter().any(
+            |pick| matches!(pick, Picked::MineableEntity(entity) if !entity.signatures.is_empty()),
+        );
+        if options.filter.is_none() && has_signatures {
+            picked.extend(slot_problem.map(|problem| Picked::Warned(problem.warning())));
+        }
         Ok(picked)
     }
 
@@ -227,6 +239,23 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             .unwrap_or_else(|source| Some(Picked::Failed(CatalogFailure::of(record, &source)))))
     }
 
+    /// Returns what a development leftover of kind counts as: a skipped Record, a skipped paint
+    /// for an item that is one, and for a crafter only a Record that holds the component.
+    fn leftover(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        record: &Record<'f>,
+        kind: Kind,
+    ) -> Result<Option<Picked<'f>>, DataForgeError> {
+        Ok(match kind {
+            Kind::Items if trees.build(record).is_ok_and(|tree| is_paint(&tree)) => {
+                Some(Picked::SkippedPaint)
+            }
+            Kind::Crafters if !self.holds_crafter(trees, record)? => None,
+            kind => Some(Picked::Skipped(kind, record.guid())),
+        })
+    }
+
     fn select(
         &self,
         trees: &mut TreeBuilder<'f>,
@@ -234,23 +263,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
     ) -> Result<Option<Picked<'f>>, DataForgeError> {
         let kind = match select(record, self.options.filter)? {
             None => return Ok(None),
-            Some(Selected::Leftover(Kind::Items)) => {
-                return Ok(Some(
-                    if trees.build(record).is_ok_and(|tree| is_paint(&tree)) {
-                        Picked::SkippedPaint
-                    } else {
-                        Picked::Skipped(Kind::Items, record.guid())
-                    },
-                ));
-            }
-            Some(Selected::Leftover(Kind::Crafters)) => {
-                return Ok(self
-                    .holds_crafter(trees, record)?
-                    .then(|| Picked::Skipped(Kind::Crafters, record.guid())));
-            }
-            Some(Selected::Leftover(kind)) => {
-                return Ok(Some(Picked::Skipped(kind, record.guid())));
-            }
+            Some(Selected::Leftover(kind)) => return self.leftover(trees, record, kind),
             Some(Selected::Entity(Kind::Crafters)) if !self.holds_crafter(trees, record)? => {
                 return Ok(None);
             }
@@ -259,6 +272,10 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let tree = trees.build(record)?;
         if let Some(picked) = self.harvestable(kind, trees, &tree) {
             return Ok(Some(picked));
+        }
+        if kind == Kind::MineableEntities {
+            let entity = Picked::MineableEntity(mineable_entity(&tree, self.signature_slot));
+            return Ok(Some(entity.crafted(&tree)));
         }
         if kind == Kind::StarmapObjects {
             let object = starmap_object(

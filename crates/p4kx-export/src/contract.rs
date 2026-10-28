@@ -18,7 +18,7 @@ pub(crate) use crate::contract_harvest_config::SubHarvestableMultiConfig;
 pub(crate) use crate::contract_loadout::Loadout;
 pub(crate) use crate::contract_loot::{LootArchetype, LootContainer, LootPoolFilter, LootTable};
 pub(crate) use crate::contract_mining::{
-    CompositionPart, MineableComposition, MineableElement, RefiningProcess,
+    CompositionPart, MineableComposition, MineableElement, MineableEntity, RefiningProcess,
 };
 pub(crate) use crate::contract_mining_params::MiningGlobalParams;
 pub(crate) use crate::contract_mission_data::{ContractScenario, MissionLocality, MissionType};
@@ -131,6 +131,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) loot_archetypes: Vec<LootArchetype<'a>>,
     /// The loot pool filters, ordered by GUID.
     pub(crate) loot_pool_filters: Vec<LootPoolFilter<'a>>,
+    /// The mineable entities with the scan signature of each, ordered by GUID.
+    pub(crate) mineable_entities: Vec<MineableEntity<'a>>,
     /// The crafting stations with the limits of their job queues, ordered by GUID.
     pub(crate) crafters: Vec<Crafter<'a>>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
@@ -253,6 +255,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) loot_archetypes: KindCompleteness<'a>,
     /// The completeness of `lootPoolFilters`.
     pub(crate) loot_pool_filters: KindCompleteness<'a>,
+    /// The completeness of `mineableEntities`.
+    pub(crate) mineable_entities: KindCompleteness<'a>,
     /// The completeness of `crafters`.
     pub(crate) crafters: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
@@ -298,6 +302,7 @@ impl<'a> Completeness<'a> {
             loot_tables: completeness,
             loot_archetypes: completeness,
             loot_pool_filters: completeness,
+            mineable_entities: completeness,
             crafters: completeness,
             ship_store_slugs: completeness,
         }

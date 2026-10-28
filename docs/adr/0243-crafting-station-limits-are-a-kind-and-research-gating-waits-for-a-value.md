@@ -29,16 +29,25 @@ every tier.
   Default Loadout mounts it at any depth of the port tree, derived from `loadouts`. The data
   supports this link, whereas a link on the ship entry would add a field to a kind that other
   work extends. A crafter that is a building part has no loadout host and an empty list, and a
-  ship whose loadout is empty or failed yields no hosts. A ship that carries the component itself is
-  not its own host: its hostGuids stays empty and a reader matches crafters[].guid with
-  ships[].guid.
+  ship whose loadout is empty or failed yields no hosts. A ship that carries the component itself
+  is not its own host: its `hostGuids` stays empty and a reader matches `crafters[].guid` with
+  `ships[].guid`.
 - The categories and process types a queue accepts are not exported; they are not limits.
 - The tier field `research` is left out. Neither pointer holds a value on any tier, so there is
-  no value to read the pointed-to type from, and a field typed without one would be a guess that ADR-0054's guarantees (an existing field never changes its type) forbid
-  correcting. When a Build fills them, the fields join the tier as an additive change.
+  no value to read the pointed-to type from, and a field typed without one would be a guess that
+  ADR-0054's guarantees (an existing field never changes its type) forbid correcting. When a
+  Build fills them, the fields join the tier as an additive change.
 
 ## Consequences
 
-- Every entity Record under `entities` that no other kind takes is read into a Record tree to
-  look for the component, a cost paid once per catalog build.
+- A Record that no other kind takes is not read into a tree to look for the component. A probe
+  (`DataForge::pointer_probe`, `TreeBuilder::holds` in p4kx-dataforge) reads only the
+  `Components` pointer array and compares the struct index; it is skipped entirely when no
+  instance of `CrafterComponentParams` exists. Items, ships, commodities and mineable entities
+  are checked on the tree they already have.
+- Measured with the real-Archive insurance test on LIVE 4.10 (one full catalog build plus the
+  process start, two runs each): main 19.5 s and 26.3 s; crafters with a tree per entity 18.0 s
+  and 23.4 s; crafters with the probe 22.7 s and 19.3 s. The differences are within the noise of
+  the machine. The failed count (0) and the skipped count (1,287, plus the one template crafter)
+  match main on LIVE and PTU.
 - The Basetool reads a missing `crafters` as an older catalog.

@@ -11,7 +11,7 @@
 use std::fmt::Write as _;
 
 use super::tally::Compared;
-use super::value_tree::{JsonNumber, Node, RecordDoc};
+use super::value_tree::{Embedded, JsonNumber, Node, RecordDoc};
 
 pub(crate) const WEAK_NULL: &str = "StarBreaker writes null for a weak pointer in a derived type";
 pub(crate) const DANGLING_NULL: &str =
@@ -102,25 +102,35 @@ const fn non_finite_text(node: &Node) -> Option<&'static str> {
     }
 }
 
+/// Builds the Record P4KX has under a GUID; `None` when there is none.
+pub(crate) type Resolve<'r> = dyn FnMut(&str) -> Option<RecordDoc> + 'r;
+
 /// What a comparison saw besides the differences: the reason of each allowed value and the
-/// number of embedded Records compared as a Reference.
-#[derive(Default)]
-struct Observed {
+/// number of embedded Records compared by content, and how to find the Record P4KX holds for an
+/// embedded one.
+struct Observed<'r> {
     allowed: Vec<&'static str>,
     embedded: u64,
+    resolve: &'r mut Resolve<'r>,
 }
 
 /// Compares `ours` with the Record a reference tool wrote: type, GUID, name and every field by
-/// name, kind and value.
+/// name, kind and value. An embedded Record is a difference, as there is nothing to compare it
+/// with.
 #[must_use]
 pub(crate) fn compare_records(ours: &RecordDoc, theirs: &RecordDoc) -> Compared {
-    compare_counting(ours, theirs).0
+    compare_counting(ours, theirs, &mut |_| None).0
 }
 
-/// As [`compare_records`], also returning how many embedded Records were compared as a
-/// Reference by GUID.
+/// As [`compare_records`], resolving the Record P4KX holds for each embedded Record with
+/// `resolve` and comparing the two by content. Also returns how many embedded Records were
+/// compared; when the Record differs, that is the number reached before the first difference.
 #[must_use]
-pub(crate) fn compare_counting(ours: &RecordDoc, theirs: &RecordDoc) -> (Compared, u64) {
+pub(crate) fn compare_counting(
+    ours: &RecordDoc,
+    theirs: &RecordDoc,
+    resolve: &mut Resolve<'_>,
+) -> (Compared, u64) {
     if ours.guid != theirs.guid {
         let difference = format!("GUID {} against {}", ours.guid, theirs.guid);
         return (Compared::Different(difference), 0);
@@ -133,7 +143,11 @@ pub(crate) fn compare_counting(ours: &RecordDoc, theirs: &RecordDoc) -> (Compare
         let difference = format!("tag {:?} against {:?}", ours.tag, theirs.tag);
         return (Compared::Different(difference), 0);
     }
-    let mut seen = Observed::default();
+    let mut seen = Observed {
+        allowed: Vec::new(),
+        embedded: 0,
+        resolve,
+    };
     let found = walk(&ours.root, &theirs.root, &mut String::new(), &mut seen);
     let compared = match found {
         Some(difference) => Compared::Different(difference),
@@ -143,7 +157,33 @@ pub(crate) fn compare_counting(ours: &RecordDoc, theirs: &RecordDoc) -> (Compare
     (compared, seen.embedded)
 }
 
-fn walk(ours: &Node, theirs: &Node, path: &mut String, seen: &mut Observed) -> Option<String> {
+/// Compares the Record P4KX holds under `guid` with the content the reference embedded.
+fn walk_embedded(
+    guid: &str,
+    content: &Embedded,
+    path: &mut String,
+    seen: &mut Observed<'_>,
+) -> Option<String> {
+    seen.embedded += 1;
+    let Some(record) = (seen.resolve)(guid) else {
+        return Some(format!(
+            "{path}: no Record {guid} to compare the embedded one with"
+        ));
+    };
+    if record.name != content.name {
+        return Some(format!(
+            "{path}: embedded name {:?} against {:?}",
+            record.name, content.name
+        ));
+    }
+    let length = path.len();
+    let _written = write!(path, "->{}", content.name);
+    let found = walk(&record.root, &content.root, path, seen);
+    path.truncate(length);
+    found
+}
+
+fn walk(ours: &Node, theirs: &Node, path: &mut String, seen: &mut Observed<'_>) -> Option<String> {
     let mismatch = |what: &str| Some(format!("{path}: {what}: {ours:?} against {theirs:?}"));
     match (ours, theirs) {
         (Node::Null, Node::Null) | (Node::WeakPointer, Node::WeakPointer) => None,
@@ -154,16 +194,19 @@ fn walk(ours: &Node, theirs: &Node, path: &mut String, seen: &mut Observed) -> O
         (Node::Text(a), Node::Text(b)) if a == b => None,
         (Node::Guid(a), Node::Guid(b) | Node::Text(b)) if a == b => None,
         (
-            Node::Reference { guid, path, .. },
+            Node::Reference {
+                guid,
+                path: record_path,
+                ..
+            },
             Node::Reference {
                 guid: other_guid,
                 path: other_path,
                 embedded,
             },
-        ) if same_target(guid, path, other_guid, other_path) => {
-            seen.embedded += u64::from(*embedded);
-            None
-        }
+        ) if same_target(guid, record_path, other_guid, other_path) => embedded
+            .as_deref()
+            .and_then(|content| walk_embedded(guid, content, path, seen)),
         (Node::Single(_) | Node::Double(_), Node::Null) if non_finite_text(ours).is_some() => {
             allow(seen, NON_FINITE_NULL)
         }
@@ -188,23 +231,37 @@ fn walk(ours: &Node, theirs: &Node, path: &mut String, seen: &mut Observed) -> O
             }
             walk_fields(our_fields, their_fields, path, seen)
         }
-        (Node::Array(a), Node::Array(b)) => {
-            if a.len() != b.len() {
-                return Some(format!("{path}: {} elements against {}", a.len(), b.len()));
-            }
-            a.iter().zip(b).enumerate().find_map(|(index, (x, y))| {
-                let length = path.len();
-                let _written = write!(path, "[{index}]");
-                let found = walk(x, y, path, seen);
-                path.truncate(length);
-                found
-            })
-        }
+        (Node::Array(a), Node::Array(b)) => walk_elements(a, b, path, seen),
         _ => mismatch("value"),
     }
 }
 
-fn allow(seen: &mut Observed, reason: &'static str) -> Option<String> {
+fn walk_elements(
+    ours: &[Node],
+    theirs: &[Node],
+    path: &mut String,
+    seen: &mut Observed<'_>,
+) -> Option<String> {
+    if ours.len() != theirs.len() {
+        return Some(format!(
+            "{path}: {} elements against {}",
+            ours.len(),
+            theirs.len()
+        ));
+    }
+    ours.iter()
+        .zip(theirs)
+        .enumerate()
+        .find_map(|(index, (x, y))| {
+            let length = path.len();
+            let _written = write!(path, "[{index}]");
+            let found = walk(x, y, path, seen);
+            path.truncate(length);
+            found
+        })
+}
+
+fn allow(seen: &mut Observed<'_>, reason: &'static str) -> Option<String> {
     seen.allowed.push(reason);
     None
 }
@@ -213,7 +270,7 @@ fn walk_fields(
     ours: &[(String, Node)],
     theirs: &[(String, Node)],
     path: &mut String,
-    seen: &mut Observed,
+    seen: &mut Observed<'_>,
 ) -> Option<String> {
     if let Some(((name, _), (other, _))) = ours
         .iter()

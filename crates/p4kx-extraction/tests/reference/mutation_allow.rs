@@ -8,8 +8,7 @@ use super::mutation_value::{doc_with, link};
 use super::tally::Compared;
 use super::value_tree::{JsonNumber, Node};
 use super::value_tree_compare::{
-    DANGLING_NULL, LENIENT_BOOL, NON_FINITE_NULL, NON_FINITE_TEXT, WEAK_NULL, compare_counting,
-    compare_records,
+    DANGLING_NULL, LENIENT_BOOL, NON_FINITE_NULL, NON_FINITE_TEXT, WEAK_NULL, compare_records,
 };
 
 fn text(value: &str) -> Node {
@@ -132,21 +131,4 @@ fn every_allowed_value_is_counted_under_its_reason() {
         compare_records(&ours, &theirs),
         Compared::Allowed(vec![WEAK_NULL, DANGLING_NULL, WEAK_NULL, NON_FINITE_TEXT])
     );
-}
-
-#[test]
-fn embedded_records_are_counted_and_still_compared_by_target() {
-    let embedded = Node::Reference {
-        guid: "g".to_owned(),
-        path: String::new(),
-        embedded: true,
-    };
-    let ours = doc_with(Node::Array(vec![link("g", "p"), link("g", "p")]));
-    let theirs = doc_with(Node::Array(vec![embedded.clone(), link("g", "p")]));
-    assert_eq!(compare_counting(&ours, &theirs), (Compared::Equal, 1));
-    let other = doc_with(Node::Array(vec![embedded, link("h", "p")]));
-    assert!(matches!(
-        compare_counting(&ours, &other).0,
-        Compared::Different(_)
-    ));
 }

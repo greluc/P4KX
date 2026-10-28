@@ -18,6 +18,7 @@ fn value(name: &str) -> TestStruct {
 /// Adds the structs of the fixture to `builder`.
 pub(super) fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
     [
+        handler_structs(),
         generator_structs(),
         prerequisite_structs(),
         property_structs(),
@@ -47,7 +48,7 @@ fn prerequisite_structs() -> Vec<TestStruct> {
     ]
 }
 
-fn generator_structs() -> Vec<TestStruct> {
+fn handler_structs() -> Vec<TestStruct> {
     vec![
         TestStruct::new("ContractGenerator")
             .array("generators", pointer("ContractGeneratorHandler")),
@@ -60,8 +61,43 @@ fn generator_structs() -> Vec<TestStruct> {
             .field("contractParams", class("ContractParamOverrides"))
             .array("contracts", class("CareerContract"))
             .array("introContracts", class("CareerContract")),
+        TestStruct::new("ContractGeneratorHandler_List")
+            .parent("ContractGeneratorHandler")
+            .field("debugName", TestType::String)
+            .field("factionReputation", TestType::Reference)
+            .field(
+                "defaultAvailability",
+                class("ContractAvailabilityWithoutCooldown"),
+            )
+            .field("contractParams", class("ContractParamOverrides"))
+            .array("contracts", class("CareerContract"))
+            .array("introContracts", class("CareerContract")),
         TestStruct::new("ContractAvailability")
+            .field("hasPersonalCooldown", TestType::Bool)
+            .field("personalCooldownTime", TestType::Single)
+            .field("personalCooldownTimeVariation", TestType::Single)
+            .field("abandonedCooldownTime", TestType::Single)
+            .field("abandonedCooldownTimeVariation", TestType::Single)
             .array("prerequisites", pointer("ContractPrerequisite")),
+        TestStruct::new("ContractGeneratorHandler_PVPBountyDef")
+            .parent("ContractGeneratorHandler")
+            .field("debugName", TestType::String)
+            .field("factionReputation", TestType::Reference)
+            .field("defaultAvailability", class("ContractAvailabilityPartial"))
+            .field("contractParams", class("ContractParamOverrides"))
+            .array("contracts", class("CareerContract"))
+            .array("introContracts", class("CareerContract")),
+        TestStruct::new("ContractAvailabilityPartial")
+            .field("hasPersonalCooldown", TestType::Bool)
+            .field("personalCooldownTime", TestType::Int32)
+            .array("prerequisites", pointer("ContractPrerequisite")),
+        TestStruct::new("ContractAvailabilityWithoutCooldown")
+            .array("prerequisites", pointer("ContractPrerequisite")),
+    ]
+}
+
+fn generator_structs() -> Vec<TestStruct> {
+    vec![
         TestStruct::new("ContractParamOverrides")
             .field("missionTypeOverride", TestType::Reference)
             .array("stringParamOverrides", class("ContractStringParam"))

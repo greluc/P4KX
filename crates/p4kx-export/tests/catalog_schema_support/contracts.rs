@@ -48,6 +48,12 @@ pub(super) fn contracts() -> serde_json::Value {
             "scopeGuid": "61000000-0000-4000-8000-000000000001",
             "minStandingGuid": "62000000-0000-4000-8000-000000000001",
             "maxStandingGuid": null
-        }]
+        }],
+        "cooldownLayer": "handler",
+        "hasPersonalCooldown": true,
+        "personalCooldownTime": 2880.0,
+        "personalCooldownTimeVariation": 60.0,
+        "abandonedCooldownTime": 30.0,
+        "abandonedCooldownTimeVariation": null
     }])
 }

@@ -5,6 +5,7 @@
 
 mod catalog_compression;
 mod catalog_contracts;
+mod catalog_contracts_cooldown;
 mod catalog_contracts_standing;
 mod catalog_crafting;
 mod catalog_crafting_followups;

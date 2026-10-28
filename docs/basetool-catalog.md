@@ -43,8 +43,11 @@ The rule is ADR-0054 (amending ADR-0002):
   `reputationContexts`, `missionTypes`, `missionLocalities` and `contractScenarios` and the
   contract fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319,
   ADR-0237), and the kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers`
-  and the field `lootConfig` of a sub harvestable (#322, ADR-0238). Later additions keep version 2
-  as long as they are additive: the kind `mineableEntities` (#830, ADR-0242) is one.
+  and the field `lootConfig` of a sub harvestable (#322, ADR-0238), the kind `mineableEntities`
+  (#830, ADR-0242), and the contract fields `cooldownLayer`, `hasPersonalCooldown`,
+  `personalCooldownTime`, `personalCooldownTimeVariation`, `abandonedCooldownTime` and
+  `abandonedCooldownTimeVariation` (#832, ADR-0244). Later additions keep version 2 as long as
+  they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -1043,6 +1046,10 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `reputationGains` | The reputation granted on success; an amount may be negative |
 | `minStandingGuid`, `maxStandingGuid` | The `minStanding` and `maxStanding` of the contract: the standings between which it is offered, entries of `reputationStandings`; `null` when absent. A sub contract shares the contract's |
 | `standingRequirements` | The reputation prerequisites (see "Standing") |
+| `cooldownLayer` | The level that states the cooldown fields: `handler`; `null` when none is stated (see "Cooldowns") |
+| `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
+| `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
+| `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
 
 **Layers.** Sub contract, contract and handler each override the template: the first of them that
 states a value wins, the template last. A level states its overrides in `paramOverrides` (sub
@@ -1152,6 +1159,17 @@ levels combine or what `exclude` inverts. On LIVE 4.10 (2026-10-28) 3,976 of the
 have a range, always both ends; 638 entries have requirements (607 at the contract, 306 at a sub
 contract, 21 at a handler; 145 with `exclude`). The Wikelo contracts have a requirement and no
 range.
+
+**Cooldowns (ADR-0244).** Blueprints have no lockout of their own; they are rewards of contracts,
+and the contracts carry the cooldowns. The five fields are read from the `defaultAvailability` of
+the handler (`ContractGeneratorHandler_*`, all handler types), and a contract and each of its sub
+contracts share them. Contracts and sub contracts state no cooldown field of their own on LIVE 4.10,
+so the catalog reads the handler only; `cooldownLayer` is `handler` when the handler states any of
+the five and `null` otherwise. A nearer layer would be added if the game ever states one. The
+numbers are as stored, in floating point. The Archive does not state their unit: no
+type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880,
+`abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
+that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.
 
 ### Factions, reputation and missions
 

@@ -257,7 +257,8 @@ fn database() -> DataForgeBuilder {
             "Faction",
             "Faction_Lawful_CrusaderIndustries",
             "factions/faction_lawful_crusaderindustries",
-        ),
+        )
+        .value("factionReputationRef", TestValue::Reference(FACTION)),
         scenario(),
     ]
     .into_iter()

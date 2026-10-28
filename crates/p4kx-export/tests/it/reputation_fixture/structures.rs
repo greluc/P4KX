@@ -64,7 +64,7 @@ fn reputation_structs() -> Vec<TestStruct> {
 fn mission_structs() -> Vec<TestStruct> {
     vec![
         TestStruct::new("Placeholder"),
-        TestStruct::new("Faction"),
+        TestStruct::new("Faction").field("factionReputationRef", TestType::Reference),
         TestStruct::new("MissionType").field("LocalisedTypeName", TestType::Locale),
         TestStruct::new("MissionLocality").array("availableLocations", TestType::Reference),
         TestStruct::new("ScenarioProgress")

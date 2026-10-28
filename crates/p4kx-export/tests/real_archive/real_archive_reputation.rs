@@ -251,6 +251,19 @@ fn a_contract_of_a_real_archive_names_its_type_and_standing_range() -> TestResul
     Ok(())
 }
 
+/// Asserts that every faction of `scenario` links to a kept faction reputation.
+fn check_scenario_factions(scenario: &Value, factions: &HashSet<&str>) {
+    for faction in scenario["factionRewardTiers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+    {
+        let linked = text(faction, "/factionReputationGuid");
+        assert!(linked.is_some(), "the Faction Record names a reputation");
+        assert_resolve("the faction of a scenario", linked, factions);
+    }
+}
+
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn mission_types_localities_and_scenarios_of_a_real_archive_are_linked() -> TestResult {
@@ -260,6 +273,7 @@ fn mission_types_localities_and_scenarios_of_a_real_archive_are_linked() -> Test
     let scenarios = list(&catalog, "contractScenarios")?;
     let objects = guids(&catalog, "starmapObjects")?;
     let pools = guids(&catalog, "blueprintPools")?;
+    let factions = guids(&catalog, "factionReputations")?;
     print_line(&format!(
         "{} mission types, {} localities, {} scenarios",
         types.len(),
@@ -294,7 +308,9 @@ fn mission_types_localities_and_scenarios_of_a_real_archive_are_linked() -> Test
             .flat_map(|progression| progression["tiers"].as_array().into_iter().flatten())
             .collect();
         assert!(!tiers.is_empty(), "a scenario has tiers");
+        check_scenario_factions(scenario, &factions);
         for tier in tiers {
+            assert_ne!(tier["badgeToAward"], "None", "no badge is null");
             assert!(tier["minPoints"].is_i64(), "points");
             assert_resolve(
                 "the pools of a tier",

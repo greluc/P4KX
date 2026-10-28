@@ -85,6 +85,7 @@ pub(super) fn scenarios() -> serde_json::Value {
         "recordPath": "libs/foundry/records/contracts/contractscenarios/ors_scenarioprogress",
         "factionRewardTiers": [{
             "factionGuid": "66000000-0000-4000-8000-000000000001",
+            "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
             "factionName": "faction_lawful_crusaderindustries",
             "pointsAsPercent": false,
             "progressions": [{

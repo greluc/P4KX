@@ -184,6 +184,7 @@ fn a_scenario_lists_the_tiers_of_each_faction() -> TestResult {
             "recordPath": "libs/foundry/records/contracts/contractscenarios/ors_scenarioprogress",
             "factionRewardTiers": [{
                 "factionGuid": guid(LEGACY_FACTION),
+                "factionReputationGuid": guid(FACTION),
                 "factionName": "faction_lawful_crusaderindustries",
                 "pointsAsPercent": false,
                 "progressions": [{
@@ -199,7 +200,7 @@ fn a_scenario_lists_the_tiers_of_each_faction() -> TestResult {
                         },
                         {
                             "minPoints": 18_000,
-                            "badgeToAward": "None",
+                            "badgeToAward": null,
                             "globalPointsMultiplier": 1.0,
                             "blueprintPoolGuids": [guid(PLAIN_B)]
                         }

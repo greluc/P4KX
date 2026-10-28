@@ -1115,7 +1115,7 @@ descriptions.
 **Standing (ADR-0237).** `minStandingGuid` and `maxStandingGuid` are the `minStanding` and
 `maxStanding` References of the contract, entries of `reputationStandings`; a sub contract has none
 of its own and shares the contract's. `standingRequirements` lists the
-`ContractPrerequisite_Reputation` prerequisites, each with `level` (`handler`: the
+`ContractPrerequisite_Reputation` prerequisites, each with `level` (`handler`, `contract` or `subContract`; `handler`: the
 `defaultAvailability` of the handler; `contract` and `subContract`: their
 `additionalPrerequisites`; in that order and as stored), `exclude` as stored, the faction, the scope
 and the standings it names (`null` for what it leaves out). The catalog does not decide how the
@@ -1129,7 +1129,7 @@ range.
 Seven kinds (ADR-0237, schema version 2, no bump) hold what the contracts refer to. Each is the
 Records of one type under one folder (see "Selection"), ordered by GUID, with `guid`, `className`
 (the Record name without its type) and `recordPath`. Facts only: identifiers, short names, numbers
-and links. A link to a Record that does not exist is left out (`null`, or missing from the list).
+and links. A Reference to no Record is left out (`null`, or missing from the list); a GUID of an existing Record that the catalog does not list is kept, so `missionLocalities[].starmapObjectGuids` may name an object missing from `starmapObjects` under a Filter.
 Descriptions, perk texts, logos, icons and the faction property texts (headquarters, founding,
 leadership, focus) are not exported.
 
@@ -1163,9 +1163,9 @@ locality; the `className` (`Pyro`) is the only name.
 
 **Contract scenarios (`contractScenarios`).** A `ScenarioProgress` Record. `factionRewardTiers`
 hold, per `Faction` Record (`factionGuid`, `factionName` the last part of its record path),
-`pointsAsPercent` and the `progressions` (`minMultiplierThreshold`, `completionType` the name of
+`factionReputationGuid` (the `factionReputationRef` of that `Faction` Record, an entry of `factionReputations`; no kind lists the `Faction` Records themselves), `pointsAsPercent` and the `progressions` (`minMultiplierThreshold`, `completionType` the name of
 the struct, `periodScenarioGuid`), each with `tiers`: `minPoints`, `badgeToAward` (an identifier;
-the game stores `None` for a tier without a badge, kept as that text), `globalPointsMultiplier` and
+`null` for a tier without a badge, which the game stores as the text `None`), `globalPointsMultiplier` and
 `blueprintPoolGuids`, entries of `blueprintPools`. The progression texts and the multiplier rewards
 (empty on LIVE) are not exported.
 

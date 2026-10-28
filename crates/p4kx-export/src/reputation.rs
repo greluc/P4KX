@@ -11,7 +11,9 @@ use crate::mission_layers::{key, one};
 use crate::record_fields::{boolean, class_name, integer, reference, references, structs, text};
 use crate::texts::Texts;
 
+/// The name of the `propertiesBB` entry of a faction that states whether it is lawful.
 const LAWFUL_PROPERTY: &str = "entityLawful";
+/// The struct of the `dynamicProperty` of a `propertiesBB` entry that holds a boolean `value`.
 const BOOL_PROPERTY: &str = "SBBDynamicPropertyBool";
 
 /// Returns the faction the Record tree `tree` describes, its name resolved by `texts`.

@@ -79,13 +79,25 @@ pub(crate) struct ContractEntry<'a> {
     pub(crate) standing_requirements: Vec<StandingRequirement>,
 }
 
+/// The level at which a reputation prerequisite is stated.
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub(crate) enum StandingLevel {
+    /// The `defaultAvailability` of the handler.
+    Handler,
+    /// The `additionalPrerequisites` of the contract.
+    Contract,
+    /// The `additionalPrerequisites` of the sub contract.
+    SubContract,
+}
+
 /// A reputation prerequisite of a contract.
 #[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct StandingRequirement {
-    /// Where the prerequisite is stated: `handler`, `contract` or `subContract`.
-    pub(crate) level: &'static str,
+    /// Where the prerequisite is stated.
+    pub(crate) level: StandingLevel,
     /// The `exclude` flag as stored, `null` when absent.
     pub(crate) exclude: Option<bool>,
     /// The `factionReputation` the prerequisite is about, `null` when it names none.

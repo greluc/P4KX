@@ -4,33 +4,12 @@
 use p4kx_extraction::StructValue;
 
 use crate::blueprint::as_struct;
-use crate::contract_missions::StandingRequirement;
+use crate::contract_missions::{StandingLevel, StandingRequirement};
 use crate::guid_text::CatalogGuid;
 use crate::mission_layers::{items, one};
 use crate::record_fields::{boolean, reference};
 
 const REPUTATION: &str = "ContractPrerequisite_Reputation";
-
-/// The levels a prerequisite is stated at.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Level {
-    /// The `defaultAvailability` of the handler.
-    Handler,
-    /// The `additionalPrerequisites` of the contract.
-    Contract,
-    /// The `additionalPrerequisites` of the sub contract.
-    SubContract,
-}
-
-impl Level {
-    const fn name(self) -> &'static str {
-        match self {
-            Self::Handler => "handler",
-            Self::Contract => "contract",
-            Self::SubContract => "subContract",
-        }
-    }
-}
 
 /// The standing range of a contract and the reputation prerequisites its handler and itself state;
 /// shared by the contract and its sub contracts.
@@ -48,10 +27,10 @@ impl Standing {
         Self {
             min: reference(Some(contract), "minStanding"),
             max: reference(Some(contract), "maxStanding"),
-            inherited: requirements(Level::Handler, availability, "prerequisites")
+            inherited: requirements(StandingLevel::Handler, availability, "prerequisites")
                 .into_iter()
                 .chain(requirements(
-                    Level::Contract,
+                    StandingLevel::Contract,
                     Some(contract),
                     "additionalPrerequisites",
                 ))
@@ -68,7 +47,7 @@ impl Standing {
             .iter()
             .copied()
             .chain(requirements(
-                Level::SubContract,
+                StandingLevel::SubContract,
                 sub,
                 "additionalPrerequisites",
             ))
@@ -78,7 +57,7 @@ impl Standing {
 
 /// Reads the reputation prerequisites in the array field `field` of `parent`, stated at `level`.
 fn requirements(
-    level: Level,
+    level: StandingLevel,
     parent: Option<&StructValue<'_>>,
     field: &str,
 ) -> Vec<StandingRequirement> {
@@ -89,7 +68,7 @@ fn requirements(
         .map(|prerequisite| {
             let prerequisite = Some(prerequisite);
             StandingRequirement {
-                level: level.name(),
+                level,
                 exclude: boolean(prerequisite, "exclude"),
                 faction_reputation_guid: reference(prerequisite, "factionReputation"),
                 scope_guid: reference(prerequisite, "scope"),

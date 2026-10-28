@@ -20,6 +20,7 @@ use crate::contract::{
 };
 use crate::crafting::read_with_progress;
 use crate::crafting_warning::CraftingWarning;
+use crate::mission_data::link_scenario_factions;
 use crate::recovery::{Recovery, read_recovery};
 use crate::scan::Scan;
 use crate::ship_store_slugs::StoreSlugs;
@@ -216,6 +217,7 @@ fn assemble<R>(
     let starmap_summary = add_starmap(&mut collected, placements.counts);
     add_harvest_locations(archive, &placements, &mut collected, options.cancel)?;
     add_contracts(&forge, &texts, options, &mut collected)?;
+    link_scenario_factions(&forge, &mut collected.mission_kinds.scenarios);
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
     let Recovery { rules, failures } = read_recovery(&forge, options.filter);
     collected.add_failures(failures);

@@ -8,6 +8,7 @@ use crate::contract::{
     ContractScenario, FactionReputation, MissionLocality, MissionType, ReputationContext,
     ReputationScope, ReputationStanding,
 };
+use crate::guid_text::CatalogGuid;
 use crate::mission_data::{contract_scenario, mission_locality, mission_type};
 use crate::reputation::{
     faction_reputation, reputation_context, reputation_scope, reputation_standing,
@@ -77,18 +78,13 @@ impl<'f> MissionKinds<'f> {
 
     /// Orders every kind by the text of the GUID.
     pub(crate) fn order(&mut self) {
-        self.factions
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.scopes.sort_by_cached_key(|entity| entity.guid.text());
-        self.standings
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.contexts
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.types.sort_by_cached_key(|entity| entity.guid.text());
-        self.localities
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.scenarios
-            .sort_by_cached_key(|entity| entity.guid.text());
+        sort_by_guid(&mut self.factions, |entity| entity.guid);
+        sort_by_guid(&mut self.scopes, |entity| entity.guid);
+        sort_by_guid(&mut self.standings, |entity| entity.guid);
+        sort_by_guid(&mut self.contexts, |entity| entity.guid);
+        sort_by_guid(&mut self.types, |entity| entity.guid);
+        sort_by_guid(&mut self.localities, |entity| entity.guid);
+        sort_by_guid(&mut self.scenarios, |entity| entity.guid);
     }
 
     /// Returns how many entities `kind` holds, 0 for a kind that is not one of these.
@@ -104,4 +100,9 @@ impl<'f> MissionKinds<'f> {
             _ => 0,
         }
     }
+}
+
+/// Orders `entities` by the text of the GUID `guid` returns.
+fn sort_by_guid<T>(entities: &mut [T], guid: impl Fn(&T) -> CatalogGuid) {
+    entities.sort_by_cached_key(|entity| guid(entity).text());
 }

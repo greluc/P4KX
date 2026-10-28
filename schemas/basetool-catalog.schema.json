@@ -4589,7 +4589,7 @@
               "type": "null"
             }
           ],
-          "description": "The GUID of the `Faction` Record, `null` for a null or dangling Reference."
+          "description": "The GUID of the `Faction` Record, `null` for a null or dangling Reference. No kind lists\n`Faction` Records; `factionReputationGuid` is the link into the catalog."
         },
         "factionName": {
           "description": "The Record name of the faction, the last part of its record path, e.g.\n`faction_lawful_crusaderindustries`; `null` for no Reference.",
@@ -4597,6 +4597,17 @@
             "string",
             "null"
           ]
+        },
+        "factionReputationGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The `factionReputationRef` of the `Faction` Record, an entry of `factionReputations`;\n`null` when the Record is missing, unreadable or names none."
         },
         "pointsAsPercent": {
           "description": "Whether the tier points count as percent (`convertTiersPointsToPercent`).",
@@ -4616,6 +4627,7 @@
       "required": [
         "factionGuid",
         "factionName",
+        "factionReputationGuid",
         "pointsAsPercent",
         "progressions"
       ],
@@ -4670,7 +4682,7 @@
       "description": "A reward tier of a scenario progression.",
       "properties": {
         "badgeToAward": {
-          "description": "The identifier of the badge the tier awards (`badgeToAward`), `null` for none; the game\nstores `None` for a tier without a badge, which is kept as that text.",
+          "description": "The identifier of the badge the tier awards (`badgeToAward`), `null` for none; the game\nstores the text `None` for a tier without a badge.",
           "type": [
             "string",
             "null"
@@ -5278,6 +5290,26 @@
       ],
       "type": "object"
     },
+    "StandingLevel": {
+      "description": "The level at which a reputation prerequisite is stated.",
+      "oneOf": [
+        {
+          "const": "handler",
+          "description": "The `defaultAvailability` of the handler.",
+          "type": "string"
+        },
+        {
+          "const": "contract",
+          "description": "The `additionalPrerequisites` of the contract.",
+          "type": "string"
+        },
+        {
+          "const": "subContract",
+          "description": "The `additionalPrerequisites` of the sub contract.",
+          "type": "string"
+        }
+      ]
+    },
     "StandingRequirement": {
       "description": "A reputation prerequisite of a contract.",
       "properties": {
@@ -5300,8 +5332,8 @@
           "description": "The `factionReputation` the prerequisite is about, `null` when it names none."
         },
         "level": {
-          "description": "Where the prerequisite is stated: `handler`, `contract` or `subContract`.",
-          "type": "string"
+          "$ref": "#/$defs/StandingLevel",
+          "description": "Where the prerequisite is stated."
         },
         "maxStandingGuid": {
           "anyOf": [

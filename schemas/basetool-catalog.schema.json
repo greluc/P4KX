@@ -3476,7 +3476,7 @@
           "type": "string"
         },
         "tagCounts": {
-          "description": "How many entities of the placed container carry each tag, summed over its `.soc` files and\nordered by GUID; empty when `entityCount` is `null`. The tags of `tagGuids` of the tagged configs select the slots.",
+          "description": "How many entities of the placed container carry each tag, summed over its `.soc` files and\nordered by GUID; empty when `entityCount` is `null`. The tags of `tagGuids` of the tagged\nconfigs select the slots.",
           "items": {
             "$ref": "#/$defs/TagCount"
           },

@@ -1057,6 +1057,8 @@ cannot be read, so `shops` is empty), `missing_shop_registry` (starmap objects b
 `unreadable_shop_inventories` with a `count` (inventory files that cannot be read) and `details` (as above: every file in the JSON),
 `missing_shop_inventories` with a `count` (distinct inventory files that containers name and the Archive lacks) and
 `no_shop_components` (shop containers name shops but no `.soc` holds a shop component) and
+`unreadable_loot_containers` with a `count` and `details` (as above: every entry in the JSON; the containers and entity files that cannot be read, a `.soc` that cannot be counted, a placed container the Archive lacks, and the containers beyond the limit of the walk, so a multi config may be missing from `lootContainers` or a container has no counts) and
+`ambiguous_loot_entity_files` with a `count` and `details` (entity files of containers that name several different containers or multi configs, of which only the first of each is used) and
 `unknown_scan_signature_slot` (the radar parameters do not name the scan signature slot, so `scanSignature` of the mineable entities is null; no `count`); a reader ignores a `kind` it does not know. The prose of each warning goes to stderr; a healthy
 Archive has none (the example shows one). `item_classes` counts the items whose `Class:` line names an item class (`classified`),
 holds another value (`other`) or is missing, also for an item without an English description

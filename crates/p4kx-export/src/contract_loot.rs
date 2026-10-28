@@ -195,7 +195,8 @@ pub(crate) struct LootContainer {
     /// when a file cannot be read or the Archive lacks the container.
     pub(crate) entity_count: Option<u32>,
     /// How many entities of the placed container carry each tag, summed over its `.soc` files and
-    /// ordered by GUID; empty when `entityCount` is `null`. The tags of `tagGuids` of the tagged configs select the slots.
+    /// ordered by GUID; empty when `entityCount` is `null`. The tags of `tagGuids` of the tagged
+    /// configs select the slots.
     pub(crate) tag_counts: Vec<TagCount>,
 }
 

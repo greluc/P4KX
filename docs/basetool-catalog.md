@@ -1458,25 +1458,25 @@ is the designer's label, not a text the game shows; no field of these kinds is a
 
 **Tables (`lootTables`).** A `LootTableV3Record` under `lootgeneration/loottables` (59 on LIVE
 4.10, 54 entries; the leftover rule skips five). The folder also holds the older `LootTable`
-Records (161), which are the kind `legacyLootTables` (see "Older loot Records"). `entries` follow `lootTable.lootArchetypes` in stored order, each
-with `name`, `weight` and the archetype it draws from: `archetypeGuid`, an entry of
-`lootArchetypes`, for a `LootArchetypeV3_RecordRef`, else `archetype`, the entries of an archetype
-written out in place (as in "Archetypes"); the other one is `null`. The `optionalData` of an entry
-gives `priorityCount`, `choiceLimit`, `dupeLimit` and `chanceToExist` (0 to 1), each `null` when the
-entry has no such data. An entry is drawn with the probability `weight` over the sum of the weights
+Records (161), which are the kind `legacyLootTables` (see "Older loot Records"). `entries` follow
+`lootTable.lootArchetypes` in stored order, each with `name`, `weight` and the archetype it draws
+from: `archetypeGuid`, an entry of `lootArchetypes`, for a `LootArchetypeV3_RecordRef`, else
+`archetype`, the entries of an archetype written out in place (as in "Archetypes"); the other one
+is `null`. The `optionalData` of an entry gives `priorityCount`, `choiceLimit`, `dupeLimit` and
+`chanceToExist` (0 to 1), each `null` when the entry has no such data. An entry is drawn with the probability `weight` over the sum of the weights
 of the table; the Archive does not state how `priorityCount` and `choiceLimit` change that, and the
 catalog does not decide it.
 
 **Archetypes (`lootArchetypes`).** A `LootArchetypeV3Record` under `lootgeneration/lootarchetypes`
 (34 on LIVE, all entries; the older `LootArchetype` Records, 233, are `legacyLootArchetypes`). An
-entry has `name`,
-`weight` and a `selector`, and the optional data `stackSize` (`min` and `max`) and `spawnWith`:
-items spawned with it, each with `name`, `chance`, `mode`, `amount` and a selector. A selector
-selects either by tags or by entity classes, read by its fields and not by the name of its
-struct: `positiveTagGuids` and `negativeTagGuids` (`Tag` Records of the `TagsDNFTerm`; an item
-fits when it carries every positive and no negative tag) or `entityClassGuids` (the classes of a
-manual list). `selectorType` states the struct as stored. The tags are the `Tag` Records of the
-tag tree, not the free item tags of "Matching tags".
+entry has `name`, `weight` and a `selector`, and the optional data `stackSize` (`min` and `max`)
+and `spawnWith`: items spawned with it, each with `name`, `chance`, `mode`, `amount` and a
+selector. A selector selects either by tags or by entity classes, read by its fields and not by
+the name of its struct: `positiveTagGuids` and `negativeTagGuids` (`Tag` Records of the
+`TagsDNFTerm`; an item fits when it carries every positive and no negative tag) or
+`entityClassGuids` (the classes of a manual list). `selectorType` states the struct as stored and
+is informational. The tags are the `Tag` Records of the tag tree, not the free item tags of
+"Matching tags".
 
 **Pool filters (`lootPoolFilters`).** A `PoolFilterRecord` under `lootgeneration/filters` (15 on
 LIVE). `filter` is a node with the struct as stored in `nodeType`: a `PoolFilter_Sequence` holds
@@ -1499,9 +1499,9 @@ tag lists of `tagsToMatch`) and `secondaryGroups` (`groupName` and entries of `w
 
 **Slots (`lootConfig`).** A sub harvestable of a multi config has `lootConfig` when its Record
 states one (1,958 of 2,896 on LIVE): `lootTableV3Guid` (an entry of `lootTables`; 1,321 slots),
-`lootTableGuid` (an entry of `legacyLootTables`; 635 slots; a slot names one of the two), `poolFilterGuid` (an entry of `lootPoolFilters`), `totalResultsLimit`,
-`chanceToGenerate`, `chanceToGenerateAdditionalInventories` and the `fullness` range of
-`fullnessFactorRange`.
+`lootTableGuid` (an entry of `legacyLootTables`; 635 slots; a slot names one of the two),
+`poolFilterGuid` (an entry of `lootPoolFilters`), `totalResultsLimit`, `chanceToGenerate`,
+`chanceToGenerateAdditionalInventories` and the `fullness` range of `fullnessFactorRange`.
 
 **Placed containers (`lootContainers`).** A container below `ObjectContainers/PU/system`, or one
 it places, holds the property file of an entity (`entdata/<n>.entxml`) that names the container it

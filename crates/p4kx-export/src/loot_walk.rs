@@ -48,7 +48,7 @@ pub(crate) struct Summary {
     pub(crate) several: Vec<String>,
 }
 
-/// The containers read, by Archive entry, and how many the limit left unread.
+/// The containers read, by Archive entry, and how many distinct containers the limit left unread.
 pub(crate) struct Explored {
     pub(crate) summaries: HashMap<usize, Summary>,
     pub(crate) beyond_limit: usize,
@@ -73,15 +73,16 @@ fn explore_within(
     limit: usize,
 ) -> Explored {
     let mut summaries: HashMap<usize, Summary> = HashMap::new();
-    let mut beyond_limit = 0;
+    let mut unread: HashSet<usize> = HashSet::new();
     let mut frontier: Vec<usize> = opened.iter().map(|root| root.entry).collect();
     while !frontier.is_empty() && !cancel.is_some_and(CancelToken::is_cancelled) {
         frontier.sort_unstable();
         frontier.dedup();
         frontier.retain(|entry| !summaries.contains_key(entry));
         let room = limit.saturating_sub(summaries.len());
-        beyond_limit += frontier.len().saturating_sub(room);
-        frontier.truncate(room);
+        if frontier.len() > room {
+            unread.extend(frontier.split_off(room));
+        }
         let read: Vec<(usize, Summary)> = frontier
             .par_iter()
             .filter(|_| !cancel.is_some_and(CancelToken::is_cancelled))
@@ -95,7 +96,7 @@ fn explore_within(
     }
     Explored {
         summaries,
-        beyond_limit,
+        beyond_limit: unread.len(),
     }
 }
 
@@ -355,7 +356,7 @@ mod tests {
                     "a",
                     &[entity(&written("b"), None), entity(&written("c"), None)],
                 ),
-                socpak("b", &[]),
+                socpak("b", &[entity(&written("c"), None)]),
                 socpak("c", &[]),
             ],
         );

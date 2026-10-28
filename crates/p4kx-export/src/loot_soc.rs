@@ -85,7 +85,8 @@ impl EntityTags {
                 if self.by_tag.len() >= MAX_TAGS && !self.by_tag.contains_key(&id) {
                     return Err(SocError::TooManyTags);
                 }
-                *self.by_tag.entry(id).or_default() += 1;
+                let count = self.by_tag.entry(id).or_default();
+                *count = count.saturating_add(1);
             }
         }
         Ok(())
@@ -149,6 +150,21 @@ mod tests {
         let mut counts = EntityTags::default();
         assert_eq!(counts.add_soc(b"<Entities/>"), Err(SocError::NotChunkFile));
         assert_eq!(counts.add_soc(b""), Err(SocError::NotChunkFile));
+    }
+
+    #[test]
+    fn a_chunk_table_that_points_outside_the_file_is_an_error() {
+        use p4kx_testkit::TestChunkFile;
+
+        let whole = TestChunkFile::crch()
+            .chunk(0x0004, 3, b"<Entities><Entity/></Entities>".to_vec())
+            .bytes();
+        let mut counts = EntityTags::default();
+        assert_eq!(counts.add_soc(&whole), Ok(()), "the whole file counts");
+        let cut = whole.get(..whole.len() - 4).expect("a shorter file");
+        let mut counts = EntityTags::default();
+        assert!(counts.add_soc(cut).is_err(), "the cut file does not");
+        assert_eq!(counts, EntityTags::default(), "and adds nothing");
     }
 
     #[test]

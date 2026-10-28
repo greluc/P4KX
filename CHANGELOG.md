@@ -10,6 +10,961 @@ the entries under `## [Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-28
+
+The fourth Release brings the 3D side of the tool:
+- whole ships and vehicles as Assemblies, with Loadouts, palettes, textures and landing gear, in the
+  GLB export and the 3D viewer;
+- interiors, characters and armour with their faces and animations;
+- the Blender package and its add-on;
+- MFD screens and holograms;
+- Wwise sound resolution.
+
+The Basetool catalog adds:
+- ship insurance and the item recovery rules;
+- mining compositions and harvestable locations;
+- factions, reputation, mission types and localities;
+- loot tables and placed loot containers;
+- a playability class for ships and items.
+
+The GUI follows P4KX's own theme and fits the smallest window without sideways scrolling.
+Differential tests compare P4KX with the output of unp4k, unforge and StarBreaker.
+
+Breaking changes:
+- The repository moved to `p4kx-org/p4kx`, which changes the Record XML namespace and the Record
+  JSON schema `$id`.
+- The Basetool catalog and the ship base data are now `schemaVersion` 2.
+- The default CSV of `dcb query` and `dcb fields` changed.
+- Several library types changed; see Changed.
+
+### Added
+
+- MCP server: the tools `list_chunks`, `get_model_info` and `list_model_items` list the chunks of a
+  chunk file Entry and summarise a model Entry (nodes, meshes, levels of detail, materials, bones,
+  animations), paged and without returning chunk data. Unknown chunk types are marked, and broken
+  or missing files give clear tool errors.
+- Assembly export: `p4kx entity glb --materials textures` embeds the diffuse, normal and
+  metallic-roughness textures of every part, each image once however many parts use it (liveries
+  share it unless a specular map bakes the palette colours in), at the mip that `--texture-mip` picks for the whole Assembly. Textures that cannot be read
+  keep the plain colour and are listed in the report.
+- Assembly export: the tint palette of each part, the one its Entity names or else the default of
+  its material library, gives the colours of the materials that take one, so liveries look right.
+  A palette that cannot be resolved is listed (`palette` issue); the part falls back to the
+  colours of its library.
+- Entity: `p4kx entity loadout` and `p4kx entity glb` take `--exclude <port>` and
+  `--replace <port>=<entity>`, each repeatable, to export a ship without its weapons or with
+  other components. A replacement is checked against the port's item types and sizes, from its
+  definition in the Record or from the vehicle implementation, and rejected with the reason
+  (exit code 2); the replacing Entity brings its own Loadout. The Loadout tree marks the ports
+  `excluded` and `replaced`.
+- GUI: the new Entities tab lists the ships, vehicles and weapons of the open Archive, searchable
+  by class name and record path and filterable by kind. Selecting an Entity shows its Loadout as a
+  tree of ports and attached Entities, where a branch can be left out and an Entity replaced by
+  another one that fits the port's item types and sizes. "Export as GLB…" writes the Entity with
+  those changes as one GLB with the level of detail, material (plain colours or textures, with
+  the tint palettes of the Entities) and texture size choices, which are remembered. The export
+  runs in the background with progress and cancel and ends with a report of the parts that could
+  not be resolved and the textures that are missing.
+- Assembly: `PortNode::constraints` returns the port's constraints built once, `LoadoutChanges`
+  can be edited in place (`set_excluded`, `set_replacement`, `remove`, `action_for`), and
+  `EntityCatalogue` lists every Entity with its kind and item facts for pickers.
+- GUI: the Entities tab shows the selected Entity with its Loadout in a 3D view above the tree.
+  The view draws the same Assembly the GLB export writes, at the chosen level of detail (0 to 3)
+  and with plain colours or the diffuse textures, with the tint palettes of the parts. Leaving a
+  port out or replacing an Entity builds the view again; "Hide" and "Show" in the tree hide a
+  branch in the view only. Parts that share a model are uploaded once and drawn as instances,
+  parts outside the view or smaller than a pixel are not drawn, and the Assembly is built in the
+  background with progress and a stop button. "Export as GLB…" starts with the detail and
+  materials of the view.
+- 3D viewer: a model with bones shows a bar under the view with a Skeleton checkbox that draws its
+  bones over the model. A skinned model also lists the animations that move its bones, and plays,
+  pauses, loops and scrubs the chosen one on a timeline; the vertices are skinned on the graphics
+  device. The preview panel opens taller for models to make room.
+- Interior: `p4kx interior glb <archive> <container>... --out <file>` exports a socpak container as
+  one GLB: the models its `.soc` files place, at their transforms, and the containers nested in it
+  at their position and rotation, recursively. Cycles, missing containers, files and models are
+  listed. `p4kx-model` reads object container descriptions and the `IncludedObjects` of `.soc`
+  files.
+- Interior: `p4kx interior glb` also places the props of the `.soc` entities and writes their lights
+  with `KHR_lights_punctual`: point, spot and directional lights with colour, intensity and range
+  (the intensity is the raw engine value and the colour an approximation).
+  Ambient and planar lights, which glTF cannot express, are listed. The JSON report gains `props`
+  and `lights`. `p4kx-model` reads the entity chunk of a `.soc` file (`SocEntities`).
+- Interior: `p4kx entity glb <archive> <entity> --interior --out <file>` adds the rooms of a ship
+  to its GLB. The socpak containers the Entity's Record names (`VehicleComponentParams` and
+  `SObjectContainerComponentParams`) are placed at their bone of the hull with the Record's
+  offset, below an `Interior` node of the Entity, with the containers nested in them. Containers
+  and parts that cannot be resolved are listed; without the flag only the hull is written.
+- Entities tab: the checkbox Interior in the 3D view builds the rooms and props of the Entity's
+  object containers in the background, with progress and Stop, and shows them with the hull;
+  switching it off hides them without building again. The Entity export has the same choice,
+  remembered with the other options, and a socpak Entry in the Archive offers Export Interior as
+  GLB with level of detail, materials, progress and a report.
+- Library: `Interior::build_watched` and `EntityInterior::build_watched` can be stopped and report
+  their progress, and `Interior::write_glb_with` embeds textures.
+- CLI: `p4kx wwise extract <archive> <trigger> --out <folder>` and `p4kx entity audio --extract
+  <folder>` write the sounds of an audio trigger or an Entity as Ogg, WAV or raw WEM files named
+  `<trigger>[_<WEM ID>].<ext>`, safe for the file system and unique. A sound that cannot be
+  decoded is reported and written unchanged; `--conflict` decides about existing files.
+- GUI: the new Sounds tab lists the audio triggers of an Entity (by class name, GUID, record path
+  or the selected Record) and searches triggers and Wwise events by name. Each trigger shows its
+  sounds with soundbank, WEM ID, source kind and language; a sound plays with the audio player,
+  and the sounds of a trigger or of the whole list are exported as Ogg, WAV or raw WEM with the
+  trigger name in the file names, with progress and cancel. The audio is indexed off the UI thread.
+- Armour: `p4kx armour glb <archive> --piece <entity> --body male|female --out <file>` writes
+  pieces of armour and clothing worn on the default body of a variant as one skinned GLB: the
+  body's skeleton once as bone nodes, the skin of the body, and for every piece the geometry its
+  Record names for the variant's tag, skinned to the skeleton by bone name. `--piece` can be given
+  several times; a piece with no geometry for the variant or whose model cannot be read is
+  skipped and listed. `p4kx armour bodies` lists the variants.
+- Armour: `p4kx armour glb --loadout <loadout>` takes the pieces from a Loadout instead of a list:
+  an Entity's default Loadout by class name, GUID or record path, or an XML Loadout by its path in
+  the Archive or as a file on disk. The armour and clothing anywhere in its tree are worn, other
+  items such as weapons are not; entries that cannot be resolved are listed. `--piece` can be
+  added: it takes the place of the Loadout's piece of the same item type, or is added.
+- Characters: `p4kx chf glb <archive> <file> --out <file>` writes the head of a CHF character as
+  one skinned GLB: the head skin of the character's head rig, shaped into the character's
+  neutral face by its face DNA, worn on the default body of the character's body variant. The
+  DNA rig reader (`p4kx-character`) reads the neutral and expression morphs, joint and region
+  weights and delta records of the rig. Hair, eyes, teeth and expressions follow later.
+- Characters: `p4kx chf glb` now dresses the head. The teeth, eyes, hair, brows, lashes and beard the
+  character wears are in the GLB: the eyes and teeth shaped by the face DNA, the rest following
+  the shaped head. The character's material choices are applied (its head material, skin tone,
+  iris colour, hair melanin and dye) and the textures of the skin, eyes and hair are embedded
+  (`--materials`, `--texture-mip`); hair cards are cut out by their opacity maps. Items,
+  materials and textures the Archive does not have are listed in the report.
+- Characters: `p4kx chf glb` writes the expressions of the head rig as named glTF morph targets of
+  the head (399 for the male and 406 for the female default character, e.g. `CTL_expressions
+  blinkR`), mixed by the character's DNA so that they move the character's own face, and stored as
+  sparse accessors (3.3 MB for a head). `--expression NAME` (repeatable) limits them and
+  `--no-expressions` leaves them out; only LOD 0 has expressions. `p4kx-gltf` writes morph targets
+  (`RigPiece::with_morphs`), `p4kx-character` reads the `RigLogic` names and blends the
+  expressions, and the GLB checker of the testkit validates sparse accessors and morph targets.
+- Characters: `p4kx chf glb` and `p4kx armour glb` take `--anim NAME` and `--anim-from ENTRY` and
+  write body animations on the body skeleton. For a CHF character, face animations are evaluated
+  through the rig logic of the head into the poses of the facial joints and the weights of the
+  expression morph targets. The facial joints of the head skin are now part of the skeleton, at
+  the character's own joint positions, and the head is skinned to them.
+- Characters tab: composes a Character from a body, a head (a CHF file of the Archive or one you
+  pick), pieces of armour and clothing and a Loadout, shows it in the 3D view with skeleton overlay,
+  previews the expressions of the head, lists the pieces that could not be fitted, and exports it as
+  GLB with progress and Stop.
+- Blender package: `p4kx entity package <archive> <entity> --out <folder>` writes an Entity as a
+  folder that does not depend on Blender's file format: `scene.json` (format version, source
+  Channel and Build, node hierarchy with names and transforms), one GLB per distinct mesh, shared
+  by every node that draws it, and the textures of the materials as PNG, each written once. The
+  folder is written beside the target and moved into place when complete, and the JSON Schema of
+  `scene.json` is checked in. See `docs/blender-package.md`.
+- Blender package format 1.1: `scene.json` describes every material of the meshes and of their
+  layers as the game defines it (shader, generation mask, texture slots with their UV modifiers,
+  layers with tints, tiling and palette entries, shader parameters kept as name and value), lists
+  each tint palette once, and the package holds the textures of every slot. `p4kx entity package`
+  reports the materials and palettes. Packages of format 1.0 stay readable.
+- Blender: the new add-on in `blender_addon/` imports a Blender package with File > Import > P4KX
+  Package. It keeps the hierarchy, names and transforms, imports shared meshes once as linked
+  instances, loads the textures and gives the materials a basic node setup. A package with a
+  newer format version is refused with a message to update the add-on. It targets Blender 5.2 LTS.
+- Blender add-on: material node trees from the package's material descriptions (format 1.1):
+  layered surfaces blended by their masks, palette tints, wear, glass, decals, holograms and
+  alpha modes, with shared node groups. Unknown shaders get a basic material and a warning.
+- Blender package: `p4kx entity package --interior` writes the Entity's Interior into the package
+  (format 1.2): containers, models and props as nodes and lights as nodes with type, colour, raw
+  intensity, range and cone angles. The schema and `docs/blender-package.md` describe them. The
+  Blender add-on builds the containers and instances and creates Blender point, spot and sun
+  lights; the import option *Light strength* scales their energy.
+- Blender package: `p4kx character package <archive> --out <folder>` writes a Character, the head
+  of a CHF file and the armour and clothing of pieces or a Loadout on a body, as a package of
+  format 1.3 with one skinned GLB that holds the skeleton, the head's expressions as morph targets
+  and the animations. The Blender add-on imports it as an armature with shape keys and actions
+  that can be posed and animated. `p4kx_blender::write_character_package` is the entry point for
+  front-ends.
+- Library: `Mesh` and `PackageSummary` of `p4kx-blender` no longer implement `Eq`, because they
+  hold floating-point values now.
+- Desktop window: the export of an Entity offers "Blender package" next to "GLB file". The package goes
+  into a folder you pick, which may be new, empty or hold an earlier package that is replaced as a
+  whole. The export shows its progress with Cancel and ends with a report of what the package holds.
+- Release: every GitHub Release now attaches the Blender add-on as `p4kx_importer-<version>.zip`
+  next to the MSI and the portable ZIP. Its version always equals the Release version; `cargo
+  xtask` fails when the add-on manifest and the workspace version differ.
+- CLI: `p4kx ui screens <archive> <entity>` lists the `BuildingBlocks` screens of an Entity and of
+  its Loadout (MFDs, radar, annunciators, HUD) with the canvases, textures, vector graphics, movies
+  and localisation keys each uses and the widgets by element type; `p4kx ui render <archive>
+  --screen <canvas>` renders such a canvas as a PNG or SVG still through the GFx renderer: the
+  layout and the boxes, circles and polygons in the colours of the style cascade. Texts, textures
+  and the other widget types without a renderer are left out and listed (exit code 1).
+- UI renders: the radar screens of ships (`p4kx ui render --screen`, for example
+  `components/map/mapdisplaymaster`) list what the game fills at run time by its reason (maps, 3D
+  models and windows, stalk lines) instead of as widgets without a renderer, and separators draw
+  the canvas of the ModularKit that holds their look. A custom shape without a graphic draws the
+  box its style gives it and is listed as a graphic the game sets at run time.
+- CLI: `p4kx ui hologram <archive> <entity> --out <file.png>` draws the hologram of a vehicle as a
+  PNG: its Assembly with the Loadout, as a transparent tinted shell with a glowing edge, seen
+  through the camera of the game's `UIHoloVehicle_Config` Record (field of view, view angle and
+  distance factor, each overridable). `--size`, `--background` (`transparent` or a colour with
+  alpha), `--view-angle`, `--elevation`, `--tint`, `--opacity`, `--glow` and `--software` shape
+  the picture. It is drawn offscreen without a window, by the renderer the 3D viewer uses.
+- GUI: a UI tab browses the GFx and SWF files of the Archive and the screens of every ship or
+  vehicle, draws the picked one off the UI thread, lists what the drawing left out, and exports
+  it as PNG or SVG like `p4kx ui render`.
+- Keyboard: the lists of the Extraction summary and the summary of the DataForge tab take the focus
+  with Tab and scroll with the arrow keys, Page Up, Page Down, Home and End.
+- Textures: array and volume textures decode per image. The Extraction and `p4kx texture png`
+  write one PNG per array element (`<name>_layerN`) or volume slice (`<name>_sliceN`), and the
+  Image tab tiles the images on one sheet and names the number of layers. `R16G16_FLOAT` and
+  `R32_UINT` textures decode too.
+- Library: `p4kx-cryxml` gains `compare_trees` and `TreeComparison`, which count where the child
+  table of a CryXml file differs from the tree its parent indices give. The reader itself is
+  unchanged; on LIVE the child table never changes the output (ADR-0142).
+- Record export: the flat value export writes one row per leaf value of the Records, as CSV
+  (`values.csv`, for spreadsheets) or NDJSON (`values.ndjson`), with the Record GUID, name and
+  path, the field path, the array indices, the kind, the value and the target path of a Reference
+  (`docs/record-flat.md`). `p4kx dcb export --flat --format csv|ndjson` writes it, `--lang` adds
+  the resolved text of localisation keys and `--csv-raw` writes the exact values without byte order
+  mark and without the leading `'` that keeps a spreadsheet from running a text as a formula; the
+  Record export dialog of the desktop app offers the three flat forms. There is no SQLite output
+  (ADR-0112).
+- Wwise: the soundbank reader decodes the music segments, tracks, switch containers and
+  playlists, the node base parameters of sounds and the soundbank a Play action names. Trigger
+  resolution follows them, and PlayEvent actions, to sounds; a Play action that names another
+  soundbank is a broken link of the new kind `other_soundbank`. Entities also name audio
+  triggers through string fields whose name contains `audioTrigger`, e.g. the audio trigger name
+  of a melee weapon.
+- Library: `HircValue` and `HircObject` of `p4kx-audio` no longer implement `Eq` and `Hash`,
+  because the music objects hold floating-point values now. `SoundSource.parent_id` and
+  `ActionTarget.bank` are new public fields, and `BreakReason` has the new variant
+  `OtherSoundbank`.
+- Textures: floating-point textures (`R16G16B16A16_FLOAT`, `R32G32B32A32_FLOAT`, `R16_FLOAT`,
+  `R32_FLOAT` and the others) are high range like BC6H. The Extraction and `p4kx texture png`
+  write them as OpenEXR with 32-bit float RGB, one file per image, and 8-bit output is
+  tone-mapped (ADR-0010, ADR-0123). Textures in `R11G11B10_FLOAT`, `R9G9B9E5_SHAREDEXP`,
+  `R32G32_FLOAT`, `R32G32B32_FLOAT`, `R8_SNORM`, `R8G8_SNORM` and `R8G8B8A8_SNORM` decode too.
+- Models: a mesh that stores no normals gets smooth normals computed from its triangles
+  (`Mesh::normals_computed`); quantised positions can be read with the model box
+  (`Model::read_with_box`); `LodSelection::OnlyOrBase` reads a missing level from the base meshes
+  and reports an issue instead of failing; nodes keep the scale, geometry type and `key=value`
+  properties of the node table and the model its list of material indices. `p4kx model info`
+  shows them (ADR-0119).
+- Record XML and Record JSON: a Record now carries its name and, in a version 8 DataForge, its
+  tag. Record JSON has `$name` and `$tag` after `$path`; Record XML has the root attributes
+  `p4kx:name` and `p4kx:tag` after `path`, and the root of every document declares `xmlns:p4kx`.
+  Version 6 and Records without a tag have no tag. The Comparison reports the tag next to the
+  name and treats a different tag as a change of the Record; the Comparison window shows it as a
+  row of its own. The change is additive; the Record
+  JSON Schema and the Comparison report schema are updated (ADR-0124).
+- MCP server: `list_entries`, `search_entries`, `read_entry_text` and `read_entry_bytes` read
+  inside socpak containers with paths like `outer.socpak::inner.socpak::path`. New tools:
+  `image_preview` returns a DDS texture as a PNG image block (chosen mip, cubemap face),
+  `mtl_summary` summarises a `.mtl` material library, and `entity_loadout` lists the Loadout
+  tree of an Entity with the reason for every unresolved port. All are read-only, paged where they
+  list, and bounded in size.
+- MCP server: the audio tools `search_audio_triggers`, `get_entity_sounds`, `resolve_audio_trigger`,
+  `list_soundbank_wems` and `get_wem_info` follow an Entity's audio from trigger through Wwise
+  events and soundbanks to WEMs, paged and with metadata only. `get_audio_excerpt` returns a
+  short decoded WAV excerpt of a WEM, at most 10 seconds and 1 MiB.
+- CHF: `p4kx chf to-json` writes the name of a hash beside it (`port_label`, `attachment_label`,
+  `name_label`, `gender_hash_label`) for the item ports, material slots, sub-materials and
+  parameters it can resolve, and counts the hashes it cannot, on stderr, after the conversion line
+  and in the `--json` summary. `--archive` adds the names the Archive knows. `from-json` ignores
+  the labels, so the byte-exact round trip still holds.
+- CLI: `p4kx extract --threads <n>` limits the worker threads of an Extraction. A Filter that
+  matches no Entry now also says what to try, for example that a glob must match the whole path.
+- Archive: `Archive::open_with` and `OpenOptions::recover` rebuild an Archive whose end of central
+  directory is missing or whose central directory is damaged by scanning the last 4 GiB for
+  directory records; `EntryIssue::Recovered` says so. The command line offers it as the global
+  `--recover` flag. Without it nothing changes.
+- Soundbanks: `p4kx bnk list` and the Audio tab classify every embedded media item as WEM, MIDI,
+  plug-in data or unknown, and `bnk list --json` carries the `class`. Sounds whose source is a
+  plug-in or the External Source plug-in are marked as having no file, so the audio index does not
+  report them as missing media.
+- Chunk files: `p4kx chunks list` names the chunk types of `.soc` files (`CryXmlB`, `AreaShape`,
+  `IncludedObjects`, `ModelPaths` and others) instead of marking them unknown, and
+  `p4kx chunks dump --text` writes a `CryXmlB` chunk as XML and a `Json` or `ModelPaths` chunk as
+  text.
+- CLI: `p4kx prefab list <archive> [<library>]` lists the prefab libraries below `Data\Prefabs` or
+  the prefabs of one, and `p4kx prefab dump <archive> <library> <prefab>` prints a prefab with
+  every nested prefab expanded: each object with its type, class, geometry file and transform to
+  the prefab's space, the rotation and scale of the parents applied. Nested prefabs are found by
+  their GUID or name; one that is missing, contains itself or is nested deeper than 16 levels
+  stays unexpanded and is listed. `--json` gives the same as data.
+- Assembly: `PrefabSet` reads the prefab libraries of an Archive and resolves a prefab to its
+  objects with full transforms, with cycle and depth limits; `PrefabLibrary` in `p4kx-model`
+  reads one library file.
+- CLI: `p4kx actionmap export` writes the action maps of the default profile as JSON or CSV:
+  every action with its localised label (`--language`) and its default keyboard, mouse, gamepad
+  and joystick bindings. Library: `read_action_maps` and `write_action_maps` in `p4kx-export`.
+- CLI: `p4kx chf diff <a.chf> <b.chf> [--format text|json]` lists the fields in which two CHF
+  character files differ, by path with old and new value: header, face DNA by part and blend, item
+  ports and materials down to colour and float parameters. Hashes are shown as names where a name
+  is known.
+- Basetool catalog: the kinds `factionReputations`, `reputationScopes`, `reputationStandings`,
+  `reputationContexts`, `missionTypes`, `missionLocalities` and `contractScenarios`, and the contract
+  fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements`. A faction is lawful by the
+  `entityLawful` property of its Record, not by its class name. On LIVE 3,976 of 5,175 contract
+  entries have a standing range.
+- Basetool catalog: the kinds `mineableCompositions`, `miningGlobalParams`,
+  `harvestableProviderPresets`, `subHarvestableMultiConfigs` and `harvestableLocations`. A
+  provider preset links each harvestable to its entity and mineable composition; a location names
+  the starmap object a container with a provider preset hangs below (19 of 49 presets on LIVE).
+- Basetool catalog: the kinds `lootTables`, `lootArchetypes` and `lootPoolFilters` with the weights
+  of the V3 loot Records, `lootContainers` with the containers placed with a multi config per
+  location, and the field `lootConfig` of the sub harvestables of a multi config. On LIVE 3,004
+  containers name 41 multi configs.
+- Basetool catalog: every ship has the new field `insurance` with the claim time
+  (`baseWaitTimeMinutes`), the mandatory wait (`mandatoryWaitTimeMinutes`), the expediting fee
+  (`expediteFee`), `restoreOnClaim` and `shipEntityClassName` of its Record, or `null` when
+  the Record has none. This belongs to the unreleased catalog version 2.
+- Basetool catalog: the new object `itemRecovery` holds the item recovery multipliers of the game
+  (`claimCostMultiplier`, `maxExpeditedClaimCostMultiplier`, the delivery rates and the override
+  groups with the GUIDs of their entity classes), so the Basetool can work out claim fees itself.
+  The catalog states no fee for an insured Loadout; the game computes it at run time.
+- `model info` prints bone names sanitised, shows the bone count of a level of detail that carries a
+  skeleton of its own, and counts the vertices per mesh whose texture coordinates were not finite
+  numbers (`Bad UVs`, `skeleton_bones` and `non_finite_uvs` in JSON).
+- `model glb --max-influences N` keeps the strongest N bones of a vertex and scales their weights
+  to add up to 1; 4 writes the first influence set only, for viewers such as Three.js.
+- `entity glb --json` reports `placements`: how each part was placed.
+- Models: `p4kx_model::ModelError::Unsupported` with the new `UnsupportedLayout` (`BigEndian`,
+  `StreamedMesh`, `MeshVersion`, `PhysicsVersion`, `PhysicsPrimitive`) and
+  `ModelIssue::PhysicsSlotsIgnored`. This is breaking for a `match` on `ModelError` that has no
+  wildcard arm.
+- Search tab: opening an Entry hit scrolls the Text or XML preview to the line of the hit (#387).
+- `p4kx entity glb --expand-docked-vehicles` places the Loadout parts of docked vehicles too; the
+  text summary of `p4kx entity loadout` shows the number of docked vehicles.
+- Basetool catalog window: the summary lists the warnings of the game data, in German and
+  British English, as `p4kx catalog` prints them, and the progress window shows the step that
+  reads the crafting data. `p4kx catalog` shows the same step on its status line.
+- Basetool catalog: the new kind `shipStoreSlugs` maps the slugs of the RSI pledge store to the
+  ships of the catalog (205 of 256 slugs on LIVE), with retired slugs flagged. It is curated data
+  that ships with the tool (ADR-0117); `p4kx catalog` prints the slugs whose mapping went stale,
+  and a real-Archive test fails while there are any.
+- Window: the Entity picker of the Entities tab folds cosmetic variants under their base, the
+  groups of `variantOf` (ADR-0066). The base shows the number of its variants and a chevron that
+  lists or folds them, also from the keyboard; a search finds a variant and lists it under its
+  expanded base. The Record list and tree are unchanged.
+- 3D viewer: the doors, turrets and landing gear of a static model with helper bones now play
+  their animations in the viewer.
+- Loadout reader: `p4kx entity loadout` lists the base Loadout and the outfits of an NPC actor,
+  with their name tags and which of them are worn, as `outfit` lines and as `outfit` in the JSON
+  output; `armour glb --loadout` and `character package --loadout` report the same under
+  `loadout`. Outfits without name tags all apply, and the first one applies when all have name
+  tags (ADR-0181).
+- Sounds tab: a row of language buttons beside the actions chooses the language folder in which
+  localised sounds are resolved, like `--lang` on the command line. Choosing one resolves the
+  selected trigger again and applies to the sound export.
+- Interiors: entities that only name the Record of their class, such as doors, panels and
+  cabinets, are placed as props with the model, material library and tint palette of that Record
+  (`interior glb`, `interior package`, `entity glb --interior`, `entity package --interior` and the
+  window). Models and props are drawn with the tint palettes the `.soc` file or the Record names,
+  else the default palette of their material library.
+- CLI: `p4kx ui render --screen` draws the texts of `BuildingBlocks` screens (`WidgetText`,
+  `WidgetTextField`) as glyph outlines of the fonts in `fonts_en.gfx`, in the font, size, colour,
+  alignment, case and wrapping the widget and the style cascade set; localisation keys resolve in
+  the new `--lang` (English by default), texts the component parameters of a nested canvas fill
+  are included, and every text left out or approximated (run-time texts, missing keys or glyphs,
+  default fonts) is listed. The report counts the texts drawn and left out. Widgets now paint in
+  the order of their `layer`.
+- CLI: `p4kx ui render --screen` draws the textures and vector graphics of `BuildingBlocks`
+  screens: image widgets with their scaling method (fill, contain, cover), flips and colour, icons
+  and custom shapes from their SVG files (paths, basic shapes, transforms, solid fills and
+  strokes, colour overlays, palette slots named in element ids, nine-slices), in PNG and SVG
+  output. A texture or SVG file that is missing, unreadable or beyond a limit is listed and its
+  widget skipped. The report counts the images drawn and left out; the textures and the paths of
+  one screen are bounded by `Limits`.
+- Models, Entities, interiors, armour and characters: with `--materials textures`, layered
+  materials such as the `LayerBlend_V2` clothing and the `HardSurface` hulls are drawn from the
+  diffuse and normal maps of their layers, tiled and blended by the material's blend map, instead of
+  one flat colour; the viewer draws the same base colour image. `layers_without_diffuse` now lists
+  only the layered materials none of whose layers has a diffuse map (ADR-0147).
+- Blender package: `p4kx interior package <archive> <container>... --out <folder>` writes the
+  Interior of a socpak container on its own as a package of format 1.3, with the same container,
+  object and light nodes, props and lights as `entity package --interior`, and `--lod`,
+  `--texture-mip` and `--no-vertex-colours`. The Blender add-on imports it.
+  `p4kx_blender::write_interior_package` is the entry point for front-ends.
+- Desktop window: the export of an Interior container and of the Character of the Characters tab
+  offers a Blender package next to the GLB file, with the folder checks, progress, Cancel and
+  summary of the Entity package. The package of a Character carries the animations of its
+  animation folders unless "None" is chosen. The Characters export button is renamed to "Export…" and opens a
+  setup; the Interior export button and window are renamed to "Export Interior…".
+- Characters: `p4kx armour glb --loadout <npc entity>` and `character package --loadout` export a story
+  character such as Miles Eckhart in one command. The Entity's outfit Loadout (base Loadout and
+  clothing) is resolved, the head with its own skins (head, teeth, eyes, brows, lashes) replaces
+  the generic Protos head, and the hair takes the material of its colour item. The body follows
+  the head, and `--anim` looks in the character's own animation folder first; `--anim-folder`
+  names the folders to look in. `armour glb` takes `--materials textures` and `--texture-mip`.
+- Extraction: `p4kx_dataforge::FLAT_TAG_COLUMN` and its re-export `p4kx_extraction::FLAT_TAG_COLUMN` name the last column of the flat value export.
+- Basetool catalog: modifier ranges of a blueprint with a struct type the reader does not know are
+  counted and reported as the crafting warning `unknown_modifier_ranges` (a `count` and the
+  `details` types) in `p4kx catalog --json`, on stderr and in the catalog windows of the GUI, in
+  German and British English. A Build without such a range has no warning.
+- Library: `CompiledQuery::shared_prefixes` and `SharedPrefix` return the groups of columns
+  that walk their first path steps once per Record.
+- Record export: the setup window offers to write the tag path next to every tag Reference, for
+  the JSON and NDJSON forms, as `p4kx dcb export --tags` does.
+- Record preview: a tag Reference shows its tag path next to the link.
+- Basetool catalog: the new kind `qualityQuantizations` lists the quantised quality steps of the
+  game (`bands` with `start`, `end` and `mappedValue`) and links each to the `ResourceType`s that
+  use it by `resourceTypeGuids`. A Record that no `ResourceType` uses is kept with an empty list; a
+  Record that cannot be read is listed as failed. `p4kx catalog` prints and `--json` reports a
+  `quantizations` summary with the unused Records and the links that reach no quantization; it
+  does not change the exit code. This belongs to the unreleased catalog version 2.
+  `read_crafting` returns them as `Crafting::quality_quantizations`.
+
+### Changed
+
+- Assembly export: parts that use the same model, level of detail and material library are
+  written as one mesh that their nodes share, so ships with repeated parts give smaller files
+  (the Gladius shrinks from 55.8 MB to 44.8 MB). `p4kx entity glb` reports `shared_meshes`,
+  `shared_materials` and `shared_textures`.
+- Models: a `HairPBR` material whose `TexSlot1` is an opacity map (`_opac`), such as hair cards,
+  is now written alpha-masked with that map as the alpha of a white base colour image, in
+  `entity glb`, `model glb` and `chf glb`, so the cards are cut out instead of opaque.
+- Textures: floating-point textures are written as OpenEXR `<name>.exr` instead of `<name>.png`,
+  so their file names change; the `format` of `p4kx texture png --json` is `exr` instead of `png`
+  for them, and four-channel ones keep their alpha in the file. The 8-bit preview and
+  `--tone-map` output of these textures is tone-mapped instead of clamped to 0..1.
+- Extraction remembers the target folders it has made, still checking each is a real folder
+  before it writes there, which makes a repeated Extraction of 76,000 Entries about 3 times
+  faster on LIVE. Selecting Entries by path or by Filter now runs on all processors (about 30
+  times faster on 32 of them).
+- `p4kx bnk list` gains a `Class` column. The text of `p4kx wwise` names a source without a file
+  as a plug-in or external source and counts it as without a file. MIDI media is extracted as
+  `.mid` instead of `.wem`.
+- DataForge version 5 and older are not supported (ADR-0136): they are reported as an unsupported
+  version, with exit code 5 on the command line and a named message in the Records tab, and
+  the documentation lists versions 6 and 8 as the supported ones.
+- Models: the four-byte second normal stream of the meshes is read as their second texture
+  coordinate set (`Mesh::second_uvs`) instead of as a last-resort normal source, and the
+  unverified 16-byte tangent layout, which no Archive holds, is no longer read (ADR-0114).
+- Smallest window: the work surface now fits a window of 640 × 400 without scrolling sideways, so
+  the Search, Localisation and Tags buttons are in view. Toolbars of the Browse, Record search and
+  Characters tabs wrap their actions into a line of their own.
+- Legal notices: the source link in the About window is a hyperlink and the window scrolls in a
+  very small window. `p4kx -V` and `p4kx-mcp -V` show the legal notice like `--version`. The MCP
+  tools that list Entries, chunks, Records, structs and enums say that their content may be
+  forwarded and must not be redistributed. The test-channel notice calls the Channel one that
+  carries test builds, and the Comparison tab uses the plural form for two test Channels. The notice for EPTU adds
+  that its content may be covered by a non-disclosure agreement.
+  `docs/cli-json.md`, the README and the user help describe the notice.
+- GLB export: the inverse bind matrices of a skeleton are composed from the relative bone poses, so
+  they agree with the node transforms even for a file whose stored world poses are inconsistent.
+- Loadout: ports that only the vehicle implementation declares are listed in the tree with the
+  new `source` value `empty`, so `--replace` can attach an Entity to them. A script that checks
+  `source` must accept new values.
+- Models: a `CrCh` model with a layout the reader does not implement (a mesh in data streams, a
+  big-endian chunk, another chunk version or physics primitive) now exits with code 1 instead of
+  3, as unsupported rather than corrupt. A `Mesh` chunk of another version than `0x801` that a
+  node refers to used to give a node without a mesh and exit code 0; `p4kx model info` and
+  `p4kx model glb` now exit with code 1. `p4kx model info` lists a `CrCh` mesh that names
+  physics data in further slots, which are not read.
+- CLI: `p4kx wwise events` now exits with 1 when the Entity lookup fails (DataForge, key or
+  Archive read error); it exited with 0 before. The triggers are still listed, and
+  `--no-entities` still exits with 0.
+- Model info: `p4kx model info` lists the animations in the model's folders from their headers
+  without decoding any key, and finding the animation files of a model no longer compares every
+  path of the Archive on one thread (about 110 ms down to about 5 ms on LIVE). An animation
+  in a model's folder whose key format the reader refuses is now listed in `animations` instead of
+  `unread_animations`; the files `--anim-from` names are still decoded in full, so there it stays
+  unread and an unreadable file still exits with 3. The `reason` of an unreadable file starts with
+  the Entry path or file, then the cause, without repeating the file name inside the cause.
+- CSV: breaking for scripts that read or compare the default CSV of `dcb query`, `dcb fields` and
+  `loc export`; `--csv-raw` gives the old bytes. The default CSV of all three now starts with a
+  byte order mark (`dcb query` and `dcb fields` wrote none before; `loc export` already did) and
+  puts a `'` before a text that a spreadsheet would run as a formula (`=`, `+`, `-`, `@`, tab,
+  carriage return); numbers stay unchanged. The Query export of the desktop app follows the same
+  rules.
+- Field statistics: a Reference now has a distinct count, a Record with too many values adds
+  nothing to the counts, and the memory of a count is bounded by the number of threads. A field
+  path can be turned into a Query path, and a type name with a backtick is rejected.
+- Public patch: the RSI Launcher log is read once per detection or command and by `p4kx-channels`
+  only. Public patches come from the last 16 MiB of each log file and lines up to 64 KiB, and the
+  most recent 4096 changes are kept; library folders are still read from the whole file, with lines up to 1 MiB. The
+  comparison and schema drift reports and the MCP `list_channels` and `archive_info` now state the
+  public patch of each Build; the report schemas list `public_patch` as optional. The MCP server
+  keeps the patches until a log file changes.
+- Log sources: `p4kx channels` reads the launcher folder of `P4KX_LAUNCHER_DIR`; `info`, `catalog`,
+  `ships`, `compare` and the packages read `P4KX_LAUNCHER_LOGS` or the launcher's own log folder.
+- Library API: `Build::with_public_patch` now takes the value and reads nothing,
+  `Build::with_public_patch_from` is removed, `schema_report` takes the public patches as a fourth
+  argument, and `CatalogOptions`, `ShipBaseOptions` and `CompareOptions` have a new public field
+  `public_patches`.
+- Basetool catalog: a blueprint with a `CraftingCost_Select` nested deeper than 32 levels is no
+  longer exported with its cost tree cut off; it is left out of `blueprints` and counted as a
+  failure (stderr, `failed` in `--json`, the summary), so `p4kx catalog` exits with code 1 for such
+  a DataForge. This belongs to the unreleased catalog version 2; no blueprint of LIVE is that deep.
+- Vehicle implementations: an item port now tells its types with their sub-types, its display name
+  and where each of its values comes from; the Modification's applied `Elem` overrides and the file
+  a value was read from can be asked. New API: `ElemOverride`, `VehicleItemType`,
+  `VehicleImplementation::{elems, elem_overriding, source_path}` and
+  `VehicleItemPort::{item_types, display_name, origin_of}`.
+- A patch with several children of one name (two `Parts`) keeps all of them, the first replacing
+  the base's first child of that name (further base children of the name stay); before, the last
+  one won. A choice not tested on real data.
+- Text XML nested deeper than 128 elements is refused by the material, object container, `.soc`
+  entity, audio trigger, shop and star map readers, as it already was for vehicle implementations
+  and Loadout files. The material, object container and `.soc` readers return the new `TooDeep`
+  error variants, the audio reader gives a reason string, the shop and star map readers treat the
+  file as unreadable. New API: `p4kx_cryxml::{check_text_depth, MAX_TEXT_DEPTH, TextTooDeep}`.
+- Breaking: `PartKind` and `PortVisibility` are `#[non_exhaustive]`; matches on them need a wildcard.
+- Record JSON Schema: the `tag` key is allowed only on a Reference of type `Tag`.
+- Model preview: the animations next to a model are read after the model, so the 3D view appears
+  without waiting for them. The Info tab shows "Reading…" until they are counted, reads at most
+  64 files or 64 MiB of them ("Not read" beyond that), stops reading when another Entry is
+  selected, and reads none for a model without bones. Export as GLB lists an animation none of
+  whose tracks matches a bone of the model under "Animations not written".
+- Docked vehicles: the `NOITEM_Vehicle` marker of an item type ignores case, and the Records
+  below a docked vehicle are no longer read ahead when docked vehicles are not expanded.
+- Basetool catalog (breaking for the Basetool, part of `schemaVersion` 2): ships whose record path
+  or name holds the word `temp`, `display` or `hijacked` are left out and counted as skipped, 21
+  ships on LIVE, 15 of them `player` (ADR-0167). The other kinds are not affected. The Basetool
+  must accept version 2 before it reads the new catalogs.
+- `p4kx ships` and `build_ship_base` apply the same rule, which is a breaking change of the ship
+  base data: its `schemaVersion` is now 2 and the 21 ships are no longer listed
+  (`docs/ship-base-data.md`).
+- Basetool catalog: the summary window shows how many items and ships are `player`, `ai`, `mission`
+  and `special`, and how many are unclassified, in German and English.
+- Basetool catalog: the rule that assigns `categoryGuid`, `parentGuid` and `typeGuid` changes, a
+  breaking change covered by the `schemaVersion` 2 bump (ADR-0054). A blueprint whose category is a
+  left-out leftover or unreadable now has a `null` `categoryGuid`, and a group names a parent or a
+  `ResourceType` only through the groups the `resourceGroups` kind selects, so no reference points at
+  an entry the catalog lacks. No value changes on LIVE. The documentation states that the groups form
+  a forest of unfixed depth.
+- Basetool catalog: the reward sources of a blueprint pool come from one scan of every Record
+  instead of the reference index (ADR-0154). Nothing is capped any more. The warning
+  `UnreadableReferenceRecords` became `UnreadableRewardRecords`, which counts only unreadable
+  Records of a type that holds a reward source elsewhere, or every unreadable Record when no source
+  is found; an unrelated unreadable Record no longer makes `p4kx catalog` exit 1. In
+  `p4kx catalog --json` this is a breaking change of `warnings`: the kind
+  `unreadable_reference_records` is now `unreadable_reward_records`.
+- `p4kx-export`: `CatalogProgress` has a `phase` (`CatalogPhase::Crafting` or `Records`), and
+  `CraftingWarning` has `kind()`, `count()` and `details()`. `p4kx-dataforge`: the
+  `ReferenceIndex` constructors with a limit or a stop are replaced by
+  `build_with(forge, limit, stop)`.
+- Basetool catalog: a gameplay property whose name is a placeholder key keeps the key in `name`,
+  like items and blueprints. None of the 29 properties of LIVE has one, so no catalog of LIVE
+  changes.
+- Basetool catalog: `schemaVersion` is now 2, a breaking change for the Basetool import. A paint
+  lists only the ships whose port and Record tags offer the tags the paint itself requires, so
+  `paints[].shipGuids` has 40 fewer entries on LIVE 4.7 (ADR-0161); the Basetool must accept
+  version 2 before it reads the new catalogs.
+- Library: `p4kx_export::Kind::rule()` returns `Option<KindRule>`, `None` for the derived kinds
+  `Paints`, `Loadouts` and `Shops`; `CatalogSummary::skipped()` no longer adds the leftovers of the
+  derived kinds twice.
+- Ships: `p4kx ships` lists numbers of which only a prefix was read (`12,5x` as 12) in `partial`
+  next to `unreadable`, names the XML Loadout file of a ship's default Loadout in `loadoutSource`,
+  gives each Loadout port the Record or XML Loadout file that supplied it in `suppliedBy`, and
+  rounds the `health` of hull thresholds like their `damage`. It checks `--out` before the
+  Archive is read. Invisible format characters of the whole Unicode category Cf are dropped from
+  numbers.
+- Basetool catalog: the summary states the size as "{compressed} compressed (of the upload limit
+  of {limit}), {size} uncompressed". The progress window shows its bar only while Records are
+  checked, not at 100 % during the long write. `p4kx catalog --out <file>.gz` is refused with exit
+  code 2 instead of silently writing plain JSON. The user help says that the file name, not the
+  file type of the save dialog, decides between `.json.zst` and plain `.json`.
+- Catalog: the build reads the vehicle implementation of each ship once, takes the paint ports
+  from it and shares one Entity index between the ship readers and the Loadout readers, which makes
+  it faster. `ShipReader::with_entities` and `LoadoutResolver::with_entities` share an index;
+  `LoadoutResolver::entities` is no longer a `const fn`; `VehicleKind` and `MassBasis` are
+  `#[non_exhaustive]`.
+- Basetool catalog window: the summary lists the loadouts with their ports, unresolved
+  attachments, docked vehicles and Entities without an entry in items or ships.
+- Basetool catalog: a ship whose own loadout cannot be resolved stays in `ships` and is listed
+  under the failures with a reason that starts with `loadout: `.
+- Catalog: the starmap positions read every reachable container once, in parallel, instead of
+  reopening a container for each reference. A container without the main XML name and a second
+  child list in one element now show up in the starmap diagnostics. `StarmapReport` has accessor
+  methods instead of public fields.
+- MCP server: `list_chunks`, `get_model_info` and `list_model_items` read at most two chunk files or
+  models at a time, so concurrent calls cannot exhaust memory. `list_model_items` builds only the
+  section it lists, and `get_model_info` no longer binds every animation. `list_chunks` accepts
+  chunk files up to the same size as the CLI, and a missing Entry is named by its own path.
+- GUI: changing the Loadout of an Entity in the Entities tab no longer reads the DataForge and
+  indexes its Entities again for every click. One worker per Loadout does that once, resolves one
+  change after the other and stops a resolution a newer change supersedes. Cancel now also takes
+  effect while an Export of an Entity is still resolving its Loadout. The progress of that export
+  shows a bar that fills only for the Interior, the one step that counts its work, and a sweeping
+  block for the steps without a measure instead of invented fractions. The Loadout and export
+  messages for a Record the DataForge lacks are translated.
+- Assembly: `LoadoutChanges::set_replacement` refuses a port below an excluded one with
+  `ChangeError::Conflict`, `LoadoutResolver::with_stop` lets `resolve_with` end with the new
+  `ChangeError::Cancelled`, and the `EntityKind` documentation says that the item type counts
+  for a weapon.
+- 3D viewer: the preview panel of a model keeps its height on every tab and cannot be dragged so
+  small that the playback bar covers the view. Play, the position slider and Loop are dimmed while
+  nothing can play, and a graphics device that cannot skin a model no longer shows playback
+  controls that do nothing.
+- Entity Assembly: the Interior now includes the object containers of attached Entities, each
+  placed relative to the Entity that names it, with an `Interior` node below that Entity. A docked
+  vehicle brings its containers only when docked vehicles are expanded. The Interior of an Assembly
+  without parts is written at the top of the scene. `EntityInterior::build` returns the new
+  `AssemblyError::TreeMismatch` for a tree other than the Assembly's own. The `helper_not_found`
+  and `offset_differs` texts name the Entity's model instead of the parent's or the hull.
+- Interiors: with the DataForge, every model and prop without a palette of its own is drawn with
+  the default tint palette of its material library, as the parts of an Assembly are, so existing
+  Interior exports and the 3D view change their colours. Interior lights are brighter, because the
+  stored colour is linear and is no longer converted a second time.
+- Library: `SocEntities::other` no longer counts the entities that name a class Record; they are
+  listed in the new `SocEntities::classed`.
+- Entities: the 3D view of an Assembly samples textures from mip levels, so minified textures no
+  longer shimmer, and draws glass from the far part to the near one. Changing the Loadout or
+  the detail again reuses the models already read. "Show all" no longer counts hidden ports that
+  were left out, and a replaced, hidden port shows both chips.
+- Screens: `p4kx ui render --screen` lays out clones, lists and library templates, stack, grid and
+  wrapping flex containers, anchor, pivot, rotation, scale, clipping, minimum and maximum sizes,
+  automatic sizes from the content and rounded and chamfered corners. Raw canvases count fixed
+  values in pixels of their own size, world-space canvases such as HUDs fit their root widget, and
+  the aspect modes and scaled canvas widgets are applied. Lists draw their template once per row
+  of a static array; rows that the game fills at run time are listed. What is still approximated
+  is listed per widget type in the report (ADR-0106).
+- Screens: `p4kx ui render --screen` evaluates the `Child` and `Count` selectors and the break
+  conditions of `Ancestor` selectors in style entries, and applies the margins, flex growth and
+  shrink, orientation offsets, width and height behaviours and flex settings that style entries
+  set. A screen is drawn in its state at rest: the bindings of each canvas, calculated with every
+  game variable at zero and the parameters its canvas widget hands it, decide which widgets are
+  instantiated and active and what their alpha is, so the radar of a ship no longer shows every
+  state at once. The `stylesheetOverride` of a canvas widget styles the canvas it holds. A widget
+  that a style entry hides no longer leaves its room in the layout. Bound fields that are not
+  evaluated, and root widgets that a binding takes out of the screen, are listed in the report as
+  `Binding`, so many screens now exit with code 1 (ADR-0110).
+- Characters: the hair, brows, lashes and beard of a head now follow its expressions. `p4kx chf
+  glb` gives them a morph target for each expression that moves them (on the first mesh of each,
+  at LOD 0 only), and a facial animation sets their weights with the head's; its budget counts
+  these weights too, so a facial clip near the limit can now be refused. The GLB grows by some 25
+  to 45 MiB with all expressions; `--no-expressions` or `--expression` keeps it small. The Blender
+  package carries the hair targets too.
+- Breaking: the repository moved to `p4kx-org/p4kx`. The Record XML namespace is now
+  `https://github.com/p4kx-org/p4kx/record-xml`, and the Record JSON schema `$id` is now
+  `https://github.com/p4kx-org/p4kx/schemas/record-json.schema.json`. Links, the update check, the
+  About text, the installer and the Blender add-on name the new repository.
+- Face animations: long clips are smaller. The sample reduction tolerates 0.5 mm of a joint
+  translation, 0.001 per quaternion component of a joint rotation (about 0.1 to 0.2 degrees) and
+  0.01 of a morph weight instead of 0.1 mm, 0.0001 and 0.001, so a 151-second idle clip drops from
+  34.3 MB to 20.7 MB. A head skin whose stored control hashes do not match the control names is
+  refused.
+- GUI: every second row of a table is now striped in a lighter grey that reads across a wide
+  table, and the tiles of the Comparison summary take the darker bar fill so they stand out from
+  the panel.
+- CLI: the hologram of `p4kx ui hologram` is now clearly see-through. Every surface of the model is
+  drawn, weaker the deeper it lies, so the inner structure and the far side show through the hull
+  and the edge glow stays on the silhouette; overlapping surfaces no longer make bright spots. The
+  default `--opacity` is 0.25 (it was 0.22) and, with `--glow`, caps how opaque the shell can get.
+- Loadouts: a Loadout with a `Char_Head` Entity now exports that head instead of the generic
+  Protos head, and `--body` is no longer required when the Loadout names a head.
+- Screens: `p4kx ui render --screen` names the Record field (`imageSource`, `svgPath`,
+  `urlOptional`) that would name the graphic the game picks at run time, for the widgets it lists
+  as filled in at run time.
+- Characters: animations left out for the same reason are one `animation_not_used` issue with
+  their count and the names of the first three, instead of one issue each. `scene.json` of a
+  Character package with `--anim all` no longer grows with the number of animations. The
+  `skipped animation … of <file>` lines of the CLI are summed up the same way per reason (#584).
+- Wwise: trigger resolution follows Play and PlayEvent actions into the soundbank they name or
+  the one that holds the Event, chosen by the audio language, and follows Trigger actions to the
+  segments of music stingers. A walk reads at most one other soundbank, and at most 8 PlayEvent
+  and Trigger actions may follow one another (new break kind `chain_too_long`). On LIVE 22 more
+  events resolve to sounds, 5 982 variants lead through music, and `other_soundbank` breaks fall
+  from 238 to 2.
+- Library: `BreakReason` has the new variant `ChainTooLong`; `p4kx-assembly` exports
+  `MAX_ACTION_CHAIN` and `MAX_STINGERS`; `p4kx-testkit` has
+  `TestHircObject::music_segment_stinging`.
+- `p4kx-export`: `CraftingWarning` is no longer `Copy`, and `UnreadableVehicleFiles` and
+  `UnreadableShopInventories` are struct variants with `count` and `details` instead of tuple
+  variants, which breaks a `match` on them.
+- Record export: the flat value export carries the Record tag of a version 8 DataForge. The CSV
+  gets a last column `record_tag`, so its header changes (every existing column keeps its
+  position; the tag is the ninth column, or the tenth after `text` with `--lang`); NDJSON rows get
+  an optional `record_tag` key (`docs/record-flat.md`, ADR-0112).
+- MCP: the containers kept open per Archive have a byte budget (256 MiB, counting the decoded
+  bytes they keep in memory; none above 128 MiB is kept), a container is decoded outside the cache
+  lock under its own permit, calls for the same container share one decode and its error, and a
+  path inside a container is found through its index. `entity_loadout` resolves the Loadout of an
+  Entity once while its pages are read, within a budget of ports.
+- Archive: `Archive::resident_len` returns the decoded bytes an Archive or container keeps in
+  memory.
+- MCP: `get_wem_info` pages its `locations` with `cursor` and `limit` instead of stopping at 50,
+  and a WEM selected by `path` reports its language folder. `get_entity_sounds` and
+  `get_wem_info` reject an out-of-range cursor before they build any item (#625).
+- Models with textures: the textures decoded at once are bounded to 2^27 pixels by their headers
+  inside the glTF writer, whatever the loader allows per texture, so a hull with many large
+  materials holds at most about 1 GiB of them instead of about 3.5 GiB. Cancelling a GUI export also stops
+  the texture header reads (#633).
+- Catalog: where several parts of a vehicle file share a port name, the first part now gives the
+  port its sizes, types and flags, as in the Loadout tree. On LIVE the `Radar_Helper` port of eight
+  Ursa ships no longer lists `start_hidden`. Part of the `schemaVersion` 2 change.
+- Browser: clicking a column header on an Archive with about a million Entries redraws the table
+  faster, because the sort no longer recounts every Entry or reallocates the row list.
+- Basetool catalog: every `ResourceType` that a quality quantization links to is listed as a
+  commodity, so each `resourceTypeGuids` entry resolves to a `subtypeGuid`. This belongs to the
+  unreleased catalog version 2.
+- Loadout replacement: a replacement that does not fit the port's item types, sub-types or sizes
+  is no longer refused. `--replace` of the `entity` and `ui hologram` commands attaches it, warns
+  on stderr, lists it as `incompatible` in the JSON and exits 0; the replacement chooser of the
+  Entities tab lists every Entity, the fitting ones first and the others marked "Does not fit",
+  and the Loadout panel and the export summary of the Entities tab warn about a replacement that
+  does not fit. The data of LIVE does not keep its own port definitions, so a strict check
+  refused items the game ships. A port whose largest size is 0 beside a smallest size of 0 or
+  none states no limit, and an item of size 0 counts as an item without a size.
+- Entities: with the Interior on, changing the Loadout or the detail again reuses the Interior's
+  models already read instead of reading them from the Archive once more.
+- Assembly: 538 of the 1144 ships and ground vehicles of the LIVE Archive now draw the right-hand
+  model on their right ports (Gladius, Hornet, Idris, Constellation and more). This changes
+  `entity glb`, the packages, the viewer and the holograms. The Hammerhead pairs its main thrusters
+  diagonally because its data says so, and the NPC Miles Eckhart gains one head part with a
+  model in `entity glb`.
+- Basetool catalog: an unreadable `ItemRecoveryConfigurationParams` Record is now listed in the
+  failures of the build instead of being skipped silently, so `itemRecovery` being `null` with a
+  failure differs from `null` without one. The Record is selected by the path and type rule of a
+  kind, under `entitlementpolicies/`. The numbers of `itemRecovery` and the wait times of
+  `insurance` also read integer and double values. The documentation marks the meanings taken
+  from field names as inferred and states that the catalog holds no claim fee.
+
+### Removed
+
+- Models: `CorruptChunk::BigEndian`, `CorruptChunk::StreamedMesh` and
+  `CorruptChunk::PhysicsPrimitive` in `p4kx-model`; the layouts are now
+  `ModelError::Unsupported`. This is breaking for an exhaustive `match` on `CorruptChunk`.
+- `p4kx catalog --json`: the warning kind `reward_sources_truncated` no longer exists, because the
+  reward sources are no longer capped (ADR-0154). `p4kx-export`: `read_crafting_limited` and
+  `CraftingWarning::RewardSourcesTruncated` are removed.
+- Record writers: `RecordXml::write_with`, `RecordJson::write_with`,
+  `RecordXml::write_element_with` and `RecordXml::write_wrapped_element_with` in `p4kx-dataforge`
+  (also re-exported by `p4kx-extraction`). Call `write_annotated(tree, texts.into(), out)`,
+  `write_element_annotated(tree, texts.into(), depth, out)` or
+  `write_wrapped_element_annotated(tree, texts.into(), depth, out)` instead; `texts` is the same
+  `Option<&dyn TextResolver>` and the output is unchanged.
+- Loadout changes: `ChangeError::Incompatible` in `p4kx-assembly`; a replacement that does not
+  fit its port is applied and returned by `ChangedLoadout::mismatches`. This is breaking for an
+  exhaustive `match` on `ChangeError`. It is also breaking for scripts: `--replace` of `entity
+  loadout`, `entity glb`, `entity package` and `ui hologram` with an Entity that does not fit the
+  port used to exit with code 2 and print no JSON, and now exits with code 0 and lists the
+  mismatch in `incompatible`.
+
+### Fixed
+
+- Verification: a checksum mismatch of the data is no longer replaced by a read error of the
+  stored bytes that follow it. A hash block (`0x5003`) of another length than 32 bytes is reported
+  as an Entry issue.
+- Read-only guard: the refusal names the installation as `C:\Games\StarCitizen` and no longer with
+  the `\\?\` prefix. Library and Channel folders added by hand to the settings are protected in the
+  window and on the command line when they hold the game's `Bin64` folder or a child that does; a
+  folder without it stays writable. A manually added Archive counts as an installation when its
+  folder holds `Bin64`. The running-game notice says that the RSI Launcher updates the Archive.
+- Entity export: thrusters and other parts whose geometry is a character definition (`.cdf`) are
+  drawn with their skin instead of being reported unreadable, and the other attachments are
+  listed as `attachments_left_out`. A model that has only levels above the requested one is
+  drawn at its lowest level. A part below a parent without a model no longer reports a missing
+  helper, and the vertex budget holds within a wave of models.
+- Model textures: the image budget of a GLB is checked from the texture headers before anything is
+  decoded, each source texture is decoded once though two images use it, and a normal map whose
+  alpha tail has fewer mips is exported at the tail's last mip instead of being lost.
+  `p4kx model glb --materials textures --json` for a model file without an Archive reports one
+  `textures_note` instead of a fallback per texture.
+- CLI: `p4kx wwise events` gives the reason as `entities_skipped` in the JSON when the Entities
+  cannot be looked up, so that `entities: null` differs from `--no-entities`. It warns about Entity
+  Records that cannot be read (`unreadable_records` in the JSON), skips reading the DataForge for
+  an empty page, and, like `p4kx entity audio`, ends quietly on a closed pipe also while it
+  prints the warnings.
+- Content search: a search started right after a cancelled one waits until the cancelled one has
+  ended instead of running beside it, and cancelling stops the read of DataForge. The memory
+  budget of 256 MiB now counts the tables parsed from a `CryXml` Entry and the decoding buffer of
+  UTF-16, so a search over all text Entries of LIVE peaks at about 140 MiB of heap instead of 390
+  MiB. A `CryXml` file whose tables overlap is refused as corrupt. A lone carriage return ends a line, as it does in the preview. `i` finds `İ`, and the final
+  sigma `ς` matches `σ`. Separators, zero-width characters and the byte order mark are replaced in
+  excerpts, and `p4kx grep` aligns wide characters in its table (#387).
+- `ui render`: two imports of one font name from different movies keep their own fonts, and a
+  movie's own export of that name no longer replaces an imported one. The import budget counts a
+  movie by the uncompressed length it declares and refuses an oversized one before decompressing
+  it. `--lang` also picks the localisation folder for imported fonts, and whitespace in a text
+  field no longer draws boxes when its font has no outline for it.
+- Vehicle implementations: a file nested exactly one level deeper than the 128 allowed was read when
+  it was CryXml but refused when it was text; both now read 128 levels and refuse 129.
+- Tags tab: reading the tag tree stops when the Archive changes on disk, is closed or another one
+  is opened, instead of running on in the background. While a search filters the tree no row shows
+  a chevron, because it could not expand anything. The search finds tags whose paths hold umlauts
+  and other non-ASCII letters whatever their case. The tab lays out its texts and rows once instead
+  of every frame, which takes about a third of its allocations away.
+- `p4kx dcb tags`: the last line reads "4 of 4 tags" instead of "4 tags of 4 tags".
+- Vehicle implementations: the memory a vehicle XML and its patch may use now counts the size of every element and attribute record, so a small hostile file can no longer expand to hundreds of megabytes.
+- Basetool catalog under a `--filter`: a blueprint no longer links a dismantle process the filter
+  left out, and a Record outside the filter that cannot be read is no longer listed as failed.
+- Basetool catalog: a `ResourceType` that only a cost of a later tier uses becomes a commodity too.
+- Catalog: a paint no longer lists ships whose port and Record tags lack the tags the paint itself
+  requires (40 wrong assignments on LIVE), and the leftover paints are counted as skipped in the
+  `paints` line.
+- Loadout changes: a replacement by the root Entity or by an Entity the port lies below is now an
+  error (exit code 2) instead of a silently replaced port. Where docked vehicles are not expanded
+  (`entity glb` by default, `entity package`, `ui hologram` and `entity loadout
+  --stop-at-docked-vehicles`), a change to a port below one no longer fails; it is not applied,
+  warned about on stderr and listed as `ignored` in the JSON. The sub-types of a vehicle's item
+  ports are checked when an Entity replaces what a ship hardpoint holds.
+- `p4kx wwise extract` and `p4kx entity audio --extract` stop on Ctrl+C without leaving `.part`
+  files and report the cancelled run (`cancelled` in the JSON, exit code 1). `--conflict
+  if-changed` streams the sound into a temporary file instead of holding it in memory. A WEM that
+  several variants lead to is exported from its full copy, not from a prefetched start, and the
+  WEMs of one soundbank are converted in parallel.
+- Armour: the notes `not_skinned` and `bones_not_in_skeleton` describe the level of detail that is
+  exported. A piece worn through its main geometry, which is not a skin, gets the note
+  `main_geometry_worn`. Nodes below a skinned mesh keep the transforms above it in the GLB.
+- Models, Assemblies and the viewer: a material painted with a dark tint palette colour and a
+  bright specular colour keeps its tint instead of turning into a plain metal.
+- Sounds tab: opening another Archive while the audio is still being indexed stops indexing the
+  old one. Clicking through the embedded sounds of one soundbank reads the soundbank once. A
+  sound that should play but has no Entry to read says so instead of showing nothing. The
+  column dividers of the trigger table end above the list footer, and the status and language
+  columns are wide enough for their longest German and British English texts.
+- Interior: the models of `.soc` files whose object table has a record length other than 208 bytes
+  (14 % of the tables in the Archive) are placed completely; records of kind 16 are skipped
+  instead of ending the list, and a placement that is no rotation with a scale is counted as
+  invalid. A `.soc` file with an object table layout that is not known gives a `FileUnreadable`
+  issue. `Interior::add_to_scene` returns `None` when the Interior has no parts.
+- Armour from a Loadout: an unresolved attachment below a weapon or another item that is not worn
+  no longer counts as a failed armour piece. A Loadout that a worn item cannot read in full, such
+  as a missing XML include, is now listed as `loadout_unreadable` under the item's name without
+  counting as a skipped piece. In the JSON report a `piece_not_found` for a Reference that cannot
+  be read is now named `<port>/unreadable` instead of `<port>/<path of ports>`.
+- Desktop: in a window narrower than 1020 points the sidebar hides behind a narrow rail with a
+  button that shows it, and the work tabs scroll instead of squeezing their controls into each
+  other, down to the minimum window size of 640 x 400. The Browse list no longer overlaps the
+  preview below it, its extract buttons move below the search field when they do not fit beside
+  it, and the Entry table fits its columns again after the window got smaller.
+- Blender package: a move into place that fails because another program holds the folder open is
+  tried again for a short while and then reports that the folder is in use. Meshes, textures and
+  the folders are flushed to disk before the move, a failed run removes the parent folders it
+  created, and a NaN or infinite number from bad source data becomes an issue instead of a `null`
+  in `scene.json`. `p4kx entity package` reports `lod_fallbacks` like `p4kx entity glb`, each mesh counted once.
+- Characters: the tangents and normals of a head shaped by its DNA now turn with the new surface,
+  so normal-mapped shading no longer drifts on moved areas. A CHF whose body type does not belong
+  to the head rig of its DNA is listed as the issue `body_type_mismatch`; the head is still made.
+- Interior lights: the colours the game stores are linear and were converted from sRGB a second
+  time, which made the lights too dark; they are written as stored. A scene node that holds a light
+  and a model or children is no longer rotated by the light's quarter turn: the light sits on a
+  child node.
+- Blender package: a layer file shared by several materials is followed again whenever it is
+  reached at a shallower layer depth, together with the layers below it, so the package no longer
+  depends on the order of the materials. The material indices in the mesh GLBs are written by the
+  GLB writer (`GlbOptions::material_indices`), so a package mesh keeps the key order and numbers
+  of `entity glb`.
+- Characters: a hair material choice that only sets the redness of the melanin is now applied
+  instead of being ignored.
+- Models, Assemblies and the 3D view: materials with `MatLayers` (the hull materials of ships) are
+  drawn in the colour their layers give instead of black or white. The layer files are read, and
+  the layers are blended by their tint or palette entry and the wear share of the material; a
+  missing layer file is reported and the material keeps its own colours.
+- Entities: with the Interior switched off, the extent, the mesh count and the issue count of the
+  3D view leave it out, as the parts and triangles already did. Stop ends reading the Interior
+  within a model file instead of after a wave of 256, and the model count of the progress ends at
+  its total.
+- Export: the export dialog keeps its top edge below the header when its height changes, instead
+  of jumping between the GLB and the Blender package form. The progress and summary windows of an
+  export open in the middle below the header and stay clear of the status bar; their body scrolls
+  in a small window. The setup of an Interior container fits the default window without a scroll
+  bar.
+- Export: the summary of an Entity export counts its object containers, the summary of a
+  container exported on its own the containers opened, and each says so; `p4kx entity glb` and
+  `p4kx entity package` follow with "object containers".
+- Characters: an expression on a head without a skeleton now moves the face the right way. The
+  facts bar over a 3D view cuts a value that does not fit instead of running out of the bar, and the
+  status row above the view only takes room while the build runs, is stopped or failed.
+- Screens: two font styles that share a paint file but differ in name, weight or bold flag no
+  longer share one font choice, and a text of automatic size is shaped once instead of twice.
+- Eyes: the ambient occlusion and specular overlay materials of the eye shader are no longer
+  drawn as opaque shells, which showed the eyes red with a tiny pupil.
+- Armour and characters: the body no longer shows through worn clothing. The body zones that the
+  clothing's Records cover (`SCItemClothingParams`) are left out of the body skin in `armour glb`,
+  `character package` and the viewer, and listed as `body_zones_hidden`; a body skin that does not
+  fit the zone table stays whole (`body_zones_unknown`). With `--materials textures`, layered
+  clothing materials without a diffuse map are listed as `layers_without_diffuse` and drawn in
+  their layer colours (ADR-0140).
+- `p4kx catalog`: the warnings `unreadable_vehicle_files` and `unreadable_shop_inventories` name
+  the files and why they cannot be read (`details` in the JSON summary). A vehicle implementation
+  the Archive lacks is no longer counted as an unreadable vehicle file.
+- Textures: the plain normal map that a layered material keeps as a fallback is no longer made,
+  and no longer takes one of the 256 images, when the layered normal image was made. Exports near
+  the cap give the slots to the materials that need them.
+- Rendering: the offscreen renderer no longer waits forever for the graphics driver. An adapter or device request or a picture read-back that stays unanswered for 60 seconds fails with an error, and the test runs stop a render test that is still running after three minutes.
+- Layered materials: the blend mask of a `LayerBlend_V2` material takes its channels by
+  precedence (red over green over blue), so armour such as the guard's ORC-mkV is black with
+  yellow stripes instead of half white. In the Blender add-on a painted layer's specular map no
+  longer makes metal, the wear from vertex colours is no longer inverted, a packed detail map
+  tints only through its diffuse channel, and the vertex colours no longer tint Character
+  materials. A scripted Character import without a window context now brings in the armature.
+- Assembly: a part takes the sub-geometry that its port's flags name (`left`, `right`), so the
+  side doors of the Cutlass Black are drawn and the right thrusters of the Prospector sit on the
+  right instead of repeating the left model. When that sub-geometry is not in the Archive, the part
+  keeps the main geometry of its Entity and the new note `sub_geometry_missing` names the file.
+- Armour: worn pieces are drawn with their tint palette, the one their geometry names or the
+  default of their material library, so that layers that take a palette entry, such as the plates
+  of the Defiance Core Tactical, are no longer white. `armour glb`, `character package`, `chf glb`
+  and the Characters tab are affected.
+- Shading: a palette entry with a bright specular colour paints a metal again, so the MISC
+  Prospector is brushed silver and not glossy black; usual paints such as the Cutlass Black stay
+  dark paint, in the glTF export and in the Blender add-on.
+- Models and the Blender add-on: decals that draw no colour are no longer drawn as opaque white
+  panels and lines. A mesh decal without any texture and a relief-only decal with a diffuse opacity
+  of 0 are hidden, so the Cutlass Black's engine pods and the ANVL Arrow's panels show their
+  surface again.
+- Character package: a worn backpack without bone weights now hangs on the bone of its port on the
+  back of the armour and follows it, instead of lying at the Character's origin between the feet.
+- Assembly: the landing gear of a ship are written as parts (`landing_gear/<bone>`) with their
+  model placed at the bone of the ship's model, in GLB, package and viewer, and deployed: posed at
+  the end of the extend clip of the gear's skeleton. A gear without such a clip keeps the pose of
+  its model and is listed as `gear_not_deployed`; a gear whose bone the model lacks sits at the
+  origin and is listed. In a package they are nodes of the kind `object`.
+- Characters: the scalp and stubble shells of hair and beards are no longer drawn as opaque black
+  skins in GLB exports and Blender packages. They are blended by their density map, taken from the
+  character's own body. Without the map they are transparent, and a GLB export lists the missing
+  file as a texture fallback.
+- Entity: items on ports the vehicle implementation or the port definition marks `invisible` are
+  no longer drawn in the GLB, the package and the viewer (the Prospector's components no longer
+  stick out of the cabin walls or hang below the hull). They stay in the Loadout tree and in the
+  part list, marked hidden, with no model and no object containers; `entity glb --json` reports
+  `hidden_parts` and `hidden` per placement. A Modification that clears the flag draws the item
+  again.
+- Contract change: a port whose definition carries the flag `invisible` and that the vehicle
+  implementation does not name now reports `invisible`; it used to be `unspecified` (absent in
+  JSON). This applies to the catalog's `loadout.ports[].visibility`, to `p4kx entity` (text and
+  JSON) and to the MCP loadout.
+- Entity models: an item port of a model with a skeleton, such as the drill arm of the Prospector,
+  is anchored to its helper when that is a bone of the skeleton. The mining laser now hangs at the
+  tip of the arm instead of inside the nose, and the part is no longer listed as `helper_not_found`.
+- Entity: an attached part that names no tint palette of its own (side doors, ramp, landing gear)
+  now takes the palette of the ship it hangs on, so the Cutlass Black's doors and the gear of the
+  Cutlass Black and the Arrow are no longer light grey or white. Parts with their own palette keep
+  it, and the default palette of a material library applies only where no ancestor has one.
+- Entity assembly: the clothing of a character or NPC takes the sub-geometry of its body (`Male`,
+  `Female`), as armour does. `entity glb` and `entity package` of Miles Eckhart no longer draw the
+  jacket as a placeholder box and now draw his shirt, pants, boots, hair and teeth. Ships and
+  vehicles are unchanged (ADR-0219).
+- Models and the Blender add-on: the Hammerhead's hull and thrusters are no longer purple. A packed
+  detail map in a material's own diffuse slot (`aegs_ext_detail_01.tif`) is a detail map, not a
+  diffuse map. White relief decals (a `MeshDecal` with parallax occlusion mapping, a displacement
+  map and no tint) are hidden, so the white contour lines on the Hammerhead and the Gladius are
+  gone.
+- Characters: the eyelashes are no longer white in `p4kx character package` and `p4kx chf glb`. A
+  hair material the Character made no choice for, such as the lashes, takes the colour of its own
+  shader parameters (ADR-0226).
+- Query: the Record count below the result table no longer paints over its last rows in a window
+  of medium height.
+- Entities: in a narrow window the name of the Loadout and its changes no longer overlap; the
+  changes move to a second line when they do not fit beside the name.
+- Entity assembly: the body of an NPC no longer shows through its clothing. `entity glb` and
+  `entity package` hide the body zones that the worn clothing covers, by the rule of the character
+  package, and report them as `body_zones_hidden` (ADR-0228).
+- Entity assembly: clothing of a character that takes a body's sub-geometry no longer gets the
+  material library or tint palette of the placeholder box; a sub-geometry file the Archive lacks
+  is listed as `body_geometry_missing`, and a port-flag choice that equals the main geometry is no
+  longer overridden by the body. `entity glb` reports the body and the head that names it.
+- Assembly: a part on a skin port, such as an NPC's clothing, is drawn in the body's bind pose.
+  Its helper and offset no longer move it, so Miles Eckhart's pants are centred on the body, and
+  it gets no `helper_not_found` note. The part reports the new placement `skin`.
+- Models and the Blender add-on: white relief decals are hidden only while their diffuse map is
+  grey. Decals with a coloured map (switch buttons, damage impacts, trim, headlight glows) are
+  drawn again. The Blender add-on no longer repeats the rule.
+- Models and the Blender add-on: decals the game fills at runtime (`$RenderToTexture`: registration
+  marks, name plates, serial numbers) are hidden instead of showing as white strips. Layers that
+  have a tint but no palette entry draw as grey metal with detail instead of white.
+- Assembly: a skin port without a helper node is now recognised as a skin, so its part is drawn
+  in the bind pose and reports the placement `skin`.
+- GUI: the Localization and Tags tables no longer run under the footer in a short window.
+
 ## [0.3.0] - 2026-10-24
 
 The third Release, and the first as P4KX: the tool and its repository are renamed (formerly

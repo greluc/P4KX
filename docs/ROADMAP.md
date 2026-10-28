@@ -15,7 +15,7 @@ add-on ZIP, with notes from `CHANGELOG.md`.
 | 0.1.0 | Released | Archive, browsing, Extraction and the command line |
 | 0.2.0 | Released | Readable game data: CryXml and DataForge as XML and JSON, the Basetool catalog, the Comparison, textures, localisation and first commands for Queries, audio, models, UI movies, socpak containers, CHF files and the MCP server |
 | 0.3.0 | Released | The first Release as P4KX; the Basetool catalog as a full game-data export, `.json.zst` for the upload, `p4kx coverage` |
-| 0.4.0 | Released (tag `v0.4.0`) | The 3D side: Assemblies, interiors, characters and armour, the Blender package and add-on, MFD screens and holograms, Wwise resolution; more Basetool catalog kinds with `schemaVersion` 2; P4KX's own theme and the smallest-window layout. Milestones M1 to M14 are complete |
+| 0.4.0 | [Released](https://github.com/p4kx-org/p4kx/releases/tag/v0.4.0) | The 3D side: Assemblies, interiors, characters and armour, the Blender package and add-on, MFD screens and holograms, Wwise resolution; more Basetool catalog kinds with `schemaVersion` 2; P4KX's own theme and the smallest-window layout. Milestones M1 to M14 are complete |
 | 0.4.1 | Next, GitHub milestone `v0.4.1` | The follow-ups of the 3D, render, texture, material, character and Assembly work, further Basetool catalog kinds and documentation |
 | 0.5.0 | After 0.4.1, GitHub milestone `v0.5.0` | Not scoped yet; issues join the milestone when they are planned |
 

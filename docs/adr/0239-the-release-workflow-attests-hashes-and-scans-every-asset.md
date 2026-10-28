@@ -10,9 +10,11 @@ Decided for issue #822.
 - Every action is pinned to the full commit SHA of its newest stable release, with the version in a
   trailing comment. Checkout does not persist credentials. The tag must match
   `^v\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$`. actionlint and zizmor run in `workflow-lint.yml`.
-- The CycloneDX SBOMs are generated per shipped binary with `cargo-cyclonedx` 0.5.9 (installed
-  with `--locked`), because the tool writes one document per binary and no merge step is
-  trusted. The Blender add-on ZIP has no SBOM: it bundles no third-party packages.
+- The CycloneDX SBOMs are generated per shipped binary with `cargo-cyclonedx` 0.5.9, because the
+  tool writes one document per binary and no merge step is trusted. The workflow runs the
+  project's own Windows release binary, checked against a pinned SHA-256, instead of compiling it:
+  the build is faster, and the tool's own lock file pins a yanked `xml-rs` that `cargo install
+  --locked` warns about. The Blender add-on ZIP has no SBOM: it bundles no third-party packages.
 - `actions/attest` attests the ZIPs, the MSI and the SBOMs in one statement; `actions/attest-sbom`
   attests each SBOM against the portable ZIP and the MSI. The Sigstore bundles are Release assets,
   named `P4KX-<version>-provenance.sigstore.json` and `<sbom>.cdx.json.sigstore.json`, so a
@@ -24,7 +26,7 @@ Decided for issue #822.
   or the job fails. Its worst case (two files, 5 minutes upload and 10 minutes polling each) stays
   below the 55-minute step timeout, and messages that reach the public notes are sanitised and
   capped.
-- The `rust-cache` steps carry `zizmor: ignore[cache-poisoning]`. This is acceptable because
+- The `rust-cache` step of the package job carries `zizmor: ignore[cache-poisoning]`. This is acceptable because
   `lookup-only` is true on tags: a Release build never restores a cache and never saves one, so
   a cache poisoned from a pull request cannot reach a published asset.
 - Release notes: the `CHANGELOG.md` section, the scan result, the verification commands, then

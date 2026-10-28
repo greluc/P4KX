@@ -143,12 +143,22 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3 # zizmor: ignore[cache-poisoning]
-        with:
-          key: sbom
-          lookup-only: ${{ github.ref_type == 'tag' }}
       - name: Install cargo-cyclonedx
-        run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+        env:
+          CYCLONEDX_VERSION: 0.5.9
+          CYCLONEDX_SHA256: 8750e00775661dcb75bc482c1a298839fd94e8a0c033b49905ba0f246ffed202
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'cargo-cyclonedx.zip'
+          $url = "https://github.com/CycloneDX/cyclonedx-rust-cargo/releases/download/cargo-cyclonedx-$env:CYCLONEDX_VERSION/cargo-cyclonedx-x86_64-pc-windows-msvc.zip"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          $hash = (Get-FileHash -Path $archive -Algorithm SHA256).Hash
+          if ($hash -ne $env:CYCLONEDX_SHA256) { throw "cargo-cyclonedx archive hash $hash does not match the pinned $env:CYCLONEDX_SHA256." }
+          $folder = Join-Path $env:RUNNER_TEMP 'cargo-cyclonedx'
+          Expand-Archive -Path $archive -DestinationPath $folder -Force
+          $exe = Get-ChildItem -Path $folder -Recurse -Filter 'cargo-cyclonedx.exe' | Select-Object -First 1
+          if (-not $exe) { throw 'cargo-cyclonedx.exe is missing from the release archive.' }
+          $exe.DirectoryName >> $env:GITHUB_PATH
+          & $exe.FullName cyclonedx --version
       - name: CycloneDX SBOM of each shipped binary
         run: |
           cargo cyclonedx --format json --spec-version 1.5 --describe binaries

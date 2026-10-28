@@ -326,9 +326,7 @@ impl<'f> Parent<'_, 'f> {
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
         }
     }
-}
 
-impl<'f> Parent<'_, 'f> {
     /// Returns the `factionReputation` of the handler with its display name.
     fn faction(&self, context: &Context<'_, 'f>) -> Option<ContractFaction<'f>> {
         link(self.handler, "factionReputation").map(|(guid, name)| ContractFaction {

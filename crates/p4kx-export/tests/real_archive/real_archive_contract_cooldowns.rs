@@ -14,6 +14,9 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+/// A bound far above any cooldown the game states, whatever its unit.
+const MAX_SANE_TIME: f64 = 1_000_000.0;
+
 #[expect(
     clippy::print_stdout,
     reason = "the figures are the result of the verification"
@@ -38,16 +41,26 @@ fn contracts_of_a_real_archive_carry_the_cooldown_of_their_handler() -> TestResu
         stated.len(),
         contracts.len()
     ));
-    assert!(stated.len() > 1_000, "most contracts have a cooldown");
-    let long = stated
-        .iter()
-        .find(|entry| entry["personalCooldownTime"].as_f64() == Some(2880.0))
-        .ok_or("a contract with a personal cooldown of 2880")?;
-    print_line(&format!("cooldown sample: {long}"));
-    assert_eq!(long["hasPersonalCooldown"], true);
+    assert_eq!(
+        stated.len(),
+        contracts.len(),
+        "every contract has a cooldown"
+    );
+    let mut longest: Option<(&Value, f64)> = None;
     for entry in &stated {
-        let time = entry["personalCooldownTime"].as_f64().unwrap_or_default();
-        assert!((0.0..=2880.0).contains(&time), "personal time {time}");
+        let time = entry["personalCooldownTime"]
+            .as_f64()
+            .ok_or("personalCooldownTime is a number")?;
+        assert!(
+            (0.0..=MAX_SANE_TIME).contains(&time),
+            "personal time {time}"
+        );
+        if longest.is_none_or(|(_, best)| time > best) {
+            longest = Some((entry, time));
+        }
     }
+    let (sample, _) = longest.ok_or("a contract with a cooldown")?;
+    print_line(&format!("cooldown sample: {sample}"));
+    assert_eq!(sample["hasPersonalCooldown"], true);
     Ok(())
 }

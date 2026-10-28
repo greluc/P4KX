@@ -1140,9 +1140,9 @@ range.
 and the contracts carry the cooldowns. The five fields are read from the `defaultAvailability` of
 the handler (`ContractGeneratorHandler_*`, all handler types), and a contract and each of its sub
 contracts share them. Contracts and sub contracts state no cooldown field of their own on LIVE 4.10,
-so `cooldownLayer` is always `handler` when any of the five is stated and `null` with them all
-`null` otherwise; a later level that states them would take precedence (sub contract, contract,
-handler). The numbers are as stored, in floating point. The Archive does not state their unit: no
+so the catalog reads the handler only; `cooldownLayer` is `handler` when the handler states any of
+the five and `null` otherwise. A nearer layer would be added if the game ever states one. The
+numbers are as stored, in floating point. The Archive does not state their unit: no
 type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880,
 `abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but
 that is a reading, not a fact of the Archive. On LIVE 4.10 all 5,175 entries state a cooldown.

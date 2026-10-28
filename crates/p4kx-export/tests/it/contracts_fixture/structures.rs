@@ -79,6 +79,18 @@ fn handler_structs() -> Vec<TestStruct> {
             .field("abandonedCooldownTime", TestType::Single)
             .field("abandonedCooldownTimeVariation", TestType::Single)
             .array("prerequisites", pointer("ContractPrerequisite")),
+        TestStruct::new("ContractGeneratorHandler_PVPBountyDef")
+            .parent("ContractGeneratorHandler")
+            .field("debugName", TestType::String)
+            .field("factionReputation", TestType::Reference)
+            .field("defaultAvailability", class("ContractAvailabilityPartial"))
+            .field("contractParams", class("ContractParamOverrides"))
+            .array("contracts", class("CareerContract"))
+            .array("introContracts", class("CareerContract")),
+        TestStruct::new("ContractAvailabilityPartial")
+            .field("hasPersonalCooldown", TestType::Bool)
+            .field("personalCooldownTime", TestType::Int32)
+            .array("prerequisites", pointer("ContractPrerequisite")),
         TestStruct::new("ContractAvailabilityWithoutCooldown")
             .array("prerequisites", pointer("ContractPrerequisite")),
     ]

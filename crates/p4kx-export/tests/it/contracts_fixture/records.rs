@@ -125,33 +125,39 @@ fn handler(
     faction: u128,
     prerequisites: Vec<TestValue>,
 ) -> TestValue {
-    let timed = name == "Delivery_Career";
-    let mut availability = TestInstance::new(if timed {
-        "ContractAvailability"
-    } else {
-        "ContractAvailabilityWithoutCooldown"
-    })
-    .value("prerequisites", TestValue::Array(prerequisites));
-    if timed {
-        availability = availability
-            .value("hasPersonalCooldown", TestValue::Bool(true))
-            .value("personalCooldownTime", TestValue::Single(2880.0))
-            .value("personalCooldownTimeVariation", TestValue::Single(60.0))
-            .value("abandonedCooldownTime", TestValue::Single(30.0))
-            .value("abandonedCooldownTimeVariation", TestValue::Single(0.5));
-    }
+    let prerequisites = TestValue::Array(prerequisites);
+    let (handler_type, availability) = match name {
+        "Delivery_Career" => (
+            "ContractGeneratorHandler_Career",
+            TestInstance::new("ContractAvailability")
+                .value("prerequisites", prerequisites)
+                .value("hasPersonalCooldown", TestValue::Bool(true))
+                .value("personalCooldownTime", TestValue::Single(2880.0))
+                .value("personalCooldownTimeVariation", TestValue::Single(60.0))
+                .value("abandonedCooldownTime", TestValue::Single(30.0))
+                .value("abandonedCooldownTimeVariation", TestValue::Single(0.5)),
+        ),
+        "Event_Career" => (
+            "ContractGeneratorHandler_PVPBountyDef",
+            TestInstance::new("ContractAvailabilityPartial")
+                .value("prerequisites", prerequisites)
+                .value("hasPersonalCooldown", TestValue::Bool(false))
+                .value("personalCooldownTime", TestValue::Int32(45)),
+        ),
+        _ => (
+            "ContractGeneratorHandler_List",
+            TestInstance::new("ContractAvailabilityWithoutCooldown")
+                .value("prerequisites", prerequisites),
+        ),
+    };
     TestValue::Struct(
-        TestInstance::new(if timed {
-            "ContractGeneratorHandler_Career"
-        } else {
-            "ContractGeneratorHandler_List"
-        })
-        .value("debugName", TestValue::text(name))
-        .value("factionReputation", reference(faction))
-        .value("defaultAvailability", TestValue::Struct(availability))
-        .value("contractParams", params)
-        .value("contracts", TestValue::Array(contracts))
-        .value("introContracts", TestValue::Array(intro)),
+        TestInstance::new(handler_type)
+            .value("debugName", TestValue::text(name))
+            .value("factionReputation", reference(faction))
+            .value("defaultAvailability", TestValue::Struct(availability))
+            .value("contractParams", params)
+            .value("contracts", TestValue::Array(contracts))
+            .value("introContracts", TestValue::Array(intro)),
     )
 }
 

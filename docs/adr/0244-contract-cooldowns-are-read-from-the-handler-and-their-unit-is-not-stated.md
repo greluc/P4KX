@@ -11,9 +11,8 @@ Decided for issue #832. Evidence: LIVE 4.10, the Archive's DataForge field stati
 - The five fields exist only in the `defaultAvailability` of the handler, in every handler type
   (`Career`, `List`, `Legacy`, `LinearSeries`, `PVPBountyDef`, `ServiceBeacon`,
   `TutorialSeriesDef`). A contract and a sub contract have no cooldown field on LIVE 4.10, so the
-  handler is the only layer read and `cooldownLayer` is `handler` or `null`. The catalog would
-  read a nearer layer first (sub contract, then contract, then handler) once the game gives one
-  the fields.
+  catalog reads the handler only and `cooldownLayer` is `handler` or `null`. A nearer layer would
+  be added if the game ever states one.
 - The unit is not stated. The fields are `Single` values; a search for the unit found no type, no
   attribute and no game text that shows the time (the localisation texts that mention a
   cooldown concern quantum drives, ping scans and EMPs). The catalog therefore keeps the numbers

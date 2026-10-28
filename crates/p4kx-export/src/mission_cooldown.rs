@@ -17,14 +17,20 @@ pub(crate) enum CooldownLayer {
     Handler,
 }
 
-/// The cooldown fields of a `defaultAvailability`, as stored and in the unit the game uses.
+/// The cooldown fields of a `defaultAvailability`, as stored.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub(crate) struct Cooldown {
+    /// The level that states the fields, `None` when it states none.
     pub(crate) layer: Option<CooldownLayer>,
+    /// `hasPersonalCooldown`.
     pub(crate) has_personal: Option<bool>,
+    /// `personalCooldownTime`.
     pub(crate) personal_time: Option<f32>,
+    /// `personalCooldownTimeVariation`.
     pub(crate) personal_time_variation: Option<f32>,
+    /// `abandonedCooldownTime`.
     pub(crate) abandoned_time: Option<f32>,
+    /// `abandonedCooldownTimeVariation`.
     pub(crate) abandoned_time_variation: Option<f32>,
 }
 

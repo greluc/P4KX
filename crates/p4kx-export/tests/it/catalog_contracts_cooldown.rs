@@ -28,6 +28,28 @@ fn a_contract_and_its_sub_contracts_carry_the_cooldown_of_their_handler() -> Tes
 }
 
 #[test]
+fn a_handler_that_states_some_fields_gives_null_for_the_rest_and_for_a_wrong_type() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let event = catalog["contracts"]
+        .as_array()
+        .ok_or("contracts")?
+        .iter()
+        .find(|entry| entry["handler"] == "Event_Career")
+        .ok_or("Event_Career")?;
+    assert_eq!(event["cooldownLayer"], "handler");
+    assert_eq!(event["hasPersonalCooldown"], false);
+    for field in [
+        "personalCooldownTime",
+        "personalCooldownTimeVariation",
+        "abandonedCooldownTime",
+        "abandonedCooldownTimeVariation",
+    ] {
+        assert_eq!(event[field], Value::Null, "{field}: absent or not a Single");
+    }
+    Ok(())
+}
+
+#[test]
 fn a_handler_without_cooldown_fields_gives_null_and_no_layer() -> TestResult {
     let (_, catalog) = build(None)?;
     let bounty = catalog["contracts"]

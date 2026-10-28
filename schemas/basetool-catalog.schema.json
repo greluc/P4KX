@@ -834,7 +834,7 @@
               "type": "null"
             }
           ],
-          "description": "The level that states the five cooldown fields below: `handler` for the\n`defaultAvailability` of the handler, the only level that has them; `null` when it states\nnone. A contract and a sub contract share the handler's values."
+          "description": "The level the five cooldown fields below are read from: `handler`, the\n`defaultAvailability` of the handler, the only level that states them; `null` when it\nstates none. A contract and a sub contract share the handler's values."
         },
         "debugName": {
           "description": "The `debugName` of the contract, `null` when it has none.",

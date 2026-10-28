@@ -78,9 +78,9 @@ pub(crate) struct ContractEntry<'a> {
     /// The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the
     /// sub contract, in that order and as stored. The catalog does not decide how they combine.
     pub(crate) standing_requirements: Vec<StandingRequirement>,
-    /// The level that states the five cooldown fields below: `handler` for the
-    /// `defaultAvailability` of the handler, the only level that has them; `null` when it states
-    /// none. A contract and a sub contract share the handler's values.
+    /// The level the five cooldown fields below are read from: `handler`, the
+    /// `defaultAvailability` of the handler, the only level that states them; `null` when it
+    /// states none. A contract and a sub contract share the handler's values.
     pub(crate) cooldown_layer: Option<CooldownLayer>,
     /// Whether the contract has a personal cooldown (`hasPersonalCooldown`), `null` when absent.
     pub(crate) has_personal_cooldown: Option<bool>,

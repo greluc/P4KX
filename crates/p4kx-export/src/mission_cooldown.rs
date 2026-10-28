@@ -48,7 +48,7 @@ impl Cooldown {
         }
     }
 
-    fn states_any(&self) -> bool {
+    const fn states_any(&self) -> bool {
         self.has_personal.is_some()
             || self.personal_time.is_some()
             || self.personal_time_variation.is_some()

@@ -18,6 +18,7 @@ fn value(name: &str) -> TestStruct {
 /// Adds the structs of the fixture to `builder`.
 pub(super) fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
     [
+        handler_structs(),
         generator_structs(),
         prerequisite_structs(),
         property_structs(),
@@ -47,7 +48,7 @@ fn prerequisite_structs() -> Vec<TestStruct> {
     ]
 }
 
-fn generator_structs() -> Vec<TestStruct> {
+fn handler_structs() -> Vec<TestStruct> {
     vec![
         TestStruct::new("ContractGenerator")
             .array("generators", pointer("ContractGeneratorHandler")),
@@ -80,6 +81,11 @@ fn generator_structs() -> Vec<TestStruct> {
             .array("prerequisites", pointer("ContractPrerequisite")),
         TestStruct::new("ContractAvailabilityWithoutCooldown")
             .array("prerequisites", pointer("ContractPrerequisite")),
+    ]
+}
+
+fn generator_structs() -> Vec<TestStruct> {
+    vec![
         TestStruct::new("ContractParamOverrides")
             .field("missionTypeOverride", TestType::Reference)
             .array("stringParamOverrides", class("ContractStringParam"))

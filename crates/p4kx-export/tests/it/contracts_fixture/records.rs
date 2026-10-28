@@ -146,12 +146,12 @@ fn handler(
         } else {
             "ContractGeneratorHandler_List"
         })
-            .value("debugName", TestValue::text(name))
-            .value("factionReputation", reference(faction))
-            .value("defaultAvailability", TestValue::Struct(availability))
-            .value("contractParams", params)
-            .value("contracts", TestValue::Array(contracts))
-            .value("introContracts", TestValue::Array(intro)),
+        .value("debugName", TestValue::text(name))
+        .value("factionReputation", reference(faction))
+        .value("defaultAvailability", TestValue::Struct(availability))
+        .value("contractParams", params)
+        .value("contracts", TestValue::Array(contracts))
+        .value("introContracts", TestValue::Array(intro)),
     )
 }
 

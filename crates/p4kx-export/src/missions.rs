@@ -11,10 +11,10 @@ use crate::blueprint::as_struct;
 use crate::contract_missions::{ContractEntry, ContractFaction, PickupPlace, ReputationGain};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
+use crate::mission_cooldown::Cooldown;
 use crate::mission_index::{Broker, MissionIndex, Template};
 use crate::mission_layers::{Layer, Prop, Property, items, one};
 use crate::mission_places::{Places, Where};
-use crate::mission_cooldown::Cooldown;
 use crate::mission_standing::Standing;
 use crate::mission_title::{Token, title};
 use crate::record_fields::{boolean, guid_value, reference, text};
@@ -294,11 +294,6 @@ impl<'f> Parent<'_, 'f> {
             .find_map(|level| level.mission_type)
             .or_else(|| template_data.and_then(|data| data.mission_type))
             .or_else(|| broker.and_then(|broker| broker.mission_type));
-        let faction = link(self.handler, "factionReputation").map(|(guid, name)| ContractFaction {
-            guid,
-            name,
-            display_name: texts.localised(index.faction_name(guid.0)),
-        });
         ContractEntry {
             guid: self.id,
             sub_contract_guid: sub.and_then(identity).map(CatalogGuid),
@@ -317,7 +312,7 @@ impl<'f> Parent<'_, 'f> {
                     .and_then(|kind| kind.name_key),
             ),
             contractor: texts.localised(levels.iter().find_map(|level| level.contractor)),
-            faction,
+            faction: self.faction(context),
             pickup_places: pickup,
             reputation_gains: shared.gains.clone(),
             min_standing_guid: shared.standing.min,
@@ -330,6 +325,17 @@ impl<'f> Parent<'_, 'f> {
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
         }
+    }
+}
+
+impl<'f> Parent<'_, 'f> {
+    /// Returns the `factionReputation` of the handler with its display name.
+    fn faction(&self, context: &Context<'_, 'f>) -> Option<ContractFaction<'f>> {
+        link(self.handler, "factionReputation").map(|(guid, name)| ContractFaction {
+            guid,
+            name,
+            display_name: context.texts.localised(context.index.faction_name(guid.0)),
+        })
     }
 }
 

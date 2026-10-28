@@ -74,7 +74,7 @@ could not be tested, say so explicitly.
 
 ### Documentation (if affected)
 
-- [ ] `README.md`, `docs/user-help.md`, the format documents under `docs/` and, for a design decision, an ADR under `docs/adr/` move with the change.
+- [ ] `README.md`, `docs/commands.md`, `docs/user-help.md`, the format documents under `docs/` and, for a design decision, an ADR under `docs/adr/` move with the change.
 - [ ] A dependency change regenerates `THIRD-PARTY-NOTICES` (`cargo xtask notices --write`).
 
 ## Screenshots (optional)

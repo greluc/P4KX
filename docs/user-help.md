@@ -1,6 +1,7 @@
 # P4KX help
 
-How to use the P4KX window. Terms follow [CONTEXT.md](../CONTEXT.md).
+How to use the P4KX window. Terms follow [CONTEXT.md](../CONTEXT.md). The command line and the
+MCP server are described in [commands.md](commands.md).
 
 ## Preview
 
@@ -48,7 +49,8 @@ the window stays responsive while it loads.
   dialog; export again once the key is entered. The choices are remembered.
 - **Model** appears for a model file (`.cgf`, `.cga`, `.skin`, `.chr`) and opens when you select one. The
   model and its geometry companion are read in the background and drawn in 3D, lit and framed to
-  fit, at its most detailed level, without materials. Above the view a facts bar gives the
+  fit, at its most detailed level, without materials. A model with bones can show its **Skeleton**,
+and its animations play with **Play**. Above the view a facts bar gives the
   vertices, the triangles and the size in metres. Drag to orbit, drag with the right mouse button
   (or Shift) to pan, and use the wheel to zoom; once the view has the keyboard focus, the arrow
   keys orbit, Shift and the arrow keys pan, `+` and `-` zoom and Home resets. **Reset view** frames
@@ -276,6 +278,92 @@ sorted by. The file is written in the background and only replaces an existing f
 complete; **Cancel export** stops it and leaves any existing file as it was. The open Archive
 itself is never overwritten.
 
+## Looking up localisation
+
+The **Localisation** tab lists every localisation key of the Archive with its text in each language
+of its `global.ini` files. Type a key or a text into **Search** (`item_Name`, `Aurora`) to narrow the
+list; **Copy key** and **Copy text** put the selected row on the clipboard. A language without a
+text for a key shows *Missing*. A `global.ini` that was not read cleanly (invalid bytes, lines
+without `=`) is named in a note above the table. `p4kx loc` does the same on the command line.
+
+## Entities and the 3D view
+
+The **Entities** tab lists the ships, vehicles and weapons of the DataForge, filtered by **All**,
+**Ships**, **Vehicles** or **Weapons** and searched by class name or record path (`AEGS_Gladius`).
+A ship with variants shows a row for its base and a fold-out for the variants.
+
+Selecting an Entity resolves its default Loadout, the tree of its ports with the Entity attached to
+each. Per port, the **Include** checkbox leaves a branch out of what is built, **Replace…**
+attaches another Entity (the dialog lists the Entities and says which ones fit the port's item
+types and sizes), and **Restore** undoes it; **Reset changes** returns to the default Loadout. A docked vehicle is a
+part of its own and is not expanded. Ports that cannot be resolved are listed with the reason.
+
+Beside the Loadout the Assembly is drawn in 3D: all parts at their ports, with **Detail** (the
+level of detail), **Materials** (plain **Colours**, or **Textures** read in the background), and
+**Interior** to add the rooms of the ship's object containers. The view reports the parts, meshes
+and triangles; parts can be hidden and shown, and parts the viewer could not resolve are counted
+and listed. Drag to orbit, drag with the right mouse button (or Shift) to pan and use the wheel
+to zoom, as for a single model. **Stop** ends a build that takes too long, **Build again** starts
+it again.
+
+**Export…** writes the Assembly as one **GLB file** or as a **Blender package** (a folder with
+`scene.json`, one GLB per mesh and the textures, see [blender-package.md](blender-package.md)),
+with the level of detail, the materials and the texture size of your choice. The Export menu
+offers **Export Interior…** for a socpak container on its own. The dialog follows the same rules
+as the model export: the target cannot be inside a Star Citizen installation, the file is written
+only when complete, and the summary lists what could not be resolved. `p4kx entity glb`,
+`entity package` and `interior glb|package` do the same on the command line.
+
+## Characters
+
+The **Characters** tab composes a Character and shows it in 3D. Choose the **Body** (male or
+female; a head can decide it), the **Head** from the Archive or from a CHF character file saved by
+the character customiser, and the **Armour and clothing**: a Loadout (an outfit of a character
+Entity or an XML Loadout) and single pieces added to it. A piece takes the place of the Loadout's
+piece of the same item type. **Expressions** loads the facial expressions of the head, each with a
+strength slider.
+
+**Export…** writes the Character as a GLB or a Blender package with the skeleton, the shape keys and
+the materials, with textures when you choose them and the animations of your choice (none or all).
+Pieces that could not be fitted are listed in the report. `p4kx armour glb`, `character package`
+and `chf glb` do the same on the command line.
+
+## Sounds
+
+The **Sounds** tab shows the audio of an Entity. Enter a class name, GUID or record path of an
+Entity (or use the selected Record) and press **Show sounds**, or search the audio triggers and
+Wwise events of the whole Archive by name (`Play_*_Spool`; `*` and `?` allowed). Each trigger shows
+its status (resolved, no definition, no event, no soundbank) and its Wwise events. Selecting a
+trigger resolves its sounds: soundbank, WEM ID, source (embedded, prefetched, streamed, plug-in) and
+language, and lists the places where the way to a sound breaks. Select a sound to play it; a
+sound with no loose WEM Entry or only a prefetched start is explained instead. **Export sounds…**
+writes the sounds of the selected trigger or of all triggers as Ogg, WAV or unchanged WEM files.
+`p4kx wwise` and `p4kx entity audio` do the same on the command line.
+
+## UI movies and ship screens
+
+The **UI** tab draws pictures. **Files** lists the GFx and SWF movies of the Archive and draws the
+first frame of the selected one, **Ships** lists the ships and vehicles and the screens (MFDs,
+radar, HUD) of the selected one, and draws a screen from its Records. Choose the **Size**, the
+**Background** and the **Format** (PNG or SVG) and press **Export…**. The tabs **Contents** and
+**Left out** list what the movie holds and what the renderer left out (fonts it lacks, unsupported
+widget types, limits). `p4kx ui` draws the same pictures on the command line, and `p4kx ui
+hologram` draws the hologram of a vehicle, which the window does not offer.
+
+## The window
+
+- The tab bar has **Browse**, **Comparison**, **Query**, **Localisation**, **Tags**, **Search**,
+  **Entities**, **Sounds**, **Characters** and **UI**. The sidebar lists the detected Channels
+  (Archive menu: **Open Archive…**, **Add folder…**, **Add Archive…**, **Recent Archives**), or you
+  drop a `Data.p4k` on the window.
+- The **Export** menu holds **Record export…**, **Export as GLB…** for a model, **Export
+  Interior…** and the **Basetool catalog…**.
+- The smallest window is 640 by 400 points. Below 872 points of width the sidebar folds into a
+  rail on the left edge; a button on it shows and hides the sidebar. A toolbar that does not fit
+  puts its actions in a line of its own, and what still does not fit scrolls.
+- The look is P4KX's own dark theme in the Lato typeface. **Language** in the menu switches
+  between German and British English; the first start follows the system language.
+
 ## The Archive key
 
 Encrypted Entries can only be read with the key of the Archive, which the tool does not contain.
@@ -314,11 +402,12 @@ The command line behaves the same way: `p4kx extract` stops and exits with code 
 Each Release on GitHub offers three downloads:
 
 - **`P4KX-<version>-x86_64.msi`** installs for the current user only, without
-  administrator rights, into `%LOCALAPPDATA%\Programs\P4KX`. It adds P4KX to the
-  Start menu and that folder to your `PATH`, so `p4kx` works in a new terminal. A newer MSI
-  replaces the installed version in place; uninstall through **Settings › Apps**.
-- **`P4KX-<version>-x86_64-portable.zip`** holds `p4kx-gui.exe` and `p4kx.exe` to run
-  from any folder, without installing anything.
+  administrator rights, into `%LOCALAPPDATA%\Programs\P4KX`. It installs `p4kx-gui.exe`,
+  `p4kx.exe` and `p4kx-mcp.exe`, adds P4KX to the Start menu and that folder to your `PATH`, so
+  `p4kx` works in a new terminal. A newer MSI replaces the installed version in place; uninstall
+  through **Settings › Apps**.
+- **`P4KX-<version>-x86_64-portable.zip`** holds `p4kx-gui.exe`, `p4kx.exe` and `p4kx-mcp.exe`
+  to run from any folder, without installing anything.
 - **`p4kx_importer-<version>.zip`** is the Blender add-on that imports a Blender package. In
   Blender 5.2 LTS use Edit › Preferences › Get Extensions › Install from Disk. It needs no
   installer and has the same version as the Release.

@@ -4,6 +4,8 @@
 //! A synthetic Archive with crafting stations, a development leftover, an entity without a
 //! crafter component and an item and a commodity that carry one.
 
+mod modifiers;
+
 use std::error::Error;
 use std::path::{Path, PathBuf};
 
@@ -23,6 +25,7 @@ pub(crate) const MOUNTED: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0008;
 pub(crate) const HOST_SHIP: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0009;
 pub(crate) const SELF_SHIP: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000a;
 pub(crate) const EMPTY_SHIP: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000b;
+pub(crate) use modifiers::{BROKEN, CATEGORY_A, CATEGORY_B, MODIFIED, ODD};
 
 fn queue(name: &str, in_progress: i32, waiting: i32) -> TestValue {
     TestValue::Struct(
@@ -66,12 +69,22 @@ fn structures() -> DataForgeBuilder {
             TestStruct::new("CrafterQueue")
                 .field("debugName", TestType::String)
                 .field("maxJobsInProgress", TestType::Int32)
-                .field("maxJobsWaiting", TestType::Int32),
+                .field("maxJobsWaiting", TestType::Int32)
+                .field(
+                    "blueprintCategoryAvailability",
+                    TestType::StrongPointer("BlueprintCategoryAvailability".to_owned()),
+                )
+                .array("processTypeAvailability", TestType::Bool),
         )
         .structure(
             TestStruct::new("CrafterComponentParams")
                 .parent("DataForgeComponentParams")
                 .field("maxJobsInHistory", TestType::Int32)
+                .field("baseCraftingTime", TestType::Single)
+                .array(
+                    "modifiers",
+                    TestType::Class("CraftingModifierParams".to_owned()),
+                )
                 .array("queues", TestType::Class("CrafterQueue".to_owned())),
         )
 }
@@ -115,7 +128,7 @@ fn carriers(builder: DataForgeBuilder) -> DataForgeBuilder {
 }
 
 fn database() -> DataForgeBuilder {
-    carriers(structures())
+    modifiers::records(carriers(modifiers::structures(structures())))
         .record(entity(
             BENCH,
             "bench",

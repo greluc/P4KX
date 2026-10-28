@@ -410,6 +410,35 @@
       ],
       "type": "object"
     },
+    "CategoryRule": {
+      "description": "A polymorphic struct that names blueprint categories: the condition of a modifier or the\navailability of a queue.",
+      "properties": {
+        "blueprintCategoryGuids": {
+          "description": "The `guid`s of the `blueprintCategories` entries `categories` links to, in stored order;\n`[]` for `none` and `unknown`.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "kind": {
+          "description": "Which struct it is, as the parent field documents; `unknown` keeps an unrecognised struct\nwithout values. A closed set the game may extend, so the schema keeps a string.",
+          "type": "string"
+        },
+        "structName": {
+          "description": "The name of the struct; `null` when the field holds none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "blueprintCategoryGuids",
+        "kind",
+        "structName"
+      ],
+      "type": "object"
+    },
     "ClothingStats": {
       "description": "The worn properties of an item, raw facts of `SCItemClothingParams`.",
       "properties": {
@@ -1261,6 +1290,14 @@
     "Crafter": {
       "description": "A crafting station: an entity whose `Components` hold a `CrafterComponentParams`.",
       "properties": {
+        "baseCraftingTime": {
+          "description": "`baseCraftingTime`; `null` when the Record stores no number.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "className": {
           "description": "The Record name without its type.",
           "type": "string"
@@ -1276,6 +1313,13 @@
           },
           "type": "array"
         },
+        "issues": {
+          "description": "The codes of the problems found in the modifiers and queues, e.g. `unknown_modifier_type`,\nsorted and without duplicates; empty when everything was understood.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "maxJobsInHistory": {
           "description": "`maxJobsInHistory`: how many finished jobs the station lists.",
           "format": "int64",
@@ -1283,6 +1327,13 @@
             "integer",
             "null"
           ]
+        },
+        "modifiers": {
+          "description": "The crafting modifiers, from `modifiers` in stored order; `[]` without any.",
+          "items": {
+            "$ref": "#/$defs/CrafterModifier"
+          },
+          "type": "array"
         },
         "queues": {
           "description": "The job queues, from `queues` in stored order.",
@@ -1294,21 +1345,88 @@
         "recordPath": {
           "description": "The record path, without `.xml`.",
           "type": "string"
+        },
+        "size": {
+          "description": "`AttachDef.Size`, an integer.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "subType": {
+          "description": "`AttachDef.SubType`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "`AttachDef.Type` of the entity, e.g. `Crafter`; `null` without an `AttachDef`. With\n`subType` and `size` it is what a port's `types` and size range are matched against.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
+        "baseCraftingTime",
         "className",
         "guid",
         "hostGuids",
+        "issues",
         "maxJobsInHistory",
+        "modifiers",
         "queues",
-        "recordPath"
+        "recordPath",
+        "size",
+        "subType",
+        "type"
+      ],
+      "type": "object"
+    },
+    "CrafterModifier": {
+      "description": "A crafting modifier of a [`Crafter`]: a `CraftingModifierParams`.",
+      "properties": {
+        "condition": {
+          "$ref": "#/$defs/CategoryRule",
+          "description": "When the modifier applies: the struct `modifierCondition` holds. `kind` is\n`blueprintCategory`, `none` (no condition stored) or `unknown`."
+        },
+        "structName": {
+          "description": "The name of the struct `modifierType` holds; `null` for none.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeMultiplier": {
+          "description": "`timeMultiplier` of a `time` modifier: the factor on the crafting time (below 1 is\nfaster); `null` for any other type or when the Record stores no number.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "What the modifier changes: `time` (`CraftingModifierType_Time`), `none` (no\n`modifierType` stored) or `unknown` (a struct this export does not know, kept with its\n`structName` and no values). A closed set the game may extend, so the schema keeps a\nstring.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "condition",
+        "structName",
+        "timeMultiplier",
+        "type"
       ],
       "type": "object"
     },
     "CrafterQueue": {
       "description": "One job queue of a [`Crafter`].",
       "properties": {
+        "blueprintCategoryAvailability": {
+          "$ref": "#/$defs/CategoryRule",
+          "description": "The blueprint categories the queue accepts: the struct `blueprintCategoryAvailability`\nholds. `kind` is `whitelist`, `none` or `unknown`."
+        },
         "maxJobsInProgress": {
           "description": "`maxJobsInProgress`: how many jobs the queue crafts at once.",
           "format": "int64",
@@ -1331,12 +1449,21 @@
             "string",
             "null"
           ]
+        },
+        "processTypeAvailability": {
+          "description": "`processTypeAvailability` as stored: one boolean per process type, in the order of the\ngame's process types, which the Archive does not name; `[]` when the Record has none.",
+          "items": {
+            "type": "boolean"
+          },
+          "type": "array"
         }
       },
       "required": [
+        "blueprintCategoryAvailability",
         "maxJobsInProgress",
         "maxJobsWaiting",
-        "name"
+        "name",
+        "processTypeAvailability"
       ],
       "type": "object"
     },

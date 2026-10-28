@@ -3,7 +3,10 @@
 
 //! The crafting stations in the Basetool catalog, through the public API.
 
-use crate::crafters_fixture::{BENCH, FABRICATOR, HOST_SHIP, MOUNTED, SELF_SHIP, write_archive};
+use crate::crafters_fixture::{
+    BENCH, BROKEN, CATEGORY_A, CATEGORY_B, FABRICATOR, HOST_SHIP, MODIFIED, MOUNTED, ODD,
+    SELF_SHIP, write_archive,
+};
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
@@ -57,7 +60,10 @@ fn every_entity_with_a_crafter_component_is_a_crafter_whatever_its_kind() -> Tes
             "crafting_item",
             "crafting_commodity",
             "acme_mounted",
-            "acme_self"
+            "acme_self",
+            "modified",
+            "odd",
+            "broken"
         ],
         "ordered by GUID; the entity without the component and the template are absent"
     );
@@ -72,7 +78,7 @@ fn every_entity_with_a_crafter_component_is_a_crafter_whatever_its_kind() -> Tes
     let kind = built.summary().kind(Kind::Crafters);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((6, 1, true)),
+        Some((9, 1, true)),
         "the template is the one skipped; the plain template holds no component"
     );
     Ok(())
@@ -93,11 +99,29 @@ fn a_crafter_carries_the_limits_of_its_component_as_stored() -> TestResult {
             "guid": guid(BENCH),
             "className": "bench",
             "recordPath": "libs/foundry/records/entities/basebuilding/interactables/bench",
+            "type": null,
+            "subType": null,
+            "size": null,
             "maxJobsInHistory": 10,
+            "baseCraftingTime": 0.0,
             "queues": [
-                {"name": "Fabricator", "maxJobsInProgress": 2, "maxJobsWaiting": 4},
-                {"name": "Workbench", "maxJobsInProgress": 4, "maxJobsWaiting": 3},
+                {
+                    "name": "Fabricator",
+                    "maxJobsInProgress": 2,
+                    "maxJobsWaiting": 4,
+                    "blueprintCategoryAvailability": no_rule(),
+                    "processTypeAvailability": [],
+                },
+                {
+                    "name": "Workbench",
+                    "maxJobsInProgress": 4,
+                    "maxJobsWaiting": 3,
+                    "blueprintCategoryAvailability": no_rule(),
+                    "processTypeAvailability": [],
+                },
             ],
+            "modifiers": [],
+            "issues": [],
             "hostGuids": [],
         })
     );
@@ -133,7 +157,7 @@ fn a_filter_keeps_the_crafters_whose_path_it_matches() -> TestResult {
     let (built, catalog) = build(Some(&filter))?;
     assert_eq!(
         class_names(&catalog, "crafters"),
-        ["bench", "fabricator"],
+        ["bench", "fabricator", "modified", "odd", "broken"],
         "the item and the commodity are outside the filter"
     );
     assert_eq!(
@@ -172,5 +196,152 @@ fn a_ship_that_is_a_crafter_stays_a_ship_and_is_matched_by_guid_not_hosted() -> 
     let ships = class_names(&catalog, "ships");
     assert!(ships.contains(&"acme_self"), "{ships:?}");
     assert!(ships.contains(&"acme_empty"), "{ships:?}");
+    Ok(())
+}
+
+fn no_rule() -> Value {
+    json!({"kind": "none", "structName": null, "blueprintCategoryGuids": []})
+}
+
+#[test]
+fn a_time_modifier_with_a_category_condition_and_the_queue_rules_are_exported_as_stored()
+-> TestResult {
+    let (_, catalog) = build(None)?;
+    let entry = crafter(&catalog, MODIFIED)?;
+    assert_eq!(
+        (&entry["type"], &entry["subType"], &entry["size"]),
+        (&json!("Crafter"), &json!("Fabricator"), &json!(2)),
+        "the attach definition a port is matched against"
+    );
+    assert_eq!(entry["baseCraftingTime"], 2.5);
+    assert_eq!(
+        entry["modifiers"],
+        json!([
+            {
+                "type": "time",
+                "structName": "CraftingModifierType_Time",
+                "timeMultiplier": 0.75,
+                "condition": {
+                    "kind": "blueprintCategory",
+                    "structName": "CraftingModifierCondition_BlueprintCategory",
+                    "blueprintCategoryGuids": [guid(CATEGORY_B)],
+                },
+            },
+            {
+                "type": "time",
+                "structName": "CraftingModifierType_Time",
+                "timeMultiplier": 0.5,
+                "condition": no_rule(),
+            },
+        ])
+    );
+    assert_eq!(
+        entry["queues"][0]["blueprintCategoryAvailability"],
+        json!({
+            "kind": "whitelist",
+            "structName": "BlueprintCategoryAvailability_Whitelist",
+            "blueprintCategoryGuids": [guid(CATEGORY_A), guid(CATEGORY_B)],
+        })
+    );
+    assert_eq!(
+        entry["queues"][0]["processTypeAvailability"],
+        json!([true, false, true])
+    );
+    assert_eq!(entry["issues"], json!([]));
+    let categories = class_names(&catalog, "blueprintCategories");
+    assert_eq!(
+        categories,
+        ["category_a", "category_b"],
+        "the GUIDs resolve to entries of blueprintCategories"
+    );
+    Ok(())
+}
+
+#[test]
+fn an_unknown_type_condition_and_availability_are_kept_by_name_without_values() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let entry = crafter(&catalog, ODD)?;
+    assert_eq!(
+        entry["modifiers"],
+        json!([
+            {
+                "type": "unknown",
+                "structName": "CraftingModifierType_Yield",
+                "timeMultiplier": null,
+                "condition": {
+                    "kind": "blueprintCategory",
+                    "structName": "CraftingModifierCondition_BlueprintCategory",
+                    "blueprintCategoryGuids": [guid(CATEGORY_A)],
+                },
+            },
+            {
+                "type": "time",
+                "structName": "CraftingModifierType_Time",
+                "timeMultiplier": 0.9,
+                "condition": {
+                    "kind": "unknown",
+                    "structName": "CraftingModifierCondition_Daytime",
+                    "blueprintCategoryGuids": [],
+                },
+            },
+        ])
+    );
+    assert_eq!(
+        entry["queues"][0]["blueprintCategoryAvailability"],
+        json!({
+            "kind": "unknown",
+            "structName": "BlueprintCategoryAvailability_Blacklist",
+            "blueprintCategoryGuids": [],
+        })
+    );
+    assert_eq!(
+        entry["issues"],
+        json!([
+            "unknown_category_availability",
+            "unknown_modifier_condition",
+            "unknown_modifier_type"
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_modifier_without_a_type_or_a_number_is_kept_and_reported() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let entry = crafter(&catalog, BROKEN)?;
+    assert_eq!(
+        entry["modifiers"],
+        json!([
+            {
+                "type": "none",
+                "structName": null,
+                "timeMultiplier": null,
+                "condition": no_rule(),
+            },
+            {
+                "type": "time",
+                "structName": "CraftingModifierType_Time",
+                "timeMultiplier": null,
+                "condition": no_rule(),
+            },
+        ])
+    );
+    assert_eq!(
+        entry["issues"],
+        json!([
+            "missing_modifier_type",
+            "unreadable_category",
+            "unreadable_time_multiplier"
+        ])
+    );
+    Ok(())
+}
+
+#[test]
+fn a_crafter_without_modifiers_has_none_and_no_issue() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let entry = crafter(&catalog, FABRICATOR)?;
+    assert_eq!(entry["modifiers"], json!([]));
+    assert_eq!(entry["issues"], json!([]));
     Ok(())
 }

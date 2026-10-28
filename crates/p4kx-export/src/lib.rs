@@ -137,6 +137,7 @@ mod manufacturer;
 mod memo;
 mod mining;
 mod mining_params;
+mod mission_cooldown;
 mod mission_data;
 mod mission_index;
 mod mission_kinds;

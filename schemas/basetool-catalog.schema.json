@@ -809,10 +809,37 @@
     "ContractEntry": {
       "description": "A contract or one of its sub contracts, with the overrides of sub contract, contract and\nhandler laid over the template.",
       "properties": {
+        "abandonedCooldownTime": {
+          "description": "The `abandonedCooldownTime`, as stored: the cooldown after the player abandons the\ncontract, in the unit of `personalCooldownTime`; `null` when absent.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "abandonedCooldownTimeVariation": {
+          "description": "The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;\n`null` when absent.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "contractor": {
           "$ref": "#/$defs/LocalisedText",
           "description": "The `Contractor` string parameter of the first level that states one (sub contract,\ncontract, handler): the text the game shows as the giver of the contract, e.g. the\nagency, when the contract has no faction reputation.",
           "x-gameText": true
+        },
+        "cooldownLayer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CooldownLayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The level the five cooldown fields below are read from: `handler`, the\n`defaultAvailability` of the handler, the only level that states them; `null` when it\nstates none. A contract and a sub contract share the handler's values."
         },
         "debugName": {
           "description": "The `debugName` of the contract, `null` when it has none.",
@@ -840,6 +867,13 @@
           "description": "The `debugName` of the handler that holds the contract, `null` when it has none.",
           "type": [
             "string",
+            "null"
+          ]
+        },
+        "hasPersonalCooldown": {
+          "description": "Whether the contract has a personal cooldown (`hasPersonalCooldown`), `null` when absent.",
+          "type": [
+            "boolean",
             "null"
           ]
         },
@@ -885,6 +919,22 @@
           "description": "Whether the contract is marked `notForRelease`, `null` when the flag is absent.",
           "type": [
             "boolean",
+            "null"
+          ]
+        },
+        "personalCooldownTime": {
+          "description": "The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the\nunit; the value range (up to 2880) fits minutes.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "personalCooldownTimeVariation": {
+          "description": "The `personalCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;\n`null` when absent.",
+          "format": "float",
+          "type": [
+            "number",
             "null"
           ]
         },
@@ -953,16 +1003,22 @@
         }
       },
       "required": [
+        "abandonedCooldownTime",
+        "abandonedCooldownTimeVariation",
         "contractor",
+        "cooldownLayer",
         "debugName",
         "faction",
         "guid",
         "handler",
+        "hasPersonalCooldown",
         "maxStandingGuid",
         "minStandingGuid",
         "missionType",
         "missionTypeGuid",
         "notForRelease",
+        "personalCooldownTime",
+        "personalCooldownTimeVariation",
         "pickupPlaces",
         "recordGuid",
         "recordPath",
@@ -1029,6 +1085,16 @@
         "recordPath"
       ],
       "type": "object"
+    },
+    "CooldownLayer": {
+      "description": "The level of a contract that states its cooldown.",
+      "oneOf": [
+        {
+          "const": "handler",
+          "description": "The `defaultAvailability` of the handler; contracts and sub contracts state no cooldown of\ntheir own.",
+          "type": "string"
+        }
+      ]
     },
     "CoolerStats": {
       "description": "A cooler.",

@@ -3,7 +3,7 @@
 
 use egui::{Margin, Panel, Ui};
 
-use super::{RESIZE_GAP, preview, record_search, regions, search, table};
+use super::{RESIZE_GAP, preview, record_search, regions, search, table, wrapped_actions};
 use crate::theme::desktop::{PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT};
 use crate::theme::model_metrics::{PREVIEW_MODEL_HEIGHT, PREVIEW_MODEL_MIN_HEIGHT};
 use crate::theme::sound_metrics::PREVIEW_SOUNDBANK_HEIGHT;
@@ -37,7 +37,8 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     } else {
         ("preview", PREVIEW_HEIGHT, PREVIEW_MIN_HEIGHT)
     };
-    let room = ui.available_height() - f32::from(RESIZE_GAP) - BROWSE_LIST_MIN_HEIGHT;
+    let list_least = BROWSE_LIST_MIN_HEIGHT + wrapped_actions::extra_height(ui.ctx());
+    let room = ui.available_height() - f32::from(RESIZE_GAP) - list_least;
     let least = least.min(room.max(PREVIEW_MIN_HEIGHT));
     let preview = Panel::bottom(salt)
         .frame(frames::panel().outer_margin(Margin {

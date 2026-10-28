@@ -15,15 +15,19 @@ follows: the theme and `docs/design/` are the only reference.
 
 ## Decision
 
-- The room of a work tab keeps 580 by 536 points (`workSurface.minWidth`, `minHeight`): the
-  smallest window less the 40 point rail and the scrollbar a low window shows. A window of 640
-  points scrolls the work surface vertically only.
-- The rail is 40 points wide, as `sidebar.railWidth` says; the sidebar collapses below 880 points.
-- A toolbar that does not fit 580 points puts its actions in a line of their own, right-aligned,
+- The room of a work tab keeps 572 by 480 points (`workSurface.minWidth`, `minHeight`). The width
+  is the smallest window less the 40 point rail, the 12 point scrollbar a low window shows and the
+  8 point gutter on each side of the window, derived from those constants. The height is the Browse
+  list minimum plus the preview height. A window of 640 points scrolls the work surface
+  vertically only.
+- The sidebar collapses below 872 points, the width of the sidebar plus the smallest work surface.
+- A toolbar that does not fit 572 points puts its actions in a line of their own, right-aligned,
   and that line wraps when it is still too narrow. The Entry table shrinks the initial widths of its
   right-hand columns to fit.
-- `workSurface.browseListMinHeight` grows to 300 for the second line of actions, and the height of
-  the work surface with it, so the preview of the Browse tab keeps the height it had.
+- The height of a second line of actions (`workSurface.wrappedActionsHeight`, 56) is reserved only
+  while a toolbar really wraps its actions: then the work surface and the Browse list keep that
+  much more. Otherwise `browseListMinHeight` stays 244 and `minHeight` 480, so a wide window does
+  not scroll more than before.
 - No new colour, size, spacing or radius is added; the new values are derived from the existing
   tokens.
 - Dropped as obsolete: the facts strip height, the width of the ghost button and its disabled
@@ -35,5 +39,5 @@ follows: the theme and `docs/design/` are the only reference.
 - The tests of the smallest window assert that no control is clipped by the work surface
   horizontally, and that the buttons of the Search, Localisation and Tags tabs lie in the shown
   work surface at 640 by 400 in en-GB and de-DE.
-- A window lower than about 700 points scrolls the work surface vertically where it did not
-  before.
+- Only a window that wraps its actions, in German at the smallest widths, scrolls the work
+  surface 56 points earlier vertically.

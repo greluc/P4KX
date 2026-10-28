@@ -8,7 +8,7 @@ use crate::theme::desktop::{
     BUTTON_XS_HEIGHT, PAGE_CHEVRON, SIDEBAR_MAX_WIDTH, SIDEBAR_MIN_WIDTH, SIDEBAR_WIDTH,
 };
 use crate::theme::tokens::SPACE_1;
-use crate::theme::window_metrics::SIDEBAR_COLLAPSE_WIDTH;
+use crate::theme::window_metrics::{SIDEBAR_COLLAPSE_WIDTH, SIDEBAR_RAIL_WIDTH};
 use crate::widgets::button::ghost_icon;
 use crate::widgets::frames::{self, px};
 use crate::widgets::pagination::chevron;
@@ -33,7 +33,7 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     if narrow {
         let rail = Panel::left("side-rail")
             .frame(frames::sidebar().inner_margin(Margin::same(px(SPACE_1))))
-            .exact_size(BUTTON_XS_HEIGHT)
+            .exact_size(SIDEBAR_RAIL_WIDTH)
             .show(ui, |ui| {
                 if toggle(ui, model, open) {
                     open = !open;

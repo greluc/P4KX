@@ -93,7 +93,14 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     }
 }
 
+/// The least width of the name column.
 const NAME_COLUMN_MIN: f32 = 160.0;
+/// The least width of the compression column.
+const COMPRESSION_COLUMN_MIN: f32 = 60.0;
+/// The least width of the encryption column.
+const ENCRYPTION_COLUMN_MIN: f32 = 60.0;
+/// The least width of the size column.
+const SIZE_COLUMN_MIN: f32 = 80.0;
 
 /// Returns the factor the initial widths of the compression, encryption and size columns shrink
 /// by so that, with the check column and the least width of the name, they fit `room`.
@@ -116,15 +123,15 @@ fn entries_table(ui: &mut Ui, room: f32) -> TableBuilder<'_> {
         .column(Column::remainder().at_least(NAME_COLUMN_MIN).clip(true))
         .column(
             Column::initial(COMPRESSION_COLUMN * scale)
-                .at_least(60.0)
+                .at_least(COMPRESSION_COLUMN_MIN)
                 .clip(true),
         )
         .column(
             Column::initial(ENCRYPTION_COLUMN * scale)
-                .at_least(60.0)
+                .at_least(ENCRYPTION_COLUMN_MIN)
                 .clip(true),
         )
-        .column(Column::initial(SIZE_COLUMN * scale).at_least(80.0))
+        .column(Column::initial(SIZE_COLUMN * scale).at_least(SIZE_COLUMN_MIN))
 }
 
 /// What the table knew of its room in the last frame: the remaining column keeps the width it had

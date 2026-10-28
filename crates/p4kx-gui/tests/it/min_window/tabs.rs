@@ -5,10 +5,35 @@
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
+use p4kx_gui::theme::window_metrics::{SIDEBAR_RAIL_WIDTH, WORK_MIN_WIDTH};
 use p4kx_gui::{Language, WorkTab, ui};
 
 use super::{MIN, every_size, opened, renderer};
 use crate::entity_picking::TestResult;
+
+#[test]
+fn the_rail_and_the_work_surface_of_the_smallest_window_have_their_metrics() -> TestResult {
+    for language in [Language::BritishEnglish, Language::German] {
+        let Some(renderer) = renderer() else {
+            return Ok(());
+        };
+        let (_dir, harness) = opened(WorkTab::Search, language, MIN, renderer)?;
+        let regions = ui::regions(&harness.ctx);
+        let rail = regions.rail.ok_or("no rail")?;
+        let work = regions.work.ok_or("no work surface")?;
+        assert!(
+            (rail.width() - SIDEBAR_RAIL_WIDTH).abs() < 0.5,
+            "{language:?}: the rail is {} wide, not {SIDEBAR_RAIL_WIDTH}",
+            rail.width()
+        );
+        assert!(
+            (work.width() - WORK_MIN_WIDTH).abs() < 0.5,
+            "{language:?}: the work surface shows {} of {WORK_MIN_WIDTH}",
+            work.width()
+        );
+    }
+    Ok(())
+}
 
 #[test]
 fn the_browse_tab_keeps_its_controls_apart() -> TestResult {

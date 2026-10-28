@@ -4,7 +4,7 @@
 use egui::scroll_area::{DragScroll, ScrollSource};
 use egui::{ScrollArea, Sense, Ui, UiBuilder, Vec2, vec2};
 
-use super::regions;
+use super::{regions, wrapped_actions};
 use crate::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH};
 
 /// Shows `body` in the room below the tab bar. The room never gets smaller than
@@ -12,7 +12,12 @@ use crate::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH};
 /// instead of squeezing the controls of the tab into each other. What `body` lays out beyond
 /// its room is clipped, as it is without the scrolling.
 pub(super) fn show<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
-    let size = room(ui.available_size(), ui.spacing().scroll.allocated_width());
+    let min_height = WORK_MIN_HEIGHT + wrapped_actions::extra_height(ui.ctx());
+    let size = room(
+        ui.available_size(),
+        ui.spacing().scroll.allocated_width(),
+        min_height,
+    );
     let shown = ScrollArea::both()
         .id_salt("work-surface")
         .auto_shrink(false)
@@ -37,13 +42,14 @@ pub(super) fn show<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
 
 /// Returns the size `body` is laid out in when `available` is what is left below the tab bar and
 /// a scroll bar takes `bar` of the other direction where one is needed.
-fn room(available: Vec2, bar: f32) -> Vec2 {
-    let mut vertical = available.y < WORK_MIN_HEIGHT;
+/// The room keeps `min_height` in height.
+fn room(available: Vec2, bar: f32, min_height: f32) -> Vec2 {
+    let mut vertical = available.y < min_height;
     let horizontal = available.x - if vertical { bar } else { 0.0 } < WORK_MIN_WIDTH;
-    vertical |= available.y - if horizontal { bar } else { 0.0 } < WORK_MIN_HEIGHT;
+    vertical |= available.y - if horizontal { bar } else { 0.0 } < min_height;
     vec2(
         (available.x - if vertical { bar } else { 0.0 }).max(WORK_MIN_WIDTH),
-        (available.y - if horizontal { bar } else { 0.0 }).max(WORK_MIN_HEIGHT),
+        (available.y - if horizontal { bar } else { 0.0 }).max(min_height),
     )
 }
 
@@ -52,7 +58,7 @@ mod tests {
     use egui::vec2;
 
     use super::room;
-    use crate::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH};
+    use crate::theme::window_metrics::{WORK_MIN_HEIGHT, WORK_MIN_WIDTH, WRAPPED_ACTIONS_HEIGHT};
 
     const BAR: f32 = 10.0;
 
@@ -60,7 +66,25 @@ mod tests {
     fn a_roomy_window_gives_the_tab_all_its_room() {
         let available = vec2(WORK_MIN_WIDTH + 200.0, WORK_MIN_HEIGHT + 100.0);
 
-        assert_eq!(room(available, BAR), available, "all of it");
+        assert_eq!(
+            room(available, BAR, WORK_MIN_HEIGHT),
+            available,
+            "all of it"
+        );
+    }
+
+    #[test]
+    fn a_raised_minimum_height_scrolls_a_window_that_met_the_old_one() {
+        let available = vec2(WORK_MIN_WIDTH + 200.0, WORK_MIN_HEIGHT + 10.0);
+
+        assert_eq!(
+            room(available, BAR, WORK_MIN_HEIGHT + WRAPPED_ACTIONS_HEIGHT),
+            vec2(
+                WORK_MIN_WIDTH + 200.0 - BAR,
+                WORK_MIN_HEIGHT + WRAPPED_ACTIONS_HEIGHT
+            ),
+            "the raised height, narrower by the bar"
+        );
     }
 
     #[test]
@@ -68,7 +92,7 @@ mod tests {
         let wide = vec2(WORK_MIN_WIDTH + 200.0, WORK_MIN_HEIGHT - 100.0);
 
         assert_eq!(
-            room(wide, BAR),
+            room(wide, BAR, WORK_MIN_HEIGHT),
             vec2(WORK_MIN_WIDTH + 200.0 - BAR, WORK_MIN_HEIGHT),
             "the minimum height, narrower by the bar"
         );
@@ -79,7 +103,7 @@ mod tests {
         let small = vec2(WORK_MIN_WIDTH - 100.0, WORK_MIN_HEIGHT - 100.0);
 
         assert_eq!(
-            room(small, BAR),
+            room(small, BAR, WORK_MIN_HEIGHT),
             vec2(WORK_MIN_WIDTH, WORK_MIN_HEIGHT),
             "both minimums"
         );
@@ -90,7 +114,7 @@ mod tests {
         let edge = vec2(WORK_MIN_WIDTH + BAR / 2.0, WORK_MIN_HEIGHT - 1.0);
 
         assert_eq!(
-            room(edge, BAR),
+            room(edge, BAR, WORK_MIN_HEIGHT),
             vec2(WORK_MIN_WIDTH, WORK_MIN_HEIGHT),
             "the bar of the vertical scrolling makes it scroll sideways too"
         );

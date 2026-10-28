@@ -78,7 +78,7 @@ fn top(harness: &Harness<'_, Model>, label: &str) -> f32 {
 
 #[test]
 fn the_focused_summary_scrolls_with_the_keyboard() -> TestResult {
-    let (_dir, mut harness) = shown([1600.0, 680.0])?;
+    let (_dir, mut harness) = shown([1600.0, 560.0])?;
     let last = name(SUMMARY_RECORDS - 1);
     let start = top(&harness, &last);
 

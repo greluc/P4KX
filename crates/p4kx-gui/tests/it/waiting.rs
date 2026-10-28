@@ -89,11 +89,13 @@ pub(crate) fn wait_polling_described<T>(
 const REVEAL_STEPS: u32 = 8;
 
 /// Scrolls the work surface of a window with the wheel until the node labelled `label` shows in
-/// it; a low window keeps its tab taller than the room it has.
+/// it, and panics when it does not show after [`REVEAL_STEPS`] scrolls; a low window keeps its tab
+/// taller than the room it has.
+#[track_caller]
 pub(crate) fn reveal(harness: &mut Harness<'_, Model>, label: &str) {
-    let Some(work) = p4kx_gui::ui::regions(&harness.ctx).work else {
-        return;
-    };
+    let work = p4kx_gui::ui::regions(&harness.ctx).work;
+    assert!(work.is_some(), "the window has a work surface");
+    let work = work.unwrap_or(egui::Rect::NOTHING);
     for _ in 0..REVEAL_STEPS {
         if work.contains(harness.get_by_label(label).rect().center()) {
             return;
@@ -108,6 +110,11 @@ pub(crate) fn reveal(harness: &mut Harness<'_, Model>, label: &str) {
         });
         harness.run_steps(2);
     }
+    let at = harness.get_by_label(label).rect();
+    assert!(
+        work.contains(at.center()),
+        "`{label}` at {at:?} is not shown in the work surface {work:?}"
+    );
 }
 
 /// Steps a window of the [`Model`] until `done` holds for the model.

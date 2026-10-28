@@ -122,6 +122,7 @@ mod ui_tab_preview;
 mod ui_tab_toolbar;
 mod viewer_input;
 mod work_scroll;
+mod wrapped_actions;
 mod xml_preview;
 mod xml_view;
 

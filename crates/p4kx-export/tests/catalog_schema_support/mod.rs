@@ -59,6 +59,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "lootTables": {"status": "complete"},
             "lootArchetypes": {"status": "complete"},
             "lootPoolFilters": {"status": "complete"},
+            "legacyLootTables": {"status": "complete"},
+            "legacyLootArchetypes": {"status": "complete"},
             "lootContainers": {"status": "complete"},
             "mineableEntities": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
@@ -297,6 +299,8 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "lootTables": loot::tables(),
         "lootArchetypes": loot::archetypes(),
         "lootPoolFilters": loot::filters(),
+        "legacyLootTables": loot::legacy_tables(),
+        "legacyLootArchetypes": loot::legacy_archetypes(),
         "lootContainers": loot::containers(),
         "mineableEntities": harvest::mineable_entities(),
         "shipStoreSlugs": [{

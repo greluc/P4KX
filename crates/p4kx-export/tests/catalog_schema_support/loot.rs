@@ -95,6 +95,54 @@ pub(super) fn filters() -> serde_json::Value {
     }])
 }
 
+pub(super) fn legacy_tables() -> serde_json::Value {
+    json!([{
+        "guid": "a9000000-0000-4000-8000-000000000005",
+        "className": "Ammo",
+        "recordPath": "libs/foundry/records/lootgeneration/loottables/ammo",
+        "entries": [{
+            "weight": 1.0,
+            "archetypeGuid": "a9000000-0000-4000-8000-000000000006",
+            "minResults": 0,
+            "maxResults": 2
+        }, {
+            "weight": null,
+            "archetypeGuid": null,
+            "minResults": null,
+            "maxResults": null
+        }]
+    }])
+}
+
+pub(super) fn legacy_archetypes() -> serde_json::Value {
+    json!([{
+        "guid": "a9000000-0000-4000-8000-000000000006",
+        "className": "LootArchetype_AmmoCache_Common",
+        "recordPath": "libs/foundry/records/lootgeneration/lootarchetypes/lootarchetype_ammocache_common",
+        "excludedTagGuids": ["a9000000-0000-4000-8000-000000000010"],
+        "entries": [{
+            "name": "Ammo",
+            "weight": 1.0,
+            "tagGuid": "a9000000-0000-4000-8000-000000000011",
+            "additionalPositiveTagGuids": ["a9000000-0000-4000-8000-000000000012"],
+            "additionalNegativeTagGuids": [],
+            "stackSize": {"min": 3.0, "max": 3.0},
+            "spawnWith": [{
+                "name": "Suitable ammunition",
+                "mode": "MostSimilar",
+                "min": 1.0,
+                "max": 3.0,
+                "positiveTagGuids": ["a9000000-0000-4000-8000-000000000012"],
+                "negativeTagGuids": []
+            }]
+        }],
+        "secondaryGroups": [{
+            "groupName": "Rarity",
+            "entries": [{"weight": 1.0, "tagGuid": "a9000000-0000-4000-8000-000000000011"}]
+        }]
+    }])
+}
+
 pub(super) fn containers() -> serde_json::Value {
     json!([{
         "multiConfigGuid": "a7000000-0000-4000-8000-000000000001",

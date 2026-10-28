@@ -44,7 +44,8 @@ The rule is ADR-0054 (amending ADR-0002):
   contract fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319,
   ADR-0237), and the kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers`
   and the field `lootConfig` of a sub harvestable (#322, ADR-0238). Later additions keep version 2
-  as long as they are additive: the kind `mineableEntities` (#830, ADR-0242) is one.
+  as long as they are additive: the kind `mineableEntities` (#830, ADR-0242) and the kinds
+  `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238) are such.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -147,6 +148,8 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `lootTables` | The loot tables (`LootTableV3Record`) with the weighted archetypes of each, ordered by GUID |
 | `lootArchetypes` | The loot archetypes (`LootArchetypeV3Record`) with the weighted selectors of each, ordered by GUID |
 | `lootPoolFilters` | The pool filters of the loot generation, ordered by GUID |
+| `legacyLootTables` | The older loot tables (`LootTable`) with the weighted archetypes of each, ordered by GUID |
+| `legacyLootArchetypes` | The older loot archetypes (`LootArchetype`) with the weighted tags of each, ordered by GUID |
 | `lootContainers` | The containers placed with a multi config, with the starmap object each hangs below, ordered by config, container, system and object |
 | `mineableEntities` | The mineable rocks and deposits (`EntityClassDefinition` under `entities/mineable`) with their composition, mining parameters and scan signature, ordered by GUID |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
@@ -1425,7 +1428,7 @@ is the designer's label, not a text the game shows; no field of these kinds is a
 
 **Tables (`lootTables`).** A `LootTableV3Record` under `lootgeneration/loottables` (59 on LIVE
 4.10, 54 entries; the leftover rule skips five). The folder also holds the older `LootTable`
-Records (161), which are no kind. `entries` follow `lootTable.lootArchetypes` in stored order, each
+Records (161), which are the kind `legacyLootTables` (see "Older loot Records"). `entries` follow `lootTable.lootArchetypes` in stored order, each
 with `name`, `weight` and the archetype it draws from: `archetypeGuid`, an entry of
 `lootArchetypes`, for a `LootArchetypeV3_RecordRef`, else `archetype`, the entries of an archetype
 written out in place (as in "Archetypes"); the other one is `null`. The `optionalData` of an entry
@@ -1435,7 +1438,8 @@ of the table; the Archive does not state how `priorityCount` and `choiceLimit` c
 catalog does not decide it.
 
 **Archetypes (`lootArchetypes`).** A `LootArchetypeV3Record` under `lootgeneration/lootarchetypes`
-(34 on LIVE, all entries; the older `LootArchetype` Records, 233, are no kind). An entry has `name`,
+(34 on LIVE, all entries; the older `LootArchetype` Records, 233, are `legacyLootArchetypes`). An
+entry has `name`,
 `weight` and a `selector`, and the optional data `stackSize` (`min` and `max`) and `spawnWith`:
 items spawned with it, each with `name`, `chance`, `mode`, `amount` and a selector. A selector
 selects either by tags or by entity classes, read by its fields and not by the name of its
@@ -1449,34 +1453,51 @@ LIVE). `filter` is a node with the struct as stored in `nodeType`: a `PoolFilter
 `filters`, each an instance with `name`, `mode` (`Cumulative` or `Additive`) and a `filter` node
 (`null` for none); a `PoolFilter_RecordRef` names another Record in `filterGuid`; a
 `PoolFilter_Tags` holds `positiveTagGuids` and `negativeTagGuids`. Nodes nest at most 16 deep. The
-secondary choices Records (manufacturer weights, 25 on LIVE) are not exported.
+secondary choices Records (manufacturer weights, 25 on LIVE) are not exported. `nodeType` and
+`selectorType` (of the selectors of "Archetypes") state the struct as stored and are informational:
+a consumer selects by the fields (`filterGuid`, the tag lists, `filters`), never by those names.
+
+**Older loot Records (`legacyLootTables`, `legacyLootArchetypes`).** The `LootTable` (161 on LIVE)
+and `LootArchetype` (233) Records of the same folders, which 635 of the 1,958 slots with a
+`lootConfig` still name in `lootTableGuid`. A table has `entries`, each with `weight`,
+`archetypeGuid` (an entry of `legacyLootArchetypes`), and `minResults` and `maxResults` of
+`numberOfResultsConstraints`. An archetype has `excludedTagGuids` (items with such a tag are never
+drawn), `entries` (the primary group: `name`, `weight`, `tagGuid`, `additionalPositiveTagGuids`,
+`additionalNegativeTagGuids`, `stackSize` and `spawnWith` with `name`, `mode`, `min`, `max` and the
+tag lists of `tagsToMatch`) and `secondaryGroups` (`groupName` and entries of `weight` and
+`tagGuid`). The Archive does not state how the groups combine, and the catalog does not decide it.
 
 **Slots (`lootConfig`).** A sub harvestable of a multi config has `lootConfig` when its Record
 states one (1,958 of 2,896 on LIVE): `lootTableV3Guid` (an entry of `lootTables`; 1,321 slots),
-`lootTableGuid` (an older `LootTable` Record, which is no kind and left unresolved; 635 slots; a
-slot names one of the two), `poolFilterGuid` (an entry of `lootPoolFilters`), `totalResultsLimit`,
+`lootTableGuid` (an entry of `legacyLootTables`; 635 slots; a slot names one of the two), `poolFilterGuid` (an entry of `lootPoolFilters`), `totalResultsLimit`,
 `chanceToGenerate`, `chanceToGenerateAdditionalInventories` and the `fullness` range of
 `fullnessFactorRange`.
 
 **Placed containers (`lootContainers`).** A container below `ObjectContainers/PU/system`, or one
 it places, holds the property file of an entity (`entdata/<n>.entxml`) that names the container it
 places (`objectContainer`) and a `multiConfigRef`, a `SubHarvestableMultiConfigRecord`. The placed
-container holds tag points, entities that carry tags, in its first `.soc`. The tags of those points
+container holds tag points, entities that carry tags, in its `.soc` files. The tags of those points
 are the `tagGuids` of the tagged configs of the multi config (the 13 points of a Stanton derelict
 carry the Rare, Common, Uncommon and Reward tags of `LootGeneration_MultiSlotPreset_Derelict` 4, 4,
 2 and 3 times); the slots of a tagged config carry the `lootConfig`. The catalog states these
 facts and not how the game picks a slot for a point. A row is one placed container with the
 `multiConfigGuid`, `container` (the Archive path, else the path as written when the Archive lacks
 it), `system`, `starmapObjectGuid`, `entityCount` and `tagCounts`: how many of the entities carry
-each tag. A container without a `.soc` has `entityCount` 0; one whose `.soc` cannot be read, or
-that the Archive lacks, has `null` and no counts.
+each tag, summed over all `.soc` files of the container. A container without a `.soc` has
+`entityCount` 0 (no tag points; this is intended and not warned about); one whose `.soc` cannot be
+read, or that the Archive lacks, has `null` and no counts.
 
 The walk starts at every container below `ObjectContainers/PU/system` and follows the containers
 the entity files place, each container read once. The location is that of the container the walk
 started in: `starmapObjectGuid` is the object the Child that reaches it hangs below (as for
 "Locations" above, with `null` for a container no Child reaches or an object the catalog lacks). A
-container placed under several roots gives a row for each. A container or entity file that cannot
-be read is warned about (`unreadable_loot_containers`).
+container placed under several roots gives a row for each, and containers that place each other
+(A places B places A) are read once. The warning `unreadable_loot_containers` names a container or
+entity file that cannot be read, a `.soc` that cannot be counted, a placed container the Archive
+lacks, and containers beyond the limit of the walk, each with its reason. An entity file that names
+several different containers or multi configs uses the first of each in document order and is
+warned about (`ambiguous_loot_entity_files`). The cost of the walk is the size of the subgraph below
+each distinct root; it is not memoised, as it is negligible on LIVE.
 
 On LIVE 4.10 (2026-10-28) 3,004 rows name 41 multi configs and 189 containers in 3 systems, 2,797
 of them with an object.
@@ -1829,6 +1850,8 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `lootTables` | `libs/foundry/records/lootgeneration/loottables/` | `LootTableV3Record` |
 | `lootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetypeV3Record` |
 | `lootPoolFilters` | `libs/foundry/records/lootgeneration/filters/` | `PoolFilterRecord` |
+| `legacyLootTables` | `libs/foundry/records/lootgeneration/loottables/` | `LootTable` |
+| `legacyLootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetype` |
 | `lootContainers` | None: the `entdata` files of the containers below `ObjectContainers/PU/system` and the containers they place, no Records | |
 | `mineableEntities` | `libs/foundry/records/entities/mineable/` | `EntityClassDefinition` |
 

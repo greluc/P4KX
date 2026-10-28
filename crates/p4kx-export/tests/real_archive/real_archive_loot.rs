@@ -23,10 +23,21 @@ fn print_line(line: &str) {
     println!("{line}");
 }
 
-fn catalog() -> Result<Value, Box<dyn Error>> {
+fn built() -> Result<(Value, Vec<String>), Box<dyn Error>> {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
-    Ok(serde_json::from_slice(built.json())?)
+    let warnings = built
+        .summary()
+        .warnings()
+        .iter()
+        .filter(|warning| warning.kind().contains("loot"))
+        .map(|warning| format!("{warning}"))
+        .collect();
+    Ok((serde_json::from_slice(built.json())?, warnings))
+}
+
+fn catalog() -> Result<Value, Box<dyn Error>> {
+    Ok(built()?.0)
 }
 
 fn list<'c>(catalog: &'c Value, kind: &str) -> Result<&'c Vec<Value>, String> {
@@ -107,8 +118,22 @@ fn a_loot_table_of_a_real_archive_keeps_its_weights_and_links() -> TestResult {
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
 fn the_loot_kinds_and_the_containers_of_a_real_archive_are_linked() -> TestResult {
-    let catalog = catalog()?;
+    let (catalog, warnings) = built()?;
+    for warning in &warnings {
+        print_line(warning);
+    }
     let tables = guids(&catalog, "lootTables")?;
+    let legacy_tables = guids(&catalog, "legacyLootTables")?;
+    let legacy_archetypes = guids(&catalog, "legacyLootArchetypes")?;
+    for table in list(&catalog, "legacyLootTables")? {
+        assert_resolve(
+            "the archetypes of an older table",
+            array(table, "entries")
+                .iter()
+                .filter_map(|entry| entry["archetypeGuid"].as_str()),
+            &legacy_archetypes,
+        );
+    }
     let archetypes = guids(&catalog, "lootArchetypes")?;
     let filters = guids(&catalog, "lootPoolFilters")?;
     let configs = guids(&catalog, "subHarvestableMultiConfigs")?;
@@ -146,6 +171,11 @@ fn the_loot_kinds_and_the_containers_of_a_real_archive_are_linked() -> TestResul
                     "the table of a slot",
                     loot["lootTableV3Guid"].as_str(),
                     &tables,
+                );
+                assert_resolve(
+                    "the older table of a slot",
+                    loot["lootTableGuid"].as_str(),
+                    &legacy_tables,
                 );
                 assert_resolve(
                     "the filter of a slot",

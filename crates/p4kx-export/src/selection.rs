@@ -115,11 +115,16 @@ pub enum Kind {
     /// Mineable entities: `EntityClassDefinition` Records under `entities/mineable`, the rocks and
     /// deposits with their scan signature.
     MineableEntities,
+    /// Older loot tables: `LootTable` Records under `lootgeneration/loottables`, which the
+    /// `lootTable` of a slot's `lootConfig` links to.
+    LegacyLootTables,
+    /// Older loot archetypes: `LootArchetype` Records under `lootgeneration/lootarchetypes`.
+    LegacyLootArchetypes,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 38] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -156,6 +161,8 @@ impl Kind {
         Self::LootPoolFilters,
         Self::LootContainers,
         Self::MineableEntities,
+        Self::LegacyLootTables,
+        Self::LegacyLootArchetypes,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -198,6 +205,8 @@ impl Kind {
             Self::LootPoolFilters => "lootPoolFilters",
             Self::LootContainers => "lootContainers",
             Self::MineableEntities => "mineableEntities",
+            Self::LegacyLootTables => "legacyLootTables",
+            Self::LegacyLootArchetypes => "legacyLootArchetypes",
         }
     }
 
@@ -228,12 +237,21 @@ impl Kind {
         }
     }
 
-    /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
-    /// kinds do not overlap, and a derived kind is never returned.
+    /// Returns the first kind one of whose prefixes `record_path` starts with; a derived kind is
+    /// never returned. Kinds that share a folder are told apart by [`Self::by_record`].
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|kind| {
             kind.rule()
                 .is_some_and(|rule| rule.matches_path(record_path))
+        })
+    }
+
+    /// Returns the kind that selects a Record with `record_path` and the struct `type_name`; the
+    /// kinds that share a folder (the V3 and the older loot Records) differ by the struct.
+    pub(crate) fn by_record(record_path: &str, type_name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|kind| {
+            kind.rule()
+                .is_some_and(|rule| rule.selects(record_path, type_name))
         })
     }
 
@@ -276,6 +294,8 @@ impl Kind {
             Self::LootPoolFilters => 33,
             Self::LootContainers => 34,
             Self::MineableEntities => 35,
+            Self::LegacyLootTables => 36,
+            Self::LegacyLootArchetypes => 37,
         }
     }
 

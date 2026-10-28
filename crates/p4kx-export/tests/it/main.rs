@@ -24,6 +24,7 @@ mod catalog_loadouts;
 mod catalog_loadouts_edges;
 mod catalog_loadouts_references;
 mod catalog_loot;
+mod catalog_loot_followups;
 mod catalog_mining;
 mod catalog_paints;
 mod catalog_playability;

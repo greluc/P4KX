@@ -14,6 +14,7 @@ use p4kx_testkit::{
 
 use crate::starmap_fixture::{child, children, guid_text};
 
+mod legacy;
 mod records;
 mod structures;
 
@@ -29,10 +30,12 @@ pub(crate) const LEGACY_TABLE: u128 = 0x7200_0000_0000_4000_8000_0000_0000_0007;
 pub(crate) const FILTER_LEAF: u128 = 0x7200_0000_0000_4000_8000_0000_0000_0008;
 pub(crate) const FILTER: u128 = 0x7200_0000_0000_4000_8000_0000_0000_0009;
 pub(crate) const CONFIG: u128 = 0x7200_0000_0000_4000_8000_0000_0000_000a;
+pub(crate) const LEGACY_ARCHETYPE: u128 = 0x7200_0000_0000_4000_8000_0000_0000_000b;
 pub(crate) const PLANET: u128 = 0x7300_0000_0000_4000_8000_0000_0000_0001;
 
 pub(crate) const AREA: &str = "Data\\ObjectContainers\\PU\\loc\\loot\\area.socpak";
 pub(crate) const NESTED: &str = "Data\\ObjectContainers\\PU\\loc\\loot\\nested.socpak";
+const AREA_WRITTEN: &str = "ObjectContainers/PU/loc/loot/area.socpak";
 pub(crate) const GHOST: &str = "ObjectContainers/PU/loc/loot/ghost.socpak";
 
 const CONTAINERS: &str = "Data\\ObjectContainers\\PU\\system\\stanton\\";
@@ -48,6 +51,7 @@ fn database() -> DataForgeBuilder {
             table: TABLE,
             table_debug: TABLE_DEBUG,
             legacy_table: LEGACY_TABLE,
+            legacy_archetype: LEGACY_ARCHETYPE,
             filter_leaf: FILTER_LEAF,
             filter: FILTER,
             config: CONFIG,
@@ -79,6 +83,14 @@ fn placing(container: &str, config: u128) -> String {
                     ),
                 ),
         )
+        .to_xml()
+}
+
+/// The property file of an entity that names two different containers and no config.
+fn naming_two(first: &str, second: &str) -> String {
+    TestElement::new("Entity")
+        .child(TestElement::new("A").attribute("objectContainer", first))
+        .child(TestElement::new("B").attribute("objectContainer", second))
         .to_xml()
 }
 
@@ -116,12 +128,12 @@ fn soc(entities: &[&[u128]]) -> Vec<u8> {
         .bytes()
 }
 
-fn container(path: &str, xml: String, files: &[String], soc: Option<Vec<u8>>) -> TestEntry {
+fn container(path: &str, xml: String, files: &[String], socs: Vec<Vec<u8>>) -> TestEntry {
     let name = path.rsplit(['\\', '/']).next().unwrap_or(path);
     let stem = name.trim_end_matches(".socpak");
     let mut inner = TestContainer::new().entry(TestEntry::stored(format!("{stem}.xml"), xml));
-    if let Some(soc) = soc {
-        inner = inner.entry(TestEntry::stored(format!("{stem}.soc"), soc));
+    for (at, soc) in socs.into_iter().enumerate() {
+        inner = inner.entry(TestEntry::stored(format!("{stem}_{at}.soc"), soc));
     }
     for file in entity_files(files) {
         inner = inner.entry(file);
@@ -130,7 +142,12 @@ fn container(path: &str, xml: String, files: &[String], soc: Option<Vec<u8>>) ->
 }
 
 fn system(name: &str, xml: String, files: &[String]) -> TestEntry {
-    container(&format!("{CONTAINERS}{name}.socpak"), xml, files, None)
+    container(
+        &format!("{CONTAINERS}{name}.socpak"),
+        xml,
+        files,
+        Vec::new(),
+    )
 }
 
 /// Writes the fixture Archive into `dir` and returns its path.
@@ -169,14 +186,20 @@ pub(crate) fn write_archive(dir: &Path) -> Result<PathBuf, Box<dyn Error>> {
                 "ObjectContainers/PU/loc/loot/nested.socpak",
                 CONFIG,
             )],
-            Some(soc(&[
-                &[TAG_COMMON, TAG_RARE],
-                &[TAG_COMMON],
-                &[TAG_COMMON],
-                &[],
-            ])),
+            vec![
+                soc(&[&[TAG_COMMON, TAG_RARE], &[TAG_COMMON], &[TAG_COMMON], &[]]),
+                soc(&[&[TAG_RARE]]),
+            ],
         ))
-        .entry(container(NESTED, xml(Vec::new()), &[], None))
+        .entry(container(
+            NESTED,
+            xml(Vec::new()),
+            &[
+                placing(AREA_WRITTEN, CONFIG),
+                naming_two(AREA_WRITTEN, GHOST),
+            ],
+            Vec::new(),
+        ))
         .write_to(&path)?;
     Ok(path)
 }

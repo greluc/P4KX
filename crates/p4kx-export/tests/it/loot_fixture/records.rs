@@ -5,7 +5,7 @@
 
 use p4kx_testkit::{DataForgeBuilder, TestRecord, TestValue};
 
-use super::{array, instance, record};
+use super::{array, instance, legacy, record};
 
 const LOOT: &str = "libs/foundry/records/lootgeneration/";
 const SLOTS: &str = "libs/foundry/records/harvestable/slotpresets/";
@@ -19,6 +19,7 @@ pub(super) struct Ids {
     pub(super) table: u128,
     pub(super) table_debug: u128,
     pub(super) legacy_table: u128,
+    pub(super) legacy_archetype: u128,
     pub(super) filter_leaf: u128,
     pub(super) filter: u128,
     pub(super) config: u128,
@@ -282,6 +283,12 @@ pub(super) fn records(builder: DataForgeBuilder, ids: &Ids) -> DataForgeBuilder 
         )
     };
     let [leaf, whole] = filter_records(ids);
+    let [legacy_table, legacy_archetype] = legacy::records(&legacy::Ids {
+        table: ids.legacy_table,
+        archetype: ids.legacy_archetype,
+        tag_rare: ids.tag_rare,
+        tag_common: ids.tag_common,
+    });
     builder
         .record(tag(ids.tag_rare, "Rare"))
         .record(tag(ids.tag_common, "Common"))
@@ -289,12 +296,8 @@ pub(super) fn records(builder: DataForgeBuilder, ids: &Ids) -> DataForgeBuilder 
         .record(archetype_record(ids))
         .record(table_record(ids.table, "V3LootTable_Cargo", ids))
         .record(table_record(ids.table_debug, "V3LootTable_Debug", ids))
-        .record(record(
-            ids.legacy_table,
-            "LootTable",
-            "Cargo",
-            &format!("{LOOT}loottables/cargo"),
-        ))
+        .record(legacy_table)
+        .record(legacy_archetype)
         .record(leaf)
         .record(whole)
         .record(config_record(ids))

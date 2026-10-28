@@ -87,8 +87,8 @@ pub(crate) struct LootArchetypeEntry<'a> {
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct LootSelector<'a> {
-    /// The struct of the selector as stored, e.g. `LootArchetypeV3Selector_Tags`; `null` when the
-    /// entry has none.
+    /// The struct of the selector as stored, e.g. `LootArchetypeV3Selector_Tags`; informational,
+    /// not a selector; `null` when the entry has none.
     pub(crate) selector_type: Option<&'a str>,
     /// The GUIDs of the `Tag` Records in `positiveTags`, in stored order.
     pub(crate) positive_tag_guids: Vec<CatalogGuid>,
@@ -148,7 +148,8 @@ pub(crate) struct LootPoolFilter<'a> {
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct PoolFilterNode<'a> {
-    /// The struct of the node as stored, e.g. `PoolFilter_Sequence`.
+    /// The struct of the node as stored, e.g. `PoolFilter_Sequence`; informational, not a
+    /// selector: the other fields tell what the node holds.
     pub(crate) node_type: &'a str,
     /// The `PoolFilterRecord` a `PoolFilter_RecordRef` links to.
     pub(crate) filter_guid: Option<CatalogGuid>,
@@ -190,11 +191,11 @@ pub(crate) struct LootContainer {
     /// The `guid` of the `starmapObjects` entry the walk's root container hangs below; `null` for
     /// none or an object the catalog lacks.
     pub(crate) starmap_object_guid: Option<CatalogGuid>,
-    /// The number of entities in the first `.soc` of the placed container; `null` when it cannot
-    /// be read.
+    /// The number of entities in all `.soc` files of the placed container, 0 for none; `null`
+    /// when a file cannot be read or the Archive lacks the container.
     pub(crate) entity_count: Option<u32>,
-    /// How many entities of the placed container carry each tag, ordered by GUID; empty when the
-    /// `.soc` cannot be read. The tags of `tagGuids` of the tagged configs select the slots.
+    /// How many entities of the placed container carry each tag, summed over its `.soc` files and
+    /// ordered by GUID; empty when `entityCount` is `null`. The tags of `tagGuids` of the tagged configs select the slots.
     pub(crate) tag_counts: Vec<TagCount>,
 }
 
@@ -214,7 +215,7 @@ pub(crate) struct TagCount {
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
 pub(crate) struct LootConfig {
-    /// The `LootTable` Record the config links to, an older table the catalog does not list.
+    /// The `LootTable` Record the config links to, an entry of `legacyLootTables`.
     pub(crate) loot_table_guid: Option<CatalogGuid>,
     /// The `LootTableV3Record` the config links to, an entry of `lootTables`.
     pub(crate) loot_table_v3_guid: Option<CatalogGuid>,

@@ -266,9 +266,11 @@ impl<'f> Collected<'f> {
                     | Kind::MissionTypes
                     | Kind::MissionLocalities
                     | Kind::ContractScenarios => self.mission_kinds.count(kind),
-                    Kind::LootTables | Kind::LootArchetypes | Kind::LootPoolFilters => {
-                        self.loot_kinds.count(kind)
-                    }
+                    Kind::LootTables
+                    | Kind::LootArchetypes
+                    | Kind::LootPoolFilters
+                    | Kind::LegacyLootTables
+                    | Kind::LegacyLootArchetypes => self.loot_kinds.count(kind),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

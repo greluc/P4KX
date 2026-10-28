@@ -130,7 +130,7 @@ fn list_panel(
     Panel::left(id)
         .frame(frames::panel())
         .resizable(true)
-        .default_size(SIDEBAR_WIDTH.min(ui.available_width() / 2.0))
+        .default_size(SIDEBAR_WIDTH.min(ui.available_width() / 3.0))
         .size_range(SIDEBAR_MIN_WIDTH.min(ui.available_width() / 3.0)..=SIDEBAR_MAX_WIDTH)
         .show(ui, add)
         .inner

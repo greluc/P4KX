@@ -21,6 +21,8 @@ pub struct Regions {
     pub sidebar: Option<Rect>,
     /// The visible part of the work surface below the tab bar.
     pub work: Option<Rect>,
+    /// The room the work surface lays its tab out in, whatever part of it is scrolled out.
+    pub work_room: Option<Rect>,
     /// The `Ui` that holds what the work surface shows, whatever part of it is scrolled out.
     pub work_ui: Option<Id>,
     /// The `Ui` of the content of each scroll area inside the work surface that was marked with

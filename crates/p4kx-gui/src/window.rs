@@ -7,9 +7,10 @@ use egui::{Rect, ViewportBuilder, ViewportInfo};
 use p4kx_settings::WindowGeometry;
 
 use crate::theme::logo::window_icon;
+use crate::theme::window_metrics::{WINDOW_MIN_HEIGHT, WINDOW_MIN_WIDTH};
 
 const DEFAULT_SIZE: [f32; 2] = [1280.0, 800.0];
-const MIN_SIZE: [f32; 2] = [640.0, 400.0];
+const MIN_SIZE: [f32; 2] = [WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT];
 
 /// Returns the main window for `title`, placed at `geometry` or at the default size.
 #[must_use]

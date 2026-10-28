@@ -25,19 +25,20 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
         let (tab, texts) = model.characters_with_texts();
         let tab: &CharactersTab = tab;
         ui.spacing_mut().item_spacing = egui::vec2(AUDIO_CONTROL_GAP, TOOLBAR_PADDING / 2.0);
-        ui.horizontal(|ui| {
-            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                let exported = export(ui, tab, texts);
-                let chosen = ui
-                    .with_layout(Layout::left_to_right(Align::Center), |ui| {
-                        settings(ui, tab, texts)
-                    })
-                    .inner;
-                exported.or(chosen)
-            })
-            .inner
-        })
-        .inner
+        let id = ui
+            .make_persistent_id("character-toolbar-settings")
+            .with(texts.language());
+        let settings_width = ui.data(|data| data.get_temp::<f32>(id)).unwrap_or(0.0);
+        let export_width = button::width(ui, Size::Normal, &texts.get(T::ExportAction));
+        let needed = settings_width + export_width + ui.spacing().item_spacing.x;
+        let beside = needed <= ui.available_width();
+        let beside_id = id.with("beside");
+        let before = ui.data(|data| data.get_temp::<bool>(beside_id));
+        ui.data_mut(|data| data.insert_temp(beside_id, beside));
+        if before.is_some_and(|before| before != beside) {
+            ui.request_repaint();
+        }
+        rows(ui, beside, id, tab, texts)
     };
     match ask {
         Some(Ask::Lod(level)) => model.characters_mut().set_lod(level),
@@ -49,11 +50,53 @@ pub(super) fn show(ui: &mut Ui, model: &mut Model) {
     }
 }
 
-fn export(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
+/// Shows the settings and the export in one line when `beside`, else the export in a line below.
+/// `id` keeps the width the settings take.
+fn rows(
+    ui: &mut Ui,
+    beside: bool,
+    id: egui::Id,
+    tab: &CharactersTab,
+    texts: &Texts,
+) -> Option<Ask> {
+    let put_settings = |ui: &mut Ui| measured(ui, id, tab, texts);
+    let put_export = |ui: &mut Ui| export_button(ui, tab, texts);
+    if beside {
+        ui.horizontal(|ui| {
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                let exported = put_export(ui);
+                let chosen = ui
+                    .with_layout(Layout::left_to_right(Align::Center), put_settings)
+                    .inner;
+                exported.or(chosen)
+            })
+            .inner
+        })
+        .inner
+    } else {
+        let chosen = put_settings(ui);
+        let exported = ui
+            .horizontal(|ui| {
+                ui.with_layout(Layout::right_to_left(Align::Center), put_export)
+                    .inner
+            })
+            .inner;
+        exported.or(chosen)
+    }
+}
+
+fn export_button(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
     let action = texts.get(T::ExportAction);
     button::button(ui, Kind::Cta, Size::Normal, &action, tab.export_available())
         .clicked()
         .then_some(Ask::Export)
+}
+
+/// Shows the settings in one line and remembers the width they take under `id`.
+fn measured(ui: &mut Ui, id: egui::Id, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {
+    let shown = ui.horizontal(|ui| settings(ui, tab, texts));
+    ui.data_mut(|data| data.insert_temp(id, shown.response.rect.width()));
+    shown.inner
 }
 
 fn settings(ui: &mut Ui, tab: &CharactersTab, texts: &Texts) -> Option<Ask> {

@@ -83,7 +83,11 @@ a new test file goes into `tests/it/` and `main.rs` gets its `mod` line.
 
 ## Plan and decisions
 
-- [docs/ROADMAP.md](docs/ROADMAP.md): product decisions and milestones M1–M14.
+- [docs/ROADMAP.md](docs/ROADMAP.md): product decisions, the milestones M1–M14 (all done) and the
+  releases after 0.4.0.
+- [README.md](README.md): what P4KX does and how to install it; [docs/commands.md](docs/commands.md):
+  every command and the MCP tools; [docs/user-help.md](docs/user-help.md): the window. Keep them
+  in step with `p4kx --help` when a command or option changes.
 - [CONTEXT.md](CONTEXT.md): the glossary; use its terms in code, issues and commits.
 - [docs/adr/](docs/adr/): architecture decisions.
 

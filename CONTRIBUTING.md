@@ -47,13 +47,14 @@ it. Report unacceptable behaviour confidentially to
 
 | Topic                                                              | Where                                                                  |
 |:-------------------------------------------------------------------|:-----------------------------------------------------------------------|
-| What P4KX does, building it, the commands                          | [`README.md`](README.md)                                               |
+| What P4KX does, installing, building it                            | [`README.md`](README.md)                                               |
+| The commands and the MCP server                                    | [`docs/commands.md`](docs/commands.md), [`docs/cli-json.md`](docs/cli-json.md) |
 | Using the window                                                   | [`docs/user-help.md`](docs/user-help.md)                               |
 | Product decisions and milestones                                   | [`docs/ROADMAP.md`](docs/ROADMAP.md)                                   |
 | The glossary: the terms to use in code, issues and commits         | [`CONTEXT.md`](CONTEXT.md)                                             |
 | Architecture decisions                                             | [`docs/adr/`](docs/adr/)                                               |
 | Architecture rules, test layout, real-Archive suite, working rules | [`CLAUDE.md`](CLAUDE.md)                                               |
-| The look of the window: theme, desktop spec, logo                  | [`docs/design/`](docs/design/)                                         |
+| The look of the window: theme, desktop spec, logo                  | [`docs/design/`](docs/design/) and `p4kx_gui::theme`                   |
 | The formats P4KX reads and writes                                  | the documents under [`docs/`](docs/)                                   |
 | Release notes                                                      | [`CHANGELOG.md`](CHANGELOG.md), unreleased ones in [`changelog.d/`](changelog.d/README.md) |
 | Security reporting, supported versions, scope                      | [`.github/SECURITY.md`](.github/SECURITY.md)                           |
@@ -117,8 +118,30 @@ checks the layer direction of the crates, the 400-line limit, the SPDX headers, 
 fragments, the lint set and the Archive key. After a dependency change, run
 `cargo xtask notices --write` (needs `cargo install cargo-about --version 0.9.2 --locked`).
 
-The tests against a real Archive are ignored by default; `CLAUDE.md` and the
-[README](README.md#real-archive-suite) explain how to run them against your own installation.
+The tests against a real Archive are ignored by default; see
+[Real-Archive suite](#real-archive-suite).
+
+### Real-Archive suite
+
+A second suite checks a real `Data.p4k`: opening and listing it, its Build, reading Entries of
+every compression method and encryption state present, extracting a small subset, comparing two
+Archives on both levels, and the conversions of the formats P4KX reads. Its tests are
+`#[ignore]`d, so `cargo test` and CI report them as ignored. Point `P4KX_DATA_P4K` to an Archive
+and `P4KX_DATA_P4K_B` to a second one for the Comparison, and pass `--ignored`; without
+`P4KX_DATA_P4K` the suite fails and says so, and the tests over two Archives return early without
+`P4KX_DATA_P4K_B`. Tests that read encrypted Entries use the Archive key from `P4KX_ARCHIVE_KEY`,
+else the file named by `P4KX_KEY_FILE`, else the file of `p4kx key set`.
+
+```powershell
+$env:P4KX_DATA_P4K = 'C:\Program Files\Roberts Space Industries\StarCitizen\LIVE\Data.p4k'
+$env:P4KX_DATA_P4K_B = 'C:\Program Files\Roberts Space Industries\StarCitizen\PTU\Data.p4k'
+cargo test --release --workspace --locked -- --ignored
+```
+
+The Archive is only read. The extracted subset goes to a temporary folder below `TMP`, which is
+removed afterwards. `CLAUDE.md` describes the test layout, the differential tests against unp4k,
+unforge and StarBreaker ([docs/differential-verification.md](docs/differential-verification.md))
+and how to run a single real-Archive test.
 
 ## Pull requests
 

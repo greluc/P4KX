@@ -12,7 +12,7 @@ command.
 
 ## Command
 
-```
+```powershell
 p4kx ships <archive> --out <file> [--format json|ndjson] [--filter <filter>] [--exported-at <seconds>]
 ```
 

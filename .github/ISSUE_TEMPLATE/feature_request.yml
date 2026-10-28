@@ -41,9 +41,13 @@ body:
         - Comparison of two Archives
         - Records (DataForge, XML / JSON)
         - Models and glTF export
+        - Assemblies, Interiors and Characters
+        - Blender package
         - Textures and images
-        - Audio
-        - Localization
+        - Audio and Wwise sounds
+        - UI movies, ship screens and holograms
+        - Basetool catalog and ship base data
+        - Localisation
         - Installer / update check
         - Other
     validations:

@@ -5,8 +5,9 @@
 //! are used, in the Basetool catalog.
 
 use crate::harvest_fixture::{
-    COMPOSITION, ELEMENT, ENTITY, HARVESTABLE, MULTI_CONFIG, PARAMS, PLANET, PRESET_NOWHERE,
-    PRESET_PLACED, PRESET_PRIVATE, PRESET_UNREACHED, RESOURCE, write_archive,
+    COMPOSITION, CONTACT_TYPE, ELEMENT, ENTITY, ENTITY_BARE, ENTITY_SILENT, HARVESTABLE,
+    MULTI_CONFIG, PARAMS, PLANET, PRESET_NOWHERE, PRESET_PLACED, PRESET_PRIVATE, PRESET_UNREACHED,
+    RESOURCE, write_archive,
 };
 
 use std::error::Error;
@@ -236,6 +237,51 @@ fn a_container_that_names_a_preset_is_a_location_of_the_object_it_hangs_below() 
 }
 
 #[test]
+fn a_mineable_entity_takes_its_scan_signature_from_the_slot_the_radar_parameters_name() -> TestResult
+{
+    let (built, catalog) = build(None)?;
+    assert_eq!(
+        *entry(&catalog, "mineableEntities", ENTITY)?,
+        json!({
+            "guid": guid(ENTITY),
+            "className": "MineableRock_Iron",
+            "recordPath": "libs/foundry/records/entities/mineable/mineablerock_iron",
+            "mineableCompositionGuid": guid(COMPOSITION),
+            "miningGlobalParamsGuid": guid(PARAMS),
+            "scanSignature": 4270.0,
+            "signatures": [0.0, 0.0, 4270.0, 0.0],
+            "radarContactTypeGuid": guid(CONTACT_TYPE),
+        }),
+        "the named slot is the third, not the fifth"
+    );
+    let kind = built.summary().kind(Kind::MineableEntities);
+    assert_eq!(kind.map(|kind| kind.count), Some(3));
+    Ok(())
+}
+
+#[test]
+fn an_entity_with_only_zero_signatures_has_no_scan_signature_but_keeps_the_array() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let silent = entry(&catalog, "mineableEntities", ENTITY_SILENT)?;
+    assert_eq!(silent["scanSignature"], Value::Null);
+    assert_eq!(silent["signatures"], json!([0.0, 0.0, 0.0, 0.0]));
+    assert_eq!(silent["radarContactTypeGuid"], guid(CONTACT_TYPE).as_str());
+    Ok(())
+}
+
+#[test]
+fn an_entity_without_signature_or_mining_components_leaves_every_link_null() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let bare = entry(&catalog, "mineableEntities", ENTITY_BARE)?;
+    assert_eq!(bare["scanSignature"], Value::Null);
+    assert_eq!(bare["signatures"], json!([]));
+    assert_eq!(bare["radarContactTypeGuid"], Value::Null);
+    assert_eq!(bare["mineableCompositionGuid"], Value::Null);
+    assert_eq!(bare["miningGlobalParamsGuid"], Value::Null);
+    Ok(())
+}
+
+#[test]
 fn a_filter_keeps_only_the_locations_of_the_presets_it_selects() -> TestResult {
     let filter = Filter::new("*providerpresets*hpp_unreached*");
     let (_, catalog) = build(Some(&filter))?;
@@ -249,6 +295,7 @@ fn a_filter_keeps_only_the_locations_of_the_presets_it_selects() -> TestResult {
     assert_eq!(locations.len(), 1);
     assert_eq!(locations[0]["presetGuid"], guid(PRESET_UNREACHED).as_str());
     assert_eq!(catalog["mineableCompositions"], json!([]), "filtered");
+    assert_eq!(catalog["mineableEntities"], json!([]), "filtered");
     assert_eq!(
         catalog["completeness"]["harvestableLocations"]["status"],
         "partial"

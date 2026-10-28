@@ -44,7 +44,7 @@ The rule is ADR-0054 (amending ADR-0002):
   contract fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319,
   ADR-0237), and the kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers`
   and the field `lootConfig` of a sub harvestable (#322, ADR-0238). Later additions keep version 2
-  as long as they are additive.
+  as long as they are additive: the kind `mineableEntities` (#830, ADR-0242) is one.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -148,6 +148,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `lootArchetypes` | The loot archetypes (`LootArchetypeV3Record`) with the weighted selectors of each, ordered by GUID |
 | `lootPoolFilters` | The pool filters of the loot generation, ordered by GUID |
 | `lootContainers` | The containers placed with a multi config, with the starmap object each hangs below, ordered by config, container, system and object |
+| `mineableEntities` | The mineable rocks and deposits (`EntityClassDefinition` under `entities/mineable`) with their composition, mining parameters and scan signature, ordered by GUID |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 | `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
@@ -1364,6 +1365,27 @@ for `cSCUPerVolume`); `hitConsistencyParams`, `mineableInstabilityParams` and th
 `instability` and `explosion`. Particle effects, audio triggers and the default explosion are not
 exported. `wasteResourceTypeGuid` is the `ResourceType` of the waste.
 
+**Entities (`mineableEntities`).** The `EntityClassDefinition` Records under `entities/mineable`
+(269 on LIVE 4.10, 231 entries; the leftover rule skips the 38 `test` and `template` Records,
+`test_miningdestroyable` among them). A provider preset reaches an entity through the
+`entityGuid` of a harvestable. `mineableCompositionGuid` and `miningGlobalParamsGuid` are the
+References of `Components[MineableParams]`, `radarContactTypeGuid` the Reference
+`radarProperties.contactType` of `Components[SSCSignatureSystemParams]` (a `RadarContactTypeEntry`
+Record, no kind). `signatures` is `radarProperties.baseSignatureParams.signatures` as stored, one
+number per signature type (8 on LIVE), empty when the Record has none. `scanSignature` is the
+value the mining scanner shows, from 3000 to 4900 on LIVE. The slot is named by the Archive
+(ADR-0242): the `RadarSystemGlobalParams` Record lists one `signatureTypeParams` entry per slot of
+`signatures`, and the slot whose `displayName` is `@hud_scanning_info_rs_signature` is the scan
+signature (index 4 on LIVE 4.10, after IR, EM, CS and DB). `scanSignature` is `null`
+when the Record states no signatures, every signature is zero (the FPS blockers and the pearls,
+7 of the 231), `signatures` has not as many numbers as the radar parameters have signature
+types, or the Archive names no such slot (no radar parameters, no entry with the key, or the key
+on several entries): an unfiltered build then warns (`unknown_scan_signature_slot`) when any
+entity states signatures. A consumer that wants another slot reads `signatures`, in stored
+order; a number that is not a finite 32-bit float is exported as 0. Entities are selected by
+record path and type alone, so one without the components has `null` links and empty
+`signatures`.
+
 **Provider presets (`harvestableProviderPresets`).** The `HarvestableProviderPreset` Records under
 `harvestable/providerpresets` (49 on LIVE). `groups` keep `groupName`, `groupProbability` and the
 `harvestables`; each has `relativeProbability`, `clusteringGuid`, `setupGuid`, the GUIDs of its
@@ -1821,6 +1843,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `lootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetypeV3Record` |
 | `lootPoolFilters` | `libs/foundry/records/lootgeneration/filters/` | `PoolFilterRecord` |
 | `lootContainers` | None: the `entdata` files of the containers below `ObjectContainers/PU/system` and the containers they place, no Records | |
+| `mineableEntities` | `libs/foundry/records/entities/mineable/` | `EntityClassDefinition` |
 
 The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

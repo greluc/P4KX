@@ -7,8 +7,8 @@ use crate::blueprint_category::blueprint_category;
 use crate::commodity::commodity;
 use crate::contract::{
     BlueprintCategory, Commodity, HarvestableProviderPreset, Item, Manufacturer,
-    MineableComposition, MineableElement, MiningGlobalParams, RefiningProcess, ResourceGroup, Ship,
-    StarmapObject, SubHarvestableMultiConfig,
+    MineableComposition, MineableElement, MineableEntity, MiningGlobalParams, RefiningProcess,
+    ResourceGroup, Ship, StarmapObject, SubHarvestableMultiConfig,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::item::item;
@@ -53,6 +53,8 @@ pub(crate) enum Picked<'f> {
     Composition(MineableComposition<'f>),
     /// The mining parameters of a kind of miner.
     MiningParams(MiningGlobalParams<'f>),
+    /// A mineable entity.
+    MineableEntity(MineableEntity<'f>),
     /// A harvestable provider preset.
     Provider(HarvestableProviderPreset<'f>),
     /// A sub harvestable multi config.
@@ -127,6 +129,7 @@ impl<'f> Picked<'f> {
             | Kind::SubHarvestableMultiConfigs
             | Kind::HarvestableLocations
             | Kind::LootContainers
+            | Kind::MineableEntities
             | Kind::Shops => return None,
         })
     }

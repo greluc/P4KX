@@ -93,3 +93,47 @@ pub(super) fn locations() -> serde_json::Value {
         "container": "Data\\ObjectContainers\\PU\\system\\stanton\\lagrangepoints\\childclouds\\childcloud_s1_l1_01.socpak"
     }])
 }
+
+pub(super) fn mining_global_params() -> serde_json::Value {
+    json!({
+        "guid": "a8000000-0000-4000-8000-000000000001",
+        "className": "miningglobalparamsship",
+        "recordPath": "libs/foundry/records/mining/miningglobalparamsship",
+        "absorbableVolumeThreshold": 330.0,
+        "cScuPerVolume": 0.7,
+        "childRockInactivityLifetime": 600.0,
+        "childRockInvulnerabilityTime": 10.0,
+        "childRockLifeTimer": 600.0,
+        "childRockZeroGDamping": 0.154_321,
+        "controlledBreakingDecayRate": 0.5,
+        "controlledBreakingFillRate": 2.0,
+        "controlledBreakingFillRateDanger": 0.7,
+        "dangerBreakingDecayRate": 0.3,
+        "dangerBreakingFillRate": 2.0,
+        "dangerBreakingFillRateExponent": 2.0,
+        "dangerToGadgetDamage": 12.0,
+        "decayPerMass": 0.2,
+        "defaultMass": 100.0,
+        "gadgetDestroyThreshold": 0.5,
+        "gadgetDetachThreshold": 0.25,
+        "modifierPersistenceTime": 0.25,
+        "optimalWindowFactor": 0.75,
+        "optimalWindowMaxSize": 0.7,
+        "optimalWindowSize": 0.5,
+        "optimalWindowThinnessCurveFactor": 1.0,
+        "powerCapacityPerMass": 10.0,
+        "resistanceCurveFactor": 0.6,
+        "terrainFactorStaticThreshold": 0.4,
+        "hitConsistency": {
+            "extractionMagnitude": 1.0,
+            "hitHistoryWindow": 4.0,
+            "maxEffectOnInstability": 0.5,
+            "minDeviation": 0.1,
+            "standardDeviationMultiplier": 10.0,
+            "timeExponent": 2.0
+        },
+        "instability": {"curveFactor": 1.0, "wavePeriod": 3.0, "waveVariance": 1.0},
+        "explosion": {"dangerPoolFactor": 560.0, "defaultVolume": 5_122.499},
+        "wasteResourceTypeGuid": "b1000000-0000-4000-8000-000000000001"
+    })
+}

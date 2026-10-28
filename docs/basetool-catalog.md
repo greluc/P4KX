@@ -37,7 +37,9 @@ The rule is ADR-0054 (amending ADR-0002):
   such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
   of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
   Version 2 has the kind `qualityQuantizations` (#692, ADR-0177); it is not yet released, so it
-  needs no further bump. The same holds for the ship field `insurance` (#323, ADR-0218).
+  needs no further bump. The same holds for the ship field `insurance` (#323, ADR-0218) and the
+  kinds `mineableCompositions`, `miningGlobalParams`, `harvestableProviderPresets`,
+  `subHarvestableMultiConfigs` and `harvestableLocations` (#320, ADR-0236).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -47,7 +49,8 @@ Identifiers, short names and fact values may reach third parties; descriptions a
 The game texts of the catalog are every `description` and every `displayType`, the `name` of a
 starmap object (a place name that comes from localisation, by the owner's decision for #321), and
 the `title`, `missionType`, `contractor`, the `displayName` of a contract's faction and the `place`
-of a pickup place of a contract, each with
+of a pickup place of a contract, the `processName` of a refining process and the `depositName`
+of a mineable composition, each with
 its `key`, `en` and `de`. `name` of the other kinds, `role`, `career` and the other fields are
 identifiers, short names or fact values. The catalog keeps the `description` fields for the
 Basetool's logged-in members; the Basetool keeps them, `displayType` and the contract texts away
@@ -122,6 +125,11 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `contracts` | The contracts and sub contracts with resolved title, mission type, pickup places and the reputation granted on success, ordered by `guid` and then `subContractGuid` |
 | `mineableElements` | The mineable elements with their instability and other plain numbers, each linked to a `ResourceType`, ordered by GUID |
 | `refiningProcesses` | The refining processes (speed and quality pairs of a refinery), ordered by GUID |
+| `mineableCompositions` | The elements a rock or deposit is made of, with the range and chance of each, ordered by GUID |
+| `miningGlobalParams` | The mining parameters of each kind of miner (ship, ground vehicle, FPS), ordered by GUID |
+| `harvestableProviderPresets` | What a place can spawn: groups of harvestables followed to their composition, and areas, ordered by GUID |
+| `subHarvestableMultiConfigs` | What the slots of an object can hold by tag, ordered by GUID |
+| `harvestableLocations` | The containers whose `.soc` names a provider preset, with the starmap object each hangs below, ordered by preset, container, system and object |
 | `shops` | The shops of the shop registry with kind, brand, location and the link to a starmap object, ordered by `key` |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
@@ -1221,6 +1229,66 @@ other sources.
 The 46 element Records of LIVE give 43 entries: the development-leftover rule leaves out
 `MinableElement_Ship_template`, `MinableElement_GroundVehicle_template` and
 `MinableElement_FPS_template`, counted as skipped. The 9 `RefiningProcess` Records are all entries.
+
+### Mining deposits and harvestable locations
+
+Facts only (ADR-0236): numbers, GUIDs, names of Records and paths. Texts other than `depositName`
+are not exported, no media, and loot configs stay out (they belong to the loot kind).
+
+**Compositions (`mineableCompositions`).** A `MineableComposition` Record under
+`mining/rockcompositionpresets` (249 on LIVE 4.10, 231 entries; the leftover rule skips the rest).
+`depositName` is the HUD label of the deposit, a game text. `minimumDistinctElements` and each part
+of `compositionArray` are as stored: `mineableElementGuid` (the element of `mineableElements`;
+`null` for a null or dangling Reference), `minPercentage`, `maxPercentage`, `probability`,
+`curveExponent` and `qualityScale`, in stored order.
+
+**Parameters (`miningGlobalParams`).** The `MiningGlobalParams` Records under `mining` (7 on LIVE,
+6 entries). Every number of the Record is a field of the same name in camel case (`cScuPerVolume`
+for `cSCUPerVolume`); `hitConsistencyParams`, `mineableInstabilityParams` and the numbers
+`dangerPoolFactor` and `defaultVolume` of `mineableExplosionParams` are the objects `hitConsistency`,
+`instability` and `explosion`. Particle effects, audio triggers and the default explosion are not
+exported. `wasteResourceTypeGuid` is the `ResourceType` of the waste.
+
+**Provider presets (`harvestableProviderPresets`).** The `HarvestableProviderPreset` Records under
+`harvestable/providerpresets` (49 on LIVE). `groups` keep `groupName`, `groupProbability` and the
+`harvestables`; each has `relativeProbability`, `clusteringGuid`, `setupGuid`, the GUIDs of its
+geometry tags and `harvestable`, which follows the element to what it spawns: the
+`HarvestablePreset` Record (`presetGuid`, `presetClassName`), the entity (`entityGuid`, the
+element's `harvestableEntityClass`, else the preset's `entityClass`) and the `MineableParams` of
+that entity (`mineableCompositionGuid`, `miningGlobalParamsGuid`). A harvestable that is no rock
+has both `null`. `areas` keep `debugGroupName` as `name`, `globalModifier`, the `objectPresetPaths`
+of the area type and the `modifiers`, whose weak pointer gives `groupIndex` and `harvestableIndex`
+into `groups` (`null` for a pointer into another Record). The surface presets of the planets and
+moons (`HPP_Stanton1a`, `HPP_Pyro5b`, 25 of the 49) are tied to a place by these object preset
+paths (they name the star system and the body) and by no container.
+
+**Multi configs (`subHarvestableMultiConfigs`).** The `SubHarvestableMultiConfigRecord` Records
+under `harvestable/slotpresets` (103 on LIVE). `defaultConfigGuid` is the Reference of a default
+config that is a reference, `taggedConfigs` keep `name`, the tag GUIDs, `configGuid` for a config
+that is a reference, and for a config written out `respawnTimeMultiplier`,
+`initialSlotsProbability` and the `subHarvestables` (`harvestable` as above, `setupGuid`, multiplier,
+`relativeProbability`, `relativeProbabilityDeepest` and geometry tags).
+
+**Locations (`harvestableLocations`).** ScDataDumper's `SocpakMappingGenerator` finds the preset
+of a container in the first `.soc` file of the container: the GUID in the string that follows the
+string `preset` (strings are separated by a zero byte). The catalog does the same for every
+container below `Data/ObjectContainers/PU/system` and keeps the rows whose GUID is a kept
+provider preset. The `.soc` is scanned as a stream with no size limit (one of the Archive holds
+116 MB). A row has `presetGuid`, `system` (the folder of the star system), `container` (the Archive
+path) and `starmapObjectGuid`: the walk through the system containers (see "Starmap objects")
+reaches a container through a Child element, and the nearest object at or above that Child names the
+location. A private mining point (class name starting with `PrivateMiningPoint`) gives way to the
+object above it, as in ScDataDumper. A container no Child reaches, or whose object is not in
+`starmapObjects`, has `null`. One container under several objects gives one row each.
+
+On LIVE 4.10 (2026-10-28) 489 rows name 19 of the 49 presets, 488 of them with an object. The 25
+planet presets, `HPP_Lagrange_G`, `HPP_Lagrange_Occupied`, `HPP_ResourceRush_Gold`,
+`HPP_ResourceRush_Gold_HighDensity` and `HPP_SpaceDerelict_General` are named by no container:
+the Archive links them to a place by no `.soc`. `HPP_Pyro_AkiroCluster` is named by `pyro/akirocluster.socpak`,
+which no Child reaches (ScDataDumper pins it to `Pyro_AkiroCluster` by hand; the catalog states no
+object). `HPP_Stanton2c_Belt` is named by `stanton2c.socpak` and, a copy in the data, by
+`pyro6.socpak`.
+
 ### Shops
 
 A shop (`shops`) is one `ShopBackup` entry of the shop registry `Data\Libs\CosmoTools\
@@ -1553,6 +1621,11 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `contracts` | `libs/foundry/records/contracts/contractgenerator/` | `ContractGenerator` |
 | `mineableElements` | `libs/foundry/records/mining/mineableelements/` | `MineableElement` |
 | `refiningProcesses` | `libs/foundry/records/refiningprocess/` | `RefiningProcess` |
+| `mineableCompositions` | `libs/foundry/records/mining/rockcompositionpresets/` | `MineableComposition` |
+| `miningGlobalParams` | `libs/foundry/records/mining/miningglobalparams` | `MiningGlobalParams` |
+| `harvestableProviderPresets` | `libs/foundry/records/harvestable/providerpresets/` | `HarvestableProviderPreset` |
+| `subHarvestableMultiConfigs` | `libs/foundry/records/harvestable/slotpresets/` | `SubHarvestableMultiConfigRecord` |
+| `harvestableLocations` | None: the `.soc` files of the containers below `ObjectContainers/PU/system`, no Records | |
 | `shops` | None: the `ShopBackup` entries of `LayerBackups.xml`, no Records | |
 
 The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one

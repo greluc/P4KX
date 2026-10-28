@@ -5,6 +5,7 @@
 
 use serde_json::json;
 
+mod contracts;
 mod harvest;
 mod recovery;
 
@@ -224,7 +225,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "placedUnderGuid": "a2000000-0000-4000-8000-000000000003",
             "position": [12_850_000_000.0, 1250.5, -3.0]
         }],
-        "contracts": contracts(),
+        "contracts": contracts::contracts(),
         "mineableElements": [{
             "guid": "a3000000-0000-4000-8000-000000000001",
             "className": "agricium_ore",
@@ -251,7 +252,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "refiningQuality": "Careful"
         }],
         "mineableCompositions": harvest::compositions(),
-        "miningGlobalParams": [mining_global_params()],
+        "miningGlobalParams": [harvest::mining_global_params()],
         "harvestableProviderPresets": harvest::presets(),
         "subHarvestableMultiConfigs": harvest::multi_configs(),
         "harvestableLocations": harvest::locations(),
@@ -289,87 +290,6 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         }],
         "itemRecovery": item_recovery()
     })
-}
-
-fn mining_global_params() -> serde_json::Value {
-    json!({
-        "guid": "a8000000-0000-4000-8000-000000000001",
-        "className": "miningglobalparamsship",
-        "recordPath": "libs/foundry/records/mining/miningglobalparamsship",
-        "absorbableVolumeThreshold": 330.0,
-        "cScuPerVolume": 0.7,
-        "childRockInactivityLifetime": 600.0,
-        "childRockInvulnerabilityTime": 10.0,
-        "childRockLifeTimer": 600.0,
-        "childRockZeroGDamping": 0.154_321,
-        "controlledBreakingDecayRate": 0.5,
-        "controlledBreakingFillRate": 2.0,
-        "controlledBreakingFillRateDanger": 0.7,
-        "dangerBreakingDecayRate": 0.3,
-        "dangerBreakingFillRate": 2.0,
-        "dangerBreakingFillRateExponent": 2.0,
-        "dangerToGadgetDamage": 12.0,
-        "decayPerMass": 0.2,
-        "defaultMass": 100.0,
-        "gadgetDestroyThreshold": 0.5,
-        "gadgetDetachThreshold": 0.25,
-        "modifierPersistenceTime": 0.25,
-        "optimalWindowFactor": 0.75,
-        "optimalWindowMaxSize": 0.7,
-        "optimalWindowSize": 0.5,
-        "optimalWindowThinnessCurveFactor": 1.0,
-        "powerCapacityPerMass": 10.0,
-        "resistanceCurveFactor": 0.6,
-        "terrainFactorStaticThreshold": 0.4,
-        "hitConsistency": {
-            "extractionMagnitude": 1.0,
-            "hitHistoryWindow": 4.0,
-            "maxEffectOnInstability": 0.5,
-            "minDeviation": 0.1,
-            "standardDeviationMultiplier": 10.0,
-            "timeExponent": 2.0
-        },
-        "instability": {"curveFactor": 1.0, "wavePeriod": 3.0, "waveVariance": 1.0},
-        "explosion": {"dangerPoolFactor": 560.0, "defaultVolume": 5_122.499},
-        "wasteResourceTypeGuid": "b1000000-0000-4000-8000-000000000001"
-    })
-}
-
-fn contracts() -> serde_json::Value {
-    let places = json!([{
-        "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
-        "objectType": "Planet",
-        "place": {"key": "@Stanton1_Name", "en": "Hurston", "de": null}
-    }]);
-    let gains = json!([{
-        "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
-        "factionReputationName": "acme",
-        "scopeGuid": "60000000-0000-4000-8000-000000000002",
-        "scopeName": "faction",
-        "amount": 200
-    }]);
-    json!([{
-        "guid": "20000000-0000-4000-8000-000000000001",
-        "subContractGuid": "30000000-0000-4000-8000-000000000002",
-        "recordGuid": "10000000-0000-4000-8000-000000000001",
-        "recordPath": "libs/foundry/records/contracts/contractgenerator/delivery",
-        "debugName": "Deliver_A",
-        "handler": "Delivery_Career",
-        "templateGuid": "40000000-0000-4000-8000-000000000001",
-        "notForRelease": false,
-        "workInProgress": null,
-        "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
-        "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
-        "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
-        "contractor": {"key": null, "en": null, "de": null},
-        "faction": {
-            "guid": "60000000-0000-4000-8000-000000000001",
-            "name": "acme",
-            "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
-        },
-        "pickupPlaces": places,
-        "reputationGains": gains
-    }])
 }
 
 fn loadouts() -> serde_json::Value {

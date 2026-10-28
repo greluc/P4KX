@@ -23,6 +23,9 @@
 //! (`ObjectContainers/PU/system`): the position of every `Child` element is composed with the
 //! positions and rotations of the Children above it ([`StarmapSummary`] counts the result).
 //!
+//! The harvestable locations of the catalog are the system containers whose `.soc` names a
+//! provider preset, each with the starmap object it hangs below in that walk (ADR-0236).
+//!
 //! The shops of the catalog are the `ShopBackup` entries of the registry
 //! `Data\Libs\CosmoTools\LayerRecovery\LayerBackups.xml`, with kind and brand from the shop
 //! containers and a link to the starmap object of their location ([`ShopSummary`] counts the
@@ -143,6 +146,7 @@ mod recovery;
 mod resource_group;
 mod scan;
 mod selection;
+mod selection_rules;
 mod ship;
 mod ship_base;
 mod ship_pool;

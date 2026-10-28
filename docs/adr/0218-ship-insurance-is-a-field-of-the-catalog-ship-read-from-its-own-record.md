@@ -18,11 +18,10 @@ Decided for issue #323. Builds on ADR-0002, ADR-0054 and ADR-0065.
   manufacturer, mostly as placeholders, and are game text.
 - **No claim fee is exported.** The Records hold multipliers (`itemRecovery`) and one fee in
   aUEC per ship (`baseExpeditingFee`, exported as `expediteFee`), and the `EntityClassDefinition`
-  Records of ships and items hold no price the multipliers could apply to. A formula over the
-  exported facts (the ship's fee, wait times and base data, and the multipliers) was tried against
-  the two in-game claim fees the owner gave, a ship with an insured Loadout and the largest
-  ship; none reproduces both, so none is documented, and ADR-0065 forbids exporting a value that
-  the data does not hold.
+  Records of ships and items hold no field named like a price. A formula over the exported
+  facts (the ship's fee, wait times and base data, and the multipliers) was tried against two
+  in-game claim fees (#778); none reproduces both, so none is documented, and ADR-0065 forbids
+  exporting a value that the data does not hold.
 - **The recovery multipliers are the object `itemRecovery`,** not a kind: the
   `ItemRecoveryConfigurationParams` Record under `entitlementpolicies/`, its `economyParams`
   under their data names, with the override groups and the GUIDs of their entity classes. The

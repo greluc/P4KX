@@ -60,7 +60,25 @@ fn generator_structs() -> Vec<TestStruct> {
             .field("contractParams", class("ContractParamOverrides"))
             .array("contracts", class("CareerContract"))
             .array("introContracts", class("CareerContract")),
+        TestStruct::new("ContractGeneratorHandler_List")
+            .parent("ContractGeneratorHandler")
+            .field("debugName", TestType::String)
+            .field("factionReputation", TestType::Reference)
+            .field(
+                "defaultAvailability",
+                class("ContractAvailabilityWithoutCooldown"),
+            )
+            .field("contractParams", class("ContractParamOverrides"))
+            .array("contracts", class("CareerContract"))
+            .array("introContracts", class("CareerContract")),
         TestStruct::new("ContractAvailability")
+            .field("hasPersonalCooldown", TestType::Bool)
+            .field("personalCooldownTime", TestType::Single)
+            .field("personalCooldownTimeVariation", TestType::Single)
+            .field("abandonedCooldownTime", TestType::Single)
+            .field("abandonedCooldownTimeVariation", TestType::Single)
+            .array("prerequisites", pointer("ContractPrerequisite")),
+        TestStruct::new("ContractAvailabilityWithoutCooldown")
             .array("prerequisites", pointer("ContractPrerequisite")),
         TestStruct::new("ContractParamOverrides")
             .field("missionTypeOverride", TestType::Reference)

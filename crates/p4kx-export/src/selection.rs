@@ -70,6 +70,21 @@ pub enum Kind {
     MineableElements,
     /// Refining processes: `RefiningProcess` Records under `refiningprocess`.
     RefiningProcesses,
+    /// Mineable compositions: `MineableComposition` Records under
+    /// `mining/rockcompositionpresets`.
+    MineableCompositions,
+    /// Mining global parameters: `MiningGlobalParams` Records under `mining`.
+    MiningGlobalParams,
+    /// Harvestable provider presets: `HarvestableProviderPreset` Records under
+    /// `harvestable/providerpresets`.
+    HarvestableProviderPresets,
+    /// Sub harvestable multi configs: `SubHarvestableMultiConfigRecord` Records under
+    /// `harvestable/slotpresets`.
+    SubHarvestableMultiConfigs,
+    /// Harvestable locations: the containers whose `.soc` names a provider preset, with the
+    /// starmap object they hang below. Derived from the system containers, so no record-path rule
+    /// of its own.
+    HarvestableLocations,
     /// Shops: the `ShopBackup` entries of the shop registry `LayerBackups.xml`, with kind and brand
     /// from the shop containers. Derived from Archive files, so no record-path rule of its own.
     Shops,
@@ -77,7 +92,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 24] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -96,6 +111,11 @@ impl Kind {
         Self::Contracts,
         Self::MineableElements,
         Self::RefiningProcesses,
+        Self::MineableCompositions,
+        Self::MiningGlobalParams,
+        Self::HarvestableProviderPresets,
+        Self::SubHarvestableMultiConfigs,
+        Self::HarvestableLocations,
         Self::Shops,
     ];
 
@@ -121,6 +141,11 @@ impl Kind {
             Self::Contracts => "contracts",
             Self::MineableElements => "mineableElements",
             Self::RefiningProcesses => "refiningProcesses",
+            Self::MineableCompositions => "mineableCompositions",
+            Self::MiningGlobalParams => "miningGlobalParams",
+            Self::HarvestableProviderPresets => "harvestableProviderPresets",
+            Self::SubHarvestableMultiConfigs => "subHarvestableMultiConfigs",
+            Self::HarvestableLocations => "harvestableLocations",
             Self::Shops => "shops",
         }
     }
@@ -142,95 +167,13 @@ impl Kind {
 
     /// Returns the rule that selects the kind's Records, `None` for a [derived](Self::is_derived)
     /// kind: [`Kind::Paints`] and [`Kind::Loadouts`] are made of the entities of other kinds and
-    /// [`Kind::Shops`] reads Archive files, not Records.
+    /// [`Kind::HarvestableLocations`] and [`Kind::Shops`] read Archive files, not Records.
     #[must_use]
     pub const fn rule(self) -> Option<KindRule> {
         if self.is_derived() {
             None
         } else {
             Some(self.records())
-        }
-    }
-
-    /// Returns the rule of a kind that selects Records; a derived kind has the empty rule, which
-    /// matches no path.
-    #[expect(clippy::too_many_lines, reason = "a table with one entry per kind")]
-    pub(crate) const fn records(self) -> KindRule {
-        match self {
-            Self::Manufacturers => KindRule {
-                prefixes: &["libs/foundry/records/scitemmanufacturer/"],
-                type_name: "SCItemManufacturer",
-            },
-            Self::Items => KindRule {
-                prefixes: &[
-                    "libs/foundry/records/entities/scitem/",
-                    "libs/foundry/records/entities/legacyitems/",
-                ],
-                type_name: "EntityClassDefinition",
-            },
-            Self::Ships => KindRule {
-                prefixes: &[
-                    "libs/foundry/records/entities/spaceships/",
-                    "libs/foundry/records/entities/groundvehicles/",
-                ],
-                type_name: "EntityClassDefinition",
-            },
-            Self::Commodities => KindRule {
-                prefixes: &["libs/foundry/records/entities/commodities/"],
-                type_name: "EntityClassDefinition",
-            },
-            Self::Blueprints => KindRule {
-                prefixes: &["libs/foundry/records/crafting/blueprints/crafting/"],
-                type_name: "CraftingBlueprintRecord",
-            },
-            Self::ResourceGroups => KindRule {
-                prefixes: &["libs/foundry/records/resourcetypedatabase/"],
-                type_name: "ResourceTypeGroup",
-            },
-            Self::BlueprintCategories => KindRule {
-                prefixes: &["libs/foundry/records/crafting/blueprintcategories/"],
-                type_name: "BlueprintCategoryRecord",
-            },
-            Self::GameplayProperties => KindRule {
-                prefixes: &["libs/foundry/records/crafting/craftedproperties/"],
-                type_name: "CraftingGameplayPropertyDef",
-            },
-            Self::QualityDistributions => KindRule {
-                prefixes: &["libs/foundry/records/crafting/qualitydistribution/"],
-                type_name: "CraftingQualityDistributionRecord",
-            },
-            Self::QualityQuantizations => KindRule {
-                prefixes: &["libs/foundry/records/crafting/qualityquantization/"],
-                type_name: "CraftingQualityQuantizationRecord",
-            },
-            Self::BlueprintPools => KindRule {
-                prefixes: &["libs/foundry/records/crafting/blueprintrewards/"],
-                type_name: "BlueprintPoolRecord",
-            },
-            Self::DismantleProcesses => KindRule {
-                prefixes: &["libs/foundry/records/crafting/blueprints/dismantle/"],
-                type_name: "CraftingBlueprintRecord",
-            },
-            Self::StarmapObjects => KindRule {
-                prefixes: &["libs/foundry/records/starmap/pu/"],
-                type_name: "StarMapObject",
-            },
-            Self::Contracts => KindRule {
-                prefixes: &["libs/foundry/records/contracts/contractgenerator/"],
-                type_name: "ContractGenerator",
-            },
-            Self::MineableElements => KindRule {
-                prefixes: &["libs/foundry/records/mining/mineableelements/"],
-                type_name: "MineableElement",
-            },
-            Self::RefiningProcesses => KindRule {
-                prefixes: &["libs/foundry/records/refiningprocess/"],
-                type_name: "RefiningProcess",
-            },
-            Self::Paints | Self::Loadouts | Self::Shops => KindRule {
-                prefixes: &[],
-                type_name: "",
-            },
         }
     }
 
@@ -264,7 +207,12 @@ impl Kind {
             Self::Contracts => 15,
             Self::MineableElements => 16,
             Self::RefiningProcesses => 17,
-            Self::Shops => 18,
+            Self::MineableCompositions => 18,
+            Self::MiningGlobalParams => 19,
+            Self::HarvestableProviderPresets => 20,
+            Self::SubHarvestableMultiConfigs => 21,
+            Self::HarvestableLocations => 22,
+            Self::Shops => 23,
         }
     }
 
@@ -272,7 +220,10 @@ impl Kind {
     /// of its own.
     #[must_use]
     pub const fn is_derived(self) -> bool {
-        matches!(self, Self::Paints | Self::Loadouts | Self::Shops)
+        matches!(
+            self,
+            Self::Paints | Self::Loadouts | Self::HarvestableLocations | Self::Shops
+        )
     }
 }
 

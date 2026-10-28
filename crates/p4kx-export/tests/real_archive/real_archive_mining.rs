@@ -180,3 +180,103 @@ fn verify(path: &Path) -> TestResult {
 fn the_mineable_elements_and_refining_processes_of_a_real_archive_are_plausible() -> TestResult {
     verify(&real_archive_path()?)
 }
+
+fn named<'c>(catalog: &'c Value, kind: &str, class: &str) -> Result<&'c Value, Box<dyn Error>> {
+    list(catalog, kind)?
+        .iter()
+        .find(|entry| entry["className"] == class)
+        .ok_or_else(|| format!("{kind} has no {class}").into())
+}
+
+fn guids<'c>(catalog: &'c Value, kind: &str) -> Result<HashSet<&'c str>, Box<dyn Error>> {
+    Ok(list(catalog, kind)?
+        .iter()
+        .filter_map(|entry| entry["guid"].as_str())
+        .collect())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the checks of one Archive follow each other"
+)]
+fn an_asteroid_composition_and_a_location_of_a_real_archive_are_linked() -> TestResult {
+    let path = real_archive_path()?;
+    let archive = Archive::open_with_key(&path, Some(p4kx_testkit::real_archive_key()?))?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    let catalog: Value = serde_json::from_slice(built.json())?;
+    let elements = guids(&catalog, "mineableElements")?;
+    let compositions = guids(&catalog, "mineableCompositions")?;
+    let objects = guids(&catalog, "starmapObjects")?;
+
+    let iron = named(&catalog, "mineableCompositions", "Asteroid_CType_Iron")?;
+    let parts = iron["parts"].as_array().ok_or("the parts")?;
+    print_line(&format!("composition sample: {iron}"));
+    assert!(parts.len() >= 3, "an iron asteroid has several parts");
+    for part in parts {
+        let element = part["mineableElementGuid"].as_str().ok_or("an element")?;
+        assert!(
+            elements.contains(element),
+            "{element} is a mineable element"
+        );
+        let (min, max) = (
+            part["minPercentage"].as_f64().ok_or("a minimum")?,
+            part["maxPercentage"].as_f64().ok_or("a maximum")?,
+        );
+        assert!(min <= max, "the range of a part: {min} to {max}");
+    }
+
+    let presets = list(&catalog, "harvestableProviderPresets")?;
+    let preset = named(&catalog, "harvestableProviderPresets", "HPP_Lagrange_A")?;
+    let preset_guid = preset["guid"].as_str().ok_or("a GUID")?;
+    let place = list(&catalog, "harvestableLocations")?
+        .iter()
+        .find(|location| {
+            location["presetGuid"] == preset_guid
+                && location["starmapObjectGuid"].as_str().is_some_and(|guid| {
+                    list(&catalog, "starmapObjects").is_ok_and(|all| {
+                        all.iter().any(|object| {
+                            object["guid"] == guid && object["className"] == "Stanton1_L1_01"
+                        })
+                    })
+                })
+        })
+        .ok_or("HPP_Lagrange_A is located at Stanton1_L1_01")?;
+    print_line(&format!("location sample: {place}"));
+    let container = place["container"].as_str().ok_or("a container")?;
+    assert!(
+        container.to_ascii_lowercase().ends_with(".socpak"),
+        "{container}"
+    );
+
+    let mut linked = 0_usize;
+    for harvestable in presets
+        .iter()
+        .flat_map(|preset| preset["groups"].as_array().into_iter().flatten())
+        .flat_map(|group| group["harvestables"].as_array().into_iter().flatten())
+    {
+        if let Some(composition) = harvestable["harvestable"]["mineableCompositionGuid"].as_str() {
+            assert!(
+                compositions.contains(composition),
+                "{composition} is a kept composition"
+            );
+            linked += 1;
+        }
+    }
+    assert!(
+        linked > 100,
+        "mineable harvestables reach compositions: {linked}"
+    );
+    for location in list(&catalog, "harvestableLocations")? {
+        let preset = location["presetGuid"].as_str().ok_or("a preset")?;
+        assert!(
+            presets.iter().any(|entry| entry["guid"] == preset),
+            "{preset} is a kept preset"
+        );
+        if let Some(object) = location["starmapObjectGuid"].as_str() {
+            assert!(objects.contains(object), "{object} is a starmap object");
+        }
+    }
+    Ok(())
+}

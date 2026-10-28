@@ -29,7 +29,7 @@ const TYPES: &str = "libs/foundry/records/starmap/types/";
 const CONTAINERS: &str = "Data\\ObjectContainers\\PU\\system\\";
 const HALF_ROOT: &str = "0.70710678118654752440";
 
-fn guid_text(value: u128) -> String {
+pub(crate) fn guid_text(value: u128) -> String {
     let text = format!("{value:032x}");
     format!(
         "{}-{}-{}-{}-{}",
@@ -98,7 +98,7 @@ fn object(guid: u128, name: &str, kind: Option<u128>, parent: Option<u128>) -> T
     record
 }
 
-fn child(position: &str, record: Option<u128>, entity_name: &str) -> TestElement {
+pub(crate) fn child(position: &str, record: Option<u128>, entity_name: &str) -> TestElement {
     let mut child = TestElement::new("Child")
         .attribute("pos", position)
         .attribute("entityName", entity_name);
@@ -108,7 +108,7 @@ fn child(position: &str, record: Option<u128>, entity_name: &str) -> TestElement
     child
 }
 
-fn children(list: Vec<TestElement>) -> TestElement {
+pub(crate) fn children(list: Vec<TestElement>) -> TestElement {
     list.into_iter().fold(
         TestElement::new("ChildObjectContainers"),
         TestElement::child,
@@ -165,7 +165,7 @@ fn terra_system() -> String {
         .to_xml()
 }
 
-fn socpak(name: &str, xml: impl Into<Vec<u8>>) -> Vec<u8> {
+pub(crate) fn socpak(name: &str, xml: impl Into<Vec<u8>>) -> Vec<u8> {
     TestContainer::new()
         .entry(TestEntry::stored(name, xml))
         .build()

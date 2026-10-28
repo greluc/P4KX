@@ -196,6 +196,11 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "contracts",
             "mineableElements",
             "refiningProcesses",
+            "mineableCompositions",
+            "miningGlobalParams",
+            "harvestableProviderPresets",
+            "subHarvestableMultiConfigs",
+            "harvestableLocations",
             "shops",
         ],
         "order of the catalog"

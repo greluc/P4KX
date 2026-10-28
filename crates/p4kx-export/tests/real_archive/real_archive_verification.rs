@@ -22,7 +22,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 17] = [
+const MINIMUM: [(Kind, usize); 22] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -39,6 +39,11 @@ const MINIMUM: [(Kind, usize); 17] = [
     (Kind::Loadouts, 1_000),
     (Kind::MineableElements, 20),
     (Kind::RefiningProcesses, 9),
+    (Kind::MineableCompositions, 200),
+    (Kind::MiningGlobalParams, 5),
+    (Kind::HarvestableProviderPresets, 40),
+    (Kind::SubHarvestableMultiConfigs, 100),
+    (Kind::HarvestableLocations, 300),
     (Kind::Shops, 1_000),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
@@ -103,6 +108,10 @@ fn has_excluded_token(text: &str) -> Option<&'static str> {
         })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the checks of one Archive follow each other"
+)]
 fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
     let (summary, catalog) = built(path)?;
     let summary = &summary;
@@ -128,6 +137,9 @@ fn verify_catalog(path: &Path) -> Result<Value, Box<dyn Error>> {
         assert!(counts.complete, "{kind} complete without a Filter");
         let entities = list(&catalog, kind)?;
         assert_eq!(entities.len(), counts.count, "{kind} written");
+        if kind == Kind::HarvestableLocations {
+            continue;
+        }
         let own = match kind {
             Kind::Paints => "itemGuid",
             Kind::Loadouts => "entityGuid",

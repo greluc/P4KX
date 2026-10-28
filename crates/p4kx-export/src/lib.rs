@@ -23,6 +23,9 @@
 //! (`ObjectContainers/PU/system`): the position of every `Child` element is composed with the
 //! positions and rotations of the Children above it ([`StarmapSummary`] counts the result).
 //!
+//! The harvestable locations of the catalog are the system containers whose `.soc` names a
+//! provider preset, each with the starmap object it hangs below in that walk (ADR-0236).
+//!
 //! The shops of the catalog are the `ShopBackup` entries of the registry
 //! `Data\Libs\CosmoTools\LayerRecovery\LayerBackups.xml`, with kind and brand from the shop
 //! containers and a link to the starmap object of their location ([`ShopSummary`] counts the
@@ -65,6 +68,7 @@ mod blueprint;
 mod blueprint_category;
 mod build;
 mod build_derived;
+mod build_harvest;
 mod build_starmap;
 mod catalog_crafting;
 mod catalog_file;
@@ -77,9 +81,12 @@ mod commodity;
 mod contract;
 mod contract_crafting;
 mod contract_entities;
+mod contract_harvest;
+mod contract_harvest_config;
 mod contract_insurance;
 mod contract_loadout;
 mod contract_mining;
+mod contract_mining_params;
 mod contract_missions;
 mod contract_quantization;
 mod contract_recipe;
@@ -104,6 +111,10 @@ mod error;
 mod failure;
 mod form;
 mod guid_text;
+mod harvest_config;
+mod harvest_link;
+mod harvest_locations;
+mod harvest_preset;
 mod item;
 mod item_class;
 mod item_stats;
@@ -113,7 +124,9 @@ mod loadout;
 mod loadout_port;
 mod localization_table;
 mod manufacturer;
+mod memo;
 mod mining;
+mod mining_params;
 mod mission_index;
 mod mission_layers;
 mod mission_places;
@@ -133,6 +146,7 @@ mod recovery;
 mod resource_group;
 mod scan;
 mod selection;
+mod selection_rules;
 mod ship;
 mod ship_base;
 mod ship_pool;
@@ -146,6 +160,7 @@ mod shop_registry;
 mod shop_soc;
 mod shop_summary;
 mod shops;
+mod soc_preset;
 mod starmap;
 mod starmap_containers;
 mod starmap_index;

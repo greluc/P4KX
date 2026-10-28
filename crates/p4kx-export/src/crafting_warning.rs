@@ -37,6 +37,24 @@ pub enum CraftingWarning {
     /// out-of-range placement and walk limits were hit, so the starmap objects below them have no
     /// position. A container the Archive lacks is not counted.
     UnplacedStarmapContainers(usize),
+    /// This many system containers cannot be opened or their `.soc` cannot be read, so a
+    /// harvestable provider preset they name is missing from `harvestableLocations`. `details`
+    /// names the containers and why they cannot be read, ordered.
+    UnreadableHarvestContainers {
+        /// The number of containers.
+        count: usize,
+        /// One entry per container: its path and the reason.
+        details: Vec<String>,
+    },
+    /// This many `HarvestablePreset` or entity Records that provider presets and multi configs
+    /// name are missing or cannot be built, so the harvestables that name them lack their entity
+    /// and composition. `details` names the Records and why, ordered.
+    UnreadableHarvestables {
+        /// The number of Records.
+        count: usize,
+        /// One entry per Record: its role, GUID and the reason.
+        details: Vec<String>,
+    },
     /// The shop registry exists but cannot be read, so `shops` is empty although the Build has
     /// shops.
     UnreadableShopRegistry,
@@ -73,6 +91,8 @@ impl CraftingWarning {
             Self::AmbiguousDismantle(_) => "ambiguous_dismantle",
             Self::UnreadableVehicleFiles { .. } => "unreadable_vehicle_files",
             Self::UnplacedStarmapContainers(_) => "unplaced_starmap_containers",
+            Self::UnreadableHarvestContainers { .. } => "unreadable_harvest_containers",
+            Self::UnreadableHarvestables { .. } => "unreadable_harvestables",
             Self::UnreadableShopRegistry => "unreadable_shop_registry",
             Self::MissingShopRegistry => "missing_shop_registry",
             Self::UnreadableShopContainers(_) => "unreadable_shop_containers",
@@ -92,6 +112,8 @@ impl CraftingWarning {
             | Self::UnreadableShopContainers(count)
             | Self::MissingShopInventories(count)
             | Self::UnknownModifierRanges { count, .. }
+            | Self::UnreadableHarvestContainers { count, .. }
+            | Self::UnreadableHarvestables { count, .. }
             | Self::UnreadableVehicleFiles { count, .. }
             | Self::UnreadableShopInventories { count, .. } => Some(*count),
             Self::UnreadableShopRegistry | Self::MissingShopRegistry | Self::NoShopComponents => {
@@ -106,6 +128,8 @@ impl CraftingWarning {
     pub fn details(&self) -> &[String] {
         match self {
             Self::UnknownModifierRanges { details, .. }
+            | Self::UnreadableHarvestContainers { details, .. }
+            | Self::UnreadableHarvestables { details, .. }
             | Self::UnreadableVehicleFiles { details, .. }
             | Self::UnreadableShopInventories { details, .. } => details,
             _ => &[],
@@ -158,6 +182,16 @@ impl fmt::Display for CraftingWarning {
             Self::UnplacedStarmapContainers(count) => write!(
                 f,
                 "{count} system containers or placements cannot be read; the starmap objects below them have no position"
+            ),
+            Self::UnreadableHarvestContainers { count, details } => write!(
+                f,
+                "{count} system containers cannot be read for a provider preset; the preset may be missing from the harvestable locations{}",
+                Listed(details)
+            ),
+            Self::UnreadableHarvestables { count, details } => write!(
+                f,
+                "{count} harvestable Records cannot be read; the harvestables that name them lack their entity and composition{}",
+                Listed(details)
             ),
             Self::UnreadableShopRegistry => f.write_str(
                 "the shop registry cannot be read; the catalog has no shops although the Build has some",

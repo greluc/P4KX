@@ -49,4 +49,8 @@ pub(crate) struct StarmapObject<'a> {
     /// each Child composed with the positions and the full rotations of the Children above it;
     /// `null` when no system container places the object.
     pub(crate) position: Option<[f64; 3]>,
+    /// Whether the Record is a mining claim marker: its `description` is the key shared by all of
+    /// them. Not part of the catalog; it decides which object a harvestable location names.
+    #[serde(skip)]
+    pub(crate) mining_claim: bool,
 }

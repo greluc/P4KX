@@ -20,6 +20,11 @@ starmapObjects: 0 written, 0 skipped, complete
 contracts: 0 written, 0 skipped, complete
 mineableElements: 0 written, 0 skipped, complete
 refiningProcesses: 0 written, 0 skipped, complete
+mineableCompositions: 0 written, 0 skipped, complete
+miningGlobalParams: 0 written, 0 skipped, complete
+harvestableProviderPresets: 0 written, 0 skipped, complete
+subHarvestableMultiConfigs: 0 written, 0 skipped, complete
+harvestableLocations: 0 written, 0 skipped, complete
 shops: 0 written, 0 skipped, complete
 item classes: 1 read, 0 other values, 0 without a Class: line or English description
 paint assignment: 0 of 0 paints fit a ship, 0 fit none, 0 ships have paints, 0 vehicle files unreadable
@@ -34,4 +39,4 @@ ships variants: 0 in 0 groups
 quality quantizations: 0 used by no ResourceType, 0 links reach no quantization
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 0 texts resolved, 13 unresolved, 0 placeholders, the Archive holds no global.ini
-wrote [DIR]/english-only.json: 5598 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/english-only.json: 5973 bytes, 1 Records skipped, 0 failed

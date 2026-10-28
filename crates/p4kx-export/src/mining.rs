@@ -3,10 +3,41 @@
 
 use p4kx_extraction::RecordTree;
 
-use crate::contract::{MineableElement, RefiningProcess};
+use crate::contract::{CompositionPart, MineableComposition, MineableElement, RefiningProcess};
 use crate::guid_text::CatalogGuid;
-use crate::record_fields::{class_name, locale_key, reference, single, text};
+use crate::record_fields::{
+    class_name, integer, locale_key, number, reference, single, structs, text,
+};
 use crate::texts::Texts;
+
+/// Returns the mineable composition the Record tree `tree` describes, its name resolved by
+/// `texts`.
+pub(crate) fn mineable_composition<'f>(
+    tree: &RecordTree<'f>,
+    texts: &Texts<'f>,
+) -> MineableComposition<'f> {
+    let root = Some(tree.root());
+    MineableComposition {
+        guid: CatalogGuid(tree.guid()),
+        class_name: class_name(tree),
+        record_path: tree.record_path(),
+        deposit_name: texts.localised(locale_key(root, "depositName")),
+        minimum_distinct_elements: integer(root, "minimumDistinctElements"),
+        parts: structs(root, "compositionArray")
+            .map(|part| {
+                let part = Some(part);
+                CompositionPart {
+                    mineable_element_guid: reference(part, "mineableElement"),
+                    min_percentage: number(part, "minPercentage"),
+                    max_percentage: number(part, "maxPercentage"),
+                    probability: number(part, "probability"),
+                    curve_exponent: number(part, "curveExponent"),
+                    quality_scale: number(part, "qualityScale"),
+                }
+            })
+            .collect(),
+    }
+}
 
 /// Returns the mineable element the Record tree `tree` describes.
 pub(crate) fn mineable_element<'f>(tree: &RecordTree<'f>) -> MineableElement<'f> {

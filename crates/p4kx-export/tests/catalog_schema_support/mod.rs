@@ -5,6 +5,8 @@
 
 use serde_json::json;
 
+mod contracts;
+mod harvest;
 mod recovery;
 
 use recovery::item_recovery;
@@ -39,6 +41,11 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "contracts": {"status": "complete"},
             "mineableElements": {"status": "complete"},
             "refiningProcesses": {"status": "complete"},
+            "mineableCompositions": {"status": "complete"},
+            "miningGlobalParams": {"status": "complete"},
+            "harvestableProviderPresets": {"status": "complete"},
+            "subHarvestableMultiConfigs": {"status": "complete"},
+            "harvestableLocations": {"status": "complete"},
             "shops": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
         },
@@ -218,7 +225,7 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "placedUnderGuid": "a2000000-0000-4000-8000-000000000003",
             "position": [12_850_000_000.0, 1250.5, -3.0]
         }],
-        "contracts": contracts(),
+        "contracts": contracts::contracts(),
         "mineableElements": [{
             "guid": "a3000000-0000-4000-8000-000000000001",
             "className": "agricium_ore",
@@ -244,6 +251,11 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "refiningSpeed": "Fast",
             "refiningQuality": "Careful"
         }],
+        "mineableCompositions": harvest::compositions(),
+        "miningGlobalParams": [harvest::mining_global_params()],
+        "harvestableProviderPresets": harvest::presets(),
+        "subHarvestableMultiConfigs": harvest::multi_configs(),
+        "harvestableLocations": harvest::locations(),
         "shops": [{
             "key": "4a269932-183e-362d-aacc-188e7debbea9,4ce1f681-b479-5269-0536-3d7f02fdccaf,41000000-0000-4000-8000-000000000001,42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
             "entityGuid": "42eef9e5-ecd4-6e5b-6254-e332a5dd44b9",
@@ -278,43 +290,6 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         }],
         "itemRecovery": item_recovery()
     })
-}
-
-fn contracts() -> serde_json::Value {
-    let places = json!([{
-        "starmapObjectGuid": "a2000000-0000-4000-8000-000000000001",
-        "objectType": "Planet",
-        "place": {"key": "@Stanton1_Name", "en": "Hurston", "de": null}
-    }]);
-    let gains = json!([{
-        "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
-        "factionReputationName": "acme",
-        "scopeGuid": "60000000-0000-4000-8000-000000000002",
-        "scopeName": "faction",
-        "amount": 200
-    }]);
-    json!([{
-        "guid": "20000000-0000-4000-8000-000000000001",
-        "subContractGuid": "30000000-0000-4000-8000-000000000002",
-        "recordGuid": "10000000-0000-4000-8000-000000000001",
-        "recordPath": "libs/foundry/records/contracts/contractgenerator/delivery",
-        "debugName": "Deliver_A",
-        "handler": "Delivery_Career",
-        "templateGuid": "40000000-0000-4000-8000-000000000001",
-        "notForRelease": false,
-        "workInProgress": null,
-        "title": {"key": "@title_a", "en": "Deliver Scrap to [LOCATION]", "de": null},
-        "missionTypeGuid": "50000000-0000-4000-8000-000000000001",
-        "missionType": {"key": "@type_delivery", "en": "Delivery", "de": null},
-        "contractor": {"key": null, "en": null, "de": null},
-        "faction": {
-            "guid": "60000000-0000-4000-8000-000000000001",
-            "name": "acme",
-            "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
-        },
-        "pickupPlaces": places,
-        "reputationGains": gains
-    }])
 }
 
 fn loadouts() -> serde_json::Value {

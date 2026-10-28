@@ -65,6 +65,11 @@ never fetches the ship matrix.
   confirmed all seven flyable. Rule 4 therefore no longer reads the hull: `ReadyToInclude` alone
   gives `player`. No ship but these eight changes; the hull value stays an AI marker for ships
   that are not `ReadyToInclude`.
+- Known misclassification, flagged by the owner: `KRIG_S65_Stingray_BALLISTIC` is `player` but is
+  not flyable in the game. Its Record differs from `KRIG_S65_Stingray` only in the weapon
+  Entities of its default Loadout (ballistic instead of laser repeaters) and in self-referencing
+  paths; inclusion mode, tags, `$tag`, components, hull values and crew manifest are equal. No
+  structural signal separates it, so it stays `player` and no name exception is made.
 - The check warns when a `NAME_SUPPLEMENT` class is no catalog ship and when a catalog ship or
   store slug entry cannot be read. A catalog class counts as flight ready when any of its matrix
   entries is, so a flight-ready variant mapped to the same class (Mole editions, Carrack w/C8X)

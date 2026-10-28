@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use crate::guid_text::CatalogGuid;
 
+pub(crate) use crate::contract_crafter::Crafter;
 pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
 };
@@ -130,6 +131,8 @@ pub(crate) struct Catalog<'a> {
     pub(crate) loot_archetypes: Vec<LootArchetype<'a>>,
     /// The loot pool filters, ordered by GUID.
     pub(crate) loot_pool_filters: Vec<LootPoolFilter<'a>>,
+    /// The crafting stations with the limits of their job queues, ordered by GUID.
+    pub(crate) crafters: Vec<Crafter<'a>>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
     /// by `slug`. A curated list, not read from the Archive.
     pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
@@ -250,6 +253,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) loot_archetypes: KindCompleteness<'a>,
     /// The completeness of `lootPoolFilters`.
     pub(crate) loot_pool_filters: KindCompleteness<'a>,
+    /// The completeness of `crafters`.
+    pub(crate) crafters: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
     pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
@@ -293,6 +298,7 @@ impl<'a> Completeness<'a> {
             loot_tables: completeness,
             loot_archetypes: completeness,
             loot_pool_filters: completeness,
+            crafters: completeness,
             ship_store_slugs: completeness,
         }
     }

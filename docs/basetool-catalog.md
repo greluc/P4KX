@@ -43,8 +43,8 @@ The rule is ADR-0054 (amending ADR-0002):
   `reputationContexts`, `missionTypes`, `missionLocalities` and `contractScenarios` and the
   contract fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319,
   ADR-0237), and the kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers`
-  and the field `lootConfig` of a sub harvestable (#322, ADR-0238). Later additions keep version 2
-  as long as they are additive.
+  and the field `lootConfig` of a sub harvestable (#322, ADR-0238), and the kind `crafters`
+  (#831, ADR-0243). Later additions keep version 2 as long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -148,6 +148,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `lootArchetypes` | The loot archetypes (`LootArchetypeV3Record`) with the weighted selectors of each, ordered by GUID |
 | `lootPoolFilters` | The pool filters of the loot generation, ordered by GUID |
 | `lootContainers` | The containers placed with a multi config, with the starmap object each hangs below, ordered by config, container, system and object |
+| `crafters` | The crafting stations (entities with a `CrafterComponentParams`) with the limits of their job queues, ordered by GUID |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 | `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
@@ -702,6 +703,13 @@ category is only found missing when the `--filter` selects it, so under a `--fil
 | `craftTimeSeconds` | `costs.craftTime` of the tier in whole seconds, rounded; `null` without one |
 | `mandatory` | The mandatory cost as a cost line, `null` without one |
 | `optional` | The optional costs as cost lines in stored order |
+
+The stored `research` of a tier (`CraftingResearch` with `researchCosts` and `unlockRequirements`,
+both strong pointers) is not exported: on LIVE 4.10 it exists on 926 of the 1,618 tiers and both
+pointers are empty on every one of them, so the Archive shows neither the type nor a field of what
+they would point to. A field typed without ever seeing a value would be a guess, and the type could
+not change later (ADR-0054). The field joins the tier as an additive change once a Build fills it
+(ADR-0243).
 
 A cost line is a selection, a resource line or an item line. The tree keeps what `ingredients`
 flattens, so a selection stays a selection:
@@ -1437,6 +1445,29 @@ be read is warned about (`unreadable_loot_containers`).
 On LIVE 4.10 (2026-10-28) 3,004 rows name 41 multi configs and 189 containers in 3 systems, 2,797
 of them with an object.
 
+### Crafters
+
+A crafter (`crafters`) is an entity whose `Components` hold a `CrafterComponentParams` (ADR-0243):
+a crafting station. The Archive holds no per-player blueprint cap; the only limits of crafting
+are the ones these components state. LIVE 4.10 has three, all below
+`entities/basebuilding/interactables`; one of them is a `_template` and, like every development
+leftover, left out and counted as skipped. The kind is facts only: identifiers and numbers.
+
+| Field | Source |
+|-------|--------|
+| `guid`, `className`, `recordPath` | The entity Record |
+| `maxJobsInHistory` | `maxJobsInHistory`: how many finished jobs the station lists (10); `null` when the value is not a number |
+| `queues` | `queues` in stored order (two on every station of LIVE), `[]` without any |
+
+A queue has `name` (`debugName`), `maxJobsInProgress` (how many jobs it crafts at once, 2 and 4 on
+LIVE) and `maxJobsWaiting` (how many further jobs it holds, 4 on LIVE); each is `null` when the
+Record stores no number or text. The categories and process types a queue accepts
+(`blueprintCategoryAvailability`, `processTypeAvailability`) are not exported.
+
+The Records are selected from every entity Record: an item, a ship or a commodity that has the
+component is a crafter as well and stays what it is, and any other `EntityClassDefinition` under
+`entities` is a crafter when it has the component.
+
 ### Shops
 
 A shop (`shops`) is one `ShopBackup` entry of the shop registry `Data\Libs\CosmoTools\
@@ -1786,6 +1817,7 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `lootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetypeV3Record` |
 | `lootPoolFilters` | `libs/foundry/records/lootgeneration/filters/` | `PoolFilterRecord` |
 | `lootContainers` | None: the `entdata` files of the containers below `ObjectContainers/PU/system` and the containers they place, no Records | |
+| `crafters` | `libs/foundry/records/entities/`, after the kinds above that take their own entities; only an entity with a `CrafterComponentParams` | `EntityClassDefinition` |
 
 The blueprints and the five crafting kinds below them are read by `read_crafting`, with the one
 selection rule behind it (`selects_blueprint` for the blueprints); `Kind::rule()` of

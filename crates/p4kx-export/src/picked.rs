@@ -6,10 +6,11 @@ use p4kx_extraction::{Guid, RecordTree};
 use crate::blueprint_category::blueprint_category;
 use crate::commodity::commodity;
 use crate::contract::{
-    BlueprintCategory, Commodity, HarvestableProviderPreset, Item, Manufacturer,
+    BlueprintCategory, Commodity, Crafter, HarvestableProviderPreset, Item, Manufacturer,
     MineableComposition, MineableElement, MiningGlobalParams, RefiningProcess, ResourceGroup, Ship,
     StarmapObject, SubHarvestableMultiConfig,
 };
+use crate::crafter::crafter;
 use crate::crafting_warning::CraftingWarning;
 use crate::item::item;
 use crate::item_class::ClassLine;
@@ -61,6 +62,10 @@ pub(crate) enum Picked<'f> {
     Mission(MissionPick<'f>),
     /// An entity of a loot kind.
     Loot(LootPick<'f>),
+    /// A crafting station that is no item, ship or commodity.
+    Crafter(Crafter<'f>),
+    /// An item, ship or commodity that is also a crafting station.
+    Crafted(Box<Self>, Crafter<'f>),
     /// A development leftover of the kind, with the GUID of its Record.
     Skipped(Kind, Guid),
     /// A development leftover that is an item and a paint.
@@ -95,6 +100,7 @@ impl<'f> Picked<'f> {
             }
             Kind::Ships => Self::of_ship(ship_base(), |read| ship(tree, texts, evidence, read)),
             Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
+            Kind::Crafters => return crafter(tree).map(Self::Crafter),
             Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
             Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
             Kind::MineableElements => Self::Mineable(mineable_element(tree)),
@@ -129,6 +135,18 @@ impl<'f> Picked<'f> {
             | Kind::LootContainers
             | Kind::Shops => return None,
         })
+    }
+
+    /// Returns `self` joined with the crafting station `tree` describes when `self` is an item,
+    /// ship or commodity and the entity has a `CrafterComponentParams`.
+    pub(crate) fn crafted(self, tree: &RecordTree<'f>) -> Self {
+        if !matches!(self, Self::Item(..) | Self::Ship(..) | Self::Commodity(_)) {
+            return self;
+        }
+        match crafter(tree) {
+            Some(station) => Self::Crafted(Box::new(self), station),
+            None => self,
+        }
     }
 
     /// Returns the ship `build` makes of the base data `read`, or the failure when the base data

@@ -15,6 +15,7 @@ use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{Blueprint, QualityQuantization};
 use crate::contract_recipe::CostLine;
+use crate::crafter::is_crafter;
 use crate::entity_selection::{Selected, select};
 use crate::harvest_config::multi_config;
 use crate::harvest_link::Links;
@@ -238,6 +239,10 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
                     },
                 ));
             }
+            Some(Selected::Leftover(Kind::Crafters)) => {
+                return Ok(is_crafter(&trees.build(record)?)
+                    .then(|| Picked::Skipped(Kind::Crafters, record.guid())));
+            }
             Some(Selected::Leftover(kind)) => {
                 return Ok(Some(Picked::Skipped(kind, record.guid())));
             }
@@ -275,7 +280,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             item.stats = item_stats::read(&tree, self.forge, trees).map(Box::new);
             item.variant_key = item_variant::key(&tree, item.stats.as_deref());
         }
-        Ok(picked)
+        Ok(picked.map(|picked| picked.crafted(&tree)))
     }
 
     /// Returns the provider preset or multi config `tree` describes when `kind` is one of the

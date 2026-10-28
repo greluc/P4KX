@@ -213,6 +213,7 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "lootArchetypes",
             "lootPoolFilters",
             "lootContainers",
+            "crafters",
         ],
         "order of the catalog"
     );

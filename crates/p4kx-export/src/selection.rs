@@ -112,11 +112,15 @@ pub enum Kind {
     /// entity files of the containers below the system containers. Derived from Archive files, so
     /// no record-path rule of its own.
     LootContainers,
+    /// Crafters: the entities whose `Components` hold a `CrafterComponentParams`. The rule takes
+    /// the `EntityClassDefinition` Records under `entities` that no earlier kind takes, so it
+    /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
+    Crafters,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 35] = [
+    pub const ALL: [Self; 36] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -152,6 +156,7 @@ impl Kind {
         Self::LootArchetypes,
         Self::LootPoolFilters,
         Self::LootContainers,
+        Self::Crafters,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -193,6 +198,7 @@ impl Kind {
             Self::LootArchetypes => "lootArchetypes",
             Self::LootPoolFilters => "lootPoolFilters",
             Self::LootContainers => "lootContainers",
+            Self::Crafters => "crafters",
         }
     }
 
@@ -270,6 +276,7 @@ impl Kind {
             Self::LootArchetypes => 32,
             Self::LootPoolFilters => 33,
             Self::LootContainers => 34,
+            Self::Crafters => 35,
         }
     }
 

@@ -3,10 +3,12 @@
 
 use std::collections::HashSet;
 
+use p4kx_extraction::Guid;
+
 use crate::blueprint_category::unlink_categories;
 use crate::catalog_crafting::CraftingKinds;
 use crate::contract::{
-    Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
+    Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, Crafter, CraftingGlobal,
     DismantleProcess, GameplayProperty, HarvestableLocation, HarvestableProviderPreset, Item,
     Loadout, LootContainer, Manufacturer, MineableComposition, MineableElement, MiningGlobalParams,
     Paint, QualityDistribution, QualityQuantization, RefiningProcess, ResourceGroup, Ship, Shop,
@@ -51,6 +53,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) harvestable_locations: Vec<HarvestableLocation>,
     pub(crate) loot_containers: Vec<LootContainer>,
     pub(crate) shops: Vec<Shop>,
+    pub(crate) crafters: Vec<Crafter<'f>>,
     pub(crate) mission_kinds: MissionKinds<'f>,
     pub(crate) loot_kinds: LootKinds<'f>,
     pub(crate) vehicles: Vec<VehicleFacts>,
@@ -64,10 +67,6 @@ pub(crate) struct Collected<'f> {
 impl<'f> Collected<'f> {
     /// Sorts `picked` into the kinds and orders every kind by the text of the GUID; `crafting`
     /// fills the kinds [`read_crafting`](crate::read_crafting) reads.
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one initialiser per kind of the catalog"
-    )]
     pub(crate) fn new(picked: Vec<Picked<'f>>, crafting: CraftingKinds<'f>) -> Self {
         let skipped = Self::crafting_skipped(&crafting);
         let mut collected = Self {
@@ -99,6 +98,7 @@ impl<'f> Collected<'f> {
             harvestable_locations: Vec::new(),
             loot_containers: Vec::new(),
             shops: Vec::new(),
+            crafters: Vec::new(),
             mission_kinds: MissionKinds::default(),
             loot_kinds: LootKinds::default(),
             vehicles: Vec::new(),
@@ -110,51 +110,62 @@ impl<'f> Collected<'f> {
         };
         let mut missing_categories = HashSet::new();
         for pick in picked {
-            match pick {
-                Picked::Manufacturer(entity) => collected.manufacturers.push(entity),
-                Picked::Item(entity, line, ports) => {
-                    collected.item_classes.count(line);
-                    if ports {
-                        collected.port_items.push(entity.guid);
-                    }
-                    collected.playability.items.count(entity.playability);
-                    collected.items.push(entity);
-                }
-                Picked::Ship(entity, vehicle) => {
-                    collected.playability.ships.count(entity.playability);
-                    collected.ships.push(entity);
-                    collected.vehicles.push(vehicle);
-                }
-                Picked::Commodity(entity) => collected.commodities.push(entity),
-                Picked::ResourceGroup(entity) => collected.resource_groups.push(entity),
-                Picked::BlueprintCategory(entity) => collected.blueprint_categories.push(entity),
-                Picked::Starmap(entity) => collected.starmap_objects.push(entity),
-                Picked::Mineable(entity) => collected.mineable_elements.push(entity),
-                Picked::Refining(entity) => collected.refining_processes.push(entity),
-                Picked::Composition(entity) => collected.mineable_compositions.push(entity),
-                Picked::MiningParams(entity) => collected.mining_global_params.push(entity),
-                Picked::Provider(entity) => collected.harvestable_provider_presets.push(entity),
-                Picked::MultiConfig(entity) => collected.sub_harvestable_multi_configs.push(entity),
-                Picked::Mission(entity) => collected.mission_kinds.push(entity),
-                Picked::Loot(entity) => collected.loot_kinds.push(entity),
-                Picked::Skipped(kind, guid) => {
-                    if kind == Kind::BlueprintCategories {
-                        missing_categories.insert(guid);
-                    }
-                    collected.skip(kind);
-                }
-                Picked::SkippedPaint => {
-                    collected.skip(Kind::Items);
-                    collected.skip(Kind::Paints);
-                }
-                Picked::Failed(failure) => collected.failures.push(failure),
-                Picked::Warned(warning) => collected.warnings.push(warning),
-            }
+            collected.take(pick, &mut missing_categories);
         }
         missing_categories.extend(collected.failures.iter().map(|failure| failure.guid));
         unlink_categories(&mut collected.blueprints, &missing_categories);
         collected.order();
         collected
+    }
+
+    /// Files `pick` under its kind; the GUIDs of the skipped blueprint categories go to
+    /// `missing_categories`.
+    fn take(&mut self, pick: Picked<'f>, missing_categories: &mut HashSet<Guid>) {
+        match pick {
+            Picked::Manufacturer(entity) => self.manufacturers.push(entity),
+            Picked::Item(entity, line, ports) => {
+                self.item_classes.count(line);
+                if ports {
+                    self.port_items.push(entity.guid);
+                }
+                self.playability.items.count(entity.playability);
+                self.items.push(entity);
+            }
+            Picked::Ship(entity, vehicle) => {
+                self.playability.ships.count(entity.playability);
+                self.ships.push(entity);
+                self.vehicles.push(vehicle);
+            }
+            Picked::Commodity(entity) => self.commodities.push(entity),
+            Picked::ResourceGroup(entity) => self.resource_groups.push(entity),
+            Picked::BlueprintCategory(entity) => self.blueprint_categories.push(entity),
+            Picked::Starmap(entity) => self.starmap_objects.push(entity),
+            Picked::Mineable(entity) => self.mineable_elements.push(entity),
+            Picked::Refining(entity) => self.refining_processes.push(entity),
+            Picked::Composition(entity) => self.mineable_compositions.push(entity),
+            Picked::MiningParams(entity) => self.mining_global_params.push(entity),
+            Picked::Provider(entity) => self.harvestable_provider_presets.push(entity),
+            Picked::MultiConfig(entity) => self.sub_harvestable_multi_configs.push(entity),
+            Picked::Mission(entity) => self.mission_kinds.push(entity),
+            Picked::Loot(entity) => self.loot_kinds.push(entity),
+            Picked::Crafter(entity) => self.crafters.push(entity),
+            Picked::Crafted(pick, entity) => {
+                self.crafters.push(entity);
+                self.take(*pick, missing_categories);
+            }
+            Picked::Skipped(kind, guid) => {
+                if kind == Kind::BlueprintCategories {
+                    missing_categories.insert(guid);
+                }
+                self.skip(kind);
+            }
+            Picked::SkippedPaint => {
+                self.skip(Kind::Items);
+                self.skip(Kind::Paints);
+            }
+            Picked::Failed(failure) => self.failures.push(failure),
+            Picked::Warned(warning) => self.warnings.push(warning),
+        }
     }
 
     fn skip(&mut self, kind: Kind) {
@@ -214,6 +225,7 @@ impl<'f> Collected<'f> {
         sort_by_guid(&mut self.refining_processes, |entity| entity.guid);
         sort_by_guid(&mut self.mineable_compositions, |entity| entity.guid);
         sort_by_guid(&mut self.mining_global_params, |entity| entity.guid);
+        sort_by_guid(&mut self.crafters, |entity| entity.guid);
         sort_by_guid(&mut self.harvestable_provider_presets, |entity| entity.guid);
         sort_by_guid(&mut self.sub_harvestable_multi_configs, |entity| {
             entity.guid
@@ -254,6 +266,7 @@ impl<'f> Collected<'f> {
                     Kind::HarvestableLocations => self.harvestable_locations.len(),
                     Kind::LootContainers => self.loot_containers.len(),
                     Kind::Shops => self.shops.len(),
+                    Kind::Crafters => self.crafters.len(),
                     Kind::FactionReputations
                     | Kind::ReputationScopes
                     | Kind::ReputationStandings

@@ -22,7 +22,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 33] = [
+const MINIMUM: [(Kind, usize); 34] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -56,6 +56,7 @@ const MINIMUM: [(Kind, usize); 33] = [
     (Kind::LootArchetypes, 30),
     (Kind::LootPoolFilters, 10),
     (Kind::LootContainers, 1_000),
+    (Kind::Crafters, 2),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;
@@ -209,7 +210,7 @@ fn check_unique_guids(catalog: &Value) -> TestResult {
     );
     let kinds = Kind::ALL
         .into_iter()
-        .filter(|kind| !kind.is_derived() && *kind != Kind::Contracts);
+        .filter(|kind| !kind.is_derived() && !matches!(kind, Kind::Contracts | Kind::Crafters));
     for kind in kinds {
         for entity in list(catalog, kind)? {
             let guid = entity["guid"].as_str().ok_or("a GUID")?;

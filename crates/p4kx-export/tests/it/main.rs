@@ -6,6 +6,7 @@
 mod catalog_compression;
 mod catalog_contracts;
 mod catalog_contracts_standing;
+mod catalog_crafters;
 mod catalog_crafting;
 mod catalog_crafting_followups;
 mod catalog_crafting_support;
@@ -40,6 +41,7 @@ mod catalog_texts;
 mod catalog_variants;
 mod common;
 mod contracts_fixture;
+mod crafters_fixture;
 mod crafting_depth;
 mod crafting_detail;
 mod crafting_detail_fixture;

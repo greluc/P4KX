@@ -26,7 +26,9 @@
             <File Id="McpExe" Name="p4kx-mcp.exe" Source="$(var.BinaryFolder)\p4kx-mcp.exe" />
             <File Id="LicenceMit" Name="LICENSE-MIT" Source="$(var.RepositoryFolder)\LICENSE-MIT" />
             <File Id="LicenceApache" Name="LICENSE-APACHE" Source="$(var.RepositoryFolder)\LICENSE-APACHE" />
-            <File Id="ThirdPartyNotices" Name="THIRD-PARTY-NOTICES" Source="$(var.RepositoryFolder)\THIRD-PARTY-NOTICES" />
+            <File Id="LicenceMitMarkdown" Name="LICENSE-MIT.md" Source="$(var.RepositoryFolder)\LICENSE-MIT.md" />
+            <File Id="LicenceApacheMarkdown" Name="LICENSE-APACHE.md" Source="$(var.RepositoryFolder)\LICENSE-APACHE.md" />
+            <File Id="ThirdPartyNotices" Name="THIRD-PARTY-NOTICES.md" Source="$(var.RepositoryFolder)\THIRD-PARTY-NOTICES.md" />
             <RegistryValue
                 Root="HKCU"
                 Key="Software\P4KX"

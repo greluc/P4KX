@@ -3,14 +3,15 @@
 
 //! Repository checks run by CI: `cargo xtask layers`, `cargo xtask lints`,
 //! `cargo xtask file-size`, `cargo xtask changelog`, `cargo xtask keys`, `cargo xtask spdx`,
-//! `cargo xtask addon` (the Blender add-on manifest version equals the workspace version), or all
-//! of them with `cargo xtask`.
+//! `cargo xtask addon` (the Blender add-on manifest version equals the workspace version),
+//! `cargo xtask licences` (`LICENSE-MIT.md` and `LICENSE-APACHE.md` hold the words of the plain
+//! licence files), or all of them with `cargo xtask`.
 //!
 //! `cargo xtask changelog` also checks the fragments in `changelog.d/`; `cargo xtask changelog
 //! --release <version> [--date <YYYY-MM-DD>]` folds them and `## [Unreleased]` into the section of
 //! a version.
 //!
-//! `cargo xtask notices` checks that `THIRD-PARTY-NOTICES` matches `cargo about` and
+//! `cargo xtask notices` checks that `THIRD-PARTY-NOTICES.md` matches `cargo about` and
 //! `cargo xtask notices --write` regenerates it; both need `cargo-about` and are not part of the
 //! plain `cargo xtask`.
 //!
@@ -23,6 +24,7 @@ mod fragments;
 mod key_needles;
 mod keys;
 mod layers;
+mod licences;
 mod lints;
 mod metadata;
 mod notices;
@@ -81,6 +83,7 @@ fn run() -> Result<Vec<String>> {
                 Some(other) => bail!("unknown option `{other}`; use `--release <version>`"),
             }
         }
+        Some("licences") => licences::check(&root),
         Some("keys") => keys::check(&root),
         Some("notices") => match std::env::args().nth(2).as_deref() {
             None => notices::check(&root),
@@ -99,7 +102,7 @@ fn run() -> Result<Vec<String>> {
             Ok(Vec::new())
         }
         Some(other) => bail!(
-            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys`, `spdx`, `addon`, `notices` or `release-notes`"
+            "unknown check `{other}`; use `layers`, `lints`, `file-size`, `changelog`, `keys`, `spdx`, `addon`, `licences`, `notices` or `release-notes`"
         ),
     }
 }
@@ -112,6 +115,7 @@ fn check_all(root: &Path) -> Result<Vec<String>> {
     violations.extend(keys::check(root)?);
     violations.extend(spdx::check(root)?);
     violations.extend(addon::check(root)?);
+    violations.extend(licences::check(root)?);
     Ok(violations)
 }
 

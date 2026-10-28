@@ -20,7 +20,7 @@ its comment list is malformed. Packets are capped at 64 KiB, a multistream
 packet is split by its self-delimited framing with every length checked, and the decoder runs
 inside `catch_unwind` like lewton (ADR-0013). Star Citizen's LIVE Archive holds no Opus
 WEM, so the synthetic WEMs of the testkit, encoded with the same crate, are the only test data.
-Its notice lives in `THIRD-PARTY-NOTICES`. Decided for issue #94.
+Its notice lives in `THIRD-PARTY-NOTICES.md`. Decided for issue #94.
 
 ## Considered Options
 

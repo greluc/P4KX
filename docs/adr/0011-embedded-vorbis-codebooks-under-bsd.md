@@ -5,7 +5,7 @@ them, so rebuilding a playable Ogg Vorbis file needs that library. The only sour
 `packed_codebooks.bin` (libvorbis) and `packed_codebooks_aoTuV_603.bin` (aoTuV 6.03), licensed
 BSD-3-Clause rather than MIT. `p4kx-audio` embeds both files unchanged with `include_bytes!`;
 the rebuild, validation and fallback code is our own. Their copyright notices and licence text
-live in `THIRD-PARTY-NOTICES` at the repository root, which ships in the portable ZIP and the MSI
+live in `THIRD-PARTY-NOTICES.md` at the repository root, which ships in the portable ZIP and the MSI
 next to the licences and is named in the README. Decided by the owner.
 
 Which library a sound needs is not recorded in the WEM, so the rebuilt headers are validated: the

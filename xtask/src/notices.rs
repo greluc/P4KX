@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
+mod about_json;
+mod markdown;
+
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result, bail};
 
-const FILE: &str = "THIRD-PARTY-NOTICES";
-const MARKER: &str = "== GENERATED BELOW THIS LINE ==\n";
+const FILE: &str = "THIRD-PARTY-NOTICES.md";
+const MARKER: &str = "<!-- GENERATED BELOW THIS LINE -->\n";
 /// The `cargo-about` release the generated part is produced with; CI installs the same one.
 const CARGO_ABOUT_VERSION: &str = "0.9.2";
 const PLACEHOLDERS: [&str; 2] = ["<copyright holders>", "<year>"];
 
-/// Returns a message when the generated part of `THIRD-PARTY-NOTICES` is not the current output
+/// Returns a message when the generated part of `THIRD-PARTY-NOTICES.md` is not the current output
 /// of `cargo about`.
 ///
 /// # Errors
@@ -22,16 +25,10 @@ const PLACEHOLDERS: [&str; 2] = ["<copyright holders>", "<year>"];
 pub(crate) fn check(root: &Path) -> Result<Vec<String>> {
     let text = read(root)?;
     let generated = generate(root)?;
-    Ok(if generated_part(&text)? == generated {
-        Vec::new()
-    } else {
-        vec![format!(
-            "{FILE} is out of date; run `cargo xtask notices --write` and commit the result"
-        )]
-    })
+    stale(&text, &generated)
 }
 
-/// Rewrites the generated part of `THIRD-PARTY-NOTICES` from `cargo about`.
+/// Rewrites the generated part of `THIRD-PARTY-NOTICES.md` from `cargo about`.
 ///
 /// # Errors
 ///
@@ -42,6 +39,17 @@ pub(crate) fn write(root: &Path) -> Result<()> {
     let (head, _) = split(&text)?;
     fs::write(root.join(FILE), format!("{head}{MARKER}{generated}"))
         .with_context(|| format!("cannot write {FILE}"))
+}
+
+/// Returns a message when the generated part of `text` differs from `generated`.
+fn stale(text: &str, generated: &str) -> Result<Vec<String>> {
+    Ok(if generated_part(text)? == generated {
+        Vec::new()
+    } else {
+        vec![format!(
+            "{FILE} is out of date; run `cargo xtask notices --write` and commit the result"
+        )]
+    })
 }
 
 fn read(root: &Path) -> Result<String> {
@@ -94,7 +102,7 @@ fn placeholders(generated: &str) -> Vec<&'static str> {
 
 fn generate(root: &Path) -> Result<String> {
     ensure_version()?;
-    let target = std::env::temp_dir().join(format!("p4kx-notices-{}.txt", std::process::id()));
+    let target = std::env::temp_dir().join(format!("p4kx-notices-{}.json", std::process::id()));
     let output = cargo()
         .args([
             "about",
@@ -102,14 +110,15 @@ fn generate(root: &Path) -> Result<String> {
             "--workspace",
             "--locked",
             "--fail",
+            "--format",
+            "json",
             "-o",
         ])
         .arg(&target)
-        .arg("about.hbs")
         .current_dir(root)
         .output()
         .with_context(|| format!("cannot run cargo about; {}", install_hint()));
-    let generated = output.and_then(|output| {
+    let json = output.and_then(|output| {
         if output.status.success() {
             fs::read_to_string(&target).context("cannot read the cargo about output")
         } else {
@@ -120,7 +129,7 @@ fn generate(root: &Path) -> Result<String> {
         }
     });
     let _ignored = fs::remove_file(&target);
-    let generated = generated?.replace("\r\n", "\n");
+    let generated = markdown::render(&about_json::parse(&json?)?);
     let unfilled = placeholders(&generated);
     if !unfilled.is_empty() {
         bail!(
@@ -143,6 +152,37 @@ mod tests {
             generated_part(&text).ok(),
             Some("body\n"),
             "the text after the marker is the generated part"
+        );
+    }
+
+    #[test]
+    fn current_file_has_no_violation() {
+        let text = format!("head\n{MARKER}body\n");
+        assert_eq!(
+            stale(&text, "body\n").ok(),
+            Some(Vec::new()),
+            "a file with the generated output is current"
+        );
+    }
+
+    #[test]
+    fn stale_file_is_reported() {
+        let text = format!("head\n{MARKER}old body\n");
+        let violations = stale(&text, "new body\n").expect("the marker is present");
+        assert_eq!(violations.len(), 1, "one message for the stale file");
+        assert!(
+            violations[0].contains("out of date"),
+            "the message names the problem: {violations:?}"
+        );
+    }
+
+    #[test]
+    fn hand_edit_of_the_generated_part_is_reported() {
+        let text = format!("head\n{MARKER}body\nextra line\n");
+        assert_eq!(
+            stale(&text, "body\n").map(|v| v.len()).ok(),
+            Some(1),
+            "an edit below the marker is overwritten, so it is stale"
         );
     }
 

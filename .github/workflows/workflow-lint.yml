@@ -40,7 +40,7 @@ jobs:
           python-version: "3.13"
       - name: Install zizmor
         run: python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/zizmor.txt
-      - name: zizmor on the Release workflow
+      - name: zizmor
         env:
           GH_TOKEN: ${{ github.token }}
-        run: zizmor --persona=regular --format=plain .github/workflows/release.yml .github/workflows/workflow-lint.yml
+        run: zizmor --persona=regular --format=plain .github

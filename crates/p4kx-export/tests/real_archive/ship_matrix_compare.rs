@@ -7,7 +7,7 @@
 //! A matrix entry maps to a catalog ship through the curated `shipStoreSlugs`: first by the RSI
 //! ship id, then by the last segment of the entry's `url` against the slug, ignoring case.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -18,7 +18,8 @@ pub(crate) const FLIGHT_READY: &str = "flight-ready";
 /// One entry of the ship matrix; only the fields the check reads.
 #[derive(Debug, Deserialize)]
 pub(crate) struct MatrixShip {
-    id: Value,
+    #[serde(default)]
+    id: Option<Value>,
     pub(crate) name: String,
     #[serde(default)]
     production_status: Option<String>,
@@ -35,13 +36,14 @@ enum Matrix {
 
 impl MatrixShip {
     fn rsi_id(&self) -> Option<u32> {
-        match &self.id {
+        match self.id.as_ref()? {
             Value::Number(number) => number.as_u64().and_then(|id| u32::try_from(id).ok()),
             Value::String(text) => text.trim().parse().ok(),
             _ => None,
         }
     }
 
+    /// The last path segment of `url`, without a trailing slash.
     fn slug(&self) -> Option<&str> {
         self.url
             .as_deref()?
@@ -193,7 +195,23 @@ fn class_of<'a>(
     })
 }
 
+/// The classes of `NAME_SUPPLEMENT` that are not among the catalog `ships`: their matrix names
+/// would silently count as unmapped.
+#[must_use]
+pub(crate) fn supplement_gaps(ships: &[CatalogShip<'_>]) -> Vec<&'static str> {
+    NAME_SUPPLEMENT
+        .iter()
+        .map(|(_, class)| *class)
+        .filter(|class| ships.iter().all(|ship| ship.class_name != *class))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
 /// Compares the catalog `ships` with the `matrix`, mapping through `slugs`.
+///
+/// A catalog class counts as flight ready when any of its matrix entries is, so a flight-ready
+/// variant mapped to the same class (Mole editions, Carrack w/C8X) hides a base entry that is not.
 #[must_use]
 pub(crate) fn compare(
     ships: &[CatalogShip<'_>],
@@ -247,89 +265,4 @@ fn verdict(entries: &[&MatrixShip]) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const MATRIX: &str = r#"{"success":1,"data":[
-        {"id":"1","name":"Alpha","production_status":"flight-ready","url":"/pledge/ships/m/Alpha-One"},
-        {"id":2,"name":"Beta","production_status":"in-concept","url":"/pledge/ships/m/Beta"},
-        {"id":"3","name":"Gamma","production_status":"flight-ready","url":"/pledge/ships/m/Gamma"},
-        {"id":"9","name":"Delta","production_status":"flight-ready","url":"/pledge/ships/m/Delta/"},
-        {"id":"x","name":"Epsilon","production_status":"flight-ready","url":"/pledge/ships/m/Eps"}
-    ]}"#;
-
-    fn ship<'a>(class_name: &'a str, playability: Option<&'a str>) -> CatalogShip<'a> {
-        CatalogShip {
-            class_name,
-            playability,
-        }
-    }
-
-    fn slug<'a>(slug: &'a str, rsi_id: u32, class_name: Option<&'a str>) -> StoreSlug<'a> {
-        StoreSlug {
-            slug,
-            rsi_id,
-            class_name,
-        }
-    }
-
-    #[test]
-    fn parses_the_envelope_and_a_bare_list() -> Result<(), serde_json::Error> {
-        assert_eq!(parse_matrix(MATRIX)?.len(), 5);
-        let bare = parse_matrix(r#"[{"id":1,"name":"A"}]"#)?;
-        assert_eq!((bare[0].rsi_id(), bare[0].status()), (Some(1), "no status"));
-        Ok(())
-    }
-
-    #[test]
-    fn reports_each_kind_of_disagreement() -> Result<(), serde_json::Error> {
-        let matrix = parse_matrix(MATRIX)?;
-        let slugs = [
-            slug("Alpha-One", 1, Some("A_One")),
-            slug("Beta", 2, Some("B")),
-            slug("Gamma", 30, Some("G")),
-            slug("Eps", 5, None),
-        ];
-        let ships = [
-            ship("A_One", Some("ai")),
-            ship("B", Some("player")),
-            ship("G", None),
-            ship("Z", Some("player")),
-            ship("Y", Some("special")),
-        ];
-        let report = compare(&ships, &slugs, &matrix);
-        let found = |class: &str, playability: &str, matrix: &str| Finding {
-            class_name: class.into(),
-            playability: playability.into(),
-            matrix: matrix.into(),
-        };
-        assert_eq!(
-            report.flight_ready_not_player,
-            [found("A_One", "ai", "Alpha (flight-ready)")]
-        );
-        assert_eq!(
-            report.player_not_flight_ready,
-            [
-                found("B", "player", "Beta (in-concept)"),
-                found("Z", "player", UNKNOWN)
-            ]
-        );
-        assert_eq!(
-            report.null_ships,
-            [found("G", "null", "Gamma (flight-ready)")]
-        );
-        assert_eq!(report.flight_ready_unmapped, ["Delta", "Epsilon"]);
-        assert!(report.lines().iter().any(|line| line.contains("G [null]")));
-        Ok(())
-    }
-
-    #[test]
-    fn a_supplemented_name_maps_without_a_store_slug() -> Result<(), serde_json::Error> {
-        let matrix =
-            parse_matrix(r#"[{"id":"77","name":"Skylark","production_status":"flight-ready"}]"#)?;
-        let report = compare(&[ship("RSI_Skylark", None)], &[], &matrix);
-        assert_eq!(report.null_ships[0].matrix, "Skylark (flight-ready)");
-        assert_eq!(report.flight_ready_unmapped, Vec::<String>::new());
-        Ok(())
-    }
-}
+mod tests;

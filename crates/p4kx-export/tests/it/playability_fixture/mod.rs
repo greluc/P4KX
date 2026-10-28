@@ -130,6 +130,7 @@ fn ship(index: usize, spec: &ShipSpec) -> TestRecord {
         spec.tags,
         spec.inclusion,
     )
+    .tag(spec.record_tag)
 }
 
 fn item(index: usize, spec: &ItemSpec) -> TestRecord {

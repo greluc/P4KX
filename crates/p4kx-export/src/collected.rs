@@ -3,149 +3,23 @@
 
 use std::collections::HashSet;
 
-use p4kx_extraction::{Guid, RecordTree};
-
-use crate::blueprint_category::{blueprint_category, unlink_categories};
+use crate::blueprint_category::unlink_categories;
 use crate::catalog_crafting::CraftingKinds;
-use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
     DismantleProcess, GameplayProperty, HarvestableLocation, HarvestableProviderPreset, Item,
-    Loadout, Manufacturer, MineableComposition, MineableElement, MiningGlobalParams, Paint,
-    QualityDistribution, QualityQuantization, RefiningProcess, ResourceGroup, Ship, Shop,
+    Loadout, LootContainer, Manufacturer, MineableComposition, MineableElement, MiningGlobalParams,
+    Paint, QualityDistribution, QualityQuantization, RefiningProcess, ResourceGroup, Ship, Shop,
     StarmapObject, SubHarvestableMultiConfig,
 };
 use crate::crafting_warning::CraftingWarning;
-use crate::guid_text::CatalogGuid;
-use crate::item::item;
-use crate::item_class::ClassLine;
-use crate::loadout::carries_ports;
-use crate::manufacturer::manufacturer;
-use crate::mining::{mineable_composition, mineable_element, refining_process};
-use crate::mining_params::mining_global_params;
-use crate::mission_kinds::{MissionKinds, MissionPick};
+use crate::guid_text::{CatalogGuid, sort_by_guid};
+use crate::loot_kinds::LootKinds;
+use crate::mission_kinds::MissionKinds;
 use crate::paint_port::VehicleFacts;
+use crate::picked::Picked;
 use crate::playability::PlayabilitySummary;
-use crate::playability_rules::Evidence;
-use crate::resource_group::{Groups, resource_group};
-use crate::ship::ship;
-use crate::ship_base::ShipRead;
-use crate::texts::Texts;
 use crate::{CatalogFailure, ItemClassSummary, Kind, KindSummary, QuantizationSummary};
-
-/// A Record a kind selected: its entity, or a development leftover of the kind.
-///
-/// The kinds that [`read_crafting`](crate::read_crafting) fills are not picked.
-pub(crate) enum Picked<'f> {
-    /// A manufacturer.
-    Manufacturer(Manufacturer<'f>),
-    /// An item, the `Class:` line of its English description and whether it may have ports.
-    Item(Item<'f>, ClassLine, bool),
-    /// A ship and the vehicle facts its paints are derived from.
-    Ship(Ship<'f>, VehicleFacts),
-    /// A commodity.
-    Commodity(Commodity<'f>),
-    /// A resource group.
-    ResourceGroup(ResourceGroup<'f>),
-    /// A blueprint category.
-    BlueprintCategory(BlueprintCategory<'f>),
-    /// A starmap object.
-    Starmap(StarmapObject<'f>),
-    /// A mineable element.
-    Mineable(MineableElement<'f>),
-    /// A refining process.
-    Refining(RefiningProcess<'f>),
-    /// A mineable composition.
-    Composition(MineableComposition<'f>),
-    /// The mining parameters of a kind of miner.
-    MiningParams(MiningGlobalParams<'f>),
-    /// A harvestable provider preset.
-    Provider(HarvestableProviderPreset<'f>),
-    /// A sub harvestable multi config.
-    MultiConfig(SubHarvestableMultiConfig<'f>),
-    /// An entity of a mission or reputation kind.
-    Mission(MissionPick<'f>),
-    /// A development leftover of the kind, with the GUID of its Record.
-    Skipped(Kind, Guid),
-    /// A development leftover that is an item and a paint.
-    SkippedPaint,
-    /// A Record that could not be read.
-    Failed(CatalogFailure),
-    /// A warning the check of the Records found.
-    Warned(CraftingWarning),
-}
-
-impl<'f> Picked<'f> {
-    /// Returns the entity of `kind` the Record tree `tree` describes, its texts resolved by
-    /// `texts`; a commodity may take texts from its `ResourceType` Record `resource_type` and its
-    /// type from `groups`, a ship its playability from `evidence`. A ship's base data is read by
-    /// `ship_base`, called for a ship only; a ship it cannot read becomes a
-    /// [`Failed`](Self::Failed), never a missing Record. `None` for a kind that
-    /// [`read_crafting`](crate::read_crafting) fills.
-    pub(crate) fn entity(
-        kind: Kind,
-        tree: &RecordTree<'f>,
-        texts: &Texts<'f>,
-        resource_type: Option<&RecordTree<'f>>,
-        groups: &Groups,
-        evidence: &Evidence,
-        ship_base: &dyn Fn() -> Result<ShipRead, CatalogFailure>,
-    ) -> Option<Self> {
-        Some(match kind {
-            Kind::Manufacturers => Self::Manufacturer(manufacturer(tree, texts)),
-            Kind::Items => {
-                let (item, line) = item(tree, texts);
-                Self::Item(item, line, carries_ports(tree))
-            }
-            Kind::Ships => Self::of_ship(ship_base(), |read| ship(tree, texts, evidence, read)),
-            Kind::Commodities => Self::Commodity(commodity(tree, texts, resource_type, groups)),
-            Kind::ResourceGroups => Self::ResourceGroup(resource_group(tree, texts, groups)),
-            Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
-            Kind::MineableElements => Self::Mineable(mineable_element(tree)),
-            Kind::RefiningProcesses => Self::Refining(refining_process(tree, texts)),
-            Kind::MineableCompositions => Self::Composition(mineable_composition(tree, texts)),
-            Kind::MiningGlobalParams => Self::MiningParams(mining_global_params(tree)),
-            Kind::FactionReputations
-            | Kind::ReputationScopes
-            | Kind::ReputationStandings
-            | Kind::ReputationContexts
-            | Kind::MissionTypes
-            | Kind::MissionLocalities
-            | Kind::ContractScenarios => {
-                return MissionPick::entity(kind, tree, texts).map(Self::Mission);
-            }
-            Kind::Blueprints
-            | Kind::GameplayProperties
-            | Kind::QualityDistributions
-            | Kind::QualityQuantizations
-            | Kind::BlueprintPools
-            | Kind::DismantleProcesses
-            | Kind::Paints
-            | Kind::Loadouts
-            | Kind::StarmapObjects
-            | Kind::Contracts
-            | Kind::HarvestableProviderPresets
-            | Kind::SubHarvestableMultiConfigs
-            | Kind::HarvestableLocations
-            | Kind::Shops => return None,
-        })
-    }
-
-    /// Returns the ship `build` makes of the base data `read`, or the failure when the base data
-    /// could not be read: a ship is never left out without a trace.
-    pub(crate) fn of_ship(
-        read: Result<ShipRead, CatalogFailure>,
-        build: impl FnOnce(&ShipRead) -> (Ship<'f>, VehicleFacts),
-    ) -> Self {
-        match read {
-            Ok(read) => {
-                let (ship, vehicle) = build(&read);
-                Self::Ship(ship, vehicle)
-            }
-            Err(failure) => Self::Failed(failure),
-        }
-    }
-}
 
 /// The entities of every kind, ordered by GUID, with the counts of the summary.
 pub(crate) struct Collected<'f> {
@@ -175,8 +49,10 @@ pub(crate) struct Collected<'f> {
     pub(crate) harvestable_provider_presets: Vec<HarvestableProviderPreset<'f>>,
     pub(crate) sub_harvestable_multi_configs: Vec<SubHarvestableMultiConfig<'f>>,
     pub(crate) harvestable_locations: Vec<HarvestableLocation>,
+    pub(crate) loot_containers: Vec<LootContainer>,
     pub(crate) shops: Vec<Shop>,
     pub(crate) mission_kinds: MissionKinds<'f>,
+    pub(crate) loot_kinds: LootKinds<'f>,
     pub(crate) vehicles: Vec<VehicleFacts>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
@@ -221,8 +97,10 @@ impl<'f> Collected<'f> {
             harvestable_provider_presets: Vec::new(),
             sub_harvestable_multi_configs: Vec::new(),
             harvestable_locations: Vec::new(),
+            loot_containers: Vec::new(),
             shops: Vec::new(),
             mission_kinds: MissionKinds::default(),
+            loot_kinds: LootKinds::default(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
             playability: PlayabilitySummary::default(),
@@ -258,6 +136,7 @@ impl<'f> Collected<'f> {
                 Picked::Provider(entity) => collected.harvestable_provider_presets.push(entity),
                 Picked::MultiConfig(entity) => collected.sub_harvestable_multi_configs.push(entity),
                 Picked::Mission(entity) => collected.mission_kinds.push(entity),
+                Picked::Loot(entity) => collected.loot_kinds.push(entity),
                 Picked::Skipped(kind, guid) => {
                     if kind == Kind::BlueprintCategories {
                         missing_categories.insert(guid);
@@ -324,31 +203,23 @@ impl<'f> Collected<'f> {
     /// Orders the failures and the picked kinds by the text of the GUID.
     fn order(&mut self) {
         self.order_failures();
-        self.manufacturers
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.items.sort_by_cached_key(|entity| entity.guid.text());
-        self.ships.sort_by_cached_key(|entity| entity.guid.text());
-        self.commodities
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.resource_groups
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.blueprint_categories
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.starmap_objects
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.mineable_elements
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.refining_processes
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.mineable_compositions
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.mining_global_params
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.harvestable_provider_presets
-            .sort_by_cached_key(|entity| entity.guid.text());
-        self.sub_harvestable_multi_configs
-            .sort_by_cached_key(|entity| entity.guid.text());
+        sort_by_guid(&mut self.manufacturers, |entity| entity.guid);
+        sort_by_guid(&mut self.items, |entity| entity.guid);
+        sort_by_guid(&mut self.ships, |entity| entity.guid);
+        sort_by_guid(&mut self.commodities, |entity| entity.guid);
+        sort_by_guid(&mut self.resource_groups, |entity| entity.guid);
+        sort_by_guid(&mut self.blueprint_categories, |entity| entity.guid);
+        sort_by_guid(&mut self.starmap_objects, |entity| entity.guid);
+        sort_by_guid(&mut self.mineable_elements, |entity| entity.guid);
+        sort_by_guid(&mut self.refining_processes, |entity| entity.guid);
+        sort_by_guid(&mut self.mineable_compositions, |entity| entity.guid);
+        sort_by_guid(&mut self.mining_global_params, |entity| entity.guid);
+        sort_by_guid(&mut self.harvestable_provider_presets, |entity| entity.guid);
+        sort_by_guid(&mut self.sub_harvestable_multi_configs, |entity| {
+            entity.guid
+        });
         self.mission_kinds.order();
+        self.loot_kinds.order();
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -381,6 +252,7 @@ impl<'f> Collected<'f> {
                     Kind::HarvestableProviderPresets => self.harvestable_provider_presets.len(),
                     Kind::SubHarvestableMultiConfigs => self.sub_harvestable_multi_configs.len(),
                     Kind::HarvestableLocations => self.harvestable_locations.len(),
+                    Kind::LootContainers => self.loot_containers.len(),
                     Kind::Shops => self.shops.len(),
                     Kind::FactionReputations
                     | Kind::ReputationScopes
@@ -389,6 +261,9 @@ impl<'f> Collected<'f> {
                     | Kind::MissionTypes
                     | Kind::MissionLocalities
                     | Kind::ContractScenarios => self.mission_kinds.count(kind),
+                    Kind::LootTables | Kind::LootArchetypes | Kind::LootPoolFilters => {
+                        self.loot_kinds.count(kind)
+                    }
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

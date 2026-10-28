@@ -11,6 +11,7 @@ use p4kx_extraction::{Archive, CancelToken, DataForge, DataForgeEntry, utc_rfc33
 
 use crate::build_derived::{add_contracts, add_loadouts, add_paints};
 use crate::build_harvest::add_harvest_locations;
+use crate::build_loot::add_loot_containers;
 use crate::build_starmap::add_starmap;
 use crate::catalog_crafting::{CraftingKinds, kinds};
 use crate::catalog_output::{Compression, emit};
@@ -216,6 +217,7 @@ fn assemble<R>(
     let variants = collected.group_variants();
     let starmap_summary = add_starmap(&mut collected, placements.counts);
     add_harvest_locations(archive, &placements, &mut collected, options.cancel)?;
+    add_loot_containers(archive, &placements, &mut collected, options.cancel)?;
     add_contracts(&forge, &texts, options, &mut collected)?;
     link_scenario_factions(&forge, &mut collected.mission_kinds.scenarios);
     let shop_summary = add_shops(archive, &files, &mut collected, options)?;
@@ -258,6 +260,7 @@ fn assemble<R>(
         harvestable_provider_presets: collected.harvestable_provider_presets,
         sub_harvestable_multi_configs: collected.sub_harvestable_multi_configs,
         harvestable_locations: collected.harvestable_locations,
+        loot_containers: collected.loot_containers,
         shops: collected.shops,
         faction_reputations: collected.mission_kinds.factions,
         reputation_scopes: collected.mission_kinds.scopes,
@@ -266,6 +269,9 @@ fn assemble<R>(
         mission_types: collected.mission_kinds.types,
         mission_localities: collected.mission_kinds.localities,
         contract_scenarios: collected.mission_kinds.scenarios,
+        loot_tables: collected.loot_kinds.tables,
+        loot_archetypes: collected.loot_kinds.archetypes,
+        loot_pool_filters: collected.loot_kinds.filters,
         ship_store_slugs: resolved.exported,
         item_recovery: rules,
     };

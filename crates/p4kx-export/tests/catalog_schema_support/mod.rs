@@ -7,6 +7,7 @@ use serde_json::json;
 
 mod contracts;
 mod harvest;
+mod loot;
 mod recovery;
 mod reputation;
 
@@ -55,6 +56,10 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
             "missionTypes": {"status": "complete"},
             "missionLocalities": {"status": "complete"},
             "contractScenarios": {"status": "complete"},
+            "lootTables": {"status": "complete"},
+            "lootArchetypes": {"status": "complete"},
+            "lootPoolFilters": {"status": "complete"},
+            "lootContainers": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"}
         },
         "manufacturers": [{
@@ -288,6 +293,10 @@ pub(crate) fn minimal_catalog() -> serde_json::Value {
         "missionTypes": reputation::mission_types(),
         "missionLocalities": reputation::localities(),
         "contractScenarios": reputation::scenarios(),
+        "lootTables": loot::tables(),
+        "lootArchetypes": loot::archetypes(),
+        "lootPoolFilters": loot::filters(),
+        "lootContainers": loot::containers(),
         "shipStoreSlugs": [{
             "slug": "Aurora-Mk-I-ES",
             "rsiId": 1,

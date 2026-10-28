@@ -15,6 +15,7 @@ pub(crate) use crate::contract_entities::{Item, Paint, Ship};
 pub(crate) use crate::contract_harvest::{HarvestableLocation, HarvestableProviderPreset};
 pub(crate) use crate::contract_harvest_config::SubHarvestableMultiConfig;
 pub(crate) use crate::contract_loadout::Loadout;
+pub(crate) use crate::contract_loot::{LootArchetype, LootContainer, LootPoolFilter, LootTable};
 pub(crate) use crate::contract_mining::{
     CompositionPart, MineableComposition, MineableElement, RefiningProcess,
 };
@@ -104,6 +105,9 @@ pub(crate) struct Catalog<'a> {
     /// The containers whose `.soc` names a provider preset, with the starmap object they hang
     /// below, ordered by preset GUID, container, system and object GUID.
     pub(crate) harvestable_locations: Vec<HarvestableLocation>,
+    /// The containers placed with a multi config, with the starmap object each hangs below,
+    /// ordered by config, container, system and object.
+    pub(crate) loot_containers: Vec<LootContainer>,
     /// The shops of the shop registry with kind, brand and place, ordered by `key`.
     pub(crate) shops: Vec<Shop>,
     /// The factions with their reputation links, ordered by GUID.
@@ -120,6 +124,12 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mission_localities: Vec<MissionLocality<'a>>,
     /// The contract scenarios with their reward tiers, ordered by GUID.
     pub(crate) contract_scenarios: Vec<ContractScenario<'a>>,
+    /// The loot tables with the weighted archetypes of each, ordered by GUID.
+    pub(crate) loot_tables: Vec<LootTable<'a>>,
+    /// The loot archetypes with the weighted selectors of each, ordered by GUID.
+    pub(crate) loot_archetypes: Vec<LootArchetype<'a>>,
+    /// The loot pool filters, ordered by GUID.
+    pub(crate) loot_pool_filters: Vec<LootPoolFilter<'a>>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
     /// by `slug`. A curated list, not read from the Archive.
     pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
@@ -216,6 +226,8 @@ pub(crate) struct Completeness<'a> {
     pub(crate) sub_harvestable_multi_configs: KindCompleteness<'a>,
     /// The completeness of `harvestableLocations`.
     pub(crate) harvestable_locations: KindCompleteness<'a>,
+    /// The completeness of `lootContainers`.
+    pub(crate) loot_containers: KindCompleteness<'a>,
     /// The completeness of `shops`.
     pub(crate) shops: KindCompleteness<'a>,
     /// The completeness of `factionReputations`.
@@ -232,6 +244,12 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mission_localities: KindCompleteness<'a>,
     /// The completeness of `contractScenarios`.
     pub(crate) contract_scenarios: KindCompleteness<'a>,
+    /// The completeness of `lootTables`.
+    pub(crate) loot_tables: KindCompleteness<'a>,
+    /// The completeness of `lootArchetypes`.
+    pub(crate) loot_archetypes: KindCompleteness<'a>,
+    /// The completeness of `lootPoolFilters`.
+    pub(crate) loot_pool_filters: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
     pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
@@ -263,6 +281,7 @@ impl<'a> Completeness<'a> {
             harvestable_provider_presets: completeness,
             sub_harvestable_multi_configs: completeness,
             harvestable_locations: completeness,
+            loot_containers: completeness,
             shops: completeness,
             faction_reputations: completeness,
             reputation_scopes: completeness,
@@ -271,6 +290,9 @@ impl<'a> Completeness<'a> {
             mission_types: completeness,
             mission_localities: completeness,
             contract_scenarios: completeness,
+            loot_tables: completeness,
+            loot_archetypes: completeness,
+            loot_pool_filters: completeness,
             ship_store_slugs: completeness,
         }
     }

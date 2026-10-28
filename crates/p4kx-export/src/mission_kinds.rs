@@ -8,7 +8,7 @@ use crate::contract::{
     ContractScenario, FactionReputation, MissionLocality, MissionType, ReputationContext,
     ReputationScope, ReputationStanding,
 };
-use crate::guid_text::CatalogGuid;
+use crate::guid_text::sort_by_guid;
 use crate::mission_data::{contract_scenario, mission_locality, mission_type};
 use crate::reputation::{
     faction_reputation, reputation_context, reputation_scope, reputation_standing,
@@ -100,9 +100,4 @@ impl<'f> MissionKinds<'f> {
             _ => 0,
         }
     }
-}
-
-/// Orders `entities` by the text of the GUID `guid` returns.
-fn sort_by_guid<T>(entities: &mut [T], guid: impl Fn(&T) -> CatalogGuid) {
-    entities.sort_by_cached_key(|entity| guid(entity).text());
 }

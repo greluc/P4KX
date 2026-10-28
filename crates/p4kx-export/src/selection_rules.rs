@@ -123,7 +123,23 @@ impl Kind {
                 prefixes: &["libs/foundry/records/contracts/contractscenarios/"],
                 type_name: "ScenarioProgress",
             },
-            Self::Paints | Self::Loadouts | Self::HarvestableLocations | Self::Shops => KindRule {
+            Self::LootTables => KindRule {
+                prefixes: &["libs/foundry/records/lootgeneration/loottables/"],
+                type_name: "LootTableV3Record",
+            },
+            Self::LootArchetypes => KindRule {
+                prefixes: &["libs/foundry/records/lootgeneration/lootarchetypes/"],
+                type_name: "LootArchetypeV3Record",
+            },
+            Self::LootPoolFilters => KindRule {
+                prefixes: &["libs/foundry/records/lootgeneration/filters/"],
+                type_name: "PoolFilterRecord",
+            },
+            Self::Paints
+            | Self::Loadouts
+            | Self::HarvestableLocations
+            | Self::Shops
+            | Self::LootContainers => KindRule {
                 prefixes: &[],
                 type_name: "",
             },

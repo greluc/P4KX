@@ -6,11 +6,11 @@ use serde::Serialize;
 
 use crate::contract::every_field_required;
 use crate::contract_harvest::HarvestableLink;
+use crate::contract_loot::LootConfig;
 use crate::guid_text::CatalogGuid;
 
 /// A sub harvestable multi config: a `SubHarvestableMultiConfigRecord` Record under
-/// `harvestable/slotpresets`, what the slots of an object can hold by tag. Loot configs are not
-/// exported.
+/// `harvestable/slotpresets`, what the slots of an object can hold by tag.
 #[derive(Debug, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 #[schemars(transform = every_field_required)]
@@ -67,4 +67,6 @@ pub(crate) struct SubHarvestable<'a> {
     pub(crate) relative_probability_deepest: Option<f32>,
     /// The GUIDs of the `Tag` Records of `geometries`, in stored order.
     pub(crate) geometry_tag_guids: Vec<CatalogGuid>,
+    /// The loot the slot generates (`lootConfig`); `null` when the slot has none.
+    pub(crate) loot_config: Option<LootConfig>,
 }

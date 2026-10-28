@@ -209,6 +209,10 @@ fn the_kinds_follow_the_existing_ones_in_the_catalog_order() {
             "missionTypes",
             "missionLocalities",
             "contractScenarios",
+            "lootTables",
+            "lootArchetypes",
+            "lootPoolFilters",
+            "lootContainers",
         ],
         "order of the catalog"
     );

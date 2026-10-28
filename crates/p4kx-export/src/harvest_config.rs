@@ -7,6 +7,7 @@ use crate::contract_harvest_config::{SubHarvestable, SubHarvestableMultiConfig, 
 use crate::guid_text::CatalogGuid;
 use crate::harvest_link::Links;
 use crate::harvest_preset::geometry_tags;
+use crate::loot_records::loot_config;
 use crate::record_fields::{
     boolean, class_name, number, reference, references, structs, structure, text,
 };
@@ -70,5 +71,6 @@ fn sub_of<'f>(
             "probability",
         ),
         geometry_tag_guids: geometry_tags(value),
+        loot_config: loot_config(structure(value, "lootConfig")),
     }
 }

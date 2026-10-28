@@ -36,15 +36,15 @@ The rule is ADR-0054 (amending ADR-0002):
   Version 2 also fixes a port whose name several parts of the vehicle file share (#677): the first
   such part gives the port its sizes, types and flags, as in the tree, so the `Radar_Helper` port
   of eight Ursa ships on LIVE 4.10 no longer lists `start_hidden` in its `flags`.
-  Version 2 has the kind `qualityQuantizations` (#692, ADR-0177); it is not yet released, so it
-  needs no further bump. The same holds for the ship field `insurance` (#323, ADR-0218) and the
-  kinds `mineableCompositions`, `miningGlobalParams`, `harvestableProviderPresets`,
-  `subHarvestableMultiConfigs` and `harvestableLocations` (#320, ADR-0236), and for the kinds
-  `factionReputations`, `reputationScopes`, `reputationStandings`, `reputationContexts`,
-  `missionTypes`, `missionLocalities` and `contractScenarios` and the contract fields
-  `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319, ADR-0237), and for the
-  kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers` and the field
-  `lootConfig` of a sub harvestable (#322, ADR-0238).
+  Version 2 was released with 0.4.0 and has the kind `qualityQuantizations` (#692, ADR-0177), the
+  ship field `insurance` (#323, ADR-0218), the kinds `mineableCompositions`, `miningGlobalParams`,
+  `harvestableProviderPresets`, `subHarvestableMultiConfigs` and `harvestableLocations` (#320,
+  ADR-0236), the kinds `factionReputations`, `reputationScopes`, `reputationStandings`,
+  `reputationContexts`, `missionTypes`, `missionLocalities` and `contractScenarios` and the
+  contract fields `minStandingGuid`, `maxStandingGuid` and `standingRequirements` (#319,
+  ADR-0237), and the kinds `lootTables`, `lootArchetypes`, `lootPoolFilters` and `lootContainers`
+  and the field `lootConfig` of a sub harvestable (#322, ADR-0238). Later additions keep version 2
+  as long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -637,8 +637,8 @@ the cost tree is read once. A blueprint with a `CraftingCost_Select` nested deep
 not cut off silently: it is left out of `blueprints` and counted as a failure (printed on stderr by
 `p4kx catalog`, under `failed` in `--json` and in the summary; the catalog file has no such field).
 `p4kx catalog` then exits with code 1, where an earlier build wrote the cut tree silently. No
-blueprint of LIVE is that deep, so no catalog of LIVE changes (a change of the selection, folded
-into the unreleased version 2).
+blueprint of LIVE is that deep, so no catalog of LIVE changes (a change of the selection, part of
+version 2).
 
 An ingredient is one `CraftingCost_Resource` or `CraftingCost_Item` leaf of `mandatoryCost` and
 `optionalCosts`. Nested `CraftingCost_Select` costs are flattened depth first in stored order:
@@ -1267,7 +1267,7 @@ Size, measured on LIVE (2026-10-22): the 2,093 objects are about 1.2 MB of JSON 
 catalog, and a smaller share compressed.
 
 **No released marker.** The Archive states no structural marker that tells a released starmap
-object from an unreleased one (ADR-0067, #417): the three star system Records carry the same flags,
+object from one the game has not released (ADR-0067, #417): the three star system Records carry the same flags,
 `hideInStarmap` is set on helper content of the released systems too, and the type suffixes
 (`_ValidQT`, `_InvalidQT`) describe quantum travel. The catalog therefore has no such field; the
 Basetool decides from `system`, `position`, `hideInStarmap` and `type`.

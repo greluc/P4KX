@@ -1,7 +1,7 @@
-# P4K-Extractor · Desktop-Vorgaben des P4KX-Designs
+# P4KX · Desktop-Vorgaben des P4KX-Designs
 
 Grundlage: die Tokens des P4KX-Themes (gemessene Palette, `radius-sm` 4 px). Maschinenlesbar:
-[`p4kx-desktop-spec.json`](p4kx-desktop-spec.json). Artboards: Design-Canvas „P4K-Extractor Desktop".
+[`p4kx-desktop-spec.json`](p4kx-desktop-spec.json). Artboards: Design-Canvas „P4KX Desktop".
 
 Alle Maße in px bei 1 rem = 16 px. Farben, Glows und Gewichte als Token-Namen aus der Token-Fixture `crates/p4kx-gui/src/theme/fixtures/tokens.json`.
 Die wenigen `rgba(…)`-Werte stehen so im Theme und haben dort kein Token; sie
@@ -95,10 +95,10 @@ sind keine neuen Farben.
 ## Entscheidungen
 
 **D.1 Zeilendichte: 36 px (Tree-Table-Dichte), keine 44-px-Pflicht für Datenzeilen.**
-36 px entsprechen der vorhandenen DS-Dichte `.tree-cell` (0,5 rem Abstand, 0,86 rem Schrift). Die
+36 px entsprechen der vorhandenen Dichte `.tree-cell` des Themes (0,5 rem Abstand, 0,86 rem Schrift). Die
 wörtliche `td`-Höhe von ~56 px zeigt auf 1440 × 900 nur etwa sieben Zeilen. 34 px wären möglich,
 aber Hover, aktive Zeile und Auswahl brauchen etwas Luft, um bei 1 Mio. Zeilen auseinanderzuhalten
-zu sein. Die 44-px-Regel ist eine Touch-Regel; P4K-Extractor ist ein reines Maus- und
+zu sein. Die 44-px-Regel ist eine Touch-Regel; P4KX ist ein reines Maus- und
 Tastatur-Werkzeug. Datenzeilen sind keine einzelnen Ziele: die ganze Zeile ist klickbar, und die
 Checkbox bekommt die volle Zelle (44 × 36) als Trefferfläche. Eigenständige Bedienelemente bleiben
 44 px.

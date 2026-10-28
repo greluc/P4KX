@@ -1,7 +1,7 @@
 # P4KX Blender add-on
 
-Imports a [Blender package](../docs/blender-package.md) written by `p4kx entity package` into
-Blender with one action: **File > Import > P4KX Package (scene.json)**. Decisions:
+Imports a [Blender package](../docs/blender-package.md) written by `p4kx entity package`,
+`interior package` or `character package` into Blender with one action: **File > Import > P4KX Package (scene.json)**. Decisions:
 [ADR-0093](../docs/adr/0093-the-blender-add-on-is-an-extension-that-reads-and-validates-a-package-without-blender.md).
 
 **Supported Blender: 5.2 LTS** (Python 3.13), as `blender_manifest.toml` states. The glTF 2.0

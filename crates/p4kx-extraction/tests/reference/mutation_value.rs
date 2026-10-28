@@ -18,7 +18,7 @@ use super::samples::{BIG, ours, reference_json};
 use super::starbreaker_json::record;
 use super::tally::Compared;
 use super::value_tree::{JsonNumber, Node, RecordDoc};
-use super::value_tree_compare::{LENIENT_BOOL, UNRESOLVED_NULL, WEAK_NULL, compare_records};
+use super::value_tree_compare::compare_records;
 
 fn compared(reference: &Value) -> Compared {
     let theirs = record(&reference.to_string()).expect("a Record");
@@ -163,7 +163,7 @@ fn negative_zero_equals_zero_and_single_precision_compares_as_f32() {
     );
 }
 
-fn doc_with(field: Node) -> RecordDoc {
+pub(crate) fn doc_with(field: Node) -> RecordDoc {
     RecordDoc {
         guid: "g".to_owned(),
         name: "n".to_owned(),
@@ -172,29 +172,6 @@ fn doc_with(field: Node) -> RecordDoc {
             type_name: "T".to_owned(),
             fields: vec![("f".to_owned(), field)],
         },
-    }
-}
-
-#[test]
-fn the_known_starbreaker_differences_are_allowed_with_their_reasons() {
-    let cases = [
-        (Node::WeakPointer, Node::Null, WEAK_NULL),
-        (
-            Node::Error("dangling".to_owned()),
-            Node::Null,
-            UNRESOLVED_NULL,
-        ),
-        (
-            Node::Error("byte 2".to_owned()),
-            Node::Bool(true),
-            LENIENT_BOOL,
-        ),
-    ];
-    for (ours, theirs, reason) in cases {
-        assert_eq!(
-            compare_records(&doc_with(ours), &doc_with(theirs)),
-            Compared::Allowed(reason)
-        );
     }
 }
 
@@ -219,21 +196,43 @@ fn a_difference_next_to_an_allowed_one_still_fails() {
 
 #[test]
 fn a_reference_is_matched_by_path_when_the_reference_states_no_guid() {
-    let ours = doc_with(Node::Reference {
-        guid: "x".to_owned(),
-        path: "libs/a/b".to_owned(),
-    });
-    let same = doc_with(Node::Reference {
-        guid: String::new(),
-        path: "file://./../../libs/a/B.json".to_owned(),
-    });
-    let other = doc_with(Node::Reference {
-        guid: String::new(),
-        path: "file://./../../libs/a/c.json".to_owned(),
-    });
+    let ours = doc_with(link("x", "libs/a/b"));
+    let same = doc_with(link("", "file://./../../libs/a/b.json"));
+    let other = doc_with(link("", "file://./../../libs/a/c.json"));
+    let cased = doc_with(link("", "file://./../../libs/a/B.json"));
     assert_eq!(compare_records(&ours, &same), Compared::Equal);
+    for different in [other, cased] {
+        assert!(matches!(
+            compare_records(&ours, &different),
+            Compared::Different(_)
+        ));
+    }
+}
+
+#[test]
+fn guids_and_field_names_are_compared_case_sensitively() {
+    let ours = doc_with(link("ab", "libs/a"));
+    let upper = doc_with(link("AB", "libs/a"));
     assert!(matches!(
-        compare_records(&ours, &other),
+        compare_records(&ours, &upper),
         Compared::Different(_)
     ));
+    let mut renamed = doc_with(Node::Null);
+    if let Node::Struct { fields, .. } = &mut renamed.root
+        && let Some(field) = fields.first_mut()
+    {
+        "F".clone_into(&mut field.0);
+    }
+    assert!(matches!(
+        compare_records(&doc_with(Node::Null), &renamed),
+        Compared::Different(_)
+    ));
+}
+
+pub(crate) fn link(guid: &str, path: &str) -> Node {
+    Node::Reference {
+        guid: guid.to_owned(),
+        path: path.to_owned(),
+        embedded: false,
+    }
 }

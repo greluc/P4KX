@@ -14,9 +14,12 @@ use super::tally::Compared;
 use super::value_tree::{JsonNumber, Node, RecordDoc};
 
 pub(crate) const WEAK_NULL: &str = "StarBreaker writes null for a weak pointer in a derived type";
-pub(crate) const UNRESOLVED_NULL: &str =
-    "StarBreaker writes null for a value P4KX reports as an error";
+pub(crate) const DANGLING_NULL: &str =
+    "StarBreaker writes null for a Reference to a Record that does not exist";
 pub(crate) const LENIENT_BOOL: &str = "StarBreaker reads any non-zero bool byte as true";
+pub(crate) const NON_FINITE_NULL: &str = "StarBreaker writes null for a non-finite number";
+pub(crate) const NON_FINITE_TEXT: &str =
+    "StarBreaker writes a non-finite number as the text NaN, INF or -INF";
 
 const EXACT_INTEGER: f64 = 9_007_199_254_740_992.0;
 
@@ -59,7 +62,7 @@ fn number_matches(ours: &Node, theirs: JsonNumber) -> bool {
 /// one, else by the record path against its relative `file://` path.
 fn same_target(guid: &str, path: &str, other_guid: &str, other_path: &str) -> bool {
     if !other_guid.is_empty() {
-        return guid.eq_ignore_ascii_case(other_guid);
+        return guid == other_guid;
     }
     let mut relative = other_path.strip_prefix("file://").unwrap_or(other_path);
     while let Some(rest) = relative
@@ -68,70 +71,107 @@ fn same_target(guid: &str, path: &str, other_guid: &str, other_path: &str) -> bo
     {
         relative = rest;
     }
-    relative.eq_ignore_ascii_case(&format!("{path}.json"))
+    relative
+        .strip_suffix(".json")
+        .is_some_and(|stem| stem == path)
 }
 
-fn non_finite_text(text: &str) -> bool {
-    matches!(text, "NaN" | "INF" | "-INF")
-}
-
-const fn is_non_finite(node: &Node) -> bool {
-    match node {
-        Node::Single(number) => !number.is_finite(),
-        Node::Double(number) => !number.is_finite(),
-        _ => false,
+/// The text `StarBreaker` writes for a non-finite number, `None` for a finite one.
+const fn non_finite_text(node: &Node) -> Option<&'static str> {
+    let (finite, nan, positive) = match node {
+        Node::Single(number) => (
+            number.is_finite(),
+            number.is_nan(),
+            number.is_sign_positive(),
+        ),
+        Node::Double(number) => (
+            number.is_finite(),
+            number.is_nan(),
+            number.is_sign_positive(),
+        ),
+        _ => return None,
+    };
+    if finite {
+        None
+    } else if nan {
+        Some("NaN")
+    } else if positive {
+        Some("INF")
+    } else {
+        Some("-INF")
     }
+}
+
+/// What a comparison saw besides the differences: the reason of each allowed value and the
+/// number of embedded Records compared as a Reference.
+#[derive(Default)]
+struct Observed {
+    allowed: Vec<&'static str>,
+    embedded: u64,
 }
 
 /// Compares `ours` with the Record a reference tool wrote: type, GUID, name and every field by
 /// name, kind and value.
 #[must_use]
 pub(crate) fn compare_records(ours: &RecordDoc, theirs: &RecordDoc) -> Compared {
-    if ours.guid != theirs.guid {
-        return Compared::Different(format!("GUID {} against {}", ours.guid, theirs.guid));
-    }
-    if ours.name != theirs.name {
-        return Compared::Different(format!("name {:?} against {:?}", ours.name, theirs.name));
-    }
-    if ours.tag != theirs.tag {
-        return Compared::Different(format!("tag {:?} against {:?}", ours.tag, theirs.tag));
-    }
-    let mut allowed = None;
-    walk(&ours.root, &theirs.root, &mut String::new(), &mut allowed).map_or_else(
-        || allowed.map_or(Compared::Equal, Compared::Allowed),
-        Compared::Different,
-    )
+    compare_counting(ours, theirs).0
 }
 
-fn walk(
-    ours: &Node,
-    theirs: &Node,
-    path: &mut String,
-    allowed: &mut Option<&'static str>,
-) -> Option<String> {
+/// As [`compare_records`], also returning how many embedded Records were compared as a
+/// Reference by GUID.
+#[must_use]
+pub(crate) fn compare_counting(ours: &RecordDoc, theirs: &RecordDoc) -> (Compared, u64) {
+    if ours.guid != theirs.guid {
+        let difference = format!("GUID {} against {}", ours.guid, theirs.guid);
+        return (Compared::Different(difference), 0);
+    }
+    if ours.name != theirs.name {
+        let difference = format!("name {:?} against {:?}", ours.name, theirs.name);
+        return (Compared::Different(difference), 0);
+    }
+    if ours.tag != theirs.tag {
+        let difference = format!("tag {:?} against {:?}", ours.tag, theirs.tag);
+        return (Compared::Different(difference), 0);
+    }
+    let mut seen = Observed::default();
+    let found = walk(&ours.root, &theirs.root, &mut String::new(), &mut seen);
+    let compared = match found {
+        Some(difference) => Compared::Different(difference),
+        None if seen.allowed.is_empty() => Compared::Equal,
+        None => Compared::Allowed(seen.allowed),
+    };
+    (compared, seen.embedded)
+}
+
+fn walk(ours: &Node, theirs: &Node, path: &mut String, seen: &mut Observed) -> Option<String> {
     let mismatch = |what: &str| Some(format!("{path}: {what}: {ours:?} against {theirs:?}"));
     match (ours, theirs) {
         (Node::Null, Node::Null) | (Node::WeakPointer, Node::WeakPointer) => None,
-        (Node::WeakPointer, Node::Null) => allow(allowed, WEAK_NULL),
-        (Node::Error(_), Node::Null) => allow(allowed, UNRESOLVED_NULL),
-        (Node::Error(_), Node::Bool(_)) => allow(allowed, LENIENT_BOOL),
+        (Node::WeakPointer, Node::Null) => allow(seen, WEAK_NULL),
+        (Node::Dangling, Node::Null) => allow(seen, DANGLING_NULL),
+        (Node::InvalidBool, Node::Bool(true)) => allow(seen, LENIENT_BOOL),
         (Node::Bool(a), Node::Bool(b)) if a == b => None,
         (Node::Text(a), Node::Text(b)) if a == b => None,
-        (Node::Guid(a), Node::Guid(b) | Node::Text(b)) if a.eq_ignore_ascii_case(b) => None,
+        (Node::Guid(a), Node::Guid(b) | Node::Text(b)) if a == b => None,
         (
-            Node::Reference { guid, path },
+            Node::Reference { guid, path, .. },
             Node::Reference {
                 guid: other_guid,
                 path: other_path,
+                embedded,
             },
-        ) if same_target(guid, path, other_guid, other_path) => None,
-        (Node::Single(_) | Node::Double(_), Node::Text(text))
-            if is_non_finite(ours) && non_finite_text(text) =>
-        {
+        ) if same_target(guid, path, other_guid, other_path) => {
+            seen.embedded += u64::from(*embedded);
             None
         }
-        (Node::Single(a), Node::Null) if !a.is_finite() => None,
-        (Node::Double(a), Node::Null) if !a.is_finite() => None,
+        (Node::Single(_) | Node::Double(_), Node::Null) if non_finite_text(ours).is_some() => {
+            allow(seen, NON_FINITE_NULL)
+        }
+        (Node::Single(_) | Node::Double(_), Node::Text(text))
+            if non_finite_text(ours) == Some(text.as_str()) =>
+        {
+            allow(seen, NON_FINITE_TEXT)
+        }
         (_, Node::Number(number)) if number_matches(ours, *number) => None,
         (
             Node::Struct {
@@ -146,7 +186,7 @@ fn walk(
             if our_type != their_type {
                 return mismatch("struct type");
             }
-            walk_fields(our_fields, their_fields, path, allowed)
+            walk_fields(our_fields, their_fields, path, seen)
         }
         (Node::Array(a), Node::Array(b)) => {
             if a.len() != b.len() {
@@ -155,7 +195,7 @@ fn walk(
             a.iter().zip(b).enumerate().find_map(|(index, (x, y))| {
                 let length = path.len();
                 let _written = write!(path, "[{index}]");
-                let found = walk(x, y, path, allowed);
+                let found = walk(x, y, path, seen);
                 path.truncate(length);
                 found
             })
@@ -164,8 +204,8 @@ fn walk(
     }
 }
 
-fn allow(allowed: &mut Option<&'static str>, reason: &'static str) -> Option<String> {
-    *allowed = allowed.or(Some(reason));
+fn allow(seen: &mut Observed, reason: &'static str) -> Option<String> {
+    seen.allowed.push(reason);
     None
 }
 
@@ -173,12 +213,12 @@ fn walk_fields(
     ours: &[(String, Node)],
     theirs: &[(String, Node)],
     path: &mut String,
-    allowed: &mut Option<&'static str>,
+    seen: &mut Observed,
 ) -> Option<String> {
     if let Some(((name, _), (other, _))) = ours
         .iter()
         .zip(theirs)
-        .find(|((name, _), (other, _))| !name.eq_ignore_ascii_case(other))
+        .find(|((name, _), (other, _))| name != other)
     {
         return Some(format!("{path}: field {name:?} against {other:?}"));
     }
@@ -195,7 +235,7 @@ fn walk_fields(
         let length = path.len();
         path.push('.');
         path.push_str(name);
-        let found = walk(x, y, path, allowed);
+        let found = walk(x, y, path, seen);
         path.truncate(length);
         found
     })

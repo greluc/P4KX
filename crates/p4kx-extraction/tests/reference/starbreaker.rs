@@ -15,7 +15,7 @@ use super::TestResult;
 use super::starbreaker_json::record;
 use super::tally::{Compared, Tally};
 use super::value_tree::RecordDoc;
-use super::value_tree_compare::compare_records;
+use super::value_tree_compare::compare_counting;
 use super::walk::files_under;
 
 pub(crate) const MAIN_RECORDS_ONLY: &str = "StarBreaker exports only the main Record of a file";
@@ -24,31 +24,32 @@ fn compare_file<'f>(
     forge: &'f DataForge<'f>,
     builder: &mut TreeBuilder<'f>,
     file: &Path,
-) -> Compared {
+) -> (Compared, u64) {
+    let different = |difference: String| (Compared::Different(difference), 0);
     let text = match std::fs::read_to_string(file) {
         Ok(text) => text,
-        Err(error) => return Compared::Different(format!("reference: {error}")),
+        Err(error) => return different(format!("reference: {error}")),
     };
     let theirs = match record(&text) {
         Ok(theirs) => theirs,
-        Err(error) => return Compared::Different(format!("reference: {error}")),
+        Err(error) => return different(format!("reference: {error}")),
     };
     let Ok(guid) = theirs.guid.parse() else {
-        return Compared::Different(format!("reference GUID {:?} is no GUID", theirs.guid));
+        return different(format!("reference GUID {:?} is no GUID", theirs.guid));
     };
     let Some(found) = forge.record_by_guid(guid) else {
-        return Compared::Different(format!("no Record {} in the Archive", theirs.guid));
+        return different(format!("no Record {} in the Archive", theirs.guid));
     };
     match builder.build(&found) {
-        Ok(tree) => compare_records(&RecordDoc::from_tree(&tree), &theirs),
-        Err(error) => Compared::Different(format!("P4KX: {error}")),
+        Ok(tree) => compare_counting(&RecordDoc::from_tree(&tree), &theirs),
+        Err(error) => different(format!("P4KX: {error}")),
     }
 }
 
 fn run<'f>(forge: &'f DataForge<'f>, root: &Path) -> Result<Tally, std::io::Error> {
-    let files = files_under(root)?;
-    let matched = AtomicU64::new(0);
-    let mut tally = files
+    let paths = files_under(root)?;
+    let files = AtomicU64::new(0);
+    let mut tally = paths
         .par_iter()
         .filter(|file| {
             file.extension()
@@ -56,13 +57,14 @@ fn run<'f>(forge: &'f DataForge<'f>, root: &Path) -> Result<Tally, std::io::Erro
         })
         .map_init(TreeBuilder::new, |builder, file| {
             let mut tally = Tally::default();
-            let compared = compare_file(forge, builder, file);
-            matched.fetch_add(1, Ordering::Relaxed);
+            let (compared, embedded) = compare_file(forge, builder, file);
+            files.fetch_add(1, Ordering::Relaxed);
             tally.record(&file.to_string_lossy(), compared);
+            tally.embedded_references = embedded;
             tally
         })
         .reduce(Tally::default, Tally::merge);
-    let unmatched = (forge.record_count() as u64).saturating_sub(matched.into_inner());
+    let unmatched = (forge.record_count() as u64).saturating_sub(files.into_inner());
     tally.missing_in_reference = unmatched;
     Ok(tally)
 }
@@ -123,5 +125,8 @@ fn every_record_starbreaker_wrote_has_the_same_values() -> TestResult {
         started.elapsed()
     ));
     tally.finish("StarBreaker value comparison")?;
+    if failed > 0 {
+        return Err(format!("{failed} Records did not build").into());
+    }
     Ok(())
 }

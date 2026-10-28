@@ -40,26 +40,40 @@ fail the test.
 
 ## Output and failing
 
-Each test prints one summary line: compared, equal, different, allowed, missing in the reference
-and missing in the Archive, then one line per allowed reason and at most 25 examples of
-differences (400 characters each). The test fails on any difference that is not on the
-allow-list and on any reference file with no Entry or Record in the Archive.
+Each test prints one summary line: compared, equal, different, allowed (items with at least one
+allowed value), missing in the reference and missing in the Archive, then one line per allowed
+reason with the number of allowed values, and at most 25 examples of differences (400 characters
+each). The StarBreaker test also prints the number of embedded Records compared as a Reference.
+The test fails on any difference that is not on the allow-list and on any reference file with no
+Entry or Record in the Archive.
 
-The allow-list holds the known behaviour of the reference tools; each use is counted under its
-reason:
+The allow-list holds the known behaviour of the reference tools. Each entry names one case and
+applies to it only; each allowed value is counted under its reason, so one Record can count
+several:
 
 - unp4k: trailing zero bytes of an encrypted Entry, which unp4k trims after decryption.
-- unforge: an attribute value `BUGGED`, and text that is P4KX's UTF-8 read byte by byte.
-- StarBreaker: `null` for a weak pointer in a Record whose weak pointers sit in derived types
-  (#262); `null` for a value P4KX reports as an error, as an unknown Reference GUID; a boolean
-  that P4KX reports as an error and StarBreaker reads as true.
+- unforge: an attribute value or text `BUGGED` against a non-empty P4KX value, and text that is
+  P4KX's non-ASCII UTF-8 read byte by byte.
+- StarBreaker:
+  - `null` for a weak pointer in a Record whose weak pointers sit in derived types (#262). A weak
+    pointer is compared by kind only: against `null` or another weak pointer, never against any
+    other value.
+  - `null` for a Reference to a Record that does not exist (`DanglingReference`). Every other
+    value P4KX reports as an error, and every kind of value the comparison does not map, is a
+    difference against `null`.
+  - `true` for a bool byte that is neither 0 nor 1 (`InvalidBool`); against `false` it is a
+    difference.
+  - `null` for a non-finite single or double, or its own text: `NaN` for not a number, `INF` and
+    `-INF` for the infinities. A finite number against `null` or those texts is a difference.
 
 A difference beside an allowed one still fails. Numbers are compared at the precision of the
 field P4KX read: a single as `f32`, a double exactly, an integer exactly, `-0.0` equal to `0.0`.
-Fields are compared after sorting by name, ignoring case. A Record of the same file that
-StarBreaker embeds where it is referenced is compared as a Reference by GUID, not by content.
-`crates/p4kx-extraction/tests/reference/starbreaker_json.rs` is the one place that encodes the
-JSON shape of StarBreaker.
+Fields are sorted by name, ignoring case, and then compared by name; names, GUIDs and Record
+paths are compared case-sensitively, because StarBreaker keeps the case of all three (the LIVE
+run below passes that way). A Record of the same file that StarBreaker embeds where it is
+referenced is compared as a Reference by GUID, not by content; the number of such Records is
+reported. `crates/p4kx-extraction/tests/reference/starbreaker_json.rs` is the one place that
+encodes the JSON shape of StarBreaker.
 
 ## Mutation self-tests
 
@@ -70,7 +84,12 @@ invented; an integer plus one, a single and a double by the smallest step, a boo
 texts swapped, an enum option, GUID or Reference changed, a value of another kind, an array
 element deleted or invented, a field deleted or invented, and the Record name, GUID and tag
 changed. They also check that `-0.0`, the short text of a single and whitespace around text are no
-difference, and that each allow-list entry applies only to its case.
+difference, and that each allow-list entry applies only to its case (`mutation_allow`,
+`mutation_xml`, `mutation_bytes`): a weak pointer, a missing Reference, an invalid bool and a
+non-finite number against every other kind of value, an array error or an unmapped kind against
+`null`, `false` against an invalid bool, a finite number against `null` or `NaN`, `BUGGED`
+against an empty value, and a difference in the case of a name, a GUID or a path. Every allowed
+value is counted, not one reason per Record or tree.
 
 ## First run on LIVE 4.10, 2026-10-27
 
@@ -87,14 +106,20 @@ P4KX against it (release build):
 
 | Test | Compared | Equal | Different | Allowed | Time |
 |------|----------|-------|-----------|---------|------|
-| unp4k bytes | 5,842 | 5,842 | 0 | 0 | 1.1 s |
-| unforge trees | 5,728 | 5,728 | 0 | 0 | 0.8 s |
-| StarBreaker values | 62,736 | 62,162 | 0 | 574 | 3.3 s |
+| unp4k bytes | 5,842 | 5,842 | 0 | 0 | 1.8 s |
+| unforge trees | 5,728 | 5,728 | 0 | 0 | 1.8 s |
+| StarBreaker values | 62,736 | 62,162 | 0 | 574 | 17.9 s |
+
+The times are of a second run on a machine shared with other builds; "Allowed" counts Records.
 
 - The 5,842 Entries are all Zstandard and unencrypted. The encrypted allowance was not exercised;
   it is covered by the mutation self-test only.
-- The StarBreaker allowances: 534 values P4KX reports as errors that StarBreaker writes as
-  `null`, and 40 weak pointers it writes as `null`.
+- The 574 allowed StarBreaker Records hold 872 allowed values: 823 `null` for a Reference to a
+  Record that does not exist, in 534 Records, and 49 `null` for a weak pointer in a derived
+  type, in 40 Records. No other kind of error, no invalid bool and no non-finite number occurs,
+  so those entries were not exercised; they are covered by the mutation self-tests only.
+- 30,332 embedded Records were compared as a Reference by GUID. Names, GUIDs and Record paths
+  match case-sensitively.
 - 54,973 of the 117,709 Records have no file in the reference: StarBreaker writes the main Record
   of each file only.
 - Opening `Game2.dcb` (read, decrypt and decompress the Entry, open the DataForge) takes 0.30 s.

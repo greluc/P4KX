@@ -5,7 +5,9 @@
 
 use egui::accesskit::Role;
 use egui_kittest::kittest::Queryable;
-use p4kx_gui::theme::window_metrics::{SIDEBAR_RAIL_WIDTH, WORK_MIN_WIDTH};
+use p4kx_gui::theme::window_metrics::{
+    SIDEBAR_RAIL_WIDTH, WORK_MIN_HEIGHT, WORK_MIN_WIDTH, WRAPPED_ACTIONS_HEIGHT,
+};
 use p4kx_gui::{Language, WorkTab, ui};
 
 use super::{MIN, every_size, opened, renderer};
@@ -32,6 +34,36 @@ fn the_rail_and_the_work_surface_of_the_smallest_window_have_their_metrics() -> 
             work.width()
         );
     }
+    Ok(())
+}
+
+#[test]
+fn a_wrapped_german_toolbar_reserves_its_second_row_only_while_it_wraps() -> TestResult {
+    let Some(renderer) = renderer() else {
+        return Ok(());
+    };
+    let (_dir, mut harness) = opened(WorkTab::Archive, Language::German, MIN, renderer)?;
+    let height = |harness: &egui_kittest::Harness<'_, p4kx_gui::Model>| {
+        ui::regions(&harness.ctx)
+            .work_room
+            .map(|room| room.height())
+            .ok_or("no work room")
+    };
+
+    harness.run_steps(4);
+    assert!(
+        (height(&harness)? - (WORK_MIN_HEIGHT + WRAPPED_ACTIONS_HEIGHT)).abs() < 0.5,
+        "the wrapped toolbar reserves its second row: {}",
+        height(&harness)?
+    );
+
+    harness.set_size(egui::vec2(1280.0, MIN[1]));
+    harness.run_steps(4);
+    assert!(
+        (height(&harness)? - WORK_MIN_HEIGHT).abs() < 0.5,
+        "the reserve is gone after widening the window: {}",
+        height(&harness)?
+    );
     Ok(())
 }
 

@@ -33,7 +33,10 @@ pub(super) fn show<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
             ui.ctx().accesskit_node_builder(id, |node| {
                 node.set_role(egui::accesskit::Role::GenericContainer);
             });
-            regions::record(ui.ctx(), |regions| regions.work_ui = Some(id));
+            regions::record(ui.ctx(), |regions| {
+                regions.work_ui = Some(id);
+                regions.work_room = Some(rect);
+            });
             body(&mut child)
         });
     regions::record(ui.ctx(), |regions| regions.work = Some(shown.inner_rect));

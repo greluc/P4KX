@@ -234,6 +234,7 @@ pub fn show(ui: &mut Ui, model: &mut Model) -> Requests {
     CentralPanel::default()
         .frame(frames::canvas())
         .show(ui, |ui| work_surface(ui, model, &mut requests));
+    wrapped_actions::settle(ui.ctx());
     extraction::setup(ui, model, &mut requests);
     extraction_outcome::show(ui, model);
     record_export::setup(ui, model, &mut requests);

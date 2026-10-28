@@ -12,7 +12,7 @@
 
 use serde_json::Value;
 
-use super::value_tree::{JsonNumber, Node, RecordDoc, sorted};
+use super::value_tree::{Embedded, JsonNumber, Node, RecordDoc, sorted};
 
 pub(crate) const RECORD_NAME_KEY: &str = "_RecordName_";
 pub(crate) const RECORD_ID_KEY: &str = "_RecordId_";
@@ -25,6 +25,15 @@ pub(crate) const POINTS_TO_PREFIX: &str = "_PointsTo_:";
 pub(crate) const FILE_PREFIX: &str = "file://";
 
 const LINK_KEYS: [&str; 3] = [RECORD_ID_KEY, RECORD_PATH_KEY, RECORD_NAME_KEY];
+
+/// The keys of a struct that are no field.
+const HEADER_KEYS: [&str; 5] = [
+    TYPE_KEY,
+    POINTER_KEY,
+    RECORD_ID_KEY,
+    RECORD_PATH_KEY,
+    RECORD_NAME_KEY,
+];
 
 fn number(value: &serde_json::Number) -> JsonNumber {
     value.as_i64().map_or_else(
@@ -52,7 +61,7 @@ fn string(text: &str) -> Node {
         Node::Reference {
             guid: String::new(),
             path: text.to_owned(),
-            embedded: false,
+            embedded: None,
         }
     } else {
         Node::Text(text.to_owned())
@@ -71,18 +80,34 @@ pub(crate) fn node(value: &Value) -> Node {
         Value::Object(map) if map.contains_key(RECORD_ID_KEY) => Node::Reference {
             guid: text_of(map, RECORD_ID_KEY),
             path: text_of(map, RECORD_PATH_KEY),
-            embedded: map.keys().any(|key| !LINK_KEYS.contains(&key.as_str())),
+            embedded: embedded(map),
         },
-        Value::Object(map) => Node::Struct {
-            type_name: text_of(map, TYPE_KEY),
-            fields: sorted(
-                map.iter()
-                    .filter(|(key, _)| key.as_str() != TYPE_KEY && key.as_str() != POINTER_KEY)
-                    .map(|(key, value)| (key.clone(), node(value)))
-                    .collect(),
-            ),
-        },
+        Value::Object(map) => structure(map),
     }
+}
+
+fn structure(map: &serde_json::Map<String, Value>) -> Node {
+    Node::Struct {
+        type_name: text_of(map, TYPE_KEY),
+        fields: sorted(
+            map.iter()
+                .filter(|(key, _)| !HEADER_KEYS.contains(&key.as_str()))
+                .map(|(key, value)| (key.clone(), node(value)))
+                .collect(),
+        ),
+    }
+}
+
+/// The content `StarBreaker` wrote in place of a link, when there is any.
+fn embedded(map: &serde_json::Map<String, Value>) -> Option<Box<Embedded>> {
+    map.keys()
+        .any(|key| !LINK_KEYS.contains(&key.as_str()))
+        .then(|| {
+            Box::new(Embedded {
+                name: text_of(map, RECORD_NAME_KEY),
+                root: structure(map),
+            })
+        })
 }
 
 /// Reads the text of one `StarBreaker` Record file.

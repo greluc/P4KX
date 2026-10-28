@@ -12,6 +12,7 @@ use std::error::Error;
 mod bytes;
 mod mutation_allow;
 mod mutation_bytes;
+mod mutation_embedded;
 mod mutation_value;
 mod mutation_xml;
 mod samples;

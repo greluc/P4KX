@@ -20,6 +20,17 @@ use super::walk::files_under;
 
 pub(crate) const MAIN_RECORDS_ONLY: &str = "StarBreaker exports only the main Record of a file";
 
+/// The Record P4KX builds for a GUID, in the value model.
+fn record_doc<'f>(
+    forge: &'f DataForge<'f>,
+    builder: &mut TreeBuilder<'f>,
+    guid: &str,
+) -> Option<RecordDoc> {
+    let found = forge.record_by_guid(guid.parse().ok()?)?;
+    let tree = builder.build(&found).ok()?;
+    Some(RecordDoc::from_tree(&tree))
+}
+
 fn compare_file<'f>(
     forge: &'f DataForge<'f>,
     builder: &mut TreeBuilder<'f>,
@@ -40,10 +51,11 @@ fn compare_file<'f>(
     let Some(found) = forge.record_by_guid(guid) else {
         return different(format!("no Record {} in the Archive", theirs.guid));
     };
-    match builder.build(&found) {
-        Ok(tree) => compare_counting(&RecordDoc::from_tree(&tree), &theirs),
-        Err(error) => different(format!("P4KX: {error}")),
-    }
+    let ours = match builder.build(&found) {
+        Ok(tree) => RecordDoc::from_tree(&tree),
+        Err(error) => return different(format!("P4KX: {error}")),
+    };
+    compare_counting(&ours, &theirs, &mut |guid| record_doc(forge, builder, guid))
 }
 
 fn run<'f>(forge: &'f DataForge<'f>, root: &Path) -> Result<Tally, std::io::Error> {
@@ -60,7 +72,7 @@ fn run<'f>(forge: &'f DataForge<'f>, root: &Path) -> Result<Tally, std::io::Erro
             let (compared, embedded) = compare_file(forge, builder, file);
             files.fetch_add(1, Ordering::Relaxed);
             tally.record(&file.to_string_lossy(), compared);
-            tally.embedded_references = embedded;
+            tally.embedded_records = embedded;
             tally
         })
         .reduce(Tally::default, Tally::merge);

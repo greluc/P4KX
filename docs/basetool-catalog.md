@@ -580,6 +580,28 @@ lists them under `playability`. LIVE, 2026-10-21:
 | ships | 324 | 690 | 25 | 35 | 13 |
 | items | 7,954 | 0 | 522 | 8,570 | 6,234 |
 
+##### Comparison with the RSI ship matrix
+
+A development check, never an export source (ADR-0245): `playability` of the ships is compared with
+the public RSI ship matrix, which the owner saves by hand as
+`local-data/ship-matrix/ship-matrix.json` (excluded from git locally, never fetched by P4KX or CI).
+The `#[ignore]`d test `real_archive_ship_matrix` in `p4kx-export` reads the file named by
+`P4KX_REF_SHIP_MATRIX`. LIVE, ship matrix of 2026-10-28 (256 entries, 227 `flight-ready`, 29
+`in-concept`):
+
+| Question | Result |
+|----------|--------|
+| Flight ready in the matrix, but not `player` | 0 ships |
+| `player` ships the matrix does not call flight ready | 97 of 309, all unknown to the matrix and none called not ready: store-less variants such as Collector, Exec, Teach, BIS2950, Showdown and unmanned editions, plus the `AI_Super` classes of `ANVL_Hornet_F7C_Mk2` and `RSI_Perseus` |
+| `null` ships | 11 of 1,066: 7 are `flight-ready` in the matrix (Basher, Sabre Raven EX, Skylark, Railen, S-65 Stingray, Tyilui, Constellation Mk V Centaurus), 4 are unknown to it (`KRIG_S65_Stingray_BALLISTIC` and the `AI_Super` classes of Corsair, Polaris and Fury) |
+| Flight ready in the matrix, no class mapped | 4 (Mustang Alpha Vindicator and three ATLS entries) |
+
+A matrix entry maps to a ship through the `shipStoreSlugs` (RSI id, then the slug of the `url`);
+18 matrix names the slugs do not map are mapped by an explicit name table in the test. The fields
+of the catalog ships show no structural signal that separates the seven flight-ready `null` ships
+from the other four: the only difference is variant membership (`variantOf`), which says nothing
+about flight readiness. The rule is therefore unchanged and the seven stay `null`.
+
 A commodity is an `EntityClassDefinition` under `entities/commodities` or a `ResourceType` Record that
 a cost of any tier or a kept quality quantization uses and no commodity Record carries (see below). A commodity Record takes its fields
 from the entity:

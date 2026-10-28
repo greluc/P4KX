@@ -61,7 +61,8 @@ fn the_ui_tab_keeps_its_controls_apart() -> TestResult {
 }
 
 #[test]
-fn the_buttons_of_the_search_and_localization_tabs_show_without_scrolling_at_the_smallest_window() -> TestResult {
+fn the_buttons_of_the_search_and_localization_tabs_show_without_scrolling_at_the_smallest_window()
+-> TestResult {
     let buttons = [
         (
             WorkTab::Search,

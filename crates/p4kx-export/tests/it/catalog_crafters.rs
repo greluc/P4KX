@@ -3,7 +3,7 @@
 
 //! The crafting stations in the Basetool catalog, through the public API.
 
-use crate::crafters_fixture::{BENCH, FABRICATOR, write_archive};
+use crate::crafters_fixture::{BENCH, FABRICATOR, HOST_SHIP, MOUNTED, SELF_SHIP, write_archive};
 
 use std::error::Error;
 use std::time::{Duration, UNIX_EPOCH};
@@ -51,7 +51,14 @@ fn every_entity_with_a_crafter_component_is_a_crafter_whatever_its_kind() -> Tes
     let (built, catalog) = build(None)?;
     assert_eq!(
         class_names(&catalog, "crafters"),
-        ["bench", "fabricator", "crafting_item", "crafting_commodity"],
+        [
+            "bench",
+            "fabricator",
+            "crafting_item",
+            "crafting_commodity",
+            "acme_mounted",
+            "acme_self"
+        ],
         "ordered by GUID; the entity without the component and the template are absent"
     );
     assert!(
@@ -65,7 +72,7 @@ fn every_entity_with_a_crafter_component_is_a_crafter_whatever_its_kind() -> Tes
     let kind = built.summary().kind(Kind::Crafters);
     assert_eq!(
         kind.map(|kind| (kind.count, kind.skipped, kind.complete)),
-        Some((4, 1, true)),
+        Some((6, 1, true)),
         "the template is the one skipped; the plain template holds no component"
     );
     Ok(())
@@ -95,6 +102,15 @@ fn a_crafter_carries_the_limits_of_its_component_as_stored() -> TestResult {
         })
     );
     Ok(())
+}
+
+fn crafter(catalog: &Value, value: u128) -> Result<&Value, Box<dyn Error>> {
+    catalog["crafters"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|entry| entry["guid"] == guid(value).as_str())
+        .ok_or_else(|| "the crafter".into())
 }
 
 #[test]
@@ -131,5 +147,30 @@ fn a_filter_keeps_the_crafters_whose_path_it_matches() -> TestResult {
             .is_some_and(|kind| !kind.complete),
         "the summary agrees"
     );
+    Ok(())
+}
+
+#[test]
+fn a_ship_hosts_the_crafter_its_default_loadout_mounts_through_a_nested_port() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let mounted = crafter(&catalog, MOUNTED)?;
+    assert_eq!(mounted["hostGuids"], json!([guid(HOST_SHIP)]));
+    assert_eq!(mounted["queues"][0]["name"], "Mounted queue");
+    assert!(
+        class_names(&catalog, "items").contains(&"acme_mounted"),
+        "the mounted crafter is an item as well"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_ship_that_is_a_crafter_stays_a_ship_and_is_matched_by_guid_not_hosted() -> TestResult {
+    let (_, catalog) = build(None)?;
+    let own = crafter(&catalog, SELF_SHIP)?;
+    assert_eq!(own["hostGuids"], json!([]), "a ship does not host itself");
+    assert_eq!(own["maxJobsInHistory"], 8);
+    let ships = class_names(&catalog, "ships");
+    assert!(ships.contains(&"acme_self"), "{ships:?}");
+    assert!(ships.contains(&"acme_empty"), "{ships:?}");
     Ok(())
 }

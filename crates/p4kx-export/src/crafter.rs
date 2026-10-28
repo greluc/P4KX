@@ -31,8 +31,3 @@ pub(crate) fn crafter<'f>(tree: &RecordTree<'f>) -> Option<Crafter<'f>> {
         host_guids: Vec::new(),
     })
 }
-
-/// Returns whether the entity Record tree `tree` has a `CrafterComponentParams`.
-pub(crate) fn is_crafter(tree: &RecordTree<'_>) -> bool {
-    component(tree, COMPONENT).is_some()
-}

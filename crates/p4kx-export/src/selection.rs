@@ -115,6 +115,7 @@ pub enum Kind {
     /// Crafters: the entities whose `Components` hold a `CrafterComponentParams`. The rule takes
     /// the `EntityClassDefinition` Records under `entities` that no earlier kind takes, so it
     /// comes last; an item, ship or commodity that is a crafter is read from its own Record.
+    /// [`Kind::rule`] alone does not select a crafter: the Record must also hold the component.
     Crafters,
 }
 
@@ -229,8 +230,9 @@ impl Kind {
         }
     }
 
-    /// Returns the kind one of whose prefixes `record_path` starts with; the prefixes of the
-    /// kinds do not overlap, and a derived kind is never returned.
+    /// Returns the first kind in [`Kind::ALL`] one of whose prefixes `record_path` starts with,
+    /// and never a derived kind. The prefixes of [`Kind::Crafters`] overlap those of the entity
+    /// kinds; only the order of [`Kind::ALL`] resolves it.
     pub(crate) fn by_path(record_path: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|kind| {
             kind.rule()

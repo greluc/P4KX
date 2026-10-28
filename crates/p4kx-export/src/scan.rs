@@ -7,7 +7,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use p4kx_assembly::{ArchiveFiles, Entities};
 use p4kx_extraction::{
-    CancelToken, DataForge, DataForgeError, Filter, Guid, Record, RecordTree, TreeBuilder,
+    CancelToken, DataForge, DataForgeError, Filter, Guid, PointerProbe, Record, RecordTree,
+    TreeBuilder,
 };
 use rayon::prelude::*;
 
@@ -15,7 +16,6 @@ use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{Blueprint, QualityQuantization};
 use crate::contract_recipe::CostLine;
-use crate::crafter::is_crafter;
 use crate::entity_selection::{Selected, select};
 use crate::harvest_config::multi_config;
 use crate::harvest_link::Links;
@@ -33,6 +33,8 @@ use crate::{item_stats, item_variant};
 
 const PROGRESS_STEP: usize = 1024;
 const RESOURCE_TYPE: &str = "ResourceType";
+const CRAFTER_FIELD: &str = "Components";
+const CRAFTER_STRUCT: &str = "CrafterComponentParams";
 
 /// Returns whether the `resourceGroups` kind selects `record` under `filter`; a Record whose path
 /// or type cannot be read is not selected here, the check of the Record reports it.
@@ -60,6 +62,7 @@ pub(crate) struct Scan<'o, 'a, 'f> {
     placements: &'o Placements,
     types: TypeNames<'f>,
     links: Links<'f>,
+    crafters: Option<PointerProbe<'f>>,
     groups: Groups,
     evidence: Evidence,
     done: AtomicUsize,
@@ -89,6 +92,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             placements,
             types: TypeNames::default(),
             links: Links::default(),
+            crafters: forge.pointer_probe(CRAFTER_FIELD, CRAFTER_STRUCT),
             groups,
             evidence,
             done: AtomicUsize::new(0),
@@ -240,11 +244,15 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
                 ));
             }
             Some(Selected::Leftover(Kind::Crafters)) => {
-                return Ok(is_crafter(&trees.build(record)?)
+                return Ok(self
+                    .holds_crafter(trees, record)?
                     .then(|| Picked::Skipped(Kind::Crafters, record.guid())));
             }
             Some(Selected::Leftover(kind)) => {
                 return Ok(Some(Picked::Skipped(kind, record.guid())));
+            }
+            Some(Selected::Entity(Kind::Crafters)) if !self.holds_crafter(trees, record)? => {
+                return Ok(None);
             }
             Some(Selected::Entity(kind)) => kind,
         };
@@ -281,6 +289,18 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             item.variant_key = item_variant::key(&tree, item.stats.as_deref());
         }
         Ok(picked.map(|picked| picked.crafted(&tree)))
+    }
+
+    /// Returns whether the Components of `record` hold a crafter component, read without building
+    /// the Record tree; alse without any such component in the DataForge.
+    fn holds_crafter(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        record: &Record<'f>,
+    ) -> Result<bool, DataForgeError> {
+        self.crafters
+            .as_ref()
+            .map_or(Ok(false), |probe| trees.holds(probe, record))
     }
 
     /// Returns the provider preset or multi config `tree` describes when `kind` is one of the

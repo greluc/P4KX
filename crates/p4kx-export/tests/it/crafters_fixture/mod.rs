@@ -8,8 +8,8 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 
 use p4kx_testkit::{
-    ArchiveBuilder, DataForgeBuilder, TestEntry, TestInstance, TestRecord, TestStruct, TestType,
-    TestValue,
+    ArchiveBuilder, DataForgeBuilder, TestEntity, TestEntry, TestInstance, TestLoadout,
+    TestLoadoutEntry, TestRecord, TestStruct, TestType, TestValue, entity_schema,
 };
 
 pub(crate) const BENCH: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0001;
@@ -19,10 +19,10 @@ const PLAIN: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0004;
 const CRAFTING_ITEM: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0005;
 const CRAFTING_COMMODITY: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0006;
 const PLAIN_TEMPLATE: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0007;
-
-fn pointer(name: &str) -> TestType {
-    TestType::StrongPointer(name.to_owned())
-}
+pub(crate) const MOUNTED: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0008;
+pub(crate) const HOST_SHIP: u128 = 0x7000_0000_0000_4000_8000_0000_0000_0009;
+pub(crate) const SELF_SHIP: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000a;
+pub(crate) const EMPTY_SHIP: u128 = 0x7000_0000_0000_4000_8000_0000_0000_000b;
 
 fn queue(name: &str, in_progress: i32, waiting: i32) -> TestValue {
     TestValue::Struct(
@@ -56,13 +56,7 @@ fn entity(guid: u128, class: &str, path: &str, components: Vec<TestValue>) -> Te
 }
 
 fn structures() -> DataForgeBuilder {
-    DataForgeBuilder::new()
-        .version(8)
-        .structure(
-            TestStruct::new("EntityClassDefinition")
-                .array("Components", pointer("DataForgeComponentParams")),
-        )
-        .structure(TestStruct::new("DataForgeComponentParams"))
+    entity_schema(DataForgeBuilder::new())
         .structure(
             TestStruct::new("OtherComponentParams")
                 .parent("DataForgeComponentParams")
@@ -82,8 +76,42 @@ fn structures() -> DataForgeBuilder {
         )
 }
 
+fn ship_entity(guid: u128, class: &str) -> TestEntity {
+    TestEntity::new(
+        guid,
+        class,
+        format!("libs/foundry/records/entities/spaceships/{class}.xml"),
+    )
+}
+
+fn mounted_loadout() -> TestLoadout {
+    TestLoadout::Manual(vec![TestLoadoutEntry::empty("body").loadout(
+        TestLoadout::Manual(vec![TestLoadoutEntry::class("bench_slot", "acme_mounted")]),
+    )])
+}
+
 fn database() -> DataForgeBuilder {
     structures()
+        .record(
+            TestEntity::new(
+                MOUNTED,
+                "acme_mounted",
+                "libs/foundry/records/entities/scitem/ships/acme_mounted.xml",
+            )
+            .component(crafter(7, vec![queue("Mounted queue", 1, 2)]))
+            .record(),
+        )
+        .record(
+            ship_entity(HOST_SHIP, "acme_host")
+                .loadout(mounted_loadout())
+                .record(),
+        )
+        .record(
+            ship_entity(SELF_SHIP, "acme_self")
+                .component(crafter(8, vec![queue("Own queue", 2, 2)]))
+                .record(),
+        )
+        .record(ship_entity(EMPTY_SHIP, "acme_empty").record())
         .record(entity(
             BENCH,
             "bench",

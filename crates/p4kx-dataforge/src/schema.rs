@@ -25,6 +25,12 @@ impl<'f> Struct<'f> {
         self.forge.blob.get(self.def.name)
     }
 
+    /// Returns the position of the struct in the struct table.
+    #[must_use]
+    pub const fn index(&self) -> u32 {
+        self.index
+    }
+
     /// Returns the struct this one inherits its first fields from, or `None` when it has none.
     #[must_use]
     pub fn parent(&self) -> Option<Self> {

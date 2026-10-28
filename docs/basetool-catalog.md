@@ -1957,7 +1957,8 @@ on `P4KX_DATA_P4K` and `P4KX_DATA_P4K_B`.
 - The record-path prefixes and types match the live DataForge: of 29,693 `EntityClassDefinition`
   Records on LIVE, 25,704 lie under the item, ship and commodity prefixes (1,202 of them are left
   out as leftovers); the rest are actors, mineables, job boards, interiors, audio, decorations,
-  lights and the like and are no catalog kind. All 1,203 `SCItemManufacturer` and 1,619
+  lights and the like and are no catalog kind unless they carry a `CrafterComponentParams`, which
+  makes them a `crafters` entry. All 1,203 `SCItemManufacturer` and 1,619
   `CraftingBlueprintRecord` Records are selected or left out as leftovers.
 - The token list gained `debug`, `deprecated` and `dev`, which mark 20 further items on LIVE (the
   Vlk spewgun test weapons under `fps_weapons/dev`, `*_deprecated` bar counters, a debug hacking

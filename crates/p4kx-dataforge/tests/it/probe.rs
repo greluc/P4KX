@@ -29,10 +29,6 @@ fn instance(type_name: &str) -> TestValue {
     TestValue::Struct(TestInstance::new(type_name).value("size", TestValue::Int32(1)))
 }
 
-fn components(values: Vec<TestValue>) -> TestValue {
-    TestValue::Array(values)
-}
-
 fn entity(index: u128, values: Vec<TestValue>) -> TestRecord {
     TestRecord::new(
         index,
@@ -40,7 +36,7 @@ fn entity(index: u128, values: Vec<TestValue>) -> TestRecord {
         format!("Entity.E{index}"),
         format!("e{index}.xml"),
     )
-    .value("Components", components(values))
+    .value("Components", TestValue::Array(values))
 }
 
 fn forge_bytes() -> Vec<u8> {

@@ -257,6 +257,13 @@ fn assemble<R>(
         sub_harvestable_multi_configs: collected.sub_harvestable_multi_configs,
         harvestable_locations: collected.harvestable_locations,
         shops: collected.shops,
+        faction_reputations: collected.mission_kinds.factions,
+        reputation_scopes: collected.mission_kinds.scopes,
+        reputation_standings: collected.mission_kinds.standings,
+        reputation_contexts: collected.mission_kinds.contexts,
+        mission_types: collected.mission_kinds.types,
+        mission_localities: collected.mission_kinds.localities,
+        contract_scenarios: collected.mission_kinds.scenarios,
         ship_store_slugs: resolved.exported,
         item_recovery: rules,
     };

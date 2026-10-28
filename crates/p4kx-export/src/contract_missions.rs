@@ -67,6 +67,35 @@ pub(crate) struct ContractEntry<'a> {
     /// first mission result (success) is set. A result that fires on failure only is left out; an
     /// amount may be negative (a success that costs standing with a rival, as stored).
     pub(crate) reputation_gains: Vec<ReputationGain<'a>>,
+    /// The `minStanding` of the contract: the lowest standing that is offered it, the `guid` of an
+    /// entry of `reputationStandings`; `null` when the contract states none. A sub contract
+    /// shares the contract's value.
+    pub(crate) min_standing_guid: Option<CatalogGuid>,
+    /// The `maxStanding` of the contract: the highest standing that is offered it; `null` when
+    /// the contract states none. A sub contract shares the contract's value.
+    pub(crate) max_standing_guid: Option<CatalogGuid>,
+    /// The `ContractPrerequisite_Reputation` prerequisites of the handler, the contract and the
+    /// sub contract, in that order and as stored. The catalog does not decide how they combine.
+    pub(crate) standing_requirements: Vec<StandingRequirement>,
+}
+
+/// A reputation prerequisite of a contract.
+#[derive(Debug, Clone, Copy, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct StandingRequirement {
+    /// Where the prerequisite is stated: `handler`, `contract` or `subContract`.
+    pub(crate) level: &'static str,
+    /// The `exclude` flag as stored, `null` when absent.
+    pub(crate) exclude: Option<bool>,
+    /// The `factionReputation` the prerequisite is about, `null` when it names none.
+    pub(crate) faction_reputation_guid: Option<CatalogGuid>,
+    /// The `scope`, `null` when the prerequisite names none.
+    pub(crate) scope_guid: Option<CatalogGuid>,
+    /// The `minStanding`, `null` when the prerequisite names none.
+    pub(crate) min_standing_guid: Option<CatalogGuid>,
+    /// The `maxStanding`, `null` when the prerequisite names none.
+    pub(crate) max_standing_guid: Option<CatalogGuid>,
 }
 
 /// The faction a handler names for its contracts.

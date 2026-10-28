@@ -19,9 +19,13 @@ pub(crate) use crate::contract_mining::{
     CompositionPart, MineableComposition, MineableElement, RefiningProcess,
 };
 pub(crate) use crate::contract_mining_params::MiningGlobalParams;
+pub(crate) use crate::contract_mission_data::{ContractScenario, MissionLocality, MissionType};
 pub(crate) use crate::contract_missions::ContractEntry;
 pub(crate) use crate::contract_quantization::QualityQuantization;
 pub(crate) use crate::contract_recovery::ItemRecovery;
+pub(crate) use crate::contract_reputation::{
+    FactionReputation, ReputationContext, ReputationScope, ReputationStanding,
+};
 pub(crate) use crate::contract_rewards::{
     BlueprintPool, CraftingGlobal, DismantleProcess, GameplayProperty, QualityDistribution,
 };
@@ -102,6 +106,20 @@ pub(crate) struct Catalog<'a> {
     pub(crate) harvestable_locations: Vec<HarvestableLocation>,
     /// The shops of the shop registry with kind, brand and place, ordered by `key`.
     pub(crate) shops: Vec<Shop>,
+    /// The factions with their reputation links, ordered by GUID.
+    pub(crate) faction_reputations: Vec<FactionReputation<'a>>,
+    /// The reputation scopes with the standings of each, ordered by GUID.
+    pub(crate) reputation_scopes: Vec<ReputationScope<'a>>,
+    /// The reputation standings, the ranks of the scopes, ordered by GUID.
+    pub(crate) reputation_standings: Vec<ReputationStanding<'a>>,
+    /// The reputation contexts, the scopes a faction is shown with, ordered by GUID.
+    pub(crate) reputation_contexts: Vec<ReputationContext<'a>>,
+    /// The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID.
+    pub(crate) mission_types: Vec<MissionType<'a>>,
+    /// The mission localities, sets of starmap objects, ordered by GUID.
+    pub(crate) mission_localities: Vec<MissionLocality<'a>>,
+    /// The contract scenarios with their reward tiers, ordered by GUID.
+    pub(crate) contract_scenarios: Vec<ContractScenario<'a>>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
     /// by `slug`. A curated list, not read from the Archive.
     pub(crate) ship_store_slugs: Vec<ShipStoreSlug<'a>>,
@@ -200,6 +218,20 @@ pub(crate) struct Completeness<'a> {
     pub(crate) harvestable_locations: KindCompleteness<'a>,
     /// The completeness of `shops`.
     pub(crate) shops: KindCompleteness<'a>,
+    /// The completeness of `factionReputations`.
+    pub(crate) faction_reputations: KindCompleteness<'a>,
+    /// The completeness of `reputationScopes`.
+    pub(crate) reputation_scopes: KindCompleteness<'a>,
+    /// The completeness of `reputationStandings`.
+    pub(crate) reputation_standings: KindCompleteness<'a>,
+    /// The completeness of `reputationContexts`.
+    pub(crate) reputation_contexts: KindCompleteness<'a>,
+    /// The completeness of `missionTypes`.
+    pub(crate) mission_types: KindCompleteness<'a>,
+    /// The completeness of `missionLocalities`.
+    pub(crate) mission_localities: KindCompleteness<'a>,
+    /// The completeness of `contractScenarios`.
+    pub(crate) contract_scenarios: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
     pub(crate) ship_store_slugs: KindCompleteness<'a>,
 }
@@ -232,6 +264,13 @@ impl<'a> Completeness<'a> {
             sub_harvestable_multi_configs: completeness,
             harvestable_locations: completeness,
             shops: completeness,
+            faction_reputations: completeness,
+            reputation_scopes: completeness,
+            reputation_standings: completeness,
+            reputation_contexts: completeness,
+            mission_types: completeness,
+            mission_localities: completeness,
+            contract_scenarios: completeness,
             ship_store_slugs: completeness,
         }
     }

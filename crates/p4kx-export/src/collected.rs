@@ -23,6 +23,7 @@ use crate::loadout::carries_ports;
 use crate::manufacturer::manufacturer;
 use crate::mining::{mineable_composition, mineable_element, refining_process};
 use crate::mining_params::mining_global_params;
+use crate::mission_kinds::{MissionKinds, MissionPick};
 use crate::paint_port::VehicleFacts;
 use crate::playability::PlayabilitySummary;
 use crate::playability_rules::Evidence;
@@ -62,6 +63,8 @@ pub(crate) enum Picked<'f> {
     Provider(HarvestableProviderPreset<'f>),
     /// A sub harvestable multi config.
     MultiConfig(SubHarvestableMultiConfig<'f>),
+    /// An entity of a mission or reputation kind.
+    Mission(MissionPick<'f>),
     /// A development leftover of the kind, with the GUID of its Record.
     Skipped(Kind, Guid),
     /// A development leftover that is an item and a paint.
@@ -102,6 +105,15 @@ impl<'f> Picked<'f> {
             Kind::RefiningProcesses => Self::Refining(refining_process(tree, texts)),
             Kind::MineableCompositions => Self::Composition(mineable_composition(tree, texts)),
             Kind::MiningGlobalParams => Self::MiningParams(mining_global_params(tree)),
+            Kind::FactionReputations
+            | Kind::ReputationScopes
+            | Kind::ReputationStandings
+            | Kind::ReputationContexts
+            | Kind::MissionTypes
+            | Kind::MissionLocalities
+            | Kind::ContractScenarios => {
+                return MissionPick::entity(kind, tree, texts).map(Self::Mission);
+            }
             Kind::Blueprints
             | Kind::GameplayProperties
             | Kind::QualityDistributions
@@ -164,6 +176,7 @@ pub(crate) struct Collected<'f> {
     pub(crate) sub_harvestable_multi_configs: Vec<SubHarvestableMultiConfig<'f>>,
     pub(crate) harvestable_locations: Vec<HarvestableLocation>,
     pub(crate) shops: Vec<Shop>,
+    pub(crate) mission_kinds: MissionKinds<'f>,
     pub(crate) vehicles: Vec<VehicleFacts>,
     pub(crate) item_classes: ItemClassSummary,
     pub(crate) playability: PlayabilitySummary,
@@ -209,6 +222,7 @@ impl<'f> Collected<'f> {
             sub_harvestable_multi_configs: Vec::new(),
             harvestable_locations: Vec::new(),
             shops: Vec::new(),
+            mission_kinds: MissionKinds::default(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
             playability: PlayabilitySummary::default(),
@@ -243,6 +257,7 @@ impl<'f> Collected<'f> {
                 Picked::MiningParams(entity) => collected.mining_global_params.push(entity),
                 Picked::Provider(entity) => collected.harvestable_provider_presets.push(entity),
                 Picked::MultiConfig(entity) => collected.sub_harvestable_multi_configs.push(entity),
+                Picked::Mission(entity) => collected.mission_kinds.push(entity),
                 Picked::Skipped(kind, guid) => {
                     if kind == Kind::BlueprintCategories {
                         missing_categories.insert(guid);
@@ -333,6 +348,7 @@ impl<'f> Collected<'f> {
             .sort_by_cached_key(|entity| entity.guid.text());
         self.sub_harvestable_multi_configs
             .sort_by_cached_key(|entity| entity.guid.text());
+        self.mission_kinds.order();
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -366,6 +382,13 @@ impl<'f> Collected<'f> {
                     Kind::SubHarvestableMultiConfigs => self.sub_harvestable_multi_configs.len(),
                     Kind::HarvestableLocations => self.harvestable_locations.len(),
                     Kind::Shops => self.shops.len(),
+                    Kind::FactionReputations
+                    | Kind::ReputationScopes
+                    | Kind::ReputationStandings
+                    | Kind::ReputationContexts
+                    | Kind::MissionTypes
+                    | Kind::MissionLocalities
+                    | Kind::ContractScenarios => self.mission_kinds.count(kind),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),
                 complete,

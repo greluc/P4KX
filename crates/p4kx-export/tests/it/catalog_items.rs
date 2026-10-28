@@ -328,6 +328,13 @@ fn every_kind_states_its_completeness() -> TestResult {
             "subHarvestableMultiConfigs": {"status": "complete"},
             "harvestableLocations": {"status": "complete"},
             "shops": {"status": "complete"},
+            "factionReputations": {"status": "complete"},
+            "reputationScopes": {"status": "complete"},
+            "reputationStandings": {"status": "complete"},
+            "reputationContexts": {"status": "complete"},
+            "missionTypes": {"status": "complete"},
+            "missionLocalities": {"status": "complete"},
+            "contractScenarios": {"status": "complete"},
             "shipStoreSlugs": {"status": "complete"},
         }),
         "complete"

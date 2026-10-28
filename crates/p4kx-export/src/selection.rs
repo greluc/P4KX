@@ -88,11 +88,25 @@ pub enum Kind {
     /// Shops: the `ShopBackup` entries of the shop registry `LayerBackups.xml`, with kind and brand
     /// from the shop containers. Derived from Archive files, so no record-path rule of its own.
     Shops,
+    /// Factions: `FactionReputation` Records under `factions/factionreputation`.
+    FactionReputations,
+    /// Reputation scopes: `SReputationScopeParams` Records under `reputation/scopes`.
+    ReputationScopes,
+    /// Reputation standings: `SReputationStandingParams` Records under `reputation/standings`.
+    ReputationStandings,
+    /// Reputation contexts: `SReputationContextUI` Records under `reputation/contexts`.
+    ReputationContexts,
+    /// Mission types: `MissionType` Records under `missiontype`.
+    MissionTypes,
+    /// Mission localities: `MissionLocality` Records under `missiondata/pu_missionlocality`.
+    MissionLocalities,
+    /// Contract scenarios: `ScenarioProgress` Records under `contracts/contractscenarios`.
+    ContractScenarios,
 }
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 31] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -117,6 +131,13 @@ impl Kind {
         Self::SubHarvestableMultiConfigs,
         Self::HarvestableLocations,
         Self::Shops,
+        Self::FactionReputations,
+        Self::ReputationScopes,
+        Self::ReputationStandings,
+        Self::ReputationContexts,
+        Self::MissionTypes,
+        Self::MissionLocalities,
+        Self::ContractScenarios,
     ];
 
     /// Returns the name of the kind's array in the catalog, e.g. `manufacturers`.
@@ -147,6 +168,13 @@ impl Kind {
             Self::SubHarvestableMultiConfigs => "subHarvestableMultiConfigs",
             Self::HarvestableLocations => "harvestableLocations",
             Self::Shops => "shops",
+            Self::FactionReputations => "factionReputations",
+            Self::ReputationScopes => "reputationScopes",
+            Self::ReputationStandings => "reputationStandings",
+            Self::ReputationContexts => "reputationContexts",
+            Self::MissionTypes => "missionTypes",
+            Self::MissionLocalities => "missionLocalities",
+            Self::ContractScenarios => "contractScenarios",
         }
     }
 
@@ -213,6 +241,13 @@ impl Kind {
             Self::SubHarvestableMultiConfigs => 21,
             Self::HarvestableLocations => 22,
             Self::Shops => 23,
+            Self::FactionReputations => 24,
+            Self::ReputationScopes => 25,
+            Self::ReputationStandings => 26,
+            Self::ReputationContexts => 27,
+            Self::MissionTypes => 28,
+            Self::MissionLocalities => 29,
+            Self::ContractScenarios => 30,
         }
     }
 

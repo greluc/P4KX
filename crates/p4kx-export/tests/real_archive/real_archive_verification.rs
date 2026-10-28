@@ -22,7 +22,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 22] = [
+const MINIMUM: [(Kind, usize); 29] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -45,6 +45,13 @@ const MINIMUM: [(Kind, usize); 22] = [
     (Kind::SubHarvestableMultiConfigs, 100),
     (Kind::HarvestableLocations, 300),
     (Kind::Shops, 1_000),
+    (Kind::FactionReputations, 30),
+    (Kind::ReputationScopes, 30),
+    (Kind::ReputationStandings, 300),
+    (Kind::ReputationContexts, 15),
+    (Kind::MissionTypes, 30),
+    (Kind::MissionLocalities, 15),
+    (Kind::ContractScenarios, 2),
 ];
 const MIN_ENGLISH_SHARE: f64 = 0.95;
 const MIN_GERMAN_SHARE: f64 = 0.5;

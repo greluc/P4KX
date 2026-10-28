@@ -95,6 +95,34 @@ impl Kind {
                 prefixes: &["libs/foundry/records/harvestable/slotpresets/"],
                 type_name: "SubHarvestableMultiConfigRecord",
             },
+            Self::FactionReputations => KindRule {
+                prefixes: &["libs/foundry/records/factions/factionreputation/"],
+                type_name: "FactionReputation",
+            },
+            Self::ReputationScopes => KindRule {
+                prefixes: &["libs/foundry/records/reputation/scopes/"],
+                type_name: "SReputationScopeParams",
+            },
+            Self::ReputationStandings => KindRule {
+                prefixes: &["libs/foundry/records/reputation/standings/"],
+                type_name: "SReputationStandingParams",
+            },
+            Self::ReputationContexts => KindRule {
+                prefixes: &["libs/foundry/records/reputation/contexts/"],
+                type_name: "SReputationContextUI",
+            },
+            Self::MissionTypes => KindRule {
+                prefixes: &["libs/foundry/records/missiontype/"],
+                type_name: "MissionType",
+            },
+            Self::MissionLocalities => KindRule {
+                prefixes: &["libs/foundry/records/missiondata/pu_missionlocality/"],
+                type_name: "MissionLocality",
+            },
+            Self::ContractScenarios => KindRule {
+                prefixes: &["libs/foundry/records/contracts/contractscenarios/"],
+                type_name: "ScenarioProgress",
+            },
             Self::Paints | Self::Loadouts | Self::HarvestableLocations | Self::Shops => KindRule {
                 prefixes: &[],
                 type_name: "",

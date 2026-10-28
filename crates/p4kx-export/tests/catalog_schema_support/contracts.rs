@@ -38,6 +38,16 @@ pub(super) fn contracts() -> serde_json::Value {
             "displayName": {"key": "@faction_acme", "en": "Acme Emporium", "de": null}
         },
         "pickupPlaces": places,
-        "reputationGains": gains
+        "reputationGains": gains,
+        "minStandingGuid": "62000000-0000-4000-8000-000000000001",
+        "maxStandingGuid": null,
+        "standingRequirements": [{
+            "level": "contract",
+            "exclude": false,
+            "factionReputationGuid": "60000000-0000-4000-8000-000000000001",
+            "scopeGuid": "61000000-0000-4000-8000-000000000001",
+            "minStandingGuid": "62000000-0000-4000-8000-000000000001",
+            "maxStandingGuid": null
+        }]
     }])
 }

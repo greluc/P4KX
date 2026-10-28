@@ -3,7 +3,7 @@
 
 //! The value model both sides of the DataForge comparison are brought to.
 
-use p4kx_extraction::{RecordTree, StructValue, Value};
+use p4kx_extraction::{RecordTree, StructValue, Value, ValueError};
 
 /// A number as the reference JSON writes it.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -25,10 +25,12 @@ pub(crate) enum Node {
     Number(JsonNumber),
     Text(String),
     Guid(String),
-    /// A link to a Record; the reference side may state only the path.
+    /// A link to a Record; the reference side may state only the path, or embed the content of
+    /// the Record it links to.
     Reference {
         guid: String,
         path: String,
+        embedded: bool,
     },
     WeakPointer,
     Struct {
@@ -36,7 +38,14 @@ pub(crate) enum Node {
         fields: Vec<Field>,
     },
     Array(Vec<Self>),
+    /// A Reference to a Record that does not exist.
+    Dangling,
+    /// A bool byte that is neither 0 nor 1.
+    InvalidBool,
+    /// Any other value P4KX cannot read, with the reason.
     Error(String),
+    /// A kind of value the comparison does not map; never allowed.
+    Unmapped(String),
 }
 
 pub(crate) type Field = (String, Node);
@@ -92,12 +101,13 @@ fn from_value(value: &Value<'_>) -> Node {
         Value::Reference(reference) => Node::Reference {
             guid: reference.guid().to_string(),
             path: reference.record_path().to_owned(),
+            embedded: false,
         },
         Value::Null => Node::Null,
+        Value::Error(ValueError::DanglingReference { .. }) => Node::Dangling,
+        Value::Error(ValueError::InvalidBool { .. }) => Node::InvalidBool,
         Value::Error(error) => Node::Error(error.to_string()),
-        other => Node::Error(format!(
-            "a value kind the comparison does not know: {other:?}"
-        )),
+        other => Node::Unmapped(format!("{other:?}")),
     }
 }
 

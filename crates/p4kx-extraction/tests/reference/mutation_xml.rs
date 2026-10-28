@@ -103,14 +103,76 @@ fn the_known_unforge_differences_are_allowed_with_their_reasons() {
     let bugged = REFERENCE.replace("\"1.5\"", "\"BUGGED\"");
     assert_eq!(
         compare(&ours(), &theirs(&bugged)),
-        Compared::Allowed(UNFORGE_BUGGED)
+        Compared::Allowed(vec![UNFORGE_BUGGED])
     );
-    let mojibake: String = "caf\u{e9}".bytes().map(char::from).collect();
+    let mojibake = mojibake_of("caf\u{e9}");
     let garbled = REFERENCE.replace("caf\u{e9}", &mojibake);
     assert_eq!(
         compare(&ours(), &theirs(&garbled)),
-        Compared::Allowed(UNFORGE_MOJIBAKE)
+        Compared::Allowed(vec![UNFORGE_MOJIBAKE])
     );
     let both = garbled.replace("<B>text", "<B>other");
     assert!(detected(&both), "an allowed difference hides no other");
+}
+
+fn mojibake_of(text: &str) -> String {
+    text.bytes().map(char::from).collect()
+}
+
+#[test]
+fn every_allowed_value_is_counted_not_one_reason_per_tree() {
+    let reference = REFERENCE
+        .replace("\"1.5\"", "\"BUGGED\"")
+        .replace("caf\u{e9}", &mojibake_of("caf\u{e9}"))
+        .replace(">text<", ">BUGGED<");
+    assert_eq!(
+        compare(&ours(), &theirs(&reference)),
+        Compared::Allowed(vec![UNFORGE_MOJIBAKE, UNFORGE_BUGGED, UNFORGE_BUGGED])
+    );
+}
+
+fn leaf(attribute: &str, text: &str) -> XmlNode {
+    XmlNode {
+        name: "Root".to_owned(),
+        attributes: vec![("a".to_owned(), attribute.to_owned())],
+        text: text.to_owned(),
+        children: Vec::new(),
+    }
+}
+
+#[test]
+fn bugged_is_allowed_only_against_a_non_empty_value() {
+    assert!(matches!(
+        compare(&leaf("", "t"), &leaf("BUGGED", "t")),
+        Compared::Different(_)
+    ));
+    assert!(matches!(
+        compare(&leaf("v", ""), &leaf("v", "BUGGED")),
+        Compared::Different(_)
+    ));
+    assert!(matches!(
+        compare(&leaf("v", "t"), &leaf("bugged", "t")),
+        Compared::Different(_)
+    ));
+    assert_eq!(
+        compare(&leaf("v", "t"), &leaf("BUGGED", "t")),
+        Compared::Allowed(vec![UNFORGE_BUGGED])
+    );
+}
+
+#[test]
+fn mojibake_is_allowed_only_for_the_byte_wise_reading_of_the_same_text() {
+    let other = mojibake_of("caf\u{e9}x");
+    assert!(matches!(
+        compare(&leaf("caf\u{e9}", "t"), &leaf(&other, "t")),
+        Compared::Different(_)
+    ));
+    assert!(matches!(
+        compare(&leaf("cafe", "t"), &leaf(&mojibake_of("cafe"), "t")),
+        Compared::Equal
+    ));
+    assert!(matches!(
+        compare(&leaf("cafe", "t"), &leaf("caf\u{e9}", "t")),
+        Compared::Different(_)
+    ));
 }

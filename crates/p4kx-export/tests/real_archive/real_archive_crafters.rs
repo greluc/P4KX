@@ -8,6 +8,7 @@
 //! the value moved, to be checked against the Archive and updated here and in
 //! `docs/basetool-catalog.md`.
 
+use std::collections::HashSet;
 use std::error::Error;
 use std::time::SystemTime;
 
@@ -49,5 +50,51 @@ fn the_crafting_stations_of_a_real_archive_carry_their_limits() -> TestResult {
         .map(|queue| json!([queue["maxJobsInProgress"], queue["maxJobsWaiting"]]))
         .collect();
     assert_eq!(limits, [json!([2, 4]), json!([4, 4])], "queue limits");
+    Ok(())
+}
+
+#[test]
+#[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
+fn the_crafters_of_a_real_archive_resolve_their_categories_and_report_nothing_unknown() -> TestResult
+{
+    let archive = Archive::open_with_key(real_archive_path()?, real_archive_key().ok())?;
+    let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
+    let catalog: Value = serde_json::from_slice(built.json())?;
+    let categories: HashSet<&str> = catalog["blueprintCategories"]
+        .as_array()
+        .ok_or("the blueprint categories")?
+        .iter()
+        .filter_map(|category| category["guid"].as_str())
+        .collect();
+    let guids_resolve = |rule: &Value| {
+        rule["blueprintCategoryGuids"]
+            .as_array()
+            .is_some_and(|guids| {
+                guids
+                    .iter()
+                    .all(|guid| guid.as_str().is_some_and(|guid| categories.contains(guid)))
+            })
+    };
+    for crafter in catalog["crafters"].as_array().ok_or("the crafters")? {
+        let name = &crafter["className"];
+        assert_eq!(crafter["issues"], json!([]), "{name}: nothing unknown");
+        assert!(
+            crafter["baseCraftingTime"].is_null() || crafter["baseCraftingTime"].is_number(),
+            "{name}: baseCraftingTime"
+        );
+        for modifier in crafter["modifiers"].as_array().ok_or("the modifiers")? {
+            assert!(guids_resolve(&modifier["condition"]), "{name}: condition");
+            if modifier["type"] == "time" {
+                assert!(modifier["timeMultiplier"].is_number(), "{name}: multiplier");
+            }
+        }
+        for queue in crafter["queues"].as_array().ok_or("the queues")? {
+            assert!(
+                guids_resolve(&queue["blueprintCategoryAvailability"]),
+                "{name}: availability"
+            );
+            assert!(queue["processTypeAvailability"].is_array(), "{name}");
+        }
+    }
     Ok(())
 }

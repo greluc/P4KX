@@ -1,6 +1,6 @@
 # Crafting station limits are a kind and research gating waits for a value
 
-Decided for issue #831. Evidence: LIVE 4.10. Amends nothing; extends the catalog under ADR-0054.
+Decided for issue #831. Evidence: LIVE 4.10. Amended for issue #842; extends the catalog under ADR-0054.
 
 ## Context
 
@@ -32,7 +32,7 @@ every tier.
   ship whose loadout is empty or failed yields no hosts. A ship that carries the component itself
   is not its own host: its `hostGuids` stays empty and a reader matches `crafters[].guid` with
   `ships[].guid`.
-- The categories and process types a queue accepts are not exported; they are not limits.
+- Categories and process types: see "Amendment (#842)" below.
 - The tier field `research` is left out. Neither pointer holds a value on any tier, so there is
   no value to read the pointed-to type from, and a field typed without one would be a guess that
   ADR-0054's guarantees (an existing field never changes its type) forbid correcting. When a
@@ -51,3 +51,29 @@ every tier.
   the machine. The failed count (0) and the skipped count (1,287, plus the one template crafter)
   match main on LIVE and PTU.
 - The Basetool reads a missing `crafters` as an older catalog.
+
+## Amendment (#842)
+
+Evidence: the next game version adds crafting modifiers and the queue rules to the data; LIVE 4.10
+has the queue rules, but no modifiers and no `baseCraftingTime`. The amendment replaces the
+decision that the accepted categories and process types are not exported.
+
+- A `crafters` entry gets `type`, `subType` and `size` (the `AttachDef` of the entity),
+  `baseCraftingTime`, `modifiers` and `issues`; a queue gets `blueprintCategoryAvailability` and
+  `processTypeAvailability`. All are additive (ADR-0054), `schemaVersion` stays 2.
+- A modifier has a `type` (`time`, `none`, `unknown`), the `structName` of its type struct, the
+  values of the type (`timeMultiplier`, as stored) and a `condition`. Modifier types, modifier
+  conditions and queue availabilities are polymorphic structs. They are recognised by struct name,
+  never by the name of an entity or a value. A rule (`condition` or `blueprintCategoryAvailability`)
+  has a `kind`, the `structName` and `blueprintCategoryGuids`; a new struct is a new `kind` and
+  a new type a new `type`, both additive, because the strings are a closed set the game may extend.
+- A struct this export does not know is kept with its name, `unknown` and no values. An unreadable
+  value (a missing type, a non-finite number, a category Reference to no Record, a
+  `processTypeAvailability` entry that is no boolean) is kept as null or empty and reported as a
+  code in the crafter's `issues`. Nothing is dropped and nothing panics. A modifier is exported
+  with its `condition` of kind `none` when the Record stores none; no meaning is guessed.
+- `processTypeAvailability` is the list of booleans as stored. The Archive does not name the
+  process types, so the export does not map positions to names; a name would be a guess.
+- Ports for crafters: a crafter that is not an item (a fabricator below `basebuilding`) is not in
+  `items`, so its `AttachDef` type and size are part of its `crafters` entry. A reader matches the
+  `types` and the size range of a `loadouts` port with them.

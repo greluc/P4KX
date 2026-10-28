@@ -155,7 +155,7 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `legacyLootArchetypes` | The older loot archetypes (`LootArchetype`) with the weighted tags of each, ordered by GUID |
 | `lootContainers` | The containers placed with a multi config, with the starmap object each hangs below, ordered by config, container, system and object |
 | `mineableEntities` | The mineable rocks and deposits (`EntityClassDefinition` under `entities/mineable`) with their composition, mining parameters and scan signature, ordered by GUID |
-| `crafters` | The crafting stations (entities with a `CrafterComponentParams`) with the limits of their job queues, ordered by GUID |
+| `crafters` | The crafting stations (entities with a `CrafterComponentParams`) with the limits and accepted categories of their job queues, their crafting-time modifiers and the attach definition a port is matched against, ordered by GUID |
 | `shipStoreSlugs` | The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered by `slug` (curated data, ADR-0117) |
 | `craftingGlobal` | Not a kind: the global crafting parameters that apply to every dismantle |
 | `itemRecovery` | Not a kind: the item recovery multipliers and rates behind claims, with the override groups of entity classes, `null` without the Record; see "Item recovery rules" below |
@@ -1561,14 +1561,57 @@ leftover, left out and counted as skipped. The kind is facts only: identifiers a
 | Field | Source |
 |-------|--------|
 | `guid`, `className`, `recordPath` | The entity Record |
+| `type`, `subType`, `size` | `AttachDef.Type`, `AttachDef.SubType` and `AttachDef.Size` of the entity (`Crafter`, `UNDEFINED` and 1 on LIVE); `null` without an `AttachDef`. They are what a ship's crafter port is matched against, see "Ports for crafters" below |
 | `maxJobsInHistory` | `maxJobsInHistory`: how many finished jobs the station lists (10); `null` when the value is not a number |
+| `baseCraftingTime` | `baseCraftingTime`: a number; `null` when the Record has none, as on LIVE 4.10 |
 | `queues` | `queues` in stored order (two on every station of LIVE), `[]` without any |
+| `modifiers` | `modifiers` in stored order, `[]` without any (all of LIVE 4.10); see "Modifiers" below |
+| `issues` | The codes of what the export did not understand in the modifiers and queues, sorted, without duplicates; `[]` when everything was. A closed set the game may extend, so the schema keeps strings. `unknown_modifier_type`, `unknown_modifier_condition`, `unknown_category_availability` (a struct this export does not know), `missing_modifier_type` (a modifier without a type), `unreadable_modifier` (a modifier that is no struct or whose type cannot be read), `unreadable_time_multiplier` (a `time` modifier without a finite number), `unreadable_category` (a category Reference that links to no Record) and `unreadable_process_types` (an entry of `processTypeAvailability` that is no boolean) |
 | `hostGuids` | The `ships` entries whose Default Loadout mounts the crafter in any port, at any depth, ordered by GUID; `[]` for a crafter no ship mounts, such as a station. Derived from `loadouts`, so a crafter of a building part has no host |
 
 A queue has `name` (`debugName`), `maxJobsInProgress` (how many jobs it crafts at once, 2 and 4 on
 LIVE) and `maxJobsWaiting` (how many further jobs it holds, 4 on LIVE); each is `null` when the
-Record stores no number or text. The categories and process types a queue accepts
-(`blueprintCategoryAvailability`, `processTypeAvailability`) are not exported.
+Record stores no number or text. A queue also has the blueprint categories and the process types
+it accepts:
+
+| Field | Source |
+|-------|--------|
+| `blueprintCategoryAvailability` | The struct `blueprintCategoryAvailability` holds, as a rule (see below). `kind` is `whitelist` for a `BlueprintCategoryAvailability_Whitelist`, whose `categories` are the accepted ones; `none` when the Record stores no struct; `unknown` for any other struct, kept with its `structName` and no GUIDs |
+| `processTypeAvailability` | `processTypeAvailability` as stored: one boolean per process type, in the order of the game's process types. The Archive names no process type, so a reader takes the position as the identity; `[]` when the Record has none |
+
+A rule (`blueprintCategoryAvailability` of a queue and `condition` of a modifier) has `kind`, the
+name of the struct as `structName` (`null` for `none`) and `blueprintCategoryGuids`, the `guid`s of
+the `blueprintCategories` entries the struct's `categories` link to, in stored order. A rule that
+is `none` or `unknown` has no GUIDs.
+
+#### Modifiers
+
+A modifier is a `CraftingModifierParams` of the crafter: a change of its crafting time, with the
+blueprint categories it applies to.
+
+| Field | Source |
+|-------|--------|
+| `type` | What it changes: `time` for a `CraftingModifierType_Time`, `none` when the Record stores no `modifierType`, `unknown` for any other struct. A closed set the game may extend, so the schema keeps a string |
+| `structName` | The name of the struct `modifierType` holds, `null` for `none`. An unknown type is kept with it and has no values |
+| `timeMultiplier` | `timeMultiplier` of a `time` modifier: the factor on the crafting time, below 1 is faster; `null` for any other type or when the Record stores no finite number |
+| `condition` | A rule for `modifierCondition`: `kind` is `blueprintCategory` for a `CraftingModifierCondition_BlueprintCategory`, whose `categories` are the blueprint categories the modifier applies to; `none` when the Record stores no condition; `unknown` for any other struct |
+
+A new modifier type adds a `type` value and its value fields, a new condition adds a `kind`; both
+are additive and keep `schemaVersion` 2 (ADR-0054). A reader treats an unknown `type` or `kind`
+as "not understood" and does not apply the modifier; nothing unknown is dropped from the list.
+
+#### Ports for crafters
+
+A crafter that a ship mounts sits in a `loadouts` port whose `types` hold `Crafter`. To find the
+crafters that fit an empty crafter port of a ship, a reader takes the port from the `loadouts`
+entry of the ship and keeps the `crafters` entries whose `type` is one of the port's `types[].type`
+(`Crafter`) and whose `size` lies between the port's `minSize` and
+`maxSize` (a port of size 1 on both). A crafter that is an item has the same `type`, `subType` and
+`size` in `items`; a crafter that is not an item (the fabricators below `basebuilding`) is only
+in `crafters`, which is why the three fields are part of the entry. A crafter that a ship already
+mounts is joined the other way round, `hostGuids` against `ships[].guid` or `itemGuid` of the port
+against `crafters[].guid`. The `types[].subTypes` of the port are compared the same way when they
+are not empty.
 
 The Records are selected from every entity Record: an item, a ship or a commodity that has the
 component is a crafter as well and stays what it is, and any other `EntityClassDefinition` under

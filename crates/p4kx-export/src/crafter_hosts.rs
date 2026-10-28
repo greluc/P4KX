@@ -57,8 +57,14 @@ mod tests {
             guid: guid(last),
             class_name: "crafter",
             record_path: "path",
+            r#type: None,
+            sub_type: None,
+            size: None,
             max_jobs_in_history: None,
+            base_crafting_time: None,
             queues: Vec::new(),
+            modifiers: Vec::new(),
+            issues: Vec::new(),
             host_guids: Vec::new(),
         }
     }

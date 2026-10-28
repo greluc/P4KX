@@ -107,6 +107,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
         let resources =
             scan.resource_commodities(&picked, &crafting.blueprints, &crafting.quantizations);
         picked.extend(resources);
+        picked.extend(scan.links.warning().map(Picked::Warned));
         Ok(picked)
     }
 

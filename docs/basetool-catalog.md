@@ -1273,12 +1273,17 @@ that is a reference, and for a config written out `respawnTimeMultiplier`,
 of a container in the first `.soc` file of the container: the GUID in the string that follows the
 string `preset` (strings are separated by a zero byte). The catalog does the same for every
 container below `Data/ObjectContainers/PU/system` and keeps the rows whose GUID is a kept
-provider preset. The `.soc` is scanned as a stream with no size limit (one of the Archive holds
-116 MB). A row has `presetGuid`, `system` (the folder of the star system), `container` (the Archive
+provider preset. The `.soc` is scanned as a stream, up to 256 MiB (the largest of LIVE holds
+116 MB); a container with a larger `.soc` and no preset in the first 256 MiB is warned about, not
+taken for one without a preset. A row has `presetGuid`, `system` (the folder of the star system), `container` (the Archive
 path) and `starmapObjectGuid`: the walk through the system containers (see "Starmap objects")
 reaches a container through a Child element, and the nearest object at or above that Child names the
-location. A private mining point (class name starting with `PrivateMiningPoint`) gives way to the
-object above it, as in ScDataDumper. A container no Child reaches, or whose object is not in
+location. A mining claim marker gives way to the object above it (ScDataDumper skips the private
+mining points by name; the catalog uses a field instead): the marker is a `StarMapObject` whose
+`description` is the key `@MiningClaims_Desc_001`, which all 188 `PrivateMiningPoint_*` Records of
+LIVE 4.10 have and no other of the 2,123 starmap objects. A harvestable's `HarvestablePreset` or
+entity Record that is missing or cannot be built is warned about (`unreadable_harvestables`) and
+its link fields are `null`. A container no Child reaches, or whose object is not in
 `starmapObjects`, has `null`. One container under several objects gives one row each.
 
 On LIVE 4.10 (2026-10-28) 489 rows name 19 of the 49 presets, 488 of them with an object. The 25

@@ -284,10 +284,11 @@ fn database() -> DataForgeBuilder {
             record(
                 PRIVATE_POINT,
                 "StarMapObject",
-                "PrivateMiningPoint_01",
-                "libs/foundry/records/starmap/pu/system/stanton/privateminingpoint_01",
+                "Claim_01",
+                "libs/foundry/records/starmap/pu/system/stanton/claim_01",
             )
-            .value("name", TestValue::text("@starmap_Private")),
+            .value("name", TestValue::text("@starmap_Claim"))
+            .value("description", TestValue::text("@MiningClaims_Desc_001")),
         )
 }
 

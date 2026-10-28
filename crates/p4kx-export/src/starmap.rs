@@ -10,6 +10,10 @@ use crate::record_fields::{boolean, class_name, locale_key, reference, text};
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
 
+/// The `description` key all mining claim markers share and no other starmap object has (188 of
+/// 2,123 on LIVE 4.10).
+const MINING_CLAIM_DESCRIPTION: &str = "@MiningClaims_Desc_001";
+
 /// The precision of a position, a millimetre.
 const MILLI: f64 = 1000.0;
 
@@ -66,6 +70,8 @@ pub(crate) fn starmap_object<'f>(
             .and_then(|placement| placement.placed_under)
             .map(CatalogGuid),
         position: placement.map(|placement| placement.position.map(millimetres)),
+        mining_claim: locale_key(root, "description").or_else(|| text(root, "description"))
+            == Some(MINING_CLAIM_DESCRIPTION),
     }
 }
 

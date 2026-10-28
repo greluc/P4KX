@@ -217,7 +217,7 @@ fn a_container_that_names_a_preset_is_a_location_of_the_object_it_hangs_below() 
         .collect();
     assert_eq!(
         locations, expected,
-        "a private mining point gives way to the object above, an unreached container has none, \
+        "a mining claim marker gives way to the object above, an unreached container has none, \
          and a preset no container names has no location"
     );
     assert!(

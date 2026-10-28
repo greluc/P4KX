@@ -14,8 +14,8 @@ const GUID_LEN: usize = 36;
 /// The size of the pieces a `.soc` is read in.
 const CHUNK_LEN: usize = 64 << 10;
 
-/// The most bytes of one `.soc` that are scanned, 1 GiB.
-const MAX_SCAN_LEN: u64 = 1 << 30;
+/// The most bytes of one `.soc` that are scanned, 256 MiB; the largest of LIVE 4.10 holds 116 MB.
+const MAX_SCAN_LEN: u64 = 256 << 20;
 
 /// Finds the GUID that follows the first string ending in `preset` in a `.soc` file, which stores
 /// its strings separated by a zero byte. The file is fed piece by piece and never held whole.
@@ -32,14 +32,22 @@ impl PresetScan {
     ///
     /// # Errors
     ///
-    /// Returns the error of `reader`.
+    /// Returns the error of `reader`, and [`io::ErrorKind::FileTooLarge`] when no preset is found
+    /// in the first [`MAX_SCAN_LEN`] bytes and more follow.
     pub(crate) fn read(reader: impl Read) -> io::Result<Option<Guid>> {
-        let mut reader = reader.take(MAX_SCAN_LEN);
+        Self::read_within(reader, MAX_SCAN_LEN)
+    }
+
+    fn read_within(reader: impl Read, limit: u64) -> io::Result<Option<Guid>> {
+        let mut reader = reader.take(limit);
         let mut scan = Self::default();
         let mut chunk = vec![0; CHUNK_LEN];
         loop {
             let read = reader.read(&mut chunk)?;
             if read == 0 {
+                if reader.limit() == 0 && reader.into_inner().read(&mut [0; 1])? > 0 {
+                    return Err(io::ErrorKind::FileTooLarge.into());
+                }
                 return Ok(scan.finish());
             }
             if let Some(guid) = chunk.get(..read).and_then(|piece| scan.feed(piece)) {
@@ -154,6 +162,22 @@ mod tests {
             let found = scan.feed(first).or_else(|| scan.feed(second));
             assert_eq!(found, Some(guid(PRESET)), "cut at {cut}");
         }
+    }
+
+    #[test]
+    fn a_file_over_the_limit_is_an_error_not_no_preset() {
+        let bytes = [b"preset\0".as_slice(), PRESET.as_bytes(), b"\0"].concat();
+        let over = PresetScan::read_within(bytes.as_slice(), 10);
+        assert_eq!(
+            over.map_err(|error| error.kind()),
+            Err(io::ErrorKind::FileTooLarge)
+        );
+        let exact = u64::try_from(bytes.len()).expect("a small length");
+        assert_eq!(
+            PresetScan::read_within(bytes.as_slice(), exact).ok(),
+            Some(Some(guid(PRESET))),
+            "a file of exactly the limit is scanned whole"
+        );
     }
 
     #[test]

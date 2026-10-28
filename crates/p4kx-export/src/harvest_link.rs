@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use p4kx_extraction::{DataForge, Guid, StructValue, TreeBuilder};
+use std::collections::BTreeSet;
+use std::sync::{Mutex, PoisonError};
+
+use p4kx_extraction::{DataForge, RecordTree, StructValue, TreeBuilder};
 
 use crate::contract_harvest::HarvestableLink;
+use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
 use crate::memo::Memo;
 use crate::record_fields::{class_name, component, reference};
@@ -25,11 +29,13 @@ struct MiningFacts {
 }
 
 /// Follows a harvestable from its `HarvestablePreset` Record to the entity and the mining
-/// parameters of the entity, each Record read once.
+/// parameters of the entity, each Record read once. A Record that is missing or cannot be built
+/// is kept for [`Links::warning`].
 #[derive(Default)]
 pub(crate) struct Links<'f> {
     presets: Memo<PresetFacts<'f>>,
     minings: Memo<MiningFacts>,
+    unreadable: Mutex<BTreeSet<String>>,
 }
 
 impl<'f> Links<'f> {
@@ -58,6 +64,25 @@ impl<'f> Links<'f> {
         })
     }
 
+    /// Returns the warning for the Records that were missing or could not be built, `None` when
+    /// every Record was read.
+    pub(crate) fn warning(&self) -> Option<CraftingWarning> {
+        let details: Vec<String> = self
+            .unreadable
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .cloned()
+            .collect();
+        if details.is_empty() {
+            return None;
+        }
+        Some(CraftingWarning::UnreadableHarvestables {
+            count: details.len(),
+            details,
+        })
+    }
+
     fn preset(
         &self,
         trees: &mut TreeBuilder<'f>,
@@ -65,7 +90,7 @@ impl<'f> Links<'f> {
         guid: CatalogGuid,
     ) -> PresetFacts<'f> {
         self.presets.get_or_make(guid.0, || {
-            let tree = record_tree(trees, forge, guid.0);
+            let tree = self.record_tree(trees, forge, guid, "HarvestablePreset");
             PresetFacts {
                 class_name: tree.as_ref().map(class_name),
                 entity: tree
@@ -82,7 +107,7 @@ impl<'f> Links<'f> {
         guid: CatalogGuid,
     ) -> MiningFacts {
         self.minings.get_or_make(guid.0, || {
-            let tree = record_tree(trees, forge, guid.0);
+            let tree = self.record_tree(trees, forge, guid, "entity");
             let params = tree
                 .as_ref()
                 .and_then(|tree| component(tree, MINEABLE_PARAMS));
@@ -92,13 +117,26 @@ impl<'f> Links<'f> {
             }
         })
     }
-}
 
-fn record_tree<'f>(
-    trees: &mut TreeBuilder<'f>,
-    forge: &'f DataForge<'f>,
-    guid: Guid,
-) -> Option<p4kx_extraction::RecordTree<'f>> {
-    let record = forge.record_by_guid(guid)?;
-    trees.build(&record).ok()
+    /// Builds the Record `guid` of the role `role`, or notes why it cannot be.
+    fn record_tree(
+        &self,
+        trees: &mut TreeBuilder<'f>,
+        forge: &'f DataForge<'f>,
+        guid: CatalogGuid,
+        role: &str,
+    ) -> Option<RecordTree<'f>> {
+        let reason = match forge.record_by_guid(guid.0) {
+            None => "is not in the DataForge",
+            Some(record) => match trees.build(&record) {
+                Ok(tree) => return Some(tree),
+                Err(_) => "cannot be read",
+            },
+        };
+        self.unreadable
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(format!("{role} {} {reason}", guid.0));
+        None
+    }
 }

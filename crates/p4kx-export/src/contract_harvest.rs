@@ -119,7 +119,7 @@ pub(crate) struct HarvestableLocation {
     /// The GUID of the `HarvestableProviderPreset` Record.
     pub(crate) preset_guid: CatalogGuid,
     /// The GUID of the `StarMapObject` the container hangs below: the nearest object at or above
-    /// the container's Child element, a private mining point left out; `null` when none.
+    /// the container's Child element, a mining claim marker left out; `null` when none.
     pub(crate) starmap_object_guid: Option<CatalogGuid>,
     /// The folder of the star system below `Data/ObjectContainers/PU/system` that reaches the
     /// container.

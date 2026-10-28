@@ -89,7 +89,9 @@ pub(super) fn structures(builder: DataForgeBuilder) -> DataForgeBuilder {
             .array("taggedConfigs", class("TaggedSubConfig")),
         TestStruct::new("SubHarvestableMultiConfigRecord")
             .field("multiConfig", class("SubHarvestableMultiConfig")),
-        TestStruct::new("StarMapObject").field("name", TestType::Locale),
+        TestStruct::new("StarMapObject")
+            .field("name", TestType::Locale)
+            .field("description", TestType::Locale),
     ]
     .into_iter()
     .fold(builder, DataForgeBuilder::structure)

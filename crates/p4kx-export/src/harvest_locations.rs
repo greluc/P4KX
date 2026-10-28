@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use std::collections::{HashMap, HashSet};
+use std::io::ErrorKind;
 use std::path::Path;
 
 use p4kx_extraction::{Archive, CancelToken, Guid};
@@ -15,9 +16,6 @@ use crate::starmap_walk::Opened;
 
 /// The most objects followed upwards from a container to find the object it belongs to.
 const MAX_CHAIN: usize = 64;
-
-/// The class-name start of the marker objects that sit beside a real location.
-const PRIVATE_MINING_POINT: &str = "PrivateMiningPoint";
 
 /// What the first `.soc` of a container says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,13 +32,14 @@ pub(crate) struct Located {
     pub(crate) unreadable: Vec<String>,
 }
 
-/// The starmap objects a container can hang below, by GUID: the class name and the object above.
-pub(crate) struct Objects<'a> {
-    by_guid: HashMap<Guid, (&'a str, Option<Guid>)>,
+/// The starmap objects a container can hang below, by GUID: whether the object is a mining claim
+/// marker and the object above it.
+pub(crate) struct Objects {
+    by_guid: HashMap<Guid, (bool, Option<Guid>)>,
 }
 
-impl<'a> Objects<'a> {
-    pub(crate) fn new(objects: &'a [StarmapObject<'a>]) -> Self {
+impl Objects {
+    pub(crate) fn new(objects: &[StarmapObject<'_>]) -> Self {
         Self {
             by_guid: objects
                 .iter()
@@ -48,7 +47,7 @@ impl<'a> Objects<'a> {
                     (
                         object.guid.0,
                         (
-                            object.class_name,
+                            object.mining_claim,
                             object.placed_under_guid.map(|guid| guid.0),
                         ),
                     )
@@ -58,24 +57,18 @@ impl<'a> Objects<'a> {
     }
 
     /// Returns the object a container hangs below: `under`, else the object above it while it is
-    /// a private mining point; `None` for no object, or one the catalog lacks.
+    /// a mining claim marker; `None` for no object, or one the catalog lacks.
     fn location(&self, under: Option<Guid>) -> Option<CatalogGuid> {
         let mut at = under?;
         for _ in 0..MAX_CHAIN {
-            let &(class_name, above) = self.by_guid.get(&at)?;
-            if !is_private_mining_point(class_name) {
+            let &(mining_claim, above) = self.by_guid.get(&at)?;
+            if !mining_claim {
                 return Some(CatalogGuid(at));
             }
             at = above?;
         }
         None
     }
-}
-
-fn is_private_mining_point(class_name: &str) -> bool {
-    class_name
-        .get(..PRIVATE_MINING_POINT.len())
-        .is_some_and(|start| start.eq_ignore_ascii_case(PRIVATE_MINING_POINT))
 }
 
 /// Returns the provider preset every container in `opened` names, for the presets in `presets`
@@ -85,7 +78,7 @@ pub(crate) fn locate(
     archive: &Archive,
     opened: &[Opened],
     presets: &HashSet<Guid>,
-    objects: &Objects<'_>,
+    objects: &Objects,
     cancel: Option<&CancelToken>,
 ) -> Located {
     let mut entries: Vec<usize> = opened.iter().map(|container| container.entry).collect();
@@ -162,20 +155,11 @@ fn soc_of(archive: &Archive, entry: usize) -> Soc {
     let Ok(reader) = container.open_entry(soc) else {
         return Soc::Unreadable("its .soc cannot be opened");
     };
-    PresetScan::read(reader).map_or(Soc::Unreadable("its .soc cannot be read"), |preset| {
-        preset.map_or(Soc::Plain, Soc::Preset)
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_private_mining_point_is_left_for_the_object_above() {
-        assert!(is_private_mining_point("PrivateMiningPoint_01"));
-        assert!(is_private_mining_point("privateminingpoint"));
-        assert!(!is_private_mining_point("Stanton1a"));
-        assert!(!is_private_mining_point("Private"));
+    match PresetScan::read(reader) {
+        Ok(preset) => preset.map_or(Soc::Plain, Soc::Preset),
+        Err(error) if error.kind() == ErrorKind::FileTooLarge => {
+            Soc::Unreadable("its .soc is over the scan limit")
+        }
+        Err(_) => Soc::Unreadable("its .soc cannot be read"),
     }
 }

@@ -68,6 +68,8 @@ pub(crate) enum Picked<'f> {
     SkippedPaint,
     /// A Record that could not be read.
     Failed(CatalogFailure),
+    /// A warning the check of the Records found.
+    Warned(CraftingWarning),
 }
 
 impl<'f> Picked<'f> {
@@ -252,6 +254,7 @@ impl<'f> Collected<'f> {
                     collected.skip(Kind::Paints);
                 }
                 Picked::Failed(failure) => collected.failures.push(failure),
+                Picked::Warned(warning) => collected.warnings.push(warning),
             }
         }
         missing_categories.extend(collected.failures.iter().map(|failure| failure.guid));

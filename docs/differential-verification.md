@@ -70,14 +70,17 @@ A difference beside an allowed one still fails. Numbers are compared at the prec
 field P4KX read: a single as `f32`, a double exactly, an integer exactly, `-0.0` equal to `0.0`.
 Fields are sorted by name, ignoring case, and then compared by name; names, GUIDs and Record
 paths are compared case-sensitively, because StarBreaker keeps the case of all three (the LIVE
-run below passes that way). A Record of the same file that StarBreaker embeds where it is
-referenced is compared as a Reference by GUID, not by content; the number of such Records is
-reported. `crates/p4kx-extraction/tests/reference/starbreaker_json.rs` is the one place that
+run below passes that way). A Record that StarBreaker embeds where it is referenced is compared
+by content with the Record P4KX holds under that GUID: name, struct type and every field, with the
+same allow-list, and again for the Records embedded inside it. The Reference itself is compared by
+GUID first. The number of embedded Records compared is reported; for a Record that differs, it
+is the number reached before its first difference, so a lower bound. `crates/p4kx-extraction/tests/reference/starbreaker_json.rs` is the one place that
 encodes the JSON shape of StarBreaker.
 
 ## Mutation self-tests
 
-Without any variable, `mutation_bytes`, `mutation_xml` and `mutation_value` change a copy of
+Without any variable, `mutation_bytes`, `mutation_xml`, `mutation_value` and
+`mutation_embedded` change a copy of
 synthetic reference data and require every change to be detected: a byte changed, deleted or
 appended at any block; a tag, attribute, text or child renamed, changed, swapped, deleted or
 invented; an integer plus one, a single and a double by the smallest step, a boolean flipped,
@@ -88,8 +91,11 @@ difference, and that each allow-list entry applies only to its case (`mutation_a
 `mutation_xml`, `mutation_bytes`): a weak pointer, a missing Reference, an invalid bool and a
 non-finite number against every other kind of value, an array error or an unmapped kind against
 `null`, `false` against an invalid bool, a finite number against `null` or `NaN`, `BUGGED`
-against an empty value, and a difference in the case of a name, a GUID or a path. Every allowed
-value is counted, not one reason per Record or tree.
+against an empty value, and a difference in the case of a name, a GUID or a path. The content of
+an embedded Record is mutated like a Record of its own (a value, name, type or GUID changed, a
+field deleted or invented), also when it is nested inside another embedded Record, and an
+embedded Record with no Record of P4KX to compare with is a difference. Every allowed value is
+counted, not one reason per Record or tree.
 
 ## First run on LIVE 4.10, 2026-10-27
 
@@ -104,27 +110,29 @@ Reference production (one machine, tools 4.0.87 and 0.3.2):
 
 P4KX against it (release build):
 
-| Test | Compared | Equal | Different | Allowed | Time |
-|------|----------|-------|-----------|---------|------|
-| unp4k bytes | 5,842 | 5,842 | 0 | 0 | 1.8 s |
-| unforge trees | 5,728 | 5,728 | 0 | 0 | 1.8 s |
-| StarBreaker values | 62,736 | 62,162 | 0 | 574 | 17.9 s |
+| Test | Compared | Equal | Different | Allowed |
+|------|----------|-------|-----------|---------|
+| unp4k bytes | 5,842 | 5,842 | 0 | 0 |
+| unforge trees | 5,728 | 5,728 | 0 | 0 |
+| StarBreaker values | 62,736 | 62,160 | 0 | 576 |
 
-The times are of a second run on a machine shared with other builds; "Allowed" counts Records.
+"Allowed" counts Records. The StarBreaker row is the run of 2026-10-28 that compares embedded
+Records by content; the first run of 2026-10-27 compared them as a Reference by GUID and had 62,162
+equal and 574 allowed.
 
 - The 5,842 Entries are all Zstandard and unencrypted. The encrypted allowance was not exercised;
   it is covered by the mutation self-test only.
-- The 574 allowed StarBreaker Records hold 872 allowed values: 823 `null` for a Reference to a
-  Record that does not exist, in 534 Records, and 49 `null` for a weak pointer in a derived
-  type, in 40 Records. No other kind of error, no invalid bool and no non-finite number occurs,
-  so those entries were not exercised; they are covered by the mutation self-tests only.
-- 30,332 embedded Records were compared as a Reference by GUID. Names, GUIDs and Record paths
-  match case-sensitively.
+- The 576 allowed StarBreaker Records hold 929 allowed values: 880 `null` for a Reference to a
+  Record that does not exist and 49 `null` for a weak pointer in a derived type, counting those
+  inside embedded Records. No other kind of error, no invalid bool and no non-finite number
+  occurs, so those entries were not exercised; they are covered by the mutation self-tests only.
+- 55,023 embedded Records were compared by content, those nested in another embedded Record
+  included; none differs. Names, GUIDs and Record paths match case-sensitively.
 - 54,973 of the 117,709 Records have no file in the reference: StarBreaker writes the main Record
   of each file only.
-- Opening `Game2.dcb` (read, decrypt and decompress the Entry, open the DataForge) takes 0.30 s.
-  Building the Record tree of all 117,709 Records takes 0.29 s on all cores, with none failing;
+- Opening `Game2.dcb` (read, decrypt and decompress the Entry, open the DataForge) takes 0.32 s.
+  Building the Record tree of all 117,709 Records takes 0.32 s on all cores, with none failing;
   that is the tree, not the writing of JSON files.
 - The first comparison run found one error of the test itself, not of P4KX: StarBreaker embeds
-  the Record of the same file where it is referenced, which the comparison now reads as a
-  Reference.
+  the Record of the same file where it is referenced, which the comparison now reads and
+  compares by content.

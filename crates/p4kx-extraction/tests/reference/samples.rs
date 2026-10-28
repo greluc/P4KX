@@ -21,6 +21,7 @@ use super::value_tree::{JsonNumber, Node, RecordDoc};
 
 pub(crate) const SAMPLE_GUID: &str = "cbee34fd-6441-4000-b99f-924f7f26e19f";
 const SAMPLE: u128 = 0xcbee_34fd_6441_4000_b99f_924f_7f26_e19f;
+pub(crate) const OTHER_GUID: &str = "50e8a9f6-f956-4000-8ace-7c0ca9a91f5d";
 const OTHER: u128 = 0x50e8_a9f6_f956_4000_8ace_7c0c_a9a9_1f5d;
 pub(crate) const BIG: u64 = (1 << 60) + 1;
 
@@ -77,19 +78,27 @@ fn database() -> Vec<u8> {
         .build()
 }
 
+/// The Record P4KX builds from the synthetic DataForge for a GUID; `None` when there is none.
+///
+/// # Panics
+///
+/// Panics when the synthetic DataForge does not open, which is a bug of the testkit.
+#[must_use]
+pub(crate) fn resolve(guid: &str) -> Option<RecordDoc> {
+    let bytes = database();
+    let forge = DataForge::open(&bytes).expect("the synthetic DataForge opens");
+    let record = forge.record_by_guid(guid.parse().ok()?)?;
+    Some(RecordDoc::from_tree(&record.tree().ok()?))
+}
+
 /// The Record P4KX builds from the synthetic DataForge.
 ///
 /// # Panics
 ///
-/// Panics when the synthetic DataForge does not build, which is a bug of the testkit.
+/// Panics when the synthetic Record does not build, which is a bug of the testkit.
 #[must_use]
 pub(crate) fn ours() -> RecordDoc {
-    let bytes = database();
-    let forge = DataForge::open(&bytes).expect("the synthetic DataForge opens");
-    let record = forge
-        .record_by_guid(SAMPLE_GUID.parse().expect("a GUID"))
-        .expect("the synthetic Record exists");
-    RecordDoc::from_tree(&record.tree().expect("the synthetic Record builds"))
+    resolve(SAMPLE_GUID).expect("the synthetic Record builds")
 }
 
 fn number(node: &Node) -> Value {
@@ -133,6 +142,18 @@ fn value(node: &Node) -> Value {
         Node::InvalidBool => Value::Bool(true),
         Node::Error(message) | Node::Unmapped(message) => json!({ "error": message }),
     }
+}
+
+/// The JSON a reference tool writes in place of a link to `doc`: the content of the Record
+/// behind its GUID and name.
+#[must_use]
+pub(crate) fn embedded_json(doc: &RecordDoc) -> Value {
+    let mut content = value(&doc.root);
+    if let Value::Object(map) = &mut content {
+        map.insert(RECORD_ID_KEY.to_owned(), json!(doc.guid));
+        map.insert(RECORD_NAME_KEY.to_owned(), json!(doc.name));
+    }
+    content
 }
 
 /// The JSON a reference tool writes for `doc`: single precision widened to a double.

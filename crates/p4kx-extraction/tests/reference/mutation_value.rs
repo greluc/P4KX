@@ -175,6 +175,14 @@ pub(crate) fn doc_with(field: Node) -> RecordDoc {
     }
 }
 
+pub(crate) fn link(guid: &str, path: &str) -> Node {
+    Node::Reference {
+        guid: guid.to_owned(),
+        path: path.to_owned(),
+        embedded: None,
+    }
+}
+
 #[test]
 fn a_difference_next_to_an_allowed_one_still_fails() {
     let mut ours = doc_with(Node::Array(vec![Node::WeakPointer, Node::Int(1)]));
@@ -227,12 +235,4 @@ fn guids_and_field_names_are_compared_case_sensitively() {
         compare_records(&doc_with(Node::Null), &renamed),
         Compared::Different(_)
     ));
-}
-
-pub(crate) fn link(guid: &str, path: &str) -> Node {
-    Node::Reference {
-        guid: guid.to_owned(),
-        path: path.to_owned(),
-        embedded: false,
-    }
 }

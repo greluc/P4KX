@@ -135,6 +135,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/lootgeneration/filters/"],
                 type_name: "PoolFilterRecord",
             },
+            Self::MineableEntities => KindRule {
+                prefixes: &["libs/foundry/records/entities/mineable/"],
+                type_name: "EntityClassDefinition",
+            },
             Self::Paints
             | Self::Loadouts
             | Self::HarvestableLocations

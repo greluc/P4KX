@@ -24,6 +24,8 @@ pub(crate) const POINTER_KEY: &str = "_Pointer_";
 pub(crate) const POINTS_TO_PREFIX: &str = "_PointsTo_:";
 pub(crate) const FILE_PREFIX: &str = "file://";
 
+const LINK_KEYS: [&str; 3] = [RECORD_ID_KEY, RECORD_PATH_KEY, RECORD_NAME_KEY];
+
 fn number(value: &serde_json::Number) -> JsonNumber {
     value.as_i64().map_or_else(
         || {
@@ -50,6 +52,7 @@ fn string(text: &str) -> Node {
         Node::Reference {
             guid: String::new(),
             path: text.to_owned(),
+            embedded: false,
         }
     } else {
         Node::Text(text.to_owned())
@@ -68,6 +71,7 @@ pub(crate) fn node(value: &Value) -> Node {
         Value::Object(map) if map.contains_key(RECORD_ID_KEY) => Node::Reference {
             guid: text_of(map, RECORD_ID_KEY),
             path: text_of(map, RECORD_PATH_KEY),
+            embedded: map.keys().any(|key| !LINK_KEYS.contains(&key.as_str())),
         },
         Value::Object(map) => Node::Struct {
             type_name: text_of(map, TYPE_KEY),

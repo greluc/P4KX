@@ -111,11 +111,11 @@ fn number(node: &Node) -> Value {
 
 fn value(node: &Node) -> Value {
     match node {
-        Node::Null => Value::Null,
+        Node::Null | Node::Dangling => Value::Null,
         Node::Bool(flag) => Value::Bool(*flag),
         Node::Int(_) | Node::Single(_) | Node::Double(_) | Node::Number(_) => number(node),
         Node::Text(text) | Node::Guid(text) => Value::String(text.clone()),
-        Node::Reference { guid, path } => json!({
+        Node::Reference { guid, path, .. } => json!({
             RECORD_PATH_KEY: format!("file://./../{path}.json"),
             RECORD_NAME_KEY: "Target",
             RECORD_ID_KEY: guid,
@@ -130,7 +130,8 @@ fn value(node: &Node) -> Value {
             Value::Object(map)
         }
         Node::Array(items) => Value::Array(items.iter().map(value).collect()),
-        Node::Error(message) => json!({ "error": message }),
+        Node::InvalidBool => Value::Bool(true),
+        Node::Error(message) | Node::Unmapped(message) => json!({ "error": message }),
     }
 }
 

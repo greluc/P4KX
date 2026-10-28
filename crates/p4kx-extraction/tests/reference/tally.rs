@@ -13,8 +13,8 @@ pub(crate) const MAX_EXAMPLES: usize = 25;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Compared {
     Equal,
-    /// Every difference is on the allow-list; the first reason.
-    Allowed(&'static str),
+    /// Every difference is on the allow-list; the reason of each allowed value, in order.
+    Allowed(Vec<&'static str>),
     /// The first difference not on the allow-list, with its path.
     Different(String),
 }
@@ -23,7 +23,7 @@ impl Tally {
     pub(crate) fn record(&mut self, key: &str, compared: Compared) {
         match compared {
             Compared::Equal => self.equal(),
-            Compared::Allowed(reason) => self.allow(reason),
+            Compared::Allowed(reasons) => self.allow_values(&reasons),
             Compared::Different(difference) => self.different(format!("{key}: {difference}")),
         }
     }
@@ -32,13 +32,16 @@ impl Tally {
 /// The counts of one differential comparison.
 ///
 /// A difference fails the comparison unless the caller recorded it with [`Tally::allow`] under a
-/// documented reason.
+/// documented reason. `allowed` counts the allowed values per reason, `allowed_items` the items
+/// with at least one allowed value.
 #[derive(Debug, Default, Clone)]
 pub(crate) struct Tally {
     pub(crate) compared: u64,
     pub(crate) equal: u64,
     pub(crate) different: u64,
+    pub(crate) allowed_items: u64,
     pub(crate) allowed: BTreeMap<&'static str, u64>,
+    pub(crate) embedded_references: u64,
     pub(crate) missing_in_reference: u64,
     pub(crate) missing_in_archive: u64,
     examples: Vec<String>,
@@ -57,8 +60,15 @@ impl Tally {
     }
 
     pub(crate) fn allow(&mut self, reason: &'static str) {
+        self.allow_values(&[reason]);
+    }
+
+    pub(crate) fn allow_values(&mut self, reasons: &[&'static str]) {
         self.compared += 1;
-        *self.allowed.entry(reason).or_default() += 1;
+        self.allowed_items += 1;
+        for reason in reasons {
+            *self.allowed.entry(reason).or_default() += 1;
+        }
     }
 
     pub(crate) const fn missing_in_reference(&mut self) {
@@ -85,6 +95,8 @@ impl Tally {
         self.compared += other.compared;
         self.equal += other.equal;
         self.different += other.different;
+        self.allowed_items += other.allowed_items;
+        self.embedded_references += other.embedded_references;
         self.missing_in_reference += other.missing_in_reference;
         self.missing_in_archive += other.missing_in_archive;
         for (reason, count) in other.allowed {
@@ -113,17 +125,24 @@ impl Tally {
             self.compared,
             self.equal,
             self.different,
-            self.allowed.values().sum::<u64>(),
+            self.allowed_items,
             self.missing_in_reference,
             self.missing_in_archive
         );
         let reasons = self
             .allowed
             .iter()
-            .map(|(reason, count)| format!("  allowed {count}: {reason}"));
+            .map(|(reason, count)| format!("  allowed {count} values: {reason}"));
+        let embedded = (self.embedded_references > 0).then(|| {
+            format!(
+                "  {} embedded Records compared as a Reference by GUID",
+                self.embedded_references
+            )
+        });
         let examples = self.examples.iter().map(|example| format!("  {example}"));
         std::iter::once(head)
             .chain(reasons)
+            .chain(embedded)
             .chain(examples)
             .collect::<Vec<_>>()
             .join("\n")
@@ -139,7 +158,7 @@ impl Tally {
 
 #[cfg(test)]
 mod tests {
-    use super::{MAX_EXAMPLES, Tally};
+    use super::{Compared, MAX_EXAMPLES, Tally};
 
     #[test]
     fn at_most_the_example_limit_is_kept_and_a_difference_fails() {
@@ -159,6 +178,20 @@ mod tests {
         tally.missing_in_reference();
         assert!(tally.passes(), "{}", tally.summary("t"));
         assert_eq!(tally.compared, 2, "equal and allowed are compared");
+    }
+
+    #[test]
+    fn allowed_values_are_counted_per_reason_and_items_once() {
+        let mut tally = Tally::default();
+        tally.record("a", Compared::Allowed(vec!["x", "x", "y"]));
+        tally.record("b", Compared::Allowed(vec!["x"]));
+        assert_eq!(tally.compared, 2, "two items");
+        assert_eq!(tally.allowed_items, 2, "two items with allowances");
+        assert_eq!(tally.allowed.get("x"), Some(&3), "values of x");
+        assert_eq!(tally.allowed.get("y"), Some(&1), "values of y");
+        let merged = tally.clone().merge(tally);
+        assert_eq!(merged.allowed_items, 4, "merge adds items");
+        assert_eq!(merged.allowed.get("x"), Some(&6), "merge adds values");
     }
 
     #[test]

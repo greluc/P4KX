@@ -17,6 +17,9 @@ use crate::commodity::{resource_commodity, resource_type_guid};
 use crate::contract::{Blueprint, QualityQuantization};
 use crate::contract_recipe::CostLine;
 use crate::entity_selection::{Selected, select};
+use crate::harvest_config::multi_config;
+use crate::harvest_link::Links;
+use crate::harvest_preset::provider_preset;
 use crate::item::is_paint;
 use crate::playability_rules::Evidence;
 use crate::resource_group::{Groups, Listing, listing};
@@ -55,6 +58,7 @@ pub(crate) struct Scan<'o, 'a, 'f> {
     texts: &'o Texts<'f>,
     placements: &'o Placements,
     types: TypeNames<'f>,
+    links: Links<'f>,
     groups: Groups,
     evidence: Evidence,
     done: AtomicUsize,
@@ -83,6 +87,7 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             texts,
             placements,
             types: TypeNames::default(),
+            links: Links::default(),
             groups,
             evidence,
             done: AtomicUsize::new(0),
@@ -238,6 +243,9 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             Some(Selected::Entity(kind)) => kind,
         };
         let tree = trees.build(record)?;
+        if let Some(picked) = self.harvestable(kind, trees, &tree) {
+            return Ok(Some(picked));
+        }
         if kind == Kind::StarmapObjects {
             let object = starmap_object(
                 trees,
@@ -267,6 +275,31 @@ impl<'o, 'a, 'f> Scan<'o, 'a, 'f> {
             item.variant_key = item_variant::key(&tree, item.stats.as_deref());
         }
         Ok(picked)
+    }
+
+    /// Returns the provider preset or multi config `tree` describes when `kind` is one of the
+    /// kinds that follow a harvestable to its entity.
+    fn harvestable(
+        &self,
+        kind: Kind,
+        trees: &mut TreeBuilder<'f>,
+        tree: &RecordTree<'f>,
+    ) -> Option<Picked<'f>> {
+        match kind {
+            Kind::HarvestableProviderPresets => Some(Picked::Provider(provider_preset(
+                trees,
+                tree,
+                self.forge,
+                &self.links,
+            ))),
+            Kind::SubHarvestableMultiConfigs => Some(Picked::MultiConfig(multi_config(
+                trees,
+                tree,
+                self.forge,
+                &self.links,
+            ))),
+            _ => None,
+        }
     }
 
     fn resource_type(

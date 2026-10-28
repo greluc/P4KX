@@ -12,8 +12,13 @@ pub(crate) use crate::contract_crafting::{
     Blueprint, BlueprintCategory, Commodity, Ingredient, ResourceGroup,
 };
 pub(crate) use crate::contract_entities::{Item, Paint, Ship};
+pub(crate) use crate::contract_harvest::{HarvestableLocation, HarvestableProviderPreset};
+pub(crate) use crate::contract_harvest_config::SubHarvestableMultiConfig;
 pub(crate) use crate::contract_loadout::Loadout;
-pub(crate) use crate::contract_mining::{MineableElement, RefiningProcess};
+pub(crate) use crate::contract_mining::{
+    CompositionPart, MineableComposition, MineableElement, RefiningProcess,
+};
+pub(crate) use crate::contract_mining_params::MiningGlobalParams;
 pub(crate) use crate::contract_missions::ContractEntry;
 pub(crate) use crate::contract_quantization::QualityQuantization;
 pub(crate) use crate::contract_recovery::ItemRecovery;
@@ -84,6 +89,17 @@ pub(crate) struct Catalog<'a> {
     pub(crate) mineable_elements: Vec<MineableElement<'a>>,
     /// The refining processes, ordered by GUID.
     pub(crate) refining_processes: Vec<RefiningProcess<'a>>,
+    /// The mineable compositions, the elements a rock or deposit is made of, ordered by GUID.
+    pub(crate) mineable_compositions: Vec<MineableComposition<'a>>,
+    /// The mining parameters of each kind of miner, ordered by GUID.
+    pub(crate) mining_global_params: Vec<MiningGlobalParams<'a>>,
+    /// The harvestable provider presets, what a place can spawn, ordered by GUID.
+    pub(crate) harvestable_provider_presets: Vec<HarvestableProviderPreset<'a>>,
+    /// The sub harvestable multi configs, what the slots of an object can hold, ordered by GUID.
+    pub(crate) sub_harvestable_multi_configs: Vec<SubHarvestableMultiConfig<'a>>,
+    /// The containers whose `.soc` names a provider preset, with the starmap object they hang
+    /// below, ordered by preset GUID, container, system and object GUID.
+    pub(crate) harvestable_locations: Vec<HarvestableLocation>,
     /// The shops of the shop registry with kind, brand and place, ordered by `key`.
     pub(crate) shops: Vec<Shop>,
     /// The RSI store slugs that map to a ship of `ships`, with the retired ones flagged, ordered
@@ -172,6 +188,16 @@ pub(crate) struct Completeness<'a> {
     pub(crate) mineable_elements: KindCompleteness<'a>,
     /// The completeness of `refiningProcesses`.
     pub(crate) refining_processes: KindCompleteness<'a>,
+    /// The completeness of `mineableCompositions`.
+    pub(crate) mineable_compositions: KindCompleteness<'a>,
+    /// The completeness of `miningGlobalParams`.
+    pub(crate) mining_global_params: KindCompleteness<'a>,
+    /// The completeness of `harvestableProviderPresets`.
+    pub(crate) harvestable_provider_presets: KindCompleteness<'a>,
+    /// The completeness of `subHarvestableMultiConfigs`.
+    pub(crate) sub_harvestable_multi_configs: KindCompleteness<'a>,
+    /// The completeness of `harvestableLocations`.
+    pub(crate) harvestable_locations: KindCompleteness<'a>,
     /// The completeness of `shops`.
     pub(crate) shops: KindCompleteness<'a>,
     /// The completeness of `shipStoreSlugs`.
@@ -200,6 +226,11 @@ impl<'a> Completeness<'a> {
             contracts: completeness,
             mineable_elements: completeness,
             refining_processes: completeness,
+            mineable_compositions: completeness,
+            mining_global_params: completeness,
+            harvestable_provider_presets: completeness,
+            sub_harvestable_multi_configs: completeness,
+            harvestable_locations: completeness,
             shops: completeness,
             ship_store_slugs: completeness,
         }

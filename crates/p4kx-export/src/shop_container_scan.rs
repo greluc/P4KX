@@ -17,7 +17,7 @@ const SHOP_METADATA: &str = "\\metadata\\entitycomponentshop.xml";
 const EDITOR_SUFFIX: &str = "_editor.xml";
 const SHOP_TYPE: &str = "SCShop";
 const MAX_METADATA_LEN: u64 = 1 << 20;
-const MAX_SOC_LEN: u64 = 64 << 20;
+pub(crate) const MAX_SOC_LEN: u64 = 64 << 20;
 const MAX_EDITOR_LEN: u64 = 256 << 20;
 
 /// The `CryGUID`s of a container with what its `.soc` files say of each one's component.
@@ -79,7 +79,7 @@ fn combined(states: &[Component]) -> Component {
     }
 }
 
-fn read_limited(container: &Archive, entry: &Entry, limit: u64) -> Option<Vec<u8>> {
+pub(crate) fn read_limited(container: &Archive, entry: &Entry, limit: u64) -> Option<Vec<u8>> {
     if entry.uncompressed_size() > limit {
         return None;
     }

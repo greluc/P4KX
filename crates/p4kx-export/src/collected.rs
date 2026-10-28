@@ -10,9 +10,10 @@ use crate::catalog_crafting::CraftingKinds;
 use crate::commodity::commodity;
 use crate::contract::{
     Blueprint, BlueprintCategory, BlueprintPool, Commodity, ContractEntry, CraftingGlobal,
-    DismantleProcess, GameplayProperty, Item, Loadout, Manufacturer, MineableElement, Paint,
+    DismantleProcess, GameplayProperty, HarvestableLocation, HarvestableProviderPreset, Item,
+    Loadout, Manufacturer, MineableComposition, MineableElement, MiningGlobalParams, Paint,
     QualityDistribution, QualityQuantization, RefiningProcess, ResourceGroup, Ship, Shop,
-    StarmapObject,
+    StarmapObject, SubHarvestableMultiConfig,
 };
 use crate::crafting_warning::CraftingWarning;
 use crate::guid_text::CatalogGuid;
@@ -20,7 +21,8 @@ use crate::item::item;
 use crate::item_class::ClassLine;
 use crate::loadout::carries_ports;
 use crate::manufacturer::manufacturer;
-use crate::mining::{mineable_element, refining_process};
+use crate::mining::{mineable_composition, mineable_element, refining_process};
+use crate::mining_params::mining_global_params;
 use crate::paint_port::VehicleFacts;
 use crate::playability::PlayabilitySummary;
 use crate::playability_rules::Evidence;
@@ -52,6 +54,14 @@ pub(crate) enum Picked<'f> {
     Mineable(MineableElement<'f>),
     /// A refining process.
     Refining(RefiningProcess<'f>),
+    /// A mineable composition.
+    Composition(MineableComposition<'f>),
+    /// The mining parameters of a kind of miner.
+    MiningParams(MiningGlobalParams<'f>),
+    /// A harvestable provider preset.
+    Provider(HarvestableProviderPreset<'f>),
+    /// A sub harvestable multi config.
+    MultiConfig(SubHarvestableMultiConfig<'f>),
     /// A development leftover of the kind, with the GUID of its Record.
     Skipped(Kind, Guid),
     /// A development leftover that is an item and a paint.
@@ -88,6 +98,8 @@ impl<'f> Picked<'f> {
             Kind::BlueprintCategories => Self::BlueprintCategory(blueprint_category(tree, texts)),
             Kind::MineableElements => Self::Mineable(mineable_element(tree)),
             Kind::RefiningProcesses => Self::Refining(refining_process(tree, texts)),
+            Kind::MineableCompositions => Self::Composition(mineable_composition(tree, texts)),
+            Kind::MiningGlobalParams => Self::MiningParams(mining_global_params(tree)),
             Kind::Blueprints
             | Kind::GameplayProperties
             | Kind::QualityDistributions
@@ -98,6 +110,9 @@ impl<'f> Picked<'f> {
             | Kind::Loadouts
             | Kind::StarmapObjects
             | Kind::Contracts
+            | Kind::HarvestableProviderPresets
+            | Kind::SubHarvestableMultiConfigs
+            | Kind::HarvestableLocations
             | Kind::Shops => return None,
         })
     }
@@ -141,6 +156,11 @@ pub(crate) struct Collected<'f> {
     pub(crate) starmap_objects: Vec<StarmapObject<'f>>,
     pub(crate) mineable_elements: Vec<MineableElement<'f>>,
     pub(crate) refining_processes: Vec<RefiningProcess<'f>>,
+    pub(crate) mineable_compositions: Vec<MineableComposition<'f>>,
+    pub(crate) mining_global_params: Vec<MiningGlobalParams<'f>>,
+    pub(crate) harvestable_provider_presets: Vec<HarvestableProviderPreset<'f>>,
+    pub(crate) sub_harvestable_multi_configs: Vec<SubHarvestableMultiConfig<'f>>,
+    pub(crate) harvestable_locations: Vec<HarvestableLocation>,
     pub(crate) shops: Vec<Shop>,
     pub(crate) vehicles: Vec<VehicleFacts>,
     pub(crate) item_classes: ItemClassSummary,
@@ -181,6 +201,11 @@ impl<'f> Collected<'f> {
             starmap_objects: Vec::new(),
             mineable_elements: Vec::new(),
             refining_processes: Vec::new(),
+            mineable_compositions: Vec::new(),
+            mining_global_params: Vec::new(),
+            harvestable_provider_presets: Vec::new(),
+            sub_harvestable_multi_configs: Vec::new(),
+            harvestable_locations: Vec::new(),
             shops: Vec::new(),
             vehicles: Vec::new(),
             item_classes: ItemClassSummary::default(),
@@ -212,6 +237,10 @@ impl<'f> Collected<'f> {
                 Picked::Starmap(entity) => collected.starmap_objects.push(entity),
                 Picked::Mineable(entity) => collected.mineable_elements.push(entity),
                 Picked::Refining(entity) => collected.refining_processes.push(entity),
+                Picked::Composition(entity) => collected.mineable_compositions.push(entity),
+                Picked::MiningParams(entity) => collected.mining_global_params.push(entity),
+                Picked::Provider(entity) => collected.harvestable_provider_presets.push(entity),
+                Picked::MultiConfig(entity) => collected.sub_harvestable_multi_configs.push(entity),
                 Picked::Skipped(kind, guid) => {
                     if kind == Kind::BlueprintCategories {
                         missing_categories.insert(guid);
@@ -293,6 +322,14 @@ impl<'f> Collected<'f> {
             .sort_by_cached_key(|entity| entity.guid.text());
         self.refining_processes
             .sort_by_cached_key(|entity| entity.guid.text());
+        self.mineable_compositions
+            .sort_by_cached_key(|entity| entity.guid.text());
+        self.mining_global_params
+            .sort_by_cached_key(|entity| entity.guid.text());
+        self.harvestable_provider_presets
+            .sort_by_cached_key(|entity| entity.guid.text());
+        self.sub_harvestable_multi_configs
+            .sort_by_cached_key(|entity| entity.guid.text());
     }
 
     /// Returns the counts of every kind, in the order of [`Kind::ALL`].
@@ -320,6 +357,11 @@ impl<'f> Collected<'f> {
                     Kind::Contracts => self.contracts.len(),
                     Kind::MineableElements => self.mineable_elements.len(),
                     Kind::RefiningProcesses => self.refining_processes.len(),
+                    Kind::MineableCompositions => self.mineable_compositions.len(),
+                    Kind::MiningGlobalParams => self.mining_global_params.len(),
+                    Kind::HarvestableProviderPresets => self.harvestable_provider_presets.len(),
+                    Kind::SubHarvestableMultiConfigs => self.sub_harvestable_multi_configs.len(),
+                    Kind::HarvestableLocations => self.harvestable_locations.len(),
                     Kind::Shops => self.shops.len(),
                 },
                 skipped: self.skipped.get(kind.index()).copied().unwrap_or_default(),

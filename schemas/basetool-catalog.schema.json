@@ -68,6 +68,51 @@
       ],
       "type": "object"
     },
+    "AreaModifier": {
+      "description": "One modifier of an area.",
+      "properties": {
+        "geometryTagGuids": {
+          "description": "The GUIDs of the `Tag` Records of `geometries`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "groupIndex": {
+          "description": "The index in `groups` of the group the modified element is in; `null` when the weak\npointer `harvestableElement` does not point into this Record.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "harvestableIndex": {
+          "description": "The index in the group's `harvestables` of the modified element.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "modifier": {
+          "description": "`harvestableModifier`, from 0 to 2 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "geometryTagGuids",
+        "groupIndex",
+        "harvestableIndex",
+        "modifier"
+      ],
+      "type": "object"
+    },
     "ArmorStats": {
       "description": "The suit armour of an item, raw facts of `SCItemSuitArmorParams` (ADR-0072).",
       "properties": {
@@ -534,6 +579,14 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `gameplayProperties`."
         },
+        "harvestableLocations": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `harvestableLocations`."
+        },
+        "harvestableProviderPresets": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `harvestableProviderPresets`."
+        },
         "items": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `items`."
@@ -546,9 +599,17 @@
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `manufacturers`."
         },
+        "mineableCompositions": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `mineableCompositions`."
+        },
         "mineableElements": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `mineableElements`."
+        },
+        "miningGlobalParams": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `miningGlobalParams`."
         },
         "paints": {
           "$ref": "#/$defs/KindCompleteness",
@@ -585,6 +646,10 @@
         "starmapObjects": {
           "$ref": "#/$defs/KindCompleteness",
           "description": "The completeness of `starmapObjects`."
+        },
+        "subHarvestableMultiConfigs": {
+          "$ref": "#/$defs/KindCompleteness",
+          "description": "The completeness of `subHarvestableMultiConfigs`."
         }
       },
       "required": [
@@ -595,10 +660,14 @@
         "contracts",
         "dismantleProcesses",
         "gameplayProperties",
+        "harvestableLocations",
+        "harvestableProviderPresets",
         "items",
         "loadouts",
         "manufacturers",
+        "mineableCompositions",
         "mineableElements",
+        "miningGlobalParams",
         "paints",
         "qualityDistributions",
         "qualityQuantizations",
@@ -607,7 +676,73 @@
         "shipStoreSlugs",
         "ships",
         "shops",
-        "starmapObjects"
+        "starmapObjects",
+        "subHarvestableMultiConfigs"
+      ],
+      "type": "object"
+    },
+    "CompositionPart": {
+      "description": "One part of a mineable composition: an element with the range of its share.",
+      "properties": {
+        "curveExponent": {
+          "description": "`curveExponent`, from 1 to 5 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxPercentage": {
+          "description": "`maxPercentage`, from 5 to 100 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minPercentage": {
+          "description": "`minPercentage`, from 1 to 100 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mineableElementGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MineableElement` Record the Reference `mineableElement` links to; `null`\nfor a null Reference. The catalog lists the element only when it is kept."
+        },
+        "probability": {
+          "description": "`probability` that the part occurs, from 0.02 to 1 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "qualityScale": {
+          "description": "`qualityScale`, from 0.49 to 1 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "curveExponent",
+        "maxPercentage",
+        "minPercentage",
+        "mineableElementGuid",
+        "probability",
+        "qualityScale"
       ],
       "type": "object"
     },
@@ -1178,6 +1313,32 @@
       ],
       "type": "object"
     },
+    "ExplosionPool": {
+      "description": "The numbers of `mineableExplosionParams` of a [`MiningGlobalParams`] besides the default\nexplosion.",
+      "properties": {
+        "dangerPoolFactor": {
+          "description": "`dangerPoolFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "defaultVolume": {
+          "description": "`defaultVolume`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "dangerPoolFactor",
+        "defaultVolume"
+      ],
+      "type": "object"
+    },
     "FireAction": {
       "description": "One fire mode of a weapon.",
       "properties": {
@@ -1320,6 +1481,341 @@
       "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
       "type": "string"
     },
+    "HarvestableArea": {
+      "description": "One area of a provider preset.",
+      "properties": {
+        "globalModifier": {
+          "description": "`globalModifier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "modifiers": {
+          "description": "The modifiers of the area, from `modifiers` in stored order.",
+          "items": {
+            "$ref": "#/$defs/AreaModifier"
+          },
+          "type": "array"
+        },
+        "name": {
+          "description": "`debugGroupName`, e.g. `Acidic`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "objectPresetPaths": {
+          "description": "`objectPresetPaths` of the area type, in stored order.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "globalModifier",
+        "modifiers",
+        "name",
+        "objectPresetPaths"
+      ],
+      "type": "object"
+    },
+    "HarvestableElement": {
+      "description": "One `HarvestableElement` of a group.",
+      "properties": {
+        "clusteringGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `HarvestableClusterPreset` Record the Reference `clustering` links to."
+        },
+        "geometryTagGuids": {
+          "description": "The GUIDs of the `Tag` Records of `geometries`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "harvestable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarvestableLink"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the element spawns; `null` when the element names neither a harvestable nor an\nentity."
+        },
+        "relativeProbability": {
+          "description": "`relativeProbability`, from 0 to 900 on LIVE.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "setupGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the Reference `harvestableSetup` links to."
+        }
+      },
+      "required": [
+        "clusteringGuid",
+        "geometryTagGuids",
+        "harvestable",
+        "relativeProbability",
+        "setupGuid"
+      ],
+      "type": "object"
+    },
+    "HarvestableGroup": {
+      "description": "A group of harvestables of a provider preset.",
+      "properties": {
+        "groupName": {
+          "description": "`groupName`, e.g. `SpaceShip_Mineables`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "groupProbability": {
+          "description": "`groupProbability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "harvestables": {
+          "description": "The harvestables of the group, from `harvestables` in stored order.",
+          "items": {
+            "$ref": "#/$defs/HarvestableElement"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "groupName",
+        "groupProbability",
+        "harvestables"
+      ],
+      "type": "object"
+    },
+    "HarvestableLink": {
+      "description": "What a harvestable spawns, followed from the `HarvestablePreset` Record to the entity and its\nmining parameters.",
+      "properties": {
+        "entityGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the entity: `harvestableEntityClass` of the element, else `entityClass` of the\npreset."
+        },
+        "mineableCompositionGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MineableComposition` Record the entity's `MineableParams` link to; `null`\nfor an entity that is not mineable."
+        },
+        "miningGlobalParamsGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `MiningGlobalParams` Record the entity's `MineableParams` link to."
+        },
+        "presetClassName": {
+          "description": "The Record name of the `HarvestablePreset` without its type, e.g.\n`Mining_Common_Aluminum`; `null` for none or an unreadable Record.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presetGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `HarvestablePreset` Record the Reference `harvestable` links to; `null`\nwhen the element names an entity only."
+        }
+      },
+      "required": [
+        "entityGuid",
+        "mineableCompositionGuid",
+        "miningGlobalParamsGuid",
+        "presetClassName",
+        "presetGuid"
+      ],
+      "type": "object"
+    },
+    "HarvestableLocation": {
+      "description": "A place a harvestable provider preset is used: a container whose `.soc` names the preset, with\nthe starmap object it hangs below.",
+      "properties": {
+        "container": {
+          "description": "The Archive path of the container (`.socpak`).",
+          "type": "string"
+        },
+        "presetGuid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the `HarvestableProviderPreset` Record."
+        },
+        "starmapObjectGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `StarMapObject` the container hangs below: the nearest object at or above\nthe container's Child element, a private mining point left out; `null` when none."
+        },
+        "system": {
+          "description": "The folder of the star system below `Data/ObjectContainers/PU/system` that reaches the\ncontainer.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "container",
+        "presetGuid",
+        "starmapObjectGuid",
+        "system"
+      ],
+      "type": "object"
+    },
+    "HarvestableProviderPreset": {
+      "description": "A harvestable provider preset: a `HarvestableProviderPreset` Record under\n`harvestable/providerpresets`, what a place can spawn. Which places use it is in\n`harvestableLocations`.",
+      "properties": {
+        "areas": {
+          "description": "The areas of the surface, from `areas` in stored order.",
+          "items": {
+            "$ref": "#/$defs/HarvestableArea"
+          },
+          "type": "array"
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `HPP_Stanton1a`.",
+          "type": "string"
+        },
+        "groups": {
+          "description": "The groups, from `harvestableGroups` in stored order.",
+          "items": {
+            "$ref": "#/$defs/HarvestableGroup"
+          },
+          "type": "array"
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "areas",
+        "className",
+        "groups",
+        "guid",
+        "recordPath"
+      ],
+      "type": "object"
+    },
+    "HitConsistency": {
+      "description": "`hitConsistencyParams` of a [`MiningGlobalParams`].",
+      "properties": {
+        "extractionMagnitude": {
+          "description": "`extractionMagnitude`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "hitHistoryWindow": {
+          "description": "`hitHistoryWindow`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxEffectOnInstability": {
+          "description": "`maxEffectOnInstability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "minDeviation": {
+          "description": "`minDeviation`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "standardDeviationMultiplier": {
+          "description": "`standardDeviationMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "timeExponent": {
+          "description": "`timeExponent`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "extractionMagnitude",
+        "hitHistoryWindow",
+        "maxEffectOnInstability",
+        "minDeviation",
+        "standardDeviationMultiplier",
+        "timeExponent"
+      ],
+      "type": "object"
+    },
     "Ingredient": {
       "description": "One ingredient line of a blueprint: a resource or an item with its quantity.",
       "properties": {
@@ -1392,6 +1888,41 @@
         "resourceGuid",
         "slot",
         "slotKey"
+      ],
+      "type": "object"
+    },
+    "InstabilityParams": {
+      "description": "`mineableInstabilityParams` of a [`MiningGlobalParams`].",
+      "properties": {
+        "curveFactor": {
+          "description": "`instabilityCurveFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wavePeriod": {
+          "description": "`instabilityWavePeriod`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "waveVariance": {
+          "description": "`instabilityWaveVariance`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "curveFactor",
+        "wavePeriod",
+        "waveVariance"
       ],
       "type": "object"
     },
@@ -2182,6 +2713,52 @@
       ],
       "type": "object"
     },
+    "MineableComposition": {
+      "description": "A mineable composition: a `MineableComposition` Record under `mining/rockcompositionpresets`,\nthe elements one rock or deposit is made of.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type, e.g. `Asteroid_CType_Iron`.",
+          "type": "string"
+        },
+        "depositName": {
+          "$ref": "#/$defs/LocalisedText",
+          "description": "The HUD label of the deposit, from `depositName`. The localisation key and the texts are\ngame texts.",
+          "x-gameText": true
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "minimumDistinctElements": {
+          "description": "`minimumDistinctElements`, from 1 to 4 on LIVE; `null` when the Record states none.",
+          "format": "int64",
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "parts": {
+          "description": "The parts, from `compositionArray` in stored order.",
+          "items": {
+            "$ref": "#/$defs/CompositionPart"
+          },
+          "type": "array"
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "className",
+        "depositName",
+        "guid",
+        "minimumDistinctElements",
+        "parts",
+        "recordPath"
+      ],
+      "type": "object"
+    },
     "MineableElement": {
       "description": "A mineable element: a `MineableElement` Record under `mining/mineableelements`. Several\nelements may link to the same `ResourceType`, so none is picked for a commodity.",
       "properties": {
@@ -2277,6 +2854,281 @@
         "recordPath",
         "resistance",
         "resourceTypeGuid"
+      ],
+      "type": "object"
+    },
+    "MiningGlobalParams": {
+      "description": "The mining parameters of one kind of miner: a `MiningGlobalParams` Record under `mining`. Each\nnumber is that of the Record, unchanged, and `null` when the Record states none. The effects,\nsounds and the default explosion of the Record are not exported.",
+      "properties": {
+        "absorbableVolumeThreshold": {
+          "description": "`absorbableVolumeThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "cScuPerVolume": {
+          "description": "`cSCUPerVolume`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockInactivityLifetime": {
+          "description": "`childRockInactivityLifetime` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockInvulnerabilityTime": {
+          "description": "`childRockInvulnerabilityTime` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockLifeTimer": {
+          "description": "`childRockLifeTimer` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "childRockZeroGDamping": {
+          "description": "`childRockZeroGDamping`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "className": {
+          "description": "The Record name without its type, e.g. `miningglobalparamsship`.",
+          "type": "string"
+        },
+        "controlledBreakingDecayRate": {
+          "description": "`controlledBreakingDecayRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "controlledBreakingFillRate": {
+          "description": "`controlledBreakingFillRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "controlledBreakingFillRateDanger": {
+          "description": "`controlledBreakingFillRateDanger`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerBreakingDecayRate": {
+          "description": "`dangerBreakingDecayRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerBreakingFillRate": {
+          "description": "`dangerBreakingFillRate`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerBreakingFillRateExponent": {
+          "description": "`dangerBreakingFillRateExponent`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "dangerToGadgetDamage": {
+          "description": "`dangerToGadgetDamage`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "decayPerMass": {
+          "description": "`decayPerMass`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "defaultMass": {
+          "description": "`defaultMass`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "explosion": {
+          "$ref": "#/$defs/ExplosionPool",
+          "description": "`mineableExplosionParams`, without the default explosion."
+        },
+        "gadgetDestroyThreshold": {
+          "description": "`gadgetDestroyThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "gadgetDetachThreshold": {
+          "description": "`gadgetDetachThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "hitConsistency": {
+          "$ref": "#/$defs/HitConsistency",
+          "description": "`hitConsistencyParams`."
+        },
+        "instability": {
+          "$ref": "#/$defs/InstabilityParams",
+          "description": "`mineableInstabilityParams`."
+        },
+        "modifierPersistenceTime": {
+          "description": "`modifierPersistenceTime` in seconds.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowFactor": {
+          "description": "`optimalWindowFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowMaxSize": {
+          "description": "`optimalWindowMaxSize`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowSize": {
+          "description": "`optimalWindowSize`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "optimalWindowThinnessCurveFactor": {
+          "description": "`optimalWindowThinnessCurveFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "powerCapacityPerMass": {
+          "description": "`powerCapacityPerMass`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "resistanceCurveFactor": {
+          "description": "`resistanceCurveFactor`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "terrainFactorStaticThreshold": {
+          "description": "`terrainFactorStaticThreshold`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "wasteResourceTypeGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the `ResourceType` Record the Reference `wasteResourceType` links to; `null`\nfor a null Reference."
+        }
+      },
+      "required": [
+        "absorbableVolumeThreshold",
+        "cScuPerVolume",
+        "childRockInactivityLifetime",
+        "childRockInvulnerabilityTime",
+        "childRockLifeTimer",
+        "childRockZeroGDamping",
+        "className",
+        "controlledBreakingDecayRate",
+        "controlledBreakingFillRate",
+        "controlledBreakingFillRateDanger",
+        "dangerBreakingDecayRate",
+        "dangerBreakingFillRate",
+        "dangerBreakingFillRateExponent",
+        "dangerToGadgetDamage",
+        "decayPerMass",
+        "defaultMass",
+        "explosion",
+        "gadgetDestroyThreshold",
+        "gadgetDetachThreshold",
+        "guid",
+        "hitConsistency",
+        "instability",
+        "modifierPersistenceTime",
+        "optimalWindowFactor",
+        "optimalWindowMaxSize",
+        "optimalWindowSize",
+        "optimalWindowThinnessCurveFactor",
+        "powerCapacityPerMass",
+        "recordPath",
+        "resistanceCurveFactor",
+        "terrainFactorStaticThreshold",
+        "wasteResourceTypeGuid"
       ],
       "type": "object"
     },
@@ -3949,6 +4801,186 @@
       ],
       "type": "object"
     },
+    "SubHarvestable": {
+      "description": "One sub harvestable of a config.",
+      "properties": {
+        "geometryTagGuids": {
+          "description": "The GUIDs of the `Tag` Records of `geometries`, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        },
+        "harvestable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HarvestableLink"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "What the sub harvestable spawns; `null` when it names neither a harvestable nor an entity."
+        },
+        "relativeProbability": {
+          "description": "`relativeProbability`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "relativeProbabilityDeepest": {
+          "description": "`probability` of `relativeProbabilityDeepest`; `null` when there is none.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "respawnTimeMultiplier": {
+          "description": "`harvestableRespawnTimeMultiplier`.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "setupGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the Reference `harvestableSetup` links to."
+        }
+      },
+      "required": [
+        "geometryTagGuids",
+        "harvestable",
+        "relativeProbability",
+        "relativeProbabilityDeepest",
+        "respawnTimeMultiplier",
+        "setupGuid"
+      ],
+      "type": "object"
+    },
+    "SubHarvestableMultiConfig": {
+      "description": "A sub harvestable multi config: a `SubHarvestableMultiConfigRecord` Record under\n`harvestable/slotpresets`, what the slots of an object can hold by tag. Loot configs are not\nexported.",
+      "properties": {
+        "className": {
+          "description": "The Record name without its type.",
+          "type": "string"
+        },
+        "defaultConfigGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the default config links to when it is a reference; `null` for none\nor a config of another form."
+        },
+        "guid": {
+          "$ref": "#/$defs/Guid",
+          "description": "The GUID of the Record."
+        },
+        "ignoreAttachableTags": {
+          "description": "`ignoreAttachableTagsForTaggedConfigs`.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "recordPath": {
+          "description": "The record path, without `.xml`.",
+          "type": "string"
+        },
+        "taggedConfigs": {
+          "description": "The configs by tag, from `taggedConfigs` in stored order.",
+          "items": {
+            "$ref": "#/$defs/TaggedConfig"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "className",
+        "defaultConfigGuid",
+        "guid",
+        "ignoreAttachableTags",
+        "recordPath",
+        "taggedConfigs"
+      ],
+      "type": "object"
+    },
+    "TaggedConfig": {
+      "description": "One config of a [`SubHarvestableMultiConfig`] and the tags it applies to.",
+      "properties": {
+        "configGuid": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Guid"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The GUID of the Record the config links to when it is a reference; `null` for a config\nwritten out in place."
+        },
+        "initialSlotsProbability": {
+          "description": "`initialSlotsProbability` of a config written out in place.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "name": {
+          "description": "`name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "respawnTimeMultiplier": {
+          "description": "`configRespawnTimeMultiplier` of a config written out in place.",
+          "format": "float",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "subHarvestables": {
+          "description": "The sub harvestables of a config written out in place, in stored order.",
+          "items": {
+            "$ref": "#/$defs/SubHarvestable"
+          },
+          "type": "array"
+        },
+        "tagGuids": {
+          "description": "The GUIDs of the `Tag` Records of the tag list, in stored order.",
+          "items": {
+            "$ref": "#/$defs/Guid"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "configGuid",
+        "initialSlotsProbability",
+        "name",
+        "respawnTimeMultiplier",
+        "subHarvestables",
+        "tagGuids"
+      ],
+      "type": "object"
+    },
     "TractorBeamStats": {
       "description": "A tractor beam, from its `SWeaponActionFireTractorBeamParams`.",
       "properties": {
@@ -4243,6 +5275,20 @@
       },
       "type": "array"
     },
+    "harvestableLocations": {
+      "description": "The containers whose `.soc` names a provider preset, with the starmap object they hang\nbelow, ordered by preset GUID, container, system and object GUID.",
+      "items": {
+        "$ref": "#/$defs/HarvestableLocation"
+      },
+      "type": "array"
+    },
+    "harvestableProviderPresets": {
+      "description": "The harvestable provider presets, what a place can spawn, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/HarvestableProviderPreset"
+      },
+      "type": "array"
+    },
     "itemRecovery": {
       "anyOf": [
         {
@@ -4275,10 +5321,24 @@
       },
       "type": "array"
     },
+    "mineableCompositions": {
+      "description": "The mineable compositions, the elements a rock or deposit is made of, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MineableComposition"
+      },
+      "type": "array"
+    },
     "mineableElements": {
       "description": "The mineable elements, ordered by GUID. Several may link to one `ResourceType`.",
       "items": {
         "$ref": "#/$defs/MineableElement"
+      },
+      "type": "array"
+    },
+    "miningGlobalParams": {
+      "description": "The mining parameters of each kind of miner, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/MiningGlobalParams"
       },
       "type": "array"
     },
@@ -4355,6 +5415,13 @@
         "$ref": "#/$defs/StarmapObject"
       },
       "type": "array"
+    },
+    "subHarvestableMultiConfigs": {
+      "description": "The sub harvestable multi configs, what the slots of an object can hold, ordered by GUID.",
+      "items": {
+        "$ref": "#/$defs/SubHarvestableMultiConfig"
+      },
+      "type": "array"
     }
   },
   "required": [
@@ -4367,11 +5434,15 @@
     "craftingGlobal",
     "dismantleProcesses",
     "gameplayProperties",
+    "harvestableLocations",
+    "harvestableProviderPresets",
     "itemRecovery",
     "items",
     "loadouts",
     "manufacturers",
+    "mineableCompositions",
     "mineableElements",
+    "miningGlobalParams",
     "paints",
     "qualityDistributions",
     "qualityQuantizations",
@@ -4382,7 +5453,8 @@
     "ships",
     "shops",
     "source",
-    "starmapObjects"
+    "starmapObjects",
+    "subHarvestableMultiConfigs"
   ],
   "title": "P4KX Basetool catalog",
   "type": "object"

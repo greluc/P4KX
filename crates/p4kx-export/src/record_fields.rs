@@ -49,6 +49,29 @@ pub(crate) fn elements<'t, 'f>(parent: Option<&'t StructValue<'f>>, name: &str) 
     }
 }
 
+/// Returns the structs among the elements of the array the field `name` of `parent` holds, in
+/// stored order.
+pub(crate) fn structs<'t, 'f>(
+    parent: Option<&'t StructValue<'f>>,
+    name: &str,
+) -> impl Iterator<Item = &'t StructValue<'f>> + use<'t, 'f> {
+    elements(parent, name)
+        .iter()
+        .filter_map(|value| match value {
+            Value::Struct(value) => Some(value),
+            _ => None,
+        })
+}
+
+/// Returns the GUIDs of the Records the References among the elements of the array the field
+/// `name` of `parent` holds link to, in stored order.
+pub(crate) fn references(parent: Option<&StructValue<'_>>, name: &str) -> Vec<CatalogGuid> {
+    elements(parent, name)
+        .iter()
+        .filter_map(record_reference)
+        .collect()
+}
+
 /// Returns the first struct of type `type_name` among the elements of the array the field `name`
 /// of `parent` holds.
 pub(crate) fn element<'t, 'f>(

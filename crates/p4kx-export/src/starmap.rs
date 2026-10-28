@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
-use std::collections::HashMap;
-use std::sync::{Mutex, PoisonError};
-
-use p4kx_extraction::{DataForge, Guid, RecordTree, TreeBuilder};
+use p4kx_extraction::{DataForge, RecordTree, TreeBuilder};
 
 use crate::contract::StarmapObject;
 use crate::guid_text::CatalogGuid;
+use crate::memo::Memo;
 use crate::record_fields::{boolean, class_name, locale_key, reference, text};
 use crate::starmap_containers::Placements;
 use crate::texts::Texts;
@@ -18,7 +16,7 @@ const MILLI: f64 = 1000.0;
 /// The names of the type Records the starmap objects link to, each read once.
 #[derive(Default)]
 pub(crate) struct TypeNames<'f> {
-    by_guid: Mutex<HashMap<Guid, Option<&'f str>>>,
+    by_guid: Memo<Option<&'f str>>,
 }
 
 impl<'f> TypeNames<'f> {
@@ -30,21 +28,8 @@ impl<'f> TypeNames<'f> {
         forge: &'f DataForge<'f>,
         guid: CatalogGuid,
     ) -> Option<&'f str> {
-        let held = self
-            .by_guid
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .get(&guid.0)
-            .copied();
-        if let Some(name) = held {
-            return name;
-        }
-        let name = type_of(trees, forge, guid);
         self.by_guid
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .insert(guid.0, name);
-        name
+            .get_or_make(guid.0, || type_of(trees, forge, guid))
     }
 }
 

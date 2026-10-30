@@ -2,10 +2,11 @@
 // SPDX-FileCopyrightText: 2026 the P4KX contributors
 
 use super::ExportFailure;
-use super::name::{MAX_STEM_LEN, StemSet, safe_stem};
+use super::name::{StemSet, portable_stem};
 use crate::audio::{SoundVariant, SourceKind, TriggerSounds, WemLocation};
 
-const SUFFIX_RESERVE: usize = 11;
+/// The stem of a sound whose trigger name is too long for a file name.
+const FALLBACK_STEM: &str = "sound";
 
 /// Where the bytes of a WEM are: an Entry of the Archive, by position in `Archive::entries`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -91,7 +92,7 @@ pub(super) fn build(triggers: &[&TriggerSounds<'_>]) -> Plan {
             }
         }
         let several = media.len() > 1;
-        let base = safe_stem(trigger);
+        let base = portable_stem(trigger, FALLBACK_STEM);
         for (wem_id, found) in media {
             let Some(Found { origin, .. }) = found else {
                 plan.failures.push(ExportFailure {
@@ -102,9 +103,7 @@ pub(super) fn build(triggers: &[&TriggerSounds<'_>]) -> Plan {
                 continue;
             };
             let stem = if several {
-                let kept = MAX_STEM_LEN.saturating_sub(SUFFIX_RESERVE);
-                let head = base.get(..kept).unwrap_or(&base);
-                format!("{head}_{wem_id}")
+                format!("{base}_{wem_id}")
             } else {
                 base.clone()
             };

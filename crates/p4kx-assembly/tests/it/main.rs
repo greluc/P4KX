@@ -16,6 +16,7 @@ mod assembly_palettes;
 mod assembly_skin;
 mod assembly_support;
 mod audio_export_dedup;
+mod audio_export_names;
 mod audio_export_watch;
 mod audio_index;
 mod audio_limits;

@@ -22,18 +22,21 @@ their Entities from the census, by class order.
   bones. The result travels with the model as `ProvidedModel::skeleton`.
 - **Two notes, not errors.** `skeleton_missing` and `skeleton_unreadable` are Issues with
   `skipped` false: the skin is still the part's model. A key problem stays fatal.
-- **A geometry that cannot be drawn is a skipped part, also for the root.** An Entity whose own
-  geometry file is missing or unreadable (`geometry_missing`, `geometry_unreadable`, which names
-  a missing `.chrm` or `.skinm`) gives a valid GLB without meshes, or a Blender package without
-  meshes, exit code 0, and a skipped Issue that names the file. This is deliberate: no command
-  fails for a part that cannot be drawn, the Entities of one Loadout behave alike, and the output
-  file is written only when complete.
+- **The root geometry must be drawable.** When the main geometry of the Entity that `entity glb`
+  or `entity package` exports is missing (`geometry_missing`) or unreadable
+  (`geometry_unreadable`, which names a missing `.chrm` or `.skinm` too), the command fails, for
+  every Entity and not only for creatures, and writes nothing: no empty-scene GLB or package, no
+  partial file. The message names the file. The exit code follows the classes of the model
+  commands: 2 when the file is not in the Archive, 3 when it or a companion cannot be read. A
+  part below the root that cannot be drawn stays a skipped Issue and the exit code is 0, as does
+  an Entity that names no geometry at all (`no_geometry`).
 - **A creature is drawn static.** Its skins are placed in the bind pose, ADR-0224; no joints,
   weights or animations are written for an Entity.
 
 ## What the census found in LIVE
 
-Every Entity of the census exports to a valid GLB; no skeleton file of a definition is missing or
+Every Entity of the census builds into a valid GLB (those whose root geometry the Archive lacks
+are refused by the commands, above); no skeleton file of a definition is missing or
 unreadable. Causes that stay open:
 
 - Files the Archive does not hold, nothing to fix here: the skeleton of `Tauroch_*`, the skins of

@@ -156,8 +156,8 @@ fn a_creature_with_its_skeleton_exports_to_a_valid_glb_and_package() -> TestResu
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn a_creature_whose_geometry_the_archive_lacks_exports_an_empty_scene_that_names_the_file()
--> TestResult {
+fn a_creature_whose_geometry_the_archive_lacks_fails_with_exit_code_2_naming_the_file() -> TestResult
+{
     let Some(pick) = pick()?.absent else {
         return Err(
             "the Archive holds no skeleton-rooted Entity whose skeleton file is missing".into(),
@@ -165,25 +165,26 @@ fn a_creature_whose_geometry_the_archive_lacks_exports_an_empty_scene_that_names
     };
     let scratch = Scratch::new("creature-absent")?;
     let out = scratch.path().join("creature.glb");
+    let package = scratch.path().join("package");
 
-    let (report, bytes) = glb(&pick.class, &out)?;
-
-    let checked = check_glb(&bytes)?;
-    assert_eq!(checked.document.meshes().count(), 0, "{}", pick.class);
-    let issues = report["issues"].as_array().ok_or("issues")?;
-    let naming = issues.iter().any(|issue| {
-        issue["kind"] == "geometry_missing"
-            && issue["skipped"] == true
-            && issue["reason"]
-                .as_str()
-                .is_some_and(|reason| reason.contains(&pick.geometry))
-    });
-    assert!(naming, "{}: {issues:?}", pick.class);
+    for (command, target) in [("glb", &out), ("package", &package)] {
+        let mut run = p4kx_testkit::p4kx()?;
+        run.env("P4KX_ARCHIVE_KEY", real_archive_key()?.to_hex());
+        let output = run
+            .args(["entity", command])
+            .arg(real_archive_path()?)
+            .arg(&pick.class)
+            .arg("--out")
+            .arg(target)
+            .output()?;
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(2), "{command}: {stderr}");
+        assert!(stderr.contains(&pick.geometry), "{command}: {stderr}");
+        assert!(!target.exists(), "{command}: nothing is written");
+    }
     println!(
-        "{} ({}): empty scene, file named",
+        "{} ({}): exit code 2, file named",
         pick.class, pick.geometry
     );
-
-    build(&scratch, "entity", Some(&pick.class), "package", &[])?;
     Ok(())
 }

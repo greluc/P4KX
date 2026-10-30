@@ -127,81 +127,87 @@ fn a_creature_without_its_skeleton_file_is_packaged_with_a_note() -> TestResult 
     Ok(())
 }
 
-#[test]
-fn a_creature_whose_geometry_file_is_missing_is_a_valid_empty_scene_that_names_the_file()
--> TestResult {
-    let dir = tempfile::tempdir()?;
-    let archive = write_archive(dir.path(), creature("Objects/Test/absent_skel.chr"))?;
-    let out = dir.path().join("creature.glb");
+/// The geometry files of a creature (a skeleton) and of a ship-like hull.
+const ROOT_GEOMETRIES: [&str; 2] = ["Objects/Test/rig.chr", "Objects/Test/hull.cga"];
 
-    let run = glb(&archive, &out, false)?;
-
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert!(
-        run.stdout.contains(
-            "skipped TEST_Creature: the geometry Objects/Test/absent_skel.chr does not exist"
-        ),
-        "{}",
-        run.stdout
-    );
-    let checked = check_glb(&std::fs::read(&out)?)?;
-    assert_eq!(checked.document.meshes().count(), 0);
-
-    let packaged = dir.path().join("package");
-    let run = package(&archive, "TEST_Creature", &packaged, &[], true)?;
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    let report: Value = serde_json::from_str(&run.stdout)?;
-    assert_eq!(
-        issue_kinds(&report, "geometry"),
-        [("geometry_missing", true)]
-    );
-    Ok(())
-}
-
-#[test]
-fn a_creature_whose_geometry_companion_is_missing_names_the_companion() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let skin = TestModel::two_bone_skin();
-    let mut entries = creature("Objects/Test/rig.chr");
-    entries.push(TestEntry::stored(
-        "Data\\Objects\\Test\\rig.chr",
-        skin.cgf(),
-    ));
-    let archive = write_archive(dir.path(), entries)?;
-    let out = dir.path().join("creature.glb");
-
-    let run = glb(&archive, &out, false)?;
-
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert!(run.stdout.contains("rig.chrm"), "{}", run.stdout);
-    check_glb(&std::fs::read(&out)?)?;
-    Ok(())
-}
-
-#[test]
-fn a_damaged_creature_file_is_unreadable_and_leaves_no_partial_output() -> TestResult {
-    let dir = tempfile::tempdir()?;
-    let mut entries = creature("Objects/Test/rig.chr");
-    entries.push(TestEntry::stored(
-        "Data\\Objects\\Test\\rig.chr",
-        b"not a chunk file".to_vec(),
-    ));
-    let archive = write_archive(dir.path(), entries)?;
-    let out = dir.path().join("creature.glb");
-
-    let run = glb(&archive, &out, false)?;
-
-    assert_eq!(run.code, Some(0), "{}", run.stderr);
-    assert!(
-        run.stdout.contains("skipped TEST_Creature"),
-        "{}",
-        run.stdout
-    );
-    check_glb(&std::fs::read(&out)?)?;
-    let mut files: Vec<String> = std::fs::read_dir(dir.path())?
+/// Runs `entity glb` and `entity package` on an archive and checks that both fail with `code`,
+/// name `needle` on stderr and leave nothing in `dir` but the archive.
+fn assert_both_fail(dir: &Path, archive: &Path, code: i32, needle: &str) -> TestResult {
+    let run = glb(archive, &dir.join("out.glb"), false)?;
+    assert_eq!(run.code, Some(code), "{}", run.stderr);
+    assert!(run.stderr.contains(needle), "{}", run.stderr);
+    let run = package(archive, "TEST_Creature", &dir.join("package"), &[], false)?;
+    assert_eq!(run.code, Some(code), "{}", run.stderr);
+    assert!(run.stderr.contains(needle), "{}", run.stderr);
+    let mut files: Vec<String> = std::fs::read_dir(dir)?
         .map(|entry| entry.map(|entry| entry.file_name().to_string_lossy().into_owned()))
         .collect::<Result<_, _>>()?;
     files.sort();
-    assert_eq!(files, ["Data.p4k", "creature.glb"]);
+    assert_eq!(files, ["Data.p4k"], "no output, no partial file");
+    Ok(())
+}
+
+#[test]
+fn a_root_geometry_that_is_missing_fails_with_exit_code_2_naming_the_file() -> TestResult {
+    for geometry in ROOT_GEOMETRIES {
+        let dir = tempfile::tempdir()?;
+        let archive = write_archive(dir.path(), creature(geometry))?;
+
+        assert_both_fail(
+            dir.path(),
+            &archive,
+            2,
+            &format!("{geometry} does not exist"),
+        )?;
+    }
+    Ok(())
+}
+
+#[test]
+fn a_root_geometry_that_cannot_be_read_fails_with_exit_code_3_naming_the_file() -> TestResult {
+    for geometry in ROOT_GEOMETRIES {
+        let dir = tempfile::tempdir()?;
+        let mut entries = creature(geometry);
+        entries.push(TestEntry::stored(
+            format!("Data\\{}", geometry.replace('/', "\\")),
+            b"not a chunk file".to_vec(),
+        ));
+        let archive = write_archive(dir.path(), entries)?;
+
+        assert_both_fail(dir.path(), &archive, 3, geometry)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn a_root_geometry_whose_companion_is_missing_fails_naming_the_companion() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let mut entries = creature("Objects/Test/rig.chr");
+    entries.push(TestEntry::stored(
+        "Data\\Objects\\Test\\rig.chr",
+        TestModel::two_bone_skin().cgf(),
+    ));
+    let archive = write_archive(dir.path(), entries)?;
+
+    assert_both_fail(dir.path(), &archive, 3, "rig.chrm")
+}
+
+#[test]
+fn a_part_below_the_root_that_cannot_be_drawn_stays_an_issue() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let archive = write_archive(dir.path(), p4kx_testkit::assembly_entries())?;
+    let out = dir.path().join("ship.glb");
+
+    let output = p4kx_testkit::p4kx()?
+        .args(["entity", "glb"])
+        .arg(&archive)
+        .arg("TEST_Ship")
+        .arg("--out")
+        .arg(&out)
+        .output()?;
+
+    assert_eq!(output.status.code(), Some(0));
+    assert!(String::from_utf8(output.stdout)?.contains("skipped hardpoint_door"));
+    check_glb(&std::fs::read(&out)?)?;
     Ok(())
 }

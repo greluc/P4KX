@@ -47,7 +47,9 @@ The rule is ADR-0054 (amending ADR-0002):
   (#830, ADR-0242), the kinds `legacyLootTables` and `legacyLootArchetypes` (#818, ADR-0238), the
   contract fields `cooldownLayer`, `hasPersonalCooldown`, `personalCooldownTime`,
   `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`
-  (#832, ADR-0244) and the kind `crafters` (#831, ADR-0243). Later additions keep version 2 as
+  (#832, ADR-0244), the kind `crafters` (#831, ADR-0243) and the kinds `missionLocationTemplates`,
+  `contractShipSpawns` and `contractLocationQueries` with the contract fields `shipSpawns`,
+  `locationQueries` and `locationPrerequisites` (#902, ADR-0263). Later additions keep version 2 as
   long as they are additive.
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
@@ -148,6 +150,9 @@ same in every kind. Every field is always present; one that has no value is `nul
 | `missionTypes` | The mission types, the targets of `contracts[].missionTypeGuid`, ordered by GUID |
 | `missionLocalities` | The mission localities, named sets of starmap objects, ordered by GUID |
 | `contractScenarios` | The contract scenarios with the reward tiers of each faction, ordered by GUID |
+| `missionLocationTemplates` | The mission location templates with the tags a location query matches, ordered by GUID |
+| `contractShipSpawns` | The distinct ship spawn descriptions of the contracts, ordered by identifier |
+| `contractLocationQueries` | The distinct location queries of the contracts, ordered by identifier |
 | `lootTables` | The loot tables (`LootTableV3Record`) with the weighted archetypes of each, ordered by GUID |
 | `lootArchetypes` | The loot archetypes (`LootArchetypeV3Record`) with the weighted selectors of each, ordered by GUID |
 | `lootPoolFilters` | The pool filters of the loot generation, ordered by GUID |
@@ -1241,8 +1246,79 @@ the struct, `periodScenarioGuid`), each with `tiers`: `minPoints`, `badgeToAward
 (empty on LIVE) are not exported.
 
 Not exported, for want of a consumer: contract templates, mission broker entries, hauling orders,
-NPC and ship spawns, `MissionLocationTemplate` and the sandbox triggers and perks of the reputation
-Records.
+NPC spawns and the sandbox triggers and perks of the reputation Records. Ship spawns and the
+locations of contracts are described in "Ship spawns and location queries".
+
+### Ship spawns and location queries
+
+Three kinds and three contract fields (#902, ADR-0263, additive, schema version 2, no bump) state
+what a contract spawns and where it can take place, as the Archive stores it. The catalog never
+resolves what the game picks when the mission starts.
+
+On LIVE (2026-10-30) the kinds hold 564 ship spawn descriptions, 1,742 location queries and 2,092
+location templates (12 more are development leftovers, skipped). They add about 5.1 MB of JSON
+(3.0 MB templates, 0.7 MB ship spawns, 1.4 MB queries) and the three contract fields about 2.2 MB
+(7,901 ship spawn links on 2,285 entries, 8,681 location query links on 4,732 entries, 479
+location prerequisites).
+
+**Properties of a contract.** A mission property has a `missionVariableName` and a value; a
+`MissionPropertyValue_ShipSpawnDescriptions` states ships, a `MissionPropertyValue_Location` or
+`_Locations` a location. They are found at four levels, resolved like the other fields of a
+contract: the first of sub contract, contract, handler and template that states a variable wins
+(`level` names it: `subContract`, `contract`, `handler`, `template`). A property without a variable
+name is skipped. A ship spawn description without a group still takes the place of the same variable
+at a lower level and is itself left out.
+
+| Field of `contracts` | Meaning |
+|----------------------|---------|
+| `shipSpawns` | `variable`, `token` (`extendedTextToken`, `null` when empty), `level` and `poolGuid`, an entry of `contractShipSpawns`; ordered by variable |
+| `locationQueries` | `variable`, `token`, `level` and `queryGuid`, an entry of `contractLocationQueries`; ordered by variable |
+| `locationPrerequisites` | The `ContractPrerequisite_LocationProperty` prerequisites of the handler, the contract and the sub contract, in that order, as stored: `level` (`handler`, `contract`, `subContract`), `variable` (the `propertyVariableName`, a `variable` of `locationQueries`; on LIVE 4 of the 479 name a variable no query states), `token` and `locationLevelType` |
+
+**Identifiers.** The Archive gives these inline structures no GUID, so equal content shares one
+entry and its `guid` is the first 16 bytes of the SHA-256 of the canonical JSON of the content,
+written as a UUID. It is the catalog's own identifier, not a GUID of the Archive; it holds as long
+as the content does and must not be stored across a change of the description (ADR-0263). Both
+kinds are ordered by it. Every link resolves.
+
+**Ship spawn descriptions (`contractShipSpawns`).** The Archive has no ship pool Record: the game
+searches ships by tags. An entry has `allowedForMissionRestrictedDeliveries` and `groups`
+(`SpawnDescription_ShipGroup`: `name`, `null` when empty, and `slots`; a slot is a
+`SpawnDescription_ShipOptions`, the alternatives for one ship, each an `options` entry with
+`weight`, `concurrentAmount`, `includeLocationAISpawnTags`, the tag sets `tags`, `negativeTags`,
+`markupTags` and `entityTags`, `initialDamageGuid` and `namePropertyVariable`). Tags are full tag
+paths (`AI.Ship.SpawnFlags.PoweredOff`, `Ship.Model.Cutlass_Black`, `AI.Faction.Criminal`); what a
+tag means (ship, role, faction, cargo manifest, wave) is not stated by the Archive and the catalog
+does not interpret it. A weak pointer to another property of the Record (`nameProperty`) is the
+`missionVariableName` of that property, `null` when it has none. The embedded AI names of 7 groups
+are not exported.
+
+**Location queries (`contractLocationQueries`).** A query has `count` (`one` for
+`MissionPropertyValue_Location`, `many` for `_Locations` with `minLocations`, `maxLocations` and
+`failIfMinNotFound`; `null` for `one`), `logErrorOnSearchFail`, `resourceTags` and `conditions`
+(`matchConditions`, all of which a location satisfies), a closed list tagged by `condition`:
+`tagSearch` (`tagType` and `terms` with `positiveTags` and `negativeTags`), `excludeNearbyLocations`
+and `excludeDistantLocations` (`rangeKm` and `locationProperty`, a variable name),
+`excludeProperty`, `propertyTags`, `specificOrganizations`, `specificItems` and `other`
+(`structName` of a condition the catalog does not read; none on LIVE). A condition's weak pointer
+is the `missionVariableName` of the property it points to; on LIVE 83 of 431 distance conditions
+point to a property that has no variable name and have `null`. The game runs the query against the
+location templates when the mission starts, depending on the other properties of the mission
+(distance, organisation, items); the catalog exports the query as stored and never a list of
+resulting places or starmap objects. The Archive links a query to a starmap object only through the
+pickup `MissionLocality` Records (see "Contracts").
+
+**Location templates (`missionLocationTemplates`).** A `MissionLocationTemplate` Record under
+`missiondata/pu_locations` (one more of the type lies outside that folder, a test platform, and is
+not part of the kind): `guid`, `className`, `recordPath`, `disabled`, `isSecurityNetworkHost`, the
+`tags` (`generalTags`) a query matches, `producesTags`, `consumesTags` (`positiveTags` and
+`negativeTags`), `aiSpawnTags`, `names` (the `stringVariants`: `tag` and `displayName`, a game
+text) and `entityClusterMemberGuid`. Not exported: the NPC auto spawn settings, mission modules and
+limits and the security network manifest.
+
+Not exported: NPC spawn descriptions (`MissionPropertyValue_NPCSpawnDescriptions`), the
+`ObjectiveToken` structure of the templates, and SCMDB's own pools, waves and region lists, which
+are derived and not stated by the Archive.
 
 ### Starmap objects
 
@@ -1986,6 +2062,9 @@ The placeholder keys `@LOC_EMPTY`, `@LOC_PLACEHOLDER`, `@LOC_UNINITIALIZED` and 
 | `missionTypes` | `libs/foundry/records/missiontype/` | `MissionType` |
 | `missionLocalities` | `libs/foundry/records/missiondata/pu_missionlocality/` | `MissionLocality` |
 | `contractScenarios` | `libs/foundry/records/contracts/contractscenarios/` | `ScenarioProgress` |
+| `missionLocationTemplates` | `libs/foundry/records/missiondata/pu_locations/` | `MissionLocationTemplate` |
+| `contractShipSpawns` | None: derived from the properties of the contracts and their templates, no Records | |
+| `contractLocationQueries` | None: derived from the properties of the contracts and their templates, no Records | |
 | `lootTables` | `libs/foundry/records/lootgeneration/loottables/` | `LootTableV3Record` |
 | `lootArchetypes` | `libs/foundry/records/lootgeneration/lootarchetypes/` | `LootArchetypeV3Record` |
 | `lootPoolFilters` | `libs/foundry/records/lootgeneration/filters/` | `PoolFilterRecord` |

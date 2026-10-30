@@ -7,6 +7,7 @@ use serde::Serialize;
 use crate::contract::{LocalisedText, every_field_required};
 use crate::guid_text::CatalogGuid;
 use crate::mission_cooldown::CooldownLayer;
+use crate::spawn_model::{LocationPrerequisite, LocationQueryLink, ShipSpawnLink};
 
 /// A contract or one of its sub contracts, with the overrides of sub contract, contract and
 /// handler laid over the template.
@@ -96,6 +97,17 @@ pub(crate) struct ContractEntry<'a> {
     /// The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
     /// `null` when absent.
     pub(crate) abandoned_cooldown_time_variation: Option<f32>,
+    /// The ship spawn descriptions the contract states, one per `missionVariableName`, ordered by
+    /// variable: the first of sub contract, contract, handler and template that states the
+    /// variable wins; a description without a group is left out.
+    pub(crate) ship_spawns: Vec<ShipSpawnLink>,
+    /// The location queries the contract states, resolved like `shipSpawns`. The game runs a
+    /// query when the mission starts; the catalog does not.
+    pub(crate) location_queries: Vec<LocationQueryLink>,
+    /// The `ContractPrerequisite_LocationProperty` prerequisites of handler, contract and sub
+    /// contract, in that order and as stored: the contract is offered at the location the named
+    /// variable of `locationQueries` resolves to.
+    pub(crate) location_prerequisites: Vec<LocationPrerequisite>,
 }
 
 /// The level at which a reputation prerequisite is stated.

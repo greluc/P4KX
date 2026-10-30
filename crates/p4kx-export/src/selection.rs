@@ -105,6 +105,15 @@ pub enum Kind {
     MissionLocalities,
     /// Contract scenarios: `ScenarioProgress` Records under `contracts/contractscenarios`.
     ContractScenarios,
+    /// Mission location templates: `MissionLocationTemplate` Records under
+    /// `missiondata/pu_locations`, what a location query of a contract matches by tags.
+    MissionLocationTemplates,
+    /// Contract ship spawns: the distinct ship spawn descriptions the contracts state. Derived from
+    /// the contracts, so no record-path rule of its own.
+    ContractShipSpawns,
+    /// Contract location queries: the distinct location queries the contracts state. Derived from
+    /// the contracts, so no record-path rule of its own.
+    ContractLocationQueries,
     /// Loot tables: `LootTableV3Record` Records under `lootgeneration/loottables`.
     LootTables,
     /// Loot archetypes: `LootArchetypeV3Record` Records under `lootgeneration/lootarchetypes`.
@@ -132,7 +141,7 @@ pub enum Kind {
 
 impl Kind {
     /// Every kind, in the order of the catalog.
-    pub const ALL: [Self; 39] = [
+    pub const ALL: [Self; 42] = [
         Self::Manufacturers,
         Self::Items,
         Self::Ships,
@@ -164,6 +173,9 @@ impl Kind {
         Self::MissionTypes,
         Self::MissionLocalities,
         Self::ContractScenarios,
+        Self::MissionLocationTemplates,
+        Self::ContractShipSpawns,
+        Self::ContractLocationQueries,
         Self::LootTables,
         Self::LootArchetypes,
         Self::LootPoolFilters,
@@ -209,6 +221,9 @@ impl Kind {
             Self::MissionTypes => "missionTypes",
             Self::MissionLocalities => "missionLocalities",
             Self::ContractScenarios => "contractScenarios",
+            Self::MissionLocationTemplates => "missionLocationTemplates",
+            Self::ContractShipSpawns => "contractShipSpawns",
+            Self::ContractLocationQueries => "contractLocationQueries",
             Self::LootTables => "lootTables",
             Self::LootArchetypes => "lootArchetypes",
             Self::LootPoolFilters => "lootPoolFilters",
@@ -232,6 +247,7 @@ impl Kind {
                 | Self::BlueprintPools
                 | Self::DismantleProcesses
                 | Self::Contracts
+                | Self::MissionLocationTemplates
         )
     }
 
@@ -278,6 +294,8 @@ impl Kind {
                 | Self::HarvestableLocations
                 | Self::Shops
                 | Self::LootContainers
+                | Self::ContractShipSpawns
+                | Self::ContractLocationQueries
         )
     }
 }

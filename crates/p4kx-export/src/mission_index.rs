@@ -133,6 +133,11 @@ impl<'f> MissionIndex<'f> {
         Ok(index)
     }
 
+    /// Returns the tag tree of the DataForge.
+    pub(crate) const fn tags(&self) -> &TagTree {
+        &self.tags
+    }
+
     pub(crate) fn template(&self, guid: Guid) -> Option<&Template<'f>> {
         self.templates.get(&guid)
     }

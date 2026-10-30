@@ -22,7 +22,7 @@ use serde_json::Value;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-const MINIMUM: [(Kind, usize); 37] = [
+const MINIMUM: [(Kind, usize); 40] = [
     (Kind::Manufacturers, 500),
     (Kind::Items, 10_000),
     (Kind::Ships, 200),
@@ -52,6 +52,9 @@ const MINIMUM: [(Kind, usize); 37] = [
     (Kind::MissionTypes, 30),
     (Kind::MissionLocalities, 15),
     (Kind::ContractScenarios, 2),
+    (Kind::MissionLocationTemplates, 2_000),
+    (Kind::ContractShipSpawns, 400),
+    (Kind::ContractLocationQueries, 1_500),
     (Kind::LootTables, 50),
     (Kind::LootArchetypes, 30),
     (Kind::LootPoolFilters, 10),

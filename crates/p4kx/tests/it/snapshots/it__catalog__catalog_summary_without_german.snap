@@ -33,6 +33,9 @@ reputationContexts: 0 written, 0 skipped, complete
 missionTypes: 0 written, 0 skipped, complete
 missionLocalities: 0 written, 0 skipped, complete
 contractScenarios: 0 written, 0 skipped, complete
+missionLocationTemplates: 0 written, 0 skipped, complete
+contractShipSpawns: 0 written, 0 skipped, complete
+contractLocationQueries: 0 written, 0 skipped, complete
 lootTables: 0 written, 0 skipped, complete
 lootArchetypes: 0 written, 0 skipped, complete
 lootPoolFilters: 0 written, 0 skipped, complete
@@ -54,4 +57,4 @@ ships variants: 0 in 0 groups
 quality quantizations: 0 used by no ResourceType, 0 links reach no quantization
 en: 12 texts resolved, 1 unresolved, 0 placeholders
 de: 0 texts resolved, 13 unresolved, 0 placeholders, the Archive holds no global.ini
-wrote [DIR]/english-only.json: 6898 bytes, 1 Records skipped, 0 failed
+wrote [DIR]/english-only.json: 7121 bytes, 1 Records skipped, 0 failed

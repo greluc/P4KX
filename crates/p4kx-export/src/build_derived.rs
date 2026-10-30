@@ -5,13 +5,14 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use p4kx_assembly::Entities;
-use p4kx_extraction::{Archive, CancelToken, DataForge, Guid};
+use p4kx_extraction::{Archive, CancelToken, DataForge, Guid, TagTree};
 
 use crate::collected::Collected;
 use crate::contract_loadout::EntityKind;
 use crate::crafter_hosts::link_hosts;
 use crate::crafting_warning::CraftingWarning;
 use crate::loadout::{Wanted, loadouts};
+use crate::location_template;
 use crate::missions;
 use crate::paint::paints;
 use crate::texts::Texts;
@@ -32,6 +33,14 @@ pub(crate) fn add_contracts<'f>(
         options.cancel,
     )?;
     collected.add_contracts(missions.contracts, missions.skipped, missions.failures);
+    let templates = location_template::read(
+        forge,
+        texts,
+        &TagTree::build(forge),
+        options.filter,
+        options.cancel,
+    )?;
+    collected.add_spawns(templates, missions.pools);
     Ok(())
 }
 

@@ -123,6 +123,10 @@ impl Kind {
                 prefixes: &["libs/foundry/records/contracts/contractscenarios/"],
                 type_name: "ScenarioProgress",
             },
+            Self::MissionLocationTemplates => KindRule {
+                prefixes: &["libs/foundry/records/missiondata/pu_locations/"],
+                type_name: "MissionLocationTemplate",
+            },
             Self::LootTables => KindRule {
                 prefixes: &["libs/foundry/records/lootgeneration/loottables/"],
                 type_name: "LootTableV3Record",
@@ -155,6 +159,8 @@ impl Kind {
             | Self::Loadouts
             | Self::HarvestableLocations
             | Self::Shops
+            | Self::ContractShipSpawns
+            | Self::ContractLocationQueries
             | Self::LootContainers => KindRule {
                 prefixes: &[],
                 type_name: "",

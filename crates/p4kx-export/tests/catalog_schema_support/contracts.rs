@@ -18,7 +18,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "scopeName": "faction",
         "amount": 200
     }]);
-    json!([{
+    let mut entry = json!({
         "guid": "20000000-0000-4000-8000-000000000001",
         "subContractGuid": "30000000-0000-4000-8000-000000000002",
         "recordGuid": "10000000-0000-4000-8000-000000000001",
@@ -55,5 +55,33 @@ pub(super) fn contracts() -> serde_json::Value {
         "personalCooldownTimeVariation": 60.0,
         "abandonedCooldownTime": 30.0,
         "abandonedCooldownTimeVariation": null
-    }])
+    });
+    if let (Some(target), serde_json::Value::Object(links)) = (entry.as_object_mut(), spawn_links())
+    {
+        target.extend(links);
+    }
+    json!([entry])
+}
+
+fn spawn_links() -> serde_json::Value {
+    json!({
+        "shipSpawns": [{
+            "variable": "HostileShips_BP",
+            "token": null,
+            "level": "contract",
+            "poolGuid": "e1000000-0000-4000-8000-000000000001"
+        }],
+        "locationQueries": [{
+            "variable": "Location_BP",
+            "token": "Location",
+            "level": "template",
+            "queryGuid": "e2000000-0000-4000-8000-000000000001"
+        }],
+        "locationPrerequisites": [{
+            "level": "handler",
+            "variable": "Location_BP",
+            "token": null,
+            "locationLevelType": "Planet"
+        }]
+    })
 }

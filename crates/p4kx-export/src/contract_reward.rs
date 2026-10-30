@@ -23,7 +23,7 @@ pub(crate) struct FixedReward<'a> {
     pub(crate) currency: Option<&'a str>,
     /// The `reward` amount; `null` when absent.
     pub(crate) amount: Option<i64>,
-    /// The `max` amount; `null` when absent. Zero when the reward is fixed.
+    /// The `max` amount; `null` when absent. Zero when fixed.
     pub(crate) max: Option<i64>,
     /// The `plusBonuses` flag: whether the game adds bonuses on top; `null` when absent.
     pub(crate) plus_bonuses: Option<bool>,

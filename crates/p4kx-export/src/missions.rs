@@ -209,9 +209,9 @@ impl<'f> Parent<'_, 'f> {
             .and_then(|guid| index.broker(guid.0));
         let shared = Shared {
             gains: gains(self.contract, index),
-            fixed_rewards: fixed_rewards(self.contract),
             standing: Standing::read(self.handler, self.contract),
             cooldown: Cooldown::read(self.handler),
+            fixed_rewards: fixed_rewards(self.contract),
         };
         let make = |sub: Option<&StructValue<'f>>| {
             let sub_layer =
@@ -317,7 +317,6 @@ impl<'f> Parent<'_, 'f> {
             faction: self.faction(context),
             pickup_places: pickup,
             reputation_gains: shared.gains.clone(),
-            fixed_rewards: shared.fixed_rewards.clone(),
             min_standing_guid: shared.standing.min,
             max_standing_guid: shared.standing.max,
             standing_requirements: shared.standing.requirements_of(sub),
@@ -327,6 +326,7 @@ impl<'f> Parent<'_, 'f> {
             personal_cooldown_time_variation: shared.cooldown.personal_time_variation,
             abandoned_cooldown_time: shared.cooldown.abandoned_time,
             abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
+            fixed_rewards: shared.fixed_rewards.clone(),
         }
     }
 
@@ -344,9 +344,9 @@ impl<'f> Parent<'_, 'f> {
 /// of its handler.
 struct Shared<'f> {
     gains: Vec<ReputationGain<'f>>,
-    fixed_rewards: Vec<FixedReward<'f>>,
     standing: Standing,
     cooldown: Cooldown,
+    fixed_rewards: Vec<FixedReward<'f>>,
 }
 
 fn identity(structure: &StructValue<'_>) -> Option<p4kx_extraction::Guid> {

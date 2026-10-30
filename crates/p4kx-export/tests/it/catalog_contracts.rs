@@ -348,8 +348,11 @@ fn a_payout_the_contract_states_is_listed_as_stored_and_only_for_success() -> Te
     let (_, catalog) = build(None)?;
     assert_eq!(
         entry(&catalog, A, None)?["fixedRewards"],
-        json!([{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}]),
-        "the failure payout of 1000 is not listed"
+        json!([
+            {"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false},
+            {"currency": null, "amount": 7, "max": null, "plusBonuses": null}
+        ]),
+        "the failure payout of 1000 is not listed; fields the reward lacks are null"
     );
     assert_eq!(entry(&catalog, B, None)?["fixedRewards"], json!([]));
     Ok(())

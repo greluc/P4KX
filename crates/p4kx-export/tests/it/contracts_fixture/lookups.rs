@@ -19,6 +19,15 @@ fn flags(set: [bool; 5]) -> TestValue {
     )
 }
 
+pub(super) fn amount(scope: u128, reward: u128) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ReputationAmount")
+            .value("factionReputation", TestValue::Reference(FACTION))
+            .value("reputationScope", TestValue::Reference(scope))
+            .value("reward", TestValue::Reference(reward)),
+    )
+}
+
 pub(super) fn legacy(set: [bool; 5], amounts: Vec<TestValue>) -> TestValue {
     TestValue::Struct(
         TestInstance::new("ContractResult_LegacyReputation")
@@ -28,7 +37,7 @@ pub(super) fn legacy(set: [bool; 5], amounts: Vec<TestValue>) -> TestValue {
 }
 
 pub(super) fn payout(set: [bool; 5], amount: i32) -> TestValue {
-    let reward = TestInstance::new("MissionReward")
+    let reward = TestInstance::new("MissionRewardWithCurrency")
         .value("reward", TestValue::Int32(amount))
         .value("max", TestValue::Int32(0))
         .value("plusBonuses", TestValue::Bool(false))
@@ -37,6 +46,19 @@ pub(super) fn payout(set: [bool; 5], amount: i32) -> TestValue {
         TestInstance::new("ContractResult_Reward")
             .value("missionResults", flags(set))
             .value("contractReward", TestValue::Struct(reward)),
+    )
+}
+
+pub(super) fn empty_payout(set: [bool; 5]) -> TestValue {
+    TestValue::Struct(
+        TestInstance::new("ContractResult_Reward")
+            .value("missionResults", flags(set))
+            .value(
+                "contractReward",
+                TestValue::Struct(
+                    TestInstance::new("MissionReward").value("reward", TestValue::Int32(7)),
+                ),
+            ),
     )
 }
 

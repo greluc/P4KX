@@ -39,7 +39,6 @@ pub(super) fn contracts() -> serde_json::Value {
         },
         "pickupPlaces": places,
         "reputationGains": gains,
-        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}],
         "minStandingGuid": "62000000-0000-4000-8000-000000000001",
         "maxStandingGuid": null,
         "standingRequirements": [{
@@ -55,6 +54,7 @@ pub(super) fn contracts() -> serde_json::Value {
         "personalCooldownTime": 2880.0,
         "personalCooldownTimeVariation": 60.0,
         "abandonedCooldownTime": 30.0,
-        "abandonedCooldownTimeVariation": null
+        "abandonedCooldownTimeVariation": null,
+        "fixedRewards": [{"currency": "UEC", "amount": 40000, "max": 0, "plusBonuses": false}]
     }])
 }

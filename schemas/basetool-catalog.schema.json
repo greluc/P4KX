@@ -1984,7 +1984,7 @@
           ]
         },
         "max": {
-          "description": "The `max` amount; `null` when absent. Zero when the reward is fixed.",
+          "description": "The `max` amount; `null` when absent. Zero when fixed.",
           "format": "int64",
           "type": [
             "integer",

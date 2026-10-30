@@ -31,11 +31,13 @@ pub(crate) struct Item<'a> {
     pub(crate) light: Option<SceneLight>,
 }
 
-/// Lists the nodes of `assembly`, parts first, then its Interior if it has one: a group
-/// `Interior` below each Entity that names containers, below it the containers, below those their
-/// `.soc` files, models, props and lights. A node comes after its parent.
+/// Lists the nodes of `assembly`, parts first, then the bone attachments of the parts, then its
+/// Interior if it has one: a group `Interior` below each Entity that names containers, below it
+/// the containers, below those their `.soc` files, models, props and lights. A node comes after
+/// its parent.
 pub(crate) fn items(assembly: &Assembly) -> Vec<Item<'_>> {
     let mut items: Vec<Item<'_>> = assembly.parts().iter().map(part_item).collect();
+    push_attachments(&mut items, assembly);
     let Some(interior) = assembly.interior() else {
         return items;
     };
@@ -95,6 +97,29 @@ fn push_parts<'a>(
             part.local()
         };
         items.push(interior_item(part, parent, path, local));
+    }
+}
+
+/// Lists the bone attachments of the parts, each below its part.
+fn push_attachments<'a>(items: &mut Vec<Item<'a>>, assembly: &'a Assembly) {
+    for (index, attached) in assembly.attached_models() {
+        let part = assembly.parts().get(index);
+        items.push(Item {
+            kind: NodeKind::Object,
+            name: attached.name(),
+            path: join(part.map_or("", Part::path), attached.name()),
+            parent: Some(index),
+            transform: node_transform(attached.local()),
+            entity: None,
+            geometry: Some(attached.geometry()),
+            drawn: Some(Drawn {
+                model: attached.model(),
+                materials: attached.materials(),
+                palette: part.and_then(Part::palette),
+                label: attached.name(),
+            }),
+            light: None,
+        });
     }
 }
 

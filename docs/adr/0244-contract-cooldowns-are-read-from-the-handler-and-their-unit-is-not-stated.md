@@ -1,6 +1,8 @@
 # Contract cooldowns are read from the handler, and their unit is not stated
 
-Decided for issue #832. Evidence: LIVE 4.10, the Archive's DataForge field statistics.
+Decided for issue #832. Evidence: LIVE 4.10, the Archive's DataForge field statistics. Amended by
+ADR-0271: contracts and sub contracts do override the cooldown through name-keyed parameter
+overrides, so the fields resolve through the layer order of the contract facts.
 
 ## Decision
 

@@ -1172,13 +1172,17 @@
         "cooldownLayer": {
           "anyOf": [
             {
-              "$ref": "#/$defs/CooldownLayer"
+              "$ref": "#/$defs/FactLayer"
             },
             {
               "type": "null"
             }
           ],
-          "description": "The level the five cooldown fields below are read from: `handler`, the\n`defaultAvailability` of the handler, the only level that states them; `null` when it\nstates none. A contract and a sub contract share the handler's values."
+          "description": "The nearest level that states any of the five fields, `null` when none does. A field that\nlevel does not state comes from a farther level; `cooldownLayers` names each field's level."
+        },
+        "cooldownLayers": {
+          "$ref": "#/$defs/CooldownLayers",
+          "description": "The level that states each of the five fields."
         },
         "debugName": {
           "description": "The `debugName` of the contract, `null` when it has none.",
@@ -1450,6 +1454,7 @@
         "canReacceptAfterFailing",
         "contractor",
         "cooldownLayer",
+        "cooldownLayers",
         "debugName",
         "description",
         "faction",
@@ -1541,15 +1546,73 @@
       ],
       "type": "object"
     },
-    "CooldownLayer": {
-      "description": "The level of a contract that states its cooldown.",
-      "oneOf": [
-        {
-          "const": "handler",
-          "description": "The `defaultAvailability` of the handler; contracts and sub contracts state no cooldown of\ntheir own.",
-          "type": "string"
+    "CooldownLayers": {
+      "description": "The level that states each cooldown field of an entry; `null` for a field no level states.",
+      "properties": {
+        "abandonedCooldownTime": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FactLayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The level of `abandonedCooldownTime`."
+        },
+        "abandonedCooldownTimeVariation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FactLayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The level of `abandonedCooldownTimeVariation`."
+        },
+        "hasPersonalCooldown": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FactLayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The level of `hasPersonalCooldown`."
+        },
+        "personalCooldownTime": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FactLayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The level of `personalCooldownTime`."
+        },
+        "personalCooldownTimeVariation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FactLayer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The level of `personalCooldownTimeVariation`."
         }
-      ]
+      },
+      "required": [
+        "abandonedCooldownTime",
+        "abandonedCooldownTimeVariation",
+        "hasPersonalCooldown",
+        "personalCooldownTime",
+        "personalCooldownTimeVariation"
+      ],
+      "type": "object"
     },
     "CoolerStats": {
       "description": "A cooler.",
@@ -2164,7 +2227,7 @@
       "type": "object"
     },
     "FactLayer": {
-      "description": "The level that states a value of a contract.",
+      "description": "The level that states a value of a contract; the variants run from the nearest level to the\nfarthest.",
       "oneOf": [
         {
           "const": "subContract",

@@ -13,7 +13,7 @@ use crate::contract_reward::{FixedReward, fixed_rewards};
 use crate::contract_starmap::StarmapObject;
 use crate::guid_text::CatalogGuid;
 use crate::location_template::{self, LocationTemplates};
-use crate::mission_cooldown::Cooldown;
+use crate::mission_cooldown::{ContractCooldown, CooldownDefaults};
 use crate::mission_facts::{Levels, SharedFacts};
 use crate::mission_hauling_levels::HaulingLevels;
 use crate::mission_index::{Broker, MissionIndex, Template};
@@ -244,7 +244,7 @@ impl<'f> Parent<'_, 'f> {
         let shared = Shared {
             gains: gains(self.contract, index),
             standing: Standing::read(self.handler, self.contract),
-            cooldown: Cooldown::read(self.handler),
+            cooldown: CooldownDefaults::read(self.handler),
             facts: SharedFacts::read(self.handler, self.contract),
             fixed_rewards: fixed_rewards(self.contract),
         };
@@ -361,12 +361,7 @@ impl<'f> Parent<'_, 'f> {
             min_standing_guid: shared.standing.min,
             max_standing_guid: shared.standing.max,
             standing_requirements: shared.standing.requirements_of(sub),
-            cooldown_layer: shared.cooldown.layer,
-            has_personal_cooldown: shared.cooldown.has_personal,
-            personal_cooldown_time: shared.cooldown.personal_time,
-            personal_cooldown_time_variation: shared.cooldown.personal_time_variation,
-            abandoned_cooldown_time: shared.cooldown.abandoned_time,
-            abandoned_cooldown_time_variation: shared.cooldown.abandoned_time_variation,
+            cooldown: ContractCooldown::resolve(&shared.cooldown, levels),
             facts,
             ship_spawns: spawns.ship_spawns,
             location_queries: spawns.location_queries,
@@ -387,11 +382,11 @@ impl<'f> Parent<'_, 'f> {
 }
 
 /// What the entries of one contract share: the reputation it grants and requires, the cooldown
-/// of its handler and its facts.
+/// defaults of its handler and its facts.
 struct Shared<'f> {
     gains: Vec<ReputationGain<'f>>,
     standing: Standing,
-    cooldown: Cooldown,
+    cooldown: CooldownDefaults,
     facts: SharedFacts,
     fixed_rewards: Vec<FixedReward<'f>>,
 }

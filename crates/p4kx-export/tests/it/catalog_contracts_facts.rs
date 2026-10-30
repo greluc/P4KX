@@ -14,17 +14,17 @@ use serde_json::{Value, json};
 use crate::catalog_contracts::{TestResult, entry};
 use crate::facts_fixture;
 
-const BARE: &str = "21000000-0000-4000-8000-000000000001";
-const OVERRIDDEN: &str = "21000000-0000-4000-8000-000000000002";
+pub(crate) const BARE: &str = "21000000-0000-4000-8000-000000000001";
+pub(crate) const OVERRIDDEN: &str = "21000000-0000-4000-8000-000000000002";
 const INTRO: &str = "21000000-0000-4000-8000-000000000003";
 const GATED: &str = "21000000-0000-4000-8000-000000000004";
 const STRIPPED: &str = "21000000-0000-4000-8000-000000000006";
-const SUB: &str = "22000000-0000-4000-8000-000000000001";
-const SUB_DIRECT: &str = "22000000-0000-4000-8000-000000000002";
+pub(crate) const SUB: &str = "22000000-0000-4000-8000-000000000001";
+pub(crate) const SUB_DIRECT: &str = "22000000-0000-4000-8000-000000000002";
 const TAG: &str = "23000000-0000-4000-8000-000000000001";
 const FAIL_TAG: &str = "23000000-0000-4000-8000-000000000002";
 
-fn catalog() -> Result<Value, Box<dyn Error>> {
+pub(crate) fn catalog() -> Result<Value, Box<dyn Error>> {
     let dir = tempfile::tempdir()?;
     let archive = Archive::open_with_key(
         facts_fixture::write_archive(dir.path())?,
@@ -40,7 +40,7 @@ fn at(value: impl Into<Value>, layer: &str) -> Value {
     json!({"value": value.into(), "layer": layer})
 }
 
-fn assert_fields(entry: &Value, expected: &Value) {
+pub(crate) fn assert_fields(entry: &Value, expected: &Value) {
     for (field, value) in expected.as_object().into_iter().flatten() {
         assert_eq!(&entry[field], value, "{field}");
     }

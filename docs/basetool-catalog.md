@@ -54,7 +54,8 @@ The rule is ADR-0054 (amending ADR-0002):
   ADR-0265), and the kinds `missionLocationTemplates`, `contractShipSpawns` and
   `contractLocationQueries` with the contract fields `shipSpawns`, `locationQueries` and
   `locationPrerequisites` (#902, ADR-0266). Later additions keep version 2 as long as they are
-  additive. The contract field `fixedRewards` (#888, ADR-0268) is one.
+  additive. The contract field `fixedRewards` (#888, ADR-0268) is one, and so is `cooldownLayers`
+  (#909, ADR-0271).
 - **A production import takes catalogs of the Channel `LIVE` only.** `PTU`, `EPTU`, `TECH-PREVIEW`
   and `HOTFIX` are confidential test Channels (ADR-0038).
 
@@ -1088,7 +1089,8 @@ that the rule on equal `guid` and `subContractGuid` above drops.
 | `reputationGains` | The reputation granted on success; an amount may be negative |
 | `minStandingGuid`, `maxStandingGuid` | The `minStanding` and `maxStanding` of the contract: the standings between which it is offered, entries of `reputationStandings`; `null` when absent. A sub contract shares the contract's |
 | `standingRequirements` | The reputation prerequisites (see "Standing") |
-| `cooldownLayer` | The level that states the cooldown fields: `handler`; `null` when none is stated (see "Cooldowns") |
+| `cooldownLayer` | The nearest level that states any cooldown field: `subContract`, `contract` or `handler`; `null` when none is stated (see "Cooldowns") |
+| `cooldownLayers` | The level of each of the five cooldown fields, `hasPersonalCooldown`, `personalCooldownTime`, `personalCooldownTimeVariation`, `abandonedCooldownTime` and `abandonedCooldownTimeVariation`: `subContract`, `contract` or `handler`; `null` for a field no level states |
 | `hasPersonalCooldown` | The `hasPersonalCooldown` flag, `null` when absent |
 | `personalCooldownTime`, `personalCooldownTimeVariation` | The personal cooldown and its variation, as stored (unit: see "Cooldowns"); `null` when absent |
 | `abandonedCooldownTime`, `abandonedCooldownTimeVariation` | The cooldown after the contract was abandoned and its variation, as stored; `null` when absent |
@@ -1218,12 +1220,16 @@ have a range, always both ends; 638 entries have requirements (607 at the contra
 contract, 21 at a handler; 145 with `exclude`). The Wikelo contracts have a requirement and no
 range.
 
-**Cooldowns (ADR-0244).** Blueprints have no lockout of their own; they are rewards of contracts,
-and the contracts carry the cooldowns. The five fields are read from the `defaultAvailability` of
-the handler (`ContractGeneratorHandler_*`, all handler types), and a contract and each of its sub
-contracts share them. Contracts and sub contracts state no cooldown field of their own on LIVE 4.10,
-so the catalog reads the handler only; `cooldownLayer` is `handler` when the handler states any of
-the five and `null` otherwise. A nearer layer would be added if the game ever states one. The
+**Cooldowns (ADR-0244, ADR-0271).** Blueprints have no lockout of their own; they are rewards of
+contracts, and the contracts carry the cooldowns. Each of the five fields resolves like the contract
+facts: the nearest of the sub contract, the contract and the handler that overrides the parameter
+of the same name (`HasPersonalCooldown`, `PersonalCooldownTime`, `PersonalCooldownTimeVariation`,
+`AbandonedCooldownTime`, `AbandonedCooldownTimeVariation`; case is ignored; a bool, integer or float
+override), else the `defaultAvailability` of the handler (`ContractGeneratorHandler_*`, all handler
+types). The overrides are partial, so one entry can take its fields from different levels:
+`cooldownLayers` names the level of each, and `cooldownLayer` is the nearest of them, `null` when no
+level states any. On LIVE 4.10, 215 entries take a field from the contract's overrides, 6 from
+the sub contract's, and 4,954 from the handler alone; the overrides are integers. The
 numbers are as stored, in floating point. The Archive does not state their unit: no
 type, attribute or game text shows it. The range (`personalCooldownTime` up to 2880,
 `abandonedCooldownTime` up to 60 on the `Career` handlers) fits minutes, 2880 being 48 hours, but

@@ -5,60 +5,133 @@ use p4kx_extraction::StructValue;
 use schemars::JsonSchema;
 use serde::Serialize;
 
+use crate::contract::every_field_required;
+use crate::contract_facts::FactLayer;
+use crate::mission_facts::{Levels, at, stated};
 use crate::mission_layers::one;
 use crate::record_fields::{boolean, single};
 
-/// The level of a contract that states its cooldown.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub(crate) enum CooldownLayer {
-    /// The `defaultAvailability` of the handler; contracts and sub contracts state no cooldown of
-    /// their own.
-    Handler,
-}
+const HAS_PERSONAL: &str = "HasPersonalCooldown";
+const PERSONAL_TIME: &str = "PersonalCooldownTime";
+const PERSONAL_TIME_VARIATION: &str = "PersonalCooldownTimeVariation";
+const ABANDONED_TIME: &str = "AbandonedCooldownTime";
+const ABANDONED_TIME_VARIATION: &str = "AbandonedCooldownTimeVariation";
 
-/// The cooldown fields of a `defaultAvailability`, as stored.
+/// The cooldown fields of a handler's `defaultAvailability`, as stored: the base the parameter
+/// overrides of the contract levels are laid over.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub(crate) struct Cooldown {
-    /// The level that states the fields, `None` when it states none.
-    pub(crate) layer: Option<CooldownLayer>,
-    /// `hasPersonalCooldown`.
-    pub(crate) has_personal: Option<bool>,
-    /// `personalCooldownTime`.
-    pub(crate) personal_time: Option<f32>,
-    /// `personalCooldownTimeVariation`.
-    pub(crate) personal_time_variation: Option<f32>,
-    /// `abandonedCooldownTime`.
-    pub(crate) abandoned_time: Option<f32>,
-    /// `abandonedCooldownTimeVariation`.
-    pub(crate) abandoned_time_variation: Option<f32>,
+pub(crate) struct CooldownDefaults {
+    has_personal: Option<bool>,
+    personal_time: Option<f32>,
+    personal_time_variation: Option<f32>,
+    abandoned_time: Option<f32>,
+    abandoned_time_variation: Option<f32>,
 }
 
-impl Cooldown {
-    /// Reads the cooldown of `handler`; the layer is `None` when its `defaultAvailability` states
-    /// none of the five fields.
+impl CooldownDefaults {
+    /// Reads the cooldown fields of `handler`.
     pub(crate) fn read(handler: &StructValue<'_>) -> Self {
         let availability = one(Some(handler), "defaultAvailability");
-        let cooldown = Self {
-            layer: Some(CooldownLayer::Handler),
+        Self {
             has_personal: boolean(availability, "hasPersonalCooldown"),
             personal_time: single(availability, "personalCooldownTime"),
             personal_time_variation: single(availability, "personalCooldownTimeVariation"),
             abandoned_time: single(availability, "abandonedCooldownTime"),
             abandoned_time_variation: single(availability, "abandonedCooldownTimeVariation"),
-        };
-        if cooldown.states_any() {
-            cooldown
-        } else {
-            Self::default()
         }
     }
+}
 
-    const fn states_any(&self) -> bool {
-        self.has_personal.is_some()
-            || self.personal_time.is_some()
-            || self.personal_time_variation.is_some()
-            || self.abandoned_time.is_some()
-            || self.abandoned_time_variation.is_some()
+/// The level that states each cooldown field of an entry; `null` for a field no level states.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct CooldownLayers {
+    /// The level of `hasPersonalCooldown`.
+    pub(crate) has_personal_cooldown: Option<FactLayer>,
+    /// The level of `personalCooldownTime`.
+    pub(crate) personal_cooldown_time: Option<FactLayer>,
+    /// The level of `personalCooldownTimeVariation`.
+    pub(crate) personal_cooldown_time_variation: Option<FactLayer>,
+    /// The level of `abandonedCooldownTime`.
+    pub(crate) abandoned_cooldown_time: Option<FactLayer>,
+    /// The level of `abandonedCooldownTimeVariation`.
+    pub(crate) abandoned_cooldown_time_variation: Option<FactLayer>,
+}
+
+/// The cooldown of an entry. Each field is read from the nearest of the sub contract, the
+/// contract and the handler that overrides the parameter of the same name (case is ignored), else
+/// from the handler's `defaultAvailability`; a field no level states is `null`. The values are as
+/// stored; the Archive does not state their unit.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[schemars(transform = every_field_required)]
+pub(crate) struct ContractCooldown {
+    /// The nearest level that states any of the five fields, `null` when none does. A field that
+    /// level does not state comes from a farther level; `cooldownLayers` names each field's level.
+    pub(crate) cooldown_layer: Option<FactLayer>,
+    /// The level that states each of the five fields.
+    pub(crate) cooldown_layers: CooldownLayers,
+    /// Whether the contract has a personal cooldown (`hasPersonalCooldown`), `null` when absent.
+    pub(crate) has_personal_cooldown: Option<bool>,
+    /// The `personalCooldownTime`, as stored; `null` when absent. The Archive does not state the
+    /// unit; the value range (up to 2880) fits minutes.
+    pub(crate) personal_cooldown_time: Option<f32>,
+    /// The `personalCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
+    /// `null` when absent.
+    pub(crate) personal_cooldown_time_variation: Option<f32>,
+    /// The `abandonedCooldownTime`, as stored: the cooldown after the player abandons the
+    /// contract, in the unit of `personalCooldownTime`; `null` when absent.
+    pub(crate) abandoned_cooldown_time: Option<f32>,
+    /// The `abandonedCooldownTimeVariation`, as stored, in the unit of `personalCooldownTime`;
+    /// `null` when absent.
+    pub(crate) abandoned_cooldown_time_variation: Option<f32>,
+}
+
+impl ContractCooldown {
+    /// Resolves the cooldown of the entry with the layers `levels` over `defaults`.
+    pub(crate) fn resolve(defaults: &CooldownDefaults, levels: &Levels<'_, '_>) -> Self {
+        let handler = |value: Option<f32>| value.map(|value| at(value, FactLayer::Handler));
+        let time = |name: &str, base: Option<f32>| {
+            stated(levels, |layer| layer.number_param(name), handler(base))
+        };
+        let has_personal = stated(
+            levels,
+            |layer| layer.bool_param(HAS_PERSONAL),
+            defaults
+                .has_personal
+                .map(|value| at(value, FactLayer::Handler)),
+        );
+        let personal_time = time(PERSONAL_TIME, defaults.personal_time);
+        let personal_time_variation =
+            time(PERSONAL_TIME_VARIATION, defaults.personal_time_variation);
+        let abandoned_time = time(ABANDONED_TIME, defaults.abandoned_time);
+        let abandoned_time_variation =
+            time(ABANDONED_TIME_VARIATION, defaults.abandoned_time_variation);
+        let cooldown_layers = CooldownLayers {
+            has_personal_cooldown: has_personal.map(|stated| stated.layer),
+            personal_cooldown_time: personal_time.map(|stated| stated.layer),
+            personal_cooldown_time_variation: personal_time_variation.map(|stated| stated.layer),
+            abandoned_cooldown_time: abandoned_time.map(|stated| stated.layer),
+            abandoned_cooldown_time_variation: abandoned_time_variation.map(|stated| stated.layer),
+        };
+        Self {
+            cooldown_layer: [
+                cooldown_layers.has_personal_cooldown,
+                cooldown_layers.personal_cooldown_time,
+                cooldown_layers.personal_cooldown_time_variation,
+                cooldown_layers.abandoned_cooldown_time,
+                cooldown_layers.abandoned_cooldown_time_variation,
+            ]
+            .into_iter()
+            .flatten()
+            .min(),
+            cooldown_layers,
+            has_personal_cooldown: has_personal.map(|stated| stated.value),
+            personal_cooldown_time: personal_time.map(|stated| stated.value),
+            personal_cooldown_time_variation: personal_time_variation.map(|stated| stated.value),
+            abandoned_cooldown_time: abandoned_time.map(|stated| stated.value),
+            abandoned_cooldown_time_variation: abandoned_time_variation.map(|stated| stated.value),
+        }
     }
 }

@@ -8,8 +8,9 @@ use crate::contract::every_field_required;
 use crate::contract_missions::StandingLevel;
 use crate::guid_text::CatalogGuid;
 
-/// The level that states a value of a contract.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+/// The level that states a value of a contract; the variants run from the nearest level to the
+/// farthest.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum FactLayer {
     /// The parameter overrides of the sub contract.

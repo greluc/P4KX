@@ -27,14 +27,14 @@ fn print_line(line: &str) {
 
 #[test]
 #[ignore = "real Archive: set P4KX_DATA_P4K and pass --ignored"]
-fn contracts_of_a_real_archive_carry_the_cooldown_of_their_handler() -> TestResult {
+fn contracts_of_a_real_archive_carry_a_cooldown() -> TestResult {
     let archive = Archive::open_with_key(real_archive_path()?, Some(real_archive_key()?))?;
     let built = build_catalog(&archive, &CatalogOptions::new(SystemTime::now()))?;
     let catalog: Value = serde_json::from_slice(built.json())?;
     let contracts = catalog["contracts"].as_array().ok_or("contracts")?;
     let stated: Vec<&Value> = contracts
         .iter()
-        .filter(|entry| entry["cooldownLayer"] == "handler")
+        .filter(|entry| !entry["cooldownLayer"].is_null())
         .collect();
     print_line(&format!(
         "{} of {} contracts state a cooldown",

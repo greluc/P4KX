@@ -20,6 +20,7 @@ NODRAW_SHADERS = frozenset({"nodraw", "nodraw_proxy", "proxy"})
 MAX_BLENDED_LAYERS = 4
 MASKED_LAYERS = 4
 TINT_PALETTE_DECAL = "$TintPaletteDecal"
+PER_VERTEX_TINT = "PER_VERTEX_TINT"
 MAX_PROPERTIES = 64
 METAL_FROM = 0.15
 METAL_TO = 0.5

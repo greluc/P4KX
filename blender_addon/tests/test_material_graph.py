@@ -255,6 +255,43 @@ def test_glass_decal_hologram_and_nodraw() -> None:
     assert nodraw.kinds() == {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
 
 
+def test_per_vertex_tint_glass_takes_its_colour_from_the_vertex_colours() -> None:
+    graph = single([description("x0001", "GlassPBR", gen_mask=["NORMAL_MAP", "PER_VERTEX_TINT"])])
+    colours = graph.linked("bsdf", "Base Color")
+    assert colours is not None
+    assert graph.node(colours.key).kind == "ShaderNodeVertexColor"
+    assert graph.node("bsdf").inputs["Transmission Weight"] == 1.0
+    assert graph.alpha_mode == "blend"
+
+
+def test_per_vertex_tint_glass_multiplies_the_vertex_colours_with_its_colour() -> None:
+    raw = description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], diffuse=[0.5, 0.25, 1.0])
+    graph = single([raw])
+    tint = graph.linked("bsdf", "Base Color")
+    assert tint is not None
+    mix = graph.node(tint.key)
+    assert (mix.kind, mix.props["blend_type"]) == ("ShaderNodeMix", "MULTIPLY")
+    vertex = graph.linked(tint.key, "A")
+    assert vertex is not None
+    assert graph.node(vertex.key).kind == "ShaderNodeVertexColor"
+    assert mix.inputs["B"] == (0.5, 0.25, 1.0)
+
+
+def test_per_vertex_tint_glass_with_a_palette_colour_tints_that_colour() -> None:
+    raw = description("x0001", "GlassPBR", gen_mask=["PER_VERTEX_TINT"], palette="glass")
+    graph = single([raw], palette=load().palettes["p0001"])
+    tint = graph.linked("bsdf", "Base Color")
+    assert tint is not None
+    assert graph.node(tint.key).inputs["B"] == (0.2, 0.3, 0.4)
+
+
+def test_glass_without_per_vertex_tint_and_other_shaders_ignore_the_vertex_colours() -> None:
+    clear = single([description("x0001", "GlassPBR", gen_mask=["NORMAL_MAP"])])
+    assert clear.node("bsdf").inputs["Base Color"] == (1.0, 1.0, 1.0)
+    illum = single([description("x0001", "Illum", gen_mask=["PER_VERTEX_TINT"])])
+    assert "ShaderNodeVertexColor" not in illum.kinds()
+
+
 NODRAW_KINDS = {"ShaderNodeBsdfTransparent", "ShaderNodeOutputMaterial"}
 
 

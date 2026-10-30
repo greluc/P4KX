@@ -20,6 +20,7 @@ from .material_surface import (
     NEUTRAL_SMOOTHNESS,
     NEUTRAL_SMOOTHNESS_SHADERS,
     PARAM_PREFIX,
+    PER_VERTEX_TINT,
     SPECULAR_LEVEL_PER_F0,
     TINT_PALETTE_DECAL,
     BuildContext,
@@ -287,14 +288,24 @@ class _Maker(LayerBlending):
             return opacity if opacity < 1.0 else None
         return source if opacity == 1.0 else b.math("MULTIPLY", source, opacity)
 
+    def _glass_colour(self, colour: Ref | Colour) -> Ref | Colour:
+        """Returns the transmission colour of glass: palette colour, times the vertex colours if tinted."""
+        desc, b = self.desc, self.builder
+        if desc.palette == "glass" and self.context.palette:
+            colour = self.context.palette.glass
+        if PER_VERTEX_TINT not in desc.gen_mask:
+            return colour
+        vertex = Ref(b.add("ShaderNodeVertexColor"), "Color")
+        return vertex if colour == WHITE else b.mix(vertex, colour, 1.0, blend="MULTIPLY")
+
     def _principled(self, surface: Surface) -> None:
         desc, b = self.desc, self.builder
         bsdf = b.add("ShaderNodeBsdfPrincipled", key="bsdf")
         out = b.add("ShaderNodeOutputMaterial", key="output")
         b.link(Ref(bsdf, "BSDF"), out, "Surface")
         colour = surface.colour
-        if self.family == "glass" and desc.palette == "glass" and self.context.palette:
-            colour = self.context.palette.glass
+        if self.family == "glass":
+            colour = self._glass_colour(colour)
         b.put(bsdf, "Base Color", colour)
         b.put(bsdf, "Roughness", surface.roughness)
         if surface.normal is not None:
